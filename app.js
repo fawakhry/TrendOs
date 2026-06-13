@@ -1,9 +1,13 @@
 const CONFIG = window.TRENDOS_CONFIG || {};
+const AUTO_REFRESH_MS = 10000;
+
 let currentUser = null;
 let currentScreen = null;
 let rowsCache = [];
 let customerSearchTimer = null;
 let forcedPasswordChange = false;
+let refreshTimer = null;
+let isLoadingRows = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -32,7 +36,7 @@ function bindEvents(){
   $("loginBtn").addEventListener("click", login);
   $("password").addEventListener("keydown", e => { if(e.key === "Enter") login(); });
   $("logoutBtn").addEventListener("click", logout);
-  $("refreshBtn").addEventListener("click", loadRows);
+  $("refreshBtn").addEventListener("click", () => loadRows(true));
   $("changePassBtn").addEventListener("click", () => openPasswordModal(false));
   $("cancelPassBtn").addEventListener("click", () => { if(!forcedPasswordChange) closePasswordModal(); });
   $("savePassBtn").addEventListener("click", changePassword);
@@ -43,6 +47,10 @@ function bindEvents(){
   $("tableSearch").addEventListener("input", applyTableFilters);
   $("statusFilter").addEventListener("change", applyTableFilters);
   $("priorityFilter").addEventListener("change", applyTableFilters);
+
+  document.addEventListener("visibilitychange", () => {
+    if(!document.hidden && currentUser) loadRows(true);
+  });
 }
 
 function api(params){
@@ -74,7 +82,7 @@ function api(params){
       reject(new Error("فشل الاتصال بالسيرفر. تأكد من رابط Apps Script وصلاحيات Web App."));
     };
 
-    script.src = CONFIG.apiUrl + "?" + query;
+    script.src = CONFIG.apiUrl + "?" + query + "&_t=" + Date.now();
     document.body.appendChild(script);
 
     setTimeout(() => {
@@ -118,6 +126,7 @@ async function login(){
 }
 
 function logout(){
+  stopAutoRefresh();
   localStorage.removeItem("trendos_user");
   currentUser = null;
   location.reload();
@@ -134,6 +143,19 @@ function showMain(){
   if(!SCREENS[currentScreen]) currentScreen = "service";
 
   setScreen(currentScreen);
+  startAutoRefresh();
+}
+
+function startAutoRefresh(){
+  stopAutoRefresh();
+  refreshTimer = setInterval(() => {
+    if(currentUser && !document.hidden) loadRows(false);
+  }, AUTO_REFRESH_MS);
+}
+
+function stopAutoRefresh(){
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = null;
 }
 
 function allowedScreens(){
@@ -175,11 +197,14 @@ function setScreen(screen){
     $("addOrderCard").classList.add("hidden");
   }
 
-  loadRows();
+  loadRows(true);
 }
 
-async function loadRows(){
-  $("loadingText").textContent = "جاري التحميل...";
+async function loadRows(showLoading){
+  if(isLoadingRows || !currentUser) return;
+  isLoadingRows = true;
+
+  if(showLoading) $("loadingText").textContent = "جاري التحميل...";
 
   try{
     const data = await api({
@@ -195,9 +220,15 @@ async function loadRows(){
     renderCurrentOrder(rowsCache);
     renderStats(rowsCache);
     applyTableFilters();
-    $("loadingText").textContent = `عدد البنود: ${rowsCache.length}`;
+
+    const now = new Date();
+    $("loadingText").textContent = `عدد البنود: ${rowsCache.length} | آخر تحديث: ${now.toLocaleTimeString("ar-EG")}`;
+    $("liveStatus").textContent = "التحديث اللحظي يعمل - آخر مزامنة " + now.toLocaleTimeString("ar-EG");
   }catch(e){
     $("loadingText").textContent = e.message;
+    $("liveStatus").textContent = "تعذر التحديث اللحظي: " + e.message;
+  }finally{
+    isLoadingRows = false;
   }
 }
 
@@ -210,11 +241,9 @@ function priorityRank(p){
 
 function sortRows(rows){
   return [...rows].sort((a,b)=>{
-    // عاجل أولاً
     const p = priorityRank(a.priority) - priorityRank(b.priority);
     if(p !== 0) return p;
 
-    // بعد ذلك الأقدم ثم الأحدث حسب ترتيب الصف في الشيت
     const ar = Number(a.rowNumber || 0);
     const br = Number(b.rowNumber || 0);
     if(ar && br) return ar - br;
@@ -228,16 +257,13 @@ function currentOrderDepartments(){
   const role = String(currentUser?.role || "").trim();
   const dept = String(currentUser?.department || "").trim();
 
-  // قواعد خاصة حسب الأسماء
   if(name.includes("ريفان")) return ["طباعة"];
   if(name.includes("رحمه") || name.includes("رحمة") || name.includes("ضياء")) return ["طباعة", "ليزر"];
 
-  // قواعد حسب الصلاحية والقسم
   if(role === "print" || dept.includes("طباعة")) return ["طباعة"];
   if(role === "laser" || dept.includes("ليزر")) return ["ليزر"];
   if(role === "press" || dept.includes("مكبس")) return ["مكبس"];
 
-  // الإدارة وخدمة العملاء
   if(role === "admin" || role === "service") return ["طباعة", "ليزر"];
 
   return ["طباعة"];
@@ -388,20 +414,11 @@ async function updateRow(row, tr){
 
     if(!data.success) throw new Error(data.message || "فشل الحفظ.");
 
-    row.status = status;
-    row.notes = notes;
-
     btn.textContent = "تم";
-    setTimeout(()=>{
-      btn.textContent="حفظ";
-      btn.disabled=false;
-      rowsCache = sortRows(rowsCache);
-      renderCurrentOrder(rowsCache);
-      renderStats(rowsCache);
-      applyTableFilters();
-    }, 600);
+    await loadRows(false); // تحديث فوري بعد حفظ الحالة
   }catch(e){
     alert(e.message);
+  }finally{
     btn.textContent="حفظ";
     btn.disabled=false;
   }
@@ -421,7 +438,6 @@ function suggestAssignedTo(){
 
 function handleCustomerInput(){
   const q = $("newCustomerName").value.trim();
-
   clearTimeout(customerSearchTimer);
 
   if(q.length < 1){
@@ -521,7 +537,6 @@ async function createManualOrder(){
     if(!data.success){
       msg.textContent = "لم يتم تسجيل الأوردر: " + (data.message || "خطأ غير معروف.");
       msg.classList.add("error-msg");
-      $("createOrderBtn").disabled = false;
       return;
     }
 
@@ -534,7 +549,8 @@ async function createManualOrder(){
     $("newStatus").value = "طلب جديد";
     suggestAssignedTo();
     hideSuggestions();
-    await loadRows();
+
+    await loadRows(true); // تحديث فوري عند إضافة أوردر
   }catch(e){
     msg.textContent = "لم يتم تسجيل الأوردر: " + e.message;
     msg.classList.add("error-msg");

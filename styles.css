@@ -8,10 +8,11 @@ h1,h2,h3{margin:0 0 12px}p{color:var(--muted)}
 label{display:block;margin:12px 0 6px;font-weight:800}
 input,select{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:14px;font-size:16px;background:#fff}
 button{border:0;border-radius:14px;padding:11px 15px;font-weight:900;cursor:pointer}
+button:disabled{opacity:.65;cursor:not-allowed}
 .primary{background:var(--main);color:#fff;width:100%;margin-top:14px}.ghost{background:#f1f5f9;color:var(--dark);border:1px solid var(--border)}.danger{background:#fee2e2;color:var(--danger);border:1px solid #fecaca}
 .hidden{display:none!important}.msg{font-weight:800;min-height:22px}
 .topbar{display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px}
-.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}.live-status{font-size:13px;margin:4px 0 0;color:#0f766e;font-weight:800}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.tab{background:#f8fafc;border:1px solid var(--border)}.tab.active{background:var(--main);color:#fff}
 .table-tools{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:10px}.table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--border)}
 table{width:100%;border-collapse:collapse;min-width:1120px;background:white}th,td{padding:10px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap}th{background:#0f766e;color:white;position:sticky;top:0}tr:nth-child(even){background:#f8fafc}
@@ -29,56 +30,12 @@ table{width:100%;border-collapse:collapse;min-width:1120px;background:white}th,t
 .suggestion-name{font-weight:900}.suggestion-meta{font-size:13px;color:#64748b;direction:ltr;text-align:right}
 .filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:10px 0}
 .stats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}.stat{background:#f8fafc;border:1px solid var(--border);border-radius:14px;padding:8px 12px;font-weight:900}.stat strong{color:#0f766e}
-.current-order{background:#ecfeff;border:1px solid #99f6e4;color:#0f766e;border-radius:16px;padding:11px 14px;font-weight:900;margin:8px 0 12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-.current-order .order-number{direction:ltr;background:#0f766e;color:#fff;border-radius:999px;padding:5px 12px}
+.current-order{background:#ecfeff;border:1px solid #99f6e4;color:#0f766e;border-radius:16px;padding:11px 14px;font-weight:900;margin:8px 0 12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.current-order-title{width:100%;color:#0f172a;margin-bottom:2px}
+.current-order-card{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:white;border:1px solid #ccfbf1;border-radius:14px;padding:8px 10px}
+.current-order-card.empty{color:#64748b;background:#f8fafc}
+.current-order-card .dept-name{background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:4px 10px}
+.current-order-card .order-number{direction:ltr;background:#0f766e;color:#fff;border-radius:999px;padding:5px 12px}
 .success-msg{color:#15803d!important}.error-msg{color:#b91c1c!important}
 @media(max-width:900px){.form-grid{grid-template-columns:repeat(2,1fr)}.form-grid .wide{grid-column:span 2}.filters{grid-template-columns:1fr}}
 @media(max-width:700px){.topbar{flex-direction:column;align-items:flex-start}.top-actions button{font-size:13px}.login-card{margin:30px auto}.form-grid{grid-template-columns:1fr}.form-grid .wide{grid-column:span 1}}
-
-
-/* V1.6 current order by department */
-.current-order{
-  background:#ecfeff;
-  border:1px solid #99f6e4;
-  color:#0f766e;
-  border-radius:16px;
-  padding:11px 14px;
-  font-weight:900;
-  margin:8px 0 12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-.current-order-title{
-  width:100%;
-  color:#0f172a;
-  margin-bottom:2px;
-}
-.current-order-card{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-  background:white;
-  border:1px solid #ccfbf1;
-  border-radius:14px;
-  padding:8px 10px;
-}
-.current-order-card.empty{
-  color:#64748b;
-  background:#f8fafc;
-}
-.current-order-card .dept-name{
-  background:#dbeafe;
-  color:#1d4ed8;
-  border-radius:999px;
-  padding:4px 10px;
-}
-.current-order-card .order-number{
-  direction:ltr;
-  background:#0f766e;
-  color:#fff;
-  border-radius:999px;
-  padding:5px 12px;
-}
