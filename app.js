@@ -208,18 +208,6 @@ function priorityRank(p){
   return 3;
 }
 
-function statusRank(s){
-  if(s === "مشكلة") return 0;
-  if(s === "طلب جديد") return 1;
-  if(s === "جاهز للطباعة") return 2;
-  if(s === "بدأ التنفيذ") return 3;
-  if(s === "تحت التنفيذ") return 4;
-  if(s === "تم التنفيذ") return 5;
-  if(s === "جاهز للاستلام") return 6;
-  if(s === "تم التسليم") return 9;
-  return 7;
-}
-
 function sortRows(rows){
   return [...rows].sort((a,b)=>{
     const p = priorityRank(a.priority) - priorityRank(b.priority);
@@ -227,16 +215,70 @@ function sortRows(rows){
 
     const ar = Number(a.rowNumber || 0);
     const br = Number(b.rowNumber || 0);
-    if(ar && br) return ar - br; // الأقدم أولاً حسب ترتيب الشيت
+    if(ar && br) return ar - br;
 
     return String(a.orderId || "").localeCompare(String(b.orderId || ""));
   });
 }
 
+function renderCurrentOrder(rows){
+  const box = $("currentOrderBar");
+  if(!box) return;
+
+  if(!rows || !rows.length){
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    return;
+  }
+
+  const current = rows[0];
+  box.innerHTML = `
+    <span>رقم الأوردر الحالي:</span>
+    <span class="order-number">${esc(current.orderId || "")}</span>
+    <span>${esc(current.customer || "")}</span>
+    <span>${esc(current.customerPhone || "")}</span>
+    <span>${esc(current.priority || "")}</span>
+  `;
+  box.classList.remove("hidden");
+}
+
+function renderStats(rows){
+  const counts = {};
+  rows.forEach(r => counts[r.status || "بدون حالة"] = (counts[r.status || "بدون حالة"] || 0) + 1);
+
+  const important = ["طلب جديد","جاهز للطباعة","بدأ التنفيذ","تحت التنفيذ","تم التنفيذ","مشكلة"];
+  const html = important
+    .filter(k => counts[k])
+    .map(k => `<span class="stat">${k}: <strong>${counts[k]}</strong></span>`)
+    .join("");
+
+  $("statsBar").innerHTML = html || `<span class="stat">لا توجد بنود</span>`;
+}
+
+function applyTableFilters(){
+  const search = $("tableSearch").value.trim().toLowerCase();
+  const status = $("statusFilter").value;
+  const priority = $("priorityFilter").value;
+
+  let rows = rowsCache;
+
+  if(status) rows = rows.filter(r => r.status === status);
+  if(priority) rows = rows.filter(r => r.priority === priority);
+
+  if(search){
+    rows = rows.filter(r => {
+      const blob = [r.orderId,r.lineId,r.customer,r.customerPhone,r.department,r.itemName,r.priority,r.status,r.notes].join(" ").toLowerCase();
+      return blob.includes(search);
+    });
+  }
+
+  renderTable(rows);
+}
+
 function renderTable(rows){
   const thead = $("ordersTable").querySelector("thead");
   const tbody = $("ordersTable").querySelector("tbody");
-  const headers = ["رقم الأوردر الحالي","Line ID","العميل","رقم العميل","القسم","البند","الكمية","الأولوية","الحالة","ملاحظات","تحديث"];
+  const headers = ["رقم الأوردر","Line ID","العميل","رقم العميل","القسم","البند","الكمية","الأولوية","الحالة","ملاحظات","تحديث"];
 
   thead.innerHTML = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
   tbody.innerHTML = "";
@@ -304,6 +346,7 @@ async function updateRow(row, tr){
       btn.textContent="حفظ";
       btn.disabled=false;
       rowsCache = sortRows(rowsCache);
+      renderCurrentOrder(rowsCache);
       renderStats(rowsCache);
       applyTableFilters();
     }, 600);
@@ -403,39 +446,50 @@ async function createManualOrder(){
     customerType:$("newCustomerType").value.trim(),
     department:$("newDepartment").value,
     itemName:$("newItemName").value.trim(),
-    qty:$("newQty").value,
-    priority:$("newPriority").value,
-    status:$("newStatus").value,
+    qty:$("newQty").value || "1",
+    priority:$("newPriority").value || "عاجل",
+    status:$("newStatus").value || "طلب جديد",
     assignedTo:$("newAssignedTo").value.trim(),
     notes:$("newNotes").value.trim()
   };
 
   const msg = $("addOrderStatus");
+  msg.className = "";
 
-  if(!payload.customerName || !payload.customerPhone || !payload.itemName){
-    msg.textContent = "اكتب اسم العميل ورقم العميل واسم البند.";
+  if(!payload.customerName || !payload.department){
+    msg.textContent = "لم يتم تسجيل الأوردر: اسم الشات والقسم مطلوبين.";
+    msg.classList.add("error-msg");
     return;
   }
 
   msg.textContent = "جاري إضافة الأوردر...";
+  $("createOrderBtn").disabled = true;
 
   try{
     const data = await api(payload);
 
     if(!data.success){
-      msg.textContent = data.message || "فشل إضافة الأوردر.";
+      msg.textContent = "لم يتم تسجيل الأوردر: " + (data.message || "خطأ غير معروف.");
+      msg.classList.add("error-msg");
+      $("createOrderBtn").disabled = false;
       return;
     }
 
-    msg.textContent = `تم إضافة الأوردر: ${data.orderId}${data.linesCreated ? " | عدد البنود: " + data.linesCreated : ""}`;
+    msg.textContent = `تم تسجيل الأوردر بنجاح: ${data.orderId}${data.linesCreated ? " | عدد البنود: " + data.linesCreated : ""}`;
+    msg.classList.add("success-msg");
 
     ["newCustomerName","newCustomerPhone","newCustomerType","newItemName","newNotes"].forEach(id=>$(id).value = "");
     $("newQty").value = "1";
+    $("newPriority").value = "عاجل";
+    $("newStatus").value = "طلب جديد";
     suggestAssignedTo();
     hideSuggestions();
-    loadRows();
+    await loadRows();
   }catch(e){
-    msg.textContent = e.message;
+    msg.textContent = "لم يتم تسجيل الأوردر: " + e.message;
+    msg.classList.add("error-msg");
+  }finally{
+    $("createOrderBtn").disabled = false;
   }
 }
 

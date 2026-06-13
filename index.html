@@ -44,28 +44,28 @@
       </div>
 
       <div class="hint strong-hint">
-        ابدأ بكتابة أول حرف من اسم الشات أو الرقم، واختار العميل من النتائج لتفادي خطأ كتابة الاسم أو الرقم.
+        المطلوب الأساسي لإضافة الأوردر: <b>اسم الشات</b> و <b>القسم</b> فقط. باقي البيانات اختيارية ويمكن استكمالها لاحقاً.
       </div>
 
       <div class="form-grid">
         <div class="suggest-box">
-          <label>اسم العميل / الشات</label>
-          <input id="newCustomerName" placeholder="مثال: عميل خارجي / اسم المكتب" autocomplete="off">
+          <label>اسم العميل / الشات <span class="req">*</span></label>
+          <input id="newCustomerName" placeholder="ابدأ بكتابة أول حرف من اسم الشات" autocomplete="off">
           <div id="customerSuggestions" class="suggestions hidden"></div>
         </div>
 
         <div>
           <label>رقم العميل الخارجي</label>
-          <input id="newCustomerPhone" inputmode="tel" placeholder="مثال: 01000000000">
+          <input id="newCustomerPhone" inputmode="tel" placeholder="اختياري">
         </div>
 
         <div>
           <label>نوع العميل</label>
-          <input id="newCustomerType" placeholder="يتحدد تلقائياً عند اختيار العميل">
+          <input id="newCustomerType" placeholder="اختياري">
         </div>
 
         <div>
-          <label>القسم</label>
+          <label>القسم <span class="req">*</span></label>
           <select id="newDepartment">
             <option>طباعة</option>
             <option>ليزر</option>
@@ -76,7 +76,7 @@
 
         <div class="wide">
           <label>اسم البند / نوع الشغل</label>
-          <input id="newItemName" placeholder="مثال: شيت صور 10×15 / قص ليزر / مكبس">
+          <input id="newItemName" placeholder="اختياري - لو فاضي هيتكتب أوردر جديد">
         </div>
 
         <div>
@@ -109,7 +109,7 @@
 
         <div class="wide">
           <label>ملاحظات</label>
-          <input id="newNotes" placeholder="أي تفاصيل إضافية">
+          <input id="newNotes" placeholder="اختياري">
         </div>
       </div>
 
@@ -123,7 +123,6 @@
       </div>
 
       <div id="currentOrderBar" class="current-order hidden"></div>
-
       <div id="statsBar" class="stats"></div>
 
       <div class="filters">
