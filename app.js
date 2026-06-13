@@ -192,6 +192,7 @@ async function loadRows(){
     if(!data.success) throw new Error(data.message || "تعذر تحميل البيانات.");
 
     rowsCache = sortRows(data.rows || []);
+    renderCurrentOrder(rowsCache);
     renderStats(rowsCache);
     applyTableFilters();
     $("loadingText").textContent = `عدد البنود: ${rowsCache.length}`;
@@ -223,63 +224,19 @@ function sortRows(rows){
   return [...rows].sort((a,b)=>{
     const p = priorityRank(a.priority) - priorityRank(b.priority);
     if(p !== 0) return p;
-    return statusRank(a.status) - statusRank(b.status);
+
+    const ar = Number(a.rowNumber || 0);
+    const br = Number(b.rowNumber || 0);
+    if(ar && br) return ar - br; // الأقدم أولاً حسب ترتيب الشيت
+
+    return String(a.orderId || "").localeCompare(String(b.orderId || ""));
   });
-}
-
-function renderStats(rows){
-  const counts = {};
-  rows.forEach(r => counts[r.status || "بدون حالة"] = (counts[r.status || "بدون حالة"] || 0) + 1);
-
-  const important = ["طلب جديد","جاهز للطباعة","بدأ التنفيذ","تحت التنفيذ","تم التنفيذ","مشكلة"];
-  const html = important
-    .filter(k => counts[k])
-    .map(k => `<span class="stat">${k}: <strong>${counts[k]}</strong></span>`)
-    .join("");
-
-  $("statsBar").innerHTML = html || `<span class="stat">لا توجد بنود</span>`;
-}
-
-function applyTableFilters(){
-  const search = $("tableSearch").value.trim().toLowerCase();
-  const status = $("statusFilter").value;
-  const priority = $("priorityFilter").value;
-
-  let rows = rowsCache;
-
-  if(status){
-    rows = rows.filter(r => r.status === status);
-  }
-
-  if(priority){
-    rows = rows.filter(r => r.priority === priority);
-  }
-
-  if(search){
-    rows = rows.filter(r => {
-      const blob = [
-        r.orderId,
-        r.lineId,
-        r.customer,
-        r.customerPhone,
-        r.department,
-        r.itemName,
-        r.priority,
-        r.status,
-        r.notes
-      ].join(" ").toLowerCase();
-
-      return blob.includes(search);
-    });
-  }
-
-  renderTable(rows);
 }
 
 function renderTable(rows){
   const thead = $("ordersTable").querySelector("thead");
   const tbody = $("ordersTable").querySelector("tbody");
-  const headers = ["Order ID","Line ID","العميل","رقم العميل","القسم","البند","الكمية","الأولوية","الحالة","ملاحظات","تحديث"];
+  const headers = ["رقم الأوردر الحالي","Line ID","العميل","رقم العميل","القسم","البند","الكمية","الأولوية","الحالة","ملاحظات","تحديث"];
 
   thead.innerHTML = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
   tbody.innerHTML = "";
@@ -364,6 +321,7 @@ function suggestAssignedTo(){
   if(dep === "طباعة") name = "وائل";
   if(dep === "ليزر") name = "جابر";
   if(dep === "مكبس") name = "المكبس";
+  if(dep === "متعدد الأقسام") name = "وائل + جابر";
 
   $("newAssignedTo").value = name;
 }
@@ -469,7 +427,7 @@ async function createManualOrder(){
       return;
     }
 
-    msg.textContent = `تم إضافة الأوردر: ${data.orderId}`;
+    msg.textContent = `تم إضافة الأوردر: ${data.orderId}${data.linesCreated ? " | عدد البنود: " + data.linesCreated : ""}`;
 
     ["newCustomerName","newCustomerPhone","newCustomerType","newItemName","newNotes"].forEach(id=>$(id).value = "");
     $("newQty").value = "1";
