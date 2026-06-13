@@ -2,7 +2,10 @@ const SHEET_NAME_USERS = "المستخدمين";
 const SHEET_NAME_LINES = "بنود الأوردرات";
 const DEFAULT_PASSWORD = "0000";
 
+let JSONP_CALLBACK = "";
+
 function doGet(e) {
+  JSONP_CALLBACK = String(e.parameter.callback || "").trim();
   const action = String(e.parameter.action || "").trim();
   if (action === "login") return login(e);
   if (action === "getRows") return getRows(e);
@@ -11,7 +14,19 @@ function doGet(e) {
   return output({ success:false, message:"Action غير معروف." });
 }
 function ss_(){ return SpreadsheetApp.getActiveSpreadsheet(); }
-function output(data){ return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }
+function output(data){
+  const json = JSON.stringify(data);
+
+  if(JSONP_CALLBACK){
+    return ContentService
+      .createTextOutput(JSONP_CALLBACK + "(" + json + ");")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
+}
 function normalize(v){ return String(v || "").trim(); }
 
 function headersMap_(sheet){

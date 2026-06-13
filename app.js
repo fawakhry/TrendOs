@@ -32,11 +32,44 @@ function bindEvents(){
   $("savePassBtn").addEventListener("click", changePassword);
 }
 
-async function api(params){
-  if(!CONFIG.apiUrl || CONFIG.apiUrl.includes("PUT_APPS_SCRIPT")) throw new Error("رابط API غير مضبوط في config.js");
-  const url = CONFIG.apiUrl + "?" + new URLSearchParams(params).toString();
-  const res = await fetch(url, { cache:"no-store" });
-  return await res.json();
+function api(params){
+  return new Promise((resolve, reject) => {
+    if(!CONFIG.apiUrl || CONFIG.apiUrl.includes("PUT_APPS_SCRIPT")){
+      reject(new Error("رابط API غير مضبوط في config.js"));
+      return;
+    }
+
+    const callbackName = "trendos_jsonp_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+    const query = new URLSearchParams({ ...params, callback: callbackName }).toString();
+    const script = document.createElement("script");
+    let done = false;
+
+    window[callbackName] = (data) => {
+      done = true;
+      cleanup();
+      resolve(data);
+    };
+
+    function cleanup(){
+      delete window[callbackName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    script.onerror = () => {
+      if(done) return;
+      cleanup();
+      reject(new Error("فشل الاتصال بالسيرفر. تأكد من رابط Apps Script وصلاحيات Web App."));
+    };
+
+    script.src = CONFIG.apiUrl + "?" + query;
+    document.body.appendChild(script);
+
+    setTimeout(() => {
+      if(done) return;
+      cleanup();
+      reject(new Error("انتهت مهلة الاتصال بالسيرفر."));
+    }, 20000);
+  });
 }
 
 async function login(){
