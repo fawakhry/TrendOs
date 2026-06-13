@@ -210,9 +210,11 @@ function priorityRank(p){
 
 function sortRows(rows){
   return [...rows].sort((a,b)=>{
+    // عاجل أولاً
     const p = priorityRank(a.priority) - priorityRank(b.priority);
     if(p !== 0) return p;
 
+    // بعد ذلك الأقدم ثم الأحدث حسب ترتيب الصف في الشيت
     const ar = Number(a.rowNumber || 0);
     const br = Number(b.rowNumber || 0);
     if(ar && br) return ar - br;
@@ -231,13 +233,35 @@ function renderCurrentOrder(rows){
     return;
   }
 
-  const current = rows[0];
+  const departments = currentOrderDepartments();
+  const cards = [];
+
+  departments.forEach(dep => {
+    const current = findCurrentForDepartment(rows, dep);
+
+    if(current){
+      cards.push(`
+        <div class="current-order-card">
+          <span class="dept-name">${esc(dep)}</span>
+          <span class="order-number">${esc(current.orderId || "")}</span>
+          <span>${esc(current.customer || "")}</span>
+          <span class="phone">${esc(current.customerPhone || "")}</span>
+          <span>${esc(current.priority || "")}</span>
+        </div>
+      `);
+    }else{
+      cards.push(`
+        <div class="current-order-card empty">
+          <span class="dept-name">${esc(dep)}</span>
+          <span>لا يوجد أوردر حالي</span>
+        </div>
+      `);
+    }
+  });
+
   box.innerHTML = `
-    <span>رقم الأوردر الحالي:</span>
-    <span class="order-number">${esc(current.orderId || "")}</span>
-    <span>${esc(current.customer || "")}</span>
-    <span>${esc(current.customerPhone || "")}</span>
-    <span>${esc(current.priority || "")}</span>
+    <div class="current-order-title">الأوردر الحالي</div>
+    ${cards.join("")}
   `;
   box.classList.remove("hidden");
 }
