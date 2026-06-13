@@ -223,6 +223,32 @@ function sortRows(rows){
   });
 }
 
+function currentOrderDepartments(){
+  const name = String(currentUser?.name || currentUser?.username || "").trim();
+  const role = String(currentUser?.role || "").trim();
+  const dept = String(currentUser?.department || "").trim();
+
+  // قواعد خاصة حسب الأسماء
+  if(name.includes("ريفان")) return ["طباعة"];
+  if(name.includes("رحمه") || name.includes("رحمة") || name.includes("ضياء")) return ["طباعة", "ليزر"];
+
+  // قواعد حسب الصلاحية والقسم
+  if(role === "print" || dept.includes("طباعة")) return ["طباعة"];
+  if(role === "laser" || dept.includes("ليزر")) return ["ليزر"];
+  if(role === "press" || dept.includes("مكبس")) return ["مكبس"];
+
+  // الإدارة وخدمة العملاء
+  if(role === "admin" || role === "service") return ["طباعة", "ليزر"];
+
+  return ["طباعة"];
+}
+
+function findCurrentForDepartment(rows, department){
+  const filtered = rows.filter(r => String(r.department || "").trim() === department);
+  if(!filtered.length) return null;
+  return sortRows(filtered)[0];
+}
+
 function renderCurrentOrder(rows){
   const box = $("currentOrderBar");
   if(!box) return;
