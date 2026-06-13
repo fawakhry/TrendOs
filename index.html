@@ -11,10 +11,13 @@
   <section id="loginView" class="card login-card">
     <h1>TrendOS Operations</h1>
     <p>تسجيل دخول الموظفين</p>
+
     <label>اسم المستخدم</label>
     <input id="username" placeholder="مثال: وائل">
+
     <label>كلمة المرور</label>
     <input id="password" type="password" placeholder="0000">
+
     <button id="loginBtn" class="primary">دخول</button>
     <p id="loginMsg" class="msg"></p>
   </section>
@@ -34,6 +37,74 @@
 
     <nav id="tabs" class="tabs"></nav>
 
+    <section id="addOrderCard" class="card hidden">
+      <div class="table-tools">
+        <h3>إضافة أوردر جديد</h3>
+        <span id="addOrderStatus"></span>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label>اسم العميل / الشات</label>
+          <input id="newCustomerName" placeholder="مثال: عميل خارجي / اسم المكتب">
+        </div>
+
+        <div>
+          <label>رقم العميل الخارجي</label>
+          <input id="newCustomerPhone" inputmode="tel" placeholder="مثال: 01000000000">
+        </div>
+
+        <div>
+          <label>القسم</label>
+          <select id="newDepartment">
+            <option>طباعة</option>
+            <option>ليزر</option>
+            <option>مكبس</option>
+          </select>
+        </div>
+
+        <div>
+          <label>اسم البند / نوع الشغل</label>
+          <input id="newItemName" placeholder="مثال: شيت صور 10×15">
+        </div>
+
+        <div>
+          <label>الكمية</label>
+          <input id="newQty" type="number" min="1" value="1">
+        </div>
+
+        <div>
+          <label>الأولوية</label>
+          <select id="newPriority">
+            <option>عاجل</option>
+            <option>عادي</option>
+            <option>مؤجل</option>
+          </select>
+        </div>
+
+        <div>
+          <label>الحالة</label>
+          <select id="newStatus">
+            <option>طلب جديد</option>
+            <option>جاهز للطباعة</option>
+            <option>بدأ التنفيذ</option>
+          </select>
+        </div>
+
+        <div>
+          <label>مسؤول القسم</label>
+          <input id="newAssignedTo" placeholder="يتحدد تلقائياً حسب القسم">
+        </div>
+
+        <div class="wide">
+          <label>ملاحظات</label>
+          <input id="newNotes" placeholder="أي تفاصيل إضافية">
+        </div>
+      </div>
+
+      <button id="createOrderBtn" class="primary">إضافة الأوردر</button>
+    </section>
+
     <section class="card">
       <div class="table-tools">
         <h3 id="screenTitle">الأوردرات</h3>
@@ -48,20 +119,26 @@
   <section id="passwordModal" class="modal hidden">
     <div class="modal-card">
       <h2>تغيير كلمة المرور</h2>
+
       <label>كلمة المرور القديمة</label>
       <input id="oldPassword" type="password">
+
       <label>كلمة المرور الجديدة</label>
       <input id="newPassword" type="password">
+
       <label>تأكيد كلمة المرور الجديدة</label>
       <input id="confirmPassword" type="password">
+
       <div class="row">
         <button id="savePassBtn" class="primary">حفظ</button>
         <button id="cancelPassBtn" class="ghost">إلغاء</button>
       </div>
+
       <p id="passMsg" class="msg"></p>
     </div>
   </section>
 </main>
+
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

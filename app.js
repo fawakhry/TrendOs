@@ -30,6 +30,8 @@ function bindEvents(){
   $("changePassBtn").addEventListener("click", openPasswordModal);
   $("cancelPassBtn").addEventListener("click", closePasswordModal);
   $("savePassBtn").addEventListener("click", changePassword);
+  $("createOrderBtn").addEventListener("click", createManualOrder);
+  $("newDepartment").addEventListener("change", suggestAssignedTo);
 }
 
 function api(params){
@@ -50,10 +52,10 @@ function api(params){
       resolve(data);
     };
 
-    function cleanup(){
+    const cleanup = () => {
       delete window[callbackName];
       if(script.parentNode) script.parentNode.removeChild(script);
-    }
+    };
 
     script.onerror = () => {
       if(done) return;
@@ -87,7 +89,7 @@ async function login(){
   }catch(e){ msg.textContent = e.message; }
 }
 
-function logout(){ localStorage.removeItem("trendos_user"); location.reload(); }
+function logout(){ localStorage.removeItem("trendos_user"); currentUser = null; location.reload(); }
 
 function showMain(){
   $("loginView").classList.add("hidden");
@@ -109,6 +111,10 @@ function allowedScreens(){
   return ["service"];
 }
 
+function canCreateOrders(){
+  return currentUser && (currentUser.role === "admin" || currentUser.role === "service");
+}
+
 function buildTabs(){
   const tabs = $("tabs"); tabs.innerHTML = "";
   allowedScreens().forEach(key=>{
@@ -123,6 +129,14 @@ function setScreen(screen){
   currentScreen = screen;
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active", b.dataset.screen === screen));
   $("screenTitle").textContent = SCREENS[screen].title;
+
+  if(canCreateOrders() && (screen === "service" || screen === "admin")){
+    $("addOrderCard").classList.remove("hidden");
+    suggestAssignedTo();
+  }else{
+    $("addOrderCard").classList.add("hidden");
+  }
+
   loadRows();
 }
 
@@ -139,14 +153,20 @@ async function loadRows(){
 function renderTable(rows){
   const thead = $("ordersTable").querySelector("thead");
   const tbody = $("ordersTable").querySelector("tbody");
-  const headers = ["Order ID","Line ID","العميل","القسم","البند","الكمية","الأولوية","الحالة","ملاحظات","تحديث"];
+  const headers = ["Order ID","Line ID","العميل","رقم العميل","القسم","البند","الكمية","الأولوية","الحالة","ملاحظات","تحديث"];
   thead.innerHTML = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
   tbody.innerHTML = "";
+
   rows.forEach(row=>{
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${esc(row.orderId)}</td><td>${esc(row.lineId)}</td><td>${esc(row.customer)}</td>
-      <td>${esc(row.department)}</td><td>${esc(row.itemName)}</td><td>${esc(row.qty)}</td>
+      <td>${esc(row.orderId)}</td>
+      <td>${esc(row.lineId)}</td>
+      <td>${esc(row.customer)}</td>
+      <td class="phone">${esc(row.customerPhone || "")}</td>
+      <td>${esc(row.department)}</td>
+      <td>${esc(row.itemName)}</td>
+      <td>${esc(row.qty)}</td>
       <td class="priority">${esc(row.priority)}</td>
       <td><select class="status-select">${STATUS_OPTIONS.map(s=>`<option ${s===row.status?"selected":""}>${s}</option>`).join("")}</select></td>
       <td><input class="note-input" value="${esc(row.notes)}" placeholder="ملاحظات"></td>
@@ -167,6 +187,58 @@ async function updateRow(row, tr){
     btn.textContent = "تم";
     setTimeout(()=>{btn.textContent="حفظ"; btn.disabled=false;}, 900);
   }catch(e){ alert(e.message); btn.textContent="حفظ"; btn.disabled=false; }
+}
+
+function suggestAssignedTo(){
+  const dep = $("newDepartment").value;
+  let name = "";
+  if(dep === "طباعة") name = "وائل";
+  if(dep === "ليزر") name = "جابر";
+  if(dep === "مكبس") name = "المكبس";
+  $("newAssignedTo").value = name;
+}
+
+async function createManualOrder(){
+  const payload = {
+    action: "createManualOrder",
+    username: currentUser.username,
+    token: currentUser.token,
+    customerName: $("newCustomerName").value.trim(),
+    customerPhone: $("newCustomerPhone").value.trim(),
+    department: $("newDepartment").value,
+    itemName: $("newItemName").value.trim(),
+    qty: $("newQty").value,
+    priority: $("newPriority").value,
+    status: $("newStatus").value,
+    assignedTo: $("newAssignedTo").value.trim(),
+    notes: $("newNotes").value.trim()
+  };
+
+  const msg = $("addOrderStatus");
+
+  if(!payload.customerName || !payload.customerPhone || !payload.itemName){
+    msg.textContent = "اكتب اسم العميل ورقم العميل واسم البند.";
+    return;
+  }
+
+  msg.textContent = "جاري إضافة الأوردر...";
+
+  try{
+    const data = await api(payload);
+    if(!data.success){
+      msg.textContent = data.message || "فشل إضافة الأوردر.";
+      return;
+    }
+
+    msg.textContent = `تم إضافة الأوردر: ${data.orderId}`;
+
+    ["newCustomerName","newCustomerPhone","newItemName","newNotes"].forEach(id=>$(id).value = "");
+    $("newQty").value = "1";
+    suggestAssignedTo();
+    loadRows();
+  }catch(e){
+    msg.textContent = e.message;
+  }
 }
 
 function openPasswordModal(){ $("passwordModal").classList.remove("hidden"); $("oldPassword").value=""; $("newPassword").value=""; $("confirmPassword").value=""; $("passMsg").textContent=""; }
