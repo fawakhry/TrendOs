@@ -43,15 +43,25 @@
         <span id="addOrderStatus"></span>
       </div>
 
+      <div class="hint strong-hint">
+        ابدأ بكتابة أول حرف من اسم الشات أو الرقم، واختار العميل من النتائج لتفادي خطأ كتابة الاسم أو الرقم.
+      </div>
+
       <div class="form-grid">
-        <div>
+        <div class="suggest-box">
           <label>اسم العميل / الشات</label>
-          <input id="newCustomerName" placeholder="مثال: عميل خارجي / اسم المكتب">
+          <input id="newCustomerName" placeholder="مثال: عميل خارجي / اسم المكتب" autocomplete="off">
+          <div id="customerSuggestions" class="suggestions hidden"></div>
         </div>
 
         <div>
           <label>رقم العميل الخارجي</label>
           <input id="newCustomerPhone" inputmode="tel" placeholder="مثال: 01000000000">
+        </div>
+
+        <div>
+          <label>نوع العميل</label>
+          <input id="newCustomerType" placeholder="يتحدد تلقائياً عند اختيار العميل">
         </div>
 
         <div>
@@ -63,9 +73,9 @@
           </select>
         </div>
 
-        <div>
+        <div class="wide">
           <label>اسم البند / نوع الشغل</label>
-          <input id="newItemName" placeholder="مثال: شيت صور 10×15">
+          <input id="newItemName" placeholder="مثال: شيت صور 10×15 / قص ليزر / مكبس">
         </div>
 
         <div>
@@ -110,6 +120,31 @@
         <h3 id="screenTitle">الأوردرات</h3>
         <span id="loadingText"></span>
       </div>
+
+      <div id="statsBar" class="stats"></div>
+
+      <div class="filters">
+        <input id="tableSearch" placeholder="بحث برقم الأوردر / اسم العميل / رقم العميل / البند">
+        <select id="statusFilter">
+          <option value="">كل الحالات</option>
+          <option>طلب جديد</option>
+          <option>جاهز للطباعة</option>
+          <option>بدأ التنفيذ</option>
+          <option>تحت التنفيذ</option>
+          <option>تم التنفيذ</option>
+          <option>جاهز للاستلام</option>
+          <option>تم التسليم</option>
+          <option>مشكلة</option>
+          <option>متوقف</option>
+        </select>
+        <select id="priorityFilter">
+          <option value="">كل الأولويات</option>
+          <option>عاجل</option>
+          <option>عادي</option>
+          <option>مؤجل</option>
+        </select>
+      </div>
+
       <div class="table-wrap">
         <table id="ordersTable"><thead></thead><tbody></tbody></table>
       </div>
