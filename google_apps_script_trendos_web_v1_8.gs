@@ -39,6 +39,7 @@ function doGet(e) {
     else if (action === "createManualOrder") result = createManualOrder_(e);
     else if (action === "searchCustomers") result = searchCustomers_(e);
     else if (action === "syncAll") result = syncTrendOSNow();
+    else if (action === "cleanStart") result = cleanStartKeepCustomersNow();
     else result = { success: false, message: "Action غير معروف." };
   } catch (err) {
     result = {
@@ -811,4 +812,121 @@ function onEdit(e) {
   } catch (err) {
     Logger.log("onEdit TrendOS Error: " + (err && err.message ? err.message : err));
   }
+}
+
+
+/************************************************************
+ * CLEAN START - يحذف كل الأوردرات والبنود ويترك العملاء والمستخدمين
+ * شغّل الدالة cleanStartKeepCustomersNow من قائمة Run مرة واحدة فقط
+ ************************************************************/
+function cleanStartKeepCustomersNow() {
+  const ss = ss_();
+  const result = {
+    success: true,
+    spreadsheet: ss.getName(),
+    url: ss.getUrl(),
+    cleared: [],
+    kept: [SHEET_NAME_CUSTOMERS, SHEET_NAME_USERS],
+    message: "تم تصفير التشغيل: حذف الأوردرات والبنود فقط مع ترك العملاء والمستخدمين."
+  };
+
+  const mainSheetsToClear = [
+    SHEET_NAME_ORDERS,
+    SHEET_NAME_LINES,
+    "لوحة التحكم",
+    "واجهة الإدارة",
+    "واجهة الطباعة",
+    "واجهة الليزر",
+    "واجهة خدمة العملاء",
+    "واجهة المكبس",
+    "طلبات V2",
+    "طلبات التطبيق",
+    "طلبات واتساب",
+    "التنبيهات",
+    "واجهة الطلبات",
+    "واجهة خدمة العملاء"
+  ];
+
+  mainSheetsToClear.forEach(function(name){
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) return;
+    cleanSheetBodyOnly_(sheet);
+    result.cleared.push(name);
+  });
+
+  // إزالة الفلاتر من كل الشيتات حتى شيت العملاء، بدون حذف داتا العملاء
+  ss.getSheets().forEach(function(sheet){
+    try {
+      const filter = sheet.getFilter();
+      if (filter) filter.remove();
+    } catch(e) {}
+  });
+
+  // إزالة مشاكل التحقق من البيانات في شيتات التشغيل ثم إعادة القوائم الصحيحة فقط
+  resetTrendOSValidations_();
+
+  SpreadsheetApp.flush();
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
+function cleanSheetBodyOnly_(sheet) {
+  try {
+    const filter = sheet.getFilter();
+    if (filter) filter.remove();
+  } catch(e) {}
+
+  const lastRow = sheet.getLastRow();
+  const maxRows = sheet.getMaxRows();
+  const maxCols = sheet.getMaxColumns();
+
+  if (maxRows > 1) {
+    const body = sheet.getRange(2, 1, maxRows - 1, maxCols);
+    body.clearContent();
+    body.clearNote();
+    body.clearDataValidations();
+  }
+}
+
+function resetTrendOSValidations_() {
+  const ss = ss_();
+
+  const lines = ss.getSheetByName(SHEET_NAME_LINES);
+  if (lines) {
+    const h = headersMap_(lines);
+    clearAllBodyValidations_(lines);
+    setDropdownByHeader_(lines, h, ["القسم", "Department"], ["طباعة", "ليزر", "مكبس", "متعدد الأقسام"]);
+    setDropdownByHeader_(lines, h, ["الأولوية", "Priority"], ["عاجل", "عادي", "مؤجل"]);
+    setDropdownByHeader_(lines, h, ["الحالة", "Status"], ["طلب جديد", "جاهز للطباعة", "بدأ التنفيذ", "تحت التنفيذ", "تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف"]);
+    setDropdownByHeader_(lines, h, ["جاهز؟", "جاهز", "Ready"], ["نعم", "لا"]);
+    setDropdownByHeader_(lines, h, ["مكبس حراري", "مكبس؟"], ["نعم", "لا"]);
+  }
+
+  const orders = ss.getSheetByName(SHEET_NAME_ORDERS);
+  if (orders) {
+    const h = headersMap_(orders);
+    clearAllBodyValidations_(orders);
+    setDropdownByHeader_(orders, h, ["القسم الرئيسي", "القسم", "Department"], ["طباعة", "ليزر", "مكبس", "متعدد الأقسام"]);
+    setDropdownByHeader_(orders, h, ["الأولوية", "Priority"], ["عاجل", "عادي", "مؤجل"]);
+    setDropdownByHeader_(orders, h, ["الحالة العامة", "الحالة", "Status"], ["طلب جديد", "جاهز للطباعة", "بدأ التنفيذ", "تحت التنفيذ", "تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف"]);
+    setDropdownByHeader_(orders, h, ["تسليم جزئي؟"], ["نعم", "لا"]);
+  }
+}
+
+function clearAllBodyValidations_(sheet) {
+  const maxRows = sheet.getMaxRows();
+  const maxCols = sheet.getMaxColumns();
+  if (maxRows > 1) sheet.getRange(2, 1, maxRows - 1, maxCols).clearDataValidations();
+}
+
+function setDropdownByHeader_(sheet, headerMap, names, values) {
+  const col = firstCol_(headerMap, names, 0);
+  if (!col) return;
+  const maxRows = sheet.getMaxRows();
+  if (maxRows <= 1) return;
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(values, true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, col, maxRows - 1, 1).setDataValidation(rule);
 }
