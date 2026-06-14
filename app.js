@@ -1,627 +1,532 @@
-const CONFIG = window.TRENDOS_CONFIG || {};
-const AUTO_REFRESH_MS = 10000;
-
-let currentUser = null;
-let currentScreen = null;
-let rowsCache = [];
-let customerSearchTimer = null;
-let forcedPasswordChange = false;
-let refreshTimer = null;
-let isLoadingRows = false;
-
-const $ = (id) => document.getElementById(id);
-
-const SCREENS = {
-  admin: { label: "الإدارة", title: "كل بنود التشغيل" },
-  print: { label: "الطباعة", title: "شاشة الطباعة" },
-  laser: { label: "الليزر", title: "شاشة الليزر" },
-  press: { label: "المكبس", title: "شاشة المكبس" },
-  service: { label: "خدمة العملاء", title: "شاشة خدمة العملاء" }
-};
-
-const STATUS_OPTIONS = ["طلب جديد","جاهز للطباعة","بدأ التنفيذ","تحت التنفيذ","تم التنفيذ","جاهز للاستلام","تم التسليم","مشكلة","متوقف"];
-
-init();
-
-function init(){
-  bindEvents();
-  const saved = localStorage.getItem("trendos_user");
-  if(saved){
-    currentUser = JSON.parse(saved);
-    showMain();
-  }
-}
-
-function bindEvents(){
-  $("loginBtn").addEventListener("click", login);
-  $("password").addEventListener("keydown", e => { if(e.key === "Enter") login(); });
-  $("logoutBtn").addEventListener("click", logout);
-  $("refreshBtn").addEventListener("click", () => loadRows(true));
-  $("changePassBtn").addEventListener("click", () => openPasswordModal(false));
-  $("cancelPassBtn").addEventListener("click", () => { if(!forcedPasswordChange) closePasswordModal(); });
-  $("savePassBtn").addEventListener("click", changePassword);
-  $("createOrderBtn").addEventListener("click", createManualOrder);
-  $("newDepartment").addEventListener("change", suggestAssignedTo);
-  $("newCustomerName").addEventListener("input", handleCustomerInput);
-  $("newCustomerName").addEventListener("blur", () => setTimeout(()=>hideSuggestions(), 180));
-  $("tableSearch").addEventListener("input", applyTableFilters);
-  $("statusFilter").addEventListener("change", applyTableFilters);
-  $("priorityFilter").addEventListener("change", applyTableFilters);
-
-  document.addEventListener("visibilitychange", () => {
-    if(!document.hidden && currentUser) loadRows(true);
-  });
-}
-
-function api(params){
-  return new Promise((resolve, reject) => {
-    if(!CONFIG.apiUrl || CONFIG.apiUrl.includes("PUT_APPS_SCRIPT")){
-      reject(new Error("رابط API غير مضبوط في config.js"));
-      return;
-    }
-
-    const callbackName = "trendos_jsonp_" + Date.now() + "_" + Math.random().toString(36).slice(2);
-    const query = new URLSearchParams({ ...params, callback: callbackName }).toString();
-    const script = document.createElement("script");
-    let done = false;
-
-    window[callbackName] = (data) => {
-      done = true;
-      cleanup();
-      resolve(data);
-    };
-
-    const cleanup = () => {
-      delete window[callbackName];
-      if(script.parentNode) script.parentNode.removeChild(script);
-    };
-
-    script.onerror = () => {
-      if(done) return;
-      cleanup();
-      reject(new Error("فشل الاتصال بالسيرفر. تأكد من رابط Apps Script وصلاحيات Web App."));
-    };
-
-    script.src = CONFIG.apiUrl + "?" + query + "&_t=" + Date.now();
-    document.body.appendChild(script);
-
-    setTimeout(() => {
-      if(done) return;
-      cleanup();
-      reject(new Error("انتهت مهلة الاتصال بالسيرفر."));
-    }, 20000);
-  });
-}
-
-async function login(){
-  const username = $("username").value.trim();
-  const password = $("password").value.trim();
-  const msg = $("loginMsg");
-
-  if(!username || !password){
-    msg.textContent = "اكتب اسم المستخدم وكلمة المرور.";
-    return;
-  }
-
-  msg.textContent = "جاري تسجيل الدخول...";
-
-  try{
-    const data = await api({ action:"login", username, password });
-
-    if(!data.success){
-      msg.textContent = data.message || "بيانات الدخول غير صحيحة.";
-      return;
-    }
-
-    currentUser = data.user;
-    localStorage.setItem("trendos_user", JSON.stringify(currentUser));
-    showMain();
-
-    if(currentUser.mustChange){
-      openPasswordModal(true);
-    }
-  }catch(e){
-    msg.textContent = e.message;
-  }
-}
-
-function logout(){
-  stopAutoRefresh();
-  localStorage.removeItem("trendos_user");
-  currentUser = null;
-  location.reload();
-}
-
-function showMain(){
-  $("loginView").classList.add("hidden");
-  $("mainView").classList.remove("hidden");
-  $("welcomeTitle").textContent = `أهلاً ${currentUser.name}`;
-  $("roleLabel").textContent = `الصلاحية: ${currentUser.role} | القسم: ${currentUser.department || "-"}`;
-  buildTabs();
-
-  currentScreen = CONFIG.defaultScreens?.[currentUser.role] || currentUser.role || "service";
-  if(!SCREENS[currentScreen]) currentScreen = "service";
-
-  setScreen(currentScreen);
-  startAutoRefresh();
-}
-
-function startAutoRefresh(){
-  stopAutoRefresh();
-  refreshTimer = setInterval(() => {
-    if(currentUser && !document.hidden) loadRows(false);
-  }, AUTO_REFRESH_MS);
-}
-
-function stopAutoRefresh(){
-  if(refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = null;
-}
-
-function allowedScreens(){
-  if(currentUser.role === "admin") return ["admin","service","print","laser","press"];
-  if(currentUser.role === "print") return ["print"];
-  if(currentUser.role === "laser") return ["laser"];
-  if(currentUser.role === "press") return ["press"];
-  if(currentUser.role === "service") return ["service"];
-  return ["service"];
-}
-
-function canCreateOrders(){
-  return currentUser && (currentUser.role === "admin" || currentUser.role === "service");
-}
-
-function buildTabs(){
-  const tabs = $("tabs");
-  tabs.innerHTML = "";
-
-  allowedScreens().forEach(key=>{
-    const btn = document.createElement("button");
-    btn.className = "tab";
-    btn.textContent = SCREENS[key].label;
-    btn.onclick = () => setScreen(key);
-    btn.dataset.screen = key;
-    tabs.appendChild(btn);
-  });
-}
-
-function setScreen(screen){
-  currentScreen = screen;
-  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active", b.dataset.screen === screen));
-  $("screenTitle").textContent = SCREENS[screen].title;
-
-  if(canCreateOrders() && (screen === "service" || screen === "admin")){
-    $("addOrderCard").classList.remove("hidden");
-    suggestAssignedTo();
-  }else{
-    $("addOrderCard").classList.add("hidden");
-  }
-
-  loadRows(true);
-}
-
-async function loadRows(showLoading){
-  if(isLoadingRows || !currentUser) return;
-  isLoadingRows = true;
-
-  if(showLoading) $("loadingText").textContent = "جاري التحميل...";
-
-  try{
-    const data = await api({
-      action:"getRows",
-      username:currentUser.username,
-      token:currentUser.token,
-      screen:currentScreen
-    });
-
-    if(!data.success) throw new Error(data.message || "تعذر تحميل البيانات.");
-
-    rowsCache = sortRows(data.rows || []);
-    renderCurrentOrder(rowsCache);
-    renderStats(rowsCache);
-    applyTableFilters();
-
-    const now = new Date();
-    $("loadingText").textContent = `عدد البنود: ${rowsCache.length} | آخر تحديث: ${now.toLocaleTimeString("ar-EG")}`;
-    $("liveStatus").textContent = "التحديث اللحظي يعمل - آخر مزامنة " + now.toLocaleTimeString("ar-EG");
-  }catch(e){
-    $("loadingText").textContent = e.message;
-    $("liveStatus").textContent = "تعذر التحديث اللحظي: " + e.message;
-  }finally{
-    isLoadingRows = false;
-  }
-}
-
-function priorityRank(p){
-  if(p === "عاجل") return 0;
-  if(p === "عادي") return 1;
-  if(p === "مؤجل") return 2;
-  return 3;
-}
-
-function sortRows(rows){
-  return [...rows].sort((a,b)=>{
-    const p = priorityRank(a.priority) - priorityRank(b.priority);
-    if(p !== 0) return p;
-
-    const ar = Number(a.rowNumber || 0);
-    const br = Number(b.rowNumber || 0);
-    if(ar && br) return ar - br;
-
-    return String(a.orderId || "").localeCompare(String(b.orderId || ""));
-  });
-}
-
-function currentOrderDepartments(){
-  const name = String(currentUser?.name || currentUser?.username || "").trim();
-  const role = String(currentUser?.role || "").trim();
-  const dept = String(currentUser?.department || "").trim();
-
-  if(name.includes("ريفان")) return ["طباعة"];
-  if(name.includes("رحمه") || name.includes("رحمة") || name.includes("ضياء")) return ["طباعة", "ليزر"];
-
-  if(role === "print" || dept.includes("طباعة")) return ["طباعة"];
-  if(role === "laser" || dept.includes("ليزر")) return ["ليزر"];
-  if(role === "press" || dept.includes("مكبس")) return ["مكبس"];
-
-  if(role === "admin" || role === "service") return ["طباعة", "ليزر"];
-
-  return ["طباعة"];
-}
-
-function findCurrentForDepartment(rows, department){
-  const filtered = rows.filter(r => String(r.department || "").trim() === department);
-  if(!filtered.length) return null;
-  return sortRows(filtered)[0];
-}
-
-function renderCurrentOrder(rows){
-  const box = $("currentOrderBar");
-  if(!box) return;
-
-  if(!rows || !rows.length){
-    box.classList.add("hidden");
-    box.innerHTML = "";
-    return;
-  }
-
-  const departments = currentOrderDepartments();
-  const cards = [];
-
-  departments.forEach(dep => {
-    const current = findCurrentForDepartment(rows, dep);
-
-    if(current){
-      cards.push(`
-        <div class="current-order-card">
-          <span class="dept-name">${esc(dep)}</span>
-          <span class="order-number">${esc(current.orderId || "")}</span>
-          <span>${esc(current.customer || "")}</span>
-          <span class="phone">${esc(current.customerPhone || "")}</span>
-          <span>${esc(current.priority || "")}</span>
-        </div>
-      `);
-    }else{
-      cards.push(`
-        <div class="current-order-card empty">
-          <span class="dept-name">${esc(dep)}</span>
-          <span>لا يوجد أوردر حالي</span>
-        </div>
-      `);
-    }
-  });
-
-  box.innerHTML = `
-    <div class="current-order-title">الأوردر الحالي</div>
-    ${cards.join("")}
-  `;
-  box.classList.remove("hidden");
-}
-
-function renderStats(rows){
-  const counts = {};
-  rows.forEach(r => counts[r.status || "بدون حالة"] = (counts[r.status || "بدون حالة"] || 0) + 1);
-
-  const important = ["طلب جديد","جاهز للطباعة","بدأ التنفيذ","تحت التنفيذ","تم التنفيذ","مشكلة"];
-  const html = important
-    .filter(k => counts[k])
-    .map(k => `<span class="stat">${k}: <strong>${counts[k]}</strong></span>`)
-    .join("");
-
-  $("statsBar").innerHTML = html || `<span class="stat">لا توجد بنود</span>`;
-}
-
-function applyTableFilters(){
-  const search = $("tableSearch").value.trim().toLowerCase();
-  const status = $("statusFilter").value;
-  const priority = $("priorityFilter").value;
-
-  let rows = rowsCache;
-
-  if(status) rows = rows.filter(r => r.status === status);
-  if(priority) rows = rows.filter(r => r.priority === priority);
-
-  if(search){
-    rows = rows.filter(r => {
-      const blob = [r.orderId,r.lineId,r.customer,r.customerPhone,r.department,r.itemName,r.priority,r.status,r.notes].join(" ").toLowerCase();
-      return blob.includes(search);
-    });
-  }
-
-  renderTable(rows);
-}
-
-function renderTable(rows){
-  const thead = $("ordersTable").querySelector("thead");
-  const tbody = $("ordersTable").querySelector("tbody");
-  const headers = ["رقم الأوردر","Line ID","العميل","رقم العميل","القسم","البند","الكمية","الأولوية","الحالة","ملاحظات","تحديث"];
-
-  thead.innerHTML = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
-  tbody.innerHTML = "";
-
-  rows.forEach(row=>{
-    const tr = document.createElement("tr");
-
-    tr.innerHTML = `
-      <td>${esc(row.orderId)}</td>
-      <td>${esc(row.lineId)}</td>
-      <td>${esc(row.customer)}</td>
-      <td class="phone">${esc(row.customerPhone || "")}</td>
-      <td>${esc(row.department)}</td>
-      <td>${esc(row.itemName)}</td>
-      <td>${esc(row.qty)}</td>
-      <td>${priorityBadge(row.priority)}</td>
-      <td>
-        <select class="status-select">
-          ${STATUS_OPTIONS.map(s=>`<option ${s===row.status?"selected":""}>${s}</option>`).join("")}
-        </select>
-      </td>
-      <td><input class="note-input" value="${esc(row.notes)}" placeholder="ملاحظات"></td>
-      <td><button class="update-btn">حفظ</button></td>
-    `;
-
-    tr.querySelector(".update-btn").onclick = () => updateRow(row, tr);
-    tbody.appendChild(tr);
-  });
-}
-
-function priorityBadge(p){
-  let cls = "priority-badge ";
-  if(p === "عاجل") cls += "priority-urgent";
-  else if(p === "عادي") cls += "priority-normal";
-  else if(p === "مؤجل") cls += "priority-later";
-  else cls += "priority-later";
-  return `<span class="${cls}">${esc(p || "")}</span>`;
-}
-
-async function updateRow(row, tr){
-  const status = tr.querySelector(".status-select").value;
-  const notes = tr.querySelector(".note-input").value;
-  const btn = tr.querySelector(".update-btn");
-
-  btn.textContent = "جاري...";
-  btn.disabled = true;
-
-  try{
-    const data = await api({
-      action:"updateLine",
-      username:currentUser.username,
-      token:currentUser.token,
-      lineId:row.lineId,
-      status,
-      notes
-    });
-
-    if(!data.success) throw new Error(data.message || "فشل الحفظ.");
-
-    btn.textContent = "تم";
-    await loadRows(false); // تحديث فوري بعد حفظ الحالة
-  }catch(e){
-    alert(e.message);
-  }finally{
-    btn.textContent="حفظ";
-    btn.disabled=false;
-  }
-}
-
-function suggestAssignedTo(){
-  const dep = $("newDepartment").value;
-  let name = "";
-
-  if(dep === "طباعة") name = "وائل";
-  if(dep === "ليزر") name = "جابر";
-  if(dep === "مكبس") name = "المكبس";
-  if(dep === "متعدد الأقسام") name = "وائل + جابر";
-
-  $("newAssignedTo").value = name;
-}
-
-function handleCustomerInput(){
-  const q = $("newCustomerName").value.trim();
-  clearTimeout(customerSearchTimer);
-
-  if(q.length < 1){
-    hideSuggestions();
-    return;
-  }
-
-  customerSearchTimer = setTimeout(() => searchCustomers(q), 250);
-}
-
-async function searchCustomers(q){
-  try{
-    const data = await api({
-      action:"searchCustomers",
-      username:currentUser.username,
-      token:currentUser.token,
-      q
-    });
-
-    if(!data.success){
-      hideSuggestions();
-      return;
-    }
-
-    renderCustomerSuggestions(data.customers || []);
-  }catch(e){
-    hideSuggestions();
-  }
-}
-
-function renderCustomerSuggestions(customers){
-  const box = $("customerSuggestions");
-
-  if(!customers.length){
-    box.innerHTML = `<div class="suggestion-item"><div class="suggestion-name">لا توجد نتائج</div></div>`;
-    box.classList.remove("hidden");
-    return;
-  }
-
-  box.innerHTML = customers.map((c, idx)=>`
-    <div class="suggestion-item" data-idx="${idx}">
-      <div class="suggestion-name">${esc(c.name || "")}</div>
-      <div class="suggestion-meta">${esc(c.phone || "")}${c.type ? " | " + esc(c.type) : ""}</div>
-      ${c.manager ? `<div class="suggestion-meta">${esc(c.manager)}</div>` : ""}
-    </div>
-  `).join("");
-
-  [...box.querySelectorAll(".suggestion-item")].forEach(item=>{
-    item.onclick = () => {
-      const c = customers[Number(item.dataset.idx)];
-      $("newCustomerName").value = c.name || "";
-      $("newCustomerPhone").value = c.phone || "";
-      $("newCustomerType").value = c.type || "";
-      hideSuggestions();
-    };
-  });
-
-  box.classList.remove("hidden");
-}
-
-function hideSuggestions(){
-  $("customerSuggestions").classList.add("hidden");
-}
-
-async function createManualOrder(){
-  const payload = {
-    action:"createManualOrder",
-    username:currentUser.username,
-    token:currentUser.token,
-    customerName:$("newCustomerName").value.trim(),
-    customerPhone:$("newCustomerPhone").value.trim(),
-    customerType:$("newCustomerType").value.trim(),
-    department:$("newDepartment").value,
-    itemName:$("newItemName").value.trim(),
-    qty:$("newQty").value || "1",
-    priority:$("newPriority").value || "عاجل",
-    status:$("newStatus").value || "طلب جديد",
-    assignedTo:$("newAssignedTo").value.trim(),
-    notes:$("newNotes").value.trim()
+(function () {
+  "use strict";
+
+  const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
+  const REFRESH_MS = 10000;
+
+  const screens = {
+    service: "خدمة العملاء",
+    print: "الطباعة",
+    laser: "الليزر",
+    press: "المكبس"
   };
 
-  const msg = $("addOrderStatus");
-  msg.className = "";
+  const roleScreens = {
+    admin: ["service", "print", "laser", "press"],
+    service: ["service"],
+    print: ["print"],
+    laser: ["laser"],
+    press: ["press"]
+  };
 
-  if(!payload.customerName || !payload.department){
-    msg.textContent = "لم يتم تسجيل الأوردر: اسم الشات والقسم مطلوبين.";
-    msg.classList.add("error-msg");
-    return;
+  const state = {
+    user: null,
+    screen: "service",
+    rows: [],
+    refreshTimer: null,
+    suggestionTimer: null
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  function text(v) {
+    return String(v == null ? "" : v);
   }
 
-  msg.textContent = "جاري إضافة الأوردر...";
-  $("createOrderBtn").disabled = true;
-
-  try{
-    const data = await api(payload);
-
-    if(!data.success){
-      msg.textContent = "لم يتم تسجيل الأوردر: " + (data.message || "خطأ غير معروف.");
-      msg.classList.add("error-msg");
-      return;
-    }
-
-    msg.textContent = `تم تسجيل الأوردر بنجاح: ${data.orderId}${data.linesCreated ? " | عدد البنود: " + data.linesCreated : ""}`;
-    msg.classList.add("success-msg");
-
-    ["newCustomerName","newCustomerPhone","newCustomerType","newItemName","newNotes"].forEach(id=>$(id).value = "");
-    $("newQty").value = "1";
-    $("newPriority").value = "عاجل";
-    $("newStatus").value = "طلب جديد";
-    suggestAssignedTo();
-    hideSuggestions();
-
-    await loadRows(true); // تحديث فوري عند إضافة أوردر
-  }catch(e){
-    msg.textContent = "لم يتم تسجيل الأوردر: " + e.message;
-    msg.classList.add("error-msg");
-  }finally{
-    $("createOrderBtn").disabled = false;
-  }
-}
-
-function openPasswordModal(force){
-  forcedPasswordChange = !!force;
-  $("passwordModal").classList.remove("hidden");
-  $("oldPassword").value="";
-  $("newPassword").value="";
-  $("confirmPassword").value="";
-  $("passMsg").textContent = force ? "يجب تغيير كلمة المرور الافتراضية قبل الاستمرار." : "";
-  $("cancelPassBtn").style.display = force ? "none" : "";
-}
-
-function closePasswordModal(){
-  forcedPasswordChange = false;
-  $("passwordModal").classList.add("hidden");
-  $("cancelPassBtn").style.display = "";
-}
-
-async function changePassword(){
-  const oldPassword = $("oldPassword").value.trim();
-  const newPassword = $("newPassword").value.trim();
-  const confirmPassword = $("confirmPassword").value.trim();
-  const msg = $("passMsg");
-
-  if(!oldPassword || !newPassword || !confirmPassword){
-    msg.textContent = "اكمل كل الخانات.";
-    return;
+  function safeRole(role) {
+    return role && roleScreens[role] ? role : "service";
   }
 
-  if(newPassword.length < 4){
-    msg.textContent = "كلمة المرور الجديدة لا تقل عن 4 أرقام/حروف.";
-    return;
-  }
+  function buildUrl(action, params, callbackName) {
+    const query = new URLSearchParams();
+    query.set("action", action);
+    if (callbackName) query.set("callback", callbackName);
 
-  if(newPassword !== confirmPassword){
-    msg.textContent = "تأكيد كلمة المرور غير مطابق.";
-    return;
-  }
-
-  msg.textContent = "جاري التغيير...";
-
-  try{
-    const data = await api({
-      action:"changePassword",
-      username:currentUser.username,
-      token:currentUser.token,
-      oldPassword,
-      newPassword
+    Object.keys(params || {}).forEach(function (key) {
+      const value = params[key];
+      if (value !== undefined && value !== null) query.set(key, value);
     });
 
-    if(!data.success){
-      msg.textContent = data.message || "فشل تغيير كلمة المرور.";
+    return API_URL + (API_URL.indexOf("?") === -1 ? "?" : "&") + query.toString();
+  }
+
+  function api(action, params) {
+    return new Promise(function (resolve, reject) {
+      if (!API_URL || API_URL.indexOf("PUT_YOUR_WEB_APP_URL_HERE") !== -1) {
+        reject(new Error("رابط Web App غير موجود في config.js"));
+        return;
+      }
+
+      const callbackName = "trendos_cb_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+      const script = document.createElement("script");
+      const timer = setTimeout(function () {
+        cleanup();
+        reject(new Error("انتهت مهلة الاتصال بالسيرفر."));
+      }, 25000);
+
+      function cleanup() {
+        clearTimeout(timer);
+        try { delete window[callbackName]; } catch (e) { window[callbackName] = undefined; }
+        if (script && script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[callbackName] = function (data) {
+        cleanup();
+        resolve(data || {});
+      };
+
+      script.onerror = function () {
+        cleanup();
+        reject(new Error("فشل الاتصال بالسيرفر. راجع رابط Web App أو صلاحيات النشر."));
+      };
+
+      script.src = buildUrl(action, params || {}, callbackName);
+      document.body.appendChild(script);
+    });
+  }
+
+  function authParams(extra) {
+    const user = state.user || {};
+    return Object.assign({
+      username: user.username || user.name || "",
+      token: user.token || ""
+    }, extra || {});
+  }
+
+  function setMsg(id, msg, isError) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("error", !!isError);
+    el.classList.toggle("ok", !!msg && !isError);
+  }
+
+  function showLogin() {
+    $("loginView").classList.remove("hidden");
+    $("mainView").classList.add("hidden");
+    $("passwordModal").classList.add("hidden");
+    stopRefresh();
+  }
+
+  function showMain() {
+    $("loginView").classList.add("hidden");
+    $("mainView").classList.remove("hidden");
+  }
+
+  function saveSession() {
+    localStorage.setItem("trendos_session", JSON.stringify({ user: state.user, screen: state.screen }));
+  }
+
+  function loadSession() {
+    try {
+      const data = JSON.parse(localStorage.getItem("trendos_session") || "null");
+      if (data && data.user && data.user.token) {
+        state.user = data.user;
+        state.screen = data.screen || "service";
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function clearSession() {
+    localStorage.removeItem("trendos_session");
+    state.user = null;
+    state.rows = [];
+  }
+
+  async function doLogin() {
+    const username = $("username").value.trim();
+    const password = $("password").value.trim();
+
+    setMsg("loginMsg", "", false);
+
+    if (!username || !password) {
+      setMsg("loginMsg", "اكتب اسم المستخدم وكلمة المرور.", true);
       return;
     }
 
-    currentUser.mustChange = false;
-    localStorage.setItem("trendos_user", JSON.stringify(currentUser));
+    const btn = $("loginBtn");
+    btn.disabled = true;
+    btn.textContent = "جاري الدخول...";
 
-    msg.textContent = "تم تغيير كلمة المرور بنجاح.";
-    setTimeout(closePasswordModal, 800);
-  }catch(e){
-    msg.textContent = e.message;
+    try {
+      const res = await api("login", { username, password });
+      if (!res.success) {
+        setMsg("loginMsg", res.message || "فشل تسجيل الدخول.", true);
+        return;
+      }
+
+      state.user = res.user || {};
+      const allowed = roleScreens[safeRole(state.user.role)];
+      state.screen = allowed.indexOf(state.screen) !== -1 ? state.screen : allowed[0];
+      saveSession();
+      bootMain();
+
+      if (state.user.mustChange) openPasswordModal();
+    } catch (err) {
+      setMsg("loginMsg", err.message || "حصل خطأ أثناء الدخول.", true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "دخول";
+    }
   }
-}
 
-function esc(v){
-  return String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
+  function bootMain() {
+    showMain();
+    renderHeader();
+    renderTabs();
+    toggleAddOrder();
+    loadRows();
+    startRefresh();
+  }
+
+  function renderHeader() {
+    const user = state.user || {};
+    $("welcomeTitle").textContent = "أهلاً " + (user.name || user.username || "");
+    $("roleLabel").textContent = "القسم: " + (user.department || "-") + " | الصلاحية: " + (user.role || "-");
+    $("screenTitle").textContent = screens[state.screen] || "الأوردرات";
+  }
+
+  function renderTabs() {
+    const tabs = $("tabs");
+    tabs.innerHTML = "";
+
+    const allowed = roleScreens[safeRole((state.user || {}).role)] || ["service"];
+
+    allowed.forEach(function (screen) {
+      const btn = document.createElement("button");
+      btn.className = screen === state.screen ? "active" : "";
+      btn.textContent = screens[screen];
+      btn.onclick = function () {
+        state.screen = screen;
+        saveSession();
+        renderHeader();
+        renderTabs();
+        toggleAddOrder();
+        loadRows();
+      };
+      tabs.appendChild(btn);
+    });
+  }
+
+  function toggleAddOrder() {
+    const role = safeRole((state.user || {}).role);
+    const canAdd = role === "admin" || role === "service";
+    $("addOrderCard").classList.toggle("hidden", !canAdd);
+  }
+
+  async function loadRows() {
+    setLoading("جاري تحميل الأوردرات...");
+    try {
+      const res = await api("getRows", authParams({ screen: state.screen }));
+      if (!res.success) {
+        setLoading(res.message || "فشل تحميل الأوردرات.", true);
+        if ((res.message || "").indexOf("انتهت الجلسة") !== -1) logout();
+        return;
+      }
+      state.rows = Array.isArray(res.rows) ? res.rows : [];
+      applyFiltersAndRender();
+      setLoading("آخر تحديث: " + new Date().toLocaleTimeString("ar-EG"));
+    } catch (err) {
+      setLoading(err.message || "خطأ في التحميل.", true);
+    }
+  }
+
+  function setLoading(msg, isError) {
+    const el = $("loadingText");
+    el.textContent = msg || "";
+    el.classList.toggle("error", !!isError);
+  }
+
+  function applyFiltersAndRender() {
+    const q = ($("tableSearch").value || "").trim().toLowerCase();
+    const status = $("statusFilter").value || "";
+    const priority = $("priorityFilter").value || "";
+
+    const filtered = state.rows.filter(function (r) {
+      const blob = [r.orderId, r.lineId, r.customer, r.customerPhone, r.department, r.itemName, r.notes]
+        .map(text).join(" ").toLowerCase();
+
+      if (q && blob.indexOf(q) === -1) return false;
+      if (status && text(r.status) !== status) return false;
+      if (priority && text(r.priority) !== priority) return false;
+      return true;
+    });
+
+    renderStats(filtered);
+    renderTable(filtered);
+  }
+
+  function renderStats(rows) {
+    const total = rows.length;
+    const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل"; }).length;
+    const problem = rows.filter(function (r) { return ["مشكلة", "متوقف"].indexOf(text(r.status)) !== -1; }).length;
+    $("statsBar").innerHTML = "" +
+      "<span>الإجمالي: <b>" + total + "</b></span>" +
+      "<span>عاجل: <b>" + urgent + "</b></span>" +
+      "<span>مشاكل/متوقف: <b>" + problem + "</b></span>";
+  }
+
+  function escapeHtml(value) {
+    return text(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function renderTable(rows) {
+    const table = $("ordersTable");
+    const thead = table.querySelector("thead");
+    const tbody = table.querySelector("tbody");
+
+    thead.innerHTML = "<tr>" +
+      "<th>الأوردر</th>" +
+      "<th>البند</th>" +
+      "<th>العميل</th>" +
+      "<th>رقم العميل</th>" +
+      "<th>القسم</th>" +
+      "<th>نوع الشغل</th>" +
+      "<th>الكمية</th>" +
+      "<th>الأولوية</th>" +
+      "<th>الحالة</th>" +
+      "<th>ملاحظات</th>" +
+      "<th>حفظ</th>" +
+      "</tr>";
+
+    if (!rows.length) {
+      tbody.innerHTML = "<tr><td colspan='11' class='empty'>لا توجد أوردرات مطابقة.</td></tr>";
+      return;
+    }
+
+    tbody.innerHTML = rows.map(function (r, i) {
+      return "<tr data-line='" + escapeHtml(r.lineId) + "'>" +
+        "<td>" + escapeHtml(r.orderId) + "</td>" +
+        "<td>" + escapeHtml(r.lineId) + "</td>" +
+        "<td>" + escapeHtml(r.customer) + "</td>" +
+        "<td>" + escapeHtml(r.customerPhone) + "</td>" +
+        "<td>" + escapeHtml(r.department) + "</td>" +
+        "<td class='item-name'>" + escapeHtml(r.itemName) + "</td>" +
+        "<td>" + escapeHtml(r.qty) + "</td>" +
+        "<td>" + escapeHtml(r.priority) + "</td>" +
+        "<td>" + statusSelect(r.status, i) + "</td>" +
+        "<td><input class='row-notes' data-i='" + i + "' value='" + escapeHtml(r.notes) + "'></td>" +
+        "<td><button class='save-line primary small' data-i='" + i + "'>حفظ</button></td>" +
+        "</tr>";
+    }).join("");
+
+    Array.prototype.forEach.call(tbody.querySelectorAll(".save-line"), function (btn) {
+      btn.addEventListener("click", function () {
+        saveLine(rows[Number(btn.dataset.i)], btn.closest("tr"));
+      });
+    });
+  }
+
+  function statusSelect(current, i) {
+    const statuses = ["طلب جديد", "جاهز للطباعة", "بدأ التنفيذ", "تحت التنفيذ", "تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف"];
+    return "<select class='row-status' data-i='" + i + "'>" + statuses.map(function (s) {
+      return "<option" + (text(current) === s ? " selected" : "") + ">" + escapeHtml(s) + "</option>";
+    }).join("") + "</select>";
+  }
+
+  async function saveLine(row, tr) {
+    if (!row || !tr) return;
+    const status = tr.querySelector(".row-status").value;
+    const notes = tr.querySelector(".row-notes").value;
+    const btn = tr.querySelector(".save-line");
+    btn.disabled = true;
+    btn.textContent = "...";
+
+    try {
+      const res = await api("updateLine", authParams({ lineId: row.lineId, status, notes }));
+      if (!res.success) {
+        alert(res.message || "لم يتم الحفظ.");
+        return;
+      }
+      row.status = status;
+      row.notes = notes;
+      btn.textContent = "تم";
+      setTimeout(function () { btn.textContent = "حفظ"; }, 900);
+      applyFiltersAndRender();
+    } catch (err) {
+      alert(err.message || "خطأ أثناء الحفظ.");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function createOrder() {
+    setMsg("addOrderStatus", "", false);
+
+    const params = authParams({
+      customerName: $("newCustomerName").value.trim(),
+      customerPhone: $("newCustomerPhone").value.trim(),
+      customerType: $("newCustomerType").value.trim(),
+      department: $("newDepartment").value,
+      itemName: $("newItemName").value.trim(),
+      qty: $("newQty").value || "1",
+      priority: $("newPriority").value,
+      status: $("newStatus").value,
+      assignedTo: $("newAssignedTo").value.trim(),
+      notes: $("newNotes").value.trim()
+    });
+
+    if (!params.customerName || !params.department) {
+      setMsg("addOrderStatus", "اسم الشات والقسم مطلوبين.", true);
+      return;
+    }
+
+    const btn = $("createOrderBtn");
+    btn.disabled = true;
+    btn.textContent = "جاري الإضافة...";
+
+    try {
+      const res = await api("createManualOrder", params);
+      if (!res.success) {
+        setMsg("addOrderStatus", res.message || "فشل إضافة الأوردر.", true);
+        return;
+      }
+
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId, false);
+      ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) { $(id).value = ""; });
+      $("newQty").value = 1;
+      $("customerSuggestions").classList.add("hidden");
+      loadRows();
+    } catch (err) {
+      setMsg("addOrderStatus", err.message || "خطأ أثناء إضافة الأوردر.", true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "إضافة الأوردر";
+    }
+  }
+
+  function wireCustomerSearch() {
+    const input = $("newCustomerName");
+    const box = $("customerSuggestions");
+    if (!input || !box) return;
+
+    input.addEventListener("input", function () {
+      clearTimeout(state.suggestionTimer);
+      const q = input.value.trim();
+      if (!q) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+      state.suggestionTimer = setTimeout(function () { searchCustomers(q); }, 300);
+    });
+  }
+
+  async function searchCustomers(q) {
+    const box = $("customerSuggestions");
+    try {
+      const res = await api("searchCustomers", authParams({ q }));
+      const customers = res.success && Array.isArray(res.customers) ? res.customers : [];
+      if (!customers.length) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+
+      box.innerHTML = customers.map(function (c, i) {
+        return "<button type='button' data-i='" + i + "'>" +
+          "<b>" + escapeHtml(c.name) + "</b>" +
+          "<span>" + escapeHtml(c.phone || "") + " " + escapeHtml(c.type || "") + "</span>" +
+          "</button>";
+      }).join("");
+      box.classList.remove("hidden");
+
+      Array.prototype.forEach.call(box.querySelectorAll("button"), function (btn) {
+        btn.onclick = function () {
+          const c = customers[Number(btn.dataset.i)];
+          $("newCustomerName").value = c.name || "";
+          $("newCustomerPhone").value = c.phone || "";
+          $("newCustomerType").value = c.type || "";
+          box.classList.add("hidden");
+        };
+      });
+    } catch (e) {
+      box.classList.add("hidden");
+    }
+  }
+
+  function openPasswordModal() {
+    $("passwordModal").classList.remove("hidden");
+    setMsg("passMsg", "", false);
+  }
+
+  function closePasswordModal() {
+    $("passwordModal").classList.add("hidden");
+    ["oldPassword", "newPassword", "confirmPassword"].forEach(function (id) { $(id).value = ""; });
+  }
+
+  async function changePassword() {
+    const oldPassword = $("oldPassword").value.trim();
+    const newPassword = $("newPassword").value.trim();
+    const confirmPassword = $("confirmPassword").value.trim();
+
+    if (!oldPassword || !newPassword) {
+      setMsg("passMsg", "اكتب كلمة المرور القديمة والجديدة.", true);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMsg("passMsg", "تأكيد كلمة المرور غير مطابق.", true);
+      return;
+    }
+
+    try {
+      const res = await api("changePassword", authParams({ oldPassword, newPassword }));
+      if (!res.success) {
+        setMsg("passMsg", res.message || "فشل تغيير كلمة المرور.", true);
+        return;
+      }
+      setMsg("passMsg", res.message || "تم تغيير كلمة المرور.", false);
+      setTimeout(closePasswordModal, 900);
+    } catch (err) {
+      setMsg("passMsg", err.message || "خطأ أثناء تغيير كلمة المرور.", true);
+    }
+  }
+
+  function startRefresh() {
+    stopRefresh();
+    state.refreshTimer = setInterval(loadRows, REFRESH_MS);
+  }
+
+  function stopRefresh() {
+    if (state.refreshTimer) clearInterval(state.refreshTimer);
+    state.refreshTimer = null;
+  }
+
+  function logout() {
+    clearSession();
+    showLogin();
+  }
+
+  function wireEvents() {
+    $("loginBtn").addEventListener("click", doLogin);
+    $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
+    $("username").addEventListener("keydown", function (e) { if (e.key === "Enter") $("password").focus(); });
+
+    $("refreshBtn").addEventListener("click", loadRows);
+    $("logoutBtn").addEventListener("click", logout);
+    $("changePassBtn").addEventListener("click", openPasswordModal);
+    $("cancelPassBtn").addEventListener("click", closePasswordModal);
+    $("savePassBtn").addEventListener("click", changePassword);
+    $("createOrderBtn").addEventListener("click", createOrder);
+
+    ["tableSearch", "statusFilter", "priorityFilter"].forEach(function (id) {
+      $(id).addEventListener("input", applyFiltersAndRender);
+      $(id).addEventListener("change", applyFiltersAndRender);
+    });
+
+    wireCustomerSearch();
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    wireEvents();
+    if (loadSession()) bootMain();
+    else showLogin();
+  });
+})();
