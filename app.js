@@ -100,12 +100,32 @@
 
     if (mode === "ready") {
       if (status === "تم التسليم") {
-        return "أهلاً" + customer + " 🌟\nتم تسليم الأوردر رقم " + orderId + ".\nشكراً لتعاملكم مع Trend Mall.";
+        return "أهلاً" + customer + " 🌟
+تم تسليم الأوردر رقم " + orderId + ".
+شكراً لتعاملكم مع Trend Mall.";
       }
-      return "أهلاً" + customer + " 🌟\nالأوردر رقم " + orderId + " جاهز للاستلام.\nنوع الشغل: " + item + "\nالقسم: " + dept + "\nTrend Mall";
+      if (status === "جاهز للاستلام" || status === "تم التنفيذ") {
+        return "أهلاً" + customer + " 🌟
+الأوردر رقم " + orderId + " جاهز للاستلام.
+نوع الشغل: " + item + "
+القسم: " + dept + "
+Trend Mall";
+      }
+      return "أهلاً" + customer + " 🌟
+تم الانتهاء من تنفيذ الأوردر رقم " + orderId + ".
+نوع الشغل: " + item + "
+القسم: " + dept + "
+يمكنك التواصل معنا لتأكيد الاستلام.
+Trend Mall";
     }
 
-    return "أهلاً" + customer + " 👋\nبخصوص الأوردر رقم " + orderId + "\nالحالة الحالية: " + status + "\nالقسم: " + dept + "\nنوع الشغل: " + item + (row.notes ? "\nملاحظات: " + row.notes : "") + "\nTrend Mall";
+    return "أهلاً" + customer + " 👋
+بخصوص الأوردر رقم " + orderId + "
+الحالة الحالية: " + status + "
+القسم: " + dept + "
+نوع الشغل: " + item + (row.notes ? "
+ملاحظات: " + row.notes : "") + "
+Trend Mall";
   }
 
   function openWhatsAppUrl(phone, message) {
@@ -469,10 +489,9 @@
   function whatsappActions(row, i) {
     const disabled = whatsappPhone(row.customerPhone) ? "" : " disabled";
     const notified = text(row.customerNotified) === "نعم" ? '<small class="wa-notified">تم الإبلاغ</small>' : "";
-    const readyDisabled = isReadyForCustomer(row.status) ? disabled : " disabled";
     return '<div class="whatsapp-actions">' +
       '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>AI يرد بالحالة</button>' +
-      '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + readyDisabled + '>إبلاغ العميل</button>' +
+      '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + disabled + '>رسالة انتهاء</button>' +
       notified +
       '</div>';
   }
@@ -492,7 +511,7 @@
     if (!opened) return;
 
     const confirmText = mode === "ready"
-      ? "تم فتح واتساب برسالة الإبلاغ. هل تم إرسال الرسالة للعميل؟"
+      ? "تم فتح واتساب برسالة الانتهاء للعميل. هل تم إرسال الرسالة؟"
       : "تم فتح واتساب برد الحالة. هل تم إرسال الرد للعميل؟";
 
     if (!confirm(confirmText)) return;
