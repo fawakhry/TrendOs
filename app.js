@@ -91,41 +91,71 @@
     return ["تم التنفيذ", "جاهز للاستلام", "تم التسليم"].indexOf(text(status)) !== -1;
   }
 
+  function formatDisplayDate(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) return d.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+    return text(value);
+  }
+
+  function addDays(date, days) {
+    const d = new Date(date.getTime());
+    d.setDate(d.getDate() + days);
+    return d;
+  }
+
+  function expectedDeliveryTextFromNow() {
+    return addDays(new Date(), 2).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+  }
+
   function buildWhatsAppMessage(row, mode) {
     const customer = row.customer ? " يا " + row.customer : "";
     const orderId = row.orderId || row.lineId || "-";
     const item = row.itemName || "الأوردر";
     const dept = row.department || "-";
     const status = row.status || "طلب جديد";
+    const expected = row.expectedDeliveryText || formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery) || expectedDeliveryTextFromNow();
+
+    if (mode === "registered") {
+      return `أهلاً${customer} 🌟
+تم تسجيل الأوردر بنجاح.
+رقم الأوردر: ${orderId}
+نوع الشغل: ${item}
+القسم: ${dept}
+التسليم المتوقع: ${expected}
+
+ملاحظة مهمة: لو حضرتك هتبعت شغل جديد بعد كده، هيتم تسجيله كأوردر جديد برقم جديد عشان نقدر نتابعه صح.
+Trend Mall`;
+    }
 
     if (mode === "ready") {
       if (status === "تم التسليم") {
-        return "أهلاً" + customer + " 🌟
-تم تسليم الأوردر رقم " + orderId + ".
-شكراً لتعاملكم مع Trend Mall.";
+        return `أهلاً${customer} 🌟
+تم تسليم الأوردر رقم ${orderId}.
+شكراً لتعاملكم مع Trend Mall.`;
       }
       if (status === "جاهز للاستلام" || status === "تم التنفيذ") {
-        return "أهلاً" + customer + " 🌟
-الأوردر رقم " + orderId + " جاهز للاستلام.
-نوع الشغل: " + item + "
-القسم: " + dept + "
-Trend Mall";
+        return `أهلاً${customer} 🌟
+الأوردر رقم ${orderId} جاهز للاستلام.
+نوع الشغل: ${item}
+القسم: ${dept}
+Trend Mall`;
       }
-      return "أهلاً" + customer + " 🌟
-تم الانتهاء من تنفيذ الأوردر رقم " + orderId + ".
-نوع الشغل: " + item + "
-القسم: " + dept + "
+      return `أهلاً${customer} 🌟
+تم الانتهاء من تنفيذ الأوردر رقم ${orderId}.
+نوع الشغل: ${item}
+القسم: ${dept}
 يمكنك التواصل معنا لتأكيد الاستلام.
-Trend Mall";
+Trend Mall`;
     }
 
-    return "أهلاً" + customer + " 👋
-بخصوص الأوردر رقم " + orderId + "
-الحالة الحالية: " + status + "
-القسم: " + dept + "
-نوع الشغل: " + item + (row.notes ? "
-ملاحظات: " + row.notes : "") + "
-Trend Mall";
+    return `أهلاً${customer} 👋
+بخصوص الأوردر رقم ${orderId}
+الحالة الحالية: ${status}
+القسم: ${dept}
+نوع الشغل: ${item}${row.notes ? "\nملاحظات: " + row.notes : ""}
+التسليم المتوقع: ${expected}
+Trend Mall`;
   }
 
   function openWhatsAppUrl(phone, message) {
@@ -433,12 +463,13 @@ Trend Mall";
       "<th>الأولوية</th>" +
       "<th>الحالة</th>" +
       "<th>ملاحظات</th>" +
+      "<th>التسليم المتوقع</th>" +
       "<th>AI واتساب</th>" +
       "<th>حفظ</th>" +
       "</tr>";
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="12" class="empty">لا توجد أوردرات مطابقة.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" class="empty">لا توجد أوردرات مطابقة.</td></tr>';
       return;
     }
 
@@ -454,6 +485,7 @@ Trend Mall";
         "<td>" + escapeHtml(r.priority) + "</td>" +
         "<td>" + statusSelect(r.status) + "</td>" +
         "<td><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\" placeholder=\"ملاحظات\"></td>" +
+        "<td>" + escapeHtml(r.expectedDeliveryText || formatDisplayDate(r.expectedDeliveryAt || r.expectedDelivery) || "-") + "</td>" +
         "<td>" + whatsappActions(r, i) + "</td>" +
         "<td><button class=\"primary save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
         "</tr>";
@@ -641,6 +673,20 @@ Trend Mall";
     }
   }
 
+  async function recordRegistrationWhatsApp(res, params, message) {
+    try {
+      await api("markCustomerNotified", authParams({
+        rowNumber: "",
+        orderId: res.orderId || "",
+        lineId: res.lineId || "",
+        whatsappType: "order_registered",
+        message: message
+      }));
+    } catch (e) {
+      setLoading("تم فتح واتساب، لكن لم يتم تسجيل رسالة التسجيل في الشيت.", true);
+    }
+  }
+
   async function createOrder() {
     setMsg("addOrderStatus", "", false);
 
@@ -673,7 +719,28 @@ Trend Mall";
         return;
       }
 
-      setMsg("addOrderStatus", "تم إضافة الأوردر في الشيت: " + res.orderId, false);
+      const expectedText = res.expectedDeliveryText || expectedDeliveryTextFromNow();
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText, false);
+
+      const registrationRow = {
+        customer: params.customerName,
+        customerPhone: params.customerPhone,
+        orderId: res.orderId,
+        lineId: res.lineId,
+        itemName: params.itemName || ("أوردر جديد - " + params.department),
+        department: params.department,
+        status: "طلب جديد",
+        expectedDeliveryText: expectedText
+      };
+
+      if (params.customerPhone) {
+        const msg = buildWhatsAppMessage(registrationRow, "registered");
+        const opened = openWhatsAppUrl(params.customerPhone, msg);
+        if (opened && confirm("تم فتح واتساب برسالة تسجيل الأوردر للعميل. هل تم إرسال الرسالة؟")) {
+          await recordRegistrationWhatsApp(res, params, msg);
+        }
+      }
+
       ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
         $(id).value = "";
       });
