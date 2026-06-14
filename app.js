@@ -113,10 +113,19 @@
       expectedDeliveryTextFromNow();
   }
 
+  function displayPhone(phone) {
+    let digits = arabicDigitsToEnglish(phone).replace(/[^0-9]/g, "");
+    if (!digits) return "";
+    if (digits.indexOf("0020") === 0 && digits.length >= 14) digits = "0" + digits.slice(4);
+    else if (digits.indexOf("20") === 0 && digits.length === 12) digits = "0" + digits.slice(2);
+    else if (digits.length === 10 && digits.charAt(0) === "1") digits = "0" + digits;
+    return digits;
+  }
+
   function safeDisplayPhone(phone) {
     const s = text(phone).trim();
     if (!s || s.indexOf("#ERROR") !== -1 || s.indexOf("#VALUE") !== -1) return "";
-    return s;
+    return displayPhone(s);
   }
 
   function addDays(date, days) {
