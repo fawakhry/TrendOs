@@ -19,19 +19,38 @@
     press: ["press"]
   };
 
+  const STATUS_LIST = [
+    "طلب جديد",
+    "جاهز للطباعة",
+    "بدأ التنفيذ",
+    "تحت التنفيذ",
+    "تم التنفيذ",
+    "جاهز للاستلام",
+    "تم التسليم",
+    "مشكلة",
+    "متوقف"
+  ];
+
   const state = {
     user: null,
     screen: "service",
     rows: [],
     refreshTimer: null,
-    editingUntil: 0,
-    suggestionTimer: null
+    suggestionTimer: null,
+    isEditing: false,
+    isSaving: false
   };
 
   const $ = (id) => document.getElementById(id);
+  const text = (v) => String(v == null ? "" : v);
 
-  function text(v) {
-    return String(v == null ? "" : v);
+  function escapeHtml(value) {
+    return text(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
   function safeRole(role) {
@@ -48,6 +67,7 @@
       if (value !== undefined && value !== null) query.set(key, value);
     });
 
+    query.set("_t", Date.now().toString());
     return API_URL + (API_URL.indexOf("?") === -1 ? "?" : "&") + query.toString();
   }
 
@@ -63,7 +83,7 @@
       const timer = setTimeout(function () {
         cleanup();
         reject(new Error("انتهت مهلة الاتصال بالسيرفر."));
-      }, 25000);
+      }, 30000);
 
       function cleanup() {
         clearTimeout(timer);
@@ -100,6 +120,19 @@
     el.textContent = msg || "";
     el.classList.toggle("error", !!isError);
     el.classList.toggle("ok", !!msg && !isError);
+  }
+
+  function setLoading(msg, isError) {
+    const el = $("loadingText");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("error", !!isError);
+  }
+
+  function setLiveStatus(msg) {
+    const el = $("liveStatus");
+    if (!el) return;
+    el.textContent = msg || "التحديث اللحظي يعمل كل 10 ثواني";
   }
 
   function showLogin() {
@@ -139,7 +172,6 @@
   async function doLogin() {
     const username = $("username").value.trim();
     const password = $("password").value.trim();
-
     setMsg("loginMsg", "", false);
 
     if (!username || !password) {
@@ -159,11 +191,10 @@
       }
 
       state.user = res.user || {};
-      const allowed = roleScreens[safeRole(state.user.role)];
+      const allowed = roleScreens[safeRole(state.user.role)] || ["service"];
       state.screen = allowed.indexOf(state.screen) !== -1 ? state.screen : allowed[0];
       saveSession();
       bootMain();
-
       if (state.user.mustChange) openPasswordModal();
     } catch (err) {
       setMsg("loginMsg", err.message || "حصل خطأ أثناء الدخول.", true);
@@ -178,7 +209,7 @@
     renderHeader();
     renderTabs();
     toggleAddOrder();
-    loadRows();
+    loadRows(true);
     startRefresh();
   }
 
@@ -192,7 +223,6 @@
   function renderTabs() {
     const tabs = $("tabs");
     tabs.innerHTML = "";
-
     const allowed = roleScreens[safeRole((state.user || {}).role)] || ["service"];
 
     allowed.forEach(function (screen) {
@@ -205,7 +235,7 @@
         renderHeader();
         renderTabs();
         toggleAddOrder();
-        loadRows();
+        loadRows(true);
       };
       tabs.appendChild(btn);
     });
@@ -218,11 +248,13 @@
   }
 
   async function loadRows(force) {
-    if (!force && Date.now() < state.editingUntil) {
-      setLoading("التحديث متوقف مؤقتًا أثناء التعديل... اضغط حفظ");
+    if (!force && (state.isEditing || state.isSaving)) {
+      setLiveStatus("التحديث متوقف مؤقتاً أثناء التعديل");
       return;
     }
+
     setLoading("جاري تحميل الأوردرات...");
+
     try {
       const res = await api("getRows", authParams({ screen: state.screen }));
       if (!res.success) {
@@ -230,24 +262,15 @@
         if ((res.message || "").indexOf("انتهت الجلسة") !== -1) logout();
         return;
       }
+
       state.rows = Array.isArray(res.rows) ? res.rows : [];
       applyFiltersAndRender();
       setLoading("آخر تحديث: " + new Date().toLocaleTimeString("ar-EG"));
+      setLiveStatus("التحديث اللحظي يعمل كل 10 ثواني");
+      state.isEditing = false;
     } catch (err) {
       setLoading(err.message || "خطأ في التحميل.", true);
     }
-  }
-
-  function setLoading(msg, isError) {
-    const el = $("loadingText");
-    el.textContent = msg || "";
-    el.classList.toggle("error", !!isError);
-  }
-
-
-  function markEditing() {
-    // يوقف التحديث اللحظي مؤقتًا أثناء تعديل الحالة/الملاحظات حتى لا ترجع القيمة القديمة قبل الحفظ.
-    state.editingUntil = Date.now() + 30000;
   }
 
   function applyFiltersAndRender() {
@@ -258,7 +281,6 @@
     const filtered = state.rows.filter(function (r) {
       const blob = [r.orderId, r.lineId, r.customer, r.customerPhone, r.department, r.itemName, r.notes]
         .map(text).join(" ").toLowerCase();
-
       if (q && blob.indexOf(q) === -1) return false;
       if (status && text(r.status) !== status) return false;
       if (priority && text(r.priority) !== priority) return false;
@@ -271,21 +293,13 @@
 
   function renderStats(rows) {
     const total = rows.length;
-    const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل"; }).length;
-    const problem = rows.filter(function (r) { return ["مشكلة", "متوقف"].indexOf(text(r.status)) !== -1; }).length;
-    $("statsBar").innerHTML = "" +
-      "<span>الإجمالي: <b>" + total + "</b></span>" +
-      "<span>عاجل: <b>" + urgent + "</b></span>" +
-      "<span>مشاكل/متوقف: <b>" + problem + "</b></span>";
-  }
+    const urgent = rows.filter((r) => text(r.priority) === "عاجل").length;
+    const problem = rows.filter((r) => ["مشكلة", "متوقف"].indexOf(text(r.status)) !== -1).length;
 
-  function escapeHtml(value) {
-    return text(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    $("statsBar").innerHTML =
+      '<span>الإجمالي: ' + total + '</span>' +
+      '<span>عاجل: ' + urgent + '</span>' +
+      '<span>مشاكل/متوقف: ' + problem + '</span>';
   }
 
   function renderTable(rows) {
@@ -293,7 +307,8 @@
     const thead = table.querySelector("thead");
     const tbody = table.querySelector("tbody");
 
-    thead.innerHTML = "<tr>" +
+    thead.innerHTML =
+      "<tr>" +
       "<th>الأوردر</th>" +
       "<th>البند</th>" +
       "<th>العميل</th>" +
@@ -308,76 +323,98 @@
       "</tr>";
 
     if (!rows.length) {
-      tbody.innerHTML = "<tr><td colspan='11' class='empty'>لا توجد أوردرات مطابقة.</td></tr>";
+      tbody.innerHTML = '<tr><td colspan="11">لا توجد أوردرات مطابقة.</td></tr>';
       return;
     }
 
     tbody.innerHTML = rows.map(function (r, i) {
-      return "<tr data-line='" + escapeHtml(r.lineId) + "'>" +
+      return "<tr data-index=\"" + i + "\" data-line-id=\"" + escapeHtml(r.lineId) + "\">" +
         "<td>" + escapeHtml(r.orderId) + "</td>" +
         "<td>" + escapeHtml(r.lineId) + "</td>" +
         "<td>" + escapeHtml(r.customer) + "</td>" +
         "<td>" + escapeHtml(r.customerPhone) + "</td>" +
         "<td>" + escapeHtml(r.department) + "</td>" +
-        "<td class='item-name'>" + escapeHtml(r.itemName) + "</td>" +
+        "<td>" + escapeHtml(r.itemName) + "</td>" +
         "<td>" + escapeHtml(r.qty) + "</td>" +
         "<td>" + escapeHtml(r.priority) + "</td>" +
         "<td>" + statusSelect(r.status, i) + "</td>" +
-        "<td><input class='row-notes' data-i='" + i + "' value='" + escapeHtml(r.notes) + "'></td>" +
-        "<td><button class='save-line primary small' data-i='" + i + "'>حفظ</button></td>" +
+        "<td><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\"></td>" +
+        "<td><button class=\"save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
         "</tr>";
     }).join("");
+
+    Array.prototype.forEach.call(tbody.querySelectorAll(".row-status, .row-notes"), function (input) {
+      input.addEventListener("focus", pauseRefreshForEdit);
+      input.addEventListener("input", pauseRefreshForEdit);
+      input.addEventListener("change", pauseRefreshForEdit);
+    });
 
     Array.prototype.forEach.call(tbody.querySelectorAll(".save-line"), function (btn) {
       btn.addEventListener("click", function () {
         saveLine(rows[Number(btn.dataset.i)], btn.closest("tr"));
       });
     });
-
-    Array.prototype.forEach.call(tbody.querySelectorAll(".row-status, .row-notes"), function (el) {
-      el.addEventListener("focus", markEditing);
-      el.addEventListener("input", markEditing);
-      el.addEventListener("change", markEditing);
-    });
   }
 
   function statusSelect(current, i) {
-    const statuses = ["طلب جديد", "جاهز للطباعة", "بدأ التنفيذ", "تحت التنفيذ", "تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف"];
-    return "<select class='row-status' data-i='" + i + "'>" + statuses.map(function (s) {
-      return "<option" + (text(current) === s ? " selected" : "") + ">" + escapeHtml(s) + "</option>";
-    }).join("") + "</select>";
+    return '<select class="row-status" data-i="' + i + '">' +
+      STATUS_LIST.map(function (s) {
+        return '<option value="' + escapeHtml(s) + '"' + (s === text(current) ? " selected" : "") + '>' + escapeHtml(s) + '</option>';
+      }).join("") +
+      '</select>';
+  }
+
+  function pauseRefreshForEdit() {
+    state.isEditing = true;
+    setLiveStatus("التحديث متوقف مؤقتاً أثناء التعديل - اضغط حفظ");
   }
 
   async function saveLine(row, tr) {
     if (!row || !tr) return;
+
     const status = tr.querySelector(".row-status").value;
     const notes = tr.querySelector(".row-notes").value;
     const btn = tr.querySelector(".save-line");
+
+    state.isSaving = true;
+    state.isEditing = true;
+    setLiveStatus("جاري حفظ التعديل في الشيت...");
     btn.disabled = true;
-    btn.textContent = "...";
+    btn.textContent = "جاري الحفظ";
 
     try {
       const res = await api("updateLine", authParams({
-        lineId: row.lineId,
-        rowNumber: row.rowNumber,
-        orderId: row.orderId,
+        rowNumber: row.rowNumber || "",
+        orderId: row.orderId || "",
+        lineId: row.lineId || "",
         status: status,
         notes: notes
       }));
+
       if (!res.success) {
-        alert(res.message || "لم يتم الحفظ. سجل خروج وادخل من جديد ثم جرب مرة أخرى.");
+        alert(res.message || "لم يتم الحفظ في الشيت.");
+        btn.textContent = "حفظ";
         return;
       }
+
       row.status = status;
       row.notes = notes;
-      state.editingUntil = 0;
-      btn.textContent = "تم";
-      setTimeout(function () { btn.textContent = "حفظ"; }, 900);
-      await loadRows(true);
+      btn.textContent = "تم الحفظ";
+      setLoading("تم الحفظ في الشيت: " + new Date().toLocaleTimeString("ar-EG"));
+
+      setTimeout(function () {
+        state.isSaving = false;
+        state.isEditing = false;
+        loadRows(true);
+      }, 500);
     } catch (err) {
       alert(err.message || "خطأ أثناء الحفظ.");
     } finally {
-      btn.disabled = false;
+      setTimeout(function () {
+        btn.disabled = false;
+        if (btn.textContent !== "تم الحفظ") btn.textContent = "حفظ";
+      }, 700);
+      state.isSaving = false;
     }
   }
 
@@ -413,11 +450,13 @@
         return;
       }
 
-      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId, false);
-      ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) { $(id).value = ""; });
+      setMsg("addOrderStatus", "تم إضافة الأوردر في الشيت: " + res.orderId, false);
+      ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
+        $(id).value = "";
+      });
       $("newQty").value = 1;
       $("customerSuggestions").classList.add("hidden");
-      loadRows();
+      loadRows(true);
     } catch (err) {
       setMsg("addOrderStatus", err.message || "خطأ أثناء إضافة الأوردر.", true);
     } finally {
@@ -448,6 +487,7 @@
     try {
       const res = await api("searchCustomers", authParams({ q }));
       const customers = res.success && Array.isArray(res.customers) ? res.customers : [];
+
       if (!customers.length) {
         box.classList.add("hidden");
         box.innerHTML = "";
@@ -455,11 +495,12 @@
       }
 
       box.innerHTML = customers.map(function (c, i) {
-        return "<button type='button' data-i='" + i + "'>" +
-          "<b>" + escapeHtml(c.name) + "</b>" +
-          "<span>" + escapeHtml(c.phone || "") + " " + escapeHtml(c.type || "") + "</span>" +
-          "</button>";
+        return '<button type="button" data-i="' + i + '">' +
+          '<b>' + escapeHtml(c.name) + '</b>' +
+          '<small>' + escapeHtml(c.phone || "") + ' ' + escapeHtml(c.type || "") + '</small>' +
+          '</button>';
       }).join("");
+
       box.classList.remove("hidden");
 
       Array.prototype.forEach.call(box.querySelectorAll("button"), function (btn) {
@@ -515,7 +556,7 @@
 
   function startRefresh() {
     stopRefresh();
-    state.refreshTimer = setInterval(loadRows, REFRESH_MS);
+    state.refreshTimer = setInterval(function () { loadRows(false); }, REFRESH_MS);
   }
 
   function stopRefresh() {
@@ -532,8 +573,7 @@
     $("loginBtn").addEventListener("click", doLogin);
     $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
     $("username").addEventListener("keydown", function (e) { if (e.key === "Enter") $("password").focus(); });
-
-    $("refreshBtn").addEventListener("click", function(){ state.editingUntil = 0; loadRows(true); });
+    $("refreshBtn").addEventListener("click", function () { loadRows(true); });
     $("logoutBtn").addEventListener("click", logout);
     $("changePassBtn").addEventListener("click", openPasswordModal);
     $("cancelPassBtn").addEventListener("click", closePasswordModal);
