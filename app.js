@@ -273,8 +273,42 @@
       return true;
     });
 
+    renderCurrentOrder(filtered);
     renderStats(filtered);
     renderTable(filtered);
+  }
+
+  function renderCurrentOrder(rows) {
+    const bar = $("currentOrderBar");
+    if (!bar) return;
+
+    const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "تم التسليم"];
+    const priorityRank = { "عاجل": 0, "VIP": 0, "عادي": 1, "مؤجل": 2 };
+
+    const candidates = rows.map(function (r, i) {
+      return { row: r, index: i };
+    }).filter(function (x) {
+      return finishedStatuses.indexOf(text(x.row.status)) === -1;
+    }).sort(function (a, b) {
+      const pa = Object.prototype.hasOwnProperty.call(priorityRank, text(a.row.priority)) ? priorityRank[text(a.row.priority)] : 9;
+      const pb = Object.prototype.hasOwnProperty.call(priorityRank, text(b.row.priority)) ? priorityRank[text(b.row.priority)] : 9;
+      return (pa - pb) || (a.index - b.index);
+    });
+
+    if (!candidates.length) {
+      bar.classList.add("hidden");
+      bar.innerHTML = "";
+      return;
+    }
+
+    const r = candidates[0].row;
+    bar.classList.remove("hidden");
+    bar.innerHTML =
+      '<b>الأوردر الحالي في قسم ' + escapeHtml(screens[state.screen] || "-") + ': </b>' +
+      '<span>' + escapeHtml(r.orderId || "-") + '</span>' +
+      (r.lineId ? ' <small> | البند: ' + escapeHtml(r.lineId) + '</small>' : '') +
+      (r.customer ? ' <small> | العميل: ' + escapeHtml(r.customer) + '</small>' : '') +
+      (r.priority ? ' <small> | الأولوية: ' + escapeHtml(r.priority) + '</small>' : '');
   }
 
   function renderStats(rows) {
