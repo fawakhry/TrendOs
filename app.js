@@ -24,6 +24,7 @@
     screen: "service",
     rows: [],
     refreshTimer: null,
+    editingUntil: 0,
     suggestionTimer: null
   };
 
@@ -216,7 +217,11 @@
     $("addOrderCard").classList.toggle("hidden", !canAdd);
   }
 
-  async function loadRows() {
+  async function loadRows(force) {
+    if (!force && Date.now() < state.editingUntil) {
+      setLoading("التحديث متوقف مؤقتًا أثناء التعديل... اضغط حفظ");
+      return;
+    }
     setLoading("جاري تحميل الأوردرات...");
     try {
       const res = await api("getRows", authParams({ screen: state.screen }));
@@ -237,6 +242,12 @@
     const el = $("loadingText");
     el.textContent = msg || "";
     el.classList.toggle("error", !!isError);
+  }
+
+
+  function markEditing() {
+    // يوقف التحديث اللحظي مؤقتًا أثناء تعديل الحالة/الملاحظات حتى لا ترجع القيمة القديمة قبل الحفظ.
+    state.editingUntil = Date.now() + 30000;
   }
 
   function applyFiltersAndRender() {
@@ -322,6 +333,12 @@
         saveLine(rows[Number(btn.dataset.i)], btn.closest("tr"));
       });
     });
+
+    Array.prototype.forEach.call(tbody.querySelectorAll(".row-status, .row-notes"), function (el) {
+      el.addEventListener("focus", markEditing);
+      el.addEventListener("input", markEditing);
+      el.addEventListener("change", markEditing);
+    });
   }
 
   function statusSelect(current, i) {
@@ -340,16 +357,23 @@
     btn.textContent = "...";
 
     try {
-      const res = await api("updateLine", authParams({ lineId: row.lineId, status, notes }));
+      const res = await api("updateLine", authParams({
+        lineId: row.lineId,
+        rowNumber: row.rowNumber,
+        orderId: row.orderId,
+        status: status,
+        notes: notes
+      }));
       if (!res.success) {
-        alert(res.message || "لم يتم الحفظ.");
+        alert(res.message || "لم يتم الحفظ. سجل خروج وادخل من جديد ثم جرب مرة أخرى.");
         return;
       }
       row.status = status;
       row.notes = notes;
+      state.editingUntil = 0;
       btn.textContent = "تم";
       setTimeout(function () { btn.textContent = "حفظ"; }, 900);
-      applyFiltersAndRender();
+      await loadRows(true);
     } catch (err) {
       alert(err.message || "خطأ أثناء الحفظ.");
     } finally {
@@ -509,7 +533,7 @@
     $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
     $("username").addEventListener("keydown", function (e) { if (e.key === "Enter") $("password").focus(); });
 
-    $("refreshBtn").addEventListener("click", loadRows);
+    $("refreshBtn").addEventListener("click", function(){ state.editingUntil = 0; loadRows(true); });
     $("logoutBtn").addEventListener("click", logout);
     $("changePassBtn").addEventListener("click", openPasswordModal);
     $("cancelPassBtn").addEventListener("click", closePasswordModal);
