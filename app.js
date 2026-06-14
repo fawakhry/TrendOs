@@ -93,9 +93,30 @@
 
   function formatDisplayDate(value) {
     if (!value) return "";
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) return d.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
-    return text(value);
+    const raw = text(value).trim();
+    if (!raw || raw === "-" || raw.indexOf("#ERROR") !== -1 || raw.indexOf("#VALUE") !== -1) return "";
+
+    // لو القيمة جاية من Google Sheets كـ Date String زي:
+    // Tue Jun 16 2026 10:00:00 GMT+0300 ...
+    // نعرضها كتاريخ مختصر بدل النص الطويل.
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    }
+
+    return raw;
+  }
+
+  function displayExpectedDelivery(row) {
+    return formatDisplayDate(row.expectedDeliveryText) ||
+      formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery) ||
+      expectedDeliveryTextFromNow();
+  }
+
+  function safeDisplayPhone(phone) {
+    const s = text(phone).trim();
+    if (!s || s.indexOf("#ERROR") !== -1 || s.indexOf("#VALUE") !== -1) return "";
+    return s;
   }
 
   function addDays(date, days) {
@@ -114,7 +135,7 @@
     const item = row.itemName || "الأوردر";
     const dept = row.department || "-";
     const status = row.status || "طلب جديد";
-    const expected = row.expectedDeliveryText || formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery) || expectedDeliveryTextFromNow();
+    const expected = displayExpectedDelivery(row);
 
     if (mode === "registered") {
       return `أهلاً${customer} 🌟
@@ -478,14 +499,14 @@ Trend Mall`;
         "<td>" + escapeHtml(r.orderId) + "</td>" +
         "<td>" + escapeHtml(r.lineId) + "</td>" +
         "<td>" + escapeHtml(r.customer) + "</td>" +
-        "<td>" + escapeHtml(r.customerPhone) + "</td>" +
+        "<td>" + escapeHtml(safeDisplayPhone(r.customerPhone)) + "</td>" +
         "<td>" + escapeHtml(r.department) + "</td>" +
         "<td>" + escapeHtml(r.itemName) + "</td>" +
         "<td>" + escapeHtml(r.qty) + "</td>" +
         "<td>" + escapeHtml(r.priority) + "</td>" +
         "<td>" + statusSelect(r.status) + "</td>" +
         "<td><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\" placeholder=\"ملاحظات\"></td>" +
-        "<td>" + escapeHtml(r.expectedDeliveryText || formatDisplayDate(r.expectedDeliveryAt || r.expectedDelivery) || "-") + "</td>" +
+        "<td>" + escapeHtml(displayExpectedDelivery(r) || "-") + "</td>" +
         "<td>" + whatsappActions(r, i) + "</td>" +
         "<td><button class=\"primary save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
         "</tr>";
@@ -719,7 +740,7 @@ Trend Mall`;
         return;
       }
 
-      const expectedText = res.expectedDeliveryText || expectedDeliveryTextFromNow();
+      const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
       setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText, false);
 
       const registrationRow = {
