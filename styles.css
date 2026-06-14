@@ -81,7 +81,7 @@ button:disabled{opacity:.65;cursor:not-allowed}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
 .stats span{background:#eef9f7;border:1px solid #d7eee8;color:#0f6f5c;border-radius:999px;padding:8px 12px;font-size:13px}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:18px;background:#fff}
-table{width:100%;border-collapse:collapse;min-width:980px}
+table{width:100%;border-collapse:collapse;min-width:1180px}
 th,td{padding:11px 10px;border-bottom:1px solid #edf2f5;text-align:right;vertical-align:middle;font-size:14px}
 th{background:#f6fbfa;color:#0d6655;position:sticky;top:0;z-index:1}
 tr:hover td{background:#fbfefd}.item-name{min-width:170px}.row-notes{min-width:170px}.row-status{min-width:145px}.empty{text-align:center;color:var(--muted);padding:30px}
@@ -106,3 +106,12 @@ tr:hover td{background:#fbfefd}.item-name{min-width:170px}.row-notes{min-width:1
 #addCustomerStatus{font-weight:700;color:var(--muted)}
 #addCustomerStatus.ok{color:var(--primary-dark)}
 #addCustomerStatus.error{color:var(--danger)}
+
+
+.whatsapp-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;min-width:190px}
+.wa-btn{background:#e8fff7;color:#087052;border:1px solid #bfe9dc;border-radius:11px;padding:8px 10px;font-size:12px;white-space:nowrap}
+.wa-btn:hover{background:#d9faef}
+.wa-btn:disabled{background:#eef3f2;color:#8aa0a0;border-color:#dde7e7;cursor:not-allowed}
+.wa-ready{background:#fff7df;color:#8a5b00;border-color:#ecd89d}
+.wa-ready:hover{background:#fff0c5}
+.wa-notified{display:inline-block;color:#0f6f5c;background:#e9f9f4;border:1px solid #cfece3;border-radius:999px;padding:4px 7px;font-size:11px}

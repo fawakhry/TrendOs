@@ -70,6 +70,55 @@
       .replace(/'/g, "&#039;");
   }
 
+
+
+  function arabicDigitsToEnglish(value) {
+    const map = { "٠":"0", "١":"1", "٢":"2", "٣":"3", "٤":"4", "٥":"5", "٦":"6", "٧":"7", "٨":"8", "٩":"9" };
+    return text(value).replace(/[٠-٩]/g, function (d) { return map[d] || d; });
+  }
+
+  function whatsappPhone(phone) {
+    let digits = arabicDigitsToEnglish(phone).replace(/[^0-9]/g, "");
+    if (!digits) return "";
+    if (digits.length === 10 && digits.charAt(0) === "1") digits = "20" + digits;
+    else if (digits.length === 11 && digits.charAt(0) === "0") digits = "20" + digits.slice(1);
+    else if (digits.length === 12 && digits.slice(0, 2) === "20") digits = digits;
+    else if (digits.length > 12 && digits.slice(0, 2) === "00") digits = digits.slice(2);
+    return digits;
+  }
+
+  function isReadyForCustomer(status) {
+    return ["تم التنفيذ", "جاهز للاستلام", "تم التسليم"].indexOf(text(status)) !== -1;
+  }
+
+  function buildWhatsAppMessage(row, mode) {
+    const customer = row.customer ? " يا " + row.customer : "";
+    const orderId = row.orderId || row.lineId || "-";
+    const item = row.itemName || "الأوردر";
+    const dept = row.department || "-";
+    const status = row.status || "طلب جديد";
+
+    if (mode === "ready") {
+      if (status === "تم التسليم") {
+        return "أهلاً" + customer + " 🌟\nتم تسليم الأوردر رقم " + orderId + ".\nشكراً لتعاملكم مع Trend Mall.";
+      }
+      return "أهلاً" + customer + " 🌟\nالأوردر رقم " + orderId + " جاهز للاستلام.\nنوع الشغل: " + item + "\nالقسم: " + dept + "\nTrend Mall";
+    }
+
+    return "أهلاً" + customer + " 👋\nبخصوص الأوردر رقم " + orderId + "\nالحالة الحالية: " + status + "\nالقسم: " + dept + "\nنوع الشغل: " + item + (row.notes ? "\nملاحظات: " + row.notes : "") + "\nTrend Mall";
+  }
+
+  function openWhatsAppUrl(phone, message) {
+    const normalized = whatsappPhone(phone);
+    if (!normalized) {
+      alert("رقم العميل غير موجود أو غير صالح لفتح واتساب.");
+      return false;
+    }
+    const url = "https://wa.me/" + normalized + "?text=" + encodeURIComponent(message);
+    window.open(url, "_blank", "noopener");
+    return true;
+  }
+
   function buildUrl(action, params, callbackName) {
     const query = new URLSearchParams();
     query.set("action", action);
@@ -364,11 +413,12 @@
       "<th>الأولوية</th>" +
       "<th>الحالة</th>" +
       "<th>ملاحظات</th>" +
+      "<th>AI واتساب</th>" +
       "<th>حفظ</th>" +
       "</tr>";
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="11" class="empty">لا توجد أوردرات مطابقة.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" class="empty">لا توجد أوردرات مطابقة.</td></tr>';
       return;
     }
 
@@ -384,6 +434,7 @@
         "<td>" + escapeHtml(r.priority) + "</td>" +
         "<td>" + statusSelect(r.status) + "</td>" +
         "<td><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\" placeholder=\"ملاحظات\"></td>" +
+        "<td>" + whatsappActions(r, i) + "</td>" +
         "<td><button class=\"primary save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
         "</tr>";
     }).join("");
@@ -399,12 +450,88 @@
         saveLine(rows[Number(btn.dataset.i)], btn.closest("tr"));
       });
     });
+
+    Array.prototype.forEach.call(tbody.querySelectorAll(".wa-status"), function (btn) {
+      btn.addEventListener("click", function () {
+        sendWhatsApp(rows[Number(btn.dataset.i)], "status", btn);
+      });
+    });
+
+    Array.prototype.forEach.call(tbody.querySelectorAll(".wa-ready"), function (btn) {
+      btn.addEventListener("click", function () {
+        sendWhatsApp(rows[Number(btn.dataset.i)], "ready", btn);
+      });
+    });
+  }
+
+
+
+  function whatsappActions(row, i) {
+    const disabled = whatsappPhone(row.customerPhone) ? "" : " disabled";
+    const notified = text(row.customerNotified) === "نعم" ? '<small class="wa-notified">تم الإبلاغ</small>' : "";
+    const readyDisabled = isReadyForCustomer(row.status) ? disabled : " disabled";
+    return '<div class="whatsapp-actions">' +
+      '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>AI يرد بالحالة</button>' +
+      '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + readyDisabled + '>إبلاغ العميل</button>' +
+      notified +
+      '</div>';
   }
 
   function statusSelect(current) {
     return '<select class="row-status">' + statuses.map(function (s) {
       return '<option value="' + escapeHtml(s) + '"' + (text(current) === s ? " selected" : "") + '>' + escapeHtml(s) + '</option>';
     }).join("") + '</select>';
+  }
+
+
+
+  async function sendWhatsApp(row, mode, btn) {
+    if (!row) return;
+    const message = buildWhatsAppMessage(row, mode === "ready" ? "ready" : "status");
+    const opened = openWhatsAppUrl(row.customerPhone, message);
+    if (!opened) return;
+
+    const confirmText = mode === "ready"
+      ? "تم فتح واتساب برسالة الإبلاغ. هل تم إرسال الرسالة للعميل؟"
+      : "تم فتح واتساب برد الحالة. هل تم إرسال الرد للعميل؟";
+
+    if (!confirm(confirmText)) return;
+
+    const oldText = btn ? btn.textContent : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "جاري التسجيل...";
+    }
+    setLoading("جاري تسجيل رسالة الواتساب في الشيت...");
+
+    try {
+      const res = await api("markCustomerNotified", authParams({
+        rowNumber: row.rowNumber || "",
+        orderId: row.orderId || "",
+        lineId: row.lineId || "",
+        whatsappType: mode === "ready" ? "ready_notify" : "status_reply",
+        message: message
+      }));
+
+      if (!res.success) {
+        alert(res.message || "تم فتح واتساب، لكن لم يتم تسجيل الإبلاغ في الشيت.");
+        setLoading(res.message || "لم يتم تسجيل الإبلاغ في الشيت.", true);
+        return;
+      }
+
+      row.customerNotified = mode === "ready" ? "نعم" : row.customerNotified;
+      state.editing = false;
+      await loadRows(true);
+      setLoading("تم تسجيل رسالة الواتساب في الشيت.");
+    } catch (err) {
+      alert(err.message || "خطأ أثناء تسجيل الواتساب.");
+      setLoading(err.message || "خطأ أثناء تسجيل الواتساب.", true);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = oldText;
+      }
+    }
   }
 
   async function saveLine(row, tr) {
