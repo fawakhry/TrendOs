@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrendOS Operations</title>
-  <link rel="stylesheet" href="styles.css?v=1807">
+  <link rel="stylesheet" href="styles.css?v=1810">
 </head>
 <body>
 <main class="app">
@@ -37,6 +37,60 @@
     </header>
 
     <nav id="tabs" class="tabs"></nav>
+
+
+    <section id="addCustomerCard" class="card hidden">
+      <div class="table-tools">
+        <h3>إضافة عميل جديد</h3>
+        <span id="addCustomerStatus"></span>
+      </div>
+
+      <div class="hint strong-hint">
+        إضافة العملاء متاحة فقط لحساب <b>ضياء</b> و <b>رحمه</b>. بعد الحفظ يظهر العميل فورًا في اقتراحات إضافة الأوردر والبحث.
+      </div>
+
+      <div class="form-grid">
+        <div class="wide">
+          <label>اسم الشات / المكتب / العميل <span class="req">*</span></label>
+          <input id="newClientName" placeholder="مثال: اسماء رمضان" autocomplete="off">
+        </div>
+
+        <div>
+          <label>اسم المسؤول</label>
+          <input id="newClientManager" placeholder="يتحدد تلقائيًا">
+        </div>
+
+        <div>
+          <label>رقم العميل الأساسي</label>
+          <input id="newClientPhone" inputmode="tel" placeholder="اختياري">
+        </div>
+
+        <div>
+          <label>رقم إضافي</label>
+          <input id="newClientExtraPhone" inputmode="tel" placeholder="اختياري">
+        </div>
+
+        <div>
+          <label>نوع العميل</label>
+          <input id="newClientType" placeholder="مكتب / واتساب / عميل مباشر">
+        </div>
+
+        <div>
+          <label>مفعل؟</label>
+          <select id="newClientActive">
+            <option>نعم</option>
+            <option>لا</option>
+          </select>
+        </div>
+
+        <div class="wide">
+          <label>ملاحظات العميل</label>
+          <input id="newClientNotes" placeholder="اختياري">
+        </div>
+      </div>
+
+      <button id="createCustomerBtn" class="primary">إضافة العميل</button>
+    </section>
 
     <section id="addOrderCard" class="card hidden">
       <div class="table-tools">
@@ -177,7 +231,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1807"></script>
-<script src="app.js?v=1807"></script>
+<script src="config.js?v=1810"></script>
+<script src="app.js?v=1810"></script>
 </body>
 </html>

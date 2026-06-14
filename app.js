@@ -37,12 +37,25 @@
     rows: [],
     refreshTimer: null,
     suggestionTimer: null,
+    tableSuggestionTimer: null,
     saving: false,
     editing: false
   };
 
   const $ = (id) => document.getElementById(id);
   const text = (v) => String(v == null ? "" : v);
+
+  function normalizeArabic(value) {
+    return text(value)
+      .toLowerCase()
+      .replace(/[إأآا]/g, "ا")
+      .replace(/[ى]/g, "ي")
+      .replace(/[ؤ]/g, "و")
+      .replace(/[ئ]/g, "ي")
+      .replace(/[ةه]/g, "ه")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
 
   function safeRole(role) {
     return role && roleScreens[role] ? role : "service";
@@ -200,6 +213,7 @@
     renderHeader();
     renderTabs();
     toggleAddOrder();
+    toggleAddCustomer();
     loadRows();
     startRefresh();
   }
@@ -227,6 +241,7 @@
         renderHeader();
         renderTabs();
         toggleAddOrder();
+        toggleAddCustomer();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -237,6 +252,17 @@
     const role = safeRole((state.user || {}).role);
     const canAdd = role === "admin" || role === "service";
     $("addOrderCard").classList.toggle("hidden", !canAdd);
+  }
+
+
+  function toggleAddCustomer() {
+    const role = safeRole((state.user || {}).role);
+    const username = normalizeArabic((state.user || {}).username || (state.user || {}).name || "");
+    const canAdd = role === "admin" || role === "service" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+    const card = $("addCustomerCard");
+    if (card) card.classList.toggle("hidden", !canAdd);
+    const manager = $("newClientManager");
+    if (manager && !manager.value.trim()) manager.value = (state.user || {}).name || (state.user || {}).username || "";
   }
 
   async function loadRows(force) {
@@ -423,6 +449,52 @@
     }
   }
 
+  async function createCustomer() {
+    setMsg("addCustomerStatus", "", false);
+
+    const params = authParams({
+      customerName: $("newClientName").value.trim(),
+      manager: $("newClientManager").value.trim() || ((state.user || {}).name || (state.user || {}).username || ""),
+      phone: $("newClientPhone").value.trim(),
+      extraPhone: $("newClientExtraPhone").value.trim(),
+      customerType: $("newClientType").value.trim(),
+      active: $("newClientActive").value || "نعم",
+      notes: $("newClientNotes").value.trim()
+    });
+
+    if (!params.customerName) {
+      setMsg("addCustomerStatus", "اسم الشات / العميل مطلوب.", true);
+      return;
+    }
+
+    const btn = $("createCustomerBtn");
+    btn.disabled = true;
+    btn.textContent = "جاري إضافة العميل...";
+
+    try {
+      const res = await api("createCustomer", params);
+      if (!res.success) {
+        setMsg("addCustomerStatus", res.message || "فشل إضافة العميل في الشيت.", true);
+        return;
+      }
+
+      setMsg("addCustomerStatus", res.message || "تم إضافة العميل في شيت العملاء.", false);
+      ["newClientName", "newClientPhone", "newClientExtraPhone", "newClientType", "newClientNotes"].forEach(function (id) {
+        const el = $(id);
+        if (el) el.value = "";
+      });
+      const manager = $("newClientManager");
+      if (manager) manager.value = (state.user || {}).name || (state.user || {}).username || "";
+      const active = $("newClientActive");
+      if (active) active.value = "نعم";
+    } catch (err) {
+      setMsg("addCustomerStatus", err.message || "خطأ أثناء إضافة العميل.", true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "إضافة العميل";
+    }
+  }
+
   async function createOrder() {
     setMsg("addOrderStatus", "", false);
 
@@ -521,6 +593,77 @@
     }
   }
 
+
+  function wireTableCustomerSearch() {
+    const input = $("tableSearch");
+    if (!input || input.dataset.autocompleteWired === "1") return;
+    input.dataset.autocompleteWired = "1";
+
+    const holder = document.createElement("div");
+    holder.className = "suggest-box table-search-suggest";
+    input.parentNode.insertBefore(holder, input);
+    holder.appendChild(input);
+
+    const box = document.createElement("div");
+    box.id = "tableCustomerSuggestions";
+    box.className = "suggestions hidden";
+    holder.appendChild(box);
+
+    input.addEventListener("input", function () {
+      applyFiltersAndRender();
+      clearTimeout(state.tableSuggestionTimer);
+      const q = input.value.trim();
+      if (q.length < 2) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+      state.tableSuggestionTimer = setTimeout(function () {
+        searchCustomersForTable(q, box, input);
+      }, 250);
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!holder.contains(e.target)) box.classList.add("hidden");
+    });
+  }
+
+  async function searchCustomersForTable(q, box, input) {
+    try {
+      const res = await api("searchCustomers", authParams({ q: q }));
+      const customers = res.success && Array.isArray(res.customers) ? res.customers : [];
+      const qKey = normalizeArabic(q);
+      const filtered = customers.filter(function (c) {
+        return normalizeArabic([c.name, c.phone, c.extraPhone, c.type, c.manager].join(" ")).indexOf(qKey) !== -1;
+      }).slice(0, 10);
+
+      if (!filtered.length) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+
+      box.innerHTML = filtered.map(function (c, i) {
+        return '<button type="button" data-i="' + i + '">' +
+          '<b>' + escapeHtml(c.name || "") + '</b>' +
+          '<span>' + escapeHtml([c.phone || c.extraPhone || "", c.type || ""].filter(Boolean).join(" | ")) + '</span>' +
+          '</button>';
+      }).join("");
+
+      box.classList.remove("hidden");
+      Array.prototype.forEach.call(box.querySelectorAll("button"), function (btn) {
+        btn.onclick = function () {
+          const c = filtered[Number(btn.dataset.i)];
+          input.value = c.name || "";
+          box.classList.add("hidden");
+          applyFiltersAndRender();
+        };
+      });
+    } catch (e) {
+      box.classList.add("hidden");
+    }
+  }
+
   function openPasswordModal() {
     $("passwordModal").classList.remove("hidden");
     setMsg("passMsg", "", false);
@@ -584,6 +727,8 @@
     $("cancelPassBtn").addEventListener("click", closePasswordModal);
     $("savePassBtn").addEventListener("click", changePassword);
     $("createOrderBtn").addEventListener("click", createOrder);
+    const createCustomerButton = $("createCustomerBtn");
+    if (createCustomerButton) createCustomerButton.addEventListener("click", createCustomer);
 
     ["tableSearch", "statusFilter", "priorityFilter"].forEach(function (id) {
       $(id).addEventListener("input", applyFiltersAndRender);
@@ -591,6 +736,7 @@
     });
 
     wireCustomerSearch();
+    wireTableCustomerSearch();
   }
 
   document.addEventListener("DOMContentLoaded", function () {

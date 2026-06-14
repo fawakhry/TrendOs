@@ -97,3 +97,12 @@ tr:hover td{background:#fbfefd}.item-name{min-width:170px}.row-notes{min-width:1
   .form-grid,.filters{grid-template-columns:1fr}.form-grid .wide{grid-column:auto}
   .login-card{margin:25px auto;padding:24px}
 }
+
+.table-search-suggest{position:relative;width:100%}
+.table-search-suggest input{width:100%}
+.table-search-suggest .suggestions{top:calc(100% + 4px)}
+
+.customer-card-actions{display:flex;gap:10px;flex-wrap:wrap}
+#addCustomerStatus{font-weight:700;color:var(--muted)}
+#addCustomerStatus.ok{color:var(--primary-dark)}
+#addCustomerStatus.error{color:var(--danger)}
