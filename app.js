@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1817_COMPACT_PAGINATION";
+  const UI_VERSION = "1818_GRID_CARDS_PAGINATION";
 
   const screens = {
     service: "خدمة العملاء",
