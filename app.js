@@ -3,6 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
+  const UI_VERSION = "1817_COMPACT_PAGINATION";
 
   const screens = {
     service: "خدمة العملاء",
@@ -39,7 +40,9 @@
     suggestionTimer: null,
     tableSuggestionTimer: null,
     saving: false,
-    editing: false
+    editing: false,
+    currentPage: 1,
+    pageSize: 5
   };
 
   const $ = (id) => document.getElementById(id);
@@ -414,23 +417,32 @@ Trend Mall`;
     }
   }
 
-  function applyFiltersAndRender() {
+  function applyFiltersAndRender(resetPage) {
     const q = ($("tableSearch").value || "").trim().toLowerCase();
+    const qNormalized = normalizeArabic(q);
     const status = $("statusFilter").value || "";
     const priority = $("priorityFilter").value || "";
 
     const filtered = state.rows.filter(function (r) {
       const blob = [r.orderId, r.lineId, r.customer, r.customerPhone, r.department, r.itemName, r.notes]
         .map(text).join(" ").toLowerCase();
-      if (q && blob.indexOf(q) === -1) return false;
+      const blobNormalized = normalizeArabic(blob);
+      if (q && blob.indexOf(q) === -1 && blobNormalized.indexOf(qNormalized) === -1) return false;
       if (status && text(r.status) !== status) return false;
       if (priority && text(r.priority) !== priority) return false;
       return true;
     });
 
+    if (resetPage === true) state.currentPage = 1;
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+    if (state.currentPage > totalPages) state.currentPage = totalPages;
+    if (state.currentPage < 1) state.currentPage = 1;
+
     renderCurrentOrder(filtered);
     renderStats(filtered);
     renderTable(filtered);
+    renderPagination(filtered.length);
   }
 
   function renderCurrentOrder(rows) {
@@ -476,48 +488,56 @@ Trend Mall`;
       '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
+  function compactOrderCell(r) {
+    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b></div>' +
+      '<div class="muted-line">البند: ' + escapeHtml(r.lineId || "-") + '</div>' +
+      '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>';
+  }
+
+  function compactCustomerCell(r) {
+    return '<div class="order-main"><b>' + escapeHtml(r.customer || "-") + '</b></div>' +
+      '<div class="muted-line phone-line">' + escapeHtml(safeDisplayPhone(r.customerPhone) || "بدون رقم") + '</div>';
+  }
+
+  function compactWorkCell(r) {
+    return '<div class="order-main"><b>' + escapeHtml(r.itemName || "-") + '</b></div>' +
+      '<div class="muted-line">القسم: ' + escapeHtml(r.department || "-") + '</div>' +
+      '<div class="muted-line">الكمية: ' + escapeHtml(r.qty || "-") + '</div>';
+  }
+
   function renderTable(rows) {
     const table = $("ordersTable");
     const thead = table.querySelector("thead");
     const tbody = table.querySelector("tbody");
+    const totalPages = Math.max(1, Math.ceil(rows.length / state.pageSize));
+    if (state.currentPage > totalPages) state.currentPage = totalPages;
+    if (state.currentPage < 1) state.currentPage = 1;
+    const start = (state.currentPage - 1) * state.pageSize;
+    const pageRows = rows.slice(start, start + state.pageSize);
 
     thead.innerHTML =
       "<tr>" +
-      "<th>الأوردر</th>" +
-      "<th>البند</th>" +
+      "<th>الأوردر والتسليم</th>" +
       "<th>العميل</th>" +
-      "<th>رقم العميل</th>" +
-      "<th>القسم</th>" +
-      "<th>نوع الشغل</th>" +
-      "<th>الكمية</th>" +
-      "<th>الأولوية</th>" +
-      "<th>الحالة</th>" +
+      "<th>الشغل</th>" +
+      "<th>الأولوية والحالة</th>" +
       "<th>ملاحظات</th>" +
-      "<th>التسليم المتوقع</th>" +
-      "<th>AI واتساب</th>" +
-      "<th>حفظ</th>" +
+      "<th>واتساب / حفظ</th>" +
       "</tr>";
 
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="13" class="empty">لا توجد أوردرات مطابقة.</td></tr>';
+    if (!pageRows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">لا توجد أوردرات مطابقة.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = rows.map(function (r, i) {
+    tbody.innerHTML = pageRows.map(function (r, i) {
       return "<tr data-i=\"" + i + "\">" +
-        "<td>" + escapeHtml(r.orderId) + "</td>" +
-        "<td>" + escapeHtml(r.lineId) + "</td>" +
-        "<td>" + escapeHtml(r.customer) + "</td>" +
-        "<td>" + escapeHtml(safeDisplayPhone(r.customerPhone)) + "</td>" +
-        "<td>" + escapeHtml(r.department) + "</td>" +
-        "<td>" + escapeHtml(r.itemName) + "</td>" +
-        "<td>" + escapeHtml(r.qty) + "</td>" +
-        "<td>" + escapeHtml(r.priority) + "</td>" +
-        "<td>" + statusSelect(r.status) + "</td>" +
-        "<td><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\" placeholder=\"ملاحظات\"></td>" +
-        "<td>" + escapeHtml(displayExpectedDelivery(r) || "-") + "</td>" +
-        "<td>" + whatsappActions(r, i) + "</td>" +
-        "<td><button class=\"primary save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
+        "<td class=\"order-cell\">" + compactOrderCell(r) + "</td>" +
+        "<td class=\"customer-cell\">" + compactCustomerCell(r) + "</td>" +
+        "<td class=\"work-cell\">" + compactWorkCell(r) + "</td>" +
+        "<td class=\"status-cell\"><div class=\"priority-pill\">" + escapeHtml(r.priority || "-") + "</div>" + statusSelect(r.status) + "</td>" +
+        "<td class=\"notes-cell\"><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\" placeholder=\"ملاحظات\"></td>" +
+        "<td class=\"actions-cell\">" + whatsappActions(r, i) + "<button class=\"primary save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
         "</tr>";
     }).join("");
 
@@ -529,20 +549,62 @@ Trend Mall`;
 
     Array.prototype.forEach.call(tbody.querySelectorAll(".save-line"), function (btn) {
       btn.addEventListener("click", function () {
-        saveLine(rows[Number(btn.dataset.i)], btn.closest("tr"));
+        saveLine(pageRows[Number(btn.dataset.i)], btn.closest("tr"));
       });
     });
 
     Array.prototype.forEach.call(tbody.querySelectorAll(".wa-status"), function (btn) {
       btn.addEventListener("click", function () {
-        sendWhatsApp(rows[Number(btn.dataset.i)], "status", btn);
+        sendWhatsApp(pageRows[Number(btn.dataset.i)], "status", btn);
       });
     });
 
     Array.prototype.forEach.call(tbody.querySelectorAll(".wa-ready"), function (btn) {
       btn.addEventListener("click", function () {
-        sendWhatsApp(rows[Number(btn.dataset.i)], "ready", btn);
+        sendWhatsApp(pageRows[Number(btn.dataset.i)], "ready", btn);
       });
+    });
+  }
+
+  function renderPagination(totalRows) {
+    let bar = $("paginationBar");
+    const wrap = document.querySelector(".table-wrap");
+    if (!bar && wrap && wrap.parentNode) {
+      bar = document.createElement("div");
+      bar.id = "paginationBar";
+      bar.className = "pagination";
+      wrap.parentNode.insertBefore(bar, wrap.nextSibling);
+    }
+    if (!bar) return;
+
+    const totalPages = Math.max(1, Math.ceil(totalRows / state.pageSize));
+    if (totalRows <= state.pageSize) {
+      bar.innerHTML = totalRows ? '<span>صفحة 1 من 1</span>' : '';
+      return;
+    }
+
+    let html = '<button type="button" data-page="prev"' + (state.currentPage <= 1 ? ' disabled' : '') + '>السابق</button>';
+    for (let p = 1; p <= totalPages; p++) {
+      if (totalPages > 9 && p !== 1 && p !== totalPages && Math.abs(p - state.currentPage) > 2) {
+        if (p === 2 || p === totalPages - 1) html += '<span class="dots">...</span>';
+        continue;
+      }
+      html += '<button type="button" data-page="' + p + '" class="' + (p === state.currentPage ? 'active' : '') + '">' + p + '</button>';
+    }
+    html += '<button type="button" data-page="next"' + (state.currentPage >= totalPages ? ' disabled' : '') + '>التالي</button>';
+    html += '<span>صفحة ' + state.currentPage + ' من ' + totalPages + ' — كل صفحة 5 أوردرات</span>';
+    bar.innerHTML = html;
+
+    Array.prototype.forEach.call(bar.querySelectorAll("button"), function (btn) {
+      btn.onclick = function () {
+        const target = btn.dataset.page;
+        if (target === "prev") state.currentPage -= 1;
+        else if (target === "next") state.currentPage += 1;
+        else state.currentPage = Number(target) || 1;
+        applyFiltersAndRender(false);
+        const card = document.querySelector("#ordersTable");
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
     });
   }
 
@@ -853,7 +915,7 @@ Trend Mall`;
     holder.appendChild(box);
 
     input.addEventListener("input", function () {
-      applyFiltersAndRender();
+      applyFiltersAndRender(true);
       clearTimeout(state.tableSuggestionTimer);
       const q = input.value.trim();
       if (q.length < 2) {
@@ -899,7 +961,7 @@ Trend Mall`;
           const c = filtered[Number(btn.dataset.i)];
           input.value = c.name || "";
           box.classList.add("hidden");
-          applyFiltersAndRender();
+          applyFiltersAndRender(true);
         };
       });
     } catch (e) {
@@ -974,8 +1036,8 @@ Trend Mall`;
     if (createCustomerButton) createCustomerButton.addEventListener("click", createCustomer);
 
     ["tableSearch", "statusFilter", "priorityFilter"].forEach(function (id) {
-      $(id).addEventListener("input", applyFiltersAndRender);
-      $(id).addEventListener("change", applyFiltersAndRender);
+      $(id).addEventListener("input", function () { applyFiltersAndRender(true); });
+      $(id).addEventListener("change", function () { applyFiltersAndRender(true); });
     });
 
     wireCustomerSearch();
