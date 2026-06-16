@@ -251,3 +251,11 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   .actions-cell{grid-column:auto;}
   .filters{grid-template-columns:1fr;}
 }
+
+/* V1820 - duplicate status + heat press marker */
+.heatpress-box{border:1px solid #fecaca;background:#fff7f7;border-radius:14px;padding:10px 12px;}
+.heatpress-box small{display:block;color:#9f1239;font-size:11px;margin-top:5px;}
+.checkline{display:flex!important;align-items:center;gap:8px;font-weight:800;color:#991b1b;cursor:pointer;}
+.checkline input{width:18px;height:18px;accent-color:#dc2626;}
+.badges-row{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:7px;}
+.press-pill{display:inline-flex;align-items:center;justify-content:center;background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;white-space:nowrap;}

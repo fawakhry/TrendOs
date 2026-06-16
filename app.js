@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1819_ACTIVE_DEFAULT_HIDE_DONE";
+  const UI_VERSION = "1820_DUPLICATE_HEATPRESS";
 
   const screens = {
     service: "خدمة العملاء",
@@ -28,13 +28,14 @@
     "تم التنفيذ",
     "جاهز للاستلام",
     "تم التسليم",
+    "مكرر",
     "مشكلة",
     "متوقف"
   ];
 
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
   // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
-  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم"];
+  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر"];
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
 
   function isHiddenFromUserScreens(status) {
@@ -49,6 +50,26 @@
   function isActiveDefaultPriority(priority) {
     const p = text(priority) || "عادي";
     return p === "عاجل" || p === "عادي" || p === "VIP";
+  }
+
+  function isHeatPress(value) {
+    const v = text(value).trim();
+    return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "مكبس";
+  }
+
+  function showHeatPressForDepartment(department) {
+    const d = text(department);
+    return d === "طباعة" || d === "متعدد الأقسام";
+  }
+
+  function updateHeatPressVisibility() {
+    const box = $("heatPressBox");
+    const chk = $("newHeatPress");
+    const dep = $("newDepartment");
+    if (!box || !chk || !dep) return;
+    const show = showHeatPressForDepartment(dep.value);
+    box.classList.toggle("hidden", !show);
+    if (!show) chk.checked = false;
   }
 
   const state = {
@@ -472,7 +493,7 @@ Trend Mall`;
     const bar = $("currentOrderBar");
     if (!bar) return;
 
-    const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "تم التسليم"];
+    const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر"];
 
     const candidates = rows.map(function (r, i) {
       return { row: r, index: i };
@@ -522,9 +543,15 @@ Trend Mall`;
   }
 
   function compactWorkCell(r) {
-    return '<div class="order-main"><b>' + escapeHtml(r.itemName || "-") + '</b></div>' +
+    const press = isHeatPress(r.heatPress) ? '<span class="press-pill">مكبس حراري</span>' : '';
+    return '<div class="order-main"><b>' + escapeHtml(r.itemName || "-") + '</b> ' + press + '</div>' +
       '<div class="muted-line">القسم: ' + escapeHtml(r.department || "-") + '</div>' +
       '<div class="muted-line">الكمية: ' + escapeHtml(r.qty || "-") + '</div>';
+  }
+
+  function statusBadges(r) {
+    const press = isHeatPress(r.heatPress) ? '<span class="press-pill">مكبس</span>' : '';
+    return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + '</div>';
   }
 
   function renderTable(rows) {
@@ -809,6 +836,7 @@ Trend Mall`;
       customerPhone: $("newCustomerPhone").value.trim(),
       customerType: $("newCustomerType").value.trim(),
       department: $("newDepartment").value,
+      heatPress: ($("newHeatPress") && $("newHeatPress").checked) ? "نعم" : "لا",
       itemName: $("newItemName").value.trim(),
       qty: $("newQty").value || "1",
       priority: $("newPriority").value,
@@ -859,6 +887,8 @@ Trend Mall`;
         $(id).value = "";
       });
       $("newQty").value = 1;
+      if ($("newHeatPress")) $("newHeatPress").checked = false;
+      updateHeatPressVisibility();
       $("customerSuggestions").classList.add("hidden");
       state.editing = false;
       await loadRows(true);
@@ -1056,6 +1086,11 @@ Trend Mall`;
     $("createOrderBtn").addEventListener("click", createOrder);
     const createCustomerButton = $("createCustomerBtn");
     if (createCustomerButton) createCustomerButton.addEventListener("click", createCustomer);
+    const departmentSelect = $("newDepartment");
+    if (departmentSelect) {
+      departmentSelect.addEventListener("change", updateHeatPressVisibility);
+      updateHeatPressVisibility();
+    }
 
     ["tableSearch", "statusFilter", "priorityFilter"].forEach(function (id) {
       $(id).addEventListener("input", function () { applyFiltersAndRender(true); });
