@@ -4,7 +4,6 @@ window.MB_CONFIG = {
   businessName: "مطبعجي بنها",
   whatsappNumber: "201036112077",
 
-  // نفس رابط TrendOS / Google Apps Script
   activationEndpoint: window.TREND_API_URL,
 
   sheetWidthCm: 29.7,
