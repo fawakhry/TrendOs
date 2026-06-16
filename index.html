@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrendOS Operations</title>
-  <link rel="stylesheet" href="styles.css?v=1818">
+  <link rel="stylesheet" href="styles.css?v=1819">
 </head>
 <body>
 <main class="app">
@@ -142,8 +142,8 @@
         <div>
           <label>الأولوية</label>
           <select id="newPriority">
+            <option selected>عادي</option>
             <option>عاجل</option>
-            <option>عادي</option>
             <option>مؤجل</option>
           </select>
         </div>
@@ -195,6 +195,7 @@
           <option>متوقف</option>
         </select>
         <select id="priorityFilter">
+          <option value="__ACTIVE__" selected>العاجل والعادي فقط</option>
           <option value="">كل الأولويات</option>
           <option>عاجل</option>
           <option>عادي</option>
@@ -232,7 +233,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1818"></script>
-<script src="app.js?v=1818"></script>
+<script src="config.js?v=1819"></script>
+<script src="app.js?v=1819"></script>
 </body>
 </html>
