@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1818_GRID_CARDS_PAGINATION";
+  const UI_VERSION = "1819_ACTIVE_DEFAULT_HIDE_DONE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -31,6 +31,25 @@
     "مشكلة",
     "متوقف"
   ];
+
+  // حالات لا تظهر في شاشة التشغيل بعد حفظها.
+  // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
+  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم"];
+  const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
+
+  function isHiddenFromUserScreens(status) {
+    return HIDDEN_FROM_USER_SCREENS.indexOf(text(status)) !== -1;
+  }
+
+  function priorityRank(priority) {
+    const p = text(priority);
+    return Object.prototype.hasOwnProperty.call(PRIORITY_RANK, p) ? PRIORITY_RANK[p] : 9;
+  }
+
+  function isActiveDefaultPriority(priority) {
+    const p = text(priority) || "عادي";
+    return p === "عاجل" || p === "عادي" || p === "VIP";
+  }
 
   const state = {
     user: null,
@@ -421,16 +440,20 @@ Trend Mall`;
     const q = ($("tableSearch").value || "").trim().toLowerCase();
     const qNormalized = normalizeArabic(q);
     const status = $("statusFilter").value || "";
-    const priority = $("priorityFilter").value || "";
+    const priority = $("priorityFilter").value || "__ACTIVE__";
 
     const filtered = state.rows.filter(function (r) {
       const blob = [r.orderId, r.lineId, r.customer, r.customerPhone, r.department, r.itemName, r.notes]
         .map(text).join(" ").toLowerCase();
       const blobNormalized = normalizeArabic(blob);
+      if (isHiddenFromUserScreens(r.status)) return false;
       if (q && blob.indexOf(q) === -1 && blobNormalized.indexOf(qNormalized) === -1) return false;
       if (status && text(r.status) !== status) return false;
-      if (priority && text(r.priority) !== priority) return false;
+      if (priority === "__ACTIVE__" && !isActiveDefaultPriority(r.priority)) return false;
+      if (priority && priority !== "__ACTIVE__" && text(r.priority) !== priority) return false;
       return true;
+    }).sort(function (a, b) {
+      return (priorityRank(a.priority) - priorityRank(b.priority)) || String(a.orderId || "").localeCompare(String(b.orderId || ""));
     });
 
     if (resetPage === true) state.currentPage = 1;
@@ -450,16 +473,13 @@ Trend Mall`;
     if (!bar) return;
 
     const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "تم التسليم"];
-    const priorityRank = { "عاجل": 0, "VIP": 0, "عادي": 1, "مؤجل": 2 };
 
     const candidates = rows.map(function (r, i) {
       return { row: r, index: i };
     }).filter(function (x) {
       return finishedStatuses.indexOf(text(x.row.status)) === -1;
     }).sort(function (a, b) {
-      const pa = Object.prototype.hasOwnProperty.call(priorityRank, text(a.row.priority)) ? priorityRank[text(a.row.priority)] : 9;
-      const pb = Object.prototype.hasOwnProperty.call(priorityRank, text(b.row.priority)) ? priorityRank[text(b.row.priority)] : 9;
-      return (pa - pb) || (a.index - b.index);
+      return (priorityRank(a.row.priority) - priorityRank(b.row.priority)) || (a.index - b.index);
     });
 
     if (!candidates.length) {
@@ -480,11 +500,13 @@ Trend Mall`;
 
   function renderStats(rows) {
     const total = rows.length;
-    const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل"; }).length;
+    const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل" || text(r.priority) === "VIP"; }).length;
+    const normal = rows.filter(function (r) { return !text(r.priority) || text(r.priority) === "عادي"; }).length;
     const problem = rows.filter(function (r) { return ["مشكلة", "متوقف"].indexOf(text(r.status)) !== -1; }).length;
     $("statsBar").innerHTML =
-      '<span>الإجمالي: <b>' + total + '</b></span>' +
+      '<span>المعروض: <b>' + total + '</b></span>' +
       '<span>عاجل: <b>' + urgent + '</b></span>' +
+      '<span>عادي: <b>' + normal + '</b></span>' +
       '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
