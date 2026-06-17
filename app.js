@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1826_OVERDUE_STATUS_FILTER";
+  const UI_VERSION = "1827_DEPARTMENT_DASHBOARD";
 
   const screens = {
     service: "خدمة العملاء",
@@ -498,18 +498,23 @@ Trend Mall`;
   function renderDashboard(d) {
     const grid = $("dashboardGrid");
     if (!grid) return;
+    const deptName = d.departmentName || screens[state.screen] || "القسم";
     const byDept = d.byDepartment || {};
+    const todayWork = d.todayWorkSheets || 0;
+    const todayLines = d.todayWorkLines || 0;
+    const todayOrders = d.todayWorkOrders || d.todayOrders || 0;
     grid.innerHTML =
-      dashboardItem("أوردرات اليوم", d.todayOrders || 0, "") +
-      dashboardItem("عاجل", d.urgent || 0, "urgent") +
-      dashboardItem("عادي", d.normal || 0, "") +
+      '<div class="dash-note">متابعة ' + escapeHtml(deptName) + ' — شغل اليوم = الأوردرات المستلمة أمس والمفروض تتسلم بكرة.</div>' +
+      dashboardItem("شغل اليوم", todayWork, "todaywork") +
+      dashboardItem("بنود شغل اليوم", todayLines, "") +
+      dashboardItem("أوردرات شغل اليوم", todayOrders, "") +
       dashboardItem("متأخر", d.overdue || 0, "danger") +
-      dashboardItem("طباعة", byDept["طباعة"] || 0, "") +
-      dashboardItem("ليزر", byDept["ليزر"] || 0, "") +
-      dashboardItem("مكبس", byDept["مكبس"] || 0, "press") +
+      dashboardItem("تم التسليم اليوم", d.deliveredToday || 0, "done") +
       dashboardItem("جاهز للاستلام", d.readyForPickup || 0, "ready") +
-      dashboardItem("تم التسليم", d.delivered || 0, "done") +
-      dashboardItem("مكرر", d.duplicate || 0, "muted");
+      dashboardItem("عاجل مفتوح", d.urgent || 0, "urgent") +
+      dashboardItem("عادي مفتوح", d.normal || 0, "") +
+      dashboardItem("إجمالي مفتوح", d.activeOrders || 0, "") +
+      dashboardItem("مكبس حراري", d.heatPress || byDept["مكبس"] || 0, "press");
   }
 
 

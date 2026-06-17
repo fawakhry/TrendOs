@@ -374,3 +374,7 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
     grid-template-columns: 1fr;
   }
 }
+
+.dashboard-grid .dash-note{grid-column:1/-1;background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;border-radius:14px;padding:10px 12px;font-weight:800;line-height:1.7;}
+.dash-item.todaywork{border-color:#a7f3d0;background:#f0fdf4;}
+.dash-item.todaywork b{color:#047857;}
