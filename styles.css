@@ -279,3 +279,98 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .stat-danger{background:#fff1f2!important;color:#b91c1c!important;border-color:#fecaca!important;}
 @media(max-width:980px){.dashboard-grid{grid-template-columns:repeat(2,minmax(120px,1fr));}}
 @media(max-width:620px){.dashboard-grid{grid-template-columns:1fr;}.dash-item b{font-size:18px;}}
+
+/* V1822 visible version marker */
+.version-badge{display:inline-block;margin-top:4px;background:#111827;color:#fff;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800}
+
+/* V1823 - AI Knowledge Manager */
+.ai-knowledge-card {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+.knowledge-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 16px;
+  align-items: start;
+}
+.knowledge-form label {
+  display: block;
+  margin-top: 10px;
+  font-weight: 700;
+}
+.knowledge-form input,
+.knowledge-form select,
+.knowledge-form textarea,
+.knowledge-search-row input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.knowledge-form textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.7;
+}
+.knowledge-small-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.knowledge-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.knowledge-list-wrap {
+  min-width: 0;
+}
+.knowledge-search-row {
+  margin-bottom: 10px;
+}
+.knowledge-list {
+  display: grid;
+  gap: 10px;
+  max-height: 520px;
+  overflow: auto;
+  padding-inline-end: 4px;
+}
+.knowledge-item {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+.knowledge-item.inactive {
+  opacity: 0.62;
+  background: #f8fafc;
+}
+.knowledge-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.knowledge-item-head b {
+  font-size: 15px;
+}
+.knowledge-item-head span {
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #eef2ff;
+  color: #3730a3;
+  white-space: nowrap;
+}
+.knowledge-item p {
+  margin: 8px 0;
+  line-height: 1.6;
+  color: #334155;
+}
+.knowledge-item small {
+  display: block;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+@media (max-width: 900px) {
+  .knowledge-layout {
+    grid-template-columns: 1fr;
+  }
+}

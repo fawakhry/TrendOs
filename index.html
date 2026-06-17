@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrendOS Operations</title>
-  <link rel="stylesheet" href="styles.css?v=1821">
+  <link rel="stylesheet" href="styles.css?v=1823">
 </head>
 <body>
 <main class="app">
@@ -27,6 +27,7 @@
       <div>
         <h2 id="welcomeTitle">TrendOS</h2>
         <p id="roleLabel"></p>
+        <p class="version-badge">TrendOS V1823 - معرفة واتس AI + متابعة اليوم</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -45,6 +46,80 @@
       </div>
       <div id="dashboardGrid" class="dashboard-grid">
         <div class="dash-empty">جاري تحميل ملخص التشغيل...</div>
+      </div>
+    </section>
+
+
+    <section id="aiKnowledgeCard" class="card ai-knowledge-card hidden">
+      <div class="table-tools">
+        <h3>معرفة واتس AI</h3>
+        <span id="knowledgeStatus"></span>
+      </div>
+
+      <div class="hint strong-hint">
+        هذه القواعد هي مصدر معرفة واتس AI. أي تعديل هنا سيسمع لاحقًا في ردود الواتساب بعد ربط الـ Webhook، ويمكن استخدامه فورًا كمرجع للردود.
+      </div>
+
+      <div class="knowledge-layout">
+        <div class="knowledge-form">
+          <input id="knowledgeId" type="hidden">
+
+          <label>القسم</label>
+          <select id="knowledgeCategory">
+            <option>قواعد التشغيل</option>
+            <option>ردود واتساب</option>
+            <option>سياسة التسليم</option>
+            <option>الأسعار والخدمات</option>
+            <option>الممنوعات</option>
+            <option>تحويل للدعم</option>
+            <option>إعدادات عامة</option>
+          </select>
+
+          <label>العنوان</label>
+          <input id="knowledgeTitle" placeholder="مثال: سياسة التسليم">
+
+          <label>كلمات مفتاحية</label>
+          <input id="knowledgeKeywords" placeholder="مثال: تسليم، وقت، ميعاد، استلام">
+
+          <label>المحتوى / قاعدة الرد</label>
+          <textarea id="knowledgeContent" rows="5" placeholder="اكتب القاعدة التي سيعتمد عليها واتس AI في الردود"></textarea>
+
+          <div class="form-grid knowledge-small-grid">
+            <div>
+              <label>الأولوية</label>
+              <select id="knowledgePriority">
+                <option>عالية</option>
+                <option selected>عادية</option>
+                <option>منخفضة</option>
+              </select>
+            </div>
+            <div>
+              <label>مفعل؟</label>
+              <select id="knowledgeActive">
+                <option selected>نعم</option>
+                <option>لا</option>
+              </select>
+            </div>
+          </div>
+
+          <label>ملاحظات داخلية</label>
+          <input id="knowledgeNotes" placeholder="اختياري">
+
+          <div class="row knowledge-actions">
+            <button id="saveKnowledgeBtn" class="primary">حفظ المعرفة</button>
+            <button id="newKnowledgeBtn" class="ghost" type="button">قاعدة جديدة</button>
+            <button id="refreshKnowledgeBtn" class="ghost" type="button">تحديث المعرفة</button>
+          </div>
+        </div>
+
+        <div class="knowledge-list-wrap">
+          <div class="knowledge-search-row">
+            <input id="knowledgeSearch" placeholder="بحث في المعرفة">
+          </div>
+          <div id="knowledgeList" class="knowledge-list">
+            <div class="dash-empty">جاري تحميل المعرفة...</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -249,7 +324,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1821"></script>
-<script src="app.js?v=1821"></script>
+<script src="config.js?v=1823"></script>
+<script src="app.js?v=1823"></script>
 </body>
 </html>

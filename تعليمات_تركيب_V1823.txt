@@ -1,0 +1,28 @@
+TrendOS V1823 - معرفة واتس AI
+
+الملفات المطلوب رفعها على GitHub مكان القديم:
+- app.js
+- index.html
+- styles.css
+- config.js
+
+كود Google Apps Script:
+- امسح كود Apps Script الحالي بالكامل.
+- الصق محتوى ملف: TrendOS_GOOGLE_APPS_SCRIPT_FULL_V1823_AI_KNOWLEDGE.gs
+- اضغط Save.
+- من قائمة الدوال شغل مرة واحدة: initAiKnowledgeNow
+- بعدها: Deploy > Manage deployments > Edit > New version > Deploy
+
+بعد الرفع:
+- افتح البرنامج من GitHub Pages.
+- اعمل Ctrl + F5 أو افتح نافذة خفية.
+- ادخل بحساب ضياء أو رحمه أو الإدارة.
+- ستظهر كارت جديد باسم: معرفة واتس AI.
+
+الشيتات الجديدة التي يتم إنشاؤها تلقائياً:
+- معرفة واتس AI
+- إعدادات واتس AI
+- سجل واتس AI
+
+مهم:
+هذا الربط يجعل المعرفة قابلة للتعديل من البرنامج ومن الشيت. عند تركيب WhatsApp Webhook لاحقاً سيقرأ من نفس شيت المعرفة.

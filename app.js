@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1821_DASHBOARD_OVERDUE_LOG";
+  const UI_VERSION = "1823_AI_KNOWLEDGE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -77,6 +77,7 @@
     screen: "service",
     rows: [],
     dashboard: null,
+    knowledge: [],
     refreshTimer: null,
     suggestionTimer: null,
     tableSuggestionTimer: null,
@@ -408,6 +409,8 @@ Trend Mall`;
     renderTabs();
     toggleAddOrder();
     toggleAddCustomer();
+    toggleDashboard();
+    toggleKnowledge();
     loadRows();
     startRefresh();
   }
@@ -437,6 +440,7 @@ Trend Mall`;
         toggleAddOrder();
         toggleAddCustomer();
         toggleDashboard();
+        toggleKnowledge();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -461,18 +465,16 @@ Trend Mall`;
   }
 
   function toggleDashboard() {
-    const role = safeRole((state.user || {}).role);
     const card = $("managementDashboard");
     if (!card) return;
-    // تظهر للإدارة وخدمة العملاء، وباقي الأقسام تشوف ملخصها من نفس شاشة القسم.
-    const show = role === "admin" || role === "service";
-    card.classList.toggle("hidden", !show);
-    if (show) loadDashboard(false);
+    // V1822: متابعة اليوم تظهر لكل المستخدمين بوضوح، حتى نتاكد أن النسخة الجديدة اتحملت.
+    card.classList.remove("hidden");
+    loadDashboard(false);
   }
 
   async function loadDashboard(force) {
     const card = $("managementDashboard");
-    if (!card || card.classList.contains("hidden")) return;
+    if (!card) return;
     const status = $("dashboardStatus");
     if (status) status.textContent = "جاري تحديث المتابعة...";
     try {
@@ -508,6 +510,143 @@ Trend Mall`;
       dashboardItem("جاهز للاستلام", d.readyForPickup || 0, "ready") +
       dashboardItem("تم التسليم", d.delivered || 0, "done") +
       dashboardItem("مكرر", d.duplicate || 0, "muted");
+  }
+
+
+  function canManageKnowledge() {
+    const role = safeRole((state.user || {}).role);
+    const username = normalizeArabic((state.user || {}).username || (state.user || {}).name || "");
+    return role === "admin" || role === "service" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+  }
+
+  function toggleKnowledge() {
+    const card = $("aiKnowledgeCard");
+    if (!card) return;
+    const can = canManageKnowledge();
+    card.classList.toggle("hidden", !can);
+    if (can) loadKnowledge(false);
+  }
+
+  function clearKnowledgeForm() {
+    ["knowledgeId", "knowledgeTitle", "knowledgeKeywords", "knowledgeContent", "knowledgeNotes"].forEach(function (id) {
+      const el = $(id);
+      if (el) el.value = "";
+    });
+    if ($("knowledgeCategory")) $("knowledgeCategory").value = "قواعد التشغيل";
+    if ($("knowledgePriority")) $("knowledgePriority").value = "عادية";
+    if ($("knowledgeActive")) $("knowledgeActive").value = "نعم";
+    setMsg("knowledgeStatus", "قاعدة جديدة جاهزة للكتابة.", false);
+  }
+
+  async function loadKnowledge(force) {
+    if (!canManageKnowledge()) return;
+    const list = $("knowledgeList");
+    const status = $("knowledgeStatus");
+    if (status) status.textContent = "جاري تحميل المعرفة...";
+    try {
+      const res = await api("getKnowledge", authParams({}));
+      if (!res.success) {
+        if (status) status.textContent = res.message || "تعذر تحميل المعرفة";
+        if (list) list.innerHTML = '<div class="dash-empty">تعذر تحميل المعرفة</div>';
+        return;
+      }
+      state.knowledge = Array.isArray(res.rows) ? res.rows : [];
+      renderKnowledge();
+      if (status) status.textContent = "تم تحميل " + state.knowledge.length + " قاعدة معرفة";
+    } catch (err) {
+      if (status) status.textContent = err.message || "خطأ في تحميل المعرفة";
+      if (list) list.innerHTML = '<div class="dash-empty">خطأ في تحميل المعرفة</div>';
+    }
+  }
+
+  function renderKnowledge() {
+    const list = $("knowledgeList");
+    if (!list) return;
+    const q = normalizeArabic(($("knowledgeSearch") || {}).value || "");
+    let rows = state.knowledge || [];
+    if (q) {
+      rows = rows.filter(function (r) {
+        return normalizeArabic([r.category, r.title, r.keywords, r.content, r.notes].join(" ")).indexOf(q) !== -1;
+      });
+    }
+
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد قواعد معرفة مطابقة.</div>';
+      return;
+    }
+
+    list.innerHTML = rows.map(function (r) {
+      const activeCls = text(r.active) === "نعم" ? "active" : "inactive";
+      return '<div class="knowledge-item ' + activeCls + '" data-id="' + escapeHtml(r.id || "") + '">' +
+        '<div class="knowledge-item-head"><b>' + escapeHtml(r.title || "بدون عنوان") + '</b><span>' + escapeHtml(r.category || "") + '</span></div>' +
+        '<p>' + escapeHtml(text(r.content).slice(0, 160)) + (text(r.content).length > 160 ? '...' : '') + '</p>' +
+        '<small>مفعل: ' + escapeHtml(r.active || "نعم") + ' | أولوية: ' + escapeHtml(r.priority || "عادية") + '</small>' +
+        '<div class="row"><button type="button" class="ghost edit-knowledge" data-id="' + escapeHtml(r.id || "") + '">تعديل</button></div>' +
+        '</div>';
+    }).join("");
+
+    Array.prototype.forEach.call(list.querySelectorAll(".edit-knowledge"), function (btn) {
+      btn.onclick = function () {
+        const id = btn.getAttribute("data-id");
+        const row = (state.knowledge || []).find(function (x) { return text(x.id) === text(id); });
+        if (row) fillKnowledgeForm(row);
+      };
+    });
+  }
+
+  function fillKnowledgeForm(row) {
+    $("knowledgeId").value = row.id || "";
+    $("knowledgeCategory").value = row.category || "قواعد التشغيل";
+    $("knowledgeTitle").value = row.title || "";
+    $("knowledgeKeywords").value = row.keywords || "";
+    $("knowledgeContent").value = row.content || "";
+    $("knowledgePriority").value = row.priority || "عادية";
+    $("knowledgeActive").value = row.active || "نعم";
+    $("knowledgeNotes").value = row.notes || "";
+    setMsg("knowledgeStatus", "تعديل قاعدة: " + (row.title || row.id), false);
+    const card = $("aiKnowledgeCard");
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function saveKnowledge() {
+    if (!canManageKnowledge()) return;
+    const title = ($("knowledgeTitle") || {}).value.trim();
+    const content = ($("knowledgeContent") || {}).value.trim();
+    if (!title || !content) {
+      setMsg("knowledgeStatus", "العنوان والمحتوى مطلوبين.", true);
+      return;
+    }
+    const btn = $("saveKnowledgeBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "جاري الحفظ...";
+    }
+    try {
+      const res = await api("saveKnowledge", authParams({
+        id: ($("knowledgeId") || {}).value,
+        category: ($("knowledgeCategory") || {}).value,
+        title: title,
+        keywords: ($("knowledgeKeywords") || {}).value,
+        content: content,
+        priority: ($("knowledgePriority") || {}).value,
+        active: ($("knowledgeActive") || {}).value,
+        notes: ($("knowledgeNotes") || {}).value
+      }));
+      if (!res.success) {
+        setMsg("knowledgeStatus", res.message || "فشل حفظ المعرفة.", true);
+        return;
+      }
+      setMsg("knowledgeStatus", res.message || "تم حفظ المعرفة.", false);
+      clearKnowledgeForm();
+      await loadKnowledge(true);
+    } catch (err) {
+      setMsg("knowledgeStatus", err.message || "خطأ أثناء حفظ المعرفة.", true);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "حفظ المعرفة";
+      }
+    }
   }
 
   async function loadRows(force) {
@@ -1173,6 +1312,15 @@ Trend Mall`;
       $(id).addEventListener("input", function () { applyFiltersAndRender(true); });
       $(id).addEventListener("change", function () { applyFiltersAndRender(true); });
     });
+
+    const saveKnowledgeButton = $("saveKnowledgeBtn");
+    if (saveKnowledgeButton) saveKnowledgeButton.addEventListener("click", saveKnowledge);
+    const newKnowledgeButton = $("newKnowledgeBtn");
+    if (newKnowledgeButton) newKnowledgeButton.addEventListener("click", clearKnowledgeForm);
+    const refreshKnowledgeButton = $("refreshKnowledgeBtn");
+    if (refreshKnowledgeButton) refreshKnowledgeButton.addEventListener("click", function () { loadKnowledge(true); });
+    const knowledgeSearch = $("knowledgeSearch");
+    if (knowledgeSearch) knowledgeSearch.addEventListener("input", renderKnowledge);
 
     wireCustomerSearch();
     wireTableCustomerSearch();
