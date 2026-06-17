@@ -378,3 +378,8 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .dashboard-grid .dash-note{grid-column:1/-1;background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;border-radius:14px;padding:10px 12px;font-weight:800;line-height:1.7;}
 .dash-item.todaywork{border-color:#a7f3d0;background:#f0fdf4;}
 .dash-item.todaywork b{color:#047857;}
+
+/* V1828 invoice pricing modal */
+.invoice-card{width:min(620px,100%)}
+.invoice-card textarea{width:100%;border:1px solid var(--border);border-radius:14px;padding:12px;font-family:inherit;font-size:15px;resize:vertical;background:#fff;outline:none;box-sizing:border-box}
+.invoice-card textarea:focus,.invoice-card input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.12)}

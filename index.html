@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TrendOS Operations</title>
+  <title>TrendOS Operations V1828</title>
   <link rel="stylesheet" href="styles.css?v=1826">
 </head>
 <body>
@@ -242,7 +242,6 @@
           <label>الحالة</label>
           <select id="newStatus">
             <option>طلب جديد</option>
-            <option>جاهز للطباعة</option>
             <option>بدأ التنفيذ</option>
           </select>
         </div>
@@ -275,14 +274,11 @@
         <select id="statusFilter">
           <option value="">كل الحالات</option>
           <option value="__OVERDUE__">متأخر</option>
+          <option value="__TODAY_WORK__">شغل اليوم</option>
+          <option value="__DELIVERED_TODAY__">تسليمات اليوم</option>
           <option>طلب جديد</option>
-          <option>جاهز للطباعة</option>
           <option>بدأ التنفيذ</option>
           <option>تحت التنفيذ</option>
-          <option>تم التنفيذ</option>
-          <option>جاهز للاستلام</option>
-          <option>تم التسليم</option>
-          <option>مكرر</option>
           <option>مشكلة</option>
           <option>متوقف</option>
         </select>
@@ -300,6 +296,31 @@
       </div>
       <div id="paginationBar" class="pagination"></div>
     </section>
+  </section>
+
+  <section id="invoiceModal" class="modal hidden">
+    <div class="modal-card invoice-card">
+      <h2 id="invoiceOrderTitle">فاتورة / تسعير</h2>
+      <p class="hint">بعد انتهاء القسم من البند، اكتب ما تم تنفيذه فعليًا. البند يذهب لضياء للتسعير وإضافته لفاتورة العميل.</p>
+
+      <input id="invoiceLineId" type="hidden">
+
+      <label>اللي اتعمل فعليًا</label>
+      <textarea id="invoiceWorkDone" rows="4" placeholder="مثال: تابلوه 30×40 + تعديل صورة + طباعة"></textarea>
+
+      <label>الكمية</label>
+      <input id="invoiceQty" type="number" min="1" value="1">
+
+      <label>ملاحظات القسم</label>
+      <input id="invoiceNotes" placeholder="اختياري">
+
+      <div class="row">
+        <button id="saveInvoiceBtn" class="primary">إرسال للتسعير</button>
+        <button id="cancelInvoiceBtn" class="ghost">إلغاء</button>
+      </div>
+
+      <p id="invoiceMsg" class="msg"></p>
+    </div>
   </section>
 
   <section id="passwordModal" class="modal hidden">
@@ -325,7 +346,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1826"></script>
-<script src="app.js?v=1826"></script>
+<script src="config.js?v=1828"></script>
+<script src="app.js?v=1828"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1827_DEPARTMENT_DASHBOARD";
+  const UI_VERSION = "1828_DEPT_SORT_INVOICE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -20,22 +20,21 @@
     press: ["press"]
   };
 
+  // الحالات التي يحتاجها المستخدم في التشغيل فقط.
+  // تم حذف: جاهز للطباعة / تم التنفيذ / مكرر من الاختيارات اليومية حتى لا تلخبط التشغيل.
   const statuses = [
     "طلب جديد",
-    "جاهز للطباعة",
     "بدأ التنفيذ",
     "تحت التنفيذ",
-    "تم التنفيذ",
     "جاهز للاستلام",
     "تم التسليم",
-    "مكرر",
     "مشكلة",
     "متوقف"
   ];
 
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
   // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
-  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر"];
+  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة"];
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
 
   function isHiddenFromUserScreens(status) {
@@ -177,6 +176,47 @@
     today.setHours(0, 0, 0, 0);
     d.setHours(0, 0, 0, 0);
     return d < today;
+  }
+
+  function startOfDay(date) {
+    const d = new Date(date || new Date());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function sameDay(a, b) {
+    if (!a || !b) return false;
+    const da = startOfDay(a);
+    const db = startOfDay(b);
+    if (isNaN(da.getTime()) || isNaN(db.getTime())) return false;
+    return da.getTime() === db.getTime();
+  }
+
+  function isTodayWorkRow(row) {
+    // شغل اليوم = أوردر مستلم امبارح، والمفروض يتسلم بكرة.
+    const received = parseRowDate(row.receivedAt || row.createdAt || row.created || "");
+    let expected = parseRowDate(row.expectedDeliveryAt || row.expectedDeliveryText || row.expectedDelivery || "");
+    if (!expected && received) expected = addDays(received, 2);
+    const today = startOfDay(new Date());
+    const yesterday = addDays(today, -1);
+    const tomorrow = addDays(today, 1);
+    return sameDay(received, yesterday) && sameDay(expected, tomorrow);
+  }
+
+  function isDeliveredTodayRow(row) {
+    if (text(row.status) !== "تم التسليم") return false;
+    const updated = parseRowDate(row.updatedAt || row.deliveredAt || "");
+    return sameDay(updated, new Date());
+  }
+
+  function defaultWorkSortRank(row) {
+    const p = text(row.priority) || "عادي";
+    if (p === "عاجل" || p === "VIP") return 0;
+    if (isOverdueRow(row)) return 1;
+    if (isTodayWorkRow(row)) return 2;
+    if (p === "عادي" || !p) return 3;
+    if (p === "مؤجل") return 4;
+    return 5;
   }
 
   function displayPhone(phone) {
@@ -685,15 +725,20 @@ Trend Mall`;
       const blob = [r.orderId, r.lineId, r.customer, r.customerPhone, r.department, r.itemName, r.notes]
         .map(text).join(" ").toLowerCase();
       const blobNormalized = normalizeArabic(blob);
-      if (isHiddenFromUserScreens(r.status)) return false;
       if (q && blob.indexOf(q) === -1 && blobNormalized.indexOf(qNormalized) === -1) return false;
-      if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
-      if (status && status !== "__OVERDUE__" && text(r.status) !== status) return false;
+
+      // فلاتر محسوبة تظهر حتى لو الحالة مخفية من شاشة التشغيل الافتراضية.
+      if (status === "__OVERDUE__") return isOverdueRow(r);
+      if (status === "__TODAY_WORK__") return !isHiddenFromUserScreens(r.status) && isTodayWorkRow(r);
+      if (status === "__DELIVERED_TODAY__") return isDeliveredTodayRow(r);
+
+      if (isHiddenFromUserScreens(r.status)) return false;
+      if (status && text(r.status) !== status) return false;
       if (priority === "__ACTIVE__" && !isActiveDefaultPriority(r.priority)) return false;
       if (priority && priority !== "__ACTIVE__" && text(r.priority) !== priority) return false;
       return true;
     }).sort(function (a, b) {
-      return (priorityRank(a.priority) - priorityRank(b.priority)) || String(a.orderId || "").localeCompare(String(b.orderId || ""));
+      return (defaultWorkSortRank(a) - defaultWorkSortRank(b)) || String(a.orderId || "").localeCompare(String(b.orderId || ""));
     });
 
     if (resetPage === true) state.currentPage = 1;
@@ -975,10 +1020,16 @@ Trend Mall`;
         return;
       }
 
+      const oldStatus = row.status;
       row.status = status;
       row.notes = notes;
       btn.textContent = "تم الحفظ";
       state.editing = false;
+
+      if (shouldOpenInvoiceAfterStatus(status, oldStatus)) {
+        openInvoiceModal(Object.assign({}, row, { status: status, notes: notes }));
+      }
+
       await loadRows(true);
       setTimeout(function () { btn.textContent = "حفظ"; }, 900);
     } catch (err) {
@@ -987,6 +1038,76 @@ Trend Mall`;
     } finally {
       state.saving = false;
       btn.disabled = false;
+    }
+  }
+
+
+
+  function shouldOpenInvoiceAfterStatus(newStatus, oldStatus) {
+    const n = text(newStatus);
+    const o = text(oldStatus);
+    return (n === "جاهز للاستلام" || n === "تم التسليم") && n !== o;
+  }
+
+  function openInvoiceModal(row) {
+    state.invoiceRow = row || null;
+    const modal = $("invoiceModal");
+    if (!modal || !row) return;
+    $("invoiceOrderTitle").textContent = "فاتورة / تسعير: " + (row.orderId || "-") + " — " + (row.customer || "-");
+    $("invoiceLineId").value = row.lineId || "";
+    $("invoiceWorkDone").value = row.itemName || "";
+    $("invoiceQty").value = row.qty || 1;
+    $("invoiceNotes").value = row.notes || "";
+    $("invoiceMsg").textContent = "اكتب ما تم تنفيذه فعليًا. سيظهر لضياء للتسعير وإضافته لفاتورة العميل.";
+    modal.classList.remove("hidden");
+  }
+
+  function closeInvoiceModal() {
+    const modal = $("invoiceModal");
+    if (modal) modal.classList.add("hidden");
+    state.invoiceRow = null;
+  }
+
+  async function saveInvoiceLine() {
+    const row = state.invoiceRow;
+    if (!row) return;
+    const btn = $("saveInvoiceBtn");
+    const msg = $("invoiceMsg");
+    const workDone = ($("invoiceWorkDone").value || "").trim();
+    if (!workDone) {
+      if (msg) msg.textContent = "اكتب اللى اتعمل عشان يروح للتسعير.";
+      return;
+    }
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "جاري الحفظ...";
+    }
+    try {
+      const res = await api("createInvoiceLine", authParams({
+        rowNumber: row.rowNumber || "",
+        orderId: row.orderId || "",
+        lineId: row.lineId || "",
+        customerName: row.customer || "",
+        customerPhone: row.customerPhone || "",
+        department: row.department || "",
+        itemName: row.itemName || "",
+        workDone: workDone,
+        qty: $("invoiceQty").value || row.qty || 1,
+        notes: $("invoiceNotes").value || ""
+      }));
+      if (!res.success) {
+        if (msg) msg.textContent = res.message || "تعذر حفظ بند الفاتورة.";
+        return;
+      }
+      if (msg) msg.textContent = "تم إرسال بند الفاتورة لضياء للتسعير.";
+      setTimeout(closeInvoiceModal, 700);
+    } catch (err) {
+      if (msg) msg.textContent = err.message || "خطأ في حفظ بند الفاتورة.";
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "إرسال للتسعير";
+      }
     }
   }
 
@@ -1305,6 +1426,10 @@ Trend Mall`;
     $("changePassBtn").addEventListener("click", openPasswordModal);
     $("cancelPassBtn").addEventListener("click", closePasswordModal);
     $("savePassBtn").addEventListener("click", changePassword);
+    const cancelInvoiceButton = $("cancelInvoiceBtn");
+    if (cancelInvoiceButton) cancelInvoiceButton.addEventListener("click", closeInvoiceModal);
+    const saveInvoiceButton = $("saveInvoiceBtn");
+    if (saveInvoiceButton) saveInvoiceButton.addEventListener("click", saveInvoiceLine);
     $("createOrderBtn").addEventListener("click", createOrder);
     const createCustomerButton = $("createCustomerBtn");
     if (createCustomerButton) createCustomerButton.addEventListener("click", createCustomer);
