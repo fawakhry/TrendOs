@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1823_AI_KNOWLEDGE";
+  const UI_VERSION = "1826_OVERDUE_STATUS_FILTER";
 
   const screens = {
     service: "خدمة العملاء",
@@ -682,7 +682,8 @@ Trend Mall`;
       const blobNormalized = normalizeArabic(blob);
       if (isHiddenFromUserScreens(r.status)) return false;
       if (q && blob.indexOf(q) === -1 && blobNormalized.indexOf(qNormalized) === -1) return false;
-      if (status && text(r.status) !== status) return false;
+      if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
+      if (status && status !== "__OVERDUE__" && text(r.status) !== status) return false;
       if (priority === "__ACTIVE__" && !isActiveDefaultPriority(r.priority)) return false;
       if (priority && priority !== "__ACTIVE__" && text(r.priority) !== priority) return false;
       return true;
