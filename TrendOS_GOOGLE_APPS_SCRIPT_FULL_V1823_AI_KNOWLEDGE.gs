@@ -1,6 +1,6 @@
 /************************************************************
  * TrendOS Operations - Google Apps Script Backend
- * نسخة كاملة موحدة V1823 لإضافة معرفة واتس AI:
+ * نسخة كاملة موحدة V1825 لإصلاح قراءة معرفة واتس AI والداشبورد:
  * 1) تسجيل الدخول
  * 2) عرض البنود في البرنامج
  * 3) إضافة الأوردر في شيت الأوردرات + بنود الأوردرات
@@ -9,6 +9,7 @@
  * 6) مساعد واتساب لكل المستخدمين: رد حالة + رسالة انتهاء + تسجيل الإرسال
  * 7) رسالة تسجيل أوردر تلقائية بعد الإضافة + تاريخ تسليم متوقع
  * 8) إصلاح أرقام العملاء وحفظ الصفر في بداية الرقم
+ * 9) قراءة معرفة واتس AI من عمود المفتاح + قوالب واتساب من الشيت
  ************************************************************/
 
 const SHEET_NAME_USERS = "المستخدمين";
@@ -43,8 +44,11 @@ function doGet(e) {
     else if (action === "getRows") result = getRows_(e);
     else if (action === "getDashboard") result = getDashboard_(e);
     else if (action === "getActivityLog") result = getActivityLog_(e);
-    else if (action === "initKnowledge") result = initAiKnowledgeNow();
+    else if (action === "initKnowledge" || action === "initAiKnowledge") result = initAiKnowledgeNow();
     else if (action === "getKnowledge") result = getKnowledge_(e);
+    else if (action === "getAiKnowledge" || action === "getKnowledgePublic") result = getAiKnowledge_(e);
+    else if (action === "getAiSettings") result = getAiSettings_(e);
+    else if (action === "renderAiTemplate") result = renderAiTemplate_(e);
     else if (action === "saveKnowledge") result = saveKnowledge_(e);
     else if (action === "getKnowledgeContext") result = getKnowledgeContext_(e);
     else if (action === "updateLine") result = updateLine_(e);
@@ -1850,8 +1854,9 @@ function aiKnowledgeHeaders_() {
     "ID",
     "القسم",
     "العنوان",
+    "المفتاح",
     "الكلمات المفتاحية",
-    "المحتوى",
+    "النص",
     "الأولوية",
     "مفعل؟",
     "آخر تحديث",
@@ -1918,21 +1923,22 @@ function seedSheetIfEmpty_(sheet, rows, keyCol) {
 }
 
 function defaultAiKnowledgeRows_() {
+  const now = new Date();
   return [
-    ["KB-0001", "قواعد التشغيل", "مصدر الحقيقة", "شيت, حالة, أوردر, معرفة", "Google Sheet هو مصدر الحقيقة في TrendOS. لا يتم تأكيد حالة أوردر أو رقم أو ميعاد إلا من الشيت أو من بيانات الأوردر الظاهرة في النظام.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0002", "سياسة التسليم", "التسليم المتوقع", "تسليم, استلام, ميعاد, وقت", "سياسة التشغيل: يوم تسجيل الأوردر هو يوم استلام الشغل، اليوم التالي للتنفيذ، واليوم الثالث لتسليم العميل. لذلك التسليم المتوقع = تاريخ التسجيل + يومين.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0003", "قواعد التشغيل", "الشغل الجديد يسجل أوردر جديد", "شغل جديد, رقم جديد, اوردر جديد", "لو العميل بعت شغل جديد بعد تسجيل أوردر سابق، يتم تسجيل الشغل كأوردر جديد برقم جديد حتى لو لنفس العميل، لأن كل رقم أوردر له متابعة وحالة مستقلة.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0004", "ردود واتساب", "رسالة تسجيل أوردر", "تسجيل, تم التسجيل, رقم الأوردر", "عند تسجيل أوردر: يتم إرسال رسالة للعميل فيها أنه تم تسجيل الأوردر بنجاح، رقم الأوردر، نوع الشغل، القسم، والتسليم المتوقع، مع تنبيه أن أي شغل جديد سيتم تسجيله كأوردر جديد.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0005", "ردود واتساب", "رد حالة الأوردر", "الحالة, خلص, جاهز, متابعة", "عند سؤال العميل عن الحالة: يرد AI باسم العميل إن أمكن، رقم الأوردر، الحالة الحالية، القسم، نوع الشغل، والتسليم المتوقع. لا يقول إن الأوردر خلص إلا إذا الحالة تم التنفيذ أو جاهز للاستلام أو تم التسليم.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0006", "ردود واتساب", "رسالة جاهز للاستلام", "جاهز, استلام, خلص", "إذا الحالة تم التنفيذ أو جاهز للاستلام: الرد يكون أن الأوردر جاهز للاستلام مع رقم الأوردر ونوع الشغل. إذا الحالة تم التسليم: الرد يكون تم تسليم الأوردر وشكر العميل.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0007", "قواعد التشغيل", "الحالات المخفية", "مكرر, تم التسليم, جاهز للاستلام", "الحالات جاهز للاستلام وتم التسليم ومكرر لا تظهر في شاشة المستخدمين اليومية بعد حفظها، لكنها تظل محفوظة في الشيت للمتابعة والسجل.", "عادية", "نعم", new Date(), "System", ""],
-    ["KB-0008", "قواعد التشغيل", "الأولوية الافتراضية", "عاجل, عادي, أولوية", "الأولوية الافتراضية عند تسجيل الأوردر هي عادي، وليس عاجل، حتى لا يتم تسجيل كل الأوردرات كعاجلة بالخطأ. شاشة التشغيل تعرض العاجل أولًا ثم العادي.", "عادية", "نعم", new Date(), "System", ""],
-    ["KB-0009", "قواعد التشغيل", "المكبس الحراري", "مكبس, حراري, طباعة", "لو الأوردر طباعة أو متعدد الأقسام وتم تعليم مكبس حراري، يظهر بعلامة حمراء مكبس في شاشة الأوردرات وشاشة المكبس حتى يتم تجميع شغل المكبس مرة واحدة يوميًا.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0010", "الخدمات والأقسام", "الأقسام الأساسية", "طباعة, ليزر, مكبس, فنيل", "أقسام التشغيل الأساسية في TrendOS: خدمة العملاء، طباعة، ليزر، مكبس. الأوردر قد يكون قسم واحد أو متعدد الأقسام، وكل قسم له متابعة مستقلة.", "عادية", "نعم", new Date(), "System", ""],
-    ["KB-0011", "الممنوعات", "عدم الوعد بدون بيانات", "سعر, وعد, خلص, تأكيد", "لا يعطي AI سعر نهائي أو وعد تسليم مؤكد خارج بيانات الشيت. إذا البيانات ناقصة أو غير واضحة، يحول العميل لرحمه أو ضياء.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0012", "تحويل للدعم", "متى يتم التحويل", "دعم, موظف, غير واضح, مشكلة", "يتم تحويل العميل للدعم إذا طلب سعر غير موجود في المعرفة، أو أرسل شكوى، أو سأل عن تعديل تصميم، أو كانت حالة الأوردر غير موجودة، أو لم يتم التعرف على رقم الهاتف/الأوردر.", "عالية", "نعم", new Date(), "System", ""],
-    ["KB-0013", "الأسعار والخدمات", "الخدمات الحالية", "تابلوهات, براويز, مجات, سلوبتات, تيشرتات, دروع, ليزر", "الخدمات التي يقدمها مطبعجي/ترند مول تشمل: تابلوهات وبراويز، مجات، سلوبتات، تيشرتات، دروع، فنيل، ليزر، طباعة بانر، لامنيشن، فوتوبلوك، ومستلزمات حفلات التخرج. الأسعار النهائية تكون من القوائم المعتمدة فقط.", "عادية", "نعم", new Date(), "System", ""],
-    ["KB-0014", "ردود واتساب", "نبرة الرد", "أسلوب, رد, لهجة", "نبرة الرد تكون مصرية بسيطة ومحترمة ومختصرة. يبدأ الرد بتحية لطيفة، ويذكر البيانات المهمة فقط بدون إطالة.", "عادية", "نعم", new Date(), "System", ""]
+    ["KB-0001", "قواعد التشغيل", "مصدر الحقيقة", "source_of_truth", "شيت, حالة, أوردر, معرفة", "Google Sheet هو مصدر الحقيقة في TrendOS. لا يتم تأكيد حالة أوردر أو رقم أو ميعاد إلا من الشيت أو من بيانات الأوردر الظاهرة في النظام.", "عالية", "نعم", now, "System", ""],
+    ["KB-0002", "سياسة التسليم", "التسليم المتوقع", "delivery_policy", "تسليم, استلام, ميعاد, وقت", "سياسة التشغيل: يوم تسجيل الأوردر هو يوم استلام الشغل، اليوم التالي للتنفيذ، واليوم الثالث لتسليم العميل. لذلك التسليم المتوقع = تاريخ التسجيل + يومين.", "عالية", "نعم", now, "System", ""],
+    ["KB-0003", "قواعد التشغيل", "الشغل الجديد يسجل أوردر جديد", "new_work_new_order", "شغل جديد, رقم جديد, اوردر جديد", "لو العميل بعت شغل جديد بعد تسجيل أوردر سابق، يتم تسجيل الشغل كأوردر جديد برقم جديد حتى لو لنفس العميل، لأن كل رقم أوردر له متابعة وحالة مستقلة.", "عالية", "نعم", now, "System", ""],
+    ["KB-0004", "ردود واتساب", "رسالة تسجيل اوردر", "order_registered", "تسجيل, تم التسجيل, رقم الأوردر", "أهلاً يا {customer_name} 🌟\nتم تسجيل أوردر جديد لحضرتك بنجاح.\nرقم الأوردر: {order_id}\nالقسم: {department}\nنوع الشغل: {item_name}\nالتسليم المتوقع: {expected_delivery}\n\nمهم: أي شغل جديد يتم إرساله بعد كده هيتسجل كأوردر جديد برقم جديد.\n{business_name}", "عالية", "نعم", now, "System", ""],
+    ["KB-0005", "ردود واتساب", "رد حالة الأوردر", "status_reply", "الحالة, خلص, جاهز, متابعة", "أهلاً يا {customer_name} 🌟\nالأوردر رقم {order_id} حالته حالياً: {status}\nالقسم: {department}\nنوع الشغل: {item_name}\nالتسليم المتوقع: {expected_delivery}\n{business_name}", "عالية", "نعم", now, "System", ""],
+    ["KB-0006", "ردود واتساب", "رسالة جاهز للاستلام", "ready_notify", "جاهز, استلام, خلص", "أهلاً يا {customer_name} 🌟\nالأوردر رقم {order_id} جاهز للاستلام.\nالقسم: {department}\nنوع الشغل: {item_name}\nبرجاء الحضور للاستلام في أقرب وقت مناسب.\n{business_name}", "عالية", "نعم", now, "System", ""],
+    ["KB-0007", "قواعد التشغيل", "الحالات المخفية", "hidden_statuses", "مكرر, تم التسليم, جاهز للاستلام", "الحالات جاهز للاستلام وتم التسليم ومكرر لا تظهر في شاشة المستخدمين اليومية بعد حفظها، لكنها تظل محفوظة في الشيت للمتابعة والسجل.", "عادية", "نعم", now, "System", ""],
+    ["KB-0008", "قواعد التشغيل", "الأولوية الافتراضية", "default_priority", "عاجل, عادي, أولوية", "الأولوية الافتراضية عند تسجيل الأوردر هي عادي، وليس عاجل، حتى لا يتم تسجيل كل الأوردرات كعاجلة بالخطأ. شاشة التشغيل تعرض العاجل أولًا ثم العادي.", "عادية", "نعم", now, "System", ""],
+    ["KB-0009", "قواعد التشغيل", "المكبس الحراري", "heat_press", "مكبس, حراري, طباعة", "لو الأوردر طباعة أو متعدد الأقسام وتم تعليم مكبس حراري، يظهر بعلامة حمراء مكبس في شاشة الأوردرات وشاشة المكبس حتى يتم تجميع شغل المكبس مرة واحدة يوميًا.", "عالية", "نعم", now, "System", ""],
+    ["KB-0010", "الخدمات والأقسام", "الأقسام الأساسية", "departments", "طباعة, ليزر, مكبس, فنيل", "أقسام التشغيل الأساسية في TrendOS: خدمة العملاء، طباعة، ليزر، مكبس. الأوردر قد يكون قسم واحد أو متعدد الأقسام، وكل قسم له متابعة مستقلة.", "عادية", "نعم", now, "System", ""],
+    ["KB-0011", "الممنوعات", "عدم الوعد بدون بيانات", "no_fake_promises", "سعر, وعد, خلص, تأكيد", "لا يعطي AI سعر نهائي أو وعد تسليم مؤكد خارج بيانات الشيت. إذا البيانات ناقصة أو غير واضحة، يحول العميل لرحمه أو ضياء.", "عالية", "نعم", now, "System", ""],
+    ["KB-0012", "تحويل للدعم", "متى يتم التحويل", "human_escalation", "دعم, موظف, غير واضح, مشكلة", "يتم تحويل العميل للدعم إذا طلب سعر غير موجود في المعرفة، أو أرسل شكوى، أو سأل عن تعديل تصميم، أو كانت حالة الأوردر غير موجودة، أو لم يتم التعرف على رقم الهاتف/الأوردر.", "عالية", "نعم", now, "System", ""],
+    ["KB-0013", "الأسعار والخدمات", "الخدمات الحالية", "services", "تابلوهات, براويز, مجات, سلوبتات, تيشرتات, دروع, ليزر", "الخدمات التي يقدمها مطبعجي/ترند مول تشمل: تابلوهات وبراويز، مجات، سلوبتات، تيشرتات، دروع، فنيل، ليزر، طباعة بانر، لامنيشن، فوتوبلوك، ومستلزمات حفلات التخرج. الأسعار النهائية تكون من القوائم المعتمدة فقط.", "عادية", "نعم", now, "System", ""],
+    ["KB-0014", "ردود واتساب", "نبرة الرد", "tone", "أسلوب, رد, لهجة", "نبرة الرد تكون مصرية بسيطة ومحترمة ومختصرة. يبدأ الرد بتحية لطيفة، ويذكر البيانات المهمة فقط بدون إطالة.", "عادية", "نعم", now, "System", ""]
   ];
 }
 
@@ -1963,25 +1969,40 @@ function getKnowledge_(e) {
   const sheet = ensureAiKnowledgeSheet_();
   if (sheet.getLastRow() < 2) initAiKnowledgeNow();
 
-  const data = sheet.getDataRange().getValues();
+  const data = sheet.getDataRange().getDisplayValues();
   const h = headersMap_(sheet);
   const rows = [];
+
+  const colId = firstCol_(h, ["ID"], 1);
+  const colCategory = firstCol_(h, ["القسم"], 2);
+  const colTitle = firstCol_(h, ["العنوان"], 3);
+  const colKey = firstCol_(h, ["المفتاح", "key"], 4);
+  const colKeywords = firstCol_(h, ["الكلمات المفتاحية"], 5);
+  const colContent = firstCol_(h, ["النص", "المحتوى"], 6);
+  const colPriority = firstCol_(h, ["الأولوية"], 7);
+  const colActive = firstCol_(h, ["مفعل؟", "مفعل"], 8);
+  const colUpdated = firstCol_(h, ["آخر تحديث"], 9);
+  const colBy = firstCol_(h, ["بواسطة"], 10);
+  const colNotes = firstCol_(h, ["ملاحظات"], 11);
+
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const id = normalize_(valueAt_(row, firstCol_(h, ["ID"], 1)));
-    if (!id && !normalize_(valueAt_(row, firstCol_(h, ["العنوان"], 3)))) continue;
+    const id = normalize_(valueAt_(row, colId));
+    const title = normalize_(valueAt_(row, colTitle));
+    if (!id && !title) continue;
     rows.push({
       rowNumber: i + 1,
       id: id,
-      category: normalize_(valueAt_(row, firstCol_(h, ["القسم"], 2))),
-      title: normalize_(valueAt_(row, firstCol_(h, ["العنوان"], 3))),
-      keywords: normalize_(valueAt_(row, firstCol_(h, ["الكلمات المفتاحية"], 4))),
-      content: normalize_(valueAt_(row, firstCol_(h, ["المحتوى"], 5))),
-      priority: normalize_(valueAt_(row, firstCol_(h, ["الأولوية"], 6))) || "عادية",
-      active: normalize_(valueAt_(row, firstCol_(h, ["مفعل؟"], 7))) || "نعم",
-      updatedAt: dateText_(valueAt_(row, firstCol_(h, ["آخر تحديث"], 8))),
-      by: normalize_(valueAt_(row, firstCol_(h, ["بواسطة"], 9))),
-      notes: normalize_(valueAt_(row, firstCol_(h, ["ملاحظات"], 10)))
+      category: normalize_(valueAt_(row, colCategory)),
+      title: title,
+      key: normalize_(valueAt_(row, colKey)),
+      keywords: normalize_(valueAt_(row, colKeywords)),
+      content: normalize_(valueAt_(row, colContent)),
+      priority: normalize_(valueAt_(row, colPriority)) || "عادية",
+      active: normalize_(valueAt_(row, colActive)) || "نعم",
+      updatedAt: dateText_(valueAt_(row, colUpdated)),
+      by: normalize_(valueAt_(row, colBy)),
+      notes: normalize_(valueAt_(row, colNotes))
     });
   }
 
@@ -1993,7 +2014,7 @@ function getKnowledge_(e) {
     return String(a.id).localeCompare(String(b.id));
   });
 
-  return { success: true, rows: rows, sheetName: SHEET_NAME_AI_KNOWLEDGE };
+  return { success: true, rows: rows, count: rows.length, sheetName: SHEET_NAME_AI_KNOWLEDGE };
 }
 
 function makeKnowledgeId_() {
@@ -2030,7 +2051,9 @@ function saveKnowledge_(e) {
     "ID": id,
     "القسم": normalize_(e.parameter.category) || "قواعد التشغيل",
     "العنوان": title,
+    "المفتاح": normalize_(e.parameter.key),
     "الكلمات المفتاحية": normalize_(e.parameter.keywords),
+    "النص": content,
     "المحتوى": content,
     "الأولوية": normalize_(e.parameter.priority) || "عادية",
     "مفعل؟": normalize_(e.parameter.active) || "نعم",
@@ -2066,12 +2089,180 @@ function buildAiKnowledgeContext_() {
     if (active !== "نعم") continue;
     const category = normalize_(valueAt_(row, firstCol_(h, ["القسم"], 2)));
     const title = normalize_(valueAt_(row, firstCol_(h, ["العنوان"], 3)));
-    const content = normalize_(valueAt_(row, firstCol_(h, ["المحتوى"], 5)));
+    const content = normalize_(valueAt_(row, firstCol_(h, ["النص", "المحتوى"], 6)));
     if (!title || !content) continue;
     activeRows.push("[" + category + "] " + title + ": " + content);
   }
 
   return activeRows.join("\n");
+}
+
+
+/*********************** قراءة عامة لقوالب معرفة واتس AI ***********************/
+
+function getAiKnowledge_(e) {
+  e = e || { parameter: {} };
+  const sheet = ensureAiKnowledgeSheet_();
+  if (sheet.getLastRow() < 2) initAiKnowledgeNow();
+
+  const values = sheet.getDataRange().getDisplayValues();
+  if (values.length < 2) return { success: true, count: 0, knowledge: [] };
+
+  const h = headersMap_(sheet);
+  const rows = [];
+
+  const colId = firstCol_(h, ["ID"], 1);
+  const colCategory = firstCol_(h, ["القسم"], 2);
+  const colTitle = firstCol_(h, ["العنوان"], 3);
+  const colKey = firstCol_(h, ["المفتاح", "key"], 4);
+  const colKeywords = firstCol_(h, ["الكلمات المفتاحية"], 5);
+  const colText = firstCol_(h, ["النص", "المحتوى"], 6);
+  const colPriority = firstCol_(h, ["الأولوية"], 7);
+  const colActive = firstCol_(h, ["مفعل؟", "مفعل"], 8);
+  const colUpdated = firstCol_(h, ["آخر تحديث"], 9);
+  const colBy = firstCol_(h, ["بواسطة"], 10);
+  const colNotes = firstCol_(h, ["ملاحظات"], 11);
+
+  const keyFilter = normalize_(e.parameter.key || e.parameter.title || e.parameter.keyword || "");
+  const qFilter = searchKey_(e.parameter.q || e.parameter.query || "");
+  const sectionFilter = normalize_(e.parameter.section || e.parameter.category || "");
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const id = normalize_(valueAt_(row, colId));
+    const section = normalize_(valueAt_(row, colCategory));
+    const title = normalize_(valueAt_(row, colTitle));
+    const key = normalize_(valueAt_(row, colKey));
+    const keywords = normalize_(valueAt_(row, colKeywords));
+    let text = normalize_(valueAt_(row, colText));
+    const active = normalize_(valueAt_(row, colActive)) || "نعم";
+
+    if (!text) text = findLongestKnowledgeTextInRow_(row);
+    if (!id && !title && !key && !text) continue;
+    if (active !== "نعم") continue;
+    if (sectionFilter && section !== sectionFilter) continue;
+
+    const blob = searchKey_([id, section, title, key, keywords, text].join(" "));
+    if (keyFilter) {
+      const wanted = searchKey_(keyFilter);
+      const directKey = searchKey_(key);
+      if (directKey !== wanted && blob.indexOf(wanted) === -1) continue;
+    }
+    if (qFilter && blob.indexOf(qFilter) === -1) continue;
+
+    rows.push({
+      id: id,
+      section: section,
+      title: title,
+      key: key,
+      keywords: keywords,
+      text: text,
+      priority: normalize_(valueAt_(row, colPriority)),
+      active: active,
+      updatedAt: valueAt_(row, colUpdated),
+      by: normalize_(valueAt_(row, colBy)),
+      notes: normalize_(valueAt_(row, colNotes))
+    });
+  }
+
+  return { success: true, count: rows.length, knowledge: rows };
+}
+
+function renderAiTemplate_(e) {
+  e = e || { parameter: {} };
+  const p = e.parameter || {};
+  const key = normalize_(p.key || p.title || p.template || "");
+  if (!key) return { success: false, message: "اكتب key للقالب المطلوب." };
+
+  const templateItem = findAiTemplateByKey_(key);
+  if (!templateItem) return { success: false, message: "لم أجد قالب معرفة بالمفتاح: " + key };
+
+  let text = templateItem.text || "";
+  const settings = getAiSettingsMap_();
+
+  const vars = {
+    customer_name: normalize_(p.customer_name || p.customerName || p.customer || "العميل"),
+    order_id: normalize_(p.order_id || p.orderId || p.order || ""),
+    line_id: normalize_(p.line_id || p.lineId || ""),
+    department: normalize_(p.department || p.dept || ""),
+    item_name: normalize_(p.item_name || p.itemName || p.item || ""),
+    status: normalize_(p.status || ""),
+    expected_delivery: normalize_(p.expected_delivery || p.expectedDelivery || p.expectedDeliveryText || ""),
+    business_name: normalize_(settings.brand_name || settings.business_name || "Trend Mall"),
+    phone: cleanPhone_(p.phone || p.customerPhone || "")
+  };
+
+  Object.keys(vars).forEach(function(name) {
+    text = text.replace(new RegExp("\\{" + name + "\\}", "g"), vars[name]);
+  });
+
+  text = text
+    .replace(/\{اسم_العميل\}/g, vars.customer_name)
+    .replace(/\{رقم_الأوردر\}/g, vars.order_id)
+    .replace(/\{القسم\}/g, vars.department)
+    .replace(/\{نوع_الشغل\}/g, vars.item_name)
+    .replace(/\{الحالة\}/g, vars.status)
+    .replace(/\{التسليم_المتوقع\}/g, vars.expected_delivery)
+    .replace(/\{اسم_البيزنس\}/g, vars.business_name);
+
+  return {
+    success: true,
+    key: key,
+    matchedKey: templateItem.key,
+    title: templateItem.title,
+    message: text,
+    variables: vars
+  };
+}
+
+function findAiTemplateByKey_(key) {
+  const wanted = searchKey_(key);
+  const res = getAiKnowledge_({ parameter: {} });
+  if (!res.success || !res.knowledge) return null;
+
+  for (let i = 0; i < res.knowledge.length; i++) {
+    const item = res.knowledge[i];
+    const directKey = searchKey_(item.key || "");
+    if (directKey && directKey === wanted) return item;
+
+    const blob = searchKey_([item.id, item.title, item.keywords].join(" "));
+    if (blob === wanted || blob.indexOf(wanted) !== -1) return item;
+  }
+  return null;
+}
+
+function getAiSettings_(e) {
+  const settings = getAiSettingsMap_();
+  const rows = [];
+  Object.keys(settings).forEach(function(k) {
+    rows.push({ key: k, value: settings[k] });
+  });
+  return { success: true, count: rows.length, settings: settings, rows: rows };
+}
+
+function getAiSettingsMap_() {
+  const sheet = ensureAiSettingsSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const settings = {};
+  for (let i = 1; i < values.length; i++) {
+    const key = normalize_(values[i][0]);
+    const value = normalize_(values[i][1]);
+    if (key) settings[key] = value;
+  }
+  return settings;
+}
+
+function findLongestKnowledgeTextInRow_(row) {
+  let best = "";
+  row.forEach(function(cell) {
+    const s = normalize_(cell);
+    if (!s) return;
+    if (s.length <= best.length) return;
+    if (s.indexOf("KB-") === 0) return;
+    if (s === "نعم" || s === "لا" || s === "عالية" || s === "عادية" || s === "System") return;
+    best = s;
+  });
+  return best;
 }
 
 function logAiWhatsApp_(phone, customerName, incoming, reply, intent, orderId, notes) {
