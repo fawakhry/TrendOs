@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrendOS Operations</title>
-  <link rel="stylesheet" href="styles.css?v=1819">
+  <link rel="stylesheet" href="styles.css?v=1821">
 </head>
 <body>
 <main class="app">
@@ -38,6 +38,15 @@
 
     <nav id="tabs" class="tabs"></nav>
 
+    <section id="managementDashboard" class="card dashboard-card hidden">
+      <div class="table-tools">
+        <h3>متابعة اليوم</h3>
+        <span id="dashboardStatus"></span>
+      </div>
+      <div id="dashboardGrid" class="dashboard-grid">
+        <div class="dash-empty">جاري تحميل ملخص التشغيل...</div>
+      </div>
+    </section>
 
     <section id="addCustomerCard" class="card hidden">
       <div class="table-tools">
@@ -240,7 +249,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1819"></script>
-<script src="app.js?v=1819"></script>
+<script src="config.js?v=1821"></script>
+<script src="app.js?v=1821"></script>
 </body>
 </html>

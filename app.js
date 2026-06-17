@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1820_DUPLICATE_HEATPRESS";
+  const UI_VERSION = "1821_DASHBOARD_OVERDUE_LOG";
 
   const screens = {
     service: "خدمة العملاء",
@@ -76,6 +76,7 @@
     user: null,
     screen: "service",
     rows: [],
+    dashboard: null,
     refreshTimer: null,
     suggestionTimer: null,
     tableSuggestionTimer: null,
@@ -154,6 +155,27 @@
     return formatDisplayDate(row.expectedDeliveryText) ||
       formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery) ||
       expectedDeliveryTextFromNow();
+  }
+
+  function parseRowDate(value) {
+    const raw = text(value).trim();
+    if (!raw) return null;
+    let m = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function isOverdueRow(row) {
+    if (row && (row.overdue === true || row.overdue === "نعم" || row.overdue === "true")) return true;
+    const status = text(row.status);
+    if (["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر"].indexOf(status) !== -1) return false;
+    const d = parseRowDate(row.expectedDeliveryAt || row.expectedDeliveryText || row.expectedDelivery);
+    if (!d) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
   }
 
   function displayPhone(phone) {
@@ -414,6 +436,7 @@ Trend Mall`;
         renderTabs();
         toggleAddOrder();
         toggleAddCustomer();
+        toggleDashboard();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -437,6 +460,56 @@ Trend Mall`;
     if (manager && !manager.value.trim()) manager.value = (state.user || {}).name || (state.user || {}).username || "";
   }
 
+  function toggleDashboard() {
+    const role = safeRole((state.user || {}).role);
+    const card = $("managementDashboard");
+    if (!card) return;
+    // تظهر للإدارة وخدمة العملاء، وباقي الأقسام تشوف ملخصها من نفس شاشة القسم.
+    const show = role === "admin" || role === "service";
+    card.classList.toggle("hidden", !show);
+    if (show) loadDashboard(false);
+  }
+
+  async function loadDashboard(force) {
+    const card = $("managementDashboard");
+    if (!card || card.classList.contains("hidden")) return;
+    const status = $("dashboardStatus");
+    if (status) status.textContent = "جاري تحديث المتابعة...";
+    try {
+      const res = await api("getDashboard", authParams({ screen: state.screen }));
+      if (!res.success) {
+        if (status) status.textContent = res.message || "تعذر تحميل المتابعة";
+        return;
+      }
+      state.dashboard = res.dashboard || res;
+      renderDashboard(state.dashboard);
+      if (status) status.textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG");
+    } catch (err) {
+      if (status) status.textContent = err.message || "خطأ في تحميل المتابعة";
+    }
+  }
+
+  function dashboardItem(label, value, cls) {
+    return '<div class="dash-item ' + (cls || '') + '"><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(value == null ? 0 : value) + '</b></div>';
+  }
+
+  function renderDashboard(d) {
+    const grid = $("dashboardGrid");
+    if (!grid) return;
+    const byDept = d.byDepartment || {};
+    grid.innerHTML =
+      dashboardItem("أوردرات اليوم", d.todayOrders || 0, "") +
+      dashboardItem("عاجل", d.urgent || 0, "urgent") +
+      dashboardItem("عادي", d.normal || 0, "") +
+      dashboardItem("متأخر", d.overdue || 0, "danger") +
+      dashboardItem("طباعة", byDept["طباعة"] || 0, "") +
+      dashboardItem("ليزر", byDept["ليزر"] || 0, "") +
+      dashboardItem("مكبس", byDept["مكبس"] || 0, "press") +
+      dashboardItem("جاهز للاستلام", d.readyForPickup || 0, "ready") +
+      dashboardItem("تم التسليم", d.delivered || 0, "done") +
+      dashboardItem("مكرر", d.duplicate || 0, "muted");
+  }
+
   async function loadRows(force) {
     if (!force && (state.saving || state.editing)) return;
 
@@ -451,6 +524,7 @@ Trend Mall`;
 
       state.rows = Array.isArray(res.rows) ? res.rows : [];
       applyFiltersAndRender();
+      loadDashboard(false);
       setLoading("آخر تحديث: " + new Date().toLocaleTimeString("ar-EG"));
     } catch (err) {
       setLoading(err.message || "خطأ في التحميل.", true);
@@ -524,15 +598,18 @@ Trend Mall`;
     const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل" || text(r.priority) === "VIP"; }).length;
     const normal = rows.filter(function (r) { return !text(r.priority) || text(r.priority) === "عادي"; }).length;
     const problem = rows.filter(function (r) { return ["مشكلة", "متوقف"].indexOf(text(r.status)) !== -1; }).length;
+    const overdue = rows.filter(isOverdueRow).length;
     $("statsBar").innerHTML =
       '<span>المعروض: <b>' + total + '</b></span>' +
       '<span>عاجل: <b>' + urgent + '</b></span>' +
       '<span>عادي: <b>' + normal + '</b></span>' +
+      '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
       '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
   function compactOrderCell(r) {
-    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b></div>' +
+    const overdue = isOverdueRow(r) ? ' <span class="overdue-pill">متأخر</span>' : '';
+    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + '</div>' +
       '<div class="muted-line">البند: ' + escapeHtml(r.lineId || "-") + '</div>' +
       '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>';
   }
