@@ -383,3 +383,44 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .invoice-card{width:min(620px,100%)}
 .invoice-card textarea{width:100%;border:1px solid var(--border);border-radius:14px;padding:12px;font-family:inherit;font-size:15px;resize:vertical;background:#fff;outline:none;box-sizing:border-box}
 .invoice-card textarea:focus,.invoice-card input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.12)}
+
+/* V1829 debt + pricing + score */
+.debt-pill{display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:800;margin-inline-start:6px;white-space:nowrap}
+.debt-warning{color:#b91c1c;font-weight:700}
+.wa-btn.invoice-open{background:#f3e8ff;border-color:#d8b4fe;color:#6b21a8;font-weight:800}
+.dash-item.todaywork b,.dash-item.done b,.dash-item.ready b{font-size:20px}
+.dash-item.danger{background:#fff1f2;border-color:#fecdd3}
+.dash-item.danger b{color:#dc2626}
+.dash-item.done{background:#ecfdf5;border-color:#a7f3d0}
+.dash-item.done b{color:#047857}
+.dash-item.ready{background:#fffbeb;border-color:#fde68a}
+.dash-item.ready b{color:#b45309}
+
+/* V1833 - Urgent notifications + independent press filter */
+.notify-btn.active {
+  background: #fff7ed;
+  border-color: #f59e0b;
+  color: #92400e;
+  font-weight: 800;
+}
+.stat-press {
+  background: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #be123c !important;
+}
+.press-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-weight: 800;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.filters #heatPressFilter {
+  min-width: 150px;
+}

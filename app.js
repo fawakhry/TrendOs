@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1828_DEPT_SORT_INVOICE";
+  const UI_VERSION = "1833_URGENT_NOTIFICATIONS_PRESS_FILTER";
 
   const screens = {
     service: "خدمة العملاء",
@@ -56,6 +56,25 @@
     return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "مكبس";
   }
 
+  function numericAmount(value) {
+    const raw = arabicDigitsToEnglish(value).replace(/[^0-9.\-]/g, "");
+    const n = Number(raw);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function hasDebt(row) {
+    return !!(row && (row.debtHold === true || row.debtHold === "نعم" || numericAmount(row.debtAmount || row.remainingBalance || row.customerDebt) > 0));
+  }
+
+  function debtAmount(row) {
+    return numericAmount((row && (row.debtAmount || row.remainingBalance || row.customerDebt)) || 0);
+  }
+
+  function debtLabel(row) {
+    const amount = debtAmount(row);
+    return amount > 0 ? (amount + " ج مديونية") : "مديونية";
+  }
+
   function showHeatPressForDepartment(department) {
     const d = text(department);
     return d === "طباعة" || d === "متعدد الأقسام";
@@ -83,7 +102,10 @@
     saving: false,
     editing: false,
     currentPage: 1,
-    pageSize: 5
+    pageSize: 5,
+    urgentNotificationTimer: null,
+    urgentNotificationEnabled: false,
+    urgentNotificationSeen: {}
   };
 
   const $ = (id) => document.getElementById(id);
@@ -253,12 +275,13 @@
     const expected = displayExpectedDelivery(row);
 
     if (mode === "registered") {
+      const debtWarning = hasDebt(row) ? `\n\nتنبيه مهم: يوجد مديونية حالية ${debtLabel(row)}.\nهنستقبل الأوردر ونسجله، لكن التسليم النهائي أو متابعة التشغيل الكاملة تتوقف لحين تقفيل المديونية.` : "";
       return `أهلاً${customer} 🌟
 تم تسجيل الأوردر بنجاح.
 رقم الأوردر: ${orderId}
 نوع الشغل: ${item}
 القسم: ${dept}
-التسليم المتوقع: ${expected}
+التسليم المتوقع: ${expected}${debtWarning}
 
 ملاحظة مهمة: لو حضرتك هتبعت شغل جديد بعد كده، هيتم تسجيله كأوردر جديد برقم جديد عشان نقدر نتابعه صح.
 Trend Mall`;
@@ -359,6 +382,136 @@ Trend Mall`;
     }, extra || {});
   }
 
+
+  /*********************** إشعارات الحالات العاجلة ***********************/
+
+  function urgentNotificationsSupported() {
+    return typeof window !== "undefined" && "Notification" in window;
+  }
+
+  function urgentNotificationStorageKey() {
+    const user = state.user || {};
+    return "trendos_urgent_notifications_" + (user.username || user.name || "guest");
+  }
+
+  function loadUrgentNotificationPreference() {
+    try {
+      return localStorage.getItem(urgentNotificationStorageKey()) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function saveUrgentNotificationPreference(enabled) {
+    try {
+      localStorage.setItem(urgentNotificationStorageKey(), enabled ? "1" : "0");
+    } catch (e) {}
+  }
+
+  function urgentNotifyKey(row) {
+    return [row.orderId || "", row.lineId || "", row.status || "", displayExpectedDelivery(row) || ""].join("|");
+  }
+
+  function urgentNotificationRows(rows) {
+    const excluded = ["تم التسليم", "جاهز للاستلام", "ملغى", "مكرر"];
+    return (rows || []).filter(function (r) {
+      const priority = text(r.priority);
+      const status = text(r.status);
+      if (priority !== "عاجل" && priority !== "VIP") return false;
+      if (excluded.indexOf(status) !== -1) return false;
+      if (isHiddenFromUserScreens(status)) return false;
+      return true;
+    });
+  }
+
+  function showUrgentBrowserNotification(row) {
+    if (!urgentNotificationsSupported() || Notification.permission !== "granted") return;
+    const title = "أوردر عاجل: " + (row.orderId || row.lineId || "-");
+    const body = [
+      "العميل: " + (row.customer || "-"),
+      "القسم: " + (row.department || "-"),
+      "الحالة: " + (row.status || "طلب جديد"),
+      "التسليم: " + (displayExpectedDelivery(row) || "-")
+    ].join("\n");
+
+    try {
+      const notification = new Notification(title, {
+        body: body,
+        tag: "trendos-urgent-" + (row.lineId || row.orderId || Date.now()),
+        renotify: true,
+        icon: ""
+      });
+      notification.onclick = function () {
+        try { window.focus(); } catch (e) {}
+      };
+    } catch (e) {}
+  }
+
+  async function checkUrgentNotifications() {
+    if (!state.urgentNotificationEnabled) return;
+    try {
+      const res = await api("getRows", authParams({ screen: state.screen }));
+      if (!res.success) return;
+      const urgentRows = urgentNotificationRows(Array.isArray(res.rows) ? res.rows : []);
+      urgentRows.forEach(function (row) {
+        const key = urgentNotifyKey(row);
+        if (state.urgentNotificationSeen[key]) return;
+        state.urgentNotificationSeen[key] = true;
+        showUrgentBrowserNotification(row);
+      });
+    } catch (e) {}
+  }
+
+  function updateUrgentNotificationButton() {
+    const btn = $("urgentNotificationsBtn");
+    if (!btn) return;
+    if (!urgentNotificationsSupported()) {
+      btn.textContent = "🔕 المتصفح لا يدعم الإشعارات";
+      btn.disabled = true;
+      return;
+    }
+    btn.classList.toggle("active", !!state.urgentNotificationEnabled);
+    btn.textContent = state.urgentNotificationEnabled ? "🔔 إشعارات العاجل مفعلة" : "🔔 تفعيل إشعارات العاجل";
+  }
+
+  function startUrgentNotificationTimer() {
+    stopUrgentNotificationTimer();
+    if (!state.urgentNotificationEnabled) return;
+    checkUrgentNotifications();
+    state.urgentNotificationTimer = setInterval(checkUrgentNotifications, 10 * 60 * 1000);
+  }
+
+  function stopUrgentNotificationTimer() {
+    if (state.urgentNotificationTimer) clearInterval(state.urgentNotificationTimer);
+    state.urgentNotificationTimer = null;
+  }
+
+  async function enableUrgentNotifications() {
+    if (!urgentNotificationsSupported()) {
+      alert("المتصفح الحالي لا يدعم إشعارات سطح المكتب.");
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      alert("الإشعارات مرفوضة من المتصفح. فعّلها من إعدادات الموقع أولًا.");
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        alert("لم يتم تفعيل الإشعارات.");
+        return;
+      }
+    }
+
+    state.urgentNotificationEnabled = true;
+    saveUrgentNotificationPreference(true);
+    updateUrgentNotificationButton();
+    startUrgentNotificationTimer();
+    alert("تم تفعيل إشعارات الأوردرات العاجلة. سيتم الفحص كل 10 دقائق.");
+  }
+
   function setMsg(id, msg, isError) {
     const el = $(id);
     if (!el) return;
@@ -445,6 +598,7 @@ Trend Mall`;
 
   function bootMain() {
     showMain();
+    state.urgentNotificationEnabled = loadUrgentNotificationPreference();
     renderHeader();
     renderTabs();
     toggleAddOrder();
@@ -452,7 +606,9 @@ Trend Mall`;
     toggleDashboard();
     toggleKnowledge();
     loadRows();
+    updateUrgentNotificationButton();
     startRefresh();
+    if (state.urgentNotificationEnabled) startUrgentNotificationTimer();
   }
 
   function renderHeader() {
@@ -543,8 +699,14 @@ Trend Mall`;
     const todayWork = d.todayWorkSheets || 0;
     const todayLines = d.todayWorkLines || 0;
     const todayOrders = d.todayWorkOrders || d.todayOrders || 0;
+    const score = d.performanceScore == null ? 0 : d.performanceScore;
+    const completion = d.completionPercent == null ? 0 : d.completionPercent;
+    const timeScore = d.timeScore == null ? 0 : d.timeScore;
     grid.innerHTML =
       '<div class="dash-note">متابعة ' + escapeHtml(deptName) + ' — شغل اليوم = الأوردرات المستلمة أمس والمفروض تتسلم بكرة.</div>' +
+      dashboardItem("تقييم القسم", score + "%", score >= 80 ? "done" : (score >= 50 ? "ready" : "danger")) +
+      dashboardItem("إنجاز الشغل", completion + "%", "done") +
+      dashboardItem("تقييم الوقت", timeScore + "%", timeScore >= 80 ? "done" : "danger") +
       dashboardItem("شغل اليوم", todayWork, "todaywork") +
       dashboardItem("بنود شغل اليوم", todayLines, "") +
       dashboardItem("أوردرات شغل اليوم", todayOrders, "") +
@@ -554,6 +716,7 @@ Trend Mall`;
       dashboardItem("عاجل مفتوح", d.urgent || 0, "urgent") +
       dashboardItem("عادي مفتوح", d.normal || 0, "") +
       dashboardItem("إجمالي مفتوح", d.activeOrders || 0, "") +
+      dashboardItem("مديونية", d.debtOrders || 0, "danger") +
       dashboardItem("مكبس حراري", d.heatPress || byDept["مكبس"] || 0, "press");
   }
 
@@ -720,6 +883,7 @@ Trend Mall`;
     const qNormalized = normalizeArabic(q);
     const status = $("statusFilter").value || "";
     const priority = $("priorityFilter").value || "__ACTIVE__";
+    const heatPressFilter = $("heatPressFilter") ? ($("heatPressFilter").value || "") : "";
 
     const filtered = state.rows.filter(function (r) {
       const blob = [r.orderId, r.lineId, r.customer, r.customerPhone, r.department, r.itemName, r.notes]
@@ -727,13 +891,19 @@ Trend Mall`;
       const blobNormalized = normalizeArabic(blob);
       if (q && blob.indexOf(q) === -1 && blobNormalized.indexOf(qNormalized) === -1) return false;
 
-      // فلاتر محسوبة تظهر حتى لو الحالة مخفية من شاشة التشغيل الافتراضية.
-      if (status === "__OVERDUE__") return isOverdueRow(r);
-      if (status === "__TODAY_WORK__") return !isHiddenFromUserScreens(r.status) && isTodayWorkRow(r);
-      if (status === "__DELIVERED_TODAY__") return isDeliveredTodayRow(r);
+      const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]);
+      if (heatPressFilter === "only" && !press) return false;
+      if (heatPressFilter === "without" && press) return false;
 
-      if (isHiddenFromUserScreens(r.status)) return false;
-      if (status && text(r.status) !== status) return false;
+      // فلاتر محسوبة ومتراكمة مع فلتر الأولوية وفلتر المكبس.
+      if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
+      else if (status === "__TODAY_WORK__" && (isHiddenFromUserScreens(r.status) || !isTodayWorkRow(r))) return false;
+      else if (status === "__DELIVERED_TODAY__" && !isDeliveredTodayRow(r)) return false;
+      else if (!status || status.indexOf("__") !== 0) {
+        if (isHiddenFromUserScreens(r.status)) return false;
+        if (status && text(r.status) !== status) return false;
+      }
+
       if (priority === "__ACTIVE__" && !isActiveDefaultPriority(r.priority)) return false;
       if (priority && priority !== "__ACTIVE__" && text(r.priority) !== priority) return false;
       return true;
@@ -789,11 +959,15 @@ Trend Mall`;
     const normal = rows.filter(function (r) { return !text(r.priority) || text(r.priority) === "عادي"; }).length;
     const problem = rows.filter(function (r) { return ["مشكلة", "متوقف"].indexOf(text(r.status)) !== -1; }).length;
     const overdue = rows.filter(isOverdueRow).length;
+    const debts = rows.filter(hasDebt).length;
+    const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
     $("statsBar").innerHTML =
       '<span>المعروض: <b>' + total + '</b></span>' +
       '<span>عاجل: <b>' + urgent + '</b></span>' +
       '<span>عادي: <b>' + normal + '</b></span>' +
       '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
+      '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
+      '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
       '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
@@ -805,19 +979,21 @@ Trend Mall`;
   }
 
   function compactCustomerCell(r) {
-    return '<div class="order-main"><b>' + escapeHtml(r.customer || "-") + '</b></div>' +
-      '<div class="muted-line phone-line">' + escapeHtml(safeDisplayPhone(r.customerPhone) || "بدون رقم") + '</div>';
+    const debt = hasDebt(r) ? '<span class="debt-pill">' + escapeHtml(debtLabel(r)) + '</span>' : '';
+    return '<div class="order-main"><b>' + escapeHtml(r.customer || "-") + '</b> ' + debt + '</div>' +
+      '<div class="muted-line phone-line">' + escapeHtml(safeDisplayPhone(r.customerPhone) || "بدون رقم") + '</div>' +
+      (hasDebt(r) ? '<div class="muted-line debt-warning">تنبيه: التسليم متوقف لحين السداد</div>' : '');
   }
 
   function compactWorkCell(r) {
-    const press = isHeatPress(r.heatPress) ? '<span class="press-pill">مكبس حراري</span>' : '';
+    const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
     return '<div class="order-main"><b>' + escapeHtml(r.itemName || "-") + '</b> ' + press + '</div>' +
       '<div class="muted-line">القسم: ' + escapeHtml(r.department || "-") + '</div>' +
       '<div class="muted-line">الكمية: ' + escapeHtml(r.qty || "-") + '</div>';
   }
 
   function statusBadges(r) {
-    const press = isHeatPress(r.heatPress) ? '<span class="press-pill">مكبس</span>' : '';
+    const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
     return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + '</div>';
   }
 
@@ -880,6 +1056,12 @@ Trend Mall`;
         sendWhatsApp(pageRows[Number(btn.dataset.i)], "ready", btn);
       });
     });
+
+    Array.prototype.forEach.call(tbody.querySelectorAll(".invoice-open"), function (btn) {
+      btn.addEventListener("click", function () {
+        openInvoiceModal(pageRows[Number(btn.dataset.i)]);
+      });
+    });
   }
 
   function renderPagination(totalRows) {
@@ -932,6 +1114,7 @@ Trend Mall`;
     return '<div class="whatsapp-actions">' +
       '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>AI يرد بالحالة</button>' +
       '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + disabled + '>رسالة انتهاء</button>' +
+      '<button type="button" class="wa-btn invoice-open" data-i="' + i + '">تسعير</button>' +
       notified +
       '</div>';
   }
@@ -1120,6 +1303,7 @@ Trend Mall`;
       phone: $("newClientPhone").value.trim(),
       extraPhone: $("newClientExtraPhone").value.trim(),
       customerType: $("newClientType").value.trim(),
+      debtAmount: $("newClientDebt") ? $("newClientDebt").value.trim() : "0",
       active: $("newClientActive").value || "نعم",
       notes: $("newClientNotes").value.trim()
     });
@@ -1145,6 +1329,8 @@ Trend Mall`;
         const el = $(id);
         if (el) el.value = "";
       });
+      const debtInput = $("newClientDebt");
+      if (debtInput) debtInput.value = "0";
       const manager = $("newClientManager");
       if (manager) manager.value = (state.user || {}).name || (state.user || {}).username || "";
       const active = $("newClientActive");
@@ -1205,7 +1391,7 @@ Trend Mall`;
       }
 
       const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
-      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText, false);
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (res.debtHold || ((res.debtInfo || {}).hasDebt) ? " | تنبيه: العميل عليه مديونية" : ""), false);
 
       const registrationRow = {
         customer: params.customerName,
@@ -1215,7 +1401,9 @@ Trend Mall`;
         itemName: params.itemName || ("أوردر جديد - " + params.department),
         department: params.department,
         status: "طلب جديد",
-        expectedDeliveryText: expectedText
+        expectedDeliveryText: expectedText,
+        debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
+        debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا")
       };
 
       if (params.customerPhone) {
@@ -1412,6 +1600,7 @@ Trend Mall`;
   }
 
   function logout() {
+    stopUrgentNotificationTimer();
     clearSession();
     showLogin();
   }
@@ -1439,10 +1628,14 @@ Trend Mall`;
       updateHeatPressVisibility();
     }
 
-    ["tableSearch", "statusFilter", "priorityFilter"].forEach(function (id) {
+    ["tableSearch", "statusFilter", "priorityFilter", "heatPressFilter"].forEach(function (id) {
+      if (!$(id)) return;
       $(id).addEventListener("input", function () { applyFiltersAndRender(true); });
       $(id).addEventListener("change", function () { applyFiltersAndRender(true); });
     });
+
+    const urgentBtn = $("urgentNotificationsBtn");
+    if (urgentBtn) urgentBtn.addEventListener("click", enableUrgentNotifications);
 
     const saveKnowledgeButton = $("saveKnowledgeBtn");
     if (saveKnowledgeButton) saveKnowledgeButton.addEventListener("click", saveKnowledge);

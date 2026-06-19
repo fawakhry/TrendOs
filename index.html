@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TrendOS Operations V1828</title>
-  <link rel="stylesheet" href="styles.css?v=1826">
+  <title>TrendOS Operations V1833</title>
+  <link rel="stylesheet" href="styles.css?v=1833">
 </head>
 <body>
 <main class="app">
@@ -27,11 +27,12 @@
       <div>
         <h2 id="welcomeTitle">TrendOS</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1827 - متابعة كل قسم + شغل اليوم</p>
+        <p class="version-badge">TrendOS V1833 - إشعارات العاجل + فلتر مكبس</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
         <button id="refreshBtn" class="ghost">تحديث الآن</button>
+        <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات العاجل</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
         <button id="logoutBtn" class="danger">خروج</button>
       </div>
@@ -157,6 +158,11 @@
         <div>
           <label>نوع العميل</label>
           <input id="newClientType" placeholder="مكتب / واتساب / عميل مباشر">
+        </div>
+
+        <div>
+          <label>مديونية حالية</label>
+          <input id="newClientDebt" type="number" min="0" value="0" placeholder="0">
         </div>
 
         <div>
@@ -289,6 +295,11 @@
           <option>عادي</option>
           <option>مؤجل</option>
         </select>
+        <select id="heatPressFilter">
+          <option value="" selected>كل الأوردرات</option>
+          <option value="only">مكبس فقط</option>
+          <option value="without">بدون مكبس</option>
+        </select>
       </div>
 
       <div class="table-wrap compact-table-wrap">
@@ -346,7 +357,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1828"></script>
-<script src="app.js?v=1828"></script>
+<script src="config.js?v=1833"></script>
+<script src="app.js?v=1833"></script>
 </body>
 </html>
