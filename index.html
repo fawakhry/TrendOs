@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها V1844</title>
-  <link rel="stylesheet" href="styles.css?v=1844">
+  <title>منصة مطبعجي بنها V1845</title>
+  <link rel="stylesheet" href="styles.css?v=1845">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">منصة مطبعجي بنها V1844 - شات الطلب ورفع الملفات</p>
+    <p class="version-badge">منصة مطبعجي بنها V1845 - محادثة الأوردر والبروفات</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1844 - شات الطلب ورفع الملفات</p>
+        <p class="version-badge">منصة مطبعجي بنها V1845 - محادثة الأوردر والبروفات</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -465,7 +465,7 @@
       </div>
     </section>
 
-    <section id="customerOrdersPanel"<section id="customerOrdersPanel" class="card hidden">
+    <section id="customerOrdersPanel" class="card hidden">
       <div class="table-tools">
         <h3>أوردراتي</h3>
         <button id="customerRefreshOrdersBtn" class="ghost" type="button">تحديث</button>
@@ -484,6 +484,42 @@
         <span>قريبًا: شات تصميم خاص بمنصة مطبعجي بنها.</span>
       </div>
     </section>
+  </section>
+
+
+  <section id="orderConversationModal" class="modal hidden">
+    <div class="modal-card order-conversation-card">
+      <div class="table-tools">
+        <div>
+          <h2 id="orderConversationTitle">محادثة الأوردر</h2>
+          <p id="orderConversationMeta" class="msg"></p>
+        </div>
+        <button id="closeOrderConversationBtn" class="ghost" type="button">إغلاق</button>
+      </div>
+
+      <div class="hint strong-hint">
+        هنا الموظف يشوف تفاصيل البند، ملفات العميل، وروابط الصور على Drive. يمكن إرسال متابعة أو رفع بروفة/تصميم قبل الطباعة داخل محادثة الأوردر.
+      </div>
+
+      <div id="orderConversationBody" class="order-conversation-body">
+        <div class="dash-empty">جاري تحميل محادثة الأوردر...</div>
+      </div>
+
+      <div class="order-conversation-composer">
+        <label>رسالة متابعة للعميل / ملاحظة بروفة</label>
+        <textarea id="orderConversationText" rows="3" placeholder="مثال: دي بروفة التصميم قبل الطباعة، برجاء التأكيد."></textarea>
+
+        <label>رفع بروفة / تصميم / ملف متابعة</label>
+        <input id="orderConversationFiles" type="file" multiple>
+        <small class="field-note">الملف يتم حفظه في Google Drive وتسجيله داخل محادثة الأوردر.</small>
+
+        <div class="row">
+          <button id="sendOrderConversationBtn" class="primary" type="button">إرسال المتابعة / البروفة</button>
+          <button id="refreshOrderConversationBtn" class="ghost" type="button">تحديث المحادثة</button>
+        </div>
+        <p id="orderConversationMsg" class="msg"></p>
+      </div>
+    </div>
   </section>
 
   <section id="invoiceModal" class="modal hidden">
@@ -556,7 +592,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1844"></script>
-<script src="app.js?v=1844"></script>
+<script src="config.js?v=1845"></script>
+<script src="app.js?v=1845"></script>
 </body>
 </html>

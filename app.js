@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1844_MATBAGY_BANHA_PLATFORM_DRAFT_CHAT";
+  const UI_VERSION = "1845_ORDER_CONVERSATION_FILES";
 
   const screens = {
     service: "خدمة العملاء",
@@ -145,7 +145,10 @@
     customerOrders: [],
     customerViewMode: "home",
     customerDraft: null,
-    customerDraftBusy: false
+    customerDraftBusy: false,
+    orderConversationRow: null,
+    orderConversation: null,
+    orderConversationBusy: false
   };
 
   const $ = (id) => document.getElementById(id);
@@ -1734,6 +1737,12 @@ Trend Mall`;
       });
     });
 
+    Array.prototype.forEach.call(tbody.querySelectorAll(".order-chat-open"), function (btn) {
+      btn.addEventListener("click", function () {
+        openOrderConversationModal(pageRows[Number(btn.dataset.i)]);
+      });
+    });
+
     Array.prototype.forEach.call(tbody.querySelectorAll(".invoice-open"), function (btn) {
       btn.addEventListener("click", function () {
         openInvoiceModal(pageRows[Number(btn.dataset.i)]);
@@ -1792,6 +1801,7 @@ Trend Mall`;
       '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>نسخ رد الحالة</button>' +
       '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + disabled + '>نسخ رسالة انتهاء</button>' +
       '<button type="button" class="wa-btn wa-open-chat" data-i="' + i + '"' + disabled + '>فتح واتساب</button>' +
+      '<button type="button" class="wa-btn order-chat-open" data-i="' + i + '">محادثة الأوردر</button>' +
       '<button type="button" class="wa-btn invoice-open" data-i="' + i + '">تسعير</button>' +
       notified +
       '</div>';
@@ -1903,6 +1913,161 @@ Trend Mall`;
   }
 
 
+
+
+
+  /*********************** V1845 - محادثة الأوردر للموظف ***********************/
+
+  function closeOrderConversationModal() {
+    const modal = $("orderConversationModal");
+    if (modal) modal.classList.add("hidden");
+    state.orderConversationRow = null;
+    state.orderConversation = null;
+    state.orderConversationBusy = false;
+  }
+
+  function orderConversationAuthPayload(extra) {
+    return authParams(extra || {});
+  }
+
+  async function openOrderConversationModal(row) {
+    if (!row) return;
+    state.orderConversationRow = row;
+    const modal = $("orderConversationModal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    const title = $("orderConversationTitle");
+    const meta = $("orderConversationMeta");
+    const body = $("orderConversationBody");
+    if (title) title.textContent = "محادثة الأوردر " + (row.orderId || "-");
+    if (meta) meta.textContent = "جاري تحميل التفاصيل والملفات...";
+    if (body) body.innerHTML = '<div class="dash-empty">جاري تحميل محادثة الأوردر...</div>';
+    await loadOrderConversation(row);
+  }
+
+  async function loadOrderConversation(row) {
+    row = row || state.orderConversationRow;
+    if (!row) return;
+    const meta = $("orderConversationMeta");
+    try {
+      const res = await api("getOrderConversation", orderConversationAuthPayload({
+        orderId: row.orderId || "",
+        lineId: row.lineId || ""
+      }));
+      if (!res.success) throw new Error(res.message || "تعذر تحميل محادثة الأوردر.");
+      state.orderConversation = res;
+      if (meta) meta.textContent = "العميل: " + ((res.lines && res.lines[0] && res.lines[0].customer) || row.customer || "-") + " | البند: " + (row.lineId || "كل البنود");
+      renderOrderConversation();
+    } catch (err) {
+      if (meta) meta.textContent = err.message || "خطأ في تحميل المحادثة.";
+      const body = $("orderConversationBody");
+      if (body) body.innerHTML = '<div class="dash-empty error">' + escapeHtml(err.message || "خطأ في تحميل المحادثة") + '</div>';
+    }
+  }
+
+  function renderOrderConversation() {
+    const data = state.orderConversation || {};
+    const body = $("orderConversationBody");
+    if (!body) return;
+    const lines = data.lines || [];
+    const files = data.files || [];
+    const messages = data.messages || [];
+
+    let html = '';
+    html += '<div class="order-chat-section"><h4>تفاصيل البند / الأوردر</h4>';
+    html += lines.map(function (line) {
+      return '<div class="order-chat-line-card">' +
+        '<b>' + escapeHtml(line.lineId || line.orderId || "-") + '</b>' +
+        '<span>القسم: ' + escapeHtml(line.department || "-") + '</span>' +
+        '<span>الشغل: ' + escapeHtml(line.itemName || "-") + '</span>' +
+        '<span>الكمية: ' + escapeHtml(line.qty || "1") + '</span>' +
+        '<span>الحالة: ' + escapeHtml(line.status || "طلب جديد") + '</span>' +
+        (line.notes ? '<p>' + escapeHtml(line.notes).replace(/\n/g, '<br>') + '</p>' : '') +
+        (line.itemFolderUrl ? '<a href="' + escapeHtml(line.itemFolderUrl) + '" target="_blank">فتح فولدر البند على Drive</a>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+
+    html += '<div class="order-chat-section"><h4>ملفات العميل</h4>';
+    if (!files.length) html += '<div class="dash-empty">لا توجد ملفات مرفوعة لهذا البند حتى الآن.</div>';
+    else html += '<div class="order-files-grid">' + files.map(function (f) {
+      const isFolder = f.recordType === "بند";
+      const label = isFolder ? "📁 " : "📎 ";
+      return '<a class="order-file-card" href="' + escapeHtml(f.url || "#") + '" target="_blank">' +
+        '<b>' + label + escapeHtml(f.name || f.itemName || "ملف") + '</b>' +
+        '<span>' + escapeHtml([f.department, f.itemName].filter(Boolean).join(" | ")) + '</span>' +
+        (f.notes ? '<small>' + escapeHtml(f.notes).slice(0, 90) + '</small>' : '') +
+        '</a>';
+    }).join('') + '</div>';
+    html += '</div>';
+
+    html += '<div class="order-chat-section"><h4>المتابعة والبروفات</h4><div class="order-conversation-messages">';
+    if (!messages.length) html += '<div class="chat-bubble system">لم يتم إضافة متابعة بعد. اكتب رسالة أو ارفع بروفة للعميل.</div>';
+    else html += messages.map(function (m) {
+      const cls = m.senderType === "عميل" ? "customer" : "staff";
+      return '<div class="chat-bubble ' + cls + '">' +
+        '<div class="bubble-title">' + escapeHtml(m.senderName || m.senderType || "متابعة") + '</div>' +
+        (m.text ? '<div>' + escapeHtml(m.text).replace(/\n/g, '<br>') + '</div>' : '') +
+        (m.fileUrl ? '<div class="bubble-files"><a class="file-chip" href="' + escapeHtml(m.fileUrl) + '" target="_blank">📎 ' + escapeHtml(m.fileName || "ملف") + '</a></div>' : '') +
+        (m.createdAt ? '<div class="bubble-meta">' + escapeHtml(m.createdAt) + '</div>' : '') +
+        '</div>';
+    }).join('');
+    html += '</div></div>';
+    body.innerHTML = html;
+  }
+
+  async function sendOrderConversationMessage() {
+    if (state.orderConversationBusy) return;
+    const row = state.orderConversationRow;
+    if (!row) return;
+    const textBox = $("orderConversationText");
+    const fileInput = $("orderConversationFiles");
+    const msg = (textBox && textBox.value || "").trim();
+    const files = fileInput && fileInput.files ? Array.prototype.slice.call(fileInput.files) : [];
+    if (!msg && !files.length) {
+      setMsg("orderConversationMsg", "اكتب رسالة أو ارفع ملف بروفة أولًا.", true);
+      return;
+    }
+    const btn = $("sendOrderConversationBtn");
+    state.orderConversationBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = "جاري الإرسال..."; }
+    setMsg("orderConversationMsg", "جاري حفظ المتابعة...", false);
+    try {
+      if (files.length) {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.size > 25 * 1024 * 1024) throw new Error("الملف أكبر من 25MB: " + file.name);
+          setMsg("orderConversationMsg", "جاري رفع ملف " + (i + 1) + " من " + files.length + ": " + file.name, false);
+          const base64 = await fileToBase64(file);
+          const res = await apiPost("uploadOrderConversationFile", orderConversationAuthPayload({
+            orderId: row.orderId || "",
+            lineId: row.lineId || "",
+            message: i === 0 ? msg : "",
+            fileName: file.name,
+            mimeType: file.type || "application/octet-stream",
+            size: file.size || 0,
+            base64: base64
+          }));
+          if (!res.success) throw new Error(res.message || "فشل رفع ملف البروفة.");
+        }
+      } else {
+        const res = await api("sendOrderConversationMessage", orderConversationAuthPayload({
+          orderId: row.orderId || "",
+          lineId: row.lineId || "",
+          message: msg
+        }));
+        if (!res.success) throw new Error(res.message || "تعذر حفظ الرسالة.");
+      }
+      if (textBox) textBox.value = "";
+      if (fileInput) fileInput.value = "";
+      setMsg("orderConversationMsg", "تم حفظ المتابعة في محادثة الأوردر.", false);
+      await loadOrderConversation(row);
+    } catch (err) {
+      setMsg("orderConversationMsg", err.message || "خطأ أثناء إرسال المتابعة.", true);
+    } finally {
+      state.orderConversationBusy = false;
+      if (btn) { btn.disabled = false; btn.textContent = "إرسال المتابعة / البروفة"; }
+    }
+  }
 
   function shouldOpenInvoiceAfterStatus(newStatus, oldStatus) {
     const n = text(newStatus);
@@ -2326,6 +2491,13 @@ Trend Mall`;
     $("changePassBtn").addEventListener("click", openPasswordModal);
     $("cancelPassBtn").addEventListener("click", closePasswordModal);
     $("savePassBtn").addEventListener("click", changePassword);
+    const cancelConversationButton = $("closeOrderConversationBtn");
+    if (cancelConversationButton) cancelConversationButton.addEventListener("click", closeOrderConversationModal);
+    const sendConversationButton = $("sendOrderConversationBtn");
+    if (sendConversationButton) sendConversationButton.addEventListener("click", sendOrderConversationMessage);
+    const refreshConversationButton = $("refreshOrderConversationBtn");
+    if (refreshConversationButton) refreshConversationButton.addEventListener("click", function () { loadOrderConversation(); });
+
     const cancelInvoiceButton = $("cancelInvoiceBtn");
     if (cancelInvoiceButton) cancelInvoiceButton.addEventListener("click", closeInvoiceModal);
     const saveInvoiceButton = $("saveInvoiceBtn");
