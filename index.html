@@ -3,13 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TrendOS Operations V1842</title>
-  <link rel="stylesheet" href="styles.css?v=1842">
+  <title>منصة مطبعجي بنها V1843</title>
+  <link rel="stylesheet" href="styles.css?v=1843">
 </head>
 <body>
 <main class="app">
+  <section id="entryView" class="card entry-card hidden">
+    <h1>منصة مطبعجي بنها</h1>
+    <p>بوابة واحدة للموظفين والعملاء: تسجيل الأوردرات، متابعة الحالات، مطبعجي شيتات، واصنع تصميمك بنفسك.</p>
+
+    <div class="entry-grid">
+      <button id="employeeEntryBtn" class="entry-option" type="button">
+        <b>دخول الموظفين</b>
+        <span>TrendOS Operations — خدمة العملاء والأقسام والتسعير</span>
+      </button>
+      <button id="customerEntryBtn" class="entry-option customer" type="button">
+        <b>دخول العملاء</b>
+        <span>كود الشات + كلمة المرور لمتابعة الأوردرات وفتح أوردر جديد</span>
+      </button>
+    </div>
+
+    <p class="version-badge">منصة مطبعجي بنها V1843 - بداية بوابة العملاء</p>
+  </section>
+
   <section id="loginView" class="card login-card">
-    <h1>TrendOS Operations</h1>
+    <h1>منصة مطبعجي بنها</h1>
     <p>تسجيل دخول الموظفين</p>
 
     <label>اسم المستخدم</label>
@@ -18,16 +36,37 @@
     <label>كلمة المرور</label>
     <input id="password" type="password" placeholder="0000">
 
-    <button id="loginBtn" class="primary">دخول</button>
+    <div class="row">
+      <button id="loginBtn" class="primary">دخول</button>
+      <button id="backToEntryFromLogin" class="ghost" type="button">رجوع</button>
+    </div>
     <p id="loginMsg" class="msg"></p>
+  </section>
+
+  <section id="customerLoginView" class="card login-card hidden">
+    <h1>دخول العملاء</h1>
+    <p>اكتب كود الشات وكلمة المرور لمتابعة أوردراتك على منصة مطبعجي بنها.</p>
+
+    <label>كود الشات</label>
+    <input id="customerCode" inputmode="numeric" placeholder="مثال: 1001">
+
+    <label>كلمة المرور</label>
+    <input id="customerPassword" type="password" placeholder="كلمة مرور العميل">
+
+    <div class="row">
+      <button id="customerLoginBtn" class="primary">دخول العميل</button>
+      <button id="backToEntryFromCustomer" class="ghost" type="button">رجوع</button>
+    </div>
+    <p id="customerLoginMsg" class="msg"></p>
+    <div class="hint">لو نسيت كلمة المرور، اطلب من خدمة العملاء إعادة تعيينها.</div>
   </section>
 
   <section id="mainView" class="hidden">
     <header class="topbar">
       <div>
-        <h2 id="welcomeTitle">TrendOS</h2>
+        <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1842 - نسخ رسائل واتساب بدون فتح تبويبات</p>
+        <p class="version-badge">منصة مطبعجي بنها V1843 - بوابة العملاء + المكبس داخل الطباعة</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -215,7 +254,6 @@
           <select id="newDepartment">
             <option>طباعة</option>
             <option>ليزر</option>
-            <option>مكبس</option>
             <option>متعدد الأقسام</option>
           </select>
         </div>
@@ -316,6 +354,109 @@
     </section>
   </section>
 
+  <section id="customerView" class="hidden">
+    <header class="topbar customer-topbar">
+      <div>
+        <h2 id="customerWelcomeTitle">أهلاً بك</h2>
+        <p id="customerMeta"></p>
+        <p class="version-badge">منصة مطبعجي بنها V1843 - بوابة العميل</p>
+      </div>
+      <div class="top-actions">
+        <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
+        <button id="customerChangePassBtn" class="ghost">تغيير كلمة المرور</button>
+        <button id="customerLogoutBtn" class="danger">خروج</button>
+      </div>
+    </header>
+
+    <section id="customerHomePanel" class="card customer-home-card">
+      <h3>خدماتك على منصة مطبعجي بنها</h3>
+      <div class="customer-service-grid">
+        <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
+          <b>+ تسجيل أوردر جديد</b>
+          <span>افتح رقم أوردر قبل إرسال أو رفع أي شغل جديد.</span>
+        </button>
+        <button id="customerShowOrdersBtn" class="customer-service-card" type="button">
+          <b>متابعة أوردراتي</b>
+          <span>اعرف كل أوردر وصل لفين بدون الرجوع للشات الطويل.</span>
+        </button>
+        <button id="customerOpenMatbagySheetsBtn" class="customer-service-card" type="button">
+          <b>مطبعجي شيتات</b>
+          <span>رص صور الطباعة بجودة HD 300DPI.</span>
+        </button>
+        <button id="customerShowDesignerBtn" class="customer-service-card ai" type="button">
+          <b>اصنع تصميمك بنفسك</b>
+          <span>مساعد التصميم الذكي — قيد التجهيز داخل المنصة.</span>
+        </button>
+      </div>
+      <div class="hint strong-hint">قاعدة التشغيل الجديدة: كل شغل جديد لازم يبقى له رقم أوردر مستقل حتى لا يختلط القديم بالجديد.</div>
+    </section>
+
+    <section id="customerNewOrderPanel" class="card hidden">
+      <div class="table-tools">
+        <h3>تسجيل أوردر جديد</h3>
+        <span id="customerOrderMsg"></span>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label>القسم</label>
+          <select id="customerOrderDepartment">
+            <option>طباعة</option>
+            <option>ليزر</option>
+            <option>متعدد الأقسام</option>
+          </select>
+        </div>
+        <div id="customerHeatPressBox" class="heatpress-box">
+          <label>علامة المكبس</label>
+          <label class="checkline"><input id="customerHeatPress" type="checkbox"> 🔥 مكبس حراري</label>
+        </div>
+        <div id="customerFlyPrintBox" class="flyprint-box">
+          <label>طباعة على الطاير</label>
+          <label class="checkline"><input id="customerFlyPrint" type="checkbox"> ⚡ طباعة على الطاير</label>
+        </div>
+        <div class="wide">
+          <label>نوع الشغل / المطلوب</label>
+          <input id="customerOrderItem" placeholder="مثال: تابلوه 30×40 / مج / شهادة / ليزر">
+        </div>
+        <div>
+          <label>الكمية</label>
+          <input id="customerOrderQty" type="number" min="1" value="1">
+        </div>
+        <div class="wide">
+          <label>ملاحظات العميل</label>
+          <input id="customerOrderNotes" placeholder="اكتب أي تفاصيل مهمة للتنفيذ">
+        </div>
+      </div>
+      <button id="customerCreateOrderBtn" class="primary">تسجيل أوردر جديد</button>
+
+      <div id="customerSeparatorBox" class="separator-box hidden">
+        <h4>فاصل واتساب للأوردر</h4>
+        <p>لو هتبعت الملفات على واتساب، انسخ الفاصل ده وضعه بعد آخر ملف يخص الأوردر.</p>
+        <textarea id="customerSeparatorText" rows="8" readonly></textarea>
+        <button id="copyCustomerSeparatorBtn" class="ghost" type="button">نسخ فاصل الأوردر</button>
+      </div>
+    </section>
+
+    <section id="customerOrdersPanel" class="card hidden">
+      <div class="table-tools">
+        <h3>أوردراتي</h3>
+        <button id="customerRefreshOrdersBtn" class="ghost" type="button">تحديث</button>
+      </div>
+      <p id="customerOrdersStatus" class="msg"></p>
+      <div id="customerOrdersList" class="customer-orders-list"></div>
+    </section>
+
+    <section id="customerDesignerPanel" class="card hidden">
+      <h3>اصنع تصميمك بنفسك</h3>
+      <div class="hint strong-hint">
+        هذه المرحلة تم تجهيز مكانها داخل المنصة. الإصدار القادم سيضيف مساعد التصميم الذكي: اختيار المنتج، رفع الصور، كتابة النصوص، ثم إرسال التصميم كأوردر.
+      </div>
+      <div class="designer-placeholder">
+        <b>مصمم مطبعجي الذكي</b>
+        <span>قريبًا: شات تصميم خاص بمنصة مطبعجي بنها.</span>
+      </div>
+    </section>
+  </section>
+
   <section id="invoiceModal" class="modal hidden">
     <div class="modal-card invoice-card">
       <h2 id="invoiceOrderTitle">فاتورة / تسعير</h2>
@@ -362,9 +503,31 @@
       <p id="passMsg" class="msg"></p>
     </div>
   </section>
+
+  <section id="customerPasswordModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>تغيير كلمة مرور العميل</h2>
+
+      <label>كلمة المرور الحالية</label>
+      <input id="customerOldPassword" type="password">
+
+      <label>كلمة المرور الجديدة</label>
+      <input id="customerNewPassword" type="password">
+
+      <label>تأكيد كلمة المرور الجديدة</label>
+      <input id="customerConfirmPassword" type="password">
+
+      <div class="row">
+        <button id="customerSavePassBtn" class="primary">حفظ</button>
+        <button id="customerCancelPassBtn" class="ghost">إلغاء</button>
+      </div>
+
+      <p id="customerPassMsg" class="msg"></p>
+    </div>
+  </section>
 </main>
 
-<script src="config.js?v=1842"></script>
-<script src="app.js?v=1842"></script>
+<script src="config.js?v=1843"></script>
+<script src="app.js?v=1843"></script>
 </body>
 </html>

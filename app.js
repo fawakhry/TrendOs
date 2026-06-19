@@ -3,21 +3,21 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1842_COPY_WHATSAPP_MESSAGE";
+  const UI_VERSION = "1843_MATBAGY_BANHA_PLATFORM";
 
   const screens = {
     service: "خدمة العملاء",
     print: "الطباعة",
-    laser: "الليزر",
-    press: "المكبس"
+    laser: "الليزر"
   };
 
   const roleScreens = {
-    admin: ["service", "print", "laser", "press"],
+    admin: ["service", "print", "laser"],
     service: ["service"],
     print: ["print"],
     laser: ["laser"],
-    press: ["press"]
+    // المكبس ليس قسم مستقل. أي مستخدم قديم بصلاحية press يرى شاشة الطباعة فقط.
+    press: ["print"]
   };
 
   // الحالات التي يحتاجها المستخدم في التشغيل فقط.
@@ -140,7 +140,10 @@
     pageSize: 5,
     urgentNotificationTimer: null,
     urgentNotificationEnabled: false,
-    urgentNotificationSeen: {}
+    urgentNotificationSeen: {},
+    customer: null,
+    customerOrders: [],
+    customerViewMode: "home"
   };
 
   const $ = (id) => document.getElementById(id);
@@ -611,16 +614,48 @@ Trend Mall`;
     el.classList.toggle("error", !!isError);
   }
 
-  function showLogin() {
-    $("loginView").classList.remove("hidden");
-    $("mainView").classList.add("hidden");
-    $("passwordModal").classList.add("hidden");
+  function hideAllRootViews() {
+    ["entryView", "loginView", "customerLoginView", "customerView", "mainView"].forEach(function (id) {
+      const el = $(id);
+      if (el) el.classList.add("hidden");
+    });
+    const passModal = $("passwordModal");
+    if (passModal) passModal.classList.add("hidden");
+    const customerPassModal = $("customerPasswordModal");
+    if (customerPassModal) customerPassModal.classList.add("hidden");
+  }
+
+  function showEntryChoice() {
     stopRefresh();
+    stopUrgentNotificationTimer();
+    hideAllRootViews();
+    const entry = $("entryView");
+    if (entry) entry.classList.remove("hidden");
+  }
+
+  function showLogin() {
+    stopRefresh();
+    hideAllRootViews();
+    $("loginView").classList.remove("hidden");
+  }
+
+  function showCustomerLogin() {
+    stopRefresh();
+    hideAllRootViews();
+    const view = $("customerLoginView");
+    if (view) view.classList.remove("hidden");
   }
 
   function showMain() {
-    $("loginView").classList.add("hidden");
+    hideAllRootViews();
     $("mainView").classList.remove("hidden");
+  }
+
+  function showCustomerMain() {
+    stopRefresh();
+    hideAllRootViews();
+    const view = $("customerView");
+    if (view) view.classList.remove("hidden");
   }
 
   function saveSession() {
@@ -643,6 +678,32 @@ Trend Mall`;
     localStorage.removeItem("trendos_session");
     state.user = null;
     state.rows = [];
+  }
+
+  function saveCustomerSession() {
+    localStorage.setItem("matbagy_platform_customer_session", JSON.stringify({ customer: state.customer }));
+  }
+
+  function loadCustomerSession() {
+    try {
+      const data = JSON.parse(localStorage.getItem("matbagy_platform_customer_session") || "null");
+      if (data && data.customer && data.customer.token && data.customer.customerCode) {
+        state.customer = data.customer;
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function clearCustomerSession() {
+    localStorage.removeItem("matbagy_platform_customer_session");
+    state.customer = null;
+    state.customerOrders = [];
+  }
+
+  function customerAuthParams(extra) {
+    const c = state.customer || {};
+    return Object.assign({ customerCode: c.customerCode || c.code || "", token: c.token || "" }, extra || {});
   }
 
   async function doLogin() {
@@ -678,6 +739,250 @@ Trend Mall`;
       btn.disabled = false;
       btn.textContent = "دخول";
     }
+  }
+
+  async function doCustomerLogin() {
+    const customerCode = ($("customerCode") || {}).value ? $("customerCode").value.trim() : "";
+    const password = ($("customerPassword") || {}).value ? $("customerPassword").value.trim() : "";
+    setMsg("customerLoginMsg", "", false);
+
+    if (!customerCode || !password) {
+      setMsg("customerLoginMsg", "اكتب كود الشات وكلمة المرور.", true);
+      return;
+    }
+
+    const btn = $("customerLoginBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري الدخول..."; }
+
+    try {
+      const res = await api("customerLogin", { customerCode: customerCode, password: password });
+      if (!res.success) {
+        setMsg("customerLoginMsg", res.message || "فشل دخول العميل.", true);
+        return;
+      }
+      state.customer = res.customer || {};
+      saveCustomerSession();
+      bootCustomerMain();
+      if (state.customer.mustChange) openCustomerPasswordModal();
+    } catch (err) {
+      setMsg("customerLoginMsg", err.message || "حصل خطأ أثناء دخول العميل.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "دخول العميل"; }
+    }
+  }
+
+  function bootCustomerMain() {
+    showCustomerMain();
+    renderCustomerHeader();
+    renderCustomerHome();
+    loadCustomerOrders();
+  }
+
+  function renderCustomerHeader() {
+    const c = state.customer || {};
+    const title = $("customerWelcomeTitle");
+    const meta = $("customerMeta");
+    if (title) title.textContent = "أهلاً " + (c.name || "عميل مطبعجي");
+    if (meta) meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | منصة مطبعجي بنها";
+  }
+
+  function publicStatus(status) {
+    const s = text(status);
+    const map = {
+      "طلب جديد": "تم استلام الطلب",
+      "بدأ التنفيذ": "جاري تجهيز الطلب",
+      "تحت التنفيذ": "تحت التنفيذ",
+      "متوقف": "متوقف مؤقتًا وسيتم التواصل معك",
+      "مشكلة": "يوجد ملاحظة وسيتم التواصل معك",
+      "جاهز للاستلام": "جاهز للاستلام",
+      "تم التسليم": "تم التسليم",
+      "ملغى": "ملغي",
+      "مكرر": "مكرر"
+    };
+    return map[s] || s || "تم استلام الطلب";
+  }
+
+  function renderCustomerHome() {
+    const home = $("customerHomePanel");
+    const orderPanel = $("customerNewOrderPanel");
+    const ordersPanel = $("customerOrdersPanel");
+    const designerPanel = $("customerDesignerPanel");
+    [home, orderPanel, ordersPanel, designerPanel].forEach(function (el) { if (el) el.classList.add("hidden"); });
+
+    if (state.customerViewMode === "newOrder") {
+      if (orderPanel) orderPanel.classList.remove("hidden");
+      updateCustomerPrintOptions();
+    } else if (state.customerViewMode === "designer") {
+      if (designerPanel) designerPanel.classList.remove("hidden");
+    } else if (state.customerViewMode === "orders") {
+      if (ordersPanel) ordersPanel.classList.remove("hidden");
+    } else {
+      if (home) home.classList.remove("hidden");
+    }
+  }
+
+  async function loadCustomerOrders() {
+    if (!state.customer) return;
+    const status = $("customerOrdersStatus");
+    if (status) status.textContent = "جاري تحميل أوردراتك...";
+    try {
+      const res = await api("getCustomerOrders", customerAuthParams({}));
+      if (!res.success) {
+        if (status) status.textContent = res.message || "تعذر تحميل الأوردرات.";
+        return;
+      }
+      state.customerOrders = Array.isArray(res.orders) ? res.orders : [];
+      renderCustomerOrders();
+      if (status) status.textContent = "تم تحميل " + state.customerOrders.length + " أوردر.";
+    } catch (err) {
+      if (status) status.textContent = err.message || "خطأ أثناء تحميل الأوردرات.";
+    }
+  }
+
+  function renderCustomerOrders() {
+    const list = $("customerOrdersList");
+    if (!list) return;
+    const rows = state.customerOrders || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد أوردرات مسجلة على كود الشات حتى الآن.</div>';
+      return;
+    }
+    list.innerHTML = rows.map(function (r) {
+      return '<div class="customer-order-card">' +
+        '<div class="customer-order-head"><b>أوردر ' + escapeHtml(r.orderId || "-") + '</b><span>' + escapeHtml(publicStatus(r.status)) + '</span></div>' +
+        '<div class="muted-line">القسم: ' + escapeHtml(r.department || "-") + '</div>' +
+        '<div class="muted-line">نوع الشغل: ' + escapeHtml(r.itemName || "-") + '</div>' +
+        '<div class="muted-line">التسليم المتوقع: ' + escapeHtml(formatDisplayDate(r.expectedDeliveryText || r.expectedDeliveryAt || r.expectedDelivery) || "-") + '</div>' +
+        (r.notes ? '<div class="customer-note">' + escapeHtml(r.notes) + '</div>' : '') +
+      '</div>';
+    }).join("");
+  }
+
+  function updateCustomerPrintOptions() {
+    const dep = $("customerOrderDepartment");
+    const pressBox = $("customerHeatPressBox");
+    const flyBox = $("customerFlyPrintBox");
+    const show = dep && dep.value === "طباعة";
+    if (pressBox) pressBox.classList.toggle("hidden", !show);
+    if (flyBox) flyBox.classList.toggle("hidden", !show);
+    if (!show) {
+      if ($("customerHeatPress")) $("customerHeatPress").checked = false;
+      if ($("customerFlyPrint")) $("customerFlyPrint").checked = false;
+    }
+  }
+
+  async function createCustomerPortalOrder() {
+    if (!state.customer) return;
+    setMsg("customerOrderMsg", "", false);
+
+    const dep = ($("customerOrderDepartment") || {}).value || "طباعة";
+    const itemName = (($("customerOrderItem") || {}).value || "").trim();
+    const qty = (($("customerOrderQty") || {}).value || "1").trim();
+    const notes = (($("customerOrderNotes") || {}).value || "").trim();
+    const heatPress = dep === "طباعة" && $("customerHeatPress") && $("customerHeatPress").checked ? "نعم" : "لا";
+    const flyPrint = dep === "طباعة" && $("customerFlyPrint") && $("customerFlyPrint").checked ? "نعم" : "لا";
+
+    if (!itemName && !notes) {
+      setMsg("customerOrderMsg", "اكتب نوع الشغل أو ملاحظات الأوردر.", true);
+      return;
+    }
+
+    const btn = $("customerCreateOrderBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري تسجيل الأوردر..."; }
+
+    try {
+      const res = await api("createCustomerPortalOrder", customerAuthParams({
+        department: dep,
+        itemName: itemName,
+        qty: qty,
+        notes: notes,
+        heatPress: heatPress,
+        flyPrint: flyPrint
+      }));
+      if (!res.success) {
+        setMsg("customerOrderMsg", res.message || "تعذر تسجيل الأوردر.", true);
+        return;
+      }
+      const sep = buildCustomerOrderSeparator(res.orderId, dep, itemName || notes);
+      setMsg("customerOrderMsg", "تم تسجيل الأوردر رقم " + res.orderId + ". انسخ فاصل الأوردر وضعه في واتساب لو سترسل ملفات هناك.", false);
+      if ($("customerSeparatorText")) $("customerSeparatorText").value = sep;
+      const sepBox = $("customerSeparatorBox");
+      if (sepBox) sepBox.classList.remove("hidden");
+      ["customerOrderItem", "customerOrderNotes"].forEach(function (id) { if ($(id)) $(id).value = ""; });
+      if ($("customerOrderQty")) $("customerOrderQty").value = "1";
+      if ($("customerHeatPress")) $("customerHeatPress").checked = false;
+      if ($("customerFlyPrint")) $("customerFlyPrint").checked = false;
+      await loadCustomerOrders();
+    } catch (err) {
+      setMsg("customerOrderMsg", err.message || "خطأ أثناء تسجيل الأوردر.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "تسجيل أوردر جديد"; }
+    }
+  }
+
+  function buildCustomerOrderSeparator(orderId, department, itemText) {
+    const c = state.customer || {};
+    return [
+      "✅ فاصل أوردر منصة مطبعجي بنها",
+      "كود الشات: " + (c.customerCode || "-"),
+      "اسم الشات: " + (c.name || "-"),
+      "رقم الأوردر: " + (orderId || "-"),
+      "القسم: " + (department || "-"),
+      itemText ? "المطلوب: " + itemText : "",
+      "",
+      "كل الملفات والصور والرسائل الموجودة فوق هذا الفاصل، وبعد آخر فاصل أوردر سابق، تخص رقم الأوردر المكتوب هنا فقط.",
+      "أي شغل جديد بعد هذا الفاصل يحتاج رقم أوردر جديد."
+    ].filter(Boolean).join("\n");
+  }
+
+  async function copyCustomerSeparator() {
+    const value = ($("customerSeparatorText") || {}).value || "";
+    const ok = await copyTextToClipboard(value);
+    alert(ok ? "تم نسخ فاصل الأوردر." : "لم أستطع النسخ تلقائيًا. انسخه يدويًا من المربع.");
+  }
+
+  function openCustomerPasswordModal() {
+    const modal = $("customerPasswordModal");
+    if (modal) modal.classList.remove("hidden");
+    setMsg("customerPassMsg", "", false);
+  }
+
+  function closeCustomerPasswordModal() {
+    const modal = $("customerPasswordModal");
+    if (modal) modal.classList.add("hidden");
+    ["customerOldPassword", "customerNewPassword", "customerConfirmPassword"].forEach(function (id) { if ($(id)) $(id).value = ""; });
+  }
+
+  async function changeCustomerPassword() {
+    const oldPassword = (($("customerOldPassword") || {}).value || "").trim();
+    const newPassword = (($("customerNewPassword") || {}).value || "").trim();
+    const confirmPassword = (($("customerConfirmPassword") || {}).value || "").trim();
+    if (!oldPassword || !newPassword) {
+      setMsg("customerPassMsg", "اكتب كلمة المرور الحالية والجديدة.", true);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMsg("customerPassMsg", "تأكيد كلمة المرور غير مطابق.", true);
+      return;
+    }
+    try {
+      const res = await api("changeCustomerPassword", customerAuthParams({ oldPassword: oldPassword, newPassword: newPassword }));
+      if (!res.success) {
+        setMsg("customerPassMsg", res.message || "فشل تغيير كلمة المرور.", true);
+        return;
+      }
+      if (state.customer) state.customer.mustChange = false;
+      saveCustomerSession();
+      setMsg("customerPassMsg", res.message || "تم تغيير كلمة المرور.", false);
+      setTimeout(closeCustomerPasswordModal, 900);
+    } catch (err) {
+      setMsg("customerPassMsg", err.message || "خطأ أثناء تغيير كلمة المرور.", true);
+    }
+  }
+
+  function customerLogout() {
+    clearCustomerSession();
+    showEntryChoice();
   }
 
   function bootMain() {
@@ -1567,8 +1872,8 @@ Trend Mall`;
       customerName: $("newCustomerName").value.trim(),
       customerPhone: $("newCustomerPhone").value.trim(),
       customerType: $("newCustomerType").value.trim(),
-      department: $("newDepartment").value,
-      heatPress: ($("newHeatPress") && $("newHeatPress").checked) ? "نعم" : "لا",
+      department: text($("newDepartment").value) === "مكبس" ? "طباعة" : $("newDepartment").value,
+      heatPress: ((text($("newDepartment").value) === "مكبس") || ($("newHeatPress") && $("newHeatPress").checked)) ? "نعم" : "لا",
       flyPrint: ($("newFlyPrint") && $("newFlyPrint").checked && text($("newDepartment").value) === "طباعة") ? "نعم" : "لا",
       itemName: $("newItemName").value.trim(),
       qty: $("newQty").value || "1",
@@ -1808,10 +2113,37 @@ Trend Mall`;
   function logout() {
     stopUrgentNotificationTimer();
     clearSession();
-    showLogin();
+    showEntryChoice();
   }
 
   function wireEvents() {
+    function on(id, eventName, handler) {
+      const el = $(id);
+      if (el) el.addEventListener(eventName, handler);
+    }
+
+    on("employeeEntryBtn", "click", showLogin);
+    on("customerEntryBtn", "click", showCustomerLogin);
+    on("backToEntryFromLogin", "click", showEntryChoice);
+    on("backToEntryFromCustomer", "click", showEntryChoice);
+
+    on("customerLoginBtn", "click", doCustomerLogin);
+    on("customerPassword", "keydown", function (e) { if (e.key === "Enter") doCustomerLogin(); });
+    on("customerCode", "keydown", function (e) { if (e.key === "Enter" && $("customerPassword")) $("customerPassword").focus(); });
+    on("customerLogoutBtn", "click", customerLogout);
+    on("customerRefreshOrdersBtn", "click", loadCustomerOrders);
+    on("customerGoHomeBtn", "click", function () { state.customerViewMode = "home"; renderCustomerHome(); });
+    on("customerShowOrdersBtn", "click", function () { state.customerViewMode = "orders"; renderCustomerHome(); loadCustomerOrders(); });
+    on("customerShowNewOrderBtn", "click", function () { state.customerViewMode = "newOrder"; renderCustomerHome(); });
+    on("customerShowDesignerBtn", "click", function () { state.customerViewMode = "designer"; renderCustomerHome(); });
+    on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
+    on("customerOrderDepartment", "change", updateCustomerPrintOptions);
+    on("customerCreateOrderBtn", "click", createCustomerPortalOrder);
+    on("copyCustomerSeparatorBtn", "click", copyCustomerSeparator);
+    on("customerChangePassBtn", "click", openCustomerPasswordModal);
+    on("customerCancelPassBtn", "click", closeCustomerPasswordModal);
+    on("customerSavePassBtn", "click", changeCustomerPassword);
+
     $("loginBtn").addEventListener("click", doLogin);
     $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
     $("username").addEventListener("keydown", function (e) { if (e.key === "Enter") $("password").focus(); });
@@ -1872,6 +2204,7 @@ Trend Mall`;
   document.addEventListener("DOMContentLoaded", function () {
     wireEvents();
     if (loadSession()) bootMain();
-    else showLogin();
+    else if (loadCustomerSession()) bootCustomerMain();
+    else showEntryChoice();
   });
 })();
