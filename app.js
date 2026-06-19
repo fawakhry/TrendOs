@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1843_MATBAGY_BANHA_PLATFORM";
+  const UI_VERSION = "1844_MATBAGY_BANHA_PLATFORM_DRAFT_CHAT";
 
   const screens = {
     service: "خدمة العملاء",
@@ -143,7 +143,9 @@
     urgentNotificationSeen: {},
     customer: null,
     customerOrders: [],
-    customerViewMode: "home"
+    customerViewMode: "home",
+    customerDraft: null,
+    customerDraftBusy: false
   };
 
   const $ = (id) => document.getElementById(id);
@@ -461,6 +463,43 @@ Trend Mall`;
     });
   }
 
+
+
+  async function apiPost(action, payload) {
+    if (!API_URL || API_URL.indexOf("PUT_YOUR_WEB_APP_URL_HERE") !== -1) {
+      throw new Error("رابط Web App غير موجود في config.js");
+    }
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({ action: action }, payload || {}))
+    });
+    const textValue = await res.text();
+    try {
+      return JSON.parse(textValue || "{}");
+    } catch (err) {
+      throw new Error("رد السيرفر غير واضح أثناء رفع الملفات.");
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function () {
+        const result = String(reader.result || "");
+        resolve(result.split(",")[1] || "");
+      };
+      reader.onerror = function () { reject(new Error("تعذر قراءة الملف: " + (file && file.name ? file.name : ""))); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function resetCustomerDraft() {
+    state.customerDraft = { draftId: "", items: [], submitted: false, orderId: "" };
+    renderCustomerDraft();
+    setMsg("customerOrderMsg", "", false);
+  }
+
   function authParams(extra) {
     const user = state.user || {};
     return Object.assign({
@@ -699,6 +738,7 @@ Trend Mall`;
     localStorage.removeItem("matbagy_platform_customer_session");
     state.customer = null;
     state.customerOrders = [];
+    state.customerDraft = null;
   }
 
   function customerAuthParams(extra) {
@@ -811,7 +851,9 @@ Trend Mall`;
 
     if (state.customerViewMode === "newOrder") {
       if (orderPanel) orderPanel.classList.remove("hidden");
+      if (!state.customerDraft) resetCustomerDraft();
       updateCustomerPrintOptions();
+      renderCustomerDraft();
     } else if (state.customerViewMode === "designer") {
       if (designerPanel) designerPanel.classList.remove("hidden");
     } else if (state.customerViewMode === "orders") {
@@ -871,53 +913,181 @@ Trend Mall`;
     }
   }
 
-  async function createCustomerPortalOrder() {
-    if (!state.customer) return;
-    setMsg("customerOrderMsg", "", false);
+  function ensureCustomerDraftStarted() {
+    if (!state.customerDraft) resetCustomerDraft();
+    return state.customerDraft;
+  }
 
+  function renderCustomerDraft() {
+    const draft = ensureCustomerDraftStarted();
+    const title = $("customerDraftTitle");
+    const meta = $("customerDraftMeta");
+    const box = $("customerDraftMessages");
+    if (title) title.textContent = draft.orderId ? ("تم بدء التنفيذ - أوردر " + draft.orderId) : (draft.draftId ? "مسودة " + draft.draftId : "مسودة طلب جديدة");
+    if (meta) meta.textContent = draft.submitted ? "تم تحويل المسودة لأوردر" : (draft.items.length ? ("عدد البنود: " + draft.items.length) : "لم يتم بدء التنفيذ بعد");
+    if (!box) return;
+
+    let html = '<div class="chat-bubble system">أضف كل البنود والملفات هنا. كل بند سيظهر للقسم المناسب فقط بعد بدء التنفيذ.</div>';
+    if (draft.items.length) {
+      html += draft.items.map(function (item, index) {
+        const files = item.files || [];
+        return '<div class="chat-bubble customer">' +
+          '<div class="bubble-title">بند ' + (index + 1) + ': ' + escapeHtml(item.itemName || "بدون عنوان") + '</div>' +
+          '<div>القسم: ' + escapeHtml(item.department || "-") + ' | الكمية: ' + escapeHtml(item.qty || "1") + '</div>' +
+          (item.heatPress === "نعم" ? '<div>🔥 مكبس حراري</div>' : '') +
+          (item.flyPrint === "نعم" ? '<div>⚡ طباعة على الطاير</div>' : '') +
+          (item.notes ? '<div class="bubble-meta">ملاحظات: ' + escapeHtml(item.notes) + '</div>' : '') +
+          '<div class="bubble-files">' + (files.length ? files.map(function (f) {
+            const name = escapeHtml(f.name || f.fileName || "ملف");
+            const url = f.url || f.fileUrl || "";
+            return url ? '<a class="file-chip" href="' + escapeHtml(url) + '" target="_blank">📎 ' + name + '</a>' : '<span class="file-chip">📎 ' + name + '</span>';
+          }).join("") : '<span class="file-chip">بدون ملفات</span>') + '</div>' +
+        '</div>';
+      }).join("");
+    }
+    if (draft.submitted) {
+      html += '<div class="chat-bubble done">تم استلام الطلب بنجاح ✅<br>رقم الأوردر: ' + escapeHtml(draft.orderId || "-") + '<br>تابع الحالة من أوردراتي.</div>';
+    }
+    box.innerHTML = html;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function clearCustomerDraftInputs() {
+    ["customerOrderItem", "customerOrderNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+    if ($("customerOrderQty")) $("customerOrderQty").value = "1";
+    if ($("customerOrderFiles")) $("customerOrderFiles").value = "";
+    if ($("customerHeatPress")) $("customerHeatPress").checked = false;
+    if ($("customerFlyPrint")) $("customerFlyPrint").checked = false;
+    updateCustomerPrintOptions();
+  }
+
+  async function ensureCustomerDraftOnServer() {
+    const draft = ensureCustomerDraftStarted();
+    if (draft.draftId) return draft.draftId;
+    const res = await api("createCustomerDraft", customerAuthParams({}));
+    if (!res.success) throw new Error(res.message || "تعذر إنشاء مسودة الطلب.");
+    draft.draftId = res.draftId;
+    draft.folderUrl = res.folderUrl || "";
+    renderCustomerDraft();
+    return draft.draftId;
+  }
+
+  async function uploadFilesForDraftItem(draftId, itemId, files) {
+    const uploaded = [];
+    const list = Array.prototype.slice.call(files || []);
+    for (let i = 0; i < list.length; i++) {
+      const file = list[i];
+      if (file.size > 25 * 1024 * 1024) throw new Error("الملف أكبر من 25MB: " + file.name);
+      setMsg("customerOrderMsg", "جاري رفع الملف " + (i + 1) + " من " + list.length + ": " + file.name, false);
+      const base64 = await fileToBase64(file);
+      const res = await apiPost("uploadCustomerDraftFile", customerAuthParams({
+        draftId: draftId,
+        itemId: itemId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        size: file.size || 0,
+        base64: base64
+      }));
+      if (!res.success) throw new Error(res.message || "فشل رفع الملف: " + file.name);
+      uploaded.push({ name: file.name, url: res.fileUrl || "", fileId: res.fileId || "" });
+    }
+    return uploaded;
+  }
+
+  async function addCustomerDraftItem() {
+    if (!state.customer || state.customerDraftBusy) return;
+    setMsg("customerOrderMsg", "", false);
     const dep = ($("customerOrderDepartment") || {}).value || "طباعة";
     const itemName = (($("customerOrderItem") || {}).value || "").trim();
     const qty = (($("customerOrderQty") || {}).value || "1").trim();
     const notes = (($("customerOrderNotes") || {}).value || "").trim();
     const heatPress = dep === "طباعة" && $("customerHeatPress") && $("customerHeatPress").checked ? "نعم" : "لا";
     const flyPrint = dep === "طباعة" && $("customerFlyPrint") && $("customerFlyPrint").checked ? "نعم" : "لا";
+    const files = ($("customerOrderFiles") || {}).files || [];
 
-    if (!itemName && !notes) {
-      setMsg("customerOrderMsg", "اكتب نوع الشغل أو ملاحظات الأوردر.", true);
+    if (!itemName && !notes && !files.length) {
+      setMsg("customerOrderMsg", "اكتب نوع الشغل أو ارفع ملفات البند.", true);
       return;
     }
 
-    const btn = $("customerCreateOrderBtn");
-    if (btn) { btn.disabled = true; btn.textContent = "جاري تسجيل الأوردر..."; }
+    const btn = $("customerAddDraftItemBtn");
+    state.customerDraftBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = "جاري الإضافة..."; }
 
     try {
-      const res = await api("createCustomerPortalOrder", customerAuthParams({
+      const draftId = await ensureCustomerDraftOnServer();
+      const res = await api("addCustomerDraftItem", customerAuthParams({
+        draftId: draftId,
         department: dep,
-        itemName: itemName,
+        itemName: itemName || (files.length ? "ملفات مرفوعة" : "بند جديد"),
         qty: qty,
         notes: notes,
         heatPress: heatPress,
         flyPrint: flyPrint
       }));
-      if (!res.success) {
-        setMsg("customerOrderMsg", res.message || "تعذر تسجيل الأوردر.", true);
-        return;
-      }
-      const sep = buildCustomerOrderSeparator(res.orderId, dep, itemName || notes);
-      setMsg("customerOrderMsg", "تم تسجيل الأوردر رقم " + res.orderId + ". انسخ فاصل الأوردر وضعه في واتساب لو سترسل ملفات هناك.", false);
-      if ($("customerSeparatorText")) $("customerSeparatorText").value = sep;
-      const sepBox = $("customerSeparatorBox");
-      if (sepBox) sepBox.classList.remove("hidden");
-      ["customerOrderItem", "customerOrderNotes"].forEach(function (id) { if ($(id)) $(id).value = ""; });
-      if ($("customerOrderQty")) $("customerOrderQty").value = "1";
-      if ($("customerHeatPress")) $("customerHeatPress").checked = false;
-      if ($("customerFlyPrint")) $("customerFlyPrint").checked = false;
+      if (!res.success) throw new Error(res.message || "تعذر إضافة البند.");
+      const uploaded = await uploadFilesForDraftItem(draftId, res.itemId, files);
+      const draft = ensureCustomerDraftStarted();
+      draft.items.push({
+        itemId: res.itemId,
+        department: dep,
+        itemName: itemName || (files.length ? "ملفات مرفوعة" : "بند جديد"),
+        qty: qty,
+        notes: notes,
+        heatPress: heatPress,
+        flyPrint: flyPrint,
+        files: uploaded
+      });
+      renderCustomerDraft();
+      clearCustomerDraftInputs();
+      setMsg("customerOrderMsg", "تم إضافة البند للمسودة. أضف بند آخر أو اضغط بدء التنفيذ.", false);
+    } catch (err) {
+      setMsg("customerOrderMsg", err.message || "خطأ أثناء إضافة البند.", true);
+    } finally {
+      state.customerDraftBusy = false;
+      if (btn) { btn.disabled = false; btn.textContent = "إضافة البند للشات"; }
+    }
+  }
+
+  async function submitCustomerDraft() {
+    if (!state.customer || state.customerDraftBusy) return;
+    const draft = ensureCustomerDraftStarted();
+    if (!draft.draftId || !draft.items.length) {
+      setMsg("customerOrderMsg", "أضف بند واحد على الأقل قبل بدء التنفيذ.", true);
+      return;
+    }
+    if (!confirm("سيتم بدء التنفيذ الآن وإنشاء رقم أوردر رسمي. هل أنت متأكد؟")) return;
+
+    const btn = $("customerSubmitDraftBtn");
+    state.customerDraftBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = "جاري إنشاء رقم الأوردر..."; }
+    try {
+      const res = await api("submitCustomerDraft", customerAuthParams({ draftId: draft.draftId }));
+      if (!res.success) throw new Error(res.message || "تعذر بدء التنفيذ.");
+      draft.submitted = true;
+      draft.orderId = res.orderId || "";
+      renderCustomerDraft();
+      setMsg("customerOrderMsg", "تم استلام طلبك. رقم الأوردر: " + (res.orderId || "-"), false);
       await loadCustomerOrders();
     } catch (err) {
-      setMsg("customerOrderMsg", err.message || "خطأ أثناء تسجيل الأوردر.", true);
+      setMsg("customerOrderMsg", err.message || "خطأ أثناء بدء التنفيذ.", true);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "تسجيل أوردر جديد"; }
+      state.customerDraftBusy = false;
+      if (btn) { btn.disabled = false; btn.textContent = "بدء التنفيذ واستلام رقم الأوردر"; }
     }
+  }
+
+  function startNewCustomerDraft() {
+    if (state.customerDraft && state.customerDraft.items && state.customerDraft.items.length && !state.customerDraft.submitted) {
+      if (!confirm("المسودة الحالية لم يتم بدء تنفيذها. هل تريد فتح مسودة جديدة؟")) return;
+    }
+    resetCustomerDraft();
+    clearCustomerDraftInputs();
+  }
+
+  function createCustomerPortalOrder() {
+    // تم الاحتفاظ باسم الدالة القديم للتوافق، لكنه الآن يضيف بندًا لمسودة الطلب.
+    return addCustomerDraftItem();
   }
 
   function buildCustomerOrderSeparator(orderId, department, itemText) {
@@ -2134,11 +2304,14 @@ Trend Mall`;
     on("customerRefreshOrdersBtn", "click", loadCustomerOrders);
     on("customerGoHomeBtn", "click", function () { state.customerViewMode = "home"; renderCustomerHome(); });
     on("customerShowOrdersBtn", "click", function () { state.customerViewMode = "orders"; renderCustomerHome(); loadCustomerOrders(); });
-    on("customerShowNewOrderBtn", "click", function () { state.customerViewMode = "newOrder"; renderCustomerHome(); });
+    on("customerShowNewOrderBtn", "click", function () { state.customerViewMode = "newOrder"; if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft(); renderCustomerHome(); });
     on("customerShowDesignerBtn", "click", function () { state.customerViewMode = "designer"; renderCustomerHome(); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
     on("customerOrderDepartment", "change", updateCustomerPrintOptions);
     on("customerCreateOrderBtn", "click", createCustomerPortalOrder);
+    on("customerAddDraftItemBtn", "click", addCustomerDraftItem);
+    on("customerSubmitDraftBtn", "click", submitCustomerDraft);
+    on("customerResetDraftBtn", "click", startNewCustomerDraft);
     on("copyCustomerSeparatorBtn", "click", copyCustomerSeparator);
     on("customerChangePassBtn", "click", openCustomerPasswordModal);
     on("customerCancelPassBtn", "click", closeCustomerPasswordModal);

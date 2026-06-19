@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها V1843</title>
-  <link rel="stylesheet" href="styles.css?v=1843">
+  <title>منصة مطبعجي بنها V1844</title>
+  <link rel="stylesheet" href="styles.css?v=1844">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">منصة مطبعجي بنها V1843 - بداية بوابة العملاء</p>
+    <p class="version-badge">منصة مطبعجي بنها V1844 - شات الطلب ورفع الملفات</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1843 - بوابة العملاء + المكبس داخل الطباعة</p>
+        <p class="version-badge">منصة مطبعجي بنها V1844 - شات الطلب ورفع الملفات</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -359,7 +359,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1843 - بوابة العميل</p>
+        <p class="version-badge">منصة مطبعجي بنها V1844 - بوابة العميل</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -372,8 +372,8 @@
       <h3>خدماتك على منصة مطبعجي بنها</h3>
       <div class="customer-service-grid">
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
-          <b>+ تسجيل أوردر جديد</b>
-          <span>افتح رقم أوردر قبل إرسال أو رفع أي شغل جديد.</span>
+          <b>+ طلب جديد</b>
+          <span>افتح مسودة شات، أضف كل البنود والملفات، ثم ابدأ التنفيذ واستلم رقم الأوردر.</span>
         </button>
         <button id="customerShowOrdersBtn" class="customer-service-card" type="button">
           <b>متابعة أوردراتي</b>
@@ -388,55 +388,84 @@
           <span>مساعد التصميم الذكي — قيد التجهيز داخل المنصة.</span>
         </button>
       </div>
-      <div class="hint strong-hint">قاعدة التشغيل الجديدة: كل شغل جديد لازم يبقى له رقم أوردر مستقل حتى لا يختلط القديم بالجديد.</div>
+      <div class="hint strong-hint">قاعدة التشغيل الجديدة: كل طلب يبدأ كمسودة شات. أضف البنود والملفات أولًا، ثم اضغط بدء التنفيذ للحصول على رقم أوردر واحد وبنود منفصلة للأقسام.</div>
     </section>
 
-    <section id="customerNewOrderPanel" class="card hidden">
+    <section id="customerNewOrderPanel" class="card hidden customer-chat-card">
       <div class="table-tools">
-        <h3>تسجيل أوردر جديد</h3>
+        <h3>طلب جديد - شات المسودة</h3>
         <span id="customerOrderMsg"></span>
       </div>
-      <div class="form-grid">
-        <div>
-          <label>القسم</label>
-          <select id="customerOrderDepartment">
-            <option>طباعة</option>
-            <option>ليزر</option>
-            <option>متعدد الأقسام</option>
-          </select>
-        </div>
-        <div id="customerHeatPressBox" class="heatpress-box">
-          <label>علامة المكبس</label>
-          <label class="checkline"><input id="customerHeatPress" type="checkbox"> 🔥 مكبس حراري</label>
-        </div>
-        <div id="customerFlyPrintBox" class="flyprint-box">
-          <label>طباعة على الطاير</label>
-          <label class="checkline"><input id="customerFlyPrint" type="checkbox"> ⚡ طباعة على الطاير</label>
-        </div>
-        <div class="wide">
-          <label>نوع الشغل / المطلوب</label>
-          <input id="customerOrderItem" placeholder="مثال: تابلوه 30×40 / مج / شهادة / ليزر">
-        </div>
-        <div>
-          <label>الكمية</label>
-          <input id="customerOrderQty" type="number" min="1" value="1">
-        </div>
-        <div class="wide">
-          <label>ملاحظات العميل</label>
-          <input id="customerOrderNotes" placeholder="اكتب أي تفاصيل مهمة للتنفيذ">
-        </div>
-      </div>
-      <button id="customerCreateOrderBtn" class="primary">تسجيل أوردر جديد</button>
 
-      <div id="customerSeparatorBox" class="separator-box hidden">
-        <h4>فاصل واتساب للأوردر</h4>
-        <p>لو هتبعت الملفات على واتساب، انسخ الفاصل ده وضعه بعد آخر ملف يخص الأوردر.</p>
-        <textarea id="customerSeparatorText" rows="8" readonly></textarea>
-        <button id="copyCustomerSeparatorBtn" class="ghost" type="button">نسخ فاصل الأوردر</button>
+      <div class="hint strong-hint">
+        أضف كل البنود والملفات هنا أولًا. لن يتم إنشاء رقم أوردر إلا عند الضغط على <b>بدء التنفيذ واستلام رقم الأوردر</b>.
+      </div>
+
+      <div class="customer-chat-shell">
+        <div class="customer-chat-head">
+          <div>
+            <b id="customerDraftTitle">مسودة طلب جديدة</b>
+            <span id="customerDraftMeta">لم يتم بدء التنفيذ بعد</span>
+          </div>
+          <button id="customerResetDraftBtn" class="ghost" type="button">مسودة جديدة</button>
+        </div>
+
+        <div id="customerDraftMessages" class="customer-chat-messages">
+          <div class="chat-bubble system">ابدأ بإضافة أول بند: اختر طباعة أو ليزر، ارفع الصور والملفات، واكتب المطلوب.</div>
+        </div>
+
+        <div class="customer-chat-composer">
+          <div class="form-grid draft-item-grid">
+            <div>
+              <label>القسم</label>
+              <select id="customerOrderDepartment">
+                <option>طباعة</option>
+                <option>ليزر</option>
+              </select>
+              <small class="field-note">لو الطلب فيه طباعة وليزر، أضف بند طباعة وبند ليزر منفصلين.</small>
+            </div>
+
+            <div id="customerHeatPressBox" class="heatpress-box">
+              <label>علامة المكبس</label>
+              <label class="checkline"><input id="customerHeatPress" type="checkbox"> 🔥 مكبس حراري</label>
+            </div>
+
+            <div id="customerFlyPrintBox" class="flyprint-box">
+              <label>طباعة على الطاير</label>
+              <label class="checkline"><input id="customerFlyPrint" type="checkbox"> ⚡ طباعة على الطاير</label>
+            </div>
+
+            <div class="wide">
+              <label>نوع الشغل / المطلوب</label>
+              <input id="customerOrderItem" placeholder="مثال: تابلوه 30×40 / مج / منديل / قص ليزر">
+            </div>
+
+            <div>
+              <label>الكمية</label>
+              <input id="customerOrderQty" type="number" min="1" value="1">
+            </div>
+
+            <div class="wide">
+              <label>ملاحظات البند</label>
+              <textarea id="customerOrderNotes" rows="3" placeholder="اكتب المقاس، الجملة، الأسماء، اللون، وأي تفاصيل تنفيذ"></textarea>
+            </div>
+
+            <div class="wide">
+              <label>رفع صور / ملفات هذا البند</label>
+              <input id="customerOrderFiles" type="file" multiple>
+              <small class="field-note">يفضل رفع الصور كملفات أصلية. أقصى حجم للملف الواحد 25MB في هذه النسخة.</small>
+            </div>
+          </div>
+
+          <div class="row draft-actions-row">
+            <button id="customerAddDraftItemBtn" class="ghost" type="button">إضافة البند للشات</button>
+            <button id="customerSubmitDraftBtn" class="primary" type="button">بدء التنفيذ واستلام رقم الأوردر</button>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section id="customerOrdersPanel" class="card hidden">
+    <section id="customerOrdersPanel"<section id="customerOrdersPanel" class="card hidden">
       <div class="table-tools">
         <h3>أوردراتي</h3>
         <button id="customerRefreshOrdersBtn" class="ghost" type="button">تحديث</button>
@@ -527,7 +556,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1843"></script>
-<script src="app.js?v=1843"></script>
+<script src="config.js?v=1844"></script>
+<script src="app.js?v=1844"></script>
 </body>
 </html>
