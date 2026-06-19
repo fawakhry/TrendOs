@@ -452,3 +452,12 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   border-color: #fdba74;
   color: #c2410c;
 }
+
+
+/* V1839 - collapsible cards + end day */
+.collapsible-card .table-tools { align-items: center; }
+.collapse-toggle { min-width: 90px; padding: 8px 12px; font-weight: 800; }
+.collapsed-card .collapsible-body { display: none; }
+.end-day-btn { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; font-weight: 800; }
+.end-day-btn.hidden { display: none !important; }
+.flyprint-box .checkline { font-weight: 800; color: #c2410c; }

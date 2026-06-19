@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1835_FLY_PRINT_PRINT_ONLY";
+  const UI_VERSION = "1839_FLYPRINT_SAMEDAY_COLLAPSE_ENDDAY";
 
   const screens = {
     service: "خدمة العملاء",
@@ -107,6 +107,22 @@
     const show = showFlyPrintForDepartment(dep.value);
     box.classList.toggle("hidden", !show);
     if (!show) chk.checked = false;
+    syncFlyPrintRules();
+  }
+
+  function syncFlyPrintRules() {
+    const chk = $("newFlyPrint");
+    const dep = $("newDepartment");
+    const priority = $("newPriority");
+    if (!chk || !dep || !priority) return;
+    const checked = chk.checked && text(dep.value) === "طباعة";
+    if (checked) {
+      priority.value = "عاجل";
+      priority.disabled = true;
+      setMsg("addOrderStatus", "طباعة على الطاير = عاجل والتسليم نفس اليوم.", false);
+    } else {
+      priority.disabled = false;
+    }
   }
 
   const state = {
@@ -624,6 +640,8 @@ Trend Mall`;
     toggleAddCustomer();
     toggleDashboard();
     toggleKnowledge();
+    setupCollapsibleCards();
+    toggleEndDayButton();
     loadRows();
     updateUrgentNotificationButton();
     startRefresh();
@@ -635,6 +653,7 @@ Trend Mall`;
     $("welcomeTitle").textContent = "أهلاً " + (user.name || user.username || "");
     $("roleLabel").textContent = "القسم: " + (user.department || "-") + " | الصلاحية: " + (user.role || "-");
     $("screenTitle").textContent = screens[state.screen] || "الأوردرات";
+    toggleEndDayButton();
   }
 
   function renderTabs() {
@@ -656,6 +675,8 @@ Trend Mall`;
         toggleAddCustomer();
         toggleDashboard();
         toggleKnowledge();
+        setupCollapsibleCards();
+        toggleEndDayButton();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -739,6 +760,106 @@ Trend Mall`;
       dashboardItem("مكبس حراري", d.heatPress || byDept["مكبس"] || 0, "press");
   }
 
+
+
+
+  /*********************** كروت قابلة للفتح والقفل + نهاية اليوم V1839 ***********************/
+
+  function setupCollapsibleCard(cardId, storageKey, defaultCollapsed) {
+    const card = $(cardId);
+    if (!card || card.dataset.collapsibleReady === "1") return;
+    const header = card.querySelector(".table-tools");
+    if (!header) return;
+
+    const body = document.createElement("div");
+    body.className = "collapsible-body";
+    const nodes = [];
+    let node = header.nextSibling;
+    while (node) {
+      const next = node.nextSibling;
+      nodes.push(node);
+      node = next;
+    }
+    nodes.forEach(function (n) { body.appendChild(n); });
+    card.appendChild(body);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ghost collapse-toggle";
+    header.appendChild(btn);
+
+    let collapsed = !!defaultCollapsed;
+    try {
+      const saved = localStorage.getItem("trendos_collapse_" + storageKey);
+      if (saved === "open") collapsed = false;
+      if (saved === "closed") collapsed = true;
+    } catch (e) {}
+
+    function apply() {
+      card.classList.toggle("collapsed-card", collapsed);
+      btn.textContent = collapsed ? "فتح ▼" : "قفل ▲";
+    }
+
+    btn.addEventListener("click", function () {
+      collapsed = !collapsed;
+      try { localStorage.setItem("trendos_collapse_" + storageKey, collapsed ? "closed" : "open"); } catch (e) {}
+      apply();
+    });
+
+    card.dataset.collapsibleReady = "1";
+    apply();
+  }
+
+  function setupCollapsibleCards() {
+    setupCollapsibleCard("addOrderCard", "add_order", true);
+    setupCollapsibleCard("addCustomerCard", "add_customer", true);
+    setupCollapsibleCard("aiKnowledgeCard", "ai_knowledge", true);
+  }
+
+  function canUseEndDayButton() {
+    const role = safeRole((state.user || {}).role);
+    const dep = normalizeArabic((state.user || {}).department || "");
+    return state.screen === "print" || state.screen === "laser" || role === "print" || role === "laser" || dep.indexOf("طباعه") !== -1 || dep.indexOf("ليزر") !== -1;
+  }
+
+  function toggleEndDayButton() {
+    const btn = $("endDayBtn");
+    if (!btn) return;
+    btn.classList.toggle("hidden", !canUseEndDayButton());
+  }
+
+  function workLevel(score) {
+    score = Number(score || 0);
+    if (score >= 85) return "ممتاز";
+    if (score >= 70) return "جيد جدًا";
+    if (score >= 50) return "جيد";
+    return "محتاج متابعة";
+  }
+
+  async function showEndDaySummary() {
+    if (!canUseEndDayButton()) return;
+    await loadDashboard(true);
+    const d = state.dashboard || {};
+    const deptName = d.departmentName || screens[state.screen] || "القسم";
+    const prepared = Number(d.readyOrders || 0) + Number(d.deliveredTodayOrders || 0);
+    const score = d.performanceScore == null ? 0 : d.performanceScore;
+    const msg = [
+      "ملخص نهاية اليوم - " + deptName,
+      "",
+      "تم تجهيز: " + prepared + " شات/أوردر",
+      "تم التسليم اليوم: " + (d.deliveredToday || 0),
+      "جاهز للاستلام: " + (d.readyForPickup || 0),
+      "بنود شغل اليوم: " + (d.todayWorkLines || 0),
+      "المنجز من شغل اليوم: " + (d.todayWorkDoneLines || 0),
+      "المتأخر: " + (d.overdue || 0),
+      "",
+      "تقييم القسم: " + score + "%",
+      "إنجاز الشغل: " + (d.completionPercent || 0) + "%",
+      "تقييم الوقت: " + (d.timeScore || 0) + "%",
+      "مستوى الشغل: " + workLevel(score)
+    ].join("\n");
+    alert(msg);
+  }
 
   function canManageKnowledge() {
     const role = safeRole((state.user || {}).role);
@@ -1394,7 +1515,7 @@ Trend Mall`;
       flyPrint: ($("newFlyPrint") && $("newFlyPrint").checked && text($("newDepartment").value) === "طباعة") ? "نعم" : "لا",
       itemName: $("newItemName").value.trim(),
       qty: $("newQty").value || "1",
-      priority: $("newPriority").value,
+      priority: (($("newFlyPrint") && $("newFlyPrint").checked && text($("newDepartment").value) === "طباعة") ? "عاجل" : $("newPriority").value),
       status: $("newStatus").value,
       assignedTo: $("newAssignedTo").value.trim(),
       notes: $("newNotes").value.trim()
@@ -1659,6 +1780,15 @@ Trend Mall`;
       updateHeatPressVisibility();
       updateFlyPrintVisibility();
     }
+
+    const flyPrintCheck = $("newFlyPrint");
+    if (flyPrintCheck) flyPrintCheck.addEventListener("change", syncFlyPrintRules);
+
+    const endDayButton = $("endDayBtn");
+    if (endDayButton) endDayButton.addEventListener("click", showEndDaySummary);
+
+    setupCollapsibleCards();
+    toggleEndDayButton();
 
     ["tableSearch", "statusFilter", "priorityFilter", "heatPressFilter"].forEach(function (id) {
       if (!$(id)) return;
