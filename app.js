@@ -352,6 +352,8 @@ Trend Mall`;
 Trend Mall`;
   }
 
+  let trendosWhatsAppWindow = null;
+
   function openWhatsAppUrl(phone, message) {
     const normalized = whatsappPhone(phone);
     if (!normalized) {
@@ -359,18 +361,30 @@ Trend Mall`;
       return false;
     }
 
-    // V1840: افتح كل رسائل TrendOS في نفس تبويب WhatsApp Web بدل فتح تبويب جديد كل مرة.
-    // ملاحظة: المتصفح لا يسمح للموقع بالبحث داخل كل التابات المفتوحة، لذلك نستخدم اسم ثابت للتاب.
+    // V1841: افتح كل رسائل TrendOS في نافذة/تاب واتساب واحد ثابت.
+    // ملاحظة مهمة: المتصفح لا يسمح لموقع TrendOS بالبحث داخل التابات القديمة التي فتحها المستخدم يدويًا،
+    // لذلك أول مرة بعد التحديث افتح واتساب من زر TrendOS نفسه، وبعدها سيتم استخدام نفس التاب.
     const url = "https://web.whatsapp.com/send?phone=" + normalized + "&text=" + encodeURIComponent(message || "");
     const targetName = "TrendOS_WhatsApp";
-    const waWindow = window.open(url, targetName);
 
-    if (!waWindow) {
+    try {
+      if (trendosWhatsAppWindow && !trendosWhatsAppWindow.closed) {
+        trendosWhatsAppWindow.location.href = url;
+        trendosWhatsAppWindow.focus();
+        return true;
+      }
+    } catch (err) {
+      // بعض المتصفحات تفصل مرجع النافذة بعد الانتقال إلى واتساب، فنرجع لاسم التاب الثابت.
+    }
+
+    trendosWhatsAppWindow = window.open(url, targetName);
+
+    if (!trendosWhatsAppWindow) {
       alert("المتصفح منع فتح واتساب. اسمح بفتح النوافذ المنبثقة لهذا الموقع ثم حاول مرة أخرى.");
       return false;
     }
 
-    try { waWindow.focus(); } catch (err) {}
+    try { trendosWhatsAppWindow.focus(); } catch (err) {}
     return true;
   }
 
