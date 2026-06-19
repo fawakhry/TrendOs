@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1840_WHATSAPP_SAME_TAB";
+  const UI_VERSION = "1842_COPY_WHATSAPP_MESSAGE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -352,39 +352,63 @@ Trend Mall`;
 Trend Mall`;
   }
 
-  let trendosWhatsAppWindow = null;
+  let lastCopiedWhatsAppPhone = "";
 
-  function openWhatsAppUrl(phone, message) {
-    const normalized = whatsappPhone(phone);
-    if (!normalized) {
-      alert("رقم العميل غير موجود أو غير صالح لفتح واتساب.");
-      return false;
+  async function copyTextToClipboard(textValue) {
+    const value = text(textValue || "");
+    if (!value) return false;
+
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch (err) {
+        // نستخدم fallback بالأسفل.
+      }
     }
-
-    // V1841: افتح كل رسائل TrendOS في نافذة/تاب واتساب واحد ثابت.
-    // ملاحظة مهمة: المتصفح لا يسمح لموقع TrendOS بالبحث داخل التابات القديمة التي فتحها المستخدم يدويًا،
-    // لذلك أول مرة بعد التحديث افتح واتساب من زر TrendOS نفسه، وبعدها سيتم استخدام نفس التاب.
-    const url = "https://web.whatsapp.com/send?phone=" + normalized + "&text=" + encodeURIComponent(message || "");
-    const targetName = "TrendOS_WhatsApp";
 
     try {
-      if (trendosWhatsAppWindow && !trendosWhatsAppWindow.closed) {
-        trendosWhatsAppWindow.location.href = url;
-        trendosWhatsAppWindow.focus();
-        return true;
-      }
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "readonly");
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      area.style.top = "0";
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(area);
+      return !!ok;
     } catch (err) {
-      // بعض المتصفحات تفصل مرجع النافذة بعد الانتقال إلى واتساب، فنرجع لاسم التاب الثابت.
+      return false;
     }
+  }
 
-    trendosWhatsAppWindow = window.open(url, targetName);
-
-    if (!trendosWhatsAppWindow) {
-      alert("المتصفح منع فتح واتساب. اسمح بفتح النوافذ المنبثقة لهذا الموقع ثم حاول مرة أخرى.");
+  async function copyWhatsAppMessage(phone, message) {
+    const normalized = whatsappPhone(phone);
+    if (!normalized) {
+      alert("رقم العميل غير موجود أو غير صالح.");
       return false;
     }
 
-    try { trendosWhatsAppWindow.focus(); } catch (err) {}
+    lastCopiedWhatsAppPhone = normalized;
+    const ok = await copyTextToClipboard(message || "");
+    if (!ok) {
+      alert("لم أستطع نسخ الرسالة تلقائيًا. انسخها يدويًا من التنبيه التالي:\n\n" + (message || ""));
+      return false;
+    }
+    return true;
+  }
+
+  function openWhatsAppChatOnly(phone) {
+    const normalized = whatsappPhone(phone || lastCopiedWhatsAppPhone);
+    if (!normalized) {
+      alert("رقم العميل غير موجود لفتح واتساب.");
+      return false;
+    }
+    const url = "https://web.whatsapp.com/send?phone=" + normalized;
+    window.open(url, "TrendOS_WhatsApp");
     return true;
   }
 
@@ -1228,6 +1252,13 @@ Trend Mall`;
       });
     });
 
+    Array.prototype.forEach.call(tbody.querySelectorAll(".wa-open-chat"), function (btn) {
+      btn.addEventListener("click", function () {
+        const row = pageRows[Number(btn.dataset.i)];
+        if (row) openWhatsAppChatOnly(row.customerPhone);
+      });
+    });
+
     Array.prototype.forEach.call(tbody.querySelectorAll(".invoice-open"), function (btn) {
       btn.addEventListener("click", function () {
         openInvoiceModal(pageRows[Number(btn.dataset.i)]);
@@ -1283,8 +1314,9 @@ Trend Mall`;
     const disabled = whatsappPhone(row.customerPhone) ? "" : " disabled";
     const notified = text(row.customerNotified) === "نعم" ? '<small class="wa-notified">تم الإبلاغ</small>' : "";
     return '<div class="whatsapp-actions">' +
-      '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>AI يرد بالحالة</button>' +
-      '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + disabled + '>رسالة انتهاء</button>' +
+      '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>نسخ رد الحالة</button>' +
+      '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + disabled + '>نسخ رسالة انتهاء</button>' +
+      '<button type="button" class="wa-btn wa-open-chat" data-i="' + i + '"' + disabled + '>فتح واتساب</button>' +
       '<button type="button" class="wa-btn invoice-open" data-i="' + i + '">تسعير</button>' +
       notified +
       '</div>';
@@ -1301,12 +1333,12 @@ Trend Mall`;
   async function sendWhatsApp(row, mode, btn) {
     if (!row) return;
     const message = buildWhatsAppMessage(row, mode === "ready" ? "ready" : "status");
-    const opened = openWhatsAppUrl(row.customerPhone, message);
-    if (!opened) return;
+    const copied = await copyWhatsAppMessage(row.customerPhone, message);
+    if (!copied) return;
 
     const confirmText = mode === "ready"
-      ? "تم فتح واتساب برسالة الانتهاء للعميل. هل تم إرسال الرسالة؟"
-      : "تم فتح واتساب برد الحالة. هل تم إرسال الرد للعميل؟";
+      ? "تم نسخ رسالة الانتهاء. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟"
+      : "تم نسخ رد الحالة. افتح تبويب واتساب والصقه للعميل. هل تم إرسال الرد؟";
 
     if (!confirm(confirmText)) return;
 
@@ -1580,8 +1612,8 @@ Trend Mall`;
 
       if (params.customerPhone) {
         const msg = buildWhatsAppMessage(registrationRow, "registered");
-        const opened = openWhatsAppUrl(params.customerPhone, msg);
-        if (opened && confirm("تم فتح واتساب برسالة تسجيل الأوردر للعميل. هل تم إرسال الرسالة؟")) {
+        const copied = await copyWhatsAppMessage(params.customerPhone, msg);
+        if (copied && confirm("تم نسخ رسالة تسجيل الأوردر. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟")) {
           await recordRegistrationWhatsApp(res, params, msg);
         }
       }
