@@ -27,12 +27,12 @@
       <div>
         <h2 id="welcomeTitle">TrendOS</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1833 - إشعارات العاجل + فلتر مكبس</p>
+        <p class="version-badge">TrendOS V1835 - طباعة على الطاير للطباعة فقط + فلتر مكبس</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
         <button id="refreshBtn" class="ghost">تحديث الآن</button>
-        <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات العاجل</button>
+        <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
         <button id="logoutBtn" class="danger">خروج</button>
       </div>
@@ -223,6 +223,12 @@
           <label>علامة المكبس</label>
           <label class="checkline"><input id="newHeatPress" type="checkbox"> مكبس حراري</label>
           <small>تظهر باللون الأحمر في شاشة الأوردرات وشاشة المكبس.</small>
+        </div>
+
+        <div id="flyPrintBox" class="flyprint-box hidden">
+          <label>باند طباعة على الطاير</label>
+          <label class="checkline"><input id="newFlyPrint" type="checkbox"> طباعة على الطاير</label>
+          <small>للعميل الذي يرسل ملف جاهز للطباعة، وتظهر له إشعارات لموظف الطباعة.</small>
         </div>
 
         <div class="wide">

@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1833_URGENT_NOTIFICATIONS_PRESS_FILTER";
+  const UI_VERSION = "1835_FLY_PRINT_PRINT_ONLY";
 
   const screens = {
     service: "خدمة العملاء",
@@ -53,7 +53,12 @@
 
   function isHeatPress(value) {
     const v = text(value).trim();
-    return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "مكبس";
+    return v === "نعم" || v === "true" || v === "TRUE" || v === "1" || v === "on" || v === "مكبس";
+  }
+
+  function isFlyPrint(value) {
+    const v = text(value).trim().toLowerCase();
+    return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "طباعة على الطاير" || v === "طباعة ع الطاير" || v === "على الطاير" || v === "ع الطاير";
   }
 
   function numericAmount(value) {
@@ -86,6 +91,20 @@
     const dep = $("newDepartment");
     if (!box || !chk || !dep) return;
     const show = showHeatPressForDepartment(dep.value);
+    box.classList.toggle("hidden", !show);
+    if (!show) chk.checked = false;
+  }
+
+  function showFlyPrintForDepartment(department) {
+    return text(department) === "طباعة";
+  }
+
+  function updateFlyPrintVisibility() {
+    const box = $("flyPrintBox");
+    const chk = $("newFlyPrint");
+    const dep = $("newDepartment");
+    if (!box || !chk || !dep) return;
+    const show = showFlyPrintForDepartment(dep.value);
     box.classList.toggle("hidden", !show);
     if (!show) chk.checked = false;
   }
@@ -383,7 +402,7 @@ Trend Mall`;
   }
 
 
-  /*********************** إشعارات الحالات العاجلة ***********************/
+  /*********************** إشعارات طباعة على الطاير ***********************/
 
   function urgentNotificationsSupported() {
     return typeof window !== "undefined" && "Notification" in window;
@@ -391,7 +410,7 @@ Trend Mall`;
 
   function urgentNotificationStorageKey() {
     const user = state.user || {};
-    return "trendos_urgent_notifications_" + (user.username || user.name || "guest");
+    return "trendos_fly_print_notifications_" + (user.username || user.name || "guest");
   }
 
   function loadUrgentNotificationPreference() {
@@ -409,15 +428,15 @@ Trend Mall`;
   }
 
   function urgentNotifyKey(row) {
-    return [row.orderId || "", row.lineId || "", row.status || "", displayExpectedDelivery(row) || ""].join("|");
+    return [row.orderId || "", row.lineId || "", row.status || "", displayExpectedDelivery(row) || "", row.flyPrint || row.quickPrint || ""].join("|");
   }
 
   function urgentNotificationRows(rows) {
     const excluded = ["تم التسليم", "جاهز للاستلام", "ملغى", "مكرر"];
     return (rows || []).filter(function (r) {
-      const priority = text(r.priority);
       const status = text(r.status);
-      if (priority !== "عاجل" && priority !== "VIP") return false;
+      const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
+      if (!fly) return false;
       if (excluded.indexOf(status) !== -1) return false;
       if (isHiddenFromUserScreens(status)) return false;
       return true;
@@ -426,7 +445,7 @@ Trend Mall`;
 
   function showUrgentBrowserNotification(row) {
     if (!urgentNotificationsSupported() || Notification.permission !== "granted") return;
-    const title = "أوردر عاجل: " + (row.orderId || row.lineId || "-");
+    const title = "طباعة على الطاير: " + (row.orderId || row.lineId || "-");
     const body = [
       "العميل: " + (row.customer || "-"),
       "القسم: " + (row.department || "-"),
@@ -437,7 +456,7 @@ Trend Mall`;
     try {
       const notification = new Notification(title, {
         body: body,
-        tag: "trendos-urgent-" + (row.lineId || row.orderId || Date.now()),
+        tag: "trendos-fly-print-" + (row.lineId || row.orderId || Date.now()),
         renotify: true,
         icon: ""
       });
@@ -471,7 +490,7 @@ Trend Mall`;
       return;
     }
     btn.classList.toggle("active", !!state.urgentNotificationEnabled);
-    btn.textContent = state.urgentNotificationEnabled ? "🔔 إشعارات العاجل مفعلة" : "🔔 تفعيل إشعارات العاجل";
+    btn.textContent = state.urgentNotificationEnabled ? "🔔 إشعارات طباعة على الطاير مفعلة" : "🔔 تفعيل إشعارات طباعة على الطاير";
   }
 
   function startUrgentNotificationTimer() {
@@ -509,7 +528,7 @@ Trend Mall`;
     saveUrgentNotificationPreference(true);
     updateUrgentNotificationButton();
     startUrgentNotificationTimer();
-    alert("تم تفعيل إشعارات الأوردرات العاجلة. سيتم الفحص كل 10 دقائق.");
+    alert("تم تفعيل إشعارات طباعة على الطاير. سيتم الفحص كل 10 دقائق.");
   }
 
   function setMsg(id, msg, isError) {
@@ -968,6 +987,7 @@ Trend Mall`;
       '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
       '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
       '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
+      '<span class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
       '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
@@ -987,14 +1007,16 @@ Trend Mall`;
 
   function compactWorkCell(r) {
     const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
-    return '<div class="order-main"><b>' + escapeHtml(r.itemName || "-") + '</b> ' + press + '</div>' +
+    const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
+    return '<div class="order-main"><b>' + escapeHtml(r.itemName || "-") + '</b> ' + press + ' ' + fly + '</div>' +
       '<div class="muted-line">القسم: ' + escapeHtml(r.department || "-") + '</div>' +
       '<div class="muted-line">الكمية: ' + escapeHtml(r.qty || "-") + '</div>';
   }
 
   function statusBadges(r) {
     const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
-    return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + '</div>';
+    const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
+    return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + fly + '</div>';
   }
 
   function renderTable(rows) {
@@ -1366,6 +1388,7 @@ Trend Mall`;
       customerType: $("newCustomerType").value.trim(),
       department: $("newDepartment").value,
       heatPress: ($("newHeatPress") && $("newHeatPress").checked) ? "نعم" : "لا",
+      flyPrint: ($("newFlyPrint") && $("newFlyPrint").checked && text($("newDepartment").value) === "طباعة") ? "نعم" : "لا",
       itemName: $("newItemName").value.trim(),
       qty: $("newQty").value || "1",
       priority: $("newPriority").value,
@@ -1419,7 +1442,9 @@ Trend Mall`;
       });
       $("newQty").value = 1;
       if ($("newHeatPress")) $("newHeatPress").checked = false;
+      if ($("newFlyPrint")) $("newFlyPrint").checked = false;
       updateHeatPressVisibility();
+      updateFlyPrintVisibility();
       $("customerSuggestions").classList.add("hidden");
       state.editing = false;
       await loadRows(true);
@@ -1624,8 +1649,12 @@ Trend Mall`;
     if (createCustomerButton) createCustomerButton.addEventListener("click", createCustomer);
     const departmentSelect = $("newDepartment");
     if (departmentSelect) {
-      departmentSelect.addEventListener("change", updateHeatPressVisibility);
+      departmentSelect.addEventListener("change", function () {
+        updateHeatPressVisibility();
+        updateFlyPrintVisibility();
+      });
       updateHeatPressVisibility();
+      updateFlyPrintVisibility();
     }
 
     ["tableSearch", "statusFilter", "priorityFilter", "heatPressFilter"].forEach(function (id) {

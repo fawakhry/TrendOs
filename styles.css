@@ -424,3 +424,31 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .filters #heatPressFilter {
   min-width: 150px;
 }
+
+.flyprint-box {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.fly-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+  font-size: 12px;
+  font-weight: 800;
+  margin-inline-start: 5px;
+}
+.stat-fly {
+  color: #c2410c;
+}
+.notify-btn.active {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
+}
