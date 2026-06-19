@@ -980,6 +980,9 @@ Trend Mall`;
     const overdue = rows.filter(isOverdueRow).length;
     const debts = rows.filter(hasDebt).length;
     const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
+    const flyPrint = rows.filter(function (r) {
+      return isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
+    }).length;
     $("statsBar").innerHTML =
       '<span>المعروض: <b>' + total + '</b></span>' +
       '<span>عاجل: <b>' + urgent + '</b></span>' +
