@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1839_FLYPRINT_SAMEDAY_COLLAPSE_ENDDAY";
+  const UI_VERSION = "1840_WHATSAPP_SAME_TAB";
 
   const screens = {
     service: "خدمة العملاء",
@@ -358,8 +358,19 @@ Trend Mall`;
       alert("رقم العميل غير موجود أو غير صالح لفتح واتساب.");
       return false;
     }
-    const url = "https://wa.me/" + normalized + "?text=" + encodeURIComponent(message);
-    window.open(url, "_blank", "noopener");
+
+    // V1840: افتح كل رسائل TrendOS في نفس تبويب WhatsApp Web بدل فتح تبويب جديد كل مرة.
+    // ملاحظة: المتصفح لا يسمح للموقع بالبحث داخل كل التابات المفتوحة، لذلك نستخدم اسم ثابت للتاب.
+    const url = "https://web.whatsapp.com/send?phone=" + normalized + "&text=" + encodeURIComponent(message || "");
+    const targetName = "TrendOS_WhatsApp";
+    const waWindow = window.open(url, targetName);
+
+    if (!waWindow) {
+      alert("المتصفح منع فتح واتساب. اسمح بفتح النوافذ المنبثقة لهذا الموقع ثم حاول مرة أخرى.");
+      return false;
+    }
+
+    try { waWindow.focus(); } catch (err) {}
     return true;
   }
 
