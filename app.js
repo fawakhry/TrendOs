@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1845_ORDER_CONVERSATION_FILES";
+  const UI_VERSION = "1846_CUSTOMER_WHATSAPP_CHAT";
 
   const screens = {
     service: "خدمة العملاء",
@@ -921,35 +921,43 @@ Trend Mall`;
     return state.customerDraft;
   }
 
+  function customerChatTime() {
+    return new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+  }
+
   function renderCustomerDraft() {
     const draft = ensureCustomerDraftStarted();
     const title = $("customerDraftTitle");
     const meta = $("customerDraftMeta");
     const box = $("customerDraftMessages");
-    if (title) title.textContent = draft.orderId ? ("تم بدء التنفيذ - أوردر " + draft.orderId) : (draft.draftId ? "مسودة " + draft.draftId : "مسودة طلب جديدة");
-    if (meta) meta.textContent = draft.submitted ? "تم تحويل المسودة لأوردر" : (draft.items.length ? ("عدد البنود: " + draft.items.length) : "لم يتم بدء التنفيذ بعد");
+    if (title) title.textContent = draft.orderId ? ("أوردر " + draft.orderId) : (draft.draftId ? "مسودة " + draft.draftId : "طلب جديد");
+    if (meta) meta.textContent = draft.submitted ? "تم تحويل الطلب لأوردر رسمي" : (draft.items.length ? ("متصل الآن • " + draft.items.length + " بند") : "متصل الآن • لم يبدأ التنفيذ");
     if (!box) return;
 
-    let html = '<div class="chat-bubble system">أضف كل البنود والملفات هنا. كل بند سيظهر للقسم المناسب فقط بعد بدء التنفيذ.</div>';
+    let html = '<div class="wa-date-chip">اليوم</div>' +
+      '<div class="chat-bubble system wa-system-bubble">أهلاً بك في دردشة الطلب. أرسل كل بند كرسالة منفصلة مع صوره وملفاته، وفي النهاية اضغط بدء التنفيذ لاستلام رقم الأوردر.</div>';
     if (draft.items.length) {
       html += draft.items.map(function (item, index) {
         const files = item.files || [];
-        return '<div class="chat-bubble customer">' +
-          '<div class="bubble-title">بند ' + (index + 1) + ': ' + escapeHtml(item.itemName || "بدون عنوان") + '</div>' +
-          '<div>القسم: ' + escapeHtml(item.department || "-") + ' | الكمية: ' + escapeHtml(item.qty || "1") + '</div>' +
-          (item.heatPress === "نعم" ? '<div>🔥 مكبس حراري</div>' : '') +
-          (item.flyPrint === "نعم" ? '<div>⚡ طباعة على الطاير</div>' : '') +
-          (item.notes ? '<div class="bubble-meta">ملاحظات: ' + escapeHtml(item.notes) + '</div>' : '') +
-          '<div class="bubble-files">' + (files.length ? files.map(function (f) {
-            const name = escapeHtml(f.name || f.fileName || "ملف");
-            const url = f.url || f.fileUrl || "";
-            return url ? '<a class="file-chip" href="' + escapeHtml(url) + '" target="_blank">📎 ' + name + '</a>' : '<span class="file-chip">📎 ' + name + '</span>';
-          }).join("") : '<span class="file-chip">بدون ملفات</span>') + '</div>' +
+        const fileHtml = files.length ? files.map(function (f) {
+          const name = escapeHtml(f.name || f.fileName || "ملف");
+          const url = f.url || f.fileUrl || "";
+          return url ? '<a class="wa-file-card" href="' + escapeHtml(url) + '" target="_blank"><span class="wa-file-icon">📎</span><span>' + name + '</span></a>' : '<span class="wa-file-card"><span class="wa-file-icon">📎</span><span>' + name + '</span></span>';
+        }).join("") : '<span class="wa-file-card muted"><span class="wa-file-icon">📎</span><span>لم يتم إرفاق ملفات</span></span>';
+
+        return '<div class="chat-bubble customer wa-out-bubble">' +
+          '<div class="bubble-title">' + escapeHtml(item.itemName || "بند جديد") + '</div>' +
+          '<div class="wa-bubble-line">القسم: <b>' + escapeHtml(item.department || "-") + '</b> • الكمية: <b>' + escapeHtml(item.qty || "1") + '</b></div>' +
+          (item.heatPress === "نعم" ? '<div class="wa-badge">🔥 مكبس حراري</div>' : '') +
+          (item.flyPrint === "نعم" ? '<div class="wa-badge">⚡ طباعة على الطاير</div>' : '') +
+          (item.notes ? '<div class="bubble-meta">' + escapeHtml(item.notes) + '</div>' : '') +
+          '<div class="bubble-files wa-file-list">' + fileHtml + '</div>' +
+          '<div class="wa-bubble-footer"><span>' + customerChatTime() + '</span><span class="wa-checks">✓✓</span></div>' +
         '</div>';
       }).join("");
     }
     if (draft.submitted) {
-      html += '<div class="chat-bubble done">تم استلام الطلب بنجاح ✅<br>رقم الأوردر: ' + escapeHtml(draft.orderId || "-") + '<br>تابع الحالة من أوردراتي.</div>';
+      html += '<div class="chat-bubble done wa-done-bubble">تم استلام الطلب بنجاح ✅<br>رقم الأوردر: <b>' + escapeHtml(draft.orderId || "-") + '</b><br>تابع الحالة من أوردراتي.</div>';
     }
     box.innerHTML = html;
     box.scrollTop = box.scrollHeight;
@@ -1048,7 +1056,7 @@ Trend Mall`;
       setMsg("customerOrderMsg", err.message || "خطأ أثناء إضافة البند.", true);
     } finally {
       state.customerDraftBusy = false;
-      if (btn) { btn.disabled = false; btn.textContent = "إضافة البند للشات"; }
+      if (btn) { btn.disabled = false; btn.textContent = "➤"; }
     }
   }
 
@@ -2477,6 +2485,7 @@ Trend Mall`;
     on("customerAddDraftItemBtn", "click", addCustomerDraftItem);
     on("customerSubmitDraftBtn", "click", submitCustomerDraft);
     on("customerResetDraftBtn", "click", startNewCustomerDraft);
+    on("customerBackFromChatBtn", "click", function () { state.customerViewMode = "home"; renderCustomerHome(); });
     on("copyCustomerSeparatorBtn", "click", copyCustomerSeparator);
     on("customerChangePassBtn", "click", openCustomerPasswordModal);
     on("customerCancelPassBtn", "click", closeCustomerPasswordModal);
