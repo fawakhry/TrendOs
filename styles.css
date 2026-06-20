@@ -626,3 +626,87 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   .order-conversation-card{width:100%;max-height:96vh;border-radius:16px;padding:14px}
   .order-files-grid{grid-template-columns:1fr}
 }
+
+/* V1847 - WhatsApp-like inline image attachments */
+.bubble-files.wa-file-list,
+.chat-bubble .bubble-files{
+  display:grid;
+  gap:7px;
+  margin-top:8px;
+}
+.chat-image-card{
+  display:block;
+  width:min(280px, 100%);
+  overflow:hidden;
+  border-radius:14px;
+  background:#e5e7eb;
+  text-decoration:none;
+  color:#111827;
+  border:1px solid rgba(0,0,0,.06);
+  box-shadow:0 2px 7px rgba(15,23,42,.08);
+}
+.chat-image-card img{
+  display:block;
+  width:100%;
+  max-height:320px;
+  object-fit:cover;
+  background:#f1f5f9;
+}
+.chat-image-caption{
+  display:block;
+  padding:6px 8px;
+  font-size:11px;
+  line-height:1.35;
+  background:rgba(255,255,255,.78);
+  color:#334155;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.chat-image-card.image-failed::before{
+  content:"🖼️ صورة مرفوعة - اضغط للفتح";
+  display:block;
+  padding:18px 10px;
+  text-align:center;
+  font-weight:800;
+  color:#475569;
+  background:#f8fafc;
+}
+.chat-image-card.image-failed img{display:none;}
+.chat-doc-card{
+  width:max-content;
+  max-width:100%;
+}
+.order-image-card{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  background:#fff;
+  border:1px solid #dbe4ea;
+  border-radius:16px;
+  padding:8px;
+  text-decoration:none;
+  color:#102a43;
+  box-shadow:0 4px 12px rgba(16,42,67,.05);
+}
+.order-image-card img{
+  width:100%;
+  height:150px;
+  object-fit:cover;
+  border-radius:12px;
+  background:#f1f5f9;
+}
+.order-image-card b{
+  font-size:13px;
+  color:#0f6f5c;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.order-image-card span{font-size:12px;color:#64748b;}
+.order-conversation-messages .chat-bubble.staff .chat-image-card{margin-inline-start:auto;}
+@media(max-width:760px){
+  .chat-image-card{width:min(245px,100%)}
+  .chat-image-card img{max-height:260px;}
+  .order-image-card img{height:125px;}
+}

@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1846_CUSTOMER_WHATSAPP_CHAT";
+  const UI_VERSION = "1847_INLINE_IMAGE_CHAT";
 
   const screens = {
     service: "خدمة العملاء",
@@ -925,6 +925,96 @@ Trend Mall`;
     return new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
   }
 
+  /*********************** مرفقات المحادثة - عرض الصور مثل واتساب V1847 ***********************/
+
+  function attachmentName(file) {
+    return text(file && (file.name || file.fileName || file.title || "ملف"));
+  }
+
+  function attachmentUrl(file) {
+    return text(file && (file.url || file.fileUrl || file.webViewLink || ""));
+  }
+
+  function attachmentFileId(file) {
+    const direct = text(file && (file.fileId || file.id || ""));
+    if (direct) return direct;
+    const url = attachmentUrl(file);
+    let m = url.match(/[?&]id=([^&]+)/);
+    if (m && m[1]) return decodeURIComponent(m[1]);
+    m = url.match(/\/d\/([^/]+)/);
+    if (m && m[1]) return decodeURIComponent(m[1]);
+    m = url.match(/\/file\/d\/([^/]+)/);
+    if (m && m[1]) return decodeURIComponent(m[1]);
+    return "";
+  }
+
+  function attachmentMime(file) {
+    return text(file && (file.mimeType || file.type || ""));
+  }
+
+  function isImageAttachment(file) {
+    const mime = attachmentMime(file).toLowerCase();
+    if (mime.indexOf("image/") === 0) return true;
+    const name = attachmentName(file).toLowerCase();
+    return /\.(jpg|jpeg|png|gif|bmp|webp|heic|heif)$/i.test(name);
+  }
+
+  function driveImagePreviewUrl(file, size) {
+    const ready = text(file && file.thumbnailUrl);
+    if (ready) return ready;
+    const id = attachmentFileId(file);
+    if (id) return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(id) + "&sz=w" + (size || 900);
+    const url = attachmentUrl(file);
+    return url;
+  }
+
+  function fileKindIcon(file) {
+    const name = attachmentName(file).toLowerCase();
+    const mime = attachmentMime(file).toLowerCase();
+    if (mime.indexOf("pdf") !== -1 || name.endsWith(".pdf")) return "📄";
+    if (mime.indexOf("zip") !== -1 || /\.(zip|rar|7z)$/i.test(name)) return "🗜️";
+    if (/\.(psd|ai|cdr|eps)$/i.test(name)) return "🎨";
+    return "📎";
+  }
+
+  function renderChatAttachment(file, mode) {
+    const name = escapeHtml(attachmentName(file));
+    const url = attachmentUrl(file);
+    const safeUrl = escapeHtml(url || "#");
+    const target = url ? ' href="' + safeUrl + '" target="_blank" rel="noopener"' : '';
+    if (isImageAttachment(file)) {
+      const img = escapeHtml(driveImagePreviewUrl(file, mode === "small" ? 420 : 900));
+      return '<a class="chat-image-card ' + (mode === "staff" ? "staff-image" : "") + '"' + target + '>' +
+        '<img src="' + img + '" alt="' + name + '" loading="lazy" onerror="this.parentNode.classList.add(&quot;image-failed&quot;)">' +
+        '<span class="chat-image-caption">' + name + '</span>' +
+        '</a>';
+    }
+    return '<a class="wa-file-card chat-doc-card"' + target + '><span class="wa-file-icon">' + fileKindIcon(file) + '</span><span>' + name + '</span></a>';
+  }
+
+  function renderOrderAttachmentCard(file) {
+    const isFolder = file && file.recordType === "بند";
+    if (isFolder) {
+      return '<a class="order-file-card" href="' + escapeHtml(attachmentUrl(file) || "#") + '" target="_blank" rel="noopener">' +
+        '<b>📁 ' + escapeHtml(attachmentName(file) || file.itemName || "فولدر البند") + '</b>' +
+        '<span>' + escapeHtml([file.department, file.itemName].filter(Boolean).join(" | ")) + '</span>' +
+        (file.notes ? '<small>' + escapeHtml(file.notes).slice(0, 90) + '</small>' : '') +
+        '</a>';
+    }
+    if (isImageAttachment(file)) {
+      return '<a class="order-image-card" href="' + escapeHtml(attachmentUrl(file) || "#") + '" target="_blank" rel="noopener">' +
+        '<img src="' + escapeHtml(driveImagePreviewUrl(file, 520)) + '" alt="' + escapeHtml(attachmentName(file)) + '" loading="lazy">' +
+        '<b>' + escapeHtml(attachmentName(file)) + '</b>' +
+        '<span>' + escapeHtml([file.department, file.itemName].filter(Boolean).join(" | ")) + '</span>' +
+        '</a>';
+    }
+    return '<a class="order-file-card" href="' + escapeHtml(attachmentUrl(file) || "#") + '" target="_blank" rel="noopener">' +
+      '<b>' + fileKindIcon(file) + ' ' + escapeHtml(attachmentName(file) || "ملف") + '</b>' +
+      '<span>' + escapeHtml([file.department, file.itemName].filter(Boolean).join(" | ")) + '</span>' +
+      (file.notes ? '<small>' + escapeHtml(file.notes).slice(0, 90) + '</small>' : '') +
+      '</a>';
+  }
+
   function renderCustomerDraft() {
     const draft = ensureCustomerDraftStarted();
     const title = $("customerDraftTitle");
@@ -940,9 +1030,7 @@ Trend Mall`;
       html += draft.items.map(function (item, index) {
         const files = item.files || [];
         const fileHtml = files.length ? files.map(function (f) {
-          const name = escapeHtml(f.name || f.fileName || "ملف");
-          const url = f.url || f.fileUrl || "";
-          return url ? '<a class="wa-file-card" href="' + escapeHtml(url) + '" target="_blank"><span class="wa-file-icon">📎</span><span>' + name + '</span></a>' : '<span class="wa-file-card"><span class="wa-file-icon">📎</span><span>' + name + '</span></span>';
+          return renderChatAttachment(f, "customer");
         }).join("") : '<span class="wa-file-card muted"><span class="wa-file-icon">📎</span><span>لم يتم إرفاق ملفات</span></span>';
 
         return '<div class="chat-bubble customer wa-out-bubble">' +
@@ -1000,7 +1088,7 @@ Trend Mall`;
         base64: base64
       }));
       if (!res.success) throw new Error(res.message || "فشل رفع الملف: " + file.name);
-      uploaded.push({ name: file.name, url: res.fileUrl || "", fileId: res.fileId || "" });
+      uploaded.push({ name: file.name, url: res.fileUrl || "", fileId: res.fileId || "", mimeType: file.type || res.mimeType || "" });
     }
     return uploaded;
   }
@@ -1998,13 +2086,7 @@ Trend Mall`;
     html += '<div class="order-chat-section"><h4>ملفات العميل</h4>';
     if (!files.length) html += '<div class="dash-empty">لا توجد ملفات مرفوعة لهذا البند حتى الآن.</div>';
     else html += '<div class="order-files-grid">' + files.map(function (f) {
-      const isFolder = f.recordType === "بند";
-      const label = isFolder ? "📁 " : "📎 ";
-      return '<a class="order-file-card" href="' + escapeHtml(f.url || "#") + '" target="_blank">' +
-        '<b>' + label + escapeHtml(f.name || f.itemName || "ملف") + '</b>' +
-        '<span>' + escapeHtml([f.department, f.itemName].filter(Boolean).join(" | ")) + '</span>' +
-        (f.notes ? '<small>' + escapeHtml(f.notes).slice(0, 90) + '</small>' : '') +
-        '</a>';
+      return renderOrderAttachmentCard(f);
     }).join('') + '</div>';
     html += '</div>';
 
@@ -2015,7 +2097,7 @@ Trend Mall`;
       return '<div class="chat-bubble ' + cls + '">' +
         '<div class="bubble-title">' + escapeHtml(m.senderName || m.senderType || "متابعة") + '</div>' +
         (m.text ? '<div>' + escapeHtml(m.text).replace(/\n/g, '<br>') + '</div>' : '') +
-        (m.fileUrl ? '<div class="bubble-files"><a class="file-chip" href="' + escapeHtml(m.fileUrl) + '" target="_blank">📎 ' + escapeHtml(m.fileName || "ملف") + '</a></div>' : '') +
+        (m.fileUrl ? '<div class="bubble-files">' + renderChatAttachment({ fileName: m.fileName, fileUrl: m.fileUrl, fileId: m.fileId, mimeType: m.mimeType }, "staff") + '</div>' : '') +
         (m.createdAt ? '<div class="bubble-meta">' + escapeHtml(m.createdAt) + '</div>' : '') +
         '</div>';
     }).join('');
