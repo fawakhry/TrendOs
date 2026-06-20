@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1847_INLINE_IMAGE_CHAT";
+  const UI_VERSION = "1849_WHATSAPP_IMAGE_GRID_APPEND";
 
   const screens = {
     service: "خدمة العملاء",
@@ -927,26 +927,46 @@ Trend Mall`;
     state.customerPendingFiles = [];
   }
 
+  function makeCustomerPendingFile(file) {
+    let previewUrl = "";
+    try { previewUrl = URL.createObjectURL(file); } catch (e) {}
+    return {
+      file: file,
+      name: file.name || "ملف",
+      mimeType: file.type || "application/octet-stream",
+      type: file.type || "application/octet-stream",
+      size: file.size || 0,
+      lastModified: file.lastModified || 0,
+      previewUrl: previewUrl,
+      localPreview: true
+    };
+  }
+
+  function pendingFileKey(file) {
+    return [file && file.name || "", file && file.size || 0, file && file.lastModified || 0].join("|");
+  }
+
   function syncCustomerPendingFilesFromInput() {
     const input = $("customerOrderFiles");
-    revokeCustomerPendingFiles();
-    const list = input && input.files ? Array.prototype.slice.call(input.files) : [];
-    state.customerPendingFiles = list.map(function (file) {
-      let previewUrl = "";
-      try { previewUrl = URL.createObjectURL(file); } catch (e) {}
-      return {
-        file: file,
-        name: file.name || "ملف",
-        mimeType: file.type || "application/octet-stream",
-        type: file.type || "application/octet-stream",
-        size: file.size || 0,
-        previewUrl: previewUrl,
-        localPreview: true
-      };
+    const selected = input && input.files ? Array.prototype.slice.call(input.files) : [];
+    const current = state.customerPendingFiles || [];
+    const existing = {};
+    current.forEach(function (f) {
+      existing[pendingFileKey(f.file || f)] = true;
     });
+
+    selected.forEach(function (file) {
+      const key = pendingFileKey(file);
+      if (existing[key]) return;
+      current.push(makeCustomerPendingFile(file));
+      existing[key] = true;
+    });
+
+    state.customerPendingFiles = current;
+    if (input) input.value = ""; // يسمح بإضافة صور جديدة بدون استبدال الاختيار السابق.
     renderCustomerDraft();
     if (state.customerPendingFiles.length) {
-      setMsg("customerOrderMsg", "تم اختيار " + state.customerPendingFiles.length + " ملف. اضغط زر الإرسال لإضافتهم للطلب.", false);
+      setMsg("customerOrderMsg", "تم تجهيز " + state.customerPendingFiles.length + " ملف داخل الرسالة. اختر صورًا أخرى للإضافة أو اضغط إرسال.", false);
     }
   }
 
@@ -1030,6 +1050,38 @@ Trend Mall`;
     return '<a class="wa-file-card chat-doc-card"' + target + '><span class="wa-file-icon">' + fileKindIcon(file) + '</span><span>' + name + '</span></a>';
   }
 
+  function renderChatAttachments(files, mode) {
+    const list = Array.isArray(files) ? files : [];
+    if (!list.length) return "";
+
+    const images = list.filter(isImageAttachment);
+    const docs = list.filter(function (f) { return !isImageAttachment(f); });
+    let html = "";
+
+    if (images.length) {
+      const visible = images.slice(0, 3);
+      const extra = Math.max(0, images.length - visible.length);
+      html += '<div class="wa-image-grid count-' + visible.length + '">' + visible.map(function (file, index) {
+        const name = escapeHtml(attachmentName(file));
+        const url = attachmentUrl(file);
+        const safeUrl = escapeHtml(url || "#");
+        const target = url ? ' href="' + safeUrl + '" target="_blank" rel="noopener"' : '';
+        const img = escapeHtml(driveImagePreviewUrl(file, 650));
+        const more = extra && index === visible.length - 1 ? '<span class="wa-image-more">+' + extra + '</span>' : '';
+        return '<a class="wa-image-tile"' + target + ' title="' + name + '">' +
+          '<img src="' + img + '" alt="' + name + '" loading="lazy" onerror="this.parentNode.classList.add(&quot;image-failed&quot;)">' +
+          more +
+          '</a>';
+      }).join("") + '</div>';
+    }
+
+    if (docs.length) {
+      html += '<div class="wa-doc-list">' + docs.map(function (f) { return renderChatAttachment(f, mode); }).join("") + '</div>';
+    }
+
+    return html;
+  }
+
   function renderOrderAttachmentCard(file) {
     const isFolder = file && file.recordType === "بند";
     if (isFolder) {
@@ -1067,9 +1119,7 @@ Trend Mall`;
     if (draft.items.length) {
       html += draft.items.map(function (item, index) {
         const files = item.files || [];
-        const fileHtml = files.length ? files.map(function (f) {
-          return renderChatAttachment(f, "customer");
-        }).join("") : '<span class="wa-file-card muted"><span class="wa-file-icon">📎</span><span>لم يتم إرفاق ملفات</span></span>';
+        const fileHtml = files.length ? renderChatAttachments(files, "customer") : '<span class="wa-file-card muted"><span class="wa-file-icon">📎</span><span>لم يتم إرفاق ملفات</span></span>';
 
         return '<div class="chat-bubble customer wa-out-bubble">' +
           '<div class="bubble-title">' + escapeHtml(item.itemName || "بند جديد") + '</div>' +
@@ -1088,9 +1138,7 @@ Trend Mall`;
     if (!draft.submitted && (pendingFiles.length || pendingItem || pendingNotes)) {
       const dep = (($("customerOrderDepartment") || {}).value || "طباعة");
       const qty = (($("customerOrderQty") || {}).value || "1");
-      const pendingFileHtml = pendingFiles.length ? pendingFiles.map(function (f) {
-        return renderChatAttachment(f, "customer");
-      }).join("") : "";
+      const pendingFileHtml = pendingFiles.length ? renderChatAttachments(pendingFiles, "customer") : "";
       html += '<div class="chat-bubble customer wa-out-bubble wa-draft-preview-bubble">' +
         '<div class="wa-draft-label">جاهز للإرسال</div>' +
         '<div class="bubble-title">' + escapeHtml(pendingItem || (pendingFiles.length ? "صور/ملفات مرفوعة" : "بند جديد")) + '</div>' +
@@ -1161,7 +1209,7 @@ Trend Mall`;
     const notes = (($("customerOrderNotes") || {}).value || "").trim();
     const heatPress = dep === "طباعة" && $("customerHeatPress") && $("customerHeatPress").checked ? "نعم" : "لا";
     const flyPrint = dep === "طباعة" && $("customerFlyPrint") && $("customerFlyPrint").checked ? "نعم" : "لا";
-    const files = ($("customerOrderFiles") || {}).files || [];
+    const files = (state.customerPendingFiles || []).map(function (f) { return f.file || f; });
 
     if (!itemName && !notes && !files.length) {
       setMsg("customerOrderMsg", "اكتب نوع الشغل أو ارفع ملفات البند.", true);

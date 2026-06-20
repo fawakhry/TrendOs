@@ -743,3 +743,68 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   font-size:10px;
   font-weight:800;
 }
+
+/* V1849 - WhatsApp square image grid + append selected files */
+.wa-image-grid{
+  display:grid;
+  gap:4px;
+  width:min(292px, 100%);
+  max-width:100%;
+  margin-top:7px;
+  border-radius:12px;
+  overflow:hidden;
+}
+.wa-image-grid.count-1{grid-template-columns:130px; width:130px;}
+.wa-image-grid.count-2{grid-template-columns:repeat(2, 118px); width:240px;}
+.wa-image-grid.count-3{grid-template-columns:repeat(3, 92px); width:284px;}
+.wa-image-tile{
+  position:relative;
+  display:block;
+  aspect-ratio:1 / 1;
+  overflow:hidden;
+  background:#d1d5db;
+  color:#fff;
+  text-decoration:none;
+}
+.wa-image-tile img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+}
+.wa-image-tile.image-failed::before{
+  content:"🖼️";
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#e5e7eb;
+  color:#64748b;
+  font-size:24px;
+}
+.wa-image-tile.image-failed img{display:none;}
+.wa-image-more{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.52);
+  color:#fff;
+  font-weight:900;
+  font-size:26px;
+}
+.wa-doc-list{
+  display:grid;
+  gap:6px;
+  margin-top:6px;
+}
+.wa-draft-preview-bubble .wa-image-grid{
+  outline:1px solid rgba(0,168,132,.20);
+}
+@media(max-width:760px){
+  .wa-image-grid.count-1{grid-template-columns:124px; width:124px;}
+  .wa-image-grid.count-2{grid-template-columns:repeat(2, 112px); width:228px;}
+  .wa-image-grid.count-3{grid-template-columns:repeat(3, 86px); width:266px;}
+}
