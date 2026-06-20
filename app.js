@@ -148,7 +148,11 @@
     customerDraftBusy: false,
     orderConversationRow: null,
     orderConversation: null,
-    orderConversationBusy: false
+    orderConversationBusy: false,
+    customerImageViewerFiles: [],
+    customerImageViewerIndex: 0,
+    customerImageViewerMode: "readonly",
+    platformAds: []
   };
 
   const $ = (id) => document.getElementById(id);
@@ -820,6 +824,7 @@ Trend Mall`;
     renderCustomerHeader();
     renderCustomerHome();
     loadCustomerOrders();
+    loadPlatformAds(false);
   }
 
   function renderCustomerHeader() {
@@ -828,6 +833,131 @@ Trend Mall`;
     const meta = $("customerMeta");
     if (title) title.textContent = "أهلاً " + (c.name || "عميل مطبعجي");
     if (meta) meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | منصة مطبعجي بنها";
+  }
+
+
+  /*********************** لوحة الإعلانات V1850 ***********************/
+
+  function canManagePlatformAds() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    const username = normalizeArabic(user.username || user.name || "");
+    return role === "admin" || username === "ضياء";
+  }
+
+  function togglePlatformAdsDashboard() {
+    const card = $("platformAdsCard");
+    if (!card) return;
+    const can = canManagePlatformAds();
+    card.classList.toggle("hidden", !can);
+    if (can) loadPlatformAds(true);
+  }
+
+  function adImageUrl(ad, size) {
+    if (!ad) return "";
+    if (ad.thumbnailUrl) return text(ad.thumbnailUrl);
+    const fileId = text(ad.fileId || ad.id || "");
+    if (fileId) return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(fileId) + "&sz=w" + (size || 1200);
+    return text(ad.fileUrl || ad.url || "");
+  }
+
+  async function loadPlatformAds(forAdmin) {
+    try {
+      const params = forAdmin ? authParams({ includeInactive: "نعم" }) : { activeOnly: "نعم" };
+      const res = await api("getPlatformAds", params);
+      if (!res.success) {
+        if (forAdmin) setMsg("platformAdsStatus", res.message || "تعذر تحميل الإعلانات.", true);
+        return;
+      }
+      state.platformAds = Array.isArray(res.ads) ? res.ads : [];
+      if (forAdmin) renderPlatformAdsDashboard();
+      else renderCustomerAdsBoard();
+    } catch (err) {
+      if (forAdmin) setMsg("platformAdsStatus", err.message || "خطأ في تحميل الإعلانات.", true);
+    }
+  }
+
+  function renderPlatformAdsDashboard() {
+    const list = $("platformAdsList");
+    if (!list) return;
+    const ads = state.platformAds || [];
+    if (!ads.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد إعلانات حتى الآن.</div>';
+      return;
+    }
+    list.innerHTML = ads.map(function (ad) {
+      const img = escapeHtml(adImageUrl(ad, 600));
+      const url = escapeHtml(ad.fileUrl || "#");
+      const active = text(ad.active || ad["مفعل"] || "نعم");
+      return '<div class="platform-ad-item">' +
+        (img ? '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + img + '" alt="إعلان" loading="lazy"></a>' : '') +
+        '<div><b>' + escapeHtml(ad.title || ad.adTitle || "إعلان") + '</b>' +
+        '<span>مفعل: ' + escapeHtml(active || "نعم") + '</span>' +
+        '<small>' + escapeHtml(ad.createdAt || "") + '</small></div>' +
+      '</div>';
+    }).join("");
+  }
+
+  function renderCustomerAdsBoard() {
+    const board = $("customerAdsBoard");
+    if (!board) return;
+    const ads = (state.platformAds || []).filter(function (ad) {
+      const active = text(ad.active || ad["مفعل"] || "نعم");
+      return active !== "لا";
+    });
+    if (!ads.length) {
+      board.classList.add("hidden");
+      board.innerHTML = "";
+      return;
+    }
+    board.classList.remove("hidden");
+    board.innerHTML = ads.slice(0, 3).map(function (ad) {
+      const img = escapeHtml(adImageUrl(ad, 900));
+      const url = escapeHtml(ad.fileUrl || "#");
+      return '<a class="customer-ad-slide" href="' + url + '" target="_blank" rel="noopener">' +
+        (img ? '<img src="' + img + '" alt="' + escapeHtml(ad.title || "إعلان") + '" loading="lazy">' : '') +
+        (ad.title ? '<span>' + escapeHtml(ad.title) + '</span>' : '') +
+      '</a>';
+    }).join("");
+  }
+
+  async function uploadPlatformAd() {
+    if (!canManagePlatformAds()) return;
+    const fileInput = $("platformAdFile");
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    const title = (($("platformAdTitle") || {}).value || "").trim();
+    const active = (($("platformAdActive") || {}).value || "نعم");
+    if (!file) {
+      setMsg("platformAdsStatus", "اختار صورة الإعلان أولًا.", true);
+      return;
+    }
+    if (!/^image\//i.test(file.type || "")) {
+      setMsg("platformAdsStatus", "لوحة الإعلانات تقبل صور فقط.", true);
+      return;
+    }
+    const btn = $("uploadPlatformAdBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري الرفع..."; }
+    setMsg("platformAdsStatus", "جاري رفع الإعلان على Drive...", false);
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await apiPost("uploadPlatformAd", authParams({
+        title: title || file.name,
+        active: active,
+        fileName: file.name,
+        mimeType: file.type || "image/png",
+        size: file.size || 0,
+        base64: base64
+      }));
+      if (!res.success) throw new Error(res.message || "فشل رفع الإعلان.");
+      if ($("platformAdTitle")) $("platformAdTitle").value = "";
+      if (fileInput) fileInput.value = "";
+      setMsg("platformAdsStatus", "تم رفع الإعلان وتحديث لوحة العملاء.", false);
+      await loadPlatformAds(true);
+    } catch (err) {
+      setMsg("platformAdsStatus", err.message || "خطأ أثناء رفع الإعلان.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "رفع الإعلان"; }
+    }
   }
 
   function publicStatus(status) {
@@ -1050,28 +1180,33 @@ Trend Mall`;
     return '<a class="wa-file-card chat-doc-card"' + target + '><span class="wa-file-icon">' + fileKindIcon(file) + '</span><span>' + name + '</span></a>';
   }
 
-  function renderChatAttachments(files, mode) {
+  function renderChatAttachments(files, mode, context) {
     const list = Array.isArray(files) ? files : [];
     if (!list.length) return "";
 
-    const images = list.filter(isImageAttachment);
-    const docs = list.filter(function (f) { return !isImageAttachment(f); });
+    context = context || {};
+    const images = [];
+    const docs = [];
+    list.forEach(function (f, originalIndex) {
+      if (isImageAttachment(f)) images.push({ file: f, originalIndex: originalIndex });
+      else docs.push(f);
+    });
     let html = "";
 
     if (images.length) {
       const visible = images.slice(0, 3);
       const extra = Math.max(0, images.length - visible.length);
-      html += '<div class="wa-image-grid count-' + visible.length + '">' + visible.map(function (file, index) {
+      const group = escapeHtml(context.group || "readonly");
+      const itemIndex = context.itemIndex == null ? "" : String(context.itemIndex);
+      html += '<div class="wa-image-grid count-' + visible.length + '">' + visible.map(function (entry, index) {
+        const file = entry.file;
         const name = escapeHtml(attachmentName(file));
-        const url = attachmentUrl(file);
-        const safeUrl = escapeHtml(url || "#");
-        const target = url ? ' href="' + safeUrl + '" target="_blank" rel="noopener"' : '';
         const img = escapeHtml(driveImagePreviewUrl(file, 650));
         const more = extra && index === visible.length - 1 ? '<span class="wa-image-more">+' + extra + '</span>' : '';
-        return '<a class="wa-image-tile"' + target + ' title="' + name + '">' +
+        return '<button type="button" class="wa-image-tile wa-image-open" data-image-group="' + group + '" data-item-index="' + escapeHtml(itemIndex) + '" data-image-index="' + entry.originalIndex + '" title="' + name + '">' +
           '<img src="' + img + '" alt="' + name + '" loading="lazy" onerror="this.parentNode.classList.add(&quot;image-failed&quot;)">' +
           more +
-          '</a>';
+          '</button>';
       }).join("") + '</div>';
     }
 
@@ -1080,6 +1215,104 @@ Trend Mall`;
     }
 
     return html;
+  }
+
+  function imageViewerFilesFromContext(group, itemIndex) {
+    const draft = state.customerDraft || { items: [] };
+    if (group === "pending") {
+      return (state.customerPendingFiles || []).filter(isImageAttachment).map(function (f) {
+        return { file: f, sourceIndex: (state.customerPendingFiles || []).indexOf(f), canDelete: true };
+      });
+    }
+    if (group === "draftItem") {
+      const item = (draft.items || [])[Number(itemIndex) || 0] || {};
+      return (item.files || []).filter(isImageAttachment).map(function (f) {
+        return { file: f, sourceIndex: -1, canDelete: false };
+      });
+    }
+    return [];
+  }
+
+  function attachCustomerImageHandlers() {
+    const box = $("customerDraftMessages");
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll(".wa-image-open"), function (btn) {
+      btn.onclick = function () {
+        const group = btn.getAttribute("data-image-group") || "readonly";
+        const itemIndex = btn.getAttribute("data-item-index") || "";
+        const originalIndex = Number(btn.getAttribute("data-image-index") || 0);
+        const files = imageViewerFilesFromContext(group, itemIndex);
+        let viewerIndex = 0;
+        files.forEach(function (entry, i) {
+          if (entry.sourceIndex === originalIndex) viewerIndex = i;
+        });
+        openCustomerImageViewer(files, viewerIndex, group === "pending" ? "pending" : "readonly");
+      };
+    });
+  }
+
+  function openCustomerImageViewer(files, index, mode) {
+    state.customerImageViewerFiles = Array.isArray(files) ? files : [];
+    state.customerImageViewerIndex = Math.max(0, Math.min(Number(index) || 0, state.customerImageViewerFiles.length - 1));
+    state.customerImageViewerMode = mode || "readonly";
+    const modal = $("customerImageViewerModal");
+    if (modal) modal.classList.remove("hidden");
+    renderCustomerImageViewer();
+  }
+
+  function closeCustomerImageViewer() {
+    const modal = $("customerImageViewerModal");
+    if (modal) modal.classList.add("hidden");
+    state.customerImageViewerFiles = [];
+    state.customerImageViewerIndex = 0;
+  }
+
+  function renderCustomerImageViewer() {
+    const files = state.customerImageViewerFiles || [];
+    const entry = files[state.customerImageViewerIndex];
+    const img = $("customerImageViewerImg");
+    const title = $("customerImageViewerTitle");
+    const counter = $("customerImageViewerCounter");
+    const del = $("customerImageDeleteBtn");
+    if (!entry) {
+      closeCustomerImageViewer();
+      return;
+    }
+    if (img) img.src = driveImagePreviewUrl(entry.file, 1400);
+    if (title) title.textContent = attachmentName(entry.file);
+    if (counter) counter.textContent = (state.customerImageViewerIndex + 1) + " / " + files.length;
+    if (del) del.classList.toggle("hidden", !(state.customerImageViewerMode === "pending" && entry.canDelete));
+  }
+
+  function moveCustomerImageViewer(step) {
+    const files = state.customerImageViewerFiles || [];
+    if (!files.length) return;
+    state.customerImageViewerIndex = (state.customerImageViewerIndex + step + files.length) % files.length;
+    renderCustomerImageViewer();
+  }
+
+  function deleteCurrentPendingImage() {
+    const files = state.customerImageViewerFiles || [];
+    const entry = files[state.customerImageViewerIndex];
+    if (!entry || state.customerImageViewerMode !== "pending") return;
+    const all = state.customerPendingFiles || [];
+    const target = entry.file;
+    const idx = all.indexOf(target);
+    if (idx >= 0) {
+      if (target.previewUrl) { try { URL.revokeObjectURL(target.previewUrl); } catch (e) {} }
+      all.splice(idx, 1);
+    }
+    state.customerPendingFiles = all;
+    const newFiles = imageViewerFilesFromContext("pending", "");
+    if (!newFiles.length) {
+      closeCustomerImageViewer();
+    } else {
+      state.customerImageViewerFiles = newFiles;
+      state.customerImageViewerIndex = Math.min(state.customerImageViewerIndex, newFiles.length - 1);
+      renderCustomerImageViewer();
+    }
+    renderCustomerDraft();
+    setMsg("customerOrderMsg", state.customerPendingFiles.length ? "تم حذف الصورة. باقي " + state.customerPendingFiles.length + " ملف جاهز للإرسال." : "تم حذف كل الصور/الملفات المؤقتة.", false);
   }
 
   function renderOrderAttachmentCard(file) {
@@ -1119,7 +1352,7 @@ Trend Mall`;
     if (draft.items.length) {
       html += draft.items.map(function (item, index) {
         const files = item.files || [];
-        const fileHtml = files.length ? renderChatAttachments(files, "customer") : '<span class="wa-file-card muted"><span class="wa-file-icon">📎</span><span>لم يتم إرفاق ملفات</span></span>';
+        const fileHtml = files.length ? renderChatAttachments(files, "customer", { group: "draftItem", itemIndex: index }) : '<span class="wa-file-card muted"><span class="wa-file-icon">📎</span><span>لم يتم إرفاق ملفات</span></span>';
 
         return '<div class="chat-bubble customer wa-out-bubble">' +
           '<div class="bubble-title">' + escapeHtml(item.itemName || "بند جديد") + '</div>' +
@@ -1138,7 +1371,7 @@ Trend Mall`;
     if (!draft.submitted && (pendingFiles.length || pendingItem || pendingNotes)) {
       const dep = (($("customerOrderDepartment") || {}).value || "طباعة");
       const qty = (($("customerOrderQty") || {}).value || "1");
-      const pendingFileHtml = pendingFiles.length ? renderChatAttachments(pendingFiles, "customer") : "";
+      const pendingFileHtml = pendingFiles.length ? renderChatAttachments(pendingFiles, "customer", { group: "pending" }) : "";
       html += '<div class="chat-bubble customer wa-out-bubble wa-draft-preview-bubble">' +
         '<div class="wa-draft-label">جاهز للإرسال</div>' +
         '<div class="bubble-title">' + escapeHtml(pendingItem || (pendingFiles.length ? "صور/ملفات مرفوعة" : "بند جديد")) + '</div>' +
@@ -1154,6 +1387,7 @@ Trend Mall`;
       html += '<div class="chat-bubble done wa-done-bubble">تم استلام الطلب بنجاح ✅<br>رقم الأوردر: <b>' + escapeHtml(draft.orderId || "-") + '</b><br>تابع الحالة من أوردراتي.</div>';
     }
     box.innerHTML = html;
+    attachCustomerImageHandlers();
     box.scrollTop = box.scrollHeight;
   }
 
@@ -1372,6 +1606,7 @@ Trend Mall`;
     toggleKnowledge();
     setupCollapsibleCards();
     toggleEndDayButton();
+    togglePlatformAdsDashboard();
     loadRows();
     updateUrgentNotificationButton();
     startRefresh();
@@ -1407,6 +1642,7 @@ Trend Mall`;
         toggleKnowledge();
         setupCollapsibleCards();
         toggleEndDayButton();
+        togglePlatformAdsDashboard();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -2685,6 +2921,12 @@ Trend Mall`;
     on("customerChangePassBtn", "click", openCustomerPasswordModal);
     on("customerCancelPassBtn", "click", closeCustomerPasswordModal);
     on("customerSavePassBtn", "click", changeCustomerPassword);
+    on("customerImageCloseBtn", "click", closeCustomerImageViewer);
+    on("customerImagePrevBtn", "click", function () { moveCustomerImageViewer(-1); });
+    on("customerImageNextBtn", "click", function () { moveCustomerImageViewer(1); });
+    on("customerImageDeleteBtn", "click", deleteCurrentPendingImage);
+    on("uploadPlatformAdBtn", "click", uploadPlatformAd);
+    on("refreshPlatformAdsBtn", "click", function () { loadPlatformAds(true); });
 
     $("loginBtn").addEventListener("click", doLogin);
     $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });

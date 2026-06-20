@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها V1849</title>
-  <link rel="stylesheet" href="styles.css?v=1849">
+  <title>منصة مطبعجي بنها V1850</title>
+  <link rel="stylesheet" href="styles.css?v=1850">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">منصة مطبعجي بنها V1849 - صور مربعة + إضافة صور بدون استبدال مثل واتساب</p>
+    <p class="version-badge">منصة مطبعجي بنها V1850 - عارض صور واتساب + لوحة إعلانات ضياء</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1849 - صور مربعة + إضافة صور بدون استبدال مثل واتساب</p>
+        <p class="version-badge">منصة مطبعجي بنها V1850 - عارض صور واتساب + لوحة إعلانات ضياء</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -87,6 +87,30 @@
       </div>
       <div id="dashboardGrid" class="dashboard-grid">
         <div class="dash-empty">جاري تحميل ملخص التشغيل...</div>
+      </div>
+    </section>
+
+
+    <section id="platformAdsCard" class="card platform-ads-card hidden">
+      <div class="table-tools">
+        <h3>لوحة إعلانات العملاء</h3>
+        <span id="platformAdsStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        لوحة ضياء الخاصة بالإعلانات: ارفع صورة إعلان، وستظهر للعملاء في الصفحة الرئيسية داخل منصة مطبعجي بنها.
+      </div>
+      <div class="platform-ad-form">
+        <input id="platformAdTitle" placeholder="عنوان الإعلان - اختياري">
+        <select id="platformAdActive">
+          <option selected>نعم</option>
+          <option>لا</option>
+        </select>
+        <input id="platformAdFile" type="file" accept="image/*">
+        <button id="uploadPlatformAdBtn" class="primary" type="button">رفع الإعلان</button>
+        <button id="refreshPlatformAdsBtn" class="ghost" type="button">تحديث الإعلانات</button>
+      </div>
+      <div id="platformAdsList" class="platform-ads-list">
+        <div class="dash-empty">لم يتم تحميل الإعلانات بعد.</div>
       </div>
     </section>
 
@@ -359,7 +383,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1849 - صور مربعة + إضافة صور بدون استبدال مثل واتساب</p>
+        <p class="version-badge">منصة مطبعجي بنها V1850 - عارض صور واتساب + لوحة إعلانات ضياء</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -369,6 +393,7 @@
     </header>
 
     <section id="customerHomePanel" class="card customer-home-card">
+      <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
       <h3>خدماتك على منصة مطبعجي بنها</h3>
       <div class="customer-service-grid">
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
@@ -465,6 +490,26 @@
     </section>
   </section>
 
+
+  <section id="customerImageViewerModal" class="modal hidden image-viewer-modal">
+    <div class="image-viewer-card">
+      <div class="image-viewer-top">
+        <button id="customerImageCloseBtn" class="image-viewer-close" type="button">×</button>
+        <div>
+          <b id="customerImageViewerTitle">صورة</b>
+          <span id="customerImageViewerCounter">1 / 1</span>
+        </div>
+      </div>
+      <div class="image-viewer-body">
+        <button id="customerImagePrevBtn" class="image-nav prev" type="button">‹</button>
+        <img id="customerImageViewerImg" src="" alt="صورة المحادثة">
+        <button id="customerImageNextBtn" class="image-nav next" type="button">›</button>
+      </div>
+      <div class="image-viewer-actions">
+        <button id="customerImageDeleteBtn" class="danger hidden" type="button">حذف الصورة</button>
+      </div>
+    </div>
+  </section>
 
   <section id="orderConversationModal" class="modal hidden">
     <div class="modal-card order-conversation-card">
@@ -571,7 +616,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1849"></script>
-<script src="app.js?v=1849"></script>
+<script src="config.js?v=1850"></script>
+<script src="app.js?v=1850"></script>
 </body>
 </html>
