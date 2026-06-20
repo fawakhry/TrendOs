@@ -498,6 +498,7 @@ Trend Mall`;
   }
 
   function resetCustomerDraft() {
+    revokeCustomerPendingFiles();
     state.customerDraft = { draftId: "", items: [], submitted: false, orderId: "" };
     renderCustomerDraft();
     setMsg("customerOrderMsg", "", false);
@@ -916,6 +917,43 @@ Trend Mall`;
     }
   }
 
+
+  function revokeCustomerPendingFiles() {
+    (state.customerPendingFiles || []).forEach(function (f) {
+      if (f && f.previewUrl) {
+        try { URL.revokeObjectURL(f.previewUrl); } catch (e) {}
+      }
+    });
+    state.customerPendingFiles = [];
+  }
+
+  function syncCustomerPendingFilesFromInput() {
+    const input = $("customerOrderFiles");
+    revokeCustomerPendingFiles();
+    const list = input && input.files ? Array.prototype.slice.call(input.files) : [];
+    state.customerPendingFiles = list.map(function (file) {
+      let previewUrl = "";
+      try { previewUrl = URL.createObjectURL(file); } catch (e) {}
+      return {
+        file: file,
+        name: file.name || "ملف",
+        mimeType: file.type || "application/octet-stream",
+        type: file.type || "application/octet-stream",
+        size: file.size || 0,
+        previewUrl: previewUrl,
+        localPreview: true
+      };
+    });
+    renderCustomerDraft();
+    if (state.customerPendingFiles.length) {
+      setMsg("customerOrderMsg", "تم اختيار " + state.customerPendingFiles.length + " ملف. اضغط زر الإرسال لإضافتهم للطلب.", false);
+    }
+  }
+
+  function refreshCustomerPendingPreview() {
+    if (state.customerPendingFiles && state.customerPendingFiles.length) renderCustomerDraft();
+  }
+
   function ensureCustomerDraftStarted() {
     if (!state.customerDraft) resetCustomerDraft();
     return state.customerDraft;
@@ -925,14 +963,14 @@ Trend Mall`;
     return new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
   }
 
-  /*********************** مرفقات المحادثة - عرض الصور مثل واتساب V1847 ***********************/
+  /*********************** مرفقات المحادثة - عرض الصور مثل واتساب V1848 ***********************/
 
   function attachmentName(file) {
     return text(file && (file.name || file.fileName || file.title || "ملف"));
   }
 
   function attachmentUrl(file) {
-    return text(file && (file.url || file.fileUrl || file.webViewLink || ""));
+    return text(file && (file.url || file.fileUrl || file.webViewLink || file.previewUrl || ""));
   }
 
   function attachmentFileId(file) {
@@ -1044,6 +1082,26 @@ Trend Mall`;
         '</div>';
       }).join("");
     }
+    const pendingFiles = state.customerPendingFiles || [];
+    const pendingItem = (($("customerOrderItem") || {}).value || "").trim();
+    const pendingNotes = (($("customerOrderNotes") || {}).value || "").trim();
+    if (!draft.submitted && (pendingFiles.length || pendingItem || pendingNotes)) {
+      const dep = (($("customerOrderDepartment") || {}).value || "طباعة");
+      const qty = (($("customerOrderQty") || {}).value || "1");
+      const pendingFileHtml = pendingFiles.length ? pendingFiles.map(function (f) {
+        return renderChatAttachment(f, "customer");
+      }).join("") : "";
+      html += '<div class="chat-bubble customer wa-out-bubble wa-draft-preview-bubble">' +
+        '<div class="wa-draft-label">جاهز للإرسال</div>' +
+        '<div class="bubble-title">' + escapeHtml(pendingItem || (pendingFiles.length ? "صور/ملفات مرفوعة" : "بند جديد")) + '</div>' +
+        '<div class="wa-bubble-line">القسم: <b>' + escapeHtml(dep) + '</b> • الكمية: <b>' + escapeHtml(qty) + '</b></div>' +
+        (dep === "طباعة" && $("customerHeatPress") && $("customerHeatPress").checked ? '<div class="wa-badge">🔥 مكبس حراري</div>' : '') +
+        (dep === "طباعة" && $("customerFlyPrint") && $("customerFlyPrint").checked ? '<div class="wa-badge">⚡ طباعة على الطاير</div>' : '') +
+        (pendingNotes ? '<div class="bubble-meta">' + escapeHtml(pendingNotes) + '</div>' : '') +
+        (pendingFileHtml ? '<div class="bubble-files wa-file-list">' + pendingFileHtml + '</div>' : '') +
+        '<div class="wa-bubble-footer"><span>قبل الإرسال</span><span class="wa-checks">○</span></div>' +
+      '</div>';
+    }
     if (draft.submitted) {
       html += '<div class="chat-bubble done wa-done-bubble">تم استلام الطلب بنجاح ✅<br>رقم الأوردر: <b>' + escapeHtml(draft.orderId || "-") + '</b><br>تابع الحالة من أوردراتي.</div>';
     }
@@ -1055,6 +1113,7 @@ Trend Mall`;
     ["customerOrderItem", "customerOrderNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
     if ($("customerOrderQty")) $("customerOrderQty").value = "1";
     if ($("customerOrderFiles")) $("customerOrderFiles").value = "";
+    revokeCustomerPendingFiles();
     if ($("customerHeatPress")) $("customerHeatPress").checked = false;
     if ($("customerFlyPrint")) $("customerFlyPrint").checked = false;
     updateCustomerPrintOptions();
@@ -2562,7 +2621,13 @@ Trend Mall`;
     on("customerShowNewOrderBtn", "click", function () { state.customerViewMode = "newOrder"; if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft(); renderCustomerHome(); });
     on("customerShowDesignerBtn", "click", function () { state.customerViewMode = "designer"; renderCustomerHome(); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
-    on("customerOrderDepartment", "change", updateCustomerPrintOptions);
+    on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });
+    on("customerOrderFiles", "change", syncCustomerPendingFilesFromInput);
+    on("customerOrderItem", "input", refreshCustomerPendingPreview);
+    on("customerOrderNotes", "input", refreshCustomerPendingPreview);
+    on("customerOrderQty", "input", refreshCustomerPendingPreview);
+    on("customerHeatPress", "change", refreshCustomerPendingPreview);
+    on("customerFlyPrint", "change", refreshCustomerPendingPreview);
     on("customerCreateOrderBtn", "click", createCustomerPortalOrder);
     on("customerAddDraftItemBtn", "click", addCustomerDraftItem);
     on("customerSubmitDraftBtn", "click", submitCustomerDraft);

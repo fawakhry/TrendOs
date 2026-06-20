@@ -627,7 +627,7 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   .order-files-grid{grid-template-columns:1fr}
 }
 
-/* V1847 - WhatsApp-like inline image attachments */
+/* V1848 - WhatsApp-like inline image attachments */
 .bubble-files.wa-file-list,
 .chat-bubble .bubble-files{
   display:grid;
@@ -709,4 +709,37 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   .chat-image-card{width:min(245px,100%)}
   .chat-image-card img{max-height:260px;}
   .order-image-card img{height:125px;}
+}
+
+
+/* V1848 - Pending selected images preview inside WhatsApp-like chat */
+.wa-draft-preview-bubble{
+  outline:2px dashed rgba(0,168,132,.32);
+  background:#dcf8c6!important;
+}
+.wa-draft-label{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  background:rgba(0,168,132,.12);
+  color:#075e54;
+  border:1px solid rgba(0,168,132,.22);
+  border-radius:999px;
+  padding:3px 8px;
+  font-size:11px;
+  font-weight:900;
+  margin-bottom:6px;
+}
+.chat-image-card[href^=blob\:]{cursor:default;}
+.chat-image-card[href^=blob\:]::after{
+  content:'صورة مختارة';
+  position:absolute;
+  top:6px;
+  right:6px;
+  background:rgba(0,0,0,.50);
+  color:#fff;
+  border-radius:999px;
+  padding:2px 7px;
+  font-size:10px;
+  font-weight:800;
 }
