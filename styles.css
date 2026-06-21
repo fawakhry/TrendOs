@@ -1337,3 +1337,29 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .platform-ad-studio{display:grid;gap:12px}.ad-editor-layout{display:grid;grid-template-columns:minmax(260px,480px) 1fr;gap:14px;align-items:start}.ad-preview-wrap{position:relative;overflow:hidden;min-height:220px;border-radius:22px;background:#071713;border:1px solid #d6e6e2;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab}.ad-preview-wrap.dragging{cursor:grabbing}.ad-preview-wrap.empty{background:#f3f7f6}.ad-preview-wrap img{width:100%;height:100%;position:absolute;inset:0;object-fit:cover;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}.ad-preview-wrap.empty img{display:none}.ad-preview-wrap .empty-note{color:#6b7c78;font-size:13px}.ad-editor-controls{background:#f8fbfa;border:1px solid #dfecea;border-radius:18px;padding:14px;display:grid;gap:8px}.ad-editor-controls label{font-size:13px;font-weight:700;color:#17433b}.ad-editor-controls input[type=range]{width:100%}.premium-ad-item{align-items:flex-start}.ad-thumb-canvas{display:block;width:170px;height:96px;border-radius:16px;overflow:hidden;background:#0b1714;position:relative;flex:0 0 auto}.ad-thumb-canvas img{width:100%;height:100%;object-fit:cover;transform-origin:center center}.premium-customer-ad{height:190px;overflow:hidden;position:relative}.premium-customer-ad img{width:100%;height:100%;object-fit:cover;transform-origin:center center}.customer-ad-slide span{display:none!important}
 .platform-sections-list,.service-routes-list{margin-top:10px}.platform-section-item{border:1px solid #e2ebe8;border-radius:18px;padding:12px;background:#fff;margin:9px 0}
 @media(max-width:900px){.admin-workspace-tabs{grid-template-columns:repeat(2,1fr)}.service-route-form,.platform-section-form{grid-template-columns:1fr}.service-route-form .wide,.platform-section-form .wide{grid-column:span 1}.ad-editor-layout{grid-template-columns:1fr}.ad-preview-wrap{min-height:190px}}
+
+/* V1856 - WhatsApp كامل + Marketplace */
+.wa-attach-menu{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.wa-attach-menu .wa-attach-btn{width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#f0f2f5;border:1px solid rgba(0,0,0,.08);cursor:pointer;font-size:18px;transition:.15s}
+.wa-attach-menu .wa-attach-btn:hover{transform:translateY(-1px);background:#e8f5ef}
+.wa-doc-list{display:grid;gap:7px;margin-top:6px}
+.wa-file-card.chat-doc-card{background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,.08);display:flex;gap:9px;align-items:center;padding:9px 10px;max-width:280px;text-decoration:none;color:inherit}
+.wa-file-icon{font-size:22px}
+.marketplace-admin-card .marketplace-form{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px;margin:12px 0;padding:12px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fbfbfb}
+.marketplace-admin-card .marketplace-form .wide{grid-column:span 2}
+.marketplace-product-form{background:#f7fbff!important}
+.marketplace-admin-list{display:grid;gap:10px;margin-top:12px}
+.market-admin-vendor{border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;padding:12px;box-shadow:0 5px 18px rgba(0,0,0,.04)}
+.market-admin-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.market-admin-head b{font-size:16px}.market-admin-head span,.market-admin-meta{color:#60706d;font-size:13px}.market-admin-products{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.market-admin-products span{background:#eef8f3;border-radius:999px;padding:6px 10px;font-size:12px}
+.customer-marketplace-panel{margin-top:18px;padding:14px;border-radius:22px;background:linear-gradient(180deg,#ffffff,#f2fbf7);border:1px solid rgba(0,0,0,.06)}
+.customer-marketplace-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-top:10px}
+.market-vendor-card,.market-product-card{border:0;border-radius:20px;background:#fff;box-shadow:0 8px 22px rgba(0,0,0,.07);padding:10px;text-align:right;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:145px;color:inherit;transition:.16s}
+.market-vendor-card:hover,.market-product-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.1)}
+.market-vendor-card img,.market-product-card img{width:100%;height:88px;object-fit:cover;border-radius:15px;background:#eee}
+.market-vendor-placeholder{height:88px;border-radius:15px;background:#eef8f3;display:flex;align-items:center;justify-content:center;font-size:30px}
+.market-vendor-card b,.market-product-card b{font-size:15px}.market-vendor-card small,.market-product-card small{font-size:12px;color:#65736f}.market-product-card em{font-style:normal;color:#075e54;font-weight:800;font-size:13px}
+.customer-marketplace-products{margin-top:14px;border-top:1px dashed rgba(0,0,0,.12);padding-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.market-products-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;background:#075e54;color:#fff;border-radius:14px;padding:10px 12px}.market-products-head span{font-size:12px;opacity:.85}
+.admin-tab-btn small{line-height:1.35}
+@media(max-width:760px){.marketplace-admin-card .marketplace-form{grid-template-columns:1fr}.marketplace-admin-card .marketplace-form .wide{grid-column:auto}.customer-marketplace-board{grid-template-columns:repeat(2,minmax(0,1fr))}.customer-marketplace-products{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-attach-menu .wa-attach-btn{width:36px;height:36px}}

@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1855_SERVICE_ROUTES_ADMIN_AD_STUDIO";
+  const UI_VERSION = "1856_FULL_WHATSAPP_MARKETPLACE_RAHMA";
 
   const screens = {
     service: "خدمة العملاء",
@@ -163,6 +163,10 @@
     whiteLabelSettings: null,
     leadNumbers: [],
     serviceRoutes: [],
+    marketplaceVendors: [],
+    marketplaceProducts: [],
+    customerSelectedMarketVendor: null,
+    customerSelectedMarketProduct: null,
     adminArea: "matbagy",
     platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" }
   };
@@ -839,6 +843,7 @@ Trend Mall`;
     loadPlatformAds(false);
     loadPlatformSections(false);
     loadFranchiseBranches(false);
+    loadMarketplace(false);
     loadWhiteLabelSettings(false);
   }
 
@@ -1054,6 +1059,23 @@ Trend Mall`;
     });
   }
 
+
+  function copyCustomerInviteLinks() {
+    const rows = state.leadNumbers || [];
+    if (!rows.length) { setMsg("phoneLeadsStatus", "اجمع الأرقام أولًا قبل إنشاء الدعوات.", true); return; }
+    const portalLink = location.origin + location.pathname + "?v=1856";
+    const lines = rows.map(function (r) {
+      const phone = r.phone || "";
+      const name = r.name || "عميل مطبعجي";
+      return phone + "\t" + name + "\t" + "أهلاً " + name + "، تم تجهيز دخولك على منصة مطبعجي. افتح الرابط وادخل بكود الشات/رقمك لمتابعة طلباتك: " + portalLink;
+    }).join("\n");
+    navigator.clipboard.writeText(lines).then(function () {
+      setMsg("phoneLeadsStatus", "تم نسخ دعوات المنصة. استخدمها فقط لعملاء مطبعجي أو المصرح لهم بالتواصل.", false);
+    }).catch(function () {
+      setMsg("phoneLeadsStatus", "تعذر نسخ دعوات المنصة.", true);
+    });
+  }
+
   function downloadPhoneLeadsCsv() {
     const rows = state.leadNumbers || [];
     if (!rows.length) { setMsg("phoneLeadsStatus", "لا توجد أرقام للتصدير.", true); return; }
@@ -1077,8 +1099,10 @@ Trend Mall`;
   /*********************** V1855 - تنظيم لوحة الإدارة وربط الخدمات بالمطابع ***********************/
 
   const ADMIN_AREAS = [
-    { id: "matbagy", label: "شغل مطبعجي", hint: "الأوردرات والعملاء والخدمات اليومية." },
+    { id: "matbagy", label: "شغل مطبعجي", hint: "الأوردرات والخدمات اليومية." },
+    { id: "rahma", label: "رحمة / خدمة العملاء", hint: "إضافة العملاء، استقبال الأوردرات، ودعوات العملاء." },
     { id: "franchise", label: "الفرنشايز", hint: "الفروع والشركاء ونسب مطبعجي." },
+    { id: "marketplace", label: "ماركت بليس", hint: "مساحات وبائعين ومنتجات تحت مظلة مطبعجي." },
     { id: "members", label: "الأعضاء والنسخ", hint: "نسخ المطابع والأرقام والعملاء." },
     { id: "responses", label: "الردود والذكاء", hint: "معرفة واتس AI وقواعد الردود." },
     { id: "ads", label: "الإعلانات", hint: "إعلانات العملاء وتظبيط الصور." }
@@ -1086,13 +1110,14 @@ Trend Mall`;
 
   const ADMIN_CARD_AREAS = {
     managementDashboard: "matbagy",
-    addOrderCard: "matbagy",
-    addCustomerCard: "matbagy",
     platformSectionsCard: "matbagy",
     serviceRoutesCard: "matbagy",
+    addOrderCard: "rahma",
+    addCustomerCard: "rahma",
+    phoneLeadsCard: "rahma",
     franchiseBranchesCard: "franchise",
+    marketplaceCard: "marketplace",
     whiteLabelCard: "members",
-    phoneLeadsCard: "members",
     aiKnowledgeCard: "responses",
     platformAdsCard: "ads"
   };
@@ -1111,6 +1136,8 @@ Trend Mall`;
     const show = canSeeAdminWorkspace();
     hub.classList.toggle("hidden", !show);
     if (!show) return;
+    const uname = normalizeArabic((state.user || {}).username || (state.user || {}).name || "");
+    if ((uname === "رحمه" || uname === "رحمة") && state.adminArea === "matbagy") state.adminArea = "rahma";
     list.innerHTML = ADMIN_AREAS.map(function (area) {
       return '<button type="button" class="admin-tab-btn ' + (state.adminArea === area.id ? 'active' : '') + '" data-admin-area="' + area.id + '">' +
         '<b>' + escapeHtml(area.label) + '</b><small>' + escapeHtml(area.hint) + '</small></button>';
@@ -2049,6 +2076,184 @@ Trend Mall`;
     return map[s] || s || "تم استلام الطلب";
   }
 
+
+  /*********************** V1856 - ماركت بليس مطبعجي + واتساب كامل ***********************/
+
+  function canManageMarketplace() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    const username = normalizeArabic(user.username || user.name || "");
+    return role === "admin" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+  }
+
+  function toggleMarketplaceDashboard() {
+    const card = $("marketplaceCard");
+    if (!card) return;
+    const can = canManageMarketplace();
+    card.classList.toggle("hidden", !can);
+    if (can) loadMarketplace(true);
+  }
+
+  async function loadMarketplace(forAdmin) {
+    try {
+      const params = forAdmin ? authParams({ includeInactive: "نعم" }) : {};
+      const res = await api("getMarketplace", params);
+      if (!res.success) {
+        if (forAdmin) setMsg("marketplaceStatus", res.message || "تعذر تحميل الماركت بليس.", true);
+        return;
+      }
+      state.marketplaceVendors = Array.isArray(res.vendors) ? res.vendors : [];
+      state.marketplaceProducts = Array.isArray(res.products) ? res.products : [];
+      if (forAdmin) renderMarketplaceAdmin();
+      renderCustomerMarketplace();
+    } catch (err) {
+      if (forAdmin) setMsg("marketplaceStatus", err.message || "خطأ في تحميل الماركت بليس.", true);
+    }
+  }
+
+  function marketVendorImage(vendor) {
+    return vendor.thumbnailUrl || vendor.imageUrl || vendor.fileUrl || "";
+  }
+
+  function marketProductImage(product) {
+    return product.thumbnailUrl || product.imageUrl || product.fileUrl || "";
+  }
+
+  function renderMarketplaceAdmin() {
+    const vendorSelect = $("marketProductVendor");
+    if (vendorSelect) {
+      vendorSelect.innerHTML = '<option value="">اختار البائع</option>' + (state.marketplaceVendors || []).map(function (v) {
+        return '<option value="' + escapeHtml(v.vendorCode || "") + '">' + escapeHtml(v.vendorName || v.name || "") + '</option>';
+      }).join("");
+    }
+    const box = $("marketplaceAdminList");
+    if (!box) return;
+    const vendors = state.marketplaceVendors || [];
+    const products = state.marketplaceProducts || [];
+    if (!vendors.length) { box.innerHTML = '<div class="dash-empty">لا توجد مساحات ماركت بليس حتى الآن.</div>'; return; }
+    box.innerHTML = vendors.map(function (v) {
+      const list = products.filter(function (p) { return p.vendorCode === v.vendorCode; });
+      return '<div class="market-admin-vendor">' +
+        '<div class="market-admin-head"><b>' + escapeHtml(v.vendorName || "مساحة") + '</b><span>' + escapeHtml(v.category || "") + ' • نسبة مطبعجي: ' + escapeHtml(v.commission || "0") + '%</span></div>' +
+        '<div class="market-admin-meta">واتساب: ' + escapeHtml(v.whatsapp || "-") + ' • مفعل: ' + escapeHtml(v.active || "نعم") + '</div>' +
+        '<div class="market-admin-products">' + (list.length ? list.map(function (p) { return '<span>' + escapeHtml(p.productName || "منتج") + ' - ' + escapeHtml(p.price || "") + ' ج / ' + escapeHtml(p.unit || "قطعة") + '</span>'; }).join("") : '<small>لم يتم إضافة منتجات بعد.</small>') + '</div>' +
+      '</div>';
+    }).join("");
+  }
+
+  async function saveMarketplaceVendor() {
+    if (!canManageMarketplace()) return;
+    const file = ($("marketVendorImage") && $("marketVendorImage").files && $("marketVendorImage").files[0]) ? $("marketVendorImage").files[0] : null;
+    const payload = authParams({
+      vendorCode: (($("marketVendorCode") || {}).value || "").trim(),
+      vendorName: (($("marketVendorName") || {}).value || "").trim(),
+      category: (($("marketVendorCategory") || {}).value || "").trim(),
+      whatsapp: (($("marketVendorWhatsapp") || {}).value || "").trim(),
+      commission: (($("marketVendorCommission") || {}).value || "0").trim(),
+      active: (($("marketVendorActive") || {}).value || "نعم"),
+      sortOrder: (($("marketVendorSort") || {}).value || "").trim(),
+      notes: (($("marketVendorNotes") || {}).value || "").trim()
+    });
+    try {
+      if (!payload.vendorName) { setMsg("marketplaceStatus", "اسم البائع/المساحة مطلوب.", true); return; }
+      if (file) {
+        if (file.size > 25 * 1024 * 1024) throw new Error("الصورة أكبر من 25MB.");
+        payload.fileName = file.name; payload.mimeType = file.type || "image/png"; payload.size = file.size || 0; payload.base64 = await fileToBase64(file);
+      }
+      setMsg("marketplaceStatus", "جاري حفظ مساحة الماركت بليس...", false);
+      const res = await apiPost("saveMarketplaceVendor", payload);
+      if (!res.success) throw new Error(res.message || "تعذر حفظ البائع.");
+      ["marketVendorCode","marketVendorName","marketVendorCategory","marketVendorWhatsapp","marketVendorSort","marketVendorNotes"].forEach(function(id){ const el=$(id); if(el) el.value=""; });
+      if ($("marketVendorCommission")) $("marketVendorCommission").value = "10";
+      if ($("marketVendorImage")) $("marketVendorImage").value = "";
+      setMsg("marketplaceStatus", res.message || "تم حفظ البائع.", false);
+      loadMarketplace(true);
+    } catch (err) { setMsg("marketplaceStatus", err.message || "خطأ في حفظ البائع.", true); }
+  }
+
+  async function saveMarketplaceProduct() {
+    if (!canManageMarketplace()) return;
+    const file = ($("marketProductImage") && $("marketProductImage").files && $("marketProductImage").files[0]) ? $("marketProductImage").files[0] : null;
+    const payload = authParams({
+      vendorCode: (($("marketProductVendor") || {}).value || "").trim(),
+      productCode: (($("marketProductCode") || {}).value || "").trim(),
+      productName: (($("marketProductName") || {}).value || "").trim(),
+      description: (($("marketProductDesc") || {}).value || "").trim(),
+      price: (($("marketProductPrice") || {}).value || "").trim(),
+      unit: (($("marketProductUnit") || {}).value || "قطعة"),
+      active: (($("marketProductActive") || {}).value || "نعم"),
+      sortOrder: (($("marketProductSort") || {}).value || "").trim()
+    });
+    try {
+      if (!payload.vendorCode) { setMsg("marketplaceStatus", "اختار البائع أولًا.", true); return; }
+      if (!payload.productName) { setMsg("marketplaceStatus", "اسم المنتج مطلوب.", true); return; }
+      if (file) {
+        if (file.size > 25 * 1024 * 1024) throw new Error("الصورة أكبر من 25MB.");
+        payload.fileName = file.name; payload.mimeType = file.type || "image/png"; payload.size = file.size || 0; payload.base64 = await fileToBase64(file);
+      }
+      setMsg("marketplaceStatus", "جاري حفظ المنتج...", false);
+      const res = await apiPost("saveMarketplaceProduct", payload);
+      if (!res.success) throw new Error(res.message || "تعذر حفظ المنتج.");
+      ["marketProductCode","marketProductName","marketProductDesc","marketProductPrice","marketProductSort"].forEach(function(id){ const el=$(id); if(el) el.value=""; });
+      if ($("marketProductImage")) $("marketProductImage").value = "";
+      setMsg("marketplaceStatus", res.message || "تم حفظ المنتج.", false);
+      loadMarketplace(true);
+    } catch (err) { setMsg("marketplaceStatus", err.message || "خطأ في حفظ المنتج.", true); }
+  }
+
+  function renderCustomerMarketplace() {
+    const board = $("customerMarketplaceBoard");
+    if (!board) return;
+    const vendors = (state.marketplaceVendors || []).filter(function (v) { return (v.active || "نعم") !== "لا"; });
+    if (!vendors.length) { board.innerHTML = '<div class="hint">سوق مطبعجي قيد التجهيز.</div>'; return; }
+    board.innerHTML = vendors.map(function (v, i) {
+      const img = marketVendorImage(v);
+      return '<button type="button" class="market-vendor-card" data-vendor-index="' + i + '">' +
+        (img ? '<img src="' + escapeHtml(img) + '" alt="" loading="lazy">' : '<span class="market-vendor-placeholder">🛍️</span>') +
+        '<b>' + escapeHtml(v.vendorName || "مساحة") + '</b><small>' + escapeHtml(v.category || "منتجات وخدمات") + '</small>' +
+      '</button>';
+    }).join("");
+    Array.prototype.forEach.call(board.querySelectorAll(".market-vendor-card"), function (btn) {
+      btn.onclick = function () { openCustomerMarketVendor(Number(btn.getAttribute("data-vendor-index") || 0)); };
+    });
+  }
+
+  function openCustomerMarketVendor(index) {
+    const vendors = (state.marketplaceVendors || []).filter(function (v) { return (v.active || "نعم") !== "لا"; });
+    const vendor = vendors[index];
+    if (!vendor) return;
+    state.customerSelectedMarketVendor = vendor;
+    const box = $("customerMarketplaceProducts");
+    if (!box) return;
+    const products = (state.marketplaceProducts || []).filter(function (p) { return p.vendorCode === vendor.vendorCode && (p.active || "نعم") !== "لا"; });
+    box.classList.remove("hidden");
+    box.innerHTML = '<div class="market-products-head"><b>' + escapeHtml(vendor.vendorName || "مساحة") + '</b><span>كل الطلبات تحت مظلة مطبعجي</span></div>' +
+      (products.length ? products.map(function (p, i) {
+        const img = marketProductImage(p);
+        return '<button type="button" class="market-product-card" data-product-index="' + i + '">' +
+          (img ? '<img src="' + escapeHtml(img) + '" alt="" loading="lazy">' : '<span>📦</span>') +
+          '<b>' + escapeHtml(p.productName || "منتج") + '</b><small>' + escapeHtml(p.description || "") + '</small><em>' + escapeHtml(p.price || "") + (p.price ? ' ج / ' : '') + escapeHtml(p.unit || "قطعة") + '</em>' +
+        '</button>';
+      }).join("") : '<div class="hint">لم يتم إضافة منتجات لهذه المساحة بعد.</div>');
+    Array.prototype.forEach.call(box.querySelectorAll(".market-product-card"), function (btn) {
+      btn.onclick = function () { openMarketplaceProductOrder(products[Number(btn.getAttribute("data-product-index") || 0)], vendor); };
+    });
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function openMarketplaceProductOrder(product, vendor) {
+    if (!product || !vendor) return;
+    state.customerSelectedMarketVendor = vendor;
+    state.customerSelectedMarketProduct = product;
+    state.customerSelectedSection = { name: product.productName || vendor.vendorName || "ماركت بليس", sectionType: "ماركت بليس", designPrice: 10 };
+    state.customerViewMode = "newOrder";
+    if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft();
+    renderCustomerHome();
+    const item = $("customerOrderItem"); if (item) item.value = product.productName || "";
+    const notes = $("customerOrderNotes"); if (notes) notes.value = "طلب من سوق مطبعجي: " + (vendor.vendorName || "") + (product.price ? " | السعر المبدئي: " + product.price + " ج" : "");
+    refreshCustomerPendingPreview();
+  }
+
   function renderCustomerHome() {
     const home = $("customerHomePanel");
     const orderPanel = $("customerNewOrderPanel");
@@ -2150,8 +2355,8 @@ Trend Mall`;
     return [file && file.name || "", file && file.size || 0, file && file.lastModified || 0].join("|");
   }
 
-  function syncCustomerPendingFilesFromInput() {
-    const input = $("customerOrderFiles");
+  function syncCustomerPendingFilesFromInput(evt) {
+    const input = evt && evt.target ? evt.target : ($("customerOrderFiles") || $("customerOrderDocs"));
     const selected = input && input.files ? Array.prototype.slice.call(input.files) : [];
     const current = state.customerPendingFiles || [];
     const existing = {};
@@ -2167,10 +2372,12 @@ Trend Mall`;
     });
 
     state.customerPendingFiles = current;
-    if (input) input.value = ""; // يسمح بإضافة صور جديدة بدون استبدال الاختيار السابق.
+    if (input) input.value = ""; // يسمح بإضافة صور أو مستندات جديدة بدون استبدال السابق.
     renderCustomerDraft();
     if (state.customerPendingFiles.length) {
-      setMsg("customerOrderMsg", "تم تجهيز " + state.customerPendingFiles.length + " ملف داخل الرسالة. اختر صورًا أخرى للإضافة أو اضغط إرسال.", false);
+      const imgCount = state.customerPendingFiles.filter(isImageAttachment).length;
+      const docCount = state.customerPendingFiles.length - imgCount;
+      setMsg("customerOrderMsg", "تم تجهيز " + imgCount + " صورة و " + docCount + " ملف داخل الرسالة. اختر مرفقات أخرى للإضافة أو اضغط إرسال.", false);
     }
   }
 
@@ -2481,6 +2688,7 @@ Trend Mall`;
     ["customerOrderItem", "customerOrderNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
     if ($("customerOrderQty")) $("customerOrderQty").value = "1";
     if ($("customerOrderFiles")) $("customerOrderFiles").value = "";
+    if ($("customerOrderDocs")) $("customerOrderDocs").value = "";
     revokeCustomerPendingFiles();
     if ($("customerHeatPress")) $("customerHeatPress").checked = false;
     if ($("customerFlyPrint")) $("customerFlyPrint").checked = false;
@@ -2543,13 +2751,16 @@ Trend Mall`;
     try {
       const draftId = await ensureCustomerDraftOnServer();
       const selectedBranch = state.customerSelectedFranchise;
+      const selectedVendor = state.customerSelectedMarketVendor;
+      const selectedProduct = state.customerSelectedMarketProduct;
       const branchNote = selectedBranch ? ("\nفرع مطبعجي المختار: " + branchPublicName(selectedBranch) + " | كود الفرع: " + (selectedBranch.branchCode || "")) : "";
+      const marketNote = selectedVendor ? ("\nسوق مطبعجي: " + (selectedVendor.vendorName || "") + " | كود البائع: " + (selectedVendor.vendorCode || "") + (selectedProduct ? " | المنتج: " + (selectedProduct.productName || "") : "")) : "";
       const res = await api("addCustomerDraftItem", customerAuthParams({
         draftId: draftId,
         department: dep,
         itemName: itemName || (files.length ? "ملفات مرفوعة" : "بند جديد"),
         qty: qty,
-        notes: notes + branchNote,
+        notes: notes + branchNote + marketNote,
         heatPress: heatPress,
         flyPrint: flyPrint,
         franchiseBranchCode: selectedBranch ? (selectedBranch.branchCode || "") : ""
@@ -2562,7 +2773,7 @@ Trend Mall`;
         department: dep,
         itemName: itemName || (files.length ? "ملفات مرفوعة" : "بند جديد"),
         qty: qty,
-        notes: notes + (state.customerSelectedFranchise ? ("\nفرع مطبعجي المختار: " + branchPublicName(state.customerSelectedFranchise)) : ""),
+        notes: notes + (state.customerSelectedFranchise ? ("\nفرع مطبعجي المختار: " + branchPublicName(state.customerSelectedFranchise)) : "") + (state.customerSelectedMarketVendor ? ("\nسوق مطبعجي: " + (state.customerSelectedMarketVendor.vendorName || "")) : ""),
         heatPress: heatPress,
         flyPrint: flyPrint,
         files: uploaded
@@ -2701,6 +2912,7 @@ Trend Mall`;
     toggleWhiteLabelDashboard();
     togglePhoneLeadsDashboard();
     toggleServiceRoutesDashboard();
+    toggleMarketplaceDashboard();
     setupAdminWorkspace();
     loadRows();
     updateUrgentNotificationButton();
@@ -2743,6 +2955,7 @@ Trend Mall`;
         toggleWhiteLabelDashboard();
         togglePhoneLeadsDashboard();
         toggleServiceRoutesDashboard();
+        toggleMarketplaceDashboard();
         setupAdminWorkspace();
         loadRows();
       };
@@ -4037,9 +4250,11 @@ Trend Mall`;
     on("customerShowNewOrderBtn", "click", function () { state.customerSelectedSection = null; state.customerViewMode = "newOrder"; if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft(); renderCustomerHome(); applyCustomerSelectedSectionToComposer(); });
     on("customerShowDesignerBtn", "click", function () { state.customerViewMode = "designer"; renderCustomerHome(); });
     on("customerUseGpsBtn", "click", requestCustomerGps);
+    on("customerRefreshMarketplaceBtn", "click", function () { loadMarketplace(false); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
     on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });
     on("customerOrderFiles", "change", syncCustomerPendingFilesFromInput);
+    on("customerOrderDocs", "change", syncCustomerPendingFilesFromInput);
     on("customerOrderItem", "input", refreshCustomerPendingPreview);
     on("customerOrderNotes", "input", refreshCustomerPendingPreview);
     on("customerOrderQty", "input", refreshCustomerPendingPreview);
@@ -4063,6 +4278,9 @@ Trend Mall`;
     bindPlatformAdEditor();
     on("saveServiceRouteBtn", "click", saveServiceRoute);
     on("refreshServiceRoutesBtn", "click", function () { loadServiceRoutes(true); });
+    on("saveMarketVendorBtn", "click", saveMarketplaceVendor);
+    on("saveMarketProductBtn", "click", saveMarketplaceProduct);
+    on("refreshMarketplaceBtn", "click", function () { loadMarketplace(true); });
     on("routeServiceSelect", "change", function () {
       const service = selectedRouteServiceName();
       const manual = $("routeServiceName");
@@ -4143,6 +4361,8 @@ Trend Mall`;
     if (copyPhoneLeadsButton) copyPhoneLeadsButton.addEventListener("click", copyPhoneLeads);
     const downloadPhoneLeadsButton = $("downloadPhoneLeadsBtn");
     if (downloadPhoneLeadsButton) downloadPhoneLeadsButton.addEventListener("click", downloadPhoneLeadsCsv);
+    const copyInviteButton = $("copyCustomerInviteLinksBtn");
+    if (copyInviteButton) copyInviteButton.addEventListener("click", copyCustomerInviteLinks);
 
     const saveKnowledgeButton = $("saveKnowledgeBtn");
     if (saveKnowledgeButton) saveKnowledgeButton.addEventListener("click", saveKnowledge);

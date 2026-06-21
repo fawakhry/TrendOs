@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>مطبعجي مصر V1855</title>
-  <link rel="stylesheet" href="styles.css?v=1855">
+  <title>مطبعجي مصر V1856</title>
+  <link rel="stylesheet" href="styles.css?v=1856">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1855 - تنظيم الإدارة + ربط الخدمات بالمطابع + إعلانات احترافية</p>
+    <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1855 - تنظيم الإدارة + ربط الخدمات بالمطابع + إعلانات احترافية</p>
+        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -83,7 +83,7 @@
     <section id="adminWorkspaceHub" class="admin-workspace-hub hidden">
       <div class="admin-hub-head">
         <b>مركز إدارة مطبعجي</b>
-        <span>كل حاجة في تاب واضح: تشغيل، فرنشايز، أعضاء، ردود، إعلانات.</span>
+        <span>كل حاجة في تاب واضح: تشغيل، رحمة، فرنشايز، ماركت بليس، أعضاء، ردود، إعلانات.</span>
       </div>
       <div id="adminWorkspaceTabs" class="admin-workspace-tabs"></div>
     </section>
@@ -199,6 +199,45 @@
       </div>
       <div id="serviceRoutesList" class="service-routes-list">
         <div class="dash-empty">لم يتم تحميل ربط الخدمات بعد.</div>
+      </div>
+    </section>
+
+
+    <section id="marketplaceCard" class="card marketplace-admin-card hidden">
+      <div class="table-tools">
+        <h3>ماركت بليس مطبعجي <span class="help-dot" title="بيع مساحة داخل منصة مطبعجي لأي بائع أو مطبعة أو محل. العميل يطلب تحت مظلة مطبعجي، ونسبة مطبعجي تتحسب على كل أوردر.">؟</span></h3>
+        <span id="marketplaceStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        أضف بائع/مساحة، ثم أضف منتجاته. العميل يشوف كارت البائع، يدخل يلاقي منتجاته، والطلب يفتح شات مطبعجي بنفس تجربة واتساب.
+      </div>
+      <div class="marketplace-form">
+        <input id="marketVendorCode" placeholder="كود البائع - اختياري">
+        <input id="marketVendorName" placeholder="اسم البائع/المساحة مثل: هدايا مريم">
+        <input id="marketVendorCategory" placeholder="التصنيف: هدايا / ملابس / طباعة / إكسسوارات">
+        <input id="marketVendorWhatsapp" placeholder="واتساب البائع أو رقم رحمة المسؤول">
+        <input id="marketVendorCommission" type="number" min="0" value="10" placeholder="نسبة مطبعجي %">
+        <select id="marketVendorActive"><option selected>نعم</option><option>لا</option></select>
+        <input id="marketVendorSort" type="number" placeholder="ترتيب الظهور">
+        <input id="marketVendorImage" type="file" accept="image/*">
+        <input id="marketVendorNotes" class="wide" placeholder="ملاحظات داخلية: طريقة التسليم، شروط البائع، التسوية">
+        <button id="saveMarketVendorBtn" class="primary" type="button">حفظ البائع/المساحة</button>
+      </div>
+      <div class="marketplace-form marketplace-product-form">
+        <select id="marketProductVendor"><option value="">اختار البائع</option></select>
+        <input id="marketProductCode" placeholder="كود المنتج - اختياري">
+        <input id="marketProductName" placeholder="اسم المنتج/الخدمة">
+        <input id="marketProductPrice" type="number" min="0" placeholder="السعر المبدئي">
+        <select id="marketProductUnit"><option selected>قطعة</option><option>متر</option><option>متر مربع</option><option>تصميم</option><option>أوردر</option></select>
+        <select id="marketProductActive"><option selected>نعم</option><option>لا</option></select>
+        <input id="marketProductSort" type="number" placeholder="ترتيب المنتج">
+        <input id="marketProductImage" type="file" accept="image/*">
+        <input id="marketProductDesc" class="wide" placeholder="وصف مختصر يظهر للعميل">
+        <button id="saveMarketProductBtn" class="primary" type="button">حفظ المنتج</button>
+        <button id="refreshMarketplaceBtn" class="ghost" type="button">تحديث الماركت</button>
+      </div>
+      <div id="marketplaceAdminList" class="marketplace-admin-list">
+        <div class="dash-empty">لم يتم تحميل الماركت بليس بعد.</div>
       </div>
     </section>
 
@@ -367,6 +406,7 @@
         <button id="loadPhoneLeadsBtn" class="primary" type="button">تجميع الأرقام</button>
         <button id="copyPhoneLeadsBtn" class="ghost" type="button">نسخ</button>
         <button id="downloadPhoneLeadsBtn" class="ghost" type="button">تصدير CSV</button>
+        <button id="copyCustomerInviteLinksBtn" class="ghost" type="button">نسخ دعوات المنصة</button>
       </div>
       <div id="phoneLeadsList" class="phone-leads-list">
         <div class="dash-empty">لم يتم تجميع أرقام بعد.</div>
@@ -648,7 +688,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1855 - تنظيم الإدارة + ربط الخدمات بالمطابع + إعلانات احترافية</p>
+        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -678,6 +718,18 @@
           <span>مساعد التصميم الذكي — قيد التجهيز داخل المنصة.</span>
         </button>
       </div>
+      <div class="customer-marketplace-panel">
+        <div class="table-tools">
+          <h3>سوق مطبعجي</h3>
+          <button id="customerRefreshMarketplaceBtn" class="ghost" type="button">تحديث السوق</button>
+        </div>
+        <p class="hint">مساحات وبائعين تحت مظلة مطبعجي. الطلب والدفع والتسليم يفضلوا من خلال مطبعجي.</p>
+        <div id="customerMarketplaceBoard" class="customer-marketplace-board">
+          <div class="hint">جاري تحميل سوق مطبعجي...</div>
+        </div>
+        <div id="customerMarketplaceProducts" class="customer-marketplace-products hidden"></div>
+      </div>
+
       <div class="customer-franchise-panel">
         <div class="table-tools">
           <h3>أقرب فرع مطبعجي معتمد</h3>
@@ -728,8 +780,12 @@
           </div>
 
           <div class="wa-type-row">
-            <label class="wa-attach-btn" for="customerOrderFiles" title="إرفاق صور وملفات">📎</label>
-            <input id="customerOrderFiles" class="wa-file-input" type="file" multiple>
+            <div class="wa-attach-menu" title="إرفاق مثل واتساب">
+              <label class="wa-attach-btn" for="customerOrderFiles" title="صور من المعرض">🖼️</label>
+              <label class="wa-attach-btn" for="customerOrderDocs" title="مستندات وملفات">📄</label>
+            </div>
+            <input id="customerOrderFiles" class="wa-file-input" type="file" accept="image/*" multiple>
+            <input id="customerOrderDocs" class="wa-file-input" type="file" accept=".pdf,.psd,.ai,.cdr,.eps,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf,application/zip" multiple>
             <input id="customerOrderItem" class="wa-message-input" placeholder="اكتب نوع الشغل: تابلوه 30×40 / مج / قص ليزر">
             <button id="customerAddDraftItemBtn" class="wa-send-btn" type="button" title="إرسال البند للشات">➤</button>
           </div>
@@ -890,7 +946,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1855"></script>
-<script src="app.js?v=1855"></script>
+<script src="config.js?v=1856"></script>
+<script src="app.js?v=1856"></script>
 </body>
 </html>
