@@ -2,8 +2,8 @@ window.TREND_API_URL = "https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4
 
 // ملفات مطبعجي من خارج المطبعة بعد تشغيل Cloudflare Tunnel.
 // قبل Cloudflare وللتجربة من نفس جهاز السيرفر فقط استخدم: http://127.0.0.1:5050
-window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
-window.MATBAGY_FILE_SERVER_URL = "http://127.0.0.1:5050";
+window.MATBAGY_REMOTE_FILES_URL = "http://192.168.1.36:5050";
+window.MATBAGY_FILE_SERVER_URL = "http://192.168.1.36:5050";
 
 // الحسابات المسموح لها بزر ملفات مطبعجي داخل شاشة الموظف.
 window.MATBAGY_FILES_ALLOWED_EMPLOYEES = ["ضياء", "جابر", "وائل", "diaa", "gaber", "wael"];
