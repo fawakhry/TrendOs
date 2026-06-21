@@ -930,3 +930,174 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .design-offer-actions button{padding:8px 12px;border-radius:12px;font-size:12px;}
 @media(max-width:850px){.platform-section-form{grid-template-columns:1fr}.platform-section-form .wide{grid-column:auto}.customer-platform-sections{grid-template-columns:1fr 1fr}.platform-section-card{min-height:160px}}
 @media(max-width:520px){.customer-platform-sections{grid-template-columns:1fr}.platform-section-card{min-height:150px}}
+
+/* V1852 - Matbagy Egypt franchise foundation */
+.franchise-admin-card,
+.customer-franchise-box {
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.92), rgba(255,255,255,0.98));
+}
+
+.franchise-branch-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.franchise-branch-form .wide {
+  grid-column: 1 / -1;
+}
+
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #111827;
+  font-size: 13px;
+}
+
+.franchise-admin-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.franchise-admin-item {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.franchise-admin-item b,
+.franchise-admin-item span,
+.franchise-admin-item small {
+  display: block;
+}
+
+.franchise-admin-item span {
+  color: #475569;
+  margin-top: 3px;
+}
+
+.franchise-admin-item small {
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.franchise-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: #059669;
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 8px 22px rgba(5, 150, 105, 0.25);
+}
+
+.customer-franchise-box {
+  margin: 18px 0;
+  padding: 16px;
+  border-radius: 20px;
+}
+
+.franchise-home-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.franchise-home-head h3,
+.franchise-home-head p {
+  margin: 0;
+}
+
+.franchise-home-head p {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.soft-status {
+  display: block;
+  color: #059669;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.customer-franchise-branches {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.franchise-branch-card {
+  text-align: right;
+  border: 1px solid #d1fae5;
+  background: #fff;
+  border-radius: 18px;
+  padding: 14px;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.franchise-branch-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+}
+
+.franchise-card-top span {
+  display: inline-flex;
+  background: #ecfdf5;
+  color: #047857;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.franchise-card-top b,
+.franchise-branch-card p,
+.franchise-branch-card small,
+.franchise-branch-card em {
+  display: block;
+}
+
+.franchise-card-top b {
+  color: #064e3b;
+  font-size: 15px;
+}
+
+.franchise-branch-card p {
+  color: #475569;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.franchise-branch-card small {
+  color: #0f766e;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.franchise-branch-card em {
+  color: #64748b;
+  font-size: 12px;
+  font-style: normal;
+}

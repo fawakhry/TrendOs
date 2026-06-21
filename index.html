@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها V1851</title>
-  <link rel="stylesheet" href="styles.css?v=1851">
+  <title>مطبعجي مصر V1852</title>
+  <link rel="stylesheet" href="styles.css?v=1850">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">منصة مطبعجي بنها V1851 - أقسام المنصة الديناميكية + واتس الخدمات</p>
+    <p class="version-badge">مطبعجي مصر V1852 - تأسيس الفروع والفرنشايز</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1851 - أقسام المنصة الديناميكية + واتس الخدمات</p>
+        <p class="version-badge">مطبعجي مصر V1852 - تأسيس الفروع والفرنشايز</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -115,45 +115,52 @@
     </section>
 
 
-    <section id="platformSectionsCard" class="card platform-sections-admin-card hidden">
+
+
+    <section id="franchiseBranchesCard" class="card franchise-admin-card hidden">
       <div class="table-tools">
-        <h3>إدارة أقسام المنصة</h3>
-        <span id="platformSectionsStatus"></span>
+        <h3>إدارة فروع وفرنشايز مطبعجي مصر</h3>
+        <span id="franchiseBranchesStatus"></span>
       </div>
       <div class="hint strong-hint">
-        من هنا ضياء يضيف خدمات مثل DTF / Banner / UV / DTF UV. أي قسم مفعل يظهر للعميل ككارت جميل، ويفتح شات طلب خاص بالخدمة.
+        القاعدة: العميل يتعامل مع واجهة مطبعجي. الفرع قد يكون استلام وتسليم فقط، أو فرنشايز كامل، أو شريك تنفيذ مخفي. التسليم النهائي والمتابعة باسم مطبعجي.
       </div>
-      <div class="platform-section-form">
-        <input id="platformSectionCode" placeholder="كود القسم - اختياري">
-        <input id="platformSectionName" placeholder="اسم القسم مثل DTF أو Banner">
-        <input id="platformSectionDescription" placeholder="وصف قصير يظهر للعميل">
-        <select id="platformSectionType">
-          <option selected>طباعة</option>
-          <option>ليزر</option>
-          <option>مورد خارجي</option>
-          <option>خدمة تصميم</option>
+      <div class="franchise-branch-form">
+        <input id="franchiseBranchCode" placeholder="كود الفرع - اختياري">
+        <input id="franchiseBrandName" placeholder="اسم واجهة الفرع مثل مطبعجي بنها 1">
+        <input id="franchisePartnerName" placeholder="اسم الشريك/المطبعة داخليًا - لا يظهر للعميل">
+        <input id="franchiseGovernorate" placeholder="المحافظة">
+        <input id="franchiseCity" placeholder="المدينة">
+        <input id="franchisePublicArea" placeholder="المنطقة الظاهرة للعميل مثل بنها الجديدة">
+        <input id="franchiseLat" placeholder="Latitude GPS">
+        <input id="franchiseLng" placeholder="Longitude GPS">
+        <select id="franchiseRole">
+          <option selected>فرنشايز كامل</option>
+          <option>استلام وتسليم فقط</option>
+          <option>تنفيذ + تسليم</option>
+          <option>شريك تنفيذ مخفي</option>
         </select>
-        <select id="platformSectionExecution">
-          <option selected>وسيط</option>
-          <option>داخلي</option>
-          <option>مورد خارجي</option>
-          <option>شريك مستضاف</option>
+        <select id="franchiseVisibility">
+          <option selected>ظاهر كفرع مطبعجي</option>
+          <option>ظاهر باسم عام</option>
+          <option>مخفي</option>
         </select>
-        <select id="platformSectionActive">
+        <select id="franchiseActive">
           <option selected>نعم</option>
           <option>لا</option>
         </select>
-        <input id="platformSectionSort" type="number" placeholder="ترتيب الظهور">
-        <input id="platformSectionDesignPrice" type="number" min="0" value="10" placeholder="سعر خدمة التصميم">
-        <input id="platformSectionSupplier" placeholder="اسم المورد/المطبعة - اختياري">
-        <input id="platformSectionWhatsapp" placeholder="رقم واتساب المورد - اختياري">
-        <input id="platformSectionNotes" class="wide" placeholder="ملاحظات داخلية">
-        <input id="platformSectionImage" type="file" accept="image/*">
-        <button id="savePlatformSectionBtn" class="primary" type="button">حفظ القسم</button>
-        <button id="refreshPlatformSectionsBtn" class="ghost" type="button">تحديث الأقسام</button>
+        <input id="franchiseCommission" type="number" min="0" value="15" placeholder="نسبة مطبعجي %">
+        <input id="franchiseMonthly" type="number" min="0" placeholder="اشتراك شهري - اختياري">
+        <label class="inline-check"><input id="franchiseCanReceive" type="checkbox" checked> يستلم أوردرات</label>
+        <label class="inline-check"><input id="franchiseCanExecute" type="checkbox" checked> ينفذ</label>
+        <label class="inline-check"><input id="franchiseCanDeliver" type="checkbox" checked> يسلم باسم مطبعجي</label>
+        <input id="franchisePublicDescription" class="wide" placeholder="وصف يظهر للعميل مثل: استلام وتسليم ومتابعة من خلال مطبعجي">
+        <input id="franchiseNotes" class="wide" placeholder="ملاحظات داخلية وشروط منع التعامل المباشر">
+        <button id="saveFranchiseBranchBtn" class="primary" type="button">حفظ الفرع / الفرنشايز</button>
+        <button id="refreshFranchiseBranchesBtn" class="ghost" type="button">تحديث الفروع</button>
       </div>
-      <div id="platformSectionsList" class="platform-sections-admin-list">
-        <div class="dash-empty">لم يتم تحميل أقسام المنصة بعد.</div>
+      <div id="franchiseBranchesList" class="franchise-admin-list">
+        <div class="dash-empty">لم يتم تحميل فروع مطبعجي بعد.</div>
       </div>
     </section>
 
@@ -425,7 +432,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1851 - أقسام المنصة الديناميكية + واتس الخدمات</p>
+        <p class="version-badge">مطبعجي مصر V1852 - تأسيس الفروع والفرنشايز</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -436,9 +443,23 @@
 
     <section id="customerHomePanel" class="card customer-home-card">
       <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
+
       <h3>أقسام المنصة</h3>
       <div id="customerPlatformSections" class="customer-platform-sections"><div class="hint">جاري تحميل أقسام الخدمات...</div></div>
-      <h3>اختصارات سريعة</h3>
+
+      <div class="customer-franchise-box">
+        <div class="franchise-home-head">
+          <div>
+            <h3>أقرب فرع مطبعجي معتمد</h3>
+            <p>افتح GPS لترتيب الفروع حسب الأقرب، أو ابعت الطلب لمطبعجي ونختار لك أنسب فرع داخليًا.</p>
+          </div>
+          <button id="customerUseGpsBtn" class="ghost" type="button">📍 استخدم موقعي</button>
+        </div>
+        <span id="customerFranchiseStatus" class="soft-status"></span>
+        <div id="customerFranchiseBranches" class="customer-franchise-branches"><div class="hint">جاري تحميل فروع مطبعجي المعتمدة...</div></div>
+      </div>
+
+      <h3>خدماتك على منصة مطبعجي مصر</h3>
       <div class="customer-service-grid">
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
           <b>+ طلب جديد</b>
@@ -660,7 +681,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1851"></script>
-<script src="app.js?v=1851"></script>
+<script src="config.js?v=1850"></script>
+<script src="app.js?v=1850"></script>
 </body>
 </html>
