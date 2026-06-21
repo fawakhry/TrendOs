@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1853_BRANCH_CUSTOMERS_STAFF_WHATSAPP_PROOF";
+  const UI_VERSION = "1854_WHITELABEL_BROOM_PHONE_LEADS";
 
   const screens = {
     service: "خدمة العملاء",
@@ -159,7 +159,9 @@
     customerLocation: null,
     customerSelectedFranchise: null,
     customerSelectedSection: null,
-    customerDesignOfferItemId: ""
+    customerDesignOfferItemId: "",
+    whiteLabelSettings: null,
+    leadNumbers: []
   };
 
   const $ = (id) => document.getElementById(id);
@@ -834,6 +836,7 @@ Trend Mall`;
     loadPlatformAds(false);
     loadPlatformSections(false);
     loadFranchiseBranches(false);
+    loadWhiteLabelSettings(false);
   }
 
   function renderCustomerHeader() {
@@ -845,6 +848,224 @@ Trend Mall`;
       const branchName = c.branchName || c.franchiseBranchName || c.branchPublicName || "";
       meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | " + (branchName ? ("فرعك: " + branchName + " | ") : "") + "منصة مطبعجي بنها";
     }
+  }
+
+
+  /*********************** V1854 - نسخة مطابع White Label + سحب أرقام العملاء الآمن ***********************/
+
+  function canManageWhiteLabel() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    const username = normalizeArabic(user.username || user.name || "");
+    return role === "admin" || username === "ضياء";
+  }
+
+  function toggleWhiteLabelDashboard() {
+    const card = $("whiteLabelCard");
+    if (!card) return;
+    const can = canManageWhiteLabel();
+    card.classList.toggle("hidden", !can);
+    if (can) loadWhiteLabelSettings(true);
+  }
+
+  function togglePhoneLeadsDashboard() {
+    const card = $("phoneLeadsCard");
+    if (!card) return;
+    const can = canManageWhiteLabel();
+    card.classList.toggle("hidden", !can);
+  }
+
+  function applyWhiteLabelBrand(settings) {
+    settings = settings || state.whiteLabelSettings || {};
+    const platformName = text(settings.platformName || settings.brandName || "").trim();
+    const primaryColor = text(settings.primaryColor || "").trim();
+    const whatsapp = text(settings.whatsappNumber || "").trim();
+    if (platformName) {
+      document.title = platformName + " - منصة الطلبات";
+      const title = $("brandTitle");
+      if (title) title.textContent = platformName;
+      const entry = $("entryBrandTitle");
+      if (entry) entry.textContent = platformName;
+    }
+    if (primaryColor) document.documentElement.style.setProperty("--brand", primaryColor);
+    if (whatsapp) window.MATBAGY_BRAND_WHATSAPP = whatsapp;
+  }
+
+  async function loadWhiteLabelSettings(forAdmin) {
+    try {
+      const params = forAdmin ? authParams({}) : {};
+      const res = await api("getWhiteLabelSettings", params);
+      if (!res.success) {
+        if (forAdmin) setMsg("whiteLabelStatus", res.message || "تعذر تحميل إعدادات النسخة.", true);
+        return;
+      }
+      state.whiteLabelSettings = res.settings || {};
+      applyWhiteLabelBrand(state.whiteLabelSettings);
+      if (forAdmin) renderWhiteLabelDashboard();
+    } catch (err) {
+      if (forAdmin) setMsg("whiteLabelStatus", err.message || "خطأ في تحميل إعدادات النسخة.", true);
+    }
+  }
+
+  function checkboxValue(id) {
+    const el = $(id);
+    return el && el.checked ? "نعم" : "لا";
+  }
+
+  function setChecked(id, value, defaultChecked) {
+    const el = $(id);
+    if (!el) return;
+    const v = text(value || "");
+    el.checked = v ? (v !== "لا") : !!defaultChecked;
+  }
+
+  function renderWhiteLabelDashboard() {
+    const s = state.whiteLabelSettings || {};
+    const set = function (id, value) { const el = $(id); if (el) el.value = value || ""; };
+    set("whiteLabelPlatformName", s.platformName || "");
+    set("whiteLabelOwnerName", s.ownerName || "");
+    set("whiteLabelWhatsapp", s.whatsappNumber || "");
+    set("whiteLabelDomain", s.domain || "");
+    set("whiteLabelPrimaryColor", s.primaryColor || "#075e54");
+    set("whiteLabelLogoUrl", s.logoUrl || "");
+    set("whiteLabelNotes", s.notes || "");
+    setChecked("whiteFeatureCustomerPortal", s.featureCustomerPortal, true);
+    setChecked("whiteFeatureOrderChat", s.featureOrderChat, true);
+    setChecked("whiteFeatureDesigner", s.featureDesigner, true);
+    setChecked("whiteFeatureMatbagySheets", s.featureMatbagySheets, false);
+    setChecked("whiteFeatureAds", s.featureAds, true);
+    setChecked("whiteFeatureFranchise", s.featureFranchise, false);
+    setChecked("whiteFeatureMarketplace", s.featureMarketplace, false);
+    setChecked("whiteFeaturePhoneLeads", s.featurePhoneLeads, false);
+    renderWhiteLabelFeatureSummary(s);
+  }
+
+  function renderWhiteLabelFeatureSummary(settings) {
+    const box = $("whiteLabelSummary");
+    if (!box) return;
+    settings = settings || state.whiteLabelSettings || {};
+    const kept = [];
+    const removed = [];
+    const pairs = [
+      ["بوابة العملاء", settings.featureCustomerPortal, true],
+      ["شات الطلبات والملفات", settings.featureOrderChat, true],
+      ["المصمم الذكي كخدمة", settings.featureDesigner, true],
+      ["لوحة إعلانات العملاء", settings.featureAds, true],
+      ["مطبعجي شيتات", settings.featureMatbagySheets, false],
+      ["فروع وفرنشايز مطبعجي مصر", settings.featureFranchise, false],
+      ["Marketplace الشركاء القومي", settings.featureMarketplace, false],
+      ["سحب/تجميع أرقام العملاء", settings.featurePhoneLeads, false]
+    ];
+    pairs.forEach(function (p) {
+      const value = text(p[1] || "");
+      const active = value ? value !== "لا" : !!p[2];
+      (active ? kept : removed).push(p[0]);
+    });
+    box.innerHTML = '<div class="white-summary-col"><b>يتساب للمطبعة</b><span>' + kept.map(escapeHtml).join(' - ') + '</span></div>' +
+      '<div class="white-summary-col"><b>يتشال/يتقفل عنها</b><span>' + removed.map(escapeHtml).join(' - ') + '</span></div>';
+  }
+
+  async function saveWhiteLabelSettings() {
+    if (!canManageWhiteLabel()) return;
+    const payload = authParams({
+      platformName: (($("whiteLabelPlatformName") || {}).value || "").trim(),
+      ownerName: (($("whiteLabelOwnerName") || {}).value || "").trim(),
+      whatsappNumber: (($("whiteLabelWhatsapp") || {}).value || "").trim(),
+      domain: (($("whiteLabelDomain") || {}).value || "").trim(),
+      primaryColor: (($("whiteLabelPrimaryColor") || {}).value || "").trim(),
+      logoUrl: (($("whiteLabelLogoUrl") || {}).value || "").trim(),
+      notes: (($("whiteLabelNotes") || {}).value || "").trim(),
+      featureCustomerPortal: checkboxValue("whiteFeatureCustomerPortal"),
+      featureOrderChat: checkboxValue("whiteFeatureOrderChat"),
+      featureDesigner: checkboxValue("whiteFeatureDesigner"),
+      featureMatbagySheets: checkboxValue("whiteFeatureMatbagySheets"),
+      featureAds: checkboxValue("whiteFeatureAds"),
+      featureFranchise: checkboxValue("whiteFeatureFranchise"),
+      featureMarketplace: checkboxValue("whiteFeatureMarketplace"),
+      featurePhoneLeads: checkboxValue("whiteFeaturePhoneLeads")
+    });
+    if (!payload.platformName) {
+      setMsg("whiteLabelStatus", "اكتب اسم المنصة أو اسم المطبعة.", true);
+      return;
+    }
+    try {
+      setMsg("whiteLabelStatus", "جاري حفظ نسخة المطبعة...", false);
+      const res = await apiPost("saveWhiteLabelSettings", payload);
+      if (!res.success) {
+        setMsg("whiteLabelStatus", res.message || "فشل حفظ إعدادات النسخة.", true);
+        return;
+      }
+      state.whiteLabelSettings = res.settings || payload;
+      applyWhiteLabelBrand(state.whiteLabelSettings);
+      renderWhiteLabelDashboard();
+      setMsg("whiteLabelStatus", res.message || "تم حفظ إعدادات نسخة المطبعة.", false);
+    } catch (err) {
+      setMsg("whiteLabelStatus", err.message || "خطأ أثناء حفظ إعدادات النسخة.", true);
+    }
+  }
+
+  async function loadPhoneLeads() {
+    if (!canManageWhiteLabel()) return;
+    const source = (($("phoneLeadsSource") || {}).value || "customers");
+    const optInOnly = (($("phoneLeadsOptInOnly") || {}).checked) ? "نعم" : "لا";
+    const btn = $("loadPhoneLeadsBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري التجميع..."; }
+    try {
+      setMsg("phoneLeadsStatus", "جاري تجميع الأرقام من قاعدة بياناتك فقط...", false);
+      const res = await api("getLeadPhoneNumbers", authParams({ source: source, optInOnly: optInOnly }));
+      if (!res.success) {
+        setMsg("phoneLeadsStatus", res.message || "تعذر تحميل الأرقام.", true);
+        return;
+      }
+      state.leadNumbers = Array.isArray(res.numbers) ? res.numbers : [];
+      renderPhoneLeads();
+      setMsg("phoneLeadsStatus", "تم تجميع " + state.leadNumbers.length + " رقم صالح. استخدمها فقط لعملاء وافقوا على التواصل.", false);
+    } catch (err) {
+      setMsg("phoneLeadsStatus", err.message || "خطأ في تجميع الأرقام.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "تجميع الأرقام"; }
+    }
+  }
+
+  function renderPhoneLeads() {
+    const box = $("phoneLeadsList");
+    if (!box) return;
+    const rows = state.leadNumbers || [];
+    if (!rows.length) {
+      box.innerHTML = '<div class="dash-empty">لم يتم تجميع أرقام بعد.</div>';
+      return;
+    }
+    box.innerHTML = rows.slice(0, 300).map(function (r) {
+      return '<div class="phone-lead-row"><b>' + escapeHtml(r.phone || "") + '</b><span>' + escapeHtml(r.name || "عميل") + '</span><small>' + escapeHtml(r.source || "") + '</small></div>';
+    }).join('') + (rows.length > 300 ? '<div class="dash-empty">تم عرض أول 300 رقم فقط من أصل ' + rows.length + '.</div>' : '');
+  }
+
+  function copyPhoneLeads() {
+    const rows = state.leadNumbers || [];
+    if (!rows.length) { setMsg("phoneLeadsStatus", "لا توجد أرقام لنسخها.", true); return; }
+    const body = rows.map(function (r) { return [r.phone || "", r.name || "", r.source || ""].join("\t"); }).join("\n");
+    navigator.clipboard.writeText(body).then(function () {
+      setMsg("phoneLeadsStatus", "تم نسخ الأرقام. استخدمها في تواصل مسموح فقط.", false);
+    }).catch(function () {
+      setMsg("phoneLeadsStatus", "تعذر النسخ من المتصفح.", true);
+    });
+  }
+
+  function downloadPhoneLeadsCsv() {
+    const rows = state.leadNumbers || [];
+    if (!rows.length) { setMsg("phoneLeadsStatus", "لا توجد أرقام للتصدير.", true); return; }
+    const header = ["phone", "name", "source"];
+    const csv = [header.join(",")].concat(rows.map(function (r) {
+      return [r.phone || "", r.name || "", r.source || ""].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+    })).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "matbagy_customer_numbers.csv";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 500);
   }
 
 
@@ -2126,6 +2347,8 @@ Trend Mall`;
     togglePlatformAdsDashboard();
     togglePlatformSectionsDashboard();
     toggleFranchiseBranchesDashboard();
+    toggleWhiteLabelDashboard();
+    togglePhoneLeadsDashboard();
     loadRows();
     updateUrgentNotificationButton();
     startRefresh();
@@ -2164,6 +2387,8 @@ Trend Mall`;
         togglePlatformAdsDashboard();
         togglePlatformSectionsDashboard();
         toggleFranchiseBranchesDashboard();
+        toggleWhiteLabelDashboard();
+        togglePhoneLeadsDashboard();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -3544,6 +3769,17 @@ Trend Mall`;
     if (refreshFranchiseBranchesButton) refreshFranchiseBranchesButton.addEventListener("click", function () { loadFranchiseBranches(true); });
     const assignCustomerBranchButton = $("assignCustomerBranchBtn");
     if (assignCustomerBranchButton) assignCustomerBranchButton.addEventListener("click", assignCustomerToBranch);
+
+    const saveWhiteLabelButton = $("saveWhiteLabelBtn");
+    if (saveWhiteLabelButton) saveWhiteLabelButton.addEventListener("click", saveWhiteLabelSettings);
+    const refreshWhiteLabelButton = $("refreshWhiteLabelBtn");
+    if (refreshWhiteLabelButton) refreshWhiteLabelButton.addEventListener("click", function () { loadWhiteLabelSettings(true); });
+    const loadPhoneLeadsButton = $("loadPhoneLeadsBtn");
+    if (loadPhoneLeadsButton) loadPhoneLeadsButton.addEventListener("click", loadPhoneLeads);
+    const copyPhoneLeadsButton = $("copyPhoneLeadsBtn");
+    if (copyPhoneLeadsButton) copyPhoneLeadsButton.addEventListener("click", copyPhoneLeads);
+    const downloadPhoneLeadsButton = $("downloadPhoneLeadsBtn");
+    if (downloadPhoneLeadsButton) downloadPhoneLeadsButton.addEventListener("click", downloadPhoneLeadsCsv);
 
     const saveKnowledgeButton = $("saveKnowledgeBtn");
     if (saveKnowledgeButton) saveKnowledgeButton.addEventListener("click", saveKnowledge);

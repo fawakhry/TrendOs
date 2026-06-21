@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>مطبعجي مصر V1853</title>
-  <link rel="stylesheet" href="styles.css?v=1853">
+  <title>مطبعجي مصر V1854</title>
+  <link rel="stylesheet" href="styles.css?v=1854">
 </head>
 <body>
 <main class="app">
   <section id="entryView" class="card entry-card hidden">
-    <h1>منصة مطبعجي بنها</h1>
+    <h1 id="entryBrandTitle">منصة مطبعجي بنها</h1>
     <p>بوابة واحدة للموظفين والعملاء: تسجيل الأوردرات، متابعة الحالات، مطبعجي شيتات، واصنع تصميمك بنفسك.</p>
 
     <div class="entry-grid">
@@ -23,11 +23,11 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1853 - ربط العملاء بالفروع + محادثة موظف واتسابية</p>
+    <p class="version-badge">مطبعجي مصر V1854 - نسخة مطابع White Label + خدمة أرقام آمنة</p>
   </section>
 
   <section id="loginView" class="card login-card">
-    <h1>منصة مطبعجي بنها</h1>
+    <h1 id="brandTitle">منصة مطبعجي بنها</h1>
     <p>تسجيل دخول الموظفين</p>
 
     <label>اسم المستخدم</label>
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1853 - ربط العملاء بالفروع + محادثة موظف واتسابية</p>
+        <p class="version-badge">مطبعجي مصر V1854 - نسخة مطابع White Label + خدمة أرقام آمنة</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -173,6 +173,69 @@
       </div>
       <div id="franchiseBranchesList" class="franchise-admin-list">
         <div class="dash-empty">لم يتم تحميل فروع مطبعجي بعد.</div>
+      </div>
+    </section>
+
+
+    <section id="whiteLabelCard" class="card white-label-card hidden">
+      <div class="table-tools">
+        <h3>نسخة مطبعة / White Label</h3>
+        <span id="whiteLabelStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        دي نسخة تديها لأي مطبعة باسمها وواتسابها، لكن تقفل عنها خدمات مطبعجي الخاصة مثل شبكة الفروع، Marketplace مصر، وقاعدة العملاء الأساسية.
+      </div>
+      <div class="white-label-grid">
+        <input id="whiteLabelPlatformName" placeholder="اسم المنصة عند المطبعة مثل: مطبعة النور">
+        <input id="whiteLabelOwnerName" placeholder="اسم صاحب النسخة / المطبعة">
+        <input id="whiteLabelWhatsapp" placeholder="رقم واتساب المطبعة">
+        <input id="whiteLabelDomain" placeholder="الرابط أو الدومين الخاص بها - اختياري">
+        <input id="whiteLabelPrimaryColor" placeholder="لون الواجهة مثل #075e54" value="#075e54">
+        <input id="whiteLabelLogoUrl" placeholder="رابط اللوجو - اختياري">
+        <input id="whiteLabelNotes" class="wide" placeholder="ملاحظات الترخيص والبنود التجارية">
+      </div>
+      <div class="white-feature-panel">
+        <b>الخدمات المتاحة في نسخة المطبعة</b>
+        <label><input id="whiteFeatureCustomerPortal" type="checkbox" checked> بوابة العملاء</label>
+        <label><input id="whiteFeatureOrderChat" type="checkbox" checked> شات الطلبات والملفات مثل واتساب</label>
+        <label><input id="whiteFeatureDesigner" type="checkbox" checked> خدمة المصمم الذكي / طلب تصميم</label>
+        <label><input id="whiteFeatureAds" type="checkbox" checked> لوحة إعلانات العملاء</label>
+        <label><input id="whiteFeatureMatbagySheets" type="checkbox"> مطبعجي شيتات</label>
+        <label><input id="whiteFeatureFranchise" type="checkbox"> فروع وفرنشايز مطبعجي مصر</label>
+        <label><input id="whiteFeatureMarketplace" type="checkbox"> Marketplace الشركاء القومي</label>
+        <label><input id="whiteFeaturePhoneLeads" type="checkbox"> خدمة أرقام العملاء</label>
+      </div>
+      <div id="whiteLabelSummary" class="white-label-summary"></div>
+      <div class="row">
+        <button id="saveWhiteLabelBtn" class="primary" type="button">حفظ إعدادات نسخة المطبعة</button>
+        <button id="refreshWhiteLabelBtn" class="ghost" type="button">تحديث</button>
+      </div>
+      <div class="hint">
+        المقترح التجاري: النسخة الخارجية تاخد بوابة عملاء + واتس داخلي + طلبات + مصمم ذكي، ويتقفل عنها شبكة فروع مطبعجي مصر وقاعدة عملاء مطبعجي وأدوات التوسع الخاصة بك.
+      </div>
+    </section>
+
+    <section id="phoneLeadsCard" class="card phone-leads-card hidden">
+      <div class="table-tools">
+        <h3>خدمة أرقام العملاء الآمنة</h3>
+        <span id="phoneLeadsStatus"></span>
+      </div>
+      <div class="hint danger-hint">
+        الخدمة دي لتجميع أرقام العملاء الموجودين في قاعدة بياناتك أو أوردراتك فقط. لا تستخدمها لسحب أرقام ناس بدون موافقة أو من جروبات/مواقع خارجية.
+      </div>
+      <div class="phone-leads-tools">
+        <select id="phoneLeadsSource">
+          <option value="customers" selected>من شيت العملاء</option>
+          <option value="orders">من شيت الأوردرات</option>
+          <option value="all">العملاء + الأوردرات</option>
+        </select>
+        <label class="inline-check"><input id="phoneLeadsOptInOnly" type="checkbox"> المصرح لهم بالتواصل فقط لو العمود موجود</label>
+        <button id="loadPhoneLeadsBtn" class="primary" type="button">تجميع الأرقام</button>
+        <button id="copyPhoneLeadsBtn" class="ghost" type="button">نسخ</button>
+        <button id="downloadPhoneLeadsBtn" class="ghost" type="button">تصدير CSV</button>
+      </div>
+      <div id="phoneLeadsList" class="phone-leads-list">
+        <div class="dash-empty">لم يتم تجميع أرقام بعد.</div>
       </div>
     </section>
 
@@ -451,7 +514,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1853 - ربط العملاء بالفروع + محادثة موظف واتسابية</p>
+        <p class="version-badge">مطبعجي مصر V1854 - نسخة مطابع White Label + خدمة أرقام آمنة</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
