@@ -1573,3 +1573,8 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   color:#991b1b;
   font-weight:800;
 }
+
+
+/* V1856 Patch 07 - Employee quick tool buttons */
+.quick-tool-btn{background:#eef2ff!important;border-color:#c7d2fe!important;color:#3730a3!important;font-weight:800}
+.server-files-btn{background:#ecfdf5!important;border-color:#bbf7d0!important;color:#047857!important;font-weight:900}

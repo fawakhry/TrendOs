@@ -502,6 +502,60 @@ Trend Mall`;
     btn.classList.toggle("hidden", !employeeCanOpenRemoteFiles());
   }
 
+  function employeeToolKeys() {
+    const u = state.user || {};
+    return [u.username, u.name]
+      .map(function (v) { return normalizeArabic(v); })
+      .filter(Boolean);
+  }
+
+  function employeeCanOpenQuickTools() {
+    const allowed = Array.isArray(window.MATBAGY_EMPLOYEE_TOOLS_ALLOWED) ? window.MATBAGY_EMPLOYEE_TOOLS_ALLOWED : ["ضياء", "جابر", "وائل", "diaa", "gaber", "wael"];
+    const keys = employeeToolKeys();
+    return allowed.map(function (v) { return normalizeArabic(v); }).some(function (v) {
+      return v && keys.indexOf(v) !== -1;
+    });
+  }
+
+  function toggleEmployeeQuickToolButtons() {
+    ["matbagySheetsBtn", "matbagyRotetBtn"].forEach(function (id) {
+      const btn = $(id);
+      if (!btn) return;
+      btn.classList.toggle("hidden", !employeeCanOpenQuickTools());
+    });
+  }
+
+  function openEmployeeTool(baseUrl, windowName, label) {
+    const base = text(baseUrl || "").trim();
+    if (!base) {
+      alert("رابط " + label + " غير مضبوط في config.js");
+      return;
+    }
+    if (!employeeCanOpenQuickTools()) {
+      alert("هذا الزر متاح حالياً لحسابات ضياء وجابر ووائل فقط.");
+      return;
+    }
+    const u = state.user || {};
+    let url = base;
+    if (window.MATBAGY_EMPLOYEE_TOOL_SSO !== false) {
+      url = withQuery(url, {
+        from: "trendos",
+        username: u.username || u.name || "",
+        name: u.name || u.username || "",
+        token: u.token || ""
+      });
+    }
+    window.open(url, windowName || "Matbagy_Tool");
+  }
+
+  function openMatbagySheetsTool() {
+    openEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات");
+  }
+
+  function openMatbagyRotetTool() {
+    openEmployeeTool(window.MATBAGY_ROTET_URL, "Matbagy_Rotet", "روتيت مطبعجي");
+  }
+
   function withQuery(url, params) {
     const base = text(url || "").replace(/\/+$/, "");
     const query = new URLSearchParams();
@@ -3198,6 +3252,7 @@ Trend Mall`;
     toggleEndDayButton();
     toggleVisitorPreviewButton();
     toggleRemoteFilesButton();
+    toggleEmployeeQuickToolButtons();
   }
 
   function renderTabs() {
@@ -4551,6 +4606,8 @@ Trend Mall`;
     on("customerRefreshMarketplaceBtn", "click", function () { loadMarketplace(false); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
     on("remoteFilesBtn", "click", openRemoteFileServer);
+    on("matbagySheetsBtn", "click", openMatbagySheetsTool);
+    on("matbagyRotetBtn", "click", openMatbagyRotetTool);
     on("serverFilesBtn", "click", openLocalFileServer);
     on("customerFastPrintFilesBtn", "click", openCustomerFastPrintFiles);
     on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });
