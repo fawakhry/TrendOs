@@ -1363,3 +1363,160 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .market-products-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;background:#075e54;color:#fff;border-radius:14px;padding:10px 12px}.market-products-head span{font-size:12px;opacity:.85}
 .admin-tab-btn small{line-height:1.35}
 @media(max-width:760px){.marketplace-admin-card .marketplace-form{grid-template-columns:1fr}.marketplace-admin-card .marketplace-form .wide{grid-column:auto}.customer-marketplace-board{grid-template-columns:repeat(2,minmax(0,1fr))}.customer-marketplace-products{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-attach-menu .wa-attach-btn{width:36px;height:36px}}
+
+/* V1856 Patch 01 - معاينة الزائر + أماكن إعلانات الواجهة + عميل تجربة */
+.visitor-preview-btn{
+  background:#eef2ff;
+  border-color:#c7d2fe;
+  color:#3730a3;
+  font-weight:900;
+}
+.customer-actions-row{
+  max-width:620px;
+  align-items:stretch;
+}
+.customer-actions-row button{min-height:46px}
+.visitor-ad-editor-layout{
+  grid-template-columns:minmax(320px,1.25fr) minmax(260px,.75fr)!important;
+  align-items:start;
+}
+.ad-visitor-preview-shell{
+  background:#f8fafc;
+  border:1px solid #dbe4ea;
+  border-radius:22px;
+  padding:12px;
+  box-shadow:0 8px 22px rgba(16,42,67,.06);
+}
+.ad-preview-toolbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:10px;
+}
+.ad-preview-toolbar b{color:#0b725d;font-size:15px}
+.ad-preview-toolbar span{color:#64748b;font-size:12px;line-height:1.5}
+.ad-preview-phone{
+  background:#eef9f7;
+  border:1px solid #d7eee8;
+  border-radius:24px;
+  padding:12px;
+  min-height:560px;
+  overflow:auto;
+}
+.ad-preview-topbar{
+  background:#fff;
+  border:1px solid #dbe4ea;
+  border-radius:18px;
+  padding:12px 14px;
+  margin-bottom:10px;
+  box-shadow:0 4px 12px rgba(16,42,67,.04);
+}
+.ad-preview-topbar b{display:block;color:#0b725d;font-size:17px}
+.ad-preview-topbar small{display:block;color:#64748b;margin-top:3px}
+.ad-placement-target{
+  position:relative;
+  min-height:74px;
+  border:2px dashed #cbd5e1;
+  border-radius:18px;
+  background:rgba(255,255,255,.75);
+  margin:10px 0;
+  padding:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.ad-placement-target.active{
+  border-color:#0f8a70;
+  background:#ecfdf5;
+  box-shadow:0 0 0 4px rgba(15,138,112,.08);
+}
+.ad-placement-label{
+  position:absolute;
+  top:7px;
+  right:10px;
+  z-index:2;
+  background:rgba(15,138,112,.92);
+  color:#fff;
+  border-radius:999px;
+  padding:3px 9px;
+  font-size:11px;
+  font-weight:900;
+}
+.visitor-ad-editor-layout .ad-preview-wrap{
+  width:100%;
+  min-height:160px;
+  max-height:220px;
+  border-radius:16px;
+  overflow:hidden;
+  cursor:grab;
+  background:#e5e7eb;
+  border:1px solid rgba(15,138,112,.18);
+}
+.visitor-ad-editor-layout .ad-preview-wrap.dragging{cursor:grabbing}
+.visitor-ad-editor-layout .ad-preview-wrap img{
+  width:100%;
+  height:100%;
+  min-height:160px;
+  object-fit:cover;
+  transform-origin:center center;
+}
+.ad-preview-services{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+  margin:10px 0;
+}
+.ad-preview-services span,
+.ad-preview-market-row span{
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:15px;
+  padding:12px 10px;
+  color:#0f6f5c;
+  font-weight:900;
+  font-size:12px;
+  text-align:center;
+}
+.ad-preview-section-title{
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:15px;
+  padding:10px 12px;
+  color:#0b725d;
+  font-weight:900;
+  margin:10px 0;
+}
+.ad-preview-market-row{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+}
+.customer-ads-board[data-ad-placement="marketplace"],
+.customer-ads-board[data-ad-placement="branches"]{
+  margin:14px 0;
+}
+.customer-ads-board:empty{display:none!important}
+@media(max-width:920px){
+  .visitor-ad-editor-layout{grid-template-columns:1fr!important}
+  .ad-preview-toolbar{display:block}
+  .ad-preview-toolbar span{display:block;margin-top:5px}
+  .ad-preview-phone{min-height:480px}
+}
+
+/* V1856 Patch 01 - زر حذف الإعلان من لوحة الإدارة */
+.platform-ad-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:6px;
+}
+.platform-ad-actions .danger{
+  width:100%;
+  border-radius:12px;
+}
+@media(min-width:980px){
+  .platform-ad-form{
+    grid-template-columns:1.1fr 90px 110px 160px 1fr auto auto;
+  }
+}

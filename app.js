@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_FULL_WHATSAPP_MARKETPLACE_RAHMA";
+  const UI_VERSION = "1856_PATCH_01_VISITOR_ADS_DEMO_CUSTOMER_DELETE_ADS";
 
   const screens = {
     service: "خدمة العملاء",
@@ -168,6 +168,7 @@
     customerSelectedMarketVendor: null,
     customerSelectedMarketProduct: null,
     adminArea: "matbagy",
+    visitorPreview: false,
     platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" }
   };
 
@@ -851,11 +852,18 @@ Trend Mall`;
     const c = state.customer || {};
     const title = $("customerWelcomeTitle");
     const meta = $("customerMeta");
+    if (state.visitorPreview) {
+      if (title) title.textContent = "معاينة واجهة الزائر";
+      if (meta) meta.textContent = "هذه معاينة فقط من لوحة ضياء، لا تسجل أوردرات ولا تغير بيانات العملاء.";
+      updateCustomerPreviewChrome();
+      return;
+    }
     if (title) title.textContent = "أهلاً " + (c.name || "عميل مطبعجي");
     if (meta) {
       const branchName = c.branchName || c.franchiseBranchName || c.branchPublicName || "";
       meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | " + (branchName ? ("فرعك: " + branchName + " | ") : "") + "منصة مطبعجي بنها";
     }
+    updateCustomerPreviewChrome();
   }
 
 
@@ -1869,36 +1877,75 @@ Trend Mall`;
       const img = escapeHtml(adImageUrl(ad, 900));
       const url = escapeHtml(ad.fileUrl || "#");
       const active = text(ad.active || ad["مفعل"] || "نعم");
-      return '<div class="platform-ad-item premium-ad-item">' +
+      const adId = escapeHtml(ad.adId || ad.id || "");
+      return '<div class="platform-ad-item premium-ad-item" data-ad-id="' + adId + '">' +
         (img ? '<a class="ad-thumb-canvas" href="' + url + '" target="_blank" rel="noopener"><img src="' + img + '" alt="إعلان" loading="lazy" style="' + escapeHtml(adTransformStyle(ad)) + '"></a>' : '') +
         '<div><b>إعلان واجهة العملاء</b>' +
         '<span>مفعل: ' + escapeHtml(active || "نعم") + '</span>' +
+        '<small>المكان: ' + escapeHtml(adPlacement(ad) === 'marketplace' ? 'قبل سوق مطبعجي' : (adPlacement(ad) === 'branches' ? 'قبل فروع مطبعجي' : 'أعلى الواجهة')) + '</small>' +
         '<small>تكبير: ' + escapeHtml(ad.scale || 1) + ' | إزاحة: ' + escapeHtml(ad.offsetX || 0) + ' / ' + escapeHtml(ad.offsetY || 0) + '</small>' +
         '<small>' + escapeHtml(ad.createdAt || "") + '</small></div>' +
+        '<div class="platform-ad-actions"><button type="button" class="danger small delete-platform-ad" data-ad-id="' + adId + '">حذف الإعلان</button></div>' +
       '</div>';
     }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".delete-platform-ad"), function (btn) {
+      btn.onclick = function () { deletePlatformAd(btn.getAttribute("data-ad-id") || ""); };
+    });
   }
 
-  function renderCustomerAdsBoard() {
-    const board = $("customerAdsBoard");
+  function adPlacement(ad) {
+    const p = text(ad && (ad.placement || ad.adPlacement || ad["مكان الإعلان"] || "top")).trim();
+    if (p === "marketplace" || p === "قبل سوق مطبعجي") return "marketplace";
+    if (p === "branches" || p === "قبل فروع مطبعجي") return "branches";
+    return "top";
+  }
+
+  function renderAdsIntoBoard(boardId, placement, ads) {
+    const board = $(boardId);
     if (!board) return;
-    const ads = (state.platformAds || []).filter(function (ad) {
-      const active = text(ad.active || ad["مفعل"] || "نعم");
-      return active !== "لا";
-    });
-    if (!ads.length) {
+    const list = (ads || []).filter(function (ad) { return adPlacement(ad) === placement; });
+    if (!list.length) {
       board.classList.add("hidden");
       board.innerHTML = "";
       return;
     }
     board.classList.remove("hidden");
-    board.innerHTML = ads.slice(0, 3).map(function (ad) {
+    board.innerHTML = list.slice(0, 3).map(function (ad) {
       const img = escapeHtml(adImageUrl(ad, 1200));
       const url = escapeHtml(ad.fileUrl || "#");
       return '<a class="customer-ad-slide premium-customer-ad" href="' + url + '" target="_blank" rel="noopener">' +
         (img ? '<img src="' + img + '" alt="إعلان" loading="lazy" style="' + escapeHtml(adTransformStyle(ad)) + '">' : '') +
       '</a>';
     }).join("");
+  }
+
+  function renderCustomerAdsBoard() {
+    const ads = (state.platformAds || []).filter(function (ad) {
+      const active = text(ad.active || ad["مفعل"] || "نعم");
+      return active !== "لا";
+    });
+    renderAdsIntoBoard("customerAdsBoard", "top", ads);
+    renderAdsIntoBoard("customerAdsBoardMarketplace", "marketplace", ads);
+    renderAdsIntoBoard("customerAdsBoardBranches", "branches", ads);
+  }
+
+  async function deletePlatformAd(adId) {
+    if (!canManagePlatformAds()) return;
+    adId = text(adId).trim();
+    if (!adId) {
+      setMsg("platformAdsStatus", "رقم الإعلان غير موجود للحذف.", true);
+      return;
+    }
+    if (!window.confirm("هل تريد حذف هذا الإعلان من واجهة العملاء؟")) return;
+    setMsg("platformAdsStatus", "جاري حذف الإعلان...", false);
+    try {
+      const res = await api("deletePlatformAd", authParams({ adId: adId }));
+      if (!res.success) throw new Error(res.message || "تعذر حذف الإعلان.");
+      setMsg("platformAdsStatus", res.message || "تم حذف الإعلان.", false);
+      await loadPlatformAds(true);
+    } catch (err) {
+      setMsg("platformAdsStatus", err.message || "خطأ أثناء حذف الإعلان.", true);
+    }
   }
 
 
@@ -1911,10 +1958,26 @@ Trend Mall`;
     if ($("platformAdZoom")) $("platformAdZoom").value = "1";
     if ($("platformAdOffsetX")) $("platformAdOffsetX").value = "0";
     if ($("platformAdOffsetY")) $("platformAdOffsetY").value = "0";
+    if ($("platformAdPlacement")) $("platformAdPlacement").value = "top";
+    updatePlatformAdPlacementPreview();
     updatePlatformAdPreview();
   }
 
+  function updatePlatformAdPlacementPreview() {
+    const select = $("platformAdPlacement");
+    const wrap = $("platformAdPreviewWrap");
+    const placement = select && select.value ? select.value : "top";
+    const targetId = placement === "marketplace" ? "platformAdPreviewSlotMarketplace" : (placement === "branches" ? "platformAdPreviewSlotBranches" : "platformAdPreviewSlotTop");
+    const target = $(targetId);
+    if (target && wrap && wrap.parentNode !== target) target.appendChild(wrap);
+    ["platformAdPreviewSlotTop", "platformAdPreviewSlotMarketplace", "platformAdPreviewSlotBranches"].forEach(function (id) {
+      const el = $(id);
+      if (el) el.classList.toggle("active", id === targetId);
+    });
+  }
+
   function updatePlatformAdPreview() {
+    updatePlatformAdPlacementPreview();
     const preview = $("platformAdPreviewImg");
     const wrap = $("platformAdPreviewWrap");
     const ed = state.platformAdEditor || {};
@@ -1941,6 +2004,7 @@ Trend Mall`;
     if ($("platformAdZoom")) $("platformAdZoom").value = "1";
     if ($("platformAdOffsetX")) $("platformAdOffsetX").value = "0";
     if ($("platformAdOffsetY")) $("platformAdOffsetY").value = "0";
+    updatePlatformAdPlacementPreview();
     updatePlatformAdPreview();
   }
 
@@ -1962,11 +2026,12 @@ Trend Mall`;
         setPlatformAdEditorFile(file);
       });
     }
-    ["platformAdZoom", "platformAdOffsetX", "platformAdOffsetY"].forEach(function (id) {
+    ["platformAdZoom", "platformAdOffsetX", "platformAdOffsetY", "platformAdPlacement"].forEach(function (id) {
       const el = $(id);
       if (el && !el.dataset.adBound) {
         el.dataset.adBound = "1";
         el.addEventListener("input", syncPlatformAdEditorFromInputs);
+        el.addEventListener("change", syncPlatformAdEditorFromInputs);
       }
     });
     const resetBtn = $("platformAdResetViewBtn");
@@ -2042,6 +2107,7 @@ Trend Mall`;
         adOffsetX: String((state.platformAdEditor || {}).offsetX || 0),
         adOffsetY: String((state.platformAdEditor || {}).offsetY || 0),
         adFit: (($("platformAdFit") || {}).value || "cover"),
+        adPlacement: (($("platformAdPlacement") || {}).value || "top"),
         fileName: file.name,
         mimeType: file.type || "image/png",
         size: file.size || 0,
@@ -2277,6 +2343,7 @@ Trend Mall`;
   }
 
   async function loadCustomerOrders() {
+    if (state.visitorPreview) { state.customerOrders = []; renderCustomerOrders(); const status = $("customerOrdersStatus"); if (status) status.textContent = "المعاينة لا تعرض أوردرات حقيقية."; return; }
     if (!state.customer) return;
     const status = $("customerOrdersStatus");
     if (status) status.textContent = "جاري تحميل أوردراتك...";
@@ -2729,6 +2796,7 @@ Trend Mall`;
   }
 
   async function addCustomerDraftItem() {
+    if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط. استخدم عميل التجربة ضياء / 1234 لإرسال طلب حقيقي للتجربة.", true); return; }
     if (!state.customer || state.customerDraftBusy) return;
     setMsg("customerOrderMsg", "", false);
     const dep = ($("customerOrderDepartment") || {}).value || "طباعة";
@@ -2790,6 +2858,7 @@ Trend Mall`;
   }
 
   async function submitCustomerDraft() {
+    if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط. استخدم عميل التجربة ضياء / 1234 لإرسال طلب حقيقي للتجربة.", true); return; }
     if (!state.customer || state.customerDraftBusy) return;
     const draft = ensureCustomerDraftStarted();
     if (!draft.draftId || !draft.items.length) {
@@ -2891,8 +2960,78 @@ Trend Mall`;
   }
 
   function customerLogout() {
+    if (state.visitorPreview) {
+      closeVisitorPreview();
+      return;
+    }
     clearCustomerSession();
     showEntryChoice();
+  }
+
+  function canOpenVisitorPreview() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    const username = normalizeArabic(user.username || user.name || "");
+    return role === "admin" || username === "ضياء";
+  }
+
+  function toggleVisitorPreviewButton() {
+    const btn = $("visitorPreviewBtn");
+    if (!btn) return;
+    btn.classList.toggle("hidden", !canOpenVisitorPreview());
+  }
+
+  function updateCustomerPreviewChrome() {
+    const preview = !!state.visitorPreview;
+    const changeBtn = $("customerChangePassBtn");
+    const logoutBtn = $("customerLogoutBtn");
+    const ordersBtn = $("customerShowOrdersBtn");
+    if (changeBtn) changeBtn.classList.toggle("hidden", preview);
+    if (logoutBtn) {
+      logoutBtn.textContent = preview ? "رجوع للوحة ضياء" : "خروج";
+      logoutBtn.classList.toggle("danger", !preview);
+      logoutBtn.classList.toggle("primary", preview);
+    }
+    if (ordersBtn) {
+      ordersBtn.disabled = preview;
+      ordersBtn.title = preview ? "المعاينة للواجهة فقط بدون أوردرات حقيقية." : "";
+    }
+  }
+
+  function openVisitorPreview() {
+    if (!canOpenVisitorPreview()) return;
+    state.visitorPreview = true;
+    state.customer = {
+      customerCode: "PREVIEW",
+      name: "زائر تجربة",
+      token: "",
+      branchName: "واجهة مطبعجي كما تظهر للزائر"
+    };
+    state.customerViewMode = "home";
+    showCustomerMain();
+    renderCustomerHeader();
+    renderCustomerHome();
+    updateCustomerPreviewChrome();
+    loadPlatformAds(false);
+    loadPlatformSections(false);
+    loadFranchiseBranches(false);
+    loadMarketplace(false);
+    loadWhiteLabelSettings(false);
+  }
+
+  function closeVisitorPreview() {
+    state.visitorPreview = false;
+    state.customer = null;
+    state.customerDraft = null;
+    showMain();
+    updateCustomerPreviewChrome();
+    renderHeader();
+    toggleVisitorPreviewButton();
+    renderTabs();
+    setupAdminWorkspace();
+    applyAdminWorkspaceTab();
+    loadRows(false);
+    startRefresh();
   }
 
   function bootMain() {
@@ -2926,6 +3065,7 @@ Trend Mall`;
     $("roleLabel").textContent = "القسم: " + (user.department || "-") + " | الصلاحية: " + (user.role || "-");
     $("screenTitle").textContent = screens[state.screen] || "الأوردرات";
     toggleEndDayButton();
+    toggleVisitorPreviewButton();
   }
 
   function renderTabs() {
@@ -3911,6 +4051,25 @@ Trend Mall`;
     }
   }
 
+  async function ensureDemoCustomer() {
+    if (!canOpenVisitorPreview()) return;
+    const btn = $("createDemoCustomerBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري تجهيز عميل التجربة..."; }
+    setMsg("addCustomerStatus", "جاري تجهيز عميل تجربة ضياء...", false);
+    try {
+      const res = await api("ensureDemoCustomer", authParams({}));
+      if (!res.success) {
+        setMsg("addCustomerStatus", res.message || "تعذر تجهيز عميل التجربة.", true);
+        return;
+      }
+      setMsg("addCustomerStatus", res.message || "تم تجهيز عميل التجربة: كود الشات diaa وكلمة المرور 1234.", false);
+    } catch (err) {
+      setMsg("addCustomerStatus", err.message || "خطأ أثناء تجهيز عميل التجربة.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "تجهيز عميل تجربة ضياء / 1234"; }
+    }
+  }
+
   async function createCustomer() {
     setMsg("addCustomerStatus", "", false);
 
@@ -4275,6 +4434,8 @@ Trend Mall`;
     on("customerImageDeleteBtn", "click", deleteCurrentPendingImage);
     on("uploadPlatformAdBtn", "click", uploadPlatformAd);
     on("refreshPlatformAdsBtn", "click", function () { loadPlatformAds(true); });
+    on("visitorPreviewBtn", "click", openVisitorPreview);
+    on("createDemoCustomerBtn", "click", ensureDemoCustomer);
     bindPlatformAdEditor();
     on("saveServiceRouteBtn", "click", saveServiceRoute);
     on("refreshServiceRoutesBtn", "click", function () { loadServiceRoutes(true); });
