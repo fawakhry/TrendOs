@@ -481,12 +481,55 @@ Trend Mall`;
     return direct || remoteFileServerUrl();
   }
 
+  function filesEmployeeKeys() {
+    const u = state.user || {};
+    return [u.username, u.name]
+      .map(function (v) { return normalizeArabic(v); })
+      .filter(Boolean);
+  }
+
+  function employeeCanOpenRemoteFiles() {
+    const allowed = Array.isArray(window.MATBAGY_FILES_ALLOWED_EMPLOYEES) ? window.MATBAGY_FILES_ALLOWED_EMPLOYEES : ["ضياء", "جابر", "وائل", "diaa", "gaber", "wael"];
+    const keys = filesEmployeeKeys();
+    return allowed.map(function (v) { return normalizeArabic(v); }).some(function (v) {
+      return v && keys.indexOf(v) !== -1;
+    });
+  }
+
+  function toggleRemoteFilesButton() {
+    const btn = $("remoteFilesBtn");
+    if (!btn) return;
+    btn.classList.toggle("hidden", !employeeCanOpenRemoteFiles());
+  }
+
+  function withQuery(url, params) {
+    const base = text(url || "").replace(/\/+$/, "");
+    const query = new URLSearchParams();
+    Object.keys(params || {}).forEach(function (key) {
+      if (params[key] !== undefined && params[key] !== null) query.set(key, params[key]);
+    });
+    return base + (base.indexOf("?") === -1 ? "?" : "&") + query.toString();
+  }
+
   function openRemoteFileServer() {
-    const url = remoteFileServerUrl();
-    if (!url) {
+    const base = remoteFileServerUrl();
+    if (!base) {
       alert("رابط ملفات مطبعجي غير مضبوط في config.js");
       return;
     }
+    if (!employeeCanOpenRemoteFiles()) {
+      alert("صلاحية ملفات مطبعجي مفعلة حالياً فقط لحسابات ضياء وجابر ووائل.");
+      return;
+    }
+    const u = state.user || {};
+    if (!u.token) {
+      alert("انتهت جلسة الموظف. سجل الدخول مرة أخرى ثم افتح ملفات مطبعجي.");
+      return;
+    }
+    const url = withQuery(text(base).replace(/\/+$/, "") + "/trendos-sso", {
+      username: u.username || u.name || "",
+      token: u.token || ""
+    });
     window.open(url, "Matbagy_Remote_Files");
   }
 
@@ -3154,6 +3197,7 @@ Trend Mall`;
     $("screenTitle").textContent = screens[state.screen] || "الأوردرات";
     toggleEndDayButton();
     toggleVisitorPreviewButton();
+    toggleRemoteFilesButton();
   }
 
   function renderTabs() {
