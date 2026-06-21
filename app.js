@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1852_MATBAGY_EGYPT_FRANCHISE_FOUNDATION";
+  const UI_VERSION = "1853_BRANCH_CUSTOMERS_STAFF_WHATSAPP_PROOF";
 
   const screens = {
     service: "خدمة العملاء",
@@ -35,6 +35,7 @@
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
   // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
   const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة"];
+  const PROOF_REVIEW_TEXT = "المراجعة مسئولية العميل والمكان غير مسئول عن اى اخطاء إملائية\nالبروفة مبعوته للمراجعه !!\nلو سمحت المراجعة جيدا على الشكل و البيانات بشكل دقيق قبل الرد على البروفة\nفى إنتظار حضرتك .....";
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
 
   function isHiddenFromUserScreens(status) {
@@ -840,7 +841,10 @@ Trend Mall`;
     const title = $("customerWelcomeTitle");
     const meta = $("customerMeta");
     if (title) title.textContent = "أهلاً " + (c.name || "عميل مطبعجي");
-    if (meta) meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | منصة مطبعجي بنها";
+    if (meta) {
+      const branchName = c.branchName || c.franchiseBranchName || c.branchPublicName || "";
+      meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | " + (branchName ? ("فرعك: " + branchName + " | ") : "") + "منصة مطبعجي بنها";
+    }
   }
 
 
@@ -1091,6 +1095,7 @@ Trend Mall`;
         return;
       }
       state.franchiseBranches = Array.isArray(res.branches) ? res.branches : [];
+      refreshFranchiseBranchSelects();
       if (forAdmin) renderFranchiseBranchesDashboard();
       else renderCustomerFranchiseBranches();
     } catch (err) {
@@ -1134,23 +1139,78 @@ Trend Mall`;
     });
   }
 
+  function branchOptionLabel(branch) {
+    if (!branch) return "";
+    return (branch.brandName || branchPublicName(branch) || branch.branchCode || "فرع مطبعجي") + (branch.branchCode ? " — " + branch.branchCode : "");
+  }
+
+  function refreshFranchiseBranchSelects() {
+    const branches = state.franchiseBranches || [];
+    ["newClientBranch", "assignCustomerBranchSelect"].forEach(function (id) {
+      const sel = $(id);
+      if (!sel) return;
+      const oldValue = sel.value || "";
+      const first = id === "newClientBranch" ? '<option value="">بدون فرع محدد</option>' : '<option value="">اختر فرع مطبعجي</option>';
+      sel.innerHTML = first + branches.map(function (b) {
+        const code = escapeHtml(b.branchCode || "");
+        return '<option value="' + code + '">' + escapeHtml(branchOptionLabel(b)) + '</option>';
+      }).join("");
+      if (oldValue) sel.value = oldValue;
+    });
+  }
+
+  function fillFranchiseBranchForm(branch) {
+    if (!branch) return;
+    const set = function (id, value) { const el = $(id); if (el) el.value = value == null ? "" : value; };
+    set("franchiseBranchCode", branch.branchCode || "");
+    set("franchiseBrandName", branch.brandName || "");
+    set("franchisePartnerName", branch.partnerName || "");
+    set("franchiseGovernorate", branch.governorate || "");
+    set("franchiseCity", branch.city || "");
+    set("franchisePublicArea", branch.publicArea || "");
+    set("franchiseLat", branch.latitude || "");
+    set("franchiseLng", branch.longitude || "");
+    set("franchiseRole", branch.branchRole || "فرنشايز كامل");
+    set("franchiseVisibility", branch.customerVisibility || "ظاهر كفرع مطبعجي");
+    set("franchiseActive", branch.active || "نعم");
+    set("franchiseCommission", branch.commissionRate || "15");
+    set("franchiseMonthly", branch.monthlySubscription || "");
+    if ($("franchiseCanReceive")) $("franchiseCanReceive").checked = text(branch.canReceiveOrders || "نعم") !== "لا";
+    if ($("franchiseCanExecute")) $("franchiseCanExecute").checked = text(branch.canExecute || "نعم") !== "لا";
+    if ($("franchiseCanDeliver")) $("franchiseCanDeliver").checked = text(branch.canDeliver || "نعم") !== "لا";
+    set("franchisePublicDescription", branch.publicDescription || "");
+    set("franchiseNotes", branch.internalNotes || "");
+    setMsg("franchiseBranchesStatus", "تم تحميل بيانات الفرع للتعديل. عدّل ثم اضغط حفظ.", false);
+    const form = document.querySelector(".franchise-branch-form");
+    if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function renderFranchiseBranchesDashboard() {
     const list = $("franchiseBranchesList");
     if (!list) return;
     const branches = state.franchiseBranches || [];
+    refreshFranchiseBranchSelects();
     if (!branches.length) {
       list.innerHTML = '<div class="dash-empty">لا توجد فروع أو فرنشايز حتى الآن. أضف أول فرع مطبعجي من النموذج بالأعلى.</div>';
       return;
     }
     list.innerHTML = branches.map(function (b) {
-      return '<div class="franchise-admin-item">' +
+      return '<div class="franchise-admin-item" data-branch-code="' + escapeHtml(b.branchCode || "") + '">' +
         '<div class="franchise-badge">م</div>' +
-        '<div><b>' + escapeHtml(b.brandName || b.partnerName || "فرع مطبعجي") + '</b>' +
+        '<div class="franchise-admin-main"><b>' + escapeHtml(b.brandName || b.partnerName || "فرع مطبعجي") + '</b>' +
         '<span>' + escapeHtml((b.governorate || "") + " - " + (b.city || "") + " - " + (b.publicArea || "")) + '</span>' +
-        '<small>الدور: ' + escapeHtml(b.branchRole || "فرنشايز كامل") + ' | ظهور العميل: ' + escapeHtml(b.customerVisibility || "ظاهر كفرع مطبعجي") + ' | مفعل: ' + escapeHtml(b.active || "نعم") + '</small>' +
-        '<small>نسبة مطبعجي: ' + escapeHtml(b.commissionRate || "") + '% | اشتراك شهري: ' + escapeHtml(b.monthlySubscription || "") + ' | GPS: ' + escapeHtml(b.latitude || "-") + ', ' + escapeHtml(b.longitude || "-") + '</small>' +
-        '</div></div>';
+        '<small>الكود: ' + escapeHtml(b.branchCode || "-") + ' | الدور: ' + escapeHtml(b.branchRole || "فرنشايز كامل") + ' | ظهور العميل: ' + escapeHtml(b.customerVisibility || "ظاهر كفرع مطبعجي") + ' | مفعل: ' + escapeHtml(b.active || "نعم") + '</small>' +
+        '<small>نسبة مطبعجي: ' + escapeHtml(b.commissionRate || "") + '% | اشتراك شهري: ' + escapeHtml(b.monthlySubscription || "") + ' | GPS: ' + escapeHtml(b.latitude || "-") + ', ' + escapeHtml(b.longitude || "-") + '</small></div>' +
+        '<div class="franchise-admin-actions"><button type="button" class="ghost edit-franchise-branch" data-branch-code="' + escapeHtml(b.branchCode || "") + '">تعديل</button></div>' +
+        '</div>';
     }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".edit-franchise-branch"), function (btn) {
+      btn.onclick = function () {
+        const code = btn.getAttribute("data-branch-code");
+        const branch = (state.franchiseBranches || []).find(function (x) { return text(x.branchCode) === text(code); });
+        fillFranchiseBranchForm(branch);
+      };
+    });
   }
 
   function renderCustomerFranchiseBranches() {
@@ -1249,6 +1309,34 @@ Trend Mall`;
       if (btn) { btn.disabled = false; btn.textContent = "حفظ الفرع / الفرنشايز"; }
     }
   }
+  async function assignCustomerToBranch() {
+    if (!canManageFranchiseBranches()) return;
+    const customer = (($("assignCustomerQuery") || {}).value || "").trim();
+    const branchCode = (($("assignCustomerBranchSelect") || {}).value || "").trim();
+    if (!customer || !branchCode) {
+      setMsg("assignCustomerBranchStatus", "اكتب كود/اسم العميل واختر الفرع.", true);
+      return;
+    }
+    const branch = (state.franchiseBranches || []).find(function (b) { return text(b.branchCode) === branchCode; }) || {};
+    const btn = $("assignCustomerBranchBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري التعيين..."; }
+    try {
+      const res = await api("assignCustomerBranch", authParams({
+        customerQuery: customer,
+        branchCode: branchCode,
+        branchName: branch.brandName || branchPublicName(branch)
+      }));
+      if (!res.success) throw new Error(res.message || "تعذر تعيين العميل على الفرع.");
+      setMsg("assignCustomerBranchStatus", res.message || "تم ربط العميل بالفرع.", false);
+      if ($("assignCustomerQuery")) $("assignCustomerQuery").value = "";
+      await loadFranchiseBranches(true);
+    } catch (err) {
+      setMsg("assignCustomerBranchStatus", err.message || "خطأ أثناء تعيين العميل.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "ربط العميل بالفرع"; }
+    }
+  }
+
   /*********************** لوحة الإعلانات V1850 ***********************/
 
   function canManagePlatformAds() {
@@ -2097,6 +2185,8 @@ Trend Mall`;
     if (card) card.classList.toggle("hidden", !canAdd);
     const manager = $("newClientManager");
     if (manager && !manager.value.trim()) manager.value = (state.user || {}).name || (state.user || {}).username || "";
+    if (canAdd && !(state.franchiseBranches || []).length) loadFranchiseBranches(canManageFranchiseBranches());
+    else if (canAdd) refreshFranchiseBranchSelects();
   }
 
   function toggleDashboard() {
@@ -2844,11 +2934,17 @@ Trend Mall`;
     const lines = data.lines || [];
     const files = data.files || [];
     const messages = data.messages || [];
+    const row = state.orderConversationRow || {};
+    const customerName = (lines[0] && lines[0].customer) || row.customer || "عميل مطبعجي";
 
-    let html = '';
-    html += '<div class="order-chat-section"><h4>تفاصيل البند / الأوردر</h4>';
-    html += lines.map(function (line) {
-      return '<div class="order-chat-line-card">' +
+    let html = '<div class="staff-wa-shell">';
+    html += '<div class="staff-wa-head"><div class="wa-avatar staff-avatar">م</div><div><b>' + escapeHtml(customerName) + '</b><span>محادثة أوردر ' + escapeHtml(row.orderId || "-") + ' — متابعة وبروفات</span></div></div>';
+    html += '<div class="staff-wa-wall wa-chat-wall">';
+
+    html += '<div class="chat-bubble system staff-system-bubble"><b>تفاصيل البند / الأوردر</b>';
+    if (!lines.length) html += '<br>لا توجد تفاصيل بنود متاحة.';
+    else html += lines.map(function (line) {
+      return '<div class="staff-line-summary">' +
         '<b>' + escapeHtml(line.lineId || line.orderId || "-") + '</b>' +
         '<span>القسم: ' + escapeHtml(line.department || "-") + '</span>' +
         '<span>الشغل: ' + escapeHtml(line.itemName || "-") + '</span>' +
@@ -2857,28 +2953,46 @@ Trend Mall`;
         (line.notes ? '<p>' + escapeHtml(line.notes).replace(/\n/g, '<br>') + '</p>' : '') +
         (line.itemFolderUrl ? '<a href="' + escapeHtml(line.itemFolderUrl) + '" target="_blank">فتح فولدر البند على Drive</a>' : '') +
         '</div>';
-    }).join('') + '</div>';
-
-    html += '<div class="order-chat-section"><h4>ملفات العميل</h4>';
-    if (!files.length) html += '<div class="dash-empty">لا توجد ملفات مرفوعة لهذا البند حتى الآن.</div>';
-    else html += '<div class="order-files-grid">' + files.map(function (f) {
-      return renderOrderAttachmentCard(f);
-    }).join('') + '</div>';
+    }).join('');
     html += '</div>';
 
-    html += '<div class="order-chat-section"><h4>المتابعة والبروفات</h4><div class="order-conversation-messages">';
+    if (files.length) {
+      html += '<div class="chat-bubble customer"><div class="bubble-title">ملفات العميل</div><div class="bubble-files order-files-grid staff-order-files">' + files.map(function (f) { return renderOrderAttachmentCard(f); }).join('') + '</div></div>';
+    } else {
+      html += '<div class="chat-bubble system">لا توجد ملفات مرفوعة لهذا البند حتى الآن.</div>';
+    }
+
     if (!messages.length) html += '<div class="chat-bubble system">لم يتم إضافة متابعة بعد. اكتب رسالة أو ارفع بروفة للعميل.</div>';
     else html += messages.map(function (m) {
       const cls = m.senderType === "عميل" ? "customer" : "staff";
       return '<div class="chat-bubble ' + cls + '">' +
         '<div class="bubble-title">' + escapeHtml(m.senderName || m.senderType || "متابعة") + '</div>' +
         (m.text ? '<div>' + escapeHtml(m.text).replace(/\n/g, '<br>') + '</div>' : '') +
-        (m.fileUrl ? '<div class="bubble-files">' + renderChatAttachment({ fileName: m.fileName, fileUrl: m.fileUrl, fileId: m.fileId, mimeType: m.mimeType }, "staff") + '</div>' : '') +
+        (m.fileUrl ? '<div class="bubble-files">' + renderChatAttachment({ fileName: m.fileName, fileUrl: m.fileUrl, fileId: m.fileId, mimeType: m.mimeType }, cls) + '</div>' : '') +
         (m.createdAt ? '<div class="bubble-meta">' + escapeHtml(m.createdAt) + '</div>' : '') +
         '</div>';
     }).join('');
+
     html += '</div></div>';
     body.innerHTML = html;
+    const wall = body.querySelector(".staff-wa-wall");
+    if (wall) wall.scrollTop = wall.scrollHeight;
+  }
+
+  function insertProofReviewText() {
+    const box = $("orderConversationText");
+    if (!box) return;
+    const current = (box.value || "").trim();
+    if (current && current.indexOf("المراجعة مسئولية العميل") === -1) box.value = current + "\n\n" + PROOF_REVIEW_TEXT;
+    else if (!current) box.value = PROOF_REVIEW_TEXT;
+    box.focus();
+  }
+
+  function withProofReviewText(message, hasFiles) {
+    let msg = text(message).trim();
+    if (!hasFiles) return msg;
+    if (msg.indexOf("المراجعة مسئولية العميل") !== -1) return msg;
+    return (msg ? msg + "\n\n" : "") + PROOF_REVIEW_TEXT;
   }
 
   async function sendOrderConversationMessage() {
@@ -2887,8 +3001,9 @@ Trend Mall`;
     if (!row) return;
     const textBox = $("orderConversationText");
     const fileInput = $("orderConversationFiles");
-    const msg = (textBox && textBox.value || "").trim();
+    let msg = (textBox && textBox.value || "").trim();
     const files = fileInput && fileInput.files ? Array.prototype.slice.call(fileInput.files) : [];
+    msg = withProofReviewText(msg, files.length > 0);
     if (!msg && !files.length) {
       setMsg("orderConversationMsg", "اكتب رسالة أو ارفع ملف بروفة أولًا.", true);
       return;
@@ -3013,6 +3128,8 @@ Trend Mall`;
       extraPhone: $("newClientExtraPhone").value.trim(),
       customerType: $("newClientType").value.trim(),
       debtAmount: $("newClientDebt") ? $("newClientDebt").value.trim() : "0",
+      franchiseBranchCode: $("newClientBranch") ? $("newClientBranch").value.trim() : "",
+      franchiseBranchName: (function () { const sel = $("newClientBranch"); return sel && sel.value && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : ""; })(),
       active: $("newClientActive").value || "نعم",
       notes: $("newClientNotes").value.trim()
     });
@@ -3044,6 +3161,8 @@ Trend Mall`;
       if (manager) manager.value = (state.user || {}).name || (state.user || {}).username || "";
       const active = $("newClientActive");
       if (active) active.value = "نعم";
+      const branchSelect = $("newClientBranch");
+      if (branchSelect) branchSelect.value = "";
     } catch (err) {
       setMsg("addCustomerStatus", err.message || "خطأ أثناء إضافة العميل.", true);
     } finally {
@@ -3377,6 +3496,8 @@ Trend Mall`;
     if (sendConversationButton) sendConversationButton.addEventListener("click", sendOrderConversationMessage);
     const refreshConversationButton = $("refreshOrderConversationBtn");
     if (refreshConversationButton) refreshConversationButton.addEventListener("click", function () { loadOrderConversation(); });
+    const proofTextButton = $("insertProofTextBtn");
+    if (proofTextButton) proofTextButton.addEventListener("click", insertProofReviewText);
 
     const cancelInvoiceButton = $("cancelInvoiceBtn");
     if (cancelInvoiceButton) cancelInvoiceButton.addEventListener("click", closeInvoiceModal);
@@ -3421,6 +3542,8 @@ Trend Mall`;
     if (saveFranchiseBranchButton) saveFranchiseBranchButton.addEventListener("click", saveFranchiseBranch);
     const refreshFranchiseBranchesButton = $("refreshFranchiseBranchesBtn");
     if (refreshFranchiseBranchesButton) refreshFranchiseBranchesButton.addEventListener("click", function () { loadFranchiseBranches(true); });
+    const assignCustomerBranchButton = $("assignCustomerBranchBtn");
+    if (assignCustomerBranchButton) assignCustomerBranchButton.addEventListener("click", assignCustomerToBranch);
 
     const saveKnowledgeButton = $("saveKnowledgeBtn");
     if (saveKnowledgeButton) saveKnowledgeButton.addEventListener("click", saveKnowledge);

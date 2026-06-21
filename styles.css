@@ -1101,3 +1101,114 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   font-size: 12px;
   font-style: normal;
 }
+
+/* V1853 - ربط العملاء بالفروع + محادثة الموظف بشكل واتساب */
+.branch-customer-assign-box {
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px dashed #10b981;
+  background: #ecfdf5;
+  border-radius: 18px;
+}
+.branch-customer-assign-box h4 { margin: 0 0 8px; color: #064e3b; }
+.branch-assign-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+.franchise-admin-item { align-items: flex-start; }
+.franchise-admin-main { flex: 1; min-width: 0; }
+.franchise-admin-actions { margin-inline-start: auto; display: flex; gap: 8px; align-items: center; }
+.customer-franchise-panel {
+  margin: 18px 0;
+  padding: 16px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #ecfdf5, #ffffff);
+  border: 1px solid #d1fae5;
+}
+.customer-franchise-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+.staff-wa-modal-card {
+  max-width: 760px;
+  width: min(96vw, 760px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 24px;
+}
+.staff-chat-shell {
+  min-height: min(82vh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: #f0f2f5;
+}
+.staff-chat-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.staff-chat-body,
+.staff-wa-wall {
+  flex: 1;
+  min-height: 420px;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+.staff-wa-wall {
+  padding: 16px;
+  background: #efeae2;
+  background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.staff-wa-composer {
+  border-top: 1px solid #dbe3e8;
+  background: #f0f2f5;
+  padding: 10px;
+}
+.staff-proof-input {
+  min-height: 42px;
+  max-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.staff-proof-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  color: #64748b;
+  font-size: 12px;
+}
+.staff-system-bubble {
+  max-width: 92%;
+}
+.staff-line-summary {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(15,23,42,0.08);
+}
+.staff-line-summary span,
+.staff-line-summary a,
+.staff-line-summary p {
+  display: block;
+  margin-top: 4px;
+}
+.staff-order-files .order-attachment-card,
+.staff-order-files .chat-attachment-card {
+  background: #fff;
+}
+@media (max-width: 700px) {
+  .branch-assign-form { grid-template-columns: 1fr; }
+  .staff-wa-modal-card { width: 100vw; height: 100vh; border-radius: 0; }
+  .staff-chat-shell { min-height: 100vh; }
+  .staff-chat-body, .staff-wa-wall { max-height: calc(100vh - 185px); }
+}

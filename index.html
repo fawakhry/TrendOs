@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>مطبعجي مصر V1852</title>
-  <link rel="stylesheet" href="styles.css?v=1850">
+  <title>مطبعجي مصر V1853</title>
+  <link rel="stylesheet" href="styles.css?v=1853">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1852 - تأسيس الفروع والفرنشايز</p>
+    <p class="version-badge">مطبعجي مصر V1853 - ربط العملاء بالفروع + محادثة موظف واتسابية</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1852 - تأسيس الفروع والفرنشايز</p>
+        <p class="version-badge">مطبعجي مصر V1853 - ربط العملاء بالفروع + محادثة موظف واتسابية</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -158,6 +158,18 @@
         <input id="franchiseNotes" class="wide" placeholder="ملاحظات داخلية وشروط منع التعامل المباشر">
         <button id="saveFranchiseBranchBtn" class="primary" type="button">حفظ الفرع / الفرنشايز</button>
         <button id="refreshFranchiseBranchesBtn" class="ghost" type="button">تحديث الفروع</button>
+      </div>
+      <div class="branch-customer-assign-box">
+        <h4>ربط عميل بفرع مطبعجي</h4>
+        <div class="hint">اكتب كود الشات أو اسم العميل، واختار الفرع المسؤول عنه. العميل يفضل واجهته مطبعجي والفرع يتسجل داخليًا.</div>
+        <div class="branch-assign-form">
+          <input id="assignCustomerQuery" placeholder="كود الشات أو اسم العميل">
+          <select id="assignCustomerBranchSelect">
+            <option value="">اختر فرع مطبعجي</option>
+          </select>
+          <button id="assignCustomerBranchBtn" class="primary" type="button">ربط العميل بالفرع</button>
+        </div>
+        <p id="assignCustomerBranchStatus" class="msg"></p>
       </div>
       <div id="franchiseBranchesList" class="franchise-admin-list">
         <div class="dash-empty">لم يتم تحميل فروع مطبعجي بعد.</div>
@@ -271,6 +283,13 @@
         <div>
           <label>نوع العميل</label>
           <input id="newClientType" placeholder="مكتب / واتساب / عميل مباشر">
+        </div>
+
+        <div>
+          <label>فرع مطبعجي الخاص بالعميل</label>
+          <select id="newClientBranch">
+            <option value="">بدون فرع محدد</option>
+          </select>
         </div>
 
         <div>
@@ -432,7 +451,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1852 - تأسيس الفروع والفرنشايز</p>
+        <p class="version-badge">مطبعجي مصر V1853 - ربط العملاء بالفروع + محادثة موظف واتسابية</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -443,23 +462,7 @@
 
     <section id="customerHomePanel" class="card customer-home-card">
       <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
-
-      <h3>أقسام المنصة</h3>
-      <div id="customerPlatformSections" class="customer-platform-sections"><div class="hint">جاري تحميل أقسام الخدمات...</div></div>
-
-      <div class="customer-franchise-box">
-        <div class="franchise-home-head">
-          <div>
-            <h3>أقرب فرع مطبعجي معتمد</h3>
-            <p>افتح GPS لترتيب الفروع حسب الأقرب، أو ابعت الطلب لمطبعجي ونختار لك أنسب فرع داخليًا.</p>
-          </div>
-          <button id="customerUseGpsBtn" class="ghost" type="button">📍 استخدم موقعي</button>
-        </div>
-        <span id="customerFranchiseStatus" class="soft-status"></span>
-        <div id="customerFranchiseBranches" class="customer-franchise-branches"><div class="hint">جاري تحميل فروع مطبعجي المعتمدة...</div></div>
-      </div>
-
-      <h3>خدماتك على منصة مطبعجي مصر</h3>
+      <h3>خدماتك على منصة مطبعجي بنها</h3>
       <div class="customer-service-grid">
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
           <b>+ طلب جديد</b>
@@ -477,6 +480,16 @@
           <b>اصنع تصميمك بنفسك</b>
           <span>مساعد التصميم الذكي — قيد التجهيز داخل المنصة.</span>
         </button>
+      </div>
+      <div class="customer-franchise-panel">
+        <div class="table-tools">
+          <h3>أقرب فرع مطبعجي معتمد</h3>
+          <button id="customerUseGpsBtn" class="ghost" type="button">📍 استخدم موقعي</button>
+        </div>
+        <p id="customerFranchiseStatus" class="msg"></p>
+        <div id="customerFranchiseBranches" class="customer-franchise-grid">
+          <div class="hint">جاري تحميل فروع مطبعجي المعتمدة...</div>
+        </div>
       </div>
       <div class="hint strong-hint">قاعدة التشغيل الجديدة: كل طلب يبدأ كمسودة شات. أضف البنود والملفات أولًا، ثم اضغط بدء التنفيذ للحصول على رقم أوردر واحد وبنود منفصلة للأقسام.</div>
     </section>
@@ -577,36 +590,35 @@
   </section>
 
   <section id="orderConversationModal" class="modal hidden">
-    <div class="modal-card order-conversation-card">
-      <div class="table-tools">
-        <div>
-          <h2 id="orderConversationTitle">محادثة الأوردر</h2>
-          <p id="orderConversationMeta" class="msg"></p>
+    <div class="modal-card order-conversation-card staff-wa-modal-card">
+      <div class="staff-chat-shell wa-chat-shell">
+        <div class="staff-chat-head wa-chat-head">
+          <button id="closeOrderConversationBtn" class="wa-icon-btn" type="button" title="إغلاق">×</button>
+          <div class="wa-avatar">م</div>
+          <div class="wa-head-info">
+            <b id="orderConversationTitle">محادثة الأوردر</b>
+            <span id="orderConversationMeta">جاري تحميل التفاصيل...</span>
+          </div>
+          <button id="refreshOrderConversationBtn" class="wa-menu-btn" type="button" title="تحديث">↻</button>
         </div>
-        <button id="closeOrderConversationBtn" class="ghost" type="button">إغلاق</button>
-      </div>
 
-      <div class="hint strong-hint">
-        هنا الموظف يشوف تفاصيل البند، ملفات العميل، وروابط الصور على Drive. يمكن إرسال متابعة أو رفع بروفة/تصميم قبل الطباعة داخل محادثة الأوردر.
-      </div>
-
-      <div id="orderConversationBody" class="order-conversation-body">
-        <div class="dash-empty">جاري تحميل محادثة الأوردر...</div>
-      </div>
-
-      <div class="order-conversation-composer">
-        <label>رسالة متابعة للعميل / ملاحظة بروفة</label>
-        <textarea id="orderConversationText" rows="3" placeholder="مثال: دي بروفة التصميم قبل الطباعة، برجاء التأكيد."></textarea>
-
-        <label>رفع بروفة / تصميم / ملف متابعة</label>
-        <input id="orderConversationFiles" type="file" multiple>
-        <small class="field-note">الملف يتم حفظه في Google Drive وتسجيله داخل محادثة الأوردر.</small>
-
-        <div class="row">
-          <button id="sendOrderConversationBtn" class="primary" type="button">إرسال المتابعة / البروفة</button>
-          <button id="refreshOrderConversationBtn" class="ghost" type="button">تحديث المحادثة</button>
+        <div id="orderConversationBody" class="order-conversation-body staff-chat-body">
+          <div class="dash-empty">جاري تحميل محادثة الأوردر...</div>
         </div>
-        <p id="orderConversationMsg" class="msg"></p>
+
+        <div class="order-conversation-composer staff-wa-composer wa-chat-composer">
+          <div class="wa-type-row">
+            <label class="wa-attach-btn" for="orderConversationFiles" title="رفع بروفة / تصميم / ملف">📎</label>
+            <input id="orderConversationFiles" class="wa-file-input" type="file" multiple>
+            <textarea id="orderConversationText" class="wa-message-input staff-proof-input" rows="1" placeholder="اكتب رسالة متابعة أو ارفع بروفة وسيضاف نص المراجعة تلقائيًا"></textarea>
+            <button id="sendOrderConversationBtn" class="wa-send-btn" type="button" title="إرسال المتابعة / البروفة">➤</button>
+          </div>
+          <div class="staff-proof-actions">
+            <button id="insertProofTextBtn" class="ghost" type="button">إضافة نص مراجعة البروفة</button>
+            <span>عند رفع بروفة، يتم إضافة تنبيه المراجعة تلقائيًا.</span>
+          </div>
+          <p id="orderConversationMsg" class="msg"></p>
+        </div>
       </div>
     </div>
   </section>
@@ -681,7 +693,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1850"></script>
-<script src="app.js?v=1850"></script>
+<script src="config.js?v=1853"></script>
+<script src="app.js?v=1853"></script>
 </body>
 </html>
