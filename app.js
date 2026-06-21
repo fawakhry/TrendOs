@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1854_WHITELABEL_BROOM_PHONE_LEADS";
+  const UI_VERSION = "1855_SERVICE_ROUTES_ADMIN_AD_STUDIO";
 
   const screens = {
     service: "خدمة العملاء",
@@ -161,7 +161,10 @@
     customerSelectedSection: null,
     customerDesignOfferItemId: "",
     whiteLabelSettings: null,
-    leadNumbers: []
+    leadNumbers: [],
+    serviceRoutes: [],
+    adminArea: "matbagy",
+    platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" }
   };
 
   const $ = (id) => document.getElementById(id);
@@ -1069,6 +1072,226 @@ Trend Mall`;
   }
 
 
+
+
+  /*********************** V1855 - تنظيم لوحة الإدارة وربط الخدمات بالمطابع ***********************/
+
+  const ADMIN_AREAS = [
+    { id: "matbagy", label: "شغل مطبعجي", hint: "الأوردرات والعملاء والخدمات اليومية." },
+    { id: "franchise", label: "الفرنشايز", hint: "الفروع والشركاء ونسب مطبعجي." },
+    { id: "members", label: "الأعضاء والنسخ", hint: "نسخ المطابع والأرقام والعملاء." },
+    { id: "responses", label: "الردود والذكاء", hint: "معرفة واتس AI وقواعد الردود." },
+    { id: "ads", label: "الإعلانات", hint: "إعلانات العملاء وتظبيط الصور." }
+  ];
+
+  const ADMIN_CARD_AREAS = {
+    managementDashboard: "matbagy",
+    addOrderCard: "matbagy",
+    addCustomerCard: "matbagy",
+    platformSectionsCard: "matbagy",
+    serviceRoutesCard: "matbagy",
+    franchiseBranchesCard: "franchise",
+    whiteLabelCard: "members",
+    phoneLeadsCard: "members",
+    aiKnowledgeCard: "responses",
+    platformAdsCard: "ads"
+  };
+
+  function canSeeAdminWorkspace() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    const username = normalizeArabic(user.username || user.name || "");
+    return role === "admin" || role === "service" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+  }
+
+  function setupAdminWorkspace() {
+    const hub = $("adminWorkspaceHub");
+    const list = $("adminWorkspaceTabs");
+    if (!hub || !list) return;
+    const show = canSeeAdminWorkspace();
+    hub.classList.toggle("hidden", !show);
+    if (!show) return;
+    list.innerHTML = ADMIN_AREAS.map(function (area) {
+      return '<button type="button" class="admin-tab-btn ' + (state.adminArea === area.id ? 'active' : '') + '" data-admin-area="' + area.id + '">' +
+        '<b>' + escapeHtml(area.label) + '</b><small>' + escapeHtml(area.hint) + '</small></button>';
+    }).join("");
+    Array.prototype.slice.call(list.querySelectorAll("button[data-admin-area]")).forEach(function (btn) {
+      btn.onclick = function () {
+        state.adminArea = btn.getAttribute("data-admin-area") || "matbagy";
+        setupAdminWorkspace();
+        applyAdminWorkspaceTab();
+      };
+    });
+    applyAdminWorkspaceTab();
+  }
+
+  function applyAdminWorkspaceTab() {
+    if (!canSeeAdminWorkspace()) return;
+    Object.keys(ADMIN_CARD_AREAS).forEach(function (id) {
+      const card = $(id);
+      if (!card) return;
+      const area = ADMIN_CARD_AREAS[id];
+      card.classList.toggle("admin-area-off", area !== state.adminArea);
+    });
+  }
+
+  function helpIcon(textValue) {
+    return '<span class="help-dot" title="' + escapeHtml(textValue) + '">؟</span>';
+  }
+
+  function canManageServiceRoutes() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    const username = normalizeArabic(user.username || user.name || "");
+    return role === "admin" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+  }
+
+  function toggleServiceRoutesDashboard() {
+    const card = $("serviceRoutesCard");
+    if (!card) return;
+    const can = canManageServiceRoutes();
+    card.classList.toggle("hidden", !can);
+    if (can) loadServiceRoutes(true);
+  }
+
+  async function loadServiceRoutes(forAdmin) {
+    try {
+      const res = await api("getServiceProviderRoutes", authParams({ includeInactive: "نعم" }));
+      if (!res.success) {
+        if (forAdmin) setMsg("serviceRoutesStatus", res.message || "تعذر تحميل ربط الخدمات.", true);
+        return;
+      }
+      state.serviceRoutes = Array.isArray(res.routes) ? res.routes : [];
+      renderServiceRoutesDashboard();
+      refreshServiceRouteSelectors();
+    } catch (err) {
+      if (forAdmin) setMsg("serviceRoutesStatus", err.message || "خطأ في تحميل ربط الخدمات.", true);
+    }
+  }
+
+  function refreshServiceRouteSelectors() {
+    const serviceSel = $("routeServiceSelect");
+    if (serviceSel) {
+      const old = serviceSel.value || "";
+      const sections = state.platformSections || [];
+      serviceSel.innerHTML = '<option value="">اكتب الخدمة يدويًا</option>' + sections.map(function (sec) {
+        const code = escapeHtml(sec.sectionCode || sec.name || "");
+        return '<option value="' + code + '">' + escapeHtml(sec.name || sec.sectionCode || "خدمة") + '</option>';
+      }).join("");
+      if (old) serviceSel.value = old;
+    }
+    const branchSel = $("routeBranchCode");
+    if (branchSel) {
+      const old = branchSel.value || "";
+      const branches = state.franchiseBranches || [];
+      branchSel.innerHTML = '<option value="">بدون فرع محدد</option>' + branches.map(function (b) {
+        const code = escapeHtml(b.branchCode || "");
+        return '<option value="' + code + '">' + escapeHtml(branchOptionLabel(b)) + '</option>';
+      }).join("");
+      if (old) branchSel.value = old;
+    }
+  }
+
+  function selectedRouteServiceName() {
+    const manual = (($("routeServiceName") || {}).value || "").trim();
+    if (manual) return manual;
+    const sel = $("routeServiceSelect");
+    if (!sel || !sel.value) return "";
+    const sec = (state.platformSections || []).find(function (x) { return text(x.sectionCode || x.name) === text(sel.value); });
+    return sec ? (sec.name || sel.value) : sel.value;
+  }
+
+  function fillServiceRouteForm(route) {
+    if (!route) return;
+    const set = function (id, v) { const el = $(id); if (el) el.value = v == null ? "" : v; };
+    set("routeCode", route.routeCode || "");
+    set("routeServiceSelect", route.serviceCode || "");
+    set("routeServiceName", route.serviceName || "");
+    set("routeServiceType", route.serviceType || "طباعة");
+    set("routeChannel", route.channelType || "رقم مطبعة");
+    set("routeProviderName", route.providerName || "");
+    set("routeWhatsapp", route.whatsappNumber || "");
+    set("routeBranchCode", route.branchCode || "");
+    set("routeUnit", route.unit || "قطعة");
+    set("routeBillingMode", route.billingMode || "نسبة على الوحدة");
+    set("routeCommissionValue", route.commissionValue || "");
+    set("routeMonthlySubscription", route.monthlySubscription || "");
+    set("routeSubscriptionFrom", route.subscriptionFrom || "");
+    set("routeSubscriptionTo", route.subscriptionTo || "");
+    set("routeActive", route.active || "نعم");
+    set("routeNotes", route.notes || "");
+    setMsg("serviceRoutesStatus", "تم تحميل الربط للتعديل. عدّل ثم اضغط حفظ.", false);
+  }
+
+  function renderServiceRoutesDashboard() {
+    const list = $("serviceRoutesList");
+    if (!list) return;
+    const routes = state.serviceRoutes || [];
+    if (!routes.length) {
+      list.innerHTML = '<div class="dash-empty">لا يوجد ربط خدمات حتى الآن. ابدأ بربط Banner أو DTF برقم مطبعة أو فرع.</div>';
+      return;
+    }
+    list.innerHTML = routes.map(function (r, idx) {
+      return '<div class="service-route-item">' +
+        '<div><b>' + escapeHtml(r.serviceName || "خدمة") + '</b>' +
+        '<span>' + escapeHtml(r.channelType || "") + ' — ' + escapeHtml(r.providerName || r.branchName || "") + '</span>' +
+        '<small>وحدة: ' + escapeHtml(r.unit || "قطعة") + ' | محاسبة: ' + escapeHtml(r.billingMode || "") + ' | قيمة مطبعجي: ' + escapeHtml(r.commissionValue || r.monthlySubscription || "-") + '</small>' +
+        '<small>اشتراك: ' + escapeHtml(r.subscriptionFrom || "-") + ' → ' + escapeHtml(r.subscriptionTo || "-") + ' | مفعل: ' + escapeHtml(r.active || "نعم") + '</small></div>' +
+        '<button type="button" class="ghost small" data-route-index="' + idx + '">تعديل</button>' +
+      '</div>';
+    }).join("");
+    Array.prototype.slice.call(list.querySelectorAll("button[data-route-index]")).forEach(function (btn) {
+      btn.onclick = function () {
+        const idx = Number(btn.getAttribute("data-route-index"));
+        fillServiceRouteForm((state.serviceRoutes || [])[idx]);
+      };
+    });
+  }
+
+  async function saveServiceRoute() {
+    if (!canManageServiceRoutes()) return;
+    const serviceName = selectedRouteServiceName();
+    const providerName = (($("routeProviderName") || {}).value || "").trim();
+    const whatsapp = (($("routeWhatsapp") || {}).value || "").trim();
+    const branchCode = (($("routeBranchCode") || {}).value || "").trim();
+    if (!serviceName) { setMsg("serviceRoutesStatus", "اختار أو اكتب اسم الخدمة.", true); return; }
+    if (!providerName && !whatsapp && !branchCode) { setMsg("serviceRoutesStatus", "اكتب رقم مطبعة أو اختار فرع أو اكتب اسم مسؤول مثل رحمة.", true); return; }
+    const branch = (state.franchiseBranches || []).find(function (b) { return text(b.branchCode) === branchCode; });
+    const payload = authParams({
+      routeCode: (($("routeCode") || {}).value || "").trim(),
+      serviceCode: (($("routeServiceSelect") || {}).value || "").trim(),
+      serviceName: serviceName,
+      serviceType: (($("routeServiceType") || {}).value || "طباعة"),
+      channelType: (($("routeChannel") || {}).value || "رقم مطبعة"),
+      providerName: providerName,
+      whatsappNumber: whatsapp,
+      branchCode: branchCode,
+      branchName: branch ? branchOptionLabel(branch) : "",
+      unit: (($("routeUnit") || {}).value || "قطعة"),
+      billingMode: (($("routeBillingMode") || {}).value || "نسبة على الوحدة"),
+      commissionValue: (($("routeCommissionValue") || {}).value || ""),
+      monthlySubscription: (($("routeMonthlySubscription") || {}).value || ""),
+      subscriptionFrom: (($("routeSubscriptionFrom") || {}).value || ""),
+      subscriptionTo: (($("routeSubscriptionTo") || {}).value || ""),
+      active: (($("routeActive") || {}).value || "نعم"),
+      notes: (($("routeNotes") || {}).value || "")
+    });
+    const btn = $("saveServiceRouteBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري الحفظ..."; }
+    setMsg("serviceRoutesStatus", "جاري حفظ ربط الخدمة...", false);
+    try {
+      const res = await apiPost("saveServiceProviderRoute", payload);
+      if (!res.success) throw new Error(res.message || "تعذر حفظ ربط الخدمة.");
+      ["routeCode", "routeServiceName", "routeProviderName", "routeWhatsapp", "routeCommissionValue", "routeMonthlySubscription", "routeSubscriptionFrom", "routeSubscriptionTo", "routeNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+      setMsg("serviceRoutesStatus", res.message || "تم حفظ ربط الخدمة.", false);
+      await loadServiceRoutes(true);
+    } catch (err) {
+      setMsg("serviceRoutesStatus", err.message || "خطأ أثناء حفظ ربط الخدمة.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "حفظ ربط الخدمة"; }
+    }
+  }
+
   /*********************** أقسام المنصة V1851 ***********************/
 
   function canManagePlatformSections() {
@@ -1103,6 +1326,7 @@ Trend Mall`;
         return;
       }
       state.platformSections = Array.isArray(res.sections) ? res.sections : [];
+      refreshServiceRouteSelectors();
       if (forAdmin) renderPlatformSectionsDashboard();
       else renderCustomerPlatformSections();
     } catch (err) {
@@ -1599,6 +1823,13 @@ Trend Mall`;
     }
   }
 
+  function adTransformStyle(ad) {
+    const scale = Number(ad && ad.scale || 1) || 1;
+    const x = Number(ad && ad.offsetX || 0) || 0;
+    const y = Number(ad && ad.offsetY || 0) || 0;
+    return "transform: translate(" + x + "px," + y + "px) scale(" + scale + ");";
+  }
+
   function renderPlatformAdsDashboard() {
     const list = $("platformAdsList");
     if (!list) return;
@@ -1608,13 +1839,14 @@ Trend Mall`;
       return;
     }
     list.innerHTML = ads.map(function (ad) {
-      const img = escapeHtml(adImageUrl(ad, 600));
+      const img = escapeHtml(adImageUrl(ad, 900));
       const url = escapeHtml(ad.fileUrl || "#");
       const active = text(ad.active || ad["مفعل"] || "نعم");
-      return '<div class="platform-ad-item">' +
-        (img ? '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + img + '" alt="إعلان" loading="lazy"></a>' : '') +
-        '<div><b>' + escapeHtml(ad.title || ad.adTitle || "إعلان") + '</b>' +
+      return '<div class="platform-ad-item premium-ad-item">' +
+        (img ? '<a class="ad-thumb-canvas" href="' + url + '" target="_blank" rel="noopener"><img src="' + img + '" alt="إعلان" loading="lazy" style="' + escapeHtml(adTransformStyle(ad)) + '"></a>' : '') +
+        '<div><b>إعلان واجهة العملاء</b>' +
         '<span>مفعل: ' + escapeHtml(active || "نعم") + '</span>' +
+        '<small>تكبير: ' + escapeHtml(ad.scale || 1) + ' | إزاحة: ' + escapeHtml(ad.offsetX || 0) + ' / ' + escapeHtml(ad.offsetY || 0) + '</small>' +
         '<small>' + escapeHtml(ad.createdAt || "") + '</small></div>' +
       '</div>';
     }).join("");
@@ -1634,13 +1866,127 @@ Trend Mall`;
     }
     board.classList.remove("hidden");
     board.innerHTML = ads.slice(0, 3).map(function (ad) {
-      const img = escapeHtml(adImageUrl(ad, 900));
+      const img = escapeHtml(adImageUrl(ad, 1200));
       const url = escapeHtml(ad.fileUrl || "#");
-      return '<a class="customer-ad-slide" href="' + url + '" target="_blank" rel="noopener">' +
-        (img ? '<img src="' + img + '" alt="' + escapeHtml(ad.title || "إعلان") + '" loading="lazy">' : '') +
-        (ad.title ? '<span>' + escapeHtml(ad.title) + '</span>' : '') +
+      return '<a class="customer-ad-slide premium-customer-ad" href="' + url + '" target="_blank" rel="noopener">' +
+        (img ? '<img src="' + img + '" alt="إعلان" loading="lazy" style="' + escapeHtml(adTransformStyle(ad)) + '">' : '') +
       '</a>';
     }).join("");
+  }
+
+
+  function resetPlatformAdEditor() {
+    const ed = state.platformAdEditor || {};
+    if (ed.objectUrl) {
+      try { URL.revokeObjectURL(ed.objectUrl); } catch (e) {}
+    }
+    state.platformAdEditor = { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" };
+    if ($("platformAdZoom")) $("platformAdZoom").value = "1";
+    if ($("platformAdOffsetX")) $("platformAdOffsetX").value = "0";
+    if ($("platformAdOffsetY")) $("platformAdOffsetY").value = "0";
+    updatePlatformAdPreview();
+  }
+
+  function updatePlatformAdPreview() {
+    const preview = $("platformAdPreviewImg");
+    const wrap = $("platformAdPreviewWrap");
+    const ed = state.platformAdEditor || {};
+    if (!preview || !wrap) return;
+    if (!ed.objectUrl) {
+      wrap.classList.add("empty");
+      preview.removeAttribute("src");
+      preview.style.transform = "";
+      return;
+    }
+    wrap.classList.remove("empty");
+    preview.src = ed.objectUrl;
+    preview.style.transform = "translate(" + (ed.offsetX || 0) + "px," + (ed.offsetY || 0) + "px) scale(" + (ed.scale || 1) + ")";
+    if ($("platformAdZoomLabel")) $("platformAdZoomLabel").textContent = Number(ed.scale || 1).toFixed(2) + "x";
+  }
+
+  function setPlatformAdEditorFile(file) {
+    if (!file) return resetPlatformAdEditor();
+    const ed = state.platformAdEditor || {};
+    if (ed.objectUrl) {
+      try { URL.revokeObjectURL(ed.objectUrl); } catch (e) {}
+    }
+    state.platformAdEditor = { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: URL.createObjectURL(file) };
+    if ($("platformAdZoom")) $("platformAdZoom").value = "1";
+    if ($("platformAdOffsetX")) $("platformAdOffsetX").value = "0";
+    if ($("platformAdOffsetY")) $("platformAdOffsetY").value = "0";
+    updatePlatformAdPreview();
+  }
+
+  function syncPlatformAdEditorFromInputs() {
+    const ed = state.platformAdEditor || {};
+    ed.scale = Number(($("platformAdZoom") || {}).value || ed.scale || 1) || 1;
+    ed.offsetX = Number(($("platformAdOffsetX") || {}).value || ed.offsetX || 0) || 0;
+    ed.offsetY = Number(($("platformAdOffsetY") || {}).value || ed.offsetY || 0) || 0;
+    state.platformAdEditor = ed;
+    updatePlatformAdPreview();
+  }
+
+  function bindPlatformAdEditor() {
+    const fileInput = $("platformAdFile");
+    if (fileInput && !fileInput.dataset.adBound) {
+      fileInput.dataset.adBound = "1";
+      fileInput.addEventListener("change", function () {
+        const file = fileInput.files && fileInput.files[0];
+        setPlatformAdEditorFile(file);
+      });
+    }
+    ["platformAdZoom", "platformAdOffsetX", "platformAdOffsetY"].forEach(function (id) {
+      const el = $(id);
+      if (el && !el.dataset.adBound) {
+        el.dataset.adBound = "1";
+        el.addEventListener("input", syncPlatformAdEditorFromInputs);
+      }
+    });
+    const resetBtn = $("platformAdResetViewBtn");
+    if (resetBtn && !resetBtn.dataset.adBound) {
+      resetBtn.dataset.adBound = "1";
+      resetBtn.addEventListener("click", function () {
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        setPlatformAdEditorFile(file);
+      });
+    }
+    const wrap = $("platformAdPreviewWrap");
+    if (wrap && !wrap.dataset.panBound) {
+      wrap.dataset.panBound = "1";
+      const point = function (ev) {
+        const t = ev.touches && ev.touches[0];
+        return { x: t ? t.clientX : ev.clientX, y: t ? t.clientY : ev.clientY };
+      };
+      const start = function (ev) {
+        if (!(state.platformAdEditor || {}).objectUrl) return;
+        const p = point(ev);
+        state.platformAdEditor.dragging = true;
+        state.platformAdEditor.startX = p.x;
+        state.platformAdEditor.startY = p.y;
+        state.platformAdEditor.baseX = state.platformAdEditor.offsetX || 0;
+        state.platformAdEditor.baseY = state.platformAdEditor.offsetY || 0;
+        wrap.classList.add("dragging");
+        ev.preventDefault();
+      };
+      const move = function (ev) {
+        const ed = state.platformAdEditor || {};
+        if (!ed.dragging) return;
+        const p = point(ev);
+        ed.offsetX = Math.round((ed.baseX || 0) + p.x - (ed.startX || 0));
+        ed.offsetY = Math.round((ed.baseY || 0) + p.y - (ed.startY || 0));
+        if ($("platformAdOffsetX")) $("platformAdOffsetX").value = ed.offsetX;
+        if ($("platformAdOffsetY")) $("platformAdOffsetY").value = ed.offsetY;
+        updatePlatformAdPreview();
+        ev.preventDefault();
+      };
+      const end = function () { if (state.platformAdEditor) state.platformAdEditor.dragging = false; wrap.classList.remove("dragging"); };
+      wrap.addEventListener("mousedown", start);
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", end);
+      wrap.addEventListener("touchstart", start, { passive: false });
+      window.addEventListener("touchmove", move, { passive: false });
+      window.addEventListener("touchend", end);
+    }
   }
 
   async function uploadPlatformAd() {
@@ -1663,8 +2009,12 @@ Trend Mall`;
     try {
       const base64 = await fileToBase64(file);
       const res = await apiPost("uploadPlatformAd", authParams({
-        title: title || file.name,
+        title: title,
         active: active,
+        adScale: String((state.platformAdEditor || {}).scale || 1),
+        adOffsetX: String((state.platformAdEditor || {}).offsetX || 0),
+        adOffsetY: String((state.platformAdEditor || {}).offsetY || 0),
+        adFit: (($("platformAdFit") || {}).value || "cover"),
         fileName: file.name,
         mimeType: file.type || "image/png",
         size: file.size || 0,
@@ -1673,6 +2023,7 @@ Trend Mall`;
       if (!res.success) throw new Error(res.message || "فشل رفع الإعلان.");
       if ($("platformAdTitle")) $("platformAdTitle").value = "";
       if (fileInput) fileInput.value = "";
+      resetPlatformAdEditor();
       setMsg("platformAdsStatus", "تم رفع الإعلان وتحديث لوحة العملاء.", false);
       await loadPlatformAds(true);
     } catch (err) {
@@ -2349,6 +2700,8 @@ Trend Mall`;
     toggleFranchiseBranchesDashboard();
     toggleWhiteLabelDashboard();
     togglePhoneLeadsDashboard();
+    toggleServiceRoutesDashboard();
+    setupAdminWorkspace();
     loadRows();
     updateUrgentNotificationButton();
     startRefresh();
@@ -2389,6 +2742,8 @@ Trend Mall`;
         toggleFranchiseBranchesDashboard();
         toggleWhiteLabelDashboard();
         togglePhoneLeadsDashboard();
+        toggleServiceRoutesDashboard();
+        setupAdminWorkspace();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -3705,6 +4060,14 @@ Trend Mall`;
     on("customerImageDeleteBtn", "click", deleteCurrentPendingImage);
     on("uploadPlatformAdBtn", "click", uploadPlatformAd);
     on("refreshPlatformAdsBtn", "click", function () { loadPlatformAds(true); });
+    bindPlatformAdEditor();
+    on("saveServiceRouteBtn", "click", saveServiceRoute);
+    on("refreshServiceRoutesBtn", "click", function () { loadServiceRoutes(true); });
+    on("routeServiceSelect", "change", function () {
+      const service = selectedRouteServiceName();
+      const manual = $("routeServiceName");
+      if (manual && !manual.value.trim()) manual.placeholder = service || "اسم خدمة يدوي";
+    });
 
     $("loginBtn").addEventListener("click", doLogin);
     $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });

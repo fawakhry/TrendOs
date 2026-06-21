@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>مطبعجي مصر V1854</title>
-  <link rel="stylesheet" href="styles.css?v=1854">
+  <title>مطبعجي مصر V1855</title>
+  <link rel="stylesheet" href="styles.css?v=1855">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1854 - نسخة مطابع White Label + خدمة أرقام آمنة</p>
+    <p class="version-badge">مطبعجي مصر V1855 - تنظيم الإدارة + ربط الخدمات بالمطابع + إعلانات احترافية</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1854 - نسخة مطابع White Label + خدمة أرقام آمنة</p>
+        <p class="version-badge">مطبعجي مصر V1855 - تنظيم الإدارة + ربط الخدمات بالمطابع + إعلانات احترافية</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -80,6 +80,14 @@
 
     <nav id="tabs" class="tabs"></nav>
 
+    <section id="adminWorkspaceHub" class="admin-workspace-hub hidden">
+      <div class="admin-hub-head">
+        <b>مركز إدارة مطبعجي</b>
+        <span>كل حاجة في تاب واضح: تشغيل، فرنشايز، أعضاء، ردود، إعلانات.</span>
+      </div>
+      <div id="adminWorkspaceTabs" class="admin-workspace-tabs"></div>
+    </section>
+
     <section id="managementDashboard" class="card dashboard-card hidden">
       <div class="table-tools">
         <h3>متابعة اليوم</h3>
@@ -90,6 +98,110 @@
       </div>
     </section>
 
+    <section id="platformSectionsCard" class="card platform-sections-card hidden">
+      <div class="table-tools">
+        <h3>إدارة خدمات البوابة <span class="help-dot" title="أي خدمة تضيفها هنا تظهر للعميل ككارت جميل: DTF / Banner / UV / مج / تابلوه.">؟</span></h3>
+        <span id="platformSectionsStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        دي الخدمات اللي العميل بيشوفها على البوابة. بعد إضافة الخدمة اربطها برقم مطبعة أو فرع من كارت ربط الخدمات.
+      </div>
+      <div class="platform-section-form">
+        <input id="platformSectionCode" placeholder="كود الخدمة - اختياري">
+        <input id="platformSectionName" placeholder="اسم الخدمة مثل Banner / DTF / UV">
+        <input id="platformSectionDescription" class="wide" placeholder="وصف مختصر يظهر للعميل">
+        <select id="platformSectionType">
+          <option selected>طباعة</option>
+          <option>ليزر</option>
+          <option>تصميم</option>
+          <option>توصيل</option>
+          <option>خدمة خارجية</option>
+        </select>
+        <select id="platformSectionExecution">
+          <option selected>وسيط</option>
+          <option>داخلي</option>
+          <option>فرع مطبعجي</option>
+          <option>مطبعة شريكة</option>
+        </select>
+        <select id="platformSectionActive">
+          <option selected>نعم</option>
+          <option>لا</option>
+        </select>
+        <input id="platformSectionSort" type="number" placeholder="ترتيب الظهور">
+        <input id="platformSectionSupplier" placeholder="اسم المورد/المطبعة داخليًا">
+        <input id="platformSectionWhatsapp" placeholder="واتساب المورد - اختياري">
+        <input id="platformSectionDesignPrice" type="number" min="0" value="10" placeholder="سعر خدمة التصميم">
+        <input id="platformSectionNotes" class="wide" placeholder="ملاحظات داخلية">
+        <input id="platformSectionImage" type="file" accept="image/*">
+        <button id="savePlatformSectionBtn" class="primary" type="button">حفظ الخدمة</button>
+        <button id="refreshPlatformSectionsBtn" class="ghost" type="button">تحديث الخدمات</button>
+      </div>
+      <div id="platformSectionsList" class="platform-sections-list">
+        <div class="dash-empty">لم يتم تحميل الخدمات بعد.</div>
+      </div>
+    </section>
+
+    <section id="serviceRoutesCard" class="card service-routes-card hidden">
+      <div class="table-tools">
+        <h3>ربط الخدمات بالمطابع والأرقام <span class="help-dot" title="اربط كل خدمة برقم مطبعة أو رحمة أو فرع، وحدد وحدة القياس وطريقة حساب نسبة مطبعجي.">؟</span></h3>
+        <span id="serviceRoutesStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        هنا بداية تشغيل نظام السوق: خدمة + رقم/فرع منفذ + وحدة قياس + نسبة مطبعجي أو اشتراك شهري. مثال: Banner بالمتر، DTF بالقطعة، تصميم بالأوردر.
+      </div>
+      <div class="service-route-form">
+        <input id="routeCode" placeholder="كود الربط - اختياري">
+        <select id="routeServiceSelect" title="اختار خدمة من خدمات البوابة أو اكتبها يدويًا">
+          <option value="">اكتب الخدمة يدويًا</option>
+        </select>
+        <input id="routeServiceName" placeholder="اسم الخدمة لو مش موجودة في القائمة">
+        <select id="routeServiceType">
+          <option selected>طباعة</option>
+          <option>تصميم</option>
+          <option>توصيل</option>
+          <option>ليزر</option>
+          <option>خدمة خارجية</option>
+        </select>
+        <select id="routeChannel" title="طريقة خروج الطلب للمنفذ">
+          <option selected>رقم مطبعة</option>
+          <option>من خلال رحمة</option>
+          <option>فرع مطبعجي</option>
+          <option>شريك مخفي</option>
+        </select>
+        <input id="routeProviderName" placeholder="اسم المطبعة / المسؤول / رحمة">
+        <input id="routeWhatsapp" placeholder="رقم واتساب المطبعة أو المسؤول">
+        <select id="routeBranchCode"><option value="">بدون فرع محدد</option></select>
+        <select id="routeUnit" title="الوحدة التي ستحسب عليها الكمية والنسبة">
+          <option selected>قطعة</option>
+          <option>متر</option>
+          <option>متر مربع</option>
+          <option>تصميم</option>
+          <option>أوردر</option>
+          <option>كيلو</option>
+        </select>
+        <select id="routeBillingMode" title="طريقة حساب حق مطبعجي">
+          <option selected>نسبة على الوحدة</option>
+          <option>مبلغ ثابت على الوحدة</option>
+          <option>اشتراك شهري</option>
+          <option>نسبة + اشتراك</option>
+        </select>
+        <input id="routeCommissionValue" type="number" min="0" placeholder="نسبة % أو مبلغ مطبعجي لكل وحدة">
+        <input id="routeMonthlySubscription" type="number" min="0" placeholder="قيمة الاشتراك الشهري">
+        <input id="routeSubscriptionFrom" type="date" title="بداية الاشتراك">
+        <input id="routeSubscriptionTo" type="date" title="نهاية الاشتراك">
+        <select id="routeActive">
+          <option selected>نعم</option>
+          <option>لا</option>
+        </select>
+        <input id="routeNotes" class="wide" placeholder="ملاحظات: شروط التسليم، منع التعامل المباشر، سعر التنفيذ الداخلي...">
+        <button id="saveServiceRouteBtn" class="primary" type="button">حفظ ربط الخدمة</button>
+        <button id="refreshServiceRoutesBtn" class="ghost" type="button">تحديث الربط</button>
+      </div>
+      <div id="serviceRoutesList" class="service-routes-list">
+        <div class="dash-empty">لم يتم تحميل ربط الخدمات بعد.</div>
+      </div>
+    </section>
+
 
     <section id="platformAdsCard" class="card platform-ads-card hidden">
       <div class="table-tools">
@@ -97,17 +209,39 @@
         <span id="platformAdsStatus"></span>
       </div>
       <div class="hint strong-hint">
-        لوحة ضياء الخاصة بالإعلانات: ارفع صورة إعلان، وستظهر للعملاء في الصفحة الرئيسية داخل منصة مطبعجي بنها.
+        استوديو إعلانات: ارفع صورة الإعلان، ظبط تكبيرها ومكانها بالماوس أو التاتش، ثم ارفعها بدون إظهار اسم الملف للعميل.
       </div>
-      <div class="platform-ad-form">
-        <input id="platformAdTitle" placeholder="عنوان الإعلان - اختياري">
-        <select id="platformAdActive">
-          <option selected>نعم</option>
-          <option>لا</option>
-        </select>
-        <input id="platformAdFile" type="file" accept="image/*">
-        <button id="uploadPlatformAdBtn" class="primary" type="button">رفع الإعلان</button>
-        <button id="refreshPlatformAdsBtn" class="ghost" type="button">تحديث الإعلانات</button>
+      <div class="platform-ad-studio">
+        <div class="platform-ad-form">
+          <input id="platformAdTitle" placeholder="اسم داخلي اختياري - لا يظهر للعميل">
+          <select id="platformAdActive">
+            <option selected>نعم</option>
+            <option>لا</option>
+          </select>
+          <select id="platformAdFit">
+            <option selected>cover</option>
+            <option>contain</option>
+          </select>
+          <input id="platformAdFile" type="file" accept="image/*">
+          <button id="uploadPlatformAdBtn" class="primary" type="button">رفع الإعلان</button>
+          <button id="refreshPlatformAdsBtn" class="ghost" type="button">تحديث الإعلانات</button>
+        </div>
+        <div class="ad-editor-layout">
+          <div id="platformAdPreviewWrap" class="ad-preview-wrap empty" title="اسحب الصورة بالماوس أو بإصبعك لتغيير مكانها">
+            <img id="platformAdPreviewImg" alt="معاينة الإعلان">
+            <span class="empty-note">اختار صورة الإعلان لمعاينتها هنا</span>
+          </div>
+          <div class="ad-editor-controls">
+            <label>تكبير/تصغير <b id="platformAdZoomLabel">1.00x</b></label>
+            <input id="platformAdZoom" type="range" min="0.5" max="3" step="0.05" value="1">
+            <label>تحريك أفقي</label>
+            <input id="platformAdOffsetX" type="range" min="-300" max="300" step="1" value="0">
+            <label>تحريك رأسي</label>
+            <input id="platformAdOffsetY" type="range" min="-300" max="300" step="1" value="0">
+            <button id="platformAdResetViewBtn" class="ghost" type="button">إعادة ضبط الصورة</button>
+            <div class="hint">الإعلان سيظهر للعميل كصورة فقط بدون اسم ملف. التحريك والتكبير محفوظان مع الإعلان.</div>
+          </div>
+        </div>
       </div>
       <div id="platformAdsList" class="platform-ads-list">
         <div class="dash-empty">لم يتم تحميل الإعلانات بعد.</div>
@@ -514,7 +648,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1854 - نسخة مطابع White Label + خدمة أرقام آمنة</p>
+        <p class="version-badge">مطبعجي مصر V1855 - تنظيم الإدارة + ربط الخدمات بالمطابع + إعلانات احترافية</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -756,7 +890,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1853"></script>
-<script src="app.js?v=1853"></script>
+<script src="config.js?v=1855"></script>
+<script src="app.js?v=1855"></script>
 </body>
 </html>
