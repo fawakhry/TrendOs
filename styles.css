@@ -1546,3 +1546,30 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 }
 .fast-print-card b{color:#c2410c!important;}
 .fast-print-card span{color:#7c2d12!important;}
+
+
+/* V1856 Patch 05 - cancelled orders + heat press filter visibility */
+.cancelled-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#f1f5f9;
+  color:#475569;
+  border:1px solid #cbd5e1;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.stat-cancelled{
+  background:#f8fafc!important;
+  color:#475569!important;
+  border-color:#cbd5e1!important;
+}
+#heatPressFilter{
+  border-color:#fecaca;
+  background:#fff7f7;
+  color:#991b1b;
+  font-weight:800;
+}

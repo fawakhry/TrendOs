@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_01_VISITOR_ADS_DEMO_CUSTOMER_DELETE_ADS";
+  const UI_VERSION = "1856_PATCH_05_CANCELLED_HEATPRESS";
 
   const screens = {
     service: "خدمة العملاء",
@@ -29,12 +29,13 @@
     "جاهز للاستلام",
     "تم التسليم",
     "مشكلة",
-    "متوقف"
+    "متوقف",
+    "ملغى"
   ];
 
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
   // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
-  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة"];
+  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى"];
   const PROOF_REVIEW_TEXT = "المراجعة مسئولية العميل والمكان غير مسئول عن اى اخطاء إملائية\nالبروفة مبعوته للمراجعه !!\nلو سمحت المراجعة جيدا على الشكل و البيانات بشكل دقيق قبل الرد على البروفة\nفى إنتظار حضرتك .....";
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
 
@@ -255,7 +256,7 @@
   function isOverdueRow(row) {
     if (row && (row.overdue === true || row.overdue === "نعم" || row.overdue === "true")) return true;
     const status = text(row.status);
-    if (["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر"].indexOf(status) !== -1) return false;
+    if (["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر", "ملغى"].indexOf(status) !== -1) return false;
     const d = parseRowDate(row.expectedDeliveryAt || row.expectedDeliveryText || row.expectedDelivery);
     if (!d) return false;
     const today = new Date();
@@ -369,6 +370,14 @@ Trend Mall`;
 نوع الشغل: ${item}
 القسم: ${dept}
 يمكنك التواصل معنا لتأكيد الاستلام.
+Trend Mall`;
+    }
+
+    if (status === "ملغى") {
+      return `أهلاً${customer} 👋
+تم تسجيل إلغاء الأوردر رقم ${orderId} بناءً على طلب حضرتك.
+نوع الشغل: ${item}
+القسم: ${dept}${row.notes ? "\nملاحظات: " + row.notes : ""}
 Trend Mall`;
     }
 
@@ -2214,7 +2223,7 @@ Trend Mall`;
       "مشكلة": "يوجد ملاحظة وسيتم التواصل معك",
       "جاهز للاستلام": "جاهز للاستلام",
       "تم التسليم": "تم التسليم",
-      "ملغى": "ملغي",
+      "ملغى": "تم إلغاء الطلب",
       "مكرر": "مكرر"
     };
     return map[s] || s || "تم استلام الطلب";
@@ -3540,9 +3549,12 @@ Trend Mall`;
       if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
       else if (status === "__TODAY_WORK__" && (isHiddenFromUserScreens(r.status) || !isTodayWorkRow(r))) return false;
       else if (status === "__DELIVERED_TODAY__" && !isDeliveredTodayRow(r)) return false;
-      else if (!status || status.indexOf("__") !== 0) {
+      else if (status && status.indexOf("__") !== 0) {
+        // عند اختيار حالة محددة مثل ملغى أو جاهز للاستلام نعرضها حتى لو مخفية من الشاشة اليومية.
+        if (text(r.status) !== status) return false;
+      } else {
+        // بدون فلتر حالة: أخفي الحالات النهائية/المخفية من شاشة التشغيل اليومية.
         if (isHiddenFromUserScreens(r.status)) return false;
-        if (status && text(r.status) !== status) return false;
       }
 
       if (priority === "__ACTIVE__" && !isActiveDefaultPriority(r.priority)) return false;
@@ -3568,7 +3580,7 @@ Trend Mall`;
     const bar = $("currentOrderBar");
     if (!bar) return;
 
-    const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر"];
+    const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر", "ملغى"];
 
     const candidates = rows.map(function (r, i) {
       return { row: r, index: i };
@@ -3602,6 +3614,7 @@ Trend Mall`;
     const overdue = rows.filter(isOverdueRow).length;
     const debts = rows.filter(hasDebt).length;
     const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
+    const cancelled = rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
     const flyPrint = rows.filter(function (r) {
       return isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
     }).length;
@@ -3613,12 +3626,14 @@ Trend Mall`;
       '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
       '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
       '<span class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
+      '<span class="stat-cancelled">ملغى: <b>' + cancelled + '</b></span>' +
       '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
   function compactOrderCell(r) {
     const overdue = isOverdueRow(r) ? ' <span class="overdue-pill">متأخر</span>' : '';
-    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + '</div>' +
+    const cancelled = text(r.status) === "ملغى" ? ' <span class="cancelled-pill">ملغى</span>' : '';
+    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + cancelled + '</div>' +
       '<div class="muted-line">البند: ' + escapeHtml(r.lineId || "-") + '</div>' +
       '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>';
   }
@@ -3641,7 +3656,8 @@ Trend Mall`;
   function statusBadges(r) {
     const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
     const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
-    return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + fly + '</div>';
+    const cancelled = text(r.status) === "ملغى" ? '<span class="cancelled-pill">ملغى</span>' : '';
+    return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + fly + cancelled + '</div>';
   }
 
   function renderTable(rows) {
