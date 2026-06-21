@@ -1520,3 +1520,29 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
     grid-template-columns:1.1fr 90px 110px 160px 1fr auto auto;
   }
 }
+
+
+/* V1856 Patch 03 - زر ملفات السيرفر */
+.server-files-btn{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+  color:#1d4ed8;
+  font-weight:900;
+}
+.server-files-btn:hover{background:#dbeafe;}
+
+
+/* V1856 Patch 04 - Remote server files + client fast print upload */
+.server-files-btn{
+  background:#eef2ff!important;
+  border-color:#c7d2fe!important;
+  color:#3730a3!important;
+  font-weight:900!important;
+}
+.server-files-btn:hover{background:#e0e7ff!important;}
+.fast-print-card{
+  background:linear-gradient(135deg,#fff7ed,#fffbeb)!important;
+  border-color:#fed7aa!important;
+}
+.fast-print-card b{color:#c2410c!important;}
+.fast-print-card span{color:#7c2d12!important;}

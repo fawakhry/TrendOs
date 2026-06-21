@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 Patch 01 - معاينة الزائر + إعلانات الواجهة + عميل تجربة</p>
+    <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,12 +66,12 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 01 - معاينة الزائر + إعلانات الواجهة + عميل تجربة</p>
+        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
         <button id="refreshBtn" class="ghost">تحديث الآن</button>
-        <button id="visitorPreviewBtn" class="ghost visitor-preview-btn hidden" type="button">👁️ كما يظهر للزائرين</button>
+        <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
@@ -258,62 +258,18 @@
             <option selected>نعم</option>
             <option>لا</option>
           </select>
-          <select id="platformAdFit" title="طريقة عرض الإعلان داخل المكان">
+          <select id="platformAdFit">
             <option selected>cover</option>
             <option>contain</option>
-          </select>
-          <select id="platformAdPlacement" title="اختار مكان ظهور الإعلان في واجهة العميل">
-            <option value="top" selected>أعلى الواجهة</option>
-            <option value="marketplace">قبل سوق مطبعجي</option>
-            <option value="branches">قبل فروع مطبعجي</option>
           </select>
           <input id="platformAdFile" type="file" accept="image/*">
           <button id="uploadPlatformAdBtn" class="primary" type="button">رفع الإعلان</button>
           <button id="refreshPlatformAdsBtn" class="ghost" type="button">تحديث الإعلانات</button>
         </div>
-        <div class="ad-editor-layout visitor-ad-editor-layout">
-          <div class="ad-visitor-preview-shell">
-            <div class="ad-preview-toolbar">
-              <b>معاينة أماكن الإعلان على واجهة العميل</b>
-              <span>اختار مكان الإعلان من القائمة، ثم اسحب الصورة وكبرها أو صغرها داخل نفس مكان ظهورها للزائر.</span>
-            </div>
-            <div class="ad-preview-phone">
-              <div class="ad-preview-topbar">
-                <b>أهلاً بك في مطبعجي</b>
-                <small>واجهة العميل كما تظهر للزائرين</small>
-              </div>
-              <div id="platformAdPreviewSlotTop" class="ad-placement-target active">
-                <span class="ad-placement-label">أعلى الواجهة</span>
-                <div id="platformAdPreviewWrap" class="ad-preview-wrap empty" title="اسحب الصورة بالماوس أو بإصبعك لتغيير مكانها">
-                  <img id="platformAdPreviewImg" alt="معاينة الإعلان">
-                  <span class="empty-note">اختار صورة الإعلان لمعاينتها هنا</span>
-                </div>
-              </div>
-              <div class="ad-preview-services">
-                <span>+ طلب جديد</span>
-                <span>متابعة أوردراتي</span>
-                <span>مطبعجي شيتات</span>
-                <span>اصنع تصميمك بنفسك</span>
-              </div>
-              <div class="ad-preview-section-title">سوق مطبعجي</div>
-              <div id="platformAdPreviewSlotMarketplace" class="ad-placement-target">
-                <span class="ad-placement-label">قبل سوق مطبعجي</span>
-              </div>
-              <div class="ad-preview-market-row">
-                <span>بائع 1</span>
-                <span>منتج 2</span>
-                <span>مساحة 3</span>
-              </div>
-              <div class="ad-preview-section-title">أقرب فرع مطبعجي معتمد</div>
-              <div id="platformAdPreviewSlotBranches" class="ad-placement-target">
-                <span class="ad-placement-label">قبل فروع مطبعجي</span>
-              </div>
-              <div class="ad-preview-market-row">
-                <span>فرع بنها</span>
-                <span>فرع قريب</span>
-                <span>استلام وتسليم</span>
-              </div>
-            </div>
+        <div class="ad-editor-layout">
+          <div id="platformAdPreviewWrap" class="ad-preview-wrap empty" title="اسحب الصورة بالماوس أو بإصبعك لتغيير مكانها">
+            <img id="platformAdPreviewImg" alt="معاينة الإعلان">
+            <span class="empty-note">اختار صورة الإعلان لمعاينتها هنا</span>
           </div>
           <div class="ad-editor-controls">
             <label>تكبير/تصغير <b id="platformAdZoomLabel">1.00x</b></label>
@@ -323,7 +279,7 @@
             <label>تحريك رأسي</label>
             <input id="platformAdOffsetY" type="range" min="-300" max="300" step="1" value="0">
             <button id="platformAdResetViewBtn" class="ghost" type="button">إعادة ضبط الصورة</button>
-            <div class="hint">الإعلان سيظهر للعميل كصورة فقط بدون اسم ملف. المكان والتحريك والتكبير محفوظين مع الإعلان.</div>
+            <div class="hint">الإعلان سيظهر للعميل كصورة فقط بدون اسم ملف. التحريك والتكبير محفوظان مع الإعلان.</div>
           </div>
         </div>
       </div>
@@ -564,7 +520,11 @@
 
         <div>
           <label>نوع العميل</label>
-          <input id="newClientType" placeholder="مكتب / واتساب / عميل مباشر">
+          <select id="newClientType">
+            <option selected>خارجي</option>
+            <option>جملة</option>
+            <option>جملة VIP</option>
+          </select>
         </div>
 
         <div>
@@ -593,10 +553,7 @@
         </div>
       </div>
 
-      <div class="row customer-actions-row">
-        <button id="createCustomerBtn" class="primary">إضافة العميل</button>
-        <button id="createDemoCustomerBtn" class="ghost" type="button">تجهيز عميل تجربة ضياء / 1234</button>
-      </div>
+      <button id="createCustomerBtn" class="primary">إضافة العميل</button>
     </section>
 
     <section id="addOrderCard" class="card hidden">
@@ -736,7 +693,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 01 - معاينة الزائر + إعلانات الواجهة + عميل تجربة</p>
+        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -746,9 +703,13 @@
     </header>
 
     <section id="customerHomePanel" class="card customer-home-card">
-      <div id="customerAdsBoard" class="customer-ads-board hidden" data-ad-placement="top"></div>
+      <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
       <h3>خدماتك على منصة مطبعجي بنها</h3>
       <div class="customer-service-grid">
+        <button id="customerFastPrintFilesBtn" class="customer-service-card fast-print-card hidden" type="button">
+          <b>⚡ رفع ملف جاهز للطباعة</b>
+          <span>للعملاء المصرح لهم فقط: ارفع ملفات جاهزة للطباعة مباشرة في فولدر طباعة ع الطاير.</span>
+        </button>
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
           <b>+ طلب جديد</b>
           <span>افتح مسودة شات، أضف كل البنود والملفات، ثم ابدأ التنفيذ واستلم رقم الأوردر.</span>
@@ -766,7 +727,6 @@
           <span>مساعد التصميم الذكي — قيد التجهيز داخل المنصة.</span>
         </button>
       </div>
-      <div id="customerAdsBoardMarketplace" class="customer-ads-board hidden" data-ad-placement="marketplace"></div>
       <div class="customer-marketplace-panel">
         <div class="table-tools">
           <h3>سوق مطبعجي</h3>
@@ -778,7 +738,6 @@
         </div>
         <div id="customerMarketplaceProducts" class="customer-marketplace-products hidden"></div>
       </div>
-      <div id="customerAdsBoardBranches" class="customer-ads-board hidden" data-ad-placement="branches"></div>
 
       <div class="customer-franchise-panel">
         <div class="table-tools">
@@ -996,7 +955,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1856-patch01"></script>
-<script src="app.js?v=1856-patch01"></script>
+<script src="config.js?v=1856"></script>
+<script src="app.js?v=1856"></script>
 </body>
 </html>

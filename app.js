@@ -441,6 +441,84 @@ Trend Mall`;
     return true;
   }
 
+
+  /*********************** V1856 Patch 03 - بوابة ملفات سيرفر المطبعة ***********************/
+
+  function localFileServerUrl() {
+    const configured = text(window.MATBAGY_FILE_SERVER_URL || "").trim();
+    return configured || "http://192.168.1.10:5050";
+  }
+
+  function openLocalFileServer() {
+    const url = localFileServerUrl();
+    if (!url) {
+      alert("رابط بوابة ملفات السيرفر غير مضبوط في config.js");
+      return;
+    }
+    window.open(url, "Matbagy_Server_Files");
+  }
+
+
+  /*********************** V1856 Patch 04 - ملفات مطبعجي من البيت + عميل طباعة ع الطاير ***********************/
+
+  function remoteFileServerUrl() {
+    const remote = text(window.MATBAGY_REMOTE_FILES_URL || "").trim();
+    const local = localFileServerUrl();
+    return remote || local;
+  }
+
+  function fastPrintUploadUrl() {
+    const direct = text(window.MATBAGY_FAST_PRINT_UPLOAD_URL || "").trim();
+    return direct || remoteFileServerUrl();
+  }
+
+  function openRemoteFileServer() {
+    const url = remoteFileServerUrl();
+    if (!url) {
+      alert("رابط ملفات مطبعجي غير مضبوط في config.js");
+      return;
+    }
+    window.open(url, "Matbagy_Remote_Files");
+  }
+
+  function customerFastPrintKeys() {
+    const c = state.customer || {};
+    return [c.customerCode, c.code, c.phone, c.mobile, c.name, c.customerName]
+      .map(function (v) { return normalizeArabic(v); })
+      .filter(Boolean);
+  }
+
+  function customerCanUseFastPrintFolder() {
+    const c = state.customer || {};
+    const direct = text(c.fastPrintAccess || c.allowFastPrintAccess || c.serverFilesAccess || c.quickPrintAccess || "");
+    if (direct === true || direct === "نعم" || direct === "true" || direct === "TRUE" || direct === "1") return true;
+    const allowed = Array.isArray(window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS) ? window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS : [];
+    if (!allowed.length) return false;
+    const keys = customerFastPrintKeys();
+    return allowed.map(function (v) { return normalizeArabic(v); }).some(function (v) {
+      return v && keys.indexOf(v) !== -1;
+    });
+  }
+
+  function updateCustomerFastPrintAccessButton() {
+    const btn = $("customerFastPrintFilesBtn");
+    if (!btn) return;
+    btn.classList.toggle("hidden", !customerCanUseFastPrintFolder());
+  }
+
+  function openCustomerFastPrintFiles() {
+    if (!customerCanUseFastPrintFolder()) {
+      alert("هذه الخدمة غير مفعلة على حسابك. تواصل مع مطبعجي لتفعيل رفع الملفات الجاهزة للطباعة.");
+      return;
+    }
+    const url = fastPrintUploadUrl();
+    if (!url) {
+      alert("رابط رفع ملفات طباعة ع الطاير غير مضبوط حالياً.");
+      return;
+    }
+    window.open(url, "Matbagy_Fast_Print_Upload");
+  }
+
   function buildUrl(action, params, callbackName) {
     const query = new URLSearchParams();
     query.set("action", action);
@@ -2321,6 +2399,7 @@ Trend Mall`;
   }
 
   function renderCustomerHome() {
+    updateCustomerFastPrintAccessButton();
     const home = $("customerHomePanel");
     const orderPanel = $("customerNewOrderPanel");
     const ordersPanel = $("customerOrdersPanel");
@@ -4078,7 +4157,7 @@ Trend Mall`;
       manager: $("newClientManager").value.trim() || ((state.user || {}).name || (state.user || {}).username || ""),
       phone: $("newClientPhone").value.trim(),
       extraPhone: $("newClientExtraPhone").value.trim(),
-      customerType: $("newClientType").value.trim(),
+      customerType: ($("newClientType").value.trim() || "خارجي"),
       debtAmount: $("newClientDebt") ? $("newClientDebt").value.trim() : "0",
       franchiseBranchCode: $("newClientBranch") ? $("newClientBranch").value.trim() : "",
       franchiseBranchName: (function () { const sel = $("newClientBranch"); return sel && sel.value && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : ""; })(),
@@ -4411,6 +4490,9 @@ Trend Mall`;
     on("customerUseGpsBtn", "click", requestCustomerGps);
     on("customerRefreshMarketplaceBtn", "click", function () { loadMarketplace(false); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
+    on("remoteFilesBtn", "click", openRemoteFileServer);
+    on("serverFilesBtn", "click", openLocalFileServer);
+    on("customerFastPrintFilesBtn", "click", openCustomerFastPrintFiles);
     on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });
     on("customerOrderFiles", "change", syncCustomerPendingFilesFromInput);
     on("customerOrderDocs", "change", syncCustomerPendingFilesFromInput);
