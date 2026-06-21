@@ -152,7 +152,10 @@
     customerImageViewerFiles: [],
     customerImageViewerIndex: 0,
     customerImageViewerMode: "readonly",
-    platformAds: []
+    platformAds: [],
+    platformSections: [],
+    customerSelectedSection: null,
+    customerDesignOfferItemId: ""
   };
 
   const $ = (id) => document.getElementById(id);
@@ -825,6 +828,7 @@ Trend Mall`;
     renderCustomerHome();
     loadCustomerOrders();
     loadPlatformAds(false);
+    loadPlatformSections(false);
   }
 
   function renderCustomerHeader() {
@@ -833,6 +837,226 @@ Trend Mall`;
     const meta = $("customerMeta");
     if (title) title.textContent = "أهلاً " + (c.name || "عميل مطبعجي");
     if (meta) meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | منصة مطبعجي بنها";
+  }
+
+
+  /*********************** أقسام المنصة V1851 ***********************/
+
+  function canManagePlatformSections() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    const username = normalizeArabic(user.username || user.name || "");
+    return role === "admin" || username === "ضياء";
+  }
+
+  function togglePlatformSectionsDashboard() {
+    const card = $("platformSectionsCard");
+    if (!card) return;
+    const can = canManagePlatformSections();
+    card.classList.toggle("hidden", !can);
+    if (can) loadPlatformSections(true);
+  }
+
+  function platformSectionImageUrl(section, size) {
+    if (!section) return "";
+    if (section.thumbnailUrl) return text(section.thumbnailUrl);
+    const fileId = text(section.fileId || "");
+    if (fileId) return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(fileId) + "&sz=w" + (size || 900);
+    return text(section.imageUrl || section.fileUrl || "");
+  }
+
+  async function loadPlatformSections(forAdmin) {
+    try {
+      const params = forAdmin ? authParams({ includeInactive: "نعم" }) : { activeOnly: "نعم" };
+      const res = await api("getPlatformSections", params);
+      if (!res.success) {
+        if (forAdmin) setMsg("platformSectionsStatus", res.message || "تعذر تحميل أقسام المنصة.", true);
+        return;
+      }
+      state.platformSections = Array.isArray(res.sections) ? res.sections : [];
+      if (forAdmin) renderPlatformSectionsDashboard();
+      else renderCustomerPlatformSections();
+    } catch (err) {
+      if (forAdmin) setMsg("platformSectionsStatus", err.message || "خطأ في تحميل أقسام المنصة.", true);
+    }
+  }
+
+  function renderPlatformSectionsDashboard() {
+    const list = $("platformSectionsList");
+    if (!list) return;
+    const sections = state.platformSections || [];
+    if (!sections.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد أقسام منصة حتى الآن. أضف DTF أو Banner أو UV من النموذج بالأعلى.</div>';
+      return;
+    }
+    list.innerHTML = sections.map(function (sec) {
+      const img = escapeHtml(platformSectionImageUrl(sec, 360));
+      const active = text(sec.active || "نعم");
+      return '<div class="platform-section-admin-item">' +
+        (img ? '<img src="' + img + '" alt="' + escapeHtml(sec.name || "قسم") + '" loading="lazy">' : '<div class="section-empty-icon">🖨️</div>') +
+        '<div><b>' + escapeHtml(sec.name || "قسم") + '</b>' +
+        '<span>' + escapeHtml(sec.description || "") + '</span>' +
+        '<small>نوع التنفيذ: ' + escapeHtml(sec.executionType || "وسيط") + ' | مفعل: ' + escapeHtml(active) + ' | ترتيب: ' + escapeHtml(sec.sortOrder || "") + '</small>' +
+        (sec.designPrice ? '<small>خدمة المصمم الذكي: ' + escapeHtml(sec.designPrice) + ' ج</small>' : '') +
+        '</div></div>';
+    }).join("");
+  }
+
+  function renderCustomerPlatformSections() {
+    const wrap = $("customerPlatformSections");
+    if (!wrap) return;
+    const sections = (state.platformSections || []).filter(function (sec) { return text(sec.active || "نعم") !== "لا"; });
+    if (!sections.length) {
+      wrap.innerHTML = '<div class="hint">أقسام الخدمات قيد التجهيز.</div>';
+      return;
+    }
+    wrap.innerHTML = sections.map(function (sec) {
+      const img = escapeHtml(platformSectionImageUrl(sec, 600));
+      return '<button type="button" class="platform-section-card" data-section-code="' + escapeHtml(sec.sectionCode || "") + '">' +
+        (img ? '<img src="' + img + '" alt="' + escapeHtml(sec.name || "قسم") + '" loading="lazy">' : '<div class="platform-section-fallback">🖨️</div>') +
+        '<b>' + escapeHtml(sec.name || "قسم") + '</b>' +
+        '<span>' + escapeHtml(sec.description || "اسأل عن السعر وابعت الملفات من شات الخدمة.") + '</span>' +
+      '</button>';
+    }).join("");
+
+    Array.prototype.forEach.call(wrap.querySelectorAll(".platform-section-card"), function (btn) {
+      btn.onclick = function () {
+        const code = btn.getAttribute("data-section-code");
+        const section = (state.platformSections || []).find(function (x) { return text(x.sectionCode) === text(code); });
+        openCustomerPlatformSection(section);
+      };
+    });
+  }
+
+  function applyCustomerSelectedSectionToComposer() {
+    const dep = $("customerOrderDepartment");
+    const item = $("customerOrderItem");
+    const section = state.customerSelectedSection;
+    if (!dep) return;
+
+    if (section && section.name) {
+      const name = text(section.name);
+      let found = false;
+      Array.prototype.forEach.call(dep.options, function (opt) { if (opt.value === name || opt.textContent === name) found = true; });
+      if (!found) {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        dep.appendChild(opt);
+      }
+      dep.value = name;
+      dep.disabled = true;
+      if (item) item.placeholder = "اكتب طلبك في " + name + ": المقاس / الكمية / الخامة / أي تفاصيل";
+    } else {
+      dep.disabled = false;
+      const allowed = ["طباعة", "ليزر"];
+      Array.prototype.slice.call(dep.options).forEach(function (opt) {
+        if (allowed.indexOf(opt.value || opt.textContent) === -1) opt.remove();
+      });
+      if (item) item.placeholder = "اكتب نوع الشغل: تابلوه 30×40 / مج / قص ليزر";
+    }
+    applyCustomerSelectedSectionToComposer();
+  }
+
+  function openCustomerPlatformSection(section) {
+    if (!section) return;
+    state.customerSelectedSection = section;
+    state.customerViewMode = "newOrder";
+    resetCustomerDraft();
+    renderCustomerHome();
+    applyCustomerSelectedSectionToComposer();
+    renderCustomerDraft();
+  }
+
+  async function savePlatformSection() {
+    if (!canManagePlatformSections()) return;
+    const name = (($("platformSectionName") || {}).value || "").trim();
+    if (!name) {
+      setMsg("platformSectionsStatus", "اكتب اسم القسم أولًا.", true);
+      return;
+    }
+    const fileInput = $("platformSectionImage");
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    const payload = authParams({
+      sectionCode: (($("platformSectionCode") || {}).value || "").trim(),
+      name: name,
+      description: (($("platformSectionDescription") || {}).value || "").trim(),
+      sectionType: (($("platformSectionType") || {}).value || "طباعة"),
+      executionType: (($("platformSectionExecution") || {}).value || "وسيط"),
+      active: (($("platformSectionActive") || {}).value || "نعم"),
+      sortOrder: (($("platformSectionSort") || {}).value || ""),
+      supplierName: (($("platformSectionSupplier") || {}).value || ""),
+      supplierWhatsapp: (($("platformSectionWhatsapp") || {}).value || ""),
+      designPrice: (($("platformSectionDesignPrice") || {}).value || "10"),
+      notes: (($("platformSectionNotes") || {}).value || "")
+    });
+
+    const btn = $("savePlatformSectionBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "جاري الحفظ..."; }
+    setMsg("platformSectionsStatus", "جاري حفظ القسم...", false);
+    try {
+      if (file) {
+        if (!/^image\//i.test(file.type || "")) throw new Error("صورة القسم يجب أن تكون ملف صورة.");
+        payload.fileName = file.name;
+        payload.mimeType = file.type || "image/png";
+        payload.size = file.size || 0;
+        payload.base64 = await fileToBase64(file);
+      }
+      const res = await apiPost("savePlatformSection", payload);
+      if (!res.success) throw new Error(res.message || "تعذر حفظ القسم.");
+      ["platformSectionCode", "platformSectionName", "platformSectionDescription", "platformSectionSupplier", "platformSectionWhatsapp", "platformSectionNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+      if ($("platformSectionSort")) $("platformSectionSort").value = "";
+      if ($("platformSectionDesignPrice")) $("platformSectionDesignPrice").value = "10";
+      if (fileInput) fileInput.value = "";
+      setMsg("platformSectionsStatus", "تم حفظ القسم وظهوره للعملاء.", false);
+      await loadPlatformSections(true);
+    } catch (err) {
+      setMsg("platformSectionsStatus", err.message || "خطأ أثناء حفظ القسم.", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "حفظ القسم"; }
+    }
+  }
+
+  function attachDesignOfferHandlers() {
+    Array.prototype.forEach.call(document.querySelectorAll(".design-offer-yes"), function (btn) {
+      btn.onclick = function () { addSmartDesignerService(); };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".design-offer-no"), function (btn) {
+      btn.onclick = function () {
+        state.customerDesignOfferItemId = "";
+        setMsg("customerOrderMsg", "تمام، اعتبرنا الملف جاهز للتنفيذ بدون خدمة تصميم.", false);
+        renderCustomerDraft();
+      };
+    });
+  }
+
+  function latestItemWithFilesForDesignOffer() {
+    const draft = state.customerDraft;
+    if (!draft || draft.submitted || !draft.items || !draft.items.length) return null;
+    for (let i = draft.items.length - 1; i >= 0; i--) {
+      const item = draft.items[i];
+      if (item && item.itemName !== "خدمة المصمم الذكي" && item.files && item.files.length) return item;
+    }
+    return null;
+  }
+
+  function addSmartDesignerService() {
+    const draft = ensureCustomerDraftStarted();
+    const section = state.customerSelectedSection || {};
+    const price = Number(section.designPrice || 10) || 10;
+    draft.items.push({
+      itemId: "DESIGN-" + Date.now(),
+      department: "تصميم",
+      itemName: "خدمة المصمم الذكي",
+      qty: "1",
+      notes: "مساعدة في تجهيز التصميم للطباعة - تكلفة مقترحة: " + price + " ج",
+      heatPress: "لا",
+      flyPrint: "لا",
+      files: []
+    });
+    state.customerDesignOfferItemId = "";
+    renderCustomerDraft();
+    setMsg("customerOrderMsg", "تم إضافة خدمة المصمم الذكي للمسودة بسعر " + price + " ج. اكتب تفاصيل التصميم في الرسالة التالية.", false);
   }
 
 
@@ -982,11 +1206,12 @@ Trend Mall`;
     const ordersPanel = $("customerOrdersPanel");
     const designerPanel = $("customerDesignerPanel");
     [home, orderPanel, ordersPanel, designerPanel].forEach(function (el) { if (el) el.classList.add("hidden"); });
+    if (state.customerViewMode !== "newOrder") state.customerSelectedSection = null;
 
     if (state.customerViewMode === "newOrder") {
       if (orderPanel) orderPanel.classList.remove("hidden");
       if (!state.customerDraft) resetCustomerDraft();
-      updateCustomerPrintOptions();
+      applyCustomerSelectedSectionToComposer();
       renderCustomerDraft();
     } else if (state.customerViewMode === "designer") {
       if (designerPanel) designerPanel.classList.remove("hidden");
@@ -1343,12 +1568,12 @@ Trend Mall`;
     const title = $("customerDraftTitle");
     const meta = $("customerDraftMeta");
     const box = $("customerDraftMessages");
-    if (title) title.textContent = draft.orderId ? ("أوردر " + draft.orderId) : (draft.draftId ? "مسودة " + draft.draftId : "طلب جديد");
+    if (title) title.textContent = draft.orderId ? ("أوردر " + draft.orderId) : (state.customerSelectedSection ? ("خدمة " + state.customerSelectedSection.name) : (draft.draftId ? "مسودة " + draft.draftId : "طلب جديد"));
     if (meta) meta.textContent = draft.submitted ? "تم تحويل الطلب لأوردر رسمي" : (draft.items.length ? ("متصل الآن • " + draft.items.length + " بند") : "متصل الآن • لم يبدأ التنفيذ");
     if (!box) return;
 
     let html = '<div class="wa-date-chip">اليوم</div>' +
-      '<div class="chat-bubble system wa-system-bubble">أهلاً بك في دردشة الطلب. أرسل كل بند كرسالة منفصلة مع صوره وملفاته، وفي النهاية اضغط بدء التنفيذ لاستلام رقم الأوردر.</div>';
+      '<div class="chat-bubble system wa-system-bubble">أهلاً بك في دردشة الطلب. اسأل عن السعر أو ابعت الملفات والملاحظات. بعد ما تجهز كل البنود اضغط بدء التنفيذ لاستلام رقم الأوردر.</div>';
     if (draft.items.length) {
       html += draft.items.map(function (item, index) {
         const files = item.files || [];
@@ -1383,11 +1608,23 @@ Trend Mall`;
         '<div class="wa-bubble-footer"><span>قبل الإرسال</span><span class="wa-checks">○</span></div>' +
       '</div>';
     }
+    const offerItem = latestItemWithFilesForDesignOffer();
+    const hasDesignService = (draft.items || []).some(function (it) { return it.itemName === "خدمة المصمم الذكي"; });
+    if (!draft.submitted && offerItem && !hasDesignService) {
+      const section = state.customerSelectedSection || {};
+      const price = Number(section.designPrice || 10) || 10;
+      html += '<div class="chat-bubble system wa-system-bubble design-offer-bubble">' +
+        '<b>مصمم مطبعجي الذكي</b><br>هل تريد مساعدة في تجهيز التصميم للطباعة؟<br>' +
+        '<small>رسوم التصميم المقترحة: ' + escapeHtml(price) + ' ج</small>' +
+        '<div class="design-offer-actions"><button type="button" class="primary design-offer-yes">نعم، ساعدني في التصميم</button><button type="button" class="ghost design-offer-no">لا، الملف جاهز</button></div>' +
+      '</div>';
+    }
     if (draft.submitted) {
       html += '<div class="chat-bubble done wa-done-bubble">تم استلام الطلب بنجاح ✅<br>رقم الأوردر: <b>' + escapeHtml(draft.orderId || "-") + '</b><br>تابع الحالة من أوردراتي.</div>';
     }
     box.innerHTML = html;
     attachCustomerImageHandlers();
+    attachDesignOfferHandlers();
     box.scrollTop = box.scrollHeight;
   }
 
@@ -1607,6 +1844,7 @@ Trend Mall`;
     setupCollapsibleCards();
     toggleEndDayButton();
     togglePlatformAdsDashboard();
+    togglePlatformSectionsDashboard();
     loadRows();
     updateUrgentNotificationButton();
     startRefresh();
@@ -1643,6 +1881,7 @@ Trend Mall`;
         setupCollapsibleCards();
         toggleEndDayButton();
         togglePlatformAdsDashboard();
+        togglePlatformSectionsDashboard();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -2900,9 +3139,9 @@ Trend Mall`;
     on("customerCode", "keydown", function (e) { if (e.key === "Enter" && $("customerPassword")) $("customerPassword").focus(); });
     on("customerLogoutBtn", "click", customerLogout);
     on("customerRefreshOrdersBtn", "click", loadCustomerOrders);
-    on("customerGoHomeBtn", "click", function () { state.customerViewMode = "home"; renderCustomerHome(); });
+    on("customerGoHomeBtn", "click", function () { state.customerSelectedSection = null; state.customerViewMode = "home"; renderCustomerHome(); });
     on("customerShowOrdersBtn", "click", function () { state.customerViewMode = "orders"; renderCustomerHome(); loadCustomerOrders(); });
-    on("customerShowNewOrderBtn", "click", function () { state.customerViewMode = "newOrder"; if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft(); renderCustomerHome(); });
+    on("customerShowNewOrderBtn", "click", function () { state.customerSelectedSection = null; state.customerViewMode = "newOrder"; if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft(); renderCustomerHome(); applyCustomerSelectedSectionToComposer(); });
     on("customerShowDesignerBtn", "click", function () { state.customerViewMode = "designer"; renderCustomerHome(); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
     on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });
@@ -2916,7 +3155,7 @@ Trend Mall`;
     on("customerAddDraftItemBtn", "click", addCustomerDraftItem);
     on("customerSubmitDraftBtn", "click", submitCustomerDraft);
     on("customerResetDraftBtn", "click", startNewCustomerDraft);
-    on("customerBackFromChatBtn", "click", function () { state.customerViewMode = "home"; renderCustomerHome(); });
+    on("customerBackFromChatBtn", "click", function () { state.customerSelectedSection = null; state.customerViewMode = "home"; renderCustomerHome(); });
     on("copyCustomerSeparatorBtn", "click", copyCustomerSeparator);
     on("customerChangePassBtn", "click", openCustomerPasswordModal);
     on("customerCancelPassBtn", "click", closeCustomerPasswordModal);
@@ -2978,6 +3217,11 @@ Trend Mall`;
 
     const urgentBtn = $("urgentNotificationsBtn");
     if (urgentBtn) urgentBtn.addEventListener("click", enableUrgentNotifications);
+
+    const savePlatformSectionButton = $("savePlatformSectionBtn");
+    if (savePlatformSectionButton) savePlatformSectionButton.addEventListener("click", savePlatformSection);
+    const refreshPlatformSectionsButton = $("refreshPlatformSectionsBtn");
+    if (refreshPlatformSectionsButton) refreshPlatformSectionsButton.addEventListener("click", function () { loadPlatformSections(true); });
 
     const saveKnowledgeButton = $("saveKnowledgeBtn");
     if (saveKnowledgeButton) saveKnowledgeButton.addEventListener("click", saveKnowledge);

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها V1850</title>
-  <link rel="stylesheet" href="styles.css?v=1850">
+  <title>منصة مطبعجي بنها V1851</title>
+  <link rel="stylesheet" href="styles.css?v=1851">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">منصة مطبعجي بنها V1850 - عارض صور واتساب + لوحة إعلانات ضياء</p>
+    <p class="version-badge">منصة مطبعجي بنها V1851 - أقسام المنصة الديناميكية + واتس الخدمات</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1850 - عارض صور واتساب + لوحة إعلانات ضياء</p>
+        <p class="version-badge">منصة مطبعجي بنها V1851 - أقسام المنصة الديناميكية + واتس الخدمات</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -114,6 +114,48 @@
       </div>
     </section>
 
+
+    <section id="platformSectionsCard" class="card platform-sections-admin-card hidden">
+      <div class="table-tools">
+        <h3>إدارة أقسام المنصة</h3>
+        <span id="platformSectionsStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        من هنا ضياء يضيف خدمات مثل DTF / Banner / UV / DTF UV. أي قسم مفعل يظهر للعميل ككارت جميل، ويفتح شات طلب خاص بالخدمة.
+      </div>
+      <div class="platform-section-form">
+        <input id="platformSectionCode" placeholder="كود القسم - اختياري">
+        <input id="platformSectionName" placeholder="اسم القسم مثل DTF أو Banner">
+        <input id="platformSectionDescription" placeholder="وصف قصير يظهر للعميل">
+        <select id="platformSectionType">
+          <option selected>طباعة</option>
+          <option>ليزر</option>
+          <option>مورد خارجي</option>
+          <option>خدمة تصميم</option>
+        </select>
+        <select id="platformSectionExecution">
+          <option selected>وسيط</option>
+          <option>داخلي</option>
+          <option>مورد خارجي</option>
+          <option>شريك مستضاف</option>
+        </select>
+        <select id="platformSectionActive">
+          <option selected>نعم</option>
+          <option>لا</option>
+        </select>
+        <input id="platformSectionSort" type="number" placeholder="ترتيب الظهور">
+        <input id="platformSectionDesignPrice" type="number" min="0" value="10" placeholder="سعر خدمة التصميم">
+        <input id="platformSectionSupplier" placeholder="اسم المورد/المطبعة - اختياري">
+        <input id="platformSectionWhatsapp" placeholder="رقم واتساب المورد - اختياري">
+        <input id="platformSectionNotes" class="wide" placeholder="ملاحظات داخلية">
+        <input id="platformSectionImage" type="file" accept="image/*">
+        <button id="savePlatformSectionBtn" class="primary" type="button">حفظ القسم</button>
+        <button id="refreshPlatformSectionsBtn" class="ghost" type="button">تحديث الأقسام</button>
+      </div>
+      <div id="platformSectionsList" class="platform-sections-admin-list">
+        <div class="dash-empty">لم يتم تحميل أقسام المنصة بعد.</div>
+      </div>
+    </section>
 
     <section id="aiKnowledgeCard" class="card ai-knowledge-card hidden">
       <div class="table-tools">
@@ -383,7 +425,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">منصة مطبعجي بنها V1850 - عارض صور واتساب + لوحة إعلانات ضياء</p>
+        <p class="version-badge">منصة مطبعجي بنها V1851 - أقسام المنصة الديناميكية + واتس الخدمات</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -394,7 +436,9 @@
 
     <section id="customerHomePanel" class="card customer-home-card">
       <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
-      <h3>خدماتك على منصة مطبعجي بنها</h3>
+      <h3>أقسام المنصة</h3>
+      <div id="customerPlatformSections" class="customer-platform-sections"><div class="hint">جاري تحميل أقسام الخدمات...</div></div>
+      <h3>اختصارات سريعة</h3>
       <div class="customer-service-grid">
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
           <b>+ طلب جديد</b>
@@ -616,7 +660,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1850"></script>
-<script src="app.js?v=1850"></script>
+<script src="config.js?v=1851"></script>
+<script src="app.js?v=1851"></script>
 </body>
 </html>
