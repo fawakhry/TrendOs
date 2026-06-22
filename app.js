@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_05_CANCELLED_HEATPRESS";
+  const UI_VERSION = "1856_PATCH_10_CUSTOMER_PICKUP_DAYS";
 
   const screens = {
     service: "خدمة العملاء",
@@ -36,6 +36,7 @@
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
   // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
   const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى"];
+  const DUPLICATE_CLOSED_STATUSES = ["تم التسليم", "ملغى", "مكرر"];
   const PROOF_REVIEW_TEXT = "المراجعة مسئولية العميل والمكان غير مسئول عن اى اخطاء إملائية\nالبروفة مبعوته للمراجعه !!\nلو سمحت المراجعة جيدا على الشكل و البيانات بشكل دقيق قبل الرد على البروفة\nفى إنتظار حضرتك .....";
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
 
@@ -63,6 +64,88 @@
     return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "طباعة على الطاير" || v === "طباعة ع الطاير" || v === "على الطاير" || v === "ع الطاير";
   }
 
+
+  const AR_WEEK_DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+  const PICKUP_DAY_ALIASES = {
+    "الاحد": "الأحد", "الأحد": "الأحد", "احد": "الأحد", "حد": "الأحد",
+    "الاثنين": "الاثنين", "الإثنين": "الاثنين", "اثنين": "الاثنين", "اتنين": "الاثنين", "الأتنين": "الاثنين", "الاتنين": "الاثنين",
+    "الثلاثاء": "الثلاثاء", "ثلاثاء": "الثلاثاء", "تلات": "الثلاثاء", "التلات": "الثلاثاء", "التلاتاء": "الثلاثاء",
+    "الاربعاء": "الأربعاء", "الأربعاء": "الأربعاء", "اربعاء": "الأربعاء", "أربعاء": "الأربعاء", "الاربع": "الأربعاء",
+    "الخميس": "الخميس", "خميس": "الخميس",
+    "الجمعة": "الجمعة", "جمعه": "الجمعة", "جمعة": "الجمعة",
+    "السبت": "السبت", "سبت": "السبت"
+  };
+
+  function normalizePickupDayName(value) {
+    const raw = text(value).trim();
+    if (!raw) return "";
+    const key = raw.replace(/[إأآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+    return PICKUP_DAY_ALIASES[raw] || PICKUP_DAY_ALIASES[key] || "";
+  }
+
+  function parsePickupDays(value) {
+    const raw = text(value).trim();
+    if (!raw) return [];
+    const parts = raw.split(/[،,\/|+\-\n]+| و /g);
+    const out = [];
+    parts.forEach(function (p) {
+      const day = normalizePickupDayName(p);
+      if (day && out.indexOf(day) === -1) out.push(day);
+    });
+    // لو مكتوبة بجملة كاملة وفيها أسماء أيام بدون فواصل.
+    AR_WEEK_DAYS.forEach(function (day) {
+      if (raw.indexOf(day) !== -1 && out.indexOf(day) === -1) out.push(day);
+    });
+    return out;
+  }
+
+  function pickupDaysText(value) {
+    return parsePickupDays(value).join("، ");
+  }
+
+  function tomorrowArabicDayName() {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return AR_WEEK_DAYS[d.getDay()];
+  }
+
+  function customerHasPickupTomorrow(row) {
+    const days = parsePickupDays(row && (row.customerPickupDays || row.pickupDays || row.deliveryDays || row["أيام استلام العميل"] || row["أيام التسليم"]));
+    return days.indexOf(tomorrowArabicDayName()) !== -1;
+  }
+
+  function selectedPickupDaysFromForm() {
+    const wrap = $("newClientPickupDays");
+    if (!wrap) return "";
+    const days = [];
+    Array.prototype.forEach.call(wrap.querySelectorAll("input[type=checkbox]"), function (cb) {
+      if (cb.checked && days.indexOf(cb.value) === -1) days.push(cb.value);
+    });
+    return days.join("، ");
+  }
+
+  function clearPickupDaysForm() {
+    const wrap = $("newClientPickupDays");
+    if (!wrap) return;
+    Array.prototype.forEach.call(wrap.querySelectorAll("input[type=checkbox]"), function (cb) { cb.checked = false; });
+  }
+
+  function setCustomerPickupInfo(daysValue) {
+    state.selectedCustomerPickupDays = pickupDaysText(daysValue);
+    const box = $("customerPickupInfoBox");
+    if (!box) return;
+    if (!state.selectedCustomerPickupDays) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    const tomorrow = tomorrowArabicDayName();
+    const isTomorrow = parsePickupDays(state.selectedCustomerPickupDays).indexOf(tomorrow) !== -1;
+    box.classList.remove("hidden");
+    box.innerHTML = '<b>أيام استلام العميل:</b> ' + escapeHtml(state.selectedCustomerPickupDays) +
+      (isTomorrow ? ' <span class="tomorrow-pill">هيظهر في استلامات بكرة</span>' : '<span class="pickup-days-pill">بكرة: ' + escapeHtml(tomorrow) + '</span>');
+  }
+
   function numericAmount(value) {
     const raw = arabicDigitsToEnglish(value).replace(/[^0-9.\-]/g, "");
     const n = Number(raw);
@@ -80,6 +163,109 @@
   function debtLabel(row) {
     const amount = debtAmount(row);
     return amount > 0 ? (amount + " ج مديونية") : "مديونية";
+  }
+
+  function cleanPhoneForDuplicate(value) {
+    let digits = arabicDigitsToEnglish(value).replace(/[^0-9]/g, "");
+    if (digits.indexOf("0020") === 0 && digits.length >= 14) digits = "0" + digits.slice(4);
+    if (digits.indexOf("20") === 0 && digits.length >= 12) digits = "0" + digits.slice(2);
+    return digits;
+  }
+
+  function isOpenDuplicateStatus(status) {
+    const s = text(status).trim();
+    return DUPLICATE_CLOSED_STATUSES.indexOf(s) === -1;
+  }
+
+  function localOpenOrdersForCustomer(customerName, customerPhone) {
+    const nameKey = normalizeArabic(customerName);
+    const phoneKey = cleanPhoneForDuplicate(customerPhone);
+    const grouped = {};
+    (state.rows || []).forEach(function (r) {
+      if (!isOpenDuplicateStatus(r.status || "طلب جديد")) return;
+      const rowNameKey = normalizeArabic(r.customer || r.customerName || "");
+      const rowPhoneKey = cleanPhoneForDuplicate(r.customerPhone || r.phone || "");
+      const matchedByPhone = phoneKey && rowPhoneKey && phoneKey === rowPhoneKey;
+      const matchedByName = nameKey && rowNameKey && nameKey === rowNameKey;
+      if (!matchedByPhone && !matchedByName) return;
+      const orderId = r.orderId || r.lineId || "-";
+      if (!grouped[orderId]) {
+        grouped[orderId] = {
+          orderId: orderId,
+          customer: r.customer || r.customerName || "",
+          customerPhone: r.customerPhone || r.phone || "",
+          status: r.status || "",
+          department: r.department || "",
+          itemName: r.itemName || "",
+          priority: r.priority || "",
+          expectedDeliveryText: r.expectedDeliveryText || r.expectedDeliveryAt || "",
+          linesCount: 0
+        };
+      }
+      grouped[orderId].linesCount += 1;
+    });
+    return Object.keys(grouped).map(function (k) { return grouped[k]; }).slice(0, 8);
+  }
+
+  function duplicateOrdersListText(openOrders) {
+    return (openOrders || []).map(function (o, i) {
+      return (i + 1) + ") أوردر " + (o.orderId || "-") +
+        " | " + (o.department || "-") +
+        " | " + (o.status || "-") +
+        (o.itemName ? " | " + o.itemName : "") +
+        (o.expectedDeliveryText ? " | تسليم: " + o.expectedDeliveryText : "");
+    }).join("\n");
+  }
+
+  function renderOpenOrderWarning(openOrders) {
+    const box = $("openOrderWarning");
+    if (!box) return;
+    if (!openOrders || !openOrders.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML = '' +
+      '<div class="open-order-warning-title">⚠️ العميل له أوردر مفتوح قبل كده</div>' +
+      '<div class="open-order-warning-text">راجع الأوردرات دي قبل تسجيل أوردر جديد، علشان نعرف هل ده تكرار ولا طلب جديد فعلاً.</div>' +
+      '<div class="open-order-warning-list">' + openOrders.map(function (o) {
+        return '<div class="open-order-warning-row">' +
+          '<b>أوردر ' + escapeHtml(o.orderId || "-") + '</b>' +
+          '<span>' + escapeHtml([o.department || "", o.status || "", o.itemName || ""].filter(Boolean).join(" | ")) + '</span>' +
+          (o.expectedDeliveryText ? '<small>التسليم المتوقع: ' + escapeHtml(o.expectedDeliveryText) + '</small>' : '') +
+        '</div>';
+      }).join("") + '</div>' +
+      '<div class="open-order-warning-actions">اضغط إضافة الأوردر مرة أخرى واختر: أوردر جديد أو إلغاء التسجيل.</div>';
+  }
+
+  async function checkOpenOrdersForRegistration() {
+    const customerNameEl = $("newCustomerName");
+    const customerPhoneEl = $("newCustomerPhone");
+    const customerName = customerNameEl ? customerNameEl.value.trim() : "";
+    const customerPhone = customerPhoneEl ? customerPhoneEl.value.trim() : "";
+    if (!customerName && !customerPhone) {
+      renderOpenOrderWarning([]);
+      return [];
+    }
+    try {
+      const res = await api("checkOpenCustomerOrders", authParams({ customerName: customerName, customerPhone: customerPhone }));
+      if (res && res.success) {
+        const openOrders = Array.isArray(res.openOrders) ? res.openOrders : [];
+        renderOpenOrderWarning(openOrders);
+        return openOrders;
+      }
+    } catch (e) {
+      // fallback إلى البيانات المحملة في الشاشة حتى لو فحص السيرفر تعذر
+    }
+    const local = localOpenOrdersForCustomer(customerName, customerPhone);
+    renderOpenOrderWarning(local);
+    return local;
+  }
+
+  function scheduleOpenOrderCheck() {
+    clearTimeout(state.openOrderCheckTimer);
+    state.openOrderCheckTimer = setTimeout(function () { checkOpenOrdersForRegistration(); }, 450);
   }
 
   function showHeatPressForDepartment(department) {
@@ -170,7 +356,9 @@
     customerSelectedMarketProduct: null,
     adminArea: "matbagy",
     visitorPreview: false,
-    platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" }
+    platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" },
+    openOrderCheckTimer: null,
+    selectedCustomerPickupDays: ""
   };
 
   const $ = (id) => document.getElementById(id);
@@ -296,14 +484,52 @@
     return sameDay(updated, new Date());
   }
 
+  function expectedDateForRow(row) {
+    const received = parseRowDate(row.receivedAt || row.createdAt || row.created || "");
+    let expected = parseRowDate(row.expectedDeliveryAt || row.expectedDeliveryText || row.expectedDelivery || "");
+    if (!expected && received) expected = addDays(startOfDay(received), 2);
+    return expected;
+  }
+
+  function isFinalTomorrowPickupStatus(status) {
+    return ["تم التسليم", "ملغى", "مكرر"].indexOf(text(status)) !== -1;
+  }
+
+  function isTomorrowPickupRow(row) {
+    if (isFinalTomorrowPickupStatus(row.status)) return false;
+    // Patch 10: الأولوية لأيام استلام العميل المسجلة في شيت العملاء.
+    // مثال: لو العميل يستلم الاثنين والخميس، كل أوردراته المفتوحة تظهر يوم الأحد/الأربعاء في استلامات بكرة.
+    if (customerHasPickupTomorrow(row)) return true;
+    // توافق مع الأوردرات القديمة التي لها تاريخ تسليم متوقع مكتوب بالفعل.
+    const expected = expectedDateForRow(row);
+    const tomorrow = addDays(startOfDay(new Date()), 1);
+    return sameDay(expected, tomorrow);
+  }
+
+  function isTomorrowPickupClosed(row) {
+    const status = text(row.status);
+    return isReadyForCustomer(status) || isFinalTomorrowPickupStatus(status);
+  }
+
+  function isTomorrowPickupOpen(row) {
+    return isTomorrowPickupRow(row) && !isTomorrowPickupClosed(row);
+  }
+
+  function tomorrowPickupBlockers(rows) {
+    return (rows || []).filter(isTomorrowPickupOpen).sort(function (a, b) {
+      return (priorityRank(a.priority) - priorityRank(b.priority)) || String(a.orderId || "").localeCompare(String(b.orderId || ""));
+    });
+  }
+
   function defaultWorkSortRank(row) {
     const p = text(row.priority) || "عادي";
     if (p === "عاجل" || p === "VIP") return 0;
-    if (isOverdueRow(row)) return 1;
-    if (isTodayWorkRow(row)) return 2;
-    if (p === "عادي" || !p) return 3;
-    if (p === "مؤجل") return 4;
-    return 5;
+    if (isTomorrowPickupOpen(row)) return 1;
+    if (isOverdueRow(row)) return 2;
+    if (isTodayWorkRow(row)) return 3;
+    if (p === "عادي" || !p) return 4;
+    if (p === "مؤجل") return 5;
+    return 6;
   }
 
   function displayPhone(phone) {
@@ -3352,13 +3578,15 @@ Trend Mall`;
     const completion = d.completionPercent == null ? 0 : d.completionPercent;
     const timeScore = d.timeScore == null ? 0 : d.timeScore;
     grid.innerHTML =
-      '<div class="dash-note">متابعة ' + escapeHtml(deptName) + ' — شغل اليوم = الأوردرات المستلمة أمس والمفروض تتسلم بكرة.</div>' +
+      '<div class="dash-note">متابعة ' + escapeHtml(deptName) + ' — شغل اليوم = الأوردرات المستلمة أمس. استلامات بكرة تعتمد على أيام استلام العميل أو تاريخ التسليم المتوقع.</div>' +
       dashboardItem("تقييم القسم", score + "%", score >= 80 ? "done" : (score >= 50 ? "ready" : "danger")) +
       dashboardItem("إنجاز الشغل", completion + "%", "done") +
       dashboardItem("تقييم الوقت", timeScore + "%", timeScore >= 80 ? "done" : "danger") +
       dashboardItem("شغل اليوم", todayWork, "todaywork") +
       dashboardItem("بنود شغل اليوم", todayLines, "") +
       dashboardItem("أوردرات شغل اليوم", todayOrders, "") +
+      dashboardItem("استلامات بكرة", d.tomorrowPickupOrders || d.tomorrowPickupLines || 0, (Number(d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0) > 0 ? "tomorrow danger" : "tomorrow")) +
+      dashboardItem("غير مقفل لبكرة", d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0, (Number(d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0) > 0 ? "danger" : "done")) +
       dashboardItem("متأخر", d.overdue || 0, "danger") +
       dashboardItem("تم التسليم اليوم", d.deliveredToday || 0, "done") +
       dashboardItem("جاهز للاستلام", d.readyForPickup || 0, "ready") +
@@ -3447,6 +3675,37 @@ Trend Mall`;
 
   async function showEndDaySummary() {
     if (!canUseEndDayButton()) return;
+
+    // V1856 Patch 09: ممنوع قفل اليوم وفيه استلامات بكرة لم تُقفل.
+    await loadRows(true);
+    const blockers = tomorrowPickupBlockers(state.rows || []);
+    if (blockers.length) {
+      const statusFilter = $("statusFilter");
+      const priorityFilter = $("priorityFilter");
+      if (statusFilter) statusFilter.value = "__TOMORROW_PICKUPS__";
+      if (priorityFilter) priorityFilter.value = "";
+      applyFiltersAndRender(true);
+
+      const sample = blockers.slice(0, 12).map(function (r) {
+        return "#" + (r.orderId || "-") +
+          " | " + (r.customer || "-") +
+          " | " + (r.itemName || r.department || "-") +
+          " | الحالة: " + (r.status || "طلب جديد");
+      });
+      alert([
+        "ممنوع قفل اليوم الآن.",
+        "",
+        "يوجد " + blockers.length + " بند/أوردر من استلامات بكرة لم يتم تقفيله.",
+        "لازم قبل نهاية اليوم يتحول إلى: جاهز للاستلام / تم التنفيذ / تم التسليم / ملغى / مكرر.",
+        "",
+        "تم فتح تاب/فلتر: استلامات بكرة تلقائياً.",
+        "",
+        sample.join("\n"),
+        blockers.length > sample.length ? "... وباقي البنود ظاهرة في الجدول." : ""
+      ].filter(Boolean).join("\n"));
+      return;
+    }
+
     await loadDashboard(true);
     const d = state.dashboard || {};
     const deptName = d.departmentName || screens[state.screen] || "القسم";
@@ -3456,6 +3715,8 @@ Trend Mall`;
       "ملخص نهاية اليوم - " + deptName,
       "",
       "تم تجهيز: " + prepared + " شات/أوردر",
+      "استلامات بكرة: " + (d.tomorrowPickupOrders || d.tomorrowPickupLines || 0),
+      "غير مقفل لبكرة: " + (d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0),
       "تم التسليم اليوم: " + (d.deliveredToday || 0),
       "جاهز للاستلام: " + (d.readyForPickup || 0),
       "بنود شغل اليوم: " + (d.todayWorkLines || 0),
@@ -3647,6 +3908,7 @@ Trend Mall`;
       // فلاتر محسوبة ومتراكمة مع فلتر الأولوية وفلتر المكبس.
       if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
       else if (status === "__TODAY_WORK__" && (isHiddenFromUserScreens(r.status) || !isTodayWorkRow(r))) return false;
+      else if (status === "__TOMORROW_PICKUPS__" && !isTomorrowPickupRow(r)) return false;
       else if (status === "__DELIVERED_TODAY__" && !isDeliveredTodayRow(r)) return false;
       else if (status && status.indexOf("__") !== 0) {
         // عند اختيار حالة محددة مثل ملغى أو جاهز للاستلام نعرضها حتى لو مخفية من الشاشة اليومية.
@@ -3714,6 +3976,8 @@ Trend Mall`;
     const debts = rows.filter(hasDebt).length;
     const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
     const cancelled = rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
+    const tomorrowPickups = rows.filter(isTomorrowPickupRow).length;
+    const tomorrowOpen = rows.filter(isTomorrowPickupOpen).length;
     const flyPrint = rows.filter(function (r) {
       return isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
     }).length;
@@ -3724,6 +3988,8 @@ Trend Mall`;
       '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
       '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
       '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
+      '<span class="stat-tomorrow">استلامات بكرة: <b>' + tomorrowPickups + '</b></span>' +
+      '<span class="stat-danger">غير مقفل لبكرة: <b>' + tomorrowOpen + '</b></span>' +
       '<span class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
       '<span class="stat-cancelled">ملغى: <b>' + cancelled + '</b></span>' +
       '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
@@ -3731,16 +3997,22 @@ Trend Mall`;
 
   function compactOrderCell(r) {
     const overdue = isOverdueRow(r) ? ' <span class="overdue-pill">متأخر</span>' : '';
+    const tomorrow = isTomorrowPickupRow(r) ? ' <span class="tomorrow-pill">استلام بكرة</span>' : '';
+    const tomorrowOpen = isTomorrowPickupOpen(r) ? ' <span class="tomorrow-lock-pill">لازم يتقفل</span>' : '';
     const cancelled = text(r.status) === "ملغى" ? ' <span class="cancelled-pill">ملغى</span>' : '';
-    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + cancelled + '</div>' +
+    const pickupDays = pickupDaysText(r.customerPickupDays || r.pickupDays || r.deliveryDays || "");
+    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + tomorrow + tomorrowOpen + cancelled + '</div>' +
       '<div class="muted-line">البند: ' + escapeHtml(r.lineId || "-") + '</div>' +
-      '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>';
+      '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>' +
+      (pickupDays ? '<div class="muted-line">أيام استلام العميل: <span class="pickup-days-pill">' + escapeHtml(pickupDays) + '</span></div>' : '');
   }
 
   function compactCustomerCell(r) {
     const debt = hasDebt(r) ? '<span class="debt-pill">' + escapeHtml(debtLabel(r)) + '</span>' : '';
+    const pickupDays = pickupDaysText(r.customerPickupDays || r.pickupDays || r.deliveryDays || "");
     return '<div class="order-main"><b>' + escapeHtml(r.customer || "-") + '</b> ' + debt + '</div>' +
       '<div class="muted-line phone-line">' + escapeHtml(safeDisplayPhone(r.customerPhone) || "بدون رقم") + '</div>' +
+      (pickupDays ? '<div class="muted-line">استلام: <span class="pickup-days-pill">' + escapeHtml(pickupDays) + '</span></div>' : '') +
       (hasDebt(r) ? '<div class="muted-line debt-warning">تنبيه: التسليم متوقف لحين السداد</div>' : '');
   }
 
@@ -4276,6 +4548,8 @@ Trend Mall`;
       debtAmount: $("newClientDebt") ? $("newClientDebt").value.trim() : "0",
       franchiseBranchCode: $("newClientBranch") ? $("newClientBranch").value.trim() : "",
       franchiseBranchName: (function () { const sel = $("newClientBranch"); return sel && sel.value && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : ""; })(),
+      pickupDays: selectedPickupDaysFromForm(),
+      deliveryDays: selectedPickupDaysFromForm(),
       active: $("newClientActive").value || "نعم",
       notes: $("newClientNotes").value.trim()
     });
@@ -4309,6 +4583,7 @@ Trend Mall`;
       if (active) active.value = "نعم";
       const branchSelect = $("newClientBranch");
       if (branchSelect) branchSelect.value = "";
+      clearPickupDaysForm();
     } catch (err) {
       setMsg("addCustomerStatus", err.message || "خطأ أثناء إضافة العميل.", true);
     } finally {
@@ -4331,6 +4606,48 @@ Trend Mall`;
     }
   }
 
+  async function handleOrderCreated(res, params) {
+    const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
+    setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (res.debtHold || ((res.debtInfo || {}).hasDebt) ? " | تنبيه: العميل عليه مديونية" : "") + (res.duplicateOverride ? " | تم التسجيل كأوردر جديد رغم وجود أوردر مفتوح" : ""), false);
+
+    const registrationRow = {
+      customer: params.customerName,
+      customerPhone: params.customerPhone,
+      orderId: res.orderId,
+      lineId: res.lineId,
+      itemName: params.itemName || ("أوردر جديد - " + params.department),
+      department: params.department,
+      status: "طلب جديد",
+      expectedDeliveryText: expectedText,
+      customerPickupDays: res.customerPickupDays || params.customerPickupDays || "",
+      debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
+      debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا")
+    };
+
+    if (params.customerPhone) {
+      const msg = buildWhatsAppMessage(registrationRow, "registered");
+      const copied = await copyWhatsAppMessage(params.customerPhone, msg);
+      if (copied && confirm("تم نسخ رسالة تسجيل الأوردر. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟")) {
+        await recordRegistrationWhatsApp(res, params, msg);
+      }
+    }
+
+    ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
+      const el = $(id);
+      if (el) el.value = "";
+    });
+    if ($("newQty")) $("newQty").value = 1;
+    if ($("newHeatPress")) $("newHeatPress").checked = false;
+    if ($("newFlyPrint")) $("newFlyPrint").checked = false;
+    updateHeatPressVisibility();
+    updateFlyPrintVisibility();
+    if ($("customerSuggestions")) $("customerSuggestions").classList.add("hidden");
+    setCustomerPickupInfo("");
+    renderOpenOrderWarning([]);
+    state.editing = false;
+    await loadRows(true);
+  }
+
   async function createOrder() {
     setMsg("addOrderStatus", "", false);
 
@@ -4346,6 +4663,8 @@ Trend Mall`;
       priority: (($("newFlyPrint") && $("newFlyPrint").checked && text($("newDepartment").value) === "طباعة") ? "عاجل" : $("newPriority").value),
       status: $("newStatus").value,
       assignedTo: $("newAssignedTo").value.trim(),
+      customerPickupDays: state.selectedCustomerPickupDays || "",
+      pickupDays: state.selectedCustomerPickupDays || "",
       notes: $("newNotes").value.trim()
     });
 
@@ -4356,50 +4675,40 @@ Trend Mall`;
 
     const btn = $("createOrderBtn");
     btn.disabled = true;
-    btn.textContent = "جاري الإضافة...";
+    btn.textContent = "فحص الأوردرات المفتوحة...";
 
     try {
+      const openOrders = await checkOpenOrdersForRegistration();
+      if (openOrders.length) {
+        const ok = confirm("تنبيه مهم: العميل له أوردر مفتوح قبل كده.\n\n" + duplicateOrdersListText(openOrders) + "\n\nلو ده نفس الأوردر القديم اضغط إلغاء وراجع الأوردر الموجود.\nلو ده طلب جديد فعلاً اضغط موافق لتسجيله كأوردر جديد.");
+        if (!ok) {
+          setMsg("addOrderStatus", "تم إيقاف التسجيل. راجع الأوردر المفتوح وحدد هل هو تكرار ولا أوردر جديد.", true);
+          return;
+        }
+        params.duplicateOverride = "نعم";
+      }
+
+      btn.textContent = "جاري الإضافة...";
       const res = await api("createManualOrder", params);
       if (!res.success) {
+        if (res.duplicateWarning && Array.isArray(res.openOrders) && res.openOrders.length) {
+          renderOpenOrderWarning(res.openOrders);
+          const ok = confirm("تنبيه مهم: العميل له أوردر مفتوح قبل كده.\n\n" + duplicateOrdersListText(res.openOrders) + "\n\nلو ده نفس الأوردر القديم اضغط إلغاء. لو ده طلب جديد فعلاً اضغط موافق لتسجيله.");
+          if (ok) {
+            params.duplicateOverride = "نعم";
+            const res2 = await api("createManualOrder", params);
+            if (!res2.success) {
+              setMsg("addOrderStatus", res2.message || "فشل إضافة الأوردر في الشيت.", true);
+              return;
+            }
+            return handleOrderCreated(res2, params);
+          }
+        }
         setMsg("addOrderStatus", res.message || "فشل إضافة الأوردر في الشيت.", true);
         return;
       }
 
-      const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
-      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (res.debtHold || ((res.debtInfo || {}).hasDebt) ? " | تنبيه: العميل عليه مديونية" : ""), false);
-
-      const registrationRow = {
-        customer: params.customerName,
-        customerPhone: params.customerPhone,
-        orderId: res.orderId,
-        lineId: res.lineId,
-        itemName: params.itemName || ("أوردر جديد - " + params.department),
-        department: params.department,
-        status: "طلب جديد",
-        expectedDeliveryText: expectedText,
-        debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
-        debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا")
-      };
-
-      if (params.customerPhone) {
-        const msg = buildWhatsAppMessage(registrationRow, "registered");
-        const copied = await copyWhatsAppMessage(params.customerPhone, msg);
-        if (copied && confirm("تم نسخ رسالة تسجيل الأوردر. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟")) {
-          await recordRegistrationWhatsApp(res, params, msg);
-        }
-      }
-
-      ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
-        $(id).value = "";
-      });
-      $("newQty").value = 1;
-      if ($("newHeatPress")) $("newHeatPress").checked = false;
-      if ($("newFlyPrint")) $("newFlyPrint").checked = false;
-      updateHeatPressVisibility();
-      updateFlyPrintVisibility();
-      $("customerSuggestions").classList.add("hidden");
-      state.editing = false;
-      await loadRows(true);
+await handleOrderCreated(res, params);
     } catch (err) {
       setMsg("addOrderStatus", err.message || "خطأ أثناء إضافة الأوردر.", true);
     } finally {
@@ -4419,10 +4728,21 @@ Trend Mall`;
       if (!q) {
         box.classList.add("hidden");
         box.innerHTML = "";
+        renderOpenOrderWarning([]);
+        setCustomerPickupInfo("");
         return;
       }
+      scheduleOpenOrderCheck();
       state.suggestionTimer = setTimeout(function () { searchCustomers(q); }, 300);
     });
+
+    const phoneInput = $("newCustomerPhone");
+    if (phoneInput && phoneInput.dataset.openOrderWired !== "1") {
+      phoneInput.dataset.openOrderWired = "1";
+      phoneInput.addEventListener("input", scheduleOpenOrderCheck);
+      phoneInput.addEventListener("blur", checkOpenOrdersForRegistration);
+    }
+    input.addEventListener("blur", function () { setTimeout(checkOpenOrdersForRegistration, 250); });
   }
 
   async function searchCustomers(q) {
@@ -4439,7 +4759,7 @@ Trend Mall`;
       box.innerHTML = customers.map(function (c, i) {
         return '<button type="button" data-i="' + i + '">' +
           '<b>' + escapeHtml(c.name) + '</b>' +
-          '<small>' + escapeHtml(c.phone || "") + ' ' + escapeHtml(c.type || "") + '</small>' +
+          '<small>' + escapeHtml([c.phone || "", c.type || "", c.pickupDays ? ("استلام: " + c.pickupDays) : ""].filter(Boolean).join(" | ")) + '</small>' +
           '</button>';
       }).join("");
 
@@ -4450,7 +4770,9 @@ Trend Mall`;
           $("newCustomerName").value = c.name || "";
           $("newCustomerPhone").value = c.phone || "";
           $("newCustomerType").value = c.type || "";
+          setCustomerPickupInfo(c.pickupDays || c.deliveryDays || "");
           box.classList.add("hidden");
+          checkOpenOrdersForRegistration();
         };
       });
     } catch (e) {

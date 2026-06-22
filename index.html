@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
+    <p class="version-badge">مطبعجي مصر V1856 Patch 10 - أيام استلام العملاء + متابعة بكرة</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 10 - أيام استلام العملاء + متابعة بكرة</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -532,6 +532,20 @@
           </select>
         </div>
 
+        <div class="wide">
+          <label>أيام استلام العميل</label>
+          <div id="newClientPickupDays" class="day-picker">
+            <label><input type="checkbox" value="السبت"> السبت</label>
+            <label><input type="checkbox" value="الأحد"> الأحد</label>
+            <label><input type="checkbox" value="الاثنين"> الاثنين</label>
+            <label><input type="checkbox" value="الثلاثاء"> الثلاثاء</label>
+            <label><input type="checkbox" value="الأربعاء"> الأربعاء</label>
+            <label><input type="checkbox" value="الخميس"> الخميس</label>
+            <label><input type="checkbox" value="الجمعة"> الجمعة</label>
+          </div>
+          <small>مثال: عميل يستلم كل اثنين وخميس. ستظهر أوردراته المفتوحة في استلامات بكرة يوم الأحد والأربعاء.</small>
+        </div>
+
         <div>
           <label>مديونية حالية</label>
           <input id="newClientDebt" type="number" min="0" value="0" placeholder="0">
@@ -580,6 +594,8 @@
           <label>نوع العميل</label>
           <input id="newCustomerType" placeholder="اختياري">
         </div>
+
+        <div id="customerPickupInfoBox" class="wide pickup-info-box hidden"></div>
 
         <div>
           <label>القسم <span class="req">*</span></label>
@@ -658,6 +674,7 @@
           <option value="">كل الحالات</option>
           <option value="__OVERDUE__">متأخر</option>
           <option value="__TODAY_WORK__">شغل اليوم</option>
+          <option value="__TOMORROW_PICKUPS__">استلامات بكرة</option>
           <option value="__DELIVERED_TODAY__">تسليمات اليوم</option>
           <option>طلب جديد</option>
           <option>بدأ التنفيذ</option>
@@ -692,7 +709,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 10 - أيام استلام العملاء + متابعة بكرة</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>

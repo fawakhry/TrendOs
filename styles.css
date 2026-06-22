@@ -1578,3 +1578,79 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 /* V1856 Patch 07 - Employee quick tool buttons */
 .quick-tool-btn{background:#eef2ff!important;border-color:#c7d2fe!important;color:#3730a3!important;font-weight:800}
 .server-files-btn{background:#ecfdf5!important;border-color:#bbf7d0!important;color:#047857!important;font-weight:900}
+
+/* V1856 Patch 08 - Open Order Duplicate Control */
+.open-order-warning{
+  border:1px solid #fbbf24;
+  background:linear-gradient(135deg,#fffbeb,#fff7ed);
+  color:#78350f;
+  border-radius:18px;
+  padding:14px 16px;
+  margin:12px 0 16px;
+  box-shadow:0 8px 20px rgba(146,64,14,.08);
+}
+.open-order-warning.hidden{display:none!important;}
+.open-order-warning-title{font-weight:900;font-size:16px;margin-bottom:6px;}
+.open-order-warning-text{font-size:13px;line-height:1.7;margin-bottom:10px;font-weight:700;}
+.open-order-warning-list{display:grid;gap:8px;}
+.open-order-warning-row{
+  background:#fff;
+  border:1px solid #fde68a;
+  border-radius:14px;
+  padding:10px 12px;
+  display:grid;
+  gap:4px;
+}
+.open-order-warning-row b{color:#92400e;font-size:14px;}
+.open-order-warning-row span{color:#374151;font-weight:800;font-size:13px;line-height:1.5;}
+.open-order-warning-row small{color:#6b7280;font-size:12px;}
+.open-order-warning-actions{margin-top:10px;font-size:12px;font-weight:900;color:#9a3412;}
+
+
+/* V1856 Patch 09 - Tomorrow Pickups + End Day Lock */
+.tomorrow-pill{display:inline-flex;align-items:center;justify-content:center;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;white-space:nowrap;}
+.tomorrow-lock-pill{display:inline-flex;align-items:center;justify-content:center;background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;white-space:nowrap;}
+.stat-tomorrow{background:#eef2ff!important;color:#3730a3!important;border-color:#c7d2fe!important;}
+.dash-item.tomorrow{border-color:#c7d2fe;background:#eef2ff;}
+.dash-item.tomorrow b{color:#3730a3;}
+#statusFilter option[value="__TOMORROW_PICKUPS__"]{font-weight:900;color:#3730a3;}
+
+
+/* V1856 Patch 10 - Customer pickup days */
+.day-picker{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:6px;
+}
+.day-picker label{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 10px;
+  border:1px solid rgba(148,163,184,.35);
+  border-radius:999px;
+  background:rgba(15,23,42,.03);
+  cursor:pointer;
+  font-size:13px;
+}
+.day-picker input{ accent-color:#0f766e; }
+.pickup-info-box{
+  border:1px solid rgba(14,165,233,.35);
+  background:rgba(14,165,233,.08);
+  color:#0f172a;
+  padding:10px 12px;
+  border-radius:14px;
+  line-height:1.8;
+}
+.pickup-days-pill{
+  display:inline-block;
+  background:rgba(59,130,246,.12);
+  color:#1d4ed8;
+  border:1px solid rgba(59,130,246,.25);
+  border-radius:999px;
+  padding:2px 8px;
+  margin-inline-start:4px;
+  font-size:12px;
+  font-weight:700;
+}
