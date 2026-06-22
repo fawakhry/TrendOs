@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_12_CLICKABLE_STATS_TABS";
+  const UI_VERSION = "1856_PATCH_13_CUSTOMERS_EDIT_TAB_VISIBLE";
 
   const screens = {
     service: "خدمة العملاء",

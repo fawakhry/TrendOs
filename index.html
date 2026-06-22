@@ -565,7 +565,30 @@
         </div>
       </div>
 
-      <button id="createCustomerBtn" class="primary">إضافة العميل</button>
+      <div class="customer-form-actions">
+        <button id="createCustomerBtn" class="primary">إضافة العميل</button>
+        <button id="cancelCustomerEditBtn" class="ghost hidden" type="button">إلغاء التعديل</button>
+      </div>
+    </section>
+
+    <section id="customersListCard" class="card hidden">
+      <div class="table-tools">
+        <h3>العملاء / تعديل العملاء</h3>
+        <span id="customersListStatus"></span>
+      </div>
+
+      <div class="hint strong-hint">
+        من هنا تقدر تشوف كل العملاء، وتضغط <b>تعديل</b> جنب العميل علشان تضيف أو تعدل أيام الاستلام وباقي بيانات العميل.
+      </div>
+
+      <div class="customer-list-tools">
+        <input id="customersListSearch" placeholder="بحث باسم العميل / الرقم / أيام الاستلام">
+        <button id="refreshCustomersListBtn" class="ghost" type="button">تحديث العملاء</button>
+      </div>
+
+      <div id="customersList" class="customers-list">
+        <div class="dash-empty">اضغط تحديث العملاء لعرض القائمة.</div>
+      </div>
     </section>
 
     <section id="addOrderCard" class="card hidden">
