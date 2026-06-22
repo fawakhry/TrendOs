@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 Patch 12 - تابات العدادات السريعة</p>
+    <p class="version-badge">مطبعجي مصر V1856 Patch 14 - بورد تذكير مشترك</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,12 +66,13 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 12 - تابات العدادات السريعة</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 14 - بورد تذكير مشترك</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
         <button id="refreshBtn" class="ghost">تحديث الآن</button>
         <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
+        <button id="reminderBoardToggleBtn" class="ghost reminder-toggle-btn" type="button">📝 بورد التذكير</button>
         <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 مطبعجي شيتات</button>
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
@@ -82,6 +83,25 @@
     </header>
 
     <nav id="tabs" class="tabs"></nav>
+
+    <aside id="reminderBoard" class="reminder-board">
+      <div class="reminder-board-head">
+        <div>
+          <h3>📝 بورد التذكير</h3>
+          <span>أي حد يضيف أو يمسح نوت، تظهر عند كل المستخدمين.</span>
+        </div>
+        <button id="reminderBoardMinBtn" class="ghost small-btn" type="button">إخفاء</button>
+      </div>
+      <textarea id="reminderNoteText" rows="3" placeholder="اكتب ملاحظة سريعة: عميل يتراجع، خامة ناقصة، متابعة بكرة..."></textarea>
+      <div class="reminder-actions">
+        <button id="addReminderNoteBtn" class="primary" type="button">إضافة نوت</button>
+        <button id="refreshReminderBoardBtn" class="ghost" type="button">تحديث</button>
+      </div>
+      <div id="reminderBoardStatus" class="reminder-status">جاري تحميل البورد...</div>
+      <div id="reminderNotesList" class="reminder-notes-list">
+        <div class="reminder-empty">جاري تحميل الملاحظات...</div>
+      </div>
+    </aside>
 
     <section id="adminWorkspaceHub" class="admin-workspace-hub hidden">
       <div class="admin-hub-head">
@@ -736,7 +756,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 12 - تابات العدادات السريعة</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 14 - بورد تذكير مشترك</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>

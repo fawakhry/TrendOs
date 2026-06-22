@@ -1741,3 +1741,125 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 #statusFilter option[value="__DEBTS__"],
 #statusFilter option[value="__FLY_PRINT__"],
 #statusFilter option[value="__PROBLEM_STOPPED__"]{font-weight:900;}
+
+/* V1856 Patch 14 - Shared reminder board */
+.reminder-toggle-btn{
+  background:#fff7d6;
+  color:#7a5600;
+  border-color:#f0d37a;
+}
+.reminder-board{
+  position:fixed;
+  left:18px;
+  top:128px;
+  width:318px;
+  max-height:calc(100vh - 150px);
+  overflow:auto;
+  background:#fffdf4;
+  border:1px solid #f4df98;
+  border-radius:22px;
+  box-shadow:0 18px 42px rgba(16,42,67,.18);
+  z-index:80;
+  padding:14px;
+  direction:rtl;
+}
+.reminder-board-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  margin-bottom:10px;
+}
+.reminder-board h3{
+  margin:0 0 4px;
+  color:#7a5600;
+  font-size:18px;
+}
+.reminder-board-head span{
+  display:block;
+  color:#7b6b41;
+  font-size:12px;
+  line-height:1.5;
+}
+.reminder-board textarea{
+  width:100%;
+  min-height:88px;
+  resize:vertical;
+  border:1px solid #ecd58c;
+  background:#fffef8;
+  border-radius:15px;
+  padding:10px 12px;
+  outline:none;
+  line-height:1.6;
+}
+.reminder-board textarea:focus{
+  border-color:#d39b13;
+  box-shadow:0 0 0 3px rgba(211,155,19,.12);
+}
+.reminder-actions{
+  display:flex;
+  gap:8px;
+  margin:10px 0 8px;
+}
+.reminder-actions button{flex:1;padding:9px 10px;font-size:13px;}
+.reminder-status{
+  color:#7b6b41;
+  font-size:12px;
+  margin:8px 0;
+  min-height:18px;
+}
+.reminder-notes-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.reminder-note{
+  background:#fff7bf;
+  border:1px solid #ead26e;
+  border-radius:16px;
+  padding:11px;
+  box-shadow:0 8px 18px rgba(122,86,0,.10);
+}
+.reminder-note-text{
+  color:#2f2a17;
+  font-weight:700;
+  line-height:1.7;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.reminder-note-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  color:#7b6b41;
+  font-size:11px;
+  margin-top:8px;
+}
+.reminder-delete-btn{
+  margin-top:8px;
+  width:100%;
+  background:#fff0f0;
+  color:#b42318;
+  border:1px solid #ffd1d1;
+  padding:7px 10px;
+  border-radius:11px;
+  font-size:12px;
+}
+.reminder-empty{
+  color:#7b6b41;
+  background:#fff9d8;
+  border:1px dashed #e6ca70;
+  border-radius:14px;
+  padding:12px;
+  line-height:1.6;
+  text-align:center;
+}
+.small-btn{padding:7px 10px;font-size:12px;border-radius:10px;white-space:nowrap;}
+@media (max-width: 1280px){
+  .reminder-board{
+    position:static;
+    width:100%;
+    max-height:none;
+    margin:0 0 16px;
+  }
+}

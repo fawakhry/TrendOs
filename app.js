@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_13_CUSTOMERS_EDIT_TAB_VISIBLE";
+  const UI_VERSION = "1856_PATCH_14_SHARED_REMINDER_BOARD";
 
   const screens = {
     service: "خدمة العملاء",
@@ -400,7 +400,10 @@
     selectedCustomerPickupDays: "",
     customersList: [],
     customersListLoading: false,
-    editingCustomerRowNumber: ""
+    editingCustomerRowNumber: "",
+    reminderNotes: [],
+    reminderBoardVisible: true,
+    reminderLoading: false
   };
 
   const $ = (id) => document.getElementById(id);
@@ -3488,11 +3491,123 @@ Trend Mall`;
     startRefresh();
   }
 
+
+  /*********************** Patch 14 - بورد تذكير مشترك لكل الموظفين ***********************/
+
+  function reminderBoardSetVisible(visible) {
+    state.reminderBoardVisible = !!visible;
+    const board = $("reminderBoard");
+    const btn = $("reminderBoardToggleBtn");
+    if (board) board.classList.toggle("hidden", !state.reminderBoardVisible);
+    if (btn) btn.textContent = state.reminderBoardVisible ? "📝 إخفاء البورد" : "📝 بورد التذكير";
+    try { localStorage.setItem("trendos_reminder_board_visible", state.reminderBoardVisible ? "1" : "0"); } catch (e) {}
+  }
+
+  function restoreReminderBoardVisible() {
+    try {
+      const stored = localStorage.getItem("trendos_reminder_board_visible");
+      if (stored === "0") state.reminderBoardVisible = false;
+      else state.reminderBoardVisible = true;
+    } catch (e) { state.reminderBoardVisible = true; }
+    reminderBoardSetVisible(state.reminderBoardVisible);
+  }
+
+  function reminderNoteCard(note) {
+    const id = escapeHtml(note.id || note.noteId || "");
+    const textValue = escapeHtml(note.text || note.note || "").replace(/\n/g, "<br>");
+    const by = escapeHtml(note.by || note.createdBy || "-");
+    const at = escapeHtml(note.at || note.createdAt || "");
+    return '<div class="reminder-note" data-id="' + id + '">' +
+      '<div class="reminder-note-text">' + textValue + '</div>' +
+      '<div class="reminder-note-meta"><span>' + by + '</span><span>' + at + '</span></div>' +
+      '<button type="button" class="reminder-delete-btn" data-id="' + id + '">مسح</button>' +
+      '</div>';
+  }
+
+  function renderReminderNotes() {
+    const list = $("reminderNotesList");
+    if (!list) return;
+    const notes = Array.isArray(state.reminderNotes) ? state.reminderNotes : [];
+    if (!notes.length) {
+      list.innerHTML = '<div class="reminder-empty">لا توجد ملاحظات على البورد حالياً.</div>';
+      return;
+    }
+    list.innerHTML = notes.map(reminderNoteCard).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".reminder-delete-btn"), function (btn) {
+      btn.onclick = function () { deleteReminderNote(btn.dataset.id || ""); };
+    });
+  }
+
+  async function loadReminderNotes(force) {
+    if (state.reminderLoading && !force) return;
+    const status = $("reminderBoardStatus");
+    state.reminderLoading = true;
+    if (status && force) status.textContent = "جاري تحديث البورد...";
+    try {
+      const res = await api("getReminderNotes", authParams({ limit: 50 }));
+      if (!res.success) {
+        if (status) status.textContent = res.message || "تعذر تحميل البورد";
+        return;
+      }
+      state.reminderNotes = Array.isArray(res.notes) ? res.notes : [];
+      renderReminderNotes();
+      if (status) status.textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG");
+    } catch (err) {
+      if (status) status.textContent = err.message || "خطأ في تحميل البورد";
+    } finally {
+      state.reminderLoading = false;
+    }
+  }
+
+  async function addReminderNote() {
+    const input = $("reminderNoteText");
+    const status = $("reminderBoardStatus");
+    const note = input ? input.value.trim() : "";
+    if (!note) {
+      if (status) status.textContent = "اكتب النوت الأول.";
+      return;
+    }
+    try {
+      if (status) status.textContent = "جاري إضافة النوت...";
+      const res = await api("addReminderNote", authParams({ note: note }));
+      if (!res.success) {
+        if (status) status.textContent = res.message || "تعذر إضافة النوت";
+        return;
+      }
+      if (input) input.value = "";
+      state.reminderNotes = Array.isArray(res.notes) ? res.notes : [];
+      renderReminderNotes();
+      if (status) status.textContent = "تمت الإضافة";
+    } catch (err) {
+      if (status) status.textContent = err.message || "خطأ أثناء إضافة النوت";
+    }
+  }
+
+  async function deleteReminderNote(noteId) {
+    if (!noteId) return;
+    if (!confirm("مسح النوت من بورد التذكير؟")) return;
+    const status = $("reminderBoardStatus");
+    try {
+      if (status) status.textContent = "جاري مسح النوت...";
+      const res = await api("deleteReminderNote", authParams({ noteId: noteId }));
+      if (!res.success) {
+        if (status) status.textContent = res.message || "تعذر مسح النوت";
+        return;
+      }
+      state.reminderNotes = Array.isArray(res.notes) ? res.notes : [];
+      renderReminderNotes();
+      if (status) status.textContent = "تم المسح";
+    } catch (err) {
+      if (status) status.textContent = err.message || "خطأ أثناء مسح النوت";
+    }
+  }
+
   function bootMain() {
     showMain();
     state.urgentNotificationEnabled = loadUrgentNotificationPreference();
     renderHeader();
     renderTabs();
+    restoreReminderBoardVisible();
     toggleAddOrder();
     toggleAddCustomer();
     toggleDashboard();
@@ -3508,6 +3623,7 @@ Trend Mall`;
     toggleMarketplaceDashboard();
     setupAdminWorkspace();
     loadRows();
+    loadReminderNotes(true);
     updateUrgentNotificationButton();
     startRefresh();
     if (state.urgentNotificationEnabled) startUrgentNotificationTimer();
@@ -3928,6 +4044,7 @@ Trend Mall`;
       state.rows = Array.isArray(res.rows) ? res.rows : [];
       applyFiltersAndRender();
       loadDashboard(false);
+      loadReminderNotes(false);
       setLoading("آخر تحديث: " + new Date().toLocaleTimeString("ar-EG"));
     } catch (err) {
       setLoading(err.message || "خطأ في التحميل.", true);
@@ -5144,6 +5261,11 @@ await handleOrderCreated(res, params);
     on("customerRefreshMarketplaceBtn", "click", function () { loadMarketplace(false); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
     on("remoteFilesBtn", "click", openRemoteFileServer);
+    on("reminderBoardToggleBtn", "click", function () { reminderBoardSetVisible(!state.reminderBoardVisible); });
+    on("reminderBoardMinBtn", "click", function () { reminderBoardSetVisible(false); });
+    on("refreshReminderBoardBtn", "click", function () { loadReminderNotes(true); });
+    on("addReminderNoteBtn", "click", addReminderNote);
+    on("reminderNoteText", "keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") addReminderNote(); });
     on("matbagySheetsBtn", "click", openMatbagySheetsTool);
     on("matbagyRotetBtn", "click", openMatbagyRotetTool);
     on("serverFilesBtn", "click", openLocalFileServer);
