@@ -98,6 +98,8 @@ function doGet(e) {
     else if (action === "createManualOrder") result = createManualOrder_(e);
     else if (action === "checkOpenCustomerOrders") result = checkOpenCustomerOrders_(e);
     else if (action === "searchCustomers") result = searchCustomers_(e);
+    else if (action === "listCustomers") result = listCustomers_(e);
+    else if (action === "updateCustomer") result = updateCustomer_(e);
     else if (action === "createCustomer") result = createCustomer_(e);
     else if (action === "ensureDemoCustomer") result = ensureDemoCustomer_(e);
     else if (action === "syncAll") result = syncTrendOSNow();
@@ -3103,6 +3105,144 @@ function createCustomer_(e) {
   return { success: true, message: "تم إضافة العميل في شيت العملاء." + (portalCode ? " كود الشات: " + portalCode + " | كلمة المرور المؤقتة: " + CUSTOMER_DEFAULT_PASSWORD : ""), customer: { name: customerName, manager: manager, phone: phone, extraPhone: extraPhone, type: customerType, active: active, pickupDays: pickupDays, deliveryDays: pickupDays, debtAmount: debtAmount, branchCode: branchCode, branchName: branchName, customerCode: portalCode, defaultPassword: CUSTOMER_DEFAULT_PASSWORD } };
 }
 
+
+function ensureCustomerListEditHeaders_(sheet) {
+  ensureHeaderIfAnyMissing_(sheet, [
+    "اسم الشات / المكتب", "اسم المسؤول", "رقم العميل الأساسي", "رقم إضافي", "نوع العميل",
+    "أيام استلام العميل", "أيام التسليم", "مفعل؟", "ملاحظات", "آخر تحديث",
+    "مديونية", "ملاحظات المديونية", "آخر تحديث مديونية",
+    "كود فرع مطبعجي", "اسم فرع مطبعجي", "آخر تحديث فرع العميل"
+  ]);
+}
+
+function customerObjectFromRow_(row, rowNumber, cols) {
+  const pickupDays = pickupDaysText_(valueAt_(row, cols.pickupDays) || valueAt_(row, cols.deliveryDays));
+  return {
+    rowNumber: rowNumber,
+    name: normalize_(valueAt_(row, cols.name)),
+    manager: normalize_(valueAt_(row, cols.manager)),
+    phone: cleanPhone_(valueAt_(row, cols.phone)),
+    extraPhone: cleanPhone_(valueAt_(row, cols.extra)),
+    type: normalize_(valueAt_(row, cols.type)),
+    pickupDays: pickupDays,
+    deliveryDays: pickupDays,
+    active: normalize_(valueAt_(row, cols.active)) || "نعم",
+    debtAmount: cols.debt ? parseDebtAmount_(valueAt_(row, cols.debt)) : 0,
+    debt: cols.debt ? parseDebtAmount_(valueAt_(row, cols.debt)) : 0,
+    debtNotes: normalize_(valueAt_(row, cols.debtNotes)),
+    notes: normalize_(valueAt_(row, cols.notes)),
+    branchCode: normalize_(valueAt_(row, cols.branchCode)),
+    branchName: normalize_(valueAt_(row, cols.branchName)),
+    customerCode: normalize_(valueAt_(row, cols.code))
+  };
+}
+
+function listCustomers_(e) {
+  const auth = authorize_(e.parameter.username, e.parameter.token);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (!canCreateCustomer_(auth.user)) return { success: false, message: "ليس لديك صلاحية عرض العملاء." };
+
+  const sheet = ensureCustomerDebtHeaders_() || ss_().getSheetByName(SHEET_NAME_CUSTOMERS);
+  if (!sheet) return { success: false, message: "شيت العملاء غير موجود." };
+  ensureCustomerListEditHeaders_(sheet);
+  setPhoneColumnsAsText_(sheet);
+
+  const data = sheet.getDataRange().getValues();
+  const cols = customerCols_(sheet);
+  const q = searchKey_(e.parameter.q);
+  const limit = Math.min(Number(e.parameter.limit || 500) || 500, 2000);
+  const customers = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const c = customerObjectFromRow_(row, i + 1, cols);
+    if (!c.name && !c.phone && !c.extraPhone) continue;
+    const blob = searchKey_([c.name, c.manager, c.phone, c.extraPhone, c.type, c.pickupDays, c.active, c.branchName, c.notes].join(" "));
+    if (q && blob.indexOf(q) === -1) continue;
+    customers.push(c);
+    if (customers.length >= limit) break;
+  }
+
+  return { success: true, count: customers.length, customers: customers };
+}
+
+function updateCustomer_(e) {
+  const auth = authorize_(e.parameter.username, e.parameter.token);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (!canCreateCustomer_(auth.user)) return { success: false, message: "ليس لديك صلاحية تعديل العملاء." };
+
+  const rowNumber = Number(e.parameter.rowNumber || 0);
+  if (!rowNumber || rowNumber < 2) return { success: false, message: "رقم صف العميل غير صحيح." };
+
+  const sheet = ensureCustomerDebtHeaders_() || ss_().getSheetByName(SHEET_NAME_CUSTOMERS);
+  if (!sheet) return { success: false, message: "شيت العملاء غير موجود." };
+  if (rowNumber > sheet.getLastRow()) return { success: false, message: "صف العميل غير موجود." };
+
+  ensureCustomerListEditHeaders_(sheet);
+  setPhoneColumnsAsText_(sheet, rowNumber);
+
+  const customerName = normalize_(e.parameter.customerName || e.parameter.name);
+  const manager = normalize_(e.parameter.manager) || auth.user.username;
+  const phone = cleanPhone_(e.parameter.phone || e.parameter.customerPhone);
+  const extraPhone = cleanPhone_(e.parameter.extraPhone || e.parameter.customerExtraPhone);
+  const customerType = safeCustomerTypeForValidation_(e.parameter.customerType || e.parameter.type);
+  const debtAmount = parseDebtAmount_(e.parameter.debtAmount || e.parameter.debt || 0);
+  const branchCode = normalize_(e.parameter.franchiseBranchCode || e.parameter.branchCode);
+  const branchName = normalize_(e.parameter.franchiseBranchName || e.parameter.branchName);
+  const pickupDays = pickupDaysText_(e.parameter.pickupDays || e.parameter.deliveryDays || e.parameter.customerPickupDays || e.parameter.customerDeliveryDays);
+  const active = normalize_(e.parameter.active) || "نعم";
+  const notes = normalize_(e.parameter.notes);
+
+  if (!customerName) return { success: false, message: "اسم الشات / العميل مطلوب." };
+
+  const data = sheet.getDataRange().getValues();
+  const cols = customerCols_(sheet);
+  const nameKey = searchKey_(customerName);
+  const phoneKey = searchKey_(phone);
+  const extraKey = searchKey_(extraPhone);
+
+  for (let i = 1; i < data.length; i++) {
+    const currentRowNumber = i + 1;
+    if (currentRowNumber === rowNumber) continue;
+    const row = data[i];
+    const existingName = searchKey_(valueAt_(row, cols.name));
+    const existingPhone = searchKey_(valueAt_(row, cols.phone));
+    const existingExtra = searchKey_(valueAt_(row, cols.extra));
+    if (existingName && existingName === nameKey) return { success: false, message: "يوجد عميل آخر بنفس الاسم." };
+    if (phoneKey && (phoneKey === existingPhone || phoneKey === existingExtra)) return { success: false, message: "رقم العميل مستخدم مع عميل آخر." };
+    if (extraKey && (extraKey === existingPhone || extraKey === existingExtra)) return { success: false, message: "الرقم الإضافي مستخدم مع عميل آخر." };
+  }
+
+  const now = new Date();
+  updateByHeaders_(sheet, rowNumber, {
+    "اسم الشات / المكتب": customerName,
+    "اسم العميل": customerName,
+    "اسم المسؤول": manager,
+    "رقم العميل الأساسي": phone,
+    "رقم العميل": phone,
+    "رقم الهاتف": phone,
+    "رقم إضافي": extraPhone,
+    "رقم إضافى": extraPhone,
+    "نوع العميل": customerType,
+    "أيام استلام العميل": pickupDays,
+    "أيام التسليم": pickupDays,
+    "مفعل؟": active,
+    "مفعل": active,
+    "ملاحظات": notes,
+    "مديونية": debtAmount,
+    "ملاحظات المديونية": debtAmount > 0 ? "مديونية حالية" : "",
+    "آخر تحديث مديونية": debtAmount > 0 ? now : "",
+    "كود فرع مطبعجي": branchCode,
+    "اسم فرع مطبعجي": branchName,
+    "آخر تحديث فرع العميل": branchCode ? now : "",
+    "آخر تحديث": now
+  });
+  SpreadsheetApp.flush();
+
+  const updated = customerObjectFromRow_(sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0], rowNumber, customerCols_(sheet));
+  return { success: true, message: "تم تعديل بيانات العميل وأيام الاستلام.", customer: updated };
+}
+
 function ensureDemoCustomer_(e) {
   const auth = authorize_(e.parameter.username, e.parameter.token);
   if (!auth.ok) return { success: false, message: auth.message };
@@ -4366,6 +4506,9 @@ function customerCols_(sheet) {
     phone: firstCol_(h, ["رقم العميل الأساسي", "رقم العميل", "رقم الهاتف", "Phone"], 0),
     extra: firstCol_(h, ["رقم إضافي", "رقم إضافى", "Extra Phone"], 0),
     type: firstCol_(h, ["نوع العميل", "Customer Type", "Type"], 0),
+    pickupDays: firstCol_(h, ["أيام استلام العميل", "أيام التسليم", "مواعيد استلام العميل", "Pickup Days"], 0),
+    deliveryDays: firstCol_(h, ["أيام التسليم", "أيام استلام العميل", "Pickup Days"], 0),
+    notes: firstCol_(h, ["ملاحظات", "ملاحظات العميل", "Notes"], 0),
     active: firstCol_(h, ["مفعل؟", "مفعل", "Active"], 0),
     debt: firstCol_(h, ["مديونية"], 0),
     debtNotes: firstCol_(h, ["ملاحظات المديونية", "ملاحظات الدين", "Debt Notes"], 0),

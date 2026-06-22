@@ -1654,3 +1654,90 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
   font-size:12px;
   font-weight:700;
 }
+
+/* Patch 11 - Customers list + edit pickup days */
+.customer-form-actions {
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.customer-list-tools {
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.customer-list-tools input {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+.customers-list {
+  display: grid;
+  gap: 10px;
+}
+.customer-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.42);
+}
+.customer-list-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.customer-list-main small {
+  display: block;
+  color: var(--muted, #94a3b8);
+  line-height: 1.5;
+}
+.customer-list-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+}
+.customer-edit-btn {
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .customer-list-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .customer-list-actions {
+    justify-content: flex-start;
+  }
+}
+
+
+/* V1856 Patch 12 - clickable stats tabs */
+.stats .stat-tab{
+  appearance:none;
+  border:1px solid #d7eee8;
+  background:#eef9f7;
+  color:#0f6f5c;
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.stats .stat-tab:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 16px rgba(15,23,42,.10);
+}
+.stats .stat-tab.active{
+  outline:2px solid rgba(15,111,92,.18);
+  border-color:#0f766e!important;
+  box-shadow:0 0 0 3px rgba(15,118,110,.10);
+}
+.stats .stat-tab b{font-size:15px;}
+#statusFilter option[value="__TOMORROW_OPEN__"],
+#statusFilter option[value="__DEBTS__"],
+#statusFilter option[value="__FLY_PRINT__"],
+#statusFilter option[value="__PROBLEM_STOPPED__"]{font-weight:900;}
