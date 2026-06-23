@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_16_ACCOUNTS_PERMISSIONS_SECTION_CLOSE";
+  const UI_VERSION = "1856_PATCH_08_RAHMA_ROLE_ORDER_CUSTOMER_FIX";
 
   const screens = {
     service: "خدمة العملاء",
@@ -26,8 +26,6 @@
     "طلب جديد",
     "بدأ التنفيذ",
     "تحت التنفيذ",
-    "انتهاء الشغل",
-    "تم التنفيذ",
     "جاهز للاستلام",
     "تم التسليم",
     "مشكلة",
@@ -37,8 +35,7 @@
 
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
   // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
-  const HIDDEN_FROM_USER_SCREENS = ["انتهاء الشغل", "جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى"];
-  const DUPLICATE_CLOSED_STATUSES = ["تم التسليم", "ملغى", "مكرر"];
+  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى"];
   const PROOF_REVIEW_TEXT = "المراجعة مسئولية العميل والمكان غير مسئول عن اى اخطاء إملائية\nالبروفة مبعوته للمراجعه !!\nلو سمحت المراجعة جيدا على الشكل و البيانات بشكل دقيق قبل الرد على البروفة\nفى إنتظار حضرتك .....";
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
 
@@ -66,127 +63,6 @@
     return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "طباعة على الطاير" || v === "طباعة ع الطاير" || v === "على الطاير" || v === "ع الطاير";
   }
 
-
-  const AR_WEEK_DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-  const PICKUP_DAY_ALIASES = {
-    "الاحد": "الأحد", "الأحد": "الأحد", "احد": "الأحد", "حد": "الأحد",
-    "الاثنين": "الاثنين", "الإثنين": "الاثنين", "اثنين": "الاثنين", "اتنين": "الاثنين", "الأتنين": "الاثنين", "الاتنين": "الاثنين",
-    "الثلاثاء": "الثلاثاء", "ثلاثاء": "الثلاثاء", "تلات": "الثلاثاء", "التلات": "الثلاثاء", "التلاتاء": "الثلاثاء",
-    "الاربعاء": "الأربعاء", "الأربعاء": "الأربعاء", "اربعاء": "الأربعاء", "أربعاء": "الأربعاء", "الاربع": "الأربعاء",
-    "الخميس": "الخميس", "خميس": "الخميس",
-    "الجمعة": "الجمعة", "جمعه": "الجمعة", "جمعة": "الجمعة",
-    "السبت": "السبت", "سبت": "السبت"
-  };
-
-  function normalizePickupDayName(value) {
-    const raw = text(value).trim();
-    if (!raw) return "";
-    const key = raw.replace(/[إأآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
-    return PICKUP_DAY_ALIASES[raw] || PICKUP_DAY_ALIASES[key] || "";
-  }
-
-  function parsePickupDays(value) {
-    const raw = text(value).trim();
-    if (!raw) return [];
-    const parts = raw.split(/[،,\/|+\-\n]+| و /g);
-    const out = [];
-    parts.forEach(function (p) {
-      const day = normalizePickupDayName(p);
-      if (day && out.indexOf(day) === -1) out.push(day);
-    });
-    // لو مكتوبة بجملة كاملة وفيها أسماء أيام بدون فواصل.
-    AR_WEEK_DAYS.forEach(function (day) {
-      if (raw.indexOf(day) !== -1 && out.indexOf(day) === -1) out.push(day);
-    });
-    return out;
-  }
-
-  function pickupDaysText(value) {
-    return parsePickupDays(value).join("، ");
-  }
-
-  function tomorrowArabicDayName() {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return AR_WEEK_DAYS[d.getDay()];
-  }
-
-  function customerHasPickupTomorrow(row) {
-    const days = parsePickupDays(row && (row.customerPickupDays || row.pickupDays || row.deliveryDays || row["أيام استلام العميل"] || row["أيام التسليم"]));
-    return days.indexOf(tomorrowArabicDayName()) !== -1;
-  }
-
-  function selectedPickupDaysFromForm() {
-    const wrap = $("newClientPickupDays");
-    if (!wrap) return "";
-    const days = [];
-    Array.prototype.forEach.call(wrap.querySelectorAll("input[type=checkbox]"), function (cb) {
-      if (cb.checked && days.indexOf(cb.value) === -1) days.push(cb.value);
-    });
-    return days.join("، ");
-  }
-
-  function clearPickupDaysForm() {
-    const wrap = $("newClientPickupDays");
-    if (!wrap) return;
-    Array.prototype.forEach.call(wrap.querySelectorAll("input[type=checkbox]"), function (cb) { cb.checked = false; });
-  }
-
-  function setPickupDaysForm(daysValue) {
-    const wrap = $("newClientPickupDays");
-    if (!wrap) return;
-    const days = parsePickupDays(daysValue);
-    Array.prototype.forEach.call(wrap.querySelectorAll("input[type=checkbox]"), function (cb) {
-      cb.checked = days.indexOf(cb.value) !== -1;
-    });
-  }
-
-  function customerPhoneDisplay(c) {
-    return safeDisplayPhone((c && (c.phone || c.extraPhone)) || "") || "بدون رقم";
-  }
-
-  function setCustomerFormMode(mode) {
-    const editing = mode === "edit";
-    const btn = $("createCustomerBtn");
-    const cancel = $("cancelCustomerEditBtn");
-    if (btn) btn.textContent = editing ? "حفظ تعديل العميل" : "إضافة العميل";
-    if (cancel) cancel.classList.toggle("hidden", !editing);
-  }
-
-  function resetCustomerForm() {
-    state.editingCustomerRowNumber = "";
-    ["newClientName", "newClientPhone", "newClientExtraPhone", "newClientType", "newClientNotes"].forEach(function (id) {
-      const el = $(id);
-      if (el) el.value = "";
-    });
-    const debtInput = $("newClientDebt");
-    if (debtInput) debtInput.value = "0";
-    const manager = $("newClientManager");
-    if (manager) manager.value = (state.user || {}).name || (state.user || {}).username || "";
-    const active = $("newClientActive");
-    if (active) active.value = "نعم";
-    const branchSelect = $("newClientBranch");
-    if (branchSelect) branchSelect.value = "";
-    clearPickupDaysForm();
-    setCustomerFormMode("add");
-  }
-
-  function setCustomerPickupInfo(daysValue) {
-    state.selectedCustomerPickupDays = pickupDaysText(daysValue);
-    const box = $("customerPickupInfoBox");
-    if (!box) return;
-    if (!state.selectedCustomerPickupDays) {
-      box.classList.add("hidden");
-      box.innerHTML = "";
-      return;
-    }
-    const tomorrow = tomorrowArabicDayName();
-    const isTomorrow = parsePickupDays(state.selectedCustomerPickupDays).indexOf(tomorrow) !== -1;
-    box.classList.remove("hidden");
-    box.innerHTML = '<b>أيام استلام العميل:</b> ' + escapeHtml(state.selectedCustomerPickupDays) +
-      (isTomorrow ? ' <span class="tomorrow-pill">هيظهر في استلامات بكرة</span>' : '<span class="pickup-days-pill">بكرة: ' + escapeHtml(tomorrow) + '</span>');
-  }
-
   function numericAmount(value) {
     const raw = arabicDigitsToEnglish(value).replace(/[^0-9.\-]/g, "");
     const n = Number(raw);
@@ -204,109 +80,6 @@
   function debtLabel(row) {
     const amount = debtAmount(row);
     return amount > 0 ? (amount + " ج مديونية") : "مديونية";
-  }
-
-  function cleanPhoneForDuplicate(value) {
-    let digits = arabicDigitsToEnglish(value).replace(/[^0-9]/g, "");
-    if (digits.indexOf("0020") === 0 && digits.length >= 14) digits = "0" + digits.slice(4);
-    if (digits.indexOf("20") === 0 && digits.length >= 12) digits = "0" + digits.slice(2);
-    return digits;
-  }
-
-  function isOpenDuplicateStatus(status) {
-    const s = text(status).trim();
-    return DUPLICATE_CLOSED_STATUSES.indexOf(s) === -1;
-  }
-
-  function localOpenOrdersForCustomer(customerName, customerPhone) {
-    const nameKey = normalizeArabic(customerName);
-    const phoneKey = cleanPhoneForDuplicate(customerPhone);
-    const grouped = {};
-    (state.rows || []).forEach(function (r) {
-      if (!isOpenDuplicateStatus(r.status || "طلب جديد")) return;
-      const rowNameKey = normalizeArabic(r.customer || r.customerName || "");
-      const rowPhoneKey = cleanPhoneForDuplicate(r.customerPhone || r.phone || "");
-      const matchedByPhone = phoneKey && rowPhoneKey && phoneKey === rowPhoneKey;
-      const matchedByName = nameKey && rowNameKey && nameKey === rowNameKey;
-      if (!matchedByPhone && !matchedByName) return;
-      const orderId = r.orderId || r.lineId || "-";
-      if (!grouped[orderId]) {
-        grouped[orderId] = {
-          orderId: orderId,
-          customer: r.customer || r.customerName || "",
-          customerPhone: r.customerPhone || r.phone || "",
-          status: r.status || "",
-          department: r.department || "",
-          itemName: r.itemName || "",
-          priority: r.priority || "",
-          expectedDeliveryText: r.expectedDeliveryText || r.expectedDeliveryAt || "",
-          linesCount: 0
-        };
-      }
-      grouped[orderId].linesCount += 1;
-    });
-    return Object.keys(grouped).map(function (k) { return grouped[k]; }).slice(0, 8);
-  }
-
-  function duplicateOrdersListText(openOrders) {
-    return (openOrders || []).map(function (o, i) {
-      return (i + 1) + ") أوردر " + (o.orderId || "-") +
-        " | " + (o.department || "-") +
-        " | " + (o.status || "-") +
-        (o.itemName ? " | " + o.itemName : "") +
-        (o.expectedDeliveryText ? " | تسليم: " + o.expectedDeliveryText : "");
-    }).join("\n");
-  }
-
-  function renderOpenOrderWarning(openOrders) {
-    const box = $("openOrderWarning");
-    if (!box) return;
-    if (!openOrders || !openOrders.length) {
-      box.classList.add("hidden");
-      box.innerHTML = "";
-      return;
-    }
-    box.classList.remove("hidden");
-    box.innerHTML = '' +
-      '<div class="open-order-warning-title">⚠️ العميل له أوردر مفتوح قبل كده</div>' +
-      '<div class="open-order-warning-text">راجع الأوردرات دي قبل تسجيل أوردر جديد، علشان نعرف هل ده تكرار ولا طلب جديد فعلاً.</div>' +
-      '<div class="open-order-warning-list">' + openOrders.map(function (o) {
-        return '<div class="open-order-warning-row">' +
-          '<b>أوردر ' + escapeHtml(o.orderId || "-") + '</b>' +
-          '<span>' + escapeHtml([o.department || "", o.status || "", o.itemName || ""].filter(Boolean).join(" | ")) + '</span>' +
-          (o.expectedDeliveryText ? '<small>التسليم المتوقع: ' + escapeHtml(o.expectedDeliveryText) + '</small>' : '') +
-        '</div>';
-      }).join("") + '</div>' +
-      '<div class="open-order-warning-actions">اضغط إضافة الأوردر مرة أخرى واختر: أوردر جديد أو إلغاء التسجيل.</div>';
-  }
-
-  async function checkOpenOrdersForRegistration() {
-    const customerNameEl = $("newCustomerName");
-    const customerPhoneEl = $("newCustomerPhone");
-    const customerName = customerNameEl ? customerNameEl.value.trim() : "";
-    const customerPhone = customerPhoneEl ? customerPhoneEl.value.trim() : "";
-    if (!customerName && !customerPhone) {
-      renderOpenOrderWarning([]);
-      return [];
-    }
-    try {
-      const res = await api("checkOpenCustomerOrders", authParams({ customerName: customerName, customerPhone: customerPhone }));
-      if (res && res.success) {
-        const openOrders = Array.isArray(res.openOrders) ? res.openOrders : [];
-        renderOpenOrderWarning(openOrders);
-        return openOrders;
-      }
-    } catch (e) {
-      // fallback إلى البيانات المحملة في الشاشة حتى لو فحص السيرفر تعذر
-    }
-    const local = localOpenOrdersForCustomer(customerName, customerPhone);
-    renderOpenOrderWarning(local);
-    return local;
-  }
-
-  function scheduleOpenOrderCheck() {
-    clearTimeout(state.openOrderCheckTimer);
-    state.openOrderCheckTimer = setTimeout(function () { checkOpenOrdersForRegistration(); }, 450);
   }
 
   function showHeatPressForDepartment(department) {
@@ -397,17 +170,7 @@
     customerSelectedMarketProduct: null,
     adminArea: "matbagy",
     visitorPreview: false,
-    platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" },
-    openOrderCheckTimer: null,
-    selectedCustomerPickupDays: "",
-    customersList: [],
-    customersListLoading: false,
-    editingCustomerRowNumber: "",
-    reminderNotes: [],
-    reminderBoardVisible: true,
-    reminderLoading: false,
-    invoiceSelectedBands: [],
-    laserCalcFloatOpen: false
+    platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" }
   };
 
   const $ = (id) => document.getElementById(id);
@@ -427,6 +190,37 @@
 
   function safeRole(role) {
     return role && roleScreens[role] ? role : "service";
+  }
+
+  function currentUserNameKey(user) {
+    user = user || state.user || {};
+    return normalizeArabic(user.username || user.name || "");
+  }
+
+  function isDiaaUser(user) {
+    const key = currentUserNameKey(user);
+    return key === "ضياء" || key === "diaa";
+  }
+
+  function isRahmaUser(user) {
+    const key = currentUserNameKey(user);
+    return key === "رحمه" || key === "رحمة" || key === "rahma";
+  }
+
+  function isRahmaRestrictedUser(user) {
+    return isRahmaUser(user || state.user || {});
+  }
+
+  function canAddManualOrder() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    return role === "admin" || role === "service" || isDiaaUser(user) || isRahmaUser(user);
+  }
+
+  function canCodeCustomers() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    return role === "admin" || role === "service" || isDiaaUser(user) || isRahmaUser(user);
   }
 
   function escapeHtml(value) {
@@ -533,52 +327,14 @@
     return sameDay(updated, new Date());
   }
 
-  function expectedDateForRow(row) {
-    const received = parseRowDate(row.receivedAt || row.createdAt || row.created || "");
-    let expected = parseRowDate(row.expectedDeliveryAt || row.expectedDeliveryText || row.expectedDelivery || "");
-    if (!expected && received) expected = addDays(startOfDay(received), 2);
-    return expected;
-  }
-
-  function isFinalTomorrowPickupStatus(status) {
-    return ["تم التسليم", "ملغى", "مكرر"].indexOf(text(status)) !== -1;
-  }
-
-  function isTomorrowPickupRow(row) {
-    if (isFinalTomorrowPickupStatus(row.status)) return false;
-    // Patch 10: الأولوية لأيام استلام العميل المسجلة في شيت العملاء.
-    // مثال: لو العميل يستلم الاثنين والخميس، كل أوردراته المفتوحة تظهر يوم الأحد/الأربعاء في استلامات بكرة.
-    if (customerHasPickupTomorrow(row)) return true;
-    // توافق مع الأوردرات القديمة التي لها تاريخ تسليم متوقع مكتوب بالفعل.
-    const expected = expectedDateForRow(row);
-    const tomorrow = addDays(startOfDay(new Date()), 1);
-    return sameDay(expected, tomorrow);
-  }
-
-  function isTomorrowPickupClosed(row) {
-    const status = text(row.status);
-    return isReadyForCustomer(status) || isFinalTomorrowPickupStatus(status);
-  }
-
-  function isTomorrowPickupOpen(row) {
-    return isTomorrowPickupRow(row) && !isTomorrowPickupClosed(row);
-  }
-
-  function tomorrowPickupBlockers(rows) {
-    return (rows || []).filter(isTomorrowPickupOpen).sort(function (a, b) {
-      return (priorityRank(a.priority) - priorityRank(b.priority)) || String(a.orderId || "").localeCompare(String(b.orderId || ""));
-    });
-  }
-
   function defaultWorkSortRank(row) {
     const p = text(row.priority) || "عادي";
     if (p === "عاجل" || p === "VIP") return 0;
-    if (isTomorrowPickupOpen(row)) return 1;
-    if (isOverdueRow(row)) return 2;
-    if (isTodayWorkRow(row)) return 3;
-    if (p === "عادي" || !p) return 4;
-    if (p === "مؤجل") return 5;
-    return 6;
+    if (isOverdueRow(row)) return 1;
+    if (isTodayWorkRow(row)) return 2;
+    if (p === "عادي" || !p) return 3;
+    if (p === "مؤجل") return 4;
+    return 5;
   }
 
   function displayPhone(phone) {
@@ -829,128 +585,6 @@ Trend Mall`;
 
   function openMatbagyRotetTool() {
     openEmployeeTool(window.MATBAGY_ROTET_URL, "Matbagy_Rotet", "روتيت مطبعجي");
-  }
-
-
-  /*********************** V1856 Patch 17 - ربط الحسابات ومطبعجي في نظام واحد ***********************/
-
-  function employeeMatchesAllowed(list, fallback) {
-    const allowed = Array.isArray(list) ? list : (fallback || []);
-    const keys = employeeToolKeys();
-    return allowed.map(function (v) { return normalizeArabic(v); }).some(function (v) {
-      return v && keys.indexOf(v) !== -1;
-    });
-  }
-
-  function employeeCanOpenDepartmentAccountsTool() {
-    return employeeMatchesAllowed(window.MATBAGY_ACCOUNTS_SECTION_EMPLOYEES, ["وائل", "جابر", "wael", "gaber", "jaber"]);
-  }
-
-  function employeeCanOpenLaserCalculatorTool() {
-    return employeeMatchesAllowed(window.MATBAGY_LASER_CALC_ALLOWED_EMPLOYEES, ["ضياء", "جابر", "diaa", "gaber", "jaber"]);
-  }
-
-  function employeeCanApproveInvoiceTool() {
-    return employeeMatchesAllowed(window.MATBAGY_INVOICE_APPROVAL_EMPLOYEES, ["ضياء", "رحمه", "رحمة", "ريفان", "diaa", "rahma", "rehma", "revan", "rivan"]);
-  }
-
-  function employeeCanSeeProfitReports() {
-    return employeeMatchesAllowed(window.MATBAGY_PROFIT_REPORTS_EMPLOYEES, ["ضياء", "diaa"]);
-  }
-
-  function toggleAccountsToolButtons() {
-    const accountsBtn = $("matbagyAccountsBtn");
-    const calcBtn = $("matbagyLaserCalcBtn");
-    const approvalBtn = $("matbagyInvoiceApprovalBtn");
-    const floatBtn = $("laserCalcFloatToggleBtn");
-    if (accountsBtn) accountsBtn.classList.toggle("hidden", !employeeCanOpenDepartmentAccountsTool());
-    if (calcBtn) calcBtn.classList.toggle("hidden", !employeeCanOpenLaserCalculatorTool());
-    if (floatBtn) floatBtn.classList.toggle("hidden", !employeeCanOpenLaserCalculatorTool());
-    if (approvalBtn) approvalBtn.classList.toggle("hidden", !employeeCanApproveInvoiceTool());
-  }
-
-  function accountsToolUrl(page, extra) {
-    const base = text(window.MATBAGY_ACCOUNTS_URL || "Trend_Accounts_V1857_Calculator_Linked.html").trim();
-    const u = state.user || {};
-    const payload = Object.assign({
-      from: "trendos",
-      username: u.username || u.name || "",
-      name: u.name || u.username || "",
-      token: u.token || "",
-      page: page || "dashboard",
-      hideProfits: employeeCanSeeProfitReports() ? "0" : "1",
-      unifiedAccounts: window.MATBAGY_ACCOUNTS_UNIFIED_WITH_TRENDOS ? "1" : "0",
-      api: window.MATBAGY_ACCOUNTS_API_URL || window.TREND_API_URL || ""
-    }, extra || {});
-    return withQuery(base, payload);
-  }
-
-  function openEmbeddedEmployeeTool(url, title, hint) {
-    const panel = $("employeeEmbeddedToolPanel");
-    const frame = $("employeeEmbeddedToolFrame");
-    const titleEl = $("employeeEmbeddedToolTitle");
-    const hintEl = $("employeeEmbeddedToolHint");
-    if (!panel || !frame) {
-      window.open(url, "Matbagy_Embedded_Tool");
-      return;
-    }
-    if (titleEl) titleEl.textContent = title || "أداة مطبعجي";
-    if (hintEl) hintEl.textContent = hint || "تعمل داخل نفس شاشة الموظف بدون تسجيل دخول منفصل.";
-    frame.src = url;
-    panel.classList.remove("hidden");
-    panel.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function closeEmbeddedEmployeeTool() {
-    const panel = $("employeeEmbeddedToolPanel");
-    const frame = $("employeeEmbeddedToolFrame");
-    if (frame) frame.src = "about:blank";
-    if (panel) panel.classList.add("hidden");
-  }
-
-  function openMatbagyAccountsTool() {
-    if (!employeeCanOpenDepartmentAccountsTool()) {
-      alert("تقفيل شغل القسم متاح حالياً لوائل وجابر فقط. الاعتماد النهائي عند ضياء / رحمة / ريفان.");
-      return;
-    }
-    openEmbeddedEmployeeTool(accountsToolUrl("sectionClose", { mode: "sectionClose" }), "💰 تقفيل شغل القسم", "وائل وجابر يضيفوا بنود القسم فقط بعد جاهز للاستلام / تم التسليم، بدون أرباح أو تقارير.");
-  }
-
-  function openMatbagyInvoiceApprovalTool() {
-    if (!employeeCanApproveInvoiceTool()) {
-      alert("اعتماد الفواتير النهائي متاح لضياء ورحمة وريفان فقط.");
-      return;
-    }
-    openEmbeddedEmployeeTool(accountsToolUrl("invoiceApproval", { mode: "approval" }), "🧾 اعتماد فواتير الأقسام", "مراجعة البنود التي أرسلها وائل وجابر، ثم اعتماد الفاتورة النهائية للعميل.");
-  }
-
-  function openMatbagyLaserCalculatorTool() {
-    if (!employeeCanOpenLaserCalculatorTool()) {
-      alert("حاسبة جابر متاحة لضياء وجابر فقط.");
-      return;
-    }
-    openEmbeddedEmployeeTool(accountsToolUrl("laserCalc", { mode: "laserCalc" }), "🧮 حاسبة جابر", "حساب تكلفة شغل الليزر بالمقاس والهالك قبل التنفيذ داخل نفس شاشة الموظف.");
-  }
-
-  function openLaserCalcSideTab() {
-    if (!employeeCanOpenLaserCalculatorTool()) {
-      alert("حاسبة جابر متاحة لضياء وجابر فقط.");
-      return;
-    }
-    const panel = $("laserCalcFloatPanel");
-    const frame = $("laserCalcFloatFrame");
-    if (!panel || !frame) return openMatbagyLaserCalculatorTool();
-    frame.src = accountsToolUrl("laserCalc", { mode: "laserCalc" });
-    panel.classList.remove("hidden");
-    state.laserCalcFloatOpen = true;
-  }
-
-  function closeLaserCalcSideTab() {
-    const panel = $("laserCalcFloatPanel");
-    const frame = $("laserCalcFloatFrame");
-    if (frame) frame.src = "about:blank";
-    if (panel) panel.classList.add("hidden");
-    state.laserCalcFloatOpen = false;
   }
 
   function withQuery(url, params) {
@@ -1703,7 +1337,6 @@ Trend Mall`;
     serviceRoutesCard: "matbagy",
     addOrderCard: "rahma",
     addCustomerCard: "rahma",
-    customersListCard: "rahma",
     phoneLeadsCard: "rahma",
     franchiseBranchesCard: "franchise",
     marketplaceCard: "marketplace",
@@ -1726,9 +1359,11 @@ Trend Mall`;
     const show = canSeeAdminWorkspace();
     hub.classList.toggle("hidden", !show);
     if (!show) return;
-    const uname = normalizeArabic((state.user || {}).username || (state.user || {}).name || "");
-    if ((uname === "رحمه" || uname === "رحمة") && state.adminArea === "matbagy") state.adminArea = "rahma";
-    list.innerHTML = ADMIN_AREAS.map(function (area) {
+    const areas = isRahmaRestrictedUser() ? ADMIN_AREAS.filter(function (area) { return area.id === "rahma"; }) : ADMIN_AREAS.slice();
+    if (!areas.some(function (area) { return area.id === state.adminArea; })) {
+      state.adminArea = areas.length ? areas[0].id : "matbagy";
+    }
+    list.innerHTML = areas.map(function (area) {
       return '<button type="button" class="admin-tab-btn ' + (state.adminArea === area.id ? 'active' : '') + '" data-admin-area="' + area.id + '">' +
         '<b>' + escapeHtml(area.label) + '</b><small>' + escapeHtml(area.hint) + '</small></button>';
     }).join("");
@@ -1747,6 +1382,11 @@ Trend Mall`;
     Object.keys(ADMIN_CARD_AREAS).forEach(function (id) {
       const card = $(id);
       if (!card) return;
+      if (isRahmaRestrictedUser()) {
+        const rahmaAllowedCards = ["managementDashboard", "addOrderCard", "addCustomerCard"];
+        card.classList.toggle("admin-area-off", rahmaAllowedCards.indexOf(id) === -1);
+        return;
+      }
       const area = ADMIN_CARD_AREAS[id];
       card.classList.toggle("admin-area-off", area !== state.adminArea);
     });
@@ -1759,8 +1399,8 @@ Trend Mall`;
   function canManageServiceRoutes() {
     const user = state.user || {};
     const role = safeRole(user.role);
-    const username = normalizeArabic(user.username || user.name || "");
-    return role === "admin" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+    if (isRahmaRestrictedUser(user)) return false;
+    return role === "admin" || isDiaaUser(user);
   }
 
   function toggleServiceRoutesDashboard() {
@@ -2730,8 +2370,8 @@ Trend Mall`;
   function canManageMarketplace() {
     const user = state.user || {};
     const role = safeRole(user.role);
-    const username = normalizeArabic(user.username || user.name || "");
-    return role === "admin" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+    if (isRahmaRestrictedUser(user)) return false;
+    return role === "admin" || isDiaaUser(user);
   }
 
   function toggleMarketplaceDashboard() {
@@ -3617,123 +3257,11 @@ Trend Mall`;
     startRefresh();
   }
 
-
-  /*********************** Patch 14 - بورد تذكير مشترك لكل الموظفين ***********************/
-
-  function reminderBoardSetVisible(visible) {
-    state.reminderBoardVisible = !!visible;
-    const board = $("reminderBoard");
-    const btn = $("reminderBoardToggleBtn");
-    if (board) board.classList.toggle("hidden", !state.reminderBoardVisible);
-    if (btn) btn.textContent = state.reminderBoardVisible ? "📝 إخفاء البورد" : "📝 بورد التذكير";
-    try { localStorage.setItem("trendos_reminder_board_visible", state.reminderBoardVisible ? "1" : "0"); } catch (e) {}
-  }
-
-  function restoreReminderBoardVisible() {
-    try {
-      const stored = localStorage.getItem("trendos_reminder_board_visible");
-      if (stored === "0") state.reminderBoardVisible = false;
-      else state.reminderBoardVisible = true;
-    } catch (e) { state.reminderBoardVisible = true; }
-    reminderBoardSetVisible(state.reminderBoardVisible);
-  }
-
-  function reminderNoteCard(note) {
-    const id = escapeHtml(note.id || note.noteId || "");
-    const textValue = escapeHtml(note.text || note.note || "").replace(/\n/g, "<br>");
-    const by = escapeHtml(note.by || note.createdBy || "-");
-    const at = escapeHtml(note.at || note.createdAt || "");
-    return '<div class="reminder-note" data-id="' + id + '">' +
-      '<div class="reminder-note-text">' + textValue + '</div>' +
-      '<div class="reminder-note-meta"><span>' + by + '</span><span>' + at + '</span></div>' +
-      '<button type="button" class="reminder-delete-btn" data-id="' + id + '">مسح</button>' +
-      '</div>';
-  }
-
-  function renderReminderNotes() {
-    const list = $("reminderNotesList");
-    if (!list) return;
-    const notes = Array.isArray(state.reminderNotes) ? state.reminderNotes : [];
-    if (!notes.length) {
-      list.innerHTML = '<div class="reminder-empty">لا توجد ملاحظات على البورد حالياً.</div>';
-      return;
-    }
-    list.innerHTML = notes.map(reminderNoteCard).join("");
-    Array.prototype.forEach.call(list.querySelectorAll(".reminder-delete-btn"), function (btn) {
-      btn.onclick = function () { deleteReminderNote(btn.dataset.id || ""); };
-    });
-  }
-
-  async function loadReminderNotes(force) {
-    if (state.reminderLoading && !force) return;
-    const status = $("reminderBoardStatus");
-    state.reminderLoading = true;
-    if (status && force) status.textContent = "جاري تحديث البورد...";
-    try {
-      const res = await api("getReminderNotes", authParams({ limit: 50 }));
-      if (!res.success) {
-        if (status) status.textContent = res.message || "تعذر تحميل البورد";
-        return;
-      }
-      state.reminderNotes = Array.isArray(res.notes) ? res.notes : [];
-      renderReminderNotes();
-      if (status) status.textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG");
-    } catch (err) {
-      if (status) status.textContent = err.message || "خطأ في تحميل البورد";
-    } finally {
-      state.reminderLoading = false;
-    }
-  }
-
-  async function addReminderNote() {
-    const input = $("reminderNoteText");
-    const status = $("reminderBoardStatus");
-    const note = input ? input.value.trim() : "";
-    if (!note) {
-      if (status) status.textContent = "اكتب النوت الأول.";
-      return;
-    }
-    try {
-      if (status) status.textContent = "جاري إضافة النوت...";
-      const res = await api("addReminderNote", authParams({ note: note }));
-      if (!res.success) {
-        if (status) status.textContent = res.message || "تعذر إضافة النوت";
-        return;
-      }
-      if (input) input.value = "";
-      state.reminderNotes = Array.isArray(res.notes) ? res.notes : [];
-      renderReminderNotes();
-      if (status) status.textContent = "تمت الإضافة";
-    } catch (err) {
-      if (status) status.textContent = err.message || "خطأ أثناء إضافة النوت";
-    }
-  }
-
-  async function deleteReminderNote(noteId) {
-    if (!noteId) return;
-    if (!confirm("مسح النوت من بورد التذكير؟")) return;
-    const status = $("reminderBoardStatus");
-    try {
-      if (status) status.textContent = "جاري مسح النوت...";
-      const res = await api("deleteReminderNote", authParams({ noteId: noteId }));
-      if (!res.success) {
-        if (status) status.textContent = res.message || "تعذر مسح النوت";
-        return;
-      }
-      state.reminderNotes = Array.isArray(res.notes) ? res.notes : [];
-      renderReminderNotes();
-      if (status) status.textContent = "تم المسح";
-    } catch (err) {
-      if (status) status.textContent = err.message || "خطأ أثناء مسح النوت";
-    }
-  }
-
   function bootMain() {
     showMain();
     state.urgentNotificationEnabled = loadUrgentNotificationPreference();
     renderHeader();
     renderTabs();
-    restoreReminderBoardVisible();
     toggleAddOrder();
     toggleAddCustomer();
     toggleDashboard();
@@ -3749,7 +3277,6 @@ Trend Mall`;
     toggleMarketplaceDashboard();
     setupAdminWorkspace();
     loadRows();
-    loadReminderNotes(true);
     updateUrgentNotificationButton();
     startRefresh();
     if (state.urgentNotificationEnabled) startUrgentNotificationTimer();
@@ -3764,7 +3291,6 @@ Trend Mall`;
     toggleVisitorPreviewButton();
     toggleRemoteFilesButton();
     toggleEmployeeQuickToolButtons();
-    toggleAccountsToolButtons();
   }
 
   function renderTabs() {
@@ -3803,21 +3329,16 @@ Trend Mall`;
   }
 
   function toggleAddOrder() {
-    const role = safeRole((state.user || {}).role);
-    const canAdd = role === "admin" || role === "service";
-    $("addOrderCard").classList.toggle("hidden", !canAdd);
+    const card = $("addOrderCard");
+    if (!card) return;
+    card.classList.toggle("hidden", !canAddManualOrder());
   }
 
 
   function toggleAddCustomer() {
-    const role = safeRole((state.user || {}).role);
-    const username = normalizeArabic((state.user || {}).username || (state.user || {}).name || "");
-    const canAdd = role === "admin" || role === "service" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+    const canAdd = canCodeCustomers();
     const card = $("addCustomerCard");
     if (card) card.classList.toggle("hidden", !canAdd);
-    const listCard = $("customersListCard");
-    if (listCard) listCard.classList.toggle("hidden", !canAdd);
-    if (canAdd) loadCustomersList(false);
     const manager = $("newClientManager");
     if (manager && !manager.value.trim()) manager.value = (state.user || {}).name || (state.user || {}).username || "";
     if (canAdd && !(state.franchiseBranches || []).length) loadFranchiseBranches(canManageFranchiseBranches());
@@ -3867,15 +3388,13 @@ Trend Mall`;
     const completion = d.completionPercent == null ? 0 : d.completionPercent;
     const timeScore = d.timeScore == null ? 0 : d.timeScore;
     grid.innerHTML =
-      '<div class="dash-note">متابعة ' + escapeHtml(deptName) + ' — شغل اليوم = الأوردرات المستلمة أمس. استلامات بكرة تعتمد على أيام استلام العميل أو تاريخ التسليم المتوقع.</div>' +
+      '<div class="dash-note">متابعة ' + escapeHtml(deptName) + ' — شغل اليوم = الأوردرات المستلمة أمس والمفروض تتسلم بكرة.</div>' +
       dashboardItem("تقييم القسم", score + "%", score >= 80 ? "done" : (score >= 50 ? "ready" : "danger")) +
       dashboardItem("إنجاز الشغل", completion + "%", "done") +
       dashboardItem("تقييم الوقت", timeScore + "%", timeScore >= 80 ? "done" : "danger") +
       dashboardItem("شغل اليوم", todayWork, "todaywork") +
       dashboardItem("بنود شغل اليوم", todayLines, "") +
       dashboardItem("أوردرات شغل اليوم", todayOrders, "") +
-      dashboardItem("استلامات بكرة", d.tomorrowPickupOrders || d.tomorrowPickupLines || 0, (Number(d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0) > 0 ? "tomorrow danger" : "tomorrow")) +
-      dashboardItem("غير مقفل لبكرة", d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0, (Number(d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0) > 0 ? "danger" : "done")) +
       dashboardItem("متأخر", d.overdue || 0, "danger") +
       dashboardItem("تم التسليم اليوم", d.deliveredToday || 0, "done") +
       dashboardItem("جاهز للاستلام", d.readyForPickup || 0, "ready") +
@@ -3964,37 +3483,6 @@ Trend Mall`;
 
   async function showEndDaySummary() {
     if (!canUseEndDayButton()) return;
-
-    // V1856 Patch 09: ممنوع قفل اليوم وفيه استلامات بكرة لم تُقفل.
-    await loadRows(true);
-    const blockers = tomorrowPickupBlockers(state.rows || []);
-    if (blockers.length) {
-      const statusFilter = $("statusFilter");
-      const priorityFilter = $("priorityFilter");
-      if (statusFilter) statusFilter.value = "__TOMORROW_PICKUPS__";
-      if (priorityFilter) priorityFilter.value = "";
-      applyFiltersAndRender(true);
-
-      const sample = blockers.slice(0, 12).map(function (r) {
-        return "#" + (r.orderId || "-") +
-          " | " + (r.customer || "-") +
-          " | " + (r.itemName || r.department || "-") +
-          " | الحالة: " + (r.status || "طلب جديد");
-      });
-      alert([
-        "ممنوع قفل اليوم الآن.",
-        "",
-        "يوجد " + blockers.length + " بند/أوردر من استلامات بكرة لم يتم تقفيله.",
-        "لازم قبل نهاية اليوم يتحول إلى: جاهز للاستلام / تم التنفيذ / تم التسليم / ملغى / مكرر.",
-        "",
-        "تم فتح تاب/فلتر: استلامات بكرة تلقائياً.",
-        "",
-        sample.join("\n"),
-        blockers.length > sample.length ? "... وباقي البنود ظاهرة في الجدول." : ""
-      ].filter(Boolean).join("\n"));
-      return;
-    }
-
     await loadDashboard(true);
     const d = state.dashboard || {};
     const deptName = d.departmentName || screens[state.screen] || "القسم";
@@ -4004,8 +3492,6 @@ Trend Mall`;
       "ملخص نهاية اليوم - " + deptName,
       "",
       "تم تجهيز: " + prepared + " شات/أوردر",
-      "استلامات بكرة: " + (d.tomorrowPickupOrders || d.tomorrowPickupLines || 0),
-      "غير مقفل لبكرة: " + (d.tomorrowNotClosedOrders || d.tomorrowNotClosedLines || 0),
       "تم التسليم اليوم: " + (d.deliveredToday || 0),
       "جاهز للاستلام: " + (d.readyForPickup || 0),
       "بنود شغل اليوم: " + (d.todayWorkLines || 0),
@@ -4021,9 +3507,10 @@ Trend Mall`;
   }
 
   function canManageKnowledge() {
-    const role = safeRole((state.user || {}).role);
-    const username = normalizeArabic((state.user || {}).username || (state.user || {}).name || "");
-    return role === "admin" || role === "service" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    if (isRahmaRestrictedUser(user)) return false;
+    return role === "admin" || role === "service" || isDiaaUser(user);
   }
 
   function toggleKnowledge() {
@@ -4171,7 +3658,6 @@ Trend Mall`;
       state.rows = Array.isArray(res.rows) ? res.rows : [];
       applyFiltersAndRender();
       loadDashboard(false);
-      loadReminderNotes(false);
       setLoading("آخر تحديث: " + new Date().toLocaleTimeString("ar-EG"));
     } catch (err) {
       setLoading(err.message || "خطأ في التحميل.", true);
@@ -4198,12 +3684,7 @@ Trend Mall`;
       // فلاتر محسوبة ومتراكمة مع فلتر الأولوية وفلتر المكبس.
       if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
       else if (status === "__TODAY_WORK__" && (isHiddenFromUserScreens(r.status) || !isTodayWorkRow(r))) return false;
-      else if (status === "__TOMORROW_PICKUPS__" && !isTomorrowPickupRow(r)) return false;
-      else if (status === "__TOMORROW_OPEN__" && !isTomorrowPickupOpen(r)) return false;
       else if (status === "__DELIVERED_TODAY__" && !isDeliveredTodayRow(r)) return false;
-      else if (status === "__DEBTS__" && !hasDebt(r)) return false;
-      else if (status === "__FLY_PRINT__" && !isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])) return false;
-      else if (status === "__PROBLEM_STOPPED__" && ["مشكلة", "متوقف"].indexOf(text(r.status)) === -1) return false;
       else if (status && status.indexOf("__") !== 0) {
         // عند اختيار حالة محددة مثل ملغى أو جاهز للاستلام نعرضها حتى لو مخفية من الشاشة اليومية.
         if (text(r.status) !== status) return false;
@@ -4261,30 +3742,6 @@ Trend Mall`;
       (r.priority ? ' <small> | الأولوية: ' + escapeHtml(r.priority) + '</small>' : '');
   }
 
-  function isQuickStatActive(kind) {
-    const status = $("statusFilter") ? ($("statusFilter").value || "") : "";
-    const priority = $("priorityFilter") ? ($("priorityFilter").value || "__ACTIVE__") : "__ACTIVE__";
-    const heat = $("heatPressFilter") ? ($("heatPressFilter").value || "") : "";
-    if (kind === "shown") return !status && priority === "__ACTIVE__" && !heat;
-    if (kind === "urgent") return !status && priority === "عاجل" && !heat;
-    if (kind === "normal") return !status && priority === "عادي" && !heat;
-    if (kind === "overdue") return status === "__OVERDUE__";
-    if (kind === "debts") return status === "__DEBTS__";
-    if (kind === "press") return heat === "only" && !status && !priority;
-    if (kind === "tomorrow") return status === "__TOMORROW_PICKUPS__";
-    if (kind === "tomorrowOpen") return status === "__TOMORROW_OPEN__";
-    if (kind === "fly") return status === "__FLY_PRINT__";
-    if (kind === "cancelled") return status === "ملغى";
-    if (kind === "problem") return status === "__PROBLEM_STOPPED__";
-    return false;
-  }
-
-  function statTab(kind, label, count, className) {
-    const cls = "stat-tab " + (className || "") + (isQuickStatActive(kind) ? " active" : "");
-    return '<button type="button" class="' + cls + '" data-stat-filter="' + escapeHtml(kind) + '">' +
-      escapeHtml(label) + ': <b>' + Number(count || 0) + '</b></button>';
-  }
-
   function renderStats(rows) {
     const total = rows.length;
     const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل" || text(r.priority) === "VIP"; }).length;
@@ -4294,96 +3751,33 @@ Trend Mall`;
     const debts = rows.filter(hasDebt).length;
     const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
     const cancelled = rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
-    const tomorrowPickups = rows.filter(isTomorrowPickupRow).length;
-    const tomorrowOpen = rows.filter(isTomorrowPickupOpen).length;
     const flyPrint = rows.filter(function (r) {
       return isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
     }).length;
     $("statsBar").innerHTML =
-      statTab("shown", "المعروض", total, "") +
-      statTab("urgent", "عاجل", urgent, "") +
-      statTab("normal", "عادي", normal, "") +
-      statTab("overdue", "متأخر", overdue, "stat-danger") +
-      statTab("debts", "مديونية", debts, "stat-danger") +
-      statTab("press", "مكبس", heatPress, "stat-press") +
-      statTab("tomorrow", "استلامات بكرة", tomorrowPickups, "stat-tomorrow") +
-      statTab("tomorrowOpen", "غير مقفل لبكرة", tomorrowOpen, "stat-danger") +
-      statTab("fly", "طباعة على الطاير", flyPrint, "stat-fly") +
-      statTab("cancelled", "ملغى", cancelled, "stat-cancelled") +
-      statTab("problem", "مشاكل/متوقف", problem, "");
-  }
-
-  function applyQuickStatFilter(kind) {
-    const statusFilter = $("statusFilter");
-    const priorityFilter = $("priorityFilter");
-    const heatPressFilter = $("heatPressFilter");
-    const tableSearch = $("tableSearch");
-    if (tableSearch) tableSearch.value = "";
-    if (statusFilter) statusFilter.value = "";
-    if (priorityFilter) priorityFilter.value = "";
-    if (heatPressFilter) heatPressFilter.value = "";
-
-    const labels = {
-      shown: "المعروض",
-      urgent: "عاجل",
-      normal: "عادي",
-      overdue: "متأخر",
-      debts: "مديونية",
-      press: "مكبس",
-      tomorrow: "استلامات بكرة",
-      tomorrowOpen: "غير مقفل لبكرة",
-      fly: "طباعة على الطاير",
-      cancelled: "ملغى",
-      problem: "مشاكل/متوقف"
-    };
-
-    if (kind === "shown") {
-      if (priorityFilter) priorityFilter.value = "__ACTIVE__";
-    } else if (kind === "urgent") {
-      if (priorityFilter) priorityFilter.value = "عاجل";
-    } else if (kind === "normal") {
-      if (priorityFilter) priorityFilter.value = "عادي";
-    } else if (kind === "overdue") {
-      if (statusFilter) statusFilter.value = "__OVERDUE__";
-    } else if (kind === "debts") {
-      if (statusFilter) statusFilter.value = "__DEBTS__";
-    } else if (kind === "press") {
-      if (heatPressFilter) heatPressFilter.value = "only";
-    } else if (kind === "tomorrow") {
-      if (statusFilter) statusFilter.value = "__TOMORROW_PICKUPS__";
-    } else if (kind === "tomorrowOpen") {
-      if (statusFilter) statusFilter.value = "__TOMORROW_OPEN__";
-    } else if (kind === "fly") {
-      if (statusFilter) statusFilter.value = "__FLY_PRINT__";
-    } else if (kind === "cancelled") {
-      if (statusFilter) statusFilter.value = "ملغى";
-    } else if (kind === "problem") {
-      if (statusFilter) statusFilter.value = "__PROBLEM_STOPPED__";
-    }
-
-    state.currentPage = 1;
-    applyFiltersAndRender(true);
-    setLoading("تم فتح تاب: " + (labels[kind] || "-"));
+      '<span>المعروض: <b>' + total + '</b></span>' +
+      '<span>عاجل: <b>' + urgent + '</b></span>' +
+      '<span>عادي: <b>' + normal + '</b></span>' +
+      '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
+      '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
+      '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
+      '<span class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
+      '<span class="stat-cancelled">ملغى: <b>' + cancelled + '</b></span>' +
+      '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
   function compactOrderCell(r) {
     const overdue = isOverdueRow(r) ? ' <span class="overdue-pill">متأخر</span>' : '';
-    const tomorrow = isTomorrowPickupRow(r) ? ' <span class="tomorrow-pill">استلام بكرة</span>' : '';
-    const tomorrowOpen = isTomorrowPickupOpen(r) ? ' <span class="tomorrow-lock-pill">لازم يتقفل</span>' : '';
     const cancelled = text(r.status) === "ملغى" ? ' <span class="cancelled-pill">ملغى</span>' : '';
-    const pickupDays = pickupDaysText(r.customerPickupDays || r.pickupDays || r.deliveryDays || "");
-    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + tomorrow + tomorrowOpen + cancelled + '</div>' +
+    return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + cancelled + '</div>' +
       '<div class="muted-line">البند: ' + escapeHtml(r.lineId || "-") + '</div>' +
-      '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>' +
-      (pickupDays ? '<div class="muted-line">أيام استلام العميل: <span class="pickup-days-pill">' + escapeHtml(pickupDays) + '</span></div>' : '');
+      '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>';
   }
 
   function compactCustomerCell(r) {
     const debt = hasDebt(r) ? '<span class="debt-pill">' + escapeHtml(debtLabel(r)) + '</span>' : '';
-    const pickupDays = pickupDaysText(r.customerPickupDays || r.pickupDays || r.deliveryDays || "");
     return '<div class="order-main"><b>' + escapeHtml(r.customer || "-") + '</b> ' + debt + '</div>' +
       '<div class="muted-line phone-line">' + escapeHtml(safeDisplayPhone(r.customerPhone) || "بدون رقم") + '</div>' +
-      (pickupDays ? '<div class="muted-line">استلام: <span class="pickup-days-pill">' + escapeHtml(pickupDays) + '</span></div>' : '') +
       (hasDebt(r) ? '<div class="muted-line debt-warning">تنبيه: التسليم متوقف لحين السداد</div>' : '');
   }
 
@@ -4823,135 +4217,19 @@ Trend Mall`;
   function shouldOpenInvoiceAfterStatus(newStatus, oldStatus) {
     const n = text(newStatus);
     const o = text(oldStatus);
-    return ["انتهاء الشغل", "تم التنفيذ", "جاهز للاستلام", "تم التسليم"].indexOf(n) !== -1 && n !== o;
-  }
-
-  function currentEmployeeDepartmentName() {
-    const u = state.user || {};
-    const keys = employeeToolKeys();
-    if (keys.indexOf(normalizeArabic("جابر")) !== -1 || normalizeArabic(u.department).indexOf(normalizeArabic("ليزر")) !== -1) return "ليزر";
-    if (keys.indexOf(normalizeArabic("وائل")) !== -1 || normalizeArabic(u.department).indexOf(normalizeArabic("طباعة")) !== -1) return "طباعة";
-    return text(u.department || "");
-  }
-
-  function departmentCloseAllowedForRow(row) {
-    if (!employeeCanOpenDepartmentAccountsTool()) return false;
-    const userDept = normalizeArabic(currentEmployeeDepartmentName());
-    const rowDept = normalizeArabic(row && row.department || "");
-    return !rowDept || !userDept || rowDept.indexOf(userDept) !== -1 || userDept.indexOf(rowDept) !== -1;
-  }
-
-  function invoiceBandCatalog(row) {
-    const dept = normalizeArabic(row && row.department || "");
-    const item = text(row && row.itemName || "").trim();
-    let base;
-    if (dept.indexOf(normalizeArabic("ليزر")) !== -1) {
-      base = [
-        "تقطيع ليزر",
-        "حفر ليزر",
-        "خشب MDF",
-        "أكريليك",
-        "دابل كالر",
-        "تجميع / تشطيب ليزر"
-      ];
-    } else if (dept.indexOf(normalizeArabic("طباعة")) !== -1) {
-      base = [
-        "طباعة",
-        "تصميم / تعديل ملف",
-        "تشطيب",
-        "تغليف",
-        "طباعة على الطاير",
-        "مكبس / سبلميشن"
-      ];
-    } else {
-      base = ["تنفيذ البند", "تشطيب", "تغليف", "إضافة خدمة"];
-    }
-    if (item) base.unshift(item);
-    const seen = {};
-    return base.filter(function (x) {
-      const k = normalizeArabic(x);
-      if (seen[k]) return false;
-      seen[k] = true;
-      return true;
-    });
-  }
-
-  function renderInvoiceBandSelection(row) {
-    const box = $("invoiceBandSelection");
-    if (!box) return;
-    const rows = invoiceBandCatalog(row || state.invoiceRow || {});
-    box.innerHTML = '<div class="invoice-band-title"><b>اختار البنود / الباندات اللي اتعملت</b><span>البنود الأساسية يضيفها ضياء، وجابر يقدر يضيف بنود المقاسات من الحاسبة.</span></div>' +
-      '<div class="invoice-band-grid">' + rows.map(function (name, idx) {
-        return '<label class="invoice-band-chip"><input type="checkbox" class="invoice-band-check" value="' + escapeHtml(name) + '" ' + (idx === 0 ? 'checked' : '') + '> ' + escapeHtml(name) + '</label>';
-      }).join('') + '</div>' +
-      (employeeCanOpenLaserCalculatorTool() && normalizeArabic((row || {}).department).indexOf(normalizeArabic("ليزر")) !== -1 ? '<button id="openInvoiceLaserCalcBtn" type="button" class="ghost mini-btn">فتح حاسبة جابر الجانبية</button>' : '');
-
-    state.invoiceSelectedBands = rows.length ? [rows[0]] : [];
-    Array.prototype.forEach.call(box.querySelectorAll(".invoice-band-check"), function (el) {
-      el.addEventListener("change", syncInvoiceWorkDoneFromBands);
-    });
-    const openCalc = $("openInvoiceLaserCalcBtn");
-    if (openCalc) openCalc.addEventListener("click", openLaserCalcSideTab);
-  }
-
-  function syncInvoiceWorkDoneFromBands() {
-    const box = $("invoiceBandSelection");
-    const work = $("invoiceWorkDone");
-    if (!box || !work) return;
-    const selected = Array.prototype.slice.call(box.querySelectorAll(".invoice-band-check:checked")).map(function (el) { return el.value; });
-    state.invoiceSelectedBands = selected;
-    const row = state.invoiceRow || {};
-    let lines = [];
-    if (selected.length) lines.push("بنود التقفيل: " + selected.join(" + "));
-    if (row.itemName) lines.push("الشغل الأصلي: " + row.itemName);
-
-    const laserMat = $("invoiceLaserMat");
-    const l = $("invoiceLaserLength");
-    const w = $("invoiceLaserWidth");
-    const c = $("invoiceLaserCount");
-    const waste = $("invoiceLaserWaste");
-    const sell = $("invoiceLaserSell");
-    if (laserMat && (laserMat.value || (l && l.value) || (w && w.value))) {
-      lines.push("حاسبة جابر: " + (laserMat.value || "خامة ليزر") + " — " + (l.value || "-") + "×" + (w.value || "-") + " سم — عدد " + (c.value || 1) + " — هالك " + (waste.value || 0) + "%" + (sell && sell.value ? " — سعر مقترح " + sell.value : ""));
-    }
-    if (!work.dataset.manualEdited || work.value.trim() === "") work.value = lines.join("\n");
+    return (n === "جاهز للاستلام" || n === "تم التسليم") && n !== o;
   }
 
   function openInvoiceModal(row) {
     state.invoiceRow = row || null;
     const modal = $("invoiceModal");
     if (!modal || !row) return;
-
-    if (!departmentCloseAllowedForRow(row) && !employeeCanApproveInvoiceTool()) {
-      alert("تقفيل فاتورة القسم متاح لوائل وجابر حسب القسم. الاعتماد النهائي عند ضياء / رحمة / ريفان.");
-      return;
-    }
-
-    $("invoiceOrderTitle").textContent = "تقفيل القسم / بنود الفاتورة: " + (row.orderId || "-") + " — " + (row.customer || "-");
+    $("invoiceOrderTitle").textContent = "فاتورة / تسعير: " + (row.orderId || "-") + " — " + (row.customer || "-");
     $("invoiceLineId").value = row.lineId || "";
-    $("invoiceWorkDone").value = "";
-    $("invoiceWorkDone").dataset.manualEdited = "";
+    $("invoiceWorkDone").value = row.itemName || "";
     $("invoiceQty").value = row.qty || 1;
     $("invoiceNotes").value = row.notes || "";
-    const msg = $("invoiceMsg");
-    if (msg) msg.textContent = "اختار البنود اللي اتعملت. سيتم إرسالها في انتظار اعتماد ضياء / رحمة / ريفان قبل الفاتورة النهائية.";
-
-    const calcBox = $("invoiceLaserCalcBox");
-    const isLaser = normalizeArabic(row.department).indexOf(normalizeArabic("ليزر")) !== -1 && employeeCanOpenLaserCalculatorTool();
-    if (calcBox) calcBox.classList.toggle("hidden", !isLaser);
-    ["invoiceLaserMat", "invoiceLaserLength", "invoiceLaserWidth", "invoiceLaserCount", "invoiceLaserWaste", "invoiceLaserSell"].forEach(function (id) {
-      const el = $(id);
-      if (!el) return;
-      if (id === "invoiceLaserCount") el.value = "1";
-      else if (id === "invoiceLaserWaste") el.value = "10";
-      else el.value = "";
-      el.oninput = syncInvoiceWorkDoneFromBands;
-    });
-
-    renderInvoiceBandSelection(row);
-    syncInvoiceWorkDoneFromBands();
-    const work = $("invoiceWorkDone");
-    if (work) work.oninput = function () { work.dataset.manualEdited = "1"; };
+    $("invoiceMsg").textContent = "اكتب ما تم تنفيذه فعليًا. سيظهر لضياء للتسعير وإضافته لفاتورة العميل.";
     modal.classList.remove("hidden");
   }
 
@@ -4959,18 +4237,16 @@ Trend Mall`;
     const modal = $("invoiceModal");
     if (modal) modal.classList.add("hidden");
     state.invoiceRow = null;
-    state.invoiceSelectedBands = [];
   }
 
   async function saveInvoiceLine() {
     const row = state.invoiceRow;
     if (!row) return;
-    syncInvoiceWorkDoneFromBands();
     const btn = $("saveInvoiceBtn");
     const msg = $("invoiceMsg");
     const workDone = ($("invoiceWorkDone").value || "").trim();
     if (!workDone) {
-      if (msg) msg.textContent = "اختار أو اكتب البنود التي تم تنفيذها قبل الإرسال للاعتماد.";
+      if (msg) msg.textContent = "اكتب اللى اتعمل عشان يروح للتسعير.";
       return;
     }
     if (btn) {
@@ -4987,9 +4263,6 @@ Trend Mall`;
         department: row.department || "",
         itemName: row.itemName || "",
         workDone: workDone,
-        selectedBands: (state.invoiceSelectedBands || []).join(" | "),
-        source: normalizeArabic(row.department).indexOf(normalizeArabic("ليزر")) !== -1 ? "تقفيل قسم ليزر / حاسبة جابر" : "تقفيل قسم",
-        finalApprovalRequired: "نعم",
         qty: $("invoiceQty").value || row.qty || 1,
         notes: $("invoiceNotes").value || ""
       }));
@@ -4997,114 +4270,16 @@ Trend Mall`;
         if (msg) msg.textContent = res.message || "تعذر حفظ بند الفاتورة.";
         return;
       }
-      if (msg) msg.textContent = "تم إرسال البنود في انتظار اعتماد ضياء / رحمة / ريفان.";
-      setTimeout(closeInvoiceModal, 800);
+      if (msg) msg.textContent = "تم إرسال بند الفاتورة لضياء للتسعير.";
+      setTimeout(closeInvoiceModal, 700);
     } catch (err) {
       if (msg) msg.textContent = err.message || "خطأ في حفظ بند الفاتورة.";
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = "إرسال للاعتماد";
+        btn.textContent = "إرسال للتسعير";
       }
     }
-  }
-
-
-
-  async function loadCustomersList(force) {
-    const card = $("customersListCard");
-    if (!card || card.classList.contains("hidden")) return;
-    if (state.customersListLoading) return;
-    if (!force && state.customersList && state.customersList.length) {
-      renderCustomersList();
-      return;
-    }
-    state.customersListLoading = true;
-    setMsg("customersListStatus", "جاري تحميل العملاء...", false);
-    const wrap = $("customersList");
-    if (wrap) wrap.innerHTML = '<div class="dash-empty">جاري تحميل العملاء...</div>';
-    try {
-      const res = await api("listCustomers", authParams({ limit: 500 }));
-      if (!res.success) {
-        setMsg("customersListStatus", res.message || "تعذر تحميل العملاء.", true);
-        state.customersList = [];
-        renderCustomersList();
-        return;
-      }
-      state.customersList = Array.isArray(res.customers) ? res.customers : [];
-      setMsg("customersListStatus", "عدد العملاء: " + state.customersList.length, false);
-      renderCustomersList();
-    } catch (err) {
-      setMsg("customersListStatus", err.message || "خطأ أثناء تحميل العملاء.", true);
-      state.customersList = [];
-      renderCustomersList();
-    } finally {
-      state.customersListLoading = false;
-    }
-  }
-
-  function customerSearchBlob(c) {
-    return normalizeArabic([
-      c.name, c.manager, c.phone, c.extraPhone, c.type,
-      c.pickupDays, c.deliveryDays, c.active, c.branchName, c.notes
-    ].join(" "));
-  }
-
-  function renderCustomersList() {
-    const wrap = $("customersList");
-    if (!wrap) return;
-    const q = normalizeArabic(($("customersListSearch") || {}).value || "");
-    let customers = state.customersList || [];
-    if (q) customers = customers.filter(function (c) { return customerSearchBlob(c).indexOf(q) !== -1; });
-
-    if (!customers.length) {
-      wrap.innerHTML = '<div class="dash-empty">لا يوجد عملاء مطابقين.</div>';
-      return;
-    }
-
-    wrap.innerHTML = customers.map(function (c) {
-      const days = pickupDaysText(c.pickupDays || c.deliveryDays || "");
-      const active = text(c.active || "نعم") === "لا" ? '<span class="cancelled-pill">غير مفعل</span>' : '<span class="pickup-days-pill">مفعل</span>';
-      const debt = numericAmount(c.debtAmount || c.debt) > 0 ? '<span class="debt-pill">مديونية: ' + escapeHtml(c.debtAmount || c.debt) + '</span>' : '';
-      return '<div class="customer-list-row" data-row-number="' + escapeHtml(c.rowNumber || "") + '">' +
-        '<div class="customer-list-main">' +
-          '<b>' + escapeHtml(c.name || "-") + '</b> ' + active + ' ' + debt +
-          '<small>' + escapeHtml([customerPhoneDisplay(c), c.extraPhone ? ("إضافي: " + safeDisplayPhone(c.extraPhone)) : "", c.type || "", c.manager ? ("المسؤول: " + c.manager) : ""].filter(Boolean).join(" | ")) + '</small>' +
-          (days ? '<div class="muted-line">أيام الاستلام: <span class="pickup-days-pill">' + escapeHtml(days) + '</span></div>' : '<div class="muted-line">أيام الاستلام: لم تحدد بعد</div>') +
-          (c.branchName ? '<div class="muted-line">فرع مطبعجي: ' + escapeHtml(c.branchName) + '</div>' : '') +
-        '</div>' +
-        '<div class="customer-list-actions">' +
-          '<button type="button" class="ghost customer-edit-btn" data-row-number="' + escapeHtml(c.rowNumber || "") + '">تعديل</button>' +
-        '</div>' +
-      '</div>';
-    }).join("");
-
-    Array.prototype.forEach.call(wrap.querySelectorAll(".customer-edit-btn"), function (btn) {
-      btn.onclick = function () { startEditCustomer(btn.getAttribute("data-row-number")); };
-    });
-  }
-
-  function startEditCustomer(rowNumber) {
-    const c = (state.customersList || []).find(function (x) { return String(x.rowNumber || "") === String(rowNumber || ""); });
-    if (!c) {
-      setMsg("customersListStatus", "لم أجد العميل للتعديل. اضغط تحديث العملاء وجرب تاني.", true);
-      return;
-    }
-    state.editingCustomerRowNumber = c.rowNumber || "";
-    if ($("newClientName")) $("newClientName").value = c.name || "";
-    if ($("newClientManager")) $("newClientManager").value = c.manager || (state.user || {}).name || (state.user || {}).username || "";
-    if ($("newClientPhone")) $("newClientPhone").value = c.phone || "";
-    if ($("newClientExtraPhone")) $("newClientExtraPhone").value = c.extraPhone || "";
-    if ($("newClientType")) $("newClientType").value = c.type || "";
-    if ($("newClientDebt")) $("newClientDebt").value = numericAmount(c.debtAmount || c.debt || 0);
-    if ($("newClientActive")) $("newClientActive").value = c.active || "نعم";
-    if ($("newClientNotes")) $("newClientNotes").value = c.notes || "";
-    if ($("newClientBranch")) $("newClientBranch").value = c.branchCode || "";
-    setPickupDaysForm(c.pickupDays || c.deliveryDays || "");
-    setCustomerFormMode("edit");
-    setMsg("addCustomerStatus", "تعديل العميل: " + (c.name || "") + " — عدل البيانات واضغط حفظ تعديل العميل.", false);
-    const card = $("addCustomerCard");
-    if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function ensureDemoCustomer() {
@@ -5128,10 +4303,8 @@ Trend Mall`;
 
   async function createCustomer() {
     setMsg("addCustomerStatus", "", false);
-    const editingRow = state.editingCustomerRowNumber || "";
 
     const params = authParams({
-      rowNumber: editingRow,
       customerName: $("newClientName").value.trim(),
       manager: $("newClientManager").value.trim() || ((state.user || {}).name || (state.user || {}).username || ""),
       phone: $("newClientPhone").value.trim(),
@@ -5140,8 +4313,6 @@ Trend Mall`;
       debtAmount: $("newClientDebt") ? $("newClientDebt").value.trim() : "0",
       franchiseBranchCode: $("newClientBranch") ? $("newClientBranch").value.trim() : "",
       franchiseBranchName: (function () { const sel = $("newClientBranch"); return sel && sel.value && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : ""; })(),
-      pickupDays: selectedPickupDaysFromForm(),
-      deliveryDays: selectedPickupDaysFromForm(),
       active: $("newClientActive").value || "نعم",
       notes: $("newClientNotes").value.trim()
     });
@@ -5153,23 +4324,33 @@ Trend Mall`;
 
     const btn = $("createCustomerBtn");
     btn.disabled = true;
-    btn.textContent = editingRow ? "جاري حفظ التعديل..." : "جاري إضافة العميل...";
+    btn.textContent = "جاري حفظ العميل...";
 
     try {
-      const res = await api(editingRow ? "updateCustomer" : "createCustomer", params);
+      const res = await api("createCustomer", params);
       if (!res.success) {
-        setMsg("addCustomerStatus", res.message || (editingRow ? "فشل تعديل العميل." : "فشل إضافة العميل في الشيت."), true);
+        setMsg("addCustomerStatus", res.message || "فشل حفظ بيانات العميل في الشيت.", true);
         return;
       }
 
-      setMsg("addCustomerStatus", res.message || (editingRow ? "تم تعديل العميل." : "تم إضافة العميل في شيت العملاء."), false);
-      resetCustomerForm();
-      await loadCustomersList(true);
+      setMsg("addCustomerStatus", res.message || "تم حفظ بيانات العميل في شيت العملاء.", false);
+      ["newClientName", "newClientPhone", "newClientExtraPhone", "newClientType", "newClientNotes"].forEach(function (id) {
+        const el = $(id);
+        if (el) el.value = "";
+      });
+      const debtInput = $("newClientDebt");
+      if (debtInput) debtInput.value = "0";
+      const manager = $("newClientManager");
+      if (manager) manager.value = (state.user || {}).name || (state.user || {}).username || "";
+      const active = $("newClientActive");
+      if (active) active.value = "نعم";
+      const branchSelect = $("newClientBranch");
+      if (branchSelect) branchSelect.value = "";
     } catch (err) {
-      setMsg("addCustomerStatus", err.message || (editingRow ? "خطأ أثناء تعديل العميل." : "خطأ أثناء إضافة العميل."), true);
+      setMsg("addCustomerStatus", err.message || "خطأ أثناء إضافة العميل.", true);
     } finally {
       btn.disabled = false;
-      setCustomerFormMode(state.editingCustomerRowNumber ? "edit" : "add");
+      btn.textContent = "حفظ / تعديل العميل";
     }
   }
 
@@ -5187,48 +4368,6 @@ Trend Mall`;
     }
   }
 
-  async function handleOrderCreated(res, params) {
-    const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
-    setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (res.debtHold || ((res.debtInfo || {}).hasDebt) ? " | تنبيه: العميل عليه مديونية" : "") + (res.duplicateOverride ? " | تم التسجيل كأوردر جديد رغم وجود أوردر مفتوح" : ""), false);
-
-    const registrationRow = {
-      customer: params.customerName,
-      customerPhone: params.customerPhone,
-      orderId: res.orderId,
-      lineId: res.lineId,
-      itemName: params.itemName || ("أوردر جديد - " + params.department),
-      department: params.department,
-      status: "طلب جديد",
-      expectedDeliveryText: expectedText,
-      customerPickupDays: res.customerPickupDays || params.customerPickupDays || "",
-      debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
-      debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا")
-    };
-
-    if (params.customerPhone) {
-      const msg = buildWhatsAppMessage(registrationRow, "registered");
-      const copied = await copyWhatsAppMessage(params.customerPhone, msg);
-      if (copied && confirm("تم نسخ رسالة تسجيل الأوردر. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟")) {
-        await recordRegistrationWhatsApp(res, params, msg);
-      }
-    }
-
-    ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
-      const el = $(id);
-      if (el) el.value = "";
-    });
-    if ($("newQty")) $("newQty").value = 1;
-    if ($("newHeatPress")) $("newHeatPress").checked = false;
-    if ($("newFlyPrint")) $("newFlyPrint").checked = false;
-    updateHeatPressVisibility();
-    updateFlyPrintVisibility();
-    if ($("customerSuggestions")) $("customerSuggestions").classList.add("hidden");
-    setCustomerPickupInfo("");
-    renderOpenOrderWarning([]);
-    state.editing = false;
-    await loadRows(true);
-  }
-
   async function createOrder() {
     setMsg("addOrderStatus", "", false);
 
@@ -5244,8 +4383,6 @@ Trend Mall`;
       priority: (($("newFlyPrint") && $("newFlyPrint").checked && text($("newDepartment").value) === "طباعة") ? "عاجل" : $("newPriority").value),
       status: $("newStatus").value,
       assignedTo: $("newAssignedTo").value.trim(),
-      customerPickupDays: state.selectedCustomerPickupDays || "",
-      pickupDays: state.selectedCustomerPickupDays || "",
       notes: $("newNotes").value.trim()
     });
 
@@ -5256,40 +4393,50 @@ Trend Mall`;
 
     const btn = $("createOrderBtn");
     btn.disabled = true;
-    btn.textContent = "فحص الأوردرات المفتوحة...";
+    btn.textContent = "جاري الإضافة...";
 
     try {
-      const openOrders = await checkOpenOrdersForRegistration();
-      if (openOrders.length) {
-        const ok = confirm("تنبيه مهم: العميل له أوردر مفتوح قبل كده.\n\n" + duplicateOrdersListText(openOrders) + "\n\nلو ده نفس الأوردر القديم اضغط إلغاء وراجع الأوردر الموجود.\nلو ده طلب جديد فعلاً اضغط موافق لتسجيله كأوردر جديد.");
-        if (!ok) {
-          setMsg("addOrderStatus", "تم إيقاف التسجيل. راجع الأوردر المفتوح وحدد هل هو تكرار ولا أوردر جديد.", true);
-          return;
-        }
-        params.duplicateOverride = "نعم";
-      }
-
-      btn.textContent = "جاري الإضافة...";
       const res = await api("createManualOrder", params);
       if (!res.success) {
-        if (res.duplicateWarning && Array.isArray(res.openOrders) && res.openOrders.length) {
-          renderOpenOrderWarning(res.openOrders);
-          const ok = confirm("تنبيه مهم: العميل له أوردر مفتوح قبل كده.\n\n" + duplicateOrdersListText(res.openOrders) + "\n\nلو ده نفس الأوردر القديم اضغط إلغاء. لو ده طلب جديد فعلاً اضغط موافق لتسجيله.");
-          if (ok) {
-            params.duplicateOverride = "نعم";
-            const res2 = await api("createManualOrder", params);
-            if (!res2.success) {
-              setMsg("addOrderStatus", res2.message || "فشل إضافة الأوردر في الشيت.", true);
-              return;
-            }
-            return handleOrderCreated(res2, params);
-          }
-        }
         setMsg("addOrderStatus", res.message || "فشل إضافة الأوردر في الشيت.", true);
         return;
       }
 
-await handleOrderCreated(res, params);
+      const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (res.debtHold || ((res.debtInfo || {}).hasDebt) ? " | تنبيه: العميل عليه مديونية" : ""), false);
+
+      const registrationRow = {
+        customer: params.customerName,
+        customerPhone: params.customerPhone,
+        orderId: res.orderId,
+        lineId: res.lineId,
+        itemName: params.itemName || ("أوردر جديد - " + params.department),
+        department: params.department,
+        status: "طلب جديد",
+        expectedDeliveryText: expectedText,
+        debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
+        debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا")
+      };
+
+      if (params.customerPhone) {
+        const msg = buildWhatsAppMessage(registrationRow, "registered");
+        const copied = await copyWhatsAppMessage(params.customerPhone, msg);
+        if (copied && confirm("تم نسخ رسالة تسجيل الأوردر. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟")) {
+          await recordRegistrationWhatsApp(res, params, msg);
+        }
+      }
+
+      ["newCustomerName", "newCustomerPhone", "newCustomerType", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
+        $(id).value = "";
+      });
+      $("newQty").value = 1;
+      if ($("newHeatPress")) $("newHeatPress").checked = false;
+      if ($("newFlyPrint")) $("newFlyPrint").checked = false;
+      updateHeatPressVisibility();
+      updateFlyPrintVisibility();
+      $("customerSuggestions").classList.add("hidden");
+      state.editing = false;
+      await loadRows(true);
     } catch (err) {
       setMsg("addOrderStatus", err.message || "خطأ أثناء إضافة الأوردر.", true);
     } finally {
@@ -5309,21 +4456,10 @@ await handleOrderCreated(res, params);
       if (!q) {
         box.classList.add("hidden");
         box.innerHTML = "";
-        renderOpenOrderWarning([]);
-        setCustomerPickupInfo("");
         return;
       }
-      scheduleOpenOrderCheck();
       state.suggestionTimer = setTimeout(function () { searchCustomers(q); }, 300);
     });
-
-    const phoneInput = $("newCustomerPhone");
-    if (phoneInput && phoneInput.dataset.openOrderWired !== "1") {
-      phoneInput.dataset.openOrderWired = "1";
-      phoneInput.addEventListener("input", scheduleOpenOrderCheck);
-      phoneInput.addEventListener("blur", checkOpenOrdersForRegistration);
-    }
-    input.addEventListener("blur", function () { setTimeout(checkOpenOrdersForRegistration, 250); });
   }
 
   async function searchCustomers(q) {
@@ -5340,7 +4476,7 @@ await handleOrderCreated(res, params);
       box.innerHTML = customers.map(function (c, i) {
         return '<button type="button" data-i="' + i + '">' +
           '<b>' + escapeHtml(c.name) + '</b>' +
-          '<small>' + escapeHtml([c.phone || "", c.type || "", c.pickupDays ? ("استلام: " + c.pickupDays) : ""].filter(Boolean).join(" | ")) + '</small>' +
+          '<small>' + escapeHtml(c.phone || "") + ' ' + escapeHtml(c.type || "") + '</small>' +
           '</button>';
       }).join("");
 
@@ -5351,9 +4487,7 @@ await handleOrderCreated(res, params);
           $("newCustomerName").value = c.name || "";
           $("newCustomerPhone").value = c.phone || "";
           $("newCustomerType").value = c.type || "";
-          setCustomerPickupInfo(c.pickupDays || c.deliveryDays || "");
           box.classList.add("hidden");
-          checkOpenOrdersForRegistration();
         };
       });
     } catch (e) {
@@ -5509,19 +4643,8 @@ await handleOrderCreated(res, params);
     on("customerRefreshMarketplaceBtn", "click", function () { loadMarketplace(false); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
     on("remoteFilesBtn", "click", openRemoteFileServer);
-    on("reminderBoardToggleBtn", "click", function () { reminderBoardSetVisible(!state.reminderBoardVisible); });
-    on("reminderBoardMinBtn", "click", function () { reminderBoardSetVisible(false); });
-    on("refreshReminderBoardBtn", "click", function () { loadReminderNotes(true); });
-    on("addReminderNoteBtn", "click", addReminderNote);
-    on("reminderNoteText", "keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") addReminderNote(); });
     on("matbagySheetsBtn", "click", openMatbagySheetsTool);
     on("matbagyRotetBtn", "click", openMatbagyRotetTool);
-    on("matbagyAccountsBtn", "click", openMatbagyAccountsTool);
-    on("matbagyInvoiceApprovalBtn", "click", openMatbagyInvoiceApprovalTool);
-    on("matbagyLaserCalcBtn", "click", openMatbagyLaserCalculatorTool);
-    on("laserCalcFloatToggleBtn", "click", openLaserCalcSideTab);
-    on("laserCalcFloatCloseBtn", "click", closeLaserCalcSideTab);
-    on("employeeEmbeddedToolCloseBtn", "click", closeEmbeddedEmployeeTool);
     on("serverFilesBtn", "click", openLocalFileServer);
     on("customerFastPrintFilesBtn", "click", openCustomerFastPrintFiles);
     on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });
@@ -5586,15 +4709,6 @@ await handleOrderCreated(res, params);
     $("createOrderBtn").addEventListener("click", createOrder);
     const createCustomerButton = $("createCustomerBtn");
     if (createCustomerButton) createCustomerButton.addEventListener("click", createCustomer);
-    const cancelCustomerEditButton = $("cancelCustomerEditBtn");
-    if (cancelCustomerEditButton) cancelCustomerEditButton.addEventListener("click", function () {
-      resetCustomerForm();
-      setMsg("addCustomerStatus", "تم إلغاء التعديل.", false);
-    });
-    const refreshCustomersListButton = $("refreshCustomersListBtn");
-    if (refreshCustomersListButton) refreshCustomersListButton.addEventListener("click", function () { loadCustomersList(true); });
-    const customersListSearch = $("customersListSearch");
-    if (customersListSearch) customersListSearch.addEventListener("input", renderCustomersList);
     const departmentSelect = $("newDepartment");
     if (departmentSelect) {
       departmentSelect.addEventListener("change", function () {
@@ -5619,15 +4733,6 @@ await handleOrderCreated(res, params);
       $(id).addEventListener("input", function () { applyFiltersAndRender(true); });
       $(id).addEventListener("change", function () { applyFiltersAndRender(true); });
     });
-
-    const statsBar = $("statsBar");
-    if (statsBar) {
-      statsBar.addEventListener("click", function (evt) {
-        const btn = evt.target.closest ? evt.target.closest("[data-stat-filter]") : null;
-        if (!btn || !statsBar.contains(btn)) return;
-        applyQuickStatFilter(btn.getAttribute("data-stat-filter"));
-      });
-    }
 
     const urgentBtn = $("urgentNotificationsBtn");
     if (urgentBtn) urgentBtn.addEventListener("click", enableUrgentNotifications);

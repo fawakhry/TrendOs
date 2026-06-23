@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 Patch 15 - الحسابات داخل نفس الشاشة</p>
+    <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 15 - الحسابات داخل نفس الشاشة</p>
+        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -74,8 +74,6 @@
         <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
         <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 مطبعجي شيتات</button>
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
-        <button id="matbagyAccountsBtn" class="ghost accounts-tool-btn hidden" type="button">💰 برنامج الحسابات</button>
-        <button id="matbagyLaserCalcBtn" class="ghost accounts-tool-btn hidden" type="button">🧮 حاسبة جابر</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
@@ -84,17 +82,6 @@
     </header>
 
     <nav id="tabs" class="tabs"></nav>
-
-    <section id="employeeEmbeddedToolPanel" class="employee-tool-panel hidden">
-      <div class="employee-tool-head">
-        <div>
-          <b id="employeeEmbeddedToolTitle">أداة مطبعجي</b>
-          <span id="employeeEmbeddedToolHint">تعمل داخل نفس شاشة الموظف بدون تسجيل دخول منفصل.</span>
-        </div>
-        <button id="employeeEmbeddedToolCloseBtn" class="ghost" type="button">إغلاق</button>
-      </div>
-      <iframe id="employeeEmbeddedToolFrame" class="employee-tool-frame" title="أداة مطبعجي داخلية"></iframe>
-    </section>
 
     <section id="adminWorkspaceHub" class="admin-workspace-hub hidden">
       <div class="admin-hub-head">
@@ -504,12 +491,12 @@
 
     <section id="addCustomerCard" class="card hidden">
       <div class="table-tools">
-        <h3>إضافة عميل جديد</h3>
+        <h3>إضافة / تعديل عميل</h3>
         <span id="addCustomerStatus"></span>
       </div>
 
       <div class="hint strong-hint">
-        إضافة العملاء متاحة فقط لحساب <b>ضياء</b> و <b>رحمه</b>. بعد الحفظ يظهر العميل فورًا في اقتراحات إضافة الأوردر والبحث.
+        رحمه تقدر تكود عميل جديد أو تعدل بيانات عميل موجود من نفس الشاشة. لو الاسم أو الرقم موجود قبل كده، يتم تحديث بيانات العميل بدل تكراره.
       </div>
 
       <div class="form-grid">
@@ -545,20 +532,6 @@
           </select>
         </div>
 
-        <div class="wide">
-          <label>أيام استلام العميل</label>
-          <div id="newClientPickupDays" class="day-picker">
-            <label><input type="checkbox" value="السبت"> السبت</label>
-            <label><input type="checkbox" value="الأحد"> الأحد</label>
-            <label><input type="checkbox" value="الاثنين"> الاثنين</label>
-            <label><input type="checkbox" value="الثلاثاء"> الثلاثاء</label>
-            <label><input type="checkbox" value="الأربعاء"> الأربعاء</label>
-            <label><input type="checkbox" value="الخميس"> الخميس</label>
-            <label><input type="checkbox" value="الجمعة"> الجمعة</label>
-          </div>
-          <small>مثال: عميل يستلم كل اثنين وخميس. ستظهر أوردراته المفتوحة في استلامات بكرة يوم الأحد والأربعاء.</small>
-        </div>
-
         <div>
           <label>مديونية حالية</label>
           <input id="newClientDebt" type="number" min="0" value="0" placeholder="0">
@@ -578,30 +551,7 @@
         </div>
       </div>
 
-      <div class="customer-form-actions">
-        <button id="createCustomerBtn" class="primary">إضافة العميل</button>
-        <button id="cancelCustomerEditBtn" class="ghost hidden" type="button">إلغاء التعديل</button>
-      </div>
-    </section>
-
-    <section id="customersListCard" class="card hidden">
-      <div class="table-tools">
-        <h3>العملاء / تعديل العملاء</h3>
-        <span id="customersListStatus"></span>
-      </div>
-
-      <div class="hint strong-hint">
-        من هنا تقدر تشوف كل العملاء، وتضغط <b>تعديل</b> جنب العميل علشان تضيف أو تعدل أيام الاستلام وباقي بيانات العميل.
-      </div>
-
-      <div class="customer-list-tools">
-        <input id="customersListSearch" placeholder="بحث باسم العميل / الرقم / أيام الاستلام">
-        <button id="refreshCustomersListBtn" class="ghost" type="button">تحديث العملاء</button>
-      </div>
-
-      <div id="customersList" class="customers-list">
-        <div class="dash-empty">اضغط تحديث العملاء لعرض القائمة.</div>
-      </div>
+      <button id="createCustomerBtn" class="primary">حفظ / تعديل العميل</button>
     </section>
 
     <section id="addOrderCard" class="card hidden">
@@ -630,8 +580,6 @@
           <label>نوع العميل</label>
           <input id="newCustomerType" placeholder="اختياري">
         </div>
-
-        <div id="customerPickupInfoBox" class="wide pickup-info-box hidden"></div>
 
         <div>
           <label>القسم <span class="req">*</span></label>
@@ -710,11 +658,6 @@
           <option value="">كل الحالات</option>
           <option value="__OVERDUE__">متأخر</option>
           <option value="__TODAY_WORK__">شغل اليوم</option>
-          <option value="__TOMORROW_PICKUPS__">استلامات بكرة</option>
-          <option value="__TOMORROW_OPEN__">غير مقفل لبكرة</option>
-          <option value="__DEBTS__">مديونية</option>
-          <option value="__FLY_PRINT__">طباعة على الطاير</option>
-          <option value="__PROBLEM_STOPPED__">مشاكل/متوقف</option>
           <option value="__DELIVERED_TODAY__">تسليمات اليوم</option>
           <option>طلب جديد</option>
           <option>بدأ التنفيذ</option>
@@ -749,7 +692,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 15 - الحسابات داخل نفس الشاشة</p>
+        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
