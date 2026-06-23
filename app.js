@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_11_ACCOUNTING_BY_DEPARTMENT";
+  const UI_VERSION = "1856_PATCH_13_FORCE_VISIBLE_BUTTONS_STABLE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -564,7 +564,7 @@ Trend Mall`;
         btn = document.createElement("button");
         btn.id = id;
         btn.type = "button";
-        btn.className = "ghost quick-tool-btn hidden" + (extraClass ? " " + extraClass : "");
+        btn.className = "ghost quick-tool-btn" + (extraClass ? " " + extraClass : "");
         btn.textContent = textValue;
         const after = afterId ? $(afterId) : null;
         if (after && after.parentNode) after.parentNode.insertBefore(btn, after.nextSibling);
@@ -710,6 +710,14 @@ Trend Mall`;
     const btn = $("accountingBtn");
     if (!btn) return;
     btn.classList.toggle("hidden", !canOpenAccounting());
+  }
+
+  function forceVisibleMainButtonsPatch13() {
+    ensureEmployeeMainActionButtons();
+    const noteBtn = $("matbagyNoteBtn");
+    if (noteBtn && isEmployeeLoggedIn()) noteBtn.classList.remove("hidden");
+    const accBtn = $("accountingBtn");
+    if (accBtn && canOpenAccounting()) accBtn.classList.remove("hidden");
   }
 
   function openAccountingPanel() {
@@ -3842,6 +3850,7 @@ Trend Mall`;
     toggleRemoteFilesButton();
     toggleEmployeeQuickToolButtons();
     toggleAccountingButton();
+    forceVisibleMainButtonsPatch13();
   }
 
   function renderTabs() {
@@ -5340,5 +5349,7 @@ Trend Mall`;
     if (loadSession()) bootMain();
     else if (loadCustomerSession()) bootCustomerMain();
     else showEntryChoice();
+    setTimeout(forceVisibleMainButtonsPatch13, 300);
+    setTimeout(forceVisibleMainButtonsPatch13, 1200);
   });
 })();
