@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_13_FORCE_VISIBLE_BUTTONS_STABLE";
+  const UI_VERSION = "1856_PATCH_16_NOTE_DOCK_INVENTORY_WASTE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -908,6 +908,21 @@ Trend Mall`;
         '<span>' + escapeHtml(r.department || r["القسم"] || "-") + ' | ' + escapeHtml(r.size || r["المقاس"] || "-") + ' | إنتاج: ' + escapeHtml(r.outputCount || r["الناتج"] || "-") + '</span>' +
         '<small>خامة: ' + escapeHtml(r.materialName || r["الخامة"] || "-") + ' | سعر مقترح: ' + accountingMoney(r.salePrice || r["سعر بيع مقترح"]) + '</small></div>';
     }).join("");
+  }
+
+  const saveAccountingFinalInvoiceBeforePatch16 = saveAccountingFinalInvoice;
+
+  async function saveAccountingFinalInvoice() {
+    const selectedProduct = (($("accFinalProductSelect") || {}).value || "").trim();
+    if (selectedProduct) {
+      const missing = collectMaterialRequirements(selectedProduct, 1).filter(function (x) { return x.missing; });
+      if (missing.length) {
+        setMsg("accountingMsg", "لا يمكن تقفيل الفاتورة. في باند ناقص لاستخراج " + selectedProduct + ": " + missing.map(function (m) { return m.materialName + " مطلوب " + m.required + " والمتاح " + m.available; }).join(" / "), true);
+        return;
+      }
+      if ($("accFinalManualDescription") && !$("accFinalManualDescription").value.trim()) $("accFinalManualDescription").value = selectedProduct;
+    }
+    return saveAccountingFinalInvoiceBeforePatch16();
   }
 
   function renderAccountingDeptLines() {
@@ -5395,7 +5410,7 @@ Trend Mall`;
     }
     const modal = $("matbagyNoteModal");
     if (!modal) {
-      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 15.");
+      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 16.");
       return;
     }
     modal.classList.remove("hidden");
@@ -5677,6 +5692,397 @@ Trend Mall`;
     }
   }
 
+
+
+  /*********************** Patch 16 - نوت جانبية + مخزون خامات + تعويض تالف ***********************/
+
+  const prepareAccountingUiByRoleBeforePatch16 = prepareAccountingUiByRole;
+
+  function isAccountingOperatorMode() {
+    const mode = currentAccountingMode();
+    return mode === "print" || mode === "laser";
+  }
+
+  function materialStockQty(mat) {
+    return numericAmount(mat && (mat.stockQty || mat["رصيد المخزن"] || mat.stock || mat["المخزون"]) || 0);
+  }
+
+  function materialMinStock(mat) {
+    return numericAmount(mat && (mat.minStock || mat["حد تنبيه النقص"] || mat["حد النقص"]) || 0);
+  }
+
+  function prepareAccountingUiByRole() {
+    prepareAccountingUiByRoleBeforePatch16();
+    const operator = isAccountingOperatorMode();
+    const smartBox = $("accSmartCalcBox");
+    const operatorBox = $("accOperatorAutoCostBox");
+    if (smartBox) smartBox.classList.toggle("hidden", operator);
+    if (operatorBox) operatorBox.classList.toggle("hidden", !operator);
+    document.querySelectorAll(".acc-cost-sensitive").forEach(function (el) {
+      el.classList.toggle("acc-hidden-cost", operator);
+    });
+    ["accDeptLineMaterialQty", "accDeptLineMaterialCost", "accDeptLineLaborCost", "accDeptLineOtherCost"].forEach(function (id) {
+      const el = $(id);
+      if (el) el.tabIndex = operator ? -1 : 0;
+    });
+    updateOperatorAutoCostMessage();
+    updateAccountingWasteDiff();
+  }
+
+  function openMatbagyNotePanel() {
+    if (!employeeCanOpenMatbagyNote()) {
+      alert("نوت مطبعجي متاحة للموظفين فقط.");
+      return;
+    }
+    const modal = $("matbagyNoteModal");
+    if (!modal) {
+      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 16.");
+      return;
+    }
+    modal.classList.remove("hidden");
+    loadMatbagyNotesServer();
+    setTimeout(function(){ const t = $("matbagyNoteContent"); if (t) t.focus(); }, 120);
+  }
+
+  function closeMatbagyNotePanel() {
+    const modal = $("matbagyNoteModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function syncAccountingMaterialOptions() {
+    const select = $("accDeptLineMaterial");
+    const finalSelect = $("accFinalProductSelect");
+    const dept = ($("accDeptLineDepartment") || {}).value || accountingDepartmentForMode();
+    const operator = isAccountingOperatorMode();
+    const rows = (state.accounting.materials || []).filter(function (r) {
+      const d = r.department || r["القسم"] || "";
+      return !dept || d === dept || d === "مشترك" || d === "عام";
+    });
+    const optHtml = '<option value="">بدون خامة محددة</option>' + rows.map(function (r) {
+      const name = r.materialName || r["اسم الخامة"] || "";
+      const comps = materialComponents(r);
+      const stock = materialStockQty(r);
+      const stockText = stock ? (" | رصيد " + stock) : "";
+      const priceText = operator ? "" : (" - " + accountingMoney(materialDisplayCost(r)));
+      const kindText = comps.length ? " مركب" : "";
+      return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + escapeHtml(kindText) + escapeHtml(priceText + stockText) + '</option>';
+    }).join("");
+    if (select) {
+      const oldValue = select.value;
+      select.innerHTML = optHtml;
+      if (oldValue) select.value = oldValue;
+    }
+    if (finalSelect) {
+      const old = finalSelect.value;
+      finalSelect.innerHTML = '<option value="">بدون بند محفوظ</option>' + (state.accounting.materials || []).map(function (r) {
+        const name = r.materialName || r["اسم الخامة"] || "";
+        const d = r.department || r["القسم"] || "";
+        return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + ' - ' + escapeHtml(d) + '</option>';
+      }).join("");
+      if (old) finalSelect.value = old;
+    }
+    accountingSmartFillFromMaterial(false);
+    syncMaterialRecipeOptions();
+    updateOperatorAutoCostMessage();
+  }
+
+  function renderAccountingMaterials() {
+    const list = $("accountingMaterialsList");
+    if (!list) return;
+    const rows = state.accounting.materials || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لم يتم تسجيل خامات بعد.</div>';
+      syncMaterialRecipeOptions();
+      return;
+    }
+    list.innerHTML = rows.map(function (r, idx) {
+      const comps = materialComponents(r);
+      const kind = r.materialKind || r["نوع الخامة"] || (comps.length ? "composite" : "raw");
+      const stock = materialStockQty(r);
+      const min = materialMinStock(r);
+      const stockClass = min && stock <= min ? "acc-stock-alert" : "acc-stock-ok";
+      const stockText = '<span class="acc-stock-pill ' + stockClass + '">رصيد: ' + escapeHtml(stock || 0) + '</span>';
+      const compText = comps.length ? ('<small>المكونات: ' + comps.map(function (c) { return escapeHtml(c.materialName || "تكلفة") + ' × ' + (c.qty || 0); }).join(' + ') + '</small>') : '';
+      return '<div class="acc-list-item material-item">' +
+        '<div><b>' + escapeHtml(r.materialName || r["اسم الخامة"] || "-") + '</b> <span class="material-kind-pill">' + (kind === "composite" ? "مركبة" : "مباشرة") + '</span> ' + stockText + '</div>' +
+        '<span>' + escapeHtml(r.department || r["القسم"] || "-") + ' | ' + escapeHtml(r.unit || r["الوحدة"] || "-") + ' | تكلفة: ' + accountingMoney(materialDisplayCost(r)) + '</span>' +
+        compText +
+        '<button class="ghost edit-material-btn" type="button" data-material-index="' + idx + '">تعديل السعر / المخزون / المكونات</button>' +
+      '</div>';
+    }).join("");
+    list.querySelectorAll(".edit-material-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () { editAccountingMaterialPatch15(Number(btn.getAttribute("data-material-index"))); });
+    });
+    syncMaterialRecipeOptions();
+  }
+
+  function editAccountingMaterialPatch15(index) {
+    const m = (state.accounting.materials || [])[index];
+    if (!m) return;
+    const set = function (id, v) { const el = $(id); if (el) el.value = v == null ? "" : v; };
+    set("accMaterialDepartment", m.department || m["القسم"] || "طباعة");
+    set("accMaterialName", m.materialName || m["اسم الخامة"] || "");
+    set("accMaterialKind", m.materialKind || m["نوع الخامة"] || (materialComponents(m).length ? "composite" : "raw"));
+    set("accMaterialUnit", m.unit || m["الوحدة"] || "");
+    set("accMaterialStockQty", m.stockQty || m["رصيد المخزن"] || "");
+    set("accMaterialMinStock", m.minStock || m["حد تنبيه النقص"] || "");
+    set("accMaterialUnitCost", materialDisplayCost(m) || "");
+    set("accMaterialWidth", m.width || m["عرض الخام"] || "");
+    set("accMaterialHeight", m.height || m["طول الخام"] || "");
+    set("accMaterialWaste", m.wastePercent || m["نسبة الهالك"] || "");
+    set("accMaterialNotes", m.notes || m["ملاحظات"] || "");
+    syncMaterialRecipeOptions();
+    setMaterialRecipeComponents(materialComponents(m));
+    calculateMaterialRecipeCost(false);
+    setMsg("accountingMsg", "تم تحميل الخامة للتعديل. عدل السعر أو الرصيد أو المكونات ثم اضغط حفظ / تحديث الخامة.", false);
+  }
+
+  function syncMaterialRecipeOptions() {
+    const selects = document.querySelectorAll(".acc-recipe-material");
+    if (!selects.length) return;
+    const current = Array.from(selects).map(function (s) { return s.value; });
+    const opts = '<option value="">اختار مكون محفوظ</option>' + (state.accounting.materials || []).map(function (m) {
+      const name = m.materialName || m["اسم الخامة"] || "";
+      const stock = materialStockQty(m);
+      return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + ' - ' + accountingMoney(materialDisplayCost(m)) + ' | رصيد ' + escapeHtml(stock || 0) + '</option>';
+    }).join("");
+    selects.forEach(function (sel, idx) { sel.innerHTML = opts; sel.value = current[idx] || ""; });
+  }
+
+  async function saveAccountingMaterial() {
+    if (!accountingCanManageMaterials()) return;
+    const name = (($("accMaterialName") || {}).value || "").trim();
+    if (!name) {
+      setMsg("accountingMsg", "اكتب اسم الخامة.", true);
+      return;
+    }
+    const kind = (($("accMaterialKind") || {}).value || "raw");
+    let calc = { total: numericAmount(($("accMaterialUnitCost") || {}).value || 0), lines: [] };
+    if (kind === "composite") calc = calculateMaterialRecipeCost(true);
+    const comps = kind === "composite" ? collectMaterialRecipeComponents() : [];
+    try {
+      const res = await api("saveAccountingMaterial", authParams({
+        department: ($("accMaterialDepartment") || {}).value,
+        materialName: name,
+        materialKind: kind,
+        unit: ($("accMaterialUnit") || {}).value,
+        stockQty: ($("accMaterialStockQty") || {}).value,
+        minStock: ($("accMaterialMinStock") || {}).value,
+        unitCost: calc.total || ($("accMaterialUnitCost") || {}).value,
+        calculatedUnitCost: calc.total || ($("accMaterialUnitCost") || {}).value,
+        width: ($("accMaterialWidth") || {}).value,
+        height: ($("accMaterialHeight") || {}).value,
+        wastePercent: ($("accMaterialWaste") || {}).value,
+        componentsJson: JSON.stringify(comps),
+        formula: comps.map(function (c) { return (c.materialName || "تكلفة") + " × " + (c.qty || 0) + (c.extraCost ? (" + " + c.extraCost) : ""); }).join(" + "),
+        notes: ($("accMaterialNotes") || {}).value,
+        active: "نعم"
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم حفظ الخامة." : "فشل الحفظ."), !res.success);
+      if (res.success) {
+        ["accMaterialName", "accMaterialUnitCost", "accMaterialWidth", "accMaterialHeight", "accMaterialWaste", "accMaterialNotes", "accMaterialUnit", "accMaterialStockQty", "accMaterialMinStock"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        if ($("accMaterialKind")) $("accMaterialKind").value = "raw";
+        setMaterialRecipeComponents([]);
+        if ($("accMaterialRecipeResult")) $("accMaterialRecipeResult").innerHTML = "تم الحفظ. تقدر تعدل السعر أو الرصيد في أي وقت من زر تعديل.";
+        await loadAccountingData(true);
+      }
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في حفظ الخامة.", true);
+    }
+  }
+
+  function collectMaterialRequirements(materialName, qty, path) {
+    const mat = materialByName(materialName);
+    const needs = [];
+    qty = numericAmount(qty) || 1;
+    path = path || [];
+    if (!mat) {
+      needs.push({ missing: true, materialName: materialName || "بند غير معروف", required: qty, available: 0, reason: "غير مسجل في الخامات" });
+      return needs;
+    }
+    const comps = materialComponents(mat);
+    if (!comps.length) {
+      // لو الخامة المختارة مباشرة في الفاتورة نسمح بها حتى لو لم يتم ضبط المخزون بعد.
+      // أما لو هي مكون داخل منتج مركب مثل تابلوه، لازم يتوفر لها رصيد.
+      if (!path.length) return needs;
+      const available = materialStockQty(mat);
+      if (available < qty) needs.push({ missing: true, materialName: mat.materialName || mat["اسم الخامة"], required: qty, available: available, reason: "رصيد غير كاف" });
+      return needs;
+    }
+    comps.forEach(function (c) {
+      const req = qty * (numericAmount(c.qty) || 0);
+      if (!req && !c.materialName) return;
+      needs.push.apply(needs, collectMaterialRequirements(c.materialName, req || 1, path.concat([materialName])));
+    });
+    return needs;
+  }
+
+  function validateSelectedMaterialAvailability() {
+    const matName = (($("accDeptLineMaterial") || {}).value || "").trim();
+    if (!matName) return { ok: true, missing: [] };
+    const qty = numericAmount(($("accDeptLineQty") || {}).value || 1) || 1;
+    const missing = collectMaterialRequirements(matName, qty).filter(function (x) { return x.missing; });
+    if (missing.length) return { ok: false, missing: missing };
+    return { ok: true, missing: [] };
+  }
+
+  function accountingAutoCostFromSelectedMaterial() {
+    const mat = accountingSmartFindMaterial();
+    const qty = numericAmount(($("accDeptLineQty") || {}).value || 1) || 1;
+    if (!mat) return 0;
+    const cost = materialDisplayCost(mat) * qty;
+    if ($("accDeptLineMaterialQty")) $("accDeptLineMaterialQty").value = qty;
+    if ($("accDeptLineMaterialCost")) $("accDeptLineMaterialCost").value = cost.toFixed(2);
+    if ($("accDeptLineLaborCost") && !numericAmount($("accDeptLineLaborCost").value)) $("accDeptLineLaborCost").value = "0";
+    if ($("accDeptLineOtherCost") && !numericAmount($("accDeptLineOtherCost").value)) $("accDeptLineOtherCost").value = "0";
+    return cost + numericAmount(($("accDeptLineLaborCost") || {}).value || 0) + numericAmount(($("accDeptLineOtherCost") || {}).value || 0);
+  }
+
+  function updateOperatorAutoCostMessage() {
+    const box = $("accOperatorAutoCostMsg");
+    if (!box) return;
+    const mat = accountingSmartFindMaterial();
+    if (!mat) {
+      box.textContent = "اختار بند محفوظ، والسيستم يحسب التكلفة داخليًا بدون إظهار أسعار الخامات.";
+      return;
+    }
+    const validation = validateSelectedMaterialAvailability();
+    const systemCost = accountingAutoCostFromSelectedMaterial();
+    if (!validation.ok) {
+      box.innerHTML = '<span class="acc-stock-alert">ناقص لاستخراج البند: ' + validation.missing.map(function (m) { return escapeHtml(m.materialName) + ' مطلوب ' + escapeHtml(m.required) + ' والمتاح ' + escapeHtml(m.available); }).join(' / ') + '</span>';
+    } else {
+      box.innerHTML = 'تم اختيار <b>' + escapeHtml(mat.materialName || mat["اسم الخامة"] || "") + '</b> — التكلفة اتحسبت داخليًا ولا تظهر أسعار الخامات للمنفذ.';
+    }
+    updateAccountingWasteDiff(systemCost);
+  }
+
+  function updateAccountingWasteDiff(systemCost) {
+    if (systemCost === undefined) systemCost = accountingAutoCostFromSelectedMaterial();
+    const sale = numericAmount(($("accDeptLineSalePrice") || {}).value || 0);
+    const diff = Math.max(0, sale - (systemCost || 0));
+    if ($("accDeptLinePriceDiff")) $("accDeptLinePriceDiff").value = diff ? diff.toFixed(2) : "";
+    const damage = numericAmount(($("accDeptLineDamageCost") || {}).value || 0);
+    const covered = numericAmount(($("accDeptLineDamageCovered") || {}).value || 0);
+    const rem = Math.max(0, damage - covered);
+    if ($("accDeptLineDamageRemaining")) $("accDeptLineDamageRemaining").value = rem ? rem.toFixed(2) : "";
+    const msg = $("accWasteMsg");
+    if (msg) msg.textContent = damage ? ("كان عليه " + accountingMoney(damage) + " / عوض " + accountingMoney(covered) + " / باقي " + accountingMoney(rem)) : "لو خامة باظت، سجل قيمتها والمبلغ اللي اتعوض. الفرق يتحفظ في بند تعويض تالف مستقل.";
+  }
+
+  function finalProductSelectChanged() {
+    const name = (($("accFinalProductSelect") || {}).value || "").trim();
+    if (!name) return;
+    const mat = materialByName(name);
+    if ($("accFinalManualDescription")) $("accFinalManualDescription").value = name;
+    const validation = collectMaterialRequirements(name, 1).filter(function (x) { return x.missing; });
+    if (validation.length) {
+      setMsg("accountingMsg", "لا يمكن استخراج " + name + " لأن في باند ناقص: " + validation.map(function (m) { return m.materialName + " مطلوب " + m.required + " والمتاح " + m.available; }).join(" / "), true);
+    } else {
+      setMsg("accountingMsg", "تم اختيار بند محفوظ. اكتبي قيمة البيع النهائية أو استدعي أجزاء وائل وجابر.", false);
+    }
+  }
+
+  const saveAccountingFinalInvoiceBeforePatch16Final = saveAccountingFinalInvoice;
+
+  async function saveAccountingFinalInvoice() {
+    const selectedProduct = (($("accFinalProductSelect") || {}).value || "").trim();
+    if (selectedProduct) {
+      const missing = collectMaterialRequirements(selectedProduct, 1).filter(function (x) { return x.missing; });
+      if (missing.length) {
+        setMsg("accountingMsg", "لا يمكن تقفيل الفاتورة. في باند ناقص لاستخراج " + selectedProduct + ": " + missing.map(function (m) { return m.materialName + " مطلوب " + m.required + " والمتاح " + m.available; }).join(" / "), true);
+        return;
+      }
+      if ($("accFinalManualDescription") && !$("accFinalManualDescription").value.trim()) $("accFinalManualDescription").value = selectedProduct;
+    }
+    return saveAccountingFinalInvoiceBeforePatch16Final();
+  }
+
+  function renderAccountingDeptLines() {
+    const list = $("accountingDeptLinesList");
+    if (!list) return;
+    const rows = state.accounting.deptLines || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد فواتير أقسام مسجلة حتى الآن.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 80).map(function (r) {
+      const profit = accountingLineSale(r) - accountingLineCost(r);
+      const mode = currentAccountingMode();
+      const showProfit = mode === "full";
+      const showCost = mode === "full" || mode === "final";
+      const damage = numericAmount(r.damageCost || r["تكلفة التالف"] || 0);
+      const covered = numericAmount(r.damageCovered || r["تعويض التالف"] || 0);
+      const remaining = numericAmount(r.damageRemaining || r["باقي على الموظف"] || Math.max(0, damage - covered));
+      const costLine = showCost ? ('تكلفة: ' + accountingMoney(accountingLineCost(r)) + (showProfit ? (' | ربح: ' + accountingMoney(profit)) : '')) : 'التكلفة محسوبة داخليًا';
+      const damageLine = damage ? ('<small>تالف: كان عليه ' + accountingMoney(damage) + ' | عوض ' + accountingMoney(covered) + ' | باقي ' + accountingMoney(remaining) + '</small>') : '';
+      return '<div class="acc-line-card">' +
+        '<div><b>' + escapeHtml(r.orderId || r["رقم الأوردر"] || "-") + '</b> <span>' + escapeHtml(r.department || r["القسم"] || "-") + '</span></div>' +
+        '<p>' + escapeHtml(r.itemName || r["اسم البند"] || "-") + '</p>' +
+        '<small>بيع: ' + accountingMoney(accountingLineSale(r)) + ' | ' + costLine + '</small>' +
+        damageLine +
+        '<small>تقفيل: ' + escapeHtml(r.closeStatus || r["حالة التقفيل"] || "مفتوح") + ' | بواسطة: ' + escapeHtml(r.createdBy || r["مسجل بواسطة"] || "-") + '</small>' +
+      '</div>';
+    }).join("");
+  }
+
+  async function saveAccountingDeptLine() {
+    if (!accountingCanEnterDeptLine()) return;
+    const orderId = (($("accDeptLineOrderId") || {}).value || "").trim();
+    const itemName = (($("accDeptLineItemName") || {}).value || "").trim();
+    if (!orderId || !itemName) {
+      setMsg("accountingMsg", "رقم الأوردر واسم البند مطلوبين لتسجيل فاتورة القسم.", true);
+      return;
+    }
+    const validation = validateSelectedMaterialAvailability();
+    if (!validation.ok) {
+      setMsg("accountingMsg", "لا يمكن حفظ الفاتورة. في باند ناقص لاستخراج المنتج: " + validation.missing.map(function (m) { return m.materialName + " مطلوب " + m.required + " والمتاح " + m.available; }).join(" / "), true);
+      return;
+    }
+    try {
+      if (isAccountingOperatorMode()) accountingAutoCostFromSelectedMaterial();
+      else if (!numericAmount(($("accDeptLineMaterialCost") || {}).value || 0) && $("accSmartWidth") && $("accSmartHeight")) {
+        calculateSmartAccountingCost(false);
+        if (state.accounting.smartCalc && state.accounting.smartCalc.totalCost > 0) applySmartAccountingCost();
+      }
+      updateAccountingWasteDiff();
+      const damageCost = ($("accDeptLineDamageCost") || {}).value || "";
+      const damageCovered = ($("accDeptLineDamageCovered") || {}).value || "";
+      const damageRemaining = ($("accDeptLineDamageRemaining") || {}).value || "";
+      const priceDiff = ($("accDeptLinePriceDiff") || {}).value || "";
+      const baseNotes = ($("accDeptLineNotes") || {}).value || "";
+      const damageNote = numericAmount(damageCost) ? ("\n[تعويض تالف] كان عليه: " + damageCost + " / عوض: " + damageCovered + " / باقي: " + damageRemaining + " / فرق عن السيستم: " + priceDiff) : "";
+      const res = await api("saveAccountingDeptLine", authParams({
+        orderId: orderId,
+        lineId: ($("accDeptLineLineId") || {}).value,
+        customerName: ($("accDeptLineCustomer") || {}).value,
+        department: ($("accDeptLineDepartment") || {}).value,
+        itemType: ($("accDeptLineType") || {}).value,
+        itemName: itemName,
+        qty: ($("accDeptLineQty") || {}).value,
+        materialName: ($("accDeptLineMaterial") || {}).value,
+        materialQty: ($("accDeptLineMaterialQty") || {}).value,
+        materialCost: ($("accDeptLineMaterialCost") || {}).value,
+        laborCost: ($("accDeptLineLaborCost") || {}).value,
+        otherCost: ($("accDeptLineOtherCost") || {}).value,
+        systemCost: numericAmount(($("accDeptLineMaterialCost") || {}).value || 0) + numericAmount(($("accDeptLineLaborCost") || {}).value || 0) + numericAmount(($("accDeptLineOtherCost") || {}).value || 0),
+        priceDiff: priceDiff,
+        damageCost: damageCost,
+        damageCovered: damageCovered,
+        damageRemaining: damageRemaining,
+        salePrice: ($("accDeptLineSalePrice") || {}).value,
+        notes: baseNotes + damageNote
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم تسجيل فاتورة القسم." : "فشل الحفظ."), !res.success);
+      if (res.success) {
+        ["accDeptLineLineId", "accDeptLineItemName", "accDeptLineMaterialQty", "accDeptLineMaterialCost", "accDeptLineLaborCost", "accDeptLineOtherCost", "accDeptLineSalePrice", "accDeptLineNotes", "accDeptLineDamageCost", "accDeptLineDamageCovered", "accDeptLineDamageRemaining", "accDeptLinePriceDiff"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        await loadAccountingData(true);
+      }
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في تسجيل فاتورة القسم.", true);
+    }
+  }
+
+
   function wireEvents() {
     function on(id, eventName, handler) {
       const el = $(id);
@@ -5844,8 +6250,10 @@ Trend Mall`;
     ["accSmartMode", "accSmartWidth", "accSmartHeight", "accSmartQty", "accSmartWaste", "accSmartRawCost", "accSmartRawWidth", "accSmartRawHeight", "accSmartRawHeightUnit", "accSmartInkCostM2", "accSmartLabor", "accDeptLineItemName"].forEach(function (id) { on(id, "input", function () { calculateSmartAccountingCost(false); }); on(id, "change", function () { calculateSmartAccountingCost(false); }); });
     ["accFinalDiscount", "accFinalPaid", "accFinalManualAmount"].forEach(function (id) { on(id, "input", updateAccountingFinalTotals); });
     on("accDeptLineDepartment", "change", function () { syncAccountingMaterialOptions(); calculateSmartAccountingCost(false); });
-    on("accDeptLineMaterial", "change", function () { accountingSmartFillFromMaterial(true); calculateSmartAccountingCost(false); });
-    on("accDeptLineQty", "input", function () { if ($("accSmartQty")) $("accSmartQty").value = ($("accDeptLineQty") || {}).value || 1; calculateSmartAccountingCost(false); });
+    on("accDeptLineMaterial", "change", function () { accountingSmartFillFromMaterial(true); accountingAutoCostFromSelectedMaterial(); calculateSmartAccountingCost(false); updateOperatorAutoCostMessage(); });
+    on("accDeptLineQty", "input", function () { if ($("accSmartQty")) $("accSmartQty").value = ($("accDeptLineQty") || {}).value || 1; accountingAutoCostFromSelectedMaterial(); calculateSmartAccountingCost(false); updateOperatorAutoCostMessage(); });
+    ["accDeptLineSalePrice", "accDeptLineDamageCost", "accDeptLineDamageCovered"].forEach(function (id) { on(id, "input", function () { updateAccountingWasteDiff(); }); });
+    on("accFinalProductSelect", "change", finalProductSelectChanged);
 
     on("closeMatbagyNoteBtn", "click", closeMatbagyNotePanel);
     on("saveMatbagyNoteBtn", "click", saveMatbagyNoteLocal);
