@@ -1617,3 +1617,21 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .note-btn{background:#fff7ed!important;border-color:#fed7aa!important;color:#c2410c!important;font-weight:900!important;}
 .accounting-btn{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#047857!important;font-weight:900!important;}
 @media(max-width:720px){.acc-smart-head{flex-direction:column}.ai-pill{align-self:flex-start}}
+
+/* Patch 15 - نوت مستقل + خامات بمكونات */
+.matbagy-note-card{max-width:920px;width:min(920px,96vw)}
+.matbagy-notes-list{display:grid;gap:10px;margin-top:10px;max-height:420px;overflow:auto}
+.matbagy-note-item{border:1px solid #d7ebe6;background:#fbfffd;border-radius:14px;padding:12px;display:grid;gap:6px;position:relative}
+.matbagy-note-item span,.material-kind-pill{display:inline-block;background:#e9f7f2;color:#006b55;border:1px solid #cfeee5;border-radius:999px;padding:2px 8px;font-size:.82rem;margin-inline-start:6px}
+.matbagy-note-item p{white-space:pre-wrap;margin:0;color:#123}
+.matbagy-note-item small{color:#668}
+.small-note-delete{position:absolute;top:8px;left:8px;padding:4px 9px;font-size:.8rem}
+.note-tools-row{margin-top:14px}
+.acc-recipe-box{border:1px dashed #bfe2d8;background:#f8fffc;border-radius:16px;padding:12px;margin:12px 0}
+.acc-recipe-box h4{margin:0 0 6px;color:#006b55}
+.recipe-rows{display:grid;gap:8px;margin-top:10px}
+.recipe-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;align-items:center}
+.recipe-row select,.recipe-row input{width:100%}
+.material-item small{display:block;color:#51606a;margin-top:4px}
+.material-kind-pill{font-weight:700}
+@media(max-width:720px){.recipe-row{grid-template-columns:1fr}.small-note-delete{position:static;width:max-content}}
