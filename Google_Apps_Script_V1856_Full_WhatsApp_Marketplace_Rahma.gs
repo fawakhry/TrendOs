@@ -96,6 +96,8 @@ function doGet(e) {
     else if (action === "getKnowledgeContext") result = getKnowledgeContext_(e);
     else if (action === "updateLine") result = updateLine_(e);
     else if (action === "createInvoiceLine") result = createInvoiceLine_(e);
+    else if (action === "getPendingInvoiceLines") result = getPendingInvoiceLines_(e);
+    else if (action === "approveInvoicePricingLine") result = approveInvoicePricingLine_(e);
     else if (action === "markCustomerNotified") result = markCustomerNotified_(e);
     else if (action === "changePassword") result = changePassword_(e);
     else if (action === "createManualOrder") result = createManualOrder_(e);
@@ -2247,7 +2249,7 @@ function resetTrendOSValidations_() {
     clearAllBodyValidations_(lines);
     setDropdownByHeader_(lines, h, ["القسم", "Department"], ["طباعة", "ليزر", "مكبس", "متعدد الأقسام"]);
     setDropdownByHeader_(lines, h, ["الأولوية", "Priority"], ["عاجل", "عادي", "مؤجل"]);
-    setDropdownByHeader_(lines, h, ["الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف", "ملغى"]);
+    setDropdownByHeader_(lines, h, ["الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "انتهاء الشغل", "تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف", "ملغى"]);
     setDropdownByHeader_(lines, h, ["جاهز؟", "جاهز", "Ready"], ["نعم", "لا"]);
     setDropdownByHeader_(lines, h, ["مكبس حراري", "مكبس؟"], ["نعم", "لا"]);
   }
@@ -2258,7 +2260,7 @@ function resetTrendOSValidations_() {
     clearAllBodyValidations_(orders);
     setDropdownByHeader_(orders, h, ["القسم الرئيسي", "القسم", "Department"], ["طباعة", "ليزر", "مكبس", "متعدد الأقسام"]);
     setDropdownByHeader_(orders, h, ["الأولوية", "Priority"], ["عاجل", "عادي", "مؤجل"]);
-    setDropdownByHeader_(orders, h, ["الحالة العامة", "الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف", "ملغى"]);
+    setDropdownByHeader_(orders, h, ["الحالة العامة", "الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "انتهاء الشغل", "تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف", "ملغى"]);
     setDropdownByHeader_(orders, h, ["تسليم جزئي؟"], ["نعم", "لا"]);
   }
 }
@@ -2372,7 +2374,7 @@ function defaultAiKnowledgeRows_() {
     ["KB-0004", "ردود واتساب", "رسالة تسجيل اوردر", "order_registered", "تسجيل, تم التسجيل, رقم الأوردر", "أهلاً يا {customer_name} 🌟\nتم تسجيل أوردر جديد لحضرتك بنجاح.\nرقم الأوردر: {order_id}\nالقسم: {department}\nنوع الشغل: {item_name}\nالتسليم المتوقع: {expected_delivery}\n\nمهم: أي شغل جديد يتم إرساله بعد كده هيتسجل كأوردر جديد برقم جديد.\n{business_name}", "عالية", "نعم", now, "System", ""],
     ["KB-0005", "ردود واتساب", "رد حالة الأوردر", "status_reply", "الحالة, خلص, جاهز, متابعة", "أهلاً يا {customer_name} 🌟\nالأوردر رقم {order_id} حالته حالياً: {status}\nالقسم: {department}\nنوع الشغل: {item_name}\nالتسليم المتوقع: {expected_delivery}\n{business_name}", "عالية", "نعم", now, "System", ""],
     ["KB-0006", "ردود واتساب", "رسالة جاهز للاستلام", "ready_notify", "جاهز, استلام, خلص", "أهلاً يا {customer_name} 🌟\nالأوردر رقم {order_id} جاهز للاستلام.\nالقسم: {department}\nنوع الشغل: {item_name}\nبرجاء الحضور للاستلام في أقرب وقت مناسب.\n{business_name}", "عالية", "نعم", now, "System", ""],
-    ["KB-0007", "قواعد التشغيل", "الحالات المخفية", "hidden_statuses", "مكرر, تم التسليم, جاهز للاستلام, تم التنفيذ, جاهز للطباعة, ملغى", "الحالات جاهز للاستلام وتم التسليم ومكرر وملغى لا تظهر في شاشة المستخدمين اليومية بعد حفظها، لكنها تظل محفوظة في الشيت للمتابعة والسجل ويمكن عرض ملغى من فلتر الحالة.", "عادية", "نعم", now, "System", ""],
+    ["KB-0007", "قواعد التشغيل", "الحالات المخفية", "hidden_statuses", "مكرر, تم التسليم, جاهز للاستلام, انتهاء الشغل, تم التنفيذ, جاهز للطباعة, ملغى", "الحالات جاهز للاستلام وتم التسليم ومكرر وملغى لا تظهر في شاشة المستخدمين اليومية بعد حفظها، لكنها تظل محفوظة في الشيت للمتابعة والسجل ويمكن عرض ملغى من فلتر الحالة.", "عادية", "نعم", now, "System", ""],
     ["KB-0008", "قواعد التشغيل", "الأولوية الافتراضية", "default_priority", "عاجل, عادي, أولوية", "الأولوية الافتراضية عند تسجيل الأوردر هي عادي، وليس عاجل، حتى لا يتم تسجيل كل الأوردرات كعاجلة بالخطأ. شاشة التشغيل تعرض العاجل أولًا ثم العادي.", "عادية", "نعم", now, "System", ""],
     ["KB-0009", "قواعد التشغيل", "المكبس الحراري", "heat_press", "مكبس, حراري, طباعة", "لو الأوردر طباعة أو متعدد الأقسام وتم تعليم مكبس حراري، يظهر بعلامة حمراء مكبس في شاشة الأوردرات وشاشة المكبس حتى يتم تجميع شغل المكبس مرة واحدة يوميًا.", "عالية", "نعم", now, "System", ""],
     ["KB-0010", "الخدمات والأقسام", "الأقسام الأساسية", "departments", "طباعة, ليزر, مكبس, فنيل", "أقسام التشغيل الأساسية في TrendOS: خدمة العملاء، طباعة، ليزر، مكبس. الأوردر قد يكون قسم واحد أو متعدد الأقسام، وكل قسم له متابعة مستقلة.", "عادية", "نعم", now, "System", ""],
@@ -2744,7 +2746,13 @@ function ensureInvoicePricingSheet_() {
     "آخر تحديث",
     "تم إنشاء فاتورة؟",
     "رقم الفاتورة",
-    "تم الإرسال بواسطة"
+    "تم الإرسال بواسطة",
+    "البنود المختارة",
+    "مصدر البند",
+    "مطلوب اعتماد نهائي",
+    "حالة الاعتماد النهائي",
+    "اعتمد بواسطة",
+    "وقت الاعتماد"
   ];
   return mbEnsureSheet_(SHEET_NAME_INVOICE_PRICING, headers);
 }
@@ -2819,6 +2827,9 @@ function createInvoiceLine_(e) {
   const workDone = normalize_(e.parameter.workDone || e.parameter.description);
   const qty = Number(e.parameter.qty || snap.qty || 1) || 1;
   const notes = normalize_(e.parameter.notes) || snap.notes;
+  const selectedBands = normalize_(e.parameter.selectedBands);
+  const source = normalize_(e.parameter.source) || "تقفيل قسم";
+  const finalApprovalRequired = normalize_(e.parameter.finalApprovalRequired) || "نعم";
 
   if (!orderId && !lineId) return { success: false, message: "رقم الأوردر أو رقم البند مطلوب." };
   if (!workDone) return { success: false, message: "اكتب ما تم تنفيذه فعليًا قبل إرسال البند للتسعير." };
@@ -2837,14 +2848,20 @@ function createInvoiceLine_(e) {
     "اللي اتعمل فعليًا": workDone,
     "الكمية": qty,
     "ملاحظات القسم": notes,
-    "حالة التسعير": "في انتظار تسعير ضياء",
+    "حالة التسعير": "في انتظار اعتماد الفاتورة",
     "سعر ضياء": "",
     "الإجمالي": "",
     "مسعر بواسطة": "",
     "آخر تحديث": now,
     "تم إنشاء فاتورة؟": "لا",
     "رقم الفاتورة": "",
-    "تم الإرسال بواسطة": auth.user.username
+    "تم الإرسال بواسطة": auth.user.username,
+    "البنود المختارة": selectedBands,
+    "مصدر البند": source,
+    "مطلوب اعتماد نهائي": finalApprovalRequired,
+    "حالة الاعتماد النهائي": "في انتظار اعتماد ضياء / رحمة / ريفان",
+    "اعتمد بواسطة": "",
+    "وقت الاعتماد": ""
   });
 
   appendActivityLog_({
@@ -2855,7 +2872,7 @@ function createInvoiceLine_(e) {
     department: department,
     action: "إرسال بند للتسعير",
     oldStatus: "",
-    newStatus: "في انتظار تسعير ضياء",
+    newStatus: "في انتظار اعتماد الفاتورة",
     oldNotes: "",
     newNotes: workDone,
     by: auth.user.username,
@@ -2865,11 +2882,70 @@ function createInvoiceLine_(e) {
   SpreadsheetApp.flush();
   return {
     success: true,
-    message: "تم إرسال بند الفاتورة لضياء للتسعير.",
+    message: "تم إرسال بند الفاتورة في انتظار اعتماد ضياء / رحمة / ريفان.",
     orderId: orderId,
     lineId: lineId,
-    pricingStatus: "في انتظار تسعير ضياء"
+    pricingStatus: "في انتظار اعتماد الفاتورة"
   };
+}
+
+/************************************************************
+ * V1856 Patch 16 - مراجعة واعتماد بنود الفاتورة النهائية
+ ************************************************************/
+function canApproveInvoicePricing_(user) {
+  const key = normalize_(user && (user.username || user.name || ""));
+  const allowed = ["ضياء", "رحمه", "رحمة", "ريفان", "diaa", "rahma", "rehma", "revan", "rivan"].map(normalize_);
+  return allowed.indexOf(key) !== -1;
+}
+
+function getPendingInvoiceLines_(e) {
+  const auth = authorize_(e.parameter.username, e.parameter.token);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (!canApproveInvoicePricing_(auth.user)) return { success: false, message: "اعتماد الفواتير متاح لضياء / رحمة / ريفان فقط." };
+  const sh = ensureInvoicePricingSheet_();
+  const h = headersMap_(sh);
+  const data = sh.getDataRange().getValues();
+  const rows = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const finalStatus = normalize_(valueAt_(row, firstCol_(h, ["حالة الاعتماد النهائي"], 0)));
+    const createdInvoice = normalize_(valueAt_(row, firstCol_(h, ["تم إنشاء فاتورة؟"], 0)));
+    if (finalStatus.indexOf("معتمد") !== -1 || createdInvoice === "نعم") continue;
+    rows.push({
+      rowNumber: i + 1,
+      createdAt: valueAt_(row, firstCol_(h, ["وقت التسجيل"], 0)),
+      orderId: normalize_(valueAt_(row, firstCol_(h, ["رقم الأوردر"], 0))),
+      lineId: normalize_(valueAt_(row, firstCol_(h, ["رقم البند"], 0))),
+      customerName: normalize_(valueAt_(row, firstCol_(h, ["اسم العميل"], 0))),
+      department: normalize_(valueAt_(row, firstCol_(h, ["القسم"], 0))),
+      workDone: normalize_(valueAt_(row, firstCol_(h, ["اللي اتعمل فعليًا"], 0))),
+      qty: valueAt_(row, firstCol_(h, ["الكمية"], 0)),
+      source: normalize_(valueAt_(row, firstCol_(h, ["مصدر البند"], 0))),
+      sentBy: normalize_(valueAt_(row, firstCol_(h, ["تم الإرسال بواسطة"], 0))),
+      status: finalStatus || "في انتظار اعتماد ضياء / رحمة / ريفان"
+    });
+  }
+  rows.reverse();
+  return { success: true, rows: rows, count: rows.length };
+}
+
+function approveInvoicePricingLine_(e) {
+  const auth = authorize_(e.parameter.username, e.parameter.token);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (!canApproveInvoicePricing_(auth.user)) return { success: false, message: "اعتماد الفواتير متاح لضياء / رحمة / ريفان فقط." };
+  const rowNumber = Number(e.parameter.rowNumber || 0);
+  if (!rowNumber || rowNumber < 2) return { success: false, message: "رقم صف بند الفاتورة غير صحيح." };
+  const sh = ensureInvoicePricingSheet_();
+  ensureHeaderIfAnyMissing_(sh, ["حالة الاعتماد النهائي", "اعتمد بواسطة", "وقت الاعتماد"]);
+  if (rowNumber > sh.getLastRow()) return { success: false, message: "بند الفاتورة غير موجود." };
+  const h = headersMap_(sh);
+  const now = new Date();
+  safeSet_(sh, rowNumber, firstCol_(h, ["حالة الاعتماد النهائي"], 0), "معتمد");
+  safeSet_(sh, rowNumber, firstCol_(h, ["اعتمد بواسطة"], 0), auth.user.username);
+  safeSet_(sh, rowNumber, firstCol_(h, ["وقت الاعتماد"], 0), now);
+  safeSet_(sh, rowNumber, firstCol_(h, ["حالة التسعير"], 0), "معتمد للفوترة");
+  SpreadsheetApp.flush();
+  return { success: true, message: "تم اعتماد بند الفاتورة.", rowNumber: rowNumber };
 }
 
 /************************************************************

@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 Patch 14 - بورد تذكير مشترك</p>
+    <p class="version-badge">مطبعجي مصر V1856 Patch 16 - تقفيل الأقسام وحاسبة جابر</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,15 +66,17 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 14 - بورد تذكير مشترك</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 16 - تقفيل الأقسام وحاسبة جابر</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
         <button id="refreshBtn" class="ghost">تحديث الآن</button>
         <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
-        <button id="reminderBoardToggleBtn" class="ghost reminder-toggle-btn" type="button">📝 بورد التذكير</button>
         <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 مطبعجي شيتات</button>
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
+        <button id="matbagyAccountsBtn" class="ghost accounts-tool-btn hidden" type="button">💰 تقفيل القسم</button>
+        <button id="matbagyInvoiceApprovalBtn" class="ghost accounts-tool-btn hidden" type="button">🧾 اعتماد فواتير الأقسام</button>
+        <button id="matbagyLaserCalcBtn" class="ghost accounts-tool-btn hidden" type="button">🧮 حاسبة جابر</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
@@ -84,24 +86,16 @@
 
     <nav id="tabs" class="tabs"></nav>
 
-    <aside id="reminderBoard" class="reminder-board">
-      <div class="reminder-board-head">
+    <section id="employeeEmbeddedToolPanel" class="employee-tool-panel hidden">
+      <div class="employee-tool-head">
         <div>
-          <h3>📝 بورد التذكير</h3>
-          <span>أي حد يضيف أو يمسح نوت، تظهر عند كل المستخدمين.</span>
+          <b id="employeeEmbeddedToolTitle">أداة مطبعجي</b>
+          <span id="employeeEmbeddedToolHint">تعمل داخل نفس شاشة الموظف بدون تسجيل دخول منفصل.</span>
         </div>
-        <button id="reminderBoardMinBtn" class="ghost small-btn" type="button">إخفاء</button>
+        <button id="employeeEmbeddedToolCloseBtn" class="ghost" type="button">إغلاق</button>
       </div>
-      <textarea id="reminderNoteText" rows="3" placeholder="اكتب ملاحظة سريعة: عميل يتراجع، خامة ناقصة، متابعة بكرة..."></textarea>
-      <div class="reminder-actions">
-        <button id="addReminderNoteBtn" class="primary" type="button">إضافة نوت</button>
-        <button id="refreshReminderBoardBtn" class="ghost" type="button">تحديث</button>
-      </div>
-      <div id="reminderBoardStatus" class="reminder-status">جاري تحميل البورد...</div>
-      <div id="reminderNotesList" class="reminder-notes-list">
-        <div class="reminder-empty">جاري تحميل الملاحظات...</div>
-      </div>
-    </aside>
+      <iframe id="employeeEmbeddedToolFrame" class="employee-tool-frame" title="أداة مطبعجي داخلية"></iframe>
+    </section>
 
     <section id="adminWorkspaceHub" class="admin-workspace-hub hidden">
       <div class="admin-hub-head">
@@ -756,7 +750,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 14 - بورد تذكير مشترك</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 16 - تقفيل الأقسام وحاسبة جابر</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -948,6 +942,19 @@
     </div>
   </section>
 
+
+  <button id="laserCalcFloatToggleBtn" class="laser-calc-float-tab hidden" type="button">🧮 حاسبة جابر</button>
+  <section id="laserCalcFloatPanel" class="laser-calc-board hidden">
+    <div class="laser-calc-board-head">
+      <div>
+        <h3>🧮 حاسبة جابر</h3>
+        <span>تاب جانبي لحساب شغل الليزر بالمقاسات والهالك. ظاهر لضياء وجابر فقط.</span>
+      </div>
+      <button id="laserCalcFloatCloseBtn" class="ghost" type="button">إغلاق</button>
+    </div>
+    <iframe id="laserCalcFloatFrame" class="laser-calc-frame" title="حاسبة جابر"></iframe>
+  </section>
+
   <section id="invoiceModal" class="modal hidden">
     <div class="modal-card invoice-card">
       <h2 id="invoiceOrderTitle">فاتورة / تسعير</h2>
@@ -955,8 +962,23 @@
 
       <input id="invoiceLineId" type="hidden">
 
+      <div id="invoiceBandSelection" class="invoice-band-selection"></div>
+
+      <div id="invoiceLaserCalcBox" class="invoice-laser-calc-box hidden">
+        <b>بند محسوب بحاسبة جابر</b>
+        <div class="invoice-calc-grid">
+          <input id="invoiceLaserMat" placeholder="الخامة: خشب / أكريليك / دابل كالر">
+          <input id="invoiceLaserLength" type="number" min="0" placeholder="الطول سم">
+          <input id="invoiceLaserWidth" type="number" min="0" placeholder="العرض سم">
+          <input id="invoiceLaserCount" type="number" min="1" value="1" placeholder="العدد">
+          <input id="invoiceLaserWaste" type="number" min="0" value="10" placeholder="هالك %">
+          <input id="invoiceLaserSell" type="number" min="0" placeholder="سعر البيع المقترح">
+        </div>
+        <small>الحساب التفصيلي يضاف كبند في انتظار اعتماد ضياء / رحمة / ريفان.</small>
+      </div>
+
       <label>اللي اتعمل فعليًا</label>
-      <textarea id="invoiceWorkDone" rows="4" placeholder="مثال: تابلوه 30×40 + تعديل صورة + طباعة"></textarea>
+      <textarea id="invoiceWorkDone" rows="4" placeholder="اختار بنود من فوق أو اكتب وصف التقفيل الفعلي"></textarea>
 
       <label>الكمية</label>
       <input id="invoiceQty" type="number" min="1" value="1">

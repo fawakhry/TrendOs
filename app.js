@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_14_SHARED_REMINDER_BOARD";
+  const UI_VERSION = "1856_PATCH_16_ACCOUNTS_PERMISSIONS_SECTION_CLOSE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -26,6 +26,8 @@
     "طلب جديد",
     "بدأ التنفيذ",
     "تحت التنفيذ",
+    "انتهاء الشغل",
+    "تم التنفيذ",
     "جاهز للاستلام",
     "تم التسليم",
     "مشكلة",
@@ -35,7 +37,7 @@
 
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
   // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
-  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى"];
+  const HIDDEN_FROM_USER_SCREENS = ["انتهاء الشغل", "جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى"];
   const DUPLICATE_CLOSED_STATUSES = ["تم التسليم", "ملغى", "مكرر"];
   const PROOF_REVIEW_TEXT = "المراجعة مسئولية العميل والمكان غير مسئول عن اى اخطاء إملائية\nالبروفة مبعوته للمراجعه !!\nلو سمحت المراجعة جيدا على الشكل و البيانات بشكل دقيق قبل الرد على البروفة\nفى إنتظار حضرتك .....";
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
@@ -403,7 +405,9 @@
     editingCustomerRowNumber: "",
     reminderNotes: [],
     reminderBoardVisible: true,
-    reminderLoading: false
+    reminderLoading: false,
+    invoiceSelectedBands: [],
+    laserCalcFloatOpen: false
   };
 
   const $ = (id) => document.getElementById(id);
@@ -825,6 +829,126 @@ Trend Mall`;
 
   function openMatbagyRotetTool() {
     openEmployeeTool(window.MATBAGY_ROTET_URL, "Matbagy_Rotet", "روتيت مطبعجي");
+  }
+
+
+  /*********************** V1856 Patch 16 - صلاحيات الحسابات وتقفيل الأقسام ***********************/
+
+  function employeeMatchesAllowed(list, fallback) {
+    const allowed = Array.isArray(list) ? list : (fallback || []);
+    const keys = employeeToolKeys();
+    return allowed.map(function (v) { return normalizeArabic(v); }).some(function (v) {
+      return v && keys.indexOf(v) !== -1;
+    });
+  }
+
+  function employeeCanOpenDepartmentAccountsTool() {
+    return employeeMatchesAllowed(window.MATBAGY_ACCOUNTS_SECTION_EMPLOYEES, ["وائل", "جابر", "wael", "gaber", "jaber"]);
+  }
+
+  function employeeCanOpenLaserCalculatorTool() {
+    return employeeMatchesAllowed(window.MATBAGY_LASER_CALC_ALLOWED_EMPLOYEES, ["ضياء", "جابر", "diaa", "gaber", "jaber"]);
+  }
+
+  function employeeCanApproveInvoiceTool() {
+    return employeeMatchesAllowed(window.MATBAGY_INVOICE_APPROVAL_EMPLOYEES, ["ضياء", "رحمه", "رحمة", "ريفان", "diaa", "rahma", "rehma", "revan", "rivan"]);
+  }
+
+  function employeeCanSeeProfitReports() {
+    return employeeMatchesAllowed(window.MATBAGY_PROFIT_REPORTS_EMPLOYEES, ["ضياء", "diaa"]);
+  }
+
+  function toggleAccountsToolButtons() {
+    const accountsBtn = $("matbagyAccountsBtn");
+    const calcBtn = $("matbagyLaserCalcBtn");
+    const approvalBtn = $("matbagyInvoiceApprovalBtn");
+    const floatBtn = $("laserCalcFloatToggleBtn");
+    if (accountsBtn) accountsBtn.classList.toggle("hidden", !employeeCanOpenDepartmentAccountsTool());
+    if (calcBtn) calcBtn.classList.toggle("hidden", !employeeCanOpenLaserCalculatorTool());
+    if (floatBtn) floatBtn.classList.toggle("hidden", !employeeCanOpenLaserCalculatorTool());
+    if (approvalBtn) approvalBtn.classList.toggle("hidden", !employeeCanApproveInvoiceTool());
+  }
+
+  function accountsToolUrl(page, extra) {
+    const base = text(window.MATBAGY_ACCOUNTS_URL || "Trend_Accounts_V1857_Calculator_Linked.html").trim();
+    const u = state.user || {};
+    const payload = Object.assign({
+      from: "trendos",
+      username: u.username || u.name || "",
+      name: u.name || u.username || "",
+      token: u.token || "",
+      page: page || "dashboard",
+      hideProfits: employeeCanSeeProfitReports() ? "0" : "1"
+    }, extra || {});
+    return withQuery(base, payload);
+  }
+
+  function openEmbeddedEmployeeTool(url, title, hint) {
+    const panel = $("employeeEmbeddedToolPanel");
+    const frame = $("employeeEmbeddedToolFrame");
+    const titleEl = $("employeeEmbeddedToolTitle");
+    const hintEl = $("employeeEmbeddedToolHint");
+    if (!panel || !frame) {
+      window.open(url, "Matbagy_Embedded_Tool");
+      return;
+    }
+    if (titleEl) titleEl.textContent = title || "أداة مطبعجي";
+    if (hintEl) hintEl.textContent = hint || "تعمل داخل نفس شاشة الموظف بدون تسجيل دخول منفصل.";
+    frame.src = url;
+    panel.classList.remove("hidden");
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function closeEmbeddedEmployeeTool() {
+    const panel = $("employeeEmbeddedToolPanel");
+    const frame = $("employeeEmbeddedToolFrame");
+    if (frame) frame.src = "about:blank";
+    if (panel) panel.classList.add("hidden");
+  }
+
+  function openMatbagyAccountsTool() {
+    if (!employeeCanOpenDepartmentAccountsTool()) {
+      alert("تقفيل شغل القسم متاح حالياً لوائل وجابر فقط. الاعتماد النهائي عند ضياء / رحمة / ريفان.");
+      return;
+    }
+    openEmbeddedEmployeeTool(accountsToolUrl("sectionClose", { mode: "sectionClose" }), "💰 تقفيل شغل القسم", "وائل وجابر يضيفوا بنود القسم فقط بعد جاهز للاستلام / تم التسليم، بدون أرباح أو تقارير.");
+  }
+
+  function openMatbagyInvoiceApprovalTool() {
+    if (!employeeCanApproveInvoiceTool()) {
+      alert("اعتماد الفواتير النهائي متاح لضياء ورحمة وريفان فقط.");
+      return;
+    }
+    openEmbeddedEmployeeTool(accountsToolUrl("invoiceApproval", { mode: "approval" }), "🧾 اعتماد فواتير الأقسام", "مراجعة البنود التي أرسلها وائل وجابر، ثم اعتماد الفاتورة النهائية للعميل.");
+  }
+
+  function openMatbagyLaserCalculatorTool() {
+    if (!employeeCanOpenLaserCalculatorTool()) {
+      alert("حاسبة جابر متاحة لضياء وجابر فقط.");
+      return;
+    }
+    openEmbeddedEmployeeTool(accountsToolUrl("laserCalc", { mode: "laserCalc" }), "🧮 حاسبة جابر", "حساب تكلفة شغل الليزر بالمقاس والهالك قبل التنفيذ داخل نفس شاشة الموظف.");
+  }
+
+  function openLaserCalcSideTab() {
+    if (!employeeCanOpenLaserCalculatorTool()) {
+      alert("حاسبة جابر متاحة لضياء وجابر فقط.");
+      return;
+    }
+    const panel = $("laserCalcFloatPanel");
+    const frame = $("laserCalcFloatFrame");
+    if (!panel || !frame) return openMatbagyLaserCalculatorTool();
+    frame.src = accountsToolUrl("laserCalc", { mode: "laserCalc" });
+    panel.classList.remove("hidden");
+    state.laserCalcFloatOpen = true;
+  }
+
+  function closeLaserCalcSideTab() {
+    const panel = $("laserCalcFloatPanel");
+    const frame = $("laserCalcFloatFrame");
+    if (frame) frame.src = "about:blank";
+    if (panel) panel.classList.add("hidden");
+    state.laserCalcFloatOpen = false;
   }
 
   function withQuery(url, params) {
@@ -3638,6 +3762,7 @@ Trend Mall`;
     toggleVisitorPreviewButton();
     toggleRemoteFilesButton();
     toggleEmployeeQuickToolButtons();
+    toggleAccountsToolButtons();
   }
 
   function renderTabs() {
@@ -4696,19 +4821,135 @@ Trend Mall`;
   function shouldOpenInvoiceAfterStatus(newStatus, oldStatus) {
     const n = text(newStatus);
     const o = text(oldStatus);
-    return (n === "جاهز للاستلام" || n === "تم التسليم") && n !== o;
+    return ["انتهاء الشغل", "تم التنفيذ", "جاهز للاستلام", "تم التسليم"].indexOf(n) !== -1 && n !== o;
+  }
+
+  function currentEmployeeDepartmentName() {
+    const u = state.user || {};
+    const keys = employeeToolKeys();
+    if (keys.indexOf(normalizeArabic("جابر")) !== -1 || normalizeArabic(u.department).indexOf(normalizeArabic("ليزر")) !== -1) return "ليزر";
+    if (keys.indexOf(normalizeArabic("وائل")) !== -1 || normalizeArabic(u.department).indexOf(normalizeArabic("طباعة")) !== -1) return "طباعة";
+    return text(u.department || "");
+  }
+
+  function departmentCloseAllowedForRow(row) {
+    if (!employeeCanOpenDepartmentAccountsTool()) return false;
+    const userDept = normalizeArabic(currentEmployeeDepartmentName());
+    const rowDept = normalizeArabic(row && row.department || "");
+    return !rowDept || !userDept || rowDept.indexOf(userDept) !== -1 || userDept.indexOf(rowDept) !== -1;
+  }
+
+  function invoiceBandCatalog(row) {
+    const dept = normalizeArabic(row && row.department || "");
+    const item = text(row && row.itemName || "").trim();
+    let base;
+    if (dept.indexOf(normalizeArabic("ليزر")) !== -1) {
+      base = [
+        "تقطيع ليزر",
+        "حفر ليزر",
+        "خشب MDF",
+        "أكريليك",
+        "دابل كالر",
+        "تجميع / تشطيب ليزر"
+      ];
+    } else if (dept.indexOf(normalizeArabic("طباعة")) !== -1) {
+      base = [
+        "طباعة",
+        "تصميم / تعديل ملف",
+        "تشطيب",
+        "تغليف",
+        "طباعة على الطاير",
+        "مكبس / سبلميشن"
+      ];
+    } else {
+      base = ["تنفيذ البند", "تشطيب", "تغليف", "إضافة خدمة"];
+    }
+    if (item) base.unshift(item);
+    const seen = {};
+    return base.filter(function (x) {
+      const k = normalizeArabic(x);
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    });
+  }
+
+  function renderInvoiceBandSelection(row) {
+    const box = $("invoiceBandSelection");
+    if (!box) return;
+    const rows = invoiceBandCatalog(row || state.invoiceRow || {});
+    box.innerHTML = '<div class="invoice-band-title"><b>اختار البنود / الباندات اللي اتعملت</b><span>البنود الأساسية يضيفها ضياء، وجابر يقدر يضيف بنود المقاسات من الحاسبة.</span></div>' +
+      '<div class="invoice-band-grid">' + rows.map(function (name, idx) {
+        return '<label class="invoice-band-chip"><input type="checkbox" class="invoice-band-check" value="' + escapeHtml(name) + '" ' + (idx === 0 ? 'checked' : '') + '> ' + escapeHtml(name) + '</label>';
+      }).join('') + '</div>' +
+      (employeeCanOpenLaserCalculatorTool() && normalizeArabic((row || {}).department).indexOf(normalizeArabic("ليزر")) !== -1 ? '<button id="openInvoiceLaserCalcBtn" type="button" class="ghost mini-btn">فتح حاسبة جابر الجانبية</button>' : '');
+
+    state.invoiceSelectedBands = rows.length ? [rows[0]] : [];
+    Array.prototype.forEach.call(box.querySelectorAll(".invoice-band-check"), function (el) {
+      el.addEventListener("change", syncInvoiceWorkDoneFromBands);
+    });
+    const openCalc = $("openInvoiceLaserCalcBtn");
+    if (openCalc) openCalc.addEventListener("click", openLaserCalcSideTab);
+  }
+
+  function syncInvoiceWorkDoneFromBands() {
+    const box = $("invoiceBandSelection");
+    const work = $("invoiceWorkDone");
+    if (!box || !work) return;
+    const selected = Array.prototype.slice.call(box.querySelectorAll(".invoice-band-check:checked")).map(function (el) { return el.value; });
+    state.invoiceSelectedBands = selected;
+    const row = state.invoiceRow || {};
+    let lines = [];
+    if (selected.length) lines.push("بنود التقفيل: " + selected.join(" + "));
+    if (row.itemName) lines.push("الشغل الأصلي: " + row.itemName);
+
+    const laserMat = $("invoiceLaserMat");
+    const l = $("invoiceLaserLength");
+    const w = $("invoiceLaserWidth");
+    const c = $("invoiceLaserCount");
+    const waste = $("invoiceLaserWaste");
+    const sell = $("invoiceLaserSell");
+    if (laserMat && (laserMat.value || (l && l.value) || (w && w.value))) {
+      lines.push("حاسبة جابر: " + (laserMat.value || "خامة ليزر") + " — " + (l.value || "-") + "×" + (w.value || "-") + " سم — عدد " + (c.value || 1) + " — هالك " + (waste.value || 0) + "%" + (sell && sell.value ? " — سعر مقترح " + sell.value : ""));
+    }
+    if (!work.dataset.manualEdited || work.value.trim() === "") work.value = lines.join("\n");
   }
 
   function openInvoiceModal(row) {
     state.invoiceRow = row || null;
     const modal = $("invoiceModal");
     if (!modal || !row) return;
-    $("invoiceOrderTitle").textContent = "فاتورة / تسعير: " + (row.orderId || "-") + " — " + (row.customer || "-");
+
+    if (!departmentCloseAllowedForRow(row) && !employeeCanApproveInvoiceTool()) {
+      alert("تقفيل فاتورة القسم متاح لوائل وجابر حسب القسم. الاعتماد النهائي عند ضياء / رحمة / ريفان.");
+      return;
+    }
+
+    $("invoiceOrderTitle").textContent = "تقفيل القسم / بنود الفاتورة: " + (row.orderId || "-") + " — " + (row.customer || "-");
     $("invoiceLineId").value = row.lineId || "";
-    $("invoiceWorkDone").value = row.itemName || "";
+    $("invoiceWorkDone").value = "";
+    $("invoiceWorkDone").dataset.manualEdited = "";
     $("invoiceQty").value = row.qty || 1;
     $("invoiceNotes").value = row.notes || "";
-    $("invoiceMsg").textContent = "اكتب ما تم تنفيذه فعليًا. سيظهر لضياء للتسعير وإضافته لفاتورة العميل.";
+    const msg = $("invoiceMsg");
+    if (msg) msg.textContent = "اختار البنود اللي اتعملت. سيتم إرسالها في انتظار اعتماد ضياء / رحمة / ريفان قبل الفاتورة النهائية.";
+
+    const calcBox = $("invoiceLaserCalcBox");
+    const isLaser = normalizeArabic(row.department).indexOf(normalizeArabic("ليزر")) !== -1 && employeeCanOpenLaserCalculatorTool();
+    if (calcBox) calcBox.classList.toggle("hidden", !isLaser);
+    ["invoiceLaserMat", "invoiceLaserLength", "invoiceLaserWidth", "invoiceLaserCount", "invoiceLaserWaste", "invoiceLaserSell"].forEach(function (id) {
+      const el = $(id);
+      if (!el) return;
+      if (id === "invoiceLaserCount") el.value = "1";
+      else if (id === "invoiceLaserWaste") el.value = "10";
+      else el.value = "";
+      el.oninput = syncInvoiceWorkDoneFromBands;
+    });
+
+    renderInvoiceBandSelection(row);
+    syncInvoiceWorkDoneFromBands();
+    const work = $("invoiceWorkDone");
+    if (work) work.oninput = function () { work.dataset.manualEdited = "1"; };
     modal.classList.remove("hidden");
   }
 
@@ -4716,16 +4957,18 @@ Trend Mall`;
     const modal = $("invoiceModal");
     if (modal) modal.classList.add("hidden");
     state.invoiceRow = null;
+    state.invoiceSelectedBands = [];
   }
 
   async function saveInvoiceLine() {
     const row = state.invoiceRow;
     if (!row) return;
+    syncInvoiceWorkDoneFromBands();
     const btn = $("saveInvoiceBtn");
     const msg = $("invoiceMsg");
     const workDone = ($("invoiceWorkDone").value || "").trim();
     if (!workDone) {
-      if (msg) msg.textContent = "اكتب اللى اتعمل عشان يروح للتسعير.";
+      if (msg) msg.textContent = "اختار أو اكتب البنود التي تم تنفيذها قبل الإرسال للاعتماد.";
       return;
     }
     if (btn) {
@@ -4742,6 +4985,9 @@ Trend Mall`;
         department: row.department || "",
         itemName: row.itemName || "",
         workDone: workDone,
+        selectedBands: (state.invoiceSelectedBands || []).join(" | "),
+        source: normalizeArabic(row.department).indexOf(normalizeArabic("ليزر")) !== -1 ? "تقفيل قسم ليزر / حاسبة جابر" : "تقفيل قسم",
+        finalApprovalRequired: "نعم",
         qty: $("invoiceQty").value || row.qty || 1,
         notes: $("invoiceNotes").value || ""
       }));
@@ -4749,14 +4995,14 @@ Trend Mall`;
         if (msg) msg.textContent = res.message || "تعذر حفظ بند الفاتورة.";
         return;
       }
-      if (msg) msg.textContent = "تم إرسال بند الفاتورة لضياء للتسعير.";
-      setTimeout(closeInvoiceModal, 700);
+      if (msg) msg.textContent = "تم إرسال البنود في انتظار اعتماد ضياء / رحمة / ريفان.";
+      setTimeout(closeInvoiceModal, 800);
     } catch (err) {
       if (msg) msg.textContent = err.message || "خطأ في حفظ بند الفاتورة.";
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = "إرسال للتسعير";
+        btn.textContent = "إرسال للاعتماد";
       }
     }
   }
@@ -5268,6 +5514,12 @@ await handleOrderCreated(res, params);
     on("reminderNoteText", "keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") addReminderNote(); });
     on("matbagySheetsBtn", "click", openMatbagySheetsTool);
     on("matbagyRotetBtn", "click", openMatbagyRotetTool);
+    on("matbagyAccountsBtn", "click", openMatbagyAccountsTool);
+    on("matbagyInvoiceApprovalBtn", "click", openMatbagyInvoiceApprovalTool);
+    on("matbagyLaserCalcBtn", "click", openMatbagyLaserCalculatorTool);
+    on("laserCalcFloatToggleBtn", "click", openLaserCalcSideTab);
+    on("laserCalcFloatCloseBtn", "click", closeLaserCalcSideTab);
+    on("employeeEmbeddedToolCloseBtn", "click", closeEmbeddedEmployeeTool);
     on("serverFilesBtn", "click", openLocalFileServer);
     on("customerFastPrintFilesBtn", "click", openCustomerFastPrintFiles);
     on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });

@@ -17,3 +17,15 @@ window.MATBAGY_EMPLOYEE_TOOL_SSO = true;
 // ألغينا رفع العميل المباشر حالياً.
 window.MATBAGY_FAST_PRINT_UPLOAD_URL = "";
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
+
+// برنامج الحسابات وحاسبة جابر داخل نفس شاشة الموظف.
+window.MATBAGY_ACCOUNTS_URL = "Trend_Accounts_V1857_Calculator_Linked.html";
+window.MATBAGY_ACCOUNTS_ALLOWED_EMPLOYEES = ["ضياء", "رحمه", "رحمة", "ريفان", "وائل", "جابر", "diaa", "rahma", "rehma", "revan", "rivan", "wael", "gaber", "jaber"];
+window.MATBAGY_ACCOUNTS_EMBEDDED = true;
+
+
+// Patch 16 - صلاحيات الحسابات وتقفيل الأقسام
+window.MATBAGY_ACCOUNTS_SECTION_EMPLOYEES = ["وائل", "جابر", "wael", "gaber", "jaber"];
+window.MATBAGY_LASER_CALC_ALLOWED_EMPLOYEES = ["ضياء", "جابر", "diaa", "gaber", "jaber"];
+window.MATBAGY_INVOICE_APPROVAL_EMPLOYEES = ["ضياء", "رحمه", "رحمة", "ريفان", "diaa", "rahma", "rehma", "revan", "rivan"];
+window.MATBAGY_PROFIT_REPORTS_EMPLOYEES = ["ضياء", "diaa"];
