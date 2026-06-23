@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_16_NOTE_DOCK_INVENTORY_WASTE";
+  const UI_VERSION = "1856_PATCH_17_DRAGGABLE_NOTE_REFRESH_FIX";
 
   const screens = {
     service: "خدمة العملاء",
@@ -5341,6 +5341,31 @@ Trend Mall`;
     }
   }
 
+  async function hardRefreshMainScreen() {
+    const btn = $("refreshBtn");
+    const oldText = btn ? btn.textContent : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "جاري التحديث...";
+    }
+    state.editing = false;
+    state.saving = false;
+    try {
+      await loadRows(true);
+      try { await loadDashboard(true); } catch (e) {}
+      try { if ($("matbagyNoteModal") && !$('matbagyNoteModal').classList.contains('hidden')) await loadMatbagyNotesServer(); } catch (e) {}
+      try { if ($("accountingModal") && !$('accountingModal').classList.contains('hidden')) await loadAccountingData(true); } catch (e) {}
+      setLoading("تم التحديث الآن: " + new Date().toLocaleTimeString("ar-EG"));
+    } catch (err) {
+      setLoading((err && err.message) || "تعذر التحديث.", true);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = oldText || "تحديث الآن";
+      }
+    }
+  }
+
   function startRefresh() {
     stopRefresh();
     state.refreshTimer = setInterval(function () { loadRows(false); }, REFRESH_MS);
@@ -5410,16 +5435,102 @@ Trend Mall`;
     }
     const modal = $("matbagyNoteModal");
     if (!modal) {
-      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 16.");
+      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 17.");
       return;
     }
     modal.classList.remove("hidden");
+    makeMatbagyNoteDraggable();
+    restoreMatbagyNotePosition();
     loadMatbagyNotesServer();
+    setTimeout(function () {
+      const content = $("matbagyNoteContent");
+      if (content) content.focus();
+    }, 80);
   }
 
   function closeMatbagyNotePanel() {
     const modal = $("matbagyNoteModal");
     if (modal) modal.classList.add("hidden");
+  }
+
+  function matbagyNotePositionKey() {
+    return "matbagy_note_dock_position_v2";
+  }
+
+  function applyMatbagyNotePosition(pos) {
+    const card = document.querySelector("#matbagyNoteModal .matbagy-note-card");
+    if (!card || !pos) return;
+    const margin = 10;
+    const width = card.offsetWidth || 390;
+    const height = card.offsetHeight || 520;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    const left = Math.min(Math.max(margin, Number(pos.left) || margin), maxLeft);
+    const top = Math.min(Math.max(margin, Number(pos.top) || margin), maxTop);
+    card.style.left = left + "px";
+    card.style.top = top + "px";
+    card.style.right = "auto";
+  }
+
+  function restoreMatbagyNotePosition() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(matbagyNotePositionKey()) || "null");
+      if (saved) {
+        applyMatbagyNotePosition(saved);
+        return;
+      }
+    } catch (e) {}
+    const card = document.querySelector("#matbagyNoteModal .matbagy-note-card");
+    if (!card) return;
+    card.style.top = "92px";
+    card.style.right = "22px";
+    card.style.left = "auto";
+  }
+
+  function makeMatbagyNoteDraggable() {
+    const dock = $("matbagyNoteModal");
+    if (!dock || dock.dataset.dragReady === "1") return;
+    dock.dataset.dragReady = "1";
+    const card = dock.querySelector(".matbagy-note-card");
+    const handle = dock.querySelector(".matbagy-note-drag-handle") || dock.querySelector(".modal-head-row");
+    if (!card || !handle) return;
+
+    function startDrag(e) {
+      if (e.target && (e.target.closest("button") || e.target.closest("input") || e.target.closest("select") || e.target.closest("textarea"))) return;
+      const point = e.touches ? e.touches[0] : e;
+      const rect = card.getBoundingClientRect();
+      const offsetX = point.clientX - rect.left;
+      const offsetY = point.clientY - rect.top;
+      card.classList.add("dragging");
+      dock.classList.add("dragging-note");
+      card.style.right = "auto";
+      card.style.left = rect.left + "px";
+      card.style.top = rect.top + "px";
+
+      function move(ev) {
+        const p = ev.touches ? ev.touches[0] : ev;
+        if (!p) return;
+        ev.preventDefault && ev.preventDefault();
+        applyMatbagyNotePosition({ left: p.clientX - offsetX, top: p.clientY - offsetY });
+      }
+      function stop() {
+        card.classList.remove("dragging");
+        dock.classList.remove("dragging-note");
+        const r = card.getBoundingClientRect();
+        try { localStorage.setItem(matbagyNotePositionKey(), JSON.stringify({ left: r.left, top: r.top })); } catch (e) {}
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", stop);
+        window.removeEventListener("touchmove", move);
+        window.removeEventListener("touchend", stop);
+      }
+      window.addEventListener("mousemove", move, { passive: false });
+      window.addEventListener("mouseup", stop);
+      window.addEventListener("touchmove", move, { passive: false });
+      window.addEventListener("touchend", stop);
+    }
+    handle.addEventListener("mousedown", startDrag);
+    handle.addEventListener("touchstart", startDrag, { passive: false });
+    window.addEventListener("resize", restoreMatbagyNotePosition);
   }
 
   function clearMatbagyNoteForm() {
@@ -5694,7 +5805,7 @@ Trend Mall`;
 
 
 
-  /*********************** Patch 16 - نوت جانبية + مخزون خامات + تعويض تالف ***********************/
+  /*********************** Patch 17 - نوت جانبية + مخزون خامات + تعويض تالف ***********************/
 
   const prepareAccountingUiByRoleBeforePatch16 = prepareAccountingUiByRole;
 
@@ -5736,7 +5847,7 @@ Trend Mall`;
     }
     const modal = $("matbagyNoteModal");
     if (!modal) {
-      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 16.");
+      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 17.");
       return;
     }
     modal.classList.remove("hidden");
@@ -6154,7 +6265,7 @@ Trend Mall`;
     $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
     $("username").addEventListener("keydown", function (e) { if (e.key === "Enter") $("password").focus(); });
 
-    $("refreshBtn").addEventListener("click", function () { state.editing = false; loadRows(true); });
+    $("refreshBtn").addEventListener("click", hardRefreshMainScreen);
     $("logoutBtn").addEventListener("click", logout);
     $("changePassBtn").addEventListener("click", openPasswordModal);
     $("cancelPassBtn").addEventListener("click", closePasswordModal);

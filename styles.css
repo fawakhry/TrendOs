@@ -1697,3 +1697,104 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .acc-stock-ok{color:#047857!important;font-weight:800}
 .acc-stock-pill{display:inline-block;border-radius:999px;padding:2px 8px;border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;font-size:.82rem;margin-inline-start:6px}
 @media(max-width:720px){.matbagy-note-dock{width:100vw}.matbagy-note-dock .matbagy-note-card{border-radius:0}}
+
+
+/* Patch 17 - شكل راقي لنوت مطبعجي + تحريك حر + إصلاح زر التحديث */
+.matbagy-note-dock{
+  position:fixed!important;
+  inset:0!important;
+  width:auto!important;
+  height:auto!important;
+  z-index:9999!important;
+  background:transparent!important;
+  display:block!important;
+  pointer-events:none!important;
+}
+.matbagy-note-dock.hidden{display:none!important;}
+.matbagy-note-dock .matbagy-note-card{
+  pointer-events:auto!important;
+  position:fixed!important;
+  top:92px;
+  right:22px;
+  left:auto;
+  width:min(420px, calc(100vw - 22px))!important;
+  max-height:calc(100vh - 112px)!important;
+  height:auto!important;
+  overflow:auto!important;
+  border-radius:28px!important;
+  border:1px solid rgba(251,191,36,.56)!important;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(251,191,36,.24), transparent 30%),
+    linear-gradient(180deg,#fffbea 0%,#fffef7 44%,#effdf8 100%)!important;
+  box-shadow:0 26px 70px rgba(15,23,42,.28), 0 4px 0 rgba(251,191,36,.30) inset!important;
+  padding:18px!important;
+  resize:both;
+  min-width:315px;
+  min-height:360px;
+}
+.matbagy-note-dock .matbagy-note-card.dragging{
+  opacity:.96;
+  transform:scale(.995);
+  box-shadow:0 30px 80px rgba(15,23,42,.36)!important;
+}
+.matbagy-note-drag-handle{
+  cursor:move;
+  user-select:none;
+  padding:8px 10px 12px;
+  margin:-6px -6px 10px;
+  border-radius:22px;
+  background:rgba(255,255,255,.62);
+  border:1px solid rgba(20,184,166,.16);
+}
+.matbagy-note-dock .matbagy-note-card h2{
+  font-size:24px!important;
+  margin:0!important;
+  color:#065f46!important;
+  letter-spacing:-.3px;
+}
+.drag-hint{display:block;color:#64748b;font-weight:800;margin-top:4px;font-size:12px;}
+.matbagy-note-dock .form-grid.compact-grid{
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.matbagy-note-dock .form-grid.compact-grid .wide{grid-column:1/-1;}
+.matbagy-note-dock label{font-size:12px;color:#0f4f46;font-weight:900;}
+.matbagy-note-dock select,
+.matbagy-note-dock input,
+.matbagy-note-dock textarea{
+  border-radius:18px!important;
+  border:1px solid rgba(20,184,166,.24)!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+.matbagy-note-dock textarea{
+  min-height:150px;
+  border-color:rgba(251,191,36,.72)!important;
+  background:#fffdf0!important;
+  font-size:14px;
+  line-height:1.85;
+}
+.matbagy-note-dock .row{gap:10px;align-items:center;}
+.matbagy-note-dock .primary{background:#0f8f78!important;box-shadow:0 10px 22px rgba(15,143,120,.22);}
+.matbagy-note-dock .matbagy-notes-list{
+  max-height:270px!important;
+  padding-left:4px;
+}
+.matbagy-note-dock .matbagy-note-item{
+  border-radius:18px!important;
+  background:linear-gradient(180deg,#fff7d6,#fffdf2)!important;
+  border-color:rgba(251,191,36,.72)!important;
+}
+#refreshBtn:disabled{opacity:.72;cursor:wait;}
+@media(max-width:640px){
+  .matbagy-note-dock .matbagy-note-card{
+    width:calc(100vw - 18px)!important;
+    max-height:calc(100vh - 34px)!important;
+    top:12px!important;
+    right:9px!important;
+    left:auto!important;
+    min-width:0;
+    resize:none;
+  }
+  .matbagy-note-dock .form-grid.compact-grid{grid-template-columns:1fr;}
+}
