@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 Patch 16 - تقفيل الأقسام وحاسبة جابر</p>
+    <p class="version-badge">مطبعجي مصر V1856 Patch 15 - الحسابات داخل نفس الشاشة</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 16 - تقفيل الأقسام وحاسبة جابر</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 15 - الحسابات داخل نفس الشاشة</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -74,8 +74,7 @@
         <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
         <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 مطبعجي شيتات</button>
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
-        <button id="matbagyAccountsBtn" class="ghost accounts-tool-btn hidden" type="button">💰 تقفيل القسم</button>
-        <button id="matbagyInvoiceApprovalBtn" class="ghost accounts-tool-btn hidden" type="button">🧾 اعتماد فواتير الأقسام</button>
+        <button id="matbagyAccountsBtn" class="ghost accounts-tool-btn hidden" type="button">💰 برنامج الحسابات</button>
         <button id="matbagyLaserCalcBtn" class="ghost accounts-tool-btn hidden" type="button">🧮 حاسبة جابر</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
@@ -750,7 +749,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 Patch 16 - تقفيل الأقسام وحاسبة جابر</p>
+        <p class="version-badge">مطبعجي مصر V1856 Patch 15 - الحسابات داخل نفس الشاشة</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -942,19 +941,6 @@
     </div>
   </section>
 
-
-  <button id="laserCalcFloatToggleBtn" class="laser-calc-float-tab hidden" type="button">🧮 حاسبة جابر</button>
-  <section id="laserCalcFloatPanel" class="laser-calc-board hidden">
-    <div class="laser-calc-board-head">
-      <div>
-        <h3>🧮 حاسبة جابر</h3>
-        <span>تاب جانبي لحساب شغل الليزر بالمقاسات والهالك. ظاهر لضياء وجابر فقط.</span>
-      </div>
-      <button id="laserCalcFloatCloseBtn" class="ghost" type="button">إغلاق</button>
-    </div>
-    <iframe id="laserCalcFloatFrame" class="laser-calc-frame" title="حاسبة جابر"></iframe>
-  </section>
-
   <section id="invoiceModal" class="modal hidden">
     <div class="modal-card invoice-card">
       <h2 id="invoiceOrderTitle">فاتورة / تسعير</h2>
@@ -962,23 +948,8 @@
 
       <input id="invoiceLineId" type="hidden">
 
-      <div id="invoiceBandSelection" class="invoice-band-selection"></div>
-
-      <div id="invoiceLaserCalcBox" class="invoice-laser-calc-box hidden">
-        <b>بند محسوب بحاسبة جابر</b>
-        <div class="invoice-calc-grid">
-          <input id="invoiceLaserMat" placeholder="الخامة: خشب / أكريليك / دابل كالر">
-          <input id="invoiceLaserLength" type="number" min="0" placeholder="الطول سم">
-          <input id="invoiceLaserWidth" type="number" min="0" placeholder="العرض سم">
-          <input id="invoiceLaserCount" type="number" min="1" value="1" placeholder="العدد">
-          <input id="invoiceLaserWaste" type="number" min="0" value="10" placeholder="هالك %">
-          <input id="invoiceLaserSell" type="number" min="0" placeholder="سعر البيع المقترح">
-        </div>
-        <small>الحساب التفصيلي يضاف كبند في انتظار اعتماد ضياء / رحمة / ريفان.</small>
-      </div>
-
       <label>اللي اتعمل فعليًا</label>
-      <textarea id="invoiceWorkDone" rows="4" placeholder="اختار بنود من فوق أو اكتب وصف التقفيل الفعلي"></textarea>
+      <textarea id="invoiceWorkDone" rows="4" placeholder="مثال: تابلوه 30×40 + تعديل صورة + طباعة"></textarea>
 
       <label>الكمية</label>
       <input id="invoiceQty" type="number" min="1" value="1">

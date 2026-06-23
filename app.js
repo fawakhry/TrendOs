@@ -832,7 +832,7 @@ Trend Mall`;
   }
 
 
-  /*********************** V1856 Patch 16 - صلاحيات الحسابات وتقفيل الأقسام ***********************/
+  /*********************** V1856 Patch 17 - ربط الحسابات ومطبعجي في نظام واحد ***********************/
 
   function employeeMatchesAllowed(list, fallback) {
     const allowed = Array.isArray(list) ? list : (fallback || []);
@@ -878,7 +878,9 @@ Trend Mall`;
       name: u.name || u.username || "",
       token: u.token || "",
       page: page || "dashboard",
-      hideProfits: employeeCanSeeProfitReports() ? "0" : "1"
+      hideProfits: employeeCanSeeProfitReports() ? "0" : "1",
+      unifiedAccounts: window.MATBAGY_ACCOUNTS_UNIFIED_WITH_TRENDOS ? "1" : "0",
+      api: window.MATBAGY_ACCOUNTS_API_URL || window.TREND_API_URL || ""
     }, extra || {});
     return withQuery(base, payload);
   }

@@ -29,3 +29,8 @@ window.MATBAGY_ACCOUNTS_SECTION_EMPLOYEES = ["وائل", "جابر", "wael", "ga
 window.MATBAGY_LASER_CALC_ALLOWED_EMPLOYEES = ["ضياء", "جابر", "diaa", "gaber", "jaber"];
 window.MATBAGY_INVOICE_APPROVAL_EMPLOYEES = ["ضياء", "رحمه", "رحمة", "ريفان", "diaa", "rahma", "rehma", "revan", "rivan"];
 window.MATBAGY_PROFIT_REPORTS_EMPLOYEES = ["ضياء", "diaa"];
+
+// Patch 17 - ربط برنامج مطبعجي وبرنامج الحسابات في نظام واحد
+// برنامج الحسابات يستخدم نفس رابط Apps Script الخاص ببرنامج مطبعجي، بدون خانة ربط منفصلة.
+window.MATBAGY_ACCOUNTS_UNIFIED_WITH_TRENDOS = true;
+window.MATBAGY_ACCOUNTS_API_URL = window.TREND_API_URL;
