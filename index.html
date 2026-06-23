@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>مطبعجي مصر V1856</title>
-  <link rel="stylesheet" href="styles.css?v=1856">
+  <link rel="stylesheet" href="styles.css?v=1856-patch13-force-buttons">
 </head>
 <body>
 <main class="app">
@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 - Patch 12 Visible Buttons Repair</p>
+    <p class="version-badge">مطبعجي مصر V1856 - Patch 14 Note Toggle + AI Cost Calculator</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - Patch 12 Visible Buttons Repair</p>
+        <p class="version-badge">مطبعجي مصر V1856 - Patch 14 Note Toggle + AI Cost Calculator</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -74,8 +74,8 @@
         <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
         <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 مطبعجي شيتات</button>
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
-        <button id="matbagyNoteBtn" class="ghost quick-tool-btn hidden" type="button">📝 نوت مطبعجي</button>
-        <button id="accountingBtn" class="ghost quick-tool-btn hidden" type="button">💰 حسابات مطبعجي</button>
+        <button id="matbagyNoteBtn" class="ghost quick-tool-btn note-btn" type="button">📝 نوت مطبعجي</button>
+        <button id="accountingBtn" class="ghost quick-tool-btn accounting-btn" type="button">💰 حسابات مطبعجي</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
@@ -694,7 +694,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - Patch 12 Visible Buttons Repair</p>
+        <p class="version-badge">مطبعجي مصر V1856 - Patch 14 Note Toggle + AI Cost Calculator</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -937,6 +937,36 @@
       <div id="accountingDeptLineBox" class="accounting-section">
         <h3>فاتورة القسم</h3>
         <p class="hint">وائل يسجل الطباعة فقط، جابر يسجل الليزر فقط. لو البند مشترك زي الماكيت أو السنيور، كل قسم يسجل جزءه، والتجميع النهائي عند رحمه / ريفان / ضياء.</p>
+
+        <div id="accSmartCalcBox" class="acc-smart-calc">
+          <div class="acc-smart-head">
+            <div>
+              <h4>🤖 حاسبة AI للخامة واللامنيشن والورق</h4>
+              <p class="hint">اكتب المقاس والكمية وسعر الخام. الحاسبة تحسب استهلاك الورق/اللامنيشن/الرول والحبر تلقائيًا وتملأ تكلفة الخامة في فاتورة القسم.</p>
+            </div>
+            <span class="ai-pill">Auto Cost</span>
+          </div>
+          <div class="form-grid compact-grid">
+            <div><label>مقاس جاهز</label><select id="accSmartPreset"><option value="">مخصص</option><option value="15x21">15×21</option><option value="20x30">20×30</option><option value="30x40">30×40</option><option value="40x50">40×50</option><option value="50x60">50×60</option><option value="60x90">60×90</option></select></div>
+            <div><label>نوع الحساب</label><select id="accSmartMode"><option value="auto">AI يحدد تلقائي</option><option value="lamination">لامنيشن</option><option value="paper">ورق / رولات طباعة</option><option value="plotter">حبر بلوتر + خامة</option><option value="laser">ليزر شيت</option></select></div>
+            <div><label>عرض الشغل سم</label><input id="accSmartWidth" type="number" min="0" step="0.01" placeholder="مثال: 20"></div>
+            <div><label>طول الشغل سم</label><input id="accSmartHeight" type="number" min="0" step="0.01" placeholder="مثال: 30"></div>
+            <div><label>الكمية</label><input id="accSmartQty" type="number" min="1" step="1" value="1"></div>
+            <div><label>هالك %</label><input id="accSmartWaste" type="number" min="0" step="0.01" value="10"></div>
+            <div><label>سعر الخام كامل</label><input id="accSmartRawCost" type="number" min="0" step="0.01" placeholder="سعر الرول أو الشيت"></div>
+            <div><label>عرض الخام سم</label><input id="accSmartRawWidth" type="number" min="0" step="0.01" placeholder="مثال: 60"></div>
+            <div><label>طول الخام</label><input id="accSmartRawHeight" type="number" min="0" step="0.01" placeholder="مثال: 100 متر أو 10000 سم"></div>
+            <div><label>نوع طول الخام</label><select id="accSmartRawHeightUnit"><option value="auto">تلقائي</option><option value="cm">سم</option><option value="m">متر</option></select></div>
+            <div><label>تكلفة حبر/م²</label><input id="accSmartInkCostM2" type="number" min="0" step="0.01" placeholder="اختياري"></div>
+            <div><label>تكلفة تشغيل إضافية</label><input id="accSmartLabor" type="number" min="0" step="0.01" placeholder="اختياري"></div>
+          </div>
+          <div class="row">
+            <button id="calcSmartAccountingBtn" class="ghost" type="button">احسب تلقائي</button>
+            <button id="applySmartAccountingCalcBtn" class="primary" type="button">تطبيق على فاتورة القسم</button>
+          </div>
+          <div id="accSmartResult" class="acc-smart-result">جاهز للحساب. اختار خامة أو اكتب سعر الخام والمقاس.</div>
+        </div>
+
         <div class="form-grid compact-grid">
           <div><label>رقم الأوردر</label><input id="accDeptLineOrderId" placeholder="مثال: 105"></div>
           <div><label>رقم البند</label><input id="accDeptLineLineId" placeholder="اختياري"></div>
@@ -1066,7 +1096,7 @@
   </section>
 </main>
 
-<script src="config.js?v=1856"></script>
-<script src="app.js?v=1856"></script>
+<script src="config.js?v=1856-patch14-ai-cost"></script>
+<script src="app.js?v=1856-patch14-ai-cost"></script>
 </body>
 </html>

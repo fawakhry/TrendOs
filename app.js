@@ -654,16 +654,33 @@ Trend Mall`;
       alert("نوت مطبعجي متاحة للموظفين فقط.");
       return;
     }
-    state.adminArea = "responses";
-    setupAdminWorkspace();
-    toggleKnowledge();
-    applyAdminWorkspaceTab();
     const card = $("aiKnowledgeCard");
-    if (card) {
-      card.classList.remove("hidden");
-      card.classList.remove("admin-area-off");
-      setTimeout(function () { card.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
+    if (!card) {
+      alert("شاشة نوت مطبعجي غير موجودة في هذه النسخة. ارفع index.html و app.js معًا.");
+      return;
     }
+
+    // Patch 14: الزر أصبح فتح/إغلاق حقيقي، ويفتح الكارت كامل وليس مطوي.
+    const isOpen = !card.classList.contains("hidden") && !card.classList.contains("admin-area-off") && !card.classList.contains("collapsed-card");
+    if (isOpen) {
+      card.classList.add("hidden");
+      return;
+    }
+
+    if (canSeeAdminWorkspace()) {
+      state.adminArea = "responses";
+      setupAdminWorkspace();
+      applyAdminWorkspaceTab();
+    }
+
+    card.classList.remove("hidden");
+    card.classList.remove("admin-area-off");
+    card.classList.remove("collapsed-card");
+    try { localStorage.setItem("trendos_collapse_ai_knowledge", "open"); } catch (e) {}
+    const collapseBtn = card.querySelector(".collapse-toggle");
+    if (collapseBtn) collapseBtn.textContent = "قفل ▲";
+    loadKnowledge(false);
+    setTimeout(function () { card.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
   }
 
 
@@ -942,6 +959,7 @@ Trend Mall`;
       return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>';
     }).join("");
     if (current) select.value = current;
+    accountingSmartFillFromMaterial(false);
   }
 
   async function saveAccountingMaterial() {
@@ -1004,6 +1022,148 @@ Trend Mall`;
     }
   }
 
+  function accountingSmartReadNumber(id) {
+    return numericAmount((($(id) || {}).value) || 0);
+  }
+
+  function accountingSmartSetValue(id, value) {
+    const el = $(id);
+    if (el) el.value = value == null ? "" : String(value);
+  }
+
+  function accountingSmartFindMaterial() {
+    const name = (($("accDeptLineMaterial") || {}).value || "").trim();
+    if (!name) return null;
+    return (state.accounting.materials || []).find(function (r) {
+      return text(r.materialName || r["اسم الخامة"] || r["الخامة"]) === name;
+    }) || null;
+  }
+
+  function accountingSmartNormalizeRawHeight(value, unit) {
+    value = numericAmount(value);
+    unit = text(unit || "auto");
+    if (!value) return 0;
+    if (unit === "m") return value * 100;
+    if (unit === "cm") return value;
+    // تلقائي: لو الرقم صغير في خامات الرول غالبًا بالمتر؛ لو كبير يبقى سم.
+    if (value <= 300) return value * 100;
+    return value;
+  }
+
+  function accountingSmartBestPieces(rawW, rawH, itemW, itemH) {
+    rawW = numericAmount(rawW); rawH = numericAmount(rawH); itemW = numericAmount(itemW); itemH = numericAmount(itemH);
+    if (!rawW || !rawH || !itemW || !itemH) return 0;
+    const a = Math.floor(rawW / itemW) * Math.floor(rawH / itemH);
+    const b = Math.floor(rawW / itemH) * Math.floor(rawH / itemW);
+    return Math.max(a, b, 0);
+  }
+
+  function accountingSmartGuessType() {
+    const mode = (($("accSmartMode") || {}).value || "auto");
+    if (mode !== "auto") return mode;
+    const txt = normalizeArabic([
+      ($("accDeptLineItemName") || {}).value,
+      ($("accDeptLineType") || {}).value,
+      ($("accDeptLineMaterial") || {}).value
+    ].join(" "));
+    if (txt.indexOf("لامنيشن") !== -1 || txt.indexOf("لامنشن") !== -1 || txt.indexOf("لام") !== -1) return "lamination";
+    if (txt.indexOf("حبر") !== -1 || txt.indexOf("بلوتر") !== -1 || txt.indexOf("رول") !== -1) return "plotter";
+    if (txt.indexOf("ليزر") !== -1 || txt.indexOf("اكريلك") !== -1 || txt.indexOf("خشب") !== -1 || txt.indexOf("دابل") !== -1) return "laser";
+    return "paper";
+  }
+
+  function accountingSmartFillFromMaterial(force) {
+    const mat = accountingSmartFindMaterial();
+    if (!mat) return;
+    const unitCost = numericAmount(mat.unitCost || mat["سعر الوحدة"]);
+    const width = numericAmount(mat.width || mat["عرض الخام"]);
+    const height = numericAmount(mat.height || mat["طول الخام"]);
+    const waste = numericAmount(mat.wastePercent || mat["نسبة الهالك"]);
+    if (force || !accountingSmartReadNumber("accSmartRawCost")) accountingSmartSetValue("accSmartRawCost", unitCost || "");
+    if (force || !accountingSmartReadNumber("accSmartRawWidth")) accountingSmartSetValue("accSmartRawWidth", width || "");
+    if (force || !accountingSmartReadNumber("accSmartRawHeight")) accountingSmartSetValue("accSmartRawHeight", height || "");
+    if (force || !accountingSmartReadNumber("accSmartWaste")) accountingSmartSetValue("accSmartWaste", waste || 10);
+  }
+
+  function accountingSmartPresetChanged() {
+    const val = (($("accSmartPreset") || {}).value || "").toLowerCase();
+    const m = val.match(/(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)/);
+    if (m) {
+      accountingSmartSetValue("accSmartWidth", m[1]);
+      accountingSmartSetValue("accSmartHeight", m[2]);
+      const item = $("accDeptLineItemName");
+      if (item && !item.value.trim()) item.value = "مقاس " + m[1] + "×" + m[2];
+    }
+    calculateSmartAccountingCost(false);
+  }
+
+  function calculateSmartAccountingCost(showMsg) {
+    accountingSmartFillFromMaterial(false);
+    const itemW = accountingSmartReadNumber("accSmartWidth");
+    const itemH = accountingSmartReadNumber("accSmartHeight");
+    const qty = Math.max(1, accountingSmartReadNumber("accSmartQty") || numericAmount(($("accDeptLineQty") || {}).value) || 1);
+    const wastePercent = accountingSmartReadNumber("accSmartWaste");
+    const rawCost = accountingSmartReadNumber("accSmartRawCost");
+    const rawW = accountingSmartReadNumber("accSmartRawWidth");
+    const rawH = accountingSmartNormalizeRawHeight(accountingSmartReadNumber("accSmartRawHeight"), (($("accSmartRawHeightUnit") || {}).value || "auto"));
+    const inkCostM2 = accountingSmartReadNumber("accSmartInkCostM2");
+    const labor = accountingSmartReadNumber("accSmartLabor");
+    const result = $("accSmartResult");
+    const type = accountingSmartGuessType();
+
+    if (!itemW || !itemH || !qty) {
+      if (result) result.innerHTML = "اكتب عرض وطول الشغل والكمية أولًا.";
+      return null;
+    }
+
+    const itemAreaCm = itemW * itemH;
+    const totalAreaCm = itemAreaCm * qty * (1 + wastePercent / 100);
+    const totalAreaM = totalAreaCm / 10000;
+    let piecesPerRaw = accountingSmartBestPieces(rawW, rawH, itemW, itemH);
+    let materialQty = 0;
+    let materialCost = 0;
+    let rawAreaCm = rawW * rawH;
+
+    if (rawCost && rawAreaCm) {
+      materialQty = totalAreaCm / rawAreaCm;
+      materialCost = rawCost * materialQty;
+    } else if (rawCost && piecesPerRaw) {
+      materialQty = qty / piecesPerRaw;
+      materialCost = rawCost * materialQty;
+    }
+
+    const inkCost = inkCostM2 ? totalAreaM * inkCostM2 : 0;
+    const totalCost = materialCost + inkCost + labor;
+
+    const labelMap = { lamination: "لامنيشن", paper: "ورق / رولات طباعة", plotter: "بلوتر", laser: "ليزر" };
+    const aiLine = "AI اختار نوع الحساب: " + (labelMap[type] || "تلقائي");
+    const piecesLine = piecesPerRaw ? ("تقريبًا الخام الواحد يطلع " + piecesPerRaw + " قطعة من المقاس ده.") : "لم يتم حساب عدد القطع لأن بيانات الخام غير كاملة.";
+    const msg = [
+      "<b>" + escapeHtml(aiLine) + "</b>",
+      "المساحة المطلوبة مع الهالك: <b>" + totalAreaM.toFixed(3) + " م²</b>",
+      piecesLine,
+      "استهلاك الخام: <b>" + materialQty.toFixed(4) + "</b>",
+      "تكلفة الخامة: <b>" + accountingMoney(materialCost) + "</b>",
+      inkCost ? ("تكلفة الحبر: <b>" + accountingMoney(inkCost) + "</b>") : "تكلفة الحبر: غير محسوبة",
+      labor ? ("تكلفة تشغيل إضافية: <b>" + accountingMoney(labor) + "</b>") : "",
+      "الإجمالي المقترح للتكلفة: <b>" + accountingMoney(totalCost) + "</b>"
+    ].filter(Boolean).join("<br>");
+
+    state.accounting.smartCalc = { materialQty: materialQty, materialCost: materialCost, inkCost: inkCost, labor: labor, totalCost: totalCost, type: type };
+    if (result) result.innerHTML = msg;
+    return state.accounting.smartCalc;
+  }
+
+  function applySmartAccountingCost() {
+    const calc = calculateSmartAccountingCost(true);
+    if (!calc) return;
+    if ($("accDeptLineQty") && $("accSmartQty")) $("accDeptLineQty").value = $("accSmartQty").value || $("accDeptLineQty").value;
+    if ($("accDeptLineMaterialQty")) $("accDeptLineMaterialQty").value = calc.materialQty ? calc.materialQty.toFixed(4) : "";
+    if ($("accDeptLineMaterialCost")) $("accDeptLineMaterialCost").value = (calc.materialCost + calc.inkCost).toFixed(2);
+    if ($("accDeptLineLaborCost") && calc.labor) $("accDeptLineLaborCost").value = calc.labor.toFixed(2);
+    setMsg("accountingMsg", "تم تطبيق حساب AI على فاتورة القسم. راجع سعر البيع ثم احفظ فاتورة القسم.", false);
+  }
+
   async function saveAccountingDeptLine() {
     if (!accountingCanEnterDeptLine()) return;
     const orderId = (($("accDeptLineOrderId") || {}).value || "").trim();
@@ -1013,6 +1173,12 @@ Trend Mall`;
       return;
     }
     try {
+      if (!numericAmount(($("accDeptLineMaterialCost") || {}).value || 0) && $("accSmartWidth") && $("accSmartHeight")) {
+        calculateSmartAccountingCost(false);
+        if (state.accounting.smartCalc && state.accounting.smartCalc.totalCost > 0) {
+          applySmartAccountingCost();
+        }
+      }
       const res = await api("saveAccountingDeptLine", authParams({
         orderId: orderId,
         lineId: ($("accDeptLineLineId") || {}).value,
@@ -5337,8 +5503,14 @@ Trend Mall`;
     on("saveAccountingDeptLineBtn", "click", saveAccountingDeptLine);
     on("loadAccountingOrderLinesBtn", "click", loadAccountingOrderLinesFromLocal);
     on("saveAccountingFinalInvoiceBtn", "click", saveAccountingFinalInvoice);
+    on("calcSmartAccountingBtn", "click", function () { calculateSmartAccountingCost(true); });
+    on("applySmartAccountingCalcBtn", "click", applySmartAccountingCost);
+    on("accSmartPreset", "change", accountingSmartPresetChanged);
+    ["accSmartMode", "accSmartWidth", "accSmartHeight", "accSmartQty", "accSmartWaste", "accSmartRawCost", "accSmartRawWidth", "accSmartRawHeight", "accSmartRawHeightUnit", "accSmartInkCostM2", "accSmartLabor", "accDeptLineItemName"].forEach(function (id) { on(id, "input", function () { calculateSmartAccountingCost(false); }); on(id, "change", function () { calculateSmartAccountingCost(false); }); });
     ["accFinalDiscount", "accFinalPaid", "accFinalManualAmount"].forEach(function (id) { on(id, "input", updateAccountingFinalTotals); });
-    on("accDeptLineDepartment", "change", syncAccountingMaterialOptions);
+    on("accDeptLineDepartment", "change", function () { syncAccountingMaterialOptions(); calculateSmartAccountingCost(false); });
+    on("accDeptLineMaterial", "change", function () { accountingSmartFillFromMaterial(true); calculateSmartAccountingCost(false); });
+    on("accDeptLineQty", "input", function () { if ($("accSmartQty")) $("accSmartQty").value = ($("accDeptLineQty") || {}).value || 1; calculateSmartAccountingCost(false); });
 
     wireCustomerSearch();
     wireTableCustomerSearch();

@@ -1599,3 +1599,21 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .accounting-totals { display: flex; flex-wrap: wrap; gap: 10px; border-radius: 14px; background: rgba(34, 197, 94, .08); padding: 10px; margin-top: 10px; }
 .accounting-totals span { min-width: 170px; }
 @media (max-width: 780px) { .compact-grid { grid-template-columns: 1fr; } .compact-grid .wide { grid-column: span 1; } .modal-head-row { flex-direction: column; } }
+
+
+/* Patch 14 - نوت مطبعجي Toggle + AI Cost Calculator */
+.acc-smart-calc{
+  border:1px solid rgba(14,165,233,.28);
+  background:linear-gradient(135deg,rgba(236,253,245,.9),rgba(239,246,255,.9));
+  border-radius:18px;
+  padding:14px;
+  margin:12px 0 16px;
+}
+.acc-smart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.acc-smart-head h4{margin:0 0 4px;color:#0f766e;font-size:17px;}
+.ai-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:5px 10px;background:#111827;color:#fff;font-weight:900;font-size:12px;white-space:nowrap;}
+.acc-smart-result{margin-top:10px;border:1px dashed rgba(20,184,166,.5);background:#fff;border-radius:14px;padding:10px 12px;color:#0f172a;line-height:1.8;font-weight:700;}
+.acc-smart-result b{color:#0f766e;}
+.note-btn{background:#fff7ed!important;border-color:#fed7aa!important;color:#c2410c!important;font-weight:900!important;}
+.accounting-btn{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#047857!important;font-weight:900!important;}
+@media(max-width:720px){.acc-smart-head{flex-direction:column}.ai-pill{align-self:flex-start}}
