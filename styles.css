@@ -1635,3 +1635,65 @@ tr:hover td{background:#fbfefd}.item-name{min-width:0}.row-notes{min-width:0;wid
 .material-item small{display:block;color:#51606a;margin-top:4px}
 .material-kind-pill{font-weight:700}
 @media(max-width:720px){.recipe-row{grid-template-columns:1fr}.small-note-delete{position:static;width:max-content}}
+
+/* Patch 16 - نوت جانبية + إخفاء تكاليف الخامات عن المنفذين + تعويض التالف */
+.matbagy-note-dock{
+  position:fixed;
+  inset:0 0 0 auto;
+  width:min(430px,96vw);
+  background:transparent;
+  z-index:240;
+  display:flex;
+  align-items:stretch;
+  justify-content:flex-end;
+  pointer-events:none;
+}
+.matbagy-note-dock.hidden{display:none!important}
+.matbagy-note-dock .matbagy-note-card{
+  pointer-events:auto;
+  width:100%;
+  height:100vh;
+  overflow:auto;
+  border-radius:24px 0 0 24px;
+  border:1px solid rgba(20,184,166,.28);
+  background:linear-gradient(180deg,#fffdf4 0%,#f7fffc 52%,#eefbf8 100%);
+  box-shadow:-20px 0 44px rgba(15,23,42,.22);
+  padding:20px;
+}
+.matbagy-note-dock .matbagy-note-card h2{font-size:24px;margin:0 0 4px;color:#065f46}
+.matbagy-note-dock textarea{
+  background:#fffef5;
+  border:1px solid #facc15;
+  box-shadow:inset 0 1px 0 rgba(250,204,21,.22);
+  font-weight:700;
+  line-height:1.8;
+}
+.matbagy-note-dock .matbagy-notes-list{max-height:45vh}
+.matbagy-note-dock .matbagy-note-item{
+  background:#fff9db;
+  border-color:#facc15;
+  box-shadow:0 8px 18px rgba(245,158,11,.12);
+}
+.acc-operator-auto-box{
+  border:1px solid rgba(14,165,233,.28);
+  background:#eef9ff;
+  color:#075985;
+  border-radius:14px;
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-weight:700;
+}
+.acc-waste-box{
+  border:1px dashed rgba(245,158,11,.48);
+  background:#fff8ed;
+  border-radius:16px;
+  padding:12px;
+}
+.acc-waste-box small{color:#92400e;font-weight:700}
+.acc-hidden-cost{display:none!important}
+.acc-stock-alert{color:#b91c1c!important;font-weight:800}
+.acc-stock-ok{color:#047857!important;font-weight:800}
+.acc-stock-pill{display:inline-block;border-radius:999px;padding:2px 8px;border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;font-size:.82rem;margin-inline-start:6px}
+@media(max-width:720px){.matbagy-note-dock{width:100vw}.matbagy-note-dock .matbagy-note-card{border-radius:0}}

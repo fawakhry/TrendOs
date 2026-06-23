@@ -2600,7 +2600,7 @@ function saveMatbagyNote_(e) {
  ************************************************************/
 
 function accMaterialsHeaders_() {
-  return ["ID", "وقت التسجيل", "القسم", "اسم الخامة", "نوع الخامة", "الوحدة", "سعر الوحدة", "تكلفة محسوبة", "عرض الخام", "طول الخام", "نسبة الهالك", "مكونات الخامة", "معادلة التكلفة", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث", "آخر حساب"];
+  return ["ID", "وقت التسجيل", "القسم", "اسم الخامة", "نوع الخامة", "الوحدة", "رصيد المخزن", "حد تنبيه النقص", "سعر الوحدة", "تكلفة محسوبة", "عرض الخام", "طول الخام", "نسبة الهالك", "مكونات الخامة", "معادلة التكلفة", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث", "آخر حساب"];
 }
 
 function accTemplatesHeaders_() {
@@ -2608,7 +2608,7 @@ function accTemplatesHeaders_() {
 }
 
 function accDeptLinesHeaders_() {
-  return ["ID", "وقت التسجيل", "رقم الأوردر", "رقم البند", "اسم العميل", "القسم", "نوع البند", "اسم البند", "الكمية", "الخامة", "استهلاك الخامة", "تكلفة الخامة", "تكلفة تشغيل", "تكلفة أخرى", "إجمالي التكلفة", "سعر البيع", "الربح", "ملاحظات", "مسجل بواسطة", "حالة التقفيل", "رقم الفاتورة النهائية", "آخر تحديث"];
+  return ["ID", "وقت التسجيل", "رقم الأوردر", "رقم البند", "اسم العميل", "القسم", "نوع البند", "اسم البند", "الكمية", "الخامة", "استهلاك الخامة", "تكلفة الخامة", "تكلفة تشغيل", "تكلفة أخرى", "إجمالي التكلفة", "تكلفة النظام", "فرق السعر", "تكلفة التالف", "تعويض التالف", "باقي على الموظف", "سعر البيع", "الربح", "ملاحظات", "مسجل بواسطة", "حالة التقفيل", "رقم الفاتورة النهائية", "آخر تحديث"];
 }
 
 function accFinalInvoicesHeaders_() {
@@ -2683,6 +2683,8 @@ function accSheetRows_(sheet) {
     obj.department = obj["القسم"] || "";
     obj.materialName = obj["اسم الخامة"] || obj["الخامة"] || "";
     obj.unit = obj["الوحدة"] || "";
+    obj.stockQty = obj["رصيد المخزن"] || "";
+    obj.minStock = obj["حد تنبيه النقص"] || "";
     obj.unitCost = obj["سعر الوحدة"] || "";
     obj.computedUnitCost = obj["تكلفة محسوبة"] || obj["سعر الوحدة"] || "";
     obj.materialKind = obj["نوع الخامة"] || "";
@@ -2705,6 +2707,11 @@ function accSheetRows_(sheet) {
     obj.itemType = obj["نوع البند"] || "";
     obj.totalCost = obj["إجمالي التكلفة"] || "";
     obj.materialCost = obj["تكلفة الخامة"] || "";
+    obj.systemCost = obj["تكلفة النظام"] || "";
+    obj.priceDiff = obj["فرق السعر"] || "";
+    obj.damageCost = obj["تكلفة التالف"] || "";
+    obj.damageCovered = obj["تعويض التالف"] || "";
+    obj.damageRemaining = obj["باقي على الموظف"] || "";
     obj.closeStatus = obj["حالة التقفيل"] || "";
     obj.invoiceNo = obj["رقم الفاتورة"] || obj["رقم الفاتورة النهائية"] || "";
     obj.finalTotal = obj["الإجمالي النهائي"] || "";
@@ -2890,6 +2897,8 @@ function saveAccountingMaterial_(e) {
     "اسم الخامة": name,
     "نوع الخامة": kind,
     "الوحدة": normalize_(e.parameter.unit),
+    "رصيد المخزن": parseMoney_(e.parameter.stockQty),
+    "حد تنبيه النقص": parseMoney_(e.parameter.minStock),
     "سعر الوحدة": parseMoney_(e.parameter.unitCost),
     "تكلفة محسوبة": calculated,
     "عرض الخام": parseMoney_(e.parameter.width),
@@ -2957,6 +2966,11 @@ function saveAccountingDeptLine_(e) {
   const laborCost = parseMoney_(e.parameter.laborCost);
   const otherCost = parseMoney_(e.parameter.otherCost);
   const totalCost = materialCost + laborCost + otherCost;
+  const systemCost = parseMoney_(e.parameter.systemCost) || totalCost;
+  const priceDiff = parseMoney_(e.parameter.priceDiff);
+  const damageCost = parseMoney_(e.parameter.damageCost);
+  const damageCovered = parseMoney_(e.parameter.damageCovered);
+  const damageRemaining = parseMoney_(e.parameter.damageRemaining) || Math.max(0, damageCost - damageCovered);
   const salePrice = parseMoney_(e.parameter.salePrice);
   const profit = salePrice - totalCost;
   const sheet = ensureAccountingSheets_().deptLines;
@@ -2978,6 +2992,11 @@ function saveAccountingDeptLine_(e) {
     "تكلفة تشغيل": laborCost,
     "تكلفة أخرى": otherCost,
     "إجمالي التكلفة": totalCost,
+    "تكلفة النظام": systemCost,
+    "فرق السعر": priceDiff,
+    "تكلفة التالف": damageCost,
+    "تعويض التالف": damageCovered,
+    "باقي على الموظف": damageRemaining,
     "سعر البيع": salePrice,
     "الربح": profit,
     "ملاحظات": normalize_(e.parameter.notes),

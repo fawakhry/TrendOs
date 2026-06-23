@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 - Patch 15 Material Recipes + Note Fix</p>
+    <p class="version-badge">مطبعجي مصر V1856 - Patch 16 Note Dock + Inventory + Waste</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - Patch 15 Material Recipes + Note Fix</p>
+        <p class="version-badge">مطبعجي مصر V1856 - Patch 16 Note Dock + Inventory + Waste</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -694,7 +694,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - Patch 15 Material Recipes + Note Fix</p>
+        <p class="version-badge">مطبعجي مصر V1856 - Patch 16 Note Dock + Inventory + Waste</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -912,20 +912,20 @@
   </section>
 
 
-  <section id="matbagyNoteModal" class="modal hidden">
-    <div class="modal-card matbagy-note-card">
+  <section id="matbagyNoteModal" class="matbagy-note-dock hidden">
+    <div class="matbagy-note-card">
       <div class="modal-head-row">
         <div>
           <h2>📝 نوت مطبعجي</h2>
           <p class="hint">نوت تشغيل داخلي للموظفين فقط، منفصل عن قاعدة معرفة واتس AI والردود الذكية.</p>
         </div>
-        <button id="closeMatbagyNoteBtn" class="ghost" type="button">إغلاق</button>
+        <button id="closeMatbagyNoteBtn" class="ghost" type="button">إخفاء</button>
       </div>
 
       <div class="form-grid compact-grid">
-        <div><label>القسم</label><select id="matbagyNoteCategory"><option>عام</option><option>طباعة</option><option>ليزر</option><option>خدمة العملاء</option><option>حسابات</option><option>تنبيه مهم</option></select></div>
+        <div><label>القسم / التنبيه</label><select id="matbagyNoteCategory"><option>عام</option><option>طباعة</option><option>ليزر</option><option>خدمة العملاء</option><option>حسابات</option><option>تنبيه مهم</option><option>تنبيه دائم</option><option>تنبيه قسم الطباعة</option><option>تنبيه قسم الليزر</option></select></div>
         <div><label>عنوان النوت</label><input id="matbagyNoteTitle" placeholder="مثال: مقاسات اللامنيشن"></div>
-        <div class="wide"><label>النوت</label><textarea id="matbagyNoteContent" rows="5" placeholder="اكتب الملاحظة الداخلية هنا"></textarea></div>
+        <div class="wide"><label>النوت</label><textarea id="matbagyNoteContent" rows="7" placeholder="اكتب الملاحظة الداخلية هنا، وستظل النوت ظاهرة كتذكرة جانبية للتنبيه"></textarea></div>
       </div>
       <div class="row">
         <button id="saveMatbagyNoteBtn" class="primary" type="button">حفظ النوت</button>
@@ -1004,12 +1004,25 @@
           <div><label>نوع البند</label><select id="accDeptLineType"><option>قسم فقط</option><option>مشترك - ماكيت</option><option>مشترك - سنيور</option><option>مشترك - آخر</option></select></div>
           <div class="wide"><label>اسم البند</label><input id="accDeptLineItemName" placeholder="مثال: جزء طباعة ماكيت / حفر ليزر سنيور"></div>
           <div><label>الكمية</label><input id="accDeptLineQty" type="number" min="1" value="1"></div>
-          <div><label>الخامة</label><select id="accDeptLineMaterial"><option value="">بدون خامة محددة</option></select></div>
-          <div><label>استهلاك الخامة</label><input id="accDeptLineMaterialQty" type="number" min="0" step="0.01" placeholder="مثال: 0.25 رول / 1 شيت"></div>
-          <div><label>تكلفة الخامة</label><input id="accDeptLineMaterialCost" type="number" min="0" step="0.01" placeholder="0"></div>
-          <div><label>تكلفة تشغيل</label><input id="accDeptLineLaborCost" type="number" min="0" step="0.01" placeholder="0"></div>
-          <div><label>تكلفة أخرى</label><input id="accDeptLineOtherCost" type="number" min="0" step="0.01" placeholder="0"></div>
-          <div><label>سعر البيع للعميل</label><input id="accDeptLineSalePrice" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>الخامة / البند المحفوظ</label><select id="accDeptLineMaterial"><option value="">بدون خامة محددة</option></select></div>
+          <div id="accOperatorAutoCostBox" class="wide acc-operator-auto-box hidden">
+            <b>حساب تلقائي مخفي</b>
+            <span id="accOperatorAutoCostMsg">اختار بند محفوظ، والسيستم يحسب التكلفة داخليًا بدون إظهار أسعار الخامات.</span>
+          </div>
+          <div class="acc-cost-sensitive"><label>استهلاك الخامة</label><input id="accDeptLineMaterialQty" type="number" min="0" step="0.01" placeholder="مثال: 0.25 رول / 1 شيت"></div>
+          <div class="acc-cost-sensitive"><label>تكلفة الخامة</label><input id="accDeptLineMaterialCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="acc-cost-sensitive"><label>تكلفة تشغيل</label><input id="accDeptLineLaborCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="acc-cost-sensitive"><label>تكلفة أخرى</label><input id="accDeptLineOtherCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>سعر البيع / القيمة اللي هتتسجل</label><input id="accDeptLineSalePrice" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div id="accWasteBox" class="wide acc-waste-box">
+            <div class="form-grid compact-grid">
+              <div><label>تالف خامات عليه</label><input id="accDeptLineDamageCost" type="number" min="0" step="0.01" placeholder="0"></div>
+              <div><label>عوض منهم</label><input id="accDeptLineDamageCovered" type="number" min="0" step="0.01" placeholder="0"></div>
+              <div><label>الباقي عليه</label><input id="accDeptLineDamageRemaining" type="number" min="0" step="0.01" readonly placeholder="0"></div>
+              <div><label>فرق سعره عن السيستم</label><input id="accDeptLinePriceDiff" type="number" min="0" step="0.01" readonly placeholder="0"></div>
+            </div>
+            <small id="accWasteMsg">لو خامة باظت، سجل قيمتها والمبلغ اللي اتعوض. الفرق يتحفظ في بند تعويض تالف مستقل.</small>
+          </div>
           <div class="wide"><label>ملاحظات القسم</label><input id="accDeptLineNotes" placeholder="اختياري"></div>
         </div>
         <button id="saveAccountingDeptLineBtn" class="primary" type="button">حفظ فاتورة القسم</button>
@@ -1025,7 +1038,8 @@
           <div><label>خصم</label><input id="accFinalDiscount" type="number" min="0" step="0.01" value="0"></div>
           <div><label>مدفوع</label><input id="accFinalPaid" type="number" min="0" step="0.01" value="0"></div>
           <div><label>الحالة</label><select id="accFinalStatus"><option>مفتوحة</option><option>مغلقة</option><option>مدفوعة</option><option>عليها باقي</option></select></div>
-          <div class="wide"><label>بند يدوي عند كتابة الفاتورة كاملة</label><input id="accFinalManualDescription" placeholder="مثال: فاتورة كاملة بدون بنود أقسام"></div>
+          <div class="wide"><label>اختيار بند/خامة محفوظة للفاتورة</label><select id="accFinalProductSelect"><option value="">بدون بند محفوظ</option></select></div>
+          <div class="wide"><label>بند يدوي عند كتابة الفاتورة كاملة</label><input id="accFinalManualDescription" placeholder="مثال: تابلوه 50×60 / فاتورة كاملة بدون بنود أقسام"></div>
           <div><label>قيمة البند اليدوي</label><input id="accFinalManualAmount" type="number" min="0" step="0.01" value="0"></div>
           <div class="wide"><label>ملاحظات الفاتورة</label><input id="accFinalNotes" placeholder="اختياري"></div>
         </div>
@@ -1050,6 +1064,8 @@
           <div><label>اسم الخامة المحفوظة</label><input id="accMaterialName" placeholder="مثال: رول لامينشن / وش سنيور كامل / ماكيت مشترك"></div>
           <div><label>نوع الخامة</label><select id="accMaterialKind"><option value="raw">خامة مباشرة</option><option value="composite">خامة بمكونات / معادلة</option></select></div>
           <div><label>الوحدة</label><input id="accMaterialUnit" placeholder="رول / شيت / متر / قطعة"></div>
+          <div><label>رصيد المخزن</label><input id="accMaterialStockQty" type="number" min="0" step="0.0001" placeholder="مثال: 10 شيت / 3 رول"></div>
+          <div><label>حد تنبيه النقص</label><input id="accMaterialMinStock" type="number" min="0" step="0.0001" placeholder="اختياري"></div>
           <div><label>سعر الوحدة / التكلفة</label><input id="accMaterialUnitCost" type="number" min="0" step="0.01" placeholder="0"></div>
           <div><label>عرض الخام</label><input id="accMaterialWidth" type="number" min="0" step="0.01" placeholder="سم أو متر"></div>
           <div><label>طول الخام</label><input id="accMaterialHeight" type="number" min="0" step="0.01" placeholder="سم أو متر"></div>
