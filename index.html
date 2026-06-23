@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
+    <p class="version-badge">مطبعجي مصر V1856 - Patch 12 Visible Buttons Repair</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -66,7 +66,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
+        <p class="version-badge">مطبعجي مصر V1856 - Patch 12 Visible Buttons Repair</p>
         <p id="liveStatus" class="live-status">التحديث اللحظي يعمل كل 10 ثواني</p>
       </div>
       <div class="top-actions">
@@ -74,6 +74,8 @@
         <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
         <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 مطبعجي شيتات</button>
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
+        <button id="matbagyNoteBtn" class="ghost quick-tool-btn hidden" type="button">📝 نوت مطبعجي</button>
+        <button id="accountingBtn" class="ghost quick-tool-btn hidden" type="button">💰 حسابات مطبعجي</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
@@ -418,12 +420,12 @@
 
     <section id="aiKnowledgeCard" class="card ai-knowledge-card hidden">
       <div class="table-tools">
-        <h3>معرفة واتس AI</h3>
+        <h3>نوت مطبعجي / معرفة واتس AI</h3>
         <span id="knowledgeStatus"></span>
       </div>
 
       <div class="hint strong-hint">
-        هذه القواعد هي مصدر معرفة واتس AI. أي تعديل هنا سيسمع لاحقًا في ردود الواتساب بعد ربط الـ Webhook، ويمكن استخدامه فورًا كمرجع للردود.
+        دي نوت مطبعجي ومعرفة واتس AI. أي تعديل هنا يفضل محفوظ كمرجع للردود والتشغيل، ويمكن استخدامه فورًا في خدمة العملاء.
       </div>
 
       <div class="knowledge-layout">
@@ -692,7 +694,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">مطبعجي مصر V1856 - واتساب كامل + ماركت بليس + تنظيم رحمة</p>
+        <p class="version-badge">مطبعجي مصر V1856 - Patch 12 Visible Buttons Repair</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -906,6 +908,116 @@
       </div>
 
       <p id="invoiceMsg" class="msg"></p>
+    </div>
+  </section>
+
+
+
+  <section id="accountingModal" class="modal hidden">
+    <div class="modal-card accounting-card">
+      <div class="modal-head-row">
+        <div>
+          <h2 id="accountingRoleTitle">حسابات مطبعجي</h2>
+          <p id="accountingRoleHint" class="hint">نظام حسابات لكل قسم مع تجميع الفاتورة النهائية.</p>
+        </div>
+        <button id="closeAccountingBtn" class="ghost" type="button">إغلاق</button>
+      </div>
+
+      <div class="row accounting-actions-row">
+        <button id="refreshAccountingBtn" class="ghost" type="button">تحديث الحسابات</button>
+        <button id="initAccountingBtn" class="ghost" type="button">تجهيز شيتات الحسابات</button>
+        <span id="accountingMsg" class="msg"></span>
+      </div>
+
+      <div id="accountingProfitBox" class="accounting-section">
+        <h3>ملخص ربح / خسارة الأقسام</h3>
+        <div id="accountingSummary" class="accounting-summary-grid"></div>
+      </div>
+
+      <div id="accountingDeptLineBox" class="accounting-section">
+        <h3>فاتورة القسم</h3>
+        <p class="hint">وائل يسجل الطباعة فقط، جابر يسجل الليزر فقط. لو البند مشترك زي الماكيت أو السنيور، كل قسم يسجل جزءه، والتجميع النهائي عند رحمه / ريفان / ضياء.</p>
+        <div class="form-grid compact-grid">
+          <div><label>رقم الأوردر</label><input id="accDeptLineOrderId" placeholder="مثال: 105"></div>
+          <div><label>رقم البند</label><input id="accDeptLineLineId" placeholder="اختياري"></div>
+          <div><label>اسم العميل</label><input id="accDeptLineCustomer" placeholder="اختياري"></div>
+          <div><label>القسم</label><select id="accDeptLineDepartment"><option>طباعة</option><option>ليزر</option><option>مشترك</option></select></div>
+          <div><label>نوع البند</label><select id="accDeptLineType"><option>قسم فقط</option><option>مشترك - ماكيت</option><option>مشترك - سنيور</option><option>مشترك - آخر</option></select></div>
+          <div class="wide"><label>اسم البند</label><input id="accDeptLineItemName" placeholder="مثال: جزء طباعة ماكيت / حفر ليزر سنيور"></div>
+          <div><label>الكمية</label><input id="accDeptLineQty" type="number" min="1" value="1"></div>
+          <div><label>الخامة</label><select id="accDeptLineMaterial"><option value="">بدون خامة محددة</option></select></div>
+          <div><label>استهلاك الخامة</label><input id="accDeptLineMaterialQty" type="number" min="0" step="0.01" placeholder="مثال: 0.25 رول / 1 شيت"></div>
+          <div><label>تكلفة الخامة</label><input id="accDeptLineMaterialCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>تكلفة تشغيل</label><input id="accDeptLineLaborCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>تكلفة أخرى</label><input id="accDeptLineOtherCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>سعر البيع للعميل</label><input id="accDeptLineSalePrice" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="wide"><label>ملاحظات القسم</label><input id="accDeptLineNotes" placeholder="اختياري"></div>
+        </div>
+        <button id="saveAccountingDeptLineBtn" class="primary" type="button">حفظ فاتورة القسم</button>
+        <div id="accountingDeptLinesList" class="accounting-list"></div>
+      </div>
+
+      <div id="accountingFinalInvoiceBox" class="accounting-section">
+        <h3>تقفيل الفاتورة النهائية</h3>
+        <p class="hint">رحمه / ريفان تكتب الفاتورة كاملة أو تستدعي أجزاء وائل وجابر المسجلة على نفس رقم الأوردر.</p>
+        <div class="form-grid compact-grid">
+          <div><label>رقم الأوردر</label><input id="accFinalOrderId" placeholder="مثال: 105"></div>
+          <div><label>اسم العميل</label><input id="accFinalCustomer" placeholder="اسم العميل"></div>
+          <div><label>خصم</label><input id="accFinalDiscount" type="number" min="0" step="0.01" value="0"></div>
+          <div><label>مدفوع</label><input id="accFinalPaid" type="number" min="0" step="0.01" value="0"></div>
+          <div><label>الحالة</label><select id="accFinalStatus"><option>مفتوحة</option><option>مغلقة</option><option>مدفوعة</option><option>عليها باقي</option></select></div>
+          <div class="wide"><label>بند يدوي عند كتابة الفاتورة كاملة</label><input id="accFinalManualDescription" placeholder="مثال: فاتورة كاملة بدون بنود أقسام"></div>
+          <div><label>قيمة البند اليدوي</label><input id="accFinalManualAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="wide"><label>ملاحظات الفاتورة</label><input id="accFinalNotes" placeholder="اختياري"></div>
+        </div>
+        <div class="row">
+          <button id="loadAccountingOrderLinesBtn" class="ghost" type="button">استدعاء أجزاء وائل وجابر</button>
+          <button id="saveAccountingFinalInvoiceBtn" class="primary" type="button">تقفيل الفاتورة النهائية</button>
+        </div>
+        <div id="accountingOrderLinesList" class="accounting-list selectable-list"></div>
+        <div class="accounting-totals">
+          <span>الإجمالي قبل الخصم: <b id="accFinalSubtotal">0 ج</b></span>
+          <span>الإجمالي النهائي: <b id="accFinalTotal">0 ج</b></span>
+          <span>الباقي: <b id="accFinalRemaining">0 ج</b></span>
+        </div>
+        <div id="accountingFinalInvoicesList" class="accounting-list"></div>
+      </div>
+
+      <div id="accountingMaterialBox" class="accounting-section hidden">
+        <h3>خامات الأقسام - ضياء فقط</h3>
+        <p class="hint">افصل خامات الليزر عن خامات الطباعة. كل قسم عنده يظهر له خاماته فقط.</p>
+        <div class="form-grid compact-grid">
+          <div><label>القسم</label><select id="accMaterialDepartment"><option>طباعة</option><option>ليزر</option><option>مشترك</option></select></div>
+          <div><label>اسم الخامة</label><input id="accMaterialName" placeholder="مثال: رول لامينشن / أكريلك / دابل كالر"></div>
+          <div><label>الوحدة</label><input id="accMaterialUnit" placeholder="رول / شيت / متر / مللي"></div>
+          <div><label>سعر الوحدة</label><input id="accMaterialUnitCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>عرض الخام</label><input id="accMaterialWidth" type="number" min="0" step="0.01" placeholder="سم أو متر"></div>
+          <div><label>طول الخام</label><input id="accMaterialHeight" type="number" min="0" step="0.01" placeholder="سم أو متر"></div>
+          <div><label>نسبة الهالك %</label><input id="accMaterialWaste" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="wide"><label>ملاحظات</label><input id="accMaterialNotes" placeholder="اختياري"></div>
+        </div>
+        <button id="saveAccountingMaterialBtn" class="primary" type="button">حفظ الخامة</button>
+        <div id="accountingMaterialsList" class="accounting-list"></div>
+      </div>
+
+      <div id="accountingTemplateBox" class="accounting-section hidden">
+        <h3>بنود ثابتة واستهلاك الخامات - ضياء فقط</h3>
+        <p class="hint">أمثلة: رول اللامنيشن يطلع كام كارت 15×21 لحد 60×90، رولات طباعة 30/50/60، واستهلاك حبر البلوتر.</p>
+        <div class="form-grid compact-grid">
+          <div><label>القسم</label><select id="accTemplateDepartment"><option>طباعة</option><option>ليزر</option><option>مشترك</option></select></div>
+          <div><label>التصنيف</label><select id="accTemplateCategory"><option>لامنيشن</option><option>رولات طباعة</option><option>حبر بلوتر</option><option>ليزر شيت</option><option>ماكيت / سنيور مشترك</option><option>آخر</option></select></div>
+          <div class="wide"><label>اسم البند</label><input id="accTemplateItemName" placeholder="مثال: كارت 15×21 لامينشن / رول 60 سم / حبر بلوتر"></div>
+          <div><label>المقاس</label><input id="accTemplateSize" placeholder="15×21 / 60×90 / رول 60"></div>
+          <div><label>الخامة</label><input id="accTemplateMaterial" placeholder="اسم الخامة المستخدمة"></div>
+          <div><label>الناتج من الوحدة</label><input id="accTemplateOutputCount" type="number" min="0" step="0.01" placeholder="كام قطعة من الرول/الشيت"></div>
+          <div><label>تكلفة حبر</label><input id="accTemplateInkCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>تكلفة ثابتة</label><input id="accTemplateFixedCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>سعر بيع مقترح</label><input id="accTemplateSalePrice" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="wide"><label>ملاحظات الحساب</label><input id="accTemplateNotes" placeholder="اختياري"></div>
+        </div>
+        <button id="saveAccountingTemplateBtn" class="primary" type="button">حفظ البند الثابت</button>
+        <div id="accountingTemplatesList" class="accounting-list"></div>
+      </div>
     </div>
   </section>
 

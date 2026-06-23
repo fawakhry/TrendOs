@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_08_RAHMA_ROLE_ORDER_CUSTOMER_FIX";
+  const UI_VERSION = "1856_PATCH_11_ACCOUNTING_BY_DEPARTMENT";
 
   const screens = {
     service: "خدمة العملاء",
@@ -170,7 +170,8 @@
     customerSelectedMarketProduct: null,
     adminArea: "matbagy",
     visitorPreview: false,
-    platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" }
+    platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" },
+    accounting: { materials: [], templates: [], deptLines: [], finalInvoices: [], summary: {}, permissions: {}, loaded: false, selectedOrderLines: [] }
   };
 
   const $ = (id) => document.getElementById(id);
@@ -197,18 +198,41 @@
     return normalizeArabic(user.username || user.name || "");
   }
 
-  function isDiaaUser(user) {
+  function userAliasMatch(user, aliases) {
     const key = currentUserNameKey(user);
-    return key === "ضياء" || key === "diaa";
+    if (!key) return false;
+    return (aliases || []).map(function (v) { return normalizeArabic(v); }).some(function (alias) {
+      return alias && (key === alias || key.indexOf(alias) !== -1 || alias.indexOf(key) !== -1);
+    });
+  }
+
+  function isDiaaUser(user) {
+    return userAliasMatch(user, ["ضياء", "diaa"]);
   }
 
   function isRahmaUser(user) {
-    const key = currentUserNameKey(user);
-    return key === "رحمه" || key === "رحمة" || key === "rahma";
+    return userAliasMatch(user, ["رحمه", "رحمة", "rahma"]);
+  }
+
+  function isRevanUser(user) {
+    return userAliasMatch(user, ["ريفان", "ريڤان", "revan", "rivan"]);
+  }
+
+  function isWaelUser(user) {
+    return userAliasMatch(user, ["وائل", "wael"]);
+  }
+
+  function isGaberUser(user) {
+    return userAliasMatch(user, ["جابر", "gaber", "jaber"]);
   }
 
   function isRahmaRestrictedUser(user) {
     return isRahmaUser(user || state.user || {});
+  }
+
+  function isEmployeeLoggedIn(user) {
+    user = user || state.user || {};
+    return !!(user && (user.username || user.name || user.role));
   }
 
   function canAddManualOrder() {
@@ -523,11 +547,42 @@ Trend Mall`;
     const allowed = Array.isArray(window.MATBAGY_FILES_ALLOWED_EMPLOYEES) ? window.MATBAGY_FILES_ALLOWED_EMPLOYEES : ["ضياء", "جابر", "وائل", "diaa", "gaber", "wael"];
     const keys = filesEmployeeKeys();
     return allowed.map(function (v) { return normalizeArabic(v); }).some(function (v) {
-      return v && keys.indexOf(v) !== -1;
+      return v && keys.some(function (k) { return k === v || k.indexOf(v) !== -1 || v.indexOf(k) !== -1; });
     });
   }
 
+
+
+  /*********************** Patch 12 - تثبيت أزرار نوت وحسابات مطبعجي ***********************/
+  function ensureEmployeeMainActionButtons() {
+    const holder = document.querySelector(".top-actions") || document.querySelector(".topbar") || document.body;
+    if (!holder) return;
+
+    function makeButton(id, textValue, extraClass, afterId, clickHandler) {
+      let btn = $(id);
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.id = id;
+        btn.type = "button";
+        btn.className = "ghost quick-tool-btn hidden" + (extraClass ? " " + extraClass : "");
+        btn.textContent = textValue;
+        const after = afterId ? $(afterId) : null;
+        if (after && after.parentNode) after.parentNode.insertBefore(btn, after.nextSibling);
+        else holder.appendChild(btn);
+      }
+      if (!btn.dataset.patch12Bound && typeof clickHandler === "function") {
+        btn.addEventListener("click", clickHandler);
+        btn.dataset.patch12Bound = "1";
+      }
+      return btn;
+    }
+
+    makeButton("matbagyNoteBtn", "📝 نوت مطبعجي", "note-btn", "matbagyRotetBtn", openMatbagyNotePanel);
+    makeButton("accountingBtn", "💰 حسابات مطبعجي", "accounting-btn", "matbagyNoteBtn", openAccountingPanel);
+  }
+
   function toggleRemoteFilesButton() {
+    ensureEmployeeMainActionButtons();
     const btn = $("remoteFilesBtn");
     if (!btn) return;
     btn.classList.toggle("hidden", !employeeCanOpenRemoteFiles());
@@ -544,16 +599,23 @@ Trend Mall`;
     const allowed = Array.isArray(window.MATBAGY_EMPLOYEE_TOOLS_ALLOWED) ? window.MATBAGY_EMPLOYEE_TOOLS_ALLOWED : ["ضياء", "جابر", "وائل", "diaa", "gaber", "wael"];
     const keys = employeeToolKeys();
     return allowed.map(function (v) { return normalizeArabic(v); }).some(function (v) {
-      return v && keys.indexOf(v) !== -1;
+      return v && keys.some(function (k) { return k === v || k.indexOf(v) !== -1 || v.indexOf(k) !== -1; });
     });
   }
 
+  function employeeCanOpenMatbagyNote() {
+    return isEmployeeLoggedIn();
+  }
+
   function toggleEmployeeQuickToolButtons() {
+    ensureEmployeeMainActionButtons();
     ["matbagySheetsBtn", "matbagyRotetBtn"].forEach(function (id) {
       const btn = $(id);
       if (!btn) return;
       btn.classList.toggle("hidden", !employeeCanOpenQuickTools());
     });
+    const noteBtn = $("matbagyNoteBtn");
+    if (noteBtn) noteBtn.classList.toggle("hidden", !employeeCanOpenMatbagyNote());
   }
 
   function openEmployeeTool(baseUrl, windowName, label) {
@@ -585,6 +647,487 @@ Trend Mall`;
 
   function openMatbagyRotetTool() {
     openEmployeeTool(window.MATBAGY_ROTET_URL, "Matbagy_Rotet", "روتيت مطبعجي");
+  }
+
+  function openMatbagyNotePanel() {
+    if (!employeeCanOpenMatbagyNote()) {
+      alert("نوت مطبعجي متاحة للموظفين فقط.");
+      return;
+    }
+    state.adminArea = "responses";
+    setupAdminWorkspace();
+    toggleKnowledge();
+    applyAdminWorkspaceTab();
+    const card = $("aiKnowledgeCard");
+    if (card) {
+      card.classList.remove("hidden");
+      card.classList.remove("admin-area-off");
+      setTimeout(function () { card.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
+    }
+  }
+
+
+
+  /*********************** Patch 11/12 - حسابات مطبعجي حسب القسم + تثبيت الأزرار ***********************/
+
+  function currentAccountingMode() {
+    const user = state.user || {};
+    const role = safeRole(user.role);
+    if (isDiaaUser(user) || role === "admin") return "full";
+    if (isRahmaUser(user) || isRevanUser(user)) return "final";
+    if (isWaelUser(user) || role === "print") return "print";
+    if (isGaberUser(user) || role === "laser") return "laser";
+    return "none";
+  }
+
+  function canOpenAccounting() {
+    return currentAccountingMode() !== "none";
+  }
+
+  function accountingDepartmentForMode(mode) {
+    mode = mode || currentAccountingMode();
+    if (mode === "print") return "طباعة";
+    if (mode === "laser") return "ليزر";
+    return "";
+  }
+
+  function accountingCanManageMaterials() {
+    return currentAccountingMode() === "full";
+  }
+
+  function accountingCanCloseFinalInvoice() {
+    const mode = currentAccountingMode();
+    return mode === "full" || mode === "final";
+  }
+
+  function accountingCanEnterDeptLine() {
+    const mode = currentAccountingMode();
+    return mode === "full" || mode === "print" || mode === "laser";
+  }
+
+  function toggleAccountingButton() {
+    ensureEmployeeMainActionButtons();
+    const btn = $("accountingBtn");
+    if (!btn) return;
+    btn.classList.toggle("hidden", !canOpenAccounting());
+  }
+
+  function openAccountingPanel() {
+    if (!canOpenAccounting()) {
+      alert("حسابات مطبعجي غير مفعلة لهذا المستخدم.");
+      return;
+    }
+    const modal = $("accountingModal");
+    if (modal) modal.classList.remove("hidden");
+    prepareAccountingUiByRole();
+    loadAccountingData(true);
+  }
+
+  function closeAccountingPanel() {
+    const modal = $("accountingModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function prepareAccountingUiByRole() {
+    const mode = currentAccountingMode();
+    const title = $("accountingRoleTitle");
+    const hint = $("accountingRoleHint");
+    const materialBox = $("accountingMaterialBox");
+    const templateBox = $("accountingTemplateBox");
+    const deptBox = $("accountingDeptLineBox");
+    const finalBox = $("accountingFinalInvoiceBox");
+    const profitBox = $("accountingProfitBox");
+
+    if (title) {
+      if (mode === "full") title.textContent = "حسابات مطبعجي - ضياء / الإدارة";
+      else if (mode === "final") title.textContent = "حسابات مطبعجي - تقفيل فواتير";
+      else if (mode === "print") title.textContent = "حسابات مطبعجي - قسم الطباعة";
+      else if (mode === "laser") title.textContent = "حسابات مطبعجي - قسم الليزر";
+      else title.textContent = "حسابات مطبعجي";
+    }
+
+    if (hint) {
+      if (mode === "full") hint.textContent = "ضياء يرى كل الأقسام، يضيف الخامات والبنود الثابتة، ويراجع الربح والخسارة لكل قسم.";
+      else if (mode === "final") hint.textContent = "رحمه / ريفان تقفل الفاتورة النهائية وتستدعي أجزاء وائل وجابر من نفس رقم الأوردر.";
+      else hint.textContent = "كل قسم يسجل فاتورته وتكلفته فقط. التجميع النهائي عند رحمه أو ريفان أو ضياء.";
+    }
+
+    if (materialBox) materialBox.classList.toggle("hidden", !accountingCanManageMaterials());
+    if (templateBox) templateBox.classList.toggle("hidden", !accountingCanManageMaterials());
+    if (deptBox) deptBox.classList.toggle("hidden", !accountingCanEnterDeptLine());
+    if (finalBox) finalBox.classList.toggle("hidden", !accountingCanCloseFinalInvoice());
+    if (profitBox) profitBox.classList.toggle("hidden", mode !== "full");
+
+    const deptSelect = $("accDeptLineDepartment");
+    if (deptSelect) {
+      const lockedDept = accountingDepartmentForMode(mode);
+      if (lockedDept) {
+        deptSelect.value = lockedDept;
+        deptSelect.disabled = true;
+      } else {
+        deptSelect.disabled = false;
+      }
+    }
+  }
+
+  async function initAccountingSheets() {
+    setMsg("accountingMsg", "جاري تجهيز شيتات حسابات مطبعجي...", false);
+    try {
+      const res = await api("initAccounting", authParams({}));
+      if (!res.success) {
+        setMsg("accountingMsg", res.message || "تعذر تجهيز شيتات الحسابات.", true);
+        return;
+      }
+      setMsg("accountingMsg", res.message || "تم تجهيز شيتات الحسابات.", false);
+      await loadAccountingData(true);
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في تجهيز الحسابات.", true);
+    }
+  }
+
+  async function loadAccountingData(force) {
+    if (!canOpenAccounting()) return;
+    setMsg("accountingMsg", "جاري تحميل حسابات مطبعجي...", false);
+    try {
+      const res = await api("getAccounting", authParams({}));
+      if (!res.success) {
+        setMsg("accountingMsg", res.message || "تعذر تحميل الحسابات.", true);
+        return;
+      }
+      state.accounting = {
+        materials: Array.isArray(res.materials) ? res.materials : [],
+        templates: Array.isArray(res.templates) ? res.templates : [],
+        deptLines: Array.isArray(res.deptLines) ? res.deptLines : [],
+        finalInvoices: Array.isArray(res.finalInvoices) ? res.finalInvoices : [],
+        summary: res.summary || {},
+        permissions: res.permissions || {},
+        loaded: true,
+        selectedOrderLines: []
+      };
+      renderAccountingPanel();
+      setMsg("accountingMsg", "تم تحميل الحسابات.", false);
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في تحميل الحسابات.", true);
+    }
+  }
+
+  function accountingMoney(value) {
+    const n = numericAmount(value);
+    return n.toLocaleString("ar-EG") + " ج";
+  }
+
+  function accountingLineCost(row) {
+    return numericAmount(row.totalCost || row["إجمالي التكلفة"] || row.materialCost) + 0;
+  }
+
+  function accountingLineSale(row) {
+    return numericAmount(row.salePrice || row["سعر البيع"] || 0);
+  }
+
+  function renderAccountingPanel() {
+    renderAccountingSummary();
+    renderAccountingMaterials();
+    renderAccountingTemplates();
+    renderAccountingDeptLines();
+    renderAccountingFinalInvoices();
+    syncAccountingMaterialOptions();
+  }
+
+  function renderAccountingSummary() {
+    const box = $("accountingSummary");
+    if (!box) return;
+    const summary = state.accounting.summary || {};
+    const rows = summary.byDepartment || [];
+    if (!rows.length) {
+      box.innerHTML = '<div class="dash-empty">لا توجد حركة حسابات بعد.</div>';
+      return;
+    }
+    const showProfit = currentAccountingMode() === "full";
+    box.innerHTML = rows.map(function (r) {
+      const profitPart = showProfit ? '<span>مكسب: <b>' + accountingMoney(r.profit) + '</b></span>' : '';
+      return '<div class="acc-summary-card">' +
+        '<b>' + escapeHtml(r.department || "-") + '</b>' +
+        '<span>مبيعات: <b>' + accountingMoney(r.sales) + '</b></span>' +
+        '<span>تكلفة: <b>' + accountingMoney(r.cost) + '</b></span>' +
+        profitPart +
+        '<small>بنود: ' + escapeHtml(r.count || 0) + '</small>' +
+      '</div>';
+    }).join("");
+  }
+
+  function renderAccountingMaterials() {
+    const list = $("accountingMaterialsList");
+    if (!list) return;
+    const rows = state.accounting.materials || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد خامات. ضياء يضيف خامات الليزر وخامات الطباعة من هنا.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 40).map(function (r) {
+      return '<div class="acc-list-item"><b>' + escapeHtml(r.materialName || r["اسم الخامة"] || "-") + '</b>' +
+        '<span>' + escapeHtml(r.department || r["القسم"] || "-") + ' | ' + escapeHtml(r.unit || r["الوحدة"] || "-") + ' | ' + accountingMoney(r.unitCost || r["سعر الوحدة"]) + '</span>' +
+        '<small>هالك: ' + escapeHtml(r.wastePercent || r["نسبة الهالك"] || 0) + '%</small></div>';
+    }).join("");
+  }
+
+  function renderAccountingTemplates() {
+    const list = $("accountingTemplatesList");
+    if (!list) return;
+    const rows = state.accounting.templates || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد بنود ثابتة. أضف رول لامينشن، رولات طباعة 30/50/60، واستهلاك حبر البلوتر.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 60).map(function (r) {
+      return '<div class="acc-list-item"><b>' + escapeHtml(r.itemName || r["اسم البند"] || "-") + '</b>' +
+        '<span>' + escapeHtml(r.department || r["القسم"] || "-") + ' | ' + escapeHtml(r.size || r["المقاس"] || "-") + ' | إنتاج: ' + escapeHtml(r.outputCount || r["الناتج"] || "-") + '</span>' +
+        '<small>خامة: ' + escapeHtml(r.materialName || r["الخامة"] || "-") + ' | سعر مقترح: ' + accountingMoney(r.salePrice || r["سعر بيع مقترح"]) + '</small></div>';
+    }).join("");
+  }
+
+  function renderAccountingDeptLines() {
+    const list = $("accountingDeptLinesList");
+    if (!list) return;
+    const rows = state.accounting.deptLines || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد فواتير أقسام مسجلة حتى الآن.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 80).map(function (r) {
+      const profit = accountingLineSale(r) - accountingLineCost(r);
+      const showProfit = currentAccountingMode() === "full";
+      return '<div class="acc-line-card">' +
+        '<div><b>' + escapeHtml(r.orderId || r["رقم الأوردر"] || "-") + '</b> <span>' + escapeHtml(r.department || r["القسم"] || "-") + '</span></div>' +
+        '<p>' + escapeHtml(r.itemName || r["اسم البند"] || "-") + '</p>' +
+        '<small>بيع: ' + accountingMoney(accountingLineSale(r)) + ' | تكلفة: ' + accountingMoney(accountingLineCost(r)) + (showProfit ? (' | ربح: ' + accountingMoney(profit)) : '') + '</small>' +
+        '<small>تقفيل: ' + escapeHtml(r.closeStatus || r["حالة التقفيل"] || "مفتوح") + ' | بواسطة: ' + escapeHtml(r.createdBy || r["مسجل بواسطة"] || "-") + '</small>' +
+      '</div>';
+    }).join("");
+  }
+
+  function renderAccountingFinalInvoices() {
+    const list = $("accountingFinalInvoicesList");
+    if (!list) return;
+    const rows = state.accounting.finalInvoices || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد فواتير نهائية مقفلة.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 40).map(function (r) {
+      return '<div class="acc-list-item"><b>' + escapeHtml(r.invoiceNo || r["رقم الفاتورة"] || "-") + '</b>' +
+        '<span>أوردر: ' + escapeHtml(r.orderId || r["رقم الأوردر"] || "-") + ' | عميل: ' + escapeHtml(r.customerName || r["اسم العميل"] || "-") + '</span>' +
+        '<small>إجمالي: ' + accountingMoney(r.finalTotal || r["الإجمالي النهائي"]) + ' | مدفوع: ' + accountingMoney(r.paid || r["المدفوع"]) + ' | باقي: ' + accountingMoney(r.remaining || r["الباقي"]) + '</small></div>';
+    }).join("");
+  }
+
+  function syncAccountingMaterialOptions() {
+    const select = $("accDeptLineMaterial");
+    if (!select) return;
+    const dept = ($("accDeptLineDepartment") || {}).value || accountingDepartmentForMode();
+    const rows = (state.accounting.materials || []).filter(function (r) {
+      const d = text(r.department || r["القسم"]);
+      return !dept || d === dept || d === "مشترك" || d === "عام";
+    });
+    const current = select.value;
+    select.innerHTML = '<option value="">بدون خامة محددة</option>' + rows.map(function (r) {
+      const name = r.materialName || r["اسم الخامة"] || "";
+      return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>';
+    }).join("");
+    if (current) select.value = current;
+  }
+
+  async function saveAccountingMaterial() {
+    if (!accountingCanManageMaterials()) return;
+    const name = (($("accMaterialName") || {}).value || "").trim();
+    if (!name) {
+      setMsg("accountingMsg", "اكتب اسم الخامة.", true);
+      return;
+    }
+    try {
+      const res = await api("saveAccountingMaterial", authParams({
+        department: ($("accMaterialDepartment") || {}).value,
+        materialName: name,
+        unit: ($("accMaterialUnit") || {}).value,
+        unitCost: ($("accMaterialUnitCost") || {}).value,
+        width: ($("accMaterialWidth") || {}).value,
+        height: ($("accMaterialHeight") || {}).value,
+        wastePercent: ($("accMaterialWaste") || {}).value,
+        notes: ($("accMaterialNotes") || {}).value,
+        active: "نعم"
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم حفظ الخامة." : "فشل الحفظ."), !res.success);
+      if (res.success) {
+        ["accMaterialName", "accMaterialUnitCost", "accMaterialWidth", "accMaterialHeight", "accMaterialWaste", "accMaterialNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        await loadAccountingData(true);
+      }
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في حفظ الخامة.", true);
+    }
+  }
+
+  async function saveAccountingTemplate() {
+    if (!accountingCanManageMaterials()) return;
+    const itemName = (($("accTemplateItemName") || {}).value || "").trim();
+    if (!itemName) {
+      setMsg("accountingMsg", "اكتب اسم البند الثابت.", true);
+      return;
+    }
+    try {
+      const res = await api("saveAccountingTemplate", authParams({
+        department: ($("accTemplateDepartment") || {}).value,
+        category: ($("accTemplateCategory") || {}).value,
+        itemName: itemName,
+        size: ($("accTemplateSize") || {}).value,
+        materialName: ($("accTemplateMaterial") || {}).value,
+        outputCount: ($("accTemplateOutputCount") || {}).value,
+        inkCost: ($("accTemplateInkCost") || {}).value,
+        fixedCost: ($("accTemplateFixedCost") || {}).value,
+        salePrice: ($("accTemplateSalePrice") || {}).value,
+        notes: ($("accTemplateNotes") || {}).value,
+        active: "نعم"
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم حفظ البند الثابت." : "فشل الحفظ."), !res.success);
+      if (res.success) {
+        ["accTemplateItemName", "accTemplateSize", "accTemplateMaterial", "accTemplateOutputCount", "accTemplateInkCost", "accTemplateFixedCost", "accTemplateSalePrice", "accTemplateNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        await loadAccountingData(true);
+      }
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في حفظ البند الثابت.", true);
+    }
+  }
+
+  async function saveAccountingDeptLine() {
+    if (!accountingCanEnterDeptLine()) return;
+    const orderId = (($("accDeptLineOrderId") || {}).value || "").trim();
+    const itemName = (($("accDeptLineItemName") || {}).value || "").trim();
+    if (!orderId || !itemName) {
+      setMsg("accountingMsg", "رقم الأوردر واسم البند مطلوبين لتسجيل فاتورة القسم.", true);
+      return;
+    }
+    try {
+      const res = await api("saveAccountingDeptLine", authParams({
+        orderId: orderId,
+        lineId: ($("accDeptLineLineId") || {}).value,
+        customerName: ($("accDeptLineCustomer") || {}).value,
+        department: ($("accDeptLineDepartment") || {}).value,
+        itemType: ($("accDeptLineType") || {}).value,
+        itemName: itemName,
+        qty: ($("accDeptLineQty") || {}).value,
+        materialName: ($("accDeptLineMaterial") || {}).value,
+        materialQty: ($("accDeptLineMaterialQty") || {}).value,
+        materialCost: ($("accDeptLineMaterialCost") || {}).value,
+        laborCost: ($("accDeptLineLaborCost") || {}).value,
+        otherCost: ($("accDeptLineOtherCost") || {}).value,
+        salePrice: ($("accDeptLineSalePrice") || {}).value,
+        notes: ($("accDeptLineNotes") || {}).value
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم تسجيل فاتورة القسم." : "فشل الحفظ."), !res.success);
+      if (res.success) {
+        ["accDeptLineLineId", "accDeptLineItemName", "accDeptLineMaterialQty", "accDeptLineMaterialCost", "accDeptLineLaborCost", "accDeptLineOtherCost", "accDeptLineSalePrice", "accDeptLineNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        await loadAccountingData(true);
+      }
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في تسجيل فاتورة القسم.", true);
+    }
+  }
+
+  function loadAccountingOrderLinesFromLocal() {
+    const orderId = (($("accFinalOrderId") || {}).value || "").trim();
+    const list = $("accountingOrderLinesList");
+    if (!list) return;
+    if (!orderId) {
+      setMsg("accountingMsg", "اكتب رقم الأوردر الأول لاستدعاء أجزاء وائل وجابر.", true);
+      return;
+    }
+    const rows = (state.accounting.deptLines || []).filter(function (r) {
+      return text(r.orderId || r["رقم الأوردر"]) === orderId && text(r.closeStatus || r["حالة التقفيل"] || "مفتوح") !== "تم التقفيل";
+    });
+    state.accounting.selectedOrderLines = rows;
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد بنود أقسام مفتوحة لهذا الأوردر. يمكن كتابة فاتورة نهائية يدوية.</div>';
+      updateAccountingFinalTotals();
+      return;
+    }
+    const customer = rows[0].customerName || rows[0]["اسم العميل"] || "";
+    if (($("accFinalCustomer") || {}).value === "") $("accFinalCustomer").value = customer;
+    list.innerHTML = rows.map(function (r, i) {
+      return '<label class="acc-order-line-check"><input type="checkbox" class="acc-final-line-check" data-i="' + i + '" checked> ' +
+        '<span><b>' + escapeHtml(r.department || r["القسم"] || "-") + '</b> - ' + escapeHtml(r.itemName || r["اسم البند"] || "-") + '</span>' +
+        '<small>بيع: ' + accountingMoney(accountingLineSale(r)) + ' | تكلفة: ' + accountingMoney(accountingLineCost(r)) + '</small></label>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".acc-final-line-check"), function (chk) {
+      chk.addEventListener("change", updateAccountingFinalTotals);
+    });
+    updateAccountingFinalTotals();
+  }
+
+  function selectedFinalInvoiceLines() {
+    const list = $("accountingOrderLinesList");
+    const rows = state.accounting.selectedOrderLines || [];
+    if (!list) return [];
+    const selected = [];
+    Array.prototype.forEach.call(list.querySelectorAll(".acc-final-line-check"), function (chk) {
+      if (chk.checked) {
+        const i = Number(chk.getAttribute("data-i"));
+        if (rows[i]) selected.push(rows[i]);
+      }
+    });
+    return selected;
+  }
+
+  function updateAccountingFinalTotals() {
+    const selected = selectedFinalInvoiceLines();
+    let subtotal = selected.reduce(function (sum, r) { return sum + accountingLineSale(r); }, 0);
+    const manualAmount = numericAmount(($("accFinalManualAmount") || {}).value || 0);
+    subtotal += manualAmount;
+    const discount = numericAmount(($("accFinalDiscount") || {}).value || 0);
+    const paid = numericAmount(($("accFinalPaid") || {}).value || 0);
+    const finalTotal = Math.max(0, subtotal - discount);
+    const remaining = Math.max(0, finalTotal - paid);
+    if ($("accFinalSubtotal")) $("accFinalSubtotal").textContent = accountingMoney(subtotal);
+    if ($("accFinalTotal")) $("accFinalTotal").textContent = accountingMoney(finalTotal);
+    if ($("accFinalRemaining")) $("accFinalRemaining").textContent = accountingMoney(remaining);
+  }
+
+  async function saveAccountingFinalInvoice() {
+    if (!accountingCanCloseFinalInvoice()) return;
+    const orderId = (($("accFinalOrderId") || {}).value || "").trim();
+    const customerName = (($("accFinalCustomer") || {}).value || "").trim();
+    if (!orderId || !customerName) {
+      setMsg("accountingMsg", "رقم الأوردر واسم العميل مطلوبين لتقفيل الفاتورة.", true);
+      return;
+    }
+    const selected = selectedFinalInvoiceLines();
+    const lineIds = selected.map(function (r) { return r.id || r.ID || r["ID"] || ""; }).filter(Boolean);
+    const subtotal = selected.reduce(function (sum, r) { return sum + accountingLineSale(r); }, 0) + numericAmount(($("accFinalManualAmount") || {}).value || 0);
+    const discount = numericAmount(($("accFinalDiscount") || {}).value || 0);
+    const paid = numericAmount(($("accFinalPaid") || {}).value || 0);
+    const finalTotal = Math.max(0, subtotal - discount);
+    const remaining = Math.max(0, finalTotal - paid);
+    try {
+      const res = await api("saveAccountingFinalInvoice", authParams({
+        orderId: orderId,
+        customerName: customerName,
+        lineIds: JSON.stringify(lineIds),
+        manualDescription: ($("accFinalManualDescription") || {}).value,
+        manualAmount: ($("accFinalManualAmount") || {}).value,
+        subtotal: subtotal,
+        discount: discount,
+        finalTotal: finalTotal,
+        paid: paid,
+        remaining: remaining,
+        status: ($("accFinalStatus") || {}).value,
+        notes: ($("accFinalNotes") || {}).value
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم تقفيل الفاتورة." : "فشل التقفيل."), !res.success);
+      if (res.success) {
+        ["accFinalManualDescription", "accFinalManualAmount", "accFinalDiscount", "accFinalPaid", "accFinalNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        if ($("accountingOrderLinesList")) $("accountingOrderLinesList").innerHTML = "";
+        await loadAccountingData(true);
+      }
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في تقفيل الفاتورة.", true);
+    }
   }
 
   function withQuery(url, params) {
@@ -1327,7 +1870,7 @@ Trend Mall`;
     { id: "franchise", label: "الفرنشايز", hint: "الفروع والشركاء ونسب مطبعجي." },
     { id: "marketplace", label: "ماركت بليس", hint: "مساحات وبائعين ومنتجات تحت مظلة مطبعجي." },
     { id: "members", label: "الأعضاء والنسخ", hint: "نسخ المطابع والأرقام والعملاء." },
-    { id: "responses", label: "الردود والذكاء", hint: "معرفة واتس AI وقواعد الردود." },
+    { id: "responses", label: "نوت مطبعجي", hint: "ملاحظات ومعرفة واتس AI وقواعد الردود." },
     { id: "ads", label: "الإعلانات", hint: "إعلانات العملاء وتظبيط الصور." }
   ];
 
@@ -1348,8 +1891,7 @@ Trend Mall`;
   function canSeeAdminWorkspace() {
     const user = state.user || {};
     const role = safeRole(user.role);
-    const username = normalizeArabic(user.username || user.name || "");
-    return role === "admin" || role === "service" || username === "ضياء" || username === "رحمه" || username === "رحمة";
+    return role === "admin" || role === "service" || isDiaaUser(user) || isRahmaUser(user);
   }
 
   function setupAdminWorkspace() {
@@ -1385,6 +1927,12 @@ Trend Mall`;
       if (isRahmaRestrictedUser()) {
         const rahmaAllowedCards = ["managementDashboard", "addOrderCard", "addCustomerCard"];
         card.classList.toggle("admin-area-off", rahmaAllowedCards.indexOf(id) === -1);
+        return;
+      }
+      // Patch 09: إضافة الأوردر وتكويد العميل لا يختفوا مع تنقل تاب الإدارة.
+      // ظهورهم الفعلي يفضل تحت تحكم toggleAddOrder/toggleAddCustomer حسب الصلاحية.
+      if (id === "addOrderCard" || id === "addCustomerCard") {
+        card.classList.remove("admin-area-off");
         return;
       }
       const area = ADMIN_CARD_AREAS[id];
@@ -3276,6 +3824,8 @@ Trend Mall`;
     toggleServiceRoutesDashboard();
     toggleMarketplaceDashboard();
     setupAdminWorkspace();
+    toggleAddOrder();
+    toggleAddCustomer();
     loadRows();
     updateUrgentNotificationButton();
     startRefresh();
@@ -3291,6 +3841,7 @@ Trend Mall`;
     toggleVisitorPreviewButton();
     toggleRemoteFilesButton();
     toggleEmployeeQuickToolButtons();
+    toggleAccountingButton();
   }
 
   function renderTabs() {
@@ -3507,10 +4058,7 @@ Trend Mall`;
   }
 
   function canManageKnowledge() {
-    const user = state.user || {};
-    const role = safeRole(user.role);
-    if (isRahmaRestrictedUser(user)) return false;
-    return role === "admin" || role === "service" || isDiaaUser(user);
+    return isEmployeeLoggedIn();
   }
 
   function toggleKnowledge() {
@@ -4645,6 +5193,8 @@ Trend Mall`;
     on("remoteFilesBtn", "click", openRemoteFileServer);
     on("matbagySheetsBtn", "click", openMatbagySheetsTool);
     on("matbagyRotetBtn", "click", openMatbagyRotetTool);
+    on("matbagyNoteBtn", "click", openMatbagyNotePanel);
+    on("accountingBtn", "click", openAccountingPanel);
     on("serverFilesBtn", "click", openLocalFileServer);
     on("customerFastPrintFilesBtn", "click", openCustomerFastPrintFiles);
     on("customerOrderDepartment", "change", function () { updateCustomerPrintOptions(); refreshCustomerPendingPreview(); });
@@ -4769,6 +5319,17 @@ Trend Mall`;
     if (refreshKnowledgeButton) refreshKnowledgeButton.addEventListener("click", function () { loadKnowledge(true); });
     const knowledgeSearch = $("knowledgeSearch");
     if (knowledgeSearch) knowledgeSearch.addEventListener("input", renderKnowledge);
+
+    on("closeAccountingBtn", "click", closeAccountingPanel);
+    on("refreshAccountingBtn", "click", function () { loadAccountingData(true); });
+    on("initAccountingBtn", "click", initAccountingSheets);
+    on("saveAccountingMaterialBtn", "click", saveAccountingMaterial);
+    on("saveAccountingTemplateBtn", "click", saveAccountingTemplate);
+    on("saveAccountingDeptLineBtn", "click", saveAccountingDeptLine);
+    on("loadAccountingOrderLinesBtn", "click", loadAccountingOrderLinesFromLocal);
+    on("saveAccountingFinalInvoiceBtn", "click", saveAccountingFinalInvoice);
+    ["accFinalDiscount", "accFinalPaid", "accFinalManualAmount"].forEach(function (id) { on(id, "input", updateAccountingFinalTotals); });
+    on("accDeptLineDepartment", "change", syncAccountingMaterialOptions);
 
     wireCustomerSearch();
     wireTableCustomerSearch();

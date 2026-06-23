@@ -23,6 +23,10 @@ const SHEET_NAME_AI_KNOWLEDGE = "معرفة واتس AI";
 const SHEET_NAME_AI_SETTINGS = "إعدادات واتس AI";
 const SHEET_NAME_AI_LOG = "سجل واتس AI";
 const SHEET_NAME_INVOICE_PRICING = "بنود تسعير الفاتورة";
+const SHEET_NAME_ACC_MATERIALS = "حسابات - الخامات";
+const SHEET_NAME_ACC_TEMPLATES = "حسابات - البنود الثابتة";
+const SHEET_NAME_ACC_DEPT_LINES = "حسابات - فواتير الأقسام";
+const SHEET_NAME_ACC_FINAL_INVOICES = "حسابات - الفواتير النهائية";
 const DEFAULT_PASSWORD = "0000";
 const SHEET_NAME_MARKET_VENDORS = "ماركت بليس - البائعين";
 const SHEET_NAME_MARKET_PRODUCTS = "ماركت بليس - المنتجات";
@@ -93,6 +97,12 @@ function doGet(e) {
     else if (action === "getKnowledgeContext") result = getKnowledgeContext_(e);
     else if (action === "updateLine") result = updateLine_(e);
     else if (action === "createInvoiceLine") result = createInvoiceLine_(e);
+    else if (action === "initAccounting") result = initAccountingNow_(e);
+    else if (action === "getAccounting") result = getAccounting_(e);
+    else if (action === "saveAccountingMaterial") result = saveAccountingMaterial_(e);
+    else if (action === "saveAccountingTemplate") result = saveAccountingTemplate_(e);
+    else if (action === "saveAccountingDeptLine") result = saveAccountingDeptLine_(e);
+    else if (action === "saveAccountingFinalInvoice") result = saveAccountingFinalInvoice_(e);
     else if (action === "markCustomerNotified") result = markCustomerNotified_(e);
     else if (action === "changePassword") result = changePassword_(e);
     else if (action === "createManualOrder") result = createManualOrder_(e);
@@ -2536,6 +2546,344 @@ function logAiWhatsApp_(phone, customerName, incoming, reply, intent, orderId, n
 /************************************************************
  * V1828 - بنود تسعير الفاتورة بعد انتهاء القسم
  ************************************************************/
+
+/************************************************************
+ * Patch 11 - حسابات مطبعجي حسب القسم
+ ************************************************************/
+
+function accMaterialsHeaders_() {
+  return ["ID", "وقت التسجيل", "القسم", "اسم الخامة", "الوحدة", "سعر الوحدة", "عرض الخام", "طول الخام", "نسبة الهالك", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث"];
+}
+
+function accTemplatesHeaders_() {
+  return ["ID", "وقت التسجيل", "القسم", "التصنيف", "اسم البند", "المقاس", "الخامة", "الناتج", "تكلفة حبر", "تكلفة ثابتة", "سعر بيع مقترح", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث"];
+}
+
+function accDeptLinesHeaders_() {
+  return ["ID", "وقت التسجيل", "رقم الأوردر", "رقم البند", "اسم العميل", "القسم", "نوع البند", "اسم البند", "الكمية", "الخامة", "استهلاك الخامة", "تكلفة الخامة", "تكلفة تشغيل", "تكلفة أخرى", "إجمالي التكلفة", "سعر البيع", "الربح", "ملاحظات", "مسجل بواسطة", "حالة التقفيل", "رقم الفاتورة النهائية", "آخر تحديث"];
+}
+
+function accFinalInvoicesHeaders_() {
+  return ["رقم الفاتورة", "وقت التقفيل", "رقم الأوردر", "اسم العميل", "بنود الأقسام", "بند يدوي", "قيمة بند يدوي", "الإجمالي قبل الخصم", "الخصم", "الإجمالي النهائي", "المدفوع", "الباقي", "الحالة", "قفل بواسطة", "ملاحظات", "آخر تحديث"];
+}
+
+function ensureAccountingSheets_() {
+  const materials = mbEnsureSheet_(SHEET_NAME_ACC_MATERIALS, accMaterialsHeaders_());
+  const templates = mbEnsureSheet_(SHEET_NAME_ACC_TEMPLATES, accTemplatesHeaders_());
+  const deptLines = mbEnsureSheet_(SHEET_NAME_ACC_DEPT_LINES, accDeptLinesHeaders_());
+  const finalInvoices = mbEnsureSheet_(SHEET_NAME_ACC_FINAL_INVOICES, accFinalInvoicesHeaders_());
+  seedAccountingTemplates_(templates);
+  return { materials: materials, templates: templates, deptLines: deptLines, finalInvoices: finalInvoices };
+}
+
+function seedAccountingTemplates_(sheet) {
+  if (!sheet || sheet.getLastRow() > 1) return;
+  const now = new Date();
+  const rows = [
+    ["ACC-TPL-001", now, "طباعة", "لامنيشن", "كارت 15×21 من رول لامينشن", "15×21", "رول لامينشن", "", "", "", "", "املأ عدد الكروت التي يخرجها الرول", "نعم", "النظام", now],
+    ["ACC-TPL-002", now, "طباعة", "لامنيشن", "كارت 20×30 من رول لامينشن", "20×30", "رول لامينشن", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-003", now, "طباعة", "لامنيشن", "تابلوه 30×40 من رول لامينشن", "30×40", "رول لامينشن", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-004", now, "طباعة", "لامنيشن", "تابلوه 40×50 من رول لامينشن", "40×50", "رول لامينشن", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-005", now, "طباعة", "لامنيشن", "تابلوه 50×60 من رول لامينشن", "50×60", "رول لامينشن", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-006", now, "طباعة", "لامنيشن", "تابلوه 60×90 من رول لامينشن", "60×90", "رول لامينشن", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-007", now, "طباعة", "رولات طباعة", "رول طباعة 30 سم", "30 سم", "رول طباعة", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-008", now, "طباعة", "رولات طباعة", "رول طباعة 50 سم", "50 سم", "رول طباعة", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-009", now, "طباعة", "رولات طباعة", "رول طباعة 60 سم", "60 سم", "رول طباعة", "", "", "", "", "", "نعم", "النظام", now],
+    ["ACC-TPL-010", now, "طباعة", "حبر بلوتر", "استهلاك حبر بلوتر", "متر/سم", "حبر بلوتر", "", "", "", "", "حدد تكلفة الحبر حسب المقاس", "نعم", "النظام", now],
+    ["ACC-TPL-011", now, "مشترك", "ماكيت / سنيور مشترك", "بند مشترك ماكيت / سنيور", "حسب الشغل", "طباعة + ليزر", "", "", "", "", "كل قسم يسجل الجزء الخاص به ثم يتم التجميع النهائي", "نعم", "النظام", now]
+  ];
+  sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+}
+
+function accountingUserMode_(user) {
+  const key = searchKey_(user.username || user.name || "");
+  const role = roleFromArabic_(user.role, user.department);
+  if (role === "admin" || key.indexOf("ضياء") !== -1 || key.indexOf("diaa") !== -1) return "full";
+  if (key.indexOf("رحمه") !== -1 || key.indexOf("رحمة") !== -1 || key.indexOf("rahma") !== -1 || key.indexOf("ريفان") !== -1 || key.indexOf("ريڤان") !== -1 || key.indexOf("revan") !== -1 || key.indexOf("rivan") !== -1) return "final";
+  if (role === "print" || key.indexOf("وائل") !== -1 || key.indexOf("wael") !== -1) return "print";
+  if (role === "laser" || key.indexOf("جابر") !== -1 || key.indexOf("gaber") !== -1 || key.indexOf("jaber") !== -1) return "laser";
+  return "none";
+}
+
+function accountingDepartmentForMode_(mode) {
+  if (mode === "print") return "طباعة";
+  if (mode === "laser") return "ليزر";
+  return "";
+}
+
+function accountingAuthorize_(e) {
+  const auth = authorize_(e.parameter.username, e.parameter.token);
+  if (!auth.ok) return { ok: false, message: auth.message };
+  const mode = accountingUserMode_(auth.user);
+  if (mode === "none") return { ok: false, message: "ليس لديك صلاحية حسابات مطبعجي." };
+  auth.mode = mode;
+  auth.department = accountingDepartmentForMode_(mode);
+  return auth;
+}
+
+function accSheetRows_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const h = headersMap_(sheet);
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  return data.map(function(row, idx) {
+    const obj = { rowNumber: idx + 2 };
+    Object.keys(h).forEach(function(header) {
+      obj[header] = valueAt_(row, h[header]);
+    });
+    // أسماء انجليزية مريحة للواجهة
+    obj.id = obj["ID"] || obj["رقم الفاتورة"] || "";
+    obj.department = obj["القسم"] || "";
+    obj.materialName = obj["اسم الخامة"] || obj["الخامة"] || "";
+    obj.unit = obj["الوحدة"] || "";
+    obj.unitCost = obj["سعر الوحدة"] || "";
+    obj.wastePercent = obj["نسبة الهالك"] || "";
+    obj.category = obj["التصنيف"] || "";
+    obj.itemName = obj["اسم البند"] || "";
+    obj.size = obj["المقاس"] || "";
+    obj.outputCount = obj["الناتج"] || "";
+    obj.inkCost = obj["تكلفة حبر"] || "";
+    obj.fixedCost = obj["تكلفة ثابتة"] || "";
+    obj.salePrice = obj["سعر البيع"] || obj["سعر بيع مقترح"] || "";
+    obj.orderId = obj["رقم الأوردر"] || "";
+    obj.lineId = obj["رقم البند"] || "";
+    obj.customerName = obj["اسم العميل"] || "";
+    obj.itemType = obj["نوع البند"] || "";
+    obj.totalCost = obj["إجمالي التكلفة"] || "";
+    obj.materialCost = obj["تكلفة الخامة"] || "";
+    obj.closeStatus = obj["حالة التقفيل"] || "";
+    obj.invoiceNo = obj["رقم الفاتورة"] || obj["رقم الفاتورة النهائية"] || "";
+    obj.finalTotal = obj["الإجمالي النهائي"] || "";
+    obj.paid = obj["المدفوع"] || "";
+    obj.remaining = obj["الباقي"] || "";
+    obj.createdBy = obj["مسجل بواسطة"] || obj["قفل بواسطة"] || "";
+    return obj;
+  });
+}
+
+function accountingFilterRows_(rows, auth, kind) {
+  const mode = auth.mode;
+  if (mode === "full") return rows;
+  if (mode === "final") {
+    if (kind === "deptLines") return rows;
+    if (kind === "finalInvoices") return rows;
+    return rows.filter(function(r) { const d = normalize_(r.department); return d === "مشترك" || d === "عام"; });
+  }
+  const dept = auth.department;
+  return rows.filter(function(r) {
+    const d = normalize_(r.department || r["القسم"]);
+    return d === dept || d === "مشترك" || d === "عام";
+  });
+}
+
+function accountingSummary_(deptLines) {
+  const map = {};
+  deptLines.forEach(function(r) {
+    const dept = normalize_(r.department || r["القسم"]) || "غير محدد";
+    if (!map[dept]) map[dept] = { department: dept, sales: 0, cost: 0, profit: 0, count: 0 };
+    const sales = parseMoney_(r.salePrice || r["سعر البيع"]);
+    const cost = parseMoney_(r.totalCost || r["إجمالي التكلفة"]);
+    map[dept].sales += sales;
+    map[dept].cost += cost;
+    map[dept].profit += (sales - cost);
+    map[dept].count += 1;
+  });
+  return { byDepartment: Object.keys(map).map(function(k) { return map[k]; }) };
+}
+
+function initAccountingNow_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  ensureAccountingSheets_();
+  SpreadsheetApp.flush();
+  return { success: true, message: "تم تجهيز شيتات حسابات مطبعجي: الخامات، البنود الثابتة، فواتير الأقسام، الفواتير النهائية." };
+}
+
+function getAccounting_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  const sheets = ensureAccountingSheets_();
+  const materials = accountingFilterRows_(accSheetRows_(sheets.materials), auth, "materials");
+  const templates = accountingFilterRows_(accSheetRows_(sheets.templates), auth, "templates");
+  const deptLinesAll = accSheetRows_(sheets.deptLines);
+  const deptLines = accountingFilterRows_(deptLinesAll, auth, "deptLines");
+  const finalInvoices = accountingFilterRows_(accSheetRows_(sheets.finalInvoices), auth, "finalInvoices");
+  return {
+    success: true,
+    permissions: { mode: auth.mode, department: auth.department, canManageMaterials: auth.mode === "full", canCloseFinalInvoice: auth.mode === "full" || auth.mode === "final", canEnterDeptLine: auth.mode === "full" || auth.mode === "print" || auth.mode === "laser" },
+    materials: materials,
+    templates: templates,
+    deptLines: deptLines,
+    finalInvoices: finalInvoices,
+    summary: auth.mode === "full" ? accountingSummary_(deptLinesAll) : accountingSummary_(deptLines)
+  };
+}
+
+function saveAccountingMaterial_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (auth.mode !== "full") return { success: false, message: "إضافة الخامات عند ضياء فقط." };
+  const name = normalize_(e.parameter.materialName);
+  if (!name) return { success: false, message: "اسم الخامة مطلوب." };
+  const sheet = ensureAccountingSheets_().materials;
+  const now = new Date();
+  appendByHeaders_(sheet, {
+    "ID": "MAT-" + Utilities.getUuid().slice(0, 8),
+    "وقت التسجيل": now,
+    "القسم": normalize_(e.parameter.department) || "طباعة",
+    "اسم الخامة": name,
+    "الوحدة": normalize_(e.parameter.unit),
+    "سعر الوحدة": parseMoney_(e.parameter.unitCost),
+    "عرض الخام": parseMoney_(e.parameter.width),
+    "طول الخام": parseMoney_(e.parameter.height),
+    "نسبة الهالك": parseMoney_(e.parameter.wastePercent),
+    "ملاحظات": normalize_(e.parameter.notes),
+    "مفعل": normalize_(e.parameter.active) || "نعم",
+    "مسجل بواسطة": auth.user.username,
+    "آخر تحديث": now
+  });
+  return { success: true, message: "تم حفظ الخامة في حسابات مطبعجي." };
+}
+
+function saveAccountingTemplate_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (auth.mode !== "full") return { success: false, message: "إضافة البنود الثابتة عند ضياء فقط." };
+  const itemName = normalize_(e.parameter.itemName);
+  if (!itemName) return { success: false, message: "اسم البند الثابت مطلوب." };
+  const sheet = ensureAccountingSheets_().templates;
+  const now = new Date();
+  appendByHeaders_(sheet, {
+    "ID": "TPL-" + Utilities.getUuid().slice(0, 8),
+    "وقت التسجيل": now,
+    "القسم": normalize_(e.parameter.department) || "طباعة",
+    "التصنيف": normalize_(e.parameter.category),
+    "اسم البند": itemName,
+    "المقاس": normalize_(e.parameter.size),
+    "الخامة": normalize_(e.parameter.materialName),
+    "الناتج": parseMoney_(e.parameter.outputCount),
+    "تكلفة حبر": parseMoney_(e.parameter.inkCost),
+    "تكلفة ثابتة": parseMoney_(e.parameter.fixedCost),
+    "سعر بيع مقترح": parseMoney_(e.parameter.salePrice),
+    "ملاحظات": normalize_(e.parameter.notes),
+    "مفعل": normalize_(e.parameter.active) || "نعم",
+    "مسجل بواسطة": auth.user.username,
+    "آخر تحديث": now
+  });
+  return { success: true, message: "تم حفظ البند الثابت." };
+}
+
+function saveAccountingDeptLine_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (!(auth.mode === "full" || auth.mode === "print" || auth.mode === "laser")) return { success: false, message: "تسجيل فاتورة القسم متاح لوائل وجابر وضياء فقط." };
+  const orderId = normalize_(e.parameter.orderId);
+  const itemName = normalize_(e.parameter.itemName);
+  if (!orderId || !itemName) return { success: false, message: "رقم الأوردر واسم البند مطلوبين." };
+  let department = normalize_(e.parameter.department) || auth.department || "طباعة";
+  if (auth.mode === "print") department = "طباعة";
+  if (auth.mode === "laser") department = "ليزر";
+  const materialCost = parseMoney_(e.parameter.materialCost);
+  const laborCost = parseMoney_(e.parameter.laborCost);
+  const otherCost = parseMoney_(e.parameter.otherCost);
+  const totalCost = materialCost + laborCost + otherCost;
+  const salePrice = parseMoney_(e.parameter.salePrice);
+  const profit = salePrice - totalCost;
+  const sheet = ensureAccountingSheets_().deptLines;
+  const now = new Date();
+  const id = "DLINE-" + Utilities.getUuid().slice(0, 8);
+  appendByHeaders_(sheet, {
+    "ID": id,
+    "وقت التسجيل": now,
+    "رقم الأوردر": orderId,
+    "رقم البند": normalize_(e.parameter.lineId),
+    "اسم العميل": normalize_(e.parameter.customerName),
+    "القسم": department,
+    "نوع البند": normalize_(e.parameter.itemType) || "قسم فقط",
+    "اسم البند": itemName,
+    "الكمية": parseMoney_(e.parameter.qty) || 1,
+    "الخامة": normalize_(e.parameter.materialName),
+    "استهلاك الخامة": parseMoney_(e.parameter.materialQty),
+    "تكلفة الخامة": materialCost,
+    "تكلفة تشغيل": laborCost,
+    "تكلفة أخرى": otherCost,
+    "إجمالي التكلفة": totalCost,
+    "سعر البيع": salePrice,
+    "الربح": profit,
+    "ملاحظات": normalize_(e.parameter.notes),
+    "مسجل بواسطة": auth.user.username,
+    "حالة التقفيل": "مفتوح",
+    "رقم الفاتورة النهائية": "",
+    "آخر تحديث": now
+  });
+  return { success: true, message: "تم تسجيل فاتورة القسم." , lineId: id };
+}
+
+function makeAccountingInvoiceNo_(sheet, now) {
+  const serial = Math.max(1, sheet.getLastRow());
+  const ymd = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyyMMdd");
+  return "ACC-" + ymd + "-" + String(serial).padStart(4, "0");
+}
+
+function saveAccountingFinalInvoice_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (!(auth.mode === "full" || auth.mode === "final")) return { success: false, message: "تقفيل الفاتورة عند رحمه أو ريفان أو ضياء فقط." };
+  const orderId = normalize_(e.parameter.orderId);
+  const customerName = normalize_(e.parameter.customerName);
+  if (!orderId || !customerName) return { success: false, message: "رقم الأوردر واسم العميل مطلوبين." };
+  const sheets = ensureAccountingSheets_();
+  const now = new Date();
+  const invoiceNo = makeAccountingInvoiceNo_(sheets.finalInvoices, now);
+  let lineIds = [];
+  try { lineIds = JSON.parse(normalize_(e.parameter.lineIds) || "[]"); } catch (err) { lineIds = []; }
+  const subtotal = parseMoney_(e.parameter.subtotal);
+  const discount = parseMoney_(e.parameter.discount);
+  const finalTotal = parseMoney_(e.parameter.finalTotal);
+  const paid = parseMoney_(e.parameter.paid);
+  const remaining = parseMoney_(e.parameter.remaining);
+  appendByHeaders_(sheets.finalInvoices, {
+    "رقم الفاتورة": invoiceNo,
+    "وقت التقفيل": now,
+    "رقم الأوردر": orderId,
+    "اسم العميل": customerName,
+    "بنود الأقسام": lineIds.join(", "),
+    "بند يدوي": normalize_(e.parameter.manualDescription),
+    "قيمة بند يدوي": parseMoney_(e.parameter.manualAmount),
+    "الإجمالي قبل الخصم": subtotal,
+    "الخصم": discount,
+    "الإجمالي النهائي": finalTotal,
+    "المدفوع": paid,
+    "الباقي": remaining,
+    "الحالة": normalize_(e.parameter.status) || (remaining > 0 ? "عليها باقي" : "مدفوعة"),
+    "قفل بواسطة": auth.user.username,
+    "ملاحظات": normalize_(e.parameter.notes),
+    "آخر تحديث": now
+  });
+  markAccountingDeptLinesClosed_(sheets.deptLines, lineIds, invoiceNo, now);
+  return { success: true, message: "تم تقفيل الفاتورة النهائية رقم " + invoiceNo, invoiceNo: invoiceNo };
+}
+
+function markAccountingDeptLinesClosed_(sheet, lineIds, invoiceNo, now) {
+  if (!lineIds || !lineIds.length || !sheet || sheet.getLastRow() < 2) return;
+  const h = headersMap_(sheet);
+  const colId = firstCol_(h, ["ID"], 1);
+  const colStatus = firstCol_(h, ["حالة التقفيل"], 0);
+  const colInvoice = firstCol_(h, ["رقم الفاتورة النهائية"], 0);
+  const colUpdate = firstCol_(h, ["آخر تحديث"], 0);
+  if (!colId) return;
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const wanted = {};
+  lineIds.forEach(function(id) { wanted[normalize_(id)] = true; });
+  data.forEach(function(row, idx) {
+    const id = normalize_(valueAt_(row, colId));
+    if (!wanted[id]) return;
+    const rn = idx + 2;
+    if (colStatus) sheet.getRange(rn, colStatus).setValue("تم التقفيل");
+    if (colInvoice) sheet.getRange(rn, colInvoice).setValue(invoiceNo);
+    if (colUpdate) sheet.getRange(rn, colUpdate).setValue(now);
+  });
+}
+
 function ensureInvoicePricingSheet_() {
   const headers = [
     "وقت التسجيل",

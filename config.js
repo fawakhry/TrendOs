@@ -17,3 +17,6 @@ window.MATBAGY_EMPLOYEE_TOOL_SSO = true;
 // ألغينا رفع العميل المباشر حالياً.
 window.MATBAGY_FAST_PRINT_UPLOAD_URL = "";
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
+
+// Patch 11 - حسابات مطبعجي
+window.MATBAGY_ACCOUNTING_ALLOWED_EMPLOYEES = ["ضياء", "رحمه", "رحمة", "ريفان", "ريڤان", "وائل", "جابر", "diaa", "rahma", "revan", "rivan", "wael", "gaber", "jaber"];
