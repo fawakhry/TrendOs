@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_17_DRAGGABLE_NOTE_REFRESH_FIX";
+  const UI_VERSION = "1856_PATCH_18_ACCOUNTING_KITCHEN_AI_WASTE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -5435,7 +5435,7 @@ Trend Mall`;
     }
     const modal = $("matbagyNoteModal");
     if (!modal) {
-      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 17.");
+      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 18.");
       return;
     }
     modal.classList.remove("hidden");
@@ -5805,7 +5805,7 @@ Trend Mall`;
 
 
 
-  /*********************** Patch 17 - نوت جانبية + مخزون خامات + تعويض تالف ***********************/
+  /*********************** Patch 18 - نوت جانبية + مخزون خامات + تعويض تالف ***********************/
 
   const prepareAccountingUiByRoleBeforePatch16 = prepareAccountingUiByRole;
 
@@ -5847,7 +5847,7 @@ Trend Mall`;
     }
     const modal = $("matbagyNoteModal");
     if (!modal) {
-      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 17.");
+      alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 18.");
       return;
     }
     modal.classList.remove("hidden");
@@ -6194,6 +6194,440 @@ Trend Mall`;
   }
 
 
+  /*********************** Patch 18 - مطبخ الحسابات + بنود مسعرة + فرق سعر للهوالك ***********************/
+
+  function accountingIsFullKitchenMode() {
+    return currentAccountingMode() === "full";
+  }
+
+  function materialOfficialSalePrice(mat) {
+    return numericAmount(mat && (mat.salePrice || mat["سعر بيع رسمي"] || mat["سعر بيع مقترح"]) || 0);
+  }
+
+  function templateItemName(tpl) {
+    return tpl && (tpl.itemName || tpl["اسم البند"] || "") || "";
+  }
+
+  function templateMaterialName(tpl) {
+    return tpl && (tpl.materialName || tpl["الخامة"] || tpl["اسم الخامة"] || "") || "";
+  }
+
+  function templateCost(tpl) {
+    if (!tpl) return 0;
+    const mat = materialByName(templateMaterialName(tpl));
+    const base = mat ? materialDisplayCost(mat) : 0;
+    const output = numericAmount(tpl.outputCount || tpl["الناتج"] || 0);
+    const materialPart = output > 0 ? (base / output) : base;
+    return materialPart + numericAmount(tpl.inkCost || tpl["تكلفة حبر"] || 0) + numericAmount(tpl.fixedCost || tpl["تكلفة ثابتة"] || 0);
+  }
+
+  function templateSalePrice(tpl) {
+    return numericAmount(tpl && (tpl.salePrice || tpl["سعر بيع مقترح"] || tpl["سعر بيع رسمي"]) || 0);
+  }
+
+  function accountingTplByName(name) {
+    const key = materialTextKey(name);
+    if (!key) return null;
+    return (state.accounting.templates || []).find(function (t) {
+      return materialTextKey(templateItemName(t)) === key;
+    }) || null;
+  }
+
+  function accountingSelectedCatalogItem() {
+    const raw = (($("accDeptLineMaterial") || {}).value || "").trim();
+    if (!raw) return null;
+    if (raw.indexOf("TPL|") === 0) {
+      const name = raw.slice(4);
+      const tpl = accountingTplByName(name);
+      if (!tpl) return null;
+      const mat = materialByName(templateMaterialName(tpl));
+      return {
+        source: "template",
+        name: templateItemName(tpl),
+        department: tpl.department || tpl["القسم"] || "",
+        materialName: templateMaterialName(tpl),
+        unitCost: templateCost(tpl),
+        systemSalePrice: templateSalePrice(tpl),
+        material: mat,
+        template: tpl
+      };
+    }
+    const clean = raw.indexOf("MAT|") === 0 ? raw.slice(4) : raw;
+    const mat = materialByName(clean);
+    if (!mat) return null;
+    const sale = materialOfficialSalePrice(mat);
+    return {
+      source: "material",
+      name: mat.materialName || mat["اسم الخامة"] || clean,
+      department: mat.department || mat["القسم"] || "",
+      materialName: mat.materialName || mat["اسم الخامة"] || clean,
+      unitCost: materialDisplayCost(mat),
+      systemSalePrice: sale || materialDisplayCost(mat),
+      material: mat,
+      template: null
+    };
+  }
+
+  function accountingSystemPriceForSelectedItem() {
+    const item = accountingSelectedCatalogItem();
+    if (!item) return 0;
+    const qty = Math.max(1, numericAmount(($("accDeptLineQty") || {}).value || 1) || 1);
+    return numericAmount(item.systemSalePrice) * qty;
+  }
+
+  function accountingSetSystemPriceField(value) {
+    const el = $("accDeptLineSystemPrice");
+    if (el) el.value = value ? Number(value).toFixed(2) : "";
+  }
+
+  function toggleAccountingButton() {
+    ensureEmployeeMainActionButtons();
+    const btn = $("accountingBtn");
+    if (!btn) return;
+    btn.classList.toggle("hidden", !canOpenAccounting());
+    if (canOpenAccounting()) btn.textContent = accountingIsFullKitchenMode() ? "💰 مطبخ الحسابات" : "💰 حسابات مطبعجي";
+  }
+
+  const prepareAccountingUiByRoleBeforePatch18 = prepareAccountingUiByRole;
+  function prepareAccountingUiByRole() {
+    prepareAccountingUiByRoleBeforePatch18();
+    const mode = currentAccountingMode();
+    const operator = mode === "print" || mode === "laser";
+    const laser = mode === "laser";
+    const title = $("accountingRoleTitle");
+    const hint = $("accountingRoleHint");
+    const card = document.querySelector(".accounting-card");
+    if (card) card.classList.toggle("acc-operator-laser", laser && operator);
+    if (title) {
+      if (mode === "full") title.textContent = "مطبخ الحسابات - ضياء";
+      else if (mode === "final") title.textContent = "حسابات مطبعجي - تقفيل الفواتير";
+      else if (mode === "print") title.textContent = "حسابات مطبعجي - وائل / الطباعة";
+      else if (mode === "laser") title.textContent = "حسابات مطبعجي - جابر / الليزر";
+    }
+    if (hint) {
+      if (mode === "full") hint.textContent = "هنا تسجيل الأسعار والخامات والتركيبات والبنود المسعرة. أي بند محفوظ هنا يظهر تلقائيًا للموظفين في الفواتير.";
+      else if (mode === "print") hint.textContent = "اختار البند المسعر فقط واكتب سعر القطعة في الفاتورة. تكلفة الخامة مخفية وتتسجل داخليًا.";
+      else if (mode === "laser") hint.textContent = "اختار البند المسعر، واستخدم حاسبة AI للمقاسات المتغيرة. تكلفة الخامة مخفية وتتسجل داخليًا.";
+      else if (mode === "final") hint.textContent = "رحمه / ريفان تقفل الفاتورة النهائية وتستدعي أجزاء وائل وجابر، أو تضيف بند محفوظ من مطبخ الحسابات.";
+    }
+    const smartBox = $("accSmartCalcBox");
+    const operatorBox = $("accOperatorAutoCostBox");
+    if (smartBox) smartBox.classList.toggle("hidden", mode === "print");
+    if (operatorBox) operatorBox.classList.toggle("hidden", !operator);
+    document.querySelectorAll(".acc-cost-sensitive").forEach(function (el) { el.classList.toggle("acc-hidden-cost", operator); });
+    ["accDeptLineMaterialQty", "accDeptLineMaterialCost", "accDeptLineLaborCost", "accDeptLineOtherCost"].forEach(function (id) {
+      const el = $(id); if (el) el.tabIndex = operator ? -1 : 0;
+    });
+    const itemName = $("accDeptLineItemName");
+    if (itemName) itemName.readOnly = operator;
+    const sale = $("accDeptLineSalePrice");
+    if (sale && operator) sale.placeholder = "يمكن تعديله لهذه الفاتورة فقط";
+    updateOperatorAutoCostMessage();
+    updateAccountingWasteDiff();
+  }
+
+  function accountingCatalogRowsForDepartment(dept) {
+    const rows = [];
+    (state.accounting.materials || []).forEach(function (m) {
+      const d = m.department || m["القسم"] || "";
+      if (dept && !(d === dept || d === "مشترك" || d === "عام")) return;
+      const name = m.materialName || m["اسم الخامة"] || "";
+      if (!name) return;
+      rows.push({ type: "MAT", name: name, department: d, cost: materialDisplayCost(m), sale: materialOfficialSalePrice(m) || materialDisplayCost(m), stock: materialStockQty(m), composite: materialComponents(m).length > 0 });
+    });
+    (state.accounting.templates || []).forEach(function (t) {
+      const d = t.department || t["القسم"] || "";
+      if (dept && !(d === dept || d === "مشترك" || d === "عام")) return;
+      const name = templateItemName(t);
+      if (!name) return;
+      rows.push({ type: "TPL", name: name, department: d, cost: templateCost(t), sale: templateSalePrice(t), stock: 0, composite: false });
+    });
+    const seen = {};
+    return rows.filter(function (r) { const k = r.type + "|" + materialTextKey(r.name); if (seen[k]) return false; seen[k] = true; return true; });
+  }
+
+  function syncAccountingMaterialOptions() {
+    const select = $("accDeptLineMaterial");
+    const finalSelect = $("accFinalProductSelect");
+    const dept = ($("accDeptLineDepartment") || {}).value || accountingDepartmentForMode();
+    const operator = isAccountingOperatorMode();
+    const rows = accountingCatalogRowsForDepartment(dept);
+    const optHtml = '<option value="">اختار بند محفوظ</option>' + rows.map(function (r) {
+      const value = r.type + "|" + r.name;
+      const official = r.sale ? (" | سعر رسمي " + accountingMoney(r.sale)) : "";
+      const cost = (!operator && r.cost) ? (" | تكلفة " + accountingMoney(r.cost)) : "";
+      const stock = (!operator && r.stock) ? (" | رصيد " + r.stock) : "";
+      const badge = r.type === "TPL" ? "بند" : (r.composite ? "تركيبة" : "خامة");
+      return '<option value="' + escapeHtml(value) + '">' + escapeHtml(r.name + " - " + badge + official + cost + stock) + '</option>';
+    }).join("");
+    if (select) { const oldValue = select.value; select.innerHTML = optHtml; if (oldValue) select.value = oldValue; }
+    if (finalSelect) {
+      const allRows = accountingCatalogRowsForDepartment("");
+      const old = finalSelect.value;
+      finalSelect.innerHTML = '<option value="">بدون بند محفوظ</option>' + allRows.map(function (r) {
+        const value = r.type + "|" + r.name;
+        return '<option value="' + escapeHtml(value) + '">' + escapeHtml(r.name + " - " + (r.department || "عام")) + '</option>';
+      }).join("");
+      if (old) finalSelect.value = old;
+    }
+    accountingSmartFillFromMaterial(false);
+    syncMaterialRecipeOptions();
+    updateOperatorAutoCostMessage();
+  }
+
+  function accountingSmartFindMaterial() {
+    const item = accountingSelectedCatalogItem();
+    if (!item) return null;
+    return item.material || materialByName(item.materialName || item.name);
+  }
+
+  function accountingAutoCostFromSelectedMaterial() {
+    const item = accountingSelectedCatalogItem();
+    const qty = Math.max(1, numericAmount(($("accDeptLineQty") || {}).value || 1) || 1);
+    if (!item) { accountingSetSystemPriceField(0); return 0; }
+    const cost = numericAmount(item.unitCost) * qty;
+    if ($("accDeptLineItemName")) $("accDeptLineItemName").value = item.name;
+    if ($("accDeptLineMaterialQty")) $("accDeptLineMaterialQty").value = qty;
+    if ($("accDeptLineMaterialCost")) $("accDeptLineMaterialCost").value = cost.toFixed(2);
+    if ($("accDeptLineLaborCost") && !numericAmount($("accDeptLineLaborCost").value)) $("accDeptLineLaborCost").value = "0";
+    if ($("accDeptLineOtherCost") && !numericAmount($("accDeptLineOtherCost").value)) $("accDeptLineOtherCost").value = "0";
+    const official = accountingSystemPriceForSelectedItem();
+    accountingSetSystemPriceField(official);
+    const sale = $("accDeptLineSalePrice");
+    if (sale && official && !numericAmount(sale.value)) sale.value = official.toFixed(2);
+    return cost + numericAmount(($("accDeptLineLaborCost") || {}).value || 0) + numericAmount(($("accDeptLineOtherCost") || {}).value || 0);
+  }
+
+  function updateOperatorAutoCostMessage() {
+    const box = $("accOperatorAutoCostMsg");
+    if (!box) return;
+    const item = accountingSelectedCatalogItem();
+    if (!item) {
+      box.textContent = "اختار بند محفوظ من مطبخ الحسابات، والسيستم يحسب التكلفة داخليًا بدون إظهار أسعار الخامات.";
+      return;
+    }
+    const validation = validateSelectedMaterialAvailability();
+    const systemCost = accountingAutoCostFromSelectedMaterial();
+    const systemPrice = accountingSystemPriceForSelectedItem();
+    if (!validation.ok) {
+      box.innerHTML = '<span class="acc-stock-alert">ناقص لاستخراج البند: ' + validation.missing.map(function (m) { return escapeHtml(m.materialName) + ' مطلوب ' + escapeHtml(m.required) + ' والمتاح ' + escapeHtml(m.available); }).join(' / ') + '</span>';
+    } else {
+      box.innerHTML = 'البند: <b>' + escapeHtml(item.name) + '</b> — سعر السيستم الرسمي: <b>' + accountingMoney(systemPrice) + '</b>. يمكن تعديل سعر هذه الفاتورة فقط.';
+    }
+    updateAccountingWasteDiff(systemCost);
+  }
+
+  function updateAccountingWasteDiff(systemCost) {
+    if (systemCost === undefined) systemCost = accountingAutoCostFromSelectedMaterial();
+    const sale = numericAmount(($("accDeptLineSalePrice") || {}).value || 0);
+    const systemPrice = numericAmount(($("accDeptLineSystemPrice") || {}).value || 0) || accountingSystemPriceForSelectedItem();
+    const rawDiff = sale && systemPrice ? (sale - systemPrice) : 0;
+    const diff = Math.abs(rawDiff);
+    if ($("accDeptLinePriceDiff")) $("accDeptLinePriceDiff").value = diff ? diff.toFixed(2) : "";
+    const damage = numericAmount(($("accDeptLineDamageCost") || {}).value || 0);
+    const coveredManual = numericAmount(($("accDeptLineDamageCovered") || {}).value || 0);
+    const autoCover = rawDiff > 0 ? rawDiff : 0;
+    const covered = coveredManual || autoCover;
+    const rem = Math.max(0, damage - covered);
+    if ($("accDeptLineDamageCovered") && autoCover && !coveredManual) $("accDeptLineDamageCovered").value = autoCover.toFixed(2);
+    if ($("accDeptLineDamageRemaining")) $("accDeptLineDamageRemaining").value = rem ? rem.toFixed(2) : "";
+    const msg = $("accWasteMsg");
+    if (msg) {
+      const diffText = diff ? (rawDiff > 0 ? "فرق زيادة عن سعر السيستم: " : "فرق نقص عن سعر السيستم: ") + accountingMoney(diff) + ". " : "";
+      msg.textContent = diffText + (damage ? ("كان عليه " + accountingMoney(damage) + " / عوض " + accountingMoney(covered) + " / باقي " + accountingMoney(rem)) : "أي تعديل عن سعر السيستم يتسجل في هوالك القسم، ولا يغير السعر في قاعدة البيانات.");
+    }
+  }
+
+  function finalProductSelectChanged() {
+    const raw = (($("accFinalProductSelect") || {}).value || "").trim();
+    if (!raw) return;
+    let name = raw;
+    let materialName = raw;
+    if (raw.indexOf("TPL|") === 0) {
+      const tpl = accountingTplByName(raw.slice(4));
+      if (tpl) { name = templateItemName(tpl); materialName = templateMaterialName(tpl); }
+    } else if (raw.indexOf("MAT|") === 0) {
+      const mat = materialByName(raw.slice(4));
+      if (mat) { name = mat.materialName || mat["اسم الخامة"] || raw.slice(4); materialName = name; }
+    }
+    if ($("accFinalManualDescription")) $("accFinalManualDescription").value = name;
+    const validation = collectMaterialRequirements(materialName, 1).filter(function (x) { return x.missing; });
+    if (validation.length) setMsg("accountingMsg", "لا يمكن استخراج " + name + " لأن في باند ناقص: " + validation.map(function (m) { return m.materialName + " مطلوب " + m.required + " والمتاح " + m.available; }).join(" / "), true);
+    else setMsg("accountingMsg", "تم اختيار بند محفوظ من مطبخ الحسابات. اكتبي قيمة البيع النهائية أو استدعي أجزاء وائل وجابر.", false);
+  }
+
+  const saveAccountingDeptLineBeforePatch18 = saveAccountingDeptLine;
+  async function saveAccountingDeptLine() {
+    if (!accountingCanEnterDeptLine()) return;
+    const item = accountingSelectedCatalogItem();
+    if (isAccountingOperatorMode() && !item) {
+      setMsg("accountingMsg", "اختار بند محفوظ من مطبخ الحسابات قبل حفظ فاتورة القسم.", true);
+      return;
+    }
+    if (item && $("accDeptLineItemName")) $("accDeptLineItemName").value = item.name;
+    const orderId = (($("accDeptLineOrderId") || {}).value || "").trim();
+    const itemName = (($("accDeptLineItemName") || {}).value || (item && item.name) || "").trim();
+    if (!orderId || !itemName) { setMsg("accountingMsg", "رقم الأوردر واسم البند مطلوبين لتسجيل فاتورة القسم.", true); return; }
+    const validation = validateSelectedMaterialAvailability();
+    if (!validation.ok) {
+      setMsg("accountingMsg", "لا يمكن حفظ الفاتورة. في باند ناقص لاستخراج المنتج: " + validation.missing.map(function (m) { return m.materialName + " مطلوب " + m.required + " والمتاح " + m.available; }).join(" / "), true);
+      return;
+    }
+    try {
+      if (currentAccountingMode() === "laser" && $("accSmartWidth") && numericAmount(($("accSmartWidth") || {}).value)) {
+        calculateSmartAccountingCost(false); if (state.accounting.smartCalc && state.accounting.smartCalc.totalCost > 0) applySmartAccountingCost();
+      } else if (isAccountingOperatorMode()) accountingAutoCostFromSelectedMaterial();
+      else if (!numericAmount(($("accDeptLineMaterialCost") || {}).value || 0) && $("accSmartWidth") && $("accSmartHeight")) { calculateSmartAccountingCost(false); if (state.accounting.smartCalc && state.accounting.smartCalc.totalCost > 0) applySmartAccountingCost(); }
+      updateAccountingWasteDiff();
+      const damageCost = ($("accDeptLineDamageCost") || {}).value || "";
+      const damageCovered = ($("accDeptLineDamageCovered") || {}).value || "";
+      const damageRemaining = ($("accDeptLineDamageRemaining") || {}).value || "";
+      const priceDiff = ($("accDeptLinePriceDiff") || {}).value || "";
+      const systemPrice = ($("accDeptLineSystemPrice") || {}).value || "";
+      const baseNotes = ($("accDeptLineNotes") || {}).value || "";
+      const diffNote = numericAmount(priceDiff) ? ("\n[فرق سعر الفاتورة عن السيستم] سعر السيستم: " + systemPrice + " / السعر المسجل: " + (($("accDeptLineSalePrice") || {}).value || "0") + " / الفرق للهوالك: " + priceDiff) : "";
+      const damageNote = numericAmount(damageCost) ? ("\n[تعويض تالف] كان عليه: " + damageCost + " / عوض: " + damageCovered + " / باقي: " + damageRemaining) : "";
+      const selectedMaterialName = item ? (item.materialName || item.name) : (($("accDeptLineMaterial") || {}).value || "");
+      const res = await api("saveAccountingDeptLine", authParams({
+        orderId: orderId,
+        lineId: ($("accDeptLineLineId") || {}).value,
+        customerName: ($("accDeptLineCustomer") || {}).value,
+        department: ($("accDeptLineDepartment") || {}).value,
+        itemType: ($("accDeptLineType") || {}).value,
+        itemName: itemName,
+        qty: ($("accDeptLineQty") || {}).value,
+        materialName: selectedMaterialName,
+        materialQty: ($("accDeptLineMaterialQty") || {}).value,
+        materialCost: ($("accDeptLineMaterialCost") || {}).value,
+        laborCost: ($("accDeptLineLaborCost") || {}).value,
+        otherCost: ($("accDeptLineOtherCost") || {}).value,
+        systemCost: numericAmount(($("accDeptLineMaterialCost") || {}).value || 0) + numericAmount(($("accDeptLineLaborCost") || {}).value || 0) + numericAmount(($("accDeptLineOtherCost") || {}).value || 0),
+        systemSalePrice: systemPrice,
+        priceDiff: priceDiff,
+        damageCost: damageCost,
+        damageCovered: damageCovered,
+        damageRemaining: damageRemaining,
+        salePrice: ($("accDeptLineSalePrice") || {}).value,
+        notes: baseNotes + diffNote + damageNote
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم تسجيل فاتورة القسم." : "فشل الحفظ."), !res.success);
+      if (res.success) {
+        ["accDeptLineLineId", "accDeptLineItemName", "accDeptLineMaterialQty", "accDeptLineMaterialCost", "accDeptLineLaborCost", "accDeptLineOtherCost", "accDeptLineSalePrice", "accDeptLineSystemPrice", "accDeptLineNotes", "accDeptLineDamageCost", "accDeptLineDamageCovered", "accDeptLineDamageRemaining", "accDeptLinePriceDiff"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        if ($("accDeptLineMaterial")) $("accDeptLineMaterial").value = "";
+        await loadAccountingData(true);
+      }
+    } catch (err) { setMsg("accountingMsg", err.message || "خطأ في تسجيل فاتورة القسم.", true); }
+  }
+
+  const saveAccountingMaterialBeforePatch18 = saveAccountingMaterial;
+  async function saveAccountingMaterial() {
+    if (!accountingCanManageMaterials()) return;
+    const name = (($("accMaterialName") || {}).value || "").trim();
+    if (!name) { setMsg("accountingMsg", "اكتب اسم الخامة أو البند المسعر.", true); return; }
+    const kind = (($("accMaterialKind") || {}).value || "raw");
+    let calc = { total: numericAmount(($("accMaterialUnitCost") || {}).value || 0), lines: [] };
+    if (kind === "composite") calc = calculateMaterialRecipeCost(true);
+    const comps = kind === "composite" ? collectMaterialRecipeComponents() : [];
+    try {
+      const res = await api("saveAccountingMaterial", authParams({
+        department: ($("accMaterialDepartment") || {}).value,
+        materialName: name,
+        materialKind: kind,
+        unit: ($("accMaterialUnit") || {}).value,
+        stockQty: ($("accMaterialStockQty") || {}).value,
+        minStock: ($("accMaterialMinStock") || {}).value,
+        unitCost: calc.total || ($("accMaterialUnitCost") || {}).value,
+        calculatedUnitCost: calc.total || ($("accMaterialUnitCost") || {}).value,
+        salePrice: ($("accMaterialSalePrice") || {}).value,
+        width: ($("accMaterialWidth") || {}).value,
+        height: ($("accMaterialHeight") || {}).value,
+        wastePercent: ($("accMaterialWaste") || {}).value,
+        componentsJson: JSON.stringify(comps),
+        formula: comps.map(function (c) { return (c.materialName || "تكلفة") + " × " + (c.qty || 0) + (c.extraCost ? (" + " + c.extraCost) : ""); }).join(" + "),
+        notes: ($("accMaterialNotes") || {}).value,
+        active: "نعم"
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم حفظ البند في مطبخ الحسابات." : "فشل الحفظ."), !res.success);
+      if (res.success) {
+        ["accMaterialName", "accMaterialUnitCost", "accMaterialSalePrice", "accMaterialWidth", "accMaterialHeight", "accMaterialWaste", "accMaterialNotes", "accMaterialUnit", "accMaterialStockQty", "accMaterialMinStock"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        if ($("accMaterialKind")) $("accMaterialKind").value = "raw";
+        setMaterialRecipeComponents([]);
+        if ($("accMaterialRecipeResult")) $("accMaterialRecipeResult").innerHTML = "تم الحفظ. البند هيظهر تلقائيًا في فواتير الموظفين.";
+        await loadAccountingData(true);
+      }
+    } catch (err) { setMsg("accountingMsg", err.message || "خطأ في حفظ مطبخ الحسابات.", true); }
+  }
+
+
+
+  const applySmartAccountingCostBeforePatch18 = applySmartAccountingCost;
+  function applySmartAccountingCost() {
+    const calc = calculateSmartAccountingCost(true);
+    if (!calc) return;
+    if ($("accDeptLineQty") && $("accSmartQty")) $("accDeptLineQty").value = $("accSmartQty").value || $("accDeptLineQty").value;
+    if ($("accDeptLineMaterialQty")) $("accDeptLineMaterialQty").value = calc.materialQty ? calc.materialQty.toFixed(4) : "";
+    if ($("accDeptLineMaterialCost")) $("accDeptLineMaterialCost").value = (calc.materialCost + calc.inkCost).toFixed(2);
+    if ($("accDeptLineLaborCost") && calc.labor) $("accDeptLineLaborCost").value = calc.labor.toFixed(2);
+    const official = accountingSystemPriceForSelectedItem();
+    const systemPrice = official || calc.totalCost;
+    accountingSetSystemPriceField(systemPrice);
+    if ($("accDeptLineSalePrice") && systemPrice && !numericAmount($("accDeptLineSalePrice").value)) $("accDeptLineSalePrice").value = systemPrice.toFixed(2);
+    updateAccountingWasteDiff(calc.totalCost);
+    setMsg("accountingMsg", "تم تطبيق حساب AI على فاتورة القسم. يمكن تعديل سعر القطعة لهذه الفاتورة فقط، والفرق يروح في هوالك القسم.", false);
+  }
+
+
+
+  function accountingMaterialNameForValidationFromSelect(selectId) {
+    const raw = ((selectId ? $(selectId) : $("accDeptLineMaterial")) || {}).value || "";
+    if (!raw) return "";
+    if (raw.indexOf("TPL|") === 0) {
+      const tpl = accountingTplByName(raw.slice(4));
+      return tpl ? templateMaterialName(tpl) : raw.slice(4);
+    }
+    if (raw.indexOf("MAT|") === 0) return raw.slice(4);
+    return raw;
+  }
+
+  function validateSelectedMaterialAvailability() {
+    const matName = accountingMaterialNameForValidationFromSelect("accDeptLineMaterial");
+    if (!matName) return { ok: true, missing: [] };
+    const qty = numericAmount(($("accDeptLineQty") || {}).value || 1) || 1;
+    const missing = collectMaterialRequirements(matName, qty).filter(function (x) { return x.missing; });
+    if (missing.length) return { ok: false, missing: missing };
+    return { ok: true, missing: [] };
+  }
+
+  const saveAccountingFinalInvoiceBeforePatch18 = saveAccountingFinalInvoice;
+  async function saveAccountingFinalInvoice() {
+    const sel = $("accFinalProductSelect");
+    const raw = (sel && sel.value || "").trim();
+    if (raw) {
+      let displayName = raw;
+      let matName = raw;
+      if (raw.indexOf("TPL|") === 0) {
+        const tpl = accountingTplByName(raw.slice(4));
+        if (tpl) { displayName = templateItemName(tpl); matName = templateMaterialName(tpl); }
+      } else if (raw.indexOf("MAT|") === 0) {
+        const mat = materialByName(raw.slice(4));
+        if (mat) { displayName = mat.materialName || mat["اسم الخامة"] || raw.slice(4); matName = displayName; }
+      }
+      const missing = collectMaterialRequirements(matName, 1).filter(function (x) { return x.missing; });
+      if (missing.length) {
+        setMsg("accountingMsg", "لا يمكن تقفيل الفاتورة. في باند ناقص لاستخراج " + displayName + ": " + missing.map(function (m) { return m.materialName + " مطلوب " + m.required + " والمتاح " + m.available; }).join(" / "), true);
+        return;
+      }
+      if ($("accFinalManualDescription") && !$("accFinalManualDescription").value.trim()) $("accFinalManualDescription").value = displayName;
+      const old = sel.value;
+      sel.value = "";
+      try { return await saveAccountingFinalInvoiceBeforePatch18(); }
+      finally { sel.value = old; }
+    }
+    return saveAccountingFinalInvoiceBeforePatch18();
+  }
+
+
+
   function wireEvents() {
     function on(id, eventName, handler) {
       const el = $(id);
@@ -6382,6 +6816,409 @@ Trend Mall`;
     wireTableCustomerSearch();
   }
 
+
+
+  /*********************** Patch 19 - تشغيل نهائي: نوت متحركة + شيتات SSO + EasyStore + فاتورة للعميل ***********************/
+
+  function patch19UserMode() {
+    const u = state.user || {};
+    const key = normalizeArabic([u.username, u.name, u.role, u.department].join(" "));
+    if (key.indexOf("ضياء") !== -1 || key.indexOf("diaa") !== -1 || key.indexOf("admin") !== -1 || key.indexOf("ادارة") !== -1 || key.indexOf("إدارة") !== -1) return "admin";
+    if (key.indexOf("رحمه") !== -1 || key.indexOf("رحمة") !== -1 || key.indexOf("rahma") !== -1 || key.indexOf("ريفان") !== -1 || key.indexOf("ريڤان") !== -1 || key.indexOf("revan") !== -1 || key.indexOf("rivan") !== -1) return "final";
+    if (key.indexOf("جابر") !== -1 || key.indexOf("gaber") !== -1 || key.indexOf("jaber") !== -1 || key.indexOf("laser") !== -1 || key.indexOf("ليزر") !== -1) return "laser";
+    if (key.indexOf("وائل") !== -1 || key.indexOf("wael") !== -1 || key.indexOf("print") !== -1 || key.indexOf("طباعة") !== -1) return "print";
+    return "employee";
+  }
+
+  function patch19RoleDepartment(mode) {
+    mode = mode || patch19UserMode();
+    if (mode === "print") return "طباعة";
+    if (mode === "laser") return "ليزر";
+    if (mode === "final") return "تقفيل";
+    if (mode === "admin") return "إدارة";
+    return "موظف";
+  }
+
+  function patch19CanSeeNote(row) {
+    const cat = text(row.category || row["القسم"] || "الجميع");
+    const by = normalizeArabic(row.by || row["حفظ بواسطة"] || "");
+    const u = state.user || {};
+    const me = normalizeArabic(u.username || u.name || "");
+    const mode = patch19UserMode();
+    if (!cat || cat === "عام" || cat === "الجميع") return true;
+    if (cat === "نوت خاصة بي") return by && me && (by === me || by.indexOf(me) !== -1 || me.indexOf(by) !== -1);
+    if (mode === "admin") return true;
+    if (cat === "قسم الطباعة") return mode === "print";
+    if (cat === "قسم الليزر") return mode === "laser";
+    if (cat === "رحمة وريفان") return mode === "final";
+    return true;
+  }
+
+  function renderMatbagyNotesLocal() {
+    const list = $("matbagyNotesList");
+    if (!list) return;
+    const rows = (state.matbagyNotes || loadMatbagyNotesLocal() || []).filter(patch19CanSeeNote);
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty compact-note-empty">لا توجد نوتات ظاهرة لك.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 40).map(function (r, i) {
+      const cat = escapeHtml(r.category || "الجميع");
+      const content = escapeHtml(r.content || r.note || "");
+      const by = escapeHtml(r.by || "");
+      const time = escapeHtml(r.time || "");
+      return '<div class="matbagy-note-item patch19-note-item">' +
+        '<div class="note-item-head"><span>' + cat + '</span><button type="button" class="ghost small-note-delete" data-note-index="' + i + '">حذف</button></div>' +
+        '<p>' + content + '</p>' +
+        '<small>' + by + (time ? ' • ' + time : '') + '</small>' +
+      '</div>';
+    }).join("");
+    list.querySelectorAll(".small-note-delete").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const idx = Number(btn.getAttribute("data-note-index"));
+        const all = loadMatbagyNotesLocal();
+        const visible = all.filter(patch19CanSeeNote);
+        const target = visible[idx];
+        const next = all.filter(function (x) { return x !== target; });
+        state.matbagyNotes = next;
+        saveMatbagyNotesLocal(next);
+        renderMatbagyNotesLocal();
+      });
+    });
+  }
+
+  function patch19NotePositionKey() {
+    const u = state.user || {};
+    return "matbagy_note_position_patch19_" + (u.username || u.name || "employee");
+  }
+
+  function patch19ClampNotePosition(left, top) {
+    const card = document.querySelector("#matbagyNoteModal .matbagy-note-card");
+    if (!card) return { left: left || 20, top: top || 80 };
+    const margin = 8;
+    const width = card.offsetWidth || 390;
+    const height = card.offsetHeight || 520;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - Math.min(height, window.innerHeight - margin * 2) - margin);
+    return {
+      left: Math.min(Math.max(margin, Number(left) || margin), maxLeft),
+      top: Math.min(Math.max(margin, Number(top) || margin), maxTop)
+    };
+  }
+
+  function patch19ApplyNotePosition(pos) {
+    const card = document.querySelector("#matbagyNoteModal .matbagy-note-card");
+    if (!card) return;
+    const p = patch19ClampNotePosition(pos && pos.left, pos && pos.top);
+    card.style.left = p.left + "px";
+    card.style.top = p.top + "px";
+    card.style.right = "auto";
+  }
+
+  function patch19RestoreNotePosition() {
+    const card = document.querySelector("#matbagyNoteModal .matbagy-note-card");
+    if (!card) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(patch19NotePositionKey()) || "null");
+      if (saved) { patch19ApplyNotePosition(saved); return; }
+    } catch (e) {}
+    const defaultLeft = Math.max(12, window.innerWidth - (card.offsetWidth || 390) - 24);
+    patch19ApplyNotePosition({ left: defaultLeft, top: 88 });
+  }
+
+  function patch19MakeNoteDraggable() {
+    const dock = $("matbagyNoteModal");
+    const card = dock && dock.querySelector(".matbagy-note-card");
+    if (!dock || !card || dock.dataset.patch19Drag === "1") return;
+    dock.dataset.patch19Drag = "1";
+    const handle = dock.querySelector(".matbagy-note-drag-handle") || card;
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    function down(ev) {
+      const target = ev.target;
+      if (target && target.closest && target.closest("button,input,select,textarea,.matbagy-notes-list")) return;
+      const p = ev.touches ? ev.touches[0] : ev;
+      if (!p) return;
+      const rect = card.getBoundingClientRect();
+      dragging = true;
+      offsetX = p.clientX - rect.left;
+      offsetY = p.clientY - rect.top;
+      card.classList.add("dragging");
+      card.style.left = rect.left + "px";
+      card.style.top = rect.top + "px";
+      card.style.right = "auto";
+      ev.preventDefault && ev.preventDefault();
+    }
+    function move(ev) {
+      if (!dragging) return;
+      const p = ev.touches ? ev.touches[0] : ev;
+      if (!p) return;
+      patch19ApplyNotePosition({ left: p.clientX - offsetX, top: p.clientY - offsetY });
+      ev.preventDefault && ev.preventDefault();
+    }
+    function up() {
+      if (!dragging) return;
+      dragging = false;
+      card.classList.remove("dragging");
+      const rect = card.getBoundingClientRect();
+      try { localStorage.setItem(patch19NotePositionKey(), JSON.stringify({ left: rect.left, top: rect.top })); } catch (e) {}
+    }
+    handle.addEventListener("mousedown", down);
+    handle.addEventListener("touchstart", down, { passive: false });
+    window.addEventListener("mousemove", move, { passive: false });
+    window.addEventListener("touchmove", move, { passive: false });
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+    window.addEventListener("resize", patch19RestoreNotePosition);
+  }
+
+  function openMatbagyNotePanel() {
+    if (!employeeCanOpenMatbagyNote()) { alert("نوت مطبعجي متاحة للموظفين فقط."); return; }
+    const modal = $("matbagyNoteModal");
+    if (!modal) { alert("شاشة نوت مطبعجي غير موجودة. ارفع index.html و app.js معًا من Patch 19."); return; }
+    modal.classList.remove("hidden");
+    patch19MakeNoteDraggable();
+    patch19RestoreNotePosition();
+    renderMatbagyNotesLocal();
+    loadMatbagyNotesServer();
+    setTimeout(function () { const t = $("matbagyNoteContent"); if (t) t.focus(); }, 80);
+  }
+
+  function clearMatbagyNoteForm() {
+    const t = $("matbagyNoteContent"); if (t) t.value = "";
+    const title = $("matbagyNoteTitle"); if (title) title.value = "نوت مطبعجي";
+    setMsg("matbagyNoteMsg", "", false);
+  }
+
+  async function saveMatbagyNoteLocal() {
+    const content = (($("matbagyNoteContent") || {}).value || "").trim();
+    const category = (($("matbagyNoteCategory") || {}).value || "الجميع").trim();
+    const title = "نوت مطبعجي - " + category;
+    if (!content) { setMsg("matbagyNoteMsg", "اكتب النوت الأول.", true); return; }
+    try {
+      const res = await api("saveMatbagyNote", authParams({ title: title, content: content, category: category }));
+      if (!res || !res.success) throw new Error((res && res.message) || "تعذر حفظ النوت على السيرفر.");
+      clearMatbagyNoteForm();
+      setMsg("matbagyNoteMsg", res.message || "تم حفظ النوت.", false);
+      await loadMatbagyNotesServer();
+    } catch (err) {
+      const u = state.user || {};
+      const rows = loadMatbagyNotesLocal();
+      rows.unshift({ title: title, content: content, category: category, by: u.username || u.name || "موظف", time: new Date().toLocaleString("ar-EG") });
+      state.matbagyNotes = rows;
+      saveMatbagyNotesLocal(rows);
+      clearMatbagyNoteForm();
+      renderMatbagyNotesLocal();
+      setMsg("matbagyNoteMsg", "تم حفظ النوت محليًا. راجع Deploy لو عايزها تظهر لكل الموظفين.", true);
+    }
+  }
+
+  function patch19OpenEmployeeTool(baseUrl, windowName, label, extraParams) {
+    const base = text(baseUrl || "").trim();
+    if (!base) { alert("رابط " + label + " غير مضبوط في config.js"); return; }
+    if (!isEmployeeLoggedIn()) { alert("سجل دخول الموظف الأول."); return; }
+    const u = state.user || {};
+    const params = Object.assign({
+      from: "trendos",
+      sso: "1",
+      skipLogin: "1",
+      noPassword: "1",
+      username: u.username || u.name || "",
+      name: u.name || u.username || "",
+      token: u.token || "",
+      roleMode: patch19UserMode(),
+      department: patch19RoleDepartment()
+    }, extraParams || {});
+    try {
+      localStorage.setItem("MATBAGY_EMPLOYEE_SSO", JSON.stringify({ at: Date.now(), user: u, params: params }));
+    } catch (e) {}
+    window.open(withQuery(base, params), windowName || "Matbagy_Tool");
+  }
+
+  function openMatbagySheetsTool() {
+    patch19OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات", { tool: "sheets" });
+  }
+
+  function patch19OpenEasyStoreAccounting() {
+    const mode = currentAccountingMode ? currentAccountingMode() : patch19UserMode();
+    const url = text(window.MATBAGY_EASY_STORE_URL || "").trim();
+    if (!url) {
+      alert("رابط Easy Store غير مضبوط في config.js");
+      return;
+    }
+    patch19OpenEmployeeTool(url, "Matbagy_EasyStore_Accounting", "إيزي ستور الحسابات", {
+      module: "accounting",
+      screen: mode === "full" || mode === "admin" ? "kitchen" : (mode === "final" ? "final_invoice" : "dept_invoice"),
+      mode: mode,
+      hideCosts: (mode === "print" || mode === "laser") ? "1" : "0",
+      laserAi: mode === "laser" ? "1" : "0",
+      finalInvoice: mode === "final" ? "1" : "0",
+      wasteByDepartment: "1"
+    });
+  }
+
+  function openAccountingPanel() {
+    patch19OpenEasyStoreAccounting();
+  }
+
+  function patch19Money(n) {
+    n = numericAmount(n);
+    return n ? n.toLocaleString("ar-EG", { maximumFractionDigits: 2 }) + " ج" : "0 ج";
+  }
+
+  function patch19InvoiceDataForOrder(row) {
+    row = row || {};
+    const orderId = text(row.orderId || "");
+    const acc = state.accounting || {};
+    const finals = (acc.finalInvoices || []).filter(function (x) { return text(x.orderId || x["رقم الأوردر"]) === orderId; });
+    const finalInvoice = finals.length ? finals[finals.length - 1] : null;
+    const lines = (acc.deptLines || []).filter(function (x) { return text(x.orderId || x["رقم الأوردر"]) === orderId; });
+    const items = [];
+    lines.forEach(function (x) {
+      items.push({
+        name: x.itemName || x["اسم البند"] || "بند",
+        qty: numericAmount(x.qty || x["الكمية"] || 1) || 1,
+        amount: numericAmount(x.salePrice || x["سعر البيع"] || 0),
+        dept: x.department || x["القسم"] || ""
+      });
+    });
+    const manualName = finalInvoice && (finalInvoice["بند يدوي"] || finalInvoice.manualDescription);
+    const manualAmount = finalInvoice && numericAmount(finalInvoice["قيمة بند يدوي"] || finalInvoice.manualAmount || 0);
+    if (manualName || manualAmount) items.push({ name: manualName || "بند يدوي", qty: 1, amount: manualAmount, dept: "نهائي" });
+    const subtotal = finalInvoice ? numericAmount(finalInvoice.finalTotal || finalInvoice["الإجمالي النهائي"] || 0) : items.reduce(function (s, x) { return s + numericAmount(x.amount); }, 0);
+    const paid = finalInvoice ? numericAmount(finalInvoice.paid || finalInvoice["المدفوع"] || 0) : 0;
+    const remaining = finalInvoice ? numericAmount(finalInvoice.remaining || finalInvoice["الباقي"] || Math.max(0, subtotal - paid)) : Math.max(0, subtotal - paid);
+    return {
+      orderId: orderId,
+      invoiceNo: finalInvoice ? (finalInvoice.invoiceNo || finalInvoice["رقم الفاتورة"] || "") : "مسودة-" + orderId,
+      customer: (finalInvoice && (finalInvoice.customerName || finalInvoice["اسم العميل"])) || row.customer || row.customerName || "عميل مطبعجي",
+      phone: row.customerPhone || "",
+      status: (finalInvoice && (finalInvoice.status || finalInvoice["الحالة"])) || row.status || "",
+      items: items.length ? items : [{ name: row.work || row.item || "خدمة مطبعجي", qty: 1, amount: 0, dept: row.department || "" }],
+      subtotal: subtotal,
+      paid: paid,
+      remaining: remaining
+    };
+  }
+
+  function patch19InvoiceText(row) {
+    const inv = patch19InvoiceDataForOrder(row);
+    const lines = [
+      "فاتورة مطبعجي",
+      "رقم الفاتورة: " + inv.invoiceNo,
+      "رقم الأوردر: " + inv.orderId,
+      "العميل: " + inv.customer,
+      "--------------------"
+    ];
+    inv.items.forEach(function (x, i) { lines.push((i + 1) + ") " + x.name + " × " + x.qty + " = " + patch19Money(x.amount)); });
+    lines.push("--------------------");
+    lines.push("الإجمالي: " + patch19Money(inv.subtotal));
+    lines.push("المدفوع: " + patch19Money(inv.paid));
+    lines.push("الباقي: " + patch19Money(inv.remaining));
+    return lines.join("\n");
+  }
+
+  async function patch19EnsureAccountingLoaded() {
+    if (state.accounting && ((state.accounting.finalInvoices || []).length || (state.accounting.deptLines || []).length)) return;
+    try { await loadAccountingData(true); } catch (e) {}
+  }
+
+  function patch19PrintableInvoiceHtml(row) {
+    const inv = patch19InvoiceDataForOrder(row);
+    const tr = inv.items.map(function (x, i) {
+      return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(x.name) + '</td><td>' + escapeHtml(x.dept || '') + '</td><td>' + escapeHtml(x.qty) + '</td><td>' + escapeHtml(patch19Money(x.amount)) + '</td></tr>';
+    }).join('');
+    return '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>فاتورة ' + escapeHtml(inv.invoiceNo) + '</title>' +
+      '<style>body{font-family:Tahoma,Arial,sans-serif;background:#f4f7f6;margin:0;padding:24px;color:#0f172a}.invoice{max-width:760px;margin:auto;background:#fff;border-radius:24px;padding:28px;box-shadow:0 12px 38px #0002}.head{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #0f8f78;padding-bottom:16px;margin-bottom:18px}.brand{font-size:28px;font-weight:900;color:#0f766e}.badge{background:#ecfdf5;border:1px solid #99f6e4;border-radius:999px;padding:8px 14px;font-weight:800}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #dbe7e4;padding:10px;text-align:right}th{background:#ecfdf5;color:#065f46}.totals{margin-top:18px;display:grid;gap:8px;max-width:320px;margin-right:auto}.totals div{display:flex;justify-content:space-between;border:1px solid #dbe7e4;border-radius:12px;padding:10px}.total{background:#0f8f78;color:#fff;font-weight:900}@media print{body{background:#fff;padding:0}.invoice{box-shadow:none;border-radius:0}}</style></head><body>' +
+      '<div class="invoice"><div class="head"><div><div class="brand">مطبعجي</div><div>فاتورة عميل</div></div><div class="badge">' + escapeHtml(inv.invoiceNo) + '</div></div>' +
+      '<p><b>رقم الأوردر:</b> ' + escapeHtml(inv.orderId) + '</p><p><b>العميل:</b> ' + escapeHtml(inv.customer) + '</p><p><b>التاريخ:</b> ' + new Date().toLocaleString("ar-EG") + '</p>' +
+      '<table><thead><tr><th>#</th><th>البند</th><th>القسم</th><th>الكمية</th><th>القيمة</th></tr></thead><tbody>' + tr + '</tbody></table>' +
+      '<div class="totals"><div class="total"><span>الإجمالي</span><b>' + escapeHtml(patch19Money(inv.subtotal)) + '</b></div><div><span>المدفوع</span><b>' + escapeHtml(patch19Money(inv.paid)) + '</b></div><div><span>الباقي</span><b>' + escapeHtml(patch19Money(inv.remaining)) + '</b></div></div>' +
+      '<p style="margin-top:22px;color:#64748b">شكراً لاختياركم مطبعجي.</p></div><script>setTimeout(function(){window.print()},450)</script></body></html>';
+  }
+
+  async function patch19OpenInvoicePdf(row) {
+    await patch19EnsureAccountingLoaded();
+    const html = patch19PrintableInvoiceHtml(row);
+    const w = window.open("", "Matbagy_Customer_Invoice");
+    if (!w) { alert("اسمح بفتح النوافذ المنبثقة لطباعة الفاتورة PDF."); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+
+  async function patch19DownloadInvoiceImage(row) {
+    await patch19EnsureAccountingLoaded();
+    const inv = patch19InvoiceDataForOrder(row);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1200; canvas.height = Math.max(900, 520 + inv.items.length * 70);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#0f766e"; ctx.fillRect(0,0,canvas.width,130);
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 44px Arial"; ctx.textAlign = "right"; ctx.fillText("فاتورة مطبعجي", 1120, 78);
+    ctx.fillStyle = "#0f172a"; ctx.font = "28px Arial";
+    let y = 180;
+    ctx.fillText("رقم الفاتورة: " + inv.invoiceNo, 1120, y); y += 45;
+    ctx.fillText("رقم الأوردر: " + inv.orderId, 1120, y); y += 45;
+    ctx.fillText("العميل: " + inv.customer, 1120, y); y += 60;
+    ctx.strokeStyle = "#d1e4df"; ctx.lineWidth = 2; ctx.strokeRect(70, y - 35, 1060, 50);
+    ctx.font = "bold 24px Arial"; ctx.fillText("البند", 1040, y); ctx.fillText("الكمية", 360, y); ctx.fillText("القيمة", 190, y); y += 55;
+    ctx.font = "24px Arial";
+    inv.items.forEach(function (x) { ctx.fillText(String(x.name).slice(0,45), 1040, y); ctx.fillText(String(x.qty), 360, y); ctx.fillText(patch19Money(x.amount), 190, y); y += 52; });
+    y += 25; ctx.fillStyle = "#0f766e"; ctx.font = "bold 30px Arial"; ctx.fillText("الإجمالي: " + patch19Money(inv.subtotal), 1120, y); y += 45;
+    ctx.fillStyle = "#0f172a"; ctx.font = "26px Arial"; ctx.fillText("المدفوع: " + patch19Money(inv.paid), 1120, y); y += 40; ctx.fillText("الباقي: " + patch19Money(inv.remaining), 1120, y);
+    const link = document.createElement("a");
+    link.download = "matbagy-invoice-" + (inv.orderId || Date.now()) + ".png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
+  async function patch19CopyInvoiceAndOpenWhatsApp(row) {
+    await patch19EnsureAccountingLoaded();
+    const message = patch19InvoiceText(row) + "\n\nتم تجهيز فاتورتك، ويمكن إرسالها لك PDF أو صورة.";
+    const copied = await copyWhatsAppMessage(row.customerPhone, message);
+    if (copied) alert("تم نسخ نص الفاتورة وفتح واتساب. لو عايز ملف PDF اضغط زر فاتورة PDF واحفظها ثم ارفقها للعميل.");
+  }
+
+  function whatsappActions(row, i) {
+    const disabled = whatsappPhone(row.customerPhone) ? "" : " disabled";
+    const notified = text(row.customerNotified) === "نعم" ? '<small class="wa-notified">تم الإبلاغ</small>' : "";
+    const orderId = escapeHtml(row.orderId || "");
+    return '<div class="whatsapp-actions">' +
+      '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>نسخ رد الحالة</button>' +
+      '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + disabled + '>نسخ رسالة انتهاء</button>' +
+      '<button type="button" class="wa-btn wa-invoice-copy" data-order="' + orderId + '"' + disabled + '>فاتورة العميل</button>' +
+      '<button type="button" class="wa-btn wa-invoice-pdf" data-order="' + orderId + '">PDF</button>' +
+      '<button type="button" class="wa-btn wa-invoice-image" data-order="' + orderId + '">صورة</button>' +
+      '<button type="button" class="wa-btn wa-open-chat" data-i="' + i + '"' + disabled + '>فتح واتساب</button>' +
+      '<button type="button" class="wa-btn order-chat-open" data-i="' + i + '">محادثة الأوردر</button>' +
+      '<button type="button" class="wa-btn invoice-open" data-i="' + i + '">تسعير</button>' +
+      notified +
+      '</div>';
+  }
+
+  function patch19RowByButton(btn) {
+    const orderId = btn && btn.getAttribute("data-order");
+    if (!orderId) return null;
+    return (state.rows || []).find(function (r) { return text(r.orderId) === text(orderId); }) || { orderId: orderId };
+  }
+
+  document.addEventListener("click", function (ev) {
+    const copyBtn = ev.target.closest && ev.target.closest(".wa-invoice-copy");
+    const pdfBtn = ev.target.closest && ev.target.closest(".wa-invoice-pdf");
+    const imgBtn = ev.target.closest && ev.target.closest(".wa-invoice-image");
+    if (copyBtn) { patch19CopyInvoiceAndOpenWhatsApp(patch19RowByButton(copyBtn)); return; }
+    if (pdfBtn) { patch19OpenInvoicePdf(patch19RowByButton(pdfBtn)); return; }
+    if (imgBtn) { patch19DownloadInvoiceImage(patch19RowByButton(imgBtn)); return; }
+  });
+
+  function patch19RebindTopButtons() {
+    const note = $("matbagyNoteBtn");
+    if (note && note.dataset.patch19Note !== "1") { note.dataset.patch19Note = "1"; note.addEventListener("click", openMatbagyNotePanel); }
+    const acc = $("accountingBtn");
+    if (acc) acc.textContent = "💰 إيزي ستور الحسابات";
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     wireEvents();
     if (loadSession()) bootMain();
@@ -6389,5 +7226,7 @@ Trend Mall`;
     else showEntryChoice();
     setTimeout(forceVisibleMainButtonsPatch13, 300);
     setTimeout(forceVisibleMainButtonsPatch13, 1200);
+    setTimeout(patch19RebindTopButtons, 500);
+    setTimeout(patch19RebindTopButtons, 1500);
   });
 })();
