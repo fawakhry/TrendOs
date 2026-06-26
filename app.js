@@ -7312,4 +7312,134 @@ Trend Mall`;
   setTimeout(patch22RebindEmployeeButtons, 1800);
 
 
+
+  /*********************** Patch 23 - Button Safety Binding + Clickable Stats + SSO Repair ***********************/
+  window.TRENDOS_PATCH_VERSION = "1856_PATCH_23_BUTTONS_SSO_REPAIR";
+
+  function patch23SafeCall(fnName, fallback) {
+    try {
+      if (typeof window[fnName] === "function") return window[fnName]();
+      if (typeof fallback === "function") return fallback();
+    } catch (e) {
+      alert((e && e.message) || "تعذر تنفيذ الأمر.");
+    }
+  }
+
+  function patch23SetValue(id, value) {
+    const el = $(id);
+    if (!el) return false;
+    el.value = value;
+    try { el.dispatchEvent(new Event("change", { bubbles: true })); } catch (e) {}
+    return true;
+  }
+
+  function patch23ReloadOrders() {
+    try {
+      if (typeof refreshNow === "function") return refreshNow();
+      if (typeof loadDashboard === "function") loadDashboard();
+      if (typeof loadOrders === "function") return loadOrders();
+      if (typeof refreshOrders === "function") return refreshOrders();
+      location.reload();
+    } catch (e) {
+      location.reload();
+    }
+  }
+
+  function patch23OpenStatsFilter(kind) {
+    const map = {
+      all: ["statusFilter", ""],
+      urgent: ["priorityFilter", "عاجل"],
+      normal: ["priorityFilter", "عادي"],
+      late: ["statusFilter", "متأخر"],
+      debt: ["statusFilter", "مديونية"],
+      heat: ["heatPressFilter", "نعم"],
+      fly: ["priorityFilter", "عاجل"],
+      cancelled: ["statusFilter", "ملغى"]
+    };
+    const m = map[kind];
+    if (!m) return;
+    patch23SetValue(m[0], m[1]);
+    const sec = document.getElementById("ordersSection") || document.getElementById("workSection") || document.querySelector(".orders-table,.orders-list,.orders-card");
+    if (sec && sec.scrollIntoView) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+    try {
+      if (typeof renderOrdersTable === "function") renderOrdersTable();
+      if (typeof applyFilters === "function") applyFilters();
+      if (typeof renderOrders === "function") renderOrders();
+    } catch (e) {}
+  }
+
+  function patch23MakeStatsClickable() {
+    const boxes = Array.prototype.slice.call(document.querySelectorAll(".quick-stats span,.stat-row span,.dashboard-stats span,.follow-stats span,.followup-stats span"));
+    boxes.forEach(function (el) {
+      const t = (el.textContent || "").trim();
+      if (!t) return;
+      let kind = "";
+      if (t.indexOf("المعروض") !== -1 || t.indexOf("إجمالي") !== -1) kind = "all";
+      else if (t.indexOf("عاجل") !== -1) kind = "urgent";
+      else if (t.indexOf("عادي") !== -1) kind = "normal";
+      else if (t.indexOf("متأخر") !== -1) kind = "late";
+      else if (t.indexOf("مديون") !== -1) kind = "debt";
+      else if (t.indexOf("مكبس") !== -1) kind = "heat";
+      else if (t.indexOf("الطاير") !== -1) kind = "fly";
+      else if (t.indexOf("ملغ") !== -1) kind = "cancelled";
+      if (!kind) return;
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+      el.style.cursor = "pointer";
+      el.title = "اضغط لفلترة الأوردرات";
+      el.onclick = function () { patch23OpenStatsFilter(kind); };
+    });
+  }
+
+  function patch23BindMainButtons() {
+    const bind = function(id, fn, title){
+      const el = $(id);
+      if (!el) return;
+      el.onclick = function(ev){ ev && ev.preventDefault && ev.preventDefault(); fn(); };
+      if (title) el.title = title;
+      el.classList.remove("hidden");
+    };
+
+    bind("refreshBtn", patch23ReloadOrders, "تحديث الأوردرات والمتابعة الآن");
+    bind("matbagySheetsBtn", function(){
+      if (typeof openMatbagySheetsTool === "function") return openMatbagySheetsTool();
+      if (typeof patch22OpenEmployeeTool === "function") return patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات", { noPhone:"1", noActivation:"1", bypassPhoneVerification:"1" });
+      return openEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات");
+    }, "فتح مطبعجي شيتات بدون تليفون أو تفعيل للموظف");
+    bind("matbagyRotetBtn", function(){
+      if (typeof openMatbagyRotetTool === "function") return openMatbagyRotetTool();
+      return openEmployeeTool(window.MATBAGY_ROTET_URL, "Matbagy_Rotet", "روتيت مطبعجي");
+    }, "فتح روتيت مطبعجي");
+    bind("remoteFilesBtn", function(){
+      if (typeof openMatbagyFilesSSO === "function") return openMatbagyFilesSSO();
+      if (typeof openRemoteFiles === "function") return openRemoteFiles();
+      if (typeof openMatbagyRemoteFiles === "function") return openMatbagyRemoteFiles();
+    }, "فتح ملفات مطبعجي");
+    bind("matbagyNoteBtn", function(){
+      if (typeof openMatbagyNotePanel === "function") return openMatbagyNotePanel();
+      if (typeof patch19OpenMatbagyNote === "function") return patch19OpenMatbagyNote();
+    }, "فتح نوت مطبعجي");
+    bind("accountingBtn", function(){
+      if (typeof openAccountingPanel === "function") return openAccountingPanel();
+      if (typeof patch19OpenEasyStoreAccounting === "function") return patch19OpenEasyStoreAccounting();
+    }, "فتح EasyStore / مطبخ الحسابات حسب صلاحية الموظف");
+    bind("logoutBtn", function(){ if (typeof logout === "function") logout(); else location.reload(); });
+    bind("changePassBtn", function(){ if (typeof showChangePassword === "function") showChangePassword(); else { const m=$("changePassModal"); if(m) m.classList.remove("hidden"); }});
+    patch23MakeStatsClickable();
+  }
+
+  document.addEventListener("click", function(ev){
+    const btn = ev.target && ev.target.closest && ev.target.closest("button");
+    if (!btn) return;
+    const id = btn.id || "";
+    if (id === "refreshBtn" || id === "matbagySheetsBtn" || id === "matbagyRotetBtn" || id === "remoteFilesBtn" || id === "matbagyNoteBtn" || id === "accountingBtn") {
+      patch23BindMainButtons();
+    }
+  }, true);
+
+  setInterval(patch23MakeStatsClickable, 3000);
+  setTimeout(patch23BindMainButtons, 300);
+  setTimeout(patch23BindMainButtons, 1200);
+  setTimeout(patch23BindMainButtons, 2500);
+
 })();
