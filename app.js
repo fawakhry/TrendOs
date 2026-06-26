@@ -7229,4 +7229,87 @@ Trend Mall`;
     setTimeout(patch19RebindTopButtons, 500);
     setTimeout(patch19RebindTopButtons, 1500);
   });
+  /*********************** Patch 22 - Sheets SSO No Phone + EasyStore Gaber Laser Mode ***********************/
+  window.MATBAGY_PATCH_22 = "Sheets SSO + Gaber Laser EasyStore";
+
+  function patch22EmployeeToolParams(extraParams) {
+    const u = state.user || {};
+    return Object.assign({
+      from: "trendos",
+      sso: "1",
+      employeeSSO: "1",
+      skipLogin: "1",
+      noPassword: "1",
+      noPhone: "1",
+      noActivation: "1",
+      phoneRequired: "0",
+      activationRequired: "0",
+      trustedEmployee: "1",
+      username: u.username || u.name || "",
+      name: u.name || u.username || "",
+      token: u.token || "",
+      roleMode: patch19UserMode ? patch19UserMode() : "employee",
+      department: patch19RoleDepartment ? patch19RoleDepartment() : "موظف"
+    }, extraParams || {});
+  }
+
+  function patch22OpenEmployeeTool(baseUrl, windowName, label, extraParams) {
+    const base = text(baseUrl || "").trim();
+    if (!base) { alert("رابط " + label + " غير مضبوط في config.js"); return; }
+    if (!isEmployeeLoggedIn()) { alert("سجل دخول الموظف الأول."); return; }
+    const params = patch22EmployeeToolParams(extraParams);
+    try { localStorage.setItem("MATBAGY_EMPLOYEE_SSO", JSON.stringify({ at: Date.now(), user: state.user || {}, params: params })); } catch (e) {}
+    window.open(withQuery(base, params), windowName || "Matbagy_Tool");
+  }
+
+  openMatbagySheetsTool = function () {
+    patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات", {
+      tool: "sheets",
+      openWithoutPhone: "1",
+      bypassPhoneVerification: "1",
+      bypassActivation: "1",
+      employeePortal: "1"
+    });
+  };
+
+  patch19OpenEasyStoreAccounting = function () {
+    const mode = currentAccountingMode ? currentAccountingMode() : patch19UserMode();
+    const userMode = patch19UserMode ? patch19UserMode() : mode;
+    const url = text(window.MATBAGY_EASY_STORE_URL || "").trim();
+    if (!url) { alert("رابط EasyStore غير مضبوط في config.js"); return; }
+    patch22OpenEmployeeTool(url, "Matbagy_EasyStore_Accounting", "إيزي ستور الحسابات", {
+      module: "accounting",
+      screen: (mode === "full" || mode === "admin" || userMode === "admin") ? "kitchen" : (mode === "final" || userMode === "final" ? "final_invoice" : "dept_invoice"),
+      mode: mode,
+      roleMode: userMode,
+      hideCosts: (mode === "print" || mode === "laser" || userMode === "print" || userMode === "laser") ? "1" : "0",
+      laserAi: (mode === "laser" || userMode === "laser") ? "1" : "0",
+      useLaserMaterialsFromKitchen: (mode === "laser" || userMode === "laser") ? "1" : "0",
+      finalInvoice: (mode === "final" || userMode === "final") ? "1" : "0",
+      wasteByDepartment: "1"
+    });
+  };
+
+  openAccountingPanel = function () {
+    patch19OpenEasyStoreAccounting();
+  };
+
+  function patch22RebindEmployeeButtons() {
+    const sheets = $("matbagySheetsBtn");
+    if (sheets) {
+      sheets.onclick = openMatbagySheetsTool;
+      sheets.title = "يفتح برنامج الشيتات للموظف بدون رقم تليفون أو تفعيل";
+    }
+    const acc = $("accountingBtn");
+    if (acc) {
+      acc.textContent = "💰 إيزي ستور الحسابات";
+      acc.onclick = openAccountingPanel;
+      acc.title = "يفتح EasyStore بإعدادات الموظف وحاسبة جابر لخامات الليزر";
+    }
+  }
+
+  setTimeout(patch22RebindEmployeeButtons, 700);
+  setTimeout(patch22RebindEmployeeButtons, 1800);
+
+
 })();
