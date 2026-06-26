@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_BATCH_24_STABLE_ERP";
+  const UI_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -7442,14 +7442,14 @@ Trend Mall`;
   setTimeout(patch23BindMainButtons, 2500);
 
 
-  /*********************** Batch 24 - Stable ERP Cache + Status + Tool SSO ***********************/
-  window.TRENDOS_PATCH_VERSION = "1856_BATCH_24_STABLE_ERP";
-  window.TRENDOS_LOADED_APP_VERSION = "Batch 24 - Stable ERP";
+  /*********************** Batch 25 - Full Accounting Core Cache + Status + Tool SSO ***********************/
+  window.TRENDOS_PATCH_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
+  window.TRENDOS_LOADED_APP_VERSION = "Batch 25 - Full Accounting Core";
 
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1856 - Batch 24 Stable ERP';
+        el.textContent = 'مطبعجي مصر V1856 - Batch 25 Full Accounting Core';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7545,4 +7545,128 @@ Trend Mall`;
   setTimeout(batch24RebindStable, 1200);
   setInterval(function(){ batch24EnsureStatusOptions(); }, 5000);
 
+})();
+
+
+/*********************** Batch 25 - Stable Full Accounting Core + Strong Filters + Sheets SSO ***********************/
+(function(){
+  window.TRENDOS_PATCH_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
+  window.TRENDOS_LOADED_APP_VERSION = "Batch 25 - Full Accounting Core";
+
+  function qs(id){ return document.getElementById(id); }
+  function norm(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
+  function employeePayload(extra){
+    var u = (window.state && window.state.user) || (window.currentUser) || {};
+    var name = u.name || u.username || localStorage.getItem('matbagy_user_name') || 'ضياء';
+    var username = u.username || u.name || name;
+    var role = u.role || u.permission || u.section || u.department || '';
+    var dept = /جابر|gaber|jaber|ليزر/i.test(name+' '+role) ? 'ليزر' : (/وائل|wael|طباعة/i.test(name+' '+role) ? 'طباعة' : '');
+    var p = Object.assign({
+      from:'trendos', sso:'1', employeeSSO:'1', skipLogin:'1', noPhone:'1', noActivation:'1',
+      bypassPhoneVerification:'1', bypassActivation:'1', openWithoutPhone:'1', employeePortal:'1',
+      phoneRequired:'0', activationRequired:'0', requirePhone:'0', requireActivation:'0',
+      username: username, name: name, role: role, department: dept,
+      token: (window.sessionToken || localStorage.getItem('matbagy_session_token') || ''),
+      ts: Date.now()
+    }, extra || {});
+    try { localStorage.setItem('MATBAGY_EMPLOYEE_SSO', JSON.stringify({user:u, params:p, createdAt:Date.now()})); } catch(e){}
+    return p;
+  }
+  function openTool(url, win, extra){
+    if (!url) { alert('الرابط غير مضبوط في config.js'); return; }
+    var u = new URL(url, location.href);
+    var p = employeePayload(extra);
+    Object.keys(p).forEach(function(k){ u.searchParams.set(k, p[k]); });
+    window.open(u.toString(), win || '_blank');
+  }
+  window.openMatbagySheetsTool = function(){
+    return openTool(window.MATBAGY_SHEETS_URL || 'https://fawakhry.github.io/Matbagy/?from=trendos', 'Matbagy_Sheets', {tool:'sheets'});
+  };
+  window.openMatbagyEasyStoreAccounting = function(){
+    return openTool(window.MATBAGY_EASY_STORE_URL || 'https://fawakhry.github.io/EasyStore/', 'EasyStore_Matbagy', {tool:'easystore', mode:'accounting'});
+  };
+
+  function setSelect(id, value){
+    var el = qs(id); if (!el) return false;
+    var v = String(value||'');
+    var found = Array.from(el.options || []).some(function(o){ return String(o.value||o.textContent) === v; });
+    if (v && !found) { var op=document.createElement('option'); op.value=v; op.textContent=v; el.appendChild(op); }
+    el.value = v;
+    try { el.dispatchEvent(new Event('input', {bubbles:true})); } catch(e){}
+    try { el.dispatchEvent(new Event('change', {bubbles:true})); } catch(e){}
+    return true;
+  }
+  function runFilter(){
+    try { if (typeof applyFiltersAndRender === 'function') return applyFiltersAndRender(true); } catch(e){}
+    try { if (typeof renderTable === 'function' && window.state && Array.isArray(state.rows)) return renderTable(state.rows); } catch(e){}
+    try { if (typeof loadRows === 'function') return loadRows(false); } catch(e){}
+  }
+  function clearFilters(){ setSelect('statusFilter',''); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); var s=qs('tableSearch'); if(s){s.value=''; s.dispatchEvent(new Event('input',{bubbles:true}));} }
+  function applyFollowFilter(kind){
+    if (kind === 'all') clearFilters();
+    if (kind === 'urgent') { setSelect('priorityFilter','عاجل'); setSelect('statusFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'normal') { setSelect('priorityFilter','عادي'); setSelect('statusFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'late') { setSelect('statusFilter','__OVERDUE__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'today') { setSelect('statusFilter','__TODAY_WORK__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'deliveredToday') { setSelect('statusFilter','__DELIVERED_TODAY__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'debt') { setSelect('statusFilter','مديونية'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'heat') { setSelect('heatPressFilter','only'); setSelect('statusFilter',''); setSelect('priorityFilter',''); }
+    if (kind === 'fly') { var search=qs('tableSearch'); if(search){search.value='طباعة على الطاير'; search.dispatchEvent(new Event('input',{bubbles:true}));} setSelect('statusFilter',''); }
+    if (kind === 'cancelled') { setSelect('statusFilter','ملغى'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'duplicate') { setSelect('statusFilter','مكرر'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'stopped') { setSelect('statusFilter','متوقف'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    try { document.querySelectorAll('.batch25-active-filter').forEach(function(x){x.classList.remove('batch25-active-filter')}); } catch(e){}
+    runFilter();
+    var sec = qs('ordersSection') || qs('workSection') || document.querySelector('.filters');
+    if (sec && sec.scrollIntoView) sec.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  function kindFromText(t){
+    t = norm(t);
+    if (/المعروض|إجمالي|كل/.test(t)) return 'all';
+    if (/عاجل/.test(t)) return 'urgent';
+    if (/عادي/.test(t)) return 'normal';
+    if (/متأخر/.test(t)) return 'late';
+    if (/شغل اليوم/.test(t)) return 'today';
+    if (/تسليمات اليوم|تم التسليم اليوم/.test(t)) return 'deliveredToday';
+    if (/مديون/.test(t)) return 'debt';
+    if (/مكبس/.test(t)) return 'heat';
+    if (/الطاير/.test(t)) return 'fly';
+    if (/ملغ/.test(t)) return 'cancelled';
+    if (/مكرر/.test(t)) return 'duplicate';
+    if (/متوقف|مشاكل\/متوقف/.test(t)) return 'stopped';
+    return '';
+  }
+  function makeStatClickable(){
+    var nodes = Array.from(document.querySelectorAll('.stats *, #statsBar *, .pill, .badge, .stat, .quick-stat, .status-pill'));
+    nodes.forEach(function(el){
+      if (!el || el.dataset.batch25FilterReady) return;
+      var kind = kindFromText(el.textContent || '');
+      if (!kind) return;
+      el.dataset.batch25FilterReady = kind;
+      el.style.cursor = 'pointer';
+      el.title = 'اضغط للفلترة: ' + norm(el.textContent);
+      el.setAttribute('role','button');
+      el.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); el.classList.add('batch25-active-filter'); applyFollowFilter(kind); }, true);
+    });
+  }
+  function ensureStatusOptions(){
+    var sel=qs('statusFilter'); if(!sel) return;
+    Array.from(sel.options||[]).forEach(function(o){ if ((o.value||o.textContent)==='مشكلة') o.remove(); });
+    if(!Array.from(sel.options||[]).some(function(o){return (o.value||o.textContent)==='مكرر'})){
+      var op=document.createElement('option'); op.textContent='مكرر'; sel.appendChild(op);
+    }
+  }
+  function hardRefresh(){
+    try { var u=new URL(location.href); u.searchParams.set('v','1856-batch25-'+Date.now()); location.replace(u.toString()); } catch(e){ location.reload(true); }
+  }
+  function bindMain(){
+    ensureStatusOptions(); makeStatClickable();
+    var refresh=qs('refreshBtn'); if(refresh){ refresh.textContent='تحديث البيانات'; refresh.onclick=function(ev){ev&&ev.preventDefault(); try{ if(typeof loadRows==='function') return loadRows(true); }catch(e){} location.reload();}; }
+    var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
+    var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
+    if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1856 - Batch 25 Full Accounting Core'; });
+  }
+  document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
+  setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);
 })();

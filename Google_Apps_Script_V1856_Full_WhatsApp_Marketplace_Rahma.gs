@@ -105,6 +105,13 @@ function doGet(e) {
     else if (action === "archiveAccountingMaterial") result = archiveAccountingMaterial_(e);
     else if (action === "saveEasyStorePurchase") result = saveEasyStorePurchase_(e);
     else if (action === "saveEasyStoreSale") result = saveEasyStoreSale_(e);
+
+    else if (action === "getEasyStoreSuppliers") result = getEasyStoreSuppliers_(e);
+    else if (action === "saveEasyStoreSupplier") result = saveEasyStoreSupplier_(e);
+    else if (action === "saveEasyStorePurchaseV2") result = saveEasyStorePurchaseV2_(e);
+    else if (action === "saveEasyStoreSaleV2") result = saveEasyStoreSaleV2_(e);
+    else if (action === "archiveAccountingTemplate") result = archiveAccountingTemplate_(e);
+    else if (action === "easyStoreSystemHealth") result = easyStoreSystemHealth_(e);
     else if (action === "recalculateAccountingMaterials") result = recalculateAccountingMaterials_(e);
     else if (action === "getMatbagyNotes") result = getMatbagyNotes_(e);
     else if (action === "saveMatbagyNote") result = saveMatbagyNote_(e);
@@ -7193,4 +7200,73 @@ function saveEasyStoreSale_(e) {
   const qty = parseMoney_(e.parameter.qty), unit = parseMoney_(e.parameter.unitPrice);
   appendByHeaders_(sheet, {"ID":"SAL-"+Utilities.getUuid().slice(0,8), "وقت التسجيل":new Date(), "رقم الفاتورة":normalize_(e.parameter.invoiceNo), "العميل":normalize_(e.parameter.customer), "البند":normalize_(e.parameter.itemName), "الكمية":qty, "سعر الوحدة":unit, "الإجمالي":qty*unit, "مسجل بواسطة":auth.user.username, "ملاحظات":normalize_(e.parameter.notes)});
   return { success:true, message:"تم حفظ فاتورة المبيعات." };
+}
+
+
+/*********************** Batch 25 - EasyStore Full Accounting Core Server Helpers ***********************/
+function accSuppliersHeaders_() {
+  return ["ID", "وقت التسجيل", "اسم المورد", "الهاتف", "العنوان", "رصيد افتتاحي", "مديونية", "مفعل", "مسجل بواسطة", "ملاحظات"];
+}
+function getEasyStoreSuppliers_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success:false, message: auth.message };
+  const sh = mbEnsureSheet_("حسابات - الموردين", accSuppliersHeaders_());
+  return { success:true, suppliers: accSheetRows_(sh) };
+}
+function saveEasyStoreSupplier_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success:false, message: auth.message };
+  if (auth.mode !== "full") return { success:false, message:"إضافة الموردين عند ضياء فقط." };
+  const sh = mbEnsureSheet_("حسابات - الموردين", accSuppliersHeaders_());
+  const name = normalize_(e.parameter.name || e.parameter.supplier || e.parameter["اسم المورد"] || "");
+  if (!name) return { success:false, message:"اسم المورد مطلوب." };
+  const h = headersMap_(sh); const data = sh.getDataRange().getValues(); let row = 0;
+  for (let i=1;i<data.length;i++) if (normalize_(valueAt_(data[i], h[normalizeKey_("اسم المورد")])) === name) { row=i+1; break; }
+  const obj = {"ID":"SUP-"+Utilities.getUuid().slice(0,8), "وقت التسجيل":new Date(), "اسم المورد":name, "الهاتف":normalize_(e.parameter.phone), "العنوان":normalize_(e.parameter.address), "رصيد افتتاحي":parseMoney_(e.parameter.opening), "مديونية":parseMoney_(e.parameter.debt), "مفعل":"نعم", "مسجل بواسطة":auth.user.username, "ملاحظات":normalize_(e.parameter.notes)};
+  if (row) updateByHeaders_(sh, row, obj, true); else appendByHeaders_(sh, obj);
+  return { success:true, message:"تم حفظ المورد." };
+}
+function saveEasyStorePurchaseV2_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success:false, message: auth.message };
+  if (auth.mode !== "full") return { success:false, message:"فواتير الشراء عند ضياء فقط." };
+  const sh = mbEnsureSheet_("حسابات - فواتير الشراء", ["ID","وقت التسجيل","رقم الفاتورة","المورد","نوع الدفع","تاريخ الاستحقاق","الخامة","الكمية","سعر الوحدة","الإجمالي","المدفوع","المتبقي","مسجل بواسطة","ملاحظات"]);
+  const qty=parseMoney_(e.parameter.qty), unit=parseMoney_(e.parameter.unit), total=parseMoney_(e.parameter.total)||qty*unit, paid=parseMoney_(e.parameter.paid), remain=parseMoney_(e.parameter.remain)||Math.max(0,total-paid);
+  appendByHeaders_(sh,{"ID":"PUR-"+Utilities.getUuid().slice(0,8),"وقت التسجيل":new Date(),"رقم الفاتورة":normalize_(e.parameter.no||e.parameter.invoiceNo),"المورد":normalize_(e.parameter.supplier),"نوع الدفع":normalize_(e.parameter.paymentType),"تاريخ الاستحقاق":normalize_(e.parameter.dueDate),"الخامة":normalize_(e.parameter.material),"الكمية":qty,"سعر الوحدة":unit,"الإجمالي":total,"المدفوع":paid,"المتبقي":remain,"مسجل بواسطة":auth.user.username,"ملاحظات":normalize_(e.parameter.notes)});
+  try { saveStockMoveBatch25_(normalize_(e.parameter.material), qty, 0, "شراء", normalize_(e.parameter.no||e.parameter.invoiceNo), auth.user.username); } catch(err) {}
+  return { success:true, message:"تم حفظ فاتورة الشراء وتسجيل حركة المخزون." };
+}
+function saveEasyStoreSaleV2_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success:false, message: auth.message };
+  const sh = mbEnsureSheet_("حسابات - فواتير المبيعات", ["ID","وقت التسجيل","رقم الفاتورة","رقم الأوردر","العميل","نوع الدفع","البند","الكمية","سعر الوحدة","خصم","الإجمالي","المدفوع","المتبقي","مسجل بواسطة","ملاحظات"]);
+  const qty=parseMoney_(e.parameter.qty), unit=parseMoney_(e.parameter.unit), discount=parseMoney_(e.parameter.discount), total=parseMoney_(e.parameter.total)||Math.max(0,qty*unit-discount), paid=parseMoney_(e.parameter.paid), remain=parseMoney_(e.parameter.remain)||Math.max(0,total-paid);
+  appendByHeaders_(sh,{"ID":"SAL-"+Utilities.getUuid().slice(0,8),"وقت التسجيل":new Date(),"رقم الفاتورة":normalize_(e.parameter.no||e.parameter.invoiceNo),"رقم الأوردر":normalize_(e.parameter.orderId),"العميل":normalize_(e.parameter.customer),"نوع الدفع":normalize_(e.parameter.paymentType),"البند":normalize_(e.parameter.item),"الكمية":qty,"سعر الوحدة":unit,"خصم":discount,"الإجمالي":total,"المدفوع":paid,"المتبقي":remain,"مسجل بواسطة":auth.user.username,"ملاحظات":normalize_(e.parameter.notes)});
+  try { saveStockMoveBatch25_(normalize_(e.parameter.item), 0, qty, "بيع", normalize_(e.parameter.no||e.parameter.invoiceNo), auth.user.username); } catch(err) {}
+  return { success:true, message:"تم حفظ فاتورة البيع وتسجيل حركة المخزون." };
+}
+function saveStockMoveBatch25_(materialName, inQty, outQty, source, ref, user) {
+  if (!materialName) return;
+  const sh = mbEnsureSheet_("حسابات - حركة المخزون", ["ID","وقت التسجيل","الخامة","داخل","خارج","الرصيد","المصدر","رقم المرجع","الموظف","ملاحظات"]);
+  appendByHeaders_(sh,{"ID":"STK-"+Utilities.getUuid().slice(0,8),"وقت التسجيل":new Date(),"الخامة":materialName,"داخل":inQty,"خارج":outQty,"الرصيد":"","المصدر":source,"رقم المرجع":ref,"الموظف":user,"ملاحظات":"Batch25"});
+}
+function archiveAccountingTemplate_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success:false, message: auth.message };
+  if (auth.mode !== "full") return { success:false, message:"إيقاف الأصناف عند ضياء فقط." };
+  const name = normalize_(e.parameter.itemName || ""); const dept=normalize_(e.parameter.department || "");
+  const sh = ensureAccountingSheets_().templates;
+  const h=headersMap_(sh), data=sh.getDataRange().getValues(); let row=0;
+  for(let i=1;i<data.length;i++){
+    if(normalize_(valueAt_(data[i], h[normalizeKey_("اسم البند")]))===name && (!dept || normalize_(valueAt_(data[i], h[normalizeKey_("القسم")]))===dept)){ row=i+1; break; }
+  }
+  if(!row) return { success:false, message:"الصنف غير موجود." };
+  updateByHeaders_(sh,row,{"مفعل":"لا","آخر تحديث":new Date()},true);
+  return { success:true, message:"تم إيقاف الصنف." };
+}
+function easyStoreSystemHealth_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success:false, message: auth.message };
+  const sh = ensureAccountingSheets_();
+  return { success:true, message:"النظام سليم", sheets:Object.keys(sh), version:"Batch25 Full Accounting Core" };
 }
