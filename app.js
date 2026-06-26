@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_PATCH_18_ACCOUNTING_KITCHEN_AI_WASTE";
+  const UI_VERSION = "1856_BATCH_24_STABLE_ERP";
 
   const screens = {
     service: "خدمة العملاء",
@@ -21,15 +21,15 @@
   };
 
   // الحالات التي يحتاجها المستخدم في التشغيل فقط.
-  // تم حذف: جاهز للطباعة / تم التنفيذ / مكرر من الاختيارات اليومية حتى لا تلخبط التشغيل.
+  // تم حذف: جاهز للطباعة / تم التنفيذ / مشكلة من الاختيارات اليومية. مكرر أصبح حالة تشغيلية مخفية عن العميل.
   const statuses = [
     "طلب جديد",
     "بدأ التنفيذ",
     "تحت التنفيذ",
     "جاهز للاستلام",
     "تم التسليم",
-    "مشكلة",
     "متوقف",
+    "مكرر",
     "ملغى"
   ];
 
@@ -3092,7 +3092,6 @@ Trend Mall`;
       "بدأ التنفيذ": "جاري تجهيز الطلب",
       "تحت التنفيذ": "تحت التنفيذ",
       "متوقف": "متوقف مؤقتًا وسيتم التواصل معك",
-      "مشكلة": "يوجد ملاحظة وسيتم التواصل معك",
       "جاهز للاستلام": "جاهز للاستلام",
       "تم التسليم": "تم التسليم",
       "ملغى": "تم إلغاء الطلب",
@@ -4484,7 +4483,7 @@ Trend Mall`;
     const total = rows.length;
     const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل" || text(r.priority) === "VIP"; }).length;
     const normal = rows.filter(function (r) { return !text(r.priority) || text(r.priority) === "عادي"; }).length;
-    const problem = rows.filter(function (r) { return ["مشكلة", "متوقف"].indexOf(text(r.status)) !== -1; }).length;
+    const problem = rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;
     const overdue = rows.filter(isOverdueRow).length;
     const debts = rows.filter(hasDebt).length;
     const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
@@ -7441,5 +7440,109 @@ Trend Mall`;
   setTimeout(patch23BindMainButtons, 300);
   setTimeout(patch23BindMainButtons, 1200);
   setTimeout(patch23BindMainButtons, 2500);
+
+
+  /*********************** Batch 24 - Stable ERP Cache + Status + Tool SSO ***********************/
+  window.TRENDOS_PATCH_VERSION = "1856_BATCH_24_STABLE_ERP";
+  window.TRENDOS_LOADED_APP_VERSION = "Batch 24 - Stable ERP";
+
+  function batch24SetVersionBadges() {
+    try {
+      document.querySelectorAll('.version-badge').forEach(function(el){
+        el.textContent = 'مطبعجي مصر V1856 - Batch 24 Stable ERP';
+      });
+      var old = document.getElementById('batch24VersionLine');
+      if (!old) {
+        var host = document.querySelector('.top-card,.header-card,.hero,.topbar') || document.body.firstElementChild;
+        var div = document.createElement('div');
+        div.id = 'batch24VersionLine';
+        div.className = 'version-badge';
+        div.style.marginTop = '6px';
+        div.style.fontSize = '12px';
+        div.style.opacity = '.85';
+        div.textContent = 'Loaded: app.js Batch 24 / config.js Batch 24';
+        if (host && host.appendChild) host.appendChild(div);
+      }
+    } catch(e){}
+  }
+
+  function batch24HardProgramUpdate() {
+    try {
+      var u = new URL(location.href);
+      u.searchParams.set('v', '1856-batch24-' + Date.now());
+      location.replace(u.toString());
+    } catch(e) {
+      location.href = location.pathname + '?v=1856-batch24-' + Date.now();
+    }
+  }
+
+  function batch24DataRefresh() {
+    try {
+      if (typeof loadRows === 'function') return loadRows(true);
+      if (typeof refreshNow === 'function') return refreshNow();
+      if (typeof loadDashboard === 'function') loadDashboard();
+      if (typeof loadOrders === 'function') return loadOrders();
+      if (typeof refreshOrders === 'function') return refreshOrders();
+    } catch (e) {}
+  }
+
+  function batch24AddProgramUpdateButton(){
+    try {
+      var refresh = document.getElementById('refreshBtn');
+      if (!refresh) return;
+      refresh.textContent = 'تحديث البيانات';
+      refresh.title = 'يجلب آخر الأوردرات والبيانات من الشيتات';
+      refresh.onclick = function(ev){ ev && ev.preventDefault && ev.preventDefault(); batch24DataRefresh(); };
+      if (!document.getElementById('programUpdateBtn')) {
+        var b = document.createElement('button');
+        b.id = 'programUpdateBtn';
+        b.className = refresh.className || 'ghost';
+        b.textContent = 'تحديث البرنامج';
+        b.title = 'يعيد تحميل ملفات البرنامج ويكسر الكاش';
+        b.onclick = function(ev){ ev && ev.preventDefault && ev.preventDefault(); batch24HardProgramUpdate(); };
+        refresh.parentNode.insertBefore(b, refresh.nextSibling);
+      }
+    } catch(e){}
+  }
+
+  function batch24EnsureStatusOptions(){
+    try {
+      var sel = document.getElementById('statusFilter');
+      if (!sel) return;
+      Array.from(sel.options).forEach(function(o){ if ((o.value || o.textContent) === 'مشكلة') o.remove(); });
+      if (!Array.from(sel.options).some(function(o){ return (o.value || o.textContent) === 'مكرر'; })) {
+        var opt = document.createElement('option');
+        opt.textContent = 'مكرر';
+        sel.appendChild(opt);
+      }
+    } catch(e){}
+  }
+
+  function batch24OpenSheetsNoActivation(){
+    if (typeof patch22OpenEmployeeTool === 'function') {
+      return patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, 'Matbagy_Sheets', 'مطبعجي شيتات', {
+        tool:'sheets', sso:'1', employeeSSO:'1', skipLogin:'1', noPhone:'1', noActivation:'1',
+        openWithoutPhone:'1', bypassPhoneVerification:'1', bypassActivation:'1', employeePortal:'1'
+      });
+    }
+    return openEmployeeTool(window.MATBAGY_SHEETS_URL, 'Matbagy_Sheets', 'مطبعجي شيتات');
+  }
+  openMatbagySheetsTool = batch24OpenSheetsNoActivation;
+
+  function batch24RebindStable(){
+    batch24SetVersionBadges();
+    batch24AddProgramUpdateButton();
+    batch24EnsureStatusOptions();
+    var sheets = document.getElementById('matbagySheetsBtn');
+    if (sheets) sheets.onclick = batch24OpenSheetsNoActivation;
+    var acc = document.getElementById('accountingBtn');
+    if (acc) {
+      acc.textContent = '💰 مطبخ الحسابات';
+      acc.onclick = function(ev){ ev && ev.preventDefault && ev.preventDefault(); if (typeof openAccountingPanel === 'function') openAccountingPanel(); };
+    }
+  }
+  setTimeout(batch24RebindStable, 250);
+  setTimeout(batch24RebindStable, 1200);
+  setInterval(function(){ batch24EnsureStatusOptions(); }, 5000);
 
 })();

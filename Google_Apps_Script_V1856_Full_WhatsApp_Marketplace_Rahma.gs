@@ -28,6 +28,7 @@ const SHEET_NAME_ACC_TEMPLATES = "حسابات - البنود الثابتة";
 const SHEET_NAME_ACC_DEPT_LINES = "حسابات - فواتير الأقسام";
 const SHEET_NAME_ACC_FINAL_INVOICES = "حسابات - الفواتير النهائية";
 const SHEET_NAME_ACC_WASTE = "حسابات - هوالك الأقسام";
+const SHEET_NAME_ACC_STOCK_MOVES = "حسابات - حركة المخزون";
 const DEFAULT_PASSWORD = "0000";
 const SHEET_NAME_MARKET_VENDORS = "ماركت بليس - البائعين";
 const SHEET_NAME_MARKET_PRODUCTS = "ماركت بليس - المنتجات";
@@ -101,6 +102,9 @@ function doGet(e) {
     else if (action === "initAccounting") result = initAccountingNow_(e);
     else if (action === "getAccounting") result = getAccounting_(e);
     else if (action === "saveAccountingMaterial") result = saveAccountingMaterial_(e);
+    else if (action === "archiveAccountingMaterial") result = archiveAccountingMaterial_(e);
+    else if (action === "saveEasyStorePurchase") result = saveEasyStorePurchase_(e);
+    else if (action === "saveEasyStoreSale") result = saveEasyStoreSale_(e);
     else if (action === "recalculateAccountingMaterials") result = recalculateAccountingMaterials_(e);
     else if (action === "getMatbagyNotes") result = getMatbagyNotes_(e);
     else if (action === "saveMatbagyNote") result = saveMatbagyNote_(e);
@@ -350,7 +354,7 @@ function priorityRank_(priority) {
 
 function isStoppedStatus_(status) {
   const s = normalize_(status);
-  return s === "مشكلة" || s === "متوقف";
+  return s === "متوقف";
 }
 
 function parseDateValue_(value) {
@@ -930,7 +934,7 @@ function getDashboard_(e) {
 
       dashboard.byDepartment[dept] = (dashboard.byDepartment[dept] || 0) + 1;
       if (press || dept === "مكبس") dashboard.heatPress++;
-      if (status === "مشكلة" || status === "متوقف") dashboard.problems++;
+      if (status === "متوقف") dashboard.problems++;
 
       if (isOverdueByExpected_(status, expected || expectedRaw)) {
         dashboard.overdue++;
@@ -2072,7 +2076,7 @@ function resetTrendOSValidations_() {
     clearAllBodyValidations_(lines);
     setDropdownByHeader_(lines, h, ["القسم", "Department"], ["طباعة", "ليزر", "مكبس", "متعدد الأقسام"]);
     setDropdownByHeader_(lines, h, ["الأولوية", "Priority"], ["عاجل", "عادي", "مؤجل"]);
-    setDropdownByHeader_(lines, h, ["الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف", "ملغى"]);
+    setDropdownByHeader_(lines, h, ["الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "جاهز للاستلام", "تم التسليم", "متوقف", "مكرر", "ملغى"]);
     setDropdownByHeader_(lines, h, ["جاهز؟", "جاهز", "Ready"], ["نعم", "لا"]);
     setDropdownByHeader_(lines, h, ["مكبس حراري", "مكبس؟"], ["نعم", "لا"]);
   }
@@ -2083,7 +2087,7 @@ function resetTrendOSValidations_() {
     clearAllBodyValidations_(orders);
     setDropdownByHeader_(orders, h, ["القسم الرئيسي", "القسم", "Department"], ["طباعة", "ليزر", "مكبس", "متعدد الأقسام"]);
     setDropdownByHeader_(orders, h, ["الأولوية", "Priority"], ["عاجل", "عادي", "مؤجل"]);
-    setDropdownByHeader_(orders, h, ["الحالة العامة", "الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "جاهز للاستلام", "تم التسليم", "مشكلة", "متوقف", "ملغى"]);
+    setDropdownByHeader_(orders, h, ["الحالة العامة", "الحالة", "Status"], ["طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "جاهز للاستلام", "تم التسليم", "متوقف", "مكرر", "ملغى"]);
     setDropdownByHeader_(orders, h, ["تسليم جزئي؟"], ["نعم", "لا"]);
   }
 }
@@ -2601,7 +2605,7 @@ function saveMatbagyNote_(e) {
  ************************************************************/
 
 function accMaterialsHeaders_() {
-  return ["ID", "وقت التسجيل", "القسم", "اسم الخامة", "نوع الخامة", "الوحدة", "رصيد المخزن", "حد تنبيه النقص", "سعر الوحدة", "تكلفة محسوبة", "سعر بيع رسمي", "عرض الخام", "طول الخام", "نسبة الهالك", "مكونات الخامة", "معادلة التكلفة", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث", "آخر حساب"];
+  return ["ID", "وقت التسجيل", "القسم", "اسم الخامة", "نوع الخامة", "الوحدة", "رصيد المخزن", "حد تنبيه النقص", "سعر الوحدة", "تكلفة محسوبة", "سعر بيع رسمي", "عرض الخام", "طول الخام", "نسبة الهالك", "مقاس ناتج الخامة", "عدد الناتج من الخامة الأساسية", "استهلاك من الأصل للوحدة", "طريقة حساب المخزون", "وحدة خصم المخزون", "مكونات الخامة", "معادلة التكلفة", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث", "آخر حساب"];
 }
 
 function accTemplatesHeaders_() {
@@ -2620,14 +2624,19 @@ function accWasteHeaders_() {
   return ["ID", "وقت التسجيل", "رقم الأوردر", "رقم البند", "القسم", "اسم البند", "نوع الهالك", "سعر النظام", "سعر مسجل", "فرق السعر", "تكلفة التالف", "تعويض التالف", "الباقي", "مسجل بواسطة", "ملاحظات", "آخر تحديث"];
 }
 
+function accStockMovesHeaders_() {
+  return ["ID", "وقت الحركة", "نوع الحركة", "رقم الأوردر", "رقم البند", "القسم", "اسم البند", "الخامة", "كمية منصرفة", "رصيد قبل الحركة", "رصيد بعد الحركة", "مسجل بواسطة", "ملاحظات"];
+}
+
 function ensureAccountingSheets_() {
   const materials = mbEnsureSheet_(SHEET_NAME_ACC_MATERIALS, accMaterialsHeaders_());
   const templates = mbEnsureSheet_(SHEET_NAME_ACC_TEMPLATES, accTemplatesHeaders_());
   const deptLines = mbEnsureSheet_(SHEET_NAME_ACC_DEPT_LINES, accDeptLinesHeaders_());
   const finalInvoices = mbEnsureSheet_(SHEET_NAME_ACC_FINAL_INVOICES, accFinalInvoicesHeaders_());
   const waste = mbEnsureSheet_(SHEET_NAME_ACC_WASTE, accWasteHeaders_());
+  const stockMoves = mbEnsureSheet_(SHEET_NAME_ACC_STOCK_MOVES, accStockMovesHeaders_());
   seedAccountingTemplates_(templates);
-  return { materials: materials, templates: templates, deptLines: deptLines, finalInvoices: finalInvoices, waste: waste };
+  return { materials: materials, templates: templates, deptLines: deptLines, finalInvoices: finalInvoices, waste: waste, stockMoves: stockMoves };
 }
 
 function seedAccountingTemplates_(sheet) {
@@ -2700,13 +2709,18 @@ function accSheetRows_(sheet) {
     obj.width = obj["عرض الخام"] || "";
     obj.height = obj["طول الخام"] || "";
     obj.wastePercent = obj["نسبة الهالك"] || "";
+    obj.outputSize = obj["مقاس ناتج الخامة"] || "";
+    obj.outputCount = obj["عدد الناتج من الخامة الأساسية"] || obj["الناتج"] || "";
+    obj.unitConsumption = obj["استهلاك من الأصل للوحدة"] || "";
+    obj.stockMode = obj["طريقة حساب المخزون"] || "";
+    obj.stockDeductUnit = obj["وحدة خصم المخزون"] || "";
     obj.category = obj["التصنيف"] || "";
     obj.itemName = obj["اسم البند"] || "";
     obj.size = obj["المقاس"] || "";
     obj.outputCount = obj["الناتج"] || "";
     obj.inkCost = obj["تكلفة حبر"] || "";
     obj.fixedCost = obj["تكلفة ثابتة"] || "";
-    obj.salePrice = obj["سعر البيع"] || obj["سعر بيع مقترح"] || "";
+    obj.salePrice = obj["سعر البيع"] || obj["سعر بيع مقترح"] || obj["سعر بيع رسمي"] || "";
     obj.orderId = obj["رقم الأوردر"] || "";
     obj.lineId = obj["رقم البند"] || "";
     obj.customerName = obj["اسم العميل"] || "";
@@ -2724,6 +2738,11 @@ function accSheetRows_(sheet) {
     obj.paid = obj["المدفوع"] || "";
     obj.remaining = obj["الباقي"] || "";
     obj.createdBy = obj["مسجل بواسطة"] || obj["قفل بواسطة"] || "";
+    obj.createdAt = obj["وقت الحركة"] || obj["وقت التسجيل"] || "";
+    obj.moveType = obj["نوع الحركة"] || "";
+    obj.qtyOut = obj["كمية منصرفة"] || "";
+    obj.balanceBefore = obj["رصيد قبل الحركة"] || "";
+    obj.balanceAfter = obj["رصيد بعد الحركة"] || "";
     return obj;
   });
 }
@@ -2763,7 +2782,7 @@ function initAccountingNow_(e) {
   if (!auth.ok) return { success: false, message: auth.message };
   ensureAccountingSheets_();
   SpreadsheetApp.flush();
-  return { success: true, message: "تم تجهيز شيتات حسابات مطبعجي: الخامات، البنود الثابتة، فواتير الأقسام، الفواتير النهائية، وهوالك الأقسام." };
+  return { success: true, message: "تم تجهيز شيتات حسابات مطبعجي: الخامات، البنود، فواتير الأقسام، الفواتير النهائية، هوالك الأقسام، وحركة المخزون." };
 }
 
 function getAccounting_(e) {
@@ -2776,6 +2795,7 @@ function getAccounting_(e) {
   const deptLines = accountingFilterRows_(deptLinesAll, auth, "deptLines");
   const finalInvoices = accountingFilterRows_(accSheetRows_(sheets.finalInvoices), auth, "finalInvoices");
   const wasteLines = accountingFilterRows_(accSheetRows_(sheets.waste), auth, "deptLines");
+  const stockMoves = accountingFilterRows_(accSheetRows_(sheets.stockMoves), auth, "deptLines");
   return {
     success: true,
     permissions: { mode: auth.mode, department: auth.department, canManageMaterials: auth.mode === "full", canCloseFinalInvoice: auth.mode === "full" || auth.mode === "final", canEnterDeptLine: auth.mode === "full" || auth.mode === "print" || auth.mode === "laser" },
@@ -2784,6 +2804,7 @@ function getAccounting_(e) {
     deptLines: deptLines,
     finalInvoices: finalInvoices,
     wasteLines: wasteLines,
+    stockMoves: stockMoves,
     summary: auth.mode === "full" ? accountingSummary_(deptLinesAll) : accountingSummary_(deptLines)
   };
 }
@@ -2803,6 +2824,20 @@ function accountingFindMaterialRow_(sheet, name, department) {
     const rowName = accountingMaterialKey_(valueAt_(row, h[normalizeKey_("اسم الخامة")]));
     const rowDept = normalize_(valueAt_(row, h[normalizeKey_("القسم")]));
     if (rowName === key && (!dept || rowDept === dept)) return i + 1;
+  }
+  return 0;
+}
+
+
+function accountingFindMaterialRowById_(sheet, id) {
+  id = normalize_(id || "");
+  if (!sheet || !id) return 0;
+  const h = headersMap_(sheet);
+  const colId = h[normalizeKey_("ID")];
+  if (!colId || sheet.getLastRow() < 2) return 0;
+  const values = sheet.getRange(2, colId, sheet.getLastRow() - 1, 1).getValues();
+  for (let i = 0; i < values.length; i++) {
+    if (normalize_(values[i][0]) === id) return i + 2;
   }
   return 0;
 }
@@ -2913,6 +2948,11 @@ function saveAccountingMaterial_(e) {
     "عرض الخام": parseMoney_(e.parameter.width),
     "طول الخام": parseMoney_(e.parameter.height),
     "نسبة الهالك": parseMoney_(e.parameter.wastePercent),
+    "مقاس ناتج الخامة": normalize_(e.parameter.outputSize),
+    "عدد الناتج من الخامة الأساسية": parseMoney_(e.parameter.outputCount),
+    "استهلاك من الأصل للوحدة": parseMoney_(e.parameter.unitConsumption),
+    "طريقة حساب المخزون": normalize_(e.parameter.stockMode),
+    "وحدة خصم المخزون": normalize_(e.parameter.stockDeductUnit),
     "مكونات الخامة": comps,
     "معادلة التكلفة": normalize_(e.parameter.formula),
     "ملاحظات": normalize_(e.parameter.notes),
@@ -2921,7 +2961,9 @@ function saveAccountingMaterial_(e) {
     "آخر تحديث": now,
     "آخر حساب": now
   };
-  const existingRow = accountingFindMaterialRow_(sheet, name, department);
+  const materialId = normalize_(e.parameter.materialId || e.parameter.id || "");
+  let existingRow = materialId ? accountingFindMaterialRowById_(sheet, materialId) : 0;
+  if (!existingRow) existingRow = accountingFindMaterialRow_(sheet, name, department);
   if (existingRow) {
     delete values["ID"];
     delete values["وقت التسجيل"];
@@ -2961,6 +3003,106 @@ function saveAccountingTemplate_(e) {
   return { success: true, message: "تم حفظ البند الثابت." };
 }
 
+
+function accountingMaterialCache_(sheet) {
+  const h = headersMap_(sheet);
+  const last = sheet.getLastRow();
+  const data = last > 1 ? sheet.getRange(2, 1, last - 1, sheet.getLastColumn()).getValues() : [];
+  const byName = {};
+  data.forEach(function(row, idx) {
+    const name = normalize_(valueAt_(row, h[normalizeKey_("اسم الخامة")]));
+    if (!name) return;
+    byName[accountingMaterialKey_(name)] = { row: row, rowNumber: idx + 2, name: name };
+  });
+  return { h: h, data: data, byName: byName, sheet: sheet };
+}
+
+function accountingComponentQty_(c) {
+  return parseMoney_(c.qty || c.quantity || c.consumption || c.unitConsumption || c["استهلاك"] || c["استهلاك من الأصل للوحدة"]) || 1;
+}
+
+function accountingCollectStockRequirements_(cache, materialName, qty, req, path) {
+  materialName = normalize_(materialName);
+  qty = parseMoney_(qty) || 0;
+  if (!materialName || !qty) return { ok: true };
+  path = path || [];
+  if (path.length > 12) return { ok: false, message: "توجد دائرة مغلقة في مكونات الخامات: " + path.join(" > ") };
+  const key = accountingMaterialKey_(materialName);
+  const info = cache.byName[key];
+  if (!info) return { ok: false, message: "الخامة غير مسجلة في المخزن: " + materialName };
+  const h = cache.h;
+  const comps = accountingParseComponents_(valueAt_(info.row, h[normalizeKey_("مكونات الخامة")]));
+  if (comps && comps.length) {
+    for (let i = 0; i < comps.length; i++) {
+      const c = comps[i] || {};
+      const cName = normalize_(c.materialName || c.name || c["اسم الخامة"] || c.material || c["الخامة"]);
+      const cQty = accountingComponentQty_(c);
+      if (!cName) continue;
+      const r = accountingCollectStockRequirements_(cache, cName, qty * cQty, req, path.concat([materialName]));
+      if (!r.ok) return r;
+    }
+    return { ok: true };
+  }
+  if (!req[key]) req[key] = { name: info.name, qty: 0, rowNumber: info.rowNumber };
+  req[key].qty += qty;
+  return { ok: true };
+}
+
+function accountingMaterialUnitCost_(sheet, materialName) {
+  const cache = accountingMaterialCache_(sheet);
+  const info = cache.byName[accountingMaterialKey_(materialName)];
+  if (!info) return 0;
+  const h = cache.h;
+  return parseMoney_(valueAt_(info.row, h[normalizeKey_("تكلفة محسوبة")])) || parseMoney_(valueAt_(info.row, h[normalizeKey_("سعر الوحدة")])) || 0;
+}
+
+function accountingDeductMaterialStock_(sheets, materialName, qty, ctx) {
+  materialName = normalize_(materialName);
+  qty = parseMoney_(qty) || 0;
+  if (!materialName || !qty) return { ok: true, message: "لا يوجد مخزون مرتبط بالبند." };
+  const cache = accountingMaterialCache_(sheets.materials);
+  const req = {};
+  const collected = accountingCollectStockRequirements_(cache, materialName, qty, req, []);
+  if (!collected.ok) return collected;
+  const h = cache.h;
+  const colStock = h[normalizeKey_("رصيد المخزن")];
+  const colUpdate = h[normalizeKey_("آخر تحديث")];
+  const missing = [];
+  Object.keys(req).forEach(function(k) {
+    const info = cache.byName[k];
+    const available = parseMoney_(valueAt_(info.row, colStock));
+    if (available + 0.000001 < req[k].qty) {
+      missing.push(req[k].name + " مطلوب " + req[k].qty.toFixed(4) + " والمتاح " + available.toFixed(4));
+    }
+  });
+  if (missing.length) return { ok: false, message: "لا يمكن استخراج " + (ctx.itemName || materialName) + "؛ ناقص: " + missing.join(" / ") };
+  const now = ctx.now || new Date();
+  Object.keys(req).forEach(function(k) {
+    const info = cache.byName[k];
+    const before = parseMoney_(valueAt_(info.row, colStock));
+    const after = before - req[k].qty;
+    if (colStock) sheets.materials.getRange(info.rowNumber, colStock).setValue(after);
+    if (colUpdate) sheets.materials.getRange(info.rowNumber, colUpdate).setValue(now);
+    appendByHeaders_(sheets.stockMoves, {
+      "ID": "STK-" + Utilities.getUuid().slice(0, 8),
+      "وقت الحركة": now,
+      "نوع الحركة": "صرف تلقائي من فاتورة قسم",
+      "رقم الأوردر": ctx.orderId || "",
+      "رقم البند": ctx.lineId || "",
+      "القسم": ctx.department || "",
+      "اسم البند": ctx.itemName || "",
+      "الخامة": req[k].name,
+      "كمية منصرفة": req[k].qty,
+      "رصيد قبل الحركة": before,
+      "رصيد بعد الحركة": after,
+      "مسجل بواسطة": ctx.username || "",
+      "ملاحظات": ctx.notes || ""
+    });
+  });
+  SpreadsheetApp.flush();
+  return { ok: true, message: "تم خصم المخزون تلقائياً." };
+}
+
 function saveAccountingDeptLine_(e) {
   const auth = accountingAuthorize_(e);
   if (!auth.ok) return { success: false, message: auth.message };
@@ -2968,25 +3110,41 @@ function saveAccountingDeptLine_(e) {
   const orderId = normalize_(e.parameter.orderId);
   const itemName = normalize_(e.parameter.itemName);
   if (!orderId || !itemName) return { success: false, message: "رقم الأوردر واسم البند مطلوبين." };
+  const sheets = ensureAccountingSheets_();
   let department = normalize_(e.parameter.department) || auth.department || "طباعة";
   if (auth.mode === "print") department = "طباعة";
   if (auth.mode === "laser") department = "ليزر";
-  const materialCost = parseMoney_(e.parameter.materialCost);
+  const qty = parseMoney_(e.parameter.qty) || 1;
+  const materialName = normalize_(e.parameter.materialName);
+  const now = new Date();
+  const lineUniqueId = "DLINE-" + Utilities.getUuid().slice(0, 8);
+  const stockResult = accountingDeductMaterialStock_(sheets, materialName, qty, {
+    now: now,
+    orderId: orderId,
+    lineId: normalize_(e.parameter.lineId) || lineUniqueId,
+    department: department,
+    itemName: itemName,
+    username: auth.user.username,
+    notes: normalize_(e.parameter.notes)
+  });
+  if (!stockResult.ok) return { success: false, message: stockResult.message };
+
+  let materialCost = parseMoney_(e.parameter.materialCost);
+  if (!materialCost && materialName) materialCost = accountingMaterialUnitCost_(sheets.materials, materialName) * qty;
   const laborCost = parseMoney_(e.parameter.laborCost);
   const otherCost = parseMoney_(e.parameter.otherCost);
   const totalCost = materialCost + laborCost + otherCost;
   const systemCost = parseMoney_(e.parameter.systemCost) || totalCost;
-  const priceDiff = parseMoney_(e.parameter.priceDiff);
+  const systemSale = parseMoney_(e.parameter.systemSalePrice);
+  const salePriceUnit = parseMoney_(e.parameter.salePrice);
+  const saleTotal = salePriceUnit * qty;
+  const priceDiff = parseMoney_(e.parameter.priceDiff) || ((salePriceUnit - systemSale) * qty);
   const damageCost = parseMoney_(e.parameter.damageCost);
   const damageCovered = parseMoney_(e.parameter.damageCovered);
   const damageRemaining = parseMoney_(e.parameter.damageRemaining) || Math.max(0, damageCost - damageCovered);
-  const salePrice = parseMoney_(e.parameter.salePrice);
-  const profit = salePrice - totalCost;
-  const sheet = ensureAccountingSheets_().deptLines;
-  const now = new Date();
-  const id = "DLINE-" + Utilities.getUuid().slice(0, 8);
-  appendByHeaders_(sheet, {
-    "ID": id,
+  const profit = saleTotal - totalCost;
+  appendByHeaders_(sheets.deptLines, {
+    "ID": lineUniqueId,
     "وقت التسجيل": now,
     "رقم الأوردر": orderId,
     "رقم البند": normalize_(e.parameter.lineId),
@@ -2994,20 +3152,20 @@ function saveAccountingDeptLine_(e) {
     "القسم": department,
     "نوع البند": normalize_(e.parameter.itemType) || "قسم فقط",
     "اسم البند": itemName,
-    "الكمية": parseMoney_(e.parameter.qty) || 1,
-    "الخامة": normalize_(e.parameter.materialName),
-    "استهلاك الخامة": parseMoney_(e.parameter.materialQty),
+    "الكمية": qty,
+    "الخامة": materialName,
+    "استهلاك الخامة": qty,
     "تكلفة الخامة": materialCost,
     "تكلفة تشغيل": laborCost,
     "تكلفة أخرى": otherCost,
     "إجمالي التكلفة": totalCost,
     "تكلفة النظام": systemCost,
-    "سعر النظام": parseMoney_(e.parameter.systemSalePrice),
+    "سعر النظام": systemSale,
     "فرق السعر": priceDiff,
     "تكلفة التالف": damageCost,
     "تعويض التالف": damageCovered,
     "باقي على الموظف": damageRemaining,
-    "سعر البيع": salePrice,
+    "سعر البيع": saleTotal,
     "الربح": profit,
     "ملاحظات": normalize_(e.parameter.notes),
     "مسجل بواسطة": auth.user.username,
@@ -3016,7 +3174,7 @@ function saveAccountingDeptLine_(e) {
     "آخر تحديث": now
   });
   if (priceDiff || damageCost || damageRemaining) {
-    appendByHeaders_(ensureAccountingSheets_().waste, {
+    appendByHeaders_(sheets.waste, {
       "ID": "WASTE-" + Utilities.getUuid().slice(0, 8),
       "وقت التسجيل": now,
       "رقم الأوردر": orderId,
@@ -3024,8 +3182,8 @@ function saveAccountingDeptLine_(e) {
       "القسم": department,
       "اسم البند": itemName,
       "نوع الهالك": priceDiff ? "فرق سعر فاتورة" : "تالف خامات",
-      "سعر النظام": parseMoney_(e.parameter.systemSalePrice),
-      "سعر مسجل": salePrice,
+      "سعر النظام": systemSale,
+      "سعر مسجل": salePriceUnit,
       "فرق السعر": priceDiff,
       "تكلفة التالف": damageCost,
       "تعويض التالف": damageCovered,
@@ -3035,7 +3193,7 @@ function saveAccountingDeptLine_(e) {
       "آخر تحديث": now
     });
   }
-  return { success: true, message: "تم تسجيل فاتورة القسم." , lineId: id };
+  return { success: true, message: "تم تسجيل فاتورة القسم وخصم المخزون تلقائياً." , lineId: lineUniqueId };
 }
 
 function makeAccountingInvoiceNo_(sheet, now) {
@@ -4069,7 +4227,7 @@ function getDashboard_(e) {
       else if (priority === "مؤجل") dashboard.delayedPriority++;
       dashboard.byDepartment[dept] = (dashboard.byDepartment[dept] || 0) + 1;
       if (press || dept === "مكبس") dashboard.heatPress++;
-      if (status === "مشكلة" || status === "متوقف") dashboard.problems++;
+      if (status === "متوقف") dashboard.problems++;
       if (isOverdueByExpected_(status, expected || expectedRaw)) { dashboard.overdue++; if (orderId) overdueOrderSet[orderId] = true; }
     }
   }
@@ -6994,3 +7152,45 @@ function createCustomer_(e) {
 /************************************************************
  * Patch 19 - Final Workflow: waste sheet fixed, note categories ready
  ************************************************************/
+
+
+/************************************************************
+ * Batch 24 - EasyStore: أرشفة خامة + فواتير شراء/بيع مبسطة
+ ************************************************************/
+function accPurchasesHeaders_() {
+  return ["ID", "وقت التسجيل", "رقم الفاتورة", "المورد", "الخامة", "الكمية", "سعر الوحدة", "الإجمالي", "مسجل بواسطة", "ملاحظات"];
+}
+function accSalesHeaders_() {
+  return ["ID", "وقت التسجيل", "رقم الفاتورة", "العميل", "البند", "الكمية", "سعر الوحدة", "الإجمالي", "مسجل بواسطة", "ملاحظات"];
+}
+function archiveAccountingMaterial_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (auth.mode !== "full") return { success: false, message: "حذف/إيقاف الخامات عند ضياء فقط." };
+  const id = normalize_(e.parameter.materialId || e.parameter.id || "");
+  const name = normalize_(e.parameter.materialName || "");
+  const department = normalize_(e.parameter.department || "");
+  const sheet = ensureAccountingSheets_().materials;
+  let row = id ? accountingFindMaterialRowById_(sheet, id) : 0;
+  if (!row && name) row = accountingFindMaterialRow_(sheet, name, department);
+  if (!row) return { success: false, message: "الخامة غير موجودة." };
+  updateByHeaders_(sheet, row, { "مفعل": "لا", "ملاحظات": "تم الإيقاف من EasyStore - " + new Date(), "آخر تحديث": new Date() }, true);
+  return { success: true, message: "تم إيقاف الخامة/الصنف. لن تظهر للموظفين في الاختيارات الجديدة، وتظل محفوظة للتقارير القديمة." };
+}
+function saveEasyStorePurchase_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  if (auth.mode !== "full") return { success: false, message: "فواتير الشراء عند ضياء فقط." };
+  const sheet = mbEnsureSheet_("حسابات - فواتير الشراء", accPurchasesHeaders_());
+  const qty = parseMoney_(e.parameter.qty), unit = parseMoney_(e.parameter.unitPrice);
+  appendByHeaders_(sheet, {"ID":"PUR-"+Utilities.getUuid().slice(0,8), "وقت التسجيل":new Date(), "رقم الفاتورة":normalize_(e.parameter.invoiceNo), "المورد":normalize_(e.parameter.supplier), "الخامة":normalize_(e.parameter.materialName), "الكمية":qty, "سعر الوحدة":unit, "الإجمالي":qty*unit, "مسجل بواسطة":auth.user.username, "ملاحظات":normalize_(e.parameter.notes)});
+  return { success:true, message:"تم حفظ فاتورة الشراء." };
+}
+function saveEasyStoreSale_(e) {
+  const auth = accountingAuthorize_(e);
+  if (!auth.ok) return { success: false, message: auth.message };
+  const sheet = mbEnsureSheet_("حسابات - فواتير المبيعات", accSalesHeaders_());
+  const qty = parseMoney_(e.parameter.qty), unit = parseMoney_(e.parameter.unitPrice);
+  appendByHeaders_(sheet, {"ID":"SAL-"+Utilities.getUuid().slice(0,8), "وقت التسجيل":new Date(), "رقم الفاتورة":normalize_(e.parameter.invoiceNo), "العميل":normalize_(e.parameter.customer), "البند":normalize_(e.parameter.itemName), "الكمية":qty, "سعر الوحدة":unit, "الإجمالي":qty*unit, "مسجل بواسطة":auth.user.username, "ملاحظات":normalize_(e.parameter.notes)});
+  return { success:true, message:"تم حفظ فاتورة المبيعات." };
+}
