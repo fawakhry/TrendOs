@@ -4957,16 +4957,86 @@ Trend Mall`;
     return (n === "جاهز للاستلام" || n === "تم التسليم") && n !== o;
   }
 
-  function openInvoiceModal(row) {
+  function invoiceCatalogRowsForOrderRow(row) {
+    const dept = row && row.department || (typeof accountingDepartmentForMode === "function" ? accountingDepartmentForMode() : "");
+    if (typeof accountingCatalogRowsForDepartment === "function") return accountingCatalogRowsForDepartment(dept || "");
+    return [];
+  }
+
+  function invoiceCatalogValue(row) { return (row.type || "MAT") + "|" + (row.name || ""); }
+
+  function invoiceCatalogByValue(value) {
+    const row = state.invoiceRow || {};
+    const rows = invoiceCatalogRowsForOrderRow(row);
+    return rows.find(function (r) { return invoiceCatalogValue(r) === value; }) || null;
+  }
+
+  function fillInvoiceCatalogOptions(row) {
+    const sel = $("invoiceItemSelect");
+    if (!sel) return;
+    const rows = invoiceCatalogRowsForOrderRow(row);
+    sel.innerHTML = '<option value="">اختار الصنف من مطبخ الحسابات</option>' + rows.map(function (r) {
+      const sale = r.sale ? (" — سعر " + accountingMoney(r.sale)) : "";
+      return '<option value="' + escapeHtml(invoiceCatalogValue(r)) + '">' + escapeHtml((r.name || "") + " — " + (r.department || "عام") + sale) + '</option>';
+    }).join("");
+  }
+
+  function invoiceSelectedCatalogItem() {
+    const val = (($("invoiceItemSelect") || {}).value || "").trim();
+    if (!val) return null;
+    return invoiceCatalogByValue(val);
+  }
+
+  function applyInvoiceItemSelection() {
+    const item = invoiceSelectedCatalogItem();
+    const work = $("invoiceWorkDone");
+    const sale = $("invoiceSalePrice");
+    const dept = $("invoiceItemDept");
+    const shared = $("invoiceSharedLine");
+    if (!item) {
+      if (work) work.value = "";
+      if (sale) sale.value = "0";
+      if (dept) dept.value = "";
+      if (shared) { shared.checked = false; shared.disabled = false; }
+      return;
+    }
+    if (work) work.value = item.name || "";
+    if (sale) sale.value = item.sale ? Number(item.sale).toFixed(2) : "0";
+    if (dept) dept.value = item.department || "";
+    const isShared = /مشترك|shared|عام/.test(searchKey_(item.department || ""));
+    if (shared) { shared.checked = isShared; shared.disabled = isShared; }
+  }
+
+  function openEasyStoreLaserForInvoice() {
+    const row = state.invoiceRow || {};
+    const customer = encodeURIComponent(($("invoiceCustomer") || {}).value || row.customer || "");
+    const orderId = encodeURIComponent(($("invoiceOrderId") || {}).value || row.orderId || "");
+    const user = encodeURIComponent((state.user && (state.user.username || state.user.name)) || "جابر");
+    const token = encodeURIComponent((state.user && state.user.token) || "");
+    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es10-batch29", "_blank");
+  }
+
+  async function openInvoiceModal(row) {
     state.invoiceRow = row || null;
     const modal = $("invoiceModal");
     if (!modal || !row) return;
-    $("invoiceOrderTitle").textContent = "فاتورة / تسعير: " + (row.orderId || "-") + " — " + (row.customer || "-");
+    if (canOpenAccounting && canOpenAccounting() && (!state.accounting || !state.accounting.loaded)) {
+      try { await loadAccountingData(true); } catch (err) {}
+    }
+    $("invoiceOrderTitle").textContent = "فاتورة القسم: " + (row.orderId || "-") + " — " + (row.customer || "-");
     $("invoiceLineId").value = row.lineId || "";
-    $("invoiceWorkDone").value = row.itemName || "";
-    $("invoiceQty").value = row.qty || 1;
-    $("invoiceNotes").value = row.notes || "";
-    $("invoiceMsg").textContent = "اكتب ما تم تنفيذه فعليًا. سيظهر لضياء للتسعير وإضافته لفاتورة العميل.";
+    if ($("invoiceCustomer")) $("invoiceCustomer").value = row.customer || "";
+    if ($("invoiceOrderId")) $("invoiceOrderId").value = row.orderId || "";
+    if ($("invoiceQty")) $("invoiceQty").value = row.qty || 1;
+    if ($("invoiceNotes")) $("invoiceNotes").value = row.notes || "";
+    fillInvoiceCatalogOptions(row);
+    if ($("invoiceItemSelect")) $("invoiceItemSelect").onchange = applyInvoiceItemSelection;
+    const laserTools = $("invoiceLaserTools");
+    if (laserTools) laserTools.classList.toggle("hidden", !/جابر|ليزر|laser|gaber|jaber/.test(searchKey_((state.user && (state.user.username || state.user.name || state.user.role || state.user.department)) || row.department || "")));
+    const laserBtn = $("invoiceOpenEasyLaserBtn");
+    if (laserBtn) laserBtn.onclick = openEasyStoreLaserForInvoice;
+    applyInvoiceItemSelection();
+    $("invoiceMsg").textContent = "اختار الصنف والكمية والسعر، ثم سجل البند. لو الصنف مشترك سيظهر عند القسم الآخر تلقائيًا.";
     modal.classList.remove("hidden");
   }
 
@@ -4981,41 +5051,53 @@ Trend Mall`;
     if (!row) return;
     const btn = $("saveInvoiceBtn");
     const msg = $("invoiceMsg");
-    const workDone = ($("invoiceWorkDone").value || "").trim();
-    if (!workDone) {
-      if (msg) msg.textContent = "اكتب اللى اتعمل عشان يروح للتسعير.";
+    const item = invoiceSelectedCatalogItem();
+    if (!item) {
+      if (msg) msg.textContent = "اختار الصنف من القائمة قبل التسجيل.";
       return;
     }
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "جاري الحفظ...";
+    const qty = numericAmount(($("invoiceQty") || {}).value || 1) || 1;
+    const salePrice = numericAmount(($("invoiceSalePrice") || {}).value || item.sale || 0);
+    if (!salePrice) {
+      if (msg) msg.textContent = "اكتب سعر الفاتورة.";
+      return;
     }
+    if (btn) { btn.disabled = true; btn.textContent = "جاري التسجيل..."; }
     try {
-      const res = await api("createInvoiceLine", authParams({
+      const isShared = (($("invoiceSharedLine") || {}).checked || /مشترك|shared|عام/.test(searchKey_(item.department || ""))) ? "نعم" : "لا";
+      const res = await api("saveAccountingDeptLine", authParams({
         rowNumber: row.rowNumber || "",
-        orderId: row.orderId || "",
+        orderId: ($("invoiceOrderId") || {}).value || row.orderId || "",
         lineId: row.lineId || "",
-        customerName: row.customer || "",
+        customerName: ($("invoiceCustomer") || {}).value || row.customer || "",
         customerPhone: row.customerPhone || "",
         department: row.department || "",
-        itemName: row.itemName || "",
-        workDone: workDone,
-        qty: $("invoiceQty").value || row.qty || 1,
-        notes: $("invoiceNotes").value || ""
+        itemType: isShared === "نعم" ? "بند مشترك" : "قسم فقط",
+        itemName: item.name || "",
+        qty: qty,
+        materialName: item.type === "MAT" ? item.name : "",
+        materialQty: qty,
+        materialCost: "0",
+        laborCost: "0",
+        otherCost: "0",
+        systemCost: "0",
+        systemSalePrice: item.sale || salePrice,
+        salePrice: salePrice,
+        itemDepartment: item.department || "",
+        sharedLine: isShared,
+        billingStatus: "جاهز للفوترة",
+        notes: ($("invoiceNotes") || {}).value || ""
       }));
       if (!res.success) {
-        if (msg) msg.textContent = res.message || "تعذر حفظ بند الفاتورة.";
+        if (msg) msg.textContent = res.message || "تعذر تسجيل بند الفاتورة.";
         return;
       }
-      if (msg) msg.textContent = "تم إرسال بند الفاتورة لضياء للتسعير.";
-      setTimeout(closeInvoiceModal, 700);
+      if (msg) msg.textContent = isShared === "نعم" ? "تم تسجيل بند مشترك وسيظهر عند القسم الآخر." : "تم تسجيل بند الفاتورة.";
+      setTimeout(closeInvoiceModal, 800);
     } catch (err) {
-      if (msg) msg.textContent = err.message || "خطأ في حفظ بند الفاتورة.";
+      if (msg) msg.textContent = err.message || "خطأ في تسجيل بند الفاتورة.";
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "إرسال للتسعير";
-      }
+      if (btn) { btn.disabled = false; btn.textContent = "تسجيل البند"; }
     }
   }
 
@@ -7481,7 +7563,7 @@ Trend Mall`;
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1856 - Batch 28 Mutual Invoice';
+        el.textContent = 'مطبعجي مصر V1856 - Batch 29 Dept Invoice + Gaber Calculator';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7697,7 +7779,7 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1856 - Batch 28 Mutual Invoice'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1856 - Batch 29 Dept Invoice + Gaber Calculator'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>مطبعجي مصر V1856</title>
-  <link rel="stylesheet" href="styles.css?v=1856-batch28-mutual-invoice">
+  <link rel="stylesheet" href="styles.css?v=1856-batch29-dept-invoice">
 </head>
 <body>
 <main class="app">
@@ -889,21 +889,39 @@
   <section id="invoiceModal" class="modal hidden">
     <div class="modal-card invoice-card">
       <h2 id="invoiceOrderTitle">فاتورة / تسعير</h2>
-      <p class="hint">بعد انتهاء القسم من البند، اكتب ما تم تنفيذه فعليًا. البند يذهب لضياء للتسعير وإضافته لفاتورة العميل.</p>
+      <p class="hint">فاتورة وائل / جابر تفتح على العميل مباشرة. اختار الصنف والكمية والسعر ثم سجل البند. البند المشترك يظهر عند القسم الآخر تلقائيًا.</p>
 
       <input id="invoiceLineId" type="hidden">
+      <input id="invoiceItemDept" type="hidden">
 
-      <label>اللي اتعمل فعليًا</label>
-      <textarea id="invoiceWorkDone" rows="4" placeholder="مثال: تابلوه 30×40 + تعديل صورة + طباعة"></textarea>
+      <label>اسم العميل</label>
+      <input id="invoiceCustomer" readonly>
+
+      <label>رقم الأوردر</label>
+      <input id="invoiceOrderId" readonly>
+
+      <label>الصنف</label>
+      <select id="invoiceItemSelect"></select>
+      <input id="invoiceWorkDone" placeholder="اسم الصنف المختار" readonly>
+
+      <div id="invoiceLaserTools" class="invoice-laser-tools hidden">
+        <button id="invoiceOpenEasyLaserBtn" type="button" class="ghost">حاسبة جابر / حساب شغلانة</button>
+        <span>لو الشغل محتاج مقاس، افتح حاسبة جابر في EasyStore لنفس العميل والأوردر.</span>
+      </div>
 
       <label>الكمية</label>
       <input id="invoiceQty" type="number" min="1" value="1">
+
+      <label>سعر الفاتورة</label>
+      <input id="invoiceSalePrice" type="number" min="0" value="0">
+
+      <label class="invoice-shared-check"><input id="invoiceSharedLine" type="checkbox"> بند مشترك يظهر عند القسم الآخر إجباريًا</label>
 
       <label>ملاحظات القسم</label>
       <input id="invoiceNotes" placeholder="اختياري">
 
       <div class="row">
-        <button id="saveInvoiceBtn" class="primary">إرسال للتسعير</button>
+        <button id="saveInvoiceBtn" class="primary">تسجيل البند</button>
         <button id="cancelInvoiceBtn" class="ghost">إلغاء</button>
       </div>
 
@@ -1179,6 +1197,6 @@
 </main>
 
 <script src="config.js?v=1856-batch28-mutual-invoice"></script>
-<script src="app.js?v=1856-batch28-mutual-invoice"></script>
+<script src="app.js?v=1856-batch29-dept-invoice"></script>
 </body>
 </html>
