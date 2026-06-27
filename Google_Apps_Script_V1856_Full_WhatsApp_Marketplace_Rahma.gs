@@ -122,6 +122,7 @@ function doGet(e) {
     else if (action === "changePassword") result = changePassword_(e);
     else if (action === "createManualOrder") result = createManualOrder_(e);
     else if (action === "searchCustomers") result = searchCustomers_(e);
+    else if (action === "getEasyStoreCustomers") result = getEasyStoreCustomers_(e);
     else if (action === "createCustomer") result = createCustomer_(e);
     else if (action === "ensureDemoCustomer") result = ensureDemoCustomer_(e);
     else if (action === "syncAll") result = syncTrendOSNow();
@@ -2612,7 +2613,7 @@ function saveMatbagyNote_(e) {
  ************************************************************/
 
 function accMaterialsHeaders_() {
-  return ["ID", "وقت التسجيل", "القسم", "اسم الخامة", "نوع الخامة", "الوحدة", "رصيد المخزن", "حد تنبيه النقص", "سعر الوحدة", "تكلفة محسوبة", "سعر بيع رسمي", "عرض الخام", "طول الخام", "نسبة الهالك", "مقاس ناتج الخامة", "عدد الناتج من الخامة الأساسية", "استهلاك من الأصل للوحدة", "طريقة حساب المخزون", "وحدة خصم المخزون", "مكونات الخامة", "معادلة التكلفة", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث", "آخر حساب"];
+  return ["ID", "وقت التسجيل", "القسم", "اسم الخامة", "نوع الخامة", "تصنيف الخامة", "ضم إلى مصروفات التشغيل", "بند التشغيل", "طريقة توزيع التشغيل", "قيمة التشغيل", "الوحدة", "رصيد المخزن", "حد تنبيه النقص", "سعر الوحدة", "تكلفة محسوبة", "سعر بيع رسمي", "عرض الخام", "طول الخام", "نسبة الهالك", "مقاس ناتج الخامة", "عدد الناتج من الخامة الأساسية", "استهلاك من الأصل للوحدة", "طريقة حساب المخزون", "وحدة خصم المخزون", "مكونات الخامة", "معادلة التكلفة", "ملاحظات", "مفعل", "مسجل بواسطة", "آخر تحديث", "آخر حساب"];
 }
 
 function accTemplatesHeaders_() {
@@ -2710,6 +2711,11 @@ function accSheetRows_(sheet) {
     obj.unitCost = obj["سعر الوحدة"] || "";
     obj.computedUnitCost = obj["تكلفة محسوبة"] || obj["سعر الوحدة"] || "";
     obj.materialKind = obj["نوع الخامة"] || "";
+    obj.materialClass = obj["تصنيف الخامة"] || "";
+    obj.operationExpense = obj["ضم إلى مصروفات التشغيل"] || "";
+    obj.operatingBand = obj["بند التشغيل"] || "";
+    obj.operatingCalcMethod = obj["طريقة توزيع التشغيل"] || "";
+    obj.operatingUnitCost = obj["قيمة التشغيل"] || "";
     obj.componentsJson = obj["مكونات الخامة"] || "";
     obj.formula = obj["معادلة التكلفة"] || "";
     obj.notes = obj["ملاحظات"] || "";
@@ -2946,6 +2952,11 @@ function saveAccountingMaterial_(e) {
     "القسم": department,
     "اسم الخامة": name,
     "نوع الخامة": kind,
+    "تصنيف الخامة": normalize_(e.parameter.materialClass),
+    "ضم إلى مصروفات التشغيل": normalize_(e.parameter.operationExpense),
+    "بند التشغيل": normalize_(e.parameter.operatingBand),
+    "طريقة توزيع التشغيل": normalize_(e.parameter.operatingCalcMethod),
+    "قيمة التشغيل": parseMoney_(e.parameter.operatingUnitCost),
     "الوحدة": normalize_(e.parameter.unit),
     "رصيد المخزن": parseMoney_(e.parameter.stockQty),
     "حد تنبيه النقص": parseMoney_(e.parameter.minStock),
@@ -7232,16 +7243,16 @@ function saveEasyStorePurchaseV2_(e) {
   if (auth.mode !== "full") return { success:false, message:"فواتير الشراء عند ضياء فقط." };
   const sh = mbEnsureSheet_("حسابات - فواتير الشراء", ["ID","وقت التسجيل","رقم الفاتورة","المورد","نوع الدفع","تاريخ الاستحقاق","الخامة","الكمية","سعر الوحدة","الإجمالي","المدفوع","المتبقي","مسجل بواسطة","ملاحظات"]);
   const qty=parseMoney_(e.parameter.qty), unit=parseMoney_(e.parameter.unit), total=parseMoney_(e.parameter.total)||qty*unit, paid=parseMoney_(e.parameter.paid), remain=parseMoney_(e.parameter.remain)||Math.max(0,total-paid);
-  appendByHeaders_(sh,{"ID":"PUR-"+Utilities.getUuid().slice(0,8),"وقت التسجيل":new Date(),"رقم الفاتورة":normalize_(e.parameter.no||e.parameter.invoiceNo),"المورد":normalize_(e.parameter.supplier),"نوع الدفع":normalize_(e.parameter.paymentType),"تاريخ الاستحقاق":normalize_(e.parameter.dueDate),"الخامة":normalize_(e.parameter.material),"الكمية":qty,"سعر الوحدة":unit,"الإجمالي":total,"المدفوع":paid,"المتبقي":remain,"مسجل بواسطة":auth.user.username,"ملاحظات":normalize_(e.parameter.notes)});
+  appendByHeaders_(sh,{"ID":"PUR-"+Utilities.getUuid().slice(0,8),"وقت التسجيل":new Date(),"رقم الفاتورة":normalize_(e.parameter.no||e.parameter.invoiceNo),"المورد":normalize_(e.parameter.supplier),"نوع الدفع":normalize_(e.parameter.paymentType),"تاريخ الاستحقاق":normalize_(e.parameter.dueDate),"الخامة":normalize_(e.parameter.material),"الكمية":qty,"سعر الوحدة":unit,"الإجمالي":total,"المدفوع":paid,"المتبقي":remain,"بنود الأقسام":normalize_(e.parameter.lineIds),"مسجل بواسطة":auth.user.username,"ملاحظات":normalize_(e.parameter.notes)});
   try { saveStockMoveBatch25_(normalize_(e.parameter.material), qty, 0, "شراء", normalize_(e.parameter.no||e.parameter.invoiceNo), auth.user.username); } catch(err) {}
   return { success:true, message:"تم حفظ فاتورة الشراء وتسجيل حركة المخزون." };
 }
 function saveEasyStoreSaleV2_(e) {
   const auth = accountingAuthorize_(e);
   if (!auth.ok) return { success:false, message: auth.message };
-  const sh = mbEnsureSheet_("حسابات - فواتير المبيعات", ["ID","وقت التسجيل","رقم الفاتورة","رقم الأوردر","العميل","نوع الدفع","البند","الكمية","سعر الوحدة","خصم","الإجمالي","المدفوع","المتبقي","مسجل بواسطة","ملاحظات"]);
+  const sh = mbEnsureSheet_("حسابات - فواتير المبيعات", ["ID","وقت التسجيل","رقم الفاتورة","رقم الأوردر","العميل","نوع الدفع","البند","الكمية","سعر الوحدة","خصم","الإجمالي","المدفوع","المتبقي","بنود الأقسام","مسجل بواسطة","ملاحظات"]);
   const qty=parseMoney_(e.parameter.qty), unit=parseMoney_(e.parameter.unit), discount=parseMoney_(e.parameter.discount), total=parseMoney_(e.parameter.total)||Math.max(0,qty*unit-discount), paid=parseMoney_(e.parameter.paid), remain=parseMoney_(e.parameter.remain)||Math.max(0,total-paid);
-  appendByHeaders_(sh,{"ID":"SAL-"+Utilities.getUuid().slice(0,8),"وقت التسجيل":new Date(),"رقم الفاتورة":normalize_(e.parameter.no||e.parameter.invoiceNo),"رقم الأوردر":normalize_(e.parameter.orderId),"العميل":normalize_(e.parameter.customer),"نوع الدفع":normalize_(e.parameter.paymentType),"البند":normalize_(e.parameter.item),"الكمية":qty,"سعر الوحدة":unit,"خصم":discount,"الإجمالي":total,"المدفوع":paid,"المتبقي":remain,"مسجل بواسطة":auth.user.username,"ملاحظات":normalize_(e.parameter.notes)});
+  appendByHeaders_(sh,{"ID":"SAL-"+Utilities.getUuid().slice(0,8),"وقت التسجيل":new Date(),"رقم الفاتورة":normalize_(e.parameter.no||e.parameter.invoiceNo),"رقم الأوردر":normalize_(e.parameter.orderId),"العميل":normalize_(e.parameter.customer),"نوع الدفع":normalize_(e.parameter.paymentType),"البند":normalize_(e.parameter.item),"الكمية":qty,"سعر الوحدة":unit,"خصم":discount,"الإجمالي":total,"المدفوع":paid,"المتبقي":remain,"بنود الأقسام":normalize_(e.parameter.lineIds),"مسجل بواسطة":auth.user.username,"ملاحظات":normalize_(e.parameter.notes)});
   try { saveStockMoveBatch25_(normalize_(e.parameter.item), 0, qty, "بيع", normalize_(e.parameter.no||e.parameter.invoiceNo), auth.user.username); } catch(err) {}
   return { success:true, message:"تم حفظ فاتورة البيع وتسجيل حركة المخزون." };
 }
@@ -7269,4 +7280,38 @@ function easyStoreSystemHealth_(e) {
   if (!auth.ok) return { success:false, message: auth.message };
   const sh = ensureAccountingSheets_();
   return { success:true, message:"النظام سليم", sheets:Object.keys(sh), version:"Batch25 Full Accounting Core" };
+}
+
+
+/*********************** Patch 28 - EasyStore customer preload ***********************/
+function getEasyStoreCustomers_(e) {
+  const auth = authorize_(e.parameter.username, e.parameter.token);
+  if (!auth.ok) return { success: false, message: auth.message };
+  const sheet = ss_().getSheetByName(SHEET_NAME_CUSTOMERS);
+  if (!sheet || sheet.getLastRow() < 2) return { success: true, customers: [] };
+  const limit = Math.min(Number(e.parameter.limit || 200) || 200, 500);
+  const data = sheet.getDataRange().getValues();
+  const h = headersMap_(sheet);
+  const colName = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name"], 1);
+  const colManager = firstCol_(h, ["اسم المسؤول", "المسؤول", "Manager"], 2);
+  const colPhone = firstCol_(h, ["رقم العميل الأساسي", "رقم العميل", "رقم الهاتف", "Phone"], 3);
+  const colExtra = firstCol_(h, ["رقم إضافي", "رقم إضافى", "Extra Phone"], 4);
+  const colType = firstCol_(h, ["نوع العميل", "Customer Type"], 5);
+  const colActive = firstCol_(h, ["مفعل؟", "مفعل", "Active"], 0);
+  const out = [];
+  const seen = {};
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (colActive && normalize_(row[colActive - 1]) && normalize_(row[colActive - 1]) !== "نعم") continue;
+    const name = normalize_(row[colName - 1]);
+    const phone = colPhone ? cleanPhone_(row[colPhone - 1]) : "";
+    const extra = colExtra ? cleanPhone_(row[colExtra - 1]) : "";
+    if (!name && !phone && !extra) continue;
+    const key = name + "|" + (phone || extra);
+    if (seen[key]) continue;
+    seen[key] = true;
+    out.push({ name: name, customerName: name, manager: colManager ? normalize_(row[colManager - 1]) : "", phone: phone || extra, mobile: phone || extra, extraPhone: extra, type: colType ? normalize_(row[colType - 1]) : "" });
+    if (out.length >= limit) break;
+  }
+  return { success: true, customers: out };
 }

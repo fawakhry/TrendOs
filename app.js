@@ -7179,19 +7179,39 @@ Trend Mall`;
     if (copied) alert("تم نسخ نص الفاتورة وفتح واتساب. لو عايز ملف PDF اضغط زر فاتورة PDF واحفظها ثم ارفقها للعميل.");
   }
 
+  function patch28OpenEasyStoreInvoice(row) {
+    row = row || {};
+    const mode = currentAccountingMode ? currentAccountingMode() : patch19UserMode();
+    const url = text(window.MATBAGY_EASY_STORE_URL || "").trim();
+    if (!url) { alert("رابط EasyStore غير مضبوط في config.js"); return; }
+    patch19OpenEmployeeTool(url, "Matbagy_EasyStore_Invoice", "فاتورة العميل", {
+      module: "accounting",
+      screen: "sales",
+      mode: mode === "full" || mode === "admin" ? "full" : "final",
+      orderId: row.orderId || "",
+      customer: row.customer || row.customerName || "",
+      pullLines: "1",
+      mutualInvoice: "1"
+    });
+  }
+
   function whatsappActions(row, i) {
     const disabled = whatsappPhone(row.customerPhone) ? "" : " disabled";
     const notified = text(row.customerNotified) === "نعم" ? '<small class="wa-notified">تم الإبلاغ</small>' : "";
     const orderId = escapeHtml(row.orderId || "");
-    return '<div class="whatsapp-actions">' +
+    return '<div class="whatsapp-actions patch28-actions">' +
       '<button type="button" class="wa-btn wa-status" data-i="' + i + '"' + disabled + '>نسخ رد الحالة</button>' +
       '<button type="button" class="wa-btn wa-ready" data-i="' + i + '"' + disabled + '>نسخ رسالة انتهاء</button>' +
-      '<button type="button" class="wa-btn wa-invoice-copy" data-order="' + orderId + '"' + disabled + '>فاتورة العميل</button>' +
-      '<button type="button" class="wa-btn wa-invoice-pdf" data-order="' + orderId + '">PDF</button>' +
-      '<button type="button" class="wa-btn wa-invoice-image" data-order="' + orderId + '">صورة</button>' +
+      '<span class="wa-invoice-menu-wrap"><button type="button" class="wa-btn wa-invoice-menu" data-order="' + orderId + '">فاتورة العميل ▾</button>' +
+      '<span class="wa-invoice-menu-list hidden">' +
+      '<button type="button" class="wa-invoice-pricing" data-order="' + orderId + '">تسعير / تعديل بند</button>' +
+      '<button type="button" class="wa-invoice-collect" data-order="' + orderId + '">تجميع وائل + جابر</button>' +
+      '<button type="button" class="wa-invoice-copy" data-order="' + orderId + '"' + disabled + '>واتساب / نسخ</button>' +
+      '<button type="button" class="wa-invoice-pdf" data-order="' + orderId + '">PDF</button>' +
+      '<button type="button" class="wa-invoice-image" data-order="' + orderId + '">صورة</button>' +
+      '</span></span>' +
       '<button type="button" class="wa-btn wa-open-chat" data-i="' + i + '"' + disabled + '>فتح واتساب</button>' +
       '<button type="button" class="wa-btn order-chat-open" data-i="' + i + '">محادثة الأوردر</button>' +
-      '<button type="button" class="wa-btn invoice-open" data-i="' + i + '">تسعير</button>' +
       notified +
       '</div>';
   }
@@ -7203,9 +7223,21 @@ Trend Mall`;
   }
 
   document.addEventListener("click", function (ev) {
+    const menuBtn = ev.target.closest && ev.target.closest(".wa-invoice-menu");
+    const pricingBtn = ev.target.closest && ev.target.closest(".wa-invoice-pricing");
+    const collectBtn = ev.target.closest && ev.target.closest(".wa-invoice-collect");
     const copyBtn = ev.target.closest && ev.target.closest(".wa-invoice-copy");
     const pdfBtn = ev.target.closest && ev.target.closest(".wa-invoice-pdf");
     const imgBtn = ev.target.closest && ev.target.closest(".wa-invoice-image");
+    if (menuBtn) {
+      const wrap = menuBtn.closest(".wa-invoice-menu-wrap");
+      const list = wrap && wrap.querySelector(".wa-invoice-menu-list");
+      document.querySelectorAll(".wa-invoice-menu-list").forEach(function(x){ if(x !== list) x.classList.add("hidden"); });
+      if (list) list.classList.toggle("hidden");
+      return;
+    }
+    if (pricingBtn) { const row = patch19RowByButton(pricingBtn); if (typeof openInvoiceModal === "function") openInvoiceModal(row); return; }
+    if (collectBtn) { patch28OpenEasyStoreInvoice(patch19RowByButton(collectBtn)); return; }
     if (copyBtn) { patch19CopyInvoiceAndOpenWhatsApp(patch19RowByButton(copyBtn)); return; }
     if (pdfBtn) { patch19OpenInvoicePdf(patch19RowByButton(pdfBtn)); return; }
     if (imgBtn) { patch19DownloadInvoiceImage(patch19RowByButton(imgBtn)); return; }
@@ -7449,7 +7481,7 @@ Trend Mall`;
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1856 - Batch 25 Full Accounting Core';
+        el.textContent = 'مطبعجي مصر V1856 - Batch 28 Mutual Invoice';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7665,8 +7697,12 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1856 - Batch 25 Full Accounting Core'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1856 - Batch 28 Mutual Invoice'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);
 })();
+
+
+/*********************** Patch 28 - Mutual Invoice Bridge marker ***********************/
+window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull Wael/Gaber";
