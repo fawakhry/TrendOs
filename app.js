@@ -7787,6 +7787,7 @@ Trend Mall`;
 
 
 /*********************** Patch 28 - Mutual Invoice Bridge marker ***********************/
+window.MATBAGY_PATCH_31 = "Customer Draft Loader + Mutual Invoice Flow";
 window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull Wael/Gaber";
 
 
@@ -7984,8 +7985,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var base = String(window.MATBAGY_EASY_STORE_URL || 'https://fawakhry.github.io/EasyStore/').trim();
     var u = new URL(base, location.href); var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','sales'); u.searchParams.set('mode','final');
-    u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es11-batch30-final');
+    u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
+    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es12-batch31-customer-draft');
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
   function openInvoice(row){
