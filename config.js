@@ -30,16 +30,16 @@ window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_EASY_STORE_URL = window.MATBAGY_EASY_STORE_URL || "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_USE_EASY_STORE_FOR_ACCOUNTING = true;
 
-window.MATBAGY_BATCH_VERSION = "V1860_ES17_INTERNATIONAL_UI_THEME";
+window.MATBAGY_BATCH_VERSION = "V1861_ES18_ERROR_FIX";
 
 // Batch 25 - force employee SSO for Matbagy Sheets and EasyStore
-window.MATBAGY_BATCH_VERSION = "V1860_ES17_INTERNATIONAL_UI_THEME";
+window.MATBAGY_BATCH_VERSION = "V1861_ES18_ERROR_FIX";
 window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_SHEETS_DISABLE_PHONE = true;
 window.MATBAGY_SHEETS_DISABLE_ACTIVATION = true;
 
 window.MATBAGY_PATCH29_DEPT_INVOICE = true;
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es17-v1860-international-ui-theme';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es18-v1861-error-fix';
 
 
 // V1857 / ES14 - صلاحيات الحسابات النهائية
@@ -57,11 +57,11 @@ window.MATBAGY_V1858_ES15_LEDGER_FIX = true;
 
 
 // V1859 / ES16 - Accounting Manager Core
-window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
+window.MATBAGY_V1861_ES18_ERROR_FIX = true;
 window.MATBAGY_CUSTOMER_ACCOUNTS_PORTAL = true;
 window.MATBAGY_AUTO_INVOICE_REVIEW_LINK = true;
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es17-v1860-international-ui-theme';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es18-v1861-error-fix';
 
-// V1860 / ES17 - International UI Theme
-window.MATBAGY_UI_THEME_VERSION = 'V1860_ES17_INTERNATIONAL_UI_THEME';
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es17-v1860-international-ui-theme';
+// V1861 / ES18 - International UI Theme
+window.MATBAGY_UI_THEME_VERSION = 'V1861_ES18_ERROR_FIX';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es18-v1861-error-fix';
