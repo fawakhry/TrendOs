@@ -30,13 +30,20 @@ window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_EASY_STORE_URL = window.MATBAGY_EASY_STORE_URL || "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_USE_EASY_STORE_FOR_ACCOUNTING = true;
 
-window.MATBAGY_BATCH_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
+window.MATBAGY_BATCH_VERSION = "1857_ES14_ACCOUNTING_MERGE";
 
 // Batch 25 - force employee SSO for Matbagy Sheets and EasyStore
-window.MATBAGY_BATCH_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
+window.MATBAGY_BATCH_VERSION = "1857_ES14_ACCOUNTING_MERGE";
 window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_SHEETS_DISABLE_PHONE = true;
 window.MATBAGY_SHEETS_DISABLE_ACTIVATION = true;
 
 window.MATBAGY_PATCH29_DEPT_INVOICE = true;
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es10-batch29-dept-invoice';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es14-v1857-accounting-merge';
+
+
+// V1857 / ES14 - صلاحيات الحسابات النهائية
+// المشتريات: ضياء + رحمه + ريفان فقط. وائل وجابر لا يفتحوا فواتير مشتريات.
+window.MATBAGY_ACCOUNTING_PURCHASE_EMPLOYEES = ["ضياء", "رحمه", "رحمة", "ريفان", "ريڤان", "diaa", "rahma", "revan", "rivan"];
+window.MATBAGY_ACCOUNTING_DEPT_ONLY_EMPLOYEES = ["وائل", "جابر", "wael", "gaber", "jaber"];
+window.MATBAGY_ES14_ACCOUNTING_MERGE = true;

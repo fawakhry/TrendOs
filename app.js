@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
+  const UI_VERSION = "1857_ES14_ACCOUNTING_MERGE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -5013,7 +5013,7 @@ Trend Mall`;
     const orderId = encodeURIComponent(($("invoiceOrderId") || {}).value || row.orderId || "");
     const user = encodeURIComponent((state.user && (state.user.username || state.user.name)) || "جابر");
     const token = encodeURIComponent((state.user && state.user.token) || "");
-    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es10-batch29", "_blank");
+    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es14-v1857-accounting-merge", "_blank");
   }
 
   async function openInvoiceModal(row) {
@@ -7563,7 +7563,7 @@ Trend Mall`;
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1856 - Batch 29 Dept Invoice + Gaber Calculator';
+        el.textContent = 'مطبعجي مصر V1857 - ES14 Accounting Merge';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7779,7 +7779,7 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1856 - Batch 29 Dept Invoice + Gaber Calculator'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1857 - ES14 Accounting Merge'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);
@@ -7931,7 +7931,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('name', cu.name || 'جابر'); u.searchParams.set('username', cu.username || 'جابر'); u.searchParams.set('token', cu.token || '');
     u.searchParams.set('customer', (row && (row.customer || row.customerName)) || (($('invoiceCustomer')||{}).value||''));
     u.searchParams.set('orderId', (row && row.orderId) || (($('invoiceOrderId')||{}).value||''));
-    u.searchParams.set('v','es11-batch30-gaber-calc');
+    u.searchParams.set('v','es14-v1857-accounting-merge');
     window.open(u.toString(), 'Matbagy_Gaber_Calc');
   }
   function toggleInlineLaser(){ var b=$('invoiceInlineLaserBox'); if(b) b.classList.toggle('hidden'); }
@@ -7986,7 +7986,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var u = new URL(base, location.href); var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','sales'); u.searchParams.set('mode','final');
     u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es12-batch31-customer-draft');
+    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es14-v1857-accounting-merge');
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
   function openInvoice(row){
@@ -8035,4 +8035,115 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   window.MATBAGY_P30_OPEN_INVOICE = openInvoice;
   window.MATBAGY_P30_OPEN_GABER_CALC = function(){ openEasyStoreLaser({}); };
   setTimeout(ensureGaberCalcButton, 300); setTimeout(ensureGaberCalcButton, 1500); setInterval(ensureGaberCalcButton, 4000);
+})();
+
+
+/*********************** V1857 / ES14 - Accounting Merge Final Overrides ***********************/
+(function(){
+  'use strict';
+  window.TRENDOS_PATCH_VERSION = '1857_ES14_ACCOUNTING_MERGE';
+  window.TRENDOS_LOADED_APP_VERSION = 'V1857 + ES14 Accounting Merge';
+  window.MATBAGY_V1857_ES14 = true;
+
+  function $(id){ return document.getElementById(id); }
+  function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
+  function norm(v){ return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي'); }
+  function sessionUser(){
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem('trendos_session') || '{}').user || {}; } catch(e) { saved = {}; }
+    var u = (window.state && window.state.user) || saved || {};
+    return {
+      name: u.name || u.username || localStorage.getItem('matbagy_user_name') || localStorage.getItem('matbagy_username') || '',
+      username: u.username || u.name || localStorage.getItem('matbagy_username') || localStorage.getItem('matbagy_user_name') || '',
+      token: u.token || localStorage.getItem('matbagy_session_token') || '',
+      role: u.role || '',
+      department: u.department || ''
+    };
+  }
+  function userMode(){
+    var u = sessionUser();
+    var k = norm([u.name,u.username,u.role,u.department].join(' '));
+    if(/ضياء|diaa|admin|مدير|اداره|ادارة/.test(k)) return 'admin';
+    if(/رحمه|رحمة|rahma|ريفان|ريڤان|revan|rivan/.test(k)) return 'final';
+    if(/جابر|gaber|jaber|laser|ليزر/.test(k)) return 'laser';
+    if(/وائل|wael|print|طباعة/.test(k)) return 'print';
+    return 'employee';
+  }
+  function canOpenPurchases(){
+    var mode = userMode();
+    return mode === 'admin' || mode === 'final';
+  }
+  function departmentForMode(){
+    var mode = userMode();
+    if(mode === 'laser') return 'ليزر';
+    if(mode === 'print') return 'طباعة';
+    if(mode === 'final') return 'تقفيل';
+    if(mode === 'admin') return 'إدارة';
+    return '';
+  }
+  function easyStoreBase(){ return txt(window.MATBAGY_EASY_STORE_URL || 'https://fawakhry.github.io/EasyStore/'); }
+  function openEasyStore(params, windowName){
+    var base = easyStoreBase();
+    if(!base){ alert('رابط EasyStore غير مضبوط في config.js'); return false; }
+    var u = new URL(base, location.href);
+    var cu = sessionUser();
+    params = params || {};
+    u.searchParams.set('from','trendos');
+    u.searchParams.set('sso','1');
+    u.searchParams.set('employeeSSO','1');
+    u.searchParams.set('name', cu.name || cu.username || 'موظف');
+    u.searchParams.set('username', cu.username || cu.name || 'موظف');
+    u.searchParams.set('token', cu.token || '');
+    u.searchParams.set('mode', params.mode || userMode());
+    u.searchParams.set('department', params.department || departmentForMode());
+    u.searchParams.set('purchaseAllowed', canOpenPurchases() ? '1' : '0');
+    u.searchParams.set('canPurchase', canOpenPurchases() ? '1' : '0');
+    u.searchParams.set('deptOnly', canOpenPurchases() ? '0' : '1');
+    u.searchParams.set('hideCostForDept', (userMode()==='laser' || userMode()==='print') ? '1' : '0');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es14-v1857-accounting-merge');
+    Object.keys(params).forEach(function(k){ if(params[k] !== undefined && params[k] !== null && k !== 'mode' && k !== 'department') u.searchParams.set(k, params[k]); });
+    window.open(u.toString(), windowName || 'Matbagy_EasyStore_ES14');
+    return true;
+  }
+
+  window.openMatbagyEasyStoreAccounting = function(){
+    var mode = userMode();
+    if(mode === 'laser') return openEasyStore({screen:'dept', mode:'laser', department:'ليزر', laserAi:'1'}, 'Matbagy_EasyStore_Gaber');
+    if(mode === 'print') return openEasyStore({screen:'dept', mode:'print', department:'طباعة'}, 'Matbagy_EasyStore_Wael');
+    if(mode === 'final') return openEasyStore({screen:'sales', mode:'final', pullLines:'1', mutualInvoice:'1'}, 'Matbagy_EasyStore_Final');
+    return openEasyStore({screen:'dashboard', mode:'admin'}, 'Matbagy_EasyStore_Admin');
+  };
+
+  window.MATBAGY_P30_OPEN_GABER_CALC = function(row){
+    return openEasyStore({screen:'dept', mode:'laser', department:'ليزر', laserAi:'1', customer:(row&&row.customer)||'', orderId:(row&&row.orderId)||''}, 'Matbagy_Gaber_Calc_ES14');
+  };
+
+  function hideForbiddenPurchaseEntrypoints(){
+    if(canOpenPurchases()) return;
+    Array.prototype.slice.call(document.querySelectorAll('button,a')).forEach(function(el){
+      var t = txt(el.textContent || el.title || '');
+      if(/مشتريات|فاتورة\s*شراء|purchase/i.test(t)){
+        el.classList.add('hidden');
+        el.setAttribute('data-v1857-hidden-purchase','1');
+      }
+    });
+  }
+
+  function bindV1857(){
+    var acc = $('accountingBtn');
+    if(acc){
+      acc.textContent = '💰 إيزي ستور الحسابات V1857';
+      acc.title = canOpenPurchases() ? 'حسابات ومبيعات ومشتريات حسب الصلاحية' : 'فاتورة القسم فقط بدون مشتريات وبدون تكلفة';
+      acc.onclick = function(ev){ if(ev){ev.preventDefault(); ev.stopPropagation();} return window.openMatbagyEasyStoreAccounting(); };
+    }
+    var g = $('p30GaberCalcMainBtn');
+    if(g){
+      g.textContent = 'حاسبة جابر ES14';
+      g.onclick = function(ev){ if(ev){ev.preventDefault(); ev.stopPropagation();} return window.MATBAGY_P30_OPEN_GABER_CALC({}); };
+    }
+    Array.prototype.slice.call(document.querySelectorAll('.version-badge')).forEach(function(el){ el.textContent = 'مطبعجي مصر V1857 - ES14 Accounting Merge'; });
+    hideForbiddenPurchaseEntrypoints();
+  }
+  document.addEventListener('DOMContentLoaded', bindV1857);
+  setTimeout(bindV1857, 300); setTimeout(bindV1857, 1600); setInterval(bindV1857, 5000);
 })();
