@@ -30,16 +30,16 @@ window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_EASY_STORE_URL = window.MATBAGY_EASY_STORE_URL || "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_USE_EASY_STORE_FOR_ACCOUNTING = true;
 
-window.MATBAGY_BATCH_VERSION = "1858_ES15_LEDGER_FIX";
+window.MATBAGY_BATCH_VERSION = "V1859_ES16_ACCOUNTING_MANAGER_CORE";
 
 // Batch 25 - force employee SSO for Matbagy Sheets and EasyStore
-window.MATBAGY_BATCH_VERSION = "1858_ES15_LEDGER_FIX";
+window.MATBAGY_BATCH_VERSION = "V1859_ES16_ACCOUNTING_MANAGER_CORE";
 window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_SHEETS_DISABLE_PHONE = true;
 window.MATBAGY_SHEETS_DISABLE_ACTIVATION = true;
 
 window.MATBAGY_PATCH29_DEPT_INVOICE = true;
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es15-v1858-ledger-fix';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es16-v1859-accounting-manager-core';
 
 
 // V1857 / ES14 - صلاحيات الحسابات النهائية
@@ -54,3 +54,10 @@ window.MATBAGY_EASYSTORE_FIX5 = true;
 
 // V1858 / ES15 - حسابات العملاء والموردين + تحصيلات ومديونيات
 window.MATBAGY_V1858_ES15_LEDGER_FIX = true;
+
+
+// V1859 / ES16 - Accounting Manager Core
+window.MATBAGY_V1859_ES16_ACCOUNTING_MANAGER_CORE = true;
+window.MATBAGY_CUSTOMER_ACCOUNTS_PORTAL = true;
+window.MATBAGY_AUTO_INVOICE_REVIEW_LINK = true;
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es16-v1859-accounting-manager-core';
