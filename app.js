@@ -8147,3 +8147,104 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   document.addEventListener('DOMContentLoaded', bindV1857);
   setTimeout(bindV1857, 300); setTimeout(bindV1857, 1600); setInterval(bindV1857, 5000);
 })();
+
+
+/*********************** V1857 Fix 5 - Accounting UI fixes requested by Diaa ***********************/
+(function(){
+  'use strict';
+  window.MATBAGY_V1857_FIX5 = true;
+  function $(id){ return document.getElementById(id); }
+  function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
+  function norm(v){ return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي'); }
+  function num(v){ var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
+  function msg(t,bad){ var m=$('invoiceMsg')||$('accountingMsg')||$('mainMsg'); if(m){m.textContent=t||''; m.classList.toggle('error',!!bad); m.classList.toggle('ok',!!t&&!bad);} }
+  function userDept(){
+    var u = (window.state && window.state.user) || {};
+    var k = norm([u.name,u.username,u.role,u.department,localStorage.getItem('matbagy_user_name'),localStorage.getItem('matbagy_username')].join(' '));
+    if(/جابر|gaber|jaber|ليزر|laser/.test(k)) return 'ليزر';
+    if(/وائل|wael|طباع|print/.test(k)) return 'طباعة';
+    return txt(u.department||'');
+  }
+  function apiJsonp(action, params){
+    return new Promise(function(resolve,reject){
+      var base = txt(window.TREND_API_URL || window.API_URL || ''); if(!base){reject(new Error('رابط السيرفر غير مضبوط'));return;}
+      var cb = 'trendos_fix5_' + Date.now() + '_' + Math.floor(Math.random()*99999);
+      var s = document.createElement('script');
+      var u = (window.state && window.state.user) || {};
+      var q = new URLSearchParams(Object.assign({action:action,callback:cb,username:u.username||u.name||'',name:u.name||u.username||'',token:u.token||'',_ts:Date.now()}, params||{}));
+      var done=false; function clean(){ if(done) return; done=true; try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode) s.parentNode.removeChild(s); }
+      window[cb]=function(r){ clean(); resolve(r||{}); };
+      s.onerror=function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
+      s.src = base + (base.indexOf('?')===-1?'?':'&') + q.toString();
+      document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة السيرفر')); } }, 20000);
+    });
+  }
+  function closeClientInvoiceMenus(){
+    ['clientInvoiceMenu','waInvoiceMenu','invoiceCustomerMenu'].forEach(function(id){ var el=$(id); if(el) el.classList.add('hidden'); });
+    document.querySelectorAll('.clientInvoiceMenu,.wa-invoice-menu-list,.floating-menu,.dropdown-menu').forEach(function(el){ if(/فاتورة|invoice|menu/i.test(el.id+' '+el.className)) el.classList.add('hidden'); });
+  }
+  window.toggleClientInvoiceMenu = function(ev){
+    if(ev){ ev.preventDefault&&ev.preventDefault(); ev.stopPropagation&&ev.stopPropagation(); }
+    var m = $('clientInvoiceMenu'); if(!m) return false;
+    var open = m.classList.contains('hidden'); closeClientInvoiceMenus(); if(open) m.classList.remove('hidden'); return false;
+  };
+  document.addEventListener('click', function(ev){ var t=ev.target; if(t && t.closest && t.closest('#clientInvoiceMenu,.clientInvoiceMenu,[onclick*="toggleClientInvoiceMenu"]')) return; closeClientInvoiceMenus(); }, true);
+  document.addEventListener('keydown', function(ev){ if(ev.key==='Escape') closeClientInvoiceMenus(); }, true);
+
+  var catalogCache = [];
+  function rowName(r){ return txt(r.itemName||r.templateName||r.materialName||r.name||r['اسم البند']||r['اسم الصنف']||r['اسم الخامة']||''); }
+  function rowDept(r){ return txt(r.department||r.dept||r['القسم']||'عام'); }
+  function rowSale(r){ return num(r.salePrice||r.systemSale||r.price||r['سعر بيع رسمي']||r['سعر بيع مقترح']||r['بيع']||0); }
+  function rowActive(r){ return !/لا|موقوف|متوقف|inactive|archived/i.test(txt(r.active||r['مفعل']||'نعم')); }
+  function currentDeptFilter(){ return userDept() || txt(($('invoiceItemDept')||{}).value||''); }
+  function fillInvoiceCatalogFromCache(){
+    var sel = $('invoiceItemSelect'); if(!sel) return;
+    var d = currentDeptFilter();
+    var rows = catalogCache.filter(function(r){ var rd=rowDept(r); return rowActive(r) && (!d || rd===d || rd==='مشترك' || rd==='عام'); });
+    if(!rows.length) rows = catalogCache.filter(rowActive);
+    sel.innerHTML = '<option value="">اختار الصنف</option>' + rows.map(function(r,i){return '<option value="fix5|'+i+'">'+esc(rowName(r)+' — '+rowDept(r)+(rowSale(r)?' — '+rowSale(r)+' ج':''))+'</option>';}).join('');
+    sel.onchange = function(){ var m=String(sel.value||'').match(/^fix5\|(\d+)$/); if(!m) return; var r=rows[Number(m[1])]; if(!r) return; if($('invoiceWorkDone')) $('invoiceWorkDone').value=rowName(r); if($('invoiceItemDept')) $('invoiceItemDept').value=rowDept(r); if($('invoiceSalePrice')) $('invoiceSalePrice').value=rowSale(r)||$('invoiceSalePrice').value||0; };
+  }
+  async function refreshInvoiceCatalog(){
+    try{
+      var res = await apiJsonp('getAccounting',{});
+      catalogCache = [];
+      (res.templates||[]).forEach(function(r){ if(rowName(r)) catalogCache.push(r); });
+      (res.materials||[]).forEach(function(r){ if(rowName(r)) catalogCache.push(r); });
+      fillInvoiceCatalogFromCache();
+    }catch(e){}
+  }
+  function ensureInvoiceRowsPanel(){
+    var card = document.querySelector('#invoiceModal .invoice-card,.p30-invoice-card'); if(!card || $('fix5RowsPanel')) return;
+    var panel=document.createElement('div'); panel.id='fix5RowsPanel'; panel.className='v1857-fix5-row-panel';
+    panel.innerHTML='<h4>بنود الفاتورة قبل التسجيل</h4><div class="hint">اختار صنف وسعره ثم اضغط إضافة صف. بعد إدخال كل البنود اضغط تسجيل كل الصفوف.</div><div id="fix5RowsList" class="empty">لا توجد صفوف مضافة.</div><div class="v1857-fix5-row-actions"><button type="button" id="fix5AddRowBtn" class="ghost">إضافة صف / باند</button><button type="button" id="fix5SaveRowsBtn" class="primary">تسجيل كل الصفوف</button><button type="button" id="fix5ClearRowsBtn" class="danger">تفريغ الصفوف</button></div>';
+    var save=$('saveInvoiceBtn'); if(save && save.parentNode) save.parentNode.parentNode.insertBefore(panel, save.parentNode); else card.appendChild(panel);
+    $('fix5AddRowBtn').onclick=addInvoiceRowBuffer; $('fix5SaveRowsBtn').onclick=saveInvoiceRowBuffer; $('fix5ClearRowsBtn').onclick=function(){ window.MATBAGY_FIX5_INVOICE_ROWS=[]; renderInvoiceRowsBuffer(); };
+  }
+  function getCurrentRow(){
+    return {itemName:txt(($('invoiceWorkDone')||{}).value), itemDept:txt(($('invoiceItemDept')||{}).value)||currentDeptFilter(), qty:num(($('invoiceQty')||{}).value)||1, sale:num(($('invoiceSalePrice')||{}).value), shared:!!(($('invoiceSharedLine')||{}).checked), notes:txt(($('invoiceNotes')||{}).value)};
+  }
+  function addInvoiceRowBuffer(){ var r=getCurrentRow(); if(!r.itemName || !r.sale){ msg('اختار الصنف واكتب السعر قبل إضافة الصف.', true); return; } window.MATBAGY_FIX5_INVOICE_ROWS=window.MATBAGY_FIX5_INVOICE_ROWS||[]; window.MATBAGY_FIX5_INVOICE_ROWS.push(r); renderInvoiceRowsBuffer(); msg('تم إضافة الصف. أضف صف آخر أو سجل كل الصفوف.', false); }
+  function renderInvoiceRowsBuffer(){
+    var box=$('fix5RowsList'); if(!box) return; var rows=window.MATBAGY_FIX5_INVOICE_ROWS||[];
+    if(!rows.length){ box.className='empty'; box.innerHTML='لا توجد صفوف مضافة.'; return; }
+    box.className='';
+    var total=rows.reduce(function(s,r){return s+(num(r.sale)*num(r.qty));},0);
+    box.innerHTML='<table class="v1857-fix5-row-table"><thead><tr><th>الصنف</th><th>القسم</th><th>كمية</th><th>سعر</th><th>إجمالي</th><th>حذف</th></tr></thead><tbody>'+rows.map(function(r,i){return '<tr><td>'+esc(r.itemName)+'</td><td>'+esc(r.itemDept)+'</td><td>'+r.qty+'</td><td>'+r.sale+'</td><td>'+(r.qty*r.sale).toFixed(2)+'</td><td><button type="button" class="danger small" onclick="MATBAGY_FIX5_REMOVE_INVOICE_ROW('+i+')">حذف</button></td></tr>';}).join('')+'</tbody></table><b>الإجمالي: '+total.toFixed(2)+' ج</b>';
+  }
+  window.MATBAGY_FIX5_REMOVE_INVOICE_ROW=function(i){ var rows=window.MATBAGY_FIX5_INVOICE_ROWS||[]; rows.splice(i,1); renderInvoiceRowsBuffer(); };
+  async function callSaveSingle(row){
+    if($('invoiceWorkDone')) $('invoiceWorkDone').value=row.itemName; if($('invoiceItemDept')) $('invoiceItemDept').value=row.itemDept; if($('invoiceQty')) $('invoiceQty').value=row.qty; if($('invoiceSalePrice')) $('invoiceSalePrice').value=row.sale; if($('invoiceSharedLine')) $('invoiceSharedLine').checked=!!row.shared; if($('invoiceNotes')) $('invoiceNotes').value=row.notes||'';
+    var btn=$('saveInvoiceBtn'); if(btn) btn.click();
+    await new Promise(function(r){setTimeout(r,650);});
+  }
+  async function saveInvoiceRowBuffer(){
+    var rows=(window.MATBAGY_FIX5_INVOICE_ROWS||[]).slice(); if(!rows.length){ msg('أضف صف واحد على الأقل.', true); return; }
+    for(var i=0;i<rows.length;i++){ await callSaveSingle(rows[i]); }
+    window.MATBAGY_FIX5_INVOICE_ROWS=[]; msg('تم تسجيل كل صفوف الفاتورة.', false);
+  }
+  function bindInvoiceFixes(){ ensureInvoiceRowsPanel(); refreshInvoiceCatalog(); renderInvoiceRowsBuffer(); }
+  document.addEventListener('click', function(ev){ var btn=ev.target&&ev.target.closest&&ev.target.closest('.wa-invoice-pricing,.invoice-open'); if(btn){ setTimeout(bindInvoiceFixes,350); setTimeout(bindInvoiceFixes,1000); } }, true);
+  setInterval(function(){ if($('invoiceModal') && !$('invoiceModal').classList.contains('hidden')) bindInvoiceFixes(); }, 3000);
+})();

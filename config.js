@@ -39,7 +39,7 @@ window.MATBAGY_SHEETS_DISABLE_PHONE = true;
 window.MATBAGY_SHEETS_DISABLE_ACTIVATION = true;
 
 window.MATBAGY_PATCH29_DEPT_INVOICE = true;
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es14-v1857-accounting-merge';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es14-v1857-fix5-dept-rows-paper-pack';
 
 
 // V1857 / ES14 - صلاحيات الحسابات النهائية
@@ -47,3 +47,6 @@ window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es14-v1857-accounting-merge';
 window.MATBAGY_ACCOUNTING_PURCHASE_EMPLOYEES = ["ضياء", "رحمه", "رحمة", "ريفان", "ريڤان", "diaa", "rahma", "revan", "rivan"];
 window.MATBAGY_ACCOUNTING_DEPT_ONLY_EMPLOYEES = ["وائل", "جابر", "wael", "gaber", "jaber"];
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
+
+// V1857 Fix 5 - closes invoice menus, item reactivation, paper pack costing, multi-row dept invoices.
+window.MATBAGY_EASYSTORE_FIX5 = true;
