@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1857_ES14_ACCOUNTING_MERGE";
+  const UI_VERSION = "1858_ES15_LEDGER_FIX";
 
   const screens = {
     service: "خدمة العملاء",
@@ -5013,7 +5013,7 @@ Trend Mall`;
     const orderId = encodeURIComponent(($("invoiceOrderId") || {}).value || row.orderId || "");
     const user = encodeURIComponent((state.user && (state.user.username || state.user.name)) || "جابر");
     const token = encodeURIComponent((state.user && state.user.token) || "");
-    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es14-v1857-accounting-merge", "_blank");
+    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es15-v1858-ledger-fix", "_blank");
   }
 
   async function openInvoiceModal(row) {
@@ -7563,7 +7563,7 @@ Trend Mall`;
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1857 - ES14 Accounting Merge';
+        el.textContent = 'مطبعجي مصر V1858 - ES15 Ledger Fix';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7779,7 +7779,7 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1857 - ES14 Accounting Merge'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1858 - ES15 Ledger Fix'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);
@@ -7931,7 +7931,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('name', cu.name || 'جابر'); u.searchParams.set('username', cu.username || 'جابر'); u.searchParams.set('token', cu.token || '');
     u.searchParams.set('customer', (row && (row.customer || row.customerName)) || (($('invoiceCustomer')||{}).value||''));
     u.searchParams.set('orderId', (row && row.orderId) || (($('invoiceOrderId')||{}).value||''));
-    u.searchParams.set('v','es14-v1857-accounting-merge');
+    u.searchParams.set('v','es15-v1858-ledger-fix');
     window.open(u.toString(), 'Matbagy_Gaber_Calc');
   }
   function toggleInlineLaser(){ var b=$('invoiceInlineLaserBox'); if(b) b.classList.toggle('hidden'); }
@@ -7986,7 +7986,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var u = new URL(base, location.href); var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','sales'); u.searchParams.set('mode','final');
     u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es14-v1857-accounting-merge');
+    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es15-v1858-ledger-fix');
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
   function openInvoice(row){
@@ -8041,8 +8041,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** V1857 / ES14 - Accounting Merge Final Overrides ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = '1857_ES14_ACCOUNTING_MERGE';
-  window.TRENDOS_LOADED_APP_VERSION = 'V1857 + ES14 Accounting Merge';
+  window.TRENDOS_PATCH_VERSION = '1858_ES15_LEDGER_FIX';
+  window.TRENDOS_LOADED_APP_VERSION = 'V1858 + ES15 Ledger Fix';
   window.MATBAGY_V1857_ES14 = true;
 
   function $(id){ return document.getElementById(id); }
@@ -8100,7 +8100,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('canPurchase', canOpenPurchases() ? '1' : '0');
     u.searchParams.set('deptOnly', canOpenPurchases() ? '0' : '1');
     u.searchParams.set('hideCostForDept', (userMode()==='laser' || userMode()==='print') ? '1' : '0');
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es14-v1857-accounting-merge');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es15-v1858-ledger-fix');
     Object.keys(params).forEach(function(k){ if(params[k] !== undefined && params[k] !== null && k !== 'mode' && k !== 'department') u.searchParams.set(k, params[k]); });
     window.open(u.toString(), windowName || 'Matbagy_EasyStore_ES14');
     return true;
@@ -8141,7 +8141,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       g.textContent = 'حاسبة جابر ES14';
       g.onclick = function(ev){ if(ev){ev.preventDefault(); ev.stopPropagation();} return window.MATBAGY_P30_OPEN_GABER_CALC({}); };
     }
-    Array.prototype.slice.call(document.querySelectorAll('.version-badge')).forEach(function(el){ el.textContent = 'مطبعجي مصر V1857 - ES14 Accounting Merge'; });
+    Array.prototype.slice.call(document.querySelectorAll('.version-badge')).forEach(function(el){ el.textContent = 'مطبعجي مصر V1858 - ES15 Ledger Fix'; });
     hideForbiddenPurchaseEntrypoints();
   }
   document.addEventListener('DOMContentLoaded', bindV1857);
@@ -8247,4 +8247,19 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function bindInvoiceFixes(){ ensureInvoiceRowsPanel(); refreshInvoiceCatalog(); renderInvoiceRowsBuffer(); }
   document.addEventListener('click', function(ev){ var btn=ev.target&&ev.target.closest&&ev.target.closest('.wa-invoice-pricing,.invoice-open'); if(btn){ setTimeout(bindInvoiceFixes,350); setTimeout(bindInvoiceFixes,1000); } }, true);
   setInterval(function(){ if($('invoiceModal') && !$('invoiceModal').classList.contains('hidden')) bindInvoiceFixes(); }, 3000);
+})();
+
+
+/*********************** V1858 / ES15 - Ledger Fix marker ***********************/
+(function(){
+  window.MATBAGY_V1858_ES15_LEDGER_FIX = true;
+  function bind(){
+    try {
+      document.querySelectorAll('.version-badge').forEach(function(el){
+        if(/V1856|V1857|Batch|Fix/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1858 - ES15 Ledger Fix';
+      });
+    } catch(e) {}
+  }
+  document.addEventListener('DOMContentLoaded', bind);
+  setTimeout(bind, 300); setTimeout(bind, 1500);
 })();
