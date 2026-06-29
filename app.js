@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 10000;
-  const UI_VERSION = "1874_CLEAN_LOGIN_FIX";
+  const UI_VERSION = "1869_EVENT_DRIVEN_REFRESH_CORE";
 
   const screens = {
     service: "خدمة العملاء",
@@ -7732,7 +7732,7 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1872|V1873|V1874|ES/.test(el.textContent || '')) el.textContent='مطبعجي مصر V1874 - Clean Login Fix'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1872|ES29|مطبعجي/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1875 Main Boot Rescue'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);
@@ -7747,8 +7747,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** Batch 30 - Dept Invoice Emergency Fix + Gaber Inline Calculator ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = '1874_CLEAN_LOGIN_FIX';
-  window.TRENDOS_LOADED_APP_VERSION = 'V1874 Clean Login Fix';
+  window.TRENDOS_PATCH_VERSION = '1856_BATCH_30_DEPT_INVOICE_FIX';
+  window.TRENDOS_LOADED_APP_VERSION = 'Batch 30 - Dept Invoice Fix';
 
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }

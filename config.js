@@ -43,9 +43,4 @@ window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es10-batch29-dept-invoice';
 
 // V1873 Login Rescue
 window.MATBAGY_TRENDOS_LOGIN_RESCUE = true;
-window.MATBAGY_TRENDOS_VERSION = 'V1874 Clean Login Fix';
-
-// V1874 Clean Login Fix
-window.MATBAGY_TRENDOS_LOGIN_RESCUE = true;
-window.MATBAGY_TRENDOS_VERSION = 'V1874 Clean Login Fix';
-window.MATBAGY_DISABLE_BROKEN_PATCH_SCRIPTS = true;
+window.MATBAGY_TRENDOS_VERSION = 'V1873 Login Rescue';
