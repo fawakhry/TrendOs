@@ -40,3 +40,7 @@ window.MATBAGY_SHEETS_DISABLE_ACTIVATION = true;
 
 window.MATBAGY_PATCH29_DEPT_INVOICE = true;
 window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es10-batch29-dept-invoice';
+
+// V1873 Login Rescue
+window.MATBAGY_TRENDOS_LOGIN_RESCUE = true;
+window.MATBAGY_TRENDOS_VERSION = 'V1873 Login Rescue';
