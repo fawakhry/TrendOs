@@ -52,6 +52,6 @@
   document.addEventListener('DOMContentLoaded',function(){mount();polishVersion();groupDangerButtons();});
   setTimeout(function(){mount();polishVersion();groupDangerButtons();},400);
   setTimeout(function(){mount();polishVersion();groupDangerButtons();},1800);
-  setInterval(function(){mount();polishVersion();groupDangerButtons();},5000);
+  /* V1879: no repeated visual interval */
   if(window.matchMedia){try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',apply);}catch(e){}}
 })();

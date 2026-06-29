@@ -2,7 +2,7 @@
   "use strict";
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
-  const REFRESH_MS = 10000;
+  const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
   const UI_VERSION = "1858_ES15_LEDGER_FIX";
 
   const screens = {
@@ -5449,7 +5449,7 @@ Trend Mall`;
 
   function startRefresh() {
     stopRefresh();
-    state.refreshTimer = setInterval(function () { loadRows(false); }, REFRESH_MS);
+    state.refreshTimer = null; // V1879: تم إيقاف التحديث التلقائي؛ استخدم زر تحديث الآن فقط
   }
 
   function stopRefresh() {
@@ -7550,7 +7550,7 @@ Trend Mall`;
     }
   }, true);
 
-  setInterval(patch23MakeStatsClickable, 3000);
+  /* V1879 disabled repeated UI patcher: patch23MakeStatsClickable */
   setTimeout(patch23BindMainButtons, 300);
   setTimeout(patch23BindMainButtons, 1200);
   setTimeout(patch23BindMainButtons, 2500);
@@ -7657,7 +7657,7 @@ Trend Mall`;
   }
   setTimeout(batch24RebindStable, 250);
   setTimeout(batch24RebindStable, 1200);
-  setInterval(function(){ batch24EnsureStatusOptions(); }, 5000);
+  /* V1879 disabled repeated UI patcher: batch24EnsureStatusOptions */
 
 })();
 
@@ -7782,7 +7782,7 @@ Trend Mall`;
     document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1858 - ES15 Ledger Fix'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
-  setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);
+  setTimeout(bindMain,300); setTimeout(bindMain,1500); /* V1879 no interval */
 })();
 
 
@@ -8034,7 +8034,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   }, true);
   window.MATBAGY_P30_OPEN_INVOICE = openInvoice;
   window.MATBAGY_P30_OPEN_GABER_CALC = function(){ openEasyStoreLaser({}); };
-  setTimeout(ensureGaberCalcButton, 300); setTimeout(ensureGaberCalcButton, 1500); setInterval(ensureGaberCalcButton, 4000);
+  setTimeout(ensureGaberCalcButton, 300); setTimeout(ensureGaberCalcButton, 1500); /* V1879 no interval */
 })();
 
 
@@ -8145,7 +8145,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     hideForbiddenPurchaseEntrypoints();
   }
   document.addEventListener('DOMContentLoaded', bindV1857);
-  setTimeout(bindV1857, 300); setTimeout(bindV1857, 1600); setInterval(bindV1857, 5000);
+  setTimeout(bindV1857, 300); setTimeout(bindV1857, 1600); /* V1879 no interval */
 })();
 
 
@@ -8246,7 +8246,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   }
   function bindInvoiceFixes(){ ensureInvoiceRowsPanel(); refreshInvoiceCatalog(); renderInvoiceRowsBuffer(); }
   document.addEventListener('click', function(ev){ var btn=ev.target&&ev.target.closest&&ev.target.closest('.wa-invoice-pricing,.invoice-open'); if(btn){ setTimeout(bindInvoiceFixes,350); setTimeout(bindInvoiceFixes,1000); } }, true);
-  setInterval(function(){ if($('invoiceModal') && !$('invoiceModal').classList.contains('hidden')) bindInvoiceFixes(); }, 3000);
+  /* V1879 disabled repeated invoice UI patcher */
 })();
 
 
@@ -8286,69 +8286,5 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   async function loadCustomerAccounts(){var c=customerSession();if(!c.customerCode||!c.token){setStatus('سجل دخول العميل الأول.',true);return;}setStatus('جاري تحميل الفواتير والحساب...',false);try{var r=await api('getCustomerPortalAccountsV1859',{customerCode:c.customerCode,code:c.customerCode,token:c.token});if(!r.success){setStatus(r.message||'تعذر تحميل حساب العميل.',true);return;}renderCustomerAccounts(r);setStatus('تم تحميل الحساب.',false);}catch(e){setStatus('تعذر الاتصال بالسيرفر.',true);}}
   function renderCustomerAccounts(data){var box=$('customerAccountsContent');if(!box)return;var inv=data.invoices||[], tx=data.transactions||[];var summary='<div class="es16-grid"><div class="card"><span>إجمالي الفواتير</span><b>'+money(data.totalInvoices)+'</b></div><div class="card"><span>المدفوع</span><b>'+money(data.totalPaid)+'</b></div><div class="card"><span>الباقي</span><b>'+money(data.totalRemaining)+'</b></div><div class="card"><span>الرصيد الحالي</span><b>'+money(data.balance)+'</b></div></div>';var invoices='<h4>الفواتير</h4>'+(inv.length?inv.map(function(x){var lines=x.lines||[];return '<div class="es16-invoice-card"><div><b>فاتورة '+esc(x.invoiceNo||x.id||'-')+'</b> <span class="es16-pill">'+esc(x.status||'')+'</span></div><small>تاريخ: '+esc(x.date||'')+' | أوردر: '+esc(x.orderId||'')+'</small><div>الإجمالي: <b>'+money(x.total)+'</b> — المدفوع: <b>'+money(x.paid)+'</b> — الباقي: <b>'+money(x.remaining)+'</b></div>'+ (lines.length?'<table class="es16-table"><thead><tr><th>البند</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr></thead><tbody>'+lines.map(function(l){return '<tr><td>'+esc(l.item||l.itemName||'')+'</td><td>'+esc(l.qty||'')+'</td><td>'+money(l.unit||l.price)+'</td><td>'+money(l.total)+'</td></tr>';}).join('')+'</tbody></table>':'')+'</div>';}).join(''):'<div class="dash-empty">لا توجد فواتير بعد.</div>');var hist='<h4>كشف الحساب</h4>'+(tx.length?'<table class="es16-table"><thead><tr><th>التاريخ</th><th>العملية</th><th>المبلغ</th><th>الرصيد بعد</th><th>ملاحظات</th></tr></thead><tbody>'+tx.slice().reverse().map(function(t){return '<tr><td>'+esc(t.createdAt||'')+'</td><td>'+esc(t.operationLabel||t.operation||'')+'</td><td>'+money(t.amount)+'</td><td>'+money(t.balanceAfter)+'</td><td>'+esc(t.notes||'')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="dash-empty">لا توجد حركات كشف حساب.</div>');box.innerHTML=summary+invoices+hist;}
   function bind(){document.querySelectorAll('.version-badge').forEach(function(el){el.textContent='مطبعجي مصر V1859 - ES16 Accounting Manager';});ensureCustomerAccountsButton();ensureCustomerAccountsPanel();var params=new URLSearchParams(location.search);if(params.get('tab')==='accounts'||params.get('invoiceReview')==='1'){setTimeout(openCustomerAccountsPage,800);}}
-  document.addEventListener('DOMContentLoaded',bind);setTimeout(bind,300);setTimeout(bind,1500);setInterval(bind,5000);
-})();
-
-
-/*********************** TrendOS V1878 - Invoice Title Repeat Hotfix ***********************/
-(function(){
-  'use strict';
-  window.MATBAGY_TRENDOS_VERSION='V1878 Invoice Title Repeat Hotfix + ES30';
-  function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
-  function $(id){return document.getElementById(id);}
-  function fixVersion(){
-    document.querySelectorAll('.version-badge,.live-status,.app-version').forEach(function(el){var t=txt(el.textContent);if(/V1875|Rescue|Boot|V1876|V1858|ES15|Batch/.test(t))el.textContent='TrendOS V1878 - Invoice Title Hotfix';});
-  }
-  function normalizeInvoiceTitle(){
-    var title=$('invoiceOrderTitle'); if(!title) return;
-    var t=txt(title.textContent||'');
-    if(!/فاتورة القسم/.test(t)) return;
-    // V1878: never append wording repeatedly. Strip any old repeated marker and keep one clean title.
-    t=t.replace(/(?:\s*بنظام الصفوف\s*)+/g,' ').replace(/\s+/g,' ').trim();
-    if(/^فاتورة القسم\s*[:-]/.test(t) || /^فاتورة القسم\b/.test(t)){ title.textContent=t; }
-  }
-  function comfortInvoice(){
-    var modal=$('invoiceModal'); if(!modal) return;
-    var card=modal.querySelector('.modal-card,.invoice-card,.p30-invoice-card'); if(card) card.classList.add('trendos-v1877-invoice-card','trendos-v1878-invoice-card');
-    var panel=$('fix5RowsPanel'); if(panel) panel.classList.add('trendos-v1877-rows-panel','trendos-v1878-rows-panel');
-    normalizeInvoiceTitle();
-    var msg=$('invoiceMsg'); if(msg && !msg.dataset.v1878){msg.dataset.v1878='1'; msg.textContent='اختار الصنف والكمية والسعر، ثم أضف الصفوف وسجل الفاتورة. الأصناف من مطبخ الحسابات فقط.';}
-  }
-  var css=document.createElement('style');css.textContent='.trendos-v1877-invoice-card{width:min(1260px,98vw)!important;max-width:98vw!important;padding:26px!important;border-radius:28px!important}.trendos-v1877-invoice-card input,.trendos-v1877-invoice-card select{min-height:52px!important;font-size:17px!important;border-radius:14px!important}.trendos-v1877-invoice-card button{font-size:16px!important;padding:14px 20px!important;border-radius:14px!important}.trendos-v1877-rows-panel{background:#fff!important;border:1px solid #bfe9dc!important;border-radius:24px!important;padding:22px!important;margin:18px 0!important;box-shadow:0 18px 44px rgba(15,23,42,.14)!important}.trendos-v1877-rows-panel table{width:100%!important;min-width:900px!important}.trendos-v1877-rows-panel th,.trendos-v1877-rows-panel td{padding:10px!important;font-size:16px!important}#invoiceModal{align-items:flex-start!important;overflow:auto!important;padding:18px!important}';document.head.appendChild(css);
-  function tick(){fixVersion();comfortInvoice();}
-  document.addEventListener('DOMContentLoaded',tick);
-  document.addEventListener('click',function(){setTimeout(tick,150);},true);
-  setInterval(tick,1600);
-})();
-
-
-/*********************** TrendOS V1878 - Hard Stop Repeated Invoice Title ***********************/
-(function(){
-  'use strict';
-  window.MATBAGY_V1878_INVOICE_TITLE_REPEAT_HOTFIX = true;
-  function cleanText(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
-  function cleanInvoiceTitle(){
-    var el=document.getElementById('invoiceOrderTitle');
-    if(!el) return;
-    var t=cleanText(el.textContent||'');
-    if(!/فاتورة القسم/.test(t)) return;
-    var nt=t.replace(/(?:\s*بنظام الصفوف\s*)+/g,' ').replace(/\s+/g,' ').trim();
-    if(nt && nt!==t) el.textContent=nt;
-  }
-  function cleanAll(){
-    cleanInvoiceTitle();
-    document.querySelectorAll('#invoiceModal h1,#invoiceModal h2,#invoiceModal h3').forEach(function(el){
-      var t=cleanText(el.textContent||'');
-      if(/فاتورة القسم/.test(t) && /بنظام الصفوف/.test(t)){
-        el.textContent=t.replace(/(?:\s*بنظام الصفوف\s*)+/g,' ').replace(/\s+/g,' ').trim();
-      }
-    });
-  }
-  document.addEventListener('DOMContentLoaded', cleanAll);
-  document.addEventListener('click', function(){ setTimeout(cleanAll, 50); setTimeout(cleanAll, 250); }, true);
-  try{
-    var mo=new MutationObserver(function(){ cleanAll(); });
-    mo.observe(document.documentElement,{subtree:true,childList:true,characterData:true});
-  }catch(e){}
-  setInterval(cleanAll, 900);
+  document.addEventListener('DOMContentLoaded',bind);setTimeout(bind,300);setTimeout(bind,1500);/* V1879 no interval */
 })();
