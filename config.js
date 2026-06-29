@@ -30,17 +30,38 @@ window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_EASY_STORE_URL = window.MATBAGY_EASY_STORE_URL || "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_USE_EASY_STORE_FOR_ACCOUNTING = true;
 
-window.MATBAGY_BATCH_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
+window.MATBAGY_BATCH_VERSION = "V1860_ES17_INTERNATIONAL_UI_THEME";
 
 // Batch 25 - force employee SSO for Matbagy Sheets and EasyStore
-window.MATBAGY_BATCH_VERSION = "1856_BATCH_25_FULL_ACCOUNTING_CORE";
+window.MATBAGY_BATCH_VERSION = "V1860_ES17_INTERNATIONAL_UI_THEME";
 window.MATBAGY_SHEETS_FORCE_SSO = true;
 window.MATBAGY_SHEETS_DISABLE_PHONE = true;
 window.MATBAGY_SHEETS_DISABLE_ACTIVATION = true;
 
 window.MATBAGY_PATCH29_DEPT_INVOICE = true;
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es10-batch29-dept-invoice';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es17-v1860-international-ui-theme';
 
-// V1873 Login Rescue
-window.MATBAGY_TRENDOS_LOGIN_RESCUE = true;
-window.MATBAGY_TRENDOS_VERSION = 'V1873 Login Rescue';
+
+// V1857 / ES14 - صلاحيات الحسابات النهائية
+// المشتريات: ضياء + رحمه + ريفان فقط. وائل وجابر لا يفتحوا فواتير مشتريات.
+window.MATBAGY_ACCOUNTING_PURCHASE_EMPLOYEES = ["ضياء", "رحمه", "رحمة", "ريفان", "ريڤان", "diaa", "rahma", "revan", "rivan"];
+window.MATBAGY_ACCOUNTING_DEPT_ONLY_EMPLOYEES = ["وائل", "جابر", "wael", "gaber", "jaber"];
+window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
+
+// V1857 Fix 5 - closes invoice menus, item reactivation, paper pack costing, multi-row dept invoices.
+window.MATBAGY_EASYSTORE_FIX5 = true;
+
+
+// V1858 / ES15 - حسابات العملاء والموردين + تحصيلات ومديونيات
+window.MATBAGY_V1858_ES15_LEDGER_FIX = true;
+
+
+// V1859 / ES16 - Accounting Manager Core
+window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
+window.MATBAGY_CUSTOMER_ACCOUNTS_PORTAL = true;
+window.MATBAGY_AUTO_INVOICE_REVIEW_LINK = true;
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es17-v1860-international-ui-theme';
+
+// V1860 / ES17 - International UI Theme
+window.MATBAGY_UI_THEME_VERSION = 'V1860_ES17_INTERNATIONAL_UI_THEME';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es17-v1860-international-ui-theme';
