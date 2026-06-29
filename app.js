@@ -8290,25 +8290,65 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 })();
 
 
-/*********************** TrendOS V1877 - Stable Full UI + Invoice Shape Restore ***********************/
+/*********************** TrendOS V1878 - Invoice Title Repeat Hotfix ***********************/
 (function(){
   'use strict';
-  window.MATBAGY_TRENDOS_VERSION='V1877 Stable Full UI + ES30';
+  window.MATBAGY_TRENDOS_VERSION='V1878 Invoice Title Repeat Hotfix + ES30';
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function $(id){return document.getElementById(id);}
   function fixVersion(){
-    document.querySelectorAll('.version-badge,.live-status,.app-version').forEach(function(el){var t=txt(el.textContent);if(/V1875|Rescue|Boot|V1876|V1858|ES15|Batch/.test(t))el.textContent='TrendOS V1877 - Stable Full UI';});
+    document.querySelectorAll('.version-badge,.live-status,.app-version').forEach(function(el){var t=txt(el.textContent);if(/V1875|Rescue|Boot|V1876|V1858|ES15|Batch/.test(t))el.textContent='TrendOS V1878 - Invoice Title Hotfix';});
+  }
+  function normalizeInvoiceTitle(){
+    var title=$('invoiceOrderTitle'); if(!title) return;
+    var t=txt(title.textContent||'');
+    if(!/فاتورة القسم/.test(t)) return;
+    // V1878: never append wording repeatedly. Strip any old repeated marker and keep one clean title.
+    t=t.replace(/(?:\s*بنظام الصفوف\s*)+/g,' ').replace(/\s+/g,' ').trim();
+    if(/^فاتورة القسم\s*[:-]/.test(t) || /^فاتورة القسم\b/.test(t)){ title.textContent=t; }
   }
   function comfortInvoice(){
     var modal=$('invoiceModal'); if(!modal) return;
-    var card=modal.querySelector('.modal-card,.invoice-card,.p30-invoice-card'); if(card) card.classList.add('trendos-v1877-invoice-card');
-    var panel=$('fix5RowsPanel'); if(panel) panel.classList.add('trendos-v1877-rows-panel');
-    var title=$('invoiceOrderTitle'); if(title && /فاتورة القسم/.test(title.textContent||'')) title.textContent=title.textContent.replace('فاتورة القسم','فاتورة القسم بنظام الصفوف');
-    var msg=$('invoiceMsg'); if(msg && !msg.dataset.v1877){msg.dataset.v1877='1'; msg.textContent='اختار/أضف صفوف الفاتورة من الجدول، ثم سجل كل الصفوف. الأصناف من مطبخ الحسابات فقط.';}
+    var card=modal.querySelector('.modal-card,.invoice-card,.p30-invoice-card'); if(card) card.classList.add('trendos-v1877-invoice-card','trendos-v1878-invoice-card');
+    var panel=$('fix5RowsPanel'); if(panel) panel.classList.add('trendos-v1877-rows-panel','trendos-v1878-rows-panel');
+    normalizeInvoiceTitle();
+    var msg=$('invoiceMsg'); if(msg && !msg.dataset.v1878){msg.dataset.v1878='1'; msg.textContent='اختار الصنف والكمية والسعر، ثم أضف الصفوف وسجل الفاتورة. الأصناف من مطبخ الحسابات فقط.';}
   }
   var css=document.createElement('style');css.textContent='.trendos-v1877-invoice-card{width:min(1260px,98vw)!important;max-width:98vw!important;padding:26px!important;border-radius:28px!important}.trendos-v1877-invoice-card input,.trendos-v1877-invoice-card select{min-height:52px!important;font-size:17px!important;border-radius:14px!important}.trendos-v1877-invoice-card button{font-size:16px!important;padding:14px 20px!important;border-radius:14px!important}.trendos-v1877-rows-panel{background:#fff!important;border:1px solid #bfe9dc!important;border-radius:24px!important;padding:22px!important;margin:18px 0!important;box-shadow:0 18px 44px rgba(15,23,42,.14)!important}.trendos-v1877-rows-panel table{width:100%!important;min-width:900px!important}.trendos-v1877-rows-panel th,.trendos-v1877-rows-panel td{padding:10px!important;font-size:16px!important}#invoiceModal{align-items:flex-start!important;overflow:auto!important;padding:18px!important}';document.head.appendChild(css);
   function tick(){fixVersion();comfortInvoice();}
   document.addEventListener('DOMContentLoaded',tick);
   document.addEventListener('click',function(){setTimeout(tick,150);},true);
   setInterval(tick,1600);
+})();
+
+
+/*********************** TrendOS V1878 - Hard Stop Repeated Invoice Title ***********************/
+(function(){
+  'use strict';
+  window.MATBAGY_V1878_INVOICE_TITLE_REPEAT_HOTFIX = true;
+  function cleanText(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
+  function cleanInvoiceTitle(){
+    var el=document.getElementById('invoiceOrderTitle');
+    if(!el) return;
+    var t=cleanText(el.textContent||'');
+    if(!/فاتورة القسم/.test(t)) return;
+    var nt=t.replace(/(?:\s*بنظام الصفوف\s*)+/g,' ').replace(/\s+/g,' ').trim();
+    if(nt && nt!==t) el.textContent=nt;
+  }
+  function cleanAll(){
+    cleanInvoiceTitle();
+    document.querySelectorAll('#invoiceModal h1,#invoiceModal h2,#invoiceModal h3').forEach(function(el){
+      var t=cleanText(el.textContent||'');
+      if(/فاتورة القسم/.test(t) && /بنظام الصفوف/.test(t)){
+        el.textContent=t.replace(/(?:\s*بنظام الصفوف\s*)+/g,' ').replace(/\s+/g,' ').trim();
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', cleanAll);
+  document.addEventListener('click', function(){ setTimeout(cleanAll, 50); setTimeout(cleanAll, 250); }, true);
+  try{
+    var mo=new MutationObserver(function(){ cleanAll(); });
+    mo.observe(document.documentElement,{subtree:true,childList:true,characterData:true});
+  }catch(e){}
+  setInterval(cleanAll, 900);
 })();
