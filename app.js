@@ -8288,3 +8288,27 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function bind(){document.querySelectorAll('.version-badge').forEach(function(el){el.textContent='مطبعجي مصر V1859 - ES16 Accounting Manager';});ensureCustomerAccountsButton();ensureCustomerAccountsPanel();var params=new URLSearchParams(location.search);if(params.get('tab')==='accounts'||params.get('invoiceReview')==='1'){setTimeout(openCustomerAccountsPage,800);}}
   document.addEventListener('DOMContentLoaded',bind);setTimeout(bind,300);setTimeout(bind,1500);setInterval(bind,5000);
 })();
+
+
+/*********************** TrendOS V1877 - Stable Full UI + Invoice Shape Restore ***********************/
+(function(){
+  'use strict';
+  window.MATBAGY_TRENDOS_VERSION='V1877 Stable Full UI + ES30';
+  function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
+  function $(id){return document.getElementById(id);}
+  function fixVersion(){
+    document.querySelectorAll('.version-badge,.live-status,.app-version').forEach(function(el){var t=txt(el.textContent);if(/V1875|Rescue|Boot|V1876|V1858|ES15|Batch/.test(t))el.textContent='TrendOS V1877 - Stable Full UI';});
+  }
+  function comfortInvoice(){
+    var modal=$('invoiceModal'); if(!modal) return;
+    var card=modal.querySelector('.modal-card,.invoice-card,.p30-invoice-card'); if(card) card.classList.add('trendos-v1877-invoice-card');
+    var panel=$('fix5RowsPanel'); if(panel) panel.classList.add('trendos-v1877-rows-panel');
+    var title=$('invoiceOrderTitle'); if(title && /فاتورة القسم/.test(title.textContent||'')) title.textContent=title.textContent.replace('فاتورة القسم','فاتورة القسم بنظام الصفوف');
+    var msg=$('invoiceMsg'); if(msg && !msg.dataset.v1877){msg.dataset.v1877='1'; msg.textContent='اختار/أضف صفوف الفاتورة من الجدول، ثم سجل كل الصفوف. الأصناف من مطبخ الحسابات فقط.';}
+  }
+  var css=document.createElement('style');css.textContent='.trendos-v1877-invoice-card{width:min(1260px,98vw)!important;max-width:98vw!important;padding:26px!important;border-radius:28px!important}.trendos-v1877-invoice-card input,.trendos-v1877-invoice-card select{min-height:52px!important;font-size:17px!important;border-radius:14px!important}.trendos-v1877-invoice-card button{font-size:16px!important;padding:14px 20px!important;border-radius:14px!important}.trendos-v1877-rows-panel{background:#fff!important;border:1px solid #bfe9dc!important;border-radius:24px!important;padding:22px!important;margin:18px 0!important;box-shadow:0 18px 44px rgba(15,23,42,.14)!important}.trendos-v1877-rows-panel table{width:100%!important;min-width:900px!important}.trendos-v1877-rows-panel th,.trendos-v1877-rows-panel td{padding:10px!important;font-size:16px!important}#invoiceModal{align-items:flex-start!important;overflow:auto!important;padding:18px!important}';document.head.appendChild(css);
+  function tick(){fixVersion();comfortInvoice();}
+  document.addEventListener('DOMContentLoaded',tick);
+  document.addEventListener('click',function(){setTimeout(tick,150);},true);
+  setInterval(tick,1600);
+})();
