@@ -506,10 +506,7 @@ Trend Mall`;
   }
 
 
-  /*********************** V1856 Patch 03 - بوابة ملفات سيرفر المطبعة ***********************/
-
-  function localFileServerUrl() {
-    const configured = text(window.MATBAGY_FILE_SERVER_URL || "").trim();
+  /*********************** V1872 ES29 Invoice Comfort"").trim();
     return configured || "http://192.168.1.10:5050";
   }
 
@@ -523,10 +520,7 @@ Trend Mall`;
   }
 
 
-  /*********************** V1856 Patch 04 - ملفات مطبعجي من البيت + عميل طباعة ع الطاير ***********************/
-
-  function remoteFileServerUrl() {
-    const remote = text(window.MATBAGY_REMOTE_FILES_URL || "").trim();
+  /*********************** V1872 ES29 Invoice Comfort"").trim();
     const local = localFileServerUrl();
     return remote || local;
   }
@@ -1814,12 +1808,7 @@ Trend Mall`;
   }
 
 
-  /*********************** V1854 - نسخة مطابع White Label + سحب أرقام العملاء الآمن ***********************/
-
-  function canManageWhiteLabel() {
-    const user = state.user || {};
-    const role = safeRole(user.role);
-    const username = normalizeArabic(user.username || user.name || "");
+  /*********************** V1872 ES29 Invoice Comfort"");
     return role === "admin" || username === "ضياء";
   }
 
@@ -2051,10 +2040,7 @@ Trend Mall`;
 
 
 
-  /*********************** V1855 - تنظيم لوحة الإدارة وربط الخدمات بالمطابع ***********************/
-
-  const ADMIN_AREAS = [
-    { id: "matbagy", label: "شغل مطبعجي", hint: "الأوردرات والخدمات اليومية." },
+  /*********************** V1872 ES29 Invoice Comfort"matbagy", label: "شغل مطبعجي", hint: "الأوردرات والخدمات اليومية." },
     { id: "rahma", label: "رحمة / خدمة العملاء", hint: "إضافة العملاء، استقبال الأوردرات، ودعوات العملاء." },
     { id: "franchise", label: "الفرنشايز", hint: "الفروع والشركاء ونسب مطبعجي." },
     { id: "marketplace", label: "ماركت بليس", hint: "مساحات وبائعين ومنتجات تحت مظلة مطبعجي." },
@@ -2286,12 +2272,7 @@ Trend Mall`;
     }
   }
 
-  /*********************** أقسام المنصة V1851 ***********************/
-
-  function canManagePlatformSections() {
-    const user = state.user || {};
-    const role = safeRole(user.role);
-    const username = normalizeArabic(user.username || user.name || "");
+  /*********************** أقسام المنصة V1872 ES29 Invoice Comfort"");
     return role === "admin" || username === "ضياء";
   }
 
@@ -2508,12 +2489,7 @@ Trend Mall`;
 
 
 
-  /*********************** مطبعجي مصر - الفروع والفرنشايز V1852 ***********************/
-
-  function canManageFranchiseBranches() {
-    const user = state.user || {};
-    const role = safeRole(user.role);
-    const username = normalizeArabic(user.username || user.name || "");
+  /*********************** مطبعجي مصر - الفروع والفرنشايز V1872 ES29 Invoice Comfort"");
     return role === "admin" || username === "ضياء";
   }
 
@@ -2776,12 +2752,7 @@ Trend Mall`;
     }
   }
 
-  /*********************** لوحة الإعلانات V1850 ***********************/
-
-  function canManagePlatformAds() {
-    const user = state.user || {};
-    const role = safeRole(user.role);
-    const username = normalizeArabic(user.username || user.name || "");
+  /*********************** لوحة الإعلانات V1872 ES29 Invoice Comfort"");
     return role === "admin" || username === "ضياء";
   }
 
@@ -3101,13 +3072,7 @@ Trend Mall`;
   }
 
 
-  /*********************** V1856 - ماركت بليس مطبعجي + واتساب كامل ***********************/
-
-  function canManageMarketplace() {
-    const user = state.user || {};
-    const role = safeRole(user.role);
-    if (isRahmaRestrictedUser(user)) return false;
-    return role === "admin" || isDiaaUser(user);
+  /*********************** V1872 ES29 Invoice Comfort"admin" || isDiaaUser(user);
   }
 
   function toggleMarketplaceDashboard() {
@@ -3420,10 +3385,7 @@ Trend Mall`;
     return new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
   }
 
-  /*********************** مرفقات المحادثة - عرض الصور مثل واتساب V1848 ***********************/
-
-  function attachmentName(file) {
-    return text(file && (file.name || file.fileName || file.title || "ملف"));
+  /*********************** مرفقات المحادثة - عرض الصور مثل واتساب V1872 ES29 Invoice Comfort"ملف"));
   }
 
   function attachmentUrl(file) {
@@ -4088,8 +4050,7 @@ Trend Mall`;
   function toggleDashboard() {
     const card = $("managementDashboard");
     if (!card) return;
-    // V1822: متابعة اليوم تظهر لكل المستخدمين بوضوح، حتى نتاكد أن النسخة الجديدة اتحملت.
-    card.classList.remove("hidden");
+    // V1872 ES29 Invoice Comfort"hidden");
     loadDashboard(false);
   }
 
@@ -4148,11 +4109,7 @@ Trend Mall`;
 
 
 
-  /*********************** كروت قابلة للفتح والقفل + نهاية اليوم V1839 ***********************/
-
-  function setupCollapsibleCard(cardId, storageKey, defaultCollapsed) {
-    const card = $(cardId);
-    if (!card || card.dataset.collapsibleReady === "1") return;
+  /*********************** كروت قابلة للفتح والقفل + نهاية اليوم V1872 ES29 Invoice Comfort"1") return;
     const header = card.querySelector(".table-tools");
     if (!header) return;
 
@@ -4779,10 +4736,7 @@ Trend Mall`;
 
 
 
-  /*********************** V1845 - محادثة الأوردر للموظف ***********************/
-
-  function closeOrderConversationModal() {
-    const modal = $("orderConversationModal");
+  /*********************** V1872 ES29 Invoice Comfort"orderConversationModal");
     if (modal) modal.classList.add("hidden");
     state.orderConversationRow = null;
     state.orderConversation = null;
@@ -5448,10 +5402,7 @@ Trend Mall`;
   }
 
   function startRefresh() {
-    // V1869: إيقاف التحديث اللحظي. التحديث يتم بعد الحفظ/التعديل أو من زر تحديث الآن.
-    stopRefresh();
-    state.refreshTimer = null;
-    try { setLoading("التحديث اللحظي متوقف — يتم التحديث بعد أي تعديل أو من زر تحديث الآن."); } catch (e) {}
+    // V1872 ES29 Invoice Comfort"التحديث اللحظي متوقف — يتم التحديث بعد أي تعديل أو من زر تحديث الآن."); } catch (e) {}
   }
 
   function stopRefresh() {
@@ -7565,7 +7516,7 @@ Trend Mall`;
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1856 - Batch 29 Dept Invoice + Gaber Calculator';
+        el.textContent = 'مطبعجي مصر V1872 ES29 Invoice Comfort';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7781,7 +7732,7 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1856 - Batch 29 Dept Invoice + Gaber Calculator'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1872 ES29 Invoice Comfort'')) el.textContent='مطبعجي مصر V1872 ES29 Invoice Comfort'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); setInterval(bindMain,4000);
@@ -8040,9 +7991,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 })();
 
 
-/*********************** TrendOS V1869 - Event Driven Refresh Patch ***********************/
-(function(){
-  'use strict';
+/*********************** TrendOS V1872 ES29 Invoice Comfort'use strict';
   window.MATBAGY_EVENT_DRIVEN_REFRESH = true;
   window.MATBAGY_DISABLE_LIVE_POLLING = true;
   function setEventDrivenLabels(){
@@ -8052,7 +8001,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       var btn = document.getElementById('refreshBtn');
       if(btn){ btn.textContent = 'تحديث الآن'; btn.title = 'تحديث يدوي عند الحاجة فقط'; }
       document.querySelectorAll('.version-badge').forEach(function(el){
-        if(/V1856|Batch/i.test(el.textContent||'')) el.textContent = 'مطبعجي مصر V1869 - Event Driven Refresh';
+        if(/V1872 ES29 Invoice Comfort'')) el.textContent = 'مطبعجي مصر V1872 ES29 Invoice Comfort';
       });
     }catch(e){}
   }
@@ -8063,10 +8012,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 })();
 
 
-/*********************** TrendOS ES28 V1871 - فاتورة الموظف صفوف نظيفة ************************/
-(function(){
-  'use strict';
-  var VERSION='TrendOS ES28 V1871 Dept Invoice Rows Clean';
+/*********************** TrendOS ES28 V1872 ES29 Invoice Comfort'use strict';
+  var VERSION='TrendOS ES28 V1872 ES29 Invoice Comfort';
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
   function esc(s){return txt(s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
@@ -8096,4 +8043,18 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   async function transform(){var modal=document.getElementById('invoiceModal');if(!modal||modal.classList.contains('hidden'))return;var card=modal.querySelector('.modal-card');if(!card||card.querySelector('.tr28-box'))return;var ctx=readCtx(modal);var d=dept();var items=await loadItems(false);var oldTitle=ctx.title||'فاتورة القسم';card.innerHTML='<h2>'+esc(oldTitle)+'</h2><p class="hint">فاتورة الموظف بنظام صفوف. اكتب أو اختار الصنف، Enter أو Tab في آخر خانة يفتح صف جديد.</p><div class="tr28-context"><b>العميل:</b> '+esc(ctx.customer||'-')+' &nbsp; <b>الأوردر:</b> '+esc(ctx.order||'-')+'</div><div class="tr28-box">'+dataList('tr28_items',items,d)+'<table class="tr28-table"><thead><tr><th>الصنف</th><th>النوع/الوصف</th><th>الكمية</th><th>السعر</th><th>ملاحظات</th><th>مشترك</th><th></th></tr></thead><tbody>'+rowHtml()+'</tbody></table><div class="tr28-footer"><b>الإجمالي: <span class="tr28-total">0.00 ج</span></b><button type="button" class="tr28-add">صف جديد</button><button type="button" class="tr28-save">تسجيل الفاتورة</button><button type="button" class="tr28-clear">تفريغ</button><button type="button" class="tr28-close">إلغاء</button></div><div class="tr28-msg"></div></div>';bind(card.querySelector('.tr28-box'),items,d,ctx);var close=card.querySelector('.tr28-close');if(close)close.onclick=function(){modal.classList.add('hidden');};if(!filt(items,d).length)msg(card.querySelector('.tr28-box'),'لا توجد أصناف مفعلة لهذا القسم. احفظ الأصناف أولاً من مطبخ الحسابات / صنف بمكونات.',true);}
   var css=document.createElement('style');css.textContent='.tr28-context{background:#ecfdf5;border:1px solid #bbf7d0;border-radius:14px;padding:10px;margin:10px 0;color:#065f46}.tr28-table{width:100%;border-collapse:collapse}.tr28-table th,.tr28-table td{border:1px solid #e5edf5;padding:7px;text-align:right}.tr28-table th{background:#ecfdf5;color:#065f46}.tr28-table input{width:100%;min-height:38px;border:1px solid #cad9e0;border-radius:10px;padding:7px}.tr28-check{display:flex;gap:5px;align-items:center;font-size:12px;font-weight:800}.tr28-check input{width:18px;height:18px}.tr28-del{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;padding:7px 10px}.tr28-footer{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}.tr28-footer button{border:0;border-radius:12px;padding:10px 14px;font-weight:900;cursor:pointer}.tr28-add{background:#eef6f5;color:#0f6f5c}.tr28-save{background:#0f8a70;color:#fff}.tr28-clear{background:#fee2e2;color:#991b1b}.tr28-close{background:#f8fafc;color:#334155}.tr28-total{direction:ltr;unicode-bidi:isolate}.tr28-msg{font-weight:800;min-height:22px;margin-top:8px}.tr28-msg.ok{color:#047857}.tr28-msg.bad{color:#b91c1c}@media(max-width:760px){.tr28-table,.tr28-table tbody,.tr28-table tr,.tr28-table td{display:block;width:100%}.tr28-table thead{display:none}.tr28-table tr{border:1px solid #e5edf5;border-radius:14px;margin-bottom:10px;padding:8px}.tr28-table td{border:0}}';document.head.appendChild(css);
   document.addEventListener('click',function(){setTimeout(transform,120);},true);document.addEventListener('change',function(){itemAt=0;setTimeout(transform,120);},true);try{new MutationObserver(function(){clearTimeout(window.__tr28t);window.__tr28t=setTimeout(transform,100);}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});}catch(e){}setTimeout(transform,500);setTimeout(transform,1600);
+})();
+
+
+/* V1872 ES29 - Invoice comfort marker */
+(function(){
+  try{
+    window.MATBAGY_TRENDOS_VERSION='V1872 ES29 Invoice Comfort';
+    window.MATBAGY_DISABLE_LIVE_REFRESH=true;
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('.version-badge,.live-status').forEach(function(el){
+        if(/تحديث|V\d|Batch|ES/.test(el.textContent||'')) el.textContent='V1872 ES29 / تحديث بعد الإجراء فقط';
+      });
+    });
+  }catch(e){}
 })();
