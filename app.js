@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  var BUILD = window.TREND_BUILD || 'TrendOS V1882 Server Linked Production';
+  var BUILD = window.TREND_BUILD || 'TrendOS V1884 Data Normalizer Production';
   var API_URL = String(window.TREND_API_URL || window.API_URL || '').trim();
   var app = document.getElementById('app');
   var state = {
@@ -29,9 +29,37 @@
 
   function $(id){ return document.getElementById(id); }
   function text(v){ return (v===undefined || v===null) ? '' : String(v); }
+  function loginKey(v){ return text(v).trim().replace(/[ـ\u064B-\u065F\u0670]/g,'').replace(/[إأآا]/g,'ا').replace(/[ةه]$/,'ه').replace(/\s+/g,' ').toLowerCase(); }
   function esc(v){ return text(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function num(v){ var n = Number(String(v||0).replace(/,/g,'')); return isFinite(n)?n:0; }
   function money(v){ return num(v).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function pick(row, keys){ row=row||{}; for(var i=0;i<keys.length;i++){ var v=row[keys[i]]; if(v!==undefined && v!==null && text(v).trim()!=='') return v; } return ''; }
+  function closedStatus(s){ s=text(s).trim(); return ['تم التسليم','ملغي','ملغى','مغلق','مقفل','مدمج في أوردر مفتوح','merged'].indexOf(s)>=0; }
+  function normalizeCustomerRow(r){
+    var name = pick(r,['name','customerName','اسم الشات / المكتب','اسم العميل','Customer Name']);
+    var phone = pick(r,['phone','mobile','customerPhone','رقم العميل الأساسي','رقم الهاتف','Phone','رقم العميل']);
+    return Object.assign({}, r, {id:text(pick(r,['id','كود العميل','ID'])||phone||name), name:text(name), customerName:text(name), phone:text(phone), mobile:text(phone), type:text(pick(r,['type','نوع العميل','Customer Type'])), balance:num(pick(r,['balance','رصيد العميل','رصيد العميل.1','مديونية حالية','مديونية','الرصيد الحالي'])), openOrders:num(pick(r,['openOrders','أوردر مفتوح','أوردرات مفتوحة'])), notes:text(pick(r,['notes','ملاحظات']))});
+  }
+  function normalizeOrderRow(r){
+    var status=text(pick(r,['status','الحالة العامة','الحالة']))||'طلب جديد';
+    var oid=pick(r,['id','orderId','رقم الأوردر','كود الأوردر']);
+    var name=pick(r,['customerName','اسم الشات / المكتب','اسم العميل']);
+    var phone=pick(r,['customerPhone','phone','رقم العميل الأساسي','رقم الهاتف','رقم العميل']);
+    var explicit=pick(r,['open']);
+    var open= explicit!=='' ? truth(explicit) && !closedStatus(status) : !closedStatus(status);
+    return Object.assign({}, r, {id:text(oid),orderId:text(oid),customerName:text(name),customerPhone:text(phone),department:text(pick(r,['department','القسم الرئيسي','القسم']))||'مشترك',status:status,open:open,notes:text(pick(r,['notes','ملاحظات','ملاحظات العميل'])),firstCreatedAt:pick(r,['firstCreatedAt','تاريخ الإنشاء','timestamp','وقت التسجيل']),lastAdditionAt:pick(r,['lastAdditionAt','آخر تحديث','updatedAt','وقت التسجيل','timestamp']),updatedAt:pick(r,['updatedAt','آخر تحديث','timestamp'])});
+  }
+  function normalizeLineRow(r){
+    var oid=pick(r,['orderId','رقم الأوردر','كود الأوردر']);
+    var lid=pick(r,['id','lineId','رقم البند']);
+    var item=pick(r,['itemName','name','اسم البند / نوع الشغل','اسم البند','نوع الشغل الأصلي','اللي اتعمل فعليًا','وصف مختصر']);
+    var name=pick(r,['customerName','اسم الشات / المكتب','اسم العميل']);
+    var phone=pick(r,['customerPhone','phone','رقم العميل الأساسي','رقم الهاتف','رقم العميل']);
+    var status=text(pick(r,['status','الحالة','حالة التقفيل','حالة الفوترة']))||'طلب جديد';
+    var sale=num(pick(r,['sale','price','سعر البيع','سعر ضياء','سعر النظام','الإجمالي','total']));
+    return Object.assign({}, r, {id:text(lid|| (oid?oid+'-01':'')),lineId:text(lid),orderId:text(oid),customerName:text(name),customerPhone:text(phone),department:text(pick(r,['department','القسم','قسم الصنف']))||'مشترك',itemName:text(item),name:text(item),qty:num(pick(r,['qty','الكمية'])||1),status:status,price:sale,sale:sale,total:num(pick(r,['total','الإجمالي']))||sale,notes:text(pick(r,['notes','ملاحظات','ملاحظات القسم','ملاحظات العميل'])),createdBy:text(pick(r,['createdBy','مسجل بواسطة','مسؤول القسم','تم الإرسال بواسطة'])),shared:text(pick(r,['shared','بند مشترك','مشترك']))});
+  }
+  function normalizeNoteRow(r){ return Object.assign({},r,{scope:text(pick(r,['scope','القسم','النطاق']))||'الجميع',priority:text(pick(r,['priority','الأولوية','العنوان']))||'عادي',note:text(pick(r,['note','النوت','ملاحظات','text'])),createdBy:text(pick(r,['createdBy','حفظ بواسطة','مسجل بواسطة','بواسطة'])),timestamp:pick(r,['timestamp','وقت الحفظ','وقت التسجيل','آخر تحديث'])}); }
   function now(){ return new Date().toLocaleString('ar-EG'); }
   function dateObj(v){ var d = v instanceof Date ? v : new Date(v); return isFinite(d.getTime()) ? d : null; }
   function dateKey(v){ var d = dateObj(v); return d ? d.toISOString().slice(0,10) : ''; }
@@ -65,16 +93,33 @@
   }
 
   function localLogin(username,password){
-    var key = text(username).trim().toLowerCase();
+    var k = loginKey(username);
     var pass = text(password).trim();
-    return USERS_FALLBACK.find(function(u){ return (u.username.toLowerCase()===key || u.name===username) && (!u.password || !pass || u.password===pass); /* V1882: accept blank password for default shop users */ });
+    return USERS_FALLBACK.find(function(u){
+      var same = loginKey(u.username)===k || loginKey(u.name)===k;
+      var passOk = !u.password || !pass || u.password===pass;
+      return same && passOk;
+    });
   }
 
   function login(){
     var username = text($('loginUser') && $('loginUser').value).trim();
     var password = text($('loginPass') && $('loginPass').value).trim();
-    if(!username){ showLogin('اكتب اسم المستخدم.'); return; }
-    app.querySelector('#loginBtn').disabled = true;
+    if(!username){ showLogin('اكتب اسم المستخدم أو اضغط على اسم من الأزرار السريعة.'); return; }
+    var btn = app.querySelector('#loginBtn');
+    if(btn) btn.disabled = true;
+
+    // V1884: دخول المستخدمين الداخليين محليًا أولًا حتى لو رابط السيرفر واقع أو لم يتم نشر Apps Script بعد.
+    // الربط بالشيت يتم بعد فتح الواجهة من زر تحديث البيانات أو بعد أي حفظ فعلي.
+    var local = localLogin(username,password);
+    if(local){
+      state.user = normalizeUser(local);
+      state.active = 'home';
+      render();
+      refreshData(true);
+      return;
+    }
+
     if(API_URL){
       api('login',{username:username,password:password,app:'TrendOS'}).then(function(res){
         if(!res.success) throw new Error(res.message || 'بيانات الدخول غير صحيحة');
@@ -83,14 +128,10 @@
         render();
         return refreshData(false);
       }).catch(function(e){
-        var fallback = localLogin(username,password);
-        if(fallback){ state.user = normalizeUser(fallback); state.active='home'; render(); refreshData(true); }
-        else showLogin(e.message || 'تعذر الدخول.');
+        showLogin((e.message || 'تعذر الدخول') + ' — جرّب الاسم العربي: ضياء / رحمه / ريفان / وائل / جابر أو كلمة المرور 1234.');
       });
     } else {
-      var u = localLogin(username,password);
-      if(u){ state.user = normalizeUser(u); state.active='home'; render(); refreshData(true); }
-      else showLogin('رابط السيرفر غير مضبوط، أو بيانات الدخول غير صحيحة.');
+      showLogin('رابط السيرفر غير مضبوط، واسم المستخدم غير موجود ضمن مستخدمي التشغيل الداخليين.');
     }
   }
   function normalizeUser(u){
@@ -106,9 +147,11 @@
       '<div class="field"><label>اسم المستخدم</label><input id="loginUser" autocomplete="username" placeholder="ضياء / رحمه / ريفان / وائل / جابر"></div>'+
       '<div class="field"><label>كلمة المرور</label><input id="loginPass" type="password" autocomplete="current-password"></div>'+
       '<button id="loginBtn" class="btn" style="width:100%">دخول</button>'+
-      '<p class="muted" style="font-size:12px">زر الدخول يعمل بالماوس وبزر Enter. كلمة المرور الافتراضية: فارغة أو 1234.</p>'+
+      '<div class="actions" style="margin-top:10px;justify-content:center"><button type="button" class="btn small ghost" data-login="ضياء">ضياء</button><button type="button" class="btn small ghost" data-login="رحمه">رحمه</button><button type="button" class="btn small ghost" data-login="ريفان">ريفان</button><button type="button" class="btn small ghost" data-login="وائل">وائل</button><button type="button" class="btn small ghost" data-login="جابر">جابر</button></div>'+
+      '<p class="muted" style="font-size:12px">زر الدخول يعمل بالماوس وبزر Enter. كلمة المرور الافتراضية: فارغة أو 1234. أزرار الأسماء تفتح محليًا حتى لو السيرفر لا يرد.</p>'+
       '</div></div>';
     $('loginBtn').onclick = login;
+    Array.prototype.forEach.call(app.querySelectorAll('[data-login]'), function(b){ b.onclick=function(){ $('loginUser').value=b.getAttribute('data-login'); $('loginPass').value=''; login(); }; });
     ['loginUser','loginPass'].forEach(function(id){ var el=$(id); if(el) el.addEventListener('keydown',function(ev){ if(ev.key==='Enter') login(); }); });
     var first=$('loginUser'); if(first) first.focus();
   }
@@ -124,10 +167,10 @@
     }
     return api('getTrendOSData',{username:state.user.username,role:state.user.role,department:state.user.department}).then(function(res){
       if(!res.success) throw new Error(res.message || 'تعذر تحميل البيانات');
-      state.data.customers = Array.isArray(res.customers)?res.customers:[];
-      state.data.orders = Array.isArray(res.orders)?res.orders:[];
-      state.data.lines = Array.isArray(res.lines)?res.lines:[];
-      state.data.notes = Array.isArray(res.notes)?res.notes:[];
+      state.data.customers = (Array.isArray(res.customers)?res.customers:[]).map(normalizeCustomerRow).filter(function(c){return text(c.name)||text(c.phone);});
+      state.data.orders = (Array.isArray(res.orders)?res.orders:[]).map(normalizeOrderRow).filter(function(o){return text(o.id)||text(o.customerName);});
+      state.data.lines = (Array.isArray(res.lines)?res.lines:[]).map(normalizeLineRow).filter(function(l){return text(l.orderId)||text(l.customerName)||text(l.itemName);});
+      state.data.notes = (Array.isArray(res.notes)?res.notes:[]).map(normalizeNoteRow);
       state.data.audit = Array.isArray(res.audit)?res.audit:[];
       state.loading=false;
       if(!silent) setMsg('تم تحديث البيانات يدويًا: '+now()); else render();
