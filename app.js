@@ -1576,7 +1576,7 @@ Trend Mall`;
     stopUrgentNotificationTimer();
     if (!state.urgentNotificationEnabled) return;
     checkUrgentNotifications();
-    state.urgentNotificationTimer = setInterval(checkUrgentNotifications, 10 * 60 * 1000);
+    state.urgentNotificationTimer = null; // V1887: no automatic refresh/polling
   }
 
   function stopUrgentNotificationTimer() {
@@ -5005,6 +5005,10 @@ Trend Mall`;
     const sel = $("invoiceItemSelect");
     if (!sel) return;
     const rows = invoiceCatalogRowsForOrderRow(row);
+    if (!rows.length) {
+      sel.innerHTML = '<option value="" disabled selected>لا توجد أصناف مفعلة لهذا القسم من مطبخ الحسابات</option>';
+      return;
+    }
     sel.innerHTML = '<option value="">اختار الصنف من مطبخ الحسابات</option>' + rows.map(function (r) {
       const sale = r.sale ? (" — سعر " + accountingMoney(r.sale)) : "";
       return '<option value="' + escapeHtml(invoiceCatalogValue(r)) + '">' + escapeHtml((r.name || "") + " — " + (r.department || "عام") + sale) + '</option>';
@@ -6437,24 +6441,23 @@ Trend Mall`;
     updateAccountingWasteDiff();
   }
 
+  function accountingInvoiceOrderPlaceholderName(name) {
+    const k = searchKey_(name || "");
+    return !k || /^اوردر جديد/.test(k) || /^طلب جديد/.test(k) || /اوردر جديد\s*-/.test(k) || /طلب جديد\s*-/.test(k) || /new order/.test(k);
+  }
+
   function accountingCatalogRowsForDepartment(dept) {
     const rows = [];
-    (state.accounting.materials || []).forEach(function (m) {
-      const d = m.department || m["القسم"] || "";
-      if (dept && !(d === dept || d === "مشترك" || d === "عام")) return;
-      const name = m.materialName || m["اسم الخامة"] || "";
-      if (!name) return;
-      rows.push({ type: "MAT", name: name, department: d, cost: materialDisplayCost(m), sale: materialOfficialSalePrice(m) || materialDisplayCost(m), stock: materialStockQty(m), composite: materialComponents(m).length > 0 });
-    });
+    // فاتورة القسم تعرض الأصناف المسعّرة / صنف بمكونات فقط. الخامات الأساسية لا تظهر هنا.
     (state.accounting.templates || []).forEach(function (t) {
       const d = t.department || t["القسم"] || "";
       if (dept && !(d === dept || d === "مشترك" || d === "عام")) return;
       const name = templateItemName(t);
-      if (!name) return;
-      rows.push({ type: "TPL", name: name, department: d, cost: templateCost(t), sale: templateSalePrice(t), stock: 0, composite: false });
+      if (accountingInvoiceOrderPlaceholderName(name)) return;
+      rows.push({ type: "TPL", name: name, department: d, cost: templateCost(t), sale: templateSalePrice(t), stock: 0, composite: true });
     });
     const seen = {};
-    return rows.filter(function (r) { const k = r.type + "|" + materialTextKey(r.name); if (seen[k]) return false; seen[k] = true; return true; });
+    return rows.filter(function (r) { const k = r.type + "|" + materialTextKey(r.name) + "|" + materialTextKey(r.department || ""); if (seen[k]) return false; seen[k] = true; return true; });
   }
 
   function syncAccountingMaterialOptions() {
@@ -6468,7 +6471,7 @@ Trend Mall`;
       const official = r.sale ? (" | سعر رسمي " + accountingMoney(r.sale)) : "";
       const cost = (!operator && r.cost) ? (" | تكلفة " + accountingMoney(r.cost)) : "";
       const stock = (!operator && r.stock) ? (" | رصيد " + r.stock) : "";
-      const badge = r.type === "TPL" ? "بند" : (r.composite ? "تركيبة" : "خامة");
+      const badge = "صنف";
       return '<option value="' + escapeHtml(value) + '">' + escapeHtml(r.name + " - " + badge + official + cost + stock) + '</option>';
     }).join("");
     if (select) { const oldValue = select.value; select.innerHTML = optHtml; if (oldValue) select.value = oldValue; }
@@ -7827,8 +7830,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** Batch 30 - Dept Invoice Emergency Fix + Gaber Inline Calculator ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = '1856_BATCH_30_DEPT_INVOICE_FIX';
-  window.TRENDOS_LOADED_APP_VERSION = 'Batch 30 - Dept Invoice Fix';
+  window.TRENDOS_PATCH_VERSION = 'V1887_DEPT_APPROVAL_FLOW';
+  window.TRENDOS_LOADED_APP_VERSION = 'V1887 Dept Approval Flow';
 
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
@@ -7917,18 +7920,39 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function catalogRows(){ return window.MATBAGY_P30_CATALOG || []; }
   function setCatalogRows(rows){ window.MATBAGY_P30_CATALOG = rows || []; }
   function optionValue(r,i){ return [r.type||'TPL', r.name||'', r.department||'', i].join('|'); }
+  function isInvoiceOrderPlaceholderName(name){
+    var n = norm(name || '');
+    return !n || /^اوردر جديد/.test(n) || /^طلب جديد/.test(n) || /اوردر جديد\s*-/.test(n) || /طلب جديد\s*-/.test(n) || /new order/.test(n);
+  }
+  function isSellableInvoiceCatalogRow(r){
+    if(!r) return false;
+    var name = txt(r.name || r.itemName || r.templateName || r['اسم البند'] || r['اسم الصنف'] || '');
+    if(isInvoiceOrderPlaceholderName(name)) return false;
+    var blob = norm(Object.keys(r||{}).join(' ') + ' ' + Object.values(r||{}).join(' '));
+    var isMaterialOnly = /(materialname|اسم الخامه|اسم الخامة|rawmaterial|raw|paper roll|lamination roll|paper pack|ink|machine expense|سعر الوحده|سعر الوحدة|خامة اساسية|خامه اساسيه|رول ورق|رول لامينشن|باكيت ورق|حبر|مصروف ماكينة)/.test(blob);
+    var isProduct = /(itemname|template|recipe|components|componentsjson|bom|اسم الصنف|اسم البند|صنف بمكونات|منتج|product|saleprice|سعر بيع)/.test(blob);
+    if((r.type === 'MAT' || r.recordType === 'material' || isMaterialOnly) && !isProduct) return false;
+    return true;
+  }
   function fillCatalog(row){
     var sel = $('invoiceItemSelect'); if(!sel) return;
     var d = isGaber() ? 'ليزر' : (isWael() ? 'طباعة' : (row.department || ''));
-    var rows = catalogRows().filter(function(r){ var rd = txt(r.department || 'عام'); return !d || rd === d || rd === 'مشترك' || rd === 'عام'; });
-    if(!rows.length && row.itemName){ rows = [{type:'ORDER', name: row.itemName, department: d || row.department || 'عام', sale: 0}]; }
+    var rows = catalogRows().filter(isSellableInvoiceCatalogRow).filter(function(r){ var rd = txt(r.department || 'عام'); return !d || rd === d || rd === 'مشترك' || rd === 'عام'; });
+    window.MATBAGY_P30_CATALOG_VIEW = rows;
+    if(!rows.length){
+      sel.innerHTML = '<option value="" disabled selected>لا توجد أصناف مفعلة لهذا القسم من مطبخ الحسابات</option>';
+      if($('invoiceMsg')) $('invoiceMsg').textContent = 'لا توجد أصناف مفعلة لهذا القسم. أضف الصنف من مطبخ الحسابات أولًا.';
+      return;
+    }
     sel.innerHTML = '<option value="">اختار الصنف</option>' + rows.map(function(r,i){ var sale = r.sale ? ' — ' + r.sale + ' ج' : ''; return '<option value="'+esc(optionValue(r,i))+'">'+esc(r.name+' — '+(r.department||'عام')+sale)+'</option>'; }).join('');
   }
   function selectedCatalogItem(){
     var sel = $('invoiceItemSelect'); if(!sel || !sel.value) return null;
     var parts = sel.value.split('|'); var idx = Number(parts[3]);
-    var rows = catalogRows();
-    return rows[idx] || {type:parts[0], name:parts[1], department:parts[2], sale:0};
+    var rows = window.MATBAGY_P30_CATALOG_VIEW || catalogRows();
+    var item = rows[idx] || null;
+    if(!isSellableInvoiceCatalogRow(item)) return null;
+    return item || {type:parts[0], name:parts[1], department:parts[2], sale:0};
   }
   function applySelection(){
     var item = selectedCatalogItem();
@@ -7945,13 +7969,21 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       var res = await apiJsonp('getAccounting', {});
       var rows = [];
       function add(r, type){
-        var name = r.itemName || r.templateName || r.materialName || r.name || r['اسم البند'] || r['اسم الصنف'] || r['اسم الخامة'] || '';
+        var name = r.itemName || r.templateName || r.name || r['اسم البند'] || r['اسم الصنف'] || '';
         if(!name) return;
-        rows.push({type:type, name:name, department:r.department || r.dept || r['القسم'] || 'عام', sale:num(r.salePrice || r.systemSale || r.price || r['سعر بيع رسمي'] || r['بيع']), cost:num(r.unitCost || r.fixedCost || r.cost)});
+        var rec = {
+          type:type,
+          name:name,
+          department:r.department || r.dept || r['القسم'] || 'عام',
+          sale:num(r.salePrice || r.systemSale || r.price || r['سعر بيع رسمي'] || r['سعر بيع مقترح'] || r['بيع']),
+          cost:num(r.unitCost || r.fixedCost || r.computedUnitCost || r.calculatedUnitCost || r.cost),
+          recordType:r.recordType || r.itemType || r.category || r['التصنيف'] || '',
+          components:r.componentsJson || r.components || r['المكونات'] || ''
+        };
+        if(isSellableInvoiceCatalogRow(rec)) rows.push(rec);
       }
-      (res.templates || res.items || []).forEach(function(r){ add(r,'TPL'); });
-      (res.materials || res.rawMaterials || []).forEach(function(r){ add(r,'MAT'); });
-      if(rows.length) setCatalogRows(rows);
+      (res.templates || res.items || res.products || res.recipes || []).forEach(function(r){ add(r,'TPL'); });
+      setCatalogRows(rows);
     }catch(e){}
     fillCatalog(row);
   }
@@ -8002,14 +8034,15 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
         customerName: (($('invoiceCustomer')||{}).value || row.customer || ''), customerPhone: row.customerPhone || '', department: dep,
         itemType: shared === 'نعم' ? 'بند مشترك' : 'قسم فقط', itemName: work || (item && item.name) || '', qty: qty,
         materialName: item && item.type === 'MAT' ? item.name : '', materialQty: qty, materialCost:'0', laborCost:'0', otherCost:'0', systemCost:'0',
-        systemSalePrice: item && item.sale ? item.sale : sale, salePrice: sale, itemDepartment:itemDept, sharedLine:shared, billingStatus:'جاهز للفوترة', notes:(($('invoiceNotes')||{}).value || '')
+        systemSalePrice: item && item.sale ? item.sale : sale, salePrice: sale, itemDepartment:itemDept, sharedLine:shared, billingStatus:'مسجل - قيد مراجعة القسم', closeStatus:'قيد مراجعة القسم', approvalStatus:'قيد مراجعة القسم', notes:(($('invoiceNotes')||{}).value || '')
       };
       if(!payload.orderId || !payload.itemName){ if(msg) msg.textContent='رقم الأوردر والصنف مطلوبين.'; return; }
       var res = await apiJsonp('saveAccountingDeptLine', payload);
       if(!res || res.success === false){ throw new Error(res && res.message || 'تعذر تسجيل البند في الشيت.'); }
-      if(msg) msg.textContent = shared === 'نعم' ? 'تم تسجيل بند مشترك وسيظهر عند القسم الآخر.' : 'تم تسجيل البند بنجاح.';
+      if(msg) msg.textContent = shared === 'نعم' ? 'تم تسجيل بند مشترك في مسودة القسم وسيظهر عند القسم الآخر.' : 'تم تسجيل البند في مسودة فاتورة القسم.';
+      if (window.MATBAGY_V1887_REFRESH_SECTION_REVIEW) setTimeout(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW, 500);
       if(openFinal) setTimeout(function(){ openFinalInvoice(row); }, 400);
-      else setTimeout(function(){ var m=$('invoiceModal'); if(m) m.classList.add('hidden'); }, 700);
+      else { if(msg) msg.textContent += ' راجع البنود ثم اضغط اعتماد فاتورة القسم.'; }
     }catch(e){ if(msg) msg.textContent = e.message || 'تعذر تسجيل البند.'; }
     finally{ if(btn){btn.disabled=false; btn.textContent='تسجيل البند';} }
   }
@@ -8033,14 +8066,14 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     if($('invoiceQty')) $('invoiceQty').value = row.qty || 1;
     if($('invoiceNotes')) $('invoiceNotes').value = row.notes || '';
     if($('invoiceSalePrice')) $('invoiceSalePrice').value = '0';
-    if($('invoiceWorkDone')) $('invoiceWorkDone').value = row.itemName || '';
+    if($('invoiceWorkDone')) $('invoiceWorkDone').value = isInvoiceOrderPlaceholderName(row.itemName || '') ? '' : (row.itemName || '');
     var laserTools = $('invoiceLaserTools'); if(laserTools) laserTools.classList.toggle('hidden', !isGaber());
     if($('invoiceOpenEasyLaserBtn')) $('invoiceOpenEasyLaserBtn').onclick = function(){ openEasyStoreLaser(row); };
     if($('invoiceInlineLaserBtn')) $('invoiceInlineLaserBtn').onclick = toggleInlineLaser;
     if($('p30ApplyLaser')) $('p30ApplyLaser').onclick = applyInlineLaser;
     if($('cancelInvoiceBtn')) $('cancelInvoiceBtn').onclick = function(){ modal.classList.add('hidden'); };
     if($('saveInvoiceBtn')) $('saveInvoiceBtn').onclick = function(ev){ ev && ev.preventDefault(); saveDeptLine(false); };
-    if($('saveAndOpenFinalInvoiceBtn')) $('saveAndOpenFinalInvoiceBtn').onclick = function(ev){ ev && ev.preventDefault(); saveDeptLine(true); };
+    if($('saveAndOpenFinalInvoiceBtn')) { $('saveAndOpenFinalInvoiceBtn').onclick = function(ev){ ev && ev.preventDefault(); saveDeptLine(true); }; if(isGaber() || isWael()) $('saveAndOpenFinalInvoiceBtn').style.display='none'; }
     if($('invoiceItemSelect')) $('invoiceItemSelect').onchange = applySelection;
     if($('invoiceMsg')) $('invoiceMsg').textContent = 'جاري تحميل الأصناف...';
     modal.classList.remove('hidden');
@@ -8230,12 +8263,23 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function rowDept(r){ return txt(r.department||r.dept||r['القسم']||'عام'); }
   function rowSale(r){ return num(r.salePrice||r.systemSale||r.price||r['سعر بيع رسمي']||r['سعر بيع مقترح']||r['بيع']||0); }
   function rowActive(r){ return !/لا|موقوف|متوقف|inactive|archived/i.test(txt(r.active||r['مفعل']||'نعم')); }
+  function isFix5OrderPlaceholderName(name){ var n=norm(name||''); return !n || /^اوردر جديد/.test(n) || /^طلب جديد/.test(n) || /اوردر جديد\s*-/.test(n) || /طلب جديد\s*-/.test(n) || /new order/.test(n); }
+  function isFix5SellableTemplate(r){
+    if(!r) return false;
+    var name=rowName(r); if(isFix5OrderPlaceholderName(name)) return false;
+    var blob=norm(Object.keys(r||{}).join(' ')+' '+Object.values(r||{}).join(' '));
+    var materialOnly=/(materialname|اسم الخامه|اسم الخامة|rawmaterial|raw|paper roll|lamination roll|paper pack|ink|machine expense|سعر الوحده|سعر الوحدة|خامة اساسية|خامه اساسيه|رول ورق|رول لامينشن|باكيت ورق|حبر|مصروف ماكينة)/.test(blob);
+    var product=/(itemname|template|recipe|components|componentsjson|bom|اسم الصنف|اسم البند|صنف بمكونات|منتج|product|saleprice|سعر بيع)/.test(blob);
+    if(materialOnly && !product) return false;
+    return true;
+  }
   function currentDeptFilter(){ return userDept() || txt(($('invoiceItemDept')||{}).value||''); }
   function fillInvoiceCatalogFromCache(){
     var sel = $('invoiceItemSelect'); if(!sel) return;
     var d = currentDeptFilter();
-    var rows = catalogCache.filter(function(r){ var rd=rowDept(r); return rowActive(r) && (!d || rd===d || rd==='مشترك' || rd==='عام'); });
-    if(!rows.length) rows = catalogCache.filter(rowActive);
+    var rows = catalogCache.filter(function(r){ var rd=rowDept(r); return rowActive(r) && isFix5SellableTemplate(r) && (!d || rd===d || rd==='مشترك' || rd==='عام'); });
+    if(!rows.length) rows = catalogCache.filter(function(r){ return rowActive(r) && isFix5SellableTemplate(r); });
+    if(!rows.length){ sel.innerHTML='<option value="" disabled selected>لا توجد أصناف مفعلة لهذا القسم من مطبخ الحسابات</option>'; return; }
     sel.innerHTML = '<option value="">اختار الصنف</option>' + rows.map(function(r,i){return '<option value="fix5|'+i+'">'+esc(rowName(r)+' — '+rowDept(r)+(rowSale(r)?' — '+rowSale(r)+' ج':''))+'</option>';}).join('');
     sel.onchange = function(){ var m=String(sel.value||'').match(/^fix5\|(\d+)$/); if(!m) return; var r=rows[Number(m[1])]; if(!r) return; if($('invoiceWorkDone')) $('invoiceWorkDone').value=rowName(r); if($('invoiceItemDept')) $('invoiceItemDept').value=rowDept(r); if($('invoiceSalePrice')) $('invoiceSalePrice').value=rowSale(r)||$('invoiceSalePrice').value||0; };
   }
@@ -8243,8 +8287,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     try{
       var res = await apiJsonp('getAccounting',{});
       catalogCache = [];
-      (res.templates||[]).forEach(function(r){ if(rowName(r)) catalogCache.push(r); });
-      (res.materials||[]).forEach(function(r){ if(rowName(r)) catalogCache.push(r); });
+      (res.templates||res.items||res.products||res.recipes||[]).forEach(function(r){ if(rowName(r) && isFix5SellableTemplate(r)) catalogCache.push(r); });
       fillInvoiceCatalogFromCache();
     }catch(e){}
   }
@@ -8320,4 +8363,100 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function renderCustomerAccounts(data){var box=$('customerAccountsContent');if(!box)return;var inv=data.invoices||[], tx=data.transactions||[];var summary='<div class="es16-grid"><div class="card"><span>إجمالي الفواتير</span><b>'+money(data.totalInvoices)+'</b></div><div class="card"><span>المدفوع</span><b>'+money(data.totalPaid)+'</b></div><div class="card"><span>الباقي</span><b>'+money(data.totalRemaining)+'</b></div><div class="card"><span>الرصيد الحالي</span><b>'+money(data.balance)+'</b></div></div>';var invoices='<h4>الفواتير</h4>'+(inv.length?inv.map(function(x){var lines=x.lines||[];return '<div class="es16-invoice-card"><div><b>فاتورة '+esc(x.invoiceNo||x.id||'-')+'</b> <span class="es16-pill">'+esc(x.status||'')+'</span></div><small>تاريخ: '+esc(x.date||'')+' | أوردر: '+esc(x.orderId||'')+'</small><div>الإجمالي: <b>'+money(x.total)+'</b> — المدفوع: <b>'+money(x.paid)+'</b> — الباقي: <b>'+money(x.remaining)+'</b></div>'+ (lines.length?'<table class="es16-table"><thead><tr><th>البند</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr></thead><tbody>'+lines.map(function(l){return '<tr><td>'+esc(l.item||l.itemName||'')+'</td><td>'+esc(l.qty||'')+'</td><td>'+money(l.unit||l.price)+'</td><td>'+money(l.total)+'</td></tr>';}).join('')+'</tbody></table>':'')+'</div>';}).join(''):'<div class="dash-empty">لا توجد فواتير بعد.</div>');var hist='<h4>كشف الحساب</h4>'+(tx.length?'<table class="es16-table"><thead><tr><th>التاريخ</th><th>العملية</th><th>المبلغ</th><th>الرصيد بعد</th><th>ملاحظات</th></tr></thead><tbody>'+tx.slice().reverse().map(function(t){return '<tr><td>'+esc(t.createdAt||'')+'</td><td>'+esc(t.operationLabel||t.operation||'')+'</td><td>'+money(t.amount)+'</td><td>'+money(t.balanceAfter)+'</td><td>'+esc(t.notes||'')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="dash-empty">لا توجد حركات كشف حساب.</div>');box.innerHTML=summary+invoices+hist;}
   function bind(){document.querySelectorAll('.version-badge').forEach(function(el){el.textContent='مطبعجي مصر V1859 - ES16 Accounting Manager';});ensureCustomerAccountsButton();ensureCustomerAccountsPanel();var params=new URLSearchParams(location.search);if(params.get('tab')==='accounts'||params.get('invoiceReview')==='1'){setTimeout(openCustomerAccountsPage,800);}}
   document.addEventListener('DOMContentLoaded',bind);setTimeout(bind,300);setTimeout(bind,1500);/* V1879 no interval */
+})();
+
+
+/*********************** V1886 - Dept Invoice Product Catalog Only marker ***********************/
+window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
+
+
+/*********************** V1887 - Dept Invoice Approval Flow ***********************/
+(function(){
+  'use strict';
+  window.MATBAGY_V1887_DEPT_APPROVAL_FLOW = true;
+  window.TRENDOS_PATCH_VERSION = 'V1887_DEPT_APPROVAL_FLOW';
+  window.TRENDOS_LOADED_APP_VERSION = 'V1887 Dept Approval Flow';
+  function $(id){ return document.getElementById(id); }
+  function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
+  function num(v){ var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
+  function nkey(v){ return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي'); }
+  function sessionUser(){
+    var saved={}; try{ saved=JSON.parse(localStorage.getItem('trendos_session')||'{}').user||{}; }catch(e){}
+    var u=(window.state&&window.state.user)||saved||{};
+    return {name:u.name||u.username||localStorage.getItem('matbagy_user_name')||localStorage.getItem('matbagy_username')||'',username:u.username||u.name||localStorage.getItem('matbagy_username')||localStorage.getItem('matbagy_user_name')||'',token:u.token||window.sessionToken||localStorage.getItem('matbagy_session_token')||'',role:u.role||'',department:u.department||''};
+  }
+  function userDept(){ var u=sessionUser(); var k=nkey([u.name,u.username,u.role,u.department].join(' ')); if(/جابر|gaber|jaber|laser|ليزر/.test(k)) return 'ليزر'; if(/وائل|wael|print|طباعه|طباعة/.test(k)) return 'طباعة'; return ''; }
+  function api(action, params){
+    return new Promise(function(resolve,reject){
+      var base=String(window.TREND_API_URL||window.API_URL||'').trim(); if(!base) return reject(new Error('رابط السيرفر غير مضبوط'));
+      var cb='v1887cb_'+Date.now()+'_'+Math.random().toString(16).slice(2); var s=document.createElement('script'); var done=false;
+      function clean(){ if(done) return; done=true; try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode) s.parentNode.removeChild(s); }
+      window[cb]=function(r){ clean(); resolve(r||{}); };
+      s.onerror=function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
+      var u=sessionUser(); var q=new URLSearchParams(Object.assign({action:action,callback:cb,username:u.username||u.name||'',name:u.name||u.username||'',token:u.token||'',department:userDept()||u.department||'',_ts:Date.now()},params||{}));
+      s.src=base+(base.indexOf('?')===-1?'?':'&')+q.toString(); document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة السيرفر')); } },20000);
+    });
+  }
+  function orderId(r){ return r.orderId||r['رقم الأوردر']||''; }
+  function dept(r){ return r.department||r['القسم']||''; }
+  function item(r){ return r.itemName||r['اسم البند']||''; }
+  function qty(r){ return num(r.qty||r['الكمية']||1)||1; }
+  function sale(r){ return num(r.sale||r.salePrice||r['سعر البيع']||0); }
+  function status(r){ return r.approvalStatus||r['حالة اعتماد القسم']||r.billingStatus||r['حالة الفوترة']||r.closeStatus||r['حالة التقفيل']||'قيد مراجعة القسم'; }
+  function currentContext(){
+    var row=window.MATBAGY_P30_INVOICE_ROW||{};
+    return { orderId: txt(($('invoiceOrderId')||{}).value || row.orderId || ''), department: userDept() || txt(($('invoiceItemDept')||{}).value || row.department || ''), customer: txt(($('invoiceCustomer')||{}).value || row.customer || row.customerName || '') };
+  }
+  function ensurePanel(){
+    var card=document.querySelector('#invoiceModal .invoice-card,.p30-invoice-card'); if(!card) return null;
+    var p=$('v1887DeptApprovalPanel');
+    if(!p){
+      p=document.createElement('div'); p.id='v1887DeptApprovalPanel'; p.className='v1887-approval-panel';
+      p.innerHTML='<h3>مراجعة فاتورة القسم</h3><div class="hint">كل بند يتم تسجيله يفضل محفوظ حتى لو الأوردر كمل يومين أو 3. بعد مراجعة كل البنود اضغط اعتماد فاتورة القسم، وبعدها ضياء/رحمه/ريفان يسحبوا البنود للفاتورة النهائية.</div><div id="v1887DeptLinesBox" class="empty">جاري تحميل البنود...</div><div class="row"><button type="button" id="v1887RefreshDeptLinesBtn" class="ghost">تحديث بنود القسم</button><button type="button" id="v1887ApproveDeptBtn" class="primary">اعتماد فاتورة القسم</button></div><p id="v1887ApprovalMsg" class="msg"></p>';
+      var save=$('saveInvoiceBtn'); if(save && save.parentNode) save.parentNode.parentNode.insertBefore(p, save.parentNode.nextSibling); else card.appendChild(p);
+      $('v1887RefreshDeptLinesBtn').onclick=function(ev){ ev&&ev.preventDefault(); refreshPanel(); };
+      $('v1887ApproveDeptBtn').onclick=function(ev){ ev&&ev.preventDefault(); approveDeptInvoice(); };
+    }
+    return p;
+  }
+  function renderLines(rows){
+    var box=$('v1887DeptLinesBox'); if(!box) return; rows=rows||[];
+    if(!rows.length){ box.className='empty'; box.innerHTML='لا توجد بنود مسجلة لهذا الأوردر في هذا القسم حتى الآن.'; return; }
+    var total=rows.reduce(function(s,r){ return s + sale(r)*qty(r); },0);
+    box.className='';
+    box.innerHTML='<table class="v1887-approval-table"><thead><tr><th>الحالة</th><th>البند</th><th>كمية</th><th>السعر</th><th>الإجمالي</th><th>الموظف</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr><td>'+esc(status(r))+'</td><td>'+esc(item(r))+'</td><td>'+qty(r)+'</td><td>'+sale(r).toFixed(2)+'</td><td>'+((sale(r)*qty(r)).toFixed(2))+'</td><td>'+esc(r.createdBy||r['مسجل بواسطة']||'')+'</td></tr>'; }).join('')+'</tbody></table><div class="softBox"><b>إجمالي مسودة القسم: '+total.toFixed(2)+' ج</b></div>';
+  }
+  async function refreshPanel(){
+    ensurePanel(); var c=currentContext(); var m=$('v1887ApprovalMsg'); if(m) m.textContent='جاري تحديث بنود القسم...';
+    if(!c.orderId){ if(m) m.textContent='رقم الأوردر غير موجود.'; return; }
+    try{
+      var r=await api('getDeptInvoiceDraftV1887',{orderId:c.orderId,department:c.department});
+      var rows=(r && (r.lines||r.deptLines)) || [];
+      renderLines(rows);
+      if(m) m.textContent=rows.length?'تم تحميل '+rows.length+' بند.':'لا توجد بنود مسجلة بعد.';
+    }catch(e){ if(m) m.textContent=e.message||'تعذر تحميل البنود.'; }
+  }
+  async function approveDeptInvoice(){
+    var c=currentContext(); var m=$('v1887ApprovalMsg'); if(!c.orderId){ if(m) m.textContent='رقم الأوردر مطلوب للاعتماد.'; return; }
+    if(!confirm('اعتماد فاتورة قسم '+(c.department||'-')+' للأوردر '+c.orderId+'؟')) return;
+    try{
+      if(m) m.textContent='جاري اعتماد فاتورة القسم...';
+      var r=await api('approveAccountingDeptInvoice',{orderId:c.orderId,department:c.department,customerName:c.customer});
+      if(!r || r.success===false) throw new Error(r && r.message || 'تعذر الاعتماد');
+      if(m) m.textContent=r.message || 'تم اعتماد فاتورة القسم.';
+      refreshPanel();
+    }catch(e){ if(m) m.textContent=e.message||'تعذر اعتماد الفاتورة.'; }
+  }
+  function mount(){ ensurePanel(); refreshPanel(); var b=$('saveAndOpenFinalInvoiceBtn'); if(b && userDept()) b.style.display='none'; }
+  window.MATBAGY_V1887_REFRESH_SECTION_REVIEW=refreshPanel;
+  function wrapOpen(){
+    if(window.MATBAGY_P30_OPEN_INVOICE && !window.MATBAGY_P30_OPEN_INVOICE_V1887_WRAPPED){
+      var old=window.MATBAGY_P30_OPEN_INVOICE;
+      window.MATBAGY_P30_OPEN_INVOICE=function(row){ var out=old.apply(this,arguments); setTimeout(mount,400); setTimeout(mount,1200); return out; };
+      window.MATBAGY_P30_OPEN_INVOICE_V1887_WRAPPED=true;
+    }
+  }
+  document.addEventListener('click',function(ev){ var t=ev.target; if(t && t.closest && t.closest('.wa-invoice-pricing,.invoice-open,#saveInvoiceBtn')) setTimeout(mount,900); },true);
+  setTimeout(wrapOpen,300); setTimeout(wrapOpen,1500);
 })();
