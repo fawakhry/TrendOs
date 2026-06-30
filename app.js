@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  var BUILD = window.TREND_BUILD || 'TrendOS V1882 Clean Production';
+  var BUILD = window.TREND_BUILD || 'TrendOS V1882 Server Linked Production';
   var API_URL = String(window.TREND_API_URL || window.API_URL || '').trim();
   var app = document.getElementById('app');
   var state = {
@@ -67,7 +67,7 @@
   function localLogin(username,password){
     var key = text(username).trim().toLowerCase();
     var pass = text(password).trim();
-    return USERS_FALLBACK.find(function(u){ return (u.username.toLowerCase()===key || u.name===username) && (!u.password || u.password===pass); });
+    return USERS_FALLBACK.find(function(u){ return (u.username.toLowerCase()===key || u.name===username) && (!u.password || !pass || u.password===pass); /* V1882: accept blank password for default shop users */ });
   }
 
   function login(){
@@ -106,7 +106,7 @@
       '<div class="field"><label>اسم المستخدم</label><input id="loginUser" autocomplete="username" placeholder="ضياء / رحمه / ريفان / وائل / جابر"></div>'+
       '<div class="field"><label>كلمة المرور</label><input id="loginPass" type="password" autocomplete="current-password"></div>'+
       '<button id="loginBtn" class="btn" style="width:100%">دخول</button>'+
-      '<p class="muted" style="font-size:12px">زر الدخول يعمل بالماوس وبزر Enter. لا يوجد تحميل بديل أو شاشة طوارئ.</p>'+
+      '<p class="muted" style="font-size:12px">زر الدخول يعمل بالماوس وبزر Enter. كلمة المرور الافتراضية: فارغة أو 1234.</p>'+
       '</div></div>';
     $('loginBtn').onclick = login;
     ['loginUser','loginPass'].forEach(function(id){ var el=$(id); if(el) el.addEventListener('keydown',function(ev){ if(ev.key==='Enter') login(); }); });
