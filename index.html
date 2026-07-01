@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها V1885 Stable + Proof Copy</title>
-  <link rel="stylesheet" href="styles.css?v=trendos-v1889-stable-merge">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1889-stable-merge">
+  <title>منصة مطبعجي بنها TrendOS V1890 Stable Version Lock</title>
+  <link rel="stylesheet" href="styles.css?v=trendos-v1890-version-lock-20260701">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1890-version-lock-20260701">
 </head>
 <body>
 <main class="app">
@@ -24,7 +24,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1885 Stable + Proof Copy</p>
+    <p class="version-badge">TrendOS V1890 Stable Version Lock</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -67,7 +67,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1885 Stable + Proof Copy</p>
+        <p class="version-badge">TrendOS V1890 Stable Version Lock</p>
         <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
       </div>
       <div class="top-actions">
@@ -695,7 +695,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">TrendOS V1885 Stable + Proof Copy</p>
+        <p class="version-badge">TrendOS V1890 Stable Version Lock</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1198,8 +1198,62 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1889-stable-merge"></script>
-<script src="app.js?v=trendos-v1889-stable-merge"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1889-stable-merge"></script>
+<script src="config.js?v=trendos-v1890-version-lock-20260701"></script>
+<script src="app.js?v=trendos-v1890-version-lock-20260701"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1890-version-lock-20260701"></script>
+
+<script>
+(function(){
+  'use strict';
+  var LOCK = 'مطبعجي مصر V1890 - Stable Version Lock';
+  var BUILD = 'TrendOS V1890 Stable Version Lock';
+  var CACHE_TAG = 'trendos-v1890-version-lock-20260701';
+  window.TRENDOS_VERSION_LOCK = BUILD;
+  window.TRENDOS_PATCH_VERSION = 'V1890_VERSION_LOCK';
+  window.TRENDOS_LOADED_APP_VERSION = BUILD;
+  window.MATBAGY_BUILD_VERSION = BUILD;
+  window.MATBAGY_BATCH_VERSION = 'V1890_VERSION_LOCK';
+  window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
+  try{
+    localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
+    localStorage.setItem('TRENDOS_CACHE_TAG', CACHE_TAG);
+    ['TRENDOS_LAST_VERSION','TRENDOS_OLD_VERSION','MATBAGY_OLD_VERSION','MATBAGY_VERSION_MIX_WARNING'].forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function(regs){ regs.forEach(function(r){try{r.unregister();}catch(e){}}); });
+    if (window.caches && caches.keys) caches.keys().then(function(keys){ keys.forEach(function(k){ if(/trendos|matbagy|workbox|cache/i.test(k)) caches.delete(k); }); });
+  }catch(e){}
+  function stableText(el){
+    if(!el) return;
+    var t = el.textContent || '';
+    if(/V18\d{2}|ES\d+|Batch|Patch|Ledger|Accounting Manager|Proof Copy|Stable/.test(t) || el.classList.contains('version-badge')){
+      el.textContent = LOCK;
+    }
+  }
+  function lockVersion(){
+    try{document.title='منصة مطبعجي بنها TrendOS V1890 Stable Version Lock';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1890_VERSION_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1890_VERSION_LOCK';}catch(e){}
+    document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(stableText);
+    document.querySelectorAll('p,small,span,div,b,h1,h2,h3').forEach(function(el){
+      if(el.children && el.children.length>0) return;
+      var t=el.textContent||'';
+      if(t.length<180 && /(V185|V186|V187|V188[0-8]|ES1\d|ES2\d|ES31|Ledger Fix|Accounting Manager|Batch 25|Proof Copy)/i.test(t)){
+        el.textContent = t.replace(/مطبعجي مصر\s*V18\d{2}\s*-\s*ES\d+[^
+]*/gi, LOCK)
+          .replace(/TrendOS\s*V18\d{2}[^
+]*/gi, BUILD)
+          .replace(/V18\d{2}\s*[-+\/]?\s*ES\d+[^
+]*/gi, 'V1890')
+          .replace(/Batch\s*\d+[^
+]*/gi, BUILD)
+          .replace(/Ledger Fix|Accounting Manager|Proof Copy/gi, 'Stable Version Lock');
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', lockVersion);
+  lockVersion();
+  [50,150,300,700,1200,1800,2600,4000].forEach(function(ms){setTimeout(lockVersion,ms);});
+  try{ new MutationObserver(function(){ lockVersion(); }).observe(document.documentElement, {childList:true,subtree:true,characterData:true}); }catch(e){}
+})();
+</script>
+
 </body>
 </html>

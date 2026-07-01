@@ -1,4 +1,4 @@
-/* Matbagy / TrendOS V1860 - ES17 Theme Controller */
+/* Matbagy / TrendOS Theme Controller - V1890 safe: no version rewriting */
 (function(){
   'use strict';
   var KEY_THEME='matbagy_ui_theme_v1860';
@@ -34,13 +34,7 @@
     else{document.body.appendChild(makeSwitcher(true));}
     apply();
   }
-  function polishVersion(){
-    document.querySelectorAll('.version-badge,.version,.app-version,#es16Version').forEach(function(el){
-      var t=(el.textContent||'');
-      if(/V1859|ES16|V13|Batch32/i.test(t)) el.textContent='V1860 / ES17 International UI Theme';
-    });
-    if(/V1859|ES16|V13|Batch32/i.test(document.title||'')) document.title=document.title.replace(/V1859|ES16|V13 Batch32|Batch32/gi,'V1860 ES17');
-  }
+  function polishVersion(){ /* V1890: version text is locked by index/app.js; theme must not rewrite it. */ }
   function groupDangerButtons(){
     document.querySelectorAll('button,.btn,.es16-btn').forEach(function(b){
       var t=(b.textContent||'').trim();
