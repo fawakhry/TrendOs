@@ -1748,7 +1748,7 @@ button.v1857-activate-btn{background:#16a34a!important;color:#fff!important;bord
 }
 
 
-/* V1895 Catalog Bridge + Invoice Rows visibility */
+/* V1896 Catalog Bridge + Invoice Rows visibility */
 #invoiceModal .v1894-debt-box{
   margin:10px 0 12px;
   border-radius:16px;
@@ -1765,3 +1765,11 @@ button.v1857-activate-btn{background:#16a34a!important;color:#fff!important;bord
 #invoiceModal .v1894-debt-box.hasDebt{background:#fff1f2;border-color:#fecdd3;color:#9f1239;}
 #invoiceModal .v1894-debt-box span{font-size:18px;}
 #invoiceModal .v1894-debt-box small{font-weight:700;opacity:.85;}
+
+
+/* V1896 - visible debt + catalog hard lock */
+.v1896-addorder-debt-box{margin-top:8px;padding:9px 12px;border-radius:14px;font-size:13px;font-weight:800;border:1px solid #dbeafe;background:#eff6ff;color:#1e3a8a;line-height:1.6}
+.v1896-addorder-debt-box.hasDebt{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+.v1896-addorder-debt-box.noDebt{background:#ecfdf5;border-color:#86efac;color:#065f46}
+.v1896-addorder-debt-box.muted{background:#f8fafc;border-color:#e2e8f0;color:#64748b;font-weight:700}
+#invoiceItemSelect option{font-weight:700}

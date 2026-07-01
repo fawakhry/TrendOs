@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها TrendOS V1895 Catalog Bridge + Invoice Rows</title>
+  <title>منصة مطبعجي بنها TrendOS V1896 Debt + Catalog Hard Lock</title>
   <link rel="stylesheet" href="styles.css?v=trendos-v1894-debt-invoice-rows-20260701d">
   <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1894-debt-invoice-rows-20260701d">
 </head>
@@ -24,7 +24,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1895 Catalog Bridge + Invoice Rows</p>
+    <p class="version-badge">TrendOS V1896 Debt + Catalog Hard Lock</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -67,7 +67,7 @@
       <div>
         <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1895 Catalog Bridge + Invoice Rows</p>
+        <p class="version-badge">TrendOS V1896 Debt + Catalog Hard Lock</p>
         <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
       </div>
       <div class="top-actions">
@@ -695,7 +695,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">TrendOS V1895 Catalog Bridge + Invoice Rows</p>
+        <p class="version-badge">TrendOS V1896 Debt + Catalog Hard Lock</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1205,14 +1205,14 @@
 <script>
 (function(){
   'use strict';
-  var LOCK = 'مطبعجي مصر V1895 - Catalog Bridge + Invoice Rows';
-  var BUILD = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
+  var LOCK = 'مطبعجي مصر V1896 - Debt + Catalog Hard Lock';
+  var BUILD = 'TrendOS V1896 Debt + Catalog Hard Lock';
   var CACHE_TAG = 'trendos-v1894-debt-invoice-rows-20260701d';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
-  window.TRENDOS_PATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
+  window.TRENDOS_PATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
   window.MATBAGY_BUILD_VERSION = BUILD;
-  window.MATBAGY_BATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
+  window.MATBAGY_BATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
   window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
   try{
     localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
@@ -1229,8 +1229,8 @@
     }
   }
   function lockVersion(){
-    try{document.title='منصة مطبعجي بنها TrendOS V1895 Catalog Bridge + Invoice Rows';}catch(e){}
-    try{window.TRENDOS_PATCH_VERSION='V1895_CATALOG_BRIDGE_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1895_CATALOG_BRIDGE_LOCK';}catch(e){}
+    try{document.title='منصة مطبعجي بنها TrendOS V1896 Debt + Catalog Hard Lock';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';}catch(e){}
     document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(stableText);
     document.querySelectorAll('p,small,span,div,b,h1,h2,h3').forEach(function(el){
       if(el.children && el.children.length>0) return;
