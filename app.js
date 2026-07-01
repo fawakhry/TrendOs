@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1894_DEBT_INVOICE_ROWS';
+  const UI_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
 
   const screens = {
     service: "خدمة العملاء",
@@ -7604,14 +7604,14 @@ Trend Mall`;
   setTimeout(patch23BindMainButtons, 2500);
 
 
-  /*********************** TrendOS V1894 Debt + Invoice Rows Cache + Status + Tool SSO ***********************/
-  window.TRENDOS_PATCH_VERSION = "V1894_DEBT_INVOICE_ROWS";
-  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1894 Debt + Invoice Rows";
+  /*********************** TrendOS V1895 Catalog Bridge + Invoice Rows Cache + Status + Tool SSO ***********************/
+  window.TRENDOS_PATCH_VERSION = "V1895_CATALOG_BRIDGE_LOCK";
+  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1895 Catalog Bridge + Invoice Rows";
 
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1894 - Debt + Invoice Rows';
+        el.textContent = 'مطبعجي مصر V1895 - Catalog Bridge + Invoice Rows';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7749,8 +7749,8 @@ Trend Mall`;
 
 /*********************** Batch 25 - Stable Full Accounting Core + Strong Filters + Sheets SSO ***********************/
 (function(){
-  window.TRENDOS_PATCH_VERSION = "V1894_DEBT_INVOICE_ROWS";
-  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1894 Debt + Invoice Rows";
+  window.TRENDOS_PATCH_VERSION = "V1895_CATALOG_BRIDGE_LOCK";
+  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1895 Catalog Bridge + Invoice Rows";
 
   function qs(id){ return document.getElementById(id); }
   function norm(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
@@ -7864,7 +7864,7 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1894 - Debt + Invoice Rows'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1895 - Catalog Bridge + Invoice Rows'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); /* V1879 no interval */
@@ -7879,8 +7879,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** Batch 30 - Dept Invoice Emergency Fix + Gaber Inline Calculator ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
+  window.TRENDOS_PATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
 
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
@@ -7968,11 +7968,36 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   }
   function catalogRows(){ return window.MATBAGY_P30_CATALOG || []; }
   function setCatalogRows(rows){ window.MATBAGY_P30_CATALOG = rows || []; }
+
+  function getSharedCatalogObjectsV1895(){
+    var out=[];
+    try{
+      var keys=[];
+      for(var i=0;i<localStorage.length;i++){
+        var k=localStorage.key(i)||'';
+        if(/^MATBAGY_SHARED_CATALOG_V\d+/i.test(k)) keys.push(k);
+      }
+      ['MATBAGY_SHARED_CATALOG_V1895','MATBAGY_SHARED_CATALOG_V1895','MATBAGY_SHARED_CATALOG_V1893','MATBAGY_SHARED_CATALOG_V1892','MATBAGY_SHARED_CATALOG_V1891','MATBAGY_SHARED_CATALOG_V1890'].forEach(function(k){ if(keys.indexOf(k)===-1) keys.push(k); });
+      keys.forEach(function(k){
+        try{
+          var obj=JSON.parse(localStorage.getItem(k)||'{}');
+          if(obj && typeof obj==='object') out.push(obj);
+        }catch(e){}
+      });
+    }catch(e){}
+    return out;
+  }
+  function collectSharedCatalogRowsV1895(){
+    var rows=[];
+    getSharedCatalogObjectsV1895().forEach(function(shared){
+      rows = rows.concat(shared.templates||[], shared.items||[], shared.products||[], shared.recipes||[]);
+    });
+    return rows;
+  }
   function readLocalEasyStoreCatalogP30(){
     try{
       var data = JSON.parse(localStorage.getItem('EASYSTORE_CLEAN_V1880_DATA') || '{}');
-      var shared = {}; try{ shared = JSON.parse(localStorage.getItem('MATBAGY_SHARED_CATALOG_V1894') || localStorage.getItem('MATBAGY_SHARED_CATALOG_V1893') || '{}'); }catch(e){}
-      var src = [].concat(data.templates || [], data.items || [], data.products || [], data.recipes || [], shared.templates || [], shared.items || [], shared.products || [], shared.recipes || []);
+      var src = [].concat(data.templates || [], data.items || [], data.products || [], data.recipes || [], collectSharedCatalogRowsV1895());
       var out = [];
       src.forEach(function(r){
         var name = r.itemName || r.templateName || r.name || r['اسم البند'] || r['اسم الصنف'] || '';
@@ -8188,8 +8213,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** V1857 / ES14 - Accounting Merge Final Overrides ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
+  window.TRENDOS_PATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
   window.MATBAGY_V1857_ES14 = true;
 
   function $(id){ return document.getElementById(id); }
@@ -8288,7 +8313,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       g.textContent = 'حاسبة جابر';
       g.onclick = function(ev){ if(ev){ev.preventDefault(); ev.stopPropagation();} return window.MATBAGY_P30_OPEN_GABER_CALC({}); };
     }
-    Array.prototype.slice.call(document.querySelectorAll('.version-badge')).forEach(function(el){ el.textContent = 'مطبعجي مصر V1894 - Debt + Invoice Rows'; });
+    Array.prototype.slice.call(document.querySelectorAll('.version-badge')).forEach(function(el){ el.textContent = 'مطبعجي مصر V1895 - Catalog Bridge + Invoice Rows'; });
     hideForbiddenPurchaseEntrypoints();
   }
   document.addEventListener('DOMContentLoaded', bindV1857);
@@ -8367,8 +8392,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function readLocalEasyStoreCatalogFix5(){
     try{
       var data = JSON.parse(localStorage.getItem('EASYSTORE_CLEAN_V1880_DATA') || '{}');
-      var shared = {}; try{ shared = JSON.parse(localStorage.getItem('MATBAGY_SHARED_CATALOG_V1894') || localStorage.getItem('MATBAGY_SHARED_CATALOG_V1893') || '{}'); }catch(e){}
-      return [].concat(data.templates || [], data.items || [], data.products || [], data.recipes || [], shared.templates || [], shared.items || [], shared.products || [], shared.recipes || []).filter(function(r){ return rowName(r) && isFix5SellableTemplate(r); });
+      return [].concat(data.templates || [], data.items || [], data.products || [], data.recipes || [], collectSharedCatalogRowsV1895()).filter(function(r){ return rowName(r) && isFix5SellableTemplate(r); });
     }catch(e){ return []; }
   }
   async function refreshInvoiceCatalog(){
@@ -8417,11 +8441,11 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 
 /*********************** V1890 - Version Lock marker ***********************/
 (function(){
-  window.MATBAGY_VV1894_DEBT_INVOICE_ROWS = true;
+  window.MATBAGY_VV1895_CATALOG_BRIDGE_LOCK = true;
   function bind(){
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        if(/V1856|V1857|Batch|Fix/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1894 - Debt + Invoice Rows';
+        if(/V1856|V1857|Batch|Fix/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1895 - Catalog Bridge + Invoice Rows';
       });
     } catch(e) {}
   }
@@ -8434,7 +8458,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 (function(){
   'use strict';
   window.MATBAGY_V1890_CUSTOMER_ACCOUNTS_CORE = true;
-  window.TRENDOS_PATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
+  window.TRENDOS_PATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
   function $(id){return document.getElementById(id);} function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
   function num(v){var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}
@@ -8450,7 +8474,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function openCustomerAccountsPage(){ensureCustomerAccountsPanel();var p=$('customerAccountsPanel');if(p){p.classList.remove('hidden');p.scrollIntoView({behavior:'smooth',block:'start'});loadCustomerAccounts();}}
   async function loadCustomerAccounts(){var c=customerSession();if(!c.customerCode||!c.token){setStatus('سجل دخول العميل الأول.',true);return;}setStatus('جاري تحميل الفواتير والحساب...',false);try{var r=await api('getCustomerPortalAccountsV1859',{customerCode:c.customerCode,code:c.customerCode,token:c.token});if(!r.success){setStatus(r.message||'تعذر تحميل حساب العميل.',true);return;}renderCustomerAccounts(r);setStatus('تم تحميل الحساب.',false);}catch(e){setStatus('تعذر الاتصال بالسيرفر.',true);}}
   function renderCustomerAccounts(data){var box=$('customerAccountsContent');if(!box)return;var inv=data.invoices||[], tx=data.transactions||[];var summary='<div class="es16-grid"><div class="card"><span>إجمالي الفواتير</span><b>'+money(data.totalInvoices)+'</b></div><div class="card"><span>المدفوع</span><b>'+money(data.totalPaid)+'</b></div><div class="card"><span>الباقي</span><b>'+money(data.totalRemaining)+'</b></div><div class="card"><span>الرصيد الحالي</span><b>'+money(data.balance)+'</b></div></div>';var invoices='<h4>الفواتير</h4>'+(inv.length?inv.map(function(x){var lines=x.lines||[];return '<div class="es16-invoice-card"><div><b>فاتورة '+esc(x.invoiceNo||x.id||'-')+'</b> <span class="es16-pill">'+esc(x.status||'')+'</span></div><small>تاريخ: '+esc(x.date||'')+' | أوردر: '+esc(x.orderId||'')+'</small><div>الإجمالي: <b>'+money(x.total)+'</b> — المدفوع: <b>'+money(x.paid)+'</b> — الباقي: <b>'+money(x.remaining)+'</b></div>'+ (lines.length?'<table class="es16-table"><thead><tr><th>البند</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr></thead><tbody>'+lines.map(function(l){return '<tr><td>'+esc(l.item||l.itemName||'')+'</td><td>'+esc(l.qty||'')+'</td><td>'+money(l.unit||l.price)+'</td><td>'+money(l.total)+'</td></tr>';}).join('')+'</tbody></table>':'')+'</div>';}).join(''):'<div class="dash-empty">لا توجد فواتير بعد.</div>');var hist='<h4>كشف الحساب</h4>'+(tx.length?'<table class="es16-table"><thead><tr><th>التاريخ</th><th>العملية</th><th>المبلغ</th><th>الرصيد بعد</th><th>ملاحظات</th></tr></thead><tbody>'+tx.slice().reverse().map(function(t){return '<tr><td>'+esc(t.createdAt||'')+'</td><td>'+esc(t.operationLabel||t.operation||'')+'</td><td>'+money(t.amount)+'</td><td>'+money(t.balanceAfter)+'</td><td>'+esc(t.notes||'')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="dash-empty">لا توجد حركات كشف حساب.</div>');box.innerHTML=summary+invoices+hist;}
-  function bind(){document.querySelectorAll('.version-badge').forEach(function(el){el.textContent='مطبعجي مصر V1894 - Debt + Invoice Rows';});ensureCustomerAccountsButton();ensureCustomerAccountsPanel();var params=new URLSearchParams(location.search);if(params.get('tab')==='accounts'||params.get('invoiceReview')==='1'){setTimeout(openCustomerAccountsPage,800);}}
+  function bind(){document.querySelectorAll('.version-badge').forEach(function(el){el.textContent='مطبعجي مصر V1895 - Catalog Bridge + Invoice Rows';});ensureCustomerAccountsButton();ensureCustomerAccountsPanel();var params=new URLSearchParams(location.search);if(params.get('tab')==='accounts'||params.get('invoiceReview')==='1'){setTimeout(openCustomerAccountsPage,800);}}
   document.addEventListener('DOMContentLoaded',bind);setTimeout(bind,300);setTimeout(bind,1500);/* V1879 no interval */
 })();
 
@@ -8463,8 +8487,8 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 (function(){
   'use strict';
   window.MATBAGY_V1889_STABLE_MERGE = true;
-  window.TRENDOS_PATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
+  window.TRENDOS_PATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
   function num(v){ var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
@@ -8555,15 +8579,15 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 /*********************** V1890 - Final Stable Version Lock ***********************/
 (function(){
   'use strict';
-  var LOCK='مطبعجي مصر V1894 - Debt + Invoice Rows';
-  var BUILD='TrendOS V1894 Debt + Invoice Rows';
-  window.TRENDOS_PATCH_VERSION='V1894_DEBT_INVOICE_ROWS';
+  var LOCK='مطبعجي مصر V1895 - Catalog Bridge + Invoice Rows';
+  var BUILD='TrendOS V1895 Catalog Bridge + Invoice Rows';
+  window.TRENDOS_PATCH_VERSION='V1895_CATALOG_BRIDGE_LOCK';
   window.TRENDOS_LOADED_APP_VERSION=BUILD;
   window.MATBAGY_BUILD_VERSION=BUILD;
-  window.MATBAGY_BATCH_VERSION='V1894_DEBT_INVOICE_ROWS';
+  window.MATBAGY_BATCH_VERSION='V1895_CATALOG_BRIDGE_LOCK';
   function lock(){
     try{document.title='منصة مطبعجي بنها '+BUILD;}catch(e){}
-    try{window.TRENDOS_PATCH_VERSION='V1894_DEBT_INVOICE_ROWS';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1894_DEBT_INVOICE_ROWS';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1895_CATALOG_BRIDGE_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1895_CATALOG_BRIDGE_LOCK';}catch(e){}
     document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(function(el){el.textContent=LOCK;});
   }
   document.addEventListener('DOMContentLoaded', lock);
@@ -8575,11 +8599,11 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 /*********************** V1893 - Invoice Rows Keyboard + Layout UI ***********************/
 (function(){
   'use strict';
-  window.MATBAGY_V1894_DEBT_INVOICE_ROWS = true;
-  window.TRENDOS_PATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
-  window.MATBAGY_BUILD_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
-  window.MATBAGY_BATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
+  window.MATBAGY_V1895_CATALOG_BRIDGE_LOCK = true;
+  window.TRENDOS_PATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
+  window.MATBAGY_BATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
   function $(id){return document.getElementById(id);} 
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function num(v){var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}
@@ -8689,14 +8713,14 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 })();
 
 
-/*********************** V1894 - Debt visible in Dept Invoice + keep V1893 row UI ***********************/
+/*********************** V1895 - Debt visible in Dept Invoice + keep V1893 row UI ***********************/
 (function(){
   'use strict';
-  window.MATBAGY_V1894_DEBT_INVOICE_ROWS = true;
-  window.TRENDOS_PATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
-  window.MATBAGY_BUILD_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
-  window.MATBAGY_BATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
+  window.MATBAGY_V1895_CATALOG_BRIDGE_LOCK = true;
+  window.TRENDOS_PATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1895 Catalog Bridge + Invoice Rows';
+  window.MATBAGY_BATCH_VERSION = 'V1895_CATALOG_BRIDGE_LOCK';
   function $(id){return document.getElementById(id);} 
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function nkey(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
