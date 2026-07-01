@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1890_VERSION_LOCK';
+  const UI_VERSION = 'V1891_SESSION_CATALOG_FIX';
 
   const screens = {
     service: "خدمة العملاء",
@@ -173,6 +173,10 @@
     platformAdEditor: { scale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, objectUrl: "" },
     accounting: { materials: [], templates: [], deptLines: [], finalInvoices: [], summary: {}, permissions: {}, loaded: false, selectedOrderLines: [] }
   };
+
+  // V1891: expose the live session object for late invoice/catalog patches.
+  // Previous patches looked for window.state, so they sometimes called Apps Script without username/token.
+  try { window.state = state; window.trendosState = state; } catch (e) {}
 
   const $ = (id) => document.getElementById(id);
   const text = (v) => String(v == null ? "" : v);
@@ -1671,6 +1675,12 @@ Trend Mall`;
 
   function saveSession() {
     localStorage.setItem("trendos_session", JSON.stringify({ user: state.user, screen: state.screen }));
+    try {
+      const u = state.user || {};
+      localStorage.setItem("matbagy_user_name", u.name || u.username || "");
+      localStorage.setItem("matbagy_username", u.username || u.name || "");
+      localStorage.setItem("matbagy_session_token", u.token || "");
+    } catch (e) {}
   }
 
   function loadSession() {
@@ -1687,6 +1697,7 @@ Trend Mall`;
 
   function clearSession() {
     localStorage.removeItem("trendos_session");
+    try { localStorage.removeItem("matbagy_user_name"); localStorage.removeItem("matbagy_username"); localStorage.removeItem("matbagy_session_token"); } catch(e) {}
     state.user = null;
     state.rows = [];
   }
@@ -7592,14 +7603,14 @@ Trend Mall`;
   setTimeout(patch23BindMainButtons, 2500);
 
 
-  /*********************** TrendOS V1890 Stable Version Lock Cache + Status + Tool SSO ***********************/
-  window.TRENDOS_PATCH_VERSION = "V1890_VERSION_LOCK";
-  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1890 Stable Version Lock";
+  /*********************** TrendOS V1891 Session Catalog Fix Cache + Status + Tool SSO ***********************/
+  window.TRENDOS_PATCH_VERSION = "V1891_SESSION_CATALOG_FIX";
+  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1891 Session Catalog Fix";
 
   function batch24SetVersionBadges() {
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        el.textContent = 'مطبعجي مصر V1890 - Stable Version Lock';
+        el.textContent = 'مطبعجي مصر V1891 - Session Catalog Fix';
       });
       var old = document.getElementById('batch24VersionLine');
       if (!old) {
@@ -7619,10 +7630,10 @@ Trend Mall`;
   function batch24HardProgramUpdate() {
     try {
       var u = new URL(location.href);
-      u.searchParams.set('v', 'v1890-version-lock-' + Date.now());
+      u.searchParams.set('v', 'v1891-session-catalog-fix-' + Date.now());
       location.replace(u.toString());
     } catch(e) {
-      location.href = location.pathname + '?v=v1890-version-lock-' + Date.now();
+      location.href = location.pathname + '?v=v1891-session-catalog-fix-' + Date.now();
     }
   }
 
@@ -7737,8 +7748,8 @@ Trend Mall`;
 
 /*********************** Batch 25 - Stable Full Accounting Core + Strong Filters + Sheets SSO ***********************/
 (function(){
-  window.TRENDOS_PATCH_VERSION = "V1890_VERSION_LOCK";
-  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1890 Stable Version Lock";
+  window.TRENDOS_PATCH_VERSION = "V1891_SESSION_CATALOG_FIX";
+  window.TRENDOS_LOADED_APP_VERSION = "TrendOS V1891 Session Catalog Fix";
 
   function qs(id){ return document.getElementById(id); }
   function norm(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
@@ -7852,7 +7863,7 @@ Trend Mall`;
     var sheets=qs('matbagySheetsBtn'); if(sheets){ sheets.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagySheetsTool();}; sheets.title='يفتح برنامج الشيتات للموظف بدون تليفون أو تفعيل'; }
     var acc=qs('accountingBtn'); if(acc){ acc.textContent='💰 إيزي ستور الحسابات'; acc.onclick=function(ev){ev&&ev.preventDefault(); return window.openMatbagyEasyStoreAccounting();}; }
     if(refresh && !qs('programUpdateBtn')){ var b=document.createElement('button'); b.id='programUpdateBtn'; b.className=refresh.className||'ghost'; b.textContent='تحديث البرنامج'; b.onclick=function(ev){ev&&ev.preventDefault(); hardRefresh();}; refresh.parentNode.insertBefore(b, refresh.nextSibling); }
-    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1890 - Stable Version Lock'; });
+    document.querySelectorAll('.version-badge').forEach(function(el){ if(/Patch|Batch|V1856/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1891 - Session Catalog Fix'; });
   }
   document.addEventListener('click', function(ev){ var k=kindFromText((ev.target&&ev.target.textContent)||''); if(k && ev.target.closest && ev.target.closest('#statsBar,.stats,.quick-stats,.follow-stats')){ev.preventDefault(); applyFollowFilter(k);} }, true);
   setTimeout(bindMain,300); setTimeout(bindMain,1500); /* V1879 no interval */
@@ -7867,8 +7878,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** Batch 30 - Dept Invoice Emergency Fix + Gaber Inline Calculator ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = 'V1890_VERSION_LOCK';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1890 Stable Version Lock';
+  window.TRENDOS_PATCH_VERSION = 'V1891_SESSION_CATALOG_FIX';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1891 Session Catalog Fix';
 
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
@@ -7956,6 +7967,28 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   }
   function catalogRows(){ return window.MATBAGY_P30_CATALOG || []; }
   function setCatalogRows(rows){ window.MATBAGY_P30_CATALOG = rows || []; }
+  function readLocalEasyStoreCatalogP30(){
+    try{
+      var data = JSON.parse(localStorage.getItem('EASYSTORE_CLEAN_V1880_DATA') || '{}');
+      var src = [].concat(data.templates || [], data.items || [], data.products || [], data.recipes || []);
+      var out = [];
+      src.forEach(function(r){
+        var name = r.itemName || r.templateName || r.name || r['اسم البند'] || r['اسم الصنف'] || '';
+        if(!name) return;
+        var rec = {
+          type:'TPL',
+          name:name,
+          department:r.department || r.dept || r['القسم'] || 'عام',
+          sale:num(r.salePrice || r.systemSale || r.price || r['سعر بيع رسمي'] || r['سعر بيع مقترح'] || r['بيع']),
+          cost:num(r.unitCost || r.fixedCost || r.computedUnitCost || r.calculatedUnitCost || r.cost),
+          recordType:r.recordType || r.itemType || r.category || r['التصنيف'] || 'صنف بمكونات',
+          components:r.componentsJson || r.components || r['المكونات'] || ''
+        };
+        if(isSellableInvoiceCatalogRow(rec)) out.push(rec);
+      });
+      return out;
+    }catch(e){ return []; }
+  }
   function optionValue(r,i){ return [r.type||'TPL', r.name||'', r.department||'', i].join('|'); }
   function isInvoiceOrderPlaceholderName(name){
     var n = norm(name || '');
@@ -8020,8 +8053,9 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
         if(isSellableInvoiceCatalogRow(rec)) rows.push(rec);
       }
       (res.templates || res.items || res.products || res.recipes || []).forEach(function(r){ add(r,'TPL'); });
+      if(!rows.length) rows = readLocalEasyStoreCatalogP30();
       setCatalogRows(rows);
-    }catch(e){}
+    }catch(e){ setCatalogRows(readLocalEasyStoreCatalogP30()); }
     fillCatalog(row);
   }
   function openEasyStoreLaser(row){
@@ -8033,7 +8067,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('name', cu.name || 'جابر'); u.searchParams.set('username', cu.username || 'جابر'); u.searchParams.set('token', cu.token || '');
     u.searchParams.set('customer', (row && (row.customer || row.customerName)) || (($('invoiceCustomer')||{}).value||''));
     u.searchParams.set('orderId', (row && row.orderId) || (($('invoiceOrderId')||{}).value||''));
-    u.searchParams.set('v','es33-v1890-version-lock');
+    u.searchParams.set('v','es33-v1891-session-catalog-fix');
     window.open(u.toString(), 'Matbagy_Gaber_Calc');
   }
   function toggleInlineLaser(){ var b=$('invoiceInlineLaserBox'); if(b) b.classList.toggle('hidden'); }
@@ -8095,7 +8129,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var u = new URL(base, location.href); var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','sales'); u.searchParams.set('mode','final');
     u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es33-v1890-version-lock');
+    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es33-v1891-session-catalog-fix');
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
   function openInvoice(row){
@@ -8150,8 +8184,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** V1857 / ES14 - Accounting Merge Final Overrides ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = 'V1890_VERSION_LOCK';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1890 Stable Version Lock';
+  window.TRENDOS_PATCH_VERSION = 'V1891_SESSION_CATALOG_FIX';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1891 Session Catalog Fix';
   window.MATBAGY_V1857_ES14 = true;
 
   function $(id){ return document.getElementById(id); }
@@ -8209,7 +8243,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('canPurchase', canOpenPurchases() ? '1' : '0');
     u.searchParams.set('deptOnly', canOpenPurchases() ? '0' : '1');
     u.searchParams.set('hideCostForDept', (userMode()==='laser' || userMode()==='print') ? '1' : '0');
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es33-v1890-version-lock');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es33-v1891-session-catalog-fix');
     Object.keys(params).forEach(function(k){ if(params[k] !== undefined && params[k] !== null && k !== 'mode' && k !== 'department') u.searchParams.set(k, params[k]); });
     window.open(u.toString(), windowName || 'Matbagy_EasyStore_V1890');
     return true;
@@ -8250,7 +8284,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       g.textContent = 'حاسبة جابر';
       g.onclick = function(ev){ if(ev){ev.preventDefault(); ev.stopPropagation();} return window.MATBAGY_P30_OPEN_GABER_CALC({}); };
     }
-    Array.prototype.slice.call(document.querySelectorAll('.version-badge')).forEach(function(el){ el.textContent = 'مطبعجي مصر V1890 - Stable Version Lock'; });
+    Array.prototype.slice.call(document.querySelectorAll('.version-badge')).forEach(function(el){ el.textContent = 'مطبعجي مصر V1891 - Session Catalog Fix'; });
     hideForbiddenPurchaseEntrypoints();
   }
   document.addEventListener('DOMContentLoaded', bindV1857);
@@ -8326,13 +8360,20 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     sel.innerHTML = '<option value="">اختار الصنف</option>' + rows.map(function(r,i){return '<option value="fix5|'+i+'">'+esc(rowName(r)+' — '+rowDept(r)+(rowSale(r)?' — '+rowSale(r)+' ج':''))+'</option>';}).join('');
     sel.onchange = function(){ var m=String(sel.value||'').match(/^fix5\|(\d+)$/); if(!m) return; var r=rows[Number(m[1])]; if(!r) return; if($('invoiceWorkDone')) $('invoiceWorkDone').value=rowName(r); if($('invoiceItemDept')) $('invoiceItemDept').value=rowDept(r); if($('invoiceSalePrice')) $('invoiceSalePrice').value=rowSale(r)||$('invoiceSalePrice').value||0; };
   }
+  function readLocalEasyStoreCatalogFix5(){
+    try{
+      var data = JSON.parse(localStorage.getItem('EASYSTORE_CLEAN_V1880_DATA') || '{}');
+      return [].concat(data.templates || [], data.items || [], data.products || [], data.recipes || []).filter(function(r){ return rowName(r) && isFix5SellableTemplate(r); });
+    }catch(e){ return []; }
+  }
   async function refreshInvoiceCatalog(){
     try{
       var res = await apiJsonp('getAccounting',{});
       catalogCache = [];
       (res.templates||res.items||res.products||res.recipes||[]).forEach(function(r){ if(rowName(r) && isFix5SellableTemplate(r)) catalogCache.push(r); });
+      if(!catalogCache.length) catalogCache = readLocalEasyStoreCatalogFix5();
       fillInvoiceCatalogFromCache();
-    }catch(e){}
+    }catch(e){ catalogCache = readLocalEasyStoreCatalogFix5(); fillInvoiceCatalogFromCache(); }
   }
   function ensureInvoiceRowsPanel(){
     var card = document.querySelector('#invoiceModal .invoice-card,.p30-invoice-card'); if(!card || $('fix5RowsPanel')) return;
@@ -8371,11 +8412,11 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 
 /*********************** V1890 - Version Lock marker ***********************/
 (function(){
-  window.MATBAGY_VV1890_VERSION_LOCK = true;
+  window.MATBAGY_VV1891_SESSION_CATALOG_FIX = true;
   function bind(){
     try {
       document.querySelectorAll('.version-badge').forEach(function(el){
-        if(/V1856|V1857|Batch|Fix/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1890 - Stable Version Lock';
+        if(/V1856|V1857|Batch|Fix/.test(el.textContent||'')) el.textContent='مطبعجي مصر V1891 - Session Catalog Fix';
       });
     } catch(e) {}
   }
@@ -8384,11 +8425,11 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 })();
 
 
-/*********************** V1890 - Customer Accounts Portal + Auto Invoice Link ***********************/
+/*********************** V1891 - Customer Accounts Portal + Auto Invoice Link ***********************/
 (function(){
   'use strict';
   window.MATBAGY_V1890_CUSTOMER_ACCOUNTS_CORE = true;
-  window.TRENDOS_PATCH_VERSION = 'V1890_VERSION_LOCK';
+  window.TRENDOS_PATCH_VERSION = 'V1891_SESSION_CATALOG_FIX';
   function $(id){return document.getElementById(id);} function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
   function num(v){var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}
@@ -8404,7 +8445,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function openCustomerAccountsPage(){ensureCustomerAccountsPanel();var p=$('customerAccountsPanel');if(p){p.classList.remove('hidden');p.scrollIntoView({behavior:'smooth',block:'start'});loadCustomerAccounts();}}
   async function loadCustomerAccounts(){var c=customerSession();if(!c.customerCode||!c.token){setStatus('سجل دخول العميل الأول.',true);return;}setStatus('جاري تحميل الفواتير والحساب...',false);try{var r=await api('getCustomerPortalAccountsV1859',{customerCode:c.customerCode,code:c.customerCode,token:c.token});if(!r.success){setStatus(r.message||'تعذر تحميل حساب العميل.',true);return;}renderCustomerAccounts(r);setStatus('تم تحميل الحساب.',false);}catch(e){setStatus('تعذر الاتصال بالسيرفر.',true);}}
   function renderCustomerAccounts(data){var box=$('customerAccountsContent');if(!box)return;var inv=data.invoices||[], tx=data.transactions||[];var summary='<div class="es16-grid"><div class="card"><span>إجمالي الفواتير</span><b>'+money(data.totalInvoices)+'</b></div><div class="card"><span>المدفوع</span><b>'+money(data.totalPaid)+'</b></div><div class="card"><span>الباقي</span><b>'+money(data.totalRemaining)+'</b></div><div class="card"><span>الرصيد الحالي</span><b>'+money(data.balance)+'</b></div></div>';var invoices='<h4>الفواتير</h4>'+(inv.length?inv.map(function(x){var lines=x.lines||[];return '<div class="es16-invoice-card"><div><b>فاتورة '+esc(x.invoiceNo||x.id||'-')+'</b> <span class="es16-pill">'+esc(x.status||'')+'</span></div><small>تاريخ: '+esc(x.date||'')+' | أوردر: '+esc(x.orderId||'')+'</small><div>الإجمالي: <b>'+money(x.total)+'</b> — المدفوع: <b>'+money(x.paid)+'</b> — الباقي: <b>'+money(x.remaining)+'</b></div>'+ (lines.length?'<table class="es16-table"><thead><tr><th>البند</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr></thead><tbody>'+lines.map(function(l){return '<tr><td>'+esc(l.item||l.itemName||'')+'</td><td>'+esc(l.qty||'')+'</td><td>'+money(l.unit||l.price)+'</td><td>'+money(l.total)+'</td></tr>';}).join('')+'</tbody></table>':'')+'</div>';}).join(''):'<div class="dash-empty">لا توجد فواتير بعد.</div>');var hist='<h4>كشف الحساب</h4>'+(tx.length?'<table class="es16-table"><thead><tr><th>التاريخ</th><th>العملية</th><th>المبلغ</th><th>الرصيد بعد</th><th>ملاحظات</th></tr></thead><tbody>'+tx.slice().reverse().map(function(t){return '<tr><td>'+esc(t.createdAt||'')+'</td><td>'+esc(t.operationLabel||t.operation||'')+'</td><td>'+money(t.amount)+'</td><td>'+money(t.balanceAfter)+'</td><td>'+esc(t.notes||'')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="dash-empty">لا توجد حركات كشف حساب.</div>');box.innerHTML=summary+invoices+hist;}
-  function bind(){document.querySelectorAll('.version-badge').forEach(function(el){el.textContent='مطبعجي مصر V1890 - Stable Version Lock';});ensureCustomerAccountsButton();ensureCustomerAccountsPanel();var params=new URLSearchParams(location.search);if(params.get('tab')==='accounts'||params.get('invoiceReview')==='1'){setTimeout(openCustomerAccountsPage,800);}}
+  function bind(){document.querySelectorAll('.version-badge').forEach(function(el){el.textContent='مطبعجي مصر V1891 - Session Catalog Fix';});ensureCustomerAccountsButton();ensureCustomerAccountsPanel();var params=new URLSearchParams(location.search);if(params.get('tab')==='accounts'||params.get('invoiceReview')==='1'){setTimeout(openCustomerAccountsPage,800);}}
   document.addEventListener('DOMContentLoaded',bind);setTimeout(bind,300);setTimeout(bind,1500);/* V1879 no interval */
 })();
 
@@ -8417,8 +8458,8 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 (function(){
   'use strict';
   window.MATBAGY_V1889_STABLE_MERGE = true;
-  window.TRENDOS_PATCH_VERSION = 'V1890_VERSION_LOCK';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1890 Stable Version Lock';
+  window.TRENDOS_PATCH_VERSION = 'V1891_SESSION_CATALOG_FIX';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1891 Session Catalog Fix';
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
   function num(v){ var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
@@ -8509,15 +8550,15 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 /*********************** V1890 - Final Stable Version Lock ***********************/
 (function(){
   'use strict';
-  var LOCK='مطبعجي مصر V1890 - Stable Version Lock';
-  var BUILD='TrendOS V1890 Stable Version Lock';
-  window.TRENDOS_PATCH_VERSION='V1890_VERSION_LOCK';
+  var LOCK='مطبعجي مصر V1891 - Session Catalog Fix';
+  var BUILD='TrendOS V1891 Session Catalog Fix';
+  window.TRENDOS_PATCH_VERSION='V1891_SESSION_CATALOG_FIX';
   window.TRENDOS_LOADED_APP_VERSION=BUILD;
   window.MATBAGY_BUILD_VERSION=BUILD;
-  window.MATBAGY_BATCH_VERSION='V1890_VERSION_LOCK';
+  window.MATBAGY_BATCH_VERSION='V1891_SESSION_CATALOG_FIX';
   function lock(){
     try{document.title='منصة مطبعجي بنها '+BUILD;}catch(e){}
-    try{window.TRENDOS_PATCH_VERSION='V1890_VERSION_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1890_VERSION_LOCK';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1891_SESSION_CATALOG_FIX';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1891_SESSION_CATALOG_FIX';}catch(e){}
     document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(function(el){el.textContent=LOCK;});
   }
   document.addEventListener('DOMContentLoaded', lock);
