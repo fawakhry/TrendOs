@@ -11,7 +11,7 @@ window.MATBAGY_FILE_SERVER_URL = "http://192.168.1.36:5050";
 window.MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
 window.MATBAGY_ROTET_URL = "https://fawakhry.github.io/TrendOs/?rotet=matbagy";
 window.MATBAGY_EASY_STORE_URL = "https://fawakhry.github.io/EasyStore/";
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es32-v1885-rollback-proof-copy';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es33-v1889-stable-merge';
 
 // صلاحيات الملفات والأدوات
 window.MATBAGY_FILES_ALLOWED_EMPLOYEES = ['ضياء','جابر','وائل','diaa','gaber','jaber','wael'];
@@ -34,11 +34,11 @@ window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
 // Clean build flags
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1885 Rollback Base + Proof Copy';
-window.MATBAGY_BATCH_VERSION = 'V1885_ROLLBACK_PROOF_COPY';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1889 Stable Merge';
+window.MATBAGY_BATCH_VERSION = 'V1889_STABLE_MERGE';
 window.MATBAGY_PATCH29_DEPT_INVOICE = false;
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
 window.MATBAGY_EASYSTORE_FIX5 = false;
 window.MATBAGY_V1858_ES15_LEDGER_FIX = true;
 window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1885_ROLLBACK_PROOF_COPY';
+window.MATBAGY_UI_THEME_VERSION = 'V1889_STABLE_MERGE';

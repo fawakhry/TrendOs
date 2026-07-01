@@ -1411,7 +1411,7 @@ Trend Mall`;
       const timer = setTimeout(function () {
         cleanup();
         reject(new Error("انتهت مهلة الاتصال بالسيرفر."));
-      }, 25000);
+      }, 90000);
 
       function cleanup() {
         clearTimeout(timer);
@@ -7693,6 +7693,43 @@ Trend Mall`;
   }
   setTimeout(batch24RebindStable, 250);
   setTimeout(batch24RebindStable, 1200);
+
+
+  /*********************** V1889 Stable Final Invoice Override ***********************/
+  async function saveAccountingFinalInvoice() {
+    if (!accountingCanCloseFinalInvoice()) return;
+    const orderId = (($("accFinalOrderId") || {}).value || "").trim();
+    const customerName = (($("accFinalCustomer") || {}).value || "").trim();
+    if (!orderId || !customerName) {
+      setMsg("accountingMsg", "رقم الأوردر واسم العميل مطلوبين لتقفيل الفاتورة.", true);
+      return;
+    }
+    const selected = selectedFinalInvoiceLines();
+    const lineIds = selected.map(function (r) { return r.id || r.ID || r["ID"] || ""; }).filter(Boolean);
+    try {
+      setMsg("accountingMsg", "جاري تقفيل الفاتورة من البنود المعتمدة على السيرفر...", false);
+      const res = await api("saveAccountingFinalInvoice", authParams({
+        orderId: orderId,
+        customerName: customerName,
+        lineIds: JSON.stringify(lineIds),
+        manualDescription: ($("accFinalManualDescription") || {}).value,
+        manualAmount: ($("accFinalManualAmount") || {}).value,
+        discount: ($("accFinalDiscount") || {}).value,
+        paid: ($("accFinalPaid") || {}).value,
+        status: ($("accFinalStatus") || {}).value,
+        notes: ($("accFinalNotes") || {}).value
+      }));
+      setMsg("accountingMsg", res.message || (res.success ? "تم تقفيل الفاتورة." : "فشل التقفيل."), !res.success);
+      if (res.success) {
+        ["accFinalManualDescription", "accFinalManualAmount", "accFinalDiscount", "accFinalPaid", "accFinalNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
+        if ($("accountingOrderLinesList")) $("accountingOrderLinesList").innerHTML = "";
+        await loadAccountingData(true);
+      }
+    } catch (err) {
+      setMsg("accountingMsg", err.message || "خطأ في تقفيل الفاتورة.", true);
+    }
+  }
+
   /* V1879 disabled repeated UI patcher: batch24EnsureStatusOptions */
 
 })();
@@ -7830,8 +7867,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 /*********************** Batch 30 - Dept Invoice Emergency Fix + Gaber Inline Calculator ***********************/
 (function(){
   'use strict';
-  window.TRENDOS_PATCH_VERSION = 'V1887_DEPT_APPROVAL_FLOW';
-  window.TRENDOS_LOADED_APP_VERSION = 'V1887 Dept Approval Flow';
+  window.TRENDOS_PATCH_VERSION = 'V1889_STABLE_MERGE';
+  window.TRENDOS_LOADED_APP_VERSION = 'V1889 Stable Merge';
 
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
@@ -7871,7 +7908,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       s.onerror = function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
       s.src = base + '?' + q.toString();
       document.body.appendChild(s);
-      setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة الاتصال بالسيرفر')); } }, 20000);
+      setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } }, 90000);
     });
   }
   function rowFromButton(btn){
@@ -8043,7 +8080,13 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       if (window.MATBAGY_V1887_REFRESH_SECTION_REVIEW) setTimeout(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW, 500);
       if(openFinal) setTimeout(function(){ openFinalInvoice(row); }, 400);
       else { if(msg) msg.textContent += ' راجع البنود ثم اضغط اعتماد فاتورة القسم.'; }
-    }catch(e){ if(msg) msg.textContent = e.message || 'تعذر تسجيل البند.'; }
+    }catch(e){
+      if(msg){
+        var em = e && e.message ? e.message : 'تعذر تسجيل البند.';
+        if(/اتأخر|مهلة|timeout/i.test(em)) em += ' لا تضغط تسجيل مرة ثانية قبل ما تعمل تحديث بنود القسم وتتأكد إن البند مش ظهر.';
+        msg.textContent = em;
+      }
+    }
     finally{ if(btn){btn.disabled=false; btn.textContent='تسجيل البند';} }
   }
   function openFinalInvoice(row){
@@ -8243,7 +8286,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
       window[cb]=function(r){ clean(); resolve(r||{}); };
       s.onerror=function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
       s.src = base + (base.indexOf('?')===-1?'?':'&') + q.toString();
-      document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة السيرفر')); } }, 20000);
+      document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } }, 90000);
     });
   }
   function closeClientInvoiceMenus(){
@@ -8351,7 +8394,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function num(v){var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}
   function money(v){return (Math.round(num(v)*100)/100).toLocaleString('ar-EG')+' ج';}
   function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
-  function api(action,params){return new Promise(function(resolve,reject){var base=txt(window.TREND_API_URL||window.API_URL||'');if(!base){reject(new Error('رابط السيرفر غير مضبوط'));return;}var cb='TREND_ES16_'+Date.now()+'_'+Math.floor(Math.random()*99999);var s=document.createElement('script');var q=new URLSearchParams(Object.assign({action:action,callback:cb,_ts:Date.now()},params||{}));var done=false;function clean(){if(done)return;done=true;try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}window[cb]=function(r){clean();resolve(r||{});};s.onerror=function(){clean();reject(new Error('فشل الاتصال بالسيرفر'));};s.src=base+(base.indexOf('?')<0?'?':'&')+q.toString();document.body.appendChild(s);setTimeout(function(){if(!done){clean();reject(new Error('انتهت مهلة السيرفر'));}},25000);});}
+  function api(action,params){return new Promise(function(resolve,reject){var base=txt(window.TREND_API_URL||window.API_URL||'');if(!base){reject(new Error('رابط السيرفر غير مضبوط'));return;}var cb='TREND_ES16_'+Date.now()+'_'+Math.floor(Math.random()*99999);var s=document.createElement('script');var q=new URLSearchParams(Object.assign({action:action,callback:cb,_ts:Date.now()},params||{}));var done=false;function clean(){if(done)return;done=true;try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}window[cb]=function(r){clean();resolve(r||{});};s.onerror=function(){clean();reject(new Error('فشل الاتصال بالسيرفر'));};s.src=base+(base.indexOf('?')<0?'?':'&')+q.toString();document.body.appendChild(s);setTimeout(function(){if(!done){clean();reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.'));}},90000);});}
   function customerSession(){var c=(window.state&&window.state.customer)||{};try{if(!c.customerCode){var saved=JSON.parse(localStorage.getItem('matbagy_platform_customer_session')||'{}');c=saved.customer||c;}}catch(e){}return c||{};}
   function portalUrl(extra){var u=new URL(location.origin+location.pathname,location.href);u.searchParams.set('portal','customer');u.searchParams.set('tab','accounts');u.searchParams.set('v','1859');Object.keys(extra||{}).forEach(function(k){u.searchParams.set(k,extra[k]);});return u.toString();}
   window.MATBAGY_ES16_CUSTOMER_ACCOUNTS_URL=portalUrl;
@@ -8370,12 +8413,12 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
 window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 
 
-/*********************** V1887 - Dept Invoice Approval Flow ***********************/
+/*********************** V1889 - Stable Dept Approval + Trusted Final Invoice ***********************/
 (function(){
   'use strict';
-  window.MATBAGY_V1887_DEPT_APPROVAL_FLOW = true;
-  window.TRENDOS_PATCH_VERSION = 'V1887_DEPT_APPROVAL_FLOW';
-  window.TRENDOS_LOADED_APP_VERSION = 'V1887 Dept Approval Flow';
+  window.MATBAGY_V1889_STABLE_MERGE = true;
+  window.TRENDOS_PATCH_VERSION = 'V1889_STABLE_MERGE';
+  window.TRENDOS_LOADED_APP_VERSION = 'V1889 Stable Merge';
   function $(id){ return document.getElementById(id); }
   function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
   function num(v){ var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
@@ -8395,14 +8438,15 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
       window[cb]=function(r){ clean(); resolve(r||{}); };
       s.onerror=function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
       var u=sessionUser(); var q=new URLSearchParams(Object.assign({action:action,callback:cb,username:u.username||u.name||'',name:u.name||u.username||'',token:u.token||'',department:userDept()||u.department||'',_ts:Date.now()},params||{}));
-      s.src=base+(base.indexOf('?')===-1?'?':'&')+q.toString(); document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة السيرفر')); } },20000);
+      s.src=base+(base.indexOf('?')===-1?'?':'&')+q.toString(); document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } },90000);
     });
   }
   function orderId(r){ return r.orderId||r['رقم الأوردر']||''; }
   function dept(r){ return r.department||r['القسم']||''; }
   function item(r){ return r.itemName||r['اسم البند']||''; }
   function qty(r){ return num(r.qty||r['الكمية']||1)||1; }
-  function sale(r){ return num(r.sale||r.salePrice||r['سعر البيع']||0); }
+  function sale(r){ return num(r.sale||r.unitSalePrice||r.salePrice||r['سعر الوحدة']||r['سعر البيع']||0); }
+  function lineTotal(r){ var q=qty(r); var lt=num(r.lineTotal||r['lineTotal']||0); return lt || (sale(r)*q); }
   function status(r){ return r.approvalStatus||r['حالة اعتماد القسم']||r.billingStatus||r['حالة الفوترة']||r.closeStatus||r['حالة التقفيل']||'قيد مراجعة القسم'; }
   function currentContext(){
     var row=window.MATBAGY_P30_INVOICE_ROW||{};
@@ -8413,7 +8457,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     var p=$('v1887DeptApprovalPanel');
     if(!p){
       p=document.createElement('div'); p.id='v1887DeptApprovalPanel'; p.className='v1887-approval-panel';
-      p.innerHTML='<h3>مراجعة فاتورة القسم</h3><div class="hint">كل بند يتم تسجيله يفضل محفوظ حتى لو الأوردر كمل يومين أو 3. بعد مراجعة كل البنود اضغط اعتماد فاتورة القسم، وبعدها ضياء/رحمه/ريفان يسحبوا البنود للفاتورة النهائية.</div><div id="v1887DeptLinesBox" class="empty">جاري تحميل البنود...</div><div class="row"><button type="button" id="v1887RefreshDeptLinesBtn" class="ghost">تحديث بنود القسم</button><button type="button" id="v1887ApproveDeptBtn" class="primary">اعتماد فاتورة القسم</button></div><p id="v1887ApprovalMsg" class="msg"></p>';
+      p.innerHTML='<h3>مراجعة فاتورة القسم</h3><div class="hint">كل بند يتم تسجيله يفضل محفوظ في الشيت حتى لو الأوردر كمل يومين أو 3. بعد مراجعة كل البنود اضغط اعتماد فاتورة القسم، وبعدها ضياء/رحمه/ريفان يسحبوا البنود للفاتورة النهائية.</div><div id="v1887DeptLinesBox" class="empty">جاري تحميل البنود...</div><div class="row"><button type="button" id="v1887RefreshDeptLinesBtn" class="ghost">تحديث بنود القسم</button><button type="button" id="v1887ApproveDeptBtn" class="primary">اعتماد فاتورة القسم</button></div><p id="v1887ApprovalMsg" class="msg"></p>';
       var save=$('saveInvoiceBtn'); if(save && save.parentNode) save.parentNode.parentNode.insertBefore(p, save.parentNode.nextSibling); else card.appendChild(p);
       $('v1887RefreshDeptLinesBtn').onclick=function(ev){ ev&&ev.preventDefault(); refreshPanel(); };
       $('v1887ApproveDeptBtn').onclick=function(ev){ ev&&ev.preventDefault(); approveDeptInvoice(); };
@@ -8423,9 +8467,9 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   function renderLines(rows){
     var box=$('v1887DeptLinesBox'); if(!box) return; rows=rows||[];
     if(!rows.length){ box.className='empty'; box.innerHTML='لا توجد بنود مسجلة لهذا الأوردر في هذا القسم حتى الآن.'; return; }
-    var total=rows.reduce(function(s,r){ return s + sale(r)*qty(r); },0);
+    var total=rows.reduce(function(s,r){ return s + lineTotal(r); },0);
     box.className='';
-    box.innerHTML='<table class="v1887-approval-table"><thead><tr><th>الحالة</th><th>البند</th><th>كمية</th><th>السعر</th><th>الإجمالي</th><th>الموظف</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr><td>'+esc(status(r))+'</td><td>'+esc(item(r))+'</td><td>'+qty(r)+'</td><td>'+sale(r).toFixed(2)+'</td><td>'+((sale(r)*qty(r)).toFixed(2))+'</td><td>'+esc(r.createdBy||r['مسجل بواسطة']||'')+'</td></tr>'; }).join('')+'</tbody></table><div class="softBox"><b>إجمالي مسودة القسم: '+total.toFixed(2)+' ج</b></div>';
+    box.innerHTML='<table class="v1887-approval-table"><thead><tr><th>الحالة</th><th>البند</th><th>كمية</th><th>السعر</th><th>الإجمالي</th><th>الموظف</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr><td>'+esc(status(r))+'</td><td>'+esc(item(r))+'</td><td>'+qty(r)+'</td><td>'+sale(r).toFixed(2)+'</td><td>'+lineTotal(r).toFixed(2)+'</td><td>'+esc(r.createdBy||r['مسجل بواسطة']||'')+'</td></tr>'; }).join('')+'</tbody></table><div class="softBox"><b>إجمالي مسودة القسم: '+total.toFixed(2)+' ج</b></div>';
   }
   async function refreshPanel(){
     ensurePanel(); var c=currentContext(); var m=$('v1887ApprovalMsg'); if(m) m.textContent='جاري تحديث بنود القسم...';
@@ -8448,7 +8492,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
       refreshPanel();
     }catch(e){ if(m) m.textContent=e.message||'تعذر اعتماد الفاتورة.'; }
   }
-  function mount(){ ensurePanel(); refreshPanel(); var b=$('saveAndOpenFinalInvoiceBtn'); if(b && userDept()) b.style.display='none'; }
+  function mount(){ ensurePanel(); renderLines([]); var m=$('v1887ApprovalMsg'); if(m) m.textContent='اضغط تحديث بنود القسم لعرض البنود المسجلة. التسجيل نفسه لا يعتمد على هذا التحديث.'; var b=$('saveAndOpenFinalInvoiceBtn'); if(b && userDept()) b.style.display='none'; }
   window.MATBAGY_V1887_REFRESH_SECTION_REVIEW=refreshPanel;
   function wrapOpen(){
     if(window.MATBAGY_P30_OPEN_INVOICE && !window.MATBAGY_P30_OPEN_INVOICE_V1887_WRAPPED){
