@@ -1,4 +1,4 @@
-/* Matbagy / TrendOS Theme Controller - V1890 safe: no version rewriting */
+/* Matbagy / TrendOS Theme Controller - V1893 safe: no version rewriting */
 (function(){
   'use strict';
   var KEY_THEME='matbagy_ui_theme_v1860';
@@ -34,7 +34,7 @@
     else{document.body.appendChild(makeSwitcher(true));}
     apply();
   }
-  function polishVersion(){ /* V1890: version text is locked by index/app.js; theme must not rewrite it. */ }
+  function polishVersion(){ /* V1893: version text is locked by index/app.js; theme must not rewrite it. */ }
   function groupDangerButtons(){
     document.querySelectorAll('button,.btn,.es16-btn').forEach(function(b){
       var t=(b.textContent||'').trim();

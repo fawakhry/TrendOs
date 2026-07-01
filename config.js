@@ -11,7 +11,7 @@ window.MATBAGY_FILE_SERVER_URL = "http://192.168.1.36:5050";
 window.MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
 window.MATBAGY_ROTET_URL = "https://fawakhry.github.io/TrendOs/?rotet=matbagy";
 window.MATBAGY_EASY_STORE_URL = "https://fawakhry.github.io/EasyStore/";
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es33-v1893-version-sync-lock';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es33-v1894-debt-invoice-rows';
 
 // صلاحيات الملفات والأدوات
 window.MATBAGY_FILES_ALLOWED_EMPLOYEES = ['ضياء','جابر','وائل','diaa','gaber','jaber','wael'];
@@ -34,11 +34,11 @@ window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
 // Clean build flags
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1893 Version Sync Lock';
-window.MATBAGY_BATCH_VERSION = 'V1893_VERSION_SYNC_LOCK';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1894 Debt + Invoice Rows';
+window.MATBAGY_BATCH_VERSION = 'V1894_DEBT_INVOICE_ROWS';
 window.MATBAGY_PATCH29_DEPT_INVOICE = false;
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
 window.MATBAGY_EASYSTORE_FIX5 = false;
-window.MATBAGY_V1893_VERSION_SYNC_LOCK = true;
+window.MATBAGY_V1894_DEBT_INVOICE_ROWS = true;
 window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1893_VERSION_SYNC_LOCK';
+window.MATBAGY_UI_THEME_VERSION = 'V1894_DEBT_INVOICE_ROWS';

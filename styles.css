@@ -1642,3 +1642,126 @@ button.v1857-activate-btn{background:#16a34a!important;color:#fff!important;bord
 .okBadge{display:inline-flex;border-radius:999px;padding:3px 8px;background:#dcfce7;color:#166534;font-weight:800;border:1px solid #bbf7d0;font-size:12px;white-space:nowrap}
 .customerDrop button{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
 .saleContextHead .debtBadge{margin-inline-start:8px}
+
+
+/* V1893 Invoice Rows UI */
+#invoiceModal .invoice-card.v1893-invoice-card{
+  width:min(860px, calc(100vw - 36px));
+  max-height:calc(100vh - 32px);
+  overflow:auto;
+  border-radius:24px;
+  padding:20px;
+  background:linear-gradient(180deg,#ffffff 0%,#f8fffd 100%);
+  box-shadow:0 26px 80px rgba(15,118,110,.22);
+}
+#invoiceModal .v1893-invoice-card h2{
+  position:sticky;top:-20px;z-index:5;
+  margin:-20px -20px 14px;
+  padding:18px 20px 12px;
+  background:linear-gradient(90deg,#ecfdf5,#ffffff);
+  border-bottom:1px solid #d8f3ec;
+  color:#04705f;
+}
+#invoiceModal .v1893-key-hint{
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  color:#8a4b0b;
+  border-radius:16px;
+  padding:10px 12px;
+  margin:8px 0 14px;
+  font-weight:800;
+  line-height:1.7;
+}
+#invoiceModal .v1893-invoice-form{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-top:10px;
+}
+#invoiceModal .v1893-field{
+  background:#fff;
+  border:1px solid #d9eee9;
+  border-radius:18px;
+  padding:10px;
+}
+#invoiceModal .v1893-field.wide{grid-column:1/-1;}
+#invoiceModal .v1893-field label{
+  display:block;
+  margin:0 0 6px;
+  color:#123047;
+  font-size:13px;
+  font-weight:900;
+}
+#invoiceModal .v1893-field input,
+#invoiceModal .v1893-field select{
+  border-color:#cde7e1;
+  background:#fbfffe;
+  min-height:44px;
+}
+#invoiceModal .v1893-field input:focus,
+#invoiceModal .v1893-field select:focus{
+  border-color:#0f8a70;
+  box-shadow:0 0 0 4px rgba(15,138,112,.13);
+}
+#invoiceModal .v1893-inline-total{
+  grid-column:1/-1;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:#ecfeff;
+  border:1px solid #99f6e4;
+  border-radius:18px;
+  padding:12px 14px;
+  color:#075e54;
+  font-weight:900;
+}
+#invoiceModal .v1893-inline-total span{font-size:13px;color:#426466;font-weight:800;}
+#invoiceModal .v1857-fix5-row-panel{
+  border:1px solid #a7f3d0;
+  background:#f0fdfa;
+  border-radius:20px;
+  padding:14px;
+  margin:16px 0;
+}
+#invoiceModal .v1857-fix5-row-panel h4{font-size:17px;margin-bottom:5px;}
+#invoiceModal .v1857-fix5-row-table{box-shadow:0 6px 18px rgba(15,118,110,.08);}
+#invoiceModal .v1857-fix5-row-table th{background:#0f766e;color:#fff;border-color:#0f766e;font-size:13px;}
+#invoiceModal .v1857-fix5-row-table td{font-size:13px;background:#fff;}
+#invoiceModal .v1857-fix5-row-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+#invoiceModal .v1857-fix5-row-actions button{min-height:42px;border-radius:14px;font-weight:900;}
+#invoiceModal .v1893-row-total-pill{
+  margin-top:10px;
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:#fff;
+  border:1px solid #d9eee9;
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:900;
+  color:#075e54;
+}
+#invoiceModal #saveInvoiceBtn,
+#invoiceModal #saveAndOpenFinalInvoiceBtn{min-height:44px;border-radius:15px;}
+#invoiceModal #invoiceMsg{font-weight:800;}
+@media(max-width:720px){
+  #invoiceModal .invoice-card.v1893-invoice-card{width:calc(100vw - 20px);padding:14px;}
+  #invoiceModal .v1893-invoice-card h2{margin:-14px -14px 12px;top:-14px;}
+  #invoiceModal .v1893-invoice-form{grid-template-columns:1fr;}
+  #invoiceModal .v1857-fix5-row-actions{grid-template-columns:1fr;}
+}
+
+
+/* V1894 Debt + Invoice Rows visibility */
+#invoiceModal .v1894-debt-box{
+  margin:10px 0 12px;
+  border-radius:16px;
+  padding:12px 14px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  border:1px solid rgba(20,148,126,.25);
+  background:#ecfdf5;
+  color:#065f46;
+}
+#invoiceModal .v1894-debt-box.hasDebt{background:#fff1f2;border-color:#fecdd3;color:#9f1239;}
+#invoiceModal .v1894-debt-box span{font-size:18px;}
+#invoiceModal .v1894-debt-box small{font-weight:700;opacity:.85;}
