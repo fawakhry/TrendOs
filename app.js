@@ -8997,3 +8997,330 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   document.addEventListener('DOMContentLoaded', boot);
   setTimeout(boot,300); setTimeout(boot,1200); setTimeout(boot,2500);
 })();
+/*********************** V1897 - Fiber Engrave Button + Sheets Role Lock ***********************/
+(function () {
+  "use strict";
+
+  window.TRENDOS_PATCH_VERSION = "V1897_FIBER_AND_SHEETS_ROLE_LOCK";
+  window.TRENDOS_FIBER_ROLE_PATCH = true;
+
+  var FIBER_EZCAD_URL = "https://fawakhry.github.io/fiber-auto-max-ezcad/";
+  var DEFAULT_MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function txt(value) {
+    return String(value == null ? "" : value);
+  }
+
+  function norm(value) {
+    return txt(value)
+      .toLowerCase()
+      .replace(/[إأآا]/g, "ا")
+      .replace(/[ى]/g, "ي")
+      .replace(/[ؤ]/g, "و")
+      .replace(/[ئ]/g, "ي")
+      .replace(/[ةه]/g, "ه")
+      .replace(/[\u064B-\u065F\u0670]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function safeLocalStorage(key) {
+    try {
+      return localStorage.getItem(key) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function liveUser() {
+    var st = window.state || window.trendosState || {};
+    return st.user || {};
+  }
+
+  function userBlob() {
+    var u = liveUser();
+    return norm([
+      u.name,
+      u.username,
+      u.role,
+      u.department,
+      u.mode,
+      safeLocalStorage("matbagy_user_name"),
+      safeLocalStorage("matbagy_username"),
+      safeLocalStorage("trendos_session")
+    ].join(" "));
+  }
+
+  function isEmployeeLoggedInV1897() {
+    var u = liveUser();
+    return !!(u && (
+      u.name ||
+      u.username ||
+      u.role ||
+      u.token ||
+      safeLocalStorage("trendos_session")
+    ));
+  }
+
+  function isDiaaV1897() {
+    var blob = userBlob();
+    return /ضياء|diaa/.test(blob) ||
+      /"role"\s*:\s*"admin"/.test(blob) ||
+      /\badmin\b/.test(blob);
+  }
+
+  function isGaberV1897() {
+    var blob = userBlob();
+    return /جابر|gaber|jaber/.test(blob) ||
+      /"role"\s*:\s*"laser"/.test(blob) ||
+      /\blaser\b|ليزر/.test(blob);
+  }
+
+  function isWaelV1897() {
+    var blob = userBlob();
+    return /وائل|wael/.test(blob) ||
+      /"role"\s*:\s*"print"/.test(blob) ||
+      /\bprint\b|طباعه|طباعة|طباع/.test(blob);
+  }
+
+  function canOpenFiberV1897() {
+    return isEmployeeLoggedInV1897() && (isDiaaV1897() || isGaberV1897());
+  }
+
+  function canOpenSheetsV1897() {
+    return isEmployeeLoggedInV1897() && (isDiaaV1897() || isWaelV1897());
+  }
+
+  function mainToolsHolder() {
+    return document.querySelector(".top-actions") ||
+      document.querySelector("header .actions") ||
+      document.querySelector(".topbar .actions") ||
+      document.querySelector(".topbar") ||
+      document.querySelector(".toolbar") ||
+      document.querySelector(".header-actions") ||
+      document.body;
+  }
+
+  function placeAfter(button, afterId) {
+    var after = afterId ? $(afterId) : null;
+    if (after && after.parentNode && after.nextSibling !== button) {
+      after.parentNode.insertBefore(button, after.nextSibling);
+      return true;
+    }
+    return false;
+  }
+
+  function makeToolButton(id, label, afterId, clickHandler) {
+    var holder = mainToolsHolder();
+    if (!holder) return null;
+
+    var btn = $(id);
+
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = id;
+      btn.type = "button";
+      btn.className = "ghost quick-tool-btn trendos-v1897-tool-btn";
+      btn.textContent = label;
+
+      if (!placeAfter(btn, afterId)) {
+        var anchor = $("accountingBtn") ||
+          $("matbagySheetsBtn") ||
+          $("remoteFilesBtn") ||
+          holder.querySelector("button");
+
+        if (anchor && anchor.parentNode) {
+          anchor.parentNode.insertBefore(btn, anchor.nextSibling);
+        } else {
+          holder.appendChild(btn);
+        }
+      }
+    } else {
+      btn.textContent = label;
+      btn.classList.add("trendos-v1897-tool-btn");
+    }
+
+    btn.onclick = function (ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      return clickHandler();
+    };
+
+    return btn;
+  }
+
+  function setButtonVisible(btn, visible) {
+    if (!btn) return;
+    btn.classList.toggle("hidden", !visible);
+    btn.style.display = visible ? "" : "none";
+    btn.setAttribute("aria-hidden", visible ? "false" : "true");
+    btn.disabled = false;
+  }
+
+  function employeeSsoParams(extra) {
+    var u = liveUser();
+
+    return Object.assign({
+      from: "trendos",
+      employeePortal: "1",
+      openWithoutPhone: "1",
+      bypassPhoneVerification: "1",
+      bypassActivation: "1",
+      username: u.username || u.name || safeLocalStorage("matbagy_username") || safeLocalStorage("matbagy_user_name") || "",
+      name: u.name || u.username || safeLocalStorage("matbagy_user_name") || safeLocalStorage("matbagy_username") || "",
+      token: u.token || safeLocalStorage("matbagy_session_token") || ""
+    }, extra || {});
+  }
+
+  function withQueryV1897(url, params) {
+    try {
+      var u = new URL(url, location.href);
+
+      Object.keys(params || {}).forEach(function (key) {
+        if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+          u.searchParams.set(key, params[key]);
+        }
+      });
+
+      return u.toString();
+    } catch (e) {
+      return url;
+    }
+  }
+
+  function openFiberV1897() {
+    if (!canOpenFiberV1897()) {
+      alert("زر حفر الرسم فايبر متاح لحساب ضياء وجابر فقط.");
+      return false;
+    }
+
+    window.open(FIBER_EZCAD_URL, "TrendOS_Fiber_EZCAD");
+    return true;
+  }
+
+  function openSheetsV1897() {
+    if (!canOpenSheetsV1897()) {
+      alert("مطبعجي شيتات متاح لحساب ضياء ووائل فقط.");
+      return false;
+    }
+
+    if (typeof window.openMatbagySheetsTool === "function" && !window.openMatbagySheetsTool.__v1897Guard) {
+      return window.openMatbagySheetsTool();
+    }
+
+    var base = txt(window.MATBAGY_SHEETS_URL || DEFAULT_MATBAGY_SHEETS_URL).trim();
+    window.open(withQueryV1897(base, employeeSsoParams({ tool: "sheets" })), "Matbagy_Sheets");
+    return true;
+  }
+
+  window.openTrendOSFiberEngrave = openFiberV1897;
+  window.canOpenTrendOSFiberEngrave = canOpenFiberV1897;
+  window.canOpenMatbagySheetsV1897 = canOpenSheetsV1897;
+
+  var previousOpenSheets = window.openMatbagySheetsTool;
+
+  window.openMatbagySheetsTool = function () {
+    if (!canOpenSheetsV1897()) {
+      alert("مطبعجي شيتات متاح لحساب ضياء ووائل فقط.");
+      return false;
+    }
+
+    if (typeof previousOpenSheets === "function") {
+      return previousOpenSheets.apply(this, arguments);
+    }
+
+    var base = txt(window.MATBAGY_SHEETS_URL || DEFAULT_MATBAGY_SHEETS_URL).trim();
+    window.open(withQueryV1897(base, employeeSsoParams({ tool: "sheets" })), "Matbagy_Sheets");
+    return true;
+  };
+
+  window.openMatbagySheetsTool.__v1897Guard = true;
+
+  function applyFiberAndSheetsRoleLock() {
+    var sheetsBtn = makeToolButton(
+      "matbagySheetsBtn",
+      "📊 مطبعجي شيتات",
+      "remoteFilesBtn",
+      openSheetsV1897
+    );
+
+    var fiberBtn = makeToolButton(
+      "fiberEngraveBtn",
+      "🟦 حفر الرسم فايبر",
+      "matbagySheetsBtn",
+      openFiberV1897
+    );
+
+    if (sheetsBtn) {
+      sheetsBtn.title = "مطبعجي شيتات - يظهر لضياء ووائل فقط";
+      setButtonVisible(sheetsBtn, canOpenSheetsV1897());
+    }
+
+    if (fiberBtn) {
+      fiberBtn.title = "حفر الرسم فايبر EZCAD - يظهر لضياء وجابر فقط";
+      setButtonVisible(fiberBtn, canOpenFiberV1897());
+    }
+  }
+
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target && ev.target.closest
+      ? ev.target.closest("#fiberEngraveBtn,#matbagySheetsBtn")
+      : null;
+
+    if (!btn) return;
+
+    if (btn.id === "fiberEngraveBtn") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+
+      openFiberV1897();
+      setTimeout(applyFiberAndSheetsRoleLock, 50);
+      return false;
+    }
+
+    if (btn.id === "matbagySheetsBtn") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+
+      openSheetsV1897();
+      setTimeout(applyFiberAndSheetsRoleLock, 50);
+      return false;
+    }
+  }, true);
+
+  var applyTimer = null;
+
+  function scheduleApply() {
+    clearTimeout(applyTimer);
+    applyTimer = setTimeout(applyFiberAndSheetsRoleLock, 80);
+  }
+
+  function boot() {
+    applyFiberAndSheetsRoleLock();
+
+    setTimeout(applyFiberAndSheetsRoleLock, 300);
+    setTimeout(applyFiberAndSheetsRoleLock, 900);
+    setTimeout(applyFiberAndSheetsRoleLock, 1800);
+    setTimeout(applyFiberAndSheetsRoleLock, 3200);
+    setTimeout(applyFiberAndSheetsRoleLock, 5200);
+
+    if (window.MutationObserver && document.body && !document.body.__trendosV1897FiberObserver) {
+      document.body.__trendosV1897FiberObserver = true;
+      new MutationObserver(scheduleApply).observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
