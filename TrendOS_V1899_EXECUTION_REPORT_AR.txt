@@ -1,0 +1,34 @@
+TrendOS Patch V1899 - Lead Hunter Button
+
+الملخص:
+تم إضافة زر جديد باسم "مراقب مطبعجى" داخل شريط أدوات الموظفين في TrendOS.
+
+الرابط:
+https://fawakhry.github.io/trendos-lead-hunter/
+
+الصلاحيات:
+الزر يظهر فقط لحسابات:
+- ضياء
+- رحمه / رحمة
+- ريفان / ريڤان
+
+الملفات المعدلة:
+- index.html
+  إضافة زر ثابت hidden باسم leadHunterBtn + تحديث Cache Tag إلى V1899.
+- app.js
+  إضافة Patch V1899 لإنشاء الزر إن لم يكن موجوداً، وربط الضغط عليه، وإخفائه عن غير المصرح لهم.
+- config.js
+  إضافة MATBAGY_LEAD_HUNTER_URL و MATBAGY_LEAD_HUNTER_ALLOWED_EMPLOYEES وتحديث Build Flag.
+- README_UPLOAD_AR.txt
+  إضافة ملاحظات الرفع الخاصة بالتحديث.
+
+ملاحظات تشغيل:
+- لا يوجد تعديل مطلوب في Apps Script لهذا الزر.
+- ارفع ملفات GitHub فقط: index.html + app.js + config.js.
+- يفضل رفع باقي الحزمة كما هي لتفادي اختلاف النسخ والكاش.
+
+اختبارات تمت محلياً:
+- فحص Syntax لملف app.js: ناجح.
+- فحص Syntax لملف config.js: ناجح.
+- فحص وجود leadHunterBtn داخل index.html: ناجح.
+- فحص وجود MATBAGY_LEAD_HUNTER_URL داخل config.js: ناجح.

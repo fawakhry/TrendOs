@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1898_BASIC_OPERATIONS_CLEANUP';
+  const UI_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
 
   const screens = {
     service: "خدمة العملاء",
@@ -20,54 +20,27 @@
     press: ["print"]
   };
 
-  // V1898: حالات التشغيل المعتمدة في Sprint التشغيل الأساسي.
-  // "في قسم التسليمات" هي الحالة العملية البديلة لمرحلة جاهز للاستلام.
+  // الحالات التي يحتاجها المستخدم في التشغيل فقط.
+  // تم حذف: جاهز للطباعة / تم التنفيذ / مشكلة من الاختيارات اليومية. مكرر أصبح حالة تشغيلية مخفية عن العميل.
   const statuses = [
     "طلب جديد",
+    "بدأ التنفيذ",
     "تحت التنفيذ",
-    "في انتظار موافقة العميل",
-    "في انتظار المكبس",
-    "في قسم التسليمات",
+    "جاهز للاستلام",
     "تم التسليم",
+    "متوقف",
     "مكرر",
-    "ملغي"
+    "ملغى"
   ];
 
-  // الحالات النهائية فقط تختفي من الشاشة اليومية بدون فلتر.
-  // جاهز للاستلام/في قسم التسليمات يفضل ظاهر عشان ضياء يقدر يحوله لتم التسليم.
-  const HIDDEN_FROM_USER_SCREENS = ["تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى", "ملغي"];
+  // حالات لا تظهر في شاشة التشغيل بعد حفظها.
+  // تفضل موجودة في الشيت للتاريخ والمتابعة، لكنها تختفي من شاشة المستخدمين.
+  const HIDDEN_FROM_USER_SCREENS = ["جاهز للاستلام", "تم التسليم", "مكرر", "تم التنفيذ", "جاهز للطباعة", "ملغى"];
   const PROOF_REVIEW_TEXT = "المراجعة مسئولية العميل والمكان غير مسئول عن اى اخطاء إملائية\nالبروفة مبعوته للمراجعه !!\nلو سمحت المراجعة جيدا على الشكل و البيانات بشكل دقيق قبل الرد على البروفة\nفى إنتظار حضرتك .....";
   const PRIORITY_RANK = { "عاجل": 0, "VIP": 0, "عادي": 1, "": 1, "مؤجل": 2 };
 
-  function normalizeStatusValue(status) {
-    const s = text(status).trim();
-    if (s === "ملغى") return "ملغي";
-    if (s === "بدأ التنفيذ") return "تحت التنفيذ";
-    if (s === "متوقف") return "في انتظار موافقة العميل";
-    return s;
-  }
-
-  function isCancelledStatus(status) {
-    const s = text(status).trim();
-    return s === "ملغي" || s === "ملغى";
-  }
-
-  function isReadyPickupStatus(status) {
-    const s = text(status).trim();
-    return s === "جاهز للاستلام" || s === "في قسم التسليمات";
-  }
-
-  function isDeliveredStatus(status) {
-    return text(status).trim() === "تم التسليم";
-  }
-
-  function isDuplicateStatus(status) {
-    return text(status).trim() === "مكرر";
-  }
-
   function isHiddenFromUserScreens(status) {
-    const s = text(status).trim();
-    return HIDDEN_FROM_USER_SCREENS.indexOf(s) !== -1 || HIDDEN_FROM_USER_SCREENS.indexOf(normalizeStatusValue(s)) !== -1;
+    return HIDDEN_FROM_USER_SCREENS.indexOf(text(status)) !== -1;
   }
 
   function priorityRank(priority) {
@@ -305,7 +278,7 @@
   }
 
   function isReadyForCustomer(status) {
-    return ["تم التنفيذ", "جاهز للاستلام", "في قسم التسليمات", "تم التسليم"].indexOf(text(status)) !== -1;
+    return ["تم التنفيذ", "جاهز للاستلام", "تم التسليم"].indexOf(text(status)) !== -1;
   }
 
   function formatDisplayDate(value) {
@@ -342,7 +315,7 @@
   function isOverdueRow(row) {
     if (row && (row.overdue === true || row.overdue === "نعم" || row.overdue === "true")) return true;
     const status = text(row.status);
-    if (["تم التنفيذ", "جاهز للاستلام", "في قسم التسليمات", "تم التسليم", "مكرر", "ملغى", "ملغي"].indexOf(status) !== -1) return false;
+    if (["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر", "ملغى"].indexOf(status) !== -1) return false;
     const d = parseRowDate(row.expectedDeliveryAt || row.expectedDeliveryText || row.expectedDelivery);
     if (!d) return false;
     const today = new Date();
@@ -444,7 +417,7 @@ Trend Mall`;
 تم تسليم الأوردر رقم ${orderId}.
 شكراً لتعاملكم مع Trend Mall.`;
       }
-      if (status === "جاهز للاستلام" || status === "في قسم التسليمات" || status === "تم التنفيذ") {
+      if (status === "جاهز للاستلام" || status === "تم التنفيذ") {
         return `أهلاً${customer} 🌟
 الأوردر رقم ${orderId} جاهز للاستلام.
 نوع الشغل: ${item}
@@ -459,7 +432,7 @@ Trend Mall`;
 Trend Mall`;
     }
 
-    if (status === "ملغى" || status === "ملغي") {
+    if (status === "ملغى") {
       return `أهلاً${customer} 👋
 تم تسجيل إلغاء الأوردر رقم ${orderId} بناءً على طلب حضرتك.
 نوع الشغل: ${item}
@@ -1542,7 +1515,7 @@ Trend Mall`;
   }
 
   function urgentNotificationRows(rows) {
-    const excluded = ["تم التسليم", "جاهز للاستلام", "في قسم التسليمات", "ملغى", "ملغي", "مكرر"];
+    const excluded = ["تم التسليم", "جاهز للاستلام", "ملغى", "مكرر"];
     return (rows || []).filter(function (r) {
       const status = text(r.status);
       const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
@@ -3129,14 +3102,10 @@ Trend Mall`;
       "طلب جديد": "تم استلام الطلب",
       "بدأ التنفيذ": "جاري تجهيز الطلب",
       "تحت التنفيذ": "تحت التنفيذ",
-      "في انتظار موافقة العميل": "في انتظار موافقة العميل",
-      "في انتظار المكبس": "في انتظار المكبس",
-      "متوقف": "في انتظار موافقة العميل",
+      "متوقف": "متوقف مؤقتًا وسيتم التواصل معك",
       "جاهز للاستلام": "جاهز للاستلام",
-      "في قسم التسليمات": "جاهز للاستلام / في قسم التسليمات",
       "تم التسليم": "تم التسليم",
       "ملغى": "تم إلغاء الطلب",
-      "ملغي": "تم إلغاء الطلب",
       "مكرر": "مكرر"
     };
     return map[s] || s || "تم استلام الطلب";
@@ -4154,9 +4123,8 @@ Trend Mall`;
     }
   }
 
-  function dashboardItem(label, value, cls, filter) {
-    const f = filter ? ' data-filter="' + escapeHtml(filter) + '" title="اضغط لعرض الأوردرات" role="button" tabindex="0"' : '';
-    return '<div class="dash-item ' + (cls || '') + '"' + f + '><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(value == null ? 0 : value) + '</b></div>';
+  function dashboardItem(label, value, cls) {
+    return '<div class="dash-item ' + (cls || '') + '"><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(value == null ? 0 : value) + '</b></div>';
   }
 
   function renderDashboard(d) {
@@ -4175,17 +4143,17 @@ Trend Mall`;
       dashboardItem("تقييم القسم", score + "%", score >= 80 ? "done" : (score >= 50 ? "ready" : "danger")) +
       dashboardItem("إنجاز الشغل", completion + "%", "done") +
       dashboardItem("تقييم الوقت", timeScore + "%", timeScore >= 80 ? "done" : "danger") +
-      dashboardItem("شغل اليوم", todayWork, "todaywork", "today") +
-      dashboardItem("بنود شغل اليوم", todayLines, "", "today") +
-      dashboardItem("أوردرات شغل اليوم", todayOrders, "", "today") +
-      dashboardItem("متأخر", d.overdue || 0, "danger", "overdue") +
-      dashboardItem("تم التسليم اليوم", d.deliveredToday || 0, "done", "deliveredToday") +
-      dashboardItem("جاهز للاستلام", d.readyForPickup || d.readyOrders || 0, "ready", "readyPickup") +
-      dashboardItem("عاجل مفتوح", d.urgent || 0, "urgent", "urgent") +
-      dashboardItem("عادي مفتوح", d.normal || 0, "", "normal") +
-      dashboardItem("إجمالي مفتوح", d.activeOrders || 0, "", "all") +
-      dashboardItem("مديونية", d.debtOrders || 0, "danger", "debt") +
-      dashboardItem("مكبس حراري", d.heatPress || byDept["مكبس"] || 0, "press", "heat");
+      dashboardItem("شغل اليوم", todayWork, "todaywork") +
+      dashboardItem("بنود شغل اليوم", todayLines, "") +
+      dashboardItem("أوردرات شغل اليوم", todayOrders, "") +
+      dashboardItem("متأخر", d.overdue || 0, "danger") +
+      dashboardItem("تم التسليم اليوم", d.deliveredToday || 0, "done") +
+      dashboardItem("جاهز للاستلام", d.readyForPickup || 0, "ready") +
+      dashboardItem("عاجل مفتوح", d.urgent || 0, "urgent") +
+      dashboardItem("عادي مفتوح", d.normal || 0, "") +
+      dashboardItem("إجمالي مفتوح", d.activeOrders || 0, "") +
+      dashboardItem("مديونية", d.debtOrders || 0, "danger") +
+      dashboardItem("مكبس حراري", d.heatPress || byDept["مكبس"] || 0, "press");
   }
 
 
@@ -4465,18 +4433,11 @@ Trend Mall`;
       if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
       else if (status === "__TODAY_WORK__" && (isHiddenFromUserScreens(r.status) || !isTodayWorkRow(r))) return false;
       else if (status === "__DELIVERED_TODAY__" && !isDeliveredTodayRow(r)) return false;
-      else if (status === "__READY_PICKUP__" && !isReadyPickupStatus(r.status)) return false;
-      else if (status === "__DEBT__" && !hasDebt(r)) return false;
-      else if (status === "__CANCELLED__" && !isCancelledStatus(r.status)) return false;
       else if (status && status.indexOf("__") !== 0) {
-        // عند اختيار حالة محددة نعرضها حتى لو مخفية من الشاشة اليومية.
-        if (status === "ملغي" || status === "ملغى") {
-          if (!isCancelledStatus(r.status)) return false;
-        } else if (status === "في قسم التسليمات") {
-          if (!isReadyPickupStatus(r.status)) return false;
-        } else if (text(r.status) !== status) return false;
+        // عند اختيار حالة محددة مثل ملغى أو جاهز للاستلام نعرضها حتى لو مخفية من الشاشة اليومية.
+        if (text(r.status) !== status) return false;
       } else {
-        // بدون فلتر حالة: أخفي الحالات النهائية فقط. جاهز/التسليمات يفضل ظاهر.
+        // بدون فلتر حالة: أخفي الحالات النهائية/المخفية من شاشة التشغيل اليومية.
         if (isHiddenFromUserScreens(r.status)) return false;
       }
 
@@ -4503,7 +4464,7 @@ Trend Mall`;
     const bar = $("currentOrderBar");
     if (!bar) return;
 
-    const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "في قسم التسليمات", "في انتظار موافقة العميل", "في انتظار المكبس", "تم التسليم", "مكرر", "ملغى", "ملغي"];
+    const finishedStatuses = ["تم التنفيذ", "جاهز للاستلام", "تم التسليم", "مكرر", "ملغى"];
 
     const candidates = rows.map(function (r, i) {
       return { row: r, index: i };
@@ -4533,37 +4494,29 @@ Trend Mall`;
     const total = rows.length;
     const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل" || text(r.priority) === "VIP"; }).length;
     const normal = rows.filter(function (r) { return !text(r.priority) || text(r.priority) === "عادي"; }).length;
-    const problem = rows.filter(function (r) { return ["متوقف", "في انتظار موافقة العميل"].indexOf(text(r.status)) !== -1; }).length;
-    const waitingPress = rows.filter(function (r) { return text(r.status) === "في انتظار المكبس"; }).length;
-    const readyPickup = rows.filter(function (r) { return isReadyPickupStatus(r.status); }).length;
-    const delivered = rows.filter(function (r) { return isDeliveredStatus(r.status); }).length;
-    const duplicate = rows.filter(function (r) { return isDuplicateStatus(r.status); }).length;
+    const problem = rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;
     const overdue = rows.filter(isOverdueRow).length;
     const debts = rows.filter(hasDebt).length;
     const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
-    const cancelled = rows.filter(function (r) { return isCancelledStatus(r.status); }).length;
+    const cancelled = rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
     const flyPrint = rows.filter(function (r) {
       return isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
     }).length;
     $("statsBar").innerHTML =
-      '<span data-filter="all">المعروض: <b>' + total + '</b></span>' +
-      '<span data-filter="urgent">عاجل: <b>' + urgent + '</b></span>' +
-      '<span data-filter="normal">عادي: <b>' + normal + '</b></span>' +
-      '<span data-filter="readyPickup" class="stat-ready">جاهز/تسليمات: <b>' + readyPickup + '</b></span>' +
-      '<span data-filter="delivered" class="stat-done">تم التسليم: <b>' + delivered + '</b></span>' +
-      '<span data-filter="duplicate" class="stat-cancelled">مكرر: <b>' + duplicate + '</b></span>' +
-      '<span data-filter="overdue" class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
-      '<span data-filter="debt" class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
-      '<span data-filter="heat" class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
-      '<span data-filter="waitingPress" class="stat-press">في انتظار المكبس: <b>' + waitingPress + '</b></span>' +
-      '<span data-filter="fly" class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
-      '<span data-filter="cancelled" class="stat-cancelled">ملغي: <b>' + cancelled + '</b></span>' +
-      '<span data-filter="waitingCustomer">في انتظار موافقة العميل: <b>' + problem + '</b></span>';
+      '<span>المعروض: <b>' + total + '</b></span>' +
+      '<span>عاجل: <b>' + urgent + '</b></span>' +
+      '<span>عادي: <b>' + normal + '</b></span>' +
+      '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
+      '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
+      '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
+      '<span class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
+      '<span class="stat-cancelled">ملغى: <b>' + cancelled + '</b></span>' +
+      '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
   }
 
   function compactOrderCell(r) {
     const overdue = isOverdueRow(r) ? ' <span class="overdue-pill">متأخر</span>' : '';
-    const cancelled = isCancelledStatus(r.status) ? ' <span class="cancelled-pill">ملغي</span>' : '';
+    const cancelled = text(r.status) === "ملغى" ? ' <span class="cancelled-pill">ملغى</span>' : '';
     return '<div class="order-main"><b>' + escapeHtml(r.orderId || "-") + '</b>' + overdue + cancelled + '</div>' +
       '<div class="muted-line">البند: ' + escapeHtml(r.lineId || "-") + '</div>' +
       '<div class="muted-line">التسليم: ' + escapeHtml(displayExpectedDelivery(r) || "-") + '</div>';
@@ -4587,7 +4540,7 @@ Trend Mall`;
   function statusBadges(r) {
     const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
     const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
-    const cancelled = isCancelledStatus(r.status) ? '<span class="cancelled-pill">ملغي</span>' : '';
+    const cancelled = text(r.status) === "ملغى" ? '<span class="cancelled-pill">ملغى</span>' : '';
     return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + fly + cancelled + '</div>';
   }
 
@@ -4735,13 +4688,8 @@ Trend Mall`;
   }
 
   function statusSelect(current) {
-    const cur = text(current).trim();
-    const normalizedCurrent = normalizeStatusValue(cur);
-    const opts = statuses.slice();
-    if (cur && opts.indexOf(cur) === -1 && opts.indexOf(normalizedCurrent) === -1) opts.push(cur);
-    return '<select class="row-status">' + opts.map(function (s) {
-      const selected = (cur === s || normalizedCurrent === s) ? " selected" : "";
-      return '<option value="' + escapeHtml(s) + '"' + selected + '>' + escapeHtml(s) + '</option>';
+    return '<select class="row-status">' + statuses.map(function (s) {
+      return '<option value="' + escapeHtml(s) + '"' + (text(current) === s ? " selected" : "") + '>' + escapeHtml(s) + '</option>';
     }).join("") + '</select>';
   }
 
@@ -5047,7 +4995,7 @@ Trend Mall`;
   function shouldOpenInvoiceAfterStatus(newStatus, oldStatus) {
     const n = text(newStatus);
     const o = text(oldStatus);
-    return (n === "جاهز للاستلام" || n === "في قسم التسليمات" || n === "تم التسليم") && n !== o;
+    return (n === "جاهز للاستلام" || n === "تم التسليم") && n !== o;
   }
 
   function invoiceCatalogRowsForOrderRow(row) {
@@ -5285,34 +5233,6 @@ Trend Mall`;
     }
   }
 
-
-  function phoneKeyForDuplicateV1898(value) {
-    let digits = arabicDigitsToEnglish(value).replace(/[^0-9]/g, "");
-    if (!digits) return "";
-    if (digits.indexOf("0020") === 0) digits = digits.slice(2);
-    if (digits.indexOf("20") === 0 && digits.length === 12) digits = "0" + digits.slice(2);
-    if (digits.length === 10 && digits.charAt(0) === "1") digits = "0" + digits;
-    return digits;
-  }
-
-  function isOpenOrderStatusV1898(status) {
-    const s = text(status).trim();
-    return ["تم التسليم", "مكرر", "ملغى", "ملغي"].indexOf(s) === -1;
-  }
-
-  function findOpenOrderForNewCustomerV1898(params) {
-    const name = normalizeArabic(params.customerName || "");
-    const phone = phoneKeyForDuplicateV1898(params.customerPhone || "");
-    if (!name && !phone) return null;
-    const rows = Array.isArray(state.rows) ? state.rows : [];
-    return rows.find(function (r) {
-      if (!isOpenOrderStatusV1898(r.status)) return false;
-      const rn = normalizeArabic(r.customer || r.customerName || "");
-      const rp = phoneKeyForDuplicateV1898(r.customerPhone || r.phone || "");
-      return (phone && rp && phone === rp) || (name && rn && name === rn);
-    }) || null;
-  }
-
   async function createOrder() {
     setMsg("addOrderStatus", "", false);
 
@@ -5333,12 +5253,6 @@ Trend Mall`;
 
     if (!params.customerName || !params.department) {
       setMsg("addOrderStatus", "اسم الشات والقسم مطلوبين.", true);
-      return;
-    }
-
-    const duplicateOpen = findOpenOrderForNewCustomerV1898(params);
-    if (duplicateOpen) {
-      setMsg("addOrderStatus", "ممنوع إضافة أوردر جديد: العميل لديه أوردر مفتوح بالفعل رقم " + (duplicateOpen.orderId || "-") + ". افتح الأوردر الموجود وأضف/عدّل البنود بدل إنشاء أوردر مكرر.", true);
       return;
     }
 
@@ -5363,7 +5277,7 @@ Trend Mall`;
         lineId: res.lineId,
         itemName: params.itemName || ("أوردر جديد - " + params.department),
         department: params.department,
-        status: params.status || "طلب جديد",
+        status: "طلب جديد",
         expectedDeliveryText: expectedText,
         debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
         debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا")
@@ -7601,7 +7515,7 @@ Trend Mall`;
       debt: ["statusFilter", "مديونية"],
       heat: ["heatPressFilter", "نعم"],
       fly: ["priorityFilter", "عاجل"],
-      cancelled: ["statusFilter", "__CANCELLED__"]
+      cancelled: ["statusFilter", "ملغى"]
     };
     const m = map[kind];
     if (!m) return;
@@ -7894,15 +7808,12 @@ Trend Mall`;
     if (kind === 'late') { setSelect('statusFilter','__OVERDUE__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
     if (kind === 'today') { setSelect('statusFilter','__TODAY_WORK__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
     if (kind === 'deliveredToday') { setSelect('statusFilter','__DELIVERED_TODAY__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if (kind === 'readyPickup') { setSelect('statusFilter','__READY_PICKUP__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if (kind === 'delivered') { setSelect('statusFilter','تم التسليم'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if (kind === 'waitingPress') { setSelect('statusFilter','في انتظار المكبس'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if (kind === 'debt') { setSelect('statusFilter','__DEBT__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'debt') { setSelect('statusFilter','مديونية'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
     if (kind === 'heat') { setSelect('heatPressFilter','only'); setSelect('statusFilter',''); setSelect('priorityFilter',''); }
     if (kind === 'fly') { var search=qs('tableSearch'); if(search){search.value='طباعة على الطاير'; search.dispatchEvent(new Event('input',{bubbles:true}));} setSelect('statusFilter',''); }
-    if (kind === 'cancelled') { setSelect('statusFilter','__CANCELLED__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'cancelled') { setSelect('statusFilter','ملغى'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
     if (kind === 'duplicate') { setSelect('statusFilter','مكرر'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if (kind === 'stopped' || kind === 'waitingCustomer') { setSelect('statusFilter','في انتظار موافقة العميل'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
+    if (kind === 'stopped') { setSelect('statusFilter','متوقف'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
     try { document.querySelectorAll('.batch25-active-filter').forEach(function(x){x.classList.remove('batch25-active-filter')}); } catch(e){}
     runFilter();
     var sec = qs('ordersSection') || qs('workSection') || document.querySelector('.filters');
@@ -7921,9 +7832,7 @@ Trend Mall`;
     if (/الطاير/.test(t)) return 'fly';
     if (/ملغ/.test(t)) return 'cancelled';
     if (/مكرر/.test(t)) return 'duplicate';
-    if (/جاهز|تسليمات/.test(t)) return 'readyPickup';
-    if (/في انتظار المكبس/.test(t)) return 'waitingPress';
-    if (/موافقة العميل|متوقف|مشاكل\/متوقف/.test(t)) return 'waitingCustomer';
+    if (/متوقف|مشاكل\/متوقف/.test(t)) return 'stopped';
     return '';
   }
   function makeStatClickable(){
@@ -7942,12 +7851,9 @@ Trend Mall`;
   function ensureStatusOptions(){
     var sel=qs('statusFilter'); if(!sel) return;
     Array.from(sel.options||[]).forEach(function(o){ if ((o.value||o.textContent)==='مشكلة') o.remove(); });
-    ['__READY_PICKUP__|جاهز للاستلام / في قسم التسليمات','__DEBT__|مديونية','__CANCELLED__|ملغي/ملغى','مكرر|مكرر','في انتظار موافقة العميل|في انتظار موافقة العميل','في انتظار المكبس|في انتظار المكبس','في قسم التسليمات|في قسم التسليمات'].forEach(function(pair){
-      var parts=pair.split('|'), val=parts[0], label=parts[1];
-      if(!Array.from(sel.options||[]).some(function(o){return (o.value||o.textContent)===val || (o.value||o.textContent)===label;})){
-        var op=document.createElement('option'); op.value=val; op.textContent=label; sel.appendChild(op);
-      }
-    });
+    if(!Array.from(sel.options||[]).some(function(o){return (o.value||o.textContent)==='مكرر'})){
+      var op=document.createElement('option'); op.textContent='مكرر'; sel.appendChild(op);
+    }
   }
   function hardRefresh(){
     try { var u=new URL(location.href); u.searchParams.set('v','1856-batch25-'+Date.now()); location.replace(u.toString()); } catch(e){ location.reload(true); }
@@ -9098,7 +9004,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   window.TRENDOS_PATCH_VERSION = "V1897_FIBER_AND_SHEETS_ROLE_LOCK";
   window.TRENDOS_FIBER_ROLE_PATCH = true;
 
-  var FIBER_EZCAD_URL = window.MATBAGY_FIBER_EZCAD_URL || "https://fawakhry.github.io/fiber-auto-max-ezcad/";
+  var FIBER_EZCAD_URL = "https://fawakhry.github.io/fiber-auto-max-ezcad/";
   var DEFAULT_MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
 
   function $(id) {
@@ -9418,413 +9324,3 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     boot();
   }
 })();
-
-
-/*********************** V1898 - Basic Operations Sprint + Cleanup UI ***********************/
-(function(){
-  'use strict';
-  window.TRENDOS_PATCH_VERSION = 'V1898_BASIC_OPERATIONS_CLEANUP';
-
-  function qs(id){ return document.getElementById(id); }
-  function txt(v){ return String(v == null ? '' : v).trim(); }
-  function norm(v){ return txt(v).replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim(); }
-  function userBlob(){
-    var u=(window.state&&window.state.user)||{};
-    try { return norm(JSON.stringify(u)+' '+(localStorage.getItem('matbagy_user_name')||'')+' '+(localStorage.getItem('matbagy_username')||'')); } catch(e){ return ''; }
-  }
-  function isDiaa(){ return /ضياء|diaa|admin/.test(userBlob()); }
-  function currentAuth(extra){
-    var u=(window.state&&window.state.user)||{};
-    return Object.assign({ username:u.username||u.name||localStorage.getItem('matbagy_username')||localStorage.getItem('matbagy_user_name')||'', token:u.token||localStorage.getItem('matbagy_session_token')||'' }, extra||{});
-  }
-  function api(action, params){
-    return new Promise(function(resolve,reject){
-      var base=txt(window.TREND_API_URL||window.API_URL);
-      if(!base){ reject(new Error('رابط Web App غير موجود في config.js')); return; }
-      var cb='trendos_v1898_cb_'+Date.now()+'_'+Math.floor(Math.random()*99999);
-      var script=document.createElement('script');
-      var timer=setTimeout(function(){ cleanup(); reject(new Error('انتهت مهلة الاتصال بالسيرفر.')); },90000);
-      function cleanup(){ clearTimeout(timer); try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(script.parentNode) script.parentNode.removeChild(script); }
-      window[cb]=function(data){ cleanup(); resolve(data||{}); };
-      script.onerror=function(){ cleanup(); reject(new Error('فشل الاتصال بالسيرفر. ارفع Apps Script Patch V1898 ثم جرّب تاني.')); };
-      var u=new URL(base, location.href);
-      u.searchParams.set('action', action); u.searchParams.set('callback', cb);
-      Object.keys(params||{}).forEach(function(k){ if(params[k]!==undefined && params[k]!==null) u.searchParams.set(k, params[k]); });
-      script.src=u.toString();
-      document.body.appendChild(script);
-    });
-  }
-  function setSelect(id, value){
-    var el=qs(id); if(!el) return;
-    var v=txt(value);
-    if(v && !Array.from(el.options||[]).some(function(o){return (o.value||o.textContent)===v;})){ var op=document.createElement('option'); op.value=v; op.textContent=v; el.appendChild(op); }
-    el.value=v;
-    try{ el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
-  }
-  function clearSearch(){ var s=qs('tableSearch'); if(s){ s.value=''; try{s.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){} } }
-  function applyFilter(kind){
-    clearSearch();
-    if(kind==='all'){ setSelect('statusFilter',''); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='urgent'){ setSelect('priorityFilter','عاجل'); setSelect('statusFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='normal'){ setSelect('priorityFilter','عادي'); setSelect('statusFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='today'){ setSelect('statusFilter','__TODAY_WORK__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='overdue'){ setSelect('statusFilter','__OVERDUE__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='deliveredToday'){ setSelect('statusFilter','__DELIVERED_TODAY__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='readyPickup'){ setSelect('statusFilter','__READY_PICKUP__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='debt'){ setSelect('statusFilter','__DEBT__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='heat'){ setSelect('heatPressFilter','only'); setSelect('statusFilter',''); setSelect('priorityFilter',''); }
-    if(kind==='delivered'){ setSelect('statusFilter','تم التسليم'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='duplicate'){ setSelect('statusFilter','مكرر'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='cancelled'){ setSelect('statusFilter','__CANCELLED__'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='waitingCustomer'){ setSelect('statusFilter','في انتظار موافقة العميل'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    if(kind==='waitingPress'){ setSelect('statusFilter','في انتظار المكبس'); setSelect('priorityFilter',''); setSelect('heatPressFilter',''); }
-    var f=document.querySelector('.filters'); if(f&&f.scrollIntoView) f.scrollIntoView({behavior:'smooth',block:'start'});
-  }
-  function addStatusOption(selectId, value, label){
-    var el=qs(selectId); if(!el) return;
-    value=txt(value); label=txt(label||value);
-    if(!Array.from(el.options||[]).some(function(o){return (o.value||o.textContent)===value || (o.value||o.textContent)===label;})){
-      var op=document.createElement('option'); op.value=value; op.textContent=label; el.appendChild(op);
-    }
-  }
-  function normalizeStatusSelects(){
-    var main=qs('newStatus');
-    if(main && main.dataset.v1898Statuses!=='1'){
-      main.dataset.v1898Statuses='1';
-      main.innerHTML=['طلب جديد','تحت التنفيذ','في انتظار موافقة العميل','في انتظار المكبس','في قسم التسليمات','تم التسليم','مكرر','ملغي'].map(function(s){return '<option>'+s+'</option>';}).join('');
-    }
-    ['statusFilter'].forEach(function(id){
-      addStatusOption(id,'__READY_PICKUP__','جاهز للاستلام / في قسم التسليمات');
-      addStatusOption(id,'__DEBT__','مديونية');
-      addStatusOption(id,'__CANCELLED__','ملغي / ملغى');
-      ['طلب جديد','تحت التنفيذ','في انتظار موافقة العميل','في انتظار المكبس','في قسم التسليمات','تم التسليم','مكرر','ملغي'].forEach(function(st){ addStatusOption(id,st,st); });
-    });
-    document.querySelectorAll('select.row-status').forEach(function(sel){
-      if(sel.dataset.v1898StatusSelect==='1') return;
-      sel.dataset.v1898StatusSelect='1';
-      var cur=sel.value;
-      var opts=['طلب جديد','تحت التنفيذ','في انتظار موافقة العميل','في انتظار المكبس','في قسم التسليمات','تم التسليم','مكرر','ملغي'];
-      if(cur && opts.indexOf(cur)===-1 && !(cur==='ملغى' && opts.indexOf('ملغي')!==-1)) opts.push(cur);
-      sel.innerHTML=opts.map(function(st){ var selected=(cur===st || (cur==='ملغى'&&st==='ملغي') || (cur==='بدأ التنفيذ'&&st==='تحت التنفيذ') || (cur==='متوقف'&&st==='في انتظار موافقة العميل'))?' selected':''; return '<option value="'+st+'"'+selected+'>'+st+'</option>'; }).join('');
-    });
-  }
-  function mountCleanupCard(){
-    if(qs('cleanupArchiveCard')) return;
-    var main=qs('mainView'); if(!main) return;
-    var card=document.createElement('section');
-    card.id='cleanupArchiveCard';
-    card.className='card cleanup-archive-card hidden';
-    card.innerHTML='\
-      <div class="table-tools"><h3>تنضيف وأرشفة الأوردرات المقفولة</h3><span id="cleanupArchiveStatus"></span></div>\
-      <div class="hint strong-hint">الأرشفة تنقل الأول للأرشيف ثم تحذف من شيت التشغيل. المسموح فقط: تم التسليم، مكرر، ملغي.</div>\
-      <div class="cleanup-grid">\
-        <div><label>من تاريخ</label><input id="cleanupFromDate" type="date"></div>\
-        <div><label>إلى تاريخ</label><input id="cleanupToDate" type="date"></div>\
-        <label class="cleanup-check"><input id="cleanupDelivered" type="checkbox" checked> تم التسليم</label>\
-        <label class="cleanup-check"><input id="cleanupDuplicate" type="checkbox"> مكرر</label>\
-        <label class="cleanup-check"><input id="cleanupCancelled" type="checkbox"> ملغي</label>\
-      </div>\
-      <div class="row cleanup-actions">\
-        <button id="cleanupPreviewBtn" type="button" class="ghost">معاينة قبل التنضيف</button>\
-        <button id="cleanupRunBtn" type="button" class="danger">أرشفة وتنضيف المؤكد</button>\
-      </div>\
-      <div id="cleanupPreviewBox" class="cleanup-preview dash-empty">اختار الفترة والحالات ثم اضغط معاينة.</div>';
-    var dash=qs('managementDashboard');
-    if(dash && dash.parentNode) dash.parentNode.insertBefore(card, dash.nextSibling); else main.insertBefore(card, main.firstChild);
-    qs('cleanupPreviewBtn').addEventListener('click', previewCleanup);
-    qs('cleanupRunBtn').addEventListener('click', runCleanup);
-  }
-  function cleanupStatuses(){
-    var a=[];
-    if(qs('cleanupDelivered')&&qs('cleanupDelivered').checked) a.push('تم التسليم');
-    if(qs('cleanupDuplicate')&&qs('cleanupDuplicate').checked) a.push('مكرر');
-    if(qs('cleanupCancelled')&&qs('cleanupCancelled').checked) { a.push('ملغي'); a.push('ملغى'); }
-    return a;
-  }
-  function cleanupPayload(){
-    return currentAuth({ fromDate:(qs('cleanupFromDate')||{}).value||'', toDate:(qs('cleanupToDate')||{}).value||'', statuses:JSON.stringify(cleanupStatuses()) });
-  }
-  function renderCleanupResult(res, previewOnly){
-    var box=qs('cleanupPreviewBox'); if(!box) return;
-    if(!res || !res.success){ box.className='cleanup-preview error'; box.textContent=(res&&res.message)||'فشل تنفيذ العملية. تأكد من رفع Apps Script Patch V1898.'; return; }
-    var counts=res.counts||{};
-    box.className='cleanup-preview';
-    box.innerHTML='<b>'+(previewOnly?'معاينة التنضيف':'نتيجة التنضيف')+'</b><br>'+
-      'تم التسليم: <b>'+(counts.delivered||0)+'</b><br>'+
-      'مكرر: <b>'+(counts.duplicate||0)+'</b><br>'+
-      'ملغي: <b>'+(counts.cancelled||0)+'</b><br>'+
-      'إجمالي الأوردرات: <b>'+(res.ordersCount||0)+'</b><br>'+
-      'إجمالي البنود التابعة: <b>'+(res.linesCount||0)+'</b><br>'+
-      (res.message?'<small>'+res.message+'</small>':'');
-  }
-  async function previewCleanup(){
-    if(!isDiaa()){ alert('التنضيف متاح لضياء فقط.'); return; }
-    if(!cleanupStatuses().length){ alert('اختار حالة واحدة على الأقل.'); return; }
-    var st=qs('cleanupArchiveStatus'); if(st) st.textContent='جاري المعاينة...';
-    try{ var res=await api('previewClosedOrdersCleanup', cleanupPayload()); renderCleanupResult(res,true); if(st) st.textContent='تمت المعاينة'; }
-    catch(e){ renderCleanupResult({success:false,message:e.message},true); if(st) st.textContent='فشلت المعاينة'; }
-  }
-  async function runCleanup(){
-    if(!isDiaa()){ alert('التنضيف متاح لضياء فقط.'); return; }
-    if(!cleanupStatuses().length){ alert('اختار حالة واحدة على الأقل.'); return; }
-    if(!confirm('تأكيد نهائي: سيتم نقل الأوردرات المختارة للأرشيف ثم حذفها من شيت التشغيل. هل أنت متأكد؟')) return;
-    var st=qs('cleanupArchiveStatus'); if(st) st.textContent='جاري الأرشفة والتنضيف...';
-    try{ var res=await api('archiveClosedOrdersCleanup', cleanupPayload()); renderCleanupResult(res,false); if(st) st.textContent=res.success?'تم التنضيف':'فشل التنضيف'; try{ var r=qs('refreshBtn'); if(r) r.click(); }catch(e){} }
-    catch(e){ renderCleanupResult({success:false,message:e.message},false); if(st) st.textContent='فشل التنضيف'; }
-  }
-  function updateCleanupVisibility(){ var c=qs('cleanupArchiveCard'); if(c) c.classList.toggle('hidden', !isDiaa()); }
-  function bindClickableFilters(){
-    document.addEventListener('click', function(ev){
-      var el=ev.target&&ev.target.closest&&ev.target.closest('[data-filter],#managementDashboard .dash-item,#statsBar span');
-      if(!el) return;
-      var kind=el.getAttribute('data-filter')||'';
-      if(!kind){ var t=norm(el.textContent||''); if(/جاهز|تسليمات/.test(t)) kind='readyPickup'; else if(/تم التسليم اليوم/.test(t)) kind='deliveredToday'; else if(/تم التسليم/.test(t)) kind='delivered'; else if(/شغل اليوم/.test(t)) kind='today'; else if(/متأخر/.test(t)) kind='overdue'; else if(/مديون/.test(t)) kind='debt'; else if(/مكبس/.test(t)) kind='heat'; else if(/عاجل/.test(t)) kind='urgent'; else if(/عادي/.test(t)) kind='normal'; else if(/مكرر/.test(t)) kind='duplicate'; else if(/ملغ/.test(t)) kind='cancelled'; else if(/موافقه العميل|موافقة العميل/.test(t)) kind='waitingCustomer'; }
-      if(kind){ ev.preventDefault(); ev.stopPropagation(); applyFilter(kind); }
-    }, true);
-  }
-  function boot(){
-    mountCleanupCard(); normalizeStatusSelects(); updateCleanupVisibility(); bindClickableFilters();
-    setTimeout(function(){ normalizeStatusSelects(); updateCleanupVisibility(); },400);
-    setTimeout(function(){ normalizeStatusSelects(); updateCleanupVisibility(); },1400);
-    if(window.MutationObserver && document.body && !document.body.__trendosV1898OpsObserver){
-      document.body.__trendosV1898OpsObserver=true;
-      new MutationObserver(function(){ normalizeStatusSelects(); updateCleanupVisibility(); }).observe(document.body,{childList:true,subtree:true});
-    }
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
-})();
-
-/*********************** V1899 - Lead Hunter / مراقب مطبعجى Button ***********************/
-(function () {
-  "use strict";
-
-  window.TRENDOS_PATCH_VERSION = "V1899_LEAD_HUNTER_BUTTON";
-  window.TRENDOS_LEAD_HUNTER_BUTTON_PATCH = true;
-
-  var DEFAULT_LEAD_HUNTER_URL = "https://fawakhry.github.io/trendos-lead-hunter/";
-
-  function $(id) {
-    return document.getElementById(id);
-  }
-
-  function txt(value) {
-    return String(value == null ? "" : value);
-  }
-
-  function norm(value) {
-    return txt(value)
-      .toLowerCase()
-      .replace(/[إأآا]/g, "ا")
-      .replace(/[ى]/g, "ي")
-      .replace(/[ؤ]/g, "و")
-      .replace(/[ئ]/g, "ي")
-      .replace(/[ةه]/g, "ه")
-      .replace(/[\u064B-\u065F\u0670]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
-  function safeLocalStorage(key) {
-    try {
-      return localStorage.getItem(key) || "";
-    } catch (e) {
-      return "";
-    }
-  }
-
-  function liveUser() {
-    var st = window.state || window.trendosState || {};
-    return st.user || {};
-  }
-
-  function userBlob() {
-    var u = liveUser();
-    return norm([
-      u.name,
-      u.username,
-      u.role,
-      u.department,
-      u.mode,
-      safeLocalStorage("matbagy_user_name"),
-      safeLocalStorage("matbagy_username"),
-      safeLocalStorage("trendos_session")
-    ].join(" "));
-  }
-
-  function isEmployeeLoggedInV1899() {
-    var u = liveUser();
-    return !!(u && (
-      u.name ||
-      u.username ||
-      u.role ||
-      u.token ||
-      safeLocalStorage("trendos_session")
-    ));
-  }
-
-  function isDiaaV1899() {
-    var blob = userBlob();
-    return /ضياء|diaa/.test(blob) || /"role"\s*:\s*"admin"/.test(blob) || /\badmin\b/.test(blob);
-  }
-
-  function isRahmaV1899() {
-    var blob = userBlob();
-    return /رحمه|رحمة|rahma/.test(blob);
-  }
-
-  function isRevanV1899() {
-    var blob = userBlob();
-    return /ريفان|ريڤان|revan|rivan/.test(blob);
-  }
-
-  function canOpenLeadHunterV1899() {
-    return isEmployeeLoggedInV1899() && (isDiaaV1899() || isRahmaV1899() || isRevanV1899());
-  }
-
-  function mainToolsHolder() {
-    return document.querySelector(".top-actions") ||
-      document.querySelector("header .actions") ||
-      document.querySelector(".topbar .actions") ||
-      document.querySelector(".topbar") ||
-      document.querySelector(".toolbar") ||
-      document.querySelector(".header-actions") ||
-      document.body;
-  }
-
-  function placeAfter(button, afterId) {
-    var after = afterId ? $(afterId) : null;
-    if (after && after.parentNode && after.nextSibling !== button) {
-      after.parentNode.insertBefore(button, after.nextSibling);
-      return true;
-    }
-    return false;
-  }
-
-  function makeLeadHunterButton() {
-    var holder = mainToolsHolder();
-    if (!holder) return null;
-
-    var btn = $("leadHunterBtn");
-
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.id = "leadHunterBtn";
-      btn.type = "button";
-      btn.className = "ghost quick-tool-btn lead-hunter-btn trendos-v1899-tool-btn hidden";
-      btn.textContent = "🕵️ مراقب مطبعجى";
-
-      if (!placeAfter(btn, "fiberEngraveBtn") && !placeAfter(btn, "accountingBtn") && !placeAfter(btn, "matbagyNoteBtn")) {
-        var anchor = $("accountingBtn") || $("matbagyNoteBtn") || $("matbagySheetsBtn") || $("remoteFilesBtn") || holder.querySelector("button");
-        if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor.nextSibling);
-        else holder.appendChild(btn);
-      }
-    } else {
-      btn.textContent = "🕵️ مراقب مطبعجى";
-      btn.classList.add("lead-hunter-btn", "trendos-v1899-tool-btn");
-    }
-
-    btn.onclick = function (ev) {
-      if (ev && ev.preventDefault) ev.preventDefault();
-      return openLeadHunterV1899();
-    };
-
-    btn.title = "مراقب مطبعجى - يظهر لضياء ورحمه وريفان فقط";
-    return btn;
-  }
-
-  function setButtonVisible(btn, visible) {
-    if (!btn) return;
-    btn.classList.toggle("hidden", !visible);
-    btn.style.display = visible ? "" : "none";
-    btn.setAttribute("aria-hidden", visible ? "false" : "true");
-    btn.disabled = false;
-  }
-
-  function employeeSsoParams(extra) {
-    var u = liveUser();
-
-    return Object.assign({
-      from: "trendos",
-      employeePortal: "1",
-      username: u.username || u.name || safeLocalStorage("matbagy_username") || safeLocalStorage("matbagy_user_name") || "",
-      name: u.name || u.username || safeLocalStorage("matbagy_user_name") || safeLocalStorage("matbagy_username") || "",
-      token: u.token || safeLocalStorage("matbagy_session_token") || ""
-    }, extra || {});
-  }
-
-  function withQueryV1899(url, params) {
-    try {
-      var u = new URL(url, location.href);
-      Object.keys(params || {}).forEach(function (key) {
-        if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
-          u.searchParams.set(key, params[key]);
-        }
-      });
-      return u.toString();
-    } catch (e) {
-      return url;
-    }
-  }
-
-  function openLeadHunterV1899() {
-    if (!canOpenLeadHunterV1899()) {
-      alert("مراقب مطبعجى متاح لحسابات ضياء ورحمه وريفان فقط.");
-      return false;
-    }
-
-    var base = txt(window.MATBAGY_LEAD_HUNTER_URL || DEFAULT_LEAD_HUNTER_URL).trim();
-    window.open(withQueryV1899(base, employeeSsoParams({ tool: "lead-hunter" })), "TrendOS_Lead_Hunter");
-    return true;
-  }
-
-  window.openTrendOSLeadHunter = openLeadHunterV1899;
-  window.canOpenTrendOSLeadHunter = canOpenLeadHunterV1899;
-
-  function applyLeadHunterRoleLock() {
-    var btn = makeLeadHunterButton();
-    setButtonVisible(btn, canOpenLeadHunterV1899());
-  }
-
-  document.addEventListener("click", function (ev) {
-    var btn = ev.target && ev.target.closest ? ev.target.closest("#leadHunterBtn") : null;
-    if (!btn) return;
-
-    ev.preventDefault();
-    ev.stopPropagation();
-    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-
-    openLeadHunterV1899();
-    setTimeout(applyLeadHunterRoleLock, 50);
-    return false;
-  }, true);
-
-  var applyTimer = null;
-
-  function scheduleApply() {
-    clearTimeout(applyTimer);
-    applyTimer = setTimeout(applyLeadHunterRoleLock, 80);
-  }
-
-  function boot() {
-    applyLeadHunterRoleLock();
-    setTimeout(applyLeadHunterRoleLock, 300);
-    setTimeout(applyLeadHunterRoleLock, 900);
-    setTimeout(applyLeadHunterRoleLock, 1800);
-    setTimeout(applyLeadHunterRoleLock, 3200);
-
-    if (window.MutationObserver && document.body && !document.body.__trendosV1899LeadHunterObserver) {
-      document.body.__trendosV1899LeadHunterObserver = true;
-      new MutationObserver(scheduleApply).observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
-})();
-

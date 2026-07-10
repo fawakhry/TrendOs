@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=trendos-v1899-lead-hunter-button">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1899-lead-hunter-button">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1894-debt-invoice-rows-20260701d">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1894-debt-invoice-rows-20260701d">
 </head>
 <body>
 <main class="app">
@@ -37,7 +37,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1899 Lead Hunter Button</p>
+    <p class="version-badge">TrendOS V1896 Debt + Catalog Hard Lock</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -80,7 +80,7 @@
       <div>
         <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1899 Lead Hunter Button</p>
+        <p class="version-badge">TrendOS V1896 Debt + Catalog Hard Lock</p>
         <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
       </div>
       <div class="top-actions">
@@ -90,7 +90,6 @@
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
         <button id="matbagyNoteBtn" class="ghost quick-tool-btn note-btn" type="button">📝 نوت مطبعجي</button>
         <button id="accountingBtn" class="ghost quick-tool-btn accounting-btn" type="button">💰 حسابات مطبعجي</button>
-        <button id="leadHunterBtn" class="ghost quick-tool-btn lead-hunter-btn hidden" type="button">🕵️ مراقب مطبعجى</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
@@ -642,13 +641,7 @@
           <label>الحالة</label>
           <select id="newStatus">
             <option>طلب جديد</option>
-            <option>تحت التنفيذ</option>
-            <option>في انتظار موافقة العميل</option>
-            <option>في انتظار المكبس</option>
-            <option>في قسم التسليمات</option>
-            <option>تم التسليم</option>
-            <option>مكرر</option>
-            <option>ملغي</option>
+            <option>بدأ التنفيذ</option>
           </select>
         </div>
 
@@ -682,17 +675,12 @@
           <option value="__OVERDUE__">متأخر</option>
           <option value="__TODAY_WORK__">شغل اليوم</option>
           <option value="__DELIVERED_TODAY__">تسليمات اليوم</option>
-          <option value="__READY_PICKUP__">جاهز للاستلام / في قسم التسليمات</option>
-          <option value="__DEBT__">مديونية</option>
-          <option value="__CANCELLED__">ملغي / ملغى</option>
           <option>طلب جديد</option>
+          <option>بدأ التنفيذ</option>
           <option>تحت التنفيذ</option>
-          <option>في انتظار موافقة العميل</option>
-          <option>في انتظار المكبس</option>
-          <option>في قسم التسليمات</option>
-          <option>تم التسليم</option>
+          <option>متوقف</option>
           <option>مكرر</option>
-          <option>ملغي</option>
+          <option>ملغى</option>
         </select>
         <select id="priorityFilter">
           <option value="__ACTIVE__" selected>العاجل والعادي فقط</option>
@@ -720,7 +708,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">TrendOS V1899 Lead Hunter Button</p>
+        <p class="version-badge">TrendOS V1896 Debt + Catalog Hard Lock</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1223,16 +1211,16 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1899-lead-hunter-button"></script>
-<script src="app.js?v=trendos-v1899-lead-hunter-button"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1899-lead-hunter-button"></script>
+<script src="config.js?v=trendos-v1894-debt-invoice-rows-20260701d"></script>
+<script src="app.js?v=trendos-v1894-debt-invoice-rows-20260701d"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1894-debt-invoice-rows-20260701d"></script>
 
 <script>
 (function(){
   'use strict';
   var LOCK = 'Trend Mall | فكرتك جاهزة';
-  var BUILD = 'TrendOS V1899 Lead Hunter Button';
-  var CACHE_TAG = 'trendos-v1899-lead-hunter-button';
+  var BUILD = 'TrendOS V1896 Debt + Catalog Hard Lock';
+  var CACHE_TAG = 'trendos-v1894-debt-invoice-rows-20260701d';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
   window.TRENDOS_PATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
