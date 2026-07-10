@@ -3,24 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة مطبعجي بنها TrendOS V1896 Debt + Catalog Hard Lock</title>
+  <title>Trend Mall | فكرتك جاهزة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=trendos-v1894-debt-invoice-rows-20260701d">
   <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1894-debt-invoice-rows-20260701d">
 </head>
 <body>
 <main class="app">
+  <header class="tm-brand-header" aria-label="Trend Mall">
+    <div class="tm-brand-lockup">
+      <div class="tm-logo-mark" aria-hidden="true">TM</div>
+      <div class="tm-brand-copy">
+        <b>Trend Mall</b>
+        <span>فكرتك جاهزة</span>
+      </div>
+    </div>
+  </header>
+
   <section id="entryView" class="card entry-card hidden">
-    <h1 id="entryBrandTitle">منصة مطبعجي بنها</h1>
-    <p>بوابة واحدة للموظفين والعملاء: تسجيل الأوردرات، متابعة الحالات، مطبعجي شيتات، واصنع تصميمك بنفسك.</p>
+    <h1 id="entryBrandTitle">Trend Mall</h1>
+    <p>بوابة واحدة للعملاء والموظفين: طلبات الطباعة، الكتالوج، العروض، الشيتات، وربط المطابع ومقدمي الخدمات.</p>
 
     <div class="entry-grid">
       <button id="employeeEntryBtn" class="entry-option" type="button">
         <b>دخول الموظفين</b>
-        <span>TrendOS Operations — خدمة العملاء والأقسام والتسعير</span>
+        <span>Trend Mall Operations — خدمة العملاء والأقسام والتسعير والربط الخارجي</span>
       </button>
       <button id="customerEntryBtn" class="entry-option customer" type="button">
         <b>دخول العملاء</b>
-        <span>كود الشات + كلمة المرور لمتابعة الأوردرات وفتح أوردر جديد</span>
+        <span>كود الشات + كلمة المرور لمتابعة الطلبات وفتح طلب جديد من الكتالوج</span>
       </button>
     </div>
 
@@ -28,7 +41,7 @@
   </section>
 
   <section id="loginView" class="card login-card">
-    <h1 id="brandTitle">منصة مطبعجي بنها</h1>
+    <h1 id="brandTitle">Trend Mall</h1>
     <p>تسجيل دخول الموظفين</p>
 
     <label>اسم المستخدم</label>
@@ -46,7 +59,7 @@
 
   <section id="customerLoginView" class="card login-card hidden">
     <h1>دخول العملاء</h1>
-    <p>اكتب كود الشات وكلمة المرور لمتابعة أوردراتك على منصة مطبعجي بنها.</p>
+    <p>اكتب كود الشات وكلمة المرور لمتابعة طلباتك على Trend Mall.</p>
 
     <label>كود الشات</label>
     <input id="customerCode" inputmode="numeric" placeholder="مثال: 1001">
@@ -65,7 +78,7 @@
   <section id="mainView" class="hidden">
     <header class="topbar">
       <div>
-        <h2 id="welcomeTitle">منصة مطبعجي بنها</h2>
+        <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
         <p class="version-badge">TrendOS V1896 Debt + Catalog Hard Lock</p>
         <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
@@ -73,7 +86,7 @@
       <div class="top-actions">
         <button id="refreshBtn" class="ghost">تحديث الآن</button>
         <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
-        <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 مطبعجي شيتات</button>
+        <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 Trend Mall شيتات</button>
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
         <button id="matbagyNoteBtn" class="ghost quick-tool-btn note-btn" type="button">📝 نوت مطبعجي</button>
         <button id="accountingBtn" class="ghost quick-tool-btn accounting-btn" type="button">💰 حسابات مطبعجي</button>
@@ -88,8 +101,8 @@
 
     <section id="adminWorkspaceHub" class="admin-workspace-hub hidden">
       <div class="admin-hub-head">
-        <b>مركز إدارة مطبعجي</b>
-        <span>كل حاجة في تاب واضح: تشغيل، رحمة، فرنشايز، ماركت بليس، أعضاء، ردود، إعلانات.</span>
+        <b>مركز إدارة Trend Mall</b>
+        <span>تشغيل، عملاء، فروع، ماركت بليس، موردين، ردود، وإعلانات في مساحة واحدة واضحة.</span>
       </div>
       <div id="adminWorkspaceTabs" class="admin-workspace-tabs"></div>
     </section>
@@ -211,7 +224,7 @@
 
     <section id="marketplaceCard" class="card marketplace-admin-card hidden">
       <div class="table-tools">
-        <h3>ماركت بليس مطبعجي <span class="help-dot" title="بيع مساحة داخل منصة مطبعجي لأي بائع أو مطبعة أو محل. العميل يطلب تحت مظلة مطبعجي، ونسبة مطبعجي تتحسب على كل أوردر.">؟</span></h3>
+        <h3>ماركت بليس Trend Mall <span class="help-dot" title="بيع مساحة داخل Trend Mall لأي بائع أو مطبعة أو محل. العميل يطلب تحت مظلة المنصة، ونسبة المنصة تتحسب على كل طلب.">؟</span></h3>
         <span id="marketplaceStatus"></span>
       </div>
       <div class="hint strong-hint">
@@ -379,7 +392,7 @@
         <label><input id="whiteFeatureOrderChat" type="checkbox" checked> شات الطلبات والملفات مثل واتساب</label>
         <label><input id="whiteFeatureDesigner" type="checkbox" checked> خدمة المصمم الذكي / طلب تصميم</label>
         <label><input id="whiteFeatureAds" type="checkbox" checked> لوحة إعلانات العملاء</label>
-        <label><input id="whiteFeatureMatbagySheets" type="checkbox"> مطبعجي شيتات</label>
+        <label><input id="whiteFeatureMatbagySheets" type="checkbox"> Trend Mall شيتات</label>
         <label><input id="whiteFeatureFranchise" type="checkbox"> فروع وفرنشايز مطبعجي مصر</label>
         <label><input id="whiteFeatureMarketplace" type="checkbox"> Marketplace الشركاء القومي</label>
         <label><input id="whiteFeaturePhoneLeads" type="checkbox"> خدمة أرقام العملاء</label>
@@ -706,11 +719,11 @@
 
     <section id="customerHomePanel" class="card customer-home-card">
       <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
-      <h3>خدماتك على منصة مطبعجي بنها</h3>
+      <h3>خدماتك على Trend Mall</h3>
       <div class="customer-service-grid">
         <button id="customerFastPrintFilesBtn" class="customer-service-card fast-print-card hidden" type="button">
           <b>⚡ رفع ملف جاهز للطباعة</b>
-          <span>للعملاء المصرح لهم فقط: ارفع ملفات جاهزة للطباعة مباشرة في فولدر طباعة ع الطاير.</span>
+          <span>للعملاء المصرح لهم فقط: ارفع ملفات جاهزة للطباعة مباشرة في مسار التنفيذ السريع.</span>
         </button>
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
           <b>+ طلب جديد</b>
@@ -721,7 +734,7 @@
           <span>اعرف كل أوردر وصل لفين بدون الرجوع للشات الطويل.</span>
         </button>
         <button id="customerOpenMatbagySheetsBtn" class="customer-service-card" type="button">
-          <b>مطبعجي شيتات</b>
+          <b>Trend Mall شيتات</b>
           <span>رص صور الطباعة بجودة HD 300DPI.</span>
         </button>
         <button id="customerShowDesignerBtn" class="customer-service-card ai" type="button">
@@ -731,19 +744,19 @@
       </div>
       <div class="customer-marketplace-panel">
         <div class="table-tools">
-          <h3>سوق مطبعجي</h3>
+          <h3>كتالوج Trend Mall</h3>
           <button id="customerRefreshMarketplaceBtn" class="ghost" type="button">تحديث السوق</button>
         </div>
-        <p class="hint">مساحات وبائعين تحت مظلة مطبعجي. الطلب والدفع والتسليم يفضلوا من خلال مطبعجي.</p>
+        <p class="hint">منتجات وخدمات وموردين تحت مظلة Trend Mall. الطلب والدفع والمتابعة من خلال المنصة.</p>
         <div id="customerMarketplaceBoard" class="customer-marketplace-board">
-          <div class="hint">جاري تحميل سوق مطبعجي...</div>
+          <div class="hint">جاري تحميل كتالوج Trend Mall...</div>
         </div>
         <div id="customerMarketplaceProducts" class="customer-marketplace-products hidden"></div>
       </div>
 
       <div class="customer-franchise-panel">
         <div class="table-tools">
-          <h3>أقرب فرع مطبعجي معتمد</h3>
+          <h3>أقرب فرع أو مقدم خدمة معتمد</h3>
           <button id="customerUseGpsBtn" class="ghost" type="button">📍 استخدم موقعي</button>
         </div>
         <p id="customerFranchiseStatus" class="msg"></p>
@@ -827,7 +840,7 @@
       </div>
       <div class="designer-placeholder">
         <b>مصمم مطبعجي الذكي</b>
-        <span>قريبًا: شات تصميم خاص بمنصة مطبعجي بنها.</span>
+        <span>قريبًا: شات تصميم خاص بـ Trend Mall.</span>
       </div>
     </section>
   </section>
@@ -1205,7 +1218,7 @@
 <script>
 (function(){
   'use strict';
-  var LOCK = 'مطبعجي مصر V1896 - Debt + Catalog Hard Lock';
+  var LOCK = 'Trend Mall | فكرتك جاهزة';
   var BUILD = 'TrendOS V1896 Debt + Catalog Hard Lock';
   var CACHE_TAG = 'trendos-v1894-debt-invoice-rows-20260701d';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
@@ -1229,7 +1242,7 @@
     }
   }
   function lockVersion(){
-    try{document.title='منصة مطبعجي بنها TrendOS V1896 Debt + Catalog Hard Lock';}catch(e){}
+    try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
     try{window.TRENDOS_PATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';}catch(e){}
     document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(stableText);
     document.querySelectorAll('p,small,span,div,b,h1,h2,h3').forEach(function(el){

@@ -646,7 +646,7 @@ Trend Mall`;
   }
 
   function openMatbagySheetsTool() {
-    openEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات");
+    openEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "Trend Mall شيتات");
   }
 
   function openMatbagyRotetTool() {
@@ -1816,10 +1816,10 @@ Trend Mall`;
       updateCustomerPreviewChrome();
       return;
     }
-    if (title) title.textContent = "أهلاً " + (c.name || "عميل مطبعجي");
+    if (title) title.textContent = "أهلاً " + (c.name || "عميل Trend Mall");
     if (meta) {
       const branchName = c.branchName || c.franchiseBranchName || c.branchPublicName || "";
-      meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | " + (branchName ? ("فرعك: " + branchName + " | ") : "") + "منصة مطبعجي بنها";
+      meta.textContent = "كود الشات: " + (c.customerCode || "-") + " | " + (branchName ? ("فرعك: " + branchName + " | ") : "") + "Trend Mall";
     }
     updateCustomerPreviewChrome();
   }
@@ -1925,7 +1925,7 @@ Trend Mall`;
       ["شات الطلبات والملفات", settings.featureOrderChat, true],
       ["المصمم الذكي كخدمة", settings.featureDesigner, true],
       ["لوحة إعلانات العملاء", settings.featureAds, true],
-      ["مطبعجي شيتات", settings.featureMatbagySheets, false],
+      ["Trend Mall شيتات", settings.featureMatbagySheets, false],
       ["فروع وفرنشايز مطبعجي مصر", settings.featureFranchise, false],
       ["Marketplace الشركاء القومي", settings.featureMarketplace, false],
       ["سحب/تجميع أرقام العملاء", settings.featurePhoneLeads, false]
@@ -2032,8 +2032,8 @@ Trend Mall`;
     const portalLink = location.origin + location.pathname + "?v=1856";
     const lines = rows.map(function (r) {
       const phone = r.phone || "";
-      const name = r.name || "عميل مطبعجي";
-      return phone + "\t" + name + "\t" + "أهلاً " + name + "، تم تجهيز دخولك على منصة مطبعجي. افتح الرابط وادخل بكود الشات/رقمك لمتابعة طلباتك: " + portalLink;
+      const name = r.name || "عميل Trend Mall";
+      return phone + "\t" + name + "\t" + "أهلاً " + name + "، تم تجهيز دخولك على Trend Mall. افتح الرابط وادخل بكود الشات/رقمك لمتابعة طلباتك: " + portalLink;
     }).join("\n");
     navigator.clipboard.writeText(lines).then(function () {
       setMsg("phoneLeadsStatus", "تم نسخ دعوات المنصة. استخدمها فقط لعملاء مطبعجي أو المصرح لهم بالتواصل.", false);
@@ -2852,7 +2852,7 @@ Trend Mall`;
         (img ? '<a class="ad-thumb-canvas" href="' + url + '" target="_blank" rel="noopener"><img src="' + img + '" alt="إعلان" loading="lazy" style="' + escapeHtml(adTransformStyle(ad)) + '"></a>' : '') +
         '<div><b>إعلان واجهة العملاء</b>' +
         '<span>مفعل: ' + escapeHtml(active || "نعم") + '</span>' +
-        '<small>المكان: ' + escapeHtml(adPlacement(ad) === 'marketplace' ? 'قبل سوق مطبعجي' : (adPlacement(ad) === 'branches' ? 'قبل فروع مطبعجي' : 'أعلى الواجهة')) + '</small>' +
+        '<small>المكان: ' + escapeHtml(adPlacement(ad) === 'marketplace' ? 'قبل كتالوج Trend Mall' : (adPlacement(ad) === 'branches' ? 'قبل الفروع ومقدمي الخدمات' : 'أعلى الواجهة')) + '</small>' +
         '<small>تكبير: ' + escapeHtml(ad.scale || 1) + ' | إزاحة: ' + escapeHtml(ad.offsetX || 0) + ' / ' + escapeHtml(ad.offsetY || 0) + '</small>' +
         '<small>' + escapeHtml(ad.createdAt || "") + '</small></div>' +
         '<div class="platform-ad-actions"><button type="button" class="danger small delete-platform-ad" data-ad-id="' + adId + '">حذف الإعلان</button></div>' +
@@ -2865,7 +2865,7 @@ Trend Mall`;
 
   function adPlacement(ad) {
     const p = text(ad && (ad.placement || ad.adPlacement || ad["مكان الإعلان"] || "top")).trim();
-    if (p === "marketplace" || p === "قبل سوق مطبعجي") return "marketplace";
+    if (p === "marketplace" || p === "قبل سوق مطبعجي" || p === "قبل كتالوج Trend Mall") return "marketplace";
     if (p === "branches" || p === "قبل فروع مطبعجي") return "branches";
     return "top";
   }
@@ -3240,7 +3240,7 @@ Trend Mall`;
     const board = $("customerMarketplaceBoard");
     if (!board) return;
     const vendors = (state.marketplaceVendors || []).filter(function (v) { return (v.active || "نعم") !== "لا"; });
-    if (!vendors.length) { board.innerHTML = '<div class="hint">سوق مطبعجي قيد التجهيز.</div>'; return; }
+    if (!vendors.length) { board.innerHTML = '<div class="hint">كتالوج Trend Mall قيد التجهيز.</div>'; return; }
     board.innerHTML = vendors.map(function (v, i) {
       const img = marketVendorImage(v);
       return '<button type="button" class="market-vendor-card" data-vendor-index="' + i + '">' +
@@ -3285,7 +3285,7 @@ Trend Mall`;
     if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft();
     renderCustomerHome();
     const item = $("customerOrderItem"); if (item) item.value = product.productName || "";
-    const notes = $("customerOrderNotes"); if (notes) notes.value = "طلب من سوق مطبعجي: " + (vendor.vendorName || "") + (product.price ? " | السعر المبدئي: " + product.price + " ج" : "");
+    const notes = $("customerOrderNotes"); if (notes) notes.value = "طلب من كتالوج Trend Mall: " + (vendor.vendorName || "") + (product.price ? " | السعر المبدئي: " + product.price + " ج" : "");
     refreshCustomerPendingPreview();
   }
 
@@ -3792,7 +3792,7 @@ Trend Mall`;
       const selectedVendor = state.customerSelectedMarketVendor;
       const selectedProduct = state.customerSelectedMarketProduct;
       const branchNote = selectedBranch ? ("\nفرع مطبعجي المختار: " + branchPublicName(selectedBranch) + " | كود الفرع: " + (selectedBranch.branchCode || "")) : "";
-      const marketNote = selectedVendor ? ("\nسوق مطبعجي: " + (selectedVendor.vendorName || "") + " | كود البائع: " + (selectedVendor.vendorCode || "") + (selectedProduct ? " | المنتج: " + (selectedProduct.productName || "") : "")) : "";
+      const marketNote = selectedVendor ? ("\nكتالوج Trend Mall: " + (selectedVendor.vendorName || "") + " | كود البائع: " + (selectedVendor.vendorCode || "") + (selectedProduct ? " | المنتج: " + (selectedProduct.productName || "") : "")) : "";
       const res = await api("addCustomerDraftItem", customerAuthParams({
         draftId: draftId,
         department: dep,
@@ -3811,7 +3811,7 @@ Trend Mall`;
         department: dep,
         itemName: itemName || (files.length ? "ملفات مرفوعة" : "بند جديد"),
         qty: qty,
-        notes: notes + (state.customerSelectedFranchise ? ("\nفرع مطبعجي المختار: " + branchPublicName(state.customerSelectedFranchise)) : "") + (state.customerSelectedMarketVendor ? ("\nسوق مطبعجي: " + (state.customerSelectedMarketVendor.vendorName || "")) : ""),
+        notes: notes + (state.customerSelectedFranchise ? ("\nمقدم الخدمة المختار: " + branchPublicName(state.customerSelectedFranchise)) : "") + (state.customerSelectedMarketVendor ? ("\nكتالوج Trend Mall: " + (state.customerSelectedMarketVendor.vendorName || "")) : ""),
         heatPress: heatPress,
         flyPrint: flyPrint,
         files: uploaded
@@ -3872,7 +3872,7 @@ Trend Mall`;
   function buildCustomerOrderSeparator(orderId, department, itemText) {
     const c = state.customer || {};
     return [
-      "✅ فاصل أوردر منصة مطبعجي بنها",
+      "✅ فاصل طلب Trend Mall",
       "كود الشات: " + (c.customerCode || "-"),
       "اسم الشات: " + (c.name || "-"),
       "رقم الأوردر: " + (orderId || "-"),
@@ -7166,7 +7166,7 @@ Trend Mall`;
   }
 
   function openMatbagySheetsTool() {
-    patch19OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات", { tool: "sheets" });
+    patch19OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "Trend Mall شيتات", { tool: "sheets" });
   }
 
   function patch19OpenEasyStoreAccounting() {
@@ -7424,7 +7424,7 @@ Trend Mall`;
   }
 
   openMatbagySheetsTool = function () {
-    patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات", {
+    patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "Trend Mall شيتات", {
       tool: "sheets",
       openWithoutPhone: "1",
       bypassPhoneVerification: "1",
@@ -7564,9 +7564,9 @@ Trend Mall`;
     bind("refreshBtn", patch23ReloadOrders, "تحديث الأوردرات والمتابعة الآن");
     bind("matbagySheetsBtn", function(){
       if (typeof openMatbagySheetsTool === "function") return openMatbagySheetsTool();
-      if (typeof patch22OpenEmployeeTool === "function") return patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات", { noPhone:"1", noActivation:"1", bypassPhoneVerification:"1" });
-      return openEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "مطبعجي شيتات");
-    }, "فتح مطبعجي شيتات بدون تليفون أو تفعيل للموظف");
+      if (typeof patch22OpenEmployeeTool === "function") return patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "Trend Mall شيتات", { noPhone:"1", noActivation:"1", bypassPhoneVerification:"1" });
+      return openEmployeeTool(window.MATBAGY_SHEETS_URL, "Matbagy_Sheets", "Trend Mall شيتات");
+    }, "فتح Trend Mall شيتات بدون تليفون أو تفعيل للموظف");
     bind("matbagyRotetBtn", function(){
       if (typeof openMatbagyRotetTool === "function") return openMatbagyRotetTool();
       return openEmployeeTool(window.MATBAGY_ROTET_URL, "Matbagy_Rotet", "روتيت مطبعجي");
@@ -7682,12 +7682,12 @@ Trend Mall`;
 
   function batch24OpenSheetsNoActivation(){
     if (typeof patch22OpenEmployeeTool === 'function') {
-      return patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, 'Matbagy_Sheets', 'مطبعجي شيتات', {
+      return patch22OpenEmployeeTool(window.MATBAGY_SHEETS_URL, 'Matbagy_Sheets', 'Trend Mall شيتات', {
         tool:'sheets', sso:'1', employeeSSO:'1', skipLogin:'1', noPhone:'1', noActivation:'1',
         openWithoutPhone:'1', bypassPhoneVerification:'1', bypassActivation:'1', employeePortal:'1'
       });
     }
-    return openEmployeeTool(window.MATBAGY_SHEETS_URL, 'Matbagy_Sheets', 'مطبعجي شيتات');
+    return openEmployeeTool(window.MATBAGY_SHEETS_URL, 'Matbagy_Sheets', 'Trend Mall شيتات');
   }
   openMatbagySheetsTool = batch24OpenSheetsNoActivation;
 
@@ -8586,7 +8586,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   window.MATBAGY_BUILD_VERSION=BUILD;
   window.MATBAGY_BATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
   function lock(){
-    try{document.title='منصة مطبعجي بنها '+BUILD;}catch(e){}
+    try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
     try{window.TRENDOS_PATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';}catch(e){}
     document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(function(el){el.textContent=LOCK;});
   }
@@ -8990,7 +8990,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   document.addEventListener('click',function(ev){ var t=ev.target; if(t && t.closest && t.closest('#invoiceItemSelect,#invoiceModal,.wa-invoice-pricing,.invoice-open')){ setTimeout(wrapOpenInvoice,50); setTimeout(wireInvoiceCatalog,450); } },true);
 
   function lockVersion(){
-    try{ document.title='منصة مطبعجي بنها '+BUILD; }catch(e){}
+    try{ document.title='Trend Mall | فكرتك جاهزة'; }catch(e){}
     document.querySelectorAll('.version-badge').forEach(function(el){ el.textContent=LOCK; });
   }
   function boot(){ wireAddOrderDebt(); wrapOpenInvoice(); lockVersion(); setTimeout(wireInvoiceCatalog,1200); }
@@ -9203,7 +9203,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 
   function openSheetsV1897() {
     if (!canOpenSheetsV1897()) {
-      alert("مطبعجي شيتات متاح لحساب ضياء ووائل فقط.");
+      alert("Trend Mall شيتات متاح لحساب ضياء ووائل فقط.");
       return false;
     }
 
@@ -9224,7 +9224,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 
   window.openMatbagySheetsTool = function () {
     if (!canOpenSheetsV1897()) {
-      alert("مطبعجي شيتات متاح لحساب ضياء ووائل فقط.");
+      alert("Trend Mall شيتات متاح لحساب ضياء ووائل فقط.");
       return false;
     }
 
@@ -9242,7 +9242,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   function applyFiberAndSheetsRoleLock() {
     var sheetsBtn = makeToolButton(
       "matbagySheetsBtn",
-      "📊 مطبعجي شيتات",
+      "📊 Trend Mall شيتات",
       "remoteFilesBtn",
       openSheetsV1897
     );
@@ -9255,7 +9255,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     );
 
     if (sheetsBtn) {
-      sheetsBtn.title = "مطبعجي شيتات - يظهر لضياء ووائل فقط";
+      sheetsBtn.title = "Trend Mall شيتات - يظهر لضياء ووائل فقط";
       setButtonVisible(sheetsBtn, canOpenSheetsV1897());
     }
 
