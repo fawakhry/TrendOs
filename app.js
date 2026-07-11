@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1898_BASIC_OPERATIONS_CLEANUP';
+  const UI_VERSION = 'V1900_BULK_DELIVER_READY_PICKUP';
 
   const screens = {
     service: "خدمة العملاء",
@@ -9828,3 +9828,171 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   }
 })();
 
+
+
+/*********************** V1900 - Bulk Deliver Ready Pickup Button ***********************/
+(function () {
+  "use strict";
+
+  window.TRENDOS_PATCH_VERSION = "V1900_BULK_DELIVER_READY_PICKUP";
+  window.MATBAGY_V1900_BULK_DELIVER_READY_PICKUP = true;
+
+  function $(id) { return document.getElementById(id); }
+  function text(value) { return String(value == null ? "" : value); }
+  function norm(value) {
+    return text(value)
+      .toLowerCase()
+      .replace(/[إأآا]/g, "ا")
+      .replace(/[ى]/g, "ي")
+      .replace(/[ؤ]/g, "و")
+      .replace(/[ئ]/g, "ي")
+      .replace(/[ةه]/g, "ه")
+      .replace(/[^\u0600-\u06FFa-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function safeLocal(key) {
+    try { return localStorage.getItem(key) || ""; } catch (e) { return ""; }
+  }
+  function liveUser() {
+    var st = window.state || window.trendosState || {};
+    return st.user || {};
+  }
+  function userBlob() {
+    var u = liveUser();
+    return norm([
+      u.username, u.name, u.role, u.department,
+      safeLocal("matbagy_username"), safeLocal("matbagy_user_name"), safeLocal("trendos_session")
+    ].join(" "));
+  }
+  function isDiaa() {
+    var b = userBlob();
+    return /ضياء|diaa|admin/.test(b);
+  }
+  function authParams(extra) {
+    var u = liveUser();
+    return Object.assign({
+      username: u.username || u.name || safeLocal("matbagy_username") || safeLocal("matbagy_user_name") || "",
+      token: u.token || safeLocal("matbagy_session_token") || ""
+    }, extra || {});
+  }
+  function api(action, params) {
+    return new Promise(function (resolve, reject) {
+      var base = text(window.TREND_API_URL || window.API_URL).trim();
+      if (!base) { reject(new Error("رابط Web App غير موجود في config.js")); return; }
+      var cb = "trendos_v1900_cb_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
+      var script = document.createElement("script");
+      var timer = setTimeout(function () { cleanup(); reject(new Error("انتهت مهلة الاتصال بالسيرفر.")); }, 90000);
+      function cleanup() {
+        clearTimeout(timer);
+        try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+        if (script && script.parentNode) script.parentNode.removeChild(script);
+      }
+      window[cb] = function (data) { cleanup(); resolve(data || {}); };
+      script.onerror = function () { cleanup(); reject(new Error("فشل الاتصال بالسيرفر. ارفع Apps Script V1900 ثم جرّب تاني.")); };
+      var url = new URL(base, location.href);
+      url.searchParams.set("action", action);
+      url.searchParams.set("callback", cb);
+      Object.keys(params || {}).forEach(function (key) {
+        if (params[key] !== undefined && params[key] !== null) url.searchParams.set(key, params[key]);
+      });
+      script.src = url.toString();
+      document.body.appendChild(script);
+    });
+  }
+  function holder() {
+    return document.querySelector(".top-actions") ||
+      document.querySelector("header .actions") ||
+      document.querySelector(".topbar .actions") ||
+      document.querySelector(".topbar") ||
+      document.body;
+  }
+  function ensureBulkDeliverReadyButton() {
+    var host = holder();
+    if (!host) return;
+    var btn = $("bulkDeliverReadyBtn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "bulkDeliverReadyBtn";
+      btn.type = "button";
+      btn.className = "ghost quick-tool-btn bulk-deliver-ready-btn";
+      btn.textContent = "✅ تسليم كل الجاهز";
+      var after = $("refreshBtn") || $("leadHunterBtn") || $("cleanupPreviewBtn");
+      if (after && after.parentNode) after.parentNode.insertBefore(btn, after.nextSibling);
+      else host.appendChild(btn);
+    }
+    btn.textContent = "✅ تسليم كل الجاهز";
+    btn.title = "ضياء فقط: تحويل كل أوردرات جاهز للاستلام / في قسم التسليمات إلى تم التسليم بضغطة واحدة";
+    btn.classList.toggle("hidden", !isDiaa());
+    btn.style.display = isDiaa() ? "" : "none";
+    btn.onclick = bulkDeliverReadyPickup;
+  }
+  function resultText(res, prefix) {
+    return (prefix || "") +
+      "\nالأوردرات: " + (res.ordersCount || 0) +
+      "\nالبنود: " + (res.linesCount || 0) +
+      (res.sampleOrders && res.sampleOrders.length ? "\nأمثلة أوردرات: " + res.sampleOrders.join("، ") : "") +
+      (res.message ? "\n" + res.message : "");
+  }
+  async function bulkDeliverReadyPickup() {
+    if (!isDiaa()) {
+      alert("زر تسليم كل الجاهز متاح لحساب ضياء فقط.");
+      return false;
+    }
+    var btn = $("bulkDeliverReadyBtn");
+    var oldText = btn ? btn.textContent : "";
+    try {
+      if (btn) { btn.disabled = true; btn.textContent = "جاري فحص الجاهز..."; }
+      var preview = await api("previewReadyPickupDelivery", authParams({}));
+      if (!preview || !preview.success) {
+        alert((preview && preview.message) || "تعذر فحص الأوردرات الجاهزة.");
+        return false;
+      }
+      if (!preview.ordersCount && !preview.linesCount) {
+        alert("لا توجد أوردرات جاهزة للاستلام حالياً.");
+        return false;
+      }
+      var ok = confirm(resultText(preview, "سيتم تحويل كل الجاهز للاستلام إلى تم التسليم.") + "\n\nهل تريد التنفيذ الآن؟");
+      if (!ok) return false;
+      if (btn) btn.textContent = "جاري التحويل...";
+      var res = await api("deliverReadyPickupBulk", authParams({ confirm: "DELIVER_READY_PICKUP" }));
+      if (!res || !res.success) {
+        alert((res && res.message) || "فشل تحويل الجاهز إلى تم التسليم.");
+        return false;
+      }
+      alert(resultText(res, "تم تحويل الجاهز للاستلام إلى تم التسليم."));
+      try { if (typeof loadDashboard === "function") loadDashboard(true); } catch (e) {}
+      try { if (typeof loadRows === "function") loadRows(); } catch (e2) {}
+      try { var r = $("refreshBtn"); if (r) r.click(); } catch (e3) {}
+      return true;
+    } catch (err) {
+      alert((err && err.message) || "حصل خطأ أثناء تحويل الجاهز.");
+      return false;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = oldText || "✅ تسليم كل الجاهز"; ensureBulkDeliverReadyButton(); }
+    }
+  }
+
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target && ev.target.closest ? ev.target.closest("#bulkDeliverReadyBtn") : null;
+    if (!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    bulkDeliverReadyPickup();
+    return false;
+  }, true);
+
+  function boot() {
+    ensureBulkDeliverReadyButton();
+    setTimeout(ensureBulkDeliverReadyButton, 300);
+    setTimeout(ensureBulkDeliverReadyButton, 1000);
+    setTimeout(ensureBulkDeliverReadyButton, 2500);
+    if (window.MutationObserver && document.body && !document.body.__trendosV1900BulkDeliverObserver) {
+      document.body.__trendosV1900BulkDeliverObserver = true;
+      new MutationObserver(function () { ensureBulkDeliverReadyButton(); }).observe(document.body, { childList: true, subtree: true });
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
