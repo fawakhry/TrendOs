@@ -4,11 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Trend Mall | فكرتك جاهزة</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=trendos-v1901-no-hang">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1901-no-hang">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1902-firefox-stable">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1902-firefox-stable">
+
+  <style id="trendos-v1902-text-failsafe">
+    html, body, .app, .card, .login-card, .tm-brand-header, .topbar, button, input, select, textarea, label, h1, h2, h3, h4, p, span, b, small {
+      font-family: Tahoma, Arial, sans-serif !important;
+      text-rendering: auto !important;
+    }
+    .login-card h1, .login-card label, .login-card p, .login-card .msg, .login-card button, .tm-brand-copy b, .tm-brand-copy span, .tm-logo-mark {
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    .login-card h1, .login-card label { color: #111111 !important; }
+    .login-card p, .login-card .msg { color: #8A8F98 !important; }
+    .primary { color: #FFFFFF !important; }
+    .ghost { color: #111111 !important; }
+    .tm-brand-copy b, .tm-brand-copy span, .tm-logo-mark { color: #FFFFFF !important; }
+  </style>
 </head>
 <body>
 <main class="app">
@@ -37,7 +50,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1901 No Hang Fix</p>
+    <p class="version-badge">TrendOS V1902 Firefox Stable</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -80,7 +93,7 @@
       <div>
         <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1901 No Hang Fix</p>
+        <p class="version-badge">TrendOS V1902 Firefox Stable</p>
         <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
       </div>
       <div class="top-actions">
@@ -720,7 +733,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">TrendOS V1901 No Hang Fix</p>
+        <p class="version-badge">TrendOS V1902 Firefox Stable</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1223,21 +1236,21 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1901-no-hang"></script>
-<script src="app.js?v=trendos-v1901-no-hang"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1901-no-hang"></script>
+<script src="config.js?v=trendos-v1902-firefox-stable" defer></script>
+<script src="app.js?v=trendos-v1902-firefox-stable" defer></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1902-firefox-stable" defer></script>
 
 <script>
 (function(){
   'use strict';
   // V1901 NO-HANG: تم إلغاء مراقبة تغييرات DOM الثقيلة التي كانت تسبب تهنيج Firefox.
-  var BUILD = 'TrendOS V1901 No Hang Fix';
-  var CACHE_TAG = 'trendos-v1901-no-hang';
+  var BUILD = 'TrendOS V1902 Firefox Stable';
+  var CACHE_TAG = 'trendos-v1902-firefox-stable';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
-  window.TRENDOS_PATCH_VERSION = 'V1901_NO_HANG_FRONTEND';
+  window.TRENDOS_PATCH_VERSION = 'V1902_FIREFOX_STABLE';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
   window.MATBAGY_BUILD_VERSION = BUILD;
-  window.MATBAGY_BATCH_VERSION = 'V1901_NO_HANG_FRONTEND';
+  window.MATBAGY_BATCH_VERSION = 'V1902_FIREFOX_STABLE';
   window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
   try {
     document.title = 'Trend Mall | فكرتك جاهزة';

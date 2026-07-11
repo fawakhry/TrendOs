@@ -734,3 +734,12 @@ tr:hover td{
     font-size:22px!important;
   }
 }
+
+
+/* V1902 Firefox text fail-safe */
+html,body,.app,.card,.login-card,.tm-brand-header,.topbar,button,input,select,textarea,label,h1,h2,h3,h4,p,span,b,small{font-family:Tahoma,Arial,sans-serif!important;text-rendering:auto!important;}
+.login-card h1,.login-card label{color:#111111!important;opacity:1!important;visibility:visible!important;}
+.login-card p,.login-card .msg{color:#8A8F98!important;opacity:1!important;visibility:visible!important;}
+.primary{color:#FFFFFF!important;}
+.ghost{color:#111111!important;}
+.tm-brand-copy b,.tm-brand-copy span,.tm-logo-mark{color:#FFFFFF!important;opacity:1!important;visibility:visible!important;}

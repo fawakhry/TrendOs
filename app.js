@@ -9403,13 +9403,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     setTimeout(applyFiberAndSheetsRoleLock, 3200);
     setTimeout(applyFiberAndSheetsRoleLock, 5200);
 
-    if (window.MutationObserver && document.body && !document.body.__trendosV1897FiberObserver) {
-      document.body.__trendosV1897FiberObserver = true;
-      new MutationObserver(scheduleApply).observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-    }
+    // V1902: MutationObserver disabled to prevent Firefox hang.
   }
 
   if (document.readyState === "loading") {
@@ -9586,10 +9580,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     mountCleanupCard(); normalizeStatusSelects(); updateCleanupVisibility(); bindClickableFilters();
     setTimeout(function(){ normalizeStatusSelects(); updateCleanupVisibility(); },400);
     setTimeout(function(){ normalizeStatusSelects(); updateCleanupVisibility(); },1400);
-    if(window.MutationObserver && document.body && !document.body.__trendosV1898OpsObserver){
-      document.body.__trendosV1898OpsObserver=true;
-      new MutationObserver(function(){ normalizeStatusSelects(); updateCleanupVisibility(); }).observe(document.body,{childList:true,subtree:true});
-    }
+    // V1902: MutationObserver disabled to prevent repeated DOM loops in Firefox.
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
@@ -9812,13 +9803,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     setTimeout(applyLeadHunterRoleLock, 1800);
     setTimeout(applyLeadHunterRoleLock, 3200);
 
-    if (window.MutationObserver && document.body && !document.body.__trendosV1899LeadHunterObserver) {
-      document.body.__trendosV1899LeadHunterObserver = true;
-      new MutationObserver(scheduleApply).observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-    }
+    // V1902: MutationObserver disabled to prevent Firefox hang.
   }
 
   if (document.readyState === "loading") {
@@ -9988,10 +9973,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     setTimeout(ensureBulkDeliverReadyButton, 300);
     setTimeout(ensureBulkDeliverReadyButton, 1000);
     setTimeout(ensureBulkDeliverReadyButton, 2500);
-    if (window.MutationObserver && document.body && !document.body.__trendosV1900BulkDeliverObserver) {
-      document.body.__trendosV1900BulkDeliverObserver = true;
-      new MutationObserver(function () { ensureBulkDeliverReadyButton(); }).observe(document.body, { childList: true, subtree: true });
-    }
+    // V1902: MutationObserver disabled to prevent Firefox hang.
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
