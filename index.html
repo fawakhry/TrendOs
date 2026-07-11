@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=trendos-v1900-clean-checkup">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1900-clean-checkup">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1901-no-hang">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1901-no-hang">
 </head>
 <body>
 <main class="app">
@@ -37,7 +37,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1900 Clean Checkup</p>
+    <p class="version-badge">TrendOS V1901 No Hang Fix</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -80,7 +80,7 @@
       <div>
         <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1900 Clean Checkup</p>
+        <p class="version-badge">TrendOS V1901 No Hang Fix</p>
         <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
       </div>
       <div class="top-actions">
@@ -720,7 +720,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">TrendOS V1900 Clean Checkup</p>
+        <p class="version-badge">TrendOS V1901 No Hang Fix</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1223,60 +1223,40 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1900-clean-checkup"></script>
-<script src="app.js?v=trendos-v1900-clean-checkup"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1900-clean-checkup"></script>
+<script src="config.js?v=trendos-v1901-no-hang"></script>
+<script src="app.js?v=trendos-v1901-no-hang"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1901-no-hang"></script>
 
 <script>
 (function(){
   'use strict';
-  var LOCK = 'Trend Mall | فكرتك جاهزة';
-  var BUILD = 'TrendOS V1900 Clean Checkup';
-  var CACHE_TAG = 'trendos-v1900-clean-checkup';
+  // V1901 NO-HANG: تم إلغاء مراقبة تغييرات DOM الثقيلة التي كانت تسبب تهنيج Firefox.
+  var BUILD = 'TrendOS V1901 No Hang Fix';
+  var CACHE_TAG = 'trendos-v1901-no-hang';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
-  window.TRENDOS_PATCH_VERSION = 'V1900_BULK_DELIVER_READY';
+  window.TRENDOS_PATCH_VERSION = 'V1901_NO_HANG_FRONTEND';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
   window.MATBAGY_BUILD_VERSION = BUILD;
-  window.MATBAGY_BATCH_VERSION = 'V1900_BULK_DELIVER_READY';
+  window.MATBAGY_BATCH_VERSION = 'V1901_NO_HANG_FRONTEND';
   window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
-  try{
+  try {
+    document.title = 'Trend Mall | فكرتك جاهزة';
     localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
     localStorage.setItem('TRENDOS_CACHE_TAG', CACHE_TAG);
-    ['TRENDOS_LAST_VERSION','TRENDOS_OLD_VERSION','MATBAGY_OLD_VERSION','MATBAGY_VERSION_MIX_WARNING'].forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
-    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function(regs){ regs.forEach(function(r){try{r.unregister();}catch(e){}}); });
-    if (window.caches && caches.keys) caches.keys().then(function(keys){ keys.forEach(function(k){ if(/trendos|matbagy|workbox|cache/i.test(k)) caches.delete(k); }); });
-  }catch(e){}
-  function stableText(el){
-    if(!el) return;
-    var t = el.textContent || '';
-    if(/V18\d{2}|ES\d+|Batch|Patch|Ledger|Accounting Manager|Proof Copy|Stable/.test(t) || el.classList.contains('version-badge')){
-      el.textContent = LOCK;
-    }
-  }
-  function lockVersion(){
-    try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
-    try{window.TRENDOS_PATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';}catch(e){}
-    document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(stableText);
-    document.querySelectorAll('p,small,span,div,b,h1,h2,h3').forEach(function(el){
-      if(el.children && el.children.length>0) return;
-      var t=el.textContent||'';
-      if(t.length<180 && /(V185|V186|V187|V188[0-8]|ES1\d|ES2\d|ES31|Ledger Fix|Accounting Manager|Batch 25|Proof Copy)/i.test(t)){
-        el.textContent = t.replace(/مطبعجي مصر\s*V18\d{2}\s*-\s*ES\d+[^
-]*/gi, LOCK)
-          .replace(/TrendOS\s*V18\d{2}[^
-]*/gi, BUILD)
-          .replace(/V18\d{2}\s*[-+\/]?\s*ES\d+[^
-]*/gi, 'V1893')
-          .replace(/Batch\s*\d+[^
-]*/gi, BUILD)
-          .replace(/Ledger Fix|Accounting Manager|Proof Copy/gi, 'Stable Version Lock');
-      }
+    ['TRENDOS_LAST_VERSION','TRENDOS_OLD_VERSION','MATBAGY_OLD_VERSION','MATBAGY_VERSION_MIX_WARNING'].forEach(function(k){
+      try { localStorage.removeItem(k); } catch(e) {}
     });
-  }
-  document.addEventListener('DOMContentLoaded', lockVersion);
-  lockVersion();
-  [50,150,300,700,1200,1800,2600,4000].forEach(function(ms){setTimeout(lockVersion,ms);});
-  try{ new MutationObserver(function(){ lockVersion(); }).observe(document.documentElement, {childList:true,subtree:true,characterData:true}); }catch(e){}
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs){
+        regs.forEach(function(r){ try { r.unregister(); } catch(e) {} });
+      });
+    }
+    if (window.caches && caches.keys) {
+      caches.keys().then(function(keys){
+        keys.forEach(function(k){ if (/trendos|matbagy|workbox|cache/i.test(k)) caches.delete(k); });
+      });
+    }
+  } catch(e) {}
 })();
 </script>
 
