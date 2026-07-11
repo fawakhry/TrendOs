@@ -1,6 +1,7 @@
 // TrendOS / Matbagy Benha - CLEAN CONFIG V1885 - ROLLBACK BASE + PROOF COPY
 // ارفع هذا الملف مع نسخة V1885 المبنية على ملفك الأصلي فقط. لا تترك config قديم في الريبو.
-window.TREND_API_URL = "https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec";
+window.TREND_API_URL = "https://script.google.com/macros/s/AKfycby5vuEoMEqpCEvEz8uZOnMGcVUNXJEwk19KX9Gka1_HPzUDi62VUKMTO5qUaeHFv9HXCA/exec";
+window.API_URL = window.TREND_API_URL;
 
 // ملفات مطبعجي داخل شبكة المطبعة حالياً على IP جهاز السيرفر.
 // بعد Cloudflare Tunnel غيّر السطرين إلى: https://files.matbagy.com
@@ -36,14 +37,14 @@ window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
 // Clean build flags
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1900 Bulk Deliver Ready';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1900 Bulk Deliver Ready - API FIX';
 window.MATBAGY_BATCH_VERSION = 'V1900_BULK_DELIVER_READY';
 window.MATBAGY_PATCH29_DEPT_INVOICE = false;
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
 window.MATBAGY_EASYSTORE_FIX5 = false;
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1900_BULK_DELIVER_READY';
+window.MATBAGY_UI_THEME_VERSION = 'V1900_BULK_DELIVER_READY_API_FIXED';
 
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 
