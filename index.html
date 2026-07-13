@@ -4,24 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Trend Mall | فكرتك جاهزة</title>
-  <link rel="stylesheet" href="styles.css?v=trendos-v1902-firefox-stable">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1902-firefox-stable">
-
-  <style id="trendos-v1902-text-failsafe">
-    html, body, .app, .card, .login-card, .tm-brand-header, .topbar, button, input, select, textarea, label, h1, h2, h3, h4, p, span, b, small {
-      font-family: Tahoma, Arial, sans-serif !important;
-      text-rendering: auto !important;
-    }
-    .login-card h1, .login-card label, .login-card p, .login-card .msg, .login-card button, .tm-brand-copy b, .tm-brand-copy span, .tm-logo-mark {
-      visibility: visible !important;
-      opacity: 1 !important;
-    }
-    .login-card h1, .login-card label { color: #111111 !important; }
-    .login-card p, .login-card .msg { color: #8A8F98 !important; }
-    .primary { color: #FFFFFF !important; }
-    .ghost { color: #111111 !important; }
-    .tm-brand-copy b, .tm-brand-copy span, .tm-logo-mark { color: #FFFFFF !important; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1898-basic-operations-cleanup">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1898-basic-operations-cleanup">
 </head>
 <body>
 <main class="app">
@@ -50,7 +37,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1902 Firefox Stable</p>
+    <p class="version-badge">TrendOS V1898 Basic Operations + Cleanup</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -93,7 +80,7 @@
       <div>
         <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1902 Firefox Stable</p>
+        <p class="version-badge">TrendOS V1898 Basic Operations + Cleanup</p>
         <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
       </div>
       <div class="top-actions">
@@ -103,7 +90,6 @@
         <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
         <button id="matbagyNoteBtn" class="ghost quick-tool-btn note-btn" type="button">📝 نوت مطبعجي</button>
         <button id="accountingBtn" class="ghost quick-tool-btn accounting-btn" type="button">💰 حسابات مطبعجي</button>
-        <button id="leadHunterBtn" class="ghost quick-tool-btn lead-hunter-btn hidden" type="button">🕵️ مراقب مطبعجى</button>
         <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
         <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
         <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
@@ -591,24 +577,32 @@
       </div>
 
       <div class="hint strong-hint">
-        المطلوب الأساسي لإضافة الأوردر: <b>اسم الشات</b> و <b>القسم</b> فقط. باقي البيانات اختيارية ويمكن استكمالها لاحقاً.
+        للعميل المسجل: اكتب اسم الشات. للعميل الخارجي / العابر: اكتب 3 أرقام أو رقم كامل فقط ولن يتم حفظه في شيت العملاء.
       </div>
 
       <div class="form-grid">
+        <div>
+          <label>نوع إدخال العميل</label>
+          <select id="newCustomerMode">
+            <option value="registered" selected>عميل مسجل</option>
+            <option value="external">عميل خارجي / عابر</option>
+          </select>
+        </div>
+
         <div class="suggest-box">
-          <label>اسم العميل / الشات <span class="req">*</span></label>
+          <label>اسم العميل / الشات</label>
           <input id="newCustomerName" placeholder="ابدأ بكتابة أول حرف من اسم الشات" autocomplete="off">
           <div id="customerSuggestions" class="suggestions hidden"></div>
         </div>
 
         <div>
-          <label>رقم العميل الخارجي</label>
-          <input id="newCustomerPhone" inputmode="tel" placeholder="اختياري">
+          <label>رقم / آخر أرقام / علامة العميل</label>
+          <input id="newCustomerPhone" inputmode="tel" placeholder="اختياري للعميل المسجل - 3 أرقام فأكثر للعميل الخارجي">
         </div>
 
         <div>
           <label>نوع العميل</label>
-          <input id="newCustomerType" placeholder="اختياري">
+          <input id="newCustomerType" placeholder="اختياري - يملأ تلقائياً للعميل الخارجي">
         </div>
 
         <div>
@@ -733,7 +727,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-        <p class="version-badge">TrendOS V1902 Firefox Stable</p>
+        <p class="version-badge">TrendOS V1898 Basic Operations + Cleanup</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1236,40 +1230,60 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1902-firefox-stable" defer></script>
-<script src="app.js?v=trendos-v1902-firefox-stable" defer></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1902-firefox-stable" defer></script>
+<script src="config.js?v=trendos-v1898-basic-operations-cleanup"></script>
+<script src="app.js?v=trendos-v1898-basic-operations-cleanup"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1898-basic-operations-cleanup"></script>
 
 <script>
 (function(){
   'use strict';
-  // V1901 NO-HANG: تم إلغاء مراقبة تغييرات DOM الثقيلة التي كانت تسبب تهنيج Firefox.
-  var BUILD = 'TrendOS V1902 Firefox Stable';
-  var CACHE_TAG = 'trendos-v1902-firefox-stable';
+  var LOCK = 'Trend Mall | فكرتك جاهزة';
+  var BUILD = 'TrendOS V1898 Basic Operations + Cleanup';
+  var CACHE_TAG = 'trendos-v1898-basic-operations-cleanup';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
-  window.TRENDOS_PATCH_VERSION = 'V1902_FIREFOX_STABLE';
+  window.TRENDOS_PATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
   window.MATBAGY_BUILD_VERSION = BUILD;
-  window.MATBAGY_BATCH_VERSION = 'V1902_FIREFOX_STABLE';
+  window.MATBAGY_BATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
   window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
-  try {
-    document.title = 'Trend Mall | فكرتك جاهزة';
+  try{
     localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
     localStorage.setItem('TRENDOS_CACHE_TAG', CACHE_TAG);
-    ['TRENDOS_LAST_VERSION','TRENDOS_OLD_VERSION','MATBAGY_OLD_VERSION','MATBAGY_VERSION_MIX_WARNING'].forEach(function(k){
-      try { localStorage.removeItem(k); } catch(e) {}
+    ['TRENDOS_LAST_VERSION','TRENDOS_OLD_VERSION','MATBAGY_OLD_VERSION','MATBAGY_VERSION_MIX_WARNING'].forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function(regs){ regs.forEach(function(r){try{r.unregister();}catch(e){}}); });
+    if (window.caches && caches.keys) caches.keys().then(function(keys){ keys.forEach(function(k){ if(/trendos|matbagy|workbox|cache/i.test(k)) caches.delete(k); }); });
+  }catch(e){}
+  function stableText(el){
+    if(!el) return;
+    var t = el.textContent || '';
+    if(/V18\d{2}|ES\d+|Batch|Patch|Ledger|Accounting Manager|Proof Copy|Stable/.test(t) || el.classList.contains('version-badge')){
+      el.textContent = LOCK;
+    }
+  }
+  function lockVersion(){
+    try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';}catch(e){}
+    document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(stableText);
+    document.querySelectorAll('p,small,span,div,b,h1,h2,h3').forEach(function(el){
+      if(el.children && el.children.length>0) return;
+      var t=el.textContent||'';
+      if(t.length<180 && /(V185|V186|V187|V188[0-8]|ES1\d|ES2\d|ES31|Ledger Fix|Accounting Manager|Batch 25|Proof Copy)/i.test(t)){
+        el.textContent = t.replace(/مطبعجي مصر\s*V18\d{2}\s*-\s*ES\d+[^
+]*/gi, LOCK)
+          .replace(/TrendOS\s*V18\d{2}[^
+]*/gi, BUILD)
+          .replace(/V18\d{2}\s*[-+\/]?\s*ES\d+[^
+]*/gi, 'V1893')
+          .replace(/Batch\s*\d+[^
+]*/gi, BUILD)
+          .replace(/Ledger Fix|Accounting Manager|Proof Copy/gi, 'Stable Version Lock');
+      }
     });
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(regs){
-        regs.forEach(function(r){ try { r.unregister(); } catch(e) {} });
-      });
-    }
-    if (window.caches && caches.keys) {
-      caches.keys().then(function(keys){
-        keys.forEach(function(k){ if (/trendos|matbagy|workbox|cache/i.test(k)) caches.delete(k); });
-      });
-    }
-  } catch(e) {}
+  }
+  document.addEventListener('DOMContentLoaded', lockVersion);
+  lockVersion();
+  [50,150,300,700,1200,1800,2600,4000].forEach(function(ms){setTimeout(lockVersion,ms);});
+  try{ new MutationObserver(function(){ lockVersion(); }).observe(document.documentElement, {childList:true,subtree:true,characterData:true}); }catch(e){}
 })();
 </script>
 
