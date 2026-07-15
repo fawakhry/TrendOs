@@ -17,7 +17,7 @@ window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es33-v1896-debt-addorder-catalog-hard-
 
 // صلاحيات الملفات والأدوات
 window.MATBAGY_FILES_ALLOWED_EMPLOYEES = ['ضياء','جابر','وائل','diaa','gaber','jaber','wael'];
-window.MATBAGY_EMPLOYEE_TOOLS_ALLOWED = ['ضياء','رحمه','رحمة','ريفان','ريڤان','جابر','وائل','diaa','rahma','revan','rivan','gaber','jaber','wael'];
+window.MATBAGY_EMPLOYEE_TOOLS_ALLOWED = ['ضياء','ريفان','ريڤان','وائل','diaa','revan','rivan','wael'];
 window.MATBAGY_LEAD_HUNTER_ALLOWED_EMPLOYEES = ['ضياء','رحمه','رحمة','ريفان','ريڤان','diaa','rahma','revan','rivan'];
 window.MATBAGY_ACCOUNTING_ALLOWED_EMPLOYEES = ['ضياء','رحمه','رحمة','ريفان','ريڤان','وائل','جابر','diaa','rahma','revan','rivan','wael','gaber','jaber'];
 window.MATBAGY_ACCOUNTING_PURCHASE_EMPLOYEES = ['ضياء','رحمه','رحمة','ريفان','ريڤان','diaa','rahma','revan','rivan'];
@@ -38,13 +38,13 @@ window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
 // Clean build flags
 window.MATBAGY_BUILD_VERSION = 'TrendOS V1903 External Customer Safe Order';
-window.MATBAGY_BATCH_VERSION = 'V1903_EXTERNAL_CUSTOMER_SAFE_ORDER';
+window.MATBAGY_BATCH_VERSION = 'V1904_INVOICE_ROWS_ENTER_TAB';
 window.MATBAGY_PATCH29_DEPT_INVOICE = false;
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
 window.MATBAGY_EASYSTORE_FIX5 = false;
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1903_EXTERNAL_CUSTOMER_SAFE_ORDER';
+window.MATBAGY_UI_THEME_VERSION = 'V1904_INVOICE_ROWS_ENTER_TAB';
 
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 
@@ -53,4 +53,12 @@ window.MATBAGY_FIBER_EZCAD_URL = "https://fawakhry.github.io/fiber-auto-max-ezca
 window.MATBAGY_V1900_BULK_DELIVER_READY = true;
 
 // V1903 External / Walk-in customers
-window.MATBAGY_V1903_EXTERNAL_CUSTOMER_SAFE_ORDER = true;
+window.MATBAGY_V1904_INVOICE_ROWS_ENTER_TAB = true;
+
+
+// V1906 Matbagy Sheets Access
+window.MATBAGY_SHEETS_ALLOWED_EMPLOYEES = ['ضياء','ريفان','ريڤان','وائل','diaa','revan','rivan','wael'];
+window.MATBAGY_V1906_SHEETS_ACCESS = true;
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1906 Matbagy Sheets Access';
+window.MATBAGY_BATCH_VERSION = 'V1906_MATBAGY_SHEETS_WAEL_DIAA_REVAN';
+window.MATBAGY_UI_THEME_VERSION = 'V1906_MATBAGY_SHEETS_WAEL_DIAA_REVAN';

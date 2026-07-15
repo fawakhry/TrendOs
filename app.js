@@ -9420,3 +9420,824 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     boot();
   }
 })();
+
+
+/*********************** V1904 - Invoice Rows + Enter/Tab Add Row ***********************/
+(function(){
+  'use strict';
+  window.TRENDOS_PATCH_VERSION = 'V1904_INVOICE_ROWS_ENTER_TAB';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1904 Invoice Rows Enter Tab';
+  window.MATBAGY_V1904_INVOICE_ROWS = true;
+
+  function $(id){ return document.getElementById(id); }
+  function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
+  function norm(v){ return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي'); }
+  function num(v){ var n = parseFloat(String(v == null ? '' : v).replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n) ? n : 0; }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+
+  function injectStyle(){
+    if ($('trendosV1904InvoiceRowsStyle')) return;
+    var css = ''+
+      '#invoiceRowsModal .invoice-rows-card{width:min(1180px,96vw);max-height:92vh;overflow:auto}'+
+      '#invoiceRowsModal .v1904-head-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 14px}'+
+      '#invoiceRowsModal .v1904-head-grid label{display:block;font-weight:800}'+
+      '#invoiceRowsModal .v1904-head-grid input{width:100%}'+
+      '#invoiceRowsModal .v1904-table-wrap{overflow:auto;border:1px solid #dbe7e4;border-radius:18px;background:#fff}'+
+      '#invoiceRowsModal table.v1904-invoice-table{width:100%;border-collapse:collapse;min-width:980px}'+
+      '#invoiceRowsModal .v1904-invoice-table th{position:sticky;top:0;background:#ecfdf5;color:#064e3b;z-index:1;font-weight:900}'+
+      '#invoiceRowsModal .v1904-invoice-table th,#invoiceRowsModal .v1904-invoice-table td{border:1px solid #dbe7e4;padding:8px;text-align:right;vertical-align:middle}'+
+      '#invoiceRowsModal .v1904-invoice-table input,#invoiceRowsModal .v1904-invoice-table select{width:100%;min-height:38px;border:1px solid #cbd5e1;border-radius:10px;padding:7px;background:#fff}'+
+      '#invoiceRowsModal .v1904-invoice-table .v1904-row-no{font-weight:900;text-align:center;color:#0f766e}'+
+      '#invoiceRowsModal .v1904-invoice-table .v1904-total-cell{font-weight:900;color:#0f766e;white-space:nowrap}'+
+      '#invoiceRowsModal .v1904-invoice-table .v1904-del-row{border:0;background:#fee2e2;color:#991b1b;border-radius:10px;padding:8px 10px;cursor:pointer}'+
+      '#invoiceRowsModal .v1904-invoice-table .v1904-shared{transform:scale(1.2);width:auto;min-height:auto}'+
+      '#invoiceRowsModal .v1904-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}'+
+      '#invoiceRowsModal .v1904-summary{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:12px 0;padding:12px;border-radius:16px;background:#ecfeff;border:1px solid #99f6e4;font-weight:900;color:#115e59}'+
+      '#invoiceRowsModal .v1904-shortcut{font-size:13px;color:#475569;font-weight:700}'+
+      '#invoiceRowsModal .v1904-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}'+
+      '#invoiceRowsModal .v1904-actions button{flex:1;min-width:170px}'+
+      '@media(max-width:720px){#invoiceRowsModal .v1904-head-grid{grid-template-columns:1fr}#invoiceRowsModal .invoice-rows-card{width:98vw}}';
+    var st = document.createElement('style'); st.id='trendosV1904InvoiceRowsStyle'; st.textContent=css; document.head.appendChild(st);
+  }
+
+  function sessionUser(){
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem('trendos_session') || '{}').user || {}; } catch(e) { saved = {}; }
+    var u = (window.state && window.state.user) || saved || {};
+    var name = u.name || u.username || localStorage.getItem('matbagy_user_name') || localStorage.getItem('matbagy_username') || '';
+    var raw = [name,u.username,u.role,u.department,localStorage.getItem('matbagy_user_name'),localStorage.getItem('matbagy_username')].join(' ');
+    var isG = /جابر|gaber|jaber|laser|ليزر/i.test(raw);
+    var isW = /وائل|wael|print|طباعة/i.test(raw);
+    return {
+      name:name || (isG?'جابر':isW?'وائل':'ضياء'),
+      username:u.username || u.name || localStorage.getItem('matbagy_username') || localStorage.getItem('matbagy_user_name') || (isG?'جابر':isW?'وائل':'ضياء'),
+      token:u.token || window.sessionToken || localStorage.getItem('matbagy_session_token') || '',
+      department:isG?'ليزر':(isW?'طباعة':(u.department || '')),
+      isGaber:isG,
+      isWael:isW
+    };
+  }
+
+  function apiJsonp(action, params){
+    return new Promise(function(resolve,reject){
+      var base = String(window.TREND_API_URL || window.API_URL || '').trim();
+      if(!base) return reject(new Error('رابط Apps Script غير مضبوط في config.js'));
+      var cb = 'v1904cb_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+      var s = document.createElement('script');
+      var done = false;
+      function clean(){ if(done) return; done=true; try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(s.parentNode) s.parentNode.removeChild(s); }
+      window[cb] = function(res){ clean(); resolve(res || {}); };
+      var u = sessionUser();
+      var q = new URLSearchParams(Object.assign({action:action, callback:cb, username:u.username, name:u.name, token:u.token, department:u.department, mode:u.isGaber?'laser':(u.isWael?'print':'full'), _ts:Date.now()}, params || {}));
+      s.onerror = function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
+      s.src = base + (base.indexOf('?') === -1 ? '?' : '&') + q.toString();
+      document.body.appendChild(s);
+      setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. اعمل تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } }, 90000);
+    });
+  }
+
+  function rowFromButton(btn){
+    var tr = btn && btn.closest && btn.closest('tr');
+    var order = btn ? (btn.getAttribute('data-order') || btn.getAttribute('data-order-id') || '') : '';
+    if(!order && tr){
+      var b = tr.querySelector('.order-cell .order-main b, td:first-child b, [data-order-id]');
+      if(b) order = txt(b.getAttribute('data-order-id') || b.textContent);
+    }
+    var lineId = '';
+    if(tr){ var ol = txt((tr.querySelector('.order-cell')||{}).textContent||''); var m = ol.match(/البند\s*:\s*([^\n]+)/); if(m) lineId = txt(m[1]); }
+    var customer = '';
+    if(tr){ var cb = tr.querySelector('.customer-cell .order-main b, .customer-cell b'); if(cb) customer = txt(cb.textContent); }
+    var phone = '';
+    if(tr){ var ph = tr.querySelector('.phone-line'); if(ph) phone = txt(ph.textContent); }
+    var item = '';
+    if(tr){ var ib = tr.querySelector('.work-cell .order-main b, .work-cell b'); if(ib) item = txt(ib.textContent); }
+    var dept = '';
+    if(tr){ var wt = txt((tr.querySelector('.work-cell')||{}).textContent||''); var dm = wt.match(/القسم\s*:\s*([^\n]+)/); if(dm) dept = txt(dm[1]); }
+    var qty = 1;
+    if(tr){ var wt2 = txt((tr.querySelector('.work-cell')||{}).textContent||''); var qm = wt2.match(/الكمية\s*:\s*([^\n]+)/); if(qm) qty = num(qm[1]) || 1; }
+    var su = sessionUser();
+    if(su.isGaber) dept = 'ليزر';
+    if(su.isWael) dept = 'طباعة';
+    return { orderId:order, lineId:lineId, customer:customer, customerName:customer, customerPhone:phone, itemName:item, department:dept, qty:qty };
+  }
+
+  function ensureModal(){
+    injectStyle();
+    var modal = $('invoiceRowsModal');
+    if(modal) return modal;
+    var html = ''+
+      '<section id="invoiceRowsModal" class="modal hidden">'+
+      '<div class="modal-card invoice-card invoice-rows-card">'+
+      '<h2 id="v1904InvoiceTitle">فاتورة القسم صفوف</h2>'+
+      '<p class="hint">كل صف = بند في فاتورة القسم. بعد آخر خانة اضغط Enter أو Tab لإضافة صف جديد فورًا.</p>'+
+      '<div class="v1904-head-grid">'+
+      '<label>اسم العميل<input id="v1904InvoiceCustomer" readonly></label>'+
+      '<label>رقم الأوردر<input id="v1904InvoiceOrder" readonly></label>'+
+      '</div>'+
+      '<div class="v1904-tools">'+
+      '<button id="v1904AddInvoiceRowBtn" type="button" class="ghost">+ صف جديد</button>'+
+      '<button id="v1904ClearEmptyRowsBtn" type="button" class="ghost">حذف الصفوف الفاضية</button>'+
+      '<span class="v1904-shortcut">Enter = صف جديد | Tab من آخر خانة = صف جديد</span>'+
+      '</div>'+
+      '<div class="v1904-table-wrap"><table class="v1904-invoice-table"><thead><tr>'+
+      '<th style="width:52px">#</th><th style="width:250px">الصنف</th><th style="width:230px">اسم البند</th><th style="width:100px">الكمية</th><th style="width:130px">سعر الوحدة</th><th style="width:130px">الإجمالي</th><th style="width:90px">مشترك</th><th style="width:220px">ملاحظات</th><th style="width:70px">حذف</th>'+
+      '</tr></thead><tbody id="v1904InvoiceRowsBody"></tbody></table></div>'+
+      '<div class="v1904-summary"><span id="v1904RowsCount">0 صفوف</span><span id="v1904InvoiceGrandTotal">الإجمالي: 0.00 ج</span></div>'+
+      '<div class="v1904-actions">'+
+      '<button id="v1904SaveRowsBtn" type="button" class="primary">تسجيل كل الصفوف</button>'+
+      '<button id="v1904SaveRowsOpenFinalBtn" type="button" class="primary">تسجيل وفتح الفاتورة</button>'+
+      '<button id="v1904CloseInvoiceRowsBtn" type="button" class="ghost">إلغاء</button>'+
+      '</div>'+
+      '<p id="v1904InvoiceMsg" class="msg"></p>'+
+      '</div></section>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    modal = $('invoiceRowsModal');
+    $('v1904AddInvoiceRowBtn').onclick = function(){ addRow({}, true); };
+    $('v1904ClearEmptyRowsBtn').onclick = clearEmptyRows;
+    $('v1904CloseInvoiceRowsBtn').onclick = closeModal;
+    $('v1904SaveRowsBtn').onclick = function(ev){ ev.preventDefault(); saveRows(false); };
+    $('v1904SaveRowsOpenFinalBtn').onclick = function(ev){ ev.preventDefault(); saveRows(true); };
+    return modal;
+  }
+
+  function isSellable(r){
+    if(!r) return false;
+    var name = txt(r.name || r.itemName || r.templateName || r['اسم البند'] || r['اسم الصنف'] || '');
+    if(!name) return false;
+    var n = norm(name);
+    if(/^اوردر جديد/.test(n) || /^طلب جديد/.test(n) || /new order/.test(n)) return false;
+    var blob = norm(Object.keys(r||{}).join(' ') + ' ' + Object.values(r||{}).join(' '));
+    var materialOnly = /(materialname|اسم الخامه|اسم الخامة|rawmaterial|رول ورق|رول لامينشن|باكيت ورق|حبر|مصروف ماكينة)/.test(blob);
+    var product = /(itemname|template|recipe|components|componentsjson|اسم الصنف|اسم البند|صنف بمكونات|منتج|product|saleprice|سعر بيع)/.test(blob);
+    if((r.type === 'MAT' || r.recordType === 'material' || materialOnly) && !product) return false;
+    return true;
+  }
+  function mapCatalogRecord(r, type){
+    return {
+      type:type || r.type || 'TPL',
+      name:r.itemName || r.templateName || r.name || r['اسم البند'] || r['اسم الصنف'] || '',
+      department:r.department || r.dept || r['القسم'] || 'عام',
+      sale:num(r.salePrice || r.systemSale || r.price || r['سعر بيع رسمي'] || r['سعر بيع مقترح'] || r['بيع']),
+      cost:num(r.unitCost || r.fixedCost || r.computedUnitCost || r.calculatedUnitCost || r.cost),
+      recordType:r.recordType || r.itemType || r.category || r['التصنيف'] || '',
+      raw:r
+    };
+  }
+  function readLocalCatalog(){
+    var out=[];
+    try{
+      var data = JSON.parse(localStorage.getItem('EASYSTORE_CLEAN_V1880_DATA') || '{}');
+      [].concat(data.templates||[], data.items||[], data.products||[], data.recipes||[]).forEach(function(r){ var m=mapCatalogRecord(r,'TPL'); if(isSellable(m)) out.push(m); });
+    }catch(e){}
+    return out;
+  }
+  async function loadCatalog(){
+    var cached = window.MATBAGY_V1904_CATALOG || [];
+    if(cached.length) return cached;
+    var rows=[];
+    try{
+      var res = await apiJsonp('getAccounting', {});
+      [].concat(res.templates||[], res.items||[], res.products||[], res.recipes||[]).forEach(function(r){ var m=mapCatalogRecord(r,'TPL'); if(isSellable(m)) rows.push(m); });
+    }catch(e){}
+    if(!rows.length) rows = readLocalCatalog();
+    window.MATBAGY_V1904_CATALOG = rows;
+    return rows;
+  }
+  function catalogForDept(){
+    var row = window.MATBAGY_V1904_INVOICE_ROW || {};
+    var su = sessionUser();
+    var d = txt(su.isGaber ? 'ليزر' : (su.isWael ? 'طباعة' : row.department || su.department || ''));
+    var rows = (window.MATBAGY_V1904_CATALOG || []).filter(isSellable);
+    var filtered = rows.filter(function(r){ var rd=txt(r.department||'عام'); return !d || rd===d || rd==='مشترك' || rd==='عام'; });
+    return filtered.length ? filtered : rows;
+  }
+  function optionHtml(selectedIndex){
+    var rows = catalogForDept();
+    var html = '<option value="">اختار الصنف</option>';
+    rows.forEach(function(r,i){
+      var sale = r.sale ? ' — ' + r.sale + ' ج' : '';
+      html += '<option value="'+i+'"'+(selectedIndex===i?' selected':'')+'>'+esc((r.name||'')+' — '+(r.department||'عام')+sale)+'</option>';
+    });
+    return html;
+  }
+  function renumber(){
+    Array.from(document.querySelectorAll('#v1904InvoiceRowsBody tr')).forEach(function(tr,i){
+      tr.dataset.index = String(i);
+      var no = tr.querySelector('.v1904-row-no'); if(no) no.textContent = String(i+1);
+    });
+  }
+  function rowTotal(tr){ return (num((tr.querySelector('.v1904-qty')||{}).value)||0) * (num((tr.querySelector('.v1904-price')||{}).value)||0); }
+  function updateTotals(){
+    var total=0, count=0;
+    Array.from(document.querySelectorAll('#v1904InvoiceRowsBody tr')).forEach(function(tr){
+      var t = rowTotal(tr); total += t; count++;
+      var cell = tr.querySelector('.v1904-total-cell'); if(cell) cell.textContent = t.toFixed(2)+' ج';
+    });
+    if($('v1904RowsCount')) $('v1904RowsCount').textContent = count + ' صف' + (count===1?'':'وف');
+    if($('v1904InvoiceGrandTotal')) $('v1904InvoiceGrandTotal').textContent = 'الإجمالي: ' + total.toFixed(2) + ' ج';
+  }
+  function focusFirst(tr){ setTimeout(function(){ var x=tr && (tr.querySelector('.v1904-catalog') || tr.querySelector('input')); if(x) x.focus(); }, 40); }
+  function applyRowSelection(tr){
+    if(!tr) return;
+    var sel = tr.querySelector('.v1904-catalog');
+    var idx = sel && sel.value !== '' ? Number(sel.value) : -1;
+    var item = catalogForDept()[idx];
+    if(!item) return;
+    var name = tr.querySelector('.v1904-item-name'); if(name) name.value = item.name || '';
+    var price = tr.querySelector('.v1904-price'); if(price && item.sale) price.value = Number(item.sale).toFixed(2);
+    var shared = tr.querySelector('.v1904-shared'); if(shared){ shared.checked = /مشترك|shared|عام/.test(norm(item.department||'')); }
+    updateTotals();
+  }
+  function addRow(data, focus){
+    var body = $('v1904InvoiceRowsBody'); if(!body) return null;
+    data = data || {};
+    var tr = document.createElement('tr');
+    tr.innerHTML = ''+
+      '<td class="v1904-row-no"></td>'+
+      '<td><select class="v1904-catalog v1904-step">'+optionHtml(-1)+'</select></td>'+
+      '<td><input class="v1904-item-name v1904-step" placeholder="اسم البند"></td>'+
+      '<td><input class="v1904-qty v1904-step" type="number" min="1" value="1"></td>'+
+      '<td><input class="v1904-price v1904-step" type="number" min="0" step="0.01" value="0"></td>'+
+      '<td class="v1904-total-cell">0.00 ج</td>'+
+      '<td style="text-align:center"><input class="v1904-shared" type="checkbox"></td>'+
+      '<td><input class="v1904-notes v1904-step" placeholder="اختياري"></td>'+
+      '<td><button type="button" class="v1904-del-row">×</button></td>';
+    body.appendChild(tr);
+    var itemName = txt(data.itemName || data.name || '');
+    if(itemName){
+      var cat = catalogForDept();
+      var found = -1;
+      for(var i=0;i<cat.length;i++){ if(norm(cat[i].name)===norm(itemName)){ found=i; break; } }
+      if(found >= 0){ tr.querySelector('.v1904-catalog').value = String(found); applyRowSelection(tr); }
+      else tr.querySelector('.v1904-item-name').value = itemName;
+    }
+    if(data.qty) tr.querySelector('.v1904-qty').value = data.qty;
+    if(data.sale || data.price) tr.querySelector('.v1904-price').value = Number(data.sale || data.price || 0).toFixed(2);
+    if(data.notes) tr.querySelector('.v1904-notes').value = data.notes;
+    tr.querySelector('.v1904-catalog').addEventListener('change', function(){ applyRowSelection(tr); });
+    tr.querySelector('.v1904-del-row').onclick = function(){ tr.remove(); renumber(); updateTotals(); if(!document.querySelector('#v1904InvoiceRowsBody tr')) addRow({}, true); };
+    Array.from(tr.querySelectorAll('.v1904-step')).forEach(function(el){
+      el.addEventListener('input', updateTotals);
+      el.addEventListener('keydown', function(ev){ handleRowKey(ev, tr); });
+    });
+    renumber(); updateTotals(); if(focus) focusFirst(tr); return tr;
+  }
+  function isLastStepInLastRow(target, tr){
+    var rows = Array.from(document.querySelectorAll('#v1904InvoiceRowsBody tr'));
+    if(rows[rows.length-1] !== tr) return false;
+    var steps = Array.from(tr.querySelectorAll('.v1904-step'));
+    return steps[steps.length-1] === target;
+  }
+  function handleRowKey(ev, tr){
+    if(ev.key === 'Enter'){
+      ev.preventDefault();
+      var rows = Array.from(document.querySelectorAll('#v1904InvoiceRowsBody tr'));
+      if(rows[rows.length-1] === tr) addRow({}, true);
+      else {
+        var idx = rows.indexOf(tr); var next = rows[idx+1]; focusFirst(next);
+      }
+      return;
+    }
+    if(ev.key === 'Tab' && !ev.shiftKey && isLastStepInLastRow(ev.target, tr)){
+      ev.preventDefault(); addRow({}, true);
+    }
+  }
+  function clearEmptyRows(){
+    Array.from(document.querySelectorAll('#v1904InvoiceRowsBody tr')).forEach(function(tr){
+      var name = txt((tr.querySelector('.v1904-item-name')||{}).value);
+      var sel = txt((tr.querySelector('.v1904-catalog')||{}).value);
+      var price = num((tr.querySelector('.v1904-price')||{}).value);
+      if(!name && !sel && !price) tr.remove();
+    });
+    if(!document.querySelector('#v1904InvoiceRowsBody tr')) addRow({}, true);
+    renumber(); updateTotals();
+  }
+  function collectRows(){
+    var out=[];
+    Array.from(document.querySelectorAll('#v1904InvoiceRowsBody tr')).forEach(function(tr, idx){
+      var cat = catalogForDept();
+      var sidx = (tr.querySelector('.v1904-catalog')||{}).value;
+      var item = sidx !== '' ? cat[Number(sidx)] : null;
+      var name = txt((tr.querySelector('.v1904-item-name')||{}).value || (item && item.name));
+      var qty = num((tr.querySelector('.v1904-qty')||{}).value) || 1;
+      var sale = num((tr.querySelector('.v1904-price')||{}).value);
+      var notes = txt((tr.querySelector('.v1904-notes')||{}).value);
+      var shared = !!((tr.querySelector('.v1904-shared')||{}).checked);
+      if(!name && !sale) return;
+      out.push({index:idx+1, item:item, name:name, qty:qty, sale:sale, notes:notes, shared:shared});
+    });
+    return out;
+  }
+  async function saveRows(openFinal){
+    var msg = $('v1904InvoiceMsg');
+    var btn = $('v1904SaveRowsBtn');
+    var btn2 = $('v1904SaveRowsOpenFinalBtn');
+    var rows = collectRows();
+    if(!rows.length){ if(msg) msg.textContent = 'أضف صف واحد على الأقل قبل التسجيل.'; return; }
+    for(var i=0;i<rows.length;i++){
+      if(!rows[i].name){ if(msg) msg.textContent = 'الصف رقم '+rows[i].index+' ناقص اسم البند.'; return; }
+      if(!rows[i].sale){ if(msg) msg.textContent = 'الصف رقم '+rows[i].index+' ناقص السعر.'; return; }
+    }
+    var baseRow = window.MATBAGY_V1904_INVOICE_ROW || {};
+    var su = sessionUser();
+    var dep = su.isGaber ? 'ليزر' : (su.isWael ? 'طباعة' : (baseRow.department || su.department || ''));
+    if(btn){ btn.disabled=true; btn.textContent='جاري التسجيل...'; }
+    if(btn2){ btn2.disabled=true; }
+    try{
+      var ok=0;
+      for(var r=0;r<rows.length;r++){
+        var line = rows[r];
+        if(msg) msg.textContent = 'جاري تسجيل الصف '+(r+1)+' من '+rows.length+'...';
+        var itemDept = (line.item && line.item.department) || dep;
+        var shared = (line.shared || /مشترك|shared|عام/.test(norm(itemDept))) ? 'نعم' : 'لا';
+        var payload = {
+          rowNumber: baseRow.rowNumber || '',
+          orderId: baseRow.orderId || txt(($('v1904InvoiceOrder')||{}).value),
+          lineId: baseRow.lineId || '',
+          customerName: baseRow.customer || baseRow.customerName || txt(($('v1904InvoiceCustomer')||{}).value),
+          customerPhone: baseRow.customerPhone || '',
+          department: dep,
+          itemType: shared === 'نعم' ? 'بند مشترك' : 'قسم فقط',
+          itemName: line.name,
+          qty: line.qty,
+          materialName: line.item && line.item.type === 'MAT' ? line.item.name : '',
+          materialQty: line.qty,
+          materialCost: '0',
+          laborCost: '0',
+          otherCost: '0',
+          systemCost: '0',
+          systemSalePrice: line.item && line.item.sale ? line.item.sale : line.sale,
+          salePrice: line.sale,
+          itemDepartment: itemDept,
+          sharedLine: shared,
+          billingStatus: 'مسجل - قيد مراجعة القسم',
+          closeStatus: 'قيد مراجعة القسم',
+          approvalStatus: 'قيد مراجعة القسم',
+          notes: line.notes
+        };
+        if(!payload.orderId) throw new Error('رقم الأوردر غير موجود.');
+        var res = await apiJsonp('saveAccountingDeptLine', payload);
+        if(!res || res.success === false) throw new Error((res && res.message) || ('تعذر تسجيل الصف رقم '+line.index));
+        ok++;
+      }
+      if(msg) msg.textContent = 'تم تسجيل '+ok+' صف في فاتورة القسم. راجع البنود ثم اعتمد فاتورة القسم.';
+      if(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW) setTimeout(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW, 500);
+      if(openFinal) setTimeout(function(){ openFinalInvoice(baseRow); }, 500);
+    }catch(e){
+      if(msg){
+        var em = e && e.message ? e.message : 'تعذر تسجيل الصفوف.';
+        if(/اتأخر|مهلة|timeout/i.test(em)) em += ' لا تضغط تسجيل مرة ثانية قبل تحديث بنود القسم والتأكد من عدم ظهور البند.';
+        msg.textContent = em;
+      }
+    }finally{
+      if(btn){ btn.disabled=false; btn.textContent='تسجيل كل الصفوف'; }
+      if(btn2){ btn2.disabled=false; }
+    }
+  }
+  function openFinalInvoice(row){
+    row = row || window.MATBAGY_V1904_INVOICE_ROW || {};
+    var base = String(window.MATBAGY_EASY_STORE_URL || 'https://fawakhry.github.io/EasyStore/').trim();
+    try{
+      var u = new URL(base, location.href); var su = sessionUser();
+      u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','sales'); u.searchParams.set('mode','final'); u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1');
+      u.searchParams.set('orderId', row.orderId || txt(($('v1904InvoiceOrder')||{}).value));
+      u.searchParams.set('customer', row.customer || row.customerName || txt(($('v1904InvoiceCustomer')||{}).value));
+      u.searchParams.set('name', su.name); u.searchParams.set('username', su.username); u.searchParams.set('token', su.token || ''); u.searchParams.set('v','es33-v1904-invoice-rows');
+      window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
+    }catch(e){}
+  }
+  function closeModal(){ var m=$('invoiceRowsModal'); if(m) m.classList.add('hidden'); }
+  async function openRowsInvoice(row){
+    row = row || {};
+    window.MATBAGY_V1904_INVOICE_ROW = row;
+    var modal = ensureModal();
+    var su = sessionUser();
+    if($('v1904SaveRowsOpenFinalBtn')) $('v1904SaveRowsOpenFinalBtn').style.display = (su.isGaber || su.isWael) ? 'none' : '';
+    if($('v1904InvoiceTitle')) $('v1904InvoiceTitle').textContent = 'فاتورة القسم صفوف: ' + (row.orderId || '-') + ' — ' + (row.customer || row.customerName || '-');
+    if($('v1904InvoiceCustomer')) $('v1904InvoiceCustomer').value = row.customer || row.customerName || '';
+    if($('v1904InvoiceOrder')) $('v1904InvoiceOrder').value = row.orderId || '';
+    if($('v1904InvoiceMsg')) $('v1904InvoiceMsg').textContent = 'جاري تحميل الأصناف...';
+    modal.classList.remove('hidden');
+    await loadCatalog();
+    var body = $('v1904InvoiceRowsBody'); if(body) body.innerHTML='';
+    addRow({itemName: row.itemName || '', qty: row.qty || 1, notes: row.notes || ''}, true);
+    if($('v1904InvoiceMsg')) $('v1904InvoiceMsg').textContent = 'اكتب الصفوف. Enter أو Tab يضيف صف جديد.';
+  }
+
+  window.MATBAGY_V1904_OPEN_INVOICE_ROWS = openRowsInvoice;
+
+  // Window capture runs before old document capture handlers, so the old single-row invoice modal will not open.
+  window.addEventListener('click', function(ev){
+    var t = ev.target;
+    var btn = t && t.closest && t.closest('.wa-invoice-pricing,.invoice-open');
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    openRowsInvoice(rowFromButton(btn));
+    return false;
+  }, true);
+
+  /*********************** V1905 - فصل الأصناف بمكونات عن الخامات الأساسية ***********************/
+  function v1905MaterialName_(r) {
+    return txt(r && (r.materialName || r.itemName || r.templateName || r.productName || r.name || r['اسم الخامة'] || r['اسم البند'] || r['اسم الصنف'] || ''));
+  }
+
+  function v1905MaterialKind_(r) {
+    return norm(r && (r.materialKind || r.recordType || r.itemType || r.category || r['نوع الخامة'] || r['التصنيف'] || r['نوع البند'] || ''));
+  }
+
+  function v1905HasComponents_(r) {
+    if (!r) return false;
+    var raw = r.componentsJson || r.components || r.bom || r.recipe || r['مكونات الخامة'] || r['المكونات'] || '';
+    if (Array.isArray(raw)) return raw.length > 0;
+    if (!raw) return false;
+    try {
+      var arr = JSON.parse(String(raw));
+      if (Array.isArray(arr)) return arr.length > 0;
+    } catch (e) {}
+    return String(raw).trim().length > 2;
+  }
+
+  function v1905IsCompositeItem_(r) {
+    if (!r) return false;
+    var kind = v1905MaterialKind_(r);
+    var blob = norm(Object.keys(r || {}).join(' ') + ' ' + Object.values(r || {}).join(' '));
+    return v1905HasComponents_(r) ||
+      /composite|recipe|bom|product|template|صنف بمكونات|صنف بمواد|منتج|مركب|تركيبه|تركيبة/.test(kind) ||
+      /componentsjson|components|bom|recipe|صنف بمكونات|منتج بمكونات|مكونات الخامة|المكونات/.test(blob);
+  }
+
+  function v1905IsBasicMaterial_(r) {
+    if (!r) return false;
+    if (v1905IsCompositeItem_(r)) return false;
+    var name = v1905MaterialName_(r);
+    if (!name) return false;
+    return true;
+  }
+
+  function v1905RowsWithIndex_(rows, predicate) {
+    var out = [];
+    (rows || []).forEach(function (r, idx) {
+      if (predicate(r)) out.push({ row: r, index: idx });
+    });
+    return out;
+  }
+
+  function v1905MaterialSale_(r) {
+    return numericAmount(r && (r.salePrice || r.systemSale || r.price || r.unitSalePrice || r['سعر بيع رسمي'] || r['سعر بيع مقترح'] || r['سعر البيع'] || 0));
+  }
+
+  // القائمة الرئيسية للخامات تعرض الخام المباشر فقط. الأصناف المركبة تخرج منها نهائيًا.
+  function renderAccountingMaterials() {
+    const list = $('accountingMaterialsList');
+    if (!list) return;
+    const rows = v1905RowsWithIndex_(state.accounting.materials || [], v1905IsBasicMaterial_);
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد خامات أساسية مباشرة حتى الآن. الأصناف التي لها مكونات تظهر في قائمة الأصناف بمكوناتها فقط.</div>';
+      syncMaterialRecipeOptions();
+      return;
+    }
+    list.innerHTML = rows.map(function (wrap) {
+      const r = wrap.row;
+      const idx = wrap.index;
+      const stock = typeof materialStockQty === 'function' ? materialStockQty(r) : numericAmount(r.stockQty || r['رصيد المخزن']);
+      const min = typeof materialMinStock === 'function' ? materialMinStock(r) : numericAmount(r.minStock || r['حد تنبيه النقص']);
+      const stockClass = min && stock <= min ? 'acc-stock-alert' : 'acc-stock-ok';
+      const stockText = '<span class="acc-stock-pill ' + stockClass + '">رصيد: ' + escapeHtml(stock || 0) + '</span>';
+      return '<div class="acc-list-item material-item v1905-basic-material">' +
+        '<div><b>' + escapeHtml(v1905MaterialName_(r) || '-') + '</b> <span class="material-kind-pill">خامة أساسية</span> ' + stockText + '</div>' +
+        '<span>' + escapeHtml(r.department || r['القسم'] || '-') + ' | ' + escapeHtml(r.unit || r['الوحدة'] || '-') + ' | تكلفة: ' + accountingMoney(materialDisplayCost(r)) + '</span>' +
+        '<button class="ghost edit-material-btn" type="button" data-material-index="' + idx + '">تعديل الخامة الأساسية</button>' +
+      '</div>';
+    }).join('');
+    list.querySelectorAll('.edit-material-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { editAccountingMaterialPatch15(Number(btn.getAttribute('data-material-index'))); });
+    });
+    syncMaterialRecipeOptions();
+  }
+
+  // قائمة المكونات داخل الصنف المركب تعرض الخامات الأساسية فقط، حتى لا يدخل صنف مركب كمكون داخل صنف مركب بالخطأ.
+  function syncMaterialRecipeOptions() {
+    const selects = document.querySelectorAll('.acc-recipe-material');
+    if (!selects.length) return;
+    const current = Array.from(selects).map(function (s) { return s.value; });
+    const rows = (state.accounting.materials || []).filter(v1905IsBasicMaterial_);
+    const opts = '<option value="">اختار خامة أساسية</option>' + rows.map(function (m) {
+      const name = v1905MaterialName_(m);
+      const stock = typeof materialStockQty === 'function' ? materialStockQty(m) : numericAmount(m.stockQty || m['رصيد المخزن']);
+      return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + ' - ' + accountingMoney(materialDisplayCost(m)) + ' | رصيد ' + escapeHtml(stock || 0) + '</option>';
+    }).join('');
+    selects.forEach(function (sel, idx) { sel.innerHTML = opts; sel.value = current[idx] || ''; });
+  }
+
+  function v1905TemplateListRows_() {
+    const out = [];
+    (state.accounting.templates || []).forEach(function (r, idx) {
+      const name = templateItemName ? templateItemName(r) : v1905MaterialName_(r);
+      if (!name || accountingInvoiceOrderPlaceholderName(name)) return;
+      out.push({ source: 'TPL', row: r, index: idx, name: name, department: r.department || r['القسم'] || '-', cost: templateCost ? templateCost(r) : rowCost(r), sale: templateSalePrice ? templateSalePrice(r) : rowSale(r), note: 'صنف ثابت' });
+    });
+    (state.accounting.materials || []).forEach(function (r, idx) {
+      if (!v1905IsCompositeItem_(r)) return;
+      const name = v1905MaterialName_(r);
+      if (!name || accountingInvoiceOrderPlaceholderName(name)) return;
+      out.push({ source: 'MAT', row: r, index: idx, name: name, department: r.department || r['القسم'] || '-', cost: materialDisplayCost(r), sale: v1905MaterialSale_(r), note: 'صنف بمكونات' });
+    });
+    const seen = {};
+    return out.filter(function (x) {
+      const k = norm(x.name) + '|' + norm(x.department) + '|' + x.source;
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    });
+  }
+
+  // قائمة الأصناف تعرض البنود الثابتة + الأصناف المركبة، ولا تعرض الخامات الأساسية.
+  function renderAccountingTemplates() {
+    const list = $('accountingTemplatesList');
+    if (!list) return;
+    const rows = v1905TemplateListRows_();
+    if (!rows.length) {
+      list.innerHTML = '<div class="dash-empty">لا توجد أصناف مسعّرة أو أصناف بمكونات حتى الآن.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 100).map(function (x) {
+      const r = x.row;
+      const comps = x.source === 'MAT' ? materialComponents(r) : [];
+      const compText = comps.length ? ('<small>المكونات: ' + comps.map(function (c) { return escapeHtml(c.materialName || 'تكلفة') + ' × ' + (c.qty || 0); }).join(' + ') + '</small>') : '';
+      const editBtn = x.source === 'MAT' ? '<button class="ghost edit-composite-material-btn" type="button" data-material-index="' + x.index + '">تعديل المكونات</button>' : '';
+      const saleText = x.sale ? (' | بيع: ' + accountingMoney(x.sale)) : '';
+      return '<div class="acc-list-item v1905-catalog-item">' +
+        '<div><b>' + escapeHtml(x.name || '-') + '</b> <span class="material-kind-pill">' + escapeHtml(x.note) + '</span></div>' +
+        '<span>' + escapeHtml(x.department || '-') + ' | تكلفة: ' + accountingMoney(x.cost || 0) + saleText + '</span>' +
+        compText + editBtn +
+      '</div>';
+    }).join('');
+    list.querySelectorAll('.edit-composite-material-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { editAccountingMaterialPatch15(Number(btn.getAttribute('data-material-index'))); });
+    });
+  }
+
+  function accountingCatalogRowsForDepartment(dept) {
+    const rows = [];
+    (state.accounting.templates || []).forEach(function (t) {
+      const d = t.department || t['القسم'] || '';
+      if (dept && !(d === dept || d === 'مشترك' || d === 'عام')) return;
+      const name = templateItemName(t);
+      if (accountingInvoiceOrderPlaceholderName(name)) return;
+      rows.push({ type: 'TPL', name: name, department: d, cost: templateCost(t), sale: templateSalePrice(t), stock: 0, composite: false });
+    });
+    (state.accounting.materials || []).forEach(function (m) {
+      if (!v1905IsCompositeItem_(m)) return;
+      const d = m.department || m['القسم'] || '';
+      if (dept && !(d === dept || d === 'مشترك' || d === 'عام')) return;
+      const name = v1905MaterialName_(m);
+      if (accountingInvoiceOrderPlaceholderName(name)) return;
+      rows.push({ type: 'MAT', name: name, department: d, cost: materialDisplayCost(m), sale: v1905MaterialSale_(m), stock: 0, composite: true });
+    });
+    const seen = {};
+    return rows.filter(function (r) {
+      const k = r.type + '|' + materialTextKey(r.name) + '|' + materialTextKey(r.department || '');
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    });
+  }
+
+  // كتالوج فاتورة الصفوف V1904: يظهر الأصناف المركبة فقط من الخامات، ولا يدخل الخامات الأساسية.
+  function mapCatalogRecord(r, type) {
+    return {
+      type: type || r.type || 'TPL',
+      name: r.itemName || r.templateName || r.productName || r.name || r.materialName || r['اسم البند'] || r['اسم الصنف'] || r['اسم الخامة'] || '',
+      department: r.department || r.dept || r['القسم'] || 'عام',
+      sale: num(r.salePrice || r.systemSale || r.price || r.unitSalePrice || r['سعر بيع رسمي'] || r['سعر بيع مقترح'] || r['سعر البيع'] || r['بيع']),
+      cost: num(r.unitCost || r.fixedCost || r.computedUnitCost || r.calculatedUnitCost || r.cost || r['تكلفة محسوبة'] || r['تكلفة ثابتة'] || r['سعر الوحدة']),
+      recordType: r.recordType || r.itemType || r.category || r.materialKind || r['التصنيف'] || r['نوع الخامة'] || '',
+      raw: r
+    };
+  }
+
+  function isSellable(r) {
+    if (!r) return false;
+    var name = txt(r.name || r.itemName || r.templateName || r.productName || r.materialName || r['اسم البند'] || r['اسم الصنف'] || r['اسم الخامة'] || '');
+    if (!name) return false;
+    var n = norm(name);
+    if (/^اوردر جديد/.test(n) || /^طلب جديد/.test(n) || /new order/.test(n)) return false;
+    if (r.type === 'MAT' || r.materialName || r['اسم الخامة']) return v1905IsCompositeItem_(r.raw || r);
+    return true;
+  }
+
+  function readLocalCatalog() {
+    var out = [];
+    try {
+      var data = JSON.parse(localStorage.getItem('EASYSTORE_CLEAN_V1880_DATA') || '{}');
+      [].concat(data.templates || [], data.items || [], data.products || [], data.recipes || []).forEach(function (r) {
+        var m = mapCatalogRecord(r, 'TPL');
+        if (isSellable(m)) out.push(m);
+      });
+      [].concat(data.materials || []).forEach(function (r) {
+        if (!v1905IsCompositeItem_(r)) return;
+        var m = mapCatalogRecord(r, 'MAT');
+        if (isSellable(m)) out.push(m);
+      });
+    } catch (e) {}
+    return out;
+  }
+
+  async function loadCatalog() {
+    var cached = window.MATBAGY_V1905_CATALOG || [];
+    if (cached.length) return cached;
+    var rows = [];
+    try {
+      var res = await apiJsonp('getAccounting', {});
+      [].concat(res.templates || [], res.items || [], res.products || [], res.recipes || []).forEach(function (r) {
+        var m = mapCatalogRecord(r, 'TPL');
+        if (isSellable(m)) rows.push(m);
+      });
+      [].concat(res.materials || []).forEach(function (r) {
+        if (!v1905IsCompositeItem_(r)) return;
+        var m = mapCatalogRecord(r, 'MAT');
+        if (isSellable(m)) rows.push(m);
+      });
+    } catch (e) {}
+    if (!rows.length) rows = readLocalCatalog();
+    var seen = {}, out = [];
+    rows.forEach(function (r) {
+      var k = norm(r.name) + '|' + norm(r.department) + '|' + r.type;
+      if (!r.name || seen[k]) return;
+      seen[k] = true;
+      out.push(r);
+    });
+    window.MATBAGY_V1905_CATALOG = out;
+    window.MATBAGY_V1904_CATALOG = out;
+    return out;
+  }
+
+
+})();
+
+
+/*********************** V1906 - Matbagy Sheets Access: Diaa + Wael + Revan ***********************/
+(function(){
+  'use strict';
+  window.TRENDOS_PATCH_VERSION = 'V1906_MATBAGY_SHEETS_WAEL_DIAA_REVAN';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1906 Matbagy Sheets Access';
+  window.MATBAGY_V1906_SHEETS_ACCESS = true;
+
+  var DEFAULT_MATBAGY_SHEETS_URL = 'https://fawakhry.github.io/Matbagy/?from=trendos';
+  var ALLOWED = ['ضياء','diaa','وائل','wael','ريفان','ريڤان','revan','rivan'];
+
+  function $(id){ return document.getElementById(id); }
+  function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
+  function norm(v){
+    return txt(v).toLowerCase()
+      .replace(/[إأآا]/g,'ا')
+      .replace(/[ى]/g,'ي')
+      .replace(/[ة]/g,'ه')
+      .replace(/[ؤ]/g,'و')
+      .replace(/[ئ]/g,'ي');
+  }
+  function safeLS(k){ try { return localStorage.getItem(k) || ''; } catch(e){ return ''; } }
+  function readSession(){
+    var s = {};
+    try { s = JSON.parse(safeLS('trendos_session') || '{}'); } catch(e) { s = {}; }
+    return s && s.user ? s.user : {};
+  }
+  function liveUser(){
+    var st = (window.state && window.state.user) || {};
+    var ss = readSession();
+    var u = Object.assign({}, ss, st);
+    if (!u.username && safeLS('matbagy_username')) u.username = safeLS('matbagy_username');
+    if (!u.name && safeLS('matbagy_user_name')) u.name = safeLS('matbagy_user_name');
+    if (!u.token && safeLS('matbagy_session_token')) u.token = safeLS('matbagy_session_token');
+    return u;
+  }
+  function userBlob(){
+    var u = liveUser();
+    return norm([u.username,u.name,u.role,u.department,u.permission,safeLS('matbagy_username'),safeLS('matbagy_user_name'),safeLS('trendos_session')].join(' '));
+  }
+  function isEmployeeLoggedInV1906(){
+    var u = liveUser();
+    return !!(u.username || u.name || safeLS('matbagy_username') || safeLS('matbagy_user_name') || safeLS('trendos_session'));
+  }
+  function canOpenSheetsV1906(){
+    if (!isEmployeeLoggedInV1906()) return false;
+    var blob = userBlob();
+    return ALLOWED.some(function(x){
+      var k = norm(x);
+      return k && (blob.indexOf(k) !== -1);
+    });
+  }
+  function withQuery(url, params){
+    try {
+      var u = new URL(url, location.href);
+      Object.keys(params || {}).forEach(function(k){
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '') u.searchParams.set(k, params[k]);
+      });
+      return u.toString();
+    } catch(e) {
+      var q = Object.keys(params || {}).filter(function(k){ return params[k] !== undefined && params[k] !== null && params[k] !== ''; })
+        .map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
+      return url + (url.indexOf('?') === -1 ? '?' : '&') + q;
+    }
+  }
+  function roleMode(){
+    var b = userBlob();
+    if (/ضياء|diaa|admin|مدير/.test(b)) return 'admin';
+    if (/وائل|wael|print|طباع|طباعة/.test(b)) return 'print';
+    if (/ريفان|ريڤان|revan|rivan/.test(b)) return 'final';
+    return 'employee';
+  }
+  function openSheetsV1906(){
+    if (!isEmployeeLoggedInV1906()) {
+      alert('سجل دخول الموظف الأول.');
+      return false;
+    }
+    if (!canOpenSheetsV1906()) {
+      alert('مطبعجي شيتات متاح لحسابات ضياء ووائل وريفان فقط.');
+      return false;
+    }
+    var u = liveUser();
+    var base = txt(window.MATBAGY_SHEETS_URL || DEFAULT_MATBAGY_SHEETS_URL);
+    if (!base) {
+      alert('رابط مطبعجي شيتات غير مضبوط في config.js');
+      return false;
+    }
+    var params = {
+      from:'trendos',
+      tool:'sheets',
+      sso:'1',
+      employeeSSO:'1',
+      employeePortal:'1',
+      trustedEmployee:'1',
+      skipLogin:'1',
+      noPassword:'1',
+      noPhone:'1',
+      noActivation:'1',
+      openWithoutPhone:'1',
+      bypassPhoneVerification:'1',
+      bypassActivation:'1',
+      phoneRequired:'0',
+      activationRequired:'0',
+      sheetsAccess:'1',
+      username:u.username || u.name || safeLS('matbagy_username') || safeLS('matbagy_user_name') || '',
+      name:u.name || u.username || safeLS('matbagy_user_name') || safeLS('matbagy_username') || '',
+      token:u.token || safeLS('matbagy_session_token') || '',
+      roleMode:roleMode(),
+      allowed:'diaa,wael,revan',
+      v:'1906'
+    };
+    try { localStorage.setItem('MATBAGY_EMPLOYEE_SSO', JSON.stringify({ at:Date.now(), user:u, params:params })); } catch(e) {}
+    window.open(withQuery(base, params), 'Matbagy_Sheets');
+    return true;
+  }
+  function injectStyle(){
+    if ($('trendosV1906SheetsAccessStyle')) return;
+    var st = document.createElement('style');
+    st.id = 'trendosV1906SheetsAccessStyle';
+    st.textContent = '#matbagySheetsBtn.trendos-v1906-force-visible{display:inline-flex!important;visibility:visible!important;opacity:1!important}#matbagySheetsBtn.trendos-v1906-force-hidden{display:none!important}';
+    document.head.appendChild(st);
+  }
+  function applyButton(){
+    injectStyle();
+    var btn = $('matbagySheetsBtn');
+    if (!btn) return;
+    btn.textContent = '📊 مطبعجي شيتات';
+    btn.title = 'مطبعجي شيتات - متاح لضياء ووائل وريفان';
+    btn.disabled = false;
+    btn.onclick = function(ev){ if(ev && ev.preventDefault) ev.preventDefault(); return openSheetsV1906(); };
+    if (canOpenSheetsV1906()) {
+      btn.classList.remove('hidden','trendos-v1906-force-hidden');
+      btn.classList.add('trendos-v1906-force-visible');
+      try { btn.style.removeProperty('display'); } catch(e) { btn.style.display = ''; }
+      btn.setAttribute('aria-hidden','false');
+    } else {
+      btn.classList.add('hidden','trendos-v1906-force-hidden');
+      btn.classList.remove('trendos-v1906-force-visible');
+      btn.setAttribute('aria-hidden','true');
+    }
+  }
+
+  window.canOpenMatbagySheetsV1906 = canOpenSheetsV1906;
+  window.openMatbagySheetsTool = openSheetsV1906;
+
+  // نلتقط الكليك على window capture قبل document capture القديم الذي كان قافل الزر على ضياء/وائل فقط.
+  window.addEventListener('click', function(ev){
+    var target = ev.target && ev.target.closest ? ev.target.closest('#matbagySheetsBtn') : null;
+    if (!target) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    openSheetsV1906();
+    setTimeout(applyButton, 60);
+    return false;
+  }, true);
+
+  function boot(){
+    applyButton();
+    [250,700,1300,2200,4200,6500].forEach(function(ms){ setTimeout(applyButton, ms); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
