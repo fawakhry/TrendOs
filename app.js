@@ -5308,7 +5308,9 @@ Trend Mall`;
       if (!customerName) customerName = "عميل خارجي";
     }
 
+    const createOrderRequestId = "co_" + Date.now() + "_" + Math.random().toString(16).slice(2);
     const params = authParams({
+      clientRequestId: createOrderRequestId,
       customerMode: external ? "خارجي / عابر" : "عميل مسجل",
       customerExternalId: external ? lightId : "",
       customerName: customerName,
@@ -5330,6 +5332,12 @@ Trend Mall`;
       setMsg("addOrderStatus", external ? "رقم/علامة العميل والقسم مطلوبين." : "اسم الشات والقسم مطلوبين.", true);
       return;
     }
+
+    if (createOrder._busy) {
+      setMsg("addOrderStatus", "جاري تسجيل أوردر بالفعل. انتظر رد السيرفر حتى لا يتكرر الأوردر.", true);
+      return;
+    }
+    createOrder._busy = true;
 
     const btn = $("createOrderBtn");
     btn.disabled = true;
@@ -5404,6 +5412,7 @@ Trend Mall`;
     } catch (err) {
       setMsg("addOrderStatus", err.message || "خطأ أثناء إضافة الأوردر.", true);
     } finally {
+      createOrder._busy = false;
       btn.disabled = false;
       btn.textContent = "إضافة الأوردر";
     }
