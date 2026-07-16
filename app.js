@@ -4433,6 +4433,9 @@ Trend Mall`;
       if (status === "__OVERDUE__" && !isOverdueRow(r)) return false;
       else if (status === "__TODAY_WORK__" && (isHiddenFromUserScreens(r.status) || !isTodayWorkRow(r))) return false;
       else if (status === "__DELIVERED_TODAY__" && !isDeliveredTodayRow(r)) return false;
+      else if (status === "__READY_PICKUP__" && ["جاهز للاستلام", "في قسم التسليمات", "تم التنفيذ"].indexOf(text(r.status)) === -1) return false;
+      else if (status === "__DEBT__" && !hasDebt(r)) return false;
+      else if (status === "__CANCELLED__" && ["ملغي", "ملغى"].indexOf(text(r.status)) === -1) return false;
       else if (status && status.indexOf("__") !== 0) {
         // عند اختيار حالة محددة مثل ملغى أو جاهز للاستلام نعرضها حتى لو مخفية من الشاشة اليومية.
         if (text(r.status) !== status) return false;
@@ -5354,7 +5357,13 @@ Trend Mall`;
       }
 
       const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
-      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (external ? " | عميل خارجي بدون حفظ في العملاء" : (res.debtHold || ((res.debtInfo || {}).hasDebt) ? " | تنبيه: العميل عليه مديونية" : "")), false);
+      const resDebtInfo = res.debtInfo || {};
+      const resDebtAmount = numericAmount(res.debtAmount || resDebtInfo.amount || 0);
+      const resHasDebt = !external && (res.debtHold === "نعم" || resDebtInfo.hasDebt || resDebtAmount > 0);
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (external ? " | عميل خارجي بدون حفظ في العملاء" : (resHasDebt ? " | تنبيه: العميل عليه مديونية" : "")), false);
+      if (resHasDebt) {
+        alert("تنبيه مديونية قديمة\n\nالعميل: " + params.customerName + "\nالمديونية: " + (resDebtAmount ? (resDebtAmount + " ج") : "مسجلة على العميل") + "\n\nلا يتم التسليم قبل السداد أو مراجعة الحسابات.");
+      }
 
       const phoneForWhatsApp = lightCustomerDigits(params.customerPhone);
       if (!external && phoneForWhatsApp.length >= 10) {
@@ -5434,8 +5443,10 @@ Trend Mall`;
       }
 
       box.innerHTML = customers.map(function (c, i) {
+        const debt = numericAmount(c.debtAmount || c.debt || c.currentBalance || c.remainingBalance || c.customerDebt || 0);
+        const debtPart = debt > 0 ? '<span class="debt-pill">' + escapeHtml(debt + " ج مديونية") + '</span>' : '<span class="debt-pill clear">لا مديونية</span>';
         return '<button type="button" data-i="' + i + '">' +
-          '<b>' + escapeHtml(c.name) + '</b>' +
+          '<b>' + escapeHtml(c.name) + '</b> ' + debtPart +
           '<small>' + escapeHtml(c.phone || "") + ' ' + escapeHtml(c.type || "") + '</small>' +
           '</button>';
       }).join("");
@@ -5506,8 +5517,10 @@ Trend Mall`;
       }
 
       box.innerHTML = filtered.map(function (c, i) {
+        const debt = numericAmount(c.debtAmount || c.debt || c.currentBalance || c.remainingBalance || c.customerDebt || 0);
+        const debtPart = debt > 0 ? '<span class="debt-pill">' + escapeHtml(debt + " ج مديونية") + '</span>' : '<span class="debt-pill clear">لا مديونية</span>';
         return '<button type="button" data-i="' + i + '">' +
-          '<b>' + escapeHtml(c.name || "") + '</b>' +
+          '<b>' + escapeHtml(c.name || "") + '</b> ' + debtPart +
           '<span>' + escapeHtml([c.phone || c.extraPhone || "", c.type || ""].filter(Boolean).join(" | ")) + '</span>' +
           '</button>';
       }).join("");
@@ -7840,6 +7853,184 @@ Trend Mall`;
 
   /* V1879 disabled repeated UI patcher: batch24EnsureStatusOptions */
 
+})();
+
+
+/*********************** V1907 - Customer Accounts Quick Payments ***********************/
+(function(){
+  'use strict';
+  function $(id){ return document.getElementById(id); }
+  function txt(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
+  function num(v){ var n = Number(String(v || '').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n) ? n : 0; }
+  function money(v){ return num(v).toLocaleString('ar-EG',{maximumFractionDigits:2}) + ' ج'; }
+  function safeJson(k){ try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch(e) { return {}; } }
+  function currentUser(){
+    var stateUser = (window.state && window.state.user) || {};
+    var session = safeJson('trendos_session');
+    var savedUser = session.user || session || {};
+    return {
+      name: stateUser.name || stateUser.username || savedUser.name || savedUser.username || localStorage.getItem('matbagy_user_name') || localStorage.getItem('matbagy_username') || 'ضياء',
+      username: stateUser.username || stateUser.name || savedUser.username || savedUser.name || localStorage.getItem('matbagy_username') || localStorage.getItem('matbagy_user_name') || 'ضياء',
+      token: stateUser.token || savedUser.token || session.token || localStorage.getItem('matbagy_session_token') || localStorage.getItem('trendos_session_token') || ''
+    };
+  }
+  function api(action, params){
+    return new Promise(function(resolve,reject){
+      var base = txt(window.TREND_API_URL || window.API_URL || '');
+      if(!base){ reject(new Error('رابط السيرفر غير مضبوط في config.js')); return; }
+      var cb = 'trendos_v1907_accounts_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+      var script = document.createElement('script');
+      var done = false;
+      function clean(){
+        if(done) return;
+        done = true;
+        try { delete window[cb]; } catch(e) { window[cb] = undefined; }
+        if(script.parentNode) script.parentNode.removeChild(script);
+      }
+      window[cb] = function(res){ clean(); resolve(res || {}); };
+      script.onerror = function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
+      var u = currentUser();
+      var q = new URLSearchParams(Object.assign({
+        action: action,
+        callback: cb,
+        username: u.username,
+        name: u.name,
+        token: u.token,
+        _ts: Date.now()
+      }, params || {}));
+      script.src = base + (base.indexOf('?') === -1 ? '?' : '&') + q.toString();
+      document.body.appendChild(script);
+      setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة الاتصال بالسيرفر')); } }, 90000);
+    });
+  }
+  function injectStyle(){
+    if($('trendosV1907CustomerAccountsStyle')) return;
+    var st = document.createElement('style');
+    st.id = 'trendosV1907CustomerAccountsStyle';
+    st.textContent =
+      '.v1907-customer-accounts{border:1px solid #bae6fd;background:linear-gradient(135deg,#f0f9ff,#fff);border-radius:18px;padding:14px;margin:14px 0;display:grid;gap:12px}' +
+      '.v1907-customer-accounts h3{margin:0;color:#075985}' +
+      '.v1907-account-balance{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ecfeff;border:1px solid #a5f3fc;border-radius:14px;padding:10px;font-weight:900;color:#155e75}' +
+      '.v1907-account-balance.has-debt{background:#fff7ed;border-color:#fed7aa;color:#9a3412}' +
+      '.v1907-account-history{max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:14px;background:#fff}' +
+      '.v1907-account-history table{width:100%;border-collapse:collapse}' +
+      '.v1907-account-history th,.v1907-account-history td{border-bottom:1px solid #edf2f7;padding:8px;text-align:right;font-size:13px}' +
+      '.v1907-account-history th{background:#f8fafc;color:#0f172a;position:sticky;top:0}';
+    document.head.appendChild(st);
+  }
+  function panelHtml(){
+    return '' +
+      '<section id="customerAccountsAdminBox" class="v1907-customer-accounts">' +
+        '<div class="table-tools"><h3>حسابات العملاء / تحصيل المديونية</h3><span id="accCustomerAccountMsg" class="msg"></span></div>' +
+        '<p class="hint">اكتب اسم العميل كما هو في شيت العملاء، اعرض الرصيد، ثم سجل سداد كاش أو تحويل. الحركة تحدث كشف الحساب ومديونية العميل في الشيت.</p>' +
+        '<div class="form-grid compact-grid">' +
+          '<div class="wide"><label>اسم العميل</label><input id="accCustomerAccountName" placeholder="مثال: اسم الشات / المكتب"></div>' +
+          '<div><label>نوع الحركة</label><select id="accCustomerTxnType"><option value="payment_received">سداد من العميل</option><option value="adjustment_increase">إضافة مديونية</option><option value="adjustment_decrease">تسوية بالنقص</option></select></div>' +
+          '<div><label>المبلغ</label><input id="accCustomerTxnAmount" type="number" min="0" step="0.01" placeholder="0"></div>' +
+          '<div><label>طريقة الدفع</label><select id="accCustomerPaymentMethod"><option>كاش</option><option>تحويل بنكي</option><option>إنستاباي</option><option>فودافون كاش</option><option>أخرى</option></select></div>' +
+          '<div><label>رقم مرجع / إيصال</label><input id="accCustomerTxnRef" placeholder="اختياري"></div>' +
+          '<div class="wide"><label>ملاحظات</label><input id="accCustomerTxnNotes" placeholder="اختياري"></div>' +
+        '</div>' +
+        '<div class="row"><button id="loadCustomerAccountBtn" type="button" class="ghost">عرض رصيد العميل</button><button id="saveCustomerPaymentBtn" type="button" class="primary">حفظ الحركة وتحديث المديونية</button></div>' +
+        '<div id="accCustomerBalanceBox" class="v1907-account-balance">اكتب اسم العميل واضغط عرض الرصيد.</div>' +
+        '<div id="accCustomerHistoryBox" class="v1907-account-history hidden"></div>' +
+      '</section>';
+  }
+  function setMsg(text, bad){
+    var el = $('accCustomerAccountMsg');
+    if(!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('error', !!bad);
+    el.classList.toggle('ok', !!text && !bad);
+  }
+  function renderAccount(data){
+    var balance = num(data && data.balance);
+    var box = $('accCustomerBalanceBox');
+    if(box){
+      box.className = 'v1907-account-balance' + (balance > 0 ? ' has-debt' : '');
+      box.innerHTML = '<span>العميل: <b>' + esc((data && data.partyName) || txt(($('accCustomerAccountName') || {}).value) || '-') + '</b></span><span>الرصيد الحالي: <b>' + esc(money(balance)) + '</b></span>';
+    }
+    var rows = (data && Array.isArray(data.transactions)) ? data.transactions.slice().reverse().slice(0, 30) : [];
+    var hist = $('accCustomerHistoryBox');
+    if(!hist) return;
+    if(!rows.length){
+      hist.classList.add('hidden');
+      hist.innerHTML = '';
+      return;
+    }
+    hist.classList.remove('hidden');
+    hist.innerHTML = '<table><thead><tr><th>التاريخ</th><th>الحركة</th><th>المبلغ</th><th>الرصيد بعد</th><th>الدفع</th><th>ملاحظات</th></tr></thead><tbody>' +
+      rows.map(function(r){
+        return '<tr><td>' + esc(r.createdAt || '') + '</td><td>' + esc(r.operationLabel || r.operation || '') + '</td><td>' + esc(money(r.amount)) + '</td><td>' + esc(money(r.balanceAfter)) + '</td><td>' + esc(r.paymentMethod || '') + '</td><td>' + esc(r.notes || '') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  async function loadAccount(){
+    var name = txt(($('accCustomerAccountName') || {}).value);
+    if(!name){ setMsg('اكتب اسم العميل أولًا.', true); return; }
+    setMsg('جاري قراءة حساب العميل...', false);
+    try {
+      var res = await api('getPartyAccountV1858', { partyType:'customer', partyName:name });
+      if(!res.success){ setMsg(res.message || 'تعذر قراءة حساب العميل.', true); return; }
+      renderAccount(res);
+      setMsg('تم عرض الرصيد.', false);
+    } catch(err) {
+      setMsg(err.message || 'تعذر الاتصال بالسيرفر.', true);
+    }
+  }
+  async function saveTxn(){
+    var name = txt(($('accCustomerAccountName') || {}).value);
+    var amount = num(($('accCustomerTxnAmount') || {}).value);
+    if(!name){ setMsg('اكتب اسم العميل أولًا.', true); return; }
+    if(!amount){ setMsg('اكتب مبلغ الحركة.', true); return; }
+    var btn = $('saveCustomerPaymentBtn');
+    if(btn){ btn.disabled = true; btn.textContent = 'جاري الحفظ...'; }
+    setMsg('جاري حفظ الحركة وتحديث المديونية...', false);
+    try {
+      var res = await api('savePartyLedgerTransaction', {
+        partyType:'customer',
+        partyName:name,
+        operation: (($('accCustomerTxnType') || {}).value || 'payment_received'),
+        amount: amount,
+        paymentMethod: (($('accCustomerPaymentMethod') || {}).value || ''),
+        refNo: (($('accCustomerTxnRef') || {}).value || ''),
+        notes: (($('accCustomerTxnNotes') || {}).value || '')
+      });
+      if(!res.success){ setMsg(res.message || 'فشل حفظ الحركة.', true); return; }
+      if($('accCustomerTxnAmount')) $('accCustomerTxnAmount').value = '';
+      if($('accCustomerTxnRef')) $('accCustomerTxnRef').value = '';
+      if($('accCustomerTxnNotes')) $('accCustomerTxnNotes').value = '';
+      setMsg(res.message || 'تم حفظ الحركة وتحديث المديونية.', false);
+      await loadAccount();
+      try { var refreshMain = $('refreshBtn'); if(refreshMain) setTimeout(function(){ refreshMain.click(); }, 400); } catch(e) {}
+      try { var refreshAccounting = $('refreshAccountingBtn'); if(refreshAccounting) setTimeout(function(){ refreshAccounting.click(); }, 700); } catch(e) {}
+    } catch(err) {
+      setMsg(err.message || 'تعذر الاتصال بالسيرفر.', true);
+    } finally {
+      if(btn){ btn.disabled = false; btn.textContent = 'حفظ الحركة وتحديث المديونية'; }
+    }
+  }
+  function mount(){
+    injectStyle();
+    var modal = $('accountingModal');
+    var card = modal && modal.querySelector('.accounting-card');
+    if(!card || $('customerAccountsAdminBox')) return;
+    var host = card.querySelector('.accounting-actions-row') || card.querySelector('.modal-head-row');
+    if(host) host.insertAdjacentHTML('afterend', panelHtml());
+    else card.insertAdjacentHTML('afterbegin', panelHtml());
+    var loadBtn = $('loadCustomerAccountBtn');
+    var saveBtn = $('saveCustomerPaymentBtn');
+    var name = $('accCustomerAccountName');
+    if(loadBtn) loadBtn.onclick = loadAccount;
+    if(saveBtn) saveBtn.onclick = saveTxn;
+    if(name) name.addEventListener('keydown', function(ev){ if(ev.key === 'Enter') loadAccount(); });
+  }
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(mount, 300); });
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if(t && t.closest && t.closest('#accountingBtn,#refreshAccountingBtn,#accountingModal')) setTimeout(mount, 120);
+  }, true);
+  [600,1400,2800].forEach(function(ms){ setTimeout(mount, ms); });
 })();
 
 
