@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
+  const UI_VERSION = 'V1913_UNIFIED_ACCOUNTING_DEBT';
 
   const screens = {
     service: "خدمة العملاء",
@@ -5067,7 +5067,7 @@ Trend Mall`;
     const orderId = encodeURIComponent(($("invoiceOrderId") || {}).value || row.orderId || "");
     const user = encodeURIComponent((state.user && (state.user.username || state.user.name)) || "جابر");
     const token = encodeURIComponent((state.user && state.user.token) || "");
-    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es32-v1880-clean-core", "_blank");
+    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es38-v1913-security-integrity-20260810", "_blank");
   }
 
   async function openInvoiceModal(row) {
@@ -8391,7 +8391,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('name', cu.name || 'جابر'); u.searchParams.set('username', cu.username || 'جابر'); u.searchParams.set('token', cu.token || '');
     u.searchParams.set('customer', (row && (row.customer || row.customerName)) || (($('invoiceCustomer')||{}).value||''));
     u.searchParams.set('orderId', (row && row.orderId) || (($('invoiceOrderId')||{}).value||''));
-    u.searchParams.set('v','es33-v1896-debt-addorder-catalog-hard-lock-20260701');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es38-v1913-security-integrity-20260810');
     window.open(u.toString(), 'Matbagy_Gaber_Calc');
   }
   function toggleInlineLaser(){ var b=$('invoiceInlineLaserBox'); if(b) b.classList.toggle('hidden'); }
@@ -8451,9 +8451,9 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     row = row || window.MATBAGY_P30_INVOICE_ROW || {};
     var base = String(window.MATBAGY_EASY_STORE_URL || 'https://fawakhry.github.io/EasyStore/').trim();
     var u = new URL(base, location.href); var cu = currentUser();
-    u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','sales'); u.searchParams.set('mode','final');
+    u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final');
     u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v','es33-v1896-debt-addorder-catalog-hard-lock-20260701');
+    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es38-v1913-security-integrity-20260810');
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
   function openInvoice(row){
@@ -8568,7 +8568,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('canPurchase', canOpenPurchases() ? '1' : '0');
     u.searchParams.set('deptOnly', canOpenPurchases() ? '0' : '1');
     u.searchParams.set('hideCostForDept', (userMode()==='laser' || userMode()==='print') ? '1' : '0');
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es33-v1896-debt-addorder-catalog-hard-lock-20260701');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es38-v1913-security-integrity-20260810');
     Object.keys(params).forEach(function(k){ if(params[k] !== undefined && params[k] !== null && k !== 'mode' && k !== 'department') u.searchParams.set(k, params[k]); });
     window.open(u.toString(), windowName || 'Matbagy_EasyStore_V1890');
     return true;
@@ -9161,36 +9161,64 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     }
     return box;
   }
-  function renderAddOrderDebt(c, loading){
+  function renderAddOrderDebt(c, status){
     var box=ensureAddOrderDebtBox(); if(!box) return;
     var q=txt(($('newCustomerName')||{}).value||'');
     if(!q){ box.className='v1896-addorder-debt-box muted'; box.textContent='اكتب أو اختار العميل لعرض المديونية هنا.'; return; }
-    if(loading){ box.className='v1896-addorder-debt-box muted'; box.textContent='جاري فحص مديونية العميل...'; return; }
+    if(status===true || status==='loading'){ box.className='v1896-addorder-debt-box muted'; box.textContent='جاري فحص مديونية العميل من الحسابات...'; return; }
+    if(status==='notFound'){ box.className='v1896-addorder-debt-box muted'; box.textContent='لم يتم العثور على هذا العميل في الحسابات. اختاره من القائمة أو راجع كتابة الاسم.'; return; }
+    if(status==='error'){ box.className='v1896-addorder-debt-box muted'; box.textContent='تعذر فحص المديونية الآن. لا تعتمد على أن الرصيد صفر قبل إعادة المحاولة.'; return; }
+    if(!c){ box.className='v1896-addorder-debt-box muted'; box.textContent='لم يتم تأكيد حساب هذا العميل بعد.'; return; }
     var amount=debtOfCustomer(c);
     if(amount>0){ box.className='v1896-addorder-debt-box hasDebt'; box.innerHTML='⚠️ مديونية العميل: <b>'+esc(money(amount))+'</b> — تظهر قبل تسجيل الأوردر.'; }
-    else { box.className='v1896-addorder-debt-box noDebt'; box.textContent='✓ لا توجد مديونية مسجلة لهذا العميل.'; }
+    else { box.className='v1896-addorder-debt-box noDebt'; box.textContent='✓ تم فحص الحساب: لا توجد مديونية مسجلة لهذا العميل.'; }
   }
   var debtTimer=null, debtSeq=0;
   function refreshAddOrderDebt(){
     var q=txt(($('newCustomerName')||{}).value||'');
-    if(!q){ renderAddOrderDebt(null,false); return; }
-    var local=findLocalCustomer(q); if(local) renderAddOrderDebt(local,false); else renderAddOrderDebt(null,true);
+    if(!q){ renderAddOrderDebt(null,'idle'); return; }
+    var local=findLocalCustomer(q);
+    if(local && debtOfCustomer(local)>0) renderAddOrderDebt(local,'local'); else renderAddOrderDebt(null,'loading');
     var seq=++debtSeq;
     clearTimeout(debtTimer);
     debtTimer=setTimeout(function(){
       apiV1896('searchCustomers',{q:q}).then(function(res){
         if(seq!==debtSeq) return;
+        if(!res || res.success!==true){
+          if(local && debtOfCustomer(local)>0) renderAddOrderDebt(local,'local');
+          else renderAddOrderDebt(null,'error');
+          return;
+        }
         var rows=(res&&res.success&&Array.isArray(res.customers))?res.customers:[];
-        var best=rows[0]||local||null;
-        renderAddOrderDebt(best,false);
-      }).catch(function(){ if(seq===debtSeq) renderAddOrderDebt(local||null,false); });
+        var exact=rows.filter(function(c){ return key(customerName(c))===key(q); })[0];
+        var best=exact||rows[0]||null;
+        if(!best){
+          if(local && debtOfCustomer(local)>0) renderAddOrderDebt(local,'local');
+          else renderAddOrderDebt(null,'notFound');
+          return;
+        }
+        var canonicalName=customerName(best)||q;
+        apiV1896('getPartyAccountV1858',{partyType:'customer',partyName:canonicalName}).then(function(account){
+          if(seq!==debtSeq) return;
+          if(account && account.success){
+            var confirmed=Object.assign({},best,{currentBalance:num(account.balance),balance:num(account.balance),debtAmount:num(account.balance)});
+            renderAddOrderDebt(confirmed,'confirmed');
+          }else{
+            renderAddOrderDebt(best,'confirmedSearch');
+          }
+        }).catch(function(){ if(seq===debtSeq) renderAddOrderDebt(best,'confirmedSearch'); });
+      }).catch(function(){
+        if(seq!==debtSeq) return;
+        if(local && debtOfCustomer(local)>0) renderAddOrderDebt(local,'local');
+        else renderAddOrderDebt(null,'error');
+      });
     }, 320);
   }
   function wireAddOrderDebt(){
     var n=$('newCustomerName'), p=$('newCustomerPhone');
     if(n && n.dataset.v1896Debt!=='1'){ n.dataset.v1896Debt='1'; n.addEventListener('input', refreshAddOrderDebt); n.addEventListener('change', refreshAddOrderDebt); n.addEventListener('blur', function(){setTimeout(refreshAddOrderDebt,120);}); }
     if(p && p.dataset.v1896Debt!=='1'){ p.dataset.v1896Debt='1'; p.addEventListener('input', refreshAddOrderDebt); p.addEventListener('change', refreshAddOrderDebt); }
-    var b=ensureAddOrderDebtBox(); if(b && !txt(b.textContent)) renderAddOrderDebt(null,false);
+    var b=ensureAddOrderDebtBox(); if(b && !txt(b.textContent)) renderAddOrderDebt(null,'idle');
   }
   document.addEventListener('click',function(ev){ var t=ev.target; if(t && t.closest && t.closest('#customerSuggestions button')) setTimeout(refreshAddOrderDebt,80); }, true);
 
@@ -9980,7 +10008,21 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
         if(!res || res.success === false) throw new Error((res && res.message) || ('تعذر تسجيل الصف رقم '+line.index));
         ok++;
       }
-      if(msg) msg.textContent = 'تم تسجيل '+ok+' صف في فاتورة القسم. راجع البنود ثم اعتمد فاتورة القسم.';
+      var approvalMessage = ' البنود في انتظار اعتماد المسؤول.';
+      if(!su.isGaber && !su.isWael){
+        try{
+          var approval = await apiJsonp('approveAccountingDeptInvoice', {
+            orderId: baseRow.orderId || txt(($('v1904InvoiceOrder')||{}).value),
+            department: dep,
+            customerName: baseRow.customer || baseRow.customerName || txt(($('v1904InvoiceCustomer')||{}).value)
+          });
+          if(approval && approval.success === false) approvalMessage = ' تم التسجيل، لكن الاعتماد يحتاج مراجعة: ' + (approval.message || '');
+          else approvalMessage = ' وتم اعتمادها للتقفيل النهائي.';
+        }catch(approvalErr){
+          approvalMessage = ' تم التسجيل، لكن الاعتماد لم يكتمل تلقائيًا. افتح التقفيل النهائي واعتمدها من هناك.';
+        }
+      }
+      if(msg) msg.textContent = 'تم تسجيل '+ok+' صف في فاتورة القسم.' + approvalMessage;
       if(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW) setTimeout(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW, 500);
       if(openFinal) setTimeout(function(){ openFinalInvoice(baseRow); }, 500);
     }catch(e){
@@ -9999,10 +10041,10 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     var base = String(window.MATBAGY_EASY_STORE_URL || 'https://fawakhry.github.io/EasyStore/').trim();
     try{
       var u = new URL(base, location.href); var su = sessionUser();
-      u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','sales'); u.searchParams.set('mode','final'); u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1');
+      u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final'); u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1');
       u.searchParams.set('orderId', row.orderId || txt(($('v1904InvoiceOrder')||{}).value));
       u.searchParams.set('customer', row.customer || row.customerName || txt(($('v1904InvoiceCustomer')||{}).value));
-      u.searchParams.set('name', su.name); u.searchParams.set('username', su.username); u.searchParams.set('token', su.token || ''); u.searchParams.set('v','es33-v1904-invoice-rows');
+      u.searchParams.set('name', su.name); u.searchParams.set('username', su.username); u.searchParams.set('token', su.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es38-v1913-security-integrity-20260810');
       window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
     }catch(e){}
   }
@@ -10440,4 +10482,14 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
+})();
+
+// Canonical build marker. Historical patch flags above describe included features,
+// while these values identify the single currently deployed bundle.
+(function(){
+  window.TRENDOS_PATCH_VERSION = 'V1913_UNIFIED_ACCOUNTING_DEBT';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1913 Unified Accounting';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1913 Unified Accounting';
+  window.MATBAGY_BATCH_VERSION = 'V1913_UNIFIED_ACCOUNTING_DEBT';
+  window.MATBAGY_UI_THEME_VERSION = 'V1913_UNIFIED_ACCOUNTING_DEBT';
 })();
