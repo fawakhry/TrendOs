@@ -14,7 +14,7 @@ window.MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
 window.MATBAGY_ROTET_URL = "https://fawakhry.github.io/TrendOs/?rotet=matbagy";
 window.MATBAGY_EASY_STORE_URL = "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_LEAD_HUNTER_URL = "https://fawakhry.github.io/trendos-lead-hunter/";
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es40-v1915-customer-accounts-20260810';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es41-v1916-customer-account-drawer-20260810';
 
 // صلاحيات الملفات والأدوات
 window.MATBAGY_FILES_ALLOWED_EMPLOYEES = ['ضياء','جابر','وائل','diaa','gaber','jaber','wael'];
@@ -38,14 +38,14 @@ window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
 // Clean build flags
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1915 EasyStore Customer Accounts';
-window.MATBAGY_BATCH_VERSION = 'V1915_EASYSTORE_CUSTOMER_ACCOUNTS';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1916 EasyStore Customer Account Drawer';
+window.MATBAGY_BATCH_VERSION = 'V1916_EASYSTORE_CUSTOMER_ACCOUNT_DRAWER';
 window.MATBAGY_PATCH29_DEPT_INVOICE = false;
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
 window.MATBAGY_EASYSTORE_FIX5 = false;
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1915_EASYSTORE_CUSTOMER_ACCOUNTS';
+window.MATBAGY_UI_THEME_VERSION = 'V1916_EASYSTORE_CUSTOMER_ACCOUNT_DRAWER';
 
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 
@@ -60,6 +60,6 @@ window.MATBAGY_V1904_INVOICE_ROWS_ENTER_TAB = true;
 // V1906 Matbagy Sheets Access
 window.MATBAGY_SHEETS_ALLOWED_EMPLOYEES = ['ضياء','ريفان','ريڤان','وائل','diaa','revan','rivan','wael'];
 window.MATBAGY_V1906_SHEETS_ACCESS = true;
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1915 EasyStore Customer Accounts';
-window.MATBAGY_BATCH_VERSION = 'V1915_EASYSTORE_CUSTOMER_ACCOUNTS';
-window.MATBAGY_UI_THEME_VERSION = 'V1915_EASYSTORE_CUSTOMER_ACCOUNTS';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1916 EasyStore Customer Account Drawer';
+window.MATBAGY_BATCH_VERSION = 'V1916_EASYSTORE_CUSTOMER_ACCOUNT_DRAWER';
+window.MATBAGY_UI_THEME_VERSION = 'V1916_EASYSTORE_CUSTOMER_ACCOUNT_DRAWER';
