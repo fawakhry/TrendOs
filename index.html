@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=trendos-v1921-semi-automatic-accounting-20260811a">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1921-semi-automatic-accounting-20260811a">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1922-unified-safe-build-20260811a">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1922-unified-safe-build-20260811a">
 </head>
 <body>
 <main class="app">
@@ -37,7 +37,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1921 Semi-Automatic Accounting</p>
+    <p class="version-badge">TrendOS V1922 Unified Safe Build</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -48,7 +48,7 @@
     <input id="username" placeholder="مثال: وائل">
 
     <label>كلمة المرور</label>
-    <input id="password" type="password" placeholder="0000">
+    <input id="password" type="password" autocomplete="current-password" placeholder="كلمة المرور">
 
     <div class="row">
       <button id="loginBtn" class="primary">دخول</button>
@@ -80,7 +80,7 @@
       <div>
         <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1921 Semi-Automatic Accounting</p>
+        <p class="version-badge">TrendOS V1922 Unified Safe Build</p>
         <p id="liveStatus" class="live-status">تحديث آمن تلقائي كل 3 دقائق عند عدم وجود نموذج مفتوح</p>
       </div>
       <div class="top-actions">
@@ -1230,21 +1230,20 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1921-semi-automatic-accounting-20260811a"></script>
-<script src="app.js?v=trendos-v1921-semi-automatic-accounting-20260811a"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1921-semi-automatic-accounting-20260811a"></script>
+<script src="config.js?v=trendos-v1922-unified-safe-build-20260811a"></script>
+<script src="app.js?v=trendos-v1922-unified-safe-build-20260811a"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1922-unified-safe-build-20260811a"></script>
 
 <script>
 (function(){
   'use strict';
-  var LOCK = 'Trend Mall | فكرتك جاهزة';
-  var BUILD = 'TrendOS V1921 Semi-Automatic Accounting';
-  var CACHE_TAG = 'trendos-v1921-semi-automatic-accounting-20260811a';
+  var BUILD = 'TrendOS V1922 Unified Safe Build';
+  var CACHE_TAG = 'trendos-v1922-unified-safe-build-20260811a';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
-  window.TRENDOS_PATCH_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  window.TRENDOS_PATCH_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
   window.MATBAGY_BUILD_VERSION = BUILD;
-  window.MATBAGY_BATCH_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  window.MATBAGY_BATCH_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
   window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
   try{
     localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
@@ -1253,37 +1252,14 @@
     if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function(regs){ regs.forEach(function(r){try{r.unregister();}catch(e){}}); });
     if (window.caches && caches.keys) caches.keys().then(function(keys){ keys.forEach(function(k){ if(/trendos|matbagy|workbox|cache/i.test(k)) caches.delete(k); }); });
   }catch(e){}
-  function stableText(el){
-    if(!el) return;
-    var t = el.textContent || '';
-    if(/V18\d{2}|ES\d+|Batch|Patch|Ledger|Accounting Manager|Proof Copy|Stable/.test(t) || el.classList.contains('version-badge')){
-      el.textContent = LOCK;
-    }
-  }
-  function lockVersion(){
+  function showBuild(){
     try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
-    try{window.TRENDOS_PATCH_VERSION='V1921_SEMI_AUTOMATIC_ACCOUNTING';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1921_SEMI_AUTOMATIC_ACCOUNTING';}catch(e){}
-    document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(stableText);
-    document.querySelectorAll('p,small,span,div,b,h1,h2,h3').forEach(function(el){
-      if(el.children && el.children.length>0) return;
-      var t=el.textContent||'';
-      if(t.length<180 && /(V185|V186|V187|V188[0-8]|ES1\d|ES2\d|ES31|Ledger Fix|Accounting Manager|Batch 25|Proof Copy)/i.test(t)){
-        el.textContent = t.replace(/مطبعجي مصر\s*V18\d{2}\s*-\s*ES\d+[^
-]*/gi, LOCK)
-          .replace(/TrendOS\s*V18\d{2}[^
-]*/gi, BUILD)
-          .replace(/V18\d{2}\s*[-+\/]?\s*ES\d+[^
-]*/gi, 'V1893')
-          .replace(/Batch\s*\d+[^
-]*/gi, BUILD)
-          .replace(/Ledger Fix|Accounting Manager|Proof Copy/gi, 'Stable Version Lock');
-      }
-    });
+    try{window.TRENDOS_PATCH_VERSION='V1922_UNIFIED_SAFE_BUILD';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1922_UNIFIED_SAFE_BUILD';}catch(e){}
+    document.querySelectorAll('.version-badge,[data-app-version]').forEach(function(el){el.textContent=BUILD;});
   }
-  document.addEventListener('DOMContentLoaded', lockVersion);
-  lockVersion();
-  [50,150,300,700,1200,1800,2600,4000].forEach(function(ms){setTimeout(lockVersion,ms);});
-  try{ new MutationObserver(function(){ lockVersion(); }).observe(document.documentElement, {childList:true,subtree:true,characterData:true}); }catch(e){}
+  document.addEventListener('DOMContentLoaded', showBuild);
+  showBuild();
+  [300,1000,3000,7500].forEach(function(ms){setTimeout(showBuild,ms);});
 })();
 </script>
 

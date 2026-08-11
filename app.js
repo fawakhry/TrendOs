@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  const UI_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
 
   const screens = {
     service: "خدمة العملاء",
@@ -1392,51 +1392,19 @@ Trend Mall`;
     window.open(url, "Matbagy_Fast_Print_Upload");
   }
 
-  function buildUrl(action, params, callbackName) {
-    const query = new URLSearchParams();
-    query.set("action", action);
-    if (callbackName) query.set("callback", callbackName);
-    Object.keys(params || {}).forEach(function (key) {
-      const value = params[key];
-      if (value !== undefined && value !== null) query.set(key, value);
-    });
-    return API_URL + (API_URL.indexOf("?") === -1 ? "?" : "&") + query.toString();
-  }
+  window.trendosSecureApiV1922 = async function(action, params) {
+    const endpoint=String(window.MATBAGY_SECURE_API_PROXY_URL||API_URL||'').trim();
+    if(!endpoint||endpoint.indexOf('PUT_YOUR_WEB_APP_URL_HERE')!==-1) throw new Error('رابط API الآمن غير مضبوط في config.js');
+    const controller=new AbortController(),timer=setTimeout(function(){controller.abort();},90000);
+    try{
+      const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:action,_ts:Date.now()},params||{})),signal:controller.signal,credentials:'omit',redirect:'follow'});
+      if(!response.ok) throw new Error('فشل الاتصال بالسيرفر ('+response.status+')');
+      const text=await response.text();
+      try{return JSON.parse(text||'{}');}catch(e){throw new Error('رد السيرفر غير صالح. اضبط MATBAGY_SECURE_API_PROXY_URL.');}
+    }catch(e){if(e&&e.name==='AbortError')throw new Error('انتهت مهلة الاتصال بالسيرفر.');throw e;}finally{clearTimeout(timer);}
+  };
 
-  function api(action, params) {
-    return new Promise(function (resolve, reject) {
-      if (!API_URL || API_URL.indexOf("PUT_YOUR_WEB_APP_URL_HERE") !== -1) {
-        reject(new Error("رابط Web App غير موجود في config.js"));
-        return;
-      }
-
-      const callbackName = "trendos_cb_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-      const script = document.createElement("script");
-      const timer = setTimeout(function () {
-        cleanup();
-        reject(new Error("انتهت مهلة الاتصال بالسيرفر."));
-      }, 90000);
-
-      function cleanup() {
-        clearTimeout(timer);
-        try { delete window[callbackName]; } catch (e) { window[callbackName] = undefined; }
-        if (script && script.parentNode) script.parentNode.removeChild(script);
-      }
-
-      window[callbackName] = function (data) {
-        cleanup();
-        resolve(data || {});
-      };
-
-      script.onerror = function () {
-        cleanup();
-        reject(new Error("فشل الاتصال بالسيرفر. راجع رابط Web App أو صلاحيات النشر."));
-      };
-
-      script.src = buildUrl(action, params || {}, callbackName);
-      document.body.appendChild(script);
-    });
-  }
+  function api(action, params) { return window.trendosSecureApiV1922(action, params); }
 
 
 
@@ -1444,17 +1412,7 @@ Trend Mall`;
     if (!API_URL || API_URL.indexOf("PUT_YOUR_WEB_APP_URL_HERE") !== -1) {
       throw new Error("رابط Web App غير موجود في config.js");
     }
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(Object.assign({ action: action }, payload || {}))
-    });
-    const textValue = await res.text();
-    try {
-      return JSON.parse(textValue || "{}");
-    } catch (err) {
-      throw new Error("رد السيرفر غير واضح أثناء رفع الملفات.");
-    }
+    return window.trendosSecureApiV1922(action, payload);
   }
 
   function fileToBase64(file) {
@@ -1674,18 +1632,20 @@ Trend Mall`;
   }
 
   function saveSession() {
-    localStorage.setItem("trendos_session", JSON.stringify({ user: state.user, screen: state.screen }));
+    sessionStorage.setItem("trendos_session", JSON.stringify({ user: state.user, screen: state.screen }));
     try {
       const u = state.user || {};
-      localStorage.setItem("matbagy_user_name", u.name || u.username || "");
-      localStorage.setItem("matbagy_username", u.username || u.name || "");
-      localStorage.setItem("matbagy_session_token", u.token || "");
+      sessionStorage.setItem("matbagy_user_name", u.name || u.username || "");
+      sessionStorage.setItem("matbagy_username", u.username || u.name || "");
+      sessionStorage.setItem("matbagy_session_token", u.token || "");
+      localStorage.removeItem("trendos_session");
+      localStorage.removeItem("matbagy_session_token");
     } catch (e) {}
   }
 
   function loadSession() {
     try {
-      const data = JSON.parse(localStorage.getItem("trendos_session") || "null");
+      const data = JSON.parse(sessionStorage.getItem("trendos_session") || "null");
       if (data && data.user && data.user.token) {
         state.user = data.user;
         state.screen = data.screen || "service";
@@ -1696,19 +1656,20 @@ Trend Mall`;
   }
 
   function clearSession() {
-    localStorage.removeItem("trendos_session");
-    try { localStorage.removeItem("matbagy_user_name"); localStorage.removeItem("matbagy_username"); localStorage.removeItem("matbagy_session_token"); } catch(e) {}
+    sessionStorage.removeItem("trendos_session");
+    try { sessionStorage.removeItem("matbagy_user_name"); sessionStorage.removeItem("matbagy_username"); sessionStorage.removeItem("matbagy_session_token"); localStorage.removeItem("trendos_session"); localStorage.removeItem("matbagy_session_token"); localStorage.removeItem("MATBAGY_EMPLOYEE_SSO"); } catch(e) {}
     state.user = null;
     state.rows = [];
   }
 
   function saveCustomerSession() {
-    localStorage.setItem("matbagy_platform_customer_session", JSON.stringify({ customer: state.customer }));
+    sessionStorage.setItem("matbagy_platform_customer_session", JSON.stringify({ customer: state.customer }));
+    try { localStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
   }
 
   function loadCustomerSession() {
     try {
-      const data = JSON.parse(localStorage.getItem("matbagy_platform_customer_session") || "null");
+      const data = JSON.parse(sessionStorage.getItem("matbagy_platform_customer_session") || "null");
       if (data && data.customer && data.customer.token && data.customer.customerCode) {
         state.customer = data.customer;
         return true;
@@ -1718,7 +1679,8 @@ Trend Mall`;
   }
 
   function clearCustomerSession() {
-    localStorage.removeItem("matbagy_platform_customer_session");
+    sessionStorage.removeItem("matbagy_platform_customer_session");
+    try { localStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
     state.customer = null;
     state.customerOrders = [];
     state.customerDraft = null;
@@ -3921,9 +3883,8 @@ Trend Mall`;
         return;
       }
       if (state.customer) state.customer.mustChange = false;
-      saveCustomerSession();
       setMsg("customerPassMsg", res.message || "تم تغيير كلمة المرور.", false);
-      setTimeout(closeCustomerPasswordModal, 900);
+      if (res.forceRelogin) setTimeout(customerLogout, 900); else { saveCustomerSession(); setTimeout(closeCustomerPasswordModal, 900); }
     } catch (err) {
       setMsg("customerPassMsg", err.message || "خطأ أثناء تغيير كلمة المرور.", true);
     }
@@ -3934,6 +3895,7 @@ Trend Mall`;
       closeVisitorPreview();
       return;
     }
+    try { const c = state.customer || {}; api("customerLogout", { customerCode: c.customerCode || c.code || "", token: c.token || "" }).catch(function(){}); } catch (e) {}
     clearCustomerSession();
     showEntryChoice();
   }
@@ -5067,7 +5029,8 @@ Trend Mall`;
     const orderId = encodeURIComponent(($("invoiceOrderId") || {}).value || row.orderId || "");
     const user = encodeURIComponent((state.user && (state.user.username || state.user.name)) || "جابر");
     const token = encodeURIComponent((state.user && state.user.token) || "");
-    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es46-v1921-semi-automatic-accounting-20260811a", "_blank");
+    try { localStorage.setItem('MATBAGY_EMPLOYEE_SSO', JSON.stringify({at:Date.now(),user:{name:user,username:user,token:token,department:'ليزر'},params:{name:user,username:user,token:token,department:'ليزر',mode:'laser'}})); } catch(e) {}
+    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es46-v1921-semi-automatic-accounting-20260811a", "_blank");
   }
 
   async function openInvoiceModal(row) {
@@ -5579,7 +5542,7 @@ Trend Mall`;
         return;
       }
       setMsg("passMsg", res.message || "تم تغيير كلمة المرور.", false);
-      setTimeout(closePasswordModal, 900);
+      if (res.forceRelogin) setTimeout(logout, 900); else setTimeout(closePasswordModal, 900);
     } catch (err) {
       setMsg("passMsg", err.message || "خطأ أثناء تغيير كلمة المرور.", true);
     }
@@ -5622,6 +5585,7 @@ Trend Mall`;
 
   function logout() {
     stopUrgentNotificationTimer();
+    try { const u = state.user || {}; api("logout", { username: u.username || u.name || "", token: u.token || "" }).catch(function(){}); } catch (e) {}
     clearSession();
     showEntryChoice();
   }
@@ -7873,46 +7837,18 @@ Trend Mall`;
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
   function num(v){ var n = Number(String(v || '').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,'')); return isFinite(n) ? n : 0; }
   function money(v){ return num(v).toLocaleString('ar-EG',{maximumFractionDigits:2}) + ' ج'; }
-  function safeJson(k){ try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch(e) { return {}; } }
+  function safeJson(k){ try { return JSON.parse(sessionStorage.getItem(k) || '{}'); } catch(e) { return {}; } }
   function currentUser(){
     var stateUser = (window.state && window.state.user) || {};
     var session = safeJson('trendos_session');
     var savedUser = session.user || session || {};
     return {
-      name: stateUser.name || stateUser.username || savedUser.name || savedUser.username || localStorage.getItem('matbagy_user_name') || localStorage.getItem('matbagy_username') || 'ضياء',
-      username: stateUser.username || stateUser.name || savedUser.username || savedUser.name || localStorage.getItem('matbagy_username') || localStorage.getItem('matbagy_user_name') || 'ضياء',
-      token: stateUser.token || savedUser.token || session.token || localStorage.getItem('matbagy_session_token') || localStorage.getItem('trendos_session_token') || ''
+      name: stateUser.name || stateUser.username || savedUser.name || savedUser.username || sessionStorage.getItem('matbagy_user_name') || sessionStorage.getItem('matbagy_username') || '',
+      username: stateUser.username || stateUser.name || savedUser.username || savedUser.name || sessionStorage.getItem('matbagy_username') || sessionStorage.getItem('matbagy_user_name') || '',
+      token: stateUser.token || savedUser.token || session.token || sessionStorage.getItem('matbagy_session_token') || ''
     };
   }
-  function api(action, params){
-    return new Promise(function(resolve,reject){
-      var base = txt(window.TREND_API_URL || window.API_URL || '');
-      if(!base){ reject(new Error('رابط السيرفر غير مضبوط في config.js')); return; }
-      var cb = 'trendos_v1907_accounts_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-      var script = document.createElement('script');
-      var done = false;
-      function clean(){
-        if(done) return;
-        done = true;
-        try { delete window[cb]; } catch(e) { window[cb] = undefined; }
-        if(script.parentNode) script.parentNode.removeChild(script);
-      }
-      window[cb] = function(res){ clean(); resolve(res || {}); };
-      script.onerror = function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
-      var u = currentUser();
-      var q = new URLSearchParams(Object.assign({
-        action: action,
-        callback: cb,
-        username: u.username,
-        name: u.name,
-        token: u.token,
-        _ts: Date.now()
-      }, params || {}));
-      script.src = base + (base.indexOf('?') === -1 ? '?' : '&') + q.toString();
-      document.body.appendChild(script);
-      setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة الاتصال بالسيرفر')); } }, 90000);
-    });
-  }
+  function api(action, params){var u=currentUser();return window.trendosSecureApiV1922(action,Object.assign({username:u.username,name:u.name,token:u.token},params||{}));}
   function injectStyle(){
     if($('trendosV1907CustomerAccountsStyle')) return;
     var st = document.createElement('style');
@@ -8052,7 +7988,7 @@ Trend Mall`;
   function norm(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
   function employeePayload(extra){
     var u = (window.state && window.state.user) || (window.currentUser) || {};
-    var name = u.name || u.username || localStorage.getItem('matbagy_user_name') || 'ضياء';
+    var name = u.name || u.username || sessionStorage.getItem('matbagy_user_name') || '';
     var username = u.username || u.name || name;
     var role = u.role || u.permission || u.section || u.department || '';
     var dept = /جابر|gaber|jaber|ليزر/i.test(name+' '+role) ? 'ليزر' : (/وائل|wael|طباعة/i.test(name+' '+role) ? 'طباعة' : '');
@@ -8061,7 +7997,7 @@ Trend Mall`;
       bypassPhoneVerification:'1', bypassActivation:'1', openWithoutPhone:'1', employeePortal:'1',
       phoneRequired:'0', activationRequired:'0', requirePhone:'0', requireActivation:'0',
       username: username, name: name, role: role, department: dept,
-      token: (window.sessionToken || localStorage.getItem('matbagy_session_token') || ''),
+      token: (window.sessionToken || sessionStorage.getItem('matbagy_session_token') || ''),
       ts: Date.now()
     }, extra || {});
     try { localStorage.setItem('MATBAGY_EMPLOYEE_SSO', JSON.stringify({user:u, params:p, createdAt:Date.now()})); } catch(e){}
@@ -8071,7 +8007,7 @@ Trend Mall`;
     if (!url) { alert('الرابط غير مضبوط في config.js'); return; }
     var u = new URL(url, location.href);
     var p = employeePayload(extra);
-    Object.keys(p).forEach(function(k){ u.searchParams.set(k, p[k]); });
+    Object.keys(p).forEach(function(k){ if(k!=='token'&&k!=='username'&&k!=='name')u.searchParams.set(k, p[k]); });
     window.open(u.toString(), win || '_blank');
   }
   window.openMatbagySheetsTool = function(){
@@ -8185,40 +8121,24 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
   function isGaber(){
     var u = (window.state && window.state.user) || {};
-    var raw = [u.name,u.username,u.role,u.department,localStorage.getItem('matbagy_user_name'),localStorage.getItem('matbagy_username')].join(' ');
+    var raw = [u.name,u.username,u.role,u.department,sessionStorage.getItem('matbagy_user_name'),sessionStorage.getItem('matbagy_username')].join(' ');
     return /جابر|gaber|jaber|laser|ليزر/i.test(raw);
   }
   function isWael(){
     var u = (window.state && window.state.user) || {};
-    var raw = [u.name,u.username,u.role,u.department,localStorage.getItem('matbagy_user_name'),localStorage.getItem('matbagy_username')].join(' ');
+    var raw = [u.name,u.username,u.role,u.department,sessionStorage.getItem('matbagy_user_name'),sessionStorage.getItem('matbagy_username')].join(' ');
     return /وائل|wael|print|طباعة/i.test(raw);
   }
   function currentUser(){
     var u = (window.state && window.state.user) || {};
     return {
-      name: u.name || u.username || localStorage.getItem('matbagy_user_name') || localStorage.getItem('matbagy_username') || (isGaber()?'جابر':isWael()?'وائل':'ضياء'),
-      username: u.username || u.name || localStorage.getItem('matbagy_username') || localStorage.getItem('matbagy_user_name') || (isGaber()?'جابر':isWael()?'وائل':'ضياء'),
-      token: u.token || window.sessionToken || localStorage.getItem('matbagy_session_token') || '',
+      name: u.name || u.username || sessionStorage.getItem('matbagy_user_name') || sessionStorage.getItem('matbagy_username') || (isGaber()?'جابر':isWael()?'وائل':''),
+      username: u.username || u.name || sessionStorage.getItem('matbagy_username') || sessionStorage.getItem('matbagy_user_name') || (isGaber()?'جابر':isWael()?'وائل':''),
+      token: u.token || window.sessionToken || sessionStorage.getItem('matbagy_session_token') || '',
       department: isGaber() ? 'ليزر' : (isWael() ? 'طباعة' : (u.department || ''))
     };
   }
-  function apiJsonp(action, params){
-    return new Promise(function(resolve,reject){
-      var base = String(window.TREND_API_URL || window.API_URL || '').trim();
-      if(!base) return reject(new Error('رابط Apps Script غير مضبوط في config.js'));
-      var cb = 'p30cb_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-      var s = document.createElement('script');
-      var done = false;
-      function clean(){ if(done) return; done = true; try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(s.parentNode) s.parentNode.removeChild(s); }
-      window[cb] = function(res){ clean(); resolve(res || {}); };
-      var user = currentUser();
-      var q = new URLSearchParams(Object.assign({action:action, callback:cb, username:user.username, name:user.name, token:user.token, department:user.department, mode:isGaber()?'laser':(isWael()?'print':'full'), _ts:Date.now()}, params || {}));
-      s.onerror = function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
-      s.src = base + '?' + q.toString();
-      document.body.appendChild(s);
-      setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } }, 90000);
-    });
-  }
+  function apiJsonp(action, params){var user=currentUser();return window.trendosSecureApiV1922(action,Object.assign({username:user.username,name:user.name,token:user.token,department:user.department,mode:isGaber()?'laser':(isWael()?'print':'full')},params||{}));}
   function rowFromButton(btn){
     var tr = btn && btn.closest && btn.closest('tr');
     var order = '';
@@ -8388,10 +8308,10 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1');
     u.searchParams.set('screen','dept'); u.searchParams.set('mode','laser'); u.searchParams.set('department','ليزر'); u.searchParams.set('laserAi','1');
-    u.searchParams.set('name', cu.name || 'جابر'); u.searchParams.set('username', cu.username || 'جابر'); u.searchParams.set('token', cu.token || '');
     u.searchParams.set('customer', (row && (row.customer || row.customerName)) || (($('invoiceCustomer')||{}).value||''));
     u.searchParams.set('orderId', (row && row.orderId) || (($('invoiceOrderId')||{}).value||''));
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
+    try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:cu,params:{name:cu.name,username:cu.username,token:cu.token,mode:'laser',department:'ليزر'}}));}catch(e){}
     window.open(u.toString(), 'Matbagy_Gaber_Calc');
   }
   function toggleInlineLaser(){ var b=$('invoiceInlineLaserBox'); if(b) b.classList.toggle('hidden'); }
@@ -8453,7 +8373,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var u = new URL(base, location.href); var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final');
     u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
+    try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:cu,params:{name:cu.name,username:cu.username,token:cu.token,mode:'final'}}));}catch(e){}
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
   function openInvoice(row){
@@ -8518,12 +8439,12 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function norm(v){ return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي'); }
   function sessionUser(){
     var saved = {};
-    try { saved = JSON.parse(localStorage.getItem('trendos_session') || '{}').user || {}; } catch(e) { saved = {}; }
+    try { saved = JSON.parse(sessionStorage.getItem('trendos_session') || '{}').user || {}; } catch(e) { saved = {}; }
     var u = (window.state && window.state.user) || saved || {};
     return {
-      name: u.name || u.username || localStorage.getItem('matbagy_user_name') || localStorage.getItem('matbagy_username') || '',
-      username: u.username || u.name || localStorage.getItem('matbagy_username') || localStorage.getItem('matbagy_user_name') || '',
-      token: u.token || localStorage.getItem('matbagy_session_token') || '',
+      name: u.name || u.username || sessionStorage.getItem('matbagy_user_name') || sessionStorage.getItem('matbagy_username') || '',
+      username: u.username || u.name || sessionStorage.getItem('matbagy_username') || sessionStorage.getItem('matbagy_user_name') || '',
+      token: u.token || sessionStorage.getItem('matbagy_session_token') || '',
       role: u.role || '',
       department: u.department || ''
     };
@@ -8539,7 +8460,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   }
   function canOpenPurchases(){
     var mode = userMode();
-    return mode === 'admin' || mode === 'final';
+    return mode === 'admin';
   }
   function departmentForMode(){
     var mode = userMode();
@@ -8559,17 +8480,15 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('from','trendos');
     u.searchParams.set('sso','1');
     u.searchParams.set('employeeSSO','1');
-    u.searchParams.set('name', cu.name || cu.username || 'موظف');
-    u.searchParams.set('username', cu.username || cu.name || 'موظف');
-    u.searchParams.set('token', cu.token || '');
     u.searchParams.set('mode', params.mode || userMode());
     u.searchParams.set('department', params.department || departmentForMode());
     u.searchParams.set('purchaseAllowed', canOpenPurchases() ? '1' : '0');
     u.searchParams.set('canPurchase', canOpenPurchases() ? '1' : '0');
     u.searchParams.set('deptOnly', canOpenPurchases() ? '0' : '1');
     u.searchParams.set('hideCostForDept', (userMode()==='laser' || userMode()==='print') ? '1' : '0');
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
     Object.keys(params).forEach(function(k){ if(params[k] !== undefined && params[k] !== null && k !== 'mode' && k !== 'department') u.searchParams.set(k, params[k]); });
+    try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:cu,params:Object.assign({name:cu.name,username:cu.username,token:cu.token,mode:params.mode||userMode(),department:params.department||departmentForMode()},params)}));}catch(e){}
     window.open(u.toString(), windowName || 'Matbagy_EasyStore_V1890');
     return true;
   }
@@ -8629,25 +8548,12 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function msg(t,bad){ var m=$('invoiceMsg')||$('accountingMsg')||$('mainMsg'); if(m){m.textContent=t||''; m.classList.toggle('error',!!bad); m.classList.toggle('ok',!!t&&!bad);} }
   function userDept(){
     var u = (window.state && window.state.user) || {};
-    var k = norm([u.name,u.username,u.role,u.department,localStorage.getItem('matbagy_user_name'),localStorage.getItem('matbagy_username')].join(' '));
+    var k = norm([u.name,u.username,u.role,u.department,sessionStorage.getItem('matbagy_user_name'),sessionStorage.getItem('matbagy_username')].join(' '));
     if(/جابر|gaber|jaber|ليزر|laser/.test(k)) return 'ليزر';
     if(/وائل|wael|طباع|print/.test(k)) return 'طباعة';
     return txt(u.department||'');
   }
-  function apiJsonp(action, params){
-    return new Promise(function(resolve,reject){
-      var base = txt(window.TREND_API_URL || window.API_URL || ''); if(!base){reject(new Error('رابط السيرفر غير مضبوط'));return;}
-      var cb = 'trendos_fix5_' + Date.now() + '_' + Math.floor(Math.random()*99999);
-      var s = document.createElement('script');
-      var u = (window.state && window.state.user) || {};
-      var q = new URLSearchParams(Object.assign({action:action,callback:cb,username:u.username||u.name||'',name:u.name||u.username||'',token:u.token||'',_ts:Date.now()}, params||{}));
-      var done=false; function clean(){ if(done) return; done=true; try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode) s.parentNode.removeChild(s); }
-      window[cb]=function(r){ clean(); resolve(r||{}); };
-      s.onerror=function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
-      s.src = base + (base.indexOf('?')===-1?'?':'&') + q.toString();
-      document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } }, 90000);
-    });
-  }
+  function apiJsonp(action, params){var u=(window.state&&window.state.user)||{};return window.trendosSecureApiV1922(action,Object.assign({username:u.username||u.name||'',name:u.name||u.username||'',token:u.token||''},params||{}));}
   function closeClientInvoiceMenus(){
     ['clientInvoiceMenu','waInvoiceMenu','invoiceCustomerMenu'].forEach(function(id){ var el=$(id); if(el) el.classList.add('hidden'); });
     document.querySelectorAll('.clientInvoiceMenu,.wa-invoice-menu-list,.floating-menu,.dropdown-menu').forEach(function(el){ if(/فاتورة|invoice|menu/i.test(el.id+' '+el.className)) el.classList.add('hidden'); });
@@ -8760,8 +8666,8 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
   function num(v){var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}
   function money(v){return (Math.round(num(v)*100)/100).toLocaleString('ar-EG')+' ج';}
   function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
-  function api(action,params){return new Promise(function(resolve,reject){var base=txt(window.TREND_API_URL||window.API_URL||'');if(!base){reject(new Error('رابط السيرفر غير مضبوط'));return;}var cb='TREND_ES16_'+Date.now()+'_'+Math.floor(Math.random()*99999);var s=document.createElement('script');var q=new URLSearchParams(Object.assign({action:action,callback:cb,_ts:Date.now()},params||{}));var done=false;function clean(){if(done)return;done=true;try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}window[cb]=function(r){clean();resolve(r||{});};s.onerror=function(){clean();reject(new Error('فشل الاتصال بالسيرفر'));};s.src=base+(base.indexOf('?')<0?'?':'&')+q.toString();document.body.appendChild(s);setTimeout(function(){if(!done){clean();reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.'));}},90000);});}
-  function customerSession(){var c=(window.state&&window.state.customer)||{};try{if(!c.customerCode){var saved=JSON.parse(localStorage.getItem('matbagy_platform_customer_session')||'{}');c=saved.customer||c;}}catch(e){}return c||{};}
+  function api(action,params){return window.trendosSecureApiV1922(action,params||{});}
+  function customerSession(){var c=(window.state&&window.state.customer)||{};try{if(!c.customerCode){var saved=JSON.parse(sessionStorage.getItem('matbagy_platform_customer_session')||'{}');c=saved.customer||c;}}catch(e){}return c||{};}
   function portalUrl(extra){var u=new URL(location.origin+location.pathname,location.href);u.searchParams.set('portal','customer');u.searchParams.set('tab','accounts');u.searchParams.set('v','1859');Object.keys(extra||{}).forEach(function(k){u.searchParams.set(k,extra[k]);});return u.toString();}
   window.MATBAGY_ES16_CUSTOMER_ACCOUNTS_URL=portalUrl;
   function ensureCustomerAccountsButton(){var c=customerSession();var customerView=$('customerView');if(!customerView||!c.customerCode)return; if($('customerAccountsBtn'))return;var host=document.querySelector('#customerView .top-actions,#customerView .customer-actions,#customerView .row,#customerView header')||customerView;var b=document.createElement('button');b.id='customerAccountsBtn';b.type='button';b.className='ghost es16-btn';b.textContent='💳 حساباتي / فواتيري';b.onclick=function(){openCustomerAccountsPage();};host.appendChild(b);}
@@ -8791,22 +8697,12 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
   function nkey(v){ return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي'); }
   function sessionUser(){
-    var saved={}; try{ saved=JSON.parse(localStorage.getItem('trendos_session')||'{}').user||{}; }catch(e){}
+    var saved={}; try{ saved=JSON.parse(sessionStorage.getItem('trendos_session')||'{}').user||{}; }catch(e){}
     var u=(window.state&&window.state.user)||saved||{};
-    return {name:u.name||u.username||localStorage.getItem('matbagy_user_name')||localStorage.getItem('matbagy_username')||'',username:u.username||u.name||localStorage.getItem('matbagy_username')||localStorage.getItem('matbagy_user_name')||'',token:u.token||window.sessionToken||localStorage.getItem('matbagy_session_token')||'',role:u.role||'',department:u.department||''};
+    return {name:u.name||u.username||sessionStorage.getItem('matbagy_user_name')||sessionStorage.getItem('matbagy_username')||'',username:u.username||u.name||sessionStorage.getItem('matbagy_username')||sessionStorage.getItem('matbagy_user_name')||'',token:u.token||window.sessionToken||sessionStorage.getItem('matbagy_session_token')||'',role:u.role||'',department:u.department||''};
   }
   function userDept(){ var u=sessionUser(); var k=nkey([u.name,u.username,u.role,u.department].join(' ')); if(/جابر|gaber|jaber|laser|ليزر/.test(k)) return 'ليزر'; if(/وائل|wael|print|طباعه|طباعة/.test(k)) return 'طباعة'; return ''; }
-  function api(action, params){
-    return new Promise(function(resolve,reject){
-      var base=String(window.TREND_API_URL||window.API_URL||'').trim(); if(!base) return reject(new Error('رابط السيرفر غير مضبوط'));
-      var cb='v1887cb_'+Date.now()+'_'+Math.random().toString(16).slice(2); var s=document.createElement('script'); var done=false;
-      function clean(){ if(done) return; done=true; try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode) s.parentNode.removeChild(s); }
-      window[cb]=function(r){ clean(); resolve(r||{}); };
-      s.onerror=function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
-      var u=sessionUser(); var q=new URLSearchParams(Object.assign({action:action,callback:cb,username:u.username||u.name||'',name:u.name||u.username||'',token:u.token||'',department:userDept()||u.department||'',_ts:Date.now()},params||{}));
-      s.src=base+(base.indexOf('?')===-1?'?':'&')+q.toString(); document.body.appendChild(s); setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. انتظر دقيقة واضغط تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } },90000);
-    });
-  }
+  function api(action, params){var u=sessionUser();return window.trendosSecureApiV1922(action,Object.assign({username:u.username||u.name||'',name:u.name||u.username||'',token:u.token||'',department:userDept()||u.department||''},params||{}));}
   function orderId(r){ return r.orderId||r['رقم الأوردر']||''; }
   function dept(r){ return r.department||r['القسم']||''; }
   function item(r){ return r.itemName||r['اسم البند']||''; }
@@ -9104,31 +9000,16 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   function money(n){ return num(n).toLocaleString('ar-EG',{maximumFractionDigits:2}) + ' ج'; }
   function currentUser(){
     var u=(window.state&&window.state.user)||{};
-    var saved={}; try{ saved=JSON.parse(localStorage.getItem('trendos_session')||'{}'); }catch(e){}
+    var saved={}; try{ saved=JSON.parse(sessionStorage.getItem('trendos_session')||'{}'); }catch(e){}
     var su=saved.user||saved||{};
     return {
-      name: u.name||u.username||su.name||su.username||localStorage.getItem('matbagy_user_name')||localStorage.getItem('matbagy_username')||'ضياء',
-      username: u.username||u.name||su.username||su.name||localStorage.getItem('matbagy_username')||localStorage.getItem('matbagy_user_name')||'ضياء',
-      token: u.token||su.token||saved.token||localStorage.getItem('matbagy_session_token')||localStorage.getItem('trendos_session_token')||'',
+      name: u.name||u.username||su.name||su.username||sessionStorage.getItem('matbagy_user_name')||sessionStorage.getItem('matbagy_username')||'',
+      username: u.username||u.name||su.username||su.name||sessionStorage.getItem('matbagy_username')||sessionStorage.getItem('matbagy_user_name')||'',
+      token: u.token||su.token||saved.token||sessionStorage.getItem('matbagy_session_token')||'',
       department: u.department||su.department||''
     };
   }
-  function apiV1896(action, params){
-    return new Promise(function(resolve,reject){
-      var base=txt(window.TREND_API_URL||window.API_URL||'');
-      if(!base){ reject(new Error('رابط السيرفر غير مضبوط')); return; }
-      var cb='trendos_v1896_'+Date.now()+'_'+Math.random().toString(16).slice(2);
-      var s=document.createElement('script'); var done=false;
-      function clean(){ if(done) return; done=true; try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode) s.parentNode.removeChild(s); }
-      window[cb]=function(r){ clean(); resolve(r||{}); };
-      var u=currentUser();
-      var q=new URLSearchParams(Object.assign({action:action,callback:cb,username:u.username,name:u.name,token:u.token,department:u.department,_ts:Date.now()}, params||{}));
-      s.onerror=function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
-      s.src=base+(base.indexOf('?')<0?'?':'&')+q.toString();
-      document.body.appendChild(s);
-      setTimeout(function(){ if(!done){ clean(); reject(new Error('انتهت مهلة الاتصال بالسيرفر')); } }, 90000);
-    });
-  }
+  function apiV1896(action, params){var u=currentUser();return window.trendosSecureApiV1922(action,Object.assign({username:u.username,name:u.name,token:u.token,department:u.department},params||{}));}
 
   /******** مديونية العميل في شاشة إضافة أوردر ********/
   function debtOfCustomer(c){ return num(c && (c.debtAmount||c.debt||c.customerDebt||c.currentBalance||c.remainingBalance||c.balance||c.openingBalance||c['مديونية']||c['مديونية حالية']||c['رصيد العميل']||0)); }
@@ -9690,39 +9571,23 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 
   function sessionUser(){
     var saved = {};
-    try { saved = JSON.parse(localStorage.getItem('trendos_session') || '{}').user || {}; } catch(e) { saved = {}; }
+    try { saved = JSON.parse(sessionStorage.getItem('trendos_session') || '{}').user || {}; } catch(e) { saved = {}; }
     var u = (window.state && window.state.user) || saved || {};
-    var name = u.name || u.username || localStorage.getItem('matbagy_user_name') || localStorage.getItem('matbagy_username') || '';
-    var raw = [name,u.username,u.role,u.department,localStorage.getItem('matbagy_user_name'),localStorage.getItem('matbagy_username')].join(' ');
+    var name = u.name || u.username || sessionStorage.getItem('matbagy_user_name') || sessionStorage.getItem('matbagy_username') || '';
+    var raw = [name,u.username,u.role,u.department,sessionStorage.getItem('matbagy_user_name'),sessionStorage.getItem('matbagy_username')].join(' ');
     var isG = /جابر|gaber|jaber|laser|ليزر/i.test(raw);
     var isW = /وائل|wael|print|طباعة/i.test(raw);
     return {
       name:name || (isG?'جابر':isW?'وائل':'ضياء'),
-      username:u.username || u.name || localStorage.getItem('matbagy_username') || localStorage.getItem('matbagy_user_name') || (isG?'جابر':isW?'وائل':'ضياء'),
-      token:u.token || window.sessionToken || localStorage.getItem('matbagy_session_token') || '',
+      username:u.username || u.name || sessionStorage.getItem('matbagy_username') || sessionStorage.getItem('matbagy_user_name') || (isG?'جابر':isW?'وائل':''),
+      token:u.token || window.sessionToken || sessionStorage.getItem('matbagy_session_token') || '',
       department:isG?'ليزر':(isW?'طباعة':(u.department || '')),
       isGaber:isG,
       isWael:isW
     };
   }
 
-  function apiJsonp(action, params){
-    return new Promise(function(resolve,reject){
-      var base = String(window.TREND_API_URL || window.API_URL || '').trim();
-      if(!base) return reject(new Error('رابط Apps Script غير مضبوط في config.js'));
-      var cb = 'v1904cb_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-      var s = document.createElement('script');
-      var done = false;
-      function clean(){ if(done) return; done=true; try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(s.parentNode) s.parentNode.removeChild(s); }
-      window[cb] = function(res){ clean(); resolve(res || {}); };
-      var u = sessionUser();
-      var q = new URLSearchParams(Object.assign({action:action, callback:cb, username:u.username, name:u.name, token:u.token, department:u.department, mode:u.isGaber?'laser':(u.isWael?'print':'full'), _ts:Date.now()}, params || {}));
-      s.onerror = function(){ clean(); reject(new Error('فشل الاتصال بالسيرفر')); };
-      s.src = base + (base.indexOf('?') === -1 ? '?' : '&') + q.toString();
-      document.body.appendChild(s);
-      setTimeout(function(){ if(!done){ clean(); reject(new Error('السيرفر اتأخر في الرد. اعمل تحديث بنود القسم قبل إعادة التسجيل حتى لا يتكرر البند.')); } }, 90000);
-    });
-  }
+  function apiJsonp(action, params){var u=sessionUser();return window.trendosSecureApiV1922(action,Object.assign({username:u.username,name:u.name,token:u.token,department:u.department,mode:u.isGaber?'laser':(u.isWael?'print':'full')},params||{}));}
 
   function rowFromButton(btn){
     var tr = btn && btn.closest && btn.closest('tr');
@@ -9979,6 +9844,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
         var itemDept = (line.item && line.item.department) || dep;
         var shared = (line.shared || /مشترك|shared|عام/.test(norm(itemDept))) ? 'نعم' : 'لا';
         var payload = {
+          requestId: ['TDL', (baseRow.orderId || txt(($('v1904InvoiceOrder')||{}).value)), line.index, line.name, line.qty, line.sale].join('|'),
           rowNumber: baseRow.rowNumber || '',
           orderId: baseRow.orderId || txt(($('v1904InvoiceOrder')||{}).value),
           lineId: baseRow.lineId || '',
@@ -10008,20 +9874,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
         if(!res || res.success === false) throw new Error((res && res.message) || ('تعذر تسجيل الصف رقم '+line.index));
         ok++;
       }
-      var approvalMessage = ' البنود في انتظار اعتماد المسؤول.';
-      if(!su.isGaber && !su.isWael){
-        try{
-          var approval = await apiJsonp('approveAccountingDeptInvoice', {
-            orderId: baseRow.orderId || txt(($('v1904InvoiceOrder')||{}).value),
-            department: dep,
-            customerName: baseRow.customer || baseRow.customerName || txt(($('v1904InvoiceCustomer')||{}).value)
-          });
-          if(approval && approval.success === false) approvalMessage = ' تم التسجيل، لكن الاعتماد يحتاج مراجعة: ' + (approval.message || '');
-          else approvalMessage = ' وتم اعتمادها للتقفيل النهائي.';
-        }catch(approvalErr){
-          approvalMessage = ' تم التسجيل، لكن الاعتماد لم يكتمل تلقائيًا. افتح التقفيل النهائي واعتمدها من هناك.';
-        }
-      }
+      var approvalMessage = ' البنود في انتظار مراجعة واعتماد مسؤول القسم، ثم تسحبها رحمة أو ريفان أو ضياء للتقفيل النهائي.';
       if(msg) msg.textContent = 'تم تسجيل '+ok+' صف في فاتورة القسم.' + approvalMessage;
       if(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW) setTimeout(window.MATBAGY_V1887_REFRESH_SECTION_REVIEW, 500);
       if(openFinal) setTimeout(function(){ openFinalInvoice(baseRow); }, 500);
@@ -10044,7 +9897,8 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
       u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final'); u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1');
       u.searchParams.set('orderId', row.orderId || txt(($('v1904InvoiceOrder')||{}).value));
       u.searchParams.set('customer', row.customer || row.customerName || txt(($('v1904InvoiceCustomer')||{}).value));
-      u.searchParams.set('name', su.name); u.searchParams.set('username', su.username); u.searchParams.set('token', su.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
+      u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
+      try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:su,params:{name:su.name,username:su.username,token:su.token,mode:'final'}}));}catch(err){}
       window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
     }catch(e){}
   }
@@ -10425,12 +10279,11 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
       sheetsAccess:'1',
       username:u.username || u.name || safeLS('matbagy_username') || safeLS('matbagy_user_name') || '',
       name:u.name || u.username || safeLS('matbagy_user_name') || safeLS('matbagy_username') || '',
-      token:u.token || safeLS('matbagy_session_token') || '',
       roleMode:roleMode(),
       allowed:'diaa,wael,revan',
       v:'1906'
     };
-    try { localStorage.setItem('MATBAGY_EMPLOYEE_SSO', JSON.stringify({ at:Date.now(), user:u, params:params })); } catch(e) {}
+    try { localStorage.setItem('MATBAGY_EMPLOYEE_SSO', JSON.stringify({ at:Date.now(), user:u, params:Object.assign({},params,{token:u.token||safeLS('matbagy_session_token')||''}) })); } catch(e) {}
     window.open(withQuery(base, params), 'Matbagy_Sheets');
     return true;
   }
@@ -10487,11 +10340,11 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 // Canonical build marker. Historical patch flags above describe included features,
 // while these values identify the single currently deployed bundle.
 (function(){
-  window.TRENDOS_PATCH_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1921 Semi-Automatic Accounting';
-  window.MATBAGY_BUILD_VERSION = 'TrendOS V1921 Semi-Automatic Accounting';
-  window.MATBAGY_BATCH_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
-  window.MATBAGY_UI_THEME_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  window.TRENDOS_PATCH_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1922 Unified Safe Build';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1922 Unified Safe Build';
+  window.MATBAGY_BATCH_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
+  window.MATBAGY_UI_THEME_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
 })();
 
 /*********************** V1921 - Safe semi-automatic accounting handoff ***********************/
@@ -10501,7 +10354,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   function $(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ة]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
-  function safeLS(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
+  function safeLS(k){try{return sessionStorage.getItem(k)||localStorage.getItem(k)||'';}catch(e){return '';}}
   function sessionUser(){
     var session={};try{session=JSON.parse(safeLS('trendos_session')||'{}');}catch(e){}
     var user=(session&&session.user)||{};
@@ -10520,9 +10373,9 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     if(!u.username&&!u.name){alert('سجل دخول الموظف الأول.');return false;}
     try{
       var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
-      var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,token:u.token,v:CACHE_TAG};
+      var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,v:CACHE_TAG};
       Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
-      try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:u,params:params}));}catch(e){}
+      try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:u,params:Object.assign({},params,{token:u.token})}));}catch(e){}
       window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
       return true;
     }catch(e){alert('تعذر فتح الحسابات: '+(e.message||e));return false;}
@@ -10556,8 +10409,8 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   if(typeof setInterval==='function')setInterval(safeRefresh,180000);
   function boot(){mount();[300,900,1800,3500,7000].forEach(function(ms){setTimeout(mount,ms);});}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.TRENDOS_PATCH_VERSION='V1921_SEMI_AUTOMATIC_ACCOUNTING';
-  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1921 Semi-Automatic Accounting';
-  window.MATBAGY_BUILD_VERSION='TrendOS V1921 Semi-Automatic Accounting';
-  window.MATBAGY_BATCH_VERSION='V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  window.TRENDOS_PATCH_VERSION='V1922_UNIFIED_SAFE_BUILD';
+  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1922 Unified Safe Build';
+  window.MATBAGY_BUILD_VERSION='TrendOS V1922 Unified Safe Build';
+  window.MATBAGY_BATCH_VERSION='V1922_UNIFIED_SAFE_BUILD';
 })();
