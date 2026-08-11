@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1920_CUSTODY_DEPARTMENT_DAY_CLOSE';
+  const UI_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
 
   const screens = {
     service: "خدمة العملاء",
@@ -5067,7 +5067,7 @@ Trend Mall`;
     const orderId = encodeURIComponent(($("invoiceOrderId") || {}).value || row.orderId || "");
     const user = encodeURIComponent((state.user && (state.user.username || state.user.name)) || "جابر");
     const token = encodeURIComponent((state.user && state.user.token) || "");
-    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es45-v1920-custody-department-day-close-20260810", "_blank");
+    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&name=" + user + "&username=" + user + "&token=" + token + "&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es46-v1921-semi-automatic-accounting-20260811a", "_blank");
   }
 
   async function openInvoiceModal(row) {
@@ -8391,7 +8391,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('name', cu.name || 'جابر'); u.searchParams.set('username', cu.username || 'جابر'); u.searchParams.set('token', cu.token || '');
     u.searchParams.set('customer', (row && (row.customer || row.customerName)) || (($('invoiceCustomer')||{}).value||''));
     u.searchParams.set('orderId', (row && row.orderId) || (($('invoiceOrderId')||{}).value||''));
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es45-v1920-custody-department-day-close-20260810');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
     window.open(u.toString(), 'Matbagy_Gaber_Calc');
   }
   function toggleInlineLaser(){ var b=$('invoiceInlineLaserBox'); if(b) b.classList.toggle('hidden'); }
@@ -8453,7 +8453,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var u = new URL(base, location.href); var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final');
     u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es45-v1920-custody-department-day-close-20260810');
+    u.searchParams.set('name', cu.name); u.searchParams.set('username', cu.username); u.searchParams.set('token', cu.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
   function openInvoice(row){
@@ -8568,7 +8568,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('canPurchase', canOpenPurchases() ? '1' : '0');
     u.searchParams.set('deptOnly', canOpenPurchases() ? '0' : '1');
     u.searchParams.set('hideCostForDept', (userMode()==='laser' || userMode()==='print') ? '1' : '0');
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es45-v1920-custody-department-day-close-20260810');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
     Object.keys(params).forEach(function(k){ if(params[k] !== undefined && params[k] !== null && k !== 'mode' && k !== 'department') u.searchParams.set(k, params[k]); });
     window.open(u.toString(), windowName || 'Matbagy_EasyStore_V1890');
     return true;
@@ -10044,7 +10044,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
       u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final'); u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1');
       u.searchParams.set('orderId', row.orderId || txt(($('v1904InvoiceOrder')||{}).value));
       u.searchParams.set('customer', row.customer || row.customerName || txt(($('v1904InvoiceCustomer')||{}).value));
-      u.searchParams.set('name', su.name); u.searchParams.set('username', su.username); u.searchParams.set('token', su.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es45-v1920-custody-department-day-close-20260810');
+      u.searchParams.set('name', su.name); u.searchParams.set('username', su.username); u.searchParams.set('token', su.token || ''); u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es46-v1921-semi-automatic-accounting-20260811a');
       window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
     }catch(e){}
   }
@@ -10487,9 +10487,77 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 // Canonical build marker. Historical patch flags above describe included features,
 // while these values identify the single currently deployed bundle.
 (function(){
-  window.TRENDOS_PATCH_VERSION = 'V1920_CUSTODY_DEPARTMENT_DAY_CLOSE';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1920 Custody & Department Day Close';
-  window.MATBAGY_BUILD_VERSION = 'TrendOS V1920 Custody & Department Day Close';
-  window.MATBAGY_BATCH_VERSION = 'V1920_CUSTODY_DEPARTMENT_DAY_CLOSE';
-  window.MATBAGY_UI_THEME_VERSION = 'V1920_CUSTODY_DEPARTMENT_DAY_CLOSE';
+  window.TRENDOS_PATCH_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1921 Semi-Automatic Accounting';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1921 Semi-Automatic Accounting';
+  window.MATBAGY_BATCH_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  window.MATBAGY_UI_THEME_VERSION = 'V1921_SEMI_AUTOMATIC_ACCOUNTING';
+})();
+
+/*********************** V1921 - Safe semi-automatic accounting handoff ***********************/
+(function(){
+  'use strict';
+  var CACHE_TAG='es46-v1921-semi-automatic-accounting-20260811a', lastSafeRefresh=Date.now(), dirty=false;
+  function $(id){return document.getElementById(id);}
+  function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
+  function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ة]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
+  function safeLS(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
+  function sessionUser(){
+    var session={};try{session=JSON.parse(safeLS('trendos_session')||'{}');}catch(e){}
+    var user=(session&&session.user)||{};
+    return {name:user.name||safeLS('matbagy_user_name')||user.username||safeLS('matbagy_username')||'',username:user.username||safeLS('matbagy_username')||user.name||safeLS('matbagy_user_name')||'',token:user.token||safeLS('matbagy_session_token')||'',role:user.role||'',department:user.department||''};
+  }
+  function roleMode(){
+    var u=sessionUser(),blob=norm([u.name,u.username,u.role,u.department,safeLS('trendos_session')].join(' '));
+    if(/ضياء|diaa|admin|مدير/.test(blob))return 'admin';
+    if(/رحمه|رحمة|rahma|ريفان|ريڤان|revan|rivan|final/.test(blob))return 'final';
+    if(/جابر|gaber|jaber|laser|ليزر/.test(blob))return 'laser';
+    if(/وائل|wael|print|طباع/.test(blob))return 'print';
+    return 'employee';
+  }
+  function openAccounting(dayClose){
+    var u=sessionUser(),mode=roleMode(),base=txt(window.MATBAGY_EASY_STORE_URL||'https://fawakhry.github.io/EasyStore/');
+    if(!u.username&&!u.name){alert('سجل دخول الموظف الأول.');return false;}
+    try{
+      var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
+      var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,token:u.token,v:CACHE_TAG};
+      Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
+      try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:u,params:params}));}catch(e){}
+      window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
+      return true;
+    }catch(e){alert('تعذر فتح الحسابات: '+(e.message||e));return false;}
+  }
+  function mount(){
+    var account=$('accountingBtn');
+    if(account){account.textContent='💰 الحسابات';account.title='يفتح شاشة الحسابات المناسبة لصلاحيتك تلقائيًا';}
+    var top=account&&account.parentElement,day=$('accountingDayCloseBtn');
+    if(roleMode()==='admin'&&top){
+      if(!day){day=document.createElement('button');day.id='accountingDayCloseBtn';day.type='button';day.className='ghost quick-tool-btn accounting-day-close-btn';if(account.nextSibling)top.insertBefore(day,account.nextSibling);else top.appendChild(day);}
+      day.textContent='✅ متابعة وتقفيل اليوم';day.title='يفتح مركز المراجعة الآلية والتقفيل الكامل';day.classList.remove('hidden');
+    }else if(day)day.classList.add('hidden');
+    var live=$('liveStatus');if(live)live.textContent='تحديث آمن تلقائي كل 3 دقائق عند عدم وجود نموذج مفتوح';
+  }
+  function mainVisible(){var main=$('mainView');return !!(main&&!main.classList.contains('hidden'));}
+  function modalOpen(){return !!document.querySelector('.modal:not(.hidden), [role="dialog"]:not(.hidden)');}
+  function safeRefresh(){
+    if(document.hidden||!mainVisible()||dirty||modalOpen()||Date.now()-lastSafeRefresh<180000)return;
+    var refresh=$('refreshBtn');if(refresh){lastSafeRefresh=Date.now();refresh.click();}
+  }
+  window.openMatbagyEasyStoreAccountingV1921=function(){return openAccounting(false);};
+  window.openMatbagyAccountingDayCloseV1921=function(){if(roleMode()!=='admin'){alert('متابعة وتقفيل الحسابات متاح لضياء فقط.');return false;}return openAccounting(true);};
+  window.addEventListener('click',function(ev){
+    var account=ev.target&&ev.target.closest?ev.target.closest('#accountingBtn'):null,day=ev.target&&ev.target.closest?ev.target.closest('#accountingDayCloseBtn'):null;
+    if(!account&&!day)return;ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();return day?window.openMatbagyAccountingDayCloseV1921():window.openMatbagyEasyStoreAccountingV1921();
+  },true);
+  document.addEventListener('input',function(ev){if(mainVisible()&&ev.target&&ev.target.matches&&ev.target.matches('input:not([readonly]), textarea, select'))dirty=true;},true);
+  window.addEventListener('click',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#refreshBtn')){dirty=false;lastSafeRefresh=Date.now();}},true);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)safeRefresh();});
+  window.addEventListener('focus',safeRefresh);
+  if(typeof setInterval==='function')setInterval(safeRefresh,180000);
+  function boot(){mount();[300,900,1800,3500,7000].forEach(function(ms){setTimeout(mount,ms);});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  window.TRENDOS_PATCH_VERSION='V1921_SEMI_AUTOMATIC_ACCOUNTING';
+  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1921 Semi-Automatic Accounting';
+  window.MATBAGY_BUILD_VERSION='TrendOS V1921 Semi-Automatic Accounting';
+  window.MATBAGY_BATCH_VERSION='V1921_SEMI_AUTOMATIC_ACCOUNTING';
 })();
