@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=trendos-v1926-bulk-status-archive-20260812a">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1926-bulk-status-archive-20260812a">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1931-trend-master-20260812a">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1931-trend-master-20260812a">
 </head>
 <body>
 <main class="app">
@@ -37,7 +37,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1926 Bulk Status + Archive</p>
+    <p class="version-badge">TrendOS V1931 Trend Master</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -80,7 +80,7 @@
       <div>
         <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1926 Bulk Status + Archive</p>
+        <p class="version-badge">TrendOS V1931 Trend Master</p>
         <p id="liveStatus" class="live-status">تحديث آمن تلقائي كل 3 دقائق عند عدم وجود نموذج مفتوح</p>
       </div>
       <div class="top-actions">
@@ -114,6 +114,59 @@
       </div>
       <div id="dashboardGrid" class="dashboard-grid">
         <div class="dash-empty">جاري تحميل ملخص التشغيل...</div>
+      </div>
+    </section>
+
+    <section id="trendMasterCenter" class="card trend-master-card hidden">
+      <div class="table-tools">
+        <div>
+          <h3>مركز Trend Master V1931</h3>
+          <small>الأرشيف، سرعة الصفحات، أمان التسليم، الرسائل، المخزون، قفلة اليوم وتقييم الموظفين.</small>
+        </div>
+        <span id="trendMasterStatus"></span>
+      </div>
+      <div class="trend-master-actions">
+        <button id="refreshTrendMasterBtn" class="ghost" type="button">تحديث المركز</button>
+        <button id="runTrendAutomationBtn" class="primary hidden" type="button">تشغيل التنبيهات الآن</button>
+        <button id="installTrendAutomationBtn" class="ghost hidden" type="button">تفعيل التشغيل كل ساعة</button>
+        <button id="runAccountingCloseBtn" class="danger hidden" type="button">تقفيل اليوم بموافقة واحدة</button>
+      </div>
+      <div id="trendMasterSummary" class="dashboard-grid trend-master-summary"></div>
+      <div class="trend-master-grid">
+        <article class="trend-master-panel">
+          <div class="trend-panel-head"><h4>أرشيف الأوردرات</h4><span id="archivePagerText"></span></div>
+          <div class="trend-inline-controls"><input id="archiveSearch" placeholder="ابحث برقم الأوردر أو العميل"><button id="archiveSearchBtn" class="ghost" type="button">بحث</button></div>
+          <div id="archiveOrdersList" class="trend-list"><div class="dash-empty">جاري التحميل...</div></div>
+          <div class="trend-pager"><button id="archivePrevBtn" class="ghost" type="button">السابق</button><button id="archiveNextBtn" class="ghost" type="button">التالي</button></div>
+        </article>
+        <article class="trend-master-panel">
+          <div class="trend-panel-head"><h4>رسائل واتساب والتنبيهات</h4><span>جاهزة للمراجعة قبل الإرسال</span></div>
+          <div id="automationMessagesList" class="trend-list"><div class="dash-empty">لا توجد رسائل.</div></div>
+        </article>
+        <article class="trend-master-panel">
+          <div class="trend-panel-head"><h4>تنبيهات المخزون</h4><span>الخصم التلقائي عند اعتماد فاتورة القسم</span></div>
+          <div id="stockAlertsList" class="trend-list"><div class="dash-empty">لا توجد تنبيهات.</div></div>
+        </article>
+        <article id="debtRestrictionPanel" class="trend-master-panel hidden">
+          <div class="trend-panel-head"><h4>قائمة منع التسليم عند وجود مديونية</h4><span>إدارة ضياء فقط — باقي العملاء يستلموا عادي</span></div>
+          <div class="trend-inline-controls debt-restriction-form">
+            <input id="debtRestrictionCustomer" list="debtRestrictionCustomers" placeholder="اختر اسم العميل بالضبط">
+            <datalist id="debtRestrictionCustomers"></datalist>
+            <input id="debtRestrictionReason" placeholder="سبب وضع العميل في قائمة المنع">
+            <input id="debtRestrictionUntil" type="date" title="تاريخ انتهاء المنع - اختياري">
+            <button id="saveDebtRestrictionBtn" class="danger" type="button">إضافة لقائمة المنع</button>
+          </div>
+          <div class="hint">وجود العميل في القائمة وحده لا يمنع التسليم؛ المنع يعمل فقط طالما رصيد مديونيته أكبر من صفر.</div>
+          <div id="debtRestrictionList" class="trend-list"><div class="dash-empty">لا يوجد عملاء في قائمة المنع.</div></div>
+        </article>
+        <article class="trend-master-panel">
+          <div class="trend-panel-head"><h4>تقييم الموظفين اليومي</h4><span>إنجاز 70% + التزام بالوقت 30%</span></div>
+          <div id="employeeKpiList" class="trend-list"><div class="dash-empty">جاري الحساب...</div></div>
+        </article>
+        <article id="dayClosePreviewPanel" class="trend-master-panel hidden">
+          <div class="trend-panel-head"><h4>جاهزية قفلة اليوم</h4><span id="dayCloseReadyBadge"></span></div>
+          <div id="dayClosePreviewList" class="trend-list"></div>
+        </article>
       </div>
     </section>
 
@@ -750,7 +803,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-    <p class="version-badge">TrendOS V1926 Bulk Status + Archive</p>
+    <p class="version-badge">TrendOS V1931 Trend Master</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1253,20 +1306,20 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1926-bulk-status-archive-20260812a"></script>
-<script src="app.js?v=trendos-v1926-bulk-status-archive-20260812a"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1926-bulk-status-archive-20260812a"></script>
+<script src="config.js?v=trendos-v1931-trend-master-20260812a"></script>
+<script src="app.js?v=trendos-v1931-trend-master-20260812a"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1931-trend-master-20260812a"></script>
 
 <script>
 (function(){
   'use strict';
-  var BUILD = 'TrendOS V1926 Bulk Status + Archive';
-  var CACHE_TAG = 'trendos-v1926-bulk-status-archive-20260812a';
+  var BUILD = 'TrendOS V1931 Trend Master';
+  var CACHE_TAG = 'trendos-v1931-trend-master-20260812a';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
-  window.TRENDOS_PATCH_VERSION = 'V1926_BULK_STATUS';
+  window.TRENDOS_PATCH_VERSION = 'V1931_TREND_MASTER';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
   window.MATBAGY_BUILD_VERSION = BUILD;
-  window.MATBAGY_BATCH_VERSION = 'V1926_BULK_STATUS';
+  window.MATBAGY_BATCH_VERSION = 'V1931_TREND_MASTER';
   window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
   try{
     localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
@@ -1277,7 +1330,7 @@
   }catch(e){}
   function showBuild(){
     try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
-    try{window.TRENDOS_PATCH_VERSION='V1926_BULK_STATUS';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1926_BULK_STATUS';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1931_TREND_MASTER';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1931_TREND_MASTER';}catch(e){}
     document.querySelectorAll('.version-badge,[data-app-version]').forEach(function(el){el.textContent=BUILD;});
   }
   document.addEventListener('DOMContentLoaded', showBuild);

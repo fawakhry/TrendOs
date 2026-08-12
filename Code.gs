@@ -1,7 +1,7 @@
-// TrendOS + EasyStore unified Google Apps Script backend — bulk status release V1926.
+// TrendOS + EasyStore unified Google Apps Script backend — Trend Master release V1931.
 // Single-file build: includes the original V1880 backend, accounting updates through V1921,
 // V1922 safety fixes, V1923 visibility corrections, V1924 department-scoped open orders,
-// V1925 single-read loading + reduced Google Sheets calls, and V1926 department bulk status changes.
+// V1925 single-read loading, V1926 bulk status/archive, and V1931 Trend Master center.
 /************************************************************
  * TrendOS Operations - Google Apps Script Backend
  * نسخة كاملة موحدة V1851: أرقام أوردرات صغيرة بدون حروف + TrendOS + Matbagy Bridge + Pricing Fix:
@@ -23,6 +23,9 @@ const SHEET_NAME_LINES = "بنود الأوردرات";
 const SHEET_NAME_ORDERS = "الأوردرات";
 const SHEET_NAME_ARCHIVE_LINES_V1926 = "أرشيف بنود الأوردرات";
 const SHEET_NAME_ARCHIVE_ORDERS_V1926 = "أرشيف الأوردرات";
+const SHEET_NAME_AUTOMATION_QUEUE_V1931 = "سجل تنبيهات التشغيل";
+const SHEET_NAME_EMPLOYEE_KPI_V1931 = "تقييم الموظفين اليومي";
+const SHEET_NAME_DEBT_DELIVERY_RESTRICTIONS_V1931 = "عملاء منع التسليم بالمديونية";
 const SHEET_NAME_CUSTOMERS = "العملاء";
 const SHEET_NAME_ACTIVITY = "سجل حركة الأوردرات";
 const SHEET_NAME_AI_KNOWLEDGE = "معرفة واتس AI";
@@ -37,7 +40,7 @@ const SHEET_NAME_ACC_FINAL_INVOICES = "حسابات - الفواتير النه�
 const SHEET_NAME_ACC_WASTE = "حسابات - هوالك الأقسام";
 const SHEET_NAME_ACC_STOCK_MOVES = "حسابات - حركة المخزون";
 const SHEET_NAME_ACC_DEPT_DAILY_PURCHASES = "حسابات - مشتريات الأقسام اليومية";
-const MATBAGY_ACCOUNTING_VERSION = "V1926_BULK_STATUS";
+const MATBAGY_ACCOUNTING_VERSION = "V1931_TREND_MASTER";
 const DEFAULT_PASSWORD = "";
 function employeeDefaultPassword_() {
   try { return normalize_(PropertiesService.getScriptProperties().getProperty("EMPLOYEE_DEFAULT_PASSWORD")); } catch (err) { return ""; }
@@ -48,6 +51,18 @@ const SHEET_NAME_MARKET_PRODUCTS = "ماركت بليس - المنتجات";
 // اتركه فاضي لو السكريبت مربوط بنفس الشيت.
 // لو السكريبت Standalone اضبط TRENDOS_SPREADSHEET_ID داخل Script Properties ولا تضع المعرف في الكود العام.
 const SPREADSHEET_ID = "";
+
+function trendosPortalUrlV1931_() {
+  let url = "https://fawakhry.github.io/TrendOs/";
+  try { url = normalize_(PropertiesService.getScriptProperties().getProperty("TRENDOS_PORTAL_URL")) || url; } catch (err) {}
+  return /^https:\/\//i.test(url) ? url : "https://fawakhry.github.io/TrendOs/";
+}
+
+function trendosPortalRedirectV1931_() {
+  const url = trendosPortalUrlV1931_();
+  const safeUrl = url.replace(/"/g,"%22").replace(/</g,"%3C").replace(/>/g,"%3E");
+  return HtmlService.createHtmlOutput('<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="1;url='+safeUrl+'"><title>TrendOS</title></head><body style="font-family:Tahoma,Arial;text-align:center;padding:48px;background:#f8fafc;color:#123047"><h2>جاري فتح TrendOS V1931…</h2><p>رابط Apps Script مخصص للـ API، وسيتم تحويلك إلى صفحة البرنامج.</p><p><a href="'+safeUrl+'">اضغط هنا إذا لم يتم التحويل تلقائيًا</a></p><script>setTimeout(function(){location.replace('+JSON.stringify(url)+')},500)</script></body></html>').setTitle("TrendOS V1931");
+}
 
 function doGet(e) {
   e = e || { parameter: {} };
@@ -67,10 +82,7 @@ function doGet(e) {
     if (!action && cleanPhone_(e.parameter.phone || e.parameter.customerPhone || e.parameter.code)) {
       result = mbActivate_(e);
     } else if (!action) {
-      result = {
-        success: false,
-        message: "Action غير معروف. افتح رابط البرنامج من GitHub Pages، ورابط Apps Script يستخدم كـ API فقط."
-      };
+      return trendosPortalRedirectV1931_();
     } else if (action === "activate" || action === "checkActivation" || action === "activation" || action === "activateClient" || action === "clientActivate" || action === "loginClient") result = mbActivate_(e);
     else if (action === "checkSession" || action === "clientSession") result = mbCheckSession_(e);
     else if (action === "createOrder" || action === "createMatbagyOrder" || action === "clientCreateOrder") result = mbCreateOrder_(e);
@@ -126,6 +138,14 @@ function doGet(e) {
     else if (action === "updateLine") result = updateLine_(e);
     else if (action === "bulkUpdateDepartmentStatusV1926") result = bulkUpdateDepartmentStatusV1926_(e);
     else if (action === "archiveDeliveredDepartmentV1926") result = archiveDeliveredDepartmentV1926_(e);
+    else if (action === "getRowsPageV1931") result = getRowsPageV1931_(e);
+    else if (action === "getArchiveRowsV1931") result = getArchiveRowsV1931_(e);
+    else if (action === "restoreArchivedOrderV1931") result = restoreArchivedOrderV1931_(e);
+    else if (action === "getTrendMasterCenterV1931") result = getTrendMasterCenterV1931_(e);
+    else if (action === "runTrendMasterAutomationV1931") result = runTrendMasterAutomationV1931_(e);
+    else if (action === "installTrendMasterAutomationV1931") result = installTrendMasterAutomationV1931_(e);
+    else if (action === "markAutomationMessageSentV1931") result = markAutomationMessageSentV1931_(e);
+    else if (action === "saveDebtDeliveryRestrictionV1931") result = saveDebtDeliveryRestrictionV1931_(e);
     else if (action === "createInvoiceLine") result = createInvoiceLine_(e);
     else if (action === "initAccounting") result = initAccountingNow_(e);
     else if (action === "getAccounting") result = getAccounting_(e);
@@ -3882,6 +3902,7 @@ function getRows_(e) {
   const lastRow = lines.getLastRow();
   const data = lastRow > 1 ? lines.getRange(2, 1, lastRow - 1, lastNeededCol).getValues() : [];
   const customerMap = buildCustomerPhoneMap_();
+  const debtRestrictionMap = debtDeliveryRestrictionMapV1931_();
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
@@ -3902,6 +3923,7 @@ function getRows_(e) {
     // يتم تحديث عرض المديونية من شيت العملاء فقط.
     let debtAmount = customerLookup.debtAmount ? parseDebtAmount_(customerLookup.debtAmount) : 0;
     const debtHold = debtAmount > 0 ? "نعم" : "لا";
+    const debtRestriction = debtRestrictionMap[searchKey_(customerName)] || null;
 
     rows.push({
       rowNumber: i + 2,
@@ -3926,6 +3948,8 @@ function getRows_(e) {
       quickPrint: normalize_(valueAt_(row, colFlyPrint)),
       debtAmount: debtAmount,
       debtHold: debtHold,
+      deliveryDebtRestricted: !!(debtAmount > 0 && debtRestriction),
+      debtRestrictionReason: debtRestriction ? debtRestriction.reason || "" : "",
       debtNotes: normalize_(valueAt_(row, colDebtNotes)) || customerLookup.debtNotes || "",
       updatedAt: dateText_(valueAt_(row, colUpdated)) || valueAt_(row, colUpdated),
       notes: normalize_(valueAt_(row, colNotes)),
@@ -3950,6 +3974,82 @@ function getRows_(e) {
     return String(a.orderId).localeCompare(String(b.orderId));
   });
   return { success: true, rows: rows, dashboard: trendosV1925DashboardFromData_(screen, data, h) };
+}
+
+function trendosDataVersionV1931_() {
+  try { return normalize_(PropertiesService.getScriptProperties().getProperty("TRENDOS_DATA_VERSION_V1931")) || "1"; }
+  catch (err) { return "1"; }
+}
+
+function trendosBumpDataVersionV1931_() {
+  const version = String(Date.now());
+  try { PropertiesService.getScriptProperties().setProperty("TRENDOS_DATA_VERSION_V1931", version); } catch (err) {}
+  return version;
+}
+
+function debtDeliveryRestrictionHeadersV1931_(){return ["ID","اسم العميل","رقم العميل","منع فعال؟","سبب المنع","صالح حتى","وقت الإنشاء","أضيف بواسطة","آخر تحديث","آخر تحديث بواسطة"];}
+function ensureDebtDeliveryRestrictionsV1931_(){return mbEnsureSheet_(SHEET_NAME_DEBT_DELIVERY_RESTRICTIONS_V1931,debtDeliveryRestrictionHeadersV1931_());}
+function canManageDebtRestrictionsV1931_(user){const key=searchKey_([user&&user.username,user&&user.name].join(" "));return key.indexOf("ضياء")!==-1||key.indexOf("diaa")!==-1;}
+function debtDeliveryRestrictionMapV1931_(includeInactive){
+  const sheet=ensureDebtDeliveryRestrictionsV1931_(),map={};if(sheet.getLastRow()<2)return map;
+  const rows=accSheetRows_(sheet),now=new Date();
+  rows.forEach(function(row){const customer=normalize_(row["اسم العميل"]),key=searchKey_(customer),active=normalize_(row["منع فعال؟"]||"نعم")==="نعم",untilRaw=row["صالح حتى"],until=parseDateValue_(untilRaw),expired=!!(until&&until.getTime()<new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime());if(!key||(!includeInactive&&(!active||expired)))return;map[key]={id:normalize_(row["ID"]),customer:customer,phone:cleanPhone_(row["رقم العميل"]),active:active&&!expired,expired:expired,reason:normalize_(row["سبب المنع"]),validUntil:dateText_(untilRaw)||normalize_(untilRaw),createdBy:normalize_(row["أضيف بواسطة"]),updatedBy:normalize_(row["آخر تحديث بواسطة"]),rowNumber:row.rowNumber};});
+  return map;
+}
+function debtRestrictionControlDataV1931_(){const customerMap=buildCustomerPhoneMap_(),restrictions=debtDeliveryRestrictionMapV1931_(true),customers=[];Object.keys(customerMap).forEach(function(key){const customer=customerMap[key],amount=parseDebtAmount_(customer.debtAmount||0);if(amount<=0&&!restrictions[key])return;customers.push({name:customer.name,phone:customer.phone||customer.extraPhone||"",debtAmount:amount,debtNotes:customer.debtNotes||"",restriction:restrictions[key]||null});});customers.sort(function(a,b){return b.debtAmount-a.debtAmount||a.name.localeCompare(b.name);});return {customers:customers,restrictions:Object.keys(restrictions).map(function(key){return restrictions[key];}).sort(function(a,b){return Number(b.rowNumber||0)-Number(a.rowNumber||0);})};}
+function saveDebtDeliveryRestrictionV1931_(e){
+  const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};if(!canManageDebtRestrictionsV1931_(auth.user))return {success:false,message:"تحديد عملاء منع التسليم متاح لضياء فقط."};
+  const customerName=normalize_(p.customerName),active=normalize_(p.active||"نعم")==="نعم",reason=normalize_(p.reason),validUntil=normalize_(p.validUntil);if(!customerName)return {success:false,message:"اختر اسم العميل المطلوب."};if(active&&!reason)return {success:false,message:"اكتب سبب إضافة العميل لقائمة المنع."};
+  const customers=buildCustomerPhoneMap_(),customer=customers[searchKey_(customerName)];if(!customer)return {success:false,message:"اسم العميل غير موجود في شيت العملاء؛ اختر الاسم من القائمة."};
+  const sheet=ensureDebtDeliveryRestrictionsV1931_(),all=debtDeliveryRestrictionMapV1931_(true),existing=all[searchKey_(customerName)],now=new Date(),values={"اسم العميل":customer.name,"رقم العميل":customer.phone||customer.extraPhone||"","منع فعال؟":active?"نعم":"لا","سبب المنع":reason||(existing&&existing.reason)||"تم رفع المنع","صالح حتى":validUntil||"","آخر تحديث":now,"آخر تحديث بواسطة":auth.user.username};
+  if(existing&&existing.rowNumber)updateByHeaders_(sheet,existing.rowNumber,values,true);else appendByHeaders_(sheet,Object.assign({"ID":"DBL-"+Utilities.getUuid().slice(0,8).toUpperCase(),"وقت الإنشاء":now,"أضيف بواسطة":auth.user.username},values));
+  appendActivityLog_({time:now,customer:customer.name,action:active?"إضافة لقائمة منع التسليم":"رفع منع التسليم",newStatus:active?"منع فعال":"تم رفع المنع",by:auth.user.username,details:(reason||"")+(validUntil?" | صالح حتى "+validUntil:"")});
+  trendosBumpDataVersionV1931_();
+  return {success:true,message:active?"تمت إضافة "+customer.name+" لقائمة المنع: لن يُسلّم له أي أوردر طالما عليه مديونية.":"تم رفع منع التسليم عن "+customer.name+".",debtControl:debtRestrictionControlDataV1931_(),version:"V1931_TREND_MASTER"};
+}
+
+function trendosDeliveryGateMapV1931_() {
+  const map = {};
+  const sheet = ss_().getSheetByName(SHEET_NAME_ACC_FINAL_INVOICES);
+  if (!sheet || sheet.getLastRow() < 2) return map;
+  const h = headersMap_(sheet);
+  const colOrder = firstCol_(h, ["رقم الأوردر", "orderId"], 0);
+  const colInvoice = firstCol_(h, ["رقم الفاتورة"], 0);
+  const colTotal = firstCol_(h, ["الإجمالي النهائي", "الإجمالي"], 0);
+  const colPaid = firstCol_(h, ["المدفوع"], 0);
+  const colRemaining = firstCol_(h, ["الباقي", "المتبقي"], 0);
+  const colStatus = firstCol_(h, ["الحالة"], 0);
+  if (!colOrder) return map;
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  data.forEach(function (row) {
+    const orderId = normalize_(valueAt_(row, colOrder));
+    if (!orderId) return;
+    const total = parseMoney_(valueAt_(row, colTotal));
+    const paid = parseMoney_(valueAt_(row, colPaid));
+    const remaining = colRemaining ? parseMoney_(valueAt_(row, colRemaining)) : Math.max(0, total - paid);
+    const status = normalize_(valueAt_(row, colStatus));
+    const invoiceNo = normalize_(valueAt_(row, colInvoice));
+    const reversed = /ملغ|عكس|مراجعة/.test(searchKey_(status));
+    if (reversed) return;
+    const current = map[orderId] || { hasInvoice: false, paid: false, remaining: 0, invoiceNo: "", total: 0 };
+    current.hasInvoice = current.hasInvoice || !!invoiceNo || total >= 0;
+    current.total += total;
+    current.remaining += remaining;
+    current.invoiceNo = invoiceNo || current.invoiceNo;
+    current.paid = current.hasInvoice && current.remaining <= 0.001 && (status === "مدفوعة" || paid >= total || total === 0);
+    map[orderId] = current;
+  });
+  return map;
+}
+
+function trendosDeliveryGateV1931_(orderId, customerName, invoiceMap, knownDebtAmount, knownRestriction) {
+  orderId = normalize_(orderId);
+  const debtInfo = knownDebtAmount == null ? isCustomerDebtBlocked_(customerName) : { amount: knownDebtAmount };
+  const debtAmount = parseDebtAmount_(debtInfo.amount || 0);
+  const debtRestriction = knownRestriction === undefined ? (debtDeliveryRestrictionMapV1931_()[searchKey_(customerName)] || null) : knownRestriction;
+  const reasons = [];
+  if (debtAmount > 0 && debtRestriction) reasons.push("العميل ضمن قائمة منع التسليم وعليه مديونية " + debtAmount + " ج");
+  return { ok: reasons.length === 0, orderId: orderId, invoicePaymentRequired:false, debtAmount: debtAmount, debtRestriction: debtRestriction, reasons: reasons, message: reasons.join("؛ ") };
 }
 
 function updateLine_(e) {
@@ -4006,8 +4106,10 @@ function updateLine_(e) {
   const debtInfo = isCustomerDebtBlocked_(customerName);
   const debtAmount = parseDebtAmount_(debtInfo.amount || 0);
   const debtHold = debtAmount > 0;
-  if (debtHold && (status === "جاهز للاستلام" || status === "تم التسليم")) {
-    return { success: false, message: "لا يمكن تحويل الأوردر إلى " + status + " لأن العميل عليه مديونية " + debtAmount + " ج. برجاء تقفيل المديونية أولاً." };
+  const debtRestriction = debtHold ? (debtDeliveryRestrictionMapV1931_()[searchKey_(customerName)] || null) : null;
+  if (status === "تم التسليم") {
+    const deliveryGate = trendosDeliveryGateV1931_(orderId, customerName, null, debtAmount, debtRestriction);
+    if (!deliveryGate.ok) return { success: false, deliveryBlocked: true, gate: deliveryGate, message: "لا يمكن تسجيل تم التسليم: " + deliveryGate.message + "." };
   }
 
   const oldStatus = colStatus ? normalize_(valueAt_(rowValues, colStatus)) : "";
@@ -4029,7 +4131,10 @@ function updateLine_(e) {
     appendActivityLog_({ time: now, orderId: orderId, lineId: lineId || normalize_(sheet.getRange(targetRow, colLineId).getValue()), customer: customerName, department: normalize_(valueAt_(rowValues, colDept)), action: "تعديل حالة / ملاحظات", oldStatus: oldStatus, newStatus: status, oldNotes: oldNotes, newNotes: notes, by: auth.user.username, details: debtAmount > 0 ? "تم الحفظ مع تنبيه مديونية" : "تم الحفظ من شاشة TrendOS" });
   }
 
-  return { success: true, message: "تم حفظ الحالة في الشيت.", rowNumber: targetRow, orderId: orderId, lineId: lineId, status: status, debtAmount: debtAmount, debtHold: debtAmount > 0 ? "نعم" : "لا" };
+  if (oldStatus !== status) queueOrderStatusMessageV1931_({ orderId: orderId, lineId: lineId || normalize_(sheet.getRange(targetRow, colLineId).getValue()), customer: customerName, department: normalize_(valueAt_(rowValues, colDept)), status: status, by: auth.user.username });
+  trendosBumpDataVersionV1931_();
+
+  return { success: true, message: "تم حفظ الحالة في الشيت وتجهيز رسالة الحالة تلقائيًا.", rowNumber: targetRow, orderId: orderId, lineId: lineId, status: status, debtAmount: debtAmount, debtHold: debtAmount > 0 ? "نعم" : "لا", debtRestriction:debtRestriction, version: "V1931_TREND_MASTER" };
 }
 
 /*********************** تغيير جماعي لحالة القسم V1926 ***********************/
@@ -4234,11 +4339,14 @@ function bulkUpdateDepartmentStatusV1926_(e) {
 
     const lastNeededCol = Math.max(colOrderId, colOrderCode, colCustomer, colDept, colLineId, colStatus, colReady, colUpdated, colPress, 1);
     const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastNeededCol).getValues();
-    const customerMap = (toStatus === "جاهز للاستلام" || toStatus === "تم التسليم") ? buildCustomerPhoneMap_() : {};
+    const customerMap = toStatus === "تم التسليم" ? buildCustomerPhoneMap_() : {};
+    const debtRestrictionMap = toStatus === "تم التسليم" ? debtDeliveryRestrictionMapV1931_() : {};
+    const invoiceMap = {};
     const targetRows = [];
     const affectedOrderIds = {};
     const activity = [];
     const skippedCustomers = {};
+    const skippedFinance = {};
     const now = new Date();
 
     data.forEach(function (row, index) {
@@ -4247,14 +4355,20 @@ function bulkUpdateDepartmentStatusV1926_(e) {
       if (!dashboardMatchesScreen_(screen, department, heatPress)) return;
       if (normalize_(valueAt_(row, colStatus)) !== fromStatus) return;
       const customer = normalize_(valueAt_(row, colCustomer));
+      const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
       const debt = customerMap[searchKey_(customer)] || {};
-      if ((toStatus === "جاهز للاستلام" || toStatus === "تم التسليم") && parseDebtAmount_(debt.debtAmount || 0) > 0) {
+      const currentDebt = parseDebtAmount_(debt.debtAmount || 0);
+      const debtRestriction = debtRestrictionMap[searchKey_(customer)] || null;
+      if (toStatus === "تم التسليم" && currentDebt > 0 && debtRestriction) {
         skippedCustomers[customer || ("صف " + (index + 2))] = true;
         return;
       }
+      if (toStatus === "تم التسليم") {
+        const gate = trendosDeliveryGateV1931_(orderId, customer, invoiceMap, currentDebt, debtRestriction);
+        if (!gate.ok) { skippedFinance[orderId || ("صف " + (index + 2))] = gate.message; return; }
+      }
 
       const rowNumber = index + 2;
-      const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
       targetRows.push(rowNumber);
       if (orderId) affectedOrderIds[orderId] = true;
       activity.push({
@@ -4274,26 +4388,32 @@ function bulkUpdateDepartmentStatusV1926_(e) {
       if (colUpdated) bulkStatusSetRangeListV1926_(sheet, targetRows, colUpdated, now);
       bulkStatusSyncOrderSummariesV1926_(data, h, affectedOrderIds, now);
       bulkStatusAppendActivityV1926_(activity, auth.user.username, fromStatus, toStatus, now);
+      activity.forEach(function (entry) { queueOrderStatusMessageV1931_({ orderId: entry.orderId, lineId: entry.lineId, customer: entry.customer, department: entry.department, status: toStatus, by: auth.user.username }); });
+      trendosBumpDataVersionV1931_();
       SpreadsheetApp.flush();
     }
 
     const skippedDebt = Object.keys(skippedCustomers).length;
+    const skippedFinanceCount = Object.keys(skippedFinance).length;
     const affectedOrders = Object.keys(affectedOrderIds).length;
     let message = targetRows.length
       ? ("تم تحويل " + targetRows.length + " بند داخل " + affectedOrders + " أوردر في قسم " + (screen === "print" ? "الطباعة" : "الليزر") + " من «" + fromStatus + "» إلى «" + toStatus + "».")
       : ("لم يتم العثور على بنود قابلة للتحويل من «" + fromStatus + "» في القسم الحالي.");
-    if (skippedDebt) message += " تم تخطي " + skippedDebt + " عميل بسبب المديونية.";
+    if (skippedDebt) message += " تم تخطي " + skippedDebt + " عميل موجود في قائمة منع التسليم وعليه مديونية.";
+    if (skippedFinanceCount) message += " تم تخطي " + skippedFinanceCount + " أوردر وفق قواعد منع التسليم.";
     const result = {
       success: true,
       message: message,
       changed: targetRows.length,
       affectedOrders: affectedOrders,
       skippedDebt: skippedDebt,
+      skippedFinance: skippedFinanceCount,
+      financeReasons: skippedFinance,
       screen: screen,
       fromStatus: fromStatus,
       toStatus: toStatus,
       requestId: requestId,
-      version: "V1926_BULK_STATUS"
+      version: "V1931_TREND_MASTER"
     };
     if (cacheKey) {
       try { cache.put(cacheKey, JSON.stringify(result), 600); } catch (err) {}
@@ -4450,7 +4570,7 @@ function archiveDeliveredDepartmentV1926_(e) {
     });
 
     if (!archiveRows.length) {
-      const emptyResult = { success: true, message: "لا توجد بنود بحالة «تم التسليم» لأرشفتها في القسم الحالي.", archivedLines: 0, archivedOrders: 0, requestId: requestId, version: "V1926_BULK_STATUS_ARCHIVE" };
+      const emptyResult = { success: true, message: "لا توجد بنود بحالة «تم التسليم» لأرشفتها في القسم الحالي.", archivedLines: 0, archivedOrders: 0, requestId: requestId, version: "V1931_TREND_MASTER" };
       try { cache.put(cacheKey, JSON.stringify(emptyResult), 600); } catch (err) {}
       return emptyResult;
     }
@@ -4490,14 +4610,193 @@ function archiveDeliveredDepartmentV1926_(e) {
       partialOrders: partialOrders,
       screen: screen,
       requestId: requestId,
-      version: "V1926_BULK_STATUS_ARCHIVE"
+      version: "V1931_TREND_MASTER"
     };
+    trendosBumpDataVersionV1931_();
     try { cache.put(cacheKey, JSON.stringify(result), 600); } catch (err) {}
     return result;
   } finally {
     lock.releaseLock();
   }
 }
+
+/*********************** Trend Master V1931: pages, archive, automation ***********************/
+
+function canManageArchiveV1931_(user) {
+  const role = roleFromArabic_(user && user.role, user && user.department);
+  const key = searchKey_(user && user.username);
+  return role === "admin" || role === "service" || /ضياء|diaa|رحمه|رحمة|rahma|ريفان|revan|rivan/.test(key);
+}
+
+function rowMatchesServerFiltersV1931_(row, p) {
+  const q = searchKey_(p.query || p.q || "");
+  const status = normalize_(p.statusFilter || p.status || "");
+  const priority = normalize_(p.priorityFilter || p.priority || "");
+  const heat = normalize_(p.heatPressFilter || "");
+  if (q) {
+    const blob = searchKey_([row.orderId,row.lineId,row.customer,row.customerPhone,row.department,row.itemName,row.notes].join(" "));
+    if (blob.indexOf(q) === -1) return false;
+  }
+  if (heat === "only" && !isHeatPressFlag_(row.heatPress)) return false;
+  if (heat === "without" && isHeatPressFlag_(row.heatPress)) return false;
+  if (status === "__ACTIVE__" && isHiddenFromUserScreens_(row.status)) return false;
+  if (status === "__OVERDUE__" && normalize_(row.overdue) !== "نعم") return false;
+  if (status === "__TODAY_WORK__") {
+    const today = new Date(), yesterday = new Date(today), tomorrow = new Date(today);
+    yesterday.setDate(today.getDate() - 1); tomorrow.setDate(today.getDate() + 1);
+    const received = parseDateValue_(row.receivedAt), expected = parseDateValue_(row.expectedDeliveryAt || row.expectedDeliveryText);
+    if (isHiddenFromUserScreens_(row.status) || !received || !expected || !isSameDay_(received, yesterday) || !isSameDay_(expected, tomorrow)) return false;
+  }
+  if (status === "__READY_PICKUP__" && ["جاهز للاستلام","في قسم التسليمات","تم التنفيذ"].indexOf(normalize_(row.status)) === -1) return false;
+  if (status === "__DEBT__" && parseDebtAmount_(row.debtAmount || 0) <= 0) return false;
+  if (status === "__CANCELLED__" && ["ملغي","ملغى"].indexOf(normalize_(row.status)) === -1) return false;
+  if (status === "__DELIVERED_TODAY__" && (normalize_(row.status) !== "تم التسليم" || !isSameDay_(parseDateValue_(row.updatedAt), new Date()))) return false;
+  if (status && status.indexOf("__") !== 0 && normalize_(row.status) !== status) return false;
+  if (priority === "__ACTIVE__" && ["عاجل","عادي","VIP",""] .indexOf(normalize_(row.priority)) === -1) return false;
+  if (priority && priority !== "__ACTIVE__" && normalize_(row.priority) !== priority) return false;
+  return true;
+}
+
+function getRowsPageV1931_(e) {
+  const p = (e && e.parameter) || {};
+  const auth = authorize_(p.username, p.token);
+  if (!auth.ok) return { success:false, message:auth.message };
+  const pageSize = Math.max(5, Math.min(100, Number(p.pageSize || 20) || 20));
+  const page = Math.max(1, Number(p.page || 1) || 1);
+  const dataVersion = trendosDataVersionV1931_();
+  function pageCacheKey(targetPage){return "ROWS_PAGE_V1931_" + authDigestV1922_([auth.user.username,p.screen,p.query,p.statusFilter,p.priorityFilter,p.heatPressFilter,targetPage,pageSize,dataVersion].join("|")).slice(0,45);}
+  const cacheKey = pageCacheKey(page);
+  try { const cached=CacheService.getScriptCache().get(cacheKey); if(cached)return JSON.parse(cached); } catch(err) {}
+  const all = getRows_({parameter:Object.assign({},p,{username:p.username,token:p.token})});
+  if (!all.success) return all;
+  const filtered = (all.rows || []).filter(function(row){return rowMatchesServerFiltersV1931_(row,p);});
+  const statusCounts = {}, statusOrderSets = {};
+  (all.rows || []).forEach(function(row){
+    const key = normalize_(row.status) || "طلب جديد";
+    statusCounts[key] = (statusCounts[key] || 0) + 1;
+    if (!statusOrderSets[key]) statusOrderSets[key] = {};
+    if (row.orderId) statusOrderSets[key][normalize_(row.orderId)] = true;
+  });
+  const statusOrderCounts = {};
+  Object.keys(statusOrderSets).forEach(function(key){ statusOrderCounts[key] = Object.keys(statusOrderSets[key]).length; });
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1,Math.ceil(totalRows/pageSize));
+  const safePage = Math.min(page,totalPages);
+  const start = (safePage-1)*pageSize;
+  function responseForPage(targetPage){const targetStart=(targetPage-1)*pageSize;return {success:true,rows:filtered.slice(targetStart,targetStart+pageSize),dashboard:all.dashboard,pagination:{page:targetPage,pageSize:pageSize,totalRows:totalRows,totalPages:totalPages,hasOlder:targetPage<totalPages},statusCounts:statusCounts,statusOrderCounts:statusOrderCounts,serverPaged:true,dataVersion:dataVersion,version:"V1931_TREND_MASTER"};}
+  const result=responseForPage(safePage);
+  // نخزن الصفحة الحالية والصفحات المجاورة حتى زر السابق/التالي لا يعيد قراءة الشيت الكبير.
+  try {const cache=CacheService.getScriptCache(),from=Math.max(1,safePage-2),to=Math.min(totalPages,safePage+4);for(let pg=from;pg<=to;pg++)cache.put(pageCacheKey(pg),JSON.stringify(responseForPage(pg)),45);} catch(err) {}
+  return result;
+}
+
+function archivePublicRowsV1931_(query) {
+  const archiveOrders = ss_().getSheetByName(SHEET_NAME_ARCHIVE_ORDERS_V1926);
+  const archiveLines = ss_().getSheetByName(SHEET_NAME_ARCHIVE_LINES_V1926);
+  const summaries = {};
+  if (archiveLines && archiveLines.getLastRow()>1) {
+    const lh=headersMap_(archiveLines),oid=firstCol_(lh,["رقم الأوردر","Order ID"],1),code=firstCol_(lh,["كود الأوردر"],2),customer=firstCol_(lh,["اسم الشات / المكتب","اسم العميل"],3),phone=firstCol_(lh,["رقم العميل","رقم العميل الخارجي","رقم الهاتف"],0),status=firstCol_(lh,["الحالة"],0),dept=firstCol_(lh,["القسم"],0),item=firstCol_(lh,["اسم البند / نوع الشغل","وصف مختصر"],0),archived=firstCol_(lh,["تاريخ الأرشفة"],0),archivedBy=firstCol_(lh,["تمت الأرشفة بواسطة"],0);
+    const ld=archiveLines.getRange(2,1,archiveLines.getLastRow()-1,archiveLines.getLastColumn()).getValues();
+    ld.forEach(function(row,index){
+      const id=normalize_(valueAt_(row,oid))||normalize_(valueAt_(row,code));if(!id)return;
+      const current=summaries[id]||{rowNumber:index+2,orderId:id,customer:normalize_(valueAt_(row,customer)),customerPhone:cleanPhone_(valueAt_(row,phone)),status:normalize_(valueAt_(row,status))||"تم التسليم",department:normalize_(valueAt_(row,dept)),itemName:normalize_(valueAt_(row,item)),archivedAt:dateText_(valueAt_(row,archived))||valueAt_(row,archived),archivedBy:normalize_(valueAt_(row,archivedBy)),lineCount:0};
+      current.lineCount++;summaries[id]=current;
+    });
+  }
+  if (archiveOrders && archiveOrders.getLastRow()>=2) {
+    const h=headersMap_(archiveOrders);
+    const cOrder=firstCol_(h,["رقم الأوردر","Order ID"],1),cCode=firstCol_(h,["كود الأوردر"],2),cCustomer=firstCol_(h,["اسم الشات / المكتب","اسم العميل"],3),cPhone=firstCol_(h,["رقم العميل","رقم العميل الخارجي","رقم الهاتف"],0),cStatus=firstCol_(h,["الحالة العامة","الحالة"],0),cDept=firstCol_(h,["القسم الرئيسي","القسم"],0),cItem=firstCol_(h,["وصف مختصر","وصف الأوردر","اسم البند / نوع الشغل"],0),cArchived=firstCol_(h,["تاريخ الأرشفة"],0),cBy=firstCol_(h,["تمت الأرشفة بواسطة"],0);
+    const data=archiveOrders.getRange(2,1,archiveOrders.getLastRow()-1,archiveOrders.getLastColumn()).getValues();
+    data.forEach(function(row,index){
+      const id=normalize_(valueAt_(row,cOrder))||normalize_(valueAt_(row,cCode));if(!id)return;
+      const fallback=summaries[id]||{};
+      summaries[id]={rowNumber:index+2,orderId:id,customer:normalize_(valueAt_(row,cCustomer))||fallback.customer||"",customerPhone:cleanPhone_(valueAt_(row,cPhone))||fallback.customerPhone||"",status:normalize_(valueAt_(row,cStatus))||fallback.status||"تم التسليم",department:normalize_(valueAt_(row,cDept))||fallback.department||"",itemName:normalize_(valueAt_(row,cItem))||fallback.itemName||"",archivedAt:dateText_(valueAt_(row,cArchived))||valueAt_(row,cArchived)||fallback.archivedAt||"",archivedBy:normalize_(valueAt_(row,cBy))||fallback.archivedBy||"",lineCount:fallback.lineCount||0};
+    });
+  }
+  const q=searchKey_(query||"");
+  return Object.keys(summaries).map(function(id){return summaries[id];}).filter(function(row){return row.orderId&&(!q||searchKey_([row.orderId,row.customer,row.customerPhone,row.department,row.itemName].join(" ")).indexOf(q)!==-1);}).sort(function(a,b){return String(b.archivedAt||"").localeCompare(String(a.archivedAt||""))||String(b.orderId).localeCompare(String(a.orderId));});
+}
+
+function getArchiveRowsV1931_(e) {
+  const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);
+  if(!auth.ok)return {success:false,message:auth.message};
+  if(!canManageArchiveV1931_(auth.user))return {success:false,message:"إدارة الأرشيف متاحة للإدارة وخدمة العملاء فقط."};
+  const rows=archivePublicRowsV1931_(p.query),pageSize=Math.max(5,Math.min(100,Number(p.pageSize||20)||20)),pages=Math.max(1,Math.ceil(rows.length/pageSize)),page=Math.min(Math.max(1,Number(p.page||1)||1),pages),start=(page-1)*pageSize;
+  return {success:true,rows:rows.slice(start,start+pageSize),pagination:{page:page,pageSize:pageSize,totalRows:rows.length,totalPages:pages},permissions:{canRestore:true},version:"V1931_TREND_MASTER"};
+}
+
+function copyRowsBySharedHeadersV1931_(source,target,rows) {
+  if(!rows||!rows.length)return 0;
+  const sh=headersMap_(source),th=headersMap_(target),lastCol=Math.max(1,target.getLastColumn());
+  const output=rows.map(function(src){const out=new Array(lastCol).fill("");Object.keys(th).forEach(function(header){const sc=sh[header],tc=th[header];if(sc&&tc)out[tc-1]=src[sc-1];});return out;});
+  const next=target.getLastRow()+1;phoneColumns_(target).forEach(function(col){target.getRange(next,col,output.length,1).setNumberFormat("@");});target.getRange(next,1,output.length,lastCol).setValues(output);return output.length;
+}
+
+function restoreArchivedOrderV1931_(e) {
+  const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);
+  if(!auth.ok)return {success:false,message:auth.message};
+  if(!canManageArchiveV1931_(auth.user))return {success:false,message:"استرجاع الأرشيف متاح للإدارة وخدمة العملاء فقط."};
+  const orderId=normalize_(p.orderId),requestId=normalize_(p.requestId)||("RESTORE-"+orderId);
+  if(!orderId)return {success:false,message:"رقم الأوردر مطلوب."};
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try {
+    const ss=ss_(),archiveLines=ss.getSheetByName(SHEET_NAME_ARCHIVE_LINES_V1926),liveLines=ss.getSheetByName(SHEET_NAME_LINES);
+    if(!archiveLines||!liveLines)return {success:false,message:"شيت الأرشيف أو التشغيل غير موجود."};
+    const liveH=headersMap_(liveLines),liveOid=firstCol_(liveH,["رقم الأوردر","Order ID"],1),liveCode=firstCol_(liveH,["كود الأوردر"],2),liveLine=firstCol_(liveH,["رقم البند","Line ID"],6),liveLineIds={},liveOrderExists={value:false};
+    if(liveLines.getLastRow()>1){const live=liveLines.getRange(2,1,liveLines.getLastRow()-1,Math.max(liveOid,liveCode,liveLine,1)).getValues();live.forEach(function(row){if((normalize_(valueAt_(row,liveOid))||normalize_(valueAt_(row,liveCode)))===orderId)liveOrderExists.value=true;const id=normalize_(valueAt_(row,liveLine));if(id)liveLineIds[id]=true;});}
+    const ah=headersMap_(archiveLines),aoid=firstCol_(ah,["رقم الأوردر","Order ID"],1),acode=firstCol_(ah,["كود الأوردر"],2),aline=firstCol_(ah,["رقم البند","Line ID"],6),adata=archiveLines.getRange(2,1,archiveLines.getLastRow()-1,archiveLines.getLastColumn()).getValues(),rows=[],rowNumbers=[];
+    adata.forEach(function(row,index){if((normalize_(valueAt_(row,aoid))||normalize_(valueAt_(row,acode)))===orderId){rows.push(row);rowNumbers.push(index+2);}});
+    if(!rows.length)return {success:false,message:"الأوردر غير موجود في أرشيف البنود."};
+    if(rows.some(function(row){const id=normalize_(valueAt_(row,aline));return id&&liveLineIds[id];}))return {success:false,message:"يوجد بند من نفس الأوردر مسترجع بالفعل؛ لم يتم تكرار البيانات."};
+    copyRowsBySharedHeadersV1931_(archiveLines,liveLines,rows);
+    const archiveOrders=ss.getSheetByName(SHEET_NAME_ARCHIVE_ORDERS_V1926),liveOrders=ss.getSheetByName(SHEET_NAME_ORDERS);let orderRows=[],orderRowNumbers=[];
+    if(archiveOrders&&liveOrders&&archiveOrders.getLastRow()>1){const oh=headersMap_(archiveOrders),oid=firstCol_(oh,["رقم الأوردر","Order ID"],1),ocode=firstCol_(oh,["كود الأوردر"],2),od=archiveOrders.getRange(2,1,archiveOrders.getLastRow()-1,archiveOrders.getLastColumn()).getValues();od.forEach(function(row,index){if((normalize_(valueAt_(row,oid))||normalize_(valueAt_(row,ocode)))===orderId){orderRows.push(row);orderRowNumbers.push(index+2);}});if(orderRows.length&&!liveOrderExists.value)copyRowsBySharedHeadersV1931_(archiveOrders,liveOrders,orderRows);}
+    archiveDeleteRowsV1926_(archiveLines,rowNumbers);if(archiveOrders&&orderRowNumbers.length)archiveDeleteRowsV1926_(archiveOrders,orderRowNumbers);syncOrderFromLines_(orderId);appendActivityLog_({time:new Date(),orderId:orderId,action:"استرجاع من الأرشيف",newStatus:"عاد للتشغيل",by:auth.user.username,details:"معرف الاسترجاع: "+requestId+" | بنود: "+rows.length});trendosBumpDataVersionV1931_();
+    try{PropertiesService.getScriptProperties().setProperty("TRENDOS_AI_REBUILD_NEEDED_V1931","1");}catch(err){}
+    return {success:true,message:"تم استرجاع الأوردر "+orderId+" إلى التشغيل بعدد "+rows.length+" بند.",restoredLines:rows.length,orderId:orderId,version:"V1931_TREND_MASTER"};
+  } finally {try{lock.releaseLock();}catch(err){}}
+}
+
+function automationQueueHeadersV1931_(){return ["ID","وقت الإنشاء","نوع التنبيه","رقم الأوردر","رقم البند","العميل","الهاتف","القسم","المستلم","الحالة","الرسالة","رابط واتساب","حالة الإرسال","تم بواسطة","وقت الإرسال","مفتاح التكرار"];}
+function ensureAutomationQueueV1931_(){return mbEnsureSheet_(SHEET_NAME_AUTOMATION_QUEUE_V1931,automationQueueHeadersV1931_());}
+function automationMessageTextV1931_(info){const s=normalize_(info.status);if(s==="طلب جديد")return "أهلاً "+(info.customer||"بحضرتك")+" 🌟 تم تسجيل أوردر رقم "+info.orderId+" في قسم "+(info.department||"Trend Mall")+".";if(s==="بدأ التنفيذ"||s==="تحت التنفيذ")return "أهلاً "+(info.customer||"بحضرتك")+" 🌟 بدأ تنفيذ أوردر رقم "+info.orderId+" في قسم "+info.department+".";if(s==="جاهز للاستلام")return "أوردر حضرتك رقم "+info.orderId+" جاهز للاستلام ✅ برجاء التوجه للاستلام.";if(s==="تم التسليم")return "تم تسليم أوردر حضرتك رقم "+info.orderId+" بنجاح ✅ شكرًا لاختيار Trend Mall.";return "تحديث أوردر رقم "+info.orderId+": الحالة الحالية "+s+".";}
+function automationExistingKeysV1931_(sheet){const keys={};sheet=sheet||ensureAutomationQueueV1931_();if(sheet.getLastRow()<2)return keys;const h=headersMap_(sheet),kc=firstCol_(h,["مفتاح التكرار"],0);if(!kc)return keys;sheet.getRange(2,kc,sheet.getLastRow()-1,1).getValues().forEach(function(row){const key=normalize_(row[0]);if(key)keys[key]=true;});return keys;}
+function appendAutomationQueueOnceV1931_(info){const sheet=info._sheet||ensureAutomationQueueV1931_(),key=normalize_(info.key)||[info.type,info.orderId,info.lineId,info.status].join("|"),existing=info._existingKeys||automationExistingKeysV1931_(sheet);if(existing[key])return false;const phone=cleanPhone_(info.phone),message=normalize_(info.message)||automationMessageTextV1931_(info);appendByHeaders_(sheet,{"ID":"ALT-"+Utilities.getUuid().slice(0,8).toUpperCase(),"وقت الإنشاء":new Date(),"نوع التنبيه":info.type||"رسالة حالة","رقم الأوردر":info.orderId||"","رقم البند":info.lineId||"","العميل":info.customer||"","الهاتف":phone,"القسم":info.department||"","المستلم":info.assignedTo||"","الحالة":info.status||"","الرسالة":message,"رابط واتساب":phone?("https://wa.me/2"+phone.replace(/^0/,"")+"?text="+encodeURIComponent(message)):"","حالة الإرسال":"جاهزة","تم بواسطة":info.by||"النظام","مفتاح التكرار":key});existing[key]=true;return true;}
+function queueOrderStatusMessageV1931_(info){try{const customers=buildCustomerPhoneMap_(),customer=customers[searchKey_(info.customer)]||{};return appendAutomationQueueOnceV1931_(Object.assign({},info,{type:"رسالة حالة للعميل",phone:customer.phone||"",key:"STATUS|"+info.orderId+"|"+info.lineId+"|"+info.status}));}catch(err){return false;}}
+
+function employeeKpisV1931_(data,h){const cOrder=firstCol_(h,["رقم الأوردر","Order ID"],1),cDept=firstCol_(h,["القسم"],5),cAssigned=firstCol_(h,["مسؤول القسم"],9),cStatus=firstCol_(h,["الحالة"],11),cExpected=firstCol_(h,["تاريخ التسليم المتوقع","الوقت المتوقع"],0),people={};data.forEach(function(row){const dept=normalize_(valueAt_(row,cDept)),employee=normalize_(valueAt_(row,cAssigned))||defaultAssigned_(dept)||"غير محدد",status=normalize_(valueAt_(row,cStatus))||"طلب جديد",id=normalize_(valueAt_(row,cOrder)),key=searchKey_(employee)+"|"+dept;if(!people[key])people[key]={employee:employee,department:dept,total:0,completed:0,overdue:0,active:0,orders:{}};const p=people[key];p.total++;if(id)p.orders[id]=true;if(isReadyStatus_(status)||status==="تم التسليم")p.completed++;else p.active++;if(isOverdueByExpected_(status,valueAt_(row,cExpected)))p.overdue++;});return Object.keys(people).map(function(key){const p=people[key],completion=Math.round(p.completed/Math.max(1,p.total)*100),time=Math.max(0,Math.round(100-p.overdue/Math.max(1,p.total)*100));p.orderCount=Object.keys(p.orders).length;delete p.orders;p.completionPercent=completion;p.timeScore=time;p.score=Math.round(completion*.7+time*.3);return p;}).sort(function(a,b){return b.score-a.score;});}
+function lowStockAlertsV1931_(){const sheet=ss_().getSheetByName(SHEET_NAME_ACC_MATERIALS);if(!sheet||sheet.getLastRow()<2)return [];return accSheetRows_(sheet).filter(function(row){const stock=parseMoney_(row["رصيد المخزن"]||row["رصيد المخزون"]),min=parseMoney_(row["حد تنبيه النقص"]||row["حد النقص"]);return min>0&&stock<=min&&!/لا|متوقف|موقوف/.test(searchKey_(row["مفعل"]||"نعم"));}).map(function(row){return {material:normalize_(row["اسم الخامة"]||row["الخامة"]),department:normalize_(row["القسم"]),stock:parseMoney_(row["رصيد المخزن"]||row["رصيد المخزون"]),minimum:parseMoney_(row["حد تنبيه النقص"]||row["حد النقص"])};});}
+function recentAutomationQueueV1931_(limit){const sheet=ensureAutomationQueueV1931_();if(sheet.getLastRow()<2)return [];return accSheetRows_(sheet).reverse().filter(function(row){return normalize_(row["حالة الإرسال"])!=="تم الإرسال";}).slice(0,Math.min(Number(limit||50),100)).map(function(row){return {rowNumber:row.rowNumber,id:normalize_(row["ID"]),type:normalize_(row["نوع التنبيه"]),orderId:normalize_(row["رقم الأوردر"]),lineId:normalize_(row["رقم البند"]),customer:normalize_(row["العميل"]),phone:cleanPhone_(row["الهاتف"]),department:normalize_(row["القسم"]),assignedTo:normalize_(row["المستلم"]),status:normalize_(row["الحالة"]),message:normalize_(row["الرسالة"]),whatsappUrl:normalize_(row["رابط واتساب"]),sendStatus:normalize_(row["حالة الإرسال"])};});}
+
+function getTrendMasterCenterV1931_(e){
+  const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};
+  const lines=ss_().getSheetByName(SHEET_NAME_LINES),h=lines?headersMap_(lines):{},data=lines&&lines.getLastRow()>1?lines.getRange(2,1,lines.getLastRow()-1,lines.getLastColumn()).getValues():[],role=roleFromArabic_(auth.user.role,auth.user.department),admin=role==="admin"||searchKey_(auth.user.username).indexOf("ضياء")!==-1,canDebtControl=canManageDebtRestrictionsV1931_(auth.user);
+  let dayClose=null;if(admin){try{dayClose=accountingAutomationPreviewDataV1921_(accountingDateKeyV1920_(new Date()));}catch(err){dayClose={error:err.message||String(err)};}}
+  return {success:true,system:{activeLines:data.length,archivedLines:(ss_().getSheetByName(SHEET_NAME_ARCHIVE_LINES_V1926)||{getLastRow:function(){return 1;}}).getLastRow()-1,dataVersion:trendosDataVersionV1931_(),pagingEnabled:true,deliveryPolicy:"التسليم مفتوح للجميع؛ المنع فقط لعملاء قائمة ضياء عند وجود مديونية",invoicePaymentRequired:false,stockAutoDeduct:"عند اعتماد فاتورة القسم"},employeePerformance:employeeKpisV1931_(data,h),stockAlerts:lowStockAlertsV1931_(),messageQueue:recentAutomationQueueV1931_(50),archive:canManageArchiveV1931_(auth.user)?getArchiveRowsV1931_({parameter:Object.assign({},p,{page:p.archivePage||1,pageSize:10,query:p.archiveQuery||""})}):{success:false,rows:[]},debtControl:canDebtControl?debtRestrictionControlDataV1931_():{customers:[],restrictions:[]},dayClose:dayClose,permissions:{canManageArchive:canManageArchiveV1931_(auth.user),canManageDebtRestrictions:canDebtControl,canRunAutomation:admin,canInstallAutomation:admin,canCloseDay:admin,canManageStock:admin},version:"V1931_TREND_MASTER"};
+}
+
+function saveEmployeeKpiSnapshotV1931_(kpis,date){const sheet=mbEnsureSheet_(SHEET_NAME_EMPLOYEE_KPI_V1931,["التاريخ","وقت التسجيل","الموظف","القسم","عدد الأوردرات","إجمالي البنود","منجز","نشط","متأخر","نسبة الإنجاز","تقييم الوقت","التقييم النهائي","مفتاح اليوم"]),existing=sheet.getLastRow()>1?accSheetRows_(sheet):[],byKey={};existing.forEach(function(row){byKey[normalize_(row["مفتاح اليوم"])]=row.rowNumber;});kpis.forEach(function(k){const key=date+"|"+searchKey_(k.employee)+"|"+k.department,values={"التاريخ":date,"وقت التسجيل":new Date(),"الموظف":k.employee,"القسم":k.department,"عدد الأوردرات":k.orderCount,"إجمالي البنود":k.total,"منجز":k.completed,"نشط":k.active,"متأخر":k.overdue,"نسبة الإنجاز":k.completionPercent,"تقييم الوقت":k.timeScore,"التقييم النهائي":k.score,"مفتاح اليوم":key};if(byKey[key])updateByHeaders_(sheet,byKey[key],values,true);else appendByHeaders_(sheet,values);});}
+function runTrendMasterAutomationCoreV1931_(){
+  const lines=ss_().getSheetByName(SHEET_NAME_LINES);
+  if(!lines||lines.getLastRow()<2)return {success:true,message:"لا توجد بنود تشغيل لمعالجتها.",queued:0};
+  const h=headersMap_(lines),data=lines.getRange(2,1,lines.getLastRow()-1,lines.getLastColumn()).getValues();
+  const cOrder=firstCol_(h,["رقم الأوردر"],1),cLine=firstCol_(h,["رقم البند"],6),cCustomer=firstCol_(h,["اسم الشات / المكتب","اسم العميل"],3),cDept=firstCol_(h,["القسم"],5),cAssigned=firstCol_(h,["مسؤول القسم"],9),cStatus=firstCol_(h,["الحالة"],11),cExpected=firstCol_(h,["تاريخ التسليم المتوقع","الوقت المتوقع"],0),customers=buildCustomerPhoneMap_();
+  const queueSheet=ensureAutomationQueueV1931_(),existingKeys=automationExistingKeysV1931_(queueSheet),shared={_sheet:queueSheet,_existingKeys:existingKeys};
+  let queued=0;
+  data.forEach(function(row){
+    const orderId=normalize_(valueAt_(row,cOrder)),lineId=normalize_(valueAt_(row,cLine)),customer=normalize_(valueAt_(row,cCustomer)),department=normalize_(valueAt_(row,cDept)),assignedTo=normalize_(valueAt_(row,cAssigned)),status=normalize_(valueAt_(row,cStatus));
+    if(["طلب جديد","بدأ التنفيذ","تحت التنفيذ","جاهز للاستلام","تم التسليم"].indexOf(status)!==-1){const c=customers[searchKey_(customer)]||{};if(appendAutomationQueueOnceV1931_(Object.assign({},shared,{type:"رسالة حالة للعميل",orderId:orderId,lineId:lineId,customer:customer,phone:c.phone||"",department:department,assignedTo:assignedTo,status:status,key:"STATUS|"+orderId+"|"+lineId+"|"+status})))queued++;}
+    if(isOverdueByExpected_(status,valueAt_(row,cExpected))&&appendAutomationQueueOnceV1931_(Object.assign({},shared,{type:"تنبيه تأخير داخلي",orderId:orderId,lineId:lineId,customer:customer,department:department,assignedTo:assignedTo,status:status,message:"الأوردر "+orderId+" متأخر ويحتاج متابعة من "+(assignedTo||department),key:"OVERDUE|"+orderId+"|"+lineId+"|"+formatDateAr_(new Date())})))queued++;
+  });
+  lowStockAlertsV1931_().forEach(function(item){if(appendAutomationQueueOnceV1931_(Object.assign({},shared,{type:"تنبيه مخزون",department:item.department,assignedTo:"ضياء",status:"مخزون منخفض",message:"الخامة "+item.material+" وصلت إلى "+item.stock+" والحد الأدنى "+item.minimum,key:"LOWSTOCK|"+item.material+"|"+item.department+"|"+formatDateAr_(new Date())})))queued++;});
+  const kpis=employeeKpisV1931_(data,h),date=accountingDateKeyV1920_(new Date());saveEmployeeKpiSnapshotV1931_(kpis,date);
+  try{rebuildAIOrdersView();PropertiesService.getScriptProperties().deleteProperty("TRENDOS_AI_REBUILD_NEEDED_V1931");}catch(err){}
+  return {success:true,message:"تم تحديث الرسائل والتنبيهات والمخزون وتقييم الموظفين وAI_Orders_View.",queued:queued,employeePerformance:kpis,stockAlerts:lowStockAlertsV1931_(),version:"V1931_TREND_MASTER"};
+}
+function runTrendMasterAutomationV1931_(e){const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};const role=roleFromArabic_(auth.user.role,auth.user.department);if(role!=="admin"&&searchKey_(auth.user.username).indexOf("ضياء")===-1)return {success:false,message:"تشغيل الأتمتة متاح لضياء فقط."};return runTrendMasterAutomationCoreV1931_();}
+function runTrendMasterAutomationScheduledV1931(){return runTrendMasterAutomationCoreV1931_();}
+function installTrendMasterAutomationV1931_(e){const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};const role=roleFromArabic_(auth.user.role,auth.user.department);if(role!=="admin"&&searchKey_(auth.user.username).indexOf("ضياء")===-1)return {success:false,message:"تفعيل الأتمتة متاح لضياء فقط."};const existing=ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()==="runTrendMasterAutomationScheduledV1931";});if(!existing.length)ScriptApp.newTrigger("runTrendMasterAutomationScheduledV1931").timeBased().everyHours(1).create();return {success:true,message:existing.length?"الأتمتة مفعلة بالفعل كل ساعة.":"تم تفعيل الأتمتة كل ساعة: رسائل، تنبيهات، مخزون، تقييم وAI.",installed:true,version:"V1931_TREND_MASTER"};}
+function markAutomationMessageSentV1931_(e){const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};const sheet=ensureAutomationQueueV1931_(),id=normalize_(p.id);if(!id||sheet.getLastRow()<2)return {success:false,message:"رقم الرسالة غير موجود."};const h=headersMap_(sheet),idc=firstCol_(h,["ID"],1),data=sheet.getRange(2,1,sheet.getLastRow()-1,sheet.getLastColumn()).getValues();for(let i=0;i<data.length;i++){if(normalize_(valueAt_(data[i],idc))!==id)continue;updateByHeaders_(sheet,i+2,{"حالة الإرسال":"تم الإرسال","تم بواسطة":auth.user.username,"وقت الإرسال":new Date()},true);return {success:true,message:"تم تسجيل إرسال الرسالة."};}return {success:false,message:"الرسالة غير موجودة."};}
 
 function getDashboard_(e) {
   const auth = authorize_(e.parameter.username, e.parameter.token);
@@ -7954,6 +8253,7 @@ function accountsUpdateMasterBalanceV1858_(partyType, partyName, balance, auth) 
   sh.getRange(row, colBal).setValue(balance);
   sh.getRange(row, colDebt).setValue(balance);
   sh.getRange(row, colUpdate).setValue(new Date());
+  trendosBumpDataVersionV1931_();
 }
 function savePartyLedgerTransactionV1858_(e) {
   const auth = accountingAuthorize_(e);
@@ -9320,17 +9620,6 @@ function rebuildAIOrdersView() {
     const view = ensureAIOrdersViewSheet_();
     const headers = aiOrdersViewHeaders_();
 
-    if (orders.getLastRow() < 2) {
-      SpreadsheetApp.flush();
-      return {
-        success: true,
-        message: "تم إنشاء AI_Orders_View بدون بيانات؛ تاب الأوردرات فارغ.",
-        sheetName: SHEET_NAME_AI_ORDERS_VIEW,
-        rows: 0,
-        version: "V1891"
-      };
-    }
-
     const display = orders.getDataRange().getDisplayValues();
     const sourceHeaders = display[0];
     const h = {};
@@ -9396,6 +9685,28 @@ function rebuildAIOrdersView() {
       seen[orderId] = record;
     }
 
+    // V1931: الأوردر المؤرشف يظل متاحًا لمساعد AI بالبحث برقم الأوردر،
+    // بدون إعادة تحميله داخل شيت التشغيل أو كشف بيانات إضافية للعميل.
+    archivePublicRowsV1931_("").forEach(function(archived) {
+      const orderId = normalize_(archived.orderId);
+      if (!orderId || seen[orderId]) return;
+      const status = normalize_(archived.status) || "تم التسليم";
+      seen[orderId] = [
+        orderId,
+        normalize_(archived.customer),
+        cleanPhone_(archived.customerPhone),
+        status,
+        normalize_(archived.department),
+        normalize_(archived.itemName),
+        "",
+        normalize_(archived.archivedAt),
+        "لا",
+        "ARCHIVE",
+        aiOrderReply_(orderId, archived.customer, status, archived.department, archived.itemName, "تم التسليم والأرشفة"),
+        "مؤرشف بتاريخ " + (normalize_(archived.archivedAt) || "غير محدد")
+      ];
+    });
+
     Object.keys(seen).sort(function(a, b) {
       return Number(a) - Number(b);
     }).forEach(function(orderId) {
@@ -9420,7 +9731,7 @@ function rebuildAIOrdersView() {
       message: "تم إنشاء / تحديث AI_Orders_View بنجاح. قل للمساعد: Refresh.",
       sheetName: SHEET_NAME_AI_ORDERS_VIEW,
       rows: out.length,
-      version: "V1891",
+      version: "V1931_TREND_MASTER",
       test1607: getAIOrderStatus_({ parameter: { orderId: "1607" } })
     };
   } finally {
@@ -10016,10 +10327,15 @@ function trendosV1900DeliverReady_(payload, user) {
   lock.waitLock(30000);
   try {
     const data = trendosV1900CollectReadyDelivery_();
-    const ids = Object.keys(data.orderIds);
+    const customerMap=buildCustomerPhoneMap_(),restrictionMap=debtDeliveryRestrictionMapV1931_(),blockedOrders={},lineCustomerCol=trendosV1898FindCol_(data.lineHeaders,['اسم الشات / المكتب','اسم العميل','Customer Name']);
+    data.readyLines.forEach(function(x){const customer=lineCustomerCol!==-1?normalize_(x.row[lineCustomerCol]):"",info=customerMap[searchKey_(customer)]||{},restriction=restrictionMap[searchKey_(customer)]||null,debt=parseDebtAmount_(info.debtAmount||0);if(restriction&&debt>0)blockedOrders[x.orderId]={customer:customer,debtAmount:debt};});
+    const ids = Object.keys(data.orderIds).filter(function(id){return !blockedOrders[id];});
+    const allowedOrderIds={};ids.forEach(function(id){allowedOrderIds[id]=true;});
+    const allowedReadyLines=data.readyLines.filter(function(x){return !!allowedOrderIds[x.orderId];});
     if (!ids.length && !data.readyLines.length) {
       return { success: true, version: TRENDOS_V1900.VERSION, ordersCount: 0, linesCount: 0, message: 'لا توجد أوردرات جاهزة للاستلام حالياً.' };
     }
+    if (!ids.length && Object.keys(blockedOrders).length) return {success:true,version:"V1931_TREND_MASTER",ordersCount:0,linesCount:0,blockedDebtOrders:Object.keys(blockedOrders).length,blockedDetails:blockedOrders,message:"لم يتم التسليم: كل الأوردرات الجاهزة تخص عملاء في قائمة منع ضياء وعليهم مديونية."};
 
     const now = new Date();
     const by = trendosV1900UserName_(user, payload);
@@ -10029,7 +10345,7 @@ function trendosV1900DeliverReady_(payload, user) {
     const lineUpdatedCol = trendosV1898FindCol_(trendosV1900Headers_(data.linesSheet), ['آخر تحديث', 'Updated At', 'updatedAt']);
     const lineReadyCol = trendosV1898FindCol_(trendosV1900Headers_(data.linesSheet), ['جاهز؟', 'جاهز', 'Ready']);
 
-    data.readyLines.forEach(function(x){
+    allowedReadyLines.forEach(function(x){
       data.linesSheet.getRange(x.rowNumber, data.lineStatusCol + 1).setValue(TRENDOS_V1900.DELIVERED_STATUS);
       if (lineReadyCol !== -1) data.linesSheet.getRange(x.rowNumber, lineReadyCol + 1).setValue('نعم');
       if (lineUpdatedCol !== -1) data.linesSheet.getRange(x.rowNumber, lineUpdatedCol + 1).setValue(now);
@@ -10047,7 +10363,7 @@ function trendosV1900DeliverReady_(payload, user) {
 
     data.orderValues.forEach(function(row, idx){
       const orderId = String(row[data.orderIdColO] || '').trim();
-      if (!orderId || !data.orderIds[orderId]) return;
+      if (!orderId || !allowedOrderIds[orderId]) return;
       const rowNumber = idx + 2;
       data.orderStatusCols.forEach(function(c){ data.ordersSheet.getRange(rowNumber, c + 1).setValue(TRENDOS_V1900.DELIVERED_STATUS); });
       if (orderUpdatedCol !== -1) data.ordersSheet.getRange(rowNumber, orderUpdatedCol + 1).setValue(now);
@@ -10058,16 +10374,19 @@ function trendosV1900DeliverReady_(payload, user) {
     });
 
     const log = trendosV1900EnsureBulkLogSheet_(data.ss);
-    log.appendRow([now, 'تحويل الجاهز للاستلام إلى تم التسليم', ids.length, data.readyLines.length, ids.join(', '), by, TRENDOS_V1900.VERSION]);
+    log.appendRow([now, 'تحويل الجاهز للاستلام إلى تم التسليم', ids.length, allowedReadyLines.length, ids.join(', '), by, "V1931_TREND_MASTER"]);
 
+    trendosBumpDataVersionV1931_();
     SpreadsheetApp.flush();
     return {
       success: true,
       version: TRENDOS_V1900.VERSION,
       ordersCount: ids.length,
-      linesCount: data.readyLines.length,
+      linesCount: allowedReadyLines.length,
+      blockedDebtOrders:Object.keys(blockedOrders).length,
+      blockedDetails:blockedOrders,
       sampleOrders: ids.slice(0, 10),
-      message: 'تم تحويل كل الجاهز للاستلام / في قسم التسليمات إلى تم التسليم.'
+      message: 'تم تحويل الجاهز المسموح له إلى تم التسليم.'+(Object.keys(blockedOrders).length?' وتم تخطي '+Object.keys(blockedOrders).length+' أوردر لعملاء في قائمة منع ضياء وعليهم مديونية.':'')
     };
   } finally {
     try { lock.releaseLock(); } catch (e) {}
@@ -10636,7 +10955,8 @@ function createManualOrder_(e) {
 
   if (!customerName || !department) return { success: false, message: isExternal ? 'رقم/علامة العميل والقسم مطلوبين.' : 'اسم الشات والقسم مطلوبين.' };
   if (!itemName) itemName = 'أوردر جديد - ' + department;
-  if (debtAmount > 0) notes = (notes ? notes + ' | ' : '') + 'تنبيه مديونية: ' + debtAmount + ' ج. لا يتم التسليم قبل السداد.';
+  const deliveryDebtRestriction = !isExternal && debtAmount > 0 ? (debtDeliveryRestrictionMapV1931_()[searchKey_(customerName)] || null) : null;
+  if (debtAmount > 0) notes = (notes ? notes + ' | ' : '') + 'تنبيه مديونية: ' + debtAmount + ' ج.' + (deliveryDebtRestriction ? ' العميل في قائمة منع التسليم عند وجود مديونية.' : ' التسليم مسموح وفق سياسة V1931.');
 
   const ss = ss_();
   const lines = ss.getSheetByName(SHEET_NAME_LINES);
@@ -10756,9 +11076,22 @@ function createManualOrder_(e) {
     details: reusedOrder ? ('تم الحفاظ على أوردر واحد للعميل داخل نفس القسم' + (dateMoved ? ' وترحيل تاريخ الاستلام' : '')) : (isExternal ? ('علامة العميل الخارجي: ' + externalDigits) : (debtAmount > 0 ? 'تم تسجيل الأوردر مع تنبيه مديونية' : 'تم تسجيل أوردر جديد'))
   });
 
+  departments.forEach(function(d, idx) {
+    queueOrderStatusMessageV1931_({
+      orderId: orderId,
+      lineId: orderId + '-' + String(firstLineNumber + idx).padStart(2, '0'),
+      customer: customerName,
+      department: d.department,
+      assignedTo: d.assignedTo,
+      status: status,
+      by: auth.user.username
+    });
+  });
+  trendosBumpDataVersionV1931_();
+
   const trendosV1908Response = {
     success: true,
-    version: "V1926_BULK_STATUS",
+    version: "V1931_TREND_MASTER",
     orderId: orderId,
     lineId: orderId + '-' + String(firstLineNumber).padStart(2, '0'),
     linesCreated: departments.length,
@@ -10768,6 +11101,8 @@ function createManualOrder_(e) {
     expectedDeliveryText: expectedDeliveryText,
     debtAmount: debtAmount,
     debtHold: debtAmount > 0 ? 'نعم' : 'لا',
+    deliveryDebtRestricted: !!deliveryDebtRestriction,
+    debtRestrictionReason: deliveryDebtRestriction ? deliveryDebtRestriction.reason || '' : '',
     debtInfo: { hasDebt: debtAmount > 0, amount: debtAmount, notes: debtNotes },
     customerMode: customerMode,
     externalCustomerId: isExternal ? externalDigits : '',

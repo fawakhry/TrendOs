@@ -1779,3 +1779,28 @@ button.v1857-activate-btn{background:#16a34a!important;color:#fff!important;bord
 .v1896-addorder-debt-box.noDebt{background:#ecfdf5;border-color:#86efac;color:#065f46}
 .v1896-addorder-debt-box.muted{background:#f8fafc;border-color:#e2e8f0;color:#64748b;font-weight:700}
 #invoiceItemSelect option{font-weight:700}
+
+/* V1931 Trend Master center */
+.trend-master-card{border:1px solid #bfe8df;background:linear-gradient(180deg,#f7fffd 0%,#fff 38%)}
+.trend-master-card .table-tools{align-items:flex-start}
+.trend-master-card .table-tools h3{margin:0 0 4px;color:#075e54}
+.trend-master-card .table-tools small{color:#58736f;font-weight:700}
+.trend-master-actions,.trend-inline-controls,.trend-pager{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.trend-master-actions{margin:12px 0}
+.trend-master-summary{margin:10px 0 14px}
+.trend-master-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.trend-master-panel{border:1px solid #d9eee9;border-radius:18px;background:#fff;padding:14px;min-width:0;box-shadow:0 6px 20px rgba(15,118,110,.06)}
+.trend-panel-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+.trend-panel-head h4{margin:0;color:#123047}
+.trend-panel-head span{font-size:12px;color:#64748b;font-weight:700}
+.trend-inline-controls input{flex:1;min-width:160px}
+.trend-list{display:grid;gap:8px;margin-top:10px;max-height:330px;overflow:auto}
+.trend-list-item{border:1px solid #e2e8f0;border-radius:14px;padding:10px;background:#f8fafc;display:grid;gap:5px}
+.trend-list-item .trend-item-head{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.trend-list-item small{color:#64748b;font-weight:700;line-height:1.55}
+.trend-list-item .trend-item-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+.trend-score{display:inline-flex;border-radius:999px;padding:3px 9px;background:#dcfce7;color:#166534;font-weight:900}
+.trend-score.warn{background:#fff7ed;color:#9a3412}
+.trend-pager{justify-content:center;margin-top:10px}
+.trend-master-panel .danger-text{color:#b91c1c;font-weight:900}
+@media(max-width:900px){.trend-master-grid{grid-template-columns:1fr}}

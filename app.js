@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1926_BULK_STATUS';
+  const UI_VERSION = 'V1931_TREND_MASTER';
 
   const screens = {
     service: "خدمة العملاء",
@@ -149,6 +149,14 @@
     bulkStatusRequestId: "",
     archiveDeliveredSaving: false,
     archiveDeliveredRequestId: "",
+    serverPaging: { enabled: true, page: 1, pageSize: 5, totalRows: 0, totalPages: 1 },
+    serverStatusCounts: {},
+    serverStatusOrderCounts: {},
+    rowsFilterTimer: null,
+    trendMaster: null,
+    trendMasterLoading: false,
+    archivePage: 1,
+    archiveQuery: "",
     editing: false,
     currentPage: 1,
     pageSize: 5,
@@ -411,7 +419,7 @@
     const expected = displayExpectedDelivery(row);
 
     if (mode === "registered") {
-      const debtWarning = hasDebt(row) ? `\n\nتنبيه مهم: يوجد مديونية حالية ${debtLabel(row)}.\nهنستقبل الأوردر ونسجله، لكن التسليم النهائي أو متابعة التشغيل الكاملة تتوقف لحين تقفيل المديونية.` : "";
+      const debtWarning = hasDebt(row) && (row.deliveryDebtRestricted === true || row.deliveryDebtRestricted === "نعم") ? `\n\nتنبيه مهم: يوجد مديونية حالية ${debtLabel(row)}، والعميل ضمن قائمة منع التسليم حتى تصفير المديونية.` : "";
       return `أهلاً${customer} 🌟
 تم تسجيل الأوردر بنجاح.
 رقم الأوردر: ${orderId}
@@ -2050,6 +2058,7 @@ Trend Mall`;
 
   const ADMIN_CARD_AREAS = {
     managementDashboard: "matbagy",
+    trendMasterCenter: "matbagy",
     platformSectionsCard: "matbagy",
     serviceRoutesCard: "matbagy",
     addOrderCard: "rahma",
@@ -2099,7 +2108,7 @@ Trend Mall`;
       const card = $(id);
       if (!card) return;
       if (isRahmaRestrictedUser()) {
-        const rahmaAllowedCards = ["managementDashboard", "addOrderCard", "addCustomerCard"];
+        const rahmaAllowedCards = ["managementDashboard", "trendMasterCenter", "addOrderCard", "addCustomerCard"];
         card.classList.toggle("admin-area-off", rahmaAllowedCards.indexOf(id) === -1);
         return;
       }
@@ -4031,6 +4040,7 @@ Trend Mall`;
       btn.onclick = function () {
         state.screen = screen;
         state.rows = [];
+        state.currentPage = 1;
         state.bulkStatusRequestId = "";
         state.archiveDeliveredRequestId = "";
         state.editing = false;
@@ -4082,6 +4092,7 @@ Trend Mall`;
     card.classList.remove("hidden");
     // V1925: المتابعة تصل داخل نفس استجابة getRows بدل طلب ثانٍ يقرأ الشيت كاملًا.
     if (state.dashboard) renderDashboard(state.dashboard);
+    toggleTrendMasterCenter();
   }
 
   async function loadDashboard(force) {
@@ -4134,6 +4145,108 @@ Trend Mall`;
       dashboardItem("إجمالي مفتوح", d.activeOrders || 0, "") +
       dashboardItem("مديونية", d.debtOrders || 0, "danger") +
       dashboardItem("مكبس حراري", d.heatPress || byDept["مكبس"] || 0, "press");
+  }
+
+  function toggleTrendMasterCenter() {
+    const card = $("trendMasterCenter");
+    if (!card) return;
+    const show = !!state.user;
+    card.classList.toggle("hidden", !show);
+    if (show && !state.trendMaster && !state.trendMasterLoading) loadTrendMasterCenter(false);
+  }
+
+  function trendListItem(title, meta, actions, badge) {
+    return '<div class="trend-list-item"><div class="trend-item-head"><b>' + escapeHtml(title || "-") + '</b>' + (badge || '') + '</div>' +
+      (meta ? '<small>' + escapeHtml(meta) + '</small>' : '') + (actions ? '<div class="trend-item-actions">' + actions + '</div>' : '') + '</div>';
+  }
+
+  function renderTrendMasterCenter() {
+    const data = state.trendMaster || {}, system = data.system || {}, permissions = data.permissions || {};
+    const summary = $("trendMasterSummary");
+    if (summary) summary.innerHTML =
+      dashboardItem("بنود التشغيل", system.activeLines || 0, "") +
+      dashboardItem("بنود الأرشيف", system.archivedLines || 0, "done") +
+      dashboardItem("تحميل الصفحات", system.pagingEnabled ? "مفعّل" : "غير مفعّل", system.pagingEnabled ? "done" : "danger") +
+      dashboardItem("سياسة التسليم", system.invoicePaymentRequired === false ? "مفتوح عدا قائمة المنع" : "حسب الحساب", "done") +
+      dashboardItem("خصم المخزون", system.stockAutoDeduct || "-", "ready");
+
+    ["runTrendAutomationBtn", "installTrendAutomationBtn"].forEach(function(id){ const el=$(id); if(el) el.classList.toggle("hidden", !permissions.canRunAutomation); });
+    const closeBtn = $("runAccountingCloseBtn"); if (closeBtn) closeBtn.classList.toggle("hidden", !permissions.canCloseDay);
+
+    const archive = data.archive || {}, rows = archive.rows || [], archiveList = $("archiveOrdersList"), page = archive.pagination || {};
+    if (archiveList) archiveList.innerHTML = !permissions.canManageArchive ? '<div class="dash-empty">الأرشيف متاح للإدارة وخدمة العملاء.</div>' : (!rows.length ? '<div class="dash-empty">لا توجد أوردرات مؤرشفة مطابقة.</div>' : rows.map(function(row){
+      const meta = [row.customer, row.department, row.itemName, row.lineCount + " بند", row.archivedAt ? "أُرشف " + row.archivedAt : ""].filter(Boolean).join(" — ");
+      return trendListItem("أوردر " + row.orderId, meta, '<button class="ghost restore-archive-order" data-order-id="' + escapeHtml(row.orderId) + '" type="button">استرجاع للتشغيل</button>', '<span class="trend-score">مؤرشف</span>');
+    }).join(""));
+    if ($("archivePagerText")) $("archivePagerText").textContent = permissions.canManageArchive ? ("صفحة " + (page.page || 1) + " من " + (page.totalPages || 1) + " — " + (page.totalRows || 0) + " أوردر") : "";
+    if ($("archivePrevBtn")) $("archivePrevBtn").disabled = !permissions.canManageArchive || (page.page || 1) <= 1;
+    if ($("archiveNextBtn")) $("archiveNextBtn").disabled = !permissions.canManageArchive || (page.page || 1) >= (page.totalPages || 1);
+
+    const messages = data.messageQueue || [], messagesList = $("automationMessagesList");
+    if (messagesList) messagesList.innerHTML = !messages.length ? '<div class="dash-empty">لا توجد رسائل أو تنبيهات معلقة.</div>' : messages.map(function(msg){
+      const actions = (msg.whatsappUrl ? '<button class="primary open-automation-wa" data-message-id="' + escapeHtml(msg.id) + '" data-wa-url="' + escapeHtml(msg.whatsappUrl) + '" type="button">فتح واتساب</button>' : '') + '<button class="ghost copy-automation-message" data-message="' + escapeHtml(msg.message) + '" type="button">نسخ الرسالة</button>';
+      return trendListItem((msg.type || "تنبيه") + (msg.orderId ? " — " + msg.orderId : ""), [msg.customer, msg.department, msg.assignedTo, msg.status].filter(Boolean).join(" — "), actions, '');
+    }).join("");
+
+    const stocks = data.stockAlerts || [], stockList = $("stockAlertsList");
+    if (stockList) stockList.innerHTML = !stocks.length ? '<div class="dash-empty">المخزون أعلى من حدود التنبيه.</div>' : stocks.map(function(item){ return trendListItem(item.material, item.department + " — الرصيد: " + item.stock + " — الحد الأدنى: " + item.minimum, "", '<span class="trend-score warn">منخفض</span>'); }).join("");
+
+    const debtPanel=$("debtRestrictionPanel"),debtControl=data.debtControl||{},debtCustomers=debtControl.customers||[],debtRestrictions=debtControl.restrictions||[],debtList=$("debtRestrictionList"),debtOptions=$("debtRestrictionCustomers");
+    if(debtPanel)debtPanel.classList.toggle("hidden",!permissions.canManageDebtRestrictions);
+    if(permissions.canManageDebtRestrictions&&debtOptions)debtOptions.innerHTML=debtCustomers.map(function(customer){return '<option value="'+escapeHtml(customer.name)+'">مديونية: '+escapeHtml(customer.debtAmount||0)+' ج</option>';}).join("");
+    if(permissions.canManageDebtRestrictions&&debtList)debtList.innerHTML=!debtRestrictions.length?'<div class="dash-empty">لا يوجد عملاء في قائمة المنع.</div>':debtRestrictions.map(function(item){
+      const stateLabel=item.active&&!item.expired?'منع فعال':'غير فعال',badge='<span class="trend-score '+(item.active&&!item.expired?'warn':'')+'">'+stateLabel+'</span>',meta=[item.reason,item.validUntil?'حتى '+item.validUntil:'بدون تاريخ انتهاء',item.createdBy?'أضافه '+item.createdBy:''].filter(Boolean).join(' — '),actions=item.active&&!item.expired?'<button class="ghost disable-debt-restriction" data-customer="'+escapeHtml(item.customer)+'" data-reason="'+escapeHtml(item.reason||'')+'" type="button">رفع المنع</button>':'';
+      return trendListItem(item.customer,meta,actions,badge);
+    }).join("");
+
+    const kpis = data.employeePerformance || [], kpiList = $("employeeKpiList");
+    if (kpiList) kpiList.innerHTML = !kpis.length ? '<div class="dash-empty">لا توجد بيانات تقييم اليوم.</div>' : kpis.map(function(k){ return trendListItem(k.employee + " — " + (k.department || ""), k.orderCount + " أوردر / " + k.total + " بند — منجز " + k.completed + " — متأخر " + k.overdue + " — إنجاز " + k.completionPercent + "%", "", '<span class="trend-score ' + (k.score < 60 ? 'warn' : '') + '">' + k.score + '%</span>'); }).join("");
+
+    const day = data.dayClose, dayPanel = $("dayClosePreviewPanel"), dayList = $("dayClosePreviewList");
+    if (dayPanel) dayPanel.classList.toggle("hidden", !permissions.canCloseDay);
+    if (permissions.canCloseDay && dayList) {
+      const blockers = (day && day.blockers) || [];
+      dayList.innerHTML = blockers.length ? blockers.map(function(v){ return '<div class="trend-list-item danger-text">' + escapeHtml(v) + '</div>'; }).join("") : '<div class="trend-list-item"><b>كل المراجعات سليمة، يمكن تنفيذ قفلة اليوم.</b></div>';
+      if ($("dayCloseReadyBadge")) $("dayCloseReadyBadge").textContent = blockers.length ? (blockers.length + " مانع") : "جاهز";
+      if (closeBtn) closeBtn.disabled = blockers.length > 0;
+    }
+  }
+
+  async function loadTrendMasterCenter(force) {
+    if (!state.user || state.trendMasterLoading) return;
+    state.trendMasterLoading = true;
+    if ($("trendMasterStatus")) $("trendMasterStatus").textContent = "جاري التحديث...";
+    try {
+      const res = await api("getTrendMasterCenterV1931", authParams({ archivePage: state.archivePage, archiveQuery: state.archiveQuery }));
+      if (!res.success) throw new Error(res.message || "تعذر تحميل مركز الإدارة");
+      state.trendMaster = res;
+      renderTrendMasterCenter();
+      if ($("trendMasterStatus")) $("trendMasterStatus").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG");
+    } catch (err) {
+      if ($("trendMasterStatus")) $("trendMasterStatus").textContent = err.message || "تعذر التحديث";
+    } finally { state.trendMasterLoading = false; }
+  }
+
+  async function runTrendMasterAction(action, params, successReload) {
+    if ($("trendMasterStatus")) $("trendMasterStatus").textContent = "جاري التنفيذ...";
+    try {
+      const res = await api(action, authParams(params || {}));
+      if (!res.success) throw new Error(res.message || "تعذر التنفيذ");
+      alert(res.message || "تم التنفيذ بنجاح.");
+      if (successReload !== false) await loadTrendMasterCenter(true);
+      return res;
+    } catch (err) { alert(err.message || "تعذر التنفيذ"); return null; }
+  }
+
+  async function restoreArchivedOrder(orderId) {
+    if (!orderId || !confirm("استرجاع الأوردر " + orderId + " من الأرشيف إلى التشغيل؟")) return;
+    const res = await runTrendMasterAction("restoreArchivedOrderV1931", { orderId: orderId, requestId: "RESTORE-" + orderId + "-" + Date.now() });
+    if (res) await loadRows(true);
+  }
+
+  async function runAccountingCloseV1931() {
+    if (!confirm("سيتم تقفيل العهد والليزر والطباعة والإجمالي بموافقة واحدة بعد فحص الموانع. هل تريد المتابعة؟")) return;
+    await runTrendMasterAction("runAccountingDayAutomationV1921", { confirm: "RUN_SAFE_DAY_CLOSE" });
   }
 
 
@@ -4190,6 +4303,7 @@ Trend Mall`;
     setupCollapsibleCard("addOrderCard", "add_order", true);
     setupCollapsibleCard("addCustomerCard", "add_customer", true);
     setupCollapsibleCard("aiKnowledgeCard", "ai_knowledge", true);
+    setupCollapsibleCard("trendMasterCenter", "trend_master_v1931", true);
   }
 
   function canUseEndDayButton() {
@@ -4376,7 +4490,15 @@ Trend Mall`;
 
     setLoading("جاري تحميل الأوردرات...");
     try {
-      const res = await api("getRows", authParams({ screen: state.screen }));
+      const res = await api("getRowsPageV1931", authParams({
+        screen: state.screen,
+        page: state.currentPage,
+        pageSize: state.pageSize,
+        query: ($("tableSearch") || {}).value || "",
+        statusFilter: ($("statusFilter") || {}).value || "",
+        priorityFilter: ($("priorityFilter") || {}).value || "",
+        heatPressFilter: ($("heatPressFilter") || {}).value || ""
+      }));
       if (!res.success) {
         setLoading(res.message || "فشل تحميل الأوردرات.", true);
         if ((res.message || "").indexOf("انتهت الجلسة") !== -1) logout();
@@ -4384,6 +4506,10 @@ Trend Mall`;
       }
 
       state.rows = Array.isArray(res.rows) ? res.rows : [];
+      state.serverPaging = Object.assign({ enabled: !!res.serverPaged, page: 1, pageSize: state.pageSize, totalRows: state.rows.length, totalPages: 1 }, res.pagination || {}, { enabled: !!res.serverPaged });
+      state.currentPage = Number(state.serverPaging.page || 1) || 1;
+      state.serverStatusCounts = res.statusCounts || {};
+      state.serverStatusOrderCounts = res.statusOrderCounts || {};
       if (!state.bulkStatusSaving) state.bulkStatusRequestId = "";
       if (!state.archiveDeliveredSaving) state.archiveDeliveredRequestId = "";
       if (res.dashboard) {
@@ -4423,14 +4549,14 @@ Trend Mall`;
     const rows = !from ? [] : state.rows.filter(function (row) { return text(row.status) === from; });
     const orders = {};
     rows.forEach(function (row) { orders[text(row.orderId || row.lineId || "-")] = true; });
-    return { rows: rows, rowCount: rows.length, orderCount: Object.keys(orders).length };
+    return { rows: rows, rowCount: from && state.serverPaging.enabled ? Number(state.serverStatusCounts[from] || 0) : rows.length, orderCount: from && state.serverPaging.enabled ? Number(state.serverStatusOrderCounts[from] || 0) : Object.keys(orders).length };
   }
 
   function archiveDeliveredDetails() {
     const rows = state.rows.filter(function (row) { return text(row.status) === "تم التسليم"; });
     const orders = {};
     rows.forEach(function (row) { orders[text(row.orderId || row.lineId || "-")] = true; });
-    return { rows: rows, rowCount: rows.length, orderCount: Object.keys(orders).length };
+    return { rows: rows, rowCount: state.serverPaging.enabled ? Number(state.serverStatusCounts["تم التسليم"] || 0) : rows.length, orderCount: state.serverPaging.enabled ? Number(state.serverStatusOrderCounts["تم التسليم"] || 0) : Object.keys(orders).length };
   }
 
   function updateBulkStatusCount() {
@@ -4600,14 +4726,14 @@ Trend Mall`;
 
     if (resetPage === true) state.currentPage = 1;
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+    const totalPages = state.serverPaging.enabled ? Math.max(1, Number(state.serverPaging.totalPages || 1)) : Math.max(1, Math.ceil(filtered.length / state.pageSize));
     if (state.currentPage > totalPages) state.currentPage = totalPages;
     if (state.currentPage < 1) state.currentPage = 1;
 
     renderCurrentOrder(filtered);
     renderStats(filtered);
     renderTable(filtered);
-    renderPagination(filtered.length);
+    renderPagination(state.serverPaging.enabled ? Number(state.serverPaging.totalRows || 0) : filtered.length);
   }
 
   function renderCurrentOrder(rows) {
@@ -4674,6 +4800,7 @@ Trend Mall`;
 
   function compactCustomerCell(r) {
     const debt = hasDebt(r) ? '<span class="debt-pill">' + escapeHtml(debtLabel(r)) + '</span>' : '';
+    const restricted = !!(r.deliveryDebtRestricted === true || r.deliveryDebtRestricted === "نعم");
     const sourceText = text(r.customerSource || r.source || r.customerMode || '');
     const externalId = text(r.externalCustomerId || r.customerExternalId || '');
     const isExternal = normalizeArabic(sourceText + ' ' + (r.customer || '')).indexOf('خارجي') !== -1 || normalizeArabic(sourceText).indexOf('عابر') !== -1;
@@ -4682,7 +4809,7 @@ Trend Mall`;
     return '<div class="order-main"><b>' + escapeHtml(r.customer || "-") + '</b> ' + debt + ' ' + externalPill + '</div>' +
       '<div class="muted-line phone-line">' + escapeHtml(safeDisplayPhone(r.customerPhone) || "بدون رقم") + '</div>' +
       lightLine +
-      (hasDebt(r) ? '<div class="muted-line debt-warning">تنبيه: التسليم متوقف لحين السداد</div>' : '');
+      (hasDebt(r) ? '<div class="muted-line debt-warning">' + (restricted ? 'التسليم متوقف: العميل في قائمة منع ضياء' : 'مديونية مسجلة — التسليم مسموح لهذا العميل') + '</div>' : '');
   }
 
   function compactWorkCell(r) {
@@ -4704,11 +4831,11 @@ Trend Mall`;
     const table = $("ordersTable");
     const thead = table.querySelector("thead");
     const tbody = table.querySelector("tbody");
-    const totalPages = Math.max(1, Math.ceil(rows.length / state.pageSize));
+    const totalPages = state.serverPaging.enabled ? Math.max(1, Number(state.serverPaging.totalPages || 1)) : Math.max(1, Math.ceil(rows.length / state.pageSize));
     if (state.currentPage > totalPages) state.currentPage = totalPages;
     if (state.currentPage < 1) state.currentPage = 1;
     const start = (state.currentPage - 1) * state.pageSize;
-    const pageRows = rows.slice(start, start + state.pageSize);
+    const pageRows = state.serverPaging.enabled ? rows : rows.slice(start, start + state.pageSize);
 
     thead.innerHTML =
       "<tr>" +
@@ -4797,7 +4924,7 @@ Trend Mall`;
     }
     if (!bar) return;
 
-    const totalPages = Math.max(1, Math.ceil(totalRows / state.pageSize));
+    const totalPages = state.serverPaging.enabled ? Math.max(1, Number(state.serverPaging.totalPages || 1)) : Math.max(1, Math.ceil(totalRows / state.pageSize));
     if (totalRows <= state.pageSize) {
       bar.innerHTML = totalRows ? '<span>صفحة 1 من 1</span>' : '';
       return;
@@ -4821,7 +4948,8 @@ Trend Mall`;
         if (target === "prev") state.currentPage -= 1;
         else if (target === "next") state.currentPage += 1;
         else state.currentPage = Number(target) || 1;
-        applyFiltersAndRender(false);
+        if (state.serverPaging.enabled) loadRows(true);
+        else applyFiltersAndRender(false);
         const card = document.querySelector("#ordersTable");
         if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
       };
@@ -5542,9 +5670,10 @@ Trend Mall`;
       const resDebtInfo = res.debtInfo || {};
       const resDebtAmount = numericAmount(res.debtAmount || resDebtInfo.amount || 0);
       const resHasDebt = !external && (res.debtHold === "نعم" || resDebtInfo.hasDebt || resDebtAmount > 0);
-      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (external ? " | عميل خارجي بدون حفظ في العملاء" : (resHasDebt ? " | تنبيه: العميل عليه مديونية" : "")), false);
-      if (resHasDebt) {
-        alert("تنبيه مديونية قديمة\n\nالعميل: " + params.customerName + "\nالمديونية: " + (resDebtAmount ? (resDebtAmount + " ج") : "مسجلة على العميل") + "\n\nلا يتم التسليم قبل السداد أو مراجعة الحسابات.");
+      const resDeliveryRestricted = res.deliveryDebtRestricted === true || res.deliveryDebtRestricted === "نعم";
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (external ? " | عميل خارجي بدون حفظ في العملاء" : (resHasDebt ? (resDeliveryRestricted ? " | تنبيه: العميل في قائمة منع التسليم" : " | مديونية مسجلة والتسليم مسموح") : "")), false);
+      if (resHasDebt && resDeliveryRestricted) {
+        alert("تنبيه قائمة منع التسليم\n\nالعميل: " + params.customerName + "\nالمديونية: " + (resDebtAmount ? (resDebtAmount + " ج") : "مسجلة على العميل") + "\n\nهذا العميل حدده ضياء؛ لا يتم التسليم حتى تصفير المديونية.");
       }
 
       const phoneForWhatsApp = lightCustomerDigits(params.customerPhone);
@@ -5559,7 +5688,8 @@ Trend Mall`;
           status: "طلب جديد",
           expectedDeliveryText: expectedText,
           debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
-          debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا")
+          debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا"),
+          deliveryDebtRestricted: res.deliveryDebtRestricted || false
         };
         const msg = buildWhatsAppMessage(registrationRow, "registered");
         const copied = await copyWhatsAppMessage(params.customerPhone, msg);
@@ -7161,8 +7291,15 @@ Trend Mall`;
 
     ["tableSearch", "statusFilter", "priorityFilter", "heatPressFilter"].forEach(function (id) {
       if (!$(id)) return;
-      $(id).addEventListener("input", function () { applyFiltersAndRender(true); });
-      $(id).addEventListener("change", function () { applyFiltersAndRender(true); });
+      const refreshFilteredRows = function () {
+        state.currentPage = 1;
+        if (state.serverPaging.enabled) {
+          if (state.rowsFilterTimer) clearTimeout(state.rowsFilterTimer);
+          state.rowsFilterTimer = setTimeout(function(){ loadRows(true); }, id === "tableSearch" ? 280 : 0);
+        } else applyFiltersAndRender(true);
+      };
+      $(id).addEventListener("input", refreshFilteredRows);
+      $(id).addEventListener("change", refreshFilteredRows);
     });
 
     ["bulkFromStatus", "bulkToStatus"].forEach(function (id) {
@@ -7177,6 +7314,39 @@ Trend Mall`;
     if (bulkStatusButton) bulkStatusButton.addEventListener("click", runBulkStatusChange);
     const archiveDeliveredButton = $("archiveDeliveredBtn");
     if (archiveDeliveredButton) archiveDeliveredButton.addEventListener("click", archiveDeliveredDepartment);
+    const refreshTrendMasterButton = $("refreshTrendMasterBtn");
+    if (refreshTrendMasterButton) refreshTrendMasterButton.addEventListener("click", function(){ loadTrendMasterCenter(true); });
+    const runTrendAutomationButton = $("runTrendAutomationBtn");
+    if (runTrendAutomationButton) runTrendAutomationButton.addEventListener("click", function(){ runTrendMasterAction("runTrendMasterAutomationV1931", {}); });
+    const installTrendAutomationButton = $("installTrendAutomationBtn");
+    if (installTrendAutomationButton) installTrendAutomationButton.addEventListener("click", function(){ runTrendMasterAction("installTrendMasterAutomationV1931", {}); });
+    const runAccountingCloseButton = $("runAccountingCloseBtn");
+    if (runAccountingCloseButton) runAccountingCloseButton.addEventListener("click", runAccountingCloseV1931);
+    const archiveSearchButton = $("archiveSearchBtn");
+    if (archiveSearchButton) archiveSearchButton.addEventListener("click", function(){ state.archiveQuery=text(($('archiveSearch')||{}).value).trim();state.archivePage=1;loadTrendMasterCenter(true); });
+    const archiveSearchInput = $("archiveSearch");
+    if (archiveSearchInput) archiveSearchInput.addEventListener("keydown", function(ev){ if(ev.key === "Enter"){ ev.preventDefault(); state.archiveQuery=text(archiveSearchInput.value).trim();state.archivePage=1;loadTrendMasterCenter(true); } });
+    const archivePrevButton = $("archivePrevBtn");
+    if (archivePrevButton) archivePrevButton.addEventListener("click", function(){ state.archivePage=Math.max(1,state.archivePage-1);loadTrendMasterCenter(true); });
+    const archiveNextButton = $("archiveNextBtn");
+    if (archiveNextButton) archiveNextButton.addEventListener("click", function(){ state.archivePage+=1;loadTrendMasterCenter(true); });
+    const archiveList = $("archiveOrdersList");
+    if (archiveList) archiveList.addEventListener("click", function(ev){ const btn=ev.target.closest&&ev.target.closest(".restore-archive-order");if(btn)restoreArchivedOrder(btn.getAttribute("data-order-id")); });
+    const messageList = $("automationMessagesList");
+    if (messageList) messageList.addEventListener("click", async function(ev){
+      const openBtn=ev.target.closest&&ev.target.closest(".open-automation-wa"),copyBtn=ev.target.closest&&ev.target.closest(".copy-automation-message");
+      if(copyBtn){const ok=await copyTextToClipboard(copyBtn.getAttribute("data-message")||"");alert(ok?"تم نسخ الرسالة.":"تعذر نسخ الرسالة.");return;}
+      if(openBtn){window.open(openBtn.getAttribute("data-wa-url")||"","TrendOS_WhatsApp");await runTrendMasterAction("markAutomationMessageSentV1931",{id:openBtn.getAttribute("data-message-id")},true);}
+    });
+    const saveDebtRestrictionButton=$("saveDebtRestrictionBtn");
+    if(saveDebtRestrictionButton)saveDebtRestrictionButton.addEventListener("click",async function(){
+      const customer=text(($('debtRestrictionCustomer')||{}).value).trim(),reason=text(($('debtRestrictionReason')||{}).value).trim(),validUntil=text(($('debtRestrictionUntil')||{}).value).trim();
+      if(!customer||!reason){alert("اختر العميل واكتب سبب المنع.");return;}
+      const res=await runTrendMasterAction("saveDebtDeliveryRestrictionV1931",{customerName:customer,reason:reason,validUntil:validUntil,active:"نعم"});
+      if(res){if($("debtRestrictionCustomer"))$("debtRestrictionCustomer").value="";if($("debtRestrictionReason"))$("debtRestrictionReason").value="";if($("debtRestrictionUntil"))$("debtRestrictionUntil").value="";}
+    });
+    const debtRestrictionList=$("debtRestrictionList");
+    if(debtRestrictionList)debtRestrictionList.addEventListener("click",function(ev){const btn=ev.target.closest&&ev.target.closest(".disable-debt-restriction");if(!btn)return;const customer=btn.getAttribute("data-customer")||"";if(confirm("رفع منع التسليم عن "+customer+"؟"))runTrendMasterAction("saveDebtDeliveryRestrictionV1931",{customerName:customer,reason:btn.getAttribute("data-reason")||"رفع المنع بواسطة ضياء",active:"لا"});});
 
     const urgentBtn = $("urgentNotificationsBtn");
     if (urgentBtn) urgentBtn.addEventListener("click", enableUrgentNotifications);
@@ -10563,11 +10733,11 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 // Canonical build marker. Historical patch flags above describe included features,
 // while these values identify the single currently deployed bundle.
 (function(){
-  window.TRENDOS_PATCH_VERSION = 'V1926_BULK_STATUS';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1926 Bulk Status + Archive';
-  window.MATBAGY_BUILD_VERSION = 'TrendOS V1926 Bulk Status + Archive';
-  window.MATBAGY_BATCH_VERSION = 'V1926_BULK_STATUS';
-  window.MATBAGY_UI_THEME_VERSION = 'V1926_BULK_STATUS';
+  window.TRENDOS_PATCH_VERSION = 'V1931_TREND_MASTER';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1931 Trend Master';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1931 Trend Master';
+  window.MATBAGY_BATCH_VERSION = 'V1931_TREND_MASTER';
+  window.MATBAGY_UI_THEME_VERSION = 'V1931_TREND_MASTER';
 })();
 
 /*********************** V1921 - Safe semi-automatic accounting handoff ***********************/
@@ -10632,8 +10802,8 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   if(typeof setInterval==='function')setInterval(safeRefresh,180000);
   function boot(){mount();[300,900,1800,3500,7000].forEach(function(ms){setTimeout(mount,ms);});}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.TRENDOS_PATCH_VERSION='V1926_BULK_STATUS';
-  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1926 Bulk Status + Archive';
-  window.MATBAGY_BUILD_VERSION='TrendOS V1926 Bulk Status + Archive';
-  window.MATBAGY_BATCH_VERSION='V1926_BULK_STATUS';
+  window.TRENDOS_PATCH_VERSION='V1931_TREND_MASTER';
+  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1931 Trend Master';
+  window.MATBAGY_BUILD_VERSION='TrendOS V1931 Trend Master';
+  window.MATBAGY_BATCH_VERSION='V1931_TREND_MASTER';
 })();
