@@ -1,6 +1,6 @@
-// TrendOS + EasyStore unified Google Apps Script backend — fixed release V1923.
+// TrendOS + EasyStore unified Google Apps Script backend — fixed release V1924.
 // Single-file build: includes the original V1880 backend, accounting updates through V1921,
-// V1922 safety fixes, and V1923 open-order visibility/source-of-truth corrections.
+// V1922 safety fixes, V1923 visibility corrections, and V1924 department-scoped open orders.
 /************************************************************
  * TrendOS Operations - Google Apps Script Backend
  * نسخة كاملة موحدة V1851: أرقام أوردرات صغيرة بدون حروف + TrendOS + Matbagy Bridge + Pricing Fix:
@@ -34,7 +34,7 @@ const SHEET_NAME_ACC_FINAL_INVOICES = "حسابات - الفواتير النه�
 const SHEET_NAME_ACC_WASTE = "حسابات - هوالك الأقسام";
 const SHEET_NAME_ACC_STOCK_MOVES = "حسابات - حركة المخزون";
 const SHEET_NAME_ACC_DEPT_DAILY_PURCHASES = "حسابات - مشتريات الأقسام اليومية";
-const MATBAGY_ACCOUNTING_VERSION = "V1923_OPEN_ORDER_VISIBILITY";
+const MATBAGY_ACCOUNTING_VERSION = "V1924_DEPARTMENT_SCOPED_OPEN_ORDER";
 const DEFAULT_PASSWORD = "";
 function employeeDefaultPassword_() {
   try { return normalize_(PropertiesService.getScriptProperties().getProperty("EMPLOYEE_DEFAULT_PASSWORD")); } catch (err) { return ""; }
@@ -9828,13 +9828,49 @@ function trendosV1922OrderAgeDays_(value, now) {
   return Math.max(0, Math.floor((right.getTime() - left.getTime()) / 86400000));
 }
 
-function trendosV1922FindOpenOrderInSheet_(sheet, identity, now) {
+function trendosV1924DepartmentKey_(value) {
+  const key = searchKey_(value || "");
+  const hasPrint = key.indexOf("طباع") !== -1 || key.indexOf("print") !== -1 || key.indexOf("مكبس") !== -1 || key.indexOf("press") !== -1;
+  const hasLaser = key.indexOf("ليزر") !== -1 || key.indexOf("laser") !== -1;
+  if ((hasPrint && hasLaser) || key.indexOf("متعدد") !== -1 || key.indexOf("multi") !== -1) return "متعدد الأقسام";
+  if (hasPrint) return "طباعة";
+  if (hasLaser) return "ليزر";
+  return normalize_(value);
+}
+
+function trendosV1924RequestedDepartments_(requestedDepartment) {
+  const key = trendosV1924DepartmentKey_(requestedDepartment);
+  if (!key) return [];
+  if (key === "متعدد الأقسام") return ["طباعة", "ليزر"];
+  return [key];
+}
+
+function trendosV1924DepartmentMatches_(rowDepartment, requestedDepartment) {
+  const requested = trendosV1924RequestedDepartments_(requestedDepartment);
+  if (!requested.length) return true;
+  const rowKey = trendosV1924DepartmentKey_(rowDepartment);
+  if (!rowKey) return false;
+  if (rowKey === "متعدد الأقسام") return true;
+  return requested.indexOf(rowKey) !== -1;
+}
+
+function trendosV1924OpenDetailsMatchDepartment_(details, requestedDepartment) {
+  const requested = trendosV1924RequestedDepartments_(requestedDepartment);
+  if (!requested.length) return true;
+  const openDepartments = (details && details.openDepartments) || [];
+  return openDepartments.some(function(department) {
+    return trendosV1924DepartmentMatches_(department, requestedDepartment);
+  });
+}
+
+function trendosV1922FindOpenOrderInSheet_(sheet, identity, now, requestedDepartment) {
   if (!sheet || sheet.getLastRow() < 2) return null;
   const h = headersMap_(sheet);
   const colOrder = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
   const colCustomer = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name"], 0);
   const colPhone = firstCol_(h, ["رقم العميل", "رقم العميل الأساسي", "رقم الهاتف", "Phone"], 0);
   const colExternal = firstCol_(h, ["علامة العميل الخارجي", "معرف العميل الخارجي", "External Customer ID"], 0);
+  const colDepartment = firstCol_(h, ["القسم", "Department"], 0);
   const colStatus = firstCol_(h, ["الحالة العامة", "الحالة", "Status"], 0);
   const colDate = firstCol_(h, ["تاريخ الاستلام", "تاريخ الإنشاء", "Received At", "وقت التسجيل", "آخر تحديث"], 0);
   if (!colOrder) return null;
@@ -9844,6 +9880,7 @@ function trendosV1922FindOpenOrderInSheet_(sheet, identity, now) {
     const orderId = normalize_(valueAt_(row, colOrder));
     const status = normalize_(valueAt_(row, colStatus));
     if (!orderId || trendosV1922ClosedOrderStatus_(status)) continue;
+    if (requestedDepartment && colDepartment && !trendosV1924DepartmentMatches_(valueAt_(row, colDepartment), requestedDepartment)) continue;
     const rowPhone = cleanPhone_(valueAt_(row, colPhone));
     const rowExternal = trendosV1903Digits_(valueAt_(row, colExternal));
     const rowName = searchKey_(valueAt_(row, colCustomer));
@@ -9859,7 +9896,7 @@ function trendosV1922FindOpenOrderInSheet_(sheet, identity, now) {
 }
 
 function trendosV1923OpenOrderDetails_(lines, orderId) {
-  const details = { departments: [], statuses: [], lineIds: [], lineCount: 0, openLineCount: 0 };
+  const details = { departments: [], openDepartments: [], statuses: [], lineIds: [], lineCount: 0, openLineCount: 0 };
   if (!lines || !orderId || lines.getLastRow() < 2) return details;
   const h = headersMap_(lines);
   const colOrder = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
@@ -9869,6 +9906,7 @@ function trendosV1923OpenOrderDetails_(lines, orderId) {
   if (!colOrder) return details;
 
   const seenDepartments = {};
+  const seenOpenDepartments = {};
   const seenStatuses = {};
   const data = lines.getRange(2, 1, lines.getLastRow() - 1, lines.getLastColumn()).getValues();
   data.forEach(function(row) {
@@ -9877,7 +9915,14 @@ function trendosV1923OpenOrderDetails_(lines, orderId) {
     const lineId = normalize_(valueAt_(row, colLine));
     const department = normalize_(valueAt_(row, colDepartment));
     const status = normalize_(valueAt_(row, colStatus)) || "طلب جديد";
-    if (!trendosV1922ClosedOrderStatus_(status)) details.openLineCount++;
+    const isOpen = !trendosV1922ClosedOrderStatus_(status);
+    if (isOpen) {
+      details.openLineCount++;
+      if (department && !seenOpenDepartments[department]) {
+        seenOpenDepartments[department] = true;
+        details.openDepartments.push(department);
+      }
+    }
     if (lineId) details.lineIds.push(lineId);
     if (department && !seenDepartments[department]) {
       seenDepartments[department] = true;
@@ -9891,12 +9936,13 @@ function trendosV1923OpenOrderDetails_(lines, orderId) {
   return details;
 }
 
-function trendosV1922FindOpenOrder_(orders, lines, identity, now) {
+function trendosV1922FindOpenOrder_(orders, lines, identity, now, requestedDepartment) {
   // بنود الأوردرات هي مصدر الحقيقة؛ ملخص "الأوردرات" قد يكون قديمًا في البيانات التاريخية.
-  const lineOpenOrder = trendosV1922FindOpenOrderInSheet_(lines, identity, now);
+  // V1924: أوردر مفتوح في الليزر لا يمنع أوردرًا جديدًا في الطباعة والعكس صحيح.
+  const lineOpenOrder = trendosV1922FindOpenOrderInSheet_(lines, identity, now, requestedDepartment);
   if (lineOpenOrder) return Object.assign(lineOpenOrder, trendosV1923OpenOrderDetails_(lines, lineOpenOrder.orderId));
 
-  const summaryOpenOrder = trendosV1922FindOpenOrderInSheet_(orders, identity, now);
+  const summaryOpenOrder = trendosV1922FindOpenOrderInSheet_(orders, identity, now, requestedDepartment);
   if (!summaryOpenOrder) return null;
   const details = trendosV1923OpenOrderDetails_(lines, summaryOpenOrder.orderId);
   if (details.lineCount > 0 && details.openLineCount === 0) {
@@ -9904,11 +9950,12 @@ function trendosV1922FindOpenOrder_(orders, lines, identity, now) {
     syncOrderFromLines_(summaryOpenOrder.orderId);
     return null;
   }
+  if (details.lineCount > 0 && !trendosV1924OpenDetailsMatchDepartment_(details, requestedDepartment)) return null;
   return Object.assign(summaryOpenOrder, details);
 }
 
 function trendosV1923OpenOrderMessage_(openOrder, requestedDepartment) {
-  const departments = (openOrder.departments || []).filter(Boolean);
+  const departments = (openOrder.openDepartments || openOrder.departments || []).filter(Boolean);
   const statuses = (openOrder.statuses || []).filter(Boolean);
   const requested = normalize_(requestedDepartment);
   let message = 'يوجد أوردر مفتوح قديم لنفس العميل رقم ' + openOrder.orderId + '.';
@@ -9922,7 +9969,7 @@ function trendosV1923OpenOrderMessage_(openOrder, requestedDepartment) {
   } else {
     message += ' اختَر "كل الحالات" وابحث برقم الأوردر لعرضه حتى لو كان جاهزًا أو تم تنفيذه.';
   }
-  return message + ' أغلق الأوردر أو ألغِه قبل تسجيل شغل جديد.';
+  return message + ' أغلق أوردر هذا القسم أو ألغِه قبل تسجيل شغل جديد في نفس القسم.';
 }
 
 function trendosV1922TouchOpenOrder_(orders, lines, orderId, now) {
@@ -10057,9 +10104,9 @@ function createManualOrder_(e) {
     externalId: isExternal && !isFullExternalPhone ? externalDigits : '',
     customerName: (!customerPhone && !externalDigits) ? searchKey_(customerName) : ''
   };
-  const openOrder = trendosV1922FindOpenOrder_(orders, lines, identity, now);
+  const openOrder = trendosV1922FindOpenOrder_(orders, lines, identity, now, department);
   if (openOrder && openOrder.ageDays > 2) {
-    return { success: false, version: "V1923_OPEN_ORDER_VISIBILITY", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
+    return { success: false, version: "V1924_DEPARTMENT_SCOPED_OPEN_ORDER", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
   }
   const reusedOrder = !!openOrder;
   const dateMoved = !!(openOrder && openOrder.ageDays >= 1 && openOrder.ageDays <= 2);
@@ -10163,13 +10210,13 @@ function createManualOrder_(e) {
     action: reusedOrder ? 'إضافة بند إلى أوردر مفتوح' : (isExternal ? 'إنشاء أوردر عميل خارجي' : 'إنشاء أوردر'),
     newStatus: status,
     by: auth.user.username,
-    details: reusedOrder ? ('تم الحفاظ على أوردر واحد للعميل' + (dateMoved ? ' وترحيل تاريخ الاستلام' : '')) : (isExternal ? ('علامة العميل الخارجي: ' + externalDigits) : (debtAmount > 0 ? 'تم تسجيل الأوردر مع تنبيه مديونية' : 'تم تسجيل أوردر جديد'))
+    details: reusedOrder ? ('تم الحفاظ على أوردر واحد للعميل داخل نفس القسم' + (dateMoved ? ' وترحيل تاريخ الاستلام' : '')) : (isExternal ? ('علامة العميل الخارجي: ' + externalDigits) : (debtAmount > 0 ? 'تم تسجيل الأوردر مع تنبيه مديونية' : 'تم تسجيل أوردر جديد'))
   });
 
   SpreadsheetApp.flush();
   const trendosV1908Response = {
     success: true,
-    version: "V1922_SINGLE_OPEN_ORDER",
+    version: "V1924_DEPARTMENT_SCOPED_OPEN_ORDER",
     orderId: orderId,
     lineId: orderId + '-' + String(firstLineNumber).padStart(2, '0'),
     linesCreated: departments.length,
@@ -10182,7 +10229,7 @@ function createManualOrder_(e) {
     debtInfo: { hasDebt: debtAmount > 0, amount: debtAmount, notes: debtNotes },
     customerMode: customerMode,
     externalCustomerId: isExternal ? externalDigits : '',
-    message: reusedOrder ? ('تمت إضافة البند إلى الأوردر المفتوح رقم ' + orderId + ' بدون إنشاء أوردر ثانٍ.' + (dateMoved ? ' وتم ترحيل تاريخ الاستلام.' : '')) : (isExternal ? 'تم إضافة أوردر عميل خارجي بدون تسجيله في شيت العملاء.' : (debtAmount > 0 ? 'تم إضافة الأوردر مع تنبيه مديونية العميل.' : 'تم إضافة الأوردر في الشيتين.'))
+    message: reusedOrder ? ('تمت إضافة البند إلى الأوردر المفتوح في نفس القسم رقم ' + orderId + ' بدون إنشاء أوردر ثانٍ.' + (dateMoved ? ' وتم ترحيل تاريخ الاستلام.' : '')) : (isExternal ? 'تم إضافة أوردر عميل خارجي بدون تسجيله في شيت العملاء.' : (debtAmount > 0 ? 'تم إضافة الأوردر مع تنبيه مديونية العميل.' : 'تم إضافة الأوردر في الشيتين.'))
   };
   trendosV1908SaveResponse_(trendosV1908RequestKey, trendosV1908Response);
   return trendosV1908Response;

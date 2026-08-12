@@ -15,7 +15,7 @@ window.MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
 window.MATBAGY_ROTET_URL = "https://fawakhry.github.io/TrendOs/?rotet=matbagy";
 window.MATBAGY_EASY_STORE_URL = "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_LEAD_HUNTER_URL = "https://fawakhry.github.io/trendos-lead-hunter/";
-window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es48-v1923-open-order-visibility-20260812a';
+window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es49-v1924-department-scoped-open-order-20260812a';
 
 // صلاحيات الملفات والأدوات
 window.MATBAGY_FILES_ALLOWED_EMPLOYEES = ['ضياء','جابر','وائل','diaa','gaber','jaber','wael'];
@@ -39,14 +39,14 @@ window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
 // Clean build flags
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1923 Open Order Visibility';
-window.MATBAGY_BATCH_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1924 Department Scoped Open Order';
+window.MATBAGY_BATCH_VERSION = 'V1924_DEPARTMENT_SCOPED_OPEN_ORDER';
 window.MATBAGY_PATCH29_DEPT_INVOICE = false;
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
 window.MATBAGY_EASYSTORE_FIX5 = false;
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
+window.MATBAGY_UI_THEME_VERSION = 'V1924_DEPARTMENT_SCOPED_OPEN_ORDER';
 
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 
@@ -61,9 +61,10 @@ window.MATBAGY_V1904_INVOICE_ROWS_ENTER_TAB = true;
 // V1906 Matbagy Sheets Access
 window.MATBAGY_SHEETS_ALLOWED_EMPLOYEES = ['ضياء','ريفان','ريڤان','وائل','diaa','revan','rivan','wael'];
 window.MATBAGY_V1906_SHEETS_ACCESS = true;
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1923 Open Order Visibility';
-window.MATBAGY_BATCH_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
-window.MATBAGY_UI_THEME_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1924 Department Scoped Open Order';
+window.MATBAGY_BATCH_VERSION = 'V1924_DEPARTMENT_SCOPED_OPEN_ORDER';
+window.MATBAGY_UI_THEME_VERSION = 'V1924_DEPARTMENT_SCOPED_OPEN_ORDER';
 window.MATBAGY_V1921_SEMI_AUTOMATIC_ACCOUNTING = true;
 window.MATBAGY_V1922_UNIFIED_SAFE_BUILD = true;
 window.MATBAGY_V1923_OPEN_ORDER_VISIBILITY = true;
+window.MATBAGY_V1924_DEPARTMENT_SCOPED_OPEN_ORDER = true;
