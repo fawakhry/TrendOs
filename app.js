@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
+  const UI_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
 
   const screens = {
     service: "خدمة العملاء",
@@ -4377,7 +4377,7 @@ Trend Mall`;
   function applyFiltersAndRender(resetPage) {
     const q = ($("tableSearch").value || "").trim().toLowerCase();
     const qNormalized = normalizeArabic(q);
-    const status = $("statusFilter").value || "";
+    const status = $("statusFilter").value;
     const priority = $("priorityFilter").value || "__ACTIVE__";
     const heatPressFilter = $("heatPressFilter") ? ($("heatPressFilter").value || "") : "";
 
@@ -4401,10 +4401,11 @@ Trend Mall`;
       else if (status && status.indexOf("__") !== 0) {
         // عند اختيار حالة محددة مثل ملغى أو جاهز للاستلام نعرضها حتى لو مخفية من الشاشة اليومية.
         if (text(r.status) !== status) return false;
-      } else {
-        // بدون فلتر حالة: أخفي الحالات النهائية/المخفية من شاشة التشغيل اليومية.
+      } else if (status === "__ACTIVE__") {
+        // فلتر التشغيل اليومي فقط هو الذي يخفي الحالات النهائية.
         if (isHiddenFromUserScreens(r.status)) return false;
       }
+      // status === "" يعني كل الحالات فعلًا، بما فيها الجاهز والمنفذ والمسلم.
 
       if (priority === "__ACTIVE__" && !isActiveDefaultPriority(r.priority)) return false;
       if (priority && priority !== "__ACTIVE__" && text(r.priority) !== priority) return false;
@@ -5030,7 +5031,7 @@ Trend Mall`;
     const user = encodeURIComponent((state.user && (state.user.username || state.user.name)) || "جابر");
     const token = encodeURIComponent((state.user && state.user.token) || "");
     try { localStorage.setItem('MATBAGY_EMPLOYEE_SSO', JSON.stringify({at:Date.now(),user:{name:user,username:user,token:token,department:'ليزر'},params:{name:user,username:user,token:token,department:'ليزر',mode:'laser'}})); } catch(e) {}
-    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es46-v1921-semi-automatic-accounting-20260811a", "_blank");
+    window.open("https://fawakhry.github.io/EasyStore/?screen=dept&mode=laser&department=ليزر&customer=" + customer + "&orderId=" + orderId + "&v=es48-v1923-open-order-visibility-20260812a", "_blank");
   }
 
   async function openInvoiceModal(row) {
@@ -5247,6 +5248,29 @@ Trend Mall`;
     }
   }
 
+  function revealBlockedOpenOrder(openOrder, requestedDepartment) {
+    openOrder = openOrder || {};
+    const orderId = text(openOrder.orderId);
+    if (!orderId) return;
+
+    const departments = Array.isArray(openOrder.departments) ? openOrder.departments.map(text) : [];
+    const wanted = text(requestedDepartment);
+    const visibleHere = !wanted || !departments.length || departments.some(function (department) {
+      return department === wanted || department.indexOf(wanted) !== -1;
+    });
+
+    // لو الأوردر له بند في القسم الحالي، افتحه حتى لو حالته جاهز/منفذ/مسلم.
+    if (visibleHere) {
+      if ($("tableSearch")) $("tableSearch").value = orderId;
+      if ($("statusFilter")) $("statusFilter").value = "";
+      if ($("priorityFilter")) $("priorityFilter").value = "";
+      if ($("heatPressFilter")) $("heatPressFilter").value = "";
+      applyFiltersAndRender(true);
+      const table = $("ordersTable");
+      if (table && table.scrollIntoView) table.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   function wireCustomerMode() {
     const mode = $("newCustomerMode");
     if (!mode || mode.dataset.v1903Wired === "1") return;
@@ -5323,6 +5347,9 @@ Trend Mall`;
       }
 
       if (!res.success) {
+        if (res.duplicateBlocked && res.openOrder) {
+          revealBlockedOpenOrder(res.openOrder, params.department);
+        }
         setMsg("addOrderStatus", res.message || "فشل إضافة الأوردر في الشيت.", true);
         return;
       }
@@ -8310,7 +8337,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('screen','dept'); u.searchParams.set('mode','laser'); u.searchParams.set('department','ليزر'); u.searchParams.set('laserAi','1');
     u.searchParams.set('customer', (row && (row.customer || row.customerName)) || (($('invoiceCustomer')||{}).value||''));
     u.searchParams.set('orderId', (row && row.orderId) || (($('invoiceOrderId')||{}).value||''));
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es48-v1923-open-order-visibility-20260812a');
     try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:cu,params:{name:cu.name,username:cu.username,token:cu.token,mode:'laser',department:'ليزر'}}));}catch(e){}
     window.open(u.toString(), 'Matbagy_Gaber_Calc');
   }
@@ -8373,7 +8400,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     var u = new URL(base, location.href); var cu = currentUser();
     u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final');
     u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1'); u.searchParams.set('orderId', row.orderId || (($('invoiceOrderId')||{}).value||'')); u.searchParams.set('customer', row.customer || row.customerName || (($('invoiceCustomer')||{}).value||''));
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es48-v1923-open-order-visibility-20260812a');
     try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:cu,params:{name:cu.name,username:cu.username,token:cu.token,mode:'final'}}));}catch(e){}
     window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
   }
@@ -8486,7 +8513,7 @@ window.MATBAGY_PATCH_28 = "Mutual Invoice + Client Invoice Menu + EasyStore pull
     u.searchParams.set('canPurchase', canOpenPurchases() ? '1' : '0');
     u.searchParams.set('deptOnly', canOpenPurchases() ? '0' : '1');
     u.searchParams.set('hideCostForDept', (userMode()==='laser' || userMode()==='print') ? '1' : '0');
-    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
+    u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es48-v1923-open-order-visibility-20260812a');
     Object.keys(params).forEach(function(k){ if(params[k] !== undefined && params[k] !== null && k !== 'mode' && k !== 'department') u.searchParams.set(k, params[k]); });
     try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:cu,params:Object.assign({name:cu.name,username:cu.username,token:cu.token,mode:params.mode||userMode(),department:params.department||departmentForMode()},params)}));}catch(e){}
     window.open(u.toString(), windowName || 'Matbagy_EasyStore_V1890');
@@ -9897,7 +9924,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
       u.searchParams.set('from','trendos'); u.searchParams.set('sso','1'); u.searchParams.set('employeeSSO','1'); u.searchParams.set('screen','final'); u.searchParams.set('mode','final'); u.searchParams.set('pullLines','1'); u.searchParams.set('mutualInvoice','1'); u.searchParams.set('autoLoadCustomer','1');
       u.searchParams.set('orderId', row.orderId || txt(($('v1904InvoiceOrder')||{}).value));
       u.searchParams.set('customer', row.customer || row.customerName || txt(($('v1904InvoiceCustomer')||{}).value));
-      u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es47-v1922-unified-safe-build-20260811a');
+      u.searchParams.set('v', window.MATBAGY_EASYSTORE_VERSION_PARAM || 'es48-v1923-open-order-visibility-20260812a');
       try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:su,params:{name:su.name,username:su.username,token:su.token,mode:'final'}}));}catch(err){}
       window.open(u.toString(), 'Matbagy_EasyStore_Invoice');
     }catch(e){}
@@ -10340,17 +10367,17 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 // Canonical build marker. Historical patch flags above describe included features,
 // while these values identify the single currently deployed bundle.
 (function(){
-  window.TRENDOS_PATCH_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1922 Unified Safe Build';
-  window.MATBAGY_BUILD_VERSION = 'TrendOS V1922 Unified Safe Build';
-  window.MATBAGY_BATCH_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
-  window.MATBAGY_UI_THEME_VERSION = 'V1922_UNIFIED_SAFE_BUILD';
+  window.TRENDOS_PATCH_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1923 Open Order Visibility';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1923 Open Order Visibility';
+  window.MATBAGY_BATCH_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
+  window.MATBAGY_UI_THEME_VERSION = 'V1923_OPEN_ORDER_VISIBILITY';
 })();
 
 /*********************** V1921 - Safe semi-automatic accounting handoff ***********************/
 (function(){
   'use strict';
-  var CACHE_TAG='es46-v1921-semi-automatic-accounting-20260811a', lastSafeRefresh=Date.now(), dirty=false;
+  var CACHE_TAG=window.MATBAGY_EASYSTORE_VERSION_PARAM||'es48-v1923-open-order-visibility-20260812a', lastSafeRefresh=Date.now(), dirty=false;
   function $(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ة]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
@@ -10409,8 +10436,8 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   if(typeof setInterval==='function')setInterval(safeRefresh,180000);
   function boot(){mount();[300,900,1800,3500,7000].forEach(function(ms){setTimeout(mount,ms);});}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.TRENDOS_PATCH_VERSION='V1922_UNIFIED_SAFE_BUILD';
-  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1922 Unified Safe Build';
-  window.MATBAGY_BUILD_VERSION='TrendOS V1922 Unified Safe Build';
-  window.MATBAGY_BATCH_VERSION='V1922_UNIFIED_SAFE_BUILD';
+  window.TRENDOS_PATCH_VERSION='V1923_OPEN_ORDER_VISIBILITY';
+  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1923 Open Order Visibility';
+  window.MATBAGY_BUILD_VERSION='TrendOS V1923 Open Order Visibility';
+  window.MATBAGY_BATCH_VERSION='V1923_OPEN_ORDER_VISIBILITY';
 })();

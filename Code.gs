@@ -1,6 +1,6 @@
-// TrendOS + EasyStore unified Google Apps Script backend — fixed release V1922.
+// TrendOS + EasyStore unified Google Apps Script backend — fixed release V1923.
 // Single-file build: includes the original V1880 backend, accounting updates through V1921,
-// and V1922 fixes for sessions, duplicate submissions, single-open-order enforcement, and permissions.
+// V1922 safety fixes, and V1923 open-order visibility/source-of-truth corrections.
 /************************************************************
  * TrendOS Operations - Google Apps Script Backend
  * نسخة كاملة موحدة V1851: أرقام أوردرات صغيرة بدون حروف + TrendOS + Matbagy Bridge + Pricing Fix:
@@ -34,7 +34,7 @@ const SHEET_NAME_ACC_FINAL_INVOICES = "حسابات - الفواتير النه�
 const SHEET_NAME_ACC_WASTE = "حسابات - هوالك الأقسام";
 const SHEET_NAME_ACC_STOCK_MOVES = "حسابات - حركة المخزون";
 const SHEET_NAME_ACC_DEPT_DAILY_PURCHASES = "حسابات - مشتريات الأقسام اليومية";
-const MATBAGY_ACCOUNTING_VERSION = "V1922_UNIFIED_SAFE_BUILD";
+const MATBAGY_ACCOUNTING_VERSION = "V1923_OPEN_ORDER_VISIBILITY";
 const DEFAULT_PASSWORD = "";
 function employeeDefaultPassword_() {
   try { return normalize_(PropertiesService.getScriptProperties().getProperty("EMPLOYEE_DEFAULT_PASSWORD")); } catch (err) { return ""; }
@@ -9858,8 +9858,71 @@ function trendosV1922FindOpenOrderInSheet_(sheet, identity, now) {
   return null;
 }
 
+function trendosV1923OpenOrderDetails_(lines, orderId) {
+  const details = { departments: [], statuses: [], lineIds: [], lineCount: 0, openLineCount: 0 };
+  if (!lines || !orderId || lines.getLastRow() < 2) return details;
+  const h = headersMap_(lines);
+  const colOrder = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
+  const colLine = firstCol_(h, ["رقم البند", "Line ID"], 0);
+  const colDepartment = firstCol_(h, ["القسم", "Department"], 0);
+  const colStatus = firstCol_(h, ["الحالة", "Status"], 0);
+  if (!colOrder) return details;
+
+  const seenDepartments = {};
+  const seenStatuses = {};
+  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lines.getLastColumn()).getValues();
+  data.forEach(function(row) {
+    if (normalize_(valueAt_(row, colOrder)) !== orderId) return;
+    details.lineCount++;
+    const lineId = normalize_(valueAt_(row, colLine));
+    const department = normalize_(valueAt_(row, colDepartment));
+    const status = normalize_(valueAt_(row, colStatus)) || "طلب جديد";
+    if (!trendosV1922ClosedOrderStatus_(status)) details.openLineCount++;
+    if (lineId) details.lineIds.push(lineId);
+    if (department && !seenDepartments[department]) {
+      seenDepartments[department] = true;
+      details.departments.push(department);
+    }
+    if (status && !seenStatuses[status]) {
+      seenStatuses[status] = true;
+      details.statuses.push(status);
+    }
+  });
+  return details;
+}
+
 function trendosV1922FindOpenOrder_(orders, lines, identity, now) {
-  return trendosV1922FindOpenOrderInSheet_(orders, identity, now) || trendosV1922FindOpenOrderInSheet_(lines, identity, now);
+  // بنود الأوردرات هي مصدر الحقيقة؛ ملخص "الأوردرات" قد يكون قديمًا في البيانات التاريخية.
+  const lineOpenOrder = trendosV1922FindOpenOrderInSheet_(lines, identity, now);
+  if (lineOpenOrder) return Object.assign(lineOpenOrder, trendosV1923OpenOrderDetails_(lines, lineOpenOrder.orderId));
+
+  const summaryOpenOrder = trendosV1922FindOpenOrderInSheet_(orders, identity, now);
+  if (!summaryOpenOrder) return null;
+  const details = trendosV1923OpenOrderDetails_(lines, summaryOpenOrder.orderId);
+  if (details.lineCount > 0 && details.openLineCount === 0) {
+    // الملخص كان مفتوحًا رغم أن كل البنود مقفولة؛ صححه ولا تمنع أوردرًا جديدًا بالخطأ.
+    syncOrderFromLines_(summaryOpenOrder.orderId);
+    return null;
+  }
+  return Object.assign(summaryOpenOrder, details);
+}
+
+function trendosV1923OpenOrderMessage_(openOrder, requestedDepartment) {
+  const departments = (openOrder.departments || []).filter(Boolean);
+  const statuses = (openOrder.statuses || []).filter(Boolean);
+  const requested = normalize_(requestedDepartment);
+  let message = 'يوجد أوردر مفتوح قديم لنفس العميل رقم ' + openOrder.orderId + '.';
+  if (departments.length) message += ' القسم: ' + departments.join(' + ') + '.';
+  if (statuses.length) message += ' الحالة: ' + statuses.join(' + ') + '.';
+  const visibleInRequestedDepartment = !requested || departments.some(function(department) {
+    return department === requested || department.indexOf(requested) !== -1;
+  });
+  if (requested && departments.length && !visibleInRequestedDepartment) {
+    message += ' لن يظهر في شاشة ' + requested + ' لأنه لا يحتوي على بند تابع لهذا القسم.';
+  } else {
+    message += ' اختَر "كل الحالات" وابحث برقم الأوردر لعرضه حتى لو كان جاهزًا أو تم تنفيذه.';
+  }
+  return message + ' أغلق الأوردر أو ألغِه قبل تسجيل شغل جديد.';
 }
 
 function trendosV1922TouchOpenOrder_(orders, lines, orderId, now) {
@@ -9996,7 +10059,7 @@ function createManualOrder_(e) {
   };
   const openOrder = trendosV1922FindOpenOrder_(orders, lines, identity, now);
   if (openOrder && openOrder.ageDays > 2) {
-    return { success: false, duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: 'يوجد أوردر مفتوح قديم لنفس العميل رقم ' + openOrder.orderId + '. أغلقه أو ألغِه قبل تسجيل شغل جديد.' };
+    return { success: false, version: "V1923_OPEN_ORDER_VISIBILITY", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
   }
   const reusedOrder = !!openOrder;
   const dateMoved = !!(openOrder && openOrder.ageDays >= 1 && openOrder.ageDays <= 2);
