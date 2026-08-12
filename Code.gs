@@ -1,7 +1,7 @@
-// TrendOS + EasyStore unified Google Apps Script backend — performance release V1925.
+// TrendOS + EasyStore unified Google Apps Script backend — bulk status release V1926.
 // Single-file build: includes the original V1880 backend, accounting updates through V1921,
 // V1922 safety fixes, V1923 visibility corrections, V1924 department-scoped open orders,
-// and V1925 single-read loading + reduced Google Sheets calls.
+// V1925 single-read loading + reduced Google Sheets calls, and V1926 department bulk status changes.
 /************************************************************
  * TrendOS Operations - Google Apps Script Backend
  * نسخة كاملة موحدة V1851: أرقام أوردرات صغيرة بدون حروف + TrendOS + Matbagy Bridge + Pricing Fix:
@@ -21,6 +21,8 @@
 const SHEET_NAME_USERS = "المستخدمين";
 const SHEET_NAME_LINES = "بنود الأوردرات";
 const SHEET_NAME_ORDERS = "الأوردرات";
+const SHEET_NAME_ARCHIVE_LINES_V1926 = "أرشيف بنود الأوردرات";
+const SHEET_NAME_ARCHIVE_ORDERS_V1926 = "أرشيف الأوردرات";
 const SHEET_NAME_CUSTOMERS = "العملاء";
 const SHEET_NAME_ACTIVITY = "سجل حركة الأوردرات";
 const SHEET_NAME_AI_KNOWLEDGE = "معرفة واتس AI";
@@ -35,7 +37,7 @@ const SHEET_NAME_ACC_FINAL_INVOICES = "حسابات - الفواتير النه�
 const SHEET_NAME_ACC_WASTE = "حسابات - هوالك الأقسام";
 const SHEET_NAME_ACC_STOCK_MOVES = "حسابات - حركة المخزون";
 const SHEET_NAME_ACC_DEPT_DAILY_PURCHASES = "حسابات - مشتريات الأقسام اليومية";
-const MATBAGY_ACCOUNTING_VERSION = "V1925_FAST_READ_WRITE";
+const MATBAGY_ACCOUNTING_VERSION = "V1926_BULK_STATUS";
 const DEFAULT_PASSWORD = "";
 function employeeDefaultPassword_() {
   try { return normalize_(PropertiesService.getScriptProperties().getProperty("EMPLOYEE_DEFAULT_PASSWORD")); } catch (err) { return ""; }
@@ -122,6 +124,8 @@ function doGet(e) {
     else if (action === "saveKnowledge") result = saveKnowledge_(e);
     else if (action === "getKnowledgeContext") result = getKnowledgeContext_(e);
     else if (action === "updateLine") result = updateLine_(e);
+    else if (action === "bulkUpdateDepartmentStatusV1926") result = bulkUpdateDepartmentStatusV1926_(e);
+    else if (action === "archiveDeliveredDepartmentV1926") result = archiveDeliveredDepartmentV1926_(e);
     else if (action === "createInvoiceLine") result = createInvoiceLine_(e);
     else if (action === "initAccounting") result = initAccountingNow_(e);
     else if (action === "getAccounting") result = getAccounting_(e);
@@ -4026,6 +4030,473 @@ function updateLine_(e) {
   }
 
   return { success: true, message: "تم حفظ الحالة في الشيت.", rowNumber: targetRow, orderId: orderId, lineId: lineId, status: status, debtAmount: debtAmount, debtHold: debtAmount > 0 ? "نعم" : "لا" };
+}
+
+/*********************** تغيير جماعي لحالة القسم V1926 ***********************/
+
+function bulkStatusAllowedValuesV1926_() {
+  return [
+    "طلب جديد", "بدأ التنفيذ", "تحت التنفيذ", "جاهز للاستلام", "تم التسليم", "متوقف", "مكرر", "ملغى",
+    "في انتظار موافقة العميل", "في انتظار المكبس", "في قسم التسليمات", "تم التنفيذ", "جاهز للطباعة", "ملغي"
+  ];
+}
+
+function bulkStatusCanUseScreenV1926_(user, screen) {
+  screen = normalize_(screen);
+  if (screen !== "print" && screen !== "laser") return false;
+  const role = roleFromArabic_(user && user.role, user && user.department);
+  if (role === "admin") return true;
+  if (screen === "print") return role === "print" || role === "press";
+  return role === "laser";
+}
+
+function bulkStatusColumnA1V1926_(column) {
+  let n = Number(column || 0);
+  let name = "";
+  while (n > 0) {
+    n--;
+    name = String.fromCharCode(65 + (n % 26)) + name;
+    n = Math.floor(n / 26);
+  }
+  return name;
+}
+
+function bulkStatusSetRangeListV1926_(sheet, rowNumbers, column, value) {
+  if (!sheet || !column || !rowNumbers || !rowNumbers.length) return;
+  const letter = bulkStatusColumnA1V1926_(column);
+  const batchSize = 300;
+  for (let start = 0; start < rowNumbers.length; start += batchSize) {
+    const refs = rowNumbers.slice(start, start + batchSize).map(function (rowNumber) { return letter + rowNumber; });
+    sheet.getRangeList(refs).setValue(value);
+  }
+}
+
+function bulkStatusGeneralSummaryV1926_(rows, colStatus) {
+  let readyCount = 0;
+  let stoppedCount = 0;
+  let deliveredCount = 0;
+  let duplicateCount = 0;
+  let hasInProgress = false;
+  let hasNew = false;
+  rows.forEach(function (row) {
+    const status = normalize_(valueAt_(row, colStatus));
+    if (isReadyStatus_(status)) readyCount++;
+    if (isStoppedStatus_(status)) stoppedCount++;
+    if (status === "تم التسليم") deliveredCount++;
+    if (status === "مكرر") duplicateCount++;
+    if (status === "بدأ التنفيذ" || status === "تحت التنفيذ") hasInProgress = true;
+    if (!status || status === "طلب جديد" || status === "جاهز للطباعة") hasNew = true;
+  });
+  const total = rows.length;
+  let status = "طلب جديد";
+  if (duplicateCount === total) status = "مكرر";
+  else if (stoppedCount > 0) status = "مشكلة/متوقف";
+  else if (deliveredCount === total) status = "تم التسليم";
+  else if (readyCount === total) status = "جاهز للاستلام";
+  else if (readyCount > 0) status = "تسليم جزئي";
+  else if (hasInProgress) status = "تحت التنفيذ";
+  else if (hasNew) status = "طلب جديد";
+  return {
+    status: status,
+    lineCount: total,
+    readyCount: readyCount,
+    notReadyCount: total - readyCount,
+    partial: readyCount > 0 && readyCount < total ? "نعم" : "لا"
+  };
+}
+
+function bulkStatusSyncOrderSummariesV1926_(lineData, lineHeaders, affectedOrderIds, now) {
+  const ids = affectedOrderIds || {};
+  const idList = Object.keys(ids);
+  if (!idList.length) return 0;
+
+  const colOrderId = firstCol_(lineHeaders, ["رقم الأوردر", "Order ID"], 1);
+  const colOrderCode = firstCol_(lineHeaders, ["كود الأوردر"], 2);
+  const colStatus = firstCol_(lineHeaders, ["الحالة", "Status"], 11);
+  const grouped = {};
+  lineData.forEach(function (row) {
+    const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
+    if (!ids[orderId]) return;
+    if (!grouped[orderId]) grouped[orderId] = [];
+    grouped[orderId].push(row);
+  });
+
+  const summaries = {};
+  Object.keys(grouped).forEach(function (orderId) {
+    summaries[orderId] = bulkStatusGeneralSummaryV1926_(grouped[orderId], colStatus);
+  });
+
+  const orders = ss_().getSheetByName(SHEET_NAME_ORDERS);
+  if (!orders || orders.getLastRow() < 2) return Object.keys(summaries).length;
+  ensureWhatsAppHeaders_(orders);
+  const h = headersMap_(orders);
+  const orderIdCol = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
+  const orderCodeCol = firstCol_(h, ["كود الأوردر"], 2);
+  const lastRow = orders.getLastRow();
+  const lookup = orders.getRange(2, 1, lastRow - 1, Math.max(orderIdCol, orderCodeCol, 1)).getValues();
+  const rowByOrder = {};
+  lookup.forEach(function (row, index) {
+    const orderId = normalize_(valueAt_(row, orderIdCol)) || normalize_(valueAt_(row, orderCodeCol));
+    if (summaries[orderId]) rowByOrder[orderId] = index + 2;
+  });
+
+  const fields = [
+    { names: ["الحالة العامة"], key: "status" },
+    { names: ["الحالة", "Status"], key: "status" },
+    { names: ["آخر تحديث", "Updated At"], key: "updatedAt" },
+    { names: ["عدد البنود"], key: "lineCount" },
+    { names: ["بنود جاهزة"], key: "readyCount" },
+    { names: ["بنود غير جاهزة"], key: "notReadyCount" },
+    { names: ["تسليم جزئي؟"], key: "partial" }
+  ];
+  fields.forEach(function (field) {
+    const col = firstCol_(h, field.names, 0);
+    if (!col) return;
+    const values = orders.getRange(2, col, lastRow - 1, 1).getValues();
+    Object.keys(rowByOrder).forEach(function (orderId) {
+      const summary = summaries[orderId];
+      values[rowByOrder[orderId] - 2][0] = field.key === "updatedAt" ? now : summary[field.key];
+    });
+    orders.getRange(2, col, lastRow - 1, 1).setValues(values);
+  });
+  return Object.keys(summaries).length;
+}
+
+function bulkStatusAppendActivityV1926_(entries, username, fromStatus, toStatus, now, actionLabel, detailsText) {
+  if (!entries || !entries.length) return;
+  const sheet = ensureActivityLogSheet_();
+  const h = headersMap_(sheet);
+  const lastCol = Math.max(1, sheet.getLastColumn());
+  const rows = entries.map(function (entry) {
+    const values = {
+      "الوقت": now,
+      "رقم الأوردر": entry.orderId,
+      "رقم البند": entry.lineId,
+      "اسم العميل": entry.customer,
+      "القسم": entry.department,
+      "الإجراء": actionLabel || "تغيير جماعي لحالة القسم",
+      "من حالة": fromStatus,
+      "إلى حالة": toStatus,
+      "ملاحظات قديمة": "",
+      "ملاحظات جديدة": "",
+      "بواسطة": username,
+      "تفاصيل": detailsText || "تنفيذ جماعي آمن من شاشة TrendOS V1926"
+    };
+    const row = new Array(lastCol).fill("");
+    Object.keys(values).forEach(function (key) {
+      const col = h[normalizeKey_(key)];
+      if (col) row[col - 1] = values[key];
+    });
+    return row;
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, lastCol).setValues(rows);
+}
+
+function bulkUpdateDepartmentStatusV1926_(e) {
+  const p = (e && e.parameter) || {};
+  const auth = authorize_(p.username, p.token);
+  if (!auth.ok) return { success: false, message: auth.message };
+
+  const screen = normalize_(p.screen);
+  const fromStatus = normalize_(p.fromStatus);
+  const toStatus = normalize_(p.toStatus);
+  const requestId = normalize_(p.requestId);
+  const allowed = bulkStatusAllowedValuesV1926_();
+  if (!bulkStatusCanUseScreenV1926_(auth.user, screen)) return { success: false, message: "ليس لديك صلاحية تغيير حالات هذا القسم جماعيًا." };
+  if (allowed.indexOf(fromStatus) === -1 || allowed.indexOf(toStatus) === -1) return { success: false, message: "الحالة الحالية أو الجديدة غير مسموح بها." };
+  if (fromStatus === toStatus) return { success: false, message: "اختر حالة جديدة مختلفة عن الحالة الحالية." };
+
+  const cache = CacheService.getScriptCache();
+  const cacheKey = requestId ? ("BULK_STATUS_V1926_" + authDigestV1922_(auth.user.username + "|" + requestId).slice(0, 36)) : "";
+  if (cacheKey) {
+    try {
+      const cached = cache.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch (err) {}
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { success: false, message: "يوجد حفظ آخر قيد التنفيذ. انتظر لحظات ثم أعد المحاولة." };
+  try {
+    const sheet = ss_().getSheetByName(SHEET_NAME_LINES);
+    if (!sheet || sheet.getLastRow() < 2) return { success: true, message: "لا توجد بنود لتغييرها في القسم الحالي.", changed: 0, skippedDebt: 0 };
+    const h = headersMap_(sheet);
+    const colOrderId = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
+    const colOrderCode = firstCol_(h, ["كود الأوردر"], 2);
+    const colCustomer = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name"], 3);
+    const colDept = firstCol_(h, ["القسم", "Department"], 5);
+    const colLineId = firstCol_(h, ["رقم البند", "Line ID"], 6);
+    const colStatus = firstCol_(h, ["الحالة", "Status"], 0);
+    const colReady = firstCol_(h, ["جاهز؟", "جاهز", "Ready"], 0);
+    const colUpdated = firstCol_(h, ["آخر تحديث", "Updated At"], 0);
+    const colPress = firstCol_(h, ["مكبس", "مكبس حراري", "مكبس؟", "Press", "Heat Press"], 0);
+    if (!colStatus) return { success: false, message: 'عمود "الحالة" غير موجود في شيت بنود الأوردرات.' };
+
+    const lastNeededCol = Math.max(colOrderId, colOrderCode, colCustomer, colDept, colLineId, colStatus, colReady, colUpdated, colPress, 1);
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastNeededCol).getValues();
+    const customerMap = (toStatus === "جاهز للاستلام" || toStatus === "تم التسليم") ? buildCustomerPhoneMap_() : {};
+    const targetRows = [];
+    const affectedOrderIds = {};
+    const activity = [];
+    const skippedCustomers = {};
+    const now = new Date();
+
+    data.forEach(function (row, index) {
+      const department = normalize_(valueAt_(row, colDept));
+      const heatPress = isHeatPressFlag_(valueAt_(row, colPress));
+      if (!dashboardMatchesScreen_(screen, department, heatPress)) return;
+      if (normalize_(valueAt_(row, colStatus)) !== fromStatus) return;
+      const customer = normalize_(valueAt_(row, colCustomer));
+      const debt = customerMap[searchKey_(customer)] || {};
+      if ((toStatus === "جاهز للاستلام" || toStatus === "تم التسليم") && parseDebtAmount_(debt.debtAmount || 0) > 0) {
+        skippedCustomers[customer || ("صف " + (index + 2))] = true;
+        return;
+      }
+
+      const rowNumber = index + 2;
+      const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
+      targetRows.push(rowNumber);
+      if (orderId) affectedOrderIds[orderId] = true;
+      activity.push({
+        orderId: orderId,
+        lineId: normalize_(valueAt_(row, colLineId)),
+        customer: customer,
+        department: department
+      });
+      row[colStatus - 1] = toStatus;
+      if (colReady) row[colReady - 1] = isReadyStatus_(toStatus) ? "نعم" : "لا";
+      if (colUpdated) row[colUpdated - 1] = now;
+    });
+
+    if (targetRows.length) {
+      bulkStatusSetRangeListV1926_(sheet, targetRows, colStatus, toStatus);
+      if (colReady) bulkStatusSetRangeListV1926_(sheet, targetRows, colReady, isReadyStatus_(toStatus) ? "نعم" : "لا");
+      if (colUpdated) bulkStatusSetRangeListV1926_(sheet, targetRows, colUpdated, now);
+      bulkStatusSyncOrderSummariesV1926_(data, h, affectedOrderIds, now);
+      bulkStatusAppendActivityV1926_(activity, auth.user.username, fromStatus, toStatus, now);
+      SpreadsheetApp.flush();
+    }
+
+    const skippedDebt = Object.keys(skippedCustomers).length;
+    const affectedOrders = Object.keys(affectedOrderIds).length;
+    let message = targetRows.length
+      ? ("تم تحويل " + targetRows.length + " بند داخل " + affectedOrders + " أوردر في قسم " + (screen === "print" ? "الطباعة" : "الليزر") + " من «" + fromStatus + "» إلى «" + toStatus + "».")
+      : ("لم يتم العثور على بنود قابلة للتحويل من «" + fromStatus + "» في القسم الحالي.");
+    if (skippedDebt) message += " تم تخطي " + skippedDebt + " عميل بسبب المديونية.";
+    const result = {
+      success: true,
+      message: message,
+      changed: targetRows.length,
+      affectedOrders: affectedOrders,
+      skippedDebt: skippedDebt,
+      screen: screen,
+      fromStatus: fromStatus,
+      toStatus: toStatus,
+      requestId: requestId,
+      version: "V1926_BULK_STATUS"
+    };
+    if (cacheKey) {
+      try { cache.put(cacheKey, JSON.stringify(result), 600); } catch (err) {}
+    }
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/*********************** أرشفة تم التسليم V1926 ***********************/
+
+function archiveEnsureSheetV1926_(sourceSheet, archiveName) {
+  const ss = ss_();
+  const sourceLastCol = Math.max(1, sourceSheet.getLastColumn());
+  const sourceHeaders = sourceSheet.getRange(1, 1, 1, sourceLastCol).getValues()[0].map(normalize_);
+  const metadataHeaders = ["تاريخ الأرشفة", "تمت الأرشفة بواسطة", "سبب الأرشفة", "معرف طلب الأرشفة"];
+  const wantedHeaders = sourceHeaders.filter(function (header) { return !!header; }).concat(metadataHeaders);
+  let archive = ss.getSheetByName(archiveName);
+  if (!archive) {
+    archive = ss.insertSheet(archiveName);
+    archive.getRange(1, 1, 1, wantedHeaders.length).setValues([wantedHeaders]);
+    try { archive.setFrozenRows(1); } catch (err) {}
+  } else {
+    ensureHeaderIfAnyMissing_(archive, wantedHeaders);
+  }
+  return { sheet: archive, sourceHeaders: sourceHeaders };
+}
+
+function archiveRowsFromSourceV1926_(sourceSheet, archiveName, sourceRows, username, reason, requestId, now) {
+  if (!sourceRows || !sourceRows.length) return { appended: 0, reused: false };
+  const prepared = archiveEnsureSheetV1926_(sourceSheet, archiveName);
+  const archive = prepared.sheet;
+  const sourceHeaders = prepared.sourceHeaders;
+  const archiveHeaders = headersMap_(archive);
+  const requestCol = firstCol_(archiveHeaders, ["معرف طلب الأرشفة"], 0);
+  if (requestId && requestCol && archive.getLastRow() > 1) {
+    const prior = archive.getRange(2, requestCol, archive.getLastRow() - 1, 1).getValues();
+    if (prior.some(function (row) { return normalize_(row[0]) === requestId; })) {
+      return { appended: sourceRows.length, reused: true };
+    }
+  }
+
+  const lastCol = Math.max(1, archive.getLastColumn());
+  const outputRows = sourceRows.map(function (sourceRow) {
+    const row = new Array(lastCol).fill("");
+    sourceHeaders.forEach(function (header, index) {
+      const col = archiveHeaders[normalizeKey_(header)];
+      if (header && col) row[col - 1] = sourceRow[index];
+    });
+    if (archiveHeaders["تاريخ الأرشفة"]) row[archiveHeaders["تاريخ الأرشفة"] - 1] = now;
+    if (archiveHeaders["تمت الأرشفة بواسطة"]) row[archiveHeaders["تمت الأرشفة بواسطة"] - 1] = username;
+    if (archiveHeaders["سبب الأرشفة"]) row[archiveHeaders["سبب الأرشفة"] - 1] = reason;
+    if (archiveHeaders["معرف طلب الأرشفة"]) row[archiveHeaders["معرف طلب الأرشفة"] - 1] = requestId;
+    return row;
+  });
+  const nextRow = archive.getLastRow() + 1;
+  phoneColumns_(archive).forEach(function (col) {
+    archive.getRange(nextRow, col, outputRows.length, 1).setNumberFormat("@");
+  });
+  archive.getRange(nextRow, 1, outputRows.length, lastCol).setValues(outputRows);
+  return { appended: outputRows.length, reused: false };
+}
+
+function archiveDeleteRowsV1926_(sheet, rowNumbers) {
+  const sorted = (rowNumbers || []).map(Number).filter(function (row) { return row > 1; }).sort(function (a, b) { return a - b; });
+  if (!sorted.length) return 0;
+  const groups = [];
+  let start = sorted[0];
+  let end = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === end + 1) end = sorted[i];
+    else { groups.push({ start: start, count: end - start + 1 }); start = sorted[i]; end = sorted[i]; }
+  }
+  groups.push({ start: start, count: end - start + 1 });
+  groups.reverse().forEach(function (group) { sheet.deleteRows(group.start, group.count); });
+  return sorted.length;
+}
+
+function archivePrepareOrderSummariesV1926_(orderIds, username, requestId, now) {
+  const ids = orderIds || {};
+  if (!Object.keys(ids).length) return { count: 0, sheet: null, rowNumbers: [] };
+  const orders = ss_().getSheetByName(SHEET_NAME_ORDERS);
+  if (!orders || orders.getLastRow() < 2) return { count: 0, sheet: orders || null, rowNumbers: [] };
+  const h = headersMap_(orders);
+  const colOrderId = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
+  const colOrderCode = firstCol_(h, ["كود الأوردر"], 2);
+  const data = orders.getRange(2, 1, orders.getLastRow() - 1, orders.getLastColumn()).getValues();
+  const rows = [];
+  const rowNumbers = [];
+  data.forEach(function (row, index) {
+    const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
+    if (!ids[orderId]) return;
+    rows.push(row);
+    rowNumbers.push(index + 2);
+  });
+  if (!rows.length) return { count: 0, sheet: orders, rowNumbers: [] };
+  archiveRowsFromSourceV1926_(orders, SHEET_NAME_ARCHIVE_ORDERS_V1926, rows, username, "اكتمل تسليم كل بنود الأوردر", requestId, now);
+  return { count: rows.length, sheet: orders, rowNumbers: rowNumbers };
+}
+
+function archiveDeliveredDepartmentV1926_(e) {
+  const p = (e && e.parameter) || {};
+  const auth = authorize_(p.username, p.token);
+  if (!auth.ok) return { success: false, message: auth.message };
+  const screen = normalize_(p.screen);
+  const requestId = normalize_(p.requestId) || Utilities.getUuid();
+  if (!bulkStatusCanUseScreenV1926_(auth.user, screen)) return { success: false, message: "ليس لديك صلاحية أرشفة هذا القسم." };
+
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "ARCHIVE_DELIVERED_V1926_" + authDigestV1922_(auth.user.username + "|" + requestId).slice(0, 36);
+  try {
+    const cached = cache.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (err) {}
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { success: false, message: "يوجد حفظ آخر قيد التنفيذ. انتظر لحظات ثم أعد المحاولة." };
+  try {
+    const sheet = ss_().getSheetByName(SHEET_NAME_LINES);
+    if (!sheet || sheet.getLastRow() < 2) return { success: true, message: "لا توجد أوردرات مسلّمة لأرشفتها في القسم الحالي.", archivedLines: 0, archivedOrders: 0, requestId: requestId };
+    const h = headersMap_(sheet);
+    const colOrderId = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
+    const colOrderCode = firstCol_(h, ["كود الأوردر"], 2);
+    const colCustomer = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name"], 3);
+    const colDept = firstCol_(h, ["القسم", "Department"], 5);
+    const colLineId = firstCol_(h, ["رقم البند", "Line ID"], 6);
+    const colStatus = firstCol_(h, ["الحالة", "Status"], 11);
+    const colPress = firstCol_(h, ["مكبس", "مكبس حراري", "مكبس؟", "Press", "Heat Press"], 0);
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    const archiveIndexes = {};
+    const archiveRows = [];
+    const archiveRowNumbers = [];
+    const affectedOrderIds = {};
+    const activity = [];
+    const now = new Date();
+
+    data.forEach(function (row, index) {
+      const department = normalize_(valueAt_(row, colDept));
+      const heatPress = isHeatPressFlag_(valueAt_(row, colPress));
+      if (!dashboardMatchesScreen_(screen, department, heatPress)) return;
+      if (normalize_(valueAt_(row, colStatus)) !== "تم التسليم") return;
+      const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
+      archiveIndexes[index] = true;
+      archiveRows.push(row);
+      archiveRowNumbers.push(index + 2);
+      if (orderId) affectedOrderIds[orderId] = true;
+      activity.push({
+        orderId: orderId,
+        lineId: normalize_(valueAt_(row, colLineId)),
+        customer: normalize_(valueAt_(row, colCustomer)),
+        department: department
+      });
+    });
+
+    if (!archiveRows.length) {
+      const emptyResult = { success: true, message: "لا توجد بنود بحالة «تم التسليم» لأرشفتها في القسم الحالي.", archivedLines: 0, archivedOrders: 0, requestId: requestId, version: "V1926_BULK_STATUS_ARCHIVE" };
+      try { cache.put(cacheKey, JSON.stringify(emptyResult), 600); } catch (err) {}
+      return emptyResult;
+    }
+
+    const remainingData = data.filter(function (_, index) { return !archiveIndexes[index]; });
+    const remainingOrderIds = {};
+    remainingData.forEach(function (row) {
+      const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
+      if (orderId) remainingOrderIds[orderId] = true;
+    });
+    const fullyArchivedOrderIds = {};
+    const partiallyRemainingOrderIds = {};
+    Object.keys(affectedOrderIds).forEach(function (orderId) {
+      if (remainingOrderIds[orderId]) partiallyRemainingOrderIds[orderId] = true;
+      else fullyArchivedOrderIds[orderId] = true;
+    });
+
+    // لا نحذف أي صف من التشغيل قبل التأكد أن نسخة البنود ونسخة ملخص الأوردر وصلتا إلى الأرشيف.
+    archiveRowsFromSourceV1926_(sheet, SHEET_NAME_ARCHIVE_LINES_V1926, archiveRows, auth.user.username, "تم التسليم — تنظيف شيت التشغيل", requestId, now);
+    const orderArchivePlan = archivePrepareOrderSummariesV1926_(fullyArchivedOrderIds, auth.user.username, requestId, now);
+    if (orderArchivePlan.sheet && orderArchivePlan.rowNumbers.length) archiveDeleteRowsV1926_(orderArchivePlan.sheet, orderArchivePlan.rowNumbers);
+    archiveDeleteRowsV1926_(sheet, archiveRowNumbers);
+    if (Object.keys(partiallyRemainingOrderIds).length) bulkStatusSyncOrderSummariesV1926_(remainingData, h, partiallyRemainingOrderIds, now);
+    const archivedOrders = orderArchivePlan.count;
+    bulkStatusAppendActivityV1926_(activity, auth.user.username, "تم التسليم", "أرشيف", now, "أرشفة بند تم تسليمه", "نُقل من شيت التشغيل إلى أرشيف بنود الأوردرات لتسريع القراءة");
+    SpreadsheetApp.flush();
+
+    const partialOrders = Object.keys(partiallyRemainingOrderIds).length;
+    let message = "تمت أرشفة " + archiveRows.length + " بند مسلّم من قسم " + (screen === "print" ? "الطباعة" : "الليزر") + ".";
+    message += " نُقل " + archivedOrders + " أوردر مكتمل إلى أرشيف الأوردرات.";
+    if (partialOrders) message += " تم الاحتفاظ بملخص " + partialOrders + " أوردر مشترك لأن له بنودًا أخرى ما زالت في التشغيل.";
+    const result = {
+      success: true,
+      message: message,
+      archivedLines: archiveRows.length,
+      archivedOrders: archivedOrders,
+      partialOrders: partialOrders,
+      screen: screen,
+      requestId: requestId,
+      version: "V1926_BULK_STATUS_ARCHIVE"
+    };
+    try { cache.put(cacheKey, JSON.stringify(result), 600); } catch (err) {}
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getDashboard_(e) {
@@ -10205,7 +10676,7 @@ function createManualOrder_(e) {
   };
   const openOrder = trendosV1922FindOpenOrder_(orders, lines, identity, now, department);
   if (openOrder && openOrder.ageDays > 2) {
-    return { success: false, version: "V1925_FAST_READ_WRITE", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
+    return { success: false, version: "V1926_BULK_STATUS", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
   }
   const reusedOrder = !!openOrder;
   const dateMoved = !!(openOrder && openOrder.ageDays >= 1 && openOrder.ageDays <= 2);
@@ -10287,7 +10758,7 @@ function createManualOrder_(e) {
 
   const trendosV1908Response = {
     success: true,
-    version: "V1925_FAST_READ_WRITE",
+    version: "V1926_BULK_STATUS",
     orderId: orderId,
     lineId: orderId + '-' + String(firstLineNumber).padStart(2, '0'),
     linesCreated: departments.length,

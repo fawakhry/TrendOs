@@ -3,7 +3,7 @@
 
   const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
-  const UI_VERSION = 'V1925_FAST_READ_WRITE';
+  const UI_VERSION = 'V1926_BULK_STATUS';
 
   const screens = {
     service: "خدمة العملاء",
@@ -31,6 +31,14 @@
     "متوقف",
     "مكرر",
     "ملغى"
+  ];
+  const BULK_SOURCE_LEGACY_STATUSES = [
+    "في انتظار موافقة العميل",
+    "في انتظار المكبس",
+    "في قسم التسليمات",
+    "تم التنفيذ",
+    "جاهز للطباعة",
+    "ملغي"
   ];
 
   // حالات لا تظهر في شاشة التشغيل بعد حفظها.
@@ -137,6 +145,10 @@
     suggestionTimer: null,
     tableSuggestionTimer: null,
     saving: false,
+    bulkStatusSaving: false,
+    bulkStatusRequestId: "",
+    archiveDeliveredSaving: false,
+    archiveDeliveredRequestId: "",
     editing: false,
     currentPage: 1,
     pageSize: 5,
@@ -3987,6 +3999,7 @@ Trend Mall`;
     setupAdminWorkspace();
     toggleAddOrder();
     toggleAddCustomer();
+    syncBulkStatusTool();
     loadRows();
     updateUrgentNotificationButton();
     startRefresh();
@@ -4017,6 +4030,9 @@ Trend Mall`;
       btn.textContent = screens[screen];
       btn.onclick = function () {
         state.screen = screen;
+        state.rows = [];
+        state.bulkStatusRequestId = "";
+        state.archiveDeliveredRequestId = "";
         state.editing = false;
         saveSession();
         renderHeader();
@@ -4035,6 +4051,7 @@ Trend Mall`;
         toggleServiceRoutesDashboard();
         toggleMarketplaceDashboard();
         setupAdminWorkspace();
+        syncBulkStatusTool();
         loadRows();
       };
       tabs.appendChild(btn);
@@ -4355,7 +4372,7 @@ Trend Mall`;
   }
 
   async function loadRows(force) {
-    if (!force && (state.saving || state.editing)) return;
+    if (!force && (state.saving || state.editing || state.bulkStatusSaving || state.archiveDeliveredSaving)) return;
 
     setLoading("جاري تحميل الأوردرات...");
     try {
@@ -4367,16 +4384,177 @@ Trend Mall`;
       }
 
       state.rows = Array.isArray(res.rows) ? res.rows : [];
+      if (!state.bulkStatusSaving) state.bulkStatusRequestId = "";
+      if (!state.archiveDeliveredSaving) state.archiveDeliveredRequestId = "";
       if (res.dashboard) {
         state.dashboard = res.dashboard;
         renderDashboard(state.dashboard);
         const dashboardStatus = $("dashboardStatus");
         if (dashboardStatus) dashboardStatus.textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG");
       }
+      syncBulkStatusTool();
       applyFiltersAndRender();
       setLoading("آخر تحديث: " + new Date().toLocaleTimeString("ar-EG"));
     } catch (err) {
       setLoading(err.message || "خطأ في التحميل.", true);
+    }
+  }
+
+  function bulkStatusScreenAllowed() {
+    return state.screen === "print" || state.screen === "laser";
+  }
+
+  function bulkStatusDepartmentName() {
+    return state.screen === "print" ? "الطباعة" : (state.screen === "laser" ? "الليزر" : "");
+  }
+
+  function uniqueBulkStatuses(values) {
+    const seen = {};
+    return (values || []).map(text).filter(function (value) {
+      value = value.trim();
+      if (!value || seen[value]) return false;
+      seen[value] = true;
+      return true;
+    });
+  }
+
+  function bulkStatusMatchDetails() {
+    const from = $("bulkFromStatus") ? text($("bulkFromStatus").value) : "";
+    const rows = !from ? [] : state.rows.filter(function (row) { return text(row.status) === from; });
+    const orders = {};
+    rows.forEach(function (row) { orders[text(row.orderId || row.lineId || "-")] = true; });
+    return { rows: rows, rowCount: rows.length, orderCount: Object.keys(orders).length };
+  }
+
+  function archiveDeliveredDetails() {
+    const rows = state.rows.filter(function (row) { return text(row.status) === "تم التسليم"; });
+    const orders = {};
+    rows.forEach(function (row) { orders[text(row.orderId || row.lineId || "-")] = true; });
+    return { rows: rows, rowCount: rows.length, orderCount: Object.keys(orders).length };
+  }
+
+  function updateBulkStatusCount() {
+    const count = $("bulkStatusCount");
+    const button = $("bulkStatusBtn");
+    const archiveCount = $("archiveDeliveredCount");
+    const archiveButton = $("archiveDeliveredBtn");
+    const from = $("bulkFromStatus") ? text($("bulkFromStatus").value) : "";
+    const to = $("bulkToStatus") ? text($("bulkToStatus").value) : "";
+    const details = bulkStatusMatchDetails();
+    const archiveDetails = archiveDeliveredDetails();
+    if (count) count.textContent = from ? ("المطابق حاليًا: " + details.rowCount + " بند داخل " + details.orderCount + " أوردر") : "اختر الحالة الحالية";
+    if (button) button.disabled = state.bulkStatusSaving || !bulkStatusScreenAllowed() || !details.rowCount || !from || !to || from === to;
+    if (archiveCount) archiveCount.textContent = "جاهز للأرشفة: " + archiveDetails.rowCount + " بند داخل " + archiveDetails.orderCount + " أوردر";
+    if (archiveButton) archiveButton.disabled = state.archiveDeliveredSaving || state.bulkStatusSaving || !bulkStatusScreenAllowed() || !archiveDetails.rowCount;
+  }
+
+  function syncBulkStatusTool() {
+    const tool = $("bulkStatusTool");
+    if (!tool) return;
+    const allowed = bulkStatusScreenAllowed();
+    tool.classList.toggle("hidden", !allowed);
+    if (!allowed) return;
+
+    const from = $("bulkFromStatus");
+    const to = $("bulkToStatus");
+    const oldFrom = from ? text(from.value) : "";
+    const oldTo = to ? text(to.value) : "";
+    const currentFilter = $("statusFilter") ? text($("statusFilter").value) : "";
+    const sourceValues = uniqueBulkStatuses(statuses.concat(BULK_SOURCE_LEGACY_STATUSES).concat(state.rows.map(function (row) { return row.status; })));
+    if (from) {
+      from.innerHTML = sourceValues.map(function (status) { return '<option value="' + escapeHtml(status) + '">' + escapeHtml(status) + '</option>'; }).join("");
+      const preferredFrom = sourceValues.indexOf(oldFrom) !== -1 ? oldFrom : (currentFilter && currentFilter.indexOf("__") !== 0 && sourceValues.indexOf(currentFilter) !== -1 ? currentFilter : (sourceValues.indexOf("مكرر") !== -1 ? "مكرر" : (sourceValues[0] || "")));
+      from.value = preferredFrom;
+    }
+    if (to) {
+      to.innerHTML = statuses.map(function (status) { return '<option value="' + escapeHtml(status) + '">' + escapeHtml(status) + '</option>'; }).join("");
+      to.value = statuses.indexOf(oldTo) !== -1 ? oldTo : "تم التسليم";
+    }
+    const label = $("bulkDepartmentLabel");
+    if (label) label.textContent = "القسم الحالي: " + bulkStatusDepartmentName();
+    updateBulkStatusCount();
+  }
+
+  async function runBulkStatusChange() {
+    if (state.bulkStatusSaving || !bulkStatusScreenAllowed()) return;
+    const from = text(($("bulkFromStatus") || {}).value);
+    const to = text(($("bulkToStatus") || {}).value);
+    const details = bulkStatusMatchDetails();
+    if (!from || !to) return setMsg("bulkStatusMsg", "اختر الحالة الحالية والحالة الجديدة.", true);
+    if (from === to) return setMsg("bulkStatusMsg", "الحالتان متطابقتان؛ اختر حالة جديدة مختلفة.", true);
+    if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد بنود بهذه الحالة في القسم الحالي.", true);
+
+    const warning = "سيتم تحويل " + details.rowCount + " بند داخل " + details.orderCount + " أوردر في قسم " + bulkStatusDepartmentName() + " من «" + from + "» إلى «" + to + "».\n\nهذا يشمل البنود غير الظاهرة في الصفحة الحالية. هل تريد المتابعة؟";
+    if (!confirm(warning)) return;
+
+    const button = $("bulkStatusBtn");
+    state.bulkStatusSaving = true;
+    state.bulkStatusRequestId = state.bulkStatusRequestId || ("BULK-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9));
+    if (button) { button.disabled = true; button.textContent = "جاري التحويل..."; }
+    setMsg("bulkStatusMsg", "جاري تغيير الحالات في الشيت...", false);
+    setLoading("جاري تغيير حالات القسم جماعيًا...");
+
+    try {
+      const res = await api("bulkUpdateDepartmentStatusV1926", authParams({
+        screen: state.screen,
+        fromStatus: from,
+        toStatus: to,
+        requestId: state.bulkStatusRequestId
+      }));
+      if (!res.success) {
+        setMsg("bulkStatusMsg", res.message || "تعذر تغيير الحالات.", true);
+        alert(res.message || "تعذر تغيير الحالات.");
+        return;
+      }
+      state.bulkStatusRequestId = "";
+      setMsg("bulkStatusMsg", res.message || "تم تغيير الحالات بنجاح.", false);
+      alert(res.message || "تم تغيير الحالات بنجاح.");
+      await loadRows(true);
+    } catch (err) {
+      setMsg("bulkStatusMsg", (err && err.message) || "تعذر الاتصال أثناء تغيير الحالات. اضغط الزر مرة أخرى لإعادة نفس الطلب بأمان.", true);
+      setLoading((err && err.message) || "خطأ أثناء التغيير الجماعي.", true);
+    } finally {
+      state.bulkStatusSaving = false;
+      if (button) button.textContent = "تحويل كل المطابق";
+      updateBulkStatusCount();
+    }
+  }
+
+  async function archiveDeliveredDepartment() {
+    if (state.archiveDeliveredSaving || state.bulkStatusSaving || !bulkStatusScreenAllowed()) return;
+    const details = archiveDeliveredDetails();
+    if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد بنود بحالة «تم التسليم» لأرشفتها في القسم الحالي.", true);
+    const warning = "سيتم نقل " + details.rowCount + " بند داخل " + details.orderCount + " أوردر من قسم " + bulkStatusDepartmentName() + " إلى شيت الأرشيف، ثم حذفها من شيت التشغيل لتسريع القراءة.\n\nيمكن الرجوع للبيانات داخل الأرشيف لاحقًا. هل تريد المتابعة؟";
+    if (!confirm(warning)) return;
+
+    const button = $("archiveDeliveredBtn");
+    state.archiveDeliveredSaving = true;
+    state.archiveDeliveredRequestId = state.archiveDeliveredRequestId || ("ARCHIVE-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9));
+    if (button) { button.disabled = true; button.textContent = "جاري الأرشفة..."; }
+    setMsg("bulkStatusMsg", "جاري نقل الأوردرات المسلّمة إلى الأرشيف...", false);
+    setLoading("جاري أرشفة تم التسليم في القسم...");
+
+    try {
+      const res = await api("archiveDeliveredDepartmentV1926", authParams({
+        screen: state.screen,
+        requestId: state.archiveDeliveredRequestId
+      }));
+      if (!res.success) {
+        setMsg("bulkStatusMsg", res.message || "تعذر أرشفة الأوردرات المسلّمة.", true);
+        alert(res.message || "تعذر أرشفة الأوردرات المسلّمة.");
+        return;
+      }
+      state.archiveDeliveredRequestId = "";
+      setMsg("bulkStatusMsg", res.message || "تمت الأرشفة بنجاح.", false);
+      alert(res.message || "تمت الأرشفة بنجاح.");
+      await loadRows(true);
+    } catch (err) {
+      setMsg("bulkStatusMsg", (err && err.message) || "تعذر الاتصال أثناء الأرشفة. اضغط الزر مرة أخرى لإعادة نفس الطلب بأمان.", true);
+      setLoading((err && err.message) || "خطأ أثناء الأرشفة.", true);
+    } finally {
+      state.archiveDeliveredSaving = false;
+      if (button) button.textContent = "أرشفة تم التسليم";
+      updateBulkStatusCount();
     }
   }
 
@@ -6986,6 +7164,19 @@ Trend Mall`;
       $(id).addEventListener("input", function () { applyFiltersAndRender(true); });
       $(id).addEventListener("change", function () { applyFiltersAndRender(true); });
     });
+
+    ["bulkFromStatus", "bulkToStatus"].forEach(function (id) {
+      if (!$(id)) return;
+      $(id).addEventListener("change", function () {
+        setMsg("bulkStatusMsg", "", false);
+        state.bulkStatusRequestId = "";
+        updateBulkStatusCount();
+      });
+    });
+    const bulkStatusButton = $("bulkStatusBtn");
+    if (bulkStatusButton) bulkStatusButton.addEventListener("click", runBulkStatusChange);
+    const archiveDeliveredButton = $("archiveDeliveredBtn");
+    if (archiveDeliveredButton) archiveDeliveredButton.addEventListener("click", archiveDeliveredDepartment);
 
     const urgentBtn = $("urgentNotificationsBtn");
     if (urgentBtn) urgentBtn.addEventListener("click", enableUrgentNotifications);
@@ -10372,11 +10563,11 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
 // Canonical build marker. Historical patch flags above describe included features,
 // while these values identify the single currently deployed bundle.
 (function(){
-  window.TRENDOS_PATCH_VERSION = 'V1925_FAST_READ_WRITE';
-  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1925 Fast Read Write';
-  window.MATBAGY_BUILD_VERSION = 'TrendOS V1925 Fast Read Write';
-  window.MATBAGY_BATCH_VERSION = 'V1925_FAST_READ_WRITE';
-  window.MATBAGY_UI_THEME_VERSION = 'V1925_FAST_READ_WRITE';
+  window.TRENDOS_PATCH_VERSION = 'V1926_BULK_STATUS';
+  window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1926 Bulk Status + Archive';
+  window.MATBAGY_BUILD_VERSION = 'TrendOS V1926 Bulk Status + Archive';
+  window.MATBAGY_BATCH_VERSION = 'V1926_BULK_STATUS';
+  window.MATBAGY_UI_THEME_VERSION = 'V1926_BULK_STATUS';
 })();
 
 /*********************** V1921 - Safe semi-automatic accounting handoff ***********************/
@@ -10441,8 +10632,8 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   if(typeof setInterval==='function')setInterval(safeRefresh,180000);
   function boot(){mount();[300,900,1800,3500,7000].forEach(function(ms){setTimeout(mount,ms);});}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.TRENDOS_PATCH_VERSION='V1925_FAST_READ_WRITE';
-  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1925 Fast Read Write';
-  window.MATBAGY_BUILD_VERSION='TrendOS V1925 Fast Read Write';
-  window.MATBAGY_BATCH_VERSION='V1925_FAST_READ_WRITE';
+  window.TRENDOS_PATCH_VERSION='V1926_BULK_STATUS';
+  window.TRENDOS_LOADED_APP_VERSION='TrendOS V1926 Bulk Status + Archive';
+  window.MATBAGY_BUILD_VERSION='TrendOS V1926 Bulk Status + Archive';
+  window.MATBAGY_BATCH_VERSION='V1926_BULK_STATUS';
 })();

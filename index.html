@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=trendos-v1925-fast-read-write-20260812a">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1925-fast-read-write-20260812a">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1926-bulk-status-archive-20260812a">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1926-bulk-status-archive-20260812a">
 </head>
 <body>
 <main class="app">
@@ -37,7 +37,7 @@
       </button>
     </div>
 
-    <p class="version-badge">TrendOS V1925 Fast Read Write</p>
+    <p class="version-badge">TrendOS V1926 Bulk Status + Archive</p>
   </section>
 
   <section id="loginView" class="card login-card">
@@ -80,7 +80,7 @@
       <div>
         <h2 id="welcomeTitle">Trend Mall</h2>
         <p id="roleLabel"></p>
-        <p class="version-badge">TrendOS V1925 Fast Read Write</p>
+        <p class="version-badge">TrendOS V1926 Bulk Status + Archive</p>
         <p id="liveStatus" class="live-status">تحديث آمن تلقائي كل 3 دقائق عند عدم وجود نموذج مفتوح</p>
       </div>
       <div class="top-actions">
@@ -716,6 +716,28 @@
         </select>
       </div>
 
+      <div id="bulkStatusTool" class="bulk-status-tool hidden">
+        <div class="bulk-status-copy">
+          <b>تغيير جماعي لحالة القسم</b>
+          <span>يطبّق على كل البنود المطابقة في القسم المفتوح، حتى لو لم تكن ظاهرة في الصفحة الحالية.</span>
+        </div>
+        <div class="bulk-status-controls">
+          <label for="bulkFromStatus">من حالة</label>
+          <select id="bulkFromStatus" aria-label="الحالة الحالية"></select>
+          <span class="bulk-status-arrow" aria-hidden="true">←</span>
+          <label for="bulkToStatus">إلى حالة</label>
+          <select id="bulkToStatus" aria-label="الحالة الجديدة"></select>
+          <button id="bulkStatusBtn" class="danger" type="button">تحويل كل المطابق</button>
+          <button id="archiveDeliveredBtn" class="archive-delivered-btn" type="button">أرشفة تم التسليم</button>
+        </div>
+        <div class="bulk-status-foot">
+          <span id="bulkDepartmentLabel"></span>
+          <span id="bulkStatusCount"></span>
+          <span id="archiveDeliveredCount"></span>
+          <span id="bulkStatusMsg" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+
       <div class="table-wrap compact-table-wrap">
         <table id="ordersTable"><thead></thead><tbody></tbody></table>
       </div>
@@ -728,7 +750,7 @@
       <div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
-    <p class="version-badge">TrendOS V1925 Fast Read Write</p>
+    <p class="version-badge">TrendOS V1926 Bulk Status + Archive</p>
       </div>
       <div class="top-actions">
         <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
@@ -1231,20 +1253,20 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1925-fast-read-write-20260812a"></script>
-<script src="app.js?v=trendos-v1925-fast-read-write-20260812a"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1925-fast-read-write-20260812a"></script>
+<script src="config.js?v=trendos-v1926-bulk-status-archive-20260812a"></script>
+<script src="app.js?v=trendos-v1926-bulk-status-archive-20260812a"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1926-bulk-status-archive-20260812a"></script>
 
 <script>
 (function(){
   'use strict';
-  var BUILD = 'TrendOS V1925 Fast Read Write';
-  var CACHE_TAG = 'trendos-v1925-fast-read-write-20260812a';
+  var BUILD = 'TrendOS V1926 Bulk Status + Archive';
+  var CACHE_TAG = 'trendos-v1926-bulk-status-archive-20260812a';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
-  window.TRENDOS_PATCH_VERSION = 'V1925_FAST_READ_WRITE';
+  window.TRENDOS_PATCH_VERSION = 'V1926_BULK_STATUS';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;
   window.MATBAGY_BUILD_VERSION = BUILD;
-  window.MATBAGY_BATCH_VERSION = 'V1925_FAST_READ_WRITE';
+  window.MATBAGY_BATCH_VERSION = 'V1926_BULK_STATUS';
   window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
   try{
     localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
@@ -1255,7 +1277,7 @@
   }catch(e){}
   function showBuild(){
     try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
-    try{window.TRENDOS_PATCH_VERSION='V1925_FAST_READ_WRITE';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1925_FAST_READ_WRITE';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1926_BULK_STATUS';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1926_BULK_STATUS';}catch(e){}
     document.querySelectorAll('.version-badge,[data-app-version]').forEach(function(el){el.textContent=BUILD;});
   }
   document.addEventListener('DOMContentLoaded', showBuild);
