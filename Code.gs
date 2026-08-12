@@ -1,6 +1,7 @@
-// TrendOS + EasyStore unified Google Apps Script backend — fixed release V1924.
+// TrendOS + EasyStore unified Google Apps Script backend — performance release V1925.
 // Single-file build: includes the original V1880 backend, accounting updates through V1921,
-// V1922 safety fixes, V1923 visibility corrections, and V1924 department-scoped open orders.
+// V1922 safety fixes, V1923 visibility corrections, V1924 department-scoped open orders,
+// and V1925 single-read loading + reduced Google Sheets calls.
 /************************************************************
  * TrendOS Operations - Google Apps Script Backend
  * نسخة كاملة موحدة V1851: أرقام أوردرات صغيرة بدون حروف + TrendOS + Matbagy Bridge + Pricing Fix:
@@ -34,7 +35,7 @@ const SHEET_NAME_ACC_FINAL_INVOICES = "حسابات - الفواتير النه�
 const SHEET_NAME_ACC_WASTE = "حسابات - هوالك الأقسام";
 const SHEET_NAME_ACC_STOCK_MOVES = "حسابات - حركة المخزون";
 const SHEET_NAME_ACC_DEPT_DAILY_PURCHASES = "حسابات - مشتريات الأقسام اليومية";
-const MATBAGY_ACCOUNTING_VERSION = "V1924_DEPARTMENT_SCOPED_OPEN_ORDER";
+const MATBAGY_ACCOUNTING_VERSION = "V1925_FAST_READ_WRITE";
 const DEFAULT_PASSWORD = "";
 function employeeDefaultPassword_() {
   try { return normalize_(PropertiesService.getScriptProperties().getProperty("EMPLOYEE_DEFAULT_PASSWORD")); } catch (err) { return ""; }
@@ -397,7 +398,10 @@ function setPhoneColumnsAsText_(sheet, rowNumber) {
   const cols = phoneColumns_(sheet);
   cols.forEach(function (col) {
     const row = rowNumber || 2;
-    const numRows = rowNumber ? 1 : Math.max(1, sheet.getMaxRows() - 1);
+    // V1925: لا تلمس آلاف الصفوف الفارغة في كل قراءة. التنسيق الشامل له أداة الصيانة
+    // fixPhoneColumnsNow، أما المسار اليومي فينسق الصف الذي تتم كتابته فقط.
+    const numRows = rowNumber ? 1 : Math.max(0, sheet.getLastRow() - 1);
+    if (!numRows) return;
     sheet.getRange(row, col, numRows, 1).setNumberFormat("@");
   });
 }
@@ -518,8 +522,7 @@ function healthCheck_() {
 function ensureUsersSetup_() {
   const sheet = ss_().getSheetByName(SHEET_NAME_USERS);
   if (!sheet) throw new Error("شيت المستخدمين غير موجود.");
-  ensureHeader_(sheet, "Token");
-  ensureHeader_(sheet, "آخر دخول");
+  ensureHeaderIfAnyMissing_(sheet, ["Token", "آخر دخول"]);
 }
 
 function findUser_(username) {
@@ -804,9 +807,17 @@ function searchCustomers_(e) {
 
 
 function ensureHeaderIfAnyMissing_(sheet, headers) {
+  if (!sheet || !headers || !headers.length) return;
+  // V1925: قراءة الهيدر مرة واحدة وكتابة كل الأعمدة الناقصة دفعة واحدة.
+  // النسخة القديمة كانت تعمل قراءة مستقلة لكل اسم (أكثر من 20 اتصالًا في الطلب الواحد).
+  const h = headersMap_(sheet);
+  const missing = [];
   headers.forEach(function(headerName) {
-    ensureHeader_(sheet, headerName);
+    if (!h[normalizeKey_(headerName)] && missing.indexOf(headerName) === -1) missing.push(headerName);
   });
+  if (!missing.length) return;
+  const startCol = sheet.getLastColumn() + 1;
+  sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
 }
 
 
@@ -925,7 +936,7 @@ function findLineTarget_(sheet, rowNumber, lineId, orderIdParam) {
     orderId = orderId || normalize_(sheet.getRange(targetRow, colOrderId).getValue()) || normalize_(sheet.getRange(targetRow, colOrderCode).getValue());
   }
 
-  if (!targetRow && lineId) {
+  if (!targetRow && lineId && sheet.getLastRow() > 1) {
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       if (normalize_(valueAt_(data[i], colLineId)) === lineId) {
@@ -1079,9 +1090,8 @@ function syncOrderFromLines_(orderId) {
 
   const ss = ss_();
   const lines = ss.getSheetByName(SHEET_NAME_LINES);
-  if (!lines) return;
+  if (!lines || lines.getLastRow() < 2) return;
 
-  const data = lines.getDataRange().getValues();
   const h = headersMap_(lines);
 
   const colOrderId = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
@@ -1097,9 +1107,11 @@ function syncOrderFromLines_(orderId) {
   const colReceivedAt = firstCol_(h, ["تاريخ الاستلام", "تاريخ الإنشاء", "Received At"], 0);
   const colExpectedAt = firstCol_(h, ["تاريخ التسليم المتوقع", "Expected Delivery"], 0);
   const colExpectedText = firstCol_(h, ["الوقت المتوقع"], 0);
+  const lastNeededCol = Math.max(colOrderId, colOrderCode, colCustomer, colDept, colItem, colQty, colPriority, colStatus, colUpdated, colPhone, colReceivedAt, colExpectedAt, colExpectedText, 1);
+  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lastNeededCol).getValues();
 
   const matched = [];
-  for (let i = 1; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     const row = data[i];
     const oid = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
     if (oid === orderId) matched.push(row);
@@ -1158,7 +1170,8 @@ function syncOrderFromLines_(orderId) {
     updatedAt: baseNow,
     receivedAt: receivedAt,
     expectedDeliveryAt: expectedAt,
-    expectedDeliveryText: expectedText
+    expectedDeliveryText: expectedText,
+    syncOnly: true
   };
 
   upsertOrderSummary_(summary);
@@ -3504,12 +3517,11 @@ function buildCustomerPhoneMap_() {
   const map = {};
   if (!sheet || sheet.getLastRow() < 2) return map;
 
-  setPhoneColumnsAsText_(sheet);
-
-  const data = sheet.getDataRange().getValues();
   const c = customerCols_(sheet);
+  const lastNeededCol = Math.max(c.name || 1, c.manager || 0, c.phone || 0, c.extra || 0, c.type || 0, c.active || 0, c.debt || 0, c.debtNotes || 0, c.branchCode || 0, c.branchName || 0);
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastNeededCol).getValues();
 
-  for (let i = 1; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     const row = data[i];
     const active = c.active ? normalize_(row[c.active - 1]) : "نعم";
     if (active && active !== "نعم") continue;
@@ -3728,6 +3740,8 @@ function upsertOrderSummary_(o) {
     "كود العميل": o.customerCode || "",
     "مصدر الطلب": o.source || "",
     "أنشئ بواسطة": o.createdBy || "",
+    "نوع إدخال العميل": o.customerMode || "",
+    "علامة العميل الخارجي": o.externalCustomerId || "",
     "ملاحظات العميل": o.customerNotes || "",
     "رابط فولدر الطلب": o.orderFolderUrl || o.draftFolderUrl || "",
     "رقم المسودة": o.draftId || "",
@@ -3735,7 +3749,18 @@ function upsertOrderSummary_(o) {
     "اسم فرع مطبعجي": o.franchiseBranchName || ""
   };
 
-  if (rowNumber) updateByHeaders_(sheet, rowNumber, values, true);
+  if (rowNumber && o.syncOnly) {
+    updateByHeaders_(sheet, rowNumber, {
+      "الحالة العامة": o.status,
+      "الحالة": o.status,
+      "آخر تحديث": o.updatedAt || o.now,
+      "عدد البنود": o.lineCount || 1,
+      "بنود جاهزة": o.readyCount || 0,
+      "بنود غير جاهزة": o.notReadyCount === undefined ? 0 : o.notReadyCount,
+      "تسليم جزئي؟": o.partial || "لا"
+    }, true);
+  }
+  else if (rowNumber) updateByHeaders_(sheet, rowNumber, values, true);
   else appendByHeaders_(sheet, values);
 }
 
@@ -3785,6 +3810,8 @@ function appendLine_(ss, o) {
     "كود العميل": o.customerCode || "",
     "مصدر الطلب": o.source || "",
     "أنشئ بواسطة": o.createdBy || "",
+    "نوع إدخال العميل": o.customerMode || "",
+    "علامة العميل الخارجي": o.externalCustomerId || "",
     "ملاحظات العميل": o.customerNotes || "",
     "فاصل واتساب": o.whatsappSeparator || "",
     "تأكيد فاصل واتساب": o.whatsappSeparatorStatus || "",
@@ -3806,11 +3833,6 @@ function getRows_(e) {
   const screen = normalize_(e.parameter.screen);
   const lines = ss_().getSheetByName(SHEET_NAME_LINES);
   if (!lines) return { success: false, message: "شيت بنود الأوردرات غير موجود." };
-  ensureWhatsAppHeaders_(lines);
-  ensurePressColumn_(lines);
-  ensureFlyPrintColumn_(lines);
-
-  const data = lines.getDataRange().getValues();
   const h = headersMap_(lines);
   const rows = [];
 
@@ -3846,9 +3868,18 @@ function getRows_(e) {
   const colCustomerSourceV1903 = firstCol_(h, ["مصدر الطلب", "Source"], 0);
   const colExternalIdV1903 = firstCol_(h, ["علامة العميل الخارجي", "رقم/علامة العميل", "معرف العميل الخارجي", "External Customer ID"], 0);
   const colCustomerModeV1903 = firstCol_(h, ["نوع إدخال العميل", "Customer Mode"], 0);
+  const lastNeededCol = Math.max(
+    colOrderId, colOrderCode, colCustomer, colDept, colLineId, colItem, colQty, colAssigned,
+    colPriority, colStatus, colReady, colUpdated, colNotes, colPhone, colPress, colFlyPrint,
+    colDebt, colDebtHold, colDebtNotes, colCustomerNotified, colNotifyAt, colNotifyBy,
+    colLastWaMessage, colLastWaAt, colLastWaBy, colReceivedAt, colExpectedAt, colExpectedText,
+    colRegistrationSent, colCustomerSourceV1903, colExternalIdV1903, colCustomerModeV1903, 1
+  );
+  const lastRow = lines.getLastRow();
+  const data = lastRow > 1 ? lines.getRange(2, 1, lastRow - 1, lastNeededCol).getValues() : [];
   const customerMap = buildCustomerPhoneMap_();
 
-  for (let i = 1; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     const row = data[i];
     const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
     const lineId = normalize_(valueAt_(row, colLineId));
@@ -3863,14 +3894,13 @@ function getRows_(e) {
     let customerPhone = cleanPhone_(valueAt_(row, colPhone));
     if (!customerPhone && customerLookup.phone) {
       customerPhone = customerLookup.phone;
-      if (colPhone) { try { lines.getRange(i + 1, colPhone).setNumberFormat("@").setValue(customerPhone); } catch (phoneWriteErr) {} }
     }
     // يتم تحديث عرض المديونية من شيت العملاء فقط.
     let debtAmount = customerLookup.debtAmount ? parseDebtAmount_(customerLookup.debtAmount) : 0;
     const debtHold = debtAmount > 0 ? "نعم" : "لا";
 
     rows.push({
-      rowNumber: i + 1,
+      rowNumber: i + 2,
       orderId: orderId,
       orderCode: normalize_(valueAt_(row, colOrderCode)) || orderId,
       lineId: lineId,
@@ -3915,7 +3945,7 @@ function getRows_(e) {
     if (pa !== pb) return pa - pb;
     return String(a.orderId).localeCompare(String(b.orderId));
   });
-  return { success: true, rows: rows };
+  return { success: true, rows: rows, dashboard: trendosV1925DashboardFromData_(screen, data, h) };
 }
 
 function updateLine_(e) {
@@ -3954,10 +3984,11 @@ function updateLine_(e) {
     orderId = orderId || normalize_(sheet.getRange(targetRow, colOrderId).getValue());
   }
   if (!targetRow && lineId) {
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
+    const lastNeededCol = Math.max(colLineId, colOrderId, 1);
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastNeededCol).getValues();
+    for (let i = 0; i < data.length; i++) {
       if (normalize_(data[i][colLineId - 1]) === lineId) {
-        targetRow = i + 1;
+        targetRow = i + 2;
         orderId = orderId || normalize_(data[i][colOrderId - 1]);
         break;
       }
@@ -3975,13 +4006,17 @@ function updateLine_(e) {
     return { success: false, message: "لا يمكن تحويل الأوردر إلى " + status + " لأن العميل عليه مديونية " + debtAmount + " ج. برجاء تقفيل المديونية أولاً." };
   }
 
-  const oldStatus = colStatus ? normalize_(sheet.getRange(targetRow, colStatus).getValue()) : "";
-  const oldNotes = colNotes ? normalize_(sheet.getRange(targetRow, colNotes).getValue()) : "";
+  const oldStatus = colStatus ? normalize_(valueAt_(rowValues, colStatus)) : "";
+  const oldNotes = colNotes ? normalize_(valueAt_(rowValues, colNotes)) : "";
   const now = new Date();
-  safeSet_(sheet, targetRow, colStatus, status);
-  if (colNotes) safeSet_(sheet, targetRow, colNotes, notes);
-  if (colUpdated) safeSet_(sheet, targetRow, colUpdated, now);
-  if (colReady) safeSet_(sheet, targetRow, colReady, isReadyStatus_(status) ? "نعم" : "لا");
+  if (colReady === colStatus + 1 && colUpdated === colStatus + 2 && colNotes === colStatus + 3) {
+    sheet.getRange(targetRow, colStatus, 1, 4).setValues([[status, isReadyStatus_(status) ? "نعم" : "لا", now, notes]]);
+  } else {
+    safeSet_(sheet, targetRow, colStatus, status);
+    if (colReady) safeSet_(sheet, targetRow, colReady, isReadyStatus_(status) ? "نعم" : "لا");
+    if (colUpdated) safeSet_(sheet, targetRow, colUpdated, now);
+    if (colNotes) safeSet_(sheet, targetRow, colNotes, notes);
+  }
   if (colDebt) safeSet_(sheet, targetRow, colDebt, debtAmount);
   if (colDebtHold) safeSet_(sheet, targetRow, colDebtHold, debtAmount > 0 ? "نعم" : "لا");
 
@@ -3990,7 +4025,6 @@ function updateLine_(e) {
     appendActivityLog_({ time: now, orderId: orderId, lineId: lineId || normalize_(sheet.getRange(targetRow, colLineId).getValue()), customer: customerName, department: normalize_(valueAt_(rowValues, colDept)), action: "تعديل حالة / ملاحظات", oldStatus: oldStatus, newStatus: status, oldNotes: oldNotes, newNotes: notes, by: auth.user.username, details: debtAmount > 0 ? "تم الحفظ مع تنبيه مديونية" : "تم الحفظ من شاشة TrendOS" });
   }
 
-  SpreadsheetApp.flush();
   return { success: true, message: "تم حفظ الحالة في الشيت.", rowNumber: targetRow, orderId: orderId, lineId: lineId, status: status, debtAmount: debtAmount, debtHold: debtAmount > 0 ? "نعم" : "لا" };
 }
 
@@ -4002,12 +4036,12 @@ function getDashboard_(e) {
   const lines = ss_().getSheetByName(SHEET_NAME_LINES);
   if (!lines) return { success: false, message: "شيت بنود الأوردرات غير موجود." };
   if (lines.getLastRow() < 2) return { success: true, dashboard: emptyDashboard_(screen) };
-  ensureWhatsAppHeaders_(lines);
-  ensurePressColumn_(lines);
-  ensureFlyPrintColumn_(lines);
-
-  const data = lines.getDataRange().getValues();
   const h = headersMap_(lines);
+  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lines.getLastColumn()).getValues();
+  return { success: true, dashboard: trendosV1925DashboardFromData_(screen, data, h) };
+}
+
+function trendosV1925DashboardFromData_(screen, data, h) {
   const colOrderId = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
   const colOrderCode = firstCol_(h, ["كود الأوردر"], 2);
   const colDept = firstCol_(h, ["القسم", "Department"], 5);
@@ -4029,7 +4063,7 @@ function getDashboard_(e) {
   const todayWorkOrderSet = {}, activeOrderSet = {}, deliveredTodayOrderSet = {}, readyOrderSet = {}, overdueOrderSet = {};
   let todayWorkDoneLines = 0;
 
-  for (let i = 1; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     const row = data[i];
     const orderId = normalize_(valueAt_(row, colOrderId)) || normalize_(valueAt_(row, colOrderCode));
     const status = normalize_(valueAt_(row, colStatus)) || "طلب جديد";
@@ -4091,7 +4125,7 @@ function getDashboard_(e) {
   dashboard.timeScore = Math.max(0, Math.round(100 - ((dashboard.overdue / target) * 100)));
   dashboard.performanceScore = Math.round((dashboard.completionPercent * 0.6) + (dashboard.timeScore * 0.4));
   dashboard.updatedAt = formatDateAr_(new Date());
-  return { success: true, dashboard: dashboard };
+  return dashboard;
 }
 
 function emptyDashboard_(screen) {
@@ -4401,7 +4435,6 @@ function mbFindCustomerByPhone_(phone) {
   const sheet = ss_().getSheetByName(SHEET_NAME_CUSTOMERS);
   if (!sheet || sheet.getLastRow() < 2) return null;
 
-  setPhoneColumnsAsText_(sheet);
   const data = sheet.getDataRange().getValues();
   const h = headersMap_(sheet);
   const colName = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name", "Name", "Cust Chat"], 1);
@@ -9784,7 +9817,8 @@ function trendosV1908RecentDuplicate_(lines, fingerprint, now) {
   const colStatus = firstCol_(h, ["الحالة", "Status"], 0);
   const colDate = firstCol_(h, ["تاريخ الاستلام", "تاريخ الإنشاء", "Received At", "آخر تحديث"], 0);
   const startRow = Math.max(2, lines.getLastRow() - 120);
-  const data = lines.getRange(startRow, 1, lines.getLastRow() - startRow + 1, lines.getLastColumn()).getValues();
+  const lastNeededCol = Math.max(colOrder, colLine, colCustomer, colPhone, colExternal, colDept, colItem, colQty, colStatus, colDate, 1);
+  const data = lines.getRange(startRow, 1, lines.getLastRow() - startRow + 1, lastNeededCol).getValues();
   for (let i = data.length - 1; i >= 0; i--) {
     const row = data[i];
     const status = normalize_(valueAt_(row, colStatus));
@@ -9874,7 +9908,8 @@ function trendosV1922FindOpenOrderInSheet_(sheet, identity, now, requestedDepart
   const colStatus = firstCol_(h, ["الحالة العامة", "الحالة", "Status"], 0);
   const colDate = firstCol_(h, ["تاريخ الاستلام", "تاريخ الإنشاء", "Received At", "وقت التسجيل", "آخر تحديث"], 0);
   if (!colOrder) return null;
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const lastNeededCol = Math.max(colOrder, colCustomer, colPhone, colExternal, colDepartment, colStatus, colDate, 1);
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastNeededCol).getValues();
   for (let i = data.length - 1; i >= 0; i--) {
     const row = data[i];
     const orderId = normalize_(valueAt_(row, colOrder));
@@ -9908,7 +9943,8 @@ function trendosV1923OpenOrderDetails_(lines, orderId) {
   const seenDepartments = {};
   const seenOpenDepartments = {};
   const seenStatuses = {};
-  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lines.getLastColumn()).getValues();
+  const lastNeededCol = Math.max(colOrder, colLine, colDepartment, colStatus, 1);
+  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lastNeededCol).getValues();
   data.forEach(function(row) {
     if (normalize_(valueAt_(row, colOrder)) !== orderId) return;
     details.lineCount++;
@@ -9936,11 +9972,73 @@ function trendosV1923OpenOrderDetails_(lines, orderId) {
   return details;
 }
 
+function trendosV1925FindOpenOrderInLines_(lines, identity, now, requestedDepartment) {
+  if (!lines || lines.getLastRow() < 2) return null;
+  const h = headersMap_(lines);
+  const colOrder = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
+  const colLine = firstCol_(h, ["رقم البند", "Line ID"], 0);
+  const colCustomer = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name"], 0);
+  const colPhone = firstCol_(h, ["رقم العميل", "رقم العميل الأساسي", "رقم الهاتف", "Phone"], 0);
+  const colExternal = firstCol_(h, ["علامة العميل الخارجي", "معرف العميل الخارجي", "External Customer ID"], 0);
+  const colDepartment = firstCol_(h, ["القسم", "Department"], 0);
+  const colStatus = firstCol_(h, ["الحالة", "Status"], 0);
+  const colDate = firstCol_(h, ["تاريخ الاستلام", "تاريخ الإنشاء", "Received At", "وقت التسجيل", "آخر تحديث"], 0);
+  if (!colOrder) return null;
+
+  const lastNeededCol = Math.max(colOrder, colLine, colCustomer, colPhone, colExternal, colDepartment, colStatus, colDate, 1);
+  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lastNeededCol).getValues();
+  let candidate = null;
+  for (let i = data.length - 1; i >= 0; i--) {
+    const row = data[i];
+    const orderId = normalize_(valueAt_(row, colOrder));
+    const status = normalize_(valueAt_(row, colStatus));
+    if (!orderId || trendosV1922ClosedOrderStatus_(status)) continue;
+    if (requestedDepartment && colDepartment && !trendosV1924DepartmentMatches_(valueAt_(row, colDepartment), requestedDepartment)) continue;
+    const rowPhone = cleanPhone_(valueAt_(row, colPhone));
+    const rowExternal = trendosV1903Digits_(valueAt_(row, colExternal));
+    const rowName = searchKey_(valueAt_(row, colCustomer));
+    let matches = false;
+    if (identity.phone) matches = rowPhone === identity.phone || rowExternal === identity.phone;
+    else if (identity.externalId) matches = rowExternal === identity.externalId || rowPhone === identity.externalId;
+    else if (identity.customerName) matches = rowName === identity.customerName;
+    if (!matches) continue;
+    const rawDate = valueAt_(row, colDate);
+    candidate = { orderId: orderId, status: status, receivedAt: rawDate, ageDays: trendosV1922OrderAgeDays_(rawDate, now), rowNumber: i + 2, sheetName: lines.getName() };
+    break;
+  }
+  if (!candidate) return null;
+
+  const details = { departments: [], openDepartments: [], statuses: [], lineIds: [], lineCount: 0, openLineCount: 0, nextLineNumber: 1 };
+  const seenDepartments = {}, seenOpenDepartments = {}, seenStatuses = {};
+  let maxLine = 0;
+  data.forEach(function(row) {
+    if (normalize_(valueAt_(row, colOrder)) !== candidate.orderId) return;
+    details.lineCount++;
+    const lineId = normalize_(valueAt_(row, colLine));
+    const department = normalize_(valueAt_(row, colDepartment));
+    const status = normalize_(valueAt_(row, colStatus)) || "طلب جديد";
+    const isOpen = !trendosV1922ClosedOrderStatus_(status);
+    if (isOpen) {
+      details.openLineCount++;
+      if (department && !seenOpenDepartments[department]) { seenOpenDepartments[department] = true; details.openDepartments.push(department); }
+    }
+    if (lineId) {
+      details.lineIds.push(lineId);
+      const match = lineId.match(/-(\d+)$/);
+      if (match) maxLine = Math.max(maxLine, Number(match[1]) || 0);
+    }
+    if (department && !seenDepartments[department]) { seenDepartments[department] = true; details.departments.push(department); }
+    if (status && !seenStatuses[status]) { seenStatuses[status] = true; details.statuses.push(status); }
+  });
+  details.nextLineNumber = maxLine + 1;
+  return Object.assign(candidate, details);
+}
+
 function trendosV1922FindOpenOrder_(orders, lines, identity, now, requestedDepartment) {
   // بنود الأوردرات هي مصدر الحقيقة؛ ملخص "الأوردرات" قد يكون قديمًا في البيانات التاريخية.
   // V1924: أوردر مفتوح في الليزر لا يمنع أوردرًا جديدًا في الطباعة والعكس صحيح.
-  const lineOpenOrder = trendosV1922FindOpenOrderInSheet_(lines, identity, now, requestedDepartment);
-  if (lineOpenOrder) return Object.assign(lineOpenOrder, trendosV1923OpenOrderDetails_(lines, lineOpenOrder.orderId));
+  const lineOpenOrder = trendosV1925FindOpenOrderInLines_(lines, identity, now, requestedDepartment);
+  if (lineOpenOrder) return lineOpenOrder;
 
   const summaryOpenOrder = trendosV1922FindOpenOrderInSheet_(orders, identity, now, requestedDepartment);
   if (!summaryOpenOrder) return null;
@@ -9999,7 +10097,8 @@ function trendosV1922NextLineNumber_(lines, orderId) {
   const colOrder = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
   const colLine = firstCol_(h, ["رقم البند", "Line ID"], 2);
   if (!colOrder || !colLine) return 1;
-  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lines.getLastColumn()).getValues();
+  const lastNeededCol = Math.max(colOrder, colLine, 1);
+  const data = lines.getRange(2, 1, lines.getLastRow() - 1, lastNeededCol).getValues();
   let maxLine = 0;
   data.forEach(function(row){
     if (normalize_(valueAt_(row, colOrder)) !== orderId) return;
@@ -10106,13 +10205,13 @@ function createManualOrder_(e) {
   };
   const openOrder = trendosV1922FindOpenOrder_(orders, lines, identity, now, department);
   if (openOrder && openOrder.ageDays > 2) {
-    return { success: false, version: "V1924_DEPARTMENT_SCOPED_OPEN_ORDER", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
+    return { success: false, version: "V1925_FAST_READ_WRITE", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
   }
   const reusedOrder = !!openOrder;
   const dateMoved = !!(openOrder && openOrder.ageDays >= 1 && openOrder.ageDays <= 2);
   const orderId = reusedOrder ? openOrder.orderId : makeOrderId_(lines, now, true);
   if (dateMoved) trendosV1922TouchOpenOrder_(orders, lines, orderId, now);
-  const firstLineNumber = reusedOrder ? trendosV1922NextLineNumber_(lines, orderId) : 1;
+  const firstLineNumber = reusedOrder ? (Number(openOrder.nextLineNumber || 0) || trendosV1922NextLineNumber_(lines, orderId)) : 1;
 
   let departments = [];
   if (department === 'متعدد الأقسام') {
@@ -10158,25 +10257,6 @@ function createManualOrder_(e) {
   };
 
   if (!reusedOrder) upsertOrderSummary_(common);
-  if (orders) {
-    const hOrders = headersMap_(orders);
-    const colOrderId = firstCol_(hOrders, ['رقم الأوردر', 'Order ID'], 1);
-    let targetOrderRow = 0;
-    if (orders.getLastRow() > 1) {
-      const values = orders.getRange(2, colOrderId, orders.getLastRow() - 1, 1).getValues();
-      for (let oi = values.length - 1; oi >= 0; oi--) {
-        if (normalize_(values[oi][0]) === orderId) { targetOrderRow = oi + 2; break; }
-      }
-    }
-    if (targetOrderRow) {
-      updateByHeaders_(orders, targetOrderRow, {
-        'نوع إدخال العميل': customerMode,
-        'علامة العميل الخارجي': isExternal ? externalDigits : '',
-        'مصدر الطلب': source,
-        'أنشئ بواسطة': auth.user.username
-      }, true);
-    }
-  }
 
   departments.forEach(function(d, idx) {
     const lineNo = String(firstLineNumber + idx).padStart(2, '0');
@@ -10189,14 +10269,6 @@ function createManualOrder_(e) {
       heatPress: heatPress,
       flyPrint: flyPrint
     }));
-    const hLines = headersMap_(lines);
-    const newLineRow = lines.getLastRow();
-    updateByHeaders_(lines, newLineRow, {
-      'نوع إدخال العميل': customerMode,
-      'علامة العميل الخارجي': isExternal ? externalDigits : '',
-      'مصدر الطلب': source,
-      'أنشئ بواسطة': auth.user.username
-    }, true);
   });
 
   if (reusedOrder) syncOrderFromLines_(orderId);
@@ -10213,10 +10285,9 @@ function createManualOrder_(e) {
     details: reusedOrder ? ('تم الحفاظ على أوردر واحد للعميل داخل نفس القسم' + (dateMoved ? ' وترحيل تاريخ الاستلام' : '')) : (isExternal ? ('علامة العميل الخارجي: ' + externalDigits) : (debtAmount > 0 ? 'تم تسجيل الأوردر مع تنبيه مديونية' : 'تم تسجيل أوردر جديد'))
   });
 
-  SpreadsheetApp.flush();
   const trendosV1908Response = {
     success: true,
-    version: "V1924_DEPARTMENT_SCOPED_OPEN_ORDER",
+    version: "V1925_FAST_READ_WRITE",
     orderId: orderId,
     lineId: orderId + '-' + String(firstLineNumber).padStart(2, '0'),
     linesCreated: departments.length,
