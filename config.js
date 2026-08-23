@@ -73,3 +73,14 @@ window.MATBAGY_V1931_TREND_MASTER = true;
 window.MATBAGY_V1931_SERVER_PAGING = true;
 window.MATBAGY_V1931_DEBT_RESTRICTION_LIST = true;
 window.MATBAGY_V1931_AUTOMATION_CENTER = true;
+
+// Attendance / daily employee operation V1
+window.MATBAGY_ATTENDANCE_V1 = true;
+(function loadTrendAttendanceV1(){
+  if (document.getElementById('trendAttendanceV1Loader')) return;
+  var s = document.createElement('script');
+  s.id = 'trendAttendanceV1Loader';
+  s.src = 'attendance-v1.js?v=20260824a';
+  s.defer = true;
+  (document.head || document.documentElement).appendChild(s);
+})();
