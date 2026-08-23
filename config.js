@@ -57,7 +57,6 @@ window.MATBAGY_V1900_BULK_DELIVER_READY = true;
 // V1903 External / Walk-in customers
 window.MATBAGY_V1904_INVOICE_ROWS_ENTER_TAB = true;
 
-
 // V1906 Matbagy Sheets Access
 window.MATBAGY_SHEETS_ALLOWED_EMPLOYEES = ['ضياء','ريفان','ريڤان','وائل','diaa','revan','rivan','wael'];
 window.MATBAGY_V1906_SHEETS_ACCESS = true;
@@ -74,13 +73,23 @@ window.MATBAGY_V1931_SERVER_PAGING = true;
 window.MATBAGY_V1931_DEBT_RESTRICTION_LIST = true;
 window.MATBAGY_V1931_AUTOMATION_CENTER = true;
 
+// V1932 management layer
+window.MATBAGY_MANAGER_CENTER_V1932 = true;
+window.MATBAGY_CUSTOMER_MANAGER_V1 = true;
+window.MATBAGY_DISABLE_DEMO_OPERATIONS = true;
+
+function trendLoadModuleV1932(id, src){
+  if (document.getElementById(id)) return;
+  var s=document.createElement('script'); s.id=id; s.src=src; s.defer=true;
+  (document.head || document.documentElement).appendChild(s);
+}
+
 // Attendance / daily employee operation V1
 window.MATBAGY_ATTENDANCE_V1 = true;
-(function loadTrendAttendanceV1(){
-  if (document.getElementById('trendAttendanceV1Loader')) return;
-  var s = document.createElement('script');
-  s.id = 'trendAttendanceV1Loader';
-  s.src = 'attendance-v1.js?v=20260824c';
-  s.defer = true;
-  (document.head || document.documentElement).appendChild(s);
-})();
+trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824d');
+
+// Manager command center works on current V1931 backend.
+trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824d');
+
+// Customer Manager requires the V1932 Apps Script route; the UI will surface server errors until the route is deployed.
+trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824d');
