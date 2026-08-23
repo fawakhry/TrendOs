@@ -93,3 +93,7 @@ trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=
 
 // Customer Manager probes the backend first and stays hidden until the V1932 Apps Script route is deployed.
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824d');
+
+// Persistent, non-blocking operations companion for employees.
+window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = true;
+trendLoadModuleV1932('trendEmployeeOpsCoachV1Loader','employee-ops-coach-v1.js?v=20260824a');
