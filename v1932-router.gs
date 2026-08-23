@@ -8,12 +8,14 @@ function trendosV1932TryRoute_(e, payload) {
 
   // Meta webhook verification (GET with no TrendOS action).
   if (!action && String(p['hub.mode'] || '') === 'subscribe') {
-    return customerManagerWebhookVerifyV1_(e);
+    if (typeof customerManagerWebhookVerifyV1_ === 'function') return customerManagerWebhookVerifyV1_(e);
+    return ContentService.createTextOutput('customer-manager-not-deployed');
   }
 
   // WhatsApp Cloud API incoming webhook.
   if (payload && String(payload.object || '') === 'whatsapp_business_account') {
-    return output_(customerManagerWebhookV1_(payload), callback);
+    if (typeof customerManagerWebhookV1_ === 'function') return output_(customerManagerWebhookV1_(payload), callback);
+    return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
   }
 
   // Remove demo operations from production.
@@ -21,12 +23,19 @@ function trendosV1932TryRoute_(e, payload) {
     return output_({ success:false, message:'وضع الديمو متوقف في نسخة الإنتاج.' }, callback);
   }
 
+  // Attendance remains on the existing Hybrid fallback until the native module is present.
   if (action === 'attendanceV1') {
-    return output_(attendanceV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof attendanceV1_ === 'function') {
+      return output_(attendanceV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    }
+    return null;
   }
 
   if (action === 'customerManagerV1') {
-    return output_(customerManagerV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof customerManagerV1_ === 'function') {
+      return output_(customerManagerV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    }
+    return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
   }
 
   return null;
