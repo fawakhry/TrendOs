@@ -1,0 +1,74 @@
+name: Attendance V1 integrate
+
+on:
+  push:
+    branches:
+      - feature/attendance-v1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/attendance-v1
+          fetch-depth: 0
+
+      - name: Integrate attendance backend into Code.gs
+        shell: python
+        run: |
+          from pathlib import Path
+          code_path = Path('Code.gs')
+          backend_path = Path('attendance-backend-v1.gs')
+          code = code_path.read_text(encoding='utf-8')
+          backend = backend_path.read_text(encoding='utf-8')
+
+          route = 'else if (action === "attendanceV1") result = attendanceV1_(e);'
+          anchor = 'else if (action === "login") result = login_(e);'
+          if route not in code:
+              if anchor not in code:
+                  raise SystemExit('Could not find doGet login route anchor')
+              code = code.replace(anchor, route + '\n    ' + anchor, 1)
+
+          marker = '/*********************** Attendance V1 integrated backend ***********************/'
+          if marker not in code:
+              code = code.rstrip() + '\n\n' + marker + '\n\n' + backend.strip() + '\n'
+
+          code_path.write_text(code, encoding='utf-8')
+
+      - name: Verify integration markers
+        shell: bash
+        run: |
+          grep -F 'action === "attendanceV1"' Code.gs
+          grep -F 'function attendanceV1_(e)' Code.gs
+          grep -F 'ATTENDANCE_SHEET_V1' Code.gs
+
+      - name: JavaScript syntax checks
+        shell: bash
+        run: |
+          node --check < Code.gs
+          node --check app.js
+          node --check attendance-v1.js
+          node --check config.js
+
+      - name: Existing TrendOS tests
+        shell: bash
+        run: |
+          node tests/trendos_v1931.test.js
+
+      - name: Commit integrated backend
+        shell: bash
+        run: |
+          if git diff --quiet -- Code.gs; then
+            echo 'Code.gs already integrated.'
+            exit 0
+          fi
+          git config user.name 'trendos-attendance-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add Code.gs
+          git commit -m 'feat: integrate Attendance V1 into unified backend'
+          git push origin HEAD:feature/attendance-v1
