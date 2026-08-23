@@ -91,5 +91,5 @@ trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824d');
 // Manager command center works on current V1931 backend.
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824d');
 
-// Customer Manager requires the V1932 Apps Script route; the UI will surface server errors until the route is deployed.
+// Customer Manager probes the backend first and stays hidden until the V1932 Apps Script route is deployed.
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824d');
