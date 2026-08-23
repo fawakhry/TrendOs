@@ -96,4 +96,4 @@ trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20
 
 // Persistent, non-blocking operations companion for employees.
 window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = true;
-trendLoadModuleV1932('trendEmployeeOpsCoachV1Loader','employee-ops-coach-v1.js?v=20260824a');
+trendLoadModuleV1932('trendEmployeeOpsCoachV1Loader','employee-ops-coach-v1.js?v=20260824b');
