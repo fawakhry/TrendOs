@@ -345,6 +345,7 @@
       ui.current = out.state;
       ui.config = Object.assign(defaultConfig(), out.config || {});
       render();
+      setTimeout(schedulePresenceCheck, 0);
       return out;
     }
     const typeMap = {
@@ -363,6 +364,7 @@
     ui.current = computeLocal(st);
     if (type !== "presence_confirmed") await saveCentralSnapshot(type, st, note);
     render();
+    setTimeout(schedulePresenceCheck, 0);
     return { success: true, state: ui.current, config: ui.config };
   }
 
@@ -636,7 +638,6 @@
     clearInterval(ui.timers.manager);
     ui.timers.state = setInterval(async function () {
       await loadState();
-      if (!isAdminUser()) schedulePresenceCheck();
     }, 60000);
     ui.timers.prayer = setInterval(checkPrayerTime, 60000);
     ui.timers.manager = setInterval(function () { if (isAdminUser()) renderManager(); }, 120000);
