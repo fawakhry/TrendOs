@@ -1,6 +1,7 @@
-// TrendOS Attendance V1 backend module.
-// IMPORTANT: Apps Script must route action === "attendanceV1" to attendanceV1_(e).
-// This module reuses the existing TrendOS helpers: ss_(), authorize_(), headersMap_(), firstCol_(), normalize_().
+// TrendOS Attendance V1 native backend module (optional upgrade).
+// V1.1 frontend works immediately through the existing TrendOS hybrid fallback.
+// When Apps Script deployment access is available, route action === "attendanceV1" to attendanceV1_(e).
+// This module reuses existing TrendOS helpers: ss_(), authorize_(), headersMap_(), firstCol_(), normalize_().
 
 const ATTENDANCE_SHEET_V1 = "سجل الدوام";
 const ATTENDANCE_PULSE_SHEET_V1 = "نبض الحضور";
@@ -161,7 +162,6 @@ function attendanceComputeV1_(sessionId) {
     } else if (e.type === "prayer_break_start") {
       closeWork(t); closeRest(t); status = "prayer";
     } else if (e.type === "missed_check") {
-      // Do not deduct time or make an employment decision automatically.
       needsReview = true; status = "review";
     } else if (e.type === "end_day") {
       closeWork(t); closeRest(t); end = t; status = "ended";
@@ -174,17 +174,7 @@ function attendanceComputeV1_(sessionId) {
   const workMinutes = workMs / 60000;
   const restMinutes = restMs / 60000;
   const pauseMinutes = Math.max(0, totalMs / 60000 - workMinutes);
-  return {
-    status: status,
-    needsReview: needsReview,
-    start: start,
-    end: end,
-    workMinutes: workMinutes,
-    restMinutes: restMinutes,
-    pauseMinutes: pauseMinutes,
-    totalMinutes: totalMs / 60000,
-    lastPulse: lastPulse || (events.length ? events[events.length - 1].time : null)
-  };
+  return { status:status, needsReview:needsReview, start:start, end:end, workMinutes:workMinutes, restMinutes:restMinutes, pauseMinutes:pauseMinutes, totalMinutes:totalMs/60000, lastPulse:lastPulse || (events.length ? events[events.length-1].time : null) };
 }
 
 function attendanceProductivityV1_(username) {
@@ -194,17 +184,13 @@ function attendanceProductivityV1_(username) {
   const cTime = firstCol_(h, ["الوقت"], 1), cOrder = firstCol_(h, ["رقم الأوردر"], 2), cLine = firstCol_(h, ["رقم البند"], 3), cNew = firstCol_(h, ["إلى حالة"], 8), cBy = firstCol_(h, ["بواسطة"], 11);
   const last = sheet.getLastRow();
   const scan = Math.min(Math.max(1, last - 1), 2000);
-  const startRow = last - scan + 1;
-  const cols = Math.max(cTime,cOrder,cLine,cNew,cBy);
-  const rows = sheet.getRange(startRow, 1, scan, cols).getValues();
-  const today = attendanceDateKeyV1_();
-  const orderSet = {}, lineSet = {};
+  const rows = sheet.getRange(last - scan + 1, 1, scan, Math.max(cTime,cOrder,cLine,cNew,cBy)).getValues();
+  const today = attendanceDateKeyV1_(), orderSet = {}, lineSet = {};
   rows.forEach(function (r) {
     if (String(r[cBy - 1] || "").trim() !== username) return;
     const t = r[cTime - 1] instanceof Date ? r[cTime - 1] : new Date(r[cTime - 1]);
     if (!t || isNaN(t.getTime()) || attendanceDateKeyV1_(t) !== today) return;
-    const st = String(r[cNew - 1] || "").trim();
-    if (["جاهز للاستلام","تم التسليم","تم التنفيذ"].indexOf(st) === -1) return;
+    if (["جاهز للاستلام","تم التسليم","تم التنفيذ"].indexOf(String(r[cNew - 1] || "").trim()) === -1) return;
     const oid = String(r[cOrder - 1] || "").trim(), lid = String(r[cLine - 1] || "").trim();
     if (oid) orderSet[oid] = true;
     if (lid) lineSet[lid] = true;
@@ -216,10 +202,7 @@ function attendancePrayerTimesV1_(config) {
   if (!config.prayerReminders) return {};
   const cache = CacheService.getScriptCache();
   const cacheKey = "ATT_PRAYER_V1_" + attendanceDateKeyV1_() + "_" + String(config.prayerLocation || "Benha").replace(/[^A-Za-z0-9]/g,"_");
-  try {
-    const saved = cache.get(cacheKey);
-    if (saved) return JSON.parse(saved);
-  } catch (e) {}
+  try { const saved = cache.get(cacheKey); if (saved) return JSON.parse(saved); } catch (e) {}
   let city = "Benha", country = "Egypt";
   const parts = String(config.prayerLocation || "Benha, Egypt").split(",");
   if (parts[0]) city = parts[0].trim() || city;
@@ -229,9 +212,7 @@ function attendancePrayerTimesV1_(config) {
     const url = "https://api.aladhan.com/v1/timingsByCity/" + encodeURIComponent(datePath) + "?city=" + encodeURIComponent(city) + "&country=" + encodeURIComponent(country) + "&method=5";
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions:true, followRedirects:true });
     if (response.getResponseCode() >= 200 && response.getResponseCode() < 300) {
-      const obj = JSON.parse(response.getContentText() || "{}");
-      const t = obj && obj.data && obj.data.timings ? obj.data.timings : {};
-      const clean = {};
+      const obj = JSON.parse(response.getContentText() || "{}"), t = obj && obj.data && obj.data.timings ? obj.data.timings : {}, clean = {};
       ["Fajr","Dhuhr","Asr","Maghrib","Isha"].forEach(function (k) { if (t[k]) clean[k] = String(t[k]).replace(/\s*\(.+\)\s*$/,"").slice(0,5); });
       try { cache.put(cacheKey, JSON.stringify(clean), 21600); } catch (e2) {}
       return clean;
@@ -243,11 +224,9 @@ function attendancePrayerTimesV1_(config) {
 function attendanceUpdateSessionV1_(session, auth) {
   const found = attendanceFindSessionRowV1_(session.sessionId);
   if (!found) return null;
-  const summary = attendanceComputeV1_(session.sessionId);
-  const prod = attendanceProductivityV1_(auth.user.username);
+  const summary = attendanceComputeV1_(session.sessionId), prod = attendanceProductivityV1_(auth.user.username);
   const stateText = { working:"يعمل", paused:"Pause", rest:"Rest", prayer:"صلاة", ended:"انتهى اليوم", review:"يحتاج مراجعة", not_started:"لم يبدأ" }[summary.status] || summary.status;
-  const row = found.rowNumber;
-  const sheet = found.sheet;
+  const row = found.rowNumber, sheet = found.sheet;
   sheet.getRange(row, 6).setValue(summary.end || "");
   sheet.getRange(row, 7).setValue(attendanceDurationV1_(summary.totalMinutes));
   sheet.getRange(row, 8).setValue(attendanceDurationV1_(summary.workMinutes));
@@ -258,27 +237,13 @@ function attendanceUpdateSessionV1_(session, auth) {
   sheet.getRange(row, 13).setValue(prod.orders);
   sheet.getRange(row, 14).setValue(prod.lines);
   sheet.getRange(row, 16).setValue(summary.needsReview ? "يحتاج مراجعة" : "");
-  return {
-    sessionId: session.sessionId,
-    status: summary.status,
-    startAt: summary.start ? attendanceIsoV1_(summary.start) : "",
-    endAt: summary.end ? attendanceIsoV1_(summary.end) : "",
-    totalMinutes: Math.floor(summary.totalMinutes),
-    workMinutes: Math.floor(summary.workMinutes),
-    pauseMinutes: Math.floor(summary.pauseMinutes),
-    restMinutes: Math.floor(summary.restMinutes),
-    lastPulseAt: summary.lastPulse ? attendanceIsoV1_(summary.lastPulse) : "",
-    needsReview: summary.needsReview,
-    ordersCompleted: prod.orders,
-    linesCompleted: prod.lines
-  };
+  return { sessionId:session.sessionId, status:summary.status, startAt:summary.start ? attendanceIsoV1_(summary.start) : "", endAt:summary.end ? attendanceIsoV1_(summary.end) : "", totalMinutes:Math.floor(summary.totalMinutes), workMinutes:Math.floor(summary.workMinutes), pauseMinutes:Math.floor(summary.pauseMinutes), restMinutes:Math.floor(summary.restMinutes), lastPulseAt:summary.lastPulse ? attendanceIsoV1_(summary.lastPulse) : "", needsReview:summary.needsReview, ordersCompleted:prod.orders, linesCompleted:prod.lines };
 }
 
 function attendanceStartV1_(auth) {
   let session = attendanceFindOpenSessionV1_(auth.user.username);
   if (!session) {
-    const sheet = attendanceEnsureSheetV1_(ATTENDANCE_SHEET_V1, ATTENDANCE_HEADERS_V1);
-    const now = attendanceNowV1_();
+    const sheet = attendanceEnsureSheetV1_(ATTENDANCE_SHEET_V1, ATTENDANCE_HEADERS_V1), now = attendanceNowV1_();
     const sessionId = "AT-" + attendanceDateKeyV1_(now).replace(/-/g,"") + "-" + auth.user.username + "-" + Utilities.getUuid().slice(0,8);
     sheet.appendRow([sessionId, attendanceDateDisplayV1_(now), auth.user.username, auth.user.department || "", now, "", "00:00", "00:00", "00:00", "0 دقيقة", "يعمل", now, 0, 0, "", ""]);
     session = { sessionId:sessionId, rowNumber:sheet.getLastRow() };
@@ -288,32 +253,19 @@ function attendanceStartV1_(auth) {
 }
 
 function attendanceEventV1_(auth, op, p) {
-  let session = attendanceFindOpenSessionV1_(auth.user.username);
+  const session = attendanceFindOpenSessionV1_(auth.user.username);
   if (!session) return { success:false, message:"ابدأ يوم العمل أولاً." };
-  const cfg = attendanceSettingsV1_();
-  const summary = attendanceComputeV1_(session.sessionId);
-  const map = {
-    pause:"pause", resume:"resume", restStart:"rest_start", prayerStart:"prayer_break_start",
-    confirm:"presence_confirmed", heartbeat:"heartbeat", missedCheck:"missed_check", end:"end_day"
-  };
+  const cfg = attendanceSettingsV1_(), summary = attendanceComputeV1_(session.sessionId);
+  const map = { pause:"pause", resume:"resume", restStart:"rest_start", prayerStart:"prayer_break_start", confirm:"presence_confirmed", heartbeat:"heartbeat", missedCheck:"missed_check", end:"end_day" };
   const type = map[op];
   if (!type) return { success:false, message:"أمر دوام غير معروف." };
   if (op === "restStart" && summary.restMinutes >= cfg.dailyRestMinutes) return { success:false, message:"تم استخدام Rest اليومي بالكامل." };
-  if (op === "end" && summary.status === "ended") return { success:true, message:"اليوم منتهٍ بالفعل." };
-  attendanceAppendPulseV1_(session, auth, type, {
-    source: String(p.source || "TrendOS"),
-    note: String(p.note || ""),
-    responseSeconds: Number(p.responseSeconds || 0),
-    review: op === "missedCheck",
-    reviewReason: op === "missedCheck" ? "لم يتم تأكيد التواجد خلال المهلة" : "",
-    auto: op === "heartbeat" || op === "missedCheck"
-  });
+  attendanceAppendPulseV1_(session, auth, type, { source:String(p.source || "TrendOS"), note:String(p.note || ""), responseSeconds:Number(p.responseSeconds || 0), review:op === "missedCheck", reviewReason:op === "missedCheck" ? "لم يتم تأكيد التواجد خلال المهلة" : "", auto:op === "heartbeat" || op === "missedCheck" });
   return { success:true, session:session };
 }
 
 function attendanceStateResponseV1_(auth) {
-  const cfg = attendanceSettingsV1_();
-  const session = attendanceFindOpenSessionV1_(auth.user.username);
+  const cfg = attendanceSettingsV1_(), session = attendanceFindOpenSessionV1_(auth.user.username);
   if (!session) return { success:true, state:{ status:"not_started", workMinutes:0, pauseMinutes:0, restMinutes:0, totalMinutes:0, ordersCompleted:0, linesCompleted:0, prayerTimes:attendancePrayerTimesV1_(cfg) }, config:cfg };
   const state = attendanceUpdateSessionV1_(session, auth) || { status:"not_started" };
   state.prayerTimes = attendancePrayerTimesV1_(cfg);
@@ -322,16 +274,12 @@ function attendanceStateResponseV1_(auth) {
 
 function attendanceV1_(e) {
   e = e || { parameter:{} };
-  const p = e.parameter || {};
-  const auth = authorize_(p.username, p.token);
+  const p = e.parameter || {}, auth = authorize_(p.username, p.token);
   if (!auth.ok) return { success:false, message:auth.message };
   attendanceEnsureAllV1_();
   const op = String(p.op || "state").trim();
   if (op === "state" || op === "config") return attendanceStateResponseV1_(auth);
-  if (op === "start") {
-    const session = attendanceStartV1_(auth);
-    return attendanceStateResponseV1_(auth);
-  }
+  if (op === "start") { attendanceStartV1_(auth); return attendanceStateResponseV1_(auth); }
   const changed = attendanceEventV1_(auth, op, p);
   if (!changed.success) return changed;
   return attendanceStateResponseV1_(auth);
