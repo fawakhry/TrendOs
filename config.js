@@ -80,7 +80,7 @@ window.MATBAGY_ATTENDANCE_V1 = true;
   if (document.getElementById('trendAttendanceV1Loader')) return;
   var s = document.createElement('script');
   s.id = 'trendAttendanceV1Loader';
-  s.src = 'attendance-v1.js?v=20260824a';
+  s.src = 'attendance-v1.js?v=20260824b';
   s.defer = true;
   (document.head || document.documentElement).appendChild(s);
 })();
