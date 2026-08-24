@@ -19,7 +19,7 @@
       #trendOperationsHubV1.open .toh-drawer{display:block}.toh-head{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;background:#123a59;color:#fff;padding:10px 12px}.toh-head button{border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:8px;padding:6px 8px;cursor:pointer}
       .toh-tabs{display:flex;gap:6px;flex-wrap:wrap;padding:8px;background:#eef4f8}.toh-tabs button{border:1px solid #cad8e4;background:#fff;border-radius:9px;padding:7px 9px;font-weight:700;cursor:pointer}.toh-tabs button.active{background:#0f766e;color:#fff;border-color:#0f766e}
       .toh-body{padding:8px}.toh-empty{padding:18px;text-align:center;color:#667085}.toh-version{font-size:10px;color:#667085;padding:0 10px 9px}
-      #trendOperationsHubV1 .toh-body>#trendAttendanceV1,#trendOperationsHubV1 .toh-body>#trendPressControlV1,#trendOperationsHubV1 .toh-body>#employeeManagerStripsV2,#trendOperationsHubV1 .toh-body>#trendEmployeeAndonV1{position:static!important;inset:auto!important;width:auto!important;max-width:none!important;margin:0!important;box-shadow:none!important;display:block!important}
+      #trendOperationsHubV1 .toh-body>#trendAttendanceV1,#trendOperationsHubV1 .toh-body>#trendPressControlV1,#trendOperationsHubV1 .toh-body>#employeeManagerStripsV2,#trendOperationsHubV1 .toh-body>#trendEmployeeAndonV1{position:static!important;inset:auto!important;width:auto!important;max-width:none!important;margin:0!important;box-shadow:none!important}
       #mgr1932Btn{display:none!important}@media(max-width:600px){#trendOperationsHubV1{left:8px;bottom:8px}.toh-drawer{width:calc(100vw - 16px)!important;max-height:82vh!important}}
     `;document.head.appendChild(s);
   }
@@ -29,7 +29,7 @@
     document.dispatchEvent(new CustomEvent('trendos:refresh',{detail:{source:'operations-hub'}}));
   }
   function available(){
-    const a=targets.filter(t=>document.getElementById(t.id));
+    const a=targets.filter(t=>{const el=document.getElementById(t.id);return el&&getComputedStyle(el).display!=='none';});
     if(document.getElementById('mgr1932Btn'))a.push({id:'mgr1932Btn',label:'📊 لوحة المدير',action:true});
     return a;
   }
