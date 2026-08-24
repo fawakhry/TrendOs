@@ -1,7 +1,11 @@
 // TrendOS / Matbagy Benha - unified accounting configuration.
 // TrendOS and EasyStore must use the same Apps Script deployment so invoices and debts stay in sync.
-window.TREND_API_URL = "https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec";
-window.API_URL = window.TREND_API_URL;
+window.WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec";
+window.TREND_API_URL = window.WEB_APP_URL;
+window.API_URL = window.WEB_APP_URL;
+window.TRENDOS_SHEET_ID = "1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI";
+window.TRENDOS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI/edit";
+window.OPERATION_TIMEZONE = "Africa/Cairo";
 window.TRENDOS_UNIFIED_ACCOUNTING_BACKEND = true;
 window.MATBAGY_SECURE_API_PROXY_URL = "";
 
