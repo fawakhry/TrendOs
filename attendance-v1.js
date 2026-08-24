@@ -65,14 +65,9 @@
     }, extra || {});
   }
   async function api(action, extra) {
-    const params = authParams(Object.assign({ action: action }, extra || {}));
-    const qs = new URLSearchParams();
-    Object.keys(params).forEach(function (k) {
-      if (params[k] !== undefined && params[k] !== null) qs.set(k, String(params[k]));
-    });
-    const res = await fetch(API_URL + (API_URL.indexOf("?") === -1 ? "?" : "&") + qs.toString(), {
-      cache: "no-store", credentials: "omit"
-    });
+    const params = authParams(extra || {});
+    if (typeof window.trendosSecureApiV1922 === "function") return window.trendosSecureApiV1922(action, params);
+    const res = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(Object.assign({action:action},params)), cache:"no-store", credentials:"omit" });
     const data = await res.json();
     return data || {};
   }
