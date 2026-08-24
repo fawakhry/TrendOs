@@ -236,7 +236,7 @@
 
   async function loadCentralLatestForUser(username) {
     try {
-      const out = await api("getMatbagyNotes", {});
+      const out = await api("getMatbagyNotes", {category:CATEGORY,date:dateKey(),limit:80});
       if (!out.success || !Array.isArray(out.notes)) return null;
       const prefix = "ATT|" + username + "|" + dateKey() + "|";
       for (let i = 0; i < out.notes.length; i++) {
@@ -614,7 +614,7 @@
     if (!isAdminUser() || !ui.managerBox) return;
     const list = ui.root.querySelector('[data-ta="managerList"]');
     try {
-      const out = await api("getMatbagyNotes", {});
+      const out = await api("getMatbagyNotes", {category:CATEGORY,date:dateKey(),limit:80});
       const latest = {};
       (out.notes || []).forEach(function (n) {
         if (txt(n.category) !== CATEGORY) return;
