@@ -19,10 +19,10 @@
   function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||'',screen:screen()},extra||{});}
   async function api(action,extra){
     if(!API_URL) throw new Error('API غير مضبوط');
-    const q=new URLSearchParams();const p=auth(Object.assign({action},extra||{}));
-    Object.keys(p).forEach(k=>q.set(k,txt(p[k])));
-    const r=await fetch(API_URL+(API_URL.includes('?')?'&':'?')+q.toString(),{cache:'no-store',credentials:'omit'});
-    const d=await r.json();if(!d||d.success===false)throw new Error((d&&d.message)||'تعذر تحديث المتابعة');return d;
+    const p=auth(extra||{});let d;
+    if(typeof window.trendosSecureApiV1922==='function')d=await window.trendosSecureApiV1922(action,p);
+    else{const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},p)),cache:'no-store',credentials:'omit'});d=await r.json();}
+    if(!d||d.success===false)throw new Error((d&&d.message)||'تعذر تحديث المتابعة');return d;
   }
   function isDone(r){return ['تم التسليم','جاهز للاستلام','ملغى','ملغي','مكرر'].includes(txt(r.status));}
   function isUrgent(r){const p=norm(r.priority),f=norm(r.flyPrint||r.quickPrint||r.fastPrint||r['طباعة على الطاير']||r['طباعة ع الطاير']);return p.includes('عاجل')||p==='vip'||f==='نعم'||f==='true'||f==='1'||f.includes('الطاير');}
