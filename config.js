@@ -77,7 +77,7 @@ trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=
 
 window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2 = true;
-trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260824h');
+trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260824i');
 
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_DRAG_V2 = true;
 trendLoadModuleV1932('trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260824b');
