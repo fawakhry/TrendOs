@@ -82,5 +82,9 @@ trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-stri
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_DRAG_V2 = true;
 trendLoadModuleV1932('trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260824b');
 
+// Lean/Andon: employee can surface a blocker immediately instead of leaving work silently stopped.
+window.MATBAGY_EMPLOYEE_ANDON_V1 = true;
+trendLoadModuleV1932('trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20260824a');
+
 window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;
 trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260824g');
