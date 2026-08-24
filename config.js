@@ -86,7 +86,7 @@ trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824b');
 
 // Press batch control for Rivan/Wael/admin.
 window.MATBAGY_PRESS_CONTROL_V1 = true;
-trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260824a');
+trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260824b');
 
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824g');
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824g');
