@@ -30,14 +30,14 @@ window.MATBAGY_AUTO_INVOICE_REVIEW_LINK = true;
 window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1932 Daily Management + HR';
-window.MATBAGY_BATCH_VERSION = 'V1932_DAILY_MGMT_HR';
+window.MATBAGY_BUILD_VERSION = 'TrendOS V1932 Daily Management + HR + Press + Clockin';
+window.MATBAGY_BATCH_VERSION = 'V1932_DAILY_MGMT_HR_PRESS_CLOCKIN';
 window.MATBAGY_PATCH29_DEPT_INVOICE = false;
 window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
 window.MATBAGY_EASYSTORE_FIX5 = false;
 window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
 window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1932_DAILY_MGMT_HR';
+window.MATBAGY_UI_THEME_VERSION = 'V1932_DAILY_MGMT_HR_PRESS_CLOCKIN';
 window.MATBAGY_FIBER_EZCAD_URL = "https://fawakhry.github.io/fiber-auto-max-ezcad/";
 window.MATBAGY_V1900_BULK_DELIVER_READY = true;
 window.MATBAGY_V1904_INVOICE_ROWS_ENTER_TAB = true;
@@ -66,6 +66,10 @@ function trendLoadModuleV1932(id, src){
 window.MATBAGY_ATTENDANCE_V1 = true;
 trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824g');
 
+window.MATBAGY_ATTENDANCE_CLOCKIN_V1 = true;
+window.TRENDOS_ATTENDANCE_START = '12:00';
+trendLoadModuleV1932('trendAttendanceClockinV1Loader','attendance-clockin-ui-v1.js?v=20260824a');
+
 window.MATBAGY_PRAYER_PREP_V1 = true;
 trendLoadModuleV1932('trendPrayerPrepV1Loader','employee-prayer-prep-v1.js?v=20260824a');
 
@@ -79,6 +83,10 @@ trendLoadModuleV1932('trendCleaningPrepV1Loader','employee-cleaning-prep-v1.js?v
 // Compact HR self-service for all staff; admin receives broader HR data after backend deploy.
 window.MATBAGY_HR_V1 = true;
 trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824b');
+
+// Press batch control for Rivan/Wael/admin.
+window.MATBAGY_PRESS_CONTROL_V1 = true;
+trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260824a');
 
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824g');
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824g');
