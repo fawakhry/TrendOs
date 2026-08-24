@@ -88,11 +88,19 @@ function trendLoadModuleV1932(id, src){
 window.MATBAGY_ATTENDANCE_V1 = true;
 trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824g');
 
+// Five-minute prayer preparation reminder for all logged-in employees. Reminder only; no religious behavior is recorded or scored.
+window.MATBAGY_PRAYER_PREP_V1 = true;
+trendLoadModuleV1932('trendPrayerPrepV1Loader','employee-prayer-prep-v1.js?v=20260824a');
+
 // Manager command center is admin-only by design.
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824g');
 
 // Customer Manager probes the backend first and stays hidden until the V1932 Apps Script route is deployed.
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824g');
+
+// Post-delivery WhatsApp customer rating (1..5). The backend is idempotent by order and starts from go-live to avoid historic spam.
+window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;
+trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260824a');
 
 // Employee V2: two independent strips — coach + direct manager follow-up.
 window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
