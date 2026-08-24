@@ -107,7 +107,7 @@
     const note=latestManagerNote(),msg=ui.root.querySelector('[data-msg="manager"]');msg.textContent=note?noteContent(note):`يا ${name()}، لو في حاجة موقفاك افتح المحادثة واكتب لي.`;renderConversation();
   }
   async function refresh(){
-    if(ui.busy||!user()||!user().token)return;ui.busy=true;try{const out=await Promise.all([api('getRows',{screen:screen()}),api('getMatbagyNotes',{})]);const r=out[0]||{},n=out[1]||{};if(r.success!==false)ui.rows=Array.isArray(r.rows)?r.rows:[];if(n.success!==false)ui.notes=Array.isArray(n.notes)?n.notes:[];ui.lastOk=Date.now();render();}catch(e){if(ui.root){ui.root.querySelector('[data-msg="coach"]').textContent=`يا ${name()}، المتابعة موجودة لكن البيانات ما اتحدثتش دلوقتي.`;ui.root.querySelector('[data-msg="manager"]').textContent='المحادثة موجودة — هنحاول التحديث تلقائيًا.';}}finally{ui.busy=false;}
+    if(ui.busy||!user()||!user().token)return;ui.busy=true;try{const out=await Promise.all([api('getRows',{screen:screen()}),api('getMatbagyNotes',{employee:name(),limit:50})]);const r=out[0]||{},n=out[1]||{};if(r.success!==false)ui.rows=Array.isArray(r.rows)?r.rows:[];if(n.success!==false)ui.notes=Array.isArray(n.notes)?n.notes:[];ui.lastOk=Date.now();render();}catch(e){if(ui.root){ui.root.querySelector('[data-msg="coach"]').textContent=`يا ${name()}، المتابعة موجودة لكن البيانات ما اتحدثتش دلوقتي.`;ui.root.querySelector('[data-msg="manager"]').textContent='المحادثة موجودة — هنحاول التحديث تلقائيًا.';}}finally{ui.busy=false;}
   }
   window.TrendEmployeeManagerStripsV2={refresh:refresh};
   const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);build();}},400);
