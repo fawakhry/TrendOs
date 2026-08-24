@@ -68,7 +68,7 @@ function trendLoadModuleV1932(id, src){
 }
 
 window.MATBAGY_ATTENDANCE_V1 = true;
-trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824g');
+trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824h');
 window.__TRENDOS_ATTENDANCE_REST_LIMIT__ = 30;
 trendLoadModuleV1932('trendAttendanceLiveTimerV1Loader','attendance-live-timer-v1.js?v=20260824a');
 
