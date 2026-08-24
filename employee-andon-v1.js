@@ -11,9 +11,10 @@
   function name(){const u=user()||{};return txt(u.username||u.name)||'الموظف';}
   function screen(){return txt(state().screen||'');}
   async function api(action,extra){
-    const u=user()||{},q=new URLSearchParams(Object.assign({action,username:u.username||u.name||'',token:u.token||'',screen:screen()},extra||{}));
-    const r=await fetch(API_URL+(API_URL.includes('?')?'&':'?')+q.toString(),{cache:'no-store',credentials:'omit'});
-    const d=await r.json();if(!d||d.success===false)throw new Error((d&&d.message)||'تعذر إرسال طلب المساعدة');return d;
+    const u=user()||{},p=Object.assign({username:u.username||u.name||'',token:u.token||'',screen:screen()},extra||{});let d;
+    if(typeof window.trendosSecureApiV1922==='function')d=await window.trendosSecureApiV1922(action,p);
+    else{const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},p)),cache:'no-store',credentials:'omit'});d=await r.json();}
+    if(!d||d.success===false)throw new Error((d&&d.message)||'تعذر إرسال طلب المساعدة');return d;
   }
   function styles(){
     if(document.getElementById('trendEmployeeAndonV1Style'))return;
