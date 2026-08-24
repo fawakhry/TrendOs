@@ -38,5 +38,13 @@ function trendosV1932TryRoute_(e, payload) {
     return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
   }
 
+  // Go-Live bridge: production readiness creates invoice drafts only; final accounting remains permission-gated.
+  if (action === 'goLiveAutopilotV1') {
+    if (typeof goLiveAutopilotV1_ === 'function') {
+      return output_(goLiveAutopilotV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    }
+    return output_({ success:false, message:'Go-Live Autopilot backend غير منشور.' }, callback);
+  }
+
   return null;
 }
