@@ -86,18 +86,19 @@ function trendLoadModuleV1932(id, src){
 
 // Attendance / daily employee operation V1
 window.MATBAGY_ATTENDANCE_V1 = true;
-trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824d');
+trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824f');
 
-// Manager command center works on current V1931 backend.
-trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824d');
+// Manager command center is admin-only by design.
+trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824f');
 
 // Customer Manager probes the backend first and stays hidden until the V1932 Apps Script route is deployed.
-trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824d');
+trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824f');
 
-// Persistent, non-blocking operations companion for employees.
-window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = true;
-trendLoadModuleV1932('trendEmployeeOpsCoachV1Loader','employee-ops-coach-v1.js?v=20260824b');
+// Employee V2: two independent strips — coach + direct manager follow-up.
+window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
+window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2 = true;
+trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260824f');
 
 // Go-Live 01/09: Ready -> invoice draft -> authorized final invoice -> WhatsApp ready message.
 window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;
-trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260824a');
+trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260824f');
