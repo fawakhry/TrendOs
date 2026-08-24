@@ -12,8 +12,9 @@ function trendosV1932TryRoute_(e, payload) {
     return ContentService.createTextOutput('customer-manager-not-deployed');
   }
 
-  // WhatsApp Cloud API incoming webhook.
+  // WhatsApp Cloud API incoming webhook. Feedback capture runs in parallel with Customer Manager logging.
   if (payload && String(payload.object || '') === 'whatsapp_business_account') {
+    try { if (typeof customerFeedbackWebhookV1_ === 'function') customerFeedbackWebhookV1_(payload); } catch (feedbackErr) {}
     if (typeof customerManagerWebhookV1_ === 'function') return output_(customerManagerWebhookV1_(payload), callback);
     return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
   }
@@ -36,6 +37,13 @@ function trendosV1932TryRoute_(e, payload) {
       return output_(customerManagerV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
     }
     return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
+  }
+
+  if (action === 'customerFeedbackV1') {
+    if (typeof customerFeedbackV1_ === 'function') {
+      return output_(customerFeedbackV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    }
+    return output_({ success:false, message:'Customer Feedback backend غير منشور.' }, callback);
   }
 
   // Go-Live bridge: production readiness creates invoice drafts only; final accounting remains permission-gated.
