@@ -26,6 +26,11 @@ function trendosV1932TryRoute_(e, payload) {
     return null;
   }
 
+  if (action === 'attendanceClockinV1') {
+    if (typeof attendanceClockinV1_ === 'function') return output_(attendanceClockinV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    return output_({ success:false, message:'Clock-in backend غير منشور.' }, callback);
+  }
+
   if (action === 'customerManagerV1') {
     if (typeof customerManagerV1_ === 'function') return output_(customerManagerV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
     return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
@@ -44,6 +49,11 @@ function trendosV1932TryRoute_(e, payload) {
   if (action === 'cleaningV1') {
     if (typeof cleaningV1_ === 'function') return output_(cleaningV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
     return output_({ success:false, message:'Cleaning backend غير منشور.' }, callback);
+  }
+
+  if (action === 'pressControlV1') {
+    if (typeof pressControlV1_ === 'function') return output_(pressControlV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    return output_({ success:false, message:'Press Control backend غير منشور.' }, callback);
   }
 
   if (action === 'goLiveAutopilotV1') {
