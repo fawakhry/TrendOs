@@ -16,7 +16,7 @@
   function isAdmin(){const u=user()||{},k=(txt(u.username||u.name)+' '+txt(u.role)).toLowerCase();return txt(u.role).toLowerCase()==='admin'||k.includes('ضياء')||k.includes('diaa');}
   function screen(){return txt(state().screen||'');}
   function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||'',screen:screen()},extra||{});}
-  async function api(action,extra){const q=new URLSearchParams(auth(Object.assign({action},extra||{})));const r=await fetch(API_URL+(API_URL.includes('?')?'&':'?')+q.toString(),{cache:'no-store',credentials:'omit'});return r.json();}
+  async function api(action,extra){const payload=auth(extra||{});if(typeof window.trendosSecureApiV1922==='function')return window.trendosSecureApiV1922(action,payload);const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},payload)),cache:'no-store',credentials:'omit'});return r.json();}
   function norm(s){return txt(s).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();}
   function isDone(r){return ['تم التسليم','جاهز للاستلام','ملغى','ملغي','مكرر'].includes(txt(r.status));}
   function isUrgent(r){const p=norm(r.priority),f=norm(r.flyPrint||r.quickPrint||r.fastPrint||r['طباعة على الطاير']||r['طباعة ع الطاير']);return p.includes('عاجل')||p==='vip'||f==='نعم'||f==='true'||f==='1'||f.includes('الطاير');}
