@@ -1,0 +1,27 @@
+(function(){
+'use strict';
+if(window.__TRENDOS_CLEANING_PREP_V1__)return;window.__TRENDOS_CLEANING_PREP_V1__=true;
+if(window.MATBAGY_CLEANING_PREP_V1===false)return;
+const API=String(window.TREND_API_URL||window.API_URL||'').trim();
+const DEFAULT_START=String(window.TRENDOS_DEFAULT_WORKDAY_START||'12:00');
+const OVERRIDES=window.TRENDOS_WORKDAY_OVERRIDES||{};
+const PREP=Number(window.TRENDOS_CLEANING_PREP_MINUTES||30);
+const txt=v=>String(v==null?'':v).trim();
+function state(){return window.trendosState||window.state||{};}
+function user(){return state().user||null;}
+function name(){const u=user()||{};return txt(u.username||u.name)||'الموظف';}
+function dept(){const u=user()||{};return txt(u.department||state().screen||'');}
+function isAdmin(){const u=user()||{},r=txt(u.role).toLowerCase(),n=name().toLowerCase();return r==='admin'||n==='ضياء'||n==='diaa';}
+function dateKey(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
+function cairoParts(){const p=new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',hour12:false,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return o;}
+function currentMinutes(){const p=cairoParts();return Number(p.hour)*60+Number(p.minute);}
+function startMinutes(){const t=String(OVERRIDES[dateKey()]||DEFAULT_START).split(':');return Number(t[0]||12)*60+Number(t[1]||0);}
+function doneKey(){return 'trendCleaningDone|'+dateKey()+'|'+name().toLowerCase();}
+function isDone(){return localStorage.getItem(doneKey())==='1';}
+function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||''},extra||{});}
+async function api(action,extra){if(!API)throw new Error('API غير مضبوط');const q=new URLSearchParams();const p=auth(Object.assign({action},extra||{}));Object.keys(p).forEach(k=>q.set(k,txt(p[k])));const r=await fetch(API+(API.includes('?')?'&':'?')+q.toString(),{cache:'no-store',credentials:'omit'});return r.json();}
+function notify(title,body){try{if('Notification'in window&&Notification.permission==='granted')new Notification(title,{body:body});}catch(e){}}
+function styles(){if(document.getElementById('trendCleaningPrepV1Style'))return;const s=document.createElement('style');s.id='trendCleaningPrepV1Style';s.textContent=`#trendCleaningPrepV1{position:fixed;left:14px;top:14px;z-index:2147483390;width:min(350px,calc(100vw - 28px));direction:rtl;font-family:Tahoma,Arial;background:#fff;border:1px solid #dbe5ee;border-right:5px solid #ff6a00;border-radius:14px;box-shadow:0 12px 34px rgba(15,45,70,.18);padding:12px;color:#153047}#trendCleaningPrepV1 h4{margin:0 0 7px;font-size:14px}#trendCleaningPrepV1 .sub{font-size:11px;color:#607487;margin-bottom:8px}#trendCleaningPrepV1 label{display:block;font-size:12px;padding:5px 0}#trendCleaningPrepV1 button{width:100%;border:0;border-radius:10px;background:#005bff;color:#fff;font-weight:800;padding:9px;margin-top:8px;cursor:pointer}#trendCleaningPrepV1 .err{font-size:10px;color:#b42318;margin-top:6px}`;(document.head||document.documentElement).appendChild(s);}
+function show(){if(isAdmin()||!user()||!user().token||isDone())return;const now=currentMinutes(),start=startMinutes(),cleanAt=start-PREP;if(now<cleanAt)return;styles();let d=document.getElementById('trendCleaningPrepV1');if(d)return;d=document.createElement('div');d.id='trendCleaningPrepV1';const startText=String(Math.floor(start/60)).padStart(2,'0')+':'+String(start%60).padStart(2,'0');d.innerHTML=`<h4>🧽 يا ${name()}، وقت تنظيف وتجهيز الشغل</h4><div class="sub">ابدأ قبل فتح المكان بـ${PREP} دقيقة. موعد بدء العمل اليوم ${startText}.</div><label><input type="checkbox"> تنظيف الماكينة</label><label><input type="checkbox"> تنظيف سطح العمل</label><label><input type="checkbox"> إزالة مخلفات أمس</label><label><input type="checkbox"> فحص بصري سريع للماكينة</label><label><input type="checkbox"> ترتيب الخامات والأدوات</label><label><input type="checkbox"> نظافة المكان العام</label><button type="button">✅ تم التنظيف والتجهيز</button><div class="err"></div>`;document.body.appendChild(d);notify('وقت تجهيز المكان','ابدأ تنظيف الماكينات والمكان قبل بدء الشغل بـ'+PREP+' دقيقة.');d.querySelector('button').onclick=async function(){const checks=[...d.querySelectorAll('input[type=checkbox]')];if(checks.some(x=>!x.checked)){d.querySelector('.err').textContent='كمّل كل بنود التنظيف الأول.';return;}localStorage.setItem(doneKey(),'1');const payload={date:dateKey(),employee:name(),department:dept(),completedAt:new Date().toISOString(),checklist:'machine,work_surface,waste,visual_check,tools,place'};try{await api('cleaningV1',{op:'complete',payload:JSON.stringify(payload)});}catch(e){try{await api('saveMatbagyNote',{category:'CLEANING_V1',title:'CLEANING|'+name()+'|'+dateKey(),content:JSON.stringify(payload)});}catch(_e){}}d.remove();};}
+setInterval(show,60000);setTimeout(show,1200);window.addEventListener('focus',show);
+})();
