@@ -74,11 +74,11 @@ window.MATBAGY_CLEANING_PREP_V1 = true;
 window.TRENDOS_DEFAULT_WORKDAY_START = '12:00';
 window.TRENDOS_CLEANING_PREP_MINUTES = 30;
 window.TRENDOS_WORKDAY_OVERRIDES = {'2026-08-25':'10:00','2026-08-26':'10:00'};
-trendLoadModuleV1932('trendCleaningPrepV1Loader','employee-cleaning-prep-v1.js?v=20260824a');
+trendLoadModuleV1932('trendCleaningPrepV1Loader','employee-cleaning-prep-v1.js?v=20260824b');
 
 // Compact HR self-service for all staff; admin receives broader HR data after backend deploy.
 window.MATBAGY_HR_V1 = true;
-trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824a');
+trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824b');
 
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824g');
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824g');
