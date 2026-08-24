@@ -86,19 +86,23 @@ function trendLoadModuleV1932(id, src){
 
 // Attendance / daily employee operation V1
 window.MATBAGY_ATTENDANCE_V1 = true;
-trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824f');
+trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824g');
 
 // Manager command center is admin-only by design.
-trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824f');
+trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824g');
 
 // Customer Manager probes the backend first and stays hidden until the V1932 Apps Script route is deployed.
-trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824f');
+trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824g');
 
 // Employee V2: two independent strips — coach + direct manager follow-up.
 window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2 = true;
-trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260824f');
+trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260824g');
+
+// Employee can drag the two-strip unit anywhere; position is remembered per employee/device. No close control is provided.
+window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_DRAG_V2 = true;
+trendLoadModuleV1932('trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260824a');
 
 // Go-Live 01/09: Ready -> invoice draft -> authorized final invoice -> WhatsApp ready message.
 window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;
-trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260824f');
+trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260824g');
