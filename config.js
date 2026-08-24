@@ -115,4 +115,4 @@ trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=2
 
 // Unified floating tools, visible version, and one refresh point.
 window.MATBAGY_OPERATIONS_HUB_V1 = true;
-trendLoadModuleV1932('trendOperationsHubV1Loader','operations-hub-v1.js?v=20260824a');
+trendLoadModuleV1932('trendOperationsHubV1Loader','operations-hub-v1.js?v=20260824b');
