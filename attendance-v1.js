@@ -109,6 +109,8 @@
       endedAt: "",
       lastPresenceAt: "",
       needsReview: false,
+      reviewReason: "",
+      reviewAt: "",
       ordersCompleted: 0,
       linesCompleted: 0
     };
@@ -135,11 +137,11 @@
       st.status = "working";
     } else if (type === "pause") st.status = "paused";
     else if (type === "resume" || type === "presence_confirmed") {
-      st.status = "working"; st.needsReview = false;
+      st.status = "working"; st.needsReview = false; st.reviewReason = ""; st.reviewAt = "";
       if (type === "presence_confirmed") st.lastPresenceAt = event.at;
     } else if (type === "rest_start") st.status = "rest";
     else if (type === "prayer_break_start") st.status = "prayer";
-    else if (type === "missed_check") { st.status = "review"; st.needsReview = true; }
+    else if (type === "missed_check") { st.status = "review"; st.needsReview = true; st.reviewReason = txt(event.note) || "لم يتم الرد على تأكيد التواجد خلال المهلة"; st.reviewAt = event.at; }
     else if (type === "end_day") { st.status = "ended"; st.endedAt = event.at; }
     st.__localFlag = true;
     saveLocal(st);
@@ -195,6 +197,8 @@
       restMinutes: Math.floor(restMs / 60000),
       pauseMinutes: Math.floor(Math.max(0, totalMs - workMs) / 60000),
       needsReview: !!st.needsReview,
+      reviewReason: txt(st.reviewReason),
+      reviewAt: st.reviewAt || "",
       lastPulseAt: st.lastPresenceAt || "",
       ordersCompleted: Number(st.ordersCompleted || 0),
       linesCompleted: Number(st.linesCompleted || 0),
@@ -221,6 +225,8 @@
         restMinutes: cur.restMinutes,
         totalMinutes: cur.totalMinutes,
         needsReview: cur.needsReview,
+        reviewReason: cur.reviewReason,
+        reviewAt: cur.reviewAt,
         ordersCompleted: cur.ordersCompleted,
         linesCompleted: cur.linesCompleted,
         note: note || ""
@@ -265,6 +271,8 @@
       st.events.push({ type: "start_day", at: snap.startAt || at });
       st.events.push({ type: "missed_check", at: at });
       st.needsReview = true;
+      st.reviewReason = snap.reviewReason || "لم يتم الرد على تأكيد التواجد خلال المهلة";
+      st.reviewAt = snap.reviewAt || at;
     } else if (snap.status === "ended") {
       st.events.push({ type: "start_day", at: snap.startAt || at });
       st.events.push({ type: "end_day", at: snap.endAt || at });
@@ -399,7 +407,7 @@
       .ta-note{font-size:12px;color:#66788a;margin-top:8px;line-height:1.5}.ta-mode{font-size:10px;opacity:.7;margin-top:5px}
       .ta-modal,.ta-start-overlay{position:fixed;inset:0;z-index:2147483000;background:rgba(8,25,40,.76);display:flex;align-items:center;justify-content:center;padding:18px;direction:rtl;font-family:Tahoma,Arial,sans-serif}.ta-modal.hidden,.ta-start-overlay.hidden{display:none}
       .ta-card,.ta-start-box{width:min(520px,100%);background:#fff;border-radius:18px;padding:22px;color:#153047;box-shadow:0 24px 80px rgba(0,0,0,.25)}.ta-start-box{text-align:center}.ta-card h2,.ta-start-box h2{margin:0 0 8px}.ta-card p,.ta-start-box p{line-height:1.65}
-      .ta-manager-list{max-height:320px;overflow:auto}.ta-emp{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:6px;padding:8px;border-bottom:1px solid #e7edf3;font-size:12px}.ta-emp.review{background:#fff0f0}.ta-emp b{font-size:13px}
+      .ta-manager-list{max-height:360px;overflow:auto}.ta-emp{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:6px;padding:8px;border-bottom:1px solid #e7edf3;font-size:12px}.ta-emp.review{background:#fff0f0}.ta-emp b{font-size:13px}.ta-review-detail{grid-column:1/-1;background:#fff;border-right:4px solid #b42318;border-radius:7px;padding:7px 9px;line-height:1.6;color:#7a271a}.ta-review-detail strong{display:block;color:#b42318}.ta-employee-alert{display:none;margin:0 0 10px;background:#fff0f0;border:1px solid #fecdca;border-right:5px solid #b42318;border-radius:10px;padding:9px;line-height:1.6;font-size:12px}.ta-employee-alert.show{display:block}.ta-employee-alert b{display:block;color:#b42318}
       @media(max-width:600px){#trendAttendanceV1{left:8px;bottom:8px;width:calc(100vw - 16px)}}
     `;
     document.head.appendChild(style);
@@ -414,6 +422,7 @@
         <div class="ta-head"><strong data-ta="title">🟢 تشغيل الموظف</strong><span class="ta-badge" data-ta="status">-</span></div>
         <div class="ta-body">
           <div data-ta="employeeBox">
+            <div class="ta-employee-alert" data-ta="reviewAlert"></div>
             <div class="ta-grid">
               <div class="ta-stat">وقت العمل<b data-ta="work">00:00</b></div>
               <div class="ta-stat">التوقف<b data-ta="pause">00:00</b></div>
@@ -482,6 +491,12 @@
     ui.root.querySelector('[data-ta="pause"]').textContent = fmtMinutes(cur.pauseMinutes);
     ui.root.querySelector('[data-ta="rest"]').textContent = Math.floor(Number(cur.restMinutes || 0)) + "/" + Number(cfg.dailyRestMinutes || REST_DEFAULT) + " د";
     ui.root.querySelector('[data-ta="orders"]').textContent = Number(cur.ordersCompleted || 0) + " أوردر";
+    const reviewAlert = ui.root.querySelector('[data-ta="reviewAlert"]');
+    if (reviewAlert) {
+      const reason = txt(cur.reviewReason) || "لم يتم الرد على تأكيد التواجد خلال المهلة المحددة.";
+      reviewAlert.classList.toggle("show", !!cur.needsReview || cur.status === "review");
+      reviewAlert.innerHTML = "<b>⚠ المشكلة: "+escapeHtml(reason)+"</b><span>المطلوب: لو أنت موجود اضغط Resume، ولو خارج المكان استخدم Pause. بعد الإجراء ترجع الحالة طبيعية.</span>";
+    }
     const buttons = {};
     ui.root.querySelectorAll("[data-action]").forEach(function (b) { buttons[b.dataset.action] = b; });
     const s = cur.status || "not_started";
@@ -620,7 +635,9 @@
       }
       list.innerHTML = names.map(function (name) {
         const p = latest[name];
-        return '<div class="ta-emp '+(p.needsReview?'review':'')+'"><b>'+escapeHtml(name)+'</b><span>'+escapeHtml(statusLabel(p.status))+'</span><span>'+fmtMinutes(p.workMinutes)+' عمل</span><span>'+escapeHtml(p.department||'-')+'</span><span>'+Number(p.ordersCompleted||0)+' أوردر</span><span>'+ (p.needsReview?'⚠ مراجعة':'✓') +'</span></div>';
+        const reason = escapeHtml(p.reviewReason || "لم يتم الرد على تأكيد التواجد خلال المهلة المحددة");
+        const detail = p.needsReview ? '<div class="ta-review-detail"><strong>السبب: '+reason+'</strong><span>المطلوب من الموظف: يضغط Resume إذا كان موجودًا، أو Pause إذا كان خارج المكان.</span></div>' : "";
+        return '<div class="ta-emp '+(p.needsReview?'review':'')+'"><b>'+escapeHtml(name)+'</b><span>'+escapeHtml(statusLabel(p.status))+'</span><span>'+fmtMinutes(p.workMinutes)+' عمل</span><span>'+escapeHtml(p.department||'-')+'</span><span>'+Number(p.ordersCompleted||0)+' أوردر</span><span>'+ (p.needsReview?'⚠ راجع السبب':'✓') +'</span>'+detail+'</div>';
       }).join("");
       const review = names.filter(function (n) { return latest[n].needsReview; });
       if (review.length) notify("TrendOS - مدير التشغيل", "يوجد موظف يحتاج مراجعة: " + review.join("، "));
