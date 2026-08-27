@@ -43,9 +43,17 @@
       if(/واتساب|إرسال|ارسال/.test(t)) b.classList.add('action-whatsapp');
     });
   }
-  document.addEventListener('DOMContentLoaded',function(){mount();polishVersion();groupDangerButtons();});
-  setTimeout(function(){mount();polishVersion();groupDangerButtons();},400);
-  setTimeout(function(){mount();polishVersion();groupDangerButtons();},1800);
+  function loadCustomerManagerV1933(){
+    if(window.TrendOSCustomerManagerV1933||document.getElementById('trendosCustomerManagerLoaderV1933'))return;
+    var s=document.createElement('script');
+    s.id='trendosCustomerManagerLoaderV1933';
+    s.src='customer_manager_v1933.js?v=20260827a';
+    s.async=true;
+    document.head.appendChild(s);
+  }
+  document.addEventListener('DOMContentLoaded',function(){mount();polishVersion();groupDangerButtons();loadCustomerManagerV1933();});
+  setTimeout(function(){mount();polishVersion();groupDangerButtons();loadCustomerManagerV1933();},400);
+  setTimeout(function(){mount();polishVersion();groupDangerButtons();loadCustomerManagerV1933();},1800);
   /* V1879: no repeated visual interval */
   if(window.matchMedia){try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',apply);}catch(e){}}
 })();
