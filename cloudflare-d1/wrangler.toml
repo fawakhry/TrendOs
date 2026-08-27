@@ -9,5 +9,5 @@ CORS_ORIGINS = "https://fawakhry.github.io,http://localhost:8000,http://127.0.0.
 [[d1_databases]]
 binding = "DB"
 database_name = "trendos-main"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
 migrations_dir = "migrations"
