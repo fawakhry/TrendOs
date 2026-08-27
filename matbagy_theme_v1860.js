@@ -51,9 +51,21 @@
     s.async=true;
     document.head.appendChild(s);
   }
-  document.addEventListener('DOMContentLoaded',function(){mount();polishVersion();groupDangerButtons();loadCustomerManagerV1933();});
-  setTimeout(function(){mount();polishVersion();groupDangerButtons();loadCustomerManagerV1933();},400);
-  setTimeout(function(){mount();polishVersion();groupDangerButtons();loadCustomerManagerV1933();},1800);
+  function loadCustomerManagerGuardV1933(){
+    if(window.TrendOSCustomerManagerGuardV1933||document.getElementById('trendosCustomerManagerGuardLoaderV1933'))return;
+    var s=document.createElement('script');
+    s.id='trendosCustomerManagerGuardLoaderV1933';
+    s.src='customer_manager_guard_v1933.js?v=20260827b';
+    s.async=true;
+    document.head.appendChild(s);
+  }
+  function loadCustomerTools(){
+    loadCustomerManagerV1933();
+    loadCustomerManagerGuardV1933();
+  }
+  document.addEventListener('DOMContentLoaded',function(){mount();polishVersion();groupDangerButtons();loadCustomerTools();});
+  setTimeout(function(){mount();polishVersion();groupDangerButtons();loadCustomerTools();},400);
+  setTimeout(function(){mount();polishVersion();groupDangerButtons();loadCustomerTools();},1800);
   /* V1879: no repeated visual interval */
   if(window.matchMedia){try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',apply);}catch(e){}}
 })();
