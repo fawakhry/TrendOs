@@ -42,6 +42,7 @@ function cleanPhone(value) {
 }
 
 function clampInt(value, fallback, min, max) {
+  if (value === null || value === undefined || String(value).trim() === '') return fallback;
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, Math.trunc(n)));
