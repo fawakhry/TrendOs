@@ -38,6 +38,7 @@ function cleanPhone(value) {
   let digits = String(value || '').replace(/[^0-9]/g, '');
   if (digits.startsWith('0020')) digits = digits.slice(2);
   if (digits.startsWith('20') && digits.length === 12) digits = '0' + digits.slice(2);
+  if (/^1[0125]\d{8}$/.test(digits)) digits = '0' + digits;
   return digits;
 }
 
