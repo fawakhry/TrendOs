@@ -43,11 +43,19 @@
       if(/واتساب|إرسال|ارسال/.test(t)) b.classList.add('action-whatsapp');
     });
   }
+  function loadCustomerManagerD1BridgeV1934(){
+    if(window.TrendOSCustomerManagerD1BridgeV1934||document.getElementById('trendosCustomerManagerD1BridgeV1934'))return;
+    var s=document.createElement('script');
+    s.id='trendosCustomerManagerD1BridgeV1934';
+    s.src='customer_manager_d1_bridge_v1934.js?v=20260829a';
+    s.async=true;
+    document.head.appendChild(s);
+  }
   function loadCustomerManagerV1933(){
     if(window.TrendOSCustomerManagerV1933||document.getElementById('trendosCustomerManagerLoaderV1933'))return;
     var s=document.createElement('script');
     s.id='trendosCustomerManagerLoaderV1933';
-    s.src='customer_manager_v1933.js?v=20260827a';
+    s.src='customer_manager_v1933.js?v=20260829d1';
     s.async=true;
     document.head.appendChild(s);
   }
@@ -60,6 +68,7 @@
     document.head.appendChild(s);
   }
   function loadCustomerTools(){
+    loadCustomerManagerD1BridgeV1934();
     loadCustomerManagerV1933();
     loadCustomerManagerGuardV1933();
   }
