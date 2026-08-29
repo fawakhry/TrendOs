@@ -86,14 +86,26 @@ function d1OrdersReadSheetStatsFromGoogle_(sheetName) {
 }
 
 function d1OrdersReadParseTime_(value) {
-  const t = Date.parse(String(value || ''));
+  const raw = String(value || '').trim();
+  if (!raw) return 0;
+
+  // Cloudflare D1 / SQLite CURRENT_TIMESTAMP is UTC but is returned as
+  // "YYYY-MM-DD HH:MM:SS" without an explicit timezone suffix.
+  // Apps Script otherwise interprets that shape as local time (Egypt +03),
+  // which incorrectly makes a fresh mirror look ~3 hours stale.
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? raw.replace(' ', 'T') + 'Z'
+    : raw;
+
+  const t = Date.parse(normalized);
   return Number.isFinite(t) ? t : 0;
 }
 
 function d1OrdersReadParityOne_(sheetName) {
   const d1 = d1OrdersReadFetchSheet_(sheetName);
   const google = d1OrdersReadSheetStatsFromGoogle_(sheetName);
-  const ageMs = d1OrdersReadParseTime_(d1.syncedAt) ? Math.max(0, Date.now() - d1OrdersReadParseTime_(d1.syncedAt)) : Number.MAX_SAFE_INTEGER;
+  const parsedSyncedAt = d1OrdersReadParseTime_(d1.syncedAt);
+  const ageMs = parsedSyncedAt ? Math.max(0, Date.now() - parsedSyncedAt) : Number.MAX_SAFE_INTEGER;
   const rowParity = d1.rowCount === google.lastRow && d1.sourceLastRow === google.lastRow;
   const colParity = d1.sourceLastCol === google.lastCol;
   const ready = d1.status === 'ready';
