@@ -26,13 +26,17 @@
 | INV-06 | map Press queue/session paths | all entry points documented | PENDING | PENDING |
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
-| INV-09 | map D1 sync/read/auth paths | all current paths documented | Orders Fast V2/V2.3, Dashboard, Apps Script atomic sync, Worker promote, and installed trigger cadence mapped; full auth/invalidation/runtime parity remain | PARTIAL |
+| INV-09 | map D1 sync/read/auth paths | all current paths documented | Orders Fast V2/V2.3, Dashboard, atomic sync, Worker promote, installed trigger, `authorize_()` and `findUser_()` mapped; setup/session/invalidation/runtime parity remain | PARTIAL |
 | INV-09A | inspect D1 primary helper safety/fallback | source + fallback + auth known | Primary V1 uses feature flag, `authorize_()`, safety snapshot, cache, Sheets fallback | PASS — SOURCE |
 | INV-09B | inspect production Orders Fast V2/V2.3 | exact sequence known | auth -> V2.3 stable cache -> probe -> V2.2 cache -> D1 build -> Sheets fallback | PASS — VERSION 143 SOURCE |
 | INV-09C | determine Fast Auth V2.4 presence | exact auth known | Version 143 uses legacy `authorize_()` before cache | PASS — NOT DEPLOYED IN THIS PATH |
 | INV-09D | inspect Dashboard D1 path | auth/safety/result/fallback known | D1-primary with shared safety snapshot and automatic Sheets fallback | PASS — VERSION 143 SOURCE |
-| INV-09E | inspect Apps Script atomic/live sync | lock/stage/promote/cadence/error behavior known | `d1OrdersLiveSyncTick()` mapped; stages Orders+Lines in 80-row batches, requests one promote, uses ScriptLock, source intends 1-minute trigger | PASS — SOURCE |
-| INV-09F | verify Worker-side atomic promote | both sheets switch together transactionally | `promoteStagedSheets()` validates all staged sheets, builds one statement list for all requested sheets, and executes one `env.DB.batch(statements)`; D1 docs define batch as transactional/rollback-on-failure | PASS — SOURCE + PLATFORM CONTRACT |
+| INV-09E | inspect Apps Script atomic/live sync | lock/stage/promote/cadence/error behavior known | `d1OrdersLiveSyncTick()` mapped; stages Orders+Lines in 80-row batches, requests one promote, uses ScriptLock | PASS — SOURCE |
+| INV-09F | verify Worker-side atomic promote | both sheets switch together transactionally | `promoteStagedSheets()` validates all staged sheets, builds one statement list, executes one `env.DB.batch(statements)`; D1 batch transactional/rollback-on-failure | PASS — SOURCE + PLATFORM CONTRACT |
+| INV-09G | map current `authorize_()` baseline | exact auth sequence known | `findUser_()` -> active -> token constant-time compare -> session expiry; failed auth may clear stored token; no cache in `authorize_()` | PASS — SOURCE |
+| INV-09H | map `findUser_()` authoritative lookup | exact Users lookup/read pattern known | runs `ensureUsersSetup_()`, reads full Users `getDataRange().getValues()`, resolves headers, sequentially scans normalized usernames; no cache/index | PASS — SOURCE |
+| INV-09I | map session expiry policy | exact TTL/time rules known | PENDING | PENDING |
+| INV-09J | map `ensureUsersSetup_()` hot-path work | setup calls/writes/cost known | PENDING | PENDING |
 | INV-10 | verify production source/version manifest | active deployment + source composition known | Version 143/runtime/top-level routes verified; full project composition still pending | PARTIAL |
 | INV-10A | active deployment version | known | Version 143, Aug 29 2026 11:37 PM | PASS |
 | INV-10B | deployment ID matches config | same deployment | visible prefix matches production config | PASS — PREFIX |
@@ -83,7 +87,7 @@
 | D1-02 | V2.3 stable cache hit | no probe/fetch after auth | Version 143 source + historical runtime verified | PASS |
 | D1-03 | V2.4 first auth hit | authoritative auth + safe cache populate | not deployed | NOT RUN |
 | D1-04 | V2.4 cache hit | reduced auth latency, same authorization | not deployed | NOT RUN |
-| D1-05 | auth invalidation | no stale authorization beyond approved rule | design not installed/verified | PENDING |
+| D1-05 | auth invalidation | no stale authorization beyond approved rule | current auth + full-sheet Users lookup mapped; setup/session/logout/deactivation invalidation design still pending | PENDING |
 | D1-06 | D1/network failure | Sheets fallback works | source proves Orders + Dashboard fallback; forced runtime failure pending | PARTIAL — SOURCE |
 | D1-07 | Worker promote transaction | Orders + Lines change together | all requested live-replacement + staging-cleanup statements run in one D1 `batch()` transaction | PASS — SOURCE + PLATFORM CONTRACT |
 | D1-08 | promote succeeds but stats read fails | outcome is unambiguous/recoverable | Apps Script can report failure after possible successful promote; same-run promote replay then finds staging removed | PENDING — OBSERVABILITY GAP |
