@@ -174,7 +174,6 @@ Created:
 
 Result:
 - `INV-01` is complete for the **current working-branch repository source**.
-- this is not yet proof of the exact live Apps Script Version 138 source.
 
 Key discoveries:
 - `createManualOrder_()` already has an outer ScriptLock and V1908 Script-Properties request replay when a stable request ID is supplied.
@@ -190,7 +189,46 @@ Key discoveries:
 
 Decision from inventory:
 - do not implement another blind Line-ID duplicate patch.
-- reconcile the actual live Apps Script source/deployment composition first, then design the shared integrity foundation around gaps that truly remain.
+- reconcile the actual live Apps Script source/deployment composition first.
+
+## 2026-08-30 — INV-10 editor-source reconciliation
+
+Evidence supplied from the current Apps Script editor was compared with GitHub.
+
+Verified for inspected Orders/Lines ranges:
+- `appendLine_()` duplicate guard present.
+- `createManualOrder_()` V1908 replay + ScriptLock present.
+- `submitCustomerDraft_()` still lacks outer conversion lock.
+- `updateLine_()` still lacks unified idempotent mutation contract.
+- `syncOrderFromLines_()` duplicate collapse / `مكرر` exclusion present.
+
+Critical divergence discovered:
+- editor `Code.gs` routes `getDashboard` to `getDashboardD1PrimaryV1_()`.
+- editor `Code.gs` routes `getRowsPageV1931` to `getRowsPageD1FastV2_()`.
+- GitHub `Code.gs` still uses older direct functions for those routes.
+
+Decision:
+- do not overwrite Apps Script from GitHub until the D1 editor delta is captured intentionally.
+
+## 2026-08-30 — Active Apps Script deployment identified
+
+User supplied **Deploy -> Manage deployments** screenshot.
+
+Verified:
+- active deployment type: Web app.
+- active version: **143**.
+- timestamp shown: **Aug 29, 2026 11:37 PM**.
+- visible Deployment ID prefix matches the production deployment configured in `config.js`.
+
+Consequence:
+- historical Version 138 is superseded as the active production version.
+- Version 143 is the current deployment reference.
+- screenshot does not by itself prove exact source snapshot contents of Version 143.
+
+Test matrix updates:
+- `INV-10A = PASS` active version known.
+- `INV-10B = PASS — PREFIX` deployment ID consistent with frontend config.
+- `INV-10C` remains pending: read-only live runtime identity check.
 
 Next exact action:
-- verify the live Apps Script production source/deployment composition for Orders/Lines (`INV-10` dependency) before modifying Core write functions.
+- call/read the active Version 143 `health`/`ping` endpoint and record returned backend version + spreadsheet identity before any deployment or Core mutation.
