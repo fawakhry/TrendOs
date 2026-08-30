@@ -17,14 +17,16 @@
 | ID | Test | Expected | Actual | Result |
 |---|---|---|---|---|
 | INV-01 | enumerate Order/Line create/update entry points | complete current-source list | documented in `inventory/ORDERS_LINES_INVENTORY.md` | PASS — REPO SOURCE |
-| INV-02 | enumerate active Apps Script triggers | function + cadence | source intends 1-minute D1 trigger, but installed trigger not yet inspected | PENDING |
+| INV-02 | enumerate active Apps Script triggers | function + cadence | UI shows exactly one `d1OrdersLiveSyncTick` trigger, `Time-driven` -> `Minutes timer` -> `Every minute`, deployment `Head`; no other trigger row visible | PASS — UI EVIDENCE |
+| INV-02A | exactly one installed D1 live-sync handler | one active handler, no duplicate | one visible `d1OrdersLiveSyncTick` row, error rate 0% at evidence time | PASS — UI EVIDENCE |
+| INV-02B | installed D1 cadence | every 1 minute | edit/details UI shows `Every minute` | PASS — UI EVIDENCE |
 | INV-03 | map invoice sweep/finalize paths | all entry points documented | PENDING | PENDING |
 | INV-04 | map Attendance/Clock-in paths | all entry points documented | PENDING | PENDING |
 | INV-05 | map Cleaning paths | all entry points documented | PENDING | PENDING |
 | INV-06 | map Press queue/session paths | all entry points documented | PENDING | PENDING |
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
-| INV-09 | map D1 sync/read/auth paths | all current paths documented | Orders Fast V2/V2.3, Dashboard, Apps Script atomic sync and Worker promote mapped; trigger inventory + full auth/Worker contract remain | PARTIAL |
+| INV-09 | map D1 sync/read/auth paths | all current paths documented | Orders Fast V2/V2.3, Dashboard, Apps Script atomic sync, Worker promote, and installed trigger cadence mapped; full auth/invalidation/runtime parity remain | PARTIAL |
 | INV-09A | inspect D1 primary helper safety/fallback | source + fallback + auth known | Primary V1 uses feature flag, `authorize_()`, safety snapshot, cache, Sheets fallback | PASS — SOURCE |
 | INV-09B | inspect production Orders Fast V2/V2.3 | exact sequence known | auth -> V2.3 stable cache -> probe -> V2.2 cache -> D1 build -> Sheets fallback | PASS — VERSION 143 SOURCE |
 | INV-09C | determine Fast Auth V2.4 presence | exact auth known | Version 143 uses legacy `authorize_()` before cache | PASS — NOT DEPLOYED IN THIS PATH |
@@ -77,7 +79,7 @@
 
 | ID | Test | Expected | Actual | Result |
 |---|---|---|---|---|
-| D1-01 | current atomic Orders+Lines sync health | atomic ready/live parity | Apps Script atomic client + Worker transaction design verified; runtime parity needs reconfirm | PARTIAL — SOURCE |
+| D1-01 | current atomic Orders+Lines sync health | atomic ready/live parity | Apps Script atomic client + Worker transaction + installed one-minute trigger verified; runtime parity needs reconfirm | PARTIAL — SOURCE/UI |
 | D1-02 | V2.3 stable cache hit | no probe/fetch after auth | Version 143 source + historical runtime verified | PASS |
 | D1-03 | V2.4 first auth hit | authoritative auth + safe cache populate | not deployed | NOT RUN |
 | D1-04 | V2.4 cache hit | reduced auth latency, same authorization | not deployed | NOT RUN |
