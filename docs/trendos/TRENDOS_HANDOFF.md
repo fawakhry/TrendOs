@@ -29,8 +29,9 @@ Canonical plan: `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 9. `docs/trendos/inventory/AUTH_PATH_INVENTORY.md`
 10. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
 11. `docs/trendos/inventory/INVOICE_READY_SWEEP_INVENTORY.md`
-12. `docs/trendos/TRENDOS_TEST_MATRIX.md`
-13. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+12. `docs/trendos/inventory/ATTENDANCE_CLOCKIN_INVENTORY.md`
+13. `docs/trendos/TRENDOS_TEST_MATRIX.md`
+14. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 
 Evidence precedence:
 `LATEST VERIFIED > EARLIER VERIFIED > DEPLOYED > TESTED > IMPLEMENTED > PREPARED > PLANNED > UNKNOWN`.
@@ -74,16 +75,16 @@ Still open:
 - source snapshot consistency because not every operational writer uses the same ScriptLock.
 - promote-success/stats-failure observability ambiguity.
 
-## Current authentication baseline — inventory complete
+## Authentication baseline — inventory complete
 
-Mapped current flow:
+Mapped current legacy auth:
 
 ```text
 authorize_
  -> findUser_
     -> ensureUsersSetup_
        -> Users sheet lookup
-       -> header check for Token / آخر دخول
+       -> Token / آخر دخول header check
           -> can append missing headers
     -> Users sheet lookup again
     -> full Users getDataRange().getValues()
@@ -110,121 +111,170 @@ Verified:
 ## Live Line-ID baseline
 
 Direct Google Sheets inspection of current `بنود الأوردرات`:
-- current visible used range: 194 rows including header.
+- 194 rows including header in inspected live range.
 - 35 rows have status `مكرر`.
 - **no Line ID has more than one non-`مكرر` live row** in the inspected baseline.
 
-Therefore current baseline `zero active duplicate Line IDs` = PASS, while concurrency regression remains pending.
+Current zero-active-duplicate baseline = PASS; concurrency regression still pending.
 
-Noted data-quality cases:
+Data-quality notes only:
 - `3216-02`
 - `3536-01`
 
-Both appear only as `مكرر` in current live data and no canonical active row was found in the earlier archive search. Do not delete/repair blindly.
+Both appear only as `مكرر` in current live data and no canonical active row was found in earlier archive search. Do not repair/delete blindly.
 
-Current Line IDs `3637-02`, `3647-01`, `3651-02` render literally in live read; write/read format regression still pending.
+Line IDs `3637-02`, `3647-01`, `3651-02` render literally in live read; write/read format regression remains pending.
 
-## Invoice / Ready Sweep inventory — complete, correctness NOT green
+## Invoice / Ready Sweep — inventory complete, correctness NOT green
 
-Detailed source/live report:
+Detailed report:
 `docs/trendos/inventory/INVOICE_READY_SWEEP_INVENTORY.md`
 
-### Ready Sweep candidate logic
-`glaReadyOrders_()` selects live operational lines with status:
-- `جاهز للاستلام`
-- `تم التنفيذ`
+### Live duplicate drafts
+Current `حسابات - مسودات الفواتير`:
+- 50 Ready Sweep rows.
+- 47 unique Order IDs.
+- duplicate orders:
+  - `3577`: `DR-ceed6b65`, `DR-3466cb0d`
+  - `3572`: `DR-fe3c766a`, `DR-69e8cb63`
+  - `3569`: `DR-55d94661`, `DR-19c18636`
 
-It only deduplicates Order IDs inside one invocation. It does not check final-invoice state.
+`glaPrepare_()` performs find -> append/update without ScriptLock.
 
-### Draft creation race — LIVE FAILURE
-`glaPrepare_()` performs find -> update/append without ScriptLock.
+`REG-20 = FAIL — LIVE + SOURCE`.
 
-Current live `حسابات - مسودات الفواتير` contains:
-- **50 Ready Sweep rows**
-- **47 unique Order IDs**
-- three confirmed duplicate Order IDs:
-  - `3577`: rows 16/17, IDs `DR-ceed6b65` and `DR-3466cb0d`
-  - `3572`: rows 18/19, IDs `DR-fe3c766a` and `DR-69e8cb63`
-  - `3569`: rows 20/21, IDs `DR-55d94661` and `DR-19c18636`
+### Finalized -> Ready Sweep regression
+Ready Sweep looks only for operational status `جاهز للاستلام` / `تم التنفيذ` and does not check final-invoice state.
 
-`REG-20 = FAIL — LIVE BASELINE + SOURCE`.
+After finalization, accounting lines are closed while operational line may still be ready for pickup. Next sweep can select the same order and `glaPrepare_()` can overwrite the draft from `تم التقفيل` back to `يحتاج تسعير/اعتماد` with subtotal 0.
 
-### Draft schema drift
-Live draft sheet contains legacy + appended V1932 semantic duplicates, e.g.:
-- `Draft ID` + `ID`
-- `رقم العميل` + `الهاتف`
-- `مدفوع مقترح` + `المدفوع المقترح`
+`REG-22 = FAIL — SOURCE CONTRACT`.
 
-`v1932EnsureSheet_()` appends exact missing headers rather than migrating synonyms.
+Required future rule: finalized financial state is ineligible for Ready Sweep unless explicit reopen/revision exists.
 
-### Pricing safety — PASS
-All 50 current Ready Sweep rows show:
-- proposed total 0
-- `يحتاج تسعير/اعتماد`
-- blocker `لا توجد بنود معتمدة بسعر بيع.`
+### Pricing safety
+All 50 inspected current Ready Sweep drafts have:
+- proposed total 0.
+- `يحتاج تسعير/اعتماد`.
+- `لا توجد بنود معتمدة بسعر بيع.` blocker.
 
 No invented price observed.
 
 `REG-24 = PASS — LIVE + SOURCE`.
 
-### Final invoice writer — stronger but not fully repairable
-`saveAccountingFinalInvoice_()`:
-- ScriptLock 20s.
-- persisted request key in `مفتاح العملية`.
-- repeat request key returns `duplicatePrevented:true`.
-- server computes approved totals.
+### Final writer
+`saveAccountingFinalInvoice_()` has ScriptLock + persisted request-key duplicate protection, but finalization is multi-sheet/non-transactional. If failure happens after final-invoice append but before all accounting lines close, same-key retry returns through duplicate branch without explicitly completing line closure. Repair-state gap remains.
 
-However finalization is multi-sheet, non-transactional:
-1. append final invoice.
-2. mirror sales.
-3. mark accounting lines closed.
-4. finance/ledger.
-5. held payment/activity.
+### Notification
+`glaSendReady_()` has no durable logical notification key; repeated finalize can avoid duplicate invoice but still resend WhatsApp.
 
-If failure occurs after final invoice append but before all lines close, same-request retry returns early through duplicate branch and does not explicitly complete line closure. Repair state remains a CORE gap.
+## Attendance / Clock-in — inventory complete, correctness NOT green
 
-### CORE-P0 finalized -> Ready Sweep regression
-After successful finalization, the operational line can remain `جاهز للاستلام` until customer delivery.
+Detailed report:
+`docs/trendos/inventory/ATTENDANCE_CLOCKIN_INVENTORY.md`
 
-Next Ready Sweep can select the same Order again, while accounting lines are already closed. `glaPricing_()` then finds no open approved priced lines and `glaPrepare_()` can overwrite the draft back from `تم التقفيل` to `يحتاج تسعير/اعتماد` with subtotal 0.
+Operational attendance business date uses `Africa/Cairo` through `V1932_TZ` + `v1932DateKey_()`.
 
-`REG-22 = FAIL — SOURCE CONTRACT`.
+### Live settings
+Current `إعدادات الدوام` includes:
+- Workday start required.
+- Presence check 30 min / response 10 min.
+- default workday start 12:00.
+- `ATTENDANCE_CLOCKIN_REQUIRED = نعم`.
+- `ATTENDANCE_ONE_CLOCKIN_PER_DAY = نعم`.
+- auto-end disabled.
 
-Required future rule:
-**financially finalized order must be ineligible for Ready Sweep unless explicit reopen/revision state exists.**
+Important: current `attConfig_()` does not read several ATTENDANCE_* setting keys; broader attendance events do not enforce required clock-in.
 
-### Notification idempotency gap
-`glaSendReady_()` always calls Meta send when invoked and has no durable logical-event key.
+### Session creation race — LIVE FAILURE
+`attStart_()` does:
 
-Repeated `finalizeAndNotify` can prevent duplicate final invoice via request key but still resend WhatsApp.
+```text
+find today's open session
+ -> if none append UUID session
+ -> re-find latest session
+ -> append start_day pulse
+```
+
+No ScriptLock or durable idempotency key.
+
+Current `سجل الدوام` has four employee/date duplicate groups:
+- Revan `2026-08-27`: 3 sessions.
+- Wael `2026-08-29`: 2 sessions.
+- Revan `2026-08-29`: 2 sessions.
+- Revan `2026-08-30`: 2 sessions.
+
+5 excess session rows above the one-session/day invariant.
+
+Some duplicate rows also contain the same daily clock-in value, e.g. Revan:
+- `2026-08-27` clock-in `09:12` on multiple rows.
+- `2026-08-29` clock-in `14:23` on both duplicate sessions.
+- `2026-08-30` clock-in `13:19` on both duplicate sessions.
+
+`REG-07 = FAIL — LIVE + SOURCE RACE`.
+
+### Pulse idempotency — LIVE FAILURE
+`attAppendPulse_()` blindly `appendRow()`s with no event/request key, lock, debounce, or transition validation.
+
+Wael session `AT-20260829-وائل-5167c552` has four `resume` events within about 20 seconds.
+
+`REG-09 = FAIL — LIVE + SOURCE`.
+
+Wael session `AT-20260830-وائل-4ff8f9e8` has two `start_day` pulses one second apart, consistent with the start-race re-find behavior.
+
+### Required Clock-in not enforced
+Live setting says clock-in required, but `attendanceV1_()` only checks for an open session before pause/resume/rest/prayer/confirm/heartbeat/missedCheck/end. It does not check `تسجيل الحضور`.
+
+`REG-10 = FAIL — SOURCE CONTRACT`.
+
+### Day rollover
+`attFindToday_()` matches exact Cairo business date; prior-day sessions are not inherited into the next day even if old rows remain open.
+
+`REG-11 = PASS — SOURCE + LIVE BEHAVIOR` for no prior-day inheritance.
+
+Separate data-quality issue: many prior rows have no End Day because AUTO_END_DAY is disabled and there is no visible reconciliation policy in this path.
+
+### Friday / Business Calendar
+`attScheduledStart_()` checks exact-date `تشغيل - مواعيد خاصة`; otherwise it falls back to default 12:00. It has no weekday/business-day rule.
+
+Current special schedule only has 2026-08-25 and 2026-08-26. Friday 2026-08-28 has no special row, so current source would use normal default rather than a centralized closed-day policy.
+
+`REG-12/13` remain not green pending shared Business Calendar.
+
+### Timezone observability
+Workbook metadata timezone is still `America/Los_Angeles` while operational date keys are Cairo. Live cells can display a prior Gregorian date while their business-date field is the next Cairo date. Do not change workbook timezone blindly; controlled migration is required.
 
 ## Current GO/NO-GO
 
 **NO-GO**.
 
-Current blockers include:
-1. Ready Sweep duplicate drafts — live failure.
+Current confirmed blockers include:
+1. Ready Sweep duplicate invoice drafts — live failure.
 2. finalized invoice can regress into pricing queue — source failure.
-3. D1 Orders/Lines source snapshot consistency gap.
-4. remaining Attendance/Cleaning/Press/WhatsApp/Handover inventories and regressions not yet closed.
+3. Attendance duplicate daily sessions/clock-ins — live failure.
+4. Attendance pulse idempotency — live failure.
+5. required clock-in not enforced before broader attendance activity — source failure.
+6. D1 Orders/Lines source snapshot consistency gap.
+7. Cleaning/Press/WhatsApp/Handover inventories and regressions still pending.
 
 Positive current evidence:
 - zero active duplicate Line IDs baseline.
 - D1 Worker promote transaction verified.
 - one-minute sync trigger verified.
 - unpriced invoice orders do not invent totals.
+- attendance day rollover uses Cairo business-date isolation.
 
 ## Phase 0 inventory status
 
-PASS:
+PASS inventories:
 - INV-01 Orders/Lines
 - INV-02 triggers/cadence
-- INV-03 Invoice / Ready Sweep path inventory
+- INV-03 Invoice / Ready Sweep
+- INV-04 Attendance / Clock-in
 - INV-09A through INV-09J except V2.4 invalidation runtime
 - INV-10A/B/C/D deployment identity/routes
 
 Still pending/partial:
-- INV-04 Attendance/Clock-in
 - INV-05 Cleaning
 - INV-06 Press
 - INV-07 WhatsApp
@@ -234,15 +284,15 @@ Still pending/partial:
 
 ## Exact current stopping point
 
-**Next single action: `INV-04` — inventory Attendance + Clock-in source and live sheets.**
+**Next single action: `INV-05` — inventory Cleaning source and live sheet.**
 
 Inspect read-only:
-- `attendanceV1_` / `attendanceClockinV1_` / `attStart_` / pulse handlers and routes.
-- start-day check-then-append locking.
-- pulse duplicate/idempotency behavior.
-- session/day rollover logic.
-- configured business timezone/schedule interaction.
-- live `سجل الدوام`, `نبض الحضور`, `إعدادات الدوام` baseline.
+- `cleaningV1_()` status/complete path.
+- check-then-append locking/idempotency.
+- employee + businessDate uniqueness.
+- schedule dependency on `attScheduledStart_()`.
+- Friday/special-date behavior.
+- current `تشغيل - النظافة اليومية` live baseline for duplicates.
 
 No production edit/save/deploy until inventory is complete and a checkpoint exists.
 
