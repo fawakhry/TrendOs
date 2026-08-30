@@ -10,10 +10,12 @@ on:
       - 'trendos-order-line-integrity-v1.gs'
       - 'trendos-attendance-cleaning-integrity-v1.gs'
       - 'trendos-press-integrity-v1.gs'
+      - 'trendos-invoice-integrity-v1.gs'
       - 'tests/trendos_integrity_v1.test.js'
       - 'tests/trendos_order_line_integrity_v1.test.js'
       - 'tests/trendos_attendance_cleaning_integrity_v1.test.js'
       - 'tests/trendos_press_integrity_v1.test.js'
+      - 'tests/trendos_invoice_integrity_v1.test.js'
       - '.github/workflows/trendos-integrity-v1.yml'
 
 permissions:
@@ -38,3 +40,5 @@ jobs:
         run: node tests/trendos_attendance_cleaning_integrity_v1.test.js .
       - name: Run TrendOS Press integrity tests
         run: node tests/trendos_press_integrity_v1.test.js .
+      - name: Run TrendOS Invoice integrity tests
+        run: node tests/trendos_invoice_integrity_v1.test.js .
