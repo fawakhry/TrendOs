@@ -1,9 +1,19 @@
 {
   "name": "TrendOS Integrity V1",
   "status": "PREPARED_NOT_APPROVED_FOR_PRODUCTION",
-  "featureFlag": {
-    "name": "TRENDOS_INTEGRITY_V1_ENABLED",
-    "default": false
+  "featureFlags": {
+    "master": {"name": "TRENDOS_INTEGRITY_V1_ENABLED", "default": false},
+    "families": {
+      "HEALTH": {"name": "TRENDOS_INTEGRITY_V1_HEALTH_ENABLED", "default": false},
+      "ORDER_LINE": {"name": "TRENDOS_INTEGRITY_V1_ORDER_LINE_ENABLED", "default": false},
+      "ATTENDANCE_CLEANING": {"name": "TRENDOS_INTEGRITY_V1_ATTENDANCE_CLEANING_ENABLED", "default": false},
+      "PRESS": {"name": "TRENDOS_INTEGRITY_V1_PRESS_ENABLED", "default": false},
+      "INVOICE": {"name": "TRENDOS_INTEGRITY_V1_INVOICE_ENABLED", "default": false},
+      "WHATSAPP": {"name": "TRENDOS_INTEGRITY_V1_WHATSAPP_ENABLED", "default": false},
+      "OPS": {"name": "TRENDOS_INTEGRITY_V1_OPS_ENABLED", "default": false},
+      "AUTOMATION": {"name": "TRENDOS_INTEGRITY_V1_AUTOMATION_ENABLED", "default": false}
+    },
+    "fastAuthV25": {"name": "TRENDOS_FAST_AUTH_V25_ENABLED", "default": false}
   },
   "coreAppsScriptFiles": [
     "trendos-integrity-v1.gs",
@@ -36,10 +46,11 @@
   "rules": [
     "Do not rebuild or overwrite production Code.gs from GitHub.",
     "Do not copy old standalone V1932 modules on top of the consolidated live Code lineage.",
-    "Install core modules with TRENDOS_INTEGRITY_V1_ENABLED absent or false.",
-    "Run dependency health before enabling the feature flag.",
-    "Enable one route family at a time only after runtime regression evidence.",
-    "Fast Auth V2.5 is optional and must remain outside the first Core activation until lifecycle invalidation wiring is verified.",
+    "Install core modules with master and every family flag absent or false.",
+    "Run dependency health before enabling any feature family.",
+    "Enable one route family at a time only after its runtime regression evidence is ready.",
+    "Disabling a family flag must immediately return that family to the legacy route path.",
+    "Fast Auth V2.5 is optional, has a separate default-off flag, and must remain outside the first Core activation until lifecycle invalidation wiring is verified.",
     "Fast Auth V2.4 is forbidden.",
     "Production deployment requires an explicit approved checkpoint and rollback plan."
   ]
