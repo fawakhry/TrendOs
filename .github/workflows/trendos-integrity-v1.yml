@@ -11,11 +11,15 @@ on:
       - 'trendos-attendance-cleaning-integrity-v1.gs'
       - 'trendos-press-integrity-v1.gs'
       - 'trendos-invoice-integrity-v1.gs'
+      - 'trendos-whatsapp-integrity-v1.gs'
+      - 'customer-manager-send-integrity-v1.js'
       - 'tests/trendos_integrity_v1.test.js'
       - 'tests/trendos_order_line_integrity_v1.test.js'
       - 'tests/trendos_attendance_cleaning_integrity_v1.test.js'
       - 'tests/trendos_press_integrity_v1.test.js'
       - 'tests/trendos_invoice_integrity_v1.test.js'
+      - 'tests/trendos_whatsapp_integrity_v1.test.js'
+      - 'tests/customer_manager_send_integrity_v1.test.js'
       - '.github/workflows/trendos-integrity-v1.yml'
 
 permissions:
@@ -42,3 +46,7 @@ jobs:
         run: node tests/trendos_press_integrity_v1.test.js .
       - name: Run TrendOS Invoice integrity tests
         run: node tests/trendos_invoice_integrity_v1.test.js .
+      - name: Run TrendOS WhatsApp backend integrity tests
+        run: node tests/trendos_whatsapp_integrity_v1.test.js .
+      - name: Run Customer Manager stable send ID tests
+        run: node tests/customer_manager_send_integrity_v1.test.js .
