@@ -28,10 +28,11 @@
 | INV-06 | map Press queue/session paths | all entry points documented | PENDING | PENDING |
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
-| INV-09 | map D1 sync/read/auth paths | all current paths documented | Version 143 Orders page read path mapped through Fast V2/V2.3; dashboard, sync and full auth inventory still pending | PARTIAL |
+| INV-09 | map D1 sync/read/auth paths | all current paths documented | Orders Fast V2/V2.3 and Dashboard D1-primary read paths mapped; atomic sync, trigger/cadence, Worker/API and full auth inventory remain | PARTIAL |
 | INV-09A | inspect D1 primary helper safety/fallback | D1 source + fallback + auth path known | `getRowsPageD1PrimaryV1_()` uses feature flag, `authorize_()`, D1 snapshot safety checks, cache, and automatic `getRowsPageV1931_()` fallback | PASS — SOURCE |
 | INV-09B | inspect production Orders Fast V2/V2.3 path | auth/cache/probe/fetch/fallback sequence known | `getRowsPageD1FastV2_()` mapped: `authorize_()` first, V2.3 stable cache, D1 probe, V2.2 page cache, D1 snapshot/build/enrichment, Sheets fallback | PASS — VERSION 143 SOURCE |
 | INV-09C | determine Fast Auth V2.4 presence in Version 143 Orders read | exact auth function known | Version 143 still uses legacy `authorize_()` before cache; V2.4 is not present in inspected function | PASS — NOT DEPLOYED IN THIS PATH |
+| INV-09D | inspect production Dashboard D1 path | auth/safety/result/fallback sequence known | `getDashboardD1PrimaryV1_()` uses feature flag, `authorize_()`, allowed-screen check, shared D1 safety snapshot, `d1DashboardResultV1_()`, and automatic `getDashboard_()` fallback | PASS — VERSION 143 SOURCE |
 | INV-10 | verify exact production source/version manifest | active deployment + source composition known | Version 143, live runtime identity, and Version 143 top-level D1 route snapshot verified; complete Version 143 file/source composition still pending | PARTIAL |
 | INV-10A | confirm active deployment version | current active Version known | Manage deployments shows Version 143 on Aug 29, 2026 11:37 PM | PASS |
 | INV-10B | confirm deployment ID matches frontend config | configured/live deployment same | visible deployment ID prefix matches configured production deployment | PASS — PREFIX |
@@ -82,7 +83,7 @@
 | D1-03 | V2.4 first auth hit | authoritative auth, safe cache populate | not deployed in inspected Version 143 Orders path | NOT RUN |
 | D1-04 | V2.4 cache hit | reduced auth latency, same authorization result | not deployed | NOT RUN |
 | D1-05 | auth expiry/deactivation/logout invalidation | no stale authorization beyond approved rule | V2.4 invalidation design not yet installed/verified | PENDING |
-| D1-06 | D1/network failure | Sheets fallback works | source proves `getRowsPageV1931_()` fallback with `GOOGLE_SHEETS_FALLBACK`; forced runtime failure test still pending | PARTIAL — SOURCE |
+| D1-06 | D1/network failure | Sheets fallback works | source proves Orders and Dashboard fallback paths; forced runtime failure test still pending | PARTIAL — SOURCE |
 
 ## E. Phase 1 GO/NO-GO gates
 
