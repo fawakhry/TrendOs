@@ -31,14 +31,15 @@ Read in this order:
 
 1. `docs/trendos/TRENDOS_PROJECT_MEMORY.md`
 2. `docs/trendos/TRENDOS_HANDOFF.md`
-3. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
-4. `docs/trendos/TRENDOS_ARCHITECTURE.md`
-5. `docs/trendos/TRENDOS_DECISIONS.md`
-6. `docs/trendos/TRENDOS_ROADMAP_2027-03-01.md`
-7. `docs/trendos/TRENDOS_BACKLOG.md`
-8. `docs/trendos/TRENDOS_TEST_MATRIX.md`
-9. `docs/trendos/TRENDOS_WORKLOG.md`
-10. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+3. `docs/trendos/inventory/PRODUCTION_SOURCE_RECONCILIATION.md`
+4. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
+5. `docs/trendos/TRENDOS_ARCHITECTURE.md`
+6. `docs/trendos/TRENDOS_DECISIONS.md`
+7. `docs/trendos/TRENDOS_ROADMAP_2027-03-01.md`
+8. `docs/trendos/TRENDOS_BACKLOG.md`
+9. `docs/trendos/TRENDOS_TEST_MATRIX.md`
+10. `docs/trendos/TRENDOS_WORKLOG.md`
+11. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 
 ## Evidence rule
 
@@ -81,44 +82,55 @@ Important risk:
 ## Phase 0 progress
 
 ### INV-01 — Orders / Order Lines source inventory
-**Status: PASS — current working-branch repo source only.**
+**Status: PASS — working-branch source mapped.**
+
+Important verified protections in both inspected GitHub source and current Apps Script editor source:
+- `createManualOrder_()` uses ScriptLock + V1908 request replay when a stable request ID is present.
+- `appendLine_()` blocks a second row with the same Line ID sequentially.
+- `syncOrderFromLines_()` collapses duplicate Line IDs and excludes `مكرر` from active totals.
+
+Remaining Core gaps in current editor source:
+- `submitCustomerDraft_()` has no outer lock around full draft conversion.
+- `updateLine_()` has no unified idempotent mutation/side-effect contract.
+
+### INV-10 — Production source/deployment reconciliation
+**Status: PARTIAL — active deployment identified; Version 143 source snapshot not fully proven.**
+
+Verified:
+- active Web App version: **143**.
+- Apps Script shows timestamp: **Aug 29, 2026 11:37 PM**.
+- visible Deployment ID prefix matches the deployment configured in TrendOS `config.js`.
+- historical Version 138 is no longer the current active deployment version.
+
+Critical source divergence:
+- current Apps Script editor source routes `getDashboard` -> `getDashboardD1PrimaryV1_()`.
+- current Apps Script editor source routes `getRowsPageV1931` -> `getRowsPageD1FastV2_()`.
+- GitHub `Code.gs` still contains older route targets.
+
+Therefore:
+- do **not** overwrite Apps Script from GitHub `Code.gs`.
+- current editor source is ahead of GitHub in at least D1 route wiring.
+- Saved editor source is not automatically proof of Version 143 contents.
 
 Detailed document:
-`docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
-
-Important discoveries in current GitHub source:
-- `createManualOrder_()` already uses ScriptLock + V1908 request replay when a stable request ID is present.
-- `app.js` currently generates `clientRequestId` for manual Add Order.
-- `appendLine_()` already checks existing Line ID and blocks a second row sequentially.
-- `syncOrderFromLines_()` already excludes `مكرر` rows from active/current totals.
-- `upsertOrderSummary_()` already performs sequential Order-ID upsert.
-- Customer Portal's current UI uses draft submission; the old direct portal-create backend remains reachable source but is not the primary UI path.
-- `submitCustomerDraft_()` has a sequential replay guard after draft completion but no outer lock around the full conversion transaction; concurrent submits remain a CORE-P0 candidate.
-- `updateLine_()` lacks a shared lock/event-idempotency contract around state write + summary + activity + notification side effects.
-- existing idempotency mechanisms are inconsistent across paths: Script Properties, ScriptCache, draft state, Line-ID scans, or none.
-
-Critical interpretation:
-- older planning must **not** cause a blind duplicate-guard patch. The repo already contains some protections.
-- repository source does **not** prove what is deployed behind Apps Script Version 138.
+`docs/trendos/inventory/PRODUCTION_SOURCE_RECONCILIATION.md`
 
 ## Exact current stopping point
 
-**Next single action: production-source reconciliation for Orders/Lines.**
+**Next single action: read-only runtime identity check against active Apps Script Version 143.**
 
-Before creating `trendos-integrity-v1.gs` or changing any Core write path, determine the exact live Apps Script source/deployment composition relevant to:
-- `doGet` / `doPost`,
-- `createManualOrder_`,
-- `appendLine_`,
-- `upsertOrderSummary_`,
-- `submitCustomerDraft_`,
-- `updateLine_`,
-- `syncOrderFromLines_`,
-- `bulkUpdateDepartmentStatusV1926_`,
-- archive/restore order-line paths.
+Call/read the currently configured production Web App with the existing `health` or `ping` action and record:
+- backend-reported version,
+- spreadsheet name,
+- existence of Orders/Lines/Users sheets,
+- row counts if returned.
 
-Need to establish whether live production contains the protections observed in the GitHub working-branch `Code.gs`.
+Do not mutate data and do not redeploy.
 
-Do not mutate production during this verification.
+Expected production deployment ID:
+`AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
+
+If the runtime response conflicts with current source assumptions, stop and reconcile before any Core code change.
 
 ## Remaining Phase 0 inventory
 
@@ -198,4 +210,4 @@ and zero open `CORE-P0` blockers remain.
 
 ## Prompt for a fresh execution chat
 
-> Continue TrendOS from the canonical GitHub memory in `docs/trendos/` on repo `fawakhry/TrendOs`, working branch `agent/go-live-2026-09-01-integrity`. Read `TRENDOS_PROJECT_MEMORY.md`, `TRENDOS_HANDOFF.md`, and `inventory/ORDERS_LINES_INVENTORY.md` first. Active lane is PHASE 1 — CORE + CLOUD. INV-01 repository inventory is complete and discovered that current GitHub source already contains a V1932 Line-ID duplicate guard, duplicate-aware order summary, and V1908 idempotent manual create path. Do not blindly reimplement those. The exact Apps Script production source behind Version 138 is still unknown, so the next action is read-only production-source reconciliation for Orders/Lines. Google Sheets remains authoritative for writes; D1 remains fast read/mirror; V2.4 Fast Auth is prepared but not the next step. Work one step at a time and report inspected evidence, changes, test result, and one next action only.
+> Continue TrendOS from the canonical GitHub memory in `docs/trendos/` on repo `fawakhry/TrendOs`, working branch `agent/go-live-2026-09-01-integrity`. Read `TRENDOS_PROJECT_MEMORY.md`, `TRENDOS_HANDOFF.md`, `inventory/PRODUCTION_SOURCE_RECONCILIATION.md`, and `inventory/ORDERS_LINES_INVENTORY.md` first. Active lane is PHASE 1 — CORE + CLOUD. INV-01 is complete. Current Apps Script editor source contains the same inspected Orders/Lines protections as GitHub, but it is ahead of GitHub in D1 route wiring. Active Apps Script Web App is Version 143, timestamp Aug 29 2026 11:37 PM, and its visible deployment ID prefix matches `config.js`. Exact Version 143 source snapshot is not yet proven. Do not overwrite Apps Script from GitHub. Next action is a read-only runtime `health`/`ping` check against the active deployment. Google Sheets remains authoritative for writes; D1 remains fast read/mirror; V2.4 Fast Auth is prepared but not the next step. Work one step at a time and report evidence, changes, test result, and one next action only.
