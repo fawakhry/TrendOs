@@ -20,7 +20,7 @@
 
 | ID | Test | Expected | Actual | Result |
 |---|---|---|---|---|
-| INV-01 | enumerate Order/Line create/update entry points | complete current-source list | documented in `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`; production-source equivalence still requires INV-10 | PASS — REPO SOURCE |
+| INV-01 | enumerate Order/Line create/update entry points | complete current-source list | documented in `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`; repo source inventoried | PASS — REPO SOURCE |
 | INV-02 | enumerate active Apps Script triggers | function + cadence | PENDING | PENDING |
 | INV-03 | map invoice sweep/finalize paths | all entry points documented | PENDING | PENDING |
 | INV-04 | map Attendance/Clock-in paths | all entry points documented | PENDING | PENDING |
@@ -29,7 +29,10 @@
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
 | INV-09 | map D1 sync/read/auth paths | all current paths documented | PENDING | PENDING |
-| INV-10 | verify exact production source/version manifest | exact files behind live deploy known | PENDING | PENDING |
+| INV-10 | verify exact production source/version manifest | active deployment + source composition known | Active Web App confirmed as Version 143; editor Orders/Lines source reconciled; exact Version 143 source snapshot/file composition still unknown | PARTIAL |
+| INV-10A | confirm active deployment version | current active Version known | Manage deployments shows Version 143 on Aug 29, 2026 11:37 PM | PASS |
+| INV-10B | confirm deployment ID matches frontend config | configured/live deployment same | visible deployment ID prefix matches configured `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSy...` | PASS — PREFIX |
+| INV-10C | confirm deployed runtime identity | live endpoint returns expected backend/spreadsheet/version | PENDING | PENDING |
 
 ## C. Core integrity regression — required before Phase 1 exit
 
