@@ -1,31 +1,116 @@
 # TrendOS Phase 0 — Production Source Reconciliation
 
-> **Scope:** read-only reconciliation of the public/runtime pointers and canonical deployment documentation available from connected sources on 2026-08-30.
-> **Goal:** determine whether the Apps Script source actually serving production is identical to the current GitHub working-branch source before any Core write-path mutation.
+> **Scope:** read-only reconciliation of the frontend runtime pointer, canonical deployment documentation, current GitHub source, and the current Apps Script `Code.gs` text supplied from the live project/editor on 2026-08-30.
+> **Goal:** determine which Core protections are present in the Apps Script editor source, and what still must be proven about the deployed web-app version before Core mutation.
 
 ## Status
 
-`INV-10 — verify exact production source/version manifest`: **PARTIAL / BLOCKED ON LIVE APPS SCRIPT INSPECTION**.
+`INV-10 — verify exact production source/version manifest`: **PARTIAL — APPS SCRIPT EDITOR SOURCE RECONCILED FOR ORDERS/LINES; DEPLOYED VERSION STILL UNVERIFIED**.
 
-We can now identify the production endpoint and the intended deployment composition, but connected tools do not expose the live Apps Script project's deployed version/source contents. Therefore exact production-source equivalence is **not yet verified**.
+We now have direct source evidence for the current Apps Script `Code.gs` text supplied from the project/editor. The critical Orders/Lines functions inspected are functionally identical to the GitHub working-branch `Code.gs`. However, the supplied Apps Script source also contains D1 routing changes that are newer than the current GitHub `Code.gs`. Therefore GitHub is **not yet a complete byte-for-byte mirror of the Apps Script editor source**.
 
-## Verified evidence
+This source comparison still does not prove which saved source version is attached to the active Web App deployment. `Saved in Apps Script editor != Deployed Web App version`.
 
-### 1. Production frontend endpoint
+---
 
-`config.js` on both `main` and `agent/go-live-2026-09-01-integrity` is identical for the backend pointer and currently contains:
+## 1. Production frontend endpoint
+
+`config.js` on both `main` and `agent/go-live-2026-09-01-integrity` currently points to:
 
 - Web App deployment ID: `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
 - Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
 - `MATBAGY_SECURE_API_PROXY_URL = ""`
 
 Interpretation:
-- current frontend traffic resolves directly to the same Apps Script web-app deployment when no secure proxy URL is configured.
-- `main` and the current working branch point to the same backend deployment ID.
+- frontend traffic resolves directly to this Apps Script deployment while the secure proxy URL is empty.
+- `main` and the working branch point to the same backend deployment ID.
 
-### 2. Canonical intended Apps Script composition
+---
 
-`APPS_SCRIPT_DEPLOY_V1940.md` defines the intended production Apps Script project composition as:
+## 2. Current Apps Script `Code.gs` text supplied from project/editor
+
+The supplied source identifies itself as:
+
+`TrendOS + EasyStore unified Google Apps Script backend — V1932 FULL Go-Live / HR / WhatsApp / Attendance / Press`
+
+and includes:
+
+`MATBAGY_ACCOUNTING_VERSION = "V1932_FULL_GO_LIVE_20260824"`
+
+### Orders/Lines functions reconciled against GitHub
+
+The following supplied Apps Script functions match the working-branch `Code.gs` for the inspected ranges:
+
+- `appendLine_()`
+  - includes the V1932 Line-ID duplicate guard.
+  - checks `trendosV1932FindLineRowById_()` before append.
+  - returns the existing row instead of adding a second row.
+
+- `createManualOrder_()`
+  - includes outer `LockService.getScriptLock()`.
+  - includes V1908 stable-request replay via `trendosV1908RequestKey_()` / `trendosV1908ReadSavedResponse_()`.
+  - includes recent duplicate fingerprint guard.
+  - allocates new Line IDs from the sheet state when reusing an open order.
+
+- `submitCustomerDraft_()`
+  - matches GitHub source.
+  - sequentially prevents re-submit after draft status changes.
+  - still has no outer lock wrapping the full `check draft -> allocate Order ID -> write order/lines -> mark draft submitted` transaction.
+  - concurrent double-submit remains a real CORE-P0 candidate.
+
+- `updateLine_()`
+  - matches GitHub source.
+  - writes status/ready/update/notes, syncs order summary, appends activity, queues status message, and bumps data version.
+  - still has no shared event-idempotency/transaction lock around the complete mutation + side effects.
+
+- `syncOrderFromLines_()`
+  - matches GitHub source.
+  - collapses duplicate Line IDs for summary calculation.
+  - excludes rows marked `مكرر` from active/current totals.
+
+### Interpretation for P0-01
+
+The source supplied from Apps Script confirms that the existing V1932 duplicate-aware Orders/Lines protections are present in the **current editor source**. Therefore:
+
+- do **not** add another blind Line-ID duplicate patch.
+- the remaining work is to standardize concurrency/idempotency around the paths that are still weaker, especially customer draft conversion and line-update side effects.
+
+---
+
+## 3. Important source divergence discovered: D1 routing
+
+The supplied Apps Script `Code.gs` is **not identical** to the current GitHub `Code.gs` at the top-level read routing.
+
+### Supplied Apps Script source
+
+Current supplied source routes:
+
+- `getDashboard` -> `getDashboardD1PrimaryV1_(e)`
+- `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`
+
+### Current GitHub working-branch `Code.gs`
+
+Current GitHub file still routes:
+
+- `getDashboard` -> `getDashboard_(e)`
+- `getRowsPageV1931` -> `getRowsPageV1931_(e)`
+
+### Meaning
+
+The Apps Script editor source contains later D1 read-path wiring that is not currently reflected inside GitHub `Code.gs`.
+
+This is a critical reconciliation finding:
+
+- GitHub remains the canonical project memory and intended source repository.
+- but **current Apps Script editor source is ahead of GitHub `Code.gs` in at least these D1 route lines**.
+- do not overwrite the Apps Script project from GitHub `Code.gs` until this delta is captured intentionally.
+- the D1 modules referenced by these routes must be inventoried before any source synchronization.
+
+---
+
+## 4. Canonical intended Apps Script composition
+
+`APPS_SCRIPT_DEPLOY_V1940.md` defines the intended Apps Script project composition as:
 
 1. `Code.gs`
 2. `v1932-router.gs`
@@ -38,66 +123,86 @@ Interpretation:
 9. `press-control-backend-v1.gs`
 10. `go-live-autopilot-backend-v1.gs`
 
-Important conflict to preserve:
-- repository file naming observed elsewhere is `go-live-autopilot-v1.gs` while the deploy manifest names `go-live-autopilot-backend-v1.gs`.
-- this naming mismatch remains part of the production-source reconciliation task.
+Important unresolved naming conflict:
+- repository history also contains `go-live-autopilot-v1.gs` naming.
+- exact live project file list still needs confirmation.
 
-### 3. Repository deployment health check exists
+---
 
-GitHub commit `ca8e7179f2b280e475a09b64b1c3ccf51b6b66d2` added `v1940-deploy-health.gs` with:
+## 5. Deployment health check evidence
+
+GitHub commit `ca8e7179f2b280e475a09b64b1c3ccf51b6b66d2` added:
+
+`v1940-deploy-health.gs`
+
+with:
 
 `trendosV1940DeploymentHealth_()`
 
-The function checks whether the V1940 modules exist inside the Apps Script project and whether the target spreadsheet can be opened. This is useful runtime evidence if executed inside the live Apps Script project, but its presence in GitHub does not prove it is deployed.
+This function can verify module presence and spreadsheet access when run inside the Apps Script project, but its existence in GitHub does not prove that it exists in the live project or deployed version.
 
-### 4. Google Drive evidence
+---
 
-Google Drive search found:
-- main spreadsheet `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
-- folder `TrendOS V1932 Apps Script Deploy`.
+## 6. Google Drive evidence
 
-Direct listing of that Drive folder returned no files through the connector.
-Search for Google Apps Script MIME-type files matching TrendOS also returned no accessible result.
+Google Drive confirms:
 
-Interpretation:
-- Drive does not currently provide inspectable live Apps Script source via the available connector.
-- do not infer that the Drive deploy folder is the source of the live deployment.
+- main spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
+- pre-Go-Live backups exist.
+- folder `TrendOS V1932 Apps Script Deploy` exists.
 
-### 5. Historical deployment version
+The connector did not expose live Apps Script project source/deployment metadata from Drive.
 
-Canonical worklog preserves a historical statement that Apps Script **Version 138** deployment action succeeded, while the exact content included in that deployed version was unknown.
+---
 
-Current check did not independently verify that the live deployment is still Version 138.
+## 7. What is verified now
 
-## What is not verified yet
+Verified from the supplied Apps Script source text:
+
+- `appendLine_()` duplicate guard exists in current editor source.
+- `createManualOrder_()` V1908 replay + ScriptLock exists in current editor source.
+- `submitCustomerDraft_()` still lacks an enclosing conversion lock in current editor source.
+- `updateLine_()` still lacks a unified idempotent mutation contract in current editor source.
+- `syncOrderFromLines_()` duplicate collapse / `مكرر` exclusion exists in current editor source.
+- Apps Script editor source includes D1 read routing newer than GitHub `Code.gs`.
+
+---
+
+## 8. What is still not verified
 
 Still unknown:
-- current live deployment version number.
-- exact Apps Script project file list behind the live deployment.
-- whether live `Code.gs` is byte-for-byte/functionally equivalent to current GitHub `Code.gs`.
-- whether live `appendLine_()` contains the V1932 Line-ID duplicate guard.
-- whether live `createManualOrder_()` contains the V1908 request replay guard.
-- whether live `submitCustomerDraft_()` has any newer lock/idempotency code not present in GitHub.
-- whether `v1940-deploy-health.gs` exists in the live project.
 
-## Required next evidence
+- active Web App deployment version number.
+- whether the active deployment currently serves the same saved Apps Script source text that was supplied.
+- exact complete Apps Script project file list.
+- whether `v1940-deploy-health.gs` is present in the live project.
+- exact D1 module versions behind `getDashboardD1PrimaryV1_()` and `getRowsPageD1FastV2_()` in the project.
 
-One live Apps Script inspection is required before Core mutation.
+Historical evidence mentions a successful Version 138 deployment action, but this check has not independently proved that the active deployment is still Version 138 or that Version 138 contains the supplied current editor source.
 
-Minimum first evidence:
-- open the Apps Script project bound/used by the main TrendOS backend.
-- open **Deploy → Manage deployments**.
-- capture the active web-app deployment card showing **Deployment ID + Version**.
+---
 
-Expected deployment ID:
+## 9. Next exact evidence required
+
+Before Core code mutation, capture **Deploy -> Manage deployments** for the active Web App and record:
+
+- Deployment ID.
+- Version number.
+
+Expected Deployment ID:
+
 `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
 
-If the deployment ID differs, stop and reconcile before any mutation.
+If it differs, stop and reconcile.
 
-After version confirmation, the next verification action will be to inspect/run the live project health/file composition and compare Orders/Lines functions with GitHub.
+Once the version is known, continue source/deployment composition verification; do not redeploy yet.
+
+---
 
 ## Safety decision
 
 No production code, Sheets data, triggers, or deployments were changed during this reconciliation.
 
-Do **not** create `trendos-integrity-v1.gs` in production until INV-10 is completed enough to know which existing protections are already live.
+Do **not** overwrite Apps Script from GitHub `Code.gs` yet because the supplied Apps Script editor source contains D1 routing that GitHub `Code.gs` does not currently contain.
+
+Do **not** deploy `trendos-integrity-v1.gs` until the active deployment version/composition is known.
