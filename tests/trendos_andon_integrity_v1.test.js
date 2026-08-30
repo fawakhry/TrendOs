@@ -1,0 +1,22 @@
+const fs=require('fs'),vm=require('vm'),crypto=require('crypto'),assert=require('assert');
+const root=process.argv[2]||process.cwd();
+const foundation=fs.readFileSync(root+'/trendos-integrity-v1.gs','utf8');
+const handover=fs.readFileSync(root+'/trendos-handover-ops-integrity-v1.gs','utf8');
+const andon=fs.readFileSync(root+'/trendos-andon-integrity-v1.gs','utf8');
+class R{constructor(s,r,c,nr=1,nc=1){Object.assign(this,{s,r,c,nr,nc});}getValues(){const o=[];for(let i=0;i<this.nr;i++){const row=[];for(let j=0;j<this.nc;j++)row.push(this.s.g(this.r+i,this.c+j));o.push(row);}return o;}setValues(v){for(let i=0;i<this.nr;i++)for(let j=0;j<this.nc;j++)this.s.p(this.r+i,this.c+j,v[i][j]);return this;}getValue(){return this.s.g(this.r,this.c);}setValue(v){this.s.p(this.r,this.c,v);return this;}}
+class S{constructor(n){this.n=n;this.rows=[];this.max=1;}getLastRow(){return this.rows.length;}getLastColumn(){return Math.max(this.max,...this.rows.map(x=>x.length),1);}getMaxColumns(){return this.max;}insertColumnsAfter(_a,n){this.max+=n;}getRange(r,c,nr=1,nc=1){return new R(this,r,c,nr,nc);}appendRow(x){this.max=Math.max(this.max,x.length);this.rows.push(x.slice());}setFrozenRows(){}g(r,c){return this.rows[r-1]&&this.rows[r-1][c-1]!==undefined?this.rows[r-1][c-1]:'';}p(r,c,v){while(this.rows.length<r)this.rows.push([]);while(this.rows[r-1].length<c)this.rows[r-1].push('');this.rows[r-1][c-1]=v;this.max=Math.max(this.max,c);}}
+class SS{constructor(){this.m={};}getSheetByName(n){return this.m[n]||null;}insertSheet(n){return this.m[n]=new S(n);}}
+const ss=new SS();const ho=ss.insertSheet('إدارة - تسليم الشيفت');ho.appendRow(['ID','التاريخ/الوقت','الموظف','القسم','رقم الأوردر/المهمة','الحالة الحقيقية','سبب التوقف','الخطوة التالية','يسلم إلى','حالة الاستلام','ملاحظة المدير','آخر تحديث']);let u=0;
+const ctx={console,Date,JSON,Object,Array,String,Number,Math,RegExp,isFinite,isNaN,Utilities:{DigestAlgorithm:{SHA_256:'SHA_256'},Charset:{UTF_8:'UTF_8'},computeDigest(_a,v){return Array.from(crypto.createHash('sha256').update(String(v)).digest()).map(x=>x>127?x-256:x);},formatDate(d,tz,fmt){if(fmt==='yyyy-MM-dd')return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);if(fmt==='HH')return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',hour12:false}).format(d);throw new Error(fmt);},getUuid(){u++;return ('0000000'+u).slice(-8)+'-1111-2222-3333-444444444444';}},LockService:{getScriptLock(){return{waitLock(){},releaseLock(){}}},getUserLock(){return{waitLock(){},releaseLock(){}}},getDocumentLock(){return{waitLock(){},releaseLock(){}}}},ss_:()=>ss};
+vm.createContext(ctx);vm.runInContext(foundation,ctx);vm.runInContext(handover,ctx);vm.runInContext(andon,ctx);
+const lineLookup=id=>({lineId:id,orderId:'3637',department:'طباعة',status:'تحت التنفيذ',assignedTo:'وائل'});
+const a1=ctx.trendosSaveAndonV1_({requestId:'andon-req-1',employee:'وائل',department:'طباعة',reason:'محتاج قرار',details:'العميل لم يرد',lineId:'3637-02',orderId:'3637',businessDate:'2026-08-30'},{lineLookup});
+assert.strictEqual(a1.success,true);assert.strictEqual(a1.duplicate,false);assert.ok(/^ANDON-/.test(a1.eventId));assert.strictEqual(a1.lineId,'3637-02');assert.strictEqual(a1.orderId,'3637');
+const a2=ctx.trendosSaveAndonV1_({requestId:'andon-req-1',employee:'وائل',department:'طباعة',reason:'نص آخر في retry',lineId:'3637-02',orderId:'3637',businessDate:'2026-08-30'},{lineLookup});
+assert.strictEqual(a2.duplicate,true);assert.strictEqual(a2.eventId,a1.eventId);
+assert.throws(()=>ctx.trendosSaveAndonV1_({requestId:'bad',employee:'وائل',reason:'x',lineId:'3637-02',orderId:'9999',businessDate:'2026-08-30'},{lineLookup}),/لا يطابق/);
+let open=ctx.trendosAndonOpenEventsV1_();assert.strictEqual(open.length,1);assert.strictEqual(open[0].eventId,a1.eventId);
+const r1=ctx.trendosResolveOpsEventV1_({eventId:a1.eventId,by:'ضياء',note:'تم التواصل مع العميل'});assert.strictEqual(r1.success,true);assert.strictEqual(r1.duplicate,false);
+const r2=ctx.trendosResolveOpsEventV1_({eventId:a1.eventId,by:'ضياء'});assert.strictEqual(r2.duplicate,true);open=ctx.trendosAndonOpenEventsV1_();assert.strictEqual(open.length,0);
+assert.ok(!/sk-[A-Za-z0-9_-]{20,}/.test(andon));assert.ok(!/EAA[A-Za-z0-9]{30,}/.test(andon));
+console.log('TrendOS ANDON integrity V1 tests: OK');
