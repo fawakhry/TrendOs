@@ -223,12 +223,37 @@ Verified:
 Consequence:
 - historical Version 138 is superseded as the active production version.
 - Version 143 is the current deployment reference.
-- screenshot does not by itself prove exact source snapshot contents of Version 143.
 
-Test matrix updates:
-- `INV-10A = PASS` active version known.
-- `INV-10B = PASS — PREFIX` deployment ID consistent with frontend config.
-- `INV-10C` remains pending: read-only live runtime identity check.
+Tests:
+- `INV-10A = PASS`.
+- `INV-10B = PASS — PREFIX`.
+
+## 2026-08-30 — Live Version 143 health verification
+
+Read-only call to the configured production Web App `action=health` succeeded.
+
+Returned runtime evidence:
+- `success: true`.
+- backend version: `V1932_FULL_GO_LIVE_20260824`.
+- spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
+- `hasUsers: true`.
+- `hasOrders: true`.
+- `hasLines: true`.
+- `ordersRows: 152`.
+- `linesRows: 180`.
+- 87 sheet names returned.
+
+Interpretation:
+- Version 143 is serving the expected TrendOS backend family against the correct main workbook.
+- the live workbook exposes the expected Core and Go-Live sheets.
+- this verifies runtime identity but not the exact implementation of every route.
+
+Test:
+- `INV-10C = PASS`.
+
+Remaining INV-10 uncertainty:
+- exact Version 143 source snapshot/file list.
+- specifically whether Version 143 contains the newer D1 route wiring visible in the current editor source.
 
 Next exact action:
-- call/read the active Version 143 `health`/`ping` endpoint and record returned backend version + spreadsheet identity before any deployment or Core mutation.
+- inspect Apps Script **Project history -> Version 143** and compare `Code.gs` `doGet` routing for `getDashboard` and `getRowsPageV1931` against the current editor source.
