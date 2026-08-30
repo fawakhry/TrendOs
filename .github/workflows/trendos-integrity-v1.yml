@@ -18,6 +18,7 @@ on:
       - 'trendos-integrity-router-v1.gs'
       - 'D1_Fast_Auth_V2_5_Safe.gs'
       - 'customer-manager-send-integrity-v1.js'
+      - 'trendos-integrity-v1.package.json'
       - 'tests/trendos_integrity_v1.test.js'
       - 'tests/trendos_order_line_integrity_v1.test.js'
       - 'tests/trendos_attendance_cleaning_integrity_v1.test.js'
@@ -30,6 +31,7 @@ on:
       - 'tests/d1_fast_auth_v25_safe.test.js'
       - 'tests/trendos_integrity_router_v1.test.js'
       - 'tests/trendos_integrity_composition_v1.test.js'
+      - 'tests/trendos_predeploy_package_v1.test.js'
       - 'tests/customer_manager_send_integrity_v1.test.js'
       - '.github/workflows/trendos-integrity-v1.yml'
 
@@ -73,3 +75,5 @@ jobs:
         run: node tests/trendos_integrity_router_v1.test.js .
       - name: Run composed Apps Script module syntax/collision test
         run: node tests/trendos_integrity_composition_v1.test.js .
+      - name: Run pre-deploy package safety gate
+        run: node tests/trendos_predeploy_package_v1.test.js .
