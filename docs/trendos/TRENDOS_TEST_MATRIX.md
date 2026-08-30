@@ -8,36 +8,34 @@
 | Test | Expected | Actual | Result | Notes |
 |---|---|---|---|---|
 | GitHub working branch exists | branch available | `agent/go-live-2026-09-01-integrity` exists | PASS | current working branch |
-| D1 full mirror | all sheets ready | newer project snapshot: 87 sheets / 31,176 rows / 87 ready / 0 pending | PASS | newer state outranks older 31,149 snapshot |
-| D1 stable cache V2.3 | cache path used | Version 143 source contains `D1_FAST_STABLE_CACHE_V23`; historical runtime observed ~20ms stable-cache lookup | PASS | source + historical runtime evidence |
-| Fast Auth V2.4 | installed and cache-hit verified | Version 143 `getRowsPageD1FastV2_()` still calls `authorize_()` before stable cache; V2.4 file remains prepared only | NOT RUN / NOT DEPLOYED | do not claim active |
-| WhatsApp knowledge import in Matbagy AI | document/chunks saved | `document_id:15`, `chunks:195` | PASS | module test, not Core |
-| Matbagy AI manual memory save | one memory doc saved | `document_id:29`, `chunks:1` | PASS | module test |
-| Matbagy AI v0.5.8 exact memory | direct answer without Ollama | not user-tested | UNKNOWN | AI-P0 |
-| Lead Hunter V2 cancel/delete/toggle | fixes work in latest package | package generated, no user retest | UNKNOWN | LEAD-P0 |
+| D1 full mirror | all sheets ready | newer project snapshot: 87 sheets / 31,176 rows / 87 ready / 0 pending | PASS | newer state outranks older snapshot |
+| D1 stable cache V2.3 | cache path used | Version 143 contains `D1_FAST_STABLE_CACHE_V23`; historical runtime observed ~20ms cache lookup | PASS | source + historical runtime |
+| Fast Auth V2.4 | installed and verified | Version 143 Orders read still calls `authorize_()` before stable cache; V2.4 prepared only | NOT RUN / NOT DEPLOYED | do not claim active |
 
 ## B. Phase 0 inventory tests
 
 | ID | Test | Expected | Actual | Result |
 |---|---|---|---|---|
-| INV-01 | enumerate Order/Line create/update entry points | complete current-source list | documented in `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`; repo source inventoried | PASS — REPO SOURCE |
-| INV-02 | enumerate active Apps Script triggers | function + cadence | PENDING | PENDING |
+| INV-01 | enumerate Order/Line create/update entry points | complete current-source list | documented in `inventory/ORDERS_LINES_INVENTORY.md` | PASS — REPO SOURCE |
+| INV-02 | enumerate active Apps Script triggers | function + cadence | source intends 1-minute D1 trigger, but installed trigger not yet inspected | PENDING |
 | INV-03 | map invoice sweep/finalize paths | all entry points documented | PENDING | PENDING |
 | INV-04 | map Attendance/Clock-in paths | all entry points documented | PENDING | PENDING |
 | INV-05 | map Cleaning paths | all entry points documented | PENDING | PENDING |
 | INV-06 | map Press queue/session paths | all entry points documented | PENDING | PENDING |
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
-| INV-09 | map D1 sync/read/auth paths | all current paths documented | Orders Fast V2/V2.3 and Dashboard D1-primary read paths mapped; atomic sync, trigger/cadence, Worker/API and full auth inventory remain | PARTIAL |
-| INV-09A | inspect D1 primary helper safety/fallback | D1 source + fallback + auth path known | `getRowsPageD1PrimaryV1_()` uses feature flag, `authorize_()`, D1 snapshot safety checks, cache, and automatic `getRowsPageV1931_()` fallback | PASS — SOURCE |
-| INV-09B | inspect production Orders Fast V2/V2.3 path | auth/cache/probe/fetch/fallback sequence known | `getRowsPageD1FastV2_()` mapped: `authorize_()` first, V2.3 stable cache, D1 probe, V2.2 page cache, D1 snapshot/build/enrichment, Sheets fallback | PASS — VERSION 143 SOURCE |
-| INV-09C | determine Fast Auth V2.4 presence in Version 143 Orders read | exact auth function known | Version 143 still uses legacy `authorize_()` before cache; V2.4 is not present in inspected function | PASS — NOT DEPLOYED IN THIS PATH |
-| INV-09D | inspect production Dashboard D1 path | auth/safety/result/fallback sequence known | `getDashboardD1PrimaryV1_()` uses feature flag, `authorize_()`, allowed-screen check, shared D1 safety snapshot, `d1DashboardResultV1_()`, and automatic `getDashboard_()` fallback | PASS — VERSION 143 SOURCE |
-| INV-10 | verify exact production source/version manifest | active deployment + source composition known | Version 143, live runtime identity, and Version 143 top-level D1 route snapshot verified; complete Version 143 file/source composition still pending | PARTIAL |
-| INV-10A | confirm active deployment version | current active Version known | Manage deployments shows Version 143 on Aug 29, 2026 11:37 PM | PASS |
-| INV-10B | confirm deployment ID matches frontend config | configured/live deployment same | visible deployment ID prefix matches configured production deployment | PASS — PREFIX |
-| INV-10C | confirm deployed runtime identity | live endpoint returns expected backend/spreadsheet/version | `success:true`; `V1932_FULL_GO_LIVE_20260824`; correct main spreadsheet; Users/Orders/Lines present; Orders rows 152; Lines rows 180; 87 sheets returned | PASS |
-| INV-10D | verify Version 143 D1 route snapshot | deployed source shows actual `getDashboard` and `getRowsPageV1931` targets | Version 143 shows `getDashboardD1PrimaryV1_(e)` and `getRowsPageD1FastV2_(e)` | PASS — SOURCE SNAPSHOT |
+| INV-09 | map D1 sync/read/auth paths | all current paths documented | Orders Fast V2/V2.3, Dashboard and Apps Script atomic sync mapped; Worker/API + full auth inventory remain | PARTIAL |
+| INV-09A | inspect D1 primary helper safety/fallback | source + fallback + auth known | Primary V1 uses feature flag, `authorize_()`, safety snapshot, cache, Sheets fallback | PASS — SOURCE |
+| INV-09B | inspect production Orders Fast V2/V2.3 | exact sequence known | auth -> V2.3 stable cache -> probe -> V2.2 cache -> D1 build -> Sheets fallback | PASS — VERSION 143 SOURCE |
+| INV-09C | determine Fast Auth V2.4 presence | exact auth known | Version 143 uses legacy `authorize_()` before cache | PASS — NOT DEPLOYED IN THIS PATH |
+| INV-09D | inspect Dashboard D1 path | auth/safety/result/fallback known | D1-primary with shared safety snapshot and automatic Sheets fallback | PASS — VERSION 143 SOURCE |
+| INV-09E | inspect Apps Script atomic/live sync | lock/stage/promote/cadence/error behavior known | `d1OrdersLiveSyncTick()` mapped; stages Orders+Lines in 80-row batches, requests one promote, uses ScriptLock, source intends 1-minute trigger | PASS — SOURCE |
+| INV-09F | verify Worker-side atomic promote | both sheets switch together transactionally | Worker implementation not yet inspected in this pass | PENDING |
+| INV-10 | verify production source/version manifest | active deployment + source composition known | Version 143/runtime/top-level routes verified; full project composition still pending | PARTIAL |
+| INV-10A | active deployment version | known | Version 143, Aug 29 2026 11:37 PM | PASS |
+| INV-10B | deployment ID matches config | same deployment | visible prefix matches production config | PASS — PREFIX |
+| INV-10C | deployed runtime identity | expected backend/workbook | `V1932_FULL_GO_LIVE_20260824`, correct workbook, Orders 152, Lines 180, 87 sheets | PASS |
+| INV-10D | Version 143 D1 routes | exact targets known | Dashboard -> D1 Primary V1; Orders page -> D1 Fast V2 | PASS — SOURCE SNAPSHOT |
 
 ## C. Core integrity regression — required before Phase 1 exit
 
@@ -73,17 +71,20 @@
 | REG-28 | repeated OPS follow-up without new state | no duplicate coach event | PENDING | PENDING |
 | REG-29 | two concurrent automation triggers | no duplicated business mutation | PENDING | PENDING |
 | REG-30 | D1 unsafe/partial state | fallback/reject rather than unsafe data | PENDING | PENDING |
+| REG-31 | Line mutation while Orders+Lines stage | promoted D1 pair represents one consistent logical source state | current `updateLine_()` does not honor the D1 tick ScriptLock | PENDING — KNOWN GAP |
 
-## D. D1 performance lane — after correctness gates
+## D. D1 performance / integrity lane
 
 | ID | Test | Expected | Actual | Result |
 |---|---|---|---|---|
-| D1-01 | current atomic Orders+Lines sync health | atomic ready/live parity | PENDING RECONFIRM | PENDING |
-| D1-02 | V2.3 stable cache hit | no unnecessary probe/fetch after auth | Version 143 source returns `D1_FAST_STABLE_CACHE_V23` before probe; historical runtime verified this path | PASS — SOURCE + HISTORICAL RUNTIME |
-| D1-03 | V2.4 first auth hit | authoritative auth, safe cache populate | not deployed in inspected Version 143 Orders path | NOT RUN |
-| D1-04 | V2.4 cache hit | reduced auth latency, same authorization result | not deployed | NOT RUN |
-| D1-05 | auth expiry/deactivation/logout invalidation | no stale authorization beyond approved rule | V2.4 invalidation design not yet installed/verified | PENDING |
-| D1-06 | D1/network failure | Sheets fallback works | source proves Orders and Dashboard fallback paths; forced runtime failure test still pending | PARTIAL — SOURCE |
+| D1-01 | current atomic Orders+Lines sync health | atomic ready/live parity | Apps Script atomic client design verified; runtime parity needs reconfirm | PARTIAL — SOURCE |
+| D1-02 | V2.3 stable cache hit | no probe/fetch after auth | Version 143 source + historical runtime verified | PASS |
+| D1-03 | V2.4 first auth hit | authoritative auth + safe cache populate | not deployed | NOT RUN |
+| D1-04 | V2.4 cache hit | reduced auth latency, same authorization | not deployed | NOT RUN |
+| D1-05 | auth invalidation | no stale authorization beyond approved rule | design not installed/verified | PENDING |
+| D1-06 | D1/network failure | Sheets fallback works | source proves Orders + Dashboard fallback; forced runtime failure pending | PARTIAL — SOURCE |
+| D1-07 | Worker promote transaction | Orders + Lines change together | Worker source/runtime contract pending | PENDING |
+| D1-08 | promote succeeds but stats read fails | outcome is unambiguous/recoverable | current Apps Script catch would report failure after possible successful promote | PENDING — OBSERVABILITY GAP |
 
 ## E. Phase 1 GO/NO-GO gates
 
@@ -99,28 +100,6 @@ All must be green:
 8. Line IDs remain literal text.
 9. WhatsApp webhook idempotent.
 10. concurrency regression passes.
-11. full E2E pack passes.
-12. zero open `CORE-P0` blockers.
-
-## F. Future-phase acceptance placeholders
-
-### Customer / Communication
-- one customer identity across Orders/Messages/Payments/Designs.
-- no duplicate inbound message processing.
-- sensitive replies require review/live facts.
-
-### Matbagy AI
-- exact memory works.
-- model health visible.
-- live facts come from TrendOS connector.
-- tenant isolation passes.
-
-### Smart Designer
-- Order/Line context preserved.
-- proof approval versioned.
-- print-ready output tied to approved version.
-- archive reusable.
-
-### Lead Hunter
-- source -> lead -> customer -> order conversion traceable.
-- latest V2 source-management fixes verified before reuse.
+11. D1 Orders/Lines source snapshot consistency passes.
+12. full E2E pack passes.
+13. zero open `CORE-P0` blockers.
