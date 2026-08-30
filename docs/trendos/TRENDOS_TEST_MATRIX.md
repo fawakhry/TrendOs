@@ -23,7 +23,7 @@
 | INV-03 | map invoice sweep/finalize paths | all entry points + idempotency risks documented | Ready Sweep, draft prepare, pricing, finalization, notification and reopen mapped; live duplicate drafts verified | PASS — SOURCE + LIVE DATA |
 | INV-04 | map Attendance/Clock-in paths | all entry points + session/event integrity documented | routes, session start, clock-in, pulses, state computation, schedule and live attendance baseline mapped; live duplicate sessions/events verified | PASS — SOURCE + LIVE DATA |
 | INV-05 | map Cleaning paths | status/complete, uniqueness, schedule/config and live baseline documented | check-then-append path, schema drift, config mismatch and 31-row live baseline mapped; 14 excess duplicate records verified | PASS — SOURCE + LIVE DATA |
-| INV-06 | map Press queue/session paths | all entry points documented | PENDING | PENDING |
+| INV-06 | map Press queue/session paths | queue/start/stop/settings/session traceability + live baseline documented | source queue mapped to 8 current orders; legacy Press view empty; start/stop race/idempotency and missing Line-ID traceability mapped | PASS — SOURCE + LIVE DATA |
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
 | INV-09 | map D1 sync/read/auth paths | current paths documented | D1 read/sync/Worker + legacy auth baseline/session/setup/invalidation entry points mapped; V2.4 invalidation/runtime parity still pending | PARTIAL |
@@ -54,7 +54,7 @@
 | REG-04 | Line ID `3637-02` write/read | remains literal string | current live value appears literally as `3637-02`; write/read regression not yet executed | PARTIAL — LIVE READ |
 | REG-05 | Line ID `3647-01` write/read | remains literal string | current live value appears literally as `3647-01`; write/read regression not yet executed | PARTIAL — LIVE READ |
 | REG-06 | Line ID `3651-02` write/read | remains literal string | current live value appears literally as `3651-02`; write/read regression not yet executed | PARTIAL — LIVE READ |
-| REG-07 | Clock-in x2 | one operational session / one daily clock-in | live attendance has duplicate employee/date sessions: Revan 2026-08-27 x3, Revan 2026-08-29 x2, Revan 2026-08-30 x2, Wael 2026-08-29 x2; `attStart_()` has no lock | FAIL — LIVE BASELINE + SOURCE RACE |
+| REG-07 | Clock-in x2 | one operational session / one daily clock-in | live attendance has duplicate employee/date sessions; `attStart_()` has no lock | FAIL — LIVE BASELINE + SOURCE RACE |
 | REG-08 | fallback after Clock-in | no second session | per-row clock-in repeat is guarded, but find/start/check/write has no shared lock and duplicate daily sessions already exist | PENDING — KNOWN GAP |
 | REG-09 | resume x5 rapidly | one logical resume event | Wael session `AT-20260829-وائل-5167c552` contains four Resume pulses within ~20 seconds; `attAppendPulse_()` appends blindly | FAIL — LIVE + SOURCE |
 | REG-10 | activity before Clock-in | alert only, no operational activity before required clock-in | live config requires Clock-in, but `attendanceV1_()` only requires an open session and does not check `تسجيل الحضور` before activity events | FAIL — SOURCE CONTRACT |
@@ -62,11 +62,11 @@
 | REG-12 | Friday without Special Schedule | no attendance/cleaning obligation/failure under closed-day policy | shared attendance/cleaning scheduler has no weekday/business-day rule; without exact special row it falls back to default 12:00 | PENDING — KNOWN BUSINESS-CALENDAR GAP |
 | REG-13 | Friday with active Special Schedule | normal configured rules apply | exact-date override exists; integrated Friday/business-calendar regression not yet run | PENDING |
 | REG-14 | Cleaning submit x2 | one logical cleaning record per employee/business day | live Cleaning sheet has 31 rows / 17 unique employee-date pairs = 14 excess rows across 10 duplicate groups; `cleaningV1_()` has no lock/event key | FAIL — LIVE BASELINE + SOURCE RACE |
-| REG-15 | create press-required line | appears once in Press View | PENDING | PENDING |
-| REG-16 | Press source/view counts | equal | PENDING | PENDING |
-| REG-17 | Press Start x2 | one open session | PENDING | PENDING |
-| REG-18 | Press Close x2 | same close result, no second mutation | PENDING | PENDING |
-| REG-19 | completed press line without session | integrity alert only | PENDING | PENDING |
+| REG-15 | create press-required line | appears once in Press View | source eligibility is mapped and current source queue has 8 unique orders; end-to-end create/view regression not yet executed | PENDING RUNTIME |
+| REG-16 | Press source/view counts | equal | current V1932 source queue = 8 while legacy `واجهة المكبس` has 0 data rows; actual API-driven frontend view source still needs runtime verification | PENDING — LEGACY VIEW MISMATCH |
+| REG-17 | Press Start x2 | one open session | `pressOpen_()` -> append has no ScriptLock/request key; concurrent starts can create multiple open sessions | FAIL — SOURCE CONCURRENCY CONTRACT |
+| REG-18 | Press Close x2 | same close result, no second mutation | stop has no lock/idempotency key; concurrent stops may overwrite metrics and sequential repeat returns “no open session” instead of same result | FAIL — SOURCE CONTRACT |
+| REG-19 | completed press line without session | integrity alert only | Press sessions store counts but no Order IDs/Line IDs; backend cannot link completed Line to session or emit this integrity alert | FAIL — SOURCE CONTRACT |
 | REG-20 | Ready Sweep x10, no data change | one active draft/order; count unchanged | live draft sheet already has 50 Ready Sweep rows / 47 unique Order IDs; `3577`,`3572`,`3569` each have two Draft IDs; `glaPrepare_()` has no lock | FAIL — LIVE BASELINE + SOURCE |
 | REG-21 | invoice generation x10 | one final invoice/order/version | final writer has ScriptLock + persisted request-key replay protection; full x10 runtime not executed; partial-write completion repair gap remains | PENDING — SOURCE STRONG / RUNTIME NEEDED |
 | REG-22 | finalized/closed order + sweep | no return to pricing/draft queue unless explicit reopen | Ready Sweep ignores final invoice state; finalized order can remain operationally ready, be swept again, and draft can regress from `تم التقفيل` to `يحتاج تسعير/اعتماد` | FAIL — SOURCE CONTRACT |
@@ -101,12 +101,12 @@ All must be green:
 2. Ready Sweep produces no duplicate drafts. **FAIL — live duplicates exist.**
 3. approved pricing maps correctly. **PENDING.**
 4. finalized/closed orders do not return to draft queue. **FAIL — source contract allows regression.**
-5. Press Source Queue = Press View Queue. **PENDING.**
-6. Press Session tracking complete. **PENDING.**
-7. Attendance/Cleaning idempotency passes. **FAIL — both Attendance and Cleaning have live duplicate state.**
+5. Press Source Queue = Press View Queue. **NOT GREEN — legacy view is 0 vs source 8; actual frontend parity pending.**
+6. Press Session tracking complete. **FAIL — no Order/Line linkage and Start/Stop idempotency gaps.**
+7. Attendance/Cleaning idempotency passes. **FAIL — both have live duplicate state.**
 8. Line IDs remain literal text. **PARTIAL live-read evidence; write regression pending.**
 9. WhatsApp webhook/idempotent logical sends. **PENDING / known outbound gap.**
-10. concurrency regression passes. **FAIL on current Attendance/Cleaning/Invoice source + live evidence.**
+10. concurrency regression passes. **FAIL on current Attendance/Cleaning/Press/Invoice source + live evidence.**
 11. D1 Orders/Lines source snapshot consistency passes. **PENDING known lock gap.**
 12. full E2E pack passes. **PENDING.**
-13. zero open `CORE-P0` blockers. **FAIL — invoice, attendance, cleaning and source-snapshot gaps open.**
+13. zero open `CORE-P0` blockers. **FAIL — invoice, attendance, cleaning, press and source-snapshot gaps open.**
