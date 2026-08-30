@@ -3,12 +3,15 @@
  * Orders-read optimization. Requires explicit lifecycle invalidation wiring before production use.
  */
 const TRENDOS_FAST_AUTH_V25_VERSION='D1_FAST_AUTH_V25_SAFE_20260830';
+const TRENDOS_FAST_AUTH_V25_ENABLED_PROP='TRENDOS_FAST_AUTH_V25_ENABLED';
 const TRENDOS_FAST_AUTH_V25_TTL_SEC=120;
 const TRENDOS_FAST_AUTH_V25_REV_PREFIX='TRENDOS_AUTH_REV_V25_';
 const TRENDOS_FAST_AUTH_V25_CACHE_PREFIX='TRENDOS_AUTH_V25_';
 
 function trendosFastAuthTextV25_(v){return String(v==null?'':v).trim();}
 function trendosFastAuthNormUserV25_(v){return typeof normalize_==='function'?normalize_(v):trendosFastAuthTextV25_(v).toLowerCase();}
+function trendosFastAuthBoolV25_(v){const s=trendosFastAuthTextV25_(v).toLowerCase();return['1','true','yes','نعم','on'].indexOf(s)!==-1;}
+function trendosFastAuthEnabledV25_(){try{return trendosFastAuthBoolV25_(PropertiesService.getScriptProperties().getProperty(TRENDOS_FAST_AUTH_V25_ENABLED_PROP));}catch(e){return false;}}
 function trendosFastAuthDigestV25_(v){const bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,trendosFastAuthTextV25_(v),Utilities.Charset.UTF_8);return bytes.map(b=>(b<0?b+256:b).toString(16).padStart(2,'0')).join('');}
 function trendosFastAuthRevPropV25_(username){return TRENDOS_FAST_AUTH_V25_REV_PREFIX+trendosFastAuthDigestV25_(trendosFastAuthNormUserV25_(username)).slice(0,32);}
 function trendosFastAuthRevisionV25_(username){const v=PropertiesService.getScriptProperties().getProperty(trendosFastAuthRevPropV25_(username));return trendosFastAuthTextV25_(v)||'0';}
@@ -43,9 +46,11 @@ function trendosFastAuthRememberV25_(username,token,revision,user){
   CacheService.getScriptCache().put(key,raw,TRENDOS_FAST_AUTH_V25_TTL_SEC);return true;
 }
 function authorizeD1FastV25_(username,token){
+  if(typeof authorize_!=='function')return{ok:false,message:'محرك التحقق الأساسي غير متاح.'};
+  // Rollback-safe bypass: with the flag OFF, behavior remains the authoritative legacy auth path and no V2.5 cache is read/written.
+  if(!trendosFastAuthEnabledV25_())return authorize_(username,token);
   username=trendosFastAuthNormUserV25_(username);token=trendosFastAuthTextV25_(token);if(!username||!token)return{ok:false,message:'الجلسة غير صالحة.'};
   const revision=trendosFastAuthRevisionV25_(username),cached=trendosFastAuthReadCachedV25_(username,token,revision);if(cached)return cached;
-  if(typeof authorize_!=='function')return{ok:false,message:'محرك التحقق الأساسي غير متاح.'};
   const auth=authorize_(username,token);if(!auth||!auth.ok)return auth||{ok:false,message:'تعذر التحقق.'};
   const safe=trendosFastAuthSafeUserV25_(auth.user);if(!trendosFastAuthActiveAllowedV25_(safe.active)||trendosFastAuthSessionExpiredV25_(safe.lastLogin))return{ok:false,message:'الجلسة غير صالحة.'};
   trendosFastAuthRememberV25_(username,token,revision,safe);
@@ -67,10 +72,13 @@ function trendosFastAuthAfterPasswordChangeV25_(username){return trendosFastAuth
 function trendosFastAuthAfterActiveChangeV25_(username){return trendosFastAuthInvalidateUserV25_(username);}
 function trendosFastAuthAfterTokenResetV25_(username){return trendosFastAuthInvalidateUserV25_(username);}
 
+function trendosFastAuthStatusV25_(){return{version:TRENDOS_FAST_AUTH_V25_VERSION,enabled:trendosFastAuthEnabledV25_(),ttlSeconds:TRENDOS_FAST_AUTH_V25_TTL_SEC};}
+
 /**
  * Required production wiring before use:
- * 1) Orders Fast read: replace ONLY the legacy authorize_ call with authorizeD1FastV25_.
- * 2) After successful login/logout/password change/Active change/token reset, call the matching invalidation hook.
- * 3) Direct manual edits to Users Active/password/token fields must also bump revision (via controlled admin path or edit hook); otherwise TTL is the maximum stale window.
- * 4) Run first-hit/cache-hit/logout/password/deactivation/session-expiry regressions before deploy.
+ * 1) Install with TRENDOS_FAST_AUTH_V25_ENABLED absent/false.
+ * 2) Orders Fast read: replace ONLY the legacy authorize_ call with authorizeD1FastV25_; with flag OFF it still calls authoritative authorize_ directly.
+ * 3) After successful login/logout/password change/Active change/token reset, call the matching invalidation hook.
+ * 4) Direct manual edits to Users Active/password/token fields must also bump revision (via controlled admin path or edit hook); otherwise TTL is the maximum stale window after the flag is enabled.
+ * 5) Run first-hit/cache-hit/logout/password/deactivation/session-expiry regressions before enabling the flag.
  */
