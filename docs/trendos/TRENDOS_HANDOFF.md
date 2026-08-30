@@ -57,14 +57,14 @@ Do not guess. Preserve conflicts as `Needs reconciliation`.
 - D1 is the fast read/mirror layer.
 - Atomic Orders + Order Lines sync is the approved/current working direction.
 - Newer project snapshot: 87 sheets / 31,176 rows / 87 ready / 0 pending.
-- V2.3 stable page cache is historically verified.
-- latest historical verified source lineage: `D1_FAST_STABLE_CACHE_V23`.
-- historical performance showed page-cache lookup around 20ms while Apps Script auth dominated total latency.
+- Version 143 Orders read source includes the V2.3 stable-page cache path.
+- historical runtime verified `D1_FAST_STABLE_CACHE_V23` and showed stable-cache lookup around 20ms while Apps Script auth dominated total latency.
 
 ### Fast Auth V2.4
 - file/checkpoint: `D1_Orders_Fast_V2_4.gs`.
-- canonical state remains PREPARED / NOT VERIFIED.
-- do not call installed/deployed/verified until the actual Version 143 Fast V2/auth source proves it.
+- state: **PREPARED / NOT INSTALLED / NOT DEPLOYED / NOT VERIFIED**.
+- stronger source evidence now exists: Version 143 `getRowsPageD1FastV2_()` explicitly calls legacy `authorize_()` before the V2.3 stable-page cache lookup.
+- therefore V2.4 is not active in the inspected production Orders read path.
 
 ## Current spreadsheet / safety state
 
@@ -118,46 +118,101 @@ Critical source divergence remains:
 - do not overwrite Apps Script from GitHub `Code.gs` until the D1 editor/deployed delta is captured intentionally.
 
 ### INV-09 — D1 sync/read/auth inventory
-**Status: PARTIAL.**
+**Status: PARTIAL — production Orders page read path mapped.**
 
-New document:
+Detailed document:
 `docs/trendos/inventory/D1_READ_PATH_INVENTORY.md`
 
-Source supplied for:
-`getRowsPageD1PrimaryV1_(e)`
+#### Primary V1 helper
+`getRowsPageD1PrimaryV1_(e)` is a hybrid safe-read helper:
+- feature flag off -> legacy Sheets read.
+- uses `authorize_()`.
+- validates D1 snapshot safety/freshness/parity.
+- success uses D1.
+- any safety/network/runtime exception -> `GOOGLE_SHEETS_FALLBACK`.
 
-Verified behavior of this helper:
-- feature flag off -> immediate legacy `getRowsPageV1931_(e)`.
-- authenticates through existing `authorize_()`.
-- obtains D1 safety snapshot through `d1OrdersPrimarySnapshotV1_()`.
-- source comments require live sync, ready, not syncing, freshness, row parity, column parity and data-version freshness before D1 use.
-- cache key includes user/filter/page/data-version/sync timestamps.
-- success reads from D1 snapshot and records `source:'D1'`.
-- any D1/network/runtime/safety exception falls back automatically to `getRowsPageV1931_(e)` and marks `readSource:'GOOGLE_SHEETS_FALLBACK'` plus failure reason.
+#### Actual Version 143 Orders path
+Production router calls:
 
-Architectural conclusion:
-`getRowsPageD1PrimaryV1_()` is **D1-primary + Google Sheets fallback**, not D1-only.
+`getRowsPageD1FastV2_(e)`
 
-Critical unresolved relationship:
-- Version 143 router calls `getRowsPageD1FastV2_(e)`, not `getRowsPageD1PrimaryV1_(e)`.
-- therefore the exact live page-read wrapper/cache/auth path is still unknown.
-- do not infer that Fast Auth V2.4 is live from the Primary V1 helper; that helper uses `authorize_()` directly.
+This function has now been inspected completely.
+
+Verified exact sequence:
+
+```text
+request
+  -> D1 feature flag
+  -> authorize_()
+  -> allowed-screen check
+  -> TrendOS dataVersion
+  -> V2.3 stable-page cache
+       -> HIT: D1_FAST_STABLE_CACHE_V23
+  -> D1 probe
+       -> syncing + unchanged dataVersion + stable page: D1_FAST_STALE_SAFE_V22
+       -> unsafe probe: throw -> Sheets fallback
+  -> V2.2 current-snapshot page cache
+       -> HIT: D1_FAST_PAGE_CACHE_V22
+  -> D1 snapshot fetch
+  -> lightweight D1 build/filter
+  -> page response
+  -> current-page customer/debt enrichment
+  -> cache current + stable keys
+  -> D1_FAST_V22
+
+Any D1/runtime/safety failure
+  -> getRowsPageV1931_()
+  -> GOOGLE_SHEETS_FALLBACK
+```
+
+Important conclusions:
+- Fast V2 is a separate implementation; it does **not** call `getRowsPageD1PrimaryV1_()` directly.
+- it reuses `d1OrdersPrimaryPageResponseV1_()` as a shared response builder.
+- authorization occurs before stable-cache lookup.
+- Version 143 therefore still has the legacy auth bottleneck.
+- V2.3 stable cache is present in Version 143 source.
+- Google Sheets remains automatic fallback.
+
+Mapped `readSource` values:
+- `D1_FAST_STABLE_CACHE_V23`
+- `D1_FAST_STALE_SAFE_V22`
+- `D1_FAST_PAGE_CACHE_V22`
+- `D1_FAST_V22`
+- `GOOGLE_SHEETS_FALLBACK`
+
+Existing timing instrumentation includes:
+- authMs
+- readyStableCacheMs
+- probeMs
+- pageCacheMs
+- fetchMs
+- buildMs
+- pageBuildMs
+- supportMs
+- cacheWriteMs
+- fallbackMs
+- total/runtime
+
+Tests:
+- `INV-09A = PASS — SOURCE` Primary V1 behavior mapped.
+- `INV-09B = PASS — VERSION 143 SOURCE` Fast V2/V2.3 Orders path mapped.
+- `INV-09C = PASS — NOT DEPLOYED IN THIS PATH` Fast Auth V2.4 absent from inspected Version 143 Orders function.
 
 ## Exact current stopping point
 
-**Next single action: read-only inspection of the complete `getRowsPageD1FastV2_(e)` function from Apps Script Version 143/current project.**
+**Next single action: read-only inspection of the complete `getDashboardD1PrimaryV1_(e)` function from Apps Script Version 143/current project.**
 
 Need to determine:
-1. which auth function it uses.
-2. whether it delegates to `getRowsPageD1PrimaryV1_()`.
-3. stable-cache behavior/version lineage.
-4. D1 fetch/read helper.
-5. fallback behavior.
-6. returned `source` and timing metadata.
+1. dashboard authentication path.
+2. D1 safety/health checks.
+3. dashboard cache behavior.
+4. D1 helper/API used.
+5. Google Sheets fallback behavior.
+6. returned source/timing metadata.
 
 Do not save, deploy, or edit Apps Script during this inspection.
 
-After `getRowsPageD1FastV2_()` is mapped, continue `INV-09` with its called helper(s), then dashboard D1 path, sync, and auth.
+After Dashboard read is mapped, continue `INV-09` with D1 atomic/live sync entry points and auth inventory, then continue remaining Phase 0 lanes.
 
 ## Remaining Phase 0 inventory
 
@@ -170,7 +225,7 @@ Still required:
 - Press queue/session paths.
 - WhatsApp webhook/send paths.
 - Handover/OPS paths.
-- remaining D1 sync/read/auth helpers.
+- remaining D1 dashboard/sync/auth helpers.
 - integrity baseline counts.
 - Order ID / Line ID actual Sheet number formats.
 
@@ -238,4 +293,4 @@ and zero open `CORE-P0` blockers remain.
 
 ## Prompt for a fresh execution chat
 
-> Continue TrendOS from canonical GitHub memory in `docs/trendos/` on repo `fawakhry/TrendOs`, working branch `agent/go-live-2026-09-01-integrity`. Active lane is PHASE 1 — CORE + CLOUD. Active Apps Script Web App is Version 143. Runtime health is verified and Project history Version 143 routes `getDashboard` to `getDashboardD1PrimaryV1_()` and `getRowsPageV1931` to `getRowsPageD1FastV2_()`. `getRowsPageD1PrimaryV1_()` has now been inspected: it is D1-primary with strict safety snapshot/cache and automatic Google Sheets fallback, and it uses the existing `authorize_()` path. However, the production router calls `getRowsPageD1FastV2_()`, whose body is not yet mapped. Do not infer Fast Auth V2.4 is deployed. Do not overwrite Apps Script from GitHub because Apps Script D1 routing is ahead of GitHub `Code.gs`. Next single action: read-only inspect the complete `getRowsPageD1FastV2_(e)` function. Work one step at a time.
+> Continue TrendOS from canonical GitHub memory in `docs/trendos/` on repo `fawakhry/TrendOs`, working branch `agent/go-live-2026-09-01-integrity`. Active lane is PHASE 1 — CORE + CLOUD. Active Apps Script Web App is Version 143. Runtime health and Version 143 top-level D1 routes are verified. Production Orders read uses `getRowsPageD1FastV2_()`: legacy `authorize_()` runs before V2.3 stable cache; stable-cache source is `D1_FAST_STABLE_CACHE_V23`; then D1 probe/current cache/D1 snapshot build; any unsafe/error path falls back to `getRowsPageV1931_()` with `GOOGLE_SHEETS_FALLBACK`. Fast Auth V2.4 is therefore not deployed in this inspected path. Do not overwrite Apps Script from GitHub because Apps Script D1 routing is ahead of GitHub `Code.gs`. Next single action: read-only inspect the complete `getDashboardD1PrimaryV1_(e)` function. Work one step at a time.
