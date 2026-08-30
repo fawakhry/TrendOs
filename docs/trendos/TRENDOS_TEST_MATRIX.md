@@ -24,8 +24,8 @@
 | INV-04 | map Attendance/Clock-in paths | all entry points + session/event integrity documented | routes, session start, clock-in, pulses, state computation, schedule and live attendance baseline mapped; live duplicate sessions/events verified | PASS — SOURCE + LIVE DATA |
 | INV-05 | map Cleaning paths | status/complete, uniqueness, schedule/config and live baseline documented | check-then-append path, schema drift, config mismatch and 31-row live baseline mapped; 14 excess duplicate records verified | PASS — SOURCE + LIVE DATA |
 | INV-06 | map Press queue/session paths | queue/start/stop/settings/session traceability + live baseline documented | source queue mapped to 8 current orders; legacy Press view empty; start/stop race/idempotency and missing Line-ID traceability mapped | PASS — SOURCE + LIVE DATA |
-| INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
-| INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
+| INV-07 | map WhatsApp webhook/send paths | inbound/outbound/feedback/idempotency + live baseline documented | merged and standalone source variants mapped; unresolved `cmMetaMessageExists_` dependency, outbound retry gap, live Feedback duplicates/schema drift documented | PASS — SOURCE + LIVE DATA |
+| INV-08 | map Handover/OPS paths | handover/coach/ANDON/automation queue contracts documented | no canonical Handover ledger found; OPS notes/ANDON generic append path and Trend Master queue race mapped; live notes/queue inspected | PASS — SOURCE + LIVE DATA |
 | INV-09 | map D1 sync/read/auth paths | current paths documented | D1 read/sync/Worker + legacy auth baseline/session/setup/invalidation entry points mapped; V2.4 invalidation/runtime parity still pending | PARTIAL |
 | INV-09A | inspect D1 primary helper safety/fallback | source + fallback + auth known | Primary V1 uses feature flag, `authorize_()`, safety snapshot, cache, Sheets fallback | PASS — SOURCE |
 | INV-09B | inspect production Orders Fast V2/V2.3 | exact sequence known | auth -> V2.3 stable cache -> probe -> V2.2 cache -> D1 build -> Sheets fallback | PASS — VERSION 143 SOURCE |
@@ -37,7 +37,7 @@
 | INV-09H | map `findUser_()` authoritative lookup | exact Users lookup/read pattern known | full Users `getDataRange().getValues()`, header resolution, sequential username scan; no cache/index | PASS — SOURCE |
 | INV-09I | map session expiry policy | exact TTL/time rules known | default 12h; Script Property override; clamped 1–72h; unparsable issuedAt expires | PASS — SOURCE |
 | INV-09J | map `ensureUsersSetup_()` hot-path work | setup calls/writes/cost known | header check on every auth; can append missing Token/Last Login headers; current headers already exist | PASS — SOURCE + LIVE HEADER |
-| INV-10 | verify production source/version manifest | active deployment + source composition known | Version 143/runtime/top-level routes verified; full project composition still pending | PARTIAL |
+| INV-10 | verify production source/version manifest | active deployment + source composition known | Version 143/runtime/top-level routes verified; full project composition still pending; WhatsApp/Feedback merged-vs-standalone drift makes this a correctness blocker before deploy | PARTIAL |
 | INV-10A | active deployment version | known | Version 143, Aug 29 2026 11:37 PM | PASS |
 | INV-10B | deployment ID matches config | same deployment | visible prefix matches production config | PASS — PREFIX |
 | INV-10C | deployed runtime identity | expected backend/workbook | `V1932_FULL_GO_LIVE_20260824`, correct workbook, Orders 152, Lines 180, 87 sheets | PASS |
@@ -53,7 +53,7 @@
 | REG-03 | concurrent Order/Line create triggers | no duplicate/partial active state | PENDING | PENDING |
 | REG-04 | Line ID `3637-02` write/read | remains literal string | current live value appears literally as `3637-02`; write/read regression not yet executed | PARTIAL — LIVE READ |
 | REG-05 | Line ID `3647-01` write/read | remains literal string | current live value appears literally as `3647-01`; write/read regression not yet executed | PARTIAL — LIVE READ |
-| REG-06 | Line ID `3651-02` write/read | remains literal string | current live value appears literally as `3651-02`; write/read regression not yet executed | PARTIAL — LIVE READ |
+| REG-06 | Line ID `3651-02` write/read | remains literal string | current live value appears literally as `3651-02`; historical automation queue also proves older Line IDs were coerced into Date values | PARTIAL — LIVE READ + HISTORICAL CORRUPTION |
 | REG-07 | Clock-in x2 | one operational session / one daily clock-in | live attendance has duplicate employee/date sessions; `attStart_()` has no lock | FAIL — LIVE BASELINE + SOURCE RACE |
 | REG-08 | fallback after Clock-in | no second session | per-row clock-in repeat is guarded, but find/start/check/write has no shared lock and duplicate daily sessions already exist | PENDING — KNOWN GAP |
 | REG-09 | resume x5 rapidly | one logical resume event | Wael session `AT-20260829-وائل-5167c552` contains four Resume pulses within ~20 seconds; `attAppendPulse_()` appends blindly | FAIL — LIVE + SOURCE |
@@ -72,11 +72,11 @@
 | REG-22 | finalized/closed order + sweep | no return to pricing/draft queue unless explicit reopen | Ready Sweep ignores final invoice state; finalized order can remain operationally ready, be swept again, and draft can regress from `تم التقفيل` to `يحتاج تسعير/اعتماد` | FAIL — SOURCE CONTRACT |
 | REG-23 | approved-priced order | exact approved total | PENDING | PENDING |
 | REG-24 | unpriced order | explicit needs pricing/approval; never invent price | all 50 inspected Ready Sweep drafts show total 0 + explicit `لا توجد بنود معتمدة بسعر بيع.` blocker | PASS — LIVE + SOURCE |
-| REG-25 | same WhatsApp webhook x5 | one inbound logical event/action | PENDING | PENDING |
-| REG-26 | repeated outbound retry | no duplicate logical send/action | `glaSendReady_()` has no durable notification event idempotency; repeated finalize can avoid invoice duplicate but still resend WhatsApp | PENDING — KNOWN GAP |
-| REG-27 | duplicate handover event | one Line ID + shift/businessDate event | PENDING | PENDING |
-| REG-28 | repeated OPS follow-up without new state | no duplicate coach event | PENDING | PENDING |
-| REG-29 | two concurrent automation triggers | no duplicated business mutation | PENDING | PENDING |
+| REG-25 | same WhatsApp webhook x5 | one inbound logical event/action | merged `cmAppendMessage_()` has UserLock + Meta-ID dedupe, but outer webhook calls unresolved `cmMetaMessageExists_()` in every accessible merged source; standalone Customer Manager is older and lacks same guard; exact Version 143 composition unresolved | PARTIAL — SOURCE COMPOSITION BLOCKER |
+| REG-26 | repeated outbound retry | no duplicate logical send/action | Customer Manager send and `glaSendReady_()` call Meta before any durable logical-event claim; ambiguous retry can send a second message with a new Meta ID | FAIL — SOURCE CONTRACT |
+| REG-27 | duplicate handover event | one Line ID + shift/businessDate event | no canonical Handover route/ledger/business key exists; End Day UI only displays a summary and OPS Coach merely instructs staff to hand over | FAIL — CONTRACT ABSENT |
+| REG-28 | repeated OPS follow-up without new state | no duplicate coach/reply event until state changes | `saveMatbagyNote_()` blindly appends UUID notes; employee reply/ANDON titles include a new timestamp each click; no state fingerprint/event key | FAIL — SOURCE CONTRACT |
+| REG-29 | two concurrent automation triggers | no duplicated business mutation | Trend Master queue has deterministic keys but check-existing -> append has no ScriptLock and core run has no durable run claim; concurrent runs can append the same logical key | FAIL — SOURCE RACE |
 | REG-30 | D1 unsafe/partial state | fallback/reject rather than unsafe data | PENDING | PENDING |
 | REG-31 | Line mutation while Orders+Lines stage | promoted D1 pair represents one consistent logical source state | current `updateLine_()` does not honor D1 tick ScriptLock | PENDING — KNOWN GAP |
 
@@ -104,9 +104,19 @@ All must be green:
 5. Press Source Queue = Press View Queue. **NOT GREEN — legacy view is 0 vs source 8; actual frontend parity pending.**
 6. Press Session tracking complete. **FAIL — no Order/Line linkage and Start/Stop idempotency gaps.**
 7. Attendance/Cleaning idempotency passes. **FAIL — both have live duplicate state.**
-8. Line IDs remain literal text. **PARTIAL live-read evidence; write regression pending.**
-9. WhatsApp webhook/idempotent logical sends. **PENDING / known outbound gap.**
-10. concurrency regression passes. **FAIL on current Attendance/Cleaning/Press/Invoice source + live evidence.**
-11. D1 Orders/Lines source snapshot consistency passes. **PENDING known lock gap.**
-12. full E2E pack passes. **PENDING.**
-13. zero open `CORE-P0` blockers. **FAIL — invoice, attendance, cleaning, press and source-snapshot gaps open.**
+8. Line IDs remain literal text. **PARTIAL — current live IDs are literal, but historical automation queue contains date-coerced Line IDs.**
+9. WhatsApp webhook/idempotent logical sends. **NOT GREEN — inbound source composition unresolved; outbound retry contract FAIL.**
+10. Handover/OPS events are traceable and idempotent. **FAIL — no canonical Handover ledger; generic OPS/ANDON notes have no stable event key.**
+11. concurrency regression passes. **FAIL on current Invoice/Attendance/Cleaning/Press/OPS automation source contracts.**
+12. D1 Orders/Lines source snapshot consistency passes. **PENDING known lock gap.**
+13. full E2E pack passes. **PENDING.**
+14. zero open `CORE-P0` blockers. **FAIL — multiple confirmed blockers remain.**
+
+## Phase 0 inventory conclusion
+
+Module inventories `INV-01` through `INV-08` are complete. Remaining Phase 0 work is **consolidation and authoritative-source reconciliation**, not another module inventory:
+- reconcile exact Version 143 Apps Script project composition (`INV-10`).
+- close remaining D1/auth evidence boundaries under `INV-09` without deploying Fast Auth V2.4.
+- freeze the baseline blocker list and required shared integrity contract before first patch.
+
+No GO decision is permitted from inventory completion alone.
