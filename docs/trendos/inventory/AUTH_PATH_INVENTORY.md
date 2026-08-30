@@ -1,147 +1,189 @@
 # TrendOS Phase 0 — Authentication Path Inventory
 
-> Scope: read-only source inventory of the current Apps Script authentication path supplied from the active project/source context. No Apps Script edit, save, deploy, login, logout, or token mutation was intentionally executed during this inventory.
+> Scope: read-only inventory of the current employee authentication path from the supplied current `Code.gs` source plus direct read-only Google Sheets inspection. No Apps Script save/deploy/login/logout/token mutation was executed during this inventory.
 
 ## Status
 
-- `INV-09G — map current authorize_() baseline`: **PASS — SOURCE**
-- `INV-09H — map findUser_() authoritative lookup`: **PASS — SOURCE**
-- `INV-09I — map sessionExpiredV1922_() policy`: **PENDING**
-- `INV-09J — map ensureUsersSetup_() hot-path work`: **PARTIAL — WRAPPER MAPPED; HEADER HELPER PENDING**
-- `D1-05 — Fast Auth invalidation`: **PENDING**
+- `INV-09G — authorize_() baseline`: **PASS — SOURCE**
+- `INV-09H — findUser_() authoritative lookup`: **PASS — SOURCE**
+- `INV-09I — session expiry policy`: **PASS — SOURCE**
+- `INV-09J — ensureUsersSetup_() hot-path work`: **PASS — SOURCE**
+- current login/logout/password token invalidation: **PASS — SOURCE MAPPED**
+- employee Active/deactivation write entry point in supplied monolith: **NO DEDICATED CODE PATH FOUND; sheet value is authoritative on each current lookup**
+- `D1-05 — Fast Auth V2.4 invalidation`: **PENDING — V2.4 NOT DEPLOYED**
 
-## 1. Current `authorize_(username, token)` sequence
+## 1. Current `authorize_(username, token)`
 
 ```text
 normalize username
  -> findUser_(...)
- -> user exists?
- -> user active?
- -> token present + constant-time token match + session not expired?
-      -> NO: clear stored token cell if available, reject session
-      -> YES: return { ok:true, user }
+ -> reject missing user
+ -> reject populated Active unless exactly نعم
+ -> require token
+ -> constant-time compare supplied token vs stored token
+ -> reject expired session
+      -> failure path clears stored Token when Token column exists
+ -> success {ok:true,user}
 ```
 
-Important facts:
-- `authorize_()` itself contains no authentication cache.
-- populated Active state different from `نعم` is rejected; blank/falsy Active is not rejected by this exact condition.
-- missing/bad/expired token path may clear the stored token cell using `safeSet_()`.
+Facts:
+- no auth cache exists inside `authorize_()`.
+- blank/falsy Active is not rejected by the exact current condition.
+- a bad/missing/expired token can mutate auth state by clearing the stored token cell.
 
 ## 2. `findUser_(username)` — authoritative lookup
 
-Current flow:
+Current sequence:
 
 ```text
 ensureUsersSetup_()
- -> ss_().getSheetByName(SHEET_NAME_USERS)
- -> sheet.getDataRange().getValues()
+ -> get Users sheet
+ -> full sheet.getDataRange().getValues()
  -> headersMap_(sheet)
- -> resolve user/auth columns
+ -> resolve username/department/role/active/password/mustChange/token/lastLogin columns
  -> sequential normalized username scan
- -> return first match or null
+ -> first match or null
 ```
 
-Every auth attempt therefore performs synchronous Google Sheets I/O before a cached D1 Orders page can return.
+There is no cache, index, targeted row lookup or D1 user lookup in the supplied function.
 
-There is no cache/index/targeted user lookup inside the supplied `findUser_()`.
+Every current auth attempt therefore performs synchronous Google Sheets I/O before a cached D1 Orders page can return.
 
-Returned data includes username, department, role, Active, password, mustChange, token, lastLogin and relevant column/row metadata.
+## 3. `ensureUsersSetup_()` and header helper
 
-## 3. `ensureUsersSetup_()` — wrapper now mapped
-
-Current source:
+`ensureUsersSetup_()` runs on every `findUser_()` call:
 
 ```javascript
-function ensureUsersSetup_() {
-  const sheet = ss_().getSheetByName(SHEET_NAME_USERS);
-  if (!sheet) throw new Error('شيت المستخدمين غير موجود.');
-  ensureHeaderIfAnyMissing_(sheet, ['Token', 'آخر دخول']);
-}
+const sheet = ss_().getSheetByName(SHEET_NAME_USERS);
+if (!sheet) throw new Error('شيت المستخدمين غير موجود.');
+ensureHeaderIfAnyMissing_(sheet, ['Token', 'آخر دخول']);
 ```
 
-Therefore every `findUser_()` / auth attempt performs at least:
+`ensureHeaderIfAnyMissing_()` is now mapped:
 
-1. one `ss_().getSheetByName(SHEET_NAME_USERS)` inside `ensureUsersSetup_()`.
-2. one call to `ensureHeaderIfAnyMissing_(sheet, ['Token','آخر دخول'])`.
-3. then another `ss_().getSheetByName(SHEET_NAME_USERS)` inside `findUser_()`.
-4. then `sheet.getDataRange().getValues()`.
-5. then `headersMap_(sheet)` and sequential username matching.
+1. calls `headersMap_(sheet)` once.
+2. builds a list of missing requested headers.
+3. if none are missing, returns without write.
+4. if headers are missing, calls `sheet.getLastColumn()` and appends all missing headers in one `setValues()` write.
 
-### What is proven
+Therefore the normal auth hot path includes schema checking on every request and **can perform a schema write during authentication** if `Token` or `آخر دخول` is missing.
 
-- `ensureUsersSetup_()` is on the hot auth path for every current lookup.
-- the wrapper itself does not contain a cache.
-- it checks existence of the Users sheet.
-- it delegates schema enforcement/checking for `Token` and `آخر دخول` to `ensureHeaderIfAnyMissing_()`.
-- there are two visible `getSheetByName()` calls in the current `findUser_()` path: one in setup and one immediately afterward in `findUser_()`.
+Current Users sheet inspection confirms those headers exist now, so this helper should normally be read/check-only at present; the write capability remains part of the runtime contract.
 
-### What is not yet proven
+## 4. Header-map behavior
 
-The exact cost and side effects of `ensureHeaderIfAnyMissing_()` remain unknown.
+`headersMap_(sheet)` reads row 1 through the current last column and maps normalized header name -> column number.
 
-Until that helper is inspected, do not claim `ensureUsersSetup_()` is read-only. Depending on the helper implementation, it may:
-- only inspect headers,
-- scan header cells,
-- append missing headers,
-- or perform other schema writes.
+When the same normalized header appears more than once, the later column overwrites the earlier mapping.
 
-Therefore `INV-09J` remains PARTIAL rather than PASS.
+This is relevant to wider TrendOS schema integrity because direct inspection found duplicate header names in `بنود الأوردرات`. It is not currently a duplicate-header problem in the core Users auth columns, but the helper behavior must be considered in schema cleanup.
 
-## 4. Performance conclusion
+## 5. Session TTL policy
 
-Version 143 Orders Fast V2 calls legacy `authorize_()` before the V2.3 stable-page cache.
+`sessionTtlMsV1922_()`:
 
-The current auth hot path now includes:
+- default: **12 hours**.
+- configurable from Script Property `SESSION_TTL_HOURS`.
+- lower bound: **1 hour**.
+- upper bound: **72 hours**.
+
+`sessionExpiredV1922_(issuedAt)` parses the stored issued time and returns expired when:
+
+- the value cannot be parsed, or
+- `Date.now() - issuedAt > sessionTtlMsV1922_()`.
+
+So `INV-09I = PASS — SOURCE`.
+
+## 6. Login / logout / password invalidation
+
+### Login
+
+`login_()`:
+- rate-limits failed employee login attempts.
+- calls authoritative `findUser_()`.
+- rejects inactive user or bad password.
+- upgrades legacy password hash when needed.
+- generates a fresh token.
+- writes Token + Last Login.
+- flushes Spreadsheet writes.
+
+### Logout
+
+`logoutEmployee_()`:
+- calls `findUser_()`.
+- only clears stored Token when the supplied token constant-time matches the stored token.
+- flushes Spreadsheet writes.
+
+### Password change
+
+`changePassword_()`:
+- first authenticates with current token.
+- validates old/new password.
+- writes new password hash.
+- clears stored Token.
+- clears must-change-password flag when present.
+- returns `forceRelogin:true`.
+
+Therefore token rotation/logout/password-change semantics are now mapped.
+
+## 7. Employee deactivation / Active state
+
+Source search of the supplied monolithic `Code.gs` found the employee Users sheet auth read path but no dedicated `createUser`, `saveUser`, `updateUser`, or explicit Users Active mutation backend entry point.
+
+Current behavior therefore treats the Users sheet Active value as authoritative at lookup time. With the legacy uncached auth path, a manual/admin sheet change to Active is observed on the next authoritative `findUser_()` request.
+
+This is a source-search conclusion for the supplied monolith, not proof that no external Apps Script file/tool can ever mutate Users. Full Version 143 project composition remains separately partial under `INV-10`.
+
+## 8. Performance conclusion
+
+Current Version 143 Orders read runs legacy auth before the V2.3 stable page cache. The auth hot path contains:
 
 ```text
 authorize_
  -> findUser_
-    -> ensureUsersSetup_
-       -> get Users sheet
-       -> ensureHeaderIfAnyMissing_
-    -> get Users sheet again
-    -> full getDataRange().getValues()
-    -> headersMap_
+    -> Users sheet lookup
+    -> header schema check
+       -> header row read
+       -> possible schema write if missing
+    -> Users sheet lookup again
+    -> full Users used-range read
+    -> header row read again
     -> sequential username scan
- -> active/token/session validation
+ -> token/session checks
 ```
 
-This is strong source evidence that repeated Spreadsheet service calls sit ahead of the fast D1 cache.
+This is strong source evidence for the legacy auth bottleneck and matches historical runtime where auth dominated the request while the D1 stable cache itself was fast.
 
-Do not attribute the entire historical ~7.45s auth duration to one call yet. The remaining setup-header helper, spreadsheet open/cold-start effects, `headersMap_()`, and session helpers have not been independently timed.
+Do not claim one individual Sheets call alone accounts for the full historical latency without isolated timing.
 
-## 5. Security / correctness observations
+## 9. Fast Auth V2.4 safety requirement
 
-1. bad/missing/expired token may clear the stored token.
-2. blank/falsy Active status passes the current active check.
-3. blank password can fall back to `employeeDefaultPassword_()`.
-4. full Users used range is read for each authoritative lookup.
-5. no current auth cache/index exists in `authorize_()` or `findUser_()`.
-6. setup/schema checking is executed on every lookup.
-7. exact session TTL remains pending.
-8. Fast Auth V2.4 invalidation must preserve token/logout/deactivation/session-expiry semantics.
+V2.4 is still **PREPARED / NOT DEPLOYED / NOT VERIFIED**.
 
-## 6. Fast Auth V2.4 implication
+Any auth cache must preserve or explicitly define behavior for:
+- Active/deactivation changes.
+- token rotation at login.
+- logout token clearing.
+- password-change token clearing.
+- session TTL expiry.
+- failed-auth token clearing behavior (or an intentionally safer replacement).
 
-A safe performance fix should avoid repeated schema/setup/full-sheet work on every request, but must not weaken authoritative checks.
+A 120-second cache means stale authorization may otherwise survive for up to its TTL unless an invalidation hook or stronger cache key/version contract exists.
 
-Do not install V2.4 until these are mapped:
-- `ensureHeaderIfAnyMissing_()` behavior.
-- `sessionExpiredV1922_()` policy.
-- login/logout/token update/deactivation entry points.
-- cache invalidation contract.
+Therefore `D1-05` remains PENDING until the V2.4 implementation/invalidation contract is inspected and tested before deployment.
 
-## Next exact action
+## Phase 0 auth conclusion
 
-Read-only inspect the complete current function:
+The **current auth baseline inventory is complete enough to leave source discovery**:
+- authoritative source = Users sheet.
+- current path = uncached full-range lookup.
+- session TTL = mapped.
+- setup/schema side effects = mapped.
+- login/logout/password token invalidation = mapped.
+- current Active check = mapped.
 
-`function ensureHeaderIfAnyMissing_(...)`
+No production change is approved by this document.
 
-Need declaration through final closing brace.
+## Next lane
 
-Goal:
-- determine whether the auth hot path performs a schema write or only a read/check,
-- determine header-read cost,
-- identify whether setup/migration work should be removed from normal authentication later.
-
-Do not edit, save or deploy Apps Script during this step.
+Proceed to `INV-03`: map invoice Ready Sweep / draft generation / finalize entry points and idempotency risks before any implementation change.
