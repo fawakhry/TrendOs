@@ -1,0 +1,46 @@
+{
+  "name": "TrendOS Integrity V1",
+  "status": "PREPARED_NOT_APPROVED_FOR_PRODUCTION",
+  "featureFlag": {
+    "name": "TRENDOS_INTEGRITY_V1_ENABLED",
+    "default": false
+  },
+  "coreAppsScriptFiles": [
+    "trendos-integrity-v1.gs",
+    "trendos-order-line-integrity-v1.gs",
+    "trendos-attendance-cleaning-integrity-v1.gs",
+    "trendos-press-integrity-v1.gs",
+    "trendos-invoice-integrity-v1.gs",
+    "trendos-whatsapp-integrity-v1.gs",
+    "trendos-handover-ops-integrity-v1.gs",
+    "trendos-andon-integrity-v1.gs",
+    "trendos-integrity-dashboard-v1.gs",
+    "trendos-integrity-router-v1.gs"
+  ],
+  "optionalPerformanceFiles": [
+    "D1_Fast_Auth_V2_5_Safe.gs"
+  ],
+  "frontendFiles": [
+    "customer-manager-send-integrity-v1.js"
+  ],
+  "forbiddenFiles": [
+    "Code.gs",
+    "D1_Orders_Fast_V2_4.gs",
+    "customer-manager-backend-v1932.gs",
+    "customer-feedback-backend-v1.gs",
+    "attendance-backend-v1.gs",
+    "attendance-clockin-backend-v1.gs",
+    "cleaning-backend-v1.gs",
+    "press-control-backend-v1.gs"
+  ],
+  "rules": [
+    "Do not rebuild or overwrite production Code.gs from GitHub.",
+    "Do not copy old standalone V1932 modules on top of the consolidated live Code lineage.",
+    "Install core modules with TRENDOS_INTEGRITY_V1_ENABLED absent or false.",
+    "Run dependency health before enabling the feature flag.",
+    "Enable one route family at a time only after runtime regression evidence.",
+    "Fast Auth V2.5 is optional and must remain outside the first Core activation until lifecycle invalidation wiring is verified.",
+    "Fast Auth V2.4 is forbidden.",
+    "Production deployment requires an explicit approved checkpoint and rollback plan."
+  ]
+}
