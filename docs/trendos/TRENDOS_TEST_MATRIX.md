@@ -20,7 +20,7 @@
 
 | ID | Test | Expected | Actual | Result |
 |---|---|---|---|---|
-| INV-01 | enumerate Order/Line create/update entry points | complete list | PENDING | PENDING |
+| INV-01 | enumerate Order/Line create/update entry points | complete current-source list | documented in `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`; production-source equivalence still requires INV-10 | PASS — REPO SOURCE |
 | INV-02 | enumerate active Apps Script triggers | function + cadence | PENDING | PENDING |
 | INV-03 | map invoice sweep/finalize paths | all entry points documented | PENDING | PENDING |
 | INV-04 | map Attendance/Clock-in paths | all entry points documented | PENDING | PENDING |
