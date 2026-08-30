@@ -15,6 +15,7 @@ on:
       - 'trendos-handover-ops-integrity-v1.gs'
       - 'trendos-andon-integrity-v1.gs'
       - 'trendos-integrity-dashboard-v1.gs'
+      - 'trendos-integrity-router-v1.gs'
       - 'D1_Fast_Auth_V2_5_Safe.gs'
       - 'customer-manager-send-integrity-v1.js'
       - 'tests/trendos_integrity_v1.test.js'
@@ -27,6 +28,7 @@ on:
       - 'tests/trendos_andon_integrity_v1.test.js'
       - 'tests/trendos_integrity_dashboard_v1.test.js'
       - 'tests/d1_fast_auth_v25_safe.test.js'
+      - 'tests/trendos_integrity_router_v1.test.js'
       - 'tests/trendos_integrity_composition_v1.test.js'
       - 'tests/customer_manager_send_integrity_v1.test.js'
       - '.github/workflows/trendos-integrity-v1.yml'
@@ -67,5 +69,7 @@ jobs:
         run: node tests/trendos_integrity_dashboard_v1.test.js .
       - name: Run TrendOS Fast Auth V2.5 SAFE tests
         run: node tests/d1_fast_auth_v25_safe.test.js .
+      - name: Run TrendOS Integrity Router tests
+        run: node tests/trendos_integrity_router_v1.test.js .
       - name: Run composed Apps Script module syntax/collision test
         run: node tests/trendos_integrity_composition_v1.test.js .
