@@ -27,9 +27,10 @@ Canonical plan:
 6. `docs/trendos/inventory/D1_ATOMIC_SYNC_INVENTORY.md`
 7. `docs/trendos/inventory/D1_WORKER_ATOMIC_ROUTING_INVENTORY.md`
 8. `docs/trendos/inventory/APPS_SCRIPT_TRIGGER_INVENTORY.md`
-9. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
-10. `docs/trendos/TRENDOS_TEST_MATRIX.md`
-11. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+9. `docs/trendos/inventory/AUTH_PATH_INVENTORY.md`
+10. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
+11. `docs/trendos/TRENDOS_TEST_MATRIX.md`
+12. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 
 Evidence precedence:
 `LATEST VERIFIED > EARLIER VERIFIED > DEPLOYED > TESTED > IMPLEMENTED > PREPARED > PLANNED > UNKNOWN`.
@@ -80,6 +81,38 @@ Fast Auth V2.4 remains **PREPARED / NOT DEPLOYED / NOT VERIFIED** in this path.
 - shared D1 safety snapshot
 - `d1DashboardResultV1_()`
 - automatic `getDashboard_()` Sheets fallback
+
+## Current authentication baseline — mapped
+
+Current `authorize_(username, token)` has now been inspected.
+
+Exact sequence:
+
+```text
+normalize username
+ -> findUser_(...)
+ -> reject missing user
+ -> reject populated active state unless exactly نعم
+ -> require token
+ -> constant-time compare stored token vs normalized supplied token
+ -> require non-expired session via sessionExpiredV1922_(user.lastLogin)
+ -> on token/session failure: clear stored token cell when colToken exists
+ -> success: return {ok:true,user}
+```
+
+Important conclusions:
+- `authorize_()` itself has **no cache**.
+- Version 143 Orders read calls this function before the V2.3 page cache, so authoritative user lookup sits on every request.
+- the invalid/expired-session path is not purely read-only: it can clear the token in the Users sheet through `safeSet_()`.
+- blank/falsy `user.active` is not rejected by the current condition; only a populated value different from `نعم` is rejected.
+- exact latency source is still pending because `findUser_()` body has not yet been inspected.
+- exact session TTL/policy remains inside `sessionExpiredV1922_()` and is still pending.
+
+Detailed document:
+`docs/trendos/inventory/AUTH_PATH_INVENTORY.md`
+
+Test:
+- `INV-09G = PASS — SOURCE` current `authorize_()` baseline mapped.
 
 ## D1 Atomic Orders + Lines sync
 
@@ -155,6 +188,19 @@ If promote succeeds but stats read fails, Apps Script reports failure although D
 
 `D1-08` remains PENDING.
 
+### Authentication performance/invalidation — still open
+
+Current baseline confirms:
+- no cache inside `authorize_()`.
+- `findUser_()` is on the critical path before D1 stable cache.
+- invalid/expired auth may clear the stored token.
+
+Still need:
+- `findUser_()` implementation and actual sheet read cost.
+- `sessionExpiredV1922_()` policy.
+- login/logout/token update entry points.
+- V2.4 invalidation behavior for token changes, deactivation, logout and session expiry.
+
 ## Phase 0 status
 
 PASS:
@@ -166,32 +212,33 @@ PASS:
 - `INV-09D` Dashboard D1 path
 - `INV-09E` Apps Script atomic/live sync path
 - `INV-09F` Worker-side atomic promote transaction
+- `INV-09G` current `authorize_()` baseline
 - `INV-10A` active Version 143
 - `INV-10B` deployment/config match
 - `INV-10C` live runtime identity
 - `INV-10D` Version 143 top-level routes
 
 Still pending/partial:
-- `INV-09` full auth/invalidation/runtime parity inventory
+- `INV-09H` current `findUser_()` lookup path/cost
+- `INV-09I` session expiry policy
+- full auth invalidation/runtime parity inventory
 - full Version 143 project composition (`INV-10`)
 - Invoice / Attendance / Cleaning / Press / WhatsApp / Handover-OPS inventories
 - baseline duplicate IDs and actual ID number formats
 
 ## Exact current stopping point
 
-**Next single action: inspect the current Version 143 authentication implementation `authorize_()` read-only.**
+**Next single action: inspect the complete current `findUser_()` function, read-only.**
 
-Need the complete current function body for:
-
-`function authorize_(...)`
+Need the function from declaration through final closing brace.
 
 Goal:
-1. map token/session validation source,
-2. map user lookup behavior,
-3. identify any current cache,
-4. understand inactive/deactivated user behavior,
-5. identify logout/token invalidation semantics,
-6. establish the exact delta Fast Auth V2.4 would introduce.
+1. identify the Users sheet read method,
+2. determine whether it performs a full sheet/DataRange scan,
+3. identify any existing cache/index,
+4. identify username normalization/matching,
+5. identify returned token/active/lastLogin fields,
+6. confirm the actual cause of the legacy auth latency before evaluating V2.4.
 
 Do not save, edit or deploy Apps Script during this inspection.
 
