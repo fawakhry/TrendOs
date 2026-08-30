@@ -203,7 +203,10 @@ function trendosCustomerDraftSubmitV1_(e) {
     const statusCol = trendosOrderLineFirstColV1_(foundDraft.h, ['حالة المسودة'], 0);
     const currentStatus = trendosOrderLineLegacyTextV1_(trendosOrderLineValueAtV1_(foundDraft.row, statusCol));
     const existingOrder = trendosCustomerDraftExistingOrderV1_(foundDraft);
-    if (currentStatus && currentStatus !== 'مسودة') return {success:true,orderId:existingOrder,message:'تم بدء التنفيذ لهذه المسودة من قبل.',duplicatePrevented:true,version:TRENDOS_ORDER_LINE_INTEGRITY_VERSION_V1};
+    if (currentStatus && currentStatus !== 'مسودة') {
+      if (!existingOrder) return {success:false,integrityError:true,message:'المسودة مسجلة كبدأ تنفيذها ولكن رقم الأوردر الناتج مفقود. تم إيقاف التحويل لحماية البيانات.',version:TRENDOS_ORDER_LINE_INTEGRITY_VERSION_V1};
+      return {success:true,orderId:existingOrder,message:'تم بدء التنفيذ لهذه المسودة من قبل.',duplicatePrevented:true,version:TRENDOS_ORDER_LINE_INTEGRITY_VERSION_V1};
+    }
 
     const sheets = ensureCustomerDraftSheets_(), files = sheets.files;
     const itemIntegrity = trendosCustomerDraftValidateItemsV1_(files, draftId, customer.customerCode);
@@ -223,7 +226,7 @@ function trendosCustomerDraftSubmitV1_(e) {
     const orderId = orderResolution.orderId;
     const anyFly = items.some(function(x){return x.flyPrint;});
     const deps = items.map(function(x){return x.department;}).filter(Boolean);
-    const summaryDepartment = deps.length && deps.every(function(d){return d===deps[0];}) ? deps[0] : 'طباعة + ليزر';
+    const summaryDepartment = deps.every(function(d){return d===deps[0];}) ? (deps[0] || 'طباعة') : 'طباعة + ليزر';
     const summaryName = items.map(function(x){return x.itemName;}).join(' + ').slice(0,180) || 'طلب من بوابة العميل';
     const expectedDeliveryAt = anyFly ? new Date(now) : expectedDeliveryDate_(now);
     const expectedDeliveryText = anyFly ? (formatDateAr_(expectedDeliveryAt) + ' - نفس اليوم') : formatDateAr_(expectedDeliveryAt);
