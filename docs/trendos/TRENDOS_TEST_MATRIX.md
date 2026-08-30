@@ -28,12 +28,13 @@
 | INV-06 | map Press queue/session paths | all entry points documented | PENDING | PENDING |
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
-| INV-09 | map D1 sync/read/auth paths | all current paths documented | PENDING | PENDING |
-| INV-10 | verify exact production source/version manifest | active deployment + source composition known | Version 143 and live runtime identity verified; exact Version 143 source snapshot/file composition still pending | PARTIAL |
+| INV-09 | map D1 sync/read/auth paths | all current paths documented | Version 143 router targets verified; `getRowsPageD1PrimaryV1_()` behavior documented in `inventory/D1_READ_PATH_INVENTORY.md`; actual `getRowsPageD1FastV2_()` body still pending | PARTIAL |
+| INV-09A | inspect D1 primary helper safety/fallback | D1 source + fallback + auth path known | `getRowsPageD1PrimaryV1_()` uses feature flag, `authorize_()`, D1 snapshot safety checks, cache, and automatic `getRowsPageV1931_()` fallback | PASS — SOURCE |
+| INV-10 | verify exact production source/version manifest | active deployment + source composition known | Version 143, live runtime identity, and Version 143 top-level D1 route snapshot verified; complete Version 143 file/source composition still pending | PARTIAL |
 | INV-10A | confirm active deployment version | current active Version known | Manage deployments shows Version 143 on Aug 29, 2026 11:37 PM | PASS |
 | INV-10B | confirm deployment ID matches frontend config | configured/live deployment same | visible deployment ID prefix matches configured production deployment | PASS — PREFIX |
 | INV-10C | confirm deployed runtime identity | live endpoint returns expected backend/spreadsheet/version | `success:true`; `V1932_FULL_GO_LIVE_20260824`; correct main spreadsheet; Users/Orders/Lines present; Orders rows 152; Lines rows 180; 87 sheets returned | PASS |
-| INV-10D | verify Version 143 D1 route snapshot | deployed source shows actual `getDashboard` and `getRowsPageV1931` targets | PENDING — inspect Project history Version 143 | PENDING |
+| INV-10D | verify Version 143 D1 route snapshot | deployed source shows actual `getDashboard` and `getRowsPageV1931` targets | Version 143 shows `getDashboardD1PrimaryV1_(e)` and `getRowsPageD1FastV2_(e)` | PASS — SOURCE SNAPSHOT |
 
 ## C. Core integrity regression — required before Phase 1 exit
 
@@ -79,7 +80,7 @@
 | D1-03 | V2.4 first auth hit | authoritative auth, safe cache populate | PENDING | PENDING |
 | D1-04 | V2.4 cache hit | reduced auth latency, same authorization result | PENDING | PENDING |
 | D1-05 | auth expiry/deactivation/logout invalidation | no stale authorization beyond approved rule | PENDING | PENDING |
-| D1-06 | D1/network failure | Sheets fallback works | PENDING | PENDING |
+| D1-06 | D1/network failure | Sheets fallback works | source proves fallback exists in `getRowsPageD1PrimaryV1_()`; forced runtime failure test still pending | PARTIAL — SOURCE |
 
 ## E. Phase 1 GO/NO-GO gates
 
