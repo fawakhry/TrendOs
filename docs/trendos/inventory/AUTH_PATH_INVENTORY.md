@@ -7,6 +7,7 @@
 - `INV-09G — map current authorize_() baseline`: **PASS — SOURCE**
 - `INV-09H — map findUser_() authoritative lookup`: **PASS — SOURCE**
 - `INV-09I — map sessionExpiredV1922_() policy`: **PENDING**
+- `INV-09J — map ensureUsersSetup_() hot-path work`: **PARTIAL — WRAPPER MAPPED; HEADER HELPER PENDING**
 - `D1-05 — Fast Auth invalidation`: **PENDING**
 
 ## 1. Current `authorize_(username, token)` sequence
@@ -21,171 +22,126 @@ normalize username
       -> YES: return { ok:true, user }
 ```
 
-### Active-user check
+Important facts:
+- `authorize_()` itself contains no authentication cache.
+- populated Active state different from `نعم` is rejected; blank/falsy Active is not rejected by this exact condition.
+- missing/bad/expired token path may clear the stored token cell using `safeSet_()`.
 
-The current check is:
+## 2. `findUser_(username)` — authoritative lookup
 
-`if (user.active && user.active !== 'نعم') ...`
-
-Meaning:
-- a populated active state different from `نعم` is rejected.
-- a blank/falsy active value is not rejected by this specific condition.
-
-### Token/session validation
-
-Authorization rejects when any of the following is true:
-- token missing.
-- `constantTimeEqualsV1922_(user.token, normalize_(token))` fails.
-- `sessionExpiredV1922_(user.lastLogin)` is true.
-
-On token/session failure, if `user.colToken` exists, the function calls:
-
-`safeSet_(user.sheet, user.rowNumber, user.colToken, '')`
-
-So failed/expired auth is not purely read-only; it may clear the stored token in the Users sheet.
-
-`authorize_()` itself contains no authentication cache.
-
----
-
-## 2. `findUser_(username)` — authoritative lookup now mapped
-
-The current function performs:
+Current flow:
 
 ```text
 ensureUsersSetup_()
  -> ss_().getSheetByName(SHEET_NAME_USERS)
  -> sheet.getDataRange().getValues()
  -> headersMap_(sheet)
- -> resolve username/department/role/active/password/mustChange/token/lastLogin columns
- -> normalize requested username
- -> sequential loop from data row 2 to end
- -> normalize each row username and compare
- -> return user object on first match
- -> null if no match
+ -> resolve user/auth columns
+ -> sequential normalized username scan
+ -> return first match or null
 ```
 
-### Spreadsheet I/O
+Every auth attempt therefore performs synchronous Google Sheets I/O before a cached D1 Orders page can return.
 
-Every call executes:
+There is no cache/index/targeted user lookup inside the supplied `findUser_()`.
 
-`sheet.getDataRange().getValues()`
+Returned data includes username, department, role, Active, password, mustChange, token, lastLogin and relevant column/row metadata.
 
-This reads the full used range of the Users sheet into Apps Script memory before matching one username.
+## 3. `ensureUsersSetup_()` — wrapper now mapped
 
-There is no cache, index, binary search, TextFinder, targeted row read, Properties lookup, or D1 lookup inside the supplied `findUser_()` function.
+Current source:
 
-The match is a sequential JavaScript loop over all loaded rows.
+```javascript
+function ensureUsersSetup_() {
+  const sheet = ss_().getSheetByName(SHEET_NAME_USERS);
+  if (!sheet) throw new Error('شيت المستخدمين غير موجود.');
+  ensureHeaderIfAnyMissing_(sheet, ['Token', 'آخر دخول']);
+}
+```
 
-### Column resolution
+Therefore every `findUser_()` / auth attempt performs at least:
 
-The function resolves columns on each call using `headersMap_(sheet)` plus `firstCol_()` for:
-- username
-- department
-- role
-- active
-- password
-- must-change-password
-- token
-- last-login
+1. one `ss_().getSheetByName(SHEET_NAME_USERS)` inside `ensureUsersSetup_()`.
+2. one call to `ensureHeaderIfAnyMissing_(sheet, ['Token','آخر دخول'])`.
+3. then another `ss_().getSheetByName(SHEET_NAME_USERS)` inside `findUser_()`.
+4. then `sheet.getDataRange().getValues()`.
+5. then `headersMap_(sheet)` and sequential username matching.
 
-It throws if Username or Password columns cannot be resolved.
+### What is proven
 
-### Returned authentication object
+- `ensureUsersSetup_()` is on the hot auth path for every current lookup.
+- the wrapper itself does not contain a cache.
+- it checks existence of the Users sheet.
+- it delegates schema enforcement/checking for `Token` and `آخر دخول` to `ensureHeaderIfAnyMissing_()`.
+- there are two visible `getSheetByName()` calls in the current `findUser_()` path: one in setup and one immediately afterward in `findUser_()`.
 
-On a match it returns:
-- `sheet`
-- `rowNumber`
-- normalized `username`
-- `department`
-- `role`
-- `active`
-- `password`
-- `mustChange`
-- `token`
-- `lastLogin`
-- `colPassword`
-- `colToken`
-- `colLastLogin`
+### What is not yet proven
 
-Fallback behavior in the returned object:
-- if Active column does not exist: `active = 'نعم'`.
-- if password cell is blank: uses `employeeDefaultPassword_()`.
+The exact cost and side effects of `ensureHeaderIfAnyMissing_()` remain unknown.
 
----
+Until that helper is inspected, do not claim `ensureUsersSetup_()` is read-only. Depending on the helper implementation, it may:
+- only inspect headers,
+- scan header cells,
+- append missing headers,
+- or perform other schema writes.
 
-## 3. Performance conclusion
+Therefore `INV-09J` remains PARTIAL rather than PASS.
 
-Version 143 Orders Fast V2 calls legacy `authorize_()` **before** the V2.3 stable-page cache.
+## 4. Performance conclusion
 
-`authorize_()` calls `findUser_()`.
+Version 143 Orders Fast V2 calls legacy `authorize_()` before the V2.3 stable-page cache.
 
-`findUser_()` performs a full Users-sheet `getDataRange().getValues()` read on every auth attempt.
+The current auth hot path now includes:
 
-Therefore the current production auth critical path definitely contains synchronous Google Sheets I/O before a cached D1 Orders page can be returned.
+```text
+authorize_
+ -> findUser_
+    -> ensureUsersSetup_
+       -> get Users sheet
+       -> ensureHeaderIfAnyMissing_
+    -> get Users sheet again
+    -> full getDataRange().getValues()
+    -> headersMap_
+    -> sequential username scan
+ -> active/token/session validation
+```
 
-This is strong source evidence explaining why authentication can dominate a fast D1 page-cache request.
+This is strong source evidence that repeated Spreadsheet service calls sit ahead of the fast D1 cache.
 
-However, do **not** state that `getDataRange().getValues()` alone has been proven to account for the entire historical ~7.45s auth duration. `ensureUsersSetup_()`, `headersMap_()`, spreadsheet open/access cost, cold-start behavior, and session helpers have not all been timed independently in this Phase 0 pass.
+Do not attribute the entire historical ~7.45s auth duration to one call yet. The remaining setup-header helper, spreadsheet open/cold-start effects, `headersMap_()`, and session helpers have not been independently timed.
 
-### Historical correlation
+## 5. Security / correctness observations
 
-Earlier runtime evidence showed approximately:
-- total request ~7.503s
-- auth ~7.453s
-- stable-page cache lookup ~20ms
+1. bad/missing/expired token may clear the stored token.
+2. blank/falsy Active status passes the current active check.
+3. blank password can fall back to `employeeDefaultPassword_()`.
+4. full Users used range is read for each authoritative lookup.
+5. no current auth cache/index exists in `authorize_()` or `findUser_()`.
+6. setup/schema checking is executed on every lookup.
+7. exact session TTL remains pending.
+8. Fast Auth V2.4 invalidation must preserve token/logout/deactivation/session-expiry semantics.
 
-The newly inspected source is consistent with that observation because the slow authoritative sheet lookup occurs before the fast cache.
+## 6. Fast Auth V2.4 implication
 
----
+A safe performance fix should avoid repeated schema/setup/full-sheet work on every request, but must not weaken authoritative checks.
 
-## 4. Security / correctness observations
-
-1. **Failed auth can mutate state:** bad/missing/expired token may clear the stored token cell.
-2. **Blank Active semantics:** blank/falsy active status passes the current `authorize_()` active check.
-3. **Full-sheet auth lookup:** every request reads all used Users rows/columns, including password/token fields.
-4. **Password fallback:** blank stored password resolves to `employeeDefaultPassword_()`.
-5. **No auth cache/index:** current baseline has no fast authoritative lookup mechanism.
-6. **Session TTL remains unknown:** exact expiry policy is still inside `sessionExpiredV1922_()`.
-7. **Setup helper remains important:** `ensureUsersSetup_()` runs before every Users lookup; its cost and possible writes must be inspected before designing V2.4.
-
----
-
-## 5. Fast Auth V2.4 delta — now clearer
-
-Any safe Fast Auth implementation must reduce repeated authoritative Users-sheet reads without weakening:
-- user active/deactivation checks.
-- token equality semantics.
-- session expiry.
-- logout/token rotation.
-- password/token changes.
-
-A 120-second cache cannot be approved solely for speed until invalidation is mapped for these state changes.
-
-Do not install V2.4 yet.
-
----
-
-## 6. Test status
-
-- `INV-09G — authorize_()`: **PASS — SOURCE**.
-- `INV-09H — findUser_()`: **PASS — SOURCE**.
-- `INV-09I — sessionExpiredV1922_()`: **PENDING**.
-- `INV-09J — ensureUsersSetup_() auth-path setup cost/side effects`: **PENDING**.
-- `D1-05 — Fast Auth invalidation`: **PENDING**.
+Do not install V2.4 until these are mapped:
+- `ensureHeaderIfAnyMissing_()` behavior.
+- `sessionExpiredV1922_()` policy.
+- login/logout/token update/deactivation entry points.
+- cache invalidation contract.
 
 ## Next exact action
 
 Read-only inspect the complete current function:
 
-`function ensureUsersSetup_(...)`
+`function ensureHeaderIfAnyMissing_(...)`
 
 Need declaration through final closing brace.
 
 Goal:
-- determine whether it only checks schema or performs writes/migrations.
-- count additional Spreadsheet service calls on every auth request.
-- determine whether it is a meaningful contributor to auth latency.
-- identify whether setup work should be separated from the hot authentication path before evaluating V2.4.
+- determine whether the auth hot path performs a schema write or only a read/check,
+- determine header-read cost,
+- identify whether setup/migration work should be removed from normal authentication later.
 
 Do not edit, save or deploy Apps Script during this step.
