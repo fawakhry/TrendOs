@@ -1,0 +1,20 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const root=process.argv[2]||process.cwd(),src=fs.readFileSync(root+'/trendos-integrity-router-v1.gs','utf8');let last={};
+const ctx={console,globalThis:null,
+ authorize_(u){if(u==='bad')return{ok:false,message:'bad auth'};return{ok:true,user:{username:u||'وائل',name:u||'وائل',department:'طباعة',role:u==='ضياء'?'admin':'print'}};},
+ trendosNormalizeOrderId_(){},trendosNormalizeLineId_(){},trendosWithLock_(){},trendosIdempotencyClaim_(){},trendosAutomationRunStart_(){},authorizeD1FastV25_(){},
+ trendosCustomerDraftAddItemV1_:e=>({success:true,kind:'add'}),trendosCustomerDraftUploadFileV1_:p=>({success:true,kind:'upload',p}),trendosCustomerDraftSubmitV1_:e=>({success:true,kind:'submit'}),trendosUpdateLineV1_:e=>({success:true,kind:'line'}),
+ trendosAttendanceV1_:e=>({success:true,kind:'attendance'}),trendosCleaningV1_:e=>({success:true,kind:'clean'}),trendosPressControlV1_:e=>({success:true,kind:'press'}),trendosGoLiveAutopilotV1_:e=>({success:true,kind:'invoice'}),trendosCustomerManagerV1_:e=>({success:true,kind:'cm'}),
+ trendosWhatsAppWebhookV1_:p=>({success:true,received:1}),
+ trendosCreateHandoverV1_:x=>(last.handover=x,{success:true,id:'HO-1'}),trendosReceiveHandoverV1_:x=>(last.receive=x,{success:true}),trendosSaveOpsReplyV1_:x=>(last.reply=x,{success:true,eventId:'R1'}),trendosCreateOpsCoachV1_:x=>(last.coach=x,{success:true}),trendosRunTrendMasterAutomationSafeV1_:x=>(last.run=x,{success:true}),trendosSaveAndonV1_:x=>(last.andon=x,{success:true,eventId:'A1'}),trendosResolveOpsEventV1_:x=>(last.resolve=x,{success:true}),trendosIntegrityDashboardV1_:e=>({success:true,report:{}})
+};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(src,ctx,{filename:'trendos-integrity-router-v1.gs'});
+const health=ctx.trendosIntegrityDependencyHealthV1_();assert.strictEqual(health.success,true);assert.strictEqual(health.missing.length,0);
+let r=ctx.trendosIntegrityTryRouteV1_('trendosCreateHandoverV1',{parameter:{username:'وائل',token:'t',employee:'مزور',lineId:'3637-01',orderId:'3637',shift:'DAY',status:'تحت التنفيذ',nextAction:'اكمل',nextOwner:'ريفان'}});assert.strictEqual(r.handled,true);assert.strictEqual(r.result.success,true);assert.strictEqual(last.handover.employee,'وائل');assert.notStrictEqual(last.handover.employee,'مزور');
+r=ctx.trendosIntegrityTryRouteV1_('trendosAndonV1',{parameter:{username:'وائل',token:'t',clientRequestId:'req-1',employee:'مزور',reason:'مساعدة',lineId:'3637-01'}});assert.strictEqual(r.result.success,true);assert.strictEqual(last.andon.employee,'وائل');assert.strictEqual(last.andon.requestId,'req-1');
+r=ctx.trendosIntegrityTryRouteV1_('trendosOpsReplyV1',{parameter:{username:'وائل',token:'t',requestId:'rep-1',content:'واقف',lineId:'3637-01'}});assert.strictEqual(last.reply.employee,'وائل');assert.strictEqual(last.reply.requestId,'rep-1');
+r=ctx.trendosIntegrityTryRouteV1_('trendosOpsCoachV1',{parameter:{username:'وائل',token:'t',lineId:'3637-01'}});assert.strictEqual(r.result.success,false);assert.match(r.result.message,/الإدارة/);assert.strictEqual(last.coach,undefined);
+r=ctx.trendosIntegrityTryRouteV1_('trendosOpsCoachV1',{parameter:{username:'ضياء',token:'t',employee:'وائل',lineId:'3637-01'}});assert.strictEqual(r.result.success,true);assert.strictEqual(last.coach.employee,'وائل');
+assert.strictEqual(ctx.trendosIntegrityTryRouteV1_('legacyUnknown',{parameter:{}}),null);
+let w=ctx.trendosIntegrityTryWebhookV1_({object:'not_whatsapp'});assert.strictEqual(w,null);w=ctx.trendosIntegrityTryWebhookV1_({object:'whatsapp_business_account'});assert.strictEqual(w.handled,true);assert.strictEqual(w.result.received,1);
+r=ctx.trendosIntegrityTryRouteV1_('trendosCreateHandoverV1',{parameter:{username:'bad',token:'t'}});assert.strictEqual(r.result.success,false);assert.strictEqual(r.result.message,'bad auth');
+assert.ok(!/sk-[A-Za-z0-9_-]{20,}/.test(src));assert.ok(!/EAA[A-Za-z0-9]{30,}/.test(src));console.log('TrendOS Integrity Router V1 tests: OK');
