@@ -2,6 +2,7 @@
 
 > Consolidated provenance and historical work registry.
 > This is not a deployment log by itself. Each entry preserves its evidence state.
+> For exact step-by-step current execution, use `docs/trendos/TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Transfer package registry
 
@@ -147,7 +148,7 @@ The following state outranks earlier historical package snapshots where conflict
 - Atomic Orders + Lines D1 sync is working in the newer project state.
 - newer D1 mirror snapshot: 87 sheets / 31,176 rows / 87 ready / 0 pending.
 - V2.3 stable cache verified.
-- Fast Auth V2.4 remains prepared/not verified.
+- Fast Auth V2.4 was reviewed later and rejected for deployment.
 - current active execution lane is Core integrity before further performance work.
 
 ## 2026-08-30 — Canonical memory initialization
@@ -173,87 +174,163 @@ Created:
 - `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
 
 Result:
-- `INV-01` is complete for the **current working-branch repository source**.
+- `INV-01` complete for current working-branch source.
 
 Key discoveries:
-- `createManualOrder_()` already has an outer ScriptLock and V1908 Script-Properties request replay when a stable request ID is supplied.
-- the current frontend generates `clientRequestId` once per Add Order submit and reuses it across its retry/confirmation path.
-- `appendLine_()` already contains a V1932 Line-ID duplicate guard in the inspected repo source.
-- `upsertOrderSummary_()` already updates/appends by Order ID sequentially.
-- `syncOrderFromLines_()` already excludes `مكرر` rows from active/current totals in the inspected repo source.
-- current Customer Portal UI uses Draft -> `submitCustomerDraft_()` rather than direct `createCustomerPortalOrder_()`.
-- `submitCustomerDraft_()` has a sequential draft-status replay check but no enclosing lock around check -> allocate Order -> write Lines -> mark submitted; concurrent submits remain a CORE-P0 candidate.
-- `updateLine_()` has no shared lock/event idempotency around read/write/summary/log/message side effects.
-- bulk status and archive paths have stronger ScriptLock + request-cache patterns, but their idempotency is not yet standardized/durable.
-- legacy `mbCreateOrder_()` and direct portal-create paths remain reachable in source and do not have the same stable event-key protection as the main manual path.
-
-Decision from inventory:
-- do not implement another blind Line-ID duplicate patch.
-- reconcile the actual live Apps Script source/deployment composition first.
-
-## 2026-08-30 — INV-10 editor-source reconciliation
-
-Evidence supplied from the current Apps Script editor was compared with GitHub.
-
-Verified for inspected Orders/Lines ranges:
-- `appendLine_()` duplicate guard present.
-- `createManualOrder_()` V1908 replay + ScriptLock present.
-- `submitCustomerDraft_()` still lacks outer conversion lock.
-- `updateLine_()` still lacks unified idempotent mutation contract.
-- `syncOrderFromLines_()` duplicate collapse / `مكرر` exclusion present.
-
-Critical divergence discovered:
-- editor `Code.gs` routes `getDashboard` to `getDashboardD1PrimaryV1_()`.
-- editor `Code.gs` routes `getRowsPageV1931` to `getRowsPageD1FastV2_()`.
-- GitHub `Code.gs` still uses older direct functions for those routes.
+- manual order path already had ScriptLock and stable request replay.
+- frontend reused `clientRequestId` across Add Order retry.
+- `appendLine_()` already had duplicate guard.
+- `submitCustomerDraft_()` had no outer lock around conversion.
+- `updateLine_()` had no unified idempotent mutation contract.
 
 Decision:
-- do not overwrite Apps Script from GitHub until the D1 editor delta is captured intentionally.
+- reconcile live Apps Script source/deployment before any blind patch.
 
-## 2026-08-30 — Active Apps Script deployment identified
-
-User supplied **Deploy -> Manage deployments** screenshot.
+## 2026-08-30 — Production/source reconciliation
 
 Verified:
-- active deployment type: Web app.
-- active version: **143**.
-- timestamp shown: **Aug 29, 2026 11:37 PM**.
-- visible Deployment ID prefix matches the production deployment configured in `config.js`.
+- active Web App Version 143.
+- live backend `V1932_FULL_GO_LIVE_20260824`.
+- correct main workbook and 87 sheets.
+- Version 143 top-level D1 routes for Dashboard and Orders.
 
-Consequence:
-- historical Version 138 is superseded as the active production version.
-- Version 143 is the current deployment reference.
+Critical lineage discovery:
+- old V1940 modular manifest predates later consolidated V1932 FULL `Code.gs` lineage.
+- GitHub `Code.gs` must not be used to overwrite production.
 
-Tests:
-- `INV-10A = PASS`.
-- `INV-10B = PASS — PREFIX`.
+Result:
+- `INV-10` remains PARTIAL only for exact full Version 143 file list; evidence boundary documented.
 
-## 2026-08-30 — Live Version 143 health verification
+## 2026-08-30 — Phase 0 module inventories completed
 
-Read-only call to the configured production Web App `action=health` succeeded.
+Completed read-only inventories for:
+- Orders/Lines.
+- triggers.
+- Invoice/Ready Sweep.
+- Attendance/Clock-in.
+- Cleaning.
+- Press.
+- WhatsApp/Customer Manager/Feedback.
+- Handover/OPS.
+- D1/Auth paths.
 
-Returned runtime evidence:
-- `success: true`.
-- backend version: `V1932_FULL_GO_LIVE_20260824`.
-- spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
-- `hasUsers: true`.
-- `hasOrders: true`.
-- `hasLines: true`.
-- `ordersRows: 152`.
-- `linesRows: 180`.
-- 87 sheet names returned.
+Historical live/source failures were preserved in `TRENDOS_TEST_MATRIX.md`; they were not rewritten as PASS merely because later fixes were prepared.
 
-Interpretation:
-- Version 143 is serving the expected TrendOS backend family against the correct main workbook.
-- the live workbook exposes the expected Core and Go-Live sheets.
-- this verifies runtime identity but not the exact implementation of every route.
+## 2026-08-30 — Fast Auth V2.4 rejected
 
-Test:
-- `INV-10C = PASS`.
+Prepared V2.4 source review found:
+- sanitizer could include primitive `password` and `token` fields in Script Cache payload.
+- invalidation helper was not wired to auth lifecycle.
 
-Remaining INV-10 uncertainty:
-- exact Version 143 source snapshot/file list.
-- specifically whether Version 143 contains the newer D1 route wiring visible in the current editor source.
+Decision:
+- **DO NOT DEPLOY V2.4**.
 
-Next exact action:
-- inspect Apps Script **Project history -> Version 143** and compare `Code.gs` `doGet` routing for `getDashboard` and `getRowsPageV1931` against the current editor source.
+A safer V2.5 lane was designed later and remains separate from first Core activation.
+
+## 2026-08-30 — Integrity V1 implementation series
+
+Implemented and CI-tested on `agent/go-live-2026-09-01-integrity`:
+
+1. `trendos-integrity-v1.gs` — shared locks, ID normalization, business calendar, durable event/idempotency ledgers.
+2. `trendos-order-line-integrity-v1.gs` — Draft/Order/Line concurrency and stale-row protection.
+3. `trendos-attendance-cleaning-integrity-v1.gs` — session uniqueness, clock-in enforcement, event idempotency, real checklist data.
+4. `trendos-press-integrity-v1.gs` — session Start/Stop integrity + Order/Line snapshot ledger.
+5. `trendos-invoice-integrity-v1.gs` — canonical Draft/revision/finalization/Ready Sweep protection.
+6. `trendos-whatsapp-integrity-v1.gs` + frontend stable-send shim — logical send idempotency and webhook exact-once contract.
+7. `trendos-handover-ops-integrity-v1.gs` — structured Handover + OPS state fingerprint + automation run contract.
+8. `trendos-andon-integrity-v1.gs` — structured ANDON/resolve path.
+9. `trendos-integrity-dashboard-v1.gs` — problem counts plus IDs/details and automation observability.
+10. `D1_Fast_Auth_V2_5_Safe.gs` — optional non-secret revisioned fast auth, kept outside first Core activation.
+11. `trendos-integrity-router-v1.gs` — default-OFF guarded route family integration.
+
+Representative verified CI runs:
+- Attendance/Cleaning `33319559363` SUCCESS.
+- Press `33320046858` SUCCESS.
+- Invoice `33323669244` SUCCESS.
+- WhatsApp `33324339920` SUCCESS.
+- Handover/OPS `33326904772` SUCCESS.
+- Integrity Dashboard `33327350322` SUCCESS.
+- Fast Auth V2.5 SAFE `33327466500` SUCCESS.
+- composed Apps Script test `33327527682` SUCCESS.
+- granular default-OFF flags `33328375829` SUCCESS.
+
+Important checkpoints:
+- Order/Line correction `7a5cf846e978110c0111eb4f6461b5d21652e985`.
+- Order/Line checkpoint `e75756feb2f21a0e2f38b71eeaf88a5f5543eabe`.
+- Attendance/Cleaning checkpoint `c5c5ebf2281064997dac2a3f2353f72409698271`.
+- Press checkpoint `70d604f11bee35fd2e53ee4d83724e9242b9209b`.
+- WhatsApp checkpoint `db1da117c3b7aba044bfa61cd2522f2279082e28`.
+
+Production impact for the entire Integrity V1 implementation series: **NONE**.
+
+## 2026-08-30 — Integrity V1 package and deployment safety
+
+Created:
+- `trendos-integrity-v1.package.json`.
+- pre-deploy package safety test.
+- composition collision/syntax test.
+- `docs/trendos/TRENDOS_INTEGRITY_V1_DEPLOY_MANIFEST.md`.
+- regression coverage documentation.
+
+Safety model:
+- install != activate.
+- master flag default OFF.
+- family flags default OFF.
+- Fast Auth V2.5 separate default-OFF switch.
+- `Code.gs`, Fast Auth V2.4, and old conflicting modular V1932 overlays are excluded/forbidden.
+
+Final candidate CI:
+- SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
+- run `33328415852` = SUCCESS.
+
+## 2026-08-30 — Pre-deploy candidate frozen
+
+Created branch:
+- `release/integrity-v1-predeploy-2026-08-30`
+
+Pinned at:
+- `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
+
+Meaning:
+- fixed reference for controlled installation testing.
+- not a production deployment.
+
+## 2026-08-31 — Apps Script routing source capture
+
+Inspected current supplied 13,959-line Apps Script snapshot.
+
+Confirmed:
+- `doGet()` calls V1932 -> V1900 -> V1898 -> legacy action chain.
+- `doPost()` parses payload, calls V1932 -> V1900 -> V1898, then POST handling/fallthrough.
+- V1932 router handles Meta verification and WhatsApp POST before older routes.
+- existing WhatsApp POST executes Feedback webhook then Customer Manager webhook.
+
+Conclusion:
+- controlled Integrity wiring point is known conceptually.
+- exact full live file list remains inaccessible from connectors.
+- WhatsApp activation must prevent dual legacy+Integrity side effects for one Meta payload.
+
+Production impact: **READ-ONLY**.
+
+## 2026-08-31 — Apps Script tooling boundary confirmed
+
+Available tools can modify GitHub and supported Google Drive/Sheets resources, but no direct connector can write the Google Apps Script source project.
+
+Therefore controlled installation requires limited user assistance in Apps Script UI.
+
+Exact next evidence requested:
+- screenshot of complete Apps Script source-file list in left sidebar.
+- no edit, no new file, no deployment yet.
+
+## 2026-08-31 — Durable execution ledger created
+
+Created:
+- `docs/trendos/TRENDOS_EXECUTION_LEDGER.md`
+
+Purpose:
+- preserve every material execution step, evidence state, CI/commit, production impact, rollback and exact next step.
+- make continuation from a new chat deterministic.
+
+New standing rule:
+- after every material TrendOS execution step, update the Execution Ledger before moving on.
+- new chats must read Project Memory -> Execution Ledger -> Handoff before acting.
