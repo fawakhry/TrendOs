@@ -110,8 +110,12 @@ class FakeSpreadsheet {
   getSheetByName(name){ return this.sheets[name] || null; }
   insertSheet(name){ return this.sheets[name] = new FakeSheet(); }
 }
+
 const fakeSs = new FakeSpreadsheet();
 context.ss_ = () => fakeSs;
+assert.strictEqual(context.trendosIdempotencyLookup_('MISSING'),null);
+assert.strictEqual(fakeSs.getSheetByName('إدارة - سجل التكامل'),null,'lookup must not create ledger');
+
 const evt = context.trendosEventKey_('TEST_EVENT','3637-02','2026-08-30',{v:1});
 const claim1 = context.trendosIdempotencyClaim_(evt,{eventType:'TEST_EVENT',entityId:'3637-02',businessDate:'2026-08-30',by:'test'});
 assert.strictEqual(claim1.claimed,true);
@@ -128,10 +132,30 @@ assert.strictEqual(claim3.claimed,false);
 assert.strictEqual(claim3.completed,true);
 assert.strictEqual(claim3.existing.attempts,3);
 
-assert.ok(source.includes("const TRENDOS_TZ_V1 = 'Africa/Cairo'"));
+const failEvt = context.trendosEventKey_('TEST_FAIL','3637-02','2026-08-30',{v:1});
+assert.strictEqual(context.trendosIdempotencyClaim_(failEvt,{eventType:'TEST_FAIL',entityId:'3637-02',businessDate:'2026-08-30',by:'test'}).claimed,true);
+const failed = context.trendosIdempotencyFail_(failEvt,new Error('boom'));
+assert.strictEqual(String(failed.status),'FAILED');
+const blockedRetry = context.trendosIdempotencyClaim_(failEvt,{});
+assert.strictEqual(blockedRetry.claimed,false);
+assert.strictEqual(blockedRetry.failed,true);
+const allowedRetry = context.trendosIdempotencyClaim_(failEvt,{by:'test2'},{retryFailed:true});
+assert.strictEqual(allowedRetry.claimed,true);
+assert.strictEqual(allowedRetry.retried,true);
+assert.strictEqual(allowedRetry.rowNumber,failed.rowNumber);
+const recovered = context.trendosIdempotencyComplete_(failEvt,{ok:true});
+assert.strictEqual(String(recovered.status),'COMPLETED');
+assert.strictEqual(recovered.attempts,3);
+
+const badSheet = fakeSs.insertSheet('BAD_SCHEMA');
+badSheet.appendRow(['unexpected']);
+assert.throws(() => context.trendosEnsureSheetV1_('BAD_SCHEMA',['expected']),/schema mismatch/);
+
+assert.ok(source.includes("const TRENDOS_TZ_V1='Africa/Cairo'"));
 assert.ok(source.includes('TRENDOS_IDEMPOTENCY_SHEET_V1'));
 assert.ok(source.includes("trendosWithLock_('script'"));
 assert.ok(source.includes("'الحالة':'CLAIMED'"));
+assert.ok(source.includes("opt.retryFailed===true"));
 assert.ok(!/sk-[A-Za-z0-9_-]{20,}/.test(source));
 assert.ok(!/EAA[A-Za-z0-9]{30,}/.test(source));
 
