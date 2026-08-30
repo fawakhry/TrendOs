@@ -4,7 +4,7 @@
 
 ## Status
 
-`INV-02 — enumerate active Apps Script triggers`: **PARTIAL — INSTALLED ROWS VISIBLE; EXACT CADENCE PENDING**.
+`INV-02 — enumerate active Apps Script triggers`: **PASS — INSTALLED HANDLER + CADENCE VERIFIED**.
 
 ## Evidence supplied — 2026-08-30
 
@@ -19,37 +19,45 @@ Observed row:
 - Last run: `Aug 30, 2026, 2:42:38 PM`
 - Error rate: `0%`
 
+The Trigger edit/details screen then showed the exact installed configuration:
+
+- Choose which function to run: `d1OrdersLiveSyncTick`
+- Which runs at deployment: `Head`
+- Select event source: `Time-driven`
+- Select type of time based trigger: `Minutes timer`
+- Select minute interval: `Every minute`
+- Failure notification setting: `Notify me daily`
+
 ## Verified conclusions
 
 1. Exactly one trigger row is visible in the supplied full trigger-list screenshot.
-2. The handler is exactly `d1OrdersLiveSyncTick`.
-3. The trigger is time-based.
-4. No duplicate `d1OrdersLiveSyncTick` trigger is visible.
-5. No other active trigger row is visible in the supplied list.
-6. The trigger has executed recently according to the displayed last-run timestamp.
-7. Displayed error rate is 0% at the time of the screenshot.
+2. The installed handler is exactly `d1OrdersLiveSyncTick`.
+3. The trigger is time-driven.
+4. Its installed cadence is exactly **Every minute**.
+5. It runs against `Head`.
+6. No duplicate `d1OrdersLiveSyncTick` trigger is visible.
+7. No other active trigger row is visible in the supplied trigger list.
+8. The trigger had a recent successful-looking execution timestamp in the UI and a displayed error rate of `0%` at evidence time.
+9. Installed runtime cadence matches the source-intended `.everyMinutes(1)` configuration.
 
 ## Evidence boundary
 
-The trigger-list screenshot does **not** display the exact time-driven frequency configuration.
+The Apps Script trigger UI proves the installed trigger configuration visible for this project at the evidence time.
 
-Therefore do not yet claim that the installed trigger is actually configured to run every minute solely from this screenshot.
-
-Source code previously inventoried shows that `startD1OrdersLiveSync()` intends to create the trigger using `.everyMinutes(1)`, but source intent is not runtime configuration proof.
+It does not, by itself, prove the semantic success of every one-minute sync run or D1 row parity after each execution. Runtime mirror parity remains a separate D1 health test.
 
 ## Test status
 
 - `INV-02A — exactly one installed D1 live-sync handler`: **PASS — UI EVIDENCE**.
-- `INV-02B — exact installed cadence matches every 1 minute`: **PENDING — inspect trigger edit/details UI**.
-- Overall `INV-02`: **PARTIAL** until cadence is verified.
+- `INV-02B — exact installed cadence matches every 1 minute`: **PASS — UI EVIDENCE**.
+- Overall `INV-02`: **PASS**.
 
-## Next exact action
+## Next D1 inventory action
 
-Read-only inspection of the installed trigger configuration:
+Continue `INV-09` with read-only inspection of the current legacy authentication implementation used by Version 143:
 
-- click the pencil/edit icon on the `d1OrdersLiveSyncTick` trigger row.
-- inspect the frequency fields.
-- do not change or save anything.
-- capture the screen showing the selected time-driven frequency/cadence.
+`function authorize_(...)`
 
-Goal: verify whether the installed runtime configuration matches the source-intended every-1-minute schedule.
+Goal: map current token/user validation, cache use if any, deactivation/logout behavior, and the exact delta that Fast Auth V2.4 would replace.
+
+Do not edit, save, or deploy during that inspection.
