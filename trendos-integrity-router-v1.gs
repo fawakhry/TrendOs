@@ -1,5 +1,6 @@
 /** TrendOS Integrity Router V1 — prepared only. Wire with one guarded call; do not deploy blindly. */
 const TRENDOS_INTEGRITY_ROUTER_VERSION_V1='TRENDOS_INTEGRITY_ROUTER_V1_20260830';
+const TRENDOS_INTEGRITY_ENABLED_PROP_V1='TRENDOS_INTEGRITY_V1_ENABLED';
 function trendosRouterTextV1_(v){return String(v==null?'':v).trim();}
 function trendosRouterBoolV1_(v){const s=trendosRouterTextV1_(v).toLowerCase();return['1','true','yes','نعم','on'].indexOf(s)!==-1;}
 function trendosRouterParamsV1_(e){return e&&e.parameter||{};}
@@ -7,6 +8,9 @@ function trendosRouterAuthV1_(p){return authorize_(p.username,p.token);}
 function trendosRouterIsAdminV1_(user){const role=trendosRouterTextV1_(user&&user.role).toLowerCase(),name=trendosRouterTextV1_(user&&user.username||user&&user.name).toLowerCase();return role==='admin'||name.indexOf('ضياء')!==-1||name.indexOf('diaa')!==-1;}
 function trendosRouterAdminAuthV1_(p){const a=trendosRouterAuthV1_(p);if(!a.ok)return a;return trendosRouterIsAdminV1_(a.user)?a:{ok:false,message:'هذه العملية متاحة للإدارة فقط.'};}
 function trendosRouterRequestIdV1_(p){return trendosRouterTextV1_(p.clientRequestId||p.requestId||p.idempotencyKey||p.idempotency_key);}
+function trendosIntegrityEnabledV1_(){
+  try{return trendosRouterBoolV1_(PropertiesService.getScriptProperties().getProperty(TRENDOS_INTEGRITY_ENABLED_PROP_V1));}catch(e){return false;}
+}
 
 function trendosIntegrityDependencyHealthV1_(){
   const required=[
@@ -15,10 +19,11 @@ function trendosIntegrityDependencyHealthV1_(){
     'trendosAttendanceV1_','trendosCleaningV1_','trendosPressControlV1_','trendosGoLiveAutopilotV1_',
     'trendosCustomerManagerV1_','trendosWhatsAppWebhookV1_','trendosCreateHandoverV1_','trendosReceiveHandoverV1_',
     'trendosSaveOpsReplyV1_','trendosCreateOpsCoachV1_','trendosRunTrendMasterAutomationSafeV1_',
-    'trendosSaveAndonV1_','trendosResolveOpsEventV1_','trendosIntegrityDashboardV1_','authorizeD1FastV25_'
+    'trendosSaveAndonV1_','trendosResolveOpsEventV1_','trendosIntegrityDashboardV1_'
   ];
   const missing=required.filter(function(name){try{return typeof globalThis[name]!=='function';}catch(e){return true;}});
-  return{success:missing.length===0,codeReady:missing.length===0,version:TRENDOS_INTEGRITY_ROUTER_VERSION_V1,requiredCount:required.length,missing:missing};
+  let fastAuth=false;try{fastAuth=typeof globalThis.authorizeD1FastV25_==='function';}catch(e){}
+  return{success:missing.length===0,codeReady:missing.length===0,enabled:trendosIntegrityEnabledV1_(),version:TRENDOS_INTEGRITY_ROUTER_VERSION_V1,requiredCount:required.length,missing:missing,optional:{fastAuthV25Present:fastAuth}};
 }
 
 function trendosRouterCreateHandoverV1_(e){
@@ -42,6 +47,7 @@ function trendosRouterResolveOpsV1_(e){const p=trendosRouterParamsV1_(e),a=trend
 function trendosRouterRunAutomationV1_(e){const p=trendosRouterParamsV1_(e),a=trendosRouterAdminAuthV1_(p);if(!a.ok)return{success:false,message:a.message};return trendosRunTrendMasterAutomationSafeV1_({by:a.user.username||a.user.name,retryFailed:trendosRouterBoolV1_(p.retryFailed)});}
 
 function trendosIntegrityTryRouteV1_(action,e){
+  if(!trendosIntegrityEnabledV1_())return null;
   action=trendosRouterTextV1_(action||trendosRouterParamsV1_(e).action);
   if(!action)return null;
   const routes={
@@ -67,4 +73,4 @@ function trendosIntegrityTryRouteV1_(action,e){
   if(!routes[action])return null;
   try{return{handled:true,result:routes[action]()};}catch(err){return{handled:true,result:{success:false,integrityRouterError:true,message:trendosRouterTextV1_(err&&err.message||err),version:TRENDOS_INTEGRITY_ROUTER_VERSION_V1}};}
 }
-function trendosIntegrityTryWebhookV1_(payload){if(!payload||payload.object!=='whatsapp_business_account')return null;try{return{handled:true,result:trendosWhatsAppWebhookV1_(payload)};}catch(err){return{handled:true,result:{success:false,integrityRouterError:true,message:trendosRouterTextV1_(err&&err.message||err)}};}}
+function trendosIntegrityTryWebhookV1_(payload){if(!trendosIntegrityEnabledV1_()||!payload||payload.object!=='whatsapp_business_account')return null;try{return{handled:true,result:trendosWhatsAppWebhookV1_(payload)};}catch(err){return{handled:true,result:{success:false,integrityRouterError:true,message:trendosRouterTextV1_(err&&err.message||err)}};}}
