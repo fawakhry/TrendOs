@@ -7,7 +7,9 @@ on:
   pull_request:
     paths:
       - 'trendos-integrity-v1.gs'
+      - 'trendos-order-line-integrity-v1.gs'
       - 'tests/trendos_integrity_v1.test.js'
+      - 'tests/trendos_order_line_integrity_v1.test.js'
       - '.github/workflows/trendos-integrity-v1.yml'
 
 permissions:
@@ -24,5 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run TrendOS integrity contract tests
+      - name: Run TrendOS integrity foundation tests
         run: node tests/trendos_integrity_v1.test.js .
+      - name: Run TrendOS Phase 2 Order and Line tests
+        run: node tests/trendos_order_line_integrity_v1.test.js .
