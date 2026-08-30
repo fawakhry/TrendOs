@@ -1,0 +1,28 @@
+name: TrendOS Integrity V1
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+  pull_request:
+    paths:
+      - 'trendos-integrity-v1.gs'
+      - 'tests/trendos_integrity_v1.test.js'
+      - '.github/workflows/trendos-integrity-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  integrity-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run TrendOS integrity contract tests
+        run: node tests/trendos_integrity_v1.test.js .
