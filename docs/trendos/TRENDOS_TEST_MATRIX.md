@@ -21,7 +21,7 @@
 | INV-02A | exactly one installed D1 live-sync handler | one active handler, no duplicate | one visible `d1OrdersLiveSyncTick` row, error rate 0% at evidence time | PASS — UI EVIDENCE |
 | INV-02B | installed D1 cadence | every 1 minute | edit/details UI shows `Every minute` | PASS — UI EVIDENCE |
 | INV-03 | map invoice sweep/finalize paths | all entry points + idempotency risks documented | Ready Sweep, draft prepare, pricing, finalization, notification and reopen mapped; live duplicate drafts verified | PASS — SOURCE + LIVE DATA |
-| INV-04 | map Attendance/Clock-in paths | all entry points documented | PENDING | PENDING |
+| INV-04 | map Attendance/Clock-in paths | all entry points + session/event integrity documented | routes, session start, clock-in, pulses, state computation, schedule and live attendance baseline mapped; live duplicate sessions/events verified | PASS — SOURCE + LIVE DATA |
 | INV-05 | map Cleaning paths | all entry points documented | PENDING | PENDING |
 | INV-06 | map Press queue/session paths | all entry points documented | PENDING | PENDING |
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
@@ -54,13 +54,13 @@
 | REG-04 | Line ID `3637-02` write/read | remains literal string | current live value appears literally as `3637-02`; write/read regression not yet executed | PARTIAL — LIVE READ |
 | REG-05 | Line ID `3647-01` write/read | remains literal string | current live value appears literally as `3647-01`; write/read regression not yet executed | PARTIAL — LIVE READ |
 | REG-06 | Line ID `3651-02` write/read | remains literal string | current live value appears literally as `3651-02`; write/read regression not yet executed | PARTIAL — LIVE READ |
-| REG-07 | Clock-in x2 | one operational session | PENDING | PENDING |
-| REG-08 | fallback after Clock-in | no second session | PENDING | PENDING |
-| REG-09 | resume x5 rapidly | one logical resume event | PENDING | PENDING |
-| REG-10 | activity before Clock-in | alert only, no invented start time | PENDING | PENDING |
-| REG-11 | day rollover | prior session not inherited | PENDING | PENDING |
-| REG-12 | Friday without Special Schedule | no attendance/cleaning failure | PENDING | PENDING |
-| REG-13 | Friday with active Special Schedule | normal configured rules apply | PENDING | PENDING |
+| REG-07 | Clock-in x2 | one operational session / one daily clock-in | live attendance has duplicate employee/date sessions: Revan 2026-08-27 x3, Revan 2026-08-29 x2, Revan 2026-08-30 x2, Wael 2026-08-29 x2; `attStart_()` has no lock | FAIL — LIVE BASELINE + SOURCE RACE |
+| REG-08 | fallback after Clock-in | no second session | per-row clock-in repeat is guarded, but find/start/check/write has no shared lock and duplicate daily sessions already exist | PENDING — KNOWN GAP |
+| REG-09 | resume x5 rapidly | one logical resume event | Wael session `AT-20260829-وائل-5167c552` contains four Resume pulses within ~20 seconds; `attAppendPulse_()` appends blindly | FAIL — LIVE + SOURCE |
+| REG-10 | activity before Clock-in | alert only, no operational activity before required clock-in | live config requires Clock-in, but `attendanceV1_()` only requires an open session and does not check `تسجيل الحضور` before activity events | FAIL — SOURCE CONTRACT |
+| REG-11 | day rollover | prior session not inherited | `attFindToday_()` keys by Cairo business date; live new days use new sessions even when prior rows remain unended | PASS — SOURCE + LIVE BEHAVIOR |
+| REG-12 | Friday without Special Schedule | no attendance/cleaning obligation/failure under closed-day policy | `attScheduledStart_()` has no weekday/business-day rule; without exact special row it falls back to default 12:00 | PENDING — KNOWN BUSINESS-CALENDAR GAP |
+| REG-13 | Friday with active Special Schedule | normal configured rules apply | exact-date override exists; integrated Friday/business-calendar regression not yet run | PENDING |
 | REG-14 | Cleaning submit x2 | one logical cleaning record | PENDING | PENDING |
 | REG-15 | create press-required line | appears once in Press View | PENDING | PENDING |
 | REG-16 | Press source/view counts | equal | PENDING | PENDING |
@@ -103,10 +103,10 @@ All must be green:
 4. finalized/closed orders do not return to draft queue. **FAIL — source contract allows regression.**
 5. Press Source Queue = Press View Queue. **PENDING.**
 6. Press Session tracking complete. **PENDING.**
-7. Attendance/Cleaning idempotency passes. **PENDING.**
+7. Attendance/Cleaning idempotency passes. **FAIL on Attendance baseline; Cleaning still pending.**
 8. Line IDs remain literal text. **PARTIAL live-read evidence; write regression pending.**
 9. WhatsApp webhook/idempotent logical sends. **PENDING / known outbound gap.**
-10. concurrency regression passes. **PENDING.**
+10. concurrency regression passes. **FAIL on current Attendance/Invoice source + live evidence.**
 11. D1 Orders/Lines source snapshot consistency passes. **PENDING known lock gap.**
 12. full E2E pack passes. **PENDING.**
-13. zero open `CORE-P0` blockers. **FAIL — invoice Ready Sweep + source snapshot gaps open.**
+13. zero open `CORE-P0` blockers. **FAIL — invoice, attendance and source-snapshot gaps open.**
