@@ -1,228 +1,201 @@
 # TrendOS Phase 0 — Production Source Reconciliation
 
-> **Scope:** read-only reconciliation of the frontend runtime pointer, canonical deployment documentation, current GitHub source, current Apps Script `Code.gs` text supplied from the live project/editor, and the active deployment metadata visible in **Manage deployments** on 2026-08-30.
-> **Goal:** determine which Core protections are present in the Apps Script editor source, which deployment is active, and what still must be proven before Core mutation.
+> **Scope:** read-only reconciliation of frontend runtime pointers, Apps Script deployment metadata, current editor source, GitHub source, and live runtime evidence.
+> **Date:** 2026-08-30.
 
 ## Status
 
-`INV-10 — verify exact production source/version manifest`: **PARTIAL — ACTIVE DEPLOYMENT IDENTIFIED; DEPLOYED VERSION CONTENT STILL NEEDS FUNCTIONAL RECONCILIATION**.
+`INV-10 — verify exact production source/version manifest`: **PARTIAL — ACTIVE DEPLOYMENT + RUNTIME IDENTITY VERIFIED; EXACT VERSION 143 SOURCE SNAPSHOT/FILE COMPOSITION STILL PENDING**.
 
-We now have direct evidence that the active Web App deployment is **Version 143**, dated **Aug 29, 2026 11:37 PM**, and its visible Deployment ID prefix matches the deployment ID currently configured in TrendOS `config.js`.
+The active production Web App is now identified and has responded successfully through its live `/exec?action=health` endpoint.
 
-We also have direct source evidence for the current Apps Script `Code.gs` text supplied from the project/editor. Critical Orders/Lines functions inspected are functionally identical to the GitHub working-branch `Code.gs`. However, the supplied Apps Script editor source contains D1 routing changes newer than the current GitHub `Code.gs`, so GitHub is not yet a byte-for-byte mirror of editor source.
+Evidence hierarchy remains:
 
-Important evidence rule:
+`LIVE RUNTIME > DEPLOYMENT METADATA > EDITOR SOURCE > REPOSITORY SOURCE > HISTORICAL PACKAGE`.
 
-`Apps Script editor source != deployed version source unless proven.`
+Important distinction:
 
-The active deployment metadata now identifies Version 143, but the screenshot alone does not prove that every line in the currently open editor source is included in Version 143.
-
----
-
-## 1. Production frontend endpoint
-
-`config.js` on both `main` and `agent/go-live-2026-09-01-integrity` currently points to:
-
-- Web App deployment ID: `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
-- Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
-- `MATBAGY_SECURE_API_PROXY_URL = ""`
-
-Interpretation:
-- frontend traffic resolves directly to this Apps Script deployment while the secure proxy URL is empty.
-- `main` and the working branch point to the same backend deployment ID.
+`Current Apps Script editor source != Version 143 deployed source unless proven by version history or runtime behavior.`
 
 ---
 
-## 2. Active Web App deployment metadata
+## 1. Production endpoint
 
-Verified from the user-provided **Manage deployments** screenshot on 2026-08-30:
+Current TrendOS `config.js` points to Apps Script deployment:
+
+`AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
+
+Main spreadsheet ID:
+
+`1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+
+`MATBAGY_SECURE_API_PROXY_URL` is empty, so frontend requests currently resolve directly to the Apps Script deployment.
+
+---
+
+## 2. Active Web App deployment
+
+Verified from **Deploy -> Manage deployments** screenshot:
 
 - State: **Active**
 - Type: **Web app**
 - Version: **143**
-- Version timestamp shown by Apps Script: **Aug 29, 2026, 11:37 PM**
-- visible Deployment ID prefix: `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSy...`
+- Version timestamp: **Aug 29, 2026, 11:37 PM**
+- visible Deployment ID prefix matches the production ID configured in `config.js`.
 
-This visible prefix matches the configured production deployment ID in TrendOS `config.js`.
+Therefore historical Apps Script Version 138 is no longer the active deployment reference. It remains historical evidence only.
 
-Historical Version 138 is therefore **superseded as the currently active deployment version**. Preserve Version 138 only as historical deployment evidence.
+### Result
 
-What this proves:
-- the frontend-configured deployment and the active Apps Script deployment are consistent by visible ID prefix.
-- production is currently attached to Version 143, not Version 138.
-
-What it does not prove by itself:
-- that Version 143 contains the exact current editor source now visible.
-- exact complete Apps Script project file composition of Version 143.
+- `INV-10A — active deployment version`: **PASS**
+- `INV-10B — deployment ID matches frontend`: **PASS — visible prefix + configured endpoint consistent**
 
 ---
 
-## 3. Current Apps Script `Code.gs` text supplied from project/editor
+## 3. Live Version 143 runtime health
 
-The supplied source identifies itself as:
+Read-only request executed against the active deployment:
+
+`/exec?action=health`
+
+Returned:
+
+- `success: true`
+- `version: V1932_FULL_GO_LIVE_20260824`
+- `spreadsheet: TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+- `hasUsers: true`
+- `hasOrders: true`
+- `hasLines: true`
+- `ordersRows: 152`
+- `linesRows: 180`
+- `sheets`: 87 sheet names returned.
+
+The returned sheet list includes the expected Core sheets and newer Go-Live modules, including:
+
+- `الأوردرات`
+- `بنود الأوردرات`
+- `المستخدمين`
+- `العملاء`
+- `سجل الدوام`
+- `نبض الحضور`
+- `حسابات - مسودات الفواتير`
+- `تشغيل - النظافة اليومية`
+- `تشغيل - مواعيد خاصة`
+- `تشغيل - جلسات المكبس`
+- `تشغيل - إعدادات المكبس`
+- `إدارة - تسليم الشيفت`
+- HR / feedback / recovery / continuity / customer-manager sheets.
+
+### Interpretation
+
+The active Version 143 deployment is definitely serving:
+
+- the expected TrendOS backend family,
+- the correct main spreadsheet,
+- live access to Orders / Order Lines / Users,
+- the 87-sheet operational workbook.
+
+This closes runtime identity uncertainty for the base backend.
+
+### Result
+
+`INV-10C — deployed runtime identity`: **PASS**.
+
+This does **not** by itself prove which exact implementation is used for every route inside Version 143, especially D1 route wiring.
+
+---
+
+## 4. Current Apps Script editor source vs GitHub
+
+The supplied current Apps Script `Code.gs` identifies itself as:
 
 `TrendOS + EasyStore unified Google Apps Script backend — V1932 FULL Go-Live / HR / WhatsApp / Attendance / Press`
 
-and includes:
+and contains:
 
 `MATBAGY_ACCOUNTING_VERSION = "V1932_FULL_GO_LIVE_20260824"`
 
-### Orders/Lines functions reconciled against GitHub
+This version label matches the live `health` response.
 
-The following supplied Apps Script functions match the working-branch `Code.gs` for the inspected ranges:
+### Orders / Lines functions reconciled
 
-- `appendLine_()`
-  - includes the V1932 Line-ID duplicate guard.
-  - checks `trendosV1932FindLineRowById_()` before append.
-  - returns the existing row instead of adding a second row.
+For the inspected source ranges, current editor source and GitHub working-branch source agree on these important protections:
 
-- `createManualOrder_()`
-  - includes outer `LockService.getScriptLock()`.
-  - includes V1908 stable-request replay via `trendosV1908RequestKey_()` / `trendosV1908ReadSavedResponse_()`.
-  - includes recent duplicate fingerprint guard.
-  - allocates new Line IDs from the sheet state when reusing an open order.
+- `appendLine_()` has V1932 Line-ID duplicate guard.
+- `createManualOrder_()` has outer `ScriptLock` + V1908 saved-request replay + recent duplicate guard.
+- `syncOrderFromLines_()` collapses duplicate Line IDs and excludes rows marked `مكرر` from live totals.
 
-- `submitCustomerDraft_()`
-  - matches GitHub source.
-  - sequentially prevents re-submit after draft status changes.
-  - still has no outer lock wrapping the full `check draft -> allocate Order ID -> write order/lines -> mark draft submitted` transaction.
-  - concurrent double-submit remains a real `CORE-P0` candidate.
+Current remaining gaps in the editor source:
 
-- `updateLine_()`
-  - matches GitHub source.
-  - writes status/ready/update/notes, syncs order summary, appends activity, queues status message, and bumps data version.
-  - still has no shared event-idempotency/transaction lock around the complete mutation + side effects.
+- `submitCustomerDraft_()` has a sequential re-submit guard but **no outer lock** around `check draft -> allocate order -> write summary/lines -> mark submitted`.
+- `updateLine_()` has **no unified lock/event-idempotency contract** around state write + order sync + activity + queued message + data-version side effects.
 
-- `syncOrderFromLines_()`
-  - matches GitHub source.
-  - collapses duplicate Line IDs for summary calculation.
-  - excludes rows marked `مكرر` from active/current totals.
-
-### Interpretation for Orders/Lines integrity
-
-The source supplied from Apps Script confirms that the existing V1932 duplicate-aware Orders/Lines protections are present in the **current editor source**. Therefore:
+Decision:
 
 - do **not** add another blind Line-ID duplicate patch.
-- remaining work is to standardize concurrency/idempotency around weaker paths, especially customer draft conversion and line-update side effects.
+- customer-draft conversion and line-update side effects remain genuine `CORE-P0` candidates for the shared integrity layer.
 
 ---
 
-## 4. Important source divergence discovered: D1 routing
+## 5. Critical source divergence: D1 route wiring
 
-The supplied Apps Script `Code.gs` is **not identical** to the current GitHub `Code.gs` at the top-level read routing.
-
-### Supplied Apps Script source
-
-Current supplied source routes:
+Current supplied Apps Script editor source routes:
 
 - `getDashboard` -> `getDashboardD1PrimaryV1_(e)`
 - `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`
 
-### Current GitHub working-branch `Code.gs`
-
-Current GitHub file still routes:
+Current GitHub working-branch `Code.gs` still routes:
 
 - `getDashboard` -> `getDashboard_(e)`
 - `getRowsPageV1931` -> `getRowsPageV1931_(e)`
 
-### Meaning
-
-The Apps Script editor source contains later D1 read-path wiring that is not currently reflected inside GitHub `Code.gs`.
+Therefore Apps Script editor source is ahead of GitHub `Code.gs` in at least D1 read routing.
 
 Safety consequence:
-- do not overwrite Apps Script from GitHub `Code.gs`.
-- first capture the editor-side D1 delta intentionally into the working branch after D1 inventory.
+
+**Do not overwrite Apps Script from GitHub `Code.gs`.**
+
+The D1 delta must first be captured intentionally after the D1 source inventory.
 
 ---
 
-## 5. Canonical intended Apps Script composition
+## 6. Remaining INV-10 uncertainty
 
-`APPS_SCRIPT_DEPLOY_V1940.md` defines the intended Apps Script project composition as:
+Still not fully proven:
 
-1. `Code.gs`
-2. `v1932-router.gs`
-3. `customer-manager-backend-v1932.gs`
-4. `customer-feedback-backend-v1.gs`
-5. `attendance-backend-v1.gs`
-6. `attendance-clockin-backend-v1.gs`
-7. `hr-backend-v1.gs`
-8. `cleaning-backend-v1.gs`
-9. `press-control-backend-v1.gs`
-10. `go-live-autopilot-backend-v1.gs`
-
-Important unresolved naming conflict:
-- repository history also contains `go-live-autopilot-v1.gs` naming.
-- exact Version 143 project file composition still needs confirmation.
-
----
-
-## 6. Deployment health check evidence
-
-GitHub commit `ca8e7179f2b280e475a09b64b1c3ccf51b6b66d2` added:
-
-`v1940-deploy-health.gs`
-
-with:
-
-`trendosV1940DeploymentHealth_()`
-
-This function can verify module presence and spreadsheet access when run inside the Apps Script project, but its existence in GitHub does not prove that it exists in Version 143.
-
----
-
-## 7. Google Drive evidence
-
-Google Drive confirms:
-
-- main spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
-- pre-Go-Live backups exist.
-- folder `TrendOS V1932 Apps Script Deploy` exists.
-
-The connector did not expose live Apps Script project source/deployment metadata from Drive.
-
----
-
-## 8. Verified now
-
-- active Web App deployment is **Version 143**.
-- visible deployment ID prefix matches TrendOS `config.js` production deployment.
-- historical Version 138 is no longer the active version.
-- current editor source contains `appendLine_()` duplicate guard.
-- current editor source contains `createManualOrder_()` V1908 replay + ScriptLock.
-- current editor source `submitCustomerDraft_()` still lacks enclosing conversion lock.
-- current editor source `updateLine_()` still lacks unified idempotent mutation contract.
-- current editor source `syncOrderFromLines_()` performs duplicate collapse / `مكرر` exclusion.
-- current editor source includes D1 read routing newer than GitHub `Code.gs`.
-
----
-
-## 9. Still not verified
-
-- exact source snapshot contained in **Version 143**.
-- complete file list included in Version 143.
-- whether `v1940-deploy-health.gs` exists in Version 143.
+- exact complete source snapshot stored as Version 143.
+- exact complete Apps Script file list included in Version 143.
+- whether Version 143 specifically contains the two newer D1 route lines seen in current editor source.
 - exact D1 module versions behind `getDashboardD1PrimaryV1_()` and `getRowsPageD1FastV2_()`.
+- whether `v1940-deploy-health.gs` is included in Version 143.
+
+The live health response confirms backend identity, not every individual function implementation.
 
 ---
 
-## 10. Next exact action
+## 7. Next exact action
 
-Use the active deployment itself as read-only runtime evidence before any mutation.
+Before any Core mutation, reconcile **Version 143 source history** against the current editor source for the two D1 route lines.
 
-Next verification target:
+Preferred read-only evidence:
 
-**Run/read the existing live `health` / `ping` endpoint for Version 143 and record the returned backend version/spreadsheet identity.**
+1. Open Apps Script **Project history**.
+2. Select **Version 143**.
+3. Inspect `Code.gs` around the `doGet` routing for:
+   - `getDashboard`
+   - `getRowsPageV1931`
+4. Record whether Version 143 points to the D1 functions or the older direct functions.
 
-This is read-only and helps prove what Version 143 is actually serving.
+No deploy and no save are required for this check.
 
-After that, continue with function-level/runtime reconciliation and D1 module inventory. Do not redeploy yet.
+After that, continue Phase 0 source/file inventory rather than editing production.
 
 ---
 
 ## Safety decision
 
-No production code, Sheets data, triggers, or deployments were changed during this reconciliation.
+No production code, spreadsheet data, triggers, or deployment was changed during this reconciliation.
 
-Do **not** overwrite Apps Script from GitHub `Code.gs` yet because the current editor source contains D1 routing that GitHub `Code.gs` does not currently contain.
-
-Do **not** deploy `trendos-integrity-v1.gs` until Version 143 runtime/source composition is reconciled enough to avoid overwriting newer live behavior.
+Do not deploy `trendos-integrity-v1.gs` yet.
+Do not overwrite Apps Script from GitHub yet.
+Google Sheets remains authoritative for writes; D1 remains the fast read/mirror layer until an approved migration changes that.
