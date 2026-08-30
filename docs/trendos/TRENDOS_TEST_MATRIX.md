@@ -29,10 +29,11 @@
 | INV-07 | map WhatsApp webhook/send paths | all entry points documented | PENDING | PENDING |
 | INV-08 | map Handover/OPS paths | all entry points documented | PENDING | PENDING |
 | INV-09 | map D1 sync/read/auth paths | all current paths documented | PENDING | PENDING |
-| INV-10 | verify exact production source/version manifest | active deployment + source composition known | Active Web App confirmed as Version 143; editor Orders/Lines source reconciled; exact Version 143 source snapshot/file composition still unknown | PARTIAL |
+| INV-10 | verify exact production source/version manifest | active deployment + source composition known | Version 143 and live runtime identity verified; exact Version 143 source snapshot/file composition still pending | PARTIAL |
 | INV-10A | confirm active deployment version | current active Version known | Manage deployments shows Version 143 on Aug 29, 2026 11:37 PM | PASS |
-| INV-10B | confirm deployment ID matches frontend config | configured/live deployment same | visible deployment ID prefix matches configured `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSy...` | PASS — PREFIX |
-| INV-10C | confirm deployed runtime identity | live endpoint returns expected backend/spreadsheet/version | PENDING | PENDING |
+| INV-10B | confirm deployment ID matches frontend config | configured/live deployment same | visible deployment ID prefix matches configured production deployment | PASS — PREFIX |
+| INV-10C | confirm deployed runtime identity | live endpoint returns expected backend/spreadsheet/version | `success:true`; `V1932_FULL_GO_LIVE_20260824`; correct main spreadsheet; Users/Orders/Lines present; Orders rows 152; Lines rows 180; 87 sheets returned | PASS |
+| INV-10D | verify Version 143 D1 route snapshot | deployed source shows actual `getDashboard` and `getRowsPageV1931` targets | PENDING — inspect Project history Version 143 | PENDING |
 
 ## C. Core integrity regression — required before Phase 1 exit
 
