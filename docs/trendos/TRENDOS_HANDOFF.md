@@ -26,9 +26,10 @@ Canonical plan:
 5. `docs/trendos/inventory/D1_DASHBOARD_PATH_INVENTORY.md`
 6. `docs/trendos/inventory/D1_ATOMIC_SYNC_INVENTORY.md`
 7. `docs/trendos/inventory/D1_WORKER_ATOMIC_ROUTING_INVENTORY.md`
-8. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
-9. `docs/trendos/TRENDOS_TEST_MATRIX.md`
-10. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+8. `docs/trendos/inventory/APPS_SCRIPT_TRIGGER_INVENTORY.md`
+9. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
+10. `docs/trendos/TRENDOS_TEST_MATRIX.md`
+11. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 
 Evidence precedence:
 `LATEST VERIFIED > EARLIER VERIFIED > DEPLOYED > TESTED > IMPLEMENTED > PREPARED > PLANNED > UNKNOWN`.
@@ -92,7 +93,23 @@ Fast Auth V2.4 remains **PREPARED / NOT DEPLOYED / NOT VERIFIED** in this path.
 - fully stages both sheets before promote
 - sends one `atomicAction:'promote'` request with both sheet names
 - reads `/v1/mirror/stats` afterward
-- source startup design creates one `.everyMinutes(1)` trigger only after a successful first run
+
+### Installed trigger — verified
+
+Apps Script UI evidence shows exactly one visible installed trigger:
+- function: `d1OrdersLiveSyncTick`
+- deployment: `Head`
+- event source: `Time-driven`
+- time trigger type: `Minutes timer`
+- minute interval: **Every minute**
+- displayed error rate in trigger list: `0%` at evidence time
+- no duplicate D1 live-sync trigger visible
+- no other trigger row visible in the supplied trigger list
+
+Tests:
+- `INV-02A = PASS — UI EVIDENCE`
+- `INV-02B = PASS — UI EVIDENCE`
+- overall `INV-02 = PASS`
 
 ### Worker side — verified atomic promote
 
@@ -106,19 +123,14 @@ Worker `/v1/import/sheet` routes:
 - requires `status='ready'`
 - requires staged `rowCount === sourceLastRow`
 - only after all validations creates live mutation statements
-- accumulates statements for **all requested sheets** into one array
-- per sheet: delete live rows, upsert catalog ready metadata, copy staged rows, log migration completion, delete staging rows/catalog
+- accumulates statements for all requested sheets into one array
 - executes exactly one `await env.DB.batch(statements)`
 
-Cloudflare D1 documents `batch()` as a SQL transaction: if a statement fails, the sequence is aborted/rolled back.
-
-Therefore:
-
-**Worker-side Orders + Lines promote atomicity is verified at source + platform-contract level.**
+Cloudflare D1 `batch()` is transactional/rollback-on-failure, therefore Worker-side Orders + Lines promote atomicity is verified at source + platform-contract level.
 
 Tests:
 - `INV-09F = PASS — SOURCE + PLATFORM CONTRACT`
-- `D1-07 = PASS — Worker promote transaction`
+- `D1-07 = PASS`
 
 ## Remaining D1/Core risks
 
@@ -139,7 +151,7 @@ Apps Script does:
 2. mirror stats
 3. record success
 
-If promote succeeds but stats read fails, Apps Script reports failure although D1 may already be committed. Successful promote also deletes staging rows/catalog, so replaying the same runId does not simply return prior success.
+If promote succeeds but stats read fails, Apps Script reports failure although D1 may already be committed. Successful promote also deletes staging rows/catalog, so same-run replay does not simply return prior success.
 
 `D1-08` remains PENDING.
 
@@ -147,6 +159,7 @@ If promote succeeds but stats read fails, Apps Script reports failure although D
 
 PASS:
 - `INV-01` Orders/Lines inventory
+- `INV-02` installed Apps Script trigger + every-minute cadence
 - `INV-09A` Primary V1 D1 helper
 - `INV-09B` Orders Fast V2/V2.3
 - `INV-09C` Fast Auth V2.4 absent from Version 143 Orders path
@@ -159,28 +172,28 @@ PASS:
 - `INV-10D` Version 143 top-level routes
 
 Still pending/partial:
-- `INV-02` actual installed Apps Script triggers/cadence
-- remaining D1 auth/invalidation/runtime parity inventory
+- `INV-09` full auth/invalidation/runtime parity inventory
 - full Version 143 project composition (`INV-10`)
 - Invoice / Attendance / Cleaning / Press / WhatsApp / Handover-OPS inventories
 - baseline duplicate IDs and actual ID number formats
 
 ## Exact current stopping point
 
-**Next single action: inventory the actual installed Apps Script triggers, read-only.**
+**Next single action: inspect the current Version 143 authentication implementation `authorize_()` read-only.**
 
-Need a screenshot/list from Apps Script **Triggers** showing:
-- handler function
-- event source/type
-- cadence
-- all installed trigger rows
+Need the complete current function body for:
 
-Critical check:
-- whether exactly one active time-driven trigger exists for `d1OrdersLiveSyncTick`
-- whether its cadence matches the source-intended every 1 minute
-- whether duplicate/legacy D1 sync triggers coexist
+`function authorize_(...)`
 
-Do not add, delete, disable or edit any trigger yet.
+Goal:
+1. map token/session validation source,
+2. map user lookup behavior,
+3. identify any current cache,
+4. understand inactive/deactivated user behavior,
+5. identify logout/token invalidation semantics,
+6. establish the exact delta Fast Auth V2.4 would introduce.
+
+Do not save, edit or deploy Apps Script during this inspection.
 
 ## First code after Phase 0
 
