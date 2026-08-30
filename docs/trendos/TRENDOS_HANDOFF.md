@@ -32,14 +32,15 @@ Read in this order:
 1. `docs/trendos/TRENDOS_PROJECT_MEMORY.md`
 2. `docs/trendos/TRENDOS_HANDOFF.md`
 3. `docs/trendos/inventory/PRODUCTION_SOURCE_RECONCILIATION.md`
-4. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
-5. `docs/trendos/TRENDOS_ARCHITECTURE.md`
-6. `docs/trendos/TRENDOS_DECISIONS.md`
-7. `docs/trendos/TRENDOS_ROADMAP_2027-03-01.md`
-8. `docs/trendos/TRENDOS_BACKLOG.md`
-9. `docs/trendos/TRENDOS_TEST_MATRIX.md`
-10. `docs/trendos/TRENDOS_WORKLOG.md`
-11. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+4. `docs/trendos/inventory/D1_READ_PATH_INVENTORY.md`
+5. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
+6. `docs/trendos/TRENDOS_ARCHITECTURE.md`
+7. `docs/trendos/TRENDOS_DECISIONS.md`
+8. `docs/trendos/TRENDOS_ROADMAP_2027-03-01.md`
+9. `docs/trendos/TRENDOS_BACKLOG.md`
+10. `docs/trendos/TRENDOS_TEST_MATRIX.md`
+11. `docs/trendos/TRENDOS_WORKLOG.md`
+12. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 
 ## Evidence rule
 
@@ -56,15 +57,14 @@ Do not guess. Preserve conflicts as `Needs reconciliation`.
 - D1 is the fast read/mirror layer.
 - Atomic Orders + Order Lines sync is the approved/current working direction.
 - Newer project snapshot: 87 sheets / 31,176 rows / 87 ready / 0 pending.
-- V2.3 stable page cache is verified.
-- latest verified read source lineage: `D1_FAST_STABLE_CACHE_V23`.
+- V2.3 stable page cache is historically verified.
+- latest historical verified source lineage: `D1_FAST_STABLE_CACHE_V23`.
 - historical performance showed page-cache lookup around 20ms while Apps Script auth dominated total latency.
 
 ### Fast Auth V2.4
-- file: `D1_Orders_Fast_V2_4.gs`.
-- state: PREPARED.
-- do **not** call installed/deployed/verified without evidence.
-- do not jump to V2.4 before Core correctness inventory/foundation is complete.
+- file/checkpoint: `D1_Orders_Fast_V2_4.gs`.
+- canonical state remains PREPARED / NOT VERIFIED.
+- do not call installed/deployed/verified until the actual Version 143 Fast V2/auth source proves it.
 
 ## Current spreadsheet / safety state
 
@@ -94,74 +94,75 @@ Remaining Core gaps in current editor source:
 - `updateLine_()` has no unified idempotent mutation/side-effect contract.
 
 ### INV-10 — Production source/deployment reconciliation
-**Status: PARTIAL — deployment + base runtime identity verified; exact Version 143 source snapshot still pending.**
+**Status: PARTIAL — deployment, runtime identity and top-level D1 routes verified; full Version 143 project composition still pending.**
 
 Verified:
 - active Apps Script Web App version: **143**.
-- Apps Script deployment timestamp: **Aug 29, 2026 11:37 PM**.
-- visible deployment ID prefix matches the ID configured in TrendOS `config.js`.
-- live `action=health` returns:
-  - `success:true`
-  - `version: V1932_FULL_GO_LIVE_20260824`
-  - `spreadsheet: TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-  - `hasUsers:true`
-  - `hasOrders:true`
-  - `hasLines:true`
-  - `ordersRows:152`
-  - `linesRows:180`
-  - 87 sheet names.
+- deployment timestamp: **Aug 29, 2026 11:37 PM**.
+- deployment ID prefix matches TrendOS `config.js`.
+- live `action=health` returns `V1932_FULL_GO_LIVE_20260824` against the correct main workbook, with Users/Orders/Lines present, Orders rows 152, Lines rows 180, and 87 sheets.
+- Project history Version 143 routes:
+  - `getDashboard` -> `getDashboardD1PrimaryV1_(e)`
+  - `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`
 
 Tests:
-- `INV-10A = PASS` — active version identified.
-- `INV-10B = PASS — PREFIX` — deployment consistent with frontend config.
-- `INV-10C = PASS` — live runtime identity verified.
+- `INV-10A = PASS`
+- `INV-10B = PASS — PREFIX`
+- `INV-10C = PASS`
+- `INV-10D = PASS — SOURCE SNAPSHOT`
 
 Historical Version 138 is superseded as the active deployment reference.
 
-### Critical source divergence
+Critical source divergence remains:
+- GitHub `Code.gs` still has older top-level read routes.
+- do not overwrite Apps Script from GitHub `Code.gs` until the D1 editor/deployed delta is captured intentionally.
 
-Current Apps Script editor source routes:
-- `getDashboard` -> `getDashboardD1PrimaryV1_(e)`
-- `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`
+### INV-09 — D1 sync/read/auth inventory
+**Status: PARTIAL.**
 
-Current GitHub `Code.gs` still routes those actions to older direct functions.
+New document:
+`docs/trendos/inventory/D1_READ_PATH_INVENTORY.md`
 
-Therefore:
-- do **not** overwrite Apps Script from GitHub `Code.gs`.
-- current editor source is ahead of GitHub in at least D1 route wiring.
-- live `health` proves backend identity but does not prove the exact Version 143 implementation of those D1 routes.
+Source supplied for:
+`getRowsPageD1PrimaryV1_(e)`
 
-Detailed document:
-`docs/trendos/inventory/PRODUCTION_SOURCE_RECONCILIATION.md`
+Verified behavior of this helper:
+- feature flag off -> immediate legacy `getRowsPageV1931_(e)`.
+- authenticates through existing `authorize_()`.
+- obtains D1 safety snapshot through `d1OrdersPrimarySnapshotV1_()`.
+- source comments require live sync, ready, not syncing, freshness, row parity, column parity and data-version freshness before D1 use.
+- cache key includes user/filter/page/data-version/sync timestamps.
+- success reads from D1 snapshot and records `source:'D1'`.
+- any D1/network/runtime/safety exception falls back automatically to `getRowsPageV1931_(e)` and marks `readSource:'GOOGLE_SHEETS_FALLBACK'` plus failure reason.
+
+Architectural conclusion:
+`getRowsPageD1PrimaryV1_()` is **D1-primary + Google Sheets fallback**, not D1-only.
+
+Critical unresolved relationship:
+- Version 143 router calls `getRowsPageD1FastV2_(e)`, not `getRowsPageD1PrimaryV1_(e)`.
+- therefore the exact live page-read wrapper/cache/auth path is still unknown.
+- do not infer that Fast Auth V2.4 is live from the Primary V1 helper; that helper uses `authorize_()` directly.
 
 ## Exact current stopping point
 
-**Next single action: inspect Apps Script Project history for Version 143, read-only.**
+**Next single action: read-only inspection of the complete `getRowsPageD1FastV2_(e)` function from Apps Script Version 143/current project.**
 
-Open:
-**Apps Script -> Project history -> Version 143**
+Need to determine:
+1. which auth function it uses.
+2. whether it delegates to `getRowsPageD1PrimaryV1_()`.
+3. stable-cache behavior/version lineage.
+4. D1 fetch/read helper.
+5. fallback behavior.
+6. returned `source` and timing metadata.
 
-Inspect `Code.gs` around `doGet` and determine the two exact route targets:
+Do not save, deploy, or edit Apps Script during this inspection.
 
-1. `action === "getDashboard"`
-2. `action === "getRowsPageV1931"`
-
-Need to establish whether Version 143 contains:
-
-- D1 routes: `getDashboardD1PrimaryV1_()` and `getRowsPageD1FastV2_()`
-
-or
-
-- older direct routes: `getDashboard_()` and `getRowsPageV1931_()`.
-
-No save and no deploy are required.
-
-After this evidence, continue Phase 0 source/file inventory; do not jump to Fast Auth V2.4.
+After `getRowsPageD1FastV2_()` is mapped, continue `INV-09` with its called helper(s), then dashboard D1 path, sync, and auth.
 
 ## Remaining Phase 0 inventory
 
 Still required:
-- exact Apps Script Version 143 file/source composition.
+- exact complete Apps Script Version 143 file/source composition.
 - active Apps Script triggers + cadence.
 - invoice prepare/sweep/finalize paths.
 - Attendance/Clock-in paths.
@@ -169,11 +170,11 @@ Still required:
 - Press queue/session paths.
 - WhatsApp webhook/send paths.
 - Handover/OPS paths.
-- D1 sync/read/auth paths.
+- remaining D1 sync/read/auth helpers.
 - integrity baseline counts.
 - Order ID / Line ID actual Sheet number formats.
 
-For every event build:
+For every write event build:
 
 `Event -> Entry Point -> Lock -> Idempotency Key -> Sheet(s) Written -> Retry Behavior`
 
@@ -237,4 +238,4 @@ and zero open `CORE-P0` blockers remain.
 
 ## Prompt for a fresh execution chat
 
-> Continue TrendOS from canonical GitHub memory in `docs/trendos/` on repo `fawakhry/TrendOs`, working branch `agent/go-live-2026-09-01-integrity`. Active lane is PHASE 1 — CORE + CLOUD. INV-01 is complete. Active Apps Script Web App is Version 143, timestamp Aug 29 2026 11:37 PM. Live `health` returns `V1932_FULL_GO_LIVE_20260824`, the correct main spreadsheet, Users/Orders/Lines present, Orders rows 152, Lines rows 180, and 87 sheets; therefore INV-10C is PASS. Current Apps Script editor source is ahead of GitHub `Code.gs` in D1 route wiring, so do not overwrite Apps Script from GitHub. Exact Version 143 route snapshot is still unproven. Next action: read-only Project history inspection of Version 143 for the `getDashboard` and `getRowsPageV1931` route targets. Google Sheets remains authoritative for writes; D1 remains fast read/mirror; V2.4 Fast Auth remains prepared and is not the next step. Work one step at a time.
+> Continue TrendOS from canonical GitHub memory in `docs/trendos/` on repo `fawakhry/TrendOs`, working branch `agent/go-live-2026-09-01-integrity`. Active lane is PHASE 1 — CORE + CLOUD. Active Apps Script Web App is Version 143. Runtime health is verified and Project history Version 143 routes `getDashboard` to `getDashboardD1PrimaryV1_()` and `getRowsPageV1931` to `getRowsPageD1FastV2_()`. `getRowsPageD1PrimaryV1_()` has now been inspected: it is D1-primary with strict safety snapshot/cache and automatic Google Sheets fallback, and it uses the existing `authorize_()` path. However, the production router calls `getRowsPageD1FastV2_()`, whose body is not yet mapped. Do not infer Fast Auth V2.4 is deployed. Do not overwrite Apps Script from GitHub because Apps Script D1 routing is ahead of GitHub `Code.gs`. Next single action: read-only inspect the complete `getRowsPageD1FastV2_(e)` function. Work one step at a time.
