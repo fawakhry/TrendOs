@@ -14,10 +14,9 @@ Repository:
 - working: `agent/go-live-2026-09-01-integrity`
 - safety: `backup/go-live-2026-08-30-pre-p0`
 
-Canonical plan:
-`TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+Canonical plan: `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 
-## Read order
+## Canonical read order
 
 1. `docs/trendos/TRENDOS_PROJECT_MEMORY.md`
 2. `docs/trendos/TRENDOS_HANDOFF.md`
@@ -29,8 +28,9 @@ Canonical plan:
 8. `docs/trendos/inventory/APPS_SCRIPT_TRIGGER_INVENTORY.md`
 9. `docs/trendos/inventory/AUTH_PATH_INVENTORY.md`
 10. `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
-11. `docs/trendos/TRENDOS_TEST_MATRIX.md`
-12. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+11. `docs/trendos/inventory/INVOICE_READY_SWEEP_INVENTORY.md`
+12. `docs/trendos/TRENDOS_TEST_MATRIX.md`
+13. `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
 
 Evidence precedence:
 `LATEST VERIFIED > EARLIER VERIFIED > DEPLOYED > TESTED > IMPLEMENTED > PREPARED > PLANNED > UNKNOWN`.
@@ -39,205 +39,216 @@ Evidence precedence:
 
 Active Apps Script Web App:
 - Version **143**
-- timestamp: **Aug 29, 2026 11:37 PM**
-- deployment ID prefix matches TrendOS `config.js`
+- timestamp: **Aug 29 2026 11:37 PM**
+- deployment ID prefix matches production `config.js`
 
-Live health verified:
+Live health previously verified:
 - backend `V1932_FULL_GO_LIVE_20260824`
 - workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-- Users/Orders/Lines present
-- Orders rows 152
-- Lines rows 180
 - 87 sheets
 
 Version 143 routes:
 - `getDashboard` -> `getDashboardD1PrimaryV1_(e)`
 - `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`
 
-GitHub `Code.gs` is behind deployed/editor D1 route wiring. **Do not overwrite Apps Script from GitHub `Code.gs` yet.**
+**Do not overwrite Apps Script from GitHub `Code.gs`; GitHub is behind deployed/editor D1 wiring.**
 
-## Current architecture
+## Architecture checkpoint
 
 ### Writes
 Google Apps Script + Google Sheets remain authoritative for operational/financial writes.
 
-### Orders reads
-Version 143 uses D1 Fast V2/V2.3 with:
-- legacy `authorize_()` first
-- allowed-screen check
-- dataVersion-keyed V2.3 stable cache
-- D1 probe
-- V2.2 page cache
-- D1 snapshot/build
-- Google Sheets fallback on unsafe/error
+### Reads
+- Orders: D1 Fast V2/V2.3 + Sheets fallback.
+- Dashboard: D1 Primary + Sheets fallback.
+- Fast Auth V2.4: prepared only, not deployed.
 
-Fast Auth V2.4 remains **PREPARED / NOT DEPLOYED / NOT VERIFIED** in this path.
+### D1 sync
+Verified:
+- one installed `d1OrdersLiveSyncTick` trigger.
+- Time-driven / Minutes timer / Every minute.
+- Apps Script stages Orders + Lines then sends one promote.
+- Worker validates all staging and executes one D1 `batch()` transaction.
 
-### Dashboard reads
-`getDashboardD1PrimaryV1_(e)` uses:
-- D1 feature flag
-- `authorize_()`
-- screen authorization
-- shared D1 safety snapshot
-- `d1DashboardResultV1_()`
-- automatic `getDashboard_()` Sheets fallback
+Still open:
+- source snapshot consistency because not every operational writer uses the same ScriptLock.
+- promote-success/stats-failure observability ambiguity.
 
-## Authentication baseline — now mapped deeper
+## Current authentication baseline — inventory complete
 
-### `authorize_()`
-
-Verified sequence:
+Mapped current flow:
 
 ```text
-normalize username
- -> findUser_(...)
- -> reject missing user
- -> reject populated active state unless exactly نعم
- -> require token
+authorize_
+ -> findUser_
+    -> ensureUsersSetup_
+       -> Users sheet lookup
+       -> header check for Token / آخر دخول
+          -> can append missing headers
+    -> Users sheet lookup again
+    -> full Users getDataRange().getValues()
+    -> header read
+    -> sequential username scan
+ -> Active check
  -> constant-time token compare
- -> require non-expired session
- -> failed token/session may clear stored token cell
- -> success {ok:true,user}
+ -> session expiry
 ```
 
-`authorize_()` itself contains no auth cache.
+Verified:
+- no auth cache in current `authorize_()` / `findUser_()`.
+- session default 12h, Script Property configurable, clamped 1–72h.
+- logout clears Token on matching token.
+- password change clears Token and forces relogin.
+- login writes fresh Token + Last Login.
+- failed/bad/expired auth can clear stored Token.
+- current monolith has no dedicated employee `createUser/saveUser/updateUser` backend path found; Users-sheet Active is authoritative on each legacy lookup.
 
-### `findUser_()`
+`INV-09G/H/I/J = PASS`.
 
-Current function is now inspected and performs:
+`D1-05` remains PENDING because V2.4 cache invalidation is not deployed/verified.
 
-```text
-ensureUsersSetup_()
- -> open Users sheet
- -> sheet.getDataRange().getValues()
- -> resolve columns from headers
- -> sequentially scan normalized usernames
- -> return matching row metadata/token/session fields
-```
+## Live Line-ID baseline
 
-Critical performance fact:
-- **every current auth attempt reads the full used range of the Users sheet** before matching one username.
-- there is no cache/index/targeted lookup inside `findUser_()`.
-- because Orders Fast V2 calls `authorize_()` before V2.3 stable-page cache, this Google Sheets I/O occurs before a cached D1 page can return.
+Direct Google Sheets inspection of current `بنود الأوردرات`:
+- current visible used range: 194 rows including header.
+- 35 rows have status `مكرر`.
+- **no Line ID has more than one non-`مكرر` live row** in the inspected baseline.
 
-This is strong source evidence for the legacy auth bottleneck and is consistent with historical runtime where auth dominated the request while stable-page cache lookup was ~20ms.
+Therefore current baseline `zero active duplicate Line IDs` = PASS, while concurrency regression remains pending.
 
-Do not claim the full historical ~7.45s is caused solely by `getDataRange().getValues()` yet. `ensureUsersSetup_()`, header reads, spreadsheet access/cold-start and session helpers have not been independently timed.
+Noted data-quality cases:
+- `3216-02`
+- `3536-01`
 
-Additional auth observations:
-- bad/missing/expired token may clear the stored token through `safeSet_()`.
-- blank/falsy Active state is not rejected by current `authorize_()` condition.
-- blank password cell can fall back to `employeeDefaultPassword_()` inside `findUser_()`.
-- session TTL is still pending inside `sessionExpiredV1922_()`.
+Both appear only as `مكرر` in current live data and no canonical active row was found in the earlier archive search. Do not delete/repair blindly.
 
-Tests:
-- `INV-09G = PASS — SOURCE` (`authorize_()`)
-- `INV-09H = PASS — SOURCE` (`findUser_()`)
-- `INV-09I = PENDING` session-expiry policy
-- `INV-09J = PENDING` `ensureUsersSetup_()` hot-path work/side effects
-- `D1-05 = PENDING` Fast Auth invalidation
+Current Line IDs `3637-02`, `3647-01`, `3651-02` render literally in live read; write/read format regression still pending.
 
-Detailed document:
-`docs/trendos/inventory/AUTH_PATH_INVENTORY.md`
+## Invoice / Ready Sweep inventory — complete, correctness NOT green
 
-## D1 Atomic Orders + Lines sync
+Detailed source/live report:
+`docs/trendos/inventory/INVOICE_READY_SWEEP_INVENTORY.md`
 
-Apps Script side verified:
-- `d1OrdersLiveSyncTick()`
-- ScriptLock `tryLock(5000)`
-- stage Orders + Lines in 80-row batches
-- one runId
-- one combined promote request
-- mirror stats readback
+### Ready Sweep candidate logic
+`glaReadyOrders_()` selects live operational lines with status:
+- `جاهز للاستلام`
+- `تم التنفيذ`
 
-Installed trigger verified:
-- exactly one visible `d1OrdersLiveSyncTick`
-- `Head`
-- `Time-driven`
-- `Minutes timer`
-- **Every minute**
-- displayed error rate 0% at evidence time
+It only deduplicates Order IDs inside one invocation. It does not check final-invoice state.
 
-Worker promote verified:
-- validates all staged sheets before mutation
-- builds one statement list for all requested sheets
-- executes one `env.DB.batch(statements)`
-- Cloudflare D1 batch transaction semantics give rollback-on-failure
+### Draft creation race — LIVE FAILURE
+`glaPrepare_()` performs find -> update/append without ScriptLock.
 
-Tests:
-- `INV-02 = PASS`
-- `INV-09E = PASS`
-- `INV-09F = PASS — SOURCE + PLATFORM CONTRACT`
-- `D1-07 = PASS`
+Current live `حسابات - مسودات الفواتير` contains:
+- **50 Ready Sweep rows**
+- **47 unique Order IDs**
+- three confirmed duplicate Order IDs:
+  - `3577`: rows 16/17, IDs `DR-ceed6b65` and `DR-3466cb0d`
+  - `3572`: rows 18/19, IDs `DR-fe3c766a` and `DR-69e8cb63`
+  - `3569`: rows 20/21, IDs `DR-55d94661` and `DR-19c18636`
 
-## Remaining D1/Core risks
+`REG-20 = FAIL — LIVE BASELINE + SOURCE`.
 
-### Source snapshot consistency gap
+### Draft schema drift
+Live draft sheet contains legacy + appended V1932 semantic duplicates, e.g.:
+- `Draft ID` + `ID`
+- `رقم العميل` + `الهاتف`
+- `مدفوع مقترح` + `المدفوع المقترح`
 
-Worker atomicity does not fix source inconsistency if Google Sheets changes between staging Orders and Lines.
+`v1932EnsureSheet_()` appends exact missing headers rather than migrating synonyms.
 
-Known current gaps:
-- `updateLine_()` does not honor the sync ScriptLock.
-- `submitCustomerDraft_()` lacks one outer lock around full draft conversion.
+### Pricing safety — PASS
+All 50 current Ready Sweep rows show:
+- proposed total 0
+- `يحتاج تسعير/اعتماد`
+- blocker `لا توجد بنود معتمدة بسعر بيع.`
 
-`REG-31` remains PENDING. Shared lock contract in `trendos-integrity-v1.gs` must close this later.
+No invented price observed.
 
-### Promote outcome observability gap
+`REG-24 = PASS — LIVE + SOURCE`.
 
-Apps Script does promote -> mirror stats -> record success. If promote succeeds but stats read fails, Apps Script can report failure although D1 may already be committed. `D1-08` remains PENDING.
+### Final invoice writer — stronger but not fully repairable
+`saveAccountingFinalInvoice_()`:
+- ScriptLock 20s.
+- persisted request key in `مفتاح العملية`.
+- repeat request key returns `duplicatePrevented:true`.
+- server computes approved totals.
 
-### Authentication performance/invalidation
+However finalization is multi-sheet, non-transactional:
+1. append final invoice.
+2. mirror sales.
+3. mark accounting lines closed.
+4. finance/ledger.
+5. held payment/activity.
 
-Still need:
-- `ensureUsersSetup_()` implementation/cost/possible writes.
-- `sessionExpiredV1922_()` TTL/timezone policy.
-- login/logout/token update/deactivation entry points.
-- V2.4 invalidation rules.
+If failure occurs after final invoice append but before all lines close, same-request retry returns early through duplicate branch and does not explicitly complete line closure. Repair state remains a CORE gap.
 
-## Phase 0 status
+### CORE-P0 finalized -> Ready Sweep regression
+After successful finalization, the operational line can remain `جاهز للاستلام` until customer delivery.
+
+Next Ready Sweep can select the same Order again, while accounting lines are already closed. `glaPricing_()` then finds no open approved priced lines and `glaPrepare_()` can overwrite the draft back from `تم التقفيل` to `يحتاج تسعير/اعتماد` with subtotal 0.
+
+`REG-22 = FAIL — SOURCE CONTRACT`.
+
+Required future rule:
+**financially finalized order must be ineligible for Ready Sweep unless explicit reopen/revision state exists.**
+
+### Notification idempotency gap
+`glaSendReady_()` always calls Meta send when invoked and has no durable logical-event key.
+
+Repeated `finalizeAndNotify` can prevent duplicate final invoice via request key but still resend WhatsApp.
+
+## Current GO/NO-GO
+
+**NO-GO**.
+
+Current blockers include:
+1. Ready Sweep duplicate drafts — live failure.
+2. finalized invoice can regress into pricing queue — source failure.
+3. D1 Orders/Lines source snapshot consistency gap.
+4. remaining Attendance/Cleaning/Press/WhatsApp/Handover inventories and regressions not yet closed.
+
+Positive current evidence:
+- zero active duplicate Line IDs baseline.
+- D1 Worker promote transaction verified.
+- one-minute sync trigger verified.
+- unpriced invoice orders do not invent totals.
+
+## Phase 0 inventory status
 
 PASS:
-- `INV-01` Orders/Lines inventory
-- `INV-02` installed trigger + every-minute cadence
-- `INV-09A` Primary V1 D1 helper
-- `INV-09B` Orders Fast V2/V2.3
-- `INV-09C` Fast Auth V2.4 absent from Version 143 Orders path
-- `INV-09D` Dashboard D1 path
-- `INV-09E` Apps Script atomic sync
-- `INV-09F` Worker atomic promote
-- `INV-09G` `authorize_()` baseline
-- `INV-09H` `findUser_()` authoritative lookup
-- `INV-10A` active Version 143
-- `INV-10B` deployment/config match
-- `INV-10C` live runtime identity
-- `INV-10D` Version 143 top-level routes
+- INV-01 Orders/Lines
+- INV-02 triggers/cadence
+- INV-03 Invoice / Ready Sweep path inventory
+- INV-09A through INV-09J except V2.4 invalidation runtime
+- INV-10A/B/C/D deployment identity/routes
 
 Still pending/partial:
-- `INV-09I` session expiry policy
-- `INV-09J` ensure-users hot-path work
-- full auth invalidation/runtime parity inventory
-- full Version 143 project composition (`INV-10`)
-- Invoice / Attendance / Cleaning / Press / WhatsApp / Handover-OPS inventories
-- baseline duplicate IDs and actual ID number formats
+- INV-04 Attendance/Clock-in
+- INV-05 Cleaning
+- INV-06 Press
+- INV-07 WhatsApp
+- INV-08 Handover/OPS
+- INV-09 overall because V2.4 invalidation/runtime parity pending
+- INV-10 full Version 143 project composition
 
 ## Exact current stopping point
 
-**Next single action: inspect the complete current `ensureUsersSetup_()` function, read-only.**
+**Next single action: `INV-04` — inventory Attendance + Clock-in source and live sheets.**
 
-Goal:
-1. determine whether it only validates schema or performs writes/migrations,
-2. count additional Spreadsheet service calls before every `findUser_()` lookup,
-3. determine whether it is a meaningful auth-latency contributor,
-4. identify setup work that should not stay in the hot auth path.
+Inspect read-only:
+- `attendanceV1_` / `attendanceClockinV1_` / `attStart_` / pulse handlers and routes.
+- start-day check-then-append locking.
+- pulse duplicate/idempotency behavior.
+- session/day rollover logic.
+- configured business timezone/schedule interaction.
+- live `سجل الدوام`, `نبض الحضور`, `إعدادات الدوام` baseline.
 
-Do not save, edit or deploy Apps Script.
+No production edit/save/deploy until inventory is complete and a checkpoint exists.
 
-## First code after Phase 0
+## First implementation after Phase 0
 
-Create shared:
-`trendos-integrity-v1.gs`
-
-It must centralize:
+Create shared `trendos-integrity-v1.gs` for:
 - ID normalization
 - shared locks
 - durable idempotency
@@ -249,10 +260,10 @@ It must centralize:
 
 - Never delete valid historical data.
 - Never invent prices/states/payments/stock/approval facts.
-- `Order ID` is the order key.
-- `Line ID` is the logical active-line key.
+- Order ID is the order key.
+- Line ID is the logical active-line key.
 - repeated writes must become idempotent.
 - check-then-write requires locking.
-- duplicate rows marked `مكرر` remain history but do not count as active work.
-- Google Sheets remains write authority/fallback until an approved migration changes it.
+- `مكرر` rows remain history but do not count as active work.
+- Google Sheets remains write authority/fallback until approved migration.
 - tests record Expected / Actual / PASS|FAIL.
