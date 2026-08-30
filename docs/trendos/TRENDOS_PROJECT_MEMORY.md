@@ -1,8 +1,16 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: 2026-08-30.
+> Last consolidated: **2026-08-31 01:21 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
+
+## Read first in every new TrendOS chat
+
+1. `docs/trendos/TRENDOS_PROJECT_MEMORY.md`
+2. `docs/trendos/TRENDOS_EXECUTION_LEDGER.md` — exact step-by-step execution history and current stopping point.
+3. `docs/trendos/TRENDOS_HANDOFF.md`
+4. `docs/trendos/TRENDOS_INTEGRITY_V1_DEPLOY_MANIFEST.md` when deployment/wiring is involved.
+5. `docs/trendos/TRENDOS_TEST_MATRIX.md` for historical live failures and regression gates.
 
 ## Evidence rule
 
@@ -10,11 +18,11 @@ Use this precedence when reconciling conflicting history:
 
 `LATEST VERIFIED > EARLIER VERIFIED > DEPLOYED > TESTED > IMPLEMENTED > PREPARED > PLANNED > UNKNOWN`
 
-A plan is not implementation. A generated file is not deployment. A deployment is not production verification. Preserve unresolved conflicts as `Needs reconciliation`.
+A plan is not implementation. A generated file is not deployment. A deployment is not production verification. **CI PASS does not mean production PASS.** Preserve unresolved conflicts as `Needs reconciliation` or `PARTIAL`.
 
 ## Project identity
 
-TrendOS is the unified operating platform for Trend Mall / Matbagy operations. It is not only an order-management app. The target product connects the full business lifecycle:
+TrendOS is the unified operating platform for Trend Mall / Matbagy operations. The target product connects the full business lifecycle:
 
 `Lead -> Customer -> Order -> Design -> Production -> Invoice -> Payment -> Delivery -> Feedback -> Learning -> Growth`
 
@@ -32,114 +40,284 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. I
 
 **PHASE 1 — TRENDOS CORE + CLOUD**
 
-This is the only active implementation lane until it is complete and verified. Smart Designer, Matbagy AI, Lead Hunter, Marketplace and Logistics remain separate backlog/modules unless explicitly needed for Core integration.
+Current sub-stage:
 
-## Current core architecture
+**PRE-DEPLOY SOURCE CAPTURE / CONTROLLED INSTALLATION PREPARATION for Integrity V1.**
+
+Core Integrity implementation has moved beyond inventory: the new modules are implemented and CI-tested on GitHub, but **not deployed to production**.
+
+## Current repository checkpoint
+
+Repository: `fawakhry/TrendOs`
+
+Branches:
+- production/default: `main`
+- active working: `agent/go-live-2026-09-01-integrity`
+- safety: `backup/go-live-2026-08-30-pre-p0`
+- frozen pre-deploy candidate: `release/integrity-v1-predeploy-2026-08-30`
+
+Frozen deployment candidate:
+- SHA: `e72d873603841bc8e41bd8c228e3240f2feb2a29`
+- GitHub Actions run: `33328415852`
+- result: **SUCCESS**
+
+The release branch is a frozen candidate reference. Documentation may continue on the working branch without moving the frozen candidate until a new candidate is intentionally selected.
+
+## Production identity
+
+Active Apps Script Web App:
+- Version **143**
+- timestamp: Aug 29 2026 11:37 PM
+- deployment ID prefix matched frontend production config.
+
+Live health verified:
+- backend `V1932_FULL_GO_LIVE_20260824`
+- workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+- 87 sheets.
+
+Verified Version 143 top-level routes:
+- `getDashboard` -> `getDashboardD1PrimaryV1_(e)`
+- `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`
+
+**Never overwrite Apps Script production from GitHub `Code.gs`.** GitHub `Code.gs` is not an authoritative reconstruction of Version 143.
+
+## Current architecture
 
 ### Frontend
-- GitHub repository: `fawakhry/TrendOs`.
-- Production/default branch: `main`.
-- Working branch: `agent/go-live-2026-09-01-integrity`.
-- Safety backup branch: `backup/go-live-2026-08-30-pre-p0`.
-- GitHub Pages is the frontend hosting lineage.
+- GitHub Pages lineage.
+- Customer Manager stable-send frontend shim prepared as `customer-manager-send-integrity-v1.js`.
 
 ### Backend / writes
-- Google Apps Script remains the operational backend/write path.
-- Google Sheets remains authoritative for operational and financial writes during this phase.
-- Do not move authoritative writes to D1 without a separate verified migration decision.
+- Google Apps Script remains operational backend/write path.
+- Google Sheets remains authoritative for operational and financial writes.
+- No approved D1 authoritative-write migration exists.
 
-### Cloudflare / D1 reads
-- D1 is the fast read/mirror layer.
-- Orders + Order Lines atomic sync is the current approved direction: stage both, then promote together.
-- Newer verified snapshot: 87 sheets mirrored, 31,176 rows, 87 ready, 0 pending.
-- Stable page-cache V2.3 is verified; source: `D1_FAST_STABLE_CACHE_V23`.
-- Last historical performance bottleneck was Apps Script auth, not D1 page cache.
-- `D1_Orders_Fast_V2_4.gs` Fast Auth is prepared but must not be treated as installed/deployed/verified until tested.
-- Sheets fallback must remain available for unsafe D1/network/health/parity states.
+### D1 / fast reads
+- D1 remains fast read/mirror layer.
+- Sheets fallback remains mandatory.
+- Orders + Lines atomic Worker promote is verified.
+- newer mirror snapshot: 87 sheets / 31,176 rows / 87 ready / 0 pending.
+- V2.3 stable page cache verified.
+- source snapshot consistency around concurrent writer/sync remains a runtime regression gate.
+
+### Fast Auth
+- **V2.4 is rejected / forbidden for deployment.** Prepared source could cache raw password/token fields and lacked lifecycle invalidation wiring.
+- `D1_Fast_Auth_V2_5_Safe.gs` is implemented and CI-tested as a separate optional lane.
+- V2.5 uses strict non-secret allowlist + auth revision + kill switch.
+- V2.5 is **not part of the first Core activation** and is **not deployed**.
+
+## Integrity V1 implemented package
+
+Core Apps Script modules prepared and CI-tested:
+
+1. `trendos-integrity-v1.gs`
+2. `trendos-order-line-integrity-v1.gs`
+3. `trendos-attendance-cleaning-integrity-v1.gs`
+4. `trendos-press-integrity-v1.gs`
+5. `trendos-invoice-integrity-v1.gs`
+6. `trendos-whatsapp-integrity-v1.gs`
+7. `trendos-handover-ops-integrity-v1.gs`
+8. `trendos-andon-integrity-v1.gs`
+9. `trendos-integrity-dashboard-v1.gs`
+10. `trendos-integrity-router-v1.gs`
+
+Machine-readable membership:
+- `trendos-integrity-v1.package.json`
+
+Optional performance module:
+- `D1_Fast_Auth_V2_5_Safe.gs`
+
+Frontend contract:
+- `customer-manager-send-integrity-v1.js`
+
+Deployment/wiring contract:
+- `docs/trendos/TRENDOS_INTEGRITY_V1_DEPLOY_MANIFEST.md`
+
+Detailed execution evidence:
+- `docs/trendos/TRENDOS_EXECUTION_LEDGER.md`
+
+## Integrity V1 safety model
+
+Installation and activation are separate.
+
+Master kill switch:
+- `TRENDOS_INTEGRITY_V1_ENABLED`
+- default OFF.
+
+Family switches are also default OFF:
+- HEALTH
+- ORDER_LINE
+- ATTENDANCE_CLEANING
+- PRESS
+- INVOICE
+- WHATSAPP
+- OPS
+- AUTOMATION
+
+Fast Auth V2.5 has a separate default-OFF switch:
+- `TRENDOS_FAST_AUTH_V25_ENABLED`
+
+When a new family is disabled, routing must fall through to legacy behavior rather than partially run both implementations.
+
+## Core Integrity implementation results
+
+### Shared integrity foundation
+Implemented/tested:
+- ID normalization.
+- Cairo business date/calendar.
+- Friday closed default + Special Schedule override.
+- shared ScriptLock wrapper.
+- durable idempotency/event ledger.
+- automation-run ledger.
+- fail-closed schema checks.
+
+### Order / Line
+Implemented/tested:
+- Line ID authority over stale row number.
+- active duplicate Line detection.
+- Draft Item collision detection.
+- shared Draft add/upload/submit lock contract.
+- retry-safe reuse of checkpointed Order ID.
+
+### Attendance / Cleaning
+Implemented/tested:
+- one canonical employee/day session.
+- start+clockin atomic contract.
+- repeated state transitions no-op/idempotent.
+- clock-in prerequisite.
+- business-calendar rules.
+- Cleaning one/day and real checklist persistence.
+
+### Press
+Implemented/tested:
+- Start/Stop lock and retry-safe Session ID.
+- Order/Line snapshot ledger.
+- actual Line IDs for completion.
+- repeated Stop returns same result.
+- fail closed on invalid queue identity.
+- no invented energy costs.
+
+### Invoice / Ready Sweep
+Implemented/tested:
+- canonical draft per Order/revision.
+- finalized Order skipped by normal sweep.
+- explicit reopen revision.
+- finalize request key includes revision.
+- partial/timeout retry uses same request key.
+- material change during finalization fails closed.
+- ambiguous notification is not auto-resent.
+
+### WhatsApp
+Implemented/tested:
+- stable logical `clientRequestId` frontend/backend contract.
+- durable outbound claim before Meta send.
+- completed replay does not call Meta again.
+- ambiguous send does not auto-retry.
+- inbound Meta Message ID exact-once contract before mutation side effects.
+
+### Handover / OPS / ANDON
+Implemented/tested:
+- structured Handover with Line ID + business date/shift/state.
+- Handover revisions only when state changes.
+- idempotent receipt.
+- OPS_REPLY stable request ID.
+- OPS_COACH state fingerprint.
+- structured ANDON + resolution.
+- automation run claim/complete/retry contract.
+
+### Integrity Dashboard
+Implemented/tested:
+- counts plus problem IDs/details.
+- integrity ledgers and latest automation run/error visibility.
+
+### Router / composition / package gates
+Implemented/tested:
+- composed module syntax/collision test.
+- dependency health checks internal functions.
+- authenticated employee identity overrides spoofable payload identity.
+- admin-only route checks.
+- default-OFF master/family switches.
+- package safety gate forbids `Code.gs`, V2.4 and old conflicting modular overlays.
+
+## Historical live failures remain historical evidence
+
+Do **not** rewrite the baseline Test Matrix as if production is fixed merely because Integrity V1 passes CI.
+
+Production Version 143 historically still has confirmed live/source failures such as:
+- duplicate Ready Sweep drafts.
+- finalized->Ready Sweep regression.
+- Attendance duplicate sessions/pulses.
+- Cleaning duplicates.
+- Press idempotency/traceability gaps.
+- WhatsApp outbound retry gap.
+- missing canonical Handover workflow beyond schema stub.
+
+Those become production PASS only after controlled runtime activation/regression of Integrity V1.
 
 ## Current master technical plan
 
-Primary technical plan:
-`TRENDOS_GO_LIVE_2026-09-01_MASTER.md`
+Primary plan: `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`.
 
-Its September target is the **Core stabilization milestone**, not the final platform launch. Final product launch target is 01/03/2027.
+Current execution order from here:
 
-Core execution order:
+1. exact current Apps Script file-list capture/reconciliation.
+2. install Core Integrity files with **all flags OFF**.
+3. save/parse only; no activation.
+4. dependency health.
+5. legacy no-change smoke with flags OFF.
+6. controlled Web App deployment checkpoint with flags still OFF.
+7. activate route families one at a time with runtime regression and immediate family rollback on failure.
+8. D1 consistency regression.
+9. full E2E.
+10. GO/NO-GO.
+11. only after correctness is stable: separate Fast Auth V2.5 lane.
 
-1. Inventory + baseline + trigger map.
-2. Shared integrity foundation (`trendos-integrity-v1.gs`).
-3. Order/Line integrity.
-4. Business Calendar + Attendance + Cleaning.
-5. Press integrity.
-6. Invoice/pricing integrity.
-7. WhatsApp webhook idempotency.
-8. Handover / OPS.
-9. Integrity Dashboard + observability.
-10. D1 performance / Fast Auth.
-11. Regression + E2E + GO/NO-GO.
+Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
+
+## Current exact stopping point
+
+The assistant has no connector that can write Google Apps Script project source directly.
+
+Next required evidence/action:
+- user opens main workbook -> Extensions -> Apps Script.
+- capture one screenshot showing the complete Apps Script source-file list in the left sidebar.
+- **no code edit, no file addition, no Deploy yet**.
+
+Then resume at `PD-04` in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Core invariants
 
 - `Order ID` is the logical order key.
 - `Line ID` is the logical unique key for active order lines.
-- Do not delete valid historical data.
-- Historical duplicate rows marked `مكرر` are preserved but excluded from active metrics/queues.
-- All repeated events must become idempotent.
-- Check-then-create/update paths require locks.
-- Prices, stock, order states, settlements, press energy values and customer approvals must never be invented.
-- Operational truth comes from live TrendOS data, not AI/RAG memory.
-- Every fix requires `Expected / Actual / PASS|FAIL` evidence.
+- do not delete valid historical data.
+- historical `مكرر` rows are preserved but excluded from active metrics/queues.
+- repeated events must be idempotent.
+- check-then-create/update requires shared lock or durable atomic claim.
+- external sends require logical event claim before send.
+- prices, stock, order states, settlements, energy values and approvals are never invented.
+- operational truth comes from live TrendOS data.
+- every fix requires `Expected / Actual / PASS|FAIL` evidence.
 
-## Current backups/checkpoints
+## Backups/checkpoints
 
 - Main spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
-- Pre-Go-Live spreadsheet backup exists: `BACKUP_TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY_2026-08-30_PRE_GO_LIVE_P0`.
-- GitHub safety branch exists: `backup/go-live-2026-08-30-pre-p0`.
-- Historical performance checkpoint: before installing Fast Auth V2.4.
+- Pre-Go-Live workbook backup exists: `BACKUP_TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY_2026-08-30_PRE_GO_LIVE_P0`.
+- GitHub safety branch: `backup/go-live-2026-08-30-pre-p0`.
+- frozen Integrity V1 predeploy branch exists.
+- Production Apps Script remains Version 143 until a controlled deployment is explicitly performed.
 
-## Known current risks
+## Persistent working rule
 
-- Apps Script production-source lineage/version content must be inventoried before new deployment.
-- Spreadsheet metadata timezone was observed as `America/Los_Angeles` while operating rules use `Africa/Cairo`; do not change blindly before dependency inventory.
-- Fast Auth V2.4 lacks verified production test and explicit invalidation review.
-- Core P0 integrity fixes must be complete before performance-only optimization.
+The user does **not** want to repeatedly say “كمل” for steps that can be performed autonomously.
 
-## Module memory summary
+For TrendOS execution:
+- automatically perform reads/searches/tests/GitHub work available through connected tools.
+- ask the user only for an inaccessible UI action, consequential production decision, or required external evidence.
+- never ask the user to copy/paste data that can be read through connected Sheets/Drive/Files/GitHub tools.
+- after every material execution step, update `TRENDOS_EXECUTION_LEDGER.md` before moving on.
 
-### Branding
-- Primary blue `#005BFF`, accent orange `#FF6A00`, black `#111111`, white `#FFFFFF`, gray `#8A8F98`, light gray `#F4F6F8`.
-- Arabic fonts: Cairo/Tajawal. English: Montserrat/Poppins.
-- Brand phrase/reference: `فكرتك جاهزة`.
-- Some spelling/print-spec details remain `Needs reconciliation`.
-
-### Lead Hunter
-- Standalone/local-first Lead Hunter with Chrome extension was prepared.
-- Latest prepared checkpoint: `trendos_lead_hunter_pro_background_scheduler_v2_fix.zip`.
-- Latest fix not user-verified.
-- No Facebook scraper is part of the approved design; safe/manual capture plus scheduled search is the intended model.
-
-### Smart Designer
-- Local Node/Vite prototype exists.
-- Latest OpenAI-capable checkpoint: `matbagy-smart-designer-ai-live-mime-fixed.zip`.
-- OpenAI API path reached billing hard-limit; production deployment not confirmed.
-- Current preferred direction: Mug Template Engine + Layer Editor + optional Premium AI.
-
-### Matbagy AI
-- Local FastAPI + SQLite/FTS5 prototype exists.
-- Latest checkpoint: `matbagy_ai_seller_v0_5_8_exact_memory_no_timeout.zip`.
-- WhatsApp knowledge import and manual memory save are verified.
-- Ollama models were pulled (`qwen3:4b`, `llama3.2`, `nomic-embed-text`), but app-level timeout remained before v0.5.8; v0.5.8 is not verified.
-- RAG must never be source of truth for order status, final price, stock or approval.
-
-### Secure Remote Access
-- Tailscale + controlled Windows share is the selected pattern.
-- Print-shop side was partially working; home Windows client had Wintun/adapter failure.
-- Never expose SMB/FTP/RDP/SSH directly to the public internet for this workflow.
-
-## Chat working rule
-
-Use one chat per major phase. Before moving to a new chat, the active phase must have:
+Before moving to a new major phase/chat, preserve:
 
 `IMPLEMENTED + TESTED + VERIFIED + CHECKPOINT + ROLLBACK + GITHUB MEMORY UPDATED + EXACT NEXT STEP`
 
-This file is the top-level memory entry point. Read `TRENDOS_HANDOFF.md` for the exact current stopping point.
+This file is the top-level memory entry point.
