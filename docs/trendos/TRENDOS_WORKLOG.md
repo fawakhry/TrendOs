@@ -166,3 +166,31 @@ Purpose:
 - make GitHub the canonical durable memory before old chats are removed.
 - separate current verified state from historical/planned material.
 - provide exact handoff for new chats.
+
+## 2026-08-30 — Phase 0 INV-01 Orders / Lines repository inventory
+
+Created:
+- `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md`
+
+Result:
+- `INV-01` is complete for the **current working-branch repository source**.
+- this is not yet proof of the exact live Apps Script Version 138 source.
+
+Key discoveries:
+- `createManualOrder_()` already has an outer ScriptLock and V1908 Script-Properties request replay when a stable request ID is supplied.
+- the current frontend generates `clientRequestId` once per Add Order submit and reuses it across its retry/confirmation path.
+- `appendLine_()` already contains a V1932 Line-ID duplicate guard in the inspected repo source.
+- `upsertOrderSummary_()` already updates/appends by Order ID sequentially.
+- `syncOrderFromLines_()` already excludes `مكرر` rows from active/current totals in the inspected repo source.
+- current Customer Portal UI uses Draft -> `submitCustomerDraft_()` rather than direct `createCustomerPortalOrder_()`.
+- `submitCustomerDraft_()` has a sequential draft-status replay check but no enclosing lock around check -> allocate Order -> write Lines -> mark submitted; concurrent submits remain a CORE-P0 candidate.
+- `updateLine_()` has no shared lock/event idempotency around read/write/summary/log/message side effects.
+- bulk status and archive paths have stronger ScriptLock + request-cache patterns, but their idempotency is not yet standardized/durable.
+- legacy `mbCreateOrder_()` and direct portal-create paths remain reachable in source and do not have the same stable event-key protection as the main manual path.
+
+Decision from inventory:
+- do not implement another blind Line-ID duplicate patch.
+- reconcile the actual live Apps Script source/deployment composition first, then design the shared integrity foundation around gaps that truly remain.
+
+Next exact action:
+- verify the live Apps Script production source/deployment composition for Orders/Lines (`INV-10` dependency) before modifying Core write functions.
