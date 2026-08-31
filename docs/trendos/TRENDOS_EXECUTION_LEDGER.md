@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 00:54 Africa/Cairo**.
+> Updated: **2026-09-01 00:56 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-05G — HANDOVER / OPS INTEGRITY INSTALLATION, ALL FLAGS OFF**
+**PD-05H — ANDON INTEGRITY INSTALLATION, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -394,6 +394,18 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: Candidate `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI run `33384689012` SUCCESS; ledger-only commit on working branch.
 - Rollback: remove only the new WhatsApp Head file if later composition/dependency evidence fails; Version 143 remains unchanged.
 - Exact next step: install `trendos-handover-ops-integrity-v1.gs` from Candidate R3; Save only; do not Run/Deploy/enable flags.
+
+## PD-05G Handover / OPS Integrity — PASS INSTALL / FINAL DEPENDENCY VERIFY PENDING
+- Action: added `trendos-handover-ops-integrity-v1.gs` to the live Apps Script Head from approved Candidate R3 and saved the project to Drive.
+- Evidence:
+  - exact prepared source blob SHA: `4f2301d2101c45cb21ff8466e09cf63849d12cc8`;
+  - direct Candidate/blob comparison matched and static JavaScript syntax check passed before installation;
+  - live editor shows the exact filename, `cloud_done`, and disabled Save after save; no save/parser error was shown.
+- Status: **PASS for install/save; source composition/dependency verification deferred to PD-06/PD-07**.
+- Production impact: NONE — Head only; OPS/Handover runtime not run; no Deploy; no Script Properties; no flags; `Code.gs` unchanged; Version 143 remains production.
+- Commit / CI: Candidate `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI run `33384689012` SUCCESS; ledger-only commit on working branch.
+- Rollback: remove only the new Handover/OPS Head file if later composition/dependency evidence fails; Version 143 remains unchanged.
+- Exact next step: install `trendos-andon-integrity-v1.gs` from Candidate R3; Save only; do not Run/Deploy/enable flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
