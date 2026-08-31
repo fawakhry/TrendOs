@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:33 Africa/Cairo**.
+> Updated: **2026-09-01 01:38 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-06R — POST-REPAIR COMPOSITION VERIFICATION, ALL FLAGS OFF**
+**PD-07R2 — DEPENDENCY HEALTH RETEST, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -541,6 +541,19 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
 - Rollback: restore only this file from the same approved R3 blob.
 - Exact next step: reload Head, reverify all six exact live SHAs and the full persisted file composition, then rerun PD-07.
+
+## PD-06R Post-repair persisted composition verification — PASS
+- Action: reloaded the live Apps Script Head, reconciled the full file list, and copied each repaired file back from persisted Head for exact Git-blob verification.
+- Evidence:
+  - Apps Script returned `Saved to Drive` and `cloud_done`; Save remained disabled;
+  - 23 total files, all required Integrity filenames present, file-level `missing=[]`;
+  - Invoice, WhatsApp, Handover/OPS, Andon, Dashboard, and Router each match their approved Candidate R3 SHA exactly after reload;
+  - all six `wrapped=false`; no default `myFunction` scope remains.
+- Status: **PASS — persisted Head composition is repaired and exact for the bounded set**.
+- Production impact: NONE — reload/read verification only; no Run/deploy/properties/flags/routes; Version 143 unchanged.
+- Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
+- Rollback: exact R3 blobs remain the rollback source; Version 143 remains production.
+- Exact next step: rerun public `trendosIntegrityDependencyHealthV1`, inspect the live result, and require `codeReady=true`, `missing=[]`, master OFF, and every family OFF.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
