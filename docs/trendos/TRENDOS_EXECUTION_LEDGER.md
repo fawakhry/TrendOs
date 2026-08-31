@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-08-31 15:41 Africa/Cairo**.
+> Updated: **2026-09-01 00:52 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-05E — INVOICE INTEGRITY INSTALLATION, ALL FLAGS OFF**
+**PD-05F — WHATSAPP INTEGRITY INSTALLATION, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -370,40 +370,31 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Visible reconciliation note: screenshot also reveals existing `D1_Orders_Read_Cutover.g...`; it does not collide with Integrity filenames and does not trigger a new inventory.
 - Exact next step: prepare and install `trendos-invoice-integrity-v1.gs` from Candidate R3; Save only; do not Run/Deploy/enable flags.
 
-## PD-05E Invoice / Ready Sweep Integrity — PENDING USER SAVE
-- Action completed autonomously: fetched `trendos-invoice-integrity-v1.gs` from approved Candidate R3 and prepared the exact download/copy file.
-- Candidate ref: `release/integrity-v1-predeploy-2026-08-31-r3` -> `ee03adab4c733aec909511b23dd80f42ad3b927e`.
-- Evidence: fetched file blob SHA equals `7d42237112a601fea4d2ffcc0765c795226d7dd2`; direct blob content comparison matched; static JavaScript syntax check passed without executing the module.
-- Status: **PENDING — requires Apps Script editor add + Save only**.
-- Production impact: NONE — preparation only; Version 143 unchanged.
-- Commit / CI: Candidate `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI run `33384689012` SUCCESS.
-- Rollback: if Apps Script save/parse fails, do not run/deploy; remove only the new Invoice Head file or restore its exact verified blob content.
-- Exact next step:
-  1. Apps Script Editor -> `+` -> Script.
-  2. name: `trendos-invoice-integrity-v1`.
-  3. paste/upload the verified R3 file.
-  4. Save only.
-  5. do not Run, Deploy, edit Script Properties, or edit `Code.gs`.
-  6. after user confirms with screenshot or `تم`, record PD-05E PASS and prepare `trendos-whatsapp-integrity-v1.gs`.
-
-## PD-05-AUTO Autonomous Apps Script source-write capability — PARTIAL / ONE-TIME AUTH REQUIRED
-- Action: investigated all currently available autonomous source-write paths for the live Apps Script Head.
+## PD-05E Invoice / Ready Sweep Integrity — PASS INSTALL / FINAL DEPENDENCY VERIFY PENDING
+- Action: used the authenticated Apps Script editor to add `trendos-invoice-integrity-v1.gs` to the live project Head from approved Candidate R3, then saved the project to Drive.
 - Evidence:
-  - no installed or discoverable Google Apps Script / clasp connector is available; connected Google Drive can locate the production workbook but cannot read or mutate bound Apps Script source.
-  - available browser is cloud-only; Google Accounts sign-in returned `502 Bad Gateway / connection refused` before authentication, so no authenticated editor session is available.
-  - runtime has Node/npm but no `clasp`, no `gcloud`, no `/root/.clasprc.json`, no project `.clasp.json`, and no configured Google/CLASP environment credential.
-  - repository search found no existing `clasp`, `scriptId`, Apps Script deployment workflow, or source-write credential contract.
-- Status: **PARTIAL — zero-touch source installation is impossible under current authority; one-time Google authorization is required**.
-- Safe automation design:
-  1. obtain the bound Apps Script `scriptId` (identifier, not a password).
-  2. enable the Google Apps Script API for the account once.
-  3. authorize `clasp` securely once; never send password, OAuth token, or verification code in chat.
-  4. automation must `clasp pull` the exact current Head first, preserve every pulled live file, add only the Integrity whitelist from Candidate R3, run package/composition gates, then `clasp push` to Head.
-  5. automation must exclude GitHub `Code.gs`, V2.4, old standalone V1932 overlays, Script Properties, deployment creation, and flag activation.
-- Production impact: NONE — investigation only; no Apps Script mutation; Version 143 unchanged.
+  - exact prepared source blob SHA: `7d42237112a601fea4d2ffcc0765c795226d7dd2`;
+  - direct Candidate/blob comparison matched before installation and static JavaScript syntax check passed;
+  - live editor shows `trendos-invoice-integrity-v1.gs`, `cloud_done`, and a disabled Save button after save;
+  - no save/parser error was shown.
+- Status: **PASS for install/save; source composition/dependency verification deferred to PD-06/PD-07**.
+- Production impact: NONE — Head only; no Run; no Deploy; no Script Properties; no flags; `Code.gs` unchanged; Version 143 remains production.
+- Commit / CI: Candidate `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI run `33384689012` SUCCESS; ledger-only commit on working branch.
+- Rollback: remove only the new Invoice Head file if later composition/dependency evidence fails; Version 143 remains unchanged.
+- Exact next step: install `trendos-whatsapp-integrity-v1.gs` from Candidate R3; Save only; do not Run/Deploy/enable flags.
+
+## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
+- Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
+- Evidence:
+  - production workbook Drive ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`;
+  - bound Apps Script project ID: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`;
+  - live file list matched the recorded Head state through Press before Invoice installation.
+- Status: **PASS — the prior one-time-auth blocker is resolved for the current controlled editor session**.
+- Production impact: NONE — access verification plus Head file installation only; Version 143 unchanged.
 - Commit / CI: documentation-only checkpoint on working branch; Candidate R3 remains `ee03adab4c733aec909511b23dd80f42ad3b927e`.
-- Rollback: not applicable; no production or Head change occurred.
-- Exact next step: complete one-time Apps Script API + secure clasp authorization when the user is available; after that, automate remaining file installation and verification. Until authorization exists, PD-05E remains the current manual installation checkpoint.
+- Rollback: close the authenticated editor session; no deployment or property change exists to roll back.
+- Exact next step: continue controlled one-file-at-a-time Head installation, saving and recording each result before proceeding.
+
 
 ---
 
