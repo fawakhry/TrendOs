@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:14 Africa/Cairo**.
+> Updated: **2026-09-01 01:19 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-07R — ROUTER RUNTIME VISIBILITY DIAGNOSIS, ALL FLAGS OFF**
+**PD-05R1 — REPAIR INVOICE GLOBAL SCOPE, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -470,6 +470,23 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: Candidate R3 CI remains green, but live runtime evidence supersedes CI for this checkpoint; ledger-only commit on working branch.
 - Rollback: no production rollback required. Keep Version 143 unchanged; do not deploy the current Head. If the Router file is proven incomplete or stale, restore only `trendos-integrity-router-v1.gs` from exact R3 blob `c4930e1150fd2eaf62616d44f975690108f54816`.
 - Exact next step: inspect the persisted live Router source boundaries and compare it with exact Candidate R3; repair only that file if a mismatch is proven, save, and rerun PD-06/PD-07. Do not continue to PD-08 while `codeReady=false`.
+
+## PD-07R Root-cause diagnosis — FAIL CONFIRMED / REPAIR SET BOUNDED
+- Action: copied the persisted live content of every file installed during the authenticated autonomous session and compared its Git blob SHA with Candidate R3.
+- Evidence:
+  - all six files begin with the Apps Script default wrapper `function myFunction() {`, end with its closing brace, and are exactly 29 characters longer than their approved Candidate source;
+  - Invoice live `4e9c34138cf2b2d65bdcabb519d91b852b8db969` vs expected `7d42237112a601fea4d2ffcc0765c795226d7dd2`;
+  - WhatsApp live `b567921c53476833ee9a5910ff23deb3e464edcd` vs expected `c3e59c50f17de2604f0192a5b8f651e53caf9018`;
+  - Handover/OPS live `0bce26a7bf5e74c4d11196164f21055969ab02be` vs expected `4f2301d2101c45cb21ff8466e09cf63849d12cc8`;
+  - Andon live `c799377a0d1ec850f91bc11145500585a077cc5b` vs expected `6b61b9f0c4cae9bd47a85f59efd7780e95f04765`;
+  - Dashboard live `f113bc817e2a623a92dbf2bcde409b5f07b95a81` vs expected `3cb1ef31a2d22cc0ebd19f5c4f9bacfa590a20bc`;
+  - Router live `73966cdba90f9d032523762a03ae0aed1f8eb36a` vs expected `c4930e1150fd2eaf62616d44f975690108f54816`.
+- Root cause: the editor uses macOS shortcuts; `Ctrl+A` did not select the full default file before paste, so approved code was nested inside `myFunction` and its functions were not global.
+- Status: **FAIL CONFIRMED, repair scope bounded to these six newly installed files**.
+- Production impact: NONE — diagnosis was read-only; no Deploy, properties, flags, or routes; Version 143 unchanged.
+- Commit / CI: live mismatch evidence recorded on the working branch; approved Candidate R3 remains unchanged.
+- Rollback: restore each affected file to its exact R3 blob; do not touch the four user-installed Integrity files or `Code.gs`.
+- Exact next step: repair `trendos-invoice-integrity-v1.gs` using full-file macOS selection, verify its copied live Git blob SHA exactly, save, record the result, then continue through the bounded set one file at a time.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
