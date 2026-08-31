@@ -6,7 +6,13 @@ function trendosIntegritySelfTestV1(){
   if(typeof trendosIntegritySelfTestV1_!=='function'){
     throw new Error('TrendOS Integrity foundation is not installed or not parsed.');
   }
-  return trendosIntegritySelfTestV1_();
+  const result=trendosIntegritySelfTestV1_();
+  try{Logger.log(JSON.stringify(result));}catch(e){}
+  if(!result||result.success!==true){
+    const failed=result&&Array.isArray(result.checks)?result.checks.filter(function(x){return !x.pass;}).map(function(x){return x.name;}).join(', '):'unknown';
+    throw new Error('TrendOS Integrity self-test failed: '+failed);
+  }
+  return result;
 }
 
 function trendosIntegrityDependencyHealthV1(){
@@ -18,5 +24,7 @@ function trendosIntegrityDependencyHealthV1(){
       missing:['trendosIntegrityDependencyHealthV1_']
     };
   }
-  return trendosIntegrityDependencyHealthV1_();
+  const result=trendosIntegrityDependencyHealthV1_();
+  try{Logger.log(JSON.stringify(result));}catch(e){}
+  return result;
 }
