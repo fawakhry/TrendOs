@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:29 Africa/Cairo**.
+> Updated: **2026-09-01 01:31 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-05R5 — REPAIR DASHBOARD GLOBAL SCOPE, ALL FLAGS OFF**
+**PD-05R6 — REPAIR ROUTER GLOBAL SCOPE, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -523,6 +523,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
 - Rollback: restore only this file from the same approved R3 blob.
 - Exact next step: repair and exact-SHA verify `trendos-integrity-dashboard-v1.gs`.
+
+## PD-05R5 Integrity Dashboard global-scope repair — PASS
+- Action: replaced the entire wrapped Integrity Dashboard file with exact Candidate R3 content and saved.
+- Evidence: copied live source matched Candidate exactly; Git blob SHA `3cb1ef31a2d22cc0ebd19f5c4f9bacfa590a20bc`; `cloud_done`, disabled Save, no parser/save error.
+- Status: **PASS — Dashboard functions restored to project-global scope**.
+- Production impact: NONE — Head correction only; no runtime/deploy/properties/flags/routes; Version 143 unchanged.
+- Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
+- Rollback: restore only this file from the same approved R3 blob.
+- Exact next step: repair and exact-SHA verify `trendos-integrity-router-v1.gs`.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
