@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:38 Africa/Cairo**.
+> Updated: **2026-09-01 01:42 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-07R2 — DEPENDENCY HEALTH RETEST, ALL FLAGS OFF**
+**PD-08 — LEGACY NO-CHANGE SMOKE, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -554,6 +554,24 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
 - Rollback: exact R3 blobs remain the rollback source; Version 143 remains production.
 - Exact next step: rerun public `trendosIntegrityDependencyHealthV1`, inspect the live result, and require `codeReady=true`, `missing=[]`, master OFF, and every family OFF.
+
+## PD-07R2 Dependency Health retest — PASS
+- Action: ran the public `trendosIntegrityDependencyHealthV1` after exact persisted repair.
+- Evidence: Apps Script execution log returned:
+  - `success=true`;
+  - `codeReady=true`;
+  - `requiredCount=23`;
+  - `missing=[]`;
+  - `features.master=false`;
+  - every family false: HEALTH, ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION;
+  - `optional.fastAuthV25Present=false`;
+  - version `TRENDOS_INTEGRITY_ROUTER_V1_20260830`;
+  - execution completed.
+- Status: **PASS — live code dependencies are complete and every Integrity feature remains OFF**.
+- Production impact: NONE — health-only runtime; no business mutation, Deploy, properties, flags, or route activation; Version 143 remains production.
+- Commit / CI: live runtime PASS supersedes the earlier live FAIL; Candidate R3 and CI remain unchanged; ledger-only commit on working branch.
+- Rollback: disable flags remains the future family rollback; current production rollback is still Version 143.
+- Exact next step: execute PD-08 legacy no-change smoke while all flags remain OFF; do not Deploy.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
