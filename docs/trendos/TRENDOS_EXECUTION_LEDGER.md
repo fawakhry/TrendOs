@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: 2026-08-31 12:40 Africa/Cairo.
+> Updated: **2026-08-31 15:41 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -25,13 +25,13 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Production/default branch: `main`.
 - Working branch: `agent/go-live-2026-09-01-integrity`.
 - Safety branch: `backup/go-live-2026-08-30-pre-p0`.
-- Frozen pre-deploy candidate branch: `release/integrity-v1-predeploy-2026-08-30`.
-- Frozen candidate SHA: `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
-- Candidate CI run `33328415852` = **SUCCESS**.
+- Current pre-deploy candidate branch: `release/integrity-v1-predeploy-2026-08-31-r3`.
+- Candidate SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- Candidate CI run `33384689012` = **SUCCESS**.
 - Production Apps Script Web App: Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **PREPARED + CI TESTED + NOT DEPLOYED**.
+- Integrity V1 state: **PARTIALLY INSTALLED IN APPS SCRIPT HEAD + NOT DEPLOYED + ALL FLAGS OFF**.
 
 ---
 
@@ -266,10 +266,12 @@ Production impact: NONE.
 
 # 4. Pre-deploy sequence
 
-## PD-01 freeze deployment candidate — PASS
-- branch `release/integrity-v1-predeploy-2026-08-30`.
-- SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
-- CI `33328415852` SUCCESS.
+## PD-01 freeze deployment candidate — PASS (superseded by R3)
+- earlier branch `release/integrity-v1-predeploy-2026-08-30` at SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29` is retained as historical evidence only.
+- current approved candidate branch: `release/integrity-v1-predeploy-2026-08-31-r3`.
+- current candidate SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- GitHub ref verification: R3 points exactly to the current candidate SHA.
+- CI run `33384689012` = **SUCCESS**.
 - Production impact: NONE.
 
 ## PD-02 source capture of routing — PASS for supplied current source
@@ -325,25 +327,53 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-05 — CONTROLLED INSTALLATION, FIRST FILE ONLY, ALL FLAGS OFF**
+**PD-05D — PRESS INTEGRITY INSTALLATION, ALL FLAGS OFF**
 
-Nothing from Integrity V1 is deployed or activated yet.
+Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
-Next user-assisted action:
-1. In Apps Script Editor, click `+` next to Files -> Script.
-2. Name the first new file exactly: `trendos-integrity-v1` (Apps Script adds `.gs`).
-3. Paste only the frozen candidate content of `trendos-integrity-v1.gs` from SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
-4. Save.
-5. Do **not** edit `Code.gs`.
-6. Do **not** Deploy.
-7. Do **not** create/enable any Script Property flag.
-8. Return a screenshot showing the new file and any save/parser error if one appears.
+## PD-05A foundation + public runtime tools — PASS / INSTALLED IN HEAD
+- Action: added `trendos-integrity-v1.gs` and `trendos-integrity-runtime-tools-v1.gs` to Apps Script Head.
+- Evidence: Apps Script save/parse completed; public `trendosIntegritySelfTestV1` returned `success:true`; every check returned `pass:true`; execution completed.
+- Foundation version: `TRENDOS_INTEGRITY_V1_20260830`.
+- Runtime tools: R3 fail-closed wrapper; any internal failed check makes the public execution fail.
+- Status: **PASS for install/parse/runtime self-test**.
+- Production impact: NONE — Head only; Version 143 still serves `doGet/doPost`; no Deploy; flags OFF.
+- Rollback: remove only the new Head files if a later composition conflict is proven; Version 143 remains the production rollback.
+- Exact next step at completion: install Order/Line file; now completed below.
 
-Expected result:
-- file saves/parses successfully.
-- no existing route changes because the file is not wired and all flags are absent/OFF.
+## PD-05B Order / Line Integrity — PASS INSTALL / FINAL DEPENDENCY VERIFY PENDING
+- Action: added and saved `trendos-order-line-integrity-v1.gs` in Apps Script Head.
+- Evidence: Apps Script editor save/parse passed.
+- Candidate R3 blob SHA: `b8db6ea34ab537b2a6cb79db4c4d0aa1b3d4a2c8`.
+- Status: **PASS for install/parse; dependency verification deferred to PD-07**.
+- Production impact: NONE — no Run, no Deploy, no flags, no `Code.gs` edit.
+- Rollback: remove only this newly added Head file if later composition/dependency evidence fails.
+- Exact next step at completion: install Attendance/Cleaning file; now completed below.
 
-If PASS, continue one file at a time through the 10 Core files, saving/parsing after each addition.
+## PD-05C Attendance / Cleaning Integrity — PASS INSTALL / FINAL DEPENDENCY VERIFY PENDING
+- Action: added and saved `trendos-attendance-cleaning-integrity-v1.gs` in Apps Script Head.
+- Evidence: Apps Script editor save/parse passed.
+- Candidate R3 blob SHA: `fcb0f0aeee0f1f2a676c0af1c96b8b977d750732`.
+- Status: **PASS for install/parse; dependency verification deferred to PD-07**.
+- Production impact: NONE — Attendance/Cleaning runtime not run; no Deploy; flags OFF.
+- Rollback: remove only this newly added Head file if later composition/dependency evidence fails.
+- Exact next step at completion: prepare/install Press file; current step below.
+
+## PD-05D Press Integrity — PENDING USER SAVE
+- Action completed autonomously: fetched `trendos-press-integrity-v1.gs` from approved Candidate R3.
+- Candidate ref: `release/integrity-v1-predeploy-2026-08-31-r3` -> `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- Evidence: fetched file blob SHA equals `38c8ce3a5e0918538db99c913eeb8cb917f52c64`; direct blob content comparison matched; static JavaScript syntax check passed without executing the module.
+- Status: **PENDING — requires Apps Script editor add + Save only**.
+- Production impact: NONE — preparation only; Version 143 unchanged.
+- Commit / CI: Candidate `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI run `33384689012` SUCCESS.
+- Rollback: if Apps Script save/parse fails, do not run/deploy; remove only the new Press Head file or restore its exact verified blob content.
+- Exact next step:
+  1. Apps Script Editor -> `+` -> Script.
+  2. name: `trendos-press-integrity-v1`.
+  3. paste/upload the verified R3 file.
+  4. Save only.
+  5. do not Run, Deploy, edit Script Properties, or edit `Code.gs`.
+  6. after user confirms `تم`, record PD-05D PASS and prepare `trendos-invoice-integrity-v1.gs`.
 
 ---
 
@@ -370,7 +400,7 @@ Do not install GitHub `Code.gs`. Do not install V2.5 yet. Do not install old sta
 - no flags enabled.
 
 ## PD-07 dependency health
-Run `trendosIntegrityDependencyHealthV1_()` manually.
+Run public `trendosIntegrityDependencyHealthV1()` manually.
 Expected:
 - `codeReady=true`.
 - `missing=[]`.
