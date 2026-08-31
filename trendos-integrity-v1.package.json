@@ -17,6 +17,7 @@
   },
   "coreAppsScriptFiles": [
     "trendos-integrity-v1.gs",
+    "trendos-integrity-runtime-tools-v1.gs",
     "trendos-order-line-integrity-v1.gs",
     "trendos-attendance-cleaning-integrity-v1.gs",
     "trendos-press-integrity-v1.gs",
@@ -47,6 +48,7 @@
     "Do not rebuild or overwrite production Code.gs from GitHub.",
     "Do not copy old standalone V1932 modules on top of the consolidated live Code lineage.",
     "Install core modules with master and every family flag absent or false.",
+    "Public manual runtime checks live only in trendos-integrity-runtime-tools-v1.gs; implementation helpers remain private with trailing underscores.",
     "Run dependency health before enabling any feature family.",
     "Enable one route family at a time only after its runtime regression evidence is ready.",
     "Disabling a family flag must immediately return that family to the legacy route path.",
