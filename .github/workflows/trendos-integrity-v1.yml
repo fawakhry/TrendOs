@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - 'trendos-integrity-v1.gs'
+      - 'trendos-integrity-runtime-tools-v1.gs'
       - 'trendos-order-line-integrity-v1.gs'
       - 'trendos-attendance-cleaning-integrity-v1.gs'
       - 'trendos-press-integrity-v1.gs'
@@ -20,6 +21,7 @@ on:
       - 'customer-manager-send-integrity-v1.js'
       - 'trendos-integrity-v1.package.json'
       - 'tests/trendos_integrity_v1.test.js'
+      - 'tests/trendos_integrity_runtime_tools_v1.test.js'
       - 'tests/trendos_order_line_integrity_v1.test.js'
       - 'tests/trendos_attendance_cleaning_integrity_v1.test.js'
       - 'tests/trendos_press_integrity_v1.test.js'
@@ -51,6 +53,8 @@ jobs:
           node-version: '22'
       - name: Run TrendOS integrity foundation tests
         run: node tests/trendos_integrity_v1.test.js .
+      - name: Run TrendOS public runtime tools tests
+        run: node tests/trendos_integrity_runtime_tools_v1.test.js .
       - name: Run TrendOS Phase 2 Order and Line tests
         run: node tests/trendos_order_line_integrity_v1.test.js .
       - name: Run TrendOS Attendance and Cleaning integrity tests
