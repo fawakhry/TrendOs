@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:47 Africa/Cairo**.
+> Updated: **2026-09-01 01:50 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -586,6 +586,22 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live evidence recorded on working branch; Candidate R3 unchanged.
 - Rollback: Version 143 remains the active production rollback; no production change exists yet to reverse.
 - Exact next step: PD-09 controlled deployment checkpoint. Freeze the exact repaired Head/source evidence, confirm rollback Version 143, and obtain explicit production Deploy approval before creating/updating any deployment; all flags must remain OFF.
+
+## PD-09 Controlled deployment checkpoint — READY / PENDING EXPLICIT APPROVAL
+- Action: froze the pre-deploy evidence state without creating a script version or changing a deployment.
+- Evidence snapshot:
+  - approved Candidate R3: `ee03adab4c733aec909511b23dd80f42ad3b927e`;
+  - live Apps Script project: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`, bound to production workbook `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`;
+  - 23 persisted Head files; all 10 ordered Integrity files plus the R3 runtime-tools helper present;
+  - repaired six-file subset exactly matches Candidate R3 after reload;
+  - PD-06R composition PASS, PD-07R2 live dependency PASS, PD-08 legacy no-change PASS;
+  - `codeReady=true`, `missing=[]`, master OFF, all eight family flags OFF, Fast Auth V2.5 absent;
+  - Version 143 remains the production Web App and rollback.
+- Status: **READY FOR CONTROLLED DEPLOYMENT WITH FLAGS OFF, PENDING EXPLICIT PRODUCTION APPROVAL**.
+- Production impact: NONE — checkpoint/documentation only; no version created, no deployment changed, no properties or flags changed.
+- Commit / CI: Candidate CI run `33384689012` SUCCESS; working-branch ledger updated through this checkpoint.
+- Rollback: retain Version 143 deployment; if a future flags-OFF deployment fails smoke, immediately restore Version 143.
+- Exact next step: obtain explicit approval for the production Deploy action. On approval, create/update the controlled deployment with every Integrity and Fast Auth flag still OFF, capture the new version/deployment ID, perform immediate legacy smoke, and record PASS/FAIL before any family activation.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
