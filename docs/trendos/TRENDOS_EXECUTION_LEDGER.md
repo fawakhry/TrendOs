@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:42 Africa/Cairo**.
+> Updated: **2026-09-01 01:47 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-08 — LEGACY NO-CHANGE SMOKE, ALL FLAGS OFF**
+**PD-09 — CONTROLLED DEPLOYMENT APPROVAL CHECKPOINT, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -572,6 +572,20 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live runtime PASS supersedes the earlier live FAIL; Candidate R3 and CI remain unchanged; ledger-only commit on working branch.
 - Rollback: disable flags remains the future family rollback; current production rollback is still Version 143.
 - Exact next step: execute PD-08 legacy no-change smoke while all flags remain OFF; do not Deploy.
+
+## PD-08 Legacy no-change smoke with flags OFF — PASS
+- Action: inspected deployment/runtime history and the trigger inventory after PD-07, without invoking any Integrity business operation.
+- Evidence:
+  - Overview remains `Status: Deployed` and exposes the active `Version 143` deployment tab;
+  - Version 143 shows 75,651 executions in the 7-day summary and its recorded Web App `doPost` executions are Completed;
+  - Head execution history after installation contains only the explicitly requested `trendosIntegrityDependencyHealthV1` diagnostic executions; no Integrity business-family function ran;
+  - Triggers page says `Showing 1 trigger`; the only trigger is Head / Time-based / `d1OrdersLiveSyncTick`, last observed at Aug 31 2026 3:30:38 PM, with continuing completed every-minute executions;
+  - PD-07 independently proves master and every family flag false.
+- Status: **PASS — installation alone introduced no deployed route or Integrity business mutation; legacy Version 143 remains production**.
+- Production impact: READ-ONLY verification plus prior health-only call; no Deploy, properties, flags, or route activation.
+- Commit / CI: live evidence recorded on working branch; Candidate R3 unchanged.
+- Rollback: Version 143 remains the active production rollback; no production change exists yet to reverse.
+- Exact next step: PD-09 controlled deployment checkpoint. Freeze the exact repaired Head/source evidence, confirm rollback Version 143, and obtain explicit production Deploy approval before creating/updating any deployment; all flags must remain OFF.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
