@@ -1,17 +1,17 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-08-31 01:21 Africa/Cairo**.
+> Last consolidated: **2026-08-31 12:40 Africa/Cairo**.
 
 ## Mandatory read order
 
 1. `docs/trendos/TRENDOS_PROJECT_MEMORY.md`
 2. `docs/trendos/TRENDOS_EXECUTION_LEDGER.md`
 3. `docs/trendos/TRENDOS_HANDOFF.md`
-4. `docs/trendos/TRENDOS_INTEGRITY_V1_DEPLOY_MANIFEST.md` for deployment/wiring work.
-5. `docs/trendos/TRENDOS_TEST_MATRIX.md` for historical live failures and GO/NO-GO gates.
+4. `docs/trendos/TRENDOS_INTEGRITY_V1_DEPLOY_MANIFEST.md`
+5. `docs/trendos/TRENDOS_TEST_MATRIX.md`
 
-Do not ask the user to reconstruct work already recorded in these files.
+Do not ask the user to reconstruct work already recorded there.
 
 ## Active phase
 
@@ -19,11 +19,11 @@ Do not ask the user to reconstruct work already recorded in these files.
 
 Current sub-stage:
 
-**PRE-DEPLOY SOURCE CAPTURE / CONTROLLED INSTALLATION PREPARATION**
+**PD-05 — CONTROLLED APPS SCRIPT INSTALLATION, FIRST FILE ONLY, ALL FLAGS OFF**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
-## Repository / checkpoints
+## Repository / frozen candidate
 
 Repository: `fawakhry/TrendOs`
 
@@ -31,36 +31,33 @@ Branches:
 - `main` — production/default.
 - `agent/go-live-2026-09-01-integrity` — active working branch.
 - `backup/go-live-2026-08-30-pre-p0` — safety branch.
-- `release/integrity-v1-predeploy-2026-08-30` — frozen candidate branch.
+- `release/integrity-v1-predeploy-2026-08-30` — frozen deployment candidate.
 
 Frozen candidate:
 - SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
 - GitHub Actions run `33328415852` = **SUCCESS**.
 
-Do not silently move the frozen release branch. A newer candidate requires an explicit new freeze/checkpoint.
+Do not move the frozen release branch silently.
 
 ## Production identity
 
 Active Apps Script Web App:
 - Version **143**.
 - Aug 29 2026 11:37 PM.
-
-Verified runtime identity:
 - backend `V1932_FULL_GO_LIVE_20260824`.
 - workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
-- 87 sheets.
 
-Verified top-level production/source-history routes:
-- `getDashboard` -> `getDashboardD1PrimaryV1_(e)`.
-- `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`.
+Verified route lineage:
+- Dashboard -> D1 Primary.
+- Orders page -> D1 Fast V2.
 
 Critical rule:
-- **Do not overwrite production Apps Script from GitHub `Code.gs`.**
+- **never overwrite production Apps Script from GitHub `Code.gs`.**
 
-## Architecture checkpoint
+## Current architecture
 
 Writes:
-- Google Apps Script + Google Sheets remain authoritative.
+- Apps Script + Google Sheets authoritative.
 
 Reads:
 - Orders: D1 Fast V2/V2.3 + Sheets fallback.
@@ -69,16 +66,15 @@ Reads:
 D1:
 - atomic Worker promote verified.
 - one installed every-minute `d1OrdersLiveSyncTick` verified.
-- source-snapshot consistency around concurrent writer/sync remains a runtime regression gate.
+- source-snapshot consistency still needs runtime regression after new writer activation.
 
 Fast Auth:
-- V2.4 = **forbidden / do not deploy**.
-- V2.5 SAFE = implemented + CI-tested + optional + not deployed.
+- V2.4 = forbidden.
+- V2.5 SAFE = implemented + CI tested + optional + not part of first Core activation.
 
-## Integrity V1 implementation state
+## Integrity V1 state
 
-All below are **IMPLEMENTED + CI TESTED on GitHub + NOT DEPLOYED**:
-
+Implemented + CI-tested on GitHub, not deployed:
 - shared integrity foundation.
 - Order/Line Integrity.
 - Attendance/Cleaning Integrity.
@@ -87,13 +83,12 @@ All below are **IMPLEMENTED + CI TESTED on GitHub + NOT DEPLOYED**:
 - WhatsApp/Webhook Integrity.
 - Handover/OPS Integrity.
 - ANDON Integrity.
-- Integrity Dashboard/Observability.
-- Fast Auth V2.5 SAFE optional lane.
-- composed Apps Script collision/syntax test.
+- Integrity Dashboard.
 - Integration Router V1.
-- pre-deploy package safety gate.
+- Pre-deploy package safety gate.
+- Fast Auth V2.5 SAFE optional lane.
 
-Core package files:
+Core Apps Script package:
 1. `trendos-integrity-v1.gs`
 2. `trendos-order-line-integrity-v1.gs`
 3. `trendos-attendance-cleaning-integrity-v1.gs`
@@ -105,27 +100,18 @@ Core package files:
 9. `trendos-integrity-dashboard-v1.gs`
 10. `trendos-integrity-router-v1.gs`
 
-Optional first-excluded performance file:
+Optional excluded first-pass file:
 - `D1_Fast_Auth_V2_5_Safe.gs`.
 
-Frontend stable outbound request shim:
+Frontend stable-send shim:
 - `customer-manager-send-integrity-v1.js`.
-
-Machine-readable package:
-- `trendos-integrity-v1.package.json`.
-
-Deployment instructions:
-- `docs/trendos/TRENDOS_INTEGRITY_V1_DEPLOY_MANIFEST.md`.
-
-Full chronological history/evidence:
-- `docs/trendos/TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Safety switches
 
-Master:
-- `TRENDOS_INTEGRITY_V1_ENABLED` — default OFF.
+Master default OFF:
+- `TRENDOS_INTEGRITY_V1_ENABLED`
 
-Family switches — all default OFF:
+Family flags default OFF:
 - HEALTH
 - ORDER_LINE
 - ATTENDANCE_CLEANING
@@ -135,119 +121,105 @@ Family switches — all default OFF:
 - OPS
 - AUTOMATION
 
-Fast Auth separate switch:
-- `TRENDOS_FAST_AUTH_V25_ENABLED` — default OFF.
+Fast Auth separate default OFF:
+- `TRENDOS_FAST_AUTH_V25_ENABLED`
 
-Installation must happen with all flags OFF. Activation is family-by-family only after runtime regression.
+Installation and activation are separate operations.
 
-## Historical live failures
+## Source capture completed
 
-The existing production baseline remains historically NOT GREEN until runtime activation proves the new paths:
-- duplicate Ready Sweep drafts.
-- finalized order could regress to sweep/pricing.
-- Attendance duplicate sessions/pulses.
-- Cleaning duplicate employee/day rows.
-- Press Start/Stop concurrency + missing Line traceability.
-- WhatsApp outbound retry gap and inbound source-composition uncertainty.
-- Handover was only a header-only schema stub with no proven backend workflow.
-- OPS/ANDON generic notes were non-idempotent.
-- automation check->append race.
-- historical Line-ID date coercion.
-- D1 source snapshot gap.
+Current supplied 13,959-line Apps Script snapshot confirms:
+- `doGet`: V1932 -> V1900 -> V1898 -> legacy chain.
+- `doPost`: JSON parse -> V1932 -> V1900/V1898 -> legacy/fallthrough.
+- V1932 currently handles Meta verification and WhatsApp webhook before older routers.
 
-Do not mark these production PASS from CI alone.
+Runtime execution screenshots on 2026-08-31 confirm:
+- Version 143 still serves `doGet/doPost`.
+- `d1OrdersLiveSyncTick` runs from Head and completed in visible rows.
+- one `doGet` was still Running at ~81.9s at capture time; performance observation only, not classified as failure.
 
-## Source capture already completed
+Checkpoint:
+- `docs/trendos/checkpoints/PD04_RUNTIME_EXECUTION_BASELINE_2026-08-31.md`
 
-Current 13,959-line supplied Apps Script snapshot confirms:
+## Apps Script editor file-list reconciliation — PD-04 PASS
 
-`doGet(e)`:
-- V1932 router first.
-- V1900 second.
-- V1898 third.
-- then legacy action chain.
+Visible current editor files:
+- `appsscript.json`
+- `Code.gs`
+- `AI_Webhook.gs.gs`
+- `OpenAI_Setup.gs`
+- `D1_Migration.gs`
+- `D1_Full_Migration.gs`
+- `D1_Orders_Live_Sync.gs`
+- `D1_Orders_Primary_Read.g...` — UI truncated
+- `D1_Dashboard_Primary_Re...` — UI truncated
+- `D1_Orders_Fast_V2.gs.gs`
+- `Set_D1_URL.gs.gs`
 
-`doPost(e)`:
-- parse JSON.
-- V1932 first.
-- V1900/V1898.
-- action fallthrough can call `doGet(... __returnRawV1922:true)`.
+Result:
+- no Integrity V1 file already present.
+- no V2.4 file visible.
+- no old standalone V1932 overlay files visible.
+- uniquely namespaced Integrity foundation can be added safely as the first controlled installation step.
 
-`trendosV1932TryRoute_()`:
-- Meta verification GET.
-- WhatsApp webhook POST handled before older routers.
-- existing WhatsApp payload calls Feedback then Customer Manager webhook.
+Checkpoint:
+- `docs/trendos/checkpoints/PD04_APPS_SCRIPT_FILE_LIST_2026-08-31.md`
+- commit `7f091fe4df88a014a5de773817fef0731c4d42c6`.
 
-This gives the conceptual wiring point, but not the full live project file list.
+Execution Ledger update commit:
+- `00ace61d4391dfc25ae2b76f4f3e1912ebbbe86a`.
 
 ## Confirmed tooling boundary
 
-Available autonomously:
-- GitHub reads/writes/CI.
-- Google Sheets/Drive reads and supported native writes.
-- conversation/library Files.
+Autonomous:
+- GitHub read/write/CI.
+- Google Sheets/Drive supported operations.
+- conversation/library files.
 
-Not available:
-- direct write access to the Google Apps Script source project.
+Unavailable:
+- direct write access to Apps Script source project.
 
-Therefore Apps Script source installation needs one controlled user-assisted editor action sequence.
+Therefore only Apps Script editor file creation/paste/save requires user assistance.
 
 ## EXACT CURRENT STOPPING POINT
 
-Resume at **PD-04** from `TRENDOS_EXECUTION_LEDGER.md`.
+**PD-05 — add the first Integrity source file only.**
 
-The user should provide one screenshot of:
-- main workbook -> Extensions -> Apps Script.
-- full source-file list visible in the left sidebar.
+User action:
+1. Apps Script Editor -> `+` beside Files -> Script.
+2. Name it exactly `trendos-integrity-v1` (Apps Script appends `.gs`).
+3. paste the frozen candidate content of `trendos-integrity-v1.gs` from SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
+4. Save.
+5. do not edit `Code.gs`.
+6. do not Deploy.
+7. do not add/enable Script Properties.
+8. provide screenshot of the new file/save state or any parser error.
 
-Until that screenshot:
-- **do not add source files**.
-- **do not edit Code.gs**.
-- **do not Deploy**.
-- **do not enable any Integrity flag**.
+Expected:
+- file saves successfully.
+- existing production route behavior is unchanged because nothing is wired or enabled.
 
-## Next execution sequence after screenshot
-
-1. Reconcile exact live Apps Script file list and collision risk.
-2. If PASS, install the 10 Core Integrity files with all flags OFF.
-3. Save/parse only.
-4. Run `trendosIntegrityDependencyHealthV1_()` manually.
-5. Verify no legacy behavior change while flags OFF.
-6. Freeze rollback Apps Script version/deployment.
-7. Deploy with flags still OFF.
-8. Activate families one at a time with runtime regression:
-   - HEALTH
-   - ORDER_LINE
-   - ATTENDANCE_CLEANING
-   - PRESS
-   - INVOICE
-   - WHATSAPP outbound + frontend shim
-   - WHATSAPP inbound
-   - OPS/HANDOVER/ANDON
-   - AUTOMATION
-9. D1 consistency regression.
-10. full E2E.
-11. GO/NO-GO.
-12. Fast Auth V2.5 only after correctness is stable.
+After PASS:
+- add remaining Core files one at a time, save/parse after each.
+- run dependency health.
+- smoke legacy with all flags OFF.
+- freeze rollback version.
+- only then deploy with flags OFF and start family-by-family activation.
 
 ## Persistent execution behavior
 
-The user does not want to repeatedly say “كمل” for work that can be done autonomously.
-
-Therefore:
 - perform every accessible read/search/test/GitHub action automatically.
-- only ask for truly inaccessible UI actions or consequential production approval.
-- do not ask the user to paste data available through connected tools.
-- after every material step, update `TRENDOS_EXECUTION_LEDGER.md` before continuing.
+- ask only for inaccessible UI actions or consequential production approval.
+- after every material step update `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Non-negotiable safeguards
 
-- no destructive historical cleanup during rollout.
+- no destructive historical cleanup.
 - no invented finance/stock/state/payment/approval/energy values.
-- Order ID is order key; Line ID is active Line key.
-- `مكرر` rows remain history, excluded from active logic.
+- Order ID is Order key; Line ID is active Line key.
+- `مكرر` stays history and is excluded from active logic.
 - external sends require durable idempotency before send.
-- Google Sheets remains authoritative write source until separately approved migration.
-- V2.4 Fast Auth is forbidden.
+- Sheets stays authoritative for writes until separately approved migration.
+- V2.4 is forbidden.
 - old modular V1932 files must not be blindly overlaid on consolidated live Code lineage.
-- rollback is code/routing rollback, not deletion of integrity/audit data.
+- rollback is routing/code rollback, not deletion of integrity/audit data.
