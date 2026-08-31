@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:19 Africa/Cairo**.
+> Updated: **2026-09-01 01:23 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-05R1 — REPAIR INVOICE GLOBAL SCOPE, ALL FLAGS OFF**
+**PD-05R2 — REPAIR WHATSAPP GLOBAL SCOPE, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -487,6 +487,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live mismatch evidence recorded on the working branch; approved Candidate R3 remains unchanged.
 - Rollback: restore each affected file to its exact R3 blob; do not touch the four user-installed Integrity files or `Code.gs`.
 - Exact next step: repair `trendos-invoice-integrity-v1.gs` using full-file macOS selection, verify its copied live Git blob SHA exactly, save, record the result, then continue through the bounded set one file at a time.
+
+## PD-05R1 Invoice global-scope repair — PASS
+- Action: replaced the entire wrapped Invoice file using macOS full-file selection and the exact Candidate R3 content, then saved.
+- Evidence: copied live source before save matched Candidate exactly; Git blob SHA `7d42237112a601fea4d2ffcc0765c795226d7dd2`; post-save editor showed `cloud_done`, exact filename without unsaved marker, disabled Save, and no parser/save error.
+- Status: **PASS — Invoice functions restored to project-global scope**.
+- Production impact: NONE — Head source correction only; no Run/Deploy/properties/flags/routes; Version 143 unchanged.
+- Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
+- Rollback: restore only this file from the same approved R3 blob.
+- Exact next step: repair and exact-SHA verify `trendos-whatsapp-integrity-v1.gs`.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
