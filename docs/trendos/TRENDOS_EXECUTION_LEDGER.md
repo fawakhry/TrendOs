@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:50 Africa/Cairo**.
+> Updated: **2026-09-01 01:53 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -599,7 +599,7 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
   - Version 143 remains the production Web App and rollback.
 - Status: **READY FOR CONTROLLED DEPLOYMENT WITH FLAGS OFF, PENDING EXPLICIT PRODUCTION APPROVAL**.
 - Production impact: NONE — checkpoint/documentation only; no version created, no deployment changed, no properties or flags changed.
-- Commit / CI: Candidate CI run `33384689012` SUCCESS; working-branch ledger updated through this checkpoint.
+- Commit / CI: Candidate CI run `33384689012` SUCCESS; PD-09 ledger checkpoint `bdb4a7891ee011c4a0d4fdbb606f8f6c52da7359`; `TRENDOS_HANDOFF.md` advanced to PD-09 in `a77c99194dc0124477c271b1353bcc0c1e3ea952`.
 - Rollback: retain Version 143 deployment; if a future flags-OFF deployment fails smoke, immediately restore Version 143.
 - Exact next step: obtain explicit approval for the production Deploy action. On approval, create/update the controlled deployment with every Integrity and Fast Auth flag still OFF, capture the new version/deployment ID, perform immediate legacy smoke, and record PASS/FAIL before any family activation.
 
