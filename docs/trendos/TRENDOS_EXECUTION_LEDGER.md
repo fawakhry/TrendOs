@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:02 Africa/Cairo**.
+> Updated: **2026-09-01 01:05 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-06 — SAVE / PARSE / COMPOSITION VERIFICATION, ALL FLAGS OFF**
+**PD-07 — DEPENDENCY HEALTH, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -442,6 +442,21 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: Candidate `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI run `33384689012` SUCCESS; ledger-only commit on working branch.
 - Rollback: remove only the new Integrity Router Head file if later composition/dependency evidence fails; Version 143 remains unchanged.
 - Exact next step: perform PD-06 Save / Parse / composition verification with all flags OFF; do not Deploy.
+
+## PD-06 Save / Parse / composition verification — PASS
+- Action: reloaded the live Apps Script Head after the final save, then reconciled the persisted project file list against Candidate R3.
+- Evidence:
+  - editor returned `cloud_done` and explicit `Saved to Drive` after reload;
+  - Save button remained disabled, and no save/parser error was shown;
+  - live project contains 23 files total;
+  - all 10 ordered Integrity business/core files plus the R3 public runtime-tools helper are present;
+  - exact persisted Integrity filename reconciliation returned `missing=[]`;
+  - Candidate R3 CI/composition/package gates remain SUCCESS at exact commit `ee03adab4c733aec909511b23dd80f42ad3b927e` (run `33384689012`).
+- Status: **PASS — saved/parsing Head composition is complete; runtime dependency health remains PD-07**.
+- Production impact: NONE — read-only reload/reconciliation; no Run; no Deploy; no Script Properties; no flags; Version 143 remains production.
+- Commit / CI: ledger-only commit on working branch; Candidate R3 unchanged.
+- Rollback: remove only the newly installed Integrity Head files if PD-07 proves a dependency/composition failure; Version 143 remains unchanged.
+- Exact next step: run the public fail-closed `trendosIntegrityDependencyHealthV1` once and require `codeReady=true`, `missing=[]`, and every feature flag OFF; do not Deploy.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
