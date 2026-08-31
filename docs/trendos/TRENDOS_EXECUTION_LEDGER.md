@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:23 Africa/Cairo**.
+> Updated: **2026-09-01 01:25 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-05R2 — REPAIR WHATSAPP GLOBAL SCOPE, ALL FLAGS OFF**
+**PD-05R3 — REPAIR HANDOVER / OPS GLOBAL SCOPE, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -496,6 +496,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
 - Rollback: restore only this file from the same approved R3 blob.
 - Exact next step: repair and exact-SHA verify `trendos-whatsapp-integrity-v1.gs`.
+
+## PD-05R2 WhatsApp global-scope repair — PASS
+- Action: replaced the entire wrapped WhatsApp file with exact Candidate R3 content and saved.
+- Evidence: copied live source matched Candidate exactly; Git blob SHA `c3e59c50f17de2604f0192a5b8f651e53caf9018`; `cloud_done`, disabled Save, no parser/save error.
+- Status: **PASS — WhatsApp functions restored to project-global scope**.
+- Production impact: NONE — Head correction only; no runtime/deploy/properties/flags/routes; Version 143 unchanged.
+- Commit / CI: Candidate R3 unchanged; ledger-only commit on working branch.
+- Rollback: restore only this file from the same approved R3 blob.
+- Exact next step: repair and exact-SHA verify `trendos-handover-ops-integrity-v1.gs`.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
