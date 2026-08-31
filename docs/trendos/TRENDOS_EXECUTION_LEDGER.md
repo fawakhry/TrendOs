@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 01:05 Africa/Cairo**.
+> Updated: **2026-09-01 01:14 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-07 — DEPENDENCY HEALTH, ALL FLAGS OFF**
+**PD-07R — ROUTER RUNTIME VISIBILITY DIAGNOSIS, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -457,6 +457,19 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: ledger-only commit on working branch; Candidate R3 unchanged.
 - Rollback: remove only the newly installed Integrity Head files if PD-07 proves a dependency/composition failure; Version 143 remains unchanged.
 - Exact next step: run the public fail-closed `trendosIntegrityDependencyHealthV1` once and require `codeReady=true`, `missing=[]`, and every feature flag OFF; do not Deploy.
+
+## PD-07 Dependency Health — FAIL / STOPPED BEFORE PD-08
+- Action: selected and ran the public `trendosIntegrityDependencyHealthV1` from the saved R3 runtime-tools file; then used the Apps Script debugger without source edits to inspect the branch/result because the execution panel did not surface `Logger.log`.
+- Evidence:
+  - the Editor execution itself completed in 1.271 s;
+  - debugger call stack paused in `trendos-integrity-runtime-tools-v1:20`, inside the fail return reached only when `typeof trendosIntegrityDependencyHealthV1_ !== 'function'`;
+  - therefore the live result is `success=false`, `codeReady=false`, `missing=['trendosIntegrityDependencyHealthV1_']`;
+  - temporary debugger breakpoint was removed and the debugger was closed.
+- Status: **FAIL — dependency health router entry point is not visible to the live Runtime; PD-08 is blocked**.
+- Production impact: NONE — health-only execution and debugger inspection; no business function; no Deploy; no Script Properties; no flags; no route activation; Version 143 remains production.
+- Commit / CI: Candidate R3 CI remains green, but live runtime evidence supersedes CI for this checkpoint; ledger-only commit on working branch.
+- Rollback: no production rollback required. Keep Version 143 unchanged; do not deploy the current Head. If the Router file is proven incomplete or stale, restore only `trendos-integrity-router-v1.gs` from exact R3 blob `c4930e1150fd2eaf62616d44f975690108f54816`.
+- Exact next step: inspect the persisted live Router source boundaries and compare it with exact Candidate R3; repair only that file if a mismatch is proven, save, and rerun PD-06/PD-07. Do not continue to PD-08 while `codeReady=false`.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
