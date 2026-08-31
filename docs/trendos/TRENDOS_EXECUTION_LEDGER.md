@@ -386,6 +386,25 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
   5. do not Run, Deploy, edit Script Properties, or edit `Code.gs`.
   6. after user confirms with screenshot or `تم`, record PD-05E PASS and prepare `trendos-whatsapp-integrity-v1.gs`.
 
+## PD-05-AUTO Autonomous Apps Script source-write capability — PARTIAL / ONE-TIME AUTH REQUIRED
+- Action: investigated all currently available autonomous source-write paths for the live Apps Script Head.
+- Evidence:
+  - no installed or discoverable Google Apps Script / clasp connector is available; connected Google Drive can locate the production workbook but cannot read or mutate bound Apps Script source.
+  - available browser is cloud-only; Google Accounts sign-in returned `502 Bad Gateway / connection refused` before authentication, so no authenticated editor session is available.
+  - runtime has Node/npm but no `clasp`, no `gcloud`, no `/root/.clasprc.json`, no project `.clasp.json`, and no configured Google/CLASP environment credential.
+  - repository search found no existing `clasp`, `scriptId`, Apps Script deployment workflow, or source-write credential contract.
+- Status: **PARTIAL — zero-touch source installation is impossible under current authority; one-time Google authorization is required**.
+- Safe automation design:
+  1. obtain the bound Apps Script `scriptId` (identifier, not a password).
+  2. enable the Google Apps Script API for the account once.
+  3. authorize `clasp` securely once; never send password, OAuth token, or verification code in chat.
+  4. automation must `clasp pull` the exact current Head first, preserve every pulled live file, add only the Integrity whitelist from Candidate R3, run package/composition gates, then `clasp push` to Head.
+  5. automation must exclude GitHub `Code.gs`, V2.4, old standalone V1932 overlays, Script Properties, deployment creation, and flag activation.
+- Production impact: NONE — investigation only; no Apps Script mutation; Version 143 unchanged.
+- Commit / CI: documentation-only checkpoint on working branch; Candidate R3 remains `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- Rollback: not applicable; no production or Head change occurred.
+- Exact next step: complete one-time Apps Script API + secure clasp authorization when the user is available; after that, automate remaining file installation and verification. Until authorization exists, PD-05E remains the current manual installation checkpoint.
+
 ---
 
 # 6. Remaining pre-deploy sequence
