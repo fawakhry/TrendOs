@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-08-31 12:40 Africa/Cairo**.
+> Last consolidated: **2026-09-01 01:50 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-05 — CONTROLLED APPS SCRIPT INSTALLATION, FIRST FILE ONLY, ALL FLAGS OFF**
+**PD-09 — CONTROLLED DEPLOYMENT APPROVAL CHECKPOINT, ALL FLAGS OFF**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -31,11 +31,12 @@ Branches:
 - `main` — production/default.
 - `agent/go-live-2026-09-01-integrity` — active working branch.
 - `backup/go-live-2026-08-30-pre-p0` — safety branch.
-- `release/integrity-v1-predeploy-2026-08-30` — frozen deployment candidate.
+- `release/integrity-v1-predeploy-2026-08-31-r3` — current approved deployment candidate.
 
-Frozen candidate:
-- SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
-- GitHub Actions run `33328415852` = **SUCCESS**.
+Current approved candidate:
+- SHA `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- GitHub Actions run `33384689012` = **SUCCESS**.
+- Do not fall back automatically to R1 or R2.
 
 Do not move the frozen release branch silently.
 
@@ -74,7 +75,7 @@ Fast Auth:
 
 ## Integrity V1 state
 
-Implemented + CI-tested on GitHub, not deployed:
+Implemented + CI-tested; installed and runtime-verified in Apps Script Head, not deployed to the Web App:
 - shared integrity foundation.
 - Order/Line Integrity.
 - Attendance/Cleaning Integrity.
@@ -141,70 +142,66 @@ Runtime execution screenshots on 2026-08-31 confirm:
 Checkpoint:
 - `docs/trendos/checkpoints/PD04_RUNTIME_EXECUTION_BASELINE_2026-08-31.md`
 
-## Apps Script editor file-list reconciliation — PD-04 PASS
+## Apps Script Head checkpoint — PD-05 through PD-08 PASS
 
-Visible current editor files:
-- `appsscript.json`
-- `Code.gs`
-- `AI_Webhook.gs.gs`
-- `OpenAI_Setup.gs`
-- `D1_Migration.gs`
-- `D1_Full_Migration.gs`
-- `D1_Orders_Live_Sync.gs`
-- `D1_Orders_Primary_Read.g...` — UI truncated
-- `D1_Dashboard_Primary_Re...` — UI truncated
-- `D1_Orders_Fast_V2.gs.gs`
-- `Set_D1_URL.gs.gs`
+Live bound project:
+- Apps Script project ID `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`.
+- Production workbook ID `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`.
+- 23 persisted Head files.
+- all 10 ordered Integrity files plus `trendos-integrity-runtime-tools-v1.gs` installed.
 
-Result:
-- no Integrity V1 file already present.
-- no V2.4 file visible.
-- no old standalone V1932 overlay files visible.
-- uniquely namespaced Integrity foundation can be added safely as the first controlled installation step.
+A macOS editor-shortcut issue initially nested six newly added files inside default `myFunction`. It was detected by live PD-07 failure, bounded to those six files, repaired one by one, saved, reloaded, and exact-SHA verified against Candidate R3.
 
-Checkpoint:
-- `docs/trendos/checkpoints/PD04_APPS_SCRIPT_FILE_LIST_2026-08-31.md`
-- commit `7f091fe4df88a014a5de773817fef0731c4d42c6`.
+Verified after repair:
+- PD-06R saved/persisted composition PASS.
+- `trendosIntegrityDependencyHealthV1`: `success=true`, `codeReady=true`, `missing=[]`, required count 23.
+- master and all eight family flags false.
+- Fast Auth V2.5 absent.
+- PD-08 legacy no-change smoke PASS.
+- Triggers page shows exactly one `d1OrdersLiveSyncTick` time-based Head trigger.
+- Version 143 remains the production Web App and rollback.
 
-Execution Ledger update commit:
-- `00ace61d4391dfc25ae2b76f4f3e1912ebbbe86a`.
+Detailed action/evidence/commit trail is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Confirmed tooling boundary
 
-Autonomous:
-- GitHub read/write/CI.
-- Google Sheets/Drive supported operations.
-- conversation/library files.
+Authenticated cloud-browser access to the exact bound Apps Script editor is available for the current controlled session.
 
-Unavailable:
-- direct write access to Apps Script source project.
+Autonomous and completed:
+- exact Candidate R3 fetch/SHA comparison.
+- controlled Head source installation and repair.
+- Apps Script save/reload verification.
+- public dependency-health execution.
+- deployment/trigger/execution-history read checks.
+- GitHub memory/ledger updates.
 
-Therefore only Apps Script editor file creation/paste/save requires user assistance.
+Still requires explicit user approval:
+- creating/updating the production Apps Script deployment.
+- any Feature Flag activation.
+- any later business/runtime activation with production consequences.
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-05 — add the first Integrity source file only.**
+**PD-09 — controlled production deployment approval checkpoint.**
 
-User action:
-1. Apps Script Editor -> `+` beside Files -> Script.
-2. Name it exactly `trendos-integrity-v1` (Apps Script appends `.gs`).
-3. paste the frozen candidate content of `trendos-integrity-v1.gs` from SHA `e72d873603841bc8e41bd8c228e3240f2feb2a29`.
-4. Save.
-5. do not edit `Code.gs`.
-6. do not Deploy.
-7. do not add/enable Script Properties.
-8. provide screenshot of the new file/save state or any parser error.
+Ready evidence:
+- approved Candidate R3 fixed at `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- repaired Apps Script Head saves/parses and persists.
+- dependency health PASS: `codeReady=true`, `missing=[]`.
+- master + all families OFF.
+- Fast Auth V2.5 not installed.
+- legacy no-change smoke PASS.
+- Version 143 remains active and is the rollback.
 
-Expected:
-- file saves successfully.
-- existing production route behavior is unchanged because nothing is wired or enabled.
+No production deployment has been created or changed.
 
-After PASS:
-- add remaining Core files one at a time, save/parse after each.
-- run dependency health.
-- smoke legacy with all flags OFF.
-- freeze rollback version.
-- only then deploy with flags OFF and start family-by-family activation.
+Exact next action:
+1. obtain explicit user approval for production Deploy.
+2. deploy the current verified Head with every Integrity/Fast Auth flag still OFF.
+3. capture the new Apps Script version/deployment ID.
+4. run immediate flags-OFF legacy smoke.
+5. on failure, restore Version 143; on PASS, stop at the HEALTH family activation checkpoint.
+6. do not activate any family without its own checkpoint/regression.
 
 ## Persistent execution behavior
 
