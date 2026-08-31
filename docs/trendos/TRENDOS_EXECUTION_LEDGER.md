@@ -327,7 +327,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-05D — PRESS INTEGRITY INSTALLATION, ALL FLAGS OFF**
+**PD-05E — INVOICE INTEGRITY INSTALLATION, ALL FLAGS OFF**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -369,6 +369,22 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: remove only the new Press Head file if later composition/dependency evidence fails; Version 143 remains unchanged.
 - Visible reconciliation note: screenshot also reveals existing `D1_Orders_Read_Cutover.g...`; it does not collide with Integrity filenames and does not trigger a new inventory.
 - Exact next step: prepare and install `trendos-invoice-integrity-v1.gs` from Candidate R3; Save only; do not Run/Deploy/enable flags.
+
+## PD-05E Invoice / Ready Sweep Integrity — PENDING USER SAVE
+- Action completed autonomously: fetched `trendos-invoice-integrity-v1.gs` from approved Candidate R3 and prepared the exact download/copy file.
+- Candidate ref: `release/integrity-v1-predeploy-2026-08-31-r3` -> `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- Evidence: fetched file blob SHA equals `7d42237112a601fea4d2ffcc0765c795226d7dd2`; direct blob content comparison matched; static JavaScript syntax check passed without executing the module.
+- Status: **PENDING — requires Apps Script editor add + Save only**.
+- Production impact: NONE — preparation only; Version 143 unchanged.
+- Commit / CI: Candidate `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI run `33384689012` SUCCESS.
+- Rollback: if Apps Script save/parse fails, do not run/deploy; remove only the new Invoice Head file or restore its exact verified blob content.
+- Exact next step:
+  1. Apps Script Editor -> `+` -> Script.
+  2. name: `trendos-invoice-integrity-v1`.
+  3. paste/upload the verified R3 file.
+  4. Save only.
+  5. do not Run, Deploy, edit Script Properties, or edit `Code.gs`.
+  6. after user confirms with screenshot or `تم`, record PD-05E PASS and prepare `trendos-whatsapp-integrity-v1.gs`.
 
 ---
 
