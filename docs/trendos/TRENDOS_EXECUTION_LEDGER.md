@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:05 Africa/Cairo**.
+> Updated: **2026-09-01 18:15 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -29,7 +29,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Deployed/approved R3 SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI `33384689012` = **SUCCESS**.
 - Frozen remediation successor candidate: `release/integrity-v1-remediation-predeploy-2026-09-01-r4`.
 - Frozen R4 SHA: `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` = **SUCCESS**.
-- R4 is not installed/deployed/activated; R3 remains the source of live Version 145.
+- R4 controlled Head composition has started: the remediation helper is installed in Head only; affected business modules remain pending replacement; R4 is not deployed or activated, and R3 remains the source of live Version 145.
 - Production Apps Script Web App: Version **145**, deployed Sep 1 2026 7:12 AM in the Apps Script UI.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-04A — CONTROLLED HEAD COMPOSITION BLOCKED BY CURRENT GOOGLE SIGN-IN 502; NO HEAD FILE CREATED OR CHANGED; PRODUCTION UNCHANGED**
+**RP-04B — R4 REMEDIATION HELPER INSTALLED/SAVED IN HEAD; RELOAD/EXACT VERIFY NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1266,6 +1266,19 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 remains `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Candidate R3 remains unchanged.
 - Rollback: none required.
 - Exact next step: when authenticated browser access is available again, open the exact project, verify `trendos-core-p0-remediation-v1.gs` is absent, then resume RP-04 by adding that helper from frozen R4, Save/reload/exact-verify, and checkpoint before updating the five affected modules. Do not Run, Deploy, create/write the registry, or change flags.
+
+## RP-04B R4 remediation helper controlled Head installation — PARTIAL / SAVE PASS
+- Action: restored authenticated access to the exact bound Apps Script project, verified the R4 helper was absent, created `trendos-core-p0-remediation-v1.gs`, replaced the default starter function with the frozen R4 helper source, and saved Head.
+- Evidence:
+  - frozen R4 helper blob SHA `e55818297762b2f99a2967524d8ac29dd864f421` was verified locally before installation;
+  - live file list now shows `trendos-core-p0-remediation-v1.gs`;
+  - editor rendered the complete 120-line saved source ending in `trendosIntegrityGroupEvidenceV1_`;
+  - Apps Script showed `cloud_done` and no parser/save error.
+- Status: **PARTIAL — install/save PASS; reload and exact source verification still required before replacing any affected module**.
+- Production impact: NONE — Head only. No Run, Deploy, Script Property, trigger, route, registry, Sheet write, flag change, or `Code.gs` edit. Version 145 continues serving with master+HEALTH ON only.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Candidate R3 unchanged.
+- Rollback: remove only `trendos-core-p0-remediation-v1.gs` if reload/exact verification fails; Version 145 requires no rollback.
+- Exact next step: reload the Apps Script editor, reopen `trendos-core-p0-remediation-v1.gs`, verify the saved source and absence of composition errors, record PASS/FAIL here, then replace `trendos-order-line-integrity-v1.gs` from frozen R4. Do not Run, Deploy, create/write the registry, or change flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
