@@ -615,6 +615,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: revert only the documentation commit if its recorded facts are disproved by later evidence.
 - Exact next step: obtain fresh authenticated editor access and complete the private Version 144 execution/trigger reconciliation; all flags remain OFF.
 
+## PD-10 HEALTH activation approval — APPROVED / EXECUTION BLOCKED
+- Action: interpreted the user's direct reply `موافقة` as explicit approval for the first activation family, **HEALTH only**, after the already required PD-09 private-console reconciliation.
+- Evidence: approval followed the explicit statement that HEALTH required separate approval; scope is not extended to ORDER_LINE or any later family.
+- Status: **APPROVED, NOT EXECUTED** — Google sign-in in the controlled browser currently returns `502 Bad Gateway / connection refused`, so the private Version 144 checks and HEALTH activation could not be performed safely.
+- Production impact: NONE — no Script Property, flag, route, trigger, source file, or deployment was changed in this step. Version 144 remains live with all flags OFF.
+- Commit / CI: documentation-only working-branch checkpoint; Candidate R3 and CI unchanged.
+- Rollback: none required because no activation occurred; Version 143 remains the deployment rollback.
+- Exact next step: when authenticated Apps Script access is restored, complete the private Version 144 execution/trigger checks first; only on PASS enable the minimum HEALTH gate(s), run the defined HEALTH runtime regression, and immediately switch the family OFF on FAIL. Do not activate any later family.
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
