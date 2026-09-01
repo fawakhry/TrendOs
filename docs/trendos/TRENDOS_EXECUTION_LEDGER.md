@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:30 Africa/Cairo**.
+> Updated: **2026-09-01 10:31 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; DEPLOYED HEALTH ROUTE PASS WITH MASTER+HEALTH ON ONLY; TEMP VERIFIER RESTORE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; DEPLOYED HEALTH ROUTE PASS; MASTER+HEALTH ON ONLY; HEAD RUNTIME TOOLS EXACT R3; DASHBOARD SMOKE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10O — DEPLOYED VERSION 145 HEALTH ROUTE PASS; RESTORE TEMP VERIFIER NEXT**
+**PD-10P — TEMP VERIFIER REMOVED / RUNTIME TOOLS EXACT R3; DASHBOARD SMOKE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -834,6 +834,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live deployed runtime PASS supersedes the earlier client navigation boundary; Candidate R3 and CI unchanged; ledger checkpoint only.
 - Rollback: not required. If later HEALTH dashboard/runtime checks fail, disable master+HEALTH immediately using the bounded helper and verify legacy fallback.
 - Exact next step: restore `trendos-integrity-runtime-tools-v1.gs` exactly to Candidate R3, save/reload/exact-verify, then perform the bounded HEALTH dashboard smoke with its documented isolated-sheet write impact.
+
+## PD-10P Runtime Tools restoration after deployed HEALTH smoke — PASS
+- Action: removed the one-shot deployed verifier by restoring the exact Candidate R3 runtime-tools source, saved, reloaded, and exact-compared.
+- Evidence: staged exact=true; persisted exact=true; final length=1,244; verifier function absent; no save/parse error.
+- Status: **PASS — temporary verifier is removed and Head runtime-tools is exactly Candidate R3**.
+- Production impact: Head-only source restoration. Version 145 and the HEALTH-only Script Properties remain unchanged.
+- Commit / CI: exact Candidate R3 source restored; ledger checkpoint only.
+- Rollback: Version 144 remains deployment rollback; bounded property OFF helper can be reintroduced if the next HEALTH dashboard regression fails.
+- Exact next step: run a bounded HEALTH dashboard smoke that calls the approved dashboard refresh once, records the health-sheet before/after dimensions, metric count, `healthy` value, and exact P0 blocker IDs without exposing credentials. Require a valid report and sheet rows matching metrics; do not require `healthy=true`, because the dashboard is designed to surface real blockers. On code/write failure, disable master+HEALTH immediately.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
