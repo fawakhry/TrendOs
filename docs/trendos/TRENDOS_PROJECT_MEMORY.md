@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-08-31 01:21 Africa/Cairo**.
+> Last consolidated: **2026-09-01 10:41 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,9 +42,9 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**PRE-DEPLOY SOURCE CAPTURE / CONTROLLED INSTALLATION PREPARATION for Integrity V1.**
+**CONTROLLED FAMILY ACTIVATION — HEALTH PASS; CORE-P0 DATA TRIAGE REQUIRED BEFORE ORDER_LINE.**
 
-Core Integrity implementation has moved beyond inventory: the new modules are implemented and CI-tested on GitHub, but **not deployed to production**.
+Integrity V1 Core is installed and deployed in Apps Script Version 145. HEALTH is the only activated family and has passed deployed-route, dashboard-write, and legacy-regression checks; every business family and Fast Auth remain OFF.
 
 ## Current repository checkpoint
 
@@ -54,32 +54,60 @@ Branches:
 - production/default: `main`
 - active working: `agent/go-live-2026-09-01-integrity`
 - safety: `backup/go-live-2026-08-30-pre-p0`
-- frozen pre-deploy candidate: `release/integrity-v1-predeploy-2026-08-30`
+- approved pre-deploy candidate: `release/integrity-v1-predeploy-2026-08-31-r3`
 
-Frozen deployment candidate:
-- SHA: `e72d873603841bc8e41bd8c228e3240f2feb2a29`
-- GitHub Actions run: `33328415852`
+Approved deployment candidate:
+- SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`
+- GitHub Actions run: `33384689012`
 - result: **SUCCESS**
 
-The release branch is a frozen candidate reference. Documentation may continue on the working branch without moving the frozen candidate until a new candidate is intentionally selected.
+Do not fall back automatically to R1/R2 and do not move the frozen release branch silently. Documentation continues on the working branch.
 
 ## Production identity
 
 Active Apps Script Web App:
-- Version **143**
-- timestamp: Aug 29 2026 11:37 PM
-- deployment ID prefix matched frontend production config.
+- Version **145**
+- created Sep 1 2026 7:12 AM in the Apps Script UI
+- deployment ID `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
+- preserved production URL on the same deployment ID
+- immediate rollback Version **144**; deeper rollback Version **143**
 
-Live health verified:
-- backend `V1932_FULL_GO_LIVE_20260824`
+Live identity:
+- backend lineage `V1932_FULL_GO_LIVE_20260824`
 - workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-- 87 sheets.
+- public base GET with HEALTH ON renders **TrendOS V1932**
 
-Verified Version 143 top-level routes:
-- `getDashboard` -> `getDashboardD1PrimaryV1_(e)`
-- `getRowsPageV1931` -> `getRowsPageD1FastV2_(e)`
+Verified Version 145 routing/deployment state:
+- current live `Code.gs` was minimally wired from its own live source; never replaced from GitHub.
+- guarded Integrity route/webhook calls are present.
+- master and HEALTH are ON.
+- ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION are OFF.
+- Fast Auth V2.5 is OFF/absent.
+- deployed HEALTH route returns HTTP 200, codeReady=true, missing=[].
+- exactly one Head/time-based `d1OrdersLiveSyncTick` remains.
+- all temporary property/smoke helpers were removed; runtime-tools is exact Candidate R3.
 
-**Never overwrite Apps Script production from GitHub `Code.gs`.** GitHub `Code.gs` is not an authoritative reconstruction of Version 143.
+**Never overwrite Apps Script production from GitHub `Code.gs`.** GitHub `Code.gs` is not an authoritative reconstruction of the live consolidated lineage.
+
+## Latest verified Integrity checkpoint
+
+HEALTH family:
+- implementation/dependency/deployment/activation/runtime = **PASS**.
+- isolated monitoring sheet `إدارة - صحة النظام` created/refreshed with 13 metrics + header.
+- legacy base landing response remains unchanged.
+- no business-family route or Integrity trigger activated.
+
+Data-health observation:
+- report `healthy=false`.
+- six derived CORE-P0 metric IDs are open:
+  - `INVALID_LINE_IDS`
+  - `DUPLICATE_ATTENDANCE_SESSIONS`
+  - `DUPLICATE_CLEANING_RECORDS`
+  - `DUPLICATE_INVOICE_DRAFTS`
+  - `PRESS_SOURCE_VIEW_MISMATCH`
+  - `PRESS_COMPLETED_WITHOUT_SESSION`
+
+This is a HEALTH-monitoring success and a production-data triage requirement. Do not treat it as permission for destructive cleanup or later-family activation.
 
 ## Current architecture
 
@@ -276,14 +304,24 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-The assistant has no connector that can write Google Apps Script project source directly.
+**PD-10T — HEALTH family checkpoint PASS; STOP before ORDER_LINE.**
 
-Next required evidence/action:
-- user opens main workbook -> Extensions -> Apps Script.
-- capture one screenshot showing the complete Apps Script source-file list in the left sidebar.
-- **no code edit, no file addition, no Deploy yet**.
+Current production:
+- Apps Script Version 145.
+- master+HEALTH ON only.
+- every other Integrity family and Fast Auth OFF.
+- legacy landing, deployed HEALTH route, dashboard write, execution history, and trigger reconciliation PASS.
+- Version 144 immediate rollback; Version 143 deeper rollback.
 
-Then resume at `PD-04` in `TRENDOS_EXECUTION_LEDGER.md`.
+Open gate:
+- six dashboard CORE-P0 signals require read-only evidence-backed triage.
+- capture offending IDs/details and distinguish active defect vs historical/expected state vs source-view/schema mismatch vs detector false positive.
+- no random duplicate deletion.
+- preserve historical `مكرر`.
+- do not change Order ID/Line ID contracts.
+- do not activate ORDER_LINE without a separate explicit checkpoint/approval after triage.
+
+Exact action/evidence history is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Core invariants
 
@@ -304,7 +342,7 @@ Then resume at `PD-04` in `TRENDOS_EXECUTION_LEDGER.md`.
 - Pre-Go-Live workbook backup exists: `BACKUP_TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY_2026-08-30_PRE_GO_LIVE_P0`.
 - GitHub safety branch: `backup/go-live-2026-08-30-pre-p0`.
 - frozen Integrity V1 predeploy branch exists.
-- Production Apps Script remains Version 143 until a controlled deployment is explicitly performed.
+- Production Apps Script is Version 145; Version 144 is immediate rollback and Version 143 is deeper rollback.
 
 ## Persistent working rule
 
