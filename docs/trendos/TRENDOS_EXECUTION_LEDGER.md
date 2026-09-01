@@ -1487,6 +1487,22 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: call the deployed `trendosIntegrityHealthV1` route and verify master+HEALTH ON, all business families OFF, `codeReady=true`, and `missing=[]`.
 
 
+
+## PD-09-R4-B2 — DEPLOYED HEALTH ROUTE TOOLING CHECK PARTIAL; PRODUCTION NOT FAILED
+
+- Action: attempted the immediate read-only deployed `?action=trendosIntegrityHealthV1` verification after the Version 146 base landing PASS.
+- Evidence:
+  - the cloud-browser client blocked both direct query-string navigation attempts with `net::ERR_BLOCKED_BY_CLIENT` before Apps Script returned a response.
+  - the public base URL had already returned `TrendOS V1932` successfully on Version 146.
+  - pre-deploy Head dependency health remained `success=true`, `codeReady=true`, `requiredCount=25`, `missing=[]`, master=true, HEALTH=true, every business family=false, Fast Auth absent.
+  - Apps Script had confirmed Version 146 active on the preserved deployment ID before the browser session reset.
+- Status: **PARTIAL — deployed query-route response not observed because the client blocked the request; this is not production FAIL evidence**.
+- Production impact: READ-ONLY attempts only; no property, registry, Sheet, trigger, source, route, Feature Flag, Fast Auth, deployment, or `Code.gs` change.
+- Commit / CI: Version 146 deployment commit record `9653a04bb5a3fa9e9d820d1900f439f56c73b5ce`; base landing smoke record `cb8a7c65e8bcbb10baff4f9aa58f47887cd46df7`; frozen R4 CI SUCCESS.
+- Rollback: not triggered because no app-side failure was returned and the Version 146 base landing passed. Version 145 remains immediate rollback.
+- Exact next step: restore authenticated Apps Script access, run public `trendosIntegrityDependencyHealthV1` from Head to confirm current Script Properties/code state, then inspect Version 146 Executions and the single D1 sync trigger. Do not change properties or activate any business family.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
