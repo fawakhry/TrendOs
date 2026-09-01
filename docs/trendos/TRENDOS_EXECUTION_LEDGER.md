@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:31 Africa/Cairo**.
+> Updated: **2026-09-01 10:34 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; DEPLOYED HEALTH ROUTE PASS; MASTER+HEALTH ON ONLY; HEAD RUNTIME TOOLS EXACT R3; DASHBOARD SMOKE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; DEPLOYED HEALTH ROUTE PASS; MASTER+HEALTH ON ONLY; EXACT-VERIFIED DASHBOARD SMOKE HELPER READY IN HEAD**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10P — TEMP VERIFIER REMOVED / RUNTIME TOOLS EXACT R3; DASHBOARD SMOKE NEXT**
+**PD-10Q — HEALTH DASHBOARD SMOKE HELPER READY; RUN ONCE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -843,6 +843,22 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: exact Candidate R3 source restored; ledger checkpoint only.
 - Rollback: Version 144 remains deployment rollback; bounded property OFF helper can be reintroduced if the next HEALTH dashboard regression fails.
 - Exact next step: run a bounded HEALTH dashboard smoke that calls the approved dashboard refresh once, records the health-sheet before/after dimensions, metric count, `healthy` value, and exact P0 blocker IDs without exposing credentials. Require a valid report and sheet rows matching metrics; do not require `healthy=true`, because the dashboard is designed to surface real blockers. On code/write failure, disable master+HEALTH immediately.
+
+## PD-10Q One-shot HEALTH dashboard smoke helper — PASS INSTALL IN HEAD / NOT RUN
+- Action: appended one temporary public dashboard-smoke function to exact Candidate R3 runtime-tools, saved, reloaded, and exact-compared.
+- Evidence: pre-helper source exact R3 length=1,244; staged exact=true; persisted exact=true; temporary source length=3,616; exactly one dashboard-smoke helper; no save/parse error.
+- Guard/validation contract:
+  - refuses unless master+HEALTH only are ON;
+  - captures before dimensions for `إدارة - صحة النظام`;
+  - runs the approved `trendosRefreshIntegrityDashboardV1_` once;
+  - requires a non-empty metrics array, resulting health sheet, row count equal to metrics+header, and at least the approved header width;
+  - records `healthy` and exact P0 blocker IDs as observations, not a code PASS requirement;
+  - deletes master+HEALTH before throwing on any code/write/contract failure.
+- Status: **PASS — helper ready but dashboard not yet refreshed by this step**.
+- Production impact: Head-only temporary source; no sheet write yet. Version 145 and HEALTH-only properties unchanged.
+- Commit / CI: controlled temporary verifier; Candidate R3 unchanged; ledger checkpoint only.
+- Rollback: automatic HEALTH property rollback on execution failure; restore runtime-tools exactly to R3 after execution.
+- Exact next step: run `trendosIntegrityDashboardSmokeOnceV1` once; require pass=true and matching row/metric counts; record any actual P0 blocker IDs separately from code health.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
