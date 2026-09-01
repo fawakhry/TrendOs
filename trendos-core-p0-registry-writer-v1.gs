@@ -37,9 +37,9 @@ function trendosCoreP0RegistrySpecsV1_(){return[
   {metricId:'DUPLICATE_CLEANING_RECORDS',entityKey:'وائل|2026-08-27',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_DUPLICATE',reason:'Exact completed no-problem Cleaning baseline',evidenceHash:'03e0f3b719f949ec168e78a4a23a53f5ce9e42b1087193270b6996bdc82f57c7',sourceCount:2},
   {metricId:'DUPLICATE_CLEANING_RECORDS',entityKey:'وائل|2026-08-30',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_DUPLICATE',reason:'Exact completed no-problem Cleaning baseline',evidenceHash:'77d1107fe0ff056cf72804d56a207d701424a814b4d57fbdc4c0d45a4c0e1bbd',sourceCount:2},
 
-  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3569',canonicalId:'DR-19c18636',supersededId:'DR-55d94661',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'06afbe9d9646aa151ce7f8c9bc6b1da57d4d0aafc5635784fed7c622de215023',sourceCount:2},
-  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3572',canonicalId:'DR-69e8cb63',supersededId:'DR-fe3c766a',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'d496b057f5843f87b2c32cee86d53016e14a170706325820fdf0eb759d1c19d2',sourceCount:2},
-  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3577',canonicalId:'DR-3466cb0d',supersededId:'DR-ceed6b65',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'d0913e2a85a73b2b391a2d2f04789f78d4b4b26412e9adeefe195c75297a3d77',sourceCount:2},
+  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3569',canonicalId:'DR-19c18636',supersededId:'DR-55d94661',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'06afbe9d9646aa151ce7f8c9bc6b1da57d4d0aafc5635784fed7c622de215023',sourceCount:2,canonicalSourceRow:21,supersededSourceRow:20},
+  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3572',canonicalId:'DR-69e8cb63',supersededId:'DR-fe3c766a',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'d496b057f5843f87b2c32cee86d53016e14a170706325820fdf0eb759d1c19d2',sourceCount:2,canonicalSourceRow:19,supersededSourceRow:18},
+  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3577',canonicalId:'DR-3466cb0d',supersededId:'DR-ceed6b65',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'d0913e2a85a73b2b391a2d2f04789f78d4b4b26412e9adeefe195c75297a3d77',sourceCount:2,canonicalSourceRow:17,supersededSourceRow:16},
 
   {metricId:'PRESS_COMPLETED_WITHOUT_SESSION',entityKey:'3536-01',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_TRACEABILITY',reason:'Exact historical Press completion without Line-session evidence',evidenceHash:'02ec63d746d1bda0f3d1505ac807c3e0baaeb3188c194ed0b5c24d8704796293',sourceCount:1},
   {metricId:'PRESS_COMPLETED_WITHOUT_SESSION',entityKey:'3585-02',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_TRACEABILITY',reason:'Exact historical Press completion without Line-session evidence',evidenceHash:'d906acc860f8e45994ba102e0cc1bb72f2a3317be64cf19d14a76989116c462e',sourceCount:1},
@@ -69,7 +69,7 @@ function trendosCoreP0RegistryPlanHashV1_(){return trendosSha256HexV1_(trendosSt
   specs:trendosCoreP0RegistrySpecsV1_()
 }));}
 function trendosCoreP0RegistryDependenciesV1_(){
-  const required=['trendosIntegrityEvidenceHashV1_','trendosIntegrityGroupEvidenceV1_','trendosIntegrityInvoiceDraftEvidenceV1_','trendosHealthSnapshotV1_','trendosHealthValV1_','trendosHealthDateV1_','trendosHealthLineIdV1_','trendosHealthPressFlagV1_','trendosHealthInvoiceDraftDtoV1_','trendosIntegrityFeatureStateV1_','trendosIntegrityResolutionV1_','trendosIntegrityResolutionRowsV1_','trendosSpreadsheetV1_','trendosWithLock_'];
+  const required=['trendosNormalizeOrderId_','trendosIntegrityEvidenceHashV1_','trendosIntegrityGroupEvidenceV1_','trendosIntegrityInvoiceDraftEvidenceV1_','trendosHealthSnapshotV1_','trendosHealthValV1_','trendosHealthDateV1_','trendosHealthLineIdV1_','trendosHealthPressFlagV1_','trendosHealthInvoiceDraftDtoV1_','trendosIntegrityFeatureStateV1_','trendosIntegrityResolutionV1_','trendosIntegrityResolutionRowsV1_','trendosSpreadsheetV1_','trendosWithLock_'];
   return required.filter(function(name){try{return typeof globalThis[name]!=='function';}catch(e){return true;}});
 }
 function trendosCoreP0RegistrySourceRowsV1_(metricId,entityKey,snap){
@@ -113,6 +113,10 @@ function trendosCoreP0RegistryLivePlanV1_(snap){
       const ids=rows.map(function(r){return trendosHealthInvoiceDraftDtoV1_(r).draftId;});
       const expected=[first.canonicalId].concat(planned.map(function(x){return x.supersededId;}));
       if(!trendosCoreP0RegistrySameListV1_(ids,expected))groupErrors.push('invoice Draft IDs do not match the exact plan');
+      const rowById={};rows.forEach(function(r){rowById[trendosHealthInvoiceDraftDtoV1_(r).draftId]=Number(r.__rowNumber||0);});
+      planned.forEach(function(spec){
+        if(rowById[spec.canonicalId]!==Number(spec.canonicalSourceRow)||rowById[spec.supersededId]!==Number(spec.supersededSourceRow))groupErrors.push('invoice Draft source-row identity does not match the exact canonical decision');
+      });
     }
     if(first.metricId==='PRESS_COMPLETED_WITHOUT_SESSION'){
       const sessionIds=(snap.pressSessionLineIds||[]).map(trendosRemediationTextV1_);
