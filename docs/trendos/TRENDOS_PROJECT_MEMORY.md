@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-09-01 12:42 Africa/Cairo**.
+> Last consolidated: **2026-09-01 12:47 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,7 +42,7 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CORE-P0 REMEDIATION — RP-03E PRESS CONSUMER CONTRACT PASS; LEGACY VIEW NON-AUTHORITATIVE; RP-03F SUCCESSOR CANDIDATE FREEZE NEXT; ORDER_LINE OFF.**
+**CORE-P0 REMEDIATION — RP-03F SUCCESSOR R4 FROZEN + EXACT-SHA CI PASS; RP-04 HEAD COMPOSITION NEXT; ORDER_LINE OFF.**
 
 Integrity V1 Core is installed and deployed in Apps Script Version 145. HEALTH is the only activated family and has passed deployed-route, dashboard-write, and legacy-regression checks; every business family and Fast Auth remain OFF.
 
@@ -54,14 +54,21 @@ Branches:
 - production/default: `main`
 - active working: `agent/go-live-2026-09-01-integrity`
 - safety: `backup/go-live-2026-08-30-pre-p0`
-- approved pre-deploy candidate: `release/integrity-v1-predeploy-2026-08-31-r3`
+- deployed/approved source candidate: `release/integrity-v1-predeploy-2026-08-31-r3`
+- frozen remediation successor: `release/integrity-v1-remediation-predeploy-2026-09-01-r4`
 
 Approved deployment candidate:
 - SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`
 - GitHub Actions run: `33384689012`
 - result: **SUCCESS**
 
-Do not fall back automatically to R1/R2 and do not move the frozen release branch silently. Documentation continues on the working branch.
+Frozen remediation successor:
+- SHA: `b940eb9ff08a094b2406e396eba6af73409e7f9c`
+- exact-ref GitHub Actions: `33493914883`
+- result: **SUCCESS**
+- not installed, deployed, activated, or serving traffic.
+
+Do not fall back automatically to R1/R2 and do not move either frozen release branch silently. Documentation continues on the working branch.
 
 ## Production identity
 
@@ -317,7 +324,7 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**RP-03E2 — Press consumer evidence and plan closure committed; production unchanged; RP-03F candidate freeze next; STOP before remediation Head install, registry, deploy, or ORDER_LINE.**
+**RP-03F-B — remediation successor R4 frozen + exact-SHA CI PASS; production unchanged; RP-04 Head composition next; STOP before registry, deploy, or ORDER_LINE.**
 
 Current production:
 - Apps Script Version 145.
@@ -336,13 +343,14 @@ Remediation checkpoint:
 - RP-03 recovered 229/229 legacy IDs and all 98 legacy open Lines uniquely; exact Attendance/Cleaning/Invoice hashes are recorded.
 - Press scope is corrected to 9 queue Lines and 14 completed-without-Line-session Lines.
 - Candidate R3, Apps Script Head, Version 145, Sheets data, deployment, properties, triggers, routes, and flags are unchanged.
+- frozen R4 successor `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS.
 
 Open gate:
-- freeze RP-03F as a separately reviewed remediation successor candidate without moving Candidate R3.
-- verify the exact frozen ref/SHA/package and GitHub Actions result.
+- execute RP-04 controlled Apps Script Head composition from frozen R4 with existing flags unchanged.
+- save/reload/exact-verify all affected files, then run dependency and legacy no-change checks.
 - keep the resolution registry absent until its separate production-write approval.
 - preserve historical `مكرر`, do not change Order ID/Line ID contracts, and do not invent session links.
-- do not install/deploy the remediation or activate ORDER_LINE without their exact checkpoints and approvals.
+- do not deploy the remediation or activate ORDER_LINE without their exact checkpoints and approvals.
 
 Exact action/evidence history is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
