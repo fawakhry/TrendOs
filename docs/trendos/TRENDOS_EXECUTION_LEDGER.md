@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:42 Africa/Cairo**.
+> Updated: **2026-09-01 11:38 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY ACTIVATION/RUNTIME/LEGACY REGRESSION PASS; MASTER+HEALTH ON ONLY; 6 CORE-P0 DATA BLOCKERS OPEN; STOP BEFORE ORDER_LINE**.
+- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY PASS; MASTER+HEALTH ON ONLY; READ-ONLY TRIAGE COMPLETE; 6 CORE-P0 SIGNALS CLASSIFIED; REMEDIATION/BASELINE DECISION REQUIRED; STOP BEFORE ORDER_LINE**.
 
 ---
 
@@ -328,9 +328,9 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10U — HEALTH CHECKPOINT + MEMORY SYNC COMPLETE; TRIAGE 6 CORE-P0 SIGNALS NEXT; STOP BEFORE ORDER_LINE**
+**PD-10V — READ-ONLY CORE-P0 TRIAGE COMPLETE; NO DATA REMEDIATION; STOP BEFORE ORDER_LINE**
 
-Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
+Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
 ## PD-05A foundation + public runtime tools — PASS / INSTALLED IN HEAD
 - Action: added `trendos-integrity-v1.gs` and `trendos-integrity-runtime-tools-v1.gs` to Apps Script Head.
@@ -928,6 +928,22 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: handoff and project-memory commits above; this ledger synchronization commit follows. Candidate R3 and CI unchanged.
 - Rollback: documentation-only revert if later live evidence disproves the recorded facts; no production rollback is required.
 - Exact next step: start read-only triage of `INVALID_LINE_IDS`, `DUPLICATE_ATTENDANCE_SESSIONS`, `DUPLICATE_CLEANING_RECORDS`, `DUPLICATE_INVOICE_DRAFTS`, `PRESS_SOURCE_VIEW_MISMATCH`, and `PRESS_COMPLETED_WITHOUT_SESSION`; capture offending IDs/details and classify them. Do not activate ORDER_LINE and do not clean data until the triage is checkpointed and separately approved.
+
+
+## PD-10V Six CORE-P0 signals — READ-ONLY TRIAGE PASS / REMEDIATION PENDING
+- Action: inspected the exact dashboard details and the corresponding source/view rows in the production workbook; classified every signal as current-active, legacy/historical, or schema/traceability debt. No source cell was written, deleted, reformatted, or normalized.
+- Evidence and classification:
+  1. `INVALID_LINE_IDS`: all 229 flagged rows are legacy `رقم البند` values stored as numeric/date-formatted cells in `بنود الأوردرات!F14:F242`; Apps Script reads them as Date objects. Of these, 131 are closed by the approved status rule and **98 are not closed** (57 `جاهز للاستلام`, 34 `طلب جديد`, 7 `تحت التنفيذ`). This is a live compatibility blocker; ORDER_LINE would fail closed on valid-looking legacy rows.
+  2. `DUPLICATE_ATTENDANCE_SESSIONS`: 6 excess records across 5 employee/business-date keys in `سجل الدوام`; all affected sessions are recent and still have blank end times, including conflicting states. This is a true active production-data defect.
+  3. `DUPLICATE_CLEANING_RECORDS`: 16 excess records across 11 employee/date keys in `تشغيل - النظافة اليومية`; all are completed, no-problem legacy records from 2026-08-24 through 2026-08-31. This is historical baseline debt, not authority to delete rows.
+  4. `DUPLICATE_INVOICE_DRAFTS`: active duplicate unpriced drafts exist for Orders `3569`, `3572`, and `3577`; each pair has total=0, state `يحتاج تسعير/اعتماد`, no invoice number, and no WhatsApp send state. This is a true active legacy defect requiring canonical selection with preserved audit.
+  5. `PRESS_SOURCE_VIEW_MISMATCH`: source contains four current Press Line IDs — `TM2606150097-01`, `TM2606150098-01`, `TM2606150105-01`, `TM2606160146-01` — while `واجهة المكبس` has headers only and zero data rows. This is a current source/view mismatch; diagnose view generation before PRESS activation.
+  6. `PRESS_COMPLETED_WITHOUT_SESSION`: delivered Lines `TM2606140061-01`, `TM2606160140-01`, `TM2606160181-01` predate the new traceability ledger; `تشغيل - بنود جلسات المكبس V1` does not exist, so the detector has no Line-session evidence. Classify as historical/schema traceability debt unless independent evidence supports a backfill; do not invent session links.
+- Status: **PASS for complete read-only triage; PENDING for any remediation/baseline acknowledgement. ORDER_LINE and all later families remain blocked.**
+- Production impact: **READ-ONLY only** — no Sheets write, no Apps Script source/property/deployment/trigger change. Version 145 and HEALTH-only activation remain unchanged.
+- Commit / CI: workbook runtime evidence plus this ledger checkpoint; Candidate R3 `ee03adab4c733aec909511b23dd80f42ad3b927e` and CI `33384689012` remain unchanged.
+- Rollback: none required for triage. Version 144 remains immediate deployment rollback; master+HEALTH can be disabled together if HEALTH later regresses.
+- Exact next step: synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md` with these classifications. Then prepare an explicit non-destructive remediation/baseline plan; do not write production data or enable ORDER_LINE without a separate checkpoint and approval.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
