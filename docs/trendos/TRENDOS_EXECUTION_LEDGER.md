@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:17 Africa/Cairo**.
+> Updated: **2026-09-01 18:20 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-04C — R4 REMEDIATION HELPER INSTALLED AND RELOAD-VERIFIED; ORDER/LINE MODULE REPLACEMENT NEXT; PRODUCTION UNCHANGED**
+**RP-04D — ORDER/LINE EDITOR REPLACEMENT FAILED CLOSED WITH DUPLICATE SOURCE; RECOVERY REQUIRED; PRODUCTION VERSION 145 UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1293,6 +1293,19 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; helper blob `e55818297762b2f99a2967524d8ac29dd864f421`; prior ledger commit `a81d9765c3e7c31cab14d2430c720f8e4ab83376`.
 - Rollback: delete only the helper file if a later composition/dependency check fails; Version 145 is unaffected.
 - Exact next step: replace only the content of `trendos-order-line-integrity-v1.gs` with frozen R4 blob `e93155c0a0cdef09ffaf5a0bfdf62bba202ff436`, Save/reload/verify, and checkpoint before Press. Do not Run, Deploy, create/write the registry, or change flags.
+
+## RP-04D Order/Line editor replacement attempt — FAIL CLOSED / RECOVERY REQUIRED
+- Action: attempted to replace `trendos-order-line-integrity-v1.gs` with frozen R4 source through the Apps Script editor.
+- Evidence:
+  - the editor inserted the R4 text into the existing source instead of replacing the whole buffer;
+  - the verification view expanded beyond the expected 305 source lines and exposed duplicate helper/version declarations;
+  - Apps Script explicitly reported `SyntaxError: Identifier 'TRENDOS_ORDER_LINE_INTEGRITY_VERSION_V1' has already been declared line: 306`;
+  - the second keyboard-selection retry also failed to select the whole Monaco buffer and was stopped before any other module was touched.
+- Status: **FAIL — do not continue composition from this editor buffer**.
+- Production impact: NONE on the deployed app — Version 145 remains the serving deployment and no Run, Deploy, property, trigger, route, registry, Sheet, flag, or `Code.gs` change occurred. Apps Script Head Order/Line source is currently invalid/ambiguous and must be repaired before any further Head work.
+- Commit / CI: frozen R4 and exact-ref CI remain valid; this is an editor-automation failure, not a source/CI failure.
+- Rollback / recovery: remove only the malformed Head `trendos-order-line-integrity-v1.gs` file and recreate it from exact frozen R4 blob `e93155c0a0cdef09ffaf5a0bfdf62bba202ff436`; then Save/reload and require the expected 305-line composition with no parser error. Candidate R3 source remains available as deeper Head rollback.
+- Exact next step: perform the controlled delete-and-recreate recovery for this one Head file only. Do not touch any other module, Run, Deploy, registry, Sheets, properties, routes, triggers, or flags until recovery PASS is recorded.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
