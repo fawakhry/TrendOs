@@ -1565,6 +1565,21 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: synchronize `TRENDOS_PROJECT_MEMORY.md` to the same Version 146 checkpoint, then update this ledger again before stopping at the registry/ORDER_LINE approval gate.
 
 
+
+## PD-09-R4-MEMORY — CANONICAL MEMORY CLOSED AT VERSION 146
+
+- Action: synchronized `TRENDOS_PROJECT_MEMORY.md` and completed the canonical documentation checkpoint for PD-09-R4.
+- Evidence:
+  - Handoff commit `e6923db74cf5dc567b196e0b36fb1ffc33ed0fe9`, blob `54de3bf4ba671e32e10fd011d3541f9c50aedd45`.
+  - Project Memory commit `775f5e90b4ed1ccacfe25238d098730a6c1c4331`, blob `1f3ad1b0b750baea56b257df5dd78877447935ce`.
+  - both files record Version 146 active, Version 145 immediate rollback, master+HEALTH ON only, all business families/Fast Auth OFF, one D1 sync trigger, and the stop before registry/ORDER_LINE.
+- Status: **PASS — Project Memory, Handoff, and Execution Ledger agree on Version 146 / PD-09-R4 PASS**.
+- Production impact: NONE — GitHub documentation only.
+- Commit / CI: working-branch memory commits above; frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS.
+- Rollback: documentation commits can be reverted independently; no production rollback required.
+- Exact next step: STOP before production mutation. Prepare the resolution-registry checkpoint using read-only/source-review work, then request explicit approval before any registry write; ORDER_LINE remains OFF and requires a separate later approval.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
