@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 06:20 Africa/Cairo**.
+> Last consolidated: **2026-09-01 06:50 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-09 — VERSION 144 DEPLOYED; PUBLIC FLAGS-OFF SMOKE PASS; PRIVATE CONSOLE RECHECK PENDING**
+**PD-10 — HEALTH APPROVED BUT BLOCKED BY MISSING LIVE ENTRYPOINT WIRING**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -164,13 +164,14 @@ Verified after repair:
 - Triggers page shows exactly one `d1OrdersLiveSyncTick` time-based Head trigger.
 - Version 144 is the production Web App; Version 143 remains the immediate rollback.
 - PD-09 deployment PASS and public flags-OFF legacy smoke PASS.
-- The private Apps Script execution/trigger-page post-deploy refresh remains pending because the authenticated Google editor session expired after deployment.
+- PD-09 private reconciliation PASS: Version 144 `doGet/doPost` completed, no Integrity business function observed, and exactly one `d1OrdersLiveSyncTick` trigger.
+- HEALTH activation has separate user approval but has not been executed.
 
 Detailed action/evidence/commit trail is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Confirmed tooling boundary
 
-Authenticated cloud-browser access was available through deployment completion, then the private Google editor session expired. Public production access remains available; a fresh Google sign-in is required only for the remaining private execution/trigger reconciliation.
+Authenticated Apps Script access is restored and the private execution/trigger reconciliation is complete.
 
 Autonomous and completed:
 - exact Candidate R3 fetch/SHA comparison.
@@ -187,31 +188,32 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-09 — private post-deploy console reconciliation; all flags remain OFF.**
+**PD-10A — HEALTH route-wiring blocker; all flags remain OFF.**
 
 Completed:
-- explicit user approval obtained for PD-09 only.
-- existing production deployment updated successfully to Version 144.
-- deployment ID and Web App URL preserved.
-- public production GET PASS: title `TrendOS V1932` and expected Trend Mall employee/customer landing page rendered.
-- no Script Properties, triggers, `Code.gs`, business forms, or family routes were changed.
-- PD-07 immediately before deployment proved master and every family false.
-- PD-08 immediately before deployment proved exactly one `d1OrdersLiveSyncTick`.
-- Version 143 remains rollback.
+- PD-09 full flags-OFF deployment smoke PASS on Version 144.
+- Version 144 filtered executions show Completed Web App `doGet/doPost`.
+- exactly one Head time-based `d1OrdersLiveSyncTick`.
+- no `trendosIntegrity*` business-family execution observed.
+- user explicitly approved HEALTH only.
+- read-only capture of current live `Code.gs`: 13,960 lines / 695,246 characters, one `doGet`, one `doPost`.
 
-Pending evidence:
-- refresh private Apps Script Executions and verify a Completed Version 144 `doGet`.
-- refresh Triggers and reconfirm exactly one `d1OrdersLiveSyncTick`.
-- confirm no Integrity business-family execution occurred after deployment.
+New blocking evidence:
+- live `Code.gs` contains zero calls to `trendosIntegrityTryRouteV1_`.
+- live `Code.gs` contains zero calls to `trendosIntegrityTryWebhookV1_`.
+- its entrypoints still dispatch V1932 -> V1900 -> V1898 -> legacy chain.
+- enabling master+HEALTH alone would not activate or prove the intended Web App Health route/dashboard.
 
-The private checks require a fresh Google sign-in because the authenticated editor session expired after deployment.
+No flag or source change was made after discovering this conflict.
 
 Exact next action:
-1. restore authenticated editor access without sharing credentials.
-2. perform the three read-only private-console checks above.
-3. on FAIL, roll the same deployment back to Version 143 and record evidence.
-4. on PASS, close PD-09 and stop at the separate PD-10 HEALTH activation approval checkpoint.
-5. do not activate HEALTH, master, or any other family flag without explicit approval.
+1. obtain explicit approval for a minimal guarded edit to the **current live** `Code.gs`; never replace it from repository source.
+2. wire generic Integrity route handling and WhatsApp handoff with master/family flags still OFF.
+3. save/parse and repeat dependency/composition checks.
+4. deploy Version 145 with all flags OFF and keep Version 144/143 rollback evidence.
+5. run flags-OFF legacy smoke.
+6. only then activate master+HEALTH and execute the HEALTH regression.
+7. on any failure, disable HEALTH/master and restore the latest verified deployment as appropriate.
 
 ## Persistent execution behavior
 
