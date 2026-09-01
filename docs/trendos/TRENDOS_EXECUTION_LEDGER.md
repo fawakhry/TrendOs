@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:37 Africa/Cairo**.
+> Updated: **2026-09-01 10:39 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY RUNTIME PASS WITH MASTER+HEALTH ON ONLY; DASHBOARD EXPOSES 6 CORE-P0 DATA BLOCKERS; HEAD RUNTIME TOOLS EXACT R3; FINAL SMOKE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY ACTIVATION/RUNTIME/LEGACY REGRESSION PASS; MASTER+HEALTH ON ONLY; 6 CORE-P0 DATA BLOCKERS OPEN; STOP BEFORE ORDER_LINE**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10S — TEMP DASHBOARD HELPER REMOVED / RUNTIME TOOLS EXACT R3; FINAL HEALTH-ON SMOKE NEXT**
+**PD-10T — HEALTH FAMILY CHECKPOINT PASS; 6 CORE-P0 DATA BLOCKERS OPEN; STOP BEFORE ORDER_LINE**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -891,6 +891,31 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: exact Candidate R3 runtime-tools restored; ledger checkpoint only.
 - Rollback: Version 144 deployment rollback remains available; property rollback remains master+HEALTH OFF only if the final regression fails.
 - Exact next step: request the base production URL with no action and require the legacy TrendOS V1932 landing response while HEALTH is ON; then inspect Version 145 executions and exactly one D1 sync trigger. Record final HEALTH family checkpoint and stop before ORDER_LINE.
+
+## PD-10T HEALTH family activation checkpoint — PASS / CORE DATA BLOCKERS OPEN
+- Action: after removing all temporary helpers, ran the production base URL again with HEALTH-only properties still ON, inspected the resulting Version 145 execution history, and rechecked the complete trigger inventory.
+- Evidence:
+  - public base URL title remains **TrendOS V1932** and the expected Trend Mall landing page renders;
+  - Version 145 `doGet` at Sep 1 2026 7:31:20 AM completed in 1.464 s;
+  - multiple contemporaneous Version 145 `doPost` rows completed;
+  - deployed HEALTH route `doGet`, Head deployed-health verifier, Head dashboard smoke, and all visible D1 sync runs completed;
+  - Triggers still says `Showing 1 trigger`;
+  - only trigger: Head / Time-based / `d1OrdersLiveSyncTick`, last run Sep 1 2026 7:31:38 AM; no Integrity trigger was installed;
+  - runtime-tools is exact Candidate R3 and contains no temporary helper.
+- Status: **PASS — HEALTH family is IMPLEMENTED, DEPLOYED in Version 145, ACTIVATED, RUNTIME-VERIFIED, LEGACY-REGRESSION-VERIFIED, CHECKPOINTED, and has a defined property/deployment rollback**.
+- Active properties: master=ON; HEALTH=ON; ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION=OFF; Fast Auth V2.5 OFF/absent.
+- Production impact:
+  - Version 145 is live;
+  - HEALTH route is active;
+  - isolated monitoring sheet `إدارة - صحة النظام` was created/refreshed with 13 metrics;
+  - no authoritative business sheet row, business-family route, trigger, or non-HEALTH flag changed.
+- Open data-health blockers: `INVALID_LINE_IDS`, `DUPLICATE_ATTENDANCE_SESSIONS`, `DUPLICATE_CLEANING_RECORDS`, `DUPLICATE_INVOICE_DRAFTS`, `PRESS_SOURCE_VIEW_MISMATCH`, `PRESS_COMPLETED_WITHOUT_SESSION`.
+- Commit / CI: live HEALTH activation evidence recorded on working branch; approved Candidate R3 and CI remain unchanged.
+- Rollback:
+  1. immediate family rollback: set `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED` and master OFF using a bounded programmatic helper, then verify legacy base route;
+  2. deployment rollback: restore same deployment to Version 144;
+  3. deeper rollback: Version 143.
+- Exact next step: **STOP before ORDER_LINE.** Synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md`; next execution lane is read-only evidence-backed triage of the six dashboard CORE-P0 signals and classification of current active vs historical/expected records. Do not clean duplicate history randomly, do not change Order ID/Line ID contracts, and do not activate ORDER_LINE without a separate explicit checkpoint/approval after triage.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
