@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:35 Africa/Cairo**.
+> Updated: **2026-09-01 12:40 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY PASS; MASTER+HEALTH ON ONLY; RP-03 READ-ONLY PREVIEW COMPLETE; LINE ADAPTER PASS; PRESS SCOPE EXPANDED TO 9 QUEUE / 14 HISTORICAL COMPLETED-WITHOUT-SESSION; STOP BEFORE ANY REMEDIATION INSTALL/REGISTRY/ORDER_LINE**.
+- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY PASS; MASTER+HEALTH ON ONLY; RP-03/RP-03E READ-ONLY DIAGNOSIS COMPLETE; LINE ADAPTER PASS; PRESS QUEUE=9; LEGACY PRESS VIEW NON-AUTHORITATIVE WARN; 14 HISTORICAL COMPLETED-WITHOUT-SESSION; STOP BEFORE ANY REMEDIATION INSTALL/REGISTRY/ORDER_LINE**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03E — MEMORY SYNCHRONIZED; READ-ONLY PRESS CONSUMER/PROVIDER DIAGNOSIS IS NEXT; PRODUCTION UNCHANGED**
+**RP-03E — PRESS CONSUMER/PROVIDER CONTRACT DIAGNOSED READ-ONLY; LEGACY VIEW IS NON-AUTHORITATIVE WARN; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1143,6 +1143,33 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: source `24b4e89a3d3866f8f95d28ec609a302ba908486e`; CI `33491831765` SUCCESS; memory commits above.
 - Rollback: documentation-only revert if new verified evidence changes the consumer classification.
 - Exact next step: execute RP-03E read-only diagnosis of the live Apps Script/frontend Press consumer and provider contract. Record PASS/FAIL/PARTIAL here before any remediation Head installation, registry creation/write, deployment, route, property, trigger, or feature-flag change.
+
+## RP-03E Press consumer/provider contract diagnosis — PASS / READ-ONLY
+- Action: diagnosed the backend/frontend Press consumer and provider chain without changing either surface.
+- Evidence — backend:
+  - the previously captured 13,959-line live consolidated source is the working-branch `Code.gs` blob `22ecc41f66c5921a4adc7472f76c55152ef37769`;
+  - later production wiring was limited to guarded Integrity route/webhook calls, while PRESS remained OFF, so the V1932 Press path was not activated or rewritten;
+  - `trendosV1932TryRoute_` maps `pressControlV1` to `pressControlV1_`;
+  - `pressQueue_` reads `SHEET_NAME_LINES` / `بنود الأوردرات` directly and returns queue counts/Order IDs;
+  - neither `pressQueue_`, `pressStatus_`, nor `pressControlV1_` references `واجهة المكبس`.
+- Evidence — production frontend source:
+  - `main:index.html` blob `c77422f1a33c46004006954bf1d609849942c4f8` exactly matches the working branch;
+  - it loads only `config.js`, `app.js`, and `matbagy_theme_v1860.js`;
+  - `main:app.js` blob `73c9c31e57ae3e9134313f85e0f3006b36532a68` contains no `pressControlV1`, `press-control-v1.js`, `واجهة المكبس`, or `متابعة المكبس` consumer;
+  - its legacy `press` permission maps to the Print screen and Heat Press is presented as a filter/badge over Order/Line rows;
+  - standalone `press-control-v1.js` exists in the repository but is not loaded by `index.html`, so it is not a production frontend consumer.
+- Decision:
+  - `واجهة المكبس` is a non-authoritative legacy/stub sheet, not an active production queue;
+  - do not refresh, populate, or compare it as authoritative;
+  - the existing remediation Dashboard behavior is correct: missing proven Press view provider is WARN, never fabricated PASS and never P0 mismatch;
+  - the operational queue source remains `بنود الأوردرات`, with the RP-03 adapter recovering the exact nine current Lines;
+  - the 14 completed-without-Line-session records remain historical/schema evidence because PRESS Integrity has never been activated and the Line-session ledger does not exist; any future acknowledged baseline must use the exact RP-03 hashes and must not invent session links.
+- Authentication boundary: the cloud-browser Google session had expired to the saved-account chooser, so no fresh live-editor read was claimed. No login choice or credential request was made. The conclusion uses the already verified live consolidated source capture plus exact current `main` frontend blobs; no unsupported live-editor fact is invented.
+- Status: **PASS — consumer/provider contract is evidence-backed; no source change is required for the Press-view metric**.
+- Production impact: READ-ONLY only — GitHub/source inspection and one unsuccessful unauthenticated navigation; no Apps Script, Sheets, deployment, property, trigger, route, registry, or flag write.
+- Commit / CI: source remains `24b4e89a3d3866f8f95d28ec609a302ba908486e`; CI `33491831765` SUCCESS; this ledger checkpoint follows.
+- Rollback: none required. If a later authenticated live-editor capture proves a new Press consumer/provider, reopen the classification before any registry/deploy action.
+- Exact next step: create an RP-03E evidence checkpoint and mark the remediation plan Actual=PASS with the explicit non-authoritative-view decision. Then checkpoint those docs here and synchronize Handoff/Project Memory. Do not install remediation source, write/create the registry, deploy, or enable ORDER_LINE.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
