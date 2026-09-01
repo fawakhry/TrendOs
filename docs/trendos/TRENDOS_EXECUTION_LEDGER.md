@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:15 Africa/Cairo**.
+> Updated: **2026-09-01 12:18 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-01A — GITHUB-ONLY REMEDIATION STAGED + LOCAL TESTS PASS; SOURCE COMMIT NEXT; PRODUCTION UNCHANGED**
+**RP-01B — GITHUB-ONLY REMEDIATION COMMITTED + CI PASS; MEMORY SYNC/RP-03 PREVIEW NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1025,6 +1025,21 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: not yet committed; Candidate R3 and its CI remain unchanged.
 - Rollback: discard only the local staged files if GitHub review fails.
 - Exact next step: commit the reviewed source/test/workflow/package changes to the working branch, then record exact commit SHAs and wait for remote CI. Do not create/freeze a new candidate or touch Apps Script/Sheets.
+
+
+## RP-01B GitHub remediation implementation — CI PASS
+- Action: committed all RP-01 source, package, workflow, and regression-test changes atomically to the working branch.
+- Evidence:
+  - source commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1`;
+  - tree `45cc7fd749fa5d68152e471e8111698fed230138`;
+  - 15 paths updated/created in one fast-forward commit;
+  - GitHub Actions run `33491388210`, workflow `TrendOS Integrity V1`, run number 145 = **SUCCESS**;
+  - local tests and composition evidence remain as recorded in RP-01A.
+- Status: **PASS — RP-01 implementation and remote CI are complete on the working branch**.
+- Production impact: NONE — no Apps Script Head/source, Sheet, deployment, property, trigger, route, or feature-flag change. Version 145 remains live with master+HEALTH ON only.
+- Candidate status: approved/deployed Candidate R3 remains unchanged at `ee03adab4c733aec909511b23dd80f42ad3b927e`; no R4 branch/candidate has been frozen.
+- Rollback: revert source commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1` on the working branch only; no production rollback required.
+- Exact next step: synchronize Handoff/Project Memory with RP-01 PASS, then perform RP-03 read-only production-shaped preview. Do not install the remediation in Apps Script Head, create the registry, deploy, or activate ORDER_LINE.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
