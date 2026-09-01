@@ -1764,3 +1764,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `e2386205563d91f909ecec5e721ceaae440bfb7b`; underlying source/test CI run `33552134647` SUCCESS.
 - **Rollback:** Revert the memory commit; no production rollback is applicable.
 - **Exact next step:** Design and test the one-time ScriptLock-protected registry writer on the working branch only. It must validate the exact 10-header schema, re-read live source evidence and hashes inside the lock, append exact approved rows only, be retry-idempotent, and remain uninstalled/unexecuted until a new explicit production checkpoint.
+
+
+## RP-06-WRITER-A — FAIL-CLOSED ONE-TIME REGISTRY WRITER IMPLEMENTED
+
+- **Action:** Added GitHub-only `trendos-core-p0-registry-writer-v1.gs` with a read-only public preview, exact 34-row static plan, live source/evidence recheck, exact 10-header validation, ScriptLock, Master+HEALTH/business-flags guard, Fast Auth guard, one-use plan-hash approval properties, retry-idempotent append, post-write verification, automatic append-only deactivation on post-write drift, and separately approved append-only rollback.
+- **Evidence:** Source commit `3ec0fe66843eb3f94f7183fdebe6bd0412d53643`. Local writer test PASS and complete 10-file local Node suite PASS before upload. The file is intentionally excluded from the deployed 12-module package and is not present in Apps Script Head.
+- **Status:** PARTIAL — writer source is committed; its dedicated tests and CI workflow wiring still need repository commits and remote CI verification.
+- **Production impact:** NONE. GitHub working branch only; no Apps Script installation/run/deploy, Script Property, registry Sheet, source Sheet, flag, route, or trigger change.
+- **Commit / CI:** `3ec0fe66843eb3f94f7183fdebe6bd0412d53643`; final CI pending source+test+workflow state.
+- **Rollback:** Revert `3ec0fe66843eb3f94f7183fdebe6bd0412d53643`. Production rollback is not applicable because the tool is uninstalled and unexecuted.
+- **Exact next step:** Commit the dedicated writer regression test, then update this ledger before wiring that test into GitHub Actions.
