@@ -1472,6 +1472,21 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: run PD-09-R4-B immediate deployed smoke — verify the preserved base URL still renders TrendOS V1932, verify deployed HEALTH reports master+HEALTH ON with all business families OFF, then reconcile Version 146 executions and the single D1 sync trigger. Roll back to Version 145 immediately on failure.
 
 
+
+## PD-09-R4-B1 — VERSION 146 PUBLIC BASE LANDING PASS
+
+- Action: opened the preserved production Web App URL after Version 146 activation and performed a read-only legacy landing smoke.
+- Evidence:
+  - exact URL remained `https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec`.
+  - page title rendered `TrendOS V1932`.
+  - visible employee and customer entry controls rendered.
+- Status: **PASS — Version 146 preserves the legacy production landing surface**.
+- Production impact: READ-ONLY GET only; no property, registry, Sheet, trigger, route, flag, source, deployment, Fast Auth, or `Code.gs` change.
+- Commit / CI: deployment checkpoint commit `9653a04bb5a3fa9e9d820d1900f439f56c73b5ce`; frozen R4 CI remains SUCCESS.
+- Rollback: not required; Version 145 remains immediate rollback if a later Version 146 smoke fails.
+- Exact next step: call the deployed `trendosIntegrityHealthV1` route and verify master+HEALTH ON, all business families OFF, `codeReady=true`, and `missing=[]`.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
