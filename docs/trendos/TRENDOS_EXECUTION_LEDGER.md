@@ -1830,3 +1830,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; final CI pending.
 - **Rollback:** Revert the test and source hardening commits. No production rollback is applicable.
 - **Exact next step:** Verify GitHub Actions for the latest documented working-branch head and record the result before canonical plan/memory updates.
+
+
+## RP-06-WRITER-G — HARDENED WRITER FINAL CI PASS
+
+- **Action:** Verified the final source+test state after Invoice source-row pinning and inspected both the final and transient workflow evidence.
+- **Evidence:** Final run `33553469092`, head `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`, status `completed`, conclusion `success`; dedicated writer step 7 and all remaining Integrity/composition/package steps succeeded. The intermediate source-only runs `33553431422` and `33553452587` failed at the old writer fixture before the matching test commit, exactly because the new source-row guard correctly rejected fixtures without pinned rows; the final paired state resolved that expected sequential-update failure.
+- **Status:** PASS — hardened writer source, regression coverage, and complete CI are green.
+- **Production impact:** NONE. GitHub-only; production remains Version 146 with Master+HEALTH ON only and no registry/writer installation.
+- **Commit / CI:** Source `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; tests `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` SUCCESS.
+- **Rollback:** Revert the source/test hardening commits or the complete writer lane. No production rollback is applicable.
+- **Exact next step:** Update `TRENDOS_CORE_P0_REMEDIATION_PLAN.md`, Handoff, and Project Memory with the final writer contract and explicit production checkpoint; update this ledger after each document before requesting any installation/write approval.
