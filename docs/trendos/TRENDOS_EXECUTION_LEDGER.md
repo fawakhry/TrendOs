@@ -1731,3 +1731,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8`; final remote CI pending.
 - **Rollback:** Revert test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8` and source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` if the contract is rejected. Version 146 remains unaffected.
 - **Exact next step:** Verify the GitHub Actions run for the latest working-branch state. If PASS, record CI evidence before designing any registry writer or touching Apps Script/Sheets.
+
+
+## RP-06-PRECHECK-D — APPEND-ONLY REVISION CONTRACT CI PASS
+
+- **Action:** Verified the final working-branch state after the revision-aware registry reader and its regression coverage were committed.
+- **Evidence:** Local focused remediation test PASS; complete 9-file Node suite PASS. GitHub Actions workflow `TrendOS Integrity V1`, run `33552134647`, head `0cb69ecaf3dcdce5ee8c062545b68f0e7b4af80c`, status `completed`, conclusion `success`, run attempt 1.
+- **Status:** PASS — the append-only rollback contract gap found at RP-06-PRECHECK-A is closed in GitHub source and automated tests.
+- **Production impact:** NONE. Version 146 remains active with Master+HEALTH only ON; every Business flag remains OFF; Fast Auth and the registry remain absent; no Apps Script or Sheet write occurred.
+- **Commit / CI:** Source `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; tests `d3b74288a76d3e0def40324cbfc205c7de83d9a8`; documented head `0cb69ecaf3dcdce5ee8c062545b68f0e7b4af80c`; CI run `33552134647` SUCCESS.
+- **Rollback:** Revert source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` and test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8`. Production rollback is unnecessary because this checkpoint is GitHub-only.
+- **Exact next step:** Update canonical handoff and project memory with the GitHub-only contract closure, then design and test a separate one-time ScriptLock-protected registry writer with exact header validation, live evidence-hash recheck, append-only writes, and no production installation or registry mutation until a new explicit checkpoint.
