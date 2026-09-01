@@ -5,7 +5,7 @@
 > Working branch: `agent/go-live-2026-09-01-integrity`  
 > Current approved deployed source candidate: `release/integrity-v1-predeploy-2026-08-31-r3` at `ee03adab4c733aec909511b23dd80f42ad3b927e`  
 > Current production: Apps Script Version **145**, master+HEALTH ON only.  
-> Status: **RP-01/RP-02/RP-03 PASS; PRESS SCOPE CORRECTED; NO PRODUCTION REMEDIATION AUTHORIZED OR APPLIED**.
+> Status: **RP-01/RP-02/RP-03/RP-03E PASS; LEGACY PRESS VIEW CONFIRMED NON-AUTHORITATIVE; NO PRODUCTION REMEDIATION AUTHORIZED OR APPLIED**.
 
 ## 1. Objective
 
@@ -166,6 +166,15 @@ Before changing the metric:
 3. If the sheet is obsolete and the UI consumes the Press status/source queue directly, replace the false P0 comparison with an explicit `PRESS_VIEW_PROVIDER_UNAVAILABLE`/legacy-view WARN and runtime-test the real UI provider.
 4. Never define a fake provider that simply returns the source queue solely to force a PASS.
 
+RP-03E decision:
+
+- the production backend computes its Press queue directly from `بنود الأوردرات`;
+- the current `main` frontend does not load `press-control-v1.js`, and the legacy `press` role maps to the Print screen with Heat Press filters/badges;
+- `واجهة المكبس` is a non-authoritative legacy/stub sheet;
+- no view refresh, provider fabrication, or Sheet write is required;
+- the Dashboard must keep this condition as WARN, not P0;
+- exact evidence: `docs/trendos/checkpoints/RP03E_PRESS_CONSUMER_CONTRACT_2026-09-01.md`.
+
 ### 4.7 Press historical session baseline
 
 Acknowledge only these exact completed Lines, and only when their evidence hashes still match the RP-03 checkpoint:
@@ -251,8 +260,23 @@ Expected:
 - one evidence-backed choice: locked/idempotent view repair or explicit legacy-view WARN;
 - no Apps Script Head, Sheet, property, trigger, deployment, route, or flag write.
 
+Actual: **PASS** — backend and frontend consumer chains identified; `واجهة المكبس` is non-authoritative; no source/view write is required. Evidence: `docs/trendos/checkpoints/RP03E_PRESS_CONSUMER_CONTRACT_2026-09-01.md`.  
+Failure action: if later authenticated live-source evidence proves a new provider, reopen this classification before Head/registry/deploy work.
+
+### RP-03F — Freeze remediation successor candidate
+
+Create a separate reviewed release branch from the synchronized working-branch checkpoint. Do not move Candidate R3.
+
+Expected:
+
+- new successor branch points to one exact commit;
+- package contains the 12 reviewed modules including `trendos-core-p0-remediation-v1.gs`;
+- CI SUCCESS on the frozen ref;
+- Candidate R3 remains unchanged;
+- no production impact.
+
 Actual: PENDING.  
-Failure action: keep Press and every later business family OFF; do not create Press baseline registry entries.
+Rollback: delete or abandon only the new candidate ref; production remains Version 145.
 
 ### RP-04 — Head composition with flags unchanged
 
@@ -343,6 +367,6 @@ Explicit approval remains required for:
 
 ## 7. Current exact stopping point
 
-**RP-01/RP-02/RP-03 COMPLETE; PRESS SCOPE CORRECTED TO 9 QUEUE / 14 COMPLETED-WITHOUT-LINE-SESSION; VERSION 145 + HEALTH ONLY REMAINS LIVE; STOP BEFORE REMEDIATION HEAD INSTALL, REGISTRY, DEPLOY, OR ORDER_LINE.**
+**RP-01/RP-02/RP-03/RP-03E COMPLETE; LEGACY PRESS VIEW CONFIRMED NON-AUTHORITATIVE; PRESS SCOPE IS 9 QUEUE / 14 HISTORICAL COMPLETED-WITHOUT-LINE-SESSION; VERSION 145 + HEALTH ONLY REMAINS LIVE; STOP BEFORE REMEDIATION HEAD INSTALL, REGISTRY, DEPLOY, OR ORDER_LINE.**
 
-Exact next technical action: execute RP-03E read-only diagnosis of the live Press consumer/provider contract. Then checkpoint the result before any Apps Script or Sheet change.
+Exact next technical action: execute RP-03F and freeze a separate remediation successor candidate from the synchronized working branch, verify CI, and checkpoint the exact ref/SHA before any Apps Script or Sheet change.
