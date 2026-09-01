@@ -76,7 +76,8 @@ function makeSnapshot(){
     }else if(s.metricId==='DUPLICATE_CLEANING_RECORDS'){
       for(let i=0;i<s.sourceCount;i++)snap.cleaning.push({__rowNumber:i+2,__testEvidenceHash:s.evidenceHash,employee:s.entityKey.split('|')[0],date:s.entityKey.split('|')[1],__display:{employee:s.entityKey.split('|')[0],date:s.entityKey.split('|')[1]}});
     }else if(s.metricId==='DUPLICATE_INVOICE_DRAFTS'){
-      [s.canonicalId,...planned.map(x=>x.supersededId)].forEach(id=>snap.drafts.push({__testEvidenceHash:s.evidenceHash,draftId:id,orderId:s.entityKey,subtotal:0,status:'يحتاج تسعير/اعتماد',blocker:'لا توجد بنود معتمدة بسعر بيع.',invoiceNo:'',messageStatus:'',metaId:''}));
+      snap.drafts.push({__rowNumber:s.canonicalSourceRow,__testEvidenceHash:s.evidenceHash,draftId:s.canonicalId,orderId:s.entityKey,subtotal:0,status:'يحتاج تسعير/اعتماد',blocker:'لا توجد بنود معتمدة بسعر بيع.',invoiceNo:'',messageStatus:'',metaId:''});
+      planned.forEach(spec=>snap.drafts.push({__rowNumber:spec.supersededSourceRow,__testEvidenceHash:s.evidenceHash,draftId:spec.supersededId,orderId:s.entityKey,subtotal:0,status:'يحتاج تسعير/اعتماد',blocker:'لا توجد بنود معتمدة بسعر بيع.',invoiceNo:'',messageStatus:'',metaId:''}));
     }else{
       snap.lines.push({__rowNumber:2,__testEvidenceHash:s.evidenceHash,lineId:s.entityKey,status:'تم التسليم',press:true,__display:{lineId:s.entityKey,status:'تم التسليم'}});
     }
@@ -89,6 +90,9 @@ assert.strictEqual(ctx.trendosCoreP0RegistrySpecsV1_().length,34);
 let preview=ctx.trendosCoreP0RegistryPreviewV1();
 assert.strictEqual(preview.success,true);assert.strictEqual(preview.readOnly,true);assert.strictEqual(preview.actualPlanCount,34);
 assert.strictEqual(spreadsheet.getSheetByName(ctx.TRENDOS_INTEGRITY_RESOLUTION_SHEET_V1),null,'preview must not create a sheet');
+const wrongInvoiceRowSnapshot=makeSnapshot();wrongInvoiceRowSnapshot.drafts.find(x=>x.draftId==='DR-19c18636').__rowNumber=20;
+snapshotProvider=()=>wrongInvoiceRowSnapshot;preview=ctx.trendosCoreP0RegistryPreviewV1();assert.strictEqual(preview.success,false);assert.ok(preview.errors.some(x=>/source-row identity/.test(x)));
+snapshotProvider=()=>snapshot;
 
 const planHash=ctx.trendosCoreP0RegistryPlanHashV1_();propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
 let result=ctx.trendosCoreP0RegistryWriteV1();
