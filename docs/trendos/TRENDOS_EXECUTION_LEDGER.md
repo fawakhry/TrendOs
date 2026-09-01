@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:36 Africa/Cairo**.
+> Updated: **2026-09-01 10:37 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY RUNTIME PASS WITH MASTER+HEALTH ON ONLY; DASHBOARD EXPOSES 6 CORE-P0 DATA BLOCKERS; TEMP HELPER RESTORE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY RUNTIME PASS WITH MASTER+HEALTH ON ONLY; DASHBOARD EXPOSES 6 CORE-P0 DATA BLOCKERS; HEAD RUNTIME TOOLS EXACT R3; FINAL SMOKE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10R — HEALTH DASHBOARD RUNTIME PASS; 6 CORE-P0 BLOCKERS OBSERVED; RESTORE TEMP HELPER NEXT**
+**PD-10S — TEMP DASHBOARD HELPER REMOVED / RUNTIME TOOLS EXACT R3; FINAL HEALTH-ON SMOKE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -882,6 +882,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: HEALTH flags remain eligible because the monitoring family passed. Disable master+HEALTH if later regression occurs. Do not delete the monitoring sheet as rollback; it is evidence.
 - Safety consequence: **do not proceed to ORDER_LINE or any later family merely because the dashboard code passed.** The six CORE-P0 signals require evidence-backed triage; no random historical-row cleanup and no Order/Line contract change.
 - Exact next step: restore runtime-tools exactly to Candidate R3, save/reload/exact-verify, then run final legacy base smoke and private execution/trigger reconciliation with HEALTH still ON. Stop before ORDER_LINE and synchronize Handoff/Memory with the six blocker IDs.
+
+## PD-10S Runtime Tools final restoration after dashboard smoke — PASS
+- Action: removed the temporary dashboard helper by restoring exact Candidate R3 runtime-tools; saved, reloaded, and exact-compared.
+- Evidence: staged exact=true; persisted exact=true; final length=1,244; temporary dashboard helper absent; no save/parse error.
+- Status: **PASS — no temporary helper remains anywhere in runtime-tools Head**.
+- Production impact: Head-only source restoration. Version 145, master+HEALTH properties, and the new isolated health-monitoring sheet remain unchanged.
+- Commit / CI: exact Candidate R3 runtime-tools restored; ledger checkpoint only.
+- Rollback: Version 144 deployment rollback remains available; property rollback remains master+HEALTH OFF only if the final regression fails.
+- Exact next step: request the base production URL with no action and require the legacy TrendOS V1932 landing response while HEALTH is ON; then inspect Version 145 executions and exactly one D1 sync trigger. Record final HEALTH family checkpoint and stop before ORDER_LINE.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
