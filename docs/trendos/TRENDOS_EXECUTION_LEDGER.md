@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:22 Africa/Cairo**.
+> Updated: **2026-09-01 12:24 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03A — READ-ONLY PREVIEW FOUND CROSS-TIMEZONE HASH RISK; SOURCE HARDENING NEXT; PRODUCTION UNCHANGED**
+**RP-03B — CROSS-TIMEZONE HASH HARDENING STAGED + LOCAL TESTS PASS; COMMIT/CI NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1065,6 +1065,16 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: no source fix committed yet; RP-01 commit/CI remain the latest code checkpoint.
 - Rollback: none required.
 - Exact next step: change generic group evidence to hash exact displayed cell values plus row identity, remove non-material update-time representation from Invoice evidence, extend tests, run local/remote CI, and checkpoint the corrected source before resuming RP-03.
+
+
+## RP-03B Evidence-hash cross-timezone hardening — LOCAL TEST PASS
+- Action: changed generic group evidence to hash exact displayed Sheet values plus stable row identity; removed non-material update-time text from Invoice evidence; extended the remediation regression test with two different Date instants that share the same displayed business date.
+- Evidence: all nine local safety/composition/package test commands PASS again; the new test proves identical displayed rows produce identical group evidence despite timezone-sensitive raw Date objects.
+- Status: **PASS locally; PENDING working-branch commit and remote CI**.
+- Production impact: NONE — local source/test changes only; the preceding Google Sheet reads were read-only.
+- Commit / CI: not committed yet; RP-01 remote CI remains the prior checkpoint.
+- Rollback: discard the local hardening patch if review fails.
+- Exact next step: commit the three source files plus remediation test atomically to the working branch, wait for CI, record the result, then resume RP-03 bounded live reads.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
