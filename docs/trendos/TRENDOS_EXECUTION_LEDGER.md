@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:17 Africa/Cairo**.
+> Updated: **2026-09-01 10:20 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 FLAGS-OFF SMOKE PASS; HEALTH ACTIVATION APPROVED; SCRIPT-PROPERTIES UI >50 READ-ONLY BOUNDARY REQUIRES BOUNDED PROGRAMMATIC SETTER**.
+- Integrity V1 state: **VERSION 145 FLAGS-OFF SMOKE PASS; EXACT-VERIFIED TEMPORARY HEALTH PROPERTY SETTER READY IN HEAD; NO FLAG CHANGED YET**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10H — HEALTH ACTIVATION APPROVED; BOUNDED PROGRAMMATIC PROPERTY SETTER REQUIRED**
+**PD-10I — TEMPORARY HEALTH-ONLY SETTER READY IN HEAD; RUN ONCE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -764,6 +764,21 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live UI boundary recorded on the working branch; no source/CI/deployment change.
 - Rollback: none required because no property changed.
 - Exact next step: temporarily append one narrowly scoped public helper to `trendos-integrity-runtime-tools-v1.gs` in Head that sets only `TRENDOS_INTEGRITY_V1_ENABLED=1` and `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=1`, rejects/keeps every other family and Fast Auth OFF, logs only relevant boolean state, run once, verify, then restore the runtime-tools file exactly to Candidate R3 before calling the Version 145 HEALTH route. On any setter/verification failure, set master and HEALTH OFF using the same bounded mechanism and restore the helper file.
+
+## PD-10I Temporary HEALTH-only property setter — PASS INSTALL IN HEAD / NOT RUN
+- Action: fetched exact Candidate R3 `trendos-integrity-runtime-tools-v1.gs`, copied the persisted live file, required exact equality, appended two narrowly scoped temporary public functions (HEALTH ON once and HEALTH OFF rollback), saved, reloaded, and exact-compared the persisted result.
+- Evidence:
+  - live runtime-tools length 1,244 characters exactly matched Candidate R3 before modification;
+  - no temporary helper existed before the change;
+  - staged and post-reload content exactly matched the calculated 3,273-character temporary source;
+  - exactly one ON helper and one OFF helper exist in Head;
+  - Apps Script displayed `Saved to Drive` / `cloud_done` with no save/parse error.
+- Guard contract: ON helper refuses before mutation if any non-HEALTH Integrity family or Fast Auth parses ON; it sets only master and HEALTH to `1`, logs only boolean relevant state, and fails if post-set verification is not HEALTH-only. OFF helper deletes only master and HEALTH and verifies both OFF.
+- Status: **PASS — bounded setter is ready but has not been run; all flags remain OFF**.
+- Production impact: Head source only. Version 145 is unchanged and does not contain the temporary helper; no property, business data, trigger, or deployment changed.
+- Commit / CI: controlled temporary Head utility; Candidate R3 remains unchanged; ledger checkpoint only.
+- Rollback: restore runtime-tools exactly to its 1,244-character Candidate R3 source. If ON succeeds but later HEALTH validation fails, re-use the verified OFF helper before restoration.
+- Exact next step: run `trendosIntegritySetHealthFlagsOnOnceV1` once from the editor; require `master=true`, `health=true`, and `otherEnabled=[]`. Record immediately before any deployed route call.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
