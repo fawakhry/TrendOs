@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-09-01 12:34 Africa/Cairo**.
+> Last consolidated: **2026-09-01 12:42 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,7 +42,7 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CORE-P0 REMEDIATION — RP-03 READ-ONLY PREVIEW COMPLETE; PRESS SCOPE CORRECTED; RP-03E PRESS CONSUMER DIAGNOSIS NEXT; ORDER_LINE OFF.**
+**CORE-P0 REMEDIATION — RP-03E PRESS CONSUMER CONTRACT PASS; LEGACY VIEW NON-AUTHORITATIVE; RP-03F SUCCESSOR CANDIDATE FREEZE NEXT; ORDER_LINE OFF.**
 
 Integrity V1 Core is installed and deployed in Apps Script Version 145. HEALTH is the only activated family and has passed deployed-route, dashboard-write, and legacy-regression checks; every business family and Fast Auth remain OFF.
 
@@ -104,7 +104,7 @@ Data-health observation:
   - `DUPLICATE_ATTENDANCE_SESSIONS`: 6 excess rows across 5 recent keys, with open/conflicting sessions. Active defect.
   - `DUPLICATE_CLEANING_RECORDS`: 16 excess completed/no-problem rows across 11 keys. Historical baseline debt.
   - `DUPLICATE_INVOICE_DRAFTS`: duplicate active unpriced drafts for Orders `3569`, `3572`, `3577`; unsent and total=0. Active legacy defect.
-  - `PRESS_SOURCE_VIEW_MISMATCH`: nine current source Lines after display-value recovery versus zero rows in `واجهة المكبس`. Live consumer/provider contract remains the next read-only diagnosis gate.
+  - `PRESS_SOURCE_VIEW_MISMATCH`: nine current source Lines after display-value recovery. RP-03E proved `واجهة المكبس` is a non-authoritative legacy/stub sheet; backend queue reads `بنود الأوردرات` and the production frontend uses Print + Heat Press filters. Treat as WARN; no legacy-view write.
   - `PRESS_COMPLETED_WITHOUT_SESSION`: fourteen completed Lines lack Line-session evidence after display-value recovery, and no Line-session ledger sheet exists. Historical/schema traceability debt; do not invent links.
 
 This is a HEALTH-monitoring and read-only triage success, not permission for cleanup or later-family activation. No production source cell was changed.
@@ -117,8 +117,9 @@ RP-01/RP-02/RP-03 results:
 - GitHub Actions `33491831765` = **SUCCESS**.
 - exact read-only evidence: `docs/trendos/checkpoints/RP03_CORE_P0_PREVIEW_2026-09-01.md`.
 - corrected plan: `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md`.
+- Press consumer contract: `docs/trendos/checkpoints/RP03E_PRESS_CONSUMER_CONTRACT_2026-09-01.md`.
 - Line adapter, Attendance, Cleaning, and Invoice previews PASS.
-- Press scope corrected to 9 queue Lines and 14 completed-without-Line-session Lines.
+- Press scope corrected to 9 queue Lines and 14 completed-without-Line-session Lines; the legacy view is explicitly non-authoritative and requires no write.
 - production remains Version 145 with master+HEALTH ON only; no remediation source was installed, no registry was created, and no business family was enabled.
 
 ## Current architecture
@@ -316,7 +317,7 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**RP-03D2 — preview evidence and corrected plan committed; production unchanged; STOP before remediation Head install, registry, deploy, or ORDER_LINE.**
+**RP-03E2 — Press consumer evidence and plan closure committed; production unchanged; RP-03F candidate freeze next; STOP before remediation Head install, registry, deploy, or ORDER_LINE.**
 
 Current production:
 - Apps Script Version 145.
@@ -328,6 +329,7 @@ Current production:
 Remediation checkpoint:
 - plan: `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md`.
 - exact evidence: `docs/trendos/checkpoints/RP03_CORE_P0_PREVIEW_2026-09-01.md`.
+- Press contract evidence: `docs/trendos/checkpoints/RP03E_PRESS_CONSUMER_CONTRACT_2026-09-01.md`.
 - implementation commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1`.
 - evidence-hash hardening commit `24b4e89a3d3866f8f95d28ec609a302ba908486e`.
 - GitHub Actions run `33491831765` = **SUCCESS**.
@@ -336,8 +338,8 @@ Remediation checkpoint:
 - Candidate R3, Apps Script Head, Version 145, Sheets data, deployment, properties, triggers, routes, and flags are unchanged.
 
 Open gate:
-- execute RP-03E read-only live Press consumer/provider diagnosis.
-- establish whether `واجهة المكبس` is authoritative, obsolete, or missing a real provider.
+- freeze RP-03F as a separately reviewed remediation successor candidate without moving Candidate R3.
+- verify the exact frozen ref/SHA/package and GitHub Actions result.
 - keep the resolution registry absent until its separate production-write approval.
 - preserve historical `مكرر`, do not change Order ID/Line ID contracts, and do not invent session links.
 - do not install/deploy the remediation or activate ORDER_LINE without their exact checkpoints and approvals.
