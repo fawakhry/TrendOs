@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:26 Africa/Cairo**.
+> Updated: **2026-09-01 12:30 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY PASS; MASTER+HEALTH ON ONLY; READ-ONLY TRIAGE COMPLETE; 6 CORE-P0 SIGNALS CLASSIFIED; REMEDIATION/BASELINE DECISION REQUIRED; STOP BEFORE ORDER_LINE**.
+- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY PASS; MASTER+HEALTH ON ONLY; RP-03 READ-ONLY PREVIEW COMPLETE; LINE ADAPTER PASS; PRESS SCOPE EXPANDED TO 9 QUEUE / 14 HISTORICAL COMPLETED-WITHOUT-SESSION; STOP BEFORE ANY REMEDIATION INSTALL/REGISTRY/ORDER_LINE**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03C — CROSS-TIMEZONE HASH HARDENING COMMITTED + CI PASS; BOUNDED PREVIEW RESUMED; PRODUCTION UNCHANGED**
+**RP-03D — READ-ONLY PRODUCTION-SHAPED PREVIEW COMPLETE; LINE/REGISTRY DESIGN PASS; PRESS SCOPE CORRECTED; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1087,6 +1087,36 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Production impact: NONE — GitHub only; Version 145 and all production runtime/data state unchanged.
 - Rollback: revert commit `24b4e89a3d3866f8f95d28ec609a302ba908486e` on the working branch.
 - Exact next step: resume RP-03 bounded live reads and compute exact Line resolution and proposed registry evidence hashes. No writes.
+
+## RP-03D Read-only production-shaped preview — PASS / PRESS PLAN SCOPE PARTIAL
+- Action: completed bounded read-only production-shaped evaluation of the hardened remediation against the exact live workbook snapshot; computed deterministic registry evidence only in memory. No registry sheet was created and no source cell was changed.
+- Evidence — Order/Line:
+  - 241 data rows inspected in `بنود الأوردرات`;
+  - 229/229 legacy Date/numeric-formatted Line IDs recover through the known-column raw+display adapter;
+  - invalid Line IDs = 0; active duplicate Line IDs = 0; Order/Line mismatches = 0;
+  - open Lines = 102: 98 legacy-format + 4 current-format; statuses: `طلب جديد` 38, `جاهز للاستلام` 57, `تحت التنفيذ` 7.
+- Evidence — Attendance:
+  - 5 duplicate employee/day groups, 6 excess rows;
+  - exact evidence hashes: `5cfb0d17d26cedb5ed66b85619d2058e1823459fa0b54d5a7537dee4bc9d1050`, `b6e8539721dcb8fcba1d6f24f5f6736408e9022a18399156a5f80ebe2fb4409f`, `99c1c04cfb75a07b554e10d0d7cfce122773f4758846183558fa896719d560b6`, `57db9d60a97058dc08e2b0620c70cc74b7ec28967404ec3853c13f4c18ec6e10`, `03d7d68eeaa9006cdd364e9067f395eceb2c3814bcf53c9ea342c8f686120777`.
+- Evidence — Cleaning:
+  - 11 duplicate employee/day groups, 16 excess rows;
+  - exact evidence hashes: `480e8696d0415c096403eabd331f9884a37d6e44c769e1eeeec29760e984521f`, `bb343ec2c3f76a04525bc7117ba781e3feb78395e9db402c5aa1ea84ac01cd75`, `a208f9ea0d8b9f30d814c2ad9dbce5e25f53fc07726c7390a2eda24ea4f7521e`, `3829ef52492543895a46c1fe44aa1daa6afcc26ce75033ba337d2473c3708936`, `eb339aac6d2674ad8476f77cfaab426d3ecd3e08a01e8513af741c090791358c`, `e8edf15a6e3679237da130420fa7f4854a42810ec412fcd7ef790b9cd4856d14`, `f5667740201782248319f677814bd29941fda0d2caecf16ec9e360244d398266`, `a614b1ec7eabd5af24923c934f9b97be87196d12b271745bb886aca216f15bf4`, `6a6c19700c467ebb9beaa2c0371aaa8aaead7cb042bd3c9be4de2c013fd844fe`, `03e0f3b719f949ec168e78a4a23a53f5ce9e42b1087193270b6996bdc82f57c7`, `77d1107fe0ff056cf72804d56a207d701424a814b4d57fbdc4c0d45a4c0e1bbd`.
+- Evidence — Invoice:
+  - 3 duplicate Draft groups remain safely resolvable only through exact canonical/superseded mappings;
+  - Order `3569`: canonical `DR-19c18636`, superseded `DR-55d94661`, hash `06afbe9d9646aa151ce7f8c9bc6b1da57d4d0aafc5635784fed7c622de215023`;
+  - Order `3572`: canonical `DR-69e8cb63`, superseded `DR-fe3c766a`, hash `d496b057f5843f87b2c32cee86d53016e14a170706325820fdf0eb759d1c19d2`;
+  - Order `3577`: canonical `DR-3466cb0d`, superseded `DR-ceed6b65`, hash `d0913e2a85a73b2b391a2d2f04789f78d4b4b26412e9adeefe195c75297a3d77`;
+  - every row still has subtotal 0, status `يحتاج تسعير/اعتماد`, exact blocker `لا توجد بنود معتمدة بسعر بيع.`, and no invoice/WhatsApp/Meta completion evidence.
+- Evidence — Press:
+  - recovered source queue is 9 Lines, not the earlier visible 4: `3796-01`, `3803-01`, `3809-01`, `3813-01`, `3817-01`, `TM2606150097-01`, `TM2606150098-01`, `TM2606150105-01`, `TM2606160146-01`;
+  - `واجهة المكبس` has 0 data rows; `تشغيل - جلسات المكبس` has 1 data row;
+  - completed-without-Line-session evidence is 14, not 3: `3536-01`, `3585-02`, `3628-01`, `3669-01`, `3756-01`, `3758-01`, `3764-01`, `3770-01`, `3774-01`, `3779-01`, `3788-01`, `TM2606140061-01`, `TM2606160140-01`, `TM2606160181-01`;
+  - no `تشغيل - بنود جلسات المكبس V1` sheet exists, so historical session links must not be invented.
+- Status: **PASS for RP-03 read-only preview and Line/Attendance/Cleaning/Invoice evidence generation; PARTIAL for Press remediation plan scope because the exact live scope expanded from 4/3 to 9/14**.
+- Production impact: **READ-ONLY only** — bounded reads from `بنود الأوردرات!A1:CN242`, `سجل الدوام!A1:T200`, `تشغيل - النظافة اليومية!A1:V200`, `حسابات - مسودات الفواتير!A1:X200`, `واجهة المكبس!A1:R200`, and `تشغيل - جلسات المكبس!A1:AB200`; no Sheet/App Script/deployment/property/trigger/route/flag write.
+- Commit / CI: remediation source `24b4e89a3d3866f8f95d28ec609a302ba908486e`; CI `33491831765` SUCCESS; this ledger checkpoint follows.
+- Rollback: none required for read-only preview. Version 144 remains immediate deployment rollback; Version 145 runtime is unchanged.
+- Exact next step: create a canonical RP-03 evidence checkpoint and correct the remediation plan to the exact 9-queue/14-completed Press scope. Then checkpoint those docs in this ledger before synchronizing Handoff/Project Memory. Do not install remediation source, create the registry, deploy, write Sheets, or enable ORDER_LINE.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
