@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 06:50 Africa/Cairo**.
+> Last consolidated: **2026-09-01 10:40 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-10 — HEALTH APPROVED BUT BLOCKED BY MISSING LIVE ENTRYPOINT WIRING**
+**PD-10 — HEALTH FAMILY ACTIVATED AND VERIFIED; SIX CORE-P0 DATA SIGNALS OPEN; STOP BEFORE ORDER_LINE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -43,11 +43,11 @@ Do not move the frozen release branch silently.
 ## Production identity
 
 Active Apps Script Web App:
-- Version **144**, created Aug 31 2026 3:38 PM in the Apps Script UI.
+- Version **145**, created Sep 1 2026 7:12 AM in the Apps Script UI.
 - deployment ID `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg` preserved.
-- description `TrendOS Integrity V1 R3 - flags OFF - PD-09 2026-09-01`.
-- public base GET renders the expected **TrendOS V1932** legacy landing page.
-- rollback Version **143**, Aug 29 2026 11:37 PM.
+- description `TrendOS Integrity V1 Router Wiring - flags OFF - PD-10 2026-09-01` (description records deployment-time state; HEALTH was activated later through Script Properties).
+- public base GET with HEALTH ON still renders the expected **TrendOS V1932** legacy landing page.
+- immediate rollback Version **144**; deeper rollback Version **143**.
 - backend lineage `V1932_FULL_GO_LIVE_20260824`.
 - workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 
@@ -82,7 +82,7 @@ Fast Auth:
 
 ## Integrity V1 state
 
-Implemented + CI-tested; installed and runtime-verified in Apps Script Head; deployed in Web App Version 144 with every flag OFF and no family activated:
+Implemented + CI-tested; installed in Apps Script Head; deployed in Web App Version 145 with exact-verified guarded live entrypoint wiring. HEALTH is the only activated family and passed deployed route, dashboard write, and legacy regression:
 - shared integrity foundation.
 - Order/Line Integrity.
 - Attendance/Cleaning Integrity.
@@ -116,23 +116,13 @@ Frontend stable-send shim:
 
 ## Safety switches
 
-Master default OFF:
-- `TRENDOS_INTEGRITY_V1_ENABLED`
+Current production properties:
+- `TRENDOS_INTEGRITY_V1_ENABLED` = ON.
+- `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED` = ON.
+- ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, and AUTOMATION = OFF.
+- `TRENDOS_FAST_AUTH_V25_ENABLED` = OFF/absent.
 
-Family flags default OFF:
-- HEALTH
-- ORDER_LINE
-- ATTENDANCE_CLEANING
-- PRESS
-- INVOICE
-- WHATSAPP
-- OPS
-- AUTOMATION
-
-Fast Auth separate default OFF:
-- `TRENDOS_FAST_AUTH_V25_ENABLED`
-
-Installation and activation are separate operations.
+Installation and activation remain separate operations. HEALTH property rollback is master+HEALTH OFF; deployment rollback is Version 144, with Version 143 deeper rollback.
 
 ## Source capture completed
 
@@ -192,32 +182,47 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-10A — HEALTH route-wiring blocker; all flags remain OFF.**
+**PD-10T — HEALTH family checkpoint PASS; six derived CORE-P0 data signals open; STOP before ORDER_LINE.**
 
-Completed:
-- PD-09 full flags-OFF deployment smoke PASS on Version 144.
-- Version 144 filtered executions show Completed Web App `doGet/doPost`.
-- exactly one Head time-based `d1OrdersLiveSyncTick`.
-- no `trendosIntegrity*` business-family execution observed.
-- user explicitly approved HEALTH only.
-- read-only capture of current live `Code.gs`: 13,960 lines / 695,246 characters, one `doGet`, one `doPost`.
+Completed and verified:
+- current live `Code.gs` was copied from the live editor, minimally wired with two guarded Integrity route calls and one guarded webhook call, saved, reloaded, and exact-compared; it was never replaced from GitHub.
+- post-wiring Dependency Health PASS: codeReady=true, missing=[], 23 required functions.
+- production Web App updated on the same Deployment ID/URL to Version **145**.
+- full flags-OFF public/private smoke PASS before activation.
+- only master+HEALTH were enabled; every business family and Fast Auth remained OFF.
+- deployed `trendosIntegrityHealthV1` returned HTTP 200, success=true, codeReady=true, missing=[], master=true, HEALTH=true, and every other family false.
+- HEALTH Dashboard code/write smoke PASS: created/refreshed only `إدارة - صحة النظام`, 13 metrics + header (14x9).
+- final base landing regression PASS with HEALTH ON; Version 145 `doGet/doPost` completed.
+- Triggers still shows exactly one Head/time-based `d1OrdersLiveSyncTick`; no Integrity trigger was installed.
+- all temporary activation/smoke helpers were removed; `trendos-integrity-runtime-tools-v1.gs` is exactly Candidate R3 again.
 
-New blocking evidence:
-- live `Code.gs` contains zero calls to `trendosIntegrityTryRouteV1_`.
-- live `Code.gs` contains zero calls to `trendosIntegrityTryWebhookV1_`.
-- its entrypoints still dispatch V1932 -> V1900 -> V1898 -> legacy chain.
-- enabling master+HEALTH alone would not activate or prove the intended Web App Health route/dashboard.
+Current flags:
+- master ON.
+- HEALTH ON.
+- ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION OFF.
+- Fast Auth V2.5 OFF/absent.
 
-No flag or source change was made after discovering this conflict.
+Dashboard runtime signal:
+- `healthy=false`.
+- open derived CORE-P0 metric IDs:
+  1. `INVALID_LINE_IDS`
+  2. `DUPLICATE_ATTENDANCE_SESSIONS`
+  3. `DUPLICATE_CLEANING_RECORDS`
+  4. `DUPLICATE_INVOICE_DRAFTS`
+  5. `PRESS_SOURCE_VIEW_MISMATCH`
+  6. `PRESS_COMPLETED_WITHOUT_SESSION`
+
+Status interpretation:
+- HEALTH family code/deployment/runtime = **PASS**.
+- production data health = **FAIL signal / triage required**.
+- do not convert detection into random cleanup. Historical `مكرر` and valid audit rows remain protected.
 
 Exact next action:
-1. obtain explicit approval for a minimal guarded edit to the **current live** `Code.gs`; never replace it from repository source.
-2. wire generic Integrity route handling and WhatsApp handoff with master/family flags still OFF.
-3. save/parse and repeat dependency/composition checks.
-4. deploy Version 145 with all flags OFF and keep Version 144/143 rollback evidence.
-5. run flags-OFF legacy smoke.
-6. only then activate master+HEALTH and execute the HEALTH regression.
-7. on any failure, disable HEALTH/master and restore the latest verified deployment as appropriate.
+1. perform read-only, evidence-backed triage of the six dashboard metrics and capture offending IDs/details.
+2. classify each result as active-current defect, historical/expected record, schema/source-view mismatch, or false-positive detector logic.
+3. update the Execution Ledger before any remediation.
+4. do not activate ORDER_LINE or any later family without a separate explicit checkpoint/approval after triage.
+5. no random duplicate deletion and no Order ID/Line ID contract change.
 
 ## Persistent execution behavior
 
