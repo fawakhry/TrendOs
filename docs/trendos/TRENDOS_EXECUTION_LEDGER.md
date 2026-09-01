@@ -1786,3 +1786,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `cb09345273dfcf483ca0b5ed1c17f61b15cfde7b`; dedicated remote CI gate pending workflow wiring.
 - **Rollback:** Revert the test commit and writer source commit. No production rollback is applicable.
 - **Exact next step:** Add the new source/test paths and dedicated Node test step to `.github/workflows/trendos-integrity-v1.yml`, then update this ledger before CI verification.
+
+
+## RP-06-WRITER-C — DEDICATED CI GATE WIRED
+
+- **Action:** Updated `.github/workflows/trendos-integrity-v1.yml` so both the writer source and test trigger pull-request CI, and every branch run executes `node tests/trendos_core_p0_registry_writer_v1.test.js .` as a dedicated gate.
+- **Evidence:** Workflow commit `dd694bc772f35ecc4bafa3d96cc53e8a8460d9b5`; workflow blob `a20bf99b973f466c4863601cb3cc8dd7361a917d`.
+- **Status:** PARTIAL — CI gate is wired; the final documented head run must finish successfully.
+- **Production impact:** NONE. GitHub Actions configuration only.
+- **Commit / CI:** `dd694bc772f35ecc4bafa3d96cc53e8a8460d9b5`; remote run pending.
+- **Rollback:** Revert the workflow, test, and writer commits. Production remains Version 146 and is unaffected.
+- **Exact next step:** Verify the GitHub Actions run for the latest ledger-documented head and inspect the writer job result. Record PASS/FAIL before any Apps Script installation or registry approval request.
