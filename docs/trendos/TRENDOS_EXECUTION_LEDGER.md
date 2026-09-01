@@ -1742,3 +1742,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Source `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; tests `d3b74288a76d3e0def40324cbfc205c7de83d9a8`; documented head `0cb69ecaf3dcdce5ee8c062545b68f0e7b4af80c`; CI run `33552134647` SUCCESS.
 - **Rollback:** Revert source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` and test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8`. Production rollback is unnecessary because this checkpoint is GitHub-only.
 - **Exact next step:** Update canonical handoff and project memory with the GitHub-only contract closure, then design and test a separate one-time ScriptLock-protected registry writer with exact header validation, live evidence-hash recheck, append-only writes, and no production installation or registry mutation until a new explicit checkpoint.
+
+
+## RP-06-PRECHECK-E — HANDOFF SYNCHRONIZED AFTER CONTRACT FIX
+
+- **Action:** Updated `TRENDOS_HANDOFF.md` to preserve Version 146 production state and record the GitHub-only registry rollback-contract fix, its tests, CI evidence, non-production status, and exact next writer-design checkpoint.
+- **Evidence:** Handoff commit `2f2693c841093ad5d7b8e450ed1d31a3ad5c05a2`; new handoff blob `067261abe6b9de6749a833edb61d0b55d0214721`.
+- **Status:** PASS.
+- **Production impact:** NONE. Documentation-only; Version 146 and all current flags/data remain unchanged.
+- **Commit / CI:** `2f2693c841093ad5d7b8e450ed1d31a3ad5c05a2`; underlying source/test CI run `33552134647` SUCCESS.
+- **Rollback:** Revert the documentation commit; no production rollback is applicable.
+- **Exact next step:** Synchronize `TRENDOS_PROJECT_MEMORY.md` with the same GitHub-only checkpoint, then update this ledger before starting writer design.
