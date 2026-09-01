@@ -606,6 +606,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: Version 143 remains available on the same deployment ID; restore it immediately if the remaining private-console reconciliation exposes a Version 144 failure.
 - Exact next step: restore authenticated access to the bound Apps Script project, verify a Completed Version 144 `doGet`, confirm exactly one `d1OrdersLiveSyncTick`, and confirm no Integrity business-family execution. Record PASS/FAIL before requesting or performing PD-10 HEALTH activation; do not activate any flag yet.
 
+### PD-09 memory synchronization — PASS
+- Action: updated `TRENDOS_HANDOFF.md` to make Version 144, the public smoke result, Version 143 rollback, the expired private Google session, and the exact remaining read-only checks the canonical resume point.
+- Evidence: handoff commit `7c0d9cab0a86bc7fc25d172bbd692701fd325306` on `agent/go-live-2026-09-01-integrity`.
+- Status: **PASS — project memory now resumes from the real post-deploy checkpoint rather than the superseded approval checkpoint**.
+- Production impact: NONE — documentation only.
+- Commit / CI: handoff commit above; deployment candidate and CI unchanged.
+- Rollback: revert only the documentation commit if its recorded facts are disproved by later evidence.
+- Exact next step: obtain fresh authenticated editor access and complete the private Version 144 execution/trigger reconciliation; all flags remain OFF.
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
