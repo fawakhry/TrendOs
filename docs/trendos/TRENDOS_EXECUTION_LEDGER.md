@@ -1439,6 +1439,21 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: synchronize `docs/trendos/TRENDOS_PROJECT_MEMORY.md` to the same PD-08-R4 checkpoint, then update this ledger again before requesting explicit PD-09-R4 deployment approval.
 
 
+
+## PD-08-R4-MEMORY — ALL CANONICAL MEMORY SYNCHRONIZED; VERSION 146 / R4 DEPLOY PENDING EXPLICIT APPROVAL
+
+- Action: synchronized `docs/trendos/TRENDOS_PROJECT_MEMORY.md` to the verified PD-08-R4 checkpoint and closed the documentation handoff before the consequential deployment gate.
+- Evidence:
+  - Project Memory now records frozen R4 installed and verified in Apps Script Head only, 24 Head files, PD-06/PD-07/PD-08 PASS, Version 145 still serving, and the exact Version 146 deployment constraints.
+  - Handoff commit `dca2b59cc1752921110726281c6b655440afcf54`; Project Memory commit `32132ca03165f9bd5216fc8e167e6d83296f5b0b`.
+  - Project Memory content blob `845976b9edb6e7add70aff2f97d9acdd4e9cfa61`.
+- Status: **PASS — canonical Handoff, Project Memory, and Execution Ledger agree on the current stopping point**.
+- Production impact: NONE — GitHub documentation only. Production Web App remains Version 145; master+HEALTH ON only; every business family and Fast Auth OFF/absent; no registry, Sheet, property, route, trigger, deployment, or `Code.gs` change.
+- Commit / CI: working-branch documentation commits above; frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS.
+- Rollback: documentation commits can be reverted independently; no production rollback is required because Version 146 was not created.
+- Exact next step: obtain explicit PD-09-R4 approval. After approval only, deploy the current verified Head as Version 146 on the existing deployment ID with properties unchanged (master+HEALTH ON only; all business families/Fast Auth OFF), no registry write, no ORDER_LINE activation, and Version 145 as immediate rollback.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
