@@ -5,7 +5,7 @@
 > Working branch: `agent/go-live-2026-09-01-integrity`  
 > Current approved deployed source candidate: `release/integrity-v1-predeploy-2026-08-31-r3` at `ee03adab4c733aec909511b23dd80f42ad3b927e`  
 > Current production: Apps Script Version **145**, master+HEALTH ON only.  
-> Status: **PLAN READY — NO PRODUCTION REMEDIATION AUTHORIZED OR APPLIED**.
+> Status: **RP-01/RP-02/RP-03 PASS; PRESS SCOPE CORRECTED; NO PRODUCTION REMEDIATION AUTHORIZED OR APPLIED**.
 
 ## 1. Objective
 
@@ -33,8 +33,8 @@ The first activation target remains ORDER_LINE, but it stays OFF until every gat
 | `DUPLICATE_ATTENDANCE_SESSIONS` | 6 excess rows across 5 past employee/day keys; blank end times and some conflicting states | Legacy operational defect | Preserve rows; deterministic canonical mapping + historical resolution record |
 | `DUPLICATE_CLEANING_RECORDS` | 16 excess completed/no-problem rows across 11 past employee/day keys | Historical baseline | Exact acknowledgement only; future duplicates remain P0 |
 | `DUPLICATE_INVOICE_DRAFTS` | Two active unpriced/unsent Draft rows each for Orders 3569, 3572, 3577 | Active legacy defect | Exact canonical Draft mapping; old row preserved as superseded |
-| `PRESS_SOURCE_VIEW_MISMATCH` | Four current source Lines; `واجهة المكبس` has headers only; Candidate R3 has no `trendosPressViewQueueV1_` provider | Contract/view ambiguity | Diagnose live consumer; never fake equality |
-| `PRESS_COMPLETED_WITHOUT_SESSION` | Three delivered Lines predate the new Line-session ledger, and the ledger sheet does not exist | Historical/schema debt | Exact baseline acknowledgement; no invented session link |
+| `PRESS_SOURCE_VIEW_MISMATCH` | Nine current source Lines after legacy display-value recovery; `واجهة المكبس` has headers only; Candidate R3 has no `trendosPressViewQueueV1_` provider | Contract/view ambiguity | Diagnose live consumer; never fake equality |
+| `PRESS_COMPLETED_WITHOUT_SESSION` | Fourteen delivered Lines lack Line-session evidence after legacy display-value recovery; the Line-session ledger sheet does not exist | Historical/schema debt | Exact evidence-hash baseline only after consumer diagnosis; no invented session link |
 
 ## 4. Proposed remediation architecture
 
@@ -153,7 +153,12 @@ No Draft row is deleted and no amount/status/invoice number is invented.
 Before changing the metric:
 
 1. inspect the live `Code.gs` and frontend consumer read-only to determine whether `واجهة المكبس` is still an authoritative production view.
-2. If it is authoritative, implement a locked/idempotent view refresh and verify these four exact current source Lines appear:
+2. If it is authoritative, implement a locked/idempotent view refresh and verify these nine exact current source Lines appear:
+   - `3796-01`
+   - `3803-01`
+   - `3809-01`
+   - `3813-01`
+   - `3817-01`
    - `TM2606150097-01`
    - `TM2606150098-01`
    - `TM2606150105-01`
@@ -163,8 +168,19 @@ Before changing the metric:
 
 ### 4.7 Press historical session baseline
 
-Acknowledge only these exact delivered pre-Integrity Lines:
+Acknowledge only these exact completed Lines, and only when their evidence hashes still match the RP-03 checkpoint:
 
+- `3536-01`
+- `3585-02`
+- `3628-01`
+- `3669-01`
+- `3756-01`
+- `3758-01`
+- `3764-01`
+- `3770-01`
+- `3774-01`
+- `3779-01`
+- `3788-01`
 - `TM2606140061-01`
 - `TM2606160140-01`
 - `TM2606160181-01`
@@ -185,7 +201,7 @@ Implement on the working branch only:
 - fail-closed dependency checks.
 
 Expected: source + tests only.  
-Actual: PENDING.  
+Actual: **PASS** — implementation commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1`; cross-timezone evidence hardening commit `24b4e89a3d3866f8f95d28ec609a302ba908486e`.  
 Gate: no Apps Script/Sheet/flag/deploy impact.
 
 ### RP-02 — CI and synthetic regression
@@ -203,7 +219,7 @@ Required tests:
 - view unavailable cannot silently become PASS.
 
 Expected: all tests PASS.  
-Actual: PENDING.  
+Actual: **PASS** — nine local safety/composition/package suites PASS; GitHub Actions `33491831765` SUCCESS.  
 Rollback: revert GitHub-only remediation commits.
 
 ### RP-03 — Read-only production preview
@@ -221,8 +237,22 @@ Expected:
 - Line adapter resolves all 98 open legacy rows uniquely;
 - no new blocker appears.
 
-Actual: PENDING.  
+Actual: **PASS for Line/Attendance/Cleaning/Invoice and evidence acquisition; PARTIAL/CORRECTED for the earlier Press scope.** The adapter recovered 229/229 legacy IDs, all 98 legacy open Lines resolve uniquely, invalid/active-duplicate/mismatch counts are zero, and Press scope is now 9 queue Lines plus 14 completed-without-Line-session records. Exact mappings and hashes: `docs/trendos/checkpoints/RP03_CORE_P0_PREVIEW_2026-09-01.md`.  
 Failure action: stop; do not write registry.
+
+### RP-03E — Press consumer contract diagnosis
+
+Inspect the live `Code.gs` and frontend consumers read-only to establish whether `واجهة المكبس` is authoritative, obsolete, or fed by an unavailable provider.
+
+Expected:
+
+- exact consumer/provider call chain identified;
+- no invented view/provider;
+- one evidence-backed choice: locked/idempotent view repair or explicit legacy-view WARN;
+- no Apps Script Head, Sheet, property, trigger, deployment, route, or flag write.
+
+Actual: PENDING.  
+Failure action: keep Press and every later business family OFF; do not create Press baseline registry entries.
 
 ### RP-04 — Head composition with flags unchanged
 
@@ -313,6 +343,6 @@ Explicit approval remains required for:
 
 ## 7. Current exact stopping point
 
-**PLAN READY; NO REMEDIATION IMPLEMENTED; VERSION 145 + HEALTH ONLY REMAINS LIVE; STOP BEFORE ORDER_LINE.**
+**RP-01/RP-02/RP-03 COMPLETE; PRESS SCOPE CORRECTED TO 9 QUEUE / 14 COMPLETED-WITHOUT-LINE-SESSION; VERSION 145 + HEALTH ONLY REMAINS LIVE; STOP BEFORE REMEDIATION HEAD INSTALL, REGISTRY, DEPLOY, OR ORDER_LINE.**
 
-Exact next technical action: implement RP-01 on the working branch only, add tests, run CI, and record the result before any Apps Script or Sheet change.
+Exact next technical action: execute RP-03E read-only diagnosis of the live Press consumer/provider contract. Then checkpoint the result before any Apps Script or Sheet change.
