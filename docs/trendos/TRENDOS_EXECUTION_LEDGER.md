@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:15 Africa/Cairo**.
+> Updated: **2026-09-01 10:17 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE + COMPLETE FLAGS-OFF SMOKE PASS; HEALTH-ONLY ACTIVATION APPROVED AND NEXT**.
+- Integrity V1 state: **VERSION 145 FLAGS-OFF SMOKE PASS; HEALTH ACTIVATION APPROVED; SCRIPT-PROPERTIES UI >50 READ-ONLY BOUNDARY REQUIRES BOUNDED PROGRAMMATIC SETTER**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10G — VERSION 145 COMPLETE FLAGS-OFF SMOKE PASS; HEALTH-ONLY ACTIVATION NEXT**
+**PD-10H — HEALTH ACTIVATION APPROVED; BOUNDED PROGRAMMATIC PROPERTY SETTER REQUIRED**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -751,6 +751,19 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live production evidence recorded on the working branch; Candidate R3 and CI unchanged.
 - Rollback: Version 144 remains the immediate deployment rollback but is not required; Version 143 remains deeper rollback.
 - Exact next step: inspect the HEALTH route/dashboard runtime contract, then enable only `TRENDOS_INTEGRITY_V1_ENABLED=1` and `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=1`, leaving all other family flags and Fast Auth OFF. Run the deployed HEALTH regression immediately; on any FAIL set HEALTH and master OFF and verify legacy fallback. Do not activate ORDER_LINE or any later family.
+
+## PD-10H Script Properties UI boundary — PARTIAL / SAFE PROGRAMMATIC PATH REQUIRED
+- Action: opened Project Settings to inspect current Script Properties before enabling HEALTH, without editing any property.
+- Evidence:
+  - Apps Script states: `Your script has more than 50 properties. The above list shows the first 50 and is read-only. To manage or view all of your properties, do so programmatically using the Properties service.`;
+  - no Edit/Add/Save property control is available;
+  - the existing Head Dependency Health immediately before this check still proved master=false, every family=false, and Fast Auth absent/OFF;
+  - source inspection found no existing generic public property-management function suitable for these gates.
+- Status: **PARTIAL — HEALTH activation is authorized but the normal UI path is unavailable; no flag has changed**.
+- Production impact: read-only Project Settings inspection only; Version 145 remains live with complete flags-OFF smoke PASS.
+- Commit / CI: live UI boundary recorded on the working branch; no source/CI/deployment change.
+- Rollback: none required because no property changed.
+- Exact next step: temporarily append one narrowly scoped public helper to `trendos-integrity-runtime-tools-v1.gs` in Head that sets only `TRENDOS_INTEGRITY_V1_ENABLED=1` and `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=1`, rejects/keeps every other family and Fast Auth OFF, logs only relevant boolean state, run once, verify, then restore the runtime-tools file exactly to Candidate R3 before calling the Version 145 HEALTH route. On any setter/verification failure, set master and HEALTH OFF using the same bounded mechanism and restore the helper file.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
