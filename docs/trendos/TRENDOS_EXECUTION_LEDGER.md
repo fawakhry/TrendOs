@@ -1520,6 +1520,22 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: inspect Apps Script Executions for completed Version 146 `doGet/doPost` traffic and inspect Triggers for exactly one Head/time-based `d1OrdersLiveSyncTick`; do not change either page.
 
 
+
+## PD-09-R4-B4 — VERSION 146 EXECUTION RECONCILIATION PASS
+
+- Action: inspected the Apps Script Executions table after Version 146 deployment without filtering, terminating, or modifying any execution.
+- Evidence:
+  - visible Version 146 Web App `doGet` and `doPost` rows include repeated **Completed** results.
+  - the Head `trendosIntegrityDependencyHealthV1` editor run at Sep 1, 2026 7:42:27 PM completed in 2.126 s.
+  - Head `d1OrdersLiveSyncTick` time-driven rows at 7:39:38, 7:40:38, 7:41:38, and 7:42:38 PM all show **Completed**.
+  - several current Version 146 web requests are also **Running** while live traffic continues; no Failed Version 146 row is visible in the inspected first 50 executions.
+- Status: **PASS — Version 146 is serving live `doGet/doPost` traffic with completed executions and no visible failure in the inspected page**.
+- Production impact: READ-ONLY execution-history inspection; no execution was terminated and no property, registry, Sheet, trigger, route, source, Feature Flag, Fast Auth, deployment, or `Code.gs` change occurred.
+- Commit / CI: post-deploy dependency-health record `3c08b86f0282fb67b96a4dee096d03f6c0ea7f02`; frozen R4 CI SUCCESS.
+- Rollback: not required. Version 145 remains immediate rollback; Running rows remain a performance observation, not failure evidence.
+- Exact next step: inspect Triggers and verify exactly one Head/time-based `d1OrdersLiveSyncTick` trigger remains; do not add, edit, or delete triggers.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
