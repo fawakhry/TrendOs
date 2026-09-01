@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:13 Africa/Cairo**.
+> Updated: **2026-09-01 10:15 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE + PUBLIC FLAGS-OFF LEGACY SMOKE PASS; PRIVATE EXECUTION/TRIGGER RECONCILIATION NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE + COMPLETE FLAGS-OFF SMOKE PASS; HEALTH-ONLY ACTIVATION APPROVED AND NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10F — VERSION 145 PUBLIC FLAGS-OFF SMOKE PASS; PRIVATE RECONCILIATION NEXT**
+**PD-10G — VERSION 145 COMPLETE FLAGS-OFF SMOKE PASS; HEALTH-ONLY ACTIVATION NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -736,6 +736,21 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live production smoke evidence; Candidate R3 and CI unchanged; ledger checkpoint only.
 - Rollback: Version 144 remains ready but is not required by the public response; Version 143 is the deeper rollback.
 - Exact next step: inspect Apps Script Executions for completed Version 145 `doGet`/legitimate `doPost`, confirm no Integrity family execution while flags are OFF, and verify Triggers still shows exactly one Head/time-based `d1OrdersLiveSyncTick`. Record PASS/FAIL before any property change.
+
+## PD-10G Version 145 private flags-OFF reconciliation — PASS
+- Action: inspected authenticated Apps Script Executions immediately after the Version 145 public smoke, then inspected the complete installed-trigger inventory.
+- Evidence:
+  - Version 145 Web App `doGet` at Sep 1 2026 7:13:40 AM completed in 1.798 s;
+  - multiple legitimate Version 145 Web App `doPost` rows at 7:13:46-49 AM completed;
+  - no Version 145 Integrity business-family function appears in the execution view while flags are OFF;
+  - Head `trendosIntegrityDependencyHealthV1` is the only explicit Integrity diagnostic and completed before deployment;
+  - Triggers reports `Showing 1 trigger`;
+  - the only trigger is Head / Time-based / `d1OrdersLiveSyncTick`, last run Sep 1 2026 7:13:38 AM, with the existing observed error rate 0.06%.
+- Status: **PASS — complete Version 145 flags-OFF deployment smoke is closed**.
+- Production impact: read-only production/private-console verification. Version 145 remains live; no property, trigger, source, deployment, or business state changed after deployment.
+- Commit / CI: live production evidence recorded on the working branch; Candidate R3 and CI unchanged.
+- Rollback: Version 144 remains the immediate deployment rollback but is not required; Version 143 remains deeper rollback.
+- Exact next step: inspect the HEALTH route/dashboard runtime contract, then enable only `TRENDOS_INTEGRITY_V1_ENABLED=1` and `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=1`, leaving all other family flags and Fast Auth OFF. Run the deployed HEALTH regression immediately; on any FAIL set HEALTH and master OFF and verify legacy fallback. Do not activate ORDER_LINE or any later family.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
