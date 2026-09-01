@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:38 Africa/Cairo**.
+> Updated: **2026-09-01 18:43 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -29,7 +29,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Deployed/approved R3 SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI `33384689012` = **SUCCESS**.
 - Frozen remediation successor candidate: `release/integrity-v1-remediation-predeploy-2026-09-01-r4`.
 - Frozen R4 SHA: `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` = **SUCCESS**.
-- R4 controlled Head composition is in progress: the remediation helper plus Order/Line, Press, Invoice, and Dashboard modules are installed/reload-verified in Head; Router replacement remains pending. R4 is not deployed or activated, and R3 remains the source of live Version 145.
+- R4 controlled Head composition is complete: the remediation helper plus Order/Line, Press, Invoice, Dashboard, and Router modules are installed/reload-verified in Head. R4 is not deployed or activated, and R3 remains the source of live Version 145.
 - Production Apps Script Web App: Version **145**, deployed Sep 1 2026 7:12 AM in the Apps Script UI.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-04H — R4 HELPER + ORDER/LINE + PRESS + INVOICE + DASHBOARD INSTALLED AND RELOAD-VERIFIED; ROUTER NEXT; PRODUCTION VERSION 145 UNCHANGED**
+**RP-04I — FROZEN R4 CONTROLLED HEAD COMPOSITION COMPLETE AND RELOAD-VERIFIED; PD-06 COMPOSITION CHECK NEXT; PRODUCTION VERSION 145 UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1361,6 +1361,21 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Dashboard blob above.
 - Rollback: recreate only this Head file from its Candidate R3 source if a later composition/dependency check fails; Version 145 remains unchanged.
 - Exact next step: replace `trendos-integrity-router-v1.gs` by the same safe delete-and-recreate method using frozen R4 blob `3d747b99bb06e4865b9936de2a2d42104b3deccc`, Save/reload/verify, then checkpoint the completed RP-04 composition. Do not Run, Deploy, create/write the registry, or change flags.
+
+## RP-04I Router R4 replacement and controlled Head composition closure — PASS
+- Action: removed only the R3 Head `trendos-integrity-router-v1.gs`, recreated the same filename with the exact frozen R4 source, saved, reloaded, and verified it; this completes the exact R4 helper + five-module composition scope.
+- Evidence:
+  - exact R4 Router blob `3d747b99bb06e4865b9936de2a2d42104b3deccc` was locally verified before insertion;
+  - pre-reload editor reached expected line 75 plus terminal blank line 76;
+  - Save control became disabled after save;
+  - after reload the file persisted without an `unsaved` marker, the exact Router R4 header/flags/dependency list reopened, Apps Script showed `Saved to Drive` / `cloud_done`, and no parser/composition error appeared;
+  - current R4 Head scope now consists exactly of helper `e5581829...`, Order/Line `e93155c0...`, Press `99857aac...`, Invoice `08128d35...`, Dashboard `9ce3a4c3...`, and Router `3d747b99...`;
+  - Attendance/Cleaning, WhatsApp, Handover/OPS, ANDON, runtime-tools, foundation, legacy modules, and `Code.gs` were not modified.
+- Status: **PASS — controlled R4 Head composition complete and individually reload-verified**.
+- Production impact: NONE — Head only; no Run yet, no Deploy, property, trigger, route, registry, Sheet write, flag change, or `Code.gs` edit. Version 145 remains live with master+HEALTH ON only.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Router blob above.
+- Rollback: recreate only the six R4-scoped Head files from Candidate R3 where they previously existed, or remove the new helper; Version 145 is unchanged and remains the serving rollback boundary.
+- Exact next step: execute PD-06 full project save/reload/composition verification, record PASS/FAIL, then run public `trendosIntegrityDependencyHealthV1` for PD-07. Expected current feature state is master=true, HEALTH=true, all business families=false, Fast Auth OFF. Do not Deploy, create/write the registry, enable ORDER_LINE, or modify Sheets.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
