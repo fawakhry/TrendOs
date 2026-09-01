@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:20 Africa/Cairo**.
+> Updated: **2026-09-01 10:21 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 FLAGS-OFF SMOKE PASS; EXACT-VERIFIED TEMPORARY HEALTH PROPERTY SETTER READY IN HEAD; NO FLAG CHANGED YET**.
+- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON; ALL OTHER FAMILIES/FAST AUTH OFF; ROUTER/DEPLOYED HEALTH REGRESSION PENDING**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10I — TEMPORARY HEALTH-ONLY SETTER READY IN HEAD; RUN ONCE NEXT**
+**PD-10J — MASTER+HEALTH FLAGS ON ONLY; VERIFY ROUTER STATE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -779,6 +779,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: controlled temporary Head utility; Candidate R3 remains unchanged; ledger checkpoint only.
 - Rollback: restore runtime-tools exactly to its 1,244-character Candidate R3 source. If ON succeeds but later HEALTH validation fails, re-use the verified OFF helper before restoration.
 - Exact next step: run `trendosIntegritySetHealthFlagsOnOnceV1` once from the editor; require `master=true`, `health=true`, and `otherEnabled=[]`. Record immediately before any deployed route call.
+
+## PD-10J HEALTH-only Script Property activation — PASS / ROUTE REGRESSION PENDING
+- Action: ran the bounded public Head helper `trendosIntegritySetHealthFlagsOnOnceV1` exactly once.
+- Evidence: execution log at 7:19:48 AM returned `{"master":true,"health":true,"otherEnabled":[]}` and `Execution completed`; the helper's precondition would have failed before mutation if any ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION, or Fast Auth flag parsed ON.
+- Status: **PASS for property activation — only master and HEALTH are ON; deployed HEALTH behavior is not yet verified**.
+- Production impact: **YES — Script Properties are shared with Version 145, so the guarded HEALTH routes are now eligible.** No business-family route, trigger, source deployment, or business data was invoked/changed in this step.
+- Commit / CI: live property evidence; Candidate R3 and CI unchanged; ledger checkpoint only.
+- Rollback: temporary OFF helper is still exact-verified in Head and will delete only master and HEALTH if the router or deployed regression fails; Version 144 remains deployment rollback.
+- Exact next step: run Head `trendosIntegrityDependencyHealthV1` and require `codeReady=true`, `missing=[]`, `master=true`, HEALTH=true, every other family=false, and Fast Auth OFF. Record before restoring the temporary helper or calling production.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
