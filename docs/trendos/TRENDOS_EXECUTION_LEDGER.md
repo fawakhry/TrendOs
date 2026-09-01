@@ -659,6 +659,22 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: revert documentation only if later live evidence disproves the recorded source capture.
 - Exact next step: request explicit approval for the bounded current-live-`Code.gs` guarded wiring change; keep Version 144 and every flag unchanged until then.
 
+## PD-10B Cloudflare/D1 write-authority reconciliation — PASS
+- Action: reviewed the current `main` Cloudflare Worker configuration and runtime entrypoint source to determine whether the Cloudflare platform has replaced Apps Script/Sheets for production writes.
+- Evidence:
+  - `cloudflare-d1/wrangler.toml` deploys Worker `trendos-d1-api` from `cloudflare-d1/src/index_v2.js` with D1 binding `DB`;
+  - `index_v2.js` adds mirror/import routes and delegates to `index.js`;
+  - current public/business routes in `index.js` are GET/read routes for health, orders, customer, messages, and inbox;
+  - the only POST routes are protected migration/mirror imports: `/v1/import/batch` and `/v1/import/sheet`;
+  - no Cloudflare route exists for user/business `createOrder`, order/line mutation, attendance, cleaning, press, invoice, WhatsApp send/webhook, or OPS writes;
+  - `D1_Orders_Live_Sync.gs` explicitly states: “Google Sheets remains the write source during read-first cutover” and mirrors Orders/Lines to D1 every minute;
+  - current Worker source contains no direct production-order UPDATE/DELETE route; INSERT/UPSERT into D1 occurs through protected import/mirror flows from Sheets.
+- Status: **PASS — Cloudflare/D1 is currently a read-first mirror/import layer, not the authoritative production write backend. Apps Script + Google Sheets are still required for live business writes.**
+- Production impact: READ-ONLY GitHub/source review; no Cloudflare, Apps Script, Sheet, D1, flag, or deployment change.
+- Commit / CI: architecture evidence recorded on the working branch; no code or CI change.
+- Rollback: none required.
+- Exact next step: retain the current hybrid architecture during the controlled migration. Resolve PD-10A with a minimal guarded edit to current live `Code.gs` only after explicit approval, then continue HEALTH; plan any future full Cloudflare write cutover as a separate gated migration with Worker write APIs, auth, idempotency, parity, fallback, and rollback.
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
