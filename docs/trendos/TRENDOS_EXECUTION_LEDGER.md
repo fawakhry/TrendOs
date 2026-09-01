@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:21 Africa/Cairo**.
+> Updated: **2026-09-01 10:22 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON; ALL OTHER FAMILIES/FAST AUTH OFF; ROUTER/DEPLOYED HEALTH REGRESSION PENDING**.
+- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON; ROUTER DEPENDENCY STATE PASS; ALL OTHER FAMILIES/FAST AUTH OFF; TEMP HELPER RESTORE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10J — MASTER+HEALTH FLAGS ON ONLY; VERIFY ROUTER STATE NEXT**
+**PD-10K — HEALTH-ONLY ROUTER STATE PASS; RESTORE TEMP HELPER NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -788,6 +788,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live property evidence; Candidate R3 and CI unchanged; ledger checkpoint only.
 - Rollback: temporary OFF helper is still exact-verified in Head and will delete only master and HEALTH if the router or deployed regression fails; Version 144 remains deployment rollback.
 - Exact next step: run Head `trendosIntegrityDependencyHealthV1` and require `codeReady=true`, `missing=[]`, `master=true`, HEALTH=true, every other family=false, and Fast Auth OFF. Record before restoring the temporary helper or calling production.
+
+## PD-10K HEALTH-only router/dependency verification — PASS
+- Action: ran public Head `trendosIntegrityDependencyHealthV1` immediately after the two property changes.
+- Evidence: execution log at 7:20:38 AM returned `success=true`, `codeReady=true`, `requiredCount=23`, `missing=[]`, master=true, HEALTH=true, every other family=false, router version `TRENDOS_INTEGRITY_ROUTER_V1_20260830`, and `optional.fastAuthV25Present=false`; execution completed.
+- Status: **PASS — the canonical router reads exactly the approved HEALTH-only flag state and every dependency is ready**.
+- Production impact: read-only Head diagnostic while Version 145 has HEALTH eligible. No business-family operation, dashboard write, trigger, deployment, or source version change.
+- Commit / CI: live runtime evidence; Candidate R3 and CI unchanged; ledger checkpoint only.
+- Rollback: the temporary OFF helper remains in Head until the next exact restoration step; if subsequent restoration or deployed HEALTH test fails, re-add/use it to remove only master and HEALTH.
+- Exact next step: restore `trendos-integrity-runtime-tools-v1.gs` exactly to Candidate R3 (1,244 characters), save/reload/exact-verify, and record before calling the deployed HEALTH route.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
