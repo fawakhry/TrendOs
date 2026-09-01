@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:30 Africa/Cairo**.
+> Updated: **2026-09-01 12:33 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03D — READ-ONLY PRODUCTION-SHAPED PREVIEW COMPLETE; LINE/REGISTRY DESIGN PASS; PRESS SCOPE CORRECTED; PRODUCTION UNCHANGED**
+**RP-03D2 — RP-03 EVIDENCE + REMEDIATION PLAN SYNCHRONIZED; NEXT IS READ-ONLY PRESS CONSUMER DIAGNOSIS; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1117,6 +1117,19 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: remediation source `24b4e89a3d3866f8f95d28ec609a302ba908486e`; CI `33491831765` SUCCESS; this ledger checkpoint follows.
 - Rollback: none required for read-only preview. Version 144 remains immediate deployment rollback; Version 145 runtime is unchanged.
 - Exact next step: create a canonical RP-03 evidence checkpoint and correct the remediation plan to the exact 9-queue/14-completed Press scope. Then checkpoint those docs in this ledger before synchronizing Handoff/Project Memory. Do not install remediation source, create the registry, deploy, write Sheets, or enable ORDER_LINE.
+
+## RP-03D2 Preview evidence and plan correction — PASS
+- Action: preserved the full RP-03 live preview as a canonical checkpoint and corrected the remediation plan from the earlier four-queue/three-completed Press scope to the exact nine-queue/fourteen-completed scope.
+- Evidence:
+  - checkpoint file: `docs/trendos/checkpoints/RP03_CORE_P0_PREVIEW_2026-09-01.md`;
+  - checkpoint commit: `ab56421cd96fda69cb4e6783684cbd7f53b21e4e`;
+  - corrected plan commit: `c5fd7c49fc678af85a04e421099b17e6df1dc3fa`;
+  - plan now records RP-01/RP-02/RP-03 Actual results and adds RP-03E as the live Press consumer/provider diagnosis gate.
+- Status: **PASS — exact preview hashes/mappings are durable and the plan no longer relies on stale Press counts**.
+- Production impact: NONE — GitHub documentation only; the underlying evidence acquisition was read-only. Version 145, master+HEALTH ON only, and all business-family/Fast Auth flags remain unchanged.
+- Commit / CI: commits above; source `24b4e89a3d3866f8f95d28ec609a302ba908486e`; CI `33491831765` SUCCESS.
+- Rollback: documentation-only revert if later verified live consumer evidence disproves the classification; no production rollback required.
+- Exact next step: synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md` to this checkpoint, record that synchronization here, then execute RP-03E read-only diagnosis. Do not touch Apps Script Head, Sheets, deployment, properties, triggers, routes, registry, or flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
