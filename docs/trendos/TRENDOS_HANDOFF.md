@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 10:40 Africa/Cairo**.
+> Last consolidated: **2026-09-01 11:41 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-10 — HEALTH FAMILY ACTIVATED AND VERIFIED; SIX CORE-P0 DATA SIGNALS OPEN; STOP BEFORE ORDER_LINE**
+**PD-10 — HEALTH PASS; SIX CORE-P0 SIGNALS TRIAGED READ-ONLY; REMEDIATION/BASELINE DECISION REQUIRED; STOP BEFORE ORDER_LINE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -156,10 +156,10 @@ Verified after repair:
 - Fast Auth V2.5 absent.
 - PD-08 legacy no-change smoke PASS.
 - Triggers page shows exactly one `d1OrdersLiveSyncTick` time-based Head trigger.
-- Version 144 is the production Web App; Version 143 remains the immediate rollback.
+- Version 145 is the production Web App; Version 144 is immediate rollback and Version 143 is deeper rollback.
 - PD-09 deployment PASS and public flags-OFF legacy smoke PASS.
-- PD-09 private reconciliation PASS: Version 144 `doGet/doPost` completed, no Integrity business function observed, and exactly one `d1OrdersLiveSyncTick` trigger.
-- HEALTH activation has separate user approval but has not been executed.
+- PD-09 private reconciliation PASS: Version 144 `doGet/doPost` completed before HEALTH activation, no Integrity business function observed, and exactly one `d1OrdersLiveSyncTick` trigger.
+- PD-10 HEALTH activation is executed and runtime-verified; master+HEALTH are ON only.
 
 Detailed action/evidence/commit trail is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
@@ -182,7 +182,7 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-10T — HEALTH family checkpoint PASS; six derived CORE-P0 data signals open; STOP before ORDER_LINE.**
+**PD-10V — HEALTH family PASS; six CORE-P0 signals triaged read-only; STOP before ORDER_LINE.**
 
 Completed and verified:
 - current live `Code.gs` was copied from the live editor, minimally wired with two guarded Integrity route calls and one guarded webhook call, saved, reloaded, and exact-compared; it was never replaced from GitHub.
@@ -204,25 +204,26 @@ Current flags:
 
 Dashboard runtime signal:
 - `healthy=false`.
-- open derived CORE-P0 metric IDs:
-  1. `INVALID_LINE_IDS`
-  2. `DUPLICATE_ATTENDANCE_SESSIONS`
-  3. `DUPLICATE_CLEANING_RECORDS`
-  4. `DUPLICATE_INVOICE_DRAFTS`
-  5. `PRESS_SOURCE_VIEW_MISMATCH`
-  6. `PRESS_COMPLETED_WITHOUT_SESSION`
+- all six CORE-P0 signals were triaged read-only; no production source cell changed.
+
+Triage classification:
+1. `INVALID_LINE_IDS`: 229 legacy Line ID cells are stored as numeric/date-formatted values and read by Apps Script as Date objects; 131 are closed and **98 are not closed** (57 ready, 34 new, 7 in progress). This is a live ORDER_LINE compatibility blocker.
+2. `DUPLICATE_ATTENDANCE_SESSIONS`: 6 excess rows across 5 recent employee/day keys; affected sessions have blank end times and some conflicting states. True active defect.
+3. `DUPLICATE_CLEANING_RECORDS`: 16 excess completed/no-problem rows across 11 employee/day keys. Historical baseline debt; do not delete.
+4. `DUPLICATE_INVOICE_DRAFTS`: active duplicate unpriced drafts for Orders `3569`, `3572`, `3577`; total=0 and unsent. True active legacy defect requiring canonical selection with audit preserved.
+5. `PRESS_SOURCE_VIEW_MISMATCH`: four current Press Line IDs exist in source while `واجهة المكبس` contains zero data rows. Current view-generation/source-view mismatch.
+6. `PRESS_COMPLETED_WITHOUT_SESSION`: three delivered Lines predate the new Line-session ledger, and `تشغيل - بنود جلسات المكبس V1` is absent. Historical/schema traceability debt; do not invent session links.
 
 Status interpretation:
 - HEALTH family code/deployment/runtime = **PASS**.
-- production data health = **FAIL signal / triage required**.
-- do not convert detection into random cleanup. Historical `مكرر` and valid audit rows remain protected.
+- read-only triage = **PASS**.
+- remediation/baseline acknowledgement = **PENDING**.
+- ORDER_LINE and all later families remain OFF.
 
 Exact next action:
-1. perform read-only, evidence-backed triage of the six dashboard metrics and capture offending IDs/details.
-2. classify each result as active-current defect, historical/expected record, schema/source-view mismatch, or false-positive detector logic.
-3. update the Execution Ledger before any remediation.
-4. do not activate ORDER_LINE or any later family without a separate explicit checkpoint/approval after triage.
-5. no random duplicate deletion and no Order ID/Line ID contract change.
+1. prepare an explicit non-destructive remediation/baseline plan covering legacy Date-coerced Line IDs, active Attendance sessions, duplicate invoice drafts, Press view generation, and historical baseline acknowledgements.
+2. preserve every audit/history row; do not invent canonical values or session links.
+3. do not write production data or enable ORDER_LINE without a separate explicit checkpoint and approval.
 
 ## Persistent execution behavior
 
