@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:07 Africa/Cairo**.
+> Updated: **2026-09-01 12:15 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10Z — NON-DESTRUCTIVE REMEDIATION PLAN READY; RP-01 GITHUB-ONLY NEXT; STOP BEFORE ORDER_LINE**
+**RP-01A — GITHUB-ONLY REMEDIATION STAGED + LOCAL TESTS PASS; SOURCE COMMIT NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -995,6 +995,36 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: commit above; this ledger commit follows. Candidate R3 and CI unchanged.
 - Rollback: documentation-only revert if a later verified source fact changes the design.
 - Exact next step: execute RP-01 on the working branch only: implement the cell-aware adapter, exact resolution-registry contract, baseline-aware Dashboard logic, Invoice supersession handling, and tests. Do not touch Apps Script Head, Sheets, deployment, properties, triggers, or feature flags.
+
+
+## RP-01A Remediation source staged locally — TEST PASS / NOT YET COMMITTED
+- Action: implemented the planned GitHub-only remediation source and regression tests in the shared scratch workspace; no Apps Script/Sheet/deployment action occurred.
+- Staged source:
+  - new `trendos-core-p0-remediation-v1.gs`;
+  - cell-display-aware legacy Line-ID reads in Order/Line and Press;
+  - evidence-hash resolution support in Invoice;
+  - baseline-aware Dashboard logic, explicit non-authoritative Press-view WARN, and display-value Health reads;
+  - Router dependency and package membership updates;
+  - CI workflow and test updates.
+- Evidence:
+  - foundation test PASS;
+  - new CORE-P0 remediation test PASS;
+  - Order/Line, Press, Invoice, Dashboard, Router tests PASS;
+  - 12-module Apps Script composition PASS;
+  - pre-deploy package safety gate PASS;
+  - standalone syntax checks for all modified Apps Script sources PASS.
+- Safety assertions retained:
+  - global Date-object Line-ID rejection still PASS;
+  - only known Sheet cell raw+display pairs can recover legacy IDs;
+  - absent/stale/conflicting registry resolution fails closed;
+  - no registry is created by source load or analysis;
+  - Invoice duplicates still fail closed unless one exact canonical mapping covers every other Draft and the evidence hash matches;
+  - missing authoritative Press view is WARN, never a fabricated PASS.
+- Status: **PASS for local RP-01 implementation/test; PENDING GitHub working-branch commit and remote CI**.
+- Production impact: NONE — local/GitHub-preparation only. Version 145 and master+HEALTH ON only remain unchanged.
+- Commit / CI: not yet committed; Candidate R3 and its CI remain unchanged.
+- Rollback: discard only the local staged files if GitHub review fails.
+- Exact next step: commit the reviewed source/test/workflow/package changes to the working branch, then record exact commit SHAs and wait for remote CI. Do not create/freeze a new candidate or touch Apps Script/Sheets.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
