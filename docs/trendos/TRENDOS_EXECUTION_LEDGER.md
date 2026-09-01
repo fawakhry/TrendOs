@@ -675,6 +675,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: none required.
 - Exact next step: retain the current hybrid architecture during the controlled migration. Resolve PD-10A with a minimal guarded edit to current live `Code.gs` only after explicit approval, then continue HEALTH; plan any future full Cloudflare write cutover as a separate gated migration with Worker write APIs, auth, idempotency, parity, fallback, and rollback.
 
+### PD-10B memory synchronization — PASS
+- Action: updated `TRENDOS_HANDOFF.md` to preserve the verified Cloudflare read-first/mirror role and current Apps Script/Sheets write authority.
+- Evidence: handoff commit `1c920908ee7717aec1f7f65ba169bdd5d1c85bba`.
+- Status: **PASS**.
+- Production impact: NONE — documentation only.
+- Commit / CI: handoff commit above.
+- Rollback: documentation-only revert if later Cloudflare source proves a completed authoritative write cutover.
+- Exact next step: remain at the PD-10A approval gate for the minimal current-live-`Code.gs` guarded wiring change.
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
