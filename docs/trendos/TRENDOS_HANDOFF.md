@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 01:50 Africa/Cairo**.
+> Last consolidated: **2026-09-01 06:20 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-09 — CONTROLLED DEPLOYMENT APPROVAL CHECKPOINT, ALL FLAGS OFF**
+**PD-09 — VERSION 144 DEPLOYED; PUBLIC FLAGS-OFF SMOKE PASS; PRIVATE CONSOLE RECHECK PENDING**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -43,9 +43,12 @@ Do not move the frozen release branch silently.
 ## Production identity
 
 Active Apps Script Web App:
-- Version **143**.
-- Aug 29 2026 11:37 PM.
-- backend `V1932_FULL_GO_LIVE_20260824`.
+- Version **144**, created Aug 31 2026 3:38 PM in the Apps Script UI.
+- deployment ID `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg` preserved.
+- description `TrendOS Integrity V1 R3 - flags OFF - PD-09 2026-09-01`.
+- public base GET renders the expected **TrendOS V1932** legacy landing page.
+- rollback Version **143**, Aug 29 2026 11:37 PM.
+- backend lineage `V1932_FULL_GO_LIVE_20260824`.
 - workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 
 Verified route lineage:
@@ -75,7 +78,7 @@ Fast Auth:
 
 ## Integrity V1 state
 
-Implemented + CI-tested; installed and runtime-verified in Apps Script Head, not deployed to the Web App:
+Implemented + CI-tested; installed and runtime-verified in Apps Script Head; deployed in Web App Version 144 with every flag OFF and no family activated:
 - shared integrity foundation.
 - Order/Line Integrity.
 - Attendance/Cleaning Integrity.
@@ -142,7 +145,7 @@ Runtime execution screenshots on 2026-08-31 confirm:
 Checkpoint:
 - `docs/trendos/checkpoints/PD04_RUNTIME_EXECUTION_BASELINE_2026-08-31.md`
 
-## Apps Script Head checkpoint — PD-05 through PD-08 PASS
+## Apps Script / production checkpoint — PD-05 through PD-09
 
 Live bound project:
 - Apps Script project ID `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`.
@@ -159,13 +162,15 @@ Verified after repair:
 - Fast Auth V2.5 absent.
 - PD-08 legacy no-change smoke PASS.
 - Triggers page shows exactly one `d1OrdersLiveSyncTick` time-based Head trigger.
-- Version 143 remains the production Web App and rollback.
+- Version 144 is the production Web App; Version 143 remains the immediate rollback.
+- PD-09 deployment PASS and public flags-OFF legacy smoke PASS.
+- The private Apps Script execution/trigger-page post-deploy refresh remains pending because the authenticated Google editor session expired after deployment.
 
 Detailed action/evidence/commit trail is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Confirmed tooling boundary
 
-Authenticated cloud-browser access to the exact bound Apps Script editor is available for the current controlled session.
+Authenticated cloud-browser access was available through deployment completion, then the private Google editor session expired. Public production access remains available; a fresh Google sign-in is required only for the remaining private execution/trigger reconciliation.
 
 Autonomous and completed:
 - exact Candidate R3 fetch/SHA comparison.
@@ -182,26 +187,31 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-09 — controlled production deployment approval checkpoint.**
+**PD-09 — private post-deploy console reconciliation; all flags remain OFF.**
 
-Ready evidence:
-- approved Candidate R3 fixed at `ee03adab4c733aec909511b23dd80f42ad3b927e`.
-- repaired Apps Script Head saves/parses and persists.
-- dependency health PASS: `codeReady=true`, `missing=[]`.
-- master + all families OFF.
-- Fast Auth V2.5 not installed.
-- legacy no-change smoke PASS.
-- Version 143 remains active and is the rollback.
+Completed:
+- explicit user approval obtained for PD-09 only.
+- existing production deployment updated successfully to Version 144.
+- deployment ID and Web App URL preserved.
+- public production GET PASS: title `TrendOS V1932` and expected Trend Mall employee/customer landing page rendered.
+- no Script Properties, triggers, `Code.gs`, business forms, or family routes were changed.
+- PD-07 immediately before deployment proved master and every family false.
+- PD-08 immediately before deployment proved exactly one `d1OrdersLiveSyncTick`.
+- Version 143 remains rollback.
 
-No production deployment has been created or changed.
+Pending evidence:
+- refresh private Apps Script Executions and verify a Completed Version 144 `doGet`.
+- refresh Triggers and reconfirm exactly one `d1OrdersLiveSyncTick`.
+- confirm no Integrity business-family execution occurred after deployment.
+
+The private checks require a fresh Google sign-in because the authenticated editor session expired after deployment.
 
 Exact next action:
-1. obtain explicit user approval for production Deploy.
-2. deploy the current verified Head with every Integrity/Fast Auth flag still OFF.
-3. capture the new Apps Script version/deployment ID.
-4. run immediate flags-OFF legacy smoke.
-5. on failure, restore Version 143; on PASS, stop at the HEALTH family activation checkpoint.
-6. do not activate any family without its own checkpoint/regression.
+1. restore authenticated editor access without sharing credentials.
+2. perform the three read-only private-console checks above.
+3. on FAIL, roll the same deployment back to Version 143 and record evidence.
+4. on PASS, close PD-09 and stop at the separate PD-10 HEALTH activation approval checkpoint.
+5. do not activate HEALTH, master, or any other family flag without explicit approval.
 
 ## Persistent execution behavior
 
