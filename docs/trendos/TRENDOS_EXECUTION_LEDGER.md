@@ -1709,3 +1709,14 @@ When user says equivalent of `كمل TrendOS`:
 - installation and activation are separate.
 - master/family flags remain OFF until their exact runtime checkpoint.
 - rollback disables code/routing; it does not delete audit/integrity data.
+
+
+## RP-06-PRECHECK-B — APPEND-ONLY REVISION READER IMPLEMENTED ON WORKING BRANCH
+
+- **Action:** Updated `trendosIntegrityResolutionV1_` on `agent/go-live-2026-09-01-integrity` so registry resolution considers all exact metric/entity rows, groups revisions by normalized `Canonical ID + Superseded ID + Classification`, and lets the latest registry row win before applying `Active?`.
+- **Evidence:** Source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; prior source blob `e55818297762b2f99a2967524d8ac29dd864f421`; new source blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`. Local focused test and the complete 9-file Node suite passed before upload.
+- **Status:** PARTIAL — reader implementation is committed; matching regression tests still need to be committed and CI must pass on the final working-branch state.
+- **Production impact:** NONE. GitHub working branch only; Apps Script Head, Version 146, flags, registry sheet, triggers, and production data were not changed.
+- **Commit / CI:** Source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; CI pending final source+test state.
+- **Rollback:** Revert source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` or restore source blob `e55818297762b2f99a2967524d8ac29dd864f421`. Production rollback is not applicable because nothing was installed or deployed.
+- **Exact next step:** Commit the append-only deactivate/reactivate, row-order fallback, classification-identity, stale-evidence, and canonical-conflict regression coverage in `tests/trendos_core_p0_remediation_v1.test.js`; then update this ledger before CI verification.
