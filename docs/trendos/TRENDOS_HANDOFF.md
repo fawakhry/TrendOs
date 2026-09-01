@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 12:34 Africa/Cairo**.
+> Last consolidated: **2026-09-01 12:42 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**RP-03 — PRODUCTION-SHAPED PREVIEW COMPLETE; PRESS SCOPE CORRECTED; READ-ONLY PRESS CONSUMER DIAGNOSIS NEXT; STOP BEFORE REMEDIATION INSTALL/REGISTRY/ORDER_LINE**
+**RP-03E — PRESS CONSUMER CONTRACT PASS; LEGACY VIEW NON-AUTHORITATIVE; RP-03F SUCCESSOR CANDIDATE FREEZE NEXT; STOP BEFORE REMEDIATION INSTALL/REGISTRY/ORDER_LINE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -182,7 +182,7 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**RP-03D2 — preview evidence and corrected remediation plan committed; production unchanged; STOP before remediation Head install, registry, deploy, or ORDER_LINE.**
+**RP-03E2 — Press consumer evidence and plan closure committed; production unchanged; RP-03F candidate freeze next; STOP before remediation Head install, registry, deploy, or ORDER_LINE.**
 
 Completed and verified:
 - current live `Code.gs` was copied from the live editor, minimally wired with two guarded Integrity route calls and one guarded webhook call, saved, reloaded, and exact-compared; it was never replaced from GitHub.
@@ -211,19 +211,20 @@ RP-03 production-shaped preview:
 2. Attendance evidence: **PASS** — 5 exact employee/day groups, 6 excess rows, deterministic canonical/superseded Session IDs and stable hashes captured.
 3. Cleaning evidence: **PASS** — 11 exact employee/day groups, 16 excess rows, stable hashes captured; no source cleanup.
 4. Invoice evidence: **PASS** — Orders `3569`, `3572`, `3577` have exact canonical/superseded Draft mappings and stable hashes; every protected row remains zero-value, unsent, and blocked for pricing/approval.
-5. Press evidence: **PASS acquisition / corrected scope** — the recovered source queue contains 9 Lines, while `واجهة المكبس` has zero rows.
-6. Press historical scope: **14**, not 3, completed Lines lack Line-session evidence; `تشغيل - بنود جلسات المكبس V1` is absent. Never invent session links.
+5. Press evidence: **PASS** — the recovered source queue contains 9 Lines. RP-03E proved `واجهة المكبس` is a non-authoritative legacy/stub sheet; the backend queue reads `بنود الأوردرات` directly and the production frontend uses the Print screen plus Heat Press filters/badges. Keep this as WARN; do not write the legacy view.
+6. Press historical scope: **14** completed Lines lack Line-session evidence; `تشغيل - بنود جلسات المكبس V1` is absent and PRESS Integrity has never been activated. Never invent session links.
 
 Status interpretation:
 - HEALTH family code/deployment/runtime = **PASS**.
 - read-only triage and RP-03 preview = **PASS**.
-- earlier Press remediation scope = **PARTIAL/CORRECTED**.
+- earlier Press remediation scope = **CORRECTED**; consumer/provider ambiguity = **PASS closed as non-authoritative WARN**.
 - remediation installation, registry write, and baseline acknowledgement = **PENDING**.
 - ORDER_LINE and all later families remain OFF.
 
 Remediation checkpoint:
 - plan: `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md`.
 - exact preview: `docs/trendos/checkpoints/RP03_CORE_P0_PREVIEW_2026-09-01.md`.
+- Press consumer contract: `docs/trendos/checkpoints/RP03E_PRESS_CONSUMER_CONTRACT_2026-09-01.md`.
 - GitHub-only implementation: `63d6dd50aee10b84ad35a9d06e9f4414254636d1`.
 - evidence-hash hardening: `24b4e89a3d3866f8f95d28ec609a302ba908486e`.
 - latest GitHub Actions run `33491831765` = **SUCCESS**.
@@ -231,9 +232,9 @@ Remediation checkpoint:
 - no resolution registry exists and no production source row was changed.
 
 Exact next action:
-1. execute RP-03E read-only diagnosis of the live `Code.gs` and frontend Press consumer/provider contract;
-2. record whether `واجهة المكبس` is authoritative, obsolete, or missing a real provider;
-3. do not install remediation source in Apps Script Head, deploy, create/write the registry, or enable ORDER_LINE without the later checkpoints and approvals.
+1. freeze a separate remediation successor candidate from the synchronized working-branch checkpoint without moving Candidate R3;
+2. verify the frozen ref, exact SHA/package membership, and GitHub Actions SUCCESS;
+3. do not install remediation source in Apps Script Head, deploy, create/write the registry, or enable ORDER_LINE until the subsequent checkpoints.
 
 ## Persistent execution behavior
 
