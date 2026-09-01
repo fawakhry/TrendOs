@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-09-01 18:33 Africa/Cairo**.
+> Last consolidated: **2026-09-01 22:44 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,9 +42,9 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CORE-P0 REMEDIATION — PD-08-R4 PASS; FROZEN R4 INSTALLED AND VERIFIED IN APPS SCRIPT HEAD; VERSION 146 DEPLOY PENDING EXPLICIT APPROVAL; ORDER_LINE OFF.**
+**CORE-P0 REMEDIATION — PD-09-R4 PASS; VERSION 146 ACTIVE AND VERIFIED; STOP BEFORE RESOLUTION REGISTRY OR ORDER_LINE ACTIVATION.**
 
-Integrity V1 Core R3 remains deployed in Apps Script Version 145. HEALTH is the only activated family and has passed deployed-route, dashboard-write, and legacy-regression checks; every business family and Fast Auth remain OFF. Frozen R4 is installed and verified in Apps Script Head only and is not deployed or activated.
+Frozen R4 is deployed in Apps Script Version 146 on the preserved deployment ID. HEALTH remains the only activated family; every business family and Fast Auth remain OFF. Post-deploy landing, dependency/property health, execution-history, and trigger checks passed.
 
 ## Current repository checkpoint
 
@@ -54,45 +54,47 @@ Branches:
 - production/default: `main`
 - active working: `agent/go-live-2026-09-01-integrity`
 - safety: `backup/go-live-2026-08-30-pre-p0`
-- deployed/approved source candidate: `release/integrity-v1-predeploy-2026-08-31-r3`
-- frozen remediation successor: `release/integrity-v1-remediation-predeploy-2026-09-01-r4`
+- previous deployed baseline: `release/integrity-v1-predeploy-2026-08-31-r3`
+- current deployed remediation source: `release/integrity-v1-remediation-predeploy-2026-09-01-r4`
 
-Approved deployment candidate:
+Previous R3 baseline:
 - SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`
 - GitHub Actions run: `33384689012`
 - result: **SUCCESS**
 
-Frozen remediation successor:
+Current deployed remediation candidate:
 - SHA: `b940eb9ff08a094b2406e396eba6af73409e7f9c`
 - exact-ref GitHub Actions: `33493914883`
 - result: **SUCCESS**
-- installed and save/reload-verified in Apps Script Head only; not deployed, activated, or serving traffic.
+- installed in Apps Script Head and deployed as production Version 146; only HEALTH is active and all business families remain OFF.
 
 Do not fall back automatically to R1/R2 and do not move either frozen release branch silently. Documentation continues on the working branch.
 
 ## Production identity
 
 Active Apps Script Web App:
-- Version **145**
-- created Sep 1 2026 7:12 AM in the Apps Script UI
+- Version **146**
+- created Sep 1 2026 5:19 PM in the Apps Script UI
 - deployment ID `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
 - preserved production URL on the same deployment ID
-- immediate rollback Version **144**; deeper rollback Version **143**
+- description `TrendOS Integrity V1 R4 - Master+HEALTH ON - Business Flags OFF - PD-09-R4 2026-09-01`
+- immediate rollback Version **145**; deeper rollback Versions **144** and **143**
 
 Live identity:
 - backend lineage `V1932_FULL_GO_LIVE_20260824`
 - workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-- public base GET with HEALTH ON renders **TrendOS V1932**
+- public base GET renders **TrendOS V1932**
 
-Verified Version 145 routing/deployment state:
-- current live `Code.gs` was minimally wired from its own live source; never replaced from GitHub.
-- guarded Integrity route/webhook calls are present.
+Verified Version 146 state:
+- frozen R4 Head composition is the deployed source.
+- current live `Code.gs` was not edited or replaced during R4 installation/deployment.
 - master and HEALTH are ON.
 - ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION are OFF.
 - Fast Auth V2.5 is OFF/absent.
-- deployed HEALTH route returns HTTP 200, codeReady=true, missing=[].
+- post-deploy dependency health: success=true, codeReady=true, requiredCount=25, missing=[].
+- Version 146 `doGet/doPost` completed traffic is visible with no failed row in the inspected first page.
 - exactly one Head/time-based `d1OrdersLiveSyncTick` remains.
-- all temporary property/smoke helpers were removed; runtime-tools is exact Candidate R3.
+- direct query-string HEALTH navigation was blocked by the cloud-browser client before reaching Apps Script; it is recorded as tooling PARTIAL, not application failure.
 
 **Never overwrite Apps Script production from GitHub `Code.gs`.** GitHub `Code.gs` is not an authoritative reconstruction of the live consolidated lineage.
 
@@ -127,7 +129,7 @@ RP-01/RP-02/RP-03 results:
 - Press consumer contract: `docs/trendos/checkpoints/RP03E_PRESS_CONSUMER_CONTRACT_2026-09-01.md`.
 - Line adapter, Attendance, Cleaning, and Invoice previews PASS.
 - Press scope corrected to 9 queue Lines and 14 completed-without-Line-session Lines; the legacy view is explicitly non-authoritative and requires no write.
-- production remains Version 145 with master+HEALTH ON only; the frozen R4 helper plus five modified modules are installed and verified in Apps Script Head only; no R4 deployment, registry, Sheet mutation, or business-family activation occurred.
+- production is Version 146 with master+HEALTH ON only; frozen R4 is deployed; no registry, Sheet mutation, property change, or business-family activation occurred.
 
 ## Current architecture
 
@@ -308,50 +310,45 @@ Primary plan: `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`.
 
 Current execution order from here:
 
-1. obtain explicit approval for PD-09-R4 Version 146 deployment.
-2. deploy only the already verified Apps Script Head on the existing deployment ID, preserving master+HEALTH ON and keeping every business family and Fast Auth OFF.
-3. immediately verify public/private flags state, legacy landing, execution history, and trigger count; roll back to Version 145 on failure.
-4. keep the resolution registry absent until its separate production-write checkpoint and approval.
-5. activate ORDER_LINE only after the deployment and registry gates pass, then continue one family at a time with runtime regression and immediate family rollback.
-6. run D1 consistency regression.
-7. run full E2E.
-8. make the Core GO/NO-GO decision.
-9. only after correctness is stable, enter the separate Fast Auth V2.5 lane.
+1. keep verified Version 146 serving with master+HEALTH ON only.
+2. prepare and review the resolution-registry production-write checkpoint; do not create it without explicit approval.
+3. after registry verification, request separate approval before ORDER_LINE activation.
+4. activate ORDER_LINE and later families one at a time with runtime regression and immediate family rollback on failure.
+5. run D1 consistency regression.
+6. run full E2E.
+7. make the Core GO/NO-GO decision.
+8. only after correctness is stable, enter the separate Fast Auth V2.5 lane.
+9. after Core is closed, resume the controlled Cloudflare/D1 cutover: mirror consistency, API write contracts, then workload migration in stages.
 
 Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**PD-08-R4 PASS — frozen R4 is installed and verified in Apps Script Head; production remains Version 145; STOP before Version 146 deployment pending explicit approval.**
+**PD-09-R4 PASS — Version 146 is active and verified; STOP before any resolution-registry write or ORDER_LINE activation.**
 
 Completed and verified:
-- Apps Script Head contains 24 persisted files.
-- `trendos-core-p0-remediation-v1.gs` plus the R4 Order/Line, Press, Invoice, Dashboard, and Router modules were installed from frozen candidate `b940eb9ff08a094b2406e396eba6af73409e7f9c`, saved, reloaded, and parser/composition checked.
-- PD-06-R4 composition PASS: each scoped filename exists once; no parser/duplicate-global error; live `Code.gs` and untouched modules remain present.
-- PD-07-R4 dependency health PASS: `success=true`, `codeReady=true`, `requiredCount=25`, `missing=[]`; master=true, HEALTH=true, every business family=false; Fast Auth V2.5 absent.
-- PD-08-R4 legacy no-change smoke PASS: the Version 145 URL still renders TrendOS V1932, completed `doGet/doPost` traffic remains visible, and exactly one Head/time-based `d1OrdersLiveSyncTick` trigger remains.
-- a failed in-place editor replacement produced a duplicate Order/Line global, failed closed, and was fully repaired by recreating only that Head file from the frozen R4 source.
-- no R4 business runtime was executed and no registry, Sheet data, Script Property, route, trigger, deployment, Feature Flag, Fast Auth, or `Code.gs` change occurred.
+- frozen R4 branch `release/integrity-v1-remediation-predeploy-2026-09-01-r4`, SHA `b940eb9ff08a094b2406e396eba6af73409e7f9c`, exact-ref CI `33493914883` SUCCESS.
+- 24-file Apps Script Head composition includes the R4 remediation helper and five modified modules.
+- Version **146** is active on the preserved deployment ID with Version 145 as immediate rollback.
+- public base URL renders TrendOS V1932.
+- post-deploy dependency/property health completed: `success=true`, `codeReady=true`, `requiredCount=25`, `missing=[]`; master=true, HEALTH=true, every business family=false; Fast Auth absent.
+- Version 146 `doGet/doPost` completed executions are visible; no failed Version 146 row appeared in the inspected first page.
+- exactly one Head/time-based `d1OrdersLiveSyncTick` trigger remains; latest matching execution completed.
+- direct query-string HEALTH navigation was client-blocked before reaching Apps Script and remains PARTIAL route evidence only.
+- no registry, Sheet data, Script Property, trigger, route wiring, source, business Feature Flag, Fast Auth, or `Code.gs` change occurred during post-deploy checks.
 
 Current production:
-- active Web App Version **145** on the preserved deployment ID/URL.
+- active Web App Version **146**.
 - master+HEALTH ON only.
 - ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION, and Fast Auth OFF/absent.
-- Version 145 is the immediate rollback for the next deployment; Version 144 and Version 143 remain deeper rollback points.
-
-R4 checkpoint:
-- branch `release/integrity-v1-remediation-predeploy-2026-09-01-r4`.
-- SHA `b940eb9ff08a094b2406e396eba6af73409e7f9c`.
-- exact-ref GitHub Actions run `33493914883` = **SUCCESS**.
-- dependency contract: 25 required functions, zero missing.
-- resolution registry is absent and no production source row was changed.
+- Version 145 immediate rollback; Versions 144 and 143 deeper rollback points.
 
 Open gate:
-- obtain explicit approval for PD-09-R4.
-- after approval only, deploy current verified Head as Version **146** on the existing deployment ID with properties unchanged: master+HEALTH ON only; all business families and Fast Auth OFF.
-- immediately run deployment/legacy no-change smoke with Version 145 as rollback.
-- do not create the registry or enable ORDER_LINE at the Version 146 checkpoint.
+- prepare and verify the resolution-registry write plan.
+- obtain explicit approval before creating/writing that registry.
+- obtain separate explicit approval before enabling ORDER_LINE.
 - preserve historical `مكرر`, keep Order ID/Line ID contracts unchanged, and never invent session links.
+- continue family-by-family runtime activation only after each exact checkpoint passes.
 
 Exact action/evidence history is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
