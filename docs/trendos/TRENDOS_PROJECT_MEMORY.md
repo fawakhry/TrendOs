@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-09-01 22:44 Africa/Cairo**.
+> Last consolidated: **2026-09-01 22:56 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,7 +42,7 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CORE-P0 REMEDIATION — PD-09-R4 PASS; VERSION 146 ACTIVE AND VERIFIED; STOP BEFORE RESOLUTION REGISTRY OR ORDER_LINE ACTIVATION.**
+**CORE-P0 REMEDIATION — PD-09-R4 PASS; VERSION 146 ACTIVE; RP-06 REGISTRY ROLLBACK CONTRACT FIX CI PASS; STOP BEFORE REGISTRY INSTALL/WRITE OR ORDER_LINE ACTIVATION.**
 
 Frozen R4 is deployed in Apps Script Version 146 on the preserved deployment ID. HEALTH remains the only activated family; every business family and Fast Auth remain OFF. Post-deploy landing, dependency/property health, execution-history, and trigger checks passed.
 
@@ -130,6 +130,14 @@ RP-01/RP-02/RP-03 results:
 - Line adapter, Attendance, Cleaning, and Invoice previews PASS.
 - Press scope corrected to 9 queue Lines and 14 completed-without-Line-session Lines; the legacy view is explicitly non-authoritative and requires no write.
 - production is Version 146 with master+HEALTH ON only; frozen R4 is deployed; no registry, Sheet mutation, property change, or business-family activation occurred.
+
+## Registry rollback contract precheck
+
+- fail-closed review found a real gap before any Sheet write: the original reader filtered inactive rows before revision precedence, so append-only rollback rows could not deactivate older active mappings.
+- working-branch source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` implements latest-row-wins precedence for each exact `Canonical ID + Superseded ID + Classification` identity before applying `Active?`.
+- regression test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8` covers targeted/full deactivation, reactivation, array-order fallback, classification identity, stale evidence, and canonical conflict.
+- GitHub Actions run `33552134647` on documented head `0cb69ecaf3dcdce5ee8c062545b68f0e7b4af80c` = **SUCCESS**.
+- status is GitHub-only: the revised helper is not installed/deployed; no resolution registry exists; no production Sheet, Apps Script, property, route, trigger, or flag changed.
 
 ## Current architecture
 
@@ -311,7 +319,7 @@ Primary plan: `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`.
 Current execution order from here:
 
 1. keep verified Version 146 serving with master+HEALTH ON only.
-2. prepare and review the resolution-registry production-write checkpoint; do not create it without explicit approval.
+2. design and CI-test a separate one-time ScriptLock-protected registry writer with exact schema validation and live evidence-hash recheck; do not install it or create/write the registry without explicit approval.
 3. after registry verification, request separate approval before ORDER_LINE activation.
 4. activate ORDER_LINE and later families one at a time with runtime regression and immediate family rollback on failure.
 5. run D1 consistency regression.
@@ -324,7 +332,7 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**PD-09-R4 PASS — Version 146 is active and verified; STOP before any resolution-registry write or ORDER_LINE activation.**
+**PD-09-R4 PASS — Version 146 is active and verified; RP-06 registry rollback contract fix is CI PASS on GitHub only; STOP before registry installation/write or ORDER_LINE activation.**
 
 Completed and verified:
 - frozen R4 branch `release/integrity-v1-remediation-predeploy-2026-09-01-r4`, SHA `b940eb9ff08a094b2406e396eba6af73409e7f9c`, exact-ref CI `33493914883` SUCCESS.
@@ -344,7 +352,7 @@ Current production:
 - Version 145 immediate rollback; Versions 144 and 143 deeper rollback points.
 
 Open gate:
-- prepare and verify the resolution-registry write plan.
+- design and CI-test the ScriptLock-protected resolution-registry writer and its fail-closed live evidence recheck.
 - obtain explicit approval before creating/writing that registry.
 - obtain separate explicit approval before enabling ORDER_LINE.
 - preserve historical `مكرر`, keep Order ID/Line ID contracts unchanged, and never invent session links.
@@ -371,7 +379,7 @@ Exact action/evidence history is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 - Pre-Go-Live workbook backup exists: `BACKUP_TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY_2026-08-30_PRE_GO_LIVE_P0`.
 - GitHub safety branch: `backup/go-live-2026-08-30-pre-p0`.
 - frozen Integrity V1 predeploy branch exists.
-- Production Apps Script is Version 145; Version 144 is immediate rollback and Version 143 is deeper rollback.
+- Production Apps Script is Version 146; Version 145 is immediate rollback, with Versions 144 and 143 as deeper rollback points.
 
 ## Persistent working rule
 
