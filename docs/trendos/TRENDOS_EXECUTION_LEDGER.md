@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:23 Africa/Cairo**.
+> Updated: **2026-09-01 10:25 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON; ALL OTHER FAMILIES/FAST AUTH OFF; HEAD RUNTIME TOOLS RESTORED EXACT R3; DEPLOYED HEALTH ROUTE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON ONLY; BROWSER QUERY NAVIGATION BLOCKED LOCALLY BEFORE REQUEST; SERVER-SIDE DEPLOYED HEALTH SMOKE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10L — TEMP HELPER REMOVED / RUNTIME TOOLS EXACT R3; DEPLOYED HEALTH ROUTE NEXT**
+**PD-10M — BROWSER QUERY NAVIGATION BLOCKED LOCALLY; DEPLOYED HEALTH NOT FAILED; SERVER-SIDE SMOKE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -806,6 +806,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: exact Candidate R3 source restored; no candidate or CI change; ledger checkpoint only.
 - Rollback: if deployed HEALTH validation fails, re-append the previously exact-verified bounded helper, run OFF to delete only master and HEALTH, restore Candidate R3 again, then verify legacy base route.
 - Exact next step: call the deployed Version 145 URL with `action=trendosIntegrityHealthV1`; require a JSON success response with codeReady=true, missing=[], master=true, HEALTH=true, all other families=false, and Fast Auth OFF. On any mismatch, execute the rollback above immediately.
+
+## PD-10M Deployed HEALTH browser navigation attempt — TOOL BLOCKED / NO PRODUCTION FAIL
+- Action: attempted to open the exact Version 145 Web App URL with `action=trendosIntegrityHealthV1` first in a new controlled-browser tab and then from the already successful production smoke tab.
+- Evidence: both navigation attempts were rejected locally by the browser-control client with `net::ERR_BLOCKED_BY_CLIENT` before a response was received; a separate public URL opener also rejected the query URL as unsafe before retrieval. The base production URL had already loaded successfully in PD-10F.
+- Status: **PARTIAL / TOOL BOUNDARY — no HTTP/application response exists, so this is not a Version 145 or HEALTH failure and must not trigger a false rollback**.
+- Production impact: none from the blocked navigation attempts. Master+HEALTH remain ON only; other families and Fast Auth remain OFF.
+- Commit / CI: tool-boundary evidence recorded; no code/deployment/property change.
+- Rollback: unchanged. If the next actual server-side response fails validation, remove master+HEALTH immediately.
+- Exact next step: temporarily append an exact-bounded Head smoke helper that uses `UrlFetchApp.fetch` against the same production deployment URL, validates the returned JSON HEALTH contract, and automatically deletes master+HEALTH before throwing on any actual HTTP/JSON/contract failure; save/verify, run once, then restore Runtime Tools exactly to Candidate R3.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
