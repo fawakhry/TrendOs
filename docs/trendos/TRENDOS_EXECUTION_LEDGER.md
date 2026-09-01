@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 06:20 Africa/Cairo**.
+> Updated: **2026-09-01 10:09 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Rollback Web App version: **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **DEPLOYED IN VERSION 144 + ALL FLAGS OFF + PD-09 PASS; HEALTH APPROVED BUT BLOCKED BY MISSING LIVE ENTRYPOINT WIRING**.
+- Integrity V1 state: **VERSION 144 LIVE + ALL FLAGS OFF; MINIMAL GUARDED ROUTER WIRING SAVED AND EXACT-VERIFIED IN HEAD; VERSION 145 NOT YET DEPLOYED**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-09 — CONTROLLED DEPLOYMENT APPROVAL CHECKPOINT, ALL FLAGS OFF**
+**PD-10C — MINIMAL GUARDED LIVE ENTRYPOINT WIRING SAVED IN HEAD; DEPENDENCY RETEST NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -683,6 +683,25 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: handoff commit above.
 - Rollback: documentation-only revert if later Cloudflare source proves a completed authoritative write cutover.
 - Exact next step: remain at the PD-10A approval gate for the minimal current-live-`Code.gs` guarded wiring change.
+
+## PD-10C Minimal guarded live entrypoint wiring — PASS IN HEAD / VERSION 145 PENDING
+- Action: after the user's explicit approval for the bounded wiring change and Version 145 with all flags OFF, copied the exact current live `Code.gs` from the authenticated Apps Script editor, added only guarded Integrity handoff blocks to its existing `doGet` and `doPost`, saved, reloaded, and compared the persisted source byte-for-byte with the computed expected result.
+- Evidence:
+  - pre-edit live source: 695,246 characters / 13,960 lines;
+  - exactly one `doGet(e)` and one `doPost(e)`;
+  - both insertion anchors occurred exactly once;
+  - pre-edit occurrences of `trendosIntegrityTryRouteV1_` and `trendosIntegrityTryWebhookV1_` were zero;
+  - new local variable names had zero pre-existing occurrences;
+  - added two guarded route calls and one guarded webhook call;
+  - staged editor content exactly matched the computed expected source before save;
+  - Apps Script displayed `Saved to Drive` / `cloud_done` with no parse/save error;
+  - after full editor reload, persisted `Code.gs` was exactly equal to the expected source: 696,374 characters, with no change outside the two calculated insertion blocks.
+- Guard behavior: master/family flags OFF makes the new router/webhook calls return `null`, so the existing V1932 -> V1900 -> V1898 -> legacy chain remains active.
+- Status: **PASS — minimal wiring is installed, parsed, persisted, and exact-verified in Apps Script Head**.
+- Production impact: **HEAD SOURCE ONLY** — production still serves Version 144; no deployment, Script Property, trigger, business execution, or flag changed; every Integrity/Fast Auth flag remains OFF.
+- Commit / CI: live controlled edit evidence; approved Candidate R3 and CI remain unchanged; this ledger checkpoint is the only GitHub change.
+- Rollback: Version 144 is the immediate frozen production rollback. Before Version 145 deployment, the exact 695,246-character pre-edit source remains available in the controlled session if a Head-only restore becomes necessary. Version 143 remains the deeper rollback.
+- Exact next step: run Head `trendosIntegrityDependencyHealthV1` and require `codeReady=true`, `missing=[]`, master=false, every family=false, and Fast Auth OFF. Record the result before creating Version 145.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
