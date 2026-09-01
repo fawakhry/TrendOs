@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:46 Africa/Cairo**.
+> Updated: **2026-09-01 12:47 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03F-B — REMEDIATION SUCCESSOR R4 FROZEN + EXACT-SHA CI PASS; MEMORY SYNC THEN RP-04 HEAD COMPOSITION; PRODUCTION UNCHANGED**
+**RP-04 — R4 CHECKPOINT SYNCHRONIZED; CONTROLLED APPS SCRIPT HEAD COMPOSITION NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1239,6 +1239,20 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Production impact: NONE — GitHub ref/workflow only. Version 145 continues to serve R3 lineage with master+HEALTH ON only.
 - Rollback: abandon the R4 ref; R3 and Version 145 remain unchanged.
 - Exact next step: update the remediation plan RP-03F Actual plus Handoff/Project Memory with the exact R4 branch/SHA/CI, checkpoint that synchronization here, then enter RP-04 controlled Apps Script Head composition with flags unchanged. No registry, deployment, or ORDER_LINE activation.
+
+## RP-03F-C Frozen R4 memory synchronization — PASS
+- Action: updated the remediation plan RP-03F Actual, Handoff, and Project Memory with the final R4 branch/SHA/exact-ref CI while preserving R3 as the deployed/approved source candidate.
+- Evidence:
+  - plan commit `54091a5b40c16d0add6a0441ba2ae7602b2c06af`;
+  - Handoff commit `5cf04742394541f8d581726797bc3cb6bb379ac8`;
+  - Project Memory commit `68ebc858effced13fec42496df33fb00daad9085`;
+  - frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`;
+  - exact-ref CI `33493914883` SUCCESS;
+  - frozen R3 remains `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- Status: **PASS — all canonical memory surfaces point to RP-04 as the next gate**.
+- Production impact: NONE — GitHub documentation only; Version 145 and production data/runtime unchanged.
+- Rollback: documentation-only revert if candidate status changes; production rollback not required.
+- Exact next step: execute RP-04 controlled Apps Script Head composition from frozen R4 with master+HEALTH ON only and every business/Fast Auth flag unchanged. Save/reload/exact-verify, then run dependency and legacy no-change checks. Do not create/write the registry, deploy, or enable ORDER_LINE.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
