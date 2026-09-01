@@ -1808,3 +1808,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Writer `3ec0fe66843eb3f94f7183fdebe6bd0412d53643`; tests `cb09345273dfcf483ca0b5ed1c17f61b15cfde7b`; workflow `dd694bc772f35ecc4bafa3d96cc53e8a8460d9b5`; CI `33553210923` SUCCESS.
 - **Rollback:** Revert the writer/test/workflow commits. Version 146 requires no rollback because no production change occurred.
 - **Exact next step:** Perform a final source/plan integrity review, update the remediation plan and canonical memory with the writer checkpoint, then define the exact production approval payload (temporary Head installation + read-only preview first). Do not install or write the registry yet.
+
+
+## RP-06-WRITER-E — INVOICE SOURCE-ROW IDENTITY PINNED
+
+- **Action:** Final source review found that material Invoice evidence intentionally excludes update-time text; therefore the writer now also pins the exact previewed canonical/superseded source-row identities: Order 3577 canonical/superseded rows 17/16, Order 3572 rows 19/18, and Order 3569 rows 21/20. Added the previously implicit Order-ID normalizer to the writer dependency gate.
+- **Evidence:** Writer hardening commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; new writer blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`. Local dedicated writer test and complete 10-file suite PASS.
+- **Status:** PARTIAL — source hardening is committed; matching regression-test update and final CI are pending.
+- **Production impact:** NONE. GitHub working branch only; writer remains uninstalled/unexecuted and no registry/property/data change occurred.
+- **Commit / CI:** `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; final CI pending.
+- **Rollback:** Revert this hardening commit to the previously CI-passed writer, or revert the complete writer lane. Production remains Version 146.
+- **Exact next step:** Commit the wrong-source-row refusal regression test, update this ledger, then verify the final GitHub Actions run.
