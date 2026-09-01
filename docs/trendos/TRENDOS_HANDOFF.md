@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 22:54 Africa/Cairo**.
+> Last consolidated: **2026-09-01 23:10 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-09-R4 PASS — VERSION 146 ACTIVE; RP-06 REGISTRY ROLLBACK CONTRACT FIX CI PASS; STOP BEFORE REGISTRY INSTALL/WRITE OR ORDER_LINE ACTIVATION**
+**PD-09-R4 PASS — VERSION 146 ACTIVE; GUARDED 34-ROW REGISTRY WRITER CI PASS ON GITHUB ONLY; STOP BEFORE HEAD INSTALL/PREVIEW, REGISTRY WRITE, REVISED-READER DEPLOYMENT, OR ORDER_LINE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -185,13 +185,15 @@ Autonomous and completed:
 - GitHub memory/ledger updates.
 
 Still requires explicit user approval:
+- installing the revised registry reader/writer checkpoint into Apps Script Head and running its read-only preview.
+- setting a registry approval property or creating/writing/rolling back the registry.
 - creating/updating the production Apps Script deployment.
 - any Feature Flag activation.
 - any later business/runtime activation with production consequences.
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-09-R4 PASS — Version 146 is active and verified; RP-06 registry rollback contract fix is CI PASS on GitHub only; STOP before registry installation/write or ORDER_LINE activation.**
+**PD-09-R4 PASS — Version 146 is active and verified; guarded 34-row registry writer is CI PASS on GitHub only; STOP before Head installation/read-only preview, registry write, revised-reader deployment, or ORDER_LINE activation.**
 
 Completed and verified:
 - frozen R4 source `b940eb9ff08a094b2406e396eba6af73409e7f9c` is installed in the 24-file Apps Script Head composition and deployed on the existing production deployment ID as Version **146**.
@@ -202,6 +204,12 @@ Completed and verified:
 - Triggers page contains exactly one Head/time-based `d1OrdersLiveSyncTick`; the matching latest execution completed.
 - the cloud browser blocked direct query-string navigation to the deployed HEALTH URL before the request reached Apps Script; this tooling limitation is recorded as PARTIAL route evidence, not production-failure evidence.
 - no registry, Sheet data, Script Property, trigger, route wiring, source, Feature Flag, Fast Auth, or `Code.gs` change occurred during post-deploy verification.
+
+Current GitHub-only writer checkpoint:
+- reader source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`, blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`;
+- writer source commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`, blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`;
+- tests `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` SUCCESS;
+- writer is excluded from the deployed 12-module package and is not installed in Apps Script Head.
 
 Current production:
 - Web App Version **146** active on the preserved deployment ID/URL.
@@ -220,11 +228,14 @@ Registry safety precheck:
 - working-branch source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` now applies latest-row-wins precedence per exact `Canonical ID + Superseded ID + Classification` identity before `Active?`.
 - regression test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8` covers deactivate, full deactivate, reactivate, array-order fallback, classification identity, stale evidence, and canonical conflict.
 - GitHub Actions run `33552134647` on documented head `0cb69ecaf3dcdce5ee8c062545b68f0e7b4af80c` = **SUCCESS**.
-- this closure is GitHub-only: the revised helper is not installed/deployed, and the resolution registry remains absent/unwritten.
+- the hardened writer is `trendos-core-p0-registry-writer-v1.gs` at commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; its tests are commit `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` = SUCCESS.
+- exact writer plan: 34 rows; plan hash `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`; Invoice source rows are pinned at 3569=21/20, 3572=19/18, 3577=17/16.
+- the tool requires ScriptLock, Master+HEALTH only, all business flags/Fast Auth OFF, exact schema/live hashes, one-use write approval, retry idempotency, post-write auto-deactivation, and a separately approved append-only rollback.
+- this closure is GitHub-only: the revised helper and writer are not installed/deployed, and the resolution registry remains absent/unwritten.
 
 Exact next action:
 1. keep Version 146 serving with current flags unchanged.
-2. design and CI-test a separate one-time ScriptLock-protected registry writer with exact schema validation and live evidence-hash recheck; do not install it or create/write the registry without explicit approval.
+2. after a bounded approval, install only the revised remediation helper plus the separate writer into Apps Script Head, Save/parse, and run `trendosCoreP0RegistryPreviewV1` read-only; do not set approval properties or write the registry.
 3. after the registry gate passes, request separate approval before enabling ORDER_LINE.
 4. activate later business families one at a time with runtime regression and immediate family rollback on failure.
 
