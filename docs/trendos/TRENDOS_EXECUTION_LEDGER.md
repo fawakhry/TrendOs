@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:12 Africa/Cairo**.
+> Updated: **2026-09-01 10:13 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE WITH GUARDED ROUTER WIRING + ALL FLAGS OFF; IMMEDIATE FLAGS-OFF SMOKE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE + PUBLIC FLAGS-OFF LEGACY SMOKE PASS; PRIVATE EXECUTION/TRIGGER RECONCILIATION NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10E — VERSION 145 DEPLOYED WITH ALL FLAGS OFF; IMMEDIATE SMOKE NEXT**
+**PD-10F — VERSION 145 PUBLIC FLAGS-OFF SMOKE PASS; PRIVATE RECONCILIATION NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -727,6 +727,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: controlled production deployment; Candidate R3 and CI unchanged; ledger checkpoint only.
 - Rollback: restore the same deployment to Version 144 immediately if the flags-OFF smoke or private console shows a regression. Version 143 remains the deeper rollback.
 - Exact next step: issue a non-mutating GET to the preserved production URL and require the existing TrendOS V1932 landing response; then inspect Version 145 executions and verify exactly one `d1OrdersLiveSyncTick` before changing any flag.
+
+## PD-10F Version 145 public flags-OFF smoke — PASS
+- Action: issued one non-mutating GET to the preserved production Web App URL immediately after Version 145 deployment.
+- Evidence: the URL remained unchanged; browser title returned **TrendOS V1932**; the expected legacy Trend Mall landing page rendered with employee and customer entry choices and the operating-center control.
+- Status: **PASS — public legacy entry behavior is preserved on Version 145 while flags remain OFF**.
+- Production impact: read-only production GET only; no business form submitted, route action invoked, Script Property changed, trigger changed, or Integrity family activated.
+- Commit / CI: live production smoke evidence; Candidate R3 and CI unchanged; ledger checkpoint only.
+- Rollback: Version 144 remains ready but is not required by the public response; Version 143 is the deeper rollback.
+- Exact next step: inspect Apps Script Executions for completed Version 145 `doGet`/legitimate `doPost`, confirm no Integrity family execution while flags are OFF, and verify Triggers still shows exactly one Head/time-based `d1OrdersLiveSyncTick`. Record PASS/FAIL before any property change.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
