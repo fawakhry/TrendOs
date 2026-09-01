@@ -29,17 +29,46 @@ const evidence={metric:'X',rows:[{id:'A',state:'old'},{id:'B',state:'new'}]};
 const hash=ctx.trendosIntegrityEvidenceHashV1_(evidence);
 const base={'Metric ID':'DUPLICATE_INVOICE_DRAFTS','Entity Key':'3569','Canonical ID':'DR-NEW','Classification':'SUPERSEDED_LEGACY_DUPLICATE','Evidence Hash':hash,'Active?':'نعم'};
 let rows=[
-  Object.assign({},base,{'Superseded ID':'DR-OLD-1'}),
-  Object.assign({},base,{'Superseded ID':'DR-OLD-2'})
+  Object.assign({},base,{__rowNumber:2,'Superseded ID':'DR-OLD-1'}),
+  Object.assign({},base,{__rowNumber:3,'Superseded ID':'DR-OLD-2'})
 ];
 let r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',evidence,rows);
 assert.strictEqual(r.resolved,true);assert.strictEqual(r.canonicalId,'DR-NEW');
 assert.deepStrictEqual(Array.from(r.supersededIds),['DR-OLD-1','DR-OLD-2']);
 r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',{metric:'X',rows:[]},rows);
 assert.strictEqual(r.resolved,false);assert.strictEqual(r.stale,true);
-rows.push(Object.assign({},base,{'Canonical ID':'DR-OTHER','Superseded ID':'DR-OLD-3'}));
+rows.push(Object.assign({},base,{__rowNumber:4,'Canonical ID':'DR-OTHER','Superseded ID':'DR-OLD-3'}));
 r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',evidence,rows);
 assert.strictEqual(r.resolved,false);assert.strictEqual(r.conflict,true);
+
+rows=[
+  Object.assign({},base,{__rowNumber:2,'Superseded ID':'DR-OLD-1'}),
+  Object.assign({},base,{__rowNumber:3,'Superseded ID':'DR-OLD-2'}),
+  Object.assign({},base,{__rowNumber:4,'Superseded ID':'DR-OLD-1','Active?':false,Reason:'rollback'})
+];
+r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',evidence,rows);
+assert.strictEqual(r.resolved,true,'an inactive latest revision must deactivate only its exact mapping');
+assert.deepStrictEqual(Array.from(r.supersededIds),['DR-OLD-2']);
+rows.push(Object.assign({},base,{__rowNumber:5,'Superseded ID':'DR-OLD-2','Active?':'off',Reason:'rollback'}));
+r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',evidence,rows);
+assert.strictEqual(r.resolved,false);assert.strictEqual(r.missing,true);assert.strictEqual(r.deactivated,true);
+rows.push(Object.assign({},base,{__rowNumber:6,'Superseded ID':'DR-OLD-1','Active?':'yes',Reason:'re-approved'}));
+r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',evidence,rows);
+assert.strictEqual(r.resolved,true,'a later active revision must safely reactivate the same mapping');
+assert.deepStrictEqual(Array.from(r.supersededIds),['DR-OLD-1']);
+
+const fallbackRows=[
+  Object.assign({},base,{'Superseded ID':'DR-OLD-1','Active?':false}),
+  Object.assign({},base,{'Superseded ID':'DR-OLD-1','Active?':true})
+];
+r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',evidence,fallbackRows);
+assert.strictEqual(r.resolved,true,'array order must provide deterministic revision order when row numbers are absent');
+const classificationRows=[
+  Object.assign({},base,{__rowNumber:2,'Superseded ID':'DR-OLD-1'}),
+  Object.assign({},base,{__rowNumber:3,'Superseded ID':'DR-OLD-1',Classification:'DIFFERENT_CLASS','Active?':false})
+];
+r=ctx.trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS','3569',evidence,classificationRows);
+assert.strictEqual(r.resolved,true,'classification must remain part of the exact mapping identity');
 
 const a=ctx.trendosIntegrityInvoiceDraftEvidenceV1_([
   {draftId:'B',orderId:'3569',subtotal:0,status:'blocked'},
