@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:45 Africa/Cairo**.
+> Updated: **2026-09-01 12:46 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -25,9 +25,11 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Production/default branch: `main`.
 - Working branch: `agent/go-live-2026-09-01-integrity`.
 - Safety branch: `backup/go-live-2026-08-30-pre-p0`.
-- Current pre-deploy candidate branch: `release/integrity-v1-predeploy-2026-08-31-r3`.
-- Candidate SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`.
-- Candidate CI run `33384689012` = **SUCCESS**.
+- Current deployed/approved source candidate branch: `release/integrity-v1-predeploy-2026-08-31-r3`.
+- Deployed/approved R3 SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI `33384689012` = **SUCCESS**.
+- Frozen remediation successor candidate: `release/integrity-v1-remediation-predeploy-2026-09-01-r4`.
+- Frozen R4 SHA: `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` = **SUCCESS**.
+- R4 is not installed/deployed/activated; R3 remains the source of live Version 145.
 - Production Apps Script Web App: Version **145**, deployed Sep 1 2026 7:12 AM in the Apps Script UI.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
@@ -328,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03F-A — R4 CI TRIGGER FIX COMMITTED + WORKING-BRANCH CI PASS; FAST-FORWARD R4 AND REQUIRE EXACT-SHA CI NEXT; PRODUCTION UNCHANGED**
+**RP-03F-B — REMEDIATION SUCCESSOR R4 FROZEN + EXACT-SHA CI PASS; MEMORY SYNC THEN RP-04 HEAD COMPOSITION; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1224,6 +1226,19 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Production impact: NONE — GitHub workflow only; no runtime/data change.
 - Rollback: revert the workflow-only commit if release-branch CI must be disabled; production unaffected.
 - Exact next step: fast-forward R4 from `c161899d267ad1e6cd277b19e335052ab5be4a13` to the current tested working-branch head, verify R3 remains unchanged, then require a release-branch run whose head SHA equals the final R4 SHA. Record PASS/FAIL before any Apps Script/Sheet action.
+
+## RP-03F-B Final remediation successor candidate — PASS
+- Action: fast-forwarded the remediation successor release ref to the exact tested working-branch checkpoint and completed CI on that release ref.
+- Evidence:
+  - candidate branch `release/integrity-v1-remediation-predeploy-2026-09-01-r4`;
+  - final R4 SHA `b940eb9ff08a094b2406e396eba6af73409e7f9c`;
+  - R4 and working branch matched at freeze;
+  - GitHub Actions run `33493914883`, run number 170, head branch exact R4, head SHA exact `b940eb9ff08a094b2406e396eba6af73409e7f9c` = **SUCCESS**;
+  - Candidate R3 remains unchanged at `ee03adab4c733aec909511b23dd80f42ad3b927e`.
+- Status: **PASS — R4 is frozen and independently CI-verified; it is not installed, deployed, approved for production activation, or serving traffic**.
+- Production impact: NONE — GitHub ref/workflow only. Version 145 continues to serve R3 lineage with master+HEALTH ON only.
+- Rollback: abandon the R4 ref; R3 and Version 145 remain unchanged.
+- Exact next step: update the remediation plan RP-03F Actual plus Handoff/Project Memory with the exact R4 branch/SHA/CI, checkpoint that synchronization here, then enter RP-04 controlled Apps Script Head composition with flags unchanged. No registry, deployment, or ORDER_LINE activation.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
