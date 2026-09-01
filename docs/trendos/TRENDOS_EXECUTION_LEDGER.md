@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:24 Africa/Cairo**.
+> Updated: **2026-09-01 18:29 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -29,7 +29,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Deployed/approved R3 SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`; CI `33384689012` = **SUCCESS**.
 - Frozen remediation successor candidate: `release/integrity-v1-remediation-predeploy-2026-09-01-r4`.
 - Frozen R4 SHA: `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` = **SUCCESS**.
-- R4 controlled Head composition is in progress: the remediation helper and Order/Line module are installed/reload-verified in Head; Press, Invoice, Dashboard, and Router replacements remain pending. R4 is not deployed or activated, and R3 remains the source of live Version 145.
+- R4 controlled Head composition is in progress: the remediation helper plus Order/Line and Press modules are installed/reload-verified in Head; Invoice, Dashboard, and Router replacements remain pending. R4 is not deployed or activated, and R3 remains the source of live Version 145.
 - Production Apps Script Web App: Version **145**, deployed Sep 1 2026 7:12 AM in the Apps Script UI.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-04E — R4 HELPER + ORDER/LINE INSTALLED AND RELOAD-VERIFIED; PRESS REPLACEMENT NEXT; PRODUCTION VERSION 145 UNCHANGED**
+**RP-04F — R4 HELPER + ORDER/LINE + PRESS INSTALLED AND RELOAD-VERIFIED; INVOICE NEXT; PRODUCTION VERSION 145 UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1320,6 +1320,19 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; failure checkpoint commit `afca92b80fba7ca669549ac114a81e9e083ff327`.
 - Rollback: delete/recreate only this Head file from Candidate R3 blob `b8db6ea34ab537b2a6cb79db4c4d0aa1b3d4a2c8` if a later dependency/composition check fails; deployed Version 145 remains the immediate live rollback boundary.
 - Exact next step: replace `trendos-press-integrity-v1.gs` through the same safe delete-and-recreate method using frozen R4 blob `99857aacc757e9e80589ba5bcab310d8330e6391`, Save/reload/verify, and checkpoint before Invoice. Do not Run, Deploy, create/write the registry, or change flags.
+
+## RP-04F Press R4 controlled replacement — PASS
+- Action: removed only the R3 Head `trendos-press-integrity-v1.gs`, recreated the same filename with the exact frozen R4 source, saved, reloaded, and verified the file.
+- Evidence:
+  - exact R4 Press blob `99857aacc757e9e80589ba5bcab310d8330e6391` was locally verified before insertion;
+  - pre-reload editor reached expected line 185 plus terminal blank line 186;
+  - after reload the file persisted without an `unsaved` marker, the exact Press R4 header/constants/helpers reopened, Apps Script showed `Saved to Drive` / `cloud_done`, and no parser/composition error appeared;
+  - default `myFunction` disappeared after parse and no public runnable function is exposed by this module.
+- Status: **PASS — Press Head source is now the frozen R4 composition**.
+- Production impact: NONE — Head only; no Run, Deploy, property, trigger, route, registry, Sheet write, flag change, or `Code.gs` edit. Version 145 remains live with master+HEALTH ON only.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Press blob above.
+- Rollback: recreate only this Head file from Candidate R3 blob `38c8ce3a5e0918538db99c913eeb8cb917f52c64` if a later composition/dependency check fails; Version 145 remains unchanged.
+- Exact next step: replace `trendos-invoice-integrity-v1.gs` by the same safe delete-and-recreate method using frozen R4 blob `08128d35fcc0ac1876a8790564cf7377f8869c47`, Save/reload/verify, and checkpoint before Dashboard. Do not Run, Deploy, create/write the registry, or change flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
