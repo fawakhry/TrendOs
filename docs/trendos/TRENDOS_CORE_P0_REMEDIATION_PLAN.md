@@ -3,10 +3,10 @@
 > Prepared: **2026-09-01 12:05 Africa/Cairo**  
 > Repository: `fawakhry/TrendOs`  
 > Working branch: `agent/go-live-2026-09-01-integrity`  
-> Current approved deployed source candidate: `release/integrity-v1-predeploy-2026-08-31-r3` at `ee03adab4c733aec909511b23dd80f42ad3b927e`  
-> Frozen remediation successor candidate: `release/integrity-v1-remediation-predeploy-2026-09-01-r4` at `b940eb9ff08a094b2406e396eba6af73409e7f9c`; CI `33493914883` SUCCESS  
-> Current production: Apps Script Version **145**, master+HEALTH ON only.  
-> Status: **RP-01/RP-02/RP-03/RP-03E/RP-03F PASS; R4 FROZEN; NO PRODUCTION REMEDIATION INSTALLED OR APPLIED**.
+> Previous deployed baseline: `release/integrity-v1-predeploy-2026-08-31-r3` at `ee03adab4c733aec909511b23dd80f42ad3b927e`  
+> Current deployed remediation source: `release/integrity-v1-remediation-predeploy-2026-09-01-r4` at `b940eb9ff08a094b2406e396eba6af73409e7f9c`; CI `33493914883` SUCCESS  
+> Current production: Apps Script Version **146**, master+HEALTH ON only; every business family and Fast Auth OFF.  
+> Status: **RP-01 through RP-05 PASS; Version 146 ACTIVE; registry reader rollback fix + one-time writer CI PASS on GitHub only; NO REGISTRY CREATED/WRITTEN**.
 
 ## 1. Objective
 
@@ -22,7 +22,7 @@ The first activation target remains ORDER_LINE, but it stays OFF until every gat
 - Order ID remains the Order key; Line ID remains the active Line key.
 - Preserve all source and audit/history rows, including `مكرر`.
 - No inferred attendance end time, invoice amount, Press session link, approval, or state.
-- R3 remains the currently deployed/approved candidate; any remediation source must be a separately reviewed successor checkpoint, never a silent mutation of R3.
+- R4 is the currently deployed remediation source in Version 146; R3 remains an immutable prior baseline. Any later source must be a separately reviewed successor checkpoint, never a silent mutation of either frozen branch.
 - CI PASS is not runtime PASS.
 - Every production write must be exact-bounded, previewed, reversible, and followed by a Ledger checkpoint.
 
@@ -197,6 +197,30 @@ Acknowledge only these exact completed Lines, and only when their evidence hashe
 
 They remain visible as historical traceability WARN. No Session ID is backfilled without independent evidence. Any qualifying Press completion after the activation cutoff without Line-session evidence remains CORE-P0.
 
+### 4.8 One-time registry writer contract
+
+GitHub-only source: `trendos-core-p0-registry-writer-v1.gs`. It is intentionally excluded from the deployed 12-module package.
+
+Safety behavior:
+
+- `trendosCoreP0RegistryPreviewV1` is public and read-only; it never creates a Sheet or property.
+- the exact plan contains 34 rows: 6 Attendance supersessions, 11 Cleaning acknowledgements, 3 Invoice supersessions, and 14 Press traceability acknowledgements.
+- Invoice decisions additionally pin canonical/superseded source rows: 3569 = 21/20, 3572 = 19/18, 3577 = 17/16.
+- `trendosCoreP0RegistryWriteV1` requires Master+HEALTH ON, every business family and Fast Auth OFF, ScriptLock, exact 10-header schema, live evidence/hash recheck, and a one-use Script Property equal to the exact plan hash.
+- retry with the same completed registry is a no-op; an explicitly inactive mapping is never silently reactivated.
+- post-write evidence or registry verification failure appends inactive rollback revisions for all rows added by that attempt.
+- `trendosCoreP0RegistryRollbackV1` has a separate one-use approval property and deactivates only the exact 34 plan identities append-only.
+- current plan hash: `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
+
+GitHub evidence:
+
+- reader precedence fix: `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`;
+- writer source: `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`;
+- writer tests: `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`;
+- CI: `33553469092` = SUCCESS.
+
+No Apps Script, Sheet, property, route, trigger, flag, or deployment changed during this tooling checkpoint.
+
 ## 5. Execution sequence and gates
 
 ### RP-01 — GitHub-only remediation implementation
@@ -277,7 +301,7 @@ Expected:
 - no production impact.
 
 Actual: **PASS** — `release/integrity-v1-remediation-predeploy-2026-09-01-r4` frozen at `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref GitHub Actions run `33493914883` SUCCESS; Candidate R3 unchanged.  
-Rollback: abandon only the new candidate ref; production remains Version 145.
+Rollback: abandon only the new candidate ref; at that historical checkpoint production remained Version 145.
 
 ### RP-04 — Head composition with flags unchanged
 
@@ -291,8 +315,8 @@ Expected:
 - all business families and Fast Auth OFF;
 - Version 145 behavior unchanged because no deployment occurred.
 
-Actual: PENDING.  
-Rollback: restore exact Version-145 Head source files from the captured checkpoint.
+Actual: **PASS** — R4 helper plus the five modified modules were installed into the 24-file Apps Script Head, saved/reloaded, parser/composition checked, and dependency health returned `codeReady=true`, `requiredCount=25`, `missing=[]`; master+HEALTH ON only and all business families/Fast Auth OFF.  
+Rollback: restore the exact captured pre-R4 Head sources; the deployed Version remained unchanged during this Head-only step.
 
 ### RP-05 — Controlled deployment
 
@@ -307,8 +331,8 @@ Expected:
 - exactly one D1 sync trigger;
 - no business mutation.
 
-Actual: PENDING.  
-Rollback: restore Version 145 immediately; Version 144 remains deeper rollback.
+Actual: **PASS** — frozen R4 was deployed on the preserved deployment ID as Version 146. Base landing, dependency/property health, execution history, and the single `d1OrdersLiveSyncTick` trigger were verified; no business family was activated.  
+Rollback: restore Version 145 immediately; Versions 144 and 143 remain deeper rollback points.
 
 ### RP-06 — Exact-bounded registry write
 
@@ -323,8 +347,8 @@ Use one ScriptLock-protected helper that:
 5. performs no source-sheet mutation.
 
 Expected: registry exact; source sheets byte/value-equivalent before/after.  
-Actual: PENDING.  
-Rollback: deactivate the inserted registry entries by an append-only resolution revision; never delete the source evidence.
+Actual: **PRE-WRITE TOOLING PASS / PRODUCTION WRITE PENDING EXPLICIT APPROVAL** — append-only reader precedence fix source `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; hardened one-time writer source `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; tests `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` SUCCESS. The writer is excluded from the deployed package, uninstalled, and unexecuted. Exact current plan hash: `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.  
+Rollback: use the separately approved writer rollback function to append inactive revisions for the exact identities; never delete registry or source evidence.
 
 ### RP-07 — HEALTH recheck
 
@@ -356,18 +380,19 @@ Attendance/Cleaning, Press, Invoice, WhatsApp, OPS, and Automation remain OFF un
 
 ## 6. Approval boundaries
 
-Current user approval covers preparation of this plan only.
+Current approvals cover the completed Version 146 deployment with Master+HEALTH ON only. They do not authorize a registry Sheet write or a business-family activation.
 
 No additional approval is needed for later GitHub-only implementation/tests that have zero production impact.
 
 Explicit approval remains required for:
 
-1. updating the production deployment;
-2. creating/writing the resolution registry;
-3. activating ORDER_LINE or any later family.
+1. installing the new reader/writer checkpoint into Apps Script Head and running its read-only preview;
+2. setting the one-use plan-hash approval property and creating/writing the resolution registry;
+3. any later production deployment that carries the revised reader;
+4. activating ORDER_LINE or any later family.
 
 ## 7. Current exact stopping point
 
-**RP-01/RP-02/RP-03/RP-03E/RP-03F COMPLETE; R4 FROZEN + EXACT-SHA CI PASS; LEGACY PRESS VIEW NON-AUTHORITATIVE; PRESS SCOPE IS 9 QUEUE / 14 HISTORICAL COMPLETED-WITHOUT-LINE-SESSION; VERSION 145 + HEALTH ONLY REMAINS LIVE; STOP BEFORE REGISTRY, DEPLOY, OR ORDER_LINE.**
+**RP-01 THROUGH RP-05 COMPLETE; VERSION 146 + MASTER/HEALTH ONLY IS LIVE; APPEND-ONLY READER FIX AND GUARDED 34-ROW WRITER ARE CI PASS ON GITHUB ONLY; STOP BEFORE HEAD INSTALLATION, READ-ONLY WRITER PREVIEW, REGISTRY WRITE, REVISED-READER DEPLOYMENT, OR ORDER_LINE.**
 
-Exact next technical action: execute RP-04 controlled Apps Script Head composition from frozen R4 with flags unchanged, then run dependency and legacy no-change checks. Do not create/write the registry, deploy, or enable ORDER_LINE.
+Exact next technical action: obtain a checkpoint for temporary Apps Script Head installation of the revised remediation helper plus the separate writer file, Save/parse only, then run `trendosCoreP0RegistryPreviewV1` read-only. Do not set either approval property, create/write the registry, deploy a revised version, or enable ORDER_LINE in that checkpoint.
