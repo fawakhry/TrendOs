@@ -1553,6 +1553,18 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md` to Version 146 / PD-09-R4 PASS. Then STOP before any resolution-registry write or ORDER_LINE activation; each requires its own explicit production checkpoint and approval.
 
 
+
+## PD-09-R4-MEMORY-A — HANDOFF SYNCHRONIZED TO VERSION 146
+
+- Action: synchronized `TRENDOS_HANDOFF.md` from the pre-deploy Version 145 checkpoint to the verified Version 146 / PD-09-R4 PASS state.
+- Evidence: Handoff commit `e6923db74cf5dc567b196e0b36fb1ffc33ed0fe9`; content blob `54de3bf4ba671e32e10fd011d3541f9c50aedd45`; it records Version 146 active, Version 145 immediate rollback, master+HEALTH ON only, all business families/Fast Auth OFF, and the stop before registry/ORDER_LINE.
+- Status: **PASS**.
+- Production impact: NONE — GitHub documentation only.
+- Commit / CI: Handoff commit above; frozen R4 CI `33493914883` SUCCESS.
+- Rollback: revert documentation commit only if evidence is disproved; no production rollback required.
+- Exact next step: synchronize `TRENDOS_PROJECT_MEMORY.md` to the same Version 146 checkpoint, then update this ledger again before stopping at the registry/ORDER_LINE approval gate.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
