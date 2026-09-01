@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:40 Africa/Cairo**.
+> Updated: **2026-09-01 12:42 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03E — PRESS CONSUMER/PROVIDER CONTRACT DIAGNOSED READ-ONLY; LEGACY VIEW IS NON-AUTHORITATIVE WARN; PRODUCTION UNCHANGED**
+**RP-03E2 — PRESS CONTRACT EVIDENCE + PLAN ACTUAL PASS; MEMORY SYNC THEN RP-03F CANDIDATE FREEZE; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1170,6 +1170,19 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: source remains `24b4e89a3d3866f8f95d28ec609a302ba908486e`; CI `33491831765` SUCCESS; this ledger checkpoint follows.
 - Rollback: none required. If a later authenticated live-editor capture proves a new Press consumer/provider, reopen the classification before any registry/deploy action.
 - Exact next step: create an RP-03E evidence checkpoint and mark the remediation plan Actual=PASS with the explicit non-authoritative-view decision. Then checkpoint those docs here and synchronize Handoff/Project Memory. Do not install remediation source, write/create the registry, deploy, or enable ORDER_LINE.
+
+## RP-03E2 Press evidence and plan closure — PASS
+- Action: preserved the complete Press consumer/provider decision as a canonical checkpoint and changed the remediation plan RP-03E Actual from PENDING to PASS.
+- Evidence:
+  - checkpoint file `docs/trendos/checkpoints/RP03E_PRESS_CONSUMER_CONTRACT_2026-09-01.md`;
+  - evidence commit `8ba84e71c8adfc79cce1969e307c8d3a6053887c`;
+  - plan commit `6bff9c9d856da63eadc1c7c00775e1f702495fe4`;
+  - the plan explicitly forbids writing/refreshing `واجهة المكبس` and adds RP-03F to freeze a separately reviewed remediation successor candidate without moving Candidate R3.
+- Status: **PASS — the Press-view ambiguity is closed as a non-authoritative WARN; no code change is required**.
+- Production impact: NONE — GitHub documentation only; diagnosis was read-only. Version 145 and master+HEALTH ON only remain unchanged.
+- Commit / CI: commits above; remediation source `24b4e89a3d3866f8f95d28ec609a302ba908486e`; CI `33491831765` SUCCESS.
+- Rollback: documentation-only revert if later authenticated live evidence proves a new authoritative Press provider.
+- Exact next step: synchronize Handoff/Project Memory with RP-03E PASS and RP-03F next, record it here, then freeze the successor candidate. Do not touch Apps Script Head, Sheets, registry, deployment, properties, triggers, routes, or flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
