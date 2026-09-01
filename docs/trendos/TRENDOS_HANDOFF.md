@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 12:20 Africa/Cairo**.
+> Last consolidated: **2026-09-01 12:34 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**RP-01 — NON-DESTRUCTIVE CORE-P0 REMEDIATION IMPLEMENTED ON WORKING BRANCH; CI PASS; PRODUCTION PREVIEW NEXT; STOP BEFORE ORDER_LINE**
+**RP-03 — PRODUCTION-SHAPED PREVIEW COMPLETE; PRESS SCOPE CORRECTED; READ-ONLY PRESS CONSUMER DIAGNOSIS NEXT; STOP BEFORE REMEDIATION INSTALL/REGISTRY/ORDER_LINE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -182,7 +182,7 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**RP-01B — remediation source committed + CI PASS on working branch; production unchanged; STOP before ORDER_LINE.**
+**RP-03D2 — preview evidence and corrected remediation plan committed; production unchanged; STOP before remediation Head install, registry, deploy, or ORDER_LINE.**
 
 Completed and verified:
 - current live `Code.gs` was copied from the live editor, minimally wired with two guarded Integrity route calls and one guarded webhook call, saved, reloaded, and exact-compared; it was never replaced from GitHub.
@@ -206,31 +206,33 @@ Dashboard runtime signal:
 - `healthy=false`.
 - all six CORE-P0 signals were triaged read-only; no production source cell changed.
 
-Triage classification:
-1. `INVALID_LINE_IDS`: 229 legacy Line ID cells are stored as numeric/date-formatted values and read by Apps Script as Date objects; 131 are closed and **98 are not closed** (57 ready, 34 new, 7 in progress). This is a live ORDER_LINE compatibility blocker.
-2. `DUPLICATE_ATTENDANCE_SESSIONS`: 6 excess rows across 5 recent employee/day keys; affected sessions have blank end times and some conflicting states. True active defect.
-3. `DUPLICATE_CLEANING_RECORDS`: 16 excess completed/no-problem rows across 11 employee/day keys. Historical baseline debt; do not delete.
-4. `DUPLICATE_INVOICE_DRAFTS`: active duplicate unpriced drafts for Orders `3569`, `3572`, `3577`; total=0 and unsent. True active legacy defect requiring canonical selection with audit preserved.
-5. `PRESS_SOURCE_VIEW_MISMATCH`: four current Press Line IDs exist in source while `واجهة المكبس` contains zero data rows. Current view-generation/source-view mismatch.
-6. `PRESS_COMPLETED_WITHOUT_SESSION`: three delivered Lines predate the new Line-session ledger, and `تشغيل - بنود جلسات المكبس V1` is absent. Historical/schema traceability debt; do not invent session links.
+RP-03 production-shaped preview:
+1. Order/Line adapter: **PASS** — 229/229 legacy Line IDs recover; all 98 legacy open Lines plus 4 current open Lines resolve uniquely; invalid IDs, active duplicates, and Order mismatches are all zero.
+2. Attendance evidence: **PASS** — 5 exact employee/day groups, 6 excess rows, deterministic canonical/superseded Session IDs and stable hashes captured.
+3. Cleaning evidence: **PASS** — 11 exact employee/day groups, 16 excess rows, stable hashes captured; no source cleanup.
+4. Invoice evidence: **PASS** — Orders `3569`, `3572`, `3577` have exact canonical/superseded Draft mappings and stable hashes; every protected row remains zero-value, unsent, and blocked for pricing/approval.
+5. Press evidence: **PASS acquisition / corrected scope** — the recovered source queue contains 9 Lines, while `واجهة المكبس` has zero rows.
+6. Press historical scope: **14**, not 3, completed Lines lack Line-session evidence; `تشغيل - بنود جلسات المكبس V1` is absent. Never invent session links.
 
 Status interpretation:
 - HEALTH family code/deployment/runtime = **PASS**.
-- read-only triage = **PASS**.
-- remediation/baseline acknowledgement = **PENDING**.
+- read-only triage and RP-03 preview = **PASS**.
+- earlier Press remediation scope = **PARTIAL/CORRECTED**.
+- remediation installation, registry write, and baseline acknowledgement = **PENDING**.
 - ORDER_LINE and all later families remain OFF.
 
 Remediation checkpoint:
 - plan: `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md`.
-- GitHub-only source commit: `63d6dd50aee10b84ad35a9d06e9f4414254636d1`.
-- GitHub Actions run `33491388210` = **SUCCESS**.
-- new helper module: `trendos-core-p0-remediation-v1.gs`.
-- Candidate R3 and Apps Script Head were not changed; no R4 candidate is frozen.
+- exact preview: `docs/trendos/checkpoints/RP03_CORE_P0_PREVIEW_2026-09-01.md`.
+- GitHub-only implementation: `63d6dd50aee10b84ad35a9d06e9f4414254636d1`.
+- evidence-hash hardening: `24b4e89a3d3866f8f95d28ec609a302ba908486e`.
+- latest GitHub Actions run `33491831765` = **SUCCESS**.
+- Candidate R3, Apps Script Head, Version 145, Sheets, properties, triggers, routes, deployment, and flags were not changed by remediation work.
 - no resolution registry exists and no production source row was changed.
 
 Exact next action:
-1. perform RP-03 read-only production-shaped preview against the exact live rows;
-2. require unique resolution of all 98 not-closed legacy Line IDs and exact evidence hashes for every proposed baseline/supersession entry;
+1. execute RP-03E read-only diagnosis of the live `Code.gs` and frontend Press consumer/provider contract;
+2. record whether `واجهة المكبس` is authoritative, obsolete, or missing a real provider;
 3. do not install remediation source in Apps Script Head, deploy, create/write the registry, or enable ORDER_LINE without the later checkpoints and approvals.
 
 ## Persistent execution behavior
