@@ -41,8 +41,7 @@ function trendosHealthInvoiceDraftDtoV1_(r){
     blocker:trendosHealthValV1_(r,['سبب التعطيل','blocker']),
     invoiceNo:trendosHealthValV1_(r,['رقم الفاتورة','Invoice No']),
     messageStatus:trendosHealthValV1_(r,['حالة رسالة واتساب','messageStatus']),
-    metaId:trendosHealthValV1_(r,['Meta Message ID','metaId']),
-    updatedAt:trendosHealthValV1_(r,['آخر تحديث','Updated At','تاريخ التحديث'])
+    metaId:trendosHealthValV1_(r,['Meta Message ID','metaId'])
   };
 }
 

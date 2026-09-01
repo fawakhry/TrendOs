@@ -73,8 +73,7 @@ function trendosInvoiceResolutionDraftV1_(x){
     blocker:d&&d.blocker,
     invoiceNo:d&&d.invoiceNo,
     messageStatus:d&&d.messageStatus,
-    metaId:d&&d.metaId,
-    updatedAt:trendosInvoiceValV1_(x,'آخر تحديث')||trendosInvoiceValV1_(x,'Updated At')||trendosInvoiceValV1_(x,'تاريخ التحديث')
+    metaId:d&&d.metaId
   };
 }
 function trendosInvoiceResolveDraftV1_(orderId){

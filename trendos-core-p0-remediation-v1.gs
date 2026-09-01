@@ -101,15 +101,14 @@ function trendosIntegrityInvoiceDraftEvidenceV1_(drafts){
       blocker:trendosRemediationTextV1_(d.blocker),
       invoiceNo:trendosRemediationTextV1_(d.invoiceNo),
       messageStatus:trendosRemediationTextV1_(d.messageStatus),
-      metaId:trendosRemediationTextV1_(d.metaId),
-      updatedAt:trendosRemediationTextV1_(d.updatedAt)
+      metaId:trendosRemediationTextV1_(d.metaId)
     };
   }).sort(function(a,b){return a.draftId.localeCompare(b.draftId);});
 }
 function trendosIntegrityGroupEvidenceV1_(metricId,entityKey,rows){
   const stable=(rows||[]).map(function(r){
-    const out={};
-    Object.keys(r||{}).filter(function(k){return k!=='__display';}).sort().forEach(function(k){out[k]=r[k];});
+    const display=r&&r.__display&&Object.keys(r.__display).length?r.__display:r||{},out={__rowNumber:r&&r.__rowNumber||0};
+    Object.keys(display).filter(function(k){return k!=='__display'&&k!=='__rowNumber';}).sort().forEach(function(k){out[k]=trendosRemediationTextV1_(display[k]);});
     return out;
   }).sort(function(a,b){
     const ax=trendosRemediationTextV1_(a.__rowNumber)+'|'+trendosRemediationTextV1_(a.ID||a['معرف الجلسة']||a['Draft ID']);

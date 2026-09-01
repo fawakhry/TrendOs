@@ -50,6 +50,9 @@ const b=ctx.trendosIntegrityInvoiceDraftEvidenceV1_([
   {draftId:'B',orderId:'3569',subtotal:0,status:'blocked'}
 ]);
 assert.strictEqual(JSON.stringify(a),JSON.stringify(b),'invoice evidence must be order-independent');
+const displayedA=ctx.trendosIntegrityGroupEvidenceV1_('ATT','X',[{__rowNumber:2,date:new Date('2026-08-30T07:00:00Z'),__display:{date:'2026-08-30',employee:'وائل'}}]);
+const displayedB=ctx.trendosIntegrityGroupEvidenceV1_('ATT','X',[{__rowNumber:2,date:new Date('2026-08-30T00:00:00Z'),__display:{date:'2026-08-30',employee:'وائل'}}]);
+assert.strictEqual(JSON.stringify(displayedA),JSON.stringify(displayedB),'group evidence must use exact displayed values, not timezone-sensitive Date objects');
 assert.ok(!/sk-[A-Za-z0-9_-]{20,}/.test(remediation));
 assert.ok(!/EAA[A-Za-z0-9]{30,}/.test(remediation));
 console.log('TrendOS CORE-P0 remediation V1 tests: OK');
