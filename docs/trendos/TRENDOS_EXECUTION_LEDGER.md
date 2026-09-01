@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:18 Africa/Cairo**.
+> Updated: **2026-09-01 12:21 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-01B — GITHUB-ONLY REMEDIATION COMMITTED + CI PASS; MEMORY SYNC/RP-03 PREVIEW NEXT; PRODUCTION UNCHANGED**
+**RP-01C — REMEDIATION SOURCE/CI/MEMORY SYNC PASS; RP-03 READ-ONLY PREVIEW NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1040,6 +1040,16 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Candidate status: approved/deployed Candidate R3 remains unchanged at `ee03adab4c733aec909511b23dd80f42ad3b927e`; no R4 branch/candidate has been frozen.
 - Rollback: revert source commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1` on the working branch only; no production rollback required.
 - Exact next step: synchronize Handoff/Project Memory with RP-01 PASS, then perform RP-03 read-only production-shaped preview. Do not install the remediation in Apps Script Head, create the registry, deploy, or activate ORDER_LINE.
+
+
+## RP-01C Remediation memory synchronization — PASS
+- Action: synchronized `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md` to the RP-01 source commit, CI run, protected production boundary, and exact RP-03 next step in one atomic documentation commit.
+- Evidence: commit `b5f5a25ec293b028d69851ac9c7c8b34a7160a19`.
+- Status: **PASS — Ledger, Handoff, Project Memory, and remediation plan agree on the same checkpoint**.
+- Production impact: NONE — documentation only; Version 145 and master+HEALTH ON only remain unchanged.
+- Commit / CI: memory commit above; source commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1`; CI `33491388210` SUCCESS.
+- Rollback: documentation-only revert if later verified evidence changes the checkpoint.
+- Exact next step: run RP-03 read-only production-shaped preview. No Apps Script Head installation, registry write, deployment, property, trigger, route, or flag change.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
