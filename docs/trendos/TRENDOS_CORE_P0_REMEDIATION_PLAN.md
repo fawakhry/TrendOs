@@ -4,8 +4,9 @@
 > Repository: `fawakhry/TrendOs`  
 > Working branch: `agent/go-live-2026-09-01-integrity`  
 > Current approved deployed source candidate: `release/integrity-v1-predeploy-2026-08-31-r3` at `ee03adab4c733aec909511b23dd80f42ad3b927e`  
+> Frozen remediation successor candidate: `release/integrity-v1-remediation-predeploy-2026-09-01-r4` at `b940eb9ff08a094b2406e396eba6af73409e7f9c`; CI `33493914883` SUCCESS  
 > Current production: Apps Script Version **145**, master+HEALTH ON only.  
-> Status: **RP-01/RP-02/RP-03/RP-03E PASS; LEGACY PRESS VIEW CONFIRMED NON-AUTHORITATIVE; NO PRODUCTION REMEDIATION AUTHORIZED OR APPLIED**.
+> Status: **RP-01/RP-02/RP-03/RP-03E/RP-03F PASS; R4 FROZEN; NO PRODUCTION REMEDIATION INSTALLED OR APPLIED**.
 
 ## 1. Objective
 
@@ -275,8 +276,8 @@ Expected:
 - Candidate R3 remains unchanged;
 - no production impact.
 
-Actual: PENDING.  
-Rollback: delete or abandon only the new candidate ref; production remains Version 145.
+Actual: **PASS** — `release/integrity-v1-remediation-predeploy-2026-09-01-r4` frozen at `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref GitHub Actions run `33493914883` SUCCESS; Candidate R3 unchanged.  
+Rollback: abandon only the new candidate ref; production remains Version 145.
 
 ### RP-04 — Head composition with flags unchanged
 
@@ -367,6 +368,6 @@ Explicit approval remains required for:
 
 ## 7. Current exact stopping point
 
-**RP-01/RP-02/RP-03/RP-03E COMPLETE; LEGACY PRESS VIEW CONFIRMED NON-AUTHORITATIVE; PRESS SCOPE IS 9 QUEUE / 14 HISTORICAL COMPLETED-WITHOUT-LINE-SESSION; VERSION 145 + HEALTH ONLY REMAINS LIVE; STOP BEFORE REMEDIATION HEAD INSTALL, REGISTRY, DEPLOY, OR ORDER_LINE.**
+**RP-01/RP-02/RP-03/RP-03E/RP-03F COMPLETE; R4 FROZEN + EXACT-SHA CI PASS; LEGACY PRESS VIEW NON-AUTHORITATIVE; PRESS SCOPE IS 9 QUEUE / 14 HISTORICAL COMPLETED-WITHOUT-LINE-SESSION; VERSION 145 + HEALTH ONLY REMAINS LIVE; STOP BEFORE REGISTRY, DEPLOY, OR ORDER_LINE.**
 
-Exact next technical action: execute RP-03F and freeze a separate remediation successor candidate from the synchronized working branch, verify CI, and checkpoint the exact ref/SHA before any Apps Script or Sheet change.
+Exact next technical action: execute RP-04 controlled Apps Script Head composition from frozen R4 with flags unchanged, then run dependency and legacy no-change checks. Do not create/write the registry, deploy, or enable ORDER_LINE.
