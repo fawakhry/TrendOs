@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:09 Africa/Cairo**.
+> Updated: **2026-09-01 10:10 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Rollback Web App version: **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 144 LIVE + ALL FLAGS OFF; MINIMAL GUARDED ROUTER WIRING SAVED AND EXACT-VERIFIED IN HEAD; VERSION 145 NOT YET DEPLOYED**.
+- Integrity V1 state: **VERSION 144 LIVE + ALL FLAGS OFF; GUARDED ROUTER WIRING AND POST-WIRING DEPENDENCY HEALTH PASS IN HEAD; VERSION 145 APPROVED AND NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10C — MINIMAL GUARDED LIVE ENTRYPOINT WIRING SAVED IN HEAD; DEPENDENCY RETEST NEXT**
+**PD-10D — POST-WIRING DEPENDENCY HEALTH PASS; VERSION 145 FLAGS-OFF DEPLOYMENT NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -702,6 +702,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live controlled edit evidence; approved Candidate R3 and CI remain unchanged; this ledger checkpoint is the only GitHub change.
 - Rollback: Version 144 is the immediate frozen production rollback. Before Version 145 deployment, the exact 695,246-character pre-edit source remains available in the controlled session if a Head-only restore becomes necessary. Version 143 remains the deeper rollback.
 - Exact next step: run Head `trendosIntegrityDependencyHealthV1` and require `codeReady=true`, `missing=[]`, master=false, every family=false, and Fast Auth OFF. Record the result before creating Version 145.
+
+## PD-10D Post-wiring Dependency Health — PASS
+- Action: ran public Head function `trendosIntegrityDependencyHealthV1` after the exact-verified guarded `Code.gs` wiring and before creating any new deployment.
+- Evidence: execution log at 7:10:34 AM returned `success=true`, `codeReady=true`, `requiredCount=23`, `missing=[]`, router version `TRENDOS_INTEGRITY_ROUTER_V1_20260830`, `features.master=false`, and every family false: HEALTH, ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION; `optional.fastAuthV25Present=false`; execution completed.
+- Status: **PASS — wired Head parses and resolves every required dependency while all gates remain OFF**.
+- Production impact: diagnostic execution on Head only; no business-family runtime, Script Property, trigger, deployment, or production route change. Version 144 remains live.
+- Commit / CI: live runtime PASS recorded on the working branch; Candidate R3 and CI unchanged.
+- Rollback: Version 144 remains the immediate production rollback; Version 143 remains the deeper rollback.
+- Exact next step: update the existing production Web App deployment to Version 145 from this exact verified Head, preserve the same Deployment ID/URL, keep every flag OFF, then record deployment evidence before any smoke or activation.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
