@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:45 Africa/Cairo**.
+> Updated: **2026-09-01 18:48 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -34,7 +34,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY PASS; MASTER+HEALTH ON ONLY; RP-03/RP-03E READ-ONLY DIAGNOSIS COMPLETE; LINE ADAPTER PASS; PRESS QUEUE=9; LEGACY PRESS VIEW NON-AUTHORITATIVE WARN; 14 HISTORICAL COMPLETED-WITHOUT-SESSION; STOP BEFORE ANY REMEDIATION INSTALL/REGISTRY/ORDER_LINE**.
+- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON ONLY; FROZEN R4 HEAD COMPOSITION + PD-06 + PD-07 DEPENDENCY HEALTH PASS; ALL BUSINESS FAMILIES OFF; FAST AUTH ABSENT/OFF; NO R4 DEPLOY; NO REGISTRY WRITE; PD-08 LEGACY NO-CHANGE SMOKE NEXT**.
 
 ---
 
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-06-R4 — FULL HEAD SAVE/RELOAD/COMPOSITION PASS; PD-07 DEPENDENCY HEALTH NEXT; PRODUCTION VERSION 145 UNCHANGED**
+**PD-07-R4 — DEPENDENCY HEALTH PASS WITH 25/25 READY; PD-08 LEGACY NO-CHANGE SMOKE NEXT; PRODUCTION VERSION 145 UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1391,6 +1391,23 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; RP-04 closure commit `e178d8bdf2eaab538795b1d1308cbfd18439cc93`.
 - Rollback: restore only R4-scoped files from R3/remove the helper if PD-07 fails; no deployment rollback is required because Version 145 is unchanged.
 - Exact next step: run public `trendosIntegrityDependencyHealthV1` from Head and require `codeReady=true`, `missing=[]`, master=true, HEALTH=true, all business families=false, and Fast Auth OFF. Record PASS/FAIL before any legacy smoke, registry, deploy, or activation action.
+
+## PD-07-R4 Dependency Health runtime verification — PASS
+- Action: selected and ran the public Head function `trendosIntegrityDependencyHealthV1` after the completed R4 composition.
+- Evidence — execution log at 3:27:50–3:27:52 PM:
+  - `success=true`;
+  - `codeReady=true`;
+  - `requiredCount=25`;
+  - `missing=[]`;
+  - router version `TRENDOS_INTEGRITY_ROUTER_V1_20260830`;
+  - feature state: master=true, HEALTH=true; ORDER_LINE, ATTENDANCE_CLEANING, PRESS, INVOICE, WHATSAPP, OPS, AUTOMATION all false;
+  - optional Fast Auth V2.5 present=false;
+  - Apps Script reported `Execution completed`.
+- Status: **PASS — all required R4 dependencies are present and the expected fail-closed feature state is preserved**.
+- Production impact: READ-ONLY Head verification only — the function reads code presence and Script Properties; it does not deploy, route business traffic, create/write the registry, mutate Sheets, or enable a flag. Version 145 remains the serving deployment.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; PD-06 ledger commit `9359a3ddc7fecf0af7c7b5cd2bb5b2a7af6c050e`.
+- Rollback: none required. If a later smoke fails, business flags are already OFF and Version 145 remains active; restore only the six R4-scoped Head files if needed.
+- Exact next step: execute PD-08 legacy no-change smoke: verify Version 145 remains deployed/serving, the legacy `doGet/doPost` path is unchanged for business actions because all business flags are OFF, exactly one `d1OrdersLiveSyncTick` trigger remains, and no Integrity business mutation occurred from installation. Record PASS/FAIL before any R4 deployment, registry, or ORDER_LINE activation.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
