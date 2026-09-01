@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:24 Africa/Cairo**.
+> Updated: **2026-09-01 12:26 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03B — CROSS-TIMEZONE HASH HARDENING STAGED + LOCAL TESTS PASS; COMMIT/CI NEXT; PRODUCTION UNCHANGED**
+**RP-03C — CROSS-TIMEZONE HASH HARDENING COMMITTED + CI PASS; BOUNDED PREVIEW RESUMED; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1075,6 +1075,18 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: not committed yet; RP-01 remote CI remains the prior checkpoint.
 - Rollback: discard the local hardening patch if review fails.
 - Exact next step: commit the three source files plus remediation test atomically to the working branch, wait for CI, record the result, then resume RP-03 bounded live reads.
+
+
+## RP-03C Evidence-hash cross-timezone hardening — CI PASS
+- Action: committed the evidence representation hardening atomically and completed remote CI.
+- Evidence:
+  - source commit `24b4e89a3d3866f8f95d28ec609a302ba908486e`;
+  - tree `dfffbe0edc2b7e1eab5daa0f14f6ffe24c019049`;
+  - GitHub Actions run `33491831765`, run number 151 = **SUCCESS**.
+- Status: **PASS — resolution hashes are now based on exact displayed group values + row identity; Invoice hashes exclude non-material update-time text**.
+- Production impact: NONE — GitHub only; Version 145 and all production runtime/data state unchanged.
+- Rollback: revert commit `24b4e89a3d3866f8f95d28ec609a302ba908486e` on the working branch.
+- Exact next step: resume RP-03 bounded live reads and compute exact Line resolution and proposed registry evidence hashes. No writes.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
