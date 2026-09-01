@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:48 Africa/Cairo**.
+> Updated: **2026-09-01 18:53 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -34,7 +34,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON ONLY; FROZEN R4 HEAD COMPOSITION + PD-06 + PD-07 DEPENDENCY HEALTH PASS; ALL BUSINESS FAMILIES OFF; FAST AUTH ABSENT/OFF; NO R4 DEPLOY; NO REGISTRY WRITE; PD-08 LEGACY NO-CHANGE SMOKE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON ONLY; FROZEN R4 HEAD COMPOSITION + PD-06 + PD-07 + PD-08 PASS; ALL BUSINESS FAMILIES OFF; FAST AUTH ABSENT/OFF; NO R4 DEPLOY; NO REGISTRY WRITE; STOP AT EXPLICIT R4 DEPLOY APPROVAL CHECKPOINT**.
 
 ---
 
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-07-R4 — DEPENDENCY HEALTH PASS WITH 25/25 READY; PD-08 LEGACY NO-CHANGE SMOKE NEXT; PRODUCTION VERSION 145 UNCHANGED**
+**PD-08-R4 — LEGACY NO-CHANGE SMOKE PASS; STOP BEFORE VERSION 146 / R4 DEPLOY PENDING EXPLICIT APPROVAL**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1408,6 +1408,22 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; PD-06 ledger commit `9359a3ddc7fecf0af7c7b5cd2bb5b2a7af6c050e`.
 - Rollback: none required. If a later smoke fails, business flags are already OFF and Version 145 remains active; restore only the six R4-scoped Head files if needed.
 - Exact next step: execute PD-08 legacy no-change smoke: verify Version 145 remains deployed/serving, the legacy `doGet/doPost` path is unchanged for business actions because all business flags are OFF, exactly one `d1OrdersLiveSyncTick` trigger remains, and no Integrity business mutation occurred from installation. Record PASS/FAIL before any R4 deployment, registry, or ORDER_LINE activation.
+
+## PD-08-R4 Legacy no-change smoke — PASS
+- Action: verified the active deployment, opened the production Web App, inspected installed triggers, and reviewed current executions after R4 Head composition and PD-07.
+- Evidence:
+  - Manage deployments shows active `Version 145 on Sep 1, 2026, 7:12 AM` with description `TrendOS Integrity V1 Router Wiring - flags OFF - PD-10 2026-09-01`;
+  - the active Web App URL opened successfully with page title `TrendOS V1932`;
+  - Triggers page reports `Showing 1 trigger`: Head / Time-based / `d1OrdersLiveSyncTick`; latest shown run completed and trigger error rate was 0.05%;
+  - Executions shows Version 145 `doGet` and `doPost` traffic continuing, including completed requests, plus the Head `d1OrdersLiveSyncTick` completed;
+  - no R4 business-family function was manually executed; the only R4 runtime action was the read-only dependency-health wrapper;
+  - PD-07 independently confirmed master=true, HEALTH=true, every business family=false, and Fast Auth absent.
+- Status: **PASS — legacy production remains Version 145 and the R4 Head installation has not changed deployed business routing or trigger topology**.
+- Observation: several live Version 145 web requests were still marked Running in the real-time execution table; this is recorded as traffic/performance evidence, not an R4 failure, because completed Version 145 requests were also present and no R4 business family is active.
+- Production impact: READ-ONLY verification only — no deployment, property, route, trigger, registry, Sheet, flag, or `Code.gs` change. Version 145 remains the serving deployment.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; PD-07 ledger commit `1a11d539c67aeceab42ae339d4d0227c068c058d`.
+- Rollback: none required. Version 145 remains active and all R4 business families are OFF.
+- Exact next step: synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md` to this checkpoint, then obtain explicit approval before PD-09-R4: deploy current verified Head as Version 146 with current properties unchanged (master+HEALTH ON only; all business families/Fast Auth OFF), no registry write, and Version 145 as immediate rollback. Do not deploy or enable ORDER_LINE without that approval.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
