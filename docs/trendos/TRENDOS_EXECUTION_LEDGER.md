@@ -1819,3 +1819,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; final CI pending.
 - **Rollback:** Revert this hardening commit to the previously CI-passed writer, or revert the complete writer lane. Production remains Version 146.
 - **Exact next step:** Commit the wrong-source-row refusal regression test, update this ledger, then verify the final GitHub Actions run.
+
+
+## RP-06-WRITER-F — INVOICE ROW-DRIFT REGRESSION COMMITTED
+
+- **Action:** Extended the writer test fixture with the exact Invoice source rows and added a negative preview case proving that a canonical Draft moved to the wrong source row fails closed even when its material evidence hash is otherwise unchanged.
+- **Evidence:** Test commit `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; test blob `bc83b0deecfd692521fa935755a6fd233a762f19`. Local writer test and complete 10-file suite PASS.
+- **Status:** PARTIAL — hardened source and tests are committed; final remote CI pending.
+- **Production impact:** NONE. GitHub-only tests.
+- **Commit / CI:** `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; final CI pending.
+- **Rollback:** Revert the test and source hardening commits. No production rollback is applicable.
+- **Exact next step:** Verify GitHub Actions for the latest documented working-branch head and record the result before canonical plan/memory updates.
