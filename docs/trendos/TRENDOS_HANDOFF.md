@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 12:42 Africa/Cairo**.
+> Last consolidated: **2026-09-01 12:47 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**RP-03E — PRESS CONSUMER CONTRACT PASS; LEGACY VIEW NON-AUTHORITATIVE; RP-03F SUCCESSOR CANDIDATE FREEZE NEXT; STOP BEFORE REMEDIATION INSTALL/REGISTRY/ORDER_LINE**
+**RP-03F — REMEDIATION SUCCESSOR R4 FROZEN + EXACT-SHA CI PASS; RP-04 HEAD COMPOSITION NEXT; STOP BEFORE REGISTRY/DEPLOY/ORDER_LINE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -31,14 +31,21 @@ Branches:
 - `main` — production/default.
 - `agent/go-live-2026-09-01-integrity` — active working branch.
 - `backup/go-live-2026-08-30-pre-p0` — safety branch.
-- `release/integrity-v1-predeploy-2026-08-31-r3` — current approved deployment candidate.
+- `release/integrity-v1-predeploy-2026-08-31-r3` — current deployed/approved source candidate.
+- `release/integrity-v1-remediation-predeploy-2026-09-01-r4` — frozen remediation successor candidate; not installed/deployed.
 
 Current approved candidate:
 - SHA `ee03adab4c733aec909511b23dd80f42ad3b927e`.
 - GitHub Actions run `33384689012` = **SUCCESS**.
 - Do not fall back automatically to R1 or R2.
 
-Do not move the frozen release branch silently.
+Frozen remediation successor:
+- branch `release/integrity-v1-remediation-predeploy-2026-09-01-r4`;
+- SHA `b940eb9ff08a094b2406e396eba6af73409e7f9c`;
+- exact-ref GitHub Actions `33493914883` = **SUCCESS**;
+- R4 is not installed/deployed/activated.
+
+Do not move either frozen release branch silently.
 
 ## Production identity
 
@@ -182,7 +189,7 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**RP-03E2 — Press consumer evidence and plan closure committed; production unchanged; RP-03F candidate freeze next; STOP before remediation Head install, registry, deploy, or ORDER_LINE.**
+**RP-03F-B — remediation successor R4 frozen + exact-SHA CI PASS; production unchanged; RP-04 Head composition next; STOP before registry, deploy, or ORDER_LINE.**
 
 Completed and verified:
 - current live `Code.gs` was copied from the live editor, minimally wired with two guarded Integrity route calls and one guarded webhook call, saved, reloaded, and exact-compared; it was never replaced from GitHub.
@@ -229,12 +236,13 @@ Remediation checkpoint:
 - evidence-hash hardening: `24b4e89a3d3866f8f95d28ec609a302ba908486e`.
 - latest GitHub Actions run `33491831765` = **SUCCESS**.
 - Candidate R3, Apps Script Head, Version 145, Sheets, properties, triggers, routes, deployment, and flags were not changed by remediation work.
+- frozen R4 successor: `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS.
 - no resolution registry exists and no production source row was changed.
 
 Exact next action:
-1. freeze a separate remediation successor candidate from the synchronized working-branch checkpoint without moving Candidate R3;
-2. verify the frozen ref, exact SHA/package membership, and GitHub Actions SUCCESS;
-3. do not install remediation source in Apps Script Head, deploy, create/write the registry, or enable ORDER_LINE until the subsequent checkpoints.
+1. execute RP-04 controlled Apps Script Head composition from frozen R4 with all current flags unchanged;
+2. save/reload/exact-verify the new remediation helper and modified modules, then run dependency and legacy no-change checks;
+3. do not create/write the registry, deploy, or enable ORDER_LINE until their later explicit checkpoints.
 
 ## Persistent execution behavior
 
