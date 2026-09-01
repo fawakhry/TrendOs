@@ -67,7 +67,11 @@ Reads:
 - Orders: D1 Fast V2/V2.3 + Sheets fallback.
 - Dashboard: D1 Primary + Sheets fallback.
 
-D1:
+D1 / Cloudflare:
+- Worker `trendos-d1-api` is deployed/configured as a read-first D1 API plus protected migration/mirror imports.
+- business-facing Worker routes are GET/read routes; POST routes are protected `/v1/import/batch` and `/v1/import/sheet` mirror operations.
+- there is no current Cloudflare business-write API for Order/Line, attendance, press, invoice, WhatsApp, or OPS mutations.
+- Google Sheets + Apps Script remain authoritative for production writes during cutover.
 - atomic Worker promote verified.
 - one installed every-minute `d1OrdersLiveSyncTick` verified.
 - source-snapshot consistency still needs runtime regression after new writer activation.
