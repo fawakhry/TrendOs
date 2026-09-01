@@ -1536,6 +1536,23 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: inspect Triggers and verify exactly one Head/time-based `d1OrdersLiveSyncTick` trigger remains; do not add, edit, or delete triggers.
 
 
+
+## PD-09-R4-B5 — TRIGGER RECONCILIATION PASS; VERSION 146 CHECKPOINT CLOSED
+
+- Action: inspected the Apps Script Triggers page after Version 146 activation and closed the controlled deployment smoke checkpoint.
+- Evidence:
+  - Triggers table shows Page 1 of 1 with exactly one row.
+  - owner: Me; deployment: Head; event: Time-based; function: `d1OrdersLiveSyncTick`.
+  - last run: Sep 1, 2026 7:42:38 PM; matching execution-history row is Completed.
+  - displayed trigger error rate: 0.05%.
+  - Version 146 base landing PASS; post-deploy dependency/property health PASS; Version 146 `doGet/doPost` completed traffic visible; no failed Version 146 row visible in the inspected execution page.
+- Status: **PASS — PD-09-R4 controlled Version 146 deployment and immediate post-deploy smoke are closed**.
+- Production impact: READ-ONLY trigger verification only. Active production is Version 146; master+HEALTH ON only; all business families and Fast Auth OFF/absent; no registry, Sheet mutation, property, trigger, route wiring, source, or `Code.gs` change beyond the already approved deployment pointer update.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Version 145 remains immediate rollback.
+- Rollback: not required. If later family activation fails, disable that family immediately; Version 145 remains the deployment rollback.
+- Exact next step: synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md` to Version 146 / PD-09-R4 PASS. Then STOP before any resolution-registry write or ORDER_LINE activation; each requires its own explicit production checkpoint and approval.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
