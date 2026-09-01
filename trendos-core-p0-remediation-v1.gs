@@ -70,13 +70,36 @@ function trendosIntegrityResolutionV1_(metricId,entityKey,evidence,rowsOverride)
   entityKey=trendosRemediationTextV1_(entityKey);
   if(!metricId||!entityKey)return{resolved:false,invalidKey:true};
   const rows=Array.isArray(rowsOverride)?rowsOverride:trendosIntegrityResolutionRowsV1_();
-  const matches=rows.filter(function(r){
+  const allMatches=rows.map(function(r,i){return{row:r,index:i};}).filter(function(item){
+    const r=item.row;
     return trendosRemediationTextV1_(r['Metric ID']).toUpperCase()===metricId&&
-      trendosRemediationTextV1_(r['Entity Key'])===entityKey&&
-      trendosRemediationBoolV1_(r['Active?']);
+      trendosRemediationTextV1_(r['Entity Key'])===entityKey;
   });
   const currentHash=trendosIntegrityEvidenceHashV1_(evidence);
-  if(!matches.length)return{resolved:false,missing:true,metricId:metricId,entityKey:entityKey,evidenceHash:currentHash};
+  if(!allMatches.length)return{resolved:false,missing:true,metricId:metricId,entityKey:entityKey,evidenceHash:currentHash};
+  const useRowNumbers=allMatches.every(function(item){
+    const n=Number(item.row&&item.row.__rowNumber);return isFinite(n)&&n>=2;
+  });
+  const latestByIdentity={};
+  allMatches.forEach(function(item){
+    const r=item.row;
+    const identity=[
+      trendosRemediationTextV1_(r['Canonical ID']),
+      trendosRemediationTextV1_(r['Superseded ID']),
+      trendosRemediationTextV1_(r.Classification)
+    ].join('\u001f');
+    const order=useRowNumbers?Number(r.__rowNumber):item.index;
+    const previous=latestByIdentity[identity];
+    if(!previous||order>previous.order||(order===previous.order&&item.index>previous.index)){
+      latestByIdentity[identity]={row:r,index:item.index,order:order};
+    }
+  });
+  const matches=Object.keys(latestByIdentity).map(function(k){return latestByIdentity[k].row;}).filter(function(r){
+    return trendosRemediationBoolV1_(r['Active?']);
+  });
+  if(!matches.length)return{
+    resolved:false,missing:true,deactivated:true,metricId:metricId,entityKey:entityKey,evidenceHash:currentHash
+  };
   const hashes=[...new Set(matches.map(function(r){return trendosRemediationTextV1_(r['Evidence Hash']);}).filter(Boolean))];
   if(hashes.length!==1||hashes[0]!==currentHash){
     return{resolved:false,stale:true,metricId:metricId,entityKey:entityKey,evidenceHash:currentHash,registeredHashes:hashes};
