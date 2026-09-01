@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:28 Africa/Cairo**.
+> Updated: **2026-09-01 10:30 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON ONLY; EXACT-VERIFIED ONE-SHOT SERVER-SIDE HEALTH VERIFIER READY IN HEAD**.
+- Integrity V1 state: **VERSION 145 LIVE; DEPLOYED HEALTH ROUTE PASS WITH MASTER+HEALTH ON ONLY; TEMP VERIFIER RESTORE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10N — ONE-SHOT DEPLOYED HEALTH VERIFIER READY; RUN ONCE NEXT**
+**PD-10O — DEPLOYED VERSION 145 HEALTH ROUTE PASS; RESTORE TEMP VERIFIER NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -825,6 +825,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: controlled temporary verifier; Candidate R3 unchanged; ledger checkpoint only.
 - Rollback: built into the one-shot helper for actual response/contract failure; it deletes only master and HEALTH and verifies both OFF before rethrowing. Runtime-tools will be restored exactly to R3 after execution.
 - Exact next step: run `trendosIntegrityVerifyDeployedHealthOnceV1` exactly once and require `pass=true` with the full HEALTH-only state. Record result before restoration/dashboard work.
+
+## PD-10O Deployed Version 145 HEALTH route — PASS
+- Action: ran the one-shot Head verifier, which issued an actual server-side GET to the fixed production deployment URL with `action=trendosIntegrityHealthV1` and validated the returned JSON contract.
+- Evidence: execution log at 7:25:49 AM returned `pass=true`, `httpCode=200`, `success=true`, `codeReady=true`, `missing=[]`, master=true, health=true, `otherEnabled=[]`, `fastAuthV25Present=false`, router version `TRENDOS_INTEGRITY_ROUTER_V1_20260830`; execution completed and automatic rollback did not run.
+- Status: **PASS — the guarded HEALTH route is wired and working in production Version 145 with exactly the approved flags**.
+- Production impact: read-only production HEALTH request. No business-family route, dashboard sheet mutation, trigger, deployment, or non-HEALTH property changed.
+- Commit / CI: live deployed runtime PASS supersedes the earlier client navigation boundary; Candidate R3 and CI unchanged; ledger checkpoint only.
+- Rollback: not required. If later HEALTH dashboard/runtime checks fail, disable master+HEALTH immediately using the bounded helper and verify legacy fallback.
+- Exact next step: restore `trendos-integrity-runtime-tools-v1.gs` exactly to Candidate R3, save/reload/exact-verify, then perform the bounded HEALTH dashboard smoke with its documented isolated-sheet write impact.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
