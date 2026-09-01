@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:25 Africa/Cairo**.
+> Updated: **2026-09-01 10:28 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON ONLY; BROWSER QUERY NAVIGATION BLOCKED LOCALLY BEFORE REQUEST; SERVER-SIDE DEPLOYED HEALTH SMOKE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON ONLY; EXACT-VERIFIED ONE-SHOT SERVER-SIDE HEALTH VERIFIER READY IN HEAD**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10M — BROWSER QUERY NAVIGATION BLOCKED LOCALLY; DEPLOYED HEALTH NOT FAILED; SERVER-SIDE SMOKE NEXT**
+**PD-10N — ONE-SHOT DEPLOYED HEALTH VERIFIER READY; RUN ONCE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -815,6 +815,16 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: tool-boundary evidence recorded; no code/deployment/property change.
 - Rollback: unchanged. If the next actual server-side response fails validation, remove master+HEALTH immediately.
 - Exact next step: temporarily append an exact-bounded Head smoke helper that uses `UrlFetchApp.fetch` against the same production deployment URL, validates the returned JSON HEALTH contract, and automatically deletes master+HEALTH before throwing on any actual HTTP/JSON/contract failure; save/verify, run once, then restore Runtime Tools exactly to Candidate R3.
+
+## PD-10N One-shot deployed HEALTH verifier — PASS INSTALL IN HEAD / NOT RUN
+- Action: from exact Candidate R3 runtime-tools, appended one temporary public function that requests the fixed Version 145 Web App URL with the HEALTH action using `UrlFetchApp.fetch`, validates only non-secret response fields, and automatically deletes master+HEALTH before throwing on any actual HTTP/JSON/contract failure; saved, reloaded, and exact-compared.
+- Evidence: pre-helper runtime-tools exact Candidate R3 length=1,244; staged exact=true; persisted exact=true; temporary source length=3,659; exactly one verifier function present; no save/parse error.
+- Validation contract: HTTP 2xx, JSON, success=true, codeReady=true, missing=[], master=true, HEALTH=true, all other families false, Fast Auth V2.5 absent/OFF, expected router version field present. Logs no credential/property values.
+- Status: **PASS — one-shot deployed verifier is ready but not yet run**.
+- Production impact: Head-only temporary source. Version 145 and Script Properties are unchanged from PD-10K; only HEALTH is eligible.
+- Commit / CI: controlled temporary verifier; Candidate R3 unchanged; ledger checkpoint only.
+- Rollback: built into the one-shot helper for actual response/contract failure; it deletes only master and HEALTH and verifies both OFF before rethrowing. Runtime-tools will be restored exactly to R3 after execution.
+- Exact next step: run `trendosIntegrityVerifyDeployedHealthOnceV1` exactly once and require `pass=true` with the full HEALTH-only state. Record result before restoration/dashboard work.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
