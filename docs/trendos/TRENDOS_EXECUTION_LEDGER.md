@@ -1797,3 +1797,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `dd694bc772f35ecc4bafa3d96cc53e8a8460d9b5`; remote run pending.
 - **Rollback:** Revert the workflow, test, and writer commits. Production remains Version 146 and is unaffected.
 - **Exact next step:** Verify the GitHub Actions run for the latest ledger-documented head and inspect the writer job result. Record PASS/FAIL before any Apps Script installation or registry approval request.
+
+
+## RP-06-WRITER-D — ONE-TIME REGISTRY WRITER CI PASS
+
+- **Action:** Verified the GitHub Actions run that first included the dedicated one-time registry writer gate and inspected its job steps.
+- **Evidence:** Workflow run `33553210923`, head `dd694bc772f35ecc4bafa3d96cc53e8a8460d9b5`, status `completed`, conclusion `success`, attempt 1. Job `integrity-foundation` succeeded; step 7 `Run TrendOS CORE-P0 registry writer tests` succeeded; every remaining Integrity/composition/package gate also succeeded.
+- **Status:** PASS — writer implementation, regression tests, and dedicated CI gate are complete on the working branch.
+- **Production impact:** NONE. The writer remains GitHub-only, excluded from the deployed package, uninstalled, unexecuted, and no approval property or registry Sheet exists.
+- **Commit / CI:** Writer `3ec0fe66843eb3f94f7183fdebe6bd0412d53643`; tests `cb09345273dfcf483ca0b5ed1c17f61b15cfde7b`; workflow `dd694bc772f35ecc4bafa3d96cc53e8a8460d9b5`; CI `33553210923` SUCCESS.
+- **Rollback:** Revert the writer/test/workflow commits. Version 146 requires no rollback because no production change occurred.
+- **Exact next step:** Perform a final source/plan integrity review, update the remediation plan and canonical memory with the writer checkpoint, then define the exact production approval payload (temporary Head installation + read-only preview first). Do not install or write the registry yet.
