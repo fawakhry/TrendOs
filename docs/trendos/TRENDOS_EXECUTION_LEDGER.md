@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Rollback Web App version: **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **DEPLOYED IN VERSION 144 + ALL FLAGS OFF + PUBLIC LEGACY SMOKE PASS; PRIVATE CONSOLE RECHECK PENDING**.
+- Integrity V1 state: **DEPLOYED IN VERSION 144 + ALL FLAGS OFF + PD-09 FULL FLAGS-OFF SMOKE PASS; HEALTH APPROVED BUT NOT YET ACTIVATED**.
 
 ---
 
@@ -615,10 +615,22 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: revert only the documentation commit if its recorded facts are disproved by later evidence.
 - Exact next step: obtain fresh authenticated editor access and complete the private Version 144 execution/trigger reconciliation; all flags remain OFF.
 
-## PD-10 HEALTH activation approval — APPROVED / EXECUTION BLOCKED
+## PD-09P Private post-deploy console reconciliation — PASS
+- Action: restored authenticated access to the bound Apps Script project and completed the three outstanding read-only Version 144 checks.
+- Evidence:
+  - Executions filtered to `Deployment: Version 144` show Completed Web App `doGet` and `doPost` rows, including `doGet` at Sep 1 2026 3:18:37 AM (1.623 s) and multiple completed `doPost` rows;
+  - the filtered Version 144 view exposes no `trendosIntegrity*` business-family execution;
+  - Triggers reports `Showing 1 trigger`; the only trigger is Head / Time-based / `d1OrdersLiveSyncTick`, last observed Sep 1 2026 6:48:38 AM.
+- Status: **PASS — PD-09 controlled deployment and complete flags-OFF smoke are closed**.
+- Production impact: READ-ONLY private-console verification; Version 144 remains active and all flags remain OFF.
+- Commit / CI: live runtime evidence recorded on the working branch; Candidate R3 and CI unchanged.
+- Rollback: Version 143 remains the deployment rollback; no rollback is required because the smoke passed.
+- Exact next step: proceed to the separately approved PD-10 HEALTH-only activation. Inspect the approved property/route/test contract, enable only the minimum HEALTH gates, run its runtime regression, and switch the family OFF immediately on FAIL. Do not activate any other family.
+
+## PD-10 HEALTH activation approval — APPROVED / READY TO EXECUTE
 - Action: interpreted the user's direct reply `موافقة` as explicit approval for the first activation family, **HEALTH only**, after the already required PD-09 private-console reconciliation.
 - Evidence: approval followed the explicit statement that HEALTH required separate approval; scope is not extended to ORDER_LINE or any later family.
-- Status: **APPROVED, NOT EXECUTED** — Google sign-in in the controlled browser currently returns `502 Bad Gateway / connection refused`, so the private Version 144 checks and HEALTH activation could not be performed safely.
+- Status: **APPROVED, NOT YET EXECUTED** — authenticated access is restored and PD-09 is now PASS; HEALTH activation is ready.
 - Production impact: NONE — no Script Property, flag, route, trigger, source file, or deployment was changed in this step. Version 144 remains live with all flags OFF.
 - Commit / CI: documentation-only working-branch checkpoint; Candidate R3 and CI unchanged.
 - Rollback: none required because no activation occurred; Version 143 remains the deployment rollback.
