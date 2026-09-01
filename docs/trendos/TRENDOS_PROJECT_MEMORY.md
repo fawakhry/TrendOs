@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-09-01 11:44 Africa/Cairo**.
+> Last consolidated: **2026-09-01 12:20 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,7 +42,7 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CONTROLLED FAMILY ACTIVATION — HEALTH PASS; CORE-P0 READ-ONLY TRIAGE COMPLETE; REMEDIATION/BASELINE DECISION REQUIRED BEFORE ORDER_LINE.**
+**CORE-P0 REMEDIATION — RP-01 GITHUB-ONLY IMPLEMENTATION + CI PASS; RP-03 READ-ONLY PRODUCTION PREVIEW NEXT; ORDER_LINE OFF.**
 
 Integrity V1 Core is installed and deployed in Apps Script Version 145. HEALTH is the only activated family and has passed deployed-route, dashboard-write, and legacy-regression checks; every business family and Fast Auth remain OFF.
 
@@ -304,7 +304,7 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**PD-10V — HEALTH family PASS; six CORE-P0 signals triaged read-only; STOP before ORDER_LINE.**
+**RP-01B — non-destructive remediation committed + CI PASS; production unchanged; STOP before ORDER_LINE.**
 
 Current production:
 - Apps Script Version 145.
@@ -313,14 +313,19 @@ Current production:
 - legacy landing, deployed HEALTH route, dashboard write, execution history, and trigger reconciliation PASS.
 - Version 144 immediate rollback; Version 143 deeper rollback.
 
+Remediation source checkpoint:
+- plan: `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md`.
+- working-branch commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1`.
+- GitHub Actions run `33491388210` = **SUCCESS**.
+- implementation adds Sheet-cell display recovery without weakening global Date rejection, exact evidence-hash resolution records, Invoice canonical/superseded validation, baseline-aware Health metrics, and explicit non-authoritative Press-view WARN.
+- Candidate R3, Apps Script Head, Version 145, Sheets data, deployment, properties, triggers, and flags are unchanged.
+
 Open gate:
-- prepare a non-destructive remediation/baseline plan from the completed classifications.
-- the first technical blocker is legacy Date-coerced Line IDs, including 98 not-closed rows; ORDER_LINE must remain OFF until compatibility is proven.
-- active Attendance sessions and duplicate invoice drafts need canonical resolution with audit preserved.
-- Cleaning duplicates and completed-without-session Press signals need explicit historical-baseline treatment, not deletion or invented links.
-- diagnose Press view generation without mutating the four source Lines.
-- preserve historical `مكرر`, and do not change Order ID/Line ID contracts.
-- do not write production data or activate ORDER_LINE without a separate explicit checkpoint/approval.
+- run RP-03 read-only production-shaped preview and capture exact hashes/IDs.
+- prove all 98 not-closed Date-coerced Line IDs resolve uniquely with no Order mismatch.
+- keep the resolution registry absent until its separate production-write approval.
+- preserve historical `مكرر`, do not change Order ID/Line ID contracts, and do not invent session links.
+- do not install/deploy the remediation or activate ORDER_LINE without their exact checkpoints and approvals.
 
 Exact action/evidence history is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 

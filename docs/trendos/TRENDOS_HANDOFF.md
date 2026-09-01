@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 11:41 Africa/Cairo**.
+> Last consolidated: **2026-09-01 12:20 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-10 — HEALTH PASS; SIX CORE-P0 SIGNALS TRIAGED READ-ONLY; REMEDIATION/BASELINE DECISION REQUIRED; STOP BEFORE ORDER_LINE**
+**RP-01 — NON-DESTRUCTIVE CORE-P0 REMEDIATION IMPLEMENTED ON WORKING BRANCH; CI PASS; PRODUCTION PREVIEW NEXT; STOP BEFORE ORDER_LINE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -182,7 +182,7 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-10V — HEALTH family PASS; six CORE-P0 signals triaged read-only; STOP before ORDER_LINE.**
+**RP-01B — remediation source committed + CI PASS on working branch; production unchanged; STOP before ORDER_LINE.**
 
 Completed and verified:
 - current live `Code.gs` was copied from the live editor, minimally wired with two guarded Integrity route calls and one guarded webhook call, saved, reloaded, and exact-compared; it was never replaced from GitHub.
@@ -220,10 +220,18 @@ Status interpretation:
 - remediation/baseline acknowledgement = **PENDING**.
 - ORDER_LINE and all later families remain OFF.
 
+Remediation checkpoint:
+- plan: `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md`.
+- GitHub-only source commit: `63d6dd50aee10b84ad35a9d06e9f4414254636d1`.
+- GitHub Actions run `33491388210` = **SUCCESS**.
+- new helper module: `trendos-core-p0-remediation-v1.gs`.
+- Candidate R3 and Apps Script Head were not changed; no R4 candidate is frozen.
+- no resolution registry exists and no production source row was changed.
+
 Exact next action:
-1. prepare an explicit non-destructive remediation/baseline plan covering legacy Date-coerced Line IDs, active Attendance sessions, duplicate invoice drafts, Press view generation, and historical baseline acknowledgements.
-2. preserve every audit/history row; do not invent canonical values or session links.
-3. do not write production data or enable ORDER_LINE without a separate explicit checkpoint and approval.
+1. perform RP-03 read-only production-shaped preview against the exact live rows;
+2. require unique resolution of all 98 not-closed legacy Line IDs and exact evidence hashes for every proposed baseline/supersession entry;
+3. do not install remediation source in Apps Script Head, deploy, create/write the registry, or enable ORDER_LINE without the later checkpoints and approvals.
 
 ## Persistent execution behavior
 
