@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:10 Africa/Cairo**.
+> Updated: **2026-09-01 10:12 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -28,11 +28,11 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Current pre-deploy candidate branch: `release/integrity-v1-predeploy-2026-08-31-r3`.
 - Candidate SHA: `ee03adab4c733aec909511b23dd80f42ad3b927e`.
 - Candidate CI run `33384689012` = **SUCCESS**.
-- Production Apps Script Web App: Version **144**, deployed Aug 31 2026 3:38 PM in the Apps Script UI.
-- Rollback Web App version: **143**, Aug 29 2026 11:37 PM.
+- Production Apps Script Web App: Version **145**, deployed Sep 1 2026 7:12 AM in the Apps Script UI.
+- Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 144 LIVE + ALL FLAGS OFF; GUARDED ROUTER WIRING AND POST-WIRING DEPENDENCY HEALTH PASS IN HEAD; VERSION 145 APPROVED AND NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE WITH GUARDED ROUTER WIRING + ALL FLAGS OFF; IMMEDIATE FLAGS-OFF SMOKE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10D — POST-WIRING DEPENDENCY HEALTH PASS; VERSION 145 FLAGS-OFF DEPLOYMENT NEXT**
+**PD-10E — VERSION 145 DEPLOYED WITH ALL FLAGS OFF; IMMEDIATE SMOKE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -711,6 +711,22 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live runtime PASS recorded on the working branch; Candidate R3 and CI unchanged.
 - Rollback: Version 144 remains the immediate production rollback; Version 143 remains the deeper rollback.
 - Exact next step: update the existing production Web App deployment to Version 145 from this exact verified Head, preserve the same Deployment ID/URL, keep every flag OFF, then record deployment evidence before any smoke or activation.
+
+## PD-10E Controlled Version 145 deployment — PASS / FLAGS OFF
+- Action: updated the existing production Web App deployment from Version 144 to a new Version 145 using the exact wired Head that passed PD-10C/PD-10D; preserved access settings and did not change any Script Property.
+- Evidence:
+  - Apps Script displayed `Deployment successfully updated.` and `Project deployed successfully`;
+  - new version: **145**, Sep 1 2026 7:12 AM in the Apps Script UI;
+  - description entered exactly: `TrendOS Integrity V1 Router Wiring - flags OFF - PD-10 2026-09-01`;
+  - same Deployment ID preserved: `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`;
+  - same production Web App URL preserved;
+  - deployment remained Execute as Me and Who has access Anyone;
+  - pre-deploy Dependency Health proved master=false, all eight families=false, and Fast Auth absent/OFF; no property operation occurred before or during deployment.
+- Status: **PASS — Version 145 is the production deployment and every Integrity/Fast Auth gate remains OFF**.
+- Production impact: **YES — production now serves Version 145**. With flags OFF, the guarded router/webhook calls return `null` and the legacy V1932/V1900/V1898 chain should remain authoritative pending immediate smoke evidence.
+- Commit / CI: controlled production deployment; Candidate R3 and CI unchanged; ledger checkpoint only.
+- Rollback: restore the same deployment to Version 144 immediately if the flags-OFF smoke or private console shows a regression. Version 143 remains the deeper rollback.
+- Exact next step: issue a non-mutating GET to the preserved production URL and require the existing TrendOS V1932 landing response; then inspect Version 145 executions and verify exactly one `d1OrdersLiveSyncTick` before changing any flag.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
