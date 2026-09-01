@@ -1580,6 +1580,22 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: STOP before production mutation. Prepare the resolution-registry checkpoint using read-only/source-review work, then request explicit approval before any registry write; ORDER_LINE remains OFF and requires a separate later approval.
 
 
+
+## RP-06-PRECHECK-A — APPEND-ONLY ROLLBACK CONTRACT GAP FOUND; FAIL CLOSED
+
+- Action: reviewed the frozen R4 resolution-registry reader and RP-06 rollback contract before preparing any production registry writer.
+- Evidence:
+  - the plan requires rollback by appending an inactive resolution revision without deleting source evidence.
+  - R4 `trendosIntegrityResolutionV1_` currently filters rows where `Active?` is true before any revision precedence is evaluated.
+  - therefore, appending a later inactive row cannot deactivate an earlier active row; the earlier row remains selected forever.
+  - the 10-column approved schema has no separate revision field, but row order can safely provide latest-revision precedence without changing the schema.
+- Status: **FAIL CLOSED / NEW CONTRACT CONFLICT — registry write is forbidden until append-only deactivation semantics are implemented and tested**.
+- Production impact: NONE — source/plan review only. Version 146 remains active; master+HEALTH ON only; all business families/Fast Auth OFF; registry still absent.
+- Commit / CI: no source commit yet; frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c` remains unchanged and deployed as Version 146.
+- Rollback: none required because no registry or production mutation occurred.
+- Exact next step: on the working branch only, update the registry reader so the latest row for each exact mapping identity supersedes earlier revisions, add tests proving an appended inactive revision deactivates the prior active entry and stale/conflict behavior remains fail-closed, then run CI. Do not install/deploy successor code or write the registry without later checkpoints.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
