@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:39 Africa/Cairo**.
+> Updated: **2026-09-01 10:42 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10T — HEALTH FAMILY CHECKPOINT PASS; 6 CORE-P0 DATA BLOCKERS OPEN; STOP BEFORE ORDER_LINE**
+**PD-10U — HEALTH CHECKPOINT + MEMORY SYNC COMPLETE; TRIAGE 6 CORE-P0 SIGNALS NEXT; STOP BEFORE ORDER_LINE**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -916,6 +916,18 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
   2. deployment rollback: restore same deployment to Version 144;
   3. deeper rollback: Version 143.
 - Exact next step: **STOP before ORDER_LINE.** Synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md`; next execution lane is read-only evidence-backed triage of the six dashboard CORE-P0 signals and classification of current active vs historical/expected records. Do not clean duplicate history randomly, do not change Order ID/Line ID contracts, and do not activate ORDER_LINE without a separate explicit checkpoint/approval after triage.
+
+## PD-10U HEALTH checkpoint memory synchronization — PASS
+- Action: synchronized the top-level Handoff and Project Memory to Version 145, the exact HEALTH-only flag state, complete HEALTH runtime evidence, rollback chain, isolated dashboard write, and the six open CORE-P0 metric IDs.
+- Evidence:
+  - `TRENDOS_HANDOFF.md` commit `db1c3825f896aa118b7c29f61b9df5d0ffdd5be1`;
+  - `TRENDOS_PROJECT_MEMORY.md` commit `4ba9d077cde2f0ffe4cb4318e0784dbe94f44fd8`;
+  - both now state Version 145 live, Version 144 immediate rollback, Version 143 deeper rollback, master+HEALTH ON only, and STOP before ORDER_LINE.
+- Status: **PASS — canonical project memory is current and resumable without reconstructing chat history**.
+- Production impact: NONE — documentation only.
+- Commit / CI: handoff and project-memory commits above; this ledger synchronization commit follows. Candidate R3 and CI unchanged.
+- Rollback: documentation-only revert if later live evidence disproves the recorded facts; no production rollback is required.
+- Exact next step: start read-only triage of `INVALID_LINE_IDS`, `DUPLICATE_ATTENDANCE_SESSIONS`, `DUPLICATE_CLEANING_RECORDS`, `DUPLICATE_INVOICE_DRAFTS`, `PRESS_SOURCE_VIEW_MISMATCH`, and `PRESS_COMPLETED_WITHOUT_SESSION`; capture offending IDs/details and classify them. Do not activate ORDER_LINE and do not clean data until the triage is checkpointed and separately approved.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
