@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:15 Africa/Cairo**.
+> Updated: **2026-09-01 18:17 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-04B — R4 REMEDIATION HELPER INSTALLED/SAVED IN HEAD; RELOAD/EXACT VERIFY NEXT; PRODUCTION UNCHANGED**
+**RP-04C — R4 REMEDIATION HELPER INSTALLED AND RELOAD-VERIFIED; ORDER/LINE MODULE REPLACEMENT NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1279,6 +1279,20 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Candidate R3 unchanged.
 - Rollback: remove only `trendos-core-p0-remediation-v1.gs` if reload/exact verification fails; Version 145 requires no rollback.
 - Exact next step: reload the Apps Script editor, reopen `trendos-core-p0-remediation-v1.gs`, verify the saved source and absence of composition errors, record PASS/FAIL here, then replace `trendos-order-line-integrity-v1.gs` from frozen R4. Do not Run, Deploy, create/write the registry, or change flags.
+
+## RP-04C R4 remediation helper reload verification — PASS
+- Action: reloaded the exact Apps Script project, reopened `trendos-core-p0-remediation-v1.gs`, and verified the saved composition before touching any existing module.
+- Evidence:
+  - file persisted after reload with no `unsaved` marker;
+  - project showed `cloud_done` and disabled Save;
+  - source header and version constant exactly identify `TRENDOS_CORE_P0_REMEDIATION_V1_20260901`;
+  - the prior saved view showed the complete 120-line source through `trendosIntegrityGroupEvidenceV1_`, and the reloaded view reproduced its opening contracts/helpers;
+  - no parser/composition error appeared and no public runnable function was exposed by the helper.
+- Status: **PASS — helper install/save/reload verification complete**.
+- Production impact: NONE — Head only; no Run, Deploy, registry, Sheet, property, trigger, route, flag, or `Code.gs` change. Version 145 remains live with master+HEALTH ON only.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; helper blob `e55818297762b2f99a2967524d8ac29dd864f421`; prior ledger commit `a81d9765c3e7c31cab14d2430c720f8e4ab83376`.
+- Rollback: delete only the helper file if a later composition/dependency check fails; Version 145 is unaffected.
+- Exact next step: replace only the content of `trendos-order-line-integrity-v1.gs` with frozen R4 blob `e93155c0a0cdef09ffaf5a0bfdf62bba202ff436`, Save/reload/verify, and checkpoint before Press. Do not Run, Deploy, create/write the registry, or change flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
