@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 11:45 Africa/Cairo**.
+> Updated: **2026-09-01 12:03 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10X — CORE-P0 TRIAGE + MEMORY SYNC COMPLETE; REMEDIATION PLAN NEXT; STOP BEFORE ORDER_LINE**
+**PD-10Y — REMEDIATION SOURCE REVIEW COMPLETE; PLAN DOCUMENT NEXT; STOP BEFORE ORDER_LINE**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -964,6 +964,27 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: commits above; this ledger commit follows. Candidate R3 and CI remain unchanged.
 - Rollback: documentation-only revert if later verified evidence changes the classification; no production rollback required.
 - Exact next step: produce an explicit non-destructive remediation/baseline plan with Expected/Actual/rollback gates. No Sheet write and no ORDER_LINE activation until the plan receives a separate production-impact checkpoint and approval.
+
+
+## PD-10Y Candidate R3 remediation source review — PASS / NO CHANGE
+- Action: reviewed the exact Candidate R3 foundation, Order/Line, Attendance/Cleaning, Invoice, Press, and Health Dashboard implementations against the six triaged production signals.
+- Evidence:
+  - `trendosNormalizeLineId_` intentionally rejects Date objects, and its self-test asserts that behavior; the global normalizer must stay fail-closed.
+  - Order/Line row resolution and Press queue scanning currently use `getValues()` and then normalize the raw Line-ID cell value, so Date-coerced legacy cells cannot be resolved even when their displayed value is a valid legacy Line ID.
+  - Attendance already chooses a deterministic canonical employee/day row and reports duplicate count; Cleaning already returns the first existing employee/day record and prevents any new append under the shared lock.
+  - Invoice `trendosInvoiceResolveDraftV1_` fails closed whenever more than one Draft row exists for an Order and currently has no auditable supersession mechanism.
+  - the Dashboard reads raw `getValues()`, treats every historical duplicate as current P0, falls back to the header-only `واجهة المكبس` when no authoritative view provider exists, and treats all completed Press Lines without ledger evidence as P0 regardless of pre-Integrity baseline.
+- Decision:
+  1. do **not** bulk-convert or rewrite the 229 Line-ID cells;
+  2. add a sheet-cell-aware Line-ID adapter that may use the exact display value only in known Line-ID columns, while preserving global Date rejection;
+  3. use an explicit auditable resolution/baseline registry for exact historical keys instead of deleting source rows;
+  4. make Invoice resolution exclude only explicitly superseded Draft IDs and fail closed if registry/source evidence drifts;
+  5. diagnose the live Press view contract before deciding whether the header-only sheet is authoritative or obsolete.
+- Status: **PASS for evidence-backed source review; no code/data remediation implemented yet**.
+- Production impact: NONE — GitHub reads only; no Sheet, Apps Script Head, Script Property, deployment, trigger, or flag change.
+- Commit / CI: this ledger checkpoint only; Candidate R3 and CI unchanged.
+- Rollback: none required.
+- Exact next step: create `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md` with staged Expected/Actual gates, exact protected records, rollback, and approval boundaries. Do not implement or deploy the remediation yet.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
