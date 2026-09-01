@@ -1503,6 +1503,23 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: restore authenticated Apps Script access, run public `trendosIntegrityDependencyHealthV1` from Head to confirm current Script Properties/code state, then inspect Version 146 Executions and the single D1 sync trigger. Do not change properties or activate any business family.
 
 
+
+## PD-09-R4-B3 — POST-DEPLOY PROPERTY / DEPENDENCY HEALTH PASS
+
+- Action: ran the public fail-closed `trendosIntegrityDependencyHealthV1` wrapper from the current Apps Script Head after Version 146 activation to verify the exact code dependency set and current Script Property state without invoking any business family.
+- Evidence:
+  - execution started 7:42:27 PM and completed 7:42:29 PM in Apps Script.
+  - exact result: `success=true`, `codeReady=true`, `requiredCount=25`, `missing=[]`.
+  - feature state: master=true; HEALTH=true; ORDER_LINE=false; ATTENDANCE_CLEANING=false; PRESS=false; INVOICE=false; WHATSAPP=false; OPS=false; AUTOMATION=false.
+  - optional Fast Auth V2.5 present=false.
+  - execution completed successfully.
+- Status: **PASS — current Head code and Script Properties match the approved Version 146 deployment state**.
+- Production impact: READ-ONLY health execution only. No business-family function, registry, Sheet mutation, property, trigger, route wiring, source, deployment, Fast Auth, or `Code.gs` change.
+- Commit / CI: Version 146 active from frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS.
+- Rollback: none required. Version 145 remains immediate rollback.
+- Exact next step: inspect Apps Script Executions for completed Version 146 `doGet/doPost` traffic and inspect Triggers for exactly one Head/time-based `d1OrdersLiveSyncTick`; do not change either page.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
