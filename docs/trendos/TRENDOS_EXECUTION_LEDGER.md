@@ -1775,3 +1775,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `3ec0fe66843eb3f94f7183fdebe6bd0412d53643`; final CI pending source+test+workflow state.
 - **Rollback:** Revert `3ec0fe66843eb3f94f7183fdebe6bd0412d53643`. Production rollback is not applicable because the tool is uninstalled and unexecuted.
 - **Exact next step:** Commit the dedicated writer regression test, then update this ledger before wiring that test into GitHub Actions.
+
+
+## RP-06-WRITER-B — WRITER REGRESSION TEST COMMITTED
+
+- **Action:** Added `tests/trendos_core_p0_registry_writer_v1.test.js` covering read-only preview, exact 34-entry count, exact header creation, single-use approval consumption, ScriptLock execution, retry idempotency, business-family guard, stale-evidence refusal, approved full rollback, no silent reactivation after rollback, automatic post-write deactivation on evidence drift, and schema-mismatch refusal.
+- **Evidence:** Test commit `cb09345273dfcf483ca0b5ed1c17f61b15cfde7b`; local writer test and complete 10-file suite PASS.
+- **Status:** PARTIAL — source and tests are committed; GitHub Actions workflow does not yet execute the new dedicated test.
+- **Production impact:** NONE. GitHub-only test addition.
+- **Commit / CI:** `cb09345273dfcf483ca0b5ed1c17f61b15cfde7b`; dedicated remote CI gate pending workflow wiring.
+- **Rollback:** Revert the test commit and writer source commit. No production rollback is applicable.
+- **Exact next step:** Add the new source/test paths and dedicated Node test step to `.github/workflows/trendos-integrity-v1.yml`, then update this ledger before CI verification.
