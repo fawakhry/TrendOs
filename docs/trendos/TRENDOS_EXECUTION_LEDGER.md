@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:03 Africa/Cairo**.
+> Updated: **2026-09-01 12:07 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10Y — REMEDIATION SOURCE REVIEW COMPLETE; PLAN DOCUMENT NEXT; STOP BEFORE ORDER_LINE**
+**PD-10Z — NON-DESTRUCTIVE REMEDIATION PLAN READY; RP-01 GITHUB-ONLY NEXT; STOP BEFORE ORDER_LINE**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -985,6 +985,16 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: this ledger checkpoint only; Candidate R3 and CI unchanged.
 - Rollback: none required.
 - Exact next step: create `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md` with staged Expected/Actual gates, exact protected records, rollback, and approval boundaries. Do not implement or deploy the remediation yet.
+
+
+## PD-10Z CORE-P0 remediation plan — PASS / PRODUCTION UNCHANGED
+- Action: created `docs/trendos/TRENDOS_CORE_P0_REMEDIATION_PLAN.md` with exact root causes, protected records, a cell-aware Line-ID compatibility design, auditable baseline/supersession registry, Press view-contract gate, staged Expected/Actual checks, rollback, and approval boundaries.
+- Evidence: plan commit `9b8d2bc9b88d88b8e0ab5e06e09b72e19f334a00`.
+- Status: **PASS — remediation plan is ready; no remediation source, registry, deployment, or flag activation has occurred**.
+- Production impact: NONE — documentation only. Version 145 remains live with master+HEALTH ON only.
+- Commit / CI: commit above; this ledger commit follows. Candidate R3 and CI unchanged.
+- Rollback: documentation-only revert if a later verified source fact changes the design.
+- Exact next step: execute RP-01 on the working branch only: implement the cell-aware adapter, exact resolution-registry contract, baseline-aware Dashboard logic, Invoice supersession handling, and tests. Do not touch Apps Script Head, Sheets, deployment, properties, triggers, or feature flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
