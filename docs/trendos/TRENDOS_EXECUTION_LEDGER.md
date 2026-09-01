@@ -1454,6 +1454,24 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Exact next step: obtain explicit PD-09-R4 approval. After approval only, deploy the current verified Head as Version 146 on the existing deployment ID with properties unchanged (master+HEALTH ON only; all business families/Fast Auth OFF), no registry write, no ORDER_LINE activation, and Version 145 as immediate rollback.
 
 
+
+## PD-09-R4-A — VERSION 146 CONTROLLED DEPLOYMENT PASS
+
+- Action: after the user's exact approval, updated the existing active Web App deployment to a new Apps Script version from the already verified R4 Head composition; no other deployment was created.
+- Evidence:
+  - Apps Script showed `Project deployed successfully`.
+  - active description: `TrendOS Integrity V1 R4 - Master+HEALTH ON - Business Flags OFF - PD-09-R4 2026-09-01`.
+  - active version: **Version 146**, created Sep 1, 2026, 5:19 PM in the Apps Script UI.
+  - preserved deployment ID: `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`.
+  - preserved Web App URL: `https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec`.
+  - previous Version 145 moved to Archived and is the immediate rollback.
+- Status: **PASS — Version 146 is active on the existing production deployment**.
+- Production impact: deployment pointer changed from Version 145 to Version 146 only. Script Properties were not edited; master+HEALTH remain the intended ON set, every business family and Fast Auth remain OFF/absent; no registry, Sheet, trigger, route wiring, source, or `Code.gs` change was made during deployment.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; deployment executed at `2026-09-01 20:20:13 Africa/Cairo`.
+- Rollback: edit the same deployment back to Version 145 if any immediate public/private smoke fails; do not delete Version 146.
+- Exact next step: run PD-09-R4-B immediate deployed smoke — verify the preserved base URL still renders TrendOS V1932, verify deployed HEALTH reports master+HEALTH ON with all business families OFF, then reconcile Version 146 executions and the single D1 sync trigger. Roll back to Version 145 immediately on failure.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
