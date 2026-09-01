@@ -1874,3 +1874,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `f98753ecd33f68bb07c7c6a272069f86bb031ee7`; writer CI `33553469092` SUCCESS.
 - **Rollback:** Revert the memory commit; no production rollback is applicable.
 - **Exact next step:** Cross-verify Plan/Handoff/Memory/Ledger for Version 146, writer commit/blob, plan hash, CI, uninstalled registry state, and the preview-only approval boundary. Record the verification before requesting approval.
+
+
+## RP-06-WRITER-K — CANONICAL SOURCE/DOCUMENT CONSISTENCY VERIFIED
+
+- **Action:** Re-fetched the working-branch Plan, Handoff, Project Memory, Execution Ledger, revised reader, writer, writer test, and workflow; cross-verified the production checkpoint, exact source identities, plan hash, CI, and approval boundary.
+- **Evidence:** All four canonical documents contain Version 146, writer commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`, CI `33553469092`, and plan hash `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`. Exact blobs: reader `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; writer `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; test `bc83b0deecfd692521fa935755a6fd233a762f19`; workflow `a20bf99b973f466c4863601cb3cc8dd7361a917d`, including the dedicated writer step.
+- **Status:** PASS — canonical memory and exact source evidence are internally consistent.
+- **Production impact:** NONE. Read-only GitHub verification.
+- **Commit / CI:** Writer CI `33553469092` SUCCESS; this ledger update is documentation-only.
+- **Rollback:** Not applicable for read-only verification; revert documentation commits only if the checkpoint wording must change.
+- **Exact next step:** Request one bounded approval for: (1) replace only Apps Script Head file `trendos-core-p0-remediation-v1.gs` with exact blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; (2) add Head file `trendos-core-p0-registry-writer-v1.gs` from exact blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; (3) Save/parse; (4) run only `trendosCoreP0RegistryPreviewV1` read-only. No approval property, registry write, deployment, feature flag, Script Property, trigger, source Sheet, or `Code.gs` change is included.
