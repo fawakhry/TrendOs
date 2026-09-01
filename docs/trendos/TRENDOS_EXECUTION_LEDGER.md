@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 18:43 Africa/Cairo**.
+> Updated: **2026-09-01 18:45 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-04I — FROZEN R4 CONTROLLED HEAD COMPOSITION COMPLETE AND RELOAD-VERIFIED; PD-06 COMPOSITION CHECK NEXT; PRODUCTION VERSION 145 UNCHANGED**
+**PD-06-R4 — FULL HEAD SAVE/RELOAD/COMPOSITION PASS; PD-07 DEPENDENCY HEALTH NEXT; PRODUCTION VERSION 145 UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1376,6 +1376,21 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Router blob above.
 - Rollback: recreate only the six R4-scoped Head files from Candidate R3 where they previously existed, or remove the new helper; Version 145 is unchanged and remains the serving rollback boundary.
 - Exact next step: execute PD-06 full project save/reload/composition verification, record PASS/FAIL, then run public `trendosIntegrityDependencyHealthV1` for PD-07. Expected current feature state is master=true, HEALTH=true, all business families=false, Fast Auth OFF. Do not Deploy, create/write the registry, enable ORDER_LINE, or modify Sheets.
+
+## PD-06-R4 Full Head save / reload / composition verification — PASS
+- Action: performed a full project reload after all six R4-scoped Head changes and verified the complete file composition without running business logic.
+- Evidence:
+  - Apps Script project contains 24 project files after the helper addition;
+  - the exact six R4-scoped filenames are present once each and the prior R3 filenames were replaced in place rather than duplicated;
+  - project state shows `Saved to Drive` / `cloud_done` and the Save button has the disabled attribute;
+  - no syntax, duplicate-global, or composition error is visible after reload;
+  - no temporary `myFunction` remains in the runnable-function selector;
+  - `Code.gs` and all non-R4-scoped modules remain present and untouched.
+- Status: **PASS — PD-06 composition/save/parse gate passed for current Head**.
+- Production impact: NONE — Head verification only; no Run, Deploy, property, trigger, route, registry, Sheet write, or flag change. Version 145 remains live with master+HEALTH ON only.
+- Commit / CI: frozen R4 `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; RP-04 closure commit `e178d8bdf2eaab538795b1d1308cbfd18439cc93`.
+- Rollback: restore only R4-scoped files from R3/remove the helper if PD-07 fails; no deployment rollback is required because Version 145 is unchanged.
+- Exact next step: run public `trendosIntegrityDependencyHealthV1` from Head and require `codeReady=true`, `missing=[]`, master=true, HEALTH=true, all business families=false, and Fast Auth OFF. Record PASS/FAIL before any legacy smoke, registry, deploy, or activation action.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
