@@ -650,6 +650,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Rollback: none required because HEALTH was not activated; Version 143 remains the deployment rollback.
 - Exact next step: obtain explicit approval for a minimal guarded edit to the **current live** `Code.gs` entrypoints (never replace it from GitHub), add route/webhook handoff with flags OFF, save/parse/dependency-test, create Version 145 with flags OFF, run legacy smoke, then activate HEALTH only and run its regression. If live source modification is not approved, keep all flags OFF and stop activation.
 
+### PD-10A memory synchronization — PASS
+- Action: updated `TRENDOS_HANDOFF.md` so future execution resumes from the missing live entrypoint-wiring blocker rather than attempting a property-only HEALTH activation.
+- Evidence: handoff commit `97f334c197f80b255165b8467232268cba45c0b9`.
+- Status: **PASS — canonical memory reflects the new live-source evidence**.
+- Production impact: NONE — documentation only.
+- Commit / CI: handoff commit above; Candidate R3 unchanged.
+- Rollback: revert documentation only if later live evidence disproves the recorded source capture.
+- Exact next step: request explicit approval for the bounded current-live-`Code.gs` guarded wiring change; keep Version 144 and every flag unchanged until then.
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
