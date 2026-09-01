@@ -1753,3 +1753,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `2f2693c841093ad5d7b8e450ed1d31a3ad5c05a2`; underlying source/test CI run `33552134647` SUCCESS.
 - **Rollback:** Revert the documentation commit; no production rollback is applicable.
 - **Exact next step:** Synchronize `TRENDOS_PROJECT_MEMORY.md` with the same GitHub-only checkpoint, then update this ledger before starting writer design.
+
+
+## RP-06-PRECHECK-F — PROJECT MEMORY SYNCHRONIZED
+
+- **Action:** Updated `TRENDOS_PROJECT_MEMORY.md` with the closed registry rollback-contract precheck, GitHub-only status, CI evidence, exact writer-design next step, and corrected the stale backup paragraph to Version 146 with Version 145 as immediate rollback.
+- **Evidence:** Memory commit `e2386205563d91f909ecec5e721ceaae440bfb7b`; new memory blob `ac1ba3f0d046bcf96ca6ede5166be06cdb8e3eb0`.
+- **Status:** PASS — canonical handoff and project memory now agree with this ledger.
+- **Production impact:** NONE. Documentation-only; production remains Version 146 with Master+HEALTH ON only and no registry.
+- **Commit / CI:** `e2386205563d91f909ecec5e721ceaae440bfb7b`; underlying source/test CI run `33552134647` SUCCESS.
+- **Rollback:** Revert the memory commit; no production rollback is applicable.
+- **Exact next step:** Design and test the one-time ScriptLock-protected registry writer on the working branch only. It must validate the exact 10-header schema, re-read live source evidence and hashes inside the lock, append exact approved rows only, be retry-idempotent, and remain uninstalled/unexecuted until a new explicit production checkpoint.
