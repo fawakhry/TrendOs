@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Rollback Web App version: **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **DEPLOYED IN VERSION 144 + ALL FLAGS OFF + PD-09 FULL FLAGS-OFF SMOKE PASS; HEALTH APPROVED BUT NOT YET ACTIVATED**.
+- Integrity V1 state: **DEPLOYED IN VERSION 144 + ALL FLAGS OFF + PD-09 PASS; HEALTH APPROVED BUT BLOCKED BY MISSING LIVE ENTRYPOINT WIRING**.
 
 ---
 
@@ -635,6 +635,20 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: documentation-only working-branch checkpoint; Candidate R3 and CI unchanged.
 - Rollback: none required because no activation occurred; Version 143 remains the deployment rollback.
 - Exact next step: when authenticated Apps Script access is restored, complete the private Version 144 execution/trigger checks first; only on PASS enable the minimum HEALTH gate(s), run the defined HEALTH runtime regression, and immediately switch the family OFF on FAIL. Do not activate any later family.
+
+## PD-10A HEALTH route-wiring precheck — FAIL / NEW BLOCKER
+- Action: before changing any Script Property, copied the current live `Code.gs` read-only from the authenticated editor and searched its exact 13,960-line / 695,246-character source for Integrity Router calls.
+- Evidence:
+  - exactly one live `doGet(e)` and one live `doPost(e)`;
+  - `doGet` dispatches `trendosV1932TryRoute_` -> `trendosV1900TryRoute_` -> `trendosV1898TryRoute_` -> legacy action chain;
+  - `doPost` parses payload, dispatches the same three legacy routers, then falls through to legacy actions;
+  - live-source occurrences: `trendosIntegrityTryRouteV1_` = 0, `trendosIntegrityTryWebhookV1_` = 0, `trendosIntegrityDependencyHealthV1` = 0;
+  - therefore Version 144 contains the installed Router module but its guarded router functions are not called by the live entrypoints.
+- Status: **FAIL / ACTIVATION BLOCKED — enabling master+HEALTH now would only change properties; it would not prove the intended Web App HEALTH route or dashboard activation. A false PASS is forbidden.**
+- Production impact: READ-ONLY source verification only. No code, Script Property, flag, trigger, deployment, or route changed; Version 144 remains live with every flag OFF.
+- Commit / CI: new live-composition evidence supersedes the assumption that flag activation alone was sufficient; Candidate R3 and prior CI did not test live `Code.gs` entrypoint wiring.
+- Rollback: none required because HEALTH was not activated; Version 143 remains the deployment rollback.
+- Exact next step: obtain explicit approval for a minimal guarded edit to the **current live** `Code.gs` entrypoints (never replace it from GitHub), add route/webhook handoff with flags OFF, save/parse/dependency-test, create Version 145 with flags OFF, run legacy smoke, then activate HEALTH only and run its regression. If live source modification is not approved, keep all flags OFF and stop activation.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
