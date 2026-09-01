@@ -1841,3 +1841,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Source `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; tests `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` SUCCESS.
 - **Rollback:** Revert the source/test hardening commits or the complete writer lane. No production rollback is applicable.
 - **Exact next step:** Update `TRENDOS_CORE_P0_REMEDIATION_PLAN.md`, Handoff, and Project Memory with the final writer contract and explicit production checkpoint; update this ledger after each document before requesting any installation/write approval.
+
+
+## RP-06-WRITER-H — REMEDIATION PLAN ADVANCED TO PREVIEW CHECKPOINT
+
+- **Action:** Reconciled `TRENDOS_CORE_P0_REMEDIATION_PLAN.md` from the stale Version-145/RP-04-pending state to verified Version 146, RP-04/RP-05 PASS, the append-only reader fix, the guarded 34-row writer contract, exact Invoice source-row pins, one-use approval properties, plan hash, CI evidence, rollback, and the new Head-install/read-only-preview approval boundary.
+- **Evidence:** Plan commit `e77bdda6364ef3270f2eeae1fe3879da33722826`; plan blob `dd247723966d3a9af70baa2a61c45a6e13ce63ac`; exact plan hash `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
+- **Status:** PASS.
+- **Production impact:** NONE. Documentation-only; writer/revised reader remain uninstalled and the registry remains absent.
+- **Commit / CI:** `e77bdda6364ef3270f2eeae1fe3879da33722826`; underlying final writer CI `33553469092` SUCCESS.
+- **Rollback:** Revert the plan commit; production remains Version 146.
+- **Exact next step:** Synchronize Handoff, update this ledger, then synchronize Project Memory and update this ledger again. After canonical consistency verification, request one bounded approval for Head installation plus read-only preview only.
