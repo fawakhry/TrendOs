@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:47 Africa/Cairo**.
+> Updated: **2026-09-01 18:05 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -330,7 +330,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-04 — R4 CHECKPOINT SYNCHRONIZED; CONTROLLED APPS SCRIPT HEAD COMPOSITION NEXT; PRODUCTION UNCHANGED**
+**RP-04A — CONTROLLED HEAD COMPOSITION BLOCKED BY CURRENT GOOGLE SIGN-IN 502; NO HEAD FILE CREATED OR CHANGED; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1253,6 +1253,19 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Production impact: NONE — GitHub documentation only; Version 145 and production data/runtime unchanged.
 - Rollback: documentation-only revert if candidate status changes; production rollback not required.
 - Exact next step: execute RP-04 controlled Apps Script Head composition from frozen R4 with master+HEALTH ON only and every business/Fast Auth flag unchanged. Save/reload/exact-verify, then run dependency and legacy no-change checks. Do not create/write the registry, deploy, or enable ORDER_LINE.
+
+## RP-04A Apps Script session recovery — BLOCKED / SAFE STOP
+- Action: re-entered the exact Apps Script project and began the non-deploy RP-04 flow. The Add-file menu was opened, but `Script` was not selected and no filename/content was entered before the cloud-browser session was reset by the new conversation turn.
+- Recovery evidence:
+  - the replacement browser session had no authenticated Google tab;
+  - direct project navigation redirected to the public Apps Script developer page;
+  - the Google sign-in endpoint returned `502 Bad Gateway — [Errno 111] Connection refused`;
+  - one allowed reload produced the same 502, so retries stopped.
+- Status: **BLOCKED by current Google authentication endpoint connectivity; SAFE because no Apps Script Head mutation occurred**.
+- Production impact: NONE — no new file, save, Run, Deploy, Script Property, trigger, route, registry, flag, or Sheet write. Version 145 and master+HEALTH ON only remain unchanged.
+- Commit / CI: frozen R4 remains `b940eb9ff08a094b2406e396eba6af73409e7f9c`; exact-ref CI `33493914883` SUCCESS; Candidate R3 remains unchanged.
+- Rollback: none required.
+- Exact next step: when authenticated browser access is available again, open the exact project, verify `trendos-core-p0-remediation-v1.gs` is absent, then resume RP-04 by adding that helper from frozen R4, Save/reload/exact-verify, and checkpoint before updating the five affected modules. Do not Run, Deploy, create/write the registry, or change flags.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
