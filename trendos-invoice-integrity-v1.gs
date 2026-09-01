@@ -63,9 +63,46 @@ function trendosInvoiceDraftMatchesV1_(orderId){
   const sh=trendosInvoiceEnsureDraftColumnsV1_();
   return trendosInvoiceRowsV1_(sh).filter(function(x){return trendosNormalizeOrderId_(trendosInvoiceValV1_(x,'رقم الأوردر'))===orderId;});
 }
+function trendosInvoiceResolutionDraftV1_(x){
+  const d=trendosInvoiceDraftObjectV1_(x);
+  return{
+    draftId:d&&d.draftId,
+    orderId:d&&d.orderId,
+    subtotal:d&&d.subtotal,
+    status:d&&d.status,
+    blocker:d&&d.blocker,
+    invoiceNo:d&&d.invoiceNo,
+    messageStatus:d&&d.messageStatus,
+    metaId:d&&d.metaId,
+    updatedAt:trendosInvoiceValV1_(x,'آخر تحديث')||trendosInvoiceValV1_(x,'Updated At')||trendosInvoiceValV1_(x,'تاريخ التحديث')
+  };
+}
 function trendosInvoiceResolveDraftV1_(orderId){
   const rows=trendosInvoiceDraftMatchesV1_(orderId);
-  if(rows.length>1)return{ok:false,integrityError:true,duplicateDrafts:true,count:rows.length,message:'يوجد أكثر من Draft لنفس رقم الأوردر؛ تم إيقاف العملية للمراجعة.'};
+  if(rows.length>1){
+    if(typeof trendosIntegrityResolutionV1_==='function'&&typeof trendosIntegrityInvoiceDraftEvidenceV1_==='function'){
+      const evidence=trendosIntegrityInvoiceDraftEvidenceV1_(rows.map(trendosInvoiceResolutionDraftV1_));
+      const resolution=trendosIntegrityResolutionV1_('DUPLICATE_INVOICE_DRAFTS',orderId,evidence);
+      if(resolution.resolved&&resolution.canonicalId){
+        const byId={};rows.forEach(function(x){const id=trendosInvoiceDraftObjectV1_(x).draftId;if(id)byId[id]=x;});
+        const canonical=byId[resolution.canonicalId],superseded={};
+        resolution.supersededIds.forEach(function(id){superseded[id]=true;});
+        const unresolved=rows.filter(function(x){
+          const id=trendosInvoiceDraftObjectV1_(x).draftId;
+          return id!==resolution.canonicalId&&!superseded[id];
+        });
+        const invalidSuperseded=resolution.supersededIds.filter(function(id){return!byId[id]||id===resolution.canonicalId;});
+        if(canonical&&!unresolved.length&&!invalidSuperseded.length){
+          return{ok:true,row:canonical,count:1,totalCount:rows.length,supersededCount:resolution.supersededIds.length,resolution:resolution};
+        }
+        return{ok:false,integrityError:true,duplicateDrafts:true,resolutionMismatch:true,count:rows.length,resolution:resolution,message:'سجل معالجة Drafts لا يغطي الصفوف الحالية بدقة؛ تم إيقاف العملية.'};
+      }
+      if(resolution.stale||resolution.conflict){
+        return{ok:false,integrityError:true,duplicateDrafts:true,resolutionInvalid:true,count:rows.length,resolution:resolution,message:'سجل معالجة Drafts قديم أو متعارض مع البيانات الحالية؛ تم إيقاف العملية.'};
+      }
+    }
+    return{ok:false,integrityError:true,duplicateDrafts:true,count:rows.length,message:'يوجد أكثر من Draft لنفس رقم الأوردر؛ تم إيقاف العملية للمراجعة.'};
+  }
   return{ok:true,row:rows.length?rows[0]:null,count:rows.length};
 }
 function trendosInvoiceDraftObjectV1_(x){

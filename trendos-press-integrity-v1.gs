@@ -33,6 +33,17 @@ function trendosPressCandidateValueV1_(row,indices,normalizer){
   vals.forEach(function(x){const v=norm(x.raw);if(v&&normalized.indexOf(v)===-1)normalized.push(v);});
   return{value:vals[0].raw,conflict:normalized.length>1,values:normalized};
 }
+function trendosPressLineCandidateV1_(row,displayRow,indices){
+  const normalized=[];
+  (indices||[]).forEach(function(i){
+    const raw=row&&row[i],shown=displayRow&&displayRow[i];
+    const id=typeof trendosLineIdFromSheetCellV1_==='function'
+      ?trendosLineIdFromSheetCellV1_(raw,shown)
+      :trendosNormalizeLineId_(raw);
+    if(id&&normalized.indexOf(id)===-1)normalized.push(id);
+  });
+  return{value:normalized[0]||'',conflict:normalized.length>1,values:normalized};
+}
 function trendosPressSettingsV1_(){
   const out={};const sh=ss_().getSheetByName(TRENDOS_PRESS_SETTINGS_SHEET_V1);if(!sh||sh.getLastRow()<2)return out;
   const rows=sh.getRange(2,1,sh.getLastRow()-1,Math.min(4,sh.getLastColumn())).getValues();
@@ -71,12 +82,12 @@ function trendosPressQueueV1_(){
     priority:trendosPressHeaderIndicesV1_(headers,['الأولوية','Priority'])
   };
   if(!idx.order.length||!idx.line.length||!idx.status.length)throw new Error('Press queue requires Order ID, Line ID and Status columns.');
-  const data=sh.getRange(2,1,sh.getLastRow()-1,sh.getLastColumn()).getValues(),items=[],errors=[],seen={};
+  const range=sh.getRange(2,1,sh.getLastRow()-1,sh.getLastColumn()),data=range.getValues(),display=range.getDisplayValues(),items=[],errors=[],seen={};
   data.forEach(function(row,i){
     const dept=trendosPressTextV1_(trendosPressCandidateValueV1_(row,idx.dept).value),flag=trendosPressCandidateValueV1_(row,idx.press).value,status=trendosPressTextV1_(trendosPressCandidateValueV1_(row,idx.status).value);
     if(trendosPressClosedStatusV1_(status))return;if(!(trendosPressNormV1_(dept).indexOf('مكبس')!==-1||trendosPressHeatFlagV1_(flag)))return;
-    const orderRaw=trendosPressCandidateValueV1_(row,idx.order,trendosNormalizeOrderId_),lineRaw=trendosPressCandidateValueV1_(row,idx.line,trendosNormalizeLineId_);
-    const orderId=trendosNormalizeOrderId_(orderRaw.value),lineId=trendosNormalizeLineId_(lineRaw.value);
+    const orderRaw=trendosPressCandidateValueV1_(row,idx.order,trendosNormalizeOrderId_),lineRaw=trendosPressLineCandidateV1_(row,display[i],idx.line);
+    const orderId=trendosNormalizeOrderId_(orderRaw.value),lineId=lineRaw.value;
     if(orderRaw.conflict)errors.push({rowNumber:i+2,type:'ORDER_ID_CONFLICT',values:orderRaw.values});
     if(lineRaw.conflict)errors.push({rowNumber:i+2,type:'LINE_ID_CONFLICT',values:lineRaw.values});
     if(!orderId||!lineId){errors.push({rowNumber:i+2,type:'INVALID_PRESS_ID',orderId:orderId,lineId:lineId});return;}
@@ -131,8 +142,8 @@ function trendosPressParseLineIdsV1_(v){
 }
 function trendosPressLineStatesV1_(lineIds){
   const want={};(lineIds||[]).forEach(function(id){want[id]=1;});const out={};if(!Object.keys(want).length)return out;const sh=ss_().getSheetByName(TRENDOS_PRESS_LINES_SHEET_V1);if(!sh||sh.getLastRow()<2)return out;
-  const headers=trendosPressHeadersV1_(sh),iLine=trendosPressHeaderIndicesV1_(headers,['رقم البند','Line ID']),iStatus=trendosPressHeaderIndicesV1_(headers,['الحالة','Status']),data=sh.getRange(2,1,sh.getLastRow()-1,sh.getLastColumn()).getValues();
-  data.forEach(function(r){const lid=trendosNormalizeLineId_(trendosPressCandidateValueV1_(r,iLine,trendosNormalizeLineId_).value);if(!want[lid])return;const status=trendosPressTextV1_(trendosPressCandidateValueV1_(r,iStatus).value);if(!out[lid]||status!=='مكرر')out[lid]=status;});return out;
+  const headers=trendosPressHeadersV1_(sh),iLine=trendosPressHeaderIndicesV1_(headers,['رقم البند','Line ID']),iStatus=trendosPressHeaderIndicesV1_(headers,['الحالة','Status']),range=sh.getRange(2,1,sh.getLastRow()-1,sh.getLastColumn()),data=range.getValues(),display=range.getDisplayValues();
+  data.forEach(function(r,i){const lid=trendosPressLineCandidateV1_(r,display[i],iLine).value;if(!want[lid])return;const status=trendosPressTextV1_(trendosPressCandidateValueV1_(r,iStatus).value);if(!out[lid]||status!=='مكرر')out[lid]=status;});return out;
 }
 function trendosPressValidateStopPayloadV1_(meta,p){
   let ids=trendosPressParseLineIdsV1_(p.completedLineIds||p.lineIds||'');

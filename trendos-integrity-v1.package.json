@@ -18,6 +18,7 @@
   "coreAppsScriptFiles": [
     "trendos-integrity-v1.gs",
     "trendos-integrity-runtime-tools-v1.gs",
+    "trendos-core-p0-remediation-v1.gs",
     "trendos-order-line-integrity-v1.gs",
     "trendos-attendance-cleaning-integrity-v1.gs",
     "trendos-press-integrity-v1.gs",

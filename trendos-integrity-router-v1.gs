@@ -27,7 +27,7 @@ function trendosIntegrityFeatureStateV1_(){const out={master:trendosIntegrityEna
 
 function trendosIntegrityDependencyHealthV1_(){
   const required=[
-    'trendosNormalizeOrderId_','trendosNormalizeLineId_','trendosWithLock_','trendosIdempotencyClaim_','trendosAutomationRunStart_',
+    'trendosNormalizeOrderId_','trendosNormalizeLineId_','trendosLineIdFromSheetCellV1_','trendosIntegrityResolutionV1_','trendosWithLock_','trendosIdempotencyClaim_','trendosAutomationRunStart_',
     'trendosCustomerDraftAddItemV1_','trendosCustomerDraftUploadFileV1_','trendosCustomerDraftSubmitV1_','trendosUpdateLineV1_',
     'trendosAttendanceV1_','trendosCleaningV1_','trendosPressControlV1_','trendosGoLiveAutopilotV1_',
     'trendosCustomerManagerV1_','trendosWhatsAppWebhookV1_','trendosCreateHandoverV1_','trendosReceiveHandoverV1_',

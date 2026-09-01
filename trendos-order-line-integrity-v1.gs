@@ -55,11 +55,17 @@ function trendosOrderLineScanLineRowsV1_(sheet, lineId) {
   const cols = trendosOrderLineColumnsV1_(sheet);
   if (!cols.lineId) throw new Error('Line ID column is missing.');
   const width = Math.max(cols.orderId, cols.orderCode, cols.lineId, cols.status, 1);
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues();
+  const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, width);
+  const data = range.getValues();
+  const display = range.getDisplayValues();
   const out = [];
   for (let i = 0; i < data.length; i++) {
     const rawLine = trendosOrderLineValueAtV1_(data[i], cols.lineId);
-    if (trendosNormalizeLineId_(rawLine) !== lineId) continue;
+    const displayLine = trendosOrderLineValueAtV1_(display[i], cols.lineId);
+    const normalizedLine = typeof trendosLineIdFromSheetCellV1_ === 'function'
+      ? trendosLineIdFromSheetCellV1_(rawLine, displayLine)
+      : trendosNormalizeLineId_(rawLine);
+    if (normalizedLine !== lineId) continue;
     const status = trendosOrderLineLegacyTextV1_(trendosOrderLineValueAtV1_(data[i], cols.status));
     const orderId = trendosNormalizeOrderId_(trendosOrderLineValueAtV1_(data[i], cols.orderId)) || trendosNormalizeOrderId_(trendosOrderLineValueAtV1_(data[i], cols.orderCode));
     out.push({rowNumber:i + 2,lineId:lineId,orderId:orderId,status:status,duplicate:trendosIsDuplicateStatus_(status),row:data[i]});

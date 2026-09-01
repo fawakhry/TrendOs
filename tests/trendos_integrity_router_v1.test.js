@@ -3,7 +3,7 @@ const root=process.argv[2]||process.cwd(),src=fs.readFileSync(root+'/trendos-int
 const ctx={console,globalThis:null,
  PropertiesService:{getScriptProperties(){return{getProperty:k=>props[k]||null,setProperty(k,v){props[k]=String(v);}}}},
  authorize_(u){if(u==='bad')return{ok:false,message:'bad auth'};return{ok:true,user:{username:u||'وائل',name:u||'وائل',department:'طباعة',role:u==='ضياء'?'admin':'print'}};},
- trendosNormalizeOrderId_(){},trendosNormalizeLineId_(){},trendosWithLock_(){},trendosIdempotencyClaim_(){},trendosAutomationRunStart_(){},authorizeD1FastV25_(){},
+ trendosNormalizeOrderId_(){},trendosNormalizeLineId_(){},trendosLineIdFromSheetCellV1_(){},trendosIntegrityResolutionV1_(){},trendosWithLock_(){},trendosIdempotencyClaim_(){},trendosAutomationRunStart_(){},authorizeD1FastV25_(){},
  trendosCustomerDraftAddItemV1_:e=>({success:true,kind:'add'}),trendosCustomerDraftUploadFileV1_:p=>({success:true,kind:'upload',p}),trendosCustomerDraftSubmitV1_:e=>({success:true,kind:'submit'}),trendosUpdateLineV1_:e=>({success:true,kind:'line'}),
  trendosAttendanceV1_:e=>({success:true,kind:'attendance'}),trendosCleaningV1_:e=>({success:true,kind:'clean'}),trendosPressControlV1_:e=>({success:true,kind:'press'}),trendosGoLiveAutopilotV1_:e=>({success:true,kind:'invoice'}),trendosCustomerManagerV1_:e=>({success:true,kind:'cm'}),
  trendosWhatsAppWebhookV1_:p=>({success:true,received:1}),
