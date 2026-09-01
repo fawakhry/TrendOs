@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:44 Africa/Cairo**.
+> Updated: **2026-09-01 12:45 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-03F — SUCCESSOR BRANCH CREATED/VERIFIED; CI TRIGGER GAP FOUND; PARTIAL UNTIL EXACT R4 CI PASS; PRODUCTION UNCHANGED**
+**RP-03F-A — R4 CI TRIGGER FIX COMMITTED + WORKING-BRANCH CI PASS; FAST-FORWARD R4 AND REQUIRE EXACT-SHA CI NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1213,6 +1213,17 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: R4 currently `c161899d267ad1e6cd277b19e335052ab5be4a13`; no R4 run exists.
 - Rollback: abandon/delete only the unapproved R4 ref if the trigger fix fails; Candidate R3 and production remain intact.
 - Exact next step: on the working branch, extend the workflow push filter narrowly to the exact R4 branch, run existing tests/CI, checkpoint the result, then fast-forward R4 to the tested commit and require a SUCCESS run whose `head_sha` equals the final R4 SHA. Do not touch Apps Script, Sheets, registry, deployment, properties, triggers, routes, or flags.
+
+## RP-03F-A Candidate CI trigger remediation — PASS
+- Action: extended the Integrity workflow push filter narrowly to the exact R4 release branch, leaving all existing test steps unchanged.
+- Evidence:
+  - workflow commit `937bb971a3fd479747d3f74ee88ae353b04f33d3`;
+  - workflow now accepts pushes to `agent/go-live-2026-09-01-integrity` and exact `release/integrity-v1-remediation-predeploy-2026-09-01-r4`;
+  - GitHub Actions run `33493847050`, run number 168, head SHA `937bb971a3fd479747d3f74ee88ae353b04f33d3` = **SUCCESS**.
+- Status: **PASS — the release branch can now produce exact-ref CI; final R4 freeze still pending**.
+- Production impact: NONE — GitHub workflow only; no runtime/data change.
+- Rollback: revert the workflow-only commit if release-branch CI must be disabled; production unaffected.
+- Exact next step: fast-forward R4 from `c161899d267ad1e6cd277b19e335052ab5be4a13` to the current tested working-branch head, verify R3 remains unchanged, then require a release-branch run whose head SHA equals the final R4 SHA. Record PASS/FAIL before any Apps Script/Sheet action.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
