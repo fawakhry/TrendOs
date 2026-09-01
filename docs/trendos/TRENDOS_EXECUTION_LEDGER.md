@@ -1896,3 +1896,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Head `57af3b77e1982ba1823cfed9a8f25a68a11c72ed`; CI `33553936486` SUCCESS.
 - **Rollback:** No production rollback is needed. GitHub rollback is revert-only for the reader/writer/documentation lane.
 - **Exact next step:** Wait for explicit approval of the bounded Head installation + read-only preview payload recorded in RP-06-WRITER-K. After approval, perform only those four actions, verify/ledger them, and stop again before any Script Property or registry write.
+
+
+## RP-06-PREVIEW-A — REVISED REGISTRY READER INSTALLED IN APPS SCRIPT HEAD
+
+- **Action:** Under the user's explicit RP-06-PREVIEW approval, replaced only Apps Script Head file `trendos-core-p0-remediation-v1.gs` with the append-only revision-aware reader. Used the exact GitHub source, saved through the Apps Script UI, reloaded the editor, reselected the file, and copied the full persisted model for exact Git-blob verification.
+- **Evidence:** Previous persisted Head blob `e55818297762b2f99a2967524d8ac29dd864f421`; new persisted Head blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; expected GitHub blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; exact match = true; persisted length 7,791 characters after reload.
+- **Status:** PASS — Apps Script Save/persistence verification passed for the revised reader.
+- **Production impact:** NONE. Apps Script Head only; production Web App Version 146 was not deployed or changed. No function was run, no Script Property/flag/trigger/route/Sheet/registry/data mutation occurred, and `Code.gs` was not opened or edited.
+- **Commit / CI:** Reader source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; prior CI `33552134647` SUCCESS; hardened writer lane CI `33553469092` SUCCESS.
+- **Rollback:** Replace only the Head remediation file with prior R4 blob `e55818297762b2f99a2967524d8ac29dd864f421`. Production rollback is not required because Version 146 is unchanged.
+- **Exact next step:** Add Apps Script Head Script file `trendos-core-p0-registry-writer-v1` from exact blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; Save, reload, and exact-verify. Do not run it, set properties, write the registry, deploy, change flags/triggers/routes, or edit `Code.gs`.
