@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 12:21 Africa/Cairo**.
+> Updated: **2026-09-01 12:22 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**RP-01C — REMEDIATION SOURCE/CI/MEMORY SYNC PASS; RP-03 READ-ONLY PREVIEW NEXT; PRODUCTION UNCHANGED**
+**RP-03A — READ-ONLY PREVIEW FOUND CROSS-TIMEZONE HASH RISK; SOURCE HARDENING NEXT; PRODUCTION UNCHANGED**
 
 Latest verified production state is Web App Version 145 with master+HEALTH ON only. Runtime-tools remains exact Candidate R3; all business-family flags and Fast Auth remain OFF.
 
@@ -1050,6 +1050,21 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Commit / CI: memory commit above; source commit `63d6dd50aee10b84ad35a9d06e9f4414254636d1`; CI `33491388210` SUCCESS.
 - Rollback: documentation-only revert if later verified evidence changes the checkpoint.
 - Exact next step: run RP-03 read-only production-shaped preview. No Apps Script Head installation, registry write, deployment, property, trigger, route, or flag change.
+
+
+## RP-03A Read-only preview metadata gate — PARTIAL / SOURCE HARDENING REQUIRED
+- Action: began the RP-03 live read-only preview by re-reading production workbook metadata and a bounded CellData sample from `بنود الأوردرات!A1:K20`.
+- Evidence:
+  - workbook timezone is `America/Los_Angeles`;
+  - TrendOS business/runtime timezone is `Africa/Cairo`;
+  - legacy Line-ID cells expose numeric effective/user-entered values plus exact formatted IDs such as `3112-01` under DATE pattern `yyyy-mm`;
+  - the staged cell-aware adapter correctly targets raw numeric/Date + exact display text and does not require a Sheet rewrite.
+- New conflict: the RP-01 generic group evidence hash used raw Date values while discarding `__display`. Because Sheets and TrendOS operate in different timezones and connector reads expose serial numbers instead of Apps Script Date objects, the same protected rows could be difficult to preview/reproduce exactly across surfaces. Invoice evidence also included an update-time text representation that is not required for the material safety contract.
+- Status: **PARTIAL — Line-ID adapter design remains valid; evidence-hash representation must be hardened before completing RP-03 or using a registry**.
+- Production impact: READ-ONLY only — metadata and bounded cells read; no Sheet/App Script/deployment/property/trigger/flag change.
+- Commit / CI: no source fix committed yet; RP-01 commit/CI remain the latest code checkpoint.
+- Rollback: none required.
+- Exact next step: change generic group evidence to hash exact displayed cell values plus row identity, remove non-material update-time representation from Invoice evidence, extend tests, run local/remote CI, and checkpoint the corrected source before resuming RP-03.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
