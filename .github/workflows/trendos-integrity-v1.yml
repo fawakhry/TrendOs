@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/go-live-2026-09-01-integrity
+      - release/integrity-v1-remediation-predeploy-2026-09-01-r4
   pull_request:
     paths:
       - 'trendos-integrity-v1.gs'
