@@ -1,7 +1,7 @@
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
-> Last consolidated: **2026-09-01 22:44 Africa/Cairo**.
+> Last consolidated: **2026-09-01 22:54 Africa/Cairo**.
 
 ## Mandatory read order
 
@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-09-R4 PASS — VERSION 146 ACTIVE AND POST-DEPLOY SMOKE VERIFIED; STOP BEFORE RESOLUTION REGISTRY OR ORDER_LINE ACTIVATION**
+**PD-09-R4 PASS — VERSION 146 ACTIVE; RP-06 REGISTRY ROLLBACK CONTRACT FIX CI PASS; STOP BEFORE REGISTRY INSTALL/WRITE OR ORDER_LINE ACTIVATION**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -191,7 +191,7 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-09-R4 PASS — Version 146 is active and verified; STOP before any resolution-registry write or ORDER_LINE activation.**
+**PD-09-R4 PASS — Version 146 is active and verified; RP-06 registry rollback contract fix is CI PASS on GitHub only; STOP before registry installation/write or ORDER_LINE activation.**
 
 Completed and verified:
 - frozen R4 source `b940eb9ff08a094b2406e396eba6af73409e7f9c` is installed in the 24-file Apps Script Head composition and deployed on the existing production deployment ID as Version **146**.
@@ -215,9 +215,16 @@ R4 evidence:
 - exact-ref GitHub Actions run `33493914883` = **SUCCESS**.
 - dependency contract: 25 required functions, zero missing.
 
+Registry safety precheck:
+- a new fail-closed review found that the original reader filtered inactive rows before revision precedence, so an append-only inactive rollback could not deactivate an older active mapping.
+- working-branch source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` now applies latest-row-wins precedence per exact `Canonical ID + Superseded ID + Classification` identity before `Active?`.
+- regression test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8` covers deactivate, full deactivate, reactivate, array-order fallback, classification identity, stale evidence, and canonical conflict.
+- GitHub Actions run `33552134647` on documented head `0cb69ecaf3dcdce5ee8c062545b68f0e7b4af80c` = **SUCCESS**.
+- this closure is GitHub-only: the revised helper is not installed/deployed, and the resolution registry remains absent/unwritten.
+
 Exact next action:
 1. keep Version 146 serving with current flags unchanged.
-2. design and verify the resolution-registry production-write checkpoint; do not create it without explicit approval.
+2. design and CI-test a separate one-time ScriptLock-protected registry writer with exact schema validation and live evidence-hash recheck; do not install it or create/write the registry without explicit approval.
 3. after the registry gate passes, request separate approval before enabling ORDER_LINE.
 4. activate later business families one at a time with runtime regression and immediate family rollback on failure.
 
