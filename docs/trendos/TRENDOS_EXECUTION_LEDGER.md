@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:34 Africa/Cairo**.
+> Updated: **2026-09-01 10:36 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; DEPLOYED HEALTH ROUTE PASS; MASTER+HEALTH ON ONLY; EXACT-VERIFIED DASHBOARD SMOKE HELPER READY IN HEAD**.
+- Integrity V1 state: **VERSION 145 LIVE; HEALTH FAMILY RUNTIME PASS WITH MASTER+HEALTH ON ONLY; DASHBOARD EXPOSES 6 CORE-P0 DATA BLOCKERS; TEMP HELPER RESTORE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10Q — HEALTH DASHBOARD SMOKE HELPER READY; RUN ONCE NEXT**
+**PD-10R — HEALTH DASHBOARD RUNTIME PASS; 6 CORE-P0 BLOCKERS OBSERVED; RESTORE TEMP HELPER NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -859,6 +859,29 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: controlled temporary verifier; Candidate R3 unchanged; ledger checkpoint only.
 - Rollback: automatic HEALTH property rollback on execution failure; restore runtime-tools exactly to R3 after execution.
 - Exact next step: run `trendosIntegrityDashboardSmokeOnceV1` once; require pass=true and matching row/metric counts; record any actual P0 blocker IDs separately from code health.
+
+## PD-10R HEALTH Integrity Dashboard runtime — CODE/WRITE PASS / DATA HEALTH FAIL SIGNAL
+- Action: ran `trendosIntegrityDashboardSmokeOnceV1` once under the verified HEALTH-only flag state.
+- Evidence:
+  - execution completed at 7:29:34 AM with `pass=true`;
+  - before: health sheet did not exist;
+  - after: `إدارة - صحة النظام` exists with 14 rows x 9 columns;
+  - metricCount=13, so sheet rows exactly equal 13 metrics + one header;
+  - dashboard version `TRENDOS_INTEGRITY_DASHBOARD_V1_20260830`;
+  - report `healthy=false`;
+  - exact derived CORE-P0 blocker metric IDs:
+    1. `INVALID_LINE_IDS`
+    2. `DUPLICATE_ATTENDANCE_SESSIONS`
+    3. `DUPLICATE_CLEANING_RECORDS`
+    4. `DUPLICATE_INVOICE_DRAFTS`
+    5. `PRESS_SOURCE_VIEW_MISMATCH`
+    6. `PRESS_COMPLETED_WITHOUT_SESSION`
+- Status: **PASS for HEALTH family code/write/runtime; FAIL signal for current production data health (6 derived CORE-P0 blockers)**. Detection is working; these observations are not a router/dashboard code failure and therefore did not trigger flag rollback.
+- Production impact: **YES, bounded HEALTH-only write** — created/refreshed only the isolated monitoring sheet `إدارة - صحة النظام`; no authoritative Orders/Lines/Attendance/Cleaning/Invoice/Press source row was modified, no business-family route enabled, and no trigger/deployment changed.
+- Commit / CI: live runtime evidence; Candidate R3 unchanged; ledger checkpoint only.
+- Rollback: HEALTH flags remain eligible because the monitoring family passed. Disable master+HEALTH if later regression occurs. Do not delete the monitoring sheet as rollback; it is evidence.
+- Safety consequence: **do not proceed to ORDER_LINE or any later family merely because the dashboard code passed.** The six CORE-P0 signals require evidence-backed triage; no random historical-row cleanup and no Order/Line contract change.
+- Exact next step: restore runtime-tools exactly to Candidate R3, save/reload/exact-verify, then run final legacy base smoke and private execution/trigger reconciliation with HEALTH still ON. Stop before ORDER_LINE and synchronize Handoff/Memory with the six blocker IDs.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
