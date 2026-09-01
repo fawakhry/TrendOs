@@ -1852,3 +1852,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `e77bdda6364ef3270f2eeae1fe3879da33722826`; underlying final writer CI `33553469092` SUCCESS.
 - **Rollback:** Revert the plan commit; production remains Version 146.
 - **Exact next step:** Synchronize Handoff, update this ledger, then synchronize Project Memory and update this ledger again. After canonical consistency verification, request one bounded approval for Head installation plus read-only preview only.
+
+
+## RP-06-WRITER-I — HANDOFF ADVANCED TO HEAD/PREVIEW BOUNDARY
+
+- **Action:** Updated `TRENDOS_HANDOFF.md` with the final reader/writer commits and blobs, 34-row plan hash, Invoice row pins, CI evidence, safety controls, explicit approval boundaries, and the exact next Head-install/read-only-preview-only step.
+- **Evidence:** Handoff commit `849260713fe1e62e2d7d97f2c50e4c3d73acba1a`; blob `b0a3ade0c36ee6b7ac26067bb86c796d1cc9eb13`.
+- **Status:** PASS.
+- **Production impact:** NONE. Documentation-only.
+- **Commit / CI:** `849260713fe1e62e2d7d97f2c50e4c3d73acba1a`; writer CI `33553469092` SUCCESS.
+- **Rollback:** Revert the handoff commit; Version 146 remains unchanged.
+- **Exact next step:** Synchronize `TRENDOS_PROJECT_MEMORY.md` to the same bounded checkpoint, then update this ledger before cross-document verification.
