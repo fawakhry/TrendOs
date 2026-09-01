@@ -1720,3 +1720,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; CI pending final source+test state.
 - **Rollback:** Revert source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` or restore source blob `e55818297762b2f99a2967524d8ac29dd864f421`. Production rollback is not applicable because nothing was installed or deployed.
 - **Exact next step:** Commit the append-only deactivate/reactivate, row-order fallback, classification-identity, stale-evidence, and canonical-conflict regression coverage in `tests/trendos_core_p0_remediation_v1.test.js`; then update this ledger before CI verification.
+
+
+## RP-06-PRECHECK-C — APPEND-ONLY REVISION REGRESSION TESTS COMMITTED
+
+- **Action:** Extended `tests/trendos_core_p0_remediation_v1.test.js` with exact regression coverage for one-mapping deactivation, full deactivation, later reactivation, array-order fallback without Sheet row metadata, and classification as part of the mapping identity; retained stale-evidence and canonical-conflict fail-closed checks.
+- **Evidence:** Test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8`; prior test blob `df5bf85815074dc9a52365841991f580f6383145`; new test blob `d6a3c53e22c24c08f225b073e0ea6a5256dadf63`. Local focused test and the complete 9-file Node suite passed.
+- **Status:** PARTIAL — source and regression tests are committed on the working branch; remote CI verification is pending.
+- **Production impact:** NONE. No Apps Script, deployment, feature flag, registry sheet, trigger, or production-data mutation.
+- **Commit / CI:** Test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8`; final remote CI pending.
+- **Rollback:** Revert test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8` and source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` if the contract is rejected. Version 146 remains unaffected.
+- **Exact next step:** Verify the GitHub Actions run for the latest working-branch state. If PASS, record CI evidence before designing any registry writer or touching Apps Script/Sheets.
