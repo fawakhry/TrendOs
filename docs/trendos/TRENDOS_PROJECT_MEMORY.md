@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-09-01 22:56 Africa/Cairo**.
+> Last consolidated: **2026-09-01 23:12 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,7 +42,7 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CORE-P0 REMEDIATION — PD-09-R4 PASS; VERSION 146 ACTIVE; RP-06 REGISTRY ROLLBACK CONTRACT FIX CI PASS; STOP BEFORE REGISTRY INSTALL/WRITE OR ORDER_LINE ACTIVATION.**
+**CORE-P0 REMEDIATION — PD-09-R4 PASS; VERSION 146 ACTIVE; GUARDED 34-ROW REGISTRY WRITER CI PASS ON GITHUB ONLY; STOP BEFORE HEAD INSTALL/PREVIEW, REGISTRY WRITE, REVISED-READER DEPLOYMENT, OR ORDER_LINE.**
 
 Frozen R4 is deployed in Apps Script Version 146 on the preserved deployment ID. HEALTH remains the only activated family; every business family and Fast Auth remain OFF. Post-deploy landing, dependency/property health, execution-history, and trigger checks passed.
 
@@ -137,7 +137,11 @@ RP-01/RP-02/RP-03 results:
 - working-branch source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a` implements latest-row-wins precedence for each exact `Canonical ID + Superseded ID + Classification` identity before applying `Active?`.
 - regression test commit `d3b74288a76d3e0def40324cbfc205c7de83d9a8` covers targeted/full deactivation, reactivation, array-order fallback, classification identity, stale evidence, and canonical conflict.
 - GitHub Actions run `33552134647` on documented head `0cb69ecaf3dcdce5ee8c062545b68f0e7b4af80c` = **SUCCESS**.
-- status is GitHub-only: the revised helper is not installed/deployed; no resolution registry exists; no production Sheet, Apps Script, property, route, trigger, or flag changed.
+- hardened one-time writer source `trendos-core-p0-registry-writer-v1.gs`: commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`, blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`.
+- writer tests `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; GitHub Actions `33553469092` = **SUCCESS**.
+- exact plan is 34 rows with hash `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`; Invoice canonical/superseded source rows are pinned at 3569=21/20, 3572=19/18, 3577=17/16.
+- writer safety: read-only preview; ScriptLock; Master+HEALTH-only guard; all business flags/Fast Auth OFF; exact schema/live evidence; one-use plan-hash approvals; retry no-op; no silent reactivation; post-write auto-deactivation; separate append-only rollback.
+- status is GitHub-only: the revised helper and writer are excluded from the deployed package and not installed/deployed; no resolution registry exists; no production Sheet, Apps Script, property, route, trigger, or flag changed.
 
 ## Current architecture
 
@@ -319,7 +323,7 @@ Primary plan: `TRENDOS_GO_LIVE_2026-09-01_MASTER.md`.
 Current execution order from here:
 
 1. keep verified Version 146 serving with master+HEALTH ON only.
-2. design and CI-test a separate one-time ScriptLock-protected registry writer with exact schema validation and live evidence-hash recheck; do not install it or create/write the registry without explicit approval.
+2. after a bounded approval, install only the revised remediation helper plus separate writer into Apps Script Head, Save/parse, and run `trendosCoreP0RegistryPreviewV1` read-only; do not set approval properties or write the registry.
 3. after registry verification, request separate approval before ORDER_LINE activation.
 4. activate ORDER_LINE and later families one at a time with runtime regression and immediate family rollback on failure.
 5. run D1 consistency regression.
@@ -332,7 +336,7 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**PD-09-R4 PASS — Version 146 is active and verified; RP-06 registry rollback contract fix is CI PASS on GitHub only; STOP before registry installation/write or ORDER_LINE activation.**
+**PD-09-R4 PASS — Version 146 is active and verified; guarded 34-row registry writer is CI PASS on GitHub only; STOP before Head installation/read-only preview, registry write, revised-reader deployment, or ORDER_LINE activation.**
 
 Completed and verified:
 - frozen R4 branch `release/integrity-v1-remediation-predeploy-2026-09-01-r4`, SHA `b940eb9ff08a094b2406e396eba6af73409e7f9c`, exact-ref CI `33493914883` SUCCESS.
@@ -345,6 +349,13 @@ Completed and verified:
 - direct query-string HEALTH navigation was client-blocked before reaching Apps Script and remains PARTIAL route evidence only.
 - no registry, Sheet data, Script Property, trigger, route wiring, source, business Feature Flag, Fast Auth, or `Code.gs` change occurred during post-deploy checks.
 
+Current GitHub-only registry tool checkpoint:
+- revised reader commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`, blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`;
+- hardened writer commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`, blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`;
+- tests `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` SUCCESS;
+- exact plan hash `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`;
+- neither source is installed as the current Head checkpoint; the registry remains absent.
+
 Current production:
 - active Web App Version **146**.
 - master+HEALTH ON only.
@@ -352,8 +363,8 @@ Current production:
 - Version 145 immediate rollback; Versions 144 and 143 deeper rollback points.
 
 Open gate:
-- design and CI-test the ScriptLock-protected resolution-registry writer and its fail-closed live evidence recheck.
-- obtain explicit approval before creating/writing that registry.
+- obtain a bounded checkpoint for Apps Script Head installation of the revised reader plus separate writer, then Save/parse and run the read-only writer preview.
+- obtain separate explicit approval before setting the one-use plan-hash property and creating/writing that registry.
 - obtain separate explicit approval before enabling ORDER_LINE.
 - preserve historical `مكرر`, keep Order ID/Line ID contracts unchanged, and never invent session links.
 - continue family-by-family runtime activation only after each exact checkpoint passes.
