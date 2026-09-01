@@ -1,7 +1,7 @@
 # TrendOS Project Memory
 
 > Canonical project memory for future chats and execution work.
-> Last consolidated: **2026-09-01 10:41 Africa/Cairo**.
+> Last consolidated: **2026-09-01 11:44 Africa/Cairo**.
 > Launch target: **01/03/2027 — TrendOS V1**, aligned with Matbagy third anniversary.
 
 ## Read first in every new TrendOS chat
@@ -42,7 +42,7 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CONTROLLED FAMILY ACTIVATION — HEALTH PASS; CORE-P0 DATA TRIAGE REQUIRED BEFORE ORDER_LINE.**
+**CONTROLLED FAMILY ACTIVATION — HEALTH PASS; CORE-P0 READ-ONLY TRIAGE COMPLETE; REMEDIATION/BASELINE DECISION REQUIRED BEFORE ORDER_LINE.**
 
 Integrity V1 Core is installed and deployed in Apps Script Version 145. HEALTH is the only activated family and has passed deployed-route, dashboard-write, and legacy-regression checks; every business family and Fast Auth remain OFF.
 
@@ -99,15 +99,15 @@ HEALTH family:
 
 Data-health observation:
 - report `healthy=false`.
-- six derived CORE-P0 metric IDs are open:
-  - `INVALID_LINE_IDS`
-  - `DUPLICATE_ATTENDANCE_SESSIONS`
-  - `DUPLICATE_CLEANING_RECORDS`
-  - `DUPLICATE_INVOICE_DRAFTS`
-  - `PRESS_SOURCE_VIEW_MISMATCH`
-  - `PRESS_COMPLETED_WITHOUT_SESSION`
+- read-only triage of all six CORE-P0 signals is complete:
+  - `INVALID_LINE_IDS`: 229 legacy Line IDs are Date-coerced by cell type; 131 closed and **98 not closed**. Live ORDER_LINE compatibility blocker.
+  - `DUPLICATE_ATTENDANCE_SESSIONS`: 6 excess rows across 5 recent keys, with open/conflicting sessions. Active defect.
+  - `DUPLICATE_CLEANING_RECORDS`: 16 excess completed/no-problem rows across 11 keys. Historical baseline debt.
+  - `DUPLICATE_INVOICE_DRAFTS`: duplicate active unpriced drafts for Orders `3569`, `3572`, `3577`; unsent and total=0. Active legacy defect.
+  - `PRESS_SOURCE_VIEW_MISMATCH`: four current source Lines versus zero view rows. Current view-generation mismatch.
+  - `PRESS_COMPLETED_WITHOUT_SESSION`: three delivered legacy Lines and no Line-session ledger sheet. Historical/schema traceability debt.
 
-This is a HEALTH-monitoring success and a production-data triage requirement. Do not treat it as permission for destructive cleanup or later-family activation.
+This is a HEALTH-monitoring and read-only triage success, not permission for cleanup or later-family activation. No production source cell was changed.
 
 ## Current architecture
 
@@ -304,7 +304,7 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**PD-10T — HEALTH family checkpoint PASS; STOP before ORDER_LINE.**
+**PD-10V — HEALTH family PASS; six CORE-P0 signals triaged read-only; STOP before ORDER_LINE.**
 
 Current production:
 - Apps Script Version 145.
@@ -314,12 +314,13 @@ Current production:
 - Version 144 immediate rollback; Version 143 deeper rollback.
 
 Open gate:
-- six dashboard CORE-P0 signals require read-only evidence-backed triage.
-- capture offending IDs/details and distinguish active defect vs historical/expected state vs source-view/schema mismatch vs detector false positive.
-- no random duplicate deletion.
-- preserve historical `مكرر`.
-- do not change Order ID/Line ID contracts.
-- do not activate ORDER_LINE without a separate explicit checkpoint/approval after triage.
+- prepare a non-destructive remediation/baseline plan from the completed classifications.
+- the first technical blocker is legacy Date-coerced Line IDs, including 98 not-closed rows; ORDER_LINE must remain OFF until compatibility is proven.
+- active Attendance sessions and duplicate invoice drafts need canonical resolution with audit preserved.
+- Cleaning duplicates and completed-without-session Press signals need explicit historical-baseline treatment, not deletion or invented links.
+- diagnose Press view generation without mutating the four source Lines.
+- preserve historical `مكرر`, and do not change Order ID/Line ID contracts.
+- do not write production data or activate ORDER_LINE without a separate explicit checkpoint/approval.
 
 Exact action/evidence history is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
