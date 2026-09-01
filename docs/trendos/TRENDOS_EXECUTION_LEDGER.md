@@ -1425,6 +1425,20 @@ Latest verified production state is Web App Version 145 with master+HEALTH ON on
 - Rollback: none required. Version 145 remains active and all R4 business families are OFF.
 - Exact next step: synchronize `TRENDOS_HANDOFF.md` and `TRENDOS_PROJECT_MEMORY.md` to this checkpoint, then obtain explicit approval before PD-09-R4: deploy current verified Head as Version 146 with current properties unchanged (master+HEALTH ON only; all business families/Fast Auth OFF), no registry write, and Version 145 as immediate rollback. Do not deploy or enable ORDER_LINE without that approval.
 
+
+## PD-08-R4-MEMORY-A — HANDOFF SYNCHRONIZED
+
+- Action: synchronized `docs/trendos/TRENDOS_HANDOFF.md` from the stale RP-03F/RP-04-next state to the verified PD-08-R4 Head-composition checkpoint.
+- Evidence:
+  - Handoff now records 24 persisted Head files, the frozen R4 helper plus five modified modules installed/reloaded, PD-06/PD-07/PD-08 PASS, Version 145 still active, and Version 146 deployment blocked pending explicit approval.
+  - Handoff commit `dca2b59cc1752921110726281c6b655440afcf54`; content blob `d807c83efdfe4ffa3471defa510eccc6b2f013dd`.
+- Status: **PASS**.
+- Production impact: NONE — GitHub documentation only; no Apps Script, deployment, property, route, registry, Sheet, trigger, flag, Fast Auth, or `Code.gs` change.
+- Commit / CI: working-branch Handoff commit above; frozen R4 remains `b940eb9ff08a094b2406e396eba6af73409e7f9c`, exact-ref CI `33493914883` SUCCESS.
+- Rollback: revert the documentation commit only if the recorded evidence is disproved; production remains Version 145.
+- Exact next step: synchronize `docs/trendos/TRENDOS_PROJECT_MEMORY.md` to the same PD-08-R4 checkpoint, then update this ledger again before requesting explicit PD-09-R4 deployment approval.
+
+
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
 - Evidence:
