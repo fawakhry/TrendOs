@@ -1,7 +1,7 @@
 # TrendOS Execution Ledger
 
 > **Canonical step-by-step execution memory.**
-> Updated: **2026-09-01 10:22 Africa/Cairo**.
+> Updated: **2026-09-01 10:23 Africa/Cairo**.
 > Purpose: allow any future chat to resume TrendOS without reconstructing work from conversation history.
 
 ## Mandatory operating rule
@@ -32,7 +32,7 @@ A CI PASS is not a production PASS. A prepared file is not a deployment.
 - Immediate rollback Web App version: **144**, Aug 31 2026 3:38 PM; deeper rollback Version **143**, Aug 29 2026 11:37 PM.
 - Production workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`.
 - Sheets remains authoritative for writes; D1 remains fast read/mirror with Sheets fallback.
-- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON; ROUTER DEPENDENCY STATE PASS; ALL OTHER FAMILIES/FAST AUTH OFF; TEMP HELPER RESTORE NEXT**.
+- Integrity V1 state: **VERSION 145 LIVE; MASTER+HEALTH ON; ALL OTHER FAMILIES/FAST AUTH OFF; HEAD RUNTIME TOOLS RESTORED EXACT R3; DEPLOYED HEALTH ROUTE NEXT**.
 
 ---
 
@@ -328,7 +328,7 @@ Production impact: READ-ONLY.
 
 # 5. EXACT CURRENT STOPPING POINT
 
-**PD-10K — HEALTH-ONLY ROUTER STATE PASS; RESTORE TEMP HELPER NEXT**
+**PD-10L — TEMP HELPER REMOVED / RUNTIME TOOLS EXACT R3; DEPLOYED HEALTH ROUTE NEXT**
 
 Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first-file checkpoint below. Production Web App Version 143 remains deployed and unchanged.
 
@@ -797,6 +797,15 @@ Latest user-confirmed Apps Script Head evidence supersedes the older PD-05 first
 - Commit / CI: live runtime evidence; Candidate R3 and CI unchanged; ledger checkpoint only.
 - Rollback: the temporary OFF helper remains in Head until the next exact restoration step; if subsequent restoration or deployed HEALTH test fails, re-add/use it to remove only master and HEALTH.
 - Exact next step: restore `trendos-integrity-runtime-tools-v1.gs` exactly to Candidate R3 (1,244 characters), save/reload/exact-verify, and record before calling the deployed HEALTH route.
+
+## PD-10L Runtime Tools exact restoration after activation — PASS
+- Action: replaced the temporary 3,273-character runtime-tools Head content with the exact 1,244-character Candidate R3 source, verified before save, saved, fully reloaded the editor, and exact-compared the persisted file.
+- Evidence: staged restore exact=true; persisted exact=true; final length=1,244; both temporary ON and OFF helper names are absent; no save/parse error.
+- Status: **PASS — Head no longer contains the temporary property setter; runtime-tools is exactly Candidate R3**.
+- Production impact: Head-only source restoration. Version 145 deployment is unchanged; Script Properties remain master+HEALTH ON as verified in PD-10K; every other family and Fast Auth remain OFF.
+- Commit / CI: exact Candidate R3 source restored; no candidate or CI change; ledger checkpoint only.
+- Rollback: if deployed HEALTH validation fails, re-append the previously exact-verified bounded helper, run OFF to delete only master and HEALTH, restore Candidate R3 again, then verify legacy base route.
+- Exact next step: call the deployed Version 145 URL with `action=trendosIntegrityHealthV1`; require a JSON success response with codeReady=true, missing=[], master=true, HEALTH=true, all other families=false, and Fast Auth OFF. On any mismatch, execute the rollback above immediately.
 
 ## PD-05-AUTO Authenticated editor access — PASS / RESOLVED
 - Action: established an authenticated cloud-browser session and opened the exact bound Apps Script project for the production workbook.
