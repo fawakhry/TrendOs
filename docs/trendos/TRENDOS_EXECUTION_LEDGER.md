@@ -1973,3 +1973,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `2b0da1fc68f6ce2b6c2fbd082cb20e59f5b4a411`; underlying source CI `33619745373` SUCCESS.
 - **Rollback:** Revert the plan commit. Production Version 146 is unchanged.
 - **Exact next step:** Update `TRENDOS_HANDOFF.md` to the same observable-preview rerun boundary, then update this ledger before Project Memory.
+
+
+## RP-06-PREVIEW-H — HANDOFF ADVANCED TO OBSERVABLE PREVIEW RERUN
+
+- **Action:** Updated `TRENDOS_HANDOFF.md` with the exact live/Head/GitHub states, PARTIAL first preview, new observable writer/test blobs, CI, unchanged plan hash, safety exclusions, and the new bounded Head writer replacement/read-only preview rerun boundary.
+- **Evidence:** Handoff commit `cbc8dd04ca77a6c7213f68262e0bc6b9dbab7c16`; blob `560eae2a904455e0089ced605d97a2e8faea79ba`.
+- **Status:** PASS.
+- **Production impact:** NONE. Documentation-only.
+- **Commit / CI:** `cbc8dd04ca77a6c7213f68262e0bc6b9dbab7c16`; source CI `33619745373` SUCCESS.
+- **Rollback:** Revert the handoff commit. Version 146 remains unchanged.
+- **Exact next step:** Update `TRENDOS_PROJECT_MEMORY.md` to the same bounded checkpoint, then update this ledger and cross-verify canonical documents.
