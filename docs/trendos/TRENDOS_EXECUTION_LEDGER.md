@@ -1951,3 +1951,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `47d793809a609aadcfb61279180744fcf27c5c99`; CI pending.
 - **Rollback:** Revert commit `47d793809a609aadcfb61279180744fcf27c5c99`. No production rollback is applicable.
 - **Exact next step:** Verify GitHub CI for commit `47d793809a609aadcfb61279180744fcf27c5c99`. If PASS, record CI and advance canonical Handoff/Memory to a new bounded Head writer replacement + read-only preview rerun approval boundary. Do not modify Apps Script Head again without that new explicit approval.
+
+
+## RP-06-PREVIEW-F — OBSERVABLE PREVIEW CI PASS
+
+- **Action:** Verified the GitHub Actions run for the atomic observable/fail-closed preview source+test commit.
+- **Evidence:** Workflow `TrendOS Integrity V1`, run `33619745373`, head `47d793809a609aadcfb61279180744fcf27c5c99`, status `completed`, conclusion `success`, run attempt 1.
+- **Status:** PASS — source, dedicated writer checks, composition, and safety gates passed CI.
+- **Production impact:** NONE. GitHub-only; production Version 146 and Apps Script Head remain unchanged from RP-06-PREVIEW-D.
+- **Commit / CI:** `47d793809a609aadcfb61279180744fcf27c5c99`; CI `33619745373` SUCCESS.
+- **Rollback:** Revert the observable-preview commit. No production rollback is applicable.
+- **Exact next step:** Update canonical Remediation Plan, Handoff, and Project Memory to record the PARTIAL first preview, new writer blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`, test blob `bff68556aca2f7e8e32ef6055924de5fc3895f43`, CI `33619745373`, and the new bounded Head replacement/read-only rerun approval boundary; ledger each material document update.
