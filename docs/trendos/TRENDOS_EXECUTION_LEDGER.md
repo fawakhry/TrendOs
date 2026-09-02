@@ -1918,3 +1918,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Writer source commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; tests commit `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` SUCCESS.
 - **Rollback:** Remove only the newly added Head writer Script if Head rollback is required; no production deployment rollback is applicable because Version 146 is unchanged.
 - **Exact next step:** Refresh/select the public function `trendosCoreP0RegistryPreviewV1` and run that function only. Capture its complete read-only result. Do not run `trendosCoreP0RegistryWriteV1` or `trendosCoreP0RegistryRollbackV1`; do not create/set any Script Property, registry row, flag, trigger, route, deployment, or `Code.gs` change.
+
+
+## RP-06-PREVIEW-C — READ-ONLY PREVIEW BLOCKED AT GOOGLE AUTHORIZATION CONSENT
+
+- **Action:** Selected and invoked only `trendosCoreP0RegistryPreviewV1` from the exact-verified Head writer. Apps Script opened the execution log and began the execution, then paused at Google's authorization flow. Reviewed the unverified-script warning and reached the final Google consent page; did not press `Continue`.
+- **Evidence:** The Apps Script function selector showed `trendosCoreP0RegistryPreviewV1`; execution controls changed to the active `Stop` state; Google authorization opened for account `d.fawakhry@gmail.com`. The final visible consent states that Untitled project will access the account email address and presents `Cancel` / `Continue`. No preview result exists yet because final consent has not been granted.
+- **Status:** PARTIAL / PENDING — writer invocation reached the Google authorization boundary; read-only preview is not completed and must not be reported PASS.
+- **Production impact:** NONE. Production Web App Version 146 remains unchanged. No registry Sheet/row, Script Property, feature flag, trigger, route, deployment, business-family activation, or `Code.gs` change occurred.
+- **Commit / CI:** Head writer blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; reader blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; writer CI `33553469092` SUCCESS.
+- **Rollback:** Cancel the Google consent and/or stop the pending execution; no production rollback is applicable.
+- **Exact next step:** Obtain action-time user confirmation to click Google's final `Continue` consent for Untitled project on `d.fawakhry@gmail.com`. Then return to Apps Script, allow only `trendosCoreP0RegistryPreviewV1` to complete, capture the full read-only result, and ledger PASS/FAIL. Do not run writer/rollback, create/set properties, write registry data, deploy, change flags/triggers/routes, or edit `Code.gs`.
