@@ -6,7 +6,7 @@
 > Previous deployed baseline: `release/integrity-v1-predeploy-2026-08-31-r3` at `ee03adab4c733aec909511b23dd80f42ad3b927e`  
 > Current deployed remediation source: `release/integrity-v1-remediation-predeploy-2026-09-01-r4` at `b940eb9ff08a094b2406e396eba6af73409e7f9c`; CI `33493914883` SUCCESS  
 > Current production: Apps Script Version **146**, master+HEALTH ON only; every business family and Fast Auth OFF.  
-> Status: **RP-01 through RP-05 PASS; Version 146 ACTIVE; registry reader rollback fix + one-time writer CI PASS on GitHub only; NO REGISTRY CREATED/WRITTEN**.
+> Status: **RP-01 through RP-05 PASS; Version 146 ACTIVE; observable Head preview FAIL on `3536-01`; PAUSED before any registry write; NO REGISTRY CREATED/WRITTEN**.
 
 ## 1. Objective
 
@@ -411,3 +411,15 @@ Exact next technical action: obtain a checkpoint for temporary Apps Script Head 
 - Plan hash remains `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
 - Production remains Web App Version 146 with Master+HEALTH only ON; all business flags and Fast Auth OFF.
 - Exact next approval boundary: replace only Apps Script Head file `trendos-core-p0-registry-writer-v1.gs` with exact blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`, Save/parse/reload/exact-verify, then run only `trendosCoreP0RegistryPreviewV1` read-only and capture the JSON log. No Deploy, Script Property, registry write/rollback, flag, trigger, route, source Sheet, or `Code.gs` change is included.
+
+
+## PAUSED checkpoint — RP-06-PREVIEW-RERUN FAIL (2026-09-02)
+
+- The observable writer was installed in Apps Script Head and exact-verified after Reload as blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`.
+- Only `trendosCoreP0RegistryPreviewV1` was run. It returned/logged `success=false`, `readOnly=true`, the expected writer version and plan hash, and `expectedCount=34` / `actualPlanCount=34`.
+- The fail-closed blocker is `PRESS_COMPLETED_WITHOUT_SESSION / 3536-01`: live source row count is now 2 instead of 1, the evidence hash changed from `02ec63d746d1bda0f3d1505ac807c3e0baaeb3188c194ed0b5c24d8704796293` to `5bb4c887de84bc503c85360ae21ed04e92a553c53c65543d4a52f8a6570d684a`, and the Line is no longer an eligible Press completion.
+- The wrapper threw at writer line 152. Apps Script truncated the oversized JSON log, but the top-level failure and invalid check are authoritative and sufficient to fail the gate.
+- No Registry Sheet/row or Script Property was created or changed. No Deploy, flag, trigger, route, source Sheet, Fast Auth, `Code.gs`, or business-data mutation occurred.
+- Production remains Web App Version 146 with Master+HEALTH only ON and every business family/Fast Auth OFF.
+- **User pause:** do not perform any further Apps Script or production action while this checkpoint is paused.
+- **Resume boundary:** continuation requires a new explicit, separately bounded read-only reconciliation of the two live source rows resolving to `3536-01`, its changed evidence hash, and current Press eligibility. Do not edit those rows or regenerate the 34-row plan automatically.
