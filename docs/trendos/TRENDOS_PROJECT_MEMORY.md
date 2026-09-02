@@ -42,7 +42,7 @@ TrendOS is the unified operating platform for Trend Mall / Matbagy operations. T
 
 Current sub-stage:
 
-**CORE-P0 REMEDIATION — PD-09-R4 PASS; VERSION 146 ACTIVE; GUARDED 34-ROW REGISTRY WRITER CI PASS ON GITHUB ONLY; STOP BEFORE HEAD INSTALL/PREVIEW, REGISTRY WRITE, REVISED-READER DEPLOYMENT, OR ORDER_LINE.**
+**CORE-P0 REMEDIATION — RP-06-PREVIEW-RERUN FAIL ON `3536-01`; VERSION 146 ACTIVE AND UNCHANGED; USER-PAUSED BEFORE ANY REGISTRY WRITE, RECONCILIATION, DEPLOYMENT, OR BUSINESS-FAMILY ACTIVATION.**
 
 Frozen R4 is deployed in Apps Script Version 146 on the preserved deployment ID. HEALTH remains the only activated family; every business family and Fast Auth remain OFF. Post-deploy landing, dependency/property health, execution-history, and trigger checks passed.
 
@@ -336,7 +336,7 @@ Exact step-by-step sequence is canonical in `TRENDOS_EXECUTION_LEDGER.md`.
 
 ## Current exact stopping point
 
-**PD-09-R4 PASS — Version 146 is active and verified; guarded 34-row registry writer is CI PASS on GitHub only; STOP before Head installation/read-only preview, registry write, revised-reader deployment, or ORDER_LINE activation.**
+**RP-06-PREVIEW-RERUN FAIL — Version 146 remains active and verified; the observable read-only preview failed on `3536-01`; execution is USER-PAUSED before Registry Write, source reconciliation, deployment, or ORDER_LINE activation.**
 
 Completed and verified:
 - frozen R4 branch `release/integrity-v1-remediation-predeploy-2026-09-01-r4`, SHA `b940eb9ff08a094b2406e396eba6af73409e7f9c`, exact-ref CI `33493914883` SUCCESS.
@@ -418,3 +418,16 @@ This file is the top-level memory entry point.
 - Plan hash is unchanged: `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
 - Exact next approval: replace only the Apps Script Head writer with blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; Save/parse/reload/exact-verify; run only the read-only Preview; require JSON `success:true`, `readOnly:true`, `expectedCount:34`, `actualPlanCount:34`, empty errors, and 34 valid checks before any later registry-write discussion.
 - Do not run writer/rollback, set Script Properties, write registry data, deploy, enable ORDER_LINE/other business flags, alter triggers/routes/source Sheets, install Fast Auth, or edit `Code.gs`.
+
+
+## Memory checkpoint — USER PAUSE AFTER RP-06-PREVIEW-RERUN FAIL (2026-09-02)
+
+- Apps Script Head writer was updated and exact-verified after Reload as blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`.
+- Only the read-only `trendosCoreP0RegistryPreviewV1` was run. It failed closed with `success=false`, expected version/plan hash, and `expectedCount=34` / `actualPlanCount=34`.
+- Exact drift: `PRESS_COMPLETED_WITHOUT_SESSION / 3536-01` now has two source rows instead of one, actual evidence hash `5bb4c887de84bc503c85360ae21ed04e92a553c53c65543d4a52f8a6570d684a` instead of expected `02ec63d746d1bda0f3d1505ac807c3e0baaeb3188c194ed0b5c24d8704796293`, and is no longer an eligible Press completion.
+- The complete JSON log exceeded Apps Script's log size and was truncated; the visible top-level failure, invalid check, and thrown line-152 error make the gate definitively FAIL.
+- No Registry Sheet/row, Script Property, Deploy, flag, trigger, route, source Sheet, Fast Auth, `Code.gs`, or business-data change occurred.
+- Production remains Version 146 with Master+HEALTH only ON and all business families/Fast Auth OFF.
+- The user requested a pause. Do not perform further Apps Script or production actions from this remediation lane.
+- Resume this remediation lane only after a new explicit approval for read-only reconciliation of the two live `3536-01` rows and their Press eligibility; never edit them or regenerate the 34-row plan automatically.
+- A separate next work lane may diagnose current production slowness and resume the documented Cloudflare/D1 cutover, starting read-only and preserving Sheets/Apps Script write authority until a separately verified write-cutover gate exists.
