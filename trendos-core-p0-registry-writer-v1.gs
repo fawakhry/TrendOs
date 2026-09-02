@@ -133,15 +133,25 @@ function trendosCoreP0RegistryLivePlanV1_(snap){
 }
 function trendosCoreP0RegistryPreviewV1(){
   const missing=trendosCoreP0RegistryDependenciesV1_(),planHash=trendosCoreP0RegistryPlanHashV1_();
-  if(missing.length)return{success:false,readOnly:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,planHash:planHash,missing:missing};
-  const live=trendosCoreP0RegistryLivePlanV1_();
-  return{
-    success:live.success,readOnly:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,planHash:planHash,
-    expectedCount:TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1,actualPlanCount:live.items.length,errors:live.errors,
-    writeApprovalProperty:TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1,
-    rollbackApprovalProperty:TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1,
-    checks:live.items.map(function(x){return{metricId:x.spec.metricId,entityKey:x.spec.entityKey,expectedHash:x.spec.evidenceHash,actualHash:x.actualHash,valid:x.valid,errors:x.errors};})
-  };
+  let result;
+  if(missing.length){
+    result={success:false,readOnly:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,planHash:planHash,missing:missing};
+  }else{
+    const live=trendosCoreP0RegistryLivePlanV1_();
+    result={
+      success:live.success,readOnly:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,planHash:planHash,
+      expectedCount:TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1,actualPlanCount:live.items.length,errors:live.errors,
+      writeApprovalProperty:TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1,
+      rollbackApprovalProperty:TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1,
+      checks:live.items.map(function(x){return{metricId:x.spec.metricId,entityKey:x.spec.entityKey,expectedHash:x.spec.evidenceHash,actualHash:x.actualHash,valid:x.valid,errors:x.errors};})
+    };
+  }
+  console.log(JSON.stringify(result));
+  if(result.success!==true){
+    const details=(result.missing||result.errors||[]).join(' | ')||'unknown preview validation failure';
+    throw new Error('CORE-P0 registry preview failed: '+details);
+  }
+  return result;
 }
 function trendosCoreP0RegistryFlagGuardV1_(){
   const state=trendosIntegrityFeatureStateV1_(),families=state&&state.families||{},business=['ORDER_LINE','ATTENDANCE_CLEANING','PRESS','INVOICE','WHATSAPP','OPS','AUTOMATION'];

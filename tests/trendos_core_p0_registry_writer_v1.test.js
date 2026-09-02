@@ -23,8 +23,9 @@ class FakeSpreadsheet{
 
 const propertyValues={};let featureState={master:true,families:{HEALTH:true,ORDER_LINE:false,ATTENDANCE_CLEANING:false,PRESS:false,INVOICE:false,WHATSAPP:false,OPS:false,AUTOMATION:false}};
 let spreadsheet=new FakeSpreadsheet(),snapshotCalls=0,snapshotProvider=null,lockCalls=0;
+const previewLogs=[];
 const ctx={
-  console,Date,JSON,Object,Array,String,Number,Math,RegExp,isFinite,isNaN,Set,
+  console:{log(...args){previewLogs.push(args.join(' '));},warn:console.warn,error:console.error},Date,JSON,Object,Array,String,Number,Math,RegExp,isFinite,isNaN,Set,
   Utilities:{
     DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'utf8'},
     computeDigest(a,v){return Array.from(crypto.createHash('sha256').update(String(v)).digest()).map(x=>x>127?x-256:x);},
@@ -89,9 +90,10 @@ let snapshot=makeSnapshot();snapshotProvider=()=>snapshot;ctx.trendosHealthSnaps
 assert.strictEqual(ctx.trendosCoreP0RegistrySpecsV1_().length,34);
 let preview=ctx.trendosCoreP0RegistryPreviewV1();
 assert.strictEqual(preview.success,true);assert.strictEqual(preview.readOnly,true);assert.strictEqual(preview.actualPlanCount,34);
+let loggedPreview=JSON.parse(previewLogs[previewLogs.length-1]);assert.strictEqual(loggedPreview.success,true);assert.strictEqual(loggedPreview.actualPlanCount,34);assert.strictEqual(loggedPreview.checks.length,34);
 assert.strictEqual(spreadsheet.getSheetByName(ctx.TRENDOS_INTEGRITY_RESOLUTION_SHEET_V1),null,'preview must not create a sheet');
 const wrongInvoiceRowSnapshot=makeSnapshot();wrongInvoiceRowSnapshot.drafts.find(x=>x.draftId==='DR-19c18636').__rowNumber=20;
-snapshotProvider=()=>wrongInvoiceRowSnapshot;preview=ctx.trendosCoreP0RegistryPreviewV1();assert.strictEqual(preview.success,false);assert.ok(preview.errors.some(x=>/source-row identity/.test(x)));
+snapshotProvider=()=>wrongInvoiceRowSnapshot;assert.throws(()=>ctx.trendosCoreP0RegistryPreviewV1(),/CORE-P0 registry preview failed/);loggedPreview=JSON.parse(previewLogs[previewLogs.length-1]);assert.strictEqual(loggedPreview.success,false);assert.ok(loggedPreview.errors.some(x=>/source-row identity/.test(x)));
 snapshotProvider=()=>snapshot;
 
 const planHash=ctx.trendosCoreP0RegistryPlanHashV1_();propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
@@ -110,7 +112,7 @@ assert.throws(()=>ctx.trendosCoreP0RegistryWriteV1(),/business families OFF/);as
 featureState={master:true,families:{HEALTH:true,ORDER_LINE:false,ATTENDANCE_CLEANING:false,PRESS:false,INVOICE:false,WHATSAPP:false,OPS:false,AUTOMATION:false}};
 
 delete propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1];snapshot=makeSnapshot();snapshot.attendance[0].__testEvidenceHash='stale';
-preview=ctx.trendosCoreP0RegistryPreviewV1();assert.strictEqual(preview.success,false);assert.ok(preview.errors.some(x=>/hash mismatch/.test(x)));
+assert.throws(()=>ctx.trendosCoreP0RegistryPreviewV1(),/CORE-P0 registry preview failed/);loggedPreview=JSON.parse(previewLogs[previewLogs.length-1]);assert.strictEqual(loggedPreview.success,false);assert.ok(loggedPreview.errors.some(x=>/hash mismatch/.test(x)));
 propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
 assert.throws(()=>ctx.trendosCoreP0RegistryWriteV1(),/live preflight failed/);assert.strictEqual(registry.getLastRow(),35,'stale evidence must not append');assert.strictEqual(propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1],undefined,'failed live preflight consumes the one-use approval');
 
