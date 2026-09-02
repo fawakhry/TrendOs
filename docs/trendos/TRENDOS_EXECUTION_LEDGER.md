@@ -2028,3 +2028,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Installed writer blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; source/test commit `47d793809a609aadcfb61279180744fcf27c5c99`; CI `33619745373` SUCCESS; Head-install ledger commit `01d6aa618c0ee2cf1d6e9a64d5408c960dcb28d8`. Runtime production evidence supersedes CI for this preview gate.
 - **Rollback:** No production rollback is required because the action was read-only and Version 146 was unchanged. Leave the exact-verified Head writer in place unless a separately approved Head rollback is requested; do not write or deactivate any registry mapping.
 - **Exact next step:** STOP at this checkpoint. Do not run Registry Write/Rollback, change properties/flags, deploy, or modify data. Any continuation requires a new separately bounded read-only reconciliation of the two live source rows now resolving to `3536-01`, its changed evidence hash, and its current Press-completion eligibility; do not alter either row or regenerate the 34-row plan automatically.
+
+
+## RP-06-PAUSE-A — REMEDIATION PLAN SYNCHRONIZED TO THE FAIL/PAUSE CHECKPOINT
+
+- **Action:** At the user's request to pause, updated `TRENDOS_CORE_P0_REMEDIATION_PLAN.md` to make the observable preview FAIL, exact `3536-01` drift, unchanged Version-146 production state, no-write evidence, and the separately bounded read-only resume gate canonical.
+- **Evidence:** Plan commit `aab3a048aa3cd8170b3f4f19e5957cb83bcfd283`; the document now records the two-row count, expected/actual hashes, failed eligibility, no Registry/Property/Deploy/flag/data mutation, and the explicit instruction not to continue on Apps Script or Production while paused.
+- **Status:** PASS — remediation plan now reflects the real stopping point.
+- **Production impact:** NONE. GitHub documentation only; production remains Version 146 with Master+HEALTH only ON and all business families/Fast Auth OFF.
+- **Commit / CI:** Plan commit above; installed writer/source CI remains `33619745373` SUCCESS, but runtime preview status remains FAIL.
+- **Rollback:** Revert only the plan documentation commit if later verified evidence changes the recorded checkpoint; no production rollback is applicable.
+- **Exact next step:** Synchronize `TRENDOS_HANDOFF.md` to the same paused FAIL checkpoint, then update this ledger again before Project Memory. Do not open or change Apps Script/Production.
