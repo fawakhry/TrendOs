@@ -1995,3 +1995,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `e922c11409a86150bc36d9222d3a9cbbb37b6a30`; source CI `33619745373` SUCCESS.
 - **Rollback:** Revert the memory commit. Production remains Version 146.
 - **Exact next step:** Cross-verify Plan, Handoff, Memory, Ledger, observable writer, and dedicated test for the exact source blobs, CI, plan hash, production state, PARTIAL first preview, and bounded rerun-only approval. Record that verification before handoff.
+
+
+## RP-06-PREVIEW-J — OBSERVABLE PREVIEW HANDOFF CONSISTENCY VERIFIED
+
+- **Action:** Re-fetched the working-branch Remediation Plan, Handoff, Project Memory, Execution Ledger, observable writer, and dedicated writer test; cross-verified exact source identities, CI, plan hash, Version-146 state, PARTIAL first preview, observable/fail-closed behavior, and bounded next approval.
+- **Evidence:** All four canonical documents contain Version 146, commit `47d793809a609aadcfb61279180744fcf27c5c99`, writer blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`, test blob `bff68556aca2f7e8e32ef6055924de5fc3895f43`, CI `33619745373`, and plan hash `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`. Source contains complete JSON logging plus `success !== true` fail-closed guard; tests cover one 34-check success log and two failure throws.
+- **Status:** PASS — canonical handoff is internally consistent.
+- **Production impact:** NONE. Read-only GitHub verification; production remains Version 146 and Apps Script Head still has the first writer blob.
+- **Commit / CI:** Source `47d793809a609aadcfb61279180744fcf27c5c99`; CI `33619745373` SUCCESS; this ledger update is documentation-only.
+- **Rollback:** No production rollback is applicable; revert documentation/source commits only if required.
+- **Exact next step:** In a new chat, read Project Memory, Execution Ledger, Handoff, and Deploy Manifest in order. Request/consume one bounded approval to replace only Apps Script Head `trendos-core-p0-registry-writer-v1.gs` with blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; Save/parse/reload/exact-verify; run only `trendosCoreP0RegistryPreviewV1` read-only; capture the logged JSON and require `success:true`, `readOnly:true`, expected/actual count 34, empty errors, and 34 valid checks. Stop on failure and do not perform any registry write/property/deploy/flag/trigger/route/source-Sheet/`Code.gs` action.
