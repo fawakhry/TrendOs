@@ -1940,3 +1940,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Installed writer remains exact blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8` from commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; prior CI `33553469092` SUCCESS. This runtime evidence does not convert CI PASS into preview-result PASS.
 - **Rollback:** No production rollback is applicable. Head rollback remains removal of only the writer and restoration of the prior remediation reader if explicitly required.
 - **Exact next step:** On GitHub only, harden the public preview wrapper so it logs the complete JSON result and fails closed when `success !== true`; add/update tests and CI. Then request a new bounded approval to replace only the Head writer with the exact new blob and rerun only the read-only preview. Do not set a Script Property, write/rollback the registry, deploy, enable any business flag, or edit `Code.gs`.
+
+
+## RP-06-PREVIEW-E — OBSERVABLE FAIL-CLOSED PREVIEW HARDENED ON GITHUB
+
+- **Action:** Hardened the GitHub-only public preview wrapper after the runtime observability gap: it now logs the complete JSON result, throws when `success !== true`, and returns the object only after a successful validation. Updated the dedicated writer test to prove complete success logging plus fail-closed behavior for stale hashes and wrong Invoice source-row identity.
+- **Evidence:** Atomic source+test commit `47d793809a609aadcfb61279180744fcf27c5c99`; writer blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; test blob `bff68556aca2f7e8e32ef6055924de5fc3895f43`. Local dedicated writer test PASS; all 10 local TrendOS tests PASS, including the 12-module composition and pre-deploy safety gate.
+- **Status:** PASS — GitHub source/test hardening is complete; CI is PENDING.
+- **Production impact:** NONE. GitHub-only. Apps Script Head still contains the prior writer blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; production Web App remains Version 146. No registry, property, flag, trigger, route, deployment, source Sheet, or `Code.gs` change occurred.
+- **Commit / CI:** `47d793809a609aadcfb61279180744fcf27c5c99`; CI pending.
+- **Rollback:** Revert commit `47d793809a609aadcfb61279180744fcf27c5c99`. No production rollback is applicable.
+- **Exact next step:** Verify GitHub CI for commit `47d793809a609aadcfb61279180744fcf27c5c99`. If PASS, record CI and advance canonical Handoff/Memory to a new bounded Head writer replacement + read-only preview rerun approval boundary. Do not modify Apps Script Head again without that new explicit approval.
