@@ -2039,3 +2039,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Plan commit above; installed writer/source CI remains `33619745373` SUCCESS, but runtime preview status remains FAIL.
 - **Rollback:** Revert only the plan documentation commit if later verified evidence changes the recorded checkpoint; no production rollback is applicable.
 - **Exact next step:** Synchronize `TRENDOS_HANDOFF.md` to the same paused FAIL checkpoint, then update this ledger again before Project Memory. Do not open or change Apps Script/Production.
+
+
+## RP-06-PAUSE-B — HANDOFF SYNCHRONIZED TO THE FAIL/PAUSE CHECKPOINT
+
+- **Action:** Updated `TRENDOS_HANDOFF.md` so its active sub-stage, exact stopping point, and latest handoff all identify the observable preview FAIL and the user's pause instruction.
+- **Evidence:** Handoff commit `5ac8ed3735e39cd40397b38b68e99967c7fc3e87`; it records the exact writer blob, `3536-01` two-row/hash/eligibility drift, read-only/no-mutation result, unchanged Version-146 configuration, and the separately approved read-only resume boundary.
+- **Status:** PASS — operational handoff no longer directs a future chat to rerun or continue the failed preview automatically.
+- **Production impact:** NONE. GitHub documentation only; Apps Script and the serving platform were not opened or changed.
+- **Commit / CI:** Handoff commit above; writer CI `33619745373` SUCCESS; runtime preview remains FAIL.
+- **Rollback:** Revert only the Handoff documentation commit if later verified evidence changes the checkpoint.
+- **Exact next step:** Synchronize `TRENDOS_PROJECT_MEMORY.md` to the same paused FAIL checkpoint, then update this ledger and perform a final documentation-only consistency check. Do not touch Apps Script/Production.
