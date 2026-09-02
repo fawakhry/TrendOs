@@ -407,3 +407,14 @@ Before moving to a new major phase/chat, preserve:
 `IMPLEMENTED + TESTED + VERIFIED + CHECKPOINT + ROLLBACK + GITHUB MEMORY UPDATED + EXACT NEXT STEP`
 
 This file is the top-level memory entry point.
+
+## Memory checkpoint — RP-06 observable preview rerun (2026-09-02)
+
+- Production Web App is still Version 146; Master+HEALTH only ON; all business families and Fast Auth OFF.
+- Apps Script Head contains the revised remediation reader blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d` and the first writer blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`.
+- The first read-only `trendosCoreP0RegistryPreviewV1` was authorized and reached `Execution completed`, but the wrapper exposed no observable return payload and did not throw for a false result. Status is PARTIAL/UNVERIFIED, not PASS.
+- No registry Sheet/rows or one-use approval properties exist from this step; there was no Deploy, business flag, trigger, route, source Sheet, Fast Auth, or `Code.gs` change.
+- GitHub fix `47d793809a609aadcfb61279180744fcf27c5c99` makes Preview log the complete JSON and fail closed. Writer blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; test blob `bff68556aca2f7e8e32ef6055924de5fc3895f43`; CI `33619745373` SUCCESS.
+- Plan hash is unchanged: `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
+- Exact next approval: replace only the Apps Script Head writer with blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; Save/parse/reload/exact-verify; run only the read-only Preview; require JSON `success:true`, `readOnly:true`, `expectedCount:34`, `actualPlanCount:34`, empty errors, and 34 valid checks before any later registry-write discussion.
+- Do not run writer/rollback, set Script Properties, write registry data, deploy, enable ORDER_LINE/other business flags, alter triggers/routes/source Sheets, install Fast Auth, or edit `Code.gs`.
