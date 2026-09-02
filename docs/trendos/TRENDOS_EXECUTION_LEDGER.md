@@ -1984,3 +1984,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `cbc8dd04ca77a6c7213f68262e0bc6b9dbab7c16`; source CI `33619745373` SUCCESS.
 - **Rollback:** Revert the handoff commit. Version 146 remains unchanged.
 - **Exact next step:** Update `TRENDOS_PROJECT_MEMORY.md` to the same bounded checkpoint, then update this ledger and cross-verify canonical documents.
+
+
+## RP-06-PREVIEW-I — PROJECT MEMORY ADVANCED TO OBSERVABLE PREVIEW RERUN
+
+- **Action:** Updated `TRENDOS_PROJECT_MEMORY.md` with the exact Version-146 production state, current Head blobs, PARTIAL first preview evidence, observable/fail-closed GitHub source/test blobs and CI, unchanged plan hash, expected rerun result, exclusions, and exact next approval.
+- **Evidence:** Memory commit `e922c11409a86150bc36d9222d3a9cbbb37b6a30`; blob `95ce819bfe094034e0bf21ac654f033d5da32d1e`.
+- **Status:** PASS.
+- **Production impact:** NONE. Documentation-only.
+- **Commit / CI:** `e922c11409a86150bc36d9222d3a9cbbb37b6a30`; source CI `33619745373` SUCCESS.
+- **Rollback:** Revert the memory commit. Production remains Version 146.
+- **Exact next step:** Cross-verify Plan, Handoff, Memory, Ledger, observable writer, and dedicated test for the exact source blobs, CI, plan hash, production state, PARTIAL first preview, and bounded rerun-only approval. Record that verification before handoff.
