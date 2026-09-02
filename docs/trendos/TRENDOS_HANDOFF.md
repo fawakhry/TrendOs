@@ -256,3 +256,16 @@ Exact next action:
 - V2.4 is forbidden.
 - old modular V1932 files must not be blindly overlaid on consolidated live Code lineage.
 - rollback is routing/code rollback, not deletion of integrity/audit data.
+
+
+## Current handoff — RP-06 observable preview rerun (2026-09-02)
+
+- Production is still Apps Script Web App Version 146. Master+HEALTH are ON; ORDER_LINE and every other business family are OFF; Fast Auth is OFF/absent.
+- Apps Script Head reader `trendos-core-p0-remediation-v1.gs` is exact blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`.
+- Apps Script Head writer currently remains the first blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`.
+- The first `trendosCoreP0RegistryPreviewV1` execution was authorized and completed, but its returned object was not logged and `success:false` did not throw. Classify it PARTIAL/UNVERIFIED, never PASS.
+- No registry Sheet/row or approval property was created; no Deploy, flag, trigger, route, source Sheet, or `Code.gs` change occurred.
+- GitHub-only observable/fail-closed fix: commit `47d793809a609aadcfb61279180744fcf27c5c99`; writer blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; test blob `bff68556aca2f7e8e32ef6055924de5fc3895f43`; CI `33619745373` SUCCESS.
+- Plan hash remains `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
+- Exact next action requires a new bounded approval: replace only Head `trendos-core-p0-registry-writer-v1.gs` with blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; Save/parse/reload/exact-verify; run only `trendosCoreP0RegistryPreviewV1` read-only; capture and validate the JSON log. Stop if it fails.
+- Explicitly excluded: `trendosCoreP0RegistryWriteV1`, rollback, any Script Property, registry write, Deploy, ORDER_LINE or other business flags, trigger/route/source Sheet changes, Fast Auth, and `Code.gs`.
