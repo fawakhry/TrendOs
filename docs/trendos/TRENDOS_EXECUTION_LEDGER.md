@@ -1929,3 +1929,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Head writer blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; reader blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; writer CI `33553469092` SUCCESS.
 - **Rollback:** Cancel the Google consent and/or stop the pending execution; no production rollback is applicable.
 - **Exact next step:** Obtain action-time user confirmation to click Google's final `Continue` consent for Untitled project on `d.fawakhry@gmail.com`. Then return to Apps Script, allow only `trendosCoreP0RegistryPreviewV1` to complete, capture the full read-only result, and ledger PASS/FAIL. Do not run writer/rollback, create/set properties, write registry data, deploy, change flags/triggers/routes, or edit `Code.gs`.
+
+
+## RP-06-PREVIEW-D — PREVIEW EXECUTION COMPLETED BUT RETURN PAYLOAD IS NOT OBSERVABLE
+
+- **Action:** After the user's action-time approval, Google authorization was completed for the Head project and the already-selected `trendosCoreP0RegistryPreviewV1` execution resumed. Inspected the Apps Script execution log after completion.
+- **Evidence:** Function selector remained `trendosCoreP0RegistryPreviewV1`; execution log records `Execution started` at 2:58:57 AM and `Execution completed` at 2:59:07 AM. No registry write/write-function/rollback-function was invoked. Source inspection confirms that `trendosCoreP0RegistryPreviewV1` returns an object but does not log it and does not throw when its returned `success` field is false; therefore the Apps Script editor log cannot prove the returned `success`, `actualPlanCount`, `errors`, or 34 check results.
+- **Status:** PARTIAL — runtime authorization and function completion PASS, but the preview business result is UNVERIFIED because the return payload is not observable from the Apps Script editor. This must not be promoted to RP-06 PASS.
+- **Production impact:** NONE. Production Web App Version 146 remains unchanged. The preview path is read-only; no registry Sheet/row was created or changed, no Script Property/flag/trigger/route/deployment was changed, and `Code.gs` was not opened or edited.
+- **Commit / CI:** Installed writer remains exact blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8` from commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; prior CI `33553469092` SUCCESS. This runtime evidence does not convert CI PASS into preview-result PASS.
+- **Rollback:** No production rollback is applicable. Head rollback remains removal of only the writer and restoration of the prior remediation reader if explicitly required.
+- **Exact next step:** On GitHub only, harden the public preview wrapper so it logs the complete JSON result and fails closed when `success !== true`; add/update tests and CI. Then request a new bounded approval to replace only the Head writer with the exact new blob and rerun only the read-only preview. Do not set a Script Property, write/rollback the registry, deploy, enable any business flag, or edit `Code.gs`.
