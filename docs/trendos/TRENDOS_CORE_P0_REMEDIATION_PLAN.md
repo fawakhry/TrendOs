@@ -396,3 +396,18 @@ Explicit approval remains required for:
 **RP-01 THROUGH RP-05 COMPLETE; VERSION 146 + MASTER/HEALTH ONLY IS LIVE; APPEND-ONLY READER FIX AND GUARDED 34-ROW WRITER ARE CI PASS ON GITHUB ONLY; STOP BEFORE HEAD INSTALLATION, READ-ONLY WRITER PREVIEW, REGISTRY WRITE, REVISED-READER DEPLOYMENT, OR ORDER_LINE.**
 
 Exact next technical action: obtain a checkpoint for temporary Apps Script Head installation of the revised remediation helper plus the separate writer file, Save/parse only, then run `trendosCoreP0RegistryPreviewV1` read-only. Do not set either approval property, create/write the registry, deploy a revised version, or enable ORDER_LINE in that checkpoint.
+
+
+## RP-06-PREVIEW runtime checkpoint — 2026-09-02
+
+- The revised remediation reader was installed in Apps Script Head and exact-verified as blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`.
+- The first writer was installed and exact-verified as blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`.
+- `trendosCoreP0RegistryPreviewV1` was authorized and completed, but the first wrapper returned its payload without logging it and did not throw on `success:false`. Runtime status is therefore PARTIAL, not PASS; no registry write occurred.
+- The GitHub writer was hardened to log the complete JSON result and fail closed when `success !== true`.
+- New atomic source/test commit: `47d793809a609aadcfb61279180744fcf27c5c99`.
+- New writer blob: `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`.
+- New test blob: `bff68556aca2f7e8e32ef6055924de5fc3895f43`.
+- CI `33619745373`: SUCCESS.
+- Plan hash remains `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
+- Production remains Web App Version 146 with Master+HEALTH only ON; all business flags and Fast Auth OFF.
+- Exact next approval boundary: replace only Apps Script Head file `trendos-core-p0-registry-writer-v1.gs` with exact blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`, Save/parse/reload/exact-verify, then run only `trendosCoreP0RegistryPreviewV1` read-only and capture the JSON log. No Deploy, Script Property, registry write/rollback, flag, trigger, route, source Sheet, or `Code.gs` change is included.
