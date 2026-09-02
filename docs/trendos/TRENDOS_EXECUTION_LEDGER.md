@@ -1962,3 +1962,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** `47d793809a609aadcfb61279180744fcf27c5c99`; CI `33619745373` SUCCESS.
 - **Rollback:** Revert the observable-preview commit. No production rollback is applicable.
 - **Exact next step:** Update canonical Remediation Plan, Handoff, and Project Memory to record the PARTIAL first preview, new writer blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`, test blob `bff68556aca2f7e8e32ef6055924de5fc3895f43`, CI `33619745373`, and the new bounded Head replacement/read-only rerun approval boundary; ledger each material document update.
+
+
+## RP-06-PREVIEW-G — REMEDIATION PLAN ADVANCED TO OBSERVABLE PREVIEW RERUN
+
+- **Action:** Updated `TRENDOS_CORE_P0_REMEDIATION_PLAN.md` with the completed-but-unobservable first preview, PARTIAL runtime classification, observable/fail-closed writer commit and blobs, CI PASS, unchanged plan hash, unchanged Version-146 production state, and the new bounded Head writer replacement/read-only rerun approval.
+- **Evidence:** Plan commit `2b0da1fc68f6ce2b6c2fbd082cb20e59f5b4a411`; plan blob `2a0f91d7fe1d384346620893bf1227e8dc07c7c6`.
+- **Status:** PASS.
+- **Production impact:** NONE. Documentation-only.
+- **Commit / CI:** `2b0da1fc68f6ce2b6c2fbd082cb20e59f5b4a411`; underlying source CI `33619745373` SUCCESS.
+- **Rollback:** Revert the plan commit. Production Version 146 is unchanged.
+- **Exact next step:** Update `TRENDOS_HANDOFF.md` to the same observable-preview rerun boundary, then update this ledger before Project Memory.
