@@ -19,7 +19,7 @@ Do not ask the user to reconstruct work already recorded there.
 
 Current sub-stage:
 
-**PD-09-R4 PASS — VERSION 146 ACTIVE; GUARDED 34-ROW REGISTRY WRITER CI PASS ON GITHUB ONLY; STOP BEFORE HEAD INSTALL/PREVIEW, REGISTRY WRITE, REVISED-READER DEPLOYMENT, OR ORDER_LINE**
+**RP-06-PREVIEW-RERUN FAIL — VERSION 146 ACTIVE; OBSERVABLE HEAD PREVIEW FAILED ON `3536-01`; USER-PAUSED BEFORE ANY REGISTRY WRITE OR PRODUCTION CHANGE**
 
 Final TrendOS V1 launch target: **01/03/2027**.
 
@@ -193,7 +193,7 @@ Still requires explicit user approval:
 
 ## EXACT CURRENT STOPPING POINT
 
-**PD-09-R4 PASS — Version 146 is active and verified; guarded 34-row registry writer is CI PASS on GitHub only; STOP before Head installation/read-only preview, registry write, revised-reader deployment, or ORDER_LINE activation.**
+**RP-06-PREVIEW-RERUN FAIL — Version 146 remains active and unchanged; the observable read-only preview failed on `3536-01`; execution is USER-PAUSED before Registry Write, reconciliation, deployment, or any business-family activation.**
 
 Completed and verified:
 - frozen R4 source `b940eb9ff08a094b2406e396eba6af73409e7f9c` is installed in the 24-file Apps Script Head composition and deployed on the existing production deployment ID as Version **146**.
@@ -269,3 +269,14 @@ Exact next action:
 - Plan hash remains `5e80dd09271d21e96e3f415c21688e7f16bcac2f4b664cc23d38b08c1036aa29`.
 - Exact next action requires a new bounded approval: replace only Head `trendos-core-p0-registry-writer-v1.gs` with blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`; Save/parse/reload/exact-verify; run only `trendosCoreP0RegistryPreviewV1` read-only; capture and validate the JSON log. Stop if it fails.
 - Explicitly excluded: `trendosCoreP0RegistryWriteV1`, rollback, any Script Property, registry write, Deploy, ORDER_LINE or other business flags, trigger/route/source Sheet changes, Fast Auth, and `Code.gs`.
+
+
+## Current paused handoff — RP-06-PREVIEW-RERUN FAIL (2026-09-02)
+
+- The observable writer is now installed and persisted in Apps Script Head as exact blob `f8e1a4be7b9de3ea1dcbda7a17c87e483ea8ecc4`.
+- Only `trendosCoreP0RegistryPreviewV1` was executed. The result was fail-closed: `success=false`, `readOnly=true`, expected writer version/plan hash, and `expectedCount=34` / `actualPlanCount=34`.
+- Exact blocker: `PRESS_COMPLETED_WITHOUT_SESSION / 3536-01` now resolves to two live source rows rather than one; its evidence hash changed from `02ec63d746d1bda0f3d1505ac807c3e0baaeb3188c194ed0b5c24d8704796293` to `5bb4c887de84bc503c85360ae21ed04e92a553c53c65543d4a52f8a6570d684a`; it is no longer an eligible Press completion.
+- Apps Script truncated the oversized JSON log, then the wrapper threw the explicit preview-failed error at writer line 152. This is runtime FAIL, not CI failure and not production application failure.
+- No Registry Sheet/row, approval property, Deploy, flag, trigger, route, source Sheet, Fast Auth, `Code.gs`, or business-data change occurred.
+- Production stays Version 146 with Master+HEALTH only ON and all business families/Fast Auth OFF. Do not touch the currently serving platform while paused.
+- **Resume only with a new explicit approval** for read-only reconciliation of the two `3536-01` source rows, changed hash, and Press eligibility. Do not edit data or regenerate the registry plan automatically.
