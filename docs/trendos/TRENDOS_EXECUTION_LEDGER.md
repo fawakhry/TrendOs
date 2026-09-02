@@ -1907,3 +1907,14 @@ When user says equivalent of `كمل TrendOS`:
 - **Commit / CI:** Reader source commit `b5f8a5e75c330c2bddd222c2d566c69ae92e703a`; blob `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`; prior CI `33552134647` SUCCESS; hardened writer lane CI `33553469092` SUCCESS.
 - **Rollback:** Replace only the Head remediation file with prior R4 blob `e55818297762b2f99a2967524d8ac29dd864f421`. Production rollback is not required because Version 146 is unchanged.
 - **Exact next step:** Add Apps Script Head Script file `trendos-core-p0-registry-writer-v1` from exact blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; Save, reload, and exact-verify. Do not run it, set properties, write the registry, deploy, change flags/triggers/routes, or edit `Code.gs`.
+
+
+## RP-06-PREVIEW-B — REGISTRY WRITER INSTALLED AND EXACT-VERIFIED IN APPS SCRIPT HEAD
+
+- **Action:** Under the user's explicit RP-06-PREVIEW approval, added one Apps Script Head Script named `trendos-core-p0-registry-writer-v1.gs`, inserted the exact approved GitHub writer source, saved the project, reloaded the editor, reselected the file, and copied the full persisted model for exact Git-blob verification.
+- **Evidence:** Apps Script Head file count increased from 24 to 25; persisted length after reload = 28,305 characters; persisted Head blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; expected GitHub blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; exact match = true; Save completed and the project parsed without a surfaced editor error.
+- **Status:** PASS — Head installation, Save/parse, reload, and exact persistence verification passed.
+- **Production impact:** NONE. Production Web App Version 146 remains unchanged. The writer exists only in Apps Script Head and is excluded from the deployed Version-146 package. No function was run, no registry Sheet/row was created or changed, no Script Property/flag/trigger/route was changed, and `Code.gs` was not opened or edited.
+- **Commit / CI:** Writer source commit `7d4d93d42f5de7887d51c4e24a217ba2b4eac66c`; blob `92a9fc442031d1c48c295c81bceb372e8c9f89d8`; tests commit `6430e96e1f27bd2cf8bbc0e85ac669b8c9a15f90`; CI `33553469092` SUCCESS.
+- **Rollback:** Remove only the newly added Head writer Script if Head rollback is required; no production deployment rollback is applicable because Version 146 is unchanged.
+- **Exact next step:** Refresh/select the public function `trendosCoreP0RegistryPreviewV1` and run that function only. Capture its complete read-only result. Do not run `trendosCoreP0RegistryWriteV1` or `trendosCoreP0RegistryRollbackV1`; do not create/set any Script Property, registry row, flag, trigger, route, deployment, or `Code.gs` change.
