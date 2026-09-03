@@ -14,6 +14,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const SECRET = 'test-edge-secret-20260903';
 
+function flipFirstBase64UrlChar(value) {
+  if (!value) return 'A';
+  return `${value[0] === 'A' ? 'B' : 'A'}${value.slice(1)}`;
+}
+
 async function testSignedSessionContract() {
   const token = await issueEdgeSessionToken({ sub: 'diaa' }, SECRET, 1000, 300);
   const verified = await verifyEdgeSessionToken(token, SECRET, 1100);
@@ -22,7 +27,8 @@ async function testSignedSessionContract() {
   assert.equal(verified.payload.aud, 'trendos-edge');
   assert.equal(verified.payload.exp, 1300);
 
-  const tampered = token.slice(0, -1) + (token.endsWith('A') ? 'B' : 'A');
+  const parts = token.split('.');
+  const tampered = `${parts[0]}.${parts[1]}.${flipFirstBase64UrlChar(parts[2])}`;
   const bad = await verifyEdgeSessionToken(tampered, SECRET, 1100);
   assert.equal(bad.ok, false);
 
