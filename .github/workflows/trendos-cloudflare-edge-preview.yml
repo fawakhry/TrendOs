@@ -1,0 +1,83 @@
+name: TrendOS Cloudflare Edge Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_preview:
+        description: 'Type DEPLOY_EDGE_PREVIEW to deploy the isolated preview Worker. This does not cut over production traffic.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-edge-preview:
+    if: ${{ github.event.inputs.confirm_preview == 'DEPLOY_EDGE_PREVIEW' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+      PREVIEW_WORKER_NAME: trendos-edge-gateway-preview
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Pre-deploy safety tests
+        run: node tests/cloudflare_edge_gateway_v1.test.mjs
+
+      - name: Verify required deploy secrets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+          test -n "$EDGE_SESSION_SECRET" || (echo 'Missing TRENDOS_EDGE_SESSION_SECRET_PREVIEW' && exit 1)
+
+      - name: Install preview edge session secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$EDGE_SESSION_SECRET" | npx --yes wrangler@4.33.2 secret put EDGE_SESSION_SECRET \
+            --name "$PREVIEW_WORKER_NAME" \
+            --config cloudflare-d1/wrangler.toml
+
+      - name: Deploy isolated preview Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.33.2 deploy \
+            --name "$PREVIEW_WORKER_NAME" \
+            --config cloudflare-d1/wrangler.toml
+
+      - name: Verify preview health and no cutover marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 "$PREVIEW_URL/v1/edge/health")"
+          echo "$body"
+          node -e "const x=JSON.parse(process.argv[1]); if(!x.success||!x.database||!x.authConfigured||!x.upstreamConfigured||x.cutover!==false){process.exit(1)}" "$body"
+
+      - name: Verify protected route rejects anonymous access
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --output /tmp/edge-anon.json --write-out '%{http_code}' "$PREVIEW_URL/v1/edge/whoami")"
+          cat /tmp/edge-anon.json
+          test "$code" = '401'
+
+      - name: Preview deployment summary
+        run: |
+          echo "Preview Worker: $PREVIEW_URL"
+          echo "Frontend cutover: NOT PERFORMED"
+          echo "GitHub Pages/config.js: UNCHANGED"
+          echo "Apps Script writes/fallback: UNCHANGED"
