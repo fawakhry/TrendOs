@@ -1,5 +1,5 @@
 import base from './index.js';
-import { handleMirrorRequest } from './mirror.js';
+import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleCloudWriteRequest, isCloudWritePath } from './cloud-write-gate.mjs';
 
@@ -18,12 +18,9 @@ export default {
       return handleCloudWriteRequest(request, env, ctx);
     }
 
-    if (
-      path === '/v1/import/sheet' ||
-      path === '/v1/mirror/sheets' ||
-      path === '/v1/mirror/stats' ||
-      path === '/v1/mirror/sheet'
-    ) {
+    // Mirror GETs are SELECT-only; unauthorized imports are rejected before
+    // the legacy schema/write implementation can run.
+    if (isMirrorPath(path)) {
       return handleMirrorRequest(request, env, ctx);
     }
 
