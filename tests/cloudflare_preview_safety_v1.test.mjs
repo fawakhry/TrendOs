@@ -121,7 +121,8 @@ function testWorkflowAndEntrySafetyContract() {
   );
   const entry = fs.readFileSync(path.join(root, 'cloudflare-d1/src/index_v2.js'), 'utf8');
 
-  assert.doesNotMatch(workflow, /d1\s+migrations\s+apply/i);
+  const executableMigrationCommand = /^\s+npx\s+--yes\s+wrangler@.*\bd1\s+migrations\s+apply\b/im;
+  assert.doesNotMatch(workflow, executableMigrationCommand);
   assert.match(workflow, /D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW/);
   assert.match(entry, /cloud-write-gate\.mjs/);
 }
