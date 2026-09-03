@@ -50,6 +50,7 @@ jobs:
         run: |
           node tests/cloudflare_edge_gateway_v1.test.mjs
           node tests/cloudflare_cloud_write_v1.test.mjs
+          node tests/cloudflare_preview_safety_v1.test.mjs
 
       - name: Verify required deploy secrets are present
         shell: bash
@@ -101,11 +102,33 @@ jobs:
           cat /tmp/edge-anon.json
           test "$code" = '401'
 
+      - name: Verify cloud write health is read-only and disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --output /tmp/cloud-write.json --write-out '%{http_code}' "$PREVIEW_URL/v1/cloud/write/health")"
+          cat /tmp/cloud-write.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.schemaMutationFree!==true||x.cutover!==false||x.sheetsAuthoritative!==true){process.exit(1)}"
+
+      - name: Verify cloud write mutation route is fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --output /tmp/cloud-write-blocked.json --write-out '%{http_code}' \
+            -X POST \
+            -H 'content-type: application/json' \
+            --data '{"clientRequestId":"preview-safety-probe","orderId":"PREVIEW-MUST-NOT-WRITE"}' \
+            "$PREVIEW_URL/v1/cloud/orders")"
+          cat /tmp/cloud-write-blocked.json
+          test "$code" = '423'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write-blocked.json','utf8')); if(x.success!==false||x.enabled!==false||x.cutover!==false||x.sheetsAuthoritative!==true){process.exit(1)}"
+
       - name: Preview deployment summary
         run: |
           echo "Preview Worker: $PREVIEW_URL"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
-          echo "Cloud write probe: TEMPORARILY SKIPPED UNTIL READ-ONLY SAFETY GATE IS INSTALLED"
+          echo "Cloud write lane: OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
           echo "Frontend cutover: NOT PERFORMED"
           echo "GitHub Pages/config.js: UNCHANGED"
           echo "Apps Script writes/fallback: UNCHANGED"
