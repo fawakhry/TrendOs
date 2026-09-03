@@ -126,6 +126,18 @@ Each sold printshop/client must have isolated tenant data, users, AI memory and 
 
 Marketplace, suppliers, logistics and broader network expansion are not blockers for TrendOS V1 launch on 01/03/2027.
 
+## D-020 — الصندوق الاسود لترند مول هو الاسم الرسمي لذاكرة المشروع
+**Type:** User decision / canonical memory naming  
+**Status:** ACTIVE
+
+الاسم الرسمي لمنظومة الذاكرة التنفيذية الكاملة للمشروع هو **الصندوق الاسود لترند مول**.
+
+GitHub entry point الرسمي هو:
+
+`الصندوق الاسود.md`
+
+ويجب التعامل معه كمظلة فوق ملفات الذاكرة التقنية الحالية، وليس كبديل يحذفها أو يعيد تسميتها. الملفات الداخلية مثل Project Memory وExecution Ledger وHandoff وCheckpoints وDecisions تبقى بأسمائها ومساراتها الحالية للحفاظ على الروابط والـcheckpoints، بينما يبدأ أي استكمال جديد من `الصندوق الاسود.md` ثم يتبع ترتيب القراءة المسجل بداخله.
+
 ## Needs reconciliation
 
 1. Exact production Apps Script source/version content behind historical deployment Version 138.
