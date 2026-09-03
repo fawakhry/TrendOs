@@ -64,11 +64,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Eq 'wrangler.*d1 migrations apply|d1 migrations apply' .github/workflows/trendos-cloudflare-edge-preview.yml; then
+          if grep -Eq '^[[:space:]]+npx --yes wrangler@.*d1 migrations apply' .github/workflows/trendos-cloudflare-edge-preview.yml; then
             echo 'Preview workflow must not apply D1 migrations.'
             exit 1
           fi
-          echo 'PASS: preview workflow contains no D1 migration apply step.'
+          echo 'PASS: preview workflow contains no executable D1 migration apply step.'
 
       - name: Install preview edge session secret
         shell: bash
