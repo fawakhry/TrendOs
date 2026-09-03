@@ -25,6 +25,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PRODUCTION_WORKER_NAME: trendos-d1-api
       PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
       MAX_LIVE_MIRROR_AGE_SECONDS: '180'
 
     steps:
@@ -45,6 +46,24 @@ jobs:
 
       - name: Inspect production Worker binding names only
         run: node tests/cloudflare_control_plane_diagnostics.mjs
+
+      - name: Probe production Apps Script status route read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          ping_code="$(curl -L --silent --show-error --output /tmp/apps-ping.txt --write-out '%{http_code}' --get --data-urlencode 'action=ping' "$APPS_SCRIPT_URL" || true)"
+          status_code="$(curl -L --silent --show-error --output /tmp/apps-sync-status.txt --write-out '%{http_code}' --get --data-urlencode 'action=getD1OrdersLiveSyncStatus' "$APPS_SCRIPT_URL" || true)"
+          echo "APPS_SCRIPT_PING_HTTP=$ping_code"
+          echo 'APPS_SCRIPT_PING_BODY_BEGIN'
+          head -c 2000 /tmp/apps-ping.txt || true
+          echo
+          echo 'APPS_SCRIPT_PING_BODY_END'
+          echo "APPS_SCRIPT_SYNC_STATUS_HTTP=$status_code"
+          echo 'APPS_SCRIPT_SYNC_STATUS_BODY_BEGIN'
+          head -c 4000 /tmp/apps-sync-status.txt || true
+          echo
+          echo 'APPS_SCRIPT_SYNC_STATUS_BODY_END'
+          echo 'Read-only GET probes only; no Apps Script state was changed.'
 
       - name: Inspect both live mirror sheets before judging freshness
         shell: bash
