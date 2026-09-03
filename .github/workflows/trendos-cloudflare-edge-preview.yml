@@ -22,7 +22,7 @@ permissions:
 
 concurrency:
   group: trendos-cloudflare-auto-preview-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy-edge-preview:
