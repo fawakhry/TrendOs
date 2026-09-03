@@ -138,6 +138,35 @@ GitHub entry point الرسمي هو:
 
 ويجب التعامل معه كمظلة فوق ملفات الذاكرة التقنية الحالية، وليس كبديل يحذفها أو يعيد تسميتها. الملفات الداخلية مثل Project Memory وExecution Ledger وHandoff وCheckpoints وDecisions تبقى بأسمائها ومساراتها الحالية للحفاظ على الروابط والـcheckpoints، بينما يبدأ أي استكمال جديد من `الصندوق الاسود.md` ثم يتبع ترتيب القراءة المسجل بداخله.
 
+## D-021 — Cloudflare Preview automation is operated from GitHub
+**Type:** User-approved execution direction / infrastructure operating rule  
+**Status:** ACTIVE
+
+مسار Cloudflare التجريبي في TrendOS لا يبدأ من Deploy يدوي جديد في كل مرة. تم تجهيز GitHub Actions لاستخدام Cloudflare credentials المخزنة كـ GitHub Secrets ونشر/اختبار Preview Worker من فرع العمل.
+
+Canonical workflow:
+- `.github/workflows/trendos-cloudflare-edge-preview.yml`
+- workflow name: `TrendOS Cloudflare Auto Preview`
+- preview worker: `trendos-edge-gateway-preview`
+
+Secret names used by the workflow:
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `TRENDOS_EDGE_SESSION_SECRET_PREVIEW`
+
+Security rule:
+- لا يتم حفظ أو نسخ قيمة أي token/secret في ملفات GitHub العادية أو الصندوق الاسود أو سجلات التنفيذ.
+- الذاكرة تحتفظ فقط باسم الـSecret والغرض منه وحالة الأتمتة.
+
+Automation evidence:
+- commit `fae80c6b25428b257b9eacb0567de753dec4e47c`
+- message: `Automate Cloudflare preview on branch push`
+
+Operating consequence:
+- أي استكمال لمسار Cloudflare يبدأ أولًا بالتحقق من حالة الـworkflow والـSecrets والـPreview الموجودة، وليس إعادة إنشاء الربط من الصفر.
+- التطوير والاختبار يمكن أن يتم من GitHub إلى Preview، لكن Production traffic cutover يظل Gate منفصل يحتاج Worker health + D1 parity/freshness + authentication + Apps Script fallback + rollback evidence.
+- هذا القرار لا يغيّر D-006: Google Sheets/Apps Script يظلان سلطة الكتابة الحالية إلى أن يعتمد Cutover منفصل للكتابة.
+
 ## Needs reconciliation
 
 1. Exact production Apps Script source/version content behind historical deployment Version 138.
