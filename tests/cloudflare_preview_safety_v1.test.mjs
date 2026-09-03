@@ -120,11 +120,20 @@ function testWorkflowAndEntrySafetyContract() {
     'utf8'
   );
   const entry = fs.readFileSync(path.join(root, 'cloudflare-d1/src/index_v2.js'), 'utf8');
+  const previewConfig = fs.readFileSync(
+    path.join(root, 'cloudflare-d1/preview/wrangler.toml'),
+    'utf8'
+  );
 
-  const executableMigrationCommand = /^\s+npx\s+--yes\s+wrangler@.*\bd1\s+migrations\s+apply\b/im;
+  const executableMigrationCommand = /^\s+(?:npx\s+--yes\s+)?wrangler@?.*\bd1\s+migrations\s+apply\b/im;
   assert.doesNotMatch(workflow, executableMigrationCommand);
   assert.match(workflow, /D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW/);
   assert.match(entry, /cloud-write-gate\.mjs/);
+
+  assert.match(previewConfig, /name\s*=\s*"trendos-edge-gateway-preview"/);
+  assert.match(previewConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/);
+  assert.match(previewConfig, /database_name\s*=\s*"trendos-main"/);
+  assert.doesNotMatch(previewConfig, /migrations_dir\s*=/);
 }
 
 await testHealthIsReadOnlyWhenDisabled();
