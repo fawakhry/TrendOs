@@ -22,7 +22,7 @@ permissions:
 
 concurrency:
   group: trendos-cloudflare-auto-preview-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy-edge-preview:
@@ -70,19 +70,19 @@ jobs:
           fi
           echo 'PASS: preview workflow contains no executable D1 migration apply step.'
 
+      - name: Deploy isolated preview Worker non-interactively
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 180s npx --yes wrangler@"$WRANGLER_VERSION" deploy --yes \
+            --name "$PREVIEW_WORKER_NAME" \
+            --config cloudflare-d1/wrangler.toml
+
       - name: Install preview edge session secret
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s' "$EDGE_SESSION_SECRET" | npx --yes wrangler@"$WRANGLER_VERSION" secret put EDGE_SESSION_SECRET \
-            --name "$PREVIEW_WORKER_NAME" \
-            --config cloudflare-d1/wrangler.toml
-
-      - name: Deploy isolated preview Worker
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx --yes wrangler@"$WRANGLER_VERSION" deploy \
+          printf '%s' "$EDGE_SESSION_SECRET" | timeout 180s npx --yes wrangler@"$WRANGLER_VERSION" secret put EDGE_SESSION_SECRET \
             --name "$PREVIEW_WORKER_NAME" \
             --config cloudflare-d1/wrangler.toml
 
