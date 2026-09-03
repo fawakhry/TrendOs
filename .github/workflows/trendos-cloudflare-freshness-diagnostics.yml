@@ -47,22 +47,26 @@ jobs:
       - name: Inspect production Worker binding names only
         run: node tests/cloudflare_control_plane_diagnostics.mjs
 
-      - name: Probe production Apps Script status route read-only
+      - name: Probe production Apps Script status routes read-only
         shell: bash
         run: |
           set -euo pipefail
-          ping_code="$(curl -L --silent --show-error --output /tmp/apps-ping.txt --write-out '%{http_code}' --get --data-urlencode 'action=ping' "$APPS_SCRIPT_URL" || true)"
-          status_code="$(curl -L --silent --show-error --output /tmp/apps-sync-status.txt --write-out '%{http_code}' --get --data-urlencode 'action=getD1OrdersLiveSyncStatus' "$APPS_SCRIPT_URL" || true)"
-          echo "APPS_SCRIPT_PING_HTTP=$ping_code"
-          echo 'APPS_SCRIPT_PING_BODY_BEGIN'
-          head -c 2000 /tmp/apps-ping.txt || true
-          echo
-          echo 'APPS_SCRIPT_PING_BODY_END'
-          echo "APPS_SCRIPT_SYNC_STATUS_HTTP=$status_code"
-          echo 'APPS_SCRIPT_SYNC_STATUS_BODY_BEGIN'
-          head -c 4000 /tmp/apps-sync-status.txt || true
-          echo
-          echo 'APPS_SCRIPT_SYNC_STATUS_BODY_END'
+          actions=(
+            ping
+            getD1OrdersLiveSyncStatus
+            getD1OrdersPrimaryReadStatus
+            getD1OrdersPrimaryRuntimeStatusV1
+            getD1FullMigrationStatus
+          )
+          for action in "${actions[@]}"; do
+            safe="$(printf '%s' "$action" | tr -c 'A-Za-z0-9_' '_')"
+            file="/tmp/apps-${safe}.txt"
+            code="$(curl -L --silent --show-error --output "$file" --write-out '%{http_code}' --get --data-urlencode "action=$action" "$APPS_SCRIPT_URL" || true)"
+            echo "APPS_SCRIPT_ACTION=$action HTTP=$code"
+            head -c 5000 "$file" || true
+            echo
+            echo "APPS_SCRIPT_ACTION_END=$action"
+          done
           echo 'Read-only GET probes only; no Apps Script state was changed.'
 
       - name: Inspect both live mirror sheets before judging freshness
