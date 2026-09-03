@@ -51,6 +51,7 @@ jobs:
           node tests/cloudflare_edge_gateway_v1.test.mjs
           node tests/cloudflare_cloud_write_v1.test.mjs
           node tests/cloudflare_preview_safety_v1.test.mjs
+          node tests/cloudflare_mirror_safety_v1.test.mjs
 
       - name: Verify required deploy secrets are present
         shell: bash
@@ -133,11 +134,59 @@ jobs:
           test "$code" = '423'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write-blocked.json','utf8')); if(x.success!==false||x.enabled!==false||x.cutover!==false||x.sheetsAuthoritative!==true){process.exit(1)}"
 
+      - name: Verify mirror stats are SELECT-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/mirror-stats.json --write-out '%{http_code}' "$PREVIEW_URL/v1/mirror/stats")"
+          cat /tmp/mirror-stats.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/mirror-stats.json','utf8')); if(!x.success||!x.stats||x.stats.schemaMutationFree!==true){process.exit(1)}; console.log('mirror-snapshot', JSON.stringify(x.stats))"
+
+      - name: Verify anonymous mirror import cannot initialize schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/mirror-import-blocked.json --write-out '%{http_code}' \
+            -X POST \
+            -H 'content-type: application/json' \
+            --data '{"sheetName":"PREVIEW-MUST-NOT-WRITE","rows":[]}' \
+            "$PREVIEW_URL/v1/import/sheet")"
+          cat /tmp/mirror-import-blocked.json
+          test "$code" = '401'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/mirror-import-blocked.json','utf8')); if(x.success!==false||x.schemaMutationFree!==true){process.exit(1)}"
+
+      - name: Benchmark Preview Edge and D1 reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > /tmp/edge-times.txt
+          : > /tmp/orders-times.txt
+          for i in $(seq 1 15); do
+            curl --fail --silent --show-error --output /dev/null --write-out '%{time_total}\n' "$PREVIEW_URL/v1/edge/health" >> /tmp/edge-times.txt
+            curl --fail --silent --show-error --output /dev/null --write-out '%{time_total}\n' "$PREVIEW_URL/v1/orders?limit=1" >> /tmp/orders-times.txt
+          done
+          node <<'NODE'
+          const fs = require('fs');
+          function summarize(file) {
+            const xs = fs.readFileSync(file, 'utf8').trim().split(/\s+/).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+            const pick = p => xs[Math.min(xs.length - 1, Math.max(0, Math.ceil(xs.length * p) - 1))];
+            const avg = xs.reduce((a,b)=>a+b,0)/xs.length;
+            return { samples: xs.length, avgMs: +(avg*1000).toFixed(1), medianMs: +(pick(.5)*1000).toFixed(1), p90Ms: +(pick(.9)*1000).toFixed(1), maxMs: +(xs[xs.length-1]*1000).toFixed(1) };
+          }
+          console.log('EDGE_BENCHMARK=' + JSON.stringify(summarize('/tmp/edge-times.txt')));
+          console.log('D1_ORDERS_BENCHMARK=' + JSON.stringify(summarize('/tmp/orders-times.txt')));
+          NODE
+          curl --fail --silent --show-error "$PREVIEW_URL/v1/orders?limit=1" > /tmp/latest-order.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/latest-order.json','utf8')); if(!x.success||!Array.isArray(x.orders)){process.exit(1)}; console.log('D1_LATEST_ORDER=' + JSON.stringify(x.orders[0] || null))"
+
       - name: Preview deployment summary
         run: |
           echo "Preview Worker: $PREVIEW_URL"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
+          echo "Mirror reads: SELECT-ONLY; anonymous import rejected before schema initialization"
+          echo "Preview latency: benchmarked in this run"
           echo "Frontend cutover: NOT PERFORMED"
           echo "GitHub Pages/config.js: UNCHANGED"
           echo "Apps Script writes/fallback: UNCHANGED"
