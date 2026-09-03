@@ -64,27 +64,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Eq '^[[:space:]]+npx --yes wrangler@.*d1 migrations apply' .github/workflows/trendos-cloudflare-edge-preview.yml; then
+          if grep -Eq '^[[:space:]]+(npx --yes )?wrangler@?.*d1 migrations apply' .github/workflows/trendos-cloudflare-edge-preview.yml; then
             echo 'Preview workflow must not apply D1 migrations.'
             exit 1
           fi
-          echo 'PASS: preview workflow contains no executable D1 migration apply step.'
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/preview/wrangler.toml
+          if grep -Eq '^migrations_dir[[:space:]]*=' cloudflare-d1/preview/wrangler.toml; then
+            echo 'Preview config must not declare migrations_dir.'
+            exit 1
+          fi
+          echo 'PASS: preview workflow has no migration apply step and cloud writes are explicitly OFF.'
 
-      - name: Deploy isolated preview Worker non-interactively
-        shell: bash
-        run: |
-          set -euo pipefail
-          timeout 180s npx --yes wrangler@"$WRANGLER_VERSION" deploy --yes \
-            --name "$PREVIEW_WORKER_NAME" \
-            --config cloudflare-d1/wrangler.toml
-
-      - name: Install preview edge session secret
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s' "$EDGE_SESSION_SECRET" | timeout 180s npx --yes wrangler@"$WRANGLER_VERSION" secret put EDGE_SESSION_SECRET \
-            --name "$PREVIEW_WORKER_NAME" \
-            --config cloudflare-d1/wrangler.toml
+      - name: Deploy isolated preview Worker with official Cloudflare action
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.33.2'
+          workingDirectory: 'cloudflare-d1/preview'
+          secrets: |
+            EDGE_SESSION_SECRET
+        env:
+          EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
 
       - name: Verify preview health and no cutover marker
         shell: bash
@@ -128,7 +129,7 @@ jobs:
         run: |
           echo "Preview Worker: $PREVIEW_URL"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
-          echo "Cloud write lane: OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
+          echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
           echo "Frontend cutover: NOT PERFORMED"
           echo "GitHub Pages/config.js: UNCHANGED"
           echo "Apps Script writes/fallback: UNCHANGED"
