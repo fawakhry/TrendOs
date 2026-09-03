@@ -21,7 +21,11 @@ on:
       - 'trendos-integrity-router-v1.gs'
       - 'D1_Fast_Auth_V2_5_Safe.gs'
       - 'customer-manager-send-integrity-v1.js'
+      - 'trendos-edge-read-v1.js'
       - 'trendos-integrity-v1.package.json'
+      - 'cloudflare-d1/src/edge-gateway.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/cloudflare_edge_gateway_v1.test.mjs'
       - 'tests/trendos_integrity_v1.test.js'
       - 'tests/trendos_integrity_runtime_tools_v1.test.js'
       - 'tests/trendos_core_p0_remediation_v1.test.js'
@@ -55,6 +59,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Run Cloudflare Edge Gateway V1 tests
+        run: node tests/cloudflare_edge_gateway_v1.test.mjs
       - name: Run TrendOS integrity foundation tests
         run: node tests/trendos_integrity_v1.test.js .
       - name: Run TrendOS public runtime tools tests
