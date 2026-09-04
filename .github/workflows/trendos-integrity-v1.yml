@@ -64,6 +64,8 @@ on:
       - 'accounting/domain-core-v1.test.js'
       - 'accounting/transaction-contract-v1.js'
       - 'accounting/transaction-contract-v1.test.js'
+      - 'accounting/memory-persistence-adapter-v1.js'
+      - 'accounting/memory-persistence-adapter-v1.test.js'
       - '.github/workflows/trendos-integrity-v1.yml'
 
 permissions:
@@ -132,3 +134,5 @@ jobs:
         run: node accounting/domain-core-v1.test.js
       - name: Run TrendOS Accounting transaction-contract-v1 tests
         run: node accounting/transaction-contract-v1.test.js
+      - name: Run TrendOS Accounting memory-persistence-adapter-v1 tests
+        run: node accounting/memory-persistence-adapter-v1.test.js
