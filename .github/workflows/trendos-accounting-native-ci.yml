@@ -15,6 +15,7 @@ on:
       - 'cloudflare-d1/src/accounting-finance-core-v1.mjs'
       - 'cloudflare-d1/src/accounting-finance-safe-v1.mjs'
       - 'cloudflare-d1/src/accounting-finance-api-v1.mjs'
+      - 'cloudflare-d1/schema-prep/accounting-finance-v1.sql'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_accounting_native_v1.test.mjs'
       - 'tests/cloudflare_accounting_contract_v1.test.mjs'
@@ -22,6 +23,7 @@ on:
       - 'tests/cloudflare_accounting_f2_finance_core_v1.test.mjs'
       - 'tests/cloudflare_accounting_f2_finance_safe_v1.test.mjs'
       - 'tests/cloudflare_accounting_f2_finance_api_v1.test.mjs'
+      - 'tests/cloudflare_accounting_f2_schema_prep_v1.test.mjs'
       - 'tests/cloudflare_preview_safety_v1.test.mjs'
       - '.github/workflows/trendos-accounting-native-ci.yml'
   workflow_dispatch:
@@ -62,5 +64,7 @@ jobs:
         run: node tests/cloudflare_accounting_f2_finance_safe_v1.test.mjs
       - name: Accounting F2 planning API tests
         run: node tests/cloudflare_accounting_f2_finance_api_v1.test.mjs
+      - name: Accounting F2 prepared schema tests
+        run: node --experimental-sqlite tests/cloudflare_accounting_f2_schema_prep_v1.test.mjs
       - name: Preview zero-write safety gate
         run: node tests/cloudflare_preview_safety_v1.test.mjs
