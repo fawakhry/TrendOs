@@ -9,6 +9,7 @@ on:
       - 'cloudflare-d1/src/cloud-write-order-v2-production-shadow.mjs'
       - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
       - 'tests/cloudflare_production_shadow_integration_candidate_v1.test.mjs'
+      - 'tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/wrangler.toml'
       - '.github/workflows/trendos-cloud-write-v2-production-shadow-integration-candidate.yml'
@@ -30,7 +31,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify exact Production boundary mirror and default-OFF state
+      - name: Verify Production boundary mirror and default-OFF state
         run: |
           set -euo pipefail
           node tests/cloud_write_order_v2_production_shadow.test.mjs
@@ -38,9 +39,16 @@ jobs:
           node tests/cloudflare_production_shadow_integration_candidate_v1.test.mjs
           ! grep -Fq 'production-shadow/observer' cloudflare-d1/src/index_v2.js
           ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/index_v2.js
-          grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
           grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
-          ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
+
+          if grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml; then
+            grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+            ! grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          else
+            grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
+            ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
+          fi
+
           grep -Eq '^name = "trendos-d1-api-production-shadow-integration-no-deploy"$' cloudflare-d1/production-shadow/wrangler.production-integration-candidate.toml
           grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "false"$' cloudflare-d1/production-shadow/wrangler.production-integration-candidate.toml
           echo 'PRODUCTION_SHADOW_INTEGRATION_BOUNDARY_PASS'
@@ -58,6 +66,6 @@ jobs:
       - name: Safety conclusion
         run: |
           echo 'PRODUCTION_SHADOW_INTEGRATION_CANDIDATE_PASS'
-          echo 'The candidate mirrors Production topology for compile compatibility but uses a different Worker name and default-OFF shadow flag.'
+          echo 'The candidate mirrors Production topology for compile compatibility with Shadow explicitly default-OFF.'
+          echo 'Working-branch Production may still be original or may use the wrapper only with Shadow OFF and Cloud Write OFF.'
           echo 'This workflow loads no Cloudflare credentials and performs no deployment, migration, D1 write, Apps Script call, Sheet write, or Production cutover.'
-          echo 'Live Production files remain unchanged and Cloud Write remains OFF.'
