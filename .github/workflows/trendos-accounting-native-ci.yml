@@ -9,9 +9,13 @@ on:
       - 'cloudflare-d1/src/accounting-preview.mjs'
       - 'cloudflare-d1/src/accounting-capabilities-v1.mjs'
       - 'cloudflare-d1/src/accounting-contract-v1.mjs'
+      - 'cloudflare-d1/src/accounting-foundation-v1.mjs'
+      - 'cloudflare-d1/src/accounting-foundation-api-v1.mjs'
+      - 'cloudflare-d1/src/accounting-operations-read-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_accounting_native_v1.test.mjs'
       - 'tests/cloudflare_accounting_contract_v1.test.mjs'
+      - 'tests/cloudflare_accounting_f1_foundation_v1.test.mjs'
       - 'tests/cloudflare_preview_safety_v1.test.mjs'
       - '.github/workflows/trendos-accounting-native-ci.yml'
   workflow_dispatch:
@@ -31,6 +35,9 @@ jobs:
       - name: Syntax checks
         run: |
           node --check cloudflare-d1/src/accounting-contract-v1.mjs
+          node --check cloudflare-d1/src/accounting-foundation-v1.mjs
+          node --check cloudflare-d1/src/accounting-foundation-api-v1.mjs
+          node --check cloudflare-d1/src/accounting-operations-read-v1.mjs
           node --check cloudflare-d1/src/accounting-native-module.mjs
           node --check cloudflare-d1/src/accounting-preview.mjs
           node --check cloudflare-d1/src/index_v2.js
@@ -38,5 +45,7 @@ jobs:
         run: node tests/cloudflare_accounting_native_v1.test.mjs
       - name: Accounting V1 contract tests
         run: node tests/cloudflare_accounting_contract_v1.test.mjs
+      - name: Accounting F1 foundation tests
+        run: node tests/cloudflare_accounting_f1_foundation_v1.test.mjs
       - name: Preview zero-write safety gate
         run: node tests/cloudflare_preview_safety_v1.test.mjs
