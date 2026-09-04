@@ -11,14 +11,23 @@ import {
 import { handleCloudWriteRequest, isCloudWritePath } from './cloud-write-gate.mjs';
 import { handleNormalizedImportRequest, isNormalizedImportPath } from './normalized-import-gate.mjs';
 import { handleAccountingPreviewRequest, isAccountingPreviewPath } from './accounting-preview.mjs';
+import {
+  handleAccountingNativeModuleRequest,
+  isAccountingNativeModulePath
+} from './accounting-native-module.mjs';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
-    // Isolated Accounting preview. This surface is deliberately browser-local/read-only
-    // from the Worker perspective and never changes financial write authority.
+    // Canonical TrendOS-native Accounting route and read-only integration contract.
+    if (isAccountingNativeModulePath(path)) {
+      return handleAccountingNativeModuleRequest(request, env, ctx);
+    }
+
+    // Temporary isolated engineering alias retained while Accounting is promoted
+    // into the shared TrendOS shell. It does not change financial write authority.
     if (isAccountingPreviewPath(path)) {
       return handleAccountingPreviewRequest(request, env, ctx);
     }
