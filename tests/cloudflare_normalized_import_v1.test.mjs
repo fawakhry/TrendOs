@@ -185,8 +185,26 @@ async function testMultiEntityFinalRequestIsAtomic() {
   assert.equal(env.DB.count('SELECT COUNT(*) AS c FROM migration_runs'), 0);
 }
 
+function executableOnly(source) {
+  let inBlockComment = false;
+  return source.split(/\r?\n/).filter((line) => {
+    const trimmed = line.trim();
+    if (inBlockComment) {
+      if (trimmed.includes('*/')) inBlockComment = false;
+      return false;
+    }
+    if (trimmed.startsWith('/*')) {
+      if (!trimmed.includes('*/')) inBlockComment = true;
+      return false;
+    }
+    if (trimmed.startsWith('//') || trimmed.startsWith('*') || !trimmed) return false;
+    return true;
+  }).join('\n');
+}
+
 function testAppsScriptLiveSyncContract() {
   const source = fs.readFileSync(path.join(root, 'cloudflare-d1/D1_Normalized_Live_Sync.gs'), 'utf8');
+  const executable = executableOnly(source);
   assert.match(source, /D1_NORMALIZED_SYNC_TRIGGER_FN_V1 = 'd1NormalizedLiveSyncTick'/);
   assert.match(source, /D1_NORMALIZED_SYNC_CLAIM_TTL_MS_V1/);
   assert.match(source, /tryLock\(D1_NORMALIZED_SYNC_CLAIM_LOCK_WAIT_MS_V1\)/);
@@ -198,12 +216,10 @@ function testAppsScriptLiveSyncContract() {
   assert.match(source, /D1_NORMALIZED_MESSAGES_SHEET_V1 = 'مدير العملاء - الرسائل'/);
   assert.match(source, /D1_NORMALIZED_CONVERSATIONS_SHEET_V1 = 'مدير العملاء - المحادثات'/);
 
-  // Guard against executable source mutations. Comments that merely name a forbidden
-  // helper must not trigger false positives.
-  assert.doesNotMatch(source, /^\s*(?!\/\/)cmEnsureAll_\s*\(/m);
-  assert.doesNotMatch(source, /^\s*(?!\/\/)[^\n]*\binsertSheet\s*\(/m);
-  assert.doesNotMatch(source, /^\s*(?!\/\/)[^\n]*\bappendRow\s*\(/m);
-  assert.doesNotMatch(source, /^\s*(?!\/\/)[^\n]*\.setValues\s*\(/m);
+  assert.doesNotMatch(executable, /\bcmEnsureAll_\s*\(/);
+  assert.doesNotMatch(executable, /\binsertSheet\s*\(/);
+  assert.doesNotMatch(executable, /\bappendRow\s*\(/);
+  assert.doesNotMatch(executable, /\.setValues\s*\(/);
 
   assert.match(source, /everyMinutes\(1\)/);
   assert.match(source, /hasD1MigrationSecret/);
