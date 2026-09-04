@@ -138,15 +138,17 @@ jobs:
           import fs from 'node:fs';
           import { issueEdgeSessionToken } from './cloudflare-d1/src/edge-gateway.mjs';
           const secret=fs.readFileSync('/tmp/staging-edge-secret.txt','utf8').trim();
-          const token=await issueEdgeSessionToken({sub:'ci-staging-admin',role:'admin',department:'إدارة',screens:['service','print','laser','press','']},secret,Math.floor(Date.now()/1000),300);
+          const token=await issueEdgeSessionToken({sub:'ci-staging-admin'},secret,Math.floor(Date.now()/1000),300);
           fs.writeFileSync('/tmp/staging-token.txt',token,{mode:0o600});
           NODE
           token="$(cat /tmp/staging-token.txt)"
+          order_id="CW-STAGE-${GITHUB_RUN_ID}"
           cat > /tmp/staging-order.json <<JSON
-          {"clientRequestId":"staging-${GITHUB_RUN_ID}","orderId":"CW-STAGE-${GITHUB_RUN_ID}","customerPhone":"01001112233","customerName":"Staging Cloud Write Qualification","status":"cloud-draft","total":123.45,"remaining":23.45}
+          {"clientRequestId":"staging-${GITHUB_RUN_ID}","orderId":"${order_id}","customerPhone":"01001112233","customerName":"Staging Cloud Write Qualification","status":"cloud-draft","total":123.45,"remaining":23.45}
           JSON
+
           first_pass=0
-          for attempt in $(seq 1 15); do
+          for attempt in $(seq 1 20); do
             first="$(curl --silent --show-error --output /tmp/first.json --write-out '%{http_code}' -H "authorization: Bearer $token" -H 'content-type: application/json' --data-binary @/tmp/staging-order.json "$STAGING_URL/v1/cloud/orders" || true)"
             echo "STAGING_WRITE_ATTEMPT=$attempt HTTP=$first"
             cat /tmp/first.json || true
@@ -161,15 +163,59 @@ jobs:
             sleep 3
           done
           test "$first_pass" = '1'
-          second="$(curl --silent --show-error --output /tmp/second.json --write-out '%{http_code}' -H "authorization: Bearer $token" -H 'content-type: application/json' --data-binary @/tmp/staging-order.json "$STAGING_URL/v1/cloud/orders")"
-          cat /tmp/second.json
-          test "$second" = '200'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/second.json','utf8')); if(!x.success||x.idempotent!==true||x.dataSource!=='d1-cloud-write-v1') process.exit(1)"
-          outbox="$(curl --silent --show-error --output /tmp/outbox.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$STAGING_URL/v1/cloud/write/outbox?status=pending&limit=20")"
-          cat /tmp/outbox.json
-          test "$outbox" = '200'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/outbox.json','utf8')); const id='CW-STAGE-${GITHUB_RUN_ID}'; if(!x.success||!Array.isArray(x.outbox)||!x.outbox.some(r=>r.entityId===id&&r.status==='pending')) process.exit(1)"
-          echo 'STAGING_CLOUD_WRITE_IDEMPOTENCY_OUTBOX_PASS'
+
+          second_pass=0
+          for attempt in $(seq 1 20); do
+            second="$(curl --silent --show-error --output /tmp/second.json --write-out '%{http_code}' -H "authorization: Bearer $token" -H 'content-type: application/json' --data-binary @/tmp/staging-order.json "$STAGING_URL/v1/cloud/orders" || true)"
+            echo "STAGING_IDEMPOTENCY_ATTEMPT=$attempt HTTP=$second"
+            cat /tmp/second.json || true
+            if [ "$second" = '200' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/second.json','utf8')); if(!x.success||x.idempotent!==true||x.dataSource!=='d1-cloud-write-v1'||x.sheetsSync!=='pending') process.exit(1)"; then
+              second_pass=1
+              break
+            fi
+            sleep 3
+          done
+          test "$second_pass" = '1'
+
+          outbox_pass=0
+          for attempt in $(seq 1 20); do
+            outbox="$(curl --silent --show-error --output /tmp/outbox.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$STAGING_URL/v1/cloud/write/outbox?status=pending&limit=50" || true)"
+            echo "STAGING_OUTBOX_API_ATTEMPT=$attempt HTTP=$outbox"
+            cat /tmp/outbox.json || true
+            if [ "$outbox" = '200' ] && ORDER_ID="$order_id" node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/outbox.json','utf8')); const id=process.env.ORDER_ID; if(!x.success||!Array.isArray(x.outbox)||!x.outbox.some(r=>r.entityId===id&&r.status==='pending')) process.exit(1)"; then
+              outbox_pass=1
+              break
+            fi
+            sleep 3
+          done
+          test "$outbox_pass" = '1'
+          echo 'STAGING_CLOUD_WRITE_IDEMPOTENCY_OUTBOX_API_PASS'
+      - name: Verify staging rows directly in dedicated D1
+        run: |
+          set -euo pipefail
+          order_id="CW-STAGE-${GITHUB_RUN_ID}"
+          sql="SELECT (SELECT COUNT(*) FROM orders WHERE order_id='${order_id}') AS order_count, (SELECT COUNT(*) FROM cloud_write_events WHERE entity_id='${order_id}') AS event_count, (SELECT COUNT(*) FROM cloud_write_outbox WHERE entity_id='${order_id}') AS outbox_count;"
+          npx wrangler d1 execute trendos-staging --remote --config cloudflare-d1/staging/wrangler.generated.toml --command "$sql" --json > /tmp/staging-db-check.json
+          cat /tmp/staging-db-check.json
+          node <<'NODE'
+          const fs=require('fs');
+          const payload=JSON.parse(fs.readFileSync('/tmp/staging-db-check.json','utf8'));
+          function findCounts(value){
+            if(!value || typeof value!=='object') return null;
+            if(Object.prototype.hasOwnProperty.call(value,'order_count') && Object.prototype.hasOwnProperty.call(value,'event_count') && Object.prototype.hasOwnProperty.call(value,'outbox_count')) return value;
+            for(const child of Object.values(value)){
+              const found=findCounts(child);
+              if(found) return found;
+            }
+            return null;
+          }
+          const row=findCounts(payload);
+          if(!row || Number(row.order_count)!==1 || Number(row.event_count)!==1 || Number(row.outbox_count)!==1){
+            console.error('Unexpected staging D1 row counts', row);
+            process.exit(1);
+          }
+          console.log('STAGING_D1_DIRECT_ROWS_PASS order=1 event=1 outbox=1');
+          NODE
       - name: Reconfirm production Cloud Write remains OFF
         if: always()
         run: |
@@ -183,7 +229,8 @@ jobs:
         run: |
           echo "STAGING_DB_ID=$STAGING_DB_ID"
           echo "STAGING_URL=$STAGING_URL"
-          echo 'PASS: dedicated staging D1 + migrations + staging Worker + authenticated idempotent Cloud Write + pending outbox.'
+          echo 'PASS: dedicated staging D1 + migrations + staging Worker + authenticated idempotent Cloud Write + pending outbox API.'
+          echo 'PASS: direct staging D1 contains exactly one order, one event, and one outbox row for the qualification order.'
           echo 'PASS: production Cloud Write remained OFF.'
       - name: Cleanup temporary staging credentials
         if: always()
