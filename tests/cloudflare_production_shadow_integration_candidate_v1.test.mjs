@@ -21,13 +21,23 @@ assert.match(candidateConfig, /^database_name = "trendos-main"$/m);
 assert.match(candidateConfig, /^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$/m);
 assert.match(candidateConfig, /^migrations_dir = "\.\.\/migrations"$/m);
 
-// Existing Production remains on the original entrypoint with no shadow flag/import.
+// Working-branch Production may transition from the original core entrypoint
+// to the shadow wrapper only while the shadow feature remains explicitly OFF.
 assert.match(productionConfig, /^name = "trendos-d1-api"$/m);
-assert.match(productionConfig, /^main = "src\/index_v2\.js"$/m);
 assert.match(productionConfig, /^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$/m);
-assert.doesNotMatch(productionConfig, /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED/);
 assert.doesNotMatch(productionEntry, /production-shadow\/observer/);
 assert.doesNotMatch(productionEntry, /cloud-write-order-v2-production-shadow/);
+
+const prodUsesCore = /^main = "src\/index_v2\.js"$/m.test(productionConfig);
+const prodUsesShadowWrapper = /^main = "production-shadow\/index\.js"$/m.test(productionConfig);
+assert.equal(prodUsesCore || prodUsesShadowWrapper, true, 'unexpected Production entrypoint');
+assert.equal(prodUsesCore && prodUsesShadowWrapper, false, 'ambiguous Production entrypoint');
+if (prodUsesCore) {
+  assert.doesNotMatch(productionConfig, /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED/);
+} else {
+  assert.match(productionConfig, /^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "false"$/m);
+  assert.doesNotMatch(productionConfig, /^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$/m);
+}
 
 // Candidate mirrors the Production runtime values needed for compile compatibility.
 for (const [label, re] of [
