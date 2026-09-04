@@ -1,0 +1,62 @@
+name: TrendOS V2 Production Shadow Preview Method Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-cloud-write-v2-production-shadow-preview-method-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-shadow-method-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PATH_V2: /v1/preview/cloud-write/v2/production-shadow
+    steps:
+      - name: GET shadow preview twice
+        run: |
+          set -euo pipefail
+          for n in 1 2; do
+            code="$(curl --silent --show-error --output "/tmp/get-$n.json" --write-out '%{http_code}' "$PREVIEW_URL$PATH_V2")"
+            echo "SHADOW_GET_${n}_HTTP=$code"
+            cat "/tmp/get-$n.json"
+            test "$code" = '200'
+          done
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/get-1.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/get-2.json','utf8'));
+          if(!a.success||a.shadowFingerprint!==b.shadowFingerprint||a.d1Written!==false||a.sheetsWritten!==false||a.productionCutover!==false) process.exit(1);
+          console.log('SHADOW_GET_DETERMINISTIC_PASS');
+          NODE
+
+      - name: POST must fail closed without mutation
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/post.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{}' "$PREVIEW_URL$PATH_V2")"
+          echo "SHADOW_POST_HTTP=$code"
+          cat /tmp/post.json
+          test "$code" = '405'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post.json','utf8'));
+          if(x.success!==false||x.code!=='method-not-allowed'||x.d1Written!==false||x.sheetsWritten!==false||Number(x.mutationCount||0)!==0||x.productionCutover!==false) process.exit(1);
+          console.log('SHADOW_POST_FAIL_CLOSED_PASS');
+          NODE
+
+      - name: Production remains isolated
+        run: |
+          set -euo pipefail
+          route="$(curl --silent --show-error --output /tmp/prod-route.json --write-out '%{http_code}' "$PROD_URL$PATH_V2")"
+          echo "PROD_SHADOW_HTTP=$route"
+          test "$route" = '404'
+          health="$(curl --silent --show-error --output /tmp/prod-health.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$health" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/prod-health.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+          echo 'PRODUCTION_ISOLATION_PASS'
