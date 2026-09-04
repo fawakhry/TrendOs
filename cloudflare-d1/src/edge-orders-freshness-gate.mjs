@@ -4,6 +4,7 @@ import {
   ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS
 } from './edge-orders-idle-heartbeat.mjs';
 
+const ORDERS_SHEET = 'الأوردرات';
 const LINES_SHEET = 'بنود الأوردرات';
 const LIVE_NOTES = ['TrendOS orders live sync V1', 'TrendOS orders live sync V2 quota-aware'];
 const DEFAULT_MAX_AGE_SECONDS = 600;
@@ -107,6 +108,16 @@ export function inspectOrdersMirrorCatalog(catalog, nowMs = Date.now(), configur
   };
 }
 
+async function readMirrorCatalog(env, sheetName) {
+  return env.DB.prepare(
+    `SELECT source_last_row AS sourceLastRow, source_last_col AS sourceLastCol, row_count AS rowCount, status, synced_at AS syncedAt, note FROM sheet_catalog WHERE sheet_name = ? LIMIT 1`
+  ).bind(sheetName).first();
+}
+
+function structurallyReady(inspection) {
+  return !!(inspection && inspection.statusReady && inspection.parity && inspection.live);
+}
+
 export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(), options = {}) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -135,11 +146,11 @@ export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(
     }, 503, request, env || {});
   }
 
-  let catalog;
+  let ordersCatalog;
+  let linesCatalog;
   try {
-    catalog = await env.DB.prepare(
-      `SELECT source_last_row AS sourceLastRow, source_last_col AS sourceLastCol, row_count AS rowCount, status, synced_at AS syncedAt, note FROM sheet_catalog WHERE sheet_name = ? LIMIT 1`
-    ).bind(LINES_SHEET).first();
+    ordersCatalog = await readMirrorCatalog(env, ORDERS_SHEET);
+    linesCatalog = await readMirrorCatalog(env, LINES_SHEET);
   } catch (err) {
     return responseJson({
       success: false,
@@ -150,7 +161,7 @@ export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(
     }, 503, request, env);
   }
 
-  if (!catalog) {
+  if (!ordersCatalog || !linesCatalog) {
     return responseJson({
       success: false,
       code: 'mirror-not-ready',
@@ -160,29 +171,34 @@ export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(
     }, 503, request, env);
   }
 
-  const inspection = inspectOrdersMirrorCatalog(catalog, nowMs, maxAgeSeconds(env));
-  if (inspection.ready) return null;
+  const budget = maxAgeSeconds(env);
+  const ordersInspection = inspectOrdersMirrorCatalog(ordersCatalog, nowMs, budget);
+  const linesInspection = inspectOrdersMirrorCatalog(linesCatalog, nowMs, budget);
+  if (ordersInspection.ready && linesInspection.ready) return null;
 
-  const staleOnly = inspection.statusReady && inspection.parity && inspection.live && !inspection.fresh;
+  const structureOk = structurallyReady(ordersInspection) && structurallyReady(linesInspection);
+  const staleOnly = structureOk && (!ordersInspection.fresh || !linesInspection.fresh);
   let heartbeat = null;
 
   // Zero-idle compatibility is opt-in only. With no verifier supplied, this guard
-  // preserves the previous strict write-age behavior exactly. A verifier can only
-  // extend logical freshness for the stale-by-age case; it can never override
-  // status/parity/live-note failures.
+  // preserves strict write-age behavior. A verifier can only extend logical
+  // freshness for age-only staleness; it can never override Orders/Lines
+  // status, parity, live-note or source-shape failures.
   if (staleOnly && options && typeof options.verifyIdleSourceFreshness === 'function') {
     try {
       const status = await options.verifyIdleSourceFreshness({
         request,
         env,
-        mirror: inspection,
+        mirrors: { orders: ordersInspection, lines: linesInspection },
         nowMs: Number(nowMs)
       });
       heartbeat = inspectOrdersIdleHeartbeat(status, {
         nowMs: Number(nowMs),
         maxAgeSeconds: idleHeartbeatMaxAgeSeconds(env),
-        expectedLinesSourceLastRow: inspection.sourceLastRow,
-        expectedLinesSourceLastCol: inspection.sourceLastCol
+        expectedOrdersSourceLastRow: ordersInspection.sourceLastRow,
+        expectedOrdersSourceLastCol: ordersInspection.sourceLastCol,
+        expectedLinesSourceLastRow: linesInspection.sourceLastRow,
+        expectedLinesSourceLastCol: linesInspection.sourceLastCol
       });
       if (heartbeat.ok) return null;
     } catch (err) {
@@ -202,7 +218,10 @@ export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(
     message: staleOnly
       ? 'Orders mirror is older than the low-usage freshness budget.'
       : 'Orders mirror is not ready for Edge reads.',
-    mirror: inspection,
+    // Keep the historical `mirror` field mapped to Lines for response compatibility.
+    mirror: linesInspection,
+    ordersMirror: ordersInspection,
+    mirrors: { orders: ordersInspection, lines: linesInspection },
     ...(heartbeat ? { idleHeartbeat: heartbeat } : {})
   }, 503, request, env);
 }
