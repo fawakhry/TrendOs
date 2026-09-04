@@ -1,0 +1,75 @@
+{
+  "name": "TrendOS_BACKEND_UNIFIED_V147_CANDIDATE",
+  "status": "PREPARED_NOT_COMPOSED",
+  "date": "2026-09-04",
+  "branch": "agent/go-live-2026-09-01-integrity",
+  "purpose": "Define the exact safe composition contract for the final clean Apps Script backend candidate before any live install or deploy.",
+  "productionBaseline": {
+    "webAppVersion": 146,
+    "authoritativeWrites": "Google Sheets + Apps Script",
+    "cloudflareCutoverEnabled": false,
+    "cloudWriteEnabled": false,
+    "integrityState": "Master+HEALTH ON; all business families OFF"
+  },
+  "compositionGate": {
+    "requiredBeforeCompose": [
+      "Exact persisted Apps Script Head baseline must be captured or exact-verified against an approved source lineage.",
+      "Do not assume GitHub Code.gs alone is identical to current persisted Apps Script Head.",
+      "Do not use the Sheet tab سكريبت Apps Script as authoritative deployment source.",
+      "Preserve Version 146 rollback evidence before any future Head install."
+    ],
+    "reason": "The current tooling can prepare GitHub artifacts but cannot directly read the bound Apps Script editor project; composing a replacement backend without exact Head lineage would violate the no-blind-overwrite safety rule."
+  },
+  "mergeCore": [
+    "trendos-integrity-v1.gs",
+    "trendos-integrity-runtime-tools-v1.gs",
+    "trendos-core-p0-remediation-v1.gs",
+    "trendos-order-line-integrity-v1.gs",
+    "trendos-attendance-cleaning-integrity-v1.gs",
+    "trendos-press-integrity-v1.gs",
+    "trendos-invoice-integrity-v1.gs",
+    "trendos-whatsapp-integrity-v1.gs",
+    "trendos-handover-ops-integrity-v1.gs",
+    "trendos-andon-integrity-v1.gs",
+    "trendos-integrity-dashboard-v1.gs",
+    "trendos-integrity-router-v1.gs"
+  ],
+  "integrateLogicNotPermanentOverride": [
+    "apps-script/patches/TIMEOUT_HOTFIX_V2_APPEND_ONLY_SAFE.gs",
+    "apps-script/patches/SAVE_TIMEOUT_HOTFIX_V3_APPEND_ONLY_SAFE.gs"
+  ],
+  "temporaryOnly": [
+    "trendos-core-p0-registry-writer-v1.gs"
+  ],
+  "defer": [
+    "D1_Fast_Auth_V2_5_Safe.gs"
+  ],
+  "forbiddenAsBlindReplacement": [
+    "Code.gs",
+    "D1_Orders_Fast_V2_4.gs",
+    "customer-manager-backend-v1932.gs",
+    "customer-feedback-backend-v1.gs",
+    "attendance-backend-v1.gs",
+    "attendance-clockin-backend-v1.gs",
+    "cleaning-backend-v1.gs",
+    "press-control-backend-v1.gs"
+  ],
+  "requiredNativeChanges": [
+    "Bounded getRows_ reads with safe limits and view-first behavior where valid.",
+    "Short-lived getDashboard_ cache/bounded reads without source mutation.",
+    "Fast updateLine_ path using lineId-first real source-row resolution and essential-field writes only.",
+    "Legacy fallback remains active when Integrity family flags are OFF."
+  ],
+  "requiredTests": [
+    "Apps Script composition syntax and duplicate-top-level collision checks.",
+    "Bounded getRows_ behavior.",
+    "Bounded/cached getDashboard_ behavior.",
+    "updateLine_ fast-save and lineId-first lookup behavior.",
+    "All business Integrity family flags default OFF.",
+    "Router legacy fallback with flags OFF.",
+    "Registry writer excluded from permanent candidate.",
+    "Fast Auth V2.5 excluded from first candidate.",
+    "Cloudflare production read/write cutover remains disabled."
+  ],
+  "nextSafeAction": "Capture/exact-verify the persisted Apps Script Head baseline, then compose the candidate from that verified lineage plus this manifest and run GitHub-only static tests before any Apps Script installation."
+}
