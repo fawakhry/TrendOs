@@ -5,6 +5,13 @@ import vm from 'node:vm';
 const path = new URL('../apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_AUTH_BRIDGE_QUALIFICATION_V1.gs', import.meta.url);
 const source = fs.readFileSync(path, 'utf8');
 
+function stripComments(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+}
+const executableSource = stripComments(source);
+
 for (const pattern of [
   /authorize_\s*\(/,
   /createManualOrder_\s*\(/,
@@ -21,7 +28,7 @@ for (const pattern of [
   /\.setProperty\s*\(/,
   /\.deleteProperty\s*\(/
 ]) {
-  assert.equal(pattern.test(source), false, `forbidden auth bridge capability: ${pattern}`);
+  assert.equal(pattern.test(executableSource), false, `forbidden auth bridge capability: ${pattern}`);
 }
 
 const STAGING_ID = '1b5UNM4p77LT_pkP1yiw5VrPaw5589gM-cPzxuJLtH7s';
