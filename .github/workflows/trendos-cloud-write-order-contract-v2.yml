@@ -16,6 +16,7 @@ on:
       - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_AUTH_BRIDGE_QUALIFICATION_V1.gs'
       - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_SIDE_EFFECT_QUALIFICATION_V1.gs'
       - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_CANONICAL_TARGET_IDENTITY_V1.gs'
+      - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_FIRST_WRITE_HARNESS_V1.gs'
       - 'tests/cloud_write_order_contract_v2.test.mjs'
       - 'tests/cloud_write_order_contract_v2_staging.test.mjs'
       - 'tests/apps_script_cloud_write_order_v2_canonical_adapter_dryrun_v1.test.mjs'
@@ -23,6 +24,7 @@ on:
       - 'tests/apps_script_cloud_write_order_v2_staging_auth_bridge_qualification_v1.test.mjs'
       - 'tests/apps_script_cloud_write_order_v2_staging_side_effect_qualification_v1.test.mjs'
       - 'tests/apps_script_cloud_write_order_v2_staging_canonical_target_identity_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_order_v2_staging_first_write_harness_v1.test.mjs'
       - '.github/workflows/trendos-cloud-write-order-contract-v2.yml'
   workflow_dispatch:
 
@@ -63,6 +65,9 @@ jobs:
       - name: Verify active and canonical staging target identity
         run: node tests/apps_script_cloud_write_order_v2_staging_canonical_target_identity_v1.test.mjs
 
+      - name: Verify isolated staging first canonical write harness
+        run: node tests/apps_script_cloud_write_order_v2_staging_first_write_harness_v1.test.mjs
+
       - name: Production integration boundary
         run: |
           set -euo pipefail
@@ -79,7 +84,8 @@ jobs:
             CLOUD_WRITE_ORDER_V2_STAGING_RUNTIME_PREFLIGHT_V1 \
             CLOUD_WRITE_ORDER_V2_STAGING_AUTH_BRIDGE_QUALIFICATION_V1 \
             CLOUD_WRITE_ORDER_V2_STAGING_SIDE_EFFECT_QUALIFICATION_V1 \
-            CLOUD_WRITE_ORDER_V2_STAGING_CANONICAL_TARGET_IDENTITY_V1
+            CLOUD_WRITE_ORDER_V2_STAGING_CANONICAL_TARGET_IDENTITY_V1 \
+            CLOUD_WRITE_ORDER_V2_STAGING_FIRST_WRITE_HARNESS_V1
           do
             if grep -Fq "$marker" Code.gs; then
               echo "V2_APPS_SCRIPT_LIVE_CODEGS_INTEGRATION_REFUSED:$marker"
@@ -99,5 +105,6 @@ jobs:
           echo 'The synthetic staging auth bridge is read-only, accepts no Cloud credentials, never returns the token, and does not call authorize_.'
           echo 'The current createManualOrder_ side-effect shape has no direct network/WhatsApp/D1 send; queueing is staging-sheet-only. Script Property writes are explicitly identified.'
           echo 'Because ss_() may honor TRENDOS_SPREADSHEET_ID, the target identity gate separately requires active spreadsheet == ss_() target == dedicated staging spreadsheet.'
+          echo 'The first-write harness is manual/staging-only, has no web route, refuses production before mutation, pins the bound script identity only after staging checks, and verifies one write plus an idempotent replay.'
           echo 'No V2 Apps Script patch is wired to production; Business Order ID allocation remains Apps Script-owned.'
           echo 'Production Cloud Write V1 remains OFF.'
