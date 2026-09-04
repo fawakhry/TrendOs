@@ -4,6 +4,10 @@ import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleEdgeOrdersReadRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1.mjs';
 import { guardEdgeOrdersPageRequest } from './edge-orders-freshness-gate.mjs';
+import {
+  fetchOrdersIdleHeartbeat,
+  ordersIdleHeartbeatVerifierEnabled
+} from './edge-orders-idle-verifier.mjs';
 import { handleCloudWriteRequest, isCloudWritePath } from './cloud-write-gate.mjs';
 import { handleNormalizedImportRequest, isNormalizedImportPath } from './normalized-import-gate.mjs';
 
@@ -14,8 +18,15 @@ export default {
 
     // Secure D1 Orders/Lines read lane. Before any business-row query, the
     // metadata-only guard rejects stale/unready raw mirrors back to Apps Script.
+    // Zero-idle logical freshness is explicitly opt-in; without the flag the
+    // previous strict D1 write-age behavior remains unchanged.
     if (isEdgeOrdersReadPath(path)) {
-      const blocked = await guardEdgeOrdersPageRequest(request, env);
+      const heartbeatOptions = ordersIdleHeartbeatVerifierEnabled(env)
+        ? {
+            verifyIdleSourceFreshness: async () => fetchOrdersIdleHeartbeat(env)
+          }
+        : {};
+      const blocked = await guardEdgeOrdersPageRequest(request, env, Date.now(), heartbeatOptions);
       if (blocked) return blocked;
       return handleEdgeOrdersReadRequest(request, env, ctx);
     }
