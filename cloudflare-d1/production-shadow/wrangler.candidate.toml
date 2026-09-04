@@ -1,0 +1,10 @@
+name = "trendos-d1-api-shadow-candidate-NO-DEPLOY"
+main = "./index.js"
+compatibility_date = "2026-08-27"
+workers_dev = false
+
+# Build/CI candidate only. This file is deliberately not the Production Worker config.
+# It has no D1 binding, no Apps Script URL, no migration directory, and both write/shadow flags are OFF.
+[vars]
+TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"
+TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "false"
