@@ -1,0 +1,31 @@
+name: TrendOS Edge Orders Read V1
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/cloudflare_edge_orders_read_v1.test.mjs'
+      - '.github/workflows/trendos-edge-orders-read-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-orders-read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Orders edge read unit contract
+        run: node tests/cloudflare_edge_orders_read_v1.test.mjs
+      - name: Existing edge regression
+        run: node tests/cloudflare_edge_gateway_v1.test.mjs
+      - name: Existing mirror regression
+        run: node tests/cloudflare_mirror_safety_v1.test.mjs
