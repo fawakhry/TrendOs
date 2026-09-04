@@ -1,0 +1,151 @@
+name: TrendOS Accounting F2 Runtime
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/accounting-finance-core-v1.mjs'
+      - 'cloudflare-d1/src/accounting-finance-safe-v1.mjs'
+      - 'cloudflare-d1/src/accounting-finance-api-v1.mjs'
+      - 'cloudflare-d1/src/accounting-native-module.mjs'
+      - 'tests/cloudflare_accounting_f2_finance_safe_v1.test.mjs'
+      - 'tests/cloudflare_accounting_f2_finance_api_v1.test.mjs'
+      - '.github/workflows/trendos-accounting-f2-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-f2-finance-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive expected native Accounting version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node - <<'NODE'
+          const fs = require('fs');
+          const src = fs.readFileSync('cloudflare-d1/src/accounting-native-module.mjs','utf8');
+          const m = src.match(/TRENDOS_ACCOUNTING_NATIVE_VERSION\s*=\s*['\"]([^'\"]+)['\"]/);
+          if (!m) process.exit(1);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          echo "EXPECTED_ACCOUNTING_NATIVE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Wait for exact F2 Preview source
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --output /tmp/f2-sync.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/integration" || true)"
+            if [ "$code" = '200' ] && EXPECTED_ACCOUNTING_NATIVE_VERSION="$EXPECTED_ACCOUNTING_NATIVE_VERSION" node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/f2-sync.json','utf8'));
+          if (x.version !== process.env.EXPECTED_ACCOUNTING_NATIVE_VERSION) process.exit(1);
+          if (!Array.isArray(x.financeEndpoints) || !x.financeEndpoints.some(v => String(v).includes('/v1/accounting/finance/plan'))) process.exit(1);
+          if (!x.sharedIdentity || x.sharedIdentity.treasuryKey !== 'Treasury ID / Cashbox ID') process.exit(1);
+          NODE
+            then
+              echo "F2_DEPLOYMENT_SYNC=PASS attempt=$attempt version=$EXPECTED_ACCOUNTING_NATIVE_VERSION"
+              exit 0
+            fi
+            sleep 4
+          done
+          cat /tmp/f2-sync.json 2>/dev/null || true
+          echo 'F2 Preview did not converge to the expected source.' >&2
+          exit 1
+
+      - name: Verify F2 metadata is planning-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/f2-meta.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/finance")"
+          cat /tmp/f2-meta.json
+          test "$code" = '200'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/f2-meta.json','utf8'));
+          if (!x.success || x.phase !== 'F2' || x.mode !== 'posting-plan-only') process.exit(1);
+          if (x.persisted !== false || x.authoritativeWrites !== false || x.persistence !== 'none') process.exit(1);
+          if (!x.treasuryIdentity || x.treasuryIdentity.requiredForTreasuryLegs !== true) process.exit(1);
+          if (x.commandTypeBridge['treasury.transfer'] !== 'treasury.post') process.exit(1);
+          console.log('F2_METADATA=PASS');
+          NODE
+
+      - name: Verify customer collection posting plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/f2-collection.json <<'JSON'
+          {"type":"customer.collect","idempotencyKey":"F2-RUNTIME-COLLECT-001","actorId":"ACCOUNTANT-RT","source":"trendos-accounting-runtime","occurredAt":"2026-09-05T01:30:00Z","documentId":"PAY-RT-1","customerId":"CUST-RT-1","cashboxId":"CASHBOX-MAIN","treasuryAccountCode":"1010","amount":100.25}
+          JSON
+          code="$(curl --silent --show-error --output /tmp/f2-collection-result.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @/tmp/f2-collection.json "$PREVIEW_URL/v1/accounting/finance/plan")"
+          cat /tmp/f2-collection-result.json
+          test "$code" = '200'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/f2-collection-result.json','utf8'));
+          if (!x.success || !x.valid || x.planningOnly !== true) process.exit(1);
+          if (x.persisted !== false || x.authoritativeWrites !== false || x.persistence !== 'none' || x.mutationExecuted !== false) process.exit(1);
+          if (!x.balance || !x.balance.balanced || x.balance.debitMinor !== 10025 || x.balance.creditMinor !== 10025) process.exit(1);
+          const cash = x.lines.find(v => v.accountCode === '1010');
+          const ar = x.lines.find(v => v.accountCode === '1100');
+          if (!cash || cash.treasuryId !== 'CASHBOX-MAIN') process.exit(1);
+          if (!ar || ar.partyId !== 'CUST-RT-1') process.exit(1);
+          console.log('F2_COLLECTION_PLAN=PASS');
+          NODE
+
+      - name: Verify missing Treasury ID fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/f2-no-treasury.json <<'JSON'
+          {"type":"customer.collect","idempotencyKey":"F2-RUNTIME-COLLECT-002","actorId":"ACCOUNTANT-RT","source":"trendos-accounting-runtime","occurredAt":"2026-09-05T01:30:00Z","documentId":"PAY-RT-2","customerId":"CUST-RT-2","amount":50}
+          JSON
+          code="$(curl --silent --show-error --output /tmp/f2-no-treasury-result.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @/tmp/f2-no-treasury.json "$PREVIEW_URL/v1/accounting/finance/plan")"
+          test "$code" = '422'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/f2-no-treasury-result.json','utf8'));
+          if (x.valid !== false || x.persisted !== false || x.persistence !== 'none') process.exit(1);
+          if (!x.errors.some(v => String(v).includes('treasuryId'))) process.exit(1);
+          console.log('F2_TREASURY_ID_GATE=PASS');
+          NODE
+
+      - name: Verify treasury transfer bridge and identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/f2-transfer.json <<'JSON'
+          {"type":"treasury.transfer","idempotencyKey":"F2-RUNTIME-TRANSFER-001","actorId":"ACCOUNTANT-RT","source":"trendos-accounting-runtime","occurredAt":"2026-09-05T01:30:00Z","documentId":"TRF-RT-1","fromAccountCode":"1010","toAccountCode":"1020","fromTreasuryId":"CASHBOX-MAIN","toTreasuryId":"BANK-CIB-01","amount":500}
+          JSON
+          code="$(curl --silent --show-error --output /tmp/f2-transfer-result.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @/tmp/f2-transfer.json "$PREVIEW_URL/v1/accounting/finance/plan")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/f2-transfer-result.json','utf8'));
+          if (!x.valid || !x.balance.balanced || x.persisted !== false) process.exit(1);
+          if (x.metadata.fromTreasuryId !== 'CASHBOX-MAIN' || x.metadata.toTreasuryId !== 'BANK-CIB-01') process.exit(1);
+          if (!x.lines.some(v => v.treasuryId === 'CASHBOX-MAIN') || !x.lines.some(v => v.treasuryId === 'BANK-CIB-01')) process.exit(1);
+          console.log('F2_TREASURY_TRANSFER=PASS');
+          NODE
+
+      - name: Verify F2 methods cannot become write routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          meta_post="$(curl --silent --show-error --output /tmp/f2-meta-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/finance")"
+          test "$meta_post" = '405'
+          plan_get="$(curl --silent --show-error --output /tmp/f2-plan-get.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/finance/plan")"
+          test "$plan_get" = '405'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/f2-plan-get.json','utf8')); if(x.authoritativeWrites!==false||x.persistence!=='none'){process.exit(1)}"
+          echo 'F2_METHOD_SAFETY=PASS'
+
+      - name: F2 runtime summary
+        run: |
+          echo 'PASS: F2 double-entry Finance planning is live on isolated Preview.'
+          echo 'PASS: Treasury/Party identity gates are active.'
+          echo 'PASS: persisted=false, authoritativeWrites=false, persistence=none.'
