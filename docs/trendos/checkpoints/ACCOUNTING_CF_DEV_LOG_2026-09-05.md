@@ -42,3 +42,46 @@ Implement `ACCT-CF-01`: an isolated TrendOS Accounting V0.1 Preview surface on t
 6. automated tests added before deployment.
 
 Do not change Production traffic, Apps Script deployment, Script Properties, source Sheets, D1 schema/migrations, or Cloud Write authority in ACCT-CF-01.
+
+---
+
+## STEP ACCT-CF-01A — Accounting V0.1 Preview implementation + safety test wiring — PASS / CI PENDING
+
+**Action**
+- Added `cloudflare-d1/src/accounting-preview.mjs`.
+- Added `/accounting` Arabic-first Preview UI and `/v1/accounting/health` authority/capability endpoint.
+- Wired the Accounting Preview route into `cloudflare-d1/src/index_v2.js` without redirecting or replacing any existing production/frontend route.
+- Extended existing `tests/cloudflare_preview_safety_v1.test.mjs` so the already-mandatory Preview safety test covers Accounting.
+
+**Implemented Preview capabilities**
+- Owner dashboard / financial pulse.
+- Sales with mandatory Order ID + Line ID and line-level revenue, recognized cost and profit.
+- Purchases and supplier balances.
+- Expenses with optional Order ID reference.
+- Derived cashbox view.
+- Generic items/inventory with Raw/Semi-finished/Finished/Service vocabulary in Arabic UI.
+- BOM lines and non-mutating recursive formation simulation with cycle detection and shortage output.
+- Customer receivables, supplier payables and sandbox income statement.
+- Local browser persistence only under `trendos.accounting.preview.v0.1`.
+
+**Safety contract**
+- Worker accepts GET only for Accounting Preview routes.
+- `/v1/accounting/health` declares `authoritativeWrites=false`, `writeAuthority=google-sheets-apps-script`, `sheetsAuthoritative=true`, `d1SchemaMutation=false`, `d1FinancialWrites=false`, `cutover=false`.
+- UI performs no remote `fetch()` calls; sandbox mutations use browser `localStorage` only.
+- No D1 migration, D1 write authority, Apps Script deployment, Script Property, Sheet data, production route, or Cloudflare production traffic was changed.
+
+**Evidence / commits**
+- Accounting module commit: `fc372bcd75b49cf637735126dce79abda4173dcd`.
+- Worker wiring commit: `cb677e0899838840f18b01814ceab6edcf0d6c93`.
+- Safety test commit: `a51e551a9fd0d04fe5008a9bda2af041ef75a15f`.
+- Local syntax check of the new standalone module: PASS (`node --check`).
+
+**Status**: PASS for implementation and test wiring; GitHub Actions / deployment runtime verification is PENDING.
+
+**Production impact**: NONE so far. Changes exist only on the working branch pending the isolated Preview workflow.
+
+**Rollback**
+Revert the three implementation commits above. No production rollback is required because no production cutover or authoritative write change occurred.
+
+**Exact next step**
+Observe the automatically triggered `TrendOS Cloudflare Auto Preview` workflow for head `a51e551a9fd0d04fe5008a9bda2af041ef75a15f` (or a later documentation head containing the same code). Require safety tests and deploy job PASS, then verify live `/v1/accounting/health` and `/accounting` on the isolated Preview Worker before declaring ACCT-CF-01 deployed.
