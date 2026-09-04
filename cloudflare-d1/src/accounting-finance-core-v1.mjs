@@ -5,7 +5,7 @@ import {
   validateStableId
 } from './accounting-foundation-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_FINANCE_CORE_VERSION = 'TRENDOS_ACCOUNTING_F2_FINANCE_CORE_V1_20260905';
+export const TRENDOS_ACCOUNTING_FINANCE_CORE_VERSION = 'TRENDOS_ACCOUNTING_F2_FINANCE_CORE_V1_1_20260905';
 
 export const ACCOUNT_TYPES = Object.freeze(['asset','liability','equity','revenue','expense']);
 
@@ -34,7 +34,31 @@ export const FINANCE_PLAN_TYPES = Object.freeze([
   'journal.reverse'
 ]);
 
+const TREASURY_ROLES = new Set(['cash-main','bank']);
+const FORBIDDEN_PROFIT_SHARE_KEYS = new Set([
+  'investorpercentage','partnerpercentage','profitsharepercentage','profitsharingpercentage',
+  'shareholderpercentage','investorshare','partnershare','profitshare','profitsharing'
+]);
+
 function text(value) { return String(value == null ? '' : value).trim(); }
+
+function normalizedKey(value) {
+  return text(value).toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, '');
+}
+
+function findForbiddenProfitShareFields(value, path = '') {
+  const found = [];
+  if (!value || typeof value !== 'object') return found;
+  for (const [key, nested] of Object.entries(value)) {
+    const keyNorm = normalizedKey(key);
+    const nextPath = path ? `${path}.${key}` : key;
+    if (FORBIDDEN_PROFIT_SHARE_KEYS.has(keyNorm) || /نسب.*(شريك|مستثمر)|حصة.*(شريك|مستثمر)/u.test(keyNorm)) {
+      found.push(nextPath);
+    }
+    if (nested && typeof nested === 'object') found.push(...findForbiddenProfitShareFields(nested, nextPath));
+  }
+  return found;
+}
 
 export function moneyToMinor(value) {
   if (typeof value === 'string' && !value.trim()) return null;
@@ -75,6 +99,11 @@ function account(code, errors, field = 'accountCode') {
   const found = CHART_OF_ACCOUNTS_V1[key];
   if (!found) errors.push(`${field} is not in Chart of Accounts V1`);
   return found || null;
+}
+
+function isTreasuryAccount(code) {
+  const found = CHART_OF_ACCOUNTS_V1[text(code)];
+  return !!(found && TREASURY_ROLES.has(found.role));
 }
 
 function dimensions(input = {}) {
@@ -144,6 +173,8 @@ function validateSharedCommand(command = {}) {
   const errors = [];
   if (!FINANCE_PLAN_TYPES.includes(text(command.type))) errors.push('unsupported finance plan type');
   if (text(command.currency || 'EGP').toUpperCase() !== 'EGP') errors.push('F2 currency must be EGP');
+  const forbidden = findForbiddenProfitShareFields(command);
+  if (forbidden.length) errors.push(`profit-sharing fields are forbidden in Accounting F2: ${forbidden.join(', ')}`);
   return errors;
 }
 
@@ -160,7 +191,7 @@ function salesInvoicePlan(command) {
     journalLine({ index: 1, accountCode: '1100', debitMinor: amountMinor, memo: 'فاتورة مبيعات - تحميل العميل', dims }),
     journalLine({ index: 2, accountCode: '4100', creditMinor: amountMinor, memo: 'إثبات إيراد المبيعات', dims })
   ] : [];
-  const plan = buildPlanEnvelope({ ...command, documentId }, lines, { partyType: 'customer', subledgerEffect: 'receivable-increase' });
+  const plan = buildPlanEnvelope({ ...command, documentId }, lines, { partyType: 'customer', subledgerEffect: 'receivable-increase', cogsPlanned: false });
   plan.errors = [...new Set([...errors, ...plan.errors])];
   plan.valid = plan.errors.length === 0 && plan.balance.balanced;
   plan.success = plan.valid;
@@ -174,9 +205,9 @@ function customerCollectionPlan(command) {
   const documentId = requiredId(command.documentId || command.paymentId, 'documentId', errors);
   const treasuryCode = text(command.treasuryAccountCode || '1010');
   account(treasuryCode, errors, 'treasuryAccountCode');
-  if (treasuryCode === '1100' || CHART_OF_ACCOUNTS_V1[treasuryCode]?.type !== 'asset') errors.push('treasuryAccountCode must be an asset treasury account');
+  if (!isTreasuryAccount(treasuryCode)) errors.push('treasuryAccountCode must be a cash/bank treasury account');
   const dims = { ...command, partyId, sourceDocumentId: documentId };
-  const lines = amountMinor && CHART_OF_ACCOUNTS_V1[treasuryCode] ? [
+  const lines = amountMinor && isTreasuryAccount(treasuryCode) ? [
     journalLine({ index: 1, accountCode: treasuryCode, debitMinor: amountMinor, memo: 'تحصيل من عميل', dims }),
     journalLine({ index: 2, accountCode: '1100', creditMinor: amountMinor, memo: 'تخفيض مديونية العميل', dims })
   ] : [];
@@ -216,9 +247,9 @@ function supplierPaymentPlan(command) {
   const documentId = requiredId(command.documentId || command.paymentId, 'documentId', errors);
   const treasuryCode = text(command.treasuryAccountCode || '1010');
   account(treasuryCode, errors, 'treasuryAccountCode');
-  if (treasuryCode === '1100' || CHART_OF_ACCOUNTS_V1[treasuryCode]?.type !== 'asset') errors.push('treasuryAccountCode must be an asset treasury account');
+  if (!isTreasuryAccount(treasuryCode)) errors.push('treasuryAccountCode must be a cash/bank treasury account');
   const dims = { ...command, partyId, sourceDocumentId: documentId };
-  const lines = amountMinor && CHART_OF_ACCOUNTS_V1[treasuryCode] ? [
+  const lines = amountMinor && isTreasuryAccount(treasuryCode) ? [
     journalLine({ index: 1, accountCode: '2100', debitMinor: amountMinor, memo: 'تخفيض مديونية المورد', dims }),
     journalLine({ index: 2, accountCode: treasuryCode, creditMinor: amountMinor, memo: 'سداد للمورد', dims })
   ] : [];
@@ -239,17 +270,17 @@ function expensePlan(command) {
   const paymentMode = text(command.paymentMode || 'cash').toLowerCase();
   if (!['cash','payable'].includes(paymentMode)) errors.push('paymentMode must be cash or payable');
   let creditCode = '';
-  let partyId = optionalId(command.partyId || command.supplierId, 'partyId', errors);
+  const partyId = optionalId(command.partyId || command.supplierId, 'partyId', errors);
   if (paymentMode === 'cash') {
     creditCode = text(command.treasuryAccountCode || '1010');
     account(creditCode, errors, 'treasuryAccountCode');
-    if (CHART_OF_ACCOUNTS_V1[creditCode]?.type !== 'asset') errors.push('treasuryAccountCode must be an asset account');
+    if (!isTreasuryAccount(creditCode)) errors.push('treasuryAccountCode must be a cash/bank treasury account');
   } else {
     creditCode = '2100';
     if (!partyId) errors.push('partyId/supplierId is required for payable expense');
   }
   const dims = { ...command, partyId, sourceDocumentId: documentId };
-  const lines = amountMinor && CHART_OF_ACCOUNTS_V1[expenseCode] && CHART_OF_ACCOUNTS_V1[creditCode] ? [
+  const lines = amountMinor && CHART_OF_ACCOUNTS_V1[expenseCode] && (paymentMode === 'payable' || isTreasuryAccount(creditCode)) ? [
     journalLine({ index: 1, accountCode: expenseCode, debitMinor: amountMinor, memo: 'إثبات مصروف', dims }),
     journalLine({ index: 2, accountCode: creditCode, creditMinor: amountMinor, memo: paymentMode === 'cash' ? 'سداد المصروف من الخزنة' : 'إثبات مستحق للمورد', dims })
   ] : [];
@@ -269,9 +300,9 @@ function treasuryTransferPlan(command) {
   account(fromCode, errors, 'fromAccountCode');
   account(toCode, errors, 'toAccountCode');
   if (fromCode === toCode && fromCode) errors.push('treasury transfer accounts must differ');
-  if (CHART_OF_ACCOUNTS_V1[fromCode]?.type !== 'asset' || CHART_OF_ACCOUNTS_V1[toCode]?.type !== 'asset') errors.push('treasury transfer accounts must both be asset accounts');
+  if (!isTreasuryAccount(fromCode) || !isTreasuryAccount(toCode)) errors.push('treasury transfer accounts must both be cash/bank treasury accounts');
   const dims = { ...command, sourceDocumentId: documentId };
-  const lines = amountMinor && CHART_OF_ACCOUNTS_V1[fromCode] && CHART_OF_ACCOUNTS_V1[toCode] ? [
+  const lines = amountMinor && isTreasuryAccount(fromCode) && isTreasuryAccount(toCode) ? [
     journalLine({ index: 1, accountCode: toCode, debitMinor: amountMinor, memo: 'تحويل خزنة - وارد', dims }),
     journalLine({ index: 2, accountCode: fromCode, creditMinor: amountMinor, memo: 'تحويل خزنة - صادر', dims })
   ] : [];
@@ -312,7 +343,7 @@ export function validateJournalPlan(plan = {}) {
 }
 
 export function reverseJournalPlan(original = {}, command = {}) {
-  const errors = [];
+  const errors = validateSharedCommand({ ...command, type: 'journal.reverse' });
   if (!original || !Array.isArray(original.lines) || !original.lines.length) errors.push('original journal plan is required');
   const originalValidation = validateJournalPlan(original);
   if (!originalValidation.valid) errors.push('original journal plan must be valid and balanced');
@@ -371,12 +402,15 @@ export function financeCoreMetadata() {
     currency: 'EGP',
     moneyPrecision: 'integer-piastres',
     planTypes: FINANCE_PLAN_TYPES,
+    treasuryAccountRoles: [...TREASURY_ROLES],
     chartOfAccounts: Object.values(CHART_OF_ACCOUNTS_V1),
     invariants: [
       'Every journal must balance debit == credit in integer minor units.',
       'Every posting plan carries an idempotency key and actor identity.',
       'Party/customer/supplier references use stable IDs, not names.',
       'Order ID + Line ID + Profit Center dimensions are retained on sales economics.',
+      'Only cash/bank Chart-of-Accounts roles may be used as treasury accounts.',
+      'Profit-sharing fields are forbidden in Accounting and remain in Profit Engine / Partner Network.',
       'COGS/stock consumption is not invented in F2 and remains F3/F4.',
       'Reversal is append-only debit/credit swap; original journal is never deleted.',
       'F2 produces plans only and grants no financial persistence authority.'
