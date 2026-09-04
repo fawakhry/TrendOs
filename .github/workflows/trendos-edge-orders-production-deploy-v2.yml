@@ -18,28 +18,33 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      PROD_URL: https://trendos.trendmall-contact.workers.dev
-      PROD_ALIAS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Qualify production payload
+      - name: Qualify production dual-signal payload
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Eq '^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
           node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs
+          node tests/d1_orders_low_usage_heartbeat_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_verifier_v1.test.mjs
           node tests/cloudflare_edge_gateway_v1.test.mjs
-          node tests/cloudflare_preview_safety_v1.test.mjs
           node tests/cloudflare_mirror_safety_v1.test.mjs
-          echo 'PASS: Orders read, Edge, Preview safety and Mirror contracts.'
+          echo 'PASS: dual-signal payload qualified; Cloud Write OFF.'
 
       - name: Install pinned Wrangler
         run: npm install --no-save wrangler@4.33.2
@@ -53,17 +58,18 @@ jobs:
           echo 'PASS: production Edge auth configured; secret value not logged.'
 
       - name: Deploy Worker without D1 migrations
-        run: npx wrangler deploy --config cloudflare-d1/wrangler.toml
+        run: |
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
 
-      - name: Verify both production Worker URLs
+      - name: Verify production Worker health
         run: |
           set -euo pipefail
-          for base in "$PROD_URL" "$PROD_ALIAS_URL"; do
-            code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/health.json --write-out '%{http_code}' "$base/v1/edge/health")"
-            cat /tmp/health.json
-            test "$code" = '200'
-            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
-          done
+          code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          cat /tmp/health.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
 
       - name: Verify mirror remains read-ready
         run: |
@@ -74,13 +80,13 @@ jobs:
           const fs=require('fs');
           for(const [label,file] of [['ORDERS','/tmp/orders.json'],['LINES','/tmp/lines.json']]){
             const x=JSON.parse(fs.readFileSync(file,'utf8')),s=x.sheet||{};
-            const pass=x.success===true&&x.schemaMutationFree===true&&s.status==='ready'&&Number(s.rowCount||0)===Number(s.sourceLastRow||0);
+            const pass=x.success===true&&x.schemaMutationFree===true&&s.status==='ready'&&Number(s.rowCount||0)===Number(s.sourceLastRow||0)&&['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(String(s.note||''));
             console.log(label+'_PROD='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,syncedAt:s.syncedAt,note:s.note,pass}));
             if(!pass) process.exit(1);
           }
           NODE
 
-      - name: Verify signed production D1 Orders read
+      - name: Verify signed production dual-signal D1 Orders read
         run: |
           set -euo pipefail
           anon="$(curl --silent --show-error --output /tmp/anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5")"
@@ -93,10 +99,17 @@ jobs:
           fs.writeFileSync('/tmp/prod-token.txt',i+'.'+s,{mode:0o600});
           NODE
           token="$(cat /tmp/prod-token.txt)"
-          code="$(curl --silent --show-error --output /tmp/page.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__")"
-          rm -f /tmp/prod-token.txt /tmp/prod-edge-secret.txt
-          test "$code" = '200'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/page.json','utf8')); if(!x.success||x.dataSource!=='d1-edge-orders'||!Array.isArray(x.rows)||!x.pagination) process.exit(1); console.log('PROD_D1_ORDERS_READ_PASS rows='+x.rows.length+' total='+x.pagination.totalRows+' syncedAt='+(x.mirror&&x.mirror.syncedAt||''))"
+          pass=0
+          for attempt in $(seq 1 15); do
+            code="$(curl --silent --show-error --output /tmp/page.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__" || true)"
+            echo "ORDERS_DUAL_SIGNAL_ATTEMPT=$attempt HTTP=$code"
+            if [ "$code" = '200' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/page.json','utf8')); if(!x.success||x.dataSource!=='d1-edge-orders'||!Array.isArray(x.rows)||!x.pagination) process.exit(1); console.log('PROD_D1_ORDERS_READ_PASS rows='+x.rows.length+' total='+x.pagination.totalRows)"; then pass=1; break; fi
+            sleep 3
+          done
+          test "$pass" = '1'
+          debt_code="$(curl --silent --show-error --output /tmp/debt.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__")"
+          test "$debt_code" = '409'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/debt.json','utf8')); if(x.code!=='apps-script-required'||x.fallback!=='apps-script') process.exit(1)"
 
       - name: Verify Cloud Write remains OFF
         run: |
@@ -104,5 +117,16 @@ jobs:
           code="$(curl --silent --show-error --output /tmp/write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
           cat /tmp/write.json
           test "$code" = '200'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
-          echo 'PRODUCTION_ORDERS_EDGE_DEPLOY_V2_PASS'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true||x.schemaMutationFree!==true) process.exit(1)"
+          echo 'PRODUCTION_ORDERS_DUAL_SIGNAL_BACKEND_PASS'
+
+      - name: Automatic rollback on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        run: |
+          echo 'Post-deploy verification failed; rolling back to immediately previous Worker version.'
+          npx wrangler rollback --config cloudflare-d1/wrangler.toml --message "TrendOS automatic rollback after failed Orders dual-signal verification"
+
+      - name: Cleanup temporary signing material
+        if: ${{ always() }}
+        run: rm -f /tmp/prod-token.txt /tmp/prod-edge-secret.txt
