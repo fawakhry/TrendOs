@@ -11,7 +11,7 @@
   ];
   let root,drawer,body,active='';
   function ensurePollCoordinator(){
-    if(window.TrendPollCoordinatorV1||document.getElementById('trendPollCoordinatorV1Script'))return;
+    if(window.TrendPollCoordinatorV1||document.getElementById('trendPollCoordinatorV1Loader')||document.getElementById('trendPollCoordinatorV1Script'))return;
     const s=document.createElement('script');
     s.id='trendPollCoordinatorV1Script';
     s.src='trendos-poll-coordinator-v1.js?v=20260904a';
