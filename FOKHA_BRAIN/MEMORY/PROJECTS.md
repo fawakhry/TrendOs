@@ -12,12 +12,12 @@
 - **Notes:** المظلة العليا فوق المشاريع؛ لا تستبدل ذاكرة أي مشروع أو Runtime Evidence.
 
 ## Trend Mall / TrendOS
-- **Role in Fokha:** Managed Project
-- **Status:** Active
-- **Objective:** تشغيل وإدارة مشروع ترند مول.
-- **Knowledge Source:** GitHub `fawakhry/TrendOs` -> `الصندوق الاسود.md` -> `docs/trendos/*` + code/runtime evidence.
-- **Next Milestone:** الاستمرار دائمًا من Latest Verified checkpoint وربط TrendOS داخل Fokha دون خلط ذاكرة المشروع بذاكرة فوخا العامة.
-- **Notes:** Project Black Box/Execution Ledger هما مرجع التنفيذ؛ Apps Script/Sheets أو أي سلطة تشغيلية حالية تُحسم بأحدث Evidence، لا بهذا الملف.
+- **Role in Fokha:** Managed Project / CURRENT TOP PRIORITY
+- **Status:** Active / Production Read Cutover Blocked by D1 Freshness
+- **Objective:** إنجاز TrendOS هو الأولوية التنفيذية الحالية لفوخا؛ الاستمرار من آخر Verified checkpoint بدون إعادة بدء أو تشتيت، مع حماية التشغيل الحالي.
+- **Knowledge Source:** GitHub `fawakhry/TrendOs` -> `الصندوق الاسود.md` -> `docs/trendos/TRENDOS_EXECUTION_LEDGER.md` -> latest checkpoint/runtime evidence.
+- **Next Milestone:** `PERF-CF-02D`: استعادة/التحقق من `d1OrdersLiveSyncTick` بحيث Orders + Lines يتقدمان ذريًا، ثم إضافة `D1_Normalized_Live_Sync.gs` فقط إلى مشروع Apps Script عند توفر مسار source-capable، وإعادة Preview qualification. لا read cutover قبل ثبات freshness <=180s للأوردرات/البنود والكيانات normalized عبر أكثر من observation window.
+- **Notes:** Owner priority confirmed 2026-09-04. آخر checkpoint متحقق: Edge/Auth/Safety/Cloud Write rollback/latency = PASS؛ production-fed D1 freshness = FAIL/BLOCKER؛ Orders mirror توقف عند `2026-09-04 00:27:55` في آخر دليل؛ normalized live sync prepared/tested but not production-installed؛ لا read/write cutover؛ Google Sheets + Apps Script ما زالا سلطة الكتابة. توجد متابعة دورية للصندوق الأسود للتغييرات المهمة.
 
 ## Matbagy Design Workflow
 - **Role in Fokha:** Managed Project / Design Memory
