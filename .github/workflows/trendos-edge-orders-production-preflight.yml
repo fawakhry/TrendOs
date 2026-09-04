@@ -52,3 +52,5 @@ jobs:
           else
             echo 'PRODUCTION_ORDERS_EDGE_ALREADY_PRESENT=false'
           fi
+
+# Rerun marker: dual-signal Preview qualified; production preflight is GET-only, 2026-09-04.
