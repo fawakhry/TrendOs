@@ -167,6 +167,60 @@ Operating consequence:
 - التطوير والاختبار يمكن أن يتم من GitHub إلى Preview، لكن Production traffic cutover يظل Gate منفصل يحتاج Worker health + D1 parity/freshness + authentication + Apps Script fallback + rollback evidence.
 - هذا القرار لا يغيّر D-006: Google Sheets/Apps Script يظلان سلطة الكتابة الحالية إلى أن يعتمد Cutover منفصل للكتابة.
 
+## D-022 — Matbagy shared ChatGPT + Gemini AI room
+**Type:** User-approved architecture direction  
+**Status:** ACTIVE ARCHITECTURE / NOT YET IMPLEMENTED OR PRODUCTION-VERIFIED
+
+اعتمد المستخدم اتجاه إنشاء غرفة واحدة داخل منصة مطبعجي تضم ثلاثة أطراف في نفس السياق:
+
+- المستخدم / Owner.
+- ChatGPT.
+- Gemini.
+
+منصة مطبعجي تكون الـ`AI Orchestrator` والوسيط بين الأطراف، وليس المطلوب اتصالًا مباشرًا غير مضبوط بين النموذجين.
+
+Roles:
+- ChatGPT = `Design Orchestrator + Memory Manager + Workflow Planner + Final Synthesizer`.
+- Gemini = `Visual Intelligence + Design Reviewer + Reference Comparator`.
+- User = final approver and active third party in the room.
+
+Target modes:
+- `@GPT`
+- `@Gemini`
+- `@الكل` / `BOOM MODE`
+
+Default BOOM flow:
+
+`User -> ChatGPT -> Gemini when visual review adds value -> ChatGPT synthesis -> User`
+
+Anti-loop rule:
+- default maximum `3` AI-to-AI turns per user request before returning control to the user or producing a synthesis.
+
+Shared design memory:
+- GitHub `fawakhry/Matbagy-Design-Workflow` / صندوق مطبعجي.
+- Google Drive assets linked through `Case ID -> Asset ID -> Google Drive File ID`.
+- ChatGPT and Gemini must not create competing sources of truth.
+
+TrendOS boundary:
+- D-012 remains active.
+- live Order/Payment/Production/Inventory/Delivery facts come from TrendOS source-of-truth/connectors, not AI memory.
+- D-006 remains unchanged; Apps Script + Sheets remain current authoritative writes.
+
+Security:
+- OpenAI/Gemini API keys remain server-side only.
+- no API keys in frontend/browser or prompt history.
+- no secrets passed between agents.
+
+Target infrastructure:
+
+`Matbagy UI -> Matbagy AI Orchestrator -> OpenAI API + Gemini API -> Matbagy design memory + Google Drive assets`
+
+Cloudflare is a possible future host for the Orchestrator, but this direction does not constitute implementation, deployment, production cutover, or runtime verification.
+
+Canonical architecture detail:
+
+`docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md`
+
 ## Needs reconciliation
 
 1. Exact production Apps Script source/version content behind historical deployment Version 138.
