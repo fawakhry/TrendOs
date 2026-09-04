@@ -13,6 +13,8 @@
 | SRC-006 | GitHub | Architecture + Code | `TRENDOS_ARCHITECTURE.md` + integrity code + `config.js` | Trend Mall / TrendOS | THINKING_MODEL / implementation evidence | Implementation evidence | Active |
 | SRC-007 | GitHub | Knowledge Architecture | `docs/trendos/MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md` | Matbagy / TrendOS | Learning rules / cross-system linkage | Approved architecture | Active |
 | SRC-008 | Future Fokha GitHub | Canonical Executive Memory | `fawakhry/Fokha` (to be created) | Fokha | Long-term executive brain | Future canonical Fokha memory | Pending |
+| SRC-20260904-MATBAGY-DESIGN-MEMORY | GitHub | Canonical Design Memory | `fawakhry/Matbagy-Design-Workflow@agent/initial-mvp -> صندوق_مطبعجي.md` | Matbagy Design Memory | Cases / Rules / Rooms / Knowledge / Routing | Canonical design-memory source | Active |
+| SRC-20260904-MATBAGY-DRIVE | Google Drive | Private Asset Storage | `مشروع مطبعجي - Matbagy Project/01_Design_Cases` | Matbagy Design Memory | Customer images / design assets / case files | Official asset storage; Drive File ID is binding evidence | Active |
 
 ## Authority notes
 
@@ -21,3 +23,4 @@
 - Project black box = canonical project truth for that project.
 - Code = implementation evidence, not necessarily current runtime truth.
 - Runtime evidence outranks code or plans when current operational truth is being decided.
+- صندوق مطبعجي الرسمي لا يُستبدل بـ`fawakhry/Matbagy` ولا بـ`TrendOs/FOKHA_BRAIN`.
