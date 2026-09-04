@@ -7,8 +7,12 @@ on:
     paths:
       - 'cloudflare-d1/src/accounting-native-module.mjs'
       - 'cloudflare-d1/src/accounting-preview.mjs'
+      - 'cloudflare-d1/src/accounting-capabilities-v1.mjs'
+      - 'cloudflare-d1/src/accounting-contract-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_accounting_native_v1.test.mjs'
+      - 'tests/cloudflare_accounting_contract_v1.test.mjs'
+      - 'tests/cloudflare_preview_safety_v1.test.mjs'
       - '.github/workflows/trendos-accounting-native-ci.yml'
   workflow_dispatch:
 
@@ -26,8 +30,13 @@ jobs:
           node-version: '22'
       - name: Syntax checks
         run: |
+          node --check cloudflare-d1/src/accounting-contract-v1.mjs
           node --check cloudflare-d1/src/accounting-native-module.mjs
           node --check cloudflare-d1/src/accounting-preview.mjs
           node --check cloudflare-d1/src/index_v2.js
-      - name: Native module contract tests
+      - name: Native module tests
         run: node tests/cloudflare_accounting_native_v1.test.mjs
+      - name: Accounting V1 contract tests
+        run: node tests/cloudflare_accounting_contract_v1.test.mjs
+      - name: Preview zero-write safety gate
+        run: node tests/cloudflare_preview_safety_v1.test.mjs
