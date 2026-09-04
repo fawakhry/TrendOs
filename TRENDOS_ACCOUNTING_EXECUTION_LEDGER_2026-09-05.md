@@ -87,15 +87,31 @@ ACC-EXEC-001 through ACC-EXEC-006 now have executable CI proof on the working br
 
 ---
 
-## ACC-EXEC-009 — STARTED / MATERIAL STEP RECORDED BEFORE ADAPTER CODE
+## ACC-EXEC-009 — IMPLEMENTED / REGRESSION COVERAGE NEXT
+Pre-adapter record was committed before code in `9a33a630bcf0353587f8b6fec07592d113cf4e4c`.
 
-Next safe slice: implement a reference in-memory persistence adapter for the new transaction contract before touching any real D1/Sheets binding.
+Created `accounting/memory-persistence-adapter-v1.js`.
+Code commit: `a822fee7dc1db6190aa4cf9d5b879f8afcf32c1b`.
 
-Purpose:
-- prove the adapter semantics for `NEW`, safe `REPLAY`, and conflict without external side effects;
-- apply an entire persistence intent atomically in memory (all operations + one immutable final decision or none);
-- reject duplicate operation IDs and partial commits;
-- make stored decisions append-only/immutable;
-- provide an executable reference contract that a future D1 adapter must match.
+Reference semantics implemented:
+- reads existing immutable final decision by Event-ID idempotency key;
+- delegates replay/conflict classification to `transaction-contract-v1`;
+- stages all operations and final decision in temporary in-memory state before state swap;
+- successful commit swaps all staged state atomically;
+- safe replay returns prior result without duplicating operations;
+- operation-ID collisions and duplicate IDs inside one transaction are rejected;
+- deterministic fault injection can abort after staging but before commit, proving no partial state is visible;
+- adapter remains in-process only with zero external persistence or production writes.
 
-This reference adapter is test-only/in-process persistence and does not modify D1, Google Sheets, cashbox, live stock or production.
+---
+
+## ACC-EXEC-010 — STARTED / MATERIAL STEP RECORDED BEFORE ADAPTER TEST CODE
+Add regression coverage for the reference adapter before considering any real persistence binding.
+
+Required checks:
+- first valid plan commits exactly once;
+- exact replay performs zero additional writes;
+- conflicting Event ID payload is rejected;
+- simulated abort after staging leaves store completely unchanged;
+- failed business decision persists one final idempotency decision with zero operations;
+- operation-ID collision from a different transaction is rejected without partial state.
