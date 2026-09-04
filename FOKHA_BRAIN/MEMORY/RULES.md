@@ -23,6 +23,7 @@
 | RULE-015 | في تجهيزات الطباعة والقص: المقاس المطلوب يجب أن يكون دقيقًا، وعند طلب خلفية بيضاء أو استروك أسود مغلق وواضح يتم اعتبارهما قيود إنتاج لا زينة اختيارية. | Repeated print/design conversations | Matbagy Design / Print Production | High | 2026-09-04 |
 | RULE-016 | في صندوق مطبعجي: الحفظ بعد الاستخراج تلقائي ولا يحتاج Human Approval Gate؛ روابط Google Drive تعرض بعد الحفظ للتحقق الاختياري. حفظ الذاكرة لا يساوي اعتماد التصميم النهائي ولا أمر تنفيذ. | User decision 2026-09-04 / Matbagy Auto-Persistence | Matbagy / Memory Ingestion | High | 2026-09-04 |
 | RULE-017 | TrendOS هو الأولوية التنفيذية الحالية لفوخا حتى إنجاز المشروع؛ قبل أي تخطيط أو تنفيذ أو سؤال عن الأولويات، حدّث السياق من `fawakhry/TrendOs -> الصندوق الاسود.md` واتبع Latest Verified checkpoint / Execution Ledger، ولا تعتمد على ذاكرة قديمة إذا كان المصدر الحالي متاحًا. | Explicit user direction 2026-09-04 + TrendOS black box operating contract | Fokha / Current Executive Priority / TrendOS | High | 2026-09-04 |
+| RULE-018 | في TrendOS، لا توقف التنفيذ انتظارًا للمستخدم في القرارات التشغيلية الصغيرة إذا كانت الخطوة واضحة من الأدلة، منخفضة المخاطر، قابلة للرجوع، وتحافظ على Source of Truth والصلاحيات والـrollback؛ شخّص التوقف واستأنف تلقائيًا متى أمكن، وارفع للمستخدم فقط القرارات الجوهرية أو غير القابلة للرجوع. | Explicit user delegation 2026-09-04 / DEC-20260904-004 | Fokha / TrendOS Executive Delegation | High | 2026-09-04 |
 | RULE-20260904-MATBAGY-ROUTING-001 | عند وجود أكثر من Repository متشابه الاسم، لا يعتمد الـAI على التخمين أو default branch؛ يجب استخدام Repository + Branch + Entry Point الموثقة للمشروع، وأي Repo بديل يعمل Redirect فقط ولا يستقبل ذاكرة المشروع. | Matbagy repository-routing incident and fix | Fokha / Project Routing | High | 2026-09-04 |
 | RULE-20260904-ACCOUNTING-001 | لا يتم ربط Operations وAccounting باسم العميل أو الهاتف؛ Order ID هو مرجع الأوردر وLine ID مرجع البند، والربحية التفصيلية تبدأ من Line-level. | TrendOS Accounting integration decision | Trend Mall / TrendOS Accounting | High | 2026-09-04 |
 | RULE-20260904-ACCOUNTING-002 | Accounting يحتفظ بالحقائق المالية والتكلفة والربحية؛ Profit Engine يحتفظ بقواعد ونسب توزيع الأرباح والعمولات والشركاء والمستثمرين وأصحاب الماكينات. | TrendOS Accounting architecture decision | Trend Mall / TrendOS Accounting | High | 2026-09-04 |
@@ -32,5 +33,6 @@
 
 - القواعد العامة توجه التحليل والاقتراحات، لكنها لا تلغي Project-specific rules.
 - Project-specific rules لا تُعمم تلقائيًا إلى Fokha Global.
+- التفويض التنفيذي في RULE-018 لا يسمح بتجاوز الصلاحيات أو Source of Truth أو تنفيذ قرار جوهري غير قابل للرجوع بدون موافقة.
 - عند التعارض مع مصدر أحدث متحقق، يتم تسجيل supersede بدل حذف التاريخ.
 - لا يتم تحويل استنتاج AI جديد إلى Rule ثابت بدون Evidence كافٍ.
