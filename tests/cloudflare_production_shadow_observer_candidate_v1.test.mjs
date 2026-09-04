@@ -34,7 +34,7 @@ assert.match(candidateEntry, /\.\.\/src\/index_v2\.js/);
 assert.doesNotMatch(productionEntry, /production-shadow\/observer/);
 assert.doesNotMatch(productionEntry, /cloud-write-order-v2-production-shadow/);
 
-assert.match(candidateConfig, /name\s*=\s*"trendos-d1-api-shadow-candidate-NO-DEPLOY"/);
+assert.match(candidateConfig, /name\s*=\s*"trendos-d1-api-shadow-candidate-no-deploy"/);
 assert.match(candidateConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/);
 assert.match(candidateConfig, /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED\s*=\s*"false"/);
 assert.doesNotMatch(candidateConfig, /\[\[d1_databases\]\]/);
