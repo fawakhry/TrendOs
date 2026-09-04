@@ -6,7 +6,9 @@ on:
       - agent/go-live-2026-09-01-integrity
     paths:
       - 'apps-script/patches/CLOUD_WRITE_RECONCILE_DRYRUN_V1.gs'
+      - 'apps-script/patches/CLOUD_WRITE_RECONCILE_AUTH_SELFTEST_V1.gs'
       - 'tests/apps_script_cloud_write_reconcile_dryrun_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_auth_selftest_v1.test.mjs'
       - '.github/workflows/trendos-apps-script-cloud-write-dryrun.yml'
   workflow_dispatch:
 
@@ -26,9 +28,12 @@ jobs:
           node-version: '22'
       - name: Verify reconciliation dry-run is mutation-free and staging-only
         run: node tests/apps_script_cloud_write_reconcile_dryrun_v1.test.mjs
+      - name: Verify authenticated self-test keeps secret internal and remains read-only
+        run: node tests/apps_script_cloud_write_auth_selftest_v1.test.mjs
       - name: Safety conclusion
         run: |
           echo 'PASS: Apps Script reconciliation contract is dry-run/read-only only.'
-          echo 'PASS: no Sheet mutation API, network write, Drive write, or header creation is present in the patch.'
+          echo 'PASS: authenticated self-test reads the secret internally, never logs/returns it, and uses CW-STAGE-* only.'
+          echo 'PASS: no Sheet mutation API, network write, Drive write, Script Property mutation, or header creation is present.'
           echo 'PASS: runtime guards require dryRun=true, configured secret, CW-STAGE-* entity IDs, payload identity, and compatible Orders schema.'
-          echo 'This workflow does not deploy Apps Script and does not mutate Google Sheets or Production Cloud Write.'
+          echo 'This workflow does not deploy Apps Script and does not mutate Google Sheets, D1, or Production Cloud Write.'
