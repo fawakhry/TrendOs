@@ -16,40 +16,30 @@ This file is an executable continuation of the TrendOS Accounting black box. Eve
 ---
 
 ## ACC-EXEC-001 — IMPLEMENTED / EXECUTION CHECK PENDING
-
 Created the first isolated Accounting domain core in `accounting/domain-core-v1.js`. It contains stable ID validation, generic item/BOM normalization, recursive formation planning, cycle detection, shortage evaluation and recognized-cost rollup. No external writes are performed.
-
 Initial code commit: `057424738210955ef29d9330654f24aaeb8d9cef`.
 
 ---
 
 ## ACC-EXEC-002 — IMPLEMENTED / EXECUTION CHECK PENDING
-
 Created `accounting/domain-core-v1.test.js` in commit `725d0a060891cd20bf66f6347280f98b6c520356` with coverage for ID normalization, Line/Order mismatch, recursive BOM, intermediate stock, cycles, shortages/no mutation, and recognized cost.
-
 Local test execution was attempted, but the runtime could not resolve `github.com`, so the repository could not be cloned into the execution container. This is an environment/network limitation, not a product blocker. Static review continues instead of stopping.
 
 ---
 
 ## ACC-EXEC-003 — IMPLEMENTED / EXECUTION CHECK PENDING
-
 Static review found that shared intermediate inventory could be allocated more than once across independent recursive BOM branches.
-
 Correction completed in commit `a66cf6070fecc26fa1300314598a56fd373f3c08`:
 - internal stock reservation ledger added
 - caller stock remains immutable
 - each available intermediate unit can be reserved only once across the full expansion
-
 Regression test added in commit `6c40b072ae11ddd335f754b36b9129fb0054bfda` using two branches that both require the same semi-finished component while only one unit is available.
 
 ---
 
 ## ACC-EXEC-004 — IMPLEMENTED / EXECUTION CHECK PENDING
-
 Extended the domain core with deterministic, audit-ready formation movement planning.
-
 Code commit: `75a595a806e71f38c5ef6925d81a18ee8abbd343`.
-
 Implemented:
 - stable `eventId`, Order ID, Line ID and source transaction validation
 - shortage gate: failed formation returns zero planned stock mutations
@@ -59,80 +49,53 @@ Implemented:
 - deterministic movement/idempotency keys derived from event + sequence + item
 - recognized cost carried through to the movement plan
 - still pure planning only: no Google Sheets, D1, cashbox or live inventory mutation
-
 Regression coverage commit: `9813cc30e74cbff9a798e5aafa727024b8124c85`.
-
-Added tests for:
-- identical input event => identical movement plan
-- successful formation => requirements consumption + final output
-- all movements preserve Order ID and Line ID
-- shortage => zero movements
-
-### Current verification state
-Executable Node verification is still pending only because this runtime cannot resolve GitHub to clone the branch locally. No user decision or production permission is required for the next isolated development slice.
-
-### Next safe continuation
-Before adding any persistence adapter, implement the Accounting transaction/idempotency contract as a pure store-independent layer so a future Google Sheets/database adapter can atomically claim an event, persist all planned movements, and safely replay without duplication.
+Added tests for identical replay plans, linked IDs, successful movements and shortage zero-mutation behavior.
 
 ---
 
-## ACC-EXEC-005 — IMPLEMENTED / REGRESSION COVERAGE NEXT
-
-Pre-step record was committed before code in `264d129a22d59bed4dcb3868583c7a8bcec8cb89`.
-
+## ACC-EXEC-005 — IMPLEMENTED
+Pre-step record commit: `264d129a22d59bed4dcb3868583c7a8bcec8cb89`.
 Implemented pure store-independent contract in `accounting/transaction-contract-v1.js`.
-
 Code commit: `c563c81389a6eab233ce26668a5efed794de1722`.
-
-Implemented invariants:
-- Event ID is the idempotency key.
-- canonical event payload contains stable Order ID, Line ID, source transaction, event type/version, item and quantity.
-- deterministic canonical JSON + payload fingerprint for replay conflict detection.
-- deterministic transaction, decision and operation IDs.
-- successful formation maps deterministic movement plan into append-only stock-movement operations and final `completed` decision.
-- shortage maps to final `failed` decision with zero operations.
-- same key/same fingerprint can be classified as replay.
-- same key/different fingerprint throws a hard `IDEMPOTENCY_KEY_REUSE_CONFLICT`.
-- `persistenceIntent()` expresses one atomic append-only persistence unit without implementing a store.
-- no live/persistent mutation introduced.
-
-The implementation intentionally follows the already-documented append-only persistence correction: there is no mutable `claimed -> completed` state.
+Implemented Event-ID idempotency, canonical payload fingerprinting, deterministic transaction/decision/operation IDs, completed/failed immutable decisions, replay classification, hard conflicting-key rejection, and append-only atomic persistence intent. No live mutation introduced.
+The contract follows the existing append-only persistence correction and does not use a mutable `claimed -> completed` lifecycle.
 
 ---
 
-## ACC-EXEC-006 — IMPLEMENTED / EXECUTABLE VERIFICATION NEXT
-
-Pre-test record was committed before test code in `07f5bcea4a59653504603b3c6fef59d9887bfac6`.
-
-Regression test file created: `accounting/transaction-contract-v1.test.js`.
-
-Test code commit: `f80085405dc2a0033ac9f76ef508e0e5bc6cbbac`.
-
-Coverage added for:
-- canonical key-order stability.
-- identical event => identical transaction plan.
-- completed formation => deterministic append operations.
-- shortage => failed final decision with zero operations.
-- same event/same canonical payload => replay, including changed runtime stock.
-- same event/different canonical payload => hard idempotency conflict.
-- persistence intent => atomic + append-only final decision and operations.
+## ACC-EXEC-006 — IMPLEMENTED
+Pre-test record commit: `07f5bcea4a59653504603b3c6fef59d9887bfac6`.
+Created `accounting/transaction-contract-v1.test.js` in commit `f80085405dc2a0033ac9f76ef508e0e5bc6cbbac` covering deterministic plans, failed zero-operation decisions, safe replay, conflicting payload reuse, canonical fingerprint stability and atomic append-only persistence intent.
 
 ---
 
-## ACC-EXEC-007 — VERIFICATION GAP IDENTIFIED / NO USER BLOCKER
-
-Direct runtime clone was attempted after the pre-verification ledger record, but DNS still cannot resolve `github.com`; therefore local Node execution remains unavailable in this container.
-
-GitHub Actions did run successfully for commit `f80085405dc2a0033ac9f76ef508e0e5bc6cbbac`, proving the branch's existing Integrity V1 suite is green. However, review of `.github/workflows/trendos-integrity-v1.yml` found that the new isolated `accounting/*.test.js` suites are not currently executed by that workflow. A green existing workflow therefore cannot be treated as executable proof for ACC-EXEC-001..006.
-
-This is a CI coverage gap, not a user-dependent blocker.
+## ACC-EXEC-007 — VERIFICATION GAP RESOLVED
+Direct container clone still fails because runtime DNS cannot resolve `github.com`. Review showed the existing Integrity workflow was green but did not execute the new Accounting suites, so it could not be used as proof.
 
 ---
 
-## ACC-EXEC-008 — STARTED / MATERIAL STEP RECORDED BEFORE CI WORKFLOW CHANGE
+## ACC-EXEC-008 — IMPLEMENTED / EXECUTABLE PASS
+Pre-CI-change record commit: `e2d77822c4443d02bda08c71afabdeefd8ab687c`.
+Updated `.github/workflows/trendos-integrity-v1.yml` in commit `25cb07fdd29f4ba466a96fcdf9a6eeacdbe35282` to execute both isolated Accounting suites and include Accounting paths in PR filtering.
 
-Extend the existing branch Integrity V1 GitHub Actions workflow so it explicitly executes:
-- `node accounting/domain-core-v1.test.js`
-- `node accounting/transaction-contract-v1.test.js`
+GitHub Actions run `33929116835`, job `101203913655`, completed successfully. Both explicit steps passed:
+- `Run TrendOS Accounting domain-core-v1 tests` — success
+- `Run TrendOS Accounting transaction-contract-v1 tests` — success
+The full existing integrity job also remained green.
 
-Also include the Accounting source/test paths in the pull-request path filter. This creates a repeatable executable gate for the isolated Accounting domain and transaction contract without touching production runtime or D1.
+ACC-EXEC-001 through ACC-EXEC-006 now have executable CI proof on the working branch.
+
+---
+
+## ACC-EXEC-009 — STARTED / MATERIAL STEP RECORDED BEFORE ADAPTER CODE
+
+Next safe slice: implement a reference in-memory persistence adapter for the new transaction contract before touching any real D1/Sheets binding.
+
+Purpose:
+- prove the adapter semantics for `NEW`, safe `REPLAY`, and conflict without external side effects;
+- apply an entire persistence intent atomically in memory (all operations + one immutable final decision or none);
+- reject duplicate operation IDs and partial commits;
+- make stored decisions append-only/immutable;
+- provide an executable reference contract that a future D1 adapter must match.
+
+This reference adapter is test-only/in-process persistence and does not modify D1, Google Sheets, cashbox, live stock or production.
