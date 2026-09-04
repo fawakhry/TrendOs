@@ -1,4 +1,4 @@
-export const TRENDOS_ACCOUNTING_CAPABILITIES_VERSION = 'TRENDOS_ACCOUNTING_CAPABILITIES_V1_1_20260905';
+export const TRENDOS_ACCOUNTING_CAPABILITIES_VERSION = 'TRENDOS_ACCOUNTING_CAPABILITIES_V1_2_20260905';
 
 export const ACCOUNTING_CAPABILITIES = Object.freeze([
   { id: 'dashboard', label: 'Dashboard', source: 'TrendOS native', phase: 1, status: 'shell-ready' },
@@ -10,9 +10,9 @@ export const ACCOUNTING_CAPABILITIES = Object.freeze([
   { id: 'supplier-payments', label: 'Supplier Payments', source: 'EasyStore historical TrendOS baseline', phase: 2, status: 'planned-port' },
   { id: 'expenses', label: 'Expenses', source: 'TrendOS requirement + legacy accounting behavior', phase: 4, status: 'planned-port' },
   { id: 'treasury', label: 'Treasury / Cashboxes', source: 'EasyStore historical TrendOS baseline', phase: 2, status: 'planned-port' },
-  { id: 'customers', label: 'Customers / Party Ledger', source: 'TrendOS + EasyStore historical baseline', phase: 1, status: 'contract-first' },
-  { id: 'suppliers', label: 'Suppliers / Party Ledger', source: 'EasyStore historical TrendOS baseline', phase: 1, status: 'contract-first' },
-  { id: 'items-materials', label: 'Items / Materials', source: 'TrendOS + EasyStore historical baseline', phase: 1, status: 'contract-first' },
+  { id: 'customers', label: 'Customers / Party Ledger', source: 'TrendOS + EasyStore historical baseline', phase: 1, status: 'foundation-ready' },
+  { id: 'suppliers', label: 'Suppliers / Party Ledger', source: 'EasyStore historical TrendOS baseline', phase: 1, status: 'foundation-ready' },
+  { id: 'items-materials', label: 'Items / Materials', source: 'TrendOS + EasyStore historical baseline', phase: 1, status: 'foundation-ready' },
   { id: 'inventory', label: 'Inventory / Stock Movements', source: 'EasyStore historical TrendOS baseline', phase: 3, status: 'planned-port' },
   { id: 'bom', label: 'BOM / Product Formation', source: 'EasyStore historical TrendOS baseline', phase: 3, status: 'planned-port' },
   { id: 'cogs', label: 'Cost Recognition / COGS', source: 'TrendOS requirement + EasyStore actual-cost logic', phase: 3, status: 'planned-port' },
@@ -20,11 +20,11 @@ export const ACCOUNTING_CAPABILITIES = Object.freeze([
   { id: 'custody', label: 'Custody / Advances / Settlement', source: 'EasyStore historical TrendOS baseline', phase: 5, status: 'planned-port' },
   { id: 'day-close', label: 'Department Day Close', source: 'EasyStore historical TrendOS baseline', phase: 5, status: 'planned-port' },
   { id: 'waste-adjustments', label: 'Waste / Adjustments / Reversals', source: 'EasyStore historical TrendOS baseline', phase: 5, status: 'planned-port' },
-  { id: 'line-profit', label: 'Line Profit + Profit Center', source: 'TrendOS canonical requirement + EasyStore actual-cost seed', phase: 4, status: 'contract-first' },
+  { id: 'line-profit', label: 'Line Profit + Profit Center', source: 'TrendOS canonical requirement + EasyStore actual-cost seed', phase: 4, status: 'foundation-ready' },
   { id: 'reports', label: 'Management Reports', source: 'EasyStore historical TrendOS baseline', phase: 6, status: 'planned-port' },
-  { id: 'audit', label: 'Audit Log', source: 'EasyStore historical TrendOS baseline', phase: 1, status: 'contract-first' },
-  { id: 'health', label: 'Health / Integrity', source: 'EasyStore historical baseline + TrendOS Integrity', phase: 1, status: 'contract-first' },
-  { id: 'permissions', label: 'Settings / Shared RBAC', source: 'TrendOS shared platform replacing EasyStore name-based authorization', phase: 1, status: 'contract-first' }
+  { id: 'audit', label: 'Audit Log', source: 'EasyStore historical TrendOS baseline', phase: 1, status: 'foundation-ready' },
+  { id: 'health', label: 'Health / Integrity', source: 'EasyStore historical baseline + TrendOS Integrity', phase: 1, status: 'foundation-ready' },
+  { id: 'permissions', label: 'Settings / Shared RBAC', source: 'TrendOS shared platform replacing EasyStore name-based authorization', phase: 1, status: 'foundation-ready' }
 ]);
 
 export const ACCOUNTING_ID_CONTRACTS = Object.freeze({
@@ -51,6 +51,13 @@ export function accountingCapabilitiesPayload() {
     easyStoreRole: 'historical-working-trendos-accounting-baseline',
     authoritativeWrites: false,
     migrationStrategy: 'preserve-verified-behavior-capability-by-capability',
+    foundation: {
+      phase: 'F1',
+      status: 'implemented-and-ci-verified',
+      financialMutationAuthority: false,
+      operationsRead: 'authenticated-read-only',
+      legacyAdminBridge: 'read-audit-only'
+    },
     capabilities: ACCOUNTING_CAPABILITIES,
     idContracts: ACCOUNTING_ID_CONTRACTS,
     nonNegotiables: [
