@@ -105,13 +105,23 @@ Reference semantics implemented:
 
 ---
 
-## ACC-EXEC-010 — STARTED / MATERIAL STEP RECORDED BEFORE ADAPTER TEST CODE
-Add regression coverage for the reference adapter before considering any real persistence binding.
+## ACC-EXEC-010 — IMPLEMENTED / CI VERIFICATION NEXT
+Pre-test record was committed before adapter test code in `e7bbd03964784da06b2c97dd9b7df26c3f68792b`.
 
-Required checks:
-- first valid plan commits exactly once;
-- exact replay performs zero additional writes;
-- conflicting Event ID payload is rejected;
-- simulated abort after staging leaves store completely unchanged;
-- failed business decision persists one final idempotency decision with zero operations;
-- operation-ID collision from a different transaction is rejected without partial state.
+Created `accounting/memory-persistence-adapter-v1.test.js`.
+Test code commit: `b6b32fb0a5e28cadfefd3a4dc47a5503254faba8`.
+
+Coverage added for:
+- first valid transaction commits exactly once;
+- exact replay performs zero extra writes;
+- same Event ID with changed canonical payload is rejected without mutation;
+- staged simulated abort leaves decisions, operations and transaction mapping empty;
+- failed business decision persists one final decision and zero operations;
+- operation-ID collision from another transaction rejects the whole second commit with no partial state.
+
+---
+
+## ACC-EXEC-011 — STARTED / MATERIAL STEP RECORDED BEFORE CI WORKFLOW CHANGE
+Add the reference persistence adapter source/test paths to the Accounting CI filter and execute `node accounting/memory-persistence-adapter-v1.test.js` as an explicit Integrity V1 step.
+
+No production binding or migration will be introduced by this verification step.
