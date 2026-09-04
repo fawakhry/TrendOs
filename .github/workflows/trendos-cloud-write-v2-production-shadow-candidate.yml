@@ -1,0 +1,64 @@
+name: TrendOS Cloud Write V2 Production Shadow Candidate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/production-shadow/**'
+      - 'cloudflare-d1/src/cloud-write-order-v2-production-shadow.mjs'
+      - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
+      - 'tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/wrangler.toml'
+      - '.github/workflows/trendos-cloud-write-v2-production-shadow-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-deploy-production-shadow-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify candidate contract and production boundary
+        run: |
+          set -euo pipefail
+          node tests/cloud_write_order_v2_production_shadow.test.mjs
+          node tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs
+          ! grep -Fq 'production-shadow/observer' cloudflare-d1/src/index_v2.js
+          ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/index_v2.js
+          grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
+          grep -Eq '^name = "trendos-d1-api-shadow-candidate-NO-DEPLOY"$' cloudflare-d1/production-shadow/wrangler.candidate.toml
+          ! grep -Eq '^\[\[d1_databases\]\]' cloudflare-d1/production-shadow/wrangler.candidate.toml
+          ! grep -Eq '^APPS_SCRIPT_API_URL' cloudflare-d1/production-shadow/wrangler.candidate.toml
+          ! grep -Eq '^migrations_dir' cloudflare-d1/production-shadow/wrangler.candidate.toml
+          echo 'PRODUCTION_SHADOW_CANDIDATE_BOUNDARY_PASS'
+
+      - name: Compile candidate with Wrangler dry-run only
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-shadow-candidate-build
+          npx --yes wrangler@4.33.2 deploy --dry-run \
+            --config cloudflare-d1/production-shadow/wrangler.candidate.toml \
+            --outdir /tmp/trendos-shadow-candidate-build
+          test -d /tmp/trendos-shadow-candidate-build
+          echo 'PRODUCTION_SHADOW_CANDIDATE_WRANGLER_DRY_RUN_PASS'
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_SHADOW_CANDIDATE_GATE_PASS'
+          echo 'No Cloudflare credentials are loaded by this workflow.'
+          echo 'No Worker is deployed. No D1 binding exists in the candidate config. No Apps Script URL exists in the candidate config.'
+          echo 'Production index_v2.js and production wrangler.toml remain unchanged with Cloud Write OFF.'
