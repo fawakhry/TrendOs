@@ -85,3 +85,39 @@ Revert the three implementation commits above. No production rollback is require
 
 **Exact next step**
 Observe the automatically triggered `TrendOS Cloudflare Auto Preview` workflow for head `a51e551a9fd0d04fe5008a9bda2af041ef75a15f` (or a later documentation head containing the same code). Require safety tests and deploy job PASS, then verify live `/v1/accounting/health` and `/accounting` on the isolated Preview Worker before declaring ACCT-CF-01 deployed.
+
+---
+
+## STEP ACCT-CF-01B — Cloudflare deployment result separated from legacy freshness gate — PARTIAL
+
+**Action**
+Observed GitHub Actions run `33925428295`, job `101192797043`, for head `a51e551a9fd0d04fe5008a9bda2af041ef75a15f`.
+
+**Evidence**
+- Pre-deploy safety tests: PASS, including the Accounting additions inside `cloudflare_preview_safety_v1.test.mjs`.
+- Required Cloudflare secrets presence check: PASS (names/status only; no secret value recorded).
+- Preview mutation-free verification: PASS.
+- `Deploy isolated preview Worker with official Cloudflare action`: PASS.
+- Preview health/no-cutover verification: PASS.
+- Protected auth/fallback checks: PASS.
+- Cloud Write health disabled/read-only: PASS.
+- Cloud Write mutation blocked: PASS.
+- Import/mirror safety checks: PASS.
+- Benchmark step: PASS.
+- Existing `Gate Orders and Lines mirror freshness`: FAIL.
+- Therefore the overall job concluded FAILURE even though the Worker deployment itself completed successfully before the unrelated Orders/Lines freshness gate.
+
+**Status**: PARTIAL for ACCT-CF-01 deployment closure. The Accounting code was deployed to the isolated Preview Worker, but Accounting-specific live endpoints still require independent runtime verification before marking the Accounting release PASS.
+
+**Production impact**
+NONE. This was the isolated Preview Worker only. No production traffic cutover, financial write authority, D1 schema migration, Apps Script deployment, Script Property, source Sheet, or production data was changed.
+
+**Rollback**
+Accounting code can be reverted by reverting commits `fc372bcd...`, `cb677e08...`, and `a51e551a...`. No production rollback is required.
+
+**Exact next step**
+Create a narrowly scoped GitHub Actions runtime-verification workflow that performs GET checks only against the already deployed Preview Worker:
+- `/v1/accounting/health` must return the exact read-only authority contract;
+- `/accounting` must return the Arabic Accounting Preview shell;
+- POST to the Accounting Preview route must remain blocked.
+This verification must not deploy, mutate D1, or touch Apps Script/Sheets.
