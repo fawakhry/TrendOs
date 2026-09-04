@@ -235,7 +235,7 @@ assert.equal(typeof run, 'function');
   assert.equal(active.users.lastLoginWrites, 1);
   assert.equal(propertyWrites, 1, 'only staging script identity pin is written by the harness mock');
   assert.equal(properties.get('CW_V2_STAGING_BOUND_SCRIPT_ID_V1'), 'staging-bound-script-id-test');
-  assert.deepEqual(active.guard.resultRows, [
+  assert.deepEqual(JSON.parse(JSON.stringify(active.guard.resultRows)), [
     ['firstCanonicalWriteStatus','PASS'],
     ['firstCanonicalOrderId','3885'],
     ['firstCanonicalLineId','3885-01']
