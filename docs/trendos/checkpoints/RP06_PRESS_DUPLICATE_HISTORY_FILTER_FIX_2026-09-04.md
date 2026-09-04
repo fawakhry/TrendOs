@@ -2,7 +2,7 @@
 
 ## Status
 
-**GITHUB FIX + REGRESSION TEST COMPLETE / PRODUCTION UNCHANGED / CONTROLLED APPS SCRIPT INSTALL PENDING**
+**GITHUB FIX + REGRESSION TEST + FINAL BRANCH-HEAD CI COMPLETE / PRODUCTION UNCHANGED / CONTROLLED APPS SCRIPT INSTALL PENDING**
 
 ## Context
 
@@ -41,11 +41,24 @@ The regression covers the exact semantic shape:
 - historical row remains present;
 - validation operates on the canonical active row only.
 
+## Final branch-head CI verification
+
+The checkpoint commit itself was also verified on the working branch:
+
+- checkpoint head: `0188ea0935c773584e0f87ba85caf2426f936b4a`;
+- GitHub Actions workflow: `TrendOS Integrity V1`;
+- run: `33850172101`;
+- conclusion: `success`;
+- the `integrity-foundation` job completed successfully;
+- dedicated `TrendOS CORE-P0 registry writer tests`, `TrendOS Press integrity tests`, composition syntax/collision checks, and the pre-deploy package safety gate all completed successfully.
+
+This CI confirms the final documented branch head is internally green. It does **not** replace the required Apps Script Head/runtime preview verification.
+
 ## Production impact
 
 **NONE.**
 
-No production Sheet cell, Registry row, Apps Script property, trigger, family flag, deployment, Web App version, `Code.gs`, D1 cutover, or authoritative write path was changed by this GitHub-only fix.
+No production Sheet cell, Registry row, Apps Script property, trigger, family flag, deployment, Web App version, `Code.gs`, D1 cutover, or authoritative write path was changed by this GitHub-only fix or its CI verification.
 
 Production safety remains:
 
