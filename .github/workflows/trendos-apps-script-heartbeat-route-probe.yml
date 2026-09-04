@@ -70,3 +70,5 @@ jobs:
         run: |
           echo 'Probe method: GET only.'
           echo 'No Sheet writes, Script Property mutation, trigger changes, D1 writes, deployment changes, or cutover actions are performed by this workflow.'
+
+# Rerun marker: Apps Script Web App Version 149 deployed 2026-09-04 20:49 +03:00
