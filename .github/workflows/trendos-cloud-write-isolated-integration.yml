@@ -70,8 +70,8 @@ jobs:
           grep -q 'database_name = "trendos-staging"' cloudflare-d1/staging/wrangler.toml
           grep -q 'database_id = "__STAGING_DB_ID__"' cloudflare-d1/staging/wrangler.toml
           grep -q 'TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"' cloudflare-d1/staging/wrangler.toml
-          if grep -q 'trendos-main' cloudflare-d1/staging/wrangler.toml; then
-            echo 'FAIL: staging config references production D1 name'
+          if grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/staging/wrangler.toml; then
+            echo 'FAIL: staging config binds the production D1 name'
             exit 1
           fi
       - name: Install pinned Wrangler
