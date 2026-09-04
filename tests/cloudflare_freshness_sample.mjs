@@ -5,6 +5,11 @@ const sample = Number(process.env.SAMPLE || 0);
 const ordersFile = process.env.ORDERS_FILE || '/tmp/orders.json';
 const linesFile = process.env.LINES_FILE || '/tmp/lines.json';
 
+const LIVE_SYNC_NOTES = new Set([
+  'TrendOS orders live sync V1',
+  'TrendOS orders live sync V2 quota-aware'
+]);
+
 function parseUtc(value) {
   const raw = String(value || '').trim();
   const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
@@ -32,13 +37,14 @@ function inspect(file, label) {
     ageSeconds,
     status: String(s.status || ''),
     note: String(s.note || ''),
+    liveSyncNote: LIVE_SYNC_NOTES.has(String(s.note || '')),
     fresh: ageSeconds <= maxAge
   };
   console.log('STABILITY=' + JSON.stringify(out));
   if (
     out.status !== 'ready' ||
     out.rowCount !== out.sourceLastRow ||
-    out.note !== 'TrendOS orders live sync V1' ||
+    !out.liveSyncNote ||
     !out.fresh
   ) {
     throw new Error(label + ' freshness stability failed at sample ' + sample);
