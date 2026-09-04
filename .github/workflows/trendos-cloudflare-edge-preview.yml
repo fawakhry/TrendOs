@@ -37,7 +37,7 @@ jobs:
       PREVIEW_WORKER_NAME: trendos-edge-gateway-preview
       PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
       WRANGLER_VERSION: 4.33.2
-      MAX_LIVE_MIRROR_AGE_SECONDS: '180'
+      MAX_LIVE_MIRROR_AGE_SECONDS: '600'
 
     steps:
       - name: Checkout
@@ -52,6 +52,8 @@ jobs:
         run: |
           node tests/cloudflare_edge_gateway_v1.test.mjs
           node tests/cloudflare_edge_freshness_v1.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
           node tests/cloudflare_cloud_write_v1.test.mjs
           node --experimental-sqlite tests/cloudflare_cloud_write_sqlite_integration_v1.test.mjs
           node --experimental-sqlite tests/cloudflare_normalized_import_v1.test.mjs
@@ -77,11 +79,12 @@ jobs:
           fi
           grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/preview/wrangler.toml
           grep -Eq '^EDGE_DATA_MAX_AGE_SECONDS = "180"$' cloudflare-d1/preview/wrangler.toml
+          grep -Eq '^EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS = "600"$' cloudflare-d1/preview/wrangler.toml
           if grep -Eq '^migrations_dir[[:space:]]*=' cloudflare-d1/preview/wrangler.toml; then
             echo 'Preview config must not declare migrations_dir.'
             exit 1
           fi
-          echo 'PASS: preview has no migration apply step, Cloud Write is OFF, and Edge freshness limit is explicit.'
+          echo 'PASS: preview has no migration apply step, Cloud Write is OFF, normalized freshness stays 180s, and Orders mirror budget is 600s.'
 
       - name: Deploy isolated preview Worker with official Cloudflare action
         uses: cloudflare/wrangler-action@v3
@@ -293,7 +296,7 @@ jobs:
             "$PREVIEW_URL/v1/mirror/sheet" > /tmp/lines-mirror.json
           node <<'NODE'
           const fs = require('fs');
-          const maxAge = Number(process.env.MAX_LIVE_MIRROR_AGE_SECONDS || 180);
+          const maxAge = Number(process.env.MAX_LIVE_MIRROR_AGE_SECONDS || 600);
           function parseSqliteUtc(value) {
             const raw = String(value || '').trim();
             const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
@@ -311,6 +314,7 @@ jobs:
             const ageSeconds = parseSqliteUtc(s.syncedAt)
               ? Math.max(0, Math.round((Date.now() - parseSqliteUtc(s.syncedAt)) / 1000))
               : Number.MAX_SAFE_INTEGER;
+            const note = String(s.note || '');
             const result = {
               sheetName: s.sheetName,
               rowCount: Number(s.rowCount || 0),
@@ -319,9 +323,9 @@ jobs:
               status: String(s.status || ''),
               syncedAt: String(s.syncedAt || ''),
               ageSeconds,
-              note: String(s.note || ''),
+              note,
               rowParitySelf: Number(s.rowCount || 0) === Number(s.sourceLastRow || 0),
-              liveSyncNote: String(s.note || '') === 'TrendOS orders live sync V1',
+              liveSyncNote: ['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(note),
               fresh: ageSeconds <= maxAge
             };
             console.log(label + '_MIRROR=' + JSON.stringify(result));
@@ -337,7 +341,8 @@ jobs:
         run: |
           echo "Preview Worker: $PREVIEW_URL"
           echo "Edge auth: anonymous 401 + signed whoami PASS required"
-          echo "Edge business data: fresh D1 serves; stale D1 returns 503 stale-edge-data for Apps Script fallback"
+          echo "Edge normalized business data: 180s freshness; stale D1 returns 503 stale-edge-data for Apps Script fallback"
+          echo "Orders raw mirror: 600s freshness budget for the 5-minute low-usage sync; stale mirror fails closed before business-row reads"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
           echo "Cloud write transaction model: isolated SQL success/idempotency/rollback PASS required pre-deploy"
