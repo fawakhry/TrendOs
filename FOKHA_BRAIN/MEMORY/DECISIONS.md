@@ -1,6 +1,6 @@
 # Fokha Decisions
 
-> Source: Google Sheet `Fokha - Idea Inbox` / tab `DECISIONS`.
+> Source: Google Sheet `Fokha - Idea Inbox` / tab `DECISIONS` + verified routing decisions.
 > Synced: 2026-09-04.
 
 ## DEC-20260904-001
@@ -19,16 +19,55 @@
 - **Reason:** منع تشتت المعرفة وتمكين AI من فهم السياق والعلاقات بدون خلط مصادر الحقيقة.
 - **Project:** Fokha
 - **Status:** Confirmed
-- **Outcome / Notes:** Google Sheet = capture/working memory؛ project black boxes = project truth؛ Fokha GitHub = stable executive memory عندما يكتمل المستودع المستقل.
+- **Outcome / Notes:** Google Sheet = capture/working memory؛ Project Black Boxes = project truth؛ GitHub FOKHA_BRAIN = organized readable memory layer مؤقتًا.
+
+## DEC-20260904-003
+- **Date:** 2026-09-04
+- **Decision:** عند دخول عقل فوخا يبدأ أي Chat/Agent من GitHub أولًا، وبعد استخراج أي معرفة أو داتا تُكتب فورًا إلى Google Drive كـWorking Memory، ثم تُزامن لاحقًا إلى GitHub بدون تكرار.
+- **Context:** تثبيت مسار تشغيل موحد بين القراءة من عقل فوخا والكتابة بعد الاستخراج.
+- **Reason:** GitHub نقطة الدخول المنظمة، وGoogle Drive طبقة الالتقاط الفوري للمعرفة الجديدة.
+- **Project:** Fokha
+- **Status:** Confirmed
+- **Outcome / Notes:** `GITHUB READ -> EXTRACT -> DRIVE WRITE -> ORGANIZED GITHUB SYNC`.
 
 ## DEC-20260904-MATBAGY-ROUTING-001
 - **Date:** 2026-09-04
 - **Decision:** صندوق مطبعجي الرسمي لذاكرة التصميمات هو فقط `fawakhry/Matbagy-Design-Workflow` على branch `agent/initial-mvp`، والمدخل `صندوق_مطبعجي.md`.
-- **Context:** تم اكتشاف أن شاتات قديمة كانت تختار `fawakhry/Matbagy` أو `fawakhry/TrendOs/FOKHA_BRAIN` بالاسم أو default branch وتعتبره صندوق مطبعجي.
-- **Reason:** منع خلط Photo Sheets أو عقل فوخا أو TrendOS بذاكرة Design Cases.
-- **Project:** Matbagy Design Memory
+- **Context:** وجود Repositories متشابهة الاسم قد يسبب خلط Photo Sheets أو FOKHA_BRAIN بذاكرة التصميمات.
+- **Reason:** منع خلط الأدوات أو عقل فوخا أو TrendOS بذاكرة Design Cases.
+- **Project:** Matbagy Design Workflow
 - **Status:** Confirmed / Active
-- **Outcome / Notes:** تم تثبيت Redirect guards في repos المحتملة للالتباس، وأي مسار غير `Matbagy-Design-Workflow@agent/initial-mvp` لا يستقبل Design Cases أو ذاكرة صندوق مطبعجي.
+- **Outcome / Notes:** أي مسار آخر لا يستقبل Design Cases كذاكرة رسمية.
+
+## DEC-20260904-ACCOUNTING-001
+- **Date:** 2026-09-04
+- **Decision:** TrendOS Accounting يكون برنامج/تطبيق حقيقي وليس Spreadsheet كمنتج نهائي، مع فصل نسب الشركاء والمستثمرين وأصحاب الماكينات وتوزيعات الأرباح إلى Profit Engine.
+- **Context:** تصميم مسار الحسابات وربطه بـTrendOS Operations.
+- **Reason:** منع خلط المحاسبة الفعلية بقواعد توزيع الأرباح والحفاظ على حدود مسؤولية واضحة.
+- **Project:** Trend Mall / TrendOS
+- **Status:** Active / Approved
+- **Outcome / Notes:** Project-only؛ التفاصيل التشغيلية تبقى في ذاكرة/وثائق TrendOS Accounting الرسمية.
+
+## DEC-20260904-ACCOUNTING-002
+- **Date:** 2026-09-04
+- **Decision:** Order ID هو مفتاح ربط الأوردر بين Operations وAccounting، وLine ID إلزامي للربط والربحية على مستوى البند.
+- **Context:** الأوردر الواحد قد يحتوي بنودًا بجهات تنفيذ وتكاليف ومخزون مختلفة.
+- **Reason:** منع الربط الهش بالاسم/الهاتف ومنع ضياع تكلفة وربحية البنود داخل إجمالي الأوردر.
+- **Project:** Trend Mall / TrendOS
+- **Status:** Active / Approved
+- **Outcome / Notes:** الحفاظ أيضًا على IDs المتخصصة مثل Item/Invoice/Payment/Stock Movement حسب العقود الرسمية.
+
+## DEC-20260904-ACCOUNTING-003
+- **Date:** 2026-09-04
+- **Decision:** المخزون/BOM في TrendOS Accounting يكون Generic ويدعم Raw Material وSemi-Finished وFinished Product وService، مع BOM متداخل وتكوين تلقائي عند الحاجة.
+- **Context:** التكوين اليدوي للمنتجات الوسيطة يبطئ سير العمل.
+- **Reason:** استهلاك الخامات الصحيحة وحساب التكلفة وحركة مخزون audit-safe دون hard-code لصنف بعينه.
+- **Project:** Trend Mall / TrendOS
+- **Status:** Designed / Approved Requirement
+- **Outcome / Notes:** أمثلة المنتجات لا تتحول إلى قواعد عامة؛ المطلوب recursive/generic BOM + atomic/replay-safe stock behavior.
 
 ## قاعدة القرار
-لا يتم تحويل توصية AI إلى قرار Confirmed إلا إذا اعتمدها المستخدم صراحة أو وُجد عقد اعتماد موثق.
+
+- لا يتم تحويل توصية AI إلى قرار Confirmed إلا إذا اعتمدها المستخدم صراحة أو وُجد عقد اعتماد موثق.
+- Project-only decisions تبقى scoped للمشروع ولا تتحول إلى Fokha Global تلقائيًا.
+- أحدث Evidence متحقق يمكن أن supersede حالة تنفيذ قديمة بدون حذف القرار التاريخي.
