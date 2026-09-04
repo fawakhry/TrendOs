@@ -1,0 +1,55 @@
+name: TrendOS Cloud Write V2 Production Shadow Live Preflight
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-cloud-write-v2-production-shadow-live-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-shadow-live-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      SHADOW_PATH: /v1/cloud/write/v2/production-shadow
+      STAGING_BRIDGE_PATH: /v1/staging/cloud-write/v2/bridge/health
+    steps:
+      - name: Production Cloud Write must remain OFF
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/prod-health.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/prod-health.json','utf8'));
+          const pass=x.success===true && x.enabled===false && x.writesAccepted===false && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('PRODUCTION_WRITE_OFF='+JSON.stringify({enabled:x.enabled,writesAccepted:x.writesAccepted,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Production Shadow route must not exist yet
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/shadow.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          echo "PRODUCTION_SHADOW_ROUTE_HTTP=$code"
+          test "$code" = '404'
+          echo 'PRODUCTION_SHADOW_ROUTE_ABSENT_PASS'
+
+      - name: Staging V2 bridge route must remain absent on Production
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/bridge.json --write-out '%{http_code}' "$PROD_URL$STAGING_BRIDGE_PATH")"
+          echo "PRODUCTION_STAGING_BRIDGE_ROUTE_HTTP=$code"
+          test "$code" = '404'
+          echo 'PRODUCTION_STAGING_BRIDGE_ROUTE_ABSENT_PASS'
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_SHADOW_LIVE_PREFLIGHT_PASS'
+          echo 'Production Cloud Write is OFF and neither the V2 Production Shadow route nor the Staging V2 bridge route is exposed by Production.'
+          echo 'This workflow performs GET-only checks and no mutation.'
