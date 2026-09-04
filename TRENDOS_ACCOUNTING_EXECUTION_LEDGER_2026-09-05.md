@@ -119,10 +119,20 @@ Coverage added for:
 
 ---
 
-## ACC-EXEC-007 — STARTED / MATERIAL STEP RECORDED BEFORE VERIFICATION
+## ACC-EXEC-007 — VERIFICATION GAP IDENTIFIED / NO USER BLOCKER
 
-Attempt executable verification of both isolated Accounting suites from the current working branch:
-- `accounting/domain-core-v1.test.js`
-- `accounting/transaction-contract-v1.test.js`
+Direct runtime clone was attempted after the pre-verification ledger record, but DNS still cannot resolve `github.com`; therefore local Node execution remains unavailable in this container.
 
-If direct clone remains unavailable due transient runtime DNS, inspect GitHub Actions/commit checks where possible and continue static safety review; this is not a user-dependent blocker.
+GitHub Actions did run successfully for commit `f80085405dc2a0033ac9f76ef508e0e5bc6cbbac`, proving the branch's existing Integrity V1 suite is green. However, review of `.github/workflows/trendos-integrity-v1.yml` found that the new isolated `accounting/*.test.js` suites are not currently executed by that workflow. A green existing workflow therefore cannot be treated as executable proof for ACC-EXEC-001..006.
+
+This is a CI coverage gap, not a user-dependent blocker.
+
+---
+
+## ACC-EXEC-008 — STARTED / MATERIAL STEP RECORDED BEFORE CI WORKFLOW CHANGE
+
+Extend the existing branch Integrity V1 GitHub Actions workflow so it explicitly executes:
+- `node accounting/domain-core-v1.test.js`
+- `node accounting/transaction-contract-v1.test.js`
+
+Also include the Accounting source/test paths in the pull-request path filter. This creates a repeatable executable gate for the isolated Accounting domain and transaction contract without touching production runtime or D1.
