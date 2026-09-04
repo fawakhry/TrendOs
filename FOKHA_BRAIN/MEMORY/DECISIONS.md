@@ -21,5 +21,14 @@
 - **Status:** Confirmed
 - **Outcome / Notes:** Google Sheet = capture/working memory؛ project black boxes = project truth؛ Fokha GitHub = stable executive memory عندما يكتمل المستودع المستقل.
 
+## DEC-20260904-MATBAGY-ROUTING-001
+- **Date:** 2026-09-04
+- **Decision:** صندوق مطبعجي الرسمي لذاكرة التصميمات هو فقط `fawakhry/Matbagy-Design-Workflow` على branch `agent/initial-mvp`، والمدخل `صندوق_مطبعجي.md`.
+- **Context:** تم اكتشاف أن شاتات قديمة كانت تختار `fawakhry/Matbagy` أو `fawakhry/TrendOs/FOKHA_BRAIN` بالاسم أو default branch وتعتبره صندوق مطبعجي.
+- **Reason:** منع خلط Photo Sheets أو عقل فوخا أو TrendOS بذاكرة Design Cases.
+- **Project:** Matbagy Design Memory
+- **Status:** Confirmed / Active
+- **Outcome / Notes:** تم تثبيت Redirect guards في repos المحتملة للالتباس، وأي مسار غير `Matbagy-Design-Workflow@agent/initial-mvp` لا يستقبل Design Cases أو ذاكرة صندوق مطبعجي.
+
 ## قاعدة القرار
 لا يتم تحويل توصية AI إلى قرار Confirmed إلا إذا اعتمدها المستخدم صراحة أو وُجد عقد اعتماد موثق.
