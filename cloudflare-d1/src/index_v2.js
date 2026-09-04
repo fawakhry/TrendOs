@@ -1,5 +1,6 @@
 import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
+import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleCloudWriteRequest, isCloudWritePath } from './cloud-write-gate.mjs';
 import { handleNormalizedImportRequest, isNormalizedImportPath } from './normalized-import-gate.mjs';
@@ -23,6 +24,12 @@ export default {
     // advance migration freshness only on a successful final chunk.
     if (isNormalizedImportPath(path)) {
       return handleNormalizedImportRequest(request, env, ctx);
+    }
+
+    // Row-level mirror delta lane. Authenticated, schema-mutation-free and atomic
+    // across all sheets included in the request.
+    if (isMirrorDeltaPath(path)) {
+      return handleMirrorDeltaRequest(request, env, ctx);
     }
 
     // Mirror GETs are SELECT-only; unauthorized imports are rejected before

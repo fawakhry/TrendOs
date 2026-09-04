@@ -1,0 +1,50 @@
+name: TrendOS D1 Quota V2 Isolated
+
+on:
+  push:
+    branches:
+      - agent/d1-quota-v2-2026-09-04
+    paths:
+      - 'cloudflare-d1/D1_Orders_Live_Sync_V2.gs'
+      - 'cloudflare-d1/D1_Normalized_Live_Sync_V2.gs'
+      - 'cloudflare-d1/D1_Zero_Idle_Control.gs'
+      - 'cloudflare-d1/src/mirror-delta-gate.mjs'
+      - 'cloudflare-d1/src/mirror-gate.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/d1_orders_live_sync_delta_v2.test.mjs'
+      - 'tests/d1_normalized_live_sync_delta_v2.test.mjs'
+      - 'tests/d1_zero_idle_control_v1.test.mjs'
+      - 'tests/cloudflare_freshness_sample.mjs'
+      - '.github/workflows/trendos-d1-quota-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  delta-isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check delta Worker gate
+        run: node --check cloudflare-d1/src/mirror-delta-gate.mjs
+      - name: Syntax check Worker router
+        run: node --check cloudflare-d1/src/index_v2.js
+      - name: Run isolated Orders/Lines row-level delta tests
+        run: node tests/d1_orders_live_sync_delta_v2.test.mjs
+      - name: Run isolated normalized delta-upsert tests
+        run: node --experimental-sqlite tests/d1_normalized_live_sync_delta_v2.test.mjs
+      - name: Run zero-idle control tests
+        run: node tests/d1_zero_idle_control_v1.test.mjs
+      - name: Run existing atomic V1 contract regression
+        run: node tests/d1_orders_live_sync_atomic_v1.test.mjs
+      - name: Run existing normalized import V1 regression
+        run: node --experimental-sqlite tests/cloudflare_normalized_import_v1.test.mjs
+      - name: Run mirror safety regression
+        run: node tests/cloudflare_preview_safety_v1.test.mjs
