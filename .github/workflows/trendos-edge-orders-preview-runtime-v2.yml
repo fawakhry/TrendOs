@@ -1,0 +1,94 @@
+name: TrendOS Edge Orders Preview Runtime V2
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-edge-orders-preview-runtime-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+      ORDERS_MAX_AGE_SECONDS: '600'
+    steps:
+      - name: Verify anonymous Orders read remains closed
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/anon.json --write-out '%{http_code}' "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5")"
+          cat /tmp/anon.json
+          test "$code" = '401'
+
+      - name: Inspect current raw mirror age
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get \
+            --data-urlencode 'name=بنود الأوردرات' \
+            --data-urlencode 'limit=1' \
+            "$PREVIEW_URL/v1/mirror/sheet" > /tmp/lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/lines.json','utf8')), s=x.sheet||{};
+          const raw=String(s.syncedAt||'').trim();
+          const norm=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)?raw.replace(' ','T')+'Z':raw;
+          const ms=Date.parse(norm);
+          const age=Number.isFinite(ms)?Math.max(0,Math.round((Date.now()-ms)/1000)):Number.MAX_SAFE_INTEGER;
+          const out={syncedAt:raw,ageSeconds:age,rowCount:Number(s.rowCount||0),sourceLastRow:Number(s.sourceLastRow||0),status:String(s.status||''),note:String(s.note||'')};
+          fs.writeFileSync('/tmp/mirror-state.json',JSON.stringify(out));
+          console.log('ORDERS_MIRROR_STATE='+JSON.stringify(out));
+          NODE
+
+      - name: Verify signed Orders read serves only fresh mirror
+        run: |
+          set -euo pipefail
+          test -n "$EDGE_SESSION_SECRET"
+          node <<'NODE'
+          const crypto=require('crypto'),fs=require('fs');
+          const secret=String(process.env.EDGE_SESSION_SECRET||'');
+          const now=Math.floor(Date.now()/1000);
+          const p={aud:'trendos-orders-edge',sub:'ci-preview-orders',role:'admin',department:'إدارة',screens:['service','print','laser','press',''],iat:now,exp:now+300,jti:'ci-'+crypto.randomUUID()};
+          const b=Buffer.from(JSON.stringify(p)).toString('base64url'),input='v1.'+b,sig=crypto.createHmac('sha256',secret).update(input).digest('base64url');
+          fs.writeFileSync('/tmp/orders-token.txt',input+'.'+sig,{mode:0o600});
+          NODE
+          token="$(cat /tmp/orders-token.txt)"
+          code="$(curl --silent --show-error --output /tmp/page.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__")"
+          debt_code="$(curl --silent --show-error --output /tmp/debt.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__")"
+          rm -f /tmp/orders-token.txt
+          echo "ORDERS_PAGE_HTTP=$code"
+          cat /tmp/page.json
+          echo "DEBT_HTTP=$debt_code"
+          cat /tmp/debt.json
+          test "$debt_code" = '409'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/debt.json','utf8')); if(x.code!=='apps-script-required'||x.fallback!=='apps-script') process.exit(1)"
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('/tmp/mirror-state.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/page.json','utf8'));
+          const maxAge=Number(process.env.ORDERS_MAX_AGE_SECONDS||600);
+          const expectedFresh=m.status==='ready'&&m.rowCount===m.sourceLastRow&&['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(m.note)&&m.ageSeconds<=maxAge;
+          const code=Number(process.env.ORDERS_HTTP_CODE||0);
+          if(expectedFresh){
+            if(code!==200||x.success!==true||x.dataSource!=='d1-edge-orders'||!Array.isArray(x.rows)) throw new Error('Fresh mirror must serve D1 Orders');
+            console.log('PREVIEW_ORDERS_FRESH_SERVE_PASS rows='+x.rows.length);
+          }else{
+            if(code!==503||x.success!==false||x.fallback!=='apps-script'||!['stale-orders-mirror','mirror-not-ready'].includes(String(x.code||''))) throw new Error('Stale/unready mirror must fail closed to Apps Script');
+            console.log('PREVIEW_ORDERS_STALE_FAIL_CLOSED_PASS code='+x.code+' age='+m.ageSeconds);
+          }
+          NODE
+        env:
+          ORDERS_HTTP_CODE: ${{ env.ORDERS_HTTP_CODE }}
+
+      - name: Verify Cloud Write remains OFF
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/write.json --write-out '%{http_code}' "$PREVIEW_URL/v1/cloud/write/health")"
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
