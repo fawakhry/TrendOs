@@ -1,0 +1,162 @@
+name: TrendOS Cloud Write V2 Staging Bridge Live Proof
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-cloud-write-v2-staging-bridge-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-staging-bridge-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_URL: https://trendos-d1-staging.trendmall-contact.workers.dev
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      BRIDGE_HEALTH_PATH: /v1/staging/cloud-write/v2/bridge/health
+      BRIDGE_EXECUTE_PATH: /v1/staging/cloud-write/v2/bridge/execute
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify staging-only bridge boundary
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -q 'name = "trendos-d1-staging"' cloudflare-d1/staging/wrangler.toml
+          grep -q 'database_name = "trendos-staging"' cloudflare-d1/staging/wrangler.toml
+          grep -q 'APPS_SCRIPT_API_URL = "https://script.google.com/macros/s/AKfycbwwowwEBnYnojKsaW83NQJgiRPgPoCwC-bCPf1hBTZK6nACKDjh-Qy1uapPiCuPGD77/exec"' cloudflare-d1/staging/wrangler.toml
+          ! grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/staging/wrangler.toml
+          ! grep -Fq 'cloud-write-order-v2-staging-bridge' cloudflare-d1/src/index_v2.js
+          echo 'V2_STAGING_BRIDGE_BOUNDARY_PASS'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Resolve dedicated staging D1 config
+        run: |
+          set -euo pipefail
+          npx wrangler d1 list --json > /tmp/d1-list.json
+          STAGING_DB_ID="$(node - <<'NODE'
+          const fs=require('fs');
+          const rows=JSON.parse(fs.readFileSync('/tmp/d1-list.json','utf8'));
+          const db=(Array.isArray(rows)?rows:[]).find(x=>x && x.name==='trendos-staging');
+          process.stdout.write(db ? String(db.uuid || db.id || '') : '');
+          NODE
+          )"
+          test -n "$STAGING_DB_ID"
+          cp cloudflare-d1/staging/wrangler.toml /tmp/wrangler-v2-bridge.toml
+          sed -i "s/__STAGING_DB_ID__/$STAGING_DB_ID/g" /tmp/wrangler-v2-bridge.toml
+          grep -q "database_id = \"$STAGING_DB_ID\"" /tmp/wrangler-v2-bridge.toml
+          echo 'V2_STAGING_DB_CONFIG_PASS'
+
+      - name: Rotate isolated staging Edge secret without disclosure
+        run: |
+          set -euo pipefail
+          node -e "process.stdout.write(require('crypto').randomBytes(48).toString('base64url'))" > /tmp/staging-v2-edge-secret.txt
+          chmod 600 /tmp/staging-v2-edge-secret.txt
+          cat /tmp/staging-v2-edge-secret.txt | npx wrangler secret put EDGE_SESSION_SECRET --config /tmp/wrangler-v2-bridge.toml
+          sleep 8
+          echo 'V2_STAGING_EDGE_SECRET_ROTATED_WITHOUT_DISCLOSURE'
+
+      - name: Verify bridge health is live and configured
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/bridge-health.json --write-out '%{http_code}' "$STAGING_URL$BRIDGE_HEALTH_PATH")"
+          cat /tmp/bridge-health.json
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/bridge-health.json','utf8'));
+          const pass=x.success===true && x.stagingOnly===true && x.syntheticOnly===true && x.appsScriptConfigured===true && x.edgeAuthConfigured===true && x.businessOrderIdStrategy==='apps-script-allocated' && x.d1Written===false && x.productionCutover===false && x.productionRouteIntegrated===false;
+          if(!pass) process.exit(1);
+          console.log('V2_STAGING_BRIDGE_HEALTH_PASS');
+          NODE
+
+      - name: Mint short-lived caller token without logging it
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { issueEdgeSessionToken } from './cloudflare-d1/src/edge-gateway.mjs';
+          const secret=fs.readFileSync('/tmp/staging-v2-edge-secret.txt','utf8').trim();
+          const token=await issueEdgeSessionToken({sub:'ci-staging-v2-bridge-proof'},secret,Math.floor(Date.now()/1000),300);
+          fs.writeFileSync('/tmp/staging-v2-caller-token.txt',token,{mode:0o600});
+          NODE
+          test -s /tmp/staging-v2-caller-token.txt
+          echo 'V2_STAGING_CALLER_TOKEN_MINTED_NOT_LOGGED'
+
+      - name: Execute authenticated canonical staging bridge
+        run: |
+          set -euo pipefail
+          token="$(cat /tmp/staging-v2-caller-token.txt)"
+          code="$(curl --silent --show-error --output /tmp/bridge-first.json --write-out '%{http_code}' -X POST -H "authorization: Bearer $token" -H 'content-type: application/json' "$STAGING_URL$BRIDGE_EXECUTE_PATH")"
+          echo "V2_STAGING_BRIDGE_FIRST_HTTP=$code"
+          cat /tmp/bridge-first.json
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/bridge-first.json','utf8'));
+          const pass=x.success===true && x.verified===true && x.stagingOnly===true && x.syntheticOnly===true && x.bridgeTokenReturned===false && x.clientRequestId==='CWV2-STAGE-BRIDGE-001' && String(x.orderId||'').length>0 && String(x.lineId||'').length>0 && x.d1Written===false && x.productionWriteExecuted===false && x.productionCloudWriteChanged===false && x.productionCutover===false;
+          if(!pass) process.exit(1);
+          fs.writeFileSync('/tmp/bridge-ids.json',JSON.stringify({orderId:String(x.orderId),lineId:String(x.lineId)}));
+          console.log('V2_STAGING_BRIDGE_FIRST_PASS='+JSON.stringify({orderId:x.orderId,lineId:x.lineId,linesCreated:Number(x.linesCreated||0),duplicatePrevented:x.duplicatePrevented===true,idempotentReplay:x.idempotentReplay===true}));
+          NODE
+
+      - name: Replay bridge and require same canonical IDs
+        run: |
+          set -euo pipefail
+          token="$(cat /tmp/staging-v2-caller-token.txt)"
+          code="$(curl --silent --show-error --output /tmp/bridge-replay.json --write-out '%{http_code}' -X POST -H "authorization: Bearer $token" -H 'content-type: application/json' "$STAGING_URL$BRIDGE_EXECUTE_PATH")"
+          echo "V2_STAGING_BRIDGE_REPLAY_HTTP=$code"
+          cat /tmp/bridge-replay.json
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const first=JSON.parse(fs.readFileSync('/tmp/bridge-ids.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/bridge-replay.json','utf8'));
+          const pass=x.success===true && x.verified===true && x.stagingOnly===true && x.syntheticOnly===true && x.bridgeTokenReturned===false && x.clientRequestId==='CWV2-STAGE-BRIDGE-001' && String(x.orderId)===first.orderId && String(x.lineId)===first.lineId && x.d1Written===false && x.productionWriteExecuted===false && x.productionCloudWriteChanged===false && x.productionCutover===false;
+          if(!pass) process.exit(1);
+          console.log('V2_STAGING_BRIDGE_REPLAY_SAME_IDS_PASS='+JSON.stringify({orderId:x.orderId,lineId:x.lineId,linesCreated:Number(x.linesCreated||0),duplicatePrevented:x.duplicatePrevented===true,idempotentReplay:x.idempotentReplay===true}));
+          NODE
+
+      - name: Production bridge route must remain absent and Cloud Write OFF
+        if: always()
+        run: |
+          set -euo pipefail
+          route_code="$(curl --silent --show-error --output /tmp/prod-bridge.json --write-out '%{http_code}' "$PROD_URL$BRIDGE_HEALTH_PATH")"
+          echo "V2_PRODUCTION_BRIDGE_ROUTE_HTTP=$route_code"
+          test "$route_code" = '404'
+          code="$(curl --silent --show-error --output /tmp/prod-write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          cat /tmp/prod-write.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/prod-write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+          echo 'V2_PRODUCTION_BRIDGE_ABSENT_AND_CLOUD_WRITE_OFF_PASS'
+
+      - name: Safety conclusion
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const ids=JSON.parse(fs.readFileSync('/tmp/bridge-ids.json','utf8'));
+          console.log('CLOUD_WRITE_V2_STAGING_BRIDGE_LIVE_PASS='+JSON.stringify(ids));
+          console.log('PASS: Cloudflare Staging authenticated Apps Script Staging canonical writer end-to-end.');
+          console.log('PASS: replay returned the same business Order/Line IDs.');
+          console.log('PASS: no bridge/shared/service token was returned or logged.');
+          console.log('PASS: Production bridge route absent and Production Cloud Write OFF.');
+          NODE
+
+      - name: Cleanup temporary staging credentials
+        if: always()
+        run: rm -f /tmp/staging-v2-edge-secret.txt /tmp/staging-v2-caller-token.txt /tmp/wrangler-v2-bridge.toml /tmp/d1-list.json /tmp/bridge-health.json /tmp/bridge-first.json /tmp/bridge-replay.json /tmp/bridge-ids.json
