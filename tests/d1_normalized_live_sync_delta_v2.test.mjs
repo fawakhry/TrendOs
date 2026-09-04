@@ -127,7 +127,8 @@ async function testDeltaUpsertsOnlyChangedRowsAndAdvancesAllFreshness() {
   assert.equal(body.imported.conversations, 0);
   assert.equal(JSON.parse(env.DB.one("SELECT raw_json AS rawJson FROM orders WHERE order_id='D-1'").rawJson).customerName, 'A-CHANGED');
   assert.equal(env.DB.one("SELECT raw_json AS rawJson FROM orders WHERE order_id='D-2'").rawJson, untouchedBefore);
-  assert.equal(env.DB.count("SELECT COUNT(*) AS c FROM migration_runs WHERE entity IN ('customers','orders','messages','conversations')"), 6);
+  // One seed freshness row for orders + four final freshness rows for the V2 delta request.
+  assert.equal(env.DB.count("SELECT COUNT(*) AS c FROM migration_runs WHERE entity IN ('customers','orders','messages','conversations')"), 5);
 }
 
 function testAppsScriptV2Contract() {
