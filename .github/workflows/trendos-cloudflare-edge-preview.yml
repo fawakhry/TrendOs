@@ -52,6 +52,7 @@ jobs:
         run: |
           node tests/cloudflare_edge_gateway_v1.test.mjs
           node tests/cloudflare_cloud_write_v1.test.mjs
+          node --experimental-sqlite tests/cloudflare_cloud_write_sqlite_integration_v1.test.mjs
           node tests/cloudflare_preview_safety_v1.test.mjs
           node tests/cloudflare_mirror_safety_v1.test.mjs
           node tests/d1_orders_live_sync_atomic_v1.test.mjs
@@ -229,14 +230,16 @@ jobs:
           set -euo pipefail
           : > /tmp/edge-times.txt
           : > /tmp/mirror-times.txt
+          CURL_RETRY=(--fail --silent --show-error --retry 4 --retry-delay 1 --retry-all-errors --connect-timeout 10 --max-time 20)
           for i in $(seq 1 15); do
-            curl --fail --silent --show-error --output /dev/null --write-out '%{time_total}\n' "$PREVIEW_URL/v1/edge/health" >> /tmp/edge-times.txt
-            curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' --output /dev/null --write-out '%{time_total}\n' "$PREVIEW_URL/v1/mirror/sheet" >> /tmp/mirror-times.txt
+            curl "${CURL_RETRY[@]}" --output /dev/null --write-out '%{time_total}\n' "$PREVIEW_URL/v1/edge/health" >> /tmp/edge-times.txt
+            curl "${CURL_RETRY[@]}" --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' --output /dev/null --write-out '%{time_total}\n' "$PREVIEW_URL/v1/mirror/sheet" >> /tmp/mirror-times.txt
           done
           node <<'NODE'
           const fs = require('fs');
           function summarize(file) {
             const xs = fs.readFileSync(file, 'utf8').trim().split(/\s+/).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+            if (xs.length !== 15) throw new Error('Expected 15 successful benchmark samples, got ' + xs.length);
             const pick = p => xs[Math.min(xs.length - 1, Math.max(0, Math.ceil(xs.length * p) - 1))];
             const avg = xs.reduce((a,b)=>a+b,0)/xs.length;
             return { samples: xs.length, avgMs: +(avg*1000).toFixed(1), medianMs: +(pick(.5)*1000).toFixed(1), p90Ms: +(pick(.9)*1000).toFixed(1), maxMs: +(xs[xs.length-1]*1000).toFixed(1) };
@@ -306,9 +309,10 @@ jobs:
           echo "Employee session exchange: incomplete credentials fail before upstream; real employee credentials are never used by CI"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
+          echo "Cloud write transaction model: isolated SQL success/idempotency/rollback test PASS required pre-deploy"
           echo "Mirror reads: SELECT-ONLY; atomic capability REQUIRED; anonymous import rejected before schema initialization"
           echo "Orders + Lines mirror: freshness <= ${MAX_LIVE_MIRROR_AGE_SECONDS}s REQUIRED"
-          echo "Preview latency: benchmarked against the actual mirror read path"
+          echo "Preview latency: benchmarked against the actual mirror read path with transient-network retries"
           echo "Frontend cutover: NOT PERFORMED"
           echo "GitHub Pages/config.js: UNCHANGED"
           echo "Apps Script writes/fallback: UNCHANGED"
