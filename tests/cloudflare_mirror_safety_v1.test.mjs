@@ -7,6 +7,13 @@ import { handleMirrorRequest, isMirrorPath } from '../cloudflare-d1/src/mirror-g
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 
+const ATOMIC_TABLES = [
+  'sheet_catalog',
+  'sheet_rows',
+  'sheet_staging_catalog',
+  'sheet_staging_rows'
+];
+
 class MockStatement {
   constructor(db, sql) {
     this.db = db;
@@ -48,6 +55,11 @@ class MockStatement {
 
   async all() {
     const compact = this.sql.replace(/\s+/g, ' ');
+    if (compact.includes('FROM sqlite_master')) {
+      return {
+        results: this.db.presentTables.map((name) => ({ name, type: 'table' }))
+      };
+    }
     if (compact.includes('FROM sheet_rows')) {
       return {
         results: [{
@@ -83,8 +95,9 @@ class MockStatement {
 }
 
 class MockDB {
-  constructor() {
+  constructor(presentTables = ATOMIC_TABLES) {
     this.writeOps = 0;
+    this.presentTables = presentTables.slice();
   }
 
   prepare(sql) {
@@ -120,6 +133,39 @@ async function testStatsReadOnly() {
   assert.equal(body.stats.schemaMutationFree, true);
   assert.equal(body.stats.sheetCount, 87);
   assert.equal(body.stats.pendingSheets, 0);
+  assert.equal(e.DB.writeOps, 0);
+}
+
+async function testCapabilitiesReadOnlyAndAtomicReady() {
+  const e = env();
+  const response = await handleMirrorRequest(
+    new Request('https://preview.test/v1/mirror/capabilities', {
+      headers: { Origin: 'https://fawakhry.github.io' }
+    }),
+    e
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.success, true);
+  assert.equal(body.capabilities.schemaMutationFree, true);
+  assert.equal(body.capabilities.atomicSupported, true);
+  assert.deepEqual(body.capabilities.missingTables, []);
+  assert.deepEqual(body.capabilities.requiredTables, ATOMIC_TABLES);
+  assert.equal(e.DB.writeOps, 0);
+}
+
+async function testCapabilitiesFailClosedWithoutStagingTables() {
+  const e = env({ DB: new MockDB(['sheet_catalog', 'sheet_rows']) });
+  const response = await handleMirrorRequest(
+    new Request('https://preview.test/v1/mirror/capabilities'),
+    e
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.success, true);
+  assert.equal(body.capabilities.schemaMutationFree, true);
+  assert.equal(body.capabilities.atomicSupported, false);
+  assert.deepEqual(body.capabilities.missingTables.sort(), ['sheet_staging_catalog', 'sheet_staging_rows'].sort());
   assert.equal(e.DB.writeOps, 0);
 }
 
@@ -165,10 +211,13 @@ function testEntryContract() {
   assert.match(entry, /mirror-gate\.mjs/);
   assert.doesNotMatch(entry, /from '\.\/mirror\.js'/);
   assert.equal(isMirrorPath('/v1/mirror/stats'), true);
+  assert.equal(isMirrorPath('/v1/mirror/capabilities'), true);
   assert.equal(isMirrorPath('/v1/import/sheet'), true);
 }
 
 await testStatsReadOnly();
+await testCapabilitiesReadOnlyAndAtomicReady();
+await testCapabilitiesFailClosedWithoutStagingTables();
 await testSheetReadOnly();
 await testUnauthorizedImportCannotInitializeSchema();
 testEntryContract();
