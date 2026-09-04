@@ -1,5 +1,5 @@
 name = "trendos-d1-staging"
-main = "../src/index_v2.js"
+main = "./index.js"
 compatibility_date = "2024-08-23"
 workers_dev = true
 
@@ -13,6 +13,7 @@ EDGE_DATA_MAX_AGE_SECONDS = "180"
 EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS = "600"
 EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "false"
 TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"
+TRENDOS_STAGING_RECONCILE_VERIFY_ENABLED = "true"
 
 [[d1_databases]]
 binding = "DB"
