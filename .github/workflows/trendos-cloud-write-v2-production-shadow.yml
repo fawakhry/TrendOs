@@ -7,7 +7,10 @@ on:
     paths:
       - 'cloudflare-d1/src/cloud-write-order-v2-production-shadow.mjs'
       - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
+      - 'cloudflare-d1/production-shadow/index.js'
+      - 'cloudflare-d1/production-shadow/observer.mjs'
       - 'tests/cloud_write_order_v2_production_shadow.test.mjs'
+      - 'tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/src/cloud-write.mjs'
       - 'cloudflare-d1/wrangler.toml'
@@ -31,19 +34,31 @@ jobs:
           node-version: '22'
 
       - name: Verify mutation-free production shadow contract
-        run: node tests/cloud_write_order_v2_production_shadow.test.mjs
+        run: |
+          node tests/cloud_write_order_v2_production_shadow.test.mjs
+          node tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs
 
-      - name: Verify Production integration remains absent
+      - name: Verify Production remains write-off and shadow is absent or default-OFF
         run: |
           set -euo pipefail
           ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/index_v2.js
           ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/cloud-write.mjs
           grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.toml
           ! grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"true"' cloudflare-d1/wrangler.toml
-          echo 'PRODUCTION_SHADOW_NOT_ROUTED_AND_CLOUD_WRITE_OFF_PASS'
+
+          if grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml; then
+            grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+            ! grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+            echo 'PRODUCTION_SHADOW_WRAPPER_DEFAULT_OFF_PASS'
+          else
+            grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
+            ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
+            echo 'PRODUCTION_SHADOW_NOT_YET_INTEGRATED_PASS'
+          fi
 
       - name: Safety conclusion
         run: |
           echo 'CLOUD_WRITE_ORDER_V2_PRODUCTION_SHADOW_GATE_PASS'
-          echo 'Production Shadow is planning-only, deterministic, mutation-free, credential-free, and not imported by Production routes.'
-          echo 'Production Cloud Write remains OFF; no cutover is performed by this workflow.'
+          echo 'Production Shadow remains planning-only, deterministic, mutation-free, and credential-free.'
+          echo 'Working-branch Production integration is accepted only when the shadow flag is explicitly OFF.'
+          echo 'Production Cloud Write remains OFF; this workflow performs no deployment or cutover.'
