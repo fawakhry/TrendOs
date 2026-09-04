@@ -15,35 +15,11 @@ This file is an executable continuation of the TrendOS Accounting black box. Eve
 
 ---
 
-## ACC-EXEC-001 — IMPLEMENTED / TESTING PENDING
+## ACC-EXEC-001 — IMPLEMENTED / EXECUTION CHECK PENDING
 
-### Goal
-Create the first isolated, production-safe Accounting domain-core slice as pure JavaScript with no external writes.
+Created the first isolated Accounting domain core in `accounting/domain-core-v1.js`. It contains stable ID validation, generic item/BOM normalization, recursive formation planning, cycle detection, shortage evaluation and recognized-cost rollup. No external writes are performed.
 
-### Scope
-1. Stable identifier validation/normalization for Order ID, Line ID, Item ID, Invoice ID, Purchase ID, Stock Movement ID and Payment ID.
-2. Generic item/BOM structures supporting raw material, semi-finished, finished product and service.
-3. Recursive BOM requirement expansion so unavailable intermediates can resolve to their underlying raw materials.
-4. Cycle detection to prevent corrupt BOM recursion.
-5. Quantity/stock sufficiency checks with explicit shortage results; never silently allow negative stock.
-6. Recognized component-cost aggregation at line level.
-7. Pure deterministic functions only; no Google Sheets, Apps Script, D1 or cash mutation.
-
-### Safety reason
-This is intentionally isolated from the current authoritative production write path. It can be reviewed/tested without bypassing the existing P0/GO-NO-GO gates.
-
-### Material change completed
-Created `accounting/domain-core-v1.js` in commit `057424738210955ef29d9330654f24aaeb8d9cef`.
-
-Implemented:
-- stable ID normalization/validation
-- Order/Line relationship validation
-- generic item and BOM line normalization
-- recursive BOM expansion
-- cycle detection
-- stock sufficiency evaluation without mutation
-- recognized-cost rollup
-- formation planning that returns `mutation: null` by design
+Initial code commit: `057424738210955ef29d9330654f24aaeb8d9cef`.
 
 ---
 
@@ -55,15 +31,39 @@ Local test execution was attempted, but the runtime could not resolve `github.co
 
 ---
 
-## ACC-EXEC-003 — STARTED (recorded before code mutation)
+## ACC-EXEC-003 — IMPLEMENTED / EXECUTION CHECK PENDING
 
-### Static-review defect found
-The initial recursive BOM resolver reads the same intermediate stock quantity independently for each recursion branch. If the same semi-finished component is referenced by multiple parent branches, its available stock could be allocated more than once in the plan.
+Static review found that shared intermediate inventory could be allocated more than once across independent recursive BOM branches.
 
-### Required correction
-Introduce an internal reservation ledger during planning so each unit of available intermediate stock can be allocated only once across the full recursive expansion. The caller's stock object must remain immutable.
+Correction completed in commit `a66cf6070fecc26fa1300314598a56fd373f3c08`:
+- internal stock reservation ledger added
+- caller stock remains immutable
+- each available intermediate unit can be reserved only once across the full expansion
 
-### Regression addition
-Add a test where two branches require the same intermediate component while only one unit exists; the resolver must reserve that one unit once and recursively expand the remaining demand.
+Regression test added in commit `6c40b072ae11ddd335f754b36b9129fb0054bfda` using two branches that both require the same semi-finished component while only one unit is available.
 
-Status: STARTED — corrective code mutation may now proceed.
+---
+
+## ACC-EXEC-004 — STARTED (recorded before code mutation)
+
+### Goal
+Extend the pure domain core from “can this item be formed?” to “what exact auditable stock movements would be required?” without performing those writes.
+
+### Required behavior
+- Accept stable `eventId`, `Order ID`, `Line ID` and source transaction reference.
+- Reuse the recursive BOM/shortage planner.
+- If any shortage exists, return zero movement mutations.
+- If sufficient stock exists, return deterministic planned movements for:
+  - production consumption of resolved requirements
+  - production output of the final item
+- Preserve Order ID + Line ID on every planned movement.
+- Produce deterministic movement keys from the same event input so replaying the same event produces the same plan and can be idempotently persisted later.
+- Do not touch Google Sheets, D1, cashbox or any live inventory balance.
+
+### Acceptance
+- same input event twice => exactly identical movement keys/order/content
+- insufficient stock => no planned mutations
+- successful formation => one consumption movement per resolved requirement + one output movement
+- all movements retain Order ID and Line ID
+
+Status: STARTED — code mutation may now proceed.
