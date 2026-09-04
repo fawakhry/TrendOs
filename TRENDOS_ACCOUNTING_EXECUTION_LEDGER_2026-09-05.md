@@ -73,3 +73,20 @@ Executable Node verification is still pending only because this runtime cannot r
 
 ### Next safe continuation
 Before adding any persistence adapter, implement the Accounting transaction/idempotency contract as a pure store-independent layer so a future Google Sheets/database adapter can atomically claim an event, persist all planned movements, and safely replay without duplication.
+
+---
+
+## ACC-EXEC-005 — STARTED / MATERIAL STEP RECORDED BEFORE CODE
+
+Starting the pure store-independent Accounting transaction/idempotency contract. This slice will not write to Google Sheets, D1, cashbox, inventory, or production.
+
+Pre-implementation reconciliation found an important existing Accounting persistence rule in `docs/trendos/checkpoints/ACCOUNTING_F2_PERSISTENCE_APPEND_ONLY_CORRECTION_2026-09-05.md`: idempotency is append-only and must persist one immutable final decision (`completed`, `failed`, or `ambiguous`) rather than a mutable `claimed -> completed` lifecycle. The new pure contract will therefore align with that safer immutable-final-decision model while still supporting atomic future persistence.
+
+Planned contract invariants for this slice:
+- Event ID is the idempotency boundary.
+- Same Event ID + same canonical payload => safe replay/no duplicate mutations.
+- Same Event ID + different canonical payload => hard idempotency conflict.
+- Formation success => immutable `completed` transaction plan carrying every deterministic movement.
+- Formation shortage/business failure => immutable `failed` decision with zero mutations.
+- Transaction and payload fingerprints are deterministic and store-independent.
+- No persistence adapter is introduced in ACC-EXEC-005.
