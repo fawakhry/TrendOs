@@ -1,5 +1,6 @@
 name: TrendOS Cloudflare Freshness Diagnostics
 
+# Diagnostic refresh marker: 2026-09-04T02:10Z — read-only; no D1 writes or production cutover.
 on:
   push:
     branches:
