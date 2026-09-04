@@ -1,0 +1,31 @@
+name: TrendOS Production Worker Identify
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-worker-identify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  identify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe candidate Workers
+        run: |
+          set -euo pipefail
+          for base in \
+            'https://trendos.trendmall-contact.workers.dev' \
+            'https://trendos-d1-api.trendmall-contact.workers.dev'; do
+            echo "=== $base ==="
+            for path in '/health' '/v1/mirror/stats' '/v1/edge/health'; do
+              code="$(curl --silent --show-error --output /tmp/body.json --write-out '%{http_code}' "$base$path" || true)"
+              body="$(cat /tmp/body.json 2>/dev/null || true)"
+              echo "$path HTTP=$code BODY=${body:0:500}"
+            done
+          done
