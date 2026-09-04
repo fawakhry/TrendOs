@@ -84,7 +84,11 @@ function trendosCoreP0RegistrySourceRowsV1_(metricId,entityKey,snap){
   if(metricId==='DUPLICATE_INVOICE_DRAFTS')return(snap.drafts||[]).filter(function(r){
     return trendosNormalizeOrderId_(trendosHealthValV1_(r,['orderId','رقم الأوردر','Order ID']))===entityKey;
   });
-  if(metricId==='PRESS_COMPLETED_WITHOUT_SESSION')return(snap.lines||[]).filter(function(r){return trendosHealthLineIdV1_(r)===entityKey;});
+  if(metricId==='PRESS_COMPLETED_WITHOUT_SESSION')return(snap.lines||[]).filter(function(r){
+    if(trendosHealthLineIdV1_(r)!==entityKey)return false;
+    const status=trendosRemediationTextV1_(trendosHealthValV1_(r,['status','الحالة','Status']));
+    return status!=='مكرر';
+  });
   return[];
 }
 function trendosCoreP0RegistryEvidenceV1_(metricId,entityKey,rows){
