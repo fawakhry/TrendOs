@@ -6,7 +6,8 @@
 
   const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim();
   const REFRESH_MS=60*1000;
-  const ui={root:null,rows:[],notes:[],lastOk:0,busy:false,sending:false,timer:null};
+  const MIN_REFRESH_MS=45*1000;
+  const ui={root:null,rows:[],notes:[],lastOk:0,lastRefreshAt:0,busy:false,sending:false,timer:null};
   const txt=v=>String(v==null?'':v).trim();
   const esc=v=>txt(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   function state(){return window.trendosState||window.state||{};}
@@ -81,7 +82,7 @@
     d.querySelectorAll('[data-strip]').forEach(b=>b.addEventListener('click',()=>{const p=d.querySelector('[data-panel="'+b.dataset.strip+'"]');p.classList.toggle('open');}));
     d.querySelector('[data-send]').addEventListener('click',sendReply);
     d.querySelector('[data-reply]').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply();}});
-    render();refresh();ui.timer=setInterval(refresh,REFRESH_MS);window.addEventListener('focus',refresh);
+    render();refresh({force:true,source:'boot'});ui.timer=setInterval(function(){refresh({source:'interval'});},REFRESH_MS);window.addEventListener('focus',function(){refresh({source:'focus'});});
   }
   function renderConversation(){
     if(!ui.root)return;const chat=ui.root.querySelector('[data-chat]'),c=conversation();
@@ -95,7 +96,7 @@
     try{
       const stamp=new Date().toISOString();
       await api('saveMatbagyNote',{category:'OPS_REPLY',title:`OPS_REPLY|${name()}|${stamp}`,content:content});
-      input.value='';status.textContent='تم إرسال ردك لمدير التشغيل ✅';await refresh();
+      input.value='';status.textContent='تم إرسال ردك لمدير التشغيل ✅';await refresh({force:true,source:'post-write'});
     }catch(e){status.textContent='تعذر إرسال الرد الآن: '+txt(e.message);}
     finally{ui.sending=false;button.disabled=false;}
   }
@@ -106,8 +107,27 @@
     if(!html)html=`<div class="ems-item"><div class="ems-command">يا ${esc(name())}، مفيش تنبيه مباشر دلوقتي. راجع الشات والشغل الجديد وخليك محدث الحالات أول بأول.</div></div>`;ui.root.querySelector('[data-list="coach"]').innerHTML=html;
     const note=latestManagerNote(),msg=ui.root.querySelector('[data-msg="manager"]');msg.textContent=note?noteContent(note):`يا ${name()}، لو في حاجة موقفاك افتح المحادثة واكتب لي.`;renderConversation();
   }
-  async function refresh(){
-    if(ui.busy||!user()||!user().token)return;ui.busy=true;try{const out=await Promise.all([api('getRows',{screen:screen()}),api('getMatbagyNotes',{employee:name(),limit:50})]);const r=out[0]||{},n=out[1]||{};if(r.success!==false)ui.rows=Array.isArray(r.rows)?r.rows:[];if(n.success!==false)ui.notes=Array.isArray(n.notes)?n.notes:[];ui.lastOk=Date.now();render();}catch(e){if(ui.root){ui.root.querySelector('[data-msg="coach"]').textContent=`يا ${name()}، المتابعة موجودة لكن البيانات ما اتحدثتش دلوقتي.`;ui.root.querySelector('[data-msg="manager"]').textContent='المحادثة موجودة — هنحاول التحديث تلقائيًا.';}}finally{ui.busy=false;}
+  async function refresh(options){
+    const opts=options||{};
+    if(!user()||!user().token)return {skipped:true,reason:'not-ready'};
+    if(document.hidden&&!opts.force)return {skipped:true,reason:'hidden'};
+    if(ui.busy)return {skipped:true,reason:'in-flight'};
+    if(!opts.force&&ui.lastRefreshAt&&Date.now()-ui.lastRefreshAt<MIN_REFRESH_MS)return {skipped:true,reason:'min-interval'};
+    const task=async function(){
+      ui.busy=true;ui.lastRefreshAt=Date.now();
+      try{
+        const out=await Promise.all([api('getRows',{screen:screen()}),api('getMatbagyNotes',{employee:name(),limit:50})]);
+        const r=out[0]||{},n=out[1]||{};
+        if(r.success!==false)ui.rows=Array.isArray(r.rows)?r.rows:[];
+        if(n.success!==false)ui.notes=Array.isArray(n.notes)?n.notes:[];
+        ui.lastOk=Date.now();render();return {success:true};
+      }catch(e){
+        if(ui.root){ui.root.querySelector('[data-msg="coach"]').textContent=`يا ${name()}، المتابعة موجودة لكن البيانات ما اتحدثتش دلوقتي.`;ui.root.querySelector('[data-msg="manager"]').textContent='المحادثة موجودة — هنحاول التحديث تلقائيًا.';}
+        return {success:false,message:txt(e&&e.message||e)};
+      }finally{ui.busy=false;}
+    };
+    if(window.TrendPollCoordinatorV1&&typeof window.TrendPollCoordinatorV1.run==='function')return window.TrendPollCoordinatorV1.run('employee-manager',task,{minIntervalMs:MIN_REFRESH_MS,force:!!opts.force});
+    return task();
   }
   window.TrendEmployeeManagerStripsV2={refresh:refresh};
   const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);build();}},400);
