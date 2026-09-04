@@ -13,10 +13,16 @@ on:
       - 'cloudflare-d1/wrangler.toml'
       - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_CANONICAL_ADAPTER_DRYRUN_V1.gs'
       - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_RUNTIME_PREFLIGHT_V1.gs'
+      - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_AUTH_BRIDGE_QUALIFICATION_V1.gs'
+      - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_SIDE_EFFECT_QUALIFICATION_V1.gs'
+      - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_CANONICAL_TARGET_IDENTITY_V1.gs'
       - 'tests/cloud_write_order_contract_v2.test.mjs'
       - 'tests/cloud_write_order_contract_v2_staging.test.mjs'
       - 'tests/apps_script_cloud_write_order_v2_canonical_adapter_dryrun_v1.test.mjs'
       - 'tests/apps_script_cloud_write_order_v2_staging_runtime_preflight_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_order_v2_staging_auth_bridge_qualification_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_order_v2_staging_side_effect_qualification_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_order_v2_staging_canonical_target_identity_v1.test.mjs'
       - '.github/workflows/trendos-cloud-write-order-contract-v2.yml'
   workflow_dispatch:
 
@@ -48,6 +54,15 @@ jobs:
       - name: Verify isolated Apps Script staging runtime preflight
         run: node tests/apps_script_cloud_write_order_v2_staging_runtime_preflight_v1.test.mjs
 
+      - name: Verify staging synthetic auth bridge qualification
+        run: node tests/apps_script_cloud_write_order_v2_staging_auth_bridge_qualification_v1.test.mjs
+
+      - name: Verify canonical staging side-effect shape
+        run: node tests/apps_script_cloud_write_order_v2_staging_side_effect_qualification_v1.test.mjs
+
+      - name: Verify active and canonical staging target identity
+        run: node tests/apps_script_cloud_write_order_v2_staging_canonical_target_identity_v1.test.mjs
+
       - name: Production integration boundary
         run: |
           set -euo pipefail
@@ -59,14 +74,18 @@ jobs:
             echo 'V2_CONTRACT_V1_HANDLER_IMPORT_REFUSED'
             exit 1
           fi
-          if grep -Fq 'CLOUD_WRITE_ORDER_V2_CANONICAL_ADAPTER_DRYRUN_V1' Code.gs; then
-            echo 'V2_ADAPTER_LIVE_CODEGS_INTEGRATION_REFUSED'
-            exit 1
-          fi
-          if grep -Fq 'CLOUD_WRITE_ORDER_V2_STAGING_RUNTIME_PREFLIGHT_V1' Code.gs; then
-            echo 'V2_STAGING_PREFLIGHT_LIVE_CODEGS_INTEGRATION_REFUSED'
-            exit 1
-          fi
+          for marker in \
+            CLOUD_WRITE_ORDER_V2_CANONICAL_ADAPTER_DRYRUN_V1 \
+            CLOUD_WRITE_ORDER_V2_STAGING_RUNTIME_PREFLIGHT_V1 \
+            CLOUD_WRITE_ORDER_V2_STAGING_AUTH_BRIDGE_QUALIFICATION_V1 \
+            CLOUD_WRITE_ORDER_V2_STAGING_SIDE_EFFECT_QUALIFICATION_V1 \
+            CLOUD_WRITE_ORDER_V2_STAGING_CANONICAL_TARGET_IDENTITY_V1
+          do
+            if grep -Fq "$marker" Code.gs; then
+              echo "V2_APPS_SCRIPT_LIVE_CODEGS_INTEGRATION_REFUSED:$marker"
+              exit 1
+            fi
+          done
           grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.toml
           ! grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"true"' cloudflare-d1/wrangler.toml
           echo 'V2_PRODUCTION_INTEGRATION_BOUNDARY_PASS'
@@ -74,8 +93,11 @@ jobs:
       - name: Safety conclusion
         run: |
           echo 'CLOUD_WRITE_ORDER_CONTRACT_V2_GATE_PASS'
-          echo 'The V2 core is pure planning logic. The staging plan route is fixed synthetic GET/read-only with no DB or Sheets write.'
-          echo 'The Apps Script adapter is dry-run only: it maps exact canonical parameter aliases but cannot invoke createManualOrder_ and carries no credentials or Order ID.'
-          echo 'The isolated staging runtime preflight validates the dedicated staging spreadsheet/guard/baseline, but still blocks canonical invocation until auth and side-effect isolation are qualified.'
+          echo 'The V2 core remains pure planning logic and the staging intent-plan remains read-only.'
+          echo 'The canonical adapter carries no credentials or Order ID and cannot invoke createManualOrder_.'
+          echo 'The staging preflight validates the dedicated workbook/guard/baseline.'
+          echo 'The synthetic staging auth bridge is read-only, accepts no Cloud credentials, never returns the token, and does not call authorize_.'
+          echo 'The current createManualOrder_ side-effect shape has no direct network/WhatsApp/D1 send; queueing is staging-sheet-only. Script Property writes are explicitly identified.'
+          echo 'Because ss_() may honor TRENDOS_SPREADSHEET_ID, the target identity gate separately requires active spreadsheet == ss_() target == dedicated staging spreadsheet.'
           echo 'No V2 Apps Script patch is wired to production; Business Order ID allocation remains Apps Script-owned.'
           echo 'Production Cloud Write V1 remains OFF.'
