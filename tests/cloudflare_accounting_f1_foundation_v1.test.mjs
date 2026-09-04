@@ -54,8 +54,40 @@ class MockDB {
   async batch() { this.writeOps += 1; return []; }
 }
 
-function env(db = new MockDB()) {
-  return { DB: db, EDGE_SESSION_SECRET: 'unit-test-signing-key', EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS: '600', CORS_ORIGINS: 'https://fawakhry.github.io' };
+function env(db = new MockDB(), extra = {}) {
+  return { DB: db, EDGE_SESSION_SECRET: 'unit-test-signing-key', EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS: '600', CORS_ORIGINS: 'https://fawakhry.github.io', ...extra };
+}
+
+function healthyIdleHeartbeat() {
+  return {
+    success: true,
+    lowUsage: true,
+    lightweightIdleDetection: true,
+    enabled: true,
+    intervalMinutes: 5,
+    lowUsageTriggerCount: 1,
+    legacyV1TriggerCount: 0,
+    directV2TriggerCount: 0,
+    lightFingerprintPresent: true,
+    lastError: null,
+    consecutiveErrors: 0,
+    unchangedD1Writes: 0,
+    unchangedCloudflareRequests: 0,
+    lastIdleCheck: {
+      at: '2026-09-04T23:59:30.000Z',
+      success: true,
+      lowUsage: true,
+      mode: 'unchanged-light-fingerprint-no-d1-request',
+      sourceChanged: false,
+      d1RequestMade: false,
+      d1WriteMade: false,
+      intervalMinutes: 5,
+      source: [
+        { sheetName: 'الأوردرات', sourceLastRow: 1, sourceLastCol: 8, displayHash: 'orders-hash' },
+        { sheetName: 'بنود الأوردرات', sourceLastRow: 1, sourceLastCol: 14, displayHash: 'lines-hash' }
+      ]
+    }
+  };
 }
 
 assert.equal(validateStableId('3569-1').ok, true);
@@ -108,9 +140,17 @@ assert.equal(db.writeOps, 0);
 const staleDb = new MockDB('2026-09-04T20:00:00.000Z');
 const stale = await readAccountingOrderLineFacts(env(staleDb), { orderId: '3569', lineId: '3569-1' }, NOW);
 assert.equal(stale.success, false);
-assert.equal(stale.code, 'mirror-not-ready');
+assert.equal(stale.code, 'stale-orders-mirror');
 assert.equal(stale.fallback, 'apps-script');
 assert.equal(staleDb.writeOps, 0);
+
+const idleDb = new MockDB('2026-09-04T20:00:00.000Z');
+const idleEnv = env(idleDb, { EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED: 'true' });
+const idleFacts = await readAccountingOrderLineFacts(idleEnv, { orderId: '3569', lineId: '3569-1' }, NOW, { fetchHeartbeat: async () => healthyIdleHeartbeat() });
+assert.equal(idleFacts.success, true);
+assert.equal(idleFacts.freshness.freshnessMode, 'verified-idle-source-unchanged');
+assert.equal(idleFacts.freshness.idleHeartbeat.ok, true);
+assert.equal(idleDb.writeOps, 0);
 
 assert.equal(isAccountingFoundationApiPath('/v1/accounting/foundation'), true);
 assert.equal(isAccountingFoundationApiPath('/v1/accounting/foundation/validate'), true);
