@@ -8,8 +8,12 @@ import {
   handleAccountingFoundationApiRequest,
   isAccountingFoundationApiPath
 } from './accounting-foundation-api-v1.mjs';
+import {
+  handleAccountingFinanceApiRequest,
+  isAccountingFinanceApiPath
+} from './accounting-finance-api-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_5_20260905';
+export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_6_20260905';
 
 const INTEGRATION_CONTRACT = Object.freeze({
   version: TRENDOS_ACCOUNTING_NATIVE_VERSION,
@@ -31,6 +35,7 @@ const INTEGRATION_CONTRACT = Object.freeze({
     supplierKey: 'Supplier ID / Party ID',
     departmentKey: 'Department ID',
     profitCenterKey: 'Profit Center ID',
+    treasuryKey: 'Treasury ID / Cashbox ID',
     customerIdentityOwner: 'TrendOS shared customer registry',
     employeeIdentityOwner: 'TrendOS shared auth/session'
   },
@@ -70,6 +75,10 @@ const INTEGRATION_CONTRACT = Object.freeze({
     'POST /v1/accounting/foundation/validate',
     'GET /v1/accounting/operations/line?orderId=...&lineId=... (authenticated read only)'
   ],
+  financeEndpoints: [
+    'GET /v1/accounting/finance (F2 metadata, read only)',
+    'POST /v1/accounting/finance/plan (posting plan only, persistence=none)'
+  ],
   invariants: [
     'Accounting never invents an operational price.',
     'Replaying the same event must not duplicate invoice lines, stock movements, payments or cash transactions.',
@@ -77,6 +86,7 @@ const INTEGRATION_CONTRACT = Object.freeze({
     'Profit-sharing percentages are outside Accounting.',
     'Inventory/BOM movements must be atomic and auditable.',
     'Names and phone numbers are never primary integration keys.',
+    'Treasury and cashbox legs use stable Treasury IDs rather than account names alone.',
     'Verified EasyStore behavior is preserved unless deliberately superseded by a tested TrendOS contract.',
     'D1 does not become authoritative for financial writes without a separately approved cutover.'
   ]
@@ -89,7 +99,8 @@ export function isAccountingNativeModulePath(path) {
     normalized === '/v1/accounting/capabilities' ||
     normalized === '/v1/accounting/contract' ||
     normalized === '/v1/accounting/validate' ||
-    isAccountingFoundationApiPath(normalized);
+    isAccountingFoundationApiPath(normalized) ||
+    isAccountingFinanceApiPath(normalized);
 }
 
 function json(data, status = 200) {
@@ -124,6 +135,10 @@ export async function handleAccountingNativeModuleRequest(request, env = {}, ctx
 
   if (isAccountingFoundationApiPath(path)) {
     return handleAccountingFoundationApiRequest(request, env, ctx);
+  }
+
+  if (isAccountingFinanceApiPath(path)) {
+    return handleAccountingFinanceApiRequest(request, env, ctx);
   }
 
   if (path === '/v1/accounting/integration') {
