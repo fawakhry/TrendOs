@@ -1,4 +1,4 @@
-export const TRENDOS_ACCOUNTING_FOUNDATION_VERSION = 'TRENDOS_ACCOUNTING_F1_V1_1_20260905';
+export const TRENDOS_ACCOUNTING_FOUNDATION_VERSION = 'TRENDOS_ACCOUNTING_F1_V1_2_20260905';
 
 export const ACCOUNTING_PERMISSIONS = Object.freeze([
   'accounting.read',
@@ -63,9 +63,9 @@ export const ACCOUNTING_ENTITY_OWNERS = Object.freeze({
 const ID_MAX = 120;
 const SAFE_ID = /^[0-9A-Za-z_:.\-/\u0600-\u06ff]+$/u;
 const COMMAND_TYPES = Object.freeze([
-  'party-ledger.post','treasury.post','purchase.create','purchase.pay',
+  'party-ledger.post','treasury.post','treasury.transfer','purchase.create','purchase.pay',
   'sales-invoice.create','customer.collect','stock.move','bom.form',
-  'expense.create','day-close.execute','reversal.create'
+  'expense.create','day-close.execute','reversal.create','journal.reverse'
 ]);
 
 function text(value) {
@@ -117,9 +117,6 @@ export function permissionsForAccountingPrincipal(principal = {}) {
     : [];
   const role = text(principal.accountingRole || principal.role).toLowerCase();
   const mapped = ACCOUNTING_ROLE_PERMISSIONS[role] || [];
-  // Temporary compatibility bridge: existing TrendOS role=admin can inspect
-  // Accounting/read audit data only. It is NOT promoted to accounting.admin and
-  // therefore receives no financial mutation permission implicitly.
   const legacyAdminBridge = role === 'admin'
     ? ['accounting.read','accounting.audit.read']
     : [];
