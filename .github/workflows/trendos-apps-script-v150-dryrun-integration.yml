@@ -35,6 +35,27 @@ jobs:
           echo 'PASS: dry-run contract remains read-only and staging-only.'
           echo 'No Apps Script deployment or Google Sheets write is performed by preflight.'
 
+  verify-integrated-codegs-v150-dryrun:
+    needs: dryrun-contract-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout integrated candidate
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify integrated Code.gs route and append-only helper
+        run: node tests/apps_script_cloud_write_reconcile_router_v150.test.mjs
+      - name: Reverify helper runtime contract
+        run: node tests/apps_script_cloud_write_reconcile_dryrun_v1.test.mjs
+      - name: Candidate boundary
+        run: |
+          echo 'PASS: repository Code.gs contains exactly one V150 dry-run route and exactly one append-only helper.'
+          echo 'PASS: helper remains mutation-free and accepts CW-STAGE-* dry-run payloads only.'
+          echo 'No Apps Script deployment is performed by this job.'
+
   integrate-codegs-v150-dryrun:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[apply-apps-v150-dryrun]')
     needs: dryrun-contract-preflight
