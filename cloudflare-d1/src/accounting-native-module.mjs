@@ -1,7 +1,11 @@
 import { handleAccountingPreviewRequest } from './accounting-preview.mjs';
 import { accountingCapabilitiesPayload } from './accounting-capabilities-v1.mjs';
+import {
+  accountingContractMetadata,
+  validateAccountingCommand
+} from './accounting-contract-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_3_20260905';
+export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_4_20260905';
 
 const INTEGRATION_CONTRACT = Object.freeze({
   version: TRENDOS_ACCOUNTING_NATIVE_VERSION,
@@ -73,7 +77,9 @@ export function isAccountingNativeModulePath(path) {
   const normalized = String(path || '').replace(/\/+$/, '') || '/';
   return normalized === '/trendos/accounting' ||
     normalized === '/v1/accounting/integration' ||
-    normalized === '/v1/accounting/capabilities';
+    normalized === '/v1/accounting/capabilities' ||
+    normalized === '/v1/accounting/contract' ||
+    normalized === '/v1/accounting/validate';
 }
 
 function json(data, status = 200) {
@@ -87,42 +93,59 @@ function json(data, status = 200) {
   });
 }
 
+async function readJsonBody(request) {
+  try {
+    return { ok: true, body: await request.json() };
+  } catch (err) {
+    return { ok: false, response: json({
+      success: false,
+      valid: false,
+      code: 'invalid-json',
+      message: 'A valid JSON request body is required.',
+      authoritativeWrites: false,
+      persistence: 'none'
+    }, 400) };
+  }
+}
+
 export async function handleAccountingNativeModuleRequest(request, env = {}, ctx) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
 
   if (path === '/v1/accounting/integration') {
     if (request.method !== 'GET') {
-      return json({
-        success: false,
-        code: 'integration-contract-read-only',
-        authoritativeWrites: false,
-        nativeModule: true
-      }, 405);
+      return json({ success: false, code: 'integration-contract-read-only', authoritativeWrites: false, nativeModule: true }, 405);
     }
     return json({ success: true, ...INTEGRATION_CONTRACT });
   }
 
   if (path === '/v1/accounting/capabilities') {
     if (request.method !== 'GET') {
-      return json({
-        success: false,
-        code: 'accounting-capabilities-read-only',
-        authoritativeWrites: false,
-        nativeModule: true
-      }, 405);
+      return json({ success: false, code: 'accounting-capabilities-read-only', authoritativeWrites: false, nativeModule: true }, 405);
     }
     return json(accountingCapabilitiesPayload());
   }
 
+  if (path === '/v1/accounting/contract') {
+    if (request.method !== 'GET') {
+      return json({ success: false, code: 'accounting-contract-read-only', authoritativeWrites: false, persistence: 'none', nativeModule: true }, 405);
+    }
+    return json(accountingContractMetadata());
+  }
+
+  if (path === '/v1/accounting/validate') {
+    if (request.method !== 'POST') {
+      return json({ success: false, code: 'accounting-validation-post-only', authoritativeWrites: false, persistence: 'none', nativeModule: true }, 405);
+    }
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const result = validateAccountingCommand(parsed.body);
+    return json({ ...result, nativeModule: true }, result.valid ? 200 : 422);
+  }
+
   if (path === '/trendos/accounting') {
     if (request.method !== 'GET') {
-      return json({
-        success: false,
-        code: 'accounting-native-preview-read-only',
-        authoritativeWrites: false,
-        nativeModule: true
-      }, 405);
+      return json({ success: false, code: 'accounting-native-preview-read-only', authoritativeWrites: false, nativeModule: true }, 405);
     }
     const previewUrl = new URL(request.url);
     previewUrl.pathname = '/accounting';
