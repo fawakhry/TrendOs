@@ -62,6 +62,7 @@ jobs:
           code="$(curl --silent --show-error --output /tmp/page.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__")"
           debt_code="$(curl --silent --show-error --output /tmp/debt.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__")"
           rm -f /tmp/orders-token.txt
+          printf '%s' "$code" > /tmp/orders-http-code.txt
           echo "ORDERS_PAGE_HTTP=$code"
           cat /tmp/page.json
           echo "DEBT_HTTP=$debt_code"
@@ -74,7 +75,7 @@ jobs:
           const x=JSON.parse(fs.readFileSync('/tmp/page.json','utf8'));
           const maxAge=Number(process.env.ORDERS_MAX_AGE_SECONDS||600);
           const expectedFresh=m.status==='ready'&&m.rowCount===m.sourceLastRow&&['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(m.note)&&m.ageSeconds<=maxAge;
-          const code=Number(process.env.ORDERS_HTTP_CODE||0);
+          const code=Number(fs.readFileSync('/tmp/orders-http-code.txt','utf8'));
           if(expectedFresh){
             if(code!==200||x.success!==true||x.dataSource!=='d1-edge-orders'||!Array.isArray(x.rows)) throw new Error('Fresh mirror must serve D1 Orders');
             console.log('PREVIEW_ORDERS_FRESH_SERVE_PASS rows='+x.rows.length);
@@ -83,8 +84,6 @@ jobs:
             console.log('PREVIEW_ORDERS_STALE_FAIL_CLOSED_PASS code='+x.code+' age='+m.ageSeconds);
           }
           NODE
-        env:
-          ORDERS_HTTP_CODE: ${{ env.ORDERS_HTTP_CODE }}
 
       - name: Verify Cloud Write remains OFF
         run: |
