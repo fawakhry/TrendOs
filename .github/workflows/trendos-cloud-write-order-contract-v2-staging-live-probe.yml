@@ -1,0 +1,106 @@
+name: TrendOS Cloud Write Order Contract V2 Staging Live Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-cloud-write-order-contract-v2-staging-live-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v2-staging-live-readonly-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      STAGING_URL: https://trendos-d1-staging.trendmall-contact.workers.dev
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      V2_PATH: /v1/staging/cloud-write/v2/intent-plan
+    steps:
+      - name: Capture staging reconciliation counters before V2 plan reads
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/before.json --write-out '%{http_code}' "$STAGING_URL/v1/staging/cloud-write/reconcile/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/before.json','utf8'));
+          if(!x.success || x.stagingOnly!==true || x.sheetsWritten!==false) process.exit(1);
+          require('fs').writeFileSync('/tmp/before-counts.json',JSON.stringify({pending:Number(x.pending||0),verified:Number(x.verified||0)}));
+          console.log('V2_STAGING_BEFORE='+JSON.stringify({pending:Number(x.pending||0),verified:Number(x.verified||0),sheetsWritten:x.sheetsWritten}));
+          NODE
+
+      - name: Read the fixed synthetic V2 create-intent plan twice
+        run: |
+          set -euo pipefail
+          for n in 1 2; do
+            code="$(curl --silent --show-error --output "/tmp/plan-$n.json" --write-out '%{http_code}' "$STAGING_URL$V2_PATH")"
+            echo "V2_STAGING_PLAN_${n}_HTTP=$code"
+            test "$code" = '200'
+            N="$n" node <<'NODE'
+          const fs=require('fs');
+          const n=process.env.N;
+          const x=JSON.parse(fs.readFileSync(`/tmp/plan-${n}.json`,'utf8'));
+          const p=x.canonicalCreateParams||{};
+          const pass=x.success===true && x.stagingOnly===true && x.syntheticOnly===true && x.readOnly===true && x.d1Written===false && x.sheetsWritten===false && Number(x.mutationCount||0)===0 && x.productionCutover===false && x.productionRouteIntegrated===false && x.intentType==='createManualOrder' && x.businessOrderIdStrategy==='apps-script-allocated' && !Object.prototype.hasOwnProperty.call(p,'orderId') && p.clientRequestId==='CWV2-STAGE-PLAN-001' && p.customerMode==='خارجي / عابر' && p.externalCustomerId==='987' && p.department==='طباعة' && p.heatPress==='نعم' && p.itemName==='V2 Intent Qualification Item' && Number(p.qty)===1 && p.status==='طلب جديد' && p.flyPrint==='لا';
+          console.log(`V2_STAGING_PLAN_${n}=`+JSON.stringify({service:x.service,stagingOnly:x.stagingOnly,syntheticOnly:x.syntheticOnly,readOnly:x.readOnly,d1Written:x.d1Written,sheetsWritten:x.sheetsWritten,mutationCount:x.mutationCount,businessOrderIdStrategy:x.businessOrderIdStrategy,plan:{clientRequestId:p.clientRequestId,customerMode:p.customerMode,externalCustomerId:p.externalCustomerId,department:p.department,heatPress:p.heatPress,itemName:p.itemName,qty:p.qty,status:p.status,flyPrint:p.flyPrint},pass}));
+          if(!pass) process.exit(1);
+          NODE
+          done
+          cmp /tmp/plan-1.json /tmp/plan-2.json
+          echo 'V2_STAGING_DETERMINISTIC_READ_PASS'
+
+      - name: POST to V2 staging plan route must be rejected without mutation
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/post.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{"orderId":"MUST-NOT-WRITE"}' "$STAGING_URL$V2_PATH")"
+          echo "V2_STAGING_POST_HTTP=$code"
+          test "$code" = '404'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post.json','utf8'));
+          if(x.success!==false || x.stagingOnly!==true || x.readOnly!==true || x.d1Written!==false || x.sheetsWritten!==false || Number(x.mutationCount||0)!==0) process.exit(1);
+          console.log('V2_STAGING_POST_FAIL_CLOSED_PASS');
+          NODE
+
+      - name: Staging D1 reconciliation counters must be unchanged
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/after.json --write-out '%{http_code}' "$STAGING_URL/v1/staging/cloud-write/reconcile/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const before=JSON.parse(fs.readFileSync('/tmp/before-counts.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'));
+          const after={pending:Number(x.pending||0),verified:Number(x.verified||0)};
+          const pass=x.success===true && x.stagingOnly===true && x.sheetsWritten===false && before.pending===after.pending && before.verified===after.verified;
+          console.log('V2_STAGING_AFTER='+JSON.stringify({before,after,sheetsWritten:x.sheetsWritten,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Production must not expose the V2 staging route
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/prod-v2.json --write-out '%{http_code}' "$PROD_URL$V2_PATH")"
+          echo "V2_PRODUCTION_ROUTE_HTTP=$code"
+          test "$code" = '404'
+          echo 'V2_PRODUCTION_ROUTE_ISOLATION_PASS'
+
+      - name: Production Cloud Write must remain disabled
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/prod-health.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/prod-health.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('V2_PRODUCTION_WRITE_BOUNDARY='+JSON.stringify({enabled:x.enabled,writesAccepted:x.writesAccepted,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'CLOUD_WRITE_ORDER_CONTRACT_V2_STAGING_LIVE_READONLY_PASS'
+          echo 'Two deterministic plan reads and one rejected POST caused no staging D1 counter change and no Sheet write.'
+          echo 'The V2 route is absent on Production and Production Cloud Write remains OFF.'
