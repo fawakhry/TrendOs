@@ -49,6 +49,8 @@ function inspect(status) {
   return inspectOrdersIdleHeartbeat(status, {
     nowMs,
     maxAgeSeconds: 720,
+    expectedOrdersSourceLastRow: 274,
+    expectedOrdersSourceLastCol: 67,
     expectedLinesSourceLastRow: 315,
     expectedLinesSourceLastCol: 82
   });
@@ -114,6 +116,14 @@ function inspect(status) {
 
 {
   const status = validStatus();
+  status.lastIdleCheck.source[0].sourceLastRow = 273;
+  const result = inspect(status);
+  assert.equal(result.ok, false);
+  assert.ok(result.failedChecks.includes('ordersSourceShapeMatches'));
+}
+
+{
+  const status = validStatus();
   status.lastIdleCheck.source[1].sourceLastRow = 314;
   const result = inspect(status);
   assert.equal(result.ok, false);
@@ -127,4 +137,4 @@ function inspect(status) {
   assert.ok(result.failedChecks.includes('idlePresent'));
 }
 
-console.log('Cloudflare Edge Orders Idle Heartbeat V1: RECENT UNCHANGED SOURCE + TRIGGER/ERROR/FINGERPRINT/SHAPE FAIL-CLOSED PASS');
+console.log('Cloudflare Edge Orders Idle Heartbeat V1: RECENT UNCHANGED SOURCE + TRIGGER/ERROR/FINGERPRINT/ORDERS+LINES SHAPE FAIL-CLOSED PASS');
