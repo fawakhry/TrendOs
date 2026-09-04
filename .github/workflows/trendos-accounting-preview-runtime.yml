@@ -7,9 +7,12 @@ on:
     paths:
       - 'cloudflare-d1/src/accounting-preview.mjs'
       - 'cloudflare-d1/src/accounting-native-module.mjs'
+      - 'cloudflare-d1/src/accounting-capabilities-v1.mjs'
+      - 'cloudflare-d1/src/accounting-contract-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_preview_safety_v1.test.mjs'
       - 'tests/cloudflare_accounting_native_v1.test.mjs'
+      - 'tests/cloudflare_accounting_contract_v1.test.mjs'
       - '.github/workflows/trendos-accounting-preview-runtime.yml'
   workflow_dispatch:
 
@@ -55,11 +58,81 @@ jobs:
           const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-integration.json','utf8'));
           if (!x.success || x.nativeModule !== true || x.standaloneProduct !== false) process.exit(1);
           if (x.platform !== 'TrendOS' || x.module !== 'TrendOS Accounting') process.exit(1);
+          if (x.easyStoreRole !== 'historical-working-trendos-accounting-baseline') process.exit(1);
           if (x.authoritativeWrites !== false || x.cutover !== false) process.exit(1);
-          if (!x.sharedIdentity || x.sharedIdentity.orderKey !== 'Order ID' || x.sharedIdentity.lineKey !== 'Line ID') process.exit(1);
+          if (!x.sharedIdentity || x.sharedIdentity.orderKey !== 'Order ID' || x.sharedIdentity.lineKey !== 'Line ID' || x.sharedIdentity.profitCenterKey !== 'Profit Center ID') process.exit(1);
           if (!Array.isArray(x.operationsToAccounting) || !x.operationsToAccounting.includes('approved selling price / approved line amount')) process.exit(1);
           if (!Array.isArray(x.accountingToOperations) || !x.accountingToOperations.includes('factual line profit')) process.exit(1);
           console.log('ACCOUNTING_TRENDOS_INTEGRATION=PASS');
+          NODE
+
+      - name: Verify Accounting V1 contract metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-contract.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/contract")"
+          cat /tmp/accounting-contract.json
+          test "$code" = '200'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-contract.json','utf8'));
+          if (!x.success || x.version !== 'TRENDOS_ACCOUNTING_CONTRACT_V1_20260905') process.exit(1);
+          if (x.mode !== 'validation-only' || x.authoritativeWrites !== false || x.persistence !== 'none') process.exit(1);
+          for (const e of ['SalesInvoice','SalesInvoiceLine','Payment','Purchase','Expense','Item','BOM','StockMovement','CashTransaction']) {
+            if (!x.entityTypes.includes(e)) process.exit(1);
+          }
+          if (!x.envelope || !x.envelope.required.includes('idempotencyKey')) process.exit(1);
+          console.log('ACCOUNTING_CONTRACT_METADATA=PASS');
+          NODE
+
+      - name: Verify valid Accounting command validation is zero-write
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/accounting-valid.json <<'JSON'
+          {"entityType":"SalesInvoiceLine","operation":"validate-future-line","idempotencyKey":"RUNTIME-VALID-LINE-001","payload":{"invoiceLineId":"INV-RT-L1","invoiceId":"INV-RT","orderId":"ORDER-RT","sourceOrderId":"ORDER-RT","lineId":"LINE-RT","itemId":"ITEM-RT","profitCenterId":"PC-RT","quantity":2,"unitPrice":125,"recognizedUnitCost":60}}
+          JSON
+          code="$(curl --silent --show-error --output /tmp/accounting-valid-result.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @/tmp/accounting-valid.json "$PREVIEW_URL/v1/accounting/validate")"
+          cat /tmp/accounting-valid-result.json
+          test "$code" = '200'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-valid-result.json','utf8'));
+          if (!x.success || x.valid !== true || x.nativeModule !== true) process.exit(1);
+          if (x.authoritativeWrites !== false || x.persistence !== 'none') process.exit(1);
+          if (!x.normalized || x.normalized.payload.orderId !== 'ORDER-RT' || x.normalized.payload.lineId !== 'LINE-RT') process.exit(1);
+          console.log('ACCOUNTING_VALIDATE_VALID=PASS');
+          NODE
+
+      - name: Verify Line Order mismatch is rejected without persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/accounting-mismatch.json <<'JSON'
+          {"entityType":"SalesInvoiceLine","operation":"validate-future-line","idempotencyKey":"RUNTIME-MISMATCH-LINE-001","payload":{"invoiceLineId":"INV-MM-L1","invoiceId":"INV-MM","orderId":"ORDER-A","sourceOrderId":"ORDER-B","lineId":"LINE-MM","itemId":"ITEM-MM","quantity":1,"unitPrice":100}}
+          JSON
+          code="$(curl --silent --show-error --output /tmp/accounting-mismatch-result.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @/tmp/accounting-mismatch.json "$PREVIEW_URL/v1/accounting/validate")"
+          cat /tmp/accounting-mismatch-result.json
+          test "$code" = '422'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-mismatch-result.json','utf8'));
+          if (x.valid !== false || x.authoritativeWrites !== false || x.persistence !== 'none') process.exit(1);
+          if (!Array.isArray(x.errors) || !x.errors.some(e => e.code === 'line-order-mismatch')) process.exit(1);
+          console.log('ACCOUNTING_VALIDATE_MISMATCH=PASS');
+          NODE
+
+      - name: Verify profit-sharing fields stay outside Accounting
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/accounting-share.json <<'JSON'
+          {"entityType":"Expense","operation":"create-expense","idempotencyKey":"RUNTIME-SHARE-FIELD-001","payload":{"expenseId":"EXP-RT","expenseType":"test","amount":10,"currency":"EGP","investorPercentage":20}}
+          JSON
+          code="$(curl --silent --show-error --output /tmp/accounting-share-result.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @/tmp/accounting-share.json "$PREVIEW_URL/v1/accounting/validate")"
+          test "$code" = '422'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-share-result.json','utf8'));
+          if (!x.errors.some(e => e.code === 'profit-sharing-field-forbidden')) process.exit(1);
+          if (x.authoritativeWrites !== false || x.persistence !== 'none') process.exit(1);
+          console.log('ACCOUNTING_PROFIT_SHARE_BLOCK=PASS');
           NODE
 
       - name: Verify native TrendOS Accounting module shell
@@ -69,7 +142,7 @@ jobs:
           code="$(curl --silent --show-error --output /tmp/trendos-accounting.html --write-out '%{http_code}' "$PREVIEW_URL/trendos/accounting")"
           test "$code" = '200'
           grep -Fq 'TrendOS Native Module' /tmp/trendos-accounting.html
-          grep -Fq 'الحسابات جزء من TrendOS' /tmp/trendos-accounting.html
+          grep -Fq 'EasyStore' /tmp/trendos-accounting.html
           grep -Fq 'Order ID / Line ID' /tmp/trendos-accounting.html
           grep -Fq 'TrendOS Accounting' /tmp/trendos-accounting.html
           grep -Fq 'بدون كتابة على الإنتاج' /tmp/trendos-accounting.html
@@ -86,7 +159,7 @@ jobs:
           grep -Fq 'بدون كتابة على الإنتاج' /tmp/accounting.html
           echo 'ACCOUNTING_ALIAS=PASS'
 
-      - name: Verify Accounting Worker routes reject authoritative POST
+      - name: Verify authoritative Accounting POST routes remain blocked
         shell: bash
         run: |
           set -euo pipefail
@@ -96,9 +169,12 @@ jobs:
           native_code="$(curl --silent --show-error --output /tmp/accounting-native-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/integration")"
           test "$native_code" = '405'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/accounting-native-post.json','utf8')); if(x.success!==false||x.nativeModule!==true||x.authoritativeWrites!==false){process.exit(1)}"
-          echo 'ACCOUNTING_POST_BLOCK=PASS'
+          contract_post="$(curl --silent --show-error --output /tmp/accounting-contract-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/contract")"
+          test "$contract_post" = '405'
+          echo 'ACCOUNTING_AUTHORITATIVE_POST_BLOCK=PASS'
 
       - name: Accounting Preview runtime summary
         run: |
-          echo 'PASS: TrendOS Accounting is verified as a native TrendOS module on the isolated Cloudflare Worker.'
-          echo 'PASS: Financial authoritative writes remain disabled; Sheets + Apps Script remain authoritative.'
+          echo 'PASS: TrendOS Accounting native shell and V1 validation contract are live on the isolated Cloudflare Worker.'
+          echo 'PASS: Validation persistence is NONE and financial authoritative writes remain disabled.'
+          echo 'PASS: Sheets + Apps Script remain authoritative until a separate approved cutover.'
