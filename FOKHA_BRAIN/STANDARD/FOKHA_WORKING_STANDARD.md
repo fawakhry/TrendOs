@@ -15,22 +15,17 @@
 | STD-008 | إنشاء Fokha GitHub repo لاحقًا | اجعله الذاكرة التنفيذية الطويلة المدى لفوخا، مع بقاء Google Sheet بوابة Capture سريعة. | GitHub + Google Sheet | نقل منظم بالمفاتيح IDs والمصادر، لا نسخ عشوائي. | GitHub يصبح canonical للمعرفة المستقرة، والشيت Inbox/working memory. | User-approved architecture | Pending GitHub repo |
 | STD-009 | المستخدم يقول: ادخل عقل فوخا / روح على عقل فوخا، أو يتم استخراج معرفة جديدة من أي شات أو مصدر | ابدأ القراءة من GitHub عقل فوخا أولًا. بعد الاستخراج، اكتب الناتج فورًا في Google Drive داخل `Fokha - Idea Inbox` حسب نوعه، ثم اترك GitHub للمزامنة المنظمة لاحقًا. | GitHub read path + Google Drive immediate write path | GitHub = نقطة الدخول والسياق المنظم؛ Google Drive = أول مكان تُكتب فيه المعرفة المستخرجة الجديدة؛ Project Black Box يظل مصدر الحقيقة الخاص بالمشروع. | لا تُرقّى المعرفة إلى GitHub stable memory إلا بعد تنظيمها وربطها بالمصدر والـID وعدم إنشاء duplicate. | User-approved operating rule | Active |
 | STD-010 | المستخدم يقول: حدّث عقل فوخا من كل المحادثات والمشاريع | ابدأ من GitHub FOKHA_BRAIN، ثم افحص كل السياق التاريخي المتاح فعليًا، ChatGPT Library، والـGitHub repositories/ذاكرات المشاريع ذات الصلة. استخرج الجديد فقط، اكتب أولًا إلى Google Drive مع provenance/IDs، ثم زامن المعرفة المنظمة غير الحساسة إلى GitHub. | Google Drive Working Memory -> GitHub FOKHA_BRAIN | لا تدّعِ تغطية كل رسالة حرفيًا إذا لم تكن قابلة للوصول؛ سجّل Coverage ومصادر الفحص، وابقِ Project Truth داخل مصدره canonical. | Promote only deduped, sourced, scoped knowledge; sensitive/private data stays out of public GitHub. | User-approved operating workflow | Active |
+| STD-011 | TrendOS أو محادثته/مسار عمله يبدو متوقفًا أو لا يتقدم | ابدأ من الصندوق الأسود وآخر Verified checkpoint/Execution Ledger، حدّد سبب التوقف من الأدلة، ثم نفّذ أو استأنف أكثر خطوة آمنة ومفيدة متاحة بالأدوات الحالية. يجوز اتخاذ قرار روتيني منخفض المخاطر وقابل للرجوع بدون انتظار المستخدم، مع تسجيل Expected/Actual/PASS\|FAIL وRollback عند التغيير المؤثر. | TrendOS canonical project memory + available execution tools + Fokha working memory | لا تتجاوز Project Source of Truth أو الصلاحيات. لا تعتبر محادثة صامتة وحدها دليلًا على فشل؛ افحص آخر Evidence أولًا. | Autonomous execution only for routine, reversible, low-risk actions. Escalate irreversible/high-impact/destructive/financial/security/authority-changing decisions unless specifically pre-authorized. | Explicit user delegation DEC-20260904-004 | Active |
 
 ## قاعدة التنفيذ السريعة
 
 - عند قول المستخدم `سجل فكرة`: لا تسأل أين تُحفظ؛ التقط أولًا في Google Drive Working Memory، ثم اربط وصنّف.
 - عند قول المستخدم `ادخل عقل فوخا`: **GitHub أولًا دائمًا** لقراءة السياق، الستاندرد، الذاكرة، وروابط المشاريع.
+- TrendOS هو الأولوية التنفيذية الحالية: قبل التحرك فيه اقرأ الصندوق الأسود وآخر Verified Evidence.
+- إذا ظهر أن TrendOS متوقف: شخّص أولًا، ثم استأنف تلقائيًا إذا كانت الخطوة متاحة، آمنة، منخفضة المخاطر وقابلة للرجوع.
+- لا تنتظر المستخدم لقرارات تشغيلية صغيرة واضحة، لكن لا تتخذ قرارًا جوهريًا/غير قابل للرجوع/مالي الالتزام/أمني حساس/هدام/مغيرًا للسلطات بدون موافقته إلا إذا كانت هناك قاعدة مسبقة صريحة تسمح بذلك.
 - بعد أي استخراج جديد من Chat / GitHub / Drive / File / Project: اكتب الناتج فورًا إلى Google Drive في التاب المناسب قبل اعتبار الاستخراج مكتملًا.
-- التوجيه الحالي للأنواع:
-  - فكرة خام -> `INBOX`
-  - قرار صريح -> `DECISIONS`
-  - قاعدة -> `RULES`
-  - نمط تفكير -> `THINKING_MODEL`
-  - مشروع/تحديث مشروع -> `PROJECTS`
-  - مصدر/رابط -> `SOURCE_LINKS`
-  - معرفة مستقرة قابلة لإعادة الاستخدام -> `KNOWLEDGE`
-  - فشل/خطر/ما يجب تجنبه -> `NEGATIVE_LEARNING`
+- التوجيه الحالي للأنواع: `INBOX`, `DECISIONS`, `RULES`, `THINKING_MODEL`, `PROJECTS`, `SOURCE_LINKS`, `KNOWLEDGE`, `NEGATIVE_LEARNING`.
 - GitHub لا يستقبل كل لقطة خام؛ تتم مزامنته كطبقة معرفة منظمة ومستقرة بدون duplication.
-- Bulk history ingest لا يعني افتراض الوصول إلى كل تاريخ الحساب؛ اذكر ما تم فحصه فعليًا، وما لم يتوفر يبقى خارج ادعاء التغطية.
 - لا تنقل Secrets أو Credentials أو بيانات شخصية حساسة إلى FOKHA_BRAIN العام.
 - إذا كان Google Drive غير متاح أو غير مصرح به، لا تدّع أن الكتابة تمت؛ أخرج payload منظمًا وعلّمه `PENDING_DRIVE_WRITE`.
