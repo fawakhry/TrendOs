@@ -1,0 +1,54 @@
+name: TrendOS Cloud Write Order Contract V2 Gate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/src/cloud-write.mjs'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'tests/cloud_write_order_contract_v2.test.mjs'
+      - '.github/workflows/trendos-cloud-write-order-contract-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-order-create-contract-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify pure canonical create-intent contract
+        run: node tests/cloud_write_order_contract_v2.test.mjs
+
+      - name: Production integration boundary
+        run: |
+          set -euo pipefail
+          if grep -Fq 'cloud-write-order-contract-v2' cloudflare-d1/src/index_v2.js; then
+            echo 'V2_CONTRACT_PRODUCTION_IMPORT_REFUSED'
+            exit 1
+          fi
+          if grep -Fq 'cloud-write-order-contract-v2' cloudflare-d1/src/cloud-write.mjs; then
+            echo 'V2_CONTRACT_V1_HANDLER_IMPORT_REFUSED'
+            exit 1
+          fi
+          grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.toml
+          ! grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"true"' cloudflare-d1/wrangler.toml
+          echo 'V2_PRODUCTION_INTEGRATION_BOUNDARY_PASS'
+
+      - name: Safety conclusion
+        run: |
+          echo 'CLOUD_WRITE_ORDER_CONTRACT_V2_GATE_PASS'
+          echo 'The V2 module is pure planning logic only and is not wired to the production Worker.'
+          echo 'Business Order ID allocation remains Apps Script-owned; Production Cloud Write V1 remains OFF.'
