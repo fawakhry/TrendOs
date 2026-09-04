@@ -11,7 +11,7 @@ window.MATBAGY_SECURE_API_PROXY_URL = "";
 
 // D1 Orders read cutover is loaded but stays OFF until the Production Worker gate passes.
 // Writes remain on Apps Script/Sheets and the wrapper always falls back to Apps Script on any Edge error.
-window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos.trendmall-contact.workers.dev";
+window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;
 
 window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
