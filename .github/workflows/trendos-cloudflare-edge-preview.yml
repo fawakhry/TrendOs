@@ -114,6 +114,61 @@ jobs:
           code="$(curl --silent --output /tmp/edge-anon.json --write-out '%{http_code}' "$PREVIEW_URL/v1/edge/whoami")"
           cat /tmp/edge-anon.json
           test "$code" = '401'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-anon.json','utf8')); if(x.success!==false||!String(x.code||'').length){process.exit(1)}"
+
+      - name: Verify signed Preview Edge auth and protected D1 read
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const secret = String(process.env.EDGE_SESSION_SECRET || '');
+          if (!secret) process.exit(1);
+          const now = Math.floor(Date.now() / 1000);
+          const payload = {
+            aud: 'trendos-edge',
+            sub: 'ci-preview-auth',
+            iat: now,
+            exp: now + 300,
+            jti: 'ci-' + crypto.randomUUID()
+          };
+          const payloadPart = Buffer.from(JSON.stringify(payload)).toString('base64url');
+          const signingInput = 'v1.' + payloadPart;
+          const sig = crypto.createHmac('sha256', secret).update(signingInput).digest('base64url');
+          fs.writeFileSync('/tmp/edge-token.txt', signingInput + '.' + sig, { mode: 0o600 });
+          console.log('PASS: synthetic short-lived Preview token generated without employee credentials; token value is not logged.');
+          NODE
+
+          token="$(cat /tmp/edge-token.txt)"
+          who_code="$(curl --silent --show-error --output /tmp/edge-whoami.json --write-out '%{http_code}' \
+            -H "authorization: Bearer $token" \
+            "$PREVIEW_URL/v1/edge/whoami")"
+          test "$who_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-whoami.json','utf8')); if(!x.success||!x.user||x.user.username!=='ci-preview-auth'){process.exit(1)}; console.log('SIGNED_WHOAMI=PASS')"
+
+          inbox_code="$(curl --silent --show-error --output /tmp/edge-inbox.json --write-out '%{http_code}' \
+            -H "authorization: Bearer $token" \
+            "$PREVIEW_URL/v1/edge/customer-manager/inbox?limit=1")"
+          unset token
+          rm -f /tmp/edge-token.txt
+          test "$inbox_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-inbox.json','utf8')); if(!x.success||x.dataSource!=='d1-edge'||x.edgeSession!=='ci-preview-auth'||!Array.isArray(x.conversations)){process.exit(1)}; console.log('SIGNED_D1_INBOX_READ=PASS count=' + x.conversations.length)"
+          echo 'PASS: signed protected read works; no real employee credential was used or stored.'
+
+      - name: Verify Edge session exchange rejects incomplete credentials before upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/edge-session-invalid.json --write-out '%{http_code}' \
+            -X POST \
+            -H 'content-type: application/json' \
+            --data '{}' \
+            "$PREVIEW_URL/v1/edge/session")"
+          cat /tmp/edge-session-invalid.json
+          test "$code" = '400'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-session-invalid.json','utf8')); if(x.success!==false||!String(x.message||'').includes('username and token')){process.exit(1)}"
+          echo 'PASS: missing employee credentials fail before Apps Script verification.'
 
       - name: Verify cloud write health is read-only and disabled
         shell: bash
@@ -247,6 +302,8 @@ jobs:
       - name: Preview deployment summary
         run: |
           echo "Preview Worker: $PREVIEW_URL"
+          echo "Edge auth: anonymous 401 + signed synthetic whoami/D1 protected read PASS required"
+          echo "Employee session exchange: incomplete credentials fail before upstream; real employee credentials are never used by CI"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
           echo "Mirror reads: SELECT-ONLY; atomic capability REQUIRED; anonymous import rejected before schema initialization"
