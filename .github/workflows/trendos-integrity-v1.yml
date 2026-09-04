@@ -28,14 +28,20 @@ on:
       - 'press-control-v1.js'
       - 'customer-feedback-v1.js'
       - 'trendos-integrity-v1.package.json'
+      - 'cloudflare-d1/D1_Orders_Low_Usage_Heartbeat_V1.gs'
+      - 'apps-script/patches/D1_ORDERS_LOW_USAGE_HEARTBEAT_ROUTE_V1.md'
       - 'cloudflare-d1/src/edge-gateway.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/src/edge-orders-freshness-gate.mjs'
       - 'cloudflare-d1/src/edge-orders-idle-heartbeat.mjs'
+      - 'cloudflare-d1/src/edge-orders-idle-verifier.mjs'
+      - 'cloudflare-d1/preview/wrangler.toml'
       - 'tests/cloudflare_edge_gateway_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs'
+      - 'tests/d1_orders_low_usage_heartbeat_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_idle_verifier_v1.test.mjs'
       - 'tests/trendos_polling_coalescing_v1.test.mjs'
       - 'tests/trendos_integrity_v1.test.js'
       - 'tests/trendos_integrity_runtime_tools_v1.test.js'
@@ -78,6 +84,10 @@ jobs:
         run: node tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs
       - name: Run Cloudflare Edge Orders idle freshness integration tests
         run: node tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs
+      - name: Run D1 Orders low-usage heartbeat helper safety tests
+        run: node tests/d1_orders_low_usage_heartbeat_v1.test.mjs
+      - name: Run Cloudflare Edge Orders idle verifier tests
+        run: node tests/cloudflare_edge_orders_idle_verifier_v1.test.mjs
       - name: Run visibility-aware polling coalescing tests
         run: node tests/trendos_polling_coalescing_v1.test.mjs
       - name: Run TrendOS integrity foundation tests
