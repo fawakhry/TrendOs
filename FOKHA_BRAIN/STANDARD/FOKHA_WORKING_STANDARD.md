@@ -14,11 +14,23 @@
 | STD-007 | AI يقترح قاعدة أو قرارًا | سجله Candidate لا Confirmed ما لم يعتمد المستخدم أو توجد قاعدة اعتماد موثقة. | RULES / DECISIONS | احتفظ بمصدر الاقتراح والدليل. | AI opinion وحده لا يصبح Global Rule. | AI advisory only | Active |
 | STD-008 | إنشاء Fokha GitHub repo لاحقًا | اجعله الذاكرة التنفيذية الطويلة المدى لفوخا، مع بقاء Google Sheet بوابة Capture سريعة. | GitHub + Google Sheet | نقل منظم بالمفاتيح IDs والمصادر، لا نسخ عشوائي. | GitHub يصبح canonical للمعرفة المستقرة، والشيت Inbox/working memory. | User-approved architecture | Pending GitHub repo |
 | STD-009 | المستخدم يقول: ادخل عقل فوخا / روح على عقل فوخا، أو يتم استخراج معرفة جديدة من أي شات أو مصدر | ابدأ القراءة من GitHub عقل فوخا أولًا. بعد الاستخراج، اكتب الناتج فورًا في Google Drive داخل `Fokha - Idea Inbox` حسب نوعه، ثم اترك GitHub للمزامنة المنظمة لاحقًا. | GitHub read path + Google Drive immediate write path | GitHub = نقطة الدخول والسياق المنظم؛ Google Drive = أول مكان تُكتب فيه المعرفة المستخرجة الجديدة؛ Project Black Box يظل مصدر الحقيقة الخاص بالمشروع. | لا تُرقّى المعرفة إلى GitHub stable memory إلا بعد تنظيمها وربطها بالمصدر والـID وعدم إنشاء duplicate. | User-approved operating rule | Active |
+| STD-010 | المستخدم يقول: حدّث عقل فوخا من كل المحادثات والمشاريع | ابدأ من GitHub FOKHA_BRAIN، ثم افحص كل السياق التاريخي المتاح فعليًا، ChatGPT Library، والـGitHub repositories/ذاكرات المشاريع ذات الصلة. استخرج الجديد فقط، اكتب أولًا إلى Google Drive مع provenance/IDs، ثم زامن المعرفة المنظمة غير الحساسة إلى GitHub. | Google Drive Working Memory -> GitHub FOKHA_BRAIN | لا تدّعِ تغطية كل رسالة حرفيًا إذا لم تكن قابلة للوصول؛ سجّل Coverage ومصادر الفحص، وابقِ Project Truth داخل مصدره canonical. | Promote only deduped, sourced, scoped knowledge; sensitive/private data stays out of public GitHub. | User-approved operating workflow | Active |
 
 ## قاعدة التنفيذ السريعة
 
-- عند قول المستخدم `سجل فكرة` لا تسأل أين تُحفظ؛ التقط أولًا في Google Drive Working Memory، ثم اربط وصنّف.
-- عند قول المستخدم `ادخل عقل فوخا` أو ما يعادلها: **GitHub أولًا دائمًا** لقراءة السياق، الستاندرد، الذاكرة، وروابط المشاريع.
-- بعد أي استخراج جديد من Chat / GitHub / Drive / ملف / مشروع: **اكتب المعرفة المستخرجة فورًا إلى Google Drive** داخل `Fokha - Idea Inbox` في التاب المناسب (`INBOX`, `DECISIONS`, `RULES`, `THINKING_MODEL`, `PROJECTS`, `SOURCE_LINKS`) قبل اعتبار المهمة مكتملة.
-- GitHub لا يُحدّث مع كل لقطة خام تلقائيًا؛ تتم مزامنته لاحقًا كطبقة معرفة منظمة ومستقرة بدون duplication.
+- عند قول المستخدم `سجل فكرة`: لا تسأل أين تُحفظ؛ التقط أولًا في Google Drive Working Memory، ثم اربط وصنّف.
+- عند قول المستخدم `ادخل عقل فوخا`: **GitHub أولًا دائمًا** لقراءة السياق، الستاندرد، الذاكرة، وروابط المشاريع.
+- بعد أي استخراج جديد من Chat / GitHub / Drive / File / Project: اكتب الناتج فورًا إلى Google Drive في التاب المناسب قبل اعتبار الاستخراج مكتملًا.
+- التوجيه الحالي للأنواع:
+  - فكرة خام -> `INBOX`
+  - قرار صريح -> `DECISIONS`
+  - قاعدة -> `RULES`
+  - نمط تفكير -> `THINKING_MODEL`
+  - مشروع/تحديث مشروع -> `PROJECTS`
+  - مصدر/رابط -> `SOURCE_LINKS`
+  - معرفة مستقرة قابلة لإعادة الاستخدام -> `KNOWLEDGE`
+  - فشل/خطر/ما يجب تجنبه -> `NEGATIVE_LEARNING`
+- GitHub لا يستقبل كل لقطة خام؛ تتم مزامنته كطبقة معرفة منظمة ومستقرة بدون duplication.
+- Bulk history ingest لا يعني افتراض الوصول إلى كل تاريخ الحساب؛ اذكر ما تم فحصه فعليًا، وما لم يتوفر يبقى خارج ادعاء التغطية.
+- لا تنقل Secrets أو Credentials أو بيانات شخصية حساسة إلى FOKHA_BRAIN العام.
 - إذا كان Google Drive غير متاح أو غير مصرح به، لا تدّع أن الكتابة تمت؛ أخرج payload منظمًا وعلّمه `PENDING_DRIVE_WRITE`.
