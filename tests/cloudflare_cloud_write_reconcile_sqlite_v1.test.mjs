@@ -74,7 +74,7 @@ function makeEnv() {
 }
 
 async function authHeaders() {
-  const token = await issueEdgeSessionToken({ sub: 'ci-reconcile-admin', role: 'admin' }, SECRET, Math.floor(Date.now() / 1000), 300);
+  const token = await issueEdgeSessionToken({ sub: 'ci-reconcile-admin' }, SECRET, Math.floor(Date.now() / 1000), 300);
   return {
     Origin: 'https://fawakhry.github.io',
     Authorization: `Bearer ${token}`,
@@ -99,10 +99,10 @@ async function createOrder(env, suffix) {
   return response.json();
 }
 
-async function testSuccessRetryAndTerminalFailure() {
+async function testSuccessRetryTerminalAndStagingMode() {
   const env = makeEnv();
 
-  // SUCCESS: transport is called exactly once and a second reconciliation pass is idle.
+  // SUCCESS: default mode represents a real Sheets reconciliation ACK.
   await createOrder(env, 'SUCCESS');
   let successCalls = 0;
   const successNow = Date.now() + 1000;
@@ -114,6 +114,7 @@ async function testSuccessRetryAndTerminalFailure() {
   }, { nowMs: successNow, maxAttempts: 3 });
 
   assert.equal(synced.state, 'synced');
+  assert.equal(synced.sheetsWritten, true);
   assert.equal(successCalls, 1);
   assert.equal(env.DB.row("SELECT status FROM cloud_write_outbox WHERE entity_id='CW-RECON-SUCCESS'").status, 'synced');
   assert.equal(env.DB.row("SELECT sheets_status FROM cloud_write_events WHERE entity_id='CW-RECON-SUCCESS'").sheets_status, 'synced');
@@ -168,12 +169,47 @@ async function testSuccessRetryAndTerminalFailure() {
   }), { nowMs: Date.now() + 3000, maxAttempts: 1 });
 
   assert.equal(failed.state, 'failed');
-  assert.match(failed.error, /entity mismatch/);
+  assert.match(failed.error, /entity mismatch/i);
   assert.equal(env.DB.row("SELECT status FROM cloud_write_outbox WHERE entity_id='CW-RECON-FAIL'").status, 'failed');
   assert.equal(env.DB.row("SELECT sheets_status FROM cloud_write_events WHERE entity_id='CW-RECON-FAIL'").sheets_status, 'failed');
 
+  // STAGING-VERIFIED: remote staging can prove the runtime without pretending Sheets was written.
+  await createOrder(env, 'STAGING');
+  let stagingCalls = 0;
+  const staging = await reconcileNextOutboxItem(env, async (job) => {
+    stagingCalls += 1;
+    assert.equal(job.entityId, 'CW-RECON-STAGING');
+    return {
+      success: true,
+      entityId: job.entityId,
+      note: 'STAGING_VERIFY_ONLY sha256=test; NO_SHEETS_WRITE'
+    };
+  }, {
+    nowMs: Date.now() + 4000,
+    maxAttempts: 3,
+    completionMode: 'staging-verified'
+  });
+
+  assert.equal(staging.state, 'staging_verified');
+  assert.equal(staging.sheetsWritten, false);
+  assert.equal(stagingCalls, 1);
+  const stagingOutbox = env.DB.row("SELECT status,attempts FROM cloud_write_outbox WHERE entity_id='CW-RECON-STAGING'");
+  const stagingEvent = env.DB.row("SELECT status,sheets_status AS sheetsStatus,note FROM cloud_write_events WHERE entity_id='CW-RECON-STAGING'");
+  assert.equal(stagingOutbox.status, 'staging_verified');
+  assert.equal(Number(stagingOutbox.attempts), 1);
+  assert.equal(stagingEvent.status, 'staging_verified');
+  assert.equal(stagingEvent.sheetsStatus, 'not_written_staging');
+  assert.match(stagingEvent.note, /NO_SHEETS_WRITE/);
+
+  const stagingIdle = await reconcileNextOutboxItem(env, async () => {
+    stagingCalls += 1;
+    return { success: true };
+  }, { nowMs: Date.now() + 5000, completionMode: 'staging-verified' });
+  assert.equal(stagingIdle.state, 'idle');
+  assert.equal(stagingCalls, 1, 'staging_verified item must never be processed twice');
+
   assert.equal(env.DB.scalar("SELECT COUNT(*) FROM cloud_write_outbox WHERE status='processing'"), 0);
-  console.log('Cloud Write Reconciliation SQLite V1: SINGLE-ACK + RETRY/BACKOFF + TERMINAL-FAIL PASS');
+  console.log('Cloud Write Reconciliation SQLite V1: SINGLE-ACK + RETRY/BACKOFF + TERMINAL-FAIL + STAGING-NO-SHEETS PASS');
 }
 
-await testSuccessRetryAndTerminalFailure();
+await testSuccessRetryTerminalAndStagingMode();
