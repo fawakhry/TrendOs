@@ -179,6 +179,39 @@ Default BOOM flow:
 - `SCHEMA/AI_ROOM_CONTRACT.md`
 - `SCHEMA/CASE_LIFECYCLE_AND_LEARNING.md`
 
+## Google Drive project-root rule — IMPLEMENTED
+
+تم تنفيذ تنظيم فعلي لـGoogle Drive بحيث يظهر في My Drive فولدر رئيسي واحد فقط للمشروع:
+
+`مشروع مطبعجي - Matbagy Project`
+
+Project Root ID:
+
+`1kP_JAO-ZOJltX9FCkAsylxYAfRar-RQV`
+
+والشجرة المباشرة:
+
+- `01_Design_Cases` — `1qhoxC_c2MF3X_hhHcWiDo2SzW2ySCch_`
+- `02_Orders` — `19vhyOha215dLr5_pxv8BdZy_-sq7LgDm`
+- `03_Shared_Assets` — `1cBMs21DKCuTPzcfmkj2UjgFfHdqQGVgl`
+- `04_Archive` — `1kke5hm_Bsq1Q_XHEuTpOkTTRkjpMEz5K`
+- `05_System` — `14amOaEUH4kGP4iFWTlMDfZ1c3c9edMH7`
+
+الفولدر القديم `صندوق مطبعجي - الصور` لم يُنسخ. تم نقله وإعادة تسميته إلى `01_Design_Cases` مع الحفاظ على نفس Folder ID، وبالتالي ظلت Year/Case/File IDs الحالية صالحة.
+
+المسار الرسمي:
+
+`My Drive/مشروع مطبعجي - Matbagy Project/01_Design_Cases/YYYY/<CASE_ID>/`
+
+الحالة الحالية `DESIGN-2026-000001` احتفظت بـ:
+- year folder: `1AP68g1gP0S3fNNzgyOkithg3VfH4kEgE`
+- case folder: `1uA9k8SLnq0s21C4K79-SlkDE2U8qXQrj`
+- linked asset file: `1srMthjL-cR0cdk7VOOkMZjrEmUCWwFS-`
+
+Canonical detail:
+
+`docs/trendos/MATBAGY_DRIVE_PROJECT_STRUCTURE.md`
+
 ## TrendOS truth boundary
 
 هذا القرار لا يغير D-012 أو سلطة TrendOS الحالية.
