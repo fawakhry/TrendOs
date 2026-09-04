@@ -2,6 +2,7 @@ import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
+import { handleEdgeOrdersReadRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1.mjs';
 import { handleCloudWriteRequest, isCloudWritePath } from './cloud-write-gate.mjs';
 import { handleNormalizedImportRequest, isNormalizedImportPath } from './normalized-import-gate.mjs';
 
@@ -9,6 +10,11 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    // Secure D1 Orders/Lines read lane. It is parallel until the frontend flag is enabled.
+    if (isEdgeOrdersReadPath(path)) {
+      return handleEdgeOrdersReadRequest(request, env, ctx);
+    }
 
     // Parallel secure lane only. No existing frontend route is redirected here.
     if (isEdgeGatewayPath(path)) {
