@@ -1,0 +1,35 @@
+name: TrendOS Staging Synthetic Sample Bridge Gate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/cloud-write-staging-reconcile.mjs'
+      - 'cloudflare-d1/staging/index.js'
+      - 'tests/cloudflare_staging_synthetic_sample_bridge_v1.test.mjs'
+      - '.github/workflows/trendos-staging-synthetic-sample-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-synthetic-sample-readonly-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify staging-only synthetic sample bridge
+        run: node tests/cloudflare_staging_synthetic_sample_bridge_v1.test.mjs
+      - name: Safety conclusion
+        run: |
+          echo 'PASS: /v1/staging/cloud-write/reconcile/sample is staging-entrypoint only.'
+          echo 'PASS: only known synthetic CW-STAGE-* qualification payloads can be returned.'
+          echo 'PASS: route is GET/read-only, no D1 mutation and no Apps Script call.'
+          echo 'PASS: production src/index_v2.js does not import or expose the staging reconciliation module.'
