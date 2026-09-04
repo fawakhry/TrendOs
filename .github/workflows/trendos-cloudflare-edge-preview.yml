@@ -54,6 +54,7 @@ jobs:
           node tests/cloudflare_edge_freshness_v1.test.mjs
           node tests/cloudflare_cloud_write_v1.test.mjs
           node --experimental-sqlite tests/cloudflare_cloud_write_sqlite_integration_v1.test.mjs
+          node --experimental-sqlite tests/cloudflare_normalized_import_v1.test.mjs
           node tests/cloudflare_preview_safety_v1.test.mjs
           node tests/cloudflare_mirror_safety_v1.test.mjs
           node tests/d1_orders_live_sync_atomic_v1.test.mjs
@@ -209,6 +210,20 @@ jobs:
           test "$code" = '423'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write-blocked.json','utf8')); if(x.success!==false||x.enabled!==false||x.cutover!==false||x.sheetsAuthoritative!==true){process.exit(1)}"
 
+      - name: Verify normalized import is unavailable on Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/normalized-import-blocked.json --write-out '%{http_code}' \
+            -X POST \
+            -H 'content-type: application/json' \
+            --data '{"syncRunId":"preview-must-not-write","syncFinal":true,"sourceRowCounts":{"orders":1},"orders":[{"orderId":"PREVIEW-MUST-NOT-WRITE"}]}' \
+            "$PREVIEW_URL/v1/import/batch")"
+          cat /tmp/normalized-import-blocked.json
+          test "$code" = '401'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/normalized-import-blocked.json','utf8')); if(x.success!==false||x.schemaMutationFree!==true){process.exit(1)}"
+          echo 'PASS: Preview has no MIGRATION_SECRET binding; normalized remote import fails before D1 mutation.'
+
       - name: Verify mirror stats are SELECT-only
         shell: bash
         run: |
@@ -326,6 +341,7 @@ jobs:
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
           echo "Cloud write transaction model: isolated SQL success/idempotency/rollback PASS required pre-deploy"
+          echo "Normalized live-sync protocol: isolated final-freshness/invalid-row/rollback PASS required; Preview import endpoint must stay unauthorized"
           echo "Mirror reads: SELECT-ONLY; atomic capability REQUIRED; anonymous import rejected before schema initialization"
           echo "Orders + Lines mirror: freshness <= ${MAX_LIVE_MIRROR_AGE_SECONDS}s REQUIRED"
           echo "Preview latency: benchmarked against the actual mirror read path with transient-network retries"
