@@ -1,0 +1,53 @@
+name: TrendOS Production Orders Frontend Cutover Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-orders-frontend-cutover-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-live-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE: https://fawakhry.github.io/TrendOs
+      EDGE: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Probe live GitHub Pages config and Orders loader
+        shell: bash
+        run: |
+          set -euo pipefail
+          nonce="$(date +%s)"
+          config_code="$(curl --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/live-config.js --write-out '%{http_code}' "$SITE/config.js?cutover=$nonce")"
+          loader_code="$(curl --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/live-loader.js --write-out '%{http_code}' "$SITE/trendos-edge-orders-read-v1.js?cutover=$nonce")"
+          echo "LIVE_CONFIG_HTTP=$config_code LIVE_LOADER_HTTP=$loader_code"
+          test "$config_code" = '200'
+          test "$loader_code" = '200'
+          grep -Fq 'window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";' /tmp/live-config.js
+          grep -Fq 'window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;' /tmp/live-config.js
+          grep -Fq "trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260904b');" /tmp/live-config.js
+          grep -Fq "var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';" /tmp/live-loader.js
+          grep -Fq "mode: 'd1-orders-read-first-apps-script-fallback'" /tmp/live-loader.js
+          grep -Fq "return original.apply(this, args);" /tmp/live-loader.js
+          echo 'LIVE_FRONTEND_EDGE_ORDERS_CUTOVER_FILES=PASS'
+
+      - name: Verify production Edge route remains auth protected
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/anon.json --write-out '%{http_code}' "$EDGE/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__")"
+          echo "LIVE_PROD_ORDERS_ANON_HTTP=$code"
+          test "$code" = '401'
+          echo 'LIVE_PROD_ORDERS_AUTH_PROTECTION=PASS'
+
+      - name: Probe summary
+        run: |
+          echo 'PRODUCTION_FRONTEND_ORDERS_READ_CUTOVER=LIVE'
+          echo 'Mode: D1/Edge first for getRowsPageV1931; Apps Script fallback retained.'
+          echo 'Cloud Write remains outside this frontend path.'
