@@ -60,7 +60,7 @@ const previewConfig = fs.readFileSync('cloudflare-d1/preview/wrangler.toml', 'ut
 assert.match(indexCode, /ordersIdleHeartbeatVerifierEnabled\(env\)/);
 assert.match(indexCode, /verifyIdleSourceFreshness/);
 assert.match(indexCode, /fetchOrdersIdleHeartbeat\(env\)/);
-assert.doesNotMatch(previewConfig, /^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED\s*=/m);
+assert.match(previewConfig, /^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED\s*=\s*"true"$/m);
 assert.match(previewConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/);
 
-console.log('Cloudflare Edge Orders Idle Verifier V1: HTTPS GET + EXPLICIT FLAG + PREVIEW DEFAULT-OFF + CLOUD-WRITE-OFF PASS');
+console.log('Cloudflare Edge Orders Idle Verifier V1: HTTPS GET + EXPLICIT PREVIEW-TRUE FLAG + CLOUD-WRITE-OFF PASS');
