@@ -1,0 +1,58 @@
+name: TrendOS Apps Script V150 Live Dry-Run Route Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-apps-script-v150-live-probe.yml'
+      - 'docs/trendos/staging/PROBE_APPS_SCRIPT_V150_DRYRUN.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-v150-dryrun-route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Probe V150 dry-run route without secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(sed -n 's/^APPS_SCRIPT_API_URL = "\(.*\)"$/\1/p' cloudflare-d1/preview/wrangler.toml | head -n1)"
+          test -n "$base" || (echo 'APPS_SCRIPT_API_URL missing from Preview config' && exit 1)
+          code="$(curl --silent --show-error --location --max-time 30 \
+            --output /tmp/v150-probe.json --write-out '%{http_code}' \
+            "${base}?action=cloudWriteReconcileDryRunV1&dryRun=true&_probe=github-readonly-v150")"
+          echo "V150_ROUTE_HTTP=$code"
+          test "$code" = '200'
+          cat /tmp/v150-probe.json
+          node <<'NODE'
+          const fs = require('fs');
+          let body = {};
+          try { body = JSON.parse(fs.readFileSync('/tmp/v150-probe.json', 'utf8') || '{}'); }
+          catch (err) {
+            console.log('V150_ROUTE_STATE=INVALID_JSON');
+            process.exit(1);
+          }
+          const lockedCodes = new Set(['dry-run-secret-not-configured', 'unauthorized']);
+          const installed = body && body.success === false && lockedCodes.has(String(body.code || '')) && body.sheetsWritten === false && Number(body.mutationCount || 0) === 0;
+          if (installed) {
+            console.log('V150_ROUTE_STATE=INSTALLED_LOCKED');
+            console.log('V150_ROUTE_CODE=' + String(body.code));
+            process.exit(0);
+          }
+          const message = String(body.message || body.error || body.code || '');
+          console.log('V150_ROUTE_STATE=NOT_INSTALLED');
+          console.log('V150_RESPONSE_CLASS=' + (message ? message.slice(0, 160) : 'unrecognized-json'));
+          NODE
+      - name: Read-only guarantee
+        run: |
+          echo 'Probe method: GET only.'
+          echo 'No reconciliation secret is sent.'
+          echo 'The V150 handler, when installed, rejects before sheet access because the secret gate precedes schema reads.'
+          echo 'No Sheet writes, Script Property mutation, Apps Script deployment, D1 writes, or Production Cloud Write changes are performed.'
