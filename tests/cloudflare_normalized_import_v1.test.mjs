@@ -82,6 +82,25 @@ async function testUnauthorizedIsMutationFree() {
   assert.equal(env.DB.count('SELECT COUNT(*) AS c FROM migration_runs'), 0);
 }
 
+async function testInvalidSourceRowFailsClosed() {
+  const env = makeEnv();
+  const response = await post(env, {
+    syncRunId: 'invalid-orders-1',
+    syncFinal: true,
+    sourceRowCounts: { orders: 1 },
+    orders: [{ customerName: 'صف ناقص بدون Order ID' }]
+  });
+  assert.equal(response.status, 422);
+  const body = await response.json();
+  assert.equal(body.success, false);
+  assert.equal(body.entity, 'orders');
+  assert.equal(body.sourceRows, 1);
+  assert.equal(body.validRows, 0);
+  assert.equal(body.freshnessAdvanced, false);
+  assert.equal(env.DB.count('SELECT COUNT(*) AS c FROM orders'), 0);
+  assert.equal(env.DB.count("SELECT COUNT(*) AS c FROM migration_runs WHERE entity='orders'"), 0);
+}
+
 async function testFreshnessAdvancesOnlyOnFinalChunk() {
   const env = makeEnv();
   const runId = 'sync-orders-1';
@@ -135,8 +154,6 @@ async function testFailedFinalChunkDoesNotAdvanceFreshness() {
   assert.equal(env.DB.count('SELECT COUNT(*) AS c FROM orders'), 1);
   assert.equal(env.DB.count("SELECT COUNT(*) AS c FROM migration_runs WHERE entity='orders'"), 0);
 
-  // Final request has: order upsert + migration_runs completion marker.
-  // Fail on completion marker; both statements in this request must roll back.
   env.DB.failBatchAt = 2;
   const failed = await post(env, {
     syncRunId: runId,
@@ -180,17 +197,23 @@ function testAppsScriptLiveSyncContract() {
   assert.match(source, /freshnessAdvanced/);
   assert.match(source, /D1_NORMALIZED_MESSAGES_SHEET_V1 = 'مدير العملاء - الرسائل'/);
   assert.match(source, /D1_NORMALIZED_CONVERSATIONS_SHEET_V1 = 'مدير العملاء - المحادثات'/);
-  assert.doesNotMatch(source, /cmEnsureAll_\(/);
-  assert.doesNotMatch(source, /insertSheet\(/);
-  assert.doesNotMatch(source, /appendRow\(/);
+
+  // Guard against executable source mutations. Comments that merely name a forbidden
+  // helper must not trigger false positives.
+  assert.doesNotMatch(source, /^\s*(?!\/\/)cmEnsureAll_\s*\(/m);
+  assert.doesNotMatch(source, /^\s*(?!\/\/)[^\n]*\binsertSheet\s*\(/m);
+  assert.doesNotMatch(source, /^\s*(?!\/\/)[^\n]*\bappendRow\s*\(/m);
+  assert.doesNotMatch(source, /^\s*(?!\/\/)[^\n]*\.setValues\s*\(/m);
+
   assert.match(source, /everyMinutes\(1\)/);
   assert.match(source, /hasD1MigrationSecret/);
 }
 
 await testUnauthorizedIsMutationFree();
+await testInvalidSourceRowFailsClosed();
 await testFreshnessAdvancesOnlyOnFinalChunk();
 await testFailedFinalChunkDoesNotAdvanceFreshness();
 await testMultiEntityFinalRequestIsAtomic();
 testAppsScriptLiveSyncContract();
 
-console.log('Normalized Import V1: AUTH + FINAL-FRESHNESS + ROLLBACK + LIVE-SYNC CONTRACT PASS');
+console.log('Normalized Import V1: AUTH + INVALID-ROW FAIL-CLOSED + FINAL-FRESHNESS + ROLLBACK + LIVE-SYNC CONTRACT PASS');
