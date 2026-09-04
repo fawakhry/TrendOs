@@ -1,6 +1,7 @@
 -- TrendOS Accounting Finance V1 — PREPARED SCHEMA ONLY
 -- DO NOT APPLY TO D1 OR PRODUCTION WITHOUT A SEPARATE CUTOVER GATE.
 -- Canonical money storage is integer EGP minor units (piastres).
+-- Financial facts are append-only. Reversals are new journals referencing originals.
 
 PRAGMA foreign_keys = ON;
 
@@ -46,7 +47,7 @@ CREATE TABLE IF NOT EXISTS accounting_journals (
   total_credit_minor INTEGER NOT NULL CHECK (total_credit_minor > 0),
   reversal_of_journal_id TEXT,
   reversal_reason TEXT,
-  status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('posted','reversed')),
+  status TEXT NOT NULL DEFAULT 'posted' CHECK (status = 'posted'),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CHECK (total_debit_minor = total_credit_minor),
   CHECK ((reversal_of_journal_id IS NULL AND reversal_reason IS NULL) OR
@@ -94,17 +95,21 @@ CREATE INDEX IF NOT EXISTS idx_accounting_entries_profit_center
 CREATE INDEX IF NOT EXISTS idx_accounting_entries_source_document
   ON accounting_journal_entries(source_document_id, created_at);
 
+-- One immutable final idempotency decision per key.
+-- `completed` is inserted atomically with its journal; `failed`/`ambiguous`
+-- reserve the key without requiring later UPDATE transitions.
 CREATE TABLE IF NOT EXISTS accounting_idempotency (
   idempotency_key TEXT PRIMARY KEY NOT NULL,
   command_type TEXT NOT NULL,
   command_fingerprint TEXT NOT NULL,
   actor_id TEXT NOT NULL,
   source TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('claimed','completed','failed','ambiguous')),
+  status TEXT NOT NULL CHECK (status IN ('completed','failed','ambiguous')),
   journal_id TEXT,
   result_code TEXT,
+  result_json TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  completed_at TEXT,
+  CHECK ((status = 'completed' AND journal_id IS NOT NULL) OR status IN ('failed','ambiguous')),
   FOREIGN KEY (journal_id) REFERENCES accounting_journals(journal_id)
 );
 
