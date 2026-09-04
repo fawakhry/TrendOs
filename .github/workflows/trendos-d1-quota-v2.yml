@@ -6,10 +6,13 @@ on:
       - agent/d1-quota-v2-2026-09-04
     paths:
       - 'cloudflare-d1/D1_Orders_Live_Sync_V2.gs'
+      - 'cloudflare-d1/D1_Normalized_Live_Sync_V2.gs'
       - 'cloudflare-d1/src/mirror-delta-gate.mjs'
       - 'cloudflare-d1/src/mirror-gate.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/d1_orders_live_sync_delta_v2.test.mjs'
+      - 'tests/d1_normalized_live_sync_delta_v2.test.mjs'
+      - 'tests/cloudflare_freshness_sample.mjs'
       - '.github/workflows/trendos-d1-quota-v2.yml'
   workflow_dispatch:
 
@@ -31,9 +34,13 @@ jobs:
         run: node --check cloudflare-d1/src/mirror-delta-gate.mjs
       - name: Syntax check Worker router
         run: node --check cloudflare-d1/src/index_v2.js
-      - name: Run isolated row-level delta tests
+      - name: Run isolated Orders/Lines row-level delta tests
         run: node tests/d1_orders_live_sync_delta_v2.test.mjs
+      - name: Run isolated normalized delta-upsert tests
+        run: node --experimental-sqlite tests/d1_normalized_live_sync_delta_v2.test.mjs
       - name: Run existing atomic V1 contract regression
         run: node tests/d1_orders_live_sync_atomic_v1.test.mjs
+      - name: Run existing normalized import V1 regression
+        run: node --experimental-sqlite tests/cloudflare_normalized_import_v1.test.mjs
       - name: Run mirror safety regression
         run: node tests/cloudflare_preview_safety_v1.test.mjs
