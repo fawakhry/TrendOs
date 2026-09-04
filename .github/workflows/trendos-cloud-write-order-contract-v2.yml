@@ -11,8 +11,10 @@ on:
       - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/src/cloud-write.mjs'
       - 'cloudflare-d1/wrangler.toml'
+      - 'apps-script/patches/CLOUD_WRITE_ORDER_V2_CANONICAL_ADAPTER_DRYRUN_V1.gs'
       - 'tests/cloud_write_order_contract_v2.test.mjs'
       - 'tests/cloud_write_order_contract_v2_staging.test.mjs'
+      - 'tests/apps_script_cloud_write_order_v2_canonical_adapter_dryrun_v1.test.mjs'
       - '.github/workflows/trendos-cloud-write-order-contract-v2.yml'
   workflow_dispatch:
 
@@ -38,6 +40,9 @@ jobs:
       - name: Verify staging-only fixed synthetic read-only intent-plan contract
         run: node tests/cloud_write_order_contract_v2_staging.test.mjs
 
+      - name: Verify Apps Script canonical adapter dry-run boundary
+        run: node tests/apps_script_cloud_write_order_v2_canonical_adapter_dryrun_v1.test.mjs
+
       - name: Production integration boundary
         run: |
           set -euo pipefail
@@ -49,6 +54,10 @@ jobs:
             echo 'V2_CONTRACT_V1_HANDLER_IMPORT_REFUSED'
             exit 1
           fi
+          if grep -Fq 'CLOUD_WRITE_ORDER_V2_CANONICAL_ADAPTER_DRYRUN_V1' Code.gs; then
+            echo 'V2_ADAPTER_LIVE_CODEGS_INTEGRATION_REFUSED'
+            exit 1
+          fi
           grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.toml
           ! grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"true"' cloudflare-d1/wrangler.toml
           echo 'V2_PRODUCTION_INTEGRATION_BOUNDARY_PASS'
@@ -57,5 +66,6 @@ jobs:
         run: |
           echo 'CLOUD_WRITE_ORDER_CONTRACT_V2_GATE_PASS'
           echo 'The V2 core is pure planning logic. The staging plan route is fixed synthetic GET/read-only with no DB or Sheets write.'
-          echo 'Neither V2 module is wired to the production Worker; Business Order ID allocation remains Apps Script-owned.'
+          echo 'The Apps Script adapter is dry-run only: it maps exact canonical parameter aliases but cannot invoke createManualOrder_ and carries no credentials or Order ID.'
+          echo 'Neither V2 module nor the adapter is wired to production; Business Order ID allocation remains Apps Script-owned.'
           echo 'Production Cloud Write V1 remains OFF.'
