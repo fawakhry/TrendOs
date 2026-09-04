@@ -1,0 +1,54 @@
+name: TrendOS Edge Orders Production Preflight
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-edge-orders-production-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos.trendmall-contact.workers.dev
+    steps:
+      - name: Production Edge health
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          cat /tmp/health.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true) process.exit(1); console.log('PROD_EDGE_HEALTH_PASS cutover='+x.cutover)"
+
+      - name: Production Orders and Lines mirror contract
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          for(const [label,file] of [['ORDERS','/tmp/orders.json'],['LINES','/tmp/lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')), s=x.sheet||{};
+            const pass=x.success===true&&x.schemaMutationFree===true&&s.status==='ready'&&Number(s.rowCount||0)===Number(s.sourceLastRow||0)&&['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(String(s.note||''));
+            console.log(label+'_PROD_MIRROR='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,sourceLastCol:s.sourceLastCol,status:s.status,syncedAt:s.syncedAt,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+
+      - name: Current production Orders Edge route state
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/orders-edge.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5")"
+          echo "ORDERS_EDGE_CURRENT_HTTP=$code"
+          cat /tmp/orders-edge.json || true
+          if [ "$code" = '401' ]; then
+            echo 'PRODUCTION_ORDERS_EDGE_ALREADY_PRESENT=true'
+          else
+            echo 'PRODUCTION_ORDERS_EDGE_ALREADY_PRESENT=false'
+          fi
