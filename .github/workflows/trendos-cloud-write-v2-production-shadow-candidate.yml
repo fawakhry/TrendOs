@@ -37,9 +37,16 @@ jobs:
           node tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs
           ! grep -Fq 'production-shadow/observer' cloudflare-d1/src/index_v2.js
           ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/index_v2.js
-          grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
           grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
-          ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
+
+          if grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml; then
+            grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+            ! grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          else
+            grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
+            ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
+          fi
+
           grep -Eq '^name = "trendos-d1-api-shadow-candidate-no-deploy"$' cloudflare-d1/production-shadow/wrangler.candidate.toml
           ! grep -Eq '^\[\[d1_databases\]\]' cloudflare-d1/production-shadow/wrangler.candidate.toml
           ! grep -Eq '^APPS_SCRIPT_API_URL' cloudflare-d1/production-shadow/wrangler.candidate.toml
@@ -61,4 +68,4 @@ jobs:
           echo 'PRODUCTION_SHADOW_CANDIDATE_GATE_PASS'
           echo 'No Cloudflare credentials are loaded by this workflow.'
           echo 'No Worker is deployed. No D1 binding exists in the candidate config. No Apps Script URL exists in the candidate config.'
-          echo 'Production index_v2.js and production wrangler.toml remain unchanged with Cloud Write OFF.'
+          echo 'Working-branch Production may remain original or use the shadow wrapper only while Shadow is explicitly OFF; Cloud Write must remain OFF.'
