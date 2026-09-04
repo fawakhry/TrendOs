@@ -10,11 +10,18 @@ import {
 } from './edge-orders-idle-verifier.mjs';
 import { handleCloudWriteRequest, isCloudWritePath } from './cloud-write-gate.mjs';
 import { handleNormalizedImportRequest, isNormalizedImportPath } from './normalized-import-gate.mjs';
+import { handleAccountingPreviewRequest, isAccountingPreviewPath } from './accounting-preview.mjs';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    // Isolated Accounting preview. This surface is deliberately browser-local/read-only
+    // from the Worker perspective and never changes financial write authority.
+    if (isAccountingPreviewPath(path)) {
+      return handleAccountingPreviewRequest(request, env, ctx);
+    }
 
     // Secure D1 Orders/Lines read lane. Before any business-row query, the
     // metadata-only guard rejects stale/unready raw mirrors back to Apps Script.
