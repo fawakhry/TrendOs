@@ -1,4 +1,8 @@
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
+import {
+  inspectOrdersIdleHeartbeat,
+  ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS
+} from './edge-orders-idle-heartbeat.mjs';
 
 const LINES_SHEET = 'بنود الأوردرات';
 const LIVE_NOTES = ['TrendOS orders live sync V1', 'TrendOS orders live sync V2 quota-aware'];
@@ -18,6 +22,13 @@ function text(value) {
 function maxAgeSeconds(env) {
   const n = Number(env && env.EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS);
   return Number.isFinite(n) ? Math.max(300, Math.min(3600, Math.trunc(n))) : DEFAULT_MAX_AGE_SECONDS;
+}
+
+function idleHeartbeatMaxAgeSeconds(env) {
+  const n = Number(env && env.EDGE_ORDERS_IDLE_HEARTBEAT_MAX_AGE_SECONDS);
+  return Number.isFinite(n)
+    ? Math.max(300, Math.min(1800, Math.trunc(n)))
+    : ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS;
 }
 
 function parseSqliteUtc(value) {
@@ -96,7 +107,7 @@ export function inspectOrdersMirrorCatalog(catalog, nowMs = Date.now(), configur
   };
 }
 
-export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now()) {
+export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(), options = {}) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   if (request.method !== 'GET' || path !== '/v1/edge/orders/page') return null;
@@ -153,6 +164,36 @@ export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(
   if (inspection.ready) return null;
 
   const staleOnly = inspection.statusReady && inspection.parity && inspection.live && !inspection.fresh;
+  let heartbeat = null;
+
+  // Zero-idle compatibility is opt-in only. With no verifier supplied, this guard
+  // preserves the previous strict write-age behavior exactly. A verifier can only
+  // extend logical freshness for the stale-by-age case; it can never override
+  // status/parity/live-note failures.
+  if (staleOnly && options && typeof options.verifyIdleSourceFreshness === 'function') {
+    try {
+      const status = await options.verifyIdleSourceFreshness({
+        request,
+        env,
+        mirror: inspection,
+        nowMs: Number(nowMs)
+      });
+      heartbeat = inspectOrdersIdleHeartbeat(status, {
+        nowMs: Number(nowMs),
+        maxAgeSeconds: idleHeartbeatMaxAgeSeconds(env),
+        expectedLinesSourceLastRow: inspection.sourceLastRow,
+        expectedLinesSourceLastCol: inspection.sourceLastCol
+      });
+      if (heartbeat.ok) return null;
+    } catch (err) {
+      heartbeat = {
+        ok: false,
+        mode: 'idle-heartbeat-verification-error',
+        failedChecks: ['verifierError']
+      };
+    }
+  }
+
   return responseJson({
     success: false,
     code: staleOnly ? 'stale-orders-mirror' : 'mirror-not-ready',
@@ -161,6 +202,7 @@ export async function guardEdgeOrdersPageRequest(request, env, nowMs = Date.now(
     message: staleOnly
       ? 'Orders mirror is older than the low-usage freshness budget.'
       : 'Orders mirror is not ready for Edge reads.',
-    mirror: inspection
+    mirror: inspection,
+    ...(heartbeat ? { idleHeartbeat: heartbeat } : {})
   }, 503, request, env);
 }
