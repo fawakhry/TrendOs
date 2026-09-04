@@ -76,17 +76,39 @@ Before adding any persistence adapter, implement the Accounting transaction/idem
 
 ---
 
-## ACC-EXEC-005 — STARTED / MATERIAL STEP RECORDED BEFORE CODE
+## ACC-EXEC-005 — IMPLEMENTED / REGRESSION COVERAGE NEXT
 
-Starting the pure store-independent Accounting transaction/idempotency contract. This slice will not write to Google Sheets, D1, cashbox, inventory, or production.
+Pre-step record was committed before code in `264d129a22d59bed4dcb3868583c7a8bcec8cb89`.
 
-Pre-implementation reconciliation found an important existing Accounting persistence rule in `docs/trendos/checkpoints/ACCOUNTING_F2_PERSISTENCE_APPEND_ONLY_CORRECTION_2026-09-05.md`: idempotency is append-only and must persist one immutable final decision (`completed`, `failed`, or `ambiguous`) rather than a mutable `claimed -> completed` lifecycle. The new pure contract will therefore align with that safer immutable-final-decision model while still supporting atomic future persistence.
+Implemented pure store-independent contract in `accounting/transaction-contract-v1.js`.
 
-Planned contract invariants for this slice:
-- Event ID is the idempotency boundary.
-- Same Event ID + same canonical payload => safe replay/no duplicate mutations.
-- Same Event ID + different canonical payload => hard idempotency conflict.
-- Formation success => immutable `completed` transaction plan carrying every deterministic movement.
-- Formation shortage/business failure => immutable `failed` decision with zero mutations.
-- Transaction and payload fingerprints are deterministic and store-independent.
-- No persistence adapter is introduced in ACC-EXEC-005.
+Code commit: `c563c81389a6eab233ce26668a5efed794de1722`.
+
+Implemented invariants:
+- Event ID is the idempotency key.
+- canonical event payload contains stable Order ID, Line ID, source transaction, event type/version, item and quantity.
+- deterministic canonical JSON + payload fingerprint for replay conflict detection.
+- deterministic transaction, decision and operation IDs.
+- successful formation maps deterministic movement plan into append-only stock-movement operations and final `completed` decision.
+- shortage maps to final `failed` decision with zero operations.
+- same key/same fingerprint can be classified as replay.
+- same key/different fingerprint throws a hard `IDEMPOTENCY_KEY_REUSE_CONFLICT`.
+- `persistenceIntent()` expresses one atomic append-only persistence unit without implementing a store.
+- no live/persistent mutation introduced.
+
+The implementation intentionally follows the already-documented append-only persistence correction: there is no mutable `claimed -> completed` state.
+
+---
+
+## ACC-EXEC-006 — STARTED / MATERIAL STEP RECORDED BEFORE TEST CODE
+
+Add isolated regression coverage for the transaction/idempotency contract before any persistence adapter work.
+
+Required checks:
+- canonical object key order does not change payload fingerprint.
+- identical source event produces identical transaction plan.
+- successful formation emits completed decision and deterministic movement operations.
+- shortage emits failed decision and zero operations.
+- same event/same payload classifies as replay.
+- same event/different payload raises idempotency reuse conflict.
+- persistence intent is explicitly atomic + append-only and carries final decision + operations.
