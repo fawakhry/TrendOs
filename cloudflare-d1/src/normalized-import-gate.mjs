@@ -236,6 +236,16 @@ export async function handleNormalizedImportRequest(request, env) {
       if (!hasOwn(body, name)) continue;
       const rows = Array.isArray(body[name]) ? body[name] : [];
       const entityStatements = rows.map((row) => builder(env, row)).filter(Boolean);
+      if (entityStatements.length !== rows.length) {
+        return json({
+          success: false,
+          message: `Normalized ${name} chunk contains invalid source rows`,
+          entity: name,
+          sourceRows: rows.length,
+          validRows: entityStatements.length,
+          freshnessAdvanced: false
+        }, 422, cors);
+      }
       counts[name] = entityStatements.length;
       statements.push(...entityStatements);
 
