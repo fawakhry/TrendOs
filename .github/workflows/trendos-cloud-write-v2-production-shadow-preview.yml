@@ -1,0 +1,124 @@
+name: TrendOS Cloud Write V2 Production Shadow Preview
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/preview/index.js'
+      - 'cloudflare-d1/preview/production-shadow-preview.mjs'
+      - 'cloudflare-d1/preview/wrangler.toml'
+      - 'cloudflare-d1/src/cloud-write-order-v2-production-shadow.mjs'
+      - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
+      - 'tests/cloudflare_production_shadow_preview_v1.test.mjs'
+      - '.github/workflows/trendos-cloud-write-v2-production-shadow-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-and-qualify-shadow-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      SHADOW_PATH: /v1/preview/cloud-write/v2/production-shadow
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify preview shadow contract before deploy
+        run: |
+          set -euo pipefail
+          node tests/cloud_write_order_v2_production_shadow.test.mjs
+          node tests/cloudflare_production_shadow_preview_v1.test.mjs
+          node tests/cloudflare_preview_safety_v1.test.mjs
+          grep -Eq '^main = "\./index\.js"$' cloudflare-d1/preview/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/preview/wrangler.toml
+          ! grep -Eq '^migrations_dir[[:space:]]*=' cloudflare-d1/preview/wrangler.toml
+          ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/index_v2.js
+          echo 'SHADOW_PREVIEW_PREDEPLOY_SAFETY_PASS'
+
+      - name: Verify deploy credentials
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$EDGE_SESSION_SECRET"
+
+      - name: Deploy isolated Preview Worker only
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.33.2'
+          workingDirectory: 'cloudflare-d1/preview'
+          secrets: |
+            EDGE_SESSION_SECRET
+        env:
+          EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+
+      - name: Qualify Preview shadow route according to flag
+        run: |
+          set -euo pipefail
+          flag="$(sed -n 's/^TRENDOS_PRODUCTION_SHADOW_PREVIEW_ENABLED = "\([^"]*\)"$/\1/p' cloudflare-d1/preview/wrangler.toml)"
+          test "$flag" = 'false' -o "$flag" = 'true'
+
+          code=''
+          for attempt in $(seq 1 12); do
+            code="$(curl --silent --show-error --output /tmp/shadow-1.json --write-out '%{http_code}' "$PREVIEW_URL$SHADOW_PATH" || true)"
+            if { [ "$flag" = 'false' ] && [ "$code" = '404' ]; } || { [ "$flag" = 'true' ] && [ "$code" = '200' ]; }; then
+              break
+            fi
+            sleep 3
+          done
+          echo "SHADOW_PREVIEW_FLAG=$flag HTTP=$code"
+
+          if [ "$flag" = 'false' ]; then
+            test "$code" = '404'
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/shadow-1.json','utf8')); if(x.success!==false||x.code!=='preview-shadow-disabled'||x.d1Written!==false||x.sheetsWritten!==false||x.productionCutover!==false) process.exit(1)"
+            echo 'SHADOW_PREVIEW_DISABLED_FAIL_CLOSED_PASS'
+          else
+            test "$code" = '200'
+            code2="$(curl --silent --show-error --output /tmp/shadow-2.json --write-out '%{http_code}' "$PREVIEW_URL$SHADOW_PATH")"
+            test "$code2" = '200'
+            node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/shadow-1.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/shadow-2.json','utf8'));
+          const pass=a.success===true && a.valid===true && a.previewOnly===true && a.fixedSyntheticIntent===true && a.liveProductionDataRead===false && a.d1Read===false && a.appsScriptCalled===false && a.authoritativeWrites===false && a.readOnly===true && a.mutationFree===true && a.canonicalWriterInvoked===false && a.d1Written===false && a.sheetsWritten===false && Number(a.mutationCount||0)===0 && a.productionWriteEnabled===false && a.productionCutover===false && a.productionRouteIntegrated===false && a.orderIdPresent===false && /^[a-f0-9]{64}$/.test(String(a.shadowFingerprint||'')) && a.shadowFingerprint===b.shadowFingerprint && JSON.stringify(a.canonicalCreateParams)===JSON.stringify(b.canonicalCreateParams);
+          console.log('SHADOW_PREVIEW_LIVE='+JSON.stringify({fingerprint:a.shadowFingerprint,clientRequestId:a.canonicalCreateParams&&a.canonicalCreateParams.clientRequestId,readOnly:a.readOnly,d1Written:a.d1Written,sheetsWritten:a.sheetsWritten,productionCutover:a.productionCutover,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+            post="$(curl --silent --show-error --output /tmp/shadow-post.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{}' "$PREVIEW_URL$SHADOW_PATH")"
+            test "$post" = '405'
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/shadow-post.json','utf8')); if(x.success!==false||x.code!=='method-not-allowed'||x.d1Written!==false||x.sheetsWritten!==false||Number(x.mutationCount||0)!==0||x.productionCutover!==false) process.exit(1)"
+            echo 'SHADOW_PREVIEW_LIVE_DETERMINISTIC_NO_WRITE_PASS'
+          fi
+
+      - name: Reconfirm Production isolation
+        run: |
+          set -euo pipefail
+          route="$(curl --silent --show-error --output /tmp/prod-shadow.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          test "$route" = '404'
+          health="$(curl --silent --show-error --output /tmp/prod-health.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$health" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/prod-health.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+          echo 'PRODUCTION_SHADOW_PREVIEW_ISOLATION_PASS'
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_SHADOW_PREVIEW_QUALIFICATION_PASS'
+          echo 'Only the isolated Preview Worker was deployed. No Production Worker deployment, D1 migration/write, Apps Script call, Sheet write, or production cutover was performed.'
