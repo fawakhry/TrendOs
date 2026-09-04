@@ -1,0 +1,73 @@
+name: TrendOS Accounting Preview Runtime
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/accounting-preview.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/cloudflare_preview_safety_v1.test.mjs'
+      - '.github/workflows/trendos-accounting-preview-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-accounting-preview-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+    steps:
+      - name: Verify Accounting health authority contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-health.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/health")"
+          cat /tmp/accounting-health.json
+          test "$code" = '200'
+          node <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/accounting-health.json', 'utf8'));
+          if (!x.success) process.exit(1);
+          if (x.version !== 'TRENDOS_ACCOUNTING_PREVIEW_V0_1_20260905') process.exit(1);
+          if (x.mode !== 'preview-sandbox' || x.cutover !== false) process.exit(1);
+          if (x.authoritativeWrites !== false || x.previewBrowserWrites !== 'localStorage-only') process.exit(1);
+          if (x.writeAuthority !== 'google-sheets-apps-script' || x.sheetsAuthoritative !== true) process.exit(1);
+          if (x.d1SchemaMutation !== false || x.d1FinancialWrites !== false || x.cloudWriteEnabled !== false) process.exit(1);
+          if (!Array.isArray(x.integrationKeys) || !x.integrationKeys.includes('Order ID') || !x.integrationKeys.includes('Line ID')) process.exit(1);
+          if (!Array.isArray(x.modules) || !x.modules.includes('sales') || !x.modules.includes('inventory') || !x.modules.includes('bom') || !x.modules.includes('reports')) process.exit(1);
+          console.log('ACCOUNTING_HEALTH=PASS');
+          NODE
+
+      - name: Verify Arabic Accounting application shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting.html --write-out '%{http_code}' "$PREVIEW_URL/accounting")"
+          test "$code" = '200'
+          grep -Fq 'TrendOS Accounting' /tmp/accounting.html
+          grep -Fq 'برنامج الحسابات' /tmp/accounting.html
+          grep -Fq 'بدون كتابة على الإنتاج' /tmp/accounting.html
+          grep -Fq 'Order ID' /tmp/accounting.html
+          grep -Fq 'Line ID' /tmp/accounting.html
+          grep -Fq 'BOM / تكوين الأصناف' /tmp/accounting.html
+          grep -Fq 'trendos.accounting.preview.v0.1' /tmp/accounting.html
+          echo 'ACCOUNTING_UI=PASS'
+
+      - name: Verify Accounting Worker route rejects POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/health")"
+          cat /tmp/accounting-post.json
+          test "$code" = '405'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/accounting-post.json','utf8')); if(x.success!==false||x.authoritativeWrites!==false||x.sheetsAuthoritative!==true){process.exit(1)}"
+          echo 'ACCOUNTING_POST_BLOCK=PASS'
+
+      - name: Accounting Preview runtime summary
+        run: |
+          echo 'PASS: TrendOS Accounting Preview V0.1 is live on the isolated Cloudflare Worker.'
+          echo 'PASS: Financial authoritative writes remain disabled; Sheets + Apps Script remain authoritative.'
