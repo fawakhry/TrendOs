@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { buildCanonicalOrderCreateIntentV2 } from './cloud-write-order-contract-v2.mjs';
 
 export const CLOUD_WRITE_ORDER_V2_PRODUCTION_SHADOW_VERSION =
@@ -15,8 +14,31 @@ function stable(value) {
   return value;
 }
 
-function sha256(value) {
-  return createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
+// Deterministic comparison fingerprint only; it is not an auth/security primitive.
+// Keep this pure JS so the same module runs in Node CI and Cloudflare Workers
+// without requiring nodejs_compat or any runtime crypto capability.
+function fnv1a32(text, seed) {
+  let hash = (0x811c9dc5 ^ (seed >>> 0)) >>> 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+function comparisonFingerprint(value) {
+  const text = JSON.stringify(stable(value));
+  const seeds = [
+    0x00000000,
+    0x9e3779b9,
+    0x85ebca6b,
+    0xc2b2ae35,
+    0x27d4eb2f,
+    0x165667b1,
+    0xd3a2646c,
+    0xfd7046c5
+  ];
+  return seeds.map((seed) => fnv1a32(text, seed)).join('');
 }
 
 function fail(code, details = null) {
@@ -81,7 +103,7 @@ export function buildProductionOrderShadowV1(input = {}) {
     return fail('business-order-id-preallocation-refused');
   }
 
-  const shadowFingerprint = sha256({
+  const shadowFingerprint = comparisonFingerprint({
     sourceVersion: plan.version,
     intentType: plan.intentType,
     canonicalCreateParams,
@@ -107,6 +129,7 @@ export function buildProductionOrderShadowV1(input = {}) {
       ? plan.requiredCanonicalSideEffects.slice()
       : [],
     shadowFingerprint,
+    fingerprintPurpose: 'deterministic-comparison-only',
     d1Written: false,
     sheetsWritten: false,
     mutationCount: 0,
