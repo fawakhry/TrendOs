@@ -1,0 +1,35 @@
+name: TrendOS Normalized Import Isolated
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/normalized-import-gate.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/D1_Normalized_Live_Sync.gs'
+      - 'cloudflare-d1/migrations/0001_init.sql'
+      - 'tests/cloudflare_normalized_import_v1.test.mjs'
+      - '.github/workflows/trendos-normalized-import-isolated.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  normalized-live-sync-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify normalized import auth, chunk completion, and rollback
+        run: node --experimental-sqlite tests/cloudflare_normalized_import_v1.test.mjs
+      - name: Isolation conclusion
+        run: |
+          echo 'PASS means normalized live-sync protocol was exercised only against an in-memory SQLite/D1-compatible database.'
+          echo 'No remote D1 import, Apps Script deploy, source Sheet mutation, Script Property mutation, or production traffic cutover occurs in this workflow.'
