@@ -134,7 +134,47 @@ const boms = {
     stock: { 'RAW-PHOTO': 10, 'RAW-LAM': 10 }
   });
   assert.strictEqual(plan.ok, true);
-  assert.strictEqual(plan.recognizedCost, 6); // 2 photo * 2 + 2 lam * 1
+  assert.strictEqual(plan.recognizedCost, 6);
+})();
+
+(function testMovementPlanIsDeterministicAndLinked() {
+  const args = {
+    eventId: 'EVT-TM260630015-001-FORM-1',
+    orderId: 'TM260630015',
+    lineId: 'TM260630015-001',
+    sourceTransactionId: 'TX-TM260630015-001',
+    itemId: 'TABLEAU-20X30',
+    quantity: 2,
+    items,
+    boms,
+    stock: { 'RAW-PHOTO': 10, 'RAW-LAM': 10 }
+  };
+  const first = domain.planFormationMovements(args);
+  const second = domain.planFormationMovements(args);
+  assert.deepStrictEqual(first, second);
+  assert.strictEqual(first.ok, true);
+  assert.strictEqual(first.movements.length, 3);
+  first.movements.forEach(m => {
+    assert.strictEqual(m.orderId, 'TM260630015');
+    assert.strictEqual(m.lineId, 'TM260630015-001');
+  });
+  assert.strictEqual(first.movements[2].movementType, 'PRODUCTION_OUTPUT');
+})();
+
+(function testMovementPlanBlocksOnShortage() {
+  const result = domain.planFormationMovements({
+    eventId: 'EVT-TM260630015-002-FORM-1',
+    orderId: 'TM260630015',
+    lineId: 'TM260630015-002',
+    itemId: 'TABLEAU-20X30',
+    quantity: 2,
+    items,
+    boms,
+    stock: { 'RAW-PHOTO': 1, 'RAW-LAM': 1 }
+  });
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.movements.length, 0);
+  assert(result.shortages.length > 0);
 })();
 
 console.log('TrendOS Accounting domain-core-v1 tests: PASS');
