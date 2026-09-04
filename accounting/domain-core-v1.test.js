@@ -67,6 +67,36 @@ const boms = {
   });
 })();
 
+(function testSharedIntermediateStockReservedOnlyOnce() {
+  const localItems = [
+    { itemId: 'RAW', name: 'Raw', itemType: 'RAW_MATERIAL', recognizedUnitCost: 1 },
+    { itemId: 'SEMI', name: 'Semi', itemType: 'SEMI_FINISHED', recognizedUnitCost: 2 },
+    { itemId: 'BRANCH-A', name: 'Branch A', itemType: 'SEMI_FINISHED', recognizedUnitCost: 0 },
+    { itemId: 'BRANCH-B', name: 'Branch B', itemType: 'SEMI_FINISHED', recognizedUnitCost: 0 },
+    { itemId: 'FINAL', name: 'Final', itemType: 'FINISHED_PRODUCT', recognizedUnitCost: 0 }
+  ];
+  const localBoms = {
+    SEMI: [{ componentItemId: 'RAW', quantity: 1 }],
+    'BRANCH-A': [{ componentItemId: 'SEMI', quantity: 1 }],
+    'BRANCH-B': [{ componentItemId: 'SEMI', quantity: 1 }],
+    FINAL: [
+      { componentItemId: 'BRANCH-A', quantity: 1 },
+      { componentItemId: 'BRANCH-B', quantity: 1 }
+    ]
+  };
+  const result = domain.expandBomRequirements({
+    itemId: 'FINAL',
+    quantity: 1,
+    items: localItems,
+    boms: localBoms,
+    stock: { SEMI: 1, RAW: 5 }
+  });
+  assert.deepStrictEqual({ ...result.requirements }, {
+    SEMI: 1,
+    RAW: 1
+  });
+})();
+
 (function testBomCycle() {
   const cycleItems = [
     { itemId: 'A', name: 'A', itemType: 'SEMI_FINISHED', recognizedUnitCost: 0 },
