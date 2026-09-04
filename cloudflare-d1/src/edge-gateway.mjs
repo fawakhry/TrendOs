@@ -11,6 +11,8 @@ const TOKEN_AUDIENCE = 'trendos-edge';
 const DEFAULT_TTL_SECONDS = 600;
 const MIN_TTL_SECONDS = 60;
 const MAX_TTL_SECONDS = 900;
+const DEFAULT_DATA_MAX_AGE_SECONDS = 180;
+const EDGE_DATA_ENTITIES = ['customers', 'orders', 'messages', 'conversations'];
 
 function text(value) {
   return String(value == null ? '' : value).trim();
@@ -126,6 +128,54 @@ function tokenTtlSeconds(env) {
     MIN_TTL_SECONDS,
     MAX_TTL_SECONDS
   );
+}
+
+function dataMaxAgeSeconds(env) {
+  return clampInt(env.EDGE_DATA_MAX_AGE_SECONDS, DEFAULT_DATA_MAX_AGE_SECONDS, 60, 3600);
+}
+
+function sqliteUtcMs(value) {
+  const raw = text(value);
+  if (!raw) return 0;
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? raw.replace(' ', 'T') + 'Z'
+    : raw;
+  const ms = Date.parse(normalized);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+export async function getEdgeDataFreshness(env, nowMs = Date.now()) {
+  const maxAgeSeconds = dataMaxAgeSeconds(env);
+  const result = await env.DB.prepare(`
+    SELECT entity,
+           MAX(created_at) AS lastImportedAt
+      FROM migration_runs
+     WHERE entity IN ('customers','orders','messages','conversations')
+     GROUP BY entity
+  `).all();
+  const rows = result.results || [];
+  const byEntity = new Map(rows.map((row) => [text(row && row.entity), text(row && row.lastImportedAt)]));
+  const entities = EDGE_DATA_ENTITIES.map((entity) => {
+    const lastImportedAt = byEntity.get(entity) || '';
+    const importedMs = sqliteUtcMs(lastImportedAt);
+    const ageSeconds = importedMs ? Math.max(0, Math.round((nowMs - importedMs) / 1000)) : null;
+    return {
+      entity,
+      lastImportedAt,
+      ageSeconds,
+      fresh: ageSeconds !== null && ageSeconds <= maxAgeSeconds
+    };
+  });
+  const missingEntities = entities.filter((entry) => !entry.lastImportedAt).map((entry) => entry.entity);
+  const staleEntities = entities.filter((entry) => entry.lastImportedAt && !entry.fresh).map((entry) => entry.entity);
+  return {
+    fresh: missingEntities.length === 0 && staleEntities.length === 0,
+    maxAgeSeconds,
+    entities,
+    missingEntities,
+    staleEntities,
+    checkedAt: new Date(nowMs).toISOString()
+  };
 }
 
 export async function issueEdgeSessionToken(claims, secret, nowSeconds = Math.floor(Date.now() / 1000), ttlSeconds = DEFAULT_TTL_SECONDS) {
@@ -361,18 +411,34 @@ function threadContext(phone, order, customer) {
   };
 }
 
+function staleDataResponse(request, env, freshness) {
+  return json({
+    success: false,
+    message: 'Edge business data is stale; use Apps Script fallback',
+    code: 'stale-edge-data',
+    dataSource: 'd1-edge-stale',
+    freshness,
+    fallback: 'apps-script'
+  }, 503, corsHeaders(request, env));
+}
+
 async function customerManagerInbox(request, env, url, session) {
+  const freshness = await getEdgeDataFreshness(env);
+  if (!freshness.fresh) return staleDataResponse(request, env, freshness);
   return json({
     success: true,
     conversations: await listInbox(env, url.searchParams.get('limit')),
     dataSource: 'd1-edge',
-    edgeSession: session.sub
+    edgeSession: session.sub,
+    freshness
   }, 200, corsHeaders(request, env));
 }
 
 async function customerManagerThread(request, env, url, session) {
   const phone = cleanPhone(url.searchParams.get('phone'));
   if (!phone) return json({ success: false, message: 'phone is required' }, 400, corsHeaders(request, env));
+  const freshness = await getEdgeDataFreshness(env);
+  if (!freshness.fresh) return staleDataResponse(request, env, freshness);
   const [messages, order, customer] = await Promise.all([
     listMessages(env, phone, url.searchParams.get('limit')),
     latestOrderForPhone(env, phone),
@@ -383,15 +449,18 @@ async function customerManagerThread(request, env, url, session) {
     messages,
     context: threadContext(phone, order, customer),
     dataSource: 'd1-edge',
-    edgeSession: session.sub
+    edgeSession: session.sub,
+    freshness
   }, 200, corsHeaders(request, env));
 }
 
 async function edgeHealth(request, env) {
   let database = false;
+  let dataFreshness = null;
   try {
     const row = await env.DB.prepare('SELECT 1 AS ok').first();
     database = !!(row && Number(row.ok) === 1);
+    if (database) dataFreshness = await getEdgeDataFreshness(env);
   } catch (err) {}
   return json({
     success: database,
@@ -399,6 +468,7 @@ async function edgeHealth(request, env) {
     database,
     authConfigured: !!tokenSecret(env),
     upstreamConfigured: !!text(env.APPS_SCRIPT_API_URL),
+    dataFreshness,
     cutover: false,
     time: new Date().toISOString()
   }, database ? 200 : 503, corsHeaders(request, env));
@@ -408,6 +478,7 @@ export function isEdgeGatewayPath(path) {
   return path === '/v1/edge/health' ||
     path === '/v1/edge/session' ||
     path === '/v1/edge/whoami' ||
+    path === '/v1/edge/data-freshness' ||
     path === '/v1/edge/customer-manager/inbox' ||
     path === '/v1/edge/customer-manager/thread';
 }
@@ -424,11 +495,11 @@ export async function handleEdgeGatewayRequest(request, env) {
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
     if (request.method === 'GET' && path === '/v1/edge/health') {
-      return edgeHealth(request, env);
+      return await edgeHealth(request, env);
     }
 
     if (request.method === 'POST' && path === '/v1/edge/session') {
-      return exchangeSession(request, env);
+      return await exchangeSession(request, env);
     }
 
     if (!isEdgeGatewayPath(path)) {
@@ -442,12 +513,17 @@ export async function handleEdgeGatewayRequest(request, env) {
       return json({ success: true, user: { username: auth.session.sub }, expiresAt: new Date(Number(auth.session.exp) * 1000).toISOString() }, 200, cors);
     }
 
+    if (request.method === 'GET' && path === '/v1/edge/data-freshness') {
+      const freshness = await getEdgeDataFreshness(env);
+      return json({ success: freshness.fresh, freshness, code: freshness.fresh ? 'fresh-edge-data' : 'stale-edge-data' }, freshness.fresh ? 200 : 503, cors);
+    }
+
     if (request.method === 'GET' && path === '/v1/edge/customer-manager/inbox') {
-      return customerManagerInbox(request, env, url, auth.session);
+      return await customerManagerInbox(request, env, url, auth.session);
     }
 
     if (request.method === 'GET' && path === '/v1/edge/customer-manager/thread') {
-      return customerManagerThread(request, env, url, auth.session);
+      return await customerManagerThread(request, env, url, auth.session);
     }
 
     return json({ success: false, message: 'Method not allowed' }, 405, cors);
