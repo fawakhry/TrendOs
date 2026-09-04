@@ -92,6 +92,21 @@ let preview=ctx.trendosCoreP0RegistryPreviewV1();
 assert.strictEqual(preview.success,true);assert.strictEqual(preview.readOnly,true);assert.strictEqual(preview.actualPlanCount,34);
 let loggedPreview=JSON.parse(previewLogs[previewLogs.length-1]);assert.strictEqual(loggedPreview.success,true);assert.strictEqual(loggedPreview.actualPlanCount,34);assert.strictEqual(loggedPreview.checks.length,34);
 assert.strictEqual(spreadsheet.getSheetByName(ctx.TRENDOS_INTEGRITY_RESOLUTION_SHEET_V1),null,'preview must not create a sheet');
+
+// Regression: historical status مكرر must remain in source history but be excluded from active Press live-plan validation.
+const historicalDuplicateSnapshot=makeSnapshot();
+const press3536=historicalDuplicateSnapshot.lines.find(x=>x.lineId==='3536-01');
+historicalDuplicateSnapshot.lines.unshift({__rowNumber:71,__testEvidenceHash:'historical-only-row',lineId:'3536-01',status:'مكرر',press:false,__display:{lineId:'3536-01',status:'مكرر'}});
+press3536.__rowNumber=108;
+const selected3536=ctx.trendosCoreP0RegistrySourceRowsV1_('PRESS_COMPLETED_WITHOUT_SESSION','3536-01',historicalDuplicateSnapshot);
+assert.strictEqual(historicalDuplicateSnapshot.lines.filter(x=>x.lineId==='3536-01').length,2,'fixture must preserve both historical and canonical rows');
+assert.strictEqual(selected3536.length,1,'active Press selection must exclude the historical مكرر row');
+assert.strictEqual(selected3536[0].status,'تم التسليم');
+snapshotProvider=()=>historicalDuplicateSnapshot;
+preview=ctx.trendosCoreP0RegistryPreviewV1();
+assert.strictEqual(preview.success,true,'historical مكرر row must not invalidate the exact Press registry plan');
+snapshotProvider=()=>snapshot;
+
 const wrongInvoiceRowSnapshot=makeSnapshot();wrongInvoiceRowSnapshot.drafts.find(x=>x.draftId==='DR-19c18636').__rowNumber=20;
 snapshotProvider=()=>wrongInvoiceRowSnapshot;assert.throws(()=>ctx.trendosCoreP0RegistryPreviewV1(),/CORE-P0 registry preview failed/);loggedPreview=JSON.parse(previewLogs[previewLogs.length-1]);assert.strictEqual(loggedPreview.success,false);assert.ok(loggedPreview.errors.some(x=>/source-row identity/.test(x)));
 snapshotProvider=()=>snapshot;
