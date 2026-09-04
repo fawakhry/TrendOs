@@ -7,7 +7,7 @@
   'use strict';
 
   var VERSION = 'EDGE_ORDERS_READ_V1_20260904';
-  var DEFAULT_EDGE_API = 'https://trendos.trendmall-contact.workers.dev';
+  var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var SESSION_SKEW_MS = 30000;
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
