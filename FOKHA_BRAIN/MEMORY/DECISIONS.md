@@ -39,6 +39,15 @@
 - **Status:** Confirmed / Active
 - **Outcome / Notes:** أي مسار آخر لا يستقبل Design Cases كذاكرة رسمية.
 
+## DEC-20260904-MATBAGY-AUTOPERSIST-001
+- **Date:** 2026-09-04
+- **Decision:** استخراج شاتات صندوق مطبعجي يحفظ ويرفع تلقائيًا بدون انتظار `اعتمد وسجل`؛ بعد الحفظ تعرض روابط Google Drive للتأكيد الاختياري فقط.
+- **Context:** المستخدم سيستخرج عددًا كبيرًا من محادثات ChatGPT ثم يحذفها، ويريد تقليل التدخل اليدوي ومنع تعطيل كل Case ببوابة موافقة.
+- **Reason:** تسريع ingestion مع الحفاظ على الفصل بين حفظ الذاكرة واعتماد التصميم النهائي وأوامر التنفيذ.
+- **Project:** Matbagy Design Memory
+- **Status:** Confirmed / Active
+- **Outcome / Notes:** `extract -> dedup -> create/update case -> upload available assets -> persist GitHub -> show Drive links`. Final design approval remains evidence-based.
+
 ## DEC-20260904-ACCOUNTING-001
 - **Date:** 2026-09-04
 - **Decision:** TrendOS Accounting يكون برنامج/تطبيق حقيقي وليس Spreadsheet كمنتج نهائي، مع فصل نسب الشركاء والمستثمرين وأصحاب الماكينات وتوزيعات الأرباح إلى Profit Engine.
