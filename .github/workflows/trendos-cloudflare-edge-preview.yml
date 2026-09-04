@@ -7,6 +7,7 @@ on:
     paths:
       - 'cloudflare-d1/**'
       - 'tests/cloudflare_*'
+      - 'tests/d1_orders_live_sync_atomic_v1.test.mjs'
       - '.github/workflows/trendos-cloudflare-edge-preview.yml'
       - 'trendos-edge-read-v1.js'
       - 'config.js'
@@ -53,6 +54,7 @@ jobs:
           node tests/cloudflare_cloud_write_v1.test.mjs
           node tests/cloudflare_preview_safety_v1.test.mjs
           node tests/cloudflare_mirror_safety_v1.test.mjs
+          node tests/d1_orders_live_sync_atomic_v1.test.mjs
 
       - name: Verify required deploy secrets are present
         shell: bash
@@ -143,6 +145,15 @@ jobs:
           cat /tmp/mirror-stats.json
           test "$code" = '200'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/mirror-stats.json','utf8')); if(!x.success||!x.stats||x.stats.schemaMutationFree!==true){process.exit(1)}; console.log('mirror-snapshot', JSON.stringify(x.stats))"
+
+      - name: Verify atomic mirror capability read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/mirror-capabilities.json --write-out '%{http_code}' "$PREVIEW_URL/v1/mirror/capabilities")"
+          cat /tmp/mirror-capabilities.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/mirror-capabilities.json','utf8')); if(!x.success||!x.capabilities||x.capabilities.schemaMutationFree!==true||x.capabilities.atomicSupported!==true||!Array.isArray(x.capabilities.missingTables)||x.capabilities.missingTables.length!==0){process.exit(1)}; console.log('ATOMIC_CAPABILITY=' + JSON.stringify(x.capabilities))"
 
       - name: Verify anonymous mirror import cannot initialize schema
         shell: bash
@@ -238,7 +249,7 @@ jobs:
           echo "Preview Worker: $PREVIEW_URL"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
-          echo "Mirror reads: SELECT-ONLY; anonymous import rejected before schema initialization"
+          echo "Mirror reads: SELECT-ONLY; atomic capability REQUIRED; anonymous import rejected before schema initialization"
           echo "Orders + Lines mirror: freshness <= ${MAX_LIVE_MIRROR_AGE_SECONDS}s REQUIRED"
           echo "Preview latency: benchmarked against the actual mirror read path"
           echo "Frontend cutover: NOT PERFORMED"
