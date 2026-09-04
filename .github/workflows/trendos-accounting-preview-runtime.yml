@@ -9,10 +9,14 @@ on:
       - 'cloudflare-d1/src/accounting-native-module.mjs'
       - 'cloudflare-d1/src/accounting-capabilities-v1.mjs'
       - 'cloudflare-d1/src/accounting-contract-v1.mjs'
+      - 'cloudflare-d1/src/accounting-foundation-v1.mjs'
+      - 'cloudflare-d1/src/accounting-foundation-api-v1.mjs'
+      - 'cloudflare-d1/src/accounting-operations-read-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_preview_safety_v1.test.mjs'
       - 'tests/cloudflare_accounting_native_v1.test.mjs'
       - 'tests/cloudflare_accounting_contract_v1.test.mjs'
+      - 'tests/cloudflare_accounting_foundation_v1.test.mjs'
       - '.github/workflows/trendos-accounting-preview-runtime.yml'
   workflow_dispatch:
 
@@ -22,10 +26,60 @@ permissions:
 jobs:
   verify-accounting-preview-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     env:
       PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
     steps:
+      - name: Checkout expected Accounting source
+        uses: actions/checkout@v4
+
+      - name: Derive expected native Accounting version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node - <<'NODE'
+          const fs = require('fs');
+          const src = fs.readFileSync('cloudflare-d1/src/accounting-native-module.mjs','utf8');
+          const m = src.match(/TRENDOS_ACCOUNTING_NATIVE_VERSION\s*=\s*['\"]([^'\"]+)['\"]/);
+          if (!m) process.exit(1);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          test -n "$version"
+          echo "EXPECTED_ACCOUNTING_NATIVE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Expected native Accounting version: $version"
+
+      - name: Wait for matching isolated Preview deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          matched='false'
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --output /tmp/accounting-deploy-sync.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/integration" || true)"
+            if [ "$code" = '200' ]; then
+              if EXPECTED_ACCOUNTING_NATIVE_VERSION="$EXPECTED_ACCOUNTING_NATIVE_VERSION" node <<'NODE'
+          const fs = require('fs');
+          let x = {};
+          try { x = JSON.parse(fs.readFileSync('/tmp/accounting-deploy-sync.json','utf8')); } catch (_) { process.exit(1); }
+          const expected = process.env.EXPECTED_ACCOUNTING_NATIVE_VERSION;
+          if (!x.success || x.version !== expected) process.exit(1);
+          if (!Array.isArray(x.foundationEndpoints) || !x.foundationEndpoints.some(v => String(v).includes('/v1/accounting/operations/line'))) process.exit(1);
+          process.exit(0);
+          NODE
+              then
+                matched='true'
+                echo "ACCOUNTING_PREVIEW_DEPLOYMENT_SYNC=PASS attempt=$attempt version=$EXPECTED_ACCOUNTING_NATIVE_VERSION"
+                break
+              fi
+            fi
+            sleep 4
+          done
+          if [ "$matched" != 'true' ]; then
+            echo 'Preview did not converge to the expected Accounting source revision.' >&2
+            cat /tmp/accounting-deploy-sync.json 2>/dev/null || true
+            exit 1
+          fi
+
       - name: Verify Accounting health authority contract
         shell: bash
         run: |
@@ -54,9 +108,10 @@ jobs:
           code="$(curl --silent --show-error --output /tmp/accounting-integration.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/integration")"
           cat /tmp/accounting-integration.json
           test "$code" = '200'
-          node <<'NODE'
+          EXPECTED_ACCOUNTING_NATIVE_VERSION="$EXPECTED_ACCOUNTING_NATIVE_VERSION" node <<'NODE'
           const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-integration.json','utf8'));
           if (!x.success || x.nativeModule !== true || x.standaloneProduct !== false) process.exit(1);
+          if (x.version !== process.env.EXPECTED_ACCOUNTING_NATIVE_VERSION) process.exit(1);
           if (x.platform !== 'TrendOS' || x.module !== 'TrendOS Accounting') process.exit(1);
           if (x.easyStoreRole !== 'historical-working-trendos-accounting-baseline') process.exit(1);
           if (x.authoritativeWrites !== false || x.cutover !== false) process.exit(1);
@@ -135,6 +190,22 @@ jobs:
           console.log('ACCOUNTING_PROFIT_SHARE_BLOCK=PASS');
           NODE
 
+      - name: Verify F1 foundation remains non-authoritative
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-foundation.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/foundation")"
+          cat /tmp/accounting-foundation.json
+          test "$code" = '200'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-foundation.json','utf8'));
+          if (!x.success || x.authoritativeWrites !== false) process.exit(1);
+          if (!x.entityOwners || x.entityOwners.orderId !== 'TrendOS Operations' || x.entityOwners.lineId !== 'TrendOS Operations') process.exit(1);
+          if (!x.legacyRoleBridge || x.legacyRoleBridge.mutationPermission !== false) process.exit(1);
+          if (!Array.isArray(x.invariants) || !x.invariants.some(v => String(v).includes('No financial write authority'))) process.exit(1);
+          console.log('ACCOUNTING_FOUNDATION_READ_ONLY=PASS');
+          NODE
+
       - name: Verify native TrendOS Accounting module shell
         shell: bash
         run: |
@@ -159,6 +230,19 @@ jobs:
           grep -Fq 'بدون كتابة على الإنتاج' /tmp/accounting.html
           echo 'ACCOUNTING_ALIAS=PASS'
 
+      - name: Verify unauthenticated Accounting Operations read is blocked
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-line-anon.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/operations/line?orderId=ORDER-RT&lineId=LINE-RT")"
+          cat /tmp/accounting-line-anon.json
+          test "$code" = '401'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-line-anon.json','utf8'));
+          if (x.success !== false || x.authoritativeWrites !== false) process.exit(1);
+          console.log('ACCOUNTING_OPERATIONS_ANON_BLOCK=PASS');
+          NODE
+
       - name: Verify authoritative Accounting POST routes remain blocked
         shell: bash
         run: |
@@ -171,10 +255,13 @@ jobs:
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/accounting-native-post.json','utf8')); if(x.success!==false||x.nativeModule!==true||x.authoritativeWrites!==false){process.exit(1)}"
           contract_post="$(curl --silent --show-error --output /tmp/accounting-contract-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/contract")"
           test "$contract_post" = '405'
+          foundation_post="$(curl --silent --show-error --output /tmp/accounting-foundation-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/foundation")"
+          test "$foundation_post" = '405'
           echo 'ACCOUNTING_AUTHORITATIVE_POST_BLOCK=PASS'
 
       - name: Accounting Preview runtime summary
         run: |
-          echo 'PASS: TrendOS Accounting native shell and V1 validation contract are live on the isolated Cloudflare Worker.'
+          echo 'PASS: TrendOS Accounting native shell, V1 validation contract and F1 foundation are live on the isolated Cloudflare Worker.'
+          echo 'PASS: Runtime matched the exact source Accounting native version before verification.'
           echo 'PASS: Validation persistence is NONE and financial authoritative writes remain disabled.'
           echo 'PASS: Sheets + Apps Script remain authoritative until a separate approved cutover.'
