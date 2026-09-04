@@ -7,6 +7,10 @@ import {
   handleAccountingPreviewRequest,
   isAccountingPreviewPath
 } from '../cloudflare-d1/src/accounting-preview.mjs';
+import {
+  handleAccountingNativeModuleRequest,
+  isAccountingNativeModulePath
+} from '../cloudflare-d1/src/accounting-native-module.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -172,6 +176,74 @@ async function testAccountingPreviewSafety() {
   assert.equal(env.DB.writeOps, 0);
 }
 
+async function testAccountingContractIsValidationOnly() {
+  const env = makeEnv();
+  assert.equal(isAccountingNativeModulePath('/v1/accounting/contract'), true);
+  assert.equal(isAccountingNativeModulePath('/v1/accounting/validate'), true);
+
+  const contract = await handleAccountingNativeModuleRequest(
+    new Request('https://preview.test/v1/accounting/contract'),
+    env
+  );
+  assert.equal(contract.status, 200);
+  const contractBody = await contract.json();
+  assert.equal(contractBody.mode, 'validation-only');
+  assert.equal(contractBody.authoritativeWrites, false);
+  assert.equal(contractBody.persistence, 'none');
+  assert.ok(contractBody.entityTypes.includes('SalesInvoiceLine'));
+  assert.ok(contractBody.envelope.required.includes('idempotencyKey'));
+  assert.equal(env.DB.writeOps, 0);
+
+  const validEnvelope = {
+    entityType: 'SalesInvoiceLine',
+    operation: 'validate-future-line',
+    idempotencyKey: 'PREVIEW-SAFETY-LINE-001',
+    payload: {
+      invoiceLineId: 'INV-1-L1',
+      invoiceId: 'INV-1',
+      orderId: 'ORDER-1',
+      sourceOrderId: 'ORDER-1',
+      lineId: 'LINE-1',
+      itemId: 'ITEM-1',
+      quantity: 1,
+      unitPrice: 100
+    }
+  };
+  const validation = await handleAccountingNativeModuleRequest(
+    new Request('https://preview.test/v1/accounting/validate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(validEnvelope)
+    }),
+    env
+  );
+  assert.equal(validation.status, 200);
+  const validationBody = await validation.json();
+  assert.equal(validationBody.valid, true);
+  assert.equal(validationBody.authoritativeWrites, false);
+  assert.equal(validationBody.persistence, 'none');
+  assert.equal(env.DB.writeOps, 0);
+
+  const mismatch = await handleAccountingNativeModuleRequest(
+    new Request('https://preview.test/v1/accounting/validate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        ...validEnvelope,
+        idempotencyKey: 'PREVIEW-SAFETY-MISMATCH-001',
+        payload: { ...validEnvelope.payload, sourceOrderId: 'ORDER-OTHER' }
+      })
+    }),
+    env
+  );
+  assert.equal(mismatch.status, 422);
+  const mismatchBody = await mismatch.json();
+  assert.equal(mismatchBody.valid, false);
+  assert.ok(mismatchBody.errors.some((x) => x.code === 'line-order-mismatch'));
+  assert.equal(mismatchBody.persistence, 'none');
+  assert.equal(env.DB.writeOps, 0);
+}
+
 function testWorkflowAndEntrySafetyContract() {
   const workflow = fs.readFileSync(
     path.join(root, '.github/workflows/trendos-cloudflare-edge-preview.yml'),
@@ -188,7 +260,9 @@ function testWorkflowAndEntrySafetyContract() {
   assert.match(workflow, /D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW/);
   assert.match(entry, /cloud-write-gate\.mjs/);
   assert.match(entry, /accounting-preview\.mjs/);
+  assert.match(entry, /accounting-native-module\.mjs/);
   assert.match(entry, /isAccountingPreviewPath/);
+  assert.match(entry, /isAccountingNativeModulePath/);
 
   assert.match(previewConfig, /name\s*=\s*"trendos-edge-gateway-preview"/);
   assert.match(previewConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/);
@@ -200,6 +274,7 @@ await testHealthIsReadOnlyWhenDisabled();
 await testDisabledRouteCannotInitializeSchema();
 await testEnabledAnonymousRequestCannotInitializeSchema();
 await testAccountingPreviewSafety();
+await testAccountingContractIsValidationOnly();
 testWorkflowAndEntrySafetyContract();
 
 console.log('Cloudflare Preview Safety V1 tests: PASS');
