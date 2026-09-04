@@ -1,0 +1,33 @@
+name: TrendOS Accounting Native CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/accounting-native-module.mjs'
+      - 'cloudflare-d1/src/accounting-preview.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/cloudflare_accounting_native_v1.test.mjs'
+      - '.github/workflows/trendos-accounting-native-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-native-accounting-module:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check cloudflare-d1/src/accounting-native-module.mjs
+          node --check cloudflare-d1/src/accounting-preview.mjs
+          node --check cloudflare-d1/src/index_v2.js
+      - name: Native module contract tests
+        run: node tests/cloudflare_accounting_native_v1.test.mjs
