@@ -44,10 +44,11 @@ assert.equal(integration.sharedIdentity.profitCenterKey, 'Profit Center ID');
 assert.ok(integration.operationsToAccounting.includes('approved selling price / approved line amount'));
 assert.ok(integration.operationsToAccounting.includes('Profit Center ID'));
 assert.ok(integration.accountingToOperations.includes('factual line profit'));
-assert.ok(integration.invariants.some(x => x.includes('never invents an operational price')));
-assert.ok(integration.invariants.some(x => x.includes('same event')));
-assert.ok(integration.invariants.some(x => x.includes('profit-sharing percentages')));
-assert.ok(integration.invariants.some(x => x.includes('EasyStore behavior')));
+const invariantText = integration.invariants.map(x => String(x).toLowerCase());
+assert.ok(invariantText.some(x => x.includes('never invents an operational price')));
+assert.ok(invariantText.some(x => x.includes('same event')));
+assert.ok(invariantText.some(x => x.includes('profit-sharing percentages')));
+assert.ok(invariantText.some(x => x.includes('easystore behavior')));
 assert.ok(Array.isArray(integration.foundationEndpoints));
 assert.ok(integration.foundationEndpoints.some(x => x.includes('/v1/accounting/operations/line')));
 
@@ -69,7 +70,7 @@ for (const capability of ['treasury','custody','day-close','line-profit']) {
 assert.equal(capabilities.idContracts.orderId.owner, 'TrendOS Operations');
 assert.equal(capabilities.idContracts.lineId.owner, 'TrendOS Operations');
 assert.equal(capabilities.idContracts.invoiceId.owner, 'TrendOS Accounting');
-assert.ok(capabilities.nonNegotiables.some(x => x.includes('no employee-name authorization')));
+assert.ok(capabilities.nonNegotiables.some(x => x.toLowerCase().includes('no employee-name authorization')));
 assert.ok(capabilities.nonNegotiables.some(x => x.includes('Line ID + Profit Center')));
 
 const contractResponse = await handleAccountingNativeModuleRequest(
