@@ -7,4 +7,6 @@ Purpose:
 - qualify authenticated idempotent Cloud Write and pending outbox;
 - reconfirm Production Cloud Write remains OFF.
 
+Retry: safety-gate comment false-positive corrected before this run.
+
 This trigger does not authorize production Cloud Write.
