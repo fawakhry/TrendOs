@@ -30,6 +30,15 @@
 - **Status:** Confirmed
 - **Outcome / Notes:** `GITHUB READ -> EXTRACT -> DRIVE WRITE -> ORGANIZED GITHUB SYNC`.
 
+## DEC-20260904-004
+- **Date:** 2026-09-04
+- **Decision:** المستخدم فوّض عقل فوخا في TrendOS باتخاذ القرارات التشغيلية الروتينية والقابلة للرجوع منخفضة المخاطر، وتشخيص التوقف ومحاولة استئناف الشغل تلقائيًا إذا كان ذلك ممكنًا بالأدوات والصلاحيات الحالية.
+- **Context:** TrendOS هو الأولوية الحالية، والمستخدم يريد منع توقف المشروع بسبب انتظار قرارات تشغيلية صغيرة أو محادثة واقفة.
+- **Reason:** تقليل اعتماد تقدم المشروع على تدخل المستخدم المستمر مع الحفاظ على الأمان ومصدر الحقيقة والـrollback.
+- **Project:** Fokha / Trend Mall / TrendOS
+- **Status:** Confirmed
+- **Outcome / Notes:** Delegation boundary: routine + reversible + low-risk decisions may be taken autonomously. High-impact, irreversible, destructive, financial-commitment, security-sensitive, or authority-changing decisions still require explicit user approval unless a pre-approved project rule specifically authorizes them.
+
 ## DEC-20260904-MATBAGY-ROUTING-001
 - **Date:** 2026-09-04
 - **Decision:** صندوق مطبعجي الرسمي لذاكرة التصميمات هو فقط `fawakhry/Matbagy-Design-Workflow` على branch `agent/initial-mvp`، والمدخل `صندوق_مطبعجي.md`.
@@ -80,3 +89,4 @@
 - لا يتم تحويل توصية AI إلى قرار Confirmed إلا إذا اعتمدها المستخدم صراحة أو وُجد عقد اعتماد موثق.
 - Project-only decisions تبقى scoped للمشروع ولا تتحول إلى Fokha Global تلقائيًا.
 - أحدث Evidence متحقق يمكن أن supersede حالة تنفيذ قديمة بدون حذف القرار التاريخي.
+- التفويض التنفيذي لا يلغي سلطة المستخدم النهائية؛ هو يقلل الانتظار في القرارات الروتينية الآمنة فقط.
