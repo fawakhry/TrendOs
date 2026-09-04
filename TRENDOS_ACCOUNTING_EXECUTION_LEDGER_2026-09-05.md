@@ -44,26 +44,32 @@ Regression test added in commit `6c40b072ae11ddd335f754b36b9129fb0054bfda` using
 
 ---
 
-## ACC-EXEC-004 — STARTED (recorded before code mutation)
+## ACC-EXEC-004 — IMPLEMENTED / EXECUTION CHECK PENDING
 
-### Goal
-Extend the pure domain core from “can this item be formed?” to “what exact auditable stock movements would be required?” without performing those writes.
+Extended the domain core with deterministic, audit-ready formation movement planning.
 
-### Required behavior
-- Accept stable `eventId`, `Order ID`, `Line ID` and source transaction reference.
-- Reuse the recursive BOM/shortage planner.
-- If any shortage exists, return zero movement mutations.
-- If sufficient stock exists, return deterministic planned movements for:
-  - production consumption of resolved requirements
-  - production output of the final item
-- Preserve Order ID + Line ID on every planned movement.
-- Produce deterministic movement keys from the same event input so replaying the same event produces the same plan and can be idempotently persisted later.
-- Do not touch Google Sheets, D1, cashbox or any live inventory balance.
+Code commit: `75a595a806e71f38c5ef6925d81a18ee8abbd343`.
 
-### Acceptance
-- same input event twice => exactly identical movement keys/order/content
-- insufficient stock => no planned mutations
-- successful formation => one consumption movement per resolved requirement + one output movement
-- all movements retain Order ID and Line ID
+Implemented:
+- stable `eventId`, Order ID, Line ID and source transaction validation
+- shortage gate: failed formation returns zero planned stock mutations
+- deterministic `PRODUCTION_CONSUMPTION` movement plan for every resolved requirement
+- deterministic `PRODUCTION_OUTPUT` movement for the final item
+- Order ID + Line ID carried on every movement
+- deterministic movement/idempotency keys derived from event + sequence + item
+- recognized cost carried through to the movement plan
+- still pure planning only: no Google Sheets, D1, cashbox or live inventory mutation
 
-Status: STARTED — code mutation may now proceed.
+Regression coverage commit: `9813cc30e74cbff9a798e5aafa727024b8124c85`.
+
+Added tests for:
+- identical input event => identical movement plan
+- successful formation => requirements consumption + final output
+- all movements preserve Order ID and Line ID
+- shortage => zero movements
+
+### Current verification state
+Executable Node verification is still pending only because this runtime cannot resolve GitHub to clone the branch locally. No user decision or production permission is required for the next isolated development slice.
+
+### Next safe continuation
+Before adding any persistence adapter, implement the Accounting transaction/idempotency contract as a pure store-independent layer so a future Google Sheets/database adapter can atomically claim an event, persist all planned movements, and safely replay without duplication.
