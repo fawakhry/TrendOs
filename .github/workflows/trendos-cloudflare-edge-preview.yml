@@ -51,6 +51,7 @@ jobs:
       - name: Pre-deploy safety tests
         run: |
           node tests/cloudflare_edge_gateway_v1.test.mjs
+          node tests/cloudflare_edge_freshness_v1.test.mjs
           node tests/cloudflare_cloud_write_v1.test.mjs
           node --experimental-sqlite tests/cloudflare_cloud_write_sqlite_integration_v1.test.mjs
           node tests/cloudflare_preview_safety_v1.test.mjs
@@ -74,11 +75,12 @@ jobs:
             exit 1
           fi
           grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/preview/wrangler.toml
+          grep -Eq '^EDGE_DATA_MAX_AGE_SECONDS = "180"$' cloudflare-d1/preview/wrangler.toml
           if grep -Eq '^migrations_dir[[:space:]]*=' cloudflare-d1/preview/wrangler.toml; then
             echo 'Preview config must not declare migrations_dir.'
             exit 1
           fi
-          echo 'PASS: preview workflow has no migration apply step and cloud writes are explicitly OFF.'
+          echo 'PASS: preview has no migration apply step, Cloud Write is OFF, and Edge freshness limit is explicit.'
 
       - name: Deploy isolated preview Worker with official Cloudflare action
         uses: cloudflare/wrangler-action@v3
@@ -106,7 +108,7 @@ jobs:
             sleep 3
           done
           test "$code" = '200'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-health.json','utf8')); if(!x.success||!x.database||!x.authConfigured||!x.upstreamConfigured||x.cutover!==false){process.exit(1)}"
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-health.json','utf8')); if(!x.success||!x.database||!x.authConfigured||!x.upstreamConfigured||x.cutover!==false){process.exit(1)}; if(x.dataFreshness) console.log('EDGE_DATA_FRESHNESS=' + JSON.stringify(x.dataFreshness))"
 
       - name: Verify protected route rejects anonymous access
         shell: bash
@@ -117,7 +119,7 @@ jobs:
           test "$code" = '401'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-anon.json','utf8')); if(x.success!==false||!String(x.code||'').length){process.exit(1)}"
 
-      - name: Verify signed Preview Edge auth and protected D1 read
+      - name: Verify signed Preview auth and stale-data fallback contract
         shell: bash
         run: |
           set -euo pipefail
@@ -138,7 +140,7 @@ jobs:
           const signingInput = 'v1.' + payloadPart;
           const sig = crypto.createHmac('sha256', secret).update(signingInput).digest('base64url');
           fs.writeFileSync('/tmp/edge-token.txt', signingInput + '.' + sig, { mode: 0o600 });
-          console.log('PASS: synthetic short-lived Preview token generated without employee credentials; token value is not logged.');
+          console.log('PASS: synthetic short-lived Preview token generated; token value is not logged.');
           NODE
 
           token="$(cat /tmp/edge-token.txt)"
@@ -148,14 +150,28 @@ jobs:
           test "$who_code" = '200'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-whoami.json','utf8')); if(!x.success||!x.user||x.user.username!=='ci-preview-auth'){process.exit(1)}; console.log('SIGNED_WHOAMI=PASS')"
 
+          fresh_code="$(curl --silent --show-error --output /tmp/edge-data-freshness.json --write-out '%{http_code}' \
+            -H "authorization: Bearer $token" \
+            "$PREVIEW_URL/v1/edge/data-freshness")"
+          cat /tmp/edge-data-freshness.json
+
           inbox_code="$(curl --silent --show-error --output /tmp/edge-inbox.json --write-out '%{http_code}' \
             -H "authorization: Bearer $token" \
             "$PREVIEW_URL/v1/edge/customer-manager/inbox?limit=1")"
           unset token
           rm -f /tmp/edge-token.txt
-          test "$inbox_code" = '200'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-inbox.json','utf8')); if(!x.success||x.dataSource!=='d1-edge'||x.edgeSession!=='ci-preview-auth'||!Array.isArray(x.conversations)){process.exit(1)}; console.log('SIGNED_D1_INBOX_READ=PASS count=' + x.conversations.length)"
-          echo 'PASS: signed protected read works; no real employee credential was used or stored.'
+
+          if [ "$fresh_code" = '200' ]; then
+            test "$inbox_code" = '200'
+            node -e "const f=JSON.parse(require('fs').readFileSync('/tmp/edge-data-freshness.json','utf8')); const x=JSON.parse(require('fs').readFileSync('/tmp/edge-inbox.json','utf8')); if(!f.success||!f.freshness||f.freshness.fresh!==true||!x.success||x.dataSource!=='d1-edge'||x.edgeSession!=='ci-preview-auth'||!Array.isArray(x.conversations)){process.exit(1)}; console.log('SIGNED_D1_INBOX_READ=PASS count=' + x.conversations.length)"
+          elif [ "$fresh_code" = '503' ]; then
+            test "$inbox_code" = '503'
+            node -e "const f=JSON.parse(require('fs').readFileSync('/tmp/edge-data-freshness.json','utf8')); const x=JSON.parse(require('fs').readFileSync('/tmp/edge-inbox.json','utf8')); if(f.code!=='stale-edge-data'||!f.freshness||f.freshness.fresh!==false||x.code!=='stale-edge-data'||x.fallback!=='apps-script'){process.exit(1)}; console.log('STALE_D1_FAIL_CLOSED=PASS stale=' + JSON.stringify(f.freshness.staleEntities))"
+          else
+            echo "Unexpected data freshness HTTP=$fresh_code"
+            exit 1
+          fi
+          echo 'PASS: protected Edge reads either serve fresh D1 data or fail closed to Apps Script fallback.'
 
       - name: Verify Edge session exchange rejects incomplete credentials before upstream
         shell: bash
@@ -305,14 +321,13 @@ jobs:
       - name: Preview deployment summary
         run: |
           echo "Preview Worker: $PREVIEW_URL"
-          echo "Edge auth: anonymous 401 + signed synthetic whoami/D1 protected read PASS required"
-          echo "Employee session exchange: incomplete credentials fail before upstream; real employee credentials are never used by CI"
+          echo "Edge auth: anonymous 401 + signed whoami PASS required"
+          echo "Edge business data: fresh D1 serves; stale D1 returns 503 stale-edge-data for Apps Script fallback"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
-          echo "Cloud write transaction model: isolated SQL success/idempotency/rollback test PASS required pre-deploy"
+          echo "Cloud write transaction model: isolated SQL success/idempotency/rollback PASS required pre-deploy"
           echo "Mirror reads: SELECT-ONLY; atomic capability REQUIRED; anonymous import rejected before schema initialization"
           echo "Orders + Lines mirror: freshness <= ${MAX_LIVE_MIRROR_AGE_SECONDS}s REQUIRED"
           echo "Preview latency: benchmarked against the actual mirror read path with transient-network retries"
           echo "Frontend cutover: NOT PERFORMED"
-          echo "GitHub Pages/config.js: UNCHANGED"
           echo "Apps Script writes/fallback: UNCHANGED"
