@@ -7,10 +7,12 @@ on:
     paths:
       - 'cloudflare-d1/src/cloud-write.mjs'
       - 'cloudflare-d1/src/cloud-write-gate.mjs'
+      - 'cloudflare-d1/src/cloud-write-reconcile-core.mjs'
       - 'cloudflare-d1/src/edge-gateway.mjs'
       - 'cloudflare-d1/migrations/0001_init.sql'
       - 'tests/cloudflare_cloud_write_v1.test.mjs'
       - 'tests/cloudflare_cloud_write_sqlite_integration_v1.test.mjs'
+      - 'tests/cloudflare_cloud_write_reconcile_sqlite_v1.test.mjs'
       - '.github/workflows/trendos-cloud-write-isolated-integration.yml'
   workflow_dispatch:
 
@@ -32,7 +34,9 @@ jobs:
         run: node tests/cloudflare_cloud_write_v1.test.mjs
       - name: Verify real SQL success, idempotency, and rollback in isolated DB
         run: node --experimental-sqlite tests/cloudflare_cloud_write_sqlite_integration_v1.test.mjs
+      - name: Verify isolated Sheets reconciliation state machine
+        run: node --experimental-sqlite tests/cloudflare_cloud_write_reconcile_sqlite_v1.test.mjs
       - name: Isolation conclusion
         run: |
-          echo 'PASS means the real Cloud Write handler passed against an isolated in-memory SQLite/D1-compatible database.'
+          echo 'PASS means Cloud Write and reconciliation state transitions passed against an isolated in-memory SQLite/D1-compatible database.'
           echo 'No remote D1 database, Google Sheet, Apps Script property, Production Worker, or production traffic is mutated by this workflow.'
