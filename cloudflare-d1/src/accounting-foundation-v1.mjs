@@ -1,4 +1,4 @@
-export const TRENDOS_ACCOUNTING_FOUNDATION_VERSION = 'TRENDOS_ACCOUNTING_F1_V1_20260905';
+export const TRENDOS_ACCOUNTING_FOUNDATION_VERSION = 'TRENDOS_ACCOUNTING_F1_V1_1_20260905';
 
 export const ACCOUNTING_PERMISSIONS = Object.freeze([
   'accounting.read',
@@ -117,10 +117,11 @@ export function permissionsForAccountingPrincipal(principal = {}) {
     : [];
   const role = text(principal.accountingRole || principal.role).toLowerCase();
   const mapped = ACCOUNTING_ROLE_PERMISSIONS[role] || [];
-  // Backward-compatible bridge for the existing TrendOS Edge role. Only admin is
-  // promoted and only to read/admin capabilities; employee names are never used.
+  // Temporary compatibility bridge: existing TrendOS role=admin can inspect
+  // Accounting/read audit data only. It is NOT promoted to accounting.admin and
+  // therefore receives no financial mutation permission implicitly.
   const legacyAdminBridge = role === 'admin'
-    ? ['accounting.read','accounting.audit.read','accounting.admin']
+    ? ['accounting.read','accounting.audit.read']
     : [];
   return [...new Set([...explicit, ...mapped, ...legacyAdminBridge])];
 }
@@ -275,8 +276,13 @@ export function accountingFoundationContract() {
     commandTypes: COMMAND_TYPES,
     permissions: ACCOUNTING_PERMISSIONS,
     rolePermissions: ACCOUNTING_ROLE_PERMISSIONS,
+    legacyRoleBridge: {
+      admin: ['accounting.read','accounting.audit.read'],
+      mutationPermission: false
+    },
     invariants: [
       'No employee-name-based authorization.',
+      'Legacy TrendOS admin grants Accounting read/audit only until explicit Accounting RBAC is issued.',
       'Order ID and Line ID are owned by TrendOS Operations.',
       'Every financial mutation must carry a stable idempotency key.',
       'Audit events are append-only/immutable.',
