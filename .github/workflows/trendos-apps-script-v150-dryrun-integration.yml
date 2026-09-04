@@ -1,0 +1,82 @@
+name: TrendOS Apps Script V150 Dry-Run Integration
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'Code.gs'
+      - 'apps-script/patches/CLOUD_WRITE_RECONCILE_DRYRUN_V1.gs'
+      - 'scripts/apply_apps_script_cloud_write_dryrun_v150.mjs'
+      - 'tests/apps_script_cloud_write_reconcile_dryrun_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_reconcile_router_v150.test.mjs'
+      - 'docs/trendos/staging/APPLY_APPS_SCRIPT_V150_DRYRUN.trigger'
+      - '.github/workflows/trendos-apps-script-v150-dryrun-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dryrun-contract-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify dry-run contract remains mutation-free
+        run: node tests/apps_script_cloud_write_reconcile_dryrun_v1.test.mjs
+      - name: Preflight conclusion
+        run: |
+          echo 'PASS: dry-run contract remains read-only and staging-only.'
+          echo 'No Apps Script deployment or Google Sheets write is performed by preflight.'
+
+  integrate-codegs-v150-dryrun:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[apply-apps-v150-dryrun]')
+    needs: dryrun-contract-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reverify read-only contract before integration
+        run: node tests/apps_script_cloud_write_reconcile_dryrun_v1.test.mjs
+      - name: Apply idempotent V150 dry-run route patch to Code.gs
+        run: node scripts/apply_apps_script_cloud_write_dryrun_v150.mjs
+      - name: Verify integrated Code.gs route and append-only helper
+        run: node tests/apps_script_cloud_write_reconcile_router_v150.test.mjs
+      - name: Verify only Code.gs changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          changed="$(git status --porcelain | awk '{print $2}')"
+          test "$changed" = 'Code.gs'
+          echo 'CODEGS_ONLY_CHANGE_PASS'
+      - name: Commit V150 dry-run candidate without deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'TrendOS Integrity Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add Code.gs
+          git commit -m 'PERF-CF-02AO integrate Apps Script V150 dry-run route [no-apps-deploy]'
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
+          echo 'CODEGS_V150_DRYRUN_CANDIDATE_COMMITTED_DEPLOY_NO'
+      - name: Deployment boundary
+        run: |
+          echo 'No clasp command, Apps Script API deployment, Script Property mutation, or Google Sheet mutation is executed by this workflow.'
+          echo 'Web App Version 149 remains the deployed Apps Script version until a separate explicit deployment step is authorized and performed.'
