@@ -8,6 +8,13 @@ const DEFAULT_ORIGINS = [
   'http://127.0.0.1:5500'
 ];
 
+const ATOMIC_REQUIRED_TABLES = [
+  'sheet_catalog',
+  'sheet_rows',
+  'sheet_staging_catalog',
+  'sheet_staging_rows'
+];
+
 function text(value) {
   return String(value == null ? '' : value).trim();
 }
@@ -61,6 +68,7 @@ export function isMirrorPath(path) {
   return path === '/v1/import/sheet' ||
     path === '/v1/mirror/sheets' ||
     path === '/v1/mirror/stats' ||
+    path === '/v1/mirror/capabilities' ||
     path === '/v1/mirror/sheet';
 }
 
@@ -98,6 +106,27 @@ async function mirrorStatsReadOnly(env) {
     oldestSyncedAt: (totals && totals.oldestSyncedAt) || '',
     lastSyncedAt: (totals && totals.lastSyncedAt) || '',
     schemaMutationFree: true
+  };
+}
+
+async function mirrorCapabilitiesReadOnly(env) {
+  const result = await env.DB.prepare(`
+    SELECT name, type
+      FROM sqlite_master
+     WHERE type = 'table'
+       AND name IN ('sheet_catalog','sheet_rows','sheet_staging_catalog','sheet_staging_rows')
+     ORDER BY name
+  `).all();
+
+  const present = Array.from(new Set((result.results || []).map((row) => text(row && row.name)).filter(Boolean))).sort();
+  const missing = ATOMIC_REQUIRED_TABLES.filter((name) => present.indexOf(name) === -1);
+
+  return {
+    schemaMutationFree: true,
+    atomicSupported: missing.length === 0,
+    requiredTables: ATOMIC_REQUIRED_TABLES.slice(),
+    presentTables: present,
+    missingTables: missing
   };
 }
 
@@ -181,6 +210,9 @@ export async function handleMirrorRequest(request, env, ctx) {
       }
       if (path === '/v1/mirror/stats') {
         return json({ success: true, stats: await mirrorStatsReadOnly(env) }, 200, cors);
+      }
+      if (path === '/v1/mirror/capabilities') {
+        return json({ success: true, capabilities: await mirrorCapabilitiesReadOnly(env) }, 200, cors);
       }
       if (path === '/v1/mirror/sheet') {
         const sheet = await getSheetReadOnly(env, url);
