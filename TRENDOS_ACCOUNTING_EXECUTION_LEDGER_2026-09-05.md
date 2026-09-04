@@ -87,41 +87,35 @@ ACC-EXEC-001 through ACC-EXEC-006 now have executable CI proof on the working br
 
 ---
 
-## ACC-EXEC-009 — IMPLEMENTED / REGRESSION COVERAGE NEXT
-Pre-adapter record was committed before code in `9a33a630bcf0353587f8b6fec07592d113cf4e4c`.
-
-Created `accounting/memory-persistence-adapter-v1.js`.
-Code commit: `a822fee7dc1db6190aa4cf9d5b879f8afcf32c1b`.
-
-Reference semantics implemented:
-- reads existing immutable final decision by Event-ID idempotency key;
-- delegates replay/conflict classification to `transaction-contract-v1`;
-- stages all operations and final decision in temporary in-memory state before state swap;
-- successful commit swaps all staged state atomically;
-- safe replay returns prior result without duplicating operations;
-- operation-ID collisions and duplicate IDs inside one transaction are rejected;
-- deterministic fault injection can abort after staging but before commit, proving no partial state is visible;
-- adapter remains in-process only with zero external persistence or production writes.
+## ACC-EXEC-009 — IMPLEMENTED
+Pre-adapter record commit: `9a33a630bcf0353587f8b6fec07592d113cf4e4c`.
+Created `accounting/memory-persistence-adapter-v1.js` in commit `a822fee7dc1db6190aa4cf9d5b879f8afcf32c1b`.
+Reference semantics implement append-only final decisions, staged atomic operations, safe replay, hard conflicts/collisions, and deterministic simulated abort before state swap. It is in-process only with zero external writes.
 
 ---
 
-## ACC-EXEC-010 — IMPLEMENTED / CI VERIFICATION NEXT
-Pre-test record was committed before adapter test code in `e7bbd03964784da06b2c97dd9b7df26c3f68792b`.
-
-Created `accounting/memory-persistence-adapter-v1.test.js`.
-Test code commit: `b6b32fb0a5e28cadfefd3a4dc47a5503254faba8`.
-
-Coverage added for:
-- first valid transaction commits exactly once;
-- exact replay performs zero extra writes;
-- same Event ID with changed canonical payload is rejected without mutation;
-- staged simulated abort leaves decisions, operations and transaction mapping empty;
-- failed business decision persists one final decision and zero operations;
-- operation-ID collision from another transaction rejects the whole second commit with no partial state.
+## ACC-EXEC-010 — IMPLEMENTED
+Pre-test record commit: `e7bbd03964784da06b2c97dd9b7df26c3f68792b`.
+Created `accounting/memory-persistence-adapter-v1.test.js` in commit `b6b32fb0a5e28cadfefd3a4dc47a5503254faba8`.
+Coverage proves first commit once, zero-write replay, conflicting payload rejection, atomic abort/no partial state, failed final decision with zero operations, and whole-transaction rejection on operation-ID collision.
 
 ---
 
-## ACC-EXEC-011 — STARTED / MATERIAL STEP RECORDED BEFORE CI WORKFLOW CHANGE
-Add the reference persistence adapter source/test paths to the Accounting CI filter and execute `node accounting/memory-persistence-adapter-v1.test.js` as an explicit Integrity V1 step.
+## ACC-EXEC-011 — IMPLEMENTED / EXECUTABLE PASS
+Pre-CI-change record commit: `b1ecfc0af9411dc351959741e17daf8e8ebdc2a1`.
+Updated `.github/workflows/trendos-integrity-v1.yml` in commit `4f096a3ca6a4b136144c5a1e3ae50178e25fdeea` to include the memory persistence adapter paths and execute its regression suite.
 
-No production binding or migration will be introduced by this verification step.
+GitHub Actions run `33929296440`, job `101204440111`, completed with `success`. All three Accounting executable steps passed:
+- `Run TrendOS Accounting domain-core-v1 tests` — success
+- `Run TrendOS Accounting transaction-contract-v1 tests` — success
+- `Run TrendOS Accounting memory-persistence-adapter-v1 tests` — success
+The complete existing Integrity V1 job also remained green.
+
+### Current exact checkpoint
+The isolated Accounting core now has a CI-proven chain:
+`BOM/cost planning -> deterministic stock movements -> transaction/idempotency contract -> atomic append-only reference persistence semantics`.
+
+No production Sheets/D1/cashbox/live-stock mutation was performed.
+
+### Next safe continuation
+Reconcile the CI-proven reference persistence contract with the repository's already-prepared D1 Accounting schema and any existing inventory/stock-movement storage. Define the D1 adapter mapping and tests in PREPARED/isolated mode first. Do not activate a migration or production binding until the normal cutover/integrity gate explicitly permits it.
