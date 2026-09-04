@@ -40,7 +40,7 @@ jobs:
           grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
           grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
           ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
-          grep -Eq '^name = "trendos-d1-api-shadow-candidate-NO-DEPLOY"$' cloudflare-d1/production-shadow/wrangler.candidate.toml
+          grep -Eq '^name = "trendos-d1-api-shadow-candidate-no-deploy"$' cloudflare-d1/production-shadow/wrangler.candidate.toml
           ! grep -Eq '^\[\[d1_databases\]\]' cloudflare-d1/production-shadow/wrangler.candidate.toml
           ! grep -Eq '^APPS_SCRIPT_API_URL' cloudflare-d1/production-shadow/wrangler.candidate.toml
           ! grep -Eq '^migrations_dir' cloudflare-d1/production-shadow/wrangler.candidate.toml
