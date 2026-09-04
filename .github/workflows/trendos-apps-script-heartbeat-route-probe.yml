@@ -1,0 +1,72 @@
+name: TrendOS Apps Script Heartbeat Route Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-apps-script-heartbeat-route-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-heartbeat-route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Probe sanitized heartbeat action read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(sed -n 's/^APPS_SCRIPT_API_URL = "\(.*\)"$/\1/p' cloudflare-d1/preview/wrangler.toml | head -n1)"
+          test -n "$base" || (echo 'APPS_SCRIPT_API_URL missing from Preview config' && exit 1)
+          code="$(curl --silent --show-error --location --max-time 30 \
+            --output /tmp/heartbeat-probe.json --write-out '%{http_code}' \
+            "${base}?action=getD1OrdersLowUsageHeartbeatV1&_probe=github-readonly")"
+          echo "HEARTBEAT_ROUTE_HTTP=$code"
+          node <<'NODE'
+          const fs = require('fs');
+          let body = {};
+          try { body = JSON.parse(fs.readFileSync('/tmp/heartbeat-probe.json', 'utf8') || '{}'); }
+          catch (err) {
+            console.log('HEARTBEAT_ROUTE_STATE=INVALID_JSON');
+            process.exit(0);
+          }
+          const installed = body && body.success === true && body.lowUsage === true && body.lastIdleCheck && typeof body.lastIdleCheck === 'object';
+          if (installed) {
+            const safe = {
+              success: body.success === true,
+              lowUsage: body.lowUsage === true,
+              lightweightIdleDetection: body.lightweightIdleDetection === true,
+              enabled: body.enabled === true,
+              intervalMinutes: Number(body.intervalMinutes || 0),
+              lowUsageTriggerCount: Number(body.lowUsageTriggerCount || 0),
+              legacyV1TriggerCount: Number(body.legacyV1TriggerCount || 0),
+              directV2TriggerCount: Number(body.directV2TriggerCount || 0),
+              lastErrorPresent: body.lastError != null,
+              consecutiveErrors: Number(body.consecutiveErrors || 0),
+              idleAt: String(body.lastIdleCheck.at || ''),
+              idleMode: String(body.lastIdleCheck.mode || ''),
+              sourceChanged: body.lastIdleCheck.sourceChanged === true,
+              d1RequestMade: body.lastIdleCheck.d1RequestMade === true,
+              d1WriteMade: body.lastIdleCheck.d1WriteMade === true,
+              sourceCount: Array.isArray(body.lastIdleCheck.source) ? body.lastIdleCheck.source.length : 0
+            };
+            console.log('HEARTBEAT_ROUTE_STATE=INSTALLED');
+            console.log('HEARTBEAT_SAFE_STATUS=' + JSON.stringify(safe));
+          } else {
+            const message = String(body.message || body.error || body.code || '');
+            console.log('HEARTBEAT_ROUTE_STATE=NOT_VERIFIED');
+            console.log('HEARTBEAT_RESPONSE_CLASS=' + (message ? message.slice(0, 120) : 'unrecognized-json'));
+          }
+          NODE
+
+      - name: Read-only guarantee
+        run: |
+          echo 'Probe method: GET only.'
+          echo 'No Sheet writes, Script Property mutation, trigger changes, D1 writes, deployment changes, or cutover actions are performed by this workflow.'
