@@ -7,6 +7,7 @@ Purpose:
 - qualify authenticated idempotent Cloud Write and pending outbox;
 - reconfirm Production Cloud Write remains OFF.
 
-Retry: safety-gate comment false-positive corrected before this run.
+Retry: safety-gate comment false-positive corrected before the first retry.
+Retry 2: allow Edge secret propagation before authenticated write qualification; production OFF check now runs even on staging failure.
 
 This trigger does not authorize production Cloud Write.
