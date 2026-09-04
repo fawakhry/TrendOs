@@ -1,0 +1,128 @@
+name: TrendOS Orders Dual-Signal Preview Qualification
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/preview/wrangler.toml'
+      - 'cloudflare-d1/src/edge-orders-freshness-gate.mjs'
+      - 'cloudflare-d1/src/edge-orders-idle-heartbeat.mjs'
+      - 'cloudflare-d1/src/edge-orders-idle-verifier.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - '.github/workflows/trendos-cloudflare-orders-dual-signal-preview.yml'
+  workflow_dispatch:
+    inputs:
+      confirm_preview_qualification:
+        description: 'Type QUALIFY_ORDERS_DUAL_SIGNAL_PREVIEW. This never changes Production traffic.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-orders-dual-signal-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qualify-orders-dual-signal-preview:
+    if: ${{ github.event_name == 'push' || github.event.inputs.confirm_preview_qualification == 'QUALIFY_ORDERS_DUAL_SIGNAL_PREVIEW' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve heartbeat qualification mode
+        id: mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/preview/wrangler.toml
+          if grep -Eq '^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "true"$' cloudflare-d1/preview/wrangler.toml; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+            echo 'Heartbeat verifier is explicitly enabled on isolated Preview; runtime qualification is required.'
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo 'SAFE_SKIP: heartbeat verifier is OFF; no dual-signal runtime qualification is attempted.'
+          fi
+
+      - name: Verify Preview secret exists
+        if: ${{ steps.mode.outputs.enabled == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EDGE_SESSION_SECRET" || (echo 'Missing TRENDOS_EDGE_SESSION_SECRET_PREVIEW' && exit 1)
+
+      - name: Require protected Orders route to serve D1 through dual-signal freshness
+        if: ${{ steps.mode.outputs.enabled == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const secret = String(process.env.EDGE_SESSION_SECRET || '');
+          if (!secret) process.exit(1);
+          const now = Math.floor(Date.now() / 1000);
+          const payload = {
+            aud: 'trendos-orders-edge',
+            sub: 'ci-preview-orders',
+            role: 'admin',
+            department: 'إدارة',
+            screens: ['service'],
+            iat: now,
+            exp: now + 300,
+            jti: 'ci-orders-' + crypto.randomUUID()
+          };
+          const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+          const input = 'v1.' + body;
+          const sig = crypto.createHmac('sha256', secret).update(input).digest('base64url');
+          fs.writeFileSync('/tmp/orders-edge-token.txt', input + '.' + sig, { mode: 0o600 });
+          console.log('PASS: short-lived Orders Preview token generated; token value is not logged.');
+          NODE
+
+          token="$(cat /tmp/orders-edge-token.txt)"
+          code=''
+          for attempt in $(seq 1 20); do
+            code="$(curl --silent --show-error --output /tmp/orders-dual-signal.json --write-out '%{http_code}' \
+              -H "authorization: Bearer $token" \
+              "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=1&statusFilter=__ACTIVE__" || true)"
+            echo "orders-dual-signal attempt=$attempt status=$code"
+            if [ "$code" = '200' ]; then
+              break
+            fi
+            sleep 3
+          done
+          unset token
+          rm -f /tmp/orders-edge-token.txt
+
+          cat /tmp/orders-dual-signal.json
+          test "$code" = '200'
+          node <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/orders-dual-signal.json', 'utf8'));
+          if (x.success !== true) throw new Error('Orders route did not succeed');
+          if (x.dataSource !== 'd1-edge-orders') throw new Error('Expected dataSource=d1-edge-orders');
+          if (x.edgeSession !== 'ci-preview-orders') throw new Error('Unexpected edge session subject');
+          if (x.fallback) throw new Error('Fallback must not be active during dual-signal PASS');
+          console.log('ORDERS_DUAL_SIGNAL_PREVIEW=PASS dataSource=' + x.dataSource);
+          NODE
+
+      - name: Qualification summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ steps.mode.outputs.enabled }}' = 'true' ]; then
+            echo 'Dual-signal Orders Preview qualification: PASS required.'
+          else
+            echo 'Dual-signal Orders Preview qualification: SAFE SKIP because heartbeat is OFF.'
+          fi
+          echo 'Cloud Write: MUST remain OFF.'
+          echo 'Production traffic cutover: NOT PERFORMED by this workflow.'
