@@ -66,6 +66,7 @@ function migrationAuthorized(request, env) {
 
 export function isMirrorPath(path) {
   return path === '/v1/import/sheet' ||
+    path === '/v1/mirror/heartbeat' ||
     path === '/v1/mirror/sheets' ||
     path === '/v1/mirror/stats' ||
     path === '/v1/mirror/capabilities' ||
@@ -124,6 +125,7 @@ async function mirrorCapabilitiesReadOnly(env) {
   return {
     schemaMutationFree: true,
     atomicSupported: missing.length === 0,
+    heartbeatSupported: missing.length === 0,
     requiredTables: ATOMIC_REQUIRED_TABLES.slice(),
     presentTables: present,
     missingTables: missing
@@ -189,6 +191,122 @@ async function getSheetReadOnly(env, url) {
   };
 }
 
+function normalizeHeartbeatSheets(body) {
+  const raw = Array.isArray(body && body.sheets) ? body.sheets : [];
+  const seen = new Set();
+  const sheets = [];
+
+  for (const item of raw) {
+    const sheetName = text(item && item.sheetName);
+    if (!sheetName || seen.has(sheetName)) continue;
+    seen.add(sheetName);
+    sheets.push({
+      sheetName,
+      sourceLastRow: clampInt(item && item.sourceLastRow, 0, 0, 10000000),
+      sourceLastCol: clampInt(item && item.sourceLastCol, 0, 0, 10000),
+      rowCount: clampInt(item && item.rowCount, 0, 0, 10000000),
+      expectedNote: text(item && item.expectedNote)
+    });
+  }
+
+  return sheets;
+}
+
+async function heartbeatMirrorSheets(body, env) {
+  const sheets = normalizeHeartbeatSheets(body);
+  if (!sheets.length) {
+    return { response: json({
+      success: false,
+      atomic: true,
+      action: 'heartbeat',
+      schemaMutationFree: true,
+      message: 'sheets is required'
+    }, 400) };
+  }
+
+  const verified = [];
+
+  // Preflight every sheet with SELECTs only. If any contract mismatches, perform no writes.
+  for (const expected of sheets) {
+    const catalog = await env.DB.prepare(`
+      SELECT sheet_name AS sheetName,
+             source_last_row AS sourceLastRow,
+             source_last_col AS sourceLastCol,
+             row_count AS rowCount,
+             status,
+             note,
+             synced_at AS syncedAt
+        FROM sheet_catalog
+       WHERE sheet_name = ?
+       LIMIT 1
+    `).bind(expected.sheetName).first();
+
+    if (!catalog) {
+      return { response: json({
+        success: false,
+        atomic: true,
+        action: 'heartbeat',
+        schemaMutationFree: true,
+        message: 'Mirror sheet not found',
+        sheetName: expected.sheetName
+      }, 404) };
+    }
+
+    const actual = {
+      sheetName: text(catalog.sheetName),
+      sourceLastRow: Number(catalog.sourceLastRow || 0),
+      sourceLastCol: Number(catalog.sourceLastCol || 0),
+      rowCount: Number(catalog.rowCount || 0),
+      status: text(catalog.status),
+      note: text(catalog.note),
+      syncedAt: text(catalog.syncedAt)
+    };
+
+    const noteOk = !expected.expectedNote || actual.note === expected.expectedNote;
+    const parityOk = actual.status === 'ready' &&
+      actual.sourceLastRow === expected.sourceLastRow &&
+      actual.sourceLastCol === expected.sourceLastCol &&
+      actual.rowCount === expected.rowCount &&
+      noteOk;
+
+    if (!parityOk) {
+      return { response: json({
+        success: false,
+        atomic: true,
+        action: 'heartbeat',
+        schemaMutationFree: true,
+        message: 'Heartbeat parity preflight failed',
+        sheetName: expected.sheetName,
+        expected,
+        actual
+      }, 409) };
+    }
+
+    verified.push(actual);
+  }
+
+  const statements = verified.map((sheet) =>
+    env.DB.prepare(`
+      UPDATE sheet_catalog
+         SET synced_at = CURRENT_TIMESTAMP
+       WHERE sheet_name = ?
+    `).bind(sheet.sheetName)
+  );
+
+  // One D1 batch: all verified freshness timestamps advance together.
+  await env.DB.batch(statements);
+
+  return { response: json({
+    success: true,
+    atomic: true,
+    action: 'heartbeat',
+    schemaMutationFree: true,
+    rowDataMutationFree: true,
+    touchedRows: verified.length,
+    touchedSheets: verified.map((sheet) => sheet.sheetName)
+  }, 200) };
+}
+
 export async function handleMirrorRequest(request, env, ctx) {
   const cors = corsHeaders(request, env);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -225,6 +343,35 @@ export async function handleMirrorRequest(request, env, ctx) {
       return json({
         success: false,
         schemaMutationFree: true,
+        message: err && err.message ? err.message : String(err)
+      }, 503, cors);
+    }
+  }
+
+  if (request.method === 'POST' && path === '/v1/mirror/heartbeat') {
+    if (!migrationAuthorized(request, env)) {
+      return json({
+        success: false,
+        atomic: true,
+        action: 'heartbeat',
+        schemaMutationFree: true,
+        rowDataMutationFree: true,
+        message: 'Unauthorized heartbeat'
+      }, 401, cors);
+    }
+    try {
+      const body = await request.json();
+      const result = await heartbeatMirrorSheets(body, env);
+      const response = result.response;
+      const data = await response.json();
+      return json(data, response.status, cors);
+    } catch (err) {
+      return json({
+        success: false,
+        atomic: true,
+        action: 'heartbeat',
+        schemaMutationFree: true,
+        rowDataMutationFree: true,
         message: err && err.message ? err.message : String(err)
       }, 503, cors);
     }
