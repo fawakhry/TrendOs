@@ -1,8 +1,8 @@
 /* TrendOS Cloud Write Reconciliation Core V1
  *
- * Isolated state machine only. This module is intentionally NOT routed by the
- * production Worker. It advances cloud_write_outbox rows toward a future
- * Sheets reconciliation transport while keeping retries idempotent.
+ * Shared state machine for Cloud Write outbox reconciliation. Production does
+ * not route this module. Staging may use the explicit `staging-verified` mode,
+ * which must never claim that Google Sheets was written.
  */
 
 function text(value) {
@@ -18,6 +18,35 @@ function changes(result) {
 
 function iso(ms) {
   return new Date(ms).toISOString();
+}
+
+function completionConfig(options = {}) {
+  if (text(options.completionMode) === 'staging-verified') {
+    return {
+      successState: 'staging_verified',
+      outboxSuccessStatus: 'staging_verified',
+      eventSuccessStatus: 'staging_verified',
+      sheetsSuccessStatus: 'not_written_staging',
+      retrySheetsStatus: 'not_written_staging',
+      failureEventStatus: 'staging_verification_failed',
+      failureSheetsStatus: 'not_written_staging',
+      label: 'Staging verification',
+      defaultNote: 'STAGING_VERIFY_ONLY: payload verified; NO_SHEETS_WRITE',
+      sheetsWritten: false
+    };
+  }
+  return {
+    successState: 'synced',
+    outboxSuccessStatus: 'synced',
+    eventSuccessStatus: 'reconciled',
+    sheetsSuccessStatus: 'synced',
+    retrySheetsStatus: 'retrying',
+    failureEventStatus: 'reconciliation_failed',
+    failureSheetsStatus: 'failed',
+    label: 'Sheets reconciliation',
+    defaultNote: 'Sheets reconciliation synced',
+    sheetsWritten: true
+  };
 }
 
 export function reconciliationBackoffSeconds(attempts) {
@@ -86,28 +115,33 @@ async function claimCandidate(DB, candidate, nowMs, leaseSeconds) {
   `).bind(candidate.id).first();
 }
 
-async function markSynced(DB, item, transportResult) {
-  const note = text(transportResult && (transportResult.note || transportResult.message)) || 'Sheets reconciliation synced';
+async function markCompleted(DB, item, transportResult, completion) {
+  const note = text(transportResult && (transportResult.note || transportResult.message)) || completion.defaultNote;
   await DB.batch([
     DB.prepare(`
       UPDATE cloud_write_outbox
-         SET status = 'synced',
+         SET status = ?,
              last_error = '',
              updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND status = 'processing'
-    `).bind(item.id),
+    `).bind(completion.outboxSuccessStatus, item.id),
     DB.prepare(`
       UPDATE cloud_write_events
-         SET status = 'reconciled',
-             sheets_status = 'synced',
+         SET status = ?,
+             sheets_status = ?,
              updated_at = CURRENT_TIMESTAMP,
              note = ?
        WHERE idempotency_key = ?
-    `).bind(note.slice(0, 500), item.eventKey)
+    `).bind(
+      completion.eventSuccessStatus,
+      completion.sheetsSuccessStatus,
+      note.slice(0, 500),
+      item.eventKey
+    )
   ]);
 }
 
-async function markRetry(DB, item, errorMessage, nowMs) {
+async function markRetry(DB, item, errorMessage, nowMs, completion) {
   const delaySeconds = reconciliationBackoffSeconds(item.attempts);
   const nextAttemptAt = iso(nowMs + delaySeconds * 1000);
   await DB.batch([
@@ -121,16 +155,20 @@ async function markRetry(DB, item, errorMessage, nowMs) {
     `).bind(nextAttemptAt, text(errorMessage).slice(0, 1000), item.id),
     DB.prepare(`
       UPDATE cloud_write_events
-         SET sheets_status = 'retrying',
+         SET sheets_status = ?,
              updated_at = CURRENT_TIMESTAMP,
              note = ?
        WHERE idempotency_key = ?
-    `).bind(('Sheets reconciliation retry: ' + text(errorMessage)).slice(0, 500), item.eventKey)
+    `).bind(
+      completion.retrySheetsStatus,
+      (`${completion.label} retry: ` + text(errorMessage)).slice(0, 500),
+      item.eventKey
+    )
   ]);
   return nextAttemptAt;
 }
 
-async function markFailed(DB, item, errorMessage) {
+async function markFailed(DB, item, errorMessage, completion) {
   await DB.batch([
     DB.prepare(`
       UPDATE cloud_write_outbox
@@ -141,12 +179,17 @@ async function markFailed(DB, item, errorMessage) {
     `).bind(text(errorMessage).slice(0, 1000), item.id),
     DB.prepare(`
       UPDATE cloud_write_events
-         SET status = 'reconciliation_failed',
-             sheets_status = 'failed',
+         SET status = ?,
+             sheets_status = ?,
              updated_at = CURRENT_TIMESTAMP,
              note = ?
        WHERE idempotency_key = ?
-    `).bind(('Sheets reconciliation failed: ' + text(errorMessage)).slice(0, 500), item.eventKey)
+    `).bind(
+      completion.failureEventStatus,
+      completion.failureSheetsStatus,
+      (`${completion.label} failed: ` + text(errorMessage)).slice(0, 500),
+      item.eventKey
+    )
   ]);
 }
 
@@ -166,18 +209,19 @@ export async function reconcileNextOutboxItem(env, transport, options = {}) {
   const maxAttempts = Math.max(1, Math.min(20, Math.trunc(Number(options.maxAttempts) || 5)));
   const leaseSeconds = Math.max(30, Math.min(900, Math.trunc(Number(options.leaseSeconds) || 120)));
   const nowIso = iso(nowMs);
+  const completion = completionConfig(options);
 
   const candidate = await selectCandidate(env.DB, nowIso);
-  if (!candidate) return { success: true, state: 'idle', processed: false };
+  if (!candidate) return { success: true, state: 'idle', processed: false, sheetsWritten: false };
 
   const item = await claimCandidate(env.DB, candidate, nowMs, leaseSeconds);
-  if (!item) return { success: true, state: 'contended', processed: false };
+  if (!item) return { success: true, state: 'contended', processed: false, sheetsWritten: false };
 
   let payload;
   try {
     payload = parsePayload(item);
   } catch (err) {
-    await markFailed(env.DB, item, err.message);
+    await markFailed(env.DB, item, err.message, completion);
     return {
       success: false,
       state: 'failed',
@@ -185,6 +229,7 @@ export async function reconcileNextOutboxItem(env, transport, options = {}) {
       eventKey: item.eventKey,
       entityId: item.entityId,
       attempts: Number(item.attempts || 0),
+      sheetsWritten: false,
       error: err.message
     };
   }
@@ -200,26 +245,27 @@ export async function reconcileNextOutboxItem(env, transport, options = {}) {
     });
 
     if (!result || result.success !== true) {
-      throw new Error(text(result && (result.message || result.error)) || 'Sheets reconciliation transport did not confirm success');
+      throw new Error(text(result && (result.message || result.error)) || 'Reconciliation transport did not confirm success');
     }
     if (text(result.entityId || result.orderId) && text(result.entityId || result.orderId) !== text(item.entityId)) {
-      throw new Error('Sheets reconciliation entity mismatch');
+      throw new Error('Reconciliation entity mismatch');
     }
 
-    await markSynced(env.DB, item, result);
+    await markCompleted(env.DB, item, result, completion);
     return {
       success: true,
-      state: 'synced',
+      state: completion.successState,
       processed: true,
       eventKey: item.eventKey,
       entityId: item.entityId,
-      attempts: Number(item.attempts || 0)
+      attempts: Number(item.attempts || 0),
+      sheetsWritten: completion.sheetsWritten
     };
   } catch (err) {
     const message = text(err && err.message) || 'Unknown reconciliation failure';
     const attempts = Number(item.attempts || 0);
     if (attempts >= maxAttempts) {
-      await markFailed(env.DB, item, message);
+      await markFailed(env.DB, item, message, completion);
       return {
         success: false,
         state: 'failed',
@@ -227,11 +273,12 @@ export async function reconcileNextOutboxItem(env, transport, options = {}) {
         eventKey: item.eventKey,
         entityId: item.entityId,
         attempts,
+        sheetsWritten: false,
         error: message
       };
     }
 
-    const nextAttemptAt = await markRetry(env.DB, item, message, nowMs);
+    const nextAttemptAt = await markRetry(env.DB, item, message, nowMs, completion);
     return {
       success: false,
       state: 'retry',
@@ -240,6 +287,7 @@ export async function reconcileNextOutboxItem(env, transport, options = {}) {
       entityId: item.entityId,
       attempts,
       nextAttemptAt,
+      sheetsWritten: false,
       error: message
     };
   }
