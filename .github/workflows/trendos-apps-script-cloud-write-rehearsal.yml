@@ -7,7 +7,9 @@ on:
     paths:
       - 'apps-script/patches/CLOUD_WRITE_RECONCILE_DRYRUN_V1.gs'
       - 'apps-script/patches/CLOUD_WRITE_RECONCILE_REHEARSAL_V1.gs'
+      - 'apps-script/patches/CLOUD_WRITE_RECONCILE_REHEARSAL_LIVE_RUNNER_V1.gs'
       - 'tests/apps_script_cloud_write_reconcile_rehearsal_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_rehearsal_live_runner_v1.test.mjs'
       - '.github/workflows/trendos-apps-script-cloud-write-rehearsal.yml'
   workflow_dispatch:
 
@@ -27,9 +29,12 @@ jobs:
           node-version: '22'
       - name: Verify default-off isolated shadow Sheet rehearsal contract
         run: node tests/apps_script_cloud_write_reconcile_rehearsal_v1.test.mjs
+      - name: Verify live replay-noop runner safety contract
+        run: node tests/apps_script_cloud_write_rehearsal_live_runner_v1.test.mjs
       - name: Safety conclusion
         run: |
           echo 'PASS means the candidate rehearsal lane is default-OFF and can target only __TRENDOS_CLOUD_WRITE_REHEARSAL.'
           echo 'PASS means non-stage IDs, non-synthetic identity, missing shadow Sheet, schema drift, duplicates, and conflicting replays fail closed.'
-          echo 'PASS means the only allowed mutation is one appendRow to the fixed shadow Sheet for a new synthetic CW-STAGE-* ID; identical replay is a no-op.'
-          echo 'The candidate never creates a Sheet, never updates/deletes a row, never mutates Production Orders, never deploys Apps Script, and does not enable Production Cloud Write.'
+          echo 'PASS means the only allowed candidate mutation is one appendRow to the fixed shadow Sheet for a new synthetic CW-STAGE-* ID; identical replay is a no-op.'
+          echo 'PASS means the live runner itself has zero Sheet mutations, accepts only the pre-existing synthetic replay, uses an ephemeral rehearsal secret, and deletes its flag/secret in finally.'
+          echo 'Neither candidate nor runner can mutate Production Orders, deploy Apps Script, or enable Production Cloud Write.'
