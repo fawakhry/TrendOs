@@ -1,0 +1,84 @@
+name: TrendOS Cloudflare Freshness Stability
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-cloudflare-freshness-stability.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      MAX_LIVE_MIRROR_AGE_SECONDS: '180'
+
+    steps:
+      - name: Observe four consecutive live-sync windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          for sample in 1 2 3 4; do
+            curl --fail --silent --show-error --get \
+              --data-urlencode 'name=الأوردرات' \
+              --data-urlencode 'limit=1' \
+              "$PREVIEW_URL/v1/mirror/sheet" > /tmp/orders.json
+            curl --fail --silent --show-error --get \
+              --data-urlencode 'name=بنود الأوردرات' \
+              --data-urlencode 'limit=1' \
+              "$PREVIEW_URL/v1/mirror/sheet" > /tmp/lines.json
+
+            SAMPLE="$sample" node <<'NODE'
+            const fs = require('fs');
+            const maxAge = Number(process.env.MAX_LIVE_MIRROR_AGE_SECONDS || 180);
+            const sample = Number(process.env.SAMPLE || 0);
+            function parseUtc(value) {
+              const raw = String(value || '').trim();
+              const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+                ? raw.replace(' ', 'T') + 'Z'
+                : raw;
+              const ms = Date.parse(normalized);
+              return Number.isFinite(ms) ? ms : 0;
+            }
+            function inspect(file, label) {
+              const x = JSON.parse(fs.readFileSync(file, 'utf8'));
+              if (!x.success || !x.sheet || x.schemaMutationFree !== true) throw new Error(label + ' invalid response');
+              const s = x.sheet;
+              const ms = parseUtc(s.syncedAt);
+              const ageSeconds = ms ? Math.max(0, Math.round((Date.now() - ms) / 1000)) : Number.MAX_SAFE_INTEGER;
+              const out = {
+                sample,
+                label,
+                rowCount: Number(s.rowCount || 0),
+                sourceLastRow: Number(s.sourceLastRow || 0),
+                sourceLastCol: Number(s.sourceLastCol || 0),
+                syncedAt: String(s.syncedAt || ''),
+                ageSeconds,
+                status: String(s.status || ''),
+                note: String(s.note || ''),
+                fresh: ageSeconds <= maxAge
+              };
+              console.log('STABILITY=' + JSON.stringify(out));
+              if (out.status !== 'ready' || out.rowCount !== out.sourceLastRow || out.note !== 'TrendOS orders live sync V1' || !out.fresh) {
+                throw new Error(label + ' freshness stability failed at sample ' + sample);
+              }
+              return out;
+            }
+            const orders = inspect('/tmp/orders.json', 'ORDERS');
+            const lines = inspect('/tmp/lines.json', 'LINES');
+            if (orders.syncedAt !== lines.syncedAt) throw new Error('Orders/Lines snapshots diverged at sample ' + sample);
+            NODE
+
+            if [ "$sample" != '4' ]; then sleep 70; fi
+          done
+
+      - name: Stability conclusion
+        run: |
+          echo 'PASS: Orders + Lines stayed fresh and synchronized across four observation windows.'
+          echo 'Read-only observation only; no D1 import/migration and no Apps Script mutation.'
