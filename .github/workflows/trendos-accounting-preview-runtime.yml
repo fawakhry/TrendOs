@@ -6,8 +6,10 @@ on:
       - agent/go-live-2026-09-01-integrity
     paths:
       - 'cloudflare-d1/src/accounting-preview.mjs'
+      - 'cloudflare-d1/src/accounting-native-module.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_preview_safety_v1.test.mjs'
+      - 'tests/cloudflare_accounting_native_v1.test.mjs'
       - '.github/workflows/trendos-accounting-preview-runtime.yml'
   workflow_dispatch:
 
@@ -42,7 +44,38 @@ jobs:
           console.log('ACCOUNTING_HEALTH=PASS');
           NODE
 
-      - name: Verify Arabic Accounting application shell
+      - name: Verify native TrendOS Accounting integration contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-integration.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/integration")"
+          cat /tmp/accounting-integration.json
+          test "$code" = '200'
+          node <<'NODE'
+          const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-integration.json','utf8'));
+          if (!x.success || x.nativeModule !== true || x.standaloneProduct !== false) process.exit(1);
+          if (x.platform !== 'TrendOS' || x.module !== 'TrendOS Accounting') process.exit(1);
+          if (x.authoritativeWrites !== false || x.cutover !== false) process.exit(1);
+          if (!x.sharedIdentity || x.sharedIdentity.orderKey !== 'Order ID' || x.sharedIdentity.lineKey !== 'Line ID') process.exit(1);
+          if (!Array.isArray(x.operationsToAccounting) || !x.operationsToAccounting.includes('approved selling price / approved line amount')) process.exit(1);
+          if (!Array.isArray(x.accountingToOperations) || !x.accountingToOperations.includes('factual line profit')) process.exit(1);
+          console.log('ACCOUNTING_TRENDOS_INTEGRATION=PASS');
+          NODE
+
+      - name: Verify native TrendOS Accounting module shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/trendos-accounting.html --write-out '%{http_code}' "$PREVIEW_URL/trendos/accounting")"
+          test "$code" = '200'
+          grep -Fq 'TrendOS Native Module' /tmp/trendos-accounting.html
+          grep -Fq 'الحسابات جزء من TrendOS' /tmp/trendos-accounting.html
+          grep -Fq 'Order ID / Line ID' /tmp/trendos-accounting.html
+          grep -Fq 'TrendOS Accounting' /tmp/trendos-accounting.html
+          grep -Fq 'بدون كتابة على الإنتاج' /tmp/trendos-accounting.html
+          echo 'TRENDOS_ACCOUNTING_NATIVE_UI=PASS'
+
+      - name: Verify engineering alias remains available
         shell: bash
         run: |
           set -euo pipefail
@@ -51,23 +84,21 @@ jobs:
           grep -Fq 'TrendOS Accounting' /tmp/accounting.html
           grep -Fq 'برنامج الحسابات' /tmp/accounting.html
           grep -Fq 'بدون كتابة على الإنتاج' /tmp/accounting.html
-          grep -Fq 'Order ID' /tmp/accounting.html
-          grep -Fq 'Line ID' /tmp/accounting.html
-          grep -Fq 'BOM / تكوين الأصناف' /tmp/accounting.html
-          grep -Fq 'trendos.accounting.preview.v0.1' /tmp/accounting.html
-          echo 'ACCOUNTING_UI=PASS'
+          echo 'ACCOUNTING_ALIAS=PASS'
 
-      - name: Verify Accounting Worker route rejects POST
+      - name: Verify Accounting Worker routes reject authoritative POST
         shell: bash
         run: |
           set -euo pipefail
           code="$(curl --silent --show-error --output /tmp/accounting-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/health")"
-          cat /tmp/accounting-post.json
           test "$code" = '405'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/accounting-post.json','utf8')); if(x.success!==false||x.authoritativeWrites!==false||x.sheetsAuthoritative!==true){process.exit(1)}"
+          native_code="$(curl --silent --show-error --output /tmp/accounting-native-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/integration")"
+          test "$native_code" = '405'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/accounting-native-post.json','utf8')); if(x.success!==false||x.nativeModule!==true||x.authoritativeWrites!==false){process.exit(1)}"
           echo 'ACCOUNTING_POST_BLOCK=PASS'
 
       - name: Accounting Preview runtime summary
         run: |
-          echo 'PASS: TrendOS Accounting Preview V0.1 is live on the isolated Cloudflare Worker.'
+          echo 'PASS: TrendOS Accounting is verified as a native TrendOS module on the isolated Cloudflare Worker.'
           echo 'PASS: Financial authoritative writes remain disabled; Sheets + Apps Script remain authoritative.'
