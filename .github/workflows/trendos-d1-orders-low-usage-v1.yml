@@ -1,0 +1,32 @@
+name: TrendOS D1 Orders Low Usage V1
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/D1_Orders_Low_Usage_Control_V1.gs'
+      - 'tests/d1_orders_low_usage_control_v1.test.mjs'
+      - '.github/workflows/trendos-d1-orders-low-usage-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Low-usage zero-write idle contract
+        run: node tests/d1_orders_low_usage_control_v1.test.mjs
+      - name: Orders V2 delta regression
+        run: node --experimental-sqlite tests/d1_orders_live_sync_delta_v2.test.mjs
+      - name: V1 atomic regression
+        run: node tests/d1_orders_live_sync_atomic_v1.test.mjs
+      - name: Zero-idle regression
+        run: node tests/d1_zero_idle_control_v1.test.mjs
