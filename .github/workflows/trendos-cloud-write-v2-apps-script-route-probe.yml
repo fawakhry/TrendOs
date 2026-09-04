@@ -1,0 +1,37 @@
+name: TrendOS V2 Staging Apps Script Route Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-cloud-write-v2-apps-script-route-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  route-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwwowwEBnYnojKsaW83NQJgiRPgPoCwC-bCPf1hBTZK6nACKDjh-Qy1uapPiCuPGD77/exec
+    steps:
+      - name: Probe V2 bridge route without token or mutation
+        run: |
+          set -euo pipefail
+          cat > /tmp/probe.json <<'JSON'
+          {"action":"cloudWriteOrderV2StagingBridgeV1","bridgeToken":"","canonicalCreateParams":{}}
+          JSON
+          code="$(curl --silent --show-error --location --output /tmp/response.json --write-out '%{http_code}' -H 'content-type: application/json' --data-binary @/tmp/probe.json "$APPS_SCRIPT_URL")"
+          echo "APPS_SCRIPT_V2_BRIDGE_ROUTE_PROBE_HTTP=$code"
+          cat /tmp/response.json
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/response.json','utf8'));
+          console.log('APPS_SCRIPT_V2_BRIDGE_ROUTE_PROBE='+JSON.stringify({success:x.success===true,verified:x.verified===true,code:String(x.code||''),message:String(x.message||''),stagingOnly:x.stagingOnly===true,productionWriteExecuted:x.productionWriteExecuted===true}));
+          if(x.success===true || x.productionWriteExecuted===true) process.exit(1);
+          NODE
+          echo 'SAFE_NO_TOKEN_NO_WRITE_PROBE_COMPLETE'
