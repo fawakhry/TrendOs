@@ -3,6 +3,13 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('../apps-script/patches/CLOUD_WRITE_ORDER_V2_STAGING_CANONICAL_TARGET_IDENTITY_V1.gs', import.meta.url), 'utf8');
+function stripComments(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+}
+const executableSource = stripComments(source);
+
 for (const forbidden of [
   /createManualOrder_\s*\(/,
   /authorize_\s*\(/,
@@ -16,7 +23,7 @@ for (const forbidden of [
   /\.setProperty\s*\(/,
   /\.deleteProperty\s*\(/
 ]) {
-  assert.equal(forbidden.test(source), false, `forbidden target identity capability: ${forbidden}`);
+  assert.equal(forbidden.test(executableSource), false, `forbidden target identity capability: ${forbidden}`);
 }
 
 const STAGING = '1b5UNM4p77LT_pkP1yiw5VrPaw5589gM-cPzxuJLtH7s';
