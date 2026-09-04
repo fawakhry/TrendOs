@@ -1,0 +1,35 @@
+name: TrendOS Apps Script Cloud Write Rehearsal Gate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'apps-script/patches/CLOUD_WRITE_RECONCILE_DRYRUN_V1.gs'
+      - 'apps-script/patches/CLOUD_WRITE_RECONCILE_REHEARSAL_V1.gs'
+      - 'tests/apps_script_cloud_write_reconcile_rehearsal_v1.test.mjs'
+      - '.github/workflows/trendos-apps-script-cloud-write-rehearsal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-rehearsal-safety-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify default-off isolated shadow Sheet rehearsal contract
+        run: node tests/apps_script_cloud_write_reconcile_rehearsal_v1.test.mjs
+      - name: Safety conclusion
+        run: |
+          echo 'PASS means the candidate rehearsal lane is default-OFF and can target only __TRENDOS_CLOUD_WRITE_REHEARSAL.'
+          echo 'PASS means non-stage IDs, non-synthetic identity, missing shadow Sheet, schema drift, duplicates, and conflicting replays fail closed.'
+          echo 'PASS means the only allowed mutation is one appendRow to the fixed shadow Sheet for a new synthetic CW-STAGE-* ID; identical replay is a no-op.'
+          echo 'The candidate never creates a Sheet, never updates/deletes a row, never mutates Production Orders, never deploys Apps Script, and does not enable Production Cloud Write.'
