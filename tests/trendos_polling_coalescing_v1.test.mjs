@@ -11,6 +11,7 @@ const hub = read('operations-hub-v1.js');
 const employee = read('employee-manager-strips-v2.js');
 const press = read('press-control-v1.js');
 const feedback = read('customer-feedback-v1.js');
+const config = read('config.js');
 
 // Generic coordinator contract.
 assert.match(coordinator, /TrendPollCoordinatorV1/);
@@ -21,9 +22,24 @@ assert.match(coordinator, /reason:'hidden'/);
 assert.match(coordinator, /reason:'min-interval'/);
 assert.match(coordinator, /coalesced/);
 
-// Operations Hub must not fan a manual refresh out through a synthetic focus event.
+// Working frontend must actually load the coordinator, while keeping Apps Script
+// as the current API authority and Edge Read V1 disabled/unloaded.
+assert.match(config, /trendPollCoordinatorV1Loader/);
+assert.match(config, /trendos-poll-coordinator-v1\.js\?v=20260904a/);
+assert.match(config, /press-control-v1\.js\?v=20260904a/);
+assert.match(config, /customer-feedback-v1\.js\?v=20260904a/);
+assert.match(config, /employee-manager-strips-v2\.js\?v=20260904a/);
+assert.match(config, /operations-hub-v1\.js\?v=20260904a/);
+assert.match(config, /window\.TREND_API_URL\s*=\s*window\.WEB_APP_URL/);
+assert.match(config, /window\.API_URL\s*=\s*window\.WEB_APP_URL/);
+assert.doesNotMatch(config, /MATBAGY_EDGE_READ_V1_ENABLED\s*=\s*true/);
+assert.doesNotMatch(config, /trendos-edge-read-v1\.js/);
+
+// Operations Hub must not fan a manual refresh out through a synthetic focus event
+// and must not inject a second coordinator if config.js has already started loading it.
 assert.doesNotMatch(hub, /dispatchEvent\(new Event\(['"]focus['"]\)\)/);
 assert.match(hub, /trendos-poll-coordinator-v1\.js/);
+assert.match(hub, /trendPollCoordinatorV1Loader/);
 assert.match(hub, /source:'operations-hub',force:true/);
 
 // Employee Manager remains one logical refresh even though it reads rows + notes in parallel.
