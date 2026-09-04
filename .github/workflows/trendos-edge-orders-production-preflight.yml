@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      PROD_URL: https://trendos.trendmall-contact.workers.dev
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
     steps:
       - name: Production Edge health
         run: |
@@ -53,4 +53,4 @@ jobs:
             echo 'PRODUCTION_ORDERS_EDGE_ALREADY_PRESENT=false'
           fi
 
-# Rerun marker: dual-signal Preview qualified; production preflight is GET-only, 2026-09-04.
+# Correct production D1 Worker alias verified from current TrendOS production config/workflows.
