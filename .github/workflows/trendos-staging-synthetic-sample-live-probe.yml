@@ -1,0 +1,52 @@
+name: TrendOS Staging Synthetic Sample Live Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-staging-synthetic-sample-live-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-staging-sample-production-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      STAGING_URL: https://trendos-d1-staging.trendmall-contact.workers.dev
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      SAMPLE_PATH: /v1/staging/cloud-write/reconcile/sample
+    steps:
+      - name: Probe live staging synthetic sample
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/staging-sample.json --write-out '%{http_code}' "$STAGING_URL$SAMPLE_PATH")"
+          echo "STAGING_SAMPLE_HTTP=$code"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/staging-sample.json','utf8'));
+          const p=x && x.payload;
+          if(!x || x.success!==true || x.stagingOnly!==true || x.syntheticOnly!==true || x.readOnly!==true || x.sheetsWritten!==false) process.exit(1);
+          if(x.entityType!=='order' || x.operation!=='upsert_order_to_sheets' || !String(x.entityId||'').startsWith('CW-STAGE-')) process.exit(1);
+          if(!p || p.orderId!==x.entityId || p._cloudWriteV1!==true || p.customerName!=='Staging Cloud Write Qualification' || p.customerPhone!=='01001112233') process.exit(1);
+          console.log('STAGING_SAMPLE_LIVE_PASS entityId=' + x.entityId + ' outboxStatus=' + String(x.outboxStatus||'') + ' sheetsStatus=' + String(x.sheetsStatus||''));
+          NODE
+      - name: Prove production route absence
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/prod-sample.txt --write-out '%{http_code}' "$PROD_URL$SAMPLE_PATH" || true)"
+          echo "PRODUCTION_STAGING_SAMPLE_HTTP=$code"
+          if [ "$code" = '200' ]; then
+            echo 'FAIL: staging synthetic sample route unexpectedly exists on Production'
+            exit 1
+          fi
+          echo 'PRODUCTION_STAGING_SAMPLE_ROUTE_ABSENT_PASS'
+      - name: Safety conclusion
+        run: |
+          echo 'PASS: live staging sample exposes only the known synthetic CW-STAGE-* qualification payload.'
+          echo 'PASS: live Production does not expose the staging sample route.'
+          echo 'No Sheet write, D1 write, secret transfer, deployment, or Production cutover is performed by this probe.'
