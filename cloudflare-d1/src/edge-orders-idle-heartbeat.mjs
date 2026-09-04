@@ -40,6 +40,14 @@ function sourceEntryHealthy(entry) {
   );
 }
 
+function sourceShapeMatches(entry, expectedRowValue, expectedColValue) {
+  const expectedRow = Number(expectedRowValue);
+  const expectedCol = Number(expectedColValue);
+  return sourceEntryHealthy(entry) &&
+    (!Number.isFinite(expectedRow) || integer(entry.sourceLastRow, -1) === Math.trunc(expectedRow)) &&
+    (!Number.isFinite(expectedCol) || integer(entry.sourceLastCol, -1) === Math.trunc(expectedCol));
+}
+
 export function inspectOrdersIdleHeartbeat(status, options = {}) {
   const nowMs = Number.isFinite(Number(options.nowMs)) ? Number(options.nowMs) : Date.now();
   const maxAgeSeconds = clampMaxAge(options.maxAgeSeconds);
@@ -55,11 +63,16 @@ export function inspectOrdersIdleHeartbeat(status, options = {}) {
   const intervalMinutes = integer(payload.intervalMinutes, 0);
   const ordersSource = sourceEntry(idle && idle.source, ORDERS_SHEET);
   const linesSource = sourceEntry(idle && idle.source, LINES_SHEET);
-  const expectedLinesRow = Number(options.expectedLinesSourceLastRow);
-  const expectedLinesCol = Number(options.expectedLinesSourceLastCol);
-  const linesShapeMatches = sourceEntryHealthy(linesSource) &&
-    (!Number.isFinite(expectedLinesRow) || integer(linesSource.sourceLastRow, -1) === Math.trunc(expectedLinesRow)) &&
-    (!Number.isFinite(expectedLinesCol) || integer(linesSource.sourceLastCol, -1) === Math.trunc(expectedLinesCol));
+  const ordersShapeMatches = sourceShapeMatches(
+    ordersSource,
+    options.expectedOrdersSourceLastRow,
+    options.expectedOrdersSourceLastCol
+  );
+  const linesShapeMatches = sourceShapeMatches(
+    linesSource,
+    options.expectedLinesSourceLastRow,
+    options.expectedLinesSourceLastCol
+  );
 
   const checks = {
     statusSuccess: payload.success === true,
@@ -85,6 +98,7 @@ export function inspectOrdersIdleHeartbeat(status, options = {}) {
     idleIntervalMatches: !!idle && integer(idle.intervalMinutes, -1) === intervalMinutes,
     ordersSourceHealthy: sourceEntryHealthy(ordersSource),
     linesSourceHealthy: sourceEntryHealthy(linesSource),
+    ordersSourceShapeMatches: ordersShapeMatches,
     linesSourceShapeMatches: linesShapeMatches,
     recent: ageSeconds <= maxAgeSeconds
   };
