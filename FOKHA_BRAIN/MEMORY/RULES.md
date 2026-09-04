@@ -16,6 +16,7 @@
 | RULE-008 | أي تغيير مؤثر يحتاج Expected / Actual / PASS\|FAIL ومسار Rollback واضح قبل التوسع للخطوة التالية. | TrendOS black box / execution ledger | Fokha / Execution Safety | High | 2026-09-04 |
 | RULE-009 | قلّل الخطوات اليدوية بالأتمتة كلما أمكن، لكن افصل بين التجهيز والتثبيت والتفعيل، وفعّل تدريجيًا ببوابات تحقق قابلة للرجوع. | TrendOS GitHub automation + feature flags + deployment model | Fokha / Automation | High | 2026-09-04 |
 | RULE-010 | حوّل الشغل المغلق إلى Evidence ثم Lessons ثم Knowledge Candidates؛ ليس كل تجربة أو رأي AI يصبح قاعدة عامة، والـScope لازم يظل واضحًا. | MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE | Fokha / Learning | High | 2026-09-04 |
+| RULE-20260904-MATBAGY-ROUTING-001 | عند وجود أكثر من Repository متشابه الاسم، لا يعتمد الـAI على التخمين أو default branch؛ يجب استخدام Repository + Branch + Entry Point الموثقة للمشروع، وأي Repo بديل يعمل Redirect فقط ولا يستقبل ذاكرة المشروع. | Matbagy repository-routing incident and fix 2026-09-04 | Fokha / Project Routing | High | 2026-09-04 |
 
 ## استخدام هذه القواعد
 
