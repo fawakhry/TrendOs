@@ -1,0 +1,109 @@
+name: TrendOS Cloud Write Production Preflight Read-Only
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-cloud-write-production-preflight-readonly.yml'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'cloudflare-d1/src/cloud-write.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-write-preflight-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Static production write boundary
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const t=fs.readFileSync('cloudflare-d1/wrangler.toml','utf8');
+          const req=[
+            /name\s*=\s*"trendos-d1-api"/,
+            /database_name\s*=\s*"trendos-main"/,
+            /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/
+          ];
+          for(const re of req){ if(!re.test(t)){ console.error('STATIC_BOUNDARY_FAIL '+re); process.exit(1); } }
+          if(/TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"true"/.test(t)){ console.error('STATIC_PRODUCTION_WRITE_ENABLED_REFUSED'); process.exit(1); }
+          console.log('STATIC_PRODUCTION_WRITE_BOUNDARY_PASS enabled=false database=trendos-main');
+          NODE
+
+      - name: Live production Cloud Write health must remain disabled
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/cloud-write-health.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          echo "PROD_CLOUD_WRITE_HEALTH_HTTP=$code"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write-health.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.authConfigured===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('PROD_CLOUD_WRITE_HEALTH='+JSON.stringify({success:x.success,database:x.database,enabled:x.enabled,writesAccepted:x.writesAccepted,authConfigured:x.authConfigured,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Live production write route must refuse a synthetic POST before mutation
+        run: |
+          set -euo pipefail
+          payload='{"clientRequestId":"prod-preflight-readonly","orderId":"CW-PREFLIGHT-REFUSED","customerName":"TrendOS Production Write Preflight","customerPhone":"01000000000","status":"cloud-draft"}'
+          code="$(curl --silent --show-error --output /tmp/write-refusal.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data "$payload" "$PROD_URL/v1/cloud/orders")"
+          echo "PROD_WRITE_REFUSAL_HTTP=$code"
+          cat /tmp/write-refusal.json
+          test "$code" = '423'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/write-refusal.json','utf8'));
+          if(x.success!==false || x.enabled!==false || x.cutover!==false) process.exit(1);
+          console.log('PROD_WRITE_ROUTE_FAIL_CLOSED_PASS');
+          NODE
+
+      - name: Production outbox route must also remain disabled
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/outbox-refusal.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/outbox?status=pending&limit=1")"
+          echo "PROD_OUTBOX_REFUSAL_HTTP=$code"
+          cat /tmp/outbox-refusal.json
+          test "$code" = '423'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/outbox-refusal.json','utf8'));
+          if(x.success!==false || x.enabled!==false || x.cutover!==false) process.exit(1);
+          console.log('PROD_OUTBOX_ROUTE_FAIL_CLOSED_PASS');
+          NODE
+
+      - name: Production staging-only reconciliation route must not exist
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/staging-route.json --write-out '%{http_code}' "$PROD_URL/v1/staging/cloud-write/reconcile/sample")"
+          echo "PROD_STAGING_ROUTE_HTTP=$code"
+          test "$code" = '404'
+          echo 'PRODUCTION_STAGING_ROUTE_ISOLATION_PASS'
+
+      - name: Production Orders and Lines mirror parity remains intact
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          for(const [label,file] of [['ORDERS','/tmp/orders.json'],['LINES','/tmp/lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')), s=x.sheet||{};
+            const pass=x.success===true && x.schemaMutationFree===true && s.status==='ready' && Number(s.rowCount||0)===Number(s.sourceLastRow||0) && ['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(String(s.note||''));
+            console.log(label+'_PROD_MIRROR='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,sourceLastCol:s.sourceLastCol,status:s.status,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_CLOUD_WRITE_PREFLIGHT_READONLY_PASS'
+          echo 'No secret was used. No migration or deploy was run. No accepted production write occurred.'
+          echo 'Production Cloud Write remains disabled and Google Sheets remains authoritative for writes.'
