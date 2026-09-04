@@ -100,15 +100,29 @@ The implementation intentionally follows the already-documented append-only pers
 
 ---
 
-## ACC-EXEC-006 — STARTED / MATERIAL STEP RECORDED BEFORE TEST CODE
+## ACC-EXEC-006 — IMPLEMENTED / EXECUTABLE VERIFICATION NEXT
 
-Add isolated regression coverage for the transaction/idempotency contract before any persistence adapter work.
+Pre-test record was committed before test code in `07f5bcea4a59653504603b3c6fef59d9887bfac6`.
 
-Required checks:
-- canonical object key order does not change payload fingerprint.
-- identical source event produces identical transaction plan.
-- successful formation emits completed decision and deterministic movement operations.
-- shortage emits failed decision and zero operations.
-- same event/same payload classifies as replay.
-- same event/different payload raises idempotency reuse conflict.
-- persistence intent is explicitly atomic + append-only and carries final decision + operations.
+Regression test file created: `accounting/transaction-contract-v1.test.js`.
+
+Test code commit: `f80085405dc2a0033ac9f76ef508e0e5bc6cbbac`.
+
+Coverage added for:
+- canonical key-order stability.
+- identical event => identical transaction plan.
+- completed formation => deterministic append operations.
+- shortage => failed final decision with zero operations.
+- same event/same canonical payload => replay, including changed runtime stock.
+- same event/different canonical payload => hard idempotency conflict.
+- persistence intent => atomic + append-only final decision and operations.
+
+---
+
+## ACC-EXEC-007 — STARTED / MATERIAL STEP RECORDED BEFORE VERIFICATION
+
+Attempt executable verification of both isolated Accounting suites from the current working branch:
+- `accounting/domain-core-v1.test.js`
+- `accounting/transaction-contract-v1.test.js`
+
+If direct clone remains unavailable due transient runtime DNS, inspect GitHub Actions/commit checks where possible and continue static safety review; this is not a user-dependent blocker.
