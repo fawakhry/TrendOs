@@ -60,6 +60,10 @@ on:
       - 'tests/trendos_integrity_composition_v1.test.js'
       - 'tests/trendos_predeploy_package_v1.test.js'
       - 'tests/customer_manager_send_integrity_v1.test.js'
+      - 'accounting/domain-core-v1.js'
+      - 'accounting/domain-core-v1.test.js'
+      - 'accounting/transaction-contract-v1.js'
+      - 'accounting/transaction-contract-v1.test.js'
       - '.github/workflows/trendos-integrity-v1.yml'
 
 permissions:
@@ -124,3 +128,7 @@ jobs:
         run: node tests/trendos_integrity_composition_v1.test.js .
       - name: Run pre-deploy package safety gate
         run: node tests/trendos_predeploy_package_v1.test.js .
+      - name: Run TrendOS Accounting domain-core-v1 tests
+        run: node accounting/domain-core-v1.test.js
+      - name: Run TrendOS Accounting transaction-contract-v1 tests
+        run: node accounting/transaction-contract-v1.test.js
