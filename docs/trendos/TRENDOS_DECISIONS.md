@@ -221,6 +221,47 @@ Canonical architecture detail:
 
 `docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md`
 
+## D-023 — Closed work must become evidence-based cumulative knowledge
+**Type:** User-approved architecture / knowledge decision  
+**Status:** ACTIVE MEMORY RULE / AUTOMATED KNOWLEDGE ENGINE NOT YET PRODUCTION-VERIFIED
+
+اعتمد المستخدم أن "سر الشغل" لا يقتصر على حفظ المحادثات أو التصميمات؛ كل Case مغلقة يجب أن تدخل مسار تعلم منظم يحاول استخراج معرفة قابلة لإعادة الاستخدام.
+
+Canonical pipeline:
+
+`RAW WORK -> EVIDENCE -> CASE MEMORY -> LESSONS -> KNOWLEDGE CANDIDATES -> VALIDATION -> PROMOTED KNOWLEDGE -> BETTER NEXT CASE`
+
+Rules:
+- `CLOSED` لا تعني تلقائيًا أن كل محتوى الـCase قاعدة عامة.
+- كل Knowledge يجب أن ترجع إلى Case/Version/Evidence واضح.
+- ChatGPT/Gemini opinion وحده قد ينشئ Candidate لكنه لا يكفي لتفعيل Global Rule.
+- Customer-specific preferences تبقى customer-scoped ولا تطبق على عملاء آخرين.
+- Failure/Rejected work يبقى Negative Learning ولا يحذف.
+- Evidence أحدث يمكن أن supersede معرفة أقدم مع الحفاظ على التاريخ.
+
+Future evidence sources may include:
+- ChatGPT design chats.
+- Gemini visual reviews.
+- WhatsApp customer conversations/proof approvals after authorized integration.
+- Local design files after controlled ingestion/indexing.
+- Google Drive assets.
+- TrendOS order context through verified source-of-truth connectors.
+
+Cross-system keys:
+
+`Order ID <-> Case ID <-> Version ID <-> Asset ID <-> Knowledge ID`
+
+D-012 remains active: extracted knowledge is advisory/contextual knowledge, not the source of live Order/Payment/Production/Inventory/Delivery truth.
+
+Canonical detail:
+
+`docs/trendos/MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md`
+
+Implementation evidence in Matbagy repo:
+- `صندوق_مطبعجي/SCHEMA/KNOWLEDGE_EXTRACTION_CONTRACT.md`
+- `صندوق_مطبعجي/KNOWLEDGE/INDEX.md`
+- lifecycle integration through `knowledge_status`.
+
 ## Needs reconciliation
 
 1. Exact production Apps Script source/version content behind historical deployment Version 138.
