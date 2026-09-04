@@ -15,7 +15,7 @@ This file is an executable continuation of the TrendOS Accounting black box. Eve
 
 ---
 
-## ACC-EXEC-001 — STARTED (recorded before code mutation)
+## ACC-EXEC-001 — IMPLEMENTED / TESTING PENDING
 
 ### Goal
 Create the first isolated, production-safe Accounting domain-core slice as pure JavaScript with no external writes.
@@ -32,16 +32,36 @@ Create the first isolated, production-safe Accounting domain-core slice as pure 
 ### Safety reason
 This is intentionally isolated from the current authoritative production write path. It can be reviewed/tested without bypassing the existing P0/GO-NO-GO gates.
 
-### Expected deliverables
-- `accounting/domain-core-v1.js`
-- `accounting/domain-core-v1.test.js`
+### Material change completed
+Created `accounting/domain-core-v1.js` in commit `057424738210955ef29d9330654f24aaeb8d9cef`.
 
-### Acceptance tests
-- Stable IDs normalize deterministically.
-- Invalid/mismatched Line ID is rejected.
-- Recursive BOM expands raw -> semi-finished -> finished correctly.
-- BOM cycles fail explicitly.
-- Insufficient stock returns structured shortages and makes no mutation.
-- Cost rollup equals the sum of resolved component requirements × unit recognized cost.
+Implemented:
+- stable ID normalization/validation
+- Order/Line relationship validation
+- generic item and BOM line normalization
+- recursive BOM expansion
+- cycle detection
+- stock sufficiency evaluation without mutation
+- recognized-cost rollup
+- formation planning that returns `mutation: null` by design
 
-Status: STARTED — code mutation may now proceed.
+### Test gate
+The code is not considered complete until executable regression tests are added and pass.
+
+---
+
+## ACC-EXEC-002 — STARTED (recorded before test mutation)
+
+### Goal
+Add executable regression coverage for the domain core before extending Accounting functionality.
+
+### Planned acceptance tests
+1. IDs normalize deterministically.
+2. Line ID/order mismatch is rejected.
+3. Final product recursively resolves through a semi-finished component into raw materials.
+4. Available semi-finished stock is consumed as a requirement before recursion for the remainder.
+5. BOM cycle fails with `BOM_CYCLE`.
+6. Shortages are explicit and no stock object is mutated.
+7. Recognized cost matches resolved requirements.
+
+Status: STARTED — test file mutation may now proceed.
