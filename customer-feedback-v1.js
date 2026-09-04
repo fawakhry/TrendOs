@@ -6,13 +6,21 @@
   const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim();
   if(!API_URL)return;
   const INTERVAL=2*60*1000;
-  let timer=null,busy=false;
+  const MIN_SCAN_MS=90*1000;
+  let timer=null,busy=false,lastScanAt=0;
   function state(){return window.trendosState||window.state||{};}
   function user(){return state().user||null;}
   function ready(){const u=user()||{};return !!(u.token&&(u.username||u.name));}
   async function api(op,extra){const u=user()||{},p=Object.assign({action:'customerFeedbackV1',op:op,username:u.username||u.name||'',token:u.token||''},extra||{}),q=new URLSearchParams();Object.keys(p).forEach(k=>q.set(k,String(p[k]==null?'':p[k])));const r=await fetch(API_URL+(API_URL.includes('?')?'&':'?')+q.toString(),{cache:'no-store',credentials:'omit'});const d=await r.json();if(!d||d.success===false)throw new Error((d&&d.message)||'Customer Feedback unavailable');return d;}
-  async function scan(){if(busy||!ready())return;busy=true;try{await api('scan');}catch(e){}finally{busy=false;}}
-  function start(){if(timer)return;scan();timer=setInterval(scan,INTERVAL);window.addEventListener('focus',scan);}
+  async function scan(options){
+    const opts=options||{};
+    if(busy||!ready())return {skipped:true,reason:busy?'in-flight':'not-ready'};
+    if(document.hidden&&!opts.force)return {skipped:true,reason:'hidden'};
+    if(!opts.force&&lastScanAt&&Date.now()-lastScanAt<MIN_SCAN_MS)return {skipped:true,reason:'min-interval'};
+    busy=true;lastScanAt=Date.now();
+    try{return await api('scan');}catch(e){return {success:false,message:String(e&&e.message||e)};}finally{busy=false;}
+  }
+  function start(){if(timer)return;scan({force:true,source:'boot'});timer=setInterval(function(){scan({source:'interval'});},INTERVAL);window.addEventListener('focus',function(){scan({source:'focus'});});}
   const w=setInterval(()=>{if(ready()){clearInterval(w);start();}},500);
-  window.TrendCustomerFeedbackV1={scan:scan};
+  window.TrendCustomerFeedbackV1={scan:function(){return scan({force:true,source:'manual'});}};
 })();
