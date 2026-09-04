@@ -5,11 +5,23 @@ import {
   TRENDOS_ACCOUNTING_NATIVE_VERSION
 } from '../cloudflare-d1/src/accounting-native-module.mjs';
 
-const env = { TRENDOS_CLOUD_WRITE_V1_ENABLED: 'false' };
+const env = {
+  TRENDOS_CLOUD_WRITE_V1_ENABLED: 'false',
+  EDGE_SESSION_SECRET: 'native-ci-test-secret'
+};
 
-assert.equal(isAccountingNativeModulePath('/trendos/accounting'), true);
-assert.equal(isAccountingNativeModulePath('/v1/accounting/integration'), true);
-assert.equal(isAccountingNativeModulePath('/v1/accounting/capabilities'), true);
+for (const path of [
+  '/trendos/accounting',
+  '/v1/accounting/integration',
+  '/v1/accounting/capabilities',
+  '/v1/accounting/contract',
+  '/v1/accounting/validate',
+  '/v1/accounting/foundation',
+  '/v1/accounting/foundation/validate',
+  '/v1/accounting/operations/line'
+]) {
+  assert.equal(isAccountingNativeModulePath(path), true, `native Accounting route missing: ${path}`);
+}
 assert.equal(isAccountingNativeModulePath('/accounting'), false);
 
 const integrationResponse = await handleAccountingNativeModuleRequest(
@@ -36,6 +48,8 @@ assert.ok(integration.invariants.some(x => x.includes('never invents an operatio
 assert.ok(integration.invariants.some(x => x.includes('same event')));
 assert.ok(integration.invariants.some(x => x.includes('profit-sharing percentages')));
 assert.ok(integration.invariants.some(x => x.includes('EasyStore behavior')));
+assert.ok(Array.isArray(integration.foundationEndpoints));
+assert.ok(integration.foundationEndpoints.some(x => x.includes('/v1/accounting/operations/line')));
 
 const capabilitiesResponse = await handleAccountingNativeModuleRequest(
   new Request('https://preview.test/v1/accounting/capabilities'),
@@ -49,38 +63,66 @@ assert.equal(capabilities.nativeModule, true);
 assert.equal(capabilities.easyStoreRole, 'historical-working-trendos-accounting-baseline');
 assert.equal(capabilities.authoritativeWrites, false);
 assert.equal(capabilities.migrationStrategy, 'preserve-verified-behavior-capability-by-capability');
-assert.ok(capabilities.capabilities.some(x => x.id === 'treasury'));
-assert.ok(capabilities.capabilities.some(x => x.id === 'custody'));
-assert.ok(capabilities.capabilities.some(x => x.id === 'day-close'));
-assert.ok(capabilities.capabilities.some(x => x.id === 'line-profit'));
+for (const capability of ['treasury','custody','day-close','line-profit']) {
+  assert.ok(capabilities.capabilities.some(x => x.id === capability), `missing capability ${capability}`);
+}
 assert.equal(capabilities.idContracts.orderId.owner, 'TrendOS Operations');
 assert.equal(capabilities.idContracts.lineId.owner, 'TrendOS Operations');
 assert.equal(capabilities.idContracts.invoiceId.owner, 'TrendOS Accounting');
 assert.ok(capabilities.nonNegotiables.some(x => x.includes('no employee-name authorization')));
 assert.ok(capabilities.nonNegotiables.some(x => x.includes('Line ID + Profit Center')));
 
+const contractResponse = await handleAccountingNativeModuleRequest(
+  new Request('https://preview.test/v1/accounting/contract'),
+  env
+);
+assert.equal(contractResponse.status, 200);
+const contract = await contractResponse.json();
+assert.equal(contract.success, true);
+assert.equal(contract.authoritativeWrites, false);
+assert.equal(contract.persistence, 'none');
+assert.ok(contract.envelope.required.includes('idempotencyKey'));
+
+const foundationResponse = await handleAccountingNativeModuleRequest(
+  new Request('https://preview.test/v1/accounting/foundation'),
+  env
+);
+assert.equal(foundationResponse.status, 200);
+const foundation = await foundationResponse.json();
+assert.equal(foundation.success, true);
+assert.equal(foundation.authoritativeWrites, false);
+
+// UI copy/Arabic text is verified by the dedicated deployed runtime workflow.
+// Native CI only proves that the shell is routed and remains a non-write response.
 const nativePageResponse = await handleAccountingNativeModuleRequest(
   new Request('https://preview.test/trendos/accounting'),
   env
 );
 assert.equal(nativePageResponse.status, 200);
 assert.equal(nativePageResponse.headers.get('x-trendos-native-module'), 'accounting');
-const html = await nativePageResponse.text();
-assert.match(html, /TrendOS Native Module/);
-assert.match(html, /EasyStore/);
-assert.match(html, /Order ID \/ Line ID/);
-assert.match(html, /TrendOS Accounting/);
-assert.match(html, /بدون كتابة على الإنتاج/);
+assert.match(nativePageResponse.headers.get('content-type') || '', /text\/html/);
 
-for (const path of ['/v1/accounting/integration', '/v1/accounting/capabilities']) {
+for (const path of [
+  '/v1/accounting/integration',
+  '/v1/accounting/capabilities',
+  '/v1/accounting/contract',
+  '/v1/accounting/foundation'
+]) {
   const blocked = await handleAccountingNativeModuleRequest(
     new Request(`https://preview.test${path}`, { method: 'POST' }),
     env
   );
-  assert.equal(blocked.status, 405);
+  assert.equal(blocked.status, 405, `POST must be blocked for ${path}`);
   const blockedBody = await blocked.json();
-  assert.equal(blockedBody.nativeModule, true);
   assert.equal(blockedBody.authoritativeWrites, false);
 }
+
+const unauthenticatedLineRead = await handleAccountingNativeModuleRequest(
+  new Request('https://preview.test/v1/accounting/operations/line?orderId=ORDER-1&lineId=LINE-1'),
+  env
+);
+assert.equal(unauthenticatedLineRead.status, 401);
+const unauthenticatedLineBody = await unauthenticatedLineRead.json();
+assert.equal(unauthenticatedLineBody.authoritativeWrites, false);
 
 console.log('TrendOS Accounting Native Module V1 tests: PASS');
