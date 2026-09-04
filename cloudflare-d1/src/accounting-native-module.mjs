@@ -4,8 +4,12 @@ import {
   accountingContractMetadata,
   validateAccountingCommand
 } from './accounting-contract-v1.mjs';
+import {
+  handleAccountingFoundationApiRequest,
+  isAccountingFoundationApiPath
+} from './accounting-foundation-api-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_4_20260905';
+export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_5_20260905';
 
 const INTEGRATION_CONTRACT = Object.freeze({
   version: TRENDOS_ACCOUNTING_NATIVE_VERSION,
@@ -61,6 +65,11 @@ const INTEGRATION_CONTRACT = Object.freeze({
     'stock / BOM formation result',
     'financial block / approval state when configured'
   ],
+  foundationEndpoints: [
+    'GET /v1/accounting/foundation',
+    'POST /v1/accounting/foundation/validate',
+    'GET /v1/accounting/operations/line?orderId=...&lineId=... (authenticated read only)'
+  ],
   invariants: [
     'Accounting never invents an operational price.',
     'Replaying the same event must not duplicate invoice lines, stock movements, payments or cash transactions.',
@@ -79,7 +88,8 @@ export function isAccountingNativeModulePath(path) {
     normalized === '/v1/accounting/integration' ||
     normalized === '/v1/accounting/capabilities' ||
     normalized === '/v1/accounting/contract' ||
-    normalized === '/v1/accounting/validate';
+    normalized === '/v1/accounting/validate' ||
+    isAccountingFoundationApiPath(normalized);
 }
 
 function json(data, status = 200) {
@@ -111,6 +121,10 @@ async function readJsonBody(request) {
 export async function handleAccountingNativeModuleRequest(request, env = {}, ctx) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
+
+  if (isAccountingFoundationApiPath(path)) {
+    return handleAccountingFoundationApiRequest(request, env, ctx);
+  }
 
   if (path === '/v1/accounting/integration') {
     if (request.method !== 'GET') {
