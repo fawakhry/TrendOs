@@ -11,7 +11,15 @@ const token = await issueOrdersEdgeToken(
   600
 );
 
-const staleCatalog = {
+const staleOrdersCatalog = {
+  sourceLastRow: 274,
+  sourceLastCol: 67,
+  rowCount: 274,
+  status: 'ready',
+  syncedAt: '2026-09-04 14:19:00',
+  note: 'TrendOS orders live sync V2 quota-aware'
+};
+const staleLinesCatalog = {
   sourceLastRow: 315,
   sourceLastCol: 82,
   rowCount: 315,
@@ -19,8 +27,6 @@ const staleCatalog = {
   syncedAt: '2026-09-04 14:19:00',
   note: 'TrendOS orders live sync V2 quota-aware'
 };
-
-const badParityCatalog = { ...staleCatalog, rowCount: 314 };
 
 function idleStatus() {
   return {
@@ -54,7 +60,7 @@ function idleStatus() {
   };
 }
 
-function envFor(catalog) {
+function envFor({ orders = staleOrdersCatalog, lines = staleLinesCatalog } = {}) {
   return {
     EDGE_SESSION_SECRET: signingKey,
     EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS: '600',
@@ -63,9 +69,13 @@ function envFor(catalog) {
     DB: {
       prepare() {
         return {
-          bind() {
+          bind(sheetName) {
             return {
-              async first() { return catalog; }
+              async first() {
+                if (sheetName === 'الأوردرات') return orders;
+                if (sheetName === 'بنود الأوردرات') return lines;
+                return null;
+              }
             };
           }
         };
@@ -85,17 +95,19 @@ function pageRequest() {
 }
 
 {
-  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(staleCatalog), nowMs);
+  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(), nowMs);
   assert.ok(blocked instanceof Response);
   assert.equal(blocked.status, 503);
   const body = await blocked.json();
   assert.equal(body.code, 'stale-orders-mirror');
   assert.equal(body.idleHeartbeat, undefined);
+  assert.equal(body.ordersMirror.parity, true);
+  assert.equal(body.mirror.parity, true);
 }
 
 {
   let calls = 0;
-  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(staleCatalog), nowMs, {
+  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(), nowMs, {
     async verifyIdleSourceFreshness() {
       calls += 1;
       return idleStatus();
@@ -108,7 +120,7 @@ function pageRequest() {
 {
   const old = idleStatus();
   old.lastIdleCheck.at = '2026-09-04T14:10:00.000Z';
-  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(staleCatalog), nowMs, {
+  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(), nowMs, {
     async verifyIdleSourceFreshness() { return old; }
   });
   assert.equal(blocked.status, 503);
@@ -121,7 +133,7 @@ function pageRequest() {
   const failed = idleStatus();
   failed.consecutiveErrors = 1;
   failed.lastError = { at: '2026-09-04T14:29:00.000Z', message: 'source-read-error' };
-  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(staleCatalog), nowMs, {
+  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(), nowMs, {
     async verifyIdleSourceFreshness() { return failed; }
   });
   assert.equal(blocked.status, 503);
@@ -133,7 +145,8 @@ function pageRequest() {
 
 {
   let calls = 0;
-  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(badParityCatalog), nowMs, {
+  const badLines = { ...staleLinesCatalog, rowCount: 314 };
+  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor({ lines: badLines }), nowMs, {
     async verifyIdleSourceFreshness() {
       calls += 1;
       return idleStatus();
@@ -145,4 +158,32 @@ function pageRequest() {
   assert.equal(calls, 0);
 }
 
-console.log('Cloudflare Edge Orders Idle Freshness Integration V1: DEFAULT STALE FAIL-CLOSED + VERIFIED IDLE PASS + INVALID HEARTBEAT/PARITY FAIL-CLOSED PASS');
+{
+  let calls = 0;
+  const badOrders = { ...staleOrdersCatalog, rowCount: 273 };
+  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor({ orders: badOrders }), nowMs, {
+    async verifyIdleSourceFreshness() {
+      calls += 1;
+      return idleStatus();
+    }
+  });
+  assert.equal(blocked.status, 503);
+  const body = await blocked.json();
+  assert.equal(body.code, 'mirror-not-ready');
+  assert.equal(body.ordersMirror.parity, false);
+  assert.equal(calls, 0);
+}
+
+{
+  const mismatch = idleStatus();
+  mismatch.lastIdleCheck.source[0].sourceLastRow = 273;
+  const blocked = await guardEdgeOrdersPageRequest(pageRequest(), envFor(), nowMs, {
+    async verifyIdleSourceFreshness() { return mismatch; }
+  });
+  assert.equal(blocked.status, 503);
+  const body = await blocked.json();
+  assert.equal(body.idleHeartbeat.ok, false);
+  assert.ok(body.idleHeartbeat.failedChecks.includes('ordersSourceShapeMatches'));
+}
+
+console.log('Cloudflare Edge Orders Idle Freshness Integration V1: DEFAULT STALE FAIL-CLOSED + VERIFIED IDLE PASS + ORDERS/LINES PARITY/SHAPE FAIL-CLOSED PASS');
