@@ -102,7 +102,7 @@
   function buildCatalog(items) {
     var out = Object.create(null);
     (items || []).forEach(function (item) {
-      var normalized = item && item.itemId ? createItem(item) : createItem(item || {});
+      var normalized = createItem(item || {});
       if (out[normalized.itemId]) {
         throw DomainError('DUPLICATE_ITEM_ID', 'Duplicate Item ID', { itemId: normalized.itemId });
       }
@@ -130,14 +130,28 @@
     var consumeAvailableIntermediates = args.consumeAvailableIntermediates !== false;
     var requirements = Object.create(null);
     var trace = [];
+    var remainingStock = Object.create(null);
 
     if (!catalog[targetItemId]) {
       throw DomainError('UNKNOWN_ITEM', 'Target item does not exist in catalog', { itemId: targetItemId });
     }
 
     function stockQty(itemId) {
-      var raw = stock[itemId] == null ? stock[String(itemId)] : stock[itemId];
-      return finiteNonNegative(raw || 0, 'stock quantity');
+      if (remainingStock[itemId] == null) {
+        var raw = stock[itemId] == null ? stock[String(itemId)] : stock[itemId];
+        remainingStock[itemId] = finiteNonNegative(raw || 0, 'stock quantity');
+      }
+      return remainingStock[itemId];
+    }
+
+    function reserveStock(itemId, qty) {
+      var available = stockQty(itemId);
+      var reserved = Math.min(available, qty);
+      remainingStock[itemId] = available - reserved;
+      if (reserved > 0) {
+        trace.push({ type: 'RESERVE_STOCK', itemId: itemId, quantity: reserved, remainingStock: remainingStock[itemId] });
+      }
+      return reserved;
     }
 
     function addRequirement(itemId, qty, reason) {
@@ -153,8 +167,7 @@
       }
 
       var bomLines = bomMap[itemId] || [];
-      var available = isRoot ? 0 : stockQty(itemId);
-      var useFromStock = consumeAvailableIntermediates ? Math.min(available, qtyNeeded) : 0;
+      var useFromStock = (!isRoot && consumeAvailableIntermediates) ? reserveStock(itemId, qtyNeeded) : 0;
       if (useFromStock > 0) addRequirement(itemId, useFromStock, 'AVAILABLE_STOCK');
 
       var remaining = qtyNeeded - useFromStock;
@@ -179,6 +192,7 @@
       itemId: targetItemId,
       quantity: targetQty,
       requirements: requirements,
+      remainingStock: remainingStock,
       trace: trace
     };
   }
