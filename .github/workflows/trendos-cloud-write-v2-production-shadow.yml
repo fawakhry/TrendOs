@@ -1,0 +1,49 @@
+name: TrendOS Cloud Write V2 Production Shadow Gate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/cloud-write-order-v2-production-shadow.mjs'
+      - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
+      - 'tests/cloud_write_order_v2_production_shadow.test.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/src/cloud-write.mjs'
+      - 'cloudflare-d1/wrangler.toml'
+      - '.github/workflows/trendos-cloud-write-v2-production-shadow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-shadow-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify mutation-free production shadow contract
+        run: node tests/cloud_write_order_v2_production_shadow.test.mjs
+
+      - name: Verify Production integration remains absent
+        run: |
+          set -euo pipefail
+          ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/index_v2.js
+          ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/cloud-write.mjs
+          grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.toml
+          ! grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"true"' cloudflare-d1/wrangler.toml
+          echo 'PRODUCTION_SHADOW_NOT_ROUTED_AND_CLOUD_WRITE_OFF_PASS'
+
+      - name: Safety conclusion
+        run: |
+          echo 'CLOUD_WRITE_ORDER_V2_PRODUCTION_SHADOW_GATE_PASS'
+          echo 'Production Shadow is planning-only, deterministic, mutation-free, credential-free, and not imported by Production routes.'
+          echo 'Production Cloud Write remains OFF; no cutover is performed by this workflow.'
