@@ -1,6 +1,7 @@
 import { handleAccountingPreviewRequest } from './accounting-preview.mjs';
+import { accountingCapabilitiesPayload } from './accounting-capabilities-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_2_20260905';
+export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_3_20260905';
 
 const INTEGRATION_CONTRACT = Object.freeze({
   version: TRENDOS_ACCOUNTING_NATIVE_VERSION,
@@ -8,6 +9,7 @@ const INTEGRATION_CONTRACT = Object.freeze({
   platform: 'TrendOS',
   nativeModule: true,
   standaloneProduct: false,
+  easyStoreRole: 'historical-working-trendos-accounting-baseline',
   mode: 'preview-integration-contract',
   cutover: false,
   authoritativeWrites: false,
@@ -17,11 +19,16 @@ const INTEGRATION_CONTRACT = Object.freeze({
     orderKey: 'Order ID',
     lineKey: 'Line ID',
     itemKey: 'Item ID',
-    customerIdentityOwner: 'TrendOS Operations / shared customer registry',
+    customerKey: 'Customer ID / Party ID',
+    supplierKey: 'Supplier ID / Party ID',
+    departmentKey: 'Department ID',
+    profitCenterKey: 'Profit Center ID',
+    customerIdentityOwner: 'TrendOS shared customer registry',
     employeeIdentityOwner: 'TrendOS shared auth/session'
   },
   sharedAuth: {
-    target: 'TrendOS Edge authenticated session',
+    target: 'TrendOS Edge authenticated session + shared RBAC',
+    forbidden: 'employee-name regex authorization',
     currentPreview: 'UI shell is isolated; authoritative financial writes disabled'
   },
   operationsToAccounting: [
@@ -29,7 +36,9 @@ const INTEGRATION_CONTRACT = Object.freeze({
     'Order ID',
     'Line ID',
     'Item ID',
-    'customer reference',
+    'Customer ID / Party ID',
+    'Department ID',
+    'Profit Center ID',
     'quantity',
     'approved selling price / approved line amount',
     'operational status',
@@ -51,16 +60,20 @@ const INTEGRATION_CONTRACT = Object.freeze({
   invariants: [
     'Accounting never invents an operational price.',
     'Replaying the same event must not duplicate invoice lines, stock movements, payments or cash transactions.',
-    'Line profit is factual revenue minus recognized line cost; profit-sharing percentages are outside Accounting.',
+    'Line profit is factual revenue minus recognized line cost and must retain Profit Center identity.',
+    'Profit-sharing percentages are outside Accounting.',
     'Inventory/BOM movements must be atomic and auditable.',
     'Names and phone numbers are never primary integration keys.',
+    'Verified EasyStore behavior is preserved unless deliberately superseded by a tested TrendOS contract.',
     'D1 does not become authoritative for financial writes without a separately approved cutover.'
   ]
 });
 
 export function isAccountingNativeModulePath(path) {
   const normalized = String(path || '').replace(/\/+$/, '') || '/';
-  return normalized === '/trendos/accounting' || normalized === '/v1/accounting/integration';
+  return normalized === '/trendos/accounting' ||
+    normalized === '/v1/accounting/integration' ||
+    normalized === '/v1/accounting/capabilities';
 }
 
 function json(data, status = 200) {
@@ -90,6 +103,18 @@ export async function handleAccountingNativeModuleRequest(request, env = {}, ctx
     return json({ success: true, ...INTEGRATION_CONTRACT });
   }
 
+  if (path === '/v1/accounting/capabilities') {
+    if (request.method !== 'GET') {
+      return json({
+        success: false,
+        code: 'accounting-capabilities-read-only',
+        authoritativeWrites: false,
+        nativeModule: true
+      }, 405);
+    }
+    return json(accountingCapabilitiesPayload());
+  }
+
   if (path === '/trendos/accounting') {
     if (request.method !== 'GET') {
       return json({
@@ -103,7 +128,7 @@ export async function handleAccountingNativeModuleRequest(request, env = {}, ctx
     previewUrl.pathname = '/accounting';
     const response = await handleAccountingPreviewRequest(new Request(previewUrl.toString(), request), env, ctx);
     const html = await response.text();
-    const nativeBanner = '<div style="background:#0f766e;color:white;padding:10px 14px;text-align:center;font-family:Tahoma,Arial,sans-serif;font-size:13px"><b>TrendOS Native Module</b> — الحسابات جزء من TrendOS ويعتمد Order ID / Line ID ونفس هوية المنصة</div>';
+    const nativeBanner = '<div style="background:#0f766e;color:white;padding:10px 14px;text-align:center;font-family:Tahoma,Arial,sans-serif;font-size:13px"><b>TrendOS Native Module</b> — تطوير مباشر للنسخة البدائية EasyStore داخل TrendOS مع الحفاظ على Order ID / Line ID ونفس هوية المنصة</div>';
     const nativeHtml = html.replace('<body>', '<body>' + nativeBanner);
     const headers = new Headers(response.headers);
     headers.set('x-trendos-native-module', 'accounting');
