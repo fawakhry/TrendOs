@@ -1,0 +1,104 @@
+name: TrendOS Edge Orders Preview Runtime
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - '.github/workflows/trendos-edge-orders-preview-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-orders-read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+    steps:
+      - name: Verify Preview secret exists
+        run: test -n "$EDGE_SESSION_SECRET"
+
+      - name: Anonymous Orders read fails closed
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/orders-anon.json --write-out '%{http_code}' "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5")"
+          cat /tmp/orders-anon.json
+          test "$code" = '401'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/orders-anon.json','utf8')); if(x.success!==false||!String(x.code||'').length) process.exit(1)"
+
+      - name: Incomplete Orders session fails before upstream
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/orders-session-bad.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{}' "$PREVIEW_URL/v1/edge/orders/session")"
+          cat /tmp/orders-session-bad.json
+          test "$code" = '400'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/orders-session-bad.json','utf8')); if(x.success!==false||!String(x.message||'').includes('username and token')) process.exit(1)"
+
+      - name: Signed admin token reads D1 Orders page
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const secret = String(process.env.EDGE_SESSION_SECRET || '');
+          const now = Math.floor(Date.now()/1000);
+          const payload = {
+            aud:'trendos-orders-edge',
+            sub:'ci-orders-admin',
+            role:'admin',
+            department:'إدارة',
+            screens:['service','print','laser','press',''],
+            iat:now,
+            exp:now+300,
+            jti:'ci-'+crypto.randomUUID()
+          };
+          const part = Buffer.from(JSON.stringify(payload)).toString('base64url');
+          const input = 'v1.' + part;
+          const sig = crypto.createHmac('sha256', secret).update(input).digest('base64url');
+          fs.writeFileSync('/tmp/orders-token.txt', input + '.' + sig, {mode:0o600});
+          NODE
+          token="$(cat /tmp/orders-token.txt)"
+          code="$(curl --silent --show-error --output /tmp/orders-page.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__")"
+          rm -f /tmp/orders-token.txt
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/orders-page.json','utf8')); if(!x.success||x.dataSource!=='d1-edge-orders'||!Array.isArray(x.rows)||!x.pagination||x.serverPaged!==true) process.exit(1); console.log('ORDERS_D1_RUNTIME_PASS rows='+x.rows.length+' total='+x.pagination.totalRows+' syncedAt='+(x.mirror&&x.mirror.syncedAt||''))"
+
+      - name: Role claim blocks unauthorized screen
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const secret = String(process.env.EDGE_SESSION_SECRET || '');
+          const now = Math.floor(Date.now()/1000);
+          const payload = {aud:'trendos-orders-edge',sub:'ci-laser',role:'laser',department:'ليزر',screens:['laser',''],iat:now,exp:now+300,jti:'ci-'+crypto.randomUUID()};
+          const part=Buffer.from(JSON.stringify(payload)).toString('base64url'); const input='v1.'+part;
+          const sig=crypto.createHmac('sha256',secret).update(input).digest('base64url');
+          fs.writeFileSync('/tmp/laser-token.txt',input+'.'+sig,{mode:0o600});
+          NODE
+          token="$(cat /tmp/laser-token.txt)"
+          code="$(curl --silent --show-error --output /tmp/blocked.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PREVIEW_URL/v1/edge/orders/page?screen=print&page=1&pageSize=5")"
+          rm -f /tmp/laser-token.txt
+          cat /tmp/blocked.json
+          test "$code" = '403'
+
+      - name: Debt view explicitly falls back to Apps Script
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto=require('crypto'),fs=require('fs'); const secret=String(process.env.EDGE_SESSION_SECRET||''); const now=Math.floor(Date.now()/1000);
+          const p={aud:'trendos-orders-edge',sub:'ci-orders-admin',role:'admin',department:'إدارة',screens:['service','print','laser','press',''],iat:now,exp:now+300,jti:'ci-'+crypto.randomUUID()};
+          const b=Buffer.from(JSON.stringify(p)).toString('base64url'),i='v1.'+b,s=crypto.createHmac('sha256',secret).update(i).digest('base64url'); fs.writeFileSync('/tmp/debt-token.txt',i+'.'+s,{mode:0o600});
+          NODE
+          token="$(cat /tmp/debt-token.txt)"
+          code="$(curl --silent --show-error --output /tmp/debt.json --write-out '%{http_code}' -H "authorization: Bearer $token" "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__")"
+          rm -f /tmp/debt-token.txt
+          cat /tmp/debt.json
+          test "$code" = '409'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/debt.json','utf8')); if(x.code!=='apps-script-required'||x.fallback!=='apps-script') process.exit(1)"
