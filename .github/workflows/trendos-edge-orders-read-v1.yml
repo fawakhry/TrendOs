@@ -6,8 +6,10 @@ on:
       - agent/go-live-2026-09-01-integrity
     paths:
       - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'cloudflare-d1/src/edge-orders-freshness-gate.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_edge_orders_read_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs'
       - '.github/workflows/trendos-edge-orders-read-v1.yml'
   workflow_dispatch:
 
@@ -25,6 +27,8 @@ jobs:
           node-version: '22'
       - name: Orders edge read unit contract
         run: node tests/cloudflare_edge_orders_read_v1.test.mjs
+      - name: Orders raw mirror freshness fail-closed contract
+        run: node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
       - name: Existing edge regression
         run: node tests/cloudflare_edge_gateway_v1.test.mjs
       - name: Existing mirror regression
