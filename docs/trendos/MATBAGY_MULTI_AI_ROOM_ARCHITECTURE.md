@@ -31,9 +31,11 @@
 
 - يفهم طلب المستخدم.
 - يسترجع ذاكرة صندوق مطبعجي والحالات والقواعد ذات الصلة.
-- يدير Case ID / Order ID / Asset IDs.
+- يدير Case ID / Order ID / Asset IDs / Version IDs.
+- يدير Lifecycle وTimeline بدون مسح التاريخ.
 - يحدد متى يحتاج Gemini لتحليل بصري أو مراجعة ثانية.
 - يدمج تحليل Gemini مع الذاكرة وقواعد الطلب الحالي.
+- يعرض الخلافات بدل إخفائها.
 - يرجع للمستخدم قرارًا أو خطة موحدة.
 
 ### Gemini
@@ -45,13 +47,91 @@
 - يراجع layout/style/colors/composition.
 - يفحص Must Keep / Must Avoid والحفاظ على الملامح والنصوص.
 - ينفذ Visual QA وPrint/Cut QA عند الحاجة.
+- يسجل رأيه كرأي مستقل وليس كحقيقة عميل أو قرار نهائي.
 
 ### User
 
 - طرف كامل في نفس الغرفة.
-- يملك الاعتماد النهائي.
+- يملك الاعتماد النهائي وFull Override.
 - يستطيع مخاطبة Agent واحد أو الاثنين.
 - يستطيع إيقاف النقاش أو طلب جولة إضافية.
+
+## AI authority
+
+`AI_AUTHORITY = ADVISORY_ONLY`
+
+لا ChatGPT ولا Gemini يملكان Final Approval أو صلاحية إغلاق Case من نفسيهما. أي Verdict من AI استشاري فقط. إذا كان Workflow يحتاج اعتماد عميل، يجب أن يكون له Evidence واضح.
+
+## Truth separation
+
+لا يجوز خلط:
+
+- `CUSTOMER_FACT`
+- `OWNER_DECISION`
+- `CHATGPT_OPINION`
+- `GEMINI_OPINION`
+- `SYSTEM_STATE`
+- `INFERRED`
+- `UNKNOWN`
+
+رأي AI لا يتحول إلى حقيقة أو قرار نهائي بدون Evidence أو قرار المستخدم.
+
+## Case lifecycle
+
+تم اعتماد مراحل واضحة لكل Design Case:
+
+`OPEN -> UNDER_REVIEW -> REVISION_REQUIRED / WAITING_CUSTOMER_APPROVAL -> FINAL_APPROVED -> CLOSED`
+
+وعند العودة لاحقًا:
+
+`REOPENED`
+
+المتابعة تظل نشطة حتى `CLOSED`، ويمكن إعادة فتح نفس Case ID بدون إعادة بناء التاريخ.
+
+## Versioning
+
+كل نسخة تصميم مستقلة أو محاولة لها Version ID ثابت:
+
+`V1`, `V2`, `V3` ...
+
+يجب الاحتفاظ لكل Version بـ:
+- سبب التعديل.
+- المصدر/من اقترحه.
+- Assets المستخدمة والنتيجة.
+- Feedback العميل.
+- رأي ChatGPT.
+- رأي Gemini.
+- حالة النسخة.
+- Evidence الاعتماد أو الرفض.
+
+لا يتم overwrite لنسخة قديمة بصمت. حتى الفشل الذي لم ينتج ملفًا قابلاً للمراجعة يبقى كـ`FAILED_NO_RESULT`/negative learning.
+
+## Disagreement preservation
+
+إذا اختلف ChatGPT وGemini:
+
+- لا يمسح أحد الرأيين.
+- يسجل الخلاف داخل Case Room.
+- كل رأي يحتفظ بـEvidence إن وجد.
+- الحسم يكون من المستخدم أو Customer Evidence.
+- نتيجة الحسم لا تعيد كتابة التاريخ وكأن الخلاف لم يوجد.
+
+## Lessons learned
+
+بعد إغلاق Case:
+
+- يتم استخراج Lessons Learned.
+- يفصل `CASE_SPECIFIC` عن `REUSABLE`.
+- كل Lesson ترتبط بـCase ID وVersion ID وEvidence.
+- لا تتحول Recommendation من AI وحدها إلى Global Rule.
+- الرفض يبقى Negative Learning بدل حذفه.
+
+هذا يسمح مستقبلًا بقياس:
+- First-pass approval rate.
+- عدد النسخ حتى الاعتماد.
+- أكثر التعديلات تكرارًا.
+- أي اقتراحات ChatGPT/Gemini كانت أقرب للقرار النهائي.
+- Patterns التي تقلل وقت التصميم والتعديل.
 
 ## Target room modes
 
@@ -80,6 +160,7 @@ Default BOOM flow:
 - `case_id` إن وجد
 - `order_id` إن وجد
 - `asset_ids` إن وجدت
+- `version_id` إن وجد
 - `reply_to_message_id`
 - `created_at`
 
@@ -93,6 +174,10 @@ Default BOOM flow:
 العلاقة:
 
 `Case ID -> Asset ID -> Google Drive File ID`
+
+عقود التشغيل التفصيلية في مشروع مطبعجي تشمل:
+- `SCHEMA/AI_ROOM_CONTRACT.md`
+- `SCHEMA/CASE_LIFECYCLE_AND_LEARNING.md`
 
 ## TrendOS truth boundary
 
@@ -113,6 +198,10 @@ Live operational/financial facts مثل:
 - لا توضع Secrets في browser/frontend أو في Prompt history.
 - لا يتم تمرير Secrets بين Agents.
 - صور العملاء تبقى في مخزن الصور المعتمد ولا تنسخ إلى GitHub العام.
+
+## Chat-deletion resilience
+
+الـChat UI ليس الذاكرة الدائمة. أي معلومة مهمة يجب أن persist في GitHub/Case Room قبل حذف المحادثة. إذا لم يتأكد Agent من نجاح الكتابة، لا يجوز له إعلان أن الشات آمن للحذف.
 
 ## Target infrastructure
 
