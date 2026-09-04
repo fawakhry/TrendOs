@@ -30,7 +30,12 @@ on:
       - 'trendos-integrity-v1.package.json'
       - 'cloudflare-d1/src/edge-gateway.mjs'
       - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/src/edge-orders-freshness-gate.mjs'
+      - 'cloudflare-d1/src/edge-orders-idle-heartbeat.mjs'
       - 'tests/cloudflare_edge_gateway_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs'
       - 'tests/trendos_polling_coalescing_v1.test.mjs'
       - 'tests/trendos_integrity_v1.test.js'
       - 'tests/trendos_integrity_runtime_tools_v1.test.js'
@@ -67,6 +72,12 @@ jobs:
           node-version: '22'
       - name: Run Cloudflare Edge Gateway V1 tests
         run: node tests/cloudflare_edge_gateway_v1.test.mjs
+      - name: Run Cloudflare Edge Orders freshness gate tests
+        run: node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
+      - name: Run Cloudflare Edge Orders idle heartbeat tests
+        run: node tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs
+      - name: Run Cloudflare Edge Orders idle freshness integration tests
+        run: node tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs
       - name: Run visibility-aware polling coalescing tests
         run: node tests/trendos_polling_coalescing_v1.test.mjs
       - name: Run TrendOS integrity foundation tests
