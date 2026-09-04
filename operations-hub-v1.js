@@ -2,7 +2,7 @@
   'use strict';
   if(window.__TRENDOS_OPERATIONS_HUB_V1__) return;
   window.__TRENDOS_OPERATIONS_HUB_V1__=true;
-  const BUILD='V1932_PLATFORM_FIXES_20260824';
+  const BUILD='V1932_PLATFORM_FIXES_20260904_POLL_SAFE';
   const targets=[
     {id:'trendAttendanceV1',label:'🕘 الحضور والتشغيل'},
     {id:'trendPressControlV1',label:'🔥 متابعة المكبس'},
@@ -10,7 +10,16 @@
     {id:'trendEmployeeAndonV1',label:'🚨 طلب مساعدة'}
   ];
   let root,drawer,body,active='';
+  function ensurePollCoordinator(){
+    if(window.TrendPollCoordinatorV1||document.getElementById('trendPollCoordinatorV1Script'))return;
+    const s=document.createElement('script');
+    s.id='trendPollCoordinatorV1Script';
+    s.src='trendos-poll-coordinator-v1.js?v=20260904a';
+    s.async=true;
+    (document.head||document.documentElement).appendChild(s);
+  }
   function inject(){
+    ensurePollCoordinator();
     if(document.getElementById('trendOperationsHubV1Style'))return;
     const s=document.createElement('style');s.id='trendOperationsHubV1Style';s.textContent=`
       #trendOperationsHubV1{position:fixed;left:12px;bottom:12px;z-index:2147483500;direction:rtl;font-family:Tahoma,Arial,sans-serif}
@@ -24,9 +33,11 @@
     `;document.head.appendChild(s);
   }
   function refreshAll(){
-    try{window.dispatchEvent(new Event('focus'));}catch(e){}
-    ['TrendEmployeeManagerStripsV2','TrendEmployeeOpsCoachV1','TrendPressControlV1'].forEach(k=>{try{if(window[k]&&typeof window[k].refresh==='function')window[k].refresh();}catch(e){}});
-    document.dispatchEvent(new CustomEvent('trendos:refresh',{detail:{source:'operations-hub'}}));
+    // Do not synthesize a window focus event here. Several modules already listen
+    // to focus, so the old implementation multiplied one manual refresh into
+    // multiple concurrent Apps Script reads.
+    ['TrendEmployeeManagerStripsV2','TrendEmployeeOpsCoachV1','TrendPressControlV1'].forEach(k=>{try{if(window[k]&&typeof window[k].refresh==='function')window[k].refresh({force:true,source:'operations-hub'});}catch(e){}});
+    document.dispatchEvent(new CustomEvent('trendos:refresh',{detail:{source:'operations-hub',force:true}}));
   }
   function available(){
     const a=targets.filter(t=>{const el=document.getElementById(t.id);return el&&getComputedStyle(el).display!=='none';});
