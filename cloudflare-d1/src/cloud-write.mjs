@@ -394,7 +394,9 @@ export async function handleCloudWriteRequest(request, env) {
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
     if (request.method === 'GET' && path === '/v1/cloud/write/health') {
-      return cloudWriteHealth(request, env);
+      // Await inside the try/catch so asynchronous schema/DB failures are converted
+      // into the normal fail-closed JSON 500 response instead of escaping the Worker.
+      return await cloudWriteHealth(request, env);
     }
 
     await ensureCloudWriteSchema(env);
@@ -412,11 +414,11 @@ export async function handleCloudWriteRequest(request, env) {
     if (!auth.ok) return auth.response;
 
     if (request.method === 'POST' && path === '/v1/cloud/orders') {
-      return createCloudOrder(request, env, auth.session);
+      return await createCloudOrder(request, env, auth.session);
     }
 
     if (request.method === 'GET' && path === '/v1/cloud/write/outbox') {
-      return listOutbox(request, env);
+      return await listOutbox(request, env);
     }
 
     return json({ success: false, message: 'Cloud write route not found' }, 404, cors);
