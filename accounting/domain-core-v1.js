@@ -57,6 +57,7 @@
   function normalizePurchaseId(value) { return normalizeId(value, 'Purchase ID'); }
   function normalizeStockMovementId(value) { return normalizeId(value, 'Stock Movement ID'); }
   function normalizePaymentId(value) { return normalizeId(value, 'Payment ID'); }
+  function normalizeEventId(value) { return normalizeId(value, 'Event ID'); }
 
   function finiteNonNegative(value, label) {
     var n = Number(value);
@@ -245,6 +246,82 @@
     };
   }
 
+  function pad3(n) {
+    return String(n).padStart(3, '0');
+  }
+
+  function planFormationMovements(args) {
+    args = args || {};
+    var eventId = normalizeEventId(args.eventId);
+    var orderId = normalizeOrderId(args.orderId);
+    var lineId = normalizeLineId(args.lineId, orderId);
+    var sourceTransactionId = normalizeId(args.sourceTransactionId || eventId, 'Source Transaction ID');
+    var formation = planFormation(args);
+
+    if (!formation.ok) {
+      return {
+        ok: false,
+        eventId: eventId,
+        orderId: orderId,
+        lineId: lineId,
+        sourceTransactionId: sourceTransactionId,
+        shortages: formation.shortages,
+        recognizedCost: formation.recognizedCost,
+        movements: []
+      };
+    }
+
+    var catalog = buildCatalog(args.items || []);
+    var movements = [];
+    var seq = 1;
+
+    Object.keys(formation.requirements).sort().forEach(function (itemId) {
+      var qty = formation.requirements[itemId];
+      var item = catalog[itemId];
+      movements.push(Object.freeze({
+        stockMovementId: eventId + '-CONSUME-' + pad3(seq) + '-' + itemId,
+        idempotencyKey: eventId + '-CONSUME-' + pad3(seq) + '-' + itemId,
+        movementType: 'PRODUCTION_CONSUMPTION',
+        itemId: itemId,
+        quantityIn: 0,
+        quantityOut: qty,
+        unit: item.baseUnit,
+        unitCost: item.recognizedUnitCost,
+        recognizedCost: qty * item.recognizedUnitCost,
+        orderId: orderId,
+        lineId: lineId,
+        sourceTransactionId: sourceTransactionId
+      }));
+      seq += 1;
+    });
+
+    movements.push(Object.freeze({
+      stockMovementId: eventId + '-OUTPUT-' + pad3(seq) + '-' + formation.itemId,
+      idempotencyKey: eventId + '-OUTPUT-' + pad3(seq) + '-' + formation.itemId,
+      movementType: 'PRODUCTION_OUTPUT',
+      itemId: formation.itemId,
+      quantityIn: formation.quantity,
+      quantityOut: 0,
+      unit: catalog[formation.itemId].baseUnit,
+      unitCost: formation.recognizedCost / formation.quantity,
+      recognizedCost: formation.recognizedCost,
+      orderId: orderId,
+      lineId: lineId,
+      sourceTransactionId: sourceTransactionId
+    }));
+
+    return {
+      ok: true,
+      eventId: eventId,
+      orderId: orderId,
+      lineId: lineId,
+      sourceTransactionId: sourceTransactionId,
+      shortages: [],
+      recognizedCost: formation.recognizedCost,
+      movements: movements
+    };
+  }
+
   return Object.freeze({
     ITEM_TYPES: ITEM_TYPES,
     DomainError: DomainError,
@@ -255,11 +332,13 @@
     normalizePurchaseId: normalizePurchaseId,
     normalizeStockMovementId: normalizeStockMovementId,
     normalizePaymentId: normalizePaymentId,
+    normalizeEventId: normalizeEventId,
     createItem: createItem,
     createBomLine: createBomLine,
     expandBomRequirements: expandBomRequirements,
     evaluateStockSufficiency: evaluateStockSufficiency,
     calculateRecognizedCost: calculateRecognizedCost,
-    planFormation: planFormation
+    planFormation: planFormation,
+    planFormationMovements: planFormationMovements
   });
 });
