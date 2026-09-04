@@ -1,14 +1,24 @@
 import { inspectOrdersMirrorCatalog } from './edge-orders-freshness-gate.mjs';
+import {
+  inspectOrdersIdleHeartbeat,
+  ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS
+} from './edge-orders-idle-heartbeat.mjs';
+import {
+  fetchOrdersIdleHeartbeat,
+  ordersIdleHeartbeatVerifierEnabled
+} from './edge-orders-idle-verifier.mjs';
 import { validateOrderLineIdentity } from './accounting-foundation-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_OPERATIONS_READ_VERSION = 'TRENDOS_ACCOUNTING_OPS_READ_V1_20260905';
+export const TRENDOS_ACCOUNTING_OPERATIONS_READ_VERSION = 'TRENDOS_ACCOUNTING_OPS_READ_V1_1_20260905';
 
 const ORDERS_SHEET = 'الأوردرات';
 const LINES_SHEET = 'بنود الأوردرات';
 
 function text(value) { return String(value == null ? '' : value).trim(); }
 function numOrNull(value) {
-  const n = Number(String(value == null ? '' : value).replace(/,/g, '.').replace(/[^0-9.\-]/g, ''));
+  const raw = String(value == null ? '' : value).trim();
+  if (!raw) return null;
+  const n = Number(raw.replace(/,/g, '.').replace(/[^0-9.\-]/g, ''));
   return Number.isFinite(n) ? n : null;
 }
 function parseArray(value) {
@@ -17,9 +27,7 @@ function parseArray(value) {
     return Array.isArray(x) ? x : [];
   } catch (err) { return []; }
 }
-function normalizeHeader(value) {
-  return text(value).toLowerCase().replace(/\s+/g, ' ');
-}
+function normalizeHeader(value) { return text(value).toLowerCase().replace(/\s+/g, ' '); }
 function headerIndex(headers, aliases) {
   const normalized = headers.map(normalizeHeader);
   for (const alias of aliases) {
@@ -29,6 +37,7 @@ function headerIndex(headers, aliases) {
   return -1;
 }
 function at(row, idx) { return idx >= 0 && idx < row.length ? row[idx] : ''; }
+function structurallyReady(x) { return !!(x && x.statusReady && x.parity && x.live); }
 
 async function readCatalog(env, sheetName) {
   return env.DB.prepare(`
@@ -67,17 +76,14 @@ function effectiveRow(row) {
   return display.length ? display.map((v, i) => text(v) || values[i] || '') : values;
 }
 
-export async function inspectAccountingOperationsMirror(env, nowMs = Date.now()) {
+export async function inspectAccountingOperationsMirror(env, nowMs = Date.now(), options = {}) {
   if (!env || !env.DB || typeof env.DB.prepare !== 'function') {
     return { ready: false, code: 'd1-unavailable', message: 'D1 mirror is unavailable.' };
   }
   let ordersCatalog;
   let linesCatalog;
   try {
-    [ordersCatalog, linesCatalog] = await Promise.all([
-      readCatalog(env, ORDERS_SHEET),
-      readCatalog(env, LINES_SHEET)
-    ]);
+    [ordersCatalog, linesCatalog] = await Promise.all([readCatalog(env, ORDERS_SHEET), readCatalog(env, LINES_SHEET)]);
   } catch (err) {
     return { ready: false, code: 'mirror-catalog-error', message: 'Orders/Lines mirror metadata check failed.' };
   }
@@ -88,11 +94,50 @@ export async function inspectAccountingOperationsMirror(env, nowMs = Date.now())
   const maxAgeSeconds = Number.isFinite(configured) ? configured : 600;
   const orders = inspectOrdersMirrorCatalog(ordersCatalog, nowMs, maxAgeSeconds);
   const lines = inspectOrdersMirrorCatalog(linesCatalog, nowMs, maxAgeSeconds);
+  if (orders.ready && lines.ready) {
+    return { ready: true, code: 'ready', freshnessMode: 'mirror-write-age', orders, lines, checkedAt: new Date(nowMs).toISOString() };
+  }
+
+  const staleOnly = structurallyReady(orders) && structurallyReady(lines) && (!orders.fresh || !lines.fresh);
+  let idleHeartbeat = null;
+  if (staleOnly && ordersIdleHeartbeatVerifierEnabled(env)) {
+    try {
+      const fetcher = typeof options.fetchHeartbeat === 'function'
+        ? options.fetchHeartbeat
+        : () => fetchOrdersIdleHeartbeat(env, options.heartbeatOptions || {});
+      const status = await fetcher();
+      const idleMax = Number(env.EDGE_ORDERS_IDLE_HEARTBEAT_MAX_AGE_SECONDS);
+      idleHeartbeat = inspectOrdersIdleHeartbeat(status, {
+        nowMs,
+        maxAgeSeconds: Number.isFinite(idleMax) ? idleMax : ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS,
+        expectedOrdersSourceLastRow: orders.sourceLastRow,
+        expectedOrdersSourceLastCol: orders.sourceLastCol,
+        expectedLinesSourceLastRow: lines.sourceLastRow,
+        expectedLinesSourceLastCol: lines.sourceLastCol
+      });
+      if (idleHeartbeat.ok) {
+        return {
+          ready: true,
+          code: 'ready-idle-verified',
+          freshnessMode: 'verified-idle-source-unchanged',
+          orders,
+          lines,
+          idleHeartbeat,
+          checkedAt: new Date(nowMs).toISOString()
+        };
+      }
+    } catch (err) {
+      idleHeartbeat = { ok: false, mode: 'idle-heartbeat-verification-error', message: String(err && err.message ? err.message : err) };
+    }
+  }
+
   return {
-    ready: !!(orders.ready && lines.ready),
-    code: orders.ready && lines.ready ? 'ready' : 'mirror-not-ready',
+    ready: false,
+    code: staleOnly ? 'stale-orders-mirror' : 'mirror-not-ready',
+    freshnessMode: staleOnly ? 'stale-write-age' : 'structural-failure',
     orders,
     lines,
+    ...(idleHeartbeat ? { idleHeartbeat } : {}),
     checkedAt: new Date(nowMs).toISOString()
   };
 }
@@ -163,13 +208,11 @@ function mapOrder(headers, rawRow) {
   };
 }
 
-export async function readAccountingOrderLineFacts(env, input = {}, nowMs = Date.now()) {
+export async function readAccountingOrderLineFacts(env, input = {}, nowMs = Date.now(), options = {}) {
   const identity = validateOrderLineIdentity(input);
-  if (!identity.ok) {
-    return { success: false, code: 'invalid-identity', errors: identity.errors, authoritative: false };
-  }
+  if (!identity.ok) return { success: false, code: 'invalid-identity', errors: identity.errors, authoritative: false };
 
-  const freshness = await inspectAccountingOperationsMirror(env, nowMs);
+  const freshness = await inspectAccountingOperationsMirror(env, nowMs, options);
   if (!freshness.ready) {
     return {
       success: false,
@@ -182,15 +225,11 @@ export async function readAccountingOrderLineFacts(env, input = {}, nowMs = Date
   }
 
   const [ordersCatalog, linesCatalog, orderRows, lineRows] = await Promise.all([
-    readCatalog(env, ORDERS_SHEET),
-    readCatalog(env, LINES_SHEET),
-    readRows(env, ORDERS_SHEET),
-    readRows(env, LINES_SHEET)
+    readCatalog(env, ORDERS_SHEET), readCatalog(env, LINES_SHEET), readRows(env, ORDERS_SHEET), readRows(env, LINES_SHEET)
   ]);
   const orderHeaders = parseArray(ordersCatalog.headersJson);
   const lineHeaders = parseArray(linesCatalog.headersJson);
-  const mappedLines = lineRows.map((row) => mapLine(lineHeaders, row));
-  const line = mappedLines.find((row) => row.lineId === identity.lineId && row.orderId === identity.orderId) || null;
+  const line = lineRows.map((row) => mapLine(lineHeaders, row)).find((row) => row.lineId === identity.lineId && row.orderId === identity.orderId) || null;
   if (!line) {
     return {
       success: false,
