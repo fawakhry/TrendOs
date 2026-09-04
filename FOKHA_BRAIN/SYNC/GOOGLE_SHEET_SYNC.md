@@ -25,6 +25,17 @@ Target: `fawakhry/TrendOs` / `main` / `FOKHA_BRAIN/*`
 - `FOKHA_BRAIN/STANDARD/FOKHA_WORKING_STANDARD.md`
 - `FOKHA_BRAIN/MEMORY/INDEX.md`
 
+### Latest incremental sync — Matbagy routing / storage
+
+تمت كتابة ثم مزامنة العناصر التالية في نفس اليوم:
+
+- Decision: صندوق مطبعجي الرسمي = `fawakhry/Matbagy-Design-Workflow` / `agent/initial-mvp` / `صندوق_مطبعجي.md`.
+- Rule: لا يعتمد الـAI على تشابه أسماء Repositories أو default branch؛ يستخدم Repository + Branch + Entry Point الموثقة.
+- Project: إضافة `Matbagy Design Memory / صندوق مطبعجي` كمشروع معرفة تصميم مستقل تحت مظلة Fokha.
+- Source: GitHub canonical design memory.
+- Source: Google Drive private asset storage داخل `مشروع مطبعجي - Matbagy Project/01_Design_Cases`.
+- تم تسجيل أن `fawakhry/Matbagy` و`TrendOs/FOKHA_BRAIN` ليسا بدائل لصندوق مطبعجي.
+
 ### Authority contract
 - Google Sheet = fast capture + working structured memory.
 - GitHub Fokha Brain = readable/stable organized knowledge layer for chats and agents.
