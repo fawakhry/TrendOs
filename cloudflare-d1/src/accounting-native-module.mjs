@@ -15,7 +15,7 @@ import {
 import { accountingPersistenceReadinessFromEnv } from './accounting-persistence-readiness-v1.mjs';
 import { evaluateAccountingPersistenceSchemaPreflight } from './accounting-persistence-schema-preflight-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_8_20260905';
+export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_9_20260905';
 
 const INTEGRATION_CONTRACT = Object.freeze({
   version: TRENDOS_ACCOUNTING_NATIVE_VERSION,
@@ -46,13 +46,13 @@ const INTEGRATION_CONTRACT = Object.freeze({
   accountingToOperations: ['Invoice ID','Order ID','Line ID','payment status','paid amount','remaining amount','recognized cost','factual line profit','stock / BOM formation result','financial block / approval state when configured'],
   foundationEndpoints: ['GET /v1/accounting/foundation','POST /v1/accounting/foundation/validate','GET /v1/accounting/operations/line?orderId=...&lineId=... (authenticated read only)'],
   financeEndpoints: ['GET /v1/accounting/finance (F2 metadata, read only)','POST /v1/accounting/finance/plan (posting plan only, persistence=none)'],
-  diagnosticsEndpoints: ['GET /v1/accounting/persistence-readiness (read only, mutationPerformed=false)','GET /v1/accounting/persistence-schema-preflight (read only, mutationPerformed=false)'],
+  diagnosticsEndpoints: ['GET /v1/accounting/persistence-readiness (read only, mutationPerformed=false)','GET /v1/accounting/persistence-schema-preflight (read only, mutationPerformed=false)','GET /v1/accounting/persistence-binding-probe (binding presence only, no SQL, mutationPerformed=false)'],
   invariants: ['Accounting never invents an operational price.','Replaying the same event must not duplicate invoice lines, stock movements, payments or cash transactions.','Line profit is factual revenue minus recognized line cost and must retain Profit Center identity.','Profit-sharing percentages are outside Accounting.','Inventory/BOM movements must be atomic and auditable.','Names and phone numbers are never primary integration keys.','Treasury and cashbox legs use stable Treasury IDs rather than account names alone.','Verified EasyStore behavior is preserved unless deliberately superseded by a tested TrendOS contract.','D1 does not become authoritative for financial writes without a separately approved cutover.']
 });
 
 export function isAccountingNativeModulePath(path) {
   const normalized = String(path || '').replace(/\/+$/, '') || '/';
-  return normalized === '/trendos/accounting' || normalized === '/v1/accounting/integration' || normalized === '/v1/accounting/capabilities' || normalized === '/v1/accounting/contract' || normalized === '/v1/accounting/validate' || normalized === '/v1/accounting/persistence-readiness' || normalized === '/v1/accounting/persistence-schema-preflight' || isAccountingFoundationApiPath(normalized) || isAccountingFinanceApiPath(normalized);
+  return normalized === '/trendos/accounting' || normalized === '/v1/accounting/integration' || normalized === '/v1/accounting/capabilities' || normalized === '/v1/accounting/contract' || normalized === '/v1/accounting/validate' || normalized === '/v1/accounting/persistence-readiness' || normalized === '/v1/accounting/persistence-schema-preflight' || normalized === '/v1/accounting/persistence-binding-probe' || isAccountingFoundationApiPath(normalized) || isAccountingFinanceApiPath(normalized);
 }
 
 function json(data, status = 200) {
@@ -92,6 +92,24 @@ export async function handleAccountingNativeModuleRequest(request, env = {}, ctx
     const db = env && env.TRENDOS_ACCOUNTING_PREVIEW_DB;
     const report = await evaluateAccountingPersistenceSchemaPreflight(db);
     return json({ success: report.code !== 'D1_NOT_INJECTED', nativeModule:true, persistence:'diagnostic-only', ...report }, report.code === 'D1_NOT_INJECTED' ? 503 : 200);
+  }
+  if (path === '/v1/accounting/persistence-binding-probe') {
+    if (request.method !== 'GET') return json({ success:false, code:'accounting-persistence-binding-probe-read-only', readOnly:true, authoritativeWrites:false, persistence:'none', mutationPerformed:false, sqlExecuted:false, nativeModule:true }, 405);
+    const bindingInjected = Boolean(env && env.TRENDOS_ACCOUNTING_PREVIEW_DB);
+    return json({
+      success: bindingInjected,
+      code: bindingInjected ? 'ACCOUNTING_PREVIEW_D1_BINDING_INJECTED' : 'D1_NOT_INJECTED',
+      nativeModule: true,
+      persistence: 'diagnostic-only',
+      readOnly: true,
+      authoritativeWrites: false,
+      mutationPerformed: false,
+      sqlExecuted: false,
+      binding: 'TRENDOS_ACCOUNTING_PREVIEW_DB',
+      bindingInjected,
+      schemaApplied: false,
+      productionWriteEnabled: false
+    }, bindingInjected ? 200 : 503);
   }
   if (path === '/v1/accounting/validate') {
     if (request.method !== 'POST') return json({ success:false, code:'accounting-validation-post-only', authoritativeWrites:false, persistence:'none', nativeModule:true }, 405);
