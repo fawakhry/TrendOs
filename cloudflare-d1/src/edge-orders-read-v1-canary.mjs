@@ -6,8 +6,12 @@ import {
   verifyOrdersEdgeToken
 } from './edge-orders-read-v1.mjs';
 
-const LINES_SHEET = 'بنود الأوردرات';
-const LIVE_NOTES = ['TrendOS orders live sync V1', 'TrendOS orders live sync V2 quota-aware'];
+const SCREEN_VIEW_SHEETS = {
+  service: 'واجهة خدمة العملاء',
+  print: 'واجهة الطباعة',
+  laser: 'واجهة الليزر',
+  press: 'واجهة المكبس'
+};
 
 function text(value) { return String(value == null ? '' : value).trim(); }
 function clampInt(value, fallback, min, max) {
@@ -39,27 +43,20 @@ function bearer(request) {
   const match = text(request.headers.get('Authorization')).match(/^Bearer\s+(.+)$/i);
   return match ? text(match[1]) : '';
 }
-function priorityRank(value) {
-  const p = text(value);
-  if (p === 'عاجل' || p === 'VIP') return 0;
-  if (p === 'عادي' || !p) return 1;
-  if (p === 'مؤجل') return 2;
-  return 9;
-}
 function arabicDigits(value) {
   const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
   return String(value || '').replace(/[٠-٩]/g, (d) => map[d] || d);
 }
-function numericId(value) {
+function parseDay(value) {
   const raw = arabicDigits(text(value));
-  const m = raw.match(/\d+/);
-  return m ? Number(m[0]) : 0;
-}
-function defaultVisibleStatus(status) {
-  const s = text(status);
-  // Apps Script default department screen is an active/current work list, not a full history view.
-  // Ready-for-pickup stays visible because the live Apps response returns it on the default print page.
-  return !['ملغى', 'ملغي', 'مكرر', 'تم التسليم', 'تم التنفيذ', 'جاهز للطباعة'].includes(s);
+  if (!raw) return 0;
+  let m = raw.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  if (m) return Number(`${m[1]}${String(m[2]).padStart(2,'0')}${String(m[3]).padStart(2,'0')}`);
+  m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if (m) return Number(`${m[3]}${String(m[2]).padStart(2,'0')}${String(m[1]).padStart(2,'0')}`);
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return 0;
+  return Number(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
 }
 function statusBucket(status) {
   const s = text(status) || 'طلب جديد';
@@ -71,24 +68,24 @@ function sortLikeAppsVisiblePage(rows) {
   return (rows || []).slice().sort((a, b) => {
     const byStatus = statusBucket(a.status) - statusBucket(b.status);
     if (byStatus) return byStatus;
-    const byPriority = priorityRank(a.priority) - priorityRank(b.priority);
-    if (byPriority) return byPriority;
-    const byOrder = numericId(b.orderId) - numericId(a.orderId);
-    if (byOrder) return byOrder;
-    return numericId(b.lineId) - numericId(a.lineId);
+    const byDay = parseDay(b.updatedAt) - parseDay(a.updatedAt);
+    if (byDay) return byDay;
+    return Number(a.rowNumber || 0) - Number(b.rowNumber || 0);
   });
 }
 function filterRowsForCanary(rows, params) {
   const statusFilter = text(params.statusFilter || params.status || '');
-  if (!statusFilter) return sortLikeAppsVisiblePage((rows || []).filter((row) => defaultVisibleStatus(row && row.status)));
-  if (statusFilter === '__ACTIVE__') return sortLikeAppsVisiblePage((rows || []).filter((row) => defaultVisibleStatus(row && row.status)));
+  if (!statusFilter || statusFilter === '__ACTIVE__') return sortLikeAppsVisiblePage(rows || []);
   return sortLikeAppsVisiblePage((rows || []).filter((row) => text(row && row.status) === statusFilter));
 }
+function screenSheetName(screen) {
+  return SCREEN_VIEW_SHEETS[text(screen) || 'service'] || SCREEN_VIEW_SHEETS.service;
+}
 
-async function readMirror(env) {
-  const catalog = await env.DB.prepare(`SELECT headers_json AS headersJson, source_last_row AS sourceLastRow, source_last_col AS sourceLastCol, row_count AS rowCount, status, synced_at AS syncedAt, note FROM sheet_catalog WHERE sheet_name = ? LIMIT 1`).bind(LINES_SHEET).first();
-  if (!catalog) throw new Error('Orders mirror sheet is missing');
-  const query = await env.DB.prepare(`SELECT row_number AS rowNumber, values_json AS valuesJson, display_json AS displayJson FROM sheet_rows WHERE sheet_name = ? ORDER BY row_number`).bind(LINES_SHEET).all();
+async function readMirror(env, sheetName) {
+  const catalog = await env.DB.prepare(`SELECT headers_json AS headersJson, source_last_row AS sourceLastRow, source_last_col AS sourceLastCol, row_count AS rowCount, status, synced_at AS syncedAt, note FROM sheet_catalog WHERE sheet_name = ? LIMIT 1`).bind(sheetName).first();
+  if (!catalog) throw new Error(`Orders view mirror sheet is missing: ${sheetName}`);
+  const query = await env.DB.prepare(`SELECT row_number AS rowNumber, values_json AS valuesJson, display_json AS displayJson FROM sheet_rows WHERE sheet_name = ? ORDER BY row_number`).bind(sheetName).all();
   const rows = (query.results || []).map((r) => ({ rowNumber: Number(r.rowNumber || 0), values: JSON.parse(r.valuesJson || '[]'), display: JSON.parse(r.displayJson || '[]') }));
   return { catalog, headers: JSON.parse(catalog.headersJson || '[]'), rows };
 }
@@ -100,12 +97,11 @@ async function canaryPage(request, env, url, session) {
   const statusFilter = text(url.searchParams.get('statusFilter'));
   if (statusFilter === '__DEBT__') return json({ success: false, code: 'apps-script-required', fallback: 'apps-script', message: 'Debt-filtered orders require the authoritative Apps Script lane.' }, 409, corsHeaders(request, env));
 
-  const mirror = await readMirror(env);
+  const sheetName = screenSheetName(screen);
+  const mirror = await readMirror(env, sheetName);
   const catalog = mirror.catalog;
-  const parity = Number(catalog.rowCount || 0) === Number(catalog.sourceLastRow || 0);
-  const live = LIVE_NOTES.includes(text(catalog.note));
-  if (text(catalog.status) !== 'ready' || !parity || !live) {
-    return json({ success: false, code: 'mirror-not-ready', fallback: 'apps-script', dataSource: 'd1-orders-unready', mirror: { status: catalog.status, rowCount: Number(catalog.rowCount||0), sourceLastRow: Number(catalog.sourceLastRow||0), syncedAt: text(catalog.syncedAt), note: text(catalog.note) } }, 503, corsHeaders(request, env));
+  if (text(catalog.status) !== 'ready') {
+    return json({ success: false, code: 'mirror-not-ready', fallback: 'apps-script', dataSource: 'd1-orders-view-unready', mirror: { sheetName, status: catalog.status, rowCount: Number(catalog.rowCount||0), sourceLastRow: Number(catalog.sourceLastRow||0), syncedAt: text(catalog.syncedAt), note: text(catalog.note) } }, 503, corsHeaders(request, env));
   }
 
   const allRows = mapMirrorRows(mirror.headers, mirror.rows, screen);
@@ -125,10 +121,10 @@ async function canaryPage(request, env, url, session) {
     pagination: { page: safePage, pageSize, totalRows, totalPages, hasOlder: safePage < totalPages },
     serverPaged: true,
     dataVersion: text(catalog.syncedAt) || 'd1',
-    version: 'D1_ORDERS_READ_V1_02CO_CANARY',
+    version: 'D1_ORDERS_READ_V1_02CO_VIEW_CANARY',
     dataSource: 'd1-edge-orders',
     edgeSession: session.sub,
-    mirror: { syncedAt: text(catalog.syncedAt), sourceLastRow: Number(catalog.sourceLastRow||0), sourceLastCol: Number(catalog.sourceLastCol||0), note: text(catalog.note) }
+    mirror: { sheetName, syncedAt: text(catalog.syncedAt), sourceLastRow: Number(catalog.sourceLastRow||0), sourceLastCol: Number(catalog.sourceLastCol||0), note: text(catalog.note) }
   }, 200, corsHeaders(request, env));
 }
 
