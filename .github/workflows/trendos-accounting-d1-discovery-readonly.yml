@@ -40,11 +40,28 @@ jobs:
           const rows = JSON.parse(fs.readFileSync('/tmp/d1-list.json','utf8'));
           if (!Array.isArray(rows)) process.exit(1);
           const safe = rows.map(x => ({ name: x.name || x.database_name || '', uuid: x.uuid || x.id || x.database_id || '' }));
-          console.log('D1_DATABASES=' + JSON.stringify(safe));
           const candidates = safe.filter(x => /account|preview|test|sandbox/i.test(x.name));
-          console.log('ACCOUNTING_ISOLATED_CANDIDATES=' + JSON.stringify(candidates));
+          const evidence = {
+            generatedAt: new Date().toISOString(),
+            command: 'wrangler d1 list --json',
+            readOnly: true,
+            databases: safe,
+            isolatedCandidates: candidates,
+            count: safe.length,
+            candidateCount: candidates.length
+          };
+          fs.writeFileSync('/tmp/accounting-d1-discovery-sanitized.json', JSON.stringify(evidence, null, 2));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Accounting D1 read-only discovery\n\n- Database count: **${safe.length}**\n- Isolated-name candidates: **${candidates.length}**\n- Mutation performed: **false**\n\n\`\`\`json\n${JSON.stringify(candidates, null, 2)}\n\`\`\`\n`);
           console.log('D1_DISCOVERY_READONLY=PASS count=' + safe.length + ' candidates=' + candidates.length);
           NODE
+
+      - name: Upload sanitized D1 discovery evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: accounting-d1-discovery-sanitized
+          path: /tmp/accounting-d1-discovery-sanitized.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Assert workflow contains no D1 mutation command
         shell: bash
