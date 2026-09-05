@@ -7,9 +7,13 @@ on:
     paths:
       - 'cloudflare-d1/src/cloud-write-reconcile-core.mjs'
       - 'cloudflare-d1/src/cloud-write-production-reconcile-qualification.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/production-shadow/index.js'
+      - 'cloudflare-d1/wrangler.toml'
       - 'apps-script/patches/CLOUD_WRITE_PRODUCTION_RECONCILE_QUALIFICATION_V1.gs'
       - 'tests/cloudflare_cloud_write_reconcile_exact_target_v1.test.mjs'
       - 'tests/cloudflare_production_reconcile_qualification_v1.test.mjs'
+      - 'tests/cloudflare_production_reconcile_qualification_wiring_default_off_v1.test.mjs'
       - 'tests/apps_script_cloud_write_production_reconcile_qualification_v1.test.mjs'
       - '.github/workflows/trendos-production-outbox-sheets-reconcile-qualification-candidate.yml'
   workflow_dispatch:
@@ -42,19 +46,24 @@ jobs:
       - name: Verify Apps Script one-record writer static safety contract
         run: node tests/apps_script_cloud_write_production_reconcile_qualification_v1.test.mjs
 
-      - name: Verify candidate remains unwired from Production entrypoint
+      - name: Verify isolated Production wrapper wiring remains default-OFF before DB or auth
+        run: node tests/cloudflare_production_reconcile_qualification_wiring_default_off_v1.test.mjs
+
+      - name: Verify 02CL stays outside generic core entrypoint
         run: |
           set -euo pipefail
           ! grep -Fq 'cloud-write-production-reconcile-qualification' cloudflare-d1/src/index_v2.js
-          grep -Fq 'PREPARED / NOT WIRED INTO PRODUCTION ENTRYPOINT' cloudflare-d1/src/cloud-write-production-reconcile-qualification.mjs
-          echo '02CL_CANDIDATE_NOT_ROUTED_TO_PRODUCTION_PASS'
+          grep -Fq 'cloud-write-production-reconcile-qualification.mjs' cloudflare-d1/production-shadow/index.js
+          grep -Fq 'TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          ! grep -Fq 'TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          echo '02CL_ISOLATED_PRODUCTION_WRAPPER_DEFAULT_OFF_PASS'
 
       - name: Safety conclusion
         run: |
-          echo 'PASS means exact-target selection can address only CW-PROD-QUAL-33975124471 when the 02CL candidate supplies its selector.'
+          echo 'PASS means exact-target selection can address only CW-PROD-QUAL-33975124471 when the 02CL lane supplies its selectors.'
           echo 'PASS means an older unrelated pending outbox row remains untouched in isolated SQL tests.'
           echo 'PASS means the Apps Script candidate is default-OFF, exact-ID/exact-payload, one-append maximum, lock-protected, and replay-noop.'
-          echo 'PASS means the Worker candidate requires Edge auth, explicit confirmation, a dedicated reconciliation secret, and strict persisted-row ACK.'
-          echo 'PASS means replay proof requires an already-synced exact target and must be a zero-mutation Sheets no-op.'
-          echo 'IMPORTANT: this candidate is NOT imported by Production index_v2.js, is NOT deployed, does NOT call live Apps Script, and does NOT consume the Production outbox.'
+          echo 'PASS means the Worker lane requires Edge auth, explicit confirmation, a dedicated reconciliation secret, and strict persisted-row ACK when enabled.'
+          echo 'PASS means the actual Production wrapper now recognizes only the isolated 02CL prefix and rejects POST execution with HTTP 423 while the tracked flag is false, before DB/auth access.'
+          echo 'IMPORTANT: this code is prepared on the working branch only. No Worker deployment, Apps Script deployment, live reconciliation, outbox consumption, or cutover occurs in this CI workflow.'
           echo 'Production cutover remains false and Sheets / Apps Script remain authoritative.'
