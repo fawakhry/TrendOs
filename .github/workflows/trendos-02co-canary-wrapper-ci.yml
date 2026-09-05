@@ -1,0 +1,52 @@
+name: TrendOS 02CO Canary Wrapper CI
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - 'cloudflare-d1/src/edge-orders-read-v1-canary.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs'
+      - '.github/workflows/trendos-02co-canary-wrapper-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary-wrapper-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
+          python - <<'PY'
+          from pathlib import Path
+          checked = [
+              Path('cloudflare-d1/src/edge-orders-read-v1-canary.mjs'),
+              Path('cloudflare-d1/src/index_v2.js'),
+              Path('tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs'),
+          ]
+          forbidden = ['secret'+' put', 'wrangler d1 migrations'+' apply', 'd1 execute --'+'file', 'TRENDOS_PRODUCTION_'+'CUTOVER', 'AUTHORITY_'+'CUTOVER', '/v1/qualification/cloud-write/reconcile/'+'order']
+          for path in checked:
+              data = path.read_text(encoding='utf-8')
+              for token in forbidden:
+                  if token in data:
+                      raise SystemExit(f'Forbidden token {token} in {path}')
+          print('PERF_CF_02CO_CANARY_WRAPPER_STATIC_BOUNDARY_PASS')
+          PY
+      - name: Canary wrapper tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs
