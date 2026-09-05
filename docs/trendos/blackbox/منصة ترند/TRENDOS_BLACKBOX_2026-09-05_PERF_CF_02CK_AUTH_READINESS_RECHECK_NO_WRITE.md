@@ -52,11 +52,28 @@ Observed readiness output:
 
 Therefore both dedicated 02CK automation credential secrets remain unconfigured.
 
+## Credential contract verified from current Apps Script source
+
+Read-only source inspection of the current `Code.gs` confirmed the exact credential semantics used by the canonical `verifyEmployeeSession` route:
+
+- Employee `login` requires a valid employee username and password.
+- A successful login generates a fresh session token using two UUID values and stores it in the employee `Token` field together with `آخر دخول` / last-login time.
+- The employee session TTL defaults to **12 hours** and can be configured through `SESSION_TTL_HOURS` within the bounded range implemented by the current source.
+- `authorize_` rejects a missing, mismatched, or expired token and clears the stored token when the session is invalid/expired.
+- `verifyEmployeeSession_` calls `authorize_` and also requires the employee to be permitted by the existing application authorization mode; therefore not every arbitrary user/session is eligible.
+- The Production Edge session exchange calls Apps Script `action=verifyEmployeeSession` using the username and employee session token, then issues a separate short-lived Edge token using the existing `EDGE_SESSION_SECRET`.
+
+Operational consequence for 02CK:
+
+`TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` must be a **fresh valid employee session token**, not a permanent API key. For the one-time Production qualification it should be generated/refreshed close to the controlled run, stored only as a GitHub Actions secret, and never committed to repository files or pasted into blackbox documentation.
+
+The current frontend keeps the active employee session token in `sessionStorage` for the browser session (`matbagy_session_token`) rather than persistent local storage. This supports obtaining the one-time qualification token from a fresh authorized login without changing Production auth design.
+
 ## Safety result
 
-No business or infrastructure mutation was performed by this probe:
+No business or infrastructure mutation was performed by this probe or the credential-contract inspection:
 
-- No Production endpoint called.
+- No Production endpoint called by the readiness probe.
 - No Production business order created.
 - No D1 mutation.
 - No Sheets mutation.
@@ -97,11 +114,12 @@ Latest fully closed checkpoint remains:
 
 ## Exact safe resume point
 
-Configure a dedicated valid employee identity/token for the existing Apps Script `verifyEmployeeSession` path as these two GitHub Actions repository secrets:
-
-- `TRENDOS_PROD_QUALIFY_USERNAME`
-- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
-
-After both are configured, run the bounded qualification through the existing canonical employee-auth exchange and require all existing 02CK safety checks to pass.
+1. Perform a fresh normal login with a dedicated employee account that is already authorized by the existing `verifyEmployeeSession` path.
+2. Capture that browser session's current `username` and `matbagy_session_token` without exposing them in chat or committing them to GitHub files.
+3. Configure them as the GitHub Actions repository secrets:
+   - `TRENDOS_PROD_QUALIFY_USERNAME`
+   - `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
+4. Recheck secret presence without printing values.
+5. Run the bounded Production business-write qualification through the canonical employee-auth exchange and require all existing 02CK safety checks to pass.
 
 Do not rotate `EDGE_SESSION_SECRET` merely to unblock qualification. Do not transfer write authority, enable Production cutover, or perform full frontend cutover before 02CK passes.
