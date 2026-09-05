@@ -55,11 +55,12 @@ jobs:
           ! grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
           ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
 
-          if grep -Fq 'd1 migrations apply' .github/workflows/trendos-cloud-write-v2-production-shadow-controlled-deploy.yml; then
+          workflow=.github/workflows/trendos-cloud-write-v2-production-shadow-controlled-deploy.yml
+          if grep -Eq '^[[:space:]]+npx .*wrangler.*d1[[:space:]]+migrations[[:space:]]+apply' "$workflow"; then
             echo 'Blocked: controlled deployment workflow must never apply D1 migrations.'
             exit 1
           fi
-          if grep -Eq 'wrangler secret (put|bulk)' .github/workflows/trendos-cloud-write-v2-production-shadow-controlled-deploy.yml; then
+          if grep -Eq '^[[:space:]]+(cat .*\|[[:space:]]*)?npx .*wrangler.*secret[[:space:]]+(put|bulk)' "$workflow"; then
             echo 'Blocked: controlled wrapper deployment must not rotate or replace Worker secrets.'
             exit 1
           fi
