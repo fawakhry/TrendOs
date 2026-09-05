@@ -1,0 +1,221 @@
+name: TrendOS Production Shadow Read-Only Enable
+
+# Manual-only controlled Production transition.
+# This workflow may enable only the fixed-synthetic mutation-free Shadow observer.
+# Cloud Write must remain OFF before and after deployment.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production_shadow_readonly_enable:
+        description: 'Type ENABLE_PRODUCTION_SHADOW_READONLY to deploy Shadow observation ON with Cloud Write OFF.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-shadow-readonly-enable
+  cancel-in-progress: false
+
+jobs:
+  enable-production-shadow-readonly:
+    if: ${{ github.event.inputs.confirm_production_shadow_readonly_enable == 'ENABLE_PRODUCTION_SHADOW_READONLY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      SHADOW_PATH: /v1/cloud/write/v2/production-shadow
+      STAGING_BRIDGE_PATH: /v1/staging/cloud-write/v2/bridge/health
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard safety gate — exact read-only Shadow configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+
+          observer=cloudflare-d1/production-shadow/observer.mjs
+          grep -Fq 'FIXED_SYNTHETIC_INTENT' "$observer"
+          grep -Fq 'liveProductionDataRead: false' "$observer"
+          grep -Fq 'd1Read: false' "$observer"
+          grep -Fq 'appsScriptCalled: false' "$observer"
+          grep -Fq 'authoritativeWrites: false' "$observer"
+          for forbidden in '.prepare(' '.batch(' 'UrlFetchApp' 'SpreadsheetApp' 'PropertiesService' 'createManualOrder_' 'script.google.com' 'trendos-main' 'database_id' 'migrations_dir'; do
+            if grep -Fq "$forbidden" "$observer"; then
+              echo "Blocked forbidden observer capability: $forbidden"
+              exit 1
+            fi
+          done
+
+          workflow=.github/workflows/trendos-cloud-write-v2-production-shadow-readonly-enable.yml
+          if grep -Eq '^[[:space:]]+npx .*wrangler.*d1[[:space:]]+migrations[[:space:]]+apply' "$workflow"; then
+            echo 'Blocked: Shadow observation workflow must never apply D1 migrations.'
+            exit 1
+          fi
+          if grep -Eq '^[[:space:]]+(cat .*\|[[:space:]]*)?npx .*wrangler.*secret[[:space:]]+(put|bulk)' "$workflow"; then
+            echo 'Blocked: Shadow observation workflow must not rotate Worker secrets.'
+            exit 1
+          fi
+          echo 'PRODUCTION_SHADOW_READONLY_CONFIG_PASS'
+
+      - name: Re-run Shadow and Orders safety contracts
+        run: |
+          set -euo pipefail
+          node tests/cloud_write_order_v2_production_shadow.test.mjs
+          node tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs
+          node tests/d1_orders_low_usage_heartbeat_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_verifier_v1.test.mjs
+          node tests/cloudflare_edge_gateway_v1.test.mjs
+          node tests/cloudflare_mirror_safety_v1.test.mjs
+          echo 'PRODUCTION_SHADOW_READONLY_SAFETY_CONTRACTS_PASS'
+
+      - name: Compile exact Production payload with Wrangler dry-run
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-production-shadow-readonly-build
+          npx --yes wrangler@${WRANGLER_VERSION} deploy \
+            --dry-run \
+            --config cloudflare-d1/wrangler.toml \
+            --outdir /tmp/trendos-production-shadow-readonly-build
+          test -d /tmp/trendos-production-shadow-readonly-build
+          echo 'PRODUCTION_SHADOW_READONLY_DRY_RUN_PASS'
+
+      - name: Live Production preflight — GET only, Cloud Write must be OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          health_code="$(curl --silent --show-error --output /tmp/pre-edge-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          test "$health_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
+
+          write_code="$(curl --silent --show-error --output /tmp/pre-write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$write_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+
+          shadow_code="$(curl --silent --show-error --output /tmp/pre-shadow.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          if [ "$shadow_code" = '404' ]; then
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-shadow.json','utf8')); if(x.code!=='production-shadow-disabled'||x.d1Written!==false||x.sheetsWritten!==false||Number(x.mutationCount||0)!==0||x.productionWriteEnabled!==false||x.productionCutover!==false) process.exit(1)"
+          elif [ "$shadow_code" = '200' ]; then
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-shadow.json','utf8')); if(!x.success||!x.valid||x.observerOnly!==true||x.fixedSyntheticIntent!==true||x.liveProductionDataRead!==false||x.d1Read!==false||x.d1Written!==false||x.appsScriptCalled!==false||x.sheetsWritten!==false||x.authoritativeWrites!==false||x.readOnly!==true||x.mutationFree!==true||Number(x.mutationCount||0)!==0||x.productionWriteEnabled!==false||x.productionCutover!==false) process.exit(1)"
+          else
+            echo "Unexpected predeploy Shadow HTTP $shadow_code"
+            exit 1
+          fi
+
+          bridge_code="$(curl --silent --show-error --output /tmp/pre-bridge.json --write-out '%{http_code}' "$PROD_URL$STAGING_BRIDGE_PATH")"
+          test "$bridge_code" = '404'
+          echo 'LIVE_PRODUCTION_READONLY_PREDEPLOY_BOUNDARY_PASS'
+
+      - name: Deploy Production Shadow observation ON — no migration, no secret rotation
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config cloudflare-d1/wrangler.toml
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+          echo 'PRODUCTION_SHADOW_READONLY_DEPLOYED'
+
+      - name: Post-deploy verify core runtime remains healthy
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/post-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          cat /tmp/post-health.json
+          test "$health_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/post-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
+
+          anon_code="$(curl --silent --show-error --output /tmp/post-anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=1")"
+          test "$anon_code" = '401'
+          echo 'PRODUCTION_CORE_RUNTIME_AFTER_SHADOW_ENABLE_PASS'
+
+      - name: Post-deploy qualify deterministic mutation-free Shadow observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          code1="$(curl --silent --show-error --output /tmp/shadow-1.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          code2="$(curl --silent --show-error --output /tmp/shadow-2.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          test "$code1" = '200'
+          test "$code2" = '200'
+          cat /tmp/shadow-1.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/shadow-1.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/shadow-2.json','utf8'));
+          const pass=a.success===true && a.valid===true && a.observerOnly===true && a.fixedSyntheticIntent===true && a.liveProductionDataRead===false && a.d1Read===false && a.d1Written===false && a.appsScriptCalled===false && a.sheetsWritten===false && a.authoritativeWrites===false && a.readOnly===true && a.mutationFree===true && a.canonicalWriterInvoked===false && Number(a.mutationCount||0)===0 && a.productionWriteEnabled===false && a.productionCutover===false && a.productionRouteIntegrated===false && a.orderIdPresent===false && /^[a-f0-9]{64}$/.test(String(a.shadowFingerprint||'')) && a.shadowFingerprint===b.shadowFingerprint && JSON.stringify(a.canonicalCreateParams)===JSON.stringify(b.canonicalCreateParams);
+          console.log('PRODUCTION_SHADOW_READONLY_LIVE='+JSON.stringify({fingerprint:a.shadowFingerprint,clientRequestId:a.canonicalCreateParams&&a.canonicalCreateParams.clientRequestId,readOnly:a.readOnly,d1Read:a.d1Read,d1Written:a.d1Written,appsScriptCalled:a.appsScriptCalled,sheetsWritten:a.sheetsWritten,productionCutover:a.productionCutover,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+          post_code="$(curl --silent --show-error --output /tmp/shadow-post.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{}' "$PROD_URL$SHADOW_PATH")"
+          test "$post_code" = '405'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/shadow-post.json','utf8')); if(x.success!==false||x.code!=='method-not-allowed'||x.d1Written!==false||x.sheetsWritten!==false||Number(x.mutationCount||0)!==0||x.productionWriteEnabled!==false||x.productionCutover!==false) process.exit(1)"
+          echo 'PRODUCTION_SHADOW_READONLY_DETERMINISTIC_NO_WRITE_PASS'
+
+      - name: Post-deploy reconfirm Cloud Write OFF and mirror parity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          write_code="$(curl --silent --show-error --output /tmp/post-write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          cat /tmp/post-write.json
+          test "$write_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/post-write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true||x.schemaMutationFree!==true) process.exit(1)"
+
+          bridge_code="$(curl --silent --show-error --output /tmp/post-bridge.json --write-out '%{http_code}' "$PROD_URL$STAGING_BRIDGE_PATH")"
+          test "$bridge_code" = '404'
+
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/post-orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/post-lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          const notes=['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'];
+          for(const [label,file] of [['ORDERS','/tmp/post-orders.json'],['LINES','/tmp/post-lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')),s=x.sheet||{};
+            const pass=x.success===true&&x.schemaMutationFree===true&&s.status==='ready'&&Number(s.rowCount||0)===Number(s.sourceLastRow||0)&&notes.includes(String(s.note||''));
+            console.log(label+'_POST_SHADOW_ENABLE='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,syncedAt:s.syncedAt,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+          echo 'PRODUCTION_CLOUD_WRITE_OFF_AND_MIRROR_PARITY_PASS'
+
+      - name: Automatic rollback on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        run: |
+          echo 'Post-deploy verification failed; rolling back to the immediately previous Worker version.'
+          npx --yes wrangler@${WRANGLER_VERSION} rollback \
+            --config cloudflare-d1/wrangler.toml \
+            --message "TrendOS rollback after failed Production Shadow read-only observation enablement"
+
+      - name: Safety conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'PRODUCTION_SHADOW_READONLY_ENABLE_PASS'
+          echo 'Production Shadow observation is ON only for fixed synthetic mutation-free planning.'
+          echo 'No live Production business data was read by the Shadow route.'
+          echo 'Cloud Write remains OFF. Sheets remain authoritative.'
+          echo 'No D1 migration or Worker secret rotation was performed.'
