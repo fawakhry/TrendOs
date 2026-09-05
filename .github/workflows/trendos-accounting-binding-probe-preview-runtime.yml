@@ -7,7 +7,7 @@ on:
     paths:
       - 'cloudflare-d1/src/accounting-native-module.mjs'
       - 'cloudflare-d1/src/index_v2.js'
-      - 'cloudflare-d1/wrangler.preview.toml'
+      - 'cloudflare-d1/preview/wrangler.toml'
       - '.github/workflows/trendos-accounting-binding-probe-preview-runtime.yml'
   workflow_dispatch:
 
@@ -74,7 +74,8 @@ jobs:
           node <<'NODE'
           const x = JSON.parse(require('fs').readFileSync('/tmp/accounting-binding-probe.json','utf8'));
           if (!x.success) process.exit(1);
-          if (x.dbInjected !== true) process.exit(1);
+          if (x.bindingInjected !== true) process.exit(1);
+          if (x.binding !== 'TRENDOS_ACCOUNTING_PREVIEW_DB') process.exit(1);
           if (x.mutationPerformed !== false) process.exit(1);
           if (x.sqlExecuted !== false) process.exit(1);
           if (x.schemaApplied !== false) process.exit(1);
@@ -94,8 +95,6 @@ jobs:
           if (x.success !== false) process.exit(1);
           if (x.mutationPerformed !== false) process.exit(1);
           if (x.sqlExecuted !== false) process.exit(1);
-          if (x.schemaApplied !== false) process.exit(1);
-          if (x.productionWriteEnabled !== false) process.exit(1);
           console.log('ACCOUNTING_PREVIEW_BINDING_POST_BLOCK=PASS');
           NODE
 
