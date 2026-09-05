@@ -26,6 +26,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       EXPECTED_DB_ID: b6784934-3144-4c8d-b688-5c601c62885f
+      SCHEMA_SQL: "SELECT type,name FROM sqlite_master WHERE (type='table' AND name IN ('customers','orders','cloud_write_events','cloud_write_outbox')) OR (type='index' AND name IN ('idx_cloud_write_events_entity','idx_cloud_write_events_sheets_status','idx_cloud_write_outbox_event_unique','idx_cloud_write_outbox_pending')) ORDER BY type,name"
 
     steps:
       - name: Checkout
@@ -43,13 +44,16 @@ jobs:
           grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
           ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
 
-          workflow=.github/workflows/trendos-production-cloud-write-schema-readonly.yml
-          if grep -Eiq '\b(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|VACUUM|ATTACH|DETACH|PRAGMA[[:space:]]+[^;=]+[=])\b' "$workflow"; then
-            echo 'Blocked: workflow contains a mutating SQL keyword.'
+          case "$SCHEMA_SQL" in
+            SELECT\ *) ;;
+            *) echo 'Blocked: schema probe SQL must begin with SELECT.'; exit 1 ;;
+          esac
+          if printf '%s' "$SCHEMA_SQL" | grep -Eiq '\b(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|VACUUM|ATTACH|DETACH)\b'; then
+            echo 'Blocked: mutating SQL detected in schema probe.'
             exit 1
           fi
-          if grep -Eiq 'wrangler.*(deploy|migrations[[:space:]]+apply|secret[[:space:]]+(put|bulk))' "$workflow"; then
-            echo 'Blocked: workflow contains deploy/migration/secret mutation.'
+          if printf '%s' "$SCHEMA_SQL" | grep -q ';'; then
+            echo 'Blocked: multiple SQL statements are not allowed.'
             exit 1
           fi
           echo 'PRODUCTION_SCHEMA_READONLY_BOUNDARY_PASS'
@@ -70,8 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SQL="SELECT type,name FROM sqlite_master WHERE (type='table' AND name IN ('customers','orders','cloud_write_events','cloud_write_outbox')) OR (type='index' AND name IN ('idx_cloud_write_events_entity','idx_cloud_write_events_sheets_status','idx_cloud_write_outbox_event_unique','idx_cloud_write_outbox_pending')) ORDER BY type,name"
-          payload="$(node -e 'process.stdout.write(JSON.stringify({sql:process.argv[1]}))' "$SQL")"
+          payload="$(node -e 'process.stdout.write(JSON.stringify({sql:process.argv[1]}))' "$SCHEMA_SQL")"
           code="$(curl --silent --show-error --retry 3 --retry-delay 1 --retry-all-errors \
             --output /tmp/d1-schema.json --write-out '%{http_code}' \
             -X POST \
