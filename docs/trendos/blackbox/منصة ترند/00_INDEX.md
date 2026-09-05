@@ -29,9 +29,44 @@
 
 الحالة: **VERIFIED PASS — CLOSED**.
 
-السجل المرجعي الأحدث:
+السجل المرجعي:
 
 `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md`
+
+## المرحلة الحالية بعد 02CK
+
+`PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
+
+الحالة الحالية: **CANDIDATE PREPARED — CI PASS — NOT DEPLOYED — NO PRODUCTION MUTATION**.
+
+السجل المرجعي الأحدث:
+
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
+
+تم تجهيز 02CL بعقد محصور على الأوردر الصناعي الوحيد:
+
+`CW-PROD-QUAL-33975124471`
+
+ويشمل:
+
+- exact-target selector في reconciliation core؛
+- Worker candidate default-OFF وغير موصل بالـProduction entrypoint؛
+- Apps Script candidate default-OFF بكتابة صف واحد كحد أقصى وإعادة التشغيل idempotent no-op؛
+- CI مستقل أثبت أن pending decoy أقدم لا يتم استهلاكه؛
+- Candidate Run `33983980229` / Job `101354064165` — **SUCCESS**؛
+- Integrity Run `33983980205` / Job `101354064040` — **SUCCESS**.
+
+لم يحدث حتى الآن في 02CL:
+
+- Production outbox consumption؛
+- Google Sheets write؛
+- Apps Script deploy؛
+- Production Worker deploy؛
+- Worker route integration؛
+- secret rotation؛
+- cutover.
+
+لذلك 02CL **ليست مغلقة بعد**.
 
 ## ملخص إغلاق 02CK
 
@@ -54,7 +89,7 @@
 - لم يحدث Worker deploy أو `EDGE_SESSION_SECRET` rotation.
 - بعد PASS تم تعطيل `wael` ومسح Token الخاص به.
 
-## Production state after 02CK
+## Production state after 02CK / during 02CL preparation
 
 - Production Cloud Write: **ON**
 - `writesAccepted=true`
@@ -66,11 +101,16 @@
 - Sheets / Apps Script authority: **YES**
 - qualification synthetic D1 order: **1**
 - qualification pending Sheets outbox item: **1**
+- 02CL Production mutation so far: **NONE**
 
-02CK PASS لا يعني نقل السلطة إلى Cloudflare ولا يصرح تلقائيًا بتفعيل الـcutover.
+02CK PASS و02CL candidate CI PASS لا يعنيان نقل السلطة إلى Cloudflare ولا يصرحان تلقائيًا بتفعيل الـcutover.
 
-## السجلات المهمة لسلسلة 02CK
+## السجلات المهمة
 
+### 02CL
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
+
+### 02CK
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_WAEL_AUTH_FAILED_MISSING_LAST_LOGIN_NO_BUSINESS_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_VIRTUAL_QUALIFIER_WAEL_PROVISIONED.md`
@@ -87,16 +127,19 @@
 يبدأ من `BACKEND_UNIFICATION_HANDOFF` ثم مراحل `PERF-CF` من `02R` وحتى `02BG`، بما في ذلك `02AA–02BF`.
 
 ### 2026-09-05
-يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم 02CK: auth blockers → Rahma allowlist diagnosis → temporary `wael` qualifier → real-login session correction → bounded Production Cloud Write qualification **PASS**.
+يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم 02CK: auth blockers → Rahma allowlist diagnosis → temporary `wael` qualifier → real-login session correction → bounded Production Cloud Write qualification **PASS**، ثم 02CL candidate: exact-target reconciliation contract → isolated CI **PASS** → no Production mutation.
 
 ## نقطة البداية لأي شات جديد
 
 1. اقرأ هذا الملف أولًا.
 2. اقرأ `01_CURRENT_STATE.md` للحالة التنفيذية الدقيقة.
-3. اقرأ `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md` قبل أي خطوة Cloudflare جديدة.
-4. اعتبر 02CK مغلق PASS ولا تعيد اختباره من الصفر.
-5. لا تبدأ Inventory جديد ولا تعيد الخطة من الصفر ما لم يظهر تغيير موثّق في المصدر.
-6. لا تفعل Production/full-frontend cutover تلقائيًا بسبب 02CK PASS؛ حدد checkpoint التالي الموثق أولًا.
-7. سجّل كل خطوة تنفيذية مادية داخل هذا المجلد قبل الانتقال لنقطة جديدة.
+3. اقرأ `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md` كآخر checkpoint مغلق.
+4. اقرأ `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md` قبل أي استكمال لـ02CL.
+5. اعتبر 02CK مغلق PASS ولا تعيد اختباره من الصفر.
+6. اعتبر 02CL candidate جاهز CI فقط، وليس live-qualified ولا deployed.
+7. لا تستهلك pending outbox الصناعي قبل إثبات Apps Script live lineage + read-only preflight + dedicated secret + default-OFF Worker deployment contract.
+8. لا تبدأ Inventory جديد ولا تعيد الخطة من الصفر ما لم يظهر تغيير موثّق في المصدر.
+9. لا تفعل Production/full-frontend cutover تلقائيًا.
+10. سجّل كل خطوة تنفيذية مادية داخل هذا المجلد قبل الانتقال لنقطة جديدة.
 
 راجع `01_CURRENT_STATE.md` دائمًا قبل أي خطوة جديدة.
