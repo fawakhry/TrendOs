@@ -7,6 +7,7 @@ on:
     paths:
       - 'cloudflare-d1/src/cloud-write-order-v2-production-shadow.mjs'
       - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
+      - 'cloudflare-d1/src/cloud-write-gate.mjs'
       - 'cloudflare-d1/production-shadow/index.js'
       - 'cloudflare-d1/production-shadow/observer.mjs'
       - 'tests/cloud_write_order_v2_production_shadow.test.mjs'
@@ -38,19 +39,33 @@ jobs:
           node tests/cloud_write_order_v2_production_shadow.test.mjs
           node tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs
 
-      - name: Verify Production remains write-off and Shadow is explicitly bounded
+      - name: Verify Production Cloud Write flag is explicit and guarded
         run: |
           set -euo pipefail
           ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/index_v2.js
           ! grep -Fq 'cloud-write-order-v2-production-shadow' cloudflare-d1/src/cloud-write.mjs
-          grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.toml
-          ! grep -Eq 'TRENDOS_CLOUD_WRITE_V1_ENABLED[[:space:]]*=[[:space:]]*"true"' cloudflare-d1/wrangler.toml
+
+          flag="$(sed -n 's/^TRENDOS_CLOUD_WRITE_V1_ENABLED = "\([^"]*\)"$/\1/p' cloudflare-d1/wrangler.toml)"
+          test "$flag" = 'false' -o "$flag" = 'true'
+          test "$(grep -Ec '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "(false|true)"$' cloudflare-d1/wrangler.toml)" = '1'
+
+          if [ "$flag" = 'true' ]; then
+            gate=cloudflare-d1/src/cloud-write-gate.mjs
+            grep -Fq 'verifyEdgeSessionToken' "$gate"
+            grep -Fq 'requireEnabledWriteSession' "$gate"
+            grep -Fq 'const authFailure = await requireEnabledWriteSession' "$gate"
+            grep -Fq 'if (authFailure) return authFailure' "$gate"
+            grep -Fq 'return handleLegacyCloudWriteRequest' "$gate"
+            echo 'PRODUCTION_CLOUD_WRITE_AUTH_GUARD_PASS'
+          else
+            echo 'PRODUCTION_CLOUD_WRITE_OFF_PASS'
+          fi
 
           if grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml; then
-            flag="$(sed -n 's/^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "\([^"]*\)"$/\1/p' cloudflare-d1/wrangler.toml)"
-            test "$flag" = 'false' -o "$flag" = 'true'
+            shadow_flag="$(sed -n 's/^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "\([^"]*\)"$/\1/p' cloudflare-d1/wrangler.toml)"
+            test "$shadow_flag" = 'false' -o "$shadow_flag" = 'true'
             test "$(grep -Ec '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "(false|true)"$' cloudflare-d1/wrangler.toml)" = '1'
-            if [ "$flag" = 'true' ]; then
+            if [ "$shadow_flag" = 'true' ]; then
               grep -Fq "FIXED_SYNTHETIC_INTENT" cloudflare-d1/production-shadow/observer.mjs
               grep -Fq "liveProductionDataRead: false" cloudflare-d1/production-shadow/observer.mjs
               grep -Fq "d1Read: false" cloudflare-d1/production-shadow/observer.mjs
@@ -63,7 +78,7 @@ jobs:
           else
             grep -Eq '^main = "src/index_v2\.js"$' cloudflare-d1/wrangler.toml
             ! grep -Fq 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED' cloudflare-d1/wrangler.toml
-            echo 'PRODUCTION_SHADOW_NOT_YET_INTEGRATED_PASS'
+            echo 'PRODUCTION_SHADOW_NOT_INTEGRATED_PASS'
           fi
 
       - name: Compile current Production wrapper with Wrangler dry-run only
@@ -79,6 +94,7 @@ jobs:
       - name: Safety conclusion
         run: |
           echo 'CLOUD_WRITE_ORDER_V2_PRODUCTION_SHADOW_GATE_PASS'
-          echo 'Production Shadow may be OFF or explicitly enabled only under the fixed-synthetic mutation-free observer contract.'
-          echo 'Production Cloud Write remains OFF in every accepted state.'
+          echo 'Production Cloud Write may be OFF or ON only behind the authenticated fail-closed gate.'
+          echo 'Production cutover is not enabled by this workflow.'
+          echo 'Production Shadow remains bounded to the fixed-synthetic mutation-free observer contract when enabled.'
           echo 'This workflow performs dry-run compilation only and never deploys Production.'
