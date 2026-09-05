@@ -18,7 +18,6 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      WRANGLER_VERSION: 4.33.2
       TARGET_DB_NAME: trendos-accounting-preview
     steps:
       - name: Checkout
@@ -31,86 +30,89 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
 
-      - name: Create isolated Accounting Preview D1 if absent
+      - name: Create exact isolated Accounting Preview D1 through REST if absent
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/accounting-d1-evidence
-          npx --yes wrangler@${WRANGLER_VERSION} d1 list --json > /tmp/d1-before.json
-          node <<'NODE' > /tmp/existing-id.txt
-          const fs = require('fs');
-          const rows = JSON.parse(fs.readFileSync('/tmp/d1-before.json','utf8'));
-          const target = process.env.TARGET_DB_NAME;
-          const hit = rows.find(x => (x.name || x.database_name || '') === target);
-          process.stdout.write(hit ? (hit.uuid || hit.id || hit.database_id || '') : '');
-          NODE
-          existing_id="$(cat /tmp/existing-id.txt)"
-          if [ -n "$existing_id" ]; then
-            node <<'NODE'
+          base="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database"
+
+          list_code="$(curl -sS -o /tmp/d1-before.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "$base")"
+          if [ "$list_code" != "200" ]; then
+            LIST_HTTP_CODE="$list_code" node <<'NODE'
             const fs = require('fs');
-            fs.writeFileSync('/tmp/accounting-d1-evidence/create-status.json', JSON.stringify({
-              name: process.env.TARGET_DB_NAME,
-              uuid: process.env.EXISTING_ID || '',
-              status: 'NOOP_ALREADY_EXISTS',
-              isolated: true,
-              production: false,
-              schemaApplied: false,
-              bindingChanged: false,
-              financialWritePerformed: false
-            }, null, 2));
+            const source = fs.existsSync('/tmp/d1-before.json') ? fs.readFileSync('/tmp/d1-before.json','utf8') : '';
+            let parsed = null; try { parsed = JSON.parse(source); } catch {}
+            const errors = parsed && Array.isArray(parsed.errors) ? parsed.errors.map(e => ({code:e.code, message:e.message})) : [];
+            fs.writeFileSync('/tmp/accounting-d1-evidence/rest-diagnostic.json', JSON.stringify({stage:'LIST_BEFORE', httpStatus:Number(process.env.LIST_HTTP_CODE), errors, schemaApplied:false, bindingChanged:false, financialWritePerformed:false}, null, 2));
             NODE
-            echo "ACCOUNTING_PREVIEW_D1_CREATE=NOOP"
-          else
-            set +e
-            npx --yes wrangler@${WRANGLER_VERSION} d1 create "$TARGET_DB_NAME" > /tmp/d1-create.stdout 2> /tmp/d1-create.stderr
-            rc=$?
-            set -e
-            if [ "$rc" -ne 0 ]; then
-              CREATE_RC="$rc" node <<'NODE'
-              const fs = require('fs');
-              const redact = (s) => {
-                let out = String(s || '');
-                for (const secret of [process.env.CLOUDFLARE_API_TOKEN, process.env.CLOUDFLARE_ACCOUNT_ID]) {
-                  if (secret) out = out.split(secret).join('[REDACTED]');
-                }
-                return out.slice(-4000);
-              };
-              const evidence = {
-                name: process.env.TARGET_DB_NAME,
-                status: 'CREATE_FAILED',
-                exitCode: Number(process.env.CREATE_RC || 1),
-                stdoutTail: redact(fs.existsSync('/tmp/d1-create.stdout') ? fs.readFileSync('/tmp/d1-create.stdout','utf8') : ''),
-                stderrTail: redact(fs.existsSync('/tmp/d1-create.stderr') ? fs.readFileSync('/tmp/d1-create.stderr','utf8') : ''),
-                schemaApplied: false,
-                bindingChanged: false,
-                financialWritePerformed: false
-              };
-              fs.writeFileSync('/tmp/accounting-d1-evidence/create-diagnostic.json', JSON.stringify(evidence, null, 2));
-              NODE
-              exit "$rc"
-            fi
-            echo "ACCOUNTING_PREVIEW_D1_CREATE=CREATED"
+            exit 1
           fi
 
-      - name: Verify exact isolated database exists
+          node <<'NODE' > /tmp/existing-id.txt
+          const fs = require('fs');
+          const body = JSON.parse(fs.readFileSync('/tmp/d1-before.json','utf8'));
+          const rows = Array.isArray(body.result) ? body.result : [];
+          const target = process.env.TARGET_DB_NAME;
+          const hit = rows.find(x => x.name === target);
+          process.stdout.write(hit ? (hit.uuid || '') : '');
+          NODE
+          existing_id="$(cat /tmp/existing-id.txt)"
+
+          if [ -n "$existing_id" ]; then
+            EXISTING_ID="$existing_id" node <<'NODE'
+            const fs = require('fs');
+            fs.writeFileSync('/tmp/accounting-d1-evidence/accounting-preview-d1.json', JSON.stringify({name:process.env.TARGET_DB_NAME, uuid:process.env.EXISTING_ID, status:'NOOP_ALREADY_EXISTS', isolated:true, production:false, schemaApplied:false, bindingChanged:false, financialWritePerformed:false}, null, 2));
+            NODE
+            echo 'ACCOUNTING_PREVIEW_D1_CREATE=NOOP_ALREADY_EXISTS'
+          else
+            create_code="$(curl -sS -o /tmp/d1-create.json -w '%{http_code}' \
+              -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              --data "{\"name\":\"${TARGET_DB_NAME}\"}" \
+              "$base")"
+
+            CREATE_HTTP_CODE="$create_code" node <<'NODE'
+            const fs = require('fs');
+            const source = fs.existsSync('/tmp/d1-create.json') ? fs.readFileSync('/tmp/d1-create.json','utf8') : '';
+            let parsed = null; try { parsed = JSON.parse(source); } catch {}
+            const errors = parsed && Array.isArray(parsed.errors) ? parsed.errors.map(e => ({code:e.code, message:e.message})) : [];
+            const result = parsed && parsed.result ? parsed.result : null;
+            fs.writeFileSync('/tmp/accounting-d1-evidence/rest-create-response.json', JSON.stringify({stage:'CREATE', httpStatus:Number(process.env.CREATE_HTTP_CODE), success:!!(parsed && parsed.success), errors, result:result ? {name:result.name || process.env.TARGET_DB_NAME, uuid:result.uuid || ''} : null, schemaApplied:false, bindingChanged:false, financialWritePerformed:false}, null, 2));
+            NODE
+
+            if [ "$create_code" -lt 200 ] || [ "$create_code" -ge 300 ]; then
+              exit 1
+            fi
+          fi
+
+      - name: Verify exact isolated database exists through REST
         if: success()
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/accounting-d1-evidence
-          npx --yes wrangler@${WRANGLER_VERSION} d1 list --json > /tmp/d1-after.json
+          base="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database"
+          code="$(curl -sS -o /tmp/d1-after.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "$base")"
+          test "$code" = "200"
           node <<'NODE'
           const fs = require('fs');
-          const rows = JSON.parse(fs.readFileSync('/tmp/d1-after.json','utf8'));
+          const body = JSON.parse(fs.readFileSync('/tmp/d1-after.json','utf8'));
+          const rows = Array.isArray(body.result) ? body.result : [];
           const target = process.env.TARGET_DB_NAME;
-          const hit = rows.find(x => (x.name || x.database_name || '') === target);
-          if (!hit) process.exit(1);
-          const uuid = hit.uuid || hit.id || hit.database_id || '';
-          if (!uuid) process.exit(1);
-          const evidence = {name: target, uuid, isolated: true, production: false, schemaApplied: false, bindingChanged: false, financialWritePerformed: false};
+          const hit = rows.find(x => x.name === target);
+          if (!hit || !hit.uuid) process.exit(1);
+          const evidence = {name:target, uuid:hit.uuid, isolated:true, production:false, schemaApplied:false, bindingChanged:false, financialWritePerformed:false};
           fs.writeFileSync('/tmp/accounting-d1-evidence/accounting-preview-d1.json', JSON.stringify(evidence, null, 2));
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Accounting Preview D1\n\n- Name: **${target}**\n- UUID: \`${uuid}\`\n- Isolated non-production resource: **true**\n- Schema applied: **false**\n- Binding changed: **false**\n- Financial write performed: **false**\n`);
-          console.log('ACCOUNTING_PREVIEW_D1_VERIFY=PASS name=' + target + ' uuid=' + uuid);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Accounting Preview D1\n\n- Name: **${target}**\n- UUID: \`${hit.uuid}\`\n- Isolated non-production resource: **true**\n- Schema applied: **false**\n- Binding changed: **false**\n- Financial write performed: **false**\n`);
+          console.log('ACCOUNTING_PREVIEW_D1_VERIFY=PASS name=' + target + ' uuid=' + hit.uuid);
           NODE
 
       - name: Upload sanitized creation or diagnostic evidence
@@ -132,6 +134,9 @@ jobs:
             echo 'Forbidden D1 mutation command detected.' >&2
             exit 1
           fi
-          count="$(grep -Ec 'wrangler@\$\{WRANGLER_VERSION\} d1 create' "$file")"
-          test "$count" -eq 1
+          test "$(grep -Ec '\-X POST' "$file")" -eq 1
+          if grep -Eq 'DELETE|/query|/raw|/export|/import' "$file"; then
+            echo 'Forbidden D1 control-plane/data-plane operation detected.' >&2
+            exit 1
+          fi
           echo 'ACCOUNTING_PREVIEW_CREATE_SCOPE=PASS'
