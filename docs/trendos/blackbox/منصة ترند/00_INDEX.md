@@ -14,11 +14,11 @@
 
 الحالة الحالية:
 
-**SAFE BLOCKED — AUTHORITATIVE WAEL TOKEN PRESENT / GITHUB EMPLOYEE-TOKEN SECRET IS ANOTHER VALUE — BOTH GATES OFF — NO AUTH / NO RECONCILIATION**
+**AUTH PASS — EXECUTION HOLD — SECRET PLACEMENT CORRECTION REQUIRED — BOTH GATES OFF — NO RECONCILIATION**
 
 أحدث سجل:
 
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_EMPLOYEE_SECRET_OTHER_VALUE_NO_AUTH.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CL_AUTH_PASS_SECRET_PLACEMENT_CORRECTION_HOLD.md`
 
 ## 02CL evidence sequence
 
@@ -26,16 +26,13 @@
 2. Live read-only preflight PASS: target absent from Sheets; exact outbox target pending once / attempts 0.
 3. Apps Script Version 153 live/default-OFF.
 4. Isolated Worker 02CL route live/default-OFF.
-5. Dedicated reconciliation secret configured on Apps Script and Worker.
-6. `wael` has a current normal-login authoritative token.
-7. Previous direct auth attempt showed mismatch can clear employee token; fingerprint-first protection is mandatory.
-8. Latest no-network diagnostics:
-   - Run `33988860989` / Job `101367336591`: mismatch
-   - Run `33988899281` / Job `101367439956`: `OTHER_VALUE`
-   - Run `33988944752` / Job `101367565374`: `OTHER_VALUE`
-9. Current GitHub employee-token secret is neither current/previous employee token nor simple whitespace/quote variant nor reconcile secret/username/key-name.
-10. `/v1/edge/session` was not called during these diagnostics, so current authoritative token remains intact.
-11. Both execution gates remain OFF and no reconciliation has executed.
+5. Dedicated reconciliation secret was configured on Apps Script and Worker before later user-side secret-slot confusion.
+6. `wael` was re-enabled for temporary auth qualification and a normal login generated a fresh employee session token.
+7. Earlier mismatches occurred because the employee session token was not placed in the correct GitHub employee-token secret slot.
+8. Latest rerun succeeded: Run `33987326112` / Job `101386927970` with marker `02CL_WAEL_EDGE_SESSION_EXCHANGE_PASS`.
+9. The user identified that the employee token had previously been placed into `TRENDOS_PROD_RECONCILE_QUALIFY_SECRET`, which is the reconciliation secret slot, not the employee-token slot.
+10. Because execution was paused immediately after auth PASS, no gates opened and no reconciliation executed.
+11. Both execution gates remain OFF.
 
 ## Production state الآن
 
@@ -45,30 +42,27 @@
 - Production Shadow: **ON / read-only / mutation-free**
 - Production cutover: **OFF**
 - Sheets / Apps Script authority: **YES**
-- last verified pending outbox: `1`
+- last verified pending outbox before execution: `1`
 - exact target: `CW-PROD-QUAL-33975124471`
 - last verified exact target status: `pending`
 - last verified attempts: `0`
 - target Orders-sheet rows: `0`
 - Apps Script 02CL gate: **OFF**
 - Worker 02CL gate: **OFF**
-- Worker reconciliation secret configured: **YES**
 - reconciliation executed: **NO**
-- current authoritative `wael` employee token: **PRESENT**
-- GitHub employee-token secret: **OTHER VALUE / MISMATCH**
+- Auth exchange for `wael`: **PASS**
 - `EDGE_SESSION_SECRET` rotation: **NONE**
 
 ## نقطة البداية لأي شات جديد
 
 1. اقرأ `00_INDEX.md` ثم `01_CURRENT_STATE.md`.
-2. اقرأ أحدث `EMPLOYEE_SECRET_OTHER_VALUE_NO_AUTH` blackbox record.
+2. اقرأ أحدث `AUTH_PASS_SECRET_PLACEMENT_CORRECTION_HOLD` blackbox record.
 3. اعتبر 02CK مغلق PASS ولا تعيده.
-4. لا تستدعِ `/v1/edge/session` قبل fingerprint MATCH.
-5. لا تعمل login جديدًا طالما authoritative `wael` token ما زال موجودًا.
-6. انسخ Token مباشرة من صف `wael` في sheet `المستخدمين` إلى GitHub secret `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`.
-7. أعد no-network fingerprint probe.
-8. إذا MATCH فقط، نفّذ canonical auth exchange مرة واحدة.
-9. لا تفتح Apps Script/Worker 02CL gates إلا بعد auth PASS ومباشرة قبل bounded exact-target execution.
-10. لا تستخدم generic outbox drain ولا تدوّر `EDGE_SESSION_SECRET`.
-11. بعد التنفيذ: exactly one reconciliation + one replay-noop، ثم cleanup/disable فوري.
-12. لا تفعل cutover أو authority transfer قبل إغلاق 02CL PASS.
+4. لا تنفذ reconciliation قبل تصحيح/تأكيد فصل الأسرار.
+5. استخدم `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` فقط لتوكن جلسة الموظف المؤقت.
+6. استخدم `TRENDOS_PROD_RECONCILE_QUALIFY_SECRET` فقط لسر المصالحة المحدودة 02CL.
+7. أعد readiness probe للـWorker/Apps Script والبوابات OFF بعد تصحيح الأسرار.
+8. لا تفتح Apps Script/Worker 02CL gates إلا مباشرة قبل bounded exact-target execution.
+9. لا تستخدم generic outbox drain ولا تدوّر `EDGE_SESSION_SECRET`.
+10. بعد التنفيذ: exactly one reconciliation + one replay-noop، ثم cleanup/disable فوري.
+11. لا تفعل cutover أو authority transfer قبل إغلاق 02CL PASS.
