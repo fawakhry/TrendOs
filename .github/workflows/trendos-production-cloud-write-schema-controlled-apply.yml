@@ -62,13 +62,18 @@ jobs:
           from pathlib import Path
           import re
           sql=Path('cloudflare-d1/migrations/0003_cloud_write_lane.sql').read_text(encoding='utf-8')
-          upper=sql.upper()
-          for pat in [r'\bDROP\b',r'\bALTER\b',r'\bINSERT\b',r'\bUPDATE\b',r'\bDELETE\b',r'\bREPLACE\b',r'\bTRIGGER\b',r'\bVIEW\b',r'\bATTACH\b',r'\bDETACH\b',r'\bVACUUM\b']:
-              if re.search(pat,upper): raise SystemExit('FORBIDDEN_SQL='+pat)
           tables=re.findall(r'CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([A-Za-z0-9_]+)',sql,re.I)
           indexes=re.findall(r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS\s+([A-Za-z0-9_]+)',sql,re.I)
           if tables != ['cloud_write_events','cloud_write_outbox']: raise SystemExit('UNEXPECTED_TABLES='+repr(tables))
           if indexes != ['idx_cloud_write_events_entity','idx_cloud_write_events_sheets_status','idx_cloud_write_outbox_event_unique','idx_cloud_write_outbox_pending']: raise SystemExit('UNEXPECTED_INDEXES='+repr(indexes))
+          for protected in ['customers','orders','sheet_catalog','sheet_rows','sheet_migration_runs']:
+              if re.search(rf'CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+{re.escape(protected)}\b',sql,re.I):
+                  raise SystemExit('PROTECTED_TABLE_CREATE_REFUSED='+protected)
+          statements=[s.strip() for s in sql.split(';') if s.strip()]
+          for stmt in statements:
+              normalized=re.sub(r'\s+',' ',stmt).strip().upper()
+              allowed=(normalized=='PRAGMA FOREIGN_KEYS = ON' or normalized.startswith('CREATE TABLE IF NOT EXISTS CLOUD_WRITE_') or normalized.startswith('CREATE INDEX IF NOT EXISTS IDX_CLOUD_WRITE_') or normalized.startswith('CREATE UNIQUE INDEX IF NOT EXISTS IDX_CLOUD_WRITE_'))
+              if not allowed: raise SystemExit('NON_ALLOWLISTED_STATEMENT='+normalized[:180])
           print('EXACT_MIGRATION_ALLOWLIST_PASS')
           PY
 
