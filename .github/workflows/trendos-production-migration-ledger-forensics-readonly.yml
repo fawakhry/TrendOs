@@ -1,0 +1,246 @@
+name: TrendOS Production Migration Ledger Forensics Read-Only
+
+# PERF-CF-02CG: D1 system/schema metadata only.
+# No D1 mutation, migration apply, business-row read, Worker deploy, write enablement, or cutover.
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-migration-ledger-forensics-readonly.yml'
+      - 'cloudflare-d1/migrations/0001_init.sql'
+      - 'cloudflare-d1/migrations/0002_full_sheet_mirror.sql'
+      - 'cloudflare-d1/wrangler.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-migration-ledger-forensics-readonly
+  cancel-in-progress: false
+
+jobs:
+  inspect-ledger-and-historical-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_DB_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+      MIGRATION_0001_SHA: 49c58dd275f8364d0632fabd669ef48b562ea895
+      MIGRATION_0002_SHA: 1857534062b93eb24adbacdf7d3234bcaae69384
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pin Production identity, migration content, and Cloud Write OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          test "$(git hash-object cloudflare-d1/migrations/0001_init.sql)" = "$MIGRATION_0001_SHA"
+          test "$(git hash-object cloudflare-d1/migrations/0002_full_sheet_mirror.sql)" = "$MIGRATION_0002_SHA"
+          echo '02CG_IDENTITY_MIGRATION_PIN_OFF_GATE_PASS'
+
+      - name: Require stable post-0003 Production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-health.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/pre-health.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.schemaReady===true && Number(x.pendingOutbox||0)===0 && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('02CG_PRE_HEALTH='+JSON.stringify({schemaReady:x.schemaReady,enabled:x.enabled,writesAccepted:x.writesAccepted,pendingOutbox:x.pendingOutbox,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Build isolated structural reference from pinned 0001 and 0002
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, sqlite3
+          db=sqlite3.connect(':memory:')
+          db.execute('PRAGMA foreign_keys = ON')
+          for path in [pathlib.Path('cloudflare-d1/migrations/0001_init.sql'), pathlib.Path('cloudflare-d1/migrations/0002_full_sheet_mirror.sql')]:
+              db.executescript(path.read_text(encoding='utf-8'))
+          tables=['customers','orders','messages','conversations','migration_runs','sheet_catalog','sheet_rows','sheet_migration_runs']
+          out={'tables':tables,'columns':{},'indexes':{},'indexColumns':{},'foreignKeys':{}}
+          for t in tables:
+              out['columns'][t]=[
+                  {'cid':cid,'name':name,'type':typ,'notnull':notnull,'dflt_value':dflt,'pk':pk}
+                  for cid,name,typ,notnull,dflt,pk in db.execute(f"PRAGMA table_info('{t}')")
+              ]
+              idx=[]
+              for seq,name,unique,origin,partial in db.execute(f"PRAGMA index_list('{t}')"):
+                  if str(name).startswith('idx_'):
+                      idx.append({'seq':seq,'name':name,'unique':unique,'origin':origin,'partial':partial})
+                      out['indexColumns'][name]=[
+                          {'seqno':seqno,'cid':cid,'name':col}
+                          for seqno,cid,col in db.execute(f"PRAGMA index_info('{name}')")
+                      ]
+              out['indexes'][t]=idx
+              out['foreignKeys'][t]=[
+                  {'id':r[0],'seq':r[1],'table':r[2],'from':r[3],'to':r[4],'on_update':r[5],'on_delete':r[6],'match':r[7]}
+                  for r in db.execute(f"PRAGMA foreign_key_list('{t}')")
+              ]
+          pathlib.Path('/tmp/expected.json').write_text(json.dumps(out,ensure_ascii=False,sort_keys=True),encoding='utf-8')
+          pathlib.Path('/tmp/expected-indexes.txt').write_text('\n'.join(sorted(out['indexColumns']))+'\n',encoding='utf-8')
+          print('02CG_ISOLATED_REFERENCE_PASS tables='+str(len(tables))+' indexes='+str(len(out['indexColumns'])))
+          PY
+
+      - name: Query only D1 system and schema metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/live/columns /tmp/live/indexes /tmp/live/indexcols /tmp/live/fks
+
+          query() {
+            local label="$1" sql="$2" output="$3"
+            SQL="$sql" python3 - <<'PY' > /tmp/payload.json
+          import json, os, re
+          sql=os.environ['SQL'].strip()
+          upper=sql.upper()
+          allowed=(
+              upper.startswith('SELECT ') or
+              re.fullmatch(r"PRAGMA\s+(TABLE_INFO|INDEX_LIST|INDEX_INFO|FOREIGN_KEY_LIST)\s*\(\s*'?[A-Z0-9_]+'?\s*\)", upper)
+          )
+          if not allowed:
+              raise SystemExit('NON_READONLY_METADATA_SQL_REFUSED='+sql)
+          for token in ['INSERT','UPDATE','DELETE','CREATE','DROP','ALTER','REPLACE','ATTACH','DETACH','VACUUM']:
+              if re.search(r'\b'+token+r'\b',upper):
+                  raise SystemExit('MUTATION_TOKEN_REFUSED='+token)
+          if upper.startswith('SELECT ') and not ('SQLITE_MASTER' in upper or 'D1_MIGRATIONS' in upper):
+              raise SystemExit('NON_SYSTEM_SELECT_REFUSED='+sql)
+          print(json.dumps({'sql':sql}))
+          PY
+            local code
+            code="$(curl --silent --show-error --output "$output" --write-out '%{http_code}' \
+              -X POST \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H 'Content-Type: application/json' \
+              --data @/tmp/payload.json \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+            if [ "$code" != '200' ]; then echo "02CG_QUERY_HTTP_FAIL label=$label code=$code"; cat "$output"; exit 1; fi
+            LABEL="$label" FILE="$output" node <<'NODE'
+          const fs=require('fs'); const x=JSON.parse(fs.readFileSync(process.env.FILE,'utf8'));
+          if(x.success!==true){ console.error('02CG_QUERY_API_FAIL label='+process.env.LABEL+' body='+JSON.stringify(x)); process.exit(1); }
+          const rows=(x.result||[]).flatMap(b=>Array.isArray(b.results)?b.results:[]);
+          console.log('02CG_QUERY_PASS label='+process.env.LABEL+' rows='+rows.length);
+          NODE
+          }
+
+          query ledger-master "SELECT type,name,sql FROM sqlite_master WHERE name='d1_migrations'" /tmp/live/ledger-master.json
+          query ledger-table-info "PRAGMA table_info('d1_migrations')" /tmp/live/ledger-columns.json
+
+          for t in customers orders messages conversations migration_runs sheet_catalog sheet_rows sheet_migration_runs; do
+            query "columns-$t" "PRAGMA table_info('$t')" "/tmp/live/columns/$t.json"
+            query "indexes-$t" "PRAGMA index_list('$t')" "/tmp/live/indexes/$t.json"
+            query "fks-$t" "PRAGMA foreign_key_list('$t')" "/tmp/live/fks/$t.json"
+          done
+          while IFS= read -r idx; do
+            test -n "$idx" || continue
+            query "indexcols-$idx" "PRAGMA index_info('$idx')" "/tmp/live/indexcols/$idx.json"
+          done < /tmp/expected-indexes.txt
+          echo '02CG_LIVE_SCHEMA_METADATA_READ_PASS'
+
+      - name: Read migration ledger rows only when ledger table exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          exists="$(node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/live/ledger-master.json','utf8'));
+          const rows=(x.result||[]).flatMap(b=>b.results||[]);
+          process.stdout.write(rows.some(r=>r.name==='d1_migrations'&&r.type==='table')?'yes':'no');
+          NODE
+          )"
+          echo "02CG_D1_MIGRATIONS_TABLE_EXISTS=$exists"
+          if [ "$exists" = yes ]; then
+            python3 - <<'PY' > /tmp/ledger-payload.json
+          import json
+          print(json.dumps({'sql':'SELECT * FROM d1_migrations'}))
+          PY
+            code="$(curl --silent --show-error --output /tmp/live/ledger-rows.json --write-out '%{http_code}' -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data @/tmp/ledger-payload.json "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+            test "$code" = 200
+            node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/live/ledger-rows.json','utf8'));
+          if(x.success!==true) process.exit(1);
+          const rows=(x.result||[]).flatMap(b=>b.results||[]);
+          console.log('02CG_LEDGER_ROWS_READ_ONLY='+JSON.stringify(rows));
+          NODE
+          else
+            echo '{"success":true,"result":[]}' > /tmp/live/ledger-rows.json
+            echo '02CG_LEDGER_ROWS_READ_ONLY=[]'
+          fi
+
+      - name: Compare live schema structure with 0001 and 0002 reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib
+          expected=json.loads(pathlib.Path('/tmp/expected.json').read_text(encoding='utf-8'))
+          def rows(path):
+              x=json.loads(pathlib.Path(path).read_text(encoding='utf-8'))
+              return [r for b in (x.get('result') or []) for r in (b.get('results') or [])]
+          def norm(v):
+              if v is None: return None
+              if isinstance(v,bool): return int(v)
+              if isinstance(v,(int,float)) and int(v)==v: return int(v)
+              return str(v)
+          def normalize_list(items, fields):
+              return sorted([{k:norm(r.get(k)) for k in fields} for r in items], key=lambda r: json.dumps(r,sort_keys=True))
+          mismatches=[]
+          for t in expected['tables']:
+              live_cols=normalize_list(rows(f'/tmp/live/columns/{t}.json'),['cid','name','type','notnull','dflt_value','pk'])
+              exp_cols=normalize_list(expected['columns'][t],['cid','name','type','notnull','dflt_value','pk'])
+              if live_cols!=exp_cols: mismatches.append({'table':t,'kind':'columns','expected':exp_cols,'live':live_cols})
+
+              live_idx=[r for r in rows(f'/tmp/live/indexes/{t}.json') if str(r.get('name','')).startswith('idx_')]
+              live_idx=normalize_list(live_idx,['name','unique','origin','partial'])
+              exp_idx=normalize_list(expected['indexes'][t],['name','unique','origin','partial'])
+              if live_idx!=exp_idx: mismatches.append({'table':t,'kind':'indexes','expected':exp_idx,'live':live_idx})
+
+              live_fk=normalize_list(rows(f'/tmp/live/fks/{t}.json'),['id','seq','table','from','to','on_update','on_delete','match'])
+              exp_fk=normalize_list(expected['foreignKeys'][t],['id','seq','table','from','to','on_update','on_delete','match'])
+              if live_fk!=exp_fk: mismatches.append({'table':t,'kind':'foreignKeys','expected':exp_fk,'live':live_fk})
+
+          for idx, exp in expected['indexColumns'].items():
+              live=normalize_list(rows(f'/tmp/live/indexcols/{idx}.json'),['seqno','cid','name'])
+              expn=normalize_list(exp,['seqno','cid','name'])
+              if live!=expn: mismatches.append({'index':idx,'kind':'indexColumns','expected':expn,'live':live})
+
+          result={'migration0001And0002StructurallySatisfied':not mismatches,'mismatchCount':len(mismatches),'mismatches':mismatches}
+          print('02CG_SCHEMA_COMPARISON='+json.dumps(result,ensure_ascii=False,sort_keys=True))
+          if mismatches: raise SystemExit('02CG_HISTORICAL_SCHEMA_DRIFT_DETECTED')
+          print('02CG_0001_0002_STRUCTURAL_EQUIVALENCE_PASS')
+          PY
+
+      - name: Final Production health unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/post-health.json
+          node <<'NODE'
+          const fs=require('fs'); const a=JSON.parse(fs.readFileSync('/tmp/pre-health.json','utf8')); const b=JSON.parse(fs.readFileSync('/tmp/post-health.json','utf8'));
+          const fields=['database','enabled','writesAccepted','authConfigured','schemaReady','pendingOutbox','schemaMutationFree','cutover','sheetsAuthoritative'];
+          const same=fields.every(k=>JSON.stringify(a[k])===JSON.stringify(b[k]));
+          const pass=same && b.schemaReady===true && b.enabled===false && b.writesAccepted===false && Number(b.pendingOutbox||0)===0 && b.cutover===false && b.sheetsAuthoritative===true;
+          console.log('02CG_FINAL_HEALTH='+JSON.stringify({schemaReady:b.schemaReady,enabled:b.enabled,writesAccepted:b.writesAccepted,pendingOutbox:b.pendingOutbox,cutover:b.cutover,sheetsAuthoritative:b.sheetsAuthoritative,stateUnchanged:same,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Forensics conclusion
+        run: |
+          echo 'PERF_CF_02CG_MIGRATION_LEDGER_FORENSICS_READONLY_PASS'
+          echo 'Historical schema comparison and migration-ledger inspection completed without D1 mutation or business-row reads.'
