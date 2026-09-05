@@ -53,19 +53,25 @@ jobs:
           done
           test "$matched" = true
 
-      - name: Verify live schema preflight fails closed without explicit Accounting Preview DB
+      - name: Capture live isolated Accounting schema-gap baseline
         shell: bash
         run: |
           set -euo pipefail
           code="$(curl --silent --show-error --output /tmp/preflight.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/persistence-schema-preflight")"
           cat /tmp/preflight.json
-          test "$code" = 503
+          test "$code" = 200
           node <<'NODE'
           const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/preflight.json','utf8'));
-          if (x.success !== false || x.code !== 'D1_NOT_INJECTED' || x.compatible !== false) process.exit(1);
           if (x.readOnly !== true || x.authoritativeWrites !== false || x.mutationPerformed !== false) process.exit(1);
           if (x.persistence !== 'diagnostic-only') process.exit(1);
-          console.log('ACCOUNTING_SCHEMA_PREFLIGHT_FAIL_CLOSED=PASS');
+          if (!Array.isArray(x.checkedTables) || !Array.isArray(x.missingTables) || !x.missingColumns || typeof x.missingColumns !== 'object') process.exit(1);
+          if (!['SCHEMA_COMPATIBLE','SCHEMA_INCOMPATIBLE'].includes(x.code)) process.exit(1);
+          console.log('ACCOUNTING_SCHEMA_GAP_BASELINE=PASS');
+          console.log('ACCOUNTING_SCHEMA_CODE=' + x.code);
+          console.log('ACCOUNTING_SCHEMA_COMPATIBLE=' + String(x.compatible));
+          console.log('ACCOUNTING_SCHEMA_CHECKED_TABLES=' + JSON.stringify(x.checkedTables));
+          console.log('ACCOUNTING_SCHEMA_MISSING_TABLES=' + JSON.stringify(x.missingTables));
+          console.log('ACCOUNTING_SCHEMA_MISSING_COLUMNS=' + JSON.stringify(x.missingColumns));
           NODE
 
       - name: Verify schema preflight is GET only
