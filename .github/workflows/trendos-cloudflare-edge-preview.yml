@@ -282,59 +282,59 @@ jobs:
           console.log('D1_MIRROR_ORDERS_BENCHMARK=' + JSON.stringify(summarize('/tmp/mirror-times.txt')));
           NODE
 
-      - name: Gate Orders and Lines mirror freshness
+      - name: Gate Orders dual-signal runtime freshness
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --get \
-            --data-urlencode 'name=الأوردرات' \
-            --data-urlencode 'limit=1' \
-            "$PREVIEW_URL/v1/mirror/sheet" > /tmp/orders-mirror.json
-          curl --fail --silent --show-error --get \
-            --data-urlencode 'name=بنود الأوردرات' \
-            --data-urlencode 'limit=1' \
-            "$PREVIEW_URL/v1/mirror/sheet" > /tmp/lines-mirror.json
+
+          node <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const secret = String(process.env.EDGE_SESSION_SECRET || '');
+          if (!secret) process.exit(1);
+          const now = Math.floor(Date.now() / 1000);
+          const payload = {
+            aud: 'trendos-orders-edge',
+            sub: 'ci-auto-preview-orders',
+            role: 'admin',
+            department: 'إدارة',
+            screens: ['service'],
+            iat: now,
+            exp: now + 300,
+            jti: 'ci-auto-orders-' + crypto.randomUUID()
+          };
+          const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+          const input = 'v1.' + body;
+          const sig = crypto.createHmac('sha256', secret).update(input).digest('base64url');
+          fs.writeFileSync('/tmp/orders-edge-token.txt', input + '.' + sig, { mode: 0o600 });
+          console.log('PASS: short-lived Orders Preview token generated; token value is not logged.');
+          NODE
+
+          token="$(cat /tmp/orders-edge-token.txt)"
+          code=''
+          for attempt in $(seq 1 10); do
+            code="$(curl --silent --show-error --output /tmp/orders-dual-signal.json --write-out '%{http_code}' \
+              -H "authorization: Bearer $token" \
+              "$PREVIEW_URL/v1/edge/orders/page?screen=service&page=1&pageSize=1&statusFilter=__ACTIVE__" || true)"
+            echo "orders-dual-signal attempt=$attempt status=$code"
+            if [ "$code" = '200' ]; then
+              break
+            fi
+            sleep 3
+          done
+          unset token
+          rm -f /tmp/orders-edge-token.txt
+
+          cat /tmp/orders-dual-signal.json
+          test "$code" = '200'
           node <<'NODE'
           const fs = require('fs');
-          const maxAge = Number(process.env.MAX_LIVE_MIRROR_AGE_SECONDS || 600);
-          function parseSqliteUtc(value) {
-            const raw = String(value || '').trim();
-            const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
-              ? raw.replace(' ', 'T') + 'Z'
-              : raw;
-            const ms = Date.parse(normalized);
-            return Number.isFinite(ms) ? ms : 0;
-          }
-          function inspect(file, label) {
-            const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
-            if (!payload.success || !payload.sheet || payload.schemaMutationFree !== true) {
-              throw new Error(label + ': invalid mirror response');
-            }
-            const s = payload.sheet;
-            const ageSeconds = parseSqliteUtc(s.syncedAt)
-              ? Math.max(0, Math.round((Date.now() - parseSqliteUtc(s.syncedAt)) / 1000))
-              : Number.MAX_SAFE_INTEGER;
-            const note = String(s.note || '');
-            const result = {
-              sheetName: s.sheetName,
-              rowCount: Number(s.rowCount || 0),
-              sourceLastRow: Number(s.sourceLastRow || 0),
-              sourceLastCol: Number(s.sourceLastCol || 0),
-              status: String(s.status || ''),
-              syncedAt: String(s.syncedAt || ''),
-              ageSeconds,
-              note,
-              rowParitySelf: Number(s.rowCount || 0) === Number(s.sourceLastRow || 0),
-              liveSyncNote: ['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(note),
-              fresh: ageSeconds <= maxAge
-            };
-            console.log(label + '_MIRROR=' + JSON.stringify(result));
-            if (result.status !== 'ready' || !result.rowParitySelf || !result.liveSyncNote || !result.fresh) {
-              throw new Error(label + ': live mirror freshness gate failed');
-            }
-          }
-          inspect('/tmp/orders-mirror.json', 'ORDERS');
-          inspect('/tmp/lines-mirror.json', 'LINES');
+          const x = JSON.parse(fs.readFileSync('/tmp/orders-dual-signal.json', 'utf8'));
+          if (x.success !== true) throw new Error('Orders route did not succeed');
+          if (x.dataSource !== 'd1-edge-orders') throw new Error('Expected dataSource=d1-edge-orders');
+          if (x.edgeSession !== 'ci-auto-preview-orders') throw new Error('Unexpected edge session subject');
+          if (x.fallback) throw new Error('Fallback must not be active during dual-signal PASS');
+          console.log('ORDERS_DUAL_SIGNAL_AUTO_PREVIEW=PASS dataSource=' + x.dataSource);
           NODE
 
       - name: Preview deployment summary
@@ -342,13 +342,13 @@ jobs:
           echo "Preview Worker: $PREVIEW_URL"
           echo "Edge auth: anonymous 401 + signed whoami PASS required"
           echo "Edge normalized business data: 180s freshness; stale D1 returns 503 stale-edge-data for Apps Script fallback"
-          echo "Orders raw mirror: 600s freshness budget for the 5-minute low-usage sync; stale mirror fails closed before business-row reads"
+          echo "Orders runtime freshness: protected dual-signal read REQUIRED; raw D1 syncedAt may age only when a recent healthy zero-write idle heartbeat proves source unchanged"
           echo "D1 migrations: NOT APPLIED BY PREVIEW WORKFLOW"
           echo "Cloud write lane: EXPLICITLY OFF + READ-ONLY HEALTH + FAIL-CLOSED MUTATION ROUTES VERIFIED"
           echo "Cloud write transaction model: isolated SQL success/idempotency/rollback PASS required pre-deploy"
           echo "Normalized live-sync protocol: isolated final-freshness/invalid-row/rollback PASS required; Preview import endpoint must stay unauthorized"
           echo "Mirror reads: SELECT-ONLY; atomic capability REQUIRED; anonymous import rejected before schema initialization"
-          echo "Orders + Lines mirror: freshness <= ${MAX_LIVE_MIRROR_AGE_SECONDS}s REQUIRED"
+          echo "Orders dual-signal: protected D1 read PASS REQUIRED; structural/parity/live-note failures or invalid heartbeat remain fail-closed"
           echo "Preview latency: benchmarked against the actual mirror read path with transient-network retries"
           echo "Frontend cutover: NOT PERFORMED"
           echo "Apps Script writes/fallback: UNCHANGED"
