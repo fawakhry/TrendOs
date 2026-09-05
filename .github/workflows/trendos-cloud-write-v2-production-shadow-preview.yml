@@ -1,5 +1,6 @@
 name: TrendOS Cloud Write V2 Production Shadow Preview
 
+# Requalification marker: 2026-09-05 PERF-CF-02BY after dual-signal freshness qualification.
 on:
   push:
     branches:
