@@ -32,15 +32,16 @@
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-الحالة: **SAFE BLOCKED — AUTH EXCHANGE FAILED — NO BUSINESS WRITE**.
+الحالة: **SAFE BLOCKED — RAHMA AUTH EXCHANGE FAILED — NO BUSINESS WRITE**.
 
-آخر إعادة محاولة في 2026-09-05 أكدت أن Secretي التأهيل موجودان، وأن Production preflight سليم، لكن تبادل جلسة الموظف عبر canonical `/v1/edge/session` فشل قبل إنشاء أي Order. تم Skip لكل خطوات الـBusiness Write والـpost-write verification، ولم يحدث Production D1 business write أو cutover أو Worker secret rotation.
+آخر محاولة في 2026-09-05 استخدمت Secrets التأهيل الحالية بعد التأكد أن اسم الموظف المضبوط هو `رحمه` وأن Token الموظف موجود. Production preflight نجح، لكن canonical `/v1/edge/session` فشل قبل إنشاء أي Order، فتم Skip لكل خطوات الـBusiness Write والـpost-write verification. لم يحدث Production D1 business write أو cutover أو Worker secret rotation.
 
 السجل التفصيلي الأحدث:
 
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
 
 السجلات السابقة المهمة لنفس الحاجز:
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_BLOCKED_NO_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_USERNAME_CASE_DISCOVERY_SESSION_INVALIDATED.md`
@@ -51,7 +52,7 @@
 يبدأ من `BACKEND_UNIFICATION_HANDOFF` ثم مراحل `PERF-CF` من `02R` وحتى `02BG`، بما في ذلك `02AA–02BF`.
 
 ### 2026-09-05
-يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم سلسلة محاولات `02CK` الآمنة: auth absent → username case discovery → secrets present → canonical auth exchange failed before business write.
+يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم سلسلة محاولات `02CK` الآمنة: auth absent → username case discovery → secrets present → `Username` auth exchange failed → configured username changed/verified as `رحمه` → Rahma auth exchange failed before business write.
 
 ## نقطة البداية لأي شات جديد
 
