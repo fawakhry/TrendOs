@@ -1,0 +1,35 @@
+name: TrendOS 02CL Wael Token Fingerprint TEMP 2
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cl-wael-token-fingerprint-temp-2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      EXPECTED_SHA256: ceef3d6808706ebd6358b2ca145843bbc0dc16594679f0e76b5cbf1f3474f647
+    steps:
+      - name: Compare only — no network calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$USERNAME" = 'wael'
+          test -n "$EMPLOYEE_TOKEN"
+          actual="$(printf '%s' "$EMPLOYEE_TOKEN" | sha256sum | awk '{print $1}')"
+          if [ "$actual" = "$EXPECTED_SHA256" ]; then
+            echo '02CL_WAEL_TOKEN_FINGERPRINT=MATCH'
+          else
+            echo '02CL_WAEL_TOKEN_FINGERPRINT=MISMATCH'
+            exit 1
+          fi
+          echo 'No network call. No auth call. No Production mutation.'
