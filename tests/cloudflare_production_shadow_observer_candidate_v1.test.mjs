@@ -43,11 +43,14 @@ assert.doesNotMatch(candidateConfig, /migrations_dir/);
 
 assert.match(productionConfig, /name\s*=\s*"trendos-d1-api"/);
 assert.match(productionConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/);
+assert.doesNotMatch(productionConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"true"/);
 
-// During the working-branch integration transition, Production may be either:
-// A) still on the original core entrypoint with no shadow flag, or
-// B) wired through the shadow wrapper with the shadow flag explicitly OFF.
-// Any enabled or ambiguous state is refused.
+// Production may be either:
+// A) on the original core entrypoint with no shadow flag, or
+// B) wired through the shadow wrapper with the flag explicitly OFF, or
+// C) wired through the shadow wrapper with the flag explicitly ON only for the
+//    fixed-synthetic, mutation-free observer contract tested below.
+// Cloud Write must remain explicitly OFF in all cases.
 const prodUsesCore = /main\s*=\s*"src\/index_v2\.js"/.test(productionConfig);
 const prodUsesShadowWrapper = /main\s*=\s*"production-shadow\/index\.js"/.test(productionConfig);
 assert.equal(prodUsesCore || prodUsesShadowWrapper, true, 'unexpected Production entrypoint');
@@ -55,8 +58,10 @@ assert.equal(prodUsesCore && prodUsesShadowWrapper, false, 'ambiguous Production
 if (prodUsesCore) {
   assert.doesNotMatch(productionConfig, /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED/);
 } else {
-  assert.match(productionConfig, /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED\s*=\s*"false"/);
-  assert.doesNotMatch(productionConfig, /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED\s*=\s*"true"/);
+  const shadowOff = /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED\s*=\s*"false"/.test(productionConfig);
+  const shadowReadOnlyOn = /TRENDOS_PRODUCTION_SHADOW_V2_ENABLED\s*=\s*"true"/.test(productionConfig);
+  assert.equal(shadowOff || shadowReadOnlyOn, true, 'Production shadow wrapper flag must be explicit');
+  assert.equal(shadowOff && shadowReadOnlyOn, false, 'Production shadow wrapper flag is ambiguous');
 }
 
 // Default OFF.
