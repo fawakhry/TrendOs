@@ -102,14 +102,14 @@ jobs:
           print('ISOLATED_IDEMPOTENCY_BUSINESS_SENTINEL_PASS')
           PY
 
-      - name: Live Production preflight — Cloud Write must remain OFF
+      - name: Live Production preflight — exact unready OFF baseline required
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
           node <<'NODE'
           const x=JSON.parse(require('fs').readFileSync('/tmp/pre-write.json','utf8'));
-          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.authConfigured===true && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.authConfigured===true && x.schemaReady===false && x.pendingOutbox===null && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
           console.log('PRE_SCHEMA_APPLY_HEALTH='+JSON.stringify({schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,enabled:x.enabled,writesAccepted:x.writesAccepted,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
           if(!pass) process.exit(1);
           NODE
@@ -141,6 +141,25 @@ jobs:
           const x=JSON.parse(require('fs').readFileSync('/tmp/post-write.json','utf8'));
           const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.authConfigured===true && x.schemaReady===true && Number(x.pendingOutbox||0)===0 && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
           console.log('POST_SCHEMA_APPLY_HEALTH='+JSON.stringify({schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,enabled:x.enabled,writesAccepted:x.writesAccepted,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Verify exact Production schema objects after apply — SELECT only
+        shell: bash
+        run: |
+          set -euo pipefail
+          SQL="SELECT type,name FROM sqlite_master WHERE (type='table' AND name IN ('cloud_write_events','cloud_write_outbox')) OR (type='index' AND name IN ('idx_cloud_write_events_entity','idx_cloud_write_events_sheets_status','idx_cloud_write_outbox_event_unique','idx_cloud_write_outbox_pending')) ORDER BY type,name"
+          payload="$(node -e 'process.stdout.write(JSON.stringify({sql:process.argv[1]}))' "$SQL")"
+          code="$(curl --silent --show-error --output /tmp/post-schema.json --write-out '%{http_code}' -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data "$payload" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post-schema.json','utf8'));
+          if(x.success!==true) process.exit(1);
+          const rows=(x.result||[]).flatMap(b=>Array.isArray(b.results)?b.results:[]);
+          const names=new Set(rows.map(r=>String(r.name||'')));
+          const expected=['cloud_write_events','cloud_write_outbox','idx_cloud_write_events_entity','idx_cloud_write_events_sheets_status','idx_cloud_write_outbox_event_unique','idx_cloud_write_outbox_pending'];
+          const pass=expected.every(n=>names.has(n)) && names.size===expected.length;
+          console.log('POST_SCHEMA_OBJECTS='+JSON.stringify({objects:[...names].sort(),pass}));
           if(!pass) process.exit(1);
           NODE
 
