@@ -8,23 +8,17 @@ Date: 2026-09-05
 
 Status: **VERIFIED PASS — CLOSED**
 
-Reference:
-
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md`
-
-## Current in-progress checkpoint
+## Active checkpoint
 
 `PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
 
 Status:
 
-**APPS SCRIPT V153 LIVE + WORKER DEFAULT-OFF LIVE — DEDICATED SECRET PROVISIONING PENDING — NO RECONCILIATION EXECUTED**
+**DEDICATED SECRET READY — APPS SCRIPT V153 LIVE/OFF — WORKER LIVE/OFF — FRESH WAEL LOGIN REQUIRED — NO RECONCILIATION EXECUTED**
 
-Read first:
+Latest record:
 
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_APPS_V153_WORKER_DEFAULT_OFF_LIVE_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_LIVE_READONLY_PREFLIGHT_PASS_NO_MUTATION.md`
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_DEDICATED_SECRET_READY_WAEL_REENABLED.md`
 
 ## Exact target
 
@@ -35,108 +29,83 @@ Read first:
 
 ## Apps Script live state
 
-Existing TrendOS Web App was updated using the same deployment ID.
-
-- Version: **153**
-- 02CL action: `cloudWriteReconcileProductionQualificationV1`
-- default-OFF probe Run `33986293821`
-- Job `101360293029`
-- conclusion: **SUCCESS**
-- live response: `qualification-disabled`
+- Version 153
+- bounded 02CL action installed
+- execution gate remains OFF
+- latest no-secret response: `qualification-disabled`
 - `persisted=false`
 - `sheetsWritten=false`
 - `mutationCount=0`
 - `productionCutover=false`
 - `sheetsAuthoritative=true`
-- probe cleanup: `640f10a10c21aa6465a7fd50d9f4bce44b1db4c3`
-
-Apps Script execution gate remains OFF.
+- user confirmed dedicated Script Property secret was created
 
 ## Worker live state
 
-02CL bounded module is live through the isolated Production wrapper while remaining outside generic `src/index_v2.js`.
+Dedicated reconciliation secret was provisioned to Production Worker from GitHub Actions secret without exposing its value.
 
-Controlled deploy:
+Controlled secret run:
 
-- trigger commit: `caccf329e0caadb271403aa851b6c8dace69185a`
-- Run `33986406106`
-- Job `101360642665`
+- Run `33986960662`
+- Job `101362220690`
 - conclusion: **SUCCESS**
-- Worker Version ID: `434247f4-b899-4241-822b-022834983112`
-- deploy harness cleanup: `47706bb1a3b6fec12a9aa404fb801ae1b09f07d3`
+- trigger commit `9b2e0653843b8a7461531fc8ea7f062cd4563ba2`
+- cleanup commit `2de7ef09108adc4e64b5277d4f07b7167b444cad`
 
-Worker 02CL health after deploy:
+Post-provision health:
 
 - `enabled=false`
-- exact target rows: `1`
-- target outbox status: `pending`
-- attempts: `0`
-- `reconcileSecretConfigured=false`
+- `reconcileSecretConfigured=true`
+- exact target rows `1`
+- status `pending`
+- attempts `0`
 - `genericDrainEnabled=false`
 - `productionCutover=false`
 - `sheetsAuthoritative=true`
 
-Exact qualification POST while OFF returns HTTP `423` / `qualification-disabled`.
+Exact POST remains fail-closed HTTP 423 while OFF.
 
-## Production core state
+## Authoritative Sheet state
 
-- Production Worker: `trendos-d1-api`
-- Production D1: `trendos-main`
+Exact target search in `الأوردرات` was repeated after secret provisioning:
+
+- target matches: **0**
+
+No 02CL Sheet write has occurred.
+
+## Temporary qualifier
+
+Employee `wael` was re-enabled only for one fresh normal TrendOS login.
+
+- active: `نعم`
+- role: `تشغيل`
+- department: `طباعة`
+- token: empty until canonical login generates it
+
+Do not manually create the employee session token.
+
+## Production boundaries
+
 - Production Cloud Write: **ON**
-- `writesAccepted=true`
-- `schemaReady=true`
-- Production Shadow: **ON / observer-only / read-only / mutation-free**
+- Production Shadow: **ON / read-only / mutation-free**
 - Production cutover: **OFF**
 - Full frontend cutover: **NO**
 - Normalized-data cutover: **NO**
 - Sheets / Apps Script authority: **YES**
 - pending outbox total: `1`
-- target outbox: exactly `1`, `pending`, attempts `0`
-- target Orders-sheet row: last verified absent; no 02CL Sheet write has occurred
+- target attempts: `0`
+- target Sheet row: `0`
+- reconciliation executed: **NO**
 - `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
-
-## What changed in latest step
-
-Allowed Production mutation:
-
-- Worker code deployment adding the isolated 02CL route while its flag remained OFF.
-
-Business/reconciliation mutations:
-
-- outbox claim/consume: **NO**
-- outbox attempt increment: **NO**
-- Sheet append/update/delete: **NO**
-- D1 business mutation: **NO**
-- reconciliation secret mutation: **NO**
-- cutover: **NO**
-
-## Current blocker / next manual boundary
-
-A dedicated reconciliation secret must now be provisioned on both sides using the same value, without exposing it in chat or GitHub files.
-
-Apps Script Script Property:
-
-`TRENDOS_CLOUD_WRITE_PROD_RECONCILE_QUALIFY_SECRET`
-
-GitHub Actions repository secret:
-
-`TRENDOS_PROD_RECONCILE_QUALIFY_SECRET`
-
-Keep these execution flags OFF during provisioning:
-
-- Apps Script `TRENDOS_CLOUD_WRITE_PROD_RECONCILE_QUALIFY_ENABLED` absent/empty/`0`
-- Worker `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"`
 
 ## Exact safe resume point
 
-1. Treat 02CK as closed PASS.
-2. Treat Apps Script V153 default-OFF probe as PASS.
-3. Treat Worker 02CL default-OFF Production deployment as PASS.
-4. Provision the same dedicated 02CL secret in Apps Script Script Properties and GitHub Actions repository secrets; never paste the value into chat.
-5. Once confirmed, configure the Worker secret via controlled GitHub Actions while keeping Worker execution OFF.
-6. Require Worker health `reconcileSecretConfigured=true`, target still `pending`, attempts `0`, `cutover=false`, Sheets authoritative.
-7. Recheck target absence/presence in authoritative Orders sheet before execution.
-8. Prepare a fresh authorized employee → Edge session only immediately before execution; do not reuse disabled/stale `wael` token.
-9. Then enable the bounded gates under a separate explicit checkpoint and execute exactly one target reconciliation + one replay-noop proof.
-10. Require target synced, exactly one Orders row, replay `mutationCount=0`, unrelated outbox untouched, Shadow mutation-free, `cutover=false`, Sheets authoritative.
-11. Disable/clear temporary qualification credentials after PASS and close 02CL before any cutover design.
+1. Perform one normal TrendOS login as `wael`.
+2. Keep `TRENDOS_PROD_QUALIFY_USERNAME = wael` in GitHub Actions.
+3. Replace only `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with the fresh `matbagy_session_token`; never paste it into chat.
+4. Run safe fingerprint/readiness verification before any auth call.
+5. Reconfirm target is still pending/attempts=0 and absent from Orders Sheet.
+6. Then enable Apps Script and Worker bounded 02CL gates only immediately before execution.
+7. Execute exactly one target reconciliation and one replay-noop proof.
+8. Require exactly one Orders row, target outbox synced, replay `mutationCount=0`, unrelated outbox untouched, Shadow mutation-free, `cutover=false`, Sheets authoritative.
+9. Immediately disable gates, clear temporary auth, disable `wael`, and close 02CL PASS before any cutover work.
