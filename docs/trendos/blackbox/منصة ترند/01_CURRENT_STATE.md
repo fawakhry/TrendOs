@@ -4,138 +4,156 @@ Date: 2026-09-06
 
 ## Latest closed checkpoint
 
-`PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
+`PERF-CF-02CM — Post-02CL Production Stability / Cutover Readiness Preflight`
 
-Status: **VERIFIED PASS — CLOSED**
+Status: **READ-ONLY PREFLIGHT PASS — CLOSED**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CL_PRODUCTION_OUTBOX_TO_SHEETS_PASS_CLOSED.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CM_READONLY_STABILITY_PREFLIGHT_PASS.md`
 
-## Previously closed checkpoint
+## Previously closed checkpoints
+
+`PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
+
+Status: **VERIFIED PASS — CLOSED**
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
 Status: **VERIFIED PASS — CLOSED**
 
-## Final 02CL result
+## 02CM result
 
-Exact bounded target:
+02CM executed a read-only Production stability and cutover-readiness preflight after 02CL closure.
 
-- Order ID: `CW-PROD-QUAL-33975124471`
-- operation: `upsert_order_to_sheets`
-- confirmation: `QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471`
-- generic outbox drain: **FORBIDDEN / NOT USED**
+No Production write occurred during 02CM:
 
-02CL is closed because:
+- no D1 migration
+- no `d1 execute --file`
+- no Worker deploy
+- no secret mutation
+- no Apps Script property mutation
+- no reconciliation execution
+- no outbox drain
+- no frontend cutover
+- no normalized-data authority cutover
+- no `EDGE_SESSION_SECRET` rotation
 
-- exact target reconciliation executed once
-- target outbox status became `synced`
-- target event status became `reconciled`
-- target sheets status became `synced`
-- attempts became `1`
-- authoritative Orders-sheet row exists exactly once
-- replay proof was idempotent/no-op
-- replay `d1Written=false`
-- replay `sheetsWritten=false`
-- replay `mutationCount=0`
-- Production Shadow remained read-only/mutation-free
-- Worker gate was disabled after execution
-- Apps Script gate was disabled after execution
-- temporary qualifier `wael` was disabled and token cleared
-- no cutover occurred
+## 02CM evidence
 
-## 02CL evidence
+Temporary workflow:
 
-Main execution:
+`.github/workflows/trendos-02cm-readonly-preflight-temp.yml`
 
-- Worker gate ON commit: `108c9e0f3e3fd468db1eb1bd9644a8cd5832443e`
-- Workflow: `.github/workflows/trendos-02cl-exec-temp2.yml`
-- Run ID: `33997066271`
-- Job ID: `101389338764`
+Initial workflow creation:
+
+- Create commit: `8ee1019333c528eef80c7f1a51d744c8bb92cac7`
+- Run ID: `33997624825`
+- Job ID: `101390800322`
+- Result: failed before Production probe due to Node runner syntax only
+- Production impact: none
+
+Successful read-only run:
+
+- Fix commit: `b21dbdcaa7ceb61de7101b4c9443e54b1010098f`
+- Run ID: `33997663961`
+- Job ID: `101390904237`
 - Conclusion: **SUCCESS**
-- Deployed ON Worker Version ID: `23dd09da-cb29-4310-bc01-51505fd5cdec`
-- Auth marker: `02CL_COMPACT_AUTH_PASS`
-- Execution marker: `02CL_COMPACT_EXEC`
-- D1 synced marker: `02CL_COMPACT_D1_SYNCED`
-- Replay marker: `02CL_COMPACT_REPLAY`
-- Shadow marker: `02CL_COMPACT_SHADOW`
-- Final marker: `PERF_CF_02CL_COMPACT_EXECUTION_PASS_BEFORE_DISABLE`
-
-Post-execution disable:
-
-- Worker gate OFF commit: `b930a65d78bf92df8fe9444d9e56abd7850ee8ec`
-- OFF Run ID: `33997108135`
-- OFF Job ID: `101389450009`
-- Conclusion: **SUCCESS**
-- Deployed OFF Worker Version ID: `cf4d3c2a-95e2-4fdc-91d9-08a44014f64b`
-- OFF marker: `PERF_CF_02CL_COMPACT_WORKER_GATE_OFF_CONFIRMED`
-
-Authoritative Google Sheet verification:
-
-- Workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-- Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
-- Sheet: `الأوردرات`
-- Search range: `A1:BZ400`
-- Matched target rows: `1`
-- Row: `311`
-
-Temporary auth cleanup:
-
-- Sheet: `المستخدمين`
-- Row: `9`
-- User: `wael`
-- `مفعل؟`: `لا`
-- `Token`: cleared / blank
-
-Apps Script final manual gate disable:
-
-- User-provided Apps Script log: `02CL APPS SCRIPT GATE DISABLED = 0`
+- Marker: `PERF_CF_02CM_READONLY_PREFLIGHT_PASS`
 
 Temporary workflow cleanup:
 
-- Deleted: `.github/workflows/trendos-02cl-exec-temp2.yml`
-- Cleanup commit: `2e5d682bc8ee009b5c476c760176dcea2070229e`
+- Deleted: `.github/workflows/trendos-02cm-readonly-preflight-temp.yml`
+- Cleanup commit: `208a7b1c73258814cecbf4a67d912b89de97400e`
+
+## 02CM measured endpoint timings
+
+Measured from GitHub Actions runner:
+
+| Probe | HTTP | Time ms |
+|---|---:|---:|
+| Worker `/health` | 200 | 298 |
+| Cloud Write `/v1/cloud/write/health` | 200 | 339 |
+| 02CL reconcile health | 200 | 245 |
+| Production Shadow observer | 200 | 18 |
+| Mirror capabilities | 200 | 127 |
+| Mirror stats | 200 | 126 |
+| Orders mirror head | 200 | 245 |
+| Lines mirror head | 200 | 234 |
+| Exact 02CL target read | 200 | 121 |
+| Edge orders page without token | 401 | 11 |
+| GitHub Pages root | 200 | 126 |
+| Apps Script blank ping | 200 | 1306 |
 
 ## Current production boundary
 
 - Production Worker: `trendos-d1-api`
 - Production D1: `trendos-main`
 - Production Cloud Write: **ON**
+- Cloud Write `pendingOutbox`: `0`
 - Production Shadow: **ON / read-only / mutation-free**
 - Production cutover: **OFF**
 - Sheets / Apps Script authority: **YES**
 - Apps Script 02CL route: live, gate **OFF**
 - Worker 02CL route: live, gate **OFF**
-- Worker dedicated reconciliation secret: configured
-- Apps Script dedicated reconciliation secret: configured
-- exact target status: `synced`
-- exact event status: `reconciled`
-- exact sheets status: `synced`
-- exact attempts: `1`
-- target Orders-sheet rows: `1`
+- exact 02CL target: `synced / reconciled / sheets=synced / attempts=1`
 - generic outbox drain: **not exposed / not used**
 - frontend cutover: **NO**
 - normalized-data cutover: **NO**
 - authority transfer from Sheets to D1: **NO**
 - `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
 
+## Mirror readiness after 02CM
+
+Mirror stats:
+
+- `sheetCount=87`
+- `rowCount=31276`
+- `readySheets=87`
+- `pendingSheets=0`
+- `oldestSyncedAt=2026-08-29 15:22:34`
+- `lastSyncedAt=2026-09-05 22:53:54`
+
+Orders mirror:
+
+- `rowCount=311`
+- `sourceLastRow=311`
+- `sourceLastCol=67`
+- `status=ready`
+- `note=TrendOS orders live sync V2 quota-aware`
+
+Lines mirror:
+
+- `rowCount=355`
+- `sourceLastRow=355`
+- `sourceLastCol=82`
+- `status=ready`
+- `note=TrendOS orders live sync V2 quota-aware`
+
+## Diagnosis
+
+02CM indicates Worker/D1 base health is good and fast. The slowest measured endpoint was the Apps Script blank ping at `1306 ms`, while most Worker/D1 probes completed in `11–339 ms`.
+
+This supports focusing the next checkpoint on remaining frontend → Apps Script / Google Sheets hot paths, especially orders list/page/dashboard paths, rather than reworking D1 base health.
+
+This is not a cutover approval.
+
 ## Active checkpoint / next safe work
 
-No active execution checkpoint is authorized after 02CL closure.
+No cutover is authorized.
 
-Recommended next checkpoint only after explicit approval:
+Recommended next checkpoint only after explicit user approval:
 
-`PERF-CF-02CM — Post-02CL Production Stability / Cutover Readiness Preflight`
+`PERF-CF-02CN — Orders Read Path Cutover Readiness / Slowness Hot-Path Fix`
 
 Safe next-work rules:
 
 1. Read this file and `00_INDEX.md` before any new work.
-2. Read latest 02CL PASS record.
-3. Do not rerun 02CK or 02CL.
+2. Read latest 02CM PASS record.
+3. Do not rerun 02CK, 02CL, or 02CM unless source changed materially.
 4. Do not use generic outbox drain.
 5. Do not rotate `EDGE_SESSION_SECRET`.
-6. Do not enable Apps Script or Worker 02CL gates again unless a new bounded audited checkpoint is created.
+6. Do not enable Apps Script/Worker 02CL gates again unless a new bounded audited checkpoint is created.
 7. Do not enable frontend or authority cutover without explicit approval.
 8. Keep Sheets / Apps Script authoritative until a separately approved cutover checkpoint.
-9. Next work should be read-only stability/performance diagnosis first, focused on current production slowness and Cloudflare cutover readiness.
+9. Next work should inspect and patch orders read hot paths with default-OFF D1 primary-read/fallback behavior.
