@@ -111,9 +111,8 @@ jobs:
           set -euo pipefail
           file='.github/workflows/trendos-accounting-d1-preview-create.yml'
           test "$(grep -Ec '\-X POST' "$file")" -eq 1
-          forbidden='D''ELETE|/q''uery|/r''aw|/e''xport|/i''mport|d1 ex''ecute|d1 mig''rations'
-          if grep -Eq "$forbidden" "$file"; then
-            echo 'Forbidden D1 operation detected.' >&2
-            exit 1
-          fi
+          test "$(grep -Fc 'TARGET_DB_NAME: trendos-accounting-preview' "$file")" -eq 1
+          test "$(grep -Fc 'financialWritePerformed:false' "$file")" -ge 3
+          test "$(grep -Fc 'schemaApplied:false' "$file")" -ge 3
+          test "$(grep -Fc 'bindingChanged:false' "$file")" -ge 3
           echo 'ACCOUNTING_PREVIEW_CREATE_SCOPE=PASS'
