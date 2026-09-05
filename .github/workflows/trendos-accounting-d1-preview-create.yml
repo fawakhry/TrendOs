@@ -35,6 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p /tmp/accounting-d1-evidence
           npx --yes wrangler@${WRANGLER_VERSION} d1 list --json > /tmp/d1-before.json
           node <<'NODE' > /tmp/existing-id.txt
           const fs = require('fs');
@@ -45,31 +46,58 @@ jobs:
           NODE
           existing_id="$(cat /tmp/existing-id.txt)"
           if [ -n "$existing_id" ]; then
-            echo "ACCOUNTING_PREVIEW_D1_ALREADY_EXISTS=true" >> "$GITHUB_ENV"
-            echo "ACCOUNTING_PREVIEW_D1_UUID=$existing_id" >> "$GITHUB_ENV"
+            node <<'NODE'
+            const fs = require('fs');
+            fs.writeFileSync('/tmp/accounting-d1-evidence/create-status.json', JSON.stringify({
+              name: process.env.TARGET_DB_NAME,
+              uuid: process.env.EXISTING_ID || '',
+              status: 'NOOP_ALREADY_EXISTS',
+              isolated: true,
+              production: false,
+              schemaApplied: false,
+              bindingChanged: false,
+              financialWritePerformed: false
+            }, null, 2));
+            NODE
             echo "ACCOUNTING_PREVIEW_D1_CREATE=NOOP"
           else
-            npx --yes wrangler@${WRANGLER_VERSION} d1 create "$TARGET_DB_NAME" --json > /tmp/d1-create.json
-            node <<'NODE' > /tmp/created-id.txt
-            const fs = require('fs');
-            const x = JSON.parse(fs.readFileSync('/tmp/d1-create.json','utf8'));
-            const id = x.uuid || x.id || x.database_id || (x.d1_databases && x.d1_databases[0] && (x.d1_databases[0].uuid || x.d1_databases[0].id)) || '';
-            if (!id) {
-              console.error('Created database response did not contain a UUID');
-              process.exit(1);
-            }
-            process.stdout.write(id);
-            NODE
-            created_id="$(cat /tmp/created-id.txt)"
-            echo "ACCOUNTING_PREVIEW_D1_ALREADY_EXISTS=false" >> "$GITHUB_ENV"
-            echo "ACCOUNTING_PREVIEW_D1_UUID=$created_id" >> "$GITHUB_ENV"
+            set +e
+            npx --yes wrangler@${WRANGLER_VERSION} d1 create "$TARGET_DB_NAME" > /tmp/d1-create.stdout 2> /tmp/d1-create.stderr
+            rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              CREATE_RC="$rc" node <<'NODE'
+              const fs = require('fs');
+              const redact = (s) => {
+                let out = String(s || '');
+                for (const secret of [process.env.CLOUDFLARE_API_TOKEN, process.env.CLOUDFLARE_ACCOUNT_ID]) {
+                  if (secret) out = out.split(secret).join('[REDACTED]');
+                }
+                return out.slice(-4000);
+              };
+              const evidence = {
+                name: process.env.TARGET_DB_NAME,
+                status: 'CREATE_FAILED',
+                exitCode: Number(process.env.CREATE_RC || 1),
+                stdoutTail: redact(fs.existsSync('/tmp/d1-create.stdout') ? fs.readFileSync('/tmp/d1-create.stdout','utf8') : ''),
+                stderrTail: redact(fs.existsSync('/tmp/d1-create.stderr') ? fs.readFileSync('/tmp/d1-create.stderr','utf8') : ''),
+                schemaApplied: false,
+                bindingChanged: false,
+                financialWritePerformed: false
+              };
+              fs.writeFileSync('/tmp/accounting-d1-evidence/create-diagnostic.json', JSON.stringify(evidence, null, 2));
+              NODE
+              exit "$rc"
+            fi
             echo "ACCOUNTING_PREVIEW_D1_CREATE=CREATED"
           fi
 
       - name: Verify exact isolated database exists
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p /tmp/accounting-d1-evidence
           npx --yes wrangler@${WRANGLER_VERSION} d1 list --json > /tmp/d1-after.json
           node <<'NODE'
           const fs = require('fs');
@@ -79,20 +107,23 @@ jobs:
           if (!hit) process.exit(1);
           const uuid = hit.uuid || hit.id || hit.database_id || '';
           if (!uuid) process.exit(1);
-          fs.writeFileSync('/tmp/accounting-preview-d1-created.json', JSON.stringify({name: target, uuid, isolated: true, production: false, schemaApplied: false, bindingChanged: false, financialWritePerformed: false}, null, 2));
+          const evidence = {name: target, uuid, isolated: true, production: false, schemaApplied: false, bindingChanged: false, financialWritePerformed: false};
+          fs.writeFileSync('/tmp/accounting-d1-evidence/accounting-preview-d1.json', JSON.stringify(evidence, null, 2));
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Accounting Preview D1\n\n- Name: **${target}**\n- UUID: \`${uuid}\`\n- Isolated non-production resource: **true**\n- Schema applied: **false**\n- Binding changed: **false**\n- Financial write performed: **false**\n`);
           console.log('ACCOUNTING_PREVIEW_D1_VERIFY=PASS name=' + target + ' uuid=' + uuid);
           NODE
 
-      - name: Upload sanitized creation evidence
+      - name: Upload sanitized creation or diagnostic evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: accounting-preview-d1-created
-          path: /tmp/accounting-preview-d1-created.json
-          if-no-files-found: error
+          name: accounting-preview-d1-create-evidence
+          path: /tmp/accounting-d1-evidence
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Assert workflow scope is constrained
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
@@ -101,6 +132,6 @@ jobs:
             echo 'Forbidden D1 mutation command detected.' >&2
             exit 1
           fi
-          count="$(grep -Ec 'd1 create' "$file")"
+          count="$(grep -Ec 'wrangler@\$\{WRANGLER_VERSION\} d1 create' "$file")"
           test "$count" -eq 1
           echo 'ACCOUNTING_PREVIEW_CREATE_SCOPE=PASS'
