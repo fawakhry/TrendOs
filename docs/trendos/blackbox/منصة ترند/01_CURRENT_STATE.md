@@ -12,6 +12,40 @@ Detailed record:
 
 `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md`
 
+## Current in-progress checkpoint
+
+`PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
+
+Status: **CANDIDATE PREPARED — CI PASS — NOT DEPLOYED — NO PRODUCTION MUTATION**
+
+Candidate record:
+
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
+
+02CL candidate evidence:
+
+- exact target only: `CW-PROD-QUAL-33975124471`
+- operation only: `upsert_order_to_sheets`
+- Apps Script candidate prepared default-OFF
+- Worker candidate prepared default-OFF
+- Worker candidate is **NOT imported/routed by Production `src/index_v2.js`**
+- reconciliation core supports exact parameter-bound entity/type/operation selectors for this bounded lane
+- unrelated older pending outbox rows remain untouched in isolated tests
+- replay proof requires an already-synced exact target and zero-mutation idempotent Apps Script ACK
+- Candidate CI Run: `33983980229`
+- Candidate Job: `101354064165`
+- Candidate conclusion: **SUCCESS**
+- Integrity Run on candidate head: `33983980205`
+- Integrity Job: `101354064040`
+- Integrity conclusion: **SUCCESS**
+- candidate head commit: `9cb9b4f691d212ccd9a0b7688089f8c78ed60b1b`
+- Production outbox consumed by 02CL so far: **NO**
+- Sheets written by 02CL so far: **NO**
+- Worker deployed for 02CL so far: **NO**
+- Apps Script deployed for 02CL so far: **NO**
+
+Therefore 02CL is NOT closed and the pending synthetic outbox item must remain untouched until the live deployment/preflight contract is separately authorized and verified.
+
 ## 02CK qualification evidence
 
 Successful bounded Production qualification:
@@ -80,11 +114,14 @@ Therefore the existing GitHub qualification token secret is now stale and cannot
 - qualification synthetic D1 order count from 02CK: **1**
 - qualification pending Sheets outbox evidence: **1**
 - Worker deploy during 02CK: **NONE**
+- 02CL Worker deploy: **NONE**
+- 02CL Apps Script deploy: **NONE**
+- 02CL Production outbox mutation: **NONE**
 - `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
 
 ## Safety boundary
 
-02CK PASS proves the bounded Production D1 Cloud Write lane and idempotency/outbox safety assertions. It does **not** authorize automatic authority transfer.
+02CK PASS proves the bounded Production D1 Cloud Write lane and idempotency/outbox safety assertions. 02CL candidate CI PASS proves only that the proposed exact-target reconciliation contract behaves safely in isolated tests. Neither authorizes automatic authority transfer.
 
 Do not yet:
 - enable Production cutover;
@@ -92,17 +129,30 @@ Do not yet:
 - enable normalized-data cutover;
 - make Cloudflare the authoritative writer;
 - rotate `EDGE_SESSION_SECRET` merely as a follow-up;
-- consume/forward the pending qualification outbox item without the next checkpoint's explicit contract.
+- consume/forward the pending qualification outbox item before the 02CL live deployment/preflight contract is separately verified;
+- expose a generic outbox-drain route;
+- reuse the disabled `wael` token.
 
 ## Exact safe resume point
 
 1. Treat `PERF-CF-02CK` as **closed PASS**.
-2. Read `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md` before further Cloudflare execution.
-3. Identify the next explicitly documented main-platform Cloudflare checkpoint from the roadmap/blackbox; do not invent a cutover step.
-4. Preserve `cutover=false` and Sheets / Apps Script authority until that next checkpoint separately qualifies outbox handling and/or authority transfer.
-5. Do not reactivate or reuse temporary employee `wael` unless a new bounded test explicitly requires it.
-6. Keep Accounting/EasyStore/WhatsApp work outside this main-platform blackbox lane.
+2. Treat `PERF-CF-02CL` as **candidate prepared / CI PASS / NOT DEPLOYED**.
+3. Read `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md` before any further 02CL action.
+4. Establish the actual deployed Apps Script lineage and safe append-only route/deployment mechanism; do not overwrite Production with repository `Code.gs`.
+5. Prove required reconciliation helper functions exist in that live lineage or package them explicitly.
+6. Prepare a read-only live preflight for the exact target before any Sheet write.
+7. Use a dedicated 02CL reconciliation secret; do not reuse or rotate `EDGE_SESSION_SECRET`.
+8. Wire/deploy the Worker candidate default-OFF only under an explicit deployment gate.
+9. Verify exact target outbox state and exact target Orders-sheet state before enabling execution.
+10. Acquire a fresh authorized Edge session only when live execution is ready; the 02CK `wael` account remains disabled.
+11. Execute at most the exact target reconciliation plus one replay-noop proof.
+12. Verify no other outbox item changed, Production Shadow stayed mutation-free, `cutover=false`, and Sheets stayed authoritative.
+13. Keep Accounting/EasyStore/WhatsApp work outside this main-platform blackbox lane.
 
-Canonical qualification workflow remains manual:
+Canonical 02CK qualification workflow remains manual:
 
 `.github/workflows/trendos-production-cloud-write-business-qualification.yml`
+
+02CL candidate CI workflow:
+
+`.github/workflows/trendos-production-outbox-sheets-reconcile-qualification-candidate.yml`
