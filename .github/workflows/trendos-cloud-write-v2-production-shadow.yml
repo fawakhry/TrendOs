@@ -23,7 +23,7 @@ permissions:
 jobs:
   production-shadow-safety:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,9 +56,20 @@ jobs:
             echo 'PRODUCTION_SHADOW_NOT_YET_INTEGRATED_PASS'
           fi
 
+      - name: Compile current Production wrapper with Wrangler dry-run only
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-prod-shadow-wrapper-build
+          npx --yes wrangler@4.33.2 deploy --dry-run \
+            --config cloudflare-d1/wrangler.toml \
+            --outdir /tmp/trendos-prod-shadow-wrapper-build
+          test -d /tmp/trendos-prod-shadow-wrapper-build
+          echo 'PRODUCTION_SHADOW_CURRENT_WRANGLER_DRY_RUN_PASS'
+
       - name: Safety conclusion
         run: |
           echo 'CLOUD_WRITE_ORDER_V2_PRODUCTION_SHADOW_GATE_PASS'
           echo 'Production Shadow remains planning-only, deterministic, mutation-free, and credential-free.'
           echo 'Working-branch Production integration is accepted only when the shadow flag is explicitly OFF.'
+          echo 'The current Production wrapper compiled with Wrangler dry-run only; no Cloudflare credentials were loaded and no Worker was deployed.'
           echo 'Production Cloud Write remains OFF; this workflow performs no deployment or cutover.'
