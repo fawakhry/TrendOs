@@ -1,0 +1,183 @@
+name: TrendOS Production Cloud Write Schema Controlled Apply
+
+# PERF-CF-02CD: manual-only Production schema installation for migration 0003.
+# This workflow must NOT enable Cloud Write or cut over the frontend.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_schema_only_apply:
+        description: 'Type APPLY_PRODUCTION_CLOUD_WRITE_SCHEMA_ONLY to install migration 0003 while Cloud Write remains OFF.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-cloud-write-schema-controlled-apply
+  cancel-in-progress: false
+
+jobs:
+  apply-production-cloud-write-schema-only:
+    if: ${{ github.event.inputs.confirm_schema_only_apply == 'APPLY_PRODUCTION_CLOUD_WRITE_SCHEMA_ONLY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_DB_NAME: trendos-main
+      PROD_DB_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+      MIGRATION: cloudflare-d1/migrations/0003_cloud_write_lane.sql
+      EXPECTED_BLOB_SHA: b4c81348f9b1e79519130033b5b1dffcc86eaa0b
+      EXPECTED_SHADOW_FINGERPRINT: 66711d7eef8febed69fa59cbd8b5f20146ed82374de55595ae1a126291d3f4b1
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hard Production identity and OFF-state gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          actual="$(git hash-object "$MIGRATION")"
+          echo "MIGRATION_BLOB_SHA=$actual"
+          test "$actual" = "$EXPECTED_BLOB_SHA"
+          echo 'PRODUCTION_SCHEMA_IDENTITY_OFF_GATE_PASS'
+
+      - name: Re-run exact migration static allow-list
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          sql=Path('cloudflare-d1/migrations/0003_cloud_write_lane.sql').read_text(encoding='utf-8')
+          upper=sql.upper()
+          for pat in [r'\bDROP\b',r'\bALTER\b',r'\bINSERT\b',r'\bUPDATE\b',r'\bDELETE\b',r'\bREPLACE\b',r'\bTRIGGER\b',r'\bVIEW\b',r'\bATTACH\b',r'\bDETACH\b',r'\bVACUUM\b']:
+              if re.search(pat,upper): raise SystemExit('FORBIDDEN_SQL='+pat)
+          tables=re.findall(r'CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([A-Za-z0-9_]+)',sql,re.I)
+          indexes=re.findall(r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS\s+([A-Za-z0-9_]+)',sql,re.I)
+          if tables != ['cloud_write_events','cloud_write_outbox']: raise SystemExit('UNEXPECTED_TABLES='+repr(tables))
+          if indexes != ['idx_cloud_write_events_entity','idx_cloud_write_events_sheets_status','idx_cloud_write_outbox_event_unique','idx_cloud_write_outbox_pending']: raise SystemExit('UNEXPECTED_INDEXES='+repr(indexes))
+          print('EXACT_MIGRATION_ALLOWLIST_PASS')
+          PY
+
+      - name: Re-run isolated idempotency and business-sentinel proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import sqlite3, pathlib
+          sql=pathlib.Path('cloudflare-d1/migrations/0003_cloud_write_lane.sql').read_text(encoding='utf-8')
+          db=sqlite3.connect(':memory:')
+          db.execute('PRAGMA foreign_keys = ON')
+          db.execute('CREATE TABLE customers (phone TEXT PRIMARY KEY, customer_name TEXT NOT NULL)')
+          db.execute('CREATE TABLE orders (order_id TEXT PRIMARY KEY, customer_name TEXT NOT NULL)')
+          db.execute("INSERT INTO customers VALUES('01000000000','SENTINEL CUSTOMER')")
+          db.execute("INSERT INTO orders VALUES('SENTINEL-ORDER','SENTINEL CUSTOMER')")
+          db.commit()
+          baseline=(db.execute('SELECT * FROM customers').fetchall(),db.execute('SELECT * FROM orders').fetchall())
+          for _ in range(2): db.executescript(sql)
+          names={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'cloud_write_%' OR name LIKE 'idx_cloud_write_%'")}
+          expected={'cloud_write_events','cloud_write_outbox','idx_cloud_write_events_entity','idx_cloud_write_events_sheets_status','idx_cloud_write_outbox_event_unique','idx_cloud_write_outbox_pending'}
+          if names != expected: raise SystemExit('OBJECT_MISMATCH='+repr(names))
+          if (db.execute('SELECT * FROM customers').fetchall(),db.execute('SELECT * FROM orders').fetchall()) != baseline: raise SystemExit('BUSINESS_SENTINEL_CHANGED')
+          if db.execute('SELECT COUNT(*) FROM cloud_write_events').fetchone()[0] != 0: raise SystemExit('EVENTS_NOT_EMPTY')
+          if db.execute('SELECT COUNT(*) FROM cloud_write_outbox').fetchone()[0] != 0: raise SystemExit('OUTBOX_NOT_EMPTY')
+          print('ISOLATED_IDEMPOTENCY_BUSINESS_SENTINEL_PASS')
+          PY
+
+      - name: Live Production preflight — Cloud Write must remain OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/pre-write.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.authConfigured===true && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('PRE_SCHEMA_APPLY_HEALTH='+JSON.stringify({schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,enabled:x.enabled,writesAccepted:x.writesAccepted,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/v2/production-shadow" > /tmp/pre-shadow.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/pre-shadow.json','utf8'));
+          const pass=x.success===true && x.valid===true && x.readOnly===true && x.mutationFree===true && x.liveProductionDataRead===false && x.d1Read===false && x.d1Written===false && x.appsScriptCalled===false && x.sheetsWritten===false && Number(x.mutationCount||0)===0 && x.productionWriteEnabled===false && x.productionCutover===false && x.shadowFingerprint===process.env.EXPECTED_SHADOW_FINGERPRINT;
+          console.log('PRE_SCHEMA_APPLY_SHADOW='+JSON.stringify({fingerprint:x.shadowFingerprint,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Apply exactly migration 0003 to pinned Production D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$PROD_DB_NAME" \
+            --remote \
+            --file "$MIGRATION" \
+            --config cloudflare-d1/wrangler.toml
+          echo 'PRODUCTION_SCHEMA_0003_APPLY_COMMAND_COMPLETE'
+
+      - name: Post-apply health — schema ready but writes still OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/post-write.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post-write.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.authConfigured===true && x.schemaReady===true && Number(x.pendingOutbox||0)===0 && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('POST_SCHEMA_APPLY_HEALTH='+JSON.stringify({schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,enabled:x.enabled,writesAccepted:x.writesAccepted,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Write routes must remain fail-closed after schema install
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload='{"clientRequestId":"schema-only-postcheck","orderId":"CW-SCHEMA-ONLY-REFUSED","customerName":"TrendOS Schema Gate","customerPhone":"01000000000","status":"cloud-draft"}'
+          code="$(curl --silent --show-error --output /tmp/write-refusal.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data "$payload" "$PROD_URL/v1/cloud/orders")"
+          echo "POST_SCHEMA_WRITE_REFUSAL_HTTP=$code"
+          test "$code" = '423'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write-refusal.json','utf8')); if(x.success!==false||x.enabled!==false||x.cutover!==false) process.exit(1)"
+
+          outbox_code="$(curl --silent --show-error --output /tmp/outbox-refusal.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/outbox?status=pending&limit=1")"
+          echo "POST_SCHEMA_OUTBOX_REFUSAL_HTTP=$outbox_code"
+          test "$outbox_code" = '423'
+          echo 'POST_SCHEMA_WRITE_LANE_STILL_OFF_PASS'
+
+      - name: Mirror parity and Shadow invariants after schema install
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          for(const [label,file] of [['ORDERS','/tmp/orders.json'],['LINES','/tmp/lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')), s=x.sheet||{};
+            const pass=x.success===true && x.schemaMutationFree===true && s.status==='ready' && Number(s.rowCount||0)===Number(s.sourceLastRow||0) && ['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(String(s.note||''));
+            console.log(label+'_POST_SCHEMA_PARITY='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/v2/production-shadow" > /tmp/post-shadow.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post-shadow.json','utf8'));
+          const pass=x.success===true && x.valid===true && x.readOnly===true && x.mutationFree===true && x.liveProductionDataRead===false && x.d1Read===false && x.d1Written===false && x.appsScriptCalled===false && x.sheetsWritten===false && Number(x.mutationCount||0)===0 && x.productionWriteEnabled===false && x.productionCutover===false && x.shadowFingerprint===process.env.EXPECTED_SHADOW_FINGERPRINT;
+          console.log('POST_SCHEMA_SHADOW='+JSON.stringify({fingerprint:x.shadowFingerprint,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Schema-only conclusion
+        run: |
+          echo 'PRODUCTION_CLOUD_WRITE_SCHEMA_ONLY_APPLY_PASS'
+          echo 'Migration 0003 installed. Cloud Write remains OFF. Sheets remain authoritative. No Worker deploy or frontend cutover performed.'
