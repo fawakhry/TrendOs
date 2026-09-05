@@ -1,6 +1,6 @@
 # منصة ترند — الحالة التنفيذية الحالية
 
-Date: 2026-09-05
+Date: 2026-09-06
 
 ## Latest closed checkpoint
 
@@ -14,11 +14,11 @@ Status: **VERIFIED PASS — CLOSED**
 
 Status:
 
-**SAFE BLOCKED — AUTHORITATIVE WAEL TOKEN PRESENT / GITHUB EMPLOYEE-TOKEN SECRET IS ANOTHER VALUE — BOTH 02CL GATES OFF — NO AUTH / NO RECONCILIATION**
+**AUTH PASS — EXECUTION HOLD — SECRET PLACEMENT CORRECTION REQUIRED — BOTH 02CL GATES OFF — NO RECONCILIATION EXECUTED**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_EMPLOYEE_SECRET_OTHER_VALUE_NO_AUTH.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CL_AUTH_PASS_SECRET_PLACEMENT_CORRECTION_HOLD.md`
 
 ## Exact target
 
@@ -27,18 +27,15 @@ Latest record:
 - confirmation: `QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471`
 - generic outbox drain: **FORBIDDEN**
 
-## Infrastructure ready
+## Infrastructure ready but held
 
 Apps Script:
 - Version 153 live
 - bounded 02CL route installed
-- dedicated reconciliation secret configured
 - execution gate OFF
 
 Worker:
 - isolated 02CL route live
-- dedicated reconciliation secret configured
-- `reconcileSecretConfigured=true`
 - execution gate OFF
 - generic drain disabled
 
@@ -48,30 +45,31 @@ Production boundary:
 - Production cutover OFF
 - Sheets / Apps Script authoritative
 
-## Latest employee-token diagnostics
+## Latest auth status
 
-Authoritative `wael` currently has a non-empty normal-login employee token.
+Canonical auth-only GitHub Actions rerun succeeded:
 
-No-network fingerprint/identity diagnostics were run before any auth request:
+- Workflow Run: `33987326112`
+- Successful Job: `101386927970`
+- Auth marker: `02CL_WAEL_EDGE_SESSION_EXCHANGE_PASS`
+- Safety marker: `No reconciliation executed. No outbox claim. No Sheet write. No cutover.`
 
-- Run `33988860989` / Job `101367336591`: mismatch
-- Run `33988899281` / Job `101367439956`: `OTHER_VALUE`
-- Run `33988944752` / Job `101367565374`: `OTHER_VALUE`
+## Secret placement correction
 
-The configured GitHub employee-token secret is not:
-- current authoritative token;
-- immediately previous token;
-- current token plus only whitespace/quotes;
-- dedicated reconciliation secret;
-- username `wael`;
-- literal key name `matbagy_session_token`.
+User identified that the employee session token had previously been placed into the wrong secret slot:
 
-Because mismatch was detected before auth, `/v1/edge/session` was NOT called and the authoritative token remains intact.
+`TRENDOS_PROD_RECONCILE_QUALIFY_SECRET`
+
+Correct separation:
+
+- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` = temporary employee session token for canonical employee auth exchange.
+- `TRENDOS_PROD_RECONCILE_QUALIFY_SECRET` = dedicated bounded 02CL reconciliation secret shared by GitHub/Worker/Apps Script.
+
+No secret values are recorded.
 
 ## Safety result
 
 No 02CL execution occurred:
-- employee auth exchange: NONE
 - outbox claim: NONE
 - Sheet write: NONE
 - reconciliation D1 mutation: NONE
@@ -81,7 +79,7 @@ No 02CL execution occurred:
 - cutover: NONE
 - `EDGE_SESSION_SECRET` rotation: NONE
 
-Latest verified target boundary remains:
+Latest verified target boundary remains before actual execution:
 - pending outbox total: `1`
 - exact target status: `pending`
 - attempts: `0`
@@ -89,15 +87,12 @@ Latest verified target boundary remains:
 
 ## Exact safe resume point
 
-1. Do not login again as `wael`; current authoritative token is still present.
-2. Open authoritative workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY` → sheet `المستخدمين`.
-3. Find exact username `wael` and copy the current value from column `Token` directly from the sheet.
-4. Update exactly GitHub Actions secret `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with that value.
-5. Keep `TRENDOS_PROD_QUALIFY_USERNAME = wael`.
-6. Do not paste token into chat/repo files.
-7. Run one no-network fingerprint comparison.
-8. Only after exact MATCH: perform one canonical `/v1/edge/session` exchange.
-9. Only after auth PASS: enable both bounded 02CL gates immediately before execution.
-10. Execute exactly one target reconciliation + one replay-noop proof.
-11. Require exactly one Orders row, target outbox synced, replay mutationCount=0, Shadow mutation-free, `cutover=false`, Sheets authoritative.
-12. Immediately disable both gates, clear temporary auth, disable `wael`, and close 02CL PASS before any cutover work.
+1. Keep execution paused.
+2. Do not run reconciliation yet.
+3. Confirm `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` contains only the current `wael` employee session token.
+4. Restore/confirm `TRENDOS_PROD_RECONCILE_QUALIFY_SECRET` as the dedicated reconciliation secret only, not an employee token.
+5. Re-probe readiness while both gates remain OFF.
+6. Only after secret separation is confirmed: proceed to bounded exact-target 02CL execution.
+7. Execute exactly one target reconciliation + one replay-noop proof.
+8. Require exactly one Orders row, target outbox synced, replay mutationCount=0, Shadow mutation-free, `cutover=false`, Sheets authoritative.
+9. Immediately disable both gates, clear temporary auth, disable `wael`, and close 02CL PASS before any cutover work.
