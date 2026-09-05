@@ -31,11 +31,15 @@ jobs:
         run: |
           set -euo pipefail
           grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
-          if grep -R -E "wrangler deploy|wrangler d1 migrations apply|d1 execute --file|secret put|TRENDOS_PRODUCTION_CUTOVER|AUTHORITY_CUTOVER|/v1/qualification/cloud-write/reconcile/order" .github/workflows/trendos-02co-row-diff-diagnostic-temp.yml; then
-            echo 'Forbidden write/cutover command found' >&2
-            exit 1
-          fi
-          echo 'PERF_CF_02CO_ROW_DIFF_STATIC_NO_WRITE_PASS'
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/trendos-02co-row-diff-diagnostic-temp.yml').read_text(encoding='utf-8')
+          forbidden = ['wrangler ' + 'deploy', 'wrangler d1 migrations ' + 'apply', 'd1 execute --' + 'file', 'secret ' + 'put', 'TRENDOS_PRODUCTION_' + 'CUTOVER', 'AUTHORITY_' + 'CUTOVER', '/v1/qualification/cloud-write/reconcile/' + 'order']
+          for token in forbidden:
+              if token in workflow:
+                  raise SystemExit('Forbidden write/cutover token found: ' + token)
+          print('PERF_CF_02CO_ROW_DIFF_STATIC_NO_WRITE_PASS')
+          PY
 
       - name: Read-only row diff and boundary
         shell: bash
