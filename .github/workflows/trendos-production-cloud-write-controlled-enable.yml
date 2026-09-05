@@ -1,0 +1,213 @@
+name: TrendOS Production Cloud Write Controlled Enable
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production_cloud_write_enable:
+        description: 'Type ENABLE_PRODUCTION_CLOUD_WRITE to enable guarded Cloud Write without frontend cutover.'
+        required: true
+        type: string
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/wrangler.toml'
+      - '.github/workflows/trendos-production-cloud-write-controlled-enable.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-cloud-write-controlled-enable
+  cancel-in-progress: false
+
+jobs:
+  enable-production-cloud-write:
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_production_cloud_write_enable == 'ENABLE_PRODUCTION_CLOUD_WRITE') ||
+        (github.event_name == 'push' && github.event.head_commit.message == 'AUTHORIZED PROD CLOUD WRITE ENABLE 2026-09-05')
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      SHADOW_PATH: /v1/cloud/write/v2/production-shadow
+      STAGING_BRIDGE_PATH: /v1/staging/cloud-write/v2/bridge/health
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - name: Checkout authorized ref
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard safety gate — guarded Cloud Write ON, no cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          test "$(grep -Ec '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml)" = '1'
+
+          gate=cloudflare-d1/src/cloud-write-gate.mjs
+          grep -Fq 'verifyEdgeSessionToken' "$gate"
+          grep -Fq 'requireEnabledWriteSession' "$gate"
+          grep -Fq 'const authFailure = await requireEnabledWriteSession' "$gate"
+          grep -Fq 'if (authFailure) return authFailure' "$gate"
+          grep -Fq 'return handleLegacyCloudWriteRequest' "$gate"
+
+          workflow=.github/workflows/trendos-production-cloud-write-controlled-enable.yml
+          if grep -Eq '^[[:space:]]+npx .*wrangler.*d1[[:space:]]+migrations[[:space:]]+apply' "$workflow"; then
+            echo 'Blocked: Cloud Write enable workflow must never apply D1 migrations.'
+            exit 1
+          fi
+          if grep -Eq '^[[:space:]]+(cat .*\|[[:space:]]*)?npx .*wrangler.*secret[[:space:]]+(put|bulk)' "$workflow"; then
+            echo 'Blocked: Cloud Write enable workflow must not rotate Worker secrets.'
+            exit 1
+          fi
+          echo 'PRODUCTION_CLOUD_WRITE_GUARDED_ON_CONFIG_PASS'
+
+      - name: Re-run Production safety contracts
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_production_shadow_observer_candidate_v1.test.mjs
+          node tests/cloud_write_order_v2_production_shadow.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs
+          node tests/cloudflare_edge_gateway_v1.test.mjs
+          node tests/cloudflare_mirror_safety_v1.test.mjs
+          echo 'PRODUCTION_CLOUD_WRITE_ENABLE_SAFETY_CONTRACTS_PASS'
+
+      - name: Compile exact Production payload with Wrangler dry-run
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-production-cloud-write-enable-build
+          npx --yes wrangler@${WRANGLER_VERSION} deploy \
+            --dry-run \
+            --config cloudflare-d1/wrangler.toml \
+            --outdir /tmp/trendos-production-cloud-write-enable-build
+          test -d /tmp/trendos-production-cloud-write-enable-build
+          echo 'PRODUCTION_CLOUD_WRITE_ENABLE_DRY_RUN_PASS'
+
+      - name: Live Production preflight — current lane must still be OFF and schema ready
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          health_code="$(curl --silent --show-error --output /tmp/pre-edge-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          test "$health_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
+
+          write_code="$(curl --silent --show-error --output /tmp/pre-write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$write_code" = '200'
+          cat /tmp/pre-write.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-write.json','utf8')); if(!x.success||x.database!==true||x.enabled!==false||x.writesAccepted!==false||x.authConfigured!==true||x.schemaReady!==true||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1); require('fs').writeFileSync('/tmp/pre-pending.txt',String(Number(x.pendingOutbox||0)))"
+
+          shadow_code="$(curl --silent --show-error --output /tmp/pre-shadow.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          test "$shadow_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-shadow.json','utf8')); if(!x.success||x.observerOnly!==true||x.readOnly!==true||x.mutationFree!==true||x.d1Written!==false||x.sheetsWritten!==false||x.productionCutover!==false) process.exit(1)"
+
+          bridge_code="$(curl --silent --show-error --output /tmp/pre-bridge.json --write-out '%{http_code}' "$PROD_URL$STAGING_BRIDGE_PATH")"
+          test "$bridge_code" = '404'
+          echo 'LIVE_PRODUCTION_CLOUD_WRITE_PREDEPLOY_OFF_BOUNDARY_PASS'
+
+      - name: Deploy guarded Production Cloud Write ON — no migration, no secret rotation
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config cloudflare-d1/wrangler.toml
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+          echo 'PRODUCTION_CLOUD_WRITE_GUARDED_ON_DEPLOYED'
+
+      - name: Post-deploy verify Cloud Write is ON but cutover remains OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          health_code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/post-edge-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          test "$health_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/post-edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
+
+          write_code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/post-write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$write_code" = '200'
+          cat /tmp/post-write.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/post-write.json','utf8')); if(!x.success||x.database!==true||x.enabled!==true||x.writesAccepted!==true||x.authConfigured!==true||x.schemaReady!==true||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+
+          anon_order_code="$(curl --silent --show-error --output /tmp/post-cloud-order-anon.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{"clientRequestId":"UNAUTHORIZED-PROBE-MUST-NOT-WRITE"}' "$PROD_URL/v1/cloud/orders")"
+          cat /tmp/post-cloud-order-anon.json
+          test "$anon_order_code" = '401'
+
+          write_code2="$(curl --silent --show-error --output /tmp/post-write-2.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$write_code2" = '200'
+          node -e "const pre=Number(require('fs').readFileSync('/tmp/pre-pending.txt','utf8')); const x=JSON.parse(require('fs').readFileSync('/tmp/post-write-2.json','utf8')); if(Number(x.pendingOutbox||0)!==pre) process.exit(1)"
+
+          anon_edge_code="$(curl --silent --show-error --output /tmp/post-anon-edge.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=1")"
+          test "$anon_edge_code" = '401'
+
+          bridge_code="$(curl --silent --show-error --output /tmp/post-bridge.json --write-out '%{http_code}' "$PROD_URL$STAGING_BRIDGE_PATH")"
+          test "$bridge_code" = '404'
+          echo 'PRODUCTION_CLOUD_WRITE_ON_NO_CUTOVER_AUTH_BOUNDARY_PASS'
+
+      - name: Post-deploy verify Shadow remains deterministic and mutation-free
+        shell: bash
+        run: |
+          set -euo pipefail
+          code1="$(curl --silent --show-error --output /tmp/shadow-1.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          code2="$(curl --silent --show-error --output /tmp/shadow-2.json --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+          test "$code1" = '200'
+          test "$code2" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/shadow-1.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/shadow-2.json','utf8'));
+          const pass=a.success===true&&a.observerOnly===true&&a.fixedSyntheticIntent===true&&a.liveProductionDataRead===false&&a.d1Read===false&&a.d1Written===false&&a.appsScriptCalled===false&&a.sheetsWritten===false&&a.authoritativeWrites===false&&a.readOnly===true&&a.mutationFree===true&&Number(a.mutationCount||0)===0&&a.productionCutover===false&&a.shadowFingerprint===b.shadowFingerprint&&JSON.stringify(a.canonicalCreateParams)===JSON.stringify(b.canonicalCreateParams);
+          if(!pass) process.exit(1);
+          console.log('PRODUCTION_SHADOW_STILL_MUTATION_FREE_PASS');
+          NODE
+
+      - name: Post-deploy verify Orders and Lines mirror parity read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/post-orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/post-lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          const notes=['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'];
+          for(const [label,file] of [['ORDERS','/tmp/post-orders.json'],['LINES','/tmp/post-lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')),s=x.sheet||{};
+            const pass=x.success===true&&x.schemaMutationFree===true&&s.status==='ready'&&Number(s.rowCount||0)===Number(s.sourceLastRow||0)&&notes.includes(String(s.note||''));
+            console.log(label+'_POST_CLOUD_WRITE_ENABLE='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,syncedAt:s.syncedAt,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+
+      - name: Automatic rollback on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        run: |
+          echo 'Post-deploy verification failed; rolling back to immediately previous Worker version.'
+          npx --yes wrangler@${WRANGLER_VERSION} rollback \
+            --config cloudflare-d1/wrangler.toml \
+            --message "TrendOS rollback after failed Production Cloud Write guarded enable verification"
+
+      - name: Safety conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'PRODUCTION_CLOUD_WRITE_CONTROLLED_ENABLE_PASS'
+          echo 'Cloud Write is ON behind authenticated fail-closed routing.'
+          echo 'Production cutover remains OFF and Sheets remain authoritative.'
+          echo 'No frontend cutover, D1 migration, Worker secret rotation, or authorized business write was performed.'
