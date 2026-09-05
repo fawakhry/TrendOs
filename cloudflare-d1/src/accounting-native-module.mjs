@@ -15,7 +15,7 @@ import {
 import { accountingPersistenceReadinessFromEnv } from './accounting-persistence-readiness-v1.mjs';
 import { evaluateAccountingPersistenceSchemaPreflight } from './accounting-persistence-schema-preflight-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_9_20260905';
+export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_10_20260905';
 
 const INTEGRATION_CONTRACT = Object.freeze({
   version: TRENDOS_ACCOUNTING_NATIVE_VERSION,
