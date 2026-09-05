@@ -17,19 +17,30 @@ jobs:
     env:
       USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
       EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
-      EXPECTED_SHA256: ceef3d6808706ebd6358b2ca145843bbc0dc16594679f0e76b5cbf1f3474f647
+      CURRENT_SHA256: ceef3d6808706ebd6358b2ca145843bbc0dc16594679f0e76b5cbf1f3474f647
+      PREVIOUS_SHA256: c002b85a5862c9560aed9fbe83d1e7ccd8d1a76fb9f4c0ef7ab5d9ccc633d7bc
     steps:
-      - name: Compare only — no network calls
+      - name: Diagnose fingerprint safely — no network calls
         shell: bash
         run: |
           set -euo pipefail
           test "$USERNAME" = 'wael'
           test -n "$EMPLOYEE_TOKEN"
-          actual="$(printf '%s' "$EMPLOYEE_TOKEN" | sha256sum | awk '{print $1}')"
-          if [ "$actual" = "$EXPECTED_SHA256" ]; then
-            echo '02CL_WAEL_TOKEN_FINGERPRINT=MATCH'
-          else
-            echo '02CL_WAEL_TOKEN_FINGERPRINT=MISMATCH'
-            exit 1
-          fi
-          echo 'No network call. No auth call. No Production mutation.'
+          node <<'NODE'
+          const crypto=require('crypto');
+          const raw=String(process.env.EMPLOYEE_TOKEN||'');
+          const h=s=>crypto.createHash('sha256').update(s).digest('hex');
+          const current=process.env.CURRENT_SHA256;
+          const previous=process.env.PREVIOUS_SHA256;
+          const trimmed=raw.trim();
+          let unquoted=trimmed;
+          if ((unquoted.startsWith('"')&&unquoted.endsWith('"')) || (unquoted.startsWith("'")&&unquoted.endsWith("'"))) unquoted=unquoted.slice(1,-1);
+          let result='OTHER_VALUE';
+          if (h(raw)===current) result='CURRENT_EXACT_MATCH';
+          else if (h(trimmed)===current) result='CURRENT_MATCH_AFTER_TRIM';
+          else if (h(unquoted)===current) result='CURRENT_MATCH_AFTER_UNQUOTE';
+          else if (h(raw)===previous || h(trimmed)===previous || h(unquoted)===previous) result='PREVIOUS_TOKEN_STILL_CONFIGURED';
+          console.log('02CL_WAEL_TOKEN_DIAGNOSTIC='+result);
+          console.log('No token/hash printed. No network call. No auth call. No Production mutation.');
+          if(result!=='CURRENT_EXACT_MATCH') process.exit(1);
+          NODE
