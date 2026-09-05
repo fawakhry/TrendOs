@@ -1,0 +1,59 @@
+name: TrendOS 02CO Post Auth Failure Boundary TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02co-post-failed-auth-boundary-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02co-post-failed-auth-boundary-temp
+  cancel-in-progress: false
+
+jobs:
+  readonly-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      EDGE_BASE: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static no-write boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
+          echo 'PERF_CF_02CO_POST_FAILURE_STATIC_NO_WRITE_PASS'
+      - name: Read-only production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const edgeBase = process.env.EDGE_BASE;
+          async function get(path) {
+            const started = Date.now();
+            const res = await fetch(edgeBase + path, { headers: { accept: 'application/json' }, cache: 'no-store' });
+            const body = JSON.parse(await res.text() || '{}');
+            return { status: res.status, ms: Date.now() - started, body };
+          }
+          const health = await get('/health');
+          if (health.status !== 200 || health.body.success !== true || health.body.database !== true) throw new Error('worker health failed');
+          const cloudWrite = await get('/v1/cloud/write/health');
+          if (cloudWrite.status !== 200 || cloudWrite.body.success !== true || cloudWrite.body.cutover !== false || cloudWrite.body.sheetsAuthoritative !== true) throw new Error('cloud write boundary changed');
+          const reconcile = await get('/v1/qualification/cloud-write/reconcile/health');
+          if (reconcile.status !== 200 || reconcile.body.enabled !== false || reconcile.body.genericDrainEnabled !== false) throw new Error('02CL boundary changed');
+          const unauth = await get('/v1/edge/orders/page?screen=print&page=1&pageSize=5');
+          if (unauth.status !== 401) throw new Error('orders page is not protected without token');
+          console.log('PERF_CF_02CO_POST_FAILURE_BOUNDARY=' + JSON.stringify({ workerMs: health.ms, cloudWriteMs: cloudWrite.ms, pendingOutbox: cloudWrite.body.pendingOutbox, cutover: cloudWrite.body.cutover, sheetsAuthoritative: cloudWrite.body.sheetsAuthoritative, reconcileEnabled: reconcile.body.enabled, genericDrainEnabled: reconcile.body.genericDrainEnabled, ordersUnauthStatus: unauth.status }));
+          console.log('PERF_CF_02CO_POST_AUTH_FAILURE_BOUNDARY_PASS');
+          NODE
