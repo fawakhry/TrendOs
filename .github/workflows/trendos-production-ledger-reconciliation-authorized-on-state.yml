@@ -1,0 +1,282 @@
+name: TrendOS Production Ledger Reconciliation Authorized ON State
+
+# PERF-CF-02CJ temporary exact-message execution gate.
+# Scope: reconcile ONLY d1_migrations bookkeeping for 0001/0002/0003.
+# No Worker deploy, no migration SQL apply, no Cloud Write flag change, no application-table mutation.
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-ledger-reconciliation-authorized-on-state.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-ledger-reconciliation-authorized-on-state
+  cancel-in-progress: false
+
+jobs:
+  reconcile-production-ledger-only:
+    if: ${{ github.event.head_commit.message == 'AUTHORIZED PROD LEDGER RECONCILIATION ONLY 2026-09-05' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_DB_NAME: trendos-main
+      PROD_DB_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+      WRANGLER_VERSION: 4.33.2
+      MIGRATION_0001_SHA: 49c58dd275f8364d0632fabd669ef48b562ea895
+      MIGRATION_0002_SHA: 1857534062b93eb24adbacdf7d3234bcaae69384
+      MIGRATION_0003_SHA: b4c81348f9b1e79519130033b5b1dffcc86eaa0b
+
+    steps:
+      - name: Checkout authorized ref
+        uses: actions/checkout@v4
+
+      - name: Hard identity and ON-state source gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$GITHUB_COMMIT_MESSAGE" = 'AUTHORIZED PROD LEDGER RECONCILIATION ONLY 2026-09-05'
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^migrations_dir = "migrations"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          test "$(git hash-object cloudflare-d1/migrations/0001_init.sql)" = "$MIGRATION_0001_SHA"
+          test "$(git hash-object cloudflare-d1/migrations/0002_full_sheet_mirror.sql)" = "$MIGRATION_0002_SHA"
+          test "$(git hash-object cloudflare-d1/migrations/0003_cloud_write_lane.sql)" = "$MIGRATION_0003_SHA"
+          echo '02CJ_IDENTITY_ON_STATE_GATE_PASS'
+        env:
+          GITHUB_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+
+      - name: Live Production ON but no-cutover preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-health.json
+          node <<'NODE'
+          const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/pre-health.json','utf8'));
+          const pass=x.success===true&&x.database===true&&x.enabled===true&&x.writesAccepted===true&&x.authConfigured===true&&x.schemaReady===true&&x.schemaMutationFree===true&&x.cutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CJ_PRE_HEALTH='+JSON.stringify({enabled:x.enabled,writesAccepted:x.writesAccepted,schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/v2/production-shadow" > /tmp/pre-shadow.json
+          node <<'NODE'
+          const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/pre-shadow.json','utf8'));
+          const pass=x.success===true&&x.observerOnly===true&&x.readOnly===true&&x.mutationFree===true&&x.liveProductionDataRead===false&&x.d1Read===false&&x.d1Written===false&&x.appsScriptCalled===false&&x.sheetsWritten===false&&Number(x.mutationCount||0)===0&&x.productionCutover===false;
+          if(!pass) process.exit(1);
+          fs.writeFileSync('/tmp/pre-shadow-fingerprint.txt',String(x.shadowFingerprint||''));
+          console.log('02CJ_PRE_SHADOW_PASS fingerprint='+String(x.shadowFingerprint||''));
+          NODE
+
+      - name: Read exact ledger state and Cloud Write internal counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          api_query() {
+            local sql="$1" out="$2"
+            SQL="$sql" python3 - <<'PY' > /tmp/query-payload.json
+          import json,os
+          print(json.dumps({'sql':os.environ['SQL']}))
+          PY
+            code="$(curl --silent --show-error --output "$out" --write-out '%{http_code}' -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data @/tmp/query-payload.json "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+            test "$code" = '200'
+            FILE="$out" node -e "const x=JSON.parse(require('fs').readFileSync(process.env.FILE,'utf8'));if(x.success!==true){console.error(JSON.stringify(x));process.exit(1)}"
+          }
+          api_query "SELECT type,name,sql FROM sqlite_master WHERE type='table' AND name='d1_migrations'" /tmp/pre-ledger-master.json
+          api_query "PRAGMA table_info('d1_migrations')" /tmp/pre-ledger-columns.json
+          api_query "SELECT id,name,applied_at FROM d1_migrations ORDER BY id" /tmp/pre-ledger-rows.json
+          api_query "SELECT (SELECT COUNT(*) FROM cloud_write_events) AS event_count, (SELECT COUNT(*) FROM cloud_write_outbox) AS outbox_count" /tmp/pre-cloud-write-counts.json
+          node <<'NODE'
+          const fs=require('fs');
+          const rows=x=>(x.result||[]).flatMap(b=>b.results||[]);
+          const master=JSON.parse(fs.readFileSync('/tmp/pre-ledger-master.json','utf8'));
+          const cols=JSON.parse(fs.readFileSync('/tmp/pre-ledger-columns.json','utf8'));
+          const ledger=JSON.parse(fs.readFileSync('/tmp/pre-ledger-rows.json','utf8'));
+          const mr=rows(master),cr=rows(cols),lr=rows(ledger);
+          const normalized=s=>String(s||'').replace(/\s+/g,' ').trim();
+          const expectedDDL='CREATE TABLE d1_migrations( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL )';
+          if(mr.length!==1||mr[0].name!=='d1_migrations'||normalized(mr[0].sql)!==expectedDDL) process.exit(1);
+          const shape=cr.map(c=>({cid:Number(c.cid),name:String(c.name),type:String(c.type),notnull:Number(c.notnull),dflt_value:c.dflt_value===null?null:String(c.dflt_value),pk:Number(c.pk)}));
+          const expectedShape=[{cid:0,name:'id',type:'INTEGER',notnull:0,dflt_value:null,pk:1},{cid:1,name:'name',type:'TEXT',notnull:0,dflt_value:null,pk:0},{cid:2,name:'applied_at',type:'TIMESTAMP',notnull:1,dflt_value:'CURRENT_TIMESTAMP',pk:0}];
+          if(JSON.stringify(shape)!==JSON.stringify(expectedShape)) process.exit(1);
+          const expected=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql'];
+          const names=lr.map(r=>String(r.name));
+          let state='';
+          if(lr.length===0) state='EMPTY';
+          else if(lr.length===3&&JSON.stringify(names)===JSON.stringify(expected)) state='ALREADY_RECONCILED';
+          else { console.error('UNEXPECTED_LEDGER_STATE='+JSON.stringify(lr)); process.exit(1); }
+          fs.writeFileSync('/tmp/pre-ledger-state.txt',state);
+          console.log('02CJ_PRE_LEDGER_STATE='+state+' rows='+JSON.stringify(names));
+          NODE
+          node <<'NODE'
+          const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/pre-cloud-write-counts.json','utf8'));
+          const rows=(x.result||[]).flatMap(b=>b.results||[]); if(rows.length!==1) process.exit(1);
+          fs.writeFileSync('/tmp/pre-event-count.txt',String(Number(rows[0].event_count||0)));
+          fs.writeFileSync('/tmp/pre-outbox-count.txt',String(Number(rows[0].outbox_count||0)));
+          console.log('02CJ_PRE_INTERNAL_COUNTS='+JSON.stringify(rows[0]));
+          NODE
+
+      - name: Wrangler pending state must match ledger state
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations list "$PROD_DB_NAME" --remote --config cloudflare-d1/wrangler.toml | tee /tmp/pre-pending.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          state=Path('/tmp/pre-ledger-state.txt').read_text().strip()
+          text=Path('/tmp/pre-pending.txt').read_text(encoding='utf-8')
+          found=[]
+          for n in re.findall(r'\b(\d{4}_[A-Za-z0-9_\-]+\.sql)\b',text):
+              if n not in found: found.append(n)
+          expected=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']
+          if state=='EMPTY' and found!=expected:
+              raise SystemExit('02CJ_EMPTY_LEDGER_PENDING_MISMATCH='+repr(found))
+          if state=='ALREADY_RECONCILED' and found:
+              raise SystemExit('02CJ_RECONCILED_LEDGER_STILL_PENDING='+repr(found))
+          print('02CJ_PRE_PENDING_STATE_PASS state='+state+' pending='+repr(found))
+          PY
+
+      - name: Pre-mutation Orders and Lines mirror parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/pre-orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/pre-lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          for(const [label,file] of [['ORDERS','/tmp/pre-orders.json'],['LINES','/tmp/pre-lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')),s=x.sheet||{};
+            const pass=x.success===true&&x.schemaMutationFree===true&&s.status==='ready'&&Number(s.rowCount||0)===Number(s.sourceLastRow||0)&&['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(String(s.note||''));
+            console.log('02CJ_PRE_'+label+'_PARITY='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+
+      - name: Reconcile exactly three canonical ledger names in one D1 batch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/reconcile-ledger-batch.json
+          import json
+          sql='INSERT INTO d1_migrations(name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name = ?)'
+          names=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']
+          print(json.dumps({'batch':[{'sql':sql,'params':[n,n]} for n in names]}))
+          PY
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/reconcile-ledger-batch.json','utf8'));
+          const expected=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql'];
+          if(!Array.isArray(x.batch)||x.batch.length!==3) process.exit(1);
+          for(let i=0;i<3;i++){
+            const q=x.batch[i];
+            if(q.sql!=='INSERT INTO d1_migrations(name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name = ?)') process.exit(1);
+            if(JSON.stringify(q.params)!==JSON.stringify([expected[i],expected[i]])) process.exit(1);
+            if(/\b(customers|orders|messages|conversations|migration_runs|sheet_catalog|sheet_rows|sheet_migration_runs|cloud_write_events|cloud_write_outbox)\b/i.test(q.sql)) process.exit(1);
+          }
+          console.log('02CJ_LEDGER_BATCH_EXACT_SCOPE_PASS');
+          NODE
+          code="$(curl --silent --show-error --output /tmp/reconcile-result.json --write-out '%{http_code}' -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data @/tmp/reconcile-ledger-batch.json "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/reconcile-result.json','utf8'));
+          if(x.success!==true){console.error(JSON.stringify(x));process.exit(1)}
+          console.log('02CJ_PRODUCTION_LEDGER_BATCH_REQUEST_PASS');
+          NODE
+
+      - name: Verify exact ledger reconciliation and no pending migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/post-ledger-payload.json
+          import json
+          print(json.dumps({'sql':'SELECT id,name,applied_at FROM d1_migrations ORDER BY id'}))
+          PY
+          code="$(curl --silent --show-error --output /tmp/post-ledger.json --write-out '%{http_code}' -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data @/tmp/post-ledger-payload.json "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post-ledger.json','utf8'));
+          if(x.success!==true) process.exit(1);
+          const rows=(x.result||[]).flatMap(b=>b.results||[]),names=rows.map(r=>String(r.name));
+          const expected=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql'];
+          if(rows.length!==3||JSON.stringify(names)!==JSON.stringify(expected)){console.error(JSON.stringify(rows));process.exit(1)}
+          console.log('02CJ_POST_LEDGER_EXACT_THREE_PASS='+JSON.stringify(names));
+          NODE
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations list "$PROD_DB_NAME" --remote --config cloudflare-d1/wrangler.toml | tee /tmp/post-pending.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('/tmp/post-pending.txt').read_text(encoding='utf-8')
+          found=[]
+          for n in re.findall(r'\b(\d{4}_[A-Za-z0-9_\-]+\.sql)\b',text):
+              if n not in found: found.append(n)
+          if found: raise SystemExit('02CJ_POST_PENDING_NOT_EMPTY='+repr(found))
+          print('02CJ_POST_NO_PENDING_MIGRATIONS_PASS')
+          PY
+
+      - name: Verify no Cloud Write event or outbox side effect
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/post-counts-payload.json
+          import json
+          print(json.dumps({'sql':'SELECT (SELECT COUNT(*) FROM cloud_write_events) AS event_count, (SELECT COUNT(*) FROM cloud_write_outbox) AS outbox_count'}))
+          PY
+          code="$(curl --silent --show-error --output /tmp/post-counts.json --write-out '%{http_code}' -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data @/tmp/post-counts-payload.json "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+          test "$code" = '200'
+          PRE_EVENT_COUNT="$(cat /tmp/pre-event-count.txt)" PRE_OUTBOX_COUNT="$(cat /tmp/pre-outbox-count.txt)" node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post-counts.json','utf8'));
+          const rows=(x.result||[]).flatMap(b=>b.results||[]); if(rows.length!==1) process.exit(1);
+          const e=Number(rows[0].event_count||0),o=Number(rows[0].outbox_count||0);
+          if(e!==Number(process.env.PRE_EVENT_COUNT)||o!==Number(process.env.PRE_OUTBOX_COUNT)){console.error('02CJ_INTERNAL_COUNT_CHANGED='+JSON.stringify(rows[0]));process.exit(1)}
+          console.log('02CJ_NO_CLOUD_WRITE_SIDE_EFFECT_PASS='+JSON.stringify(rows[0]));
+          NODE
+
+      - name: Post-state Cloud Write ON, no cutover, Shadow unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/post-health.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post-health.json','utf8'));
+          const pass=x.success===true&&x.database===true&&x.enabled===true&&x.writesAccepted===true&&x.authConfigured===true&&x.schemaReady===true&&x.schemaMutationFree===true&&x.cutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CJ_POST_HEALTH='+JSON.stringify({enabled:x.enabled,writesAccepted:x.writesAccepted,schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/v2/production-shadow" > /tmp/post-shadow.json
+          PRE_FINGERPRINT="$(cat /tmp/pre-shadow-fingerprint.txt)" node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/post-shadow.json','utf8'));
+          const pass=x.success===true&&x.observerOnly===true&&x.readOnly===true&&x.mutationFree===true&&x.liveProductionDataRead===false&&x.d1Read===false&&x.d1Written===false&&x.appsScriptCalled===false&&x.sheetsWritten===false&&Number(x.mutationCount||0)===0&&x.productionCutover===false&&String(x.shadowFingerprint||'')===process.env.PRE_FINGERPRINT;
+          console.log('02CJ_POST_SHADOW_PASS='+pass+' fingerprint='+String(x.shadowFingerprint||'')); if(!pass) process.exit(1);
+          NODE
+
+      - name: Post-state Orders and Lines mirror parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/post-orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/post-lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          for(const [label,file] of [['ORDERS','/tmp/post-orders.json'],['LINES','/tmp/post-lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')),s=x.sheet||{};
+            const pass=x.success===true&&x.schemaMutationFree===true&&s.status==='ready'&&Number(s.rowCount||0)===Number(s.sourceLastRow||0)&&['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'].includes(String(s.note||''));
+            console.log('02CJ_POST_'+label+'_PARITY='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+
+      - name: Authorized ledger-only reconciliation conclusion
+        run: |
+          echo 'PERF_CF_02CJ_PRODUCTION_MIGRATION_LEDGER_RECONCILIATION_PASS'
+          echo 'Only d1_migrations bookkeeping for 0001/0002/0003 was reconciled.'
+          echo 'Cloud Write configuration was not changed; Production cutover remains OFF; Sheets remain authoritative.'
