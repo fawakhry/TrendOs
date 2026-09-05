@@ -12,11 +12,15 @@ Status: **VERIFIED PASS — CLOSED**
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-Status: **SAFE BLOCKED — VIRTUAL QUALIFIER `wael` PROVISIONED — GITHUB SECRETS ALIGNMENT REQUIRED — NO BUSINESS WRITE**
+Status: **SAFE BLOCKED — RAHMA SESSION PRESENT BUT ALLOWLIST-BLOCKED / VIRTUAL QUALIFIER `wael` PREPARED — NO BUSINESS WRITE**
 
-## Latest auth finding
+## Latest decisive auth finding
 
-Inspection of the authoritative Apps Script source identified the actual current `verifyEmployeeSession_` allowlist:
+The authoritative TrendOS workbook currently shows employee `رحمه` as an existing active employee with a recent 2026-09-05 last-login value and a current non-empty employee session token. The token value is not copied into GitHub or blackbox documentation.
+
+Therefore the Rahma account itself is not missing or inactive and has a recently generated Apps Script session.
+
+However, current authoritative `verifyEmployeeSession_` contains an explicit allowlist limited to:
 
 - `ضياء`
 - `جابر`
@@ -25,9 +29,16 @@ Inspection of the authoritative Apps Script source identified the actual current
 - `gaber`
 - `wael`
 
-`رحمه` / `رحمة` is not in that allowlist. This explains why the Rahma qualification path cannot satisfy the current canonical employee-session authorization contract even if the employee session itself is otherwise valid.
+`رحمه` / `رحمة` / `rahma` is not in that list.
 
-The latest Rahma retry remained safe:
+Therefore a valid Rahma employee session is **deterministically ineligible** for the current canonical Production Edge employee-session exchange. Re-running 02CK with Rahma while this policy is unchanged will fail before any business write.
+
+Detailed decisive checkpoint:
+
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_VALID_SESSION_BUT_ALLOWLIST_BLOCK.md`
+
+## Latest Rahma qualification retry
+
 - Workflow Run ID: `33973557299`
 - Run attempt: `3`
 - Job ID: `101327428240`
@@ -37,27 +48,28 @@ The latest Rahma retry remained safe:
 - D1 business write: **NONE**
 - `pendingOutbox` before write eligibility: `0`
 
-Detailed Rahma retry checkpoint:
+Detailed retry checkpoint:
 
 `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_AUTH_EXCHANGE_RETRY3_FAILED_NO_BUSINESS_WRITE.md`
 
 ## Dedicated virtual qualifier provisioned
 
-At the user's explicit request, a dedicated temporary qualification employee was created in the authoritative TrendOS workbook, sheet `المستخدمين`.
+At the user's explicit request, a temporary qualification employee exists in the authoritative TrendOS workbook, sheet `المستخدمين`:
 
-Identity:
 - Username: `wael`
 - Department: `طباعة`
 - Role: `تشغيل`
 - Active: `نعم`
-- Purpose: 02CK qualification only.
-- Password: strong temporary value stored only in the authoritative user row; not recorded in GitHub or blackbox.
-- Employee session token: strong temporary value stored only in the authoritative user row; not recorded in GitHub or blackbox.
+- Purpose: 02CK qualification only
+- Password: strong temporary value stored only in the authoritative employee row
+- Employee session token: strong temporary value stored only in the authoritative employee row
 
-Why this identity:
-- `wael` is explicitly allowed by the current `verifyEmployeeSession_` contract.
-- It is distinct from the existing Arabic employee `وائل` because `findUser_` uses normalized exact username equality.
-- Department `طباعة` maps to the limited `print` role rather than admin/full access.
+No password/token value is recorded in GitHub or blackbox documentation.
+
+Why `wael`:
+- explicitly allowed by current `verifyEmployeeSession_`;
+- distinct from Arabic employee `وائل` under exact normalized username equality;
+- limited `طباعة` / `تشغيل` identity rather than admin/full access.
 
 Detailed provisioning checkpoint:
 
@@ -91,24 +103,24 @@ Cloud Write being ON does **not** mean authority has moved to Cloudflare.
 Do not:
 - rotate `EDGE_SESSION_SECRET` merely to unblock qualification;
 - bypass `verifyEmployeeSession_`;
-- enable Production cutover;
-- enable full frontend cutover;
+- add Rahma to the allowlist merely to force a qualification PASS without a deliberate authorization-policy decision;
+- enable Production/full-frontend cutover;
 - transfer write authority;
 
 until the bounded Production business-write qualification passes.
 
 ## Exact safe resume point
 
-The connected GitHub API available in this chat cannot update repository Actions Secrets. Therefore one operator-side secret alignment is still required before the next retry:
-
-1. Set `TRENDOS_PROD_QUALIFY_USERNAME` to `wael`.
-2. Set `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` to the temporary Token stored in the new `wael` row in the authoritative `المستخدمين` sheet.
-3. Do **not** paste that Token into chat or commit it to repository files.
-4. Recheck only secret presence and exact username match without printing token values.
-5. Retry 02CK once through the canonical `/v1/edge/session` path.
-6. If auth passes, allow the existing bounded qualification to create at most one synthetic D1 Production order, replay the same idempotency key, require exactly one pending outbox item, verify Production Shadow remains mutation-free, keep `cutover=false`, and keep Sheets authoritative.
-7. After PASS, immediately clear the virtual employee Token and disable or remove the temporary `wael` account.
-8. If canonical auth still fails, stop before business write and diagnose the Worker-to-Apps-Script session contract; do not create more identities or invent a substitute auth path.
+1. Do not retry `رحمه` for 02CK while the current allowlist remains unchanged; the authorization failure is deterministic.
+2. Least-invasive prepared qualification path is the temporary `wael` employee already provisioned.
+3. The connected GitHub API cannot update Actions Repository Secrets. Operator must set:
+   - `TRENDOS_PROD_QUALIFY_USERNAME = wael`
+   - `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN =` the temporary token stored only in the authoritative `wael` employee row.
+4. Never paste that token into chat or repository files.
+5. Recheck only secret presence and exact username match, then retry bounded 02CK once through canonical `/v1/edge/session`.
+6. If auth passes, create at most one clearly synthetic Production D1 order, replay the same idempotency key, require exactly one pending outbox item, verify Shadow remains mutation-free, keep `cutover=false`, and keep Sheets authoritative.
+7. After PASS, immediately clear the temporary `wael` token and disable/remove that virtual employee.
+8. If `wael` canonical auth still fails, stop before business write and diagnose Worker-to-Apps-Script contract. Do not create additional identities or invent a substitute auth path.
 
 Canonical manual workflow remains:
 
