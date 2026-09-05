@@ -43,6 +43,7 @@ jobs:
             'MIGRATION: cloudflare-d1/migrations/0003_cloud_write_lane.sql',
             'EXPECTED_BLOB_SHA: b4c81348f9b1e79519130033b5b1dffcc86eaa0b',
             "grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = \"false\"$' cloudflare-d1/wrangler.toml",
+            "! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = \"true\"$' cloudflare-d1/wrangler.toml",
             "grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = \"true\"$' cloudflare-d1/wrangler.toml",
             'x.schemaReady===false',
             'x.pendingOutbox===null',
@@ -64,10 +65,10 @@ jobs:
               raise SystemExit('CONTROLLED_WORKFLOW_MUST_NOT_HAVE_PUSH_TRIGGER')
           if re.search(r'wrangler[^\n]*(?:deploy|migrations\s+apply|secret\s+(?:put|bulk))', t, flags=re.I):
               raise SystemExit('FORBIDDEN_WRANGLER_MUTATION_PATH')
-          if re.search(r'TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*["\x27]true', t, flags=re.I):
-              raise SystemExit('CLOUD_WRITE_ENABLEMENT_FORBIDDEN')
           if re.search(r'\b(?:sed|perl|python3?)\b[^\n]*TRENDOS_CLOUD_WRITE_V1_ENABLED', t, flags=re.I):
               raise SystemExit('FLAG_REWRITE_PATH_FORBIDDEN')
+          if re.search(r'^\s*TRENDOS_CLOUD_WRITE_V1_ENABLED\s*:', t, flags=re.M):
+              raise SystemExit('WORKFLOW_ENV_CLOUD_WRITE_OVERRIDE_FORBIDDEN')
           if t.count('d1 execute "$PROD_DB_NAME"') != 1:
               raise SystemExit('EXACTLY_ONE_D1_EXECUTE_REQUIRED')
 
