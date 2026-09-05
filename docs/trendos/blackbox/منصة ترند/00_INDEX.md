@@ -6,11 +6,11 @@
 
 `PERF-CF-02CO — Controlled Orders D1 Read Canary / Authenticated Comparison`
 
-الحالة: **WORKER DASHBOARD BUILDER LIVE — AUTHENTICATED CANARY BLOCKED BY EDGE SESSION 401 — FRONTEND OFF — BOUNDARY PASS**
+الحالة: **AUTH PASS — D1 VIEW-MIRROR STALE BLOCKED — FRONTEND OFF — BOUNDARY PASS**
 
 أحدث سجل:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_WORKER_LIVE_AUTH_BLOCKED_BOUNDARY_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_AUTH_PASS_VIEW_MIRROR_STALE_BLOCKED_BOUNDARY_PASS.md`
 
 ## checkpoints سابقة
 
@@ -30,42 +30,52 @@
 
 الحالة: **VERIFIED PASS — CLOSED**
 
-## 02CO evidence sequence
+## 02CO latest evidence sequence
 
 1. 02CO started after reading `00_INDEX.md`, `01_CURRENT_STATE.md`, and the latest 02CN record.
-2. Created temporary workflow `.github/workflows/trendos-02co-orders-d1-read-canary-temp.yml` in commit `35780cc655d48b216bd8ff1df63acb7630e7d257`.
-3. Initial run `33998555571` / Job `101393226552` failed before deploy because the static guard counted the deploy command incorrectly.
-4. Fixed deploy-command guard in commit `04747c874544fd8a02aec985c7b301e3557ca3d6`.
-5. Main 02CO run `33998607884` / Job `101393360747` passed static safety and required-secret presence checks.
-6. Pre-deploy boundary passed: Worker health OK, Cloud Write OK, `pendingOutbox=0`, 02CL gate OFF, `cutover=false`, `sheetsAuthoritative=true`.
-7. Production Worker was deployed with 02CN dashboard-builder code only.
-8. Worker Version ID became `4c02c234-305c-4845-b9eb-f52bf647ff9b`.
-9. No D1 migration, no `d1 execute --file`, no secret mutation, no 02CL reconciliation, no outbox drain, no frontend flag enable, and no authority cutover occurred.
-10. Authenticated canary then failed at `POST /v1/edge/orders/session` with HTTP `401`.
-11. No D1-vs-Apps-Script row comparison completed after the auth failure.
-12. Created separate read-only post-auth-failure boundary workflow in commit `94b3c933f53950258a59fa42053d76293840ccf7`.
-13. Post-auth-failure boundary run `33998657431` / Job `101393488074` passed.
-14. Boundary confirmed `pendingOutbox=0`, `cutover=false`, `sheetsAuthoritative=true`, 02CL gate OFF, generic drain false, and unauthenticated orders read returned `401`.
-15. Cleaned post-auth-failure boundary workflow in commit `f58ec9acc6f2502469cff931e30917e1c132072e`.
-16. 02CO main workflow remains present intentionally for rerun after fresh auth secret refresh.
-17. The frontend D1 orders read flag remains OFF and users are not cut over to D1 reads.
+2. Initial 02CO deployed 02CN dashboard-builder code to Worker while the frontend flag stayed OFF.
+3. First canary attempt failed at Edge session HTTP `401`.
+4. User refreshed the employee-token GitHub secret from a fresh normal TrendOS login.
+5. Auth then succeeded and the canary reached row comparison.
+6. D1 full `بنود الأوردرات` comparison returned `153` rows while Apps Script `getRowsPageV1931` returned `8` rows for `screen=print`.
+7. A partial full-lines filter reduced D1 to `26` rows, still not equal to Apps Script `8` rows.
+8. Diagnostics showed Apps Script is serving the current screen-view/hotfix-visible print list, not the raw full lines sheet.
+9. Google Sheet inspection identified `واجهة الطباعة` as the live screen-view tab containing the same eight visible print rows.
+10. A canary wrapper was added to map Edge Orders reads to screen-view mirror tabs:
+    - `واجهة خدمة العملاء`
+    - `واجهة الطباعة`
+    - `واجهة الليزر`
+    - `واجهة المكبس`
+11. The wrapper candidate passed CI and general integrity.
+12. Focused canary deployed the view-mirror wrapper Worker Version ID `0ec782a9-5943-4c9d-8820-51b7d0393210`.
+13. Auth succeeded again, but D1 `واجهة الطباعة` mirror was stale/header-only:
+    - `edgeTotalRows=0`
+    - `appTotalRows=8`
+    - `edgeMirror.sourceLastRow=1`
+    - `edgeMirror.sourceLastCol=18`
+    - `edgeMirror.syncedAt=2026-08-29 15:49:07`
+    - `edgeMirror.note=TrendOS full mirror V1`
+14. Latest post-failure boundary passed:
+    - Run `33999848762`
+    - Job `101396626997`
+    - `pendingOutbox=0`
+    - `cutover=false`
+    - `sheetsAuthoritative=true`
+    - 02CL reconcile OFF
+    - generic drain OFF
+    - unauthenticated orders read `401`
+15. Temporary 02CO deploy/diagnostic workflows were cleaned after boundary proof.
 
 ## Current production state
 
 - Production Worker: `trendos-d1-api`
-- Worker Version ID: `4c02c234-305c-4845-b9eb-f52bf647ff9b`
-- 02CN D1 dashboard builder: **LIVE IN WORKER**
+- Worker Version ID: `0ec782a9-5943-4c9d-8820-51b7d0393210`
 - Production D1: `trendos-main`
 - Production Cloud Write: **ON**
 - Cloud Write pending outbox: `0`
 - Production Shadow: **ON / read-only / mutation-free**
 - Production cutover: **OFF**
 - Sheets / Apps Script authority: **YES**
-- exact 02CL target: `CW-PROD-QUAL-33975124471`
-- exact target outbox status: `synced`
-- exact event status: `reconciled`
-- exact sheets status: `synced`
-- exact attempts: `1`
 - Apps Script 02CL gate: **OFF**
 - Worker 02CL gate: **OFF**
 - frontend D1 orders read flag: **OFF**
@@ -79,15 +89,15 @@
 
 1. اقرأ `00_INDEX.md` ثم `01_CURRENT_STATE.md`.
 2. اقرأ أحدث 02CO record:
-   `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_WORKER_LIVE_AUTH_BLOCKED_BOUNDARY_PASS.md`
+   `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_AUTH_PASS_VIEW_MIRROR_STALE_BLOCKED_BOUNDARY_PASS.md`
 3. اعتبر 02CK و02CL و02CM مغلقين ولا تعيدهم إلا إذا تغير المصدر ماديًا.
-4. اعتبر 02CN جاهزًا، و02CO worker deploy تم، لكن authenticated canary لم يكتمل بسبب Edge session 401.
-5. لا تعيد نفس التوكن القديم مرارًا.
-6. لا تفتح Apps Script/Worker 02CL gates مرة أخرى إلا داخل checkpoint جديد محدود ومؤرخ.
-7. لا تستخدم generic outbox drain.
-8. لا تدوّر `EDGE_SESSION_SECRET`.
+4. اعتبر 02CN جاهزًا كمرشح default-OFF.
+5. اعتبر 02CO auth ناجح، لكن canary محجوز بسبب D1 screen-view mirror stale/header-only.
+6. لا تستخدم generic outbox drain.
+7. لا تدوّر `EDGE_SESSION_SECRET`.
+8. لا تفتح Apps Script/Worker 02CL gates مرة أخرى إلا داخل checkpoint جديد محدود ومؤرخ.
 9. لا تفعل frontend cutover أو authority transfer قبل موافقة صريحة وcheckpoint مستقل.
 10. حافظ على Sheets / Apps Script كـauthoritative source حتى cutover مستقل.
 11. الخطوة التالية:
-    `PERF-CF-02CO-RESUME — Fresh Auth Secret Refresh / Authenticated Orders D1 Read Canary Rerun`.
-12. في 02CO-RESUME: بعد normal employee login وتحديث GitHub secret `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`، أعد تشغيل 02CO canary workflow/job وأكمل المقارنة.
+    `PERF-CF-02CQ — Screen View Mirror Refresh / Orders View D1 Canary Prerequisite`.
+12. في 02CQ: ابحث عن مسار mirror import/sync الحالي للـscreen-view tabs، ثم نفذ refresh/import محدود ومؤرخ، وبعدها أعد canary المقارنة.
