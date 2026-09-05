@@ -48,6 +48,7 @@ jobs:
           test -n "$TRENDOS_PROD_QUALIFY_USERNAME"
           test -n "$TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN"
           node <<'NODE'
+          (async function main(){
           const crypto = require('crypto');
           const edgeBase = process.env.EDGE_BASE;
           const appsScriptUrl = process.env.APPS_SCRIPT_URL;
@@ -116,4 +117,5 @@ jobs:
             boundary: { pendingOutbox: health.body.pendingOutbox, cutover: health.body.cutover, sheetsAuthoritative: health.body.sheetsAuthoritative, reconcileEnabled: boundary2.body.enabled, genericDrainEnabled: boundary2.body.genericDrainEnabled }
           }));
           console.log('PERF_CF_02CO_ROW_DIFF_DIAGNOSTIC_DONE');
+          })().catch((err) => { console.error(err && err.stack || err); process.exit(1); });
           NODE
