@@ -3,7 +3,7 @@
 Date: 2026-09-05
 Repository: `fawakhry/TrendOs`
 Branch: `agent/go-live-2026-09-01-integrity`
-Status: **VERIFIED PASS / PRODUCTION LEDGER RECONCILED**
+Status: **VERIFIED PASS / PRODUCTION LEDGER RECONCILED / CLEANUP PASS**
 Scope: `d1_migrations` bookkeeping only.
 
 ## User authorization
@@ -129,8 +129,25 @@ Not changed:
 - no Production cutover;
 - Sheets / Apps Script remain authoritative.
 
-## Cleanup rule
-The temporary exact-message push workflow must now be removed or disabled so the one-time execution path cannot remain active. This cleanup must not alter Production runtime/configuration.
+## Cleanup completion
+The temporary exact-message push workflow was removed from the working branch after the authorized reconciliation completed.
+
+Cleanup commit:
+`759c05ec542a895e3a4e7f85dec2ae87d3124116`
+
+Deleted path:
+`.github/workflows/trendos-production-ledger-reconciliation-authorized-on-state.yml`
+
+Post-delete verification:
+- fetching the deleted workflow from `agent/go-live-2026-09-01-integrity` returns GitHub `404 Not Found`;
+- therefore the one-time push execution gate no longer exists on the active working branch;
+- no Production Worker deployment occurred during cleanup;
+- no D1 query or mutation was executed during cleanup;
+- no Cloud Write configuration was changed during cleanup;
+- no application data was touched during cleanup.
+
+Cleanup result:
+**PASS**
 
 ## Exact checkpoint
-**PERF-CF-02CJ — VERIFIED PASS — Production D1 migration ledger reconciled; no repository migrations pending.**
+**PERF-CF-02CJ — VERIFIED PASS — CLOSED — Production D1 migration ledger reconciled; no repository migrations pending; temporary execution gate removed.**
