@@ -8,6 +8,19 @@ Date: 2026-09-05
 
 Status: **VERIFIED PASS — CLOSED**
 
+## Latest attempted next checkpoint
+
+`PERF-CF-02CK — Production Cloud Write Business Qualification`
+
+Status: **SAFE BLOCKED — NO WRITE**
+
+The 02CK Production preflight passed, but the dedicated automation employee-auth credentials were not configured. The canonical employee-session exchange and all Production write steps were therefore skipped. No Production business record was created.
+
+Controlled 02CK run:
+- Run ID: `33969366608`
+- Job ID: `101315025704`
+- Result: SUCCESS on the explicit safe no-write path.
+
 ## Production platform state
 
 - Repository: `fawakhry/TrendOs`
@@ -19,25 +32,46 @@ Status: **VERIFIED PASS — CLOSED**
 - `schemaReady = true`
 - Production Shadow: **ON**, fixed-synthetic, deterministic, read-only, mutation-free
 - Production cutover: **OFF**
-- Frontend cutover: **NO**
+- Full frontend cutover: **NO**
 - Normalized-data cutover: **NO**
 - Sheets / Apps Script authority: **YES — still authoritative**
 - Production migration ledger: **clean, pending migrations = 0**
-- No Worker secret rotation in 02CJ
-- No Production Worker deploy in 02CJ
-- No Production business write in 02CJ
+- 02CK Worker secret rotation: **NONE**
+- 02CK Production Worker deploy: **NONE**
+- 02CK Production business write: **NONE**
+
+## Platform blackbox classification
+
+Canonical platform history and all future main-platform checkpoints live under:
+
+`docs/trendos/blackbox/منصة ترند/`
+
+Accounting, EasyStore, WhatsApp project-specific work, and other independent projects are excluded from this platform category.
+
+Legacy platform blackbox copies at `docs/trendos/blackbox/` remain only for historical-link compatibility.
 
 ## Safety boundary
 
-Cloud Write being ON does **not** mean the platform has been fully cut over to Cloudflare. The frontend and authoritative production-write ownership have not been transferred.
+Cloud Write being ON does **not** mean the platform has been fully cut over to Cloudflare. The full frontend and authoritative production-write ownership have not been transferred.
 
-## Safe resume point
+The current Production Edge signing secret must not be rotated merely to run qualification, because that would invalidate existing signed sessions.
 
-The next stage is a separately bounded **Production business-write qualification** before any frontend cutover. It must preserve:
-- `cutover=false` unless a later explicit cutover checkpoint authorizes otherwise.
-- Sheets authority until a dedicated authority-transfer gate passes.
-- authenticated fail-closed Cloud Write routing.
-- idempotency and replay protection.
-- explicit logging of any synthetic Production qualification record.
+## Exact safe resume point
 
-Do not jump directly to frontend cutover.
+Before authority transfer or full frontend cutover, complete the bounded Production business-write qualification through the canonical employee-auth route.
+
+Required CI secret inputs for the prepared manual qualification workflow:
+- `TRENDOS_PROD_QUALIFY_USERNAME`
+- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
+
+Prepared manual-only workflow:
+
+`.github/workflows/trendos-production-cloud-write-business-qualification.yml`
+
+Manual confirmation string:
+
+`QUALIFY_PRODUCTION_CLOUD_WRITE_ORDER`
+
+When those credentials are available, the workflow will create at most one clearly synthetic D1 Production order, replay the same idempotency key, require one pending outbox item, verify Shadow and safety boundaries, and keep `cutover=false` with Sheets authoritative.
+
+Do not jump directly to authority transfer or full frontend cutover.
