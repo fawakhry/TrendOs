@@ -2,6 +2,7 @@ name: TrendOS Production Cloud Write Schema Controlled Apply
 
 # PERF-CF-02CD: manual-only Production schema installation for migration 0003.
 # This workflow must NOT enable Cloud Write or cut over the frontend.
+# It fails closed unless the canonical D1 migration list contains exactly 0003.
 on:
   workflow_dispatch:
     inputs:
@@ -46,6 +47,7 @@ jobs:
           grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
           grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
           grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^migrations_dir = "migrations"$' cloudflare-d1/wrangler.toml
           grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
           grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
           ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
@@ -102,6 +104,39 @@ jobs:
           print('ISOLATED_IDEMPOTENCY_BUSINESS_SENTINEL_PASS')
           PY
 
+      - name: Qualify canonical Wrangler migration command shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations list --help > /tmp/migrations-list-help.txt
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations apply --help > /tmp/migrations-apply-help.txt
+          grep -q -- '--remote' /tmp/migrations-list-help.txt
+          grep -q -- '--config' /tmp/migrations-list-help.txt
+          grep -q -- '--remote' /tmp/migrations-apply-help.txt
+          grep -q -- '--config' /tmp/migrations-apply-help.txt
+          echo 'WRANGLER_CANONICAL_MIGRATION_COMMAND_SHAPE_PASS'
+
+      - name: Require exactly migration 0003 pending — read only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations list "$PROD_DB_NAME" \
+            --remote \
+            --config cloudflare-d1/wrangler.toml | tee /tmp/pre-pending.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('/tmp/pre-pending.txt').read_text(encoding='utf-8',errors='replace')
+          names=[]
+          for name in re.findall(r'\b\d{4}_[A-Za-z0-9_.-]+\.sql\b',text):
+              if name not in names: names.append(name)
+          expected=['0003_cloud_write_lane.sql']
+          print('PENDING_MIGRATIONS='+repr(names))
+          if names != expected:
+              raise SystemExit('PENDING_MIGRATIONS_REFUSED='+repr(names))
+          print('PENDING_MIGRATIONS_EXACT_PASS')
+          PY
+
       - name: Live Production preflight — exact unready OFF baseline required
         shell: bash
         run: |
@@ -122,15 +157,48 @@ jobs:
           if(!pass) process.exit(1);
           NODE
 
-      - name: Apply exactly migration 0003 to pinned Production D1
+      - name: Recheck exact pending set then apply canonical migration ledger
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$PROD_DB_NAME" \
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations list "$PROD_DB_NAME" \
             --remote \
-            --file "$MIGRATION" \
+            --config cloudflare-d1/wrangler.toml | tee /tmp/immediate-pending.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('/tmp/immediate-pending.txt').read_text(encoding='utf-8',errors='replace')
+          names=[]
+          for name in re.findall(r'\b\d{4}_[A-Za-z0-9_.-]+\.sql\b',text):
+              if name not in names: names.append(name)
+          if names != ['0003_cloud_write_lane.sql']:
+              raise SystemExit('IMMEDIATE_PENDING_MIGRATIONS_REFUSED='+repr(names))
+          print('IMMEDIATE_PENDING_MIGRATIONS_EXACT_PASS')
+          PY
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations apply "$PROD_DB_NAME" \
+            --remote \
             --config cloudflare-d1/wrangler.toml
-          echo 'PRODUCTION_SCHEMA_0003_APPLY_COMMAND_COMPLETE'
+          echo 'PRODUCTION_SCHEMA_0003_MIGRATION_APPLY_COMMAND_COMPLETE'
+
+      - name: Verify migration ledger cleared 0003 — read only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations list "$PROD_DB_NAME" \
+            --remote \
+            --config cloudflare-d1/wrangler.toml | tee /tmp/post-pending.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('/tmp/post-pending.txt').read_text(encoding='utf-8',errors='replace')
+          names=[]
+          for name in re.findall(r'\b\d{4}_[A-Za-z0-9_.-]+\.sql\b',text):
+              if name not in names: names.append(name)
+          print('POST_APPLY_PENDING_MIGRATIONS='+repr(names))
+          if names:
+              raise SystemExit('POST_APPLY_PENDING_MIGRATIONS_REFUSED='+repr(names))
+          print('POST_MIGRATION_LEDGER_PASS')
+          PY
 
       - name: Post-apply health — schema ready but writes still OFF
         shell: bash
@@ -204,4 +272,4 @@ jobs:
       - name: Schema-only conclusion
         run: |
           echo 'PRODUCTION_CLOUD_WRITE_SCHEMA_ONLY_APPLY_PASS'
-          echo 'Migration 0003 installed. Cloud Write remains OFF. Sheets remain authoritative. No Worker deploy or frontend cutover performed.'
+          echo 'Migration 0003 installed through the canonical D1 migration ledger. Cloud Write remains OFF. Sheets remain authoritative. No Worker deploy or frontend cutover performed.'
