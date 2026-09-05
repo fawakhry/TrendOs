@@ -53,7 +53,7 @@ jobs:
           done
           test "$matched" = true
 
-      - name: Capture live isolated Accounting schema-gap baseline
+      - name: Require live isolated Accounting schema compatibility
         shell: bash
         run: |
           set -euo pipefail
@@ -61,24 +61,26 @@ jobs:
           cat /tmp/preflight.json
           test "$code" = 200
           node <<'NODE'
-          const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/preflight.json','utf8'));
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/preflight.json','utf8'));
+          if (x.success !== true) process.exit(1);
+          if (x.code !== 'SCHEMA_COMPATIBLE' || x.compatible !== true) process.exit(1);
           if (x.readOnly !== true || x.authoritativeWrites !== false || x.mutationPerformed !== false) process.exit(1);
           if (x.persistence !== 'diagnostic-only') process.exit(1);
-          if (!Array.isArray(x.checkedTables) || !Array.isArray(x.missingTables) || !x.missingColumns || typeof x.missingColumns !== 'object') process.exit(1);
-          if (!['SCHEMA_COMPATIBLE','SCHEMA_INCOMPATIBLE'].includes(x.code)) process.exit(1);
-          console.log('ACCOUNTING_SCHEMA_GAP_BASELINE=PASS');
-          console.log('ACCOUNTING_SCHEMA_CODE=' + x.code);
-          console.log('ACCOUNTING_SCHEMA_COMPATIBLE=' + String(x.compatible));
+          if (!Array.isArray(x.checkedTables)) process.exit(1);
+          const required=['accounting_operation_idempotency','accounting_stock_movements'];
+          for (const table of required) if (!x.checkedTables.includes(table)) process.exit(1);
+          if (!Array.isArray(x.missingTables) || x.missingTables.length !== 0) process.exit(1);
+          if (!x.missingColumns || typeof x.missingColumns !== 'object' || Object.keys(x.missingColumns).length !== 0) process.exit(1);
+          console.log('ACCOUNTING_SCHEMA_COMPATIBILITY=PASS');
           console.log('ACCOUNTING_SCHEMA_CHECKED_TABLES=' + JSON.stringify(x.checkedTables));
-          console.log('ACCOUNTING_SCHEMA_MISSING_TABLES=' + JSON.stringify(x.missingTables));
-          console.log('ACCOUNTING_SCHEMA_MISSING_COLUMNS=' + JSON.stringify(x.missingColumns));
           NODE
 
       - name: Verify schema preflight is GET only
         shell: bash
         run: |
           set -euo pipefail
-          code="$(curl --silent --show-error --output /tmp/preflight-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/persistence-schema-preflight")"
+          code="$(curl --silent --show-error --output /tmp/preflight-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/persistence/schema-preflight")"
           test "$code" = 405
           node <<'NODE'
           const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/preflight-post.json','utf8'));
@@ -98,3 +100,10 @@ jobs:
           if (x.sheetsAuthoritative !== true || x.writeAuthority !== 'google-sheets-apps-script') process.exit(1);
           console.log('ACCOUNTING_AUTHORITY_UNCHANGED=PASS');
           NODE
+
+      - name: Accounting schema compatibility summary
+        run: |
+          echo 'PASS: Isolated trendos-accounting-preview schema is recognized by the live Preview runtime.'
+          echo 'PASS: Required Accounting persistence tables/columns are compatible.'
+          echo 'PASS: Schema recognition remained read-only and POST is blocked.'
+          echo 'PASS: D1 financial authoritative writes remain disabled; Sheets + Apps Script remain authoritative.'
