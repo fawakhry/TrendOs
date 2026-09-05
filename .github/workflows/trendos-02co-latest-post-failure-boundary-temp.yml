@@ -1,0 +1,76 @@
+name: TrendOS 02CO Latest Post Failure Boundary TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02co-latest-post-failure-boundary-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EDGE_BASE: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static no-write boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/trendos-02co-latest-post-failure-boundary-temp.yml').read_text(encoding='utf-8')
+          forbidden = ['wrangler ' + 'deploy', 'wrangler d1 migrations ' + 'apply', 'd1 execute --' + 'file', 'secret ' + 'put', 'TRENDOS_PRODUCTION_' + 'CUTOVER', 'AUTHORITY_' + 'CUTOVER', '/v1/qualification/cloud-write/reconcile/' + 'order']
+          for token in forbidden:
+              if token in workflow:
+                  raise SystemExit('Forbidden write/cutover token found: ' + token)
+          print('PERF_CF_02CO_LATEST_POST_FAILURE_STATIC_NO_WRITE_PASS')
+          PY
+      - name: Read-only current production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async function main(){
+            const base = process.env.EDGE_BASE;
+            async function get(path) {
+              const started = Date.now();
+              const res = await fetch(base + path, { headers: { accept: 'application/json' }, cache: 'no-store' });
+              const raw = await res.text();
+              let body = {};
+              try { body = JSON.parse(raw || '{}'); } catch (err) { throw new Error(path + ' invalid JSON ' + raw.slice(0, 120)); }
+              return { status: res.status, ms: Date.now() - started, body };
+            }
+            const health = await get('/health');
+            const cloud = await get('/v1/cloud/write/health');
+            const recon = await get('/v1/qualification/cloud-write/reconcile/health');
+            const unauth = await get('/v1/edge/orders/page?screen=print&page=1&pageSize=5');
+            if (health.status !== 200 || health.body.success !== true || health.body.database !== true) throw new Error('worker health failed');
+            if (cloud.status !== 200 || cloud.body.success !== true || cloud.body.cutover !== false || cloud.body.sheetsAuthoritative !== true || Number(cloud.body.pendingOutbox || 0) !== 0) throw new Error('cloud write boundary changed');
+            if (recon.status !== 200 || recon.body.enabled !== false || recon.body.genericDrainEnabled !== false) throw new Error('02CL boundary changed');
+            if (unauth.status !== 401) throw new Error('orders page without token is not protected');
+            console.log('PERF_CF_02CO_LATEST_POST_FAILURE_BOUNDARY=' + JSON.stringify({
+              workerMs: health.ms,
+              cloudWriteMs: cloud.ms,
+              pendingOutbox: cloud.body.pendingOutbox,
+              cutover: cloud.body.cutover,
+              sheetsAuthoritative: cloud.body.sheetsAuthoritative,
+              reconcileEnabled: recon.body.enabled,
+              genericDrainEnabled: recon.body.genericDrainEnabled,
+              ordersUnauthStatus: unauth.status
+            }));
+            console.log('PERF_CF_02CO_LATEST_POST_FAILURE_BOUNDARY_PASS');
+          })().catch((err)=>{ console.error(err && err.stack || err); process.exit(1); });
+          NODE
