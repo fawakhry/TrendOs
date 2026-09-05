@@ -1,0 +1,181 @@
+name: TrendOS 02CL Compact Exec TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths: ['cloudflare-d1/wrangler.toml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cl-compact-exec-temp
+  cancel-in-progress: false
+
+jobs:
+  run:
+    if: contains(github.event.head_commit.message, 'PERF-CF-02CL enable worker gate and execute')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CF_API: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      ORDER_ID: CW-PROD-QUAL-33975124471
+      CONFIRMATION: QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Guard and deploy on
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CLOUDFLARE_API_TOKEN="$CF_API"
+          export CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$USERNAME" = 'wael'
+          test -n "$EMPLOYEE_TOKEN"
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          npx --yes wrangler@4.33.2 deploy --config cloudflare-d1/wrangler.toml
+          echo '02CL_COMPACT_DEPLOY_ON_DONE'
+      - name: Wait for on health
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for n in $(seq 1 24); do
+            code="$(curl -sS -o /tmp/h.json -w '%{http_code}' "$PROD_URL/v1/qualification/cloud-write/reconcile/health" || true)"
+            if [ "$code" = '200' ]; then
+              node <<'NODE' && ok=1 && break || true
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/h.json','utf8'));
+          const pass=x.success===true&&x.enabled===true&&x.database===true&&x.reconcileSecretConfigured===true&&x.exactTargetRows===1&&x.outboxStatus==='pending'&&Number(x.attempts||0)===0&&x.genericDrainEnabled===false&&x.productionCutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CL_ON_HEALTH='+JSON.stringify({n:process.env.n,enabled:x.enabled,rows:x.exactTargetRows,outbox:x.outboxStatus,event:x.eventStatus,sheets:x.sheetsStatus,attempts:x.attempts,pass}));
+          process.exit(pass?0:1);
+          NODE
+            fi
+            sleep 5
+          done
+          test "$ok" = '1'
+      - name: Auth and execute exact target
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/session.json -w '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @- "$PROD_URL/v1/edge/session" <<JSON
+          {"username":"$USERNAME","token":"$EMPLOYEE_TOKEN"}
+          JSON
+          )"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/session.json','utf8'));
+          const edge=String(x.edgeToken||x.token||'').trim();
+          if(x.success!==true||!edge) process.exit(1);
+          fs.writeFileSync('/tmp/edge.txt',edge,{mode:0o600});
+          console.log('02CL_COMPACT_AUTH_PASS');
+          NODE
+          edge="$(cat /tmp/edge.txt)"
+          code="$(curl -sS -o /tmp/exec.json -w '%{http_code}' -X POST -H 'content-type: application/json' -H "authorization: Bearer $edge" --data-binary @- "$PROD_URL/v1/qualification/cloud-write/reconcile/order" <<JSON
+          {"orderId":"$ORDER_ID","confirmation":"$CONFIRMATION"}
+          JSON
+          )"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/exec.json','utf8'));
+          const pass=x.success===true&&x.state==='synced'&&x.processed===true&&x.entityId==='CW-PROD-QUAL-33975124471'&&x.targetOrderId==='CW-PROD-QUAL-33975124471'&&x.sheetsWritten===true&&x.genericDrainEnabled===false&&x.productionCutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CL_COMPACT_EXEC='+JSON.stringify({success:x.success,state:x.state,processed:x.processed,entityId:x.entityId,targetOrderId:x.targetOrderId,sheetsWritten:x.sheetsWritten,pass}));
+          if(!pass) process.exit(1);
+          NODE
+      - name: Verify synced and replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          edge="$(cat /tmp/edge.txt)"
+          curl -sS "$PROD_URL/v1/qualification/cloud-write/reconcile/health" > /tmp/after.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'));
+          const pass=x.enabled===true&&x.exactTargetRows===1&&x.outboxStatus==='synced'&&x.eventStatus==='reconciled'&&x.sheetsStatus==='synced'&&Number(x.attempts||0)===1&&x.productionCutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CL_COMPACT_D1_SYNCED='+JSON.stringify({enabled:x.enabled,outbox:x.outboxStatus,event:x.eventStatus,sheets:x.sheetsStatus,attempts:x.attempts,pass}));
+          if(!pass) process.exit(1);
+          NODE
+          code="$(curl -sS -o /tmp/replay.json -w '%{http_code}' -X POST -H 'content-type: application/json' -H "authorization: Bearer $edge" --data-binary @- "$PROD_URL/v1/qualification/cloud-write/reconcile/order/replay-proof" <<JSON
+          {"orderId":"$ORDER_ID","confirmation":"$CONFIRMATION"}
+          JSON
+          )"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/replay.json','utf8'));
+          const pass=x.success===true&&x.replayProof===true&&x.idempotent===true&&x.d1Written===false&&x.sheetsWritten===false&&Number(x.mutationCount||0)===0&&x.productionCutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CL_COMPACT_REPLAY='+JSON.stringify({success:x.success,replayProof:x.replayProof,idempotent:x.idempotent,d1Written:x.d1Written,sheetsWritten:x.sheetsWritten,mutationCount:x.mutationCount,pass}));
+          if(!pass) process.exit(1);
+          NODE
+      - name: Boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS "$PROD_URL/v1/cloud/write/v2/production-shadow" > /tmp/shadow.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/shadow.json','utf8'));
+          const pass=x.success===true&&x.readOnly===true&&x.mutationFree===true&&x.d1Written===false&&x.appsScriptCalled===false&&x.sheetsWritten===false&&Number(x.mutationCount||0)===0&&x.productionCutover===false;
+          console.log('02CL_COMPACT_SHADOW='+JSON.stringify({readOnly:x.readOnly,mutationFree:x.mutationFree,d1Written:x.d1Written,appsScriptCalled:x.appsScriptCalled,sheetsWritten:x.sheetsWritten,mutationCount:x.mutationCount,pass}));
+          if(!pass) process.exit(1);
+          NODE
+          echo 'PERF_CF_02CL_COMPACT_EXECUTION_PASS_BEFORE_DISABLE'
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/session.json /tmp/edge.txt /tmp/exec.json /tmp/replay.json
+
+  off:
+    if: contains(github.event.head_commit.message, 'PERF-CF-02CL disable worker gate')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_API: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Deploy off and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CLOUDFLARE_API_TOKEN="$CF_API"
+          export CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT"
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          npx --yes wrangler@4.33.2 deploy --config cloudflare-d1/wrangler.toml
+          ok=0
+          for n in $(seq 1 24); do
+            code="$(curl -sS -o /tmp/off.json -w '%{http_code}' "$PROD_URL/v1/qualification/cloud-write/reconcile/health" || true)"
+            if [ "$code" = '200' ]; then
+              node <<'NODE' && ok=1 && break || true
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/off.json','utf8'));
+          const pending=x.outboxStatus==='pending'&&x.eventStatus==='d1_committed'&&x.sheetsStatus==='pending'&&Number(x.attempts||0)===0;
+          const synced=x.outboxStatus==='synced'&&x.eventStatus==='reconciled'&&x.sheetsStatus==='synced'&&Number(x.attempts||0)===1;
+          const pass=x.success===true&&x.enabled===false&&x.reconcileSecretConfigured===true&&x.exactTargetRows===1&&(pending||synced)&&x.genericDrainEnabled===false&&x.productionCutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CL_COMPACT_OFF='+JSON.stringify({enabled:x.enabled,outbox:x.outboxStatus,event:x.eventStatus,sheets:x.sheetsStatus,attempts:x.attempts,pass}));
+          process.exit(pass?0:1);
+          NODE
+            fi
+            sleep 5
+          done
+          test "$ok" = '1'
+          echo 'PERF_CF_02CL_COMPACT_WORKER_GATE_OFF_CONFIRMED'
