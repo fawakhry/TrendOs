@@ -11,6 +11,7 @@ const candidateEntry = fs.readFileSync(new URL('../cloudflare-d1/production-shad
 const candidateConfig = fs.readFileSync(new URL('../cloudflare-d1/production-shadow/wrangler.candidate.toml', import.meta.url), 'utf8');
 const productionEntry = fs.readFileSync(new URL('../cloudflare-d1/src/index_v2.js', import.meta.url), 'utf8');
 const productionConfig = fs.readFileSync(new URL('../cloudflare-d1/wrangler.toml', import.meta.url), 'utf8');
+const productionCloudWriteGate = fs.readFileSync(new URL('../cloudflare-d1/src/cloud-write-gate.mjs', import.meta.url), 'utf8');
 
 for (const forbidden of [
   /\.prepare\s*\(/,
@@ -42,15 +43,21 @@ assert.doesNotMatch(candidateConfig, /APPS_SCRIPT_API_URL/);
 assert.doesNotMatch(candidateConfig, /migrations_dir/);
 
 assert.match(productionConfig, /name\s*=\s*"trendos-d1-api"/);
-assert.match(productionConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/);
-assert.doesNotMatch(productionConfig, /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"true"/);
+const cloudWriteOff = /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"false"/.test(productionConfig);
+const cloudWriteOn = /TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*"true"/.test(productionConfig);
+assert.equal(cloudWriteOff || cloudWriteOn, true, 'Production Cloud Write flag must be explicit');
+assert.equal(cloudWriteOff && cloudWriteOn, false, 'Production Cloud Write flag is ambiguous');
 
-// Production may be either:
-// A) on the original core entrypoint with no shadow flag, or
-// B) wired through the shadow wrapper with the flag explicitly OFF, or
-// C) wired through the shadow wrapper with the flag explicitly ON only for the
-//    fixed-synthetic, mutation-free observer contract tested below.
-// Cloud Write must remain explicitly OFF in all cases.
+// When Cloud Write is enabled it must remain behind the authenticated fail-closed gate.
+if (cloudWriteOn) {
+  assert.match(productionCloudWriteGate, /verifyEdgeSessionToken/);
+  assert.match(productionCloudWriteGate, /requireEnabledWriteSession/);
+  assert.match(productionCloudWriteGate, /const authFailure = await requireEnabledWriteSession/);
+  assert.match(productionCloudWriteGate, /if \(authFailure\) return authFailure/);
+  assert.match(productionCloudWriteGate, /return handleLegacyCloudWriteRequest/);
+}
+
+// Production may use the original core entrypoint or the bounded Shadow wrapper.
 const prodUsesCore = /main\s*=\s*"src\/index_v2\.js"/.test(productionConfig);
 const prodUsesShadowWrapper = /main\s*=\s*"production-shadow\/index\.js"/.test(productionConfig);
 assert.equal(prodUsesCore || prodUsesShadowWrapper, true, 'unexpected Production entrypoint');
@@ -64,7 +71,7 @@ if (prodUsesCore) {
   assert.equal(shadowOff && shadowReadOnlyOn, false, 'Production shadow wrapper flag is ambiguous');
 }
 
-// Default OFF.
+// Observer default remains OFF independent of the Production Cloud Write flag.
 {
   const response = handleProductionShadowObserver(new Request(`https://candidate.test${PRODUCTION_SHADOW_PATH}`), {});
   assert.equal(response.status, 404);
