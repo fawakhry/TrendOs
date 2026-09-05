@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      CANARY_SOURCE: view-mirror-v2
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TRENDOS_PROD_QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
@@ -40,6 +41,8 @@ jobs:
           grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
           grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
           grep -Eq 'edge-orders-read-v1-canary.mjs' cloudflare-d1/src/index_v2.js
+          grep -Eq 'D1_ORDERS_READ_V1_02CO_VIEW_CANARY' cloudflare-d1/src/edge-orders-read-v1-canary.mjs
+          grep -Eq 'واجهة الطباعة' cloudflare-d1/src/edge-orders-read-v1-canary.mjs
           python - <<'PY'
           from pathlib import Path
           checked = [
@@ -141,10 +144,10 @@ jobs:
                 for (let i = 0; i < Math.max(edgeKeys.length, appKeys.length) && mismatch.length < 5; i++) {
                   if (edgeKeys[i] !== appKeys[i]) mismatch.push({ index: i, edge: edgeKeys[i] || null, app: appKeys[i] || null });
                 }
-                throw new Error('row identity mismatch ' + JSON.stringify({ filter: statusFilter || 'all', edgeTotalRows: edge.body.pagination && edge.body.pagination.totalRows, appTotalRows: app.body.pagination && app.body.pagination.totalRows, mismatch }));
+                throw new Error('row identity mismatch ' + JSON.stringify({ filter: statusFilter || 'all', edgeTotalRows: edge.body.pagination && edge.body.pagination.totalRows, appTotalRows: app.body.pagination && app.body.pagination.totalRows, mismatch, edgeVersion: edge.body.version, edgeMirror: edge.body.mirror }));
               }
               assert(Number(edge.body.pagination && edge.body.pagination.totalRows) === Number(app.body.pagination && app.body.pagination.totalRows), 'pagination total mismatch filter=' + (statusFilter || 'all'));
-              comparisons.push({ filter: statusFilter || 'all', edgeMs: edge.ms, appsMs: app.ms, totalRows: edge.body.pagination.totalRows, version: edge.body.version });
+              comparisons.push({ filter: statusFilter || 'all', edgeMs: edge.ms, appsMs: app.ms, totalRows: edge.body.pagination.totalRows, version: edge.body.version, mirror: edge.body.mirror });
             }
             const debtParams = new URLSearchParams({ screen: 'print', page: '1', pageSize: '20', statusFilter: '__DEBT__' });
             const debt = await readJson('edge-debt-fallback', `${edgeBase}/v1/edge/orders/page?${debtParams}`, { headers: { accept: 'application/json', authorization: `Bearer ${session.body.edgeToken}` } });
