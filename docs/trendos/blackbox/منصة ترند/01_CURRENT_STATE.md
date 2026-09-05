@@ -12,7 +12,7 @@ Status: **VERIFIED PASS — CLOSED**
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-Status: **SAFE BLOCKED — NO WRITE — AUTH READINESS RECONFIRMED NOT READY**
+Status: **SAFE BLOCKED — NO WRITE — USERNAME IDENTIFIED / FRESH TOKEN REQUIRED**
 
 The 02CK Production preflight passed, but the dedicated automation employee-auth credentials were not configured. The canonical employee-session exchange and all Production write steps were therefore skipped. No Production business record was created.
 
@@ -35,7 +35,30 @@ A temporary read-only GitHub Actions probe rechecked only whether the two dedica
 - Temporary probe cleanup commit: `06dedc9021a7efff1826a346f3f9e428238c49f2`
 - Blackbox record: `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
 
-Therefore the exact 02CK blocker is still active: both dedicated employee-auth repository secrets remain unconfigured. No Production business write was attempted during the recheck.
+Therefore the repository secrets remain unconfigured and no Production business write was attempted during that readiness recheck.
+
+## Verified employee username candidate
+
+The user supplied the literal candidate `Username` (capital `U`). Current `Code.gs` uses exact normalized string equality in `findUser_`, so case matters.
+
+A controlled Apps Script probe returned:
+
+`{"success":false,"message":"انتهت الجلسة. سجل الدخول مرة أخرى."}`
+
+This proves that `Username` exists in the authoritative employee store. Lowercase `username` had previously returned `المستخدم غير موجود.`.
+
+Controlled `Username` probe:
+- Trigger commit: `32371150f14aaabc277e052fba88befd8edfaa70`
+- Run ID: `33973359765`
+- Job ID: `101325680403`
+- Temporary workflow cleanup commit: `1bb936db4ec78b64ac813a26e1e3289f53c6a9dd`
+- Detailed blackbox record: `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_USERNAME_CASE_DISCOVERY_SESSION_INVALIDATED.md`
+
+Important correction: this probe used a deliberately invalid token. The current authoritative `authorize_` implementation clears the stored employee Token when the supplied token is missing, mismatched, or expired. Therefore the probe invalidated/cleared the current session token for employee `Username` in the Users sheet.
+
+This was an authentication-state mutation in Sheets only. It was not a business-data write and did not touch Production D1, Cloud Write events/outbox, Worker secrets, or cutover.
+
+Do not run additional invalid-token employee existence probes.
 
 ## Verified 02CK credential contract
 
@@ -48,7 +71,7 @@ Current Apps Script source confirms that the required employee token is a normal
 - The active frontend session stores the employee username and token in browser `sessionStorage`, including `matbagy_username` and `matbagy_session_token`.
 - Production Edge exchanges this valid Apps Script employee session for a separate short-lived Edge token; no `EDGE_SESSION_SECRET` rotation is required.
 
-Operationally, the one-time 02CK qualification secret should therefore use a **fresh authorized login session token generated close to the controlled run**. Never commit this token to repository files or blackbox documentation.
+Operationally, the one-time 02CK qualification secret must use a **fresh authorized login session token generated close to the controlled run**. Never commit this token to repository files or blackbox documentation.
 
 ## Production platform state
 
@@ -89,16 +112,20 @@ The current Production Edge signing secret must not be rotated merely to run qua
 
 Before authority transfer or full frontend cutover, complete the bounded Production business-write qualification through the canonical employee-auth route.
 
+Candidate employee username is now known:
+
+`Username`
+
 Required CI secret inputs for the prepared manual qualification workflow:
-- `TRENDOS_PROD_QUALIFY_USERNAME`
-- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
+- `TRENDOS_PROD_QUALIFY_USERNAME` = `Username`
+- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` = a **fresh valid token from a new normal login for `Username`**
 
-Both inputs were reconfirmed absent by the latest read-only readiness probe.
+The previous session token for `Username` was invalidated by the controlled discovery probe, so a new normal login is required before qualification.
 
-To prepare them safely:
-1. Perform a fresh normal login with a dedicated employee account already accepted by `verifyEmployeeSession`.
-2. Use that browser session's current username and `matbagy_session_token`; do not paste the token into chat or commit it to GitHub files.
-3. Add those values as the two GitHub Actions repository secrets above.
+Safe preparation:
+1. Log in normally to TrendOS as `Username` using the valid password.
+2. Capture the newly generated browser `matbagy_session_token` without pasting it into chat or committing it to GitHub files.
+3. Add `Username` and the fresh token as the two GitHub Actions repository secrets above.
 4. Recheck only secret presence without printing values.
 5. Run the bounded Production qualification and require every existing 02CK safety assertion to pass.
 
