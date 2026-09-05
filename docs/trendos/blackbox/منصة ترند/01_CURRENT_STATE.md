@@ -4,95 +4,138 @@ Date: 2026-09-06
 
 ## Latest closed checkpoint
 
+`PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
+
+Status: **VERIFIED PASS — CLOSED**
+
+Latest record:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CL_PRODUCTION_OUTBOX_TO_SHEETS_PASS_CLOSED.md`
+
+## Previously closed checkpoint
+
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
 Status: **VERIFIED PASS — CLOSED**
 
-## Active checkpoint
+## Final 02CL result
 
-`PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
-
-Status:
-
-**AUTH PASS — EXECUTION HOLD — SECRET PLACEMENT CORRECTION REQUIRED — BOTH 02CL GATES OFF — NO RECONCILIATION EXECUTED**
-
-Latest record:
-
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CL_AUTH_PASS_SECRET_PLACEMENT_CORRECTION_HOLD.md`
-
-## Exact target
+Exact bounded target:
 
 - Order ID: `CW-PROD-QUAL-33975124471`
 - operation: `upsert_order_to_sheets`
 - confirmation: `QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471`
-- generic outbox drain: **FORBIDDEN**
+- generic outbox drain: **FORBIDDEN / NOT USED**
 
-## Infrastructure ready but held
+02CL is closed because:
 
-Apps Script:
-- Version 153 live
-- bounded 02CL route installed
-- execution gate OFF
+- exact target reconciliation executed once
+- target outbox status became `synced`
+- target event status became `reconciled`
+- target sheets status became `synced`
+- attempts became `1`
+- authoritative Orders-sheet row exists exactly once
+- replay proof was idempotent/no-op
+- replay `d1Written=false`
+- replay `sheetsWritten=false`
+- replay `mutationCount=0`
+- Production Shadow remained read-only/mutation-free
+- Worker gate was disabled after execution
+- Apps Script gate was disabled after execution
+- temporary qualifier `wael` was disabled and token cleared
+- no cutover occurred
 
-Worker:
-- isolated 02CL route live
-- execution gate OFF
-- generic drain disabled
+## 02CL evidence
 
-Production boundary:
-- Cloud Write ON
-- Production Shadow ON / read-only / mutation-free
-- Production cutover OFF
-- Sheets / Apps Script authoritative
+Main execution:
 
-## Latest auth status
+- Worker gate ON commit: `108c9e0f3e3fd468db1eb1bd9644a8cd5832443e`
+- Workflow: `.github/workflows/trendos-02cl-exec-temp2.yml`
+- Run ID: `33997066271`
+- Job ID: `101389338764`
+- Conclusion: **SUCCESS**
+- Deployed ON Worker Version ID: `23dd09da-cb29-4310-bc01-51505fd5cdec`
+- Auth marker: `02CL_COMPACT_AUTH_PASS`
+- Execution marker: `02CL_COMPACT_EXEC`
+- D1 synced marker: `02CL_COMPACT_D1_SYNCED`
+- Replay marker: `02CL_COMPACT_REPLAY`
+- Shadow marker: `02CL_COMPACT_SHADOW`
+- Final marker: `PERF_CF_02CL_COMPACT_EXECUTION_PASS_BEFORE_DISABLE`
 
-Canonical auth-only GitHub Actions rerun succeeded:
+Post-execution disable:
 
-- Workflow Run: `33987326112`
-- Successful Job: `101386927970`
-- Auth marker: `02CL_WAEL_EDGE_SESSION_EXCHANGE_PASS`
-- Safety marker: `No reconciliation executed. No outbox claim. No Sheet write. No cutover.`
+- Worker gate OFF commit: `b930a65d78bf92df8fe9444d9e56abd7850ee8ec`
+- OFF Run ID: `33997108135`
+- OFF Job ID: `101389450009`
+- Conclusion: **SUCCESS**
+- Deployed OFF Worker Version ID: `cf4d3c2a-95e2-4fdc-91d9-08a44014f64b`
+- OFF marker: `PERF_CF_02CL_COMPACT_WORKER_GATE_OFF_CONFIRMED`
 
-## Secret placement correction
+Authoritative Google Sheet verification:
 
-User identified that the employee session token had previously been placed into the wrong secret slot:
+- Workbook: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+- Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+- Sheet: `الأوردرات`
+- Search range: `A1:BZ400`
+- Matched target rows: `1`
+- Row: `311`
 
-`TRENDOS_PROD_RECONCILE_QUALIFY_SECRET`
+Temporary auth cleanup:
 
-Correct separation:
+- Sheet: `المستخدمين`
+- Row: `9`
+- User: `wael`
+- `مفعل؟`: `لا`
+- `Token`: cleared / blank
 
-- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` = temporary employee session token for canonical employee auth exchange.
-- `TRENDOS_PROD_RECONCILE_QUALIFY_SECRET` = dedicated bounded 02CL reconciliation secret shared by GitHub/Worker/Apps Script.
+Apps Script final manual gate disable:
 
-No secret values are recorded.
+- User-provided Apps Script log: `02CL APPS SCRIPT GATE DISABLED = 0`
 
-## Safety result
+Temporary workflow cleanup:
 
-No 02CL execution occurred:
-- outbox claim: NONE
-- Sheet write: NONE
-- reconciliation D1 mutation: NONE
-- Apps Script gate enable: NONE
-- Worker gate enable: NONE
-- replay: NONE
-- cutover: NONE
-- `EDGE_SESSION_SECRET` rotation: NONE
+- Deleted: `.github/workflows/trendos-02cl-exec-temp2.yml`
+- Cleanup commit: `2e5d682bc8ee009b5c476c760176dcea2070229e`
 
-Latest verified target boundary remains before actual execution:
-- pending outbox total: `1`
-- exact target status: `pending`
-- attempts: `0`
-- target Orders-sheet rows: `0`
+## Current production boundary
 
-## Exact safe resume point
+- Production Worker: `trendos-d1-api`
+- Production D1: `trendos-main`
+- Production Cloud Write: **ON**
+- Production Shadow: **ON / read-only / mutation-free**
+- Production cutover: **OFF**
+- Sheets / Apps Script authority: **YES**
+- Apps Script 02CL route: live, gate **OFF**
+- Worker 02CL route: live, gate **OFF**
+- Worker dedicated reconciliation secret: configured
+- Apps Script dedicated reconciliation secret: configured
+- exact target status: `synced`
+- exact event status: `reconciled`
+- exact sheets status: `synced`
+- exact attempts: `1`
+- target Orders-sheet rows: `1`
+- generic outbox drain: **not exposed / not used**
+- frontend cutover: **NO**
+- normalized-data cutover: **NO**
+- authority transfer from Sheets to D1: **NO**
+- `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
 
-1. Keep execution paused.
-2. Do not run reconciliation yet.
-3. Confirm `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` contains only the current `wael` employee session token.
-4. Restore/confirm `TRENDOS_PROD_RECONCILE_QUALIFY_SECRET` as the dedicated reconciliation secret only, not an employee token.
-5. Re-probe readiness while both gates remain OFF.
-6. Only after secret separation is confirmed: proceed to bounded exact-target 02CL execution.
-7. Execute exactly one target reconciliation + one replay-noop proof.
-8. Require exactly one Orders row, target outbox synced, replay mutationCount=0, Shadow mutation-free, `cutover=false`, Sheets authoritative.
-9. Immediately disable both gates, clear temporary auth, disable `wael`, and close 02CL PASS before any cutover work.
+## Active checkpoint / next safe work
+
+No active execution checkpoint is authorized after 02CL closure.
+
+Recommended next checkpoint only after explicit approval:
+
+`PERF-CF-02CM — Post-02CL Production Stability / Cutover Readiness Preflight`
+
+Safe next-work rules:
+
+1. Read this file and `00_INDEX.md` before any new work.
+2. Read latest 02CL PASS record.
+3. Do not rerun 02CK or 02CL.
+4. Do not use generic outbox drain.
+5. Do not rotate `EDGE_SESSION_SECRET`.
+6. Do not enable Apps Script or Worker 02CL gates again unless a new bounded audited checkpoint is created.
+7. Do not enable frontend or authority cutover without explicit approval.
+8. Keep Sheets / Apps Script authoritative until a separately approved cutover checkpoint.
+9. Next work should be read-only stability/performance diagnosis first, focused on current production slowness and Cloudflare cutover readiness.
