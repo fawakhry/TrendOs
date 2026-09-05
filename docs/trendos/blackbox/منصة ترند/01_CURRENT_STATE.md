@@ -16,12 +16,13 @@ Detailed record:
 
 `PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
 
-Status: **LIVE READ-ONLY PREFLIGHT PASS — APPS SCRIPT DEFAULT-OFF DEPLOYMENT PENDING — NO 02CL PRODUCTION MUTATION**
+Status: **LIVE READ-ONLY PREFLIGHT PASS + WORKER DEFAULT-OFF WIRING CI PASS — APPS SCRIPT MANUAL DEPLOYMENT PENDING — NO 02CL PRODUCTION MUTATION**
 
 Read first:
 
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_LIVE_READONLY_PREFLIGHT_PASS_NO_MUTATION.md`
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_WORKER_WRAPPED_DEFAULT_OFF_CI_PASS_NOT_DEPLOYED.md`
 - `docs/trendos/staging/APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md`
 
 ## Exact 02CL target
@@ -31,9 +32,7 @@ Read first:
 - confirmation: `QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471`
 - generic outbox drain: **FORBIDDEN**
 
-## Candidate implementation state
-
-Apps Script candidate:
+## Apps Script candidate
 
 `apps-script/patches/CLOUD_WRITE_PRODUCTION_RECONCILE_QUALIFICATION_V1.gs`
 
@@ -44,30 +43,50 @@ Apps Script candidate:
 - one append maximum
 - identical replay = zero-mutation no-op
 - duplicate/conflicting row = fail closed
-- not yet installed/routed in the live Apps Script project
+- **not yet installed/routed in the live Apps Script project**
 
-Worker candidate:
+## Worker code state — prepared/wired/default-OFF, not deployed
+
+Bounded module:
 
 `cloudflare-d1/src/cloud-write-production-reconcile-qualification.mjs`
 
-- default-OFF
-- exact target only
-- Edge bearer session required for execution
-- dedicated reconciliation secret
-- strict Apps Script persisted-row ACK
-- not yet imported/routed by Production entrypoint
+The temporary lane is intentionally kept outside generic `src/index_v2.js`.
 
-Candidate CI:
+Actual Production wrapper:
 
-- Run `33983980229`
-- Job `101354064165`
+`cloudflare-d1/production-shadow/index.js`
+
+now recognizes the isolated 02CL path and delegates only that prefix to the bounded handler.
+
+- wrapper wiring commit: `a12f5ad33d171be00c78456c6ddb795fb53f0635`
+- tracked flag in `cloudflare-d1/wrangler.toml`: `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"`
+- flag commit: `ba3d71a68bf992a74c837dedb2ecd712972767d5`
+- no plaintext reconciliation secret committed
+
+Default-OFF runtime safety test:
+
+`tests/cloudflare_production_reconcile_qualification_wiring_default_off_v1.test.mjs`
+
+- test commit: `4111c612715b6fadb0c634a62adb8abd79dff858`
+- no DB / Edge secret / Apps Script config supplied to the test
+- exact qualification POST returns HTTP 423 `qualification-disabled`
+- rejection occurs before DB/auth/Apps Script access
+
+Updated candidate CI:
+
+- workflow head commit: `0c784aaaf90993f7d12d49e5087ef7da6a6337ee`
+- Run `33984943262`
+- Job `101356624792`
 - conclusion: **SUCCESS**
 
-Integrity on candidate head:
+Integrity on same head:
 
-- Run `33983980205`
-- Job `101354064040`
+- Run `33984943269`
+- Job `101356624897`
 - conclusion: **SUCCESS**
+
+**No Production Worker deploy has occurred.**
 
 ## Latest live read-only preflight — PASS
 
@@ -79,7 +98,7 @@ Exact search of `الأوردرات` across current bounds:
 
 - target Orders-sheet matches: **0**
 
-Temporary live read-only workflow:
+Temporary read-only workflow evidence:
 
 - trigger commit: `f3e2a9fdbe92b53c0436207b8f97a14b2b9ed8a2`
 - Run ID: `33984695539`
@@ -87,13 +106,13 @@ Temporary live read-only workflow:
 - conclusion: **SUCCESS**
 - cleanup commit: `789c9985f21cdd01e92b5ba6e95a7f9fac6bc2df`
 
-Live Apps Script dry-run lineage:
+Live Apps Script old reconciliation lineage:
 
 - HTTP 200
 - code: `unauthorized`
 - `sheetsWritten=false`
 - `mutationCount=0`
-- result: existing reconciliation helper lineage remains installed/live and locked
+- existing reconciliation helper lineage remains installed/live and locked
 
 Production health:
 
@@ -108,28 +127,29 @@ Exact D1 outbox target:
 - attempts: `0`
 - event key: `order:create:prod-qual-33975124471`
 
-No D1/Sheets mutation occurred during this preflight.
+No D1/Sheets mutation occurred during the preflight.
 
 ## Current manual deployment boundary
 
-Connected tools in this chat do not expose Google Apps Script source deployment or Script Property mutation.
+Connected tools do not expose Google Apps Script source deployment or Script Property mutation, and plugin discovery found no Google Apps Script deployment connector.
 
-Therefore the next live step requires manual installation into the existing Apps Script project while remaining default-OFF.
+The next live action is therefore the Apps Script **default-OFF manual installation**.
 
 Prepared manifest:
 
 `docs/trendos/staging/APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md`
 
-Required installation shape:
+Required live installation:
 
-1. Add a new Apps Script source file using the exact contents of:
+1. Create one additional Apps Script file from the exact contents of:
    `apps-script/patches/CLOUD_WRITE_PRODUCTION_RECONCILE_QUALIFICATION_V1.gs`
 2. In live `Code.gs`, immediately after the existing `cloudWriteReconcileDryRunV1` route, add exactly:
    `else if (action === "cloudWriteReconcileProductionQualificationV1") result = trendosCloudWriteReconcileProductionQualificationV1_(e);`
 3. Do not overwrite live `Code.gs` with repository `Code.gs`.
 4. Keep `TRENDOS_CLOUD_WRITE_PROD_RECONCILE_QUALIFY_ENABLED` absent/empty/`0` during installation.
 5. Preserve the existing Web App deployment ID and deploy a New version.
-6. After deployment, run a no-secret/default-OFF probe. Expected code: `qualification-disabled`, zero Sheet mutation.
+6. Tell the execution chat when deployed; do not paste secrets.
+7. Execution chat must immediately run a no-secret live probe and require `qualification-disabled` with zero mutation.
 
 ## Production platform state
 
@@ -149,7 +169,8 @@ Required installation shape:
 - qualification pending Sheets outbox: **1**
 - exact target Orders-sheet row: **0**
 - 02CL Apps Script deploy: **NOT YET**
-- 02CL Worker deploy: **NOT YET**
+- 02CL Worker code wiring: **YES / DEFAULT-OFF / CI PASS**
+- 02CL Worker Production deploy: **NOT YET**
 - 02CL outbox consumption: **NONE**
 - `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
 
@@ -159,23 +180,23 @@ Do not yet:
 
 - consume/claim the target outbox item;
 - enable a generic reconciler;
+- deploy the Worker with the qualification flag ON;
 - enable Production/full-frontend/normalized-data cutover;
 - transfer authority from Sheets;
 - rotate `EDGE_SESSION_SECRET`;
 - reuse the disabled/stale 02CK `wael` token;
-- set the 02CL qualification enable flag to ON before both sides are installed and default-OFF probes pass.
+- configure/enable the 02CL execution secret before default-OFF installation probes pass.
 
 ## Exact safe resume point
 
 1. Treat 02CK as closed PASS.
-2. Treat 02CL candidate CI + live read-only preflight as PASS.
-3. Perform the Apps Script default-OFF manual installation exactly from the deploy manifest.
-4. Tell the execution chat once the new Apps Script version is deployed; do not paste secrets.
-5. Run a no-secret probe and require `qualification-disabled` / zero mutation.
-6. Then wire/test/deploy the Worker candidate default-OFF.
+2. Treat 02CL candidate CI, live read-only preflight, and Worker default-OFF wiring CI as PASS.
+3. Perform the Apps Script default-OFF manual installation exactly from the deployment manifest.
+4. Once the user confirms deployment, run a no-secret live Apps Script probe and require `qualification-disabled` / zero mutation.
+5. If PASS, deploy the already-prepared Worker code while the tracked qualification flag remains `false`.
+6. Probe Worker qualification health/default-OFF behavior and recheck target pending/Sheets absent.
 7. Provision one dedicated 02CL reconciliation secret on both sides; never reuse `EDGE_SESSION_SECRET`.
-8. Verify both sides default-OFF and exact target still pending / absent from Sheets.
-9. Acquire a fresh temporary authorized Edge session only immediately before execution.
-10. Explicitly enable the bounded gate, execute target once, then replay-noop proof.
-11. Require exact target synced, exactly one Orders row, replay mutationCount=0, unrelated outbox untouched, Shadow mutation-free, `cutover=false`, Sheets authoritative.
-12. Disable/clear temporary qualification credentials after PASS and close 02CL before defining cutover.
+8. Acquire a fresh temporary authorized Edge session only immediately before execution.
+9. Explicitly enable the bounded gate, execute target once, then replay-noop proof.
+10. Require exact target synced, exactly one Orders row, replay mutationCount=0, unrelated outbox untouched, Shadow mutation-free, `cutover=false`, Sheets authoritative.
+11. Disable/clear temporary qualification credentials after PASS and close 02CL before defining cutover.
