@@ -20,3 +20,10 @@ TRENDOS_PRODUCTION_SHADOW_PREVIEW_ENABLED = "true"
 binding = "DB"
 database_name = "trendos-main"
 database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
+
+# Dedicated Accounting Preview database. This binding is non-authoritative and
+# intentionally separate from the existing shared read mirror above.
+[[d1_databases]]
+binding = "TRENDOS_ACCOUNTING_PREVIEW_DB"
+database_name = "trendos-accounting-preview"
+database_id = "bf53471a-913a-44e1-a9f4-d647237592e1"
