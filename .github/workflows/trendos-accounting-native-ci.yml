@@ -23,6 +23,8 @@ on:
       - 'accounting/d1-persistence-adapter-v1.test.js'
       - 'accounting/persistence-composition-v1.js'
       - 'accounting/persistence-composition-v1.test.js'
+      - 'accounting/preview-persistence-caller-v1.js'
+      - 'accounting/preview-persistence-caller-v1.test.js'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_accounting_native_v1.test.mjs'
       - 'tests/cloudflare_accounting_contract_v1.test.mjs'
@@ -62,6 +64,7 @@ jobs:
           node --check cloudflare-d1/src/index_v2.js
           node --check accounting/d1-persistence-adapter-v1.js
           node --check accounting/persistence-composition-v1.js
+          node --check accounting/preview-persistence-caller-v1.js
       - name: Native module tests
         run: node tests/cloudflare_accounting_native_v1.test.mjs
       - name: Accounting V1 contract tests
@@ -82,5 +85,7 @@ jobs:
         run: node accounting/d1-persistence-adapter-v1.test.js
       - name: Accounting F2 persistence composition safety tests
         run: node accounting/persistence-composition-v1.test.js
+      - name: Accounting F2 preview persistence caller tests
+        run: node accounting/preview-persistence-caller-v1.test.js
       - name: Preview zero-write safety gate
         run: node tests/cloudflare_preview_safety_v1.test.mjs
