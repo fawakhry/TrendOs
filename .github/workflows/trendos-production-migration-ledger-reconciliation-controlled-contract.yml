@@ -62,8 +62,8 @@ jobs:
             'POST_LEDGER_WRANGLER_NO_0001_0002_0003_PENDING_PASS',
             "test \"$code\" = '423'",
             "test \"$outbox_code\" = '423'",
-            'POST_ORDERS_PARITY=',
-            'POST_LINES_PARITY=',
+            "'POST_'+label+'_PARITY='",
+            "[['ORDERS','/tmp/post-orders.json'],['LINES','/tmp/post-lines.json']]",
           ]
           missing=[x for x in required if x not in t]
           if missing:
@@ -92,23 +92,23 @@ jobs:
               if re.search(pat,t,re.I|re.M):
                   raise SystemExit('FORBIDDEN_'+label)
 
-          # Isolate the one mutation step and prove it is ledger-only.
+          # Isolate the one mutation step and prove the generated SQL itself is ledger-only.
           mm=re.search(r'(?ms)^\s{6}- name: Reconcile exactly three migration-ledger names in one D1 batch\n(?P<body>.*?)(?=^\s{6}- name: )',t)
           if not mm:
               raise SystemExit('MUTATION_STEP_NOT_FOUND')
           body=mm.group('body')
-          if body.count('INSERT INTO d1_migrations(name)') < 2:
-              raise SystemExit('EXACT_LEDGER_INSERT_TEMPLATE_MISSING')
-          for app in ['customers','orders','messages','conversations','migration_runs','sheet_catalog','sheet_rows','sheet_migration_runs','cloud_write_events','cloud_write_outbox']:
-              # App names are allowed only in the runtime static guard regex, never in an SQL statement.
-              for sql_literal in re.findall(r"['\"]([^'\"\n]*(?:INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)[^'\"\n]*)['\"]",body,re.I):
-                  if re.search(r'\b'+re.escape(app)+r'\b',sql_literal,re.I):
-                      raise SystemExit('APPLICATION_TABLE_MUTATION_REFUSED='+app)
-          mutations=re.findall(r'\b(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)\b',body,re.I)
-          if any(x.upper()!='INSERT' for x in mutations):
-              raise SystemExit('NON_INSERT_MUTATION_IN_LEDGER_STEP='+repr(mutations))
-          if 'INSERT INTO d1_migrations(name)' not in body:
+          target='INSERT INTO d1_migrations(name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name = ?)'
+          assignment=re.search(r"(?m)^\s*sql='([^']+)'\s*$",body)
+          if not assignment or assignment.group(1)!=target:
+              raise SystemExit('EXACT_LEDGER_SQL_ASSIGNMENT_REQUIRED')
+          sql_text=assignment.group(1)
+          if not sql_text.upper().startswith('INSERT INTO D1_MIGRATIONS(NAME)'):
               raise SystemExit('LEDGER_INSERT_ONLY_REQUIRED')
+          for app in ['customers','orders','messages','conversations','migration_runs','sheet_catalog','sheet_rows','sheet_migration_runs','cloud_write_events','cloud_write_outbox']:
+              if re.search(r'\b'+re.escape(app)+r'\b',sql_text,re.I):
+                  raise SystemExit('APPLICATION_TABLE_MUTATION_REFUSED='+app)
+          if re.search(r'\b(UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)\b',sql_text,re.I):
+              raise SystemExit('NON_INSERT_MUTATION_IN_LEDGER_SQL')
           if body.count("names=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']") != 1:
               raise SystemExit('EXACT_THREE_LEDGER_NAMES_REQUIRED')
           if "'batch':[{'sql':sql,'params':[n,n]} for n in names]" not in body:
