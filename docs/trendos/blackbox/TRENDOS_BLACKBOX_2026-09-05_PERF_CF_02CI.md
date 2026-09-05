@@ -134,13 +134,23 @@ Cleanup Integrity run:
 
 A separate Cloudflare GitHub App check named `Workers Builds: trendos` is not the controlled `trendos-d1-api` deploy workflow and is not used as evidence for this checkpoint. The controlled `trendos-d1-api` deploy and all live post-deploy checks were completed by run `33967591256`.
 
+## Blackbox verification
+
+Initial blackbox commit:
+
+`4306b7641adcaa623278bb219e4e44927bb4dc5d`
+
+Integrity verification of that blackbox commit:
+
+- Run ID: `33967756731`
+- Job ID: `101310764457`
+- `integrity-foundation`: **SUCCESS**.
+
 ## Current exact checkpoint
 
-`PERF-CF-02CI` status at blackbox write: **IMPLEMENTED AND LIVE-VERIFIED; final blackbox-commit Integrity verification pending.**
-
-After the blackbox commit itself receives final Integrity SUCCESS, this checkpoint may be declared:
-
 **PERF-CF-02CI — VERIFIED PASS — CLOSED**
+
+Cloud Write is live and guarded. Production cutover is still OFF, frontend cutover is still OFF, and Sheets / Apps Script remain authoritative.
 
 ## Safe resume point after closure
 
