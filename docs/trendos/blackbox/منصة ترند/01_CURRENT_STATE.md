@@ -4,15 +4,19 @@ Date: 2026-09-06
 
 ## Latest checkpoint
 
-`PERF-CF-02CN — Orders Read Path Cutover Readiness / Slowness Hot-Path Fix`
+`PERF-CF-02CO — Controlled Orders D1 Read Canary / Authenticated Comparison`
 
-Status: **CANDIDATE PREPARED — CI PASS — DEFAULT-OFF — NO CUTOVER**
+Status: **WORKER DASHBOARD BUILDER LIVE — AUTHENTICATED CANARY BLOCKED BY EDGE SESSION 401 — FRONTEND OFF — BOUNDARY PASS**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CN_ORDERS_READ_HOTPATH_CANDIDATE_CI_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_WORKER_LIVE_AUTH_BLOCKED_BOUNDARY_PASS.md`
 
-## Previously closed checkpoints
+## Previously closed/prepared checkpoints
+
+`PERF-CF-02CN — Orders Read Path Cutover Readiness / Slowness Hot-Path Fix`
+
+Status: **CANDIDATE PREPARED — CI PASS — DEFAULT-OFF — NO CUTOVER**
 
 `PERF-CF-02CM — Post-02CL Production Stability / Cutover Readiness Preflight`
 
@@ -26,59 +30,88 @@ Status: **VERIFIED PASS — CLOSED**
 
 Status: **VERIFIED PASS — CLOSED**
 
-## 02CN result
+## 02CO result
 
-02CN prepared the Orders read hot-path candidate after 02CM showed Worker/D1 was healthy and fast while Apps Script was the slowest measured endpoint.
+02CO attempted the controlled Orders D1 read canary after 02CN prepared the D1 dashboard builder.
 
-The candidate adds the missing D1 dashboard response for Edge Orders reads so the frontend can later test `getRowsPageV1931` through Cloudflare/D1 without losing the dashboard payload.
+The Production Worker was deployed with the 02CN dashboard-builder code, so the D1 Orders page endpoint can return a dashboard from D1 rows.
 
-No live production cutover occurred.
+The authenticated D1-vs-Apps-Script comparison did **not** complete because the Edge session exchange returned HTTP `401` using the current GitHub qualification username/token secrets.
 
-## 02CN files changed
+This is treated as a fresh-auth blocker, not as data parity failure.
 
-Implementation:
+## 02CO files/workflows
 
-- `cloudflare-d1/src/edge-orders-read-v1.mjs`
-- Commit: `8844ab6ccd86765ea9012a042078584a738578d1`
-- Added `buildDashboardFromRows(rows, screen, now)`.
-- `/v1/edge/orders/page` now returns a D1-built dashboard instead of `dashboard: null`.
+Main temporary 02CO workflow:
 
-Tests:
+- `.github/workflows/trendos-02co-orders-d1-read-canary-temp.yml`
+- Created commit: `35780cc655d48b216bd8ff1df63acb7630e7d257`
+- Guard-fix commit: `04747c874544fd8a02aec985c7b301e3557ca3d6`
+- Initial run `33998555571` / Job `101393226552`: failed before deploy due to deploy-command guard text mismatch only.
+- Main run `33998607884` / Job `101393360747`: deployed Worker then failed at Edge session HTTP `401`.
 
-- `tests/cloudflare_edge_orders_dashboard_02cn.test.mjs`
-- Commit: `8a7af0109fa7f51c8257706d6bd7531c0ebb230b`
+Post-auth-failure read-only boundary workflow:
 
-CI:
-
-- `.github/workflows/trendos-02cn-orders-read-hotpath-ci.yml`
-- Created: `5ef76b6a9992e5ba97df591f79d8e2f646264cff`
-- Guard cleanup: `7f00d3c7a02ade0cbe2aa2fb527a06b0e9ac214a`
-
-## 02CN CI evidence
-
-Final 02CN CI:
-
-- Workflow: `TrendOS 02CN Orders Read Hot-Path CI`
-- Run: `33998245346`
-- Job: `101392419518`
+- `.github/workflows/trendos-02co-post-failed-auth-boundary-temp.yml`
+- Created commit: `94b3c933f53950258a59fa42053d76293840ccf7`
+- Run: `33998657431`
+- Job: `101393488074`
 - Conclusion: **SUCCESS**
-- Markers:
-  - `PERF_CF_02CN_STATIC_SAFETY_BOUNDARY_PASS`
-  - `PERF_CF_02CN_EDGE_ORDERS_DASHBOARD_TEST_PASS`
+- Cleanup commit: `f58ec9acc6f2502469cff931e30917e1c132072e`
 
-General integrity:
+## 02CO deployment evidence
 
-- Workflow: `TrendOS Integrity V1`
-- Run: `33998245337`
-- Job: `101392418999`
-- Conclusion: **SUCCESS**
+Controlled Worker deploy:
+
+- Worker: `trendos-d1-api`
+- Worker Version ID: `4c02c234-305c-4845-b9eb-f52bf647ff9b`
+- D1 binding: `trendos-main`
+- Upload: `337.01 KiB / gzip 67.14 KiB`
+- Startup time: `4 ms`
+
+Wrangler showed flags/vars unchanged:
+
+- `TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"`
+- `TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"`
+- `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"`
+
+Frontend flag remains OFF:
+
+- `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false`
+
+## 02CO boundary evidence
+
+Pre-deploy marker:
+
+```text
+PERF_CF_02CO_PRE_DEPLOY_BOUNDARY={"workerMs":649,"cloudWriteMs":385,"pendingOutbox":0,"reconcileEnabled":false,"cutover":false,"sheetsAuthoritative":true}
+```
+
+Post-auth-failure boundary marker:
+
+```text
+PERF_CF_02CO_POST_FAILURE_BOUNDARY={"workerMs":381,"cloudWriteMs":486,"pendingOutbox":0,"cutover":false,"sheetsAuthoritative":true,"reconcileEnabled":false,"genericDrainEnabled":false,"ordersUnauthStatus":401}
+```
+
+Confirmed after failed auth:
+
+- Worker health OK.
+- Cloud Write health OK.
+- Cloud Write `pendingOutbox=0`.
+- Production cutover remained `false`.
+- Sheets / Apps Script remained authoritative.
+- 02CL reconciliation gate remained OFF.
+- generic outbox drain remained disabled/not exposed.
+- `/v1/edge/orders/page` without token returned HTTP `401`.
 
 ## Current production boundary
 
 - Production Worker: `trendos-d1-api`
+- Production Worker Version ID: `4c02c234-305c-4845-b9eb-f52bf647ff9b`
+- 02CN D1 dashboard builder: **LIVE IN WORKER**
 - Production D1: `trendos-main`
 - Production Cloud Write: **ON**
-- Cloud Write `pendingOutbox`: last verified `0` in 02CM
+- Cloud Write `pendingOutbox`: `0`
 - Production Shadow: **ON / read-only / mutation-free**
 - Production cutover: **OFF**
 - Sheets / Apps Script authority: **YES**
@@ -92,38 +125,37 @@ General integrity:
 - authority transfer from Sheets to D1: **NO**
 - `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
 
-## 02CN safety boundary
+## Required manual auth refresh
 
-No Production mutation occurred during 02CN:
+Do not retry the same token repeatedly.
 
-- no Worker deploy
-- no Apps Script live deploy
-- no D1 migration
-- no `d1 execute --file`
-- no D1 data write
-- no secret mutation
-- no Apps Script property mutation
-- no reconciliation execution
-- no outbox drain
-- no 02CL gate reopen
-- no frontend cutover
-- no authority transfer
+To resume 02CO:
+
+1. Perform a normal TrendOS employee login with an allowed canary user.
+2. Copy the fresh employee token into GitHub Actions repository secret:
+   `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
+3. Ensure the matching username is stored in:
+   `TRENDOS_PROD_QUALIFY_USERNAME`
+4. Do not paste token values in chat or repository docs.
+5. Rerun the failed 02CO workflow/job.
+
+The 02CO workflow remains present intentionally for rerun:
+
+`.github/workflows/trendos-02co-orders-d1-read-canary-temp.yml`
 
 ## Active checkpoint / next safe work
 
-Recommended next checkpoint:
-
-`PERF-CF-02CO — Controlled Orders D1 Read Canary / Authenticated Comparison`
+`PERF-CF-02CO-RESUME — Fresh Auth Secret Refresh / Authenticated Orders D1 Read Canary Rerun`
 
 Safe next-work rules:
 
 1. Read this file and `00_INDEX.md` before any new work.
-2. Read latest 02CN record.
-3. Do not rerun 02CK, 02CL, or 02CM unless source changed materially.
+2. Read latest 02CO auth-blocked record.
+3. Do not rerun 02CK, 02CL, 02CM, or 02CN unless source changed materially.
 4. Do not use generic outbox drain.
 5. Do not rotate `EDGE_SESSION_SECRET`.
 6. Do not enable Apps Script/Worker 02CL gates again unless a new bounded audited checkpoint is created.
 7. Do not enable broad frontend or authority cutover without explicit approval.
 8. Keep Sheets / Apps Script authoritative.
-9. In 02CO, do an authenticated canary/comparison for orders reads before any broad enablement.
+9. Complete D1 vs Apps Script authenticated comparison only after fresh Edge session exchange succeeds.
 10. Keep `__DEBT__` filter on Apps Script fallback.
