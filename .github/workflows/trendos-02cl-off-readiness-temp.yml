@@ -1,0 +1,51 @@
+name: TrendOS 02CL OFF Readiness TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cl-off-readiness-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Worker 02CL health remains off
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/health.json --write-out '%{http_code}' "$PROD_URL/v1/qualification/cloud-write/reconcile/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          const pass=x.success===true && x.enabled===false && x.database===true && x.reconcileSecretConfigured===true && x.exactTargetRows===1 && x.outboxStatus==='pending' && Number(x.attempts||0)===0 && x.genericDrainEnabled===false && x.productionCutover===false && x.sheetsAuthoritative===true;
+          console.log('02CL_OFF_READINESS_HEALTH='+JSON.stringify({enabled:x.enabled,reconcileSecretConfigured:x.reconcileSecretConfigured,exactTargetRows:x.exactTargetRows,outboxStatus:x.outboxStatus,attempts:x.attempts,genericDrainEnabled:x.genericDrainEnabled,productionCutover:x.productionCutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Worker 02CL post remains disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/post.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{"orderId":"CW-PROD-QUAL-33975124471","confirmation":"QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471"}' "$PROD_URL/v1/qualification/cloud-write/reconcile/order")"
+          test "$code" = '423'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'));
+          const pass=x.success===false && x.code==='qualification-disabled' && x.genericDrainEnabled===false && x.productionCutover===false && x.sheetsAuthoritative===true;
+          console.log('02CL_OFF_POST_DISABLED='+JSON.stringify({code:x.code,genericDrainEnabled:x.genericDrainEnabled,productionCutover:x.productionCutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Conclusion
+        run: |
+          echo '02CL_OFF_READINESS_PASS'
+          echo 'No auth request, no gate enable, no reconciliation, no outbox claim, no Sheet write, no cutover.'
