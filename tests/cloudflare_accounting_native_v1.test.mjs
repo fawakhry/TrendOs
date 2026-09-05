@@ -16,6 +16,7 @@ for (const path of [
   '/v1/accounting/capabilities',
   '/v1/accounting/contract',
   '/v1/accounting/validate',
+  '/v1/accounting/persistence-binding-probe',
   '/v1/accounting/foundation',
   '/v1/accounting/foundation/validate',
   '/v1/accounting/operations/line'
@@ -44,6 +45,7 @@ assert.equal(integration.sharedIdentity.profitCenterKey, 'Profit Center ID');
 assert.ok(integration.operationsToAccounting.includes('approved selling price / approved line amount'));
 assert.ok(integration.operationsToAccounting.includes('Profit Center ID'));
 assert.ok(integration.accountingToOperations.includes('factual line profit'));
+assert.ok(integration.diagnosticsEndpoints.some(x => x.includes('/v1/accounting/persistence-binding-probe')));
 const invariantText = integration.invariants.map(x => String(x).toLowerCase());
 assert.ok(invariantText.some(x => x.includes('never invents an operational price')));
 assert.ok(invariantText.some(x => x.includes('same event')));
@@ -92,6 +94,47 @@ assert.equal(foundationResponse.status, 200);
 const foundation = await foundationResponse.json();
 assert.equal(foundation.success, true);
 assert.equal(foundation.authoritativeWrites, false);
+
+// ACCT-CF-02R: binding presence diagnostic must not inspect or call any D1 method.
+const noSqlBinding = new Proxy({}, {
+  get() { throw new Error('binding probe must not inspect D1 methods or properties'); }
+});
+const bindingProbeResponse = await handleAccountingNativeModuleRequest(
+  new Request('https://preview.test/v1/accounting/persistence-binding-probe'),
+  { ...env, TRENDOS_ACCOUNTING_PREVIEW_DB: noSqlBinding }
+);
+assert.equal(bindingProbeResponse.status, 200);
+const bindingProbe = await bindingProbeResponse.json();
+assert.equal(bindingProbe.success, true);
+assert.equal(bindingProbe.binding, 'TRENDOS_ACCOUNTING_PREVIEW_DB');
+assert.equal(bindingProbe.bindingInjected, true);
+assert.equal(bindingProbe.readOnly, true);
+assert.equal(bindingProbe.authoritativeWrites, false);
+assert.equal(bindingProbe.mutationPerformed, false);
+assert.equal(bindingProbe.sqlExecuted, false);
+assert.equal(bindingProbe.schemaApplied, false);
+assert.equal(bindingProbe.productionWriteEnabled, false);
+
+const missingBindingResponse = await handleAccountingNativeModuleRequest(
+  new Request('https://preview.test/v1/accounting/persistence-binding-probe'),
+  env
+);
+assert.equal(missingBindingResponse.status, 503);
+const missingBinding = await missingBindingResponse.json();
+assert.equal(missingBinding.success, false);
+assert.equal(missingBinding.code, 'D1_NOT_INJECTED');
+assert.equal(missingBinding.sqlExecuted, false);
+assert.equal(missingBinding.mutationPerformed, false);
+
+const blockedBindingProbe = await handleAccountingNativeModuleRequest(
+  new Request('https://preview.test/v1/accounting/persistence-binding-probe', { method: 'POST' }),
+  { ...env, TRENDOS_ACCOUNTING_PREVIEW_DB: noSqlBinding }
+);
+assert.equal(blockedBindingProbe.status, 405);
+const blockedBindingProbeBody = await blockedBindingProbe.json();
+assert.equal(blockedBindingProbeBody.authoritativeWrites, false);
+assert.equal(blockedBindingProbeBody.mutationPerformed, false);
+assert.equal(blockedBindingProbeBody.sqlExecuted, false);
 
 // UI copy/Arabic text is verified by the dedicated deployed runtime workflow.
 // Native CI only proves that the shell is routed and remains a non-write response.
