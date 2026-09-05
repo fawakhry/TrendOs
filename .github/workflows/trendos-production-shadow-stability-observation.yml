@@ -1,0 +1,128 @@
+name: TrendOS Production Shadow Stability Observation
+
+# PERF-CF-02CB: GET-only live Production stability observation.
+# This workflow performs no deploy, no migration, no secret write, and no business mutation.
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-shadow-stability-observation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-shadow-stability-observation
+  cancel-in-progress: false
+
+jobs:
+  observe-production-shadow-stability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      SHADOW_PATH: /v1/cloud/write/v2/production-shadow
+      STAGING_BRIDGE_PATH: /v1/staging/cloud-write/v2/bridge/health
+      EXPECTED_FINGERPRINT: 66711d7eef8febed69fa59cbd8b5f20146ed82374de55595ae1a126291d3f4b1
+
+    steps:
+      - name: Repeated GET-only Production samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            health_code="$(curl --silent --show-error --retry 3 --retry-delay 1 --retry-all-errors --output "/tmp/edge-$i.json" --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+            test "$health_code" = '200'
+
+            write_code="$(curl --silent --show-error --retry 3 --retry-delay 1 --retry-all-errors --output "/tmp/write-$i.json" --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+            test "$write_code" = '200'
+
+            shadow_code="$(curl --silent --show-error --retry 3 --retry-delay 1 --retry-all-errors --output "/tmp/shadow-$i.json" --write-out '%{http_code}' "$PROD_URL$SHADOW_PATH")"
+            test "$shadow_code" = '200'
+
+            node - "$i" <<'NODE'
+          const fs=require('fs');
+          const i=process.argv[2];
+          const h=JSON.parse(fs.readFileSync(`/tmp/edge-${i}.json`,'utf8'));
+          const w=JSON.parse(fs.readFileSync(`/tmp/write-${i}.json`,'utf8'));
+          const s=JSON.parse(fs.readFileSync(`/tmp/shadow-${i}.json`,'utf8'));
+          const expected=process.env.EXPECTED_FINGERPRINT;
+
+          const healthPass=h.success===true && h.database===true && h.authConfigured===true && h.upstreamConfigured===true && h.cutover===false;
+          const writePass=w.success===true && w.enabled===false && w.writesAccepted===false && w.cutover===false && w.sheetsAuthoritative===true && w.schemaMutationFree===true;
+          const shadowPass=s.success===true && s.valid===true && s.observerOnly===true && s.fixedSyntheticIntent===true && s.liveProductionDataRead===false && s.d1Read===false && s.d1Written===false && s.appsScriptCalled===false && s.sheetsWritten===false && s.authoritativeWrites===false && s.readOnly===true && s.mutationFree===true && s.canonicalWriterInvoked===false && Number(s.mutationCount||0)===0 && Number(s.networkRequests||0)===0 && Number(s.propertyWrites||0)===0 && s.productionWriteEnabled===false && s.productionCutover===false && s.productionRouteIntegrated===false && s.orderIdPresent===false && s.shadowFingerprint===expected;
+
+          console.log(`SAMPLE_${i}=`+JSON.stringify({
+            healthPass,
+            cloudWriteOff:writePass,
+            shadowPass,
+            fingerprint:s.shadowFingerprint,
+            clientRequestId:s.canonicalCreateParams&&s.canonicalCreateParams.clientRequestId,
+            d1Read:s.d1Read,
+            d1Written:s.d1Written,
+            appsScriptCalled:s.appsScriptCalled,
+            sheetsWritten:s.sheetsWritten,
+            mutationCount:s.mutationCount,
+            cutover:s.productionCutover
+          }));
+          if(!healthPass || !writePass || !shadowPass) process.exit(1);
+          NODE
+
+            if [ "$i" != '5' ]; then sleep 3; fi
+          done
+
+      - name: Deterministic fingerprint and payload stability
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const rows=[];
+          for(let i=1;i<=5;i++) rows.push(JSON.parse(fs.readFileSync(`/tmp/shadow-${i}.json`,'utf8')));
+          const fp=rows[0].shadowFingerprint;
+          const params=JSON.stringify(rows[0].canonicalCreateParams);
+          const pass=rows.every(x=>x.shadowFingerprint===fp && JSON.stringify(x.canonicalCreateParams)===params) && fp===process.env.EXPECTED_FINGERPRINT;
+          console.log('PRODUCTION_SHADOW_STABILITY='+JSON.stringify({samples:rows.length,fingerprint:fp,sameFingerprint:rows.every(x=>x.shadowFingerprint===fp),sameCanonicalParams:rows.every(x=>JSON.stringify(x.canonicalCreateParams)===params),pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Production route and auth boundaries remain isolated
+        shell: bash
+        run: |
+          set -euo pipefail
+          anon_code="$(curl --silent --show-error --output /tmp/anon-orders.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/page?screen=service&page=1&pageSize=1")"
+          test "$anon_code" = '401'
+
+          bridge_code="$(curl --silent --show-error --output /tmp/prod-staging-bridge.json --write-out '%{http_code}' "$PROD_URL$STAGING_BRIDGE_PATH")"
+          test "$bridge_code" = '404'
+
+          echo "PRODUCTION_AUTH_BOUNDARY_HTTP=$anon_code"
+          echo "PRODUCTION_STAGING_BRIDGE_HTTP=$bridge_code"
+          echo 'PRODUCTION_ROUTE_ISOLATION_PASS'
+
+      - name: Orders and Lines mirror parity remains valid
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          const notes=['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware'];
+          for(const [label,file] of [['ORDERS','/tmp/orders.json'],['LINES','/tmp/lines.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8'));
+            const s=x.sheet||{};
+            const pass=x.success===true && x.schemaMutationFree===true && s.status==='ready' && Number(s.rowCount||0)===Number(s.sourceLastRow||0) && notes.includes(String(s.note||''));
+            console.log(label+'_MIRROR_PARITY='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,syncedAt:s.syncedAt,note:s.note,pass}));
+            if(!pass) process.exit(1);
+          }
+          NODE
+
+      - name: Stability observation conclusion
+        run: |
+          echo 'PERF_CF_02CB_PRODUCTION_SHADOW_STABILITY_PASS'
+          echo 'Five repeated Production samples remained deterministic and mutation-free.'
+          echo 'Production Cloud Write remained OFF and Sheets remained authoritative.'
+          echo 'No deploy, migration, secret rotation, D1 write, Apps Script write, Sheet write, or frontend cutover was performed.'
