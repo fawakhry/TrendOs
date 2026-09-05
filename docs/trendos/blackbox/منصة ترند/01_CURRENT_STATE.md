@@ -12,44 +12,40 @@ Status: **VERIFIED PASS — CLOSED**
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-Status: **SAFE BLOCKED — AUTH EXCHANGE FAILED — NO BUSINESS WRITE**
+Status: **SAFE BLOCKED — RAHMA AUTH EXCHANGE FAILED — NO BUSINESS WRITE**
 
-The latest retry confirmed that both dedicated GitHub Actions qualification secrets are present, and the Production preflight passed, but the canonical Production employee-session exchange failed before any business write step became eligible.
+The latest controlled retry used the current GitHub Actions qualification secrets and first verified that the configured username secret matches employee `رحمه` exactly and that the employee-token secret is non-empty. Production preflight passed, but the canonical Production employee-session exchange failed before any business write step became eligible.
 
 Latest controlled retry:
-- Trigger commit: `fc71729206b0713e37a4c9176429153d7bcb1c59`
-- Run ID: `33973557299`
-- Job ID: `101326203725`
+- Workflow Run ID: `33973557299`
+- Run attempt: `2`
+- Job ID: `101326683512`
 - Result: **FAILURE at canonical employee-session exchange — NO BUSINESS WRITE**
 - Read-only Production preflight: **SUCCESS**
-- Employee-auth secret presence: **SUCCESS**
+- Qualification username secret match: **`رحمه`**
+- Employee-token secret presence: **SUCCESS**
 - Canonical `/v1/edge/session` exchange: **FAILURE**
 - Synthetic Production order: **SKIPPED**
+- Idempotent replay/outbox verification: **SKIPPED**
 - Post-write safety verification: **SKIPPED**
 - Sensitive temporary-file cleanup: **SUCCESS**
 
-Detailed checkpoint:
+Detailed latest checkpoint:
 
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
 
-## Qualification credential state
+## Rahma secret-match verification
 
-Candidate employee username:
+A temporary GitHub Actions probe compared the configured qualification username secret against the two expected Rahma spellings without exposing the secret value and without calling Apps Script or Production auth.
 
-`Username`
-
-This exact case-sensitive username was previously confirmed to exist in the authoritative Apps Script / Sheets employee store.
-
-The two GitHub Actions secrets were confirmed non-empty immediately before the latest retry:
-- `TRENDOS_PROD_QUALIFY_USERNAME`
-- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
-
-Secret-readiness assert:
-- Trigger commit: `7884607ea11d2c1edd05c3db41e38291309bf4b5`
-- Run ID: `33973513675`
+- Probe Run ID: `33973697532`
+- Probe Job ID: `101326579972`
 - Result: **SUCCESS**
+- Exact configured username match: `رحمه`
+- Employee-token secret: non-empty
+- Temporary probe cleanup commit: `f7fa5b7c757741a78215b6e6e32ab612dd2900f0`
 
-No secret values were printed.
+Do not use invalid-token employee existence probes; current Apps Script auth may clear the stored employee Token when a supplied token is invalid or expired.
 
 ## Important employee-session behavior
 
@@ -61,9 +57,7 @@ Current authoritative Apps Script source confirms:
 - `authorize_` can clear the stored employee Token when the supplied token is invalid/expired.
 - The frontend stores the active username/token in browser `sessionStorage`, including `matbagy_username` and `matbagy_session_token`.
 
-Because the latest `/v1/edge/session` exchange failed, the token used in that retry must not be assumed reusable. The exact upstream rejection body was not retained by the harness, so do not guess whether the failure was token mismatch/expiry, employee authorization mode, or another upstream verification issue.
-
-Do not perform another blind invalid-token employee existence probe.
+Because the latest `/v1/edge/session` exchange failed, the token used in that retry must not be assumed reusable. The exact upstream rejection body was not retained by the workflow logs, so do not guess whether the failure was token mismatch/expiry, employee authorization state, or another verification-contract issue.
 
 ## Production platform state
 
@@ -109,12 +103,12 @@ until the bounded Production business-write qualification passes.
 
 ## Exact safe resume point
 
-1. Perform a new normal TrendOS login as `Username` to generate a fresh authoritative employee session token.
-2. Replace only `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with the newly generated `matbagy_session_token`; keep the intended username secret aligned with `Username`.
-3. Recheck only that both secrets are present, without printing values and without calling `verifyEmployeeSession` with dummy credentials.
+1. Perform a fresh normal TrendOS login as `رحمه` through the legitimate employee login flow.
+2. Replace only `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with the newly generated browser `matbagy_session_token`; keep `TRENDOS_PROD_QUALIFY_USERNAME=رحمه`.
+3. Recheck only secret presence/match without calling `verifyEmployeeSession` using dummy credentials.
 4. Retry 02CK once through the canonical `/v1/edge/session` exchange.
 5. If that fresh-token exchange succeeds, allow the existing bounded qualification to create at most one synthetic D1 Production order, replay the same idempotency key, require exactly one pending outbox item, verify Production Shadow remains mutation-free, keep `cutover=false`, and keep Sheets authoritative.
-6. If the fresh-token exchange still fails, stop before business write and diagnose the existing Apps Script `verifyEmployeeSession` authorization/response contract. Do not invent a substitute auth path.
+6. If the fresh-token exchange still fails, stop before business write and diagnose the existing Apps Script `verifyEmployeeSession` / Worker session-exchange contract. Do not invent a substitute auth path.
 
 Canonical manual workflow remains:
 
