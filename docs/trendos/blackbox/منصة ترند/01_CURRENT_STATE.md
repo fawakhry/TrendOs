@@ -14,11 +14,11 @@ Status: **VERIFIED PASS — CLOSED**
 
 Status:
 
-**SAFE BLOCKED — FRESH WAEL TOKEN CLEARED AFTER AUTH MISMATCH — BOTH 02CL GATES OFF — NO RECONCILIATION EXECUTED**
+**SAFE BLOCKED — CURRENT WAEL SESSION PRESENT BUT GITHUB TOKEN FINGERPRINT MISMATCH — BOTH 02CL GATES OFF — NO AUTH / NO RECONCILIATION**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_WAEL_FRESH_AUTH_MISMATCH_TOKEN_CLEARED_NO_RECONCILIATION.md`
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_WAEL_TOKEN_FINGERPRINT_MISMATCH_NO_AUTH_NO_RECONCILIATION.md`
 
 ## Exact target
 
@@ -27,12 +27,12 @@ Latest record:
 - confirmation: `QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471`
 - generic outbox drain: **FORBIDDEN**
 
-## Infrastructure already ready
+## Infrastructure ready
 
 Apps Script:
 - Version 153 live
-- bounded 02CL action installed
-- dedicated reconciliation secret user-configured
+- bounded 02CL route installed
+- dedicated reconciliation secret configured
 - execution gate OFF
 
 Worker:
@@ -48,34 +48,37 @@ Production boundary:
 - Production cutover OFF
 - Sheets / Apps Script authoritative
 
-## Latest auth attempt
+## Latest safe token check
 
-Temporary auth-only workflow:
-- trigger commit `71047f299b151d7731e3a21673bd0a0e6da26801`
-- Run `33987326112`
-- Job `101363206831`
-- username secret exact readiness: PASS (`wael`)
-- employee-token secret non-empty: PASS
-- canonical `/v1/edge/session`: FAILURE
-- cleanup commit `d2ea9cd9dfb1dd520e132bc06793204e93f80409`
+User performed a new normal TrendOS login as `wael` and reported updating `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`.
 
-Immediately before the auth call, authoritative `wael` had a non-empty fresh session token from normal login.
-Immediately after the failed auth call, authoritative `wael` Token was empty.
+Authoritative `wael` row currently has a non-empty session token from that login.
 
-Because current `authorize_` clears a token on mismatch/expiry, the failed GitHub token must not be retried.
+Before any auth request, a temporary no-network SHA-256 comparison was executed.
+
+Evidence:
+- trigger commit `726f97d7135e827e3eac2b607b373c8d1669c1ae`
+- Run `33987645461`
+- Job `101364057055`
+- result: **FINGERPRINT MISMATCH**
+- cleanup commit `4c385fe20e0673e03e75f7d72b77e37764e027b3`
+
+Because fingerprint mismatch was detected, `/v1/edge/session` was **not called** and the current employee token was not cleared by this check.
 
 ## Safety result
 
-No 02CL reconciliation occurred:
+No 02CL execution occurred:
+- employee auth exchange: NONE
 - outbox claim: NONE
 - Sheet write: NONE
 - reconciliation D1 mutation: NONE
 - Apps Script gate enable: NONE
 - Worker gate enable: NONE
+- replay: NONE
 - cutover: NONE
 - `EDGE_SESSION_SECRET` rotation: NONE
 
-Latest last-known reconciliation target state before this auth-only step:
+Latest verified target boundary remains:
 - pending outbox total: `1`
 - exact target status: `pending`
 - attempts: `0`
@@ -83,14 +86,14 @@ Latest last-known reconciliation target state before this auth-only step:
 
 ## Exact safe resume point
 
-1. `wael` remains the temporary qualification identity and is active, but its Token is now empty.
-2. Perform one fresh normal TrendOS login as `wael`.
-3. Replace only GitHub Actions secret `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with the newly generated `matbagy_session_token`.
-4. Before any auth request, privately read the authoritative token and compute a SHA-256 fingerprint only.
-5. Run a temporary **no-network** GitHub Actions fingerprint probe comparing the GitHub employee-token secret hash to the authoritative hash.
-6. If MISMATCH: stop without touching Apps Script auth; update the GitHub secret again.
-7. If MATCH: delete the probe and perform exactly one canonical `/v1/edge/session` exchange.
+1. Keep the current `wael` TrendOS browser session open; avoid another login unless necessary.
+2. From that exact active tab, copy only the current Session Storage value `matbagy_session_token` exactly.
+3. Replace only GitHub Actions secret `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with that value.
+4. Keep `TRENDOS_PROD_QUALIFY_USERNAME = wael`.
+5. Repeat a no-network fingerprint comparison.
+6. If MISMATCH: stop; do not call auth.
+7. If MATCH: perform one canonical `/v1/edge/session` exchange.
 8. Only after auth PASS may both bounded 02CL gates be enabled immediately before exact-target execution.
 9. Execute exactly one target reconciliation + one replay-noop proof.
-10. Require exactly one Orders row, target outbox synced, replay mutationCount=0, unrelated outbox untouched, Shadow mutation-free, cutover=false, Sheets authoritative.
-11. Immediately disable gates, clear temporary auth, disable `wael`, and close 02CL PASS before any cutover work.
+10. Require exactly one Orders row, target outbox synced, replay mutationCount=0, Shadow mutation-free, `cutover=false`, Sheets authoritative.
+11. Immediately disable both gates, clear temporary auth, disable `wael`, and close 02CL PASS before any cutover work.
