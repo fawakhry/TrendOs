@@ -69,11 +69,40 @@ Operational consequence for 02CK:
 
 The current frontend keeps the active employee session token in `sessionStorage` for the browser session (`matbagy_session_token`) rather than persistent local storage. This supports obtaining the one-time qualification token from a fresh authorized login without changing Production auth design.
 
+## Literal `username` candidate probe
+
+At the user's request, the literal value `username` was tested as the employee username through the existing Apps Script `verifyEmployeeSession` route using a deliberately invalid dummy token. This was a read-only existence probe only; no valid credential was supplied and no Production Cloud Write endpoint was called.
+
+Temporary workflow:
+
+`.github/workflows/trendos-employee-username-probe.yml`
+
+Trigger commit:
+
+`f68b18ffab44711eceb3807be8286ad08ef8c54c`
+
+Controlled run:
+
+- Workflow: `TrendOS Employee Username Probe`
+- Run ID: `33973276252`
+- Job ID: `101325450555`
+- Result: **SUCCESS — READ-ONLY**
+- Apps Script response: `{"success":false,"message":"المستخدم غير موجود."}`
+
+Conclusion:
+
+The literal value `username` is **not** an existing employee username in the current authoritative Apps Script/Sheets user store. It cannot be used for 02CK qualification.
+
+The temporary workflow was removed immediately after the probe.
+
+Cleanup commit:
+
+`c1eef6b1e28a6fa4c9e3d091f3071ada20bc116f`
+
 ## Safety result
 
-No business or infrastructure mutation was performed by this probe or the credential-contract inspection:
+No business or infrastructure mutation was performed by these probes or the credential-contract inspection:
 
-- No Production endpoint called by the readiness probe.
 - No Production business order created.
 - No D1 mutation.
 - No Sheets mutation.
@@ -88,7 +117,7 @@ No business or infrastructure mutation was performed by this probe or the creden
 
 ## Cleanup
 
-The temporary readiness-probe workflow was removed immediately after the controlled run.
+The temporary auth-readiness probe was removed after its controlled run.
 
 Cleanup commit:
 
