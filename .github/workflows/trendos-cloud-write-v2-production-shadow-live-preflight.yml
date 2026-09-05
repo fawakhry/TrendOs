@@ -1,5 +1,6 @@
 name: TrendOS Cloud Write V2 Production Shadow Live Preflight
 
+# Requalification marker: 2026-09-05 PERF-CF-02BY after Preview dual-signal + shadow PASS.
 on:
   push:
     branches:
