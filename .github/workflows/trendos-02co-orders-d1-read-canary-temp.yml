@@ -57,7 +57,8 @@ jobs:
           for token in sql_forbidden:
               if token in upper_source:
                   raise SystemExit(f'Forbidden SQL write token in orders read source: {token}')
-          if workflow.count('wrangler@4.33.2 deploy --config cloudflare-d1/wrangler.toml') != 1:
+          deploy_cmd = 'npx --yes ' + 'wrangler@4.33.2 deploy --config cloudflare-d1/wrangler.toml'
+          if workflow.count(deploy_cmd) != 1:
               raise SystemExit('Expected exactly one controlled Worker deploy command')
           print('PERF_CF_02CO_STATIC_SAFETY_BOUNDARY_PASS')
           PY
@@ -78,22 +79,20 @@ jobs:
           set -euo pipefail
           node <<'NODE'
           const edgeBase = process.env.EDGE_BASE;
-          async function jsonProbe(label, url, expectStatus = 200) {
+          async function jsonProbe(label, path) {
             const started = Date.now();
-            const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
-            const text = await res.text();
-            let body = {};
-            try { body = JSON.parse(text || '{}'); } catch (err) { throw new Error(`${label} invalid JSON: ${text.slice(0, 120)}`); }
-            const ms = Date.now() - started;
-            if (res.status !== expectStatus) throw new Error(`${label} expected HTTP ${expectStatus}, got ${res.status}`);
-            return { label, status: res.status, ms, body };
+            const res = await fetch(edgeBase + path, { headers: { accept: 'application/json' }, cache: 'no-store' });
+            const raw = await res.text();
+            const body = JSON.parse(raw || '{}');
+            if (res.status !== 200) throw new Error(`${label} expected 200 got ${res.status}`);
+            return { ms: Date.now() - started, body };
           }
-          const health = await jsonProbe('worker-health', `${edgeBase}/health`);
+          const health = await jsonProbe('worker-health', '/health');
           if (health.body.success !== true || health.body.database !== true) throw new Error('Worker health failed');
-          const cloudWrite = await jsonProbe('cloud-write-health', `${edgeBase}/v1/cloud/write/health`);
+          const cloudWrite = await jsonProbe('cloud-write-health', '/v1/cloud/write/health');
           if (cloudWrite.body.success !== true || cloudWrite.body.enabled !== true || cloudWrite.body.writesAccepted !== true) throw new Error('Cloud Write health boundary failed');
           if (cloudWrite.body.cutover !== false || cloudWrite.body.sheetsAuthoritative !== true) throw new Error('Cloud Write authority boundary changed');
-          const reconcile = await jsonProbe('02cl-reconcile-health', `${edgeBase}/v1/qualification/cloud-write/reconcile/health`);
+          const reconcile = await jsonProbe('02cl-reconcile-health', '/v1/qualification/cloud-write/reconcile/health');
           if (reconcile.body.enabled !== false || reconcile.body.genericDrainEnabled !== false) throw new Error('02CL reconcile boundary changed');
           console.log('PERF_CF_02CO_PRE_DEPLOY_BOUNDARY=' + JSON.stringify({ workerMs: health.ms, cloudWriteMs: cloudWrite.ms, pendingOutbox: cloudWrite.body.pendingOutbox, reconcileEnabled: reconcile.body.enabled, cutover: cloudWrite.body.cutover, sheetsAuthoritative: cloudWrite.body.sheetsAuthoritative }));
           NODE
@@ -130,11 +129,8 @@ jobs:
           assert(postDeployHealth.status === 200 && postDeployHealth.body.success === true, 'post-deploy cloud-write health failed');
           assert(postDeployHealth.body.cutover === false && postDeployHealth.body.sheetsAuthoritative === true, 'authority boundary changed after deploy');
           assert(Number(postDeployHealth.body.pendingOutbox || 0) === 0, 'pending outbox is not zero after deploy');
-
           const session = await readJson('edge-session', `${edgeBase}/v1/edge/orders/session`, {
-            method: 'POST',
-            headers: { accept: 'application/json', 'content-type': 'application/json' },
-            body: JSON.stringify({ username, token })
+            method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify({ username, token })
           });
           assert(session.status === 200 && session.body.success === true && session.body.edgeToken, `edge session failed http=${session.status}`);
           const screens = Array.isArray(session.body.user && session.body.user.screens) ? session.body.user.screens : [];
@@ -142,41 +138,34 @@ jobs:
           assert(usableScreens.length > 0, 'No usable screens returned by edge session');
           const selectedScreens = usableScreens.slice(0, Math.min(2, usableScreens.length));
           const comparisons = [];
-          const filterCases = ['', '__ACTIVE__'];
           for (const screen of selectedScreens) {
-            for (const statusFilter of filterCases) {
+            for (const statusFilter of ['', '__ACTIVE__']) {
               const params = new URLSearchParams({ screen, page: '1', pageSize: '20' });
               if (statusFilter) params.set('statusFilter', statusFilter);
-              const edge = await readJson(`edge-${screen}-${statusFilter || 'all'}`, `${edgeBase}/v1/edge/orders/page?${params.toString()}`, { headers: { accept: 'application/json', authorization: `Bearer ${session.body.edgeToken}` } });
+              const edge = await readJson(`edge-${screen}-${statusFilter || 'all'}`, `${edgeBase}/v1/edge/orders/page?${params}`, { headers: { accept: 'application/json', authorization: `Bearer ${session.body.edgeToken}` } });
               assert(edge.status === 200 && edge.body.success === true, `edge read failed screen=${screen} filter=${statusFilter} http=${edge.status}`);
               assert(edge.body.dataSource === 'd1-edge-orders', `edge datasource missing screen=${screen}`);
               assert(edge.body.dashboard && edge.body.dashboard.dataSource === 'd1-edge-orders', `edge dashboard missing screen=${screen}`);
               const appPayload = { action: 'getRowsPageV1931', username, token, screen, page: '1', pageSize: '20' };
               if (statusFilter) appPayload.statusFilter = statusFilter;
               const app = await readJson(`apps-${screen}-${statusFilter || 'all'}`, appsScriptUrl, {
-                method: 'POST',
-                headers: { accept: 'application/json', 'content-type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(appPayload)
+                method: 'POST', headers: { accept: 'application/json', 'content-type': 'text/plain;charset=utf-8' }, body: JSON.stringify(appPayload)
               });
               assert(app.status === 200 && app.body.success === true, `Apps Script read failed screen=${screen} filter=${statusFilter} http=${app.status} msg=${app.body && app.body.message}`);
               const edgeKeys = (edge.body.rows || []).map(compactRow);
               const appKeys = (app.body.rows || []).map(compactRow);
               assert(JSON.stringify(edgeKeys) === JSON.stringify(appKeys), `row identity mismatch screen=${screen} filter=${statusFilter}`);
               assert(Number(edge.body.pagination && edge.body.pagination.totalRows) === Number(app.body.pagination && app.body.pagination.totalRows), `pagination total mismatch screen=${screen} filter=${statusFilter}`);
+              const item = { screen, filter: statusFilter || 'all', edgeMs: edge.ms, appsMs: app.ms, totalRows: edge.body.pagination.totalRows, firstRows: edgeKeys.slice(0, 3) };
               if (!statusFilter) {
-                const edgeDash = edge.body.dashboard || {};
-                const appDash = app.body.dashboard || {};
-                const dashKeys = ['activeLines', 'activeOrders', 'readyForPickup', 'deliveredToday', 'duplicate', 'urgent', 'normal'];
-                const dashCompare = {};
-                for (const key of dashKeys) dashCompare[key] = [Number(edgeDash[key] || 0), Number(appDash[key] || 0)];
-                comparisons.push({ screen, filter: 'all', edgeMs: edge.ms, appsMs: app.ms, totalRows: edge.body.pagination.totalRows, firstRows: edgeKeys.slice(0, 3), dashboard: dashCompare });
-              } else {
-                comparisons.push({ screen, filter: statusFilter, edgeMs: edge.ms, appsMs: app.ms, totalRows: edge.body.pagination.totalRows, firstRows: edgeKeys.slice(0, 3) });
+                const edgeDash = edge.body.dashboard || {}, appDash = app.body.dashboard || {};
+                item.dashboard = ['activeLines','activeOrders','readyForPickup','deliveredToday','duplicate','urgent','normal'].reduce((acc, key) => { acc[key] = [Number(edgeDash[key] || 0), Number(appDash[key] || 0)]; return acc; }, {});
               }
+              comparisons.push(item);
             }
           }
           const debtParams = new URLSearchParams({ screen: selectedScreens[0], page: '1', pageSize: '20', statusFilter: '__DEBT__' });
-          const debt = await readJson('edge-debt-fallback', `${edgeBase}/v1/edge/orders/page?${debtParams.toString()}`, { headers: { accept: 'application/json', authorization: `Bearer ${session.body.edgeToken}` } });
+          const debt = await readJson('edge-debt-fallback', `${edgeBase}/v1/edge/orders/page?${debtParams}`, { headers: { accept: 'application/json', authorization: `Bearer ${session.body.edgeToken}` } });
           assert(debt.status === 409 && debt.body.code === 'apps-script-required' && debt.body.fallback === 'apps-script', 'Debt filter did not stay on Apps Script fallback boundary');
           console.log('PERF_CF_02CO_CANARY_COMPARISON=' + JSON.stringify({ screens: selectedScreens, role: session.body.user && session.body.user.role, postDeployPendingOutbox: postDeployHealth.body.pendingOutbox, comparisons, debtFallback: { status: debt.status, code: debt.body.code, fallback: debt.body.fallback } }));
           console.log('PERF_CF_02CO_AUTHENTICATED_D1_READ_CANARY_PASS');
@@ -190,8 +179,7 @@ jobs:
           const edgeBase = process.env.EDGE_BASE;
           async function probe(path) {
             const res = await fetch(edgeBase + path, { headers: { accept: 'application/json' }, cache: 'no-store' });
-            const body = JSON.parse(await res.text() || '{}');
-            return { status: res.status, body };
+            return { status: res.status, body: JSON.parse(await res.text() || '{}') };
           }
           const cloudWrite = await probe('/v1/cloud/write/health');
           if (cloudWrite.status !== 200 || cloudWrite.body.success !== true) throw new Error('Cloud Write health failed post-canary');
