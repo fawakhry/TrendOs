@@ -24,19 +24,29 @@ Updated `tests/cloudflare_accounting_native_v1.test.mjs` to prove:
 - POST is rejected;
 - all probe responses retain zero-write / zero-SQL invariants.
 
-## CI evidence
+## CI evidence before live binding assertion
 Accounting Native CI run `33946195319` on commit `2af0ea3a4bb2a45bd951a2e43854617a44c11755` completed with conclusion `success`. Native module tests, the full Accounting test set, persistence/schema diagnostics, and the Preview zero-write safety gate all passed.
 
-Accounting Preview Runtime run `33946195335` on the same source commit also completed with conclusion `success`, proving the deployed Preview converged to native Accounting version `TRENDOS_ACCOUNTING_NATIVE_V0_9_20260905` and that all existing zero-write runtime contracts remained green. That workflow did not yet call the new binding-presence probe, so it is deployment/runtime evidence but not yet the final ACCT-CF-02R binding proof.
+Accounting Preview Runtime run `33946195335` on the same source commit completed with conclusion `success`, proving the deployed Preview converged to native Accounting version `TRENDOS_ACCOUNTING_NATIVE_V0_9_20260905` and all existing zero-write runtime contracts remained green. It did not call the new binding-presence probe.
 
-The latest branch Integrity V1 run `33946238612` on checkpoint commit `37ac09577482195033acc03619e80dcae151f869` completed with conclusion `success`.
+Integrity V1 run `33946238612` on checkpoint commit `37ac09577482195033acc03619e80dcae151f869` completed with conclusion `success`.
 
-## 2026-09-05 continuation record — BEFORE material change
-Next material step is to extend `.github/workflows/trendos-accounting-preview-runtime.yml` with a live GET assertion for `/v1/accounting/persistence-binding-probe` and a POST rejection assertion. The assertions must require `dbInjected=true`, `mutationPerformed=false`, `sqlExecuted=false`, `schemaApplied=false`, and `productionWriteEnabled=false`. This is verification-only: no SQL, migration, D1 mutation, Production write enablement, or authority cutover is permitted.
+## Continuation material step record
+Pre-change record commit: `801104c4fe926c73c9a3889301ab1432c5e0697c`.
+
+Implemented dedicated workflow `.github/workflows/trendos-accounting-binding-probe-preview-runtime.yml` in commit `a338f8869cc2e9cf449c0ae345c6069712943481` rather than altering unrelated runtime assertions. The workflow:
+- waits until Preview reports the exact expected native Accounting version;
+- GETs `/v1/accounting/persistence-binding-probe` and requires HTTP 200 + `dbInjected=true`;
+- requires `mutationPerformed=false`, `sqlExecuted=false`, `schemaApplied=false`, `productionWriteEnabled=false`;
+- POSTs the same endpoint and requires HTTP 405 with the same zero-write invariants;
+- contains no SQL, migration, D1 mutation, Production write enablement, or authority cutover command.
+
+### BEFORE next material step
+Wait for and inspect the automatically triggered GitHub Actions proof for commit `a338f8869cc2e9cf449c0ae345c6069712943481`. Do not advance to schema preflight/application until the live binding workflow is conclusively green and the result is recorded here.
 
 ## Safety invariants preserved
 - Preview only.
-- No SQL executed by the new probe.
+- No SQL executed by the binding probe.
 - No D1 mutation.
 - No schema application.
 - No Production Cloud Write enablement.
@@ -44,4 +54,4 @@ Next material step is to extend `.github/workflows/trendos-accounting-preview-ru
 - No cutover.
 - Google Sheets / Apps Script authority unchanged.
 
-Status: IMPLEMENTED / NATIVE-CI-PASS / PREVIEW-RUNTIME-BINDING-PROOF-IN-PROGRESS
+Status: IMPLEMENTED / NATIVE-CI-PASS / LIVE-BINDING-WORKFLOW-TRIGGERED-PENDING-PROOF
