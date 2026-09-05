@@ -214,6 +214,12 @@ function sameDay(a, b) {
 function hiddenStatus(status) {
   return ['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى','ملغي'].includes(text(status));
 }
+function readyPickupStatus(status) {
+  return ['جاهز للاستلام','في قسم التسليمات','تم التنفيذ'].includes(text(status));
+}
+function readyStatus(status) {
+  return readyPickupStatus(status) || text(status) === 'تم التسليم';
+}
 function overdue(status, expected) {
   if (hiddenStatus(status)) return false;
   const d = parseDate(expected);
@@ -225,6 +231,140 @@ function parseDebt(value) {
   const digits = arabicDigits(value).replace(/,/g, '.').replace(/[^0-9.\-]/g, '');
   const n = Number(digits);
   return Number.isFinite(n) && n > 0 && n <= 500000 ? n : 0;
+}
+function inc(obj, key, amount = 1) {
+  const k = text(key) || 'غير محدد';
+  obj[k] = Number(obj[k] || 0) + amount;
+}
+function addSet(map, key, value) {
+  const k = text(key) || 'غير محدد';
+  const v = text(value);
+  if (!v) return;
+  if (!map[k]) map[k] = new Set();
+  map[k].add(v);
+}
+function emptyDashboard(screen) {
+  const nameMap = { service: 'خدمة العملاء', print: 'الطباعة', laser: 'الليزر', press: 'المكبس' };
+  return {
+    screen: screen || 'service',
+    departmentName: nameMap[screen] || 'خدمة العملاء',
+    todayOrders: 0,
+    todayWorkOrders: 0,
+    todayWorkLines: 0,
+    todayWorkSheets: 0,
+    todayWorkDoneLines: 0,
+    activeOrders: 0,
+    activeLines: 0,
+    activeSheets: 0,
+    urgent: 0,
+    normal: 0,
+    delayedPriority: 0,
+    overdue: 0,
+    overdueOrders: 0,
+    problems: 0,
+    readyForPickup: 0,
+    readyOrders: 0,
+    delivered: 0,
+    deliveredToday: 0,
+    deliveredTodayOrders: 0,
+    duplicate: 0,
+    heatPress: 0,
+    debtOrders: 0,
+    completionPercent: 0,
+    timeScore: 100,
+    performanceScore: 0,
+    byDepartment: { 'طباعة': 0, 'ليزر': 0, 'مكبس': 0 },
+    dataSource: 'd1-edge-orders'
+  };
+}
+
+export function buildDashboardFromRows(rows, screen, now = new Date()) {
+  const dashboard = emptyDashboard(text(screen) || 'service');
+  const today = new Date(now); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const activeOrders = new Set();
+  const readyOrders = new Set();
+  const overdueOrders = new Set();
+  const deliveredTodayOrders = new Set();
+  const todayWorkOrders = new Set();
+  const debtOrders = new Set();
+  const departmentOrderSets = {};
+
+  for (const row of rows || []) {
+    const orderId = text(row && row.orderId);
+    const department = text(row && row.department);
+    const status = text(row && row.status) || 'طلب جديد';
+    const priority = text(row && row.priority);
+    const qty = Math.max(1, Number(row && row.qty) || 1);
+    const expected = row && (row.expectedDeliveryAt || row.expectedDeliveryText);
+    const received = parseDate(row && row.receivedAt);
+    const expectedDate = parseDate(expected);
+    const updated = parseDate(row && row.updatedAt);
+    const isHidden = hiddenStatus(status);
+    const isOverdue = text(row && row.overdue) === 'نعم' || overdue(status, expected);
+    const isReady = readyStatus(status);
+    const isDelivered = status === 'تم التسليم';
+    const isDeliveredToday = isDelivered && sameDay(updated, today);
+    const isTodayWork = !isHidden && sameDay(received, yesterday) && sameDay(expectedDate, tomorrow);
+
+    if (!isHidden) {
+      dashboard.activeLines += 1;
+      dashboard.activeSheets += qty;
+      if (orderId) activeOrders.add(orderId);
+      inc(dashboard.byDepartment, department || 'غير محدد', 1);
+      addSet(departmentOrderSets, department || 'غير محدد', orderId);
+    }
+
+    if (priority === 'عاجل' || priority === 'VIP') dashboard.urgent += 1;
+    else if (priority === 'مؤجل') dashboard.delayedPriority += 1;
+    else dashboard.normal += 1;
+
+    if (isOverdue) {
+      dashboard.overdue += 1;
+      if (orderId) overdueOrders.add(orderId);
+    }
+    if (readyPickupStatus(status)) {
+      dashboard.readyForPickup += 1;
+      if (orderId) readyOrders.add(orderId);
+    }
+    if (isDelivered) dashboard.delivered += 1;
+    if (isDeliveredToday) {
+      dashboard.deliveredToday += 1;
+      if (orderId) deliveredTodayOrders.add(orderId);
+    }
+    if (status === 'مكرر') dashboard.duplicate += 1;
+    if (['متوقف','مشكلة/متوقف','في انتظار موافقة العميل'].includes(status)) dashboard.problems += 1;
+    if (isHeatPress(row && row.heatPress)) dashboard.heatPress += 1;
+    if (parseDebt(row && row.debtAmount) > 0) {
+      if (orderId) debtOrders.add(orderId);
+    }
+    if (isTodayWork) {
+      dashboard.todayWorkLines += 1;
+      dashboard.todayWorkSheets += qty;
+      if (orderId) todayWorkOrders.add(orderId);
+      if (isReady || isDelivered) dashboard.todayWorkDoneLines += 1;
+    }
+  }
+
+  dashboard.activeOrders = activeOrders.size;
+  dashboard.todayOrders = activeOrders.size;
+  dashboard.todayWorkOrders = todayWorkOrders.size;
+  dashboard.readyOrders = readyOrders.size;
+  dashboard.overdueOrders = overdueOrders.size;
+  dashboard.deliveredTodayOrders = deliveredTodayOrders.size;
+  dashboard.debtOrders = debtOrders.size;
+
+  Object.keys(departmentOrderSets).forEach((department) => {
+    dashboard.byDepartment[department + 'Orders'] = departmentOrderSets[department].size;
+  });
+
+  dashboard.completionPercent = Math.min(100, Math.round((dashboard.todayWorkDoneLines / Math.max(1, dashboard.todayWorkLines)) * 100));
+  const target = Math.max(1, dashboard.todayWorkLines + dashboard.overdue);
+  dashboard.timeScore = Math.max(0, Math.round(100 - ((dashboard.overdue / target) * 100)));
+  dashboard.performanceScore = Math.round((dashboard.completionPercent * 0.6) + (dashboard.timeScore * 0.4));
+  dashboard.updatedAt = new Date(now).toISOString();
+  return dashboard;
 }
 
 export function mapMirrorRows(headers, mirrorRows, screen) {
@@ -340,6 +480,7 @@ async function page(request, env, url, session) {
     return json({ success: false, code: 'mirror-not-ready', fallback: 'apps-script', dataSource: 'd1-orders-unready', mirror: { status: catalog.status, rowCount: Number(catalog.rowCount||0), sourceLastRow: Number(catalog.sourceLastRow||0), syncedAt: text(catalog.syncedAt), note: text(catalog.note) } }, 503, corsHeaders(request, env));
   }
   const allRows = mapMirrorRows(mirror.headers, mirror.rows, screen);
+  const dashboard = buildDashboardFromRows(allRows, screen);
   const params = Object.fromEntries(url.searchParams.entries());
   const filtered = filterRows(allRows, params);
   const statusCounts = {}, statusOrderSets = {};
@@ -360,7 +501,7 @@ async function page(request, env, url, session) {
   return json({
     success: true,
     rows: filtered.slice(start, start + pageSize),
-    dashboard: null,
+    dashboard,
     pagination: { page: safePage, pageSize, totalRows, totalPages, hasOlder: safePage < totalPages },
     statusCounts,
     statusOrderCounts,
