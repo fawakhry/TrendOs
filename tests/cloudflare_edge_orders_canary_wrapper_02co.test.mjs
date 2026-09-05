@@ -13,13 +13,16 @@ assert.match(indexSource, /edge-orders-read-v1-canary\.mjs/);
 assert.match(indexSource, /handleEdgeOrdersReadCanaryRequest/);
 assert.match(configSource, /MATBAGY_EDGE_ORDERS_READ_V1_ENABLED\s*=\s*false/);
 
-assert.match(wrapperSource, /defaultVisibleStatus/);
-assert.match(wrapperSource, /ملغى/);
-assert.match(wrapperSource, /مكرر/);
-assert.match(wrapperSource, /تم التسليم/);
-assert.match(wrapperSource, /جاهز للاستلام/);
+assert.match(wrapperSource, /SCREEN_VIEW_SHEETS/);
+assert.match(wrapperSource, /واجهة الطباعة/);
+assert.match(wrapperSource, /واجهة الليزر/);
+assert.match(wrapperSource, /واجهة خدمة العملاء/);
+assert.match(wrapperSource, /واجهة المكبس/);
+assert.match(wrapperSource, /D1_ORDERS_READ_V1_02CO_VIEW_CANARY/);
 assert.match(wrapperSource, /Debt-filtered orders require the authoritative Apps Script lane/);
 assert.match(wrapperSource, /handleEdgeOrdersReadRequest\(request, env, ctx\)/);
+assert.match(wrapperSource, /parseDay/);
+assert.match(wrapperSource, /statusBucket/);
 
 const forbiddenSql = ['INSERT ', 'UPDATE ', 'DELETE ', 'DROP ', 'ALTER ', 'CREATE TABLE', 'PRAGMA ', 'REPLACE '];
 const upperWrapper = wrapperSource.toUpperCase();
