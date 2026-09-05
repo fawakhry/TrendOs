@@ -54,8 +54,31 @@ export function reconciliationBackoffSeconds(attempts) {
   return Math.min(3600, 15 * (2 ** Math.min(7, n - 1)));
 }
 
-async function selectCandidate(DB, nowIso) {
-  return DB.prepare(`
+async function selectCandidate(DB, nowIso, options = {}) {
+  const clauses = [
+    "status IN ('pending','retry','processing')",
+    'next_attempt_at <= ?'
+  ];
+  const binds = [nowIso];
+
+  const targetEntityType = text(options.targetEntityType);
+  const targetEntityId = text(options.targetEntityId);
+  const targetOperation = text(options.targetOperation);
+
+  if (targetEntityType) {
+    clauses.push('entity_type = ?');
+    binds.push(targetEntityType);
+  }
+  if (targetEntityId) {
+    clauses.push('entity_id = ?');
+    binds.push(targetEntityId);
+  }
+  if (targetOperation) {
+    clauses.push('operation = ?');
+    binds.push(targetOperation);
+  }
+
+  const statement = DB.prepare(`
     SELECT id,
            event_key AS eventKey,
            entity_type AS entityType,
@@ -67,11 +90,12 @@ async function selectCandidate(DB, nowIso) {
            payload_json AS payloadJson,
            last_error AS lastError
       FROM cloud_write_outbox
-     WHERE status IN ('pending','retry','processing')
-       AND next_attempt_at <= ?
+     WHERE ${clauses.join('\n       AND ')}
      ORDER BY id ASC
      LIMIT 1
-  `).bind(nowIso).first();
+  `).bind(...binds);
+
+  return statement.first();
 }
 
 async function claimCandidate(DB, candidate, nowMs, leaseSeconds) {
@@ -211,7 +235,7 @@ export async function reconcileNextOutboxItem(env, transport, options = {}) {
   const nowIso = iso(nowMs);
   const completion = completionConfig(options);
 
-  const candidate = await selectCandidate(env.DB, nowIso);
+  const candidate = await selectCandidate(env.DB, nowIso, options);
   if (!candidate) return { success: true, state: 'idle', processed: false, sheetsWritten: false };
 
   const item = await claimCandidate(env.DB, candidate, nowMs, leaseSeconds);
