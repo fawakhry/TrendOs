@@ -16,7 +16,7 @@
 - EasyStore.
 - أي مشروع مستقل آخر داخل المستودع.
 
-## قاعدة العمل من الآن
+## قاعدة العمل
 
 أي Checkpoint أو Blackbox جديد خاص بمنصة TrendOS الرئيسية يُكتب داخل هذا المجلد فقط.
 
@@ -32,13 +32,18 @@
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-الحالة: **SAFE BLOCKED — NO WRITE — AUTH READINESS RECONFIRMED NOT READY**.
+الحالة: **SAFE BLOCKED — AUTH EXCHANGE FAILED — NO BUSINESS WRITE**.
 
-تمت إعادة فحص جاهزية المصادقة في 2026-09-05 بواسطة Probe قراءة فقط، وتأكد أن Secretي التأهيل ما زالا غير مهيئين. لم يتم أي Production write أو D1/Sheets/Worker/cutover mutation.
+آخر إعادة محاولة في 2026-09-05 أكدت أن Secretي التأهيل موجودان، وأن Production preflight سليم، لكن تبادل جلسة الموظف عبر canonical `/v1/edge/session` فشل قبل إنشاء أي Order. تم Skip لكل خطوات الـBusiness Write والـpost-write verification، ولم يحدث Production D1 business write أو cutover أو Worker secret rotation.
 
-السجل التفصيلي:
+السجل التفصيلي الأحدث:
 
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
+
+السجلات السابقة المهمة لنفس الحاجز:
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_BLOCKED_NO_WRITE.md`
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_USERNAME_CASE_DISCOVERY_SESSION_INVALIDATED.md`
 
 ## التسلسل المجمع
 
@@ -46,7 +51,7 @@
 يبدأ من `BACKEND_UNIFICATION_HANDOFF` ثم مراحل `PERF-CF` من `02R` وحتى `02BG`، بما في ذلك `02AA–02BF`.
 
 ### 2026-09-05
-يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم محاولة `02CK` الآمنة وإعادة فحص جاهزية employee-auth بدون كتابة.
+يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم سلسلة محاولات `02CK` الآمنة: auth absent → username case discovery → secrets present → canonical auth exchange failed before business write.
 
 ## نقطة البداية لأي شات جديد
 
