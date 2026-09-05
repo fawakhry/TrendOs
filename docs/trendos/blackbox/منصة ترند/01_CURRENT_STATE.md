@@ -37,6 +37,19 @@ A temporary read-only GitHub Actions probe rechecked only whether the two dedica
 
 Therefore the exact 02CK blocker is still active: both dedicated employee-auth repository secrets remain unconfigured. No Production business write was attempted during the recheck.
 
+## Verified 02CK credential contract
+
+Current Apps Script source confirms that the required employee token is a normal employee **session token**, not a permanent API key:
+
+- A successful employee login generates a fresh token and stores it with the employee last-login time.
+- Session TTL defaults to **12 hours** in the current source.
+- Missing, mismatched, or expired tokens are rejected by `authorize_`.
+- `verifyEmployeeSession_` requires both a valid session and an employee account already permitted by the existing application authorization mode.
+- The active frontend session stores the employee username and token in browser `sessionStorage`, including `matbagy_username` and `matbagy_session_token`.
+- Production Edge exchanges this valid Apps Script employee session for a separate short-lived Edge token; no `EDGE_SESSION_SECRET` rotation is required.
+
+Operationally, the one-time 02CK qualification secret should therefore use a **fresh authorized login session token generated close to the controlled run**. Never commit this token to repository files or blackbox documentation.
+
 ## Production platform state
 
 - Repository: `fawakhry/TrendOs`
@@ -80,7 +93,14 @@ Required CI secret inputs for the prepared manual qualification workflow:
 - `TRENDOS_PROD_QUALIFY_USERNAME`
 - `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
 
-Both inputs were reconfirmed absent by the latest read-only readiness probe. They must be configured with a dedicated valid employee identity/token for the existing Apps Script `verifyEmployeeSession` path before the business-write qualification can execute.
+Both inputs were reconfirmed absent by the latest read-only readiness probe.
+
+To prepare them safely:
+1. Perform a fresh normal login with a dedicated employee account already accepted by `verifyEmployeeSession`.
+2. Use that browser session's current username and `matbagy_session_token`; do not paste the token into chat or commit it to GitHub files.
+3. Add those values as the two GitHub Actions repository secrets above.
+4. Recheck only secret presence without printing values.
+5. Run the bounded Production qualification and require every existing 02CK safety assertion to pass.
 
 Prepared manual-only workflow:
 
@@ -90,6 +110,6 @@ Manual confirmation string:
 
 `QUALIFY_PRODUCTION_CLOUD_WRITE_ORDER`
 
-When those credentials are available, the workflow will create at most one clearly synthetic D1 Production order, replay the same idempotency key, require one pending outbox item, verify Shadow and safety boundaries, and keep `cutover=false` with Sheets authoritative.
+When fresh credentials are available, the workflow will create at most one clearly synthetic D1 Production order, replay the same idempotency key, require one pending outbox item, verify Shadow and safety boundaries, and keep `cutover=false` with Sheets authoritative.
 
 Do not rotate `EDGE_SESSION_SECRET` merely to unblock qualification. Do not jump directly to authority transfer or full frontend cutover.
