@@ -12,7 +12,7 @@ Status: **VERIFIED PASS — CLOSED**
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-Status: **SAFE BLOCKED — NO WRITE**
+Status: **SAFE BLOCKED — NO WRITE — AUTH READINESS RECONFIRMED NOT READY**
 
 The 02CK Production preflight passed, but the dedicated automation employee-auth credentials were not configured. The canonical employee-session exchange and all Production write steps were therefore skipped. No Production business record was created.
 
@@ -20,6 +20,22 @@ Controlled 02CK run:
 - Run ID: `33969366608`
 - Job ID: `101315025704`
 - Result: SUCCESS on the explicit safe no-write path.
+
+## Latest 02CK auth-readiness recheck
+
+A temporary read-only GitHub Actions probe rechecked only whether the two dedicated qualification secrets are present. It did not print secret values and did not call any Production endpoint.
+
+- Trigger commit: `d7028f54197bb438f2a26ff74827db8e414db12e`
+- Probe Run ID: `33972215165`
+- Probe Job ID: `101322617710`
+- Probe result: **SUCCESS — READ-ONLY NO-WRITE**
+- `TRENDOS_PROD_QUALIFY_USERNAME_PRESENT = 0`
+- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN_PRESENT = 0`
+- `PROD_QUAL_AUTH_READINESS = NOT_READY`
+- Temporary probe cleanup commit: `06dedc9021a7efff1826a346f3f9e428238c49f2`
+- Blackbox record: `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
+
+Therefore the exact 02CK blocker is still active: both dedicated employee-auth repository secrets remain unconfigured. No Production business write was attempted during the recheck.
 
 ## Production platform state
 
@@ -64,6 +80,8 @@ Required CI secret inputs for the prepared manual qualification workflow:
 - `TRENDOS_PROD_QUALIFY_USERNAME`
 - `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
 
+Both inputs were reconfirmed absent by the latest read-only readiness probe. They must be configured with a dedicated valid employee identity/token for the existing Apps Script `verifyEmployeeSession` path before the business-write qualification can execute.
+
 Prepared manual-only workflow:
 
 `.github/workflows/trendos-production-cloud-write-business-qualification.yml`
@@ -74,4 +92,4 @@ Manual confirmation string:
 
 When those credentials are available, the workflow will create at most one clearly synthetic D1 Production order, replay the same idempotency key, require one pending outbox item, verify Shadow and safety boundaries, and keep `cutover=false` with Sheets authoritative.
 
-Do not jump directly to authority transfer or full frontend cutover.
+Do not rotate `EDGE_SESSION_SECRET` merely to unblock qualification. Do not jump directly to authority transfer or full frontend cutover.
