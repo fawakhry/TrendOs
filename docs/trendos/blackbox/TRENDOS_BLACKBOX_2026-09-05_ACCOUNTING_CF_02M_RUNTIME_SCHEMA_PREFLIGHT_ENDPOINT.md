@@ -9,10 +9,10 @@ Implemented a GET-only Accounting Native diagnostic at `/v1/accounting/persisten
 
 Regression coverage proves the route boundary, missing-binding fail-closed behavior, generic DB non-use, compatible schema metadata reads, deterministic missing-column incompatibility, non-GET rejection, and zero `run()`/`batch()` mutation calls. CI wiring was added to Accounting Native CI.
 
-Known proof state at recording: CI wiring commit `bc83d41ce01874076a7049058665661e13c85bc9` passed Accounting Native CI run `33941441658` and Integrity run `33941441628`. Expanded boundary-test commit `28a0c7f9372964712848ea4cc8645c6d4f18c4be` is awaiting final result from Accounting Native CI run `33941456600`.
+Executable proof: CI wiring commit `bc83d41ce01874076a7049058665661e13c85bc9` passed Accounting Native CI run `33941441658` and Integrity run `33941441628`. Expanded boundary-test commit `28a0c7f9372964712848ea4cc8645c6d4f18c4be` passed Accounting Native CI run `33941456600`.
 
 Safety boundary unchanged: no Production Cloud Write, no Production D1 write/binding activation, no migration, no Preview financial mutation, no Google Sheets/Apps Script mutation, and no cutover.
 
-Resume: inspect run `33941456600`; close ACCT-CF-02M only on PASS. If it fails, repair only within the same read-only/zero-write boundary.
+Resume: ACCT-CF-02M is closed. Continue only with another explicitly read-only/zero-write increment until a separate approval authorizes any production or authoritative mutation boundary.
 
-Status: IMPLEMENTED / WAITING_FOR_EXPANDED_CI_PROOF
+Status: PASS / CLOSED
