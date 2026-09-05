@@ -1,0 +1,41 @@
+name: TrendOS 02CL Apps Script V153 Default-Off Probe TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cl-apps-script-v153-default-off-probe-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Probe 02CL Apps Script qualification route default-OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(sed -n 's/^APPS_SCRIPT_API_URL = "\(.*\)"$/\1/p' cloudflare-d1/wrangler.toml | head -n1)"
+          test -n "$base"
+          code="$(curl --silent --show-error --location --max-time 30 --output /tmp/02cl-apps.json --write-out '%{http_code}' "${base}?action=cloudWriteReconcileProductionQualificationV1&_probe=v153-default-off")"
+          echo "02CL_APPS_HTTP=$code"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/02cl-apps.json','utf8')||'{}');
+          const pass=x.success===false && String(x.code||'')==='qualification-disabled' && x.persisted===false && x.sheetsWritten===false && Number(x.mutationCount||0)===0 && x.productionCutover===false && x.sheetsAuthoritative===true;
+          console.log('02CL_APPS_V153_DEFAULT_OFF='+JSON.stringify({code:String(x.code||''),persisted:x.persisted,sheetsWritten:x.sheetsWritten,mutationCount:Number(x.mutationCount||0),productionCutover:x.productionCutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'PERF_CF_02CL_APPS_SCRIPT_V153_DEFAULT_OFF_PROBE_PASS'
+          echo 'No secret sent. No Sheet write. No Script Property mutation. No D1 write. No Worker deploy. No cutover.'
