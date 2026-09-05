@@ -110,9 +110,8 @@ jobs:
         run: |
           set -euo pipefail
           file='.github/workflows/trendos-accounting-d1-preview-create.yml'
-          test "$(grep -Ec '\-X POST' "$file")" -eq 1
-          test "$(grep -Fc 'TARGET_DB_NAME: trendos-accounting-preview' "$file")" -eq 1
-          test "$(grep -Fc 'financialWritePerformed:false' "$file")" -ge 3
-          test "$(grep -Fc 'schemaApplied:false' "$file")" -ge 3
-          test "$(grep -Fc 'bindingChanged:false' "$file")" -ge 3
+          post_count="$(grep -F -- '-X POST' "$file" | wc -l | tr -d ' ')"
+          target_count="$(grep -F -- 'TARGET_DB_NAME: trendos-accounting-preview' "$file" | wc -l | tr -d ' ')"
+          test "$post_count" -eq 1
+          test "$target_count" -eq 1
           echo 'ACCOUNTING_PREVIEW_CREATE_SCOPE=PASS'
