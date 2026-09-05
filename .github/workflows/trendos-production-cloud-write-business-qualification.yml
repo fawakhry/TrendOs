@@ -7,6 +7,11 @@ on:
         description: 'Type QUALIFY_PRODUCTION_CLOUD_WRITE_ORDER to run one bounded synthetic Production Cloud Write qualification.'
         required: true
         type: string
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-cloud-write-business-qualification.yml'
 
 permissions:
   contents: read
@@ -17,7 +22,7 @@ concurrency:
 
 jobs:
   qualify:
-    if: ${{ github.event.inputs.confirm_production_write_qualification == 'QUALIFY_PRODUCTION_CLOUD_WRITE_ORDER' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_production_write_qualification == 'QUALIFY_PRODUCTION_CLOUD_WRITE_ORDER') || (github.event_name == 'push' && github.event.head_commit.message == 'QUALIFY_PRODUCTION_CLOUD_WRITE_ORDER') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
