@@ -1,15 +1,9 @@
 name: TrendOS Production Shadow Controlled Deploy
 
-# TEMPORARY ONE-COMMIT AUTHORIZATION: the push path below may run only when the
-# exact authorized commit message matches. After the authorized run completes,
-# this push trigger must be removed and the workflow returned to manual-only.
+# PREPARED ONLY. This workflow has no push trigger.
+# It may deploy Production only after an explicit workflow_dispatch confirmation.
 # Shadow and Cloud Write must remain OFF before and after deployment.
 on:
-  push:
-    branches:
-      - agent/go-live-2026-09-01-integrity
-    paths:
-      - '.github/workflows/trendos-cloud-write-v2-production-shadow-controlled-deploy.yml'
   workflow_dispatch:
     inputs:
       confirm_production_shadow_off_deploy:
@@ -26,7 +20,7 @@ concurrency:
 
 jobs:
   deploy-production-shadow-wrapper-off:
-    if: ${{ (github.event_name == 'push' && github.event.head_commit.message == 'AUTHORIZED PROD SHADOW OFF DEPLOY 2026-09-05') || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_production_shadow_off_deploy == 'DEPLOY_PRODUCTION_SHADOW_OFF') }}
+    if: ${{ github.event.inputs.confirm_production_shadow_off_deploy == 'DEPLOY_PRODUCTION_SHADOW_OFF' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -186,6 +180,6 @@ jobs:
         if: ${{ success() }}
         run: |
           echo 'PRODUCTION_SHADOW_CONTROLLED_DEPLOY_PASS'
-          echo 'Production wrapper deployed only after explicit authorization.'
+          echo 'Production wrapper deployed only after explicit manual confirmation.'
           echo 'Shadow remains OFF. Cloud Write remains OFF. Sheets remain authoritative.'
           echo 'No D1 migration command or Worker secret rotation is permitted by this workflow.'
