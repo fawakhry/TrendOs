@@ -1,0 +1,60 @@
+name: TrendOS Production Outbox Sheets Reconcile Qualification Candidate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/cloud-write-reconcile-core.mjs'
+      - 'cloudflare-d1/src/cloud-write-production-reconcile-qualification.mjs'
+      - 'apps-script/patches/CLOUD_WRITE_PRODUCTION_RECONCILE_QUALIFICATION_V1.gs'
+      - 'tests/cloudflare_cloud_write_reconcile_exact_target_v1.test.mjs'
+      - 'tests/cloudflare_production_reconcile_qualification_v1.test.mjs'
+      - 'tests/apps_script_cloud_write_production_reconcile_qualification_v1.test.mjs'
+      - '.github/workflows/trendos-production-outbox-sheets-reconcile-qualification-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-safety-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Regression-test existing reconciliation state machine
+        run: node --experimental-sqlite tests/cloudflare_cloud_write_reconcile_sqlite_v1.test.mjs
+
+      - name: Prove exact-target selector never consumes older decoy rows
+        run: node --experimental-sqlite tests/cloudflare_cloud_write_reconcile_exact_target_v1.test.mjs
+
+      - name: Prove bounded 02CL Worker candidate in isolated SQLite with fake Apps Script ACK
+        run: node --experimental-sqlite tests/cloudflare_production_reconcile_qualification_v1.test.mjs
+
+      - name: Verify Apps Script one-record writer static safety contract
+        run: node tests/apps_script_cloud_write_production_reconcile_qualification_v1.test.mjs
+
+      - name: Verify candidate remains unwired from Production entrypoint
+        run: |
+          set -euo pipefail
+          ! grep -Fq 'cloud-write-production-reconcile-qualification' cloudflare-d1/src/index_v2.js
+          grep -Fq 'PREPARED / NOT WIRED INTO PRODUCTION ENTRYPOINT' cloudflare-d1/src/cloud-write-production-reconcile-qualification.mjs
+          echo '02CL_CANDIDATE_NOT_ROUTED_TO_PRODUCTION_PASS'
+
+      - name: Safety conclusion
+        run: |
+          echo 'PASS means exact-target selection can address only CW-PROD-QUAL-33975124471 when the 02CL candidate supplies its selector.'
+          echo 'PASS means an older unrelated pending outbox row remains untouched in isolated SQL tests.'
+          echo 'PASS means the Apps Script candidate is default-OFF, exact-ID/exact-payload, one-append maximum, lock-protected, and replay-noop.'
+          echo 'PASS means the Worker candidate requires Edge auth, explicit confirmation, a dedicated reconciliation secret, and strict persisted-row ACK.'
+          echo 'PASS means replay proof requires an already-synced exact target and must be a zero-mutation Sheets no-op.'
+          echo 'IMPORTANT: this candidate is NOT imported by Production index_v2.js, is NOT deployed, does NOT call live Apps Script, and does NOT consume the Production outbox.'
+          echo 'Production cutover remains false and Sheets / Apps Script remain authoritative.'
