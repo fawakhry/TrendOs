@@ -2,7 +2,7 @@ import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
-import { handleEdgeOrdersReadRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1.mjs';
+import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { guardEdgeOrdersPageRequest } from './edge-orders-freshness-gate.mjs';
 import {
   fetchOrdersIdleHeartbeat,
@@ -34,8 +34,8 @@ export default {
 
     // Secure D1 Orders/Lines read lane. Before any business-row query, the
     // metadata-only guard rejects stale/unready raw mirrors back to Apps Script.
-    // Zero-idle logical freshness is explicitly opt-in; without the flag the
-    // previous strict D1 write-age behavior remains unchanged.
+    // 02CO routes through a default-OFF canary wrapper that preserves the
+    // original session exchange and applies Apps-Script-like default page scoping.
     if (isEdgeOrdersReadPath(path)) {
       const heartbeatOptions = ordersIdleHeartbeatVerifierEnabled(env)
         ? {
@@ -44,7 +44,7 @@ export default {
         : {};
       const blocked = await guardEdgeOrdersPageRequest(request, env, Date.now(), heartbeatOptions);
       if (blocked) return blocked;
-      return handleEdgeOrdersReadRequest(request, env, ctx);
+      return handleEdgeOrdersReadCanaryRequest(request, env, ctx);
     }
 
     // Parallel secure lane only. No existing frontend route is redirected here.
