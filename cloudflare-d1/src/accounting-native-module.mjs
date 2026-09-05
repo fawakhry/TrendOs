@@ -12,8 +12,9 @@ import {
   handleAccountingFinanceApiRequest,
   isAccountingFinanceApiPath
 } from './accounting-finance-api-v1.mjs';
+import { accountingPersistenceReadinessFromEnv } from './accounting-persistence-readiness-v1.mjs';
 
-export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_6_20260905';
+export const TRENDOS_ACCOUNTING_NATIVE_VERSION = 'TRENDOS_ACCOUNTING_NATIVE_V0_7_20260905';
 
 const INTEGRATION_CONTRACT = Object.freeze({
   version: TRENDOS_ACCOUNTING_NATIVE_VERSION,
@@ -79,6 +80,9 @@ const INTEGRATION_CONTRACT = Object.freeze({
     'GET /v1/accounting/finance (F2 metadata, read only)',
     'POST /v1/accounting/finance/plan (posting plan only, persistence=none)'
   ],
+  diagnosticsEndpoints: [
+    'GET /v1/accounting/persistence-readiness (read only, mutationPerformed=false)'
+  ],
   invariants: [
     'Accounting never invents an operational price.',
     'Replaying the same event must not duplicate invoice lines, stock movements, payments or cash transactions.',
@@ -99,6 +103,7 @@ export function isAccountingNativeModulePath(path) {
     normalized === '/v1/accounting/capabilities' ||
     normalized === '/v1/accounting/contract' ||
     normalized === '/v1/accounting/validate' ||
+    normalized === '/v1/accounting/persistence-readiness' ||
     isAccountingFoundationApiPath(normalized) ||
     isAccountingFinanceApiPath(normalized);
 }
@@ -160,6 +165,26 @@ export async function handleAccountingNativeModuleRequest(request, env = {}, ctx
       return json({ success: false, code: 'accounting-contract-read-only', authoritativeWrites: false, persistence: 'none', nativeModule: true }, 405);
     }
     return json(accountingContractMetadata());
+  }
+
+  if (path === '/v1/accounting/persistence-readiness') {
+    if (request.method !== 'GET') {
+      return json({
+        success: false,
+        code: 'accounting-persistence-readiness-read-only',
+        authoritativeWrites: false,
+        persistence: 'none',
+        mutationPerformed: false,
+        nativeModule: true
+      }, 405);
+    }
+    const readiness = accountingPersistenceReadinessFromEnv(env);
+    return json({
+      success: true,
+      nativeModule: true,
+      persistence: 'diagnostic-only',
+      ...readiness
+    });
   }
 
   if (path === '/v1/accounting/validate') {
