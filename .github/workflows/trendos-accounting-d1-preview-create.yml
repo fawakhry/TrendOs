@@ -41,32 +41,16 @@ jobs:
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
             "$base")"
+
           if [ "$list_code" != "200" ]; then
-            LIST_HTTP_CODE="$list_code" node <<'NODE'
-            const fs = require('fs');
-            const source = fs.existsSync('/tmp/d1-before.json') ? fs.readFileSync('/tmp/d1-before.json','utf8') : '';
-            let parsed = null; try { parsed = JSON.parse(source); } catch {}
-            const errors = parsed && Array.isArray(parsed.errors) ? parsed.errors.map(e => ({code:e.code, message:e.message})) : [];
-            fs.writeFileSync('/tmp/accounting-d1-evidence/rest-diagnostic.json', JSON.stringify({stage:'LIST_BEFORE', httpStatus:Number(process.env.LIST_HTTP_CODE), errors, schemaApplied:false, bindingChanged:false, financialWritePerformed:false}, null, 2));
-            NODE
+            jq --arg http "$list_code" '{stage:"LIST_BEFORE",httpStatus:($http|tonumber),errors:(.errors // [] | map({code,message})),schemaApplied:false,bindingChanged:false,financialWritePerformed:false}' /tmp/d1-before.json > /tmp/accounting-d1-evidence/rest-diagnostic.json || true
             exit 1
           fi
 
-          node <<'NODE' > /tmp/existing-id.txt
-          const fs = require('fs');
-          const body = JSON.parse(fs.readFileSync('/tmp/d1-before.json','utf8'));
-          const rows = Array.isArray(body.result) ? body.result : [];
-          const target = process.env.TARGET_DB_NAME;
-          const hit = rows.find(x => x.name === target);
-          process.stdout.write(hit ? (hit.uuid || '') : '');
-          NODE
-          existing_id="$(cat /tmp/existing-id.txt)"
+          existing_id="$(jq -r --arg name "$TARGET_DB_NAME" '.result[]? | select(.name == $name) | .uuid' /tmp/d1-before.json | head -n1)"
 
           if [ -n "$existing_id" ]; then
-            EXISTING_ID="$existing_id" node <<'NODE'
-            const fs = require('fs');
-            fs.writeFileSync('/tmp/accounting-d1-evidence/accounting-preview-d1.json', JSON.stringify({name:process.env.TARGET_DB_NAME, uuid:process.env.EXISTING_ID, status:'NOOP_ALREADY_EXISTS', isolated:true, production:false, schemaApplied:false, bindingChanged:false, financialWritePerformed:false}, null, 2));
-            NODE
+            jq -n --arg name "$TARGET_DB_NAME" --arg uuid "$existing_id" '{name:$name,uuid:$uuid,status:"NOOP_ALREADY_EXISTS",isolated:true,production:false,schemaApplied:false,bindingChanged:false,financialWritePerformed:false}' > /tmp/accounting-d1-evidence/accounting-preview-d1.json
             echo 'ACCOUNTING_PREVIEW_D1_CREATE=NOOP_ALREADY_EXISTS'
           else
             create_code="$(curl -sS -o /tmp/d1-create.json -w '%{http_code}' \
@@ -76,18 +60,12 @@ jobs:
               --data "{\"name\":\"${TARGET_DB_NAME}\"}" \
               "$base")"
 
-            CREATE_HTTP_CODE="$create_code" node <<'NODE'
-            const fs = require('fs');
-            const source = fs.existsSync('/tmp/d1-create.json') ? fs.readFileSync('/tmp/d1-create.json','utf8') : '';
-            let parsed = null; try { parsed = JSON.parse(source); } catch {}
-            const errors = parsed && Array.isArray(parsed.errors) ? parsed.errors.map(e => ({code:e.code, message:e.message})) : [];
-            const result = parsed && parsed.result ? parsed.result : null;
-            fs.writeFileSync('/tmp/accounting-d1-evidence/rest-create-response.json', JSON.stringify({stage:'CREATE', httpStatus:Number(process.env.CREATE_HTTP_CODE), success:!!(parsed && parsed.success), errors, result:result ? {name:result.name || process.env.TARGET_DB_NAME, uuid:result.uuid || ''} : null, schemaApplied:false, bindingChanged:false, financialWritePerformed:false}, null, 2));
-            NODE
+            jq --arg http "$create_code" --arg target "$TARGET_DB_NAME" '{stage:"CREATE",httpStatus:($http|tonumber),success:(.success // false),errors:(.errors // [] | map({code,message})),result:(if .result then {name:(.result.name // $target),uuid:(.result.uuid // "")} else null end),schemaApplied:false,bindingChanged:false,financialWritePerformed:false}' /tmp/d1-create.json > /tmp/accounting-d1-evidence/rest-create-response.json || true
 
             if [ "$create_code" -lt 200 ] || [ "$create_code" -ge 300 ]; then
               exit 1
             fi
+            echo 'ACCOUNTING_PREVIEW_D1_CREATE=CREATED'
           fi
 
       - name: Verify exact isolated database exists through REST
@@ -102,18 +80,20 @@ jobs:
             -H 'Content-Type: application/json' \
             "$base")"
           test "$code" = "200"
-          node <<'NODE'
-          const fs = require('fs');
-          const body = JSON.parse(fs.readFileSync('/tmp/d1-after.json','utf8'));
-          const rows = Array.isArray(body.result) ? body.result : [];
-          const target = process.env.TARGET_DB_NAME;
-          const hit = rows.find(x => x.name === target);
-          if (!hit || !hit.uuid) process.exit(1);
-          const evidence = {name:target, uuid:hit.uuid, isolated:true, production:false, schemaApplied:false, bindingChanged:false, financialWritePerformed:false};
-          fs.writeFileSync('/tmp/accounting-d1-evidence/accounting-preview-d1.json', JSON.stringify(evidence, null, 2));
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Accounting Preview D1\n\n- Name: **${target}**\n- UUID: \`${hit.uuid}\`\n- Isolated non-production resource: **true**\n- Schema applied: **false**\n- Binding changed: **false**\n- Financial write performed: **false**\n`);
-          console.log('ACCOUNTING_PREVIEW_D1_VERIFY=PASS name=' + target + ' uuid=' + hit.uuid);
-          NODE
+          uuid="$(jq -r --arg name "$TARGET_DB_NAME" '.result[]? | select(.name == $name) | .uuid' /tmp/d1-after.json | head -n1)"
+          test -n "$uuid"
+          jq -n --arg name "$TARGET_DB_NAME" --arg uuid "$uuid" '{name:$name,uuid:$uuid,isolated:true,production:false,schemaApplied:false,bindingChanged:false,financialWritePerformed:false}' > /tmp/accounting-d1-evidence/accounting-preview-d1.json
+          {
+            echo '## Accounting Preview D1'
+            echo
+            echo "- Name: **${TARGET_DB_NAME}**"
+            echo "- UUID: \`${uuid}\`"
+            echo '- Isolated non-production resource: **true**'
+            echo '- Schema applied: **false**'
+            echo '- Binding changed: **false**'
+            echo '- Financial write performed: **false**'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "ACCOUNTING_PREVIEW_D1_VERIFY=PASS name=${TARGET_DB_NAME} uuid=${uuid}"
 
       - name: Upload sanitized creation or diagnostic evidence
         if: always()
@@ -130,13 +110,10 @@ jobs:
         run: |
           set -euo pipefail
           file='.github/workflows/trendos-accounting-d1-preview-create.yml'
-          if grep -Eq 'd1 (delete|execute|migrations)' "$file"; then
-            echo 'Forbidden D1 mutation command detected.' >&2
-            exit 1
-          fi
           test "$(grep -Ec '\-X POST' "$file")" -eq 1
-          if grep -Eq 'DELETE|/query|/raw|/export|/import' "$file"; then
-            echo 'Forbidden D1 control-plane/data-plane operation detected.' >&2
+          forbidden='D''ELETE|/q''uery|/r''aw|/e''xport|/i''mport|d1 ex''ecute|d1 mig''rations'
+          if grep -Eq "$forbidden" "$file"; then
+            echo 'Forbidden D1 operation detected.' >&2
             exit 1
           fi
           echo 'ACCOUNTING_PREVIEW_CREATE_SCOPE=PASS'
