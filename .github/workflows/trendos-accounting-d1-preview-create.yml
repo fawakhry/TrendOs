@@ -110,8 +110,9 @@ jobs:
         run: |
           set -euo pipefail
           file='.github/workflows/trendos-accounting-d1-preview-create.yml'
-          post_count="$(grep -F -- '-X POST' "$file" | wc -l | tr -d ' ')"
-          target_count="$(grep -F -- 'TARGET_DB_NAME: trendos-accounting-preview' "$file" | wc -l | tr -d ' ')"
+          awk '/- name: Assert workflow scope is constrained/{exit} {print}' "$file" > /tmp/accounting-d1-create-scope.yml
+          post_count="$(grep -F -- '-X POST' /tmp/accounting-d1-create-scope.yml | wc -l | tr -d ' ')"
+          target_count="$(grep -F -- 'TARGET_DB_NAME: trendos-accounting-preview' /tmp/accounting-d1-create-scope.yml | wc -l | tr -d ' ')"
           test "$post_count" -eq 1
           test "$target_count" -eq 1
           echo 'ACCOUNTING_PREVIEW_CREATE_SCOPE=PASS'
