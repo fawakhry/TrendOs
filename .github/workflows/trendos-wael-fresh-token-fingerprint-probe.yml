@@ -1,0 +1,32 @@
+name: TrendOS Wael Fresh Token Fingerprint Probe
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-wael-fresh-token-fingerprint-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: ${{ github.event.head_commit.message == 'PROBE WAEL FRESH TOKEN FINGERPRINT 2026-09-05' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      U: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      T: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Verify wael and exact fresh token fingerprint without disclosure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$U" = 'wael'
+          test -n "$T"
+          actual="$(printf '%s' "$T" | sha256sum | awk '{print $1}')"
+          expected='64e24f297c1a30822ba2987f59c6daeb659c26b4bff54e6cfba6a7c567c363fe'
+          test "$actual" = "$expected"
+          echo 'WAEL_USERNAME_EXACT_MATCH=1'
+          echo 'WAEL_FRESH_TOKEN_FINGERPRINT_MATCH=1'
