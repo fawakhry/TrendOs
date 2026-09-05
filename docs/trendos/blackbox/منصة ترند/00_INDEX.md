@@ -32,15 +32,31 @@
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-الحالة: **SAFE BLOCKED — RAHMA AUTH EXCHANGE FAILED — NO BUSINESS WRITE**.
+الحالة: **SAFE BLOCKED — VIRTUAL QUALIFIER `wael` PROVISIONED — GITHUB SECRETS ALIGNMENT REQUIRED — NO BUSINESS WRITE**.
 
-آخر محاولة في 2026-09-05 استخدمت Secrets التأهيل الحالية بعد التأكد أن اسم الموظف المضبوط هو `رحمه` وأن Token الموظف موجود. Production preflight نجح، لكن canonical `/v1/edge/session` فشل قبل إنشاء أي Order، فتم Skip لكل خطوات الـBusiness Write والـpost-write verification. لم يحدث Production D1 business write أو cutover أو Worker secret rotation.
+التحقيق في Auth كشف أن `verifyEmployeeSession_` الحالي يسمح فقط بالأسماء:
+`ضياء`, `جابر`, `وائل`, `diaa`, `gaber`, `wael`.
+
+`رحمه` ليست ضمن الـallowlist الحالية، ولذلك تجاربها توقفت عند canonical `/v1/edge/session` قبل أي Business Write.
+
+بناءً على طلب المستخدم، تم إنشاء موظف افتراضي مؤقت مستقل للتأهيل:
+- Username: `wael`
+- Department: `طباعة`
+- Role: `تشغيل`
+- Active: `نعم`
+- مخصص فقط لـ02CK.
+- Password وToken مؤقتان محفوظان في شيت `المستخدمين` authoritative ولم يتم تسجيل قيمهما في GitHub أو الصندوق الأسود.
 
 السجل التفصيلي الأحدث:
 
-`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_VIRTUAL_QUALIFIER_WAEL_PROVISIONED.md`
+
+آخر محاولة Rahma قبل ذلك:
+
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_AUTH_EXCHANGE_RETRY3_FAILED_NO_BUSINESS_WRITE.md`
 
 السجلات السابقة المهمة لنفس الحاجز:
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_BLOCKED_NO_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
@@ -52,7 +68,7 @@
 يبدأ من `BACKEND_UNIFICATION_HANDOFF` ثم مراحل `PERF-CF` من `02R` وحتى `02BG`، بما في ذلك `02AA–02BF`.
 
 ### 2026-09-05
-يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم سلسلة محاولات `02CK` الآمنة: auth absent → username case discovery → secrets present → `Username` auth exchange failed → configured username changed/verified as `رحمه` → Rahma auth exchange failed before business write.
+يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم سلسلة محاولات `02CK` الآمنة: auth absent → username discovery → secrets present → `Username` auth exchange failed → Rahma retries failed → allowlist root cause identified → dedicated virtual qualifier `wael` provisioned.
 
 ## نقطة البداية لأي شات جديد
 
