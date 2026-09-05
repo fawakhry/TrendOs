@@ -36,6 +36,7 @@ on:
       - 'tests/cloudflare_accounting_f2_schema_prep_v1.test.mjs'
       - 'tests/cloudflare_accounting_f2_operations_schema_prep_v1.test.mjs'
       - 'tests/cloudflare_accounting_persistence_readiness_v1.test.mjs'
+      - 'tests/cloudflare_accounting_persistence_readiness_runtime_v1.test.mjs'
       - 'tests/cloudflare_preview_safety_v1.test.mjs'
       - '.github/workflows/trendos-accounting-native-ci.yml'
   workflow_dispatch:
@@ -92,5 +93,7 @@ jobs:
         run: node accounting/preview-persistence-caller-v1.test.js
       - name: Accounting persistence runtime readiness safety tests
         run: node tests/cloudflare_accounting_persistence_readiness_v1.test.mjs
+      - name: Accounting runtime readiness diagnostic tests
+        run: node tests/cloudflare_accounting_persistence_readiness_runtime_v1.test.mjs
       - name: Preview zero-write safety gate
         run: node tests/cloudflare_preview_safety_v1.test.mjs
