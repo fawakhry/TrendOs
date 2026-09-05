@@ -1,0 +1,209 @@
+name: TrendOS Production Migration Ledger Reconciliation Candidate
+
+# PERF-CF-02CH: candidate qualification only.
+# Live Production access is schema/system-metadata SELECT/PRAGMA plus health GET only.
+# Reconciliation INSERTs run only against isolated in-memory SQLite.
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-migration-ledger-reconciliation-candidate.yml'
+      - 'cloudflare-d1/migrations/0001_init.sql'
+      - 'cloudflare-d1/migrations/0002_full_sheet_mirror.sql'
+      - 'cloudflare-d1/migrations/0003_cloud_write_lane.sql'
+      - 'cloudflare-d1/wrangler.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-migration-ledger-reconciliation-candidate
+  cancel-in-progress: false
+
+jobs:
+  qualify-ledger-reconciliation-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_DB_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+      MIGRATION_0001_SHA: 49c58dd275f8364d0632fabd669ef48b562ea895
+      MIGRATION_0002_SHA: 1857534062b93eb24adbacdf7d3234bcaae69384
+      MIGRATION_0003_SHA: b4c81348f9b1e79519130033b5b1dffcc86eaa0b
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hard Production identity, exact migration pins, and OFF-state gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          test "$(git hash-object cloudflare-d1/migrations/0001_init.sql)" = "$MIGRATION_0001_SHA"
+          test "$(git hash-object cloudflare-d1/migrations/0002_full_sheet_mirror.sql)" = "$MIGRATION_0002_SHA"
+          test "$(git hash-object cloudflare-d1/migrations/0003_cloud_write_lane.sql)" = "$MIGRATION_0003_SHA"
+          echo '02CH_IDENTITY_PINS_OFF_GATE_PASS'
+
+      - name: Require exact live post-0003 OFF baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-health.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/pre-health.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.schemaReady===true && Number(x.pendingOutbox||0)===0 && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('02CH_PRE_HEALTH='+JSON.stringify({schemaReady:x.schemaReady,enabled:x.enabled,writesAccepted:x.writesAccepted,pendingOutbox:x.pendingOutbox,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Read exact live d1_migrations contract only
+        shell: bash
+        run: |
+          set -euo pipefail
+          query() {
+            local sql="$1" out="$2"
+            SQL="$sql" python3 - <<'PY' > /tmp/payload.json
+          import json, os, re
+          sql=os.environ['SQL'].strip(); upper=sql.upper()
+          if not (upper.startswith('SELECT ') or re.fullmatch(r"PRAGMA\s+TABLE_INFO\s*\(\s*'D1_MIGRATIONS'\s*\)", upper)):
+              raise SystemExit('02CH_NON_LEDGER_READ_REFUSED='+sql)
+          for token in ['INSERT','UPDATE','DELETE','CREATE','DROP','ALTER','REPLACE','ATTACH','DETACH','VACUUM']:
+              if re.search(r'\b'+token+r'\b',upper): raise SystemExit('02CH_MUTATION_TOKEN_REFUSED='+token)
+          if upper.startswith('SELECT ') and 'SQLITE_MASTER' not in upper:
+              raise SystemExit('02CH_ONLY_SQLITE_MASTER_SELECT_ALLOWED')
+          print(json.dumps({'sql':sql}))
+          PY
+            code="$(curl --silent --show-error --output "$out" --write-out '%{http_code}' -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data @/tmp/payload.json "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+            test "$code" = 200
+            FILE="$out" node -e "const x=JSON.parse(require('fs').readFileSync(process.env.FILE,'utf8')); if(x.success!==true) process.exit(1)"
+          }
+          query "SELECT type,name,sql FROM sqlite_master WHERE type='table' AND name='d1_migrations'" /tmp/ledger-master.json
+          query "PRAGMA table_info('d1_migrations')" /tmp/ledger-columns.json
+          node <<'NODE'
+          const fs=require('fs');
+          const master=JSON.parse(fs.readFileSync('/tmp/ledger-master.json','utf8'));
+          const cols=JSON.parse(fs.readFileSync('/tmp/ledger-columns.json','utf8'));
+          const mr=(master.result||[]).flatMap(b=>b.results||[]);
+          const cr=(cols.result||[]).flatMap(b=>b.results||[]);
+          if(mr.length!==1 || mr[0].name!=='d1_migrations' || mr[0].type!=='table') process.exit(1);
+          if(!cr.some(c=>c.name==='name')) process.exit(1);
+          fs.writeFileSync('/tmp/ledger-ddl.txt',String(mr[0].sql||''));
+          fs.writeFileSync('/tmp/ledger-columns-normalized.json',JSON.stringify(cr));
+          console.log('02CH_LIVE_LEDGER_DDL='+String(mr[0].sql||'').replace(/\s+/g,' ').trim());
+          console.log('02CH_LIVE_LEDGER_COLUMNS='+JSON.stringify(cr.map(c=>({cid:c.cid,name:c.name,type:c.type,notnull:c.notnull,dflt_value:c.dflt_value,pk:c.pk}))));
+          NODE
+
+      - name: Isolated reconciliation simulation against exact live ledger DDL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, sqlite3
+          ledger_ddl=pathlib.Path('/tmp/ledger-ddl.txt').read_text(encoding='utf-8').strip()
+          if not ledger_ddl.upper().startswith('CREATE TABLE') or 'd1_migrations' not in ledger_ddl:
+              raise SystemExit('INVALID_LIVE_LEDGER_DDL')
+
+          db=sqlite3.connect(':memory:')
+          db.execute('PRAGMA foreign_keys = ON')
+          for p in ['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']:
+              db.executescript(pathlib.Path('cloudflare-d1/migrations/'+p).read_text(encoding='utf-8'))
+          db.execute(ledger_ddl)
+
+          # Seed sentinel application rows only inside isolated SQLite.
+          db.execute("INSERT INTO customers(phone,customer_name,customer_code) VALUES('01000000000','SENTINEL CUSTOMER','SENTINEL-C')")
+          db.execute("INSERT INTO orders(order_id,customer_phone,customer_name,status) VALUES('SENTINEL-ORDER','01000000000','SENTINEL CUSTOMER','sentinel')")
+          db.execute("INSERT INTO sheet_catalog(sheet_name,row_count,status) VALUES('SENTINEL SHEET',1,'ready')")
+          db.execute("INSERT INTO sheet_rows(sheet_name,row_number,values_json) VALUES('SENTINEL SHEET',1,'[\"sentinel\"]')")
+          db.commit()
+
+          def app_schema():
+              return db.execute("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name <> 'd1_migrations' AND name NOT LIKE 'sqlite_%' ORDER BY type,name").fetchall()
+          def sentinel():
+              return {
+                'customers':db.execute("SELECT phone,customer_name,customer_code FROM customers WHERE phone='01000000000'").fetchall(),
+                'orders':db.execute("SELECT order_id,customer_phone,customer_name,status FROM orders WHERE order_id='SENTINEL-ORDER'").fetchall(),
+                'sheet_catalog':db.execute("SELECT sheet_name,row_count,status FROM sheet_catalog WHERE sheet_name='SENTINEL SHEET'").fetchall(),
+                'sheet_rows':db.execute("SELECT sheet_name,row_number,values_json FROM sheet_rows WHERE sheet_name='SENTINEL SHEET'").fetchall(),
+              }
+
+          schema_before=app_schema(); sentinel_before=sentinel()
+          names=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']
+          sql="INSERT INTO d1_migrations(name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name = ?)"
+
+          for n in names: db.execute(sql,(n,n))
+          db.commit()
+          first=db.execute('SELECT name FROM d1_migrations ORDER BY name').fetchall()
+          if first != [(n,) for n in sorted(names)]:
+              raise SystemExit('FIRST_RECONCILIATION_LEDGER_MISMATCH='+repr(first))
+
+          # Repeat: must produce exactly the same ledger state.
+          for n in names: db.execute(sql,(n,n))
+          db.commit()
+          second=db.execute('SELECT name FROM d1_migrations ORDER BY name').fetchall()
+          if second != first or len(second)!=3:
+              raise SystemExit('REPLAY_NOT_IDEMPOTENT='+repr(second))
+
+          if app_schema()!=schema_before:
+              raise SystemExit('APPLICATION_SCHEMA_CHANGED')
+          if sentinel()!=sentinel_before:
+              raise SystemExit('SENTINEL_BUSINESS_ROWS_CHANGED')
+          if db.execute('SELECT COUNT(*) FROM cloud_write_events').fetchone()[0] != 0:
+              raise SystemExit('CLOUD_WRITE_EVENTS_CHANGED')
+          if db.execute('SELECT COUNT(*) FROM cloud_write_outbox').fetchone()[0] != 0:
+              raise SystemExit('CLOUD_WRITE_OUTBOX_CHANGED')
+
+          candidate={
+            'ledgerRows':[r[0] for r in second],
+            'ledgerRowCount':len(second),
+            'replayIdempotent':True,
+            'applicationSchemaUnchanged':True,
+            'businessSentinelsUnchanged':True,
+            'cloudWriteTablesRemainEmpty':True,
+            'candidateSqlTemplate':sql,
+          }
+          pathlib.Path('/tmp/candidate.json').write_text(json.dumps(candidate,sort_keys=True),encoding='utf-8')
+          print('02CH_ISOLATED_RECONCILIATION_PASS='+json.dumps(candidate,sort_keys=True))
+          PY
+
+      - name: Prove candidate scope is ledger-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const c=JSON.parse(require('fs').readFileSync('/tmp/candidate.json','utf8'));
+          if(c.ledgerRowCount!==3 || c.replayIdempotent!==true || c.applicationSchemaUnchanged!==true || c.businessSentinelsUnchanged!==true || c.cloudWriteTablesRemainEmpty!==true) process.exit(1);
+          if(!c.candidateSqlTemplate.startsWith('INSERT INTO d1_migrations(name)')) process.exit(1);
+          if(/\b(customers|orders|messages|conversations|sheet_catalog|sheet_rows|cloud_write_events|cloud_write_outbox)\b/i.test(c.candidateSqlTemplate)) process.exit(1);
+          console.log('02CH_LEDGER_ONLY_SCOPE_PASS');
+          NODE
+
+      - name: Final live Production health unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/post-health.json
+          node <<'NODE'
+          const fs=require('fs'); const a=JSON.parse(fs.readFileSync('/tmp/pre-health.json','utf8')); const b=JSON.parse(fs.readFileSync('/tmp/post-health.json','utf8'));
+          const fields=['database','enabled','writesAccepted','authConfigured','schemaReady','pendingOutbox','schemaMutationFree','cutover','sheetsAuthoritative'];
+          const same=fields.every(k=>JSON.stringify(a[k])===JSON.stringify(b[k]));
+          const pass=same && b.schemaReady===true && b.enabled===false && b.writesAccepted===false && Number(b.pendingOutbox||0)===0 && b.cutover===false && b.sheetsAuthoritative===true;
+          console.log('02CH_FINAL_HEALTH='+JSON.stringify({schemaReady:b.schemaReady,enabled:b.enabled,writesAccepted:b.writesAccepted,pendingOutbox:b.pendingOutbox,cutover:b.cutover,sheetsAuthoritative:b.sheetsAuthoritative,stateUnchanged:same,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Candidate conclusion
+        run: |
+          echo 'PERF_CF_02CH_LEDGER_RECONCILIATION_CANDIDATE_PASS'
+          echo 'Candidate was simulated only in isolated SQLite. Production d1_migrations was not modified.'
