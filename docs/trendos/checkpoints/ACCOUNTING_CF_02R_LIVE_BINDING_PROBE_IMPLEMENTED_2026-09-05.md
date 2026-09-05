@@ -25,7 +25,9 @@ Updated `tests/cloudflare_accounting_native_v1.test.mjs` to prove:
 - all probe responses retain zero-write / zero-SQL invariants.
 
 ## CI evidence
-Accounting Native CI run `33946195319` on commit `2af0ea3a4bb2a45bd951a2e43854617a44c11755` executed the Native module tests successfully, plus the full Accounting test set and Preview zero-write safety gate successfully. At checkpoint-write time the GitHub job finalization was still in progress, but all substantive test steps had conclusion `success`.
+Accounting Native CI run `33946195319` on commit `2af0ea3a4bb2a45bd951a2e43854617a44c11755` completed with conclusion `success`. Native module tests, the full Accounting test set, persistence/schema diagnostics, and the Preview zero-write safety gate all passed.
+
+The existing Cloudflare Auto Preview workflow was triggered by the safe Preview code change and was still running at the time this checkpoint was finalized. This is not a Production cutover and does not enable Production Cloud Write.
 
 ## Safety invariants preserved
 - Preview only.
@@ -37,4 +39,4 @@ Accounting Native CI run `33946195319` on commit `2af0ea3a4bb2a45bd951a2e4385461
 - No cutover.
 - Google Sheets / Apps Script authority unchanged.
 
-Status: IMPLEMENTED / TEST-STEPS-PASS / WORKFLOW-FINALIZATION-PENDING
+Status: IMPLEMENTED / NATIVE-CI-PASS / PREVIEW-RUNTIME-PROOF-PENDING
