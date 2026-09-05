@@ -1,14 +1,9 @@
 name: TrendOS Production Shadow Read-Only Enable
 
-# Manual-only controlled Production transition, with one exact-message push authorization for this deployment only.
+# Manual-only controlled Production transition.
 # This workflow may enable only the fixed-synthetic mutation-free Shadow observer.
 # Cloud Write must remain OFF before and after deployment.
 on:
-  push:
-    branches:
-      - agent/go-live-2026-09-01-integrity
-    paths:
-      - '.github/workflows/trendos-cloud-write-v2-production-shadow-readonly-enable.yml'
   workflow_dispatch:
     inputs:
       confirm_production_shadow_readonly_enable:
@@ -25,7 +20,7 @@ concurrency:
 
 jobs:
   enable-production-shadow-readonly:
-    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_production_shadow_readonly_enable == 'ENABLE_PRODUCTION_SHADOW_READONLY') || (github.event_name == 'push' && github.event.head_commit.message == 'AUTHORIZED PROD SHADOW READONLY ENABLE 2026-09-05') }}
+    if: ${{ github.event.inputs.confirm_production_shadow_readonly_enable == 'ENABLE_PRODUCTION_SHADOW_READONLY' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
