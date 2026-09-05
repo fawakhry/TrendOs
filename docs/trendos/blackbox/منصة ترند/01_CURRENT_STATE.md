@@ -8,7 +8,7 @@ Date: 2026-09-05
 
 Status: **VERIFIED PASS — CLOSED**
 
-Detailed record:
+Reference:
 
 `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md`
 
@@ -16,187 +16,127 @@ Detailed record:
 
 `PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
 
-Status: **LIVE READ-ONLY PREFLIGHT PASS + WORKER DEFAULT-OFF WIRING CI PASS — APPS SCRIPT MANUAL DEPLOYMENT PENDING — NO 02CL PRODUCTION MUTATION**
+Status:
+
+**APPS SCRIPT V153 LIVE + WORKER DEFAULT-OFF LIVE — DEDICATED SECRET PROVISIONING PENDING — NO RECONCILIATION EXECUTED**
 
 Read first:
 
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_APPS_V153_WORKER_DEFAULT_OFF_LIVE_PASS.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_LIVE_READONLY_PREFLIGHT_PASS_NO_MUTATION.md`
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_WORKER_WRAPPED_DEFAULT_OFF_CI_PASS_NOT_DEPLOYED.md`
-- `docs/trendos/staging/APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md`
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
 
-## Exact 02CL target
+## Exact target
 
 - Order ID: `CW-PROD-QUAL-33975124471`
 - operation: `upsert_order_to_sheets`
 - confirmation: `QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471`
 - generic outbox drain: **FORBIDDEN**
 
-## Apps Script candidate
+## Apps Script live state
 
-`apps-script/patches/CLOUD_WRITE_PRODUCTION_RECONCILE_QUALIFICATION_V1.gs`
+Existing TrendOS Web App was updated using the same deployment ID.
 
-- default-OFF
-- exact target/payload only
-- dedicated enable property + dedicated reconciliation secret
-- ScriptLock
-- one append maximum
-- identical replay = zero-mutation no-op
-- duplicate/conflicting row = fail closed
-- **not yet installed/routed in the live Apps Script project**
-
-## Worker code state — prepared/wired/default-OFF, not deployed
-
-Bounded module:
-
-`cloudflare-d1/src/cloud-write-production-reconcile-qualification.mjs`
-
-The temporary lane is intentionally kept outside generic `src/index_v2.js`.
-
-Actual Production wrapper:
-
-`cloudflare-d1/production-shadow/index.js`
-
-now recognizes the isolated 02CL path and delegates only that prefix to the bounded handler.
-
-- wrapper wiring commit: `a12f5ad33d171be00c78456c6ddb795fb53f0635`
-- tracked flag in `cloudflare-d1/wrangler.toml`: `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"`
-- flag commit: `ba3d71a68bf992a74c837dedb2ecd712972767d5`
-- no plaintext reconciliation secret committed
-
-Default-OFF runtime safety test:
-
-`tests/cloudflare_production_reconcile_qualification_wiring_default_off_v1.test.mjs`
-
-- test commit: `4111c612715b6fadb0c634a62adb8abd79dff858`
-- no DB / Edge secret / Apps Script config supplied to the test
-- exact qualification POST returns HTTP 423 `qualification-disabled`
-- rejection occurs before DB/auth/Apps Script access
-
-Updated candidate CI:
-
-- workflow head commit: `0c784aaaf90993f7d12d49e5087ef7da6a6337ee`
-- Run `33984943262`
-- Job `101356624792`
+- Version: **153**
+- 02CL action: `cloudWriteReconcileProductionQualificationV1`
+- default-OFF probe Run `33986293821`
+- Job `101360293029`
 - conclusion: **SUCCESS**
-
-Integrity on same head:
-
-- Run `33984943269`
-- Job `101356624897`
-- conclusion: **SUCCESS**
-
-**No Production Worker deploy has occurred.**
-
-## Latest live read-only preflight — PASS
-
-Authoritative workbook:
-
-`TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-
-Exact search of `الأوردرات` across current bounds:
-
-- target Orders-sheet matches: **0**
-
-Temporary read-only workflow evidence:
-
-- trigger commit: `f3e2a9fdbe92b53c0436207b8f97a14b2b9ed8a2`
-- Run ID: `33984695539`
-- Job ID: `101355965286`
-- conclusion: **SUCCESS**
-- cleanup commit: `789c9985f21cdd01e92b5ba6e95a7f9fac6bc2df`
-
-Live Apps Script old reconciliation lineage:
-
-- HTTP 200
-- code: `unauthorized`
+- live response: `qualification-disabled`
+- `persisted=false`
 - `sheetsWritten=false`
 - `mutationCount=0`
-- existing reconciliation helper lineage remains installed/live and locked
+- `productionCutover=false`
+- `sheetsAuthoritative=true`
+- probe cleanup: `640f10a10c21aa6465a7fd50d9f4bce44b1db4c3`
 
-Production health:
+Apps Script execution gate remains OFF.
 
-- `pendingOutbox=1`
-- `cutover=false`
+## Worker live state
+
+02CL bounded module is live through the isolated Production wrapper while remaining outside generic `src/index_v2.js`.
+
+Controlled deploy:
+
+- trigger commit: `caccf329e0caadb271403aa851b6c8dace69185a`
+- Run `33986406106`
+- Job `101360642665`
+- conclusion: **SUCCESS**
+- Worker Version ID: `434247f4-b899-4241-822b-022834983112`
+- deploy harness cleanup: `47706bb1a3b6fec12a9aa404fb801ae1b09f07d3`
+
+Worker 02CL health after deploy:
+
+- `enabled=false`
+- exact target rows: `1`
+- target outbox status: `pending`
+- attempts: `0`
+- `reconcileSecretConfigured=false`
+- `genericDrainEnabled=false`
+- `productionCutover=false`
 - `sheetsAuthoritative=true`
 
-Exact D1 outbox target:
+Exact qualification POST while OFF returns HTTP `423` / `qualification-disabled`.
 
-- matching rows: **1**
-- status: `pending`
-- attempts: `0`
-- event key: `order:create:prod-qual-33975124471`
+## Production core state
 
-No D1/Sheets mutation occurred during the preflight.
-
-## Current manual deployment boundary
-
-Connected tools do not expose Google Apps Script source deployment or Script Property mutation, and plugin discovery found no Google Apps Script deployment connector.
-
-The next live action is therefore the Apps Script **default-OFF manual installation**.
-
-Prepared manifest:
-
-`docs/trendos/staging/APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md`
-
-Required live installation:
-
-1. Create one additional Apps Script file from the exact contents of:
-   `apps-script/patches/CLOUD_WRITE_PRODUCTION_RECONCILE_QUALIFICATION_V1.gs`
-2. In live `Code.gs`, immediately after the existing `cloudWriteReconcileDryRunV1` route, add exactly:
-   `else if (action === "cloudWriteReconcileProductionQualificationV1") result = trendosCloudWriteReconcileProductionQualificationV1_(e);`
-3. Do not overwrite live `Code.gs` with repository `Code.gs`.
-4. Keep `TRENDOS_CLOUD_WRITE_PROD_RECONCILE_QUALIFY_ENABLED` absent/empty/`0` during installation.
-5. Preserve the existing Web App deployment ID and deploy a New version.
-6. Tell the execution chat when deployed; do not paste secrets.
-7. Execution chat must immediately run a no-secret live probe and require `qualification-disabled` with zero mutation.
-
-## Production platform state
-
-- Repository: `fawakhry/TrendOs`
-- Working branch: `agent/go-live-2026-09-01-integrity`
 - Production Worker: `trendos-d1-api`
 - Production D1: `trendos-main`
 - Production Cloud Write: **ON**
 - `writesAccepted=true`
 - `schemaReady=true`
-- Production Shadow: **ON / observer-only / mutation-free**
+- Production Shadow: **ON / observer-only / read-only / mutation-free**
 - Production cutover: **OFF**
 - Full frontend cutover: **NO**
 - Normalized-data cutover: **NO**
 - Sheets / Apps Script authority: **YES**
-- qualification synthetic D1 order: **1**
-- qualification pending Sheets outbox: **1**
-- exact target Orders-sheet row: **0**
-- 02CL Apps Script deploy: **NOT YET**
-- 02CL Worker code wiring: **YES / DEFAULT-OFF / CI PASS**
-- 02CL Worker Production deploy: **NOT YET**
-- 02CL outbox consumption: **NONE**
+- pending outbox total: `1`
+- target outbox: exactly `1`, `pending`, attempts `0`
+- target Orders-sheet row: last verified absent; no 02CL Sheet write has occurred
 - `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
 
-## Safety boundary
+## What changed in latest step
 
-Do not yet:
+Allowed Production mutation:
 
-- consume/claim the target outbox item;
-- enable a generic reconciler;
-- deploy the Worker with the qualification flag ON;
-- enable Production/full-frontend/normalized-data cutover;
-- transfer authority from Sheets;
-- rotate `EDGE_SESSION_SECRET`;
-- reuse the disabled/stale 02CK `wael` token;
-- configure/enable the 02CL execution secret before default-OFF installation probes pass.
+- Worker code deployment adding the isolated 02CL route while its flag remained OFF.
+
+Business/reconciliation mutations:
+
+- outbox claim/consume: **NO**
+- outbox attempt increment: **NO**
+- Sheet append/update/delete: **NO**
+- D1 business mutation: **NO**
+- reconciliation secret mutation: **NO**
+- cutover: **NO**
+
+## Current blocker / next manual boundary
+
+A dedicated reconciliation secret must now be provisioned on both sides using the same value, without exposing it in chat or GitHub files.
+
+Apps Script Script Property:
+
+`TRENDOS_CLOUD_WRITE_PROD_RECONCILE_QUALIFY_SECRET`
+
+GitHub Actions repository secret:
+
+`TRENDOS_PROD_RECONCILE_QUALIFY_SECRET`
+
+Keep these execution flags OFF during provisioning:
+
+- Apps Script `TRENDOS_CLOUD_WRITE_PROD_RECONCILE_QUALIFY_ENABLED` absent/empty/`0`
+- Worker `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"`
 
 ## Exact safe resume point
 
 1. Treat 02CK as closed PASS.
-2. Treat 02CL candidate CI, live read-only preflight, and Worker default-OFF wiring CI as PASS.
-3. Perform the Apps Script default-OFF manual installation exactly from the deployment manifest.
-4. Once the user confirms deployment, run a no-secret live Apps Script probe and require `qualification-disabled` / zero mutation.
-5. If PASS, deploy the already-prepared Worker code while the tracked qualification flag remains `false`.
-6. Probe Worker qualification health/default-OFF behavior and recheck target pending/Sheets absent.
-7. Provision one dedicated 02CL reconciliation secret on both sides; never reuse `EDGE_SESSION_SECRET`.
-8. Acquire a fresh temporary authorized Edge session only immediately before execution.
-9. Explicitly enable the bounded gate, execute target once, then replay-noop proof.
-10. Require exact target synced, exactly one Orders row, replay mutationCount=0, unrelated outbox untouched, Shadow mutation-free, `cutover=false`, Sheets authoritative.
-11. Disable/clear temporary qualification credentials after PASS and close 02CL before defining cutover.
+2. Treat Apps Script V153 default-OFF probe as PASS.
+3. Treat Worker 02CL default-OFF Production deployment as PASS.
+4. Provision the same dedicated 02CL secret in Apps Script Script Properties and GitHub Actions repository secrets; never paste the value into chat.
+5. Once confirmed, configure the Worker secret via controlled GitHub Actions while keeping Worker execution OFF.
+6. Require Worker health `reconcileSecretConfigured=true`, target still `pending`, attempts `0`, `cutover=false`, Sheets authoritative.
+7. Recheck target absence/presence in authoritative Orders sheet before execution.
+8. Prepare a fresh authorized employee → Edge session only immediately before execution; do not reuse disabled/stale `wael` token.
+9. Then enable the bounded gates under a separate explicit checkpoint and execute exactly one target reconciliation + one replay-noop proof.
+10. Require target synced, exactly one Orders row, replay `mutationCount=0`, unrelated outbox untouched, Shadow mutation-free, `cutover=false`, Sheets authoritative.
+11. Disable/clear temporary qualification credentials after PASS and close 02CL before any cutover design.
