@@ -25,7 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Static manual-only and exact-scope contract
+      - name: Static manual-only migration-ledger contract
         shell: bash
         run: |
           set -euo pipefail
@@ -47,9 +47,13 @@ jobs:
             "grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = \"true\"$' cloudflare-d1/wrangler.toml",
             'x.schemaReady===false',
             'x.pendingOutbox===null',
-            'd1 execute "$PROD_DB_NAME"',
+            'd1 migrations list "$PROD_DB_NAME"',
+            "expected=['0003_cloud_write_lane.sql']",
+            'PENDING_MIGRATIONS_EXACT_PASS',
+            'IMMEDIATE_PENDING_MIGRATIONS_EXACT_PASS',
+            'd1 migrations apply "$PROD_DB_NAME"',
+            'POST_MIGRATION_LEDGER_PASS',
             '--remote',
-            '--file "$MIGRATION"',
             '--config cloudflare-d1/wrangler.toml',
             'x.schemaReady===true',
             "test \"$code\" = '423'",
@@ -63,16 +67,27 @@ jobs:
 
           if re.search(r'^\s*push\s*:', t, flags=re.M):
               raise SystemExit('CONTROLLED_WORKFLOW_MUST_NOT_HAVE_PUSH_TRIGGER')
-          if re.search(r'wrangler[^\n]*(?:deploy|migrations\s+apply|secret\s+(?:put|bulk))', t, flags=re.I):
+          if re.search(r'wrangler[^\n]*(?:deploy|secret\s+(?:put|bulk))', t, flags=re.I):
               raise SystemExit('FORBIDDEN_WRANGLER_MUTATION_PATH')
+          if re.search(r'\bd1\s+execute\b', t, flags=re.I):
+              raise SystemExit('RAW_D1_EXECUTE_FORBIDDEN')
           if re.search(r'\b(?:sed|perl|python3?)\b[^\n]*TRENDOS_CLOUD_WRITE_V1_ENABLED', t, flags=re.I):
               raise SystemExit('FLAG_REWRITE_PATH_FORBIDDEN')
           if re.search(r'^\s*TRENDOS_CLOUD_WRITE_V1_ENABLED\s*:', t, flags=re.M):
               raise SystemExit('WORKFLOW_ENV_CLOUD_WRITE_OVERRIDE_FORBIDDEN')
-          if t.count('d1 execute "$PROD_DB_NAME"') != 1:
-              raise SystemExit('EXACTLY_ONE_D1_EXECUTE_REQUIRED')
+          if t.count('d1 migrations apply "$PROD_DB_NAME"') != 1:
+              raise SystemExit('EXACTLY_ONE_D1_MIGRATIONS_APPLY_REQUIRED')
+          if t.count('d1 migrations list "$PROD_DB_NAME"') != 3:
+              raise SystemExit('EXACTLY_THREE_PENDING_LIST_CHECKS_REQUIRED')
 
-          print('CONTROLLED_SCHEMA_APPLY_MANUAL_ONLY_CONTRACT_PASS')
+          first_exact=t.index('PENDING_MIGRATIONS_EXACT_PASS')
+          immediate=t.index('IMMEDIATE_PENDING_MIGRATIONS_EXACT_PASS')
+          apply_pos=t.index('d1 migrations apply "$PROD_DB_NAME"')
+          post_ledger=t.index('POST_MIGRATION_LEDGER_PASS')
+          if not (first_exact < immediate < apply_pos < post_ledger):
+              raise SystemExit('MIGRATION_GATE_ORDER_INVALID')
+
+          print('CONTROLLED_SCHEMA_APPLY_MANUAL_ONLY_MIGRATION_LEDGER_CONTRACT_PASS')
           PY
 
       - name: Live Production baseline remains OFF and unready
@@ -90,5 +105,5 @@ jobs:
       - name: Contract conclusion
         run: |
           echo 'PERF_CF_02CD_CONTROLLED_SCHEMA_APPLY_CONTRACT_PASS'
-          echo 'The Production schema apply workflow is manual-only and pinned to migration 0003 while Cloud Write remains OFF.'
+          echo 'The manual Production schema workflow is fail-closed unless the canonical D1 pending set is exactly migration 0003, then uses the D1 migration ledger.'
           echo 'This CI workflow did not execute the Production migration.'
