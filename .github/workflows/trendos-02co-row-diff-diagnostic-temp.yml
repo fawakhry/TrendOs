@@ -1,0 +1,115 @@
+name: TrendOS 02CO Row Diff Diagnostic TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02co-row-diff-diagnostic-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02co-row-diff-diagnostic-temp
+  cancel-in-progress: false
+
+jobs:
+  row-diff-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      TRENDOS_PROD_QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      EDGE_BASE: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static no-write boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
+          if grep -R -E "wrangler deploy|wrangler d1 migrations apply|d1 execute --file|secret put|TRENDOS_PRODUCTION_CUTOVER|AUTHORITY_CUTOVER|/v1/qualification/cloud-write/reconcile/order" .github/workflows/trendos-02co-row-diff-diagnostic-temp.yml; then
+            echo 'Forbidden write/cutover command found' >&2
+            exit 1
+          fi
+          echo 'PERF_CF_02CO_ROW_DIFF_STATIC_NO_WRITE_PASS'
+
+      - name: Read-only row diff and boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TRENDOS_PROD_QUALIFY_USERNAME"
+          test -n "$TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN"
+          node <<'NODE'
+          const crypto = require('crypto');
+          const edgeBase = process.env.EDGE_BASE;
+          const appsScriptUrl = process.env.APPS_SCRIPT_URL;
+          const username = process.env.TRENDOS_PROD_QUALIFY_USERNAME;
+          const token = process.env.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN;
+          const hash = (v) => crypto.createHash('sha256').update(String(v || '')).digest('hex').slice(0, 10);
+          function key(row) {
+            return [row && row.orderId || '', row && row.lineId || '', row && row.status || ''].map(v => String(v || '').trim()).join('|');
+          }
+          async function readJson(label, url, options = {}) {
+            const started = Date.now();
+            const res = await fetch(url, { cache: 'no-store', ...options });
+            const raw = await res.text();
+            let body = {};
+            try { body = JSON.parse(raw || '{}'); } catch (err) { throw new Error(label + ' invalid JSON ' + raw.slice(0, 120)); }
+            return { label, status: res.status, ms: Date.now() - started, body };
+          }
+          const health = await readJson('cloud-write-health', `${edgeBase}/v1/cloud/write/health`, { headers: { accept: 'application/json' } });
+          if (health.status !== 200 || health.body.success !== true || health.body.cutover !== false || health.body.sheetsAuthoritative !== true) throw new Error('authority boundary changed before diagnostic');
+          const session = await readJson('edge-session', `${edgeBase}/v1/edge/orders/session`, {
+            method: 'POST',
+            headers: { accept: 'application/json', 'content-type': 'application/json' },
+            body: JSON.stringify({ username, token })
+          });
+          if (session.status !== 200 || session.body.success !== true || !session.body.edgeToken) throw new Error('edge session failed http=' + session.status);
+          const params = new URLSearchParams({ screen: 'print', page: '1', pageSize: '20' });
+          const edge = await readJson('edge-print-all', `${edgeBase}/v1/edge/orders/page?${params}`, {
+            headers: { accept: 'application/json', authorization: `Bearer ${session.body.edgeToken}` }
+          });
+          const app = await readJson('apps-print-all', appsScriptUrl, {
+            method: 'POST',
+            headers: { accept: 'application/json', 'content-type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'getRowsPageV1931', username, token, screen: 'print', page: '1', pageSize: '20' })
+          });
+          const edgeKeys = (edge.body.rows || []).map(key);
+          const appKeys = (app.body.rows || []).map(key);
+          const appSet = new Set(appKeys);
+          const edgeSet = new Set(edgeKeys);
+          const mismatchPositions = [];
+          const max = Math.max(edgeKeys.length, appKeys.length);
+          for (let i = 0; i < max && mismatchPositions.length < 8; i++) {
+            if (edgeKeys[i] !== appKeys[i]) mismatchPositions.push({ index: i, edge: edgeKeys[i] || null, app: appKeys[i] || null });
+          }
+          const onlyEdge = edgeKeys.filter(k => !appSet.has(k)).slice(0, 8);
+          const onlyApp = appKeys.filter(k => !edgeSet.has(k)).slice(0, 8);
+          const edgeDash = edge.body.dashboard || {}, appDash = app.body.dashboard || {};
+          const dash = {};
+          for (const k of ['activeLines','activeOrders','readyForPickup','deliveredToday','duplicate','urgent','normal','overdue']) dash[k] = [Number(edgeDash[k] || 0), Number(appDash[k] || 0)];
+          const boundary2 = await readJson('reconcile-health', `${edgeBase}/v1/qualification/cloud-write/reconcile/health`, { headers: { accept: 'application/json' } });
+          if (boundary2.status !== 200 || boundary2.body.enabled !== false || boundary2.body.genericDrainEnabled !== false) throw new Error('02CL boundary changed');
+          console.log('PERF_CF_02CO_ROW_DIFF_DIAGNOSTIC=' + JSON.stringify({
+            edgeStatus: edge.status,
+            appStatus: app.status,
+            edgeMs: edge.ms,
+            appMs: app.ms,
+            edgeSuccess: edge.body.success,
+            appSuccess: app.body.success,
+            edgeTotalRows: edge.body.pagination && edge.body.pagination.totalRows,
+            appTotalRows: app.body.pagination && app.body.pagination.totalRows,
+            edgeFirstHashes: edgeKeys.slice(0, 5).map(hash),
+            appFirstHashes: appKeys.slice(0, 5).map(hash),
+            mismatchPositions,
+            onlyEdge,
+            onlyApp,
+            dashboard: dash,
+            boundary: { pendingOutbox: health.body.pendingOutbox, cutover: health.body.cutover, sheetsAuthoritative: health.body.sheetsAuthoritative, reconcileEnabled: boundary2.body.enabled, genericDrainEnabled: boundary2.body.genericDrainEnabled }
+          }));
+          console.log('PERF_CF_02CO_ROW_DIFF_DIAGNOSTIC_DONE');
+          NODE
