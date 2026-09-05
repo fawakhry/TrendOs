@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          code="$(curl --silent --show-error --output /tmp/preflight-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/persistence/schema-preflight")"
+          code="$(curl --silent --show-error --output /tmp/preflight-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/persistence-schema-preflight")"
           test "$code" = 405
           node <<'NODE'
           const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/preflight-post.json','utf8'));
