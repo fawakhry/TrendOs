@@ -1,0 +1,119 @@
+name: TrendOS Accounting Persistence Readiness Preview Runtime
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/accounting-native-module.mjs'
+      - 'cloudflare-d1/src/accounting-persistence-readiness-v1.mjs'
+      - 'tests/cloudflare_accounting_persistence_readiness_runtime_v1.test.mjs'
+      - '.github/workflows/trendos-accounting-persistence-readiness-preview-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-accounting-persistence-readiness-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+    steps:
+      - name: Checkout expected Accounting source
+        uses: actions/checkout@v4
+
+      - name: Derive expected native Accounting version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node - <<'NODE'
+          const fs = require('fs');
+          const src = fs.readFileSync('cloudflare-d1/src/accounting-native-module.mjs','utf8');
+          const m = src.match(/TRENDOS_ACCOUNTING_NATIVE_VERSION\s*=\s*['\"]([^'\"]+)['\"]/);
+          if (!m) process.exit(1);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          test -n "$version"
+          echo "EXPECTED_ACCOUNTING_NATIVE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Expected native Accounting version: $version"
+
+      - name: Wait for matching isolated Preview Accounting version
+        shell: bash
+        run: |
+          set -euo pipefail
+          matched='false'
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --output /tmp/accounting-integration.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/integration" || true)"
+            if [ "$code" = '200' ]; then
+              if EXPECTED_ACCOUNTING_NATIVE_VERSION="$EXPECTED_ACCOUNTING_NATIVE_VERSION" node <<'NODE'
+          const fs = require('fs');
+          let x = {};
+          try { x = JSON.parse(fs.readFileSync('/tmp/accounting-integration.json','utf8')); } catch (_) { process.exit(1); }
+          if (!x.success || x.version !== process.env.EXPECTED_ACCOUNTING_NATIVE_VERSION) process.exit(1);
+          process.exit(0);
+          NODE
+              then
+                matched='true'
+                echo "ACCOUNTING_PREVIEW_VERSION_SYNC=PASS attempt=$attempt version=$EXPECTED_ACCOUNTING_NATIVE_VERSION"
+                break
+              fi
+            fi
+            sleep 4
+          done
+          if [ "$matched" != 'true' ]; then
+            echo 'Preview did not converge to the expected Accounting source revision.' >&2
+            cat /tmp/accounting-integration.json 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Verify live persistence readiness is ZERO_WRITE
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-readiness.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/persistence-readiness")"
+          cat /tmp/accounting-readiness.json
+          test "$code" = '200'
+          node <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/accounting-readiness.json','utf8'));
+          if (!x.success || x.nativeModule !== true) process.exit(1);
+          if (x.persistence !== 'diagnostic-only') process.exit(1);
+          if (x.mode !== 'ZERO_WRITE' || x.ready !== false) process.exit(1);
+          if (x.authoritativeWrites !== false || x.mutationPerformed !== false) process.exit(1);
+          if (x.productionBlocked === true && x.ready !== false) process.exit(1);
+          console.log('ACCOUNTING_PERSISTENCE_READINESS_LIVE=PASS');
+          NODE
+
+      - name: Verify live persistence readiness endpoint is GET only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-readiness-post.json --write-out '%{http_code}' -X POST "$PREVIEW_URL/v1/accounting/persistence-readiness")"
+          cat /tmp/accounting-readiness-post.json
+          test "$code" = '405'
+          node <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/accounting-readiness-post.json','utf8'));
+          if (x.success !== false) process.exit(1);
+          if (x.authoritativeWrites !== false || x.mutationPerformed !== false) process.exit(1);
+          if (x.persistence !== 'none') process.exit(1);
+          console.log('ACCOUNTING_PERSISTENCE_READINESS_POST_BLOCK=PASS');
+          NODE
+
+      - name: Reconfirm Accounting financial authority remains unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/accounting-health.json --write-out '%{http_code}' "$PREVIEW_URL/v1/accounting/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/accounting-health.json','utf8'));
+          if (!x.success) process.exit(1);
+          if (x.authoritativeWrites !== false || x.d1FinancialWrites !== false || x.d1SchemaMutation !== false) process.exit(1);
+          if (x.sheetsAuthoritative !== true || x.writeAuthority !== 'google-sheets-apps-script') process.exit(1);
+          console.log('ACCOUNTING_AUTHORITY_UNCHANGED=PASS');
+          NODE
