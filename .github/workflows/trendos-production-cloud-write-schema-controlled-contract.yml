@@ -1,0 +1,93 @@
+name: TrendOS Production Cloud Write Schema Controlled Contract
+
+# CI-only contract proof for the manual Production schema apply workflow.
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-cloud-write-schema-controlled-contract.yml'
+      - '.github/workflows/trendos-production-cloud-write-schema-controlled-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-controlled-schema-apply-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CONTROLLED: .github/workflows/trendos-production-cloud-write-schema-controlled-apply.yml
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Static manual-only and exact-scope contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('.github/workflows/trendos-production-cloud-write-schema-controlled-apply.yml')
+          t=p.read_text(encoding='utf-8')
+
+          required=[
+            'workflow_dispatch:',
+            'APPLY_PRODUCTION_CLOUD_WRITE_SCHEMA_ONLY',
+            'PROD_DB_NAME: trendos-main',
+            'PROD_DB_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825',
+            'MIGRATION: cloudflare-d1/migrations/0003_cloud_write_lane.sql',
+            'EXPECTED_BLOB_SHA: b4c81348f9b1e79519130033b5b1dffcc86eaa0b',
+            "grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = \"false\"$' cloudflare-d1/wrangler.toml",
+            "grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = \"true\"$' cloudflare-d1/wrangler.toml",
+            'x.schemaReady===false',
+            'x.pendingOutbox===null',
+            'd1 execute "$PROD_DB_NAME"',
+            '--remote',
+            '--file "$MIGRATION"',
+            '--config cloudflare-d1/wrangler.toml',
+            'x.schemaReady===true',
+            "test \"$code\" = '423'",
+            "test \"$outbox_code\" = '423'",
+            'POST_SCHEMA_OBJECTS=',
+            'EXPECTED_SHADOW_FINGERPRINT',
+          ]
+          for needle in required:
+              if needle not in t:
+                  raise SystemExit('MISSING_CONTROLLED_CONTRACT='+needle)
+
+          if re.search(r'^\s*push\s*:', t, flags=re.M):
+              raise SystemExit('CONTROLLED_WORKFLOW_MUST_NOT_HAVE_PUSH_TRIGGER')
+          if re.search(r'wrangler[^\n]*(?:deploy|migrations\s+apply|secret\s+(?:put|bulk))', t, flags=re.I):
+              raise SystemExit('FORBIDDEN_WRANGLER_MUTATION_PATH')
+          if re.search(r'TRENDOS_CLOUD_WRITE_V1_ENABLED\s*=\s*["\x27]true', t, flags=re.I):
+              raise SystemExit('CLOUD_WRITE_ENABLEMENT_FORBIDDEN')
+          if re.search(r'\b(?:sed|perl|python3?)\b[^\n]*TRENDOS_CLOUD_WRITE_V1_ENABLED', t, flags=re.I):
+              raise SystemExit('FLAG_REWRITE_PATH_FORBIDDEN')
+          if t.count('d1 execute "$PROD_DB_NAME"') != 1:
+              raise SystemExit('EXACTLY_ONE_D1_EXECUTE_REQUIRED')
+
+          print('CONTROLLED_SCHEMA_APPLY_MANUAL_ONLY_CONTRACT_PASS')
+          PY
+
+      - name: Live Production baseline remains OFF and unready
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/health.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/health.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.schemaReady===false && x.pendingOutbox===null && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('CONTROLLED_GATE_CURRENT_BASELINE='+JSON.stringify({enabled:x.enabled,writesAccepted:x.writesAccepted,schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Contract conclusion
+        run: |
+          echo 'PERF_CF_02CD_CONTROLLED_SCHEMA_APPLY_CONTRACT_PASS'
+          echo 'The Production schema apply workflow is manual-only and pinned to migration 0003 while Cloud Write remains OFF.'
+          echo 'This CI workflow did not execute the Production migration.'
