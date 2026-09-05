@@ -1,0 +1,63 @@
+name: TrendOS Accounting D1 Preview Schema Apply
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - docs/trendos/staging/APPLY_ACCOUNTING_PREVIEW_OPERATIONS_SCHEMA.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply-preview-operations-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ACCOUNTING_PREVIEW_DB_NAME: trendos-accounting-preview
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Assert isolated target and schema boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ACCOUNTING_PREVIEW_DB_NAME" = "trendos-accounting-preview"
+          test "$ACCOUNTING_PREVIEW_DB_NAME" != "trendos-main"
+          test -s cloudflare-d1/schema-prep/accounting-operations-v1.sql
+          grep -q "CREATE TABLE IF NOT EXISTS accounting_operation_idempotency" cloudflare-d1/schema-prep/accounting-operations-v1.sql
+          grep -q "CREATE TABLE IF NOT EXISTS accounting_stock_movements" cloudflare-d1/schema-prep/accounting-operations-v1.sql
+
+      - name: Apply operations schema to isolated Preview D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute "$ACCOUNTING_PREVIEW_DB_NAME" --remote --file=cloudflare-d1/schema-prep/accounting-operations-v1.sql
+
+      - name: Verify required tables read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$(npx --yes wrangler@4 d1 execute "$ACCOUNTING_PREVIEW_DB_NAME" --remote --command="SELECT name FROM sqlite_master WHERE type='table' AND name IN ('accounting_operation_idempotency','accounting_stock_movements') ORDER BY name;")"
+          printf '%s\n' "$OUT"
+          printf '%s' "$OUT" | grep -q 'accounting_operation_idempotency'
+          printf '%s' "$OUT" | grep -q 'accounting_stock_movements'
+
+      - name: Safety summary
+        shell: bash
+        run: |
+          {
+            echo '## Accounting Preview Operations Schema Apply'
+            echo '- target: trendos-accounting-preview'
+            echo '- schema: accounting-operations-v1.sql'
+            echo '- production target: untouched'
+            echo '- authoritative finance writes: unchanged / disabled'
+          } >> "$GITHUB_STEP_SUMMARY"
