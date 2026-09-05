@@ -1,0 +1,167 @@
+name: TrendOS Production Migration Ledger Reconciliation Controlled Contract
+
+# CI-only verifier for the manual Production ledger-reconciliation workflow.
+# This workflow never mutates D1.
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-migration-ledger-reconciliation-controlled.yml'
+      - '.github/workflows/trendos-production-migration-ledger-reconciliation-controlled-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ledger-reconciliation-controlled-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CONTROLLED: .github/workflows/trendos-production-migration-ledger-reconciliation-controlled.yml
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Static manual-only scope and immutable safety contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('.github/workflows/trendos-production-migration-ledger-reconciliation-controlled.yml')
+          t=p.read_text(encoding='utf-8')
+
+          required=[
+            'workflow_dispatch:',
+            'RECONCILE_PRODUCTION_D1_MIGRATION_LEDGER_ONLY',
+            'PROD_DB_NAME: trendos-main',
+            'PROD_DB_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825',
+            'MIGRATION_0001_SHA: 49c58dd275f8364d0632fabd669ef48b562ea895',
+            'MIGRATION_0002_SHA: 1857534062b93eb24adbacdf7d3234bcaae69384',
+            'MIGRATION_0003_SHA: b4c81348f9b1e79519130033b5b1dffcc86eaa0b',
+            'EXPECTED_SHADOW_FINGERPRINT: 66711d7eef8febed69fa59cbd8b5f20146ed82374de55595ae1a126291d3f4b1',
+            "grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = \"false\"$' cloudflare-d1/wrangler.toml",
+            "! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = \"true\"$' cloudflare-d1/wrangler.toml",
+            'x.schemaReady===true',
+            'x.writesAccepted===false',
+            'Number(x.pendingOutbox||0)===0',
+            'x.cutover===false',
+            'x.sheetsAuthoritative===true',
+            "SELECT type,name,sql FROM sqlite_master WHERE type='table' AND name='d1_migrations'",
+            "PRAGMA table_info('d1_migrations')",
+            'SELECT id,name,applied_at FROM d1_migrations ORDER BY id',
+            "expected=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']",
+            "sql='INSERT INTO d1_migrations(name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name = ?)'",
+            "{'batch':[{'sql':sql,'params':[n,n]} for n in names]}",
+            'POST_LEDGER_WRANGLER_NO_0001_0002_0003_PENDING_PASS',
+            "test \"$code\" = '423'",
+            "test \"$outbox_code\" = '423'",
+            'POST_ORDERS_PARITY=',
+            'POST_LINES_PARITY=',
+          ]
+          missing=[x for x in required if x not in t]
+          if missing:
+              raise SystemExit('MISSING_CONTROLLED_CONTRACT='+repr(missing))
+
+          # Controlled workflow must be manual-only. The trigger block allows workflow_dispatch only.
+          m=re.search(r'(?ms)^on:\s*\n(?P<body>.*?)(?=^permissions:)',t)
+          if not m:
+              raise SystemExit('ON_BLOCK_NOT_FOUND')
+          on_block=m.group('body')
+          if not re.search(r'^\s{2}workflow_dispatch:\s*$',on_block,re.M):
+              raise SystemExit('WORKFLOW_DISPATCH_REQUIRED')
+          if re.search(r'^\s{2}(push|pull_request|schedule|repository_dispatch):',on_block,re.M):
+              raise SystemExit('CONTROLLED_WORKFLOW_MUST_BE_MANUAL_ONLY')
+
+          # No deployment, migration runner, raw-file D1 execution, secret mutation, or flag override.
+          forbidden_patterns={
+            'WORKER_DEPLOY':r'wrangler[^\n]*\bdeploy\b',
+            'MIGRATIONS_APPLY':r'wrangler[^\n]*d1\s+migrations\s+apply',
+            'RAW_FILE_EXECUTE':r'wrangler[^\n]*d1\s+execute[^\n]*--file',
+            'SECRET_MUTATION':r'wrangler[^\n]*secret\s+(?:put|bulk|delete)',
+            'FLAG_ENV_OVERRIDE':r'^\s*TRENDOS_CLOUD_WRITE_V1_ENABLED\s*:',
+            'FLAG_FILE_REWRITE':r'\b(?:sed|perl|python3?)\b[^\n]*TRENDOS_CLOUD_WRITE_V1_ENABLED[^\n]*(?:write_text|replace|sub|=)',
+          }
+          for label,pat in forbidden_patterns.items():
+              if re.search(pat,t,re.I|re.M):
+                  raise SystemExit('FORBIDDEN_'+label)
+
+          # Isolate the one mutation step and prove it is ledger-only.
+          mm=re.search(r'(?ms)^\s{6}- name: Reconcile exactly three migration-ledger names in one D1 batch\n(?P<body>.*?)(?=^\s{6}- name: )',t)
+          if not mm:
+              raise SystemExit('MUTATION_STEP_NOT_FOUND')
+          body=mm.group('body')
+          if body.count('INSERT INTO d1_migrations(name)') < 2:
+              raise SystemExit('EXACT_LEDGER_INSERT_TEMPLATE_MISSING')
+          for app in ['customers','orders','messages','conversations','migration_runs','sheet_catalog','sheet_rows','sheet_migration_runs','cloud_write_events','cloud_write_outbox']:
+              # App names are allowed only in the runtime static guard regex, never in an SQL statement.
+              for sql_literal in re.findall(r"['\"]([^'\"\n]*(?:INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)[^'\"\n]*)['\"]",body,re.I):
+                  if re.search(r'\b'+re.escape(app)+r'\b',sql_literal,re.I):
+                      raise SystemExit('APPLICATION_TABLE_MUTATION_REFUSED='+app)
+          mutations=re.findall(r'\b(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)\b',body,re.I)
+          if any(x.upper()!='INSERT' for x in mutations):
+              raise SystemExit('NON_INSERT_MUTATION_IN_LEDGER_STEP='+repr(mutations))
+          if 'INSERT INTO d1_migrations(name)' not in body:
+              raise SystemExit('LEDGER_INSERT_ONLY_REQUIRED')
+          if body.count("names=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']") != 1:
+              raise SystemExit('EXACT_THREE_LEDGER_NAMES_REQUIRED')
+          if "'batch':[{'sql':sql,'params':[n,n]} for n in names]" not in body:
+              raise SystemExit('D1_BATCH_REQUIRED')
+
+          print('02CH_CONTROLLED_STATIC_MANUAL_LEDGER_ONLY_CONTRACT_PASS')
+          PY
+
+      - name: Isolated transaction and replay proof using exact live ledger contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import sqlite3
+          db=sqlite3.connect(':memory:')
+          db.executescript('''
+          CREATE TABLE d1_migrations(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+          );
+          CREATE TABLE application_sentinel(id INTEGER PRIMARY KEY, value TEXT NOT NULL);
+          INSERT INTO application_sentinel(id,value) VALUES(1,'unchanged');
+          ''')
+          baseline=db.execute('SELECT * FROM application_sentinel').fetchall()
+          names=['0001_init.sql','0002_full_sheet_mirror.sql','0003_cloud_write_lane.sql']
+          q='INSERT INTO d1_migrations(name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name = ?)'
+          with db:
+              for n in names: db.execute(q,(n,n))
+          first=db.execute('SELECT name FROM d1_migrations ORDER BY id').fetchall()
+          with db:
+              for n in names: db.execute(q,(n,n))
+          second=db.execute('SELECT name FROM d1_migrations ORDER BY id').fetchall()
+          if first != [(n,) for n in names] or second != first or len(second)!=3:
+              raise SystemExit('LEDGER_REPLAY_FAILED')
+          if db.execute('SELECT * FROM application_sentinel').fetchall()!=baseline:
+              raise SystemExit('APPLICATION_SENTINEL_CHANGED')
+          print('02CH_CONTROLLED_ISOLATED_TRANSACTION_REPLAY_PASS')
+          PY
+
+      - name: Live Production still OFF and ready during contract qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/health.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/health.json','utf8'));
+          const pass=x.success===true&&x.database===true&&x.enabled===false&&x.writesAccepted===false&&x.schemaReady===true&&Number(x.pendingOutbox||0)===0&&x.schemaMutationFree===true&&x.cutover===false&&x.sheetsAuthoritative===true;
+          console.log('02CH_CONTROLLED_CURRENT_BASELINE='+JSON.stringify({schemaReady:x.schemaReady,enabled:x.enabled,writesAccepted:x.writesAccepted,pendingOutbox:x.pendingOutbox,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Contract conclusion
+        run: |
+          echo 'PERF_CF_02CH_CONTROLLED_LEDGER_RECONCILIATION_CONTRACT_PASS'
+          echo 'The Production reconciliation workflow is manual-only, ledger-only, exact-three-row scoped, and remains undispatched.'
