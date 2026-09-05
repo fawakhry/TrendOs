@@ -1,0 +1,42 @@
+name: TrendOS Production Cloud Write Auth Readiness Probe Retry
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-cloud-write-auth-readiness-probe-retry.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: ${{ github.event.head_commit.message == 'PROBE PROD QUALIFY AUTH READINESS RETRY 2026-09-05' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Check secret presence without exposing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          username_ready=0
+          token_ready=0
+          [ -n "$QUALIFY_USERNAME" ] && username_ready=1 || true
+          [ -n "$QUALIFY_EMPLOYEE_TOKEN" ] && token_ready=1 || true
+          echo "TRENDOS_PROD_QUALIFY_USERNAME_PRESENT=$username_ready"
+          echo "TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN_PRESENT=$token_ready"
+          if [ "$username_ready" = '1' ] && [ "$token_ready" = '1' ]; then
+            echo 'PROD_QUAL_AUTH_READINESS=READY'
+          else
+            echo 'PROD_QUAL_AUTH_READINESS=NOT_READY'
+          fi
+      - name: Safety conclusion
+        run: |
+          echo 'READ_ONLY_SECRET_PRESENCE_PROBE_ONLY'
+          echo 'No secret values were printed.'
+          echo 'No Production endpoint was called.'
+          echo 'No D1, Sheets, Worker, secret, or cutover mutation was performed.'
