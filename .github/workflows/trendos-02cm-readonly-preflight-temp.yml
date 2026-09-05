@@ -43,107 +43,112 @@ jobs:
         run: |
           set -euo pipefail
           node <<'NODE'
-          const { performance } = require('perf_hooks');
-          const PROD = process.env.PROD_URL.replace(/\/+$/, '');
-          const PAGES = process.env.PAGES_URL;
-          const APPS = process.env.APPS_SCRIPT_URL;
-          const ORDER_ID = process.env.TARGET_ORDER_ID;
+          (async function main() {
+            const { performance } = require('perf_hooks');
+            const PROD = process.env.PROD_URL.replace(/\/+$/, '');
+            const PAGES = process.env.PAGES_URL;
+            const APPS = process.env.APPS_SCRIPT_URL;
+            const ORDER_ID = process.env.TARGET_ORDER_ID;
 
-          async function getJson(name, url, expectedStatus = 200, timeoutMs = 20000) {
-            const start = performance.now();
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-              const res = await fetch(url, { method: 'GET', redirect: 'follow', signal: controller.signal, headers: { accept: 'application/json,text/plain,*/*' } });
-              const ms = Math.round(performance.now() - start);
-              const text = await res.text();
-              let json = null;
-              try { json = JSON.parse(text || '{}'); } catch {}
-              return { name, url, status: res.status, ok: res.status === expectedStatus, ms, json, bytes: text.length };
-            } catch (err) {
-              return { name, url, status: 0, ok: false, ms: Math.round(performance.now() - start), error: String(err && err.message || err) };
-            } finally {
-              clearTimeout(timer);
+            async function getJson(name, url, expectedStatus = 200, timeoutMs = 20000) {
+              const start = performance.now();
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), timeoutMs);
+              try {
+                const res = await fetch(url, { method: 'GET', redirect: 'follow', signal: controller.signal, headers: { accept: 'application/json,text/plain,*/*' } });
+                const ms = Math.round(performance.now() - start);
+                const text = await res.text();
+                let json = null;
+                try { json = JSON.parse(text || '{}'); } catch {}
+                return { name, status: res.status, ok: res.status === expectedStatus, ms, json, bytes: text.length };
+              } catch (err) {
+                return { name, status: 0, ok: false, ms: Math.round(performance.now() - start), error: String(err && err.message || err) };
+              } finally {
+                clearTimeout(timer);
+              }
             }
-          }
 
-          async function getPage(name, url, timeoutMs = 20000) {
-            const start = performance.now();
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-              const res = await fetch(url, { method: 'GET', redirect: 'follow', signal: controller.signal, headers: { accept: 'text/html,*/*' } });
-              const text = await res.text();
-              return { name, url, status: res.status, ok: res.status >= 200 && res.status < 400, ms: Math.round(performance.now() - start), bytes: text.length, contentType: res.headers.get('content-type') || '' };
-            } catch (err) {
-              return { name, url, status: 0, ok: false, ms: Math.round(performance.now() - start), error: String(err && err.message || err) };
-            } finally {
-              clearTimeout(timer);
+            async function getPage(name, url, timeoutMs = 20000) {
+              const start = performance.now();
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), timeoutMs);
+              try {
+                const res = await fetch(url, { method: 'GET', redirect: 'follow', signal: controller.signal, headers: { accept: 'text/html,*/*' } });
+                const text = await res.text();
+                return { name, status: res.status, ok: res.status >= 200 && res.status < 400, ms: Math.round(performance.now() - start), bytes: text.length, contentType: res.headers.get('content-type') || '' };
+              } catch (err) {
+                return { name, status: 0, ok: false, ms: Math.round(performance.now() - start), error: String(err && err.message || err) };
+              } finally {
+                clearTimeout(timer);
+              }
             }
-          }
 
-          const probes = [];
-          probes.push(await getJson('worker_health', `${PROD}/health`));
-          probes.push(await getJson('cloud_write_health', `${PROD}/v1/cloud/write/health`));
-          probes.push(await getJson('reconcile_health_off', `${PROD}/v1/qualification/cloud-write/reconcile/health`));
-          probes.push(await getJson('production_shadow_observer', `${PROD}/v1/cloud/write/v2/production-shadow`));
-          probes.push(await getJson('mirror_capabilities', `${PROD}/v1/mirror/capabilities`));
-          probes.push(await getJson('mirror_stats', `${PROD}/v1/mirror/stats`));
-          probes.push(await getJson('mirror_orders_head', `${PROD}/v1/mirror/sheet?name=${encodeURIComponent('الأوردرات')}&limit=1&offset=0`));
-          probes.push(await getJson('mirror_lines_head', `${PROD}/v1/mirror/sheet?name=${encodeURIComponent('بنود الأوردرات')}&limit=1&offset=0`));
-          probes.push(await getJson('exact_target_after_02cl', `${PROD}/v1/orders/${encodeURIComponent(ORDER_ID)}`));
-          probes.push(await getJson('edge_orders_page_requires_auth', `${PROD}/v1/edge/orders/page?screen=service&pageSize=5&page=1`, 401));
-          probes.push(await getPage('github_pages_root', PAGES));
-          probes.push(await getPage('apps_script_blank_ping', APPS));
+            const probes = [];
+            probes.push(await getJson('worker_health', `${PROD}/health`));
+            probes.push(await getJson('cloud_write_health', `${PROD}/v1/cloud/write/health`));
+            probes.push(await getJson('reconcile_health_off', `${PROD}/v1/qualification/cloud-write/reconcile/health`));
+            probes.push(await getJson('production_shadow_observer', `${PROD}/v1/cloud/write/v2/production-shadow`));
+            probes.push(await getJson('mirror_capabilities', `${PROD}/v1/mirror/capabilities`));
+            probes.push(await getJson('mirror_stats', `${PROD}/v1/mirror/stats`));
+            probes.push(await getJson('mirror_orders_head', `${PROD}/v1/mirror/sheet?name=${encodeURIComponent('الأوردرات')}&limit=1&offset=0`));
+            probes.push(await getJson('mirror_lines_head', `${PROD}/v1/mirror/sheet?name=${encodeURIComponent('بنود الأوردرات')}&limit=1&offset=0`));
+            probes.push(await getJson('exact_target_after_02cl', `${PROD}/v1/orders/${encodeURIComponent(ORDER_ID)}`));
+            probes.push(await getJson('edge_orders_page_requires_auth', `${PROD}/v1/edge/orders/page?screen=service&pageSize=5&page=1`, 401));
+            probes.push(await getPage('github_pages_root', PAGES));
+            probes.push(await getPage('apps_script_blank_ping', APPS));
 
-          const byName = Object.fromEntries(probes.map((p) => [p.name, p]));
-          const assertions = [];
-          function assert(name, condition, detail) { assertions.push({ name, pass: !!condition, detail }); }
+            const byName = Object.fromEntries(probes.map((p) => [p.name, p]));
+            const assertions = [];
+            function assert(name, condition, detail) { assertions.push({ name, pass: !!condition, detail }); }
 
-          assert('worker_database_online', byName.worker_health?.json?.success === true && byName.worker_health?.json?.database === true, byName.worker_health?.json);
-          assert('cloud_write_available_not_cutover', byName.cloud_write_health?.json?.success === true && byName.cloud_write_health?.json?.database === true && byName.cloud_write_health?.json?.enabled === true && byName.cloud_write_health?.json?.schemaReady === true && byName.cloud_write_health?.json?.cutover === false && byName.cloud_write_health?.json?.sheetsAuthoritative === true, byName.cloud_write_health?.json);
-          assert('reconcile_gate_off_after_02cl', byName.reconcile_health_off?.json?.success === true && byName.reconcile_health_off?.json?.enabled === false && byName.reconcile_health_off?.json?.outboxStatus === 'synced' && byName.reconcile_health_off?.json?.eventStatus === 'reconciled' && byName.reconcile_health_off?.json?.sheetsStatus === 'synced' && Number(byName.reconcile_health_off?.json?.attempts || 0) === 1, byName.reconcile_health_off?.json);
-          assert('production_shadow_readonly', byName.production_shadow_observer?.json?.success === true && byName.production_shadow_observer?.json?.readOnly === true && byName.production_shadow_observer?.json?.mutationFree === true && byName.production_shadow_observer?.json?.d1Written === false && byName.production_shadow_observer?.json?.appsScriptCalled === false && byName.production_shadow_observer?.json?.sheetsWritten === false && Number(byName.production_shadow_observer?.json?.mutationCount || 0) === 0, byName.production_shadow_observer?.json);
-          assert('mirror_capabilities_atomic', byName.mirror_capabilities?.json?.success === true && byName.mirror_capabilities?.json?.capabilities?.atomicSupported === true, byName.mirror_capabilities?.json);
-          assert('mirror_stats_ready', byName.mirror_stats?.json?.success === true && byName.mirror_stats?.json?.stats?.readySheets >= 1 && byName.mirror_stats?.json?.stats?.pendingSheets === 0, byName.mirror_stats?.json);
-          assert('orders_mirror_head_ready', byName.mirror_orders_head?.json?.success === true && byName.mirror_orders_head?.json?.sheet?.status === 'ready' && byName.mirror_orders_head?.json?.sheet?.rowCount === byName.mirror_orders_head?.json?.sheet?.sourceLastRow, byName.mirror_orders_head?.json?.sheet);
-          assert('lines_mirror_head_ready', byName.mirror_lines_head?.json?.success === true && byName.mirror_lines_head?.json?.sheet?.status === 'ready' && byName.mirror_lines_head?.json?.sheet?.rowCount === byName.mirror_lines_head?.json?.sheet?.sourceLastRow, byName.mirror_lines_head?.json?.sheet);
-          assert('exact_target_readable_after_02cl', byName.exact_target_after_02cl?.json?.success === true && byName.exact_target_after_02cl?.json?.order?.orderId === ORDER_ID, byName.exact_target_after_02cl?.json);
-          assert('edge_orders_protected', byName.edge_orders_page_requires_auth?.status === 401 && byName.edge_orders_page_requires_auth?.json?.success === false, byName.edge_orders_page_requires_auth?.json);
-          assert('github_pages_root_reachable', byName.github_pages_root?.ok === true, byName.github_pages_root);
-          assert('apps_script_endpoint_reachable', byName.apps_script_blank_ping?.status >= 200 && byName.apps_script_blank_ping?.status < 500, byName.apps_script_blank_ping);
+            assert('worker_database_online', byName.worker_health?.json?.success === true && byName.worker_health?.json?.database === true, byName.worker_health?.json);
+            assert('cloud_write_available_not_cutover', byName.cloud_write_health?.json?.success === true && byName.cloud_write_health?.json?.database === true && byName.cloud_write_health?.json?.enabled === true && byName.cloud_write_health?.json?.schemaReady === true && byName.cloud_write_health?.json?.cutover === false && byName.cloud_write_health?.json?.sheetsAuthoritative === true, byName.cloud_write_health?.json);
+            assert('reconcile_gate_off_after_02cl', byName.reconcile_health_off?.json?.success === true && byName.reconcile_health_off?.json?.enabled === false && byName.reconcile_health_off?.json?.outboxStatus === 'synced' && byName.reconcile_health_off?.json?.eventStatus === 'reconciled' && byName.reconcile_health_off?.json?.sheetsStatus === 'synced' && Number(byName.reconcile_health_off?.json?.attempts || 0) === 1, byName.reconcile_health_off?.json);
+            assert('production_shadow_readonly', byName.production_shadow_observer?.json?.success === true && byName.production_shadow_observer?.json?.readOnly === true && byName.production_shadow_observer?.json?.mutationFree === true && byName.production_shadow_observer?.json?.d1Written === false && byName.production_shadow_observer?.json?.appsScriptCalled === false && byName.production_shadow_observer?.json?.sheetsWritten === false && Number(byName.production_shadow_observer?.json?.mutationCount || 0) === 0, byName.production_shadow_observer?.json);
+            assert('mirror_capabilities_atomic', byName.mirror_capabilities?.json?.success === true && byName.mirror_capabilities?.json?.capabilities?.atomicSupported === true, byName.mirror_capabilities?.json);
+            assert('mirror_stats_ready', byName.mirror_stats?.json?.success === true && byName.mirror_stats?.json?.stats?.readySheets >= 1 && byName.mirror_stats?.json?.stats?.pendingSheets === 0, byName.mirror_stats?.json);
+            assert('orders_mirror_head_ready', byName.mirror_orders_head?.json?.success === true && byName.mirror_orders_head?.json?.sheet?.status === 'ready' && byName.mirror_orders_head?.json?.sheet?.rowCount === byName.mirror_orders_head?.json?.sheet?.sourceLastRow, byName.mirror_orders_head?.json?.sheet);
+            assert('lines_mirror_head_ready', byName.mirror_lines_head?.json?.success === true && byName.mirror_lines_head?.json?.sheet?.status === 'ready' && byName.mirror_lines_head?.json?.sheet?.rowCount === byName.mirror_lines_head?.json?.sheet?.sourceLastRow, byName.mirror_lines_head?.json?.sheet);
+            assert('exact_target_readable_after_02cl', byName.exact_target_after_02cl?.json?.success === true && byName.exact_target_after_02cl?.json?.order?.orderId === ORDER_ID, byName.exact_target_after_02cl?.json);
+            assert('edge_orders_protected', byName.edge_orders_page_requires_auth?.status === 401 && byName.edge_orders_page_requires_auth?.json?.success === false, byName.edge_orders_page_requires_auth?.json);
+            assert('github_pages_root_reachable', byName.github_pages_root?.ok === true, byName.github_pages_root);
+            assert('apps_script_endpoint_reachable', byName.apps_script_blank_ping?.status >= 200 && byName.apps_script_blank_ping?.status < 500, byName.apps_script_blank_ping);
 
-          const pass = assertions.every((a) => a.pass);
-          const compact = {
-            checkpoint: 'PERF-CF-02CM',
-            readonly: true,
-            pass,
-            measuredAt: new Date().toISOString(),
-            timingsMs: Object.fromEntries(probes.map((p) => [p.name, p.ms])),
-            httpStatuses: Object.fromEntries(probes.map((p) => [p.name, p.status])),
-            cloudWrite: byName.cloud_write_health?.json,
-            reconcile: byName.reconcile_health_off?.json,
-            mirrorStats: byName.mirror_stats?.json?.stats,
-            ordersMirror: byName.mirror_orders_head?.json?.sheet ? {
-              rowCount: byName.mirror_orders_head.json.sheet.rowCount,
-              sourceLastRow: byName.mirror_orders_head.json.sheet.sourceLastRow,
-              sourceLastCol: byName.mirror_orders_head.json.sheet.sourceLastCol,
-              status: byName.mirror_orders_head.json.sheet.status,
-              syncedAt: byName.mirror_orders_head.json.sheet.syncedAt,
-              note: byName.mirror_orders_head.json.sheet.note
-            } : null,
-            linesMirror: byName.mirror_lines_head?.json?.sheet ? {
-              rowCount: byName.mirror_lines_head.json.sheet.rowCount,
-              sourceLastRow: byName.mirror_lines_head.json.sheet.sourceLastRow,
-              sourceLastCol: byName.mirror_lines_head.json.sheet.sourceLastCol,
-              status: byName.mirror_lines_head.json.sheet.status,
-              syncedAt: byName.mirror_lines_head.json.sheet.syncedAt,
-              note: byName.mirror_lines_head.json.sheet.note
-            } : null,
-            targetOrder: byName.exact_target_after_02cl?.json?.order || null,
-            assertions
-          };
-          console.log('PERF_CF_02CM_READONLY_PREFLIGHT_RESULT=' + JSON.stringify(compact));
-          if (!pass) process.exit(1);
-          console.log('PERF_CF_02CM_READONLY_PREFLIGHT_PASS');
+            const pass = assertions.every((a) => a.pass);
+            const compact = {
+              checkpoint: 'PERF-CF-02CM',
+              readonly: true,
+              pass,
+              measuredAt: new Date().toISOString(),
+              timingsMs: Object.fromEntries(probes.map((p) => [p.name, p.ms])),
+              httpStatuses: Object.fromEntries(probes.map((p) => [p.name, p.status])),
+              cloudWrite: byName.cloud_write_health?.json,
+              reconcile: byName.reconcile_health_off?.json,
+              mirrorStats: byName.mirror_stats?.json?.stats,
+              ordersMirror: byName.mirror_orders_head?.json?.sheet ? {
+                rowCount: byName.mirror_orders_head.json.sheet.rowCount,
+                sourceLastRow: byName.mirror_orders_head.json.sheet.sourceLastRow,
+                sourceLastCol: byName.mirror_orders_head.json.sheet.sourceLastCol,
+                status: byName.mirror_orders_head.json.sheet.status,
+                syncedAt: byName.mirror_orders_head.json.sheet.syncedAt,
+                note: byName.mirror_orders_head.json.sheet.note
+              } : null,
+              linesMirror: byName.mirror_lines_head?.json?.sheet ? {
+                rowCount: byName.mirror_lines_head.json.sheet.rowCount,
+                sourceLastRow: byName.mirror_lines_head.json.sheet.sourceLastRow,
+                sourceLastCol: byName.mirror_lines_head.json.sheet.sourceLastCol,
+                status: byName.mirror_lines_head.json.sheet.status,
+                syncedAt: byName.mirror_lines_head.json.sheet.syncedAt,
+                note: byName.mirror_lines_head.json.sheet.note
+              } : null,
+              targetOrder: byName.exact_target_after_02cl?.json?.order || null,
+              assertions
+            };
+            console.log('PERF_CF_02CM_READONLY_PREFLIGHT_RESULT=' + JSON.stringify(compact));
+            if (!pass) process.exit(1);
+            console.log('PERF_CF_02CM_READONLY_PREFLIGHT_PASS');
+          })().catch((err) => {
+            console.error(err && err.stack ? err.stack : String(err));
+            process.exit(1);
+          });
           NODE
