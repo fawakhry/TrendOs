@@ -22,11 +22,23 @@
 
 تم الاحتفاظ بالملفات الأصلية القديمة في `docs/trendos/blackbox/` كما هي من أجل عدم كسر الروابط أو المراجع التاريخية. النسخ الموجودة هنا هي التصنيف المرجعي للمنصة من الآن.
 
-## آخر نقطة تنفيذ موثقة
+## آخر نقطة مغلقة بالكامل
 
 `PERF-CF-02CJ_PRODUCTION_LEDGER_RECONCILIATION_PASS`
 
 الحالة: **VERIFIED PASS — CLOSED**.
+
+## آخر نقطة تنفيذ / محاولة حالية
+
+`PERF-CF-02CK — Production Cloud Write Business Qualification`
+
+الحالة: **SAFE BLOCKED — NO WRITE — AUTH READINESS RECONFIRMED NOT READY**.
+
+تمت إعادة فحص جاهزية المصادقة في 2026-09-05 بواسطة Probe قراءة فقط، وتأكد أن Secretي التأهيل ما زالا غير مهيئين. لم يتم أي Production write أو D1/Sheets/Worker/cutover mutation.
+
+السجل التفصيلي:
+
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
 
 ## التسلسل المجمع
 
@@ -34,6 +46,14 @@
 يبدأ من `BACKEND_UNIFICATION_HANDOFF` ثم مراحل `PERF-CF` من `02R` وحتى `02BG`، بما في ذلك `02AA–02BF`.
 
 ### 2026-09-05
-يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`.
+يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم محاولة `02CK` الآمنة وإعادة فحص جاهزية employee-auth بدون كتابة.
 
-راجع `01_CURRENT_STATE.md` للحالة التنفيذية الحالية قبل أي خطوة جديدة.
+## نقطة البداية لأي شات جديد
+
+1. اقرأ هذا الملف أولًا.
+2. اقرأ `01_CURRENT_STATE.md` للحالة التنفيذية الدقيقة والحاجز الحالي.
+3. اقرأ آخر Blackbox مشار إليه في الحالة الحالية قبل أي تنفيذ.
+4. لا تبدأ Inventory جديد ولا تعيد الخطة من الصفر ما لم يظهر تغيير موثّق في المصدر.
+5. سجّل كل خطوة تنفيذية مادية داخل هذا المجلد قبل الانتقال لنقطة جديدة.
+
+راجع `01_CURRENT_STATE.md` دائمًا قبل أي خطوة جديدة.
