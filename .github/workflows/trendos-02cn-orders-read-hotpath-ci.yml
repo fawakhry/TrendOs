@@ -1,0 +1,46 @@
+name: TrendOS 02CN Orders Read Hot-Path CI
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'trendos-edge-orders-read-v1.js'
+      - 'config.js'
+      - 'tests/cloudflare_edge_orders_dashboard_02cn.test.mjs'
+      - '.github/workflows/trendos-02cn-orders-read-hotpath-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cn-orders-read-hotpath-ci
+  cancel-in-progress: false
+
+jobs:
+  orders-read-hotpath-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
+          ! grep -R "wrangler deploy\|wrangler d1 migrations apply\|d1 execute --file\|secret put\|TRENDOS_PRODUCTION_CUTOVER\|AUTHORITY_CUTOVER\|generic outbox drain" .github/workflows/trendos-02cn-orders-read-hotpath-ci.yml tests/cloudflare_edge_orders_dashboard_02cn.test.mjs cloudflare-d1/src/edge-orders-read-v1.mjs trendos-edge-orders-read-v1.js
+          echo 'PERF_CF_02CN_STATIC_SAFETY_BOUNDARY_PASS'
+
+      - name: Edge orders dashboard and fallback contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_dashboard_02cn.test.mjs
