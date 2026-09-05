@@ -1,95 +1,105 @@
 # منصة ترند — TrendOS Main Platform Blackbox
 
-هذا المجلد هو التصنيف الرسمي والمستقل لذاكرة **منصة TrendOS الرئيسية** ومسار نقلها إلى Cloudflare.
+هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform → Cloudflare**.
 
 ## النطاق
 
 يشمل فقط:
-- TrendOS Main Platform.
-- Cloudflare Worker / D1 / Edge Gateway / Orders mirror.
-- Production Shadow.
-- Production Cloud Write.
-- مراحل التحقق، السلامة، الـCI، والـcutover الخاصة بالمنصة الرئيسية.
+- TrendOS Main Platform
+- Cloudflare Worker / D1 / Edge Gateway / Orders mirror
+- Production Shadow
+- Production Cloud Write
+- CI / verification / safety / cutover للمنصة الرئيسية
 
-لا يشمل:
-- برنامج الحسابات أو أي ملفات Accounting.
-- EasyStore.
-- WhatsApp-specific work.
-- أي مشروع مستقل آخر داخل المستودع.
+لا يشمل Accounting أو EasyStore أو WhatsApp-specific work أو المشروعات المستقلة الأخرى.
 
-## قاعدة العمل
-
-أي Checkpoint أو Blackbox جديد خاص بمنصة TrendOS الرئيسية يُكتب داخل هذا المجلد فقط.
-
-تم الاحتفاظ بالملفات الأصلية القديمة في `docs/trendos/blackbox/` كما هي من أجل عدم كسر الروابط أو المراجع التاريخية. النسخ الموجودة هنا هي التصنيف المرجعي للمنصة من الآن.
-
-## آخر نقطة مغلقة بالكامل
+## آخر checkpoint مغلق بالكامل
 
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
-الحالة: **VERIFIED PASS — CLOSED**.
+الحالة: **VERIFIED PASS — CLOSED**
 
-السجل المرجعي:
+السجل:
 
 `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md`
 
-## المرحلة الحالية بعد 02CK
+02CK أثبت:
+
+- canonical employee → Edge session PASS
+- Order صناعي واحد فقط: `CW-PROD-QUAL-33975124471`
+- Cloud Write D1 PASS
+- idempotent replay PASS
+- pending outbox أصبح 1 بالضبط
+- Shadow mutation-free
+- `cutover=false`
+- Sheets / Apps Script authoritative
+
+## المرحلة الحالية
 
 `PERF-CF-02CL — Production Outbox → Sheets Reconciliation Qualification`
 
-الحالة الحالية: **CANDIDATE PREPARED — CI PASS — NOT DEPLOYED — NO PRODUCTION MUTATION**.
+الحالة الحالية:
 
-السجل المرجعي الأحدث:
+**LIVE READ-ONLY PREFLIGHT PASS — APPS SCRIPT DEFAULT-OFF DEPLOYMENT PENDING — NO 02CL PRODUCTION MUTATION**
+
+### 02CL candidate
+
+السجل:
 
 `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
 
-تم تجهيز 02CL بعقد محصور على الأوردر الصناعي الوحيد:
+- exact target فقط: `CW-PROD-QUAL-33975124471`
+- exact operation: `upsert_order_to_sheets`
+- Apps Script candidate default-OFF
+- Worker candidate default-OFF وغير موصل بالـProduction entrypoint
+- exact-target reconciliation selectors parameter-bound
+- decoy pending rows proved untouched in isolated tests
+- Candidate Run `33983980229` / Job `101354064165`: **SUCCESS**
+- Integrity Run `33983980205` / Job `101354064040`: **SUCCESS**
 
-`CW-PROD-QUAL-33975124471`
+### 02CL live read-only preflight
 
-ويشمل:
+السجل الأحدث:
 
-- exact-target selector في reconciliation core؛
-- Worker candidate default-OFF وغير موصل بالـProduction entrypoint؛
-- Apps Script candidate default-OFF بكتابة صف واحد كحد أقصى وإعادة التشغيل idempotent no-op؛
-- CI مستقل أثبت أن pending decoy أقدم لا يتم استهلاكه؛
-- Candidate Run `33983980229` / Job `101354064165` — **SUCCESS**؛
-- Integrity Run `33983980205` / Job `101354064040` — **SUCCESS**.
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_LIVE_READONLY_PREFLIGHT_PASS_NO_MUTATION.md`
 
-لم يحدث حتى الآن في 02CL:
+نتيجة الـpreflight:
 
-- Production outbox consumption؛
-- Google Sheets write؛
-- Apps Script deploy؛
-- Production Worker deploy؛
-- Worker route integration؛
-- secret rotation؛
-- cutover.
+- authoritative Orders-sheet exact target matches: **0**
+- Apps Script dry-run lineage: **live / installed / locked**
+- Apps response: `unauthorized`, `sheetsWritten=false`, `mutationCount=0`
+- Production `pendingOutbox=1`
+- `cutover=false`
+- `sheetsAuthoritative=true`
+- exact D1 target rows: **1**
+- exact target status: `pending`
+- attempts: `0`
+- event key: `order:create:prod-qual-33975124471`
+- temporary read-only Run `33984695539` / Job `101355965286`: **SUCCESS**
+- temporary workflow removed in cleanup commit `789c9985f21cdd01e92b5ba6e95a7f9fac6bc2df`
 
-لذلك 02CL **ليست مغلقة بعد**.
+No D1 mutation, Sheet write, Apps Script property mutation, Worker deploy, Apps Script deploy, secret rotation, or cutover occurred.
 
-## ملخص إغلاق 02CK
+## Current deployment boundary
 
-بعد سلسلة محاولات Auth آمنة وتشخيص الحاجز:
+Apps Script source deployment is not exposed by the connected tools in this chat.
 
-- ثبت أن `رحمه` غير موجودة في allowlist الخاصة بـ`verifyEmployeeSession_` لهذا المسار.
-- تم تجهيز موظف تأهيل مؤقت محدود باسم `wael` لأنه مسموح في العقد الحالي.
-- أول محاولة `wael` فشلت لأن Token مكتوب يدويًا لم يكن مصحوبًا بـ`آخر دخول` حقيقي.
-- تم تنفيذ Login طبيعي واحد لـ`wael` لتوليد Session حقيقية.
-- Probe آمن أثبت أن GitHub Secret يطابق الـToken الجديد دون كشف قيمته.
-- 02CK نجح في Run `33975124471`، attempt `2`، Job `101331797697`.
-- `/v1/edge/session`: PASS.
-- تم إنشاء Order صناعي واحد فقط:
-  `CW-PROD-QUAL-33975124471`.
-- إعادة نفس الطلب بنفس idempotency key رجعت نفس الأوردر ولم تنشئ Duplicate.
-- pending outbox انتقل من `0` إلى `1` بالضبط.
-- Production Shadow ظل mutation-free.
-- `cutover=false` ظل كما هو.
-- Sheets / Apps Script ظلت authoritative.
-- لم يحدث Worker deploy أو `EDGE_SESSION_SECRET` rotation.
-- بعد PASS تم تعطيل `wael` ومسح Token الخاص به.
+Prepared manual default-OFF deploy manifest:
 
-## Production state after 02CK / during 02CL preparation
+`docs/trendos/staging/APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md`
+
+Required live change only:
+
+1. Add a new Apps Script source file from:
+   `apps-script/patches/CLOUD_WRITE_PRODUCTION_RECONCILE_QUALIFICATION_V1.gs`
+2. Add one router line immediately after the already-live dry-run route:
+   `else if (action === "cloudWriteReconcileProductionQualificationV1") result = trendosCloudWriteReconcileProductionQualificationV1_(e);`
+3. Do **not** overwrite live `Code.gs` with repository `Code.gs`.
+4. Keep the 02CL enable property OFF/absent during installation.
+5. Deploy a New version using the existing Web App deployment ID.
+6. Then run a no-secret probe and require `qualification-disabled` + zero mutation.
+
+## Production state الآن
 
 - Production Cloud Write: **ON**
 - `writesAccepted=true`
@@ -99,15 +109,18 @@
 - Full frontend cutover: **NO**
 - Normalized-data cutover: **NO**
 - Sheets / Apps Script authority: **YES**
-- qualification synthetic D1 order: **1**
-- qualification pending Sheets outbox item: **1**
-- 02CL Production mutation so far: **NONE**
+- synthetic D1 order: **1**
+- pending Sheets outbox item: **1**
+- exact target in Sheets: **0 rows**
+- 02CL outbox consumption: **NONE**
+- 02CL Apps Script deploy: **NOT YET**
+- 02CL Worker deploy: **NOT YET**
+- `EDGE_SESSION_SECRET` rotation: **NONE**
 
-02CK PASS و02CL candidate CI PASS لا يعنيان نقل السلطة إلى Cloudflare ولا يصرحان تلقائيًا بتفعيل الـcutover.
-
-## السجلات المهمة
+## أهم سجلات 2026-09-05
 
 ### 02CL
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_LIVE_READONLY_PREFLIGHT_PASS_NO_MUTATION.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
 
 ### 02CK
@@ -115,31 +128,18 @@
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_WAEL_AUTH_FAILED_MISSING_LAST_LOGIN_NO_BUSINESS_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_VIRTUAL_QUALIFIER_WAEL_PROVISIONED.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_VALID_SESSION_BUT_ALLOWLIST_BLOCK.md`
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_RAHMA_AUTH_EXCHANGE_RETRY3_FAILED_NO_BUSINESS_WRITE.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_EXCHANGE_FAILED_NO_BUSINESS_WRITE.md`
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_BLOCKED_NO_WRITE.md`
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_AUTH_READINESS_RECHECK_NO_WRITE.md`
-- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_USERNAME_CASE_DISCOVERY_SESSION_INVALIDATED.md`
-
-## التسلسل المجمع
-
-### 2026-09-04
-يبدأ من `BACKEND_UNIFICATION_HANDOFF` ثم مراحل `PERF-CF` من `02R` وحتى `02BG`، بما في ذلك `02AA–02BF`.
-
-### 2026-09-05
-يستكمل من `02BH_02BJ` مرورًا بمراحل Staging bridge وProduction Shadow وCloud Write readiness وmigration-ledger reconciliation حتى `02CJ`، ثم 02CK: auth blockers → Rahma allowlist diagnosis → temporary `wael` qualifier → real-login session correction → bounded Production Cloud Write qualification **PASS**، ثم 02CL candidate: exact-target reconciliation contract → isolated CI **PASS** → no Production mutation.
 
 ## نقطة البداية لأي شات جديد
 
-1. اقرأ هذا الملف أولًا.
-2. اقرأ `01_CURRENT_STATE.md` للحالة التنفيذية الدقيقة.
-3. اقرأ `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_PRODUCTION_BUSINESS_QUALIFICATION_PASS.md` كآخر checkpoint مغلق.
-4. اقرأ `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md` قبل أي استكمال لـ02CL.
-5. اعتبر 02CK مغلق PASS ولا تعيد اختباره من الصفر.
-6. اعتبر 02CL candidate جاهز CI فقط، وليس live-qualified ولا deployed.
-7. لا تستهلك pending outbox الصناعي قبل إثبات Apps Script live lineage + read-only preflight + dedicated secret + default-OFF Worker deployment contract.
-8. لا تبدأ Inventory جديد ولا تعيد الخطة من الصفر ما لم يظهر تغيير موثّق في المصدر.
-9. لا تفعل Production/full-frontend cutover تلقائيًا.
-10. سجّل كل خطوة تنفيذية مادية داخل هذا المجلد قبل الانتقال لنقطة جديدة.
-
-راجع `01_CURRENT_STATE.md` دائمًا قبل أي خطوة جديدة.
+1. اقرأ `00_INDEX.md`.
+2. اقرأ `01_CURRENT_STATE.md`.
+3. اعتبر 02CK مغلق PASS ولا تعيده.
+4. اعتبر 02CL candidate + live read-only preflight PASS، لكنه لم ينفذ reconciliation بعد.
+5. اقرأ `APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md` قبل أي live change.
+6. لا تستهلك الـpending target قبل default-OFF Apps Script deploy + probe وdefault-OFF Worker deploy + probe.
+7. لا تستخدم generic outbox drain.
+8. لا تعيد استخدام token الموظف المؤقت `wael` القديم.
+9. لا تدوّر `EDGE_SESSION_SECRET` لهذا الغرض.
+10. لا تفعل أي cutover أو authority transfer قبل إغلاق 02CL PASS.
+11. سجّل كل خطوة مادية جديدة داخل هذا المجلد.
