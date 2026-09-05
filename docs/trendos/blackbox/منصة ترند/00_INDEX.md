@@ -40,7 +40,7 @@
 
 الحالة الحالية:
 
-**LIVE READ-ONLY PREFLIGHT PASS — APPS SCRIPT DEFAULT-OFF DEPLOYMENT PENDING — NO 02CL PRODUCTION MUTATION**
+**LIVE READ-ONLY PREFLIGHT PASS + WORKER DEFAULT-OFF WIRING CI PASS — APPS SCRIPT MANUAL DEPLOYMENT PENDING — NO 02CL PRODUCTION MUTATION**
 
 ### 02CL candidate
 
@@ -51,7 +51,7 @@
 - exact target فقط: `CW-PROD-QUAL-33975124471`
 - exact operation: `upsert_order_to_sheets`
 - Apps Script candidate default-OFF
-- Worker candidate default-OFF وغير موصل بالـProduction entrypoint
+- Worker qualification module default-OFF
 - exact-target reconciliation selectors parameter-bound
 - decoy pending rows proved untouched in isolated tests
 - Candidate Run `33983980229` / Job `101354064165`: **SUCCESS**
@@ -59,7 +59,7 @@
 
 ### 02CL live read-only preflight
 
-السجل الأحدث:
+السجل:
 
 `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_LIVE_READONLY_PREFLIGHT_PASS_NO_MUTATION.md`
 
@@ -80,9 +80,31 @@
 
 No D1 mutation, Sheet write, Apps Script property mutation, Worker deploy, Apps Script deploy, secret rotation, or cutover occurred.
 
+### 02CL Worker isolated default-OFF wiring
+
+السجل الأحدث:
+
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_WORKER_WRAPPED_DEFAULT_OFF_CI_PASS_NOT_DEPLOYED.md`
+
+Repository working-branch state:
+
+- bounded module remains `cloudflare-d1/src/cloud-write-production-reconcile-qualification.mjs`
+- module is intentionally still absent from generic `cloudflare-d1/src/index_v2.js`
+- isolated Production wrapper `cloudflare-d1/production-shadow/index.js` now recognizes only the 02CL qualification prefix
+- wrapper wiring commit: `a12f5ad33d171be00c78456c6ddb795fb53f0635`
+- tracked `cloudflare-d1/wrangler.toml` flag is explicitly:
+  `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"`
+- no plaintext reconciliation secret is committed
+- default-OFF runtime test proves exact qualification POST returns HTTP 423 `qualification-disabled` before DB/auth/Apps Script access
+- wiring-test commit: `4111c612715b6fadb0c634a62adb8abd79dff858`
+- updated Candidate Run `33984943262` / Job `101356624792`: **SUCCESS**
+- Integrity Run `33984943269` / Job `101356624897`: **SUCCESS**
+
+Important: this is **working-branch code only**. The Production Worker has **not** been deployed with 02CL yet.
+
 ## Current deployment boundary
 
-Apps Script source deployment is not exposed by the connected tools in this chat.
+Google Apps Script source deployment is not exposed by the connected tools in this chat, and plugin discovery found no Apps Script deployment connector.
 
 Prepared manual default-OFF deploy manifest:
 
@@ -95,7 +117,7 @@ Required live change only:
 2. Add one router line immediately after the already-live dry-run route:
    `else if (action === "cloudWriteReconcileProductionQualificationV1") result = trendosCloudWriteReconcileProductionQualificationV1_(e);`
 3. Do **not** overwrite live `Code.gs` with repository `Code.gs`.
-4. Keep the 02CL enable property OFF/absent during installation.
+4. Keep `TRENDOS_CLOUD_WRITE_PROD_RECONCILE_QUALIFY_ENABLED` OFF/absent during installation.
 5. Deploy a New version using the existing Web App deployment ID.
 6. Then run a no-secret probe and require `qualification-disabled` + zero mutation.
 
@@ -112,14 +134,16 @@ Required live change only:
 - synthetic D1 order: **1**
 - pending Sheets outbox item: **1**
 - exact target in Sheets: **0 rows**
-- 02CL outbox consumption: **NONE**
 - 02CL Apps Script deploy: **NOT YET**
-- 02CL Worker deploy: **NOT YET**
+- 02CL Worker code wiring: **YES / DEFAULT-OFF / CI PASS on working branch**
+- 02CL Worker Production deploy: **NOT YET**
+- 02CL outbox consumption: **NONE**
 - `EDGE_SESSION_SECRET` rotation: **NONE**
 
 ## أهم سجلات 2026-09-05
 
 ### 02CL
+- `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_WORKER_WRAPPED_DEFAULT_OFF_CI_PASS_NOT_DEPLOYED.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_LIVE_READONLY_PREFLIGHT_PASS_NO_MUTATION.md`
 - `TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CL_CANDIDATE_PREPARED_CI_PASS_NO_PRODUCTION_MUTATION.md`
 
@@ -135,11 +159,13 @@ Required live change only:
 1. اقرأ `00_INDEX.md`.
 2. اقرأ `01_CURRENT_STATE.md`.
 3. اعتبر 02CK مغلق PASS ولا تعيده.
-4. اعتبر 02CL candidate + live read-only preflight PASS، لكنه لم ينفذ reconciliation بعد.
-5. اقرأ `APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md` قبل أي live change.
-6. لا تستهلك الـpending target قبل default-OFF Apps Script deploy + probe وdefault-OFF Worker deploy + probe.
-7. لا تستخدم generic outbox drain.
-8. لا تعيد استخدام token الموظف المؤقت `wael` القديم.
-9. لا تدوّر `EDGE_SESSION_SECRET` لهذا الغرض.
-10. لا تفعل أي cutover أو authority transfer قبل إغلاق 02CL PASS.
-11. سجّل كل خطوة مادية جديدة داخل هذا المجلد.
+4. اعتبر 02CL candidate + live read-only preflight + Worker default-OFF wiring CI كلها PASS، لكن **لا يوجد live reconciliation حتى الآن**.
+5. اقرأ `APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md` قبل أي Apps Script live change.
+6. نفّذ Apps Script default-OFF deployment أولًا، ثم no-secret probe.
+7. لا تنشر Worker 02CL قبل نجاح Apps Script default-OFF probe؛ وعند النشر يجب أن يبقى Worker flag `false`.
+8. لا تستهلك pending target قبل نجاح default-OFF probes للجانبين وتكوين secret مخصص.
+9. لا تستخدم generic outbox drain.
+10. لا تعيد استخدام token الموظف المؤقت `wael` القديم.
+11. لا تدوّر `EDGE_SESSION_SECRET` لهذا الغرض.
+12. لا تفعل أي cutover أو authority transfer قبل إغلاق 02CL PASS.
+13. سجّل كل خطوة مادية جديدة داخل هذا المجلد.
