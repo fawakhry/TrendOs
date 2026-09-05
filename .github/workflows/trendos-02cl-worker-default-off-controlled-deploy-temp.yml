@@ -1,0 +1,173 @@
+name: TrendOS 02CL Worker Default-Off Controlled Deploy TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cl-worker-default-off-controlled-deploy-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cl-worker-default-off-controlled-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+      TARGET: CW-PROD-QUAL-33975124471
+
+    steps:
+      - name: Checkout exact working-branch head
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard safety gate — preserve current Production authority and keep 02CL OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          ! grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Fq 'cloud-write-production-reconcile-qualification.mjs' cloudflare-d1/production-shadow/index.js
+          ! grep -Fq 'cloud-write-production-reconcile-qualification' cloudflare-d1/src/index_v2.js
+          workflow=.github/workflows/trendos-02cl-worker-default-off-controlled-deploy-temp.yml
+          if grep -Eq '^[[:space:]]+npx .*wrangler.*d1[[:space:]]+migrations[[:space:]]+apply' "$workflow"; then
+            echo 'BLOCKED_D1_MIGRATION_COMMAND'; exit 1
+          fi
+          if grep -Eq '^[[:space:]]+(cat .*\|[[:space:]]*)?npx .*wrangler.*secret[[:space:]]+(put|bulk)' "$workflow"; then
+            echo 'BLOCKED_WORKER_SECRET_MUTATION'; exit 1
+          fi
+          echo '02CL_WORKER_DEPLOY_CONFIG_GATE_PASS'
+
+      - name: Re-run 02CL and existing runtime safety contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/cloudflare_cloud_write_reconcile_sqlite_v1.test.mjs
+          node --experimental-sqlite tests/cloudflare_cloud_write_reconcile_exact_target_v1.test.mjs
+          node --experimental-sqlite tests/cloudflare_production_reconcile_qualification_v1.test.mjs
+          node tests/apps_script_cloud_write_production_reconcile_qualification_v1.test.mjs
+          node tests/cloudflare_production_reconcile_qualification_wiring_default_off_v1.test.mjs
+          node tests/cloudflare_edge_gateway_v1.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          echo '02CL_AND_EXISTING_RUNTIME_TESTS_PASS'
+
+      - name: Live predeploy read-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/v2/production-shadow" > /tmp/pre-shadow.json
+          node <<'NODE'
+          const fs=require('fs');
+          const w=JSON.parse(fs.readFileSync('/tmp/pre-write.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/pre-shadow.json','utf8'));
+          if(!w.success||w.database!==true||w.enabled!==true||w.writesAccepted!==true||w.schemaReady!==true||Number(w.pendingOutbox||0)!==1||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(1);
+          if(!s.success||s.observerOnly!==true||s.readOnly!==true||s.mutationFree!==true||s.d1Written!==false||s.sheetsWritten!==false||s.productionCutover!==false) process.exit(1);
+          console.log('02CL_PREDEPLOY_BOUNDARY_PASS pendingOutbox='+Number(w.pendingOutbox||0));
+          NODE
+          pre_qual_code="$(curl --silent --show-error --output /tmp/pre-qual.json --write-out '%{http_code}' "$PROD_URL/v1/qualification/cloud-write/reconcile/health")"
+          echo "02CL_PREDEPLOY_ROUTE_HTTP=$pre_qual_code"
+          test "$pre_qual_code" = '404'
+
+      - name: Compile exact Production payload with Wrangler dry-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-02cl-worker-build
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config cloudflare-d1/wrangler.toml --outdir /tmp/trendos-02cl-worker-build
+          test -d /tmp/trendos-02cl-worker-build
+          echo '02CL_WORKER_DRY_RUN_PASS'
+
+      - name: Deploy Production Worker with 02CL qualification OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config cloudflare-d1/wrangler.toml
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 6
+          echo '02CL_WORKER_DEFAULT_OFF_DEPLOYED'
+
+      - name: Post-deploy verify core Production boundaries unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/edge/health" > /tmp/edge.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/health" > /tmp/write.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/v2/production-shadow" > /tmp/shadow.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/write.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/shadow.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.database!==true||w.enabled!==true||w.writesAccepted!==true||w.schemaReady!==true||Number(w.pendingOutbox||0)!==1||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(1);
+          if(!s.success||s.observerOnly!==true||s.readOnly!==true||s.mutationFree!==true||s.d1Written!==false||s.sheetsWritten!==false||s.productionCutover!==false) process.exit(1);
+          console.log('02CL_POSTDEPLOY_CORE_BOUNDARY_PASS pendingOutbox='+Number(w.pendingOutbox||0));
+          NODE
+
+      - name: Post-deploy verify 02CL Worker health and fail-closed POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/qhealth.json --write-out '%{http_code}' "$PROD_URL/v1/qualification/cloud-write/reconcile/health")"
+          test "$code" = '200'
+          TARGET="$TARGET" node <<'NODE'
+          const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/qhealth.json','utf8'));
+          const pass=x.success===true&&x.database===true&&x.enabled===false&&x.targetOrderId===process.env.TARGET&&Number(x.exactTargetRows||0)===1&&x.outboxStatus==='pending'&&Number(x.attempts||0)===0&&x.productionCutover===false&&x.sheetsAuthoritative===true&&x.genericDrainEnabled===false;
+          console.log('02CL_WORKER_HEALTH='+JSON.stringify({enabled:x.enabled,exactTargetRows:x.exactTargetRows,outboxStatus:x.outboxStatus,attempts:x.attempts,reconcileSecretConfigured:x.reconcileSecretConfigured,productionCutover:x.productionCutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+          post_code="$(curl --silent --show-error --output /tmp/qpost.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{"confirmation":"QUALIFY_PRODUCTION_OUTBOX_TO_SHEETS_33975124471","orderId":"CW-PROD-QUAL-33975124471"}' "$PROD_URL/v1/qualification/cloud-write/reconcile/order")"
+          test "$post_code" = '423'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/qpost.json','utf8'));
+          if(x.success!==false||x.code!=='qualification-disabled'||x.productionCutover!==false||x.sheetsAuthoritative!==true) process.exit(1);
+          console.log('02CL_WORKER_POST_FAIL_CLOSED_PASS');
+          NODE
+
+      - name: Reconfirm Apps Script V153 remains default-OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(sed -n 's/^APPS_SCRIPT_API_URL = "\(.*\)"$/\1/p' cloudflare-d1/wrangler.toml | head -n1)"
+          code="$(curl --silent --show-error --location --max-time 30 --output /tmp/apps.json --write-out '%{http_code}' "${base}?action=cloudWriteReconcileProductionQualificationV1&_probe=post-worker-deploy")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/apps.json','utf8'));
+          if(x.success!==false||x.code!=='qualification-disabled'||x.persisted!==false||x.sheetsWritten!==false||Number(x.mutationCount||0)!==0||x.productionCutover!==false||x.sheetsAuthoritative!==true) process.exit(1);
+          console.log('02CL_APPS_V153_STILL_DEFAULT_OFF_PASS');
+          NODE
+
+      - name: Automatic rollback on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo '02CL post-deploy verification failed; rolling back Worker to previous version.'
+          npx --yes wrangler@${WRANGLER_VERSION} rollback --config cloudflare-d1/wrangler.toml --message "TrendOS rollback after failed 02CL default-off deploy verification"
+
+      - name: Controlled deploy conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'PERF_CF_02CL_WORKER_DEFAULT_OFF_DEPLOY_PASS'
+          echo '02CL Worker route is live but disabled. Target remains pending. No reconciliation executed.'
+          echo 'No migration, no secret mutation, no EDGE_SESSION_SECRET rotation, no cutover.'
