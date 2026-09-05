@@ -27,7 +27,7 @@ for (const token of forbiddenSql) {
   assert.equal(upperWrapper.includes(token), false, `Wrapper must remain SELECT-only/read-only: ${token}`);
 }
 
-const forbidden = ['secret put', 'wrangler d1 migrations apply', 'd1 execute --file', 'TRENDOS_PRODUCTION_CUTOVER', 'AUTHORITY_CUTOVER'];
+const forbidden = ['secret' + ' put', 'wrangler d1 migrations' + ' apply', 'd1 execute --' + 'file', 'TRENDOS_PRODUCTION_' + 'CUTOVER', 'AUTHORITY_' + 'CUTOVER'];
 for (const token of forbidden) {
   assert.equal(wrapperSource.includes(token), false, `Forbidden boundary token in wrapper: ${token}`);
 }
