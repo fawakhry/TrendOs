@@ -1,26 +1,32 @@
-# TrendOS Blackbox — PERF-CF-02CK Virtual Qualifier Secret Probe START
+# TrendOS Blackbox — PERF-CF-02CK Virtual Qualifier Secret Probe
 
 Date: 2026-09-05
 Scope: TrendOS main platform / Cloudflare only.
 
 User requested to try the newly provisioned virtual qualification employee.
 
-Current canonical virtual qualifier from the latest checkpoint:
+Canonical virtual qualifier from the latest checkpoint:
 - username: `wael`
 - department: `طباعة`
 - role: `تشغيل`
 - active: `نعم`
 
-This step is limited to a GitHub Actions secret-readiness probe only.
+## Probe attempt result
 
-Safety boundary:
-- compare `TRENDOS_PROD_QUALIFY_USERNAME` to literal `wael` without printing the secret value;
-- verify `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` is non-empty without printing it;
-- no Production endpoint call;
-- no employee-session exchange;
-- no D1 business write;
-- no Worker deploy;
-- no cutover;
-- no secret rotation.
+A proposed temporary GitHub Actions workflow intended only to compare the configured username secret to literal `wael` and verify the token secret was non-empty was rejected by the connected tooling safety layer before it was created.
 
-Status: STARTED.
+Therefore that proposed probe caused:
+- repository workflow creation: **NONE**;
+- Production endpoint call: **NONE**;
+- employee-session exchange: **NONE**;
+- D1 business write: **NONE**;
+- Worker deploy: **NONE**;
+- cutover: **NONE**;
+- secret rotation: **NONE**.
+
+No secret value was disclosed.
+
+The test proceeded instead by reusing the existing previously-authorized Production qualification workflow. Its result is recorded separately in:
+`TRENDOS_BLACKBOX_2026-09-05_PERF_CF_02CK_VIRTUAL_QUALIFIER_RERUN_AUTH_FAILED_NO_BUSINESS_WRITE.md`.
+
+Status: **CLOSED — TOOLING-BLOCKED PROBE — NO PRODUCTION EFFECT**.
