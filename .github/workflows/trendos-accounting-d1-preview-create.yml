@@ -1,0 +1,106 @@
+name: TrendOS Accounting D1 Preview Create
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-accounting-d1-preview-create.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  create-accounting-preview-d1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.33.2
+      TARGET_DB_NAME: trendos-accounting-preview
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Cloudflare credentials are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Create isolated Accounting Preview D1 if absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 list --json > /tmp/d1-before.json
+          node <<'NODE' > /tmp/existing-id.txt
+          const fs = require('fs');
+          const rows = JSON.parse(fs.readFileSync('/tmp/d1-before.json','utf8'));
+          const target = process.env.TARGET_DB_NAME;
+          const hit = rows.find(x => (x.name || x.database_name || '') === target);
+          process.stdout.write(hit ? (hit.uuid || hit.id || hit.database_id || '') : '');
+          NODE
+          existing_id="$(cat /tmp/existing-id.txt)"
+          if [ -n "$existing_id" ]; then
+            echo "ACCOUNTING_PREVIEW_D1_ALREADY_EXISTS=true" >> "$GITHUB_ENV"
+            echo "ACCOUNTING_PREVIEW_D1_UUID=$existing_id" >> "$GITHUB_ENV"
+            echo "ACCOUNTING_PREVIEW_D1_CREATE=NOOP"
+          else
+            npx --yes wrangler@${WRANGLER_VERSION} d1 create "$TARGET_DB_NAME" --json > /tmp/d1-create.json
+            node <<'NODE' > /tmp/created-id.txt
+            const fs = require('fs');
+            const x = JSON.parse(fs.readFileSync('/tmp/d1-create.json','utf8'));
+            const id = x.uuid || x.id || x.database_id || (x.d1_databases && x.d1_databases[0] && (x.d1_databases[0].uuid || x.d1_databases[0].id)) || '';
+            if (!id) {
+              console.error('Created database response did not contain a UUID');
+              process.exit(1);
+            }
+            process.stdout.write(id);
+            NODE
+            created_id="$(cat /tmp/created-id.txt)"
+            echo "ACCOUNTING_PREVIEW_D1_ALREADY_EXISTS=false" >> "$GITHUB_ENV"
+            echo "ACCOUNTING_PREVIEW_D1_UUID=$created_id" >> "$GITHUB_ENV"
+            echo "ACCOUNTING_PREVIEW_D1_CREATE=CREATED"
+          fi
+
+      - name: Verify exact isolated database exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 list --json > /tmp/d1-after.json
+          node <<'NODE'
+          const fs = require('fs');
+          const rows = JSON.parse(fs.readFileSync('/tmp/d1-after.json','utf8'));
+          const target = process.env.TARGET_DB_NAME;
+          const hit = rows.find(x => (x.name || x.database_name || '') === target);
+          if (!hit) process.exit(1);
+          const uuid = hit.uuid || hit.id || hit.database_id || '';
+          if (!uuid) process.exit(1);
+          fs.writeFileSync('/tmp/accounting-preview-d1-created.json', JSON.stringify({name: target, uuid, isolated: true, production: false, schemaApplied: false, bindingChanged: false, financialWritePerformed: false}, null, 2));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Accounting Preview D1\n\n- Name: **${target}**\n- UUID: \`${uuid}\`\n- Isolated non-production resource: **true**\n- Schema applied: **false**\n- Binding changed: **false**\n- Financial write performed: **false**\n`);
+          console.log('ACCOUNTING_PREVIEW_D1_VERIFY=PASS name=' + target + ' uuid=' + uuid);
+          NODE
+
+      - name: Upload sanitized creation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: accounting-preview-d1-created
+          path: /tmp/accounting-preview-d1-created.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assert workflow scope is constrained
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='.github/workflows/trendos-accounting-d1-preview-create.yml'
+          if grep -Eq 'd1 (delete|execute|migrations)' "$file"; then
+            echo 'Forbidden D1 mutation command detected.' >&2
+            exit 1
+          fi
+          count="$(grep -Ec 'd1 create' "$file")"
+          test "$count" -eq 1
+          echo 'ACCOUNTING_PREVIEW_CREATE_SCOPE=PASS'
