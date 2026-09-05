@@ -7,12 +7,6 @@ on:
         description: 'Type ENABLE_PRODUCTION_CLOUD_WRITE to enable guarded Cloud Write without frontend cutover.'
         required: true
         type: string
-  push:
-    branches:
-      - agent/go-live-2026-09-01-integrity
-    paths:
-      - 'cloudflare-d1/wrangler.toml'
-      - '.github/workflows/trendos-production-cloud-write-controlled-enable.yml'
 
 permissions:
   contents: read
@@ -23,11 +17,7 @@ concurrency:
 
 jobs:
   enable-production-cloud-write:
-    if: >-
-      ${{
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_production_cloud_write_enable == 'ENABLE_PRODUCTION_CLOUD_WRITE') ||
-        (github.event_name == 'push' && github.event.head_commit.message == 'AUTHORIZED PROD CLOUD WRITE ENABLE 2026-09-05')
-      }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_production_cloud_write_enable == 'ENABLE_PRODUCTION_CLOUD_WRITE' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -106,7 +96,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           health_code="$(curl --silent --show-error --output /tmp/pre-edge-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
           test "$health_code" = '200'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/pre-edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
@@ -136,7 +125,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           health_code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/post-edge-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
           test "$health_code" = '200'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/post-edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
