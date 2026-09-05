@@ -27,7 +27,12 @@ Updated `tests/cloudflare_accounting_native_v1.test.mjs` to prove:
 ## CI evidence
 Accounting Native CI run `33946195319` on commit `2af0ea3a4bb2a45bd951a2e43854617a44c11755` completed with conclusion `success`. Native module tests, the full Accounting test set, persistence/schema diagnostics, and the Preview zero-write safety gate all passed.
 
-The existing Cloudflare Auto Preview workflow was triggered by the safe Preview code change and was still running at the time this checkpoint was finalized. This is not a Production cutover and does not enable Production Cloud Write.
+Accounting Preview Runtime run `33946195335` on the same source commit also completed with conclusion `success`, proving the deployed Preview converged to native Accounting version `TRENDOS_ACCOUNTING_NATIVE_V0_9_20260905` and that all existing zero-write runtime contracts remained green. That workflow did not yet call the new binding-presence probe, so it is deployment/runtime evidence but not yet the final ACCT-CF-02R binding proof.
+
+The latest branch Integrity V1 run `33946238612` on checkpoint commit `37ac09577482195033acc03619e80dcae151f869` completed with conclusion `success`.
+
+## 2026-09-05 continuation record — BEFORE material change
+Next material step is to extend `.github/workflows/trendos-accounting-preview-runtime.yml` with a live GET assertion for `/v1/accounting/persistence-binding-probe` and a POST rejection assertion. The assertions must require `dbInjected=true`, `mutationPerformed=false`, `sqlExecuted=false`, `schemaApplied=false`, and `productionWriteEnabled=false`. This is verification-only: no SQL, migration, D1 mutation, Production write enablement, or authority cutover is permitted.
 
 ## Safety invariants preserved
 - Preview only.
@@ -39,4 +44,4 @@ The existing Cloudflare Auto Preview workflow was triggered by the safe Preview 
 - No cutover.
 - Google Sheets / Apps Script authority unchanged.
 
-Status: IMPLEMENTED / NATIVE-CI-PASS / PREVIEW-RUNTIME-PROOF-PENDING
+Status: IMPLEMENTED / NATIVE-CI-PASS / PREVIEW-RUNTIME-BINDING-PROOF-IN-PROGRESS
