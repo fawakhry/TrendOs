@@ -1,43 +1,30 @@
-# ACCT-CF-02R — Live Accounting Preview Binding Probe Implemented
+# ACCT-CF-02R — Live Accounting Preview Binding Probe — PASS
 
 Date: 2026-09-05
 Repository: `fawakhry/TrendOs`
 Branch: `agent/go-live-2026-09-01-integrity`
 
-## Resume point
-ACCT-CF-02Q deployed Preview binding `TRENDOS_ACCOUNTING_PREVIEW_DB` to isolated D1 `trendos-accounting-preview` (`bf53471a-913a-44e1-a9f4-d647237592e1`) while leaving Accounting schema unapplied and authoritative writes disabled. ACCT-CF-02R is the mutation-free runtime binding-presence proof.
+## Result
+ACCT-CF-02Q deployed Preview binding `TRENDOS_ACCOUNTING_PREVIEW_DB` to isolated D1 `trendos-accounting-preview` (`bf53471a-913a-44e1-a9f4-d647237592e1`) while Accounting schema remained unapplied and authoritative writes disabled.
 
-## Implemented endpoint
-- `GET /v1/accounting/persistence-binding-probe`.
-- Native version `TRENDOS_ACCOUNTING_NATIVE_V0_9_20260905`.
-- Checks only whether `env.TRENDOS_ACCOUNTING_PREVIEW_DB` is injected.
-- Calls no `prepare`, `batch`, `exec`, `run`, or SQL method.
-- Missing binding fails closed with HTTP 503 / `D1_NOT_INJECTED`.
-- Non-GET requests fail with HTTP 405 before binding access.
-- Reports `mutationPerformed=false`, `sqlExecuted=false`, `schemaApplied=false`, `productionWriteEnabled=false`.
+ACCT-CF-02R implemented `GET /v1/accounting/persistence-binding-probe` in native version `TRENDOS_ACCOUNTING_NATIVE_V0_9_20260905`. The probe only checks binding presence; it executes no SQL and performs no mutation.
 
-## Existing green evidence
+## Evidence chain
 - Accounting Native CI `33946195319` — success.
-- Accounting Preview Runtime `33946195335` — success; Preview source convergence and existing zero-write contracts proven.
+- Accounting Preview Runtime `33946195335` — success.
 - Integrity V1 `33946238612` — success.
+- Dedicated live proof workflow added in `a338f8869cc2e9cf449c0ae345c6069712943481`.
+- First live proof `33947826293` exposed only a harness field-name mismatch (`dbInjected` vs endpoint contract `bindingInjected`); no SQL/mutation occurred.
+- Mismatch recorded before correction in black-box commit `29f10fbc88db15b85ff4d788350f68336596d47c`.
+- Harness corrected in `e3633baf7c7d589136d051a6be93fb520b01ccbe`.
+- Live binding proof run `33947940287` completed with conclusion `success`.
+- Integrity V1 run `33947940308` for the same correction commit also completed with conclusion `success`.
 
-## Live proof workflow history
-Pre-change record commit: `801104c4fe926c73c9a3889301ab1432c5e0697c`.
-Dedicated workflow `.github/workflows/trendos-accounting-binding-probe-preview-runtime.yml` added in `a338f8869cc2e9cf449c0ae345c6069712943481`.
-First run `33947826293` failed only at the live GET assertion after deployment convergence passed. Integrity V1 `33947826272` for the same commit passed.
-
-Root cause was a deterministic harness field mismatch: endpoint emits `bindingInjected`, workflow asserted `dbInjected`. No D1 mutation, SQL, schema application, Production setting change, or financial write occurred.
-
-## Corrective material step completed
-Pre-fix black-box record commit: `29f10fbc88db15b85ff4d788350f68336596d47c`.
-Workflow corrected in commit `e3633baf7c7d589136d051a6be93fb520b01ccbe` to assert `bindingInjected === true` and exact binding name `TRENDOS_ACCOUNTING_PREVIEW_DB`. The workflow path trigger was also corrected to the actual config path `cloudflare-d1/preview/wrangler.toml`. All zero-write assertions remain.
-
-### BEFORE next material step
-Inspect the automatically triggered workflow for commit `e3633baf7c7d589136d051a6be93fb520b01ccbe`. If green, close ACCT-CF-02R in this black box before beginning any schema-readiness increment. If it still fails, diagnose and record the failure without applying schema or enabling writes.
+The successful live proof requires the deployed Preview endpoint to return HTTP 200 with `bindingInjected=true`, exact binding `TRENDOS_ACCOUNTING_PREVIEW_DB`, `mutationPerformed=false`, `sqlExecuted=false`, `schemaApplied=false`, and `productionWriteEnabled=false`. It also proves POST is rejected with HTTP 405 while remaining zero-write.
 
 ## Safety invariants preserved
 - Preview only.
-- No SQL executed by the binding probe.
+- No SQL executed by the binding-presence proof.
 - No D1 mutation.
 - No schema application.
 - No Production Cloud Write enablement.
@@ -45,4 +32,7 @@ Inspect the automatically triggered workflow for commit `e3633baf7c7d589136d051a
 - No cutover.
 - Google Sheets / Apps Script authority unchanged.
 
-Status: IMPLEMENTED / NATIVE-CI-PASS / LIVE-PROOF-HARNESS-CORRECTED / RERUN-PENDING
+## Next safe continuation
+ACCT-CF-02S: execute/read the isolated Accounting Preview schema preflight against `TRENDOS_ACCOUNTING_PREVIEW_DB` to establish the exact schema-gap baseline before any schema application. This next increment may perform read-only D1 metadata/schema inspection, but must not apply migrations, create tables, mutate financial data, enable authoritative writes, or change Production authority.
+
+Status: ACCT-CF-02R PASS / LIVE PREVIEW BINDING PROVEN / ZERO-WRITE
