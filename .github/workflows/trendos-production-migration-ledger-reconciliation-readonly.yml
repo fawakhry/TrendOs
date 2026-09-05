@@ -1,0 +1,276 @@
+name: TrendOS Production Migration Ledger Reconciliation Read-Only
+
+# PERF-CF-02CE: structural metadata comparison only.
+# No Production DDL/DML, migration apply, business-row reads, Worker deploy, or Cloud Write enablement.
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-production-migration-ledger-reconciliation-readonly.yml'
+      - 'cloudflare-d1/migrations/0001_init.sql'
+      - 'cloudflare-d1/migrations/0002_full_sheet_mirror.sql'
+      - 'cloudflare-d1/wrangler.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-production-migration-ledger-reconciliation-readonly
+  cancel-in-progress: false
+
+jobs:
+  compare-production-schema-to-0001-0002:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_DB_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+      MIGRATION_0001_SHA: 49c58dd275f8364d0632fabd669ef48b562ea895
+      MIGRATION_0002_SHA: 1857534062b93eb24adbacdf7d3234bcaae69384
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hard Production identity, migration pins, and OFF-state gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^migrations_dir = "migrations"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          ! grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          test "$(git hash-object cloudflare-d1/migrations/0001_init.sql)" = "$MIGRATION_0001_SHA"
+          test "$(git hash-object cloudflare-d1/migrations/0002_full_sheet_mirror.sql)" = "$MIGRATION_0002_SHA"
+          echo 'MIGRATION_LEDGER_RECONCILIATION_IDENTITY_PIN_PASS'
+
+      - name: Live Production health before metadata inspection
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-health.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/pre-health.json','utf8'));
+          const pass=x.success===true && x.database===true && x.enabled===false && x.writesAccepted===false && x.schemaReady===false && x.pendingOutbox===null && x.schemaMutationFree===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('PRE_LEDGER_RECON_HEALTH='+JSON.stringify({database:x.database,enabled:x.enabled,writesAccepted:x.writesAccepted,schemaReady:x.schemaReady,pendingOutbox:x.pendingOutbox,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Build isolated expected schema contract from pinned 0001 and 0002
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, sqlite3
+
+          migrations=[
+            pathlib.Path('cloudflare-d1/migrations/0001_init.sql'),
+            pathlib.Path('cloudflare-d1/migrations/0002_full_sheet_mirror.sql'),
+          ]
+          db=sqlite3.connect(':memory:')
+          db.execute('PRAGMA foreign_keys = ON')
+          for path in migrations:
+              db.executescript(path.read_text(encoding='utf-8'))
+
+          tables=['customers','orders','messages','conversations','migration_runs','sheet_catalog','sheet_rows','sheet_migration_runs']
+          expected={'tables':tables,'columns':[],'indexes':[],'indexColumns':[],'foreignKeys':[]}
+
+          for table in tables:
+              for cid,name,typ,notnull,dflt,pk in db.execute(f"PRAGMA table_info('{table}')"):
+                  expected['columns'].append({'table_name':table,'cid':cid,'name':name,'type':typ,'notnull':notnull,'dflt_value':dflt,'pk':pk})
+              for seq,index_name,is_unique,origin,partial in db.execute(f"PRAGMA index_list('{table}')"):
+                  if not str(index_name).startswith('idx_'):
+                      continue
+                  expected['indexes'].append({'table_name':table,'name':index_name,'is_unique':is_unique,'origin':origin,'partial':partial})
+                  for seqno,cid,col_name in db.execute(f"PRAGMA index_info('{index_name}')"):
+                      expected['indexColumns'].append({'index_name':index_name,'seqno':seqno,'cid':cid,'name':col_name})
+              for row in db.execute(f"PRAGMA foreign_key_list('{table}')"):
+                  _id,seq,ref_table,from_col,to_col,on_update,on_delete,match=row[:8]
+                  expected['foreignKeys'].append({'table_name':table,'seq':seq,'ref_table':ref_table,'from_col':from_col,'to_col':to_col,'on_update':on_update,'on_delete':on_delete,'match':match})
+
+          for key in ['columns','indexes','indexColumns','foreignKeys']:
+              expected[key]=sorted(expected[key],key=lambda x: json.dumps(x,sort_keys=True,ensure_ascii=False))
+          pathlib.Path('/tmp/expected.json').write_text(json.dumps(expected,ensure_ascii=False,sort_keys=True),encoding='utf-8')
+
+          def union(parts): return '\nUNION ALL\n'.join(parts)
+          table_names=','.join("'"+t+"'" for t in tables)
+          pathlib.Path('/tmp/tables.sql').write_text(
+              f"SELECT type,name FROM sqlite_master WHERE type='table' AND name IN ({table_names},'d1_migrations') ORDER BY name",
+              encoding='utf-8')
+          pathlib.Path('/tmp/columns.sql').write_text(union([
+              f"SELECT '{t}' AS table_name,cid,name,type,\"notnull\" AS notnull,dflt_value,pk FROM pragma_table_info('{t}')" for t in tables
+          ]),encoding='utf-8')
+          pathlib.Path('/tmp/indexes.sql').write_text(union([
+              f"SELECT '{t}' AS table_name,name,\"unique\" AS is_unique,origin,partial FROM pragma_index_list('{t}') WHERE name LIKE 'idx_%'" for t in tables
+          ]),encoding='utf-8')
+          index_names=[x['name'] for x in expected['indexes']]
+          pathlib.Path('/tmp/index-columns.sql').write_text(union([
+              f"SELECT '{i}' AS index_name,seqno,cid,name FROM pragma_index_info('{i}')" for i in index_names
+          ]),encoding='utf-8')
+          pathlib.Path('/tmp/fks.sql').write_text(union([
+              f"SELECT '{t}' AS table_name,seq,\"table\" AS ref_table,\"from\" AS from_col,\"to\" AS to_col,on_update,on_delete,match FROM pragma_foreign_key_list('{t}')" for t in tables
+          ]),encoding='utf-8')
+          print('ISOLATED_EXPECTED_SCHEMA_CONTRACT_BUILT')
+          print('EXPECTED_TABLES='+','.join(tables))
+          print('EXPECTED_INDEX_COUNT='+str(len(index_names)))
+          PY
+
+      - name: Enforce generated live queries are SELECT-only metadata queries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for path in map(Path,['/tmp/tables.sql','/tmp/columns.sql','/tmp/indexes.sql','/tmp/index-columns.sql','/tmp/fks.sql']):
+              sql=path.read_text(encoding='utf-8').strip()
+              upper=sql.upper()
+              if not upper.startswith('SELECT '): raise SystemExit('QUERY_NOT_SELECT='+str(path))
+              if ';' in sql: raise SystemExit('MULTI_STATEMENT_REFUSED='+str(path))
+              for token in ['INSERT','UPDATE','DELETE','CREATE','DROP','ALTER','REPLACE','ATTACH','DETACH','VACUUM']:
+                  if re.search(r'\b'+token+r'\b',upper): raise SystemExit('MUTATION_TOKEN_REFUSED='+token+'@'+str(path))
+              allowed=('SQLITE_MASTER' in upper) or ('PRAGMA_TABLE_INFO' in upper) or ('PRAGMA_INDEX_LIST' in upper) or ('PRAGMA_INDEX_INFO' in upper) or ('PRAGMA_FOREIGN_KEY_LIST' in upper)
+              if not allowed: raise SystemExit('NON_METADATA_QUERY_REFUSED='+str(path))
+              print('SELECT_ONLY_METADATA_QUERY_PASS='+str(path))
+          PY
+
+      - name: Query live Production schema metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          query_file() {
+            local sql_file="$1"
+            local output_file="$2"
+            local sql payload code
+            sql="$(cat "$sql_file")"
+            payload="$(node -e 'process.stdout.write(JSON.stringify({sql:process.argv[1]}))' "$sql")"
+            code="$(curl --silent --show-error --output "$output_file" --write-out '%{http_code}' \
+              -X POST \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H 'Content-Type: application/json' \
+              --data "$payload" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query")"
+            test "$code" = '200'
+            node -e "const x=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); if(x.success!==true) process.exit(1)" "$output_file"
+          }
+          query_file /tmp/tables.sql /tmp/live-tables.json
+          query_file /tmp/columns.sql /tmp/live-columns.json
+          query_file /tmp/indexes.sql /tmp/live-indexes.json
+          query_file /tmp/index-columns.sql /tmp/live-index-columns.json
+          query_file /tmp/fks.sql /tmp/live-fks.json
+          echo 'PRODUCTION_SCHEMA_METADATA_SELECTS_PASS'
+
+      - name: Compare 0001 and 0002 requirements to live Production schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected=json.loads(Path('/tmp/expected.json').read_text(encoding='utf-8'))
+          def api_rows(path):
+              x=json.loads(Path(path).read_text(encoding='utf-8'))
+              rows=[]
+              for block in x.get('result') or []:
+                  rows.extend(block.get('results') or [])
+              return rows
+
+          table_rows=api_rows('/tmp/live-tables.json')
+          live_tables={str(r.get('name')) for r in table_rows if r.get('type')=='table'}
+          missing_tables=[t for t in expected['tables'] if t not in live_tables]
+
+          def norm(v):
+              if v is None: return None
+              if isinstance(v,bool): return int(v)
+              if isinstance(v,(int,float)): return int(v) if int(v)==v else v
+              return str(v)
+
+          live_columns={(str(r.get('table_name')),str(r.get('name'))):r for r in api_rows('/tmp/live-columns.json')}
+          column_mismatches=[]
+          for e in expected['columns']:
+              key=(e['table_name'],e['name'])
+              r=live_columns.get(key)
+              if r is None:
+                  column_mismatches.append({'key':key,'reason':'missing'})
+                  continue
+              for field in ['type','notnull','dflt_value','pk']:
+                  if norm(r.get(field)) != norm(e.get(field)):
+                      column_mismatches.append({'key':key,'field':field,'expected':norm(e.get(field)),'live':norm(r.get(field))})
+
+          live_indexes={str(r.get('name')):r for r in api_rows('/tmp/live-indexes.json')}
+          index_mismatches=[]
+          for e in expected['indexes']:
+              r=live_indexes.get(e['name'])
+              if r is None:
+                  index_mismatches.append({'index':e['name'],'reason':'missing'})
+                  continue
+              for field in ['table_name','is_unique','origin','partial']:
+                  if norm(r.get(field)) != norm(e.get(field)):
+                      index_mismatches.append({'index':e['name'],'field':field,'expected':norm(e.get(field)),'live':norm(r.get(field))})
+
+          live_index_cols={}
+          for r in api_rows('/tmp/live-index-columns.json'):
+              live_index_cols.setdefault(str(r.get('index_name')),[]).append((norm(r.get('seqno')),str(r.get('name'))))
+          expected_index_cols={}
+          for e in expected['indexColumns']:
+              expected_index_cols.setdefault(e['index_name'],[]).append((norm(e['seqno']),e['name']))
+          for name,cols in expected_index_cols.items():
+              if sorted(live_index_cols.get(name,[])) != sorted(cols):
+                  index_mismatches.append({'index':name,'field':'columns','expected':sorted(cols),'live':sorted(live_index_cols.get(name,[]))})
+
+          live_fks=[]
+          for r in api_rows('/tmp/live-fks.json'):
+              live_fks.append({k:norm(r.get(k)) for k in ['table_name','seq','ref_table','from_col','to_col','on_update','on_delete','match']})
+          fk_mismatches=[]
+          for e0 in expected['foreignKeys']:
+              e={k:norm(e0.get(k)) for k in ['table_name','seq','ref_table','from_col','to_col','on_update','on_delete','match']}
+              if e not in live_fks:
+                  fk_mismatches.append({'expected':e,'reason':'missing_or_incompatible'})
+
+          ledger_present='d1_migrations' in live_tables
+          result={
+              'missingTables':missing_tables,
+              'columnMismatches':column_mismatches,
+              'indexMismatches':index_mismatches,
+              'foreignKeyMismatches':fk_mismatches,
+              'd1MigrationsTablePresent':ledger_present,
+          }
+          compatible=not any([missing_tables,column_mismatches,index_mismatches,fk_mismatches])
+          result['migration0001And0002SchemaSatisfied']=compatible
+          print('MIGRATION_LEDGER_SCHEMA_COMPARISON='+json.dumps(result,ensure_ascii=False,sort_keys=True))
+          if not compatible:
+              raise SystemExit('PRODUCTION_0001_0002_SCHEMA_DRIFT')
+          print('PRODUCTION_0001_0002_SCHEMA_PRESENT_LEDGER_MISSING_PASS')
+          PY
+
+      - name: Live Production health after metadata inspection
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/post-health.json
+          node <<'NODE'
+          const fs=require('fs');
+          const before=JSON.parse(fs.readFileSync('/tmp/pre-health.json','utf8'));
+          const after=JSON.parse(fs.readFileSync('/tmp/post-health.json','utf8'));
+          const fields=['database','enabled','writesAccepted','authConfigured','schemaReady','pendingOutbox','schemaMutationFree','cutover','sheetsAuthoritative'];
+          const same=fields.every(k=>JSON.stringify(before[k])===JSON.stringify(after[k]));
+          const pass=same && after.success===true && after.database===true && after.enabled===false && after.writesAccepted===false && after.schemaReady===false && after.pendingOutbox===null && after.cutover===false && after.sheetsAuthoritative===true;
+          console.log('POST_LEDGER_RECON_HEALTH='+JSON.stringify({enabled:after.enabled,writesAccepted:after.writesAccepted,schemaReady:after.schemaReady,pendingOutbox:after.pendingOutbox,cutover:after.cutover,sheetsAuthoritative:after.sheetsAuthoritative,stateUnchanged:same,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Read-only conclusion
+        run: |
+          echo 'PERF_CF_02CE_MIGRATION_LEDGER_RECONCILIATION_READONLY_PASS'
+          echo 'Production schema structurally satisfies migrations 0001 and 0002; only ledger reconciliation may remain.'
+          echo 'No Production DDL/DML, migration apply, d1_migrations mutation, business-row read, Worker deploy, Cloud Write enablement, or frontend cutover occurred.'
