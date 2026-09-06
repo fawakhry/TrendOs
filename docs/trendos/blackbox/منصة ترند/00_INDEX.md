@@ -4,9 +4,9 @@
 
 ## آخر checkpoint منفذ
 
-`PERF-CF-02CR — Orders D1 Field Completeness Regression / Production Read Rollback`
+`PERF-CF-02CR — Orders D1 Field Completeness Regression / Production Read Rollback + Operational Parity Repair`
 
-الحالة: **MITIGATION PASS — PRODUCTION FRONTEND D1 READ ROLLED BACK — APPS SCRIPT RESTORED — D1 DATA RETAINED — FIELD COMPLETENESS FIX PENDING**
+الحالة: **MITIGATION PASS — PRODUCTION FRONTEND ON APPS SCRIPT — 02CR CANDIDATE QUALIFIED — PREVIEW FAIL-CLOSED PASS — ENRICHMENT APPS SCRIPT DEPLOYMENT APPROVAL GATE**
 
 أحدث سجل:
 
@@ -14,19 +14,42 @@
 
 ## نتيجة 02CR الحالية
 
-1. المستخدم أبلغ أن كروت الأوردرات في الإنتاج تظهر ناقصة بعد مسار D1.
-2. تم اكتشاف أن `main` كان يحتوي تفعيل Edge-first للقراءة في commit:
-   - `cf6a3a7e817fdb6c01fed3b6ad63c9cce8489d9a`
-3. هذا التفعيل كان على `main` رغم أن checkpoint 02CQ في working branch وثّق frontend OFF.
-4. `واجهة الطباعة` الحالية في Google/D1 تحتوي 18 عمودًا فقط، بينما D1 mapper يحاول إرجاع حقول تشغيلية إضافية غير موجودة في هذا الـmirror، فتظهر فارغة.
-5. لذلك نجاح 02CQ في Order ID / Line ID / status parity لم يكن كافيًا لضمان اكتمال كل حقول الواجهة.
-6. تم تنفيذ rollback آمن وقابل للرجوع لمسار القراءة فقط على `main`:
-   - rollback commit `f7c3af17b3a28858d1be9d5c57455d54b4256126`
-7. `main/config.js` بعد rollback لا يفعّل D1 Orders read ولا يحمل Edge Orders loader.
-8. شاشة الأوردرات ترجع إلى Apps Script / Sheets كمصدر قراءة الإنتاج.
-9. بيانات D1 نفسها لم تُحذف ولم يتم rollback للـmirrors.
-10. لا Worker deploy، لا secret rotation، لا 02CL reopen، ولا authority transfer.
-11. أي إعادة تفعيل D1 للواجهة ممنوعة حتى ينجح **full field completeness parity** لكل الحقول التي تستخدمها الواجهة، وليس identity parity فقط.
+1. تم عزل Regression ظهور كروت الأوردرات الناقصة إلى Edge-first read المحدود، وتم rollback القراءة على `main` إلى Apps Script:
+   - `f7c3af17b3a28858d1be9d5c57455d54b4256126`
+2. اتضح أن production orders page كان يمر عبر 02CO screen-view canary المحدود، لا عبر operational `بنود الأوردرات` contract الكامل.
+3. تم إصلاح duplicate-header semantics في D1 mapper لتطابق Apps Script last-write-wins:
+   - `c6b362b4d4223e7f890af44d2067a5440224e42a`
+4. Existing Orders Live Sync V2 يبقى المالك الوحيد لـ:
+   - `الأوردرات`
+   - `بنود الأوردرات`
+   - note: `TrendOS orders live sync V2 quota-aware`
+5. read-only D1 catalog أثبت أن `العملاء` وقائمة منع التسليم ما زالا على full-mirror قديم من 2026-08-29.
+6. تم تجهيز independent quota-aware enrichment live-sync candidate فقط لـ:
+   - `العملاء`
+   - `عملاء منع التسليم بالمديونية`
+   - file: `cloudflare-d1/D1_Operational_Enrichment_Live_Sync_02CR.gs`
+   - note: `PERF-CF-02CR enrichment live sync V1`
+7. تم تجهيز isolated D1 operational canary:
+   - `/v1/edge/orders/02cr/page`
+   - لا تستخدمه الواجهة الإنتاجية.
+8. الـcanary يطابق Apps Script في enrichment + search/status/priority/heat filters + pagination + status counts، مع `__DEBT__` Apps Script fallback.
+9. 02CR CI:
+   - Run `34003887916`
+   - Job `101407500641`
+   - **SUCCESS**
+10. Integrity:
+   - Run `34003887933`
+   - Job `101407500688`
+   - **SUCCESS**
+11. Preview pre-sync fail-closed proof:
+   - Run `34003873139`
+   - Job `101407459524`
+   - HTTP `503`
+   - `02cr-operational-mirror-not-qualified`
+   - fallback `apps-script`
+   - failed mirrors فقط: `العملاء` + `عملاء منع التسليم بالمديونية`
+12. لا يوجد production Worker deploy، لا frontend re-enable، لا secret rotation، لا authority transfer.
+13. نقطة الوقوف: **موافقة Apps Script جديدة مطلوبة لنشر وتشغيل 02CR enrichment sync فقط**. موافقة 02CQ القديمة لا تُستخدم.
 
 ## آخر checkpoint مغلق قبل 02CR
 
@@ -48,7 +71,9 @@
 - Sheets / Apps Script authority: **YES**
 - frontend D1 orders read on `main`: **ROLLED BACK / OFF**
 - order-card production read source: **Apps Script / Sheets**
-- D1 four-view mirrors: **RETAINED**
+- existing Orders Live Sync V2: **ACTIVE OWNER OF ORDERS + LINES; UNCHANGED**
+- 02CR enrichment sync: **QUALIFIED CANDIDATE / NOT DEPLOYED**
+- 02CR isolated Preview route: **QUALIFIED / FAIL-CLOSED BEFORE ENRICHMENT SYNC**
 - 02CL: **OFF**
 - generic outbox drain: **OFF / unused**
 - frontend cutover: **NO**
@@ -66,13 +91,12 @@
 
 ## نقطة البداية لأي شات جديد
 
-1. اقرأ `00_INDEX.md` ثم `01_CURRENT_STATE.md`.
-2. اقرأ أحدث سجل 02CR.
-3. لا تعيد تفعيل `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED` على `main` قبل full field-completeness qualification.
-4. لا تعتبر Order ID / Line ID / status parity وحده كافيًا للـfrontend cutover.
-5. حافظ على Apps Script / Sheets كـauthoritative production read/write source حاليًا.
-6. احتفظ ببيانات وموديولات D1 للتأهيل ولا تحذفها.
+1. اقرأ `00_INDEX.md` ثم `01_CURRENT_STATE.md` ثم أحدث سجل 02CR.
+2. لا تعيد تفعيل D1 على production frontend قبل full field/paging/filter parity.
+3. لا تلمس Orders Live Sync V2 ownership لـ`الأوردرات + بنود الأوردرات`.
+4. الخطوة التالية المسموحة بعد موافقة صريحة: نشر `D1_Operational_Enrichment_Live_Sync_02CR.gs` فقط وتشغيل `startD1OperationalEnrichmentLiveSync02CR()`.
+5. بعد ذلك اختبر `/v1/edge/orders/02cr/page` على Preview أولًا؛ production frontend يظل Apps Script.
+6. حافظ على Sheets / Apps Script كـauthoritative source.
 7. لا تستخدم generic outbox drain.
 8. لا تدوّر `EDGE_SESSION_SECRET`.
 9. لا تفتح 02CL gates.
-10. الخطوة التالية: بناء واختبار D1 operational row contract كامل لكل حقول الواجهة، ثم canary جديد قبل أي re-enable.
