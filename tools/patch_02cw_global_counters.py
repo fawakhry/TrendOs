@@ -99,18 +99,8 @@ if new_press_loader not in config:
     config = config.replace(old_press_loader, new_press_loader, 1)
 config_path.write_text(config, encoding='utf-8')
 
-old_queue = '''  function queueLabel(q){
-    const items=Array.isArray(q.items)?q.items:[],unique={};
-    items.forEach(function(x){const id=text(x&&x.orderId);if(id)unique[id]=1;});
-    const lines=Number(q.count||items.length||0),orders=Object.keys(unique).length||Number(q.orderCount||q.orders||0)||lines,urgent=Number(q.urgent||0);
-    return "Queue المكبس: "+orders+" أوردر • "+lines+" بند"+(urgent?(" • عاجل: "+urgent):"");
-  }'''
-new_queue = '''  function queueLabel(q){
-    const items=Array.isArray(q.items)?q.items:[],unique={};
-    items.forEach(function(x){const id=text(x&&x.orderId);if(id)unique[id]=1;});
-    const lines=Number(q.count||items.length||0),summary=window.trendosState&&window.trendosState.activeSummaryCounts&&typeof window.trendosState.activeSummaryCounts==="object"?window.trendosState.activeSummaryCounts:null,hasGlobalOrders=!!(summary&&Object.prototype.hasOwnProperty.call(summary,"heatPressOrders")),orders=hasGlobalOrders?Number(summary.heatPressOrders||0):(Number(q.orderCount||q.orders||0)||Object.keys(unique).length||lines),urgent=Number(q.urgent||0);
-    return "Queue المكبس: "+orders+" أوردر • "+lines+" بند"+(urgent?(" • عاجل: "+urgent):"");
-  }'''
+old_queue = "function queueLabel(q){q=q||{};const items=Array.isArray(q.items)?q.items:[];const unique={};items.forEach(function(x){const id=txt(x.orderId||x['رقم الأوردر']||x.order||'');if(id)unique[id]=1;});const lines=Number(q.count||items.length||0),orders=Object.keys(unique).length||Number(q.orderCount||q.orders||0)||lines;let out='Queue المكبس: '+orders+' أوردر • '+lines+' بند';if(Number(q.urgent||0)>0)out+=' • عاجل: '+Number(q.urgent||0)+' بند';return out;}"
+new_queue = "function queueLabel(q){q=q||{};const items=Array.isArray(q.items)?q.items:[];const unique={};items.forEach(function(x){const id=txt(x.orderId||x['رقم الأوردر']||x.order||'');if(id)unique[id]=1;});const lines=Number(q.count||items.length||0),summary=window.trendosState&&window.trendosState.activeSummaryCounts&&typeof window.trendosState.activeSummaryCounts==='object'?window.trendosState.activeSummaryCounts:null,hasGlobalOrders=!!(summary&&Object.prototype.hasOwnProperty.call(summary,'heatPressOrders')),orders=hasGlobalOrders?Number(summary.heatPressOrders||0):(Number(q.orderCount||q.orders||0)||Object.keys(unique).length||lines);let out='Queue المكبس: '+orders+' أوردر • '+lines+' بند';if(Number(q.urgent||0)>0)out+=' • عاجل: '+Number(q.urgent||0)+' بند';return out;}"
 if new_queue not in press:
     if old_queue not in press:
         raise SystemExit('press queueLabel anchor missing')
