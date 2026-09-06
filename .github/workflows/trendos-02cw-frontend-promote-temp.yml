@@ -1,0 +1,110 @@
+name: TrendOS 02CW Frontend Promote Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-frontend-promote-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-02cw-frontend-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_PROD_MAIN: 3934fa363b113a4bd494ec501fb5f289f2c48ec1
+      QUALIFIED_FRONTEND_REF: 618d02067ad5e433a61217e474c18d14a22f7208
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Lock exact Production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          actual="$(git rev-parse origin/main)"
+          echo "PROD_MAIN_BEFORE=$actual"
+          test "$actual" = "$EXPECTED_PROD_MAIN"
+          rm -rf /tmp/trendos-02cw-frontend-promote
+          git worktree add --detach /tmp/trendos-02cw-frontend-promote "$EXPECTED_PROD_MAIN"
+          git show "$QUALIFIED_FRONTEND_REF:tools/patch_02cw_global_counters.py" > /tmp/patch_02cw_global_counters.py
+
+      - name: Rebuild exact qualified frontend patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 /tmp/patch_02cw_global_counters.py --root /tmp/trendos-02cw-frontend-promote
+          cd /tmp/trendos-02cw-frontend-promote
+          node tests/frontend_global_counters_filters_press_02cw.test.mjs
+          node --check app.js
+          node --check press-control-v1.js
+          TRENDOS_TEST_ROOT=/tmp/trendos-02cw-frontend-promote node "$GITHUB_WORKSPACE/tests/frontend_flyprint_lane_stability_02cv.test.mjs"
+          TRENDOS_TEST_ROOT=/tmp/trendos-02cw-frontend-promote node "$GITHUB_WORKSPACE/tests/frontend_order_status_write_consistency_02cv.test.mjs"
+          echo '02CW_FRONTEND_REQUALIFIED_PASS'
+
+      - name: Assert exact production scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/trendos-02cw-frontend-promote
+          git diff --check
+          mapfile -t changed < <(git diff --name-only | grep -v '^tests/frontend_global_counters_filters_press_02cw.test.mjs$')
+          printf 'PRODUCTION_CHANGED_FILES=%s\n' "${changed[*]}"
+          test "${#changed[@]}" -eq 4
+          printf '%s\n' "${changed[@]}" | grep -qx 'app.js'
+          printf '%s\n' "${changed[@]}" | grep -qx 'index.html'
+          printf '%s\n' "${changed[@]}" | grep -qx 'config.js'
+          printf '%s\n' "${changed[@]}" | grep -qx 'press-control-v1.js'
+          grep -q 'trendos-02cw-globalcounts-20260906d' index.html
+          grep -q 'press-control-v1.js?v=20260906-02cw' config.js
+          grep -q 'activeSummaryCounts' app.js
+          grep -q 'heatPressOrders' press-control-v1.js
+          echo '02CW_FRONTEND_PRODUCTION_SCOPE_PASS'
+
+      - name: Push exact frontend patch to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/trendos-02cw-frontend-promote
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_PROD_MAIN"
+          git switch -c 02cw-production
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app.js index.html config.js press-control-v1.js
+          staged="$(git diff --cached --name-only | sort)"
+          printf 'STAGED_FILES=\n%s\n' "$staged"
+          test "$staged" = "$(printf '%s\n' app.js config.js index.html press-control-v1.js | sort)"
+          git commit -m 'Show global active counters and press order totals'
+          new_sha="$(git rev-parse HEAD)"
+          git push origin HEAD:main
+          echo "02CW_FRONTEND_PRODUCTION_COMMIT=$new_sha"
+
+      - name: Verify pushed main contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/trendos-02cw-frontend-promote
+          git fetch --no-tags origin main
+          new_sha="$(git rev-parse origin/main)"
+          test "$new_sha" != "$EXPECTED_PROD_MAIN"
+          test "$(git diff --name-only "$EXPECTED_PROD_MAIN" "$new_sha" | sort)" = "$(printf '%s\n' app.js config.js index.html press-control-v1.js | sort)"
+          git show "origin/main:index.html" | grep -q 'trendos-02cw-globalcounts-20260906d'
+          git show "origin/main:config.js" | grep -q 'press-control-v1.js?v=20260906-02cw'
+          git show "origin/main:app.js" | grep -q 'activeSummaryCounts'
+          git show "origin/main:press-control-v1.js" | grep -q 'heatPressOrders'
+          echo "02CW_FRONTEND_PRODUCTION_PUSH_PASS=$new_sha"
