@@ -1,0 +1,80 @@
+name: Trend Master V1931 Production Read-Only Canary
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trend-master-v1931-prod-readonly-canary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - name: Validate canary credentials exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+
+      - name: Probe Trend Master summary panel read-only route
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const url = process.env.APPS_SCRIPT_URL;
+          const username = String(process.env.QUALIFY_USERNAME || '').trim();
+          const token = String(process.env.QUALIFY_EMPLOYEE_TOKEN || '').trim();
+          async function readJson(attempts = 3) {
+            let last;
+            for (let i = 1; i <= attempts; i++) {
+              try {
+                const response = await fetch(url, {
+                  method: 'POST',
+                  headers: {
+                    accept: 'application/json',
+                    'content-type': 'text/plain;charset=utf-8'
+                  },
+                  body: JSON.stringify({
+                    action: 'getTrendMasterPanelV1931',
+                    panel: 'summary',
+                    username,
+                    token
+                  }),
+                  cache: 'no-store'
+                });
+                const raw = await response.text();
+                let body;
+                try { body = JSON.parse(raw || '{}'); }
+                catch { throw new Error('Apps Script returned invalid JSON'); }
+                return { status: response.status, body };
+              } catch (error) {
+                last = error;
+                if (i < attempts) await new Promise(resolve => setTimeout(resolve, 1500 * i));
+              }
+            }
+            throw last;
+          }
+          (async () => {
+            const result = await readJson();
+            assert.equal(result.status, 200, 'Apps Script HTTP status');
+            assert.equal(result.body.success, true, 'Trend Master panel route is not published/healthy');
+            assert.equal(result.body.panel, 'summary', 'Unexpected panel response');
+            assert.equal(result.body.version, 'V1931_TREND_MASTER_PANEL_READ_V1', 'Unexpected backend version');
+            assert.ok(result.body.system && typeof result.body.system === 'object', 'Missing summary system payload');
+            console.log('TREND_MASTER_V1931_PROD_READONLY_CANARY_PASS');
+          })().catch(error => {
+            console.error(error && error.stack ? error.stack : error);
+            process.exit(1);
+          });
+          NODE
