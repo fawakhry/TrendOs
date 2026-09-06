@@ -93,10 +93,14 @@ assert.equal(body.rows[0].debtNotes, 'مراجعة حساب');
 assert.equal(body.statusCounts['طلب جديد'], 1);
 assert.equal(body.statusOrderCounts['طلب جديد'], 1);
 assert.equal(body.pagination.totalRows, 1);
+assert.equal(body.activeSummaryCounts.total, 1);
+assert.equal(body.activeSummaryCounts.orderCount, 1);
 assert.equal(body.mirrors.length, 3);
 
 assert.equal((await call('query=5001')).body.pagination.totalRows, 1);
-assert.equal((await call('query=NOTFOUND')).body.pagination.totalRows, 0);
+const notFound = (await call('query=NOTFOUND')).body;
+assert.equal(notFound.pagination.totalRows, 0);
+assert.equal(notFound.activeSummaryCounts.total, 1, 'global active summary must not collapse with page/search filtering');
 assert.equal((await call('statusFilter=__ACTIVE__')).body.pagination.totalRows, 1);
 assert.equal((await call('statusFilter=تم%20التسليم')).body.pagination.totalRows, 0);
 assert.equal((await call('priorityFilter=عاجل')).body.pagination.totalRows, 0);

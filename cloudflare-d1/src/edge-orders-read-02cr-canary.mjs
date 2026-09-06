@@ -1,5 +1,6 @@
 import {
   buildDashboardFromRows,
+  buildOrdersSummary,
   mapMirrorRows,
   verifyOrdersEdgeToken
 } from './edge-orders-read-v1.mjs';
@@ -244,6 +245,8 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
     const mapped = mapMirrorRows(lines.headers, lines.rows, screen);
     const enriched = sortOperationalRows(enrichFromMirrors02CR(mapped, customers, restrictions, new Date()), screen);
     const counts = statusCounts(enriched);
+    const activeRows = enriched.filter((row) => rowMatchesAppsFilters(row, { statusFilter:'__ACTIVE__' }));
+    const activeSummaryCounts = buildOrdersSummary(activeRows);
     const filtered = enriched.filter((row) => rowMatchesAppsFilters(row, params));
     const dashboard = buildDashboardFromRows(enriched, screen);
     const pageSize = clampInt(params.pageSize, 20, 5, 100);
@@ -257,6 +260,7 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
       success:true,
       rows:filtered.slice(start, start + pageSize),
       dashboard,
+      activeSummaryCounts,
       pagination:{ page, pageSize, totalRows, totalPages, hasOlder:page < totalPages },
       statusCounts:counts.statusCounts,
       statusOrderCounts:counts.statusOrderCounts,

@@ -525,6 +525,49 @@ export function filterRows(rows, params) {
   });
 }
 
+export function buildOrdersSummary(rows) {
+  const summary = {
+    total: 0,
+    orderCount: 0,
+    urgent: 0,
+    normal: 0,
+    delayedPriority: 0,
+    overdue: 0,
+    debts: 0,
+    heatPress: 0,
+    heatPressOrders: 0,
+    flyPrint: 0,
+    cancelled: 0,
+    problems: 0
+  };
+  const orders = new Set();
+  const pressOrders = new Set();
+  for (const row of rows || []) {
+    summary.total += 1;
+    const orderId = text(row && row.orderId);
+    if (orderId) orders.add(orderId);
+    const priority = text(row && row.priority);
+    if (priority === 'عاجل' || priority === 'VIP') summary.urgent += 1;
+    else if (!priority || priority === 'عادي') summary.normal += 1;
+    else if (priority === 'مؤجل') summary.delayedPriority += 1;
+    if (text(row && row.overdue) === 'نعم') summary.overdue += 1;
+    if (parseDebt(row && row.debtAmount) > 0) summary.debts += 1;
+    const press = isHeatPress(row && row.heatPress);
+    if (press) {
+      summary.heatPress += 1;
+      if (orderId) pressOrders.add(orderId);
+    }
+    const fly = text(row && (row.flyPrint || row.quickPrint || row.fastPrint)).toLowerCase();
+    if (['نعم','true','1','on','طباعة على الطاير','طباعة ع الطاير','على الطاير','ع الطاير'].includes(fly)) summary.flyPrint += 1;
+    const status = text(row && row.status);
+    if (status === 'ملغى' || status === 'ملغي') summary.cancelled += 1;
+    if (status === 'متوقف') summary.problems += 1;
+  }
+  summary.orderCount = orders.size;
+  summary.heatPressOrders = pressOrders.size;
+  return summary;
+}
+
 async function readMirror(env) {
   const catalog = await env.DB.prepare(`SELECT headers_json AS headersJson, source_last_row AS sourceLastRow, source_last_col AS sourceLastCol, row_count AS rowCount, status, synced_at AS syncedAt, note FROM sheet_catalog WHERE sheet_name = ? LIMIT 1`).bind(LINES_SHEET).first();
   if (!catalog) throw new Error('Orders mirror sheet is missing');
