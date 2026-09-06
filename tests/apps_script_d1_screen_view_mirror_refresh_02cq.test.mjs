@@ -16,6 +16,7 @@ for (const name of requiredTargets) {
 
 assert.match(source, /TRENDOS_PERF_CF_02CQ_SCREEN_VIEW_REFRESH_ENABLED/);
 assert.match(source, /refreshD1ScreenViewMirrors02CQ/);
+assert.match(source, /runD1ScreenViewMirrorRefresh02CQOnce/);
 assert.match(source, /getD1ScreenViewMirrorRefresh02CQStatus/);
 assert.match(source, /atomicAction:\s*'stage'/);
 assert.match(source, /atomicAction:\s*'promote'/);
@@ -29,7 +30,7 @@ assert.match(source, /D1_SCREEN_VIEW_REFRESH_02CQ_NOTE/);
 
 // Default-OFF must be a hard gate before the executable refresh path can stage/promote.
 const refreshStart = source.indexOf('function refreshD1ScreenViewMirrors02CQ()');
-const refreshEnd = source.indexOf('function getD1ScreenViewMirrorRefresh02CQStatus()', refreshStart);
+const refreshEnd = source.indexOf('function runD1ScreenViewMirrorRefresh02CQOnce()', refreshStart);
 assert.ok(refreshStart >= 0 && refreshEnd > refreshStart, 'Refresh function boundaries missing');
 const refreshBody = source.slice(refreshStart, refreshEnd);
 const gateIndex = refreshBody.indexOf('if (!d1ScreenViewRefresh02CQEnabled_())');
@@ -38,6 +39,19 @@ const promoteCallIndex = refreshBody.indexOf("atomicAction: 'promote'");
 assert.ok(gateIndex >= 0, 'Default-OFF gate missing');
 assert.ok(stageCallIndex > gateIndex, 'Stage call appears before default-OFF gate');
 assert.ok(promoteCallIndex > gateIndex, 'Promote call appears before default-OFF gate');
+
+// Preferred one-shot runner must open only this gate and always clear it in finally.
+const onceStart = source.indexOf('function runD1ScreenViewMirrorRefresh02CQOnce()');
+const onceEnd = source.indexOf('function getD1ScreenViewMirrorRefresh02CQStatus()', onceStart);
+assert.ok(onceStart >= 0 && onceEnd > onceStart, 'One-shot runner boundaries missing');
+const onceBody = source.slice(onceStart, onceEnd);
+assert.match(onceBody, /if \(before === '1'\)/);
+assert.match(onceBody, /props\.setProperty\(D1_SCREEN_VIEW_REFRESH_02CQ_ENABLED_KEY, '1'\)/);
+assert.match(onceBody, /return refreshD1ScreenViewMirrors02CQ\(\)/);
+assert.match(onceBody, /finally\s*\{/);
+assert.match(onceBody, /props\.deleteProperty\(D1_SCREEN_VIEW_REFRESH_02CQ_ENABLED_KEY\)/);
+assert.equal((onceBody.match(/setProperty\(/g) || []).length, 1, 'One-shot runner must set exactly one Script Property');
+assert.equal((onceBody.match(/deleteProperty\(/g) || []).length, 1, 'One-shot runner must clear exactly one Script Property');
 
 // 02CQ must not broaden into the old all-sheet migration or cutover lanes.
 const forbidden = [
