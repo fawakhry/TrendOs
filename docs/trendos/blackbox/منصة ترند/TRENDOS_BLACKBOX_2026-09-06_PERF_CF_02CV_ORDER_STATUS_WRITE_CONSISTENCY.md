@@ -7,227 +7,180 @@ Working branch: `agent/go-live-2026-09-01-integrity`
 
 ## Status
 
-**PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — USER-VISIBLE VALIDATION PENDING**
+**CLOSED — TECHNICAL + PRODUCTION PASS — USER ACCEPTED CLOSURE — LIVE VALIDATION DEFERRED**
+
+## Closure decision
+
+User instruction on 2026-09-06:
+
+`مفيش عندى حاليا حاجة اجرب عليها اقفله ولو طلع فيه مشاكل فيما بعد نرجعله تانى`
+
+Classification of this closure:
+
+- 02CV is closed now by explicit user acceptance;
+- there is no suitable live row currently available to repeat the final user-visible test;
+- **no user-visible PASS is fabricated or recorded**;
+- live validation is intentionally deferred;
+- if save/repaint/Fly Print symptoms reappear, reopen 02CV or create a new bounded checkpoint with the new live evidence.
 
 ## Initial user report
 
 `بعد كده شوف حالات الاوردر لما بغيرها واعمل حفظ مش بتحفظ`
 
-02CU remains CLOSED. 02CV is a separate order-status write/read consistency checkpoint.
+02CU remained CLOSED. 02CV was opened as a separate order-status write/read consistency checkpoint.
 
-## Initial root cause and fix
+## Confirmed initial root cause
 
-Two hazards were confirmed:
+Two consistency hazards were confirmed:
 
-1. D1 `rowNumber` is a mirror coordinate, not a stable write identity. Apps Script `updateLine_` trusted rowNumber before `lineId`.
-2. A successful Sheets write could be followed by an older-but-still-qualified D1 read, repainting the pre-write status.
+1. D1 `rowNumber` is a mirror coordinate, not a stable write identity. Existing Apps Script `updateLine_` trusted `rowNumber` before stable `lineId`.
+2. A successful Sheets write could be followed by an older-but-still-qualified D1 read, repainting the pre-write status and making a successful save appear not to persist.
 
-Frontend wrapper fix `EDGE_ORDERS_READ_02CV_WRITE_CONSISTENCY_20260906`:
+## Initial fix
 
-- `updateLine` remains Apps Script / Sheets only.
-- if stable `lineId` exists, the wrapper omits D1 `rowNumber` before the write.
-- successful writes open a bounded local post-write Apps Script read barrier.
-- normal D1-first `/02cr` behavior resumes after the barrier.
+Frontend wrapper version:
+
+`EDGE_ORDERS_READ_02CV_WRITE_CONSISTENCY_20260906`
+
+Behavior:
+
+- `updateLine` remains Apps Script / Sheets only;
+- when stable `lineId` exists, stale D1 `rowNumber` is omitted before the authoritative write;
+- successful writes open a bounded local post-write Apps Script read barrier;
+- normal D1-first `/02cr` behavior resumes after the barrier;
 - rejected writes do not open the barrier.
 
-Initial Production main: `0088ed5625e8359f8551525ae41df3b25248b494`.
+Initial Production main after this fix:
+
+`0088ed5625e8359f8551525ae41df3b25248b494`
+
 Initial Pages Run `34035270632` — **SUCCESS**.
-Integrity Run `34035164288` — **SUCCESS**.
+Initial Integrity Run `34035164288` — **SUCCESS**.
 
-## First follow-up user report
+## Follow-up UX issue
 
-`بيعمل تم الحفظ بس الاوردر مش بيختفر بعد الحفظ لازم اعمل رفريش عشان يختفى وبياخد وقت كبير فى الحفز و الطباعة على الطاير مش بااعلم جنبها يعنى العلامة بتاع طباعة ع الطاير اختفت`
+User then reported that:
 
-Three UX symptoms were isolated:
+- save showed success but hidden-status rows did not disappear until Refresh;
+- save felt slow because another Orders load started;
+- `⚡ طباعة على الطاير` was no longer visible beside status.
 
-1. hidden statuses did not disappear immediately after successful save;
-2. the immediate post-save `loadRows(true)` caused another authoritative Apps Script page read during the 02CV barrier, keeping the UI in a loading state and making save feel slow;
-3. the Fly Print marker was not visible where the user expected it next to status.
+The UX fix:
 
-### First Fly Print read-only qualification
-
-A temporary read-only D1 probe verified the data path without exposing business-row contents and without any D1 write:
-
-- `بنود الأوردرات` mirror: 378 / 378 rows, 82 columns, `ready`;
-- fly header exists as `طباعة على الطاير` at index 44;
-- D1 data rows: 377;
-- affirmative Fly Print rows: 38;
-- Worker `mapMirrorRows(..., 'print')`: 171 print rows, all 38 Fly Print rows preserved.
-
-Read-only mapper qualification Run `34036288004` — **SUCCESS**.
-
-### First follow-up UX fix
+- locally re-renders state immediately after successful `updateLine`;
+- removes immediate post-save `loadRows(true)`;
+- hidden statuses can disappear immediately without waiting for another page read;
+- status rendering uses the existing badge path so `⚡ طباعة على الطاير` is visible;
+- no write authority was moved away from Apps Script / Sheets.
 
 Qualified candidate Run `34036609469` — **SUCCESS**.
-
-Production patch changed only `app.js` + `index.html` cache-bust and made these changes:
-
-- after `updateLine` success, local row state is re-rendered immediately with `applyFiltersAndRender(false)`;
-- hidden statuses disappear immediately without waiting for a second page read;
-- immediate post-save `loadRows(true)` removed;
-- success state ends with `تم حفظ التعديل في الشيت.`;
-- status cell uses existing `statusBadges(r)` so priority + press + `⚡ طباعة على الطاير` are visible beside status;
-- cache-bust became `trendos-02cv-statusux-20260906b`.
-
 Production promotion Run `34036640992` — **SUCCESS**.
-Production main became `b4a87493ca9ce7507fc342e9b39f91449395fb46`.
-GitHub Pages Run `34036646377` — **SUCCESS**.
+Production main at that stage: `b4a87493ca9ce7507fc342e9b39f91449395fb46`.
+Pages Run `34036646377` — **SUCCESS**.
 
-## Second follow-up user report — Fly Print marker disappears after sheet change
+## Fly Print regression after sheet changes
 
 User then reported:
 
 `العلامة بتظهر بس اول لما اغير حاجة فى الشيت بتطير`
 
-This narrowed the issue: the marker could render correctly initially but disappear after a later sheet/read refresh.
+A post-edit read-only qualification proved the source path had **not** lost the Fly Print values:
 
-### Post-edit live read-only proof
-
-A new read-only probe was run **after the user's sheet edit**.
-
-Run `34038294884` — **SUCCESS**.
-
-Live D1 state at that time:
-
-- Lines sourceLastRow: 381;
-- Lines sourceLastCol: 82;
-- Lines rowCount: 381;
-- catalog status: `ready`;
-- note: `TrendOS orders live sync V2 quota-aware`;
-- Fly Print header still index 44 as `طباعة على الطاير`;
+- D1 Lines mirror: 381 / 381 rows, 82 columns, `ready`;
 - D1 data rows: 380;
 - affirmative Fly Print rows: **39**;
-- Worker print mapper rows: 173;
-- Worker mapped Fly Print rows: **39**.
+- Worker print mapper preserved **39/39**.
 
-Therefore the user's sheet change did **not** erase Fly Print from Sheets→D1 mirror semantics, and the Worker preserved all 39/39 values.
+Read-only Run `34038294884` — **SUCCESS**.
 
-This excluded D1 sync as the cause. No D1 sync code was changed.
+This excluded D1 live sync as the cause.
 
-### Read-lane/frontend root cause class
+## Fly Print lane-stability root cause and fix
 
-The main frontend `loadRows()` replaces `state.rows` with the active read response. The platform can legitimately switch between qualified D1-first and an Apps Script fallback/barrier lane.
+The frontend replaces `state.rows` when the active read lane changes or refreshes. A later payload for the same line that omitted Fly Print fields could replace a previously complete row and remove the visible badge even though D1 still retained the marker.
 
-If a subsequent row payload for the same line omits Fly Print fields entirely, replacing the prior complete row removes the only fields used by `isFlyPrint(...)`, so the visible badge disappears although D1 still contains the affirmative marker.
-
-The GitHub Apps Script source itself maps `flyPrint` / `quickPrint`; a direct live Apps Script comparison probe could not be treated as authoritative because the stored qualification credential returned `success:false` before rows were returned. No conclusion about the deployed Apps Script payload was inferred from that failed auth probe.
-
-The frontend fix therefore handles only the safe schema-omission case and does not fabricate a source value.
-
-## Fly Print lane-stability fix
-
-Helper added to the frontend:
+Helper added:
 
 `preserveFlyPrintAcrossMissingFields(previousRows, nextRows)`
 
-Rules:
+Guard rules:
 
-1. only a stable `lineId` is used for matching;
+1. only stable `lineId` is used for identity;
 2. only a previously affirmative Fly Print marker is eligible for carry-forward;
-3. carry-forward occurs only when the new row omits **all** known Fly Print fields:
-   - `flyPrint`
-   - `quickPrint`
-   - `fastPrint`
-   - `طباعة على الطاير`
-   - `طباعة ع الطاير`
-4. if the new row explicitly contains any Fly Print field, its value is respected — including `لا` or an explicit blank;
-5. no `orderId` or `rowNumber` fallback is used;
-6. no backend or D1 write is performed by the guard.
+3. carry-forward occurs only if the new payload omits **all** known Fly Print fields;
+4. explicit new values remain authoritative, including `لا` and explicit blank;
+5. no `orderId` / `rowNumber` fallback is used;
+6. the guard performs no backend or D1 business-data write.
 
-`loadRows()` now normalizes the next row page through this helper before replacing `state.rows`.
-
-Cache-bust changed to:
+Production cache-bust:
 
 `trendos-02cv-flylane-20260906c`
 
-### Candidate qualification
+Candidate Run `34039276230` — **SUCCESS**.
 
-Final Candidate Run `34039276230` — **SUCCESS**.
+Production promotion Run `34039313773` — **SUCCESS**.
 
-It verified:
-
-- `PERF_CF_02CV_FLYPRINT_LANE_STABILITY_PASS`;
-- `PERF_CF_02CV_ORDER_STATUS_WRITE_CONSISTENCY_PASS`;
-- `PERF_CF_02CV_ORDER_STATUS_UX_PASS`;
-- JavaScript syntax PASS;
-- exact candidate diff only `app.js` + `index.html`.
-
-Two earlier candidate failures were test-harness-only path/cache-bust expectation issues; the focused lane-stability test itself had already passed. They made no Production change.
-
-### Production promotion
-
-Production baseline was hard-locked to:
-
-`b4a87493ca9ce7507fc342e9b39f91449395fb46`
-
-Promotion Run `34039313773` — **SUCCESS**.
-
-The exact production scope was:
-
-1. `app.js` — lane-stability helper + row replacement normalization;
-2. `index.html` — one `app.js` cache-bust line.
-
-New Production main:
+Final 02CV Production main:
 
 `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
 
-Commit message:
+Production commit message:
 
 `Keep fly-print badge stable across read lanes`
 
-GitHub Pages Run `34039321631` — **SUCCESS** on head `3934fa363b113a4bd494ec501fb5f289f2c48ec1`.
+GitHub Pages Run `34039321631` — **SUCCESS** on the same Production head.
 
-## Durable Integrity guard and cleanup
+## Durable regression and cleanup
 
-The focused regression is now permanent:
+Permanent regression retained:
 
 `tests/frontend_flyprint_lane_stability_02cv.test.mjs`
 
-The normal working-branch Integrity workflow now executes it together with the existing 02CV write-consistency contract. The permanent test verifies:
+The normal Integrity workflow runs it alongside the existing 02CV write-consistency test.
 
-- affirmative Fly Print is preserved when a later payload for the same stable `lineId` omits every Fly Print field;
-- an explicit `لا` remains authoritative;
-- an explicit blank field remains authoritative;
-- unmatched or unstable identities do not receive an invented marker;
+The permanent test verifies:
+
+- affirmative Fly Print survives a later payload that omits every Fly Print field for the same stable `lineId`;
+- explicit `لا` stays authoritative;
+- explicit blank stays authoritative;
+- unmatched or unstable identities do not receive invented markers;
 - Arabic explicit Fly Print fields are respected.
 
-After Production promotion, the following one-use artifacts were removed from the working branch:
+One-use probe/candidate/promotion workflows and the temporary patcher were removed after qualification.
 
-- 02CV Fly Print D1 read-only workflow;
-- 02CV Fly Print live-lanes read-only workflow;
-- 02CV Fly Print lane-stability candidate workflow;
-- 02CV Fly Print promotion workflow;
-- `tools/patch_02cv_flyprint_lane_stability.py`.
+The qualified app logic was also synchronized back to the working branch in a bounded `app.js`-only parity change so the durable regression tests the same protection logic rather than an older working-branch implementation.
 
-The production code and durable regression test remain. Cleanup did not touch `main`, Apps Script, Worker, or D1 business data.
+Final durable parity Integrity Run before closure documentation:
 
-## Authority / safety invariants retained
+`34041121863` — **SUCCESS**.
+
+## Production safety invariants retained
 
 - Apps Script / Sheets remain authoritative for all Orders writes.
 - No order-status write is routed to D1.
-- No Apps Script deployment occurred.
-- No Worker deployment occurred.
+- No Apps Script deployment occurred for 02CV.
+- No Worker deployment occurred for 02CV.
 - Production Worker remains `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%.
-- No D1 business-data write was introduced by this fix.
-- D1 live sync was not modified because post-edit proof showed it retained 39/39 Fly Print values.
+- No D1 business-data write was introduced by the frontend fix.
+- D1 live sync was not modified by the Fly Print fix.
 - `__DEBT__` remains Apps Script.
 - 02CU dual-signal behavior remains intact.
 - 02CL/reconcile remains OFF.
 - generic drain remains OFF.
 - no secret rotation / no `EDGE_SESSION_SECRET` change.
 
-## Remaining close condition
+## Deferred live validation
 
-User-visible validation only:
+The previously planned live close test was:
 
-1. refresh once so `app.js?v=trendos-02cv-flylane-20260906c` loads;
-2. identify a real Fly Print order and confirm `⚡ طباعة على الطاير` is visible;
-3. change/save something or let the sheet/read lane update;
-4. confirm the same Fly Print row keeps the marker;
-5. verify hidden-status save still removes the row immediately and no second long Orders loading cycle appears.
+1. refresh Production once;
+2. identify a real `⚡ طباعة على الطاير` row;
+3. change/save something or allow a read-lane update;
+4. confirm the same row keeps its marker;
+5. verify hidden-status rows disappear immediately after successful save and no second long Orders load occurs.
 
-Do not mark 02CV CLOSED until the user confirms these live behaviors.
+At closure time, the user had no suitable real row available to perform this test. The user explicitly instructed that the checkpoint be closed now and revisited if a future real case exposes a problem.
 
-## Exact stop point
+## Exact closed stop point
 
-`PERF-CF-02CV IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — MAIN 3934fa363b113a4bd494ec501fb5f289f2c48ec1 — PAGES 34039321631 SUCCESS — PROMOTION 34039313773 SUCCESS — CANDIDATE 34039276230 SUCCESS — POST-EDIT D1/WORKER READ-ONLY 34038294884 SUCCESS (39/39 PRESERVED) — D1 SYNC UNCHANGED — FRONTEND CARRY-FORWARD ONLY FOR MISSING FLY FIELDS AND STABLE lineId — EXPLICIT SOURCE VALUES AUTHORITATIVE — TEMP FLY-PRINT PROBE/CANDIDATE/PROMOTION WORKFLOWS + ONE-USE PATCHER CLEANED — PERMANENT REGRESSION TEST RETAINED AND WIRED INTO NORMAL INTEGRITY — WORKER UNCHANGED 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% — NO APPS SCRIPT DEPLOY — APPS SCRIPT/SHEETS WRITE AUTHORITY RETAINED — USER-VISIBLE VALIDATION PENDING`
+`PERF-CF-02CV CLOSED — TECHNICAL + PRODUCTION PASS — USER ACCEPTED CLOSURE — LIVE VALIDATION DEFERRED / NOT RECORDED AS USER-VISIBLE PASS — MAIN 3934fa363b113a4bd494ec501fb5f289f2c48ec1 — PAGES 34039321631 SUCCESS — PROMOTION 34039313773 SUCCESS — CANDIDATE 34039276230 SUCCESS — POST-EDIT D1/WORKER READ-ONLY 34038294884 SUCCESS (39/39 PRESERVED) — DURABLE FLY-PRINT REGRESSION ACTIVE — DURABLE PARITY INTEGRITY 34041121863 SUCCESS — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% UNCHANGED — NO APPS SCRIPT DEPLOY — APPS SCRIPT/SHEETS WRITE AUTHORITY RETAINED — REOPEN 02CV OR OPEN A NEW BOUNDED CHECKPOINT IF THE LIVE SYMPTOM REAPPEARS`
