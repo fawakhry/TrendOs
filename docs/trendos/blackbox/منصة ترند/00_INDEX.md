@@ -2,6 +2,32 @@
 
 هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**. لا تبدأ Inventory جديدًا ولا تعِد تصميم المسار؛ ابدأ دائمًا من `01_CURRENT_STATE.md` ثم السجل المرتبط بالـcheckpoint الحالي.
 
+## Current active checkpoint — PERF-CF-02CW
+
+`PERF-CF-02CW — Global Counters / Default Filters / Press Queue Totals`
+
+الحالة: **IN PROGRESS — DIAGNOSIS COMPLETE — CANDIDATE PATCH PENDING**
+
+السجل:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CW_GLOBAL_COUNTERS_DEFAULT_FILTERS_PRESS_TOTALS.md`
+
+النطاق:
+
+- عدادات شاشة القسم تعرض إجمالي الحالات الجارية عبر كل الصفحات، لا الصفحة الحالية فقط؛
+- الفلتر الافتراضي `الحالات الجارية فقط` + `كل الأولويات`؛
+- متابعة المكبس تعرض إجمالي أوردرات المكبس المميزة عبر الـQueue الجاري كله؛
+- لا Apps Script Production deploy؛
+- لا D1 write/migration؛
+- أي Worker deploy يكون code-only بعد qualification وبدون secret rotation.
+
+Production baseline عند فتح 02CW:
+
+- main: `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
+- Worker: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
+
+---
+
 ## PERF-CF-02CV — CLOSED
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
