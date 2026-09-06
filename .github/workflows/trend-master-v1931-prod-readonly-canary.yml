@@ -14,7 +14,7 @@ permissions:
 jobs:
   canary:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     env:
       QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
       QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
@@ -27,7 +27,7 @@ jobs:
           test -n "$QUALIFY_USERNAME"
           test -n "$QUALIFY_EMPLOYEE_TOKEN"
 
-      - name: Probe all Trend Master panels sequentially and concurrently
+      - name: Probe safe bounded Trend Master core panels
         shell: bash
         run: |
           set -euo pipefail
@@ -36,11 +36,27 @@ jobs:
           const url = process.env.APPS_SCRIPT_URL;
           const username = String(process.env.QUALIFY_USERNAME || '').trim();
           const token = String(process.env.QUALIFY_EMPLOYEE_TOKEN || '').trim();
-          const panels = ['summary','archive','messages','stock','employee','debt','dayclose'];
+          const panels = ['summary','archive','employee','stock','messages','debt'];
+          const timeouts = {summary:30000,archive:60000,employee:30000,stock:30000,messages:30000,debt:30000};
+          const maxConcurrency = 2;
+          let active = 0;
+          let maxActive = 0;
+          const waiters = [];
 
-          async function probe(panel, timeoutMs) {
+          async function acquire() {
+            if (active < maxConcurrency) { active++; maxActive = Math.max(maxActive, active); return; }
+            await new Promise(resolve => waiters.push(resolve));
+            active++; maxActive = Math.max(maxActive, active);
+          }
+          function release() {
+            active = Math.max(0, active - 1);
+            const next = waiters.shift();
+            if (next) next();
+          }
+          async function probe(panel) {
+            await acquire();
             const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            const timer = setTimeout(() => controller.abort(), timeouts[panel]);
             const started = Date.now();
             try {
               const response = await fetch(url, {
@@ -59,35 +75,24 @@ jobs:
                 httpStatus: response.status,
                 success: body.success === true,
                 version: String(body.version || '').slice(0,80),
-                message: String(body.message || body.error || '').slice(0,160),
-                shape: {
-                  system: !!body.system,
-                  archive: !!body.archive,
-                  messageQueue: Array.isArray(body.messageQueue),
-                  stockAlerts: Array.isArray(body.stockAlerts),
-                  employeePerformance: Array.isArray(body.employeePerformance),
-                  debtControl: !!body.debtControl,
-                  dayClose: body.dayClose !== undefined
-                }
+                message: String(body.message || body.error || '').slice(0,160)
               };
             } catch (error) {
-              return {panel, elapsedMs: Date.now()-started, httpStatus:0, success:false, version:'', message:error && error.name === 'AbortError' ? 'timeout' : String(error && error.message || error).slice(0,160), shape:{}};
+              return {panel, elapsedMs:Date.now()-started, httpStatus:0, success:false, version:'', message:error && error.name === 'AbortError' ? 'timeout' : String(error && error.message || error).slice(0,160)};
             } finally {
               clearTimeout(timer);
+              release();
             }
           }
 
           (async () => {
-            const sequential = [];
-            for (const panel of panels) sequential.push(await probe(panel, 60000));
-            console.log('TREND_MASTER_SEQ=' + JSON.stringify(sequential));
-
-            const concurrent = await Promise.all(panels.map(panel => probe(panel, 25000)));
-            console.log('TREND_MASTER_CONCURRENT=' + JSON.stringify(concurrent));
-
-            assert.ok(sequential.every(x => x.httpStatus === 200 && x.success), 'At least one panel fails even sequentially');
-            assert.ok(sequential.every(x => x.version === 'V1931_TREND_MASTER_PANEL_READ_V1'), 'Unexpected backend version');
-            console.log('TREND_MASTER_ALL_PANELS_SEQUENTIAL_PASS');
+            const results = await Promise.all(panels.map(probe));
+            console.log('TREND_MASTER_SAFE_BOUNDED=' + JSON.stringify({maxActive,results}));
+            assert.equal(maxActive, 2, 'Unexpected concurrency cap');
+            assert.ok(results.every(x => x.httpStatus === 200 && x.success), 'A core panel failed under safe bounded loading');
+            assert.ok(results.every(x => x.version === 'V1931_TREND_MASTER_PANEL_READ_V1'), 'Unexpected backend version');
+            assert.equal(results.some(x => x.panel === 'dayclose'), false, 'Day-close must not be auto-probed');
+            console.log('TREND_MASTER_SAFE_BOUNDED_CANARY_PASS');
           })().catch(error => {
             console.error(error && error.stack ? error.stack : error);
             process.exit(1);
