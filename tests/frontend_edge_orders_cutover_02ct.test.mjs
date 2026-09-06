@@ -14,6 +14,15 @@ function response(status, body) {
   };
 }
 
+function freshMirrors(ageMs = 1000) {
+  const syncedAt = new Date(Date.now() - ageMs).toISOString();
+  return [
+    { sheetName: 'بنود الأوردرات', status: 'ready', rowCount: 355, sourceLastRow: 355, syncedAt },
+    { sheetName: 'العملاء', status: 'ready', rowCount: 200, sourceLastRow: 200, syncedAt },
+    { sheetName: 'عملاء منع التسليم بالمديونية', status: 'ready', rowCount: 20, sourceLastRow: 20, syncedAt }
+  ];
+}
+
 const calls = [];
 let pageMode = 'ok';
 let originalCalls = 0;
@@ -21,6 +30,7 @@ let originalCalls = 0;
 const window = {
   MATBAGY_EDGE_ORDERS_READ_V1_ENABLED: true,
   MATBAGY_EDGE_ORDERS_API_URL: 'https://edge.test',
+  MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS: 5 * 60 * 1000,
   state: { user: { username: 'employee', token: 'employee-token' } },
   trendosSecureApiV1922: async function (action, params) {
     originalCalls += 1;
@@ -47,7 +57,7 @@ const context = {
       return response(200, { success: true, edgeToken: 'edge-token', expiresIn: 600 });
     }
     if (String(url).includes('/v1/edge/orders/02cr/page?')) {
-      if (pageMode === 'ok') return response(200, { success: true, version: 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY', rows: [{ orderId: '1' }] });
+      if (pageMode === 'ok') return response(200, { success: true, version: 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY', rows: [{ orderId: '1' }], mirrors: freshMirrors() });
       if (pageMode === 'invalid-json') return response(200, 'not-json');
       return response(500, { success: false, message: 'edge failed' });
     }
