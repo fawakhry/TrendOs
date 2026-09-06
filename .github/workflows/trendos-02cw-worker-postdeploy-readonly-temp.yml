@@ -1,0 +1,68 @@
+name: TrendOS 02CW Worker Postdeploy Readonly Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-worker-postdeploy-readonly-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos.trendmall-contact.workers.dev
+      PROD_ALIAS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only production checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          for base in "$PROD_URL" "$PROD_ALIAS_URL"; do
+            echo "HEALTH_BASE=$base"
+            code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/edge-health.json --write-out '%{http_code}' "$base/v1/edge/health")"
+            echo "HEALTH_HTTP=$code"
+            cat /tmp/edge-health.json
+            test "$code" = '200'
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
+          done
+
+          for sheet in 'الأوردرات' 'بنود الأوردرات'; do
+            echo "MIRROR_SHEET=$sheet"
+            curl --fail --silent --show-error --get --data-urlencode "name=$sheet" --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/mirror.json
+            cat /tmp/mirror.json
+            node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/mirror.json','utf8')),s=x.sheet||{};
+          console.log('MIRROR_SUMMARY='+JSON.stringify({success:x.success,schemaMutationFree:x.schemaMutationFree,status:s.status,rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,syncedAt:s.syncedAt}));
+          if(!x.success||x.schemaMutationFree!==true||s.status!=='ready') process.exit(1);
+          NODE
+          done
+
+          anon="$(curl --silent --show-error --output /tmp/anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__")"
+          echo "ANON_HTTP=$anon"
+          cat /tmp/anon.json
+          test "$anon" = '401'
+
+          write_code="$(curl --silent --show-error --output /tmp/write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          echo "WRITE_HEALTH_HTTP=$write_code"
+          cat /tmp/write.json
+          test "$write_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+
+          npm install --no-save wrangler@4.33.2 >/dev/null
+          npx wrangler deployments list --config cloudflare-d1/wrangler.toml | tail -n 40
+          echo '02CW_WORKER_POSTDEPLOY_READONLY_PASS'
