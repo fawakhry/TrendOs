@@ -5,8 +5,9 @@
   if(window.MATBAGY_CUSTOMER_FEEDBACK_V1===false) return;
   const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim();
   if(!API_URL)return;
-  const INTERVAL=2*60*1000;
-  const MIN_SCAN_MS=90*1000;
+  const INTERVAL=10*60*1000;
+  const MIN_SCAN_MS=8*60*1000;
+  const AUTO_SCAN=window.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1===true;
   let timer=null,busy=false,lastScanAt=0;
   function state(){return window.trendosState||window.state||{};}
   function user(){return state().user||null;}
@@ -20,7 +21,7 @@
     busy=true;lastScanAt=Date.now();
     try{return await api('scan');}catch(e){return {success:false,message:String(e&&e.message||e)};}finally{busy=false;}
   }
-  function start(){if(timer)return;scan({force:true,source:'boot'});timer=setInterval(function(){scan({source:'interval'});},INTERVAL);window.addEventListener('focus',function(){scan({source:'focus'});});}
+  function start(){if(timer||!AUTO_SCAN)return;setTimeout(function(){scan({source:'boot-delayed'});},15000);timer=setInterval(function(){scan({source:'interval'});},INTERVAL);window.addEventListener('focus',function(){scan({source:'focus'});});}
   const w=setInterval(()=>{if(ready()){clearInterval(w);start();}},500);
   window.TrendCustomerFeedbackV1={scan:function(){return scan({force:true,source:'manual'});}};
 })();

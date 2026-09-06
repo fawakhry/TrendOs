@@ -36,6 +36,6 @@
   async function handoff(){if(!state.selected)return;await api("handoff",{phone:state.selected.phone});await load();}
   async function resolve(){if(!state.selected)return;await api("resolve",{phone:state.selected.phone});await load();}
   function click(e){const a=e.target&&e.target.dataset&&e.target.dataset.cm;if(a==="close")state.modal.classList.remove("open");else if(a==="refresh")load();else if(a==="suggest")suggest();else if(a==="send")send();else if(a==="handoff")handoff();else if(a==="resolve")resolve();const row=e.target.closest&&e.target.closest(".cm-row");if(row&&row.dataset.i!==undefined)select(state.rows[Number(row.dataset.i)]);}
-  function wait(){const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);if(!isManager())return;api("inbox",{limit:1}).then(()=>{build();if(state.timer)clearInterval(state.timer);state.timer=setInterval(()=>{if(state.modal&&state.modal.classList.contains("open"))load();},60000);}).catch(()=>{});}},800);}
+  function wait(){const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);if(!isManager())return;build();if(state.timer)clearInterval(state.timer);state.timer=setInterval(()=>{if(state.modal&&state.modal.classList.contains("open"))load();},60000);}},800);}
   wait();
 })();

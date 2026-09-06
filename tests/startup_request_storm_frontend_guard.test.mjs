@@ -1,0 +1,28 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read = p => fs.readFileSync(p,'utf8');
+const feedback=read('customer-feedback-v1.js');
+const gla=read('go-live-autopilot-v1.js');
+const cm=read('customer-manager-v1.js');
+const att=read('attendance-v1.js');
+const strips=read('employee-manager-strips-v2.js');
+const cfg=read('config.js');
+
+assert.match(feedback,/AUTO_SCAN=window\.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1===true/);
+assert.match(feedback,/if\(timer\|\|!AUTO_SCAN\)return/);
+assert.doesNotMatch(feedback,/scan\(\{force:true,source:'boot'\}\)/);
+assert.match(gla,/AUTO_SWEEP=window\.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1===true/);
+assert.match(gla,/backgroundSweep\(\)\{if\(!canReview\(\)\|\|!user\(\)\|\|!user\(\)\.token\)return \{skipped:true\}/);
+assert.match(gla,/async function open\(\)\{ui\.modal\.classList\.add\('open'\);await refresh\(\);\}/);
+assert.doesNotMatch(gla,/clearInterval\(wait\);backgroundSweep\(\)/);
+assert.doesNotMatch(cm,/api\("inbox",\{limit:1\}\)\.then/);
+assert.match(cm,/clearInterval\(t\);if\(!isManager\(\)\)return;build\(\)/);
+assert.match(att,/const detectedNow = ui\.mode === "detect";/);
+assert.match(att,/if \(ui\.mode === "backend" && !detectedNow\)/);
+assert.match(strips,/setTimeout\(function\(\)\{refresh\(\{source:'boot-delayed'\}\);\},5000\)/);
+assert.match(strips,/TrendPollCoordinatorV1/);
+assert.match(cfg,/MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false/);
+assert.match(cfg,/MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false/);
+assert.match(cfg,/attendance-v1\.js\?v=20260906perf1/);
+assert.match(cfg,/go-live-autopilot-v1\.js\?v=20260906perf1/);
+console.log('STARTUP_REQUEST_STORM_FRONTEND_GUARD_PASS');

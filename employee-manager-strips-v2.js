@@ -82,7 +82,7 @@
     d.querySelectorAll('[data-strip]').forEach(b=>b.addEventListener('click',()=>{const p=d.querySelector('[data-panel="'+b.dataset.strip+'"]');p.classList.toggle('open');}));
     d.querySelector('[data-send]').addEventListener('click',sendReply);
     d.querySelector('[data-reply]').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply();}});
-    render();refresh({force:true,source:'boot'});ui.timer=setInterval(function(){refresh({source:'interval'});},REFRESH_MS);window.addEventListener('focus',function(){refresh({source:'focus'});});
+    render();setTimeout(function(){refresh({source:'boot-delayed'});},5000);ui.timer=setInterval(function(){refresh({source:'interval'});},REFRESH_MS);window.addEventListener('focus',function(){refresh({source:'focus'});});
   }
   function renderConversation(){
     if(!ui.root)return;const chat=ui.root.querySelector('[data-chat]'),c=conversation();

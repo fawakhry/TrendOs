@@ -319,8 +319,9 @@
   async function loadState() {
     const user = currentUser();
     if (!user || !user.token) return;
+    const detectedNow = ui.mode === "detect";
     await detectMode();
-    if (ui.mode === "backend") {
+    if (ui.mode === "backend" && !detectedNow) {
       try {
         const out = await callAttendanceBackend("state");
         ui.current = out.state || { status: "not_started" };
