@@ -31,6 +31,7 @@ jobs:
           cp tests/frontend_flyprint_lane_stability_02cv.test.mjs /tmp/frontend_flyprint_lane_stability_02cv.test.mjs
           cp tests/frontend_order_status_write_consistency_02cv.test.mjs /tmp/frontend_order_status_write_consistency_02cv.test.mjs
           cp tests/frontend_order_status_ux_02cv.test.mjs /tmp/frontend_order_status_ux_02cv.test.mjs
+          sed -i 's/trendos-02cv-statusux-20260906b/trendos-02cv-flylane-20260906c/g' /tmp/frontend_order_status_ux_02cv.test.mjs
 
       - name: Assemble exact production candidate
         shell: bash
@@ -53,7 +54,7 @@ jobs:
           set -euo pipefail
           TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_flyprint_lane_stability_02cv.test.mjs
           node /tmp/02cv-fly-candidate/tests/__02cv_write_consistency_temp.test.mjs
-          node /tmp/02cv-fly-candidate/tests/__02cv_status_ux_temp.test.mjs
+          TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/02cv-fly-candidate/tests/__02cv_status_ux_temp.test.mjs
           node --check /tmp/02cv-fly-candidate/app.js
           rm -f /tmp/02cv-fly-candidate/tests/__02cv_write_consistency_temp.test.mjs /tmp/02cv-fly-candidate/tests/__02cv_status_ux_temp.test.mjs
 
@@ -64,10 +65,11 @@ jobs:
           cd /tmp/02cv-fly-candidate
           mapfile -t files < <(git diff --name-only)
           printf 'CHANGED_FILES=%s\n' "${files[*]}"
-          test "${#files[@]}" -eq 1
-          test "${files[0]}" = 'app.js'
+          test "${#files[@]}" -eq 2
+          printf '%s\n' "${files[@]}" | grep -qx 'app.js'
+          printf '%s\n' "${files[@]}" | grep -qx 'index.html'
           git diff --check
-          git diff -- app.js
+          git diff -- app.js index.html
 
       - name: Candidate pass
         run: echo '02CV_FLYPRINT_LANE_STABILITY_CANDIDATE_PASS'
