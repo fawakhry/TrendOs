@@ -6,7 +6,8 @@ import {
 import { enrichFromMirrors02CR } from './edge-orders-operational-enrichment-02cr.mjs';
 
 const PATH_02CR = '/v1/edge/orders/02cr/page';
-const NOTE_02CR = 'PERF-CF-02CR operational mirror V1';
+const LINES_NOTE_02CR = 'TrendOS orders live sync V2 quota-aware';
+const ENRICHMENT_NOTE_02CR = 'PERF-CF-02CR enrichment live sync V1';
 const SHEETS_02CR = Object.freeze({
   lines: 'بنود الأوردرات',
   customers: 'العملاء',
@@ -106,18 +107,14 @@ async function readMirror(env, sheetName) {
     values: JSON.parse(r.valuesJson || '[]'),
     display: JSON.parse(r.displayJson || '[]')
   }));
-  return {
-    catalog,
-    headers: JSON.parse(catalog.headersJson || '[]'),
-    rows
-  };
+  return { catalog, headers: JSON.parse(catalog.headersJson || '[]'), rows };
 }
 
-function mirrorQualified(mirror) {
+function mirrorQualified(mirror, expectedNote) {
   const c = mirror && mirror.catalog || {};
   return text(c.status) === 'ready' &&
     Number(c.rowCount || 0) === Number(c.sourceLastRow || 0) &&
-    text(c.note) === NOTE_02CR;
+    text(c.note) === text(expectedNote);
 }
 
 function safeMirrorMeta(sheetName, mirror) {
@@ -140,25 +137,17 @@ export function isEdgeOrders02CRPath(path) {
 export async function handleEdgeOrders02CRCanaryRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
-  if (request.method === 'OPTIONS' && path === PATH_02CR) {
-    return new Response(null, { status: 204, headers: corsHeaders(request, env) });
-  }
+  if (request.method === 'OPTIONS' && path === PATH_02CR) return new Response(null, { status: 204, headers: corsHeaders(request, env) });
   if (request.method !== 'GET' || path !== PATH_02CR) return null;
 
   const verified = await verifyOrdersEdgeToken(bearer(request), text(env.EDGE_SESSION_SECRET));
-  if (!verified.ok) {
-    return json({ success:false, code:verified.reason, message:'Unauthorized orders edge session' }, 401, corsHeaders(request, env));
-  }
+  if (!verified.ok) return json({ success:false, code:verified.reason, message:'Unauthorized orders edge session' }, 401, corsHeaders(request, env));
 
   const screen = text(url.searchParams.get('screen') || 'service');
   const allowed = Array.isArray(verified.payload.screens) ? verified.payload.screens : [];
-  if (allowed.length && !allowed.includes(screen)) {
-    return json({ success:false, message:'غير مصرح لك بعرض أوردرات هذا القسم.' }, 403, corsHeaders(request, env));
-  }
+  if (allowed.length && !allowed.includes(screen)) return json({ success:false, message:'غير مصرح لك بعرض أوردرات هذا القسم.' }, 403, corsHeaders(request, env));
   const statusFilter = text(url.searchParams.get('statusFilter'));
-  if (statusFilter === '__DEBT__') {
-    return json({ success:false, code:'apps-script-required', fallback:'apps-script', message:'Debt-filtered orders require the authoritative Apps Script lane.' }, 409, corsHeaders(request, env));
-  }
+  if (statusFilter === '__DEBT__') return json({ success:false, code:'apps-script-required', fallback:'apps-script', message:'Debt-filtered orders require the authoritative Apps Script lane.' }, 409, corsHeaders(request, env));
 
   try {
     const [lines, customers, restrictions] = await Promise.all([
@@ -167,11 +156,11 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
       readMirror(env, SHEETS_02CR.restrictions)
     ]);
     const mirrors = [
-      [SHEETS_02CR.lines, lines],
-      [SHEETS_02CR.customers, customers],
-      [SHEETS_02CR.restrictions, restrictions]
+      [SHEETS_02CR.lines, lines, LINES_NOTE_02CR],
+      [SHEETS_02CR.customers, customers, ENRICHMENT_NOTE_02CR],
+      [SHEETS_02CR.restrictions, restrictions, ENRICHMENT_NOTE_02CR]
     ];
-    const failed = mirrors.filter(([, mirror]) => !mirrorQualified(mirror));
+    const failed = mirrors.filter(([, mirror, expectedNote]) => !mirrorQualified(mirror, expectedNote));
     if (failed.length) {
       return json({
         success:false,
@@ -206,11 +195,6 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
       mirrors:mirrors.map(([name, mirror]) => safeMirrorMeta(name, mirror))
     }, 200, corsHeaders(request, env));
   } catch (err) {
-    return json({
-      success:false,
-      code:'02cr-operational-canary-error',
-      fallback:'apps-script',
-      message:String(err && err.message ? err.message : err)
-    }, 502, corsHeaders(request, env));
+    return json({ success:false, code:'02cr-operational-canary-error', fallback:'apps-script', message:String(err && err.message ? err.message : err) }, 502, corsHeaders(request, env));
   }
 }
