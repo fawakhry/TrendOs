@@ -1,0 +1,102 @@
+name: TrendOS 02CU Return Traffic Quiet Production TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cu-return-traffic-quiet-prod-temp.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-02cu-return-traffic-quiet-production
+  cancel-in-progress: false
+
+jobs:
+  bounded-frontend-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout working branch candidate
+        uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Candidate syntax and regression
+        run: |
+          set -euo pipefail
+          node --check trendos-return-traffic-quiet-v1.js
+          node tests/trendos_return_traffic_quiet_v1.test.mjs
+          cp trendos-return-traffic-quiet-v1.js /tmp/trendos-return-traffic-quiet-v1.js
+          cp tests/trendos_return_traffic_quiet_v1.test.mjs /tmp/trendos_return_traffic_quiet_v1.test.mjs
+
+      - name: Guard exact production head
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          actual="$(git rev-parse origin/main)"
+          expected="20a56241da2919e31fc12cb5224d29ac18fdf4f3"
+          echo "production main: $actual"
+          test "$actual" = "$expected"
+
+      - name: Build bounded frontend production patch
+        run: |
+          set -euo pipefail
+          git switch -C main origin/main
+          cp /tmp/trendos-return-traffic-quiet-v1.js trendos-return-traffic-quiet-v1.js
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          needle = '<script src="config.js?v=trendos-02cu-resume-20260906a"></script>'
+          insert = '<script src="trendos-return-traffic-quiet-v1.js?v=trendos-02cu-return-quiet-20260906a"></script>\n' + needle
+          if s.count(needle) != 1:
+              raise SystemExit('Expected exactly one current 02CU config script marker')
+          if 'trendos-return-traffic-quiet-v1.js' in s:
+              raise SystemExit('Return traffic quiet guard already present unexpectedly')
+          p.write_text(s.replace(needle, insert, 1), encoding='utf-8')
+          PY
+
+      - name: Production regression and safety contract
+        run: |
+          set -euo pipefail
+          node --check trendos-return-traffic-quiet-v1.js
+          node /tmp/trendos_return_traffic_quiet_v1.test.mjs
+          grep -Fq "MATBAGY_DISABLE_RETURN_AUTO_REFRESH_V1 = true" config.js
+          grep -Fq "MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false" config.js
+          grep -Fq "MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false" config.js
+          grep -Fq "MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true" config.js
+          grep -Fq "MATBAGY_TREND_MASTER_MAX_CONCURRENCY = 2" config.js
+          grep -Fq "MATBAGY_TREND_MASTER_MAX_ATTEMPTS = 1" config.js
+          grep -Fq "trendos-resume-no-autorefresh-v1.js" config.js
+          grep -Fq "trendos-return-traffic-quiet-v1.js?v=trendos-02cu-return-quiet-20260906a" index.html
+
+      - name: Enforce exact frontend scope
+        run: |
+          set -euo pipefail
+          changed="$({ git diff --name-only; git ls-files --others --exclude-standard; } | sort -u)"
+          printf '%s\n' "$changed"
+          expected="$(printf '%s\n' index.html trendos-return-traffic-quiet-v1.js | sort)"
+          test "$changed" = "$expected"
+
+      - name: Commit and push production
+        run: |
+          set -euo pipefail
+          git config user.name trendos-bot
+          git config user.email actions@users.noreply.github.com
+          git add index.html trendos-return-traffic-quiet-v1.js
+          git commit -m "Quiet residual return-to-tab background traffic"
+          git push origin HEAD:main
+          echo "PRODUCTION_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Production commit summary
+        run: |
+          echo "TrendOS bounded frontend-only return traffic quiet deploy: $PRODUCTION_COMMIT"
+          echo "Rollback base: 20a56241da2919e31fc12cb5224d29ac18fdf4f3"
