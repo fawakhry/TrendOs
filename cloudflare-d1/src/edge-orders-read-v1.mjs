@@ -394,6 +394,34 @@ function semanticLineId(rawValue, displayValue) {
   return raw;
 }
 
+function semanticUpdatedSortMs(rawValue, displayValue) {
+  const raw = text(rawValue);
+  if (raw) {
+    const rawMs = Date.parse(raw);
+    if (Number.isFinite(rawMs)) return rawMs;
+    if (/^\d+(?:\.\d+)?$/.test(raw)) {
+      const serial = Number(raw);
+      if (Number.isFinite(serial) && serial > 0) {
+        return GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS + (serial * GOOGLE_SHEETS_SERIAL_DAY_MS);
+      }
+    }
+  }
+
+  // Raw getValues() timestamps are expected to be ISO after mirror serialization.
+  // This display fallback exists only for legacy rows that predate raw preservation.
+  const display = arabicDigits(text(displayValue));
+  if (!display) return 0;
+  const dm = display.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (dm) {
+    const day = Number(dm[1]), month = Number(dm[2]), year = Number(dm[3]);
+    const hour = Number(dm[4] || 0), minute = Number(dm[5] || 0), second = Number(dm[6] || 0);
+    const ms = Date.UTC(year, month - 1, day, hour, minute, second);
+    if (Number.isFinite(ms)) return ms;
+  }
+  const parsed = Date.parse(display);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function mapMirrorRows(headers, mirrorRows, screen) {
   const c = {
     orderId: headerIndex(headers, ['رقم الأوردر','Order ID'], 0),
@@ -429,6 +457,7 @@ export function mapMirrorRows(headers, mirrorRows, screen) {
     customerMode: headerIndex(headers, ['نوع إدخال العميل','Customer Mode'], -1)
   };
   const out = [];
+  const updatedSortMsByRow = new Map();
   for (const item of mirrorRows || []) {
     if (Number(item.rowNumber || 0) <= 1) continue;
     const row = Array.isArray(item.display) && item.display.length ? item.display : (Array.isArray(item.values) ? item.values : []);
@@ -454,8 +483,18 @@ export function mapMirrorRows(headers, mirrorRows, screen) {
       lastWhatsAppMessage: text(valueAt(row, c.waMessage)), lastWhatsAppAt: text(valueAt(row, c.waAt)), lastWhatsAppBy: text(valueAt(row, c.waBy)),
       receivedAt: text(valueAt(row, c.receivedAt)), expectedDeliveryAt: expectedAt, expectedDeliveryText: expectedText, overdue: overdue(status, expectedAt || expectedText) ? 'نعم' : 'لا', registrationSent: text(valueAt(row, c.registrationSent))
     });
+    updatedSortMsByRow.set(
+      Number(item.rowNumber || 0),
+      semanticUpdatedSortMs(valueAt(rawRow, c.updated), valueAt(row, c.updated))
+    );
   }
-  out.sort((a,b) => priorityRank(a.priority) - priorityRank(b.priority) || String(a.orderId).localeCompare(String(b.orderId)));
+  // Production Apps Script is still authoritative. Its deployed V1931 lane orders
+  // rows by priority, then most-recent update first; source row is the stable tie-breaker.
+  out.sort((a,b) =>
+    priorityRank(a.priority) - priorityRank(b.priority) ||
+    Number(updatedSortMsByRow.get(b.rowNumber) || 0) - Number(updatedSortMsByRow.get(a.rowNumber) || 0) ||
+    Number(a.rowNumber || 0) - Number(b.rowNumber || 0)
+  );
   return out;
 }
 

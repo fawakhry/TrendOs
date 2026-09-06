@@ -57,6 +57,25 @@ const numericRawLine = formattedLine.slice();
 numericRawLine[5] = 730122;
 const numericMapped = mapMirrorRows(headers, [row(1, headers), { rowNumber: 2, display: formattedLine, values: numericRawLine }], 'print');
 assert.equal(numericMapped[0].lineId, '730122');
+
+// 02CS authoritative ordering regression: the deployed Apps Script lane orders
+// by priority, then newest update first. Raw ISO timestamps are used so display
+// date formatting cannot reorder identities.
+const orderA = base.slice();
+orderA[0] = '4101'; orderA[4] = 'طباعة'; orderA[5] = '810101'; orderA[9] = 'عاجل'; orderA[10] = 'طلب جديد'; orderA[12] = '06/09/2026 09:00';
+const orderB = base.slice();
+orderB[0] = '4102'; orderB[4] = 'طباعة'; orderB[5] = '810102'; orderB[9] = 'عاجل'; orderB[10] = 'طلب جديد'; orderB[12] = '06/09/2026 12:00';
+const orderC = base.slice();
+orderC[0] = '4103'; orderC[4] = 'طباعة'; orderC[5] = '810103'; orderC[9] = 'عادي'; orderC[10] = 'طلب جديد'; orderC[12] = '06/09/2026 13:00';
+const rawA = orderA.slice(), rawB = orderB.slice(), rawC = orderC.slice();
+rawA[12] = '2026-09-06T09:00:00.000Z'; rawB[12] = '2026-09-06T12:00:00.000Z'; rawC[12] = '2026-09-06T13:00:00.000Z';
+const authoritativeOrder = mapMirrorRows(headers, [
+  row(1, headers),
+  { rowNumber: 41, display: orderA, values: rawA },
+  { rowNumber: 42, display: orderB, values: rawB },
+  { rowNumber: 43, display: orderC, values: rawC }
+], 'print');
+assert.deepEqual(authoritativeOrder.map((r) => r.orderId), ['4102','4101','4103']);
 assert.equal(filterRows(print, { statusFilter: '__ACTIVE__' }).length, 1);
 assert.equal(filterRows(print, { query: '3901' }).length, 1);
 assert.equal(filterRows(print, { statusFilter: 'تم التسليم' }).length, 1);
