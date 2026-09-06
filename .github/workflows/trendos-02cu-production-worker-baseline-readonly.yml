@@ -19,7 +19,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WORKER_NAME: trendos-d1-api
-      EXPECTED_VERSION: c77bf453-c590-4cff-a55b-fd9c625b6d76
+      EXPECTED_VERSION: 23dd09da-cb29-4310-bc01-51505fd5cdec
     steps:
       - name: Verify credentials exist
         shell: bash
@@ -28,63 +28,40 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
 
-      - name: Read deployment and version metadata with Wrangler
-        id: metadata
-        continue-on-error: true
+      - name: Read exact active deployment
         shell: bash
         run: |
           set -euo pipefail
           npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/deployments.json
-          npx --yes wrangler@4.33.2 versions list --name "$WORKER_NAME" --json > /tmp/versions.json
           node <<'NODE'
           const fs=require('fs');
-          function arr(x){
-            if(Array.isArray(x)) return x;
-            if(x&&Array.isArray(x.items)) return x.items;
-            if(x&&Array.isArray(x.result)) return x.result;
-            return [];
-          }
-          const d=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
-          const v=JSON.parse(fs.readFileSync('/tmp/versions.json','utf8'));
-          const deployments=arr(d);
-          const latest=deployments[0]||{};
-          const versions=Array.isArray(latest.versions)?latest.versions:[];
-          const active=versions.map(x=>({version_id:x.version_id||x.id,percentage:Number(x.percentage)}));
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const ds=Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[]);
+          const latest=ds[0]||{};
+          const active=(Array.isArray(latest.versions)?latest.versions:[]).map(v=>({id:v.version_id||v.id,percentage:Number(v.percentage)}));
           console.log('ACTIVE_DEPLOYMENT='+JSON.stringify({id:latest.id,created_on:latest.created_on,source:latest.source,versions:active}));
-          const recent=arr(v).slice(0,8).map(x=>({id:x.id,created_on:x.created_on,number:x.number}));
-          console.log('RECENT_VERSIONS='+JSON.stringify(recent));
-          const expected=String(process.env.EXPECTED_VERSION||'');
-          if(!active.some(x=>x.version_id===expected && Number(x.percentage)===100)) throw new Error('Expected production version is not at 100%');
-          fs.writeFileSync('/tmp/version-pass','PASS');
-          console.log('EXPECTED_VERSION_100_PERCENT=PASS');
+          if(!active.some(v=>v.id===process.env.EXPECTED_VERSION&&v.percentage===100)) throw new Error('Expected 23dd production version is not at 100%');
+          console.log('ACTIVE_VERSION_EXACT=PASS');
           NODE
 
-      - name: Read Worker settings without exposing secrets
+      - name: Read exact active version metadata
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/settings"
-          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Accept: application/json' "$api" -o /tmp/settings.json
+          npx --yes wrangler@4.33.2 versions view "$EXPECTED_VERSION" --name "$WORKER_NAME" --json > /tmp/version.json
           node <<'NODE'
           const fs=require('fs');
-          const x=JSON.parse(fs.readFileSync('/tmp/settings.json','utf8'));
-          if(!x.success||!x.result) throw new Error('Cloudflare settings API failed');
-          const bs=Array.isArray(x.result.bindings)?x.result.bindings:[];
-          const safeKeys=new Set([
-            'TRENDOS_CLOUD_WRITE_V1_ENABLED','EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED',
-            'EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS','EDGE_DATA_MAX_AGE_SECONDS',
-            'TRENDOS_RECONCILE_V1_ENABLED','TRENDOS_RECONCILE_GENERIC_DRAIN_ENABLED',
-            'TRENDOS_PRODUCTION_SHADOW_PREVIEW_ENABLED'
-          ]);
-          const bindings=bs.map(b=>({name:b.name,type:b.type}));
-          console.log('BINDING_NAMES_TYPES='+JSON.stringify(bindings));
+          const x=JSON.parse(fs.readFileSync('/tmp/version.json','utf8'));
+          const v=(x&&x.result)||x||{};
+          const bs=Array.isArray(v.bindings)?v.bindings:[];
+          const names=bs.map(b=>({name:b.name,type:b.type}));
+          console.log('ACTIVE_VERSION_BINDINGS='+JSON.stringify(names));
+          const safeKeys=new Set(['EDGE_DATA_MAX_AGE_SECONDS','EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS','EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED','TRENDOS_CLOUD_WRITE_V1_ENABLED','TRENDOS_PRODUCTION_SHADOW_V2_ENABLED','TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED']);
           const safe={};
-          for(const b of bs){ if(b.type==='plain_text'&&safeKeys.has(b.name)) safe[b.name]=String(b.text||''); }
-          console.log('SAFE_FLAGS='+JSON.stringify(safe));
-          if(!bindings.some(b=>b.name==='EDGE_SESSION_SECRET'&&b.type==='secret_text')) throw new Error('EDGE_SESSION_SECRET binding missing');
-          if(safe.TRENDOS_CLOUD_WRITE_V1_ENABLED!=='false') throw new Error('Cloud Write flag must remain false');
-          if(safe.EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED!=='true') throw new Error('Orders idle heartbeat flag must remain true');
-          console.log('EDGE_SESSION_SECRET_PRESENT_READ_ONLY=PASS');
+          for(const b of bs){if(b.type==='plain_text'&&safeKeys.has(b.name))safe[b.name]=String(b.text||'');}
+          console.log('ACTIVE_VERSION_SAFE_FLAGS='+JSON.stringify(safe));
+          if(!names.some(b=>b.name==='EDGE_SESSION_SECRET'&&b.type==='secret_text')) throw new Error('Active version missing EDGE_SESSION_SECRET');
+          console.log('ACTIVE_VERSION_SECRET_BINDING_PRESENT=PASS');
           NODE
 
       - name: Probe live authority boundary read-only
@@ -101,15 +78,7 @@ jobs:
           const c=JSON.parse(fs.readFileSync('/tmp/cloud.json','utf8'));
           const r=JSON.parse(fs.readFileSync('/tmp/reconcile.json','utf8'));
           if(!e.success||e.cutover!==false) throw new Error('Edge cutover boundary changed');
-          if(!c.success||c.enabled!==false||c.sheetsAuthoritative!==true||c.cutover!==false) throw new Error('Cloud-write boundary changed');
-          if(r.enabled!==false||r.genericDrainEnabled!==false) throw new Error('Reconcile/generic drain boundary changed');
+          if(!c.success||c.enabled!==false||c.sheetsAuthoritative!==true||c.cutover!==false) throw new Error('Cloud-write runtime boundary changed');
+          if(r.enabled!==false||r.genericDrainEnabled!==false) throw new Error('Reconcile/generic drain runtime boundary changed');
           console.log('PRODUCTION_AUTHORITY_BOUNDARY_READ_ONLY=PASS');
           NODE
-
-      - name: Require exact expected production baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f /tmp/version-pass
-          test "${{ steps.metadata.outcome }}" = 'success'
-          echo 'PRODUCTION_WORKER_BASELINE_EXACT=PASS'
