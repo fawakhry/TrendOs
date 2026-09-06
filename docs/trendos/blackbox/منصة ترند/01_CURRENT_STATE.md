@@ -6,75 +6,74 @@ Date: 2026-09-06
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-Status: **IN PROGRESS — PRODUCTION TECHNICAL PASS — USER-VISIBLE STATUS SAVE VALIDATION PENDING**
+Status: **IN PROGRESS — PRODUCTION TECHNICAL + UX PATCH PASS — USER-VISIBLE VALIDATION PENDING**
 
-User report:
+### Latest user-visible problems
 
-`بعد كده شوف حالات الاوردر لما بغيرها واعمل حفظ مش بتحفظ`
+After the first 02CV consistency fix the user reported:
 
-### Confirmed root cause
+- save returns success but a row moved to a hidden status stays visible until manual Refresh;
+- save feels slow because the UI immediately starts another full Orders page read;
+- the `⚡ طباعة على الطاير` marker disappeared beside the order/status.
 
-The existing UI calls Apps Script `updateLine` then immediately runs `loadRows(true)`.
+### Confirmed diagnosis
 
-Two hazards were confirmed:
+The original 02CV stable-line identity fix is still valid and retained.
 
-1. D1 exposes `rowNumber` from the mirror snapshot, but Apps Script `updateLine_` trusted a valid rowNumber before stable `lineId`; shifted source rows could therefore make the mirror row coordinate unsafe for a write.
-2. A successful Sheets write could be followed immediately by a D1 read whose mirror was still under the physical freshness threshold but predated the write, causing the UI to repaint the old status.
+For the follow-up symptoms:
 
-Orders Low-Usage checks for source changes every five minutes, so immediate read-your-write consistency cannot rely on D1 alone.
+1. `saveLine()` updated local status but did not re-render the table; it called `loadRows(true)` instead.
+2. During the 02CV post-write barrier, that immediate page read is intentionally Apps Script authoritative, so it adds another slow read and keeps the UI in a loading state.
+3. D1 and the Worker were read-only qualified for Fly Print and are healthy: 377 D1 data rows, 38 Fly Print rows, and the print Worker mapper preserved all 38/38. The missing marker was frontend presentation, not lost source data.
 
 ### Fix now in Production
 
-Frontend wrapper version:
+Production main:
 
-`EDGE_ORDERS_READ_02CV_WRITE_CONSISTENCY_20260906`
+`b4a87493ca9ce7507fc342e9b39f91449395fb46`
 
-Behavior:
+Frontend behavior:
 
-- `updateLine` remains an Apps Script / Sheets write.
-- If `lineId` exists, D1 mirror `rowNumber` is omitted before forwarding the write so the backend resolves the current source row by stable line identity.
-- Legacy rows without `lineId` keep rowNumber compatibility.
-- Successful `updateLine` opens a local six-minute post-write read barrier.
-- While active, eligible Orders reads use authoritative Apps Script instead of D1 so an older mirror cannot overwrite the just-saved UI state.
-- After the barrier expires, normal D1-first qualified `/02cr` + 02CU dual-signal behavior resumes.
-- Rejected writes do not open a barrier.
-
-### Production state
-
-- Production main: `0088ed5625e8359f8551525ae41df3b25248b494`
-- previous main: `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
-- exact production diff: `trendos-edge-orders-read-v1.js` + one cache-bust line in `config.js` only
-- Production Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
-- D1: `trendos-main`
-- Apps Script deployment for 02CV: **NO**
-- Worker deployment for 02CV: **NO**
-- D1 business-data write by 02CV: **NO**
-- write authority: Apps Script / Sheets
-- `__DEBT__`: Apps Script
-- 02CL / reconcile: OFF
-- generic drain: OFF
-- secret rotation / `EDGE_SESSION_SECRET` change: NO
+- successful `updateLine` still means the authoritative Apps Script/Sheets write has completed;
+- immediately after success, `applyFiltersAndRender(false)` re-renders local state;
+- hidden statuses therefore disappear without manual Refresh;
+- the immediate post-save `loadRows(true)` was removed;
+- success ends with `تم حفظ التعديل في الشيت.` instead of a second `جاري تحميل الأوردرات` cycle;
+- status rendering now uses `statusBadges(r)`, showing priority + press + `⚡ طباعة على الطاير` beside status;
+- `app.js` cache-bust: `trendos-02cv-statusux-20260906b`.
 
 ### Verification
 
-Durable test:
+- Fly Print D1/Worker read-only qualification Run `34036288004` — **SUCCESS**
+- UX candidate Run `34036609469` — **SUCCESS**
+- UX Production promotion Run `34036640992` — **SUCCESS**
+- Production Pages Run `34036646377` — **SUCCESS**
+- Production diff for the follow-up patch: only `app.js` + `index.html`, 7 insertions / 3 deletions
 
-`tests/frontend_order_status_write_consistency_02cv.test.mjs`
+### Production safety boundary
 
-It verifies stable-line identity writes, no Edge write routing, successful-write barrier, immediate Apps Script read-after-write behavior, D1-first resume, legacy fallback, and rejected-write behavior.
+- Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
+- D1: `trendos-main`
+- Apps Script deployment for this fix: **NO**
+- Worker deployment for this fix: **NO**
+- D1 business-data write by this fix: **NO**
+- Orders writes: Apps Script / Sheets
+- eligible reads: D1-first qualified `/v1/edge/orders/02cr/page`
+- Apps Script fallback retained
+- `__DEBT__`: Apps Script
+- 02CL/reconcile: OFF
+- generic drain: OFF
+- secret rotation / `EDGE_SESSION_SECRET` change: NO
 
-- TrendOS Integrity Run `34035164288` — **SUCCESS**
-- `Run 02CV order status write consistency tests` — **PASS**
-- GitHub Pages Run `34035270632` — **SUCCESS**
-- Pages deployed head: `0088ed5625e8359f8551525ae41df3b25248b494`
+### Remaining close condition
 
-### Only remaining close condition
+Refresh the live platform once, then verify:
 
-User-visible Production test:
+1. change a real order to a hidden status and Save → row disappears immediately;
+2. there is no second long Orders loading cycle after success;
+3. a Fly Print order shows `⚡ طباعة على الطاير` beside status.
 
-`REFRESH ONCE → CHANGE REAL ORDER STATUS → SAVE → VERIFY STATUS REMAINS SAVED AND DOES NOT REVERT.`
-
-Do not close 02CV until the user confirms that live save behavior.
+Do not close 02CV until the user confirms these live behaviors.
 
 Record:
 
@@ -82,7 +81,7 @@ Record:
 
 Exact active stop point:
 
-`PERF-CF-02CV IN PROGRESS — ORDER STATUS SAVE ROOT CAUSE CONFIRMED — FRONTEND-ONLY STABLE-LINE WRITE IDENTITY + 6-MINUTE READ-AFTER-WRITE APPS SCRIPT BARRIER PROMOTED — INTEGRITY 34035164288 SUCCESS — PRODUCTION MAIN 0088ed5625e8359f8551525ae41df3b25248b494 — PAGES 34035270632 SUCCESS — WORKER UNCHANGED 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% — APPS SCRIPT/SHEETS WRITE AUTHORITY RETAINED — ONLY CLOSE CONDITION: USER-VISIBLE STATUS SAVE PASS`
+`PERF-CF-02CV IN PROGRESS — PRODUCTION TECHNICAL + UX PATCH PASS — MAIN b4a87493ca9ce7507fc342e9b39f91449395fb46 — PAGES 34036646377 SUCCESS — UX CANDIDATE 34036609469 SUCCESS — FLY PRINT READ-ONLY 34036288004 SUCCESS 38/38 — IMMEDIATE LOCAL POST-SAVE RENDER ACTIVE — SECOND POST-SAVE PAGE READ REMOVED — FLY STATUS BADGE ACTIVE — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% UNCHANGED — APPS SCRIPT/SHEETS AUTHORITY RETAINED — USER-VISIBLE VALIDATION PENDING`
 
 ---
 
@@ -92,9 +91,7 @@ Status: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**
 
 User close confirmation: `ثبت`
 
-02CU established user-validated platform speed/navigation stability and dual-signal idle freshness for qualified D1 Orders reads. It remains closed and was not reopened by 02CV.
-
-Production Worker remains the 02CU qualified version `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%.
+02CU remains closed and was not reopened by 02CV.
 
 ---
 
