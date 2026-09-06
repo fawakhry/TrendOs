@@ -4,114 +4,138 @@ Date: 2026-09-06
 
 ## Latest checkpoint
 
-`PERF-CF-02CQ — Screen View Mirror Refresh / Orders View D1 Canary Prerequisite`
+`PERF-CF-02CR — Orders D1 Field Completeness Regression / Production Read Rollback`
 
-Status: **VERIFIED PASS — CLOSED — FOUR VIEW MIRRORS FRESH — AUTHENTICATED PRINT CANARY PARITY PASS — FRONTEND OFF — SHEETS AUTHORITATIVE**
+Status: **MITIGATION PASS — PRODUCTION FRONTEND D1 READ ROLLED BACK — APPS SCRIPT RESTORED — D1 DATA RETAINED — FIELD COMPLETENESS FIX PENDING**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CQ_VERIFIED_PASS_CLOSED.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_FIELD_COMPLETENESS_REGRESSION_ROLLBACK.md`
 
-## Current factual state
+## Current factual production state
 
-Authoritative source remains Google Sheets / Apps Script.
+The production `main` branch had an older Edge-first Orders activation that was not aligned with the 02CQ working-branch frontend-OFF boundary.
 
-The user approved only the bounded 02CQ Apps Script action. The final self-contained 02CQ module was added to the live Apps Script project and its one-shot runner was executed manually.
+Activation commit:
 
-Post-refresh verification succeeded:
+- `cf6a3a7e817fdb6c01fed3b6ad63c9cce8489d9a`
+- `Enable Production Orders Edge-first read with Apps Script fallback`
 
-- Workflow: `TrendOS 02CQ Post-Refresh Verify TEMP`
-- Run: `34002138336`
-- Job: `101402778075`
-- Conclusion: **SUCCESS**
-- Marker: `PERF_CF_02CQ_POSTREFRESH_VERIFY_PASS_NO_MUTATION`
+That commit changed only `config.js` by enabling the Edge Orders flag and loading the Edge wrapper.
 
-The temporary workflow was removed after evidence collection:
+After the user reported incomplete order cards, the activation was rolled back atomically.
 
-- cleanup commit: `0c8c297b4593783a7954b006e85374548b4e2ff7`
+Rollback commit on `main`:
 
-## Current four-view D1 mirrors
+- `f7c3af17b3a28858d1be9d5c57455d54b4256126`
+- `Rollback Orders Edge-first read after incomplete field regression`
 
-All four mirrors are `ready`, have the 02CQ note, and satisfy `rowCount == sourceLastRow`:
+Verified current `main/config.js`:
 
-- `واجهة خدمة العملاء`: `sourceLastRow=270`, `sourceLastCol=19`, `rowCount=270`
-- `واجهة الطباعة`: `sourceLastRow=9`, `sourceLastCol=18`, `rowCount=9`
-- `واجهة الليزر`: `sourceLastRow=68`, `sourceLastCol=18`, `rowCount=68`
-- `واجهة المكبس`: `sourceLastRow=8`, `sourceLastCol=18`, `rowCount=8`
+- no `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true`
+- no `trendos-edge-orders-read-v1.js` production loader call
+- Apps Script URL unchanged
+- unrelated frontend configuration unchanged
 
-All four were synced at `2026-09-06 00:44:20` with note:
+Therefore the production order-card read path is restored to **Apps Script / Sheets**.
 
-`PERF-CF-02CQ bounded screen view atomic refresh`
+## Why D1 produced incomplete cards
 
-The 02CO stale-mirror blocker is resolved: print is no longer header-only.
+The 02CQ refresh successfully made the mirrors fresh and matched Order ID / Line ID / status, but the current view schema is not a full operational-row contract.
 
-## Authenticated print D1-vs-Apps-Script canary
+Current `واجهة الطباعة` header has 18 columns only:
 
-Comparison used identity-safe fields only:
+- رقم الأوردر
+- كود الأوردر
+- اسم الشات / المكتب
+- اسم المسؤول
+- القسم
+- رقم البند
+- اسم البند / نوع الشغل
+- الكمية
+- مسؤول القسم
+- الأولوية
+- الحالة
+- جاهز؟
+- آخر تحديث
+- ملاحظات
+- مركز الربح (لاحقًا)
+- الكيان المنفذ (لاحقًا)
+- رقم العميل
+- مكبس حراري
 
-- Order ID
-- Line ID
-- status
+The D1 mapper also exposes fields not present in this mirror, including expected delivery, received date, customer source/mode, notification/WhatsApp audit fields, debt-related fields, and other operational attributes. Those map to empty values when sourced from the current 18-column mirror.
 
-Result:
+This means:
 
-- Apps Script print rows: `8`
-- D1 print rows: `8`
-- identity parity: **PASS**
-- D1 source: `d1-edge-orders`
+- identity parity = PASS
+- field completeness parity = NOT QUALIFIED
 
-No customer name, phone, or notes were logged to GitHub diagnostics.
+The next D1 frontend attempt must explicitly test the entire UI-consumed field contract.
 
-## Debt fallback
+## D1 state retained
 
-`__DEBT__` remains on Apps Script:
+02CQ itself remains valid for mirror freshness:
 
-- HTTP `409`
-- code `apps-script-required`
-- fallback `apps-script`
+- `واجهة خدمة العملاء`: `270 × 19`
+- `واجهة الطباعة`: `9 × 18`
+- `واجهة الليزر`: `68 × 18`
+- `واجهة المكبس`: `8 × 18`
 
-## Final production boundary
+The D1 data was not deleted or rolled back.
+
+The 02CQ Apps Script refresh module and D1 worker qualification assets remain available for future canary work.
+
+## Temporary 02CR probe
+
+A read-only field parity workflow was created with no customer-value logging:
+
+- commit `1fdea0ced9012962b2e7955fe185eecd03ecbe1f`
+- run `34002436429`
+
+It stopped before field comparison because the qualified Apps Script request returned `success != true` in that run. No mutation occurred.
+
+The temporary workflow was removed:
+
+- cleanup commit `a631c027e0d47ab2a1b785a878ca58d81aa51575`
+
+The field-completeness defect was independently established from the authoritative Google Sheet header and D1 mapper source.
+
+## Current production boundary
 
 - Production Worker: `trendos-d1-api`
-- Worker Version ID: `0ec782a9-5943-4c9d-8820-51b7d0393210`
 - Production D1: `trendos-main`
-- Worker health: **PASS**
-- D1 database health: **PASS**
 - Cloud Write: **ON**
-- `pendingOutbox=0`
-- production cutover: **OFF**
 - Sheets / Apps Script authority: **YES**
+- production order-card read source: **Apps Script / Sheets**
+- frontend D1 Orders read: **OFF / rolled back on main**
+- D1 mirrors: **retained for qualification**
 - 02CL reconciliation: **OFF**
 - generic drain: **OFF / unused**
-- unauthenticated Edge orders endpoint: `401`
-- frontend D1 orders read flag: **OFF**
 - frontend cutover: **NO**
 - authority transfer: **NO**
-- `EDGE_SESSION_SECRET` rotation: **NONE**
-- Worker deploy during 02CQ: **NONE**
+- Worker deploy during 02CR: **NONE**
+- secret rotation during 02CR: **NONE**
 
-## 02CQ retained assets
+## Next safe work
 
-- `cloudflare-d1/D1_Screen_View_Mirror_Refresh_02CQ.gs`
-- `tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs`
-- `.github/workflows/trendos-02cq-screen-view-mirror-refresh-ci.yml`
+Do not re-enable D1 frontend reads yet.
 
-Final qualified code/test checkpoint before manual execution:
+The next bounded checkpoint should:
 
-- `c5fddeec7e9a58633a3321368473dabf2bf63b43`
-
-## Closure
-
-**PERF-CF-02CQ is VERIFIED PASS and CLOSED.**
-
-Do not rerun the four-view refresh or canary unless the authoritative source changes materially or a later checkpoint explicitly requires a fresh qualification.
-
-Any frontend D1-read activation, production cutover, or authority transfer must occur only under a separate bounded checkpoint with explicit approval.
+1. inventory only the UI-consumed order-row field contract, not the whole system,
+2. choose a D1 source/model that contains every required operational field,
+3. map/synthesize fields without PII logging,
+4. compare Apps Script vs D1 for row count + identity + per-field non-empty/value parity,
+5. test all four screens,
+6. keep `__DEBT__` on Apps Script unless separately qualified,
+7. re-enable D1 only after full field-completeness PASS.
 
 ## Previously closed/prepared checkpoints
 
+- `PERF-CF-02CQ` — **VERIFIED PASS — CLOSED for freshness + identity parity**
 - `PERF-CF-02CO` — auth pass; stale mirror blocker resolved by 02CQ
-- `PERF-CF-02CN` — **CANDIDATE PREPARED — CI PASS — DEFAULT-OFF — NO CUTOVER**
+- `PERF-CF-02CN` — **CANDIDATE PREPARED — CI PASS — DEFAULT-OFF**
 - `PERF-CF-02CM` — **READ-ONLY PREFLIGHT PASS — CLOSED**
 - `PERF-CF-02CL` — **VERIFIED PASS — CLOSED**
 - `PERF-CF-02CK` — **VERIFIED PASS — CLOSED**
