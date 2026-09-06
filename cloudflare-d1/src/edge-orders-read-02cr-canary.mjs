@@ -19,6 +19,14 @@ function clampInt(value, fallback, min, max) {
   const n = Number(value);
   return Number.isFinite(n) ? Math.max(min, Math.min(max, Math.trunc(n))) : fallback;
 }
+function normalizeArabic(value) {
+  return text(value).toLowerCase()
+    .replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي').replace(/[ةه]/g, 'ه').replace(/\s+/g, ' ').trim();
+}
+function searchKey(value) {
+  return normalizeArabic(value).replace(/[^0-9a-z\u0600-\u06ff ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
 function configuredOrigins(env) {
   const list = String(env.CORS_ORIGINS || '').split(',').map((x) => x.trim()).filter(Boolean);
   return list.length ? list : ['https://fawakhry.github.io'];
@@ -48,36 +56,85 @@ function arabicDigits(value) {
   const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
   return String(value || '').replace(/[٠-٩]/g, (d) => map[d] || d);
 }
-function parseDay(value) {
+function parseDate(value) {
   const raw = arabicDigits(text(value));
-  if (!raw) return 0;
-  let m = raw.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
-  if (m) return Number(`${m[1]}${String(m[2]).padStart(2,'0')}${String(m[3]).padStart(2,'0')}`);
-  m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-  if (m) return Number(`${m[3]}${String(m[2]).padStart(2,'0')}${String(m[1]).padStart(2,'0')}`);
+  if (!raw) return null;
+  const m = raw.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return 0;
-  return Number(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
-function statusBucket(status) {
-  const s = text(status) || 'طلب جديد';
-  if (['طلب جديد','بدأ التنفيذ','تحت التنفيذ','متوقف','مشكلة/متوقف'].includes(s)) return 0;
-  if (['جاهز للاستلام','في قسم التسليمات'].includes(s)) return 1;
-  return 2;
+function sameDay(a, b) {
+  if (!a || !b) return false;
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
-function sortLikeAppsVisiblePage(rows) {
+function isHeatPress(value) {
+  const s = text(value).toLowerCase();
+  return s === 'نعم' || s === 'true' || s === '1' || s === 'on' || s === 'مكبس' || s === 'yes';
+}
+function isHidden(status) {
+  const s = text(status);
+  return s === 'جاهز للاستلام' || s === 'تم التسليم' || s === 'مكرر' || s === 'تم التنفيذ' || s === 'جاهز للطباعة' || s === 'ملغى';
+}
+function priorityRank(priority) {
+  const p = text(priority) || 'عادي';
+  if (p === 'عاجل' || p === 'VIP') return 0;
+  if (p === 'عادي') return 1;
+  if (p === 'مؤجل') return 2;
+  return 9;
+}
+function sortLikeAppsRows(rows) {
   return (rows || []).slice().sort((a, b) => {
-    const byStatus = statusBucket(a.status) - statusBucket(b.status);
-    if (byStatus) return byStatus;
-    const byDay = parseDay(b.updatedAt) - parseDay(a.updatedAt);
-    if (byDay) return byDay;
-    return Number(a.rowNumber || 0) - Number(b.rowNumber || 0);
+    const rank = priorityRank(a && a.priority) - priorityRank(b && b.priority);
+    if (rank) return rank;
+    return String(a && a.orderId || '').localeCompare(String(b && b.orderId || ''));
   });
 }
-function filterRows(rows, statusFilter) {
-  const wanted = text(statusFilter);
-  if (!wanted || wanted === '__ACTIVE__') return sortLikeAppsVisiblePage(rows || []);
-  return sortLikeAppsVisiblePage((rows || []).filter((row) => text(row && row.status) === wanted));
+function rowMatchesAppsFilters(row, params, now = new Date()) {
+  const q = searchKey(params.query || params.q || '');
+  const status = text(params.statusFilter || params.status || '');
+  const priority = text(params.priorityFilter || params.priority || '');
+  const heat = text(params.heatPressFilter || '');
+
+  if (q) {
+    const blob = searchKey([
+      row.orderId,row.lineId,row.customer,row.customerPhone,row.department,row.itemName,row.notes
+    ].join(' '));
+    if (blob.indexOf(q) === -1) return false;
+  }
+  if (heat === 'only' && !isHeatPress(row.heatPress)) return false;
+  if (heat === 'without' && isHeatPress(row.heatPress)) return false;
+  if (status === '__ACTIVE__' && isHidden(row.status)) return false;
+  if (status === '__OVERDUE__' && text(row.overdue) !== 'نعم') return false;
+  if (status === '__TODAY_WORK__') {
+    const today = new Date(now), yesterday = new Date(today), tomorrow = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    tomorrow.setDate(today.getDate() + 1);
+    const received = parseDate(row.receivedAt);
+    const expected = parseDate(row.expectedDeliveryAt || row.expectedDeliveryText);
+    if (isHidden(row.status) || !received || !expected || !sameDay(received, yesterday) || !sameDay(expected, tomorrow)) return false;
+  }
+  if (status === '__READY_PICKUP__' && !['جاهز للاستلام','في قسم التسليمات','تم التنفيذ'].includes(text(row.status))) return false;
+  if (status === '__CANCELLED__' && !['ملغي','ملغى'].includes(text(row.status))) return false;
+  if (status === '__DELIVERED_TODAY__' && (text(row.status) !== 'تم التسليم' || !sameDay(parseDate(row.updatedAt), new Date(now)))) return false;
+  if (status && !status.startsWith('__') && text(row.status) !== status) return false;
+  if (priority === '__ACTIVE__' && !['عاجل','عادي','VIP',''].includes(text(row.priority))) return false;
+  if (priority && priority !== '__ACTIVE__' && text(row.priority) !== priority) return false;
+  return true;
+}
+function statusCounts(rows) {
+  const counts = {};
+  const orderSets = {};
+  for (const row of rows || []) {
+    const key = text(row && row.status) || 'طلب جديد';
+    counts[key] = Number(counts[key] || 0) + 1;
+    if (!orderSets[key]) orderSets[key] = new Set();
+    const orderId = text(row && row.orderId);
+    if (orderId) orderSets[key].add(orderId);
+  }
+  const orderCounts = {};
+  Object.keys(orderSets).forEach((key) => { orderCounts[key] = orderSets[key].size; });
+  return { statusCounts:counts, statusOrderCounts:orderCounts };
 }
 
 async function readMirror(env, sheetName) {
@@ -137,7 +194,7 @@ export function isEdgeOrders02CRPath(path) {
 export async function handleEdgeOrders02CRCanaryRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
-  if (request.method === 'OPTIONS' && path === PATH_02CR) return new Response(null, { status: 204, headers: corsHeaders(request, env) });
+  if (request.method === 'OPTIONS' && path === PATH_02CR) return new Response(null, { status:204, headers:corsHeaders(request, env) });
   if (request.method !== 'GET' || path !== PATH_02CR) return null;
 
   const verified = await verifyOrdersEdgeToken(bearer(request), text(env.EDGE_SESSION_SECRET));
@@ -146,8 +203,8 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
   const screen = text(url.searchParams.get('screen') || 'service');
   const allowed = Array.isArray(verified.payload.screens) ? verified.payload.screens : [];
   if (allowed.length && !allowed.includes(screen)) return json({ success:false, message:'غير مصرح لك بعرض أوردرات هذا القسم.' }, 403, corsHeaders(request, env));
-  const statusFilter = text(url.searchParams.get('statusFilter'));
-  if (statusFilter === '__DEBT__') return json({ success:false, code:'apps-script-required', fallback:'apps-script', message:'Debt-filtered orders require the authoritative Apps Script lane.' }, 409, corsHeaders(request, env));
+  const params = Object.fromEntries(url.searchParams.entries());
+  if (text(params.statusFilter) === '__DEBT__') return json({ success:false, code:'apps-script-required', fallback:'apps-script', message:'Debt-filtered orders require the authoritative Apps Script lane.' }, 409, corsHeaders(request, env));
 
   try {
     const [lines, customers, restrictions] = await Promise.all([
@@ -162,21 +219,16 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
     ];
     const failed = mirrors.filter(([, mirror, expectedNote]) => !mirrorQualified(mirror, expectedNote));
     if (failed.length) {
-      return json({
-        success:false,
-        code:'02cr-operational-mirror-not-qualified',
-        fallback:'apps-script',
-        mirrors:failed.map(([name, mirror]) => safeMirrorMeta(name, mirror))
-      }, 503, corsHeaders(request, env));
+      return json({ success:false, code:'02cr-operational-mirror-not-qualified', fallback:'apps-script', mirrors:failed.map(([name, mirror]) => safeMirrorMeta(name, mirror)) }, 503, corsHeaders(request, env));
     }
 
     const mapped = mapMirrorRows(lines.headers, lines.rows, screen);
-    const enriched = enrichFromMirrors02CR(mapped, customers, restrictions, new Date());
-    const allVisible = filterRows(enriched, '');
-    const filtered = filterRows(enriched, statusFilter);
-    const dashboard = buildDashboardFromRows(allVisible, screen);
-    const pageSize = clampInt(url.searchParams.get('pageSize'), 20, 5, 100);
-    const requestedPage = clampInt(url.searchParams.get('page'), 1, 1, 1000000);
+    const enriched = sortLikeAppsRows(enrichFromMirrors02CR(mapped, customers, restrictions, new Date()));
+    const counts = statusCounts(enriched);
+    const filtered = enriched.filter((row) => rowMatchesAppsFilters(row, params));
+    const dashboard = buildDashboardFromRows(enriched, screen);
+    const pageSize = clampInt(params.pageSize, 20, 5, 100);
+    const requestedPage = clampInt(params.page, 1, 1, 1000000);
     const totalRows = filtered.length;
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
     const page = Math.min(requestedPage, totalPages);
@@ -187,6 +239,8 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
       rows:filtered.slice(start, start + pageSize),
       dashboard,
       pagination:{ page, pageSize, totalRows, totalPages, hasOlder:page < totalPages },
+      statusCounts:counts.statusCounts,
+      statusOrderCounts:counts.statusOrderCounts,
       serverPaged:true,
       dataVersion:text(lines.catalog.syncedAt) || 'd1',
       version:'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY',
