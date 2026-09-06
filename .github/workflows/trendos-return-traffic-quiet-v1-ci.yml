@@ -1,0 +1,36 @@
+name: TrendOS Return Traffic Quiet V1 CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'trendos-return-traffic-quiet-v1.js'
+      - 'tests/trendos_return_traffic_quiet_v1.test.mjs'
+      - '.github/workflows/trendos-return-traffic-quiet-v1-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  return-traffic-quiet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check trendos-return-traffic-quiet-v1.js
+      - name: Regression
+        run: node tests/trendos_return_traffic_quiet_v1.test.mjs
+      - name: Safety summary
+        run: |
+          set -euo pipefail
+          grep -Fq "suppress-only-known-return-network-listeners" trendos-return-traffic-quiet-v1.js
+          grep -Fq "MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false" config.js
+          grep -Fq "MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false" config.js
+          grep -Fq "MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true" config.js
+          echo TRENDOS_RETURN_TRAFFIC_QUIET_V1_CI_PASS
