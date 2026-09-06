@@ -1,0 +1,101 @@
+name: TrendOS 02CR Apps Script Predeploy Boundary TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cr-apps-script-predeploy-boundary-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Worker and authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/edge-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/edge-health.json','utf8'));
+          const pass=x.success===true && x.database===true && x.cutover===false && x.sheetsAuthoritative===true;
+          console.log('PERF_CF_02CR_EDGE_BOUNDARY='+JSON.stringify({success:x.success,database:x.database,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: 02CL and generic drain remain off
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/reconcile-health.json --write-out '%{http_code}' "$PROD_URL/v1/qualification/cloud-write/reconcile/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/reconcile-health.json','utf8'));
+          const pass=x.success===true && x.enabled===false && x.genericDrainEnabled===false && x.productionCutover===false && x.sheetsAuthoritative===true;
+          console.log('PERF_CF_02CR_02CL_BOUNDARY='+JSON.stringify({enabled:x.enabled,genericDrainEnabled:x.genericDrainEnabled,productionCutover:x.productionCutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Cloud write metadata boundary and pending outbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/cloud-write-health.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$code" = '200'
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write-health.json','utf8'));
+          const pending = Number(x.pendingOutbox ?? x.pending_outbox ?? 0);
+          const pass=x.success===true && x.database===true && x.cutover===false && x.sheetsAuthoritative===true && pending===0;
+          console.log('PERF_CF_02CR_CLOUD_WRITE_BOUNDARY='+JSON.stringify({enabled:x.enabled,writesAccepted:x.writesAccepted,database:x.database,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pendingOutbox:pending,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Orders edge anonymous access stays closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/orders-anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/page?screen=print&page=1&pageSize=5")"
+          echo "PERF_CF_02CR_ORDERS_ANON_HTTP=$code"
+          test "$code" = '401'
+
+      - name: Production frontend remains Apps Script read lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error 'https://raw.githubusercontent.com/fawakhry/TrendOs/main/config.js' > /tmp/main-config.js
+          if grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' /tmp/main-config.js; then
+            echo 'FRONTEND_EDGE_READ_UNEXPECTEDLY_ON'
+            exit 1
+          fi
+          if grep -Eq 'trendos-edge-orders-read-v1\.js' /tmp/main-config.js; then
+            echo 'FRONTEND_EDGE_LOADER_UNEXPECTEDLY_PRESENT'
+            exit 1
+          fi
+          echo 'PERF_CF_02CR_FRONTEND_APPS_SCRIPT_LANE_PASS'
+
+      - name: Support mirror pre-sync state only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --get --data-urlencode 'name=العملاء' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/customers.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=عملاء منع التسليم بالمديونية' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/restrictions.json
+          node <<'NODE'
+          const fs=require('fs');
+          for(const [label,file] of [['CUSTOMERS','/tmp/customers.json'],['RESTRICTIONS','/tmp/restrictions.json']]){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')), s=x.sheet||{};
+            console.log('PERF_CF_02CR_'+label+'_PRESYNC='+JSON.stringify({rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,sourceLastCol:s.sourceLastCol,status:s.status,syncedAt:s.syncedAt,note:s.note}));
+            if(x.success!==true || x.schemaMutationFree!==true || s.status!=='ready' || Number(s.rowCount||0)!==Number(s.sourceLastRow||0)) process.exit(1);
+          }
+          NODE
+
+      - name: Conclusion
+        run: |
+          echo 'PERF_CF_02CR_APPS_SCRIPT_PREDEPLOY_BOUNDARY_PASS_NO_MUTATION'
+          echo 'No Worker deploy, no D1 import, no Apps Script write, no frontend change, no secret rotation.'
