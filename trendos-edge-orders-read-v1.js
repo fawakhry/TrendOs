@@ -6,15 +6,16 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_02CU_FRESHNESS_20260906';
+  var VERSION = 'EDGE_ORDERS_READ_02CU_IDLE_LOGICAL_FRESHNESS_20260906';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
+  var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
   var REQUIRED_MIRRORS = ['بنود الأوردرات', 'العملاء', 'عملاء منع التسليم بالمديونية'];
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
-  var metrics = { edgeSuccess: 0, fallbacks: 0, staleFallbacks: 0, lastFallbackAt: 0, lastFallbackReason: '' };
+  var metrics = { edgeSuccess: 0, fallbacks: 0, staleFallbacks: 0, logicalFreshnessAccepted: 0, lastFallbackAt: 0, lastFallbackReason: '' };
 
   function text(value) { return String(value == null ? '' : value).trim(); }
 
@@ -41,6 +42,25 @@
     return err;
   }
 
+  function logicalLinesFreshnessValid(body, mirror, now) {
+    var proof = body && body.logicalFreshness;
+    if (!proof || proof.ok !== true || text(proof.mode) !== 'verified-idle-source-unchanged') return false;
+    if (Array.isArray(proof.failedChecks) && proof.failedChecks.length) return false;
+    var checkedAt = parseMirrorTime(proof.checkedAt);
+    if (!Number.isFinite(checkedAt)) return false;
+    var age = now - checkedAt;
+    if (age < -2 * 60 * 1000 || age > MAX_LOGICAL_FRESHNESS_AGE_MS) return false;
+    var advertisedMax = Number(proof.maxAgeSeconds);
+    if (!Number.isFinite(advertisedMax) || advertisedMax < 300 || advertisedMax > MAX_LOGICAL_FRESHNESS_AGE_MS / 1000) return false;
+    if (age > advertisedMax * 1000) return false;
+    var source = proof.source && proof.source.lines;
+    if (!source) return false;
+    if (Number(source.sourceLastRow || 0) !== Number(mirror.sourceLastRow || 0)) return false;
+    if (Number(source.sourceLastCol || 0) !== Number(mirror.sourceLastCol || 0)) return false;
+    if (source.displayHashPresent !== true) return false;
+    return true;
+  }
+
   function validateRequiredMirrors(body) {
     var mirrors = body && Array.isArray(body.mirrors) ? body.mirrors : [];
     var maxAge = maxMirrorAgeMs();
@@ -54,7 +74,13 @@
       if (!Number.isFinite(syncedAt)) throw mirrorFreshnessError('Required D1 mirror timestamp missing: ' + name, 'EDGE_MIRROR_TIMESTAMP');
       var age = now - syncedAt;
       if (age < -2 * 60 * 1000) throw mirrorFreshnessError('Required D1 mirror timestamp is in the future: ' + name, 'EDGE_MIRROR_CLOCK');
-      if (age > maxAge) throw mirrorFreshnessError('Required D1 mirror is stale: ' + name, 'EDGE_MIRROR_STALE');
+      if (age > maxAge) {
+        if (name === 'بنود الأوردرات' && logicalLinesFreshnessValid(body, mirror, now)) {
+          metrics.logicalFreshnessAccepted += 1;
+          return;
+        }
+        throw mirrorFreshnessError('Required D1 mirror is stale: ' + name, 'EDGE_MIRROR_STALE');
+      }
     });
     return body;
   }
@@ -194,7 +220,7 @@
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 'qualified-d1-orders-read-first-freshness-gated-apps-script-fallback',
+      mode: 'qualified-d1-orders-read-first-dual-signal-freshness-gated-apps-script-fallback',
       api: edgeBase(),
       pagePath: QUALIFIED_PAGE_PATH,
       maxMirrorAgeMs: maxMirrorAgeMs(),
@@ -206,6 +232,7 @@
           edgeSuccess: metrics.edgeSuccess,
           fallbacks: metrics.fallbacks,
           staleFallbacks: metrics.staleFallbacks,
+          logicalFreshnessAccepted: metrics.logicalFreshnessAccepted,
           lastFallbackAt: metrics.lastFallbackAt,
           lastFallbackReason: metrics.lastFallbackReason
         };
