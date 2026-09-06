@@ -58,9 +58,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -Ec 'wrangler[[:space:]]+deploy' .github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml)" -eq 1
-          test "$(grep -Ec 'd1[[:space:]]+migrations[[:space:]]+apply' .github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml || true)" -eq 0
-          test "$(grep -Ec 'secret[[:space:]]+put' .github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml || true)" -eq 0
+          wf=.github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml
+          test "$(grep -Ec '^[[:space:]]+npx[[:space:]]+wrangler[[:space:]]+deploy[[:space:]]+--config[[:space:]]+cloudflare-d1/wrangler.toml' "$wf")" -eq 1
+          ! grep -Eq '^[[:space:]]+(npx[[:space:]]+)?wrangler[[:space:]]+d1[[:space:]]+migrations[[:space:]]+apply' "$wf"
+          ! grep -Eq '^[[:space:]]+(npx[[:space:]]+)?wrangler[[:space:]]+secret[[:space:]]+put' "$wf"
           echo '02CW_CODE_ONLY_NO_SECRET_NO_MIGRATION_PASS'
 
       - name: Install pinned Wrangler
