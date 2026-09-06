@@ -5,9 +5,12 @@ import assert from 'node:assert/strict';
 
 const root = process.env.TRENDOS_TEST_ROOT || process.cwd();
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 assert.match(app, /function preserveFlyPrintAcrossMissingFields\(previousRows, nextRows\)/);
 assert.match(app, /state\.rows = preserveFlyPrintAcrossMissingFields\(state\.rows, nextRows\);/);
+assert.match(index, /app\.js\?v=trendos-02cv-flylane-20260906c/);
+assert.doesNotMatch(index, /app\.js\?v=trendos-02cv-statusux-20260906b/);
 
 const start = app.indexOf('  function preserveFlyPrintAcrossMissingFields(');
 const end = app.indexOf('\n\n  function numericAmount', start);
