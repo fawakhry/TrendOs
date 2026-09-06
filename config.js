@@ -85,7 +85,7 @@ function trendLoadModuleV1932(id, src){
 trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260906c');
 
 window.MATBAGY_ATTENDANCE_V1 = true;
-trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824j');
+trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260906perfhotfix1');
 window.__TRENDOS_ATTENDANCE_REST_LIMIT__ = 30;
 trendLoadModuleV1932('trendAttendanceLiveTimerV1Loader','attendance-live-timer-v1.js?v=20260824a');
 
@@ -113,14 +113,15 @@ trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260826
 
 trendLoadModuleV1932('trendMasterResilienceV1931Loader','trend-master-resilience-v1931.js?v=20260906a');
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260906a');
-trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824g');
+trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260906perfhotfix1');
 
 window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;
-trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260824a');
+window.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false;
+trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260906perfhotfix1');
 
 window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2 = true;
-trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260824j');
+trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260906perfhotfix1');
 
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_DRAG_V2 = true;
 trendLoadModuleV1932('trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260824b');
@@ -129,7 +130,8 @@ window.MATBAGY_EMPLOYEE_ANDON_V1 = true;
 trendLoadModuleV1932('trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20260824b');
 
 window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;
-trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260824g');
+window.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false;
+trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260906perfhotfix1');
 
 // Unified floating tools, visible version, and one refresh point.
 window.MATBAGY_OPERATIONS_HUB_V1 = true;
