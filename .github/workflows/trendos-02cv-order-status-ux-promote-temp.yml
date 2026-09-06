@@ -1,0 +1,83 @@
+name: TrendOS 02CV Order Status UX Promote Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cv-order-status-ux-promote-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      EXPECTED_MAIN: 0088ed5625e8359f8551525ae41df3b25248b494
+    steps:
+      - name: Checkout working branch tools
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Save qualified patcher and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tools/patch_02cv_order_status_ux.py /tmp/patch_02cv_order_status_ux.py
+          cp tests/frontend_order_status_ux_02cv.test.mjs /tmp/frontend_order_status_ux_02cv.test.mjs
+
+      - name: Lock exact production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          actual="$(git rev-parse origin/main)"
+          echo "MAIN_BEFORE=$actual"
+          test "$actual" = "$EXPECTED_MAIN"
+          git checkout -B main "$EXPECTED_MAIN"
+
+      - name: Apply exact bounded frontend patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 /tmp/patch_02cv_order_status_ux.py .
+          TRENDOS_TEST_ROOT=. node /tmp/frontend_order_status_ux_02cv.test.mjs
+          node --check app.js
+
+      - name: Assert only app.js and index.html changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only)
+          printf 'CHANGED_FILES=%s\n' "${files[*]}"
+          test "${#files[@]}" -eq 2
+          printf '%s\n' "${files[@]}" | grep -qx 'app.js'
+          printf '%s\n' "${files[@]}" | grep -qx 'index.html'
+          git diff --check
+          git diff -- app.js index.html
+
+      - name: Commit and push exact production fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app.js index.html
+          git commit -m 'Fix order status immediate hide and fly-print badge'
+          new_sha="$(git rev-parse HEAD)"
+          echo "NEW_MAIN=$new_sha"
+          git push origin HEAD:main
+          echo "$new_sha" > /tmp/new-main.txt
+
+      - name: Verify pushed main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          new_sha="$(cat /tmp/new-main.txt)"
+          test "$(git rev-parse origin/main)" = "$new_sha"
+          echo "02CV_ORDER_STATUS_UX_PRODUCTION_PUSH=PASS"
