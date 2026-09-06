@@ -1,0 +1,90 @@
+name: TrendOS 02CS Line ID Semantic Fix TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02cs-line-id-semantic-fix-temp.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-02cs-line-id-semantic-fix-temp
+  cancel-in-progress: false
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact bounded Line ID semantic patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          src=Path('cloudflare-d1/src/edge-orders-read-v1.mjs')
+          s=src.read_text(encoding='utf-8')
+          marker='export function mapMirrorRows(headers, mirrorRows, screen) {'
+          if marker not in s:
+            raise SystemExit('mapMirrorRows marker not found')
+          helper="""const GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS = Date.UTC(1899, 11, 30);\nconst GOOGLE_SHEETS_SERIAL_DAY_MS = 24 * 60 * 60 * 1000;\n\nfunction semanticLineId(rawValue, displayValue) {\n  const raw = text(rawValue);\n  const display = text(displayValue);\n  if (!raw) return display;\n\n  // Orders Live Sync preserves getValues() separately from getDisplayValues().\n  // If Sheets date-formatting coerces a numeric Line ID into a Date, the Apps\n  // Script serializer stores that raw Date as ISO. Convert that ISO back to the\n  // underlying integer Sheets serial so it matches authoritative getRowsPageV1931.\n  if (/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$/.test(raw)) {\n    const ms = Date.parse(raw);\n    if (Number.isFinite(ms)) {\n      const serial = Math.floor((ms - GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS) / GOOGLE_SHEETS_SERIAL_DAY_MS);\n      if (Number.isSafeInteger(serial) && serial > 0) return String(serial);\n    }\n  }\n\n  if (/^\\d+(?:\\.0+)?$/.test(raw)) {\n    const n = Number(raw);\n    if (Number.isSafeInteger(n)) return String(n);\n  }\n  return raw;\n}\n\n"""
+          if 'function semanticLineId(' in s:
+            raise SystemExit('semanticLineId already present; refusing duplicate patch')
+          s=s.replace(marker,helper+marker,1)
+
+          old="""    const row = Array.isArray(item.display) && item.display.length ? item.display : (Array.isArray(item.values) ? item.values : []);\n    const orderId = text(valueAt(row, c.orderId)) || text(valueAt(row, c.orderCode));\n    const lineId = text(valueAt(row, c.lineId));\n"""
+          new="""    const row = Array.isArray(item.display) && item.display.length ? item.display : (Array.isArray(item.values) ? item.values : []);\n    const rawRow = Array.isArray(item.values) ? item.values : [];\n    const orderId = text(valueAt(row, c.orderId)) || text(valueAt(row, c.orderCode));\n    const lineId = semanticLineId(valueAt(rawRow, c.lineId), valueAt(row, c.lineId));\n"""
+          if s.count(old) != 1:
+            raise SystemExit('Expected exact mapMirrorRows Line ID block once')
+          s=s.replace(old,new,1)
+          src.write_text(s,encoding='utf-8')
+
+          test=Path('tests/cloudflare_edge_orders_read_v1.test.mjs')
+          t=test.read_text(encoding='utf-8')
+          anchor="""assert.equal(mapMirrorRows(headers, mirrorRows, 'laser').length, 1);\n"""
+          regression="""assert.equal(mapMirrorRows(headers, mirrorRows, 'laser').length, 1);\n\n// 02CS regression: a numeric Line ID can be stored by Sheets as a Date because\n// the source cell carries a DATE number format. D1 keeps both raw/getValues ISO\n// and formatted text; the mapped identity must recover the semantic numeric ID.\nconst formattedLine = base.slice();\nformattedLine[0] = '3899'; formattedLine[1] = '3899'; formattedLine[4] = 'طباعة';\nformattedLine[5] = '3899-01'; formattedLine[6] = 'أوردر جديد - طباعة'; formattedLine[9] = 'عاجل'; formattedLine[10] = 'طلب جديد';\nconst rawFormattedLine = formattedLine.slice();\nrawFormattedLine[5] = '3899-01-01T08:00:00.000Z';\nconst semanticMapped = mapMirrorRows(headers, [row(1, headers), { rowNumber: 2, display: formattedLine, values: rawFormattedLine }], 'print');\nassert.equal(semanticMapped.length, 1);\nassert.equal(semanticMapped[0].orderId, '3899');\nassert.equal(semanticMapped[0].lineId, '730122');\n\nconst numericRawLine = formattedLine.slice();\nnumericRawLine[5] = 730122;\nconst numericMapped = mapMirrorRows(headers, [row(1, headers), { rowNumber: 2, display: formattedLine, values: numericRawLine }], 'print');\nassert.equal(numericMapped[0].lineId, '730122');\n"""
+          if t.count(anchor) != 1:
+            raise SystemExit('Expected test anchor once')
+          t=t.replace(anchor,regression,1)
+          test.write_text(t,encoding='utf-8')
+          print('PERF_CF_02CS_LINE_ID_SEMANTIC_PATCH_APPLIED')
+          PY
+
+      - name: Focused safety tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
+          node tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs
+          node tests/cloudflare_index_v2_02cr_route.test.mjs
+          echo 'PERF_CF_02CS_LINE_ID_SEMANTIC_TESTS_PASS'
+
+      - name: Ensure patch scope is exact
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          test "$changed" = $'cloudflare-d1/src/edge-orders-read-v1.mjs\ntests/cloudflare_edge_orders_read_v1.test.mjs'
+          ! git diff -- cloudflare-d1/src/edge-orders-read-v1.mjs tests/cloudflare_edge_orders_read_v1.test.mjs | grep -E 'EDGE_SESSION_SECRET|TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED|genericDrain|CUTOVER' >/dev/null
+          echo 'PERF_CF_02CS_LINE_ID_PATCH_SCOPE_PASS'
+
+      - name: Commit qualified code change only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cloudflare-d1/src/edge-orders-read-v1.mjs tests/cloudflare_edge_orders_read_v1.test.mjs
+          git commit -m 'fix: preserve semantic Line ID in D1 orders read'
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
+          echo 'PERF_CF_02CS_LINE_ID_SEMANTIC_FIX_COMMITTED'
