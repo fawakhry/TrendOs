@@ -2,29 +2,109 @@
 
 Date: 2026-09-06
 
+## Current active checkpoint — PERF-CF-02CU
+
+`PERF-CF-02CU — Stability / Freshness / Resume Guards`
+
+Status: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — RETURN/FOCUS AUTO-REFRESH TECHNICAL PASS + PRODUCTION DEPLOYED — USER-VISIBLE RESUME VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
+
+Record:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_STABILITY_FRESHNESS_RESUME_GUARDS.md`
+
+### Current production frontend
+
+- GitHub Pages from `main`
+- Production main commit: `20a56241da2919e31fc12cb5224d29ac18fdf4f3`
+- Production Worker: `trendos-d1-api`
+- D1 database: `trendos-main`
+- Worker version retained from qualified 02CS/02CT path: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
+- Sheets / Apps Script authority: **YES**
+
+### Orders read routing
+
+Eligible `getRowsPageV1931` reads remain D1-first through:
+
+`Frontend → trendos-edge-orders-read-v1.js → /v1/edge/orders/02cr/page → D1`
+
+02CU adds a frontend freshness safety gate:
+
+- if required D1 mirrors are older than `5 minutes`, Edge read fails open to Apps Script;
+- `__DEBT__` remains Apps Script;
+- all writes remain Apps Script / Sheets;
+- unsupported/non-qualified actions remain Apps Script.
+
+Freshness production commit:
+
+`296fce971c52a7338a0ce1ded4c44b773af62d01`
+
+The underlying Orders Live Sync heartbeat was found stale and still needs a separate recovery/qualification action. The current freshness gate protects users from consuming stale D1 Orders data while that is unresolved.
+
+### Return-to-platform refresh regression
+
+Root cause in legacy V1921 frontend code:
+
+`safeRefresh()` is bound to:
+
+- `visibilitychange` when the page becomes visible;
+- `window.focus`;
+- a 180000 ms interval.
+
+It programmatically clicks `#refreshBtn`, causing full data refresh when users return to the platform.
+
+Qualified fix:
+
+`trendos-resume-no-autorefresh-v1.js`
+
+The fix suppresses only `refreshBtn.click()` originating from legacy `safeRefresh`; manual refresh and other required programmatic refreshes remain available.
+
+Candidate evidence:
+
+- dedicated CI Run `34027221511` — **SUCCESS**
+- Integrity Run `34027221532` — **SUCCESS**
+
+Production deployment:
+
+- first bounded attempt Run `34027268222` failed at scope bookkeeping before commit/push — **NO production mutation**
+- corrected bounded production Run `34027313379` — **SUCCESS**
+- production commit `20a56241da2919e31fc12cb5224d29ac18fdf4f3`
+- GitHub Pages Run `34027347761` — **SUCCESS**
+- published config/module verification inside the bounded workflow — **PASS**
+
+Current expected browser behavior:
+
+- switching to another tab/page and returning must NOT automatically reload all platform data;
+- the user can still press `تحديث البيانات` manually;
+- login/session should remain intact;
+- no request storm should be created on focus/visibility return.
+
+User-visible validation for this resume behavior is still pending.
+
+### 02CU safety boundary
+
+- Apps Script deployment in this 02CU frontend work: **NO**
+- Worker deployment: **NO**
+- D1 business-data write: **NO**
+- authority transfer: **NO**
+- 02CL / reconcile: **OFF**
+- generic drain: **OFF**
+- `EDGE_SESSION_SECRET` rotation: **NO**
+
+Exact active stop point:
+
+`PERF-CF-02CU IN PROGRESS — RESUME NO-AUTO-REFRESH LIVE ON PRODUCTION — USER-VISIBLE VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING`
+
+---
+
 ## Trend Master V1931 — مسار منفصل
 
 `TM-V1931-RESILIENCE — Trend Master Panel Resilience Candidate`
 
-Status: **CODE + DEDICATED CI + INTEGRITY PASS — NOT DEPLOYED — APPS SCRIPT PRODUCTION UNCHANGED**
-
-Record:
-
-`TRENDOS_BLACKBOX_2026-09-06_TREND_MASTER_V1931_RESILIENCE_CANDIDATE.md`
-
-Candidate commit:
-
-`03300ce2d5454e497bc0be6ddc58c2b2ceb75c95`
-
-Production Trend Master still uses the currently published Apps Script behavior. The panelized resilience backend/frontend candidate requires separately approved Apps Script deployment before production activation.
-
-Exact Trend Master stop point:
-
-`TM-V1931 RESILIENCE CANDIDATE — APPS SCRIPT PRODUCTION DEPLOYMENT REQUIRES EXPLICIT USER APPROVAL`
+The Trend Master lane is maintained separately. 02CU did not perform an Apps Script deployment or backend mutation for Trend Master. Current production frontend keeps bounded Trend Master concurrency and heavy background auto-scans disabled to protect platform performance.
 
 ---
 
-## D1 / Cloudflare current checkpoint
+## Last closed D1 checkpoint — PERF-CF-02CT
 
 `PERF-CF-02CT — Production Frontend D1 Orders Read Cutover`
 
@@ -34,171 +114,10 @@ Technical record:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_PRODUCTION_FRONTEND_CUTOVER_PASS.md`
 
-User-visible close record:
+User-visible record:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_USER_VISIBLE_PASS.md`
 
-## Current production topology
+02CT established the qualified `/v1/edge/orders/02cr/page` D1-first frontend read path, Apps Script fallback, `__DEBT__` fallback, write boundary, field/identity parity, and operational ordering. The user confirmed the live result with `فل`.
 
-- Production frontend: GitHub Pages from `main`
-- Production main commit: `943da84e3b3d1591d2ce207ab3411bfe437989b1`
-- Production Worker: `trendos-d1-api`
-- D1 database: `trendos-main`
-- Worker version: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
-- Worker version traffic: **100%**
-- Sheets / Apps Script authority: **YES**
-
-### Read routing now live
-
-For eligible frontend `getRowsPageV1931` calls:
-
-`Frontend → trendos-edge-orders-read-v1.js → /v1/edge/orders/02cr/page → D1`
-
-If the Edge read fails for any reason:
-
-`Frontend → original Apps Script API`
-
-Exceptions that deliberately stay on Apps Script:
-
-- `__DEBT__`
-- all writes
-- unsupported/non-qualified actions
-
-This is a **read-routing cutover only**. It is not an authority cutover.
-
-## Why 02CT did not simply enable the old flag
-
-Before production activation, the old wrapper was found to target:
-
-`/v1/edge/orders/page`
-
-That path was not the fully qualified operational read route and had previously been associated with incomplete order-card data through limited screen-view mirrors.
-
-02CT first changed the wrapper to the fully qualified route:
-
-`/v1/edge/orders/02cr/page`
-
-Only after regression tests and live parity passed was the frontend flag enabled.
-
-## 02CT qualification evidence
-
-Candidate qualification:
-
-- commit `d072a86e3ac57a72096b46096efc8c4a52af9da8`
-- Run `34010739030`
-- Job `101425991751`
-- **SUCCESS**
-
-Same-head Integrity:
-
-- Run `34010738989`
-- Job `101425991698`
-- **SUCCESS**
-
-Live pre-cutover parity:
-
-- print active: `21`
-- laser active: `18`
-- exact `Order ID + Line ID + status` set parity vs Apps Script: PASS
-- 38-field contract: PASS
-- production authority boundary: PASS
-
-## Production cutover evidence
-
-Production commit:
-
-`943da84e3b3d1591d2ce207ab3411bfe437989b1`
-
-Changed only:
-
-- `config.js`
-- `trendos-edge-orders-read-v1.js`
-- `index.html`
-- `reset-cache.html`
-
-Production cutover workflow:
-
-- Run `34010864525`
-- Job `101426332138`
-- **SUCCESS**
-
-GitHub Pages:
-
-- Run `34010872232`
-- build SUCCESS
-- deploy SUCCESS
-
-Published asset propagation passed on attempt `5`.
-
-Published frontend wrapper live canary:
-
-- normal print read hit D1 version `D1_ORDERS_READ_02CR_OPERATIONAL_CANARY`
-- pageSize `5` returned five rows
-- no Apps Script fallback for the normal read
-- `__DEBT__` used Apps Script fallback
-- write action used Apps Script fallback
-
-Marker:
-
-`PERF_CF_02CT_LIVE_FRONTEND_WRAPPER_PASS rows=5`
-
-Final marker:
-
-`PERF_CF_02CT_PRODUCTION_FRONTEND_CUTOVER_PASS=943da84e3b3d1591d2ce207ab3411bfe437989b1`
-
-## Durable post-cutover regression state
-
-Working branch was synchronized to the production D1 read state without removing the separate Trend Master candidate.
-
-- config sync commit: `94699da3a7279eeea22df40c3cd383ea33c4f870`
-- durable regression CI commit: `1da926e9c9e9be843da1e125790f2c0535d77f71`
-
-Final post-cutover regression:
-
-- Run `34011062287`
-- Job `101426859723`
-- **SUCCESS**
-
-Final same-head Integrity:
-
-- Run `34011062262`
-- Job `101426859662`
-- **SUCCESS**
-
-The durable regression verifies the working branch, production `main`, published GitHub Pages assets, frontend fallback behavior, operational ordering, authority boundary, and authenticated D1-vs-Apps-Script identity/field parity.
-
-## User-visible production validation
-
-After the production cutover and browser refresh check, the user confirmed the live platform result with:
-
-`فل`
-
-This is recorded as:
-
-**PERF-CF-02CT USER-VISIBLE PASS**
-
-02CT is therefore closed at both technical and user-visible levels.
-
-## Current production safety boundary
-
-- eligible frontend Orders reads from D1: **ON**
-- qualified route: `/v1/edge/orders/02cr/page`
-- Apps Script fallback: **ON**
-- Sheets / Apps Script authoritative: **YES**
-- Worker internal `cutover=false`
-- writes to D1 from this cutover: **NO**
-- `__DEBT__` D1 read: **NO**
-- 02CL / reconcile: **OFF**
-- generic drain: **OFF**
-- `pendingOutbox=0`
-- `EDGE_SESSION_SECRET` rotation: **NO**
-- Worker redeploy in 02CT: **NO**
-- D1 migration in 02CT: **NO**
-- Apps Script deployment in 02CT: **NO**
-- authority transfer: **NO**
-
-## Exact stop point — D1
-
-`PERF-CF-02CT CLOSED — TECHNICAL PASS + USER-VISIBLE PASS — PRODUCTION FRONTEND D1 ORDERS READ ON THROUGH QUALIFIED /02CR ROUTE — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITY RETAINED`
-
-No further deployment or validation action remains for 02CT itself.
+02CU does not change that authority boundary; it adds stability protections on top of it.
