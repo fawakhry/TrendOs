@@ -1,0 +1,174 @@
+name: TrendOS 02CQ Post-Refresh Verify TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - .github/workflows/trendos-02cq-postrefresh-verify-temp.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EDGE_BASE: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      TRENDOS_PROD_QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static read-only boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          data = Path('.github/workflows/trendos-02cq-postrefresh-verify-temp.yml').read_text(encoding='utf-8')
+          forbidden = [
+            'wrangler' + ' deploy',
+            'secret' + ' put',
+            'd1 execute --' + 'file',
+            'wrangler d1 migrations' + ' apply',
+            '/v1/import/' + 'sheet',
+            '/v1/qualification/cloud-write/reconcile/' + 'order',
+            'generic outbox' + ' drain'
+          ]
+          for token in forbidden:
+            if token in data:
+              raise SystemExit('Forbidden mutation token in post-refresh probe: ' + token)
+          print('PERF_CF_02CQ_POSTREFRESH_STATIC_READ_ONLY_PASS')
+          PY
+
+      - name: Verify auth inputs exist
+        run: |
+          set -euo pipefail
+          test -n "$TRENDOS_PROD_QUALIFY_USERNAME"
+          test -n "$TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN"
+          echo 'PERF_CF_02CQ_POSTREFRESH_AUTH_INPUTS_READY'
+
+      - name: Verify mirrors canary debt fallback and final boundary
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const base = process.env.EDGE_BASE;
+          const apps = process.env.APPS_SCRIPT_URL;
+          const expectedNote = 'PERF-CF-02CQ bounded screen view atomic refresh';
+          const sheets = [
+            ['service','واجهة خدمة العملاء'],
+            ['print','واجهة الطباعة'],
+            ['laser','واجهة الليزر'],
+            ['press','واجهة المكبس']
+          ];
+
+          async function jsonFetch(url, opts={}) {
+            const r = await fetch(url, {cache:'no-store', ...opts});
+            const text = await r.text();
+            let body={}; try { body=JSON.parse(text||'{}'); } catch {}
+            return {status:r.status, body};
+          }
+          function ident(rows) {
+            return (Array.isArray(rows)?rows:[]).map(r => [
+              String(r.orderId ?? '').trim(),
+              String(r.lineId ?? '').trim(),
+              String(r.status ?? '').trim()
+            ].join('|')).sort();
+          }
+
+          (async()=>{
+            const worker = await jsonFetch(base + '/health');
+            const cloud = await jsonFetch(base + '/v1/cloud/write/health');
+            const recon = await jsonFetch(base + '/v1/qualification/cloud-write/reconcile/health');
+            const unauth = await jsonFetch(base + '/v1/edge/orders/page?screen=print&page=1&pageSize=5');
+
+            assert.equal(worker.status, 200); assert.equal(worker.body.success, true); assert.equal(worker.body.database, true);
+            assert.equal(cloud.status, 200); assert.equal(cloud.body.success, true);
+            assert.equal(cloud.body.cutover, false); assert.equal(cloud.body.sheetsAuthoritative, true);
+            assert.equal(Number(cloud.body.pendingOutbox||0), 0);
+            assert.equal(recon.status, 200); assert.equal(recon.body.enabled, false); assert.equal(recon.body.genericDrainEnabled, false);
+            assert.equal(unauth.status, 401);
+
+            const mirrorSummary = {};
+            for (const [screen,name] of sheets) {
+              const m = await jsonFetch(base + '/v1/mirror/sheet?name=' + encodeURIComponent(name) + '&limit=1&offset=0');
+              assert.equal(m.status, 200, name + ' mirror HTTP');
+              assert.equal(m.body.success, true, name + ' mirror success');
+              assert.ok(m.body.sheet, name + ' mirror catalog');
+              const s = m.body.sheet;
+              assert.equal(String(s.status||''), 'ready', name + ' ready');
+              assert.equal(String(s.note||''), expectedNote, name + ' 02CQ note');
+              assert.equal(Number(s.rowCount||0), Number(s.sourceLastRow||0), name + ' row parity');
+              assert.ok(Number(s.sourceLastRow||0) >= 1, name + ' source row');
+              assert.ok(Number(s.sourceLastCol||0) >= 1, name + ' source col');
+              if (screen === 'print') assert.ok(Number(s.sourceLastRow||0) > 1, 'print mirror must no longer be header-only');
+              mirrorSummary[screen] = {
+                sourceLastRow:Number(s.sourceLastRow||0),
+                sourceLastCol:Number(s.sourceLastCol||0),
+                rowCount:Number(s.rowCount||0),
+                status:String(s.status||''),
+                syncedAt:String(s.syncedAt||''),
+                note:String(s.note||'')
+              };
+            }
+
+            const session = await jsonFetch(base + '/v1/edge/orders/session', {
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({
+                username:process.env.TRENDOS_PROD_QUALIFY_USERNAME,
+                token:process.env.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN
+              })
+            });
+            assert.equal(session.status, 200, 'edge session HTTP');
+            assert.equal(session.body.success, true, 'edge session success');
+            assert.ok(session.body.edgeToken, 'edge token missing');
+
+            const auth = {headers:{accept:'application/json',authorization:'Bearer ' + session.body.edgeToken}};
+            const d1 = await jsonFetch(base + '/v1/edge/orders/page?screen=print&page=1&pageSize=100', auth);
+            assert.equal(d1.status, 200, 'D1 print canary HTTP');
+            assert.equal(d1.body.success, true, 'D1 print canary success');
+            assert.equal(d1.body.dataSource, 'd1-edge-orders');
+            assert.equal(String(d1.body.mirror?.note||''), expectedNote);
+
+            const app = await jsonFetch(apps, {
+              method:'POST',
+              headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+              body:JSON.stringify({
+                action:'getRowsPageV1931',
+                username:process.env.TRENDOS_PROD_QUALIFY_USERNAME,
+                token:process.env.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN,
+                screen:'print', page:'1', pageSize:'100'
+              })
+            });
+            assert.equal(app.status, 200, 'Apps Script print HTTP');
+            assert.equal(app.body.success, true, 'Apps Script print success');
+
+            const d1Ids = ident(d1.body.rows);
+            const appIds = ident(app.body.rows);
+            assert.deepEqual(d1Ids, appIds, 'D1-vs-Apps-Script print identity parity failed');
+
+            const debt = await jsonFetch(base + '/v1/edge/orders/page?screen=print&statusFilter=__DEBT__&page=1&pageSize=20', auth);
+            assert.equal(debt.status, 409, '__DEBT__ must stay on Apps Script fallback');
+            assert.equal(debt.body.code, 'apps-script-required');
+            assert.equal(debt.body.fallback, 'apps-script');
+
+            const worker2 = await jsonFetch(base + '/health');
+            const cloud2 = await jsonFetch(base + '/v1/cloud/write/health');
+            const recon2 = await jsonFetch(base + '/v1/qualification/cloud-write/reconcile/health');
+            const unauth2 = await jsonFetch(base + '/v1/edge/orders/page?screen=print&page=1&pageSize=5');
+            assert.equal(worker2.status,200); assert.equal(worker2.body.success,true); assert.equal(worker2.body.database,true);
+            assert.equal(cloud2.status,200); assert.equal(cloud2.body.success,true); assert.equal(cloud2.body.cutover,false); assert.equal(cloud2.body.sheetsAuthoritative,true); assert.equal(Number(cloud2.body.pendingOutbox||0),0);
+            assert.equal(recon2.status,200); assert.equal(recon2.body.enabled,false); assert.equal(recon2.body.genericDrainEnabled,false);
+            assert.equal(unauth2.status,401);
+
+            console.log('PERF_CF_02CQ_MIRRORS=' + JSON.stringify(mirrorSummary));
+            console.log('PERF_CF_02CQ_PRINT_CANARY=' + JSON.stringify({appsRows:appIds.length,d1Rows:d1Ids.length,identityParity:true,dataSource:d1.body.dataSource}));
+            console.log('PERF_CF_02CQ_DEBT_FALLBACK=' + JSON.stringify({status:debt.status,code:debt.body.code,fallback:debt.body.fallback}));
+            console.log('PERF_CF_02CQ_FINAL_BOUNDARY=' + JSON.stringify({workerHealth:true,database:true,pendingOutbox:0,cutover:false,sheetsAuthoritative:true,reconcileEnabled:false,genericDrainEnabled:false,ordersUnauthStatus:401}));
+            console.log('PERF_CF_02CQ_POSTREFRESH_VERIFY_PASS_NO_MUTATION');
+          })().catch(err => { console.error(err && err.stack || err); process.exit(1); });
+          NODE
