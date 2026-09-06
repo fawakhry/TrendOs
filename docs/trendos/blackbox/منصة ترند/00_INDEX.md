@@ -4,16 +4,17 @@
 
 ## آخر checkpoint منفذ
 
-`PERF-CF-02CR — Orders Completeness / Operational D1 Parity / Legacy View Formula Repair`
+`PERF-CF-02CR — Orders Completeness / Operational D1 Preview Qualification`
 
-الحالة: **ENRICHMENT SYNC PASS — FRONTEND D1 READ OFF — LEGACY VIEW RANGE CAP FIXED — USER-VISIBLE ORDER COMPLETENESS VERIFIED PASS — FULL D1 PARITY NOT CLOSED**
+الحالة: **USER-VISIBLE COMPLETENESS PASS — PREVIEW SOURCE/IDENTITY/PAGING/FILTER/FIELD-CONTRACT PASS — ENRICHMENT HEARTBEAT PASS — FINAL BOUNDARY PASS — PRODUCTION FRONTEND D1 READ OFF**
 
 أحدث سجل:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_VIEW_FORMULA_USER_VALIDATED_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_PREVIEW_SOURCE_PARITY_HEARTBEAT_BOUNDARY_PASS.md`
 
 السجلات السابقة لنفس checkpoint:
 
+- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_VIEW_FORMULA_USER_VALIDATED_PASS.md`
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_VIEW_FORMULA_RANGE_FIX.md`
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_FRONTEND_STALE_CACHE_RECOVERY.md`
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_APPROVED_PREDEPLOY_PASS_MANUAL_APPS_SCRIPT_EXECUTION_REQUIRED.md`
@@ -22,33 +23,51 @@
 ## الحالة الحالية المختصرة
 
 1. Production order-card read ما زال **Apps Script / Sheets** وD1 Orders read على الواجهة **OFF**.
-2. Existing Orders Live Sync V2 يظل المالك الوحيد لـ`الأوردرات + بنود الأوردرات`.
-3. 02CR enrichment sync للعملاء/منع التسليم تم تشغيله والتحقق منه بنجاح.
-4. سبب نقص الأوردرات في الطباعة/الليزر ثبت في Google Sheets legacy views: source ranges كانت متوقفة عند row 311، وخدمة العملاء عند row 270.
-5. تم تعديل **A2 formula فقط** في الأربع Views إلى open-ended ranges؛ لم يتم تعديل أي صف أوردر/عميل.
-6. التحقق بعد الإصلاح أظهر أن الطباعة وصلت لأوردرات أحدث حتى `3920` والليزر حتى `3918` في snapshot الفحص.
-7. المستخدم عمل Refresh للمنصة وأكد صراحة أن النظام عاد يعمل بشكل صحيح: `كده تمام اشتغل`.
-8. النتيجة الرسمية للواقعة: **USER-VISIBLE ORDER COMPLETENESS RECOVERY — VERIFIED PASS**.
-9. cache-bust السابق على GitHub Pages ما زال deployed بنجاح:
-   - production commit `f82c76fc9421e5f8021b94bbd64244a5fde24061`
-   - Pages Run `34005021133` SUCCESS.
-10. لا Worker deploy، لا D1 Orders frontend enable، لا secret rotation، لا authority transfer، لا 02CL.
+2. مشكلة نقص الأوردرات في legacy views تم إصلاحها من source-range caps، والمستخدم أكد: `كده تمام اشتغل`.
+3. Existing Orders Live Sync V2 يظل المالك الوحيد لـ`الأوردرات + بنود الأوردرات`.
+4. 02CR enrichment sync للعملاء/منع التسليم Live وheartbeat شغال كل دقيقة.
+5. Preview 02CR تطابق مباشرة مع `بنود الأوردرات` الحالية:
+   - Print active `21 / 21`
+   - Laser active `18 / 18` = `13 طلب جديد + 4 تحت التنفيذ + 1 متوقف`
+6. Preview pagination pageSize=5 أعاد نفس الصفوف بالترتيب بلا فقد أو تكرار:
+   - print: 5 pages
+   - laser: 4 pages
+7. status / priority / heat / Order ID search partitions PASS.
+8. كل active row يحمل عقد `38` field keys المطلوب.
+9. `__DEBT__` ما زال Apps Script fallback (`409 apps-script-required`).
+10. آخر heartbeat proof:
+    - `العملاء` 239/239, age ~42s
+    - منع التسليم 1/1, age ~43s
+11. Final boundary PASS:
+    - `cutover=false`
+    - `sheetsAuthoritative=true`
+    - 02CL OFF
+    - generic drain OFF
+    - `pendingOutbox=0`
+    - unauth Orders = 401
+    - frontend D1 Orders read OFF
+12. Integrity Run `34005845901`: SUCCESS.
+13. Temporary parity/boundary workflows تم حذفها بعد جمع الدليل.
 
 ## نقطة الوقوف الدقيقة
 
-مشكلة نقص الأوردرات في الواجهة الحالية **مغلقة ومثبتة من المستخدم**.
+`PERF-CF-02CR` مؤهل بالكامل في **Preview**، لكنه **غير مفعّل على production frontend**.
 
-الخطوة التالية داخل 02CR هي استكمال **Preview full field/paging/filter parity** لمسار D1 المعزول فقط. لا يتم إعادة تفعيل D1 على production frontend قبل نجاح الـparity بالكامل.
+الخطوة التالية تحتاج **Production gate/checkpoint جديد وموافقة صريحة**:
+
+1. bounded production Worker deployment للمسار المؤهل، والواجهة تظل OFF.
+2. production canary بعد النشر.
+3. إذا نجح، قرار منفصل لتفعيل frontend D1 read تدريجيًا.
 
 ## ثوابت الأمان
 
-- Sheets / Apps Script authoritative.
+- Sheets / Apps Script authoritative حتى cutover معتمد لاحقًا.
 - Frontend D1 Orders read OFF.
 - 02CL OFF.
 - generic drain OFF.
 - لا تدوير `EDGE_SESSION_SECRET`.
 - `__DEBT__` يبقى Apps Script fallback.
-- لا production Worker deploy أو frontend cutover قبل full parity PASS.
+- لا production Worker deploy أو frontend cutover بدون موافقة جديدة.
 
 ## checkpoints سابقة
 
