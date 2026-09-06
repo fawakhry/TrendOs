@@ -1,0 +1,167 @@
+name: TrendOS 02CS Authoritative Order Fix TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02cs-authoritative-order-fix-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply bounded authoritative ordering patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          src=Path('cloudflare-d1/src/edge-orders-read-v1.mjs')
+          s=src.read_text(encoding='utf-8')
+
+          marker="export function mapMirrorRows(headers, mirrorRows, screen) {"
+          helper="""function semanticUpdatedSortMs(rawValue, displayValue) {
+  const raw = text(rawValue);
+  if (raw) {
+    const rawMs = Date.parse(raw);
+    if (Number.isFinite(rawMs)) return rawMs;
+    if (/^\\d+(?:\\.\\d+)?$/.test(raw)) {
+      const serial = Number(raw);
+      if (Number.isFinite(serial) && serial > 0) {
+        return GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS + (serial * GOOGLE_SHEETS_SERIAL_DAY_MS);
+      }
+    }
+  }
+
+  // Raw getValues() timestamps are expected to be ISO after mirror serialization.
+  // This display fallback exists only for legacy rows that predate raw preservation.
+  const display = arabicDigits(text(displayValue));
+  if (!display) return 0;
+  const dm = display.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})(?:[ T]+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?)?/);
+  if (dm) {
+    const day = Number(dm[1]), month = Number(dm[2]), year = Number(dm[3]);
+    const hour = Number(dm[4] || 0), minute = Number(dm[5] || 0), second = Number(dm[6] || 0);
+    const ms = Date.UTC(year, month - 1, day, hour, minute, second);
+    if (Number.isFinite(ms)) return ms;
+  }
+  const parsed = Date.parse(display);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+"""
+          if 'function semanticUpdatedSortMs(' in s:
+            raise SystemExit('semanticUpdatedSortMs already present; refusing duplicate patch')
+          if s.count(marker) != 1:
+            raise SystemExit('mapMirrorRows marker must occur exactly once')
+          s=s.replace(marker,helper+marker,1)
+
+          old="""  const out = [];
+  for (const item of mirrorRows || []) {
+"""
+          new="""  const out = [];
+  const updatedSortMsByRow = new Map();
+  for (const item of mirrorRows || []) {
+"""
+          if s.count(old) != 1:
+            raise SystemExit('out/map loop anchor must occur exactly once')
+          s=s.replace(old,new,1)
+
+          old_push="""      receivedAt: text(valueAt(row, c.receivedAt)), expectedDeliveryAt: expectedAt, expectedDeliveryText: expectedText, overdue: overdue(status, expectedAt || expectedText) ? 'نعم' : 'لا', registrationSent: text(valueAt(row, c.registrationSent))
+    });
+  }
+  out.sort((a,b) => priorityRank(a.priority) - priorityRank(b.priority) || String(a.orderId).localeCompare(String(b.orderId)));
+  return out;
+"""
+          new_push="""      receivedAt: text(valueAt(row, c.receivedAt)), expectedDeliveryAt: expectedAt, expectedDeliveryText: expectedText, overdue: overdue(status, expectedAt || expectedText) ? 'نعم' : 'لا', registrationSent: text(valueAt(row, c.registrationSent))
+    });
+    updatedSortMsByRow.set(
+      Number(item.rowNumber || 0),
+      semanticUpdatedSortMs(valueAt(rawRow, c.updated), valueAt(row, c.updated))
+    );
+  }
+  // Production Apps Script is still authoritative. Its deployed V1931 lane orders
+  // rows by priority, then most-recent update first; source row is the stable tie-breaker.
+  out.sort((a,b) =>
+    priorityRank(a.priority) - priorityRank(b.priority) ||
+    Number(updatedSortMsByRow.get(b.rowNumber) || 0) - Number(updatedSortMsByRow.get(a.rowNumber) || 0) ||
+    Number(a.rowNumber || 0) - Number(b.rowNumber || 0)
+  );
+  return out;
+"""
+          if s.count(old_push) != 1:
+            raise SystemExit('authoritative sort block must occur exactly once')
+          s=s.replace(old_push,new_push,1)
+          src.write_text(s,encoding='utf-8')
+
+          test=Path('tests/cloudflare_edge_orders_read_v1.test.mjs')
+          t=test.read_text(encoding='utf-8')
+          anchor="""assert.equal(numericMapped[0].lineId, '730122');
+"""
+          regression="""assert.equal(numericMapped[0].lineId, '730122');
+
+// 02CS authoritative ordering regression: the deployed Apps Script lane orders
+// by priority, then newest update first. Raw ISO timestamps are used so display
+// date formatting cannot reorder identities.
+const orderA = base.slice();
+orderA[0] = '4101'; orderA[4] = 'طباعة'; orderA[5] = '810101'; orderA[9] = 'عاجل'; orderA[10] = 'طلب جديد'; orderA[12] = '06/09/2026 09:00';
+const orderB = base.slice();
+orderB[0] = '4102'; orderB[4] = 'طباعة'; orderB[5] = '810102'; orderB[9] = 'عاجل'; orderB[10] = 'طلب جديد'; orderB[12] = '06/09/2026 12:00';
+const orderC = base.slice();
+orderC[0] = '4103'; orderC[4] = 'طباعة'; orderC[5] = '810103'; orderC[9] = 'عادي'; orderC[10] = 'طلب جديد'; orderC[12] = '06/09/2026 13:00';
+const rawA = orderA.slice(), rawB = orderB.slice(), rawC = orderC.slice();
+rawA[12] = '2026-09-06T09:00:00.000Z'; rawB[12] = '2026-09-06T12:00:00.000Z'; rawC[12] = '2026-09-06T13:00:00.000Z';
+const authoritativeOrder = mapMirrorRows(headers, [
+  row(1, headers),
+  { rowNumber: 41, display: orderA, values: rawA },
+  { rowNumber: 42, display: orderB, values: rawB },
+  { rowNumber: 43, display: orderC, values: rawC }
+], 'print');
+assert.deepEqual(authoritativeOrder.map((r) => r.orderId), ['4102','4101','4103']);
+"""
+          if t.count(anchor) != 1:
+            raise SystemExit('Line ID regression anchor must occur exactly once')
+          t=t.replace(anchor,regression,1)
+          test.write_text(t,encoding='utf-8')
+          print('PERF_CF_02CS_AUTHORITATIVE_ORDER_PATCH_APPLIED')
+          PY
+
+      - name: Focused contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
+          node tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs
+          node tests/cloudflare_index_v2_02cr_route.test.mjs
+          echo 'PERF_CF_02CS_AUTHORITATIVE_ORDER_FOCUSED_TESTS_PASS'
+
+      - name: Exact patch scope gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          test "$changed" = $'cloudflare-d1/src/edge-orders-read-v1.mjs\ntests/cloudflare_edge_orders_read_v1.test.mjs'
+          ! git diff -- cloudflare-d1/src/edge-orders-read-v1.mjs tests/cloudflare_edge_orders_read_v1.test.mjs | grep -E 'EDGE_SESSION_SECRET|TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED|genericDrain|MATBAGY_EDGE_ORDERS_READ_V1_ENABLED' >/dev/null
+          echo 'PERF_CF_02CS_AUTHORITATIVE_ORDER_PATCH_SCOPE_PASS'
+
+      - name: Commit qualified code change only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cloudflare-d1/src/edge-orders-read-v1.mjs tests/cloudflare_edge_orders_read_v1.test.mjs
+          git commit -m 'fix: match deployed Apps Script order semantics'
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
+          echo 'PERF_CF_02CS_AUTHORITATIVE_ORDER_FIX_COMMITTED'
