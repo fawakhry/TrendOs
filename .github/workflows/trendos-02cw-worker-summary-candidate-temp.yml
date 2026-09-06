@@ -1,0 +1,211 @@
+name: TrendOS 02CW Worker Summary Candidate Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-worker-summary-candidate-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  qualify-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Apply bounded 02CW worker summary patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          worker_path = Path('cloudflare-d1/src/edge-orders-read-v1.mjs')
+          canary_path = Path('cloudflare-d1/src/edge-orders-read-02cr-canary.mjs')
+          canary_test_path = Path('tests/cloudflare_edge_orders_02cr_canary.test.mjs')
+          integrity_path = Path('.github/workflows/trendos-integrity-v1.yml')
+          test_path = Path('tests/cloudflare_edge_orders_active_summary_02cw.test.mjs')
+
+          worker = worker_path.read_text(encoding='utf-8')
+          helper = r'''export function buildOrdersSummary(rows) {
+            const summary = {
+              total: 0,
+              orderCount: 0,
+              urgent: 0,
+              normal: 0,
+              delayedPriority: 0,
+              overdue: 0,
+              debts: 0,
+              heatPress: 0,
+              heatPressOrders: 0,
+              flyPrint: 0,
+              cancelled: 0,
+              problems: 0
+            };
+            const orders = new Set();
+            const pressOrders = new Set();
+            for (const row of rows || []) {
+              summary.total += 1;
+              const orderId = text(row && row.orderId);
+              if (orderId) orders.add(orderId);
+              const priority = text(row && row.priority);
+              if (priority === 'عاجل' || priority === 'VIP') summary.urgent += 1;
+              else if (!priority || priority === 'عادي') summary.normal += 1;
+              else if (priority === 'مؤجل') summary.delayedPriority += 1;
+              if (text(row && row.overdue) === 'نعم') summary.overdue += 1;
+              if (parseDebt(row && row.debtAmount) > 0) summary.debts += 1;
+              const press = isHeatPress(row && row.heatPress);
+              if (press) {
+                summary.heatPress += 1;
+                if (orderId) pressOrders.add(orderId);
+              }
+              const fly = text(row && (row.flyPrint || row.quickPrint || row.fastPrint)).toLowerCase();
+              if (['نعم','true','1','on','طباعة على الطاير','طباعة ع الطاير','على الطاير','ع الطاير'].includes(fly)) summary.flyPrint += 1;
+              const status = text(row && row.status);
+              if (status === 'ملغى' || status === 'ملغي') summary.cancelled += 1;
+              if (status === 'متوقف') summary.problems += 1;
+            }
+            summary.orderCount = orders.size;
+            summary.heatPressOrders = pressOrders.size;
+            return summary;
+          }
+
+          '''
+          if 'export function buildOrdersSummary(rows)' not in worker:
+              anchor = 'async function readMirror(env) {'
+              if anchor not in worker:
+                  raise SystemExit('worker summary insertion anchor missing')
+              worker = worker.replace(anchor, helper + anchor, 1)
+          worker_path.write_text(worker, encoding='utf-8')
+
+          canary = canary_path.read_text(encoding='utf-8')
+          old_import = "  buildDashboardFromRows,\n  mapMirrorRows,"
+          new_import = "  buildDashboardFromRows,\n  buildOrdersSummary,\n  mapMirrorRows,"
+          if 'buildOrdersSummary,' not in canary:
+              if old_import not in canary:
+                  raise SystemExit('02CR import anchor missing')
+              canary = canary.replace(old_import, new_import, 1)
+
+          old_block = "    const counts = statusCounts(enriched);\n    const filtered = enriched.filter((row) => rowMatchesAppsFilters(row, params));\n    const dashboard = buildDashboardFromRows(enriched, screen);"
+          new_block = "    const counts = statusCounts(enriched);\n    const activeRows = enriched.filter((row) => rowMatchesAppsFilters(row, { statusFilter:'__ACTIVE__' }));\n    const activeSummaryCounts = buildOrdersSummary(activeRows);\n    const filtered = enriched.filter((row) => rowMatchesAppsFilters(row, params));\n    const dashboard = buildDashboardFromRows(enriched, screen);"
+          if 'const activeSummaryCounts = buildOrdersSummary(activeRows);' not in canary:
+              if old_block not in canary:
+                  raise SystemExit('02CR summary computation anchor missing')
+              canary = canary.replace(old_block, new_block, 1)
+
+          old_return = "      dashboard,\n      pagination:{ page, pageSize, totalRows, totalPages, hasOlder:page < totalPages },"
+          new_return = "      dashboard,\n      activeSummaryCounts,\n      pagination:{ page, pageSize, totalRows, totalPages, hasOlder:page < totalPages },"
+          if '      activeSummaryCounts,\n      pagination:' not in canary:
+              if old_return not in canary:
+                  raise SystemExit('02CR response summary anchor missing')
+              canary = canary.replace(old_return, new_return, 1)
+          canary_path.write_text(canary, encoding='utf-8')
+
+          canary_test = canary_test_path.read_text(encoding='utf-8')
+          anchor_assert = "assert.equal(body.pagination.totalRows, 1);\nassert.equal(body.mirrors.length, 3);"
+          replacement_assert = "assert.equal(body.pagination.totalRows, 1);\nassert.equal(body.activeSummaryCounts.total, 1);\nassert.equal(body.activeSummaryCounts.orderCount, 1);\nassert.equal(body.mirrors.length, 3);"
+          if 'body.activeSummaryCounts.total' not in canary_test:
+              if anchor_assert not in canary_test:
+                  raise SystemExit('02CR canary test anchor missing')
+              canary_test = canary_test.replace(anchor_assert, replacement_assert, 1)
+          old_notfound = "assert.equal((await call('query=NOTFOUND')).body.pagination.totalRows, 0);"
+          new_notfound = "const notFound = (await call('query=NOTFOUND')).body;\nassert.equal(notFound.pagination.totalRows, 0);\nassert.equal(notFound.activeSummaryCounts.total, 1, 'global active summary must not collapse with page/search filtering');"
+          if 'global active summary must not collapse' not in canary_test:
+              if old_notfound not in canary_test:
+                  raise SystemExit('02CR notfound test anchor missing')
+              canary_test = canary_test.replace(old_notfound, new_notfound, 1)
+          canary_test_path.write_text(canary_test, encoding='utf-8')
+
+          test_path.write_text(r'''import assert from 'node:assert/strict';
+          import { buildOrdersSummary } from '../cloudflare-d1/src/edge-orders-read-v1.mjs';
+
+          const rows = [
+            { orderId:'1', priority:'عاجل', status:'طلب جديد', overdue:'لا', debtAmount:0, heatPress:'نعم', flyPrint:'نعم' },
+            { orderId:'2', priority:'عادي', status:'تحت التنفيذ', overdue:'نعم', debtAmount:50, heatPress:'نعم', flyPrint:'لا' },
+            { orderId:'3', priority:'مؤجل', status:'طلب جديد', overdue:'لا', debtAmount:0, heatPress:'لا', flyPrint:'نعم' },
+            { orderId:'4', priority:'VIP', status:'متوقف', overdue:'لا', debtAmount:0, heatPress:'نعم', flyPrint:'' },
+            { orderId:'5', priority:'عادي', status:'تحت التنفيذ', overdue:'لا', debtAmount:0, heatPress:'لا', flyPrint:'' },
+            { orderId:'6', priority:'عادي', status:'تحت التنفيذ', overdue:'لا', debtAmount:0, heatPress:'نعم', flyPrint:'' }
+          ];
+          const summary = buildOrdersSummary(rows);
+          assert.equal(summary.total, 6, 'six active rows must remain six even when UI pageSize is five');
+          assert.equal(summary.orderCount, 6);
+          assert.equal(summary.urgent, 2);
+          assert.equal(summary.normal, 3);
+          assert.equal(summary.delayedPriority, 1);
+          assert.equal(summary.overdue, 1);
+          assert.equal(summary.debts, 1);
+          assert.equal(summary.heatPress, 4);
+          assert.equal(summary.heatPressOrders, 4);
+          assert.equal(summary.flyPrint, 2);
+          assert.equal(summary.problems, 1);
+
+          const duplicateOrder = buildOrdersSummary([
+            { orderId:'10', priority:'عادي', status:'تحت التنفيذ', heatPress:'نعم' },
+            { orderId:'10', priority:'عادي', status:'تحت التنفيذ', heatPress:'نعم' },
+            { orderId:'11', priority:'عادي', status:'تحت التنفيذ', heatPress:'نعم' }
+          ]);
+          assert.equal(duplicateOrder.heatPress, 3);
+          assert.equal(duplicateOrder.heatPressOrders, 2, 'press monitor must count unique orders, not returned line items');
+          console.log('PERF_CF_02CW_GLOBAL_ACTIVE_SUMMARY_PASS');
+          ''', encoding='utf-8')
+
+          integrity = integrity_path.read_text(encoding='utf-8')
+          path_anchor = "      - 'tests/frontend_flyprint_lane_stability_02cv.test.mjs'\n"
+          if "tests/cloudflare_edge_orders_active_summary_02cw.test.mjs" not in integrity:
+              if path_anchor not in integrity:
+                  raise SystemExit('Integrity paths anchor missing')
+              integrity = integrity.replace(path_anchor, path_anchor + "      - 'tests/cloudflare_edge_orders_active_summary_02cw.test.mjs'\n", 1)
+          step_anchor = "      - name: Run 02CV fly-print lane stability tests\n        run: node tests/frontend_flyprint_lane_stability_02cv.test.mjs\n"
+          if 'Run 02CW global active summary tests' not in integrity:
+              if step_anchor not in integrity:
+                  raise SystemExit('Integrity step anchor missing')
+              integrity = integrity.replace(step_anchor, step_anchor + "      - name: Run 02CW global active summary tests\n        run: node tests/cloudflare_edge_orders_active_summary_02cw.test.mjs\n", 1)
+          integrity_path.write_text(integrity, encoding='utf-8')
+          print('02CW_WORKER_SUMMARY_PATCH_APPLIED')
+          PY
+
+      - name: Run focused 02CW and existing safety contracts
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_active_summary_02cw.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_index_v2_02cr_route.test.mjs
+          node --check cloudflare-d1/src/edge-orders-read-v1.mjs
+          node --check cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+
+      - name: Assert bounded diff
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t files < <(git diff --name-only)
+          printf 'CHANGED_FILES=%s\n' "${files[*]}"
+          test "${#files[@]}" -eq 5
+          printf '%s\n' "${files[@]}" | grep -qx 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+          printf '%s\n' "${files[@]}" | grep -qx 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs'
+          printf '%s\n' "${files[@]}" | grep -qx 'tests/cloudflare_edge_orders_02cr_canary.test.mjs'
+          printf '%s\n' "${files[@]}" | grep -qx 'tests/cloudflare_edge_orders_active_summary_02cw.test.mjs'
+          printf '%s\n' "${files[@]}" | grep -qx '.github/workflows/trendos-integrity-v1.yml'
+
+      - name: Commit qualified worker candidate to working branch
+        run: |
+          set -euo pipefail
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add cloudflare-d1/src/edge-orders-read-v1.mjs cloudflare-d1/src/edge-orders-read-02cr-canary.mjs tests/cloudflare_edge_orders_02cr_canary.test.mjs tests/cloudflare_edge_orders_active_summary_02cw.test.mjs .github/workflows/trendos-integrity-v1.yml
+          git commit -m 'Add global active Orders summary for 02CW'
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
+          echo '02CW_WORKER_CANDIDATE_COMMIT_PASS'
