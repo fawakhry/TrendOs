@@ -18,7 +18,7 @@ assert.match(source, /D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID\s*=\s*'1PtsjF4o
 assert.match(source, /SpreadsheetApp\.openById\(D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID\)/);
 assert.match(source, /getProperty\('D1_API_URL'\)/);
 assert.match(source, /getProperty\('D1_MIGRATION_SECRET'\)/);
-assert.match(source, /'x-migration-secret':\s*cfg\.secret/);
+assert.match(source, /'x-migration-secret':\s*migrationSecret/);
 assert.match(source, /refreshD1ScreenViewMirrors02CQ/);
 assert.match(source, /runD1ScreenViewMirrorRefresh02CQOnce/);
 assert.match(source, /getD1ScreenViewMirrorRefresh02CQStatus/);
@@ -84,10 +84,12 @@ for (const token of forbidden) {
   assert.equal(source.includes(token), false, `Forbidden 02CQ boundary token: ${token}`);
 }
 
-// Candidate must not log source payloads / PII or expose secrets in return objects.
+// Candidate must not log source payloads / PII or return migration-secret values.
 assert.equal(source.includes('Logger.log'), false, '02CQ candidate must not log source rows or payloads');
 assert.equal(source.includes('customerPhone'), false, '02CQ candidate must not inspect/log customer phone fields');
 assert.equal(source.includes('debtNotes'), false, '02CQ candidate must not inspect/log notes fields');
-assert.equal(source.includes('secret: secret'), false, '02CQ config must not return secret under a generic serializable field name');
+assert.equal(source.includes('return migrationSecret'), false, '02CQ must not return the migration secret from a helper');
+assert.equal(source.includes('secret: migrationSecret'), false, '02CQ must not put migration secret in returned objects');
+assert.equal(source.includes('secret: secret'), false, '02CQ must not put migration secret in returned objects');
 
 console.log('PERF_CF_02CQ_SCREEN_VIEW_MIRROR_REFRESH_CANDIDATE_SAFETY_PASS');
