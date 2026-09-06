@@ -69,3 +69,5 @@ jobs:
           git push origin HEAD:main
           echo "PERF_CF_02CR_FRONTEND_CACHE_RECOVERY_COMMIT=$(git rev-parse HEAD)"
           echo 'No Apps Script, D1, Worker, secrets, or authority changes.'
+
+# Triggered after workflow registration; exact production scope remains index/reset-cache cache tags only.
