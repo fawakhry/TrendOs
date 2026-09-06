@@ -6,206 +6,163 @@ Date: 2026-09-06
 
 `PERF-CF-02CQ — Screen View Mirror Refresh / Orders View D1 Canary Prerequisite`
 
-Status: **USER APPROVED APPS SCRIPT 02CQ — PRE-BOUNDARY PASS — ONE-SHOT CANDIDATE CI/INTEGRITY PASS — DEPLOY CHANNEL BLOCKED — NO PRODUCTION REFRESH YET**
+Status: **USER APPROVED — PRE-BOUNDARY PASS — FINAL SELF-CONTAINED CANDIDATE CI/INTEGRITY PASS — MANUAL APPS SCRIPT IDE GATE — PRODUCTION UNCHANGED**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CQ_APPROVED_PREBOUNDARY_PASS_DEPLOY_CHANNEL_BLOCKED.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CQ_SELF_CONTAINED_FINAL_CANDIDATE_PASS_MANUAL_IDE_GATE.md`
 
-Previous 02CQ discovery/preparation record:
+## Current factual state
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CQ_SCREEN_VIEW_MIRROR_REFRESH.md`
+Authoritative source remains Google Sheets / Apps Script.
 
-## What is already proven
+Live source vs D1 at latest successful pre-deploy boundary:
 
-The checkpoint started from the documented 02CO boundary and did not reopen closed qualification checkpoints.
+- Apps Script `screen=print`: `8` rows.
+- D1 `واجهة الطباعة`: `sourceLastRow=1`, `rowCount=1`, old/header-only.
+- other three screen-view mirrors were also confirmed header-only earlier in 02CQ.
 
-Target mirrors remain exactly:
+User authorization:
 
-- `واجهة خدمة العملاء`
-- `واجهة الطباعة`
-- `واجهة الليزر`
-- `واجهة المكبس`
+- Apps Script 02CQ only: **APPROVED**
+- Worker deploy: **NOT AUTHORIZED / NOT NEEDED**
+- frontend cutover: **NOT AUTHORIZED**
+- authority transfer: **NOT AUTHORIZED**
+- 02CL reopen: **NOT AUTHORIZED**
+- secret rotation: **NOT AUTHORIZED**
 
-Repository discovery proved:
+## Latest pre-deploy boundary evidence
 
-- `cloudflare-d1/src/mirror.js` already provides authenticated atomic `stage` / `promote` primitives.
-- `D1_Orders_Live_Sync.gs` is not suitable because it handles only `الأوردرات` / `بنود الأوردرات`.
-- `D1_Full_Migration.gs` is broad and was not run.
-- no existing bounded four-view production refresh workflow was present.
-
-## Current source/mirror state
-
-Authoritative Google source:
-
-- Spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-- Sheets / Apps Script remain authoritative.
-
-Apps Script qualified live print result:
-
-- `print = 8` rows.
-
-D1 print view remains old/header-only at latest pre-deploy boundary:
-
-- `sourceLastRow = 1`
-- `rowCount = 1`
-- `status = ready`
-- `syncedAt = 2026-08-29 15:49:07`
-
-The other three view mirrors were also previously confirmed header-only.
-
-## User authorization
-
-The user explicitly approved deployment of Apps Script for **02CQ only**.
-
-This does not authorize:
-
-- frontend cutover,
-- authority transfer to D1,
-- Worker deploy,
-- secret rotation,
-- 02CL reopen,
-- generic drain,
-- full migration.
-
-## Latest pre-deploy boundary
-
-Workflow: `TrendOS 02CQ Predeploy Boundary TEMP`
-
+- Workflow: `TrendOS 02CQ Predeploy Boundary TEMP`
 - Commit: `b8739eb55d30f2af2ca9176039c09fa0cf86bda2`
 - Run: `34001402434`
 - Job: `101400810358`
 - Conclusion: **SUCCESS**
-- Marker: `PERF_CF_02CQ_PREDEPLOY_BOUNDARY_PASS_NO_MUTATION`
 
 Boundary:
 
-- Worker health: PASS
-- D1 database: PASS
+- Worker health PASS
+- D1 database PASS
 - `pendingOutbox=0`
 - `cutover=false`
 - `sheetsAuthoritative=true`
-- 02CL reconcile: OFF
-- `genericDrainEnabled=false`
-- unauthenticated Edge orders read: `401`
-- Apps Script print rows: `8`
+- 02CL OFF
+- generic drain OFF
+- unauthenticated Edge orders endpoint `401`
+- Apps Script print `8`
 - D1 print `sourceLastRow=1`
 
-TrendOS Integrity on the same pre-boundary commit:
+The temporary workflow was removed after evidence collection:
 
-- Run: `34001402301`
-- Job: `101400809835`
-- Conclusion: **SUCCESS**
+- cleanup commit `bb0c57e0451cc008fe5698e51794af895b19852c`
 
-No production mutation occurred.
+## Final retained 02CQ implementation
 
-## Final retained 02CQ candidate
-
-Assets:
+File:
 
 - `cloudflare-d1/D1_Screen_View_Mirror_Refresh_02CQ.gs`
+
+Test/CI:
+
 - `tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs`
 - `.github/workflows/trendos-02cq-screen-view-mirror-refresh-ci.yml`
 
-The candidate remains:
+Final candidate is self-contained and requires no legacy D1 migration module.
 
-- default-OFF,
-- exact four-sheet allow-list,
-- read-only toward Google Sheets,
-- atomic stage per target,
-- one atomic promote for all four,
-- no PII logging,
-- no Worker deploy,
-- no secret rotation,
-- no 02CL/generic drain,
-- no frontend read enable.
+Safety properties:
 
-After user approval it was strengthened with:
+- exact authoritative spreadsheet ID locked
+- exact four view sheets only
+- default-OFF
+- D1 API URL / migration secret read only from existing Script Properties
+- migration secret remains local to POST scope and is not logged/returned
+- atomic stage per sheet
+- one atomic promote for all four
+- refuses header-only print source
+- post-promote row/column parity verification
+- one-shot runner `runD1ScreenViewMirrorRefresh02CQOnce()`
+- one-shot runner refuses an already-ON gate and deletes its gate property in `finally`
+- no Google Sheet mutation
+- no Worker deploy
+- no frontend D1 read activation
+- no 02CL/generic drain
+- no `EDGE_SESSION_SECRET` rotation
+- no customer/phone/notes diagnostic logs
 
-`runD1ScreenViewMirrorRefresh02CQOnce()`
+Final code hardening commits:
 
-This preferred entrypoint:
+- `08975727d29d253ec596ddb264430663b92bbf53`
+- `8681bfad98e7caf57e9578048322493a84b689c8`
+- test checkpoint `c5fddeec7e9a58633a3321368473dabf2bf63b43`
 
-1. refuses if the gate is already ON,
-2. opens only the 02CQ gate for one synchronous call,
-3. invokes the bounded refresh,
-4. always deletes the gate property in `finally`.
+Final validation:
 
-Code commit:
+### 02CQ Safety CI
 
-- `689d316bb75659a969a37424f45b861958842fa5`
-
-Test checkpoint commit:
-
-- `16792216f4c67ceef0d3ff7f663029ef4ae9ab1d`
-
-Final one-shot Safety CI:
-
-- Run: `34001505178`
-- Job: `101401079366`
+- Run `34001722179`
+- Job `101401658258`
 - Conclusion: **SUCCESS**
 
-Final TrendOS Integrity:
+### TrendOS Integrity V1
 
-- Run: `34001505193`
-- Job: `101401079394`
+- Run `34001722197`
+- Job `101401658423`
 - Conclusion: **SUCCESS**
 
 Composed Apps Script syntax/collision and pre-deploy package safety gates passed.
 
-## Current deployment-channel blocker
+## Only remaining blocker before production refresh
 
-Authorization is complete, but the current execution environment does not expose a write/deploy channel to the live Google Apps Script project.
+The connected environment does not expose the live Google Apps Script project as a writable/deployable resource.
 
-Verified facts:
+Verified:
 
-- `APPS_SCRIPT_DEPLOY_V1940.md` documents production deployment through Apps Script IDE: `Deploy → Manage deployments → Edit → New version → Deploy`.
-- the manifest explicitly says not to use the Sheet tab `سكريبت Apps Script` as deployment source.
-- no `clasp` configuration exists in the repository.
-- no `script.googleapis.com` deployment workflow/credential exists.
-- no persisted `scriptId` deployment contract was found.
-- no self-deploy helper using `ScriptApp.getOAuthToken()` exists.
-- `v1932-router.gs` contains no arbitrary/admin function execution route.
-- connected Drive exposes no writable file with MIME type `application/vnd.google-apps.script` for the live project.
-- the discovered Drive folder `TrendOS V1932 Apps Script Deploy` is empty.
+- no `clasp` deployment setup
+- no Apps Script API deployment credential/workflow
+- no writable Apps Script project through connected Drive
+- no existing secure remote function-execution route for newly added Apps Script code
 
-Therefore the Apps Script deployment has **not** been executed and must not be reported as executed.
+Therefore Apps Script project write/execution has **not happened** and must not be represented as completed.
+
+## Minimal continuation
+
+Use the existing production Apps Script project, not the Sheet tab `سكريبت Apps Script`.
+
+1. Add one script file named `D1_Screen_View_Mirror_Refresh_02CQ` using the exact GitHub file content.
+2. Save.
+3. Run `getD1ScreenViewMirrorRefresh02CQStatus()` and confirm `enabled=false`.
+4. Run `runD1ScreenViewMirrorRefresh02CQOnce()` exactly once.
+5. Do not edit/rotate `D1_API_URL`, `D1_MIGRATION_SECRET`, or `EDGE_SESSION_SECRET`.
+6. Do not enable frontend D1 reads.
+
+After that, resume automatically from D1 verification — do not redo discovery:
+
+1. verify all four mirror catalogs,
+2. require print `sourceLastRow > 1`,
+3. verify row/column parity,
+4. rerun authenticated print D1-vs-Apps-Script canary,
+5. preserve `__DEBT__` Apps Script fallback,
+6. run final production boundary,
+7. log and close/block 02CQ.
 
 ## Current production boundary
 
 - Production Worker: `trendos-d1-api`
-- Production Worker Version ID: `0ec782a9-5943-4c9d-8820-51b7d0393210`
+- Worker Version ID: `0ec782a9-5943-4c9d-8820-51b7d0393210`
 - Production D1: `trendos-main`
-- Production Cloud Write: **ON**
-- latest checked `pendingOutbox=0`
-- Production cutover: **OFF**
+- Cloud Write: **ON**
+- latest checked pending outbox: `0`
+- production cutover: **OFF**
 - Sheets / Apps Script authority: **YES**
-- Apps Script 02CL gate: **OFF**
-- Worker 02CL gate: **OFF**
+- 02CL: **OFF**
 - generic drain: **OFF / unused**
 - frontend D1 orders read flag: **OFF**
 - frontend cutover: **NO**
 - authority transfer: **NO**
 - `EDGE_SESSION_SECRET` rotation: **NONE**
-- Worker deploy during 02CQ continuation: **NONE**
-- Apps Script 02CQ deploy: **NOT EXECUTED**
-- production four-view refresh: **NOT EXECUTED**
+- Apps Script 02CQ project write: **NOT EXECUTED**
+- production four-view D1 refresh: **NOT EXECUTED**
 - post-refresh canary: **NOT EXECUTED**
-
-## Exact continuation point
-
-Do not redo discovery or candidate preparation.
-
-When an authorized channel can write/deploy the existing live Apps Script project:
-
-1. Deploy only `D1_Screen_View_Mirror_Refresh_02CQ.gs` into the existing project; do not replace unrelated modules.
-2. Confirm the 02CQ gate is OFF after deploy.
-3. Execute `runD1ScreenViewMirrorRefresh02CQOnce()` exactly once.
-4. Confirm the gate is OFF afterward and the last result is successful.
-5. Verify all four D1 mirrors match Google row/column source stats; print must have `sourceLastRow > 1`.
-6. Rerun authenticated print D1-vs-Apps-Script canary using only Order ID / Line ID / status diagnostics.
-7. Preserve `__DEBT__` on Apps Script fallback.
-8. Verify final production boundary and close/block 02CQ based on result.
 
 ## Previously closed/prepared checkpoints
 
