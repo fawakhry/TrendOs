@@ -27,7 +27,7 @@ jobs:
       PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       WORKER_NAME: trendos-d1-api
       PREVIOUS_VERSION: 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8
-      TARGET_VERSION: 6f58078d-94b6-4d8a-aaf4-e2c026b20fe1
+      TARGET_VERSION: 602fdff5-ab0e-4b8e-8f6a-8eb77010c6eb
       SAFE_CONFIG_REF: b78d0656754038f700ee4ecdba6c95b88c5feba8
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
           const active=((ds[0]||{}).versions||[]).map(v=>({id:v.version_id||v.id,p:Number(v.percentage)}));
           if(!active.some(v=>v.id===process.env.PREVIOUS_VERSION&&v.p===100)) throw new Error('safe 02CU baseline is not active at 100%');
           const v0=JSON.parse(fs.readFileSync('/tmp/versions.json','utf8')); const vs=Array.isArray(v0)?v0:v0.items||[];
-          if(!vs.some(v=>String(v.id||v.version_id||'')===process.env.TARGET_VERSION)) throw new Error('02CW target version missing');
+          if(!vs.some(v=>String(v.id||v.version_id||'')===process.env.TARGET_VERSION)) throw new Error('exact preview-qualified 02CW target version missing');
           console.log('02CW_WORKER_PROMOTE_LOCK_PASS');
           NODE
           git worktree add --detach /tmp/02cw-safe-config "$SAFE_CONFIG_REF"
@@ -102,11 +102,11 @@ jobs:
             assert.equal(x.status,200);assert.equal(x.body.success,true);assert.equal(x.body.dataSource,'d1-edge-orders-02cr-operational');
             assert.ok(x.body.activeSummaryCounts&&typeof x.body.activeSummaryCounts==='object');
             const z=x.body.activeSummaryCounts;
-            for(const k of ['total','urgent','normal','problems','overdue','debts','heatPress','heatPressOrders','cancelled','flyPrint']) assert.ok(Number.isFinite(Number(z[k])),k+' missing');
+            for(const k of ['total','orderCount','urgent','normal','problems','overdue','debts','heatPress','heatPressOrders','cancelled','flyPrint']) assert.ok(Number.isFinite(Number(z[k])),k+' missing');
             assert.ok(Number(z.total)>=Number((x.body.rows||[]).length));
             assert.ok(Number(z.heatPressOrders)<=Number(z.heatPress));
             const d=await req('/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__',{headers:h},3);assert.equal(d.status,409);assert.equal(d.body.fallback,'apps-script');
-            console.log('02CW_WORKER_PRODUCTION_QUALIFIED_PASS='+JSON.stringify({total:z.total,pageRows:(x.body.rows||[]).length,heatPress:z.heatPress,heatPressOrders:z.heatPressOrders,reconcileEnabled:r.body.enabled,genericDrainEnabled:r.body.genericDrainEnabled,pendingOutbox:Number(c.body.pendingOutbox||0)}));
+            console.log('02CW_WORKER_PRODUCTION_QUALIFIED_PASS='+JSON.stringify({total:z.total,orderCount:z.orderCount,pageRows:(x.body.rows||[]).length,heatPress:z.heatPress,heatPressOrders:z.heatPressOrders,reconcileEnabled:r.body.enabled,genericDrainEnabled:r.body.genericDrainEnabled,pendingOutbox:Number(c.body.pendingOutbox||0)}));
           })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
           NODE
 
