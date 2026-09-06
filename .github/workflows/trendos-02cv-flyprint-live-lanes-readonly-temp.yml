@@ -1,0 +1,92 @@
+name: TrendOS 02CV Fly Print Live Lanes Read-Only Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cv-flyprint-live-lanes-readonly-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare-live-lanes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EDGE_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Verify qualification credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+
+      - name: Compare Apps Script and D1 fly-print fields without business-row output
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const apps=process.env.APPS_SCRIPT_URL,edge=process.env.EDGE_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          const yes=v=>['نعم','true','1','on','طباعة على الطاير','طباعة ع الطاير','على الطاير','ع الطاير'].includes(String(v==null?'':v).trim().toLowerCase());
+          async function req(url,opt={},timeoutMs=45000){
+            const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),timeoutMs);
+            try{const r=await fetch(url,{cache:'no-store',signal:ctl.signal,...opt});const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch(e){throw new Error('invalid json status='+r.status+' prefix='+raw.slice(0,80))}return{status:r.status,body};}
+            finally{clearTimeout(timer)}
+          }
+          async function appsAction(payload){
+            return req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)},45000);
+          }
+          function stats(rows){
+            rows=Array.isArray(rows)?rows:[];
+            return {
+              rows:rows.length,
+              hasFlyPrintField:rows.filter(r=>Object.prototype.hasOwnProperty.call(r||{},'flyPrint')).length,
+              hasQuickPrintField:rows.filter(r=>Object.prototype.hasOwnProperty.call(r||{},'quickPrint')).length,
+              affirmative:rows.filter(r=>yes((r||{}).flyPrint||(r||{}).quickPrint||(r||{})['طباعة على الطاير']||(r||{})['طباعة ع الطاير'])).length
+            };
+          }
+          (async()=>{
+            const base={username,token,screen:'print'};
+            const getRows=await appsAction({action:'getRows',...base});
+            assert.equal(getRows.status,200);assert.equal(getRows.body.success,true);
+            const getRowsStats=stats(getRows.body.rows);
+
+            const first=await appsAction({action:'getRowsPageV1931',...base,page:1,pageSize:100,statusFilter:'__ACTIVE__'});
+            assert.equal(first.status,200);assert.equal(first.body.success,true);
+            const pages=Math.max(1,Number(first.body.pagination&&first.body.pagination.totalPages||1));
+            const pageRows=[...(first.body.rows||[])];
+            for(let p=2;p<=pages;p++){
+              const x=await appsAction({action:'getRowsPageV1931',...base,page:p,pageSize:100,statusFilter:'__ACTIVE__'});
+              assert.equal(x.status,200);assert.equal(x.body.success,true);
+              pageRows.push(...(x.body.rows||[]));
+            }
+            const pageStats=stats(pageRows);
+
+            const s=await req(edge+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})},20000);
+            assert.equal(s.status,200);assert.equal(s.body.success,true);assert.ok(s.body.edgeToken);
+            const edgeRows=[];
+            let ep=1,edgePages=1;
+            do{
+              const q=new URLSearchParams({screen:'print',page:String(ep),pageSize:'100',statusFilter:'__ACTIVE__'});
+              const x=await req(edge+'/v1/edge/orders/02cr/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+s.body.edgeToken}},15000);
+              assert.equal(x.status,200);assert.equal(x.body.success,true);
+              edgeRows.push(...(x.body.rows||[]));
+              edgePages=Math.max(1,Number(x.body.pagination&&x.body.pagination.totalPages||1));
+              ep++;
+            }while(ep<=edgePages);
+            const edgeStats=stats(edgeRows);
+
+            console.log('LIVE_FLYPRINT_LANES='+JSON.stringify({getRows:getRowsStats,getRowsPageV1931:pageStats,edge02cr:edgeStats}));
+            console.log('02CV_FLYPRINT_LIVE_LANES_READONLY_PASS');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
