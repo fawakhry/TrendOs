@@ -2,23 +2,29 @@
 
 هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**. لا تبدأ Inventory جديدًا ولا تعِد تصميم المسار؛ ابدأ دائمًا من `01_CURRENT_STATE.md` ثم السجل المرتبط بالـcheckpoint الحالي.
 
-## Current active checkpoint — PERF-CF-02CV
+## PERF-CF-02CV — CLOSED
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-الحالة: **IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — USER-VISIBLE VALIDATION PENDING**
+الحالة: **CLOSED — TECHNICAL + PRODUCTION PASS — USER ACCEPTED CLOSURE — LIVE VALIDATION DEFERRED**
 
 السجل:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CV_ORDER_STATUS_WRITE_CONSISTENCY.md`
 
-آخر مشاكل المستخدم التي يغطيها 02CV:
+قرار الإغلاق من المستخدم بتاريخ 2026-09-06:
 
-- الحالة تحفظ لكن الصف المخفي لا يختفي إلا بعد Refresh.
-- واجهة الحفظ كانت تبدأ قراءة إضافية وتبدو بطيئة.
-- علامة `⚡ طباعة على الطاير` ظهرت بعد الإصلاح الأول، لكنها كانت تختفي بعد أي تغيير/تحديث في الشيت.
+`مفيش عندى حاليا حاجة اجرب عليها اقفله ولو طلع فيه مشاكل فيما بعد نرجعله تانى`
 
-Production الآن:
+معنى الإغلاق هنا:
+
+- الإصلاح التقني منشور ومؤهل؛
+- لا يوجد Test Case حي متاح حاليًا لإعادة الاختبار المرئي؛
+- المستخدم وافق على إغلاق 02CV بدل إبقائه معلّقًا؛
+- **لم يتم تسجيل User-Visible PASS فعلي**؛ التحقق الحي مؤجل؛
+- إذا عادت مشكلة حفظ الحالة أو اختفاء `⚡ طباعة على الطاير` لاحقًا، يتم فتح Checkpoint جديد أو إعادة فتح 02CV مع تسجيل الواقعة الجديدة.
+
+Production baseline عند الإغلاق:
 
 - main: `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
 - Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
@@ -30,41 +36,24 @@ Production الآن:
 - generic drain: OFF
 - no secret rotation
 
-02CV fixes now live:
+02CV fixes live at closure:
 
 - stable `lineId` write identity retained; stale D1 `rowNumber` is not used when lineId exists;
-- local render immediately after confirmed save, so hidden statuses disappear without manual Refresh;
+- local render immediately after confirmed save, so hidden statuses can disappear without manual Refresh;
 - immediate post-save `loadRows(true)` removed;
-- status cell explicitly shows `⚡ طباعة على الطاير`;
+- status cell explicitly supports `⚡ طباعة على الطاير`;
 - read-lane stability guard preserves an already-proven Fly Print marker only when a subsequent row payload for the same stable `lineId` omits all Fly Print fields entirely;
 - explicit new values (`نعم` / `لا` / blank field present) remain authoritative and are never overridden;
 - app cache-bust: `trendos-02cv-flylane-20260906c`.
 
-Fly Print live qualification after the user's sheet edit proved the source path did **not** lose the marker:
+Qualification evidence:
 
-- D1 Lines mirror: 381 / 381 rows, 82 columns, ready;
-- 380 D1 data rows;
-- 39 affirmative Fly Print rows;
-- Worker print mapper preserved all **39/39**;
-- post-edit read-only Run `34038294884` — **SUCCESS**.
-
-Final lane-stability evidence:
-
+- post-edit D1/Worker read-only Run `34038294884` — **SUCCESS**, 39/39 Fly Print values preserved;
 - candidate Run `34039276230` — **SUCCESS**;
 - Production promotion Run `34039313773` — **SUCCESS**;
-- GitHub Pages Run `34039321631` — **SUCCESS** on `3934fa363b113a4bd494ec501fb5f289f2c48ec1`.
-
-Durable guard / cleanup:
-
-- `tests/frontend_flyprint_lane_stability_02cv.test.mjs` is retained as the permanent regression test;
-- `.github/workflows/trendos-integrity-v1.yml` now runs that test on the normal Integrity lane;
-- completed 02CV read-only, candidate, and promotion workflows were removed from the working branch;
-- the one-use `tools/patch_02cv_flyprint_lane_stability.py` patcher was removed after Production promotion;
-- no cleanup change touched Production `main`, Worker, Apps Script, or D1 data.
-
-Remaining close condition:
-
-**User-visible test: refresh once → confirm ⚡ exists → change/save something → confirm the same Fly Print row keeps its ⚡ marker. Also confirm hidden-status rows still disappear immediately after Save.**
+- GitHub Pages Run `34039321631` — **SUCCESS** on `3934fa363b113a4bd494ec501fb5f289f2c48ec1`;
+- durable Integrity regression is active in `tests/frontend_flyprint_lane_stability_02cv.test.mjs`;
+- final durable parity Integrity Run `34041121863` — **SUCCESS**.
 
 ---
 
