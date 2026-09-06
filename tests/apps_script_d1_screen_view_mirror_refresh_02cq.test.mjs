@@ -27,11 +27,17 @@ assert.match(source, /d1FullGet_/);
 assert.match(source, /d1FullSpreadsheet_/);
 assert.match(source, /D1_SCREEN_VIEW_REFRESH_02CQ_NOTE/);
 
-// Default-OFF must be a hard gate before any D1 POST.
-const gateIndex = source.indexOf('if (!d1ScreenViewRefresh02CQEnabled_())');
-const firstPostIndex = source.indexOf("d1FullPost_('/v1/import/sheet'");
+// Default-OFF must be a hard gate before the executable refresh path can stage/promote.
+const refreshStart = source.indexOf('function refreshD1ScreenViewMirrors02CQ()');
+const refreshEnd = source.indexOf('function getD1ScreenViewMirrorRefresh02CQStatus()', refreshStart);
+assert.ok(refreshStart >= 0 && refreshEnd > refreshStart, 'Refresh function boundaries missing');
+const refreshBody = source.slice(refreshStart, refreshEnd);
+const gateIndex = refreshBody.indexOf('if (!d1ScreenViewRefresh02CQEnabled_())');
+const stageCallIndex = refreshBody.indexOf('d1ScreenViewRefresh02CQStageOne_(');
+const promoteCallIndex = refreshBody.indexOf("atomicAction: 'promote'");
 assert.ok(gateIndex >= 0, 'Default-OFF gate missing');
-assert.ok(firstPostIndex > gateIndex, 'D1 POST appears before default-OFF gate');
+assert.ok(stageCallIndex > gateIndex, 'Stage call appears before default-OFF gate');
+assert.ok(promoteCallIndex > gateIndex, 'Promote call appears before default-OFF gate');
 
 // 02CQ must not broaden into the old all-sheet migration or cutover lanes.
 const forbidden = [
