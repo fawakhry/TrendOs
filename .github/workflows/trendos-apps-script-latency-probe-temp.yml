@@ -1,0 +1,67 @@
+name: TrendOS Apps Script Latency Probe TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-apps-script-latency-probe-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latency-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - name: Measure safe production latency without PII or writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const url = process.env.APPS_SCRIPT_URL;
+          async function call(action) {
+            const started = Date.now();
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {accept:'application/json','content-type':'text/plain;charset=utf-8'},
+              body: JSON.stringify({action}),
+              cache:'no-store'
+            });
+            const text = await response.text();
+            let body = {};
+            try { body = JSON.parse(text || '{}'); } catch {}
+            return {
+              action,
+              ms: Date.now() - started,
+              status: response.status,
+              success: body && body.success === true,
+              responseClass: String((body && (body.message || body.status || body.version)) || '').slice(0,80)
+            };
+          }
+          (async()=>{
+            const sequential=[];
+            for (let i=0;i<5;i++) sequential.push(await call('__PERF_UNKNOWN_READONLY__'));
+            const ping=[];
+            for (let i=0;i<3;i++) ping.push(await call('ping'));
+            const concurrent = await Promise.all(Array.from({length:8},()=>call('__PERF_UNKNOWN_READONLY__')));
+            const avg = a => Math.round(a.reduce((s,x)=>s+x.ms,0)/Math.max(1,a.length));
+            const max = a => Math.max(...a.map(x=>x.ms));
+            console.log('APPS_SCRIPT_LATENCY_SAFE=' + JSON.stringify({
+              sequentialMs: sequential.map(x=>x.ms),
+              sequentialAvgMs: avg(sequential),
+              sequentialMaxMs: max(sequential),
+              pingMs: ping.map(x=>x.ms),
+              pingAvgMs: avg(ping),
+              concurrentMs: concurrent.map(x=>x.ms),
+              concurrentAvgMs: avg(concurrent),
+              concurrentMaxMs: max(concurrent),
+              statuses:[...sequential,...ping,...concurrent].map(x=>x.status),
+              responseClasses:[...new Set([...sequential,...ping].map(x=>x.responseClass))]
+            }));
+          })().catch(err=>{console.error(err && err.stack ? err.stack : err);process.exit(1);});
+          NODE
