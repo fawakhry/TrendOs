@@ -1,0 +1,86 @@
+name: TrendOS 02CS Order Algorithm Probe TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02cs-order-algorithm-probe-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      PREVIEW_URL: https://cs-lineid-trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static read-only gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*false' config.js
+          python - <<'PY'
+          from pathlib import Path
+          lines=Path('.github/workflows/trendos-02cs-order-algorithm-probe-temp.yml').read_text(encoding='utf-8').splitlines()
+          bad=[x.strip() for x in lines if x.strip().startswith(('npx --yes wrangler@','wrangler ','git push','git commit','curl -X','curl --request'))]
+          if bad: raise SystemExit('Mutation/tooling command forbidden: '+repr(bad))
+          print('PERF_CF_02CS_ORDER_ALGO_STATIC_READONLY_PASS')
+          PY
+      - name: Match authoritative ordering to bounded candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const edgeBase=process.env.PREVIEW_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),employeeToken=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const text=v=>String(v==null?'':v).trim();
+          const key=r=>[r&&r.orderId||'',r&&r.lineId||'',r&&r.status||''].map(text).join('|');
+          const rank=v=>{v=text(v);if(v==='عاجل'||v==='VIP')return 0;if(v==='عادي'||!v)return 1;if(v==='مؤجل')return 2;return 9;};
+          const num=v=>{const n=Number(String(v||'').replace(/[^0-9.-]/g,''));return Number.isFinite(n)?n:0;};
+          const date=v=>{const d=Date.parse(text(v));return Number.isFinite(d)?d:0;};
+          async function readJson(label,url,opt={},attempts=5){let last;for(let i=1;i<=attempts;i++){try{const r=await fetch(url,{cache:'no-store',...opt});const raw=await r.text();let body;try{body=JSON.parse(raw||'{}')}catch{throw new Error(label+' invalid JSON')};return{status:r.status,body};}catch(e){last=e;if(i<attempts)await sleep(2500*i)}}throw last;}
+          async function session(){const x=await readJson('session',edgeBase+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})});assert.equal(x.status,200);assert.equal(x.body.success,true);return x.body.edgeToken;}
+          function keys(rows){return rows.map(key);}
+          function same(a,b){return JSON.stringify(keys(a))===JSON.stringify(keys(b));}
+          (async()=>{
+            const bearer=await session(),results=[];
+            for(const screen of ['print','laser']){
+              const p=new URLSearchParams({screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
+              const edge=await readJson('edge-'+screen,edgeBase+'/v1/edge/orders/02cr/page?'+p,{headers:{accept:'application/json',authorization:'Bearer '+bearer}});
+              const app=await readJson('apps-'+screen,apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token:employeeToken,screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});
+              assert.equal(edge.status,200);assert.equal(edge.body.success,true);assert.equal(app.status,200);assert.equal(app.body.success,true);
+              const e=edge.body.rows||[],a=app.body.rows||[];
+              assert.deepEqual([...keys(e)].sort(),[...keys(a)].sort(),screen+' identity set differs');
+              const source=[...e].sort((x,y)=>Number(x.rowNumber||0)-Number(y.rowNumber||0));
+              const candidates={
+                sourceAsc:[...source],
+                sourceDesc:[...source].reverse(),
+                prioritySourceAsc:[...source].sort((x,y)=>rank(x.priority)-rank(y.priority)),
+                prioritySourceDesc:[...source].sort((x,y)=>rank(x.priority)-rank(y.priority)||Number(y.rowNumber||0)-Number(x.rowNumber||0)),
+                priorityOrderAsc:[...source].sort((x,y)=>rank(x.priority)-rank(y.priority)||text(x.orderId).localeCompare(text(y.orderId))),
+                priorityOrderNumericAsc:[...source].sort((x,y)=>rank(x.priority)-rank(y.priority)||num(x.orderId)-num(y.orderId)),
+                priorityOrderNumericDesc:[...source].sort((x,y)=>rank(x.priority)-rank(y.priority)||num(y.orderId)-num(x.orderId)),
+                priorityUpdatedAsc:[...source].sort((x,y)=>rank(x.priority)-rank(y.priority)||date(x.updatedAt)-date(y.updatedAt)||Number(x.rowNumber||0)-Number(y.rowNumber||0)),
+                priorityUpdatedDesc:[...source].sort((x,y)=>rank(x.priority)-rank(y.priority)||date(y.updatedAt)-date(x.updatedAt)||Number(x.rowNumber||0)-Number(y.rowNumber||0)),
+                orderNumericAsc:[...source].sort((x,y)=>num(x.orderId)-num(y.orderId)),
+                orderNumericDesc:[...source].sort((x,y)=>num(y.orderId)-num(x.orderId))
+              };
+              const matches=Object.entries(candidates).filter(([,rows])=>same(rows,a)).map(([name])=>name);
+              results.push({screen,totalRows:a.length,matches});
+            }
+            console.log('PERF_CF_02CS_ORDER_ALGORITHM_MATCHES='+JSON.stringify(results));
+            assert.ok(results.every(x=>x.matches.length>0),'No bounded ordering candidate matched authoritative Apps Script');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+      - name: Conclusion
+        run: echo 'PERF_CF_02CS_ORDER_ALGORITHM_PROBE_PASS_NO_MUTATION'
