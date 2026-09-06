@@ -1,0 +1,71 @@
+name: TrendOS 02CS Line ID Serialization Probe TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02cs-line-id-serialization-probe-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cs-line-id-serialization-probe-temp
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      CANDIDATE_URL: https://43e14620-trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static GET-only safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/trendos-02cs-line-id-serialization-probe-temp.yml').read_text(encoding='utf-8')
+          for token in ['wrangler'+' deploy','wrangler'+' rollback','secret'+' put','d1 execute','d1 migrations','method:'+'POST','/v1/import/'+'sheet','/v1/mirror/'+'delta']:
+            if token in s: raise SystemExit('Forbidden mutation token: '+token)
+          print('PERF_CF_02CS_LINE_ID_PROBE_STATIC_PASS_NO_MUTATION')
+          PY
+
+      - name: Inspect only safe Line ID fields in D1 mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          async function probe(label,base){
+            const u=new URL(base+'/v1/mirror/sheet');
+            u.searchParams.set('name','بنود الأوردرات');
+            u.searchParams.set('limit','1');
+            u.searchParams.set('offset','330');
+            const r=await fetch(u,{cache:'no-store',headers:{accept:'application/json'}});
+            const b=JSON.parse(await r.text()||'{}');
+            assert.equal(r.status,200,label+' http');
+            assert.equal(b.success,true,label+' success');
+            const row=b.sheet&&b.sheet.rows&&b.sheet.rows[0];
+            assert.ok(row,label+' row missing');
+            const safe={
+              label,
+              rowNumber:Number(row.rowNumber||0),
+              valuesLineId:Array.isArray(row.values)?row.values[5]:null,
+              displayLineId:Array.isArray(row.display)?row.display[5]:null,
+              valuesType:Array.isArray(row.values)?typeof row.values[5]:'missing'
+            };
+            console.log('PERF_CF_02CS_LINE_ID_SERIALIZATION='+JSON.stringify(safe));
+          }
+          (async()=>{
+            await probe('production',process.env.PROD_URL);
+            await probe('candidate-preview',process.env.CANDIDATE_URL);
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Conclusion
+        run: echo 'PERF_CF_02CS_LINE_ID_SERIALIZATION_PROBE_PASS_NO_MUTATION'
