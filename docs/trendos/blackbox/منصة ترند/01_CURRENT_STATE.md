@@ -28,11 +28,15 @@ Exact Trend Master stop point:
 
 `PERF-CF-02CT — Production Frontend D1 Orders Read Cutover`
 
-Status: **TECHNICAL VERIFIED PASS — FRONTEND D1 READ ON FOR QUALIFIED ORDER READS — APPS SCRIPT FALLBACK + SHEETS AUTHORITY RETAINED**
+Status: **CLOSED — TECHNICAL VERIFIED PASS + USER-VISIBLE PASS — FRONTEND D1 READ ON FOR QUALIFIED ORDER READS — APPS SCRIPT FALLBACK + SHEETS AUTHORITY RETAINED**
 
-Record:
+Technical record:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_PRODUCTION_FRONTEND_CUTOVER_PASS.md`
+
+User-visible close record:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_USER_VISIBLE_PASS.md`
 
 ## Current production topology
 
@@ -161,7 +165,19 @@ Final same-head Integrity:
 - Job `101426859662`
 - **SUCCESS**
 
-The durable regression now verifies the working branch, production `main`, published GitHub Pages assets, frontend fallback behavior, operational ordering, authority boundary, and authenticated D1-vs-Apps-Script identity/field parity.
+The durable regression verifies the working branch, production `main`, published GitHub Pages assets, frontend fallback behavior, operational ordering, authority boundary, and authenticated D1-vs-Apps-Script identity/field parity.
+
+## User-visible production validation
+
+After the production cutover and browser refresh check, the user confirmed the live platform result with:
+
+`فل`
+
+This is recorded as:
+
+**PERF-CF-02CT USER-VISIBLE PASS**
+
+02CT is therefore closed at both technical and user-visible levels.
 
 ## Current production safety boundary
 
@@ -183,6 +199,6 @@ The durable regression now verifies the working branch, production `main`, publi
 
 ## Exact stop point — D1
 
-`PERF-CF-02CT CLOSED — PRODUCTION FRONTEND D1 ORDERS READ ON THROUGH QUALIFIED /02CR ROUTE — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITY RETAINED — TECHNICAL PASS`
+`PERF-CF-02CT CLOSED — TECHNICAL PASS + USER-VISIBLE PASS — PRODUCTION FRONTEND D1 ORDERS READ ON THROUGH QUALIFIED /02CR ROUTE — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITY RETAINED`
 
-A browser refresh/user smoke check is useful as operational confirmation, but 02CT has no remaining technical deployment action.
+No further deployment or validation action remains for 02CT itself.
