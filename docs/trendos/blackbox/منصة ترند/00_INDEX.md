@@ -4,24 +4,31 @@
 
 ## PERF-CF-02CU — Stability / Freshness / Resume Guards
 
-الحالة الحالية: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — RETURN/FOCUS AUTO-REFRESH TECHNICAL PASS + PRODUCTION DEPLOYED — USER-VISIBLE RESUME VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
+الحالة الحالية: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — RETURN/FOCUS FULL AUTO-REFRESH + RESIDUAL RETURN TRAFFIC TECHNICAL PASS + PRODUCTION DEPLOYED — USER-VISIBLE RESUME VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
 
-السجل:
+السجل العام:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_STABILITY_FRESHNESS_RESUME_GUARDS.md`
 
+سجل Navigation / Return المحدّث:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_NO_REFRESH.md`
+
 Production state relevant to 02CU:
 
-- production main: `20a56241da2919e31fc12cb5224d29ac18fdf4f3`
+- production main: `9552407c5a5136371f9afd452b913c226329d7dc`
 - stale D1 required mirrors older than 5 minutes fail open to Apps Script
-- legacy focus / visibility / 3-minute `safeRefresh()` is suppressed without disabling manual refresh
-- GitHub Pages Run `34027347761` — **SUCCESS**
-- bounded production resume workflow Run `34027313379` — **SUCCESS**
-- dedicated no-auto-refresh CI Run `34027221511` — **SUCCESS**
-- same-head Integrity Run `34027221532` — **SUCCESS**
+- legacy focus / visibility / 3-minute `safeRefresh()` full refresh is suppressed without disabling manual refresh
+- residual Attendance visibility `loadState()` and Employee Manager focus refresh are suppressed by a narrow early frontend guard; their periodic timers remain enabled
+- primary no-auto-refresh Pages Run `34027347761` — **SUCCESS**
+- residual return-traffic bounded production Run `34028483654` — **SUCCESS**
+- residual return-traffic GitHub Pages Run `34028490166` — **SUCCESS**
+- dedicated Return Traffic Quiet CI Run `34028439196` — **SUCCESS**
+- same-head candidate Integrity Run `34028439136` — **SUCCESS**
+- bounded-deploy push Integrity Run `34028483586` — **SUCCESS**
 - no Apps Script deploy / no Worker deploy / no D1 write / no 02CL / no generic drain / no secret rotation
 
-Underlying Orders Live Sync heartbeat recovery remains a separate pending 02CU item. The freshness gate is the safety fallback until that heartbeat is restored and qualified.
+User-visible resume validation remains pending. Underlying Orders Live Sync heartbeat recovery remains a separate pending 02CU item. The freshness gate is the safety fallback until that heartbeat is restored and qualified.
 
 ---
 
@@ -105,7 +112,7 @@ CI:
 
 ## checkpoints سابقة — D1 track
 
-- `PERF-CF-02CU` — IN PROGRESS / freshness fail-safe live / no-auto-refresh deployed / user-visible resume validation + sync heartbeat recovery pending
+- `PERF-CF-02CU` — IN PROGRESS / freshness fail-safe live / full return auto-refresh suppressed / residual return traffic quiet guard deployed / user-visible resume validation + sync heartbeat recovery pending
 - `PERF-CF-02CT` — CLOSED / TECHNICAL PASS + USER-VISIBLE PASS / production frontend D1 read ON / qualified `/02cr` / fallback retained
 - `PERF-CF-02CS` — PRODUCTION WORKER ROUTE VERIFIED PASS / frontend OFF at close
 - `PERF-CF-02CR` — full field / identity / filtering qualification
