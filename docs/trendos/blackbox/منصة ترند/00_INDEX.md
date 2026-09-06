@@ -4,15 +4,19 @@
 
 ## PERF-CF-02CU — Stability / Freshness / Resume Guards
 
-الحالة الحالية: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — RETURN/FOCUS FULL AUTO-REFRESH + RESIDUAL RETURN TRAFFIC TECHNICAL PASS + PRODUCTION DEPLOYED — USER-VISIBLE RESUME VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
+الحالة الحالية: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — NAVIGATION/RETURN NO-REFRESH CLOSED WITH TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
 
 السجل العام:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_STABILITY_FRESHNESS_RESUME_GUARDS.md`
 
-سجل Navigation / Return المحدّث:
+سجل Navigation / Return:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_NO_REFRESH.md`
+
+سجل تأكيد المستخدم النهائي:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_USER_VISIBLE_PASS.md`
 
 Production state relevant to 02CU:
 
@@ -26,9 +30,12 @@ Production state relevant to 02CU:
 - dedicated Return Traffic Quiet CI Run `34028439196` — **SUCCESS**
 - same-head candidate Integrity Run `34028439136` — **SUCCESS**
 - bounded-deploy push Integrity Run `34028483586` — **SUCCESS**
+- user-visible Navigation / Return validation: `تمام ثبت` — **PASS**
 - no Apps Script deploy / no Worker deploy / no D1 write / no 02CL / no generic drain / no secret rotation
 
-User-visible resume validation remains pending. Underlying Orders Live Sync heartbeat recovery remains a separate pending 02CU item. The freshness gate is the safety fallback until that heartbeat is restored and qualified.
+Navigation / Return is now **CLOSED — USER-VISIBLE PASS**.
+
+Underlying Orders Live Sync heartbeat recovery remains the separate pending 02CU item. The freshness gate is the safety fallback until that heartbeat is restored and qualified.
 
 ---
 
@@ -112,7 +119,7 @@ CI:
 
 ## checkpoints سابقة — D1 track
 
-- `PERF-CF-02CU` — IN PROGRESS / freshness fail-safe live / full return auto-refresh suppressed / residual return traffic quiet guard deployed / user-visible resume validation + sync heartbeat recovery pending
+- `PERF-CF-02CU` — IN PROGRESS / freshness fail-safe live / Navigation Return CLOSED with technical + production + user-visible PASS / only Orders Live Sync heartbeat recovery pending
 - `PERF-CF-02CT` — CLOSED / TECHNICAL PASS + USER-VISIBLE PASS / production frontend D1 read ON / qualified `/02cr` / fallback retained
 - `PERF-CF-02CS` — PRODUCTION WORKER ROUTE VERIFIED PASS / frontend OFF at close
 - `PERF-CF-02CR` — full field / identity / filtering qualification
