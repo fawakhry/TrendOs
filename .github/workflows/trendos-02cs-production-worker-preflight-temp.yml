@@ -1,0 +1,123 @@
+name: TrendOS 02CS Production Worker Preflight TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02cs-production-worker-preflight-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cs-production-worker-preflight-temp
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EDGE_SECRET_PROD_A: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PROD }}
+      EDGE_SECRET_PROD_B: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PRODUCTION }}
+      EDGE_SECRET_PROD_C: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET }}
+      EDGE_SECRET_PROD_D: ${{ secrets.EDGE_SESSION_SECRET }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static no-mutation boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^name = "trendos-d1-api"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^main = "production-shadow/index.js"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^database_name = "trendos-main"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
+          grep -Fq "edge-orders-read-02cr-canary.mjs" cloudflare-d1/src/index_v2.js
+          grep -Fq "D1_ORDERS_READ_02CR_OPERATIONAL_CANARY" cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+          if grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' config.js; then
+            echo 'Blocked: frontend D1 Orders read is ON'; exit 1
+          fi
+          if grep -Fq 'trendos-edge-orders-read-v1.js' config.js; then
+            echo 'Blocked: frontend Edge reader loader present'; exit 1
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/trendos-02cs-production-worker-preflight-temp.yml').read_text(encoding='utf-8')
+          forbidden=['wrangler'+' deploy','secret'+' put','d1 execute --'+'file','d1 migrations'+' apply','/v1/import/'+'sheet','/v1/mirror/'+'delta','/v1/mirror/'+'heartbeat','reconcile/'+'order']
+          for token in forbidden:
+            if token in s: raise SystemExit('Forbidden mutation token: '+token)
+          print('PERF_CF_02CS_PREFLIGHT_STATIC_PASS_NO_MUTATION')
+          PY
+
+      - name: Re-run 02CR contracts
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_read_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs
+          echo 'PERF_CF_02CS_02CR_CONTRACTS_PASS'
+
+      - name: Live production boundary GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_URL;
+          async function get(path){const r=await fetch(base+path,{cache:'no-store',headers:{accept:'application/json'}});const t=await r.text();let b={};try{b=JSON.parse(t||'{}')}catch{}return{status:r.status,body:b};}
+          (async()=>{
+            const edge=await get('/v1/edge/health');
+            const cloud=await get('/v1/cloud/write/health');
+            const recon=await get('/v1/qualification/cloud-write/reconcile/health');
+            const unauth=await get('/v1/edge/orders/page?screen=print&page=1&pageSize=1');
+            assert.equal(edge.status,200);assert.equal(edge.body.success,true);assert.equal(edge.body.database,true);assert.equal(edge.body.cutover,false);
+            assert.equal(cloud.status,200);assert.equal(cloud.body.success,true);assert.equal(cloud.body.cutover,false);assert.equal(cloud.body.sheetsAuthoritative,true);assert.equal(Number(cloud.body.pendingOutbox||0),0);
+            assert.equal(recon.status,200);assert.equal(recon.body.enabled,false);assert.equal(recon.body.genericDrainEnabled,false);assert.equal(recon.body.productionCutover,false);assert.equal(recon.body.sheetsAuthoritative,true);
+            assert.equal(unauth.status,401);
+            console.log('PERF_CF_02CS_PREFLIGHT_BOUNDARY='+JSON.stringify({cutover:false,sheetsAuthoritative:true,reconcileEnabled:false,genericDrainEnabled:false,pendingOutbox:0,ordersUnauthStatus:401}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Authenticated canary credential readiness without secret disclosure
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto=require('crypto');
+          const base=process.env.PROD_URL;
+          function sign(secret){
+            const now=Math.floor(Date.now()/1000);
+            const claims={aud:'trendos-orders-edge',sub:'02cs-preflight',role:'admin',department:'qualification',screens:['service','print','laser','press',''],iat:now,exp:now+180,jti:'ci-'+crypto.randomUUID()};
+            const body=Buffer.from(JSON.stringify(claims)).toString('base64url');
+            const input='v1.'+body;
+            return input+'.'+crypto.createHmac('sha256',secret).update(input).digest('base64url');
+          }
+          async function jsonFetch(url,opt={}){const r=await fetch(url,{cache:'no-store',...opt});const t=await r.text();let b={};try{b=JSON.parse(t||'{}')}catch{}return{status:r.status,body:b};}
+          (async()=>{
+            const candidates=['EDGE_SECRET_PROD_A','EDGE_SECRET_PROD_B','EDGE_SECRET_PROD_C','EDGE_SECRET_PROD_D'];
+            for(const name of candidates){
+              const secret=String(process.env[name]||'').trim();
+              if(!secret) continue;
+              const token=sign(secret);
+              const r=await jsonFetch(base+'/v1/edge/orders/page?screen=print&page=1&pageSize=1',{headers:{accept:'application/json',authorization:'Bearer '+token}});
+              if(r.status!==401){console.log('PERF_CF_02CS_AUTH_READY=direct-signed:'+name);return;}
+            }
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            const employeeToken=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+            if(username&&employeeToken){
+              const r=await jsonFetch(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})});
+              if(r.status===200&&r.body&&r.body.success===true&&r.body.edgeToken){console.log('PERF_CF_02CS_AUTH_READY=employee-session');return;}
+            }
+            throw new Error('No valid production authenticated canary credential path is available. Deploy must not start.');
+          })().catch(e=>{console.error(e&&e.message||e);process.exit(1)});
+          NODE
+
+      - name: Conclusion
+        run: echo 'PERF_CF_02CS_PRODUCTION_WORKER_PREFLIGHT_PASS_NO_MUTATION'
