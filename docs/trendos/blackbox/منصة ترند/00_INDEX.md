@@ -6,7 +6,7 @@
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-الحالة: **IN PROGRESS — PRODUCTION TECHNICAL + UX PATCH PASS — USER-VISIBLE VALIDATION PENDING**
+الحالة: **IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — USER-VISIBLE VALIDATION PENDING**
 
 السجل:
 
@@ -15,12 +15,12 @@
 آخر مشاكل المستخدم التي يغطيها 02CV:
 
 - الحالة تحفظ لكن الصف المخفي لا يختفي إلا بعد Refresh.
-- واجهة الحفظ تدخل في دورة تحميل إضافية وتبدو بطيئة.
-- علامة `⚡ طباعة على الطاير` لم تعد ظاهرة بجانب الحالة.
+- واجهة الحفظ كانت تبدأ قراءة إضافية وتبدو بطيئة.
+- علامة `⚡ طباعة على الطاير` ظهرت بعد الإصلاح الأول، لكنها كانت تختفي بعد أي تغيير/تحديث في الشيت.
 
 Production الآن:
 
-- main: `b4a87493ca9ce7507fc342e9b39f91449395fb46`
+- main: `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
 - Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
 - Apps Script deployment: **NO**
 - Worker deployment: **NO**
@@ -30,31 +30,33 @@ Production الآن:
 - generic drain: OFF
 - no secret rotation
 
-02CV UX follow-up fix:
+02CV fixes now live:
 
+- stable `lineId` write identity retained; stale D1 `rowNumber` is not used when lineId exists;
 - local render immediately after confirmed save, so hidden statuses disappear without manual Refresh;
-- removed immediate post-save `loadRows(true)` page read;
-- success loading state now ends immediately;
-- status cell uses `statusBadges(r)` and explicitly shows `⚡ طباعة على الطاير` when the row is Fly Print;
-- app cache-bust: `trendos-02cv-statusux-20260906b`.
+- immediate post-save `loadRows(true)` removed;
+- status cell explicitly shows `⚡ طباعة على الطاير`;
+- read-lane stability guard preserves an already-proven Fly Print marker only when a subsequent row payload for the same stable `lineId` omits all Fly Print fields entirely;
+- explicit new values (`نعم` / `لا` / blank field present) remain authoritative and are never overridden;
+- app cache-bust: `trendos-02cv-flylane-20260906c`.
 
-Fly Print qualification proved D1/Worker data path healthy:
+Fly Print live qualification after the user's sheet edit proved the source path did **not** lose the marker:
 
-- 377 D1 data rows;
-- 38 Fly Print rows;
-- Worker print mapper preserved all 38/38.
-- read-only Run `34036288004` — **SUCCESS**.
+- D1 Lines mirror: 381 / 381 rows, 82 columns, ready;
+- 380 D1 data rows;
+- 39 affirmative Fly Print rows;
+- Worker print mapper preserved all **39/39**;
+- post-edit read-only Run `34038294884` — **SUCCESS**.
 
-Evidence:
+Final lane-stability evidence:
 
-- 02CV write consistency Integrity Run `34035164288` — **SUCCESS**
-- UX candidate Run `34036609469` — **SUCCESS**
-- UX Production promotion Run `34036640992` — **SUCCESS**
-- GitHub Pages Run `34036646377` — **SUCCESS**
+- candidate Run `34039276230` — **SUCCESS**;
+- Production promotion Run `34039313773` — **SUCCESS**;
+- GitHub Pages Run `34039321631` — **SUCCESS** on `3934fa363b113a4bd494ec501fb5f289f2c48ec1`.
 
 Remaining close condition:
 
-**User-visible test: refresh once → save a hidden status and verify the row disappears immediately → verify Fly Print ⚡ is visible.**
+**User-visible test: refresh once → confirm ⚡ exists → change/save something → confirm the same Fly Print row keeps its ⚡ marker. Also confirm hidden-status rows still disappear immediately after Save.**
 
 ---
 
