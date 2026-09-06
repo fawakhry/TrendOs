@@ -148,6 +148,14 @@ Final marker:
 
 `PERF_CF_02CS_PRODUCTION_WORKER_ROUTE_PASS_FRONTEND_OFF`
 
+## Temporary workflow cleanup
+
+After the successful production canary and blackbox closure, all `.github/workflows/trendos-02cs-*` temporary diagnostic, patch, Preview and deployment workflows were removed from the working branch.
+
+A fresh workflow-directory read confirmed there are **zero** remaining paths matching `trendos-02cs`.
+
+Durable CI / older checkpoint workflows and the separate Trend Master workflows were intentionally left untouched. This cleanup did not deploy or alter the production Worker.
+
 ## Important distinction
 
 The D1 Orders read route is now physically present and qualified on the production Worker, but production employees are **not yet routed to it by the frontend**.
@@ -156,4 +164,4 @@ Production user-facing order-card reads remain on Apps Script / Sheets until a s
 
 ## Exact stop point
 
-`PERF-CF-02CS CLOSED — PRODUCTION WORKER D1 READ ROUTE VERIFIED PASS — FRONTEND D1 READ OFF — NEXT STEP REQUIRES SEPARATE CUTOVER AUTHORIZATION`
+`PERF-CF-02CS CLOSED — PRODUCTION WORKER D1 READ ROUTE VERIFIED PASS — TEMP WORKFLOWS CLEANED — FRONTEND D1 READ OFF — NEXT STEP REQUIRES SEPARATE CUTOVER AUTHORIZATION`
