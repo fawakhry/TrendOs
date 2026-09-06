@@ -63,3 +63,5 @@ jobs:
           printf '%s\n' "${files[@]}" | grep -qx 'press-control-v1.js'
           printf '%s\n' "${files[@]}" | grep -qx 'tests/frontend_global_counters_filters_press_02cw.test.mjs'
           echo 'PERF_CF_02CW_FRONTEND_CANDIDATE_PASS'
+
+# rerun: production press-control anchor aligned
