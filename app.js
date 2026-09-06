@@ -4152,7 +4152,7 @@ Trend Mall`;
     if (!card) return;
     const show = !!state.user;
     card.classList.toggle("hidden", !show);
-    if (show && !state.trendMaster && !state.trendMasterLoading) loadTrendMasterCenter(false);
+    if (show && !state.trendMaster && !state.trendMasterLoading && $("trendMasterStatus")) $("trendMasterStatus").textContent = "اضغط «تحديث المركز» لتحميل البيانات.";
   }
 
   function trendListItem(title, meta, actions, badge) {
