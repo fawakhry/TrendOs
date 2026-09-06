@@ -2,82 +2,62 @@
 
 Date: 2026-09-06
 
-## Current active checkpoint — PERF-CF-02CV
+## Latest closed checkpoint — PERF-CF-02CV
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-Status: **IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — USER-VISIBLE VALIDATION PENDING**
+Status: **CLOSED — TECHNICAL + PRODUCTION PASS — USER ACCEPTED CLOSURE — LIVE VALIDATION DEFERRED**
 
-### Latest user-visible problems
+### Closure decision
 
-After the first 02CV consistency and UX fixes the user reported:
+User closure instruction:
 
-- save success should make hidden-status rows disappear immediately;
-- save should not enter another long Orders loading cycle;
-- `⚡ طباعة على الطاير` became visible, but after any sheet change/update the marker disappeared again.
+`مفيش عندى حاليا حاجة اجرب عليها اقفله ولو طلع فيه مشاكل فيما بعد نرجعله تانى`
 
-### Confirmed diagnosis
+There is currently no suitable live Fly Print / status-save case available for a user-visible re-test. The user explicitly chose to close the checkpoint rather than keep it pending.
 
-The original 02CV stable-line write fix and immediate local post-save render remain valid.
+Important classification:
 
-For the latest Fly Print regression, live read-only qualification **after the user's sheet edit** proved that the source/mirror path did not erase the marker:
+- this is **not** recorded as a user-visible functional PASS;
+- live validation is deferred because no test case is currently available;
+- technical qualification and Production deployment remain valid;
+- if the symptom reappears, reopen 02CV or open a new bounded checkpoint and attach the new live evidence.
 
-- `بنود الأوردرات` D1 mirror: 381 / 381 rows, 82 columns, `ready`;
-- D1 data rows: 380;
-- affirmative Fly Print rows: 39;
-- Worker print mapping preserved all 39/39.
-
-Read-only Run `34038294884` — **SUCCESS**.
-
-Therefore the regression was not a D1 sync wipe. The frontend replaces `state.rows` whenever the active read lane changes/refreshes. A lane payload that omitted Fly Print fields could replace a previously complete row and make the badge disappear even though D1 still held the value.
-
-### Fix now in Production
+### Production state at closure
 
 Production main:
 
 `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
 
-Frontend behavior now:
+Frontend behavior live at closure:
 
 - authoritative order writes remain Apps Script / Sheets;
-- stable `lineId` identity behavior from the initial 02CV fix remains active;
-- successful save immediately re-renders local state, so hidden statuses disappear without manual Refresh;
+- stable `lineId` identity behavior remains active;
+- successful save locally re-renders state so hidden statuses do not require a forced post-save reload;
 - immediate post-save `loadRows(true)` remains removed;
-- status rendering uses `statusBadges(r)` and shows `⚡ طباعة على الطاير`;
-- before replacing `state.rows`, the frontend compares previous and next rows by stable `lineId`;
-- if a previous row is affirmatively Fly Print and the next payload for the same line omits **all** Fly Print fields, the marker is carried forward in the browser;
-- if the new payload explicitly contains any Fly Print field — including `لا` or an explicit blank — the new payload is respected and no carry-forward occurs;
-- no orderId/rowNumber fallback is used for this guard;
+- status rendering supports `⚡ طباعة على الطاير`;
+- Fly Print carry-forward is allowed only for the same stable `lineId` when the later payload omits all Fly Print fields;
+- explicit source fields — including `لا` and explicit blank — remain authoritative;
+- no orderId/rowNumber fallback is used for the Fly Print carry-forward guard;
 - `app.js` cache-bust: `trendos-02cv-flylane-20260906c`.
 
-### Verification
+### Verification already completed
 
 - post-edit D1/Worker Fly Print qualification Run `34038294884` — **SUCCESS**, 39/39 preserved;
 - lane-stability candidate Run `34039276230` — **SUCCESS**;
-- candidate verified:
-  - Fly Print lane stability PASS;
-  - 02CV write consistency PASS;
-  - 02CV immediate-hide/status-badge UX PASS;
-  - exact candidate scope `app.js` + `index.html` only;
 - Production promotion Run `34039313773` — **SUCCESS**;
 - Production Pages Run `34039321631` — **SUCCESS**;
-- Pages deployed head: `3934fa363b113a4bd494ec501fb5f289f2c48ec1`.
-
-### Durable Integrity / cleanup
-
 - durable regression: `tests/frontend_flyprint_lane_stability_02cv.test.mjs`;
-- normal `.github/workflows/trendos-integrity-v1.yml` now executes that regression alongside the existing 02CV write-consistency test;
-- completed temporary 02CV Fly Print D1 probe, live-lane probe, candidate workflow, and promotion workflow were removed;
-- the one-use Fly Print patcher was removed;
-- these cleanup/CI changes are working-branch only and did not redeploy Production.
+- permanent Integrity workflow includes the Fly Print lane-stability regression;
+- durable parity Integrity Run `34041121863` — **SUCCESS**.
 
 ### Production safety boundary
 
 - Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
 - D1: `trendos-main`
-- Apps Script deployment for this fix: **NO**
-- Worker deployment for this fix: **NO**
-- D1 business-data write by this fix: **NO**
+- Apps Script deployment for 02CV: **NO**
+- Worker deployment for 02CV: **NO**
+- D1 business-data write by the frontend fix: **NO**
 - Orders writes: Apps Script / Sheets
 - eligible reads: D1-first qualified `/v1/edge/orders/02cr/page`
 - Apps Script fallback retained
@@ -86,29 +66,17 @@ Frontend behavior now:
 - generic drain: OFF
 - secret rotation / `EDGE_SESSION_SECRET` change: NO
 
-### Remaining close condition
-
-Refresh the live platform once, then verify:
-
-1. find a row marked `⚡ طباعة على الطاير`;
-2. change/save something or allow the sheet/read lane to update;
-3. confirm the same row keeps its ⚡ marker;
-4. hidden-status rows still disappear immediately after successful Save;
-5. no second long Orders loading cycle follows save success.
-
-Do not close 02CV until the user confirms these live behaviors.
-
 Record:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CV_ORDER_STATUS_WRITE_CONSISTENCY.md`
 
-Exact active stop point:
+Exact stop point:
 
-`PERF-CF-02CV IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — MAIN 3934fa363b113a4bd494ec501fb5f289f2c48ec1 — PAGES 34039321631 SUCCESS — PROMOTION 34039313773 SUCCESS — CANDIDATE 34039276230 SUCCESS — POST-EDIT D1/WORKER READ-ONLY 34038294884 SUCCESS 39/39 — FLY MARKER PRESERVED ONLY ACROSS MISSING-FIELD PAYLOADS BY STABLE lineId — EXPLICIT SOURCE VALUES REMAIN AUTHORITATIVE — TEMP 02CV FLY-PRINT WORKFLOWS/PATCHER CLEANED — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% UNCHANGED — APPS SCRIPT/SHEETS AUTHORITY RETAINED — USER-VISIBLE VALIDATION PENDING`
+`PERF-CF-02CV CLOSED — TECHNICAL + PRODUCTION PASS — USER ACCEPTED CLOSURE WITH LIVE VALIDATION DEFERRED — MAIN 3934fa363b113a4bd494ec501fb5f289f2c48ec1 — PAGES 34039321631 SUCCESS — PROMOTION 34039313773 SUCCESS — CANDIDATE 34039276230 SUCCESS — POST-EDIT D1/WORKER READ-ONLY 34038294884 SUCCESS 39/39 — DURABLE FLY-PRINT REGRESSION ACTIVE — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% UNCHANGED — APPS SCRIPT/SHEETS AUTHORITY RETAINED — REOPEN/NEW CHECKPOINT IF LIVE ISSUE REAPPEARS`
 
 ---
 
-## Last closed checkpoint — PERF-CF-02CU
+## Previous closed checkpoint — PERF-CF-02CU
 
 Status: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**
 
