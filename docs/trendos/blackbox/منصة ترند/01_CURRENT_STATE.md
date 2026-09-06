@@ -6,7 +6,7 @@ Date: 2026-09-06
 
 `PERF-CF-02CU — Stability / Freshness / Resume Guards`
 
-Status: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — NAVIGATION/RETURN NO-REFRESH CLOSED WITH TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS LOW-USAGE HEARTBEAT LIVE/HEALTHY — `/02cr` IDLE-AGING ROOT CAUSE CONFIRMED — DUAL-SIGNAL FRESHNESS CANDIDATE VERIFIED + ISOLATED PREVIEW LIVE PASS — PRODUCTION PROMOTION PENDING**
+Status: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — NAVIGATION/RETURN NO-REFRESH CLOSED WITH TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS LOW-USAGE HEARTBEAT LIVE/HEALTHY — DUAL-SIGNAL `/02cr` WORKER + FRONTEND PRODUCTION TECHNICAL PASS — USER-VISIBLE IDLE-AGING VALIDATION PENDING**
 
 Records:
 
@@ -14,16 +14,20 @@ Records:
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_NO_REFRESH.md`
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_USER_VISIBLE_PASS.md`
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_02CR_DUAL_SIGNAL_IDLE_FRESHNESS_CANDIDATE.md`
+- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_DUAL_SIGNAL_PRODUCTION_PASS.md`
 
 ### Current production frontend / Worker
 
-Production is intentionally unchanged by the new dual-signal candidate:
+The separately approved 02CU production promotion is complete:
 
 - GitHub Pages from `main`
-- Production main commit: `9552407c5a5136371f9afd452b913c226329d7dc`
+- Production main commit: `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
+- Production main message: `Promote 02CU logical freshness frontend`
 - Production Worker: `trendos-d1-api`
+- Production Worker version: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8`
+- Worker traffic: **100%**
+- Worker deployment id: `f7615c0b-5a0f-4262-b79c-af84a0c6c683`
 - D1 database: `trendos-main`
-- Production Worker version retained: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
 - Sheets / Apps Script authority: **YES**
 
 ### Orders read routing — current Production
@@ -32,189 +36,196 @@ Eligible `getRowsPageV1931` reads remain D1-first through:
 
 `Frontend → trendos-edge-orders-read-v1.js → /v1/edge/orders/02cr/page → D1`
 
-Current Production freshness safety behavior remains:
+Current Production freshness safety behavior:
 
-- required D1 mirrors older than `5 minutes` fail open to Apps Script;
+- physically fresh required mirrors use the normal D1 path;
+- physically stale `بنود الأوردرات` may remain D1-readable only with a valid bounded Worker proof whose mode is exactly `verified-idle-source-unchanged`;
+- the proof must be recent, healthy, hash-present, and source-shape matched to the Lines mirror metadata;
+- Customers and Debt Restrictions remain physically freshness-gated and cannot use the Orders heartbeat exception;
+- source change, bad/missing/old proof, shape mismatch, stale enrichment, auth failure, Worker error, invalid JSON, or any other qualification failure falls back to Apps Script;
 - `__DEBT__` remains Apps Script;
 - all writes remain Apps Script / Sheets;
 - unsupported/non-qualified actions remain Apps Script.
 
-Freshness production commit: `296fce971c52a7338a0ce1ded4c44b773af62d01`.
+The previous false-stale behavior — unchanged Lines crossing five minutes and forcing Apps Script solely because no D1 write was needed — is now guarded by dual-signal logical freshness rather than a fake D1 timestamp refresh.
 
 ### Orders Low-Usage heartbeat — LIVE / HEALTHY
 
-The remaining 02CU investigation proved that the Apps Script Low-Usage heartbeat route is not dead and does not need a recovery deploy.
+The Low-Usage route was confirmed healthy and did not require an Apps Script redeploy.
 
-Current read-only route evidence:
+Read-only evidence established:
 
 - enabled: true
 - Low-Usage trigger count: 1
 - legacy V1 trigger count: 0
 - direct V2 trigger count: 0
-- source unchanged during idle check
-- no D1 request during unchanged idle check
-- no D1 write during unchanged idle check
-- no current error / zero consecutive errors
+- unchanged authoritative source may result in zero D1 request
+- unchanged authoritative source may result in zero D1 write
+- no current trigger error / zero consecutive errors in the qualification evidence
 
-This zero-write behavior is intentional. It prevents unnecessary Cloudflare/D1 activity while the authoritative Sheets source has not changed.
+This zero-write behavior is intentional and remains the desired quota-safe design.
 
-### Confirmed 02CR idle-aging root cause
+### 02CR idle-aging root cause — FIX PROMOTED
 
-The generic Orders lane already had a dual-signal freshness verifier capable of treating an old D1 write timestamp as logically current when a recent sanitized Apps Script heartbeat proves that Orders + Lines source shape is unchanged.
+Confirmed root cause:
 
-However the production frontend uses the qualified route:
+- the production frontend uses `/v1/edge/orders/02cr/page`;
+- before 02CU, that route bypassed the generic Orders idle verifier;
+- the frontend then used physical `syncedAt` age only;
+- therefore an unchanged healthy source could look stale after five minutes simply because Low-Usage correctly performed no D1 write.
 
-`/v1/edge/orders/02cr/page`
+02CU promoted the safe fix instead of adding a fake heartbeat write.
 
-That route was dispatched before the generic Orders freshness gate, so the existing idle-source verifier was never applied to the actual qualified frontend path.
+### Worker production promotion — PASS
 
-At the same time, the frontend wrapper used physical `syncedAt` age only. Result:
-
-- immediately after a real sync, D1 works;
-- when the source stays unchanged and Low-Usage correctly performs zero D1 writes, `بنود الأوردرات.syncedAt` naturally ages;
-- after five minutes, the frontend treats it as stale and falls back to Apps Script even though the source is unchanged and healthy.
-
-Production read-only Run `34031380301` — **SUCCESS** — observed Lines at about 129–137 seconds old, while Customers / Debt Restrictions were about 25–33 seconds old.
-
-A few minutes later the isolated Preview live qualification observed the same Lines mirror at 419–420 seconds old while Customers / Debt Restrictions were only 17 seconds old, proving the exact idle-aging transition.
-
-### 02CR Dual-Signal candidate — VERIFIED PASS
-
-Worker candidate:
+The new wrapper:
 
 `cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs`
 
-The candidate wraps the already-qualified 02CR handler and adds a metadata-only freshness decision:
+now performs metadata-only freshness qualification for `/02cr` and delegates to the already-qualified business handler only after that decision.
 
-- fresh Lines: no heartbeat request;
-- stale Lines: require a recent healthy Low-Usage proof that Orders + Lines source row/column shape is unchanged;
-- source change, shape mismatch, stale proof, unhealthy trigger state, missing proof, structural mismatch, or verifier error: fail closed to Apps Script;
-- Customers and Debt Restrictions must remain physically fresh because the Orders heartbeat does not prove those sources;
-- `__DEBT__` remains Apps Script-required;
-- anonymous/unauthorized reads do not trigger heartbeat verification;
-- no D1 write and no fake `syncedAt` refresh.
+Heartbeat verifier hardening remains:
 
-`cloudflare-d1/src/index_v2.js` routes `/02cr` through this freshness wrapper before delegating to the existing qualified business handler.
-
-Heartbeat verifier hardening:
-
-- successful heartbeat responses are cached in Worker isolate memory for only 30 seconds;
-- concurrent reads are coalesced to one in-flight Apps Script request;
+- successful heartbeat responses cached in Worker isolate memory for 30 seconds only;
+- concurrent reads coalesced to one in-flight heartbeat request;
 - failures are never cached;
-- no persistent storage is introduced.
+- no persistent storage;
+- no D1 mutation.
 
-Frontend candidate in `trendos-edge-orders-read-v1.js` accepts logical freshness only for stale `بنود الأوردرات`, only when the proof is bounded, recent, source-unchanged, hash-present, and exactly shape-matched. Customers / Debt Restrictions cannot use this exception.
+Evidence:
 
-Any invalid proof retains the existing Apps Script fallback.
+- exact zero-traffic Worker upload created version `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8`
+- exact preview requalification Run `34033006309` — **SUCCESS**
+- Worker Production promotion Run `34033058006` — **SUCCESS**
+- exact target `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` deployed at **100%**
+- post-promotion authenticated `/02cr`: PASS
+- anonymous `/02cr`: fail-closed PASS
+- Sheets authoritative: true
+- cutover: false
+- pendingOutbox: 0
+- 02CL / reconcile qualification: false
+- generic drain: false
+- `__DEBT__`: Apps Script fallback
+- rollback: not required
 
-### Candidate / Preview evidence
+No secret rotation and no `EDGE_SESSION_SECRET` change occurred.
 
-Final same-head Integrity:
+### Frontend production promotion — PASS
 
-- TrendOS Integrity V1 Run `34031601579` — **SUCCESS**
-- all 02CR contract, dual-signal, route wiring, frontend fallback, heartbeat, cache/coalescing, freshness and legacy platform suites passed.
+Frontend promotion occurred only after Worker qualification.
 
-Isolated Preview deployment:
+The production commit changed exactly:
 
-- TrendOS Cloudflare Auto Preview Run `34031294735` — **SUCCESS**
-- Preview Worker version: `607bccf3-8d7e-45f6-b179-6625aeafa3f8`
-- cutover=false
-- Cloud Write OFF
-- no D1 migrations
-- normalized import unavailable before mutation
-- Production Worker/frontend unchanged.
+1. `trendos-edge-orders-read-v1.js`
+2. `config.js` loader cache-bust reference
 
-Dedicated read-only `/02cr` Preview qualification:
+New main:
 
-- Run `34031601605` — **SUCCESS**
-- anonymous `/02cr` fail-closed: PASS
-- focused candidate tests: PASS
-- live stale-Lines dual-signal read: PASS
-- repeat stale-Lines dual-signal read: PASS
+`eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
+
+Evidence:
+
+- bounded frontend promotion Run `34034029239` — **SUCCESS**
+- dual-signal frontend regression: PASS
+- Navigation resume-no-autorefresh regression: PASS
+- return-traffic quiet regression: PASS
+- exact two-file production scope: PASS
+- public GitHub Pages assets: PASS
+- post-frontend authenticated Production `/02cr`: PASS
+- `__DEBT__` Apps Script fallback: PASS
+- rollback: not required
+
+GitHub Pages:
+
+- Run `34034051695` — **SUCCESS**
+- deployed head `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
+
+The post-frontend Production request was physically fresh at the moment of qualification and therefore correctly used the normal physical-fresh path.
+
+### Stale-Lines proof already qualified
+
+The live stale path had already been exercised on the isolated Preview before Production promotion:
+
+- dedicated Preview qualification Run `34031601605` — **SUCCESS**
 - Lines physical age: 419–420 seconds
 - logical mode: `verified-idle-source-unchanged`
 - logical proof age: 124–127 seconds
 - logical max age: 720 seconds
 - source shape matched D1 mirror metadata exactly
-- no business row values were printed by the dedicated probe.
+- repeat stale-Lines read: PASS
+- anonymous access: fail-closed PASS
 
-The candidate is therefore **verified in isolated Preview**, but **not deployed to Production**.
-
-### Required next action — separate Production approval
-
-The remaining 02CU action is a coordinated Production promotion, not an Apps Script heartbeat recovery.
-
-If separately approved, the bounded order is:
-
-1. recheck exact Production main/Worker baseline and safety flags;
-2. promote only the qualified Worker dual-signal changes with write/cutover settings unchanged;
-3. live read-only qualify `/02cr` on Production, including the stale-Lines logical-proof case;
-4. only after Worker qualification, promote the frontend proof acceptance;
-5. run GitHub Pages + production read-only stability qualification;
-6. retain Apps Script fallback, `__DEBT__`, authority and all no-write/no-drain/no-secret invariants;
-7. obtain user-visible confirmation before closing 02CU.
+Focused regression coverage also verifies invalid proof, changed source, shape mismatch, stale enrichment, missing mirror, bad JSON and Edge failure all fall back safely.
 
 ### Navigation return / no refresh — CLOSED
 
+The separate Navigation / Return sub-checkpoint remains closed.
+
 Root cause in legacy `app.js`:
 
-`safeRefresh()` was bound to `visibilitychange`, `window.focus`, and a 180000 ms interval, then programmatically clicked `#refreshBtn`, causing full data refresh when returning to TrendOS.
+`safeRefresh()` was bound to `visibilitychange`, `window.focus`, and a 180000 ms interval, then programmatically clicked `#refreshBtn`.
 
 Primary production guard:
 
 `trendos-resume-no-autorefresh-v1.js`
 
-It suppresses only `refreshBtn.click()` originating from legacy `safeRefresh`, while manual refresh remains available.
+Residual guard:
 
-Primary evidence:
+`trendos-return-traffic-quiet-v1.js`
 
-- dedicated CI Run `34027221511` — **SUCCESS**
-- Integrity Run `34027221532` — **SUCCESS**
-- bounded production Run `34027313379` — **SUCCESS**
-- production commit `20a56241da2919e31fc12cb5224d29ac18fdf4f3`
-- GitHub Pages Run `34027347761` — **SUCCESS**
-
-### Residual return traffic hardening
-
-Production also loads `trendos-return-traffic-quiet-v1.js` before `config.js` to suppress only the redundant Attendance visible-return load and Employee Manager focus refresh while keeping required periodic timers.
-
-Residual evidence:
-
-- Return Traffic Quiet CI Run `34028439196` — **SUCCESS**
-- bounded production Run `34028483654` — **SUCCESS**
-- production commit `9552407c5a5136371f9afd452b913c226329d7dc`
-- GitHub Pages Run `34028490166` — **SUCCESS**
-
-### Navigation user-visible validation — PASS
-
-User confirmed production behavior with:
+User-visible validation:
 
 `تمام ثبت`
 
-Navigation / Return remains **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**.
+Status: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**.
 
-No new PII/customer dataset/token persistence was added by that fix.
+02CU dual-signal promotion retained both navigation guards and their regressions passed during the frontend deployment.
 
-### 02CU safety boundary
+### 02CU safety boundary — retained after Production promotion
 
-- Apps Script deployment in current candidate: **NO**
-- Production Worker deployment in current candidate: **NO**
-- Production frontend deployment in current candidate: **NO**
-- D1 business-data write: **NO**
+- Apps Script New Version / Deploy: **NO**
+- D1 business-data write by this promotion: **NO**
 - authority transfer: **NO**
 - Sheets / Apps Script authority: **YES**
+- eligible Orders reads D1 first: **YES**
 - Apps Script fallback: **retained**
 - `__DEBT__`: **Apps Script**
-- 02CL / reconcile: **OFF**
+- 02CL / reconcile qualification: **OFF**
 - generic drain: **OFF**
 - `EDGE_SESSION_SECRET` rotation/change: **NO**
 - Customer Feedback auto scan: **OFF**
 - Go-Live Autopilot auto sweep: **OFF**
 - Trend Master bounded protections: **retained**
+- Navigation return guards: **retained**
+
+### Temporary workflow cleanup
+
+The four promotion-only temporary workflows were removed after successful qualification:
+
+- `trendos-02cu-worker-zero-traffic-upload-temp.yml`
+- `trendos-02cu-worker-preview-requalify-temp.yml`
+- `trendos-02cu-worker-promote-temp.yml`
+- `trendos-02cu-frontend-production-temp.yml`
+
+Durable CI and read-only diagnostic workflows were retained.
+
+### Required next action — user-visible validation only
+
+No additional Production deployment is required for the current 02CU implementation.
+
+The only remaining close condition is user-visible idle-aging validation after the new cache-busted frontend has loaded.
+
+Expected live behavior:
+
+- normal Orders pages continue to use the qualified D1 path;
+- when `بنود الأوردرات` becomes physically older than five minutes solely because the authoritative source is unchanged, a valid Low-Usage proof prevents the false-stale fallback;
+- a real source change or any proof/freshness/qualification failure still falls back to Apps Script.
+
+Do not mark 02CU CLOSED until the user confirms the live behavior.
 
 Exact active stop point:
 
-`PERF-CF-02CU IN PROGRESS — NAVIGATION-RETURN-NO-REFRESH CLOSED TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS LOW-USAGE HEARTBEAT LIVE/HEALTHY — /02CR IDLE-AGING ROOT CAUSE CONFIRMED — 02CR DUAL-SIGNAL IDLE FRESHNESS CANDIDATE VERIFIED + INTEGRITY SUCCESS + ISOLATED PREVIEW LIVE STALE-LINES PASS — PRODUCTION MAIN 9552407c5a5136371f9afd452b913c226329d7dc + WORKER c77bf453-c590-4cff-a55b-fd9c625b6d76 UNCHANGED — NEXT ACTION: SEPARATELY APPROVED BOUNDED WORKER + FRONTEND PRODUCTION PROMOTION`
+`PERF-CF-02CU IN PROGRESS — NAVIGATION-RETURN-NO-REFRESH CLOSED TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS DUAL-SIGNAL IDLE FRESHNESS WORKER + FRONTEND PRODUCTION TECHNICAL PASS — PRODUCTION MAIN eab0dd342085df45ac8cd9dc02b1c21e7dc76820 — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% — WORKER PROMOTION RUN 34033058006 SUCCESS — FRONTEND PROMOTION RUN 34034029239 SUCCESS — PAGES 34034051695 SUCCESS — APPS SCRIPT FALLBACK + __DEBT__ + SHEETS AUTHORITY + 02CL OFF + GENERIC DRAIN OFF + NO SECRET ROTATION RETAINED — NEXT/ONLY 02CU CLOSE CONDITION: USER-VISIBLE IDLE-AGING VALIDATION`
 
 ---
 
