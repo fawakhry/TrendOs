@@ -73,10 +73,10 @@ jobs:
           grep -Fq 'MATBAGY_TREND_MASTER_MAX_ATTEMPTS = 1' config.js
           grep -Fq 'MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false' config.js
           grep -Fq 'MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false' config.js
-          changed="$(git diff --name-only | sort)"
+          changed="$( { git diff --name-only; git ls-files --others --exclude-standard; } | sort -u)"
           printf '%s\n' "$changed"
           test "$changed" = $'config.js\nindex.html\nreset-cache.html\ntrendos-resume-no-autorefresh-v1.js'
-          if git diff --name-only | grep -Eq '\.gs$|cloudflare-d1/src/'; then echo forbidden-backend-change; exit 1; fi
+          if printf '%s\n' "$changed" | grep -Eq '\.gs$|cloudflare-d1/src/'; then echo forbidden-backend-change; exit 1; fi
           echo TRENDOS_02CU_RESUME_SCOPE_PASS
 
       - name: Commit production frontend hotfix
