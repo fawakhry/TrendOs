@@ -4800,11 +4800,11 @@ Trend Mall`;
     const displayed = summary ? Number(summary.total || 0) : rows.length;
     const urgent = summary ? Number(summary.urgent || 0) : rows.filter(r => r.priority === "عاجل" || r.priority === "VIP").length;
     const normal = summary ? Number(summary.normal || 0) : rows.filter(r => !r.priority || r.priority === "عادي").length;
-    const problem = summary ? Number(summary.problems || 0) : rows.filter(r => WORK_PROBLEM_STATUS.includes(normalizeStatus(r.status))).length;
-    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(r => text(r.overdue) === "نعم").length;
-    const debts = summary ? Number(summary.debts || 0) : rows.filter(r => Number(r.debtAmount || 0) > 0).length;
-    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(r => isHeatPress(r.heatPress)).length;
-    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(r => normalizeStatus(r.status) === "ملغى").length;
+    const problem = summary ? Number(summary.problems || 0) : rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;
+    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(isOverdueRow).length;
+    const debts = summary ? Number(summary.debts || 0) : rows.filter(hasDebt).length;
+    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
+    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
     const flyPrint = summary ? Number(summary.flyPrint || 0) : rows.filter(r => isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])).length;
     statsBar.innerHTML =
       "<span class='stat-chip'>المعروض: <b>" + displayed + "</b></span>" +
