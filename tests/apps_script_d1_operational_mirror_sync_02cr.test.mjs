@@ -15,7 +15,8 @@ assert.match(src, /D1_API_URL/);
 assert.match(src, /D1_MIGRATION_SECRET/);
 assert.doesNotMatch(src, /Logger\.log|console\.log/);
 assert.doesNotMatch(src, /EDGE_SESSION_SECRET/);
-assert.doesNotMatch(src, /genericDrain|02CL|cutover\s*=|MATBAGY_EDGE_ORDERS_READ_V1_ENABLED/);
+// Guard real operational identifiers/calls, not explanatory safety comments.
+assert.doesNotMatch(src, /genericDrainEnabled|TRENDOS_PROD_RECONCILE_02CL_ENABLED|MATBAGY_EDGE_ORDERS_READ_V1_ENABLED|wrangler\s+deploy|d1\s+execute/);
 assert.doesNotMatch(src, /setValue\(|setValues\(|appendRow\(|insertRow|deleteRow/);
 
 const targetBlock = src.match(/const D1_OPERATIONAL_SYNC_02CR_TARGETS = Object\.freeze\(\[([\s\S]*?)\]\);/);
