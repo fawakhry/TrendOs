@@ -1,0 +1,69 @@
+name: TrendOS 02CV Fly Print Lane Stability Candidate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cv-flyprint-lane-stability-candidate.yml'
+      - 'tools/patch_02cv_flyprint_lane_stability.py'
+      - 'tests/frontend_flyprint_lane_stability_02cv.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EXPECTED_MAIN: b4a87493ca9ce7507fc342e9b39f91449395fb46
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+
+      - name: Save candidate tools and regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tools/patch_02cv_flyprint_lane_stability.py /tmp/patch_02cv_flyprint_lane_stability.py
+          cp tests/frontend_flyprint_lane_stability_02cv.test.mjs /tmp/frontend_flyprint_lane_stability_02cv.test.mjs
+          cp tests/frontend_order_status_write_consistency_02cv.test.mjs /tmp/frontend_order_status_write_consistency_02cv.test.mjs
+          cp tests/frontend_order_status_ux_02cv.test.mjs /tmp/frontend_order_status_ux_02cv.test.mjs
+
+      - name: Assemble exact production candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          actual="$(git rev-parse origin/main)"
+          echo "MAIN_BASELINE=$actual"
+          test "$actual" = "$EXPECTED_MAIN"
+          rm -rf /tmp/02cv-fly-candidate
+          git worktree add --detach /tmp/02cv-fly-candidate "$EXPECTED_MAIN"
+          python3 /tmp/patch_02cv_flyprint_lane_stability.py /tmp/02cv-fly-candidate
+
+      - name: Run focused and existing 02CV frontend contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_flyprint_lane_stability_02cv.test.mjs
+          TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_order_status_write_consistency_02cv.test.mjs
+          TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_order_status_ux_02cv.test.mjs
+          node --check /tmp/02cv-fly-candidate/app.js
+
+      - name: Assert bounded candidate diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/02cv-fly-candidate
+          mapfile -t files < <(git diff --name-only)
+          printf 'CHANGED_FILES=%s\n' "${files[*]}"
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = 'app.js'
+          git diff --check
+          git diff -- app.js
+
+      - name: Candidate pass
+        run: echo '02CV_FLYPRINT_LANE_STABILITY_CANDIDATE_PASS'
