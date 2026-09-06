@@ -1,0 +1,72 @@
+name: TrendOS Production Trend Master Lazy Hotfix TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-prod-trendmaster-lazy-hotfix-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  production-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Disable Trend Master automatic fanout only
+        shell: python
+        run: |
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text(encoding='utf-8')
+              if old not in s: raise SystemExit(f'expected pattern missing: {path}: {old[:120]!r}')
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          # Do not install the fan-out resilience wrapper in production.
+          rep('config.js','window.MATBAGY_TREND_MASTER_RESILIENCE_V1 = true;','window.MATBAGY_TREND_MASTER_RESILIENCE_V1 = false;')
+          rep('config.js',"trendLoadModuleV1932('trendMasterResilienceV1931Loader','trend-master-resilience-v1931.js?v=20260906a');\n",'')
+
+          # Keep the center visible but make its expensive read explicit/manual.
+          rep('app.js',
+              '    if (show && !state.trendMaster && !state.trendMasterLoading) loadTrendMasterCenter(false);',
+              '    if (show && !state.trendMaster && !state.trendMasterLoading && $("trendMasterStatus")) $("trendMasterStatus").textContent = "اضغط «تحديث المركز» لتحميل البيانات.";')
+
+          # Force immediate browser refresh of config/app.
+          for path in ['index.html','reset-cache.html']:
+              p=Path(path); s=p.read_text(encoding='utf-8')
+              if 'trendos-perf-hotfix-20260906a' not in s: raise SystemExit(f'cache baseline missing: {path}')
+              p.write_text(s.replace('trendos-perf-hotfix-20260906a','trendos-perf-hotfix2-20260906a'),encoding='utf-8')
+
+      - name: Guard production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          grep -Fq 'MATBAGY_TREND_MASTER_RESILIENCE_V1 = false' config.js
+          ! grep -Fq "trendLoadModuleV1932('trendMasterResilienceV1931Loader'" config.js
+          grep -Fq 'اضغط «تحديث المركز» لتحميل البيانات.' app.js
+          grep -Fq 'refreshTrendMasterButton.addEventListener("click", function(){ loadTrendMasterCenter(true); });' app.js
+          grep -Fq 'trendos-perf-hotfix2-20260906a' index.html
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' config.js
+          grep -Fq 'MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false' config.js
+          grep -Fq 'MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false' config.js
+          if git diff --name-only | grep -E '\.gs$'; then echo 'Apps Script mutation forbidden'; exit 1; fi
+          echo PROD_TRENDMASTER_LAZY_HOTFIX_PASS
+
+      - name: Commit hotfix to production main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add config.js app.js index.html reset-cache.html
+          git commit -m 'Hotfix disable Trend Master auto fanout on platform load'
+          git push origin HEAD:main
