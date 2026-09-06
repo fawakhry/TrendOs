@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
 
+# Second-push trigger: workflow already exists on the working branch.
 jobs:
   patch:
     runs-on: ubuntu-latest
