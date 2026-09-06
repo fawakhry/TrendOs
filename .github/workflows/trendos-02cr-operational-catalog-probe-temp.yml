@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
 
+# Second-push trigger after workflow registration.
 jobs:
   probe:
     runs-on: ubuntu-latest
