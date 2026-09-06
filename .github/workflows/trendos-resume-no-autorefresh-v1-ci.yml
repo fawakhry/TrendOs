@@ -1,0 +1,36 @@
+name: TrendOS Resume No Auto Refresh V1 CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'trendos-resume-no-autorefresh-v1.js'
+      - 'tests/trendos_resume_no_autorefresh_v1.test.mjs'
+      - '.github/workflows/trendos-resume-no-autorefresh-v1-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resume-no-autorefresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check trendos-resume-no-autorefresh-v1.js
+      - name: Regression
+        run: node tests/trendos_resume_no_autorefresh_v1.test.mjs
+      - name: Confirm legacy trigger exists and hotfix is narrow
+        run: |
+          set -euo pipefail
+          grep -Fq "document.addEventListener('visibilitychange',function(){if(!document.hidden)safeRefresh();});" app.js
+          grep -Fq "window.addEventListener('focus',safeRefresh);" app.js
+          grep -Fq "this.id === 'refreshBtn' && isLegacySafeRefreshStack()" trendos-resume-no-autorefresh-v1.js
+          grep -Fq "return currentClick.apply(this, arguments);" trendos-resume-no-autorefresh-v1.js
+          echo TRENDOS_RESUME_NO_AUTO_REFRESH_V1_CI_PASS
