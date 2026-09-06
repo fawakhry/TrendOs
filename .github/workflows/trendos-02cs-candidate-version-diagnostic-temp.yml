@@ -1,0 +1,118 @@
+name: TrendOS 02CS Candidate Version Diagnostic TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02cs-candidate-version-diagnostic-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cs-candidate-version-diagnostic-temp
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      CANDIDATE_VERSION: 43e14620-35c5-47fb-870e-8eb2d6526ddd
+      CANDIDATE_PREVIEW_URL: https://43e14620-trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static read-only safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/trendos-02cs-candidate-version-diagnostic-temp.yml').read_text(encoding='utf-8')
+          forbidden=['wrangler'+' deploy','versions'+' upload','versions'+' deploy','wrangler'+' rollback','secret'+' put','secret'+' bulk','d1 execute','d1 migrations','/v1/import/'+'sheet','/v1/mirror/'+'delta','reconcile/'+'order']
+          for token in forbidden:
+            if token in s: raise SystemExit('Forbidden mutation token: '+token)
+          print('PERF_CF_02CS_CANDIDATE_DIAGNOSTIC_STATIC_PASS_NO_MUTATION')
+          PY
+
+      - name: Confirm production rollback boundary GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_URL;
+          async function get(path){const r=await fetch(base+path,{cache:'no-store',headers:{accept:'application/json'}});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}
+          (async()=>{
+            const edge=await get('/v1/edge/health');
+            const cloud=await get('/v1/cloud/write/health');
+            const recon=await get('/v1/qualification/cloud-write/reconcile/health');
+            const unauth=await get('/v1/edge/orders/page?screen=print&page=1&pageSize=1');
+            assert.equal(edge.status,200);assert.equal(edge.body.success,true);assert.equal(edge.body.database,true);assert.equal(edge.body.cutover,false);
+            assert.equal(cloud.status,200);assert.equal(cloud.body.success,true);assert.equal(cloud.body.cutover,false);assert.equal(cloud.body.sheetsAuthoritative,true);assert.equal(Number(cloud.body.pendingOutbox||0),0);
+            assert.equal(recon.status,200);assert.equal(recon.body.enabled,false);assert.equal(recon.body.genericDrainEnabled,false);
+            assert.equal(unauth.status,401);
+            console.log('PERF_CF_02CS_POST_ROLLBACK_BOUNDARY_PASS='+JSON.stringify({cutover:false,sheetsAuthoritative:true,reconcileEnabled:false,genericDrainEnabled:false,pendingOutbox:0,ordersUnauthStatus:401}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Read candidate version metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} versions view "$CANDIDATE_VERSION" --config cloudflare-d1/wrangler.toml --json > /tmp/version.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/version.json','utf8'));
+          function bindingNames(v){
+            const out=[];
+            const seen=new Set();
+            function walk(o){
+              if(!o||typeof o!=='object'||seen.has(o)) return; seen.add(o);
+              if(Array.isArray(o)){for(const v of o) walk(v);return;}
+              if(typeof o.name==='string' && (typeof o.type==='string'||typeof o.namespace_id==='string'||typeof o.id==='string')) out.push({name:o.name,type:o.type||''});
+              for(const v of Object.values(o)) walk(v);
+            }
+            walk(v); return out.filter((v,i,a)=>a.findIndex(z=>z.name===v.name&&z.type===v.type)===i).slice(0,50);
+          }
+          console.log('PERF_CF_02CS_CANDIDATE_VERSION_META='+JSON.stringify({id:x.id||x.version_id||process.env.CANDIDATE_VERSION,bindings:bindingNames(x)}));
+          NODE
+
+      - name: Probe candidate version preview read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=process.env.CANDIDATE_PREVIEW_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          async function request(label,url,opt={}){
+            try{
+              const r=await fetch(url,{cache:'no-store',...opt});
+              const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+              const safe={label,status:r.status,success:body.success,code:body.code||'',message:String(body.message||'').slice(0,180),database:body.database,cutover:body.cutover};
+              console.log('PERF_CF_02CS_CANDIDATE_PREVIEW='+JSON.stringify(safe));
+              return {status:r.status,body,raw};
+            }catch(e){console.log('PERF_CF_02CS_CANDIDATE_PREVIEW='+JSON.stringify({label,error:String(e&&e.message||e).slice(0,180)}));return null;}
+          }
+          (async()=>{
+            await request('health',base+'/health',{headers:{accept:'application/json'}});
+            await request('edge-health',base+'/v1/edge/health',{headers:{accept:'application/json'}});
+            await request('session',base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Conclusion
+        run: echo 'PERF_CF_02CS_CANDIDATE_VERSION_DIAGNOSTIC_COMPLETE_NO_MUTATION'
