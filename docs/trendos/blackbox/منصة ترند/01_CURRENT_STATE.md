@@ -4,13 +4,13 @@ Date: 2026-09-06
 
 ## Latest checkpoint
 
-`PERF-CF-02CR — Orders Completeness / Operational D1 Preview Qualification`
+`PERF-CF-02CS — Production Worker Deploy Gate / Authenticated Canary Preflight`
 
-Status: **PREVIEW QUALIFICATION PASS — USER-VISIBLE COMPLETENESS PASS — ENRICHMENT HEARTBEAT PASS — FINAL BOUNDARY PASS — PRODUCTION FRONTEND ON APPS SCRIPT / D1 READ OFF**
+Status: **02CR PREVIEW QUALIFIED — PRODUCTION PREDEPLOY CODE/BOUNDARY PASS — AUTH CANARY CREDENTIAL BLOCKED — NO WORKER DEPLOY — PRODUCTION FRONTEND ON APPS SCRIPT / D1 READ OFF**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_PREVIEW_SOURCE_PARITY_HEARTBEAT_BOUNDARY_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CS_PRODUCTION_WORKER_AUTH_PREFLIGHT_BLOCKED.md`
 
 ## Current production state
 
@@ -22,153 +22,115 @@ Latest record:
 - production cutover: **NO**
 - 02CL: **OFF**
 - generic drain: **OFF**
-- `pendingOutbox=0` at final 02CR boundary
+- latest 02CS preflight: `pendingOutbox=0`
 - unauthenticated production Orders route: `401`
 - no `EDGE_SESSION_SECRET` rotation
+- **no Worker deployment performed in 02CS yet**
 
-## User-visible completeness incident — closed
+## 02CR qualification remains valid
 
-The fixed-range legacy-view issue was repaired by changing only A2 formulas in service / print / laser / press views to open-ended source ranges.
-
-The user refreshed production and explicitly confirmed:
-
-`كده تمام اشتغل`
-
-Official result:
-
-`USER-VISIBLE ORDER COMPLETENESS RECOVERY — VERIFIED PASS`
-
-## Existing Orders Live Sync V2
-
-Unchanged and sole owner of:
-
-- `الأوردرات`
-- `بنود الأوردرات`
-
-Exact lines note:
-
-`TrendOS orders live sync V2 quota-aware`
-
-Final qualification lines mirror:
-
-- sourceLastRow `355`
-- rowCount `355`
-- status `ready`
-
-## 02CR enrichment live sync
-
-Live only for:
-
-- `العملاء`
-- `عملاء منع التسليم بالمديونية`
-
-Exact note:
-
-`PERF-CF-02CR enrichment live sync V1`
-
-Final heartbeat evidence:
-
-- customers `239 / 239`, status ready, syncedAt `2026-09-06 02:11:10`, age about 42 seconds
-- restrictions `1 / 1`, status ready, same syncedAt, age about 43 seconds
-
-The one-minute support-lane trigger is therefore verified active after initial start.
-
-## Isolated Preview 02CR qualification
-
-Route:
+The qualified isolated route is:
 
 `/v1/edge/orders/02cr/page`
 
-This route is not used by the production frontend.
-
-Direct authoritative-source vs Preview parity:
+Preview evidence remains:
 
 ### Print
 
 - active source `21`
 - Preview `21`
-- exact identity/status parity using Order ID + Line ID + status
-- status partition: `طلب جديد = 21`
-- priority: `عاجل = 1`, `عادي = 20`
-- heat: `only = 7`, `without = 14`
-- pageSize=5 exact reconstruction across `5` pages
+- exact Order ID + Line ID + status parity
+- pageSize=5 exact reconstruction across 5 pages
 
 ### Laser
 
 - active source `18`
 - Preview `18`
 - exact identity/status parity
-- status partition:
-  - `طلب جديد = 13`
-  - `تحت التنفيذ = 4`
-  - `متوقف = 1`
-- priority: `عاجل = 3`, `عادي = 15`
-- heat: `only = 0`, `without = 18`
-- pageSize=5 exact reconstruction across `4` pages
+- `13 طلب جديد + 4 تحت التنفيذ + 1 متوقف`
+- pageSize=5 exact reconstruction across 4 pages
 
-Additional PASS checks:
+Additional qualification:
 
-- exact status filtering
-- priority filtering
-- heat filtering
-- Order ID search
-- ready-pickup response
-- no pagination loss or duplicate identity
-- active row shape contains all `38` expected field-contract keys
-- no PII was logged by the qualification workflow
+- status filters PASS
+- priority filters PASS
+- heat filters PASS
+- Order ID search PASS
+- 38 expected field-contract keys PASS
+- `__DEBT__` => `409 apps-script-required`, fallback Apps Script
+- enrichment support heartbeat PASS
 
-`__DEBT__` remains intentionally outside D1 lane:
+## 02CS user authorization
 
-- HTTP `409`
-- `code=apps-script-required`
-- `fallback=apps-script`
+The user explicitly approved:
 
-Preview extended parity workflow:
+`نشر مسار D1 المؤهل على Worker الإنتاج فقط، بدون تفعيل الواجهة`
 
-- Run `34005762192`
-- Job `101412516340`
-- **SUCCESS**
+This does not authorize frontend activation, authority transfer, 02CL, generic drain, migration, or secret rotation.
 
-## Final boundary
+## 02CS predeploy result
 
-Final read-only workflow:
+Final decisive preflight:
 
-- Run `34005845935`
-- Job `101412745176`
-- **SUCCESS**
-- marker `PERF_CF_02CR_HEARTBEAT_FINAL_BOUNDARY_PASS_NO_MUTATION`
+- commit `3a2ab0974e84dacbf1f6d275ea86c977eb67319b`
+- workflow Run `34006450618`
+- Job `101414432911`
 
-Verified:
+Passed before the auth gate:
 
-- `cutover=false`
-- `sheetsAuthoritative=true`
-- reconcile/02CL `enabled=false`
-- `genericDrainEnabled=false`
-- `pendingOutbox=0`
-- unauth Orders route `401`
-- production `main/config.js` has no active D1 Orders-read flag
-- production Edge reader loader absent
+- static production config / frontend-OFF boundary
+- all selected 02CR Worker contracts
+- live production GET-only boundary
+
+Boundary marker:
+
+`PERF_CF_02CS_PREFLIGHT_BOUNDARY={"cutover":false,"sheetsAuthoritative":true,"reconcileEnabled":false,"genericDrainEnabled":false,"pendingOutbox":0,"ordersUnauthStatus":401,"frontendEdgeRead":false}`
 
 Same-head Integrity:
 
-- Run `34005845901`
+- Run `34006450589`
 - **SUCCESS**
 
-## Cleanup
+## Current blocker
 
-Temporary qualification workflows removed after evidence collection:
+Authenticated production canary credentials are not currently usable from GitHub Actions:
 
-- preview parity cleanup `490dec93eac87f73b883aacca59784e5d4e1cbd0`
-- final boundary cleanup `233294b139f8e396dcfd0645aaba089ffcad5a9d`
+- production direct Edge-secret candidates checked by the bounded workflow are absent;
+- `TRENDOS_PROD_QUALIFY_USERNAME` is present;
+- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` is present but its employee session is stale/not accepted by `/v1/edge/orders/session`.
 
-## Exact stop point
+The preflight therefore failed closed with:
 
-02CR is **qualified in Preview**. No production Worker deploy and no frontend D1 cutover has been performed as part of this qualification.
+`No valid production authenticated canary credential path is available. Deploy must not start.`
 
-The next action is a new production gate requiring explicit user approval:
+No secret value was printed, logged, or requested in chat.
 
-1. deploy the qualified operational D1 read implementation to the production Worker in a bounded deployment while frontend D1 read remains OFF,
-2. run production authenticated canary/boundary checks,
-3. only if those pass, request/record a separate activation decision for frontend D1 read.
+## No deployment occurred
 
-Do not infer the user's earlier Apps Script approvals as authorization for this new Worker/cutover action.
+Because authenticated post-deploy validation could not be guaranteed, 02CS stopped before the Worker deploy step.
+
+Therefore:
+
+- no Wrangler deploy
+- no Worker version change from this checkpoint
+- no D1 migration
+- no secret update/rotation
+- no frontend D1 enable
+- no authority transfer
+- no 02CL reopen
+- no generic drain
+
+## Exact next action
+
+Refresh a normal TrendOS employee session and update the matching GitHub Actions secret pair directly in GitHub, without sending values in chat:
+
+- `TRENDOS_PROD_QUALIFY_USERNAME`
+- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
+
+Then rerun the 02CS predeploy auth/boundary gate. If it passes:
+
+1. execute one bounded production Worker deploy of the already-qualified 02CR operational route,
+2. run authenticated production canary on `/v1/edge/orders/02cr/page`,
+3. verify `__DEBT__` fallback,
+4. run final production boundary,
+5. keep frontend D1 read OFF and stop for a separate activation decision.
