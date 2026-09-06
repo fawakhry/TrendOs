@@ -1,0 +1,123 @@
+name: TrendOS 02CW Worker Zero Traffic Upload Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-worker-zero-traffic-upload-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      WORKER_NAME: trendos-d1-api
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PREVIEW_URL: https://cw-global-trendos-d1-api.trendmall-contact.workers.dev
+      BASE_REF: b78d0656754038f700ee4ecdba6c95b88c5feba8
+      CU_CANDIDATE_REF: b5721d7047291e0047399ddcf5d0284f3b6ca04f
+      CW_CANDIDATE_REF: c4564d0a4d97f40a7963495ec5dc6bf6e25908ea
+      PREVIOUS_VERSION: 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+
+      - name: Lock current safe production version
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/deployments.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));const ds=(Array.isArray(x)?x:x.items||[]).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));const d=ds[0]||{};const a=(d.versions||[]).map(v=>({id:v.version_id||v.id,p:Number(v.percentage)}));if(!a.some(v=>v.id===process.env.PREVIOUS_VERSION&&v.p===100)) throw new Error('safe 02CU baseline is not active at 100%');console.log('02CW_ZERO_TRAFFIC_BASELINE_LOCK_PASS');
+          NODE
+
+      - name: Assemble exact 02CU baseline plus two-file 02CW delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach /tmp/02cw-prod "$BASE_REF"
+          for f in cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs cloudflare-d1/src/index_v2.js cloudflare-d1/src/edge-orders-idle-verifier.mjs; do
+            git show "$CU_CANDIDATE_REF:$f" > "/tmp/02cw-prod/$f"
+          done
+          for f in cloudflare-d1/src/edge-orders-read-02cr-canary.mjs cloudflare-d1/src/edge-orders-read-v1.mjs; do
+            git show "$CW_CANDIDATE_REF:$f" > "/tmp/02cw-prod/$f"
+          done
+          python3 - <<'PY'
+          import subprocess
+          expected={
+            'cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs',
+            'cloudflare-d1/src/index_v2.js',
+            'cloudflare-d1/src/edge-orders-idle-verifier.mjs',
+            'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs',
+            'cloudflare-d1/src/edge-orders-read-v1.mjs'
+          }
+          out=subprocess.check_output(['git','-C','/tmp/02cw-prod','status','--porcelain'],text=True)
+          got={line[3:] for line in out.splitlines() if line.strip()}
+          print('02CW_ASSEMBLED_FILES=',sorted(got))
+          if got != expected: raise SystemExit(f'unexpected scope {got}')
+          PY
+          cmp cloudflare-d1/wrangler.toml /tmp/02cw-prod/cloudflare-d1/wrangler.toml
+          grep -Eq '^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "true"$' /tmp/02cw-prod/cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' /tmp/02cw-prod/cloudflare-d1/wrangler.toml
+          grep -q 'buildOrdersSummary' /tmp/02cw-prod/cloudflare-d1/src/edge-orders-read-v1.mjs
+          grep -q 'activeSummaryCounts' /tmp/02cw-prod/cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+          node --check /tmp/02cw-prod/cloudflare-d1/src/index_v2.js
+          node --check /tmp/02cw-prod/cloudflare-d1/src/edge-orders-read-v1.mjs
+          node --check /tmp/02cw-prod/cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+          echo '02CW_EXACT_ASSEMBLY_PASS'
+
+      - name: Focused candidate tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRENDOS_TEST_ROOT=/tmp/02cw-prod node tests/cloudflare_edge_orders_active_summary_02cw.test.mjs
+          TRENDOS_TEST_ROOT=/tmp/02cw-prod node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          TRENDOS_TEST_ROOT=/tmp/02cw-prod node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
+          TRENDOS_TEST_ROOT=/tmp/02cw-prod node tests/cloudflare_index_v2_02cr_route.test.mjs
+          echo '02CW_ZERO_TRAFFIC_TESTS_PASS'
+
+      - name: Upload exact version only with zero production traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/02cw-prod
+          npx --yes wrangler@4.33.2 versions upload --config cloudflare-d1/wrangler.toml --preview-alias cw-global --message "TrendOS 02CW global active counters candidate"
+          sleep 8
+          npx --yes wrangler@4.33.2 versions list --name "$WORKER_NAME" --json > /tmp/versions.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/versions.json','utf8'));const vs=(Array.isArray(x)?x:x.items||[]).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));const v=vs[0]||{};const id=String(v.id||v.version_id||'');if(!id||id===process.env.PREVIOUS_VERSION) throw new Error('new 02CW version not identified');fs.appendFileSync(process.env.GITHUB_ENV,`TARGET_VERSION=${id}\n`);console.log('02CW_ZERO_TRAFFIC_TARGET='+id);
+          NODE
+
+      - name: Qualify preview alias read-only and authenticated
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const assert=require('node:assert/strict'),base=process.env.PREVIEW_URL,u=process.env.QUALIFY_USERNAME,t=process.env.QUALIFY_EMPLOYEE_TOKEN;const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function req(p,opt={},n=8){let last;for(let i=1;i<=n;i++){try{const r=await fetch(base+p,{cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}if(r.status>=500&&i<n){await sleep(i*1200);continue;}return{status:r.status,body:b,raw};}catch(e){last=e;if(i<n)await sleep(i*1200)}}throw last;}
+          (async()=>{
+            const e=await req('/v1/edge/health');assert.equal(e.status,200);assert.equal(e.body.success,true);assert.equal(e.body.cutover,false);
+            const r=await req('/v1/qualification/cloud-write/reconcile/health');assert.equal(r.status,200);assert.equal(r.body.enabled,false);assert.equal(r.body.genericDrainEnabled,false);
+            const s=await req('/v1/edge/orders/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:u,token:t})},8);
+            if(s.status!==200) console.error('SESSION_PREVIEW_FAILURE',s.status,s.raw);
+            assert.equal(s.status,200);assert.equal(s.body.success,true);assert.ok(s.body.edgeToken);
+            const h={authorization:'Bearer '+s.body.edgeToken,accept:'application/json'};
+            const x=await req('/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__&priorityFilter=',{headers:h},8);
+            assert.equal(x.status,200);assert.equal(x.body.success,true);assert.ok(x.body.activeSummaryCounts&&typeof x.body.activeSummaryCounts==='object');
+            const z=x.body.activeSummaryCounts;for(const k of ['total','orderCount','urgent','normal','problems','overdue','debts','heatPress','heatPressOrders','flyPrint']) assert.ok(Number.isFinite(Number(z[k])),k+' missing');
+            assert.ok(Number(z.total)>=Number((x.body.rows||[]).length));assert.ok(Number(z.heatPressOrders)<=Number(z.heatPress));
+            const d=await req('/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__',{headers:h},3);assert.equal(d.status,409);assert.equal(d.body.fallback,'apps-script');
+            console.log('02CW_ZERO_TRAFFIC_PREVIEW_PASS='+JSON.stringify({targetVersion:process.env.TARGET_VERSION,total:z.total,pageRows:(x.body.rows||[]).length,heatPress:z.heatPress,heatPressOrders:z.heatPressOrders,debtFallback:true}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
