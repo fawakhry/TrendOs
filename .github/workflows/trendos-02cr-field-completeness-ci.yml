@@ -7,9 +7,11 @@ on:
     paths:
       - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
       - 'cloudflare-d1/src/edge-orders-operational-enrichment-02cr.mjs'
+      - 'cloudflare-d1/D1_Operational_Mirror_Sync_02CR.gs'
       - 'tests/cloudflare_edge_orders_read_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs'
       - 'tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs'
+      - 'tests/apps_script_d1_operational_mirror_sync_02cr.test.mjs'
       - '.github/workflows/trendos-02cr-field-completeness-ci.yml'
   workflow_dispatch:
 
@@ -31,7 +33,9 @@ jobs:
         run: node tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs
       - name: 02CR operational customer/debt enrichment contract
         run: node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
+      - name: 02CR operational Apps Script sync safety contract
+        run: node tests/apps_script_d1_operational_mirror_sync_02cr.test.mjs
       - name: Safety conclusion
         run: |
-          echo 'PASS: 02CR candidate tests only; no production deploy or frontend re-enable.'
+          echo 'PASS: 02CR candidates only; no production Worker deploy, Apps Script deploy, or frontend re-enable.'
           echo 'PASS: Apps Script/Sheets remain production read/write authority.'
