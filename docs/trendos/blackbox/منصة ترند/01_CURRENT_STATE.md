@@ -4,15 +4,194 @@ Date: 2026-09-06
 
 ## Latest checkpoint
 
-`PERF-CF-02CO — Controlled Orders D1 Read Canary / Authenticated Comparison`
+`PERF-CF-02CQ — Screen View Mirror Refresh / Orders View D1 Canary Prerequisite`
 
-Status: **AUTH PASS — D1 VIEW-MIRROR STALE BLOCKED — FRONTEND OFF — BOUNDARY PASS**
+Status: **CANDIDATE PREPARED — CI PASS — INTEGRITY PASS — PRODUCTION REFRESH NOT EXECUTED — APPS SCRIPT DEPLOYMENT APPROVAL GATE**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_AUTH_PASS_VIEW_MIRROR_STALE_BLOCKED_BOUNDARY_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CQ_SCREEN_VIEW_MIRROR_REFRESH.md`
+
+## 02CQ current result
+
+02CQ started from the documented 02CO boundary without reopening any closed qualification checkpoint.
+
+Repository discovery confirmed:
+
+- `cloudflare-d1/src/mirror.js` already provides authenticated atomic `stage` / `promote` primitives for `sheet_catalog` / `sheet_rows`.
+- `cloudflare-d1/D1_Orders_Live_Sync.gs` only refreshes `الأوردرات` and `بنود الأوردرات`.
+- `cloudflare-d1/D1_Full_Migration.gs` is a broad all-sheet runner and was not used.
+- `cloudflare-d1/D1_Orders_Read_Cutover.gs` is a parity/freshness probe only; it is not a four-view refresh mechanism.
+- No existing bounded production workflow was found that refreshes exactly the four screen views.
+
+Target mirrors remain exactly:
+
+- `واجهة خدمة العملاء`
+- `واجهة الطباعة`
+- `واجهة الليزر`
+- `واجهة المكبس`
+
+## 02CQ read-only live evidence
+
+Final source/boundary probe:
+
+- Run: `34000782787`
+- Job: `101399154155`
+- Result: **PASS — NO MUTATION**
+
+Production boundary held:
+
+- Worker health: PASS
+- database health: PASS
+- `pendingOutbox=0`
+- `cutover=false`
+- `sheetsAuthoritative=true`
+- 02CL reconcile enabled: `false`
+- `genericDrainEnabled=false`
+- unauthenticated orders read: `401`
+
+Apps Script qualification-account observations, without logging customer row values:
+
+- `print`: authorized, `8` rows
+- `press`: authorized, `7` rows
+- `service`: not authorized for this qualification account
+- `laser`: not authorized for this qualification account
+
+The authorized print/press response shape includes `orderId`, `lineId`, and `status` for identity-safe canary diagnostics.
+
+## Current four-view D1 state
+
+All four D1 mirrors were confirmed stale/header-only:
+
+- `واجهة خدمة العملاء`: `sourceLastRow=1`, `sourceLastCol=19`, `rowCount=1`, `syncedAt=2026-08-29 15:49:13`
+- `واجهة الطباعة`: `sourceLastRow=1`, `sourceLastCol=18`, `rowCount=1`, `syncedAt=2026-08-29 15:49:07`
+- `واجهة الليزر`: `sourceLastRow=1`, `sourceLastCol=18`, `rowCount=1`, `syncedAt=2026-08-29 15:49:10`
+- `واجهة المكبس`: `sourceLastRow=1`, `sourceLastCol=18`, `rowCount=1`, `syncedAt=2026-08-29 15:49:15`
+
+All four still carry the old note `TrendOS full mirror V1`.
+
+## Authoritative Google source
+
+Connected Google Drive metadata confirmed the current production spreadsheet:
+
+- `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+- ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+
+Exact target tabs exist:
+
+- `واجهة الطباعة` — sheetId `1036713661`
+- `واجهة الليزر` — sheetId `485053070`
+- `واجهة خدمة العملاء` — sheetId `1674675539`
+- `واجهة المكبس` — sheetId `167996617`
+
+The spreadsheet is private to named users; anonymous sharing was not enabled or changed. No source row payloads were committed to GitHub.
+
+## 02CQ retained candidate assets
+
+Retained:
+
+- `cloudflare-d1/D1_Screen_View_Mirror_Refresh_02CQ.gs`
+- `tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs`
+- `.github/workflows/trendos-02cq-screen-view-mirror-refresh-ci.yml`
+
+Candidate behavior:
+
+- default-OFF using `TRENDOS_PERF_CF_02CQ_SCREEN_VIEW_REFRESH_ENABLED`
+- exact four-sheet allow-list only
+- source reads from Google Sheets only
+- D1 auth reused from existing Apps Script Script Properties
+- atomic stage per target
+- one atomic promote for all four targets
+- refuses another header-only print promotion
+- verifies D1 source row/column parity after promote
+- does not log row payloads / customer phone / notes
+- does not modify Sheets
+- does not deploy Worker
+- does not rotate `EDGE_SESSION_SECRET`
+- does not touch 02CL or generic outbox drain
+- does not enable frontend D1 reads or transfer authority
+
+Candidate code commit:
+
+- `f78ec084b1282372c18428b01cd6aba0339dd849`
+
+Final candidate/test commit:
+
+- `711f2d214395a55b71400e82f1132730a40615b5`
+
+## 02CQ CI evidence
+
+Bounded mirror refresh CI:
+
+- Run: `34001050365`
+- Job: `101399861784`
+- Conclusion: **SUCCESS**
+
+TrendOS Integrity V1:
+
+- Run: `34001050376`
+- Job: `101399861836`
+- Conclusion: **SUCCESS**
+
+Integrity included successful composed Apps Script syntax/collision and pre-deploy package safety gates.
+
+The temporary read-only probe workflow was removed after evidence collection:
+
+- cleanup commit `8328ca5934a3fdc1714f0754481da044fbcf5e22`
+
+## Current production boundary
+
+- Production Worker: `trendos-d1-api`
+- Production Worker Version ID: `0ec782a9-5943-4c9d-8820-51b7d0393210`
+- Production D1: `trendos-main`
+- Production Cloud Write: **ON**
+- Cloud Write `pendingOutbox`: `0`
+- Production Shadow: **ON / read-only / mutation-free**
+- Production cutover: **OFF**
+- Sheets / Apps Script authority: **YES**
+- Apps Script 02CL gate: **OFF**
+- Worker 02CL gate: **OFF**
+- generic outbox drain: **not exposed / not used**
+- frontend D1 orders read flag: **OFF** (`MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false`)
+- frontend cutover: **NO**
+- normalized-data cutover: **NO**
+- authority transfer from Sheets to D1: **NO**
+- `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
+- 02CQ production mirror refresh: **NOT EXECUTED**
+
+## Why execution stops here
+
+There is no already-deployed bounded route that can copy all four private Google view tabs into D1.
+
+The safest execution channel is Apps Script because the live Apps Script environment already owns both:
+
+- access to the authoritative private spreadsheet,
+- the existing D1 API URL / migration secret in Script Properties.
+
+The new 02CQ module is qualified in GitHub but is not yet present in the live Apps Script project.
+
+Per the fixed project rule, **Apps Script deployment requires explicit user approval**. Therefore no Apps Script deployment or production D1 mirror write was performed in this checkpoint yet.
+
+This is an authorization gate, not a failed technical implementation.
+
+## Next safe work after explicit Apps Script deployment approval
+
+1. Recheck production boundary read-only.
+2. Deploy only the qualified 02CQ Apps Script module through the controlled Apps Script deployment path; no secret changes.
+3. Verify the 02CQ refresh flag stays OFF immediately after deployment.
+4. Open one bounded dated execution window.
+5. Enable only the 02CQ gate, run one four-view atomic refresh, then turn the gate OFF again.
+6. Verify `واجهة الطباعة.sourceLastRow > 1` and that the mirror is not header-only.
+7. Verify four-view Google-vs-D1 row/column parity.
+8. Rerun authenticated print D1-vs-Apps-Script canary using only Order ID / Line ID / status for diagnostic identity.
+9. Keep `__DEBT__` on Apps Script fallback.
+10. Recheck final boundary and log the outcome.
 
 ## Previously closed/prepared checkpoints
+
+`PERF-CF-02CO — Controlled Orders D1 Read Canary / Authenticated Comparison`
+
+Status: **AUTH PASS — D1 VIEW-MIRROR STALE BLOCKED — FRONTEND OFF — BOUNDARY PASS**
 
 `PERF-CF-02CN — Orders Read Path Cutover Readiness / Slowness Hot-Path Fix`
 
@@ -29,120 +208,3 @@ Status: **VERIFIED PASS — CLOSED**
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
 Status: **VERIFIED PASS — CLOSED**
-
-## 02CO final result
-
-02CO reached authenticated D1-vs-Apps-Script comparison after the user refreshed the employee-token GitHub secret from a fresh normal TrendOS login.
-
-The auth blocker was resolved.
-
-The canary is now blocked by D1 source freshness, not auth.
-
-The authoritative Apps Script `getRowsPageV1931` path for `screen=print` returns the live screen-view list with `8` rows. D1 full `بنود الأوردرات` returned too much history (`153`, then `26` after a partial wrapper). The correct live source was found to be the screen-view sheet/tab `واجهة الطباعة`.
-
-A canary wrapper was added to route D1 Orders read canary through screen-view mirrors:
-
-- `service` → `واجهة خدمة العملاء`
-- `print` → `واجهة الطباعة`
-- `laser` → `واجهة الليزر`
-- `press` → `واجهة المكبس`
-
-However, the D1 mirror for `واجهة الطباعة` is stale/header-only:
-
-- `edgeVersion=D1_ORDERS_READ_V1_02CO_VIEW_CANARY`
-- `edgeTotalRows=0`
-- `appTotalRows=8`
-- `edgeMirror.sheetName=واجهة الطباعة`
-- `edgeMirror.sourceLastRow=1`
-- `edgeMirror.sourceLastCol=18`
-- `edgeMirror.syncedAt=2026-08-29 15:49:07`
-- `edgeMirror.note=TrendOS full mirror V1`
-
-Therefore the D1 Orders read canary cannot pass until the screen-view tabs are refreshed/imported into D1 or the Edge view is rebuilt exactly from another fresh D1 source.
-
-## 02CO key evidence
-
-Final focused canary:
-
-- Workflow: `TrendOS 02CO Orders D1 Read Canary Wrapper TEMP`
-- Run: `33999763773`
-- Job: `101396400262`
-- Trigger commit: `92c0ff3f90bf1b6a5435f4a094b3a41e921632a2`
-- Result: Auth succeeded, comparison failed because D1 `واجهة الطباعة` mirror had `0` rows while Apps Script returned `8`.
-
-Latest post-failure boundary:
-
-- Workflow: `TrendOS 02CO Latest Post Failure Boundary TEMP`
-- Created commit: `2132b1f6e0034bf33b2fe78ee9224e62c574310f`
-- Run: `33999848762`
-- Job: `101396626997`
-- Conclusion: **SUCCESS**
-
-Boundary marker:
-
-```text
-PERF_CF_02CO_LATEST_POST_FAILURE_BOUNDARY={"workerMs":580,"cloudWriteMs":559,"pendingOutbox":0,"cutover":false,"sheetsAuthoritative":true,"reconcileEnabled":false,"genericDrainEnabled":false,"ordersUnauthStatus":401}
-```
-
-## 02CO retained candidate assets
-
-Retained:
-
-- `cloudflare-d1/src/edge-orders-read-v1-canary.mjs`
-- `tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs`
-- `.github/workflows/trendos-02co-canary-wrapper-ci.yml`
-
-CI evidence for retained candidate:
-
-- 02CO Canary Wrapper CI Run: `33999677791`
-- Job: `101396177370`
-- Conclusion: **SUCCESS**
-- TrendOS Integrity Run: `33999677771`
-- Job: `101396177393`
-- Conclusion: **SUCCESS**
-
-Temporary workflows were cleaned after boundary proof to avoid accidental deploys/probes:
-
-- `df24cfd314aebb309bc38e541c0e5690ba095426`
-- `5c075708fb5f44f613e3dbca90c7d24105152424`
-- `017a6a545d0526ea258cf05c6524ec7e8b70e7a8`
-- `f3ab5d6ad7faba1821079ff663ec46e733eff32c`
-- `d8d49306c70ba79680a02ff45a62dc5df9dc3b89`
-- `d4f8a9c0ae6a1a3da8326cef0dbb5583479a1f80`
-
-## Current production boundary
-
-- Production Worker: `trendos-d1-api`
-- Production Worker Version ID: `0ec782a9-5943-4c9d-8820-51b7d0393210`
-- Production D1: `trendos-main`
-- Production Cloud Write: **ON**
-- Cloud Write `pendingOutbox`: `0`
-- Production Shadow: **ON / read-only / mutation-free**
-- Production cutover: **OFF**
-- Sheets / Apps Script authority: **YES**
-- Apps Script 02CL route: live, gate **OFF**
-- Worker 02CL route: live, gate **OFF**
-- generic outbox drain: **not exposed / not used**
-- frontend D1 orders read flag: **OFF** (`MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false`)
-- frontend cutover: **NO**
-- normalized-data cutover: **NO**
-- authority transfer from Sheets to D1: **NO**
-- `EDGE_SESSION_SECRET` rotation/replacement: **NONE**
-
-## Active checkpoint / next safe work
-
-`PERF-CF-02CQ — Screen View Mirror Refresh / Orders View D1 Canary Prerequisite`
-
-Safe next-work rules:
-
-1. Read this file and `00_INDEX.md` before any new work.
-2. Read latest 02CO view-mirror-stale record.
-3. Do not rerun 02CK, 02CL, 02CM, or 02CN unless source changed materially.
-4. Do not use generic outbox drain.
-5. Do not rotate `EDGE_SESSION_SECRET`.
-6. Do not enable Apps Script/Worker 02CL gates again unless a new bounded audited checkpoint is created.
-7. Do not enable broad frontend or authority cutover without explicit approval.
-8. Keep Sheets / Apps Script authoritative.
-9. Find and use the existing bounded mirror import/sync route for screen-view tabs, or create a new audited candidate default-OFF.
-10. Refresh/import screen-view tabs before rerunning authenticated D1 read canary.
-11. Keep `__DEBT__` filter on Apps Script fallback.
