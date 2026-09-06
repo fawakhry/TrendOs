@@ -4857,7 +4857,7 @@ Trend Mall`;
         "<td class=\"order-cell\">" + compactOrderCell(r) + "</td>" +
         "<td class=\"customer-cell\">" + compactCustomerCell(r) + "</td>" +
         "<td class=\"work-cell\">" + compactWorkCell(r) + "</td>" +
-        "<td class=\"status-cell\"><div class=\"priority-pill\">" + escapeHtml(r.priority || "-") + "</div>" + statusSelect(r.status) + "</td>" +
+        "<td class=\"status-cell\">" + statusBadges(r) + statusSelect(r.status) + "</td>" +
         "<td class=\"notes-cell\"><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\" placeholder=\"ملاحظات\"></td>" +
         "<td class=\"actions-cell\">" + whatsappActions(r, i) + "<button class=\"primary save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
         "</tr>";
@@ -5065,7 +5065,11 @@ Trend Mall`;
         openInvoiceModal(Object.assign({}, row, { status: status, notes: notes }));
       }
 
-      loadRows(true); // V1925: أظهر نجاح الحفظ فورًا ثم حدّث الجدول في الخلفية.
+      // 02CV UX: the authoritative write already succeeded. Re-render the local
+      // state immediately so hidden statuses disappear without waiting for another
+      // Apps Script page read. A later manual/qualified refresh remains authoritative.
+      applyFiltersAndRender(false);
+      setLoading("تم حفظ التعديل في الشيت.");
       setTimeout(function () { btn.textContent = "حفظ"; }, 900);
     } catch (err) {
       alert(err.message || "خطأ أثناء الحفظ.");
