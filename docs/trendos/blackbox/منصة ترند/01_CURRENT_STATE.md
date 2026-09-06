@@ -4,13 +4,13 @@ Date: 2026-09-06
 
 ## Latest checkpoint
 
-`PERF-CF-02CR — Orders Completeness / Operational D1 Parity / Frontend Runtime Recovery`
+`PERF-CF-02CR — Orders Completeness / Operational D1 Parity / Legacy View Formula Repair`
 
-Status: **ENRICHMENT SYNC PASS — PRODUCTION FRONTEND ON APPS SCRIPT — STALE FRONTEND CACHE PROVEN — CACHE-BUST DEPLOYED — USER RECHECK PENDING — FULL PARITY NOT CLOSED**
+Status: **ENRICHMENT SYNC PASS — PRODUCTION FRONTEND ON APPS SCRIPT — LEGACY VIEW RANGE CAP ROOT CAUSE PROVEN — FOUR VIEW FORMULAS FIXED LIVE — USER RECHECK PENDING — FULL D1 PARITY NOT CLOSED**
 
 Latest record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_FRONTEND_STALE_CACHE_RECOVERY.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_VIEW_FORMULA_RANGE_FIX.md`
 
 ## Current production state
 
@@ -37,105 +37,90 @@ Exact note:
 
 `TrendOS orders live sync V2 quota-aware`
 
-Latest external metadata evidence for `بنود الأوردرات` after 02CR enrichment start:
+Latest source size observed for `بنود الأوردرات`:
 
-- `sourceLastRow=355`
-- `rowCount=355`
-- ownership note unchanged
+- row count reaches `355`
 
-## 02CR enrichment sync — now live
+## 02CR enrichment sync
 
-The user manually added and ran the approved module in the live Apps Script project:
+Live and verified for:
 
-- `cloudflare-d1/D1_Operational_Enrichment_Live_Sync_02CR.gs`
-- `startD1OperationalEnrichmentLiveSync02CR()`
+- `العملاء`
+- `عملاء منع التسليم بالمديونية`
 
-IDE execution completed without a visible exception.
+No Orders/Lines ownership change.
 
-External verification confirmed:
+## User-visible completeness incident — final root cause
 
-### العملاء
+The user clarified that the issue was not page size: the total set of visible orders was incomplete in print and laser.
 
-- `sourceLastRow=239`
-- `sourceLastCol=47`
-- `rowCount=239`
-- `status=ready`
-- `syncedAt=2026-09-06 01:44:09`
-- note `PERF-CF-02CR enrichment live sync V1`
+Authoritative source inspection proved many active operational rows existed in `بنود الأوردرات`, including print and laser rows well beyond the visible legacy-view snapshots.
 
-### عملاء منع التسليم بالمديونية
+The decisive spreadsheet finding was in the formulas of the four legacy view tabs:
 
-- `sourceLastRow=1`
-- `sourceLastCol=10`
-- `rowCount=1`
-- `status=ready`
-- same synced time / exact 02CR note
+### `واجهة الطباعة!A2`
 
-Thus support-mirror synchronization PASS is established.
+Old formula source bounds were hard-coded to row `311`:
 
-## Remaining Preview parity blocker
+- `بنود الأوردرات!A2:R311`
+- `E2:E311`
+- `K2:K311`
 
-Automated Apps-Script-vs-Preview full parity did not complete because the GitHub qualification employee token currently causes Apps Script `success=false`.
+### `واجهة الليزر!A2`
 
-Do not request, paste, rotate, or log the token as part of this checkpoint.
+Same hard-coded row-311 ceiling.
 
-This blocker is separate from the successful 02CR mirror synchronization.
+### `واجهة المكبس!A2`
 
-## Current user-visible incident
+Same hard-coded row-311 ceiling.
 
-The user reported that the production print screen still showed an incomplete number of orders.
+### `واجهة خدمة العملاء!A2`
 
-Read-only source inspection confirmed that current `بنود الأوردرات` contains substantially more active print work than the few cards visible in the screenshot.
+Hard-coded source ceiling at row `270` in `الأوردرات`.
 
-The screenshot showed:
+Therefore newly appended source rows could never appear in those views after the fixed limits were exceeded.
 
-`كل صفحة 3 أوردرات`
+This exactly explains why print showed only the old three active cards while newer active print orders in `بنود الأوردرات` were absent.
 
-but current `main/app.js` hard-codes the pager as:
+## Live formula repair performed
 
-`كل صفحة 5 أوردرات`
+Only cell `A2` in each of the four view sheets was changed.
 
-and current page-size state is 5.
+The formulas now use open-ended source ranges:
 
-This proves the browser was executing a stale frontend runtime.
+- service: `الأوردرات!A2:S` / `A2:A`
+- print: `بنود الأوردرات!A2:R`, `E2:E`, `K2:K`
+- laser: same open-ended structure
+- press: `A2:R`, `R2:R`, `K2:K`
 
-## Frontend cache recovery deployed
+No order/customer/source data row was edited.
 
-The old production cache tag was:
+## Post-fix verification
 
-`trendos-v1931-trend-master-20260812a`
+Readback confirmed all four formulas are now open-ended.
 
-A bounded production patch changed cache references only in:
+`واجهة الطباعة` immediately expanded and now includes newer source order IDs through `3920` in the current snapshot.
 
-- `index.html`
-- `reset-cache.html`
+`واجهة الليزر` immediately expanded and now includes newer source order IDs through `3918` in the current snapshot.
 
-Production commit:
+This proves the legacy-view truncation was repaired at the data-view layer.
 
-- `f82c76fc9421e5f8021b94bbd64244a5fde24061`
-- `Bust TrendOS frontend cache after D1 read rollback`
+## Frontend cache recovery
 
-New cache tag:
+A separate previous cache-bust remains deployed on production:
 
-`trendos-runtime-recovery-20260906a`
-
-GitHub Pages deployment:
-
-- Run `34005021133`
-- Conclusion **SUCCESS**
-
-No D1 rows, Apps Script code, Worker, secrets, or authority state were changed by this recovery.
+- commit `f82c76fc9421e5f8021b94bbd64244a5fde24061`
+- cache tag `trendos-runtime-recovery-20260906a`
+- GitHub Pages Run `34005021133` SUCCESS
 
 ## Exact next step
 
-User-side visual recheck only:
+User-side refresh/reopen only:
 
-1. reopen or hard-refresh the production page,
-2. open print screen,
-3. confirm pager now says `كل صفحة 5 أوردرات` rather than `3`.
+1. refresh the platform,
+2. open print and laser,
+3. confirm newly added orders after the old caps are now visible.
 
-If `5` appears and orders return complete, frontend stale-cache recovery is PASS.
+If visible completeness is restored, record user-visible recovery PASS and continue 02CR Preview full field/paging/filter parity.
 
-If `5` appears but active orders are still incomplete, diagnose the **deployed Apps Script Web App version/runtime** next. The repository deployment manifest requires the live backend lineage to include the consolidated production `Code.gs`; editor-only function execution does not itself publish a new Web App version.
-
-Do not re-enable D1 Orders on the production frontend before this incident is resolved and full field/paging/filter parity passes.
+Do not re-enable D1 Orders on production frontend before that full parity completes.
