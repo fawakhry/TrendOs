@@ -20,6 +20,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       DB_NAME: trendos-main
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Verify credentials
         shell: bash
         run: |
@@ -43,9 +46,10 @@ jobs:
           const aliases=['طباعة على الطاير','طباعة ع الطاير','طباعة فورية','Ready Print','Fly Print','Quick Print'];
           let idx=-1, matched='';
           for(const a of aliases){ const x=headers.lastIndexOf(a); if(x>=0){idx=x;matched=a;break;} }
-          console.log('LINES_CATALOG='+JSON.stringify({sourceLastRow:Number(row.source_last_row||0),sourceLastCol:Number(row.source_last_col||0),rowCount:Number(row.row_count||0),status:row.status,syncedAt:row.synced_at,note:row.note,headerCount:headers.length,flyIndex:idx,flyHeader:matched,tailHeaders:headers.slice(Math.max(0,headers.length-12))}));
+          console.log('LINES_CATALOG='+JSON.stringify({sourceLastRow:Number(row.source_last_row||0),sourceLastCol:Number(row.source_last_col||0),rowCount:Number(row.row_count||0),status:row.status,syncedAt:row.synced_at,note:row.note,headerCount:headers.length,flyIndex:idx,flyHeader:matched}));
           if(idx<0) process.exitCode=2;
           fs.writeFileSync('/tmp/fly-index.txt',String(idx));
+          fs.writeFileSync('/tmp/headers.json',JSON.stringify(headers));
           NODE
 
       - name: Count Fly Print values without exposing business rows
@@ -71,6 +75,29 @@ jobs:
           const row=((block&&block.results)||[])[0]||{};
           console.log('FLY_VALUE_COUNTS='+JSON.stringify({totalRows:Number(row.total_rows||0),flyRows:Number(row.fly_rows||0),nonemptyFlyValues:Number(row.nonempty_fly_values||0)}));
           if(Number(row.fly_rows||0)<1) throw new Error('D1 has no fly-print affirmative rows');
+          NODE
+
+      - name: Verify live D1 rows survive the Worker mapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.33.2 d1 execute "$DB_NAME" --remote --json --command "SELECT row_number AS rowNumber, values_json AS valuesJson, display_json AS displayJson FROM sheet_rows WHERE sheet_name='بنود الأوردرات' ORDER BY row_number;" > /tmp/rows.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { mapMirrorRows } from './cloudflare-d1/src/edge-orders-read-v1.mjs';
+          const headers=JSON.parse(fs.readFileSync('/tmp/headers.json','utf8'));
+          const raw=JSON.parse(fs.readFileSync('/tmp/rows.json','utf8'));
+          const block=Array.isArray(raw)?raw[0]:raw;
+          const source=((block&&block.results)||[]).map(r=>({
+            rowNumber:Number(r.rowNumber||0),
+            values:JSON.parse(r.valuesJson||'[]'),
+            display:JSON.parse(r.displayJson||'[]')
+          }));
+          const mapped=mapMirrorRows(headers,source,'print');
+          const yes=v=>['نعم','true','1','on','طباعة على الطاير','طباعة ع الطاير','على الطاير','ع الطاير'].includes(String(v==null?'':v).trim().toLowerCase());
+          const fly=mapped.filter(r=>yes(r.flyPrint||r.quickPrint)).length;
+          console.log('WORKER_MAPPER_COUNTS='+JSON.stringify({mappedPrintRows:mapped.length,mappedFlyRows:fly}));
+          if(fly<1) throw new Error('Worker mapper dropped all fly-print values');
           NODE
 
       - name: Read-only pass
