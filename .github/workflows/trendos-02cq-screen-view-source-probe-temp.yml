@@ -37,7 +37,7 @@ jobs:
           p = Path('.github/workflows/trendos-02cq-screen-view-source-probe-temp.yml')
           data = p.read_text(encoding='utf-8')
           forbidden = [
-            'wrangler deploy',
+            'wrangler' + ' deploy',
             'secret' + ' put',
             'd1 execute --' + 'file',
             'wrangler d1 migrations' + ' apply',
