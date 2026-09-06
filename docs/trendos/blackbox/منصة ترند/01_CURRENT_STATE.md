@@ -4,9 +4,9 @@ Date: 2026-09-06
 
 ## Latest checkpoint
 
-`PERF-CF-02CR — Orders D1 Field Completeness Regression / Production Read Rollback`
+`PERF-CF-02CR — Orders D1 Field Completeness Regression / Production Read Rollback + Operational Parity Repair`
 
-Status: **MITIGATION PASS — PRODUCTION FRONTEND D1 READ ROLLED BACK — APPS SCRIPT RESTORED — D1 DATA RETAINED — FIELD COMPLETENESS FIX PENDING**
+Status: **MITIGATION PASS — PRODUCTION FRONTEND ON APPS SCRIPT — 02CR CANDIDATE QUALIFIED — PREVIEW FAIL-CLOSED PASS — ENRICHMENT APPS SCRIPT DEPLOYMENT APPROVAL GATE**
 
 Latest record:
 
@@ -14,92 +14,199 @@ Latest record:
 
 ## Current factual production state
 
-The production `main` branch had an older Edge-first Orders activation that was not aligned with the 02CQ working-branch frontend-OFF boundary.
+The production `main` branch had an older Edge-first Orders activation that caused incomplete cards because the page-read wrapper used limited screen-view mirrors rather than the full operational row contract.
 
 Activation commit:
 
 - `cf6a3a7e817fdb6c01fed3b6ad63c9cce8489d9a`
-- `Enable Production Orders Edge-first read with Apps Script fallback`
 
-That commit changed only `config.js` by enabling the Edge Orders flag and loading the Edge wrapper.
-
-After the user reported incomplete order cards, the activation was rolled back atomically.
-
-Rollback commit on `main`:
+Safe rollback on `main`:
 
 - `f7c3af17b3a28858d1be9d5c57455d54b4256126`
 - `Rollback Orders Edge-first read after incomplete field regression`
 
-Verified current `main/config.js`:
+Current production order-card read source is **Apps Script / Sheets**.
 
-- no `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true`
-- no `trendos-edge-orders-read-v1.js` production loader call
-- Apps Script URL unchanged
-- unrelated frontend configuration unchanged
+The frontend D1 read flag/loader is not active on current `main`.
 
-Therefore the production order-card read path is restored to **Apps Script / Sheets**.
+## Corrected 02CR architecture
 
-## Why D1 produced incomplete cards
+Production Worker path inspection established that `/v1/edge/orders/page` was intercepted by the 02CO screen-view canary wrapper.
 
-The 02CQ refresh successfully made the mirrors fresh and matched Order ID / Line ID / status, but the current view schema is not a full operational-row contract.
+That wrapper used:
 
-Current `واجهة الطباعة` header has 18 columns only:
+- `واجهة خدمة العملاء`
+- `واجهة الطباعة`
+- `واجهة الليزر`
+- `واجهة المكبس`
 
-- رقم الأوردر
-- كود الأوردر
-- اسم الشات / المكتب
-- اسم المسؤول
-- القسم
-- رقم البند
-- اسم البند / نوع الشغل
-- الكمية
-- مسؤول القسم
-- الأولوية
-- الحالة
-- جاهز؟
-- آخر تحديث
-- ملاحظات
-- مركز الربح (لاحقًا)
-- الكيان المنفذ (لاحقًا)
-- رقم العميل
-- مكبس حراري
+These view mirrors are suitable for limited canary identity checks but are not the full `getRowsPageV1931` operational contract.
 
-The D1 mapper also exposes fields not present in this mirror, including expected delivery, received date, customer source/mode, notification/WhatsApp audit fields, debt-related fields, and other operational attributes. Those map to empty values when sourced from the current 18-column mirror.
+The richer operational source is `بنود الأوردرات`, plus Apps Script enrichment from:
 
-This means:
+- `العملاء`
+- `عملاء منع التسليم بالمديونية`
 
-- identity parity = PASS
-- field completeness parity = NOT QUALIFIED
+## Duplicate-header mapper correction
 
-The next D1 frontend attempt must explicitly test the entire UI-consumed field contract.
+`بنود الأوردرات` has duplicate exact column names. Apps Script header mapping is last-write-wins; D1 originally used first-match semantics.
 
-## D1 state retained
+Correction:
 
-02CQ itself remains valid for mirror freshness:
+- `cloudflare-d1/src/edge-orders-read-v1.mjs`
+- commit `c6b362b4d4223e7f890af44d2067a5440224e42a`
+- D1 now uses the last exact duplicate while preserving alias priority.
 
-- `واجهة خدمة العملاء`: `270 × 19`
-- `واجهة الطباعة`: `9 × 18`
-- `واجهة الليزر`: `68 × 18`
-- `واجهة المكبس`: `8 × 18`
+Regression test:
 
-The D1 data was not deleted or rolled back.
+- `tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs`
 
-The 02CQ Apps Script refresh module and D1 worker qualification assets remain available for future canary work.
+## Existing Orders Live Sync V2 — preserved
 
-## Temporary 02CR probe
+Existing production Apps Script sync:
 
-A read-only field parity workflow was created with no customer-value logging:
+- `cloudflare-d1/D1_Orders_Live_Sync_V2.gs`
+- note `TrendOS orders live sync V2 quota-aware`
+- owns only:
+  - `الأوردرات`
+  - `بنود الأوردرات`
 
-- commit `1fdea0ced9012962b2e7955fe185eecd03ecbe1f`
-- run `34002436429`
+It remains untouched.
 
-It stopped before field comparison because the qualified Apps Script request returned `success != true` in that run. No mutation occurred.
+It uses an every-minute quota-aware model with heartbeat on unchanged source, row-level delta on changed source, and periodic atomic full rebase.
 
-The temporary workflow was removed:
+02CR does not change its properties, trigger, note, or ownership.
 
-- cleanup commit `a631c027e0d47ab2a1b785a878ca58d81aa51575`
+## D1 operational catalog before enrichment sync
 
-The field-completeness defect was independently established from the authoritative Google Sheet header and D1 mapper source.
+Metadata-only probe:
+
+- Run `34003478109`
+- Job `101406383520`
+- SUCCESS
+
+Current evidence from that probe:
+
+- `الأوردرات`: `311 × 67`, rowCount `311`, `TrendOS orders live sync V2 quota-aware`, synced `2026-09-05 23:23:21`
+- `بنود الأوردرات`: `355 × 82`, rowCount `355`, `TrendOS orders live sync V2 quota-aware`, synced `2026-09-05 23:23:21`
+- `العملاء`: `232 × 47`, rowCount `232`, stale `TrendOS full mirror V1`, synced `2026-08-29 15:43:37`
+- `عملاء منع التسليم بالمديونية`: `1 × 10`, rowCount `1`, old `TrendOS full mirror V1`, synced `2026-08-29 15:22:43`
+
+Therefore Orders/Lines are already owned by current V2, but enrichment support mirrors are not live-qualified.
+
+## Qualified independent enrichment sync candidate
+
+File:
+
+- `cloudflare-d1/D1_Operational_Enrichment_Live_Sync_02CR.gs`
+
+Exact target allow-list only:
+
+- `العملاء`
+- `عملاء منع التسليم بالمديونية`
+
+Note:
+
+- `PERF-CF-02CR enrichment live sync V1`
+
+Candidate properties:
+
+- default OFF,
+- independent 02CR trigger/property namespace,
+- does not touch Orders Live Sync V2,
+- first run/repair uses atomic two-sheet full rebase,
+- unchanged support data uses authenticated D1 heartbeat,
+- changed support data uses row-level delta,
+- periodic 24-hour full repair,
+- trigger installs only after successful first sync,
+- quota errors pause only the 02CR support lane,
+- no Google Sheet writes,
+- no frontend cutover,
+- no Worker production deploy,
+- no secret rotation.
+
+Safety test:
+
+- `tests/apps_script_d1_operational_enrichment_live_sync_02cr.test.mjs`
+
+## Qualified D1 operational canary candidate
+
+Files:
+
+- `cloudflare-d1/src/edge-orders-operational-enrichment-02cr.mjs`
+- `cloudflare-d1/src/edge-orders-read-02cr-canary.mjs`
+- route wired in `cloudflare-d1/src/index_v2.js`
+
+Isolated route:
+
+- `/v1/edge/orders/02cr/page`
+
+No production frontend points to this route.
+
+Ownership gate:
+
+- `بنود الأوردرات` requires exact Orders V2 note,
+- `العملاء` + restriction mirror require exact 02CR enrichment note.
+
+The route reproduces Apps Script operational behavior for:
+
+- duplicate-header semantics,
+- customer phone fallback,
+- customer-sheet authoritative debt,
+- debt hold/restriction/reason/debt notes,
+- text search,
+- status filters and special status buckets,
+- priority filters,
+- heat-press filters,
+- priority + Order ID ordering,
+- pagination,
+- `statusCounts`,
+- `statusOrderCounts`.
+
+`__DEBT__` remains Apps Script-only and returns the existing fallback contract.
+
+## CI / Integrity evidence
+
+02CR Field Completeness CI:
+
+- Run `34003887916`
+- Job `101407500641`
+- Conclusion **SUCCESS**
+
+Integrity:
+
+- Run `34003887933`
+- Job `101407500688`
+- Conclusion **SUCCESS**
+- composed Apps Script syntax/collision PASS
+- pre-deploy package safety gate PASS
+
+## Isolated Preview evidence before support sync
+
+Preview Worker uses the same D1 read mirror but Cloud Write is OFF and normalized/mirror imports are unavailable without migration secret.
+
+Pre-sync authenticated synthetic-token probe:
+
+- Run `34003873139`
+- Job `101407459524`
+- Conclusion **SUCCESS**
+
+Result:
+
+- HTTP `503`
+- `code=02cr-operational-mirror-not-qualified`
+- `fallback=apps-script`
+- failed qualification mirrors exactly:
+  - `العملاء`
+  - `عملاء منع التسليم بالمديونية`
+
+The lines mirror passed the ownership gate and therefore was absent from the failed-mirror list.
+
+This proves 02CR is fail-closed before enrichment support is synchronized.
+
+Temporary Preview probe was removed:
+
+- cleanup commit `4caec04f629c1ffa5daaad4b67a776070ad1ad43`
 
 ## Current production boundary
 
@@ -109,27 +216,38 @@ The field-completeness defect was independently established from the authoritati
 - Sheets / Apps Script authority: **YES**
 - production order-card read source: **Apps Script / Sheets**
 - frontend D1 Orders read: **OFF / rolled back on main**
-- D1 mirrors: **retained for qualification**
+- existing Orders Live Sync V2: **UNCHANGED**
+- 02CR enrichment live sync: **QUALIFIED CANDIDATE / NOT DEPLOYED**
+- isolated 02CR Preview route: **DEPLOYED TO PREVIEW / FAIL-CLOSED BEFORE SUPPORT SYNC**
 - 02CL reconciliation: **OFF**
 - generic drain: **OFF / unused**
 - frontend cutover: **NO**
 - authority transfer: **NO**
-- Worker deploy during 02CR: **NONE**
-- secret rotation during 02CR: **NONE**
+- Production Worker deploy during 02CR: **NONE**
+- `EDGE_SESSION_SECRET` rotation during 02CR: **NONE**
 
-## Next safe work
+## Exact next step / approval gate
 
-Do not re-enable D1 frontend reads yet.
+A NEW explicit Apps Script approval is required before deploying the 02CR support sync. The earlier approval was explicitly for 02CQ only and must not be reused.
 
-The next bounded checkpoint should:
+After approval, deploy only:
 
-1. inventory only the UI-consumed order-row field contract, not the whole system,
-2. choose a D1 source/model that contains every required operational field,
-3. map/synthesize fields without PII logging,
-4. compare Apps Script vs D1 for row count + identity + per-field non-empty/value parity,
-5. test all four screens,
-6. keep `__DEBT__` on Apps Script unless separately qualified,
-7. re-enable D1 only after full field-completeness PASS.
+- `cloudflare-d1/D1_Operational_Enrichment_Live_Sync_02CR.gs`
+
+Then:
+
+1. pre-action read-only production boundary,
+2. add/save module in live Apps Script project while default OFF,
+3. run `getD1OperationalEnrichmentLiveSync02CRStatus()` and confirm OFF,
+4. run `startD1OperationalEnrichmentLiveSync02CR()`,
+5. first atomic support sync must succeed before trigger exists,
+6. verify `العملاء` + restriction mirrors fresh with exact 02CR note,
+7. rerun isolated Preview canary and compare Apps Script vs D1 full field/paging/filter contract without logging PII,
+8. observe a subsequent heartbeat/delta freshness cycle,
+9. final boundary + blackbox update,
+10. keep production frontend on Apps Script.
+
+Production Worker deployment and frontend D1 re-enable are later separate decisions only after full parity PASS.
 
 ## Previously closed/prepared checkpoints
 
