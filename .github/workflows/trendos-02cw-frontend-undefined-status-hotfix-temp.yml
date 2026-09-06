@@ -1,0 +1,115 @@
+name: TrendOS 02CW Frontend Undefined Status Hotfix Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-frontend-undefined-status-hotfix-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-02cw-frontend-undefined-status-hotfix
+  cancel-in-progress: false
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EXPECTED_PROD_MAIN: 40bced5e9a952f15689f45ce3ef18271c9dd2c63
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Lock exact broken Production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_PROD_MAIN"
+          rm -rf /tmp/02cw-ui-hotfix
+          git worktree add --detach /tmp/02cw-ui-hotfix "$EXPECTED_PROD_MAIN"
+
+      - name: Apply bounded renderStats fallback hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/02cw-ui-hotfix')
+          app_p=root/'app.js'; idx_p=root/'index.html'
+          app=app_p.read_text(encoding='utf-8')
+          idx=idx_p.read_text(encoding='utf-8')
+          replacements={
+            'const problem = summary ? Number(summary.problems || 0) : rows.filter(r => WORK_PROBLEM_STATUS.includes(normalizeStatus(r.status))).length;':
+            'const problem = summary ? Number(summary.problems || 0) : rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;',
+            'const overdue = summary ? Number(summary.overdue || 0) : rows.filter(r => text(r.overdue) === "نعم").length;':
+            'const overdue = summary ? Number(summary.overdue || 0) : rows.filter(isOverdueRow).length;',
+            'const debts = summary ? Number(summary.debts || 0) : rows.filter(r => Number(r.debtAmount || 0) > 0).length;':
+            'const debts = summary ? Number(summary.debts || 0) : rows.filter(hasDebt).length;',
+            'const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(r => isHeatPress(r.heatPress)).length;':
+            'const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;',
+            'const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(r => normalizeStatus(r.status) === "ملغى").length;':
+            'const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;'
+          }
+          for old,new in replacements.items():
+              if old not in app: raise SystemExit('missing app hotfix anchor: '+old[:80])
+              app=app.replace(old,new,1)
+          old_loader='app.js?v=trendos-02cw-globalcounts-20260906d'
+          new_loader='app.js?v=trendos-02cw-globalcounts-hotfix-20260906e'
+          if old_loader not in idx: raise SystemExit('app loader anchor missing')
+          idx=idx.replace(old_loader,new_loader,1)
+          app_p.write_text(app,encoding='utf-8')
+          idx_p.write_text(idx,encoding='utf-8')
+          PY
+
+      - name: Qualify hotfix contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/02cw-ui-hotfix
+          node --check app.js
+          ! grep -q 'WORK_PROBLEM_STATUS' app.js
+          ! grep -q 'normalizeStatus(r.status)' app.js
+          grep -q 'rows.filter(isOverdueRow).length' app.js
+          grep -q 'rows.filter(hasDebt).length' app.js
+          grep -q 'trendos-02cw-globalcounts-hotfix-20260906e' index.html
+          grep -q 'activeSummaryCounts' app.js
+          grep -q 'heatPressOrders' press-control-v1.js
+          TRENDOS_TEST_ROOT=/tmp/02cw-ui-hotfix node "$GITHUB_WORKSPACE/tests/frontend_flyprint_lane_stability_02cv.test.mjs"
+          TRENDOS_TEST_ROOT=/tmp/02cw-ui-hotfix node "$GITHUB_WORKSPACE/tests/frontend_order_status_write_consistency_02cv.test.mjs"
+          echo '02CW_UNDEFINED_STATUS_HOTFIX_QUALIFIED_PASS'
+
+      - name: Assert exact two-file diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/02cw-ui-hotfix
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' app.js index.html | sort)"
+          echo '02CW_UNDEFINED_STATUS_HOTFIX_SCOPE_PASS'
+
+      - name: Push hotfix atomically to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/02cw-ui-hotfix
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_PROD_MAIN"
+          git switch -c 02cw-ui-hotfix
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app.js index.html
+          git commit -m 'Fix undefined status fallback in global counters'
+          new_sha="$(git rev-parse HEAD)"
+          git push origin HEAD:main
+          echo "02CW_UNDEFINED_STATUS_HOTFIX_PRODUCTION_COMMIT=$new_sha"
