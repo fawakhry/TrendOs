@@ -38,12 +38,11 @@ function d1ScreenViewRefresh02CQApiUrl_() {
   return apiUrl;
 }
 
-function d1ScreenViewRefresh02CQRequireMigrationSecret_() {
+function d1ScreenViewRefresh02CQAssertMigrationSecret_() {
   const migrationSecret = String(
     PropertiesService.getScriptProperties().getProperty('D1_MIGRATION_SECRET') || ''
   ).trim();
   if (!migrationSecret) throw new Error('02CQ D1_MIGRATION_SECRET is missing from Script Properties.');
-  return migrationSecret;
 }
 
 function d1ScreenViewRefresh02CQSpreadsheet_() {
@@ -104,7 +103,11 @@ function d1ScreenViewRefresh02CQParseResponse_(response, context) {
 
 function d1ScreenViewRefresh02CQPost_(path, payload) {
   const apiUrl = d1ScreenViewRefresh02CQApiUrl_();
-  const migrationSecret = d1ScreenViewRefresh02CQRequireMigrationSecret_();
+  const migrationSecret = String(
+    PropertiesService.getScriptProperties().getProperty('D1_MIGRATION_SECRET') || ''
+  ).trim();
+  if (!migrationSecret) throw new Error('02CQ D1_MIGRATION_SECRET is missing from Script Properties.');
+
   const response = UrlFetchApp.fetch(apiUrl + path, {
     method: 'post',
     contentType: 'application/json',
@@ -259,7 +262,7 @@ function refreshD1ScreenViewMirrors02CQ() {
   try {
     // Validate source + API + secret + mirror read before any stage write.
     d1ScreenViewRefresh02CQApiUrl_();
-    d1ScreenViewRefresh02CQRequireMigrationSecret_();
+    d1ScreenViewRefresh02CQAssertMigrationSecret_();
     d1ScreenViewRefresh02CQGet_('/v1/mirror/stats');
 
     const ss = d1ScreenViewRefresh02CQSpreadsheet_();
