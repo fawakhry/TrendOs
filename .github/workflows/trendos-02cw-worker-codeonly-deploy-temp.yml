@@ -1,0 +1,106 @@
+name: TrendOS 02CW Worker Code-Only Deploy Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cw-worker-codeonly-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_PROD_MAIN: 3934fa363b113a4bd494ec501fb5f289f2c48ec1
+      PROD_URL: https://trendos.trendmall-contact.workers.dev
+      PROD_ALIAS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Lock Production and qualify exact Worker source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_PROD_MAIN"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -q 'export function buildOrdersSummary(rows)' cloudflare-d1/src/edge-orders-read-v1.mjs
+          grep -q 'activeSummaryCounts' cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+          node tests/cloudflare_edge_orders_active_summary_02cw.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
+          node tests/cloudflare_index_v2_02cr_route.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_gateway_v1.test.mjs
+          node tests/cloudflare_preview_safety_v1.test.mjs
+          node tests/cloudflare_mirror_safety_v1.test.mjs
+          echo '02CW_WORKER_PREDEPLOY_GATES_PASS'
+
+      - name: Assert deployment is code-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -Ec 'wrangler[[:space:]]+deploy' .github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml)" -eq 1
+          test "$(grep -Ec 'd1[[:space:]]+migrations[[:space:]]+apply' .github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml || true)" -eq 0
+          test "$(grep -Ec 'secret[[:space:]]+put' .github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml || true)" -eq 0
+          echo '02CW_CODE_ONLY_NO_SECRET_NO_MIGRATION_PASS'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Deploy Worker code only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml | tee /tmp/02cw-deploy.log
+          echo '02CW_WORKER_CODE_ONLY_DEPLOY_COMMAND_PASS'
+
+      - name: Verify production health and mirror parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          for base in "$PROD_URL" "$PROD_ALIAS_URL"; do
+            code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/edge-health.json --write-out '%{http_code}' "$base/v1/edge/health")"
+            test "$code" = '200'
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
+          done
+          curl --fail --silent --show-error --get --data-urlencode 'name=الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/orders.json
+          curl --fail --silent --show-error --get --data-urlencode 'name=بنود الأوردرات' --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/lines.json
+          node <<'NODE'
+          const fs=require('fs');
+          for(const file of ['/tmp/orders.json','/tmp/lines.json']){
+            const x=JSON.parse(fs.readFileSync(file,'utf8')),s=x.sheet||{};
+            if(!x.success||x.schemaMutationFree!==true||s.status!=='ready'||Number(s.rowCount||0)!==Number(s.sourceLastRow||0)) process.exit(1);
+          }
+          console.log('02CW_PROD_MIRROR_PARITY_PASS');
+          NODE
+
+      - name: Verify protected Orders route and Cloud Write OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__")"
+          test "$code" = '401'
+          write_code="$(curl --silent --show-error --output /tmp/write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$write_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+          npx wrangler deployments list --config cloudflare-d1/wrangler.toml | tail -n 30
+          echo '02CW_WORKER_CODE_ONLY_PRODUCTION_PASS'
