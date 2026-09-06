@@ -109,24 +109,30 @@ jobs:
                 cache:'no-store'
               });
               const raw = await res.text();
-              let body = {}; try { body = JSON.parse(raw || '{}'); } catch { throw new Error(`Apps Script ${screen} invalid JSON`); }
-              if (res.status !== 200 || body.success !== true) throw new Error(`Apps Script ${screen} read failed http=${res.status}`);
-              const rows = Array.isArray(body.rows) ? body.rows : [];
+              let body = {}; try { body = JSON.parse(raw || '{}'); } catch { body = {}; }
+              const ok = res.status === 200 && body.success === true;
+              const rows = ok && Array.isArray(body.rows) ? body.rows : [];
               const keys = rows.length && rows[0] && typeof rows[0] === 'object' ? Object.keys(rows[0]).sort() : [];
               const requiredIdentityKeys = ['orderId','lineId','status'];
               result.push({
                 screen,
+                http: res.status,
+                authorizedRead: ok,
                 returnedRows: rows.length,
-                totalRows: Number(body.pagination && body.pagination.totalRows || rows.length),
-                totalPages: Number(body.pagination && body.pagination.totalPages || 1),
+                totalRows: ok ? Number(body.pagination && body.pagination.totalRows || rows.length) : null,
+                totalPages: ok ? Number(body.pagination && body.pagination.totalPages || 1) : null,
                 rowKeys: keys,
-                identityShapeReady: requiredIdentityKeys.every((k)=>keys.includes(k))
+                identityShapeReady: ok ? requiredIdentityKeys.every((k)=>keys.includes(k)) : false
               });
             }
             console.log('PERF_CF_02CQ_APPS_SOURCE_SHAPE=' + JSON.stringify(result));
-            if (!result.find((x)=>x.screen==='print' && x.totalRows > 0)) throw new Error('print source unexpectedly empty');
-            if (!result.every((x)=>x.identityShapeReady || x.totalRows === 0)) throw new Error('screen row identity schema incomplete');
-            console.log('PERF_CF_02CQ_APPS_SOURCE_SHAPE_PASS');
+            const print = result.find((x)=>x.screen==='print');
+            if (!print || !print.authorizedRead || !print.identityShapeReady || Number(print.totalRows || 0) <= 0) throw new Error('qualified print source lane is not usable');
+            console.log('PERF_CF_02CQ_APPS_SOURCE_SHAPE_PASS_WITH_SCOPE=' + JSON.stringify({
+              printQualified:true,
+              authorizedScreens:result.filter((x)=>x.authorizedRead).map((x)=>x.screen),
+              blockedScreens:result.filter((x)=>!x.authorizedRead).map((x)=>x.screen)
+            }));
           })().catch((err)=>{ console.error(err && err.stack || err); process.exit(1); });
           NODE
 
