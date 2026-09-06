@@ -5,6 +5,7 @@ on:
     branches:
       - agent/go-live-2026-09-01-integrity
     paths:
+      - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
       - 'cloudflare-d1/src/edge-orders-operational-enrichment-02cr.mjs'
       - 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs'
@@ -13,6 +14,7 @@ on:
       - 'tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs'
       - 'tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs'
       - 'tests/cloudflare_edge_orders_02cr_canary.test.mjs'
+      - 'tests/cloudflare_index_v2_02cr_route.test.mjs'
       - 'tests/apps_script_d1_operational_mirror_sync_02cr.test.mjs'
       - '.github/workflows/trendos-02cr-field-completeness-ci.yml'
   workflow_dispatch:
@@ -37,6 +39,8 @@ jobs:
         run: node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
       - name: 02CR isolated operational canary contract
         run: node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+      - name: 02CR isolated Worker route contract
+        run: node tests/cloudflare_index_v2_02cr_route.test.mjs
       - name: 02CR operational Apps Script sync safety contract
         run: node tests/apps_script_d1_operational_mirror_sync_02cr.test.mjs
       - name: Safety conclusion
