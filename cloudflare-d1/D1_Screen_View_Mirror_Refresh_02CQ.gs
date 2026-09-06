@@ -224,6 +224,36 @@ function refreshD1ScreenViewMirrors02CQ() {
   }
 }
 
+/*
+ * Preferred production entrypoint after the module is deployed.
+ * It opens the 02CQ gate for this one synchronous call only and always closes
+ * it in finally, including when staging/verification throws or returns failure.
+ */
+function runD1ScreenViewMirrorRefresh02CQOnce() {
+  const props = PropertiesService.getScriptProperties();
+  const before = String(props.getProperty(D1_SCREEN_VIEW_REFRESH_02CQ_ENABLED_KEY) || '').trim();
+
+  // A pre-existing ON gate is an unexpected state; fail closed instead of
+  // inheriting an ambiguous activation from an earlier/manual operation.
+  if (before === '1') {
+    return {
+      success: false,
+      enabled: true,
+      mutated: false,
+      checkpoint: 'PERF-CF-02CQ',
+      gateClosed: false,
+      message: '02CQ gate was already ON before one-shot execution; execution refused.'
+    };
+  }
+
+  try {
+    props.setProperty(D1_SCREEN_VIEW_REFRESH_02CQ_ENABLED_KEY, '1');
+    return refreshD1ScreenViewMirrors02CQ();
+  } finally {
+    props.deleteProperty(D1_SCREEN_VIEW_REFRESH_02CQ_ENABLED_KEY);
+  }
+}
+
 function getD1ScreenViewMirrorRefresh02CQStatus() {
   const props = PropertiesService.getScriptProperties();
   let lastResult = null;
