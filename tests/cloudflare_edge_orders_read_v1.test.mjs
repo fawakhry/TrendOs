@@ -39,6 +39,24 @@ assert.equal(print[0].lineId, '3901-01');
 assert.equal(print[0].customerPhone, '01012345678');
 assert.equal(print[0].priority, 'عاجل');
 assert.equal(mapMirrorRows(headers, mirrorRows, 'laser').length, 1);
+
+// 02CS regression: a numeric Line ID can be stored by Sheets as a Date because
+// the source cell carries a DATE number format. D1 keeps both raw/getValues ISO
+// and formatted text; the mapped identity must recover the semantic numeric ID.
+const formattedLine = base.slice();
+formattedLine[0] = '3899'; formattedLine[1] = '3899'; formattedLine[4] = 'طباعة';
+formattedLine[5] = '3899-01'; formattedLine[6] = 'أوردر جديد - طباعة'; formattedLine[9] = 'عاجل'; formattedLine[10] = 'طلب جديد';
+const rawFormattedLine = formattedLine.slice();
+rawFormattedLine[5] = '3899-01-01T08:00:00.000Z';
+const semanticMapped = mapMirrorRows(headers, [row(1, headers), { rowNumber: 2, display: formattedLine, values: rawFormattedLine }], 'print');
+assert.equal(semanticMapped.length, 1);
+assert.equal(semanticMapped[0].orderId, '3899');
+assert.equal(semanticMapped[0].lineId, '730122');
+
+const numericRawLine = formattedLine.slice();
+numericRawLine[5] = 730122;
+const numericMapped = mapMirrorRows(headers, [row(1, headers), { rowNumber: 2, display: formattedLine, values: numericRawLine }], 'print');
+assert.equal(numericMapped[0].lineId, '730122');
 assert.equal(filterRows(print, { statusFilter: '__ACTIVE__' }).length, 1);
 assert.equal(filterRows(print, { query: '3901' }).length, 1);
 assert.equal(filterRows(print, { statusFilter: 'تم التسليم' }).length, 1);

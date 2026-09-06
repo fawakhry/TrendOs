@@ -367,6 +367,33 @@ export function buildDashboardFromRows(rows, screen, now = new Date()) {
   return dashboard;
 }
 
+const GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS = Date.UTC(1899, 11, 30);
+const GOOGLE_SHEETS_SERIAL_DAY_MS = 24 * 60 * 60 * 1000;
+
+function semanticLineId(rawValue, displayValue) {
+  const raw = text(rawValue);
+  const display = text(displayValue);
+  if (!raw) return display;
+
+  // Orders Live Sync preserves getValues() separately from getDisplayValues().
+  // If Sheets date-formatting coerces a numeric Line ID into a Date, the Apps
+  // Script serializer stores that raw Date as ISO. Convert that ISO back to the
+  // underlying integer Sheets serial so it matches authoritative getRowsPageV1931.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(raw)) {
+    const ms = Date.parse(raw);
+    if (Number.isFinite(ms)) {
+      const serial = Math.floor((ms - GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS) / GOOGLE_SHEETS_SERIAL_DAY_MS);
+      if (Number.isSafeInteger(serial) && serial > 0) return String(serial);
+    }
+  }
+
+  if (/^\d+(?:\.0+)?$/.test(raw)) {
+    const n = Number(raw);
+    if (Number.isSafeInteger(n)) return String(n);
+  }
+  return raw;
+}
+
 export function mapMirrorRows(headers, mirrorRows, screen) {
   const c = {
     orderId: headerIndex(headers, ['رقم الأوردر','Order ID'], 0),
@@ -405,8 +432,9 @@ export function mapMirrorRows(headers, mirrorRows, screen) {
   for (const item of mirrorRows || []) {
     if (Number(item.rowNumber || 0) <= 1) continue;
     const row = Array.isArray(item.display) && item.display.length ? item.display : (Array.isArray(item.values) ? item.values : []);
+    const rawRow = Array.isArray(item.values) ? item.values : [];
     const orderId = text(valueAt(row, c.orderId)) || text(valueAt(row, c.orderCode));
-    const lineId = text(valueAt(row, c.lineId));
+    const lineId = semanticLineId(valueAt(rawRow, c.lineId), valueAt(row, c.lineId));
     if (!orderId && !lineId) continue;
     const department = text(valueAt(row, c.department));
     const heatPress = text(valueAt(row, c.press));
