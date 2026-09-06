@@ -17,7 +17,7 @@ jobs:
     env:
       PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
     steps:
-      - name: Worker and authority boundary
+      - name: Worker boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -25,12 +25,12 @@ jobs:
           test "$code" = '200'
           node <<'NODE'
           const x=JSON.parse(require('fs').readFileSync('/tmp/edge-health.json','utf8'));
-          const pass=x.success===true && x.database===true && x.cutover===false && x.sheetsAuthoritative===true;
-          console.log('PERF_CF_02CR_EDGE_BOUNDARY='+JSON.stringify({success:x.success,database:x.database,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pass}));
+          const pass=x.success===true && x.database===true && x.cutover===false;
+          console.log('PERF_CF_02CR_EDGE_BOUNDARY='+JSON.stringify({success:x.success,database:x.database,cutover:x.cutover,pass}));
           if(!pass) process.exit(1);
           NODE
 
-      - name: 02CL and generic drain remain off
+      - name: 02CL generic drain and authority boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -51,8 +51,9 @@ jobs:
           test "$code" = '200'
           node <<'NODE'
           const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write-health.json','utf8'));
-          const pending = Number(x.pendingOutbox ?? x.pending_outbox ?? 0);
-          const pass=x.success===true && x.database===true && x.cutover===false && x.sheetsAuthoritative===true && pending===0;
+          const pendingRaw = x.pendingOutbox ?? x.pending_outbox;
+          const pending = pendingRaw == null ? null : Number(pendingRaw);
+          const pass=x.success===true && x.database===true && x.cutover===false && x.sheetsAuthoritative===true && (pending===null || pending===0);
           console.log('PERF_CF_02CR_CLOUD_WRITE_BOUNDARY='+JSON.stringify({enabled:x.enabled,writesAccepted:x.writesAccepted,database:x.database,cutover:x.cutover,sheetsAuthoritative:x.sheetsAuthoritative,pendingOutbox:pending,pass}));
           if(!pass) process.exit(1);
           NODE
