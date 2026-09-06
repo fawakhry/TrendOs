@@ -13,6 +13,8 @@ window.MATBAGY_SECURE_API_PROXY_URL = "";
 // Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
 window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
+// 02CU safety gate: if any required D1 mirror is older than 5 minutes, fail open to Apps Script.
+window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
 
 window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
 window.MATBAGY_FILE_SERVER_URL = "https://files.matbagy.com";
@@ -39,19 +41,14 @@ window.MATBAGY_AUTO_INVOICE_REVIEW_LINK = true;
 window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
 
-window.MATBAGY_BUILD_VERSION = 'TrendOS V1932 Platform Fixes 2026-08-24';
-window.MATBAGY_BATCH_VERSION = 'V1932_PLATFORM_FIXES_20260824';
-window.MATBAGY_PATCH29_DEPT_INVOICE = false;
-window.MATBAGY_ES14_ACCOUNTING_MERGE = true;
-window.MATBAGY_EASYSTORE_FIX5 = false;
-window.MATBAGY_V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK = true;
-window.MATBAGY_V1860_ES17_INTERNATIONAL_UI_THEME = true;
-window.MATBAGY_UI_THEME_VERSION = 'V1932_DAILY_MGMT_HR_PRESS_CLOCKIN';
-window.MATBAGY_FIBER_EZCAD_URL = "https://fawakhry.github.io/fiber-auto-max-ezcad/";
-window.MATBAGY_V1900_BULK_DELIVER_READY = true;
-window.MATBAGY_V1904_INVOICE_ROWS_ENTER_TAB = true;
-window.MATBAGY_SHEETS_ALLOWED_EMPLOYEES = ['ضياء','ريفان','ريڤان','وائل','diaa','revan','rivan','wael'];
-window.MATBAGY_V1906_SHEETS_ACCESS = true;
+window.MATBAGY_V1913_SECURITY_INTEGRITY = true;
+window.MATBAGY_V1914_LEGACY_DEBT_RECONCILE = true;
+window.MATBAGY_V1915_CUSTOMER_ACCOUNTS = true;
+window.MATBAGY_V1916_ACCOUNT_DRAWER = true;
+window.MATBAGY_V1917_DAILY_DEPARTMENT_PURCHASES = true;
+window.MATBAGY_V1918_DEPARTMENT_ACCOUNTING_SCOPE = true;
+window.MATBAGY_V1919_IMMEDIATE_DEPARTMENT_PURCHASE_STOCK = true;
+window.MATBAGY_V1920_CUSTODY_DAY_CLOSE = true;
 window.MATBAGY_V1921_SEMI_AUTOMATIC_ACCOUNTING = true;
 window.MATBAGY_V1922_UNIFIED_SAFE_BUILD = true;
 window.MATBAGY_V1923_OPEN_ORDER_VISIBILITY = true;
@@ -61,11 +58,18 @@ window.MATBAGY_V1931_TREND_MASTER = true;
 window.MATBAGY_V1931_SERVER_PAGING = true;
 window.MATBAGY_V1931_DEBT_RESTRICTION_LIST = true;
 window.MATBAGY_V1931_AUTOMATION_CENTER = true;
-
-// Trend Master V1931 resilience candidate. Frontend module is inert until app.js exposes
-// trendosSecureApiV1922; backend panel route still requires a separately approved Apps Script deploy.
 window.MATBAGY_TREND_MASTER_RESILIENCE_V1 = true;
-window.MATBAGY_TREND_MASTER_PANEL_TIMEOUTS = {summary:12000,archive:15000,messages:12000,stock:12000,employee:18000,debt:15000,dayclose:18000};
+window.MATBAGY_TREND_MASTER_PANEL_TIMEOUTS = {
+  summary: 12000,
+  archive: 15000,
+  messages: 12000,
+  stock: 12000,
+  employee: 18000,
+  debt: 15000,
+  dayclose: 18000
+};
+window.MATBAGY_TREND_MASTER_MAX_CONCURRENCY = 2;
+window.MATBAGY_TREND_MASTER_MAX_ATTEMPTS = 1;
 
 window.MATBAGY_MANAGER_CENTER_V1932 = true;
 window.MATBAGY_CUSTOMER_MANAGER_V1 = true;
@@ -77,14 +81,10 @@ function trendLoadModuleV1932(id, src){
   (document.head || document.documentElement).appendChild(s);
 }
 
-// Shared read-poll guard. Modules also retain local guards so startup remains
-// fail-safe even if this small coordinator has not finished loading yet.
-trendLoadModuleV1932('trendPollCoordinatorV1Loader','trendos-poll-coordinator-v1.js?v=20260904a');
 trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260906c');
-trendLoadModuleV1932('trendMasterResilienceV1931Loader','trend-master-resilience-v1931.js?v=20260906a');
 
 window.MATBAGY_ATTENDANCE_V1 = true;
-trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260906perf1');
+trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260906perfhotfix1');
 window.__TRENDOS_ATTENDANCE_REST_LIMIT__ = 30;
 trendLoadModuleV1932('trendAttendanceLiveTimerV1Loader','attendance-live-timer-v1.js?v=20260824a');
 
@@ -108,18 +108,19 @@ trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824b');
 
 // Press batch control for Rivan/Wael/admin.
 window.MATBAGY_PRESS_CONTROL_V1 = true;
-trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260904a');
+trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260826a');
 
+trendLoadModuleV1932('trendMasterResilienceV1931Loader','trend-master-resilience-safe-v1931.js?v=20260906c');
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260906a');
-trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260906perf1');
+trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260906perfhotfix1');
 
 window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;
 window.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false;
-trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260906perf1');
+trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260906perfhotfix1');
 
 window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2 = true;
-trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260906perf1');
+trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260906perfhotfix1');
 
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_DRAG_V2 = true;
 trendLoadModuleV1932('trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260824b');
@@ -129,8 +130,12 @@ trendLoadModuleV1932('trendEmployeeAndonV1Loader','employee-andon-v1.js?v=202608
 
 window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;
 window.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false;
-trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260906perf1');
+trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260906perfhotfix1');
 
 // Unified floating tools, visible version, and one refresh point.
 window.MATBAGY_OPERATIONS_HUB_V1 = true;
-trendLoadModuleV1932('trendOperationsHubV1Loader','operations-hub-v1.js?v=20260904a');
+trendLoadModuleV1932('trendOperationsHubV1Loader','operations-hub-v1.js?v=20260824b');
+
+// V1932 POLL GUARD: loaded before modules that own periodic polling. It does not call the backend by itself.
+window.MATBAGY_POLL_COORDINATOR_V1 = true;
+trendLoadModuleV1932('trendPollCoordinatorV1Loader','trendos-poll-coordinator-v1.js?v=20260906a');
