@@ -52,10 +52,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          idx="$(cat /tmp/fly-index.txt)"
-          test "$idx" -ge 0
-          sql="SELECT COUNT(*) AS total_rows, SUM(CASE WHEN TRIM(COALESCE(json_extract(display_json, '$[$idx]'),'')) IN ('نعم','true','TRUE','1','on','طباعة على الطاير','طباعة ع الطاير','على الطاير','ع الطاير') THEN 1 ELSE 0 END) AS fly_rows, SUM(CASE WHEN TRIM(COALESCE(json_extract(display_json, '$[$idx]'),'')) <> '' THEN 1 ELSE 0 END) AS nonempty_fly_values FROM sheet_rows WHERE sheet_name='بنود الأوردرات' AND row_number>1;"
-          npx --yes wrangler@4.33.2 d1 execute "$DB_NAME" --remote --json --command "$sql" > /tmp/counts.json
+          node <<'NODE'
+          const fs=require('fs');
+          const idx=Number(fs.readFileSync('/tmp/fly-index.txt','utf8').trim());
+          if(!Number.isInteger(idx)||idx<0) throw new Error('Invalid fly index');
+          const path=`$[${idx}]`;
+          const sql=`SELECT COUNT(*) AS total_rows,
+            SUM(CASE WHEN TRIM(COALESCE(json_extract(display_json, '${path}'),'')) IN ('نعم','true','TRUE','1','on','طباعة على الطاير','طباعة ع الطاير','على الطاير','ع الطاير') THEN 1 ELSE 0 END) AS fly_rows,
+            SUM(CASE WHEN TRIM(COALESCE(json_extract(display_json, '${path}'),'')) <> '' THEN 1 ELSE 0 END) AS nonempty_fly_values
+            FROM sheet_rows WHERE sheet_name='بنود الأوردرات' AND row_number>1;`;
+          fs.writeFileSync('/tmp/fly-count.sql',sql);
+          NODE
+          npx --yes wrangler@4.33.2 d1 execute "$DB_NAME" --remote --json --command "$(cat /tmp/fly-count.sql)" > /tmp/counts.json
           node <<'NODE'
           const fs=require('fs');
           const raw=JSON.parse(fs.readFileSync('/tmp/counts.json','utf8'));
