@@ -6,15 +6,16 @@ on:
       - agent/go-live-2026-09-01-integrity
     paths:
       - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'cloudflare-d1/src/edge-orders-operational-enrichment-02cr.mjs'
       - 'tests/cloudflare_edge_orders_read_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs'
+      - 'tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs'
       - '.github/workflows/trendos-02cr-field-completeness-ci.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Explicit rerun after 02CR duplicate-header mapper correction.
 jobs:
   field-contract:
     runs-on: ubuntu-latest
@@ -28,6 +29,8 @@ jobs:
         run: node tests/cloudflare_edge_orders_read_v1.test.mjs
       - name: 02CR duplicate-header last-wins regression
         run: node tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs
+      - name: 02CR operational customer/debt enrichment contract
+        run: node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
       - name: Safety conclusion
         run: |
           echo 'PASS: 02CR candidate tests only; no production deploy or frontend re-enable.'
