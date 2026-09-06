@@ -6,49 +6,62 @@ Date: 2026-09-06
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-Status: **IN PROGRESS — PRODUCTION TECHNICAL + UX PATCH PASS — USER-VISIBLE VALIDATION PENDING**
+Status: **IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — USER-VISIBLE VALIDATION PENDING**
 
 ### Latest user-visible problems
 
-After the first 02CV consistency fix the user reported:
+After the first 02CV consistency and UX fixes the user reported:
 
-- save returns success but a row moved to a hidden status stays visible until manual Refresh;
-- save feels slow because the UI immediately starts another full Orders page read;
-- the `⚡ طباعة على الطاير` marker disappeared beside the order/status.
+- save success should make hidden-status rows disappear immediately;
+- save should not enter another long Orders loading cycle;
+- `⚡ طباعة على الطاير` became visible, but after any sheet change/update the marker disappeared again.
 
 ### Confirmed diagnosis
 
-The original 02CV stable-line identity fix is still valid and retained.
+The original 02CV stable-line write fix and immediate local post-save render remain valid.
 
-For the follow-up symptoms:
+For the latest Fly Print regression, live read-only qualification **after the user's sheet edit** proved that the source/mirror path did not erase the marker:
 
-1. `saveLine()` updated local status but did not re-render the table; it called `loadRows(true)` instead.
-2. During the 02CV post-write barrier, that immediate page read is intentionally Apps Script authoritative, so it adds another slow read and keeps the UI in a loading state.
-3. D1 and the Worker were read-only qualified for Fly Print and are healthy: 377 D1 data rows, 38 Fly Print rows, and the print Worker mapper preserved all 38/38. The missing marker was frontend presentation, not lost source data.
+- `بنود الأوردرات` D1 mirror: 381 / 381 rows, 82 columns, `ready`;
+- D1 data rows: 380;
+- affirmative Fly Print rows: 39;
+- Worker print mapping preserved all 39/39.
+
+Read-only Run `34038294884` — **SUCCESS**.
+
+Therefore the regression was not a D1 sync wipe. The frontend replaces `state.rows` whenever the active read lane changes/refreshes. A lane payload that omitted Fly Print fields could replace a previously complete row and make the badge disappear even though D1 still held the value.
 
 ### Fix now in Production
 
 Production main:
 
-`b4a87493ca9ce7507fc342e9b39f91449395fb46`
+`3934fa363b113a4bd494ec501fb5f289f2c48ec1`
 
-Frontend behavior:
+Frontend behavior now:
 
-- successful `updateLine` still means the authoritative Apps Script/Sheets write has completed;
-- immediately after success, `applyFiltersAndRender(false)` re-renders local state;
-- hidden statuses therefore disappear without manual Refresh;
-- the immediate post-save `loadRows(true)` was removed;
-- success ends with `تم حفظ التعديل في الشيت.` instead of a second `جاري تحميل الأوردرات` cycle;
-- status rendering now uses `statusBadges(r)`, showing priority + press + `⚡ طباعة على الطاير` beside status;
-- `app.js` cache-bust: `trendos-02cv-statusux-20260906b`.
+- authoritative order writes remain Apps Script / Sheets;
+- stable `lineId` identity behavior from the initial 02CV fix remains active;
+- successful save immediately re-renders local state, so hidden statuses disappear without manual Refresh;
+- immediate post-save `loadRows(true)` remains removed;
+- status rendering uses `statusBadges(r)` and shows `⚡ طباعة على الطاير`;
+- before replacing `state.rows`, the frontend compares previous and next rows by stable `lineId`;
+- if a previous row is affirmatively Fly Print and the next payload for the same line omits **all** Fly Print fields, the marker is carried forward in the browser;
+- if the new payload explicitly contains any Fly Print field — including `لا` or an explicit blank — the new payload is respected and no carry-forward occurs;
+- no orderId/rowNumber fallback is used for this guard;
+- `app.js` cache-bust: `trendos-02cv-flylane-20260906c`.
 
 ### Verification
 
-- Fly Print D1/Worker read-only qualification Run `34036288004` — **SUCCESS**
-- UX candidate Run `34036609469` — **SUCCESS**
-- UX Production promotion Run `34036640992` — **SUCCESS**
-- Production Pages Run `34036646377` — **SUCCESS**
-- Production diff for the follow-up patch: only `app.js` + `index.html`, 7 insertions / 3 deletions
+- post-edit D1/Worker Fly Print qualification Run `34038294884` — **SUCCESS**, 39/39 preserved;
+- lane-stability candidate Run `34039276230` — **SUCCESS**;
+- candidate verified:
+  - Fly Print lane stability PASS;
+  - 02CV write consistency PASS;
+  - 02CV immediate-hide/status-badge UX PASS;
+  - exact candidate scope `app.js` + `index.html` only;
+- Production promotion Run `34039313773` — **SUCCESS**;
+- Production Pages Run `34039321631` — **SUCCESS**;
+- Pages deployed head: `3934fa363b113a4bd494ec501fb5f289f2c48ec1`.
 
 ### Production safety boundary
 
@@ -69,9 +82,11 @@ Frontend behavior:
 
 Refresh the live platform once, then verify:
 
-1. change a real order to a hidden status and Save → row disappears immediately;
-2. there is no second long Orders loading cycle after success;
-3. a Fly Print order shows `⚡ طباعة على الطاير` beside status.
+1. find a row marked `⚡ طباعة على الطاير`;
+2. change/save something or allow the sheet/read lane to update;
+3. confirm the same row keeps its ⚡ marker;
+4. hidden-status rows still disappear immediately after successful Save;
+5. no second long Orders loading cycle follows save success.
 
 Do not close 02CV until the user confirms these live behaviors.
 
@@ -81,7 +96,7 @@ Record:
 
 Exact active stop point:
 
-`PERF-CF-02CV IN PROGRESS — PRODUCTION TECHNICAL + UX PATCH PASS — MAIN b4a87493ca9ce7507fc342e9b39f91449395fb46 — PAGES 34036646377 SUCCESS — UX CANDIDATE 34036609469 SUCCESS — FLY PRINT READ-ONLY 34036288004 SUCCESS 38/38 — IMMEDIATE LOCAL POST-SAVE RENDER ACTIVE — SECOND POST-SAVE PAGE READ REMOVED — FLY STATUS BADGE ACTIVE — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% UNCHANGED — APPS SCRIPT/SHEETS AUTHORITY RETAINED — USER-VISIBLE VALIDATION PENDING`
+`PERF-CF-02CV IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — MAIN 3934fa363b113a4bd494ec501fb5f289f2c48ec1 — PAGES 34039321631 SUCCESS — PROMOTION 34039313773 SUCCESS — CANDIDATE 34039276230 SUCCESS — POST-EDIT D1/WORKER READ-ONLY 34038294884 SUCCESS 39/39 — FLY MARKER PRESERVED ONLY ACROSS MISSING-FIELD PAYLOADS BY STABLE lineId — EXPLICIT SOURCE VALUES REMAIN AUTHORITATIVE — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% UNCHANGED — APPS SCRIPT/SHEETS AUTHORITY RETAINED — USER-VISIBLE VALIDATION PENDING`
 
 ---
 
