@@ -7,10 +7,12 @@ on:
     paths:
       - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
       - 'cloudflare-d1/src/edge-orders-operational-enrichment-02cr.mjs'
+      - 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs'
       - 'cloudflare-d1/D1_Operational_Mirror_Sync_02CR.gs'
       - 'tests/cloudflare_edge_orders_read_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs'
       - 'tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs'
+      - 'tests/cloudflare_edge_orders_02cr_canary.test.mjs'
       - 'tests/apps_script_d1_operational_mirror_sync_02cr.test.mjs'
       - '.github/workflows/trendos-02cr-field-completeness-ci.yml'
   workflow_dispatch:
@@ -33,6 +35,8 @@ jobs:
         run: node tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs
       - name: 02CR operational customer/debt enrichment contract
         run: node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
+      - name: 02CR isolated operational canary contract
+        run: node tests/cloudflare_edge_orders_02cr_canary.test.mjs
       - name: 02CR operational Apps Script sync safety contract
         run: node tests/apps_script_d1_operational_mirror_sync_02cr.test.mjs
       - name: Safety conclusion
