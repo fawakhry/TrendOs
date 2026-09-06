@@ -7,7 +7,7 @@ Working branch: `agent/go-live-2026-09-01-integrity`
 
 ## Status
 
-**PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — USER-VISIBLE VALIDATION PENDING**
+**PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — USER-VISIBLE VALIDATION PENDING**
 
 ## Initial user report
 
@@ -177,6 +177,30 @@ Commit message:
 
 GitHub Pages Run `34039321631` — **SUCCESS** on head `3934fa363b113a4bd494ec501fb5f289f2c48ec1`.
 
+## Durable Integrity guard and cleanup
+
+The focused regression is now permanent:
+
+`tests/frontend_flyprint_lane_stability_02cv.test.mjs`
+
+The normal working-branch Integrity workflow now executes it together with the existing 02CV write-consistency contract. The permanent test verifies:
+
+- affirmative Fly Print is preserved when a later payload for the same stable `lineId` omits every Fly Print field;
+- an explicit `لا` remains authoritative;
+- an explicit blank field remains authoritative;
+- unmatched or unstable identities do not receive an invented marker;
+- Arabic explicit Fly Print fields are respected.
+
+After Production promotion, the following one-use artifacts were removed from the working branch:
+
+- 02CV Fly Print D1 read-only workflow;
+- 02CV Fly Print live-lanes read-only workflow;
+- 02CV Fly Print lane-stability candidate workflow;
+- 02CV Fly Print promotion workflow;
+- `tools/patch_02cv_flyprint_lane_stability.py`.
+
+The production code and durable regression test remain. Cleanup did not touch `main`, Apps Script, Worker, or D1 business data.
+
 ## Authority / safety invariants retained
 
 - Apps Script / Sheets remain authoritative for all Orders writes.
@@ -206,4 +230,4 @@ Do not mark 02CV CLOSED until the user confirms these live behaviors.
 
 ## Exact stop point
 
-`PERF-CF-02CV IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — MAIN 3934fa363b113a4bd494ec501fb5f289f2c48ec1 — PAGES 34039321631 SUCCESS — PROMOTION 34039313773 SUCCESS — CANDIDATE 34039276230 SUCCESS — POST-EDIT D1/WORKER READ-ONLY 34038294884 SUCCESS (39/39 PRESERVED) — D1 SYNC UNCHANGED — FRONTEND CARRY-FORWARD ONLY FOR MISSING FLY FIELDS AND STABLE lineId — EXPLICIT SOURCE VALUES AUTHORITATIVE — WORKER UNCHANGED 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% — NO APPS SCRIPT DEPLOY — APPS SCRIPT/SHEETS WRITE AUTHORITY RETAINED — USER-VISIBLE VALIDATION PENDING`
+`PERF-CF-02CV IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — MAIN 3934fa363b113a4bd494ec501fb5f289f2c48ec1 — PAGES 34039321631 SUCCESS — PROMOTION 34039313773 SUCCESS — CANDIDATE 34039276230 SUCCESS — POST-EDIT D1/WORKER READ-ONLY 34038294884 SUCCESS (39/39 PRESERVED) — D1 SYNC UNCHANGED — FRONTEND CARRY-FORWARD ONLY FOR MISSING FLY FIELDS AND STABLE lineId — EXPLICIT SOURCE VALUES AUTHORITATIVE — TEMP FLY-PRINT PROBE/CANDIDATE/PROMOTION WORKFLOWS + ONE-USE PATCHER CLEANED — PERMANENT REGRESSION TEST RETAINED AND WIRED INTO NORMAL INTEGRITY — WORKER UNCHANGED 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% — NO APPS SCRIPT DEPLOY — APPS SCRIPT/SHEETS WRITE AUTHORITY RETAINED — USER-VISIBLE VALIDATION PENDING`
