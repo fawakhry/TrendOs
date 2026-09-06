@@ -61,15 +61,20 @@ window.MATBAGY_V1931_TREND_MASTER = true;
 window.MATBAGY_V1931_SERVER_PAGING = true;
 window.MATBAGY_V1931_DEBT_RESTRICTION_LIST = true;
 window.MATBAGY_V1931_AUTOMATION_CENTER = true;
-window.MATBAGY_TREND_MASTER_RESILIENCE_V1 = false;
+
+// Trend Master safe resilience: manual/on-demand only. The app hotfix keeps platform-load fanout disabled.
+// At most two Apps Script panel reads may run together; no automatic retry and no automatic day-close preview.
+window.MATBAGY_TREND_MASTER_RESILIENCE_V1 = true;
+window.MATBAGY_TREND_MASTER_MAX_CONCURRENCY = 2;
+window.MATBAGY_TREND_MASTER_MAX_ATTEMPTS = 1;
 window.MATBAGY_TREND_MASTER_PANEL_TIMEOUTS = {
-  summary: 12000,
-  archive: 15000,
-  messages: 12000,
-  stock: 12000,
-  employee: 18000,
-  debt: 15000,
-  dayclose: 18000
+  summary: 30000,
+  archive: 60000,
+  messages: 30000,
+  stock: 30000,
+  employee: 30000,
+  debt: 30000,
+  dayclose: 120000
 };
 
 window.MATBAGY_MANAGER_CENTER_V1932 = true;
@@ -111,6 +116,7 @@ trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824b');
 window.MATBAGY_PRESS_CONTROL_V1 = true;
 trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260826a');
 
+trendLoadModuleV1932('trendMasterResilienceSafeV1931Loader','trend-master-resilience-safe-v1931.js?v=20260906safe1');
 trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260906a');
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260906perfhotfix1');
 
