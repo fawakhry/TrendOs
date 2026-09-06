@@ -43,15 +43,19 @@ jobs:
           rm -rf /tmp/02cv-fly-candidate
           git worktree add --detach /tmp/02cv-fly-candidate "$EXPECTED_MAIN"
           python3 /tmp/patch_02cv_flyprint_lane_stability.py /tmp/02cv-fly-candidate
+          mkdir -p /tmp/02cv-fly-candidate/tests
+          cp /tmp/frontend_order_status_write_consistency_02cv.test.mjs /tmp/02cv-fly-candidate/tests/__02cv_write_consistency_temp.test.mjs
+          cp /tmp/frontend_order_status_ux_02cv.test.mjs /tmp/02cv-fly-candidate/tests/__02cv_status_ux_temp.test.mjs
 
       - name: Run focused and existing 02CV frontend contracts
         shell: bash
         run: |
           set -euo pipefail
           TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_flyprint_lane_stability_02cv.test.mjs
-          (cd /tmp/02cv-fly-candidate && node /tmp/frontend_order_status_write_consistency_02cv.test.mjs)
-          (cd /tmp/02cv-fly-candidate && node /tmp/frontend_order_status_ux_02cv.test.mjs)
+          node /tmp/02cv-fly-candidate/tests/__02cv_write_consistency_temp.test.mjs
+          node /tmp/02cv-fly-candidate/tests/__02cv_status_ux_temp.test.mjs
           node --check /tmp/02cv-fly-candidate/app.js
+          rm -f /tmp/02cv-fly-candidate/tests/__02cv_write_consistency_temp.test.mjs /tmp/02cv-fly-candidate/tests/__02cv_status_ux_temp.test.mjs
 
       - name: Assert bounded candidate diff
         shell: bash
