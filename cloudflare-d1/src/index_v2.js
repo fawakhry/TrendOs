@@ -3,6 +3,7 @@ import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
+import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-canary.mjs';
 import { guardEdgeOrdersPageRequest } from './edge-orders-freshness-gate.mjs';
 import {
   fetchOrdersIdleHeartbeat,
@@ -30,6 +31,14 @@ export default {
     // into the shared TrendOS shell. It does not change financial write authority.
     if (isAccountingPreviewPath(path)) {
       return handleAccountingPreviewRequest(request, env, ctx);
+    }
+
+    // PERF-CF-02CR isolated qualification route only. No production frontend URL
+    // is redirected here. The handler requires an authenticated Edge session and
+    // fail-closes unless the operational lines/customer/restriction mirrors carry
+    // the exact qualified 02CR note and row-count parity.
+    if (isEdgeOrders02CRPath(path)) {
+      return handleEdgeOrders02CRCanaryRequest(request, env, ctx);
     }
 
     // Secure D1 Orders/Lines read lane. Before any business-row query, the
