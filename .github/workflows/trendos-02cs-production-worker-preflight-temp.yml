@@ -56,10 +56,11 @@ jobs:
       - name: Re-run 02CR contracts
         run: |
           set -euo pipefail
-          node tests/cloudflare_edge_orders_read_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
           node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
           node tests/cloudflare_edge_orders_read_v1.test.mjs
           node tests/cloudflare_edge_orders_canary_wrapper_02co.test.mjs
+          node tests/cloudflare_index_v2_02cr_route.test.mjs
           echo 'PERF_CF_02CS_02CR_CONTRACTS_PASS'
 
       - name: Live production boundary GET-only
