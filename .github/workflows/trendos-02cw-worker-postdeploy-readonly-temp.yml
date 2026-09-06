@@ -19,6 +19,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      SAFE_VERSION_ID: 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,40 +27,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Read-only production checks
+      - name: Read-only production checks matching qualified 02CU boundary
         shell: bash
         run: |
           set -euo pipefail
           echo "HEALTH_BASE=$PROD_URL"
-          code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/edge-health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
-          echo "HEALTH_HTTP=$code"
+          curl --fail --silent --show-error "$PROD_URL/v1/edge/health" > /tmp/edge-health.json
           cat /tmp/edge-health.json
-          test "$code" = '200'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/edge-health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true||x.cutover!==false) process.exit(1)"
 
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/write.json
+          cat /tmp/write.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write.json','utf8')); if(!x.success||x.sheetsAuthoritative!==true||x.cutover!==false||Number(x.pendingOutbox||0)!==0) process.exit(1)"
+
+          curl --fail --silent --show-error "$PROD_URL/v1/qualification/cloud-write/reconcile/health" > /tmp/reconcile.json
+          cat /tmp/reconcile.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/reconcile.json','utf8')); if(x.enabled!==false||x.genericDrainEnabled!==false) process.exit(1)"
+
           for sheet in 'الأوردرات' 'بنود الأوردرات'; do
-            echo "MIRROR_SHEET=$sheet"
             curl --fail --silent --show-error --get --data-urlencode "name=$sheet" --data-urlencode 'limit=1' "$PROD_URL/v1/mirror/sheet" > /tmp/mirror.json
-            cat /tmp/mirror.json
             node - <<'NODE'
-          const fs=require('fs');
-          const x=JSON.parse(fs.readFileSync('/tmp/mirror.json','utf8')),s=x.sheet||{};
-          console.log('MIRROR_SUMMARY='+JSON.stringify({success:x.success,schemaMutationFree:x.schemaMutationFree,status:s.status,rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,syncedAt:s.syncedAt}));
-          if(!x.success||x.schemaMutationFree!==true||s.status!=='ready') process.exit(1);
+          const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/mirror.json','utf8')),s=x.sheet||{};
+          if(!x.success||x.schemaMutationFree!==true||s.status!=='ready'||Number(s.rowCount||0)!==Number(s.sourceLastRow||0)) process.exit(1);
+          console.log('MIRROR_PARITY='+JSON.stringify({sheet:s.sheetName,rowCount:s.rowCount,sourceLastRow:s.sourceLastRow,syncedAt:s.syncedAt}));
           NODE
           done
 
           anon="$(curl --silent --show-error --output /tmp/anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__")"
-          echo "ANON_HTTP=$anon"
-          cat /tmp/anon.json
           test "$anon" = '401'
 
-          write_code="$(curl --silent --show-error --output /tmp/write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
-          echo "WRITE_HEALTH_HTTP=$write_code"
-          cat /tmp/write.json
-          test "$write_code" = '200'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1)"
-
           npm install --no-save wrangler@4.33.2 >/dev/null
-          npx wrangler deployments list --config cloudflare-d1/wrangler.toml | tail -n 40
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/deployments.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));const ds=(Array.isArray(x)?x:x.items||[]).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));const d=ds[0]||{};const a=(d.versions||[]).map(v=>({id:v.version_id||v.id,p:Number(v.percentage)}));if(!a.some(v=>v.id===process.env.SAFE_VERSION_ID&&v.p===100)) throw new Error('safe Worker not active at 100%');console.log('02CW_SAFE_BOUNDARY_VERSION_PASS='+JSON.stringify({deploymentId:d.id,version:process.env.SAFE_VERSION_ID}));
+          NODE
           echo '02CW_WORKER_POSTDEPLOY_READONLY_PASS'
