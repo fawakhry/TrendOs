@@ -1,0 +1,134 @@
+name: TrendOS 02CW Worker Version Promote Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-worker-promote-version-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cw-worker-version-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WORKER_NAME: trendos-d1-api
+      PREVIOUS_VERSION: 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8
+      TARGET_VERSION: 6f58078d-94b6-4d8a-aaf4-e2c026b20fe1
+      SAFE_CONFIG_REF: b78d0656754038f700ee4ecdba6c95b88c5feba8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+
+      - name: Lock safe baseline and exact 02CW target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/deployments.json
+          npx --yes wrangler@4.33.2 versions list --name "$WORKER_NAME" --json > /tmp/versions.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const d0=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const ds=(Array.isArray(d0)?d0:d0.items||[]).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const active=((ds[0]||{}).versions||[]).map(v=>({id:v.version_id||v.id,p:Number(v.percentage)}));
+          if(!active.some(v=>v.id===process.env.PREVIOUS_VERSION&&v.p===100)) throw new Error('safe 02CU baseline is not active at 100%');
+          const v0=JSON.parse(fs.readFileSync('/tmp/versions.json','utf8')); const vs=Array.isArray(v0)?v0:v0.items||[];
+          if(!vs.some(v=>String(v.id||v.version_id||'')===process.env.TARGET_VERSION)) throw new Error('02CW target version missing');
+          console.log('02CW_WORKER_PROMOTE_LOCK_PASS');
+          NODE
+          git worktree add --detach /tmp/02cw-safe-config "$SAFE_CONFIG_REF"
+          grep -Eq '^EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "true"$' /tmp/02cw-safe-config/cloudflare-d1/wrangler.toml
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' /tmp/02cw-safe-config/cloudflare-d1/wrangler.toml
+
+      - name: Verify production boundary before promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const assert=require('node:assert/strict'),base=process.env.PROD_URL;
+          async function get(p){const r=await fetch(base+p,{cache:'no-store'});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}
+          (async()=>{const [e,c,r,a]=await Promise.all([get('/v1/edge/health'),get('/v1/cloud/write/health'),get('/v1/qualification/cloud-write/reconcile/health'),get('/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=1&statusFilter=__ACTIVE__')]);
+          assert.equal(e.status,200);assert.equal(e.body.success,true);assert.equal(e.body.cutover,false);
+          assert.equal(c.status,200);assert.equal(c.body.success,true);assert.equal(c.body.sheetsAuthoritative,true);assert.equal(c.body.cutover,false);assert.equal(Number(c.body.pendingOutbox||0),0);
+          assert.equal(r.status,200);assert.equal(r.body.enabled,false);assert.equal(r.body.genericDrainEnabled,false);assert.equal(a.status,401);
+          console.log('02CW_PRE_PROMOTE_BOUNDARY_PASS');})().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Promote exact 02CW Worker version at 100 percent
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/02cw-safe-config
+          npx --yes wrangler@4.33.2 versions deploy "${TARGET_VERSION}@100%" --yes --config cloudflare-d1/wrangler.toml --message "TrendOS 02CW global active counters production"
+          touch /tmp/02cw-promoted
+          sleep 10
+          echo "02CW_WORKER_TARGET_PROMOTED=$TARGET_VERSION"
+
+      - name: Post-promotion authenticated qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const assert=require('node:assert/strict'),base=process.env.PROD_URL,u=process.env.QUALIFY_USERNAME,t=process.env.QUALIFY_EMPLOYEE_TOKEN;const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function req(p,opt={},n=7){let last;for(let i=1;i<=n;i++){try{const r=await fetch(base+p,{cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}if(r.status>=500&&i<n){await sleep(i*1200);continue;}return{status:r.status,body:b};}catch(e){last=e;if(i<n)await sleep(i*1200)}}throw last;}
+          (async()=>{
+            const [e,c,r]=await Promise.all([req('/v1/edge/health'),req('/v1/cloud/write/health'),req('/v1/qualification/cloud-write/reconcile/health')]);
+            assert.equal(e.status,200);assert.equal(e.body.success,true);assert.equal(e.body.cutover,false);
+            assert.equal(c.status,200);assert.equal(c.body.success,true);assert.equal(c.body.sheetsAuthoritative,true);assert.equal(c.body.cutover,false);assert.equal(Number(c.body.pendingOutbox||0),0);
+            assert.equal(r.status,200);assert.equal(r.body.enabled,false);assert.equal(r.body.genericDrainEnabled,false);
+            const a=await req('/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__');assert.equal(a.status,401);
+            const s=await req('/v1/edge/orders/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:u,token:t})},8);assert.equal(s.status,200);assert.equal(s.body.success,true);assert.ok(s.body.edgeToken);
+            const h={authorization:'Bearer '+s.body.edgeToken,accept:'application/json'};
+            const x=await req('/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__&priorityFilter=',{headers:h},7);
+            assert.equal(x.status,200);assert.equal(x.body.success,true);assert.equal(x.body.dataSource,'d1-edge-orders-02cr-operational');
+            assert.ok(x.body.activeSummaryCounts&&typeof x.body.activeSummaryCounts==='object');
+            const z=x.body.activeSummaryCounts;
+            for(const k of ['total','urgent','normal','problems','overdue','debts','heatPress','heatPressOrders','cancelled','flyPrint']) assert.ok(Number.isFinite(Number(z[k])),k+' missing');
+            assert.ok(Number(z.total)>=Number((x.body.rows||[]).length));
+            assert.ok(Number(z.heatPressOrders)<=Number(z.heatPress));
+            const d=await req('/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__',{headers:h},3);assert.equal(d.status,409);assert.equal(d.body.fallback,'apps-script');
+            console.log('02CW_WORKER_PRODUCTION_QUALIFIED_PASS='+JSON.stringify({total:z.total,pageRows:(x.body.rows||[]).length,heatPress:z.heatPress,heatPressOrders:z.heatPressOrders,reconcileEnabled:r.body.enabled,genericDrainEnabled:r.body.genericDrainEnabled,pendingOutbox:Number(c.body.pendingOutbox||0)}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Confirm exact target active at 100 percent
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/post.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'));const ds=(Array.isArray(x)?x:x.items||[]).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));const d=ds[0]||{};const a=(d.versions||[]).map(v=>({id:v.version_id||v.id,p:Number(v.percentage)}));if(!a.some(v=>v.id===process.env.TARGET_VERSION&&v.p===100))throw new Error('02CW target not active at 100%');console.log('02CW_WORKER_TARGET_100_PERCENT_PASS='+JSON.stringify({deploymentId:d.id,targetVersion:process.env.TARGET_VERSION}));
+          NODE
+
+      - name: Roll back to documented 02CU version if qualification failed
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/02cw-promoted ]; then
+            cd /tmp/02cw-safe-config
+            npx --yes wrangler@4.33.2 versions deploy "${PREVIOUS_VERSION}@100%" --yes --config cloudflare-d1/wrangler.toml --message "Rollback TrendOS 02CW failed qualification to 02CU"
+            sleep 8
+            echo '02CW_WORKER_ROLLBACK_TO_02CU_EXECUTED'
+          else
+            echo '02CW_NO_PROMOTION_NO_ROLLBACK_NEEDED'
+          fi
