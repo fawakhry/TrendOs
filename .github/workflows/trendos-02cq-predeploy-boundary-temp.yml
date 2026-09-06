@@ -1,0 +1,114 @@
+name: TrendOS 02CQ Predeploy Boundary TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cq-predeploy-boundary-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  predeploy-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EDGE_BASE: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      TRENDOS_PROD_QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static no-mutation boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/trendos-02cq-predeploy-boundary-temp.yml')
+          data = p.read_text(encoding='utf-8')
+          forbidden = [
+            'wrangler' + ' deploy',
+            'secret' + ' put',
+            'd1 execute --' + 'file',
+            'wrangler d1 migrations' + ' apply',
+            '/v1/import/' + 'sheet',
+            '/v1/qualification/cloud-write/reconcile/' + 'order',
+            'generic outbox' + ' drain'
+          ]
+          for token in forbidden:
+            if token in data:
+              raise SystemExit('Forbidden mutation token in predeploy probe: ' + token)
+          print('PERF_CF_02CQ_PREDEPLOY_STATIC_READ_ONLY_PASS')
+          PY
+
+      - name: Verify auth inputs exist
+        run: |
+          set -euo pipefail
+          test -n "$TRENDOS_PROD_QUALIFY_USERNAME"
+          test -n "$TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN"
+          echo 'PERF_CF_02CQ_PREDEPLOY_AUTH_INPUTS_READY'
+
+      - name: Production boundary and live print baseline
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async function main(){
+            const base = process.env.EDGE_BASE;
+            async function get(path) {
+              const r = await fetch(base + path, { headers:{accept:'application/json'}, cache:'no-store' });
+              let body={}; try { body=JSON.parse(await r.text()||'{}'); } catch {}
+              return {status:r.status,body};
+            }
+            const worker = await get('/health');
+            const cloud = await get('/v1/cloud/write/health');
+            const recon = await get('/v1/qualification/cloud-write/reconcile/health');
+            const unauth = await get('/v1/edge/orders/page?screen=print&page=1&pageSize=5');
+            const mirror = await get('/v1/mirror/sheet?name=' + encodeURIComponent('واجهة الطباعة') + '&limit=1&offset=0');
+
+            if (worker.status !== 200 || worker.body.success !== true || worker.body.database !== true) throw new Error('worker health boundary failed');
+            if (cloud.status !== 200 || cloud.body.success !== true || cloud.body.cutover !== false || cloud.body.sheetsAuthoritative !== true || Number(cloud.body.pendingOutbox || 0) !== 0) throw new Error('cloud-write boundary changed');
+            if (recon.status !== 200 || recon.body.enabled !== false || recon.body.genericDrainEnabled !== false) throw new Error('02CL boundary changed');
+            if (unauth.status !== 401) throw new Error('unauthenticated orders boundary changed');
+            if (mirror.status !== 200 || mirror.body.success !== true || !mirror.body.sheet) throw new Error('print mirror catalog unavailable');
+
+            const payload = {
+              action:'getRowsPageV1931',
+              username:process.env.TRENDOS_PROD_QUALIFY_USERNAME,
+              token:process.env.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN,
+              screen:'print',
+              page:'1',
+              pageSize:'100'
+            };
+            const ar = await fetch(process.env.APPS_SCRIPT_URL, {
+              method:'POST',
+              headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+              body:JSON.stringify(payload),
+              cache:'no-store'
+            });
+            let ab={}; try { ab=JSON.parse(await ar.text()||'{}'); } catch {}
+            if (ar.status !== 200 || ab.success !== true) throw new Error('Apps Script print baseline failed');
+            const rows = Array.isArray(ab.rows) ? ab.rows : [];
+            if (rows.length < 1) throw new Error('Apps Script print baseline unexpectedly empty');
+            const s = mirror.body.sheet;
+            console.log('PERF_CF_02CQ_PREDEPLOY_BOUNDARY=' + JSON.stringify({
+              workerHealth:true,
+              database:true,
+              pendingOutbox:Number(cloud.body.pendingOutbox||0),
+              cutover:cloud.body.cutover,
+              sheetsAuthoritative:cloud.body.sheetsAuthoritative,
+              reconcileEnabled:recon.body.enabled,
+              genericDrainEnabled:recon.body.genericDrainEnabled,
+              ordersUnauthStatus:unauth.status,
+              appPrintRows:rows.length,
+              d1PrintSourceLastRow:Number(s.sourceLastRow||0),
+              d1PrintRowCount:Number(s.rowCount||0),
+              d1PrintStatus:String(s.status||''),
+              d1PrintSyncedAt:String(s.syncedAt||'')
+            }));
+            console.log('PERF_CF_02CQ_PREDEPLOY_BOUNDARY_PASS_NO_MUTATION');
+          })().catch((err)=>{ console.error(err && err.stack || err); process.exit(1); });
+          NODE
