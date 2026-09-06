@@ -1,10 +1,11 @@
 /* TrendOS PERF-CF-02CQ — bounded screen-view mirror refresh candidate.
  *
  * SAFETY / SCOPE:
- * - Candidate only. Default OFF via Script Property.
- * - Reads Google Sheets and copies ONLY the four department view tabs to D1.
- * - Reuses D1_Full_Migration.gs helpers so D1_API_URL and D1_MIGRATION_SECRET
- *   remain in Apps Script Script Properties and are never logged or committed.
+ * - Self-contained single Apps Script module. Default OFF via Script Property.
+ * - Reads ONLY the authoritative TrendOS spreadsheet locked below.
+ * - Copies ONLY the four department view tabs to D1.
+ * - Reads D1_API_URL and D1_MIGRATION_SECRET from existing Script Properties;
+ *   neither value is logged, returned, hard-coded, or committed.
  * - Uses atomic stage for every target, then ONE atomic promote for all four.
  * - Does not modify Google Sheets.
  * - Does not enable frontend D1 reads or change Sheets authority.
@@ -15,6 +16,7 @@ const D1_SCREEN_VIEW_REFRESH_02CQ_ENABLED_KEY = 'TRENDOS_PERF_CF_02CQ_SCREEN_VIE
 const D1_SCREEN_VIEW_REFRESH_02CQ_LAST_RESULT_KEY = 'TRENDOS_PERF_CF_02CQ_SCREEN_VIEW_REFRESH_LAST_RESULT';
 const D1_SCREEN_VIEW_REFRESH_02CQ_NOTE = 'PERF-CF-02CQ bounded screen view atomic refresh';
 const D1_SCREEN_VIEW_REFRESH_02CQ_BATCH_ROWS = 80;
+const D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID = '1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI';
 const D1_SCREEN_VIEW_REFRESH_02CQ_TARGETS = Object.freeze([
   'واجهة خدمة العملاء',
   'واجهة الطباعة',
@@ -28,16 +30,103 @@ function d1ScreenViewRefresh02CQEnabled_() {
   ).trim() === '1';
 }
 
+function d1ScreenViewRefresh02CQConfig_() {
+  const props = PropertiesService.getScriptProperties();
+  const apiUrl = String(props.getProperty('D1_API_URL') || '').trim().replace(/\/+$/, '');
+  const secret = String(props.getProperty('D1_MIGRATION_SECRET') || '').trim();
+  if (!apiUrl) throw new Error('02CQ D1_API_URL is missing from Script Properties.');
+  if (!secret) throw new Error('02CQ D1_MIGRATION_SECRET is missing from Script Properties.');
+  return { apiUrl: apiUrl, secret: secret };
+}
+
+function d1ScreenViewRefresh02CQSpreadsheet_() {
+  const ss = SpreadsheetApp.openById(D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID);
+  if (!ss || String(ss.getId()) !== D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID) {
+    throw new Error('02CQ authoritative spreadsheet identity mismatch.');
+  }
+  return ss;
+}
+
+function d1ScreenViewRefresh02CQSerializeCell_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') return value;
+  return String(value);
+}
+
+function d1ScreenViewRefresh02CQHeaders_(sheet, lastRow, lastCol) {
+  if (lastRow < 1 || lastCol < 1) return [];
+  return sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+}
+
+function d1ScreenViewRefresh02CQBuildRows_(sheet, startRow, numRows, lastCol) {
+  if (numRows <= 0 || lastCol <= 0) return [];
+  const range = sheet.getRange(startRow, 1, numRows, lastCol);
+  const values = range.getValues();
+  const display = range.getDisplayValues();
+  const formulas = range.getFormulas();
+  const rows = [];
+
+  for (let r = 0; r < numRows; r++) {
+    rows.push({
+      rowNumber: startRow + r,
+      values: values[r].map(d1ScreenViewRefresh02CQSerializeCell_),
+      display: display[r],
+      formulas: formulas[r]
+    });
+  }
+  return rows;
+}
+
+function d1ScreenViewRefresh02CQParseResponse_(response, context) {
+  const code = response.getResponseCode();
+  const text = response.getContentText() || '{}';
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch (err) {
+    throw new Error('02CQ invalid D1 JSON response for ' + context + ' HTTP ' + code + '.');
+  }
+  if (code < 200 || code >= 300 || !data.success) {
+    throw new Error(String((data && data.message) || ('02CQ D1 request failed for ' + context + ' HTTP ' + code)));
+  }
+  return data;
+}
+
+function d1ScreenViewRefresh02CQPost_(path, payload) {
+  const cfg = d1ScreenViewRefresh02CQConfig_();
+  const response = UrlFetchApp.fetch(cfg.apiUrl + path, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'x-migration-secret': cfg.secret },
+    payload: JSON.stringify(payload || {}),
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  return d1ScreenViewRefresh02CQParseResponse_(response, 'POST ' + path);
+}
+
+function d1ScreenViewRefresh02CQGet_(path) {
+  const cfg = d1ScreenViewRefresh02CQConfig_();
+  const response = UrlFetchApp.fetch(cfg.apiUrl + path, {
+    method: 'get',
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  return d1ScreenViewRefresh02CQParseResponse_(response, 'GET ' + path);
+}
+
 function d1ScreenViewRefresh02CQRunId_() {
   const stamp = Utilities.formatDate(new Date(), 'UTC', 'yyyyMMdd-HHmmss');
   return 'PERF-CF-02CQ-' + stamp + '-' + Utilities.getUuid().slice(0, 8);
 }
 
 function d1ScreenViewRefresh02CQSaveResult_(result) {
-  const safe = result || {};
   PropertiesService.getScriptProperties().setProperty(
     D1_SCREEN_VIEW_REFRESH_02CQ_LAST_RESULT_KEY,
-    JSON.stringify(safe)
+    JSON.stringify(result || {})
   );
 }
 
@@ -57,24 +146,23 @@ function d1ScreenViewRefresh02CQSourceStats_(ss) {
 function d1ScreenViewRefresh02CQStageOne_(runId, ss, source) {
   const sheet = ss.getSheetByName(source.sheetName);
   if (!sheet) throw new Error('02CQ target sheet missing during stage: ' + source.sheetName);
-
-  const headers = d1FullHeaders_(sheet, source.lastRow, source.lastCol);
-  let nextRow = 1;
-  let firstBatch = true;
-
   if (source.lastRow < 1 || source.lastCol < 1) {
     throw new Error('02CQ target has no header grid: ' + source.sheetName);
   }
+
+  const headers = d1ScreenViewRefresh02CQHeaders_(sheet, source.lastRow, source.lastCol);
+  let nextRow = 1;
+  let firstBatch = true;
 
   while (nextRow <= source.lastRow) {
     const numRows = Math.min(
       D1_SCREEN_VIEW_REFRESH_02CQ_BATCH_ROWS,
       source.lastRow - nextRow + 1
     );
-    const rows = d1FullBuildRows_(sheet, nextRow, numRows, source.lastCol);
+    const rows = d1ScreenViewRefresh02CQBuildRows_(sheet, nextRow, numRows, source.lastCol);
     const final = (nextRow + numRows - 1) >= source.lastRow;
 
-    const staged = d1FullPost_('/v1/import/sheet', {
+    const staged = d1ScreenViewRefresh02CQPost_('/v1/import/sheet', {
       atomicAction: 'stage',
       runId: runId,
       sheetName: source.sheetName,
@@ -88,7 +176,7 @@ function d1ScreenViewRefresh02CQStageOne_(runId, ss, source) {
       note: D1_SCREEN_VIEW_REFRESH_02CQ_NOTE
     });
 
-    if (!staged || staged.success !== true || staged.atomic !== true || staged.action !== 'stage') {
+    if (!staged || staged.atomic !== true || staged.action !== 'stage') {
       throw new Error('02CQ atomic stage rejected: ' + source.sheetName);
     }
 
@@ -104,7 +192,7 @@ function d1ScreenViewRefresh02CQStageOne_(runId, ss, source) {
 }
 
 function d1ScreenViewRefresh02CQVerifyOne_(source) {
-  const payload = d1FullGet_(
+  const payload = d1ScreenViewRefresh02CQGet_(
     '/v1/mirror/sheet?name=' + encodeURIComponent(source.sheetName) + '&limit=1&offset=0'
   );
   const sheet = payload && payload.sheet;
@@ -138,6 +226,8 @@ function refreshD1ScreenViewMirrors02CQ() {
       success: false,
       enabled: false,
       mutated: false,
+      productionMirrorMutated: false,
+      stagingMayHaveMutated: false,
       checkpoint: 'PERF-CF-02CQ',
       message: '02CQ screen-view refresh is default-OFF. No D1 mutation performed.'
     };
@@ -149,18 +239,21 @@ function refreshD1ScreenViewMirrors02CQ() {
       success: false,
       enabled: true,
       mutated: false,
+      productionMirrorMutated: false,
+      stagingMayHaveMutated: false,
       checkpoint: 'PERF-CF-02CQ',
       message: '02CQ refresh already running.'
     };
   }
 
   let runId = '';
+  let promoted = false;
   try {
-    // Reuse existing production-safe config. Secret value is never returned/logged.
-    d1FullConfig_();
-    d1FullGet_('/v1/mirror/stats');
+    // Validate configuration/backend before any stage write.
+    d1ScreenViewRefresh02CQConfig_();
+    d1ScreenViewRefresh02CQGet_('/v1/mirror/stats');
 
-    const ss = d1FullSpreadsheet_();
+    const ss = d1ScreenViewRefresh02CQSpreadsheet_();
     const source = d1ScreenViewRefresh02CQSourceStats_(ss);
     const printSource = source.filter(function(x) { return x.sheetName === 'واجهة الطباعة'; })[0];
 
@@ -174,15 +267,16 @@ function refreshD1ScreenViewMirrors02CQ() {
       return d1ScreenViewRefresh02CQStageOne_(runId, ss, item);
     });
 
-    const promoted = d1FullPost_('/v1/import/sheet', {
+    const promoteResult = d1ScreenViewRefresh02CQPost_('/v1/import/sheet', {
       atomicAction: 'promote',
       runId: runId,
       sheetNames: D1_SCREEN_VIEW_REFRESH_02CQ_TARGETS.slice()
     });
 
-    if (!promoted || promoted.success !== true || promoted.atomic !== true || promoted.action !== 'promote') {
+    if (!promoteResult || promoteResult.atomic !== true || promoteResult.action !== 'promote') {
       throw new Error('02CQ atomic promote rejected.');
     }
+    promoted = true;
 
     const verification = source.map(d1ScreenViewRefresh02CQVerifyOne_);
     const pass = verification.every(function(x) { return x.pass === true; });
@@ -196,6 +290,8 @@ function refreshD1ScreenViewMirrors02CQ() {
       success: true,
       enabled: true,
       mutated: true,
+      productionMirrorMutated: true,
+      stagingMayHaveMutated: true,
       checkpoint: 'PERF-CF-02CQ',
       runId: runId,
       targetCount: D1_SCREEN_VIEW_REFRESH_02CQ_TARGETS.length,
@@ -207,15 +303,16 @@ function refreshD1ScreenViewMirrors02CQ() {
     d1ScreenViewRefresh02CQSaveResult_(result);
     return result;
   } catch (err) {
-    const message = String(err && err.message ? err.message : err);
     const result = {
       success: false,
       enabled: true,
-      mutated: false,
+      mutated: promoted,
+      productionMirrorMutated: promoted,
+      stagingMayHaveMutated: !!runId,
       checkpoint: 'PERF-CF-02CQ',
       runId: runId,
       checkedAt: new Date().toISOString(),
-      message: message
+      message: String(err && err.message ? err.message : err)
     };
     d1ScreenViewRefresh02CQSaveResult_(result);
     return result;
@@ -225,21 +322,22 @@ function refreshD1ScreenViewMirrors02CQ() {
 }
 
 /*
- * Preferred production entrypoint after the module is deployed.
+ * Preferred production entrypoint after adding this module to the live project.
  * It opens the 02CQ gate for this one synchronous call only and always closes
- * it in finally, including when staging/verification throws or returns failure.
+ * it in finally, including when staging/verification fails.
  */
 function runD1ScreenViewMirrorRefresh02CQOnce() {
   const props = PropertiesService.getScriptProperties();
   const before = String(props.getProperty(D1_SCREEN_VIEW_REFRESH_02CQ_ENABLED_KEY) || '').trim();
 
-  // A pre-existing ON gate is an unexpected state; fail closed instead of
-  // inheriting an ambiguous activation from an earlier/manual operation.
+  // A pre-existing ON gate is an unexpected state. Refuse rather than inherit it.
   if (before === '1') {
     return {
       success: false,
       enabled: true,
       mutated: false,
+      productionMirrorMutated: false,
+      stagingMayHaveMutated: false,
       checkpoint: 'PERF-CF-02CQ',
       gateClosed: false,
       message: '02CQ gate was already ON before one-shot execution; execution refused.'
@@ -264,6 +362,7 @@ function getD1ScreenViewMirrorRefresh02CQStatus() {
     success: true,
     checkpoint: 'PERF-CF-02CQ',
     enabled: d1ScreenViewRefresh02CQEnabled_(),
+    authoritativeSpreadsheetId: D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID,
     targets: D1_SCREEN_VIEW_REFRESH_02CQ_TARGETS.slice(),
     lastResult: lastResult
   };
