@@ -53,46 +53,66 @@ Hybrid محافظ على التوافق:
 
 `TM-V1931 RESILIENCE CANDIDATE — CODE + CI PASS — APPS SCRIPT PRODUCTION DEPLOYMENT REQUIRES EXPLICIT USER APPROVAL`
 
-## مسار D1 / Cloudflare — محفوظ بدون تغيير
+---
 
-آخر checkpoint لهذا المسار:
+## مسار D1 / Cloudflare — آخر checkpoint
 
-`PERF-CF-02CS — Production Worker Deploy Gate / Authenticated Canary Preflight`
+`PERF-CF-02CS — Production Worker D1 Read Route`
 
-الحالة: **02CR PREVIEW QUALIFIED — PRODUCTION PREDEPLOY CODE/BOUNDARY PASS — AUTH CANARY CREDENTIAL BLOCKED — NO WORKER DEPLOY — FRONTEND D1 READ OFF**
+الحالة: **VERIFIED PASS — QUALIFIED D1 READ ROUTE DEPLOYED TO PRODUCTION WORKER — FRONTEND D1 READ OFF — SHEETS / APPS SCRIPT AUTHORITATIVE**
 
 السجل:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CS_PRODUCTION_WORKER_AUTH_PREFLIGHT_BLOCKED.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CS_PRODUCTION_WORKER_ROUTE_PASS_FRONTEND_OFF.md`
 
-### الحالة الحالية المختصرة — D1
+### النسخة المنشورة
 
-1. Production order-card read ما زال **Apps Script / Sheets** وD1 Orders read على الواجهة **OFF**.
-2. مشكلة نقص الأوردرات في legacy views مغلقة والمستخدم أكد: `كده تمام اشتغل`.
-3. 02CR مؤهل بالكامل في Preview:
-   - print active `21 / 21`
-   - laser active `18 / 18`
-   - pagination / filters / search / 38-key field contract PASS
-   - enrichment heartbeat PASS
-   - `__DEBT__` Apps Script fallback ثابت.
-4. المستخدم وافق سابقًا صراحة على **Worker production deploy فقط بدون تفعيل الواجهة** في مسار D1، لكن هذا لا يخص شات Trend Master.
-5. 02CS أعاد اختبارات 02CR: PASS.
-6. 02CS production GET-only boundary: PASS:
-   - `cutover=false`
-   - `sheetsAuthoritative=true`
-   - 02CL OFF
-   - generic drain OFF
-   - `pendingOutbox=0`
-   - unauth Orders = 401
-   - frontend D1 read OFF.
-7. authenticated-canary preflight منع النشر لأن `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` الحالي لم يعد صالحًا، ولا يوجد production Edge secret متاح كـActions secret في المسار المقيد الذي تم فحصه.
-8. لذلك **لم يتم تنفيذ Worker deploy**.
-9. 02CS Same-head Integrity Run `34006450589`: SUCCESS.
-10. لا Worker secret rotation، لا `EDGE_SESSION_SECRET` change، لا migration، لا 02CL، لا generic drain.
+Production Worker:
+
+`trendos-d1-api`
+
+Current qualified Worker version:
+
+`c77bf453-c590-4cff-a55b-fd9c625b6d76` — **100% Worker traffic**
+
+Previous production version retained as rollback reference:
+
+`0ec782a9-5943-4c9d-8820-51b7d0393210`
+
+### Production evidence
+
+Exact-version deploy / canary:
+
+- Run `34010288672`
+- Job `101424793692`
+- Result: **SUCCESS**
+
+Production canary after deployment:
+
+- employee Edge session: PASS on attempt `1`
+- print active: `21`, identity parity PASS, 38-field contract PASS
+- laser active: `18`, identity parity PASS, 38-field contract PASS
+- print ordering: `طباعة على الطاير → عاجل/VIP → عادي → مؤجل` PASS
+- laser ordering: `عاجل/VIP → عادي → مؤجل` PASS; Fly Print does not affect laser
+- support mirrors ready / row-count parity PASS
+- `__DEBT__` remains `409 apps-script-required` / Apps Script fallback
+
+Final production boundary:
+
+- `cutover=false`
+- `sheetsAuthoritative=true`
+- frontend D1 Orders read: **OFF**
+- 02CL / reconcile: **OFF**
+- generic drain: **OFF**
+- `pendingOutbox=0`
+- unauthenticated Orders route: `401`
+- no `EDGE_SESSION_SECRET` rotation
+- no D1 migration
+- no authority transfer
 
 ### نقطة الوقوف الدقيقة — D1
 
-`PERF-CF-02CS AUTH CANARY CREDENTIAL BLOCKED — NO DEPLOY PERFORMED`
+`PERF-CF-02CS CLOSED — PRODUCTION WORKER D1 READ ROUTE VERIFIED PASS — FRONTEND D1 READ OFF — NEXT STEP REQUIRES SEPARATE CUTOVER AUTHORIZATION`
 
 ## ثوابت الأمان المشتركة
 
@@ -106,6 +126,7 @@ Hybrid محافظ على التوافق:
 
 ## checkpoints سابقة — D1 track
 
+- `PERF-CF-02CS` — PRODUCTION WORKER ROUTE VERIFIED PASS / frontend OFF
 - `PERF-CF-02CR` — PREVIEW QUALIFICATION PASS / production frontend OFF
 - `PERF-CF-02CQ` — VERIFIED PASS / CLOSED for freshness + identity parity only
 - `PERF-CF-02CO` — auth pass; stale view-mirror blocker
