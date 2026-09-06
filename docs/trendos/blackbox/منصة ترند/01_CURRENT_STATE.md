@@ -2,11 +2,11 @@
 
 Date: 2026-09-06
 
-## Current chat checkpoint — Trend Master V1931
+## Trend Master V1931 — مسار منفصل
 
 `TM-V1931-RESILIENCE — Trend Master Panel Resilience Candidate`
 
-Status: **CODE COMMIT PASS — DEDICATED CI PASS — TRENDOS INTEGRITY PASS — NOT DEPLOYED — APPS SCRIPT/PRODUCTION UNCHANGED**
+Status: **CODE + DEDICATED CI + INTEGRITY PASS — NOT DEPLOYED — APPS SCRIPT PRODUCTION UNCHANGED**
 
 Record:
 
@@ -16,160 +16,173 @@ Candidate commit:
 
 `03300ce2d5454e497bc0be6ddc58c2b2ceb75c95`
 
-CI:
+Production Trend Master still uses the currently published Apps Script behavior. The panelized resilience backend/frontend candidate requires separately approved Apps Script deployment before production activation.
 
-- Trend Master V1931 Resilience CI — Run `34006722152` — **SUCCESS**
-- TrendOS Integrity V1 — Run `34006722115` — **SUCCESS**
+Exact Trend Master stop point:
 
-## Confirmed Trend Master production incident
-
-The currently published frontend calls `getTrendMasterCenterV1931` as one composite request. The existing backend combines active line reads, employee KPI, stock alerts, automation queue, archive, debt control, day-close preview and duplicate audit. The shared frontend timeout can reach 90 seconds and failure handling can leave individual panel placeholders in loading/calculating state.
-
-Production `main` still uses the currently published Apps Script Web App. The working-branch candidate does not itself alter that published deployment.
-
-## Trend Master candidate architecture
-
-Hybrid, compatibility-preserving:
-
-- legacy `getTrendMasterCenterV1931` remains available,
-- new read-only action `getTrendMasterPanelV1931` isolates panels,
-- independent panels: summary, archive, messages, stock, employee, debt, dayclose,
-- one panel failure does not prevent successful panels from rendering,
-- max 2 attempts per panel,
-- panel timeouts 12–18 seconds,
-- in-memory last-good cache + visible stale timestamp indicator,
-- concurrent-call dedup + one center batch guard,
-- explicit panel retry,
-- auth username/token preserved,
-- no demo data,
-- no customer PII logging.
-
-## Trend Master production / deployment state
-
-- Sheets / Apps Script authority: **YES**
-- Apps Script New Version/deployment for panel endpoint: **NO**
-- published Apps Script Web App changed by this checkpoint: **NO**
-- production frontend activation of Trend Master candidate: **NO**
-
-Exact stop point:
-
-`TM-V1931 RESILIENCE CANDIDATE — CODE + CI PASS — APPS SCRIPT PRODUCTION DEPLOYMENT REQUIRES EXPLICIT USER APPROVAL`
+`TM-V1931 RESILIENCE CANDIDATE — APPS SCRIPT PRODUCTION DEPLOYMENT REQUIRES EXPLICIT USER APPROVAL`
 
 ---
 
 ## D1 / Cloudflare current checkpoint
 
-`PERF-CF-02CS — Production Worker D1 Read Route`
+`PERF-CF-02CT — Production Frontend D1 Orders Read Cutover`
 
-Status: **VERIFIED PASS — EXACT QUALIFIED VERSION DEPLOYED — PRODUCTION WORKER ROUTE LIVE — FRONTEND D1 ORDERS READ OFF — APPS SCRIPT / SHEETS STILL AUTHORITATIVE**
+Status: **TECHNICAL VERIFIED PASS — FRONTEND D1 READ ON FOR QUALIFIED ORDER READS — APPS SCRIPT FALLBACK + SHEETS AUTHORITY RETAINED**
 
 Record:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CS_PRODUCTION_WORKER_ROUTE_PASS_FRONTEND_OFF.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_PRODUCTION_FRONTEND_CUTOVER_PASS.md`
 
-## Current production Worker
+## Current production topology
 
-- Worker: `trendos-d1-api`
-- D1: `trendos-main`
-- current deployed Worker version: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
-- traffic to that Worker version: **100%**
-- previous rollback reference: `0ec782a9-5943-4c9d-8820-51b7d0393210`
+- Production frontend: GitHub Pages from `main`
+- Production main commit: `943da84e3b3d1591d2ce207ab3411bfe437989b1`
+- Production Worker: `trendos-d1-api`
+- D1 database: `trendos-main`
+- Worker version: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
+- Worker version traffic: **100%**
+- Sheets / Apps Script authority: **YES**
 
-The promoted version is the exact version previously qualified on the zero-traffic Preview. It was not rebuilt during production promotion.
+### Read routing now live
 
-## 02CS qualification / deployment evidence
+For eligible frontend `getRowsPageV1931` calls:
 
-Preview V5:
+`Frontend → trendos-edge-orders-read-v1.js → /v1/edge/orders/02cr/page → D1`
 
-- Run `34010061764`
-- Job `101424192540`
-- Result: **SUCCESS**
-- production traffic during Preview: `0%`
+If the Edge read fails for any reason:
+
+`Frontend → original Apps Script API`
+
+Exceptions that deliberately stay on Apps Script:
+
+- `__DEBT__`
+- all writes
+- unsupported/non-qualified actions
+
+This is a **read-routing cutover only**. It is not an authority cutover.
+
+## Why 02CT did not simply enable the old flag
+
+Before production activation, the old wrapper was found to target:
+
+`/v1/edge/orders/page`
+
+That path was not the fully qualified operational read route and had previously been associated with incomplete order-card data through limited screen-view mirrors.
+
+02CT first changed the wrapper to the fully qualified route:
+
+`/v1/edge/orders/02cr/page`
+
+Only after regression tests and live parity passed was the frontend flag enabled.
+
+## 02CT qualification evidence
+
+Candidate qualification:
+
+- commit `d072a86e3ac57a72096b46096efc8c4a52af9da8`
+- Run `34010739030`
+- Job `101425991751`
+- **SUCCESS**
 
 Same-head Integrity:
 
-- Run `34010061747`
-- Job `101424192577`
-- Result: **SUCCESS**
+- Run `34010738989`
+- Job `101425991698`
+- **SUCCESS**
 
-Production exact-version deployment and canary:
+Live pre-cutover parity:
 
-- Run `34010288672`
-- Job `101424793692`
-- Result: **SUCCESS**
+- print active: `21`
+- laser active: `18`
+- exact `Order ID + Line ID + status` set parity vs Apps Script: PASS
+- 38-field contract: PASS
+- production authority boundary: PASS
 
-Production session succeeded on attempt `1`.
+## Production cutover evidence
 
-## Production read parity at 02CS close
+Production commit:
 
-### Print
+`943da84e3b3d1591d2ce207ab3411bfe437989b1`
 
-- active rows: `21`
-- `Order ID + Line ID + status` identity set parity vs Apps Script: PASS
-- 38-field card contract: PASS
-- operational ordering: PASS
+Changed only:
 
-User-authoritative print ordering:
+- `config.js`
+- `trendos-edge-orders-read-v1.js`
+- `index.html`
+- `reset-cache.html`
 
-`طباعة على الطاير → عاجل/VIP → عادي → مؤجل`
+Production cutover workflow:
 
-### Laser
+- Run `34010864525`
+- Job `101426332138`
+- **SUCCESS**
 
-- active rows: `18`
-- `Order ID + Line ID + status` identity set parity vs Apps Script: PASS
-- 38-field card contract: PASS
-- operational ordering: PASS
+GitHub Pages:
 
-Laser ordering:
+- Run `34010872232`
+- build SUCCESS
+- deploy SUCCESS
 
-`عاجل/VIP → عادي → مؤجل`
+Published asset propagation passed on attempt `5`.
 
-Fly Print does not influence laser ordering.
+Published frontend wrapper live canary:
 
-### Debt
+- normal print read hit D1 version `D1_ORDERS_READ_02CR_OPERATIONAL_CANARY`
+- pageSize `5` returned five rows
+- no Apps Script fallback for the normal read
+- `__DEBT__` used Apps Script fallback
+- write action used Apps Script fallback
 
-`__DEBT__` remains outside D1 qualification and returns:
+Marker:
 
-`409 apps-script-required`
+`PERF_CF_02CT_LIVE_FRONTEND_WRAPPER_PASS rows=5`
 
-with Apps Script fallback.
+Final marker:
 
-## Resolved 02CS data-contract defects
+`PERF_CF_02CT_PRODUCTION_FRONTEND_CUTOVER_PASS=943da84e3b3d1591d2ce207ab3411bfe437989b1`
 
-### Line ID semantic conversion
+## Durable post-cutover regression state
 
-Google Sheets effective numeric Line IDs could be serialized into D1 as ISO dates when their cells had a date display format. The Worker now recovers the underlying Sheets serial integer for Line ID only, matching authoritative Apps Script semantics.
+Working branch was synchronized to the production D1 read state without removing the separate Trend Master candidate.
 
-### Operational ordering
+- config sync commit: `94699da3a7279eeea22df40c3cd383ea33c4f870`
+- durable regression CI commit: `1da926e9c9e9be843da1e125790f2c0535d77f71`
 
-The 02CR operational canary now applies the user-confirmed screen-specific ordering contract. The Fly Print tier exists only for the print screen and is not promoted to a global priority.
+Final post-cutover regression:
 
-Regression coverage:
+- Run `34011062287`
+- Job `101426859723`
+- **SUCCESS**
 
-`tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs`
+Final same-head Integrity:
 
-## Final production boundary
+- Run `34011062262`
+- Job `101426859662`
+- **SUCCESS**
 
-Verified after Worker promotion:
+The durable regression now verifies the working branch, production `main`, published GitHub Pages assets, frontend fallback behavior, operational ordering, authority boundary, and authenticated D1-vs-Apps-Script identity/field parity.
 
-- Sheets / Apps Script authority: **YES**
-- production user-facing order-card read source: **Apps Script / Sheets**
-- frontend D1 Orders read: **OFF**
-- Worker D1 read route physically deployed: **YES**
-- production cutover: **NO**
-- Worker `cutover=false`
-- `sheetsAuthoritative=true`
+## Current production safety boundary
+
+- eligible frontend Orders reads from D1: **ON**
+- qualified route: `/v1/edge/orders/02cr/page`
+- Apps Script fallback: **ON**
+- Sheets / Apps Script authoritative: **YES**
+- Worker internal `cutover=false`
+- writes to D1 from this cutover: **NO**
+- `__DEBT__` D1 read: **NO**
 - 02CL / reconcile: **OFF**
 - generic drain: **OFF**
 - `pendingOutbox=0`
-- unauthenticated Orders route: `401`
 - `EDGE_SESSION_SECRET` rotation: **NO**
-- D1 migration: **NO**
-- D1 business-data write during deployment: **NO**
-- Apps Script deployment in this D1 checkpoint: **NO**
+- Worker redeploy in 02CT: **NO**
+- D1 migration in 02CT: **NO**
+- Apps Script deployment in 02CT: **NO**
+- authority transfer: **NO**
 
 ## Exact stop point — D1
 
-`PERF-CF-02CS CLOSED — PRODUCTION WORKER D1 READ ROUTE VERIFIED PASS — FRONTEND D1 READ OFF`
+`PERF-CF-02CT CLOSED — PRODUCTION FRONTEND D1 ORDERS READ ON THROUGH QUALIFIED /02CR ROUTE — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITY RETAINED — TECHNICAL PASS`
 
-The next D1 step is a separate frontend cutover checkpoint. It must not be inferred from the Worker deployment and requires separate authorization before employees are routed from Apps Script to D1.
+A browser refresh/user smoke check is useful as operational confirmation, but 02CT has no remaining technical deployment action.
