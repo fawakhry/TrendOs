@@ -1,0 +1,72 @@
+name: TrendOS 02CS Priority Parity Probe TEMP
+
+on:
+  push:
+    branches: [agent/go-live-2026-09-01-integrity]
+    paths:
+      - '.github/workflows/trendos-02cs-priority-parity-probe-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+      PREVIEW_URL: https://cs-lineid-trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static read-only gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*false' config.js
+          python - <<'PY'
+          from pathlib import Path
+          lines=Path('.github/workflows/trendos-02cs-priority-parity-probe-temp.yml').read_text(encoding='utf-8').splitlines()
+          bad=[x.strip() for x in lines if x.strip().startswith(('npx --yes wrangler@','wrangler ','git push','git commit','curl -X','curl --request'))]
+          if bad: raise SystemExit('Mutation/tooling command forbidden: '+repr(bad))
+          print('PERF_CF_02CS_PRIORITY_PARITY_STATIC_READONLY_PASS')
+          PY
+      - name: Compare priority semantics using identity-only diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const edgeBase=process.env.PREVIEW_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),employeeToken=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const text=v=>String(v==null?'':v).trim();
+          const key=r=>[r&&r.orderId||'',r&&r.lineId||'',r&&r.status||''].map(text).join('|');
+          const rank=v=>{v=text(v)||'عادي';if(v==='عاجل'||v==='VIP')return 0;if(v==='عادي')return 1;if(v==='مؤجل')return 2;return 9;};
+          const sortedKeys=rows=>[...rows].sort((a,b)=>rank(a.priority)-rank(b.priority)||text(a.orderId).localeCompare(text(b.orderId))).map(key);
+          async function readJson(label,url,opt={},attempts=5){let last;for(let i=1;i<=attempts;i++){try{const r=await fetch(url,{cache:'no-store',...opt});const raw=await r.text();let body;try{body=JSON.parse(raw||'{}')}catch{throw new Error(label+' invalid JSON')};return{status:r.status,body};}catch(e){last=e;if(i<attempts)await sleep(2500*i)}}throw last;}
+          async function session(){const x=await readJson('session',edgeBase+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})});assert.equal(x.status,200);assert.equal(x.body.success,true);assert.ok(x.body.edgeToken);return x.body.edgeToken;}
+          (async()=>{
+            const bearer=await session(),summary=[];
+            for(const screen of ['print','laser']){
+              const p=new URLSearchParams({screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
+              const edge=await readJson('edge-'+screen,edgeBase+'/v1/edge/orders/02cr/page?'+p,{headers:{accept:'application/json',authorization:'Bearer '+bearer}});
+              const app=await readJson('apps-'+screen,apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token:employeeToken,screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});
+              assert.equal(edge.status,200);assert.equal(edge.body.success,true);assert.equal(app.status,200);assert.equal(app.body.success,true);
+              const e=edge.body.rows||[],a=app.body.rows||[];
+              const eKeys=e.map(key),aKeys=a.map(key);
+              assert.deepEqual([...eKeys].sort(),[...aKeys].sort(),screen+' identity set differs');
+              assert.deepEqual(sortedKeys(a),aKeys,screen+' Apps Script response does not match Code.gs priority+Order ID contract');
+              assert.deepEqual(sortedKeys(e),eKeys,screen+' D1 response does not match Worker priority+Order ID contract');
+              const em=new Map(e.map(r=>[key(r),r]));
+              const mismatchKeys=a.filter(r=>text((em.get(key(r))||{}).priority)!==text(r.priority)).map(key);
+              summary.push({screen,totalRows:a.length,priorityMismatchKeys:mismatchKeys});
+            }
+            console.log('PERF_CF_02CS_PRIORITY_PARITY_DIAGNOSTIC='+JSON.stringify(summary));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+      - name: Conclusion
+        run: echo 'PERF_CF_02CS_PRIORITY_PARITY_PROBE_PASS_NO_MUTATION'
