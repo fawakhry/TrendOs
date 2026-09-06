@@ -62,6 +62,11 @@ window.MATBAGY_V1931_SERVER_PAGING = true;
 window.MATBAGY_V1931_DEBT_RESTRICTION_LIST = true;
 window.MATBAGY_V1931_AUTOMATION_CENTER = true;
 
+// Trend Master V1931 resilience candidate. Frontend module is inert until app.js exposes
+// trendosSecureApiV1922; backend panel route still requires a separately approved Apps Script deploy.
+window.MATBAGY_TREND_MASTER_RESILIENCE_V1 = true;
+window.MATBAGY_TREND_MASTER_PANEL_TIMEOUTS = {summary:12000,archive:15000,messages:12000,stock:12000,employee:18000,debt:15000,dayclose:18000};
+
 window.MATBAGY_MANAGER_CENTER_V1932 = true;
 window.MATBAGY_CUSTOMER_MANAGER_V1 = true;
 window.MATBAGY_DISABLE_DEMO_OPERATIONS = true;
@@ -76,6 +81,7 @@ function trendLoadModuleV1932(id, src){
 // fail-safe even if this small coordinator has not finished loading yet.
 trendLoadModuleV1932('trendPollCoordinatorV1Loader','trendos-poll-coordinator-v1.js?v=20260904a');
 trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260904a');
+trendLoadModuleV1932('trendMasterResilienceV1931Loader','trend-master-resilience-v1931.js?v=20260906a');
 
 window.MATBAGY_ATTENDANCE_V1 = true;
 trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824j');
@@ -104,7 +110,7 @@ trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824b');
 window.MATBAGY_PRESS_CONTROL_V1 = true;
 trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260904a');
 
-trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260824h');
+trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260906a');
 trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260824g');
 
 window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;

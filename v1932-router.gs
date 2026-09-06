@@ -21,6 +21,11 @@ function trendosV1932TryRoute_(e, payload) {
     return output_({ success:false, message:'وضع الديمو متوقف في نسخة الإنتاج.' }, callback);
   }
 
+  if (action === 'getTrendMasterPanelV1931') {
+    if (typeof trendMasterPanelReadV1931_ === 'function') return output_(trendMasterPanelReadV1931_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    return output_({ success:false, message:'Trend Master panel backend غير منشور.' }, callback);
+  }
+
   if (action === 'attendanceV1') {
     if (typeof attendanceV1_ === 'function') return output_(attendanceV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
     return null;

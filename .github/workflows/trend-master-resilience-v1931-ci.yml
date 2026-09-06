@@ -1,0 +1,46 @@
+name: Trend Master V1931 Resilience CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'trend-master-resilience-v1931.js'
+      - 'trend-master-panels-v1931.gs'
+      - 'manager-center-v1932.js'
+      - 'v1932-router.gs'
+      - 'config.js'
+      - 'tests/trend_master_resilience_v1931.test.mjs'
+      - '.github/workflows/trend-master-resilience-v1931-ci.yml'
+  pull_request:
+    paths:
+      - 'trend-master-resilience-v1931.js'
+      - 'trend-master-panels-v1931.gs'
+      - 'manager-center-v1932.js'
+      - 'v1932-router.gs'
+      - 'config.js'
+      - 'tests/trend_master_resilience_v1931.test.mjs'
+      - '.github/workflows/trend-master-resilience-v1931-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  resilience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check frontend modules
+        run: |
+          node --check trend-master-resilience-v1931.js
+          node --check manager-center-v1932.js
+          cp trend-master-panels-v1931.gs /tmp/trend-master-panels-v1931.js
+          node --check /tmp/trend-master-panels-v1931.js
+      - name: Run Trend Master resilience regression tests
+        run: node tests/trend_master_resilience_v1931.test.mjs .
