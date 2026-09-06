@@ -14,7 +14,7 @@ permissions:
 jobs:
   baseline:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -28,28 +28,34 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
 
-      - name: Read deployment and version metadata
+      - name: Read deployment and version metadata with Wrangler
+        id: metadata
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME"
-          auth=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Accept: application/json')
-          curl -fsS "${auth[@]}" "$api/deployments" -o /tmp/deployments.json
-          curl -fsS "${auth[@]}" "$api/versions" -o /tmp/versions.json
+          npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/deployments.json
+          npx --yes wrangler@4.33.2 versions list --name "$WORKER_NAME" --json > /tmp/versions.json
           node <<'NODE'
           const fs=require('fs');
+          function arr(x){
+            if(Array.isArray(x)) return x;
+            if(x&&Array.isArray(x.items)) return x.items;
+            if(x&&Array.isArray(x.result)) return x.result;
+            return [];
+          }
           const d=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
           const v=JSON.parse(fs.readFileSync('/tmp/versions.json','utf8'));
-          if(!d.success||!v.success) throw new Error('Cloudflare metadata API failed');
-          const deployments=Array.isArray(d.result)?d.result:[];
+          const deployments=arr(d);
           const latest=deployments[0]||{};
           const versions=Array.isArray(latest.versions)?latest.versions:[];
-          const active=versions.map(x=>({version_id:x.version_id,percentage:x.percentage}));
+          const active=versions.map(x=>({version_id:x.version_id||x.id,percentage:Number(x.percentage)}));
           console.log('ACTIVE_DEPLOYMENT='+JSON.stringify({id:latest.id,created_on:latest.created_on,source:latest.source,versions:active}));
-          const recent=(Array.isArray(v.result)?v.result:[]).slice(0,8).map(x=>({id:x.id,created_on:x.created_on,number:x.number}));
+          const recent=arr(v).slice(0,8).map(x=>({id:x.id,created_on:x.created_on,number:x.number}));
           console.log('RECENT_VERSIONS='+JSON.stringify(recent));
           const expected=String(process.env.EXPECTED_VERSION||'');
           if(!active.some(x=>x.version_id===expected && Number(x.percentage)===100)) throw new Error('Expected production version is not at 100%');
+          fs.writeFileSync('/tmp/version-pass','PASS');
           console.log('EXPECTED_VERSION_100_PERCENT=PASS');
           NODE
 
@@ -76,7 +82,9 @@ jobs:
           for(const b of bs){ if(b.type==='plain_text'&&safeKeys.has(b.name)) safe[b.name]=String(b.text||''); }
           console.log('SAFE_FLAGS='+JSON.stringify(safe));
           if(!bindings.some(b=>b.name==='EDGE_SESSION_SECRET'&&b.type==='secret_text')) throw new Error('EDGE_SESSION_SECRET binding missing');
-          console.log('EDGE_SESSION_SECRET_PRESENT_UNCHANGED_READ_ONLY=PASS');
+          if(safe.TRENDOS_CLOUD_WRITE_V1_ENABLED!=='false') throw new Error('Cloud Write flag must remain false');
+          if(safe.EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED!=='true') throw new Error('Orders idle heartbeat flag must remain true');
+          console.log('EDGE_SESSION_SECRET_PRESENT_READ_ONLY=PASS');
           NODE
 
       - name: Probe live authority boundary read-only
@@ -97,3 +105,11 @@ jobs:
           if(r.enabled!==false||r.genericDrainEnabled!==false) throw new Error('Reconcile/generic drain boundary changed');
           console.log('PRODUCTION_AUTHORITY_BOUNDARY_READ_ONLY=PASS');
           NODE
+
+      - name: Require exact expected production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f /tmp/version-pass
+          test "${{ steps.metadata.outcome }}" = 'success'
+          echo 'PRODUCTION_WORKER_BASELINE_EXACT=PASS'
