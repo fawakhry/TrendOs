@@ -6,44 +6,55 @@
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-الحالة: **IN PROGRESS — PRODUCTION TECHNICAL PASS — USER-VISIBLE STATUS SAVE VALIDATION PENDING**
+الحالة: **IN PROGRESS — PRODUCTION TECHNICAL + UX PATCH PASS — USER-VISIBLE VALIDATION PENDING**
 
 السجل:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CV_ORDER_STATUS_WRITE_CONSISTENCY.md`
 
-المشكلة المبلغ عنها:
+آخر مشاكل المستخدم التي يغطيها 02CV:
 
-`تغيير حالة الأوردر ثم حفظ يبدو كأنه لا يُحفظ / يرجع للحالة القديمة.`
+- الحالة تحفظ لكن الصف المخفي لا يختفي إلا بعد Refresh.
+- واجهة الحفظ تدخل في دورة تحميل إضافية وتبدو بطيئة.
+- علامة `⚡ طباعة على الطاير` لم تعد ظاهرة بجانب الحالة.
 
-Root cause confirmed:
+Production الآن:
 
-- D1 `rowNumber` هو mirror coordinate وليس stable write identity، بينما Apps Script `updateLine_` كان يثق في rowNumber قبل `lineId`.
-- بعد write ناجح إلى Sheets، `loadRows(true)` كان يستطيع قراءة D1 mirror سابقًا للكتابة لكنه ما زال physically fresh، فيعيد رسم الحالة القديمة.
-
-Production fix الحالي:
-
-- main: `0088ed5625e8359f8551525ae41df3b25248b494`
+- main: `b4a87493ca9ce7507fc342e9b39f91449395fb46`
 - Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
 - Apps Script deployment: **NO**
 - Worker deployment: **NO**
-- `updateLine` write authority: Apps Script / Sheets only
-- stable `lineId` now causes stale D1 `rowNumber` to be omitted before write
-- after successful write, same browser temporarily reads Orders from authoritative Apps Script for 6 minutes, then resumes normal D1-first reads
-- legacy rows without `lineId` retain rowNumber fallback
-- `__DEBT__` unchanged on Apps Script
-- 02CU dual-signal behavior retained outside the short post-write barrier
+- Orders write authority: Apps Script / Sheets only
+- `__DEBT__`: Apps Script
+- 02CL/reconcile: OFF
+- generic drain: OFF
+- no secret rotation
+
+02CV UX follow-up fix:
+
+- local render immediately after confirmed save, so hidden statuses disappear without manual Refresh;
+- removed immediate post-save `loadRows(true)` page read;
+- success loading state now ends immediately;
+- status cell uses `statusBadges(r)` and explicitly shows `⚡ طباعة على الطاير` when the row is Fly Print;
+- app cache-bust: `trendos-02cv-statusux-20260906b`.
+
+Fly Print qualification proved D1/Worker data path healthy:
+
+- 377 D1 data rows;
+- 38 Fly Print rows;
+- Worker print mapper preserved all 38/38.
+- read-only Run `34036288004` — **SUCCESS**.
 
 Evidence:
 
-- durable 02CV test added to Integrity
-- Integrity Run `34035164288` — **SUCCESS**, including 02CV write consistency test PASS
-- exact production diff from prior main: only `trendos-edge-orders-read-v1.js` + one cache-bust line in `config.js`
-- GitHub Pages Run `34035270632` — **SUCCESS** on head `0088ed5625e8359f8551525ae41df3b25248b494`
+- 02CV write consistency Integrity Run `34035164288` — **SUCCESS**
+- UX candidate Run `34036609469` — **SUCCESS**
+- UX Production promotion Run `34036640992` — **SUCCESS**
+- GitHub Pages Run `34036646377` — **SUCCESS**
 
 Remaining close condition:
 
-**User-visible test: change a real order status → Save → verify it remains saved.**
+**User-visible test: refresh once → save a hidden status and verify the row disappears immediately → verify Fly Print ⚡ is visible.**
 
 ---
 
@@ -53,18 +64,7 @@ Remaining close condition:
 
 الحالة: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**
 
-User confirmation:
-
-`ثبت`
-
-Records:
-
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_STABILITY_FRESHNESS_RESUME_GUARDS.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_NO_REFRESH.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_USER_VISIBLE_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_02CR_DUAL_SIGNAL_IDLE_FRESHNESS_CANDIDATE.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_DUAL_SIGNAL_PRODUCTION_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_DUAL_SIGNAL_USER_VISIBLE_PASS.md`
+User confirmation: `ثبت`
 
 02CU close baseline was main `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`, Worker `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%, D1-first qualified Orders reads, Apps Script fallback retained, Sheets authority retained, 02CL/generic drain OFF, no secret rotation.
 
