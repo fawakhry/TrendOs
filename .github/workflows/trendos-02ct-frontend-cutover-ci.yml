@@ -30,15 +30,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Transitional working-branch route contract
+      - name: Working branch matches production D1 read cutover contract
         run: |
           set -euo pipefail
-          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*(true|false)' config.js
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' config.js
+          grep -Fq "trendos-edge-orders-read-v1.js?v=20260906c" config.js
           grep -Fq "var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';" trendos-edge-orders-read-v1.js
           if grep -Fq "var requestKey = '/v1/edge/orders/page?'" trendos-edge-orders-read-v1.js; then
             echo 'Legacy unqualified route is forbidden'; exit 1
           fi
-          echo PERF_CF_02CT_TRANSITIONAL_WORKING_PASS
+          echo PERF_CF_02CT_WORKING_POSTCUTOVER_PASS
 
       - name: Frontend wrapper fallback regression
         run: node tests/frontend_edge_orders_cutover_02ct.test.mjs
@@ -46,7 +47,7 @@ jobs:
       - name: D1 operational ordering regression
         run: node tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs
 
-      - name: Main and published Pages are cut over to qualified route
+      - name: Main and published Pages remain cut over to qualified route
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
