@@ -22,6 +22,8 @@ jobs:
       TRENDOS_PROD_QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
       TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Static read-only guard
         shell: bash
         run: |
