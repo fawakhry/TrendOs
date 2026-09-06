@@ -1,0 +1,33 @@
+name: TrendOS 02CR Field Completeness CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'tests/cloudflare_edge_orders_read_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs'
+      - '.github/workflows/trendos-02cr-field-completeness-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  field-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Existing Edge Orders contract
+        run: node tests/cloudflare_edge_orders_read_v1.test.mjs
+      - name: 02CR duplicate-header last-wins regression
+        run: node tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs
+      - name: Safety conclusion
+        run: |
+          echo 'PASS: 02CR candidate tests only; no production deploy or frontend re-enable.'
+          echo 'PASS: Apps Script/Sheets remain production read/write authority.'
