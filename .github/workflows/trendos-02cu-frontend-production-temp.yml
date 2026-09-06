@@ -86,7 +86,7 @@ jobs:
           node --check /tmp/02cu-frontend/trendos-edge-orders-read-v1.js
           git show "$CANDIDATE_REF:tests/frontend_edge_orders_cutover_02ct.test.mjs" > /tmp/02cu-frontend/tests/frontend_edge_orders_cutover_02ct.test.mjs
           (cd /tmp/02cu-frontend && node tests/frontend_edge_orders_cutover_02ct.test.mjs)
-          git -C /tmp/02cu-frontend checkout -- tests/frontend_edge_orders_cutover_02ct.test.mjs
+          rm -f /tmp/02cu-frontend/tests/frontend_edge_orders_cutover_02ct.test.mjs
           (cd /tmp/02cu-frontend && node tests/trendos_resume_no_autorefresh_v1.test.mjs)
           (cd /tmp/02cu-frontend && node tests/trendos_return_traffic_quiet_v1.test.mjs)
           python3 - <<'PY'
