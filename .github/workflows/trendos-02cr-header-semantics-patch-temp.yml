@@ -1,0 +1,48 @@
+name: TrendOS 02CR Header Semantics Patch TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cr-header-semantics-patch-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+      - name: Apply Apps Script-compatible duplicate-header semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('cloudflare-d1/src/edge-orders-read-v1.mjs')
+          s = p.read_text(encoding='utf-8')
+          old = "    const idx = normalized.findIndex((h) => h === name);"
+          new = "    const idx = normalized.lastIndexOf(name);"
+          if old not in s:
+              raise SystemExit('expected headerIndex implementation not found')
+          if s.count(old) != 1:
+              raise SystemExit('headerIndex replacement is not unique')
+          s = s.replace(old, new)
+          p.write_text(s, encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- cloudflare-d1/src/edge-orders-read-v1.mjs
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'fawakhry'
+          git config user.email '87904105+fawakhry@users.noreply.github.com'
+          git add cloudflare-d1/src/edge-orders-read-v1.mjs
+          git commit -m 'Fix D1 duplicate header mapping to match Apps Script'
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
