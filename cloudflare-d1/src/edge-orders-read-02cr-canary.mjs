@@ -76,6 +76,12 @@ function isHidden(status) {
   const s = text(status);
   return s === 'جاهز للاستلام' || s === 'تم التسليم' || s === 'مكرر' || s === 'تم التنفيذ' || s === 'جاهز للطباعة' || s === 'ملغى';
 }
+function isFlyPrint(value) {
+  const v = text(value).toLowerCase();
+  return v === 'نعم' || v === 'true' || v === '1' || v === 'on' ||
+    v === 'طباعة على الطاير' || v === 'طباعة ع الطاير' ||
+    v === 'على الطاير' || v === 'ع الطاير';
+}
 function priorityRank(priority) {
   const p = text(priority) || 'عادي';
   if (p === 'عاجل' || p === 'VIP') return 0;
@@ -83,12 +89,25 @@ function priorityRank(priority) {
   if (p === 'مؤجل') return 2;
   return 9;
 }
-function sortLikeAppsRows(rows) {
-  return (rows || []).slice().sort((a, b) => {
-    const rank = priorityRank(a && a.priority) - priorityRank(b && b.priority);
-    if (rank) return rank;
-    return String(a && a.orderId || '').localeCompare(String(b && b.orderId || ''));
-  });
+export function sortOperationalRows(rows, screen) {
+  const lane = text(screen);
+  return (rows || [])
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => {
+      // Business rule: Fly Print is the highest operational tier ONLY
+      // on the print screen. Laser/service must ignore the fly flag.
+      if (lane === 'print') {
+        const aFly = isFlyPrint(a.row && (a.row.flyPrint || a.row.quickPrint));
+        const bFly = isFlyPrint(b.row && (b.row.flyPrint || b.row.quickPrint));
+        if (aFly !== bFly) return aFly ? -1 : 1;
+      }
+      const rank = priorityRank(a.row && a.row.priority) - priorityRank(b.row && b.row.priority);
+      if (rank) return rank;
+      // Preserve the deterministic order already produced by the rich
+      // mapper inside the same operational tier.
+      return a.index - b.index;
+    })
+    .map((item) => item.row);
 }
 function rowMatchesAppsFilters(row, params, now = new Date()) {
   const q = searchKey(params.query || params.q || '');
@@ -223,7 +242,7 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
     }
 
     const mapped = mapMirrorRows(lines.headers, lines.rows, screen);
-    const enriched = sortLikeAppsRows(enrichFromMirrors02CR(mapped, customers, restrictions, new Date()));
+    const enriched = sortOperationalRows(enrichFromMirrors02CR(mapped, customers, restrictions, new Date()), screen);
     const counts = statusCounts(enriched);
     const filtered = enriched.filter((row) => rowMatchesAppsFilters(row, params));
     const dashboard = buildDashboardFromRows(enriched, screen);
