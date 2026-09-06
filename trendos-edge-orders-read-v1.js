@@ -65,6 +65,7 @@
     var mirrors = body && Array.isArray(body.mirrors) ? body.mirrors : [];
     var maxAge = maxMirrorAgeMs();
     var now = Date.now();
+    var logicalAccepted = false;
     REQUIRED_MIRRORS.forEach(function (name) {
       var mirror = mirrors.find(function (item) { return text(item && item.sheetName) === name; });
       if (!mirror) throw mirrorFreshnessError('Required D1 mirror metadata missing: ' + name, 'EDGE_MIRROR_MISSING');
@@ -76,12 +77,13 @@
       if (age < -2 * 60 * 1000) throw mirrorFreshnessError('Required D1 mirror timestamp is in the future: ' + name, 'EDGE_MIRROR_CLOCK');
       if (age > maxAge) {
         if (name === 'بنود الأوردرات' && logicalLinesFreshnessValid(body, mirror, now)) {
-          metrics.logicalFreshnessAccepted += 1;
+          logicalAccepted = true;
           return;
         }
         throw mirrorFreshnessError('Required D1 mirror is stale: ' + name, 'EDGE_MIRROR_STALE');
       }
     });
+    if (logicalAccepted) metrics.logicalFreshnessAccepted += 1;
     return body;
   }
 
