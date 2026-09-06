@@ -49,8 +49,8 @@ jobs:
         run: |
           set -euo pipefail
           TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_flyprint_lane_stability_02cv.test.mjs
-          TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_order_status_write_consistency_02cv.test.mjs
-          TRENDOS_TEST_ROOT=/tmp/02cv-fly-candidate node /tmp/frontend_order_status_ux_02cv.test.mjs
+          (cd /tmp/02cv-fly-candidate && node /tmp/frontend_order_status_write_consistency_02cv.test.mjs)
+          (cd /tmp/02cv-fly-candidate && node /tmp/frontend_order_status_ux_02cv.test.mjs)
           node --check /tmp/02cv-fly-candidate/app.js
 
       - name: Assert bounded candidate diff
