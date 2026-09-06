@@ -177,6 +177,7 @@
     serverPaging: { enabled: true, page: 1, pageSize: 5, totalRows: 0, totalPages: 1 },
     serverStatusCounts: {},
     serverStatusOrderCounts: {},
+    activeSummaryCounts: null,
     rowsFilterTimer: null,
     trendMaster: null,
     trendMasterLoading: false,
@@ -4536,6 +4537,7 @@ Trend Mall`;
       state.currentPage = Number(state.serverPaging.page || 1) || 1;
       state.serverStatusCounts = res.statusCounts || {};
       state.serverStatusOrderCounts = res.statusOrderCounts || {};
+      if (res.activeSummaryCounts && typeof res.activeSummaryCounts === "object") state.activeSummaryCounts = res.activeSummaryCounts;
       if (!state.bulkStatusSaving) state.bulkStatusRequestId = "";
       if (!state.archiveDeliveredSaving) state.archiveDeliveredRequestId = "";
       if (res.dashboard) {
@@ -4714,7 +4716,7 @@ Trend Mall`;
     const q = ($("tableSearch").value || "").trim().toLowerCase();
     const qNormalized = normalizeArabic(q);
     const status = $("statusFilter").value;
-    const priority = $("priorityFilter").value || "__ACTIVE__";
+    const priority = $("priorityFilter").value;
     const heatPressFilter = $("heatPressFilter") ? ($("heatPressFilter").value || "") : "";
 
     const filtered = state.rows.filter(function (r) {
@@ -4793,27 +4795,27 @@ Trend Mall`;
   }
 
   function renderStats(rows) {
-    const total = rows.length;
-    const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل" || text(r.priority) === "VIP"; }).length;
-    const normal = rows.filter(function (r) { return !text(r.priority) || text(r.priority) === "عادي"; }).length;
-    const problem = rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;
-    const overdue = rows.filter(isOverdueRow).length;
-    const debts = rows.filter(hasDebt).length;
-    const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
-    const cancelled = rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
-    const flyPrint = rows.filter(function (r) {
-      return isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
-    }).length;
-    $("statsBar").innerHTML =
-      '<span>المعروض: <b>' + total + '</b></span>' +
-      '<span>عاجل: <b>' + urgent + '</b></span>' +
-      '<span>عادي: <b>' + normal + '</b></span>' +
-      '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
-      '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
-      '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
-      '<span class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
-      '<span class="stat-cancelled">ملغى: <b>' + cancelled + '</b></span>' +
-      '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
+    const summary = state.serverPaging.enabled && state.activeSummaryCounts && typeof state.activeSummaryCounts === "object"
+      ? state.activeSummaryCounts : null;
+    const displayed = summary ? Number(summary.total || 0) : rows.length;
+    const urgent = summary ? Number(summary.urgent || 0) : rows.filter(r => r.priority === "عاجل" || r.priority === "VIP").length;
+    const normal = summary ? Number(summary.normal || 0) : rows.filter(r => !r.priority || r.priority === "عادي").length;
+    const problem = summary ? Number(summary.problems || 0) : rows.filter(r => WORK_PROBLEM_STATUS.includes(normalizeStatus(r.status))).length;
+    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(r => text(r.overdue) === "نعم").length;
+    const debts = summary ? Number(summary.debts || 0) : rows.filter(r => Number(r.debtAmount || 0) > 0).length;
+    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(r => isHeatPress(r.heatPress)).length;
+    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(r => normalizeStatus(r.status) === "ملغى").length;
+    const flyPrint = summary ? Number(summary.flyPrint || 0) : rows.filter(r => isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])).length;
+    statsBar.innerHTML =
+      "<span class='stat-chip'>المعروض: <b>" + displayed + "</b></span>" +
+      "<span class='stat-chip blue'>عاجل: <b>" + urgent + "</b></span>" +
+      "<span class='stat-chip'>عادي: <b>" + normal + "</b></span>" +
+      "<span class='stat-chip red'>متأخرة: <b>" + overdue + "</b></span>" +
+      "<span class='stat-chip red'>مديونية: <b>" + debts + "</b></span>" +
+      "<span class='stat-chip red'>مكبس: <b>" + heatPress + "</b></span>" +
+      "<span class='stat-chip'>طباعة على الطاير: <b>" + flyPrint + "</b></span>" +
+      "<span class='stat-chip blue'>ملغي: <b>" + cancelled + "</b></span>" +
+      "<span class='stat-chip'>مشاكل/متوقف: <b>" + problem + "</b></span>";
   }
 
   function compactOrderCell(r) {
