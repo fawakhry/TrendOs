@@ -1,0 +1,83 @@
+name: TrendOS 02CR Preview Source Parity TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cr-preview-source-parity-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
+      EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static read-only guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/trendos-02cr-preview-source-parity-temp.yml').read_text(encoding='utf-8')
+          forbidden=['wrangler'+' deploy','secret'+' put','d1 execute --'+'file','/v1/import/'+'sheet','/v1/mirror/'+'delta','/v1/mirror/'+'heartbeat','reconcile/'+'order']
+          for token in forbidden:
+            if token in s: raise SystemExit('Forbidden mutation token: '+token)
+          print('PERF_CF_02CR_PREVIEW_SOURCE_PARITY_STATIC_PASS')
+          PY
+      - name: Read Preview 02CR safe identities and filter counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EDGE_SESSION_SECRET"
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const crypto=require('crypto');
+          const base=process.env.PREVIEW_URL;
+          const now=Math.floor(Date.now()/1000);
+          const claims={aud:'trendos-orders-edge',sub:'02cr-source-parity',role:'ops',department:'qualification',screens:['print','laser','press','service'],iat:now,exp:now+300,jti:'ci-'+crypto.randomUUID()};
+          const body=Buffer.from(JSON.stringify(claims)).toString('base64url');
+          const input='v1.'+body;
+          const token=input+'.'+crypto.createHmac('sha256',process.env.EDGE_SESSION_SECRET).update(input).digest('base64url');
+          const headers={authorization:'Bearer '+token,accept:'application/json'};
+          async function call(screen,params={}){
+            const q=new URLSearchParams({screen,page:'1',pageSize:'100',...params});
+            const r=await fetch(base+'/v1/edge/orders/02cr/page?'+q.toString(),{headers,cache:'no-store'});
+            const t=await r.text(); let b={}; try{b=JSON.parse(t||'{}')}catch{}
+            return {status:r.status,body:b};
+          }
+          function safeRows(rows){return (rows||[]).map(r=>({orderId:String(r.orderId||''),lineId:String(r.lineId||''),status:String(r.status||'')}));}
+          (async()=>{
+            const summary={};
+            for(const screen of ['print','laser']){
+              const active=await call(screen,{statusFilter:'__ACTIVE__'});
+              assert.equal(active.status,200,screen+' active HTTP');
+              assert.equal(active.body.success,true,screen+' active success');
+              assert.equal(String(active.body.version||''),'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY');
+              const exact={};
+              for(const st of ['طلب جديد','تحت التنفيذ','متوقف']){
+                const x=await call(screen,{statusFilter:st});
+                assert.equal(x.status,200,screen+' '+st+' HTTP'); assert.equal(x.body.success,true);
+                exact[st]=Number(x.body.pagination?.totalRows||0);
+              }
+              const ready=await call(screen,{statusFilter:'__READY_PICKUP__'});
+              const urgent=await call(screen,{priorityFilter:'عاجل',statusFilter:'__ACTIVE__'});
+              const normal=await call(screen,{priorityFilter:'عادي',statusFilter:'__ACTIVE__'});
+              assert.equal(ready.status,200); assert.equal(urgent.status,200); assert.equal(normal.status,200);
+              summary[screen]={activeTotal:Number(active.body.pagination?.totalRows||0),activeRows:safeRows(active.body.rows),exact,readyPickup:Number(ready.body.pagination?.totalRows||0),urgentActive:Number(urgent.body.pagination?.totalRows||0),normalActive:Number(normal.body.pagination?.totalRows||0),statusCounts:active.body.statusCounts,statusOrderCounts:active.body.statusOrderCounts,mirrors:(active.body.mirrors||[]).map(m=>({sheetName:m.sheetName,sourceLastRow:m.sourceLastRow,rowCount:m.rowCount,status:m.status,note:m.note}))};
+            }
+            const debt=await call('print',{statusFilter:'__DEBT__'});
+            assert.equal(debt.status,409); assert.equal(debt.body.code,'apps-script-required'); assert.equal(debt.body.fallback,'apps-script');
+            console.log('PERF_CF_02CR_PREVIEW_SAFE='+JSON.stringify(summary));
+            console.log('PERF_CF_02CR_DEBT_FALLBACK='+JSON.stringify({status:debt.status,code:debt.body.code,fallback:debt.body.fallback}));
+            console.log('PERF_CF_02CR_PREVIEW_SOURCE_PARITY_READ_PASS_NO_PII');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+      - name: Conclusion
+        run: echo 'PERF_CF_02CR_PREVIEW_SOURCE_PARITY_TEMP_PASS_NO_MUTATION'
