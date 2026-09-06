@@ -4,7 +4,7 @@
 
 ## PERF-CF-02CU — Stability / Freshness / Resume Guards
 
-الحالة الحالية: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — NAVIGATION/RETURN NO-REFRESH CLOSED WITH TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS LOW-USAGE HEARTBEAT LIVE/HEALTHY — QUALIFIED `/02cr` IDLE-AGING ROOT CAUSE CONFIRMED — DUAL-SIGNAL FRESHNESS CANDIDATE + ISOLATED PREVIEW LIVE PASS — PRODUCTION PROMOTION PENDING**
+الحالة الحالية: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — NAVIGATION/RETURN NO-REFRESH CLOSED WITH TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS LOW-USAGE HEARTBEAT LIVE/HEALTHY — DUAL-SIGNAL `/02cr` WORKER + FRONTEND PRODUCTION TECHNICAL PASS — USER-VISIBLE IDLE-AGING VALIDATION PENDING**
 
 السجل العام:
 
@@ -14,50 +14,69 @@
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_NO_REFRESH.md`
 
-سجل تأكيد المستخدم النهائي:
+سجل تأكيد المستخدم النهائي لـ Navigation / Return:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_USER_VISIBLE_PASS.md`
 
-سجل 02CR Dual-Signal Idle Freshness الحالي:
+سجل 02CR Dual-Signal candidate التاريخي:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_02CR_DUAL_SIGNAL_IDLE_FRESHNESS_CANDIDATE.md`
 
+سجل Production promotion الحالي:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_DUAL_SIGNAL_PRODUCTION_PASS.md`
+
 Production state relevant to 02CU:
 
-- production main: `9552407c5a5136371f9afd452b913c226329d7dc`
-- production Worker retained: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
-- current production frontend still treats required D1 mirrors older than 5 minutes as stale and fails open to Apps Script
-- legacy focus / visibility / 3-minute `safeRefresh()` full refresh is suppressed without disabling manual refresh
-- residual Attendance visibility `loadState()` and Employee Manager focus refresh are suppressed by a narrow early frontend guard; their periodic timers remain enabled
+- production main: `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
+- production Worker: `trendos-d1-api`
+- production Worker version: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` — **100% traffic**
+- eligible Orders reads: D1 first through `/v1/edge/orders/02cr/page`
+- frontend now accepts a bounded `verified-idle-source-unchanged` proof for physically stale `بنود الأوردرات` only
+- Customers and Debt Restrictions remain physically freshness-gated
+- Apps Script fallback retained for any failed qualification
+- `__DEBT__` remains Apps Script
+- all writes remain Apps Script / Sheets
+- Sheets / Apps Script remain authoritative
+- legacy focus / visibility / 3-minute `safeRefresh()` full refresh remains suppressed without disabling manual refresh
+- residual Attendance visibility `loadState()` and Employee Manager focus refresh remain suppressed by the narrow early guard; their periodic timers remain enabled
 - user-visible Navigation / Return validation: `تمام ثبت` — **PASS**
-- no Apps Script deploy / no production Worker deploy / no D1 business write / no 02CL / no generic drain / no secret rotation in the new heartbeat/freshness candidate work
+- no Apps Script deploy / no D1 business write / no 02CL enable / no generic drain / no secret rotation during 02CU promotion
 
 Navigation / Return is **CLOSED — USER-VISIBLE PASS**.
 
-### Orders Low-Usage / 02CR status
+### Orders Low-Usage / Dual-Signal production status
 
-The Low-Usage Apps Script heartbeat route is now confirmed live and healthy; trigger recovery is **not** the blocker.
+The Low-Usage Apps Script heartbeat route is confirmed live and healthy; trigger recovery is **not** the blocker and no Apps Script redeploy was required.
 
-The root cause is the qualified `/v1/edge/orders/02cr/page` lane: the existing dual-signal idle verifier was available on the generic Orders lane but was not applied to `/02cr`, while the frontend used physical `syncedAt` age only.
+The root cause was the qualified `/v1/edge/orders/02cr/page` lane: the existing idle verifier was not applied to that route, while the frontend used physical `syncedAt` age only.
 
-Candidate behavior now verified on the working branch:
+The qualified Production behavior is now:
 
-- stale `بنود الأوردرات` may remain D1-readable only when a recent sanitized heartbeat proves the authoritative Orders + Lines source shape is unchanged;
-- Customers and Debt Restrictions remain physically freshness-gated;
-- invalid/missing/old heartbeat, source change, shape mismatch, structural mismatch, unauthorized access, or verifier failure all fail closed to Apps Script;
-- heartbeat calls are coalesced and successful results cached in-isolate for only 30 seconds to prevent an Apps Script request storm;
+- fresh `بنود الأوردرات`: normal D1 read without heartbeat proof;
+- physically stale `بنود الأوردرات`: D1 remains eligible only when a recent sanitized heartbeat proves authoritative Orders + Lines source shape is unchanged;
+- Customers and Debt Restrictions must remain physically fresh;
+- invalid/missing/old heartbeat, source change, shape mismatch, structural mismatch, unauthorized access, verifier failure, stale enrichment, or Edge error all fall back to Apps Script;
+- heartbeat calls are coalesced and successful results cached in-isolate for only 30 seconds to prevent a request storm;
 - no fake D1 heartbeat write or `syncedAt` mutation is introduced.
 
-Evidence:
+Production evidence:
 
-- Production read-only stability Run `34031380301` — **SUCCESS**; Lines were physically fresh at about 129–137 seconds during that run
-- final candidate Integrity Run `34031601579` — **SUCCESS**
-- isolated Preview Worker Run `34031294735` — **SUCCESS**, Preview version `607bccf3-8d7e-45f6-b179-6625aeafa3f8`
-- dedicated read-only `/02cr` Preview qualification Run `34031601605` — **SUCCESS**
-- live stale-path proof: Lines physical age 419–420 seconds, logical proof mode `verified-idle-source-unchanged`, proof age 124–127 seconds, max proof age 720 seconds
-- anonymous `/02cr` fail-closed PASS; repeat stale-path read PASS
+- exact Worker preview requalification Run `34033006309` — **SUCCESS**
+- Worker Production promotion Run `34033058006` — **SUCCESS**
+- Worker version `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` — **100% traffic**
+- frontend bounded production Run `34034029239` — **SUCCESS**
+- production main `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
+- GitHub Pages Run `34034051695` — **SUCCESS**
+- public frontend asset qualification: PASS
+- post-frontend authenticated Production `/02cr` qualification: PASS
+- `__DEBT__` fallback: PASS
+- Sheets authoritative / cutover false / pendingOutbox 0 / 02CL false / generic drain false: PASS
+- rollback: not required
 
-**Production is intentionally unchanged by this candidate.** Coordinated Worker + frontend production promotion remains the open 02CU action and requires separate approval.
+The Production qualification happened while Lines were physically fresh. The stale-Lines path was already exercised live on isolated Preview Run `34031601605` with Lines age 419–420 seconds and logical mode `verified-idle-source-unchanged`, plus repeat-read PASS.
+
+**Worker + frontend Production technical promotion is complete. The only remaining 02CU close condition is user-visible idle-aging validation.**
 
 ---
 
@@ -101,7 +120,7 @@ CI:
 ### 02CT baseline
 
 - Worker: `trendos-d1-api`
-- Worker version: `c77bf453-c590-4cff-a55b-fd9c625b6d76` — 100% Worker traffic
+- Worker version at 02CT close: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
 - eligible `getRowsPageV1931` frontend reads: **D1 first**
 - qualified route: `/v1/edge/orders/02cr/page`
 - any Edge failure: **Apps Script fallback**
@@ -138,11 +157,11 @@ CI:
 - generic drain OFF.
 - لا تدوير `EDGE_SESSION_SECRET`.
 - أي Apps Script deployment يحتاج نطاق وموافقة مناسبة منفصلة.
-- أي Production Worker/frontend promotion للـ02CU dual-signal candidate يحتاج موافقة منفصلة ونشرًا bounded ومؤهلًا.
+- 02CU Worker + frontend promotion تم bounded وبنجاح؛ لا يُغلق 02CU نهائيًا قبل user-visible idle-aging validation.
 
 ## checkpoints سابقة — D1 track
 
-- `PERF-CF-02CU` — IN PROGRESS / Navigation Return CLOSED technical + production + user-visible PASS / Low-Usage heartbeat healthy / `/02cr` idle-aging root cause confirmed / dual-signal candidate + isolated Preview live PASS / production promotion pending
+- `PERF-CF-02CU` — IN PROGRESS / Navigation Return CLOSED technical + production + user-visible PASS / Low-Usage heartbeat healthy / dual-signal Worker + frontend Production technical PASS / user-visible idle-aging validation pending
 - `PERF-CF-02CT` — CLOSED / TECHNICAL PASS + USER-VISIBLE PASS / production frontend D1 read ON / qualified `/02cr` / fallback retained
 - `PERF-CF-02CS` — PRODUCTION WORKER ROUTE VERIFIED PASS / frontend OFF at close
 - `PERF-CF-02CR` — full field / identity / filtering qualification
