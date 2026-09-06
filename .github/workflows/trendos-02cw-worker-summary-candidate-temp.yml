@@ -190,6 +190,7 @@ jobs:
       - name: Assert bounded diff
         run: |
           set -euo pipefail
+          git add -N tests/cloudflare_edge_orders_active_summary_02cw.test.mjs
           git diff --check
           mapfile -t files < <(git diff --name-only)
           printf 'CHANGED_FILES=%s\n' "${files[*]}"
