@@ -2,20 +2,37 @@
  * Reads getRowsPageV1931 from the qualified Cloudflare/D1 route first when enabled.
  * Every write and every unsupported/sensitive read stays on Apps Script.
  * Any Edge error or stale required mirror fails open to the original Apps Script function.
+ * 02CV adds read-your-write consistency for updateLine without changing write authority.
  */
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_02CU_IDLE_LOGICAL_FRESHNESS_20260906';
+  var VERSION = 'EDGE_ORDERS_READ_02CV_WRITE_CONSISTENCY_20260906';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
+  // Orders Low-Usage checks source every 5 minutes. Keep this browser on the
+  // authoritative Apps Script read lane slightly longer than one interval after
+  // a confirmed status write so the UI cannot immediately repaint from an older D1 mirror.
+  var DEFAULT_POST_WRITE_BARRIER_MS = 6 * 60 * 1000;
+  var MAX_POST_WRITE_BARRIER_MS = 10 * 60 * 1000;
   var REQUIRED_MIRRORS = ['بنود الأوردرات', 'العملاء', 'عملاء منع التسليم بالمديونية'];
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
-  var metrics = { edgeSuccess: 0, fallbacks: 0, staleFallbacks: 0, logicalFreshnessAccepted: 0, lastFallbackAt: 0, lastFallbackReason: '' };
+  var postWriteBarrier = { until: 0, orderId: '', lineId: '', status: '' };
+  var metrics = {
+    edgeSuccess: 0,
+    fallbacks: 0,
+    staleFallbacks: 0,
+    logicalFreshnessAccepted: 0,
+    postWriteFallbacks: 0,
+    rowNumberStrippedWrites: 0,
+    postWriteBarriersOpened: 0,
+    lastFallbackAt: 0,
+    lastFallbackReason: ''
+  };
 
   function text(value) { return String(value == null ? '' : value).trim(); }
 
@@ -26,6 +43,12 @@
   function maxMirrorAgeMs() {
     var configured = Number(window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS);
     return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MAX_MIRROR_AGE_MS;
+  }
+
+  function postWriteBarrierMs() {
+    var configured = Number(window.MATBAGY_EDGE_ORDERS_POST_WRITE_BARRIER_MS);
+    if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_POST_WRITE_BARRIER_MS;
+    return Math.min(configured, MAX_POST_WRITE_BARRIER_MS);
   }
 
   function parseMirrorTime(value) {
@@ -122,6 +145,42 @@
     session.inflight = null;
   }
 
+  function clearPostWriteBarrier() {
+    postWriteBarrier.until = 0;
+    postWriteBarrier.orderId = '';
+    postWriteBarrier.lineId = '';
+    postWriteBarrier.status = '';
+  }
+
+  function postWriteBarrierActive() {
+    if (!postWriteBarrier.until) return false;
+    if (postWriteBarrier.until <= Date.now()) {
+      clearPostWriteBarrier();
+      return false;
+    }
+    return true;
+  }
+
+  function openPostWriteBarrier(params) {
+    postWriteBarrier.until = Date.now() + postWriteBarrierMs();
+    postWriteBarrier.orderId = text(params && params.orderId);
+    postWriteBarrier.lineId = text(params && params.lineId);
+    postWriteBarrier.status = text(params && params.status);
+    metrics.postWriteBarriersOpened += 1;
+  }
+
+  function identitySafeUpdateLineParams(params) {
+    var safe = Object.assign({}, params || {});
+    // D1 row_number is a mirror coordinate, not a stable write identity. When a
+    // stable Line ID exists, intentionally omit rowNumber so Apps Script resolves
+    // the current source row by lineId instead of trusting a possibly shifted row.
+    if (text(safe.lineId) && Object.prototype.hasOwnProperty.call(safe, 'rowNumber')) {
+      delete safe.rowNumber;
+      metrics.rowNumberStrippedWrites += 1;
+    }
+    return safe;
+  }
+
   async function exchangeSession() {
     var user = currentUser();
     if (!user.username || !user.token) throw new Error('Employee session is not available');
@@ -198,7 +257,27 @@
 
     async function wrapped(action, params) {
       var args = arguments;
+
+      // Writes remain authoritative Apps Script writes. updateLine is normalized
+      // to stable identity before it reaches Apps Script, then a local read barrier
+      // prevents the immediately-following D1 read from repainting stale data.
+      if (action === 'updateLine') {
+        var safeParams = identitySafeUpdateLineParams(params || {});
+        var writeResult = await original.call(this, action, safeParams);
+        if (writeResult && writeResult.success === true) openPostWriteBarrier(safeParams);
+        return writeResult;
+      }
+
       if (!eligible(action, params || {})) return original.apply(this, args);
+
+      if (postWriteBarrierActive()) {
+        metrics.fallbacks += 1;
+        metrics.postWriteFallbacks += 1;
+        metrics.lastFallbackAt = Date.now();
+        metrics.lastFallbackReason = 'EDGE_POST_WRITE_READ_BARRIER';
+        return original.apply(this, args);
+      }
+
       try {
         var result = await edgePage(params || {});
         metrics.edgeSuccess += 1;
@@ -210,7 +289,7 @@
         metrics.lastFallbackReason = text(err && (err.code || err.message));
         if (err && err.code === 'EDGE_MIRROR_STALE') metrics.staleFallbacks += 1;
         try {
-          console.warn('[TrendOS Orders Edge 02CU] D1 read unavailable/freshness failed; using Apps Script fallback:', err && err.message ? err.message : err);
+          console.warn('[TrendOS Orders Edge 02CV] D1 read unavailable/freshness failed; using Apps Script fallback:', err && err.message ? err.message : err);
         } catch (ignore) {}
         return original.apply(this, args);
       }
@@ -222,11 +301,13 @@
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 'qualified-d1-orders-read-first-dual-signal-freshness-gated-apps-script-fallback',
+      mode: 'qualified-d1-orders-read-first-dual-signal-freshness-gated-apps-script-fallback-write-consistent',
       api: edgeBase(),
       pagePath: QUALIFIED_PAGE_PATH,
       maxMirrorAgeMs: maxMirrorAgeMs(),
+      postWriteBarrierMs: postWriteBarrierMs(),
       clearSession: clearSession,
+      clearPostWriteBarrier: clearPostWriteBarrier,
       stats: function () {
         return {
           inflight: inflight.size,
@@ -235,6 +316,13 @@
           fallbacks: metrics.fallbacks,
           staleFallbacks: metrics.staleFallbacks,
           logicalFreshnessAccepted: metrics.logicalFreshnessAccepted,
+          postWriteFallbacks: metrics.postWriteFallbacks,
+          rowNumberStrippedWrites: metrics.rowNumberStrippedWrites,
+          postWriteBarriersOpened: metrics.postWriteBarriersOpened,
+          postWriteBarrierActive: postWriteBarrierActive(),
+          postWriteBarrierUntil: postWriteBarrier.until || 0,
+          postWriteOrderId: postWriteBarrier.orderId,
+          postWriteLineId: postWriteBarrier.lineId,
           lastFallbackAt: metrics.lastFallbackAt,
           lastFallbackReason: metrics.lastFallbackReason
         };
@@ -248,8 +336,10 @@
     enabled: window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED === true,
     pagePath: QUALIFIED_PAGE_PATH,
     maxMirrorAgeMs: maxMirrorAgeMs(),
+    postWriteBarrierMs: postWriteBarrierMs(),
     install: install,
-    clearSession: clearSession
+    clearSession: clearSession,
+    clearPostWriteBarrier: clearPostWriteBarrier
   };
 
   if (window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED === true) {
