@@ -136,6 +136,39 @@ Observed timings under the bounded scheduler:
 - all returned HTTP 200, success true, version `V1931_TREND_MASTER_PANEL_READ_V1`
 - dayclose was not automatically requested.
 
+## Integrity follow-up
+
+After the production canary change, `TrendOS Integrity V1` initially reported a failure that was unrelated to the Trend Master runtime. The failing polling/coalescing test pinned old cache-buster strings (`20260904a`) while parallel performance hotfixes had already advanced those module query versions.
+
+The correction was test-only on the working branch:
+
+`36ffa747b2574d55775cc5482a9f7d02f1ad943a`
+
+Message:
+
+`test: decouple polling guard from cache-buster versions`
+
+What changed:
+- runtime files were not changed,
+- `main` was not changed,
+- Production was not changed,
+- D1 configuration was not changed,
+- the test now validates that the expected module is loaded without hard-pinning an unrelated cache-buster value.
+
+Post-fix Integrity:
+
+- Workflow: `TrendOS Integrity V1`
+- Run: `34025639420`
+- Run number: `1369`
+- Result: **SUCCESS**
+- all integrity/smoke/regression steps passed, including visibility-aware polling coalescing, order lifecycle, Order ID canonicalization/idempotency, print/laser isolation, debt truth contract, Edge Orders frontend module, Apps Script fallbacks, Cloudflare Worker syntax, and reconciliation checker syntax.
+
+At this checkpoint, verified production `main` remains:
+
+`8fa24b90ece05658698564fb92b3b28c4ab1a6ef`
+
+No production runtime commit was added by the Integrity test correction.
+
 ## Exact close point
 
-`TM-V1931 SAFE BOUNDED FIX LIVE — APPS SCRIPT V155 — MANUAL CENTER LOAD ONLY — MAX CONCURRENCY 2 — CORE 6 PANEL CANARY PASS — DAYCLOSE LAZY/MANUAL — PAGES DEPLOY PASS — D1 STATE UNCHANGED BY THIS TRACK`
+`TM-V1931 SAFE BOUNDED FIX LIVE — APPS SCRIPT V155 — MANUAL CENTER LOAD ONLY — MAX CONCURRENCY 2 — CORE 6 PANEL CANARY PASS — DAYCLOSE LAZY/MANUAL — PAGES DEPLOY PASS — TRENDOS INTEGRITY PASS — D1 STATE UNCHANGED BY THIS TRACK`
