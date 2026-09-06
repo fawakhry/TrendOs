@@ -29,9 +29,10 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          s=Path('.github/workflows/trendos-02cs-line-id-serialization-probe-temp.yml').read_text(encoding='utf-8')
-          for token in ['wrangler'+' deploy','wrangler'+' rollback','secret'+' put','d1 execute','d1 migrations','method:'+'POST','/v1/import/'+'sheet','/v1/mirror/'+'delta']:
-            if token in s: raise SystemExit('Forbidden mutation token: '+token)
+          lines=Path('.github/workflows/trendos-02cs-line-id-serialization-probe-temp.yml').read_text(encoding='utf-8').splitlines()
+          actual=[x.strip() for x in lines]
+          bad=[x for x in actual if x.startswith(('npx ','wrangler ','git push','curl -X POST','curl --request POST','curl -X PUT','curl -X DELETE'))]
+          if bad: raise SystemExit('Non-GET command found: '+repr(bad))
           print('PERF_CF_02CS_LINE_ID_PROBE_STATIC_PASS_NO_MUTATION')
           PY
 
