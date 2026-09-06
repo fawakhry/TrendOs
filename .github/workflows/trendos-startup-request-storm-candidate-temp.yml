@@ -69,10 +69,10 @@ jobs:
               "    await detectMode();\n    if (ui.mode === \"backend\") {\n      try {\n        const out = await callAttendanceBackend(\"state\");",
               "    const detectedNow = ui.mode === \"detect\";\n    await detectMode();\n    if (ui.mode === \"backend\" && !detectedNow) {\n      try {\n        const out = await callAttendanceBackend(\"state\");")
 
-          # Employee strips: defer its two background reads until the primary screen has had time to paint.
+          # Employee strips already has single-flight/min-interval guards; only defer the boot fan-out.
           replace_exact('employee-manager-strips-v2.js',
-              "    render();refresh();ui.timer=setInterval(refresh,REFRESH_MS);window.addEventListener('focus',refresh);",
-              "    render();setTimeout(refresh,5000);ui.timer=setInterval(refresh,REFRESH_MS);window.addEventListener('focus',refresh);")
+              "    render();refresh({force:true,source:'boot'});ui.timer=setInterval(function(){refresh({source:'interval'});},REFRESH_MS);window.addEventListener('focus',function(){refresh({source:'focus'});});",
+              "    render();setTimeout(function(){refresh({source:'boot-delayed'});},5000);ui.timer=setInterval(function(){refresh({source:'interval'});},REFRESH_MS);window.addEventListener('focus',function(){refresh({source:'focus'});});")
 
           # Explicit production-safe defaults + cache-bust versions for the eventual frontend-only release.
           replace_exact('config.js',
@@ -84,8 +84,8 @@ jobs:
           for old,new in [
               ('attendance-v1.js?v=20260824j','attendance-v1.js?v=20260906perf1'),
               ('customer-manager-v1.js?v=20260824g','customer-manager-v1.js?v=20260906perf1'),
-              ('customer-feedback-v1.js?v=20260824a','customer-feedback-v1.js?v=20260906perf1'),
-              ('employee-manager-strips-v2.js?v=20260824j','employee-manager-strips-v2.js?v=20260906perf1'),
+              ('customer-feedback-v1.js?v=20260904a','customer-feedback-v1.js?v=20260906perf1'),
+              ('employee-manager-strips-v2.js?v=20260904a','employee-manager-strips-v2.js?v=20260906perf1'),
               ('go-live-autopilot-v1.js?v=20260824g','go-live-autopilot-v1.js?v=20260906perf1'),
           ]:
               replace_exact('config.js', old, new)
@@ -111,7 +111,8 @@ jobs:
           assert.match(cm,/clearInterval\(t\);if\(!isManager\(\)\)return;build\(\)/);
           assert.match(att,/const detectedNow = ui\.mode === "detect";/);
           assert.match(att,/if \(ui\.mode === "backend" && !detectedNow\)/);
-          assert.match(strips,/render\(\);setTimeout\(refresh,5000\)/);
+          assert.match(strips,/setTimeout\(function\(\)\{refresh\(\{source:'boot-delayed'\}\);\},5000\)/);
+          assert.match(strips,/TrendPollCoordinatorV1/);
           assert.match(cfg,/MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false/);
           assert.match(cfg,/MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false/);
           assert.match(cfg,/attendance-v1\.js\?v=20260906perf1/);
