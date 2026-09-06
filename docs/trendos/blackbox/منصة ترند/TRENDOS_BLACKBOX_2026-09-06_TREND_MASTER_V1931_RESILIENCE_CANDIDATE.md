@@ -66,6 +66,8 @@ Queue and debt-control panel reads use direct `getSheetByName`/range reads inste
 - `tests/trend_master_resilience_v1931.test.mjs` — regression + safety tests.
 - `.github/workflows/trend-master-resilience-v1931-ci.yml` — isolated CI.
 
+No `app.js` or `index.html` rewrite was required; the candidate reuses the existing Trend Master DOM contract and intercepts only the Trend Master legacy read through the already-exposed API wrapper.
+
 ## Regression coverage
 
 The test suite proves:
@@ -83,13 +85,34 @@ The test suite proves:
 
 Local candidate test before commit: **PASS**.
 
+## Candidate commit
+
+`03300ce2d5454e497bc0be6ddc58c2b2ceb75c95`
+
+Message:
+
+`fix: isolate Trend Master V1931 panel loading`
+
+## CI evidence
+
+Exact candidate commit CI:
+
+- Trend Master V1931 Resilience CI
+  - Run `34006722152`
+  - **SUCCESS**
+- TrendOS Integrity V1
+  - Run `34006722115`
+  - **SUCCESS**
+
+The dedicated CI includes frontend/backend syntax checks plus the resilience regression suite. The Integrity run is on the same candidate code commit.
+
 ## Security / authority boundary
 
 Unchanged:
 
 - Google Sheets / Apps Script remain authoritative.
 - No operational data was changed for testing.
-- No customer names, phone numbers, notes, or WhatsApp message text are written to GitHub logs.
+- No customer names, phone numbers, customer notes, or WhatsApp message text are written to GitHub logs by this checkpoint.
 - No D1 frontend cutover.
 - No Orders production Worker deployment.
 - 02CL remains OFF.
@@ -106,13 +129,23 @@ In particular:
 - GitHub `.gs` code is only a candidate and does not mean the published Apps Script Web App changed.
 - No Apps Script New Version / deployment was performed.
 - No production frontend activation was performed.
+- Production therefore still uses the currently published monolithic Trend Master Apps Script behavior.
+- The working-branch `config.js` candidate is not authority for production `main` and does not constitute a production frontend activation.
 
-## CI evidence
+## Required deployment order if later approved
 
-Pending immediately after candidate commit. This record must be updated with exact GitHub Actions run IDs/results before closing the checkpoint.
+Because true panel independence requires the new Apps Script panel route, do not activate/merge the frontend resilience flag into production before the backend route is deployed and validated.
+
+Safe order after explicit approval:
+
+1. deploy only the read-only Apps Script panel backend/router as a new approved Web App version,
+2. validate authenticated read-only panel calls against production without operational writes,
+3. only then activate/merge the frontend resilience candidate,
+4. verify panel isolation, bounded retry, refresh recovery and stale state in production,
+5. keep D1 frontend read OFF throughout this Trend Master checkpoint.
 
 ## Exact stop point
 
-`TREND MASTER V1931 RESILIENCE CANDIDATE PREPARED — LOCAL TEST PASS — APPS SCRIPT DEPLOYMENT NOT AUTHORIZED / NOT PERFORMED`
+`TM-V1931 RESILIENCE CANDIDATE — CODE COMMIT 03300ce2 — TREND MASTER CI PASS — TRENDOS INTEGRITY PASS — APPS SCRIPT PRODUCTION DEPLOYMENT NOT AUTHORIZED / NOT PERFORMED`
 
-Next safe action after CI PASS: request explicit user approval before any Apps Script production deployment of the new panel route/backend. Until that approval, production keeps the currently published monolithic Apps Script behavior.
+Next safe action is blocked on explicit user approval for the Apps Script New Version/deployment of the new read-only Trend Master panel route. Until that approval, production remains unchanged.
