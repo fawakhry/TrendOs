@@ -1,0 +1,48 @@
+name: TrendOS Production Latency Split TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-prod-latency-split-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  split-latency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EDGE_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Read-only latency split without PII
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME" && test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          node <<'NODE'
+          const edge=process.env.EDGE_URL, apps=process.env.APPS_SCRIPT_URL;
+          const username=process.env.QUALIFY_USERNAME, employeeToken=process.env.QUALIFY_EMPLOYEE_TOKEN;
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{ms:Date.now()-t,status:r.status,body:b};}
+          async function session(){return req(edge+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})});}
+          async function d1(token){return req(edge+'/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__',{headers:{accept:'application/json',authorization:'Bearer '+token}});}
+          async function app(){return req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token:employeeToken,screen:'print',page:1,pageSize:5,statusFilter:'__ACTIVE__'})});}
+          async function ping(){return req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'ping'})});}
+          (async()=>{
+            const s=await session();
+            if(s.status!==200||!s.body.edgeToken) throw new Error('edge session failed status='+s.status);
+            const token=s.body.edgeToken;
+            const d=[],a=[],p=[];
+            for(let i=0;i<3;i++){const x=await d1(token);d.push({ms:x.ms,status:x.status,success:x.body&&x.body.success===true});}
+            for(let i=0;i<3;i++){const x=await app();a.push({ms:x.ms,status:x.status,success:x.body&&x.body.success===true});}
+            for(let i=0;i<3;i++){const x=await ping();p.push({ms:x.ms,status:x.status,success:x.body&&x.body.success===true});}
+            const avg=x=>Math.round(x.reduce((s,v)=>s+v.ms,0)/x.length);
+            console.log('PROD_LATENCY_SPLIT_SAFE='+JSON.stringify({sessionMs:s.ms,sessionStatus:s.status,d1Ms:d.map(x=>x.ms),d1AvgMs:avg(d),d1Statuses:d.map(x=>x.status),d1Success:d.map(x=>x.success),appsRowsMs:a.map(x=>x.ms),appsRowsAvgMs:avg(a),appsStatuses:a.map(x=>x.status),appsSuccess:a.map(x=>x.success),pingMs:p.map(x=>x.ms),pingAvgMs:avg(p)}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
