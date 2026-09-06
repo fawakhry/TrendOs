@@ -4,15 +4,41 @@
 
 ## آخر checkpoint منفذ
 
-`PERF-CF-02CO — Controlled Orders D1 Read Canary / Authenticated Comparison`
+`PERF-CF-02CQ — Screen View Mirror Refresh / Orders View D1 Canary Prerequisite`
 
-الحالة: **AUTH PASS — D1 VIEW-MIRROR STALE BLOCKED — FRONTEND OFF — BOUNDARY PASS**
+الحالة: **CANDIDATE PREPARED — CI PASS — INTEGRITY PASS — PRODUCTION REFRESH NOT EXECUTED — APPS SCRIPT DEPLOYMENT APPROVAL GATE**
 
 أحدث سجل:
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_AUTH_PASS_VIEW_MIRROR_STALE_BLOCKED_BOUNDARY_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CQ_SCREEN_VIEW_MIRROR_REFRESH.md`
+
+## نتيجة 02CQ الحالية
+
+1. تم قراءة الصندوق الأسود و02CO قبل أي تنفيذ.
+2. تم فحص مسارات mirror الحالية في GitHub.
+3. `cloudflare-d1/src/mirror.js` يحتوي atomic staging/promote آمن.
+4. `D1_Orders_Live_Sync.gs` يحدّث فقط `الأوردرات` و`بنود الأوردرات`.
+5. `D1_Full_Migration.gs` عام لكل الشيتات ولذلك لم يتم تشغيله.
+6. `D1_Orders_Read_Cutover.gs` parity/probe فقط ولا يحتوي four-view refresh.
+7. read-only source probe أثبت أن الأربع view mirrors في D1 كلها header-only.
+8. Apps Script qualification account يقرأ `print=8` و`press=7`، لكنه غير مصرح له بـ`service` و`laser`، لذلك لم يُستخدم كمصدر ناقص للـrefresh.
+9. Google Drive أكد الـauthoritative spreadsheet الحالي وأن الأربع tabs موجودة داخله.
+10. لم يتم تغيير sharing ولم يتم نسخ row payloads إلى GitHub.
+11. تم تجهيز bounded Apps Script candidate default-OFF يقرأ الأربع tabs فقط، يعمل atomic stage لكل واحدة ثم promote واحد للأربع معًا.
+12. Candidate CI PASS:
+    - Run `34001050365`
+    - Job `101399861784`
+13. TrendOS Integrity PASS:
+    - Run `34001050376`
+    - Job `101399861836`
+14. temporary read-only source probe workflow تم حذفه بعد جمع evidence.
+15. لم يحدث Apps Script deploy أو D1 production refresh لأن Apps Script deployment يحتاج موافقة صريحة حسب قواعد المشروع.
 
 ## checkpoints سابقة
+
+`PERF-CF-02CO — Controlled Orders D1 Read Canary / Authenticated Comparison`
+
+الحالة: **AUTH PASS — D1 VIEW-MIRROR STALE BLOCKED — FRONTEND OFF — BOUNDARY PASS**
 
 `PERF-CF-02CN — Orders Read Path Cutover Readiness / Slowness Hot-Path Fix`
 
@@ -29,42 +55,6 @@
 `PERF-CF-02CK — Production Cloud Write Business Qualification`
 
 الحالة: **VERIFIED PASS — CLOSED**
-
-## 02CO latest evidence sequence
-
-1. 02CO started after reading `00_INDEX.md`, `01_CURRENT_STATE.md`, and the latest 02CN record.
-2. Initial 02CO deployed 02CN dashboard-builder code to Worker while the frontend flag stayed OFF.
-3. First canary attempt failed at Edge session HTTP `401`.
-4. User refreshed the employee-token GitHub secret from a fresh normal TrendOS login.
-5. Auth then succeeded and the canary reached row comparison.
-6. D1 full `بنود الأوردرات` comparison returned `153` rows while Apps Script `getRowsPageV1931` returned `8` rows for `screen=print`.
-7. A partial full-lines filter reduced D1 to `26` rows, still not equal to Apps Script `8` rows.
-8. Diagnostics showed Apps Script is serving the current screen-view/hotfix-visible print list, not the raw full lines sheet.
-9. Google Sheet inspection identified `واجهة الطباعة` as the live screen-view tab containing the same eight visible print rows.
-10. A canary wrapper was added to map Edge Orders reads to screen-view mirror tabs:
-    - `واجهة خدمة العملاء`
-    - `واجهة الطباعة`
-    - `واجهة الليزر`
-    - `واجهة المكبس`
-11. The wrapper candidate passed CI and general integrity.
-12. Focused canary deployed the view-mirror wrapper Worker Version ID `0ec782a9-5943-4c9d-8820-51b7d0393210`.
-13. Auth succeeded again, but D1 `واجهة الطباعة` mirror was stale/header-only:
-    - `edgeTotalRows=0`
-    - `appTotalRows=8`
-    - `edgeMirror.sourceLastRow=1`
-    - `edgeMirror.sourceLastCol=18`
-    - `edgeMirror.syncedAt=2026-08-29 15:49:07`
-    - `edgeMirror.note=TrendOS full mirror V1`
-14. Latest post-failure boundary passed:
-    - Run `33999848762`
-    - Job `101396626997`
-    - `pendingOutbox=0`
-    - `cutover=false`
-    - `sheetsAuthoritative=true`
-    - 02CL reconcile OFF
-    - generic drain OFF
-    - unauthenticated orders read `401`
-15. Temporary 02CO deploy/diagnostic workflows were cleaned after boundary proof.
 
 ## Current production state
 
@@ -84,20 +74,29 @@
 - normalized-data cutover: **NO**
 - authority transfer from Sheets to D1: **NO**
 - `EDGE_SESSION_SECRET` rotation: **NONE**
+- 02CQ production D1 mirror refresh: **NOT EXECUTED YET**
 
 ## نقطة البداية لأي شات جديد
 
 1. اقرأ `00_INDEX.md` ثم `01_CURRENT_STATE.md`.
-2. اقرأ أحدث 02CO record:
-   `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CO_AUTH_PASS_VIEW_MIRROR_STALE_BLOCKED_BOUNDARY_PASS.md`
+2. اقرأ أحدث 02CQ record:
+   `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CQ_SCREEN_VIEW_MIRROR_REFRESH.md`
 3. اعتبر 02CK و02CL و02CM مغلقين ولا تعيدهم إلا إذا تغير المصدر ماديًا.
-4. اعتبر 02CN جاهزًا كمرشح default-OFF.
-5. اعتبر 02CO auth ناجح، لكن canary محجوز بسبب D1 screen-view mirror stale/header-only.
-6. لا تستخدم generic outbox drain.
-7. لا تدوّر `EDGE_SESSION_SECRET`.
-8. لا تفتح Apps Script/Worker 02CL gates مرة أخرى إلا داخل checkpoint جديد محدود ومؤرخ.
-9. لا تفعل frontend cutover أو authority transfer قبل موافقة صريحة وcheckpoint مستقل.
-10. حافظ على Sheets / Apps Script كـauthoritative source حتى cutover مستقل.
-11. الخطوة التالية:
-    `PERF-CF-02CQ — Screen View Mirror Refresh / Orders View D1 Canary Prerequisite`.
-12. في 02CQ: ابحث عن مسار mirror import/sync الحالي للـscreen-view tabs، ثم نفذ refresh/import محدود ومؤرخ، وبعدها أعد canary المقارنة.
+4. اعتبر 02CN و02CO history/evidence ولا تعيد deploy/canary قبل استكمال 02CQ freshness prerequisite.
+5. لا تستخدم generic outbox drain.
+6. لا تدوّر `EDGE_SESSION_SECRET`.
+7. لا تفتح Apps Script/Worker 02CL gates مرة أخرى إلا داخل checkpoint جديد محدود ومؤرخ.
+8. لا تفعل frontend cutover أو authority transfer قبل موافقة صريحة وcheckpoint مستقل.
+9. حافظ على Sheets / Apps Script كـauthoritative source.
+10. retained 02CQ candidate:
+    - `cloudflare-d1/D1_Screen_View_Mirror_Refresh_02CQ.gs`
+    - `tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs`
+    - `.github/workflows/trendos-02cq-screen-view-mirror-refresh-ci.yml`
+11. الخطوة التالية لا تبدأ إلا بعد **موافقة صريحة على Apps Script deployment**:
+    - deploy bounded 02CQ module فقط،
+    - أبقِ gate OFF بعد deploy،
+    - نفذ bounded one-shot refresh بعد boundary checks،
+    - أعد gate OFF،
+    - تحقق من D1 mirror freshness،
+    - أعد authenticated D1-vs-Apps-Script canary،
+    - حافظ على `__DEBT__` Apps Script fallback.
