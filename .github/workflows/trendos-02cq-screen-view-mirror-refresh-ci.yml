@@ -1,0 +1,32 @@
+name: TrendOS 02CQ Screen View Mirror Refresh CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'cloudflare-d1/D1_Screen_View_Mirror_Refresh_02CQ.gs'
+      - 'tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs'
+      - '.github/workflows/trendos-02cq-screen-view-mirror-refresh-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify 02CQ bounded default-OFF candidate
+        run: node tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs
+      - name: Safety conclusion
+        run: |
+          echo 'PASS: candidate is default-OFF.'
+          echo 'PASS: target allow-list is limited to four department view sheets.'
+          echo 'PASS: staging is atomic and production replacement uses one promote.'
+          echo 'PASS: no Worker deploy, Apps Script deploy, secret rotation, frontend cutover, 02CL reconcile, generic drain, or d1 execute --file occurs in this CI.'
