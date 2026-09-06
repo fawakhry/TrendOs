@@ -1,0 +1,82 @@
+name: TrendOS 02CR Heartbeat Final Boundary TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cr-final-boundary-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static read-only guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/trendos-02cr-final-boundary-temp.yml').read_text(encoding='utf-8')
+          forbidden=['wrangler'+' deploy','secret'+' put','d1 execute --'+'file','/v1/import/'+'sheet','/v1/mirror/'+'delta','/v1/mirror/'+'heartbeat','reconcile/'+'order']
+          for token in forbidden:
+            if token in s: raise SystemExit('Forbidden mutation token: '+token)
+          print('PERF_CF_02CR_FINAL_BOUNDARY_STATIC_PASS')
+          PY
+      - name: Verify enrichment heartbeat and production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_URL;
+          async function jf(url){const r=await fetch(url,{cache:'no-store'});const t=await r.text();let b={};try{b=JSON.parse(t||'{}')}catch{}return{status:r.status,body:b};}
+          function ageMs(value){
+            const raw=String(value||'').trim(); if(!raw)return Infinity;
+            const normalized=/Z$|[+-]\d\d:\d\d$/.test(raw)?raw:(raw.includes('T')?raw+'Z':raw.replace(' ','T')+'Z');
+            const ms=Date.parse(normalized); return Number.isFinite(ms)?Date.now()-ms:Infinity;
+          }
+          (async()=>{
+            const support={};
+            for(const name of ['العملاء','عملاء منع التسليم بالمديونية']){
+              const m=await jf(base+'/v1/mirror/sheet?name='+encodeURIComponent(name)+'&limit=1&offset=0');
+              assert.equal(m.status,200,name+' HTTP'); assert.equal(m.body.success,true,name+' success');
+              const s=m.body.sheet||{};
+              assert.equal(String(s.status||''),'ready',name+' ready');
+              assert.equal(Number(s.rowCount||0),Number(s.sourceLastRow||0),name+' row parity');
+              assert.equal(String(s.note||''),'PERF-CF-02CR enrichment live sync V1',name+' owner note');
+              const age=ageMs(s.syncedAt);
+              assert.ok(age>=-120000 && age<=300000,name+' heartbeat freshness ageMs='+age);
+              support[name]={sourceLastRow:Number(s.sourceLastRow||0),rowCount:Number(s.rowCount||0),status:String(s.status||''),syncedAt:String(s.syncedAt||''),ageSeconds:Math.round(age/1000),note:String(s.note||'')};
+            }
+            const lines=await jf(base+'/v1/mirror/sheet?name='+encodeURIComponent('بنود الأوردرات')+'&limit=1&offset=0');
+            assert.equal(lines.status,200); assert.equal(lines.body.success,true);
+            assert.equal(String(lines.body.sheet?.status||''),'ready');
+            assert.equal(Number(lines.body.sheet?.rowCount||0),Number(lines.body.sheet?.sourceLastRow||0));
+            assert.equal(String(lines.body.sheet?.note||''),'TrendOS orders live sync V2 quota-aware');
+
+            const edge=await jf(base+'/v1/edge/health');
+            const recon=await jf(base+'/v1/qualification/cloud-write/reconcile/health');
+            const cloud=await jf(base+'/v1/cloud/write/health');
+            const unauth=await jf(base+'/v1/edge/orders/page?screen=print&page=1&pageSize=5');
+            assert.equal(edge.status,200); assert.equal(edge.body.success,true); assert.equal(edge.body.database,true); assert.equal(edge.body.cutover,false);
+            assert.equal(recon.status,200); assert.equal(recon.body.enabled,false); assert.equal(recon.body.genericDrainEnabled,false); assert.equal(recon.body.productionCutover,false); assert.equal(recon.body.sheetsAuthoritative,true);
+            assert.equal(cloud.status,200); assert.equal(cloud.body.success,true); assert.equal(cloud.body.cutover,false); assert.equal(cloud.body.sheetsAuthoritative,true); assert.equal(Number(cloud.body.pendingOutbox||0),0);
+            assert.equal(unauth.status,401);
+            const cfg=await (await fetch('https://raw.githubusercontent.com/fawakhry/TrendOs/main/config.js',{cache:'no-store'})).text();
+            assert.ok(!/MATBAGY_EDGE_ORDERS_READ_V1_ENABLED\s*=\s*true/.test(cfg),'frontend D1 orders read flag must remain OFF');
+            assert.ok(!/trendos-edge-orders-read-v1\.js/.test(cfg),'frontend Edge reader loader must remain absent');
+            console.log('PERF_CF_02CR_HEARTBEAT_PASS='+JSON.stringify(support));
+            console.log('PERF_CF_02CR_LINES_OWNER_PASS='+JSON.stringify({sourceLastRow:Number(lines.body.sheet?.sourceLastRow||0),rowCount:Number(lines.body.sheet?.rowCount||0),status:String(lines.body.sheet?.status||''),note:String(lines.body.sheet?.note||'')}));
+            console.log('PERF_CF_02CR_FINAL_BOUNDARY_PASS='+JSON.stringify({cutover:false,sheetsAuthoritative:true,reconcileEnabled:false,genericDrainEnabled:false,pendingOutbox:0,ordersUnauthStatus:401,frontendEdgeRead:false}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+      - name: Conclusion
+        run: echo 'PERF_CF_02CR_HEARTBEAT_FINAL_BOUNDARY_PASS_NO_MUTATION'
