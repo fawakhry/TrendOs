@@ -9,10 +9,10 @@ window.OPERATION_TIMEZONE = "Africa/Cairo";
 window.TRENDOS_UNIFIED_ACCOUNTING_BACKEND = true;
 window.MATBAGY_SECURE_API_PROXY_URL = "";
 
-// D1 Orders read cutover is loaded but stays OFF until the Production Worker gate passes.
-// Writes remain on Apps Script/Sheets and the wrapper always falls back to Apps Script on any Edge error.
+// Production Orders read cutover 02CT is ON for qualified getRowsPageV1931 reads only.
+// Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
 window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
-window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;
+window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
 
 window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
 window.MATBAGY_FILE_SERVER_URL = "https://files.matbagy.com";
@@ -80,7 +80,7 @@ function trendLoadModuleV1932(id, src){
 // Shared read-poll guard. Modules also retain local guards so startup remains
 // fail-safe even if this small coordinator has not finished loading yet.
 trendLoadModuleV1932('trendPollCoordinatorV1Loader','trendos-poll-coordinator-v1.js?v=20260904a');
-trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260904a');
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260906c');
 trendLoadModuleV1932('trendMasterResilienceV1931Loader','trend-master-resilience-v1931.js?v=20260906a');
 
 window.MATBAGY_ATTENDANCE_V1 = true;
