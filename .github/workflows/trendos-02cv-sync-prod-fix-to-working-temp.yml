@@ -1,0 +1,110 @@
+name: TrendOS 02CV Sync Production Fix To Working Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cv-sync-prod-fix-to-working-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-qualified-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EXPECTED_PROD_MAIN: 3934fa363b113a4bd494ec501fb5f289f2c48ec1
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+
+      - name: Verify Production baseline unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_PROD_MAIN"
+          echo "PROD_MAIN_LOCKED=$EXPECTED_PROD_MAIN"
+
+      - name: Apply exact qualified 02CV frontend patch to working branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          app_path = Path('app.js')
+          index_path = Path('index.html')
+          ux_path = Path('tests/frontend_order_status_ux_02cv.test.mjs')
+
+          app = app_path.read_text(encoding='utf-8')
+          index = index_path.read_text(encoding='utf-8')
+          ux = ux_path.read_text(encoding='utf-8')
+
+          anchor = '''  function isFlyPrint(value) {\n    const v = text(value).trim().toLowerCase();\n    return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "طباعة على الطاير" || v === "طباعة ع الطاير" || v === "على الطاير" || v === "ع الطاير";\n  }\n\n'''
+          helper = '''  function preserveFlyPrintAcrossMissingFields(previousRows, nextRows) {\n    const knownFlyByLineId = {};\n    (previousRows || []).forEach(function (row) {\n      const lineId = text(row && row.lineId).trim();\n      if (!lineId) return;\n      const fly = row && (row.flyPrint || row.quickPrint || row.fastPrint || row["طباعة على الطاير"] || row["طباعة ع الطاير"]);\n      if (isFlyPrint(fly)) knownFlyByLineId[lineId] = true;\n    });\n\n    return (nextRows || []).map(function (row) {\n      if (!row || typeof row !== "object") return row;\n      const hasExplicitFlyField = ["flyPrint", "quickPrint", "fastPrint", "طباعة على الطاير", "طباعة ع الطاير"].some(function (key) {\n        return Object.prototype.hasOwnProperty.call(row, key);\n      });\n      if (hasExplicitFlyField) return row;\n\n      const lineId = text(row.lineId).trim();\n      if (lineId && knownFlyByLineId[lineId]) {\n        row.flyPrint = "نعم";\n        row.quickPrint = "نعم";\n      }\n      return row;\n    });\n  }\n\n'''
+
+          if 'function preserveFlyPrintAcrossMissingFields(' not in app:
+              if anchor not in app:
+                  raise SystemExit('isFlyPrint anchor missing')
+              app = app.replace(anchor, anchor + helper, 1)
+
+          old_rows = '      state.rows = Array.isArray(res.rows) ? res.rows : [];'
+          new_rows = '      const nextRows = Array.isArray(res.rows) ? res.rows : [];\n      state.rows = preserveFlyPrintAcrossMissingFields(state.rows, nextRows);'
+          if new_rows not in app:
+              if old_rows not in app:
+                  raise SystemExit('loadRows replacement anchor missing')
+              app = app.replace(old_rows, new_rows, 1)
+
+          old_loader = '<script src="app.js?v=trendos-02cv-statusux-20260906b"></script>'
+          new_loader = '<script src="app.js?v=trendos-02cv-flylane-20260906c"></script>'
+          if new_loader not in index:
+              if old_loader not in index:
+                  raise SystemExit('app loader anchor missing')
+              index = index.replace(old_loader, new_loader, 1)
+
+          ux = ux.replace('trendos-02cv-statusux-20260906b', 'trendos-02cv-flylane-20260906c')
+
+          app_path.write_text(app, encoding='utf-8')
+          index_path.write_text(index, encoding='utf-8')
+          ux_path.write_text(ux, encoding='utf-8')
+          print('02CV_WORKING_BRANCH_PATCH_APPLIED')
+          PY
+
+      - name: Run 02CV focused contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/frontend_flyprint_lane_stability_02cv.test.mjs
+          node tests/frontend_order_status_write_consistency_02cv.test.mjs
+          node tests/frontend_order_status_ux_02cv.test.mjs
+          node --check app.js
+
+      - name: Assert bounded working-branch diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only)
+          printf 'CHANGED_FILES=%s\n' "${files[*]}"
+          test "${#files[@]}" -eq 3
+          printf '%s\n' "${files[@]}" | grep -qx 'app.js'
+          printf '%s\n' "${files[@]}" | grep -qx 'index.html'
+          printf '%s\n' "${files[@]}" | grep -qx 'tests/frontend_order_status_ux_02cv.test.mjs'
+          git diff --check
+
+      - name: Commit working-branch parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app.js index.html tests/frontend_order_status_ux_02cv.test.mjs
+          git commit -m 'Sync qualified 02CV fly-print fix to working branch'
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
+          echo '02CV_WORKING_BRANCH_PARITY_PUSH=PASS'
