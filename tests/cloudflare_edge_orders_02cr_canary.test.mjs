@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { issueOrdersEdgeToken } from '../cloudflare-d1/src/edge-orders-read-v1.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from '../cloudflare-d1/src/edge-orders-read-02cr-canary.mjs';
 
-const NOTE = 'PERF-CF-02CR operational mirror V1';
+const LINES_NOTE = 'TrendOS orders live sync V2 quota-aware';
+const ENRICHMENT_NOTE = 'PERF-CF-02CR enrichment live sync V1';
 
 function row(rowNumber, values) {
   return { rowNumber, valuesJson: JSON.stringify(values), displayJson: JSON.stringify(values) };
@@ -17,7 +18,7 @@ const customerData = ['عميل اختبار','01011111111','','350','مراجع
 const restrictionHeaders = ['ID','اسم العميل','رقم العميل','منع فعال؟','سبب المنع','صالح حتى'];
 const restrictionData = ['R1','عميل اختبار','','نعم','مراجعة المديونية','2099/12/31'];
 
-function mirror(headers, data) {
+function mirror(headers, data, note) {
   return {
     catalog: {
       headersJson: JSON.stringify(headers),
@@ -26,7 +27,7 @@ function mirror(headers, data) {
       rowCount: 2,
       status: 'ready',
       syncedAt: '2026-09-06 01:00:00',
-      note: NOTE
+      note
     },
     rows: [row(1, headers), row(2, data)]
   };
@@ -34,9 +35,9 @@ function mirror(headers, data) {
 
 function fakeEnv(overrides = {}) {
   const mirrors = {
-    'بنود الأوردرات': mirror(lineHeaders, lineData),
-    'العملاء': mirror(customerHeaders, customerData),
-    'عملاء منع التسليم بالمديونية': mirror(restrictionHeaders, restrictionData),
+    'بنود الأوردرات': mirror(lineHeaders, lineData, LINES_NOTE),
+    'العملاء': mirror(customerHeaders, customerData, ENRICHMENT_NOTE),
+    'عملاء منع التسليم بالمديونية': mirror(restrictionHeaders, restrictionData, ENRICHMENT_NOTE),
     ...(overrides.mirrors || {})
   };
   return {
@@ -93,14 +94,20 @@ const debtRes = await handleEdgeOrders02CRCanaryRequest(debtReq, fakeEnv());
 assert.equal(debtRes.status, 409);
 assert.equal((await debtRes.json()).fallback, 'apps-script');
 
-const staleCustomers = mirror(customerHeaders, customerData);
-staleCustomers.catalog.note = 'old-full-mirror';
+const staleCustomers = mirror(customerHeaders, customerData, 'old-full-mirror');
 const staleReq = new Request('https://example.test/v1/edge/orders/02cr/page?screen=print', {
   method:'GET', headers:{ authorization:'Bearer ' + token }
 });
 const staleRes = await handleEdgeOrders02CRCanaryRequest(staleReq, fakeEnv({ mirrors:{ 'العملاء':staleCustomers } }));
 assert.equal(staleRes.status, 503);
 assert.equal((await staleRes.json()).fallback, 'apps-script');
+
+const wrongLines = mirror(lineHeaders, lineData, 'PERF-CF-02CR enrichment live sync V1');
+const wrongLinesReq = new Request('https://example.test/v1/edge/orders/02cr/page?screen=print', {
+  method:'GET', headers:{ authorization:'Bearer ' + token }
+});
+const wrongLinesRes = await handleEdgeOrders02CRCanaryRequest(wrongLinesReq, fakeEnv({ mirrors:{ 'بنود الأوردرات':wrongLines } }));
+assert.equal(wrongLinesRes.status, 503, '02CR must not accept ownership of the Orders V2 line mirror');
 
 const unauth = await handleEdgeOrders02CRCanaryRequest(new Request('https://example.test/v1/edge/orders/02cr/page?screen=print'), fakeEnv());
 assert.equal(unauth.status, 401);
