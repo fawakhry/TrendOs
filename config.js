@@ -9,6 +9,11 @@ window.OPERATION_TIMEZONE = "Africa/Cairo";
 window.TRENDOS_UNIFIED_ACCOUNTING_BACKEND = true;
 window.MATBAGY_SECURE_API_PROXY_URL = "";
 
+// Production Orders read cutover 02CT: qualified D1 route first for getRowsPageV1931 only.
+// Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
+window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
+window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
+
 window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
 window.MATBAGY_FILE_SERVER_URL = "https://files.matbagy.com";
 window.MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
@@ -66,6 +71,8 @@ function trendLoadModuleV1932(id, src){
   var s=document.createElement('script'); s.id=id; s.src=src; s.defer=true;
   (document.head || document.documentElement).appendChild(s);
 }
+
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260906c');
 
 window.MATBAGY_ATTENDANCE_V1 = true;
 trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260824j');
