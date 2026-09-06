@@ -9,12 +9,16 @@ const requiredTargets = [
   'واجهة الليزر',
   'واجهة المكبس'
 ];
-
 for (const name of requiredTargets) {
   assert.equal(source.includes(`'${name}'`), true, `Missing bounded target: ${name}`);
 }
 
 assert.match(source, /TRENDOS_PERF_CF_02CQ_SCREEN_VIEW_REFRESH_ENABLED/);
+assert.match(source, /D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID\s*=\s*'1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI'/);
+assert.match(source, /SpreadsheetApp\.openById\(D1_SCREEN_VIEW_REFRESH_02CQ_SPREADSHEET_ID\)/);
+assert.match(source, /getProperty\('D1_API_URL'\)/);
+assert.match(source, /getProperty\('D1_MIGRATION_SECRET'\)/);
+assert.match(source, /'x-migration-secret':\s*cfg\.secret/);
 assert.match(source, /refreshD1ScreenViewMirrors02CQ/);
 assert.match(source, /runD1ScreenViewMirrorRefresh02CQOnce/);
 assert.match(source, /getD1ScreenViewMirrorRefresh02CQStatus/);
@@ -22,11 +26,16 @@ assert.match(source, /atomicAction:\s*'stage'/);
 assert.match(source, /atomicAction:\s*'promote'/);
 assert.match(source, /sheetNames:\s*D1_SCREEN_VIEW_REFRESH_02CQ_TARGETS\.slice\(\)/);
 assert.match(source, /printSource\.lastRow\s*<=\s*1/);
-assert.match(source, /d1FullBuildRows_/);
-assert.match(source, /d1FullPost_/);
-assert.match(source, /d1FullGet_/);
-assert.match(source, /d1FullSpreadsheet_/);
-assert.match(source, /D1_SCREEN_VIEW_REFRESH_02CQ_NOTE/);
+assert.match(source, /getValues\(\)/);
+assert.match(source, /getDisplayValues\(\)/);
+assert.match(source, /getFormulas\(\)/);
+assert.match(source, /productionMirrorMutated/);
+assert.match(source, /stagingMayHaveMutated/);
+
+// Candidate must be self-contained; deploying 02CQ must not require D1_Full_Migration.gs.
+for (const dependency of ['d1FullConfig_', 'd1FullSpreadsheet_', 'd1FullHeaders_', 'd1FullBuildRows_', 'd1FullPost_', 'd1FullGet_']) {
+  assert.equal(source.includes(dependency), false, `02CQ must not depend on external full-migration helper: ${dependency}`);
+}
 
 // Default-OFF must be a hard gate before the executable refresh path can stage/promote.
 const refreshStart = source.indexOf('function refreshD1ScreenViewMirrors02CQ()');
@@ -40,7 +49,7 @@ assert.ok(gateIndex >= 0, 'Default-OFF gate missing');
 assert.ok(stageCallIndex > gateIndex, 'Stage call appears before default-OFF gate');
 assert.ok(promoteCallIndex > gateIndex, 'Promote call appears before default-OFF gate');
 
-// Preferred one-shot runner must open only this gate and always clear it in finally.
+// One-shot runner opens only this gate and always clears it in finally.
 const onceStart = source.indexOf('function runD1ScreenViewMirrorRefresh02CQOnce()');
 const onceEnd = source.indexOf('function getD1ScreenViewMirrorRefresh02CQStatus()', onceStart);
 assert.ok(onceStart >= 0 && onceEnd > onceStart, 'One-shot runner boundaries missing');
@@ -53,7 +62,11 @@ assert.match(onceBody, /props\.deleteProperty\(D1_SCREEN_VIEW_REFRESH_02CQ_ENABL
 assert.equal((onceBody.match(/setProperty\(/g) || []).length, 1, 'One-shot runner must set exactly one Script Property');
 assert.equal((onceBody.match(/deleteProperty\(/g) || []).length, 1, 'One-shot runner must clear exactly one Script Property');
 
-// 02CQ must not broaden into the old all-sheet migration or cutover lanes.
+// Exactly one production promote action exists, after bounded staging.
+const promoteCount = (source.match(/atomicAction:\s*'promote'/g) || []).length;
+assert.equal(promoteCount, 1, '02CQ must contain exactly one atomic promote action');
+
+// 02CQ must not broaden into legacy/full migration, cutover, reconciliation, or secret rotation lanes.
 const forbidden = [
   'startD1FullMigration(',
   'd1FullMigrationTick(',
@@ -71,13 +84,10 @@ for (const token of forbidden) {
   assert.equal(source.includes(token), false, `Forbidden 02CQ boundary token: ${token}`);
 }
 
-// Candidate must not log row payloads / PII.
+// Candidate must not log source payloads / PII or expose secrets in return objects.
 assert.equal(source.includes('Logger.log'), false, '02CQ candidate must not log source rows or payloads');
 assert.equal(source.includes('customerPhone'), false, '02CQ candidate must not inspect/log customer phone fields');
 assert.equal(source.includes('debtNotes'), false, '02CQ candidate must not inspect/log notes fields');
-
-// All production replacement is delegated to one atomic promote after staging.
-const promoteCount = (source.match(/atomicAction:\s*'promote'/g) || []).length;
-assert.equal(promoteCount, 1, '02CQ must contain exactly one atomic promote action');
+assert.equal(source.includes('secret: secret'), false, '02CQ config must not return secret under a generic serializable field name');
 
 console.log('PERF_CF_02CQ_SCREEN_VIEW_MIRROR_REFRESH_CANDIDATE_SAFETY_PASS');
