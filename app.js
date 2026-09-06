@@ -71,6 +71,31 @@
     return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "طباعة على الطاير" || v === "طباعة ع الطاير" || v === "على الطاير" || v === "ع الطاير";
   }
 
+  function preserveFlyPrintAcrossMissingFields(previousRows, nextRows) {
+    const knownFlyByLineId = {};
+    (previousRows || []).forEach(function (row) {
+      const lineId = text(row && row.lineId).trim();
+      if (!lineId) return;
+      const fly = row && (row.flyPrint || row.quickPrint || row.fastPrint || row["طباعة على الطاير"] || row["طباعة ع الطاير"]);
+      if (isFlyPrint(fly)) knownFlyByLineId[lineId] = true;
+    });
+
+    return (nextRows || []).map(function (row) {
+      if (!row || typeof row !== "object") return row;
+      const hasExplicitFlyField = ["flyPrint", "quickPrint", "fastPrint", "طباعة على الطاير", "طباعة ع الطاير"].some(function (key) {
+        return Object.prototype.hasOwnProperty.call(row, key);
+      });
+      if (hasExplicitFlyField) return row;
+
+      const lineId = text(row.lineId).trim();
+      if (lineId && knownFlyByLineId[lineId]) {
+        row.flyPrint = "نعم";
+        row.quickPrint = "نعم";
+      }
+      return row;
+    });
+  }
+
   function numericAmount(value) {
     const raw = arabicDigitsToEnglish(value).replace(/[^0-9.\-]/g, "");
     const n = Number(raw);
@@ -4505,7 +4530,8 @@ Trend Mall`;
         return;
       }
 
-      state.rows = Array.isArray(res.rows) ? res.rows : [];
+      const nextRows = Array.isArray(res.rows) ? res.rows : [];
+      state.rows = preserveFlyPrintAcrossMissingFields(state.rows, nextRows);
       state.serverPaging = Object.assign({ enabled: !!res.serverPaged, page: 1, pageSize: state.pageSize, totalRows: state.rows.length, totalPages: 1 }, res.pagination || {}, { enabled: !!res.serverPaged });
       state.currentPage = Number(state.serverPaging.page || 1) || 1;
       state.serverStatusCounts = res.statusCounts || {};
