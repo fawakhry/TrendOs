@@ -5,6 +5,7 @@ import vm from 'node:vm';
 const source = fs.readFileSync(new URL('../trendos-edge-orders-read-v1.js', import.meta.url), 'utf8');
 assert.match(source, /\/v1\/edge\/orders\/02cr\/page/);
 assert.doesNotMatch(source, /requestKey\s*=\s*['"]\/v1\/edge\/orders\/page\?/);
+assert.match(source, /EDGE_MIRROR_STALE/);
 
 function response(status, body) {
   return {
@@ -14,7 +15,7 @@ function response(status, body) {
   };
 }
 
-function freshMirrors(ageMs = 1000) {
+function mirrors(ageMs = 1000) {
   const syncedAt = new Date(Date.now() - ageMs).toISOString();
   return [
     { sheetName: 'بنود الأوردرات', status: 'ready', rowCount: 355, sourceLastRow: 355, syncedAt },
@@ -57,7 +58,9 @@ const context = {
       return response(200, { success: true, edgeToken: 'edge-token', expiresIn: 600 });
     }
     if (String(url).includes('/v1/edge/orders/02cr/page?')) {
-      if (pageMode === 'ok') return response(200, { success: true, version: 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY', rows: [{ orderId: '1' }], mirrors: freshMirrors() });
+      if (pageMode === 'ok') return response(200, { success: true, version: 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY', rows: [{ orderId: '1' }], mirrors: mirrors() });
+      if (pageMode === 'stale') return response(200, { success: true, version: 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY', rows: [{ orderId: 'stale' }], mirrors: mirrors(6 * 60 * 1000) });
+      if (pageMode === 'missing-mirror') return response(200, { success: true, version: 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY', rows: [{ orderId: 'missing' }], mirrors: mirrors().slice(1) });
       if (pageMode === 'invalid-json') return response(200, 'not-json');
       return response(500, { success: false, message: 'edge failed' });
     }
@@ -70,6 +73,7 @@ vm.runInContext(source, context, { filename: 'trendos-edge-orders-read-v1.js' })
 
 assert.equal(typeof window.trendosSecureApiV1922, 'function');
 assert.equal(window.TrendOSEdgeOrdersReadV1.pagePath, '/v1/edge/orders/02cr/page');
+assert.equal(window.TrendOSEdgeOrdersReadV1.maxMirrorAgeMs, 5 * 60 * 1000);
 
 const d1 = await window.trendosSecureApiV1922('getRowsPageV1931', {
   screen: 'print', page: 1, pageSize: 5, statusFilter: '__ACTIVE__', username: 'employee', token: 'secret-should-not-enter-query'
@@ -95,14 +99,38 @@ assert.equal(write.source, 'apps-script');
 assert.equal(calls.length, beforeWriteFetches);
 assert.equal(originalCalls, 2);
 
+pageMode = 'stale';
+const beforeStaleFetches = calls.length;
+const staleFallback = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
+assert.equal(staleFallback.source, 'apps-script');
+assert.equal(originalCalls, 3);
+assert.equal(calls.length, beforeStaleFetches + 1, 'stale fallback must make exactly one Edge page attempt before Apps Script');
+let stats = window.TrendOSEdgeOrdersReadV1.stats();
+assert.equal(stats.staleFallbacks, 1);
+assert.equal(stats.fallbacks, 1);
+assert.equal(stats.lastFallbackReason, 'EDGE_MIRROR_STALE');
+
+pageMode = 'missing-mirror';
+const missingFallback = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'laser', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
+assert.equal(missingFallback.source, 'apps-script');
+assert.equal(originalCalls, 4);
+stats = window.TrendOSEdgeOrdersReadV1.stats();
+assert.equal(stats.fallbacks, 2);
+assert.equal(stats.lastFallbackReason, 'EDGE_MIRROR_MISSING');
+
 pageMode = 'http500';
 const fallback500 = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'laser', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
 assert.equal(fallback500.source, 'apps-script');
-assert.equal(originalCalls, 3);
+assert.equal(originalCalls, 5);
 
 pageMode = 'invalid-json';
 const fallbackJson = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
 assert.equal(fallbackJson.source, 'apps-script');
-assert.equal(originalCalls, 4);
+assert.equal(originalCalls, 6);
 
-console.log('PERF_CF_02CT_FRONTEND_CUTOVER_WRAPPER_PASS');
+stats = window.TrendOSEdgeOrdersReadV1.stats();
+assert.equal(stats.edgeSuccess, 1);
+assert.equal(stats.fallbacks, 4);
+assert.equal(stats.staleFallbacks, 1);
+
+console.log('PERF_CF_02CU_FRONTEND_FRESHNESS_FALLBACK_PASS');
