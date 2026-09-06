@@ -30,13 +30,20 @@ function d1ScreenViewRefresh02CQEnabled_() {
   ).trim() === '1';
 }
 
-function d1ScreenViewRefresh02CQConfig_() {
-  const props = PropertiesService.getScriptProperties();
-  const apiUrl = String(props.getProperty('D1_API_URL') || '').trim().replace(/\/+$/, '');
-  const secret = String(props.getProperty('D1_MIGRATION_SECRET') || '').trim();
+function d1ScreenViewRefresh02CQApiUrl_() {
+  const apiUrl = String(
+    PropertiesService.getScriptProperties().getProperty('D1_API_URL') || ''
+  ).trim().replace(/\/+$/, '');
   if (!apiUrl) throw new Error('02CQ D1_API_URL is missing from Script Properties.');
-  if (!secret) throw new Error('02CQ D1_MIGRATION_SECRET is missing from Script Properties.');
-  return { apiUrl: apiUrl, secret: secret };
+  return apiUrl;
+}
+
+function d1ScreenViewRefresh02CQRequireMigrationSecret_() {
+  const migrationSecret = String(
+    PropertiesService.getScriptProperties().getProperty('D1_MIGRATION_SECRET') || ''
+  ).trim();
+  if (!migrationSecret) throw new Error('02CQ D1_MIGRATION_SECRET is missing from Script Properties.');
+  return migrationSecret;
 }
 
 function d1ScreenViewRefresh02CQSpreadsheet_() {
@@ -96,11 +103,12 @@ function d1ScreenViewRefresh02CQParseResponse_(response, context) {
 }
 
 function d1ScreenViewRefresh02CQPost_(path, payload) {
-  const cfg = d1ScreenViewRefresh02CQConfig_();
-  const response = UrlFetchApp.fetch(cfg.apiUrl + path, {
+  const apiUrl = d1ScreenViewRefresh02CQApiUrl_();
+  const migrationSecret = d1ScreenViewRefresh02CQRequireMigrationSecret_();
+  const response = UrlFetchApp.fetch(apiUrl + path, {
     method: 'post',
     contentType: 'application/json',
-    headers: { 'x-migration-secret': cfg.secret },
+    headers: { 'x-migration-secret': migrationSecret },
     payload: JSON.stringify(payload || {}),
     muteHttpExceptions: true,
     followRedirects: true
@@ -109,8 +117,8 @@ function d1ScreenViewRefresh02CQPost_(path, payload) {
 }
 
 function d1ScreenViewRefresh02CQGet_(path) {
-  const cfg = d1ScreenViewRefresh02CQConfig_();
-  const response = UrlFetchApp.fetch(cfg.apiUrl + path, {
+  const apiUrl = d1ScreenViewRefresh02CQApiUrl_();
+  const response = UrlFetchApp.fetch(apiUrl + path, {
     method: 'get',
     muteHttpExceptions: true,
     followRedirects: true
@@ -249,8 +257,9 @@ function refreshD1ScreenViewMirrors02CQ() {
   let runId = '';
   let promoted = false;
   try {
-    // Validate configuration/backend before any stage write.
-    d1ScreenViewRefresh02CQConfig_();
+    // Validate source + API + secret + mirror read before any stage write.
+    d1ScreenViewRefresh02CQApiUrl_();
+    d1ScreenViewRefresh02CQRequireMigrationSecret_();
     d1ScreenViewRefresh02CQGet_('/v1/mirror/stats');
 
     const ss = d1ScreenViewRefresh02CQSpreadsheet_();
