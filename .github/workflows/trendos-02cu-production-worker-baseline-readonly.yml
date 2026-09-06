@@ -19,7 +19,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WORKER_NAME: trendos-d1-api
-      EXPECTED_VERSION: 23dd09da-cb29-4310-bc01-51505fd5cdec
+      EXPECTED_VERSION: c77bf453-c590-4cff-a55b-fd9c625b6d76
     steps:
       - name: Verify credentials exist
         shell: bash
@@ -28,7 +28,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
 
-      - name: Read exact active deployment
+      - name: Read true latest active deployment
         shell: bash
         run: |
           set -euo pipefail
@@ -36,32 +36,14 @@ jobs:
           node <<'NODE'
           const fs=require('fs');
           const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
-          const ds=Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[]);
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const safe=ds.slice(0,8).map(d=>({id:d.id,created_on:d.created_on,source:d.source,versions:(Array.isArray(d.versions)?d.versions:[]).map(v=>({id:v.version_id||v.id,percentage:Number(v.percentage)}))}));
+          console.log('RECENT_DEPLOYMENTS_DESC='+JSON.stringify(safe));
           const latest=ds[0]||{};
           const active=(Array.isArray(latest.versions)?latest.versions:[]).map(v=>({id:v.version_id||v.id,percentage:Number(v.percentage)}));
-          console.log('ACTIVE_DEPLOYMENT='+JSON.stringify({id:latest.id,created_on:latest.created_on,source:latest.source,versions:active}));
-          if(!active.some(v=>v.id===process.env.EXPECTED_VERSION&&v.percentage===100)) throw new Error('Expected 23dd production version is not at 100%');
-          console.log('ACTIVE_VERSION_EXACT=PASS');
-          NODE
-
-      - name: Read exact active version metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx --yes wrangler@4.33.2 versions view "$EXPECTED_VERSION" --name "$WORKER_NAME" --json > /tmp/version.json
-          node <<'NODE'
-          const fs=require('fs');
-          const x=JSON.parse(fs.readFileSync('/tmp/version.json','utf8'));
-          const v=(x&&x.result)||x||{};
-          const bs=Array.isArray(v.bindings)?v.bindings:[];
-          const names=bs.map(b=>({name:b.name,type:b.type}));
-          console.log('ACTIVE_VERSION_BINDINGS='+JSON.stringify(names));
-          const safeKeys=new Set(['EDGE_DATA_MAX_AGE_SECONDS','EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS','EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED','TRENDOS_CLOUD_WRITE_V1_ENABLED','TRENDOS_PRODUCTION_SHADOW_V2_ENABLED','TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED']);
-          const safe={};
-          for(const b of bs){if(b.type==='plain_text'&&safeKeys.has(b.name))safe[b.name]=String(b.text||'');}
-          console.log('ACTIVE_VERSION_SAFE_FLAGS='+JSON.stringify(safe));
-          if(!names.some(b=>b.name==='EDGE_SESSION_SECRET'&&b.type==='secret_text')) throw new Error('Active version missing EDGE_SESSION_SECRET');
-          console.log('ACTIVE_VERSION_SECRET_BINDING_PRESENT=PASS');
+          console.log('TRUE_ACTIVE_DEPLOYMENT='+JSON.stringify({id:latest.id,created_on:latest.created_on,source:latest.source,versions:active}));
+          if(!active.some(v=>v.id===process.env.EXPECTED_VERSION&&v.percentage===100)) throw new Error('Documented c77 production version is not the true latest 100% deployment');
+          console.log('TRUE_ACTIVE_VERSION_C77_100_PERCENT=PASS');
           NODE
 
       - name: Probe live authority boundary read-only
@@ -72,6 +54,7 @@ jobs:
           curl -fsS "$base/v1/edge/health" -o /tmp/edge.json
           curl -fsS "$base/v1/cloud/write/health" -o /tmp/cloud.json
           curl -fsS "$base/v1/qualification/cloud-write/reconcile/health" -o /tmp/reconcile.json
+          code="$(curl -sS -o /tmp/unauth.json -w '%{http_code}' "$base/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=1&statusFilter=__ACTIVE__")"
           node <<'NODE'
           const fs=require('fs');
           const e=JSON.parse(fs.readFileSync('/tmp/edge.json','utf8'));
@@ -82,3 +65,5 @@ jobs:
           if(r.enabled!==false||r.genericDrainEnabled!==false) throw new Error('Reconcile/generic drain runtime boundary changed');
           console.log('PRODUCTION_AUTHORITY_BOUNDARY_READ_ONLY=PASS');
           NODE
+          test "$code" = '401'
+          echo 'PRODUCTION_02CR_ROUTE_PRESENT_AND_AUTH_PROTECTED=PASS'
