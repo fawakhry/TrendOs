@@ -2,107 +2,99 @@
 
 Date: 2026-09-06
 
-## آخر checkpoint مغلق — PERF-CF-02CU
+## Current active checkpoint — PERF-CF-02CV
 
-`PERF-CF-02CU — Stability / Freshness / Resume Guards`
+`PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-Status: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**
+Status: **IN PROGRESS — PRODUCTION TECHNICAL PASS — USER-VISIBLE STATUS SAVE VALIDATION PENDING**
 
-User-visible close confirmation:
+User report:
 
-`ثبت`
+`بعد كده شوف حالات الاوردر لما بغيرها واعمل حفظ مش بتحفظ`
 
-### Production at close
+### Confirmed root cause
 
-- GitHub Pages from `main`
-- Production main: `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
-- Production Worker: `trendos-d1-api`
-- Worker version: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @ **100%**
-- D1 database: `trendos-main`
-- Sheets / Apps Script authority: **YES**
+The existing UI calls Apps Script `updateLine` then immediately runs `loadRows(true)`.
 
-### Orders routing at close
+Two hazards were confirmed:
 
-`Frontend → trendos-edge-orders-read-v1.js → /v1/edge/orders/02cr/page → D1`
+1. D1 exposes `rowNumber` from the mirror snapshot, but Apps Script `updateLine_` trusted a valid rowNumber before stable `lineId`; shifted source rows could therefore make the mirror row coordinate unsafe for a write.
+2. A successful Sheets write could be followed immediately by a D1 read whose mirror was still under the physical freshness threshold but predated the write, causing the UI to repaint the old status.
 
-- eligible Orders reads: D1-first
-- Apps Script fallback: retained
-- `__DEBT__`: Apps Script
-- writes: Apps Script / Sheets
-- physically stale `بنود الأوردرات` may stay on D1 only with bounded `verified-idle-source-unchanged` proof
-- Customers and Debt Restrictions remain physically freshness-gated
-- failed qualification always falls back to Apps Script
+Orders Low-Usage checks for source changes every five minutes, so immediate read-your-write consistency cannot rely on D1 alone.
 
-### 02CU closed sub-results
+### Fix now in Production
 
-- platform speed: user-validated
-- Navigation/Return no-refresh: CLOSED technical + production + user-visible PASS (`تمام ثبت`)
-- Orders Low-Usage heartbeat: live/healthy
-- `/02cr` idle-aging root cause: fixed and promoted
-- Worker Production promotion: PASS
-- Frontend Production promotion: PASS
-- GitHub Pages: PASS
-- final user-visible idle-aging validation: PASS (`ثبت`)
+Frontend wrapper version:
 
-### Production evidence
+`EDGE_ORDERS_READ_02CV_WRITE_CONSISTENCY_20260906`
 
-- stale-path Preview Run `34031601605` — SUCCESS
-- Worker Preview requalification Run `34033006309` — SUCCESS
-- Worker Production promotion Run `34033058006` — SUCCESS
-- frontend Production promotion Run `34034029239` — SUCCESS
-- GitHub Pages Run `34034051695` — SUCCESS
-- documented Integrity Run `34034284641` — SUCCESS
+Behavior:
 
-### Safety boundary retained
+- `updateLine` remains an Apps Script / Sheets write.
+- If `lineId` exists, D1 mirror `rowNumber` is omitted before forwarding the write so the backend resolves the current source row by stable line identity.
+- Legacy rows without `lineId` keep rowNumber compatibility.
+- Successful `updateLine` opens a local six-minute post-write read barrier.
+- While active, eligible Orders reads use authoritative Apps Script instead of D1 so an older mirror cannot overwrite the just-saved UI state.
+- After the barrier expires, normal D1-first qualified `/02cr` + 02CU dual-signal behavior resumes.
+- Rejected writes do not open a barrier.
 
-- Apps Script deploy: NO
-- D1 business-data write by 02CU: NO
-- authority transfer: NO
-- Sheets / Apps Script authoritative: YES
-- Apps Script fallback: retained
+### Production state
+
+- Production main: `0088ed5625e8359f8551525ae41df3b25248b494`
+- previous main: `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`
+- exact production diff: `trendos-edge-orders-read-v1.js` + one cache-bust line in `config.js` only
+- Production Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
+- D1: `trendos-main`
+- Apps Script deployment for 02CV: **NO**
+- Worker deployment for 02CV: **NO**
+- D1 business-data write by 02CV: **NO**
+- write authority: Apps Script / Sheets
 - `__DEBT__`: Apps Script
 - 02CL / reconcile: OFF
 - generic drain: OFF
 - secret rotation / `EDGE_SESSION_SECRET` change: NO
-- Customer Feedback auto scan: OFF
-- Go-Live Autopilot auto sweep: OFF
-- Trend Master bounded protections: retained
 
-Records:
+### Verification
 
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_STABILITY_FRESHNESS_RESUME_GUARDS.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_NO_REFRESH.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_USER_VISIBLE_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_02CR_DUAL_SIGNAL_IDLE_FRESHNESS_CANDIDATE.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_DUAL_SIGNAL_PRODUCTION_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_DUAL_SIGNAL_USER_VISIBLE_PASS.md`
+Durable test:
 
-Exact close point:
+`tests/frontend_order_status_write_consistency_02cv.test.mjs`
 
-`PERF-CF-02CU CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS — PRODUCTION MAIN eab0dd342085df45ac8cd9dc02b1c21e7dc76820 — WORKER 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% — D1-FIRST QUALIFIED ORDERS READS — APPS SCRIPT FALLBACK + __DEBT__ + SHEETS AUTHORITY RETAINED — 02CL OFF — GENERIC DRAIN OFF — NO SECRET ROTATION`
+It verifies stable-line identity writes, no Edge write routing, successful-write barrier, immediate Apps Script read-after-write behavior, D1-first resume, legacy fallback, and rejected-write behavior.
 
-No further 02CU Production action is required unless a regression is reported.
+- TrendOS Integrity Run `34035164288` — **SUCCESS**
+- `Run 02CV order status write consistency tests` — **PASS**
+- GitHub Pages Run `34035270632` — **SUCCESS**
+- Pages deployed head: `0088ed5625e8359f8551525ae41df3b25248b494`
+
+### Only remaining close condition
+
+User-visible Production test:
+
+`REFRESH ONCE → CHANGE REAL ORDER STATUS → SAVE → VERIFY STATUS REMAINS SAVED AND DOES NOT REVERT.`
+
+Do not close 02CV until the user confirms that live save behavior.
+
+Record:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CV_ORDER_STATUS_WRITE_CONSISTENCY.md`
+
+Exact active stop point:
+
+`PERF-CF-02CV IN PROGRESS — ORDER STATUS SAVE ROOT CAUSE CONFIRMED — FRONTEND-ONLY STABLE-LINE WRITE IDENTITY + 6-MINUTE READ-AFTER-WRITE APPS SCRIPT BARRIER PROMOTED — INTEGRITY 34035164288 SUCCESS — PRODUCTION MAIN 0088ed5625e8359f8551525ae41df3b25248b494 — PAGES 34035270632 SUCCESS — WORKER UNCHANGED 9a4e7163-53bd-4dd7-bbbb-4062d5e829b8 @100% — APPS SCRIPT/SHEETS WRITE AUTHORITY RETAINED — ONLY CLOSE CONDITION: USER-VISIBLE STATUS SAVE PASS`
 
 ---
 
-## Current newly reported issue — Order Status Save
+## Last closed checkpoint — PERF-CF-02CU
 
-After 02CU closure, the user reported a separate production issue:
+Status: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**
 
-> عند تغيير حالة الأوردر ثم الضغط على حفظ، الحالة لا تُحفظ.
+User close confirmation: `ثبت`
 
-This is a **new checkpoint** and must be investigated as a write/update-path issue. Do not reopen 02CU unless evidence proves a direct regression link.
+02CU established user-validated platform speed/navigation stability and dual-signal idle freshness for qualified D1 Orders reads. It remains closed and was not reopened by 02CV.
 
-Initial invariant for this investigation:
-
-- Order ID remains the only linkage key.
-- Existing write authority remains Apps Script / Sheets.
-- Do not route order-status writes to D1 merely to fix this bug.
-- Keep D1-first read behavior and Apps Script fallback unchanged unless direct evidence requires a bounded correction.
-
-Next action:
-
-`TRACE ORDER STATUS UI → SAVE HANDLER → APPS SCRIPT WRITE ACTION → SHEET UPDATE/RESPONSE → POST-SAVE READ/REFRESH, FIND FIRST FAILING HOP, FIX NARROWLY, TEST, THEN PROMOTE WITH SEPARATE PRODUCTION QUALIFICATION.`
+Production Worker remains the 02CU qualified version `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%.
 
 ---
 
