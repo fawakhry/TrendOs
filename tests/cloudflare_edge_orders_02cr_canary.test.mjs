@@ -5,7 +5,7 @@ import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from '../clou
 const NOTE = 'PERF-CF-02CR operational mirror V1';
 
 function row(rowNumber, values) {
-  return { row_number: rowNumber, values_json: JSON.stringify(values), display_json: JSON.stringify(values) };
+  return { rowNumber, valuesJson: JSON.stringify(values), displayJson: JSON.stringify(values) };
 }
 
 const lineHeaders = [
