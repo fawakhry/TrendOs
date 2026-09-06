@@ -1,22 +1,62 @@
 /* TrendOS Edge Orders Read V1
  * Reads getRowsPageV1931 from the qualified Cloudflare/D1 route first when enabled.
  * Every write and every unsupported/sensitive read stays on Apps Script.
- * Any Edge error fails open to the original Apps Script function.
+ * Any Edge error or stale required mirror fails open to the original Apps Script function.
  */
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_02CT_20260906';
+  var VERSION = 'EDGE_ORDERS_READ_02CU_FRESHNESS_20260906';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SESSION_SKEW_MS = 30000;
+  var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
+  var REQUIRED_MIRRORS = ['بنود الأوردرات', 'العملاء', 'عملاء منع التسليم بالمديونية'];
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
+  var metrics = { edgeSuccess: 0, fallbacks: 0, staleFallbacks: 0, lastFallbackAt: 0, lastFallbackReason: '' };
 
   function text(value) { return String(value == null ? '' : value).trim(); }
 
   function edgeBase() {
     return text(window.MATBAGY_EDGE_ORDERS_API_URL || window.MATBAGY_EDGE_API_URL || DEFAULT_EDGE_API).replace(/\/+$/, '');
+  }
+
+  function maxMirrorAgeMs() {
+    var configured = Number(window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS);
+    return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MAX_MIRROR_AGE_MS;
+  }
+
+  function parseMirrorTime(value) {
+    var raw = text(value);
+    if (!raw) return NaN;
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw)) raw = raw.replace(' ', 'T') + 'Z';
+    return Date.parse(raw);
+  }
+
+  function mirrorFreshnessError(message, code) {
+    var err = new Error(message);
+    err.code = code || 'EDGE_MIRROR_NOT_READY';
+    err.fallback = 'apps-script';
+    return err;
+  }
+
+  function validateRequiredMirrors(body) {
+    var mirrors = body && Array.isArray(body.mirrors) ? body.mirrors : [];
+    var maxAge = maxMirrorAgeMs();
+    var now = Date.now();
+    REQUIRED_MIRRORS.forEach(function (name) {
+      var mirror = mirrors.find(function (item) { return text(item && item.sheetName) === name; });
+      if (!mirror) throw mirrorFreshnessError('Required D1 mirror metadata missing: ' + name, 'EDGE_MIRROR_MISSING');
+      if (text(mirror.status).toLowerCase() !== 'ready') throw mirrorFreshnessError('Required D1 mirror is not ready: ' + name, 'EDGE_MIRROR_NOT_READY');
+      if (Number(mirror.rowCount || 0) !== Number(mirror.sourceLastRow || 0)) throw mirrorFreshnessError('Required D1 mirror row parity failed: ' + name, 'EDGE_MIRROR_PARITY');
+      var syncedAt = parseMirrorTime(mirror.syncedAt);
+      if (!Number.isFinite(syncedAt)) throw mirrorFreshnessError('Required D1 mirror timestamp missing: ' + name, 'EDGE_MIRROR_TIMESTAMP');
+      var age = now - syncedAt;
+      if (age < -2 * 60 * 1000) throw mirrorFreshnessError('Required D1 mirror timestamp is in the future: ' + name, 'EDGE_MIRROR_CLOCK');
+      if (age > maxAge) throw mirrorFreshnessError('Required D1 mirror is stale: ' + name, 'EDGE_MIRROR_STALE');
+    });
+    return body;
   }
 
   function currentUser() {
@@ -108,7 +148,7 @@
           headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
         });
       }
-      return jsonResponse(response);
+      return validateRequiredMirrors(await jsonResponse(response));
     })();
 
     inflight.set(requestKey, task);
@@ -133,11 +173,16 @@
       if (!eligible(action, params || {})) return original.apply(this, args);
       try {
         var result = await edgePage(params || {});
+        metrics.edgeSuccess += 1;
         result.dashboard = result.dashboard || null;
         return result;
       } catch (err) {
+        metrics.fallbacks += 1;
+        metrics.lastFallbackAt = Date.now();
+        metrics.lastFallbackReason = text(err && (err.code || err.message));
+        if (err && err.code === 'EDGE_MIRROR_STALE') metrics.staleFallbacks += 1;
         try {
-          console.warn('[TrendOS Orders Edge 02CT] D1 read failed; using Apps Script fallback:', err && err.message ? err.message : err);
+          console.warn('[TrendOS Orders Edge 02CU] D1 read unavailable/freshness failed; using Apps Script fallback:', err && err.message ? err.message : err);
         } catch (ignore) {}
         return original.apply(this, args);
       }
@@ -149,11 +194,22 @@
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 'qualified-d1-orders-read-first-apps-script-fallback',
+      mode: 'qualified-d1-orders-read-first-freshness-gated-apps-script-fallback',
       api: edgeBase(),
       pagePath: QUALIFIED_PAGE_PATH,
+      maxMirrorAgeMs: maxMirrorAgeMs(),
       clearSession: clearSession,
-      stats: function () { return { inflight: inflight.size, sessionExpiresAt: session.expiresAt || 0 }; }
+      stats: function () {
+        return {
+          inflight: inflight.size,
+          sessionExpiresAt: session.expiresAt || 0,
+          edgeSuccess: metrics.edgeSuccess,
+          fallbacks: metrics.fallbacks,
+          staleFallbacks: metrics.staleFallbacks,
+          lastFallbackAt: metrics.lastFallbackAt,
+          lastFallbackReason: metrics.lastFallbackReason
+        };
+      }
     };
     return true;
   }
@@ -162,6 +218,7 @@
     version: VERSION,
     enabled: window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED === true,
     pagePath: QUALIFIED_PAGE_PATH,
+    maxMirrorAgeMs: maxMirrorAgeMs(),
     install: install,
     clearSession: clearSession
   };

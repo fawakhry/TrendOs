@@ -13,6 +13,8 @@ window.MATBAGY_SECURE_API_PROXY_URL = "";
 // Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
 window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
+// 02CU: stale required D1 Orders mirrors fail open to authoritative Apps Script.
+window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
 
 window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
 window.MATBAGY_FILE_SERVER_URL = "https://files.matbagy.com";
@@ -87,7 +89,7 @@ function trendLoadModuleV1932(id, src){
   (document.head || document.documentElement).appendChild(s);
 }
 
-trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260906c');
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260906-02cu-fresh1');
 
 window.MATBAGY_ATTENDANCE_V1 = true;
 trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260906perfhotfix1');
