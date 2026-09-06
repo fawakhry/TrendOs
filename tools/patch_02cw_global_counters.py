@@ -48,11 +48,11 @@ new_render = '''  function renderStats(rows) {
     const displayed = summary ? Number(summary.total || 0) : rows.length;
     const urgent = summary ? Number(summary.urgent || 0) : rows.filter(r => r.priority === "عاجل" || r.priority === "VIP").length;
     const normal = summary ? Number(summary.normal || 0) : rows.filter(r => !r.priority || r.priority === "عادي").length;
-    const problem = summary ? Number(summary.problems || 0) : rows.filter(r => WORK_PROBLEM_STATUS.includes(normalizeStatus(r.status))).length;
-    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(r => text(r.overdue) === "نعم").length;
-    const debts = summary ? Number(summary.debts || 0) : rows.filter(r => Number(r.debtAmount || 0) > 0).length;
-    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(r => isHeatPress(r.heatPress)).length;
-    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(r => normalizeStatus(r.status) === "ملغى").length;
+    const problem = summary ? Number(summary.problems || 0) : rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;
+    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(isOverdueRow).length;
+    const debts = summary ? Number(summary.debts || 0) : rows.filter(hasDebt).length;
+    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
+    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
     const flyPrint = summary ? Number(summary.flyPrint || 0) : rows.filter(r => isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])).length;
     statsBar.innerHTML =
       "<span class='stat-chip'>المعروض: <b>" + displayed + "</b></span>" +
@@ -84,7 +84,7 @@ if new_config_loader not in index:
     index = index.replace(old_config_loader, new_config_loader, 1)
 
 old_app_loader = 'app.js?v=trendos-02cv-flylane-20260906c'
-new_app_loader = 'app.js?v=trendos-02cw-globalcounts-20260906d'
+new_app_loader = 'app.js?v=trendos-02cw-globalcounts-hotfix-20260906e'
 if new_app_loader not in index:
     if old_app_loader not in index:
         raise SystemExit('app cache-bust anchor missing')
@@ -119,6 +119,8 @@ assert.match(app,/activeSummaryCounts:\\s*null/);
 assert.match(app,/res\\.activeSummaryCounts && typeof res\\.activeSummaryCounts === \"object\"/);
 assert.doesNotMatch(app,/state\\.activeSummaryCounts\\s*=\\s*res\\.activeSummaryCounts\\s*\\|\\|\\s*\\{\\}/);
 assert.match(app,/const displayed = summary \\? Number\\(summary\\.total \\|\\| 0\\) : rows\\.length/);
+assert.doesNotMatch(app,/WORK_PROBLEM_STATUS/);
+assert.doesNotMatch(app,/normalizeStatus\\(r\\.status\\)/);
 for(const key of ['urgent','normal','problems','overdue','debts','heatPress','cancelled','flyPrint']) assert.ok(app.includes('summary.'+key),key);
 assert.match(app,/const priority = \\$\\(\"priorityFilter\"\\)\\.value;/);
 assert.doesNotMatch(app,/const priority = \\$\\(\"priorityFilter\"\\)\\.value \\|\\| \"__ACTIVE__\";/);
@@ -126,7 +128,7 @@ assert.match(app,/priorityFilter: \\(\\$\\(\"priorityFilter\"\\) \\|\\| \\{\\}\\
 assert.match(index,/<option value=\"__ACTIVE__\" selected>الحالات الجارية فقط<\\/option>/);
 assert.match(index,/<option value=\"__ACTIVE__\">العاجل والعادي فقط<\\/option>\\s*<option value=\"\" selected>كل الأولويات<\\/option>/);
 assert.match(index,/config\\.js\\?v=trendos-02cw-globalcounts-20260906d/);
-assert.match(index,/app\\.js\\?v=trendos-02cw-globalcounts-20260906d/);
+assert.match(index,/app\\.js\\?v=trendos-02cw-globalcounts-hotfix-20260906e/);
 assert.match(config,/press-control-v1\\.js\\?v=20260906-02cw/);
 assert.match(press,/activeSummaryCounts/);
 assert.match(press,/heatPressOrders/);
