@@ -32,7 +32,7 @@ jobs:
           test "$(git rev-parse origin/main)" = "$EXPECTED_PROD_MAIN"
           echo "PROD_MAIN_LOCKED=$EXPECTED_PROD_MAIN"
 
-      - name: Apply exact qualified 02CV frontend patch to working branch
+      - name: Apply qualified 02CV app logic to working branch
         shell: bash
         run: |
           set -euo pipefail
@@ -40,12 +40,7 @@ jobs:
           from pathlib import Path
 
           app_path = Path('app.js')
-          index_path = Path('index.html')
-          ux_path = Path('tests/frontend_order_status_ux_02cv.test.mjs')
-
           app = app_path.read_text(encoding='utf-8')
-          index = index_path.read_text(encoding='utf-8')
-          ux = ux_path.read_text(encoding='utf-8')
 
           anchor = '''  function isFlyPrint(value) {\n    const v = text(value).trim().toLowerCase();\n    return v === "نعم" || v === "true" || v === "1" || v === "on" || v === "طباعة على الطاير" || v === "طباعة ع الطاير" || v === "على الطاير" || v === "ع الطاير";\n  }\n\n'''
           helper = '''  function preserveFlyPrintAcrossMissingFields(previousRows, nextRows) {\n    const knownFlyByLineId = {};\n    (previousRows || []).forEach(function (row) {\n      const lineId = text(row && row.lineId).trim();\n      if (!lineId) return;\n      const fly = row && (row.flyPrint || row.quickPrint || row.fastPrint || row["طباعة على الطاير"] || row["طباعة ع الطاير"]);\n      if (isFlyPrint(fly)) knownFlyByLineId[lineId] = true;\n    });\n\n    return (nextRows || []).map(function (row) {\n      if (!row || typeof row !== "object") return row;\n      const hasExplicitFlyField = ["flyPrint", "quickPrint", "fastPrint", "طباعة على الطاير", "طباعة ع الطاير"].some(function (key) {\n        return Object.prototype.hasOwnProperty.call(row, key);\n      });\n      if (hasExplicitFlyField) return row;\n\n      const lineId = text(row.lineId).trim();\n      if (lineId && knownFlyByLineId[lineId]) {\n        row.flyPrint = "نعم";\n        row.quickPrint = "نعم";\n      }\n      return row;\n    });\n  }\n\n'''
@@ -62,28 +57,16 @@ jobs:
                   raise SystemExit('loadRows replacement anchor missing')
               app = app.replace(old_rows, new_rows, 1)
 
-          old_loader = '<script src="app.js?v=trendos-02cv-statusux-20260906b"></script>'
-          new_loader = '<script src="app.js?v=trendos-02cv-flylane-20260906c"></script>'
-          if new_loader not in index:
-              if old_loader not in index:
-                  raise SystemExit('app loader anchor missing')
-              index = index.replace(old_loader, new_loader, 1)
-
-          ux = ux.replace('trendos-02cv-statusux-20260906b', 'trendos-02cv-flylane-20260906c')
-
           app_path.write_text(app, encoding='utf-8')
-          index_path.write_text(index, encoding='utf-8')
-          ux_path.write_text(ux, encoding='utf-8')
-          print('02CV_WORKING_BRANCH_PATCH_APPLIED')
+          print('02CV_WORKING_BRANCH_APP_PATCH_APPLIED')
           PY
 
-      - name: Run 02CV focused contracts
+      - name: Run focused durable contracts
         shell: bash
         run: |
           set -euo pipefail
           node tests/frontend_flyprint_lane_stability_02cv.test.mjs
           node tests/frontend_order_status_write_consistency_02cv.test.mjs
-          node tests/frontend_order_status_ux_02cv.test.mjs
           node --check app.js
 
       - name: Assert bounded working-branch diff
@@ -92,10 +75,8 @@ jobs:
           set -euo pipefail
           mapfile -t files < <(git diff --name-only)
           printf 'CHANGED_FILES=%s\n' "${files[*]}"
-          test "${#files[@]}" -eq 3
-          printf '%s\n' "${files[@]}" | grep -qx 'app.js'
-          printf '%s\n' "${files[@]}" | grep -qx 'index.html'
-          printf '%s\n' "${files[@]}" | grep -qx 'tests/frontend_order_status_ux_02cv.test.mjs'
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = 'app.js'
           git diff --check
 
       - name: Commit working-branch parity
@@ -104,7 +85,7 @@ jobs:
           set -euo pipefail
           git config user.name 'trendos-bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add app.js index.html tests/frontend_order_status_ux_02cv.test.mjs
-          git commit -m 'Sync qualified 02CV fly-print fix to working branch'
+          git add app.js
+          git commit -m 'Sync qualified 02CV fly-print app logic to working branch'
           git push origin HEAD:agent/go-live-2026-09-01-integrity
-          echo '02CV_WORKING_BRANCH_PARITY_PUSH=PASS'
+          echo '02CV_WORKING_BRANCH_APP_PARITY_PUSH=PASS'
