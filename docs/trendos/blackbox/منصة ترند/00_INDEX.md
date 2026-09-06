@@ -2,6 +2,29 @@
 
 هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**. مسار Trend Master ومسار D1 / Cloudflare موثقان هنا مع إبقاء حدود كل مسار منفصلة.
 
+## PERF-CF-02CU — Stability / Freshness / Resume Guards
+
+الحالة الحالية: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — RETURN/FOCUS AUTO-REFRESH TECHNICAL PASS + PRODUCTION DEPLOYED — USER-VISIBLE RESUME VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
+
+السجل:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_STABILITY_FRESHNESS_RESUME_GUARDS.md`
+
+Production state relevant to 02CU:
+
+- production main: `20a56241da2919e31fc12cb5224d29ac18fdf4f3`
+- stale D1 required mirrors older than 5 minutes fail open to Apps Script
+- legacy focus / visibility / 3-minute `safeRefresh()` is suppressed without disabling manual refresh
+- GitHub Pages Run `34027347761` — **SUCCESS**
+- bounded production resume workflow Run `34027313379` — **SUCCESS**
+- dedicated no-auto-refresh CI Run `34027221511` — **SUCCESS**
+- same-head Integrity Run `34027221532` — **SUCCESS**
+- no Apps Script deploy / no Worker deploy / no D1 write / no 02CL / no generic drain / no secret rotation
+
+Underlying Orders Live Sync heartbeat recovery remains a separate pending 02CU item. The freshness gate is the safety fallback until that heartbeat is restored and qualified.
+
+---
+
 ## Trend Master V1931 — checkpoint منفصل
 
 `TM-V1931-RESILIENCE — Trend Master Panel Resilience Candidate`
@@ -25,7 +48,7 @@ CI:
 
 ---
 
-## D1 / Cloudflare — آخر checkpoint
+## D1 / Cloudflare — آخر checkpoint مغلق
 
 `PERF-CF-02CT — Production Frontend D1 Orders Read Cutover`
 
@@ -39,9 +62,8 @@ CI:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_USER_VISIBLE_PASS.md`
 
-### Production state
+### 02CT baseline
 
-- Production main: `943da84e3b3d1591d2ce207ab3411bfe437989b1`
 - Worker: `trendos-d1-api`
 - Worker version: `c77bf453-c590-4cff-a55b-fd9c625b6d76` — 100% Worker traffic
 - eligible `getRowsPageV1931` frontend reads: **D1 first**
@@ -55,56 +77,35 @@ CI:
 - generic drain: **OFF**
 - `pendingOutbox=0`
 - secret rotation: **NO**
-- D1 migration: **NO**
-- Apps Script deployment during 02CT: **NO**
 
 ### 02CT evidence
 
-Pre-cutover qualification:
+- qualification Run `34010739030` — **SUCCESS**
+- Integrity Run `34010738989` — **SUCCESS**
+- production cutover Run `34010864525` — **SUCCESS**
+- GitHub Pages Run `34010872232` — **SUCCESS**
+- durable regression Run `34011062287` — **SUCCESS**
+- same-head Integrity Run `34011062262` — **SUCCESS**
+- user-visible validation: `فل` — **PASS**
 
-- Run `34010739030` — Job `101425991751` — **SUCCESS**
-- Integrity Run `34010738989` — Job `101425991698` — **SUCCESS**
-- print parity `21`, laser parity `18`, 38-field contract PASS
-
-Production cutover:
-
-- Run `34010864525` — Job `101426332138` — **SUCCESS**
-- GitHub Pages Run `34010872232` — build/deploy **SUCCESS**
-- published wrapper live canary: `PERF_CF_02CT_LIVE_FRONTEND_WRAPPER_PASS rows=5`
-- final marker: `PERF_CF_02CT_PRODUCTION_FRONTEND_CUTOVER_PASS=943da84e3b3d1591d2ce207ab3411bfe437989b1`
-
-Durable post-cutover regression:
-
-- working config sync commit `94699da3a7279eeea22df40c3cd383ea33c4f870`
-- regression CI commit `1da926e9c9e9be843da1e125790f2c0535d77f71`
-- Run `34011062287` — Job `101426859723` — **SUCCESS**
-- same-head Integrity Run `34011062262` — Job `101426859662` — **SUCCESS**
-
-User-visible validation:
-
-- production browser smoke check: **PASS**
-- user confirmation: `فل`
-- official marker: `PERF-CF-02CT USER-VISIBLE PASS`
-
-### نقطة الوقوف الدقيقة — D1
+### نقطة الوقوف الدقيقة — 02CT
 
 `PERF-CF-02CT CLOSED — TECHNICAL PASS + USER-VISIBLE PASS — PRODUCTION FRONTEND D1 ORDERS READ ON THROUGH QUALIFIED /02CR ROUTE — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITY RETAINED`
-
-لا يوجد نقل authority إلى D1. أي خطوة تخص D1 writes / authority / 02CL تحتاج checkpoint وموافقة منفصلة.
 
 ## ثوابت الأمان المشتركة
 
 - Sheets / Apps Script تظل authoritative.
-- Frontend D1 Orders read ON للقراءات المؤهلة فقط.
+- Frontend D1 Orders read ON للقراءات المؤهلة فقط، مع freshness fail-open إلى Apps Script.
 - writes لا تزال Apps Script / Sheets.
 - `__DEBT__` يبقى Apps Script fallback.
 - 02CL OFF.
 - generic drain OFF.
 - لا تدوير `EDGE_SESSION_SECRET`.
-- لا Apps Script deployment خاص بـTrend Master بدون موافقة صريحة من المستخدم.
+- أي Apps Script deployment يحتاج نطاق وموافقة مناسبة منفصلة.
 
 ## checkpoints سابقة — D1 track
 
+- `PERF-CF-02CU` — IN PROGRESS / freshness fail-safe live / no-auto-refresh deployed / user-visible resume validation + sync heartbeat recovery pending
 - `PERF-CF-02CT` — CLOSED / TECHNICAL PASS + USER-VISIBLE PASS / production frontend D1 read ON / qualified `/02cr` / fallback retained
 - `PERF-CF-02CS` — PRODUCTION WORKER ROUTE VERIFIED PASS / frontend OFF at close
 - `PERF-CF-02CR` — full field / identity / filtering qualification
