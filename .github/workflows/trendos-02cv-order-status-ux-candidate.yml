@@ -1,0 +1,68 @@
+name: TrendOS 02CV Order Status UX Candidate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'tools/patch_02cv_order_status_ux.py'
+      - 'tests/frontend_order_status_ux_02cv.test.mjs'
+      - '.github/workflows/trendos-02cv-order-status-ux-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EXPECTED_MAIN: 0088ed5625e8359f8551525ae41df3b25248b494
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Assemble exact production candidate in temp directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$EXPECTED_MAIN"
+          mkdir -p /tmp/trendos-02cv-candidate
+          git show "$EXPECTED_MAIN:app.js" > /tmp/trendos-02cv-candidate/app.js
+          git show "$EXPECTED_MAIN:index.html" > /tmp/trendos-02cv-candidate/index.html
+          python3 tools/patch_02cv_order_status_ux.py /tmp/trendos-02cv-candidate
+
+      - name: Run focused UX contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRENDOS_TEST_ROOT=/tmp/trendos-02cv-candidate node tests/frontend_order_status_ux_02cv.test.mjs
+          node --check /tmp/trendos-02cv-candidate/app.js
+
+      - name: Assert bounded candidate changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "$EXPECTED_MAIN:app.js" > /tmp/original-app.js
+          git show "$EXPECTED_MAIN:index.html" > /tmp/original-index.html
+          diff -u /tmp/original-app.js /tmp/trendos-02cv-candidate/app.js > /tmp/app.diff || true
+          diff -u /tmp/original-index.html /tmp/trendos-02cv-candidate/index.html > /tmp/index.diff || true
+          grep -q 'statusBadges(r)' /tmp/app.diff
+          grep -q 'applyFiltersAndRender(false)' /tmp/app.diff
+          grep -q 'تم حفظ التعديل في الشيت' /tmp/app.diff
+          grep -q 'trendos-02cv-statusux-20260906b' /tmp/index.diff
+          ! grep -q '^[-+]window\.WEB_APP_URL' /tmp/index.diff
+          echo '02CV_BOUNDED_FRONTEND_CANDIDATE=PASS'
+
+      - name: Re-run existing safety contracts from working branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/frontend_edge_orders_cutover_02ct.test.mjs
+          node tests/frontend_order_status_write_consistency_02cv.test.mjs
+
+      - name: Candidate pass
+        run: echo 'PERF_CF_02CV_ORDER_STATUS_UX_CANDIDATE_PASS'
