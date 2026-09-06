@@ -23,13 +23,15 @@ assert.match(coordinator, /reason:'min-interval'/);
 assert.match(coordinator, /coalesced/);
 
 // Working frontend must actually load the coordinator, while keeping Apps Script
-// as the current API authority and Edge Read V1 disabled/unloaded.
+// as the current API authority and Edge Read V1 disabled/unloaded. Cache-buster
+// versions are intentionally not pinned here because production perf hotfixes may
+// rev a module URL without changing the polling/coalescing contract under test.
 assert.match(config, /trendPollCoordinatorV1Loader/);
-assert.match(config, /trendos-poll-coordinator-v1\.js\?v=20260904a/);
-assert.match(config, /press-control-v1\.js\?v=20260904a/);
-assert.match(config, /customer-feedback-v1\.js\?v=20260904a/);
-assert.match(config, /employee-manager-strips-v2\.js\?v=20260904a/);
-assert.match(config, /operations-hub-v1\.js\?v=20260904a/);
+assert.match(config, /trendos-poll-coordinator-v1\.js\?v=[^'"\s]+/);
+assert.match(config, /press-control-v1\.js\?v=[^'"\s]+/);
+assert.match(config, /customer-feedback-v1\.js\?v=[^'"\s]+/);
+assert.match(config, /employee-manager-strips-v2\.js\?v=[^'"\s]+/);
+assert.match(config, /operations-hub-v1\.js\?v=[^'"\s]+/);
 assert.match(config, /window\.TREND_API_URL\s*=\s*window\.WEB_APP_URL/);
 assert.match(config, /window\.API_URL\s*=\s*window\.WEB_APP_URL/);
 assert.doesNotMatch(config, /MATBAGY_EDGE_READ_V1_ENABLED\s*=\s*true/);
