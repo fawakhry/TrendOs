@@ -6,6 +6,7 @@ on:
       - agent/go-live-2026-09-01-integrity
     paths:
       - '.github/workflows/trend-master-v1931-prod-readonly-canary.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -67,11 +68,22 @@ jobs:
           }
           (async () => {
             const result = await readJson();
+            const body = result.body || {};
+            const safe = {
+              httpStatus: result.status,
+              success: body.success === true,
+              code: String(body.code || '').slice(0, 120),
+              message: String(body.message || body.error || '').slice(0, 180),
+              panel: String(body.panel || '').slice(0, 40),
+              version: String(body.version || '').slice(0, 80),
+              hasSystem: !!(body.system && typeof body.system === 'object')
+            };
+            console.log('TREND_MASTER_V1931_SAFE_DIAGNOSTIC=' + JSON.stringify(safe));
             assert.equal(result.status, 200, 'Apps Script HTTP status');
-            assert.equal(result.body.success, true, 'Trend Master panel route is not published/healthy');
-            assert.equal(result.body.panel, 'summary', 'Unexpected panel response');
-            assert.equal(result.body.version, 'V1931_TREND_MASTER_PANEL_READ_V1', 'Unexpected backend version');
-            assert.ok(result.body.system && typeof result.body.system === 'object', 'Missing summary system payload');
+            assert.equal(body.success, true, 'Trend Master panel route is not published/healthy');
+            assert.equal(body.panel, 'summary', 'Unexpected panel response');
+            assert.equal(body.version, 'V1931_TREND_MASTER_PANEL_READ_V1', 'Unexpected backend version');
+            assert.ok(body.system && typeof body.system === 'object', 'Missing summary system payload');
             console.log('TREND_MASTER_V1931_PROD_READONLY_CANARY_PASS');
           })().catch(error => {
             console.error(error && error.stack ? error.stack : error);
