@@ -1,0 +1,115 @@
+name: TrendOS 02CU Production Stability Read-Only
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cu-stability-readonly.yml'
+      - 'config.js'
+      - 'app.js'
+      - 'trendos-edge-orders-read-v1.js'
+      - 'trend-master-resilience-safe-v1931.js'
+      - 'trendos-poll-coordinator-v1.js'
+      - 'tests/trendos_polling_coalescing_v1.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stability-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EDGE_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PAGES_BASE: https://fawakhry.github.io/TrendOs
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Published frontend startup-load guards
+        run: |
+          set -euo pipefail
+          stamp="$(date +%s)"
+          curl -fsS "$PAGES_BASE/config.js?02cu=$stamp" -o /tmp/live-config.js
+          curl -fsS "$PAGES_BASE/app.js?02cu=$stamp" -o /tmp/live-app.js
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' /tmp/live-config.js
+          grep -Fq 'MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false' /tmp/live-config.js
+          grep -Fq 'MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false' /tmp/live-config.js
+          grep -Fq 'MATBAGY_TREND_MASTER_MAX_CONCURRENCY = 2' /tmp/live-config.js
+          grep -Fq 'MATBAGY_TREND_MASTER_MAX_ATTEMPTS = 1' /tmp/live-config.js
+          grep -Fq 'اضغط «تحديث المركز» لتحميل البيانات.' /tmp/live-app.js
+          if grep -Fq 'if (show && !state.trendMaster && !state.trendMasterLoading) loadTrendMasterCenter(false);' /tmp/live-app.js; then
+            echo 'Trend Master automatic platform-load fanout returned'; exit 1
+          fi
+          echo 'PERF_CF_02CU_PUBLISHED_STARTUP_GUARDS_PASS'
+
+      - name: Production authority boundary remains safe
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.EDGE_URL;
+          async function get(path){const r=await fetch(base+path,{cache:'no-store',headers:{accept:'application/json'}});const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch{}return{status:r.status,body};}
+          (async()=>{
+            const [edge,cloud,reconcile,unauth]=await Promise.all([
+              get('/v1/edge/health'),
+              get('/v1/cloud/write/health'),
+              get('/v1/qualification/cloud-write/reconcile/health'),
+              get('/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__')
+            ]);
+            assert.equal(edge.status,200);assert.equal(edge.body.success,true);assert.equal(edge.body.cutover,false);
+            assert.equal(cloud.status,200);assert.equal(cloud.body.success,true);assert.equal(cloud.body.sheetsAuthoritative,true);assert.equal(cloud.body.cutover,false);assert.equal(Number(cloud.body.pendingOutbox||0),0);
+            assert.equal(reconcile.status,200);assert.equal(reconcile.body.enabled,false);assert.equal(reconcile.body.genericDrainEnabled,false);
+            assert.equal(unauth.status,401);
+            console.log('PERF_CF_02CU_BOUNDARY_PASS');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Authenticated D1 stability freshness and fallback lane
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME" && test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const edge=process.env.EDGE_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),employeeToken=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          const critical=['rowNumber','orderId','orderCode','lineId','customer','customerPhone','customerSource','source','externalCustomerId','customerMode','department','itemName','qty','assignedTo','priority','status','ready','heatPress','flyPrint','quickPrint','debtAmount','debtHold','deliveryDebtRestricted','debtRestrictionReason','debtNotes','updatedAt','notes','customerNotified','notifiedAt','notifiedBy','lastWhatsAppMessage','lastWhatsAppAt','lastWhatsAppBy','receivedAt','expectedDeliveryAt','expectedDeliveryText','overdue','registrationSent'];
+          async function req(url,opt={},timeoutMs=30000){
+            const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),timeoutMs),t=Date.now();
+            try{const r=await fetch(url,{cache:'no-store',signal:ctl.signal,...opt});const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch{}return{ms:Date.now()-t,status:r.status,body};}
+            finally{clearTimeout(timer)}
+          }
+          function freshness(mirrors){
+            const now=Date.now();
+            return (mirrors||[]).map(m=>{const ts=Date.parse(m.syncedAt||'');return{sheet:m.sheetName,status:m.status,rowCount:Number(m.rowCount||0),sourceLastRow:Number(m.sourceLastRow||0),ageMs:Number.isFinite(ts)?now-ts:Infinity};});
+          }
+          (async()=>{
+            const s=await req(edge+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})},20000);
+            assert.equal(s.status,200);assert.equal(s.body.success,true);assert.ok(s.body.edgeToken);assert.ok(s.ms<20000,'edge session too slow');
+            const token=s.body.edgeToken,metrics=[];
+            for(let i=0;i<6;i++){
+              const screen=i%2===0?'print':'laser';
+              const q=new URLSearchParams({screen,page:'1',pageSize:'5',statusFilter:'__ACTIVE__'});
+              const x=await req(edge+'/v1/edge/orders/02cr/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+token}},15000);
+              assert.equal(x.status,200,screen+' edge status');assert.equal(x.body.success,true,screen+' edge success');assert.equal(x.body.version,'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY');
+              assert.ok(x.ms<15000,screen+' edge read exceeded 15s');
+              for(const r of x.body.rows||[])for(const k of critical)assert.ok(Object.prototype.hasOwnProperty.call(r,k),screen+' missing '+k);
+              const fm=freshness(x.body.mirrors);
+              assert.equal(fm.length,3,'mirror count');
+              for(const m of fm){assert.equal(m.status,'ready',m.sheet+' not ready');assert.equal(m.rowCount,m.sourceLastRow,m.sheet+' row parity');assert.ok(m.ageMs>=0&&m.ageMs<15*60*1000,m.sheet+' stale >15m');}
+              metrics.push({screen,ms:x.ms,totalRows:Number(x.body.pagination&&x.body.pagination.totalRows||0),dataVersion:String(x.body.dataVersion||''),maxMirrorAgeSec:Math.round(Math.max(...fm.map(m=>m.ageMs))/1000)});
+              await new Promise(r=>setTimeout(r,1000));
+            }
+            const debtEdge=await req(edge+'/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=5&statusFilter=__DEBT__',{headers:{accept:'application/json',authorization:'Bearer '+token}},15000);
+            assert.equal(debtEdge.status,409);assert.equal(debtEdge.body.fallback,'apps-script');assert.equal(debtEdge.body.code,'apps-script-required');
+            const debtPayload={action:'getRowsPageV1931',username,token:employeeToken,screen:'service',page:1,pageSize:5,statusFilter:'__DEBT__'};
+            const debtApps=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(debtPayload)},45000);
+            assert.equal(debtApps.status,200);assert.equal(debtApps.body.success,true);assert.ok(debtApps.ms<45000,'Apps Script fallback exceeded 45s');
+            const edgeMs=metrics.map(x=>x.ms).sort((a,b)=>a-b);const p95=edgeMs[Math.ceil(edgeMs.length*.95)-1]||0;
+            console.log('PERF_CF_02CU_STABILITY_PASS='+JSON.stringify({sessionMs:s.ms,edgeReads:metrics.map(({screen,ms,totalRows,maxMirrorAgeSec})=>({screen,ms,totalRows,maxMirrorAgeSec})),edgeP95Ms:p95,debtFallbackMs:debtApps.ms}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
