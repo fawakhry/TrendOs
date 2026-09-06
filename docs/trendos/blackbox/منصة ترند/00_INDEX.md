@@ -4,60 +4,61 @@
 
 ## آخر checkpoint منفذ
 
-`PERF-CF-02CR — Orders Completeness / Operational D1 Preview Qualification`
+`PERF-CF-02CS — Production Worker Deploy Gate / Authenticated Canary Preflight`
 
-الحالة: **USER-VISIBLE COMPLETENESS PASS — PREVIEW SOURCE/IDENTITY/PAGING/FILTER/FIELD-CONTRACT PASS — ENRICHMENT HEARTBEAT PASS — FINAL BOUNDARY PASS — PRODUCTION FRONTEND D1 READ OFF**
+الحالة: **02CR PREVIEW QUALIFIED — PRODUCTION PREDEPLOY CODE/BOUNDARY PASS — AUTH CANARY CREDENTIAL BLOCKED — NO WORKER DEPLOY — FRONTEND D1 READ OFF**
 
 أحدث سجل:
 
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CS_PRODUCTION_WORKER_AUTH_PREFLIGHT_BLOCKED.md`
+
+السجل السابق:
+
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_PREVIEW_SOURCE_PARITY_HEARTBEAT_BOUNDARY_PASS.md`
-
-السجلات السابقة لنفس checkpoint:
-
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_VIEW_FORMULA_USER_VALIDATED_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_VIEW_FORMULA_RANGE_FIX.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_FRONTEND_STALE_CACHE_RECOVERY.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_APPROVED_PREDEPLOY_PASS_MANUAL_APPS_SCRIPT_EXECUTION_REQUIRED.md`
-- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CR_FIELD_COMPLETENESS_REGRESSION_ROLLBACK.md`
 
 ## الحالة الحالية المختصرة
 
 1. Production order-card read ما زال **Apps Script / Sheets** وD1 Orders read على الواجهة **OFF**.
-2. مشكلة نقص الأوردرات في legacy views تم إصلاحها من source-range caps، والمستخدم أكد: `كده تمام اشتغل`.
-3. Existing Orders Live Sync V2 يظل المالك الوحيد لـ`الأوردرات + بنود الأوردرات`.
-4. 02CR enrichment sync للعملاء/منع التسليم Live وheartbeat شغال كل دقيقة.
-5. Preview 02CR تطابق مباشرة مع `بنود الأوردرات` الحالية:
-   - Print active `21 / 21`
-   - Laser active `18 / 18` = `13 طلب جديد + 4 تحت التنفيذ + 1 متوقف`
-6. Preview pagination pageSize=5 أعاد نفس الصفوف بالترتيب بلا فقد أو تكرار:
-   - print: 5 pages
-   - laser: 4 pages
-7. status / priority / heat / Order ID search partitions PASS.
-8. كل active row يحمل عقد `38` field keys المطلوب.
-9. `__DEBT__` ما زال Apps Script fallback (`409 apps-script-required`).
-10. آخر heartbeat proof:
-    - `العملاء` 239/239, age ~42s
-    - منع التسليم 1/1, age ~43s
-11. Final boundary PASS:
-    - `cutover=false`
-    - `sheetsAuthoritative=true`
-    - 02CL OFF
-    - generic drain OFF
-    - `pendingOutbox=0`
-    - unauth Orders = 401
-    - frontend D1 Orders read OFF
-12. Integrity Run `34005845901`: SUCCESS.
-13. Temporary parity/boundary workflows تم حذفها بعد جمع الدليل.
+2. مشكلة نقص الأوردرات في legacy views مغلقة والمستخدم أكد: `كده تمام اشتغل`.
+3. 02CR مؤهل بالكامل في Preview:
+   - print active `21 / 21`
+   - laser active `18 / 18`
+   - pagination / filters / search / 38-key field contract PASS
+   - enrichment heartbeat PASS
+   - `__DEBT__` Apps Script fallback ثابت.
+4. المستخدم وافق صراحة على **Worker production deploy فقط بدون تفعيل الواجهة**.
+5. 02CS أعاد اختبارات 02CR: PASS.
+6. 02CS production GET-only boundary: PASS:
+   - `cutover=false`
+   - `sheetsAuthoritative=true`
+   - 02CL OFF
+   - generic drain OFF
+   - `pendingOutbox=0`
+   - unauth Orders = 401
+   - frontend D1 read OFF.
+7. authenticated-canary preflight منع النشر لأن `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` الحالي لم يعد صالحًا، ولا يوجد production Edge secret متاح كـActions secret في المسار المقيد الذي تم فحصه.
+8. لذلك **لم يتم تنفيذ Worker deploy**.
+9. Same-head Integrity Run `34006450589`: SUCCESS.
+10. لا Worker secret rotation، لا `EDGE_SESSION_SECRET` change، لا migration، لا 02CL، لا generic drain.
 
 ## نقطة الوقوف الدقيقة
 
-`PERF-CF-02CR` مؤهل بالكامل في **Preview**، لكنه **غير مفعّل على production frontend**.
+`PERF-CF-02CS AUTH CANARY CREDENTIAL BLOCKED — NO DEPLOY PERFORMED`
 
-الخطوة التالية تحتاج **Production gate/checkpoint جديد وموافقة صريحة**:
+المطلوب لفك الحاجز:
 
-1. bounded production Worker deployment للمسار المؤهل، والواجهة تظل OFF.
-2. production canary بعد النشر.
-3. إذا نجح، قرار منفصل لتفعيل frontend D1 read تدريجيًا.
+- تسجيل دخول TrendOS طبيعي جديد لحساب التأهيل.
+- تحديث pair المطابق مباشرة في GitHub Actions Secrets، بدون إرسال أي قيمة في الشات:
+  - `TRENDOS_PROD_QUALIFY_USERNAME`
+  - `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
+
+بعدها:
+
+1. rerun 02CS auth/boundary preflight,
+2. bounded production Worker deploy واحد فقط للمسار المؤهل،
+3. authenticated production canary،
+4. final boundary,
+5. الواجهة تظل OFF حتى قرار activation منفصل.
 
 ## ثوابت الأمان
 
@@ -67,10 +68,11 @@
 - generic drain OFF.
 - لا تدوير `EDGE_SESSION_SECRET`.
 - `__DEBT__` يبقى Apps Script fallback.
-- لا production Worker deploy أو frontend cutover بدون موافقة جديدة.
+- لا deploy بدون authenticated-canary readiness PASS.
 
 ## checkpoints سابقة
 
+- `PERF-CF-02CR` — PREVIEW QUALIFICATION PASS / production frontend OFF
 - `PERF-CF-02CQ` — VERIFIED PASS / CLOSED for freshness + identity parity only
 - `PERF-CF-02CO` — auth pass; stale view-mirror blocker
 - `PERF-CF-02CN` — candidate prepared / CI PASS / default OFF
