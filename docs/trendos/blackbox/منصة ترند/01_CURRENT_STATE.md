@@ -44,175 +44,132 @@ Hybrid, compatibility-preserving:
 - no demo data,
 - no customer PII logging.
 
-The backend candidate avoids mutation-capable Queue/debt `ensure...` helpers and reads those sheets directly.
-
-## Trend Master files changed
-
-- `trend-master-resilience-v1931.js`
-- `trend-master-panels-v1931.gs`
-- `v1932-router.gs`
-- `manager-center-v1932.js`
-- `config.js`
-- `tests/trend_master_resilience_v1931.test.mjs`
-- `.github/workflows/trend-master-resilience-v1931-ci.yml`
-- Trend Master blackbox record
-
-`app.js` and `index.html` were inspected but not rewritten; the candidate reuses the existing DOM/API contract.
-
-## Regression evidence
-
-Verified by the dedicated test suite / CI:
-
-- Panel A succeeds even if Panel B fails.
-- Timeout does not leave `جاري التحميل...` / `جاري الحساب...` forever.
-- Retry is bounded; no infinite loop.
-- Explicit retry recovers after a transient failure.
-- Last-good cache renders with a stale indicator.
-- Duplicate concurrent panel reads are coalesced.
-- `username` / `token` remain attached to panel reads.
-- Demo operations remain disabled.
-- D1 frontend Orders read remains OFF.
-- New panel backend contains no tested sheet-mutation helpers.
-
 ## Trend Master production / deployment state
 
 - Sheets / Apps Script authority: **YES**
 - Apps Script New Version/deployment for panel endpoint: **NO**
 - published Apps Script Web App changed by this checkpoint: **NO**
 - production frontend activation of Trend Master candidate: **NO**
-- operational spreadsheet writes during tests: **NO**
-- customer PII in GitHub logs: **NO**
 
-Important deployment dependency:
-
-The frontend panelization must not be activated in production before the new Apps Script panel backend/router is explicitly approved, deployed and validated. GitHub `.gs` changes are not a deployment.
-
-## Exact stop point — Trend Master
+Exact stop point:
 
 `TM-V1931 RESILIENCE CANDIDATE — CODE + CI PASS — APPS SCRIPT PRODUCTION DEPLOYMENT REQUIRES EXPLICIT USER APPROVAL`
 
-Until approval, production continues to use the currently published monolithic Trend Master Apps Script behavior.
-
 ---
 
-## D1 / Cloudflare track — unchanged in this chat
+## D1 / Cloudflare current checkpoint
 
-Latest D1 checkpoint:
+`PERF-CF-02CS — Production Worker D1 Read Route`
 
-`PERF-CF-02CS — Production Worker Deploy Gate / Authenticated Canary Preflight`
+Status: **VERIFIED PASS — EXACT QUALIFIED VERSION DEPLOYED — PRODUCTION WORKER ROUTE LIVE — FRONTEND D1 ORDERS READ OFF — APPS SCRIPT / SHEETS STILL AUTHORITATIVE**
 
-Status: **02CR PREVIEW QUALIFIED — PRODUCTION PREDEPLOY CODE/BOUNDARY PASS — AUTH CANARY CREDENTIAL BLOCKED — NO WORKER DEPLOY — PRODUCTION FRONTEND ON APPS SCRIPT / D1 READ OFF**
+Record:
 
-D1 record:
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CS_PRODUCTION_WORKER_ROUTE_PASS_FRONTEND_OFF.md`
 
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CS_PRODUCTION_WORKER_AUTH_PREFLIGHT_BLOCKED.md`
+## Current production Worker
 
-## Current production boundary
+- Worker: `trendos-d1-api`
+- D1: `trendos-main`
+- current deployed Worker version: `c77bf453-c590-4cff-a55b-fd9c625b6d76`
+- traffic to that Worker version: **100%**
+- previous rollback reference: `0ec782a9-5943-4c9d-8820-51b7d0393210`
 
-- Production Worker: `trendos-d1-api`
-- Production D1: `trendos-main`
-- Sheets / Apps Script authority: **YES**
-- production order-card read source: **Apps Script / Sheets**
-- frontend D1 Orders read: **OFF**
-- production cutover: **NO**
-- 02CL: **OFF**
-- generic drain: **OFF**
-- latest 02CS preflight: `pendingOutbox=0`
-- unauthenticated production Orders route: `401`
-- no `EDGE_SESSION_SECRET` rotation
-- **no Worker deployment performed in 02CS**
+The promoted version is the exact version previously qualified on the zero-traffic Preview. It was not rebuilt during production promotion.
 
-## 02CR qualification remains valid
+## 02CS qualification / deployment evidence
 
-The qualified isolated route is:
+Preview V5:
 
-`/v1/edge/orders/02cr/page`
+- Run `34010061764`
+- Job `101424192540`
+- Result: **SUCCESS**
+- production traffic during Preview: `0%`
 
-Preview evidence remains:
+Same-head Integrity:
+
+- Run `34010061747`
+- Job `101424192577`
+- Result: **SUCCESS**
+
+Production exact-version deployment and canary:
+
+- Run `34010288672`
+- Job `101424793692`
+- Result: **SUCCESS**
+
+Production session succeeded on attempt `1`.
+
+## Production read parity at 02CS close
 
 ### Print
 
-- active source `21`
-- Preview `21`
-- exact Order ID + Line ID + status parity
-- pageSize=5 exact reconstruction across 5 pages
+- active rows: `21`
+- `Order ID + Line ID + status` identity set parity vs Apps Script: PASS
+- 38-field card contract: PASS
+- operational ordering: PASS
+
+User-authoritative print ordering:
+
+`طباعة على الطاير → عاجل/VIP → عادي → مؤجل`
 
 ### Laser
 
-- active source `18`
-- Preview `18`
-- exact identity/status parity
-- `13 طلب جديد + 4 تحت التنفيذ + 1 متوقف`
-- pageSize=5 exact reconstruction across 4 pages
+- active rows: `18`
+- `Order ID + Line ID + status` identity set parity vs Apps Script: PASS
+- 38-field card contract: PASS
+- operational ordering: PASS
 
-Additional qualification:
+Laser ordering:
 
-- status filters PASS
-- priority filters PASS
-- heat filters PASS
-- Order ID search PASS
-- 38 expected field-contract keys PASS
-- `__DEBT__` => `409 apps-script-required`, fallback Apps Script
-- enrichment support heartbeat PASS
+`عاجل/VIP → عادي → مؤجل`
 
-## 02CS authorization / predeploy result
+Fly Print does not influence laser ordering.
 
-The user had explicitly approved in the separate D1 track:
+### Debt
 
-`نشر مسار D1 المؤهل على Worker الإنتاج فقط، بدون تفعيل الواجهة`
+`__DEBT__` remains outside D1 qualification and returns:
 
-That does not authorize frontend activation, authority transfer, 02CL, generic drain, migration, or secret rotation, and it is not part of this Trend Master chat.
+`409 apps-script-required`
 
-Final decisive 02CS preflight:
+with Apps Script fallback.
 
-- commit `3a2ab0974e84dacbf1f6d275ea86c977eb67319b`
-- workflow Run `34006450618`
-- Job `101414432911`
+## Resolved 02CS data-contract defects
 
-Passed before the auth gate:
+### Line ID semantic conversion
 
-- static production config / frontend-OFF boundary
-- all selected 02CR Worker contracts
-- live production GET-only boundary
+Google Sheets effective numeric Line IDs could be serialized into D1 as ISO dates when their cells had a date display format. The Worker now recovers the underlying Sheets serial integer for Line ID only, matching authoritative Apps Script semantics.
 
-Boundary marker:
+### Operational ordering
 
-`PERF_CF_02CS_PREFLIGHT_BOUNDARY={"cutover":false,"sheetsAuthoritative":true,"reconcileEnabled":false,"genericDrainEnabled":false,"pendingOutbox":0,"ordersUnauthStatus":401,"frontendEdgeRead":false}`
+The 02CR operational canary now applies the user-confirmed screen-specific ordering contract. The Fly Print tier exists only for the print screen and is not promoted to a global priority.
 
-Same-head Integrity for 02CS:
+Regression coverage:
 
-- Run `34006450589`
-- **SUCCESS**
+`tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs`
 
-## D1 current blocker
+## Final production boundary
 
-Authenticated production canary credentials are not currently usable from GitHub Actions:
+Verified after Worker promotion:
 
-- production direct Edge-secret candidates checked by the bounded workflow are absent;
-- `TRENDOS_PROD_QUALIFY_USERNAME` is present;
-- `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` is present but its employee session is stale/not accepted by `/v1/edge/orders/session`.
-
-The preflight therefore failed closed with:
-
-`No valid production authenticated canary credential path is available. Deploy must not start.`
-
-No secret value was printed, logged, or requested in chat.
-
-## D1 no-deployment boundary
-
-Because authenticated post-deploy validation could not be guaranteed, 02CS stopped before the Worker deploy step.
-
-Therefore:
-
-- no Wrangler deploy
-- no Worker version change from 02CS
-- no D1 migration
-- no secret update/rotation
-- no frontend D1 enable
-- no authority transfer
-- no 02CL reopen
-- no generic drain
+- Sheets / Apps Script authority: **YES**
+- production user-facing order-card read source: **Apps Script / Sheets**
+- frontend D1 Orders read: **OFF**
+- Worker D1 read route physically deployed: **YES**
+- production cutover: **NO**
+- Worker `cutover=false`
+- `sheetsAuthoritative=true`
+- 02CL / reconcile: **OFF**
+- generic drain: **OFF**
+- `pendingOutbox=0`
+- unauthenticated Orders route: `401`
+- `EDGE_SESSION_SECRET` rotation: **NO**
+- D1 migration: **NO**
+- D1 business-data write during deployment: **NO**
+- Apps Script deployment in this D1 checkpoint: **NO**
 
 ## Exact stop point — D1
 
-`PERF-CF-02CS AUTH CANARY CREDENTIAL BLOCKED — NO DEPLOY PERFORMED`
+`PERF-CF-02CS CLOSED — PRODUCTION WORKER D1 READ ROUTE VERIFIED PASS — FRONTEND D1 READ OFF`
+
+The next D1 step is a separate frontend cutover checkpoint. It must not be inferred from the Worker deployment and requires separate authorization before employees are routed from Apps Script to D1.
