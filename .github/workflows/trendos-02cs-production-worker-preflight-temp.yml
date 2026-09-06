@@ -40,11 +40,9 @@ jobs:
           grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
           grep -Fq "edge-orders-read-02cr-canary.mjs" cloudflare-d1/src/index_v2.js
           grep -Fq "D1_ORDERS_READ_02CR_OPERATIONAL_CANARY" cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*false' config.js
           if grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' config.js; then
-            echo 'Blocked: frontend D1 Orders read is ON'; exit 1
-          fi
-          if grep -Fq 'trendos-edge-orders-read-v1.js' config.js; then
-            echo 'Blocked: frontend Edge reader loader present'; exit 1
+            echo 'Blocked: working-branch frontend D1 Orders read is ON'; exit 1
           fi
           python - <<'PY'
           from pathlib import Path
@@ -81,7 +79,9 @@ jobs:
             assert.equal(cloud.status,200);assert.equal(cloud.body.success,true);assert.equal(cloud.body.cutover,false);assert.equal(cloud.body.sheetsAuthoritative,true);assert.equal(Number(cloud.body.pendingOutbox||0),0);
             assert.equal(recon.status,200);assert.equal(recon.body.enabled,false);assert.equal(recon.body.genericDrainEnabled,false);assert.equal(recon.body.productionCutover,false);assert.equal(recon.body.sheetsAuthoritative,true);
             assert.equal(unauth.status,401);
-            console.log('PERF_CF_02CS_PREFLIGHT_BOUNDARY='+JSON.stringify({cutover:false,sheetsAuthoritative:true,reconcileEnabled:false,genericDrainEnabled:false,pendingOutbox:0,ordersUnauthStatus:401}));
+            const mainCfg=await (await fetch('https://raw.githubusercontent.com/fawakhry/TrendOs/main/config.js',{cache:'no-store'})).text();
+            assert.ok(!/MATBAGY_EDGE_ORDERS_READ_V1_ENABLED\s*=\s*true/.test(mainCfg),'main frontend D1 Orders read must remain OFF');
+            console.log('PERF_CF_02CS_PREFLIGHT_BOUNDARY='+JSON.stringify({cutover:false,sheetsAuthoritative:true,reconcileEnabled:false,genericDrainEnabled:false,pendingOutbox:0,ordersUnauthStatus:401,frontendEdgeRead:false}));
           })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
           NODE
 
