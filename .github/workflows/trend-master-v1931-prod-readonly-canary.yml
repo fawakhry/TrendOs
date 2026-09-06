@@ -14,7 +14,7 @@ permissions:
 jobs:
   canary:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
       QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
@@ -27,7 +27,7 @@ jobs:
           test -n "$QUALIFY_USERNAME"
           test -n "$QUALIFY_EMPLOYEE_TOKEN"
 
-      - name: Probe Trend Master summary panel read-only route
+      - name: Probe all Trend Master panels sequentially and concurrently
         shell: bash
         run: |
           set -euo pipefail
@@ -36,55 +36,58 @@ jobs:
           const url = process.env.APPS_SCRIPT_URL;
           const username = String(process.env.QUALIFY_USERNAME || '').trim();
           const token = String(process.env.QUALIFY_EMPLOYEE_TOKEN || '').trim();
-          async function readJson(attempts = 3) {
-            let last;
-            for (let i = 1; i <= attempts; i++) {
-              try {
-                const response = await fetch(url, {
-                  method: 'POST',
-                  headers: {
-                    accept: 'application/json',
-                    'content-type': 'text/plain;charset=utf-8'
-                  },
-                  body: JSON.stringify({
-                    action: 'getTrendMasterPanelV1931',
-                    panel: 'summary',
-                    username,
-                    token
-                  }),
-                  cache: 'no-store'
-                });
-                const raw = await response.text();
-                let body;
-                try { body = JSON.parse(raw || '{}'); }
-                catch { throw new Error('Apps Script returned invalid JSON'); }
-                return { status: response.status, body };
-              } catch (error) {
-                last = error;
-                if (i < attempts) await new Promise(resolve => setTimeout(resolve, 1500 * i));
-              }
+          const panels = ['summary','archive','messages','stock','employee','debt','dayclose'];
+
+          async function probe(panel, timeoutMs) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            const started = Date.now();
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: {accept:'application/json','content-type':'text/plain;charset=utf-8'},
+                body: JSON.stringify({action:'getTrendMasterPanelV1931', panel, username, token, archivePage:1, archiveQuery:''}),
+                cache: 'no-store',
+                signal: controller.signal
+              });
+              const raw = await response.text();
+              let body = {};
+              try { body = JSON.parse(raw || '{}'); } catch { body = {success:false,message:'invalid-json'}; }
+              return {
+                panel,
+                elapsedMs: Date.now() - started,
+                httpStatus: response.status,
+                success: body.success === true,
+                version: String(body.version || '').slice(0,80),
+                message: String(body.message || body.error || '').slice(0,160),
+                shape: {
+                  system: !!body.system,
+                  archive: !!body.archive,
+                  messageQueue: Array.isArray(body.messageQueue),
+                  stockAlerts: Array.isArray(body.stockAlerts),
+                  employeePerformance: Array.isArray(body.employeePerformance),
+                  debtControl: !!body.debtControl,
+                  dayClose: body.dayClose !== undefined
+                }
+              };
+            } catch (error) {
+              return {panel, elapsedMs: Date.now()-started, httpStatus:0, success:false, version:'', message:error && error.name === 'AbortError' ? 'timeout' : String(error && error.message || error).slice(0,160), shape:{}};
+            } finally {
+              clearTimeout(timer);
             }
-            throw last;
           }
+
           (async () => {
-            const result = await readJson();
-            const body = result.body || {};
-            const safe = {
-              httpStatus: result.status,
-              success: body.success === true,
-              code: String(body.code || '').slice(0, 120),
-              message: String(body.message || body.error || '').slice(0, 180),
-              panel: String(body.panel || '').slice(0, 40),
-              version: String(body.version || '').slice(0, 80),
-              hasSystem: !!(body.system && typeof body.system === 'object')
-            };
-            console.log('TREND_MASTER_V1931_SAFE_DIAGNOSTIC=' + JSON.stringify(safe));
-            assert.equal(result.status, 200, 'Apps Script HTTP status');
-            assert.equal(body.success, true, 'Trend Master panel route is not published/healthy');
-            assert.equal(body.panel, 'summary', 'Unexpected panel response');
-            assert.equal(body.version, 'V1931_TREND_MASTER_PANEL_READ_V1', 'Unexpected backend version');
-            assert.ok(body.system && typeof body.system === 'object', 'Missing summary system payload');
-            console.log('TREND_MASTER_V1931_PROD_READONLY_CANARY_PASS');
+            const sequential = [];
+            for (const panel of panels) sequential.push(await probe(panel, 60000));
+            console.log('TREND_MASTER_SEQ=' + JSON.stringify(sequential));
+
+            const concurrent = await Promise.all(panels.map(panel => probe(panel, 25000)));
+            console.log('TREND_MASTER_CONCURRENT=' + JSON.stringify(concurrent));
+
+            assert.ok(sequential.every(x => x.httpStatus === 200 && x.success), 'At least one panel fails even sequentially');
+            assert.ok(sequential.every(x => x.version === 'V1931_TREND_MASTER_PANEL_READ_V1'), 'Unexpected backend version');
+            console.log('TREND_MASTER_ALL_PANELS_SEQUENTIAL_PASS');
           })().catch(error => {
             console.error(error && error.stack ? error.stack : error);
             process.exit(1);
