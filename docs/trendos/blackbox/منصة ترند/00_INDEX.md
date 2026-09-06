@@ -29,11 +29,15 @@ CI:
 
 `PERF-CF-02CT — Production Frontend D1 Orders Read Cutover`
 
-الحالة: **TECHNICAL VERIFIED PASS — FRONTEND D1 ORDERS READ ON — QUALIFIED `/v1/edge/orders/02cr/page` — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITATIVE**
+الحالة: **CLOSED — TECHNICAL VERIFIED PASS + USER-VISIBLE PASS — FRONTEND D1 ORDERS READ ON — QUALIFIED `/v1/edge/orders/02cr/page` — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITATIVE**
 
-السجل:
+السجل التقني:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_PRODUCTION_FRONTEND_CUTOVER_PASS.md`
+
+سجل تأكيد المستخدم النهائي:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CT_USER_VISIBLE_PASS.md`
 
 ### Production state
 
@@ -76,9 +80,15 @@ Durable post-cutover regression:
 - Run `34011062287` — Job `101426859723` — **SUCCESS**
 - same-head Integrity Run `34011062262` — Job `101426859662` — **SUCCESS**
 
+User-visible validation:
+
+- production browser smoke check: **PASS**
+- user confirmation: `فل`
+- official marker: `PERF-CF-02CT USER-VISIBLE PASS`
+
 ### نقطة الوقوف الدقيقة — D1
 
-`PERF-CF-02CT CLOSED — PRODUCTION FRONTEND D1 ORDERS READ ON THROUGH QUALIFIED /02CR ROUTE — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITY RETAINED`
+`PERF-CF-02CT CLOSED — TECHNICAL PASS + USER-VISIBLE PASS — PRODUCTION FRONTEND D1 ORDERS READ ON THROUGH QUALIFIED /02CR ROUTE — APPS SCRIPT FALLBACK RETAINED — SHEETS/APPS SCRIPT AUTHORITY RETAINED`
 
 لا يوجد نقل authority إلى D1. أي خطوة تخص D1 writes / authority / 02CL تحتاج checkpoint وموافقة منفصلة.
 
@@ -95,7 +105,7 @@ Durable post-cutover regression:
 
 ## checkpoints سابقة — D1 track
 
-- `PERF-CF-02CT` — PRODUCTION FRONTEND D1 READ ON / qualified `/02cr` / fallback retained
+- `PERF-CF-02CT` — CLOSED / TECHNICAL PASS + USER-VISIBLE PASS / production frontend D1 read ON / qualified `/02cr` / fallback retained
 - `PERF-CF-02CS` — PRODUCTION WORKER ROUTE VERIFIED PASS / frontend OFF at close
 - `PERF-CF-02CR` — full field / identity / filtering qualification
 - `PERF-CF-02CQ` — screen-view mirror freshness + identity PASS
