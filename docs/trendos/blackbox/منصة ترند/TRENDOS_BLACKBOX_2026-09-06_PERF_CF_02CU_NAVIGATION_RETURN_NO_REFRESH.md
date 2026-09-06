@@ -184,9 +184,19 @@ After one normal/manual reload to receive the new production assets:
 
 ## User-visible validation
 
-Technical deployment and CI are **PASS**.
+Technical deployment and CI: **PASS**.
 
-User-visible validation is still **PENDING** until the user performs the real browser return test and confirms that the screen no longer reloads/restarts when switching away and back.
+User-visible validation: **PASS**.
+
+User confirmation on 2026-09-06 after the real browser return test:
+
+`تمام ثبت`
+
+This confirms the reported Navigation / Return regression is fixed in production and closes this sub-checkpoint.
+
+Dedicated user-visible PASS record:
+
+`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_USER_VISIBLE_PASS.md`
 
 ## Separate pending 02CU item
 
@@ -196,4 +206,4 @@ The D1 freshness fail-safe remains the protection against stale Orders reads unt
 
 ## نقطة الوقوف الدقيقة
 
-`PERF-CF-02CU / NAVIGATION-RETURN-NO-REFRESH — TECHNICAL PASS — PRODUCTION MAIN 9552407c5a5136371f9afd452b913c226329d7dc — GITHUB PAGES SUCCESS — FULL SAFE-REFRESH RETURN RELOAD SUPPRESSED + RESIDUAL ATTENDANCE/EMPLOYEE RETURN TRAFFIC QUIETED — MANUAL REFRESH + REQUIRED TIMERS RETAINED — USER-VISIBLE VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING`
+`PERF-CF-02CU / NAVIGATION-RETURN-NO-REFRESH — CLOSED — TECHNICAL PASS + PRODUCTION PASS + USER-VISIBLE PASS — PRODUCTION MAIN 9552407c5a5136371f9afd452b913c226329d7dc — FULL SAFE-REFRESH RETURN RELOAD SUPPRESSED + RESIDUAL ATTENDANCE/EMPLOYEE RETURN TRAFFIC QUIETED — MANUAL REFRESH + REQUIRED TIMERS RETAINED — 02CU CONTINUES ONLY FOR SEPARATE ORDERS LIVE SYNC HEARTBEAT RECOVERY`
