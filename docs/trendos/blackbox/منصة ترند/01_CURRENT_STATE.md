@@ -6,12 +6,13 @@ Date: 2026-09-06
 
 `PERF-CF-02CU — Stability / Freshness / Resume Guards`
 
-Status: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — RETURN/FOCUS FULL AUTO-REFRESH + RESIDUAL RETURN TRAFFIC TECHNICAL PASS + PRODUCTION DEPLOYED — USER-VISIBLE RESUME VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
+Status: **IN PROGRESS — PLATFORM SPEED USER-VALIDATED — D1 STALE-READ FAIL-SAFE LIVE — NAVIGATION/RETURN NO-REFRESH CLOSED WITH TECHNICAL + PRODUCTION + USER-VISIBLE PASS — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING**
 
 Records:
 
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_STABILITY_FRESHNESS_RESUME_GUARDS.md`
 - `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_NO_REFRESH.md`
+- `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CU_NAVIGATION_RETURN_USER_VISIBLE_PASS.md`
 
 ### Current production frontend
 
@@ -37,9 +38,9 @@ Eligible `getRowsPageV1931` reads remain D1-first through:
 
 Freshness production commit: `296fce971c52a7338a0ce1ded4c44b773af62d01`.
 
-Orders Live Sync heartbeat for `بنود الأوردرات` still needs separate recovery/qualification. Do not infer activation from this frontend checkpoint.
+Orders Live Sync heartbeat for `بنود الأوردرات` still needs separate recovery/qualification. Do not infer activation from the Navigation / Return PASS.
 
-### Navigation return / no refresh
+### Navigation return / no refresh — CLOSED
 
 Root cause in legacy `app.js`:
 
@@ -66,7 +67,7 @@ Audit also found two non-reset request sources on return:
 - `attendance-v1.js`: visible return → `loadState()`, despite its existing 60-second state loop;
 - `employee-manager-strips-v2.js`: focus return → `refresh({source:'focus'})` → `getRows + getMatbagyNotes`, despite its existing 60-second interval.
 
-Production now loads an early narrow guard before `config.js`:
+Production loads an early narrow guard before `config.js`:
 
 `trendos-return-traffic-quiet-v1.js`
 
@@ -94,22 +95,27 @@ Residual guard evidence:
 - rollback base: `20a56241da2919e31fc12cb5224d29ac18fdf4f3`
 - temporary production workflow removed after success.
 
-### Expected browser behavior
+### User-visible validation — PASS
 
-After one normal/manual reload to receive the current production assets:
+User completed the production browser return test and confirmed:
 
-- switching away and returning must NOT reload all platform data;
-- Attendance must not call `loadState()` solely because visibility returned;
-- Employee Manager must not call `getRows + getMatbagyNotes` solely because focus returned;
-- manual `تحديث البيانات` still works;
+`تمام ثبت`
+
+Result: **USER-VISIBLE PASS**.
+
+The Navigation / Return sub-checkpoint is now closed. Confirmed expected behavior:
+
+- switching away and returning does not reload all platform data from the beginning;
+- no full Orders reload occurs solely because focus/visibility returned;
+- Attendance does not add its return-only visibility refresh;
+- Employee Manager does not add its return-only focus refresh;
+- manual `تحديث البيانات` remains available;
 - login/session remains intact;
-- live SPA screen/filter/page/search state remains untouched while the TrendOS tab stays open;
+- live SPA screen/state remains stable while the tab stays open;
 - required periodic timers continue normally;
-- no focus/visibility request storm.
+- no focus/visibility request storm is reintroduced.
 
-No new PII/customer dataset/token persistence was added. Existing TrendOS sessionStorage already retains the employee session/current screen. Extra UI-state persistence is deferred unless a distinct hard-navigation state-loss case is reproduced.
-
-User-visible validation is still **PENDING**.
+No new PII/customer dataset/token persistence was added. Existing TrendOS sessionStorage continues to retain the employee session/current screen. Extra UI-state persistence remains deferred unless a distinct hard-navigation state-loss case is reproduced.
 
 ### 02CU safety boundary
 
@@ -126,7 +132,7 @@ User-visible validation is still **PENDING**.
 
 Exact active stop point:
 
-`PERF-CF-02CU IN PROGRESS — NAVIGATION-RETURN-NO-REFRESH TECHNICAL PASS — PRODUCTION MAIN 9552407c5a5136371f9afd452b913c226329d7dc — GITHUB PAGES SUCCESS — FULL SAFE-REFRESH RETURN RELOAD + RESIDUAL ATTENDANCE/EMPLOYEE RETURN TRAFFIC QUIETED — USER-VISIBLE VALIDATION PENDING — ORDERS LIVE SYNC HEARTBEAT RECOVERY PENDING`
+`PERF-CF-02CU IN PROGRESS — NAVIGATION-RETURN-NO-REFRESH CLOSED WITH TECHNICAL + PRODUCTION + USER-VISIBLE PASS — PRODUCTION MAIN 9552407c5a5136371f9afd452b913c226329d7dc — NEXT/ONLY OPEN 02CU ITEM: ORDERS LIVE SYNC V2 / بنود الأوردرات HEARTBEAT RECOVERY + QUALIFICATION`
 
 ---
 
