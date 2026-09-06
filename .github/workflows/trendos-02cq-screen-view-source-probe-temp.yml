@@ -1,0 +1,198 @@
+name: TrendOS 02CQ Screen View Source Probe TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cq-screen-view-source-probe-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-02cq-screen-view-source-probe-temp
+  cancel-in-progress: false
+
+jobs:
+  read-only-source-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EDGE_BASE: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      TRENDOS_PROD_QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static read-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/trendos-02cq-screen-view-source-probe-temp.yml')
+          data = p.read_text(encoding='utf-8')
+          forbidden = [
+            'wrangler deploy',
+            'secret' + ' put',
+            'd1 execute --' + 'file',
+            'wrangler d1 migrations' + ' apply',
+            '/v1/import/' + 'sheet',
+            '/v1/qualification/cloud-write/reconcile/' + 'order',
+            'generic outbox' + ' drain'
+          ]
+          for token in forbidden:
+            if token in data:
+              raise SystemExit(f'Forbidden mutation token in read-only probe: {token}')
+          print('PERF_CF_02CQ_SOURCE_PROBE_STATIC_READ_ONLY_PASS')
+          PY
+
+      - name: Qualified session secret readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TRENDOS_PROD_QUALIFY_USERNAME"
+          test -n "$TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN"
+          echo 'PERF_CF_02CQ_SOURCE_PROBE_AUTH_INPUTS_READY'
+
+      - name: Pre-probe production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async function main(){
+            const base = process.env.EDGE_BASE;
+            async function get(path) {
+              const r = await fetch(base + path, { headers: { accept:'application/json' }, cache:'no-store' });
+              let b = {}; try { b = JSON.parse(await r.text() || '{}'); } catch {}
+              return { status:r.status, body:b };
+            }
+            const worker = await get('/health');
+            const cloud = await get('/v1/cloud/write/health');
+            const recon = await get('/v1/qualification/cloud-write/reconcile/health');
+            if (worker.status !== 200 || worker.body.success !== true || worker.body.database !== true) throw new Error('worker health boundary failed');
+            if (cloud.status !== 200 || cloud.body.success !== true || cloud.body.cutover !== false || cloud.body.sheetsAuthoritative !== true || Number(cloud.body.pendingOutbox || 0) !== 0) throw new Error('cloud write boundary changed');
+            if (recon.status !== 200 || recon.body.enabled !== false || recon.body.genericDrainEnabled !== false) throw new Error('02CL boundary changed');
+            console.log('PERF_CF_02CQ_PRE_BOUNDARY=' + JSON.stringify({
+              workerHealth: true,
+              database: true,
+              pendingOutbox: Number(cloud.body.pendingOutbox || 0),
+              cutover: cloud.body.cutover,
+              sheetsAuthoritative: cloud.body.sheetsAuthoritative,
+              reconcileEnabled: recon.body.enabled,
+              genericDrainEnabled: recon.body.genericDrainEnabled
+            }));
+          })().catch((err)=>{ console.error(err && err.stack || err); process.exit(1); });
+          NODE
+
+      - name: Probe Apps Script screen response shape without row values
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async function main(){
+            const endpoint = process.env.APPS_SCRIPT_URL;
+            const username = process.env.TRENDOS_PROD_QUALIFY_USERNAME;
+            const token = process.env.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN;
+            const screens = ['service','print','laser','press'];
+            const result = [];
+            for (const screen of screens) {
+              const payload = { action:'getRowsPageV1931', username, token, screen, page:'1', pageSize:'100' };
+              const res = await fetch(endpoint, {
+                method:'POST',
+                headers:{ accept:'application/json', 'content-type':'text/plain;charset=utf-8' },
+                body:JSON.stringify(payload),
+                cache:'no-store'
+              });
+              const raw = await res.text();
+              let body = {}; try { body = JSON.parse(raw || '{}'); } catch { throw new Error(`Apps Script ${screen} invalid JSON`); }
+              if (res.status !== 200 || body.success !== true) throw new Error(`Apps Script ${screen} read failed http=${res.status}`);
+              const rows = Array.isArray(body.rows) ? body.rows : [];
+              const keys = rows.length && rows[0] && typeof rows[0] === 'object' ? Object.keys(rows[0]).sort() : [];
+              const requiredIdentityKeys = ['orderId','lineId','status'];
+              result.push({
+                screen,
+                returnedRows: rows.length,
+                totalRows: Number(body.pagination && body.pagination.totalRows || rows.length),
+                totalPages: Number(body.pagination && body.pagination.totalPages || 1),
+                rowKeys: keys,
+                identityShapeReady: requiredIdentityKeys.every((k)=>keys.includes(k))
+              });
+            }
+            console.log('PERF_CF_02CQ_APPS_SOURCE_SHAPE=' + JSON.stringify(result));
+            if (!result.find((x)=>x.screen==='print' && x.totalRows > 0)) throw new Error('print source unexpectedly empty');
+            if (!result.every((x)=>x.identityShapeReady || x.totalRows === 0)) throw new Error('screen row identity schema incomplete');
+            console.log('PERF_CF_02CQ_APPS_SOURCE_SHAPE_PASS');
+          })().catch((err)=>{ console.error(err && err.stack || err); process.exit(1); });
+          NODE
+
+      - name: Probe current four D1 mirror catalogs without row payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async function main(){
+            const base = process.env.EDGE_BASE;
+            const names = ['واجهة خدمة العملاء','واجهة الطباعة','واجهة الليزر','واجهة المكبس'];
+            const out = [];
+            for (const name of names) {
+              const u = new URL(base + '/v1/mirror/sheet');
+              u.searchParams.set('name', name);
+              u.searchParams.set('limit', '1');
+              const res = await fetch(u, { headers:{accept:'application/json'}, cache:'no-store' });
+              const body = JSON.parse(await res.text() || '{}');
+              if (res.status === 404) {
+                out.push({ sheetName:name, missing:true });
+                continue;
+              }
+              if (res.status !== 200 || body.success !== true || !body.sheet) throw new Error(`mirror catalog probe failed for ${name} http=${res.status}`);
+              const s = body.sheet;
+              out.push({
+                sheetName:name,
+                missing:false,
+                sourceLastRow:Number(s.sourceLastRow || 0),
+                sourceLastCol:Number(s.sourceLastCol || 0),
+                rowCount:Number(s.rowCount || 0),
+                status:String(s.status || ''),
+                syncedAt:String(s.syncedAt || ''),
+                note:String(s.note || '')
+              });
+            }
+            console.log('PERF_CF_02CQ_D1_VIEW_CATALOGS=' + JSON.stringify(out));
+            console.log('PERF_CF_02CQ_D1_VIEW_CATALOGS_READ_ONLY_PASS');
+          })().catch((err)=>{ console.error(err && err.stack || err); process.exit(1); });
+          NODE
+
+      - name: Post-probe production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async function main(){
+            const base = process.env.EDGE_BASE;
+            async function get(path) {
+              const r = await fetch(base + path, { headers:{accept:'application/json'}, cache:'no-store' });
+              let b={}; try { b=JSON.parse(await r.text()||'{}'); } catch {}
+              return {status:r.status,body:b};
+            }
+            const cloud = await get('/v1/cloud/write/health');
+            const recon = await get('/v1/qualification/cloud-write/reconcile/health');
+            const unauth = await get('/v1/edge/orders/page?screen=print&page=1&pageSize=5');
+            if (cloud.status !== 200 || cloud.body.success !== true || cloud.body.cutover !== false || cloud.body.sheetsAuthoritative !== true || Number(cloud.body.pendingOutbox || 0) !== 0) throw new Error('post-probe cloud boundary changed');
+            if (recon.status !== 200 || recon.body.enabled !== false || recon.body.genericDrainEnabled !== false) throw new Error('post-probe 02CL boundary changed');
+            if (unauth.status !== 401) throw new Error('orders no-token boundary changed');
+            console.log('PERF_CF_02CQ_POST_BOUNDARY=' + JSON.stringify({
+              pendingOutbox:Number(cloud.body.pendingOutbox || 0),
+              cutover:cloud.body.cutover,
+              sheetsAuthoritative:cloud.body.sheetsAuthoritative,
+              reconcileEnabled:recon.body.enabled,
+              genericDrainEnabled:recon.body.genericDrainEnabled,
+              ordersUnauthStatus:unauth.status
+            }));
+            console.log('PERF_CF_02CQ_SOURCE_PROBE_PASS_NO_MUTATION');
+          })().catch((err)=>{ console.error(err && err.stack || err); process.exit(1); });
+          NODE
