@@ -1,0 +1,69 @@
+name: TrendOS 02CW Fix Global Counter Patcher Temp
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-02cw-fix-global-counter-patcher-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+      - name: Make 02CW patcher reproduce safe Production fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/patch_02cw_global_counters.py')
+          s=p.read_text(encoding='utf-8')
+          reps={
+            '    const problem = summary ? Number(summary.problems || 0) : rows.filter(r => WORK_PROBLEM_STATUS.includes(normalizeStatus(r.status))).length;':
+            '    const problem = summary ? Number(summary.problems || 0) : rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;',
+            '    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(r => text(r.overdue) === "نعم").length;':
+            '    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(isOverdueRow).length;',
+            '    const debts = summary ? Number(summary.debts || 0) : rows.filter(r => Number(r.debtAmount || 0) > 0).length;':
+            '    const debts = summary ? Number(summary.debts || 0) : rows.filter(hasDebt).length;',
+            '    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(r => isHeatPress(r.heatPress)).length;':
+            '    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;',
+            '    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(r => normalizeStatus(r.status) === "ملغى").length;':
+            '    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;',
+            "new_app_loader = 'app.js?v=trendos-02cw-globalcounts-20260906d'":
+            "new_app_loader = 'app.js?v=trendos-02cw-globalcounts-hotfix-20260906e'",
+            "assert.match(index,/app\\.js\\?v=trendos-02cw-globalcounts-20260906d/);":
+            "assert.match(index,/app\\.js\\?v=trendos-02cw-globalcounts-hotfix-20260906e/);"
+          }
+          for old,new in reps.items():
+              if old not in s: raise SystemExit('missing patcher anchor: '+old[:100])
+              s=s.replace(old,new,1)
+          marker="assert.match(app,/const displayed = summary \\\\? Number\\\\(summary\\\\.total \\\\|\\\\| 0\\\\) : rows\\\\.length/);"
+          # Insert durable undefined-symbol regression assertions in generated test body.
+          simple='assert.match(app,/const displayed = summary \\? Number\\(summary\\.total \\|\\| 0\\) : rows\\.length/);'
+          if 'assert.doesNotMatch(app,/WORK_PROBLEM_STATUS/);' not in s:
+              if simple not in s: raise SystemExit('generated test anchor missing')
+              s=s.replace(simple, simple+'\nassert.doesNotMatch(app,/WORK_PROBLEM_STATUS/);\nassert.doesNotMatch(app,/normalizeStatus\\(r\\.status\\)/);',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          python3 -m py_compile tools/patch_02cw_global_counters.py
+          ! grep -q 'WORK_PROBLEM_STATUS.includes' tools/patch_02cw_global_counters.py
+          grep -q 'globalcounts-hotfix-20260906e' tools/patch_02cw_global_counters.py
+          git diff --check
+      - name: Commit durable patcher correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add tools/patch_02cw_global_counters.py
+          git commit -m 'Keep 02CW frontend patcher free of undefined status symbols'
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
