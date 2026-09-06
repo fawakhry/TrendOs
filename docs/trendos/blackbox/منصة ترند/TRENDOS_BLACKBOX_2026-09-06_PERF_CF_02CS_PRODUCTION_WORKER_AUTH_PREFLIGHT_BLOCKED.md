@@ -105,6 +105,14 @@ Same-head TrendOS Integrity V1:
 - Run `34006450589`
 - SUCCESS
 
+## Cleanup
+
+The temporary 02CS preflight workflow was removed after recording the blocker and evidence:
+
+- cleanup commit `79777d744a5b19fb30f2896f186bb93e382f48f9`
+
+A fresh bounded preflight/deploy workflow will be created only after the qualification employee session is refreshed.
+
 ## Production state remains unchanged
 
 - Production Worker was not deployed in 02CS yet.
