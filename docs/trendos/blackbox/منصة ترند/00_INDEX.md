@@ -6,7 +6,7 @@
 
 `PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
 
-الحالة: **IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — USER-VISIBLE VALIDATION PENDING**
+الحالة: **IN PROGRESS — PRODUCTION TECHNICAL + UX + FLY-PRINT LANE-STABILITY PASS — DURABLE INTEGRITY GUARD ACTIVE — USER-VISIBLE VALIDATION PENDING**
 
 السجل:
 
@@ -53,6 +53,14 @@ Final lane-stability evidence:
 - candidate Run `34039276230` — **SUCCESS**;
 - Production promotion Run `34039313773` — **SUCCESS**;
 - GitHub Pages Run `34039321631` — **SUCCESS** on `3934fa363b113a4bd494ec501fb5f289f2c48ec1`.
+
+Durable guard / cleanup:
+
+- `tests/frontend_flyprint_lane_stability_02cv.test.mjs` is retained as the permanent regression test;
+- `.github/workflows/trendos-integrity-v1.yml` now runs that test on the normal Integrity lane;
+- completed 02CV read-only, candidate, and promotion workflows were removed from the working branch;
+- the one-use `tools/patch_02cv_flyprint_lane_stability.py` patcher was removed after Production promotion;
+- no cleanup change touched Production `main`, Worker, Apps Script, or D1 data.
 
 Remaining close condition:
 
