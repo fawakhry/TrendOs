@@ -1,0 +1,146 @@
+name: TrendOS Startup Request Storm Candidate TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-startup-request-storm-candidate-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+
+      - name: Patch frontend startup request storm only
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_exact(path, old, new):
+              p = Path(path)
+              s = p.read_text(encoding='utf-8')
+              if old not in s:
+                  raise SystemExit(f'expected pattern missing: {path}: {old[:100]!r}')
+              s = s.replace(old, new, 1)
+              p.write_text(s, encoding='utf-8')
+
+          # Customer Feedback: keep the feature/manual API, but do not run the heavy scan from every browser by default.
+          replace_exact('customer-feedback-v1.js',
+              "  const INTERVAL=2*60*1000;\n  const MIN_SCAN_MS=90*1000;",
+              "  const INTERVAL=10*60*1000;\n  const MIN_SCAN_MS=8*60*1000;\n  const AUTO_SCAN=window.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1===true;")
+          replace_exact('customer-feedback-v1.js',
+              "  function start(){if(timer)return;scan({force:true,source:'boot'});timer=setInterval(function(){scan({source:'interval'});},INTERVAL);window.addEventListener('focus',function(){scan({source:'focus'});});}",
+              "  function start(){if(timer||!AUTO_SCAN)return;setTimeout(function(){scan({source:'boot-delayed'});},15000);timer=setInterval(function(){scan({source:'interval'});},INTERVAL);window.addEventListener('focus',function(){scan({source:'focus'});});}")
+
+          # Go-Live Autopilot: zero automatic sweep on ordinary page boot; heavy sweep is explicit/manual by default.
+          replace_exact('go-live-autopilot-v1.js',
+              "  const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim(); if(!API_URL)return;",
+              "  const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim(); if(!API_URL)return;\n  const AUTO_SWEEP=window.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1===true;")
+          replace_exact('go-live-autopilot-v1.js',
+              "m.addEventListener('click',click);refresh();}",
+              "m.addEventListener('click',click);}")
+          replace_exact('go-live-autopilot-v1.js',
+              "  async function backgroundSweep(){if(!user()||!user().token)return;try{await api('sweepReady',{limit:40});if(canReview())await refresh();}catch(e){}}",
+              "  async function backgroundSweep(){if(!canReview()||!user()||!user().token)return {skipped:true};try{return await api('sweepReady',{limit:40});}catch(e){return {success:false};}}")
+          replace_exact('go-live-autopilot-v1.js',
+              "  async function open(){ui.modal.classList.add('open');await backgroundSweep();await refresh();}",
+              "  async function open(){ui.modal.classList.add('open');await refresh();}")
+          replace_exact('go-live-autopilot-v1.js',
+              "  const wait=setInterval(()=>{if(user()&&user().token){clearInterval(wait);backgroundSweep();ui.timer=setInterval(backgroundSweep,5*60*1000);if(canReview())build();}},800);",
+              "  const wait=setInterval(()=>{if(user()&&user().token){clearInterval(wait);if(canReview())build();if(AUTO_SWEEP&&canReview()){setTimeout(backgroundSweep,30000);ui.timer=setInterval(backgroundSweep,15*60*1000);}}},800);")
+
+          # Customer Manager: build the button after login, but do not probe Inbox until the user opens it.
+          replace_exact('customer-manager-v1.js',
+              "  function wait(){const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);if(!isManager())return;api(\"inbox\",{limit:1}).then(()=>{build();if(state.timer)clearInterval(state.timer);state.timer=setInterval(()=>{if(state.modal&&state.modal.classList.contains(\"open\"))load();},60000);}).catch(()=>{});}},800);}",
+              "  function wait(){const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);if(!isManager())return;build();if(state.timer)clearInterval(state.timer);state.timer=setInterval(()=>{if(state.modal&&state.modal.classList.contains(\"open\"))load();},60000);}},800);}")
+
+          # Attendance: first login used to call state twice (detect + load). Reuse the successful detect response once.
+          replace_exact('attendance-v1.js',
+              "    await detectMode();\n    if (ui.mode === \"backend\") {\n      try {\n        const out = await callAttendanceBackend(\"state\");",
+              "    const detectedNow = ui.mode === \"detect\";\n    await detectMode();\n    if (ui.mode === \"backend\" && !detectedNow) {\n      try {\n        const out = await callAttendanceBackend(\"state\");")
+
+          # Employee strips: defer its two background reads until the primary screen has had time to paint.
+          replace_exact('employee-manager-strips-v2.js',
+              "    render();refresh();ui.timer=setInterval(refresh,REFRESH_MS);window.addEventListener('focus',refresh);",
+              "    render();setTimeout(refresh,5000);ui.timer=setInterval(refresh,REFRESH_MS);window.addEventListener('focus',refresh);")
+
+          # Explicit production-safe defaults + cache-bust versions for the eventual frontend-only release.
+          replace_exact('config.js',
+              "window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;",
+              "window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;\nwindow.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false;")
+          replace_exact('config.js',
+              "window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;",
+              "window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;\nwindow.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false;")
+          for old,new in [
+              ('attendance-v1.js?v=20260824j','attendance-v1.js?v=20260906perf1'),
+              ('customer-manager-v1.js?v=20260824g','customer-manager-v1.js?v=20260906perf1'),
+              ('customer-feedback-v1.js?v=20260824a','customer-feedback-v1.js?v=20260906perf1'),
+              ('employee-manager-strips-v2.js?v=20260824j','employee-manager-strips-v2.js?v=20260906perf1'),
+              ('go-live-autopilot-v1.js?v=20260824g','go-live-autopilot-v1.js?v=20260906perf1'),
+          ]:
+              replace_exact('config.js', old, new)
+
+          test = r'''import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const read = p => fs.readFileSync(p,'utf8');
+          const feedback=read('customer-feedback-v1.js');
+          const gla=read('go-live-autopilot-v1.js');
+          const cm=read('customer-manager-v1.js');
+          const att=read('attendance-v1.js');
+          const strips=read('employee-manager-strips-v2.js');
+          const cfg=read('config.js');
+
+          assert.match(feedback,/AUTO_SCAN=window\.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1===true/);
+          assert.match(feedback,/if\(timer\|\|!AUTO_SCAN\)return/);
+          assert.doesNotMatch(feedback,/scan\(\{force:true,source:'boot'\}\)/);
+          assert.match(gla,/AUTO_SWEEP=window\.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1===true/);
+          assert.match(gla,/backgroundSweep\(\)\{if\(!canReview\(\)\|\|!user\(\)\|\|!user\(\)\.token\)return \{skipped:true\}/);
+          assert.match(gla,/async function open\(\)\{ui\.modal\.classList\.add\('open'\);await refresh\(\);\}/);
+          assert.doesNotMatch(gla,/clearInterval\(wait\);backgroundSweep\(\)/);
+          assert.doesNotMatch(cm,/api\("inbox",\{limit:1\}\)\.then/);
+          assert.match(cm,/clearInterval\(t\);if\(!isManager\(\)\)return;build\(\)/);
+          assert.match(att,/const detectedNow = ui\.mode === "detect";/);
+          assert.match(att,/if \(ui\.mode === "backend" && !detectedNow\)/);
+          assert.match(strips,/render\(\);setTimeout\(refresh,5000\)/);
+          assert.match(cfg,/MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false/);
+          assert.match(cfg,/MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false/);
+          assert.match(cfg,/attendance-v1\.js\?v=20260906perf1/);
+          assert.match(cfg,/go-live-autopilot-v1\.js\?v=20260906perf1/);
+          console.log('STARTUP_REQUEST_STORM_FRONTEND_GUARD_PASS');
+          '''
+          Path('tests/startup_request_storm_frontend_guard.test.mjs').write_text(test,encoding='utf-8')
+
+      - name: Focused regression
+        run: node tests/startup_request_storm_frontend_guard.test.mjs
+
+      - name: Static syntax checks
+        run: |
+          node --check attendance-v1.js
+          node --check customer-manager-v1.js
+          node --check customer-feedback-v1.js
+          node --check employee-manager-strips-v2.js
+          node --check go-live-autopilot-v1.js
+
+      - name: Commit candidate to working branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "trendos-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add attendance-v1.js customer-manager-v1.js customer-feedback-v1.js employee-manager-strips-v2.js go-live-autopilot-v1.js config.js tests/startup_request_storm_frontend_guard.test.mjs
+          if git diff --cached --quiet; then
+            echo "No candidate changes to commit"
+            exit 0
+          fi
+          git commit -m "perf: stop browser startup request storms"
+          git push origin HEAD:agent/go-live-2026-09-01-integrity
