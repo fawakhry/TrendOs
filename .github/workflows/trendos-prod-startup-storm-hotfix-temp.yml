@@ -1,0 +1,126 @@
+name: TrendOS Production Startup Storm Hotfix TEMP
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-prod-startup-storm-hotfix-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  production-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply bounded frontend-only production hotfix
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def rep(path, old, new):
+              p=Path(path); s=p.read_text(encoding='utf-8')
+              if old not in s:
+                  raise SystemExit(f'expected pattern missing in {path}: {old[:120]!r}')
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          # 1) Customer Feedback: disable heavy browser-side automatic scanning.
+          rep('customer-feedback-v1.js',
+              "  const INTERVAL=2*60*1000;\n  let timer=null,busy=false;",
+              "  const INTERVAL=10*60*1000;\n  const MIN_SCAN_MS=8*60*1000;\n  const AUTO_SCAN=window.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1===true;\n  let timer=null,busy=false,lastScanAt=0;")
+          rep('customer-feedback-v1.js',
+              "  async function scan(){if(busy||!ready())return;busy=true;try{await api('scan');}catch(e){}finally{busy=false;}}\n  function start(){if(timer)return;scan();timer=setInterval(scan,INTERVAL);window.addEventListener('focus',scan);}\n  const w=setInterval(()=>{if(ready()){clearInterval(w);start();}},500);\n  window.TrendCustomerFeedbackV1={scan:scan};",
+              "  async function scan(options){const opts=options||{};if(busy||!ready())return {skipped:true,reason:busy?'in-flight':'not-ready'};if(document.hidden&&!opts.force)return {skipped:true,reason:'hidden'};if(!opts.force&&lastScanAt&&Date.now()-lastScanAt<MIN_SCAN_MS)return {skipped:true,reason:'min-interval'};busy=true;lastScanAt=Date.now();try{return await api('scan');}catch(e){return {success:false,message:String(e&&e.message||e)};}finally{busy=false;}}\n  function start(){if(timer||!AUTO_SCAN)return;setTimeout(function(){scan({source:'boot-delayed'});},15000);timer=setInterval(function(){scan({source:'interval'});},INTERVAL);window.addEventListener('focus',function(){scan({source:'focus'});});}\n  const w=setInterval(()=>{if(ready()){clearInterval(w);start();}},500);\n  window.TrendCustomerFeedbackV1={scan:function(){return scan({force:true,source:'manual'});}};")
+
+          # 2) Go-Live: no automatic sweep from every browser. Manual button remains.
+          rep('go-live-autopilot-v1.js',
+              "  const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim(); if(!API_URL)return;",
+              "  const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim(); if(!API_URL)return;\n  const AUTO_SWEEP=window.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1===true;")
+          rep('go-live-autopilot-v1.js',"m.addEventListener('click',click);refresh();}","m.addEventListener('click',click);}")
+          rep('go-live-autopilot-v1.js',
+              "  async function backgroundSweep(){if(!user()||!user().token)return;try{await api('sweepReady',{limit:40});if(canReview())await refresh();}catch(e){}}",
+              "  async function backgroundSweep(){if(!canReview()||!user()||!user().token)return {skipped:true};try{return await api('sweepReady',{limit:40});}catch(e){return {success:false};}}")
+          rep('go-live-autopilot-v1.js',
+              "  async function open(){ui.modal.classList.add('open');await backgroundSweep();await refresh();}",
+              "  async function open(){ui.modal.classList.add('open');await refresh();}")
+          rep('go-live-autopilot-v1.js',
+              "  const wait=setInterval(()=>{if(user()&&user().token){clearInterval(wait);backgroundSweep();ui.timer=setInterval(backgroundSweep,5*60*1000);if(canReview())build();}},800);",
+              "  const wait=setInterval(()=>{if(user()&&user().token){clearInterval(wait);if(canReview())build();if(AUTO_SWEEP&&canReview()){setTimeout(backgroundSweep,30000);ui.timer=setInterval(backgroundSweep,15*60*1000);}}},800);")
+
+          # 3) Customer Manager: remove login-time Inbox probe.
+          rep('customer-manager-v1.js',
+              "  function wait(){const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);if(!isManager())return;api(\"inbox\",{limit:1}).then(()=>{build();if(state.timer)clearInterval(state.timer);state.timer=setInterval(()=>{if(state.modal&&state.modal.classList.contains(\"open\"))load();},60000);}).catch(()=>{});}},800);}",
+              "  function wait(){const t=setInterval(()=>{if(user()&&user().token){clearInterval(t);if(!isManager())return;build();if(state.timer)clearInterval(state.timer);state.timer=setInterval(()=>{if(state.modal&&state.modal.classList.contains(\"open\"))load();},60000);}},800);}")
+
+          # 4) Attendance: reuse the first successful state response instead of reading it twice on login.
+          rep('attendance-v1.js',
+              "    await detectMode();\n    if (ui.mode === \"backend\") {\n      try {\n        const out = await callAttendanceBackend(\"state\");",
+              "    const detectedNow = ui.mode === \"detect\";\n    await detectMode();\n    if (ui.mode === \"backend\" && !detectedNow) {\n      try {\n        const out = await callAttendanceBackend(\"state\");")
+
+          # 5) Employee strips: avoid boot/focus fan-out and enforce a local minimum interval.
+          rep('employee-manager-strips-v2.js',
+              "  const REFRESH_MS=60*1000;\n  const ui={root:null,rows:[],notes:[],lastOk:0,busy:false,sending:false,timer:null};",
+              "  const REFRESH_MS=60*1000;\n  const MIN_REFRESH_MS=45*1000;\n  const ui={root:null,rows:[],notes:[],lastOk:0,lastRefreshAt:0,busy:false,sending:false,timer:null};")
+          rep('employee-manager-strips-v2.js',
+              "    render();refresh();ui.timer=setInterval(refresh,REFRESH_MS);window.addEventListener('focus',refresh);",
+              "    render();setTimeout(function(){refresh({source:'boot-delayed'});},5000);ui.timer=setInterval(function(){refresh({source:'interval'});},REFRESH_MS);window.addEventListener('focus',function(){refresh({source:'focus'});});")
+          rep('employee-manager-strips-v2.js',
+              "  async function refresh(){\n    if(ui.busy||!user()||!user().token)return;ui.busy=true;try{const out=await Promise.all([api('getRows',{screen:screen()}),api('getMatbagyNotes',{employee:name(),limit:50})]);const r=out[0]||{},n=out[1]||{};if(r.success!==false)ui.rows=Array.isArray(r.rows)?r.rows:[];if(n.success!==false)ui.notes=Array.isArray(n.notes)?n.notes:[];ui.lastOk=Date.now();render();}catch(e){if(ui.root){ui.root.querySelector('[data-msg=\"coach\"]').textContent=`يا ${name()}، المتابعة موجودة لكن البيانات ما اتحدثتش دلوقتي.`;ui.root.querySelector('[data-msg=\"manager\"]').textContent='المحادثة موجودة — هنحاول التحديث تلقائيًا.';}}finally{ui.busy=false;}\n  }",
+              "  async function refresh(options){\n    const opts=options||{};if(!user()||!user().token)return {skipped:true,reason:'not-ready'};if(document.hidden&&!opts.force)return {skipped:true,reason:'hidden'};if(ui.busy)return {skipped:true,reason:'in-flight'};if(!opts.force&&ui.lastRefreshAt&&Date.now()-ui.lastRefreshAt<MIN_REFRESH_MS)return {skipped:true,reason:'min-interval'};ui.busy=true;ui.lastRefreshAt=Date.now();try{const out=await Promise.all([api('getRows',{screen:screen()}),api('getMatbagyNotes',{employee:name(),limit:50})]);const r=out[0]||{},n=out[1]||{};if(r.success!==false)ui.rows=Array.isArray(r.rows)?r.rows:[];if(n.success!==false)ui.notes=Array.isArray(n.notes)?n.notes:[];ui.lastOk=Date.now();render();return {success:true};}catch(e){if(ui.root){ui.root.querySelector('[data-msg=\"coach\"]').textContent=`يا ${name()}، المتابعة موجودة لكن البيانات ما اتحدثتش دلوقتي.`;ui.root.querySelector('[data-msg=\"manager\"]').textContent='المحادثة موجودة — هنحاول التحديث تلقائيًا.';}return {success:false,message:txt(e&&e.message||e)};}finally{ui.busy=false;}\n  }")
+
+          # Production flags and module cache-bust. Keep D1 cutover untouched.
+          rep('config.js',"window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;","window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;\nwindow.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false;")
+          rep('config.js',"window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;","window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;\nwindow.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false;")
+          for old,new in [
+              ('attendance-v1.js?v=20260824j','attendance-v1.js?v=20260906perfhotfix1'),
+              ('customer-manager-v1.js?v=20260824g','customer-manager-v1.js?v=20260906perfhotfix1'),
+              ('customer-feedback-v1.js?v=20260824a','customer-feedback-v1.js?v=20260906perfhotfix1'),
+              ('employee-manager-strips-v2.js?v=20260824j','employee-manager-strips-v2.js?v=20260906perfhotfix1'),
+              ('go-live-autopilot-v1.js?v=20260824g','go-live-autopilot-v1.js?v=20260906perfhotfix1'),
+          ]: rep('config.js',old,new)
+
+          # Force browsers to fetch the hotfix immediately.
+          p=Path('index.html'); s=p.read_text(encoding='utf-8');
+          if 'trendos-d1-cutover-20260906a' not in s: raise SystemExit('index cache tag baseline missing')
+          p.write_text(s.replace('trendos-d1-cutover-20260906a','trendos-perf-hotfix-20260906a'),encoding='utf-8')
+          p=Path('reset-cache.html'); s=p.read_text(encoding='utf-8');
+          if 'trendos-d1-cutover-20260906a' not in s: raise SystemExit('reset cache baseline missing')
+          p.write_text(s.replace('trendos-d1-cutover-20260906a','trendos-perf-hotfix-20260906a'),encoding='utf-8')
+
+      - name: Production hotfix regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check attendance-v1.js
+          node --check customer-manager-v1.js
+          node --check customer-feedback-v1.js
+          node --check employee-manager-strips-v2.js
+          node --check go-live-autopilot-v1.js
+          grep -Fq 'MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false' config.js
+          grep -Fq 'MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false' config.js
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' config.js
+          grep -Fq 'trendos-perf-hotfix-20260906a' index.html
+          grep -Fq 'trendos-perf-hotfix-20260906a' reset-cache.html
+          if git diff --name-only | grep -E '\.gs$'; then
+            echo 'Apps Script file mutation forbidden in this hotfix'; exit 1
+          fi
+          echo PROD_STARTUP_STORM_HOTFIX_GUARD_PASS
+
+      - name: Commit hotfix to production main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'trendos-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add attendance-v1.js customer-manager-v1.js customer-feedback-v1.js employee-manager-strips-v2.js go-live-autopilot-v1.js config.js index.html reset-cache.html
+          git diff --cached --stat
+          git commit -m 'Hotfix production browser request storm after Apps Script publish'
+          git push origin HEAD:main
