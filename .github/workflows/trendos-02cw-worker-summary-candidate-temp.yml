@@ -34,7 +34,6 @@ jobs:
           worker_path = Path('cloudflare-d1/src/edge-orders-read-v1.mjs')
           canary_path = Path('cloudflare-d1/src/edge-orders-read-02cr-canary.mjs')
           canary_test_path = Path('tests/cloudflare_edge_orders_02cr_canary.test.mjs')
-          integrity_path = Path('.github/workflows/trendos-integrity-v1.yml')
           test_path = Path('tests/cloudflare_edge_orders_active_summary_02cw.test.mjs')
 
           worker = worker_path.read_text(encoding='utf-8')
@@ -160,19 +159,6 @@ jobs:
           assert.equal(duplicateOrder.heatPressOrders, 2, 'press monitor must count unique orders, not returned line items');
           console.log('PERF_CF_02CW_GLOBAL_ACTIVE_SUMMARY_PASS');
           ''', encoding='utf-8')
-
-          integrity = integrity_path.read_text(encoding='utf-8')
-          path_anchor = "      - 'tests/frontend_flyprint_lane_stability_02cv.test.mjs'\n"
-          if "tests/cloudflare_edge_orders_active_summary_02cw.test.mjs" not in integrity:
-              if path_anchor not in integrity:
-                  raise SystemExit('Integrity paths anchor missing')
-              integrity = integrity.replace(path_anchor, path_anchor + "      - 'tests/cloudflare_edge_orders_active_summary_02cw.test.mjs'\n", 1)
-          step_anchor = "      - name: Run 02CV fly-print lane stability tests\n        run: node tests/frontend_flyprint_lane_stability_02cv.test.mjs\n"
-          if 'Run 02CW global active summary tests' not in integrity:
-              if step_anchor not in integrity:
-                  raise SystemExit('Integrity step anchor missing')
-              integrity = integrity.replace(step_anchor, step_anchor + "      - name: Run 02CW global active summary tests\n        run: node tests/cloudflare_edge_orders_active_summary_02cw.test.mjs\n", 1)
-          integrity_path.write_text(integrity, encoding='utf-8')
           print('02CW_WORKER_SUMMARY_PATCH_APPLIED')
           PY
 
@@ -194,19 +180,18 @@ jobs:
           git diff --check
           mapfile -t files < <(git diff --name-only)
           printf 'CHANGED_FILES=%s\n' "${files[*]}"
-          test "${#files[@]}" -eq 5
+          test "${#files[@]}" -eq 4
           printf '%s\n' "${files[@]}" | grep -qx 'cloudflare-d1/src/edge-orders-read-v1.mjs'
           printf '%s\n' "${files[@]}" | grep -qx 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs'
           printf '%s\n' "${files[@]}" | grep -qx 'tests/cloudflare_edge_orders_02cr_canary.test.mjs'
           printf '%s\n' "${files[@]}" | grep -qx 'tests/cloudflare_edge_orders_active_summary_02cw.test.mjs'
-          printf '%s\n' "${files[@]}" | grep -qx '.github/workflows/trendos-integrity-v1.yml'
 
       - name: Commit qualified worker candidate to working branch
         run: |
           set -euo pipefail
           git config user.name 'trendos-bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add cloudflare-d1/src/edge-orders-read-v1.mjs cloudflare-d1/src/edge-orders-read-02cr-canary.mjs tests/cloudflare_edge_orders_02cr_canary.test.mjs tests/cloudflare_edge_orders_active_summary_02cw.test.mjs .github/workflows/trendos-integrity-v1.yml
+          git add cloudflare-d1/src/edge-orders-read-v1.mjs cloudflare-d1/src/edge-orders-read-02cr-canary.mjs tests/cloudflare_edge_orders_02cr_canary.test.mjs tests/cloudflare_edge_orders_active_summary_02cw.test.mjs
           git commit -m 'Add global active Orders summary for 02CW'
           git push origin HEAD:agent/go-live-2026-09-01-integrity
           echo '02CW_WORKER_CANDIDATE_COMMIT_PASS'
