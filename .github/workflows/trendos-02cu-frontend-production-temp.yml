@@ -84,11 +84,13 @@ jobs:
         run: |
           set -euo pipefail
           node --check /tmp/02cu-frontend/trendos-edge-orders-read-v1.js
-          git show "$CANDIDATE_REF:tests/frontend_edge_orders_cutover_02ct.test.mjs" > /tmp/02cu-frontend/tests/frontend_edge_orders_cutover_02ct.test.mjs
+          for t in frontend_edge_orders_cutover_02ct.test.mjs trendos_resume_no_autorefresh_v1.test.mjs trendos_return_traffic_quiet_v1.test.mjs; do
+            git show "$CANDIDATE_REF:tests/$t" > "/tmp/02cu-frontend/tests/$t"
+          done
           (cd /tmp/02cu-frontend && node tests/frontend_edge_orders_cutover_02ct.test.mjs)
-          rm -f /tmp/02cu-frontend/tests/frontend_edge_orders_cutover_02ct.test.mjs
           (cd /tmp/02cu-frontend && node tests/trendos_resume_no_autorefresh_v1.test.mjs)
           (cd /tmp/02cu-frontend && node tests/trendos_return_traffic_quiet_v1.test.mjs)
+          rm -f /tmp/02cu-frontend/tests/frontend_edge_orders_cutover_02ct.test.mjs /tmp/02cu-frontend/tests/trendos_resume_no_autorefresh_v1.test.mjs /tmp/02cu-frontend/tests/trendos_return_traffic_quiet_v1.test.mjs
           python3 - <<'PY'
           import subprocess
           out=subprocess.check_output(['git','-C','/tmp/02cu-frontend','status','--porcelain'],text=True)
