@@ -169,7 +169,7 @@ function bearer(request) {
 function headerIndex(headers, names, fallback) {
   const normalized = headers.map((h) => text(h));
   for (const name of names) {
-    const idx = normalized.findIndex((h) => h === name);
+    const idx = normalized.lastIndexOf(name);
     if (idx >= 0) return idx;
   }
   return Number.isInteger(fallback) && fallback >= 0 ? fallback : -1;
