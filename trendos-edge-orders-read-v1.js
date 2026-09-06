@@ -1,13 +1,14 @@
 /* TrendOS Edge Orders Read V1
- * Reads getRowsPageV1931 from Cloudflare/D1 first when enabled.
+ * Reads getRowsPageV1931 from the qualified Cloudflare/D1 route first when enabled.
  * Every write and every unsupported/sensitive read stays on Apps Script.
  * Any Edge error fails open to the original Apps Script function.
  */
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_V1_20260904';
+  var VERSION = 'EDGE_ORDERS_READ_02CT_20260906';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
+  var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SESSION_SKEW_MS = 30000;
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
@@ -90,7 +91,7 @@
 
   async function edgePage(params) {
     var key = queryString(params || {});
-    var requestKey = '/v1/edge/orders/page?' + key;
+    var requestKey = QUALIFIED_PAGE_PATH + '?' + key;
     if (inflight.has(requestKey)) return inflight.get(requestKey);
 
     var task = (async function () {
@@ -136,7 +137,7 @@
         return result;
       } catch (err) {
         try {
-          console.warn('[TrendOS Orders Edge V1] D1 read failed; using Apps Script fallback:', err && err.message ? err.message : err);
+          console.warn('[TrendOS Orders Edge 02CT] D1 read failed; using Apps Script fallback:', err && err.message ? err.message : err);
         } catch (ignore) {}
         return original.apply(this, args);
       }
@@ -148,8 +149,9 @@
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 'd1-orders-read-first-apps-script-fallback',
+      mode: 'qualified-d1-orders-read-first-apps-script-fallback',
       api: edgeBase(),
+      pagePath: QUALIFIED_PAGE_PATH,
       clearSession: clearSession,
       stats: function () { return { inflight: inflight.size, sessionExpiresAt: session.expiresAt || 0 }; }
     };
@@ -159,6 +161,7 @@
   window.TrendOSEdgeOrdersReadV1Loader = {
     version: VERSION,
     enabled: window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED === true,
+    pagePath: QUALIFIED_PAGE_PATH,
     install: install,
     clearSession: clearSession
   };
