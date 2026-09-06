@@ -69,12 +69,17 @@ assert.equal(isEdgeOrders02CRPath('/v1/edge/orders/02cr/page'), true);
 assert.equal(isEdgeOrders02CRPath('/v1/edge/orders/page'), false);
 
 const token = await issueOrdersEdgeToken({ sub:'tester', role:'print', department:'طباعة', screens:['print'] }, 'test-secret-02cr', Math.floor(Date.now()/1000), 600);
-const req = new Request('https://example.test/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=20', {
-  method:'GET', headers:{ authorization:'Bearer ' + token, origin:'https://fawakhry.github.io' }
-});
-const res = await handleEdgeOrders02CRCanaryRequest(req, fakeEnv());
-assert.equal(res.status, 200);
-const body = await res.json();
+async function call(query, env = fakeEnv()) {
+  const req = new Request('https://example.test/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=20' + (query ? '&' + query : ''), {
+    method:'GET', headers:{ authorization:'Bearer ' + token, origin:'https://fawakhry.github.io' }
+  });
+  const res = await handleEdgeOrders02CRCanaryRequest(req, env);
+  return { res, body: await res.json() };
+}
+
+const main = await call('');
+assert.equal(main.res.status, 200);
+const body = main.body;
 assert.equal(body.success, true);
 assert.equal(body.version, 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY');
 assert.equal(body.rows.length, 1);
@@ -85,7 +90,19 @@ assert.equal(body.rows[0].debtAmount, 350);
 assert.equal(body.rows[0].deliveryDebtRestricted, true);
 assert.equal(body.rows[0].debtRestrictionReason, 'مراجعة المديونية');
 assert.equal(body.rows[0].debtNotes, 'مراجعة حساب');
+assert.equal(body.statusCounts['طلب جديد'], 1);
+assert.equal(body.statusOrderCounts['طلب جديد'], 1);
+assert.equal(body.pagination.totalRows, 1);
 assert.equal(body.mirrors.length, 3);
+
+assert.equal((await call('query=5001')).body.pagination.totalRows, 1);
+assert.equal((await call('query=NOTFOUND')).body.pagination.totalRows, 0);
+assert.equal((await call('statusFilter=__ACTIVE__')).body.pagination.totalRows, 1);
+assert.equal((await call('statusFilter=تم%20التسليم')).body.pagination.totalRows, 0);
+assert.equal((await call('priorityFilter=عاجل')).body.pagination.totalRows, 0);
+assert.equal((await call('priorityFilter=عادي')).body.pagination.totalRows, 1);
+assert.equal((await call('heatPressFilter=only')).body.pagination.totalRows, 0);
+assert.equal((await call('heatPressFilter=without')).body.pagination.totalRows, 1);
 
 const debtReq = new Request('https://example.test/v1/edge/orders/02cr/page?screen=print&statusFilter=__DEBT__', {
   method:'GET', headers:{ authorization:'Bearer ' + token }
@@ -95,19 +112,13 @@ assert.equal(debtRes.status, 409);
 assert.equal((await debtRes.json()).fallback, 'apps-script');
 
 const staleCustomers = mirror(customerHeaders, customerData, 'old-full-mirror');
-const staleReq = new Request('https://example.test/v1/edge/orders/02cr/page?screen=print', {
-  method:'GET', headers:{ authorization:'Bearer ' + token }
-});
-const staleRes = await handleEdgeOrders02CRCanaryRequest(staleReq, fakeEnv({ mirrors:{ 'العملاء':staleCustomers } }));
-assert.equal(staleRes.status, 503);
-assert.equal((await staleRes.json()).fallback, 'apps-script');
+const staleRes = await call('', fakeEnv({ mirrors:{ 'العملاء':staleCustomers } }));
+assert.equal(staleRes.res.status, 503);
+assert.equal(staleRes.body.fallback, 'apps-script');
 
-const wrongLines = mirror(lineHeaders, lineData, 'PERF-CF-02CR enrichment live sync V1');
-const wrongLinesReq = new Request('https://example.test/v1/edge/orders/02cr/page?screen=print', {
-  method:'GET', headers:{ authorization:'Bearer ' + token }
-});
-const wrongLinesRes = await handleEdgeOrders02CRCanaryRequest(wrongLinesReq, fakeEnv({ mirrors:{ 'بنود الأوردرات':wrongLines } }));
-assert.equal(wrongLinesRes.status, 503, '02CR must not accept ownership of the Orders V2 line mirror');
+const wrongLines = mirror(lineHeaders, lineData, ENRICHMENT_NOTE);
+const wrongLinesRes = await call('', fakeEnv({ mirrors:{ 'بنود الأوردرات':wrongLines } }));
+assert.equal(wrongLinesRes.res.status, 503, '02CR must not accept ownership of the Orders V2 line mirror');
 
 const unauth = await handleEdgeOrders02CRCanaryRequest(new Request('https://example.test/v1/edge/orders/02cr/page?screen=print'), fakeEnv());
 assert.equal(unauth.status, 401);
