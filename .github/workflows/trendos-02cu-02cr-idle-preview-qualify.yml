@@ -6,23 +6,19 @@ on:
       - agent/go-live-2026-09-01-integrity
     paths:
       - '.github/workflows/trendos-02cu-02cr-idle-preview-qualify.yml'
-  workflow_dispatch:
+      - 'tests/qualify_02cr_idle_preview_02cu.mjs'
+  workflow_dispatch: {}
 
 permissions:
   contents: read
 
-concurrency:
-  group: trendos-02cu-02cr-idle-preview-qualify
-  cancel-in-progress: false
-
 jobs:
-  qualify-02cr-idle-freshness:
+  qualify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
       EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
       PREVIEW_URL: https://trendos-edge-gateway-preview.trendmall-contact.workers.dev
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,157 +28,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Focused candidate contract tests
+      - name: Focused candidate tests
         run: |
-          set -euo pipefail
           node tests/cloudflare_edge_orders_02cr_canary.test.mjs
           node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
           node tests/cloudflare_index_v2_02cr_route.test.mjs
           node tests/frontend_edge_orders_cutover_02ct.test.mjs
           node tests/cloudflare_edge_orders_idle_verifier_v1.test.mjs
 
-      - name: Verify qualification is read-only
-        run: |
-          set -euo pipefail
-          test -n "$EDGE_SESSION_SECRET" || (echo 'Missing preview Edge session secret' && exit 1)
-          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' cloudflare-d1/preview/wrangler.toml
-          if grep -Eqi 'wrangler[^
-]*deploy|d1[^
-]*(execute|migrations)|curl[^
-]*(-X|--request)[[:space:]]*(POST|PUT|PATCH|DELETE)' .github/workflows/trendos-02cu-02cr-idle-preview-qualify.yml; then
-            echo 'Qualification workflow must remain read-only and must not deploy.'
-            exit 1
-          fi
-          echo 'READ_ONLY_SCOPE=PASS'
-
-      - name: Anonymous 02CR request must fail before heartbeat use
-        shell: bash
-        run: |
-          set -euo pipefail
-          code="$(curl --silent --show-error --output /tmp/02cr-anon.json --write-out '%{http_code}' \
-            "$PREVIEW_URL/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=1&statusFilter=__ACTIVE__")"
-          test "$code" = '401'
-          node - <<'NODE'
-          const fs = require('fs');
-          const x = JSON.parse(fs.readFileSync('/tmp/02cr-anon.json','utf8'));
-          if (x.success !== false) throw new Error('Anonymous 02CR request did not fail closed');
-          console.log('ANONYMOUS_02CR_FAIL_CLOSED=PASS');
-          NODE
-
-      - name: Generate short-lived synthetic Orders Edge token
-        shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const crypto = require('crypto');
-          const fs = require('fs');
-          const secret = String(process.env.EDGE_SESSION_SECRET || '');
-          if (!secret) throw new Error('Missing preview Edge session secret');
-          const now = Math.floor(Date.now() / 1000);
-          const payload = {
-            aud: 'trendos-orders-edge',
-            sub: 'ci-02cu-02cr-idle-qualify',
-            role: 'admin',
-            department: 'إدارة',
-            screens: ['service'],
-            iat: now,
-            exp: now + 300,
-            jti: 'ci-02cu-' + crypto.randomUUID()
-          };
-          const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-          const input = 'v1.' + body;
-          const sig = crypto.createHmac('sha256', secret).update(input).digest('base64url');
-          fs.writeFileSync('/tmp/02cr-token.txt', input + '.' + sig, { mode: 0o600 });
-          console.log('SYNTHETIC_SHORT_LIVED_TOKEN=CREATED');
-          NODE
-
-      - name: Qualify live 02CR stale-lines dual-signal path
-        shell: bash
-        run: |
-          set -euo pipefail
-          token="$(cat /tmp/02cr-token.txt)"
-          code="$(curl --silent --show-error --output /tmp/02cr-live.json --write-out '%{http_code}' \
-            -H "authorization: Bearer $token" \
-            "$PREVIEW_URL/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=1&statusFilter=__ACTIVE__")"
-          unset token
-          rm -f /tmp/02cr-token.txt
-          test "$code" = '200'
-          node <<'NODE'
-          const fs = require('fs');
-          const x = JSON.parse(fs.readFileSync('/tmp/02cr-live.json','utf8'));
-          if (x.success !== true) throw new Error('02CR live qualification did not succeed');
-          if (x.version !== 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY') throw new Error('Unexpected 02CR version');
-          if (x.fallback) throw new Error('02CR live qualification unexpectedly fell back');
-          if (!Array.isArray(x.rows)) throw new Error('02CR rows contract missing');
-          const mirrors = Array.isArray(x.mirrors) ? x.mirrors : [];
-          const lines = mirrors.find(m => String(m && m.sheetName || '').trim() === 'بنود الأوردرات');
-          const customers = mirrors.find(m => String(m && m.sheetName || '').trim() === 'العملاء');
-          const restrictions = mirrors.find(m => String(m && m.sheetName || '').trim() === 'عملاء منع التسليم بالمديونية');
-          if (!lines || !customers || !restrictions) throw new Error('Required 02CR mirror metadata missing');
-          const parseUtc = value => {
-            let raw = String(value || '').trim();
-            if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw)) raw = raw.replace(' ','T') + 'Z';
-            const ms = Date.parse(raw);
-            if (!Number.isFinite(ms)) throw new Error('Invalid mirror timestamp');
-            return ms;
-          };
-          const age = m => Math.max(0, Math.round((Date.now() - parseUtc(m.syncedAt)) / 1000));
-          const lineAge = age(lines);
-          const customerAge = age(customers);
-          const restrictionAge = age(restrictions);
-          if (lineAge <= 300) throw new Error('QUALIFICATION_NOT_EXERCISED: Lines mirror became physically fresh');
-          if (customerAge > 300 || restrictionAge > 300) throw new Error('Enrichment mirrors are not physically fresh');
-          const proof = x.logicalFreshness;
-          if (!proof || proof.ok !== true || proof.mode !== 'verified-idle-source-unchanged') throw new Error('Verified idle logical freshness proof missing');
-          if (!Array.isArray(proof.failedChecks) || proof.failedChecks.length !== 0) throw new Error('Idle proof contains failed checks');
-          if (!(Number(proof.ageSeconds) <= Number(proof.maxAgeSeconds))) throw new Error('Idle proof is too old');
-          const pLines = proof.source && proof.source.lines;
-          if (!pLines || pLines.displayHashPresent !== true) throw new Error('Lines source proof missing');
-          if (Number(pLines.sourceLastRow) !== Number(lines.sourceLastRow) || Number(pLines.sourceLastCol) !== Number(lines.sourceLastCol)) {
-            throw new Error('Lines source shape proof does not match D1 mirror');
-          }
-          console.log('LIVE_02CR_DUAL_SIGNAL=PASS');
-          console.log('SAFE_METADATA=' + JSON.stringify({
-            version: x.version,
-            returnedRowCount: x.rows.length,
-            linesAgeSeconds: lineAge,
-            customerAgeSeconds: customerAge,
-            restrictionAgeSeconds: restrictionAge,
-            logicalMode: proof.mode,
-            logicalAgeSeconds: proof.ageSeconds,
-            logicalMaxAgeSeconds: proof.maxAgeSeconds,
-            linesSourceLastRow: lines.sourceLastRow,
-            linesSourceLastCol: lines.sourceLastCol
-          }));
-          NODE
-          rm -f /tmp/02cr-live.json /tmp/02cr-anon.json
-
-      - name: Repeat live 02CR read to verify stable bounded behavior
-        shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const crypto = require('crypto');
-          const fs = require('fs');
-          const secret = String(process.env.EDGE_SESSION_SECRET || '');
-          const now = Math.floor(Date.now() / 1000);
-          const payload = { aud:'trendos-orders-edge', sub:'ci-02cu-02cr-repeat', role:'admin', department:'إدارة', screens:['service'], iat:now, exp:now+180, jti:'ci-repeat-'+crypto.randomUUID() };
-          const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-          const input = 'v1.' + body;
-          const sig = crypto.createHmac('sha256', secret).update(input).digest('base64url');
-          fs.writeFileSync('/tmp/02cr-repeat-token.txt', input + '.' + sig, { mode:0o600 });
-          NODE
-          token="$(cat /tmp/02cr-repeat-token.txt)"
-          code="$(curl --silent --show-error --output /tmp/02cr-repeat.json --write-out '%{http_code}' \
-            -H "authorization: Bearer $token" \
-            "$PREVIEW_URL/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=1&statusFilter=__ACTIVE__")"
-          unset token
-          rm -f /tmp/02cr-repeat-token.txt
-          test "$code" = '200'
-          node - <<'NODE'
-          const fs = require('fs');
-          const x = JSON.parse(fs.readFileSync('/tmp/02cr-repeat.json','utf8'));
-          if (x.success !== true || !x.logicalFreshness || x.logicalFreshness.ok !== true || x.fallback) process.exit(1);
-          console.log('REPEAT_LIVE_02CR_DUAL_SIGNAL=PASS');
-          NODE
-          rm -f /tmp/02cr-repeat.json
+      - name: Live read-only 02CR qualification
+        run: node tests/qualify_02cr_idle_preview_02cu.mjs
