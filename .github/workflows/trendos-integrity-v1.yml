@@ -47,6 +47,7 @@ on:
       - 'tests/frontend_order_status_write_consistency_02cv.test.mjs'
       - 'tests/frontend_flyprint_lane_stability_02cv.test.mjs'
       - 'tests/cloudflare_edge_orders_active_summary_02cw.test.mjs'
+      - 'tests/core_p0_11_readonly_gate_contract.test.mjs'
       - 'tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_idle_heartbeat_v1.test.mjs'
       - 'tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs'
@@ -108,6 +109,8 @@ jobs:
         run: node tests/frontend_flyprint_lane_stability_02cv.test.mjs
       - name: Run 02CW global active summary tests
         run: node tests/cloudflare_edge_orders_active_summary_02cw.test.mjs
+      - name: Run CORE-P0-11 read-only E2E gate contract tests
+        run: node tests/core_p0_11_readonly_gate_contract.test.mjs
       - name: Run Cloudflare Edge Orders freshness gate tests
         run: node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
       - name: Run Cloudflare Edge Orders idle heartbeat tests
