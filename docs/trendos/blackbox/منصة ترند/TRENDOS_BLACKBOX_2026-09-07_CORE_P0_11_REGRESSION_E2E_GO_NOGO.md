@@ -20,17 +20,23 @@ The existing `TrendOS Integrity V1` now acts as the durable Regression Pack acro
 
 ## Status
 
-**REGRESSION PACK PASS — LIVE FRONTEND + SAFETY BOUNDARY PASS — AUTHENTICATED E2E BLOCKED (QUALIFY TOKEN 401) — CORE GO/NO-GO HOLD**
+**REGRESSION PACK PASS — LIVE FRONTEND + SAFETY BOUNDARY PASS — AUTHENTICATED E2E BLOCKED (QUALIFY TOKEN 401 / SESSION EXPIRED) — CORE GO/NO-GO HOLD**
 
 This is a fail-closed status. The authenticated E2E gate is not weakened or bypassed to obtain a synthetic PASS.
 
 ## Regression Pack evidence
 
-On working-branch HEAD `0dd23d5517eadd5217d3cfd3eab97d90cb162f28`:
+Initial CORE-P0-11 branch evidence:
 
+- working-branch HEAD `0dd23d5517eadd5217d3cfd3eab97d90cb162f28`;
 - `TrendOS Integrity V1` Run `34111130037` — **SUCCESS**.
 
-The pack covers the active Cloudflare/D1 and Core contracts, including Edge Gateway, 02CR qualified reads, 02CU freshness, 02CV write consistency and Fly Print lane stability, 02CW global active summary, freshness/idle protections, CORE-P0 remediation tooling, Order/Line, Attendance/Cleaning, Press, Invoice, WhatsApp, Handover/OPS, ANDON, Dashboard, Fast Auth, Apps Script composition/predeploy safety, and Accounting contracts.
+After wiring the CORE-P0-11 read-only contract permanently into normal Integrity and recording the roadmap state:
+
+- working-branch HEAD `7c98d536a1bc583b244177badd0b954c4fc188ce`;
+- `TrendOS Integrity V1` Run `34111458849` — **SUCCESS**.
+
+The pack covers the active Cloudflare/D1 and Core contracts, including Edge Gateway, 02CR qualified reads, 02CU freshness, 02CV write consistency and Fly Print lane stability, 02CW global active summary, CORE-P0-11 no-write E2E contract, freshness/idle protections, CORE-P0 remediation tooling, Order/Line, Attendance/Cleaning, Press, Invoice, WhatsApp, Handover/OPS, ANDON, Dashboard, Fast Auth, Apps Script composition/predeploy safety, and Accounting contracts.
 
 ## Full E2E read-only gate
 
@@ -81,13 +87,34 @@ Blocking step:
 
 This means the gate could not continue to the authenticated D1 active-page read or `__DEBT__` fallback assertion in that run.
 
+## Qualification credential lifecycle — confirmed cause
+
+Production Apps Script authentication shows that an employee token is intentionally session-scoped:
+
+- `sessionTtlMsV1922_()` defaults `SESSION_TTL_HOURS` to **12 hours**;
+- configured TTL is clamped to **1–72 hours**;
+- `sessionExpiredV1922_()` rejects a session after that TTL;
+- a normal employee `login_()` creates a new token and writes both the token and `lastLogin`/issued-at value back to the Users sheet before returning the session.
+
+Therefore a static `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` stored in GitHub is inherently short-lived. The Sep-07 401 is consistent with the documented session lifecycle and is not treated as a mysterious Worker failure.
+
+Important safety consequence:
+
+- the CORE-P0-11 gate remains read-only;
+- it must **not** call employee `login_()` automatically to refresh itself, because that login performs a production Users-sheet write;
+- it must **not** increase `SESSION_TTL_HOURS`, create a service credential, change an auth secret, or add a bypass without a separately approved auth/production checkpoint.
+
+The least-invasive current way to unblock the exact E2E gate is to refresh the existing GitHub qualification employee token with a currently valid employee session, then rerun the same gate unchanged.
+
+A future durable machine-qualification auth mechanism may be designed separately, but it must be scoped as an explicit security/auth checkpoint rather than hidden inside a read-only test.
+
 ## Classification of the block
 
 The current evidence does **not** identify a frontend, Worker route, D1 summary, or production-safety regression. All those checks passed before the session exchange.
 
-The exact block is the GitHub qualification employee credential used by the E2E runner. It must remain a blocking condition because authenticated Orders behavior is part of Full E2E.
+The exact block is the expired GitHub qualification employee session credential used by the E2E runner. It remains a blocking condition because authenticated Orders behavior is part of Full E2E.
 
-Do not remove the authentication check, accept 401 as PASS, or substitute unauthenticated reads.
+Do not remove the authentication check, accept 401 as PASS, substitute unauthenticated reads, or auto-login in the read-only gate.
 
 ## Core GO/NO-GO status
 
@@ -95,7 +122,7 @@ Do not remove the authentication check, accept 401 as PASS, or substitute unauth
 
 Two independent conditions prevent declaring Core GO:
 
-1. Full E2E authenticated read gate is currently blocked by qualification credential 401.
+1. Full E2E authenticated read gate is currently blocked by qualification credential 401 / expired employee session.
 2. The older CORE-P0 remediation path retains an explicit production approval/data boundary around RP-06/RP-07 and the paused `3536-01` reconciliation. This checkpoint does not override that boundary.
 
 Even after the qualification credential is repaired and Full E2E passes, the overall Core GO remains HOLD until the separately approved RP production-data/HEALTH gate is resolved.
@@ -118,6 +145,7 @@ No action in CORE-P0-11 has:
 Without crossing a production-write approval boundary:
 
 1. keep the durable Regression Pack and read-only E2E gate active;
-2. rerun the exact same E2E gate when the stored qualification employee credential is valid again;
-3. if authenticated E2E passes, record `REGRESSION PACK + FULL E2E READ-ONLY PASS` while Core GO remains `HOLD` for the separate RP production-data/HEALTH boundary;
-4. do not enter RP-06/RP-07 production mutation or business-family activation without the required explicit approval.
+2. refresh only `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with a currently valid employee session when Full E2E is to be run;
+3. rerun the exact same E2E gate unchanged;
+4. if authenticated E2E passes, record `REGRESSION PACK + FULL E2E READ-ONLY PASS` while Core GO remains `HOLD` for the separate RP production-data/HEALTH boundary;
+5. do not enter RP-06/RP-07 production mutation, auto-login qualification, auth-bypass work, or business-family activation without the required explicit approval.
