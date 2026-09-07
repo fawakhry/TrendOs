@@ -2,7 +2,38 @@
 
 هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**. لا تبدأ Inventory جديدًا ولا تعِد تصميم المسار؛ ابدأ دائمًا من `01_CURRENT_STATE.md` ثم السجل المرتبط بالـcheckpoint الحالي.
 
-## Current active checkpoint — PERF-CF-02CW
+## Current roadmap checkpoint — CORE-P0-11
+
+`CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
+
+الحالة: **REGRESSION PACK PASS — LIVE FRONTEND + SAFETY BOUNDARY PASS — AUTHENTICATED E2E BLOCKED (QUALIFY TOKEN 401) — CORE GO/NO-GO HOLD**
+
+السجل:
+
+`TRENDOS_BLACKBOX_2026-09-07_CORE_P0_11_REGRESSION_E2E_GO_NOGO.md`
+
+Evidence:
+
+- normal Regression/Integrity Run `34111130037` — **SUCCESS** on `0dd23d5517eadd5217d3cfd3eab97d90cb162f28`؛
+- durable read-only E2E workflow: `.github/workflows/trendos-core-p0-11-e2e-readonly-gate.yml`؛
+- durable no-write contract: `tests/core_p0_11_readonly_gate_contract.test.mjs`؛
+- first live E2E Run `34111129906` passed Production main lock, live frontend, Worker health, Sheets-authoritative/cutover=false, reconcile OFF, generic drain OFF, and unauthenticated 401 enforcement؛
+- the run stopped fail-closed at employee Edge session exchange because the stored qualification credential returned `401`؛
+- the auth check is not bypassed or weakened؛
+- Core GO/NO-GO remains **HOLD** even after an eventual E2E PASS until the separate RP production-data/HEALTH approval boundary is resolved.
+
+Safety:
+
+- no Apps Script deploy؛
+- no Sheet/registry/business write؛
+- no D1 business write/migration؛
+- no secret rotation؛
+- no 02CL/reconcile or generic drain enablement؛
+- no business-family activation.
+
+---
+
+## Operational checkpoint — PERF-CF-02CW
 
 `PERF-CF-02CW — Global Counters / Default Filters / Press Queue Totals`
 
@@ -14,34 +45,16 @@
 
 ما تم نشره:
 
-- عدادات شاشة القسم تعتمد على `activeSummaryCounts` المحسوب من كامل الحالات الجارية قبل pagination، لا الصفحة الحالية فقط؛
+- عدادات شاشة القسم تعتمد على `activeSummaryCounts` من كامل الحالات الجارية قبل pagination؛
 - الفلتر الافتراضي `الحالات الجارية فقط` + `كل الأولويات`؛
-- متابعة المكبس تفضّل `heatPressOrders` لإجمالي أوردرات المكبس المميزة؛
-- Worker version: `602fdff5-ab0e-4b8e-8f6a-8eb77010c6eb` @100%؛
-- Worker preview qualification Run `34050430147` — SUCCESS؛
-- Worker promotion Run `34050523165` — SUCCESS؛
-- Frontend initial Production commit `40bced5e9a952f15689f45ce3ef18271c9dd2c63`؛
-- ظهر بعد النشر خطأ Frontend فقط: `WORK_PROBLEM_STATUS is not defined`؛
-- تم إصلاحه بإرجاع fallback العدادات إلى دوال Production القديمة الآمنة مع إبقاء summary الجديد؛
-- Production hotfix main: `2eee80b87a3aeccb5569055bc0544a43b22adcb7`؛
-- Hotfix Run `34051629854` — SUCCESS؛
-- GitHub Pages Run `34051642802` — SUCCESS؛
-- app cache-bust الحالي: `trendos-02cw-globalcounts-hotfix-20260906e`؛
-- durable patcher correction Run `34051798736` — SUCCESS؛
-- latest normal Integrity before bot-only patcher commit: `34051798718` — SUCCESS؛
-- current working-branch head after durable patcher correction: `9b607159aaded1ae00e69bb4365e12f6e1082389`.
+- متابعة المكبس تفضّل `heatPressOrders`؛
+- Worker version `602fdff5-ab0e-4b8e-8f6a-8eb77010c6eb` @100%؛
+- current Production main `2eee80b87a3aeccb5569055bc0544a43b22adcb7`؛
+- hotfix removed the undefined `WORK_PROBLEM_STATUS` fallback؛
+- Pages Run `34051642802` — SUCCESS؛
+- app cache-bust `trendos-02cw-globalcounts-hotfix-20260906e`.
 
-حدود الأمان المحفوظة:
-
-- لا Apps Script Production deploy؛
-- لا D1 business-data write/migration؛
-- لا secret rotation / لا تغيير `EDGE_SESSION_SECRET`؛
-- Orders writes ما زالت Apps Script / Sheets؛
-- `__DEBT__` ما زالت Apps Script؛
-- 02CL/reconcile OFF؛
-- generic drain OFF.
-
-**لا يتم تسجيل User-Visible PASS لـ02CW حتى يؤكد المستخدم السلوك الحي.** طلب المستخدم استكمال خارطة الطريق لا يُعتبر تأكيدًا مرئيًا للعدادات.
+**02CW is not recorded as User-Visible PASS until the user explicitly validates the final live behavior.** Continuing the roadmap is not synthetic validation.
 
 ---
 
@@ -58,24 +71,6 @@
 قرار الإغلاق من المستخدم بتاريخ 2026-09-06:
 
 `مفيش عندى حاليا حاجة اجرب عليها اقفله ولو طلع فيه مشاكل فيما بعد نرجعله تانى`
-
-معنى الإغلاق هنا:
-
-- الإصلاح التقني منشور ومؤهل؛
-- لا يوجد Test Case حي متاح حاليًا لإعادة الاختبار المرئي؛
-- المستخدم وافق على إغلاق 02CV بدل إبقائه معلّقًا؛
-- **لم يتم تسجيل User-Visible PASS فعلي**؛ التحقق الحي مؤجل؛
-- إذا عادت مشكلة حفظ الحالة أو اختفاء `⚡ طباعة على الطاير` لاحقًا، يتم فتح Checkpoint جديد أو إعادة فتح 02CV مع تسجيل الواقعة الجديدة.
-
-02CV fixes retained:
-
-- stable `lineId` write identity retained؛
-- local render immediately after confirmed save؛
-- immediate post-save reload removed؛
-- status cell supports `⚡ طباعة على الطاير`؛
-- lane-stability guard retained؛
-- explicit Fly Print values remain authoritative؛
-- durable regression remains in normal Integrity.
 
 ---
 
@@ -99,9 +94,6 @@ Record:
 
 Candidate commit: `03300ce2d5454e497bc0be6ddc58c2b2ceb75c95`
 
-- Trend Master V1931 Resilience CI Run `34006722152` — SUCCESS
-- TrendOS Integrity V1 Run `34006722115` — SUCCESS
-
 Apps Script panel endpoint still requires separate Production approval before any deploy.
 
 ---
@@ -118,3 +110,4 @@ Apps Script panel endpoint still requires separate Production approval before an
 - Customer Feedback auto scan OFF.
 - Go-Live Autopilot auto sweep OFF.
 - Trend Master bounded protections retained.
+- deferred Save Timeout / reconcile work remains deferred by owner unless explicitly reopened.
