@@ -2,56 +2,98 @@
 
 Date: 2026-09-07
 
-## Current active checkpoint — PERF-CF-02CW
+## Current roadmap checkpoint — CORE-P0-11
+
+`CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
+
+Status: **REGRESSION PACK PASS — LIVE FRONTEND + SAFETY BOUNDARY PASS — AUTHENTICATED E2E BLOCKED (QUALIFY TOKEN 401) — CORE GO/NO-GO HOLD**
+
+### Why this is the next roadmap checkpoint
+
+The official Phase 1 — Core + Cloud roadmap reaches Regression Pack, then Full E2E, then Core GO/NO-GO. The existing `TrendOS Integrity V1` already provides the broad regression pack across the current Core/Cloud contracts, so the next bounded executable step is the Full E2E gate rather than a new inventory or redesign.
+
+### Regression Pack
+
+- `TrendOS Integrity V1` Run `34111130037` — **SUCCESS** on `0dd23d5517eadd5217d3cfd3eab97d90cb162f28`.
+- the CORE-P0-11 read-only gate contract is now wired into normal Integrity as a permanent regression.
+
+### Full E2E read-only gate
+
+Workflow:
+
+`.github/workflows/trendos-core-p0-11-e2e-readonly-gate.yml`
+
+Contract:
+
+`tests/core_p0_11_readonly_gate_contract.test.mjs`
+
+First live run:
+
+`34111129906` — **FAIL / BLOCKED AT AUTH SESSION 401**
+
+Passed before the block:
+
+- Production main exact lock `2eee80b87a3aeccb5569055bc0544a43b22adcb7`;
+- live GitHub Pages/frontend contract;
+- 02CW hotfix cache-bust and default filters;
+- live `activeSummaryCounts` and Press `heatPressOrders` frontend contracts;
+- live `app.js` does not contain `WORK_PROBLEM_STATUS`;
+- Worker Edge health;
+- cloud-write health;
+- Sheets authoritative = true;
+- cutover = false;
+- reconcile = OFF;
+- generic drain = OFF;
+- unauthenticated Orders page correctly rejects with 401.
+
+Blocking evidence:
+
+- employee Edge session exchange using the stored qualification credentials returned `401`.
+- the gate therefore did not run the authenticated D1 active-page assertion or `__DEBT__` fallback assertion in that attempt.
+- authentication is a required E2E condition and is not bypassed to force a PASS.
+
+### Core GO/NO-GO
+
+**HOLD**
+
+Even after the qualification credential is valid and Full E2E read-only passes, the global Core GO remains HOLD until the older RP production-data/HEALTH boundary is separately resolved. The paused RP-06/RP-07 path and `3536-01` reconciliation require their own bounded approval; this roadmap continuation does not grant that approval.
+
+### Safety boundary
+
+- no Apps Script Production deploy;
+- no Sheet/registry/business-data write;
+- no D1 business-data write/migration;
+- no `EDGE_SESSION_SECRET` rotation/change;
+- Orders writes remain Apps Script / Sheets;
+- eligible reads remain D1-first `/v1/edge/orders/02cr/page` with Apps Script fallback;
+- `__DEBT__` remains Apps Script;
+- 02CL/reconcile OFF;
+- generic drain OFF;
+- no ORDER_LINE or other business-family activation;
+- Save Timeout/reconcile deferred item remains `DEFERRED_BY_OWNER`.
+
+Record:
+
+`TRENDOS_BLACKBOX_2026-09-07_CORE_P0_11_REGRESSION_E2E_GO_NOGO.md`
+
+---
+
+## Operational checkpoint — PERF-CF-02CW
 
 `PERF-CF-02CW — Global Counters / Default Filters / Press Queue Totals`
 
 Status: **PRODUCTION TECHNICAL + WORKER + FRONTEND + HOTFIX PASS — USER-VISIBLE VALIDATION PENDING**
 
-### User request
-
-- counters at the top of the department Orders table must show totals across the full active queue, not only the current server page;
-- default filters must open as `الحالات الجارية فقط` + `كل الأولويات`;
-- the Press Monitor must show the full unique active press-order total.
-
-### Production implementation now live
+Production implementation live:
 
 - Worker calculates `activeSummaryCounts` across the full screen-scoped active queue before pagination.
-- summary includes full row counters plus unique `heatPressOrders`.
-- frontend stores the summary and uses it for top counters while table payload remains current-page only.
-- blank priority means `كل الأولويات` and is no longer coerced to `__ACTIVE__`.
-- Press Monitor prefers `activeSummaryCounts.heatPressOrders` and retains legacy queue data as fallback.
+- summary includes unique `heatPressOrders`.
+- default filter is `الحالات الجارية فقط` + `كل الأولويات`.
+- current Worker `602fdff5-ab0e-4b8e-8f6a-8eb77010c6eb` @100%.
+- current Production main `2eee80b87a3aeccb5569055bc0544a43b22adcb7`.
+- current app cache-bust `trendos-02cw-globalcounts-hotfix-20260906e`.
 
-### Qualification / deployment evidence
-
-- Worker preview Run `34050430147` — SUCCESS. Example qualification returned 28 active rows while pageRows=5, proving totals are independent of page size.
-- Worker Production promotion Run `34050523165` — SUCCESS.
-- Worker version: `602fdff5-ab0e-4b8e-8f6a-8eb77010c6eb` @100%.
-- Frontend Production commit: `40bced5e9a952f15689f45ce3ef18271c9dd2c63`.
-- Initial frontend exposed `WORK_PROBLEM_STATUS is not defined` in the local fallback path only.
-- Bounded hotfix restored the pre-existing safe fallback semantics without removing the global summary.
-- Current Production main: `2eee80b87a3aeccb5569055bc0544a43b22adcb7`.
-- Hotfix Run `34051629854` — SUCCESS.
-- Pages Run `34051642802` — SUCCESS.
-- current app cache-bust: `trendos-02cw-globalcounts-hotfix-20260906e`.
-- durable patcher correction Run `34051798736` — SUCCESS.
-- normal Integrity Run `34051798718` — SUCCESS on parent `a577bdc3a92187a4b16d73f4188a46d79487071e`.
-- working-branch bot-only patcher correction head before this documentation update: `9b607159aaded1ae00e69bb4365e12f6e1082389`.
-
-### Production safety boundary
-
-- Apps Script Production deploy: **NO**
-- D1 business-data write/migration: **NO**
-- `EDGE_SESSION_SECRET` rotation/change: **NO**
-- Orders writes remain Apps Script / Sheets
-- eligible reads remain D1-first `/v1/edge/orders/02cr/page` with Apps Script fallback
-- `__DEBT__` remains Apps Script
-- 02CL/reconcile OFF
-- generic drain OFF
-
-### Remaining close condition
-
-02CW is not marked CLOSED yet because the user has not explicitly confirmed the final hotfixed live counters/filter/Press Monitor behavior. Their request to continue the roadmap is not treated as a synthetic User-Visible PASS.
+02CW remains technically deployed but not user-visible closed because the user has not explicitly validated the final hotfixed counters/filter/Press Monitor behavior.
 
 Record:
 
@@ -59,21 +101,13 @@ Record:
 
 ---
 
-## Latest closed checkpoint — PERF-CF-02CV
-
-`PERF-CF-02CV — Order Status Save / Read-After-Write Consistency`
+## PERF-CF-02CV — CLOSED
 
 Status: **CLOSED — TECHNICAL + PRODUCTION PASS — USER ACCEPTED CLOSURE — LIVE VALIDATION DEFERRED**
 
-User closure instruction:
-
-`مفيش عندى حاليا حاجة اجرب عليها اقفله ولو طلع فيه مشاكل فيما بعد نرجعله تانى`
-
-02CV remains closed and is not reopened by 02CW.
-
 ---
 
-## Previous closed checkpoint — PERF-CF-02CU
+## PERF-CF-02CU — CLOSED
 
 Status: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**
 
@@ -86,11 +120,5 @@ User close confirmation: `ثبت`
 `TM-V1931-RESILIENCE — Trend Master Panel Resilience Candidate`
 
 Status: **CANDIDATE CODE + CI PASS — NOT DEPLOYED — APPS SCRIPT PRODUCTION UNCHANGED**
-
-Record:
-
-`TRENDOS_BLACKBOX_2026-09-06_TREND_MASTER_V1931_RESILIENCE_CANDIDATE.md`
-
-Candidate commit: `03300ce2d5454e497bc0be6ddc58c2b2ceb75c95`
 
 Any Apps Script Production deployment still requires separate approval.
