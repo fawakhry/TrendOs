@@ -126,3 +126,47 @@ No action in CORE-P0-11 has:
 ## Next roadmap action
 
 The next roadmap decision is the **Core GO/NO-GO boundary**. The E2E portion is complete. Any continuation into RP-06/RP-07 Production-data/HEALTH remediation must be separately bounded and explicitly approved before a production mutation is executed.
+
+---
+
+## Continuation checkpoint — 2026-09-07 18:28 EET
+
+The owner instructed: `كمل` from the existing checkpoint. Continuation remained strictly read-only and did **not** start a new inventory.
+
+Actions actually performed in this continuation:
+
+- re-read `docs/trendos/blackbox/منصة ترند/00_INDEX.md` on `agent/go-live-2026-09-01-integrity`;
+- re-read `docs/trendos/blackbox/منصة ترند/01_CURRENT_STATE.md` on the same working branch;
+- re-read this `CORE-P0-11` record;
+- confirmed the official current state is still `CORE GO/NO-GO HOLD` only on the older `RP-06/RP-07` Production-data/HEALTH approval boundary;
+- confirmed paused reconciliation item `3536-01` remains inside that older boundary;
+- attempted repository lookup for the older RP material/runner without modifying Production; default-branch code search was not treated as authoritative for working-branch-only blackbox material;
+- no reconciliation runner was executed in this continuation because its exact branch-local record/runner and no-write contract had not yet been positively identified and inspected.
+
+### Mutation/deployment statement
+
+During this continuation there was **no**:
+
+- Production Sheet/registry/business-data write;
+- D1 business-data write or migration;
+- Apps Script deploy;
+- Worker deploy/version promotion;
+- frontend Production push;
+- registry backfill;
+- `3536-01` reconciliation execution;
+- RP-06/RP-07 activation;
+- secret rotation;
+- reconcile/generic-drain enablement;
+- authority transfer.
+
+### Exact resume point
+
+Resume from here only:
+
+1. locate the **older branch-local RP remediation record** that defines `RP-06`, `RP-07`, and `3536-01`;
+2. locate the exact existing reconciliation/HEALTH runner referenced by that record;
+3. inspect that runner and its workflow/contract before execution;
+4. only if the runner is demonstrably read-only, execute the bounded read-only qualification and record evidence;
+5. if any step requires registry/business-data write, backfill, Apps Script deploy, business-family activation, or another Production mutation, stop at the approval boundary and do not execute it without explicit approval.
+
+CORE-P0-11 E2E remains PASS. Overall Core GO remains HOLD until the older RP boundary is resolved.
