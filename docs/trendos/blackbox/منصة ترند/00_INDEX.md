@@ -6,25 +6,42 @@
 
 `PERF-CF-02CW — Global Counters / Default Filters / Press Queue Totals`
 
-الحالة: **IN PROGRESS — DIAGNOSIS COMPLETE — CANDIDATE PATCH PENDING**
+الحالة: **PRODUCTION TECHNICAL + WORKER + FRONTEND + HOTFIX PASS — USER-VISIBLE VALIDATION PENDING**
 
 السجل:
 
 `TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CW_GLOBAL_COUNTERS_DEFAULT_FILTERS_PRESS_TOTALS.md`
 
-النطاق:
+ما تم نشره:
 
-- عدادات شاشة القسم تعرض إجمالي الحالات الجارية عبر كل الصفحات، لا الصفحة الحالية فقط؛
+- عدادات شاشة القسم تعتمد على `activeSummaryCounts` المحسوب من كامل الحالات الجارية قبل pagination، لا الصفحة الحالية فقط؛
 - الفلتر الافتراضي `الحالات الجارية فقط` + `كل الأولويات`؛
-- متابعة المكبس تعرض إجمالي أوردرات المكبس المميزة عبر الـQueue الجاري كله؛
+- متابعة المكبس تفضّل `heatPressOrders` لإجمالي أوردرات المكبس المميزة؛
+- Worker version: `602fdff5-ab0e-4b8e-8f6a-8eb77010c6eb` @100%؛
+- Worker preview qualification Run `34050430147` — SUCCESS؛
+- Worker promotion Run `34050523165` — SUCCESS؛
+- Frontend initial Production commit `40bced5e9a952f15689f45ce3ef18271c9dd2c63`؛
+- ظهر بعد النشر خطأ Frontend فقط: `WORK_PROBLEM_STATUS is not defined`؛
+- تم إصلاحه بإرجاع fallback العدادات إلى دوال Production القديمة الآمنة مع إبقاء summary الجديد؛
+- Production hotfix main: `2eee80b87a3aeccb5569055bc0544a43b22adcb7`؛
+- Hotfix Run `34051629854` — SUCCESS؛
+- GitHub Pages Run `34051642802` — SUCCESS؛
+- app cache-bust الحالي: `trendos-02cw-globalcounts-hotfix-20260906e`؛
+- durable patcher correction Run `34051798736` — SUCCESS؛
+- latest normal Integrity before bot-only patcher commit: `34051798718` — SUCCESS؛
+- current working-branch head after durable patcher correction: `9b607159aaded1ae00e69bb4365e12f6e1082389`.
+
+حدود الأمان المحفوظة:
+
 - لا Apps Script Production deploy؛
-- لا D1 write/migration؛
-- أي Worker deploy يكون code-only بعد qualification وبدون secret rotation.
+- لا D1 business-data write/migration؛
+- لا secret rotation / لا تغيير `EDGE_SESSION_SECRET`؛
+- Orders writes ما زالت Apps Script / Sheets؛
+- `__DEBT__` ما زالت Apps Script؛
+- 02CL/reconcile OFF؛
+- generic drain OFF.
 
-Production baseline عند فتح 02CW:
-
-- main: `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
-- Worker: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
+**لا يتم تسجيل User-Visible PASS لـ02CW حتى يؤكد المستخدم السلوك الحي.** طلب المستخدم استكمال خارطة الطريق لا يُعتبر تأكيدًا مرئيًا للعدادات.
 
 ---
 
@@ -50,36 +67,15 @@ Production baseline عند فتح 02CW:
 - **لم يتم تسجيل User-Visible PASS فعلي**؛ التحقق الحي مؤجل؛
 - إذا عادت مشكلة حفظ الحالة أو اختفاء `⚡ طباعة على الطاير` لاحقًا، يتم فتح Checkpoint جديد أو إعادة فتح 02CV مع تسجيل الواقعة الجديدة.
 
-Production baseline عند الإغلاق:
+02CV fixes retained:
 
-- main: `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
-- Worker unchanged: `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
-- Apps Script deployment: **NO**
-- Worker deployment: **NO**
-- Orders write authority: Apps Script / Sheets only
-- `__DEBT__`: Apps Script
-- 02CL/reconcile: OFF
-- generic drain: OFF
-- no secret rotation
-
-02CV fixes live at closure:
-
-- stable `lineId` write identity retained; stale D1 `rowNumber` is not used when lineId exists;
-- local render immediately after confirmed save, so hidden statuses can disappear without manual Refresh;
-- immediate post-save `loadRows(true)` removed;
-- status cell explicitly supports `⚡ طباعة على الطاير`;
-- read-lane stability guard preserves an already-proven Fly Print marker only when a subsequent row payload for the same stable `lineId` omits all Fly Print fields entirely;
-- explicit new values (`نعم` / `لا` / blank field present) remain authoritative and are never overridden;
-- app cache-bust: `trendos-02cv-flylane-20260906c`.
-
-Qualification evidence:
-
-- post-edit D1/Worker read-only Run `34038294884` — **SUCCESS**, 39/39 Fly Print values preserved;
-- candidate Run `34039276230` — **SUCCESS**;
-- Production promotion Run `34039313773` — **SUCCESS**;
-- GitHub Pages Run `34039321631` — **SUCCESS** on `3934fa363b113a4bd494ec501fb5f289f2c48ec1`;
-- durable Integrity regression is active in `tests/frontend_flyprint_lane_stability_02cv.test.mjs`;
-- final durable parity Integrity Run `34041121863` — **SUCCESS**.
+- stable `lineId` write identity retained؛
+- local render immediately after confirmed save؛
+- immediate post-save reload removed؛
+- status cell supports `⚡ طباعة على الطاير`؛
+- lane-stability guard retained؛
+- explicit Fly Print values remain authoritative؛
+- durable regression remains in normal Integrity.
 
 ---
 
@@ -90,8 +86,6 @@ Qualification evidence:
 الحالة: **CLOSED — TECHNICAL + PRODUCTION + USER-VISIBLE PASS**
 
 User confirmation: `ثبت`
-
-02CU close baseline was main `eab0dd342085df45ac8cd9dc02b1c21e7dc76820`, Worker `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%, D1-first qualified Orders reads, Apps Script fallback retained, Sheets authority retained, 02CL/generic drain OFF, no secret rotation.
 
 ---
 
