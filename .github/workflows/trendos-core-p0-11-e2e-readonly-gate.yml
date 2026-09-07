@@ -1,0 +1,154 @@
+name: TrendOS CORE-P0-11 E2E Readonly Gate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - '.github/workflows/trendos-core-p0-11-e2e-readonly-gate.yml'
+      - 'tests/core_p0_11_readonly_gate_contract.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-core-p0-11-e2e-readonly
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PROD_MAIN_EXPECTED: 2eee80b87a3aeccb5569055bc0544a43b22adcb7
+      PROD_PAGES: https://fawakhry.github.io/TrendOs
+      PROD_WORKER: https://trendos-d1-api.trendmall-contact.workers.dev
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/go-live-2026-09-01-integrity
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Lock Production source baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          actual="$(git rev-parse origin/main)"
+          echo "PROD_MAIN=$actual"
+          test "$actual" = "$PROD_MAIN_EXPECTED"
+          echo 'CORE_P0_11_PROD_MAIN_LOCK_PASS'
+
+      - name: Verify read-only gate contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/core_p0_11_readonly_gate_contract.test.mjs
+
+      - name: Qualify live Production frontend contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$PROD_PAGES/?core-p0-11=$(date +%s)" -o /tmp/index.html
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$PROD_PAGES/app.js?v=trendos-02cw-globalcounts-hotfix-20260906e" -o /tmp/app.js
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$PROD_PAGES/config.js?v=trendos-02cw-globalcounts-20260906d" -o /tmp/config.js
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$PROD_PAGES/press-control-v1.js?v=20260906-02cw" -o /tmp/press.js
+          grep -Fq 'app.js?v=trendos-02cw-globalcounts-hotfix-20260906e' /tmp/index.html
+          grep -Fq '<option value="__ACTIVE__" selected>الحالات الجارية فقط</option>' /tmp/index.html
+          grep -Fq '<option value="" selected>كل الأولويات</option>' /tmp/index.html
+          grep -Fq 'activeSummaryCounts' /tmp/app.js
+          grep -Fq 'heatPressOrders' /tmp/press.js
+          ! grep -Fq 'WORK_PROBLEM_STATUS' /tmp/app.js
+          grep -Fq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true' /tmp/config.js
+          grep -Fq 'MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev"' /tmp/config.js
+          echo 'CORE_P0_11_FRONTEND_LIVE_PASS'
+
+      - name: Qualify live Worker boundary and authenticated Orders path
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          node - <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_WORKER;
+          const username=process.env.QUALIFY_USERNAME;
+          const token=process.env.QUALIFY_EMPLOYEE_TOKEN;
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function req(path,opt={},tries=6){
+            let last;
+            for(let i=1;i<=tries;i++){
+              try{
+                const r=await fetch(base+path,{cache:'no-store',...opt});
+                const raw=await r.text(); let body={};
+                try{body=JSON.parse(raw||'{}')}catch{}
+                if(r.status>=500 && i<tries){await sleep(i*1000);continue;}
+                return {status:r.status,body,raw};
+              }catch(e){last=e;if(i<tries)await sleep(i*1000);}
+            }
+            throw last;
+          }
+          (async()=>{
+            const edge=await req('/v1/edge/health');
+            assert.equal(edge.status,200); assert.equal(edge.body.success,true); assert.equal(edge.body.cutover,false);
+
+            const cloud=await req('/v1/cloud/write/health');
+            assert.equal(cloud.status,200); assert.equal(cloud.body.success,true);
+            assert.equal(cloud.body.sheetsAuthoritative,true); assert.equal(cloud.body.cutover,false);
+
+            const reconcile=await req('/v1/qualification/cloud-write/reconcile/health');
+            assert.equal(reconcile.status,200);
+            assert.equal(reconcile.body.enabled,false); assert.equal(reconcile.body.genericDrainEnabled,false);
+
+            const unauth=await req('/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=1&statusFilter=__ACTIVE__');
+            assert.equal(unauth.status,401);
+
+            const session=await req('/v1/edge/orders/session',{
+              method:'POST',headers:{'content-type':'application/json'},
+              body:JSON.stringify({username,token})
+            },8);
+            if(session.status!==200) console.error('SESSION_FAILURE_STATUS='+session.status);
+            assert.equal(session.status,200); assert.equal(session.body.success,true); assert.ok(session.body.edgeToken);
+            const headers={authorization:'Bearer '+session.body.edgeToken,accept:'application/json'};
+
+            const active=await req('/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__&priorityFilter=',{headers},7);
+            assert.equal(active.status,200); assert.equal(active.body.success,true);
+            assert.equal(active.body.dataSource,'d1-edge-orders-02cr-operational');
+            assert.ok(active.body.activeSummaryCounts && typeof active.body.activeSummaryCounts==='object');
+            const s=active.body.activeSummaryCounts;
+            for(const k of ['total','orderCount','urgent','normal','problems','overdue','debts','heatPress','heatPressOrders','flyPrint']) {
+              assert.ok(Number.isFinite(Number(s[k])),k+' missing');
+            }
+            assert.ok(Number(s.total)>=Number((active.body.rows||[]).length));
+            assert.ok(Number(s.heatPressOrders)<=Number(s.heatPress));
+
+            const debt=await req('/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=1&statusFilter=__DEBT__',{headers},3);
+            assert.equal(debt.status,409); assert.equal(debt.body.fallback,'apps-script');
+
+            console.log('CORE_P0_11_LIVE_READONLY_E2E_PASS='+JSON.stringify({
+              pageRows:(active.body.rows||[]).length,
+              activeTotal:Number(s.total),
+              activeOrders:Number(s.orderCount),
+              heatPress:Number(s.heatPress),
+              heatPressOrders:Number(s.heatPressOrders),
+              debtFallback:'apps-script',
+              sheetsAuthoritative:cloud.body.sheetsAuthoritative,
+              cutover:cloud.body.cutover,
+              reconcileEnabled:reconcile.body.enabled,
+              genericDrainEnabled:reconcile.body.genericDrainEnabled
+            }));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Declare bounded gate result
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'CORE-P0-11 FULL E2E READ-ONLY GATE: PASS'
+          echo 'NOTE: This gate performs no production writes/deploys/flag changes and does not override separate RP production approval boundaries.'
