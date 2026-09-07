@@ -16,118 +16,101 @@ Relevant Phase 1 sequence:
 3. Full E2E
 4. Core GO/NO-GO
 
-The existing `TrendOS Integrity V1` now acts as the durable Regression Pack across the current Core/Cloud surface.
-
 ## Status
 
-**REGRESSION PACK PASS — LIVE FRONTEND + SAFETY BOUNDARY PASS — AUTHENTICATED E2E BLOCKED (QUALIFY TOKEN 401 / SESSION EXPIRED) — CORE GO/NO-GO HOLD**
-
-This is a fail-closed status. The authenticated E2E gate is not weakened or bypassed to obtain a synthetic PASS.
+**REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — CORE GO/NO-GO HOLD ON SEPARATE RP PRODUCTION-DATA/HEALTH APPROVAL BOUNDARY**
 
 ## Regression Pack evidence
 
-Initial CORE-P0-11 branch evidence:
-
-- working-branch HEAD `0dd23d5517eadd5217d3cfd3eab97d90cb162f28`;
-- `TrendOS Integrity V1` Run `34111130037` — **SUCCESS**.
-
-After wiring the CORE-P0-11 read-only contract permanently into normal Integrity and recording the roadmap state:
-
-- working-branch HEAD `7c98d536a1bc583b244177badd0b954c4fc188ce`;
-- `TrendOS Integrity V1` Run `34111458849` — **SUCCESS**.
-
-The pack covers the active Cloudflare/D1 and Core contracts, including Edge Gateway, 02CR qualified reads, 02CU freshness, 02CV write consistency and Fly Print lane stability, 02CW global active summary, CORE-P0-11 no-write E2E contract, freshness/idle protections, CORE-P0 remediation tooling, Order/Line, Attendance/Cleaning, Press, Invoice, WhatsApp, Handover/OPS, ANDON, Dashboard, Fast Auth, Apps Script composition/predeploy safety, and Accounting contracts.
+- `TrendOS Integrity V1` Run `34111130037` — SUCCESS on `0dd23d5517eadd5217d3cfd3eab97d90cb162f28`.
+- durable CORE-P0-11 read-only contract was wired into normal Integrity.
+- later Integrity Run `34111458849` — SUCCESS on `7c98d536a1bc583b244177badd0b954c4fc188ce`.
+- qualification-token lifecycle documentation Integrity Run `34111729196` — SUCCESS on `6f887cc0ca16f322a2096a84086b25ab1ead7f05`.
 
 ## Full E2E read-only gate
 
-Added durable workflow:
+Workflow:
 
 `.github/workflows/trendos-core-p0-11-e2e-readonly-gate.yml`
 
-Contract test:
+Contract:
 
 `tests/core_p0_11_readonly_gate_contract.test.mjs`
 
-The contract explicitly forbids production mutation/deployment commands and permits only one POST: the employee Edge session exchange needed for authenticated read qualification.
+The contract forbids production mutation/deployment commands. The only POST is the employee Edge session exchange required for authenticated read qualification.
 
-The contract test is also wired into normal `TrendOS Integrity V1` so future changes cannot silently turn the E2E gate into a write/deploy path.
+### First attempt
 
-## First live E2E attempt
+Run `34111129906`, attempt 1:
 
-Run:
+- frontend/live safety checks PASS;
+- employee Edge session exchange returned 401 because the stored qualification employee session had expired;
+- gate stopped fail-closed before authenticated D1 read.
 
-`34111129906`
+### Retry — PASS
 
-Result:
+The same failed workflow run was re-run without changing code or Production.
 
-**FAIL — AUTHENTICATED SESSION QUALIFICATION BLOCKED BY 401**
+Run `34111129906`, retry job `101744446892`:
 
-Steps that passed before the block:
+**CORE-P0-11 FULL E2E READ-ONLY GATE: PASS**
 
-- exact Production main lock: `2eee80b87a3aeccb5569055bc0544a43b22adcb7`;
-- read-only gate contract;
-- live GitHub Pages/frontend contract;
-- current hotfix cache-bust present;
-- default filters present: `الحالات الجارية فقط` + `كل الأولويات`;
-- `activeSummaryCounts` present in live frontend;
-- `heatPressOrders` present in live Press monitor;
+Live evidence:
+
+- Production main exact lock: `2eee80b87a3aeccb5569055bc0544a43b22adcb7`;
+- live frontend contract PASS;
+- default filters: `الحالات الجارية فقط` + `كل الأولويات`;
+- `activeSummaryCounts` live;
+- Press `heatPressOrders` live;
 - `WORK_PROBLEM_STATUS` absent from live `app.js`;
-- Edge Orders D1 config enabled;
 - Worker `/v1/edge/health` PASS;
 - `/v1/cloud/write/health` PASS;
-- Sheets remains authoritative;
-- cutover remains false;
-- reconcile remains OFF;
-- generic drain remains OFF;
-- unauthenticated Orders read correctly returns 401.
+- Sheets authoritative = true;
+- cutover = false;
+- reconcile = OFF;
+- generic drain = OFF;
+- unauthenticated Orders read correctly returns 401;
+- employee Edge session exchange returned 200 and supplied an Edge token;
+- authenticated D1 Orders read returned 200 from `d1-edge-orders-02cr-operational`;
+- `activeSummaryCounts` values were numeric and page-independent;
+- `__DEBT__` returned 409 with `fallback=apps-script` as designed.
 
-Blocking step:
+Observed live summary at qualification time:
 
-- POST `/v1/edge/orders/session` using the stored qualification employee credentials returned `401`.
+- pageRows = 5
+- activeTotal = 25
+- activeOrders = 25
+- heatPress = 6
+- heatPressOrders = 6
+- debtFallback = `apps-script`
+- sheetsAuthoritative = true
+- cutover = false
+- reconcileEnabled = false
+- genericDrainEnabled = false
 
-This means the gate could not continue to the authenticated D1 active-page read or `__DEBT__` fallback assertion in that run.
+This is technical/runtime E2E evidence, not synthetic user-visible acceptance for PERF-CF-02CW.
 
-## Qualification credential lifecycle — confirmed cause
+## Qualification credential lifecycle
 
-Production Apps Script authentication shows that an employee token is intentionally session-scoped:
+Employee qualification tokens are session-scoped. Apps Script `sessionTtlMsV1922_()` defaults to 12 hours and clamps configured TTL to 1–72 hours. `login_()` creates a new token and writes token/last-login data to the Users sheet.
 
-- `sessionTtlMsV1922_()` defaults `SESSION_TTL_HOURS` to **12 hours**;
-- configured TTL is clamped to **1–72 hours**;
-- `sessionExpiredV1922_()` rejects a session after that TTL;
-- a normal employee `login_()` creates a new token and writes both the token and `lastLogin`/issued-at value back to the Users sheet before returning the session.
-
-Therefore a static `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` stored in GitHub is inherently short-lived. The Sep-07 401 is consistent with the documented session lifecycle and is not treated as a mysterious Worker failure.
-
-Important safety consequence:
-
-- the CORE-P0-11 gate remains read-only;
-- it must **not** call employee `login_()` automatically to refresh itself, because that login performs a production Users-sheet write;
-- it must **not** increase `SESSION_TTL_HOURS`, create a service credential, change an auth secret, or add a bypass without a separately approved auth/production checkpoint.
-
-The least-invasive current way to unblock the exact E2E gate is to refresh the existing GitHub qualification employee token with a currently valid employee session, then rerun the same gate unchanged.
-
-A future durable machine-qualification auth mechanism may be designed separately, but it must be scoped as an explicit security/auth checkpoint rather than hidden inside a read-only test.
-
-## Classification of the block
-
-The current evidence does **not** identify a frontend, Worker route, D1 summary, or production-safety regression. All those checks passed before the session exchange.
-
-The exact block is the expired GitHub qualification employee session credential used by the E2E runner. It remains a blocking condition because authenticated Orders behavior is part of Full E2E.
-
-Do not remove the authentication check, accept 401 as PASS, substitute unauthenticated reads, or auto-login in the read-only gate.
+Therefore the read-only E2E gate must not auto-login to refresh itself because that would convert a read-only gate into a Production Users-sheet write. A fresh employee session credential is required when the stored qualification token expires.
 
 ## Core GO/NO-GO status
 
 **HOLD**
 
-Two independent conditions prevent declaring Core GO:
+The Full E2E blocker is now cleared. The remaining blocker is separate and older:
 
-1. Full E2E authenticated read gate is currently blocked by qualification credential 401 / expired employee session.
-2. The older CORE-P0 remediation path retains an explicit production approval/data boundary around RP-06/RP-07 and the paused `3536-01` reconciliation. This checkpoint does not override that boundary.
+- CORE-P0 remediation RP-06/RP-07 retains an explicit Production-data/HEALTH approval boundary;
+- the paused `3536-01` reconciliation remains part of that boundary;
+- this checkpoint does not authorize registry writes, Apps Script Head/deploy work, or business-family activation.
 
-Even after the qualification credential is repaired and Full E2E passes, the overall Core GO remains HOLD until the separately approved RP production-data/HEALTH gate is resolved.
+Therefore current meaning is:
 
-## Safety boundary
+**Regression Pack PASS + Full E2E Read-Only PASS, but overall Core GO remains HOLD until the separately approved RP production-data/HEALTH gate is resolved.**
+
+## Safety boundary retained
 
 No action in CORE-P0-11 has:
 
@@ -140,12 +123,6 @@ No action in CORE-P0-11 has:
 - changed write authority;
 - activated ORDER_LINE or another business family.
 
-## Next executable action
+## Next roadmap action
 
-Without crossing a production-write approval boundary:
-
-1. keep the durable Regression Pack and read-only E2E gate active;
-2. refresh only `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` with a currently valid employee session when Full E2E is to be run;
-3. rerun the exact same E2E gate unchanged;
-4. if authenticated E2E passes, record `REGRESSION PACK + FULL E2E READ-ONLY PASS` while Core GO remains `HOLD` for the separate RP production-data/HEALTH boundary;
-5. do not enter RP-06/RP-07 production mutation, auto-login qualification, auth-bypass work, or business-family activation without the required explicit approval.
+The next roadmap decision is the **Core GO/NO-GO boundary**. The E2E portion is complete. Any continuation into RP-06/RP-07 Production-data/HEALTH remediation must be separately bounded and explicitly approved before a production mutation is executed.
