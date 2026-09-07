@@ -1,12 +1,12 @@
 # منصة ترند — الحالة التنفيذية الحالية
 
-Date: 2026-09-06
+Date: 2026-09-07
 
 ## Current active checkpoint — PERF-CF-02CW
 
 `PERF-CF-02CW — Global Counters / Default Filters / Press Queue Totals`
 
-Status: **IN PROGRESS — DIAGNOSIS COMPLETE — CANDIDATE PATCH PENDING**
+Status: **PRODUCTION TECHNICAL + WORKER + FRONTEND + HOTFIX PASS — USER-VISIBLE VALIDATION PENDING**
 
 ### User request
 
@@ -14,39 +14,44 @@ Status: **IN PROGRESS — DIAGNOSIS COMPLETE — CANDIDATE PATCH PENDING**
 - default filters must open as `الحالات الجارية فقط` + `كل الأولويات`;
 - the Press Monitor must show the full unique active press-order total.
 
-### Confirmed diagnosis
+### Production implementation now live
 
-- `renderStats(rows)` currently counts only `state.rows`; under server paging that is the current page only.
-- `statusFilter` already defaults to `__ACTIVE__`.
-- `priorityFilter` currently defaults to `__ACTIVE__`, and JavaScript also converts blank `كل الأولويات` back to `__ACTIVE__` via `value || "__ACTIVE__"`.
-- Press backend scans the full sheet but returns only `items.slice(0,12)` and does not return full unique `orderCount`; frontend therefore may count unique orders from the truncated list.
+- Worker calculates `activeSummaryCounts` across the full screen-scoped active queue before pagination.
+- summary includes full row counters plus unique `heatPressOrders`.
+- frontend stores the summary and uses it for top counters while table payload remains current-page only.
+- blank priority means `كل الأولويات` and is no longer coerced to `__ACTIVE__`.
+- Press Monitor prefers `activeSummaryCounts.heatPressOrders` and retains legacy queue data as fallback.
 
-### Bounded fix direction
+### Qualification / deployment evidence
 
-- D1 Orders Worker will compute `activeSummaryCounts` from the full screen-scoped active queue before pagination.
-- Existing top chips keep their current row-count semantics but become page-independent.
-- Summary adds unique `heatPressOrders` for the Press Monitor.
-- Frontend uses the server summary when available and keeps current page payload for table rendering.
-- Default priority becomes blank / all priorities; blank is no longer coerced to `__ACTIVE__`.
-- Press Monitor prefers the global active unique press-order count and keeps legacy backend data as fallback.
+- Worker preview Run `34050430147` — SUCCESS. Example qualification returned 28 active rows while pageRows=5, proving totals are independent of page size.
+- Worker Production promotion Run `34050523165` — SUCCESS.
+- Worker version: `602fdff5-ab0e-4b8e-8f6a-8eb77010c6eb` @100%.
+- Frontend Production commit: `40bced5e9a952f15689f45ce3ef18271c9dd2c63`.
+- Initial frontend exposed `WORK_PROBLEM_STATUS is not defined` in the local fallback path only.
+- Bounded hotfix restored the pre-existing safe fallback semantics without removing the global summary.
+- Current Production main: `2eee80b87a3aeccb5569055bc0544a43b22adcb7`.
+- Hotfix Run `34051629854` — SUCCESS.
+- Pages Run `34051642802` — SUCCESS.
+- current app cache-bust: `trendos-02cw-globalcounts-hotfix-20260906e`.
+- durable patcher correction Run `34051798736` — SUCCESS.
+- normal Integrity Run `34051798718` — SUCCESS on parent `a577bdc3a92187a4b16d73f4188a46d79487071e`.
+- working-branch bot-only patcher correction head before this documentation update: `9b607159aaded1ae00e69bb4365e12f6e1082389`.
 
 ### Production safety boundary
 
-Production main baseline:
-
-`3934fa363b113a4bd494ec501fb5f289f2c48ec1`
-
-Worker baseline:
-
-`9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
-
 - Apps Script Production deploy: **NO**
 - D1 business-data write/migration: **NO**
-- any Worker deployment must be code-only and must not rotate `EDGE_SESSION_SECRET`
+- `EDGE_SESSION_SECRET` rotation/change: **NO**
 - Orders writes remain Apps Script / Sheets
 - eligible reads remain D1-first `/v1/edge/orders/02cr/page` with Apps Script fallback
+- `__DEBT__` remains Apps Script
 - 02CL/reconcile OFF
 - generic drain OFF
+
+### Remaining close condition
+
+02CW is not marked CLOSED yet because the user has not explicitly confirmed the final hotfixed live counters/filter/Press Monitor behavior. Their request to continue the roadmap is not treated as a synthetic User-Visible PASS.
 
 Record:
 
@@ -65,13 +70,6 @@ User closure instruction:
 `مفيش عندى حاليا حاجة اجرب عليها اقفله ولو طلع فيه مشاكل فيما بعد نرجعله تانى`
 
 02CV remains closed and is not reopened by 02CW.
-
-Production at 02CV closure:
-
-- main `3934fa363b113a4bd494ec501fb5f289f2c48ec1`
-- Worker `9a4e7163-53bd-4dd7-bbbb-4062d5e829b8` @100%
-- no Apps Script deploy for 02CV
-- durable Fly Print regression retained in normal Integrity.
 
 ---
 
@@ -92,3 +90,7 @@ Status: **CANDIDATE CODE + CI PASS — NOT DEPLOYED — APPS SCRIPT PRODUCTION U
 Record:
 
 `TRENDOS_BLACKBOX_2026-09-06_TREND_MASTER_V1931_RESILIENCE_CANDIDATE.md`
+
+Candidate commit: `03300ce2d5454e497bc0be6ddc58c2b2ceb75c95`
+
+Any Apps Script Production deployment still requires separate approval.
