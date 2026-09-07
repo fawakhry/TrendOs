@@ -6,16 +6,13 @@ Date: 2026-09-07
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-Status: **REGRESSION PACK PASS — LIVE FRONTEND + SAFETY BOUNDARY PASS — AUTHENTICATED E2E BLOCKED (QUALIFY TOKEN 401) — CORE GO/NO-GO HOLD**
-
-### Why this is the next roadmap checkpoint
-
-The official Phase 1 — Core + Cloud roadmap reaches Regression Pack, then Full E2E, then Core GO/NO-GO. The existing `TrendOS Integrity V1` already provides the broad regression pack across the current Core/Cloud contracts, so the next bounded executable step is the Full E2E gate rather than a new inventory or redesign.
+Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — CORE GO/NO-GO HOLD ON SEPARATE RP PRODUCTION-DATA/HEALTH APPROVAL BOUNDARY**
 
 ### Regression Pack
 
-- `TrendOS Integrity V1` Run `34111130037` — **SUCCESS** on `0dd23d5517eadd5217d3cfd3eab97d90cb162f28`.
-- the CORE-P0-11 read-only gate contract is now wired into normal Integrity as a permanent regression.
+- `TrendOS Integrity V1` Run `34111130037` — SUCCESS.
+- CORE-P0-11 read-only contract is permanently wired into normal Integrity.
+- later Integrity Runs `34111458849` and `34111729196` — SUCCESS.
 
 ### Full E2E read-only gate
 
@@ -27,36 +24,52 @@ Contract:
 
 `tests/core_p0_11_readonly_gate_contract.test.mjs`
 
-First live run:
+First attempt of Run `34111129906` stopped fail-closed at employee Edge session exchange with 401 because the stored qualification employee session had expired.
 
-`34111129906` — **FAIL / BLOCKED AT AUTH SESSION 401**
+The exact same failed run was re-run after the credential became valid again.
 
-Passed before the block:
+Retry job:
+
+`101744446892` — **SUCCESS**
+
+Live checks passed:
 
 - Production main exact lock `2eee80b87a3aeccb5569055bc0544a43b22adcb7`;
 - live GitHub Pages/frontend contract;
-- 02CW hotfix cache-bust and default filters;
-- live `activeSummaryCounts` and Press `heatPressOrders` frontend contracts;
-- live `app.js` does not contain `WORK_PROBLEM_STATUS`;
-- Worker Edge health;
-- cloud-write health;
+- default filters `الحالات الجارية فقط` + `كل الأولويات`;
+- live `activeSummaryCounts`;
+- live Press `heatPressOrders`;
+- `WORK_PROBLEM_STATUS` absent from live `app.js`;
+- Worker Edge health PASS;
+- cloud-write health PASS;
 - Sheets authoritative = true;
 - cutover = false;
 - reconcile = OFF;
 - generic drain = OFF;
-- unauthenticated Orders page correctly rejects with 401.
+- unauthenticated Orders page correctly rejects 401;
+- authenticated Edge session exchange PASS;
+- authenticated D1 Orders page PASS from `d1-edge-orders-02cr-operational`;
+- `__DEBT__` => 409 / `fallback=apps-script` PASS.
 
-Blocking evidence:
+Live summary captured by the gate:
 
-- employee Edge session exchange using the stored qualification credentials returned `401`.
-- the gate therefore did not run the authenticated D1 active-page assertion or `__DEBT__` fallback assertion in that attempt.
-- authentication is a required E2E condition and is not bypassed to force a PASS.
+- pageRows = 5
+- activeTotal = 25
+- activeOrders = 25
+- heatPress = 6
+- heatPressOrders = 6
+
+This is runtime/technical E2E evidence. It does not count as user-visible acceptance of PERF-CF-02CW.
 
 ### Core GO/NO-GO
 
 **HOLD**
 
-Even after the qualification credential is valid and Full E2E read-only passes, the global Core GO remains HOLD until the older RP production-data/HEALTH boundary is separately resolved. The paused RP-06/RP-07 path and `3536-01` reconciliation require their own bounded approval; this roadmap continuation does not grant that approval.
+The E2E blocker is cleared. The only remaining Core GO blocker is the separate older CORE-P0 remediation RP production-data/HEALTH approval boundary:
+
+- RP-06/RP-07 remain separately approval-gated;
+- paused `3536-01` reconciliation remains part of that boundary;
+- no registry write, Apps Script deploy, or business-family activation is authorized by CORE-P0-11.
 
 ### Safety boundary
 
@@ -94,10 +107,6 @@ Production implementation live:
 - current app cache-bust `trendos-02cw-globalcounts-hotfix-20260906e`.
 
 02CW remains technically deployed but not user-visible closed because the user has not explicitly validated the final hotfixed counters/filter/Press Monitor behavior.
-
-Record:
-
-`TRENDOS_BLACKBOX_2026-09-06_PERF_CF_02CW_GLOBAL_COUNTERS_DEFAULT_FILTERS_PRESS_TOTALS.md`
 
 ---
 
