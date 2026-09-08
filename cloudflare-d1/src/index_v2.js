@@ -4,6 +4,7 @@ import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
+import { repairEdgeOrdersResponse02CX } from './edge-orders-line-id-repair-02cx.mjs';
 import { guardEdgeOrdersPageRequest } from './edge-orders-freshness-gate.mjs';
 import {
   fetchOrdersIdleHeartbeat,
@@ -34,12 +35,11 @@ export default {
     }
 
     // PERF-CF-02CR qualified production-read route. 02CU wraps the existing
-    // handler with a metadata-only freshness guard. An old Lines write timestamp
-    // is accepted only when the sanitized Apps Script heartbeat proves that the
-    // authoritative Orders + Lines source shape is unchanged; all other failures
-    // remain fail-closed to the frontend Apps Script fallback.
+    // handler with a metadata-only freshness guard. 02CX then repairs only the
+    // proven Google-Sheets date-coercion Line-ID pattern before rows leave D1.
     if (isEdgeOrders02CRPath(path)) {
-      return handleEdgeOrders02CRCanaryRequest(request, env, ctx);
+      const response = await handleEdgeOrders02CRCanaryRequest(request, env, ctx);
+      return repairEdgeOrdersResponse02CX(response);
     }
 
     // Secure D1 Orders/Lines read lane. Before any business-row query, the
