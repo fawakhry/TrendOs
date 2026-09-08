@@ -5,9 +5,12 @@ on:
     branches: [agent/go-live-2026-09-01-integrity]
     paths:
       - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'cloudflare-d1/src/edge-orders-line-id-repair-02cx.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
       - 'trendos-edge-orders-read-v1.js'
       - 'config.js'
       - 'tests/cloudflare_edge_orders_dashboard_02cn.test.mjs'
+      - 'tests/cloudflare_edge_orders_line_identity_02cx.test.mjs'
       - '.github/workflows/trendos-02cn-orders-read-hotpath-ci.yml'
   workflow_dispatch:
 
@@ -35,8 +38,8 @@ jobs:
           grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
           grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' cloudflare-d1/wrangler.toml
           grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' cloudflare-d1/wrangler.toml
-          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false' config.js
-          if grep -R -E "wrangler deploy|wrangler d1 migrations apply|d1 execute --file|secret put|TRENDOS_PRODUCTION_CUTOVER|AUTHORITY_CUTOVER|/v1/qualification/cloud-write/reconcile/order" tests/cloudflare_edge_orders_dashboard_02cn.test.mjs cloudflare-d1/src/edge-orders-read-v1.mjs trendos-edge-orders-read-v1.js config.js; then
+          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' config.js
+          if grep -R -E "wrangler deploy|wrangler d1 migrations apply|d1 execute --file|secret put|TRENDOS_PRODUCTION_CUTOVER|AUTHORITY_CUTOVER|/v1/qualification/cloud-write/reconcile/order" tests/cloudflare_edge_orders_dashboard_02cn.test.mjs tests/cloudflare_edge_orders_line_identity_02cx.test.mjs cloudflare-d1/src/edge-orders-read-v1.mjs cloudflare-d1/src/edge-orders-line-id-repair-02cx.mjs trendos-edge-orders-read-v1.js config.js; then
             echo 'Forbidden mutating/cutover command found in 02CN checked files' >&2
             exit 1
           fi
@@ -47,3 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           node tests/cloudflare_edge_orders_dashboard_02cn.test.mjs
+
+      - name: 02CX line identity repair contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_line_identity_02cx.test.mjs
