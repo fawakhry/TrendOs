@@ -9,7 +9,10 @@ on:
       - 'config.js'
       - 'tests/frontend_edge_orders_cutover_02ct.test.mjs'
       - 'tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs'
+      - 'tests/cloudflare_edge_orders_line_identity_02cx.test.mjs'
       - 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs'
+      - 'cloudflare-d1/src/edge-orders-line-id-repair-02cx.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
       - '.github/workflows/trendos-02ct-frontend-cutover-ci.yml'
   workflow_dispatch:
 
@@ -34,8 +37,9 @@ jobs:
         run: |
           set -euo pipefail
           grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*true' config.js
-          grep -Fq "trendos-edge-orders-read-v1.js?v=20260906c" config.js
+          grep -Fq "trendos-edge-orders-read-v1.js?v=20260908a" config.js
           grep -Fq "var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';" trendos-edge-orders-read-v1.js
+          grep -Fq "repairEdgeOrdersResponse02CX" cloudflare-d1/src/index_v2.js
           if grep -Fq "var requestKey = '/v1/edge/orders/page?'" trendos-edge-orders-read-v1.js; then
             echo 'Legacy unqualified route is forbidden'; exit 1
           fi
@@ -46,6 +50,9 @@ jobs:
 
       - name: D1 operational ordering regression
         run: node tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs
+
+      - name: 02CX line identity candidate regression
+        run: node tests/cloudflare_edge_orders_line_identity_02cx.test.mjs
 
       - name: Main and published Pages remain cut over to qualified route
         run: |
