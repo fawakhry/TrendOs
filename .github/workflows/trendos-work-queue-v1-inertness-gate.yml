@@ -1,0 +1,63 @@
+name: TrendOS Work Queue V1 Production Inertness Gate
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'work-queue-backend-v1.gs'
+      - 'work-queue-v1.js'
+      - 'v1932-router.gs'
+      - 'WORK_QUEUE_V1_CANDIDATE.md'
+      - '.github/workflows/trendos-work-queue-v1-inertness-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inertness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify candidate activation is fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "TRENDOS_WORK_QUEUE_V1_ENABLED" work-queue-backend-v1.gs
+          grep -q "MATBAGY_WORK_QUEUE_V1!==true" work-queue-v1.js
+          ! grep -q "TRENDOS_WORK_QUEUE_V1_ENABLED.*true" work-queue-backend-v1.gs
+          ! grep -q "MATBAGY_WORK_QUEUE_V1 *= *true" config.js
+
+      - name: Verify no forbidden authority changes in candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eiq "EDGE_SESSION_SECRET.*=|generic.?drain.*=.*true|reconcile.*=.*true" work-queue-backend-v1.gs work-queue-v1.js
+          ! grep -Eiq "\b(D1|inventory)\b.*(insert|update|delete|write)|prepare\(.*(insert|update|delete)" work-queue-backend-v1.gs work-queue-v1.js
+          grep -q "updateLine_" work-queue-backend-v1.gs
+
+      - name: Verify Production main does not contain Work Queue candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          if git cat-file -e origin/main:work-queue-backend-v1.gs 2>/dev/null; then
+            echo "Unexpected: Work Queue backend exists on production main" >&2
+            exit 1
+          fi
+          if git cat-file -e origin/main:work-queue-v1.js 2>/dev/null; then
+            echo "Unexpected: Work Queue frontend exists on production main" >&2
+            exit 1
+          fi
+          MAIN_CONFIG="$(git show origin/main:config.js)"
+          if printf '%s' "$MAIN_CONFIG" | grep -q "MATBAGY_WORK_QUEUE_V1"; then
+            echo "Unexpected: Work Queue frontend activation marker exists on production main" >&2
+            exit 1
+          fi
+
+      - name: Gate result
+        run: echo "WORK_QUEUE_V1_PRODUCTION_INERTNESS_PASS"
