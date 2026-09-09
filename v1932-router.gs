@@ -56,6 +56,11 @@ function trendosV1932TryRoute_(e, payload) {
     return output_({ success:false, message:'Cleaning backend غير منشور.' }, callback);
   }
 
+  if (action === 'workQueueV1') {
+    if (typeof workQueueV1_ === 'function') return output_(workQueueV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    return output_({ success:false, message:'Work Queue backend غير منشور.' }, callback);
+  }
+
   if (action === 'pressControlV1') {
     if (typeof pressControlV1_ === 'function') return output_(pressControlV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
     return output_({ success:false, message:'Press Control backend غير منشور.' }, callback);
