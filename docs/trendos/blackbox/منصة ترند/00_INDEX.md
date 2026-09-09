@@ -2,6 +2,28 @@
 
 هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**. لا تبدأ Inventory جديدًا ولا تعِد تصميم المسار؛ ابدأ دائمًا من `01_CURRENT_STATE.md` ثم السجل المرتبط بالـcheckpoint الحالي.
 
+## Active RP-06 execution checkpoint — 2026-09-10
+
+الحالة: **RP-06 HOLD — OLD 34-ROW PLAN INVALIDATED — RETIRE 3569/3572/3577 — LIVE DUPLICATES 3849/3851 REQUIRE READ-ONLY RESOLUTION**
+
+السجل الحالي:
+
+`TRENDOS_BLACKBOX_2026-09-10_RP06_PREVIEW_INVOICE_RECONCILIATION_HOLD.md`
+
+Current facts:
+
+- runtime preview returned `success=false`, `readOnly=true`, `expectedCount=34`, `actualPlanCount=34`;
+- `3536-01` is no longer an active preview blocker;
+- historical Invoice specs `3569`, `3572`, `3577` are stale and decision is `RETIRE_3_INVOICE_SPECS`;
+- old 34-row plan/hash/write approval is operationally invalidated and MUST NOT be executed;
+- current live `DUPLICATE_INVOICE_DRAFTS.count=2` from Orders `3849` and `3851`;
+- next action is read-only resolution of `3849` and `3851` only;
+- no Registry Write/Deploy/flag/source-data/D1 mutation is authorized by this checkpoint.
+
+Owner recording rule from 2026-09-10: **any material execution, gate result, decision, blocker, mutation, or explicit no-mutation stop must be recorded in this blackbox before continuing.**
+
+---
+
 ## Current roadmap checkpoint — CORE-P0-11
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
@@ -24,7 +46,7 @@ Evidence:
 - `__DEBT__` => 409 / Apps Script fallback PASS؛
 - Sheets authoritative=true؛ cutover=false؛ reconcile OFF؛ generic drain OFF؛
 - no Production write/deploy/flag change occurred؛
-- Core GO remains HOLD only because the older RP-06/RP-07 production-data/HEALTH boundary still requires separate approval and `3536-01` reconciliation remains paused there.
+- Core GO remains HOLD because RP-06/RP-07 remain separately approval-gated. The active RP-06 blocker is now the Invoice reconciliation state recorded above, not `3536-01`.
 
 ---
 
