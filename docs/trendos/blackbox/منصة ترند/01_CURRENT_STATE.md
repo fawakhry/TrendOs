@@ -1,6 +1,44 @@
 # منصة ترند — الحالة التنفيذية الحالية
 
-Date: 2026-09-07
+Date: 2026-09-10
+
+## Active RP-06 execution state
+
+Status: **HOLD — OLD 34-ROW REGISTRY PLAN INVALIDATED — CURRENT LIVE INVOICE DUPLICATES REQUIRE RESOLUTION**
+
+Current record:
+
+`TRENDOS_BLACKBOX_2026-09-10_RP06_PREVIEW_INVOICE_RECONCILIATION_HOLD.md`
+
+Current facts:
+
+- `trendosCoreP0RegistryPreviewV1` returned `success=false` and `readOnly=true` with `expectedCount=34`, `actualPlanCount=34`.
+- The current preview errors are only the historical Invoice Draft specs for Orders `3569`, `3572`, `3577`.
+- `3536-01` is no longer an active preview blocker.
+- live reconciliation found Draft counts `0`, `0`, `1` for `3569`, `3572`, `3577`; none is a current duplicate group.
+- decision: `RETIRE_3_INVOICE_SPECS`.
+- the prior 34-row plan/hash/write approval is superseded and MUST NOT be executed.
+- current live Invoice duplicate groups are only:
+  - `3849`: 2 Draft rows;
+  - `3851`: 2 Draft rows.
+- current `DUPLICATE_INVOICE_DRAFTS.count = 2`.
+- next bounded action: read-only resolution gate for `3849` and `3851` only.
+- no RP-06 Registry Write is currently authorized.
+
+Owner rule effective 2026-09-10: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
+
+### Current RP-06 safety boundary
+
+- no Registry Write;
+- no new approval Script Property;
+- no Apps Script Production deploy;
+- no Source Sheet business-data mutation;
+- no D1 business-data write;
+- no business-family flag activation;
+- no `Code.gs` mutation;
+- no new RP-06 runner/workflow.
+
+---
 
 ## Current roadmap checkpoint — CORE-P0-11
 
@@ -65,10 +103,10 @@ This is runtime/technical E2E evidence. It does not count as user-visible accept
 
 **HOLD**
 
-The E2E blocker is cleared. The only remaining Core GO blocker is the separate older CORE-P0 remediation RP production-data/HEALTH approval boundary:
+The E2E blocker is cleared. The remaining Core GO blocker is the separate CORE-P0 remediation boundary:
 
 - RP-06/RP-07 remain separately approval-gated;
-- paused `3536-01` reconciliation remains part of that boundary;
+- the active RP-06 issue is the Invoice reconciliation state described above;
 - no registry write, Apps Script deploy, or business-family activation is authorized by CORE-P0-11.
 
 ### Safety boundary
