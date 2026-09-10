@@ -3,7 +3,7 @@
  * GitHub checkpoint only. Requires trendos-integrity-v1.gs.
  * DO NOT deploy blindly.
  */
-const TRENDOS_PRESS_INTEGRITY_VERSION_V1 = 'TRENDOS_PRESS_INTEGRITY_V1_20260830';
+const TRENDOS_PRESS_INTEGRITY_VERSION_V1 = 'TRENDOS_PRESS_INTEGRITY_V1_20260910_RP07';
 const TRENDOS_PRESS_DISPLAY_SHEET_V1 = 'تشغيل - جلسات المكبس';
 const TRENDOS_PRESS_SETTINGS_SHEET_V1 = 'تشغيل - إعدادات المكبس';
 const TRENDOS_PRESS_META_SHEET_V1 = 'تشغيل - تكامل جلسات المكبس V1';
@@ -176,7 +176,11 @@ function trendosPressStopUnlockedV1_(p){
   if(meta.status==='CLOSED')return{success:true,alreadyClosed:true,session:trendosPressSessionResponseV1_(meta),result:meta.result||null};if(['OPEN','OPENING','CLOSING'].indexOf(meta.status)===-1)return{success:false,integrityError:true,message:'حالة Session غير صالحة للإغلاق: '+meta.status};
   if(meta.status==='OPENING')trendosPressRepairOpenV1_(meta);const current=trendosPressFindMetaV1_(sessionId),validated=trendosPressValidateStopPayloadV1_(current,p);if(!validated.ok)return Object.assign({success:false},validated);const closing=trendosPressCheckpointClosingV1_(current,validated);return trendosPressFinishClosingV1_(closing,validated);
 }
-function trendosPressSessionResponseV1_(meta){if(!meta)return null;return{sessionId:meta.sessionId,businessDate:meta.businessDate,status:meta.status,operator:meta.operator,support:meta.support,fixedStart:meta.fixedStart,startedAt:meta.startedAt,endedAt:meta.endedAt,queueStart:meta.queueLinesStart,queueOrdersStart:meta.queueOrdersStart,completedLines:meta.completedLines,completedOrders:meta.completedOrders,powerKw:meta.powerKw,kwh:meta.kwh,rate:meta.rate,cost:meta.cost,costPerOrder:meta.costPerOrder};}
+function trendosPressSessionResponseV1_(meta){
+  if(!meta)return null;
+  const startItems=(meta.snapshot||[]).map(function(x){return{orderId:trendosPressTextV1_(x.orderId),lineId:trendosPressTextV1_(x.lineId),customer:trendosPressTextV1_(x.customer),status:trendosPressTextV1_(x.status),priority:trendosPressTextV1_(x.priority)};});
+  return{sessionId:meta.sessionId,businessDate:meta.businessDate,status:meta.status,operator:meta.operator,support:meta.support,fixedStart:meta.fixedStart,startedAt:meta.startedAt,endedAt:meta.endedAt,queueStart:meta.queueLinesStart,queueOrdersStart:meta.queueOrdersStart,completedLines:meta.completedLines,completedOrders:meta.completedOrders,startItems:startItems,powerKw:meta.powerKw,kwh:meta.kwh,rate:meta.rate,cost:meta.cost,costPerOrder:meta.costPerOrder};
+}
 function trendosPressStatusV1_(){
   const open=trendosPressOpenMetaRowsV1_(),queue=trendosPressQueueV1_(),cfg=trendosPressConfigV1_();return{success:true,settings:cfg,queue:queue,session:open.length===1?trendosPressSessionResponseV1_(open[0]):null,multipleOpenSessions:open.length>1,openSessionIds:open.map(function(x){return x.sessionId;}),costConfigReady:trendosPressNumV1_(cfg.powerKw)>0&&trendosPressNumV1_(cfg.rate)>0,version:TRENDOS_PRESS_INTEGRITY_VERSION_V1};
 }
