@@ -4,31 +4,26 @@
 
 ## Active RP-06 execution checkpoint — 2026-09-10
 
-الحالة: **RECOVERY PATCH CODE + TESTS + CI PASS — PRODUCTION REGISTRY STILL AUTO-ROLLED-BACK/INACTIVE — FRESH APPS SCRIPT PREVIEW + RECOVERY PREVIEW REQUIRED**
+الحالة: **RP-06 RECOVERY COMPLETE — REGISTRY LATEST EXACT 33 MAPPINGS ACTIVE — READY FOR RP-07**
 
-السجل الحالي:
+السجل النهائي:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_PATCH_CODE_CI_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
 
 Current facts:
 
-- Patch33 plan remains exactly `33` specs;
-- exact plan hash remains `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
-- prior Preview33 PASS remains historical evidence for the old writer blob, but does not authorize recovery execution;
-- first Registry Write appended 33 active rows then auto-rolled back with 33 inactive rows because 11 numeric-looking Press `Entity Key` values were coerced by Google Sheets into DATE/number values;
-- existing production Registry history remains 66 data rows and must not be edited/deleted;
-- owner approved and GitHub recovery patch is complete;
-- recovery writer blob: `81e994945af7fefdd38538a7ca569e73483f3d24`;
-- recovery test blob: `05fbd72caca6d9fd5302afa441cf8d38a66b1f7d`;
-- recovery CI: `TrendOS Integrity V1` Run `34467516059` — SUCCESS;
-- recovery approval uses distinct property `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1` and distinct hash `ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82`;
-- recovery is allowed only for exact mappings whose latest revision is the writer's own AUTO_ROLLBACK and is immediately preceded by the matching active revision;
-- arbitrary or approved rollback inactive mappings remain blocked;
-- no Apps Script Head update to the recovery blob and no recovery execution has occurred yet;
-- next bounded gate is fresh Apps Script `trendosCoreP0RegistryPreviewV1` + `trendosCoreP0RegistryRecoveryPreviewV1`, both read-only, then STOP;
-- no Recovery Write is authorized until both previews PASS and the owner explicitly approves the new one-use recovery execution.
+- Apps Script Head writer exactly matches blob `81e994945af7fefdd38538a7ca569e73483f3d24`;
+- Normal Preview33: PASS;
+- Recovery Preview33: PASS;
+- exact plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
+- exact recovery hash: `ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82`;
+- owner-authorized temporary setter executed once and was removed before Recovery Write;
+- Recovery Write executed once: `recovered=33`, `totalRegistryRows=99`, `sourceSheetsMutated=false`;
+- latest exact 33 mappings are active; latest inactive mappings: zero;
+- all required numeric-looking Press Entity Keys were read back as actual text strings;
+- no new `AUTO_ROLLBACK_RECOVERY`, D1 write, Source Sheet mutation, Deploy, flag change, `Code.gs` edit, main merge, or RP-07 execution occurred.
 
-Owner recording rule from 2026-09-10: **any material execution, gate result, decision, blocker, mutation, or explicit no-mutation stop must be recorded in this blackbox before continuing.**
+Owner recording rule from 2026-09-10 remains in force: **any material execution, gate result, decision, blocker, mutation, or explicit no-mutation stop must be recorded in this blackbox before continuing.**
 
 ---
 
