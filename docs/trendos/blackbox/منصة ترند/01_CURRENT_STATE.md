@@ -4,10 +4,11 @@ Date: 2026-09-10
 
 ## Active RP-07 execution state
 
-Status: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — HOLD BEFORE PHASE 0B / PHASE 1 / RP-08**
+Status: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — SESSION PAUSED AT PHASE 0B — HOLD BEFORE PHASE 1 / RP-08**
 
 Current records:
 
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_WORK_LIMIT_STOP_CHECKPOINT.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_DIRECT_WORK_INVENTORY_FAIL.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_LIVE_INVENTORY_BLOCKED.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
@@ -29,6 +30,8 @@ Current facts:
 - RP-07 containment functions `trendosRp07LegacyAttendanceV1_`, `trendosRp07LegacyAttendanceClockinV1_`, and `trendosRp07LegacyCleaningV1_` are absent from live Head.
 - Standalone `v1932-router.gs` installation is prohibited because it would duplicate the current `trendosV1932TryRoute_` in `Code.gs`.
 - Deployment/version inventory was not inspected because the Work run stopped immediately on the active-flag mismatch per fail-closed instruction.
+- ChatGPT Work usage limit was then reached before Phase 0B could be performed. This is an operational pause only; no runtime action is pending or partially applied.
+- Exact continuation point is **Runtime Phase 0B READ ONLY**. Do not repeat RP-06, RP-07 code qualification, or Runtime Phase 0 unless newer evidence invalidates them.
 - The existing live P0 data blockers remain unresolved: post-baseline Attendance duplicates, post-baseline Cleaning duplicates, closed/delivered Orders `3839` and `3841` with surviving invoice Drafts, and Press line `3796-01` without acceptable exact-Line session evidence.
 - No Apps Script Head change, Production deploy, feature-flag change, Script Property mutation, Source Sheet business-data mutation, Health sheet rewrite, Registry mutation, D1 mutation, main merge, or RP-08 execution occurred.
 
@@ -36,9 +39,9 @@ Owner rule effective 2026-09-10 remains active: every material execution step, g
 
 ### Current RP-07 safety boundary
 
-**RP-07 HOLD. PHASE 1 PROHIBITED. RP-08 PROHIBITED.**
+**RP-07 HOLD. SESSION PAUSED. PHASE 1 PROHIBITED. RP-08 PROHIBITED.**
 
-The next allowed action is **Runtime Phase 0B READ ONLY** to complete deployment/version inventory and prove the exact runtime impact of `master=true` + `HEALTH=true`. Do not change either property during Phase 0B.
+The next allowed action when ChatGPT Work becomes available again is **Runtime Phase 0B READ ONLY** to complete deployment/version inventory and prove the exact runtime impact of `master=true` + `HEALTH=true`. Do not change either property during Phase 0B.
 
 Only after Phase 0B can a separate explicit owner-approved mutation boundary be considered to disable the active Integrity properties if proven safe. Phase 1 Head installation remains blocked until that state is resolved and re-verified.
 
