@@ -98,3 +98,16 @@ The owner explicitly authorized:
 > أوافق على إنشاء setter مؤقت يضبط فقط `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1`، ثم تشغيله مرة، ومسحه قبل Recovery Write.
 
 Authorized scope is limited to a one-purpose temporary setter for the exact recovery property/hash, one execution of that setter, restoration of the helper file to comment-only before Recovery Write, then one execution of `trendosCoreP0RegistryRecoveryWriteV1` if all revalidated gates remain PASS. All other prohibitions remain in force.
+
+
+## Temporary setter gate — PASS
+
+- Revalidated writer Head blob: `81e994945af7fefdd38538a7ca569e73483f3d24`.
+- Revalidated Registry: 66 data rows; 33 active historical + 33 writer AUTO_ROLLBACK inactive; row 68 empty.
+- Temporary function: `trendosCoreP0SetRecoveryApprovalV1Temp`.
+- Executed exactly once.
+- Returned:
+  `{"success":true,"property":"TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1","value":"ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82"}`
+- Helper immediately restored to exactly `// RP-06 approval helper intentionally cleared.`
+- Reload verification: temporary function absent; helper comment-only; writer blob still exact; no parse/duplicate error.
+- Recovery Write has not yet run.
