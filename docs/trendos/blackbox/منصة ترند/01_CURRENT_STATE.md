@@ -4,11 +4,11 @@ Date: 2026-09-10
 
 ## Active RP-06 execution state
 
-Status: **PATCH33 CODE + CI PASS — LIVE PREVIEW33 PASS — REGISTRY WRITE OWNER-APPROVED — NOT YET EXECUTED**
+Status: **PATCH33 + PREVIEW33 PASS — REGISTRY WRITE AUTO-ROLLED BACK — ROOT CAUSE CONFIRMED — RECOVERY PATCH REQUIRED**
 
 Current record:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_REGISTRY_WRITE_OWNER_APPROVED_PENDING_EXECUTION.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_REGISTRY_WRITE_AUTO_ROLLBACK_ROOT_CAUSE.md`
 
 Current facts:
 
@@ -17,46 +17,44 @@ Current facts:
 - current writer blob: `76cb144230cd53832e000b58ab8cfa2625dd521f`.
 - `TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1 = 33`.
 - exact Patch33 plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
-- historical Invoice specs `3569`, `3572`, `3577` are retired from the executable plan.
-- current Invoice resolutions are:
-  - `3849`: canonical `DR-78d925aa`, superseded `DR-2c398d17`, rows `7/6`, evidence hash `2f95a7e69be9577d2958e25742fbf3674922e6e46de9737bdeeb3602a65d38b7`;
-  - `3851`: canonical `DR-be3e37a2`, superseded `DR-6b61be62`, rows `5/4`, evidence hash `1eca1a5e8461b05620ef2c6ab30f5e43d68b0acfb21b4b02ef7299b6320fabda`.
 - `TrendOS Integrity V1` Run `34420601351` — SUCCESS.
-- Apps Script Head was updated only to exact tested writer blob `76cb144230cd53832e000b58ab8cfa2625dd521f` and exact-verified.
-- only `trendosCoreP0RegistryPreviewV1` was executed for Preview33.
-- Apps Script execution completed successfully.
-- Preview33 result: `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`.
-- all 33 checks were valid with exact expected/actual evidence-hash matches.
-- Preview33 returned exact plan hash `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
-- old 34-row plan/hash/write approval is superseded and MUST NOT be executed.
-- after Preview33 PASS, owner explicitly instructed `نفذ`; this is recorded as explicit approval for the exact 33-spec Registry Write boundary only.
-- the current chat surface has no authenticated Apps Script editor/runtime action, so the approval property has NOT been set and `trendosCoreP0RegistryWriteV1` has NOT been executed from this chat.
-- direct Registry Sheet writes through another connector are prohibited as a bypass.
+- Apps Script Head was exact-verified to the writer blob and Preview33 passed with `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`; all 33 evidence hashes matched.
+- owner then approved the exact 33-spec Registry Write.
+- live Registry read-only reconciliation shows 66 data rows: 33 active mappings appended, immediately followed by the same 33 inactive mappings with reason `AUTO_ROLLBACK: post-write evidence or registry verification failed`.
+- latest state for the 33 mappings is therefore inactive.
+- a subsequent write attempt failed closed at the existing-state check because those exact mappings are explicitly inactive.
+- the one-use write approval property from the failed attempt must be treated as consumed; no retry is authorized.
+- confirmed root cause: Google Sheets coerced 11 numeric-looking Press `Entity Key` values (for example `3536-01`) into DATE/number values even though formatted display still shows the original ID. Registry resolution uses raw `getValues()` and exact text comparison, so post-write verification could not match those Press IDs and the writer auto-rolled back.
+- affected numeric-looking Press keys: `3536-01`, `3585-02`, `3628-01`, `3669-01`, `3756-01`, `3758-01`, `3764-01`, `3770-01`, `3774-01`, `3779-01`, `3788-01`.
+- `TM2606140061-01`, `TM2606160140-01`, `TM2606160181-01` remained strings.
+- no direct edit/delete of the 66 Registry history rows is permitted; append-only history must be preserved.
 
 Owner rule effective 2026-09-10: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
 
 ### Current RP-06 safety boundary
 
-**REGISTRY WRITE APPROVED — PENDING AUTHENTICATED APPS SCRIPT EXECUTION.**
+**RP-06 HOLD — DO NOT RERUN REGISTRY WRITE.**
 
-Only the following write sequence is approved:
+Required next step is a separately approved GitHub-only recovery patch that preserves fail-closed and append-only behavior. At minimum it must:
 
-1. set `TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_V1` to exactly `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
-2. run only `trendosCoreP0RegistryWriteV1` once;
-3. capture the full returned/logged JSON;
-4. STOP for result review.
+1. force Registry identifier/text columns to plain-text storage before append so date-like Press IDs cannot be coerced;
+2. add regression coverage for date-like `Entity Key` values;
+3. provide a bounded recovery path only for exact mappings whose latest inactive revision is the writer's own `AUTO_ROLLBACK: post-write evidence or registry verification failed`, without weakening protection for arbitrary explicitly inactive mappings;
+4. revalidate current live evidence/hashes and require a new one-use approval before any recovery append;
+5. pass normal Integrity CI and a new read-only recovery preview before any production recovery write.
 
 Still prohibited without a new explicit approval:
 
+- rerunning `AAA_RP06_WRITE_ONCE` or `trendosCoreP0RegistryWriteV1`;
+- direct Registry Sheet edits, deletes, `Active?` flips, or bypass writes;
 - rollback;
 - Apps Script Production deploy;
-- Source Sheet business-data mutation outside the approved Registry writer;
+- Source Sheet business-data mutation;
 - D1 business-data write;
 - business-family flag activation;
 - `Code.gs` mutation;
-- new RP-06 runner/workflow;
 - merge to main;
-- RP-07 execution before the exact Registry Write result is reviewed.
+- RP-07 execution.
 
 ---
 
@@ -64,7 +62,7 @@ Still prohibited without a new explicit approval:
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — CORE GO/NO-GO HOLD ON SEPARATE RP PRODUCTION-DATA/HEALTH APPROVAL BOUNDARY**
+Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — CORE GO/NO-GO HOLD ON RP-06 REGISTRY RECOVERY**
 
 ### Regression Pack
 
@@ -124,12 +122,12 @@ This is runtime/technical E2E evidence. It does not count as user-visible accept
 
 **HOLD**
 
-The E2E blocker is cleared. RP-06 Patch33 code/CI and its live read-only Preview33 are PASS. The exact 33-spec Registry Write is now owner-approved but has not yet been executed on an authenticated Apps Script runtime. RP-07 remains after a valid RP-06 remediation write boundary. No Apps Script Production deploy or business-family activation is authorized by CORE-P0-11.
+The E2E blocker is cleared. RP-06 Patch33 code/CI and Preview33 are PASS, but the Registry Write attempt auto-rolled back after post-write verification failed because date-like Press Entity Keys were coerced by Google Sheets. RP-06 requires a recovery patch and new read-only validation before any new write approval. RP-07 is blocked until RP-06 reaches a valid active Registry state.
 
 ### Safety boundary
 
 - no Apps Script Production deploy;
-- Registry write only through the explicitly approved exact RP-06 writer boundary above;
+- no direct Registry Sheet mutation or retry outside a newly approved recovery path;
 - no D1 business-data write/migration;
 - no `EDGE_SESSION_SECRET` rotation/change;
 - Orders writes remain Apps Script / Sheets;
