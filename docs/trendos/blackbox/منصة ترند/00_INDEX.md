@@ -4,25 +4,29 @@
 
 ## Active RP-06 execution checkpoint — 2026-09-10
 
-الحالة: **PATCH33 CODE + CI PASS — EXACT 33-SPEC PLAN LOCKED — APPS SCRIPT READ-ONLY PREVIEW PENDING SEPARATE APPROVAL**
+الحالة: **RECOVERY PATCH CODE + TESTS + CI PASS — PRODUCTION REGISTRY STILL AUTO-ROLLED-BACK/INACTIVE — FRESH APPS SCRIPT PREVIEW + RECOVERY PREVIEW REQUIRED**
 
 السجل الحالي:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_PATCH33_CODE_CI_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_PATCH_CODE_CI_PASS.md`
 
 Current facts:
 
-- owner approved GitHub-only `Patch33`;
-- Patch33 commit: `fb9ca056b7adc6b289496f6a1956623631d1874c`;
-- writer blob: `76cb144230cd53832e000b58ab8cfa2625dd521f`;
-- expectedCount: `33`;
-- exact plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
-- historical Invoice specs `3569`, `3572`, `3577` are retired from the executable plan;
-- current Invoice resolutions are `3849` and `3851`, both `SAFE_TO_SUPERSEDE` from the prior read-only gate;
-- `TrendOS Integrity V1` Run `34420601351` — SUCCESS;
-- old 34-row plan/hash/write approval remains invalid and MUST NOT be executed;
-- no Apps Script Head mutation, Registry Write, Script Property, Deploy, flag, source-data, or D1 mutation occurred in Patch33;
-- next bounded action requires separate owner approval: install exact tested writer blob into Apps Script Head and run only `trendosCoreP0RegistryPreviewV1` READ ONLY, requiring `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`, then STOP.
+- Patch33 plan remains exactly `33` specs;
+- exact plan hash remains `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
+- prior Preview33 PASS remains historical evidence for the old writer blob, but does not authorize recovery execution;
+- first Registry Write appended 33 active rows then auto-rolled back with 33 inactive rows because 11 numeric-looking Press `Entity Key` values were coerced by Google Sheets into DATE/number values;
+- existing production Registry history remains 66 data rows and must not be edited/deleted;
+- owner approved and GitHub recovery patch is complete;
+- recovery writer blob: `81e994945af7fefdd38538a7ca569e73483f3d24`;
+- recovery test blob: `05fbd72caca6d9fd5302afa441cf8d38a66b1f7d`;
+- recovery CI: `TrendOS Integrity V1` Run `34467516059` — SUCCESS;
+- recovery approval uses distinct property `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1` and distinct hash `ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82`;
+- recovery is allowed only for exact mappings whose latest revision is the writer's own AUTO_ROLLBACK and is immediately preceded by the matching active revision;
+- arbitrary or approved rollback inactive mappings remain blocked;
+- no Apps Script Head update to the recovery blob and no recovery execution has occurred yet;
+- next bounded gate is fresh Apps Script `trendosCoreP0RegistryPreviewV1` + `trendosCoreP0RegistryRecoveryPreviewV1`, both read-only, then STOP;
+- no Recovery Write is authorized until both previews PASS and the owner explicitly approves the new one-use recovery execution.
 
 Owner recording rule from 2026-09-10: **any material execution, gate result, decision, blocker, mutation, or explicit no-mutation stop must be recorded in this blackbox before continuing.**
 
@@ -32,7 +36,7 @@ Owner recording rule from 2026-09-10: **any material execution, gate result, dec
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-الحالة: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — CORE GO/NO-GO HOLD ON SEPARATE RP PRODUCTION-DATA/HEALTH APPROVAL BOUNDARY**
+الحالة: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — CORE GO/NO-GO HOLD ON RP-06 REGISTRY RECOVERY**
 
 السجل:
 
@@ -49,8 +53,10 @@ Evidence:
 - live summary at qualification: pageRows=5, activeTotal=25, activeOrders=25, heatPress=6, heatPressOrders=6؛
 - `__DEBT__` => 409 / Apps Script fallback PASS؛
 - Sheets authoritative=true؛ cutover=false؛ reconcile OFF؛ generic drain OFF؛
-- no Production write/deploy/flag change occurred؛
-- Core GO remains HOLD because RP-06/RP-07 remain separately approval-gated. RP-06 Patch33 code/CI is now PASS, but the required live Apps Script read-only preview for the exact 33-spec Head has not run yet.
+- RP-06 Patch33 CI and live Preview33 previously passed;
+- Registry Write auto-rolled back due to confirmed Sheets DATE coercion of Press Entity Keys;
+- Recovery Patch CI is now PASS, but fresh live Preview + RecoveryPreview and a separate recovery-write approval remain required;
+- no Production deploy/flag activation/D1 mutation occurred.
 
 ---
 
