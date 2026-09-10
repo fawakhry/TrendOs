@@ -4,29 +4,34 @@
 
 ## Active RP-07 execution checkpoint — 2026-09-10
 
-الحالة: **RP-07 STARTED — LIVE POST-RP06 DATA PROVES NEW P0 BLOCKERS — FAIL-CLOSED HOLD BEFORE RP-08**
+الحالة: **RP-07 REMEDIATION CODE CANDIDATE PASS — RUNTIME DEPLOYMENT BOUNDARY PREPARED — LIVE P0 DATA BLOCKERS REMAIN — HOLD BEFORE RUNTIME / RP-08**
 
-السجل الحالي:
+السجلات الحالية:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_LIVE_FAIL.md`
-
-Start record:
-
-`TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_START.md`
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
+- live fail evidence: `TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_LIVE_FAIL.md`
+- start record: `TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_START.md`
 
 Current facts:
 
 - RP-06 remains COMPLETE; Registry latest exact 33 mappings remain active; Registry data rows remain `99`.
 - the stored `إدارة - صحة النظام` tab is stale from 2026-09-01 and is not accepted as a fresh RP-07 result;
-- bounded live source inspection against the current HEALTH/remediation contract proves new post-baseline P0 failures;
+- bounded live source inspection proved new post-baseline P0 failures in Attendance, Cleaning, Invoice Draft lifecycle, and Press exact-Line traceability;
 - Attendance: 9 new unacknowledged duplicate employee/day groups, minimum unresolved excess `10`;
 - Cleaning: 12 new unacknowledged duplicate employee/day groups, minimum unresolved excess `30`;
-- `CLOSED_ORDERS_WITH_DRAFT` is confirmed non-zero; Orders `3839` and `3841` are fully delivered while invoice Draft rows still exist;
-- `PRESS_COMPLETED_WITHOUT_SESSION` is confirmed non-zero; `3796-01` is delivered with Heat Press=yes, has no Registry mapping, and the exact current HEALTH session-line sheet is absent from the workbook;
-- raw/display Line-ID inspection supports that the old stored `INVALID_LINE_IDS=229` snapshot is obsolete under the current display-value remediation adapter;
-- no Apps Script HEALTH refresh was invoked because this chat has no direct Apps Script execution connector; the current live inputs are already sufficient to fail the gate;
-- RP-08 was not started and business-family flags remain OFF;
-- no Source Sheet business-data mutation, Health sheet rewrite, Registry mutation, D1 write, Deploy, `Code.gs` edit, or main merge occurred.
+- `CLOSED_ORDERS_WITH_DRAFT` is confirmed non-zero for Orders `3839` and `3841`;
+- `PRESS_COMPLETED_WITHOUT_SESSION` is confirmed non-zero for `3796-01` under the current exact-Line session contract;
+- the old stored `INVALID_LINE_IDS=229` snapshot is obsolete under the display-value remediation adapter;
+- RP-07 prevention/containment code candidate is locked at `2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb`;
+- final CI composition is green: RP-07 Remediation Containment Run `34490458581` SUCCESS and normal Integrity Run `34490458493` SUCCESS;
+- candidate code covers Attendance/Cleaning serialization, guarded legacy-action aliases into Integrity, Press exact-Line completion, and prevention of new/renewed Invoice Draft preparation for delivered/closed orders;
+- `Code.gs` remains untouched;
+- runtime deployment is **not executed** and all business-family flags remain OFF;
+- exact live Apps Script source inventory/collision detection is mandatory before any Head install; do not blindly add `v1932-router.gs` if `trendosV1932TryRoute_` is already defined in another live file;
+- existing P0 data remediation remains separate and unapproved;
+- RP-08 was not started;
+- no Source Sheet business-data mutation, Health sheet rewrite, Registry mutation, D1 write, Deploy, `Code.gs` edit, or main merge occurred in this checkpoint.
 
 Owner recording rule from 2026-09-10 remains in force: **any material execution, gate result, decision, blocker, mutation, or explicit no-mutation stop must be recorded in this blackbox before continuing.**
 
@@ -57,7 +62,7 @@ RP-06 is not reopened by the new RP-07 operational failures.
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-الحالة: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — CORE GO/NO-GO HOLD ON RP-07 LIVE P0 BLOCKERS**
+الحالة: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — RP-07 CODE CANDIDATE PASS — CORE GO/NO-GO HOLD ON LIVE P0 BLOCKERS**
 
 Evidence retained:
 
@@ -69,7 +74,8 @@ Evidence retained:
 - Sheets authoritative=true؛ cutover=false؛ reconcile OFF؛ generic drain OFF؛
 - RP-06 Patch33 and Recovery Patch CI PASS؛
 - RP-06 Recovery production execution PASS؛
-- RP-07 now HOLD on newly generated live integrity blockers.
+- RP-07 final candidate CI PASS؛
+- RP-07 runtime/data health remains HOLD until installation/activation/data-remediation evidence plus fresh `OPEN_CORE_P0_BLOCKERS=0`.
 
 ---
 
