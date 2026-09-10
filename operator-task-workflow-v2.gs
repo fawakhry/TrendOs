@@ -175,7 +175,7 @@ function otTaskViewV2_(row){const t=otTaskObjV2_(row);if(!t)return null;const sr
 function otStatusV2_(auth){
   const enabled=otEnabledV2_(),role=auth.operatorTaskRole;if(!enabled)return {success:true,enabled:false,version:TRENDOS_OPERATOR_TASK_V2_VERSION,role:role};
   const active=otActiveIndexV2_().byEmployee[otNormV2_(otUserNameV2_(auth))],result={success:true,enabled:true,version:TRENDOS_OPERATOR_TASK_V2_VERSION,role:role,task:otTaskViewV2_(active)};
-  if(role==='GABER')result.materialControlEnabled=otGaberMaterialControlEnabledV2_();
+  if(role==='GABER'||role==='MANAGER')result.materialControlEnabled=otGaberMaterialControlEnabledV2_();
   if(role==='WAEL'){result.flyPrint=otFlyLaneV2_();result.pressCandidateCount=otPressLaneV2_().length;}
   return result;
 }
@@ -193,6 +193,14 @@ function operatorTaskV2_(e){
     if(op==='completeTask')return otCompleteTaskV2_(p,auth);
     if(op==='pressCandidates'){otRequireEnabledV2_();if(auth.operatorTaskRole!=='WAEL')return {success:false,message:'فلتر المكبس متاح لوائل فقط.'};return {success:true,items:otPressLaneV2_()};}
     if(op==='metrics'){otRequireEnabledV2_();return otMetricsV2_(auth);}
+    if(op==='gaberMaterialWasteDecision'){
+      if(typeof gaberMaterialWasteDecisionIdempotentV1_!=='function')return {success:false,message:'بوابة قرار تالف جابر غير متاحة.'};
+      return gaberMaterialWasteDecisionIdempotentV1_(p,auth);
+    }
+    if(op.indexOf('gaberMaterial')===0){
+      if(typeof gaberMaterialUiRouteV1_!=='function')return {success:false,message:'واجهة Backend خامات جابر غير متاحة.'};
+      return gaberMaterialUiRouteV1_(op,p,auth);
+    }
     return {success:false,message:'عملية Operator Task V2 غير معروفة.'};
   }catch(err){return {success:false,message:otTxtV2_(err&&err.message||err)};}
 }
