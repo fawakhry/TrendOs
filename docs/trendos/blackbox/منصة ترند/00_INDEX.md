@@ -4,21 +4,29 @@
 
 ## Active RP-06 execution checkpoint — 2026-09-10
 
-الحالة: **RP-06 HOLD — OLD 34-ROW PLAN INVALIDATED — RETIRE 3569/3572/3577 — LIVE DUPLICATES 3849/3851 REQUIRE READ-ONLY RESOLUTION**
+الحالة: **RP-06 HOLD — READY FOR SINGLE 33-SPEC PATCH — NO REGISTRY WRITE AUTHORIZED**
 
 السجل الحالي:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_PREVIEW_INVOICE_RECONCILIATION_HOLD.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_LIVE_INVOICE_RESOLUTION_READY_PATCH.md`
 
 Current facts:
 
-- runtime preview returned `success=false`, `readOnly=true`, `expectedCount=34`, `actualPlanCount=34`;
+- runtime preview previously failed read-only only on stale historical Invoice specs `3569`, `3572`, `3577`;
 - `3536-01` is no longer an active preview blocker;
-- historical Invoice specs `3569`, `3572`, `3577` are stale and decision is `RETIRE_3_INVOICE_SPECS`;
-- old 34-row plan/hash/write approval is operationally invalidated and MUST NOT be executed;
-- current live `DUPLICATE_INVOICE_DRAFTS.count=2` from Orders `3849` and `3851`;
-- next action is read-only resolution of `3849` and `3851` only;
+- decision remains `RETIRE_3_INVOICE_SPECS` for `3569`, `3572`, `3577`;
+- old 34-row plan/hash/write approval is invalidated and MUST NOT be executed;
+- current live duplicate Invoice groups are `3849` and `3851` only;
+- read-only resolution gate found both are true duplicate/replacement pairs and both are `SAFE_TO_SUPERSEDE`;
+- candidate canonical for `3849`: `DR-78d925aa`, superseded `DR-2c398d17`, evidence hash `2f95a7e69be9577d2958e25742fbf3674922e6e46de9737bdeeb3602a65d38b7`;
+- candidate canonical for `3851`: `DR-be3e37a2`, superseded `DR-6b61be62`, evidence hash `1eca1a5e8461b05620ef2c6ab30f5e43d68b0acfb21b4b02ef7299b6320fabda`;
+- aggregate decision: `READY_FOR_SINGLE_RP06_PATCH`;
+- candidate plan shape: 6 Attendance + 11 Cleaning + 2 Invoice + 14 Press = `33` specs;
+- a new plan hash is required after the exact patch is built and tested;
+- next boundary: one bounded working-branch code/test/docs patch, then CI, then new read-only Apps Script Preview; stop before any Registry Write;
 - no Registry Write/Deploy/flag/source-data/D1 mutation is authorized by this checkpoint.
+
+Operational note: the Wael/Gaber task-queue snapshot is retained for later display; do not re-run its full analysis unless current/latest state is requested.
 
 Owner recording rule from 2026-09-10: **any material execution, gate result, decision, blocker, mutation, or explicit no-mutation stop must be recorded in this blackbox before continuing.**
 
@@ -46,7 +54,7 @@ Evidence:
 - `__DEBT__` => 409 / Apps Script fallback PASS؛
 - Sheets authoritative=true؛ cutover=false؛ reconcile OFF؛ generic drain OFF؛
 - no Production write/deploy/flag change occurred؛
-- Core GO remains HOLD because RP-06/RP-07 remain separately approval-gated. The active RP-06 blocker is now the Invoice reconciliation state recorded above, not `3536-01`.
+- Core GO remains HOLD because RP-06/RP-07 remain separately approval-gated.
 
 ---
 
