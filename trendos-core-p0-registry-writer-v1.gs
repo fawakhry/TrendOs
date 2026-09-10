@@ -5,16 +5,22 @@
  * production-data-write checkpoint.
  *
  * Contracts:
- * - public preview is read-only;
- * - write/rollback require a one-use Script Property equal to the exact plan hash;
+ * - public preview and recovery preview are read-only;
+ * - write/rollback/recovery require distinct one-use Script Properties;
  * - every mutation runs under ScriptLock while all business families are OFF;
- * - live evidence is re-read before and after the append;
+ * - live evidence is re-read before and after every append;
+ * - Registry text identifiers are forced to plain text before append;
  * - source sheets are never mutated;
- * - rollback is append-only and never deletes registry or source history.
+ * - rollback/recovery are append-only and never delete registry or source history.
  */
 const TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1='TRENDOS_CORE_P0_REGISTRY_WRITER_V1_20260901';
 const TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1='TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_V1';
 const TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1='TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_V1';
+const TRENDOS_CORE_P0_REGISTRY_RECOVERY_VERSION_V1='TRENDOS_CORE_P0_REGISTRY_RECOVERY_V1_20260910';
+const TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1='TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1';
+const TRENDOS_CORE_P0_REGISTRY_AUTO_ROLLBACK_REASON_V1='AUTO_ROLLBACK: post-write evidence or registry verification failed';
+const TRENDOS_CORE_P0_REGISTRY_RECOVERY_REASON_V1='APPROVED_RECOVERY: reactivate exact CORE-P0 mapping after writer AUTO_ROLLBACK';
+const TRENDOS_CORE_P0_REGISTRY_RECOVERY_AUTO_ROLLBACK_REASON_V1='AUTO_ROLLBACK_RECOVERY: post-recovery evidence or registry verification failed';
 const TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1=33;
 
 function trendosCoreP0RegistrySpecsV1_(){return[
@@ -66,6 +72,11 @@ function trendosCoreP0RegistryPlanHashV1_(){return trendosSha256HexV1_(trendosSt
   version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,
   headers:TRENDOS_INTEGRITY_RESOLUTION_HEADERS_V1,
   specs:trendosCoreP0RegistrySpecsV1_()
+}));}
+function trendosCoreP0RegistryRecoveryHashV1_(){return trendosSha256HexV1_(trendosStableJsonV1_({
+  version:TRENDOS_CORE_P0_REGISTRY_RECOVERY_VERSION_V1,
+  planHash:trendosCoreP0RegistryPlanHashV1_(),
+  requiredRollbackReason:TRENDOS_CORE_P0_REGISTRY_AUTO_ROLLBACK_REASON_V1
 }));}
 function trendosCoreP0RegistryDependenciesV1_(){
   const required=['trendosNormalizeOrderId_','trendosIntegrityEvidenceHashV1_','trendosIntegrityGroupEvidenceV1_','trendosIntegrityInvoiceDraftEvidenceV1_','trendosHealthSnapshotV1_','trendosHealthValV1_','trendosHealthDateV1_','trendosHealthLineIdV1_','trendosHealthPressFlagV1_','trendosHealthInvoiceDraftDtoV1_','trendosIntegrityFeatureStateV1_','trendosIntegrityResolutionV1_','trendosIntegrityResolutionRowsV1_','trendosSpreadsheetV1_','trendosWithLock_'];
@@ -164,9 +175,9 @@ function trendosCoreP0RegistryFlagGuardV1_(){
   if(trendosRemediationBoolV1_(props.getProperty('TRENDOS_FAST_AUTH_V25_ENABLED')))throw new Error('Registry write requires Fast Auth OFF.');
   return props;
 }
-function trendosCoreP0RegistryConsumeApprovalV1_(props,propertyName,planHash){
+function trendosCoreP0RegistryConsumeApprovalV1_(props,propertyName,approvalHash){
   const actual=trendosRemediationTextV1_(props.getProperty(propertyName));
-  if(actual!==planHash)throw new Error('Missing or mismatched one-use registry approval: '+propertyName);
+  if(actual!==approvalHash)throw new Error('Missing or mismatched one-use registry approval: '+propertyName);
   props.deleteProperty(propertyName);
 }
 function trendosCoreP0RegistryActorV1_(){
@@ -184,6 +195,15 @@ function trendosCoreP0RegistrySheetV1_(create){
   if(sh&&!trendosCoreP0RegistryExactHeadersV1_(sh))throw new Error('TrendOS resolution registry must have the exact 10-header schema.');
   return sh;
 }
+function trendosCoreP0RegistryStateRowsV1_(sh){
+  if(!sh||sh.getLastRow()<2)return[];
+  const width=TRENDOS_INTEGRITY_RESOLUTION_HEADERS_V1.length,range=sh.getRange(2,1,sh.getLastRow()-1,width),values=range.getValues(),display=range.getDisplayValues();
+  return values.map(function(row,i){
+    const out={__rowNumber:i+2};TRENDOS_INTEGRITY_RESOLUTION_HEADERS_V1.forEach(function(k,j){out[k]=row[j];});
+    out['Entity Key']=trendosRemediationTextV1_(display[i][1]);
+    return out;
+  });
+}
 function trendosCoreP0RegistryLatestByIdentityV1_(rows){
   const out={};(rows||[]).forEach(function(r,i){
     const key=trendosCoreP0RegistryGroupKeyV1_(r)+'\u001f'+trendosCoreP0RegistryIdentityV1_(r),n=Number(r.__rowNumber),order=isFinite(n)&&n>=2?n:i;
@@ -194,11 +214,13 @@ function trendosCoreP0RegistryAppendV1_(sh,specs,active,actor,reasonOverride){
   if(!specs.length)return 0;const now=new Date(),rows=specs.map(function(spec){return[
     spec.metricId,spec.entityKey,spec.canonicalId,spec.supersededId,spec.classification,reasonOverride||spec.reason,
     spec.evidenceHash,now,actor,!!active
-  ];});
-  sh.getRange(sh.getLastRow()+1,1,rows.length,TRENDOS_INTEGRITY_RESOLUTION_HEADERS_V1.length).setValues(rows);return rows.length;
+  ];}),start=sh.getLastRow()+1;
+  sh.getRange(start,1,rows.length,7).setNumberFormat('@');
+  sh.getRange(start,9,rows.length,1).setNumberFormat('@');
+  sh.getRange(start,1,rows.length,TRENDOS_INTEGRITY_RESOLUTION_HEADERS_V1.length).setValues(rows);return rows.length;
 }
 function trendosCoreP0RegistryPendingAppendsV1_(sh,specs){
-  const rows=sh?trendosIntegrityResolutionRowsV1_():[],latest=trendosCoreP0RegistryLatestByIdentityV1_(rows),plannedByGroup={},pending=[],errors=[];
+  const rows=sh?trendosCoreP0RegistryStateRowsV1_(sh):[],latest=trendosCoreP0RegistryLatestByIdentityV1_(rows),plannedByGroup={},pending=[],errors=[];
   specs.forEach(function(spec){const group=trendosCoreP0RegistryGroupKeyV1_(spec),id=trendosCoreP0RegistryIdentityV1_(spec);(plannedByGroup[group]||(plannedByGroup[group]={}))[id]=true;const found=latest[group+'\u001f'+id];
     if(!found){pending.push(spec);return;}
     const row=found.row;if(!trendosRemediationBoolV1_(row['Active?'])){errors.push(spec.metricId+' '+spec.entityKey+': exact mapping is explicitly inactive');return;}
@@ -206,6 +228,39 @@ function trendosCoreP0RegistryPendingAppendsV1_(sh,specs){
   });
   Object.keys(latest).forEach(function(k){const row=latest[k].row;if(!trendosRemediationBoolV1_(row['Active?']))return;const group=trendosCoreP0RegistryGroupKeyV1_(row),id=trendosCoreP0RegistryIdentityV1_(row);if(plannedByGroup[group]&&!plannedByGroup[group][id])errors.push(group.replace('\u001f',' ')+': unexpected active mapping exists');});
   return{pending:pending,errors:errors,rows:rows};
+}
+function trendosCoreP0RegistryRecoveryStateV1_(sh,specs){
+  specs=specs||trendosCoreP0RegistrySpecsV1_();const rows=sh?trendosCoreP0RegistryStateRowsV1_(sh):[],history={},plannedByGroup={},errors=[],recoverable=[],checks=[];
+  rows.forEach(function(r){const key=trendosCoreP0RegistryGroupKeyV1_(r)+'\u001f'+trendosCoreP0RegistryIdentityV1_(r);(history[key]||(history[key]=[])).push(r);});
+  specs.forEach(function(spec){
+    const group=trendosCoreP0RegistryGroupKeyV1_(spec),identity=trendosCoreP0RegistryIdentityV1_(spec),key=group+'\u001f'+identity;((plannedByGroup[group]||(plannedByGroup[group]={}))[identity]=true);
+    const list=(history[key]||[]).slice().sort(function(a,b){return Number(a.__rowNumber||0)-Number(b.__rowNumber||0);}),latest=list[list.length-1],previous=list[list.length-2],local=[];
+    if(!latest)local.push('exact recovery history is missing');
+    else{
+      if(trendosRemediationBoolV1_(latest['Active?']))local.push('latest exact mapping is active, not recoverable');
+      if(trendosRemediationTextV1_(latest.Reason)!==TRENDOS_CORE_P0_REGISTRY_AUTO_ROLLBACK_REASON_V1)local.push('latest inactive mapping is not the writer auto-rollback state');
+      if(trendosRemediationTextV1_(latest['Evidence Hash'])!==spec.evidenceHash)local.push('latest auto-rollback evidence hash differs from the exact plan');
+      if(!previous||!trendosRemediationBoolV1_(previous['Active?']))local.push('writer auto-rollback is not immediately preceded by an active exact mapping');
+      else if(trendosRemediationTextV1_(previous['Evidence Hash'])!==spec.evidenceHash)local.push('preceding active mapping evidence hash differs from the exact plan');
+    }
+    if(!local.length)recoverable.push(spec);else local.forEach(function(message){errors.push(spec.metricId+' '+spec.entityKey+': '+message);});
+    checks.push({metricId:spec.metricId,entityKey:spec.entityKey,recoverable:local.length===0,latestRow:latest&&latest.__rowNumber||0,previousRow:previous&&previous.__rowNumber||0,errors:local});
+  });
+  const latestAll=trendosCoreP0RegistryLatestByIdentityV1_(rows);
+  Object.keys(latestAll).forEach(function(k){const row=latestAll[k].row;if(!trendosRemediationBoolV1_(row['Active?']))return;const group=trendosCoreP0RegistryGroupKeyV1_(row),identity=trendosCoreP0RegistryIdentityV1_(row);if(plannedByGroup[group]&&!plannedByGroup[group][identity])errors.push(group.replace('\u001f',' ')+': unexpected active mapping exists during recovery');});
+  return{success:errors.length===0&&recoverable.length===specs.length,recoverable:recoverable,errors:errors,rows:rows,checks:checks};
+}
+function trendosCoreP0RegistryRecoveryPreviewV1(){
+  const missing=trendosCoreP0RegistryDependenciesV1_(),planHash=trendosCoreP0RegistryPlanHashV1_(),recoveryHash=trendosCoreP0RegistryRecoveryHashV1_();let result;
+  if(missing.length)result={success:false,readOnly:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,recoveryVersion:TRENDOS_CORE_P0_REGISTRY_RECOVERY_VERSION_V1,planHash:planHash,recoveryHash:recoveryHash,missing:missing};
+  else{
+    const live=trendosCoreP0RegistryLivePlanV1_(),sh=trendosCoreP0RegistrySheetV1_(false),state=trendosCoreP0RegistryRecoveryStateV1_(sh,trendosCoreP0RegistrySpecsV1_()),errors=live.errors.concat(state.errors);
+    if(!sh)errors.unshift('Resolution Registry sheet is missing');
+    result={success:live.success&&live.items.length===TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1&&state.success,readOnly:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,recoveryVersion:TRENDOS_CORE_P0_REGISTRY_RECOVERY_VERSION_V1,planHash:planHash,recoveryHash:recoveryHash,expectedCount:TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1,actualPlanCount:live.items.length,recoverableCount:state.recoverable.length,errors:errors,recoveryApprovalProperty:TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1,checks:state.checks};
+  }
+  console.log(JSON.stringify(result));
+  if(result.success!==true){const details=(result.missing||result.errors||[]).join(' | ')||'unknown recovery preview validation failure';throw new Error('CORE-P0 registry recovery preview failed: '+details);}
+  return result;
 }
 function trendosCoreP0RegistryVerifyActiveV1_(live){
   const rows=trendosIntegrityResolutionRowsV1_(),groups={},errors=[];(live.items||[]).forEach(function(item){const k=trendosCoreP0RegistryGroupKeyV1_(item.spec);(groups[k]||(groups[k]=[])).push(item);});
@@ -228,19 +283,40 @@ function trendosCoreP0RegistryWriteV1(){return trendosWithLock_('script',functio
   }catch(postError){
     let rollbackStatus='no new mappings required rollback';
     if(check.pending.length){
-      try{trendosCoreP0RegistryAppendV1_(sh,check.pending,false,actor,'AUTO_ROLLBACK: post-write evidence or registry verification failed');if(typeof SpreadsheetApp!=='undefined'&&SpreadsheetApp.flush)SpreadsheetApp.flush();rollbackStatus='appended mappings were deactivated';}
+      try{trendosCoreP0RegistryAppendV1_(sh,check.pending,false,actor,TRENDOS_CORE_P0_REGISTRY_AUTO_ROLLBACK_REASON_V1);if(typeof SpreadsheetApp!=='undefined'&&SpreadsheetApp.flush)SpreadsheetApp.flush();rollbackStatus='appended mappings were deactivated';}
       catch(rollbackError){rollbackStatus='automatic deactivation failed: '+trendosRemediationTextV1_(rollbackError&&rollbackError.message||rollbackError);}
     }
     throw new Error('Registry post-write verification failed; '+rollbackStatus+': '+trendosRemediationTextV1_(postError&&postError.message||postError));
   }
   return{success:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,planHash:planHash,expectedCount:TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1,appended:appended,alreadyPresent:TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1-appended,totalRegistryRows:sh.getLastRow()-1,sourceSheetsMutated:false};
 },30000);}
+function trendosCoreP0RegistryRecoveryWriteV1(){return trendosWithLock_('script',function(){
+  const props=trendosCoreP0RegistryFlagGuardV1_(),planHash=trendosCoreP0RegistryPlanHashV1_(),recoveryHash=trendosCoreP0RegistryRecoveryHashV1_();trendosCoreP0RegistryConsumeApprovalV1_(props,TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1,recoveryHash);
+  const missing=trendosCoreP0RegistryDependenciesV1_();if(missing.length)throw new Error('Registry recovery dependencies missing: '+missing.join(', '));
+  const live=trendosCoreP0RegistryLivePlanV1_();if(!live.success||live.items.length!==TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1)throw new Error('Registry recovery live preflight failed: '+live.errors.join(' | '));
+  const sh=trendosCoreP0RegistrySheetV1_(false);if(!sh)throw new Error('Registry recovery requires the existing Resolution Registry sheet.');
+  const state=trendosCoreP0RegistryRecoveryStateV1_(sh,trendosCoreP0RegistrySpecsV1_());if(!state.success||state.recoverable.length!==TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1)throw new Error('Registry recovery-state check failed: '+state.errors.join(' | '));
+  const actor=trendosCoreP0RegistryActorV1_(),recovered=trendosCoreP0RegistryAppendV1_(sh,state.recoverable,true,actor,TRENDOS_CORE_P0_REGISTRY_RECOVERY_REASON_V1);
+  try{
+    if(typeof SpreadsheetApp!=='undefined'&&SpreadsheetApp.flush)SpreadsheetApp.flush();
+    const after=trendosCoreP0RegistryLivePlanV1_(),verifyErrors=after.success?trendosCoreP0RegistryVerifyActiveV1_(after):after.errors.slice();
+    if(!after.success||verifyErrors.length)throw new Error(verifyErrors.join(' | ')||'unknown post-recovery verification error');
+  }catch(postError){
+    let rollbackStatus='no recovered mappings required rollback';
+    if(state.recoverable.length){
+      try{trendosCoreP0RegistryAppendV1_(sh,state.recoverable,false,actor,TRENDOS_CORE_P0_REGISTRY_RECOVERY_AUTO_ROLLBACK_REASON_V1);if(typeof SpreadsheetApp!=='undefined'&&SpreadsheetApp.flush)SpreadsheetApp.flush();rollbackStatus='recovered mappings were deactivated';}
+      catch(rollbackError){rollbackStatus='automatic recovery deactivation failed: '+trendosRemediationTextV1_(rollbackError&&rollbackError.message||rollbackError);}
+    }
+    throw new Error('Registry post-recovery verification failed; '+rollbackStatus+': '+trendosRemediationTextV1_(postError&&postError.message||postError));
+  }
+  return{success:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,recoveryVersion:TRENDOS_CORE_P0_REGISTRY_RECOVERY_VERSION_V1,planHash:planHash,recoveryHash:recoveryHash,expectedCount:TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1,recovered:recovered,totalRegistryRows:sh.getLastRow()-1,sourceSheetsMutated:false};
+},30000);}
 function trendosCoreP0RegistryRollbackV1(){return trendosWithLock_('script',function(){
   const props=trendosCoreP0RegistryFlagGuardV1_(),planHash=trendosCoreP0RegistryPlanHashV1_();trendosCoreP0RegistryConsumeApprovalV1_(props,TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1,planHash);
   const sh=trendosCoreP0RegistrySheetV1_(false);if(!sh)return{success:true,alreadyInactive:true,appended:0,planHash:planHash};
-  const specs=trendosCoreP0RegistrySpecsV1_(),latest=trendosCoreP0RegistryLatestByIdentityV1_(trendosIntegrityResolutionRowsV1_()),active=specs.filter(function(spec){const found=latest[trendosCoreP0RegistryGroupKeyV1_(spec)+'\u001f'+trendosCoreP0RegistryIdentityV1_(spec)];return!!(found&&trendosRemediationBoolV1_(found.row['Active?']));});
+  const specs=trendosCoreP0RegistrySpecsV1_(),latest=trendosCoreP0RegistryLatestByIdentityV1_(trendosCoreP0RegistryStateRowsV1_(sh)),active=specs.filter(function(spec){const found=latest[trendosCoreP0RegistryGroupKeyV1_(spec)+'\u001f'+trendosCoreP0RegistryIdentityV1_(spec)];return!!(found&&trendosRemediationBoolV1_(found.row['Active?']));});
   const actor=trendosCoreP0RegistryActorV1_(),appended=trendosCoreP0RegistryAppendV1_(sh,active,false,actor,'APPROVED_ROLLBACK: deactivate exact CORE-P0 registry mapping');if(typeof SpreadsheetApp!=='undefined'&&SpreadsheetApp.flush)SpreadsheetApp.flush();
-  const after=trendosCoreP0RegistryLatestByIdentityV1_(trendosIntegrityResolutionRowsV1_()),stillActive=specs.filter(function(spec){const found=after[trendosCoreP0RegistryGroupKeyV1_(spec)+'\u001f'+trendosCoreP0RegistryIdentityV1_(spec)];return!!(found&&trendosRemediationBoolV1_(found.row['Active?']));});
+  const after=trendosCoreP0RegistryLatestByIdentityV1_(trendosCoreP0RegistryStateRowsV1_(sh)),stillActive=specs.filter(function(spec){const found=after[trendosCoreP0RegistryGroupKeyV1_(spec)+'\u001f'+trendosCoreP0RegistryIdentityV1_(spec)];return!!(found&&trendosRemediationBoolV1_(found.row['Active?']));});
   if(stillActive.length)throw new Error('Registry rollback verification failed for '+stillActive.length+' exact mappings.');
   return{success:true,version:TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1,planHash:planHash,appended:appended,alreadyInactive:active.length===0,totalRegistryRows:sh.getLastRow()-1,sourceSheetsMutated:false};
 },30000);}
