@@ -11,7 +11,7 @@
   else root.TrendOSGaberLedgerDailyReportV1=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='GABER_LEDGER_DAILY_REPORT_V1_20260910';
+  const VERSION='GABER_LEDGER_DAILY_REPORT_V1_20260911';
   const EPS=1e-9;
   function text(v){return String(v==null?'':v).trim();}
   function finite(v){const n=Number(v);return Number.isFinite(n)?n:null;}
@@ -32,13 +32,15 @@
     const blockers=[];
     if(facts.valid===false)(facts.blockers||[]).forEach(b=>blockers.push(Object.assign({source:'LEDGER'},b)));
     const rows=(Array.isArray(facts.rows)?facts.rows:[]).map(r=>{
-      const unit=text(r.unit)||'unit',k=key(r.materialId,unit),openingQty=opening.get(k)||0;
+      const unit=text(r.unit)||'unit',k=key(r.materialId,unit),hasOpening=opening.has(k),openingQty=hasOpening?opening.get(k):null;
       const purchasedQty=round(r.purchasedQty||0),orderOutQty=round(r.orderOutQty||0),wasteQty=round(r.wasteQty||0),otherInQty=round(r.otherInQty||0),otherOutQty=round(r.otherOutQty||0);
-      const expectedClosingQty=round(openingQty+purchasedQty+otherInQty-orderOutQty-wasteQty-otherOutQty);
+      const expectedClosingQty=openingQty==null?null:round(openingQty+purchasedQty+otherInQty-orderOutQty-wasteQty-otherOutQty);
       const actualClosingQty=closing.has(k)?closing.get(k):null;
-      const varianceQty=actualClosingQty==null?null:round(actualClosingQty-expectedClosingQty);
-      const reconciliationStatus=actualClosingQty==null?'NO_ACTUAL_CLOSING':(near(actualClosingQty,expectedClosingQty,tolerance)?'RECONCILED':'VARIANCE');
-      if(reconciliationStatus==='VARIANCE')blockers.push({code:'DAILY_MATERIAL_STOCK_VARIANCE',materialId:r.materialId,unit,expectedClosingQty,actualClosingQty,varianceQty});
+      const varianceQty=expectedClosingQty==null||actualClosingQty==null?null:round(actualClosingQty-expectedClosingQty);
+      let reconciliationStatus='RECONCILED';
+      if(openingQty==null){reconciliationStatus='NO_OPENING_BALANCE';blockers.push({code:'DAILY_MATERIAL_OPENING_BALANCE_MISSING',materialId:r.materialId,unit});}
+      else if(actualClosingQty==null){reconciliationStatus='NO_ACTUAL_CLOSING';blockers.push({code:'DAILY_MATERIAL_ACTUAL_CLOSING_MISSING',materialId:r.materialId,unit,expectedClosingQty});}
+      else if(!near(actualClosingQty,expectedClosingQty,tolerance)){reconciliationStatus='VARIANCE';blockers.push({code:'DAILY_MATERIAL_STOCK_VARIANCE',materialId:r.materialId,unit,expectedClosingQty,actualClosingQty,varianceQty});}
       return {
         materialId:text(r.materialId),name:text(r.materialName),unit,
         openingQty,purchasedQty,orderOutQty,wasteQty,
