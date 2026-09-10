@@ -9,6 +9,9 @@ Authoritative requirement record:
 Authoritative architecture / rollout record:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
 
+Edge -> Apps Script auth bridge design:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_EDGE_AUTH_BRIDGE_DESIGN.md`
+
 ## Wael / Printing
 
 - Ordinary Printing backlog is not returned as a browsable/selectable queue.
@@ -42,6 +45,12 @@ Rules:
 - D1 Task business-write authority is not enabled now;
 - no client-side or server-side uncontrolled dual-authoritative write;
 - Operator rollout is scheduled immediately after RP-07 is fully closed PASS and before RP-08 unless the owner explicitly reprioritizes.
+
+## Edge authentication integration
+
+The existing Edge session contains canonical username identity but not the employee's original Apps Script token. The original employee token must not be embedded into the Edge token or browser persistence merely to proxy Task calls.
+
+The approved preparation direction is a dedicated server-to-server HMAC assertion using a separate future secret such as `TRENDOS_OPERATOR_TASK_PROXY_SECRET`, with the secret stored only in Cloudflare and Apps Script and never committed. No such secret is created or activated by the current candidate.
 
 ## Safety / activation
 
