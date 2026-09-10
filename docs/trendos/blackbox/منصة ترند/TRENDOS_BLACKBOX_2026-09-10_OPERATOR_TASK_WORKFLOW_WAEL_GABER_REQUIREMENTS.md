@@ -2,7 +2,7 @@
 
 Date: 2026-09-10
 Status: **OWNER-APPROVED PRODUCT/OPERATIONS REQUIREMENTS — NOT YET IMPLEMENTED**
-Scope: operator-facing work allocation, timing, visibility, and Press batching behavior.
+Scope: operator-facing work allocation, timing, visibility, dispatch priority, and Press batching behavior.
 
 This record is a product/operations requirement only. It does not authorize Apps Script changes, Cloudflare/D1 writes, feature-flag changes, deployment, data mutation, or RP-07 Phase 1.
 
@@ -17,13 +17,31 @@ The worker must not be able to browse the full ordinary queue and choose an orde
 For ordinary work:
 
 1. worker requests / pulls the next available Task;
-2. the system assigns one eligible Task according to the task-dispatch rules;
+2. the system assigns one eligible Task according to the approved task-dispatch rules below;
 3. once the Task is pulled/claimed, timing starts automatically;
 4. the Task moves to execution state automatically;
 5. the worker works only on the assigned Task;
 6. when the Task reaches an approved completion state, the system stops the timer and records actual duration.
 
-The exact dispatch priority algorithm is not defined by this record and must be designed separately. The invariant is that ordinary backlog selection is controlled by the system, not freely browsed/chosen by the operator.
+The invariant is that ordinary backlog selection is controlled by the system, not freely browsed/chosen by the operator.
+
+## 1.1 Approved Task dispatch priority
+
+The owner has now defined the default Task ordering.
+
+For ordinary Tasks, dispatch priority must be:
+
+1. **Urgent first** — any Task marked `عاجل` is ahead of non-urgent work.
+2. Within the same urgency class, sort from **oldest to newest by delivery due date / ميعاد التسليم**.
+3. If two or more Tasks have the same delivery due date, break ties by **Order sequence / Order number**, oldest/lower order first.
+
+Conceptually:
+
+`Urgent DESC → Delivery Due Date ASC → Order Sequence ASC`
+
+The worker must receive the next Task from this server-controlled order and must not be given a free-choice ordinary backlog.
+
+If delivery due date is missing or invalid, implementation must fail closed into a defined exception/supervisor queue rather than silently allowing worker choice or random ordering.
 
 ## 2. Wael — Printing operator workflow
 
@@ -35,24 +53,33 @@ Wael must not see all remaining printing orders in a way that allows him to choo
 
 Ordinary printing work is delivered to him through the Task workflow only.
 
-### 2.2 "الطباعة على الطاير" exception
+### 2.2 `الطباعة على الطاير` — permanently visible and OUTSIDE Tasks
 
-`الطباعة على الطاير` is the explicit visibility exception for Wael.
+`الطباعة على الطاير` is **not part of the Task system**.
 
-It must remain visible to Wael as directly available work.
+It must remain permanently/directly visible to Wael regardless of the ordinary Task queue.
+
+This is a separate operational lane, not a Task exception inside the dispatcher.
 
 Therefore:
 
-- On-the-fly printing may be shown as ready/available work;
+- `الطباعة على الطاير` is always visible to Wael;
+- it is not pulled through `Next Task`;
+- it is not hidden behind ordinary Task assignment;
+- it does not participate in the ordinary Task priority algorithm;
+- it must not consume/reorder the ordinary Task queue merely because it is visible;
 - ordinary printing backlog remains hidden from free selection;
-- this exception must not expose unrelated ordinary orders.
+- exposing on-the-fly printing must not expose unrelated ordinary orders.
 
-The business reason is that on-the-fly printing is immediate work and must remain directly actionable.
+The business reason is that on-the-fly printing is immediate/direct work and must remain continuously actionable independently from controlled ordinary Task dispatch.
 
-### 2.3 Pulling a new Task
+Any future reporting may measure on-the-fly work separately, but it must not be modeled as an ordinary assigned Task unless a later owner requirement explicitly changes this rule.
+
+### 2.3 Pulling a new ordinary Task
 
 When Wael pulls a new ordinary printing Task:
 
+- the Task is selected by the approved server-side priority rule, not by Wael;
 - the Task becomes assigned/claimed to Wael;
 - the timer starts automatically at the claim/start event;
 - task/order execution status becomes `بدء التنفيذ` automatically;
@@ -108,6 +135,7 @@ Gaber / Laser uses the same **task-based controlled assignment principle** for o
 
 - no full ordinary backlog for free personal selection;
 - work should be delivered as assigned Tasks;
+- Task ordering follows the same approved priority rule: urgent first, then oldest delivery due date, then Order sequence;
 - pulling/starting a Task starts authoritative timing;
 - completion records actual duration and throughput.
 
@@ -123,7 +151,7 @@ Press-related views/actions must not be shown for this operator role.
 
 Gaber/Laser has no `الطباعة على الطاير` workflow.
 
-The on-the-fly printing exception that is visible to Wael must not appear for Gaber/Laser.
+The permanently visible on-the-fly printing lane that exists for Wael must not appear for Gaber/Laser.
 
 ## 4. Required role/department behavior summary
 
@@ -131,13 +159,15 @@ The on-the-fly printing exception that is visible to Wael must not appear for Ga
 
 - Ordinary backlog visible for free selection: **NO**
 - Ordinary work delivered as Tasks: **YES**
+- Task dispatch: **Urgent first → oldest delivery due date → Order sequence**
 - Pull Task starts timer automatically: **YES**
 - Pull Task changes state to `بدء التنفيذ`: **YES**
 - `تم التسليم` stops timer: **YES**
 - `جاهز للاستلام` stops timer: **YES**
 - Actual duration recorded: **YES**
 - Throughput + time reporting required: **YES**
-- `الطباعة على الطاير` directly visible: **YES**
+- `الطباعة على الطاير` permanently visible: **YES**
+- `الطباعة على الطاير` part of Tasks: **NO**
 - Press filter/view available: **YES**
 - Press filter may expose Press-bearing order identities for batching: **YES**
 
@@ -145,6 +175,7 @@ The on-the-fly printing exception that is visible to Wael must not appear for Ga
 
 - Ordinary backlog visible for free selection: **NO**
 - Ordinary work delivered as Tasks: **YES**
+- Task dispatch: **Urgent first → oldest delivery due date → Order sequence**
 - Pull Task starts timer automatically: **YES**
 - Pull Task changes state to `بدء التنفيذ`: **YES**
 - Approved completion states stop timer: **YES**
@@ -158,6 +189,10 @@ The on-the-fly printing exception that is visible to Wael must not appear for Ga
 When this requirement is implemented, the following invariants must hold:
 
 - task assignment must be server-authoritative;
+- task priority sorting must be enforced server-side;
+- urgent work must rank before non-urgent work;
+- delivery due date must be the primary chronological sort within the same urgency class;
+- Order sequence must be the deterministic tie-breaker for equal due dates;
 - worker identity must be server/session-derived;
 - start/end timestamps must be server-authoritative;
 - a Task must not be claimable concurrently by two operators;
@@ -165,6 +200,7 @@ When this requirement is implemented, the following invariants must hold:
 - the system must preserve exact Order ID / Line ID traceability;
 - timer state must survive page refresh/reconnect and must not depend only on a browser timer;
 - ordinary queue visibility permissions must be enforced server-side, not only hidden in the UI;
+- `الطباعة على الطاير` must remain a separate always-visible lane for Wael and must not be passed through ordinary Task dispatch;
 - Press batching visibility must be scoped only to eligible Press work;
 - role/department capability rules must prevent Gaber/Laser from seeing Press or on-the-fly printing controls;
 - reporting must use persisted task events/timestamps, not reconstructed UI guesses;
@@ -176,17 +212,17 @@ The strategic target remains the Cloudflare migration. This Task workflow should
 
 Until the approved write cutover occurs, current authority and RP-07 safety boundaries remain unchanged.
 
-## 7. Not defined yet / separate design decisions
+## 7. Still not defined / separate design decisions
 
-The owner has not yet fixed in this record:
+The owner has now defined the ordinary Task priority algorithm. The following details remain for later design:
 
-- exact automatic Task priority/dispatch algorithm;
 - whether an operator may hold more than one ordinary active Task at once;
 - pause/break/rework timer behavior;
 - treatment of partial completion or multi-line orders;
 - SLA/target-time calculation;
 - supervisor override/reassignment behavior;
 - detailed management dashboard UI;
+- handling policy for Tasks with missing/invalid delivery due dates beyond fail-closed exception routing;
 - whether `تم التسليم` should be a worker-accessible completion action for every department or only where operationally valid.
 
 These items must be resolved in a later design checkpoint without changing the requirements above.
