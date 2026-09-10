@@ -23,11 +23,14 @@ Authoritative records:
 
 - `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_WORKFLOW_WAEL_GABER_REQUIREMENTS.md`
 - `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
+- `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_OWNER_PRIORITY_LOCK.md`
 - root candidate reference: `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md`
 
-Owner-approved roadmap placement:
+### OWNER-LOCKED ROADMAP ORDER
 
-`Finish RP-07 full PASS -> Operator Task V2 runtime rollout/validation -> resume RP-08 / broader roadmap`
+`CURRENT: RP-07 -> IMMEDIATELY NEXT: Operator Task V2 (OT-01 onward) -> THEN: RP-08 / broader roadmap`
+
+This is the current owner-approved mandatory execution order. After RP-07 reaches full PASS, Operator Task V2 is the next production implementation track and must not be skipped in favor of RP-08 unless the owner explicitly changes priority later.
 
 The feature does **not** wait for the entire Cloudflare migration, but runtime activation is blocked until RP-07 is fully closed and a fresh gate proves the required zero-blocker state.
 
@@ -66,7 +69,7 @@ Current prohibited Operator actions:
 - no D1 Task write-authority cutover;
 - no source business mutation as part of preparation.
 
-The next Operator runtime stage is `OT-01 — Runtime install, inert`, but it becomes eligible only after RP-07 is fully closed and requires a separate explicit owner-approved mutation/deployment boundary.
+The next Operator runtime stage is `OT-01 — Runtime install, inert`, and it becomes the immediate next production implementation after RP-07 full closure, under a separate explicit owner-approved runtime boundary.
 
 ---
 
@@ -113,7 +116,7 @@ The next allowed RP-07 action when ChatGPT Work becomes available again is **Run
 
 Only after Phase 0B can a separate explicit owner-approved mutation boundary be considered to disable the active Integrity properties if proven safe. Phase 1 Head installation remains blocked until that state is resolved and re-verified.
 
-A fresh RP-07 gate must eventually prove `OPEN_CORE_P0_BLOCKERS=0` before RP-07 closure. After that closure, Operator Task OT-01 is the owner-prioritized next production insertion before RP-08 unless reprioritized.
+A fresh RP-07 gate must eventually prove `OPEN_CORE_P0_BLOCKERS=0` before RP-07 closure. Immediately after that closure, start Operator Task V2 `OT-01` before RP-08, unless the owner explicitly supersedes the priority-lock record.
 
 ---
 
@@ -173,7 +176,8 @@ The RP-07 code candidate is qualified, but Runtime Phase 0 proves active Integri
 - no business-family activation;
 - no active Integrity property mutation without a separate explicit owner-approved boundary;
 - Operator Task OT-00 may continue GitHub-only preparation but cannot activate runtime before RP-07 closure;
-- RP-08 not started and follows the owner-prioritized Operator Task rollout unless explicitly reprioritized;
+- after RP-07 closure, Operator Task V2 is the immediate next production track before RP-08 unless owner explicitly changes priority;
+- RP-08 not started;
 - Save Timeout/reconcile remains `DEFERRED_BY_OWNER`.
 
 ---
