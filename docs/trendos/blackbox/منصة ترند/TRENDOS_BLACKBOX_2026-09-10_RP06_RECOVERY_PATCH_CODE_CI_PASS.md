@@ -122,7 +122,21 @@ Tests verify:
 - recovered Press Entity Keys are stored as text;
 - a second recovery is refused once the latest mappings are active.
 
-## CI
+## Intermediate CI history
+
+The writer-only intermediate commit `d8acca532b238ee78497c598bd2fb363c0ffe1db` triggered `TrendOS Integrity V1` Run `34467390756` (run number `1564`) and **FAILED** at the existing `Run TrendOS CORE-P0 registry writer tests` step.
+
+Exact failure:
+
+`TypeError: sh.getRange(...).setNumberFormat is not a function`
+
+This was an isolated test-harness mismatch: the recovery writer introduced the real Apps Script `Range.setNumberFormat` call before the FakeRange test double had been extended to implement that API. All earlier steps through CORE-P0 remediation tests passed; later workflow steps were skipped after the test failure.
+
+No production execution or data mutation was associated with this CI failure. The test harness was then updated in commit `7ab1af20cd2b2b73182ca532314fe6da25cd0033` to model `setNumberFormat`, `getDisplayValues`, and the date-coercion behavior itself.
+
+The later exact code+test head is the authoritative gate and passed fully as recorded below. The intermediate failure is preserved as historical evidence and does not supersede the final PASS.
+
+## Final CI
 
 Workflow: `TrendOS Integrity V1`
 
