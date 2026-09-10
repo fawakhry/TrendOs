@@ -4,10 +4,11 @@ Date: 2026-09-10
 
 ## Active RP-07 execution state
 
-Status: **RP-07 CODE CANDIDATE PASS — RUNTIME PHASE 0 PARTIAL — DIRECT APPS SCRIPT INVENTORY BLOCKED — HOLD BEFORE PHASE 1 / RP-08**
+Status: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — HOLD BEFORE PHASE 0B / PHASE 1 / RP-08**
 
 Current records:
 
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_DIRECT_WORK_INVENTORY_FAIL.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_LIVE_INVENTORY_BLOCKED.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
@@ -18,26 +19,28 @@ Current facts:
 - RP-06 remains COMPLETE; Registry latest exact 33 mappings remain active and final Registry data-row count remains 99.
 - RP-07 prevention/containment code is qualified at candidate checkpoint `2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb`.
 - Final candidate composition evidence remains green: RP-07 Remediation Containment CI Run `34490458581` SUCCESS and normal Integrity CI Run `34490458493` SUCCESS.
-- Candidate protections cover Attendance/Cleaning serialization, guarded V1932-to-Integrity routing, Press exact-Line session completion, and prevention of new/renewed Invoice Draft preparation for delivered/closed orders.
-- Runtime Phase 0 was started read-only after explicit owner approval.
-- The connected Google Drive/Sheets surface resolves the active operations workbook and exposes the expected production tabs plus `سكريبت Apps Script` with 8237 rows.
-- Native Apps Script project inventory is **not exposed** through the current Drive connector: searches for MIME type `application/vnd.google-apps.script` returned zero accessible files.
-- The workbook tab `سكريبت Apps Script` is not accepted as live Apps Script Head authority. It contains an older stored `trendosV1932TryRoute_` definition but contains no `TRENDOS_INTEGRITY_V1_ENABLED`, no `trendosCoreP0RegistryRecoveryWriteV1`, and no current RP-06 Recovery Writer version marker, despite the already verified live RP-06 Recovery execution.
-- Therefore exact live file ownership, duplicate-symbol collision checks, current Integrity Script Property states, and Apps Script deployment/version inventory remain unproven.
-- Phase 1 Head installation is fail-closed BLOCKED until direct Apps Script project evidence becomes available.
+- Direct ChatGPT Work read-only inspection found the actual live Apps Script project and exact file list.
+- `trendosV1932TryRoute_` has one live definition owned by `Code.gs` at line 11868.
+- No duplicate RP-07/Integrity definitions were reported in current Head.
+- Current Script Properties are **not all OFF**: `TRENDOS_INTEGRITY_V1_ENABLED=true` and `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=true`; all business-family flags reported false.
+- Live router version reported `TRENDOS_INTEGRITY_ROUTER_V1_20260830`.
+- Existing live Router/Press/Invoice blobs do not match the RP-07 candidate blobs.
+- Live blobs reported: Router `3d747b99bb06e4865b9936de2a2d42104b3deccc`; Press `99857aacc757e9e80589ba5bcab310d8330e6391`; Invoice `08128d35fcc0ac1876a8790564cf7377f8869c47`.
+- RP-07 containment functions `trendosRp07LegacyAttendanceV1_`, `trendosRp07LegacyAttendanceClockinV1_`, and `trendosRp07LegacyCleaningV1_` are absent from live Head.
+- Standalone `v1932-router.gs` installation is prohibited because it would duplicate the current `trendosV1932TryRoute_` in `Code.gs`.
+- Deployment/version inventory was not inspected because the Work run stopped immediately on the active-flag mismatch per fail-closed instruction.
 - The existing live P0 data blockers remain unresolved: post-baseline Attendance duplicates, post-baseline Cleaning duplicates, closed/delivered Orders `3839` and `3841` with surviving invoice Drafts, and Press line `3796-01` without acceptable exact-Line session evidence.
-- `Code.gs` remains untouched.
-- No Apps Script Head change, Production deploy, feature-flag change, Script Property mutation, Source Sheet business-data mutation, Health sheet rewrite, Registry mutation, D1 mutation, main merge, or RP-08 execution occurred in Runtime Phase 0.
+- No Apps Script Head change, Production deploy, feature-flag change, Script Property mutation, Source Sheet business-data mutation, Health sheet rewrite, Registry mutation, D1 mutation, main merge, or RP-08 execution occurred.
 
 Owner rule effective 2026-09-10 remains active: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
 
 ### Current RP-07 safety boundary
 
-**RP-07 HOLD. STOP BEFORE PHASE 1 HEAD INSTALL. RP-08 PROHIBITED.**
+**RP-07 HOLD. PHASE 1 PROHIBITED. RP-08 PROHIBITED.**
 
-The next allowed action is read-only acquisition of the actual Apps Script project evidence required by `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`: exact live file list, single owning definition of `trendosV1932TryRoute_`, collision inventory, Integrity master/family Script Property states, and deployment/version state.
+The next allowed action is **Runtime Phase 0B READ ONLY** to complete deployment/version inventory and prove the exact runtime impact of `master=true` + `HEALTH=true`. Do not change either property during Phase 0B.
 
-Do not use the workbook `سكريبت Apps Script` tab as a byte-exact source of truth and do not blindly add standalone `v1932-router.gs`.
+Only after Phase 0B can a separate explicit owner-approved mutation boundary be considered to disable the active Integrity properties if proven safe. Phase 1 Head installation remains blocked until that state is resolved and re-verified.
 
 A fresh RP-07 gate must eventually prove `OPEN_CORE_P0_BLOCKERS=0` before Core GO or RP-08.
 
@@ -66,7 +69,7 @@ RP-06 must not be rerun merely because RP-07 found new post-baseline operational
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — RP-07 CODE CANDIDATE PASS — CORE GO/NO-GO HOLD ON LIVE P0 + RUNTIME PHASE0 BLOCKER**
+Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — RP-07 CODE CANDIDATE PASS — CORE GO/NO-GO HOLD ON LIVE P0 + RUNTIME PHASE0 STATE MISMATCH**
 
 Retained evidence:
 
@@ -83,7 +86,7 @@ Retained evidence:
 
 **HOLD.**
 
-The code candidate is qualified but runtime installation is not permitted until Phase 0 can inspect the actual Apps Script project. Existing live P0 data failures also remain unresolved. Both runtime rollout evidence and a fresh zero-blocker health result are required before Core GO or RP-08.
+The code candidate is qualified, but Runtime Phase 0 now proves active Integrity property state and live candidate/blob mismatches that must be resolved before installation. Existing live P0 data failures also remain unresolved.
 
 ### Safety boundary
 
@@ -96,7 +99,8 @@ The code candidate is qualified but runtime installation is not permitted until 
 - `__DEBT__` remains Apps Script;
 - 02CL/reconcile OFF;
 - generic drain OFF;
-- all business-family flags remain OFF;
+- no business-family activation;
+- no active Integrity property mutation without a separate explicit owner-approved boundary;
 - RP-08 not started;
 - Save Timeout/reconcile remains `DEFERRED_BY_OWNER`.
 
