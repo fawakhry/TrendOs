@@ -9,6 +9,7 @@ const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'..');
 const backend=fs.readFileSync(path.join(root,'operator-task-workflow-v2.gs'),'utf8');
 const frontend=fs.readFileSync(path.join(root,'operator-task-workflow-v2.js'),'utf8');
+const router=fs.readFileSync(path.join(root,'v1932-router.gs'),'utf8');
 
 function pure(){
   const ctx={console,Date,JSON,Math,Number,String,Object,Array,isFinite,isNaN,PropertiesService:{getScriptProperties(){return {getProperty(){return ''}}}},Utilities:{formatDate(d){return new Date(d).toISOString()}}};
@@ -16,6 +17,12 @@ function pure(){
   vm.runInContext(backend+`\nglobalThis.__ot={otUrgentRankV2_,otDueMsV2_,otCompareOrderV2_,otSortCandidatesV2_,otIsFlyV2_,otIsPressV2_,otNormalCandidateBaseV2_,otFinalStatusV2_};`,ctx);
   return ctx.__ot;
 }
+
+test('v1932 exposes Operator Task V2 as an isolated action',()=>{
+  assert.match(router,/action === 'operatorTaskV2'/);
+  assert.match(router,/typeof operatorTaskV2_ === 'function'/);
+  assert.match(router,/Operator Task V2 backend غير منشور/);
+});
 
 test('candidate is inert behind dedicated backend and frontend flags',()=>{
   assert.match(backend,/TRENDOS_OPERATOR_TASK_V2_ENABLED/);
