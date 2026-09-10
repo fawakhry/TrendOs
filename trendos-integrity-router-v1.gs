@@ -1,5 +1,5 @@
 /** TrendOS Integrity Router V1 — prepared only. Wire with guarded calls; do not deploy blindly. */
-const TRENDOS_INTEGRITY_ROUTER_VERSION_V1='TRENDOS_INTEGRITY_ROUTER_V1_20260830';
+const TRENDOS_INTEGRITY_ROUTER_VERSION_V1='TRENDOS_INTEGRITY_ROUTER_V1_20260910_RP07';
 const TRENDOS_INTEGRITY_ENABLED_PROP_V1='TRENDOS_INTEGRITY_V1_ENABLED';
 const TRENDOS_INTEGRITY_FAMILY_PROPS_V1={
   HEALTH:'TRENDOS_INTEGRITY_V1_HEALTH_ENABLED',
@@ -29,7 +29,7 @@ function trendosIntegrityDependencyHealthV1_(){
   const required=[
     'trendosNormalizeOrderId_','trendosNormalizeLineId_','trendosLineIdFromSheetCellV1_','trendosIntegrityResolutionV1_','trendosWithLock_','trendosIdempotencyClaim_','trendosAutomationRunStart_',
     'trendosCustomerDraftAddItemV1_','trendosCustomerDraftUploadFileV1_','trendosCustomerDraftSubmitV1_','trendosUpdateLineV1_',
-    'trendosAttendanceV1_','trendosCleaningV1_','trendosPressControlV1_','trendosGoLiveAutopilotV1_',
+    'trendosAttendanceV1_','trendosAttendanceClockinV1_','trendosCleaningV1_','trendosPressControlV1_','trendosGoLiveAutopilotV1_',
     'trendosCustomerManagerV1_','trendosWhatsAppWebhookV1_','trendosCreateHandoverV1_','trendosReceiveHandoverV1_',
     'trendosSaveOpsReplyV1_','trendosCreateOpsCoachV1_','trendosRunTrendMasterAutomationSafeV1_',
     'trendosSaveAndonV1_','trendosResolveOpsEventV1_','trendosIntegrityDashboardV1_'
@@ -51,13 +51,19 @@ function trendosIntegrityRouteTableV1_(e){return{
   trendosIntegrityHealthV1:{family:'HEALTH',fn:function(){return trendosIntegrityDependencyHealthV1_();}},
   trendosIntegrityDashboardV1:{family:'HEALTH',fn:function(){return trendosIntegrityDashboardV1_(e);}},
   trendosUpdateLineV1:{family:'ORDER_LINE',fn:function(){return trendosUpdateLineV1_(e);}},
+  updateLine:{family:'ORDER_LINE',fn:function(){return trendosUpdateLineV1_(e);}},
   trendosCustomerDraftAddItemV1:{family:'ORDER_LINE',fn:function(){return trendosCustomerDraftAddItemV1_(e);}},
   trendosCustomerDraftUploadFileV1:{family:'ORDER_LINE',fn:function(){return trendosCustomerDraftUploadFileV1_(trendosRouterParamsV1_(e));}},
   trendosCustomerDraftSubmitV1:{family:'ORDER_LINE',fn:function(){return trendosCustomerDraftSubmitV1_(e);}},
   trendosAttendanceV1:{family:'ATTENDANCE_CLEANING',fn:function(){return trendosAttendanceV1_(e);}},
+  attendanceV1:{family:'ATTENDANCE_CLEANING',fn:function(){return trendosAttendanceV1_(e);}},
+  attendanceClockinV1:{family:'ATTENDANCE_CLEANING',fn:function(){return trendosAttendanceClockinV1_(e);}},
   trendosCleaningV1:{family:'ATTENDANCE_CLEANING',fn:function(){return trendosCleaningV1_(e);}},
+  cleaningV1:{family:'ATTENDANCE_CLEANING',fn:function(){return trendosCleaningV1_(e);}},
   trendosPressControlV1:{family:'PRESS',fn:function(){return trendosPressControlV1_(e);}},
+  pressControlV1:{family:'PRESS',fn:function(){return trendosPressControlV1_(e);}},
   trendosGoLiveAutopilotV1:{family:'INVOICE',fn:function(){return trendosGoLiveAutopilotV1_(e);}},
+  goLiveAutopilotV1:{family:'INVOICE',fn:function(){return trendosGoLiveAutopilotV1_(e);}},
   trendosCustomerManagerV1:{family:'WHATSAPP',fn:function(){return trendosCustomerManagerV1_(e);}},
   trendosCreateHandoverV1:{family:'OPS',fn:function(){return trendosRouterCreateHandoverV1_(e);}},
   trendosReceiveHandoverV1:{family:'OPS',fn:function(){return trendosRouterReceiveHandoverV1_(e);}},
