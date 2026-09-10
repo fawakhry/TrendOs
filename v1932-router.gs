@@ -1,10 +1,12 @@
 // TrendOS V1932 route adapter.
 // Wire trendosV1932TryRoute_(e,payload) at the top of doGet/doPost before older routers.
+// RP-07: when Integrity is installed, this adapter is also the guarded cutover bridge.
 function trendosV1932TryRoute_(e, payload) {
   e = e || { parameter:{} };
   const p = e.parameter || {};
   const action = String((payload && payload.action) || p.action || '').trim();
   const callback = String(p.callback || '').trim();
+  const event={ parameter:Object.assign({}, p, payload || {}) };
 
   if (!action && String(p['hub.mode'] || '') === 'subscribe') {
     if (typeof customerManagerWebhookVerifyV1_ === 'function') return customerManagerWebhookVerifyV1_(e);
@@ -12,9 +14,18 @@ function trendosV1932TryRoute_(e, payload) {
   }
 
   if (payload && String(payload.object || '') === 'whatsapp_business_account') {
+    if (typeof trendosIntegrityTryWebhookV1_ === 'function') {
+      const integrityWebhook=trendosIntegrityTryWebhookV1_(payload);
+      if (integrityWebhook && integrityWebhook.handled) return output_(integrityWebhook.result, callback);
+    }
     try { if (typeof customerFeedbackWebhookV1_ === 'function') customerFeedbackWebhookV1_(payload); } catch (feedbackErr) {}
     if (typeof customerManagerWebhookV1_ === 'function') return output_(customerManagerWebhookV1_(payload), callback);
     return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
+  }
+
+  if (action && typeof trendosIntegrityTryRouteV1_ === 'function') {
+    const integrityRoute=trendosIntegrityTryRouteV1_(action,event);
+    if (integrityRoute && integrityRoute.handled) return output_(integrityRoute.result, callback);
   }
 
   if (action === 'ensureDemoCustomer') {
@@ -22,58 +33,55 @@ function trendosV1932TryRoute_(e, payload) {
   }
 
   if (action === 'getTrendMasterPanelV1931') {
-    if (typeof trendMasterPanelReadV1931_ === 'function') return output_(trendMasterPanelReadV1931_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof trendMasterPanelReadV1931_ === 'function') return output_(trendMasterPanelReadV1931_(event), callback);
     return output_({ success:false, message:'Trend Master panel backend غير منشور.' }, callback);
   }
 
   if (action === 'attendanceV1') {
-    const event={ parameter:Object.assign({}, p, payload || {}) };
     if (typeof trendosRp07LegacyAttendanceV1_ === 'function') return output_(trendosRp07LegacyAttendanceV1_(event), callback);
     if (typeof attendanceV1_ === 'function') return output_(attendanceV1_(event), callback);
     return null;
   }
 
   if (action === 'attendanceClockinV1') {
-    const event={ parameter:Object.assign({}, p, payload || {}) };
     if (typeof trendosRp07LegacyAttendanceClockinV1_ === 'function') return output_(trendosRp07LegacyAttendanceClockinV1_(event), callback);
     if (typeof attendanceClockinV1_ === 'function') return output_(attendanceClockinV1_(event), callback);
     return output_({ success:false, message:'Clock-in backend غير منشور.' }, callback);
   }
 
   if (action === 'customerManagerV1') {
-    if (typeof customerManagerV1_ === 'function') return output_(customerManagerV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof customerManagerV1_ === 'function') return output_(customerManagerV1_(event), callback);
     return output_({ success:false, message:'Customer Manager backend غير منشور.' }, callback);
   }
 
   if (action === 'customerFeedbackV1') {
-    if (typeof customerFeedbackV1_ === 'function') return output_(customerFeedbackV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof customerFeedbackV1_ === 'function') return output_(customerFeedbackV1_(event), callback);
     return output_({ success:false, message:'Customer Feedback backend غير منشور.' }, callback);
   }
 
   if (action === 'hrV1') {
-    if (typeof hrV1_ === 'function') return output_(hrV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof hrV1_ === 'function') return output_(hrV1_(event), callback);
     return output_({ success:false, message:'HR backend غير منشور.' }, callback);
   }
 
   if (action === 'cleaningV1') {
-    const event={ parameter:Object.assign({}, p, payload || {}) };
     if (typeof trendosRp07LegacyCleaningV1_ === 'function') return output_(trendosRp07LegacyCleaningV1_(event), callback);
     if (typeof cleaningV1_ === 'function') return output_(cleaningV1_(event), callback);
     return output_({ success:false, message:'Cleaning backend غير منشور.' }, callback);
   }
 
   if (action === 'workQueueV1') {
-    if (typeof workQueueV1_ === 'function') return output_(workQueueV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof workQueueV1_ === 'function') return output_(workQueueV1_(event), callback);
     return output_({ success:false, message:'Work Queue backend غير منشور.' }, callback);
   }
 
   if (action === 'pressControlV1') {
-    if (typeof pressControlV1_ === 'function') return output_(pressControlV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof pressControlV1_ === 'function') return output_(pressControlV1_(event), callback);
     return output_({ success:false, message:'Press Control backend غير منشور.' }, callback);
   }
 
   if (action === 'goLiveAutopilotV1') {
-    if (typeof goLiveAutopilotV1_ === 'function') return output_(goLiveAutopilotV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    if (typeof goLiveAutopilotV1_ === 'function') return output_(goLiveAutopilotV1_(event), callback);
     return output_({ success:false, message:'Go-Live Autopilot backend غير منشور.' }, callback);
   }
 
