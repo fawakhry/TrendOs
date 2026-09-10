@@ -12,6 +12,7 @@ on:
       - 'trendos-invoice-integrity-v1.gs'
       - 'press-control-v1.js'
       - 'tests/rp07_legacy_attendance_cleaning_containment_v1.test.mjs'
+      - 'tests/rp07_v1932_integrity_bridge_v1.test.mjs'
       - 'tests/rp07_press_frontend_exact_line_v1.test.mjs'
       - 'tests/trendos_integrity_router_v1.test.js'
       - 'tests/trendos_press_integrity_v1.test.js'
@@ -33,6 +34,8 @@ jobs:
           node-version: '22'
       - name: Verify RP-07 legacy containment contract
         run: node tests/rp07_legacy_attendance_cleaning_containment_v1.test.mjs
+      - name: Verify V1932 guarded Integrity cutover bridge
+        run: node tests/rp07_v1932_integrity_bridge_v1.test.mjs
       - name: Verify guarded Integrity legacy aliases
         run: node tests/trendos_integrity_router_v1.test.js .
       - name: Verify Press backend exact-Line contract
@@ -51,4 +54,5 @@ jobs:
           ! grep -q "ScriptApp.newDeployment" trendos-rp07-legacy-containment-v1.gs
           ! grep -q "setProperty(" trendos-press-integrity-v1.gs
           ! grep -q "setProperty(" trendos-invoice-integrity-v1.gs
+          ! grep -q "setProperty(" v1932-router.gs
           echo "RP-07 candidate is GitHub-only and contains no activation/deletion primitive."
