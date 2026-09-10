@@ -2,38 +2,55 @@
 
 Date: 2026-09-10
 
-## Active RP-06 execution state
+## Active RP-07 execution state
 
-Status: **RP-06 RECOVERY COMPLETE — REGISTRY LATEST EXACT 33 MAPPINGS ACTIVE — READY FOR RP-07**
+Status: **RP-07 STARTED — LIVE POST-RP06 DATA PROVES NEW P0 BLOCKERS — FAIL-CLOSED HOLD BEFORE RP-08**
 
 Current record:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_LIVE_FAIL.md`
 
 Current facts:
 
-- Apps Script Head `trendos-core-p0-registry-writer-v1.gs` exactly matches Git blob `81e994945af7fefdd38538a7ca569e73483f3d24`.
-- RP-06 declarations are isolated to the main writer; the approval helper is restored to comment-only.
-- Normal Preview33 passed: `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`.
-- Recovery Preview33 passed: `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `recoverableCount=33`, `errors=[]`.
-- Normal plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
-- Recovery hash: `ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82`.
-- Pre-write Registry state was exactly 66 data rows: 33 active historical + 33 writer AUTO_ROLLBACK inactive.
-- A separately owner-authorized one-purpose setter set only `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1`, executed once, and was removed before Recovery Write.
-- `trendosCoreP0RegistryRecoveryWriteV1` executed exactly once and completed successfully.
-- Recovery result: `recovered=33`, `totalRegistryRows=99`, `sourceSheetsMutated=false`.
-- Latest exact mappings: 33 active, zero inactive.
-- All required numeric-looking Press Entity Keys were read back from latest rows as actual strings.
-- New `AUTO_ROLLBACK_RECOVERY`: zero.
-- No normal Registry Write, manual rollback, Deploy, flag change, Source Sheet mutation, D1 write, `Code.gs` modification, main merge, or RP-07 execution occurred.
+- RP-06 remains COMPLETE; Registry latest exact 33 mappings remain active and final Registry data-row count remains 99.
+- The stored `إدارة - صحة النظام` tab is still a stale 2026-09-01 snapshot and was not accepted as the RP-07 result.
+- A bounded read-only live inspection of the current production sources against the exact current HEALTH/remediation contract proves that RP-07 cannot PASS in the current live state.
+- New unacknowledged Attendance duplicate employee/day groups exist after the approved August baseline: 9 confirmed groups with minimum unresolved excess `10`.
+- New unacknowledged Cleaning duplicate employee/day groups exist after the approved baseline: 12 confirmed groups with minimum unresolved excess `30`.
+- `CLOSED_ORDERS_WITH_DRAFT` is confirmed non-zero: Orders `3839` and `3841` each have all current line rows `تم التسليم` while an invoice Draft still exists.
+- Press line `3796-01` is `تم التسليم` with `مكبس حراري=نعم`, has no Registry mapping, and the workbook has no `تشغيل - بنود جلسات المكبس V1` sheet used by the current HEALTH session-line helper; therefore `PRESS_COMPLETED_WITHOUT_SESSION` is confirmed non-zero under the current contract.
+- A raw/display scan of `بنود الأوردرات!F2:F509` confirms legacy numeric-looking Line IDs still present as numeric effective values with valid display identifiers; the current remediation adapter is designed for this exact shape, so the old stored `INVALID_LINE_IDS=229` snapshot is obsolete and is not the new blocker.
+- No fresh Apps Script HEALTH refresh was invoked because this chat has no direct Apps Script execution connector; the live inputs are already sufficient to prove the fail-closed result.
+- No Source Sheet business-data mutation, Health sheet rewrite, Registry mutation, D1 mutation, flag change, Apps Script Production deploy, `Code.gs` mutation, main merge, or RP-08 execution occurred.
 
 Owner rule effective 2026-09-10 remains active: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
 
-### Current RP-06 safety boundary
+### Current RP-07 safety boundary
 
-**RP-06 CLOSED. STOP BEFORE RP-07.**
+**RP-07 HOLD. STOP BEFORE REMEDIATION OR RP-08.**
 
-RP-07 requires its own bounded checkpoint and authorization.
+The next step is not business-family activation. A separate bounded remediation decision is required for the newly generated live integrity failures. RP-08 remains prohibited until a subsequent fresh RP-07 gate proves `OPEN_CORE_P0_BLOCKERS=0`.
+
+---
+
+## RP-06 — CLOSED
+
+Status: **RP-06 RECOVERY COMPLETE — REGISTRY LATEST EXACT 33 MAPPINGS ACTIVE**
+
+Final record:
+
+`TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
+
+- Apps Script Head writer exact blob: `81e994945af7fefdd38538a7ca569e73483f3d24`.
+- Normal Preview33: PASS.
+- Recovery Preview33: PASS.
+- Recovery Write: PASS exactly once.
+- Recovery result: `recovered=33`, `totalRegistryRows=99`, `sourceSheetsMutated=false`.
+- Latest exact mappings: 33 active / 0 inactive.
+- Required Press Entity Keys stored as real text strings.
+- New `AUTO_ROLLBACK_RECOVERY`: zero.
+
+RP-06 must not be rerun merely because RP-07 found new post-baseline operational failures.
 
 ---
 
@@ -41,7 +58,7 @@ RP-07 requires its own bounded checkpoint and authorization.
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 RECOVERY COMPLETE — READY FOR RP-07**
+Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — CORE GO/NO-GO HOLD ON RP-07 LIVE P0 BLOCKERS**
 
 ### Regression Pack
 
@@ -73,14 +90,14 @@ Qualified live checks included:
 
 ### Core GO/NO-GO
 
-**READY FOR RP-07 GATE**
+**HOLD ON RP-07 LIVE P0 BLOCKERS**
 
-The E2E blocker and RP-06 Registry Recovery blocker are cleared. The production Registry now has the latest exact 33 mappings active after the approved recovery. RP-07 has not started and requires a separate bounded checkpoint.
+The E2E blocker and RP-06 Registry Recovery blocker are cleared. RP-07 has now started and failed closed because current production source data contains new post-baseline integrity failures. These must be remediated and RP-07 rerun successfully before Core GO or RP-08.
 
 ### Safety boundary
 
 - no Apps Script Production deploy;
-- no direct Registry mutation or normal writer retry;
+- no Registry mutation or normal/recovery writer retry;
 - no D1 business-data write/migration;
 - no `EDGE_SESSION_SECRET` rotation/change;
 - Orders writes remain Apps Script / Sheets;
@@ -89,9 +106,8 @@ The E2E blocker and RP-06 Registry Recovery blocker are cleared. The production 
 - 02CL/reconcile OFF;
 - generic drain OFF;
 - no ORDER_LINE or other business-family activation;
+- RP-08 not started;
 - Save Timeout/reconcile deferred item remains `DEFERRED_BY_OWNER`.
-
-Record: `TRENDOS_BLACKBOX_2026-09-07_CORE_P0_11_REGRESSION_E2E_GO_NOGO.md`
 
 ---
 
