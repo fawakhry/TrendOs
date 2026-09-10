@@ -5,7 +5,7 @@
  * Contracts:
  * - one canonical Draft row per Order ID; duplicates fail closed.
  * - Ready Sweep is line-driven and requires all active non-cancelled lines to be ready.
- * - delivered/closed orders do not re-enter Ready Sweep.
+ * - delivered/closed orders do not re-enter Ready Sweep or direct prepare.
  * - an active final invoice prevents a new draft.
  * - a reopened final invoice creates a new deterministic revision.
  * - finalize request key is persisted before the legacy final writer runs.
@@ -13,7 +13,7 @@
  * - no nested ScriptLock around saveAccountingFinalInvoice_ (it owns its own lock).
  * - WhatsApp send enters NOTIFYING before network I/O; ambiguous retry does not auto-resend.
  */
-const TRENDOS_INVOICE_INTEGRITY_VERSION_V1='TRENDOS_INVOICE_INTEGRITY_V1_20260830';
+const TRENDOS_INVOICE_INTEGRITY_VERSION_V1='TRENDOS_INVOICE_INTEGRITY_V1_20260910_RP07';
 const TRENDOS_INVOICE_DRAFT_SHEET_V1='حسابات - مسودات الفواتير';
 const TRENDOS_INVOICE_FINAL_SHEET_V1='حسابات - الفواتير النهائية';
 const TRENDOS_INVOICE_LINES_SHEET_V1='بنود الأوردرات';
@@ -160,6 +160,28 @@ function trendosInvoiceMaterialSignatureV1_(calc){
   return typeof trendosSha256HexV1_==='function'?trendosSha256HexV1_(raw):raw;
 }
 function trendosInvoiceRequestKeyV1_(orderId,revision){orderId=trendosNormalizeOrderId_(orderId);revision=Math.max(1,Math.floor(Number(revision||1)));return'TRENDOS-GLA-FINAL|'+orderId+'|R'+revision;}
+function trendosInvoiceClosedContextStatusV1_(status){
+  const s=trendosInvoiceNormV1_(status);
+  return s.indexOf('تم التسليم')!==-1||s.indexOf('delivered')!==-1||s==='مغلق'||s.indexOf('closed')!==-1;
+}
+function trendosInvoiceOrderLifecycleV1_(orderId){
+  orderId=trendosNormalizeOrderId_(orderId);
+  const ss=typeof trendosSpreadsheetV1_==='function'?trendosSpreadsheetV1_():ss_(),sh=ss.getSheetByName(typeof SHEET_NAME_LINES!=='undefined'?SHEET_NAME_LINES:TRENDOS_INVOICE_LINES_SHEET_V1);
+  const out={orderId:orderId,matched:0,active:0,delivered:0,hasDelivered:false,closed:false,statuses:[]};
+  if(!orderId||!sh||sh.getLastRow()<2)return out;
+  const h=trendosInvoiceHeaderMap0V1_(sh),vals=sh.getRange(2,1,sh.getLastRow()-1,sh.getLastColumn()).getValues();
+  vals.forEach(function(r){
+    let raw='';['رقم الأوردر','كود الأوردر','Order ID','orderId'].some(function(k){if(h[k]!==undefined&&trendosInvoiceTxtV1_(r[h[k]])){raw=r[h[k]];return true;}return false;});
+    if(trendosNormalizeOrderId_(raw)!==orderId)return;
+    out.matched++;
+    let st='';['الحالة','Status','status'].some(function(k){if(h[k]!==undefined){st=trendosInvoiceTxtV1_(r[h[k]]);return true;}return false;});
+    const ns=trendosInvoiceNormV1_(st);if(ns==='مكرر'||ns.indexOf('ملغ')!==-1)return;
+    out.active++;out.statuses.push(st);
+    if(ns.indexOf('تم التسليم')!==-1||ns.indexOf('delivered')!==-1){out.delivered++;out.hasDelivered=true;}
+  });
+  out.closed=out.active>0&&out.delivered===out.active;
+  return out;
+}
 
 function trendosInvoiceReadyOrderIdsV1_(limit){
   const ss=typeof trendosSpreadsheetV1_==='function'?trendosSpreadsheetV1_():ss_(),sh=ss.getSheetByName(typeof SHEET_NAME_LINES!=='undefined'?SHEET_NAME_LINES:TRENDOS_INVOICE_LINES_SHEET_V1);
@@ -195,6 +217,10 @@ function trendosInvoicePrepareUnlockedV1_(orderId,auth,note){
     return{success:true,skippedFinalized:true,alreadyFinalized:true,orderId:orderId,invoiceNo:f.invoiceNo,finalStatus:f.status};
   }
   const ctx=typeof glaOrderContext_==='function'?glaOrderContext_(orderId):{orderId:orderId,customerName:'',phone:'',status:'',paidSuggested:0};
+  const lifecycle=trendosInvoiceOrderLifecycleV1_(orderId);
+  if(trendosInvoiceClosedContextStatusV1_(ctx.status)||lifecycle.hasDelivered){
+    return{success:false,integrityError:true,closedOrder:true,orderId:orderId,orderStatus:trendosInvoiceTxtV1_(ctx.status),lifecycle:lifecycle,existingDraft:resolved.row?trendosInvoiceDraftObjectV1_(resolved.row):null,message:'الأوردر تم تسليمه أو يحتوي بندًا مسلّمًا؛ تم منع إنشاء/تجديد Draft بعد التسليم.'};
+  }
   const calc=typeof glaDeptLines_==='function'?glaDeptLines_(orderId):{eligible:[],blockers:['محرك بنود الأقسام غير متاح'],subtotal:0};
   const sig=trendosInvoiceMaterialSignatureV1_(calc);
   if(!resolved.row){
