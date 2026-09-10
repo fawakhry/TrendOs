@@ -4,29 +4,25 @@
 
 ## Active RP-06 execution checkpoint — 2026-09-10
 
-الحالة: **RP-06 HOLD — READY FOR SINGLE 33-SPEC PATCH — NO REGISTRY WRITE AUTHORIZED**
+الحالة: **PATCH33 CODE + CI PASS — EXACT 33-SPEC PLAN LOCKED — APPS SCRIPT READ-ONLY PREVIEW PENDING SEPARATE APPROVAL**
 
 السجل الحالي:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_LIVE_INVOICE_RESOLUTION_READY_PATCH.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_PATCH33_CODE_CI_PASS.md`
 
 Current facts:
 
-- runtime preview previously failed read-only only on stale historical Invoice specs `3569`, `3572`, `3577`;
-- `3536-01` is no longer an active preview blocker;
-- decision remains `RETIRE_3_INVOICE_SPECS` for `3569`, `3572`, `3577`;
-- old 34-row plan/hash/write approval is invalidated and MUST NOT be executed;
-- current live duplicate Invoice groups are `3849` and `3851` only;
-- read-only resolution gate found both are true duplicate/replacement pairs and both are `SAFE_TO_SUPERSEDE`;
-- candidate canonical for `3849`: `DR-78d925aa`, superseded `DR-2c398d17`, evidence hash `2f95a7e69be9577d2958e25742fbf3674922e6e46de9737bdeeb3602a65d38b7`;
-- candidate canonical for `3851`: `DR-be3e37a2`, superseded `DR-6b61be62`, evidence hash `1eca1a5e8461b05620ef2c6ab30f5e43d68b0acfb21b4b02ef7299b6320fabda`;
-- aggregate decision: `READY_FOR_SINGLE_RP06_PATCH`;
-- candidate plan shape: 6 Attendance + 11 Cleaning + 2 Invoice + 14 Press = `33` specs;
-- a new plan hash is required after the exact patch is built and tested;
-- next boundary: one bounded working-branch code/test/docs patch, then CI, then new read-only Apps Script Preview; stop before any Registry Write;
-- no Registry Write/Deploy/flag/source-data/D1 mutation is authorized by this checkpoint.
-
-Operational note: the Wael/Gaber task-queue snapshot is retained for later display; do not re-run its full analysis unless current/latest state is requested.
+- owner approved GitHub-only `Patch33`;
+- Patch33 commit: `fb9ca056b7adc6b289496f6a1956623631d1874c`;
+- writer blob: `76cb144230cd53832e000b58ab8cfa2625dd521f`;
+- expectedCount: `33`;
+- exact plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
+- historical Invoice specs `3569`, `3572`, `3577` are retired from the executable plan;
+- current Invoice resolutions are `3849` and `3851`, both `SAFE_TO_SUPERSEDE` from the prior read-only gate;
+- `TrendOS Integrity V1` Run `34420601351` — SUCCESS;
+- old 34-row plan/hash/write approval remains invalid and MUST NOT be executed;
+- no Apps Script Head mutation, Registry Write, Script Property, Deploy, flag, source-data, or D1 mutation occurred in Patch33;
+- next bounded action requires separate owner approval: install exact tested writer blob into Apps Script Head and run only `trendosCoreP0RegistryPreviewV1` READ ONLY, requiring `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`, then STOP.
 
 Owner recording rule from 2026-09-10: **any material execution, gate result, decision, blocker, mutation, or explicit no-mutation stop must be recorded in this blackbox before continuing.**
 
@@ -54,7 +50,7 @@ Evidence:
 - `__DEBT__` => 409 / Apps Script fallback PASS؛
 - Sheets authoritative=true؛ cutover=false؛ reconcile OFF؛ generic drain OFF؛
 - no Production write/deploy/flag change occurred؛
-- Core GO remains HOLD because RP-06/RP-07 remain separately approval-gated.
+- Core GO remains HOLD because RP-06/RP-07 remain separately approval-gated. RP-06 Patch33 code/CI is now PASS, but the required live Apps Script read-only preview for the exact 33-spec Head has not run yet.
 
 ---
 
