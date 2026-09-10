@@ -15,7 +15,7 @@
 const TRENDOS_CORE_P0_REGISTRY_WRITER_VERSION_V1='TRENDOS_CORE_P0_REGISTRY_WRITER_V1_20260901';
 const TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1='TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_V1';
 const TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1='TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_V1';
-const TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1=34;
+const TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1=33;
 
 function trendosCoreP0RegistrySpecsV1_(){return[
   {metricId:'DUPLICATE_ATTENDANCE_SESSIONS',entityKey:'جابر|2026-08-31',canonicalId:'AT-20260831-جابر-98f40226',supersededId:'AT-20260831-جابر-36fed31c',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact historical attendance duplicate resolution',evidenceHash:'5cfb0d17d26cedb5ed66b85619d2058e1823459fa0b54d5a7537dee4bc9d1050',sourceCount:2},
@@ -37,9 +37,8 @@ function trendosCoreP0RegistrySpecsV1_(){return[
   {metricId:'DUPLICATE_CLEANING_RECORDS',entityKey:'وائل|2026-08-27',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_DUPLICATE',reason:'Exact completed no-problem Cleaning baseline',evidenceHash:'03e0f3b719f949ec168e78a4a23a53f5ce9e42b1087193270b6996bdc82f57c7',sourceCount:2},
   {metricId:'DUPLICATE_CLEANING_RECORDS',entityKey:'وائل|2026-08-30',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_DUPLICATE',reason:'Exact completed no-problem Cleaning baseline',evidenceHash:'77d1107fe0ff056cf72804d56a207d701424a814b4d57fbdc4c0d45a4c0e1bbd',sourceCount:2},
 
-  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3569',canonicalId:'DR-19c18636',supersededId:'DR-55d94661',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'06afbe9d9646aa151ce7f8c9bc6b1da57d4d0aafc5635784fed7c622de215023',sourceCount:2,canonicalSourceRow:21,supersededSourceRow:20},
-  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3572',canonicalId:'DR-69e8cb63',supersededId:'DR-fe3c766a',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'d496b057f5843f87b2c32cee86d53016e14a170706325820fdf0eb759d1c19d2',sourceCount:2,canonicalSourceRow:19,supersededSourceRow:18},
-  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3577',canonicalId:'DR-3466cb0d',supersededId:'DR-ceed6b65',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession',evidenceHash:'d0913e2a85a73b2b391a2d2f04789f78d4b4b26412e9adeefe195c75297a3d77',sourceCount:2,canonicalSourceRow:17,supersededSourceRow:16},
+  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3849',canonicalId:'DR-78d925aa',supersededId:'DR-2c398d17',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession; later-created and later-refreshed replacement carries current delivered Order state',evidenceHash:'2f95a7e69be9577d2958e25742fbf3674922e6e46de9737bdeeb3602a65d38b7',sourceCount:2,canonicalSourceRow:7,supersededSourceRow:6},
+  {metricId:'DUPLICATE_INVOICE_DRAFTS',entityKey:'3851',canonicalId:'DR-be3e37a2',supersededId:'DR-6b61be62',classification:'SUPERSEDED_LEGACY_DUPLICATE',reason:'Exact zero-value unsent Draft supersession; later-created and later-refreshed Ready Sweep replacement',evidenceHash:'1eca1a5e8461b05620ef2c6ab30f5e43d68b0acfb21b4b02ef7299b6320fabda',sourceCount:2,canonicalSourceRow:5,supersededSourceRow:4},
 
   {metricId:'PRESS_COMPLETED_WITHOUT_SESSION',entityKey:'3536-01',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_TRACEABILITY',reason:'Exact historical Press completion without Line-session evidence',evidenceHash:'02ec63d746d1bda0f3d1505ac807c3e0baaeb3188c194ed0b5c24d8704796293',sourceCount:1},
   {metricId:'PRESS_COMPLETED_WITHOUT_SESSION',entityKey:'3585-02',canonicalId:'',supersededId:'',classification:'ACKNOWLEDGED_HISTORICAL_TRACEABILITY',reason:'Exact historical Press completion without Line-session evidence',evidenceHash:'d906acc860f8e45994ba102e0cc1bb72f2a3317be64cf19d14a76989116c462e',sourceCount:1},
