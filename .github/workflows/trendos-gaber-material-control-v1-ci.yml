@@ -7,20 +7,25 @@ on:
     paths:
       - 'gaber-material-control-v1.js'
       - 'gaber-daily-material-flow-v1.js'
+      - 'gaber-material-movement-ledger-v1.js'
       - 'operator-task-workflow-v2.gs'
       - 'tests/gaber_material_control_v1.test.mjs'
       - 'tests/gaber_daily_material_flow_v1.test.mjs'
+      - 'tests/gaber_material_movement_ledger_v1.test.mjs'
       - 'tests/operator_task_gaber_material_gate_v1.test.mjs'
       - '.github/workflows/trendos-gaber-material-control-v1-ci.yml'
       - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_LASER_MATERIAL_CUSTODY_WASTE_CONTROL_V1.md'
       - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_DAILY_MATERIAL_FLOW_REQUIREMENT.md'
+      - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_MATERIAL_CONTROL_V1_CANDIDATE_CHECKPOINT_01.md'
   pull_request:
     paths:
       - 'gaber-material-control-v1.js'
       - 'gaber-daily-material-flow-v1.js'
+      - 'gaber-material-movement-ledger-v1.js'
       - 'operator-task-workflow-v2.gs'
       - 'tests/gaber_material_control_v1.test.mjs'
       - 'tests/gaber_daily_material_flow_v1.test.mjs'
+      - 'tests/gaber_material_movement_ledger_v1.test.mjs'
       - 'tests/operator_task_gaber_material_gate_v1.test.mjs'
       - '.github/workflows/trendos-gaber-material-control-v1-ci.yml'
 
@@ -46,6 +51,9 @@ jobs:
       - name: Run Gaber daily material flow report tests
         run: node --test tests/gaber_daily_material_flow_v1.test.mjs
 
+      - name: Run Gaber append-only material movement ledger tests
+        run: node --test tests/gaber_material_movement_ledger_v1.test.mjs
+
       - name: Run Operator Task V2 material-gate integration tests
         run: node --test tests/operator_task_gaber_material_gate_v1.test.mjs
 
@@ -53,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for f in gaber-material-control-v1.js gaber-daily-material-flow-v1.js; do
+          for f in gaber-material-control-v1.js gaber-daily-material-flow-v1.js gaber-material-movement-ledger-v1.js; do
             ! grep -Eq 'SpreadsheetApp|PropertiesService|UrlFetchApp|D1|fetch\s*\(' "$f"
             ! grep -Eq 'setProperty\s*\(|appendRow\s*\(|setValue\s*\(|setValues\s*\(' "$f"
           done
