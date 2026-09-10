@@ -1,13 +1,37 @@
 # منصة ترند — TrendOS Main Platform Blackbox
 
-هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**. ابدأ دائمًا من `01_CURRENT_STATE.md` ثم السجل المرتبط بالـcheckpoint الحالي.
+هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**.
+
+## READ FIRST — Canonical Project Identity
+
+قبل أي تنفيذ جديد اقرأ أولًا:
+
+`00_PROJECT_LOCATOR.md`
+
+Canonical production identities:
+
+- Production Google Sheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+- Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+- Bound Apps Script Project ID: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`
+- Repository: `fawakhry/TrendOs`
+- Working branch: `agent/go-live-2026-09-01-integrity`
+
+Startup order for every new chat/session:
+
+1. `00_PROJECT_LOCATOR.md`
+2. `00_INDEX.md`
+3. `01_CURRENT_STATE.md`
+4. current checkpoint records referenced by `01_CURRENT_STATE.md`
+
+Do not substitute any BACKUP/STAGING workbook, and do not treat the workbook tab `سكريبت Apps Script` as live Apps Script Head authority.
 
 ## Active RP-07 execution checkpoint — 2026-09-10
 
-الحالة: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — HOLD BEFORE PHASE 0B / PHASE 1 / RP-08**
+الحالة: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — SESSION PAUSED AT PHASE 0B — HOLD BEFORE PHASE 1 / RP-08**
 
 السجلات الحالية:
 
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_WORK_LIMIT_STOP_CHECKPOINT.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_DIRECT_WORK_INVENTORY_FAIL.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_LIVE_INVENTORY_BLOCKED.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
@@ -28,6 +52,7 @@ Current facts:
 - RP-07 legacy containment functions are not present in live Head.
 - standalone `v1932-router.gs` would collide with the existing `Code.gs` definition and must not be installed.
 - deployment/version inventory remains incomplete because the Work pass stopped fail-closed on the active flags.
+- ChatGPT Work usage limit was reached before Phase 0B; this is an operational pause only and no runtime action is partially applied.
 - live P0 blockers remain: Attendance duplicates, Cleaning duplicates, invoice Drafts for delivered Orders `3839` and `3841`, and Press exact-Line evidence gap for `3796-01`.
 - no Apps Script Head mutation, Save, Deploy, Script Property mutation, Source Sheet write, Registry write, D1 write, `Code.gs` edit, main merge, or RP-08 occurred.
 
