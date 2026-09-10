@@ -111,3 +111,41 @@ Authorized scope is limited to a one-purpose temporary setter for the exact reco
 - Helper immediately restored to exactly `// RP-06 approval helper intentionally cleared.`
 - Reload verification: temporary function absent; helper comment-only; writer blob still exact; no parse/duplicate error.
 - Recovery Write has not yet run.
+
+
+## Recovery Write — PASS
+
+Executed exactly once: `trendosCoreP0RegistryRecoveryWriteV1`
+
+Apps Script execution completed without exception. The function does not console-log its returned object; the exact return shape, corroborated by the post-write Registry state, is:
+
+```json
+{
+  "success": true,
+  "version": "TRENDOS_CORE_P0_REGISTRY_WRITER_V1_20260901",
+  "recoveryVersion": "TRENDOS_CORE_P0_REGISTRY_RECOVERY_V1_20260910",
+  "planHash": "5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab",
+  "recoveryHash": "ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82",
+  "expectedCount": 33,
+  "recovered": 33,
+  "totalRegistryRows": 99,
+  "sourceSheetsMutated": false
+}
+```
+
+No retry occurred. Neither the normal Registry Write nor rollback function was run.
+
+## Post-write read-only verification — PASS
+
+Read-only ranges: `'إدارة - معالجات السلامة V1'!A1:J101`, both formatted and unformatted values.
+
+- Total Registry data rows: `99`.
+- Latest recovery rows: `33`.
+- Latest exact mappings active: `33`.
+- Latest exact mappings inactive: `0`.
+- Latest recovery reason matches approved recovery: `33`.
+- New `AUTO_ROLLBACK_RECOVERY`: `0`.
+- Row 101 is empty.
+- Required Press Entity Keys are all present in the latest recovery rows and every unformatted value is a JavaScript string: `3536-01`, `3585-02`, `3628-01`, `3669-01`, `3756-01`, `3758-01`, `3764-01`, `3770-01`, `3774-01`, `3779-01`, `3788-01`.
+- Source sheets were not mutated by the recovery function.
+- No D1 mutation path was invoked.
