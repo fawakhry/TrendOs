@@ -70,6 +70,11 @@ function trendosV1932TryRoute_(e, payload) {
     return output_({ success:false, message:'Cleaning backend غير منشور.' }, callback);
   }
 
+  if (action === 'operatorTaskV2') {
+    if (typeof operatorTaskV2_ === 'function') return output_(operatorTaskV2_(event), callback);
+    return output_({ success:false, message:'Operator Task V2 backend غير منشور.' }, callback);
+  }
+
   if (action === 'workQueueV1') {
     if (typeof workQueueV1_ === 'function') return output_(workQueueV1_(event), callback);
     return output_({ success:false, message:'Work Queue backend غير منشور.' }, callback);
