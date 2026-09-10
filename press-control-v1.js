@@ -3,13 +3,44 @@
 const API=String(window.TREND_API_URL||window.API_URL||'').trim();if(!API)return;
 const REFRESH_MS=120000,MIN_REFRESH_MS=90000;let refreshBusy=false,lastRefreshAt=0;
 function txt(v){return String(v==null?'':v).trim();}function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه');}
+function asciiDigits(v){return txt(v).replace(/[٠-٩]/g,function(ch){return String(ch.charCodeAt(0)-1632);}).replace(/[۰-۹]/g,function(ch){return String(ch.charCodeAt(0)-1776);});}
 function user(){const s=window.trendosState||window.state||{};return s.user||null;}function allowed(){const u=user()||{},k=norm((u.username||u.name||'')+' '+(u.role||''));return k.includes('ريفان')||k.includes('revan')||k.includes('rivan')||k.includes('وائل')||k.includes('wael')||k.includes('ضياء')||k.includes('diaa')||norm(u.role)==='admin';}
 function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||''},extra||{});}function unsupported(d){const m=norm(d&&d.message);return !d||m.includes('غير معروف')||m.includes('غير منشور')||m.includes('unsupported')||m.includes('unknown action');}
 async function directApi(p){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'pressControlV1'},p)),cache:'no-store',credentials:'omit'});const raw=await r.text();let d=null;try{d=JSON.parse(raw);}catch(e){throw new Error('Web App لا يرجع JSON. انشر New version وتأكد أن رابط /exec الحالي صحيح. HTTP '+r.status);}return d;}
 async function api(op,extra){const p=auth(Object.assign({op:op},extra||{}));if(typeof window.trendosSecureApiV1922==='function'){try{const d=await window.trendosSecureApiV1922('pressControlV1',p);if(!unsupported(d))return d;}catch(e){/* fallback to direct Web App */}}return await directApi(p);}
 function queueLabel(q){q=q||{};const items=Array.isArray(q.items)?q.items:[];const unique={};items.forEach(function(x){const id=txt(x.orderId||x['رقم الأوردر']||x.order||'');if(id)unique[id]=1;});const lines=Number(q.count||items.length||0),orders=Object.keys(unique).length||Number(q.orderCount||q.orders||0)||lines;let out='Queue المكبس: '+orders+' أوردر • '+lines+' بند';if(Number(q.urgent||0)>0)out+=' • عاجل: '+Number(q.urgent||0)+' بند';return out;}
+function integrityPressSession(s){return !!(s&&txt(s.sessionId)&&Array.isArray(s.startItems));}
+function exactStopPayload(s){
+  const items=Array.isArray(s&&s.startItems)?s.startItems:[];
+  if(!txt(s&&s.sessionId))return{error:'Session ID غير موجود؛ تم إيقاف القفل لحماية التتبع.'};
+  if(!items.length){
+    if(!confirm('الجلسة بدأت بدون بنود مكبس. هل تريد قفلها بصفر بنود مكتملة؟'))return{cancelled:true};
+    return{sessionId:txt(s.sessionId),completedLineIds:JSON.stringify([]),ordersPressed:'0'};
+  }
+  const rows=items.map(function(x,i){return (i+1)+') '+txt(x.lineId)+' — أوردر '+txt(x.orderId)+(txt(x.customer)?' — '+txt(x.customer):'');});
+  const raw=prompt('حدد البنود التي تم كبسها فعليًا من Snapshot بداية الجلسة.\nاكتب أرقام السطور مفصولة بفاصلة، مثال: 1,3\nاتركها فارغة فقط لو لم يتم كبس أي بند.\n\n'+rows.join('\n'),'');
+  if(raw===null)return{cancelled:true};
+  const clean=asciiDigits(raw).trim();
+  if(!clean){
+    if(!confirm('لم تحدد أي بند. هل تريد قفل الجلسة بصفر بنود مكتملة؟'))return{cancelled:true};
+    return{sessionId:txt(s.sessionId),completedLineIds:JSON.stringify([]),ordersPressed:'0'};
+  }
+  const parts=clean.split(/[\s,;،]+/).filter(Boolean),seen={},indices=[];
+  for(let i=0;i<parts.length;i++){
+    if(!/^\d+$/.test(parts[i]))return{error:'اختيار غير صالح: '+parts[i]+'. استخدم أرقام السطور فقط.'};
+    const n=Number(parts[i]);if(n<1||n>items.length)return{error:'رقم السطر '+n+' خارج Snapshot بداية الجلسة.'};
+    if(!seen[n]){seen[n]=1;indices.push(n);}
+  }
+  const lineIds=[],orders={};
+  for(let i=0;i<indices.length;i++){
+    const item=items[indices[i]-1],lineId=txt(item&&item.lineId),orderId=txt(item&&item.orderId);
+    if(!lineId||!orderId)return{error:'Snapshot الجلسة يحتوي بندًا غير قابل للتتبع؛ تم إيقاف القفل.'};
+    lineIds.push(lineId);orders[orderId]=1;
+  }
+  return{sessionId:txt(s.sessionId),completedLineIds:JSON.stringify(lineIds),ordersPressed:String(Object.keys(orders).length)};
+}
 let root=null,last=null;function ensure(){if(!allowed()||root)return;root=document.createElement('section');root.id='trendPressControlV1';root.style.cssText='position:fixed;right:14px;bottom:14px;z-index:2147481800;width:min(340px,calc(100vw - 28px));direction:rtl;font-family:Tahoma,Arial,sans-serif;background:#fff;border:1px solid #d8e2ec;border-radius:14px;box-shadow:0 10px 30px rgba(20,45,70,.16);overflow:hidden;color:#153047';root.innerHTML='<div style="background:#0f766e;color:#fff;padding:9px 11px;font-weight:700">🔥 متابعة المكبس</div><div style="padding:10px"><div data-p="state">جاري القراءة...</div><div style="display:flex;gap:7px;margin-top:9px"><button data-p-action="start" style="flex:1;border:0;border-radius:9px;padding:9px;background:#0f766e;color:#fff;font-weight:700;cursor:pointer">تشغيل المكبس</button><button data-p-action="stop" style="flex:1;border:0;border-radius:9px;padding:9px;background:#b42318;color:#fff;font-weight:700;cursor:pointer">قفل المكبس</button></div><div data-p="hint" style="font-size:11px;color:#66788a;margin-top:7px">الموعد الثابت 5:00 م — تشغيل مبكر مسموح للعاجل.</div></div>';document.body.appendChild(root);root.addEventListener('click',click);}
-function render(d){last=d;if(!root)return;const q=d&&d.queue?d.queue:{count:0,urgent:0,items:[]},s=d&&d.session?d.session:null,label=queueLabel(q);const el=root.querySelector('[data-p="state"]');if(s){el.innerHTML='<b>المكبس شغال الآن</b><br>'+label+'<br>بدأ: '+txt(s.startedAt||'')+' • المشغل: '+txt(s.operator||'-');}else{el.innerHTML='<b>المكبس مقفول</b><br>'+label;}const st=root.querySelector('[data-p-action="start"]'),sp=root.querySelector('[data-p-action="stop"]');st.disabled=!!s;sp.disabled=!s;st.style.opacity=s?'.45':'1';sp.style.opacity=s?'1':'.45';}
+function render(d){last=d;if(!root)return;const q=d&&d.queue?d.queue:{count:0,urgent:0,items:[]},s=d&&d.session?d.session:null,label=queueLabel(q);const el=root.querySelector('[data-p="state"]');if(s){el.innerHTML='<b>المكبس شغال الآن</b><br>'+label+'<br>بدأ: '+txt(s.startedAt||'')+' • المشغل: '+txt(s.operator||'-');}else{el.innerHTML='<b>المكبس مقفول</b><br>'+label;}const st=root.querySelector('[data-p-action="start"]'),sp=root.querySelector('[data-p-action="stop"]'),hint=root.querySelector('[data-p="hint"]');st.disabled=!!s;sp.disabled=!s;st.style.opacity=s?'.45':'1';sp.style.opacity=s?'1':'.45';if(hint)hint.textContent=s&&integrityPressSession(s)?'القفل الآمن: اختر البنود الفعلية من Snapshot بداية الجلسة — لا يعتمد على رقم يدوي.':'الموعد الثابت 5:00 م — تشغيل مبكر مسموح للعاجل.';}
 async function refresh(options){
   const opts=options||{};ensure();if(!root)return {skipped:true,reason:'not-mounted'};
   if(document.hidden&&!opts.force)return {skipped:true,reason:'hidden'};
@@ -19,7 +50,14 @@ async function refresh(options){
   if(window.TrendPollCoordinatorV1&&typeof window.TrendPollCoordinatorV1.run==='function')return window.TrendPollCoordinatorV1.run('press-status',task,{minIntervalMs:MIN_REFRESH_MS,force:!!opts.force});
   return task();
 }
-async function click(e){const a=e.target&&e.target.dataset&&e.target.dataset.pAction;if(!a)return;if(a==='start'){if(!confirm('تسجيل تشغيل المكبس الآن؟'))return;try{const d=await api('start');if(!d.success)throw new Error(d.message||'تعذر التشغيل');render(d.status||d);}catch(err){alert(err.message);}}else if(a==='stop'){const n=prompt('كام أوردر اتكبس فعليًا في الجلسة؟','0');if(n===null)return;try{const d=await api('stop',{ordersPressed:n});if(!d.success)throw new Error(d.message||'تعذر القفل');render(d.status||d);}catch(err){alert(err.message);}}}
+async function click(e){const a=e.target&&e.target.dataset&&e.target.dataset.pAction;if(!a)return;if(a==='start'){if(!confirm('تسجيل تشغيل المكبس الآن؟'))return;try{const d=await api('start');if(!d.success)throw new Error(d.message||'تعذر التشغيل');render(d.status||d);}catch(err){alert(err.message);}}else if(a==='stop'){
+    const s=last&&last.session?last.session:null;
+    if(integrityPressSession(s)){
+      const payload=exactStopPayload(s);if(payload.cancelled)return;if(payload.error){alert(payload.error);return;}
+      try{const d=await api('stop',payload);if(!d.success)throw new Error(d.message||'تعذر القفل');render(d.status||d);}catch(err){alert(err.message);}return;
+    }
+    const n=prompt('كام أوردر اتكبس فعليًا في الجلسة؟','0');if(n===null)return;try{const d=await api('stop',{ordersPressed:n});if(!d.success)throw new Error(d.message||'تعذر القفل');render(d.status||d);}catch(err){alert(err.message);}
+  }}
 function boot(){ensure();refresh({force:true,source:'boot'});setInterval(function(){refresh({source:'interval'});},REFRESH_MS);}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-window.TrendPressControlV1={refresh:refresh,last:function(){return last;}};
+window.TrendPressControlV1={refresh:refresh,last:function(){return last;},exactStopPayload:exactStopPayload};
 })();
