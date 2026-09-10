@@ -1,0 +1,36 @@
+name: TrendOS RP-07 Remediation Containment CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'trendos-rp07-legacy-containment-v1.gs'
+      - 'v1932-router.gs'
+      - 'tests/rp07_legacy_attendance_cleaning_containment_v1.test.mjs'
+      - '.github/workflows/trendos-rp07-remediation-containment-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  containment-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify RP-07 legacy containment contract
+        run: node tests/rp07_legacy_attendance_cleaning_containment_v1.test.mjs
+      - name: Assert candidate remains runtime-inert
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -q "setProperty(" trendos-rp07-legacy-containment-v1.gs
+          ! grep -q "deleteRow(" trendos-rp07-legacy-containment-v1.gs
+          ! grep -q "deleteRows(" trendos-rp07-legacy-containment-v1.gs
+          ! grep -q "ScriptApp.newDeployment" trendos-rp07-legacy-containment-v1.gs
+          echo "RP-07 candidate is GitHub-only and contains no activation/deletion primitive."
