@@ -27,12 +27,16 @@ function trendosV1932TryRoute_(e, payload) {
   }
 
   if (action === 'attendanceV1') {
-    if (typeof attendanceV1_ === 'function') return output_(attendanceV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    const event={ parameter:Object.assign({}, p, payload || {}) };
+    if (typeof trendosRp07LegacyAttendanceV1_ === 'function') return output_(trendosRp07LegacyAttendanceV1_(event), callback);
+    if (typeof attendanceV1_ === 'function') return output_(attendanceV1_(event), callback);
     return null;
   }
 
   if (action === 'attendanceClockinV1') {
-    if (typeof attendanceClockinV1_ === 'function') return output_(attendanceClockinV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    const event={ parameter:Object.assign({}, p, payload || {}) };
+    if (typeof trendosRp07LegacyAttendanceClockinV1_ === 'function') return output_(trendosRp07LegacyAttendanceClockinV1_(event), callback);
+    if (typeof attendanceClockinV1_ === 'function') return output_(attendanceClockinV1_(event), callback);
     return output_({ success:false, message:'Clock-in backend غير منشور.' }, callback);
   }
 
@@ -52,7 +56,9 @@ function trendosV1932TryRoute_(e, payload) {
   }
 
   if (action === 'cleaningV1') {
-    if (typeof cleaningV1_ === 'function') return output_(cleaningV1_({ parameter:Object.assign({}, p, payload || {}) }), callback);
+    const event={ parameter:Object.assign({}, p, payload || {}) };
+    if (typeof trendosRp07LegacyCleaningV1_ === 'function') return output_(trendosRp07LegacyCleaningV1_(event), callback);
+    if (typeof cleaningV1_ === 'function') return output_(cleaningV1_(event), callback);
     return output_({ success:false, message:'Cleaning backend غير منشور.' }, callback);
   }
 
