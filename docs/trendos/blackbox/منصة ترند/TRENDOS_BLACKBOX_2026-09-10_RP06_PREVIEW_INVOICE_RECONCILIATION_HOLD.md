@@ -217,3 +217,36 @@ Required output per Order:
 - `SAFE_TO_SUPERSEDE` or `HOLD_FOR_BUSINESS_DECISION`.
 
 Then STOP and record the result in the blackbox before any RP-06 code patch or Production write.
+
+## Operational task queue read-only review — Wael / Gaber
+
+Date: 2026-09-10
+Source: current production workbook `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`, tab `بنود الأوردرات`.
+
+This was a read-only status review only. No Sheet cells, Apps Script, D1 data, flags, workflows, or production configuration were changed.
+
+### Wael — Printing queue
+
+Current responsible department value: `وائل` / `طباعة`.
+
+Live review shows a substantial current printing backlog. The currently visible active production rows include `41` rows in status `طلب جديد`, with no corresponding `تحت التنفيذ` row found in the reviewed current queue. The newest block is predominantly last-updated `2026-09-09`.
+
+Urgent `طلب جديد` examples in the current queue include Orders:
+`4012`, `4014`, `4021`, `4022`, `4028`, `4029`, `4031`, `4032`, `4033`, `4035`, `4039`, `4042`, `4046`, `4048`.
+
+The review did not count `تم التسليم`, `ملغى`, or `مكرر` as active production work.
+
+### Gaber — Laser queue
+
+Current responsible department value: `جابر` / `ليزر`.
+
+In the current recent queue:
+
+- `7` rows are `طلب جديد`: `4013-02`, `4018-01`, `4027-02`, `4034-01`, `4036-01`, `4037-01`, `4047-01`.
+- `3` rows are `تحت التنفيذ`: `3955-01`, `3973-01`, `3948-02`.
+- `4` rows are `جاهز للاستلام`: `3982-02`, `3997-01`, `4004-02`, `4007-01`.
+- `3907-02` is `مكرر` and is not treated as active extra work.
+
+Operational interpretation: Wael currently has the larger unstarted production backlog, while Gaber has a smaller active laser queue with work already in execution plus several ready-complete items awaiting pickup/next-stage handling.
+
+STOP: this review was read-only and has now been recorded before further operational action.
