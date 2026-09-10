@@ -4,47 +4,49 @@ Date: 2026-09-10
 
 ## Active RP-06 execution state
 
-Status: **PATCH33 CODE + CI PASS — EXACT 33-SPEC PLAN LOCKED — LIVE APPS SCRIPT READ-ONLY PREVIEW NOT YET RUN**
+Status: **PATCH33 CODE + CI PASS — LIVE PREVIEW33 PASS — STOP BEFORE REGISTRY WRITE**
 
 Current record:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_PATCH33_CODE_CI_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_PREVIEW33_PASS.md`
 
 Current facts:
 
 - owner explicitly approved GitHub-only `Patch33`.
 - Patch33 commit: `fb9ca056b7adc6b289496f6a1956623631d1874c`.
-- exact changed code/test files only:
-  - `trendos-core-p0-registry-writer-v1.gs`;
-  - `tests/trendos_core_p0_registry_writer_v1.test.js`.
 - current writer blob: `76cb144230cd53832e000b58ab8cfa2625dd521f`.
 - `TRENDOS_CORE_P0_REGISTRY_EXPECTED_ROWS_V1 = 33`.
+- exact Patch33 plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
 - historical Invoice specs `3569`, `3572`, `3577` are retired from the executable plan.
 - current Invoice resolutions are:
   - `3849`: canonical `DR-78d925aa`, superseded `DR-2c398d17`, rows `7/6`, evidence hash `2f95a7e69be9577d2958e25742fbf3674922e6e46de9737bdeeb3602a65d38b7`;
   - `3851`: canonical `DR-be3e37a2`, superseded `DR-6b61be62`, rows `5/4`, evidence hash `1eca1a5e8461b05620ef2c6ab30f5e43d68b0acfb21b4b02ef7299b6320fabda`.
-- exact Patch33 plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
 - `TrendOS Integrity V1` Run `34420601351` — SUCCESS.
+- Apps Script Head was updated only to exact tested writer blob `76cb144230cd53832e000b58ab8cfa2625dd521f` and exact-verified.
+- only `trendosCoreP0RegistryPreviewV1` was executed.
+- Apps Script execution completed successfully.
+- Preview33 result: `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`.
+- all 33 checks were valid with exact expected/actual evidence-hash matches.
+- Preview33 returned exact plan hash `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
 - old 34-row plan/hash/write approval is superseded and MUST NOT be executed.
-- no Apps Script Head mutation has occurred for Patch33 yet.
-- no RP-06 Registry Write is currently authorized.
+- no RP-06 Registry Write has been executed or authorized by the Preview33 approval.
 
 Owner rule effective 2026-09-10: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
 
 ### Current RP-06 safety boundary
 
-Next bounded action requires separate owner approval and is READ ONLY at runtime:
+**STOP BEFORE REGISTRY WRITE.**
 
-1. update only Apps Script Head `trendos-core-p0-registry-writer-v1.gs` to exact tested blob `76cb144230cd53832e000b58ab8cfa2625dd521f`;
-2. Save/reload/exact-verify that Head source;
-3. run only `trendosCoreP0RegistryPreviewV1`;
-4. require `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`, and plan hash `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
-5. STOP.
+Any next step that sets `TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_V1` or calls `trendosCoreP0RegistryWriteV1` is a separate production-data-write approval boundary and requires a new explicit owner authorization.
+
+If separately approved later, the only valid write contract is the exact 33-spec plan with plan hash:
+
+`5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`
 
 Still prohibited without a new explicit approval:
 
-- Registry Write;
-- new write-approval Script Property;
+- Registry Write / Registry Sheet creation or append;
+- write-approval Script Property;
 - Apps Script Production deploy;
 - Source Sheet business-data mutation;
 - D1 business-data write;
@@ -118,17 +120,12 @@ This is runtime/technical E2E evidence. It does not count as user-visible accept
 
 **HOLD**
 
-The E2E blocker is cleared. The remaining Core GO blocker is the separate CORE-P0 remediation boundary:
-
-- RP-06 Patch33 code + CI is PASS;
-- the exact 33-spec Apps Script live read-only preview has not yet run;
-- RP-07 remains after a valid RP-06 remediation boundary;
-- no registry write, Apps Script Production deploy, or business-family activation is authorized by CORE-P0-11.
+The E2E blocker is cleared. RP-06 Patch33 code/CI and its live read-only Preview33 are PASS, but the production Registry Write remains a separate explicit approval boundary. RP-07 remains after a valid RP-06 remediation write boundary. No registry write, Apps Script Production deploy, or business-family activation is authorized by CORE-P0-11.
 
 ### Safety boundary
 
 - no Apps Script Production deploy;
-- no Sheet/registry/business-data write;
+- no Sheet/registry/business-data write without explicit approval;
 - no D1 business-data write/migration;
 - no `EDGE_SESSION_SECRET` rotation/change;
 - Orders writes remain Apps Script / Sheets;
