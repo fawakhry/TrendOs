@@ -10,11 +10,13 @@
  * - completion at جاهز للاستلام or تم التسليم closes the authoritative timer.
  *
  * SAFETY: writes are disabled unless TRENDOS_OPERATOR_TASK_V2_ENABLED=true.
+ * Gaber material-close enforcement has its own independent flag and is OFF unless explicitly enabled.
  * Installing this file alone is inert and does not create sheets.
  */
 const TRENDOS_OPERATOR_TASK_V2_VERSION='TRENDOS_OPERATOR_TASK_V2_20260910';
 const TRENDOS_OPERATOR_TASK_V2_ENABLED_PROP='TRENDOS_OPERATOR_TASK_V2_ENABLED';
 const TRENDOS_OPERATOR_TASK_V2_PENDING_PROP='TRENDOS_OPERATOR_TASK_V2_PENDING_STATUSES';
+const TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED_PROP='TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED';
 const TRENDOS_OPERATOR_TASK_V2_SHEET='تشغيل - مهام المشغلين V2';
 const TRENDOS_OPERATOR_TASK_V2_TZ='Africa/Cairo';
 const TRENDOS_OPERATOR_TASK_V2_HEADERS=[
@@ -41,6 +43,17 @@ function otRoleV2_(auth){
 }
 function otEnabledV2_(){try{return otBoolV2_(PropertiesService.getScriptProperties().getProperty(TRENDOS_OPERATOR_TASK_V2_ENABLED_PROP));}catch(e){return false;}}
 function otRequireEnabledV2_(){if(!otEnabledV2_())throw new Error('Operator Task V2 غير مفعّل تشغيليًا.');}
+function otGaberMaterialControlEnabledV2_(){try{return otBoolV2_(PropertiesService.getScriptProperties().getProperty(TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED_PROP));}catch(e){return false;}}
+function otIsGaberLaserTaskV2_(task){const d=otNormV2_(task&&task.department),e=otNormV2_(task&&task.employee);return d.indexOf('ليزر')!==-1||otNameHasV2_(e,['جابر','gaber','jaber']);}
+function otGaberMaterialCloseGateV2_(p,task,auth){
+  if(!otIsGaberLaserTaskV2_(task))return {ok:true,skipped:true,enabled:false};
+  if(!otGaberMaterialControlEnabledV2_())return {ok:true,skipped:true,enabled:false};
+  if(typeof gaberMaterialTaskCloseGateV1_!=='function')return {ok:false,enabled:true,code:'GABER_MATERIAL_GATE_BACKEND_MISSING',blockers:[{code:'GABER_MATERIAL_GATE_BACKEND_MISSING'}],message:'بوابة قفلة خامات جابر مفعّلة لكن Backend القفلة غير منشور.'};
+  const gate=gaberMaterialTaskCloseGateV1_(p,task,auth);
+  if(!gate||gate.success!==true)return {ok:false,enabled:true,code:'GABER_MATERIAL_GATE_ERROR',blockers:gate&&gate.blockers||[],message:otTxtV2_(gate&&gate.message)||'تعذر التحقق من قفلة خامات جابر.'};
+  if(gate.canClose!==true)return {ok:false,enabled:true,code:'GABER_MATERIAL_CLOSE_BLOCKED',blockers:gate.blockers||[],message:otTxtV2_(gate.message)||'لا يمكن إنهاء التاسك قبل تسوية المشتريات والخامات والتالف.'};
+  return {ok:true,enabled:true,decisionFingerprint:otTxtV2_(gate.decisionFingerprint),materialCloseId:otTxtV2_(gate.materialCloseId)};
+}
 function otAuthorizeV2_(p){
   const auth=authorize_(otTxtV2_(p.username),otTxtV2_(p.token));
   if(!auth||!auth.ok)return auth||{ok:false,message:'تعذر التحقق من المستخدم.'};
@@ -149,17 +162,20 @@ function otCompleteTaskV2_(p,auth){
     otRequireEnabledV2_();const row=otFindTaskV2_(p.taskId),task=otAuthorizedTaskV2_(row,auth);
     if(task.state==='COMPLETED')return {success:true,alreadyCompleted:true,task:task};
     if(task.state!=='RUNNING')return {success:false,message:'التاسك ليس في حالة تنفيذ تسمح بالإنهاء.',task:task};
+    const materialGate=otGaberMaterialCloseGateV2_(p,task,auth);
+    if(!materialGate.ok)return {success:false,materialCloseBlocked:true,blockerCode:materialGate.code||'GABER_MATERIAL_CLOSE_BLOCKED',blockers:materialGate.blockers||[],message:materialGate.message||'لا يمكن إنهاء التاسك قبل قفلة الخامات.',task:task};
     const source=otSourceRowsV2_().filter(function(r){return r.lineId===task.lineId&&Number(r.rowNumber)===Number(task.sourceRow);})[0];
     const write=otSourceStatusWriteV2_(task,auth,finalStatus,source&&source.notes||'');if(!write||write.success!==true)return {success:false,message:(write&&write.message)||'تعذر تحديث حالة البند.'};
     const now=otNowV2_(),start=new Date(row.values[7]).getTime(),end=now.getTime(),workSec=isFinite(start)?Math.max(0,Math.floor((end-start)/1000)):0,sh=otSheetV2_(true);
     sh.getRange(row.row,9).setValue(now);sh.getRange(row.row,10).setValue(workSec);sh.getRange(row.row,11).setValue(finalStatus);sh.getRange(row.row,12).setValue('COMPLETED');
-    return {success:true,completed:true,actualWorkSec:workSec,task:otTaskObjV2_(otFindTaskV2_(task.taskId))};
+    return {success:true,completed:true,actualWorkSec:workSec,materialClose:materialGate.enabled?{decisionFingerprint:materialGate.decisionFingerprint||'',materialCloseId:materialGate.materialCloseId||''}:null,task:otTaskObjV2_(otFindTaskV2_(task.taskId))};
   });
 }
 function otTaskViewV2_(row){const t=otTaskObjV2_(row);if(!t)return null;const src=otSourceRowsV2_().filter(function(r){return r.lineId===t.lineId&&Number(r.rowNumber)===Number(t.sourceRow);})[0];if(src){t.qty=src.qty;t.sourceStatus=src.status;t.notes=src.notes;t.heatPress=src.heatPress;}return t;}
 function otStatusV2_(auth){
   const enabled=otEnabledV2_(),role=auth.operatorTaskRole;if(!enabled)return {success:true,enabled:false,version:TRENDOS_OPERATOR_TASK_V2_VERSION,role:role};
   const active=otActiveIndexV2_().byEmployee[otNormV2_(otUserNameV2_(auth))],result={success:true,enabled:true,version:TRENDOS_OPERATOR_TASK_V2_VERSION,role:role,task:otTaskViewV2_(active)};
+  if(role==='GABER')result.materialControlEnabled=otGaberMaterialControlEnabledV2_();
   if(role==='WAEL'){result.flyPrint=otFlyLaneV2_();result.pressCandidateCount=otPressLaneV2_().length;}
   return result;
 }
