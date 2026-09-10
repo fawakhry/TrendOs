@@ -56,8 +56,32 @@ Executed exactly once: `trendosCoreP0RegistryRecoveryPreviewV1`
 }
 ```
 
-The complete 33-item `checks` array was returned. Every item had `recoverable=true` and `errors=[]`; `previousRow` spans 2–34 and `latestRow` spans 35–67. This proves the required 66 data-row history shape (33 immediately preceding active exact mappings and 33 latest writer AUTO_ROLLBACK inactive mappings) under the recovery gate semantics.
+The complete 33-item `checks` array was returned. Every item had `recoverable=true` and `errors=[]`; `previousRow` spans 2–34 and `latestRow` spans 35–67.
 
-## Current state
+## Direct pre-write Registry verification — PASS
 
-Normal Preview33 and Recovery Preview33 passed. Recovery Write has not run yet.
+Read-only range: `'إدارة - معالجات السلامة V1'!A1:J67`.
+
+- Data rows: 66 exactly.
+- Rows 2–34: 33 active historical exact mappings.
+- Rows 35–67: 33 inactive exact mappings.
+- Inactive reason: `AUTO_ROLLBACK: post-write evidence or registry verification failed`.
+- No rows were edited or deleted.
+
+## Recovery Write — NOT RUN / FAIL-CLOSED BLOCKER
+
+Apps Script Project Settings reported:
+
+> Your script has more than 50 properties. The above list shows the first 50 and is read-only. To manage or view all of your properties, do so programmatically using the Properties service.
+
+A read-only source scan found no existing public/general setter and no existing function dedicated to setting `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1`. Continuing would require a new/temporary runner, modifying source beyond the exact approved blob, or mutating/removing unrelated Script Properties. All are explicitly forbidden by the owner checkpoint.
+
+Therefore:
+
+- Recovery approval property was **not set**.
+- `trendosCoreP0RegistryRecoveryWriteV1` was **not run**.
+- No automatic retry occurred.
+- Registry remains at 66 data rows.
+- No new `AUTO_ROLLBACK` occurred.
+- No Source Sheet or D1 mutation was performed.
+- Final state: `RP-06 HOLD`.
