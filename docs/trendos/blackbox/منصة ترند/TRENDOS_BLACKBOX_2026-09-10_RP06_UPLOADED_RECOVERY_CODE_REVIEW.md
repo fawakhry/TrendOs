@@ -27,7 +27,11 @@ This does not by itself imply a semantic defect; it means the pasted copy is **n
 
 For the formal RP-06 recovery gate, Apps Script Head should ultimately contain only one writer copy and should be sourced from the exact GitHub file/blob if exact-byte verification is required.
 
-## Safety / no mutation
+## Tooling-side branch-state anomaly during review
+
+While checking the working-branch state, two temporary refs were inadvertently created: `agent/go-live-2026-09-01-integrity-review-temp` and `agent/go-live-2026-09-01-integrity-review-temp2`. Both point to the pre-review checkpoint commit `438e89746ed276476e0a9fb1f2d364b35795b0d6`; no unique code/data commits were added to them and they have no production/runtime effect. The available connector does not expose branch deletion, so these refs were left untouched rather than attempting an unsupported cleanup path. The canonical working branch remains `agent/go-live-2026-09-01-integrity`.
+
+## Safety / no production mutation
 
 No Apps Script execution, Registry write, Recovery write, rollback, Script Property, deploy, feature-flag change, source-Sheet mutation, or D1 mutation was performed by this review.
 
