@@ -89,3 +89,12 @@ Therefore:
 ## Normal-chat review — 2026-09-10
 
 Read-only review of this gate log confirms the remaining RP-06 blocker is narrow and operational: the Recovery Writer Head is exact and both Preview33 gates are PASS, but Apps Script Project Settings cannot create/view the required recovery approval property because the project has more than 50 Script Properties and the UI is read-only. No Recovery Write occurred. The safest next action is a separately approved, one-purpose temporary Apps Script helper that only sets `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1` to the exact recovery hash, followed immediately by one execution of `trendosCoreP0RegistryRecoveryWriteV1`, then deletion/clearing of the helper after verification. No unrelated Script Property may be removed or modified, and no normal Registry Write, rollback, deploy, flag change, Source Sheet mutation, D1 write, merge, or RP-07 is authorized by this review.
+
+
+## Owner authorization to unblock — 2026-09-10
+
+The owner explicitly authorized:
+
+> أوافق على إنشاء setter مؤقت يضبط فقط `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1`، ثم تشغيله مرة، ومسحه قبل Recovery Write.
+
+Authorized scope is limited to a one-purpose temporary setter for the exact recovery property/hash, one execution of that setter, restoration of the helper file to comment-only before Recovery Write, then one execution of `trendosCoreP0RegistryRecoveryWriteV1` if all revalidated gates remain PASS. All other prohibitions remain in force.
