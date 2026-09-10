@@ -35,6 +35,10 @@ Canonical architecture / rollout design:
 
 `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
 
+Owner priority lock:
+
+`TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_OWNER_PRIORITY_LOCK.md`
+
 GitHub candidate reference:
 
 `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md`
@@ -43,9 +47,11 @@ Current status:
 
 **PRODUCT REQUIREMENTS APPROVED — V2 GITHUB CANDIDATE EXISTS — HYBRID CLOUDFLARE DESIGN/PREP ACTIVE — NOT DEPLOYED / NOT ENABLED**
 
-Roadmap placement approved by owner:
+### AUTHORITATIVE ROADMAP ORDER
 
-`Finish RP-07 PASS -> Operator Task V2 runtime rollout/validation -> resume RP-08 / broader roadmap`
+`CURRENT: RP-07 -> IMMEDIATELY NEXT: Operator Task V2 (OT-01 onward) -> THEN: RP-08 / broader roadmap`
+
+This order is owner-approved and mandatory unless the owner explicitly reprioritizes later. Operator Task V2 is not an optional backlog item after RP-07 and must not be skipped in favor of RP-08.
 
 Operator Task V2 does not need to wait for the full Cloudflare migration, but it must not be activated while RP-07 remains unresolved.
 
@@ -174,6 +180,7 @@ Evidence retained:
 - no business-family activation.
 - no Script Property mutation without a separate approved boundary.
 - Operator Task V2 runtime activation waits for RP-07 full closure.
+- once RP-07 closes PASS, Operator Task V2 is the immediate next production implementation track before RP-08 unless owner explicitly changes priority.
 - Operator Task V2 D1 write authority remains OFF/not authorized.
-- RP-08 not started and is sequenced after the owner-prioritized Operator Task rollout unless reprioritized.
+- RP-08 not started.
 - deferred Save Timeout / reconcile work remains deferred by owner unless explicitly reopened.
