@@ -4,33 +4,42 @@ Date: 2026-09-10
 
 ## Active RP-06 execution state
 
-Status: **HOLD — OLD 34-ROW REGISTRY PLAN INVALIDATED — CURRENT LIVE INVOICE DUPLICATES REQUIRE RESOLUTION**
+Status: **HOLD — READY FOR SINGLE 33-SPEC PATCH — NO REGISTRY WRITE AUTHORIZED**
 
 Current record:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_PREVIEW_INVOICE_RECONCILIATION_HOLD.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_LIVE_INVOICE_RESOLUTION_READY_PATCH.md`
 
 Current facts:
 
-- `trendosCoreP0RegistryPreviewV1` returned `success=false` and `readOnly=true` with `expectedCount=34`, `actualPlanCount=34`.
-- The current preview errors are only the historical Invoice Draft specs for Orders `3569`, `3572`, `3577`.
-- `3536-01` is no longer an active preview blocker.
-- live reconciliation found Draft counts `0`, `0`, `1` for `3569`, `3572`, `3577`; none is a current duplicate group.
-- decision: `RETIRE_3_INVOICE_SPECS`.
-- the prior 34-row plan/hash/write approval is superseded and MUST NOT be executed.
-- current live Invoice duplicate groups are only:
-  - `3849`: 2 Draft rows;
-  - `3851`: 2 Draft rows.
-- current `DUPLICATE_INVOICE_DRAFTS.count = 2`.
-- next bounded action: read-only resolution gate for `3849` and `3851` only.
+- the previous read-only Apps Script preview failed only on stale historical Invoice Draft specs for Orders `3569`, `3572`, `3577`;
+- `3536-01` is no longer an active preview blocker;
+- decision: `RETIRE_3_INVOICE_SPECS` for `3569`, `3572`, `3577`;
+- the prior 34-row plan/hash/write approval is superseded and MUST NOT be executed;
+- current live Invoice duplicate groups are only `3849` and `3851`;
+- read-only live resolution gate found both groups are true duplicate/replacement pairs and both are `SAFE_TO_SUPERSEDE`;
+- `3849`: canonical `DR-78d925aa` @ row 7, superseded `DR-2c398d17` @ row 6, evidence hash `2f95a7e69be9577d2958e25742fbf3674922e6e46de9737bdeeb3602a65d38b7`;
+- `3851`: canonical `DR-be3e37a2` @ row 5, superseded `DR-6b61be62` @ row 4, evidence hash `1eca1a5e8461b05620ef2c6ab30f5e43d68b0acfb21b4b02ef7299b6320fabda`;
+- aggregate decision: `READY_FOR_SINGLE_RP06_PATCH`;
+- final candidate shape before patch: Attendance 6 + Cleaning 11 + Invoice 2 + Press 14 = `33` specs;
+- new expectedCount candidate: `33`;
+- new plan hash must be calculated only after the exact patch is built and tested;
 - no RP-06 Registry Write is currently authorized.
+
+Operational task note:
+
+- the previously captured Wael/Gaber live task-queue snapshot is retained for later display at owner request;
+- do not rerun that full task analysis only to display the saved snapshot;
+- refresh live task data only when current/latest state is requested.
 
 Owner rule effective 2026-09-10: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
 
 ### Current RP-06 safety boundary
 
-- no Registry Write;
-- no new approval Script Property;
+- next allowed boundary is a single bounded working-branch code/test/docs patch only after explicit owner approval;
+- after patch + CI, update Apps Script Head with the exact tested writer and run only a new read-only `trendosCoreP0RegistryPreviewV1`;
+- stop again before any Registry Write;
+- no new approval Script Property yet;
 - no Apps Script Production deploy;
 - no Source Sheet business-data mutation;
 - no D1 business-data write;
@@ -106,7 +115,7 @@ This is runtime/technical E2E evidence. It does not count as user-visible accept
 The E2E blocker is cleared. The remaining Core GO blocker is the separate CORE-P0 remediation boundary:
 
 - RP-06/RP-07 remain separately approval-gated;
-- the active RP-06 issue is the Invoice reconciliation state described above;
+- RP-06 is now at the 33-spec single-patch readiness boundary described above;
 - no registry write, Apps Script deploy, or business-family activation is authorized by CORE-P0-11.
 
 ### Safety boundary
