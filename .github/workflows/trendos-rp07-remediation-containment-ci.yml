@@ -9,11 +9,13 @@ on:
       - 'v1932-router.gs'
       - 'trendos-integrity-router-v1.gs'
       - 'trendos-press-integrity-v1.gs'
+      - 'trendos-invoice-integrity-v1.gs'
       - 'press-control-v1.js'
       - 'tests/rp07_legacy_attendance_cleaning_containment_v1.test.mjs'
       - 'tests/rp07_press_frontend_exact_line_v1.test.mjs'
       - 'tests/trendos_integrity_router_v1.test.js'
       - 'tests/trendos_press_integrity_v1.test.js'
+      - 'tests/trendos_invoice_integrity_v1.test.js'
       - '.github/workflows/trendos-rp07-remediation-containment-ci.yml'
   workflow_dispatch:
 
@@ -37,6 +39,8 @@ jobs:
         run: node tests/trendos_press_integrity_v1.test.js .
       - name: Verify Press frontend exact-Line compatibility
         run: node tests/rp07_press_frontend_exact_line_v1.test.mjs
+      - name: Verify Invoice closed-order lifecycle prevention
+        run: node tests/trendos_invoice_integrity_v1.test.js .
       - name: Assert candidate remains runtime-inert
         shell: bash
         run: |
@@ -46,4 +50,5 @@ jobs:
           ! grep -q "deleteRows(" trendos-rp07-legacy-containment-v1.gs
           ! grep -q "ScriptApp.newDeployment" trendos-rp07-legacy-containment-v1.gs
           ! grep -q "setProperty(" trendos-press-integrity-v1.gs
+          ! grep -q "setProperty(" trendos-invoice-integrity-v1.gs
           echo "RP-07 candidate is GitHub-only and contains no activation/deletion primitive."
