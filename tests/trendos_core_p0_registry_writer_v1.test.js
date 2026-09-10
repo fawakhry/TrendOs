@@ -7,10 +7,12 @@ const writer=fs.readFileSync(root+'/trendos-core-p0-registry-writer-v1.gs','utf8
 class FakeRange{
   constructor(sheet,row,col,numRows,numCols){this.sheet=sheet;this.row=row;this.col=col;this.numRows=numRows;this.numCols=numCols;}
   getValues(){const out=[];for(let r=0;r<this.numRows;r++){const row=[];for(let c=0;c<this.numCols;c++)row.push((this.sheet.rows[this.row-1+r]||[])[this.col-1+c]??'');out.push(row);}return out;}
-  setValues(values){for(let r=0;r<this.numRows;r++){const target=this.sheet.rows[this.row-1+r]||(this.sheet.rows[this.row-1+r]=[]);for(let c=0;c<this.numCols;c++)target[this.col-1+c]=values[r][c];}return this;}
+  getDisplayValues(){const out=[];for(let r=0;r<this.numRows;r++){const row=[];for(let c=0;c<this.numCols;c++){const rr=this.row-1+r,cc=this.col-1+c,stored=(this.sheet.displayRows[rr]||[])[cc];if(stored!==undefined){row.push(stored);continue;}const raw=(this.sheet.rows[rr]||[])[cc];row.push(raw==null?'':String(raw));}out.push(row);}return out;}
+  setNumberFormat(format){for(let r=0;r<this.numRows;r++)for(let c=0;c<this.numCols;c++)this.sheet.formats[(this.row+r)+':'+(this.col+c)]=format;return this;}
+  setValues(values){for(let r=0;r<this.numRows;r++){const target=this.sheet.rows[this.row-1+r]||(this.sheet.rows[this.row-1+r]=[]),displayTarget=this.sheet.displayRows[this.row-1+r]||(this.sheet.displayRows[this.row-1+r]=[]);for(let c=0;c<this.numCols;c++){const key=(this.row+r)+':'+(this.col+c),input=values[r][c];let raw=input;if(typeof input==='string'&&/^\d{4}-\d{2}$/.test(input)&&this.sheet.formats[key]!=='@'){const m=input.match(/^(\d{4})-(\d{2})$/);raw=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,1));}target[this.col-1+c]=raw;displayTarget[this.col-1+c]=input==null?'':String(input);}}return this;}
 }
 class FakeSheet{
-  constructor(name){this.name=name;this.rows=[];}
+  constructor(name){this.name=name;this.rows=[];this.displayRows=[];this.formats={};}
   getLastRow(){let n=this.rows.length;while(n&&!(this.rows[n-1]||[]).some(v=>v!==''&&v!=null))n--;return n;}
   getLastColumn(){return this.rows.reduce((n,row)=>Math.max(n,(row||[]).length),0);}
   getRange(row,col,numRows,numCols){return new FakeRange(this,row,col,numRows,numCols);}
@@ -63,7 +65,8 @@ Object.assign(ctx,vm.runInContext(`({
   TRENDOS_INTEGRITY_RESOLUTION_SHEET_V1,
   TRENDOS_INTEGRITY_RESOLUTION_HEADERS_V1,
   TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1,
-  TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1
+  TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1,
+  TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1
 })`,ctx));
 
 function makeSnapshot(){
@@ -84,6 +87,12 @@ function makeSnapshot(){
     }
   }
   return snap;
+}
+function simulateLegacyPressDateCoercion(sh){
+  for(let r=1;r<sh.rows.length;r++){
+    const shown=(sh.displayRows[r]||[])[1];if(!/^\d{4}-\d{2}$/.test(String(shown||'')))continue;
+    const m=String(shown).match(/^(\d{4})-(\d{2})$/);sh.rows[r][1]=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,1));
+  }
 }
 let snapshot=makeSnapshot();snapshotProvider=()=>snapshot;ctx.trendosHealthSnapshotV1_=()=>{snapshotCalls++;return snapshotProvider();};
 
@@ -112,13 +121,20 @@ snapshotProvider=()=>wrongInvoiceRowSnapshot;assert.throws(()=>ctx.trendosCoreP0
 snapshotProvider=()=>snapshot;
 
 const planHash=ctx.trendosCoreP0RegistryPlanHashV1_();
+const recoveryHash=ctx.trendosCoreP0RegistryRecoveryHashV1_();
 assert.strictEqual(planHash,'5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab','Patch33 exact plan hash must remain locked');
+assert.strictEqual(recoveryHash,'ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82','recovery approval hash must remain locked');
+assert.notStrictEqual(recoveryHash,planHash,'recovery approval must not reuse the normal write approval hash');
 propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
 let result=ctx.trendosCoreP0RegistryWriteV1();
 assert.strictEqual(result.success,true);assert.strictEqual(result.appended,33);assert.strictEqual(result.totalRegistryRows,33);assert.strictEqual(result.sourceSheetsMutated,false);
 assert.strictEqual(propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1],undefined,'approval must be consumed');assert.strictEqual(lockCalls,1);
 const registry=spreadsheet.getSheetByName(ctx.TRENDOS_INTEGRITY_RESOLUTION_SHEET_V1);assert.strictEqual(registry.getLastRow(),34);
 assert.deepStrictEqual(Array.from(registry.rows[0]),Array.from(ctx.TRENDOS_INTEGRITY_RESOLUTION_HEADERS_V1));
+const firstPressRow=registry.rows.findIndex((row,i)=>i>0&&row[0]==='PRESS_COMPLETED_WITHOUT_SESSION'&&row[1]==='3536-01');
+assert.ok(firstPressRow>0,'date-like Press Entity Key must exist');
+assert.strictEqual(typeof registry.rows[firstPressRow][1],'string','date-like Press Entity Key must remain a raw string');
+assert.strictEqual(registry.formats[(firstPressRow+1)+':2'],'@','Entity Key cell must be forced to plain text before append');
 
 propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;result=ctx.trendosCoreP0RegistryWriteV1();
 assert.strictEqual(result.appended,0,'an exact retry must be idempotent');assert.strictEqual(result.alreadyPresent,33);assert.strictEqual(registry.getLastRow(),34);
@@ -133,21 +149,51 @@ assert.throws(()=>ctx.trendosCoreP0RegistryPreviewV1(),/CORE-P0 registry preview
 propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
 assert.throws(()=>ctx.trendosCoreP0RegistryWriteV1(),/live preflight failed/);assert.strictEqual(registry.getLastRow(),34,'stale evidence must not append');assert.strictEqual(propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1],undefined,'failed live preflight consumes the one-use approval');
 
-snapshot=makeSnapshot();propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1]=planHash;
+// Approved rollback must remain final unless separately handled; recovery path must not silently override it.
+snapshot=makeSnapshot();snapshotProvider=()=>snapshot;propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_ROLLBACK_APPROVAL_PROP_V1]=planHash;
 result=ctx.trendosCoreP0RegistryRollbackV1();assert.strictEqual(result.success,true);assert.strictEqual(result.appended,33);assert.strictEqual(registry.getLastRow(),67);
 const attendanceSpec=ctx.trendosCoreP0RegistrySpecsV1_()[0],attendanceRows=snapshot.attendance.filter(r=>r.employee+'|'+r.date===attendanceSpec.entityKey),attendanceEvidence=ctx.trendosCoreP0RegistryEvidenceV1_(attendanceSpec.metricId,attendanceSpec.entityKey,attendanceRows);
 let resolution=ctx.trendosIntegrityResolutionV1_(attendanceSpec.metricId,attendanceSpec.entityKey,attendanceEvidence);
 assert.strictEqual(resolution.resolved,false);assert.strictEqual(resolution.deactivated,true,'append-only rollback must deactivate the older active mapping');
+assert.throws(()=>ctx.trendosCoreP0RegistryRecoveryPreviewV1(),/recovery preview failed/,'approved rollback must not qualify for writer auto-rollback recovery');
+loggedPreview=JSON.parse(previewLogs[previewLogs.length-1]);assert.ok(loggedPreview.errors.some(x=>/not the writer auto-rollback state/.test(x)));
 propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
-assert.throws(()=>ctx.trendosCoreP0RegistryWriteV1(),/explicitly inactive/,'writer must not silently reactivate an approved rollback');
+assert.throws(()=>ctx.trendosCoreP0RegistryWriteV1(),/explicitly inactive/,'normal writer must not silently reactivate an approved rollback');
 
+// Recovery regression: reproduce writer AUTO_ROLLBACK history, then simulate the legacy Sheets DATE coercion observed in production.
 spreadsheet=new FakeSpreadsheet();snapshot=makeSnapshot();snapshotCalls=0;
 const drifted=makeSnapshot();drifted.lines[0].__testEvidenceHash='post-write-drift';snapshotProvider=()=>snapshotCalls===1?snapshot:drifted;
 propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
 assert.throws(()=>ctx.trendosCoreP0RegistryWriteV1(),/appended mappings were deactivated/);
 const driftRegistry=spreadsheet.getSheetByName(ctx.TRENDOS_INTEGRITY_RESOLUTION_SHEET_V1);assert.strictEqual(driftRegistry.getLastRow(),67,'post-write drift must append 33 inactive rollback revisions');
+simulateLegacyPressDateCoercion(driftRegistry);
+const coercedPressRows=driftRegistry.rows.filter((row,i)=>i>0&&row[0]==='PRESS_COMPLETED_WITHOUT_SESSION'&&row[1] instanceof Date);
+assert.strictEqual(coercedPressRows.length,22,'fixture must simulate 11 date-coerced Press keys in both active and rollback blocks');
 resolution=ctx.trendosIntegrityResolutionV1_(attendanceSpec.metricId,attendanceSpec.entityKey,attendanceEvidence);
 assert.strictEqual(resolution.resolved,false);assert.strictEqual(resolution.deactivated,true);
+
+snapshot=makeSnapshot();snapshotProvider=()=>snapshot;snapshotCalls=0;
+let recoveryPreview=ctx.trendosCoreP0RegistryRecoveryPreviewV1();
+assert.strictEqual(recoveryPreview.success,true);assert.strictEqual(recoveryPreview.readOnly,true);assert.strictEqual(recoveryPreview.actualPlanCount,33);assert.strictEqual(recoveryPreview.recoverableCount,33);assert.strictEqual(recoveryPreview.errors.length,0);assert.strictEqual(recoveryPreview.recoveryHash,recoveryHash);
+assert.strictEqual(driftRegistry.getLastRow(),67,'recovery preview must be read-only');
+
+// Recovery write must revalidate current live evidence and consume a distinct one-use approval.
+const staleRecovery=makeSnapshot();staleRecovery.attendance[0].__testEvidenceHash='stale-recovery';snapshotProvider=()=>staleRecovery;
+propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1]=recoveryHash;
+assert.throws(()=>ctx.trendosCoreP0RegistryRecoveryWriteV1(),/recovery live preflight failed/);assert.strictEqual(driftRegistry.getLastRow(),67,'stale recovery evidence must not append');assert.strictEqual(propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1],undefined,'failed recovery preflight consumes the recovery approval');
+
+snapshot=makeSnapshot();snapshotProvider=()=>snapshot;
+recoveryPreview=ctx.trendosCoreP0RegistryRecoveryPreviewV1();assert.strictEqual(recoveryPreview.success,true);
+propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1]=recoveryHash;
+result=ctx.trendosCoreP0RegistryRecoveryWriteV1();
+assert.strictEqual(result.success,true);assert.strictEqual(result.recovered,33);assert.strictEqual(result.totalRegistryRows,99);assert.strictEqual(result.sourceSheetsMutated,false);assert.strictEqual(result.recoveryHash,recoveryHash);
+assert.strictEqual(propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_PROP_V1],undefined,'recovery approval must be consumed');
+const recoveredPressIndex=driftRegistry.rows.map((row,i)=>({row,i})).filter(x=>x.row[0]==='PRESS_COMPLETED_WITHOUT_SESSION'&&x.row[1]==='3536-01'&&x.row[9]===true).pop().i;
+assert.strictEqual(typeof driftRegistry.rows[recoveredPressIndex][1],'string','recovered date-like Entity Key must be stored as text');
+assert.strictEqual(driftRegistry.formats[(recoveredPressIndex+1)+':2'],'@');
+resolution=ctx.trendosIntegrityResolutionV1_(attendanceSpec.metricId,attendanceSpec.entityKey,attendanceEvidence);
+assert.strictEqual(resolution.resolved,true,'recovery append must make the exact mapping active again');
+assert.throws(()=>ctx.trendosCoreP0RegistryRecoveryPreviewV1(),/latest exact mapping is active/,'recovery must not be repeatable after success');
 
 spreadsheet=new FakeSpreadsheet();const bad=spreadsheet.insertSheet(ctx.TRENDOS_INTEGRITY_RESOLUTION_SHEET_V1);bad.getRange(1,1,1,10).setValues([['Wrong',...new Array(9).fill('')]]);snapshot=makeSnapshot();snapshotProvider=()=>snapshot;propertyValues[ctx.TRENDOS_CORE_P0_REGISTRY_WRITE_APPROVAL_PROP_V1]=planHash;
 assert.throws(()=>ctx.trendosCoreP0RegistryWriteV1(),/exact 10-header schema/);assert.strictEqual(bad.getLastRow(),1);
