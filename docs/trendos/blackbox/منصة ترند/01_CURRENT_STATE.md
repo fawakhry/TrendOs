@@ -2,6 +2,19 @@
 
 Date: 2026-09-10
 
+## Canonical project identity — READ BEFORE EXECUTION
+
+Authoritative locator: `00_PROJECT_LOCATOR.md`
+
+- Production Google Sheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+- Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+- Bound Apps Script Project ID: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`
+- Repository: `fawakhry/TrendOs`
+- Working branch: `agent/go-live-2026-09-01-integrity`
+- Blackbox root: `docs/trendos/blackbox/منصة ترند/`
+
+Any new chat/session must read `00_PROJECT_LOCATOR.md` first. Do not substitute a BACKUP/STAGING workbook and do not use the workbook tab `سكريبت Apps Script` as live Head authority.
+
 ## Active RP-07 execution state
 
 Status: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — SESSION PAUSED AT PHASE 0B — HOLD BEFORE PHASE 1 / RP-08**
