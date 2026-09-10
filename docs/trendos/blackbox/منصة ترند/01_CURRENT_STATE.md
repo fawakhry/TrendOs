@@ -15,6 +15,61 @@ Authoritative locator: `00_PROJECT_LOCATOR.md`
 
 Any new chat/session must read `00_PROJECT_LOCATOR.md` first. Do not substitute a BACKUP/STAGING workbook and do not use the workbook tab `سكريبت Apps Script` as live Head authority.
 
+## Owner-prioritized Operator Task Workflow V2 — OT-00 DESIGN/PREP ACTIVE
+
+Status: **REQUIREMENTS APPROVED — GITHUB V2 CANDIDATE EXISTS — HYBRID CLOUDFLARE DESIGN/PREP ACTIVE — RUNTIME NOT DEPLOYED / NOT ENABLED**
+
+Authoritative records:
+
+- `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_WORKFLOW_WAEL_GABER_REQUIREMENTS.md`
+- `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
+- root candidate reference: `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md`
+
+Owner-approved roadmap placement:
+
+`Finish RP-07 full PASS -> Operator Task V2 runtime rollout/validation -> resume RP-08 / broader roadmap`
+
+The feature does **not** wait for the entire Cloudflare migration, but runtime activation is blocked until RP-07 is fully closed and a fresh gate proves the required zero-blocker state.
+
+Approved first-live architecture:
+
+`Operator browser -> Cloudflare TrendOS UI/API -> Google Apps Script/Sheets Task authority initially -> D1 mirror/read support`
+
+Later, a separate qualified cutover may replace the internal Google authority adapter with D1 while keeping the Cloudflare-facing API/UI stable.
+
+Key invariants:
+
+- ordinary backlog hidden from Wael/Gaber server-side;
+- system dispatches next ordinary Task: urgent first -> delivery due date ASC -> Order sequence ASC;
+- pull/claim starts the authoritative timer immediately and moves the work to `بدء التنفيذ`;
+- `جاهز للاستلام` or `تم التسليم` stops the timer and persists actual duration;
+- initial rule: one active ordinary Task maximum per operator;
+- Wael: `الطباعة على الطاير` permanently visible and fully outside Tasks;
+- Wael: scoped Press candidate/batching visibility only;
+- Gaber/Laser: no Fly Print and no Press capability;
+- no uncontrolled Google+D1 dual-authoritative Task writes;
+- D1 Task business-write authority remains not authorized;
+- current standalone GitHub `v1932-router.gs` must not be installed live because live `trendosV1932TryRoute_` is already owned by `Code.gs`.
+
+Current allowed work during `OT-00`:
+
+- GitHub-only architecture/code/test/CI preparation;
+- Cloudflare route/gate/adapter preparation while inert and not deployed;
+- frontend transport preparation while disabled;
+- blackbox updates.
+
+Current prohibited Operator actions:
+
+- no live Apps Script Operator install;
+- no Operator production deploy/activation;
+- no Operator feature flag/property change;
+- no D1 Task write-authority cutover;
+- no source business mutation as part of preparation.
+
+The next Operator runtime stage is `OT-01 — Runtime install, inert`, but it becomes eligible only after RP-07 is fully closed and requires a separate explicit owner-approved mutation/deployment boundary.
+
+---
+
 ## Active RP-07 execution state
 
 Status: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — SESSION PAUSED AT PHASE 0B — HOLD BEFORE PHASE 1 / RP-08**
@@ -54,11 +109,11 @@ Owner rule effective 2026-09-10 remains active: every material execution step, g
 
 **RP-07 HOLD. SESSION PAUSED. PHASE 1 PROHIBITED. RP-08 PROHIBITED.**
 
-The next allowed action when ChatGPT Work becomes available again is **Runtime Phase 0B READ ONLY** to complete deployment/version inventory and prove the exact runtime impact of `master=true` + `HEALTH=true`. Do not change either property during Phase 0B.
+The next allowed RP-07 action when ChatGPT Work becomes available again is **Runtime Phase 0B READ ONLY** to complete deployment/version inventory and prove the exact runtime impact of `master=true` + `HEALTH=true`. Do not change either property during Phase 0B.
 
 Only after Phase 0B can a separate explicit owner-approved mutation boundary be considered to disable the active Integrity properties if proven safe. Phase 1 Head installation remains blocked until that state is resolved and re-verified.
 
-A fresh RP-07 gate must eventually prove `OPEN_CORE_P0_BLOCKERS=0` before Core GO or RP-08.
+A fresh RP-07 gate must eventually prove `OPEN_CORE_P0_BLOCKERS=0` before RP-07 closure. After that closure, Operator Task OT-01 is the owner-prioritized next production insertion before RP-08 unless reprioritized.
 
 ---
 
@@ -102,7 +157,7 @@ Retained evidence:
 
 **HOLD.**
 
-The code candidate is qualified, but Runtime Phase 0 now proves active Integrity property state and live candidate/blob mismatches that must be resolved before installation. Existing live P0 data failures also remain unresolved.
+The RP-07 code candidate is qualified, but Runtime Phase 0 proves active Integrity property state and live candidate/blob mismatches that must be resolved before installation. Existing live P0 data failures also remain unresolved.
 
 ### Safety boundary
 
@@ -117,7 +172,8 @@ The code candidate is qualified, but Runtime Phase 0 now proves active Integrity
 - generic drain OFF;
 - no business-family activation;
 - no active Integrity property mutation without a separate explicit owner-approved boundary;
-- RP-08 not started;
+- Operator Task OT-00 may continue GitHub-only preparation but cannot activate runtime before RP-07 closure;
+- RP-08 not started and follows the owner-prioritized Operator Task rollout unless explicitly reprioritized;
 - Save Timeout/reconcile remains `DEFERRED_BY_OWNER`.
 
 ---
