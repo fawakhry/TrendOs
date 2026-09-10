@@ -4,72 +4,36 @@ Date: 2026-09-10
 
 ## Active RP-06 execution state
 
-Status: **RECOVERY PATCH CODE + TESTS + CI PASS — PRODUCTION REGISTRY LATEST STATE INACTIVE — FRESH PREVIEW33 + RECOVERY PREVIEW33 REQUIRED**
+Status: **RP-06 RECOVERY COMPLETE — REGISTRY LATEST EXACT 33 MAPPINGS ACTIVE — READY FOR RP-07**
 
 Current record:
 
-`TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_PATCH_CODE_CI_PASS.md`
+`TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
 
 Current facts:
 
-- Patch33 plan remains exactly `33` specs.
-- exact normal plan hash remains `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
-- original Patch33 commit: `fb9ca056b7adc6b289496f6a1956623631d1874c`.
-- prior Apps Script Preview33 passed with `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`, with all 33 expected/actual evidence hashes matching.
-- owner then approved the exact 33-spec normal Registry Write.
-- that write appended 33 active Registry revisions but post-write verification failed because Google Sheets coerced 11 numeric-looking Press `Entity Key` values such as `3536-01` into DATE/number raw values.
-- the writer then auto-rolled back by appending the same 33 exact mappings inactive with reason `AUTO_ROLLBACK: post-write evidence or registry verification failed`.
-- production Registry currently contains 66 historical data rows: 33 active revisions followed by 33 inactive auto-rollback revisions; latest exact mapping state is inactive.
-- no existing Registry row may be edited, deleted, or have `Active?` flipped in place.
-- owner explicitly approved the bounded GitHub-only Recovery Patch.
-- recovery writer implementation commit: `d8acca532b238ee78497c598bd2fb363c0ffe1db`.
-- current recovery writer blob: `81e994945af7fefdd38538a7ca569e73483f3d24`.
-- recovery regression test commit: `7ab1af20cd2b2b73182ca532314fe6da25cd0033`.
-- recovery test blob: `05fbd72caca6d9fd5302afa441cf8d38a66b1f7d`.
-- Recovery Patch Integrity Run `34467516059` — SUCCESS; registry-writer tests, Press tests, Invoice tests, dashboard tests, composed Apps Script collision/syntax test, and pre-deploy safety gate all passed.
-- the 33-spec data plan and normal plan hash were intentionally not changed by the Recovery Patch.
-- new recovery version: `TRENDOS_CORE_P0_REGISTRY_RECOVERY_V1_20260910`.
-- new one-use recovery property: `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1`.
-- exact recovery approval hash: `ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82`.
-- before every new Registry append, the patched writer forces Registry columns A:G and I to plain-text format so date-like identifiers remain raw strings.
-- recovery-state inspection uses displayed `Entity Key` text only to recognize the preserved legacy date-coerced history; ordinary downstream resolution remains unchanged and will use the new latest text-stored active revisions after a successful recovery.
-- `trendosCoreP0RegistryRecoveryPreviewV1` is read-only.
-- `trendosCoreP0RegistryRecoveryWriteV1` is fail-closed and may recover only exact mappings whose latest revision is inactive with the exact writer AUTO_ROLLBACK reason, exact evidence hash, and immediately preceding active exact revision with the same evidence hash.
-- arbitrary inactive mappings and `APPROVED_ROLLBACK` mappings are not recoverable through this path.
-- stale live evidence blocks recovery before append and consumes the distinct one-use recovery approval.
-- the old normal write approval is consumed and MUST NOT be reused.
-- Apps Script Head has NOT yet been updated from the prior writer blob to recovery writer blob `81e994945af7fefdd38538a7ca569e73483f3d24`.
-- no Recovery Write has been authorized or executed.
+- Apps Script Head `trendos-core-p0-registry-writer-v1.gs` exactly matches Git blob `81e994945af7fefdd38538a7ca569e73483f3d24`.
+- RP-06 declarations are isolated to the main writer; the approval helper is restored to comment-only.
+- Normal Preview33 passed: `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`.
+- Recovery Preview33 passed: `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `recoverableCount=33`, `errors=[]`.
+- Normal plan hash: `5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`.
+- Recovery hash: `ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82`.
+- Pre-write Registry state was exactly 66 data rows: 33 active historical + 33 writer AUTO_ROLLBACK inactive.
+- A separately owner-authorized one-purpose setter set only `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1`, executed once, and was removed before Recovery Write.
+- `trendosCoreP0RegistryRecoveryWriteV1` executed exactly once and completed successfully.
+- Recovery result: `recovered=33`, `totalRegistryRows=99`, `sourceSheetsMutated=false`.
+- Latest exact mappings: 33 active, zero inactive.
+- All required numeric-looking Press Entity Keys were read back from latest rows as actual strings.
+- New `AUTO_ROLLBACK_RECOVERY`: zero.
+- No normal Registry Write, manual rollback, Deploy, flag change, Source Sheet mutation, D1 write, `Code.gs` modification, main merge, or RP-07 execution occurred.
 
-Owner rule effective 2026-09-10: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
+Owner rule effective 2026-09-10 remains active: every material execution step, gate result, decision, blocker, mutation, and explicit no-mutation stop must be recorded in the blackbox before continuing.
 
 ### Current RP-06 safety boundary
 
-**RECOVERY PATCH PASS — STOP BEFORE APPS SCRIPT RECOVERY VALIDATION.**
+**RP-06 CLOSED. STOP BEFORE RP-07.**
 
-The next bounded step requires separate owner approval and is runtime read-only except for replacing the already-approved writer source in Apps Script Head:
-
-1. update only Apps Script Head file `trendos-core-p0-registry-writer-v1.gs` to exact GitHub blob `81e994945af7fefdd38538a7ca569e73483f3d24`;
-2. Save/reload/exact-verify the Head source;
-3. run only `trendosCoreP0RegistryPreviewV1`; require `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `errors=[]`, planHash=`5bc903bc8937ac4f523c98dec9e12a0ad6e4bff19928b4a8aa5737da32c94eab`;
-4. run only `trendosCoreP0RegistryRecoveryPreviewV1`; require `success=true`, `readOnly=true`, `expectedCount=33`, `actualPlanCount=33`, `recoverableCount=33`, `errors=[]`, recoveryHash=`ef3a590e11cd4c273aa552c238f4a1d3878a3bc8c85a944c84a084786d9e9a82`;
-5. STOP and record both results.
-
-Only after both previews PASS may the owner separately authorize setting `TRENDOS_CORE_P0_REGISTRY_RECOVERY_APPROVAL_V1` and executing `trendosCoreP0RegistryRecoveryWriteV1` once.
-
-Still prohibited without a new explicit approval:
-
-- rerunning `AAA_RP06_WRITE_ONCE` or normal `trendosCoreP0RegistryWriteV1`;
-- `trendosCoreP0RegistryRecoveryWriteV1` before fresh previews + explicit approval;
-- direct Registry Sheet edits/deletes/`Active?` flips;
-- rollback;
-- Apps Script Production deploy;
-- Source Sheet business-data mutation;
-- D1 business-data write;
-- business-family flag activation;
-- `Code.gs` mutation;
-- merge to main;
-- RP-07 execution.
+RP-07 requires its own bounded checkpoint and authorization.
 
 ---
 
@@ -77,7 +41,7 @@ Still prohibited without a new explicit approval:
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — CORE GO/NO-GO HOLD ON RP-06 REGISTRY RECOVERY**
+Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 RECOVERY COMPLETE — READY FOR RP-07**
 
 ### Regression Pack
 
@@ -109,9 +73,9 @@ Qualified live checks included:
 
 ### Core GO/NO-GO
 
-**HOLD**
+**READY FOR RP-07 GATE**
 
-The E2E blocker is cleared. RP-06 Patch33, Preview33, and Recovery Patch CI are PASS, but the production Registry latest state is inactive after the auto-rollback. Fresh Recovery Patch runtime previews and a separately approved successful Recovery Write are still required before RP-07.
+The E2E blocker and RP-06 Registry Recovery blocker are cleared. The production Registry now has the latest exact 33 mappings active after the approved recovery. RP-07 has not started and requires a separate bounded checkpoint.
 
 ### Safety boundary
 
