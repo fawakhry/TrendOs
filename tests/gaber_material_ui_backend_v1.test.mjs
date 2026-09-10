@@ -30,7 +30,7 @@ function makeEnv(){
   ctx.otRoleV2_=(a)=>a?.user?.role==='admin'?'MANAGER':'GABER';ctx.otUserNameV2_=(a)=>a?.user?.username||'';
   const task={taskId:'T-1',orderId:'3910',lineId:'3910-01',department:'ليزر',employee:'جابر',startedAt:'2026-09-11T09:00:00+03:00'};
   ctx.otActiveIndexV2_=()=>({byEmployee:{'جابر':{x:1}}});ctx.otTaskViewV2_=()=>task;ctx.otFindTaskV2_=()=>({x:1});ctx.otIsGaberLaserTaskV2_=()=>true;
-  load(ctx,'gaber-material-movement-ledger-v1.js');load(ctx,'gaber-ledger-daily-report-v1.js');load(ctx,'gaber-material-persistence-backend-v1.gs');load(ctx,'gaber-material-ui-backend-v1.gs');
+  load(ctx,'gaber-material-movement-ledger-v1.js');load(ctx,'gaber-ledger-daily-report-v1.js');load(ctx,'gaber-material-persistence-backend-v1.gs');load(ctx,'gaber-material-ui-backend-v1.gs');load(ctx,'gaber-material-waste-decision-v1.gs');
   const ledgerHeaders=vm.runInContext('GABER_MATERIAL_LEDGER_V1_HEADERS.slice()',ctx),approvalHeaders=vm.runInContext('GABER_MATERIAL_WASTE_APPROVALS_V1_HEADERS.slice()',ctx),requestHeaders=vm.runInContext('GABER_MATERIAL_WASTE_REQUESTS_V1_HEADERS.slice()',ctx);
   const materials=[['ID','القسم','اسم الخامة','الوحدة','تكلفة محسوبة','سعر الوحدة','رصيد المخزن','مفعل'],['MAT-1','ليزر','محفظة','قطعة',100,90,1,'نعم']];
   const pHeaders=['ID','مفتاح الطلب','وقت التسجيل','تاريخ العمل','الموظف','القسم','المورد','رقم فاتورة المورد','الخامة','الكمية','سعر الوحدة','الإجمالي','نوع الدفع','الحالة','حالة المخزون','وقت إضافة المخزون','كمية أضيفت للمخزون','رصيد المخزون بعد الإضافة','رقم فاتورة الشراء الرسمية','وقت عكس المخزون','سبب عكس المخزون','ملاحظات'];
@@ -58,9 +58,9 @@ test('manager sees pending request, decision clears queue, exact decision retry 
   const e=makeEnv(),req={taskId:'T-1',orderId:'3910',lineId:'3910-01',materialId:'MAT-1',wasteId:'W-1',qty:1,reasonCode:'OPERATOR_ERROR',evidenceRef:'photo-1'};
   const made=call(e,'gaberMaterialRequestWasteV1_({taskId:"T-1",requestJson:JSON.stringify(__r)},__a)',{__r:req,__a:gaber()});
   let q=call(e,'gaberMaterialPendingWasteV1_({},__m)',{__m:manager()});assert.equal(q.items.length,1);
-  let d=call(e,'gaberMaterialWasteDecisionV1_({requestId:__id,decision:"APPROVED",reason:"ok"},__m)',{__id:made.requestId,__m:manager()});assert.equal(d.success,true);const n=e.approvals.rows.length;
+  let d=call(e,'gaberMaterialWasteDecisionIdempotentV1_({requestId:__id,decision:"APPROVED",reason:"ok"},__m)',{__id:made.requestId,__m:manager()});assert.equal(d.success,true);const n=e.approvals.rows.length;
   q=call(e,'gaberMaterialPendingWasteV1_({},__m)',{__m:manager()});assert.equal(q.items.length,0);
-  d=call(e,'gaberMaterialWasteDecisionV1_({requestId:__id,decision:"APPROVED",reason:"ok"},__m)',{__id:made.requestId,__m:manager()});assert.equal(d.success,true);assert.equal(d.replayed,true);assert.equal(e.approvals.rows.length,n);
+  d=call(e,'gaberMaterialWasteDecisionIdempotentV1_({requestId:__id,decision:"APPROVED",reason:"ok"},__m)',{__id:made.requestId,__m:manager()});assert.equal(d.success,true);assert.equal(d.replayed,true);assert.equal(e.approvals.rows.length,n);
 });
 
 test('daily report reads immutable ledger, exact Order/Line drilldown and accounting stock balances',()=>{
@@ -69,6 +69,6 @@ test('daily report reads immutable ledger, exact Order/Line drilldown and accoun
     {eventId:'P1',type:'PURCHASE_RECEIPT',workDate:'2026-09-11',occurredAt:'2026-09-11T08:00:00+03:00',department:'ليزر',materialId:'MAT-1',materialName:'محفظة',unit:'قطعة',qty:40,unitCost:100,totalValue:4000,purchaseId:'DPP-1',invoiceNo:'INV-1'},
     {eventId:'C1',type:'PRODUCTION_CONSUMED',workDate:'2026-09-11',occurredAt:'2026-09-11T10:00:00+03:00',department:'ليزر',employee:'جابر',taskId:'T-1',orderId:'3910',lineId:'3910-01',materialId:'MAT-1',materialName:'محفظة',unit:'قطعة',qty:39,unitCost:100}
   ];
-  const h=vm.runInContext('GABER_MATERIAL_LEDGER_V1_HEADERS.slice()',e.ctx);events.forEach((ev,i)=>e.ledger.rows.push(['R'+i,'TX','TFP','MC','EV'+i,'FP',ev.workDate,'ليزر',ev.type,'MAT-1',ev.taskId||'',ev.orderId||'',ev.lineId||'',ev.purchaseId||'',ev.wasteId||'','SRC','2026-09-11T10:00:00+03:00',JSON.stringify(ev)]));
+  events.forEach((ev,i)=>e.ledger.rows.push(['R'+i,'TX','TFP','MC','EV'+i,'FP',ev.workDate,'ليزر',ev.type,'MAT-1',ev.taskId||'',ev.orderId||'',ev.lineId||'',ev.purchaseId||'',ev.wasteId||'','SRC','2026-09-11T10:00:00+03:00',JSON.stringify(ev)]));
   const r=call(e,'gaberMaterialDailyReportV1_({workDate:"2026-09-11"},__a)',{__a:gaber()});assert.equal(r.success,true);assert.equal(r.report.rows[0].purchasedQty,40);assert.equal(r.report.rows[0].orderOutQty,39);assert.equal(r.report.rows[0].openingQty,0);assert.equal(r.report.rows[0].actualClosingQty,1);assert.equal(r.report.rows[0].reconciliationStatus,'RECONCILED');assert.equal(r.report.rows[0].orderOutRefs[0].orderId,'3910');assert.equal(r.report.rows[0].orderOutRefs[0].lineId,'3910-01');
 });
