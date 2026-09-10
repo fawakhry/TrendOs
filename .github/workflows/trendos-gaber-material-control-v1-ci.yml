@@ -14,6 +14,7 @@ on:
       - 'gaber-material-persistence-backend-v1.gs'
       - 'operator-task-workflow-v2.gs'
       - 'tests/gaber_material_control_v1.test.mjs'
+      - 'tests/gaber_material_zero_offcut_regression_v1.test.mjs'
       - 'tests/gaber_daily_material_flow_v1.test.mjs'
       - 'tests/gaber_material_movement_ledger_v1.test.mjs'
       - 'tests/gaber_easystore_ledger_adapter_v1.test.mjs'
@@ -37,6 +38,7 @@ on:
       - 'gaber-material-persistence-backend-v1.gs'
       - 'operator-task-workflow-v2.gs'
       - 'tests/gaber_material_control_v1.test.mjs'
+      - 'tests/gaber_material_zero_offcut_regression_v1.test.mjs'
       - 'tests/gaber_daily_material_flow_v1.test.mjs'
       - 'tests/gaber_material_movement_ledger_v1.test.mjs'
       - 'tests/gaber_easystore_ledger_adapter_v1.test.mjs'
@@ -63,6 +65,9 @@ jobs:
 
       - name: Run Gaber Task material custody and waste close tests
         run: node --test tests/gaber_material_control_v1.test.mjs
+
+      - name: Run zero reusable-offcut regression tests
+        run: node --test tests/gaber_material_zero_offcut_regression_v1.test.mjs
 
       - name: Run Gaber daily material flow report tests
         run: node --test tests/gaber_daily_material_flow_v1.test.mjs
