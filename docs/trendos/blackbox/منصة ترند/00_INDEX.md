@@ -25,23 +25,52 @@ Startup order for every new chat/session:
 
 Do not substitute any BACKUP/STAGING workbook, and do not treat the workbook tab `سكريبت Apps Script` as live Apps Script Head authority.
 
-## Owner-approved upcoming product requirements
+## Owner-prioritized Operator Task Workflow V2
 
-Current operator task-workflow requirement record:
+Authoritative requirements:
 
 `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_WORKFLOW_WAEL_GABER_REQUIREMENTS.md`
 
-This requirement is **approved as product/operations intent but not yet implemented**. Any future work on operator screens, task assignment, timers, Printing/Wael, Laser/Gaber, on-the-fly printing, or Press batching must read this record before design or code changes.
+Canonical architecture / rollout design:
 
-Key direction:
+`TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
 
-- ordinary production backlog is not freely browsable/selectable by operators;
-- ordinary work is delivered as system-controlled Tasks;
+GitHub candidate reference:
+
+`OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md`
+
+Current status:
+
+**PRODUCT REQUIREMENTS APPROVED — V2 GITHUB CANDIDATE EXISTS — HYBRID CLOUDFLARE DESIGN/PREP ACTIVE — NOT DEPLOYED / NOT ENABLED**
+
+Roadmap placement approved by owner:
+
+`Finish RP-07 PASS -> Operator Task V2 runtime rollout/validation -> resume RP-08 / broader roadmap`
+
+Operator Task V2 does not need to wait for the full Cloudflare migration, but it must not be activated while RP-07 remains unresolved.
+
+Architecture direction:
+
+`Operator browser -> Cloudflare TrendOS UI/API -> Google Apps Script/Sheets Task authority initially -> D1 mirror/read support`
+
+Later, under a separate qualified D1 write cutover, the internal Task authority can move to D1 without changing the operator-facing API.
+
+Non-negotiable operator behavior:
+
+- ordinary production backlog is not freely browsable/selectable by Wael/Gaber;
+- ordinary work is delivered as server-controlled Tasks;
+- dispatch order: urgent first -> delivery due date ASC -> Order sequence ASC;
 - pulling a Task starts authoritative timing and moves it to `بدء التنفيذ`;
 - completion at `تم التسليم` or `جاهز للاستلام` records actual elapsed time;
-- Wael/Printing keeps `الطباعة على الطاير` directly visible and gets a scoped Press batching view;
+- Wael/Printing keeps `الطباعة على الطاير` permanently visible **outside Tasks**;
+- Wael gets a scoped Press batching view only;
 - Gaber/Laser gets neither Press nor `الطباعة على الطاير`;
-- future implementation should align with the Cloudflare Workers/D1 migration direction and must not weaken current RP-07 safety constraints.
+- no uncontrolled Google+D1 dual-authoritative Task writes;
+- current GitHub standalone `v1932-router.gs` must not be installed live because Runtime Phase 0 proved `trendosV1932TryRoute_` already exists inside live `Code.gs`.
+
+Current preparation phase: `OT-00 — Design / Preparation`.
+
+Allowed during OT-00 while RP-07 remains open: GitHub-only design/code/test/CI preparation with all runtime gates OFF. Live Apps Script mutation, production Operator activation, D1 Task write authority, and RP-08 remain prohibited.
 
 ## Active RP-07 execution checkpoint — 2026-09-10
 
@@ -74,7 +103,7 @@ Current facts:
 - live P0 blockers remain: Attendance duplicates, Cleaning duplicates, invoice Drafts for delivered Orders `3839` and `3841`, and Press exact-Line evidence gap for `3796-01`.
 - no Apps Script Head mutation, Save, Deploy, Script Property mutation, Source Sheet write, Registry write, D1 write, `Code.gs` edit, main merge, or RP-08 occurred.
 
-**Next allowed step:** Runtime Phase 0B READ ONLY — inspect deployment/version inventory and exact runtime exposure of the currently active master+HEALTH flags. Do not change those flags in Phase 0B.
+**Next allowed RP-07 step:** Runtime Phase 0B READ ONLY — inspect deployment/version inventory and exact runtime exposure of the currently active master+HEALTH flags. Do not change those flags in Phase 0B.
 
 Only after that evidence may a separate explicit owner-approved mutation boundary be considered for disabling the two active properties before Phase 1.
 
@@ -144,5 +173,7 @@ Evidence retained:
 - no `EDGE_SESSION_SECRET` rotation/change.
 - no business-family activation.
 - no Script Property mutation without a separate approved boundary.
-- RP-08 not started.
+- Operator Task V2 runtime activation waits for RP-07 full closure.
+- Operator Task V2 D1 write authority remains OFF/not authorized.
+- RP-08 not started and is sequenced after the owner-prioritized Operator Task rollout unless reprioritized.
 - deferred Save Timeout / reconcile work remains deferred by owner unless explicitly reopened.
