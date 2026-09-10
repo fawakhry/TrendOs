@@ -25,6 +25,24 @@ Startup order for every new chat/session:
 
 Do not substitute any BACKUP/STAGING workbook, and do not treat the workbook tab `سكريبت Apps Script` as live Apps Script Head authority.
 
+## Owner-approved upcoming product requirements
+
+Current operator task-workflow requirement record:
+
+`TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_WORKFLOW_WAEL_GABER_REQUIREMENTS.md`
+
+This requirement is **approved as product/operations intent but not yet implemented**. Any future work on operator screens, task assignment, timers, Printing/Wael, Laser/Gaber, on-the-fly printing, or Press batching must read this record before design or code changes.
+
+Key direction:
+
+- ordinary production backlog is not freely browsable/selectable by operators;
+- ordinary work is delivered as system-controlled Tasks;
+- pulling a Task starts authoritative timing and moves it to `بدء التنفيذ`;
+- completion at `تم التسليم` or `جاهز للاستلام` records actual elapsed time;
+- Wael/Printing keeps `الطباعة على الطاير` directly visible and gets a scoped Press batching view;
+- Gaber/Laser gets neither Press nor `الطباعة على الطاير`;
+- future implementation should align with the Cloudflare Workers/D1 migration direction and must not weaken current RP-07 safety constraints.
+
 ## Active RP-07 execution checkpoint — 2026-09-10
 
 الحالة: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — SESSION PAUSED AT PHASE 0B — HOLD BEFORE PHASE 1 / RP-08**
