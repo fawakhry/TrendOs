@@ -12,6 +12,10 @@ on:
       - 'gaber-ledger-daily-report-v1.js'
       - 'gaber-material-persistence-v1.js'
       - 'gaber-material-persistence-backend-v1.gs'
+      - 'gaber-material-ui-v1.js'
+      - 'gaber-material-ui-backend-v1.gs'
+      - 'gaber-material-waste-decision-v1.gs'
+      - 'operator-task-workflow-v2.js'
       - 'operator-task-workflow-v2.gs'
       - 'tests/gaber_material_control_v1.test.mjs'
       - 'tests/gaber_material_zero_offcut_regression_v1.test.mjs'
@@ -20,13 +24,19 @@ on:
       - 'tests/gaber_easystore_ledger_adapter_v1.test.mjs'
       - 'tests/gaber_material_persistence_v1.test.mjs'
       - 'tests/gaber_material_persistence_backend_v1.test.mjs'
+      - 'tests/gaber_material_ui_v1.test.mjs'
+      - 'tests/gaber_ledger_daily_report_balance_gate_v1.test.mjs'
+      - 'tests/gaber_material_ui_backend_v1.test.mjs'
       - 'tests/operator_task_gaber_material_gate_v1.test.mjs'
+      - 'tests/operator_task_gaber_material_ui_v1.test.mjs'
       - '.github/workflows/trendos-gaber-material-control-v1-ci.yml'
       - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_LASER_MATERIAL_CUSTODY_WASTE_CONTROL_V1.md'
       - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_DAILY_MATERIAL_FLOW_REQUIREMENT.md'
       - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_MATERIAL_CONTROL_V1_CANDIDATE_CHECKPOINT_01.md'
       - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_EASYSTORE_LEDGER_ADAPTER_PRESTEP.md'
       - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_MATERIAL_CONTROL_V1_PERSISTENCE_BACKEND_EXECUTION_PLAN.md'
+      - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-11_GABER_MATERIAL_UI_REPORT_EXECUTION_PLAN.md'
+      - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-11_GABER_WASTE_APPROVAL_REQUEST_STORE_DECISION.md'
   pull_request:
     paths:
       - 'gaber-material-control-v1.js'
@@ -36,6 +46,10 @@ on:
       - 'gaber-ledger-daily-report-v1.js'
       - 'gaber-material-persistence-v1.js'
       - 'gaber-material-persistence-backend-v1.gs'
+      - 'gaber-material-ui-v1.js'
+      - 'gaber-material-ui-backend-v1.gs'
+      - 'gaber-material-waste-decision-v1.gs'
+      - 'operator-task-workflow-v2.js'
       - 'operator-task-workflow-v2.gs'
       - 'tests/gaber_material_control_v1.test.mjs'
       - 'tests/gaber_material_zero_offcut_regression_v1.test.mjs'
@@ -44,7 +58,11 @@ on:
       - 'tests/gaber_easystore_ledger_adapter_v1.test.mjs'
       - 'tests/gaber_material_persistence_v1.test.mjs'
       - 'tests/gaber_material_persistence_backend_v1.test.mjs'
+      - 'tests/gaber_material_ui_v1.test.mjs'
+      - 'tests/gaber_ledger_daily_report_balance_gate_v1.test.mjs'
+      - 'tests/gaber_material_ui_backend_v1.test.mjs'
       - 'tests/operator_task_gaber_material_gate_v1.test.mjs'
+      - 'tests/operator_task_gaber_material_ui_v1.test.mjs'
       - '.github/workflows/trendos-gaber-material-control-v1-ci.yml'
 
 permissions:
@@ -84,19 +102,38 @@ jobs:
       - name: Run Gaber Apps Script persistence backend gate tests
         run: node --test tests/gaber_material_persistence_backend_v1.test.mjs
 
+      - name: Run Gaber material UI serializer tests
+        run: node --test tests/gaber_material_ui_v1.test.mjs
+
+      - name: Run Gaber ledger daily balance-gate tests
+        run: node --test tests/gaber_ledger_daily_report_balance_gate_v1.test.mjs
+
+      - name: Run Gaber material UI backend approval/report tests
+        run: node --test tests/gaber_material_ui_backend_v1.test.mjs
+
       - name: Run Operator Task V2 material-gate integration tests
         run: node --test tests/operator_task_gaber_material_gate_v1.test.mjs
 
-      - name: Safety scan pure candidates remain pure and flags remain inert
+      - name: Run Operator Task V2 Gaber material UI integration tests
+        run: node --test tests/operator_task_gaber_material_ui_v1.test.mjs
+
+      - name: Safety scan candidates remain inert and collision-free
         shell: bash
         run: |
           set -euo pipefail
-          for f in gaber-material-control-v1.js gaber-daily-material-flow-v1.js gaber-material-movement-ledger-v1.js gaber-easystore-ledger-adapter-v1.js gaber-ledger-daily-report-v1.js gaber-material-persistence-v1.js; do
+          for f in gaber-material-control-v1.js gaber-daily-material-flow-v1.js gaber-material-movement-ledger-v1.js gaber-easystore-ledger-adapter-v1.js gaber-ledger-daily-report-v1.js gaber-material-persistence-v1.js gaber-material-ui-v1.js; do
             ! grep -Eq 'SpreadsheetApp|PropertiesService|UrlFetchApp|D1|fetch\s*\(' "$f"
             ! grep -Eq 'setProperty\s*\(|appendRow\s*\(|setValue\s*\(|setValues\s*\(' "$f"
           done
-          ! grep -Eq 'setProperty\s*\(' operator-task-workflow-v2.gs
-          ! grep -Eq 'setProperty\s*\(' gaber-material-persistence-backend-v1.gs
-          ! grep -Eq 'doGet\s*\(|doPost\s*\(|trendosV1932TryRoute_' gaber-material-persistence-backend-v1.gs
+          for f in operator-task-workflow-v2.gs gaber-material-persistence-backend-v1.gs gaber-material-ui-backend-v1.gs gaber-material-waste-decision-v1.gs; do
+            ! grep -Eq 'setProperty\s*\(' "$f"
+          done
+          for f in gaber-material-persistence-backend-v1.gs gaber-material-ui-backend-v1.gs gaber-material-waste-decision-v1.gs; do
+            ! grep -Eq 'doGet\s*\(|doPost\s*\(|trendosV1932TryRoute_' "$f"
+          done
           grep -q "TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED" operator-task-workflow-v2.gs
           grep -q "function gaberMaterialTaskCloseGateV1_" gaber-material-persistence-backend-v1.gs
+          grep -q "function gaberMaterialUiRouteV1_" gaber-material-ui-backend-v1.gs
+          grep -q "function gaberMaterialWasteDecisionIdempotentV1_" gaber-material-waste-decision-v1.gs
+          grep -q "gaberMaterialWasteDecisionIdempotentV1_" operator-task-workflow-v2.gs
+          grep -q "materialClosePayload" operator-task-workflow-v2.js
