@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import {Buffer} from 'node:buffer';
+import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
@@ -22,7 +23,7 @@ function makeEnv(){
   const ctx=vm.createContext({console,JSON,Date,Math,Number,String,Array,Object,Map,Set,Error,Buffer});
   ctx.Utilities={
     DigestAlgorithm:{SHA_256:'SHA_256'},Charset:{UTF_8:'UTF_8'},
-    computeDigest:(_a,s)=>Array.from(Buffer.from(String(s),'utf8')).slice(0,32),
+    computeDigest:(_a,s)=>Array.from(createHash('sha256').update(String(s),'utf8').digest()),
     base64EncodeWebSafe:(b)=>Buffer.from(b).toString('base64url'),getUuid:()=>`u-${Math.random()}`,
     formatDate:(d,_tz,p)=>p==='yyyy-MM-dd'?'2026-09-11':'2026-09-11T10:00:00+03:00'
   };
