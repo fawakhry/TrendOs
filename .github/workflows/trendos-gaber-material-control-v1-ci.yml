@@ -1,0 +1,42 @@
+name: TrendOS Gaber Material Control V1 CI
+
+on:
+  push:
+    branches:
+      - agent/go-live-2026-09-01-integrity
+    paths:
+      - 'gaber-material-control-v1.js'
+      - 'tests/gaber_material_control_v1.test.mjs'
+      - '.github/workflows/trendos-gaber-material-control-v1-ci.yml'
+      - 'docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-10_GABER_LASER_MATERIAL_CUSTODY_WASTE_CONTROL_V1.md'
+  pull_request:
+    paths:
+      - 'gaber-material-control-v1.js'
+      - 'tests/gaber_material_control_v1.test.mjs'
+      - '.github/workflows/trendos-gaber-material-control-v1-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gaber-material-control-v1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Gaber material custody and waste control tests
+        run: node --test tests/gaber_material_control_v1.test.mjs
+
+      - name: Safety scan candidate remains pure
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq 'SpreadsheetApp|PropertiesService|UrlFetchApp|D1|fetch\s*\(' gaber-material-control-v1.js
+          ! grep -Eq 'setProperty\s*\(|appendRow\s*\(|setValue\s*\(|setValues\s*\(' gaber-material-control-v1.js
