@@ -142,7 +142,7 @@
     return {
       materialId:text(m.materialId||m.itemId),name:text(m.name||m.materialName),unit:text(m.unit),
       issuedQty:nonNegative(m.issuedQty),consumedQty:nonNegative(m.consumedQty),returnedQty:nonNegative(m.returnedQty),
-      offcutQty:nonNegative(m.offcutQty||m.reusableOffcutQty),wasteQty:nonNegative(m.wasteQty),
+      offcutQty:nonNegative(m.offcutQty!=null?m.offcutQty:m.reusableOffcutQty),wasteQty:nonNegative(m.wasteQty),
       unitCost:nonNegative(m.unitCost),expectedQty:m.expectedQty==null||m.expectedQty===''?null:nonNegative(m.expectedQty)
     };
   }
