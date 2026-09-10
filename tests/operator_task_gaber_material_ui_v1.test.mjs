@@ -19,10 +19,9 @@ test('Gaber frontend mounts material UI only behind material-control flag and ac
 });
 
 test('Gaber completion serializes material close payload before completeTask call',()=>{
-  const get=pos(js,'mod.getPayload(last.task)');
-  const payload=pos(js,'extra.materialClosePayload');
+  const assignment=pos(js,'extra.materialClosePayload=JSON.stringify(mod.getPayload(last.task))');
   const complete=pos(js,"act('completeTask',extra)");
-  assert.ok(get<payload&&payload<complete);
+  assert.ok(assignment<complete);
 });
 
 test('manager status exposes material control and mounts manager material panel',()=>{
