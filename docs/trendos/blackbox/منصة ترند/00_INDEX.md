@@ -53,65 +53,81 @@ Current status:
 
 This order is owner-approved and mandatory unless the owner explicitly reprioritizes later. Operator Task V2 is not an optional backlog item after RP-07 and must not be skipped in favor of RP-08.
 
-Operator Task V2 does not need to wait for the full Cloudflare migration, but it must not be activated while RP-07 remains unresolved.
-
 Architecture direction:
 
 `Operator browser -> Cloudflare TrendOS UI/API -> Google Apps Script/Sheets Task authority initially -> D1 mirror/read support`
-
-Later, under a separate qualified D1 write cutover, the internal Task authority can move to D1 without changing the operator-facing API.
-
-Non-negotiable operator behavior:
-
-- ordinary production backlog is not freely browsable/selectable by Wael/Gaber;
-- ordinary work is delivered as server-controlled Tasks;
-- dispatch order: urgent first -> delivery due date ASC -> Order sequence ASC;
-- pulling a Task starts authoritative timing and moves it to `بدء التنفيذ`;
-- completion at `تم التسليم` or `جاهز للاستلام` records actual elapsed time;
-- Wael/Printing keeps `الطباعة على الطاير` permanently visible **outside Tasks**;
-- Wael gets a scoped Press batching view only;
-- Gaber/Laser gets neither Press nor `الطباعة على الطاير`;
-- no uncontrolled Google+D1 dual-authoritative Task writes;
-- current GitHub standalone `v1932-router.gs` must not be installed live because Runtime Phase 0 proved `trendosV1932TryRoute_` already exists inside live `Code.gs`.
 
 Current preparation phase: `OT-00 — Design / Preparation`.
 
 Allowed during OT-00 while RP-07 remains open: GitHub-only design/code/test/CI preparation with all runtime gates OFF. Live Apps Script mutation, production Operator activation, D1 Task write authority, and RP-08 remain prohibited.
 
-## Active RP-07 execution checkpoint — 2026-09-10
+## Active RP-07 execution checkpoint — 2026-09-11
 
-الحالة: **RP-07 CODE CANDIDATE PASS — DIRECT RUNTIME PHASE 0 FOUND LIVE PROJECT — ACTIVE FLAG + BLOB/COLLISION MISMATCH — SESSION PAUSED AT PHASE 0B — HOLD BEFORE PHASE 1 / RP-08**
+الحالة: **RUNTIME PHASE 0B READ-ONLY PASS — READY FOR SEPARATE FLAG DISABLE BOUNDARY — PHASE 1 STILL BLOCKED**
 
-السجلات الحالية:
+Newest authoritative runtime record:
 
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_WORK_LIMIT_STOP_CHECKPOINT.md`
+- `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
+
+Supporting records:
+
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_DIRECT_WORK_INVENTORY_FAIL.md`
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_LIVE_INVENTORY_BLOCKED.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_LIVE_FAIL.md`
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_START.md`
 
-Current facts:
+Current verified facts:
 
 - RP-06 remains COMPLETE; Registry latest exact 33 mappings remain active; Registry data rows remain `99`.
-- RP-07 prevention/containment code candidate is locked at `2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb`.
-- final candidate CI is green: RP-07 Remediation Containment Run `34490458581` SUCCESS and normal Integrity Run `34490458493` SUCCESS.
-- Direct ChatGPT Work inspection found the actual live Apps Script project.
-- live owner of `trendosV1932TryRoute_`: `Code.gs` line 11868, one definition only.
-- active property mismatch: `TRENDOS_INTEGRITY_V1_ENABLED=true` and `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=true`; business-family flags reported false.
-- live router version: `TRENDOS_INTEGRITY_ROUTER_V1_20260830`.
-- live Router/Press/Invoice blobs differ from the qualified RP-07 candidate blobs.
-- RP-07 legacy containment functions are not present in live Head.
-- standalone `v1932-router.gs` would collide with the existing `Code.gs` definition and must not be installed.
-- deployment/version inventory remains incomplete because the Work pass stopped fail-closed on the active flags.
-- ChatGPT Work usage limit was reached before Phase 0B; this is an operational pause only and no runtime action is partially applied.
-- live P0 blockers remain: Attendance duplicates, Cleaning duplicates, invoice Drafts for delivered Orders `3839` and `3841`, and Press exact-Line evidence gap for `3796-01`.
-- no Apps Script Head mutation, Save, Deploy, Script Property mutation, Source Sheet write, Registry write, D1 write, `Code.gs` edit, main merge, or RP-08 occurred.
+- RP-07 prevention/containment code candidate remains locked at `2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb` with prior CI PASS.
+- Runtime Phase 0B directly inspected the real bound Apps Script Head and completed read-only PASS.
+- Active deployments: `2`; archived deployments: `153`.
+- active Web Apps: Version `155` and Version `113`; no active deployment points to Head.
+- current Head is newer than active Version `155`.
+- current Script Properties remain:
+  - MASTER=true
+  - HEALTH=true
+  - ORDER_LINE=false
+  - ATTENDANCE_CLEANING=false
+  - PRESS=false
+  - INVOICE=false
+  - WHATSAPP=false
+  - OPS=false
+  - AUTOMATION=false
+- HEALTH is the only currently active Integrity family.
+- no Integrity business-family mutation is reachable with business-family flags false.
+- Health diagnostics/dashboard remain reachable; dashboard refresh may rewrite only the diagnostic Health sheet.
+- no Integrity Health scheduled trigger was found.
+- current time-based triggers reported are `d1OperationalEnrichmentLiveSyncTick02CR` and `d1OrdersLowUsageTickV1`, with no Health dependency found.
+- disabling MASTER + HEALTH is assessed safe from current live source/trigger evidence, but must occur only in a separate explicit owner-approved mutation boundary.
+- external Web App callers of Health cannot be ruled out solely from project source/trigger inventory.
+- `trendosV1932TryRoute_` remains owned exclusively by `Code.gs`, lines `11868–11906`, SHA-256 `2ae1281c8de6e808de992983f7cf54d6cb6c6cef048d23f2e7913924af7b17aa`.
+- no duplicate definitions are present now.
+- standalone `v1932-router.gs` must not be added live because it would collide.
+- live Router/Press/Invoice blobs still differ from the approved candidate and RP-07 legacy containment functions remain absent.
+- live P0 blockers remain: Attendance duplicates, Cleaning duplicates, invoice Drafts for `3839` and `3841`, and Press exact-Line evidence gap for `3796-01`.
+- Phase 0B performed no flag, source, deployment, business-data, Registry, D1, Operator Task, or RP-08 mutation.
 
-**Next allowed RP-07 step:** Runtime Phase 0B READ ONLY — inspect deployment/version inventory and exact runtime exposure of the currently active master+HEALTH flags. Do not change those flags in Phase 0B.
+### NEXT ALLOWED RP-07 STEP
 
-Only after that evidence may a separate explicit owner-approved mutation boundary be considered for disabling the two active properties before Phase 1.
+A separate **Flag Disable Boundary** may now be executed only after explicit owner approval.
+
+That boundary must change exactly these two properties from true to false:
+
+- `TRENDOS_INTEGRITY_V1_ENABLED`
+- `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED`
+
+It must not change code, deployments, triggers, business data, Registry, D1, or Operator Task state.
+
+Immediately after the change, all Integrity properties must be re-read and MASTER+HEALTH must be proven OFF before Phase 1 can even be considered.
+
+Until then:
+
+**PHASE 1 PROHIBITED — DEPLOY PROHIBITED — RP-08 PROHIBITED.**
+
+After flag normalization, RP-07 still requires collision-safe candidate installation/qualification, separate data-remediation decisions, and a fresh final gate proving `OPEN_CORE_P0_BLOCKERS=0` before closure.
+
+Once RP-07 closes PASS, Operator Task V2 is the immediate next production implementation track before RP-08 unless owner explicitly changes priority.
 
 ---
 
@@ -131,7 +147,7 @@ Only after that evidence may a separate explicit owner-approved mutation boundar
 
 ## Current roadmap checkpoint — CORE-P0-11
 
-الحالة: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — RP-07 CODE CANDIDATE PASS — CORE GO/NO-GO HOLD ON LIVE P0 + RUNTIME PHASE0 STATE MISMATCH**
+الحالة: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — RP-07 CODE CANDIDATE PASS — RUNTIME PHASE 0B PASS — CORE GO/NO-GO HOLD ON FLAG NORMALIZATION + LIVE P0**
 
 Evidence retained:
 
@@ -140,7 +156,8 @@ Evidence retained:
 - `__DEBT__` Apps Script fallback PASS;
 - Sheets authoritative=true; cutover=false; reconcile OFF; generic drain OFF;
 - RP-06 recovery production PASS;
-- RP-07 candidate CI PASS.
+- RP-07 candidate CI PASS;
+- RP-07 Runtime Phase 0B PASS.
 
 ---
 
@@ -178,7 +195,8 @@ Evidence retained:
 - generic drain OFF.
 - no `EDGE_SESSION_SECRET` rotation/change.
 - no business-family activation.
-- no Script Property mutation without a separate approved boundary.
+- no Script Property mutation except under a separately approved exact boundary.
+- current next RP-07 mutation candidate is MASTER+HEALTH Flag Disable only.
 - Operator Task V2 runtime activation waits for RP-07 full closure.
 - once RP-07 closes PASS, Operator Task V2 is the immediate next production implementation track before RP-08 unless owner explicitly changes priority.
 - Operator Task V2 D1 write authority remains OFF/not authorized.
