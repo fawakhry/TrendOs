@@ -25,50 +25,53 @@ Do not substitute BACKUP/STAGING workbooks. The workbook tab `سكريبت Apps 
 
 Status:
 
-**PHASE 0B PASS — FLAG DISABLE UI ATTEMPT FAIL-CLOSED — TEMP SETTER ATTEMPT FAIL-CLOSED BEFORE PROPERTY WRITE — TEMP HELPER REMAINS IN HEAD — NEXT: CORRECTIVE TEMPORARY SETTER BOUNDARY**
+**MASTER+HEALTH REPORTED OFF — OWNER REPORTS TEMP HELPER DELETED — NEXT: READ-ONLY CLEANUP VERIFICATION — PHASE 1 STILL BLOCKED**
 
 Newest record:
 
-`TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_SETTER_PRECONDITION_FAIL_RAW_VALUES.md`
+`TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_HELPER_OWNER_DELETED_PENDING_VERIFY.md`
 
-Important current facts:
+Current reported facts:
 
-- MASTER raw value = `"1"` => semantic true;
-- HEALTH raw value = `"1"` => semantic true;
-- all business-family properties observed as `null` => semantic false;
-- no property write occurred in the first temporary-setter execution;
-- temporary file `TEMP_RP07_FLAG_DISABLE_20260912.gs` remains in Apps Script Head;
-- temporary function is `trendosRp07TemporaryFlagDisable20260912`;
-- no existing production function was modified;
-- no trigger or deployment was changed;
-- no business data, Registry, D1, Operator Task, or RP-08 mutation occurred.
+- MASTER raw=`"false"` => semantic false;
+- HEALTH raw=`"false"` => semantic false;
+- all business-family flags raw=`null` => semantic false;
+- corrective helper executed exactly one additional time;
+- no deploy or trigger mutation;
+- no business-data, Registry, D1, Operator Task, or RP-08 mutation;
+- owner reports `TEMP_RP07_FLAG_DISABLE_20260912.gs` deleted.
 
-The first temporary helper failed because it compared raw values to literal `"true"/"false"` rather than using the runtime's boolean normalization semantics.
+The deletion is not yet independently reverified. Therefore the only next allowed step is:
 
-### NEXT ALLOWED STEP
+**RP-07 Temporary Helper Cleanup Verification — READ ONLY**
 
-Only a separately approved **Corrective Temporary Setter Boundary** may proceed.
+It must prove the temporary file/function are absent, no trigger references them, and all nine Integrity flags remain semantically OFF.
 
-It may modify only the existing temporary helper, normalize flags using live runtime semantics, disable only MASTER+HEALTH, verify all nine Integrity flags semantically OFF, remove the helper immediately, verify the helper/function is absent, then STOP.
-
-Until that succeeds:
+Until that passes:
 
 **PHASE 1 PROHIBITED — DEPLOY PROHIBITED — OPERATOR TASK RUNTIME PROHIBITED — RP-08 PROHIBITED.**
 
-RP-07 is **NOT CLOSED**.
+RP-07 remains **OPEN**.
 
 Supporting RP-07 records:
 
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_SETTER_PRECONDITION_FAIL_RAW_VALUES.md`
 - `TRENDOS_BLACKBOX_2026-09-12_RP07_FLAG_DISABLE_BOUNDARY_FAIL_NO_SETTER.md`
 - `TRENDOS_BLACKBOX_2026-09-11_RP07_CLOSURE_VERIFICATION_HOLD.md`
 - `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
 
-After successful flag normalization and helper cleanup, RP-07 still requires collision-safe candidate installation, read-only runtime qualification, remaining P0 data remediation, and a fresh final health gate proving `OPEN_CORE_P0_BLOCKERS=0` before explicit closure.
+After cleanup verification PASS, RP-07 still requires collision-safe candidate installation, read-only runtime qualification, remaining P0 remediation, fresh final health proving `OPEN_CORE_P0_BLOCKERS=0`, and an explicit closure record.
 
 ## Operator Task Workflow V2
 
 Status: **OT-00 DESIGN/PREP ACTIVE — NOT DEPLOYED / NOT ENABLED**
+
+Owner-locked roadmap order:
+
+`RP-07 -> Operator Task V2 -> RP-08`
+
+Operator Task V2 is the immediate next production track after RP-07 closes PASS.
 
 Authoritative references:
 
@@ -76,16 +79,6 @@ Authoritative references:
 - `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
 - `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_OWNER_PRIORITY_LOCK.md`
 - `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md`
-
-Owner-locked roadmap order:
-
-`RP-07 -> Operator Task V2 -> RP-08`
-
-Operator Task V2 is the immediate next production track after RP-07 closes PASS; it must not be skipped for RP-08 unless the owner explicitly changes priority.
-
-Approved first-live architecture:
-
-`Operator browser -> Cloudflare TrendOS UI/API -> Google Apps Script/Sheets Task authority initially -> D1 mirror/read support`
 
 ## RP-06
 
@@ -100,7 +93,7 @@ Final record:
 - Sheets / Apps Script authoritative for business writes.
 - eligible Orders reads D1-first with Apps Script fallback.
 - `__DEBT__` remains Apps Script.
-- 02CL/reconcile OFF.
+- 02CL / reconcile OFF.
 - generic drain OFF.
 - no `EDGE_SESSION_SECRET` rotation/change.
 - no business-family activation under the current hold.
