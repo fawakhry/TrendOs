@@ -1,6 +1,6 @@
 # منصة ترند — الحالة التنفيذية الحالية
 
-Date: 2026-09-11
+Date: 2026-09-12
 
 ## Canonical project identity — READ BEFORE EXECUTION
 
@@ -14,6 +14,62 @@ Authoritative locator: `00_PROJECT_LOCATOR.md`
 - Blackbox root: `docs/trendos/blackbox/منصة ترند/`
 
 Any new chat/session must read `00_PROJECT_LOCATOR.md` first. Do not substitute a BACKUP/STAGING workbook and do not use the workbook tab `سكريبت Apps Script` as live Head authority.
+
+## Latest RP-07 recall point — FLAG DISABLE FAIL-CLOSED
+
+Status: **RUNTIME PHASE 0B PASS — ORIGINAL FLAG DISABLE BOUNDARY FAILED SAFELY — NEXT: TEMPORARY SETTER BOUNDARY — PHASE 1 STILL PROHIBITED**
+
+Newest authoritative record:
+
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_FLAG_DISABLE_BOUNDARY_FAIL_NO_SETTER.md`
+
+Supporting closure verification:
+
+- `TRENDOS_BLACKBOX_2026-09-11_RP07_CLOSURE_VERIFICATION_HOLD.md`
+- `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
+
+Latest Work result:
+
+- correct production Apps Script project was opened;
+- precondition matched expected state;
+- MASTER=`true`;
+- HEALTH=`true`;
+- ORDER_LINE=`false`;
+- ATTENDANCE_CLEANING=`false`;
+- PRESS=`false`;
+- INVOICE=`false`;
+- WHATSAPP=`false`;
+- OPS=`false`;
+- AUTOMATION=`false`;
+- requested MASTER/HEALTH mutation did **not** occur;
+- Project Settings could not edit the target properties because the project has more than 50 Script Properties and the visible list is read-only;
+- no pre-existing approved setter was available;
+- Work correctly stopped because the prior boundary prohibited source changes.
+
+No Apps Script source, deployment, trigger, business data, Registry, D1, Operator Task, or RP-08 mutation occurred.
+
+### NEXT ALLOWED RP-07 STEP
+
+A separate explicit **Temporary Setter Boundary** is required.
+
+That boundary may authorize only the minimum Head source change needed to create one uniquely named temporary helper that:
+
+1. verifies the expected pre-state;
+2. writes exactly `TRENDOS_INTEGRITY_V1_ENABLED=false` and `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=false`;
+3. re-reads all Integrity flags;
+4. is executed manually exactly once;
+5. is then removed from Head after successful verification;
+6. leaves deployments, triggers, business data, Registry, D1, Operator Task, and RP-08 untouched.
+
+Because installable time-based triggers execute against Apps Script Head, the temporary source edit must be minimal, syntax-safe, non-routed, and removed immediately after successful verification.
+
+Until MASTER+HEALTH are proven OFF and the temporary helper is removed:
+
+**PHASE 1 PROHIBITED. DEPLOY PROHIBITED. OPERATOR TASK RUNTIME PROHIBITED. RP-08 PROHIBITED.**
+
+RP-07 is **NOT CLOSED**.
+
+---
 
 ## Owner-prioritized Operator Task Workflow V2 — OT-00 DESIGN/PREP ACTIVE
 
@@ -58,59 +114,25 @@ OT-00 GitHub-only preparation may continue while RP-07 remains open. Runtime act
 
 ## Active RP-07 execution state
 
-Status: **RUNTIME PHASE 0B READ-ONLY PASS — READY FOR SEPARATE FLAG DISABLE BOUNDARY — PHASE 1 PROHIBITED UNTIL FLAGS ARE OFF + REVERIFIED**
+Status: **PHASE 0B PASS — FLAG NORMALIZATION BLOCKED ON MISSING SETTER — TEMPORARY SETTER BOUNDARY NEXT — PHASE 1 NOT READY**
 
-Newest authoritative runtime checkpoint:
+Verified runtime facts retained from Phase 0B:
 
-- `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
-
-Supporting prior records:
-
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_PHASE0_DIRECT_WORK_INVENTORY_FAIL.md`
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
-- prior live fail evidence: `TRENDOS_BLACKBOX_2026-09-10_RP07_HEALTH_RECHECK_LIVE_FAIL.md`
-
-### Phase 0B verified facts
-
-- actual bound Apps Script Head inspected directly: **YES**;
-- active deployments: `2`; archived deployments: `153`;
-- active Web Apps are Version `155` and Version `113`;
+- actual bound Apps Script Head inspected directly: YES;
+- active deployments: 2; archived deployments: 153;
+- active Web Apps are Version 155 and Version 113;
 - no active deployment points to Head;
-- current Head is newer than Version `155`;
-- current properties remain:
-  - `TRENDOS_INTEGRITY_V1_ENABLED=true`
-  - `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED=true`
-  - ORDER_LINE=false
-  - ATTENDANCE_CLEANING=false
-  - PRESS=false
-  - INVOICE=false
-  - WHATSAPP=false
-  - OPS=false
-  - AUTOMATION=false
+- current Head is newer than Version 155;
 - live router version: `TRENDOS_INTEGRITY_ROUTER_V1_20260830`;
-- HEALTH is the **only active Integrity family**;
+- HEALTH is the only active Integrity family;
 - no Integrity business-family mutation is reachable while all business-family flags are false;
-- reachable Health surface is diagnostics/dashboard only;
-- `trendosIntegrityDashboardV1` can rebuild the diagnostic Health dashboard sheet, so HEALTH is not purely zero-write, but its write is diagnostic-sheet-only, not a business-family mutation;
 - no Integrity Health scheduled trigger was found;
 - current triggers are `d1OperationalEnrichmentLiveSyncTick02CR` and `d1OrdersLowUsageTickV1`, with no Health dependency found;
 - no internal/frontend Health callers were found beyond route definitions;
-- absence of external Web App callers cannot be proven from source/trigger inventory alone;
-- based on live source + trigger evidence, disabling MASTER + HEALTH is assessed **SAFE in a separate explicit mutation boundary**.
-
-### Routing / ownership verified
-
-- `doGet`: Integrity router -> `trendosV1932TryRoute_` -> older routers -> legacy switch;
-- `doPost`: Integrity webhook -> Integrity action router -> `trendosV1932TryRoute_` -> legacy paths;
-- family-gate failure returns `null` and legacy/fallback continues;
-- live `trendosV1932TryRoute_` owner remains `Code.gs`;
-- live boundary: lines `11868–11906`;
-- function-text SHA-256: `2ae1281c8de6e808de992983f7cf54d6cb6c6cef048d23f2e7913924af7b17aa`;
-- definition count: `1`;
+- disabling MASTER + HEALTH was assessed SAFE from current live source/trigger evidence;
+- live `trendosV1932TryRoute_` owner remains `Code.gs`, lines `11868–11906`, SHA-256 `2ae1281c8de6e808de992983f7cf54d6cb6c6cef048d23f2e7913924af7b17aa`;
+- definition count: 1;
 - no duplicate RP-07/Integrity definitions reported in current Head.
-
-### Candidate/runtime mismatches still blocking Phase 1
 
 Approved RP-07 candidate remains qualified at checkpoint `2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb`, but live Head still differs:
 
@@ -119,28 +141,9 @@ Approved RP-07 candidate remains qualified at checkpoint `2152d1d5a90d5c03f9623e
 - Invoice live `08128d35fcc0ac1876a8790564cf7377f8869c47` vs candidate `18dd8783bbf7bf14531bcf7bf7d870d938d82473`;
 - RP-07 legacy containment functions are absent from live Head;
 - candidate containment blob is `47d932c76498593063ea6f0289e9c9a663686b0d`;
-- current V1932 logic is embedded in `Code.gs`; standalone candidate blob `151134f2517db2ce38cecec4fea59dd2745e8b59` must not be added as a duplicate file.
+- current V1932 logic is embedded in `Code.gs`; standalone candidate `v1932-router.gs` must not be added live.
 
-### Current RP-07 gate
-
-**Phase 0B = PASS.**
-
-**Next allowed RP-07 mutation, only with a separate explicit owner-approved boundary:** disable exactly:
-
-- `TRENDOS_INTEGRITY_V1_ENABLED`
-- `TRENDOS_INTEGRITY_V1_HEALTH_ENABLED`
-
-Then immediately re-read all Integrity properties and verify both are OFF before considering Phase 1.
-
-Until that separate boundary is approved/executed and verified:
-
-**PHASE 1 PROHIBITED. APPS SCRIPT SOURCE INSTALL PROHIBITED. DEPLOY PROHIBITED. RP-08 PROHIBITED.**
-
-The Flag Disable Boundary must not change source code, deployments, business data, triggers, Registry, D1, or Operator Task runtime state.
-
-### Remaining live P0 blockers after runtime flag normalization
-
-These remain separate from the flag boundary and must eventually be remediated/rechecked before RP-07 full closure:
+Remaining live P0 blockers after flag normalization still include:
 
 - Attendance post-baseline duplicates;
 - Cleaning post-baseline duplicates;
@@ -149,9 +152,7 @@ These remain separate from the flag boundary and must eventually be remediated/r
 
 A fresh final RP-07 gate must eventually prove `OPEN_CORE_P0_BLOCKERS=0` before RP-07 closes PASS.
 
-Immediately after RP-07 full closure, start Operator Task V2 `OT-01` before RP-08, unless the owner explicitly supersedes the priority-lock record.
-
-No runtime mutation occurred in Phase 0B.
+Immediately after RP-07 full closure, start Operator Task V2 `OT-01` before RP-08 unless the owner explicitly changes priority.
 
 ---
 
@@ -178,7 +179,7 @@ RP-06 must not be rerun merely because RP-07 found new post-baseline operational
 
 `CORE-P0-11 — Regression / Full E2E / Core GO-NO-GO`
 
-Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — RP-07 CODE CANDIDATE PASS — RP-07 RUNTIME PHASE 0B PASS — CORE GO/NO-GO HOLD ON FLAG NORMALIZATION + LIVE P0**
+Status: **REGRESSION PACK PASS — FULL E2E READ-ONLY PASS — RP-06 COMPLETE — RP-07 CODE CANDIDATE PASS — RP-07 PHASE 0B PASS — CORE GO/NO-GO HOLD ON FLAG NORMALIZATION + LIVE P0**
 
 Retained evidence:
 
@@ -190,17 +191,19 @@ Retained evidence:
 - RP-06 Patch33 and Recovery Patch CI PASS;
 - RP-06 Recovery production execution PASS;
 - RP-07 final candidate CI PASS;
-- RP-07 Runtime Phase 0B read-only PASS.
+- RP-07 Runtime Phase 0B read-only PASS;
+- original Flag Disable Boundary failed safely with zero mutation because no approved setter exists.
 
 ### Core GO/NO-GO
 
 **HOLD.**
 
-The next runtime boundary is flag normalization only. Candidate installation and live P0 remediation remain later separate gates.
+The next runtime boundary is Temporary Setter Boundary for MASTER+HEALTH flag normalization only. Candidate installation and live P0 remediation remain later separate gates.
 
 ### Safety boundary
 
-- no Apps Script source change before approved Flag Disable Boundary completes and OFF state is reverified;
+- no RP-07 candidate source installation before MASTER+HEALTH are OFF and reverified;
+- the only source edit that may be considered next is the separately approved temporary setter helper;
 - no Apps Script Production deploy;
 - no Registry mutation or writer retry;
 - no D1 business-data write/migration;
