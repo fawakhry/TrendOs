@@ -13,64 +13,67 @@ Date: 2026-09-12
 
 Every new session must read `00_PROJECT_LOCATOR.md`, `00_INDEX.md`, this file, then the newest checkpoint referenced below.
 
-## CURRENT — RP-07 corrective temporary setter boundary
+## CURRENT — RP-07 temporary-helper cleanup verification
 
-Status: **PHASE 0B PASS — ORIGINAL FLAG DISABLE FAILED SAFELY — FIRST TEMP SETTER ATTEMPT FAILED BEFORE PROPERTY WRITE — TEMP HELPER REMAINS IN HEAD — CORRECTIVE SETTER BOUNDARY NEXT — PHASE 1 PROHIBITED**
+Status: **PHASE 0B PASS — MASTER+HEALTH REPORTED OFF — OWNER REPORTS TEMP HELPER DELETED — READ-ONLY CLEANUP VERIFICATION REQUIRED — PHASE 1 STILL PROHIBITED**
 
 Newest authoritative record:
 
-- `TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_SETTER_PRECONDITION_FAIL_RAW_VALUES.md`
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_HELPER_OWNER_DELETED_PENDING_VERIFY.md`
 
 Supporting records:
 
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_SETTER_PRECONDITION_FAIL_RAW_VALUES.md`
 - `TRENDOS_BLACKBOX_2026-09-12_RP07_FLAG_DISABLE_BOUNDARY_FAIL_NO_SETTER.md`
 - `TRENDOS_BLACKBOX_2026-09-11_RP07_CLOSURE_VERIFICATION_HOLD.md`
 - `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
 
-### Latest Work evidence
+### Latest reported runtime state
 
-The real production Apps Script project was used.
+Corrective setter execution reported:
 
-Raw Script Property state observed by the temporary helper:
+- MASTER raw=`"false"` => semantic false;
+- HEALTH raw=`"false"` => semantic false;
+- ORDER_LINE raw=`null` => semantic false;
+- ATTENDANCE_CLEANING raw=`null` => semantic false;
+- PRESS raw=`null` => semantic false;
+- INVOICE raw=`null` => semantic false;
+- WHATSAPP raw=`null` => semantic false;
+- OPS raw=`null` => semantic false;
+- AUTOMATION raw=`null` => semantic false;
+- helper executed exactly one additional time;
+- no deploy, trigger, business-data, Registry, D1, Operator Task, or RP-08 mutation reported.
 
-- MASTER = `"1"` => semantic true
-- HEALTH = `"1"` => semantic true
-- ORDER_LINE = `null` => semantic false
-- ATTENDANCE_CLEANING = `null` => semantic false
-- PRESS = `null` => semantic false
-- INVOICE = `null` => semantic false
-- WHATSAPP = `null` => semantic false
-- OPS = `null` => semantic false
-- AUTOMATION = `null` => semantic false
+Owner then reported deletion of:
 
-The helper compared literal `"true"/"false"` and therefore failed its precondition before `setProperties`.
+`TEMP_RP07_FLAG_DISABLE_20260912.gs`
 
-Exact temporary source state:
+This deletion is not yet independently verified by a fresh read-only Work inspection.
 
-- file present in Apps Script Head: `TEMP_RP07_FLAG_DISABLE_20260912.gs`
-- function: `trendosRp07TemporaryFlagDisable20260912`
-- executed exactly once
-- no Script Property write occurred
-- no existing production function was modified
-- no trigger or deployment was changed
-- helper was not removed and remains in Head
+### Next allowed step
 
-Therefore this was fail-closed for business/runtime mutation, but **not zero source mutation** because the temporary helper remains in Head.
+Only:
 
-### Current gate
+**RP-07 Temporary Helper Cleanup Verification — READ ONLY**
 
-RP-07 is **NOT CLOSED**.
+It must prove:
 
-The only next allowed execution is a separately approved **Corrective Temporary Setter Boundary** that modifies only the existing temporary helper so its precondition uses live runtime boolean semantics, writes only MASTER+HEALTH to OFF, verifies all nine flags semantically OFF, removes the helper from Head, verifies its absence, and stops.
+1. temporary file absent;
+2. temporary function `trendosRp07TemporaryFlagDisable20260912` absent;
+3. no trigger references it;
+4. all nine Integrity flags remain semantically OFF;
+5. no unintended source/deployment/business-data/Registry/D1 mutation occurred.
 
-Until then:
+Until that verification passes:
 
 **PHASE 1 PROHIBITED — DEPLOY PROHIBITED — OPERATOR TASK RUNTIME PROHIBITED — RP-08 PROHIBITED.**
 
-### RP-07 work still remaining after flag normalization
+RP-07 is **NOT CLOSED**.
 
-After MASTER+HEALTH are proven OFF and helper residue is removed, RP-07 still requires separate gates for:
+### RP-07 remaining after cleanup verification
+
+After cleanup verification PASS, RP-07 still requires separate gates for:
 
 1. collision-safe Phase 1 installation of the approved RP-07 candidate;
 2. Phase 2 read-only runtime qualification;
@@ -89,24 +92,22 @@ Known remaining live P0 blockers retained from prior evidence:
 
 Status: **OT-00 DESIGN/PREP ACTIVE — GITHUB CANDIDATE EXISTS — RUNTIME NOT DEPLOYED / NOT ENABLED**
 
+Owner-locked order:
+
+`RP-07 -> Operator Task V2 -> RP-08`
+
+Operator Task V2 is the immediate next production track only after RP-07 is explicitly closed PASS.
+
+Approved first-live architecture:
+
+`Operator browser -> Cloudflare TrendOS UI/API -> Google Apps Script/Sheets Task authority initially -> D1 mirror/read support`
+
 Authoritative references:
 
 - `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_WORKFLOW_WAEL_GABER_REQUIREMENTS.md`
 - `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
 - `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_OWNER_PRIORITY_LOCK.md`
 - root: `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md`
-
-Owner-locked order:
-
-`RP-07 -> Operator Task V2 -> RP-08`
-
-Operator Task V2 becomes the immediate next production implementation track only after RP-07 is explicitly closed PASS.
-
-Approved first-live architecture:
-
-`Operator browser -> Cloudflare TrendOS UI/API -> Google Apps Script/Sheets Task authority initially -> D1 mirror/read support`
-
-No uncontrolled Google+D1 dual-authoritative Task writes. D1 Task business-write authority remains unauthorized.
 
 ## RP-06
 
