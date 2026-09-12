@@ -128,11 +128,25 @@ A fresh final RP-07 health gate must prove `OPEN_CORE_P0_BLOCKERS=0` before expl
 
 Status: **OT-00 DESIGN/PREP ACTIVE — GITHUB CANDIDATE EXISTS — RUNTIME NOT DEPLOYED / NOT ENABLED**
 
-Owner-locked order:
+Owner-locked order is now:
 
-`RP-07 -> Operator Task V2 -> RP-08`
+`RP-07 -> Operator Task V2 -> Department Invoice + Material Shadow/Parity (Gaber Laser + Wael Print) -> RP-08`
 
-Operator Task V2 is the immediate next production track only after RP-07 explicitly closes PASS.
+Operator Task V2 remains the immediate next production track only after RP-07 explicitly closes PASS.
+
+Immediately after the approved Operator Task V2 completion/activation gate, the next priority is the Department Invoice + Material Shadow/Parity track before RP-08.
+
+Department scope lock:
+
+- Gaber owns Laser invoices/material-control lane.
+- Wael owns Print invoices/material-control lane.
+- EasyStore / Accounting remains financial authority.
+- the stock-impact parity layer must prevent double decrement, with `TASK_ISSUE` remaining custody/audit only when final stock impact is recognized through production consumption/waste/returns.
+
+Authoritative requirement records:
+
+- `TRENDOS_BLACKBOX_2026-09-12_GABER_SHADOW_PARITY_PRIORITY_AFTER_OPERATOR_TASK.md`
+- `TRENDOS_BLACKBOX_2026-09-12_DEPARTMENT_INVOICE_CONTROL_GABER_LASER_WAEL_PRINT_REQUIREMENTS.md`
 
 Approved architecture remains:
 
@@ -156,4 +170,5 @@ Final record: `TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
 - no source/property/deployment/trigger/business-data/Registry/D1/Cloudflare mutation in Phase 2.
 - standalone `v1932-router.gs` must not be added live.
 - Operator Task runtime waits for RP-07 full closure.
+- Department Invoice + Material Shadow/Parity starts after Operator Task V2 and before RP-08 unless the owner explicitly reprioritizes again.
 - RP-08 not started.
