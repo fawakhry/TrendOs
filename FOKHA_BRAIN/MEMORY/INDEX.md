@@ -1,27 +1,25 @@
-# Fokha Memory Index
+# Fokha Memory Index — Global Layer Only
 
-> Synced from Google Sheet `Fokha - Idea Inbox` and available project/history evidence on 2026-09-04.
+> Updated: 2026-09-12 after separating project memories.
 
-## اقرأ هذه الملفات كطبقة الذاكرة المنظمة
+## اقرأ هذه الملفات كطبقة عامة فقط
 
-1. `FOKHA_BRAIN/MEMORY/THINKING_MODEL.md` — نموذج طريقة التفكير المستخرج من الأدلة.
-2. `FOKHA_BRAIN/MEMORY/RULES.md` — القواعد العامة وقواعد المشاريع المستقرة نسبيًا.
-3. `FOKHA_BRAIN/MEMORY/DECISIONS.md` — القرارات الصريحة المعتمدة.
-4. `FOKHA_BRAIN/MEMORY/KNOWLEDGE.md` — معرفة منظمة قابلة لإعادة الاستخدام.
-5. `FOKHA_BRAIN/MEMORY/NEGATIVE_LEARNING.md` — الفشل والمخاطر والطرق التي يجب تجنب تكرارها.
-6. `FOKHA_BRAIN/MEMORY/PROJECTS.md` — خريطة المشاريع ومصادر ذاكرتها.
-7. `FOKHA_BRAIN/MEMORY/SOURCE_LINKS.md` — خريطة مصادر الحقيقة والسلطة والـprovenance.
-8. `FOKHA_BRAIN/MEMORY/IDEAS.md` — لقطة مرجعية من Inbox الأفكار.
+1. `THINKING_MODEL.md` — مبادئ تفكير عامة مشتركة.
+2. `RULES.md` — قواعد عامة مشتركة.
+3. `DECISIONS.md` — قرارات Portfolio عامة فقط.
+4. `KNOWLEDGE.md` — معرفة عامة قابلة لإعادة الاستخدام.
+5. `NEGATIVE_LEARNING.md` — مخاطر عامة مشتركة.
+6. `PROJECTS.md` — فهرس المشاريع ومصادرها الرسمية.
+7. `SOURCE_LINKS.md` — روابط الدخول عالية المستوى.
 
-## Checkpoints
+## قاعدة الفصل
 
-- `FOKHA_BRAIN/SYNC/GOOGLE_SHEET_SYNC.md` — مزامنة Google Sheet الأساسية.
-- `FOKHA_BRAIN/SYNC/ALL_CONVERSATIONS_PROJECTS_2026-09-04.md` — Bulk ingest من المصادر التاريخية والمشاريع المتاحة في جلسة 2026-09-04.
+- تفاصيل أي مشروع لا تُخزن داخل FOKHA_BRAIN.
+- عند العمل على مشروع، انتقل إلى Repository/Branch الرسمي المسجل في `PROJECTS.md`.
+- Matbagy Design Workflow -> `fawakhry/Matbagy-Design-Workflow@agent/initial-mvp`.
+- TrendOS -> ذاكرته وصندوقه الأسود داخل `fawakhry/TrendOs`.
+- Runtime Evidence داخل المشروع يتغلب على هذه الطبقة العامة.
 
-## قاعدة الحقيقة
+## Historical sync files
 
-- هذه الملفات تمثل ذاكرة فوخا المنظمة، وليست بديلًا عن Project Black Box أو Runtime Evidence.
-- عند العمل على مشروع محدد، انتقل إلى مصدره الرسمي عبر `SOURCE_LINKS.md` و`PROJECTS.md`.
-- Google Sheet يظل بوابة الالتقاط والكتابة السريعة، وGitHub يحتفظ بالمعرفة المنظمة القابلة للقراءة من أي Chat/Agent.
-- Historical files/chats تساعد في التعلم والـlineage، لكن أحدث Project/Runtime Evidence يتغلب عليها في الحقيقة التشغيلية.
-- Bulk ingest يعني المصادر التاريخية المتاحة فعليًا، وليس ادعاء أن كل رسالة أو ملف تاريخي في الحساب كان قابلًا للوصول.
+ملفات `FOKHA_BRAIN/SYNC/` أصبحت checkpoints مختصرة فقط، ولا يجب استخدامها كذاكرة مشروع تفصيلية.
