@@ -25,44 +25,44 @@ Do not substitute BACKUP/STAGING workbooks. The workbook tab `سكريبت Apps 
 
 Status:
 
-**PHASE 0B PASS — FLAG NORMALIZATION PASS — TEMP HELPER REMOVED — ALL INTEGRITY FLAGS OFF — NEXT: SEPARATE PHASE 1 REVIEW — RP-07 STILL OPEN**
+**PHASE 1 INSTALL PASS — ALL INTEGRITY FLAGS OFF — NO DEPLOYMENT — NEXT: PHASE 2 READ-ONLY RUNTIME QUALIFICATION — RP-07 STILL OPEN**
 
 Newest record:
 
-`TRENDOS_BLACKBOX_2026-09-12_RP07_CORRECTIVE_TEMP_SETTER_PASS_FLAGS_OFF_HELPER_REMOVED.md`
+`TRENDOS_BLACKBOX_2026-09-12_RP07_PHASE1_INSTALL_PASS.md`
 
-Verified current facts:
+Phase 1 verified facts:
 
-- live parser: `trendosRouterBoolV1_` in `trendos-integrity-router-v1.gs`;
-- MASTER raw=`"false"` => semantic false;
-- HEALTH raw=`"false"` => semantic false;
-- all business-family flags raw=`null` => semantic false;
-- all nine Integrity flags semantically OFF;
-- `trendosIntegrityDependencyHealthV1` independently confirmed MASTER=false and all family flags=false;
-- temporary file `TEMP_RP07_FLAG_DISABLE_20260912.gs` removed from Head;
-- temporary function `trendosRp07TemporaryFlagDisable20260912` absent after cleanup;
-- no helper trigger exists;
-- no deployment, business-data, Registry, D1, Operator Task, RP-08, or Phase 1 mutation occurred in the corrective boundary.
+- approved candidate checkpoint: `2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb`;
+- containment installed exact: `47d932c76498593063ea6f0289e9c9a663686b0d`;
+- Integrity Router installed exact: `34ae925b35fcf8295a8857dfe587cfa26b48b6b8`;
+- Press Integrity installed exact: `e63473445a338179ac50f39cb7d3b82424e30af3`;
+- Invoice Integrity installed exact: `18dd8783bbf7bf14531bcf7bf7d870d938d82473`;
+- `trendosV1932TryRoute_` patched narrowly inside `Code.gs` only;
+- whole `Code.gs` replacement did not occur;
+- standalone `v1932-router.gs` was not added;
+- patched V1932 SHA-256: `891fce66bae761b8cc668fc142f3a2b7bb76053196448451fa1e0f28e74ad534`;
+- V1932 definition count after install: `1`;
+- containment wrapper definition counts: one each;
+- no candidate-induced duplicate symbols;
+- legacy duplicates `getRows_`, `updateLine_`, `getDashboard_` remain pre-existing and unchanged;
+- Save/Reload succeeded without syntax/load issue;
+- all nine Integrity flags remain semantic OFF;
+- post-install dependency health: `success=true`, `codeReady=true`, `missing=[]`, `requiredCount=26`, version `TRENDOS_INTEGRITY_ROUTER_V1_20260910_RP07`;
+- no deployment/version/trigger/business-data/Registry/D1/Cloudflare/Operator Task/RP-08 mutation;
+- Phase 2 was not started in the Phase 1 boundary.
 
 ### NEXT ALLOWED STEP
 
-Only a separately approved:
+Only:
 
-**RP-07 Phase 1 — collision-safe candidate installation/review boundary**
+**RP-07 Phase 2 — READ-ONLY runtime qualification.**
 
-Safety constraint:
+Phase 2 must keep all flags OFF and prove loadability, dependency health, guarded-router decline/fallback behavior, and absence of unintended business mutation. No source/property/deployment/trigger/business-data/Registry/D1/Cloudflare/Operator Task/RP-08 mutation is permitted.
 
-- live `trendosV1932TryRoute_` is owned by `Code.gs`;
-- standalone `v1932-router.gs` must not be added live;
-- no parallel Router/Press/Invoice copies that create duplicate globals/functions.
+After Phase 2 PASS, RP-07 still requires separate handling of retained live P0 blockers and a fresh final health gate proving `OPEN_CORE_P0_BLOCKERS=0` before closure.
 
-Approved RP-07 candidate checkpoint:
-
-`2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb`
-
-After Phase 1, RP-07 still requires read-only runtime qualification, remaining live P0 remediation, fresh final health proving `OPEN_CORE_P0_BLOCKERS=0`, and an explicit closure record.
-
-Known retained live P0 blockers:
+Known retained blockers:
 
 - Attendance post-baseline duplicates;
 - Cleaning post-baseline duplicates;
@@ -75,12 +75,10 @@ Until RP-07 closes PASS:
 
 Supporting RP-07 records:
 
-- `TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_HELPER_OWNER_DELETED_PENDING_VERIFY.md`
-- `TRENDOS_BLACKBOX_2026-09-12_RP07_TEMP_SETTER_PRECONDITION_FAIL_RAW_VALUES.md`
-- `TRENDOS_BLACKBOX_2026-09-12_RP07_FLAG_DISABLE_BOUNDARY_FAIL_NO_SETTER.md`
-- `TRENDOS_BLACKBOX_2026-09-11_RP07_CLOSURE_VERIFICATION_HOLD.md`
-- `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_CORRECTIVE_TEMP_SETTER_PASS_FLAGS_OFF_HELPER_REMOVED.md`
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
+- `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
 
 ## Operator Task Workflow V2
 
@@ -91,13 +89,6 @@ Owner-locked roadmap order:
 `RP-07 -> Operator Task V2 -> RP-08`
 
 Operator Task V2 is the immediate next production track after RP-07 closes PASS.
-
-Authoritative references:
-
-- `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_WORKFLOW_WAEL_GABER_REQUIREMENTS.md`
-- `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_HYBRID_CLOUDFLARE_DESIGN_PREP.md`
-- `TRENDOS_BLACKBOX_2026-09-10_OPERATOR_TASK_V2_OWNER_PRIORITY_LOCK.md`
-- `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md`
 
 ## RP-06
 
@@ -115,9 +106,9 @@ Final record:
 - 02CL / reconcile OFF.
 - generic drain OFF.
 - no `EDGE_SESSION_SECRET` rotation/change.
-- all Integrity flags are currently semantic OFF.
+- all Integrity flags currently semantic OFF.
 - no Production deploy without separate approval.
-- standalone `v1932-router.gs` must not be added live because `trendosV1932TryRoute_` is owned by `Code.gs`.
+- standalone `v1932-router.gs` must not be added live.
 - Operator Task D1 write authority remains OFF/not authorized.
 - Operator Task runtime starts only after RP-07 full closure.
 - RP-08 not started.
