@@ -13,62 +13,61 @@ Date: 2026-09-12
 
 Every new session must read `00_PROJECT_LOCATOR.md`, `00_INDEX.md`, this file, then the newest checkpoint referenced below.
 
-## CURRENT — RP-07 Phase 2 interrupted by Work limit
+## CURRENT — RP-07 Phase 2 READ-ONLY PASS / P0 blockers remain
 
-Status: **PHASE 0B PASS — FLAG NORMALIZATION PASS — TEMP HELPER REMOVED — PHASE 1 INSTALL PASS — ALL INTEGRITY FLAGS OFF AT LAST AUTHORITATIVE CHECK — PHASE 2 INTERRUPTED / NOT ACCEPTED — RESTART PHASE 2 READ ONLY FROM SCRATCH — RP-07 STILL OPEN**
+Status: **PHASE 0B PASS — FLAG NORMALIZATION PASS — TEMP HELPER REMOVED — PHASE 1 INSTALL PASS — PHASE 2 READ-ONLY PASS — ALL NINE INTEGRITY FLAGS OFF — RP-07 STILL OPEN — P0 REMEDIATION/EVIDENCE GATE NEXT**
 
 Newest authoritative record:
 
-- `TRENDOS_BLACKBOX_2026-09-12_RP07_PHASE2_WORK_LIMIT_INTERRUPTED_RESTART_READONLY.md`
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_PHASE2_READONLY_PASS.md`
 
 Supporting records:
 
-- `TRENDOS_BLACKBOX_2026-09-12_RP07_PHASE1_INSTALL_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-12_RP07_CORRECTIVE_TEMP_SETTER_PASS_FLAGS_OFF_HELPER_REMOVED.md`
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`
-- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
-- `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_PHASE2_WORK_LIMIT_INTERRUPTED_RESTART_READONLY.md` — historical interrupted attempt, superseded for Phase 2 gate status by the PASS record above;
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_PHASE1_INSTALL_PASS.md`;
+- `TRENDOS_BLACKBOX_2026-09-12_RP07_CORRECTIVE_TEMP_SETTER_PASS_FLAGS_OFF_HELPER_REMOVED.md`;
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_REMEDIATION_CODE_CANDIDATE_PASS.md`;
+- `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`;
+- `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`.
 
-### Work interruption decision
+### Phase 2 gate result
 
-The owner reported that ChatGPT Work hit its usage/limit boundary during the RP-07 Phase 2 read-only qualification before returning a complete final report.
+RP-07 Phase 2 was restarted from scratch and completed READ ONLY against the real production Apps Script project.
 
-No authoritative evidence proves which Phase 2 subchecks completed before interruption.
+Gate result:
 
-Therefore:
+- Phase 2 READ-ONLY qualification: **PASS**;
+- candidate loadable/collision-safe with flags OFF: **YES**;
+- correct Apps Script project: **YES**;
+- source mutation: **NO**;
+- property mutation: **NO**;
+- deployment/version mutation: **NO**;
+- trigger mutation: **NO**;
+- business-data mutation: **NO**;
+- Registry/D1/Cloudflare mutation: **NO**;
+- Operator Task/RP-08 action: **NO**.
 
-- Phase 2 PASS is **NOT RECORDED**;
-- do not resume from an assumed midpoint;
-- do not infer failure from the interruption;
-- restart the full Phase 2 read-only qualification from the beginning when Work is available again;
-- if current live state has drifted from Phase 1, STOP fail-closed and report drift instead of repairing it.
+Installed exact composition remained:
 
-Restarting is safe because Phase 2 authorizes no source/property/deployment/trigger/business-data/Registry/D1/Cloudflare/Operator Task/RP-08 mutation.
+- containment `47d932c76498593063ea6f0289e9c9a663686b0d`;
+- Integrity Router `34ae925b35fcf8295a8857dfe587cfa26b48b6b8`;
+- Press Integrity `e63473445a338179ac50f39cb7d3b82424e30af3`;
+- Invoice Integrity `18dd8783bbf7bf14531bcf7bf7d870d938d82473`.
 
-### Last authoritative Phase 1 state retained
+The pasted Work report initially contained a transcription typo in the Invoice hash; the owner explicitly authorized correction to the authoritative Phase 1 value above before checkpointing.
 
-Approved candidate checkpoint:
+V1932 remained:
 
-`2152d1d5a90d5c03f9623ee83fd5fcaded8aaeeb`
+- owner: `Code.gs`;
+- definition count: `1`;
+- SHA-256: `891fce66bae761b8cc668fc142f3a2b7bb76053196448451fa1e0f28e74ad534`;
+- standalone `v1932-router.gs`: absent.
 
-Installed exact candidate blobs:
+No RP-07 candidate-induced duplicate was found. Known pre-existing duplicates remain `getRows_=2`, `updateLine_=2`, `getDashboard_=2`.
 
-- containment `47d932c76498593063ea6f0289e9c9a663686b0d`
-- Integrity Router `34ae925b35fcf8295a8857dfe587cfa26b48b6b8`
-- Press Integrity `e63473445a338179ac50f39cb7d3b82424e30af3`
-- Invoice Integrity `18dd8783bbf7bf14531bcf7bf7d870d938d82473`
+### Current Integrity flag state
 
-V1932:
-
-- live owner remained `Code.gs`;
-- whole-file replacement: NO;
-- standalone `v1932-router.gs`: NOT ADDED;
-- patched function definition count: `1`;
-- patched function SHA-256: `891fce66bae761b8cc668fc142f3a2b7bb76053196448451fa1e0f28e74ad534`.
-
-No candidate-induced duplicate symbol was introduced. Legacy duplicates `getRows_`, `updateLine_`, `getDashboard_` remain pre-existing and unchanged.
-
-Last authoritative Integrity state after Phase 1:
+Phase 2 freshly recomputed semantic state through the live parser/runtime:
 
 - MASTER raw=`"false"` => false
 - HEALTH raw=`"false"` => false
@@ -80,9 +79,9 @@ Last authoritative Integrity state after Phase 1:
 - OPS raw=`null` => false
 - AUTOMATION raw=`null` => false
 
-**ALL NINE INTEGRITY FLAGS SEMANTICALLY OFF = YES at the Phase 1 stop point.**
+**ALL NINE INTEGRITY FLAGS SEMANTICALLY OFF = YES.**
 
-Phase 1 dependency health reported:
+Dependency health was executed exactly once after source read-only verification and returned:
 
 - `success=true`
 - `codeReady=true`
@@ -92,49 +91,54 @@ Phase 1 dependency health reported:
 - MASTER=false
 - all families=false.
 
-### NEXT ALLOWED RP-07 STEP
+Router gating/fallback qualification PASS also proved no Integrity business handler reachable while flags are OFF, with Attendance/Clock-in/Cleaning contained legacy fallback and Press/Invoice legacy fallback retained.
 
-Only:
+### Deployments / triggers retained
 
-**RP-07 Phase 2 — READ-ONLY runtime qualification — restart completely from the beginning.**
+Active deployments remained:
 
-The restarted Phase 2 must freshly prove:
+- Version `155` — Web App — Deployment ID `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`
+- Version `113` — Web App — Deployment ID `AKfycby5vuEoMEqpCEvEz8uZOnMGcVUNXJEwk19KX9Gka1_HPzUDi62VUKMTO5qUaeHFv9HXCA`
 
-1. installed Head composition still matches Phase 1;
-2. all Integrity flags remain OFF;
-3. dependency health remains PASS;
-4. guarded Integrity router declines handling while flags are OFF;
-5. V1932/legacy containment fallback is still selected where applicable;
-6. Press/Invoice protections remain installed but inactive;
-7. deployment/trigger state did not acquire an RP-07 activation;
-8. the Work session itself performs no business mutation.
+No new RP-07 deployment, numbered Version, trigger, or temporary helper trigger was created.
 
-No source repair or mutation is allowed inside Phase 2.
+Existing unrelated Head triggers:
 
-RP-07 remains **OPEN**.
+- `d1OperationalEnrichmentLiveSyncTick02CR`
+- `d1OrdersLowUsageTickV1`
 
-### Remaining RP-07 path after Phase 2 PASS
+### NEXT RP-07 GATE
 
-Retained live P0 blockers still require separate owner-approved remediation/evidence:
+Phase 2 is complete and must not be repeated merely as routine.
+
+RP-07 remains **OPEN** because retained P0 blockers still require separate owner-approved remediation/evidence:
 
 - Attendance post-baseline duplicates;
 - Cleaning post-baseline duplicates;
-- invoice Drafts for Orders `3839` and `3841`;
-- Press Line `3796-01` without acceptable exact-Line session evidence.
+- Invoice Drafts for Orders `3839` and `3841`;
+- Press Line `3796-01` exact-Line evidence gap.
 
-A fresh final RP-07 health gate must prove `OPEN_CORE_P0_BLOCKERS=0` before explicit `RP-07 PASS / CLOSED`.
+No remediation is authorized merely by this Phase 2 PASS record. Each required mutation must stay inside a separate explicit owner-approved boundary.
+
+After those blockers are resolved/evidenced, a fresh final RP-07 health gate must prove:
+
+`OPEN_CORE_P0_BLOCKERS=0`
+
+Only then may an explicit checkpoint record:
+
+`RP-07 PASS / CLOSED`
 
 ## Operator Task Workflow V2
 
 Status: **OT-00 DESIGN/PREP ACTIVE — GITHUB CANDIDATE EXISTS — RUNTIME NOT DEPLOYED / NOT ENABLED**
 
-Owner-locked order is now:
+Owner-locked order:
 
-`RP-07 -> Operator Task V2 -> Department Invoice + Material Shadow/Parity (Gaber Laser + Wael Print) -> RP-08`
+`RP-07 -> Operator Task V2 -> Department Invoice + Material Shadow/Parity (Gaber LASER + Wael PRINT) -> Laser + Print Accounting Control -> RP-08`
 
 Operator Task V2 remains the immediate next production track only after RP-07 explicitly closes PASS.
 
-Immediately after the approved Operator Task V2 completion/activation gate, the next priority is the Department Invoice + Material Shadow/Parity track before RP-08.
+Immediately after the approved Operator Task V2 completion/activation gate, the next priority is the Department Invoice + Material Shadow/Parity track, then Laser + Print Accounting Control, before RP-08.
 
 Department scope lock:
 
@@ -160,15 +164,16 @@ Final record: `TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
 
 ## Core safety invariants
 
-- Sheets / Apps Script authoritative for business writes.
+- Sheets / Apps Script authoritative for business writes until an explicitly approved authority cutover.
 - eligible Orders reads D1-first with Apps Script fallback.
 - `__DEBT__` remains Apps Script.
 - 02CL / reconcile OFF.
 - generic drain OFF.
 - no `EDGE_SESSION_SECRET` rotation/change.
 - no Apps Script Production deploy without separate approval.
-- no source/property/deployment/trigger/business-data/Registry/D1/Cloudflare mutation in Phase 2.
+- no Integrity flag change without a separate approved boundary.
 - standalone `v1932-router.gs` must not be added live.
 - Operator Task runtime waits for RP-07 full closure.
-- Department Invoice + Material Shadow/Parity starts after Operator Task V2 and before RP-08 unless the owner explicitly reprioritizes again.
+- Department Invoice + Material Shadow/Parity starts after Operator Task V2.
+- Laser + Print Accounting Control follows the Department Shadow/Parity track before RP-08.
 - RP-08 not started.
