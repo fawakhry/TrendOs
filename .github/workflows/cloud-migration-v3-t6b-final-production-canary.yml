@@ -1,0 +1,171 @@
+name: TrendOS Cloud Migration V3 T6B Final Production Canary
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t6b-final-production-canary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-cloud-migration-v3-t6b-final-production-canary
+  cancel-in-progress: false
+
+jobs:
+  t6b-final:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_T6A_COMMIT: 164bde4273c27d956986d43e5b2b74013d4e4422
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Final T6B scope gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"; test -n "$CLOUDFLARE_ACCOUNT_ID"; test -n "$QUALIFY_USERNAME"; test -n "$QUALIFY_PASSWORD"
+          git fetch --no-tags --depth=1 origin "$BASE_T6A_COMMIT"
+          git diff --name-only "$BASE_T6A_COMMIT" HEAD | sort > /tmp/t6b-files.txt
+          cat > /tmp/t6b-allowed.txt <<'EOF'
+          .github/workflows/cloud-migration-v3-t6b-auth-shadow-production-canary.yml
+          .github/workflows/cloud-migration-v3-t6b-final-production-canary.yml
+          cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql
+          cloudflare-d1/src/cloud-auth-shadow-v1.mjs
+          cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs
+          cloudflare-d1/test/cloud-session-bridge-v3-auth-shadow.test.mjs
+          cloudflare-d1/wrangler.toml
+          EOF
+          sort -o /tmp/t6b-allowed.txt /tmp/t6b-allowed.txt
+          diff -u /tmp/t6b-allowed.txt /tmp/t6b-files.txt
+          grep -Eq '^TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^CLOUD_AUTH_SHADOW_TTL_SECONDS = "300"$' cloudflare-d1/wrangler.toml
+          ! grep -q 'TRENDOS_CLOUD_AUTH_SHADOW_DIAGNOSTIC_V1_ENABLED' cloudflare-d1/wrangler.toml
+          test ! -f cloudflare-d1/migrations/0005_operator_task_v3_read_projection.sql
+          git diff --exit-code "$BASE_T6A_COMMIT" HEAD -- config.js cloudflare-d1/src/index_v2.js
+          echo 'T6B_FINAL_SCOPE_GATE=PASS'
+
+      - name: Final contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node cloudflare-d1/test/cloud-session-bridge-v3.test.mjs
+          node cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs
+          node cloudflare-d1/test/cloud-session-bridge-v3-auth-shadow.test.mjs
+          node --check cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          node --check cloudflare-d1/src/cloud-auth-shadow-v1.mjs
+          node --test tests/operator_task_edge_v2.test.mjs
+          echo 'T6B_FINAL_CONTRACTS=PASS'
+
+      - name: Verify migration settled and no pending migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 migrations list trendos-main --remote --config wrangler.toml 2>&1 | tee /tmp/t6b-pending.txt
+          if grep -Eq '\b[0-9]{4}_[A-Za-z0-9_.-]+\.sql\b' /tmp/t6b-pending.txt; then
+            echo 'T6B_FINAL_PENDING_MIGRATION_FOUND=YES'; exit 51
+          fi
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name='cloud_auth_sessions_v1'" > /tmp/t6b-table.json
+          node -e "const fs=require('fs');const s=fs.readFileSync('/tmp/t6b-table.json','utf8');if(!s.includes('cloud_auth_sessions_v1'))process.exit(1);console.log('T6B_FINAL_SCHEMA_SETTLED=PASS')"
+
+      - name: Production baseline before deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/edge/health" > /tmp/pre-edge.json
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
+          node -e "const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/pre-edge.json'));const w=JSON.parse(fs.readFileSync('/tmp/pre-write.json'));if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured)process.exit(1);if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);console.log('T6B_FINAL_PREDEPLOY_BASELINE=PASS')"
+
+      - name: Fresh qualification login
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          (async()=>{const started=Date.now();const r=await fetch(process.env.APPS_SCRIPT_API_URL,{method:'POST',redirect:'follow',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username:String(process.env.QUALIFY_USERNAME||'').trim(),password:String(process.env.QUALIFY_PASSWORD||'')})});const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch{};const token=String(body&&body.user&&body.user.token||'').trim();if(r.status!==200||body.success!==true||!token)process.exit(1);console.log('::add-mask::'+token);fs.writeFileSync('/tmp/t6b-final-token',token,{mode:0o600});console.log('T6B_FINAL_LOGIN=PASS');console.log('T6B_FINAL_LOGIN_MS='+(Date.now()-started));})().catch(()=>process.exit(1));
+          NODE
+
+      - name: Dry run and deploy final T6B Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/t6b-final-token
+          cd cloudflare-d1
+          rm -rf /tmp/t6b-final-dry
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/t6b-final-dry
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml | tee /tmp/t6b-final-deploy.txt
+          echo 'T6B_FINAL_DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+
+      - name: Production baseline after deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/edge/health" > /tmp/post-edge.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/health" > /tmp/post-write.json
+          node -e "const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/post-edge.json'));const w=JSON.parse(fs.readFileSync('/tmp/post-write.json'));if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured)process.exit(1);if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);console.log('T6B_FINAL_POSTDEPLOY_BASELINE=PASS')"
+
+      - name: Prove Apps Script miss then D1 hits
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');const base=String(process.env.PROD_URL).replace(/\/$/,'');const username=String(process.env.QUALIFY_USERNAME||'').trim();const token=fs.readFileSync('/tmp/t6b-final-token','utf8').trim();
+          async function call(path,source,max){const t=Date.now();const r=await fetch(base+path,{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});const ms=Date.now()-t;const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{};console.log('T6B_FINAL_SESSION='+JSON.stringify({path,status:r.status,ms,success:b.success===true,authSource:String(b.authSource||''),bridge:String(b.sessionBridge||'')}));if(r.status!==200||b.success!==true||!b.edgeToken||b.authSource!==source||b.sessionBridge!=='cloud-session-bridge-v3-post'||ms>=max)throw new Error('qualification failed '+path+' source='+String(b.authSource||''));return ms}
+          (async()=>{const miss=await call('/v1/edge/session','apps-script-post',15000);const hit=await call('/v1/edge/session','d1-auth-shadow-v1',5000);const orders=await call('/v1/edge/orders/session','d1-auth-shadow-v1',5000);console.log('T6B_FINAL_AUTH_SHADOW=PASS');console.log('T6B_FINAL_MISS_MS='+miss);console.log('T6B_FINAL_HIT_MS='+hit);console.log('T6B_FINAL_ORDERS_HIT_MS='+orders)})().catch(e=>{console.error(e.message||e);process.exit(1)});
+          NODE
+
+      - name: Verify D1 row safety and Task boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --json --command "SELECT COUNT(*) AS active_rows, MIN(length(token_fingerprint)) AS min_fp_len, MAX(length(token_fingerprint)) AS max_fp_len FROM cloud_auth_sessions_v1 WHERE revoked_at_ms IS NULL AND expires_at_ms > CAST(strftime('%s','now') AS INTEGER)*1000" > /tmp/t6b-final-rows.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/t6b-final-rows.json','utf8'));let r=null;(function w(v){if(Array.isArray(v))return v.forEach(w);if(v&&typeof v==='object'){if('active_rows'in v)r=v;Object.values(v).forEach(w)}})(x);if(!r||Number(r.active_rows)<1||Number(r.min_fp_len)!==64||Number(r.max_fp_len)!==64)process.exit(1);console.log('T6B_FINAL_D1_ROW_SAFETY=PASS');console.log('RAW_EMPLOYEE_TOKEN_STORED=NO')"
+          cd ..
+          code="$(curl --silent --show-error --output /tmp/t6b-task.json --write-out '%{http_code}' "$PROD_URL/v1/operator/tasks/status")"
+          test "$code" = '401'
+          echo 'T6B_FINAL_TASK_BOUNDARY=PASS'
+
+      - name: Automatic rollback on final T6B failure
+        if: ${{ failure() && env.T6B_FINAL_DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} rollback --config wrangler.toml --message "Rollback final T6B Auth Shadow qualification failure"
+          echo 'T6B_FINAL_ROLLBACK_ATTEMPTED=YES'
+
+      - name: Cleanup qualification token
+        if: ${{ always() }}
+        run: rm -f /tmp/t6b-final-token
+
+      - name: Final T6B conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'T6B_PRODUCTION_AUTH_SHADOW_CANARY=PASS'
+          echo 'PRODUCTION_AUTH_SHADOW_ENABLED=YES'
+          echo 'PRODUCTION_AUTH_SHADOW_TTL_SECONDS=300'
+          echo 'PRODUCTION_FRONTEND_EDGE_ORDERS_READ_CHANGED=NO'
+          echo 'SHEETS_WRITE_AUTHORITY_CHANGED=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'SECRET_CHANGE=NO'
