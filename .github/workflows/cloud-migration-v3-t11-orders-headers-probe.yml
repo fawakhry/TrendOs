@@ -1,0 +1,37 @@
+name: TrendOS T11 Orders Mirror Headers Probe
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-orders-headers-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read only Orders mirror headers
+        env:
+          PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=process.env.PROD_URL;
+          const u=base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=1&offset=0';
+          const r=await fetch(u,{headers:{accept:'application/json'},cache:'no-store'});
+          const raw=await r.text();
+          let b={}; try{b=JSON.parse(raw||'{}')}catch{}
+          if(r.status!==200||b.success!==true) throw new Error('mirror headers probe failed HTTP '+r.status);
+          const s=b.sheet||{};
+          console.log('ORDERS_HEADERS='+JSON.stringify(Array.isArray(s.headers)?s.headers:[]));
+          console.log('ORDERS_META='+JSON.stringify({status:s.status,sourceLastRow:s.sourceLastRow,sourceLastCol:s.sourceLastCol,rowCount:s.rowCount,syncedAt:s.syncedAt,note:s.note}));
+          console.log('ROW_VALUES_LOGGED=NO');
+          NODE
