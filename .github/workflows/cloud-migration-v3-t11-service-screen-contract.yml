@@ -1,0 +1,42 @@
+name: TrendOS T11 Service Screen Contract
+on:
+  push:
+    branches: [cloud-migration-v3-t6b-auth-shadow-canary-20260913]
+    paths: ['.github/workflows/cloud-migration-v3-t11-service-screen-contract.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract relevant functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('Code.gs').read_text(encoding='utf-8')
+          def fn(name):
+              marker='function '+name+'('
+              start=s.find(marker)
+              if start<0: return
+              i=start; depth=0; seen=False; q=None; esc=False
+              while i<len(s):
+                  c=s[i]
+                  if esc: esc=False
+                  elif c=='\\': esc=True
+                  elif q:
+                      if c==q: q=None
+                  elif c in "'\"`": q=c
+                  else:
+                      if c=='{': depth+=1; seen=True
+                      elif c=='}':
+                          depth-=1
+                          if seen and depth==0: i+=1; break
+                  i+=1
+              print(s[start:i]); print('\n---')
+          for n in ['dashboardMatchesScreen_','trendosAllowedScreensForUserV1932_','rowMatchesServerFiltersV1931_','priorityRank_']:
+              fn(n)
+          PY
+          echo 'PRODUCTION_MUTATION=NO'
