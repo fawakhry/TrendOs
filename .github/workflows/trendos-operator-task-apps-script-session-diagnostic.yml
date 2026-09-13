@@ -1,0 +1,55 @@
+name: TrendOS Operator Task Apps Script Session Diagnostic
+
+on:
+  push:
+    branches:
+      - operator-task-v2-production-activation-20260913
+    paths:
+      - '.github/workflows/trendos-operator-task-apps-script-session-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Direct verifyEmployeeSession read-only latency probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          node <<'NODE'
+          const base=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          const url=new URL(base);
+          url.searchParams.set('action','verifyEmployeeSession');
+          url.searchParams.set('username',username);
+          url.searchParams.set('token',token);
+          url.searchParams.set('_edge','1');
+          url.searchParams.set('_ts',String(Date.now()));
+          const controller=new AbortController();
+          const timer=setTimeout(()=>controller.abort(),60000);
+          const start=Date.now();
+          (async()=>{
+            const r=await fetch(url,{method:'GET',headers:{accept:'application/json'},redirect:'follow',signal:controller.signal});
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const elapsed=Date.now()-start;
+            console.log('APPS_SCRIPT_VERIFY_HTTP_STATUS='+r.status);
+            console.log('APPS_SCRIPT_VERIFY_ELAPSED_MS='+elapsed);
+            console.log('APPS_SCRIPT_VERIFY_SUCCESS='+(body&&body.success===true?'YES':'NO'));
+            console.log('APPS_SCRIPT_VERIFY_HAS_USERNAME='+(String(body&&body.username||(body&&body.user&&(body.user.username||body.user.name))||'').trim()?'YES':'NO'));
+            if(r.status!==200||body.success!==true) throw new Error('APPS_SCRIPT_VERIFY_FAILED message='+String(body&&body.message||''));
+            console.log('APPS_SCRIPT_SESSION_DIAGNOSTIC=PASS');
+            console.log('NO_BUSINESS_MUTATION=YES');
+            console.log('NO_SECRET_CHANGE=YES');
+          })().catch(e=>{console.error(e&&e.name+': '+e.message||e);process.exit(1)}).finally(()=>clearTimeout(timer));
+          NODE
