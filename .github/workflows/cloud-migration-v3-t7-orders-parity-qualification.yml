@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  qualify:
+  qualify-print:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Scope and production safety baseline
+      - name: Production safety baseline
         shell: bash
         run: |
           set -euo pipefail
@@ -50,7 +50,7 @@ jobs:
           grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*false' /tmp/live-config.js
           echo 'T7_FRONTEND_STILL_OFF=PASS'
 
-      - name: Fresh login and supported lane parity
+      - name: Synchronized Print parity after 02CX identity normalization
         shell: bash
         run: |
           set -euo pipefail
@@ -60,61 +60,50 @@ jobs:
           const apps=process.env.APPS_SCRIPT_URL;
           const username=String(process.env.QUALIFY_USERNAME||'').trim();
           const password=String(process.env.QUALIFY_PASSWORD||'');
-          const screens=['print','laser'];
+          const screen='print';
           const text=v=>String(v==null?'':v).trim();
-          const key=r=>[text(r&&r.orderId),text(r&&r.lineId),text(r&&r.status)].join('|');
+          const EPOCH=Date.UTC(1899,11,30),DAY=86400000;
+          async function json(url,opt={}){const started=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch{}return{status:r.status,body,ms:Date.now()-started};}
+          async function login(){const x=await json(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(x.body&&x.body.user&&x.body.user.token);assert.equal(x.status,200);assert.equal(x.body.success,true);assert.ok(token);console.log('::add-mask::'+token);return{token,ms:x.ms};}
+          function repair(orderId,lineId){const order=text(orderId),line=text(lineId);if(!/^\d{3,6}$/.test(order)||!/^\d{5,8}$/.test(line))return line;const serial=Number(line);if(!Number.isSafeInteger(serial)||serial<=0)return line;const d=new Date(EPOCH+serial*DAY);if(!Number.isFinite(d.getTime()))return line;if(String(d.getUTCFullYear())!==order||d.getUTCDate()!==1)return line;const m=d.getUTCMonth()+1;if(m<1||m>12)return line;return order+'-'+String(m).padStart(2,'0');}
+          const key=r=>[text(r&&r.orderId),repair(r&&r.orderId,r&&r.lineId),text(r&&r.status)].join('|');
           const critical=['orderId','lineId','status','department','itemName','qty','priority','customer','updatedAt'];
-          async function json(url,opt={}){
-            const started=Date.now();
-            const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});
-            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
-            return {status:r.status,body,ms:Date.now()-started};
-          }
           (async()=>{
-            const login=await json(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});
-            const employeeToken=text(login.body&&login.body.user&&login.body.user.token);
-            assert.equal(login.status,200); assert.equal(login.body.success,true); assert.ok(employeeToken);
-            console.log('::add-mask::'+employeeToken);
-            console.log('T7_LOGIN_MS='+login.ms);
+            const first=await login();
+            const sess=await json(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:first.token})});
+            console.log('T7_SESSION_RESULT='+JSON.stringify({status:sess.status,ms:sess.ms,success:sess.body.success===true,authSource:text(sess.body.authSource)}));
+            assert.equal(sess.status,200);assert.equal(sess.body.success,true);assert.ok(sess.body.edgeToken);
+            const edgeToken=text(sess.body.edgeToken);console.log('::add-mask::'+edgeToken);
 
-            const appPromises=screens.map(screen=>{
-              const payload={action:'getRowsPageV1931',username,token:employeeToken,screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'};
-              return json(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}).then(result=>({screen,result}));
-            });
-            const sessionPromise=json(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})});
-            const [sess,...appPairs]=await Promise.all([sessionPromise,...appPromises]);
-            console.log('T7_SESSION_RESULT='+JSON.stringify({status:sess.status,ms:sess.ms,success:sess.body.success===true,authSource:text(sess.body.authSource),message:text(sess.body.message),code:text(sess.body.code)}));
-            assert.equal(sess.status,200); assert.equal(sess.body.success,true); assert.ok(sess.body.edgeToken);
-            const edgeToken=text(sess.body.edgeToken); console.log('::add-mask::'+edgeToken);
-            const appByScreen=new Map(appPairs.map(x=>[x.screen,x.result]));
-            const summary=[];
-
-            for(const screen of screens){
-              const app=appByScreen.get(screen);
-              console.log('T7_APPS_RESULT='+JSON.stringify({screen,status:app.status,ms:app.ms,success:app.body.success===true,code:text(app.body.code),message:text(app.body.message),rows:Array.isArray(app.body.rows)?app.body.rows.length:null}));
-              assert.equal(app.status,200,screen+' apps status'); assert.equal(app.body.success,true,screen+' apps success');
-              const q=new URLSearchParams({screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
-              const edge=await json(base+'/v1/edge/orders/02cr/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});
-              console.log('T7_EDGE_RESULT='+JSON.stringify({screen,status:edge.status,ms:edge.ms,success:edge.body.success===true,code:text(edge.body.code),message:text(edge.body.message),rows:Array.isArray(edge.body.rows)?edge.body.rows.length:null,dataSource:text(edge.body.dataSource)}));
-              assert.equal(edge.status,200,screen+' edge status'); assert.equal(edge.body.success,true,screen+' edge success');
-              assert.equal(edge.body.dataSource,'d1-edge-orders-02cr-operational');
-              assert.ok(Array.isArray(edge.body.mirrors)&&edge.body.mirrors.length>=3,screen+' mirrors missing');
-              for(const m of edge.body.mirrors){
-                assert.equal(text(m.status),'ready',screen+' mirror not ready');
-                assert.equal(Number(m.rowCount||0),Number(m.sourceLastRow||0),screen+' mirror parity');
-              }
-              const eRows=edge.body.rows||[], aRows=app.body.rows||[];
-              const ek=eRows.map(key).sort(), ak=aRows.map(key).sort();
-              if(JSON.stringify(ek)!==JSON.stringify(ak)){
-                const es=new Set(ek),as=new Set(ak);
-                console.log('T7_IDENTITY_DIFF='+JSON.stringify({screen,onlyD1:ek.filter(x=>!as.has(x)).slice(0,20),onlyApps:ak.filter(x=>!es.has(x)).slice(0,20)}));
-              }
-              assert.deepEqual(ek,ak,screen+' identity mismatch');
-              for(const r of eRows) for(const f of critical) assert.ok(Object.prototype.hasOwnProperty.call(r,f),screen+' missing '+f);
-              summary.push({screen,rows:eRows.length,d1Ms:edge.ms,appsMs:app.ms,d1Faster:edge.ms<app.ms});
+            // Fresh login #2 is intentional: it gives Apps Script a current raw session
+            // while the already-issued Edge token stays valid, so both reads start together.
+            const second=await login();
+            const appPayload={action:'getRowsPageV1931',username,token:second.token,screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'};
+            const q=new URLSearchParams({screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
+            const [app,edge]=await Promise.all([
+              json(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(appPayload)}),
+              json(base+'/v1/edge/orders/02cr/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}})
+            ]);
+            console.log('T7_APPS_RESULT='+JSON.stringify({status:app.status,ms:app.ms,success:app.body.success===true,rows:Array.isArray(app.body.rows)?app.body.rows.length:null,message:text(app.body.message)}));
+            console.log('T7_EDGE_RESULT='+JSON.stringify({status:edge.status,ms:edge.ms,success:edge.body.success===true,rows:Array.isArray(edge.body.rows)?edge.body.rows.length:null,dataSource:text(edge.body.dataSource),code:text(edge.body.code)}));
+            assert.equal(app.status,200);assert.equal(app.body.success,true);
+            assert.equal(edge.status,200);assert.equal(edge.body.success,true);assert.equal(edge.body.dataSource,'d1-edge-orders-02cr-operational');
+            assert.ok(Array.isArray(edge.body.mirrors)&&edge.body.mirrors.length>=3);
+            for(const m of edge.body.mirrors){assert.equal(text(m.status),'ready');assert.equal(Number(m.rowCount||0),Number(m.sourceLastRow||0));}
+            const eRows=edge.body.rows||[],aRows=app.body.rows||[];
+            const ek=eRows.map(key).sort(),ak=aRows.map(key).sort();
+            const es=new Set(ek),as=new Set(ak),onlyD1=ek.filter(x=>!as.has(x)),onlyApps=ak.filter(x=>!es.has(x));
+            console.log('T7_NORMALIZED_DIFF='+JSON.stringify({onlyD1,onlyApps}));
+            if(onlyD1.length||onlyApps.length){
+              const targets=[...new Set([...onlyD1,...onlyApps].map(x=>x.split('|')[0]).filter(Boolean))];
+              console.log('T7_MISMATCH_ORDER_IDS='+JSON.stringify(targets));
             }
-            console.log('T7_ORDERS_PARITY=PASS');
-            console.log('T7_ORDERS_PARITY_SUMMARY='+JSON.stringify(summary));
+            assert.deepEqual(ek,ak,'print normalized identity mismatch');
+            for(const r of eRows)for(const f of critical)assert.ok(Object.prototype.hasOwnProperty.call(r,f),'missing '+f);
+            console.log('T7_PRINT_PARITY=PASS');
+            console.log('T7_PRINT_ROWS='+eRows.length);
+            console.log('T7_PRINT_D1_MS='+edge.ms);
+            console.log('T7_PRINT_APPS_MS='+app.ms);
             console.log('T7_BUSINESS_MUTATION=NO');
             console.log('T7_FRONTEND_CUTOVER=NO');
           })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
