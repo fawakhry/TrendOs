@@ -1,0 +1,84 @@
+name: TrendOS T11 Service Live Field Origin
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-live-field-origin.yml'
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+  QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+  QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+
+jobs:
+  map-field-origin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Map Service field origins without exposing business values
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const digits=v=>text(v).replace(/\D/g,'');
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}
+          async function authoritative(){
+            for(let n=1;n<=4;n++){
+              const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});
+              const token=text(l.body?.user?.token); if(!token) continue; console.log('::add-mask::'+token);
+              const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});
+              if(a.status===200&&a.body?.success===true) return a;
+              await new Promise(r=>setTimeout(r,350));
+            }
+            throw new Error('authoritative Service read unavailable');
+          }
+          async function mirror(offset){
+            const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('بنود الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});
+            assert.equal(r.status,200); assert.equal(r.body?.success,true); return r.body.sheet||{};
+          }
+          const [a,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+          const headers=Array.isArray(m0.headers)?m0.headers:[];
+          const rows=[...(m0.rows||[]),...(m1.rows||[])];
+          const hmap={};headers.forEach((h,i)=>{const k=text(h);if(k)hmap[k]=i});
+          const orderCols=['رقم الأوردر','كود الأوردر'].map(x=>hmap[x]).filter(Number.isInteger);
+          const sourceRows=rows.filter(r=>Number(r?.rowNumber||0)>1).map(r=>({d:Array.isArray(r.display)&&r.display.length?r.display:(r.values||[])}));
+          const appsRows=Array.isArray(a.body?.rows)?a.body.rows:[];
+          const perColumn=new Array(headers.length).fill(0);
+          const perColumnDigits=new Array(headers.length).fill(0);
+          let mapped=0, lineEqualsCustomerPhone=0, lineNonempty=0, phoneNonempty=0;
+          for(const ar of appsRows){
+            const oid=text(ar?.orderId), line=text(ar?.lineId), phone=text(ar?.customerPhone);
+            if(line){lineNonempty++; if(phone&&digits(line)&&digits(line)===digits(phone))lineEqualsCustomerPhone++;}
+            if(phone)phoneNonempty++;
+            if(!oid||!line) continue;
+            const candidates=sourceRows.filter(x=>orderCols.some(c=>text(x.d[c])===oid));
+            if(!candidates.length) continue;
+            mapped++;
+            for(let c=0;c<headers.length;c++){
+              if(candidates.some(x=>text(x.d[c])===line)) perColumn[c]++;
+              const ld=digits(line); if(ld&&candidates.some(x=>digits(x.d[c])===ld)) perColumnDigits[c]++;
+            }
+          }
+          const top=[];
+          for(let i=0;i<headers.length;i++) if(perColumn[i]||perColumnDigits[i]) top.push({column:i+1,header:text(headers[i]),exactMatches:perColumn[i],digitMatches:perColumnDigits[i]});
+          top.sort((x,y)=>y.digitMatches-x.digitMatches||y.exactMatches-x.exactMatches||x.column-y.column);
+          console.log('T11_SERVICE_FIELD_ORIGIN_META='+JSON.stringify({appsRows:appsRows.length,mappedRows:mapped,mirrorSyncedAt:m0.syncedAt,mirrorRows:m0.sourceLastRow,appsMs:a.ms,lineNonempty,phoneNonempty,lineEqualsCustomerPhone}));
+          console.log('T11_SERVICE_LINEID_TOP_COLUMNS='+JSON.stringify(top.slice(0,12)));
+          console.log('T11_SERVICE_EXPECTED_COLUMNS='+JSON.stringify({canonicalLineId:hmap['رقم البند']!=null?hmap['رقم البند']+1:null,customerPhone:hmap['رقم العميل']!=null?hmap['رقم العميل']+1:null}));
+          console.log('BUSINESS_VALUES_EXPOSED=NO');
+          console.log('PRODUCTION_BUSINESS_MUTATION=NO');
+          NODE
