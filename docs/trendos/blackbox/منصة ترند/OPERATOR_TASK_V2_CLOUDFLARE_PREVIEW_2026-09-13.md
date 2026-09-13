@@ -212,3 +212,34 @@ Still prohibited unless explicitly authorized later:
 - Granting D1 Task write authority.
 - Rotating/changing `EDGE_SESSION_SECRET`.
 - Starting RP-08 ahead of the locked roadmap sequence.
+
+## 2026-09-13 current-run recheck — run still queued
+
+The production Edge-enable workflow was re-read directly from GitHub before taking any further activation step.
+
+Observed workflow state:
+
+- Workflow: `TrendOS Operator Task V2 Production Edge Enable`
+- Run ID: `34737318430`
+- Head SHA: `c910d26bc01b1b143d3c9ba179792567c6d60ba2`
+- Run status: `queued`
+- Run conclusion: not set (`null`)
+- Job: `enable-edge`
+- Job status: `queued`
+- Job conclusion: not set (`null`)
+- Execution logs: not available yet because the job has not started.
+
+The workflow definition at the recorded head was also inspected. It is designed to preserve the locked safety boundary: it checks required Cloudflare/App Script proxy-secret presence without printing values, runs Operator Task contracts, preserves production core health, deploys only the Edge-enabled Worker configuration, verifies unauthenticated Operator Task status fails closed with HTTP 401 rather than `OPERATOR_TASK_EDGE_DISABLED`, and performs an automatic Worker rollback if post-deploy verification fails after deployment.
+
+Decision at this checkpoint:
+
+- Do not classify run `34737318430` as SUCCESS or FAILED yet.
+- Do not infer `TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED = true` from the commit or workflow file alone.
+- Do not run Operator Task status qualification that assumes Edge enablement.
+- Do not execute `claimNext` or `completeTask`.
+- Do not start Wael/Gaber frontend rollout.
+- Do not change `EDGE_SESSION_SECRET`.
+- Do not enable `TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED`.
+- Do not run D1 migrations and do not start RP-08.
+
+Next allowed step is to re-read workflow run `34737318430` after it reaches a terminal conclusion and then branch strictly on the observed SUCCESS/FAILED result.
