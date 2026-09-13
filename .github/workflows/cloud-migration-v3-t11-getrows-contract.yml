@@ -1,0 +1,49 @@
+name: TrendOS T11 getRows Contract
+on:
+  push:
+    branches: [cloud-migration-v3-t6b-auth-shadow-canary-20260913]
+    paths: ['.github/workflows/cloud-migration-v3-t11-getrows-contract.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract getRows contract only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('Code.gs').read_text(encoding='utf-8')
+          marker='function getRows_(e) {'
+          start=s.index(marker)
+          i=start
+          depth=0
+          seen=False
+          in_s=in_d=in_t=False
+          esc=False
+          while i < len(s):
+              c=s[i]
+              if esc:
+                  esc=False
+              elif c=='\\':
+                  esc=True
+              elif not in_d and not in_t and c=="'":
+                  in_s=not in_s
+              elif not in_s and not in_t and c=='"':
+                  in_d=not in_d
+              elif not in_s and not in_d and c=='`':
+                  in_t=not in_t
+              elif not in_s and not in_d and not in_t:
+                  if c=='{': depth+=1; seen=True
+                  elif c=='}':
+                      depth-=1
+                      if seen and depth==0:
+                          i+=1
+                          break
+              i+=1
+          print(s[start:i])
+          PY
+          echo 'PRODUCTION_MUTATION=NO'
