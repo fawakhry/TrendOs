@@ -1,0 +1,244 @@
+name: TrendOS Cloud Migration V3 T6A Login Production Session Canary
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6a-login-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t6a-login-production-session-canary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-cloud-migration-v3-t6a-login-production-session-canary
+  cancel-in-progress: false
+
+jobs:
+  t6a-production-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_PRODUCTION_COMMIT: c910d26bc01b1b143d3c9ba179792567c6d60ba2
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard T6A scope and credential gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-t6a-login-canary-20260913"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          if [ -z "${QUALIFY_PASSWORD:-}" ]; then
+            echo 'T6A_PASSWORD_SECRET_REQUIRED=TRENDOS_PROD_QUALIFY_PASSWORD'
+            echo 'T6A_DEPLOY_BLOCKED_BEFORE_LOGIN=YES'
+            exit 41
+          fi
+
+          git fetch --no-tags --depth=1 origin "$BASE_PRODUCTION_COMMIT"
+          git diff --name-only "$BASE_PRODUCTION_COMMIT" HEAD | sort > /tmp/t6a-files.txt
+          cat > /tmp/t6a-allowed.txt <<'EOF'
+          .github/workflows/cloud-migration-v3-t6a-login-production-session-canary.yml
+          cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          cloudflare-d1/src/index_v2.js
+          cloudflare-d1/test/cloud-session-bridge-v3.test.mjs
+          EOF
+          sort -o /tmp/t6a-allowed.txt /tmp/t6a-allowed.txt
+          diff -u /tmp/t6a-allowed.txt /tmp/t6a-files.txt
+
+          cfg='cloudflare-d1/wrangler.toml'
+          grep -Eq '^name = "trendos-d1-api"$' "$cfg"
+          grep -Eq '^main = "production-shadow/index\.js"$' "$cfg"
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' "$cfg"
+          grep -Eq '^TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED = "true"$' "$cfg"
+          ! grep -Eq '^TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED[[:space:]]*=' "$cfg"
+          test ! -f cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql
+          test ! -f cloudflare-d1/migrations/0005_operator_task_v3_read_projection.sql
+          echo 'T6A_SCOPE_GATE=PASS'
+          echo 'D1_MIGRATION_INCLUDED=NO'
+          echo 'AUTH_SHADOW_INCLUDED=NO'
+          echo 'TASK_V3_INCLUDED=NO'
+
+      - name: T6A contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node cloudflare-d1/test/cloud-session-bridge-v3.test.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          node --check cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          node --test tests/operator_task_edge_v2.test.mjs
+          echo 'T6A_CONTRACTS=PASS'
+
+      - name: Pre-deploy production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/edge/health" > /tmp/pre-edge.json
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/pre-edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/pre-write.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('PREDEPLOY_PRODUCTION_BASELINE=PASS');
+          NODE
+
+      - name: Create fresh qualification session via production login
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const url=process.env.APPS_SCRIPT_API_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const started=Date.now();
+            const r=await fetch(url,{
+              method:'POST',redirect:'follow',cache:'no-store',
+              headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+              body:JSON.stringify({action:'login',username,password})
+            });
+            const durationMs=Date.now()-started;
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token) {
+              console.error('T6A_FRESH_LOGIN_FAILED status='+r.status+' durationMs='+durationMs);
+              process.exit(1);
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/t6a-employee-token',token,{mode:0o600});
+            console.log('T6A_FRESH_LOGIN=PASS');
+            console.log('T6A_FRESH_LOGIN_DURATION_MS='+durationMs);
+            console.log('T6A_TOKEN_PERSISTED_TO_GITHUB=NO');
+          })().catch(e=>{console.error('T6A_FRESH_LOGIN_ERROR');process.exit(1)});
+          NODE
+
+      - name: Dry run exact T6A Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/t6a-employee-token
+          cd cloudflare-d1
+          rm -rf /tmp/trendos-t6a-dryrun
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/trendos-t6a-dryrun
+          test -d /tmp/trendos-t6a-dryrun
+          echo 'T6A_DRY_RUN=PASS'
+
+      - name: Deploy T6A production Worker canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml | tee /tmp/t6a-deploy.txt
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+          echo 'T6A_WORKER_DEPLOYED=YES'
+
+      - name: Post-deploy production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/edge/health" > /tmp/post-edge.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/health" > /tmp/post-write.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/post-edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/post-write.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('POSTDEPLOY_PRODUCTION_BASELINE=PASS');
+          NODE
+
+      - name: Authenticated read-only session qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/t6a-employee-token','utf8').trim();
+          async function qualify(path){
+            const started=Date.now();
+            const r=await fetch(base+path,{
+              method:'POST',cache:'no-store',credentials:'omit',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,token})
+            });
+            const durationMs=Date.now()-started;
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const safe={path,status:r.status,durationMs,success:body&&body.success===true,sessionBridge:String(body&&body.sessionBridge||''),authSource:String(body&&body.authSource||'')};
+            console.log('T6A_SESSION_RESULT='+JSON.stringify(safe));
+            if(r.status!==200||body.success!==true||!body.edgeToken) throw new Error('SESSION_EXCHANGE_FAILED path='+path+' status='+r.status+' code='+String(body.code||''));
+            if(body.sessionBridge!=='cloud-session-bridge-v3-post') throw new Error('SESSION_BRIDGE_MARKER_MISSING path='+path);
+            if(body.authSource!=='apps-script-post') throw new Error('SESSION_AUTH_SOURCE_NOT_POST path='+path+' source='+String(body.authSource||''));
+            if(durationMs>=15000) throw new Error('SESSION_EXCHANGE_TOO_SLOW path='+path+' durationMs='+durationMs);
+            return durationMs;
+          }
+          (async()=>{
+            const edgeMs=await qualify('/v1/edge/session');
+            const ordersMs=await qualify('/v1/edge/orders/session');
+            console.log('T6A_AUTHENTICATED_SESSION_QUALIFICATION=PASS');
+            console.log('EDGE_SESSION_DURATION_MS='+edgeMs);
+            console.log('ORDERS_SESSION_DURATION_MS='+ordersMs);
+          })().catch((err)=>{console.error(err.message||err);process.exit(1)});
+          NODE
+
+      - name: Verify Task route remains fail-closed unauthenticated
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/task-unauth.json --write-out '%{http_code}' "$PROD_URL/v1/operator/tasks/status")"
+          test "$code" = '401'
+          echo 'T6A_TASK_ROUTE_UNCHANGED_FAIL_CLOSED=PASS'
+
+      - name: Automatic rollback on T6A post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'T6A post-deploy verification failed; rolling back production Worker.'
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} rollback --config wrangler.toml --message "Rollback T6A production session bridge canary verification failure"
+          echo 'T6A_AUTOMATIC_ROLLBACK_ATTEMPTED=YES'
+
+      - name: Cleanup ephemeral qualification token
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -f /tmp/t6a-employee-token
+          echo 'T6A_EPHEMERAL_TOKEN_CLEANED=YES'
+
+      - name: T6A success conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'T6A_PRODUCTION_SESSION_BRIDGE_CANARY=PASS'
+          echo 'PRODUCTION_FRONTEND_EDGE_ORDERS_READ_CHANGED=NO'
+          echo 'PRODUCTION_D1_MIGRATION=NO'
+          echo 'PRODUCTION_AUTH_SHADOW_ENABLE=NO'
+          echo 'SHEETS_WRITE_AUTHORITY_CHANGED=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'EDGE_SESSION_SECRET_CHANGED=NO'
+          echo 'TASK_PROXY_SECRET_CHANGED=NO'
+          echo 'GABER_GATE_CHANGED=NO'
