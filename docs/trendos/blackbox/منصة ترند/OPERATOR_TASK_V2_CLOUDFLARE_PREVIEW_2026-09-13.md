@@ -84,20 +84,74 @@ Qualification conclusion:
 - Edge proxy rejects the deliberately invalid assertion fail-closed with `EDGE_PROXY_PROTOCOL_INVALID`.
 - No mutation operation was used during qualification.
 
-## Current state
+## Production activation approval and pre-activation diagnostics
 
-Apps Script inert publication and Version 156 route qualification are complete.
+The owner explicitly approved proceeding with actual Operator Task activation/integration for Wael and Gaber and linking the Production Cloudflare Edge path.
 
-Still OFF / not authorized:
+A dedicated activation branch was created:
 
-- Operator Task runtime activation for Wael/Gaber.
-- Employee rollout.
-- `TRENDOS_OPERATOR_TASK_V2_ENABLED` enablement.
-- `TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED` enablement.
-- Cloudflare production Operator Task Edge authority/cutover.
-- D1 Task write authority.
-- `claimNext` / `completeTask` production mutation testing.
+- `operator-task-v2-production-activation-20260913`
 
-## Next owner decision boundary
+Pre-activation diagnostic workflow:
 
-The next phase is actual Operator Task activation/integration for Wael and Gaber. This crosses from inert publication into production runtime behavior and therefore requires a separate explicit owner decision before changing flags, production Edge authority, secrets, frontend rollout, or running any Task mutation.
+- Run: `34734702528` => SUCCESS
+- Production Apps Script proxy route is reachable anonymously from the Worker/GitHub runner.
+- Exact proxy diagnostic response with the correct protocol was `{"success":false,"code":"EDGE_PROXY_SECRET_NOT_CONFIGURED","message":"تم رفض Edge assertion."}`.
+- Therefore `TRENDOS_OPERATOR_TASK_PROXY_SECRET` is currently missing in production Apps Script.
+- Existing `/v1/edge/session` bridge reached Apps Script and correctly rejected deliberately invalid employee credentials with HTTP 401 / `{"success":false,"message":"المستخدم غير موجود."}`.
+- No Business Data, Script Properties, triggers, claim or completion mutation occurred during diagnostics.
+
+## Production Worker Operator Task route — code deployed, gate still OFF — PASS
+
+The approved Operator Task route code was deployed to the existing Production Worker while retaining the dedicated Operator Task Edge gate as explicit OFF.
+
+Controlled deployment workflow:
+
+- Run: `34734759490` => SUCCESS
+- Production Worker URL unchanged: `https://trendos-d1-api.trendmall-contact.workers.dev`
+- Cloudflare Worker Version ID: `bd869238-1743-4389-90c3-8e544fa3766f`
+- `TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED = false`
+- Operator Task contract/Edge/Gaber integration tests: PASS.
+- Wrangler dry-run: PASS.
+- Pre- and post-deploy Production core health: PASS.
+- Existing Cloud Write state was preserved (`enabled=true`, `writesAccepted=true`, `cutover=false`, `sheetsAuthoritative=true`).
+- No D1 migration was applied.
+- No Worker secret was changed in this deployment.
+- Production `EDGE_SESSION_SECRET` was not changed or rotated.
+- No Task mutation was executed.
+
+Post-deploy production route result:
+
+- `GET /v1/operator/tasks/status` => HTTP 503
+- Body: `{"success":false,"code":"OPERATOR_TASK_EDGE_DISABLED"}`
+
+This proves the Production Worker now contains the Operator Task Edge route code and remains fail-closed until the explicit Operator Task Edge enable gate is changed.
+
+## Current activation state
+
+Completed:
+
+- Apps Script Operator Task backend published on Web App Version 156.
+- Apps Script route qualification PASS.
+- Production Worker Operator Task route code deployed.
+- Production Worker route qualification PASS while gate OFF.
+- Owner approval for Wael/Gaber Operator Task activation is recorded.
+
+Still OFF / pending execution:
+
+- Shared `TRENDOS_OPERATOR_TASK_PROXY_SECRET` binding in Apps Script and Production Worker.
+- Apps Script `TRENDOS_OPERATOR_TASK_V2_ENABLED` remains OFF.
+- Production Worker `TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED` remains OFF.
+- Frontend rollout remains OFF/not loaded in Production main.
+- `TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED` remains OFF and is outside this activation approval.
+- D1 Task write authority remains OFF/not authorized.
+- No `claimNext` or `completeTask` production canary has been executed.
+
+## Next execution gate
+
+Bind one shared strong `TRENDOS_OPERATOR_TASK_PROXY_SECRET` value to both:
+
+1. Apps Script Script Properties; and
+2. Production Cloudflare Worker secret store.
+
+Do not change `EDGE_SESSION_SECRET`. Do not enable backend/Edge flags in the same step. After the shared proxy secret is bound, verify the HMAC bridge fail-closed behavior before enabling the backend and Edge gates sequentially.
