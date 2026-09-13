@@ -1,0 +1,44 @@
+name: TrendOS T11 Freshness Runtime Status
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-freshness-runtime-status.yml'
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read heartbeat status and mirror ages
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}
+          const hb=await req(apps+'?action=getD1OrdersLowUsageHeartbeatV1&_ts='+Date.now(),{headers:{accept:'application/json'}});
+          if(hb.status!==200||hb.body?.success!==true) throw new Error('heartbeat status unavailable HTTP '+hb.status);
+          const last=hb.body.lastIdleCheck||{};
+          console.log('T11_FRESHNESS_HEARTBEAT='+JSON.stringify({http:hb.status,ms:hb.ms,enabled:hb.body.enabled===true,intervalMinutes:Number(hb.body.intervalMinutes||0),lowUsageTriggerCount:Number(hb.body.lowUsageTriggerCount||0),legacyV1TriggerCount:Number(hb.body.legacyV1TriggerCount||0),directV2TriggerCount:Number(hb.body.directV2TriggerCount||0),lightFingerprintPresent:hb.body.lightFingerprintPresent===true,consecutiveErrors:Number(hb.body.consecutiveErrors||0),lastError:hb.body.lastError?{present:true,at:text(hb.body.lastError.at),phase:text(hb.body.lastError.phase),consecutiveErrors:Number(hb.body.lastError.consecutiveErrors||0)}:null,lastIdle:last?{at:text(last.at),success:last.success===true,mode:text(last.mode),sourceChanged:last.sourceChanged===true,d1RequestMade:last.d1RequestMade===true,d1WriteMade:last.d1WriteMade===true}:null}));
+          for(const name of ['الأوردرات','بنود الأوردرات']){
+            const m=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent(name)+'&limit=1&offset=0',{headers:{accept:'application/json'}});
+            if(m.status!==200||m.body?.success!==true) throw new Error('mirror '+name+' unavailable HTTP '+m.status);
+            const s=m.body.sheet||{};
+            console.log('T11_FRESHNESS_MIRROR='+JSON.stringify({sheetName:name,syncedAt:text(s.syncedAt),sourceLastRow:Number(s.sourceLastRow||0),sourceLastCol:Number(s.sourceLastCol||0),rowCount:Number(s.rowCount||0),status:text(s.status),note:text(s.note)}));
+          }
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
