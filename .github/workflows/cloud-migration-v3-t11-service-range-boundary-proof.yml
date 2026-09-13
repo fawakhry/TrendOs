@@ -1,0 +1,45 @@
+name: TrendOS T11 Service Row 270 Boundary Proof
+
+on:
+  push:
+    branches: [cloud-migration-v3-t6b-auth-shadow-canary-20260913]
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-range-boundary-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Prove deployed Service boundary without exposing identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim(); const norm=v=>text(v).replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();
+          async function req(url,opt={}){const c=new AbortController();const timer=setTimeout(()=>c.abort(),45000);try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}finally{clearTimeout(timer)}}
+          async function live(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a.body.rows||[];}throw new Error('Service read unavailable')}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});if(r.status!==200||r.body?.success!==true)throw new Error('mirror unavailable');return r.body.sheet||{}}
+          const [lr,m0,m1]=await Promise.all([live(),mirror(0),mirror(500)]);const headers=m0.headers||[], all=[...(m0.rows||[]),...(m1.rows||[])];const hm={};headers.forEach((x,i)=>hm[text(x)]=i);const oi=hm['رقم الأوردر']??0,ci=hm['كود الأوردر']??1,si=hm['الحالة العامة']??11;const liveIds=new Set(lr.map(r=>text(r?.orderId||r?.orderCode)).filter(Boolean));
+          const reqNew=all.filter(r=>Number(r?.rowNumber||0)>1).filter(r=>{const d=(r.display&&r.display.length?r.display:r.values)||[];return norm(d[si])===norm('طلب جديد')});
+          const included=reqNew.filter(r=>{const d=(r.display&&r.display.length?r.display:r.values)||[];return liveIds.has(text(d[oi])||text(d[ci]))}); const excluded=reqNew.filter(r=>{const d=(r.display&&r.display.length?r.display:r.values)||[];return !liveIds.has(text(d[oi])||text(d[ci]))});
+          const stat=arr=>({count:arr.length,minRow:Math.min(...arr.map(r=>Number(r.rowNumber||0))),maxRow:Math.max(...arr.map(r=>Number(r.rowNumber||0))),atOrBelow270:arr.filter(r=>Number(r.rowNumber||0)<=270).length,above270:arr.filter(r=>Number(r.rowNumber||0)>270).length});
+          const i=stat(included), e=stat(excluded); const exactBoundary=i.above270===0&&e.atOrBelow270===0&&included.length===26&&excluded.length===9;
+          console.log('T11_SERVICE_ROW270_BOUNDARY='+JSON.stringify({exactBoundary,included:i,excluded:e}));
+          console.log('BUSINESS_IDENTITIES_EXPOSED=NO'); console.log('PRODUCTION_MUTATION=NO'); if(!exactBoundary)process.exit(23);
+          console.log('T11_SERVICE_ROW270_BOUNDARY=PASS');
+          NODE
