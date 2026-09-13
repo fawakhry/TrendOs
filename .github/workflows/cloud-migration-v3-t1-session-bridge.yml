@@ -1,0 +1,36 @@
+name: TrendOS Cloud Migration V3 T1 Session Bridge
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-20260913
+    paths:
+      - 'cloudflare-d1/src/cloud-session-bridge-v3.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/test/cloud-session-bridge-v3.test.mjs'
+      - '.github/workflows/cloud-migration-v3-t1-session-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-session-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run T1 session bridge contract tests
+        run: node cloudflare-d1/test/cloud-session-bridge-v3.test.mjs
+      - name: Assert production isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-20260913"
+          echo "PRODUCTION_DEPLOY=NO"
+          echo "D1_MIGRATION=NO"
+          echo "SECRET_CHANGE=NO"
+          echo "TASK_MUTATION=NO"
