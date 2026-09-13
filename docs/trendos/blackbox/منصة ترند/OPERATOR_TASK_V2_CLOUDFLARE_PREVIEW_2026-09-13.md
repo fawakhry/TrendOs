@@ -63,30 +63,41 @@ Safety boundary retained during publication:
 - No `claimNext` or `completeTask` operation was executed.
 - No employee rollout was enabled.
 
-## Current gate
+## Version 156 production route qualification — PASS
 
-The next step is GET-only read-only qualification against production Web App Version 156.
+GET-only read-only qualification was completed against the existing production Web App after Version 156 publication.
 
-Required probes:
+Observed results:
 
-1. `action=operatorTaskV2&op=status` with no username/token.
-2. `action=operatorTaskEdgeProxyV2` using a deliberately invalid protocol/signature assertion.
+- `OPERATOR_TASK_ROUTE = REACHABLE`
+- `OPERATOR_TASK_RESPONSE = {"success":false,"message":"انتهت الجلسة. سجل الدخول مرة أخرى."}`
+- `EDGE_PROXY_ROUTE = REACHABLE`
+- `EDGE_PROXY_RESPONSE = {"success":false,"code":"EDGE_PROXY_PROTOCOL_INVALID","message":"تم رفض Edge assertion."}`
+- `ACTION_UNKNOWN_PRESENT = NO`
+- `READY_FOR_NEXT_GATE = YES`
 
-Pass criteria:
+Qualification conclusion:
 
-- Neither route returns `Action غير معروف.`.
-- Edge Proxy rejects fail-closed with a route-level code such as `EDGE_PROXY_PROTOCOL_INVALID`.
-- No mutation operation is called.
+- `operatorTaskV2` is now published and reachable through the production Web App router.
+- The unauthenticated status probe is rejected by the existing session/auth layer rather than falling through to `Action غير معروف.`.
+- `operatorTaskEdgeProxyV2` is now published and reachable.
+- Edge proxy rejects the deliberately invalid assertion fail-closed with `EDGE_PROXY_PROTOCOL_INVALID`.
+- No mutation operation was used during qualification.
 
-Until this read-only gate passes:
+## Current state
 
-- do not run `claimNext`;
-- do not run `completeTask`;
-- do not enable Operator Task backend/frontend flags;
-- do not enable Gaber material-control;
-- do not enable Cloudflare production Operator Task Edge authority;
-- do not start employee rollout.
+Apps Script inert publication and Version 156 route qualification are complete.
+
+Still OFF / not authorized:
+
+- Operator Task runtime activation for Wael/Gaber.
+- Employee rollout.
+- `TRENDOS_OPERATOR_TASK_V2_ENABLED` enablement.
+- `TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED` enablement.
+- Cloudflare production Operator Task Edge authority/cutover.
+- D1 Task write authority.
+- `claimNext` / `completeTask` production mutation testing.
 
 ## Next owner decision boundary
 
-If Version 156 read-only qualification passes, the inert publication stage is complete. Any actual Operator Task activation for Wael/Gaber remains a separate explicit owner decision.
+The next phase is actual Operator Task activation/integration for Wael and Gaber. This crosses from inert publication into production runtime behavior and therefore requires a separate explicit owner decision before changing flags, production Edge authority, secrets, frontend rollout, or running any Task mutation.
