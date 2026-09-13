@@ -2,6 +2,14 @@ name: TrendOS Static Source Audit
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - tasks-v3-isolation-review-20260913
+    paths:
+      - Code.gs
+      - app.js
+      - scripts/trendos-static-audit.mjs
+      - .github/workflows/trendos-static-source-audit.yml
 
 permissions:
   contents: read
