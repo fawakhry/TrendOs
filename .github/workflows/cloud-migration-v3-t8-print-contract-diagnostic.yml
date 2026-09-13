@@ -1,0 +1,53 @@
+name: TrendOS T8 Print Contract Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t8-print-contract-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect Apps Script print row identity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={}){const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}
+          async function login(){for(let i=1;i<=4;i++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const t=text(l.body&&l.body.user&&l.body.user.token);if(l.status===200&&l.body.success===true&&t){console.log('::add-mask::'+t);return t;}}throw new Error('login failed');}
+          (async()=>{
+            const token=await login();
+            const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'print',page:'1',pageSize:'5',statusFilter:'__ACTIVE__'})});
+            assert.equal(a.status,200);assert.equal(a.body.success,true,JSON.stringify(a.body));
+            const rows=Array.isArray(a.body.rows)?a.body.rows:[];assert.ok(rows.length);
+            console.log('APPS_ROW_KEYS='+JSON.stringify(Object.keys(rows[0]).sort()));
+            const safe={};for(const [k,v] of Object.entries(rows[0])){if(/(^|_)(id|line|row|order)|Id$|ID$|rowNumber/i.test(k))safe[k]=v;}
+            console.log('APPS_IDENTITY_FIELDS='+JSON.stringify(safe));
+            console.log('APPS_PAGE_META='+JSON.stringify({rows:rows.length,pagination:a.body.pagination||null,serverPaged:a.body.serverPaged||null,version:a.body.version||null}));
+            const sTok=await login();
+            const s=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:sTok})});
+            if(s.status===200&&s.body.success===true){const edgeToken=text(s.body.edgeToken);console.log('::add-mask::'+edgeToken);const d=await req(base+'/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__',{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});if(d.status===200&&d.body.success===true&&Array.isArray(d.body.rows)&&d.body.rows.length){console.log('D1_ROW_KEYS='+JSON.stringify(Object.keys(d.body.rows[0]).sort()));const ds={};for(const [k,v] of Object.entries(d.body.rows[0])){if(/(^|_)(id|line|row|order)|Id$|ID$|rowNumber/i.test(k))ds[k]=v;}console.log('D1_IDENTITY_FIELDS='+JSON.stringify(ds));}}
+            console.log('T8_PRINT_CONTRACT_DIAGNOSTIC=PASS');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
