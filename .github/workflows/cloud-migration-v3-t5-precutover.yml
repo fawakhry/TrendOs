@@ -42,8 +42,17 @@ jobs:
           node cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs
           node cloudflare-d1/test/cloud-session-bridge-v3-auth-shadow.test.mjs
           node cloudflare-d1/test/cloud-orders-read-v3-readiness.test.mjs
-      - name: Qualify Edge Orders contract surface
+      - name: Qualify Edge Orders candidate contract surface
+        shell: bash
         run: |
+          set -euo pipefail
+          cp config.js /tmp/trendos-config-before-t5.js
+          restore_config() { cp /tmp/trendos-config-before-t5.js config.js; }
+          trap restore_config EXIT
+          # Historical 02CN qualification asserts an enabled frontend candidate.
+          # Enable it only in the ephemeral CI checkout; repository/Production stays OFF.
+          sed -i 's/window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;/window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;/' config.js
+          grep -q 'window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;' config.js
           node tests/cloudflare_edge_orders_read_v1.test.mjs
           node tests/cloudflare_edge_orders_dashboard_02cn.test.mjs
           node tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs
@@ -51,6 +60,9 @@ jobs:
           node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
           node tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs
           node tests/cloudflare_edge_orders_line_identity_02cx.test.mjs
+          restore_config
+          trap - EXIT
+          grep -q 'window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;' config.js
       - name: Qualify frontend cutover and traffic controls
         run: |
           node tests/frontend_edge_orders_cutover_02ct.test.mjs
@@ -68,6 +80,7 @@ jobs:
           set -euo pipefail
           test "${GITHUB_REF_NAME}" = "cloud-migration-v3-20260913"
           grep -q 'window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;' config.js
+          git diff --exit-code -- config.js
           echo "CURRENT_PRODUCTION_FRONTEND_EDGE_READ=false"
           echo "PRODUCTION_WORKER_DEPLOY=NO"
           echo "PRODUCTION_D1_MIGRATION=NO"
