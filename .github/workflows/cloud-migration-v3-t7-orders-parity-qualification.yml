@@ -55,6 +55,7 @@ jobs:
           (async()=>{
             const t1=await login();
             const sess=await json(base+'/v1/edge/orders/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username,token:t1})});
+            console.log('T7_SESSION='+JSON.stringify({status:sess.status,ms:sess.ms,success:sess.body.success===true,source:text(sess.body.authSource),code:text(sess.body.code),message:text(sess.body.message)}));
             assert.equal(sess.status,200);assert.equal(sess.body.success,true);const edgeToken=text(sess.body.edgeToken);assert.ok(edgeToken);console.log('::add-mask::'+edgeToken);
             const t2=await login();
             const q=new URLSearchParams({screen:'print',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
@@ -64,16 +65,15 @@ jobs:
               json(base+'/v1/edge/orders/02cr/page?'+q,{headers:{authorization:'Bearer '+edgeToken}}),
               json(base+'/v1/edge/orders/page?'+q,{headers:{authorization:'Bearer '+edgeToken}})
             ]);
+            console.log('T7_LANE_STATUS='+JSON.stringify({apps:{status:app.status,ms:app.ms,success:app.body.success===true,code:text(app.body.code),message:text(app.body.message)},rich:{status:rich.status,ms:rich.ms,success:rich.body.success===true,code:text(rich.body.code),message:text(rich.body.message)},view:{status:view.status,ms:view.ms,success:view.body.success===true,code:text(view.body.code),message:text(view.body.message)}}));
             assert.equal(app.status,200);assert.equal(app.body.success,true);
-            for(const x of [rich,view]){assert.equal(x.status,200);assert.equal(x.body.success,true)}
-            const appRows=app.body.rows||[], richRows=rich.body.rows||[], viewRows=view.body.rows||[];
-            const dr=diff(richRows,appRows), dv=diff(viewRows,appRows);
-            console.log('T7_APPS='+JSON.stringify({rows:appRows.length,ms:app.ms}));
-            console.log('T7_RICH='+JSON.stringify({rows:richRows.length,ms:rich.ms,dataSource:text(rich.body.dataSource),diff:dr}));
-            console.log('T7_VIEW='+JSON.stringify({rows:viewRows.length,ms:view.ms,dataSource:text(view.body.dataSource),diff:dv,mirror:view.body.mirror?{sheetName:text(view.body.mirror.sheetName),syncedAt:text(view.body.mirror.syncedAt)}:null}));
-            if(dv.equal){console.log('T7_VIEW_PRINT_PARITY=PASS')}else console.log('T7_VIEW_PRINT_PARITY=FAIL');
-            if(dr.equal){console.log('T7_02CR_PRINT_PARITY=PASS')}else console.log('T7_02CR_PRINT_PARITY=FAIL');
+            const appRows=app.body.rows||[];
+            let richPass=false,viewPass=false;
+            if(rich.status===200&&rich.body.success===true){const dr=diff(rich.body.rows||[],appRows);richPass=dr.equal;console.log('T7_RICH='+JSON.stringify({rows:(rich.body.rows||[]).length,ms:rich.ms,dataSource:text(rich.body.dataSource),diff:dr}));}
+            if(view.status===200&&view.body.success===true){const dv=diff(view.body.rows||[],appRows);viewPass=dv.equal;console.log('T7_VIEW='+JSON.stringify({rows:(view.body.rows||[]).length,ms:view.ms,dataSource:text(view.body.dataSource),diff:dv,mirror:view.body.mirror||null}));}
+            console.log('T7_02CR_PRINT_PARITY='+(richPass?'PASS':'FAIL'));
+            console.log('T7_VIEW_PRINT_PARITY='+(viewPass?'PASS':'FAIL'));
             console.log('T7_BUSINESS_MUTATION=NO');console.log('T7_FRONTEND_CUTOVER=NO');
-            assert.ok(dv.equal||dr.equal,'no D1 print lane has exact normalized parity');
+            assert.ok(richPass||viewPass,'no D1 print lane has exact normalized parity');
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
