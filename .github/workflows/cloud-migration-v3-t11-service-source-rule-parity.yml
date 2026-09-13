@@ -37,20 +37,22 @@ jobs:
           async function authoritative(){for(let n=0;n<4;n++){const token=await login();const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body.success===true)return a.body;}throw new Error('authoritative failed');}
           async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert.equal(r.status,200);assert.equal(r.body.success,true);return r.body.sheet||{};}
           function idx(h,names){const a=h.map(text);for(const n of names){const i=a.lastIndexOf(n);if(i>=0)return i;}return -1;}
-          const [auth,a,b]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
-          const appIds=new Set((auth.rows||[]).map(r=>text(r.orderId)).filter(Boolean));
-          const headers=a.headers||[], rows=[...(a.rows||[]),...(b.rows||[])];
-          const c={id:idx(headers,['رقم الأوردر','id']),status:idx(headers,['الحالة العامة','status']),source:idx(headers,['مصدر الطلب'])};
-          const active=[];
-          for(const item of rows){if(Number(item.rowNumber||0)<=1)continue;const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]);const id=text(d[c.id]),status=text(d[c.status])||'طلب جديد',source=text(d[c.source]);if(!id||hidden(status))continue;active.push({id,source});}
-          const nonblank=active.filter(x=>x.source).map(x=>x.id); const blank=active.filter(x=>!x.source).map(x=>x.id);
-          const missingFromRule=[...appIds].filter(id=>!nonblank.includes(id));
-          const extraFromRule=nonblank.filter(id=>!appIds.has(id));
-          const blankIncluded=blank.filter(id=>appIds.has(id));
-          console.log('T11_SOURCE_RULE='+JSON.stringify({apps:appIds.size,active:active.length,nonblankSource:nonblank.length,blankSource:blank.length,missingFromRule:missingFromRule.length,extraFromRule:extraFromRule.length,blankIncluded:blankIncluded.length}));
-          console.log('T11_SOURCE_RULE_EXTRA_IDS='+JSON.stringify(extraFromRule));
-          console.log('T11_SOURCE_RULE_MISSING_IDS='+JSON.stringify(missingFromRule));
-          console.log('T11_SOURCE_RULE_BLANK_INCLUDED_IDS='+JSON.stringify(blankIncluded));
-          assert.equal(missingFromRule.length,0); assert.equal(extraFromRule.length,0); assert.equal(blankIncluded.length,0); assert.equal(nonblank.length,appIds.size);
-          console.log('T11_SERVICE_SOURCE_RULE_PARITY=PASS');
+          (async()=>{
+            const [auth,a,b]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+            const appIds=new Set((auth.rows||[]).map(r=>text(r.orderId)).filter(Boolean));
+            const headers=a.headers||[], rows=[...(a.rows||[]),...(b.rows||[])];
+            const c={id:idx(headers,['رقم الأوردر','id']),status:idx(headers,['الحالة العامة','status']),source:idx(headers,['مصدر الطلب'])};
+            const active=[];
+            for(const item of rows){if(Number(item.rowNumber||0)<=1)continue;const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]);const id=text(d[c.id]),status=text(d[c.status])||'طلب جديد',source=text(d[c.source]);if(!id||hidden(status))continue;active.push({id,source});}
+            const nonblank=active.filter(x=>x.source).map(x=>x.id); const blank=active.filter(x=>!x.source).map(x=>x.id);
+            const missingFromRule=[...appIds].filter(id=>!nonblank.includes(id));
+            const extraFromRule=nonblank.filter(id=>!appIds.has(id));
+            const blankIncluded=blank.filter(id=>appIds.has(id));
+            console.log('T11_SOURCE_RULE='+JSON.stringify({apps:appIds.size,active:active.length,nonblankSource:nonblank.length,blankSource:blank.length,missingFromRule:missingFromRule.length,extraFromRule:extraFromRule.length,blankIncluded:blankIncluded.length}));
+            console.log('T11_SOURCE_RULE_EXTRA_IDS='+JSON.stringify(extraFromRule));
+            console.log('T11_SOURCE_RULE_MISSING_IDS='+JSON.stringify(missingFromRule));
+            console.log('T11_SOURCE_RULE_BLANK_INCLUDED_IDS='+JSON.stringify(blankIncluded));
+            assert.equal(missingFromRule.length,0); assert.equal(extraFromRule.length,0); assert.equal(blankIncluded.length,0); assert.equal(nonblank.length,appIds.size);
+            console.log('T11_SERVICE_SOURCE_RULE_PARITY=PASS');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
           NODE
