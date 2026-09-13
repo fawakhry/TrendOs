@@ -92,6 +92,7 @@ async function requestPayload(request, route) {
     safe.taskId = text(body.taskId);
     safe.finalStatus = text(body.finalStatus);
     safe.notes = text(body.notes);
+    safe.materialClosePayload = text(body.materialClosePayload);
   }
   return safe;
 }
