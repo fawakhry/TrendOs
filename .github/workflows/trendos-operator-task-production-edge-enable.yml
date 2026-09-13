@@ -1,0 +1,171 @@
+name: TrendOS Operator Task V2 Production Edge Enable
+
+on:
+  push:
+    branches:
+      - operator-task-v2-production-activation-20260913
+    paths:
+      - '.github/workflows/trendos-operator-task-production-edge-enable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-operator-task-production-edge-enable
+  cancel-in-progress: false
+
+jobs:
+  enable-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          cfg='cloudflare-d1/wrangler.toml'
+          grep -Eq '^name = "trendos-d1-api"$' "$cfg"
+          grep -Eq '^main = "production-shadow/index\.js"$' "$cfg"
+          grep -Eq '^TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' "$cfg"
+          ! grep -Eq 'TRENDOS_OPERATOR_TASK_PROXY_SECRET[[:space:]]*=' "$cfg"
+          grep -q 'handleOperatorTaskEdgeRequest' cloudflare-d1/src/index_v2.js
+          echo 'EDGE_ENABLE_SAFETY_GATE=PASS'
+
+      - name: Verify proxy secret bindings exist without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -L --silent --show-error --output /tmp/proxy.json --write-out '%{http_code}' --get \
+            --data-urlencode 'action=operatorTaskEdgeProxyV2' \
+            --data-urlencode 'protocol=TRENDOS_OT_EDGE_V1' \
+            --data-urlencode 'method=GET' \
+            --data-urlencode 'op=status' \
+            --data-urlencode 'operator=edge-enable-probe' \
+            --data-urlencode 'sessionJti=edge-enable-probe' \
+            --data-urlencode 'assertedAt=0' \
+            --data-urlencode 'payloadJson={}' \
+            --data-urlencode 'signature=invalid' \
+            "$APPS_SCRIPT_API_URL")"
+          test "$code" = '200'
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/proxy.json','utf8'));
+          if(String(x&&x.code||'')==='EDGE_PROXY_SECRET_NOT_CONFIGURED') process.exit(10);
+          if(String(x&&x.message||'').includes('Action غير معروف.')) process.exit(11);
+          console.log('APPS_SCRIPT_PROXY_SECRET_PRESENT=YES');
+          NODE
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} secret list --config wrangler.toml > /tmp/secrets.txt
+          grep -q 'TRENDOS_OPERATOR_TASK_PROXY_SECRET' /tmp/secrets.txt
+          grep -q 'EDGE_SESSION_SECRET' /tmp/secrets.txt
+          echo 'CLOUDFLARE_REQUIRED_SECRETS_PRESENT=YES'
+
+      - name: Run contracts
+        run: |
+          set -euo pipefail
+          node --test tests/operator_task_workflow_v2_contract.test.mjs
+          node --test tests/operator_task_edge_v2.test.mjs
+          node --test tests/operator_task_gaber_material_gate_v1.test.mjs
+          node --test tests/operator_task_gaber_material_ui_v1.test.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          echo 'OPERATOR_TASK_CONTRACTS_PASS'
+
+      - name: Pre-deploy production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/edge/health" > /tmp/pre-edge.json
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/pre-edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/pre-write.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('PREDEPLOY_BASELINE_PASS');
+          NODE
+
+      - name: Dry run
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-ot-edge-enable
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config cloudflare-d1/wrangler.toml --outdir /tmp/trendos-ot-edge-enable
+          test -d /tmp/trendos-ot-edge-enable
+          echo 'EDGE_ENABLE_DRYRUN_PASS'
+
+      - name: Deploy Edge enabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config cloudflare-d1/wrangler.toml
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+          echo 'EDGE_ENABLED_DEPLOYED=YES'
+
+      - name: Verify production baseline preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/edge/health" > /tmp/post-edge.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/health" > /tmp/post-write.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/post-edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/post-write.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('POSTDEPLOY_BASELINE_PASS');
+          NODE
+
+      - name: Verify Operator Task Edge gate is active and auth remains fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/ot.json --write-out '%{http_code}' "$PROD_URL/v1/operator/tasks/status")"
+          cat /tmp/ot.json
+          echo
+          test "$code" = '401'
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/ot.json','utf8'));
+          const c=String(x&&x.code||'');
+          if(!['invalid-token-format','UNAUTHORIZED_EDGE_SESSION'].includes(c) && !c.startsWith('invalid-')) process.exit(1);
+          if(c==='OPERATOR_TASK_EDGE_DISABLED') process.exit(2);
+          console.log('PRODUCTION_OPERATOR_TASK_EDGE_ENABLED_AUTH_FAIL_CLOSED=PASS');
+          NODE
+
+      - name: Automatic rollback on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo 'Post-deploy verification failed; rolling back immediately.'
+          npx --yes wrangler@${WRANGLER_VERSION} rollback --config cloudflare-d1/wrangler.toml --message "Rollback after Operator Task V2 Edge enable verification failure"
+
+      - name: Safety conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'PRODUCTION_OPERATOR_TASK_EDGE_ENABLE=PASS'
+          echo 'NO_EDGE_SESSION_SECRET_CHANGE=YES'
+          echo 'NO_PROXY_SECRET_CHANGE=YES'
+          echo 'NO_D1_MIGRATION=YES'
+          echo 'NO_TASK_MUTATION=YES'
