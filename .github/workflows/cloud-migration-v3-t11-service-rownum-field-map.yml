@@ -1,0 +1,55 @@
+name: TrendOS T11 Service RowNumber Field Map
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-rownum-field-map.yml'
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+  QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+  QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Map live Service fields by exact source rowNumber
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const digits=v=>text(v).replace(/\D/g,'');
+          const assert=(c,m)=>{if(!c)throw new Error(m||'assertion failed')};
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}
+          async function authoritative(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a;await new Promise(r=>setTimeout(r,350));}throw new Error('authoritative Service read unavailable');}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('بنود الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert(r.status===200,'mirror HTTP '+r.status);assert(r.body?.success===true,'mirror success false');return r.body.sheet||{};}
+          const [a,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+          const headers=Array.isArray(m0.headers)?m0.headers:[];
+          const src=[...(m0.rows||[]),...(m1.rows||[])];
+          const byRow=new Map(src.map(r=>[Number(r?.rowNumber||0),Array.isArray(r.display)&&r.display.length?r.display:(r.values||[])]));
+          const appsRows=Array.isArray(a.body?.rows)?a.body.rows:[];
+          const fields=['orderId','orderCode','lineId','customerPhone','department','itemName','qty','assignedTo','priority','status','ready','heatPress','flyPrint'];
+          const exact={}; const digit={}; fields.forEach(f=>{exact[f]=new Array(headers.length).fill(0);digit[f]=new Array(headers.length).fill(0)});
+          let withRowNumber=0,mapped=0,missingSourceRow=0;
+          for(const ar of appsRows){const rn=Number(ar?.rowNumber||0);if(rn>0)withRowNumber++;const d=byRow.get(rn);if(!d){if(rn>0)missingSourceRow++;continue;}mapped++;for(const f of fields){const v=text(ar?.[f]);if(!v)continue;const vd=digits(v);for(let c=0;c<headers.length;c++){const sv=text(d[c]);if(sv===v)exact[f][c]++;if(vd&&digits(sv)===vd)digit[f][c]++;}}}
+          const summary={};
+          for(const f of fields){const arr=[];for(let c=0;c<headers.length;c++){if(exact[f][c]||digit[f][c])arr.push({column:c+1,header:text(headers[c]),exact:exact[f][c],digits:digit[f][c]});}arr.sort((x,y)=>y.exact-x.exact||y.digits-x.digits||x.column-y.column);summary[f]=arr.slice(0,5);}
+          console.log('T11_ROWNUM_META='+JSON.stringify({appsRows:appsRows.length,withRowNumber,mapped,missingSourceRow,mirrorSyncedAt:m0.syncedAt,appsMs:a.ms}));
+          console.log('T11_ROWNUM_FIELD_MAP='+JSON.stringify(summary));
+          console.log('BUSINESS_VALUES_EXPOSED=NO');
+          console.log('PRODUCTION_BUSINESS_MUTATION=NO');
+          NODE
