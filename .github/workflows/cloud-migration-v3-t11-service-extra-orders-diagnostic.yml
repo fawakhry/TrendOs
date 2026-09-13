@@ -1,0 +1,49 @@
+name: TrendOS T11 Service Extra Orders Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-extra-orders-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect safe operational fields for Service extras only
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=process.env.PROD_URL;
+          const wanted=new Set(['TM2606140078','TM2606160144','TM2606140060','TM2606150097','TM2606150098','TM2606150101','TM2606150105','TM2606160146','1246']);
+          const controls=new Set(['4121','4123','3216']);
+          const text=v=>String(v==null?'':v).trim();
+          async function get(offset){const u=base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset;const r=await fetch(u,{headers:{accept:'application/json'},cache:'no-store'});const b=await r.json();if(r.status!==200||b.success!==true)throw new Error('mirror read failed '+r.status);return b.sheet||{};}
+          function idx(h,names){const a=h.map(text);for(const n of names){const i=a.lastIndexOf(n);if(i>=0)return i;}return -1;}
+          const [a,b]=await Promise.all([get(0),get(500)]); const headers=a.headers||[]; const rows=[...(a.rows||[]),...(b.rows||[])];
+          const c={
+            orderId:idx(headers,['رقم الأوردر','id']), priority:idx(headers,['الأولوية']), status:idx(headers,['الحالة العامة','status']),
+            lineCount:idx(headers,['عدد البنود']), readyCount:idx(headers,['بنود جاهزة']), notReadyCount:idx(headers,['بنود غير جاهزة']), partial:idx(headers,['تسليم جزئي؟']),
+            mainExecutor:idx(headers,['الكيان المنفذ الرئيسي']), received:idx(headers,['تاريخ الاستلام']), expected:idx(headers,['تاريخ التسليم المتوقع']),
+            source:idx(headers,['المصدر']), template:idx(headers,['القالب']), imageCount:idx(headers,['عدد الصور']), sheetCount:idx(headers,['عدد الشيتات']),
+            heatPress:idx(headers,['مكبس حراري']), debtHold:idx(headers,['إيقاف بسبب مديونية؟']), orderSource:idx(headers,['مصدر الطلب']), open:idx(headers,['open']),
+            createdAt:idx(headers,['firstCreatedAt','تاريخ الإنشاء']), lastAddition:idx(headers,['lastAdditionAt']), updatedAt:idx(headers,['updatedAt','آخر تحديث'])
+          };
+          const val=(d,i)=>i>=0?text(d[i]):'';
+          const out=[];
+          for(const item of rows){const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]);const id=val(d,c.orderId);if(!wanted.has(id)&&!controls.has(id))continue;out.push({group:wanted.has(id)?'extra':'control',orderId:id,rowNumber:Number(item.rowNumber||0),priority:val(d,c.priority),status:val(d,c.status),lineCount:val(d,c.lineCount),readyCount:val(d,c.readyCount),notReadyCount:val(d,c.notReadyCount),partial:val(d,c.partial),mainExecutor:val(d,c.mainExecutor),received:val(d,c.received),expected:val(d,c.expected),source:val(d,c.source),template:val(d,c.template),imageCount:val(d,c.imageCount),sheetCount:val(d,c.sheetCount),heatPress:val(d,c.heatPress),debtHold:val(d,c.debtHold),orderSource:val(d,c.orderSource),open:val(d,c.open),createdAt:val(d,c.createdAt),lastAddition:val(d,c.lastAddition),updatedAt:val(d,c.updatedAt)});}
+          out.sort((x,y)=>x.group.localeCompare(y.group)||x.orderId.localeCompare(y.orderId));
+          console.log('T11_SAFE_OPERATIONAL_ROWS='+JSON.stringify(out));
+          console.log('PII_LOGGED=NO');
+          if(out.filter(x=>x.group==='extra').length!==9) throw new Error('not all extra IDs were found');
+          NODE
