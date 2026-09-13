@@ -27,18 +27,23 @@ jobs:
       QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
-        with: { node-version: '22' }
+        with:
+          node-version: '22'
 
       - name: Production boundary before print promotion
         run: |
           set -euo pipefail
-          test -n "$QUALIFY_USERNAME"; test -n "$QUALIFY_PASSWORD"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
           curl -fsS "$PROD_URL/v1/edge/health" > /tmp/e.json
           curl -fsS "$PROD_URL/v1/cloud/write/health" > /tmp/w.json
           node - <<'NODE'
-          const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/e.json')),w=JSON.parse(fs.readFileSync('/tmp/w.json'));
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/e.json'));
+          const w=JSON.parse(fs.readFileSync('/tmp/w.json'));
           if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured)process.exit(1);
           if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);
           console.log('T8_PRINT_PRE_BOUNDARY=PASS');
@@ -50,7 +55,8 @@ jobs:
           set -euo pipefail
           node <<'NODE'
           const assert=require('node:assert/strict');
-          const base=process.env.PROD_URL,apps=process.env.APPS_SCRIPT_URL,username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||'');
+          const base=process.env.PROD_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||'');
           const text=v=>String(v==null?'':v).trim(),key=r=>[text(r&&r.orderId),text(r&&r.lineId),text(r&&r.status)].join('|');
           async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const ms=Date.now()-t,raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms};}
           async function pair(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const tok=text(l.body&&l.body.user&&l.body.user.token);if(l.status!==200||l.body.success!==true||!tok)continue;console.log('::add-mask::'+tok);const s=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:tok})});console.log('T8_PRINT_SESSION_ATTEMPT='+n+' STATUS='+s.status+' MS='+s.ms);if(s.status===200&&s.body.success===true&&s.body.edgeToken){console.log('::add-mask::'+text(s.body.edgeToken));return{tok,s};}await new Promise(r=>setTimeout(r,500));}throw new Error('stable session unavailable');}
@@ -65,7 +71,8 @@ jobs:
           git checkout -B main origin/main
           python - <<'PY'
           from pathlib import Path
-          c=Path('config.js'); s=c.read_text()
+          c=Path('config.js')
+          s=c.read_text()
           if 'window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = true;' not in s: raise SystemExit('unexpected canary state')
           s=s.replace('window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = true;','window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = false;',1)
           anchor="window.MATBAGY_EDGE_ORDERS_CANARY_USERS = ['وائل','wael'];"
@@ -73,36 +80,13 @@ jobs:
           s=s.replace(anchor,anchor+"\nwindow.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print'];",1)
           s=s.replace("trendos-edge-orders-read-v1.js?v=20260913-t7-wael1","trendos-edge-orders-read-v1.js?v=20260913-t8-print-global1",1)
           c.write_text(s)
-          p=Path('trendos-edge-orders-read-v1.js'); x=p.read_text()
-          old="""function eligible(action, params) {
-  if (action !== 'getRowsPageV1931') return false;
-  if (text(params && params.statusFilter) === '__DEBT__') return false;
-  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true) {
-    if (!canaryUserAllowed()) return false;
-    if (text(params && params.screen).toLowerCase() !== 'print') return false;
-  }
-  return true;
-}
-"""
-          new="""function edgeScreenAllowed(params) {
-  var allowed = Array.isArray(window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS)
-    ? window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS.map(function (value) { return text(value).toLowerCase(); })
-    : [];
-  if (!allowed.length) return true;
-  return allowed.indexOf(text(params && params.screen).toLowerCase()) >= 0;
-}
-
-function eligible(action, params) {
-  if (action !== 'getRowsPageV1931') return false;
-  if (text(params && params.statusFilter) === '__DEBT__') return false;
-  if (!edgeScreenAllowed(params)) return false;
-  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true && !canaryUserAllowed()) return false;
-  return true;
-}
-"""
+          p=Path('trendos-edge-orders-read-v1.js')
+          x=p.read_text()
+          old="function eligible(action, params) {\n  if (action !== 'getRowsPageV1931') return false;\n  if (text(params && params.statusFilter) === '__DEBT__') return false;\n  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true) {\n    if (!canaryUserAllowed()) return false;\n    if (text(params && params.screen).toLowerCase() !== 'print') return false;\n  }\n  return true;\n}\n"
+          new="function edgeScreenAllowed(params) {\n  var allowed = Array.isArray(window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS)\n    ? window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS.map(function (value) { return text(value).toLowerCase(); })\n    : [];\n  if (!allowed.length) return true;\n  return allowed.indexOf(text(params && params.screen).toLowerCase()) >= 0;\n}\n\nfunction eligible(action, params) {\n  if (action !== 'getRowsPageV1931') return false;\n  if (text(params && params.statusFilter) === '__DEBT__') return false;\n  if (!edgeScreenAllowed(params)) return false;\n  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true && !canaryUserAllowed()) return false;\n  return true;\n}\n"
           if old not in x: raise SystemExit('eligible block mismatch')
           x=x.replace(old,new,1)
-          x=x.replace("EDGE_ORDERS_READ_T7_PRINT_WAEL_CANARY_20260913","EDGE_ORDERS_READ_T8_PRINT_GLOBAL_20260913",1)
+          x=x.replace('EDGE_ORDERS_READ_T7_PRINT_WAEL_CANARY_20260913','EDGE_ORDERS_READ_T8_PRINT_GLOBAL_20260913',1)
           p.write_text(x)
           PY
           grep -Fq "MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print']" config.js
@@ -110,7 +94,8 @@ function eligible(action, params) {
           grep -Fq 'edgeScreenAllowed(params)' trendos-edge-orders-read-v1.js
           grep -Fq "statusFilter) === '__DEBT__'" trendos-edge-orders-read-v1.js
           node --check trendos-edge-orders-read-v1.js
-          git config user.name trendos-cloud-migration; git config user.email actions@users.noreply.github.com
+          git config user.name trendos-cloud-migration
+          git config user.email actions@users.noreply.github.com
           git add config.js trendos-edge-orders-read-v1.js
           git commit -m 'prod: move print orders reads globally to qualified D1'
           echo "T8_PRINT_CUTOVER_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
@@ -121,7 +106,13 @@ function eligible(action, params) {
         run: |
           set -euo pipefail
           ok=0
-          for i in $(seq 1 24); do stamp="$(date +%s)-$i"; curl -fsS "$PAGES_BASE/config.js?t8p=$stamp" -o /tmp/c.js || true; curl -fsS "$PAGES_BASE/trendos-edge-orders-read-v1.js?t8p=$stamp" -o /tmp/r.js || true; if grep -Fq "MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print']" /tmp/c.js 2>/dev/null && grep -Fq 'MATBAGY_EDGE_ORDERS_CANARY_ONLY = false' /tmp/c.js 2>/dev/null && grep -Fq 'EDGE_ORDERS_READ_T8_PRINT_GLOBAL_20260913' /tmp/r.js 2>/dev/null; then ok=1; break; fi; sleep 5; done
+          for i in $(seq 1 24); do
+            stamp="$(date +%s)-$i"
+            curl -fsS "$PAGES_BASE/config.js?t8p=$stamp" -o /tmp/c.js || true
+            curl -fsS "$PAGES_BASE/trendos-edge-orders-read-v1.js?t8p=$stamp" -o /tmp/r.js || true
+            if grep -Fq "MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print']" /tmp/c.js 2>/dev/null && grep -Fq 'MATBAGY_EDGE_ORDERS_CANARY_ONLY = false' /tmp/c.js 2>/dev/null && grep -Fq 'EDGE_ORDERS_READ_T8_PRINT_GLOBAL_20260913' /tmp/r.js 2>/dev/null; then ok=1; break; fi
+            sleep 5
+          done
           test "$ok" = 1
           echo 'T8_PRINT_PAGES=PASS'
 
@@ -131,7 +122,12 @@ function eligible(action, params) {
           curl -fsS "$PROD_URL/v1/edge/health" > /tmp/e2.json
           curl -fsS "$PROD_URL/v1/cloud/write/health" > /tmp/w2.json
           node - <<'NODE'
-          const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/e2.json')),w=JSON.parse(fs.readFileSync('/tmp/w2.json'));if(!e.success||e.cutover!==false)process.exit(1);if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);console.log('T8_PRINT_POST_BOUNDARY=PASS');
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/e2.json'));
+          const w=JSON.parse(fs.readFileSync('/tmp/w2.json'));
+          if(!e.success||e.cutover!==false)process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);
+          console.log('T8_PRINT_POST_BOUNDARY=PASS');
           NODE
 
       - name: Automatic rollback if print promotion verification fails
@@ -139,9 +135,12 @@ function eligible(action, params) {
         continue-on-error: true
         run: |
           set -euo pipefail
-          git fetch origin main; git checkout -B main origin/main
-          git config user.name trendos-cloud-migration; git config user.email actions@users.noreply.github.com
-          git revert --no-edit "$T8_PRINT_CUTOVER_SHA"; git push origin HEAD:main
+          git fetch origin main
+          git checkout -B main origin/main
+          git config user.name trendos-cloud-migration
+          git config user.email actions@users.noreply.github.com
+          git revert --no-edit "$T8_PRINT_CUTOVER_SHA"
+          git push origin HEAD:main
           echo 'T8_PRINT_ROLLBACK=COMMITTED'
 
       - name: Final print cutover conclusion
