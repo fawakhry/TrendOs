@@ -12,7 +12,7 @@ window.MATBAGY_SECURE_API_PROXY_URL = "";
 // Production Orders read cutover 02CT is ON for qualified getRowsPageV1931 reads only.
 // Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
 window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
-window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
+window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;
 // 02CU safety gate: if any required D1 mirror is older than 5 minutes, fail open to Apps Script.
 window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
 
