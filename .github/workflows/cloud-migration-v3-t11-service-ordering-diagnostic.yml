@@ -1,0 +1,38 @@
+name: TrendOS T11 Service Ordering Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-ordering-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Log safe ordering attributes in authoritative Service order
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict'); const base=process.env.PROD_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||''),text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={}){const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}
+          async function login(){for(let n=0;n<4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const t=text(l.body&&l.body.user&&l.body.user.token);if(l.status===200&&l.body.success===true&&t){console.log('::add-mask::'+t);return t;}}throw new Error('login failed');}
+          async function auth(){for(let n=0;n<4;n++){const t=await login(),a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token:t,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body.success===true)return a.body;}throw new Error('authoritative failed');}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert.equal(r.status,200);return r.body.sheet||{};}
+          function idx(h,names){const a=h.map(text);for(const n of names){const i=a.lastIndexOf(n);if(i>=0)return i;}return -1;}
+          (async()=>{const [a,m0,m1]=await Promise.all([auth(),mirror(0),mirror(500)]);const h=m0.headers||[],rows=[...(m0.rows||[]),...(m1.rows||[])];const c={id:idx(h,['رقم الأوردر','id']),priority:idx(h,['الأولوية']),status:idx(h,['الحالة العامة','status']),received:idx(h,['تاريخ الاستلام']),expected:idx(h,['تاريخ التسليم المتوقع']),entry:idx(h,['نوع إدخال العميل']),rowUpdated:idx(h,['آخر تحديث']),updatedAt:idx(h,['updatedAt']),createdAt:idx(h,['firstCreatedAt']),lastAddition:idx(h,['lastAdditionAt'])};const by=new Map();for(const item of rows){const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]),id=text(d[c.id]);if(!id)continue;by.set(id,{rowNumber:Number(item.rowNumber||0),priority:text(d[c.priority]),status:text(d[c.status]),received:text(d[c.received]),expected:text(d[c.expected]),entryPresent:!!text(d[c.entry]),rowUpdated:text(d[c.rowUpdated]),updatedAt:text(d[c.updatedAt]),createdAt:text(d[c.createdAt]),lastAddition:text(d[c.lastAddition])});}const seq=(a.rows||[]).map((r,pos)=>({pos:pos+1,orderId:text(r.orderId),...(by.get(text(r.orderId))||{})}));console.log('T11_SERVICE_ORDERING_SAFE='+JSON.stringify(seq));console.log('PII_LOGGED=NO');})().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
