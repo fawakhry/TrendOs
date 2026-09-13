@@ -29,6 +29,16 @@ jobs:
         run: node cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs
       - name: Run cloud-first bridge integration tests
         run: node cloudflare-d1/test/cloud-session-bridge-v3-auth-shadow.test.mjs
+      - name: Validate candidate migration in local SQLite only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/trendos-auth-shadow-v1.db
+          sqlite3 /tmp/trendos-auth-shadow-v1.db < cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql
+          sqlite3 /tmp/trendos-auth-shadow-v1.db "PRAGMA table_info(cloud_auth_sessions_v1);" | grep -q 'token_fingerprint'
+          sqlite3 /tmp/trendos-auth-shadow-v1.db "PRAGMA index_list(cloud_auth_sessions_v1);" | grep -q 'idx_cloud_auth_sessions_v1_expiry'
+          test "$(sqlite3 /tmp/trendos-auth-shadow-v1.db "SELECT COUNT(*) FROM cloud_auth_sessions_v1;")" = "0"
+          echo "LOCAL_SQLITE_MIGRATION=PASS"
       - name: Assert repository-only migration boundary
         shell: bash
         run: |
