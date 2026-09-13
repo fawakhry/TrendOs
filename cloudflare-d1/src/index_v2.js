@@ -2,6 +2,7 @@ import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
+import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
 import { repairEdgeOrdersResponse02CX } from './edge-orders-line-id-repair-02cx.mjs';
@@ -55,6 +56,12 @@ export default {
       const blocked = await guardEdgeOrdersPageRequest(request, env, Date.now(), heartbeatOptions);
       if (blocked) return blocked;
       return handleEdgeOrdersReadCanaryRequest(request, env, ctx);
+    }
+
+    // Operator Task V2 hybrid facade. Exact paths only; fail-closed/default-OFF;
+    // Apps Script/Sheets remains Task write authority; this lane has no D1 Task writes.
+    if (isOperatorTaskEdgePath(path)) {
+      return handleOperatorTaskEdgeRequest(request, env, ctx);
     }
 
     // Parallel secure lane only. No existing frontend route is redirected here.
