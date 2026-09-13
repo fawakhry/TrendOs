@@ -8,24 +8,90 @@ Date: 2026-09-13
 - Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
 - Bound Apps Script Project ID: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`
 - Repository: `fawakhry/TrendOs`
-- Working branch: `agent/go-live-2026-09-01-integrity`
+- Current controlled migration branch: `cloud-migration-v3-t6b-auth-shadow-canary-20260913`
+- Canonical integrity branch retained historically: `agent/go-live-2026-09-01-integrity`
 - Locator: `00_PROJECT_LOCATOR.md`
 
 Every new session must read `00_PROJECT_LOCATOR.md`, `00_INDEX.md`, this file, then the newest checkpoint referenced below.
 
-## CURRENT — RP-07 CLOSED / PASS
+## CURRENT — T6B CLOUD AUTH SHADOW PASS / RETAINED
 
-Status: **RP-07 PASS / CLOSED — FINAL PRODUCTION HEALTH GATE ZERO CORE-P0 — OPERATOR TASK V2 IS NOW THE IMMEDIATE NEXT PRODUCTION TRACK**
+Status: **T6B PASS — D1 AUTH SHADOW RETAINED IN PRODUCTION — FRONTEND EDGE ORDERS READ STILL OFF — SHEETS WRITE AUTHORITY UNCHANGED**
 
 Newest authoritative record:
 
+- `TRENDOS_BLACKBOX_2026-09-13_T6B_CLOUD_AUTH_SHADOW_CANARY_PASS.md`
+
+Final production qualification:
+
+- workflow: `TrendOS Cloud Migration V3 T6B Final Production Canary`
+- run: `34768601492`
+- job: `103753950827`
+- final race-window fix commit: `b3176c8d82ad974094c3328d23e29556e209bba3`
+- Worker Version ID: `3b819fd3-e73d-46f8-9150-f73c282706ab`
+- result: **SUCCESS**
+
+Retained runtime:
+
+- D1 table: `cloud_auth_sessions_v1`
+- migration: `0004_cloud_auth_shadow_v1.sql`
+- `TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED = true`
+- `CLOUD_AUTH_SHADOW_TTL_SECONDS = 300`
+- raw employee token stored in D1: **NO**
+- fingerprint: HMAC-SHA256, length 64
+
+Measured final production latency:
+
+- Apps Script verification miss: **4105 ms**
+- repeated D1 auth-shadow hit: **129 ms**
+- Orders-session D1 auth-shadow hit: **122 ms**
+
+T6B did **not** change:
+
+- Sheets / Apps Script business-write authority;
+- frontend `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED`, which remains **false**;
+- Operator Task mutation authority;
+- `claimNext` / `completeTask` production state;
+- Gaber Material Control;
+- Integrity flags;
+- `EDGE_SESSION_SECRET`;
+- `TRENDOS_OPERATOR_TASK_PROXY_SECRET`;
+- Apps Script production deployment.
+
+Earlier failed T6B canaries were fail-closed and automatically rolled the Worker back. The D1 table remained inert when the feature flag was off.
+
+## IMMEDIATE NEXT CONTROLLED STAGE
+
+Status: **READ-ONLY CLOUD ORDERS PARITY/FRESHNESS QUALIFICATION — NO USER-VISIBLE CUTOVER YET**
+
+Reason:
+
+T6B removed repeated session-verification latency, but the authoritative Apps Script Orders read remains slow. Prior direct evidence for POST `getRowsPageV1931` is approximately **19.9 seconds**, with worse cold behavior observed previously.
+
+Therefore the next stage must qualify the Cloud/D1 Orders read path while the frontend Edge Orders flag remains OFF.
+
+Required qualification before any frontend routing decision:
+
+- D1-shadow session hit after first verification;
+- bounded Cloud/D1 Orders read latency;
+- explicit freshness/parity evidence against the authoritative source;
+- no Business Data mutation;
+- Sheets write authority unchanged;
+- no Task mutation/authority change;
+- no secret changes;
+- rollback gate for any Worker candidate.
+
+A frontend Orders cutover is a separate owner decision boundary and is **not authorized** by T6B.
+
+## RP-07 — CLOSED / PASS
+
+Status: **RP-07 PASS / CLOSED — FINAL PRODUCTION HEALTH GATE ZERO CORE-P0**
+
+Authoritative closure record:
+
 - `TRENDOS_BLACKBOX_2026-09-13_RP07_FINAL_HEALTH_PASS_CLOSED.md`
 
-### Final RP-07 gate
-
-A fresh production Final Health rebuild completed after the retained remediation/evidence work.
-
-Authoritative final result from `إدارة - صحة النظام`:
+Final result from `إدارة - صحة النظام`:
 
 - `OPEN_CORE_P0_BLOCKERS = 0`
 - `Status = PASS`
@@ -45,37 +111,13 @@ Final P0 metrics:
 - `PRESS_COMPLETED_WITHOUT_SESSION = 0 / PASS`
 - `AUTOMATION_LAST_ERROR = 0 / PASS`
 
-Non-P0 warnings in the snapshot do not reopen RP-07. They remain follow-up observability/work queues.
-
-### Closing remediation evidence
-
-The final pre-closure blocker was `PRESS_COMPLETED_WITHOUT_SESSION` for `3628-01` and `3669-01` after their prior exact evidence hashes became stale from source-row drift.
-
-Append-only exact evidence refresh was recorded without changing the source rows and without fabricating Press Session evidence:
-
-- `3628-01` current hash `73d6e5bcfd95126940563af36ef3e5d74dd932b6eddf86bbae6195733f04affc`
-- `3669-01` current hash `d7aa396e203e8027e3c2cd8904e2d073fed6c5b91e4466b048912fc44387b29a`
-- classification: `ACKNOWLEDGED_HISTORICAL_TRACEABILITY`.
-
-Earlier retained blockers were also cleared/evidenced:
-
-- Attendance post-baseline duplicates;
-- Cleaning post-baseline duplicates;
-- stale active Invoice Drafts for `3839` and `3841` retired with archive/history retained;
-- Press Line `3796-01` exact historical traceability acknowledgement with no fabricated session.
-
-### Retained Phase 2 safety baseline
-
-RP-07 closure does not automatically activate the installed candidate paths.
-
-Retained baseline unless a new controlled boundary explicitly changes it:
+Retained RP-07 safety baseline:
 
 - all nine Integrity flags semantic OFF;
 - MASTER OFF;
 - no RP-07 production deployment/version/trigger retained;
 - standalone `v1932-router.gs` absent and must not be added live;
-- no D1 write authority granted by RP-07;
-- no Cloudflare authority cutover granted by RP-07;
+- no D1 business-write authority granted by RP-07;
 - no secret rotation implied.
 
 Installed exact RP-07 composition remains historically recorded as:
@@ -86,30 +128,23 @@ Installed exact RP-07 composition remains historically recorded as:
 - Invoice Integrity `18dd8783bbf7bf14531bcf7bf7d870d938d82473`;
 - `trendosV1932TryRoute_` owner `Code.gs`, definition count `1`, SHA-256 `891fce66bae761b8cc668fc142f3a2b7bb76053196448451fa1e0f28e74ad534`.
 
-Dependency health at Phase 2 was PASS with `requiredCount=26`, `missing=[]`, version `TRENDOS_INTEGRITY_ROUTER_V1_20260910_RP07`.
+## Operator Task Workflow
 
-## Operator Task Workflow V2 — NEXT
+Status: **DESIGN / ISOLATION TRACK ONLY — PRODUCTION MUTATIONS REMAIN OFF**
 
-Status: **NEXT PRODUCTION TRACK — DESIGN/PREP + GITHUB CANDIDATE EXIST — EXECUTION MUST USE ITS OWN CONTROLLED BOUNDARY**
+The old Operator Task V2 path is not to be restored inside the main Apps Script runtime. The prepared direction is isolated Tasks V3 under its own controlled boundary.
 
-The prior RP-07 prohibition on starting Operator Task is now satisfied by RP-07 closure. This does not mean Operator Task runtime, deployment, flags, D1 writes, or authority migration have already been enabled.
+Owner-locked business roadmap remains:
 
-Owner-locked order:
+`Operator Task -> Department Invoice + Material Shadow/Parity (Gaber LASER + Wael PRINT) -> Laser + Print Accounting Control -> RP-08`
 
-`Operator Task V2 -> Department Invoice + Material Shadow/Parity (Gaber LASER + Wael PRINT) -> Laser + Print Accounting Control -> RP-08`
+Current safety state:
 
-Existing Operator Task design/candidate records and code should be reviewed from current branch HEAD before any runtime mutation.
-
-Approved architecture direction remains:
-
-`Operator browser -> Cloudflare TrendOS UI/API -> Google Apps Script/Sheets Task authority initially -> D1 mirror/read support`
-
-Department scope after Operator Task remains:
-
-- Gaber owns Laser invoices/material-control lane.
-- Wael owns Print invoices/material-control lane.
-- EasyStore / Accounting remains final financial/stock authority.
-- stock-impact parity must prevent double decrement.
+- no Operator Task D1 write authority;
+- no production `claimNext`;
+- no production `completeTask`;
+- Gaber Material Control remains separate/OFF;
+- Tasks work must not regress the main platform/session/Orders performance lane.
 
 ## RP-06
 
@@ -120,7 +155,7 @@ Final record: `TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
 ## Core safety invariants
 
 - Sheets / Apps Script remain authoritative for business writes until an explicitly approved authority cutover.
-- eligible Orders reads remain D1-first with Apps Script fallback.
+- frontend Edge Orders Read remains OFF until parity/freshness qualification and a separate cutover decision.
 - `__DEBT__` remains Apps Script.
 - 02CL / reconcile OFF.
 - generic drain OFF.
@@ -129,6 +164,6 @@ Final record: `TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
 - no Integrity flag change without a separate approved boundary.
 - standalone `v1932-router.gs` must not be added live.
 - Operator Task D1 write authority remains OFF/not authorized until its own gate.
-- Department Invoice + Material Shadow/Parity starts after Operator Task V2.
+- Department Invoice + Material Shadow/Parity follows Operator Task.
 - Laser + Print Accounting Control follows that track before RP-08.
 - RP-08 not started.
