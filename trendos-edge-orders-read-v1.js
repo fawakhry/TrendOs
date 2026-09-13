@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_02CX_LINE_ID_GUARD_20260908';
+  var VERSION = 'EDGE_ORDERS_READ_T7_PRINT_WAEL_CANARY_20260913';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SESSION_SKEW_MS = 30000;
@@ -304,11 +304,25 @@
     finally { inflight.delete(requestKey); }
   }
 
-  function eligible(action, params) {
-    if (action !== 'getRowsPageV1931') return false;
-    if (text(params && params.statusFilter) === '__DEBT__') return false;
-    return true;
+  function canaryUserAllowed() {
+  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY !== true) return true;
+  var user = currentUser();
+  var username = text(user && user.username).toLowerCase();
+  var allowed = Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS)
+    ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.map(function (value) { return text(value).toLowerCase(); })
+    : [];
+  return !!username && allowed.indexOf(username) >= 0;
+}
+
+function eligible(action, params) {
+  if (action !== 'getRowsPageV1931') return false;
+  if (text(params && params.statusFilter) === '__DEBT__') return false;
+  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true) {
+    if (!canaryUserAllowed()) return false;
+    if (text(params && params.screen).toLowerCase() !== 'print') return false;
   }
+  return true;
+}
 
   function install() {
     if (window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED !== true) return false;
@@ -323,6 +337,7 @@
       // to stable identity before it reaches Apps Script, then a persisted read
       // barrier prevents a browser refresh from repainting an older D1 mirror.
       if (action === 'updateLine') {
+        if (!canaryUserAllowed()) return original.apply(this, args);
         var safeParams = identitySafeUpdateLineParams(params || {});
         var writeResult = await original.call(this, action, safeParams);
         if (writeResult && writeResult.success === true) openPostWriteBarrier(safeParams);
@@ -362,7 +377,9 @@
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 'qualified-d1-orders-read-first-line-id-repaired-persisted-read-your-write-apps-script-authoritative',
+      mode: 't7-print-wael-canary-d1-read-first-apps-script-authoritative',
+      canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
+      canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
       api: edgeBase(),
       pagePath: QUALIFIED_PAGE_PATH,
       maxMirrorAgeMs: maxMirrorAgeMs(),
