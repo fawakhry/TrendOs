@@ -306,3 +306,83 @@ Conclusion:
 - No `claimNext`, `completeTask`, D1 migration, secret change, Gaber Material Control activation, or RP-08 action was performed.
 
 Next step: inspect the exact authenticated-session path and frontend rollout gates for Wael/Gaber, then perform only read-only authenticated status qualification if an existing safe session/credential path is available.
+
+## 2026-09-13 authenticated Operator Task status qualification — BLOCKED BY EDGE SESSION 502
+
+A dedicated read-only qualification workflow was added on the activation branch using the existing production qualification credential secrets. It contains no `claim-next` or `complete` request.
+
+- Workflow: `TrendOS Operator Task V2 Production Auth Status Readonly`
+- Run: `34738199213`
+- Workflow commit: `e7165c6a0630208691684a15b11645d02d08789d`
+- Safety gate: PASS.
+- Production core baseline: PASS.
+- Edge session exchange: FAILED before Operator Task status.
+- `POST /v1/edge/session` returned HTTP `502` after approximately 15–16 seconds.
+- The response did not contain an application error code.
+- The exact same job was re-run once and failed at the same session-exchange point after approximately the same interval.
+- Authenticated `GET /v1/operator/tasks/status` was therefore not executed.
+
+The code inspection explains the timing: the generic Edge session bridge verifies the employee session through Apps Script with an `AbortController` hard timeout of 15 seconds. The Orders Edge session bridge has the same 15-second Apps Script verification timeout. The repeated 502 timing matches that boundary closely.
+
+No claim, completion, D1 migration, Gaber material activation, proxy-secret change, or `EDGE_SESSION_SECRET` change occurred.
+
+## Wael read-only frontend candidate — prepared, not promoted
+
+A separate Wael-only read-only diagnostic candidate was prepared on the activation branch. It contains no mutation routes and does not hide or replace the existing order list.
+
+- Candidate JS commit: `b1447846548549f943a85a1a026617fce96b4d9e`
+- Candidate test commit: `4952f9f7ef7fd7514f56e9d90b157f1eeb931ad6`
+- Candidate qualification workflow commit: `e7b04723dba3a1e6e88706176ad292f0e5f9b5cd`
+- Workflow run: `34738268018`
+- Last observed state: `queued`.
+
+The candidate only exchanges an Edge session and performs `GET /v1/operator/tasks/status` for Wael. It has no `claimNext`, no `completeTask`, and no material-control operation. It has not been promoted to Production.
+
+A separate direct Apps Script session-latency diagnostic workflow was also prepared:
+
+- Commit: `17ff02ee25803457d8190b28afbda2fc9d1c0d62`
+- Run: `34738294725`
+- Last observed state: `queued`.
+
+## 2026-09-13 user-facing 404 / slow order-load diagnosis and temporary performance rollback
+
+The owner requested investigation of the visible `فشل الاتصال بالسيرفر (404)` error and slow order loading.
+
+Findings:
+
+1. Production `app.js` defines `window.trendosSecureApiV1922` to POST requests to `MATBAGY_SECURE_API_PROXY_URL || API_URL`. Production `MATBAGY_SECURE_API_PROXY_URL` is empty, so the request goes directly to the current Apps Script Web App URL.
+2. That frontend function converts every non-2xx HTTP response into the visible message `فشل الاتصال بالسيرفر (<status>)`. Therefore the visible 404 represents an HTTP response from that lane; it is not proof that the whole platform or Cloudflare Worker is down.
+3. The qualified D1 Orders route itself exists: unauthenticated `GET /v1/edge/orders/02cr/page?...` returned HTTP `401`, not 404.
+4. With `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED=true`, every eligible `getRowsPageV1931` request first attempts an Orders Edge session. The session bridge verifies the employee through Apps Script and can wait until the 15-second hard timeout. The browser wrapper then catches the Edge failure and only afterward falls back to Apps Script. This adds the failed Edge-session delay in front of the original order-read latency.
+5. A direct read-only Apps Script probe of `getRowsPageV1931` itself exceeded a 30-second fetch timeout. Repeating the same read-only probe with a longer timeout eventually reached the Apps Script response. This establishes that the Apps Script order-read lane is itself slow in addition to the Edge-session penalty.
+
+Immediate bounded production rollback applied:
+
+- Main commit: `de4d1c010aac521f8e5105c5677c1e0fdd78ca25`
+- Change: only `window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false` in `config.js`.
+- GitHub Pages deployment run: `34739165447` => `SUCCESS`.
+- No write route was changed. All writes remain Apps Script-authoritative.
+- Production Worker was not redeployed by this rollback.
+- Operator Task Edge flag was not changed.
+- No secret, D1 schema/migration, Task mutation, or Business Data was changed.
+
+The same temporary OFF state was mirrored into the activation branch to prevent a later branch promotion from accidentally re-enabling the slow read path while diagnosis is open:
+
+- Activation branch commit: `389fbf0779d45fbe2517ad05a9dbbffd41cde77a`
+- `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false`.
+
+Current conclusion:
+
+- The extra ~15-second failed Edge-session penalty has been removed from the Production order-load path.
+- A separate Apps Script performance problem remains: `getRowsPageV1931` can take longer than 30 seconds.
+- The exact source of the reported HTTP 404 still requires the live Apps Script Execution/route evidence for the corresponding POST requests. The public GET probes are insufficient to prove which POST action is returning 404.
+
+Next safe diagnostic step requires Apps Script owner access: inspect recent Executions for `verifyEmployeeSession` and `getRowsPageV1931`, including duration, exception/termination state, and the route/action associated with any request that produced HTTP 404. This must be read-only: no code edit, Script Property change, deployment change, trigger change, or Business Data mutation.
+
+Safety boundary remains unchanged:
+
+- Do not change or rotate `EDGE_SESSION_SECRET`.
+- Do not enable `TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED`.
+- Do not grant D1 Task write authority or run D1 migrations.
+- Do not execute Production `claimNext` or `completeTask` yet.
+- Do not start RP-08.
