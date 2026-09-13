@@ -1,0 +1,63 @@
+name: TrendOS T11 Service Exclusion Rule V2
+
+on:
+  push:
+    branches: [cloud-migration-v3-t6b-auth-shadow-canary-20260913]
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-exclusion-rule-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Find a reusable operational split for blank-source request-new orders
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const norm=v=>text(v).replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();
+          const assert=(c,m)=>{if(!c)throw new Error(m||'assertion failed')};
+          async function req(url,opt={}){const c=new AbortController();const timer=setTimeout(()=>c.abort(),45000);try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}finally{clearTimeout(timer)}}
+          async function authRows(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a.body.rows||[];await new Promise(r=>setTimeout(r,350));}throw new Error('Service read unavailable')}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert(r.status===200&&r.body?.success===true,'Orders mirror unavailable');return r.body.sheet||{}}
+          const [live,m0,m1]=await Promise.all([authRows(),mirror(0),mirror(500)]);
+          const headers=m0.headers||[], raw=[...(m0.rows||[]),...(m1.rows||[])]; const rows=raw.filter(r=>Number(r?.rowNumber||0)>1).map(r=>Array.isArray(r.display)&&r.display.length?r.display:(r.values||[]));
+          const hm={};headers.forEach((x,i)=>{hm[text(x)]=i}); const idx=n=>Number.isInteger(hm[n])?hm[n]:-1;
+          const orderCol=idx('رقم الأوردر'), codeCol=idx('كود الأوردر'), statusCol=idx('الحالة العامة'), sourceCol=idx('مصدر الطلب');
+          const liveIds=new Set(live.map(r=>text(r?.orderId||r?.orderCode)).filter(Boolean));
+          const subset=rows.filter(r=>norm(r[statusCol])===norm('طلب جديد') && !text(r[sourceCol]));
+          const inc=subset.filter(r=>liveIds.has(text(r[orderCol])||text(r[codeCol]))), exc=subset.filter(r=>!liveIds.has(text(r[orderCol])||text(r[codeCol])));
+          assert(inc.length===1&&exc.length===9,'expected 1 included + 9 excluded blank-source rows');
+          const safeNames=['نوع العميل','القسم الرئيسي','الأولوية','عدد البنود','بنود جاهزة','بنود غير جاهزة','تسليم جزئي؟','الكيان المنفذ الرئيسي','مكبس حراري','المصدر','مصدر الطلب'];
+          const safe=safeNames.map(name=>({name,i:idx(name)})).filter(x=>x.i>=0);
+          const sig=(r,cols)=>cols.map(c=>text(r[c.i])||'(blank)').join('¦');
+          const splits=[];
+          for(let a=0;a<safe.length;a++)for(let b=a;b<safe.length;b++)for(let c=b;c<safe.length;c++){
+            const cols=[safe[a],safe[b],safe[c]].filter((x,i,arr)=>arr.findIndex(y=>y.i===x.i)===i);
+            const inSig=new Set(inc.map(r=>sig(r,cols))), exSig=new Set(exc.map(r=>sig(r,cols))); let overlap=false; for(const x of inSig)if(exSig.has(x))overlap=true;
+            if(!overlap)splits.push({columns:cols.map(x=>x.name),included:[...inSig],excluded:[...exSig]});
+          }
+          splits.sort((x,y)=>x.columns.length-y.columns.length||x.excluded.length-y.excluded.length);
+          const dist={}; for(const c of safe){dist[c.name]={included:{},excluded:{}};for(const r of inc){const v=text(r[c.i])||'(blank)';dist[c.name].included[v]=(dist[c.name].included[v]||0)+1}for(const r of exc){const v=text(r[c.i])||'(blank)';dist[c.name].excluded[v]=(dist[c.name].excluded[v]||0)+1}}
+          console.log('T11_BLANK_SOURCE_META='+JSON.stringify({subset:subset.length,included:inc.length,excluded:exc.length}));
+          console.log('T11_BLANK_SOURCE_DISTS='+JSON.stringify(dist));
+          console.log('T11_BLANK_SOURCE_PURE_SPLITS='+JSON.stringify(splits.slice(0,20)));
+          console.log('BUSINESS_IDENTITIES_EXPOSED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
