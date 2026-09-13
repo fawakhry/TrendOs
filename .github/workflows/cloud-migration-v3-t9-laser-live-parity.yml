@@ -1,0 +1,45 @@
+name: TrendOS T9 Laser Live D1 Read Parity
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t9-laser-live-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-laser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Laser authorization and canonical live parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||'');
+          const EPOCH=Date.UTC(1899,11,30),DAY=86400000;
+          const text=v=>String(v==null?'':v).trim();
+          function canonicalLineId(orderId,lineId){const order=text(orderId),line=text(lineId);if(!/^\d{3,6}$/.test(order)||!/^\d{5,8}$/.test(line))return line;const serial=Number(line);if(!Number.isSafeInteger(serial)||serial<=0)return line;const d=new Date(EPOCH+serial*DAY);if(!Number.isFinite(d.getTime()))return line;const year=String(d.getUTCFullYear()),month=d.getUTCMonth()+1,day=d.getUTCDate();if(year!==order||day!==1||month<1||month>12)return line;return order+'-'+String(month).padStart(2,'0');}
+          const key=r=>[text(r&&r.orderId),canonicalLineId(r&&r.orderId,r&&r.lineId),text(r&&r.status)].join('|');
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const ms=Date.now()-t,raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms};}
+          async function login(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body&&l.body.user&&l.body.user.token);if(l.status===200&&l.body.success===true&&token){console.log('::add-mask::'+token);return token;}}throw new Error('fresh login failed');}
+          async function edgeSession(){for(let n=1;n<=4;n++){const token=await login();const s=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});console.log('T9_LASER_SESSION_ATTEMPT='+n+' STATUS='+s.status+' MS='+s.ms);if(s.status===200&&s.body.success===true&&s.body.edgeToken){console.log('::add-mask::'+text(s.body.edgeToken));return s;}await new Promise(r=>setTimeout(r,400));}throw new Error('stable edge session unavailable');}
+          async function authoritativeLaser(){for(let n=1;n<=4;n++){const token=await login();const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'laser',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});console.log('T9_LASER_APPS_ATTEMPT='+n+' STATUS='+a.status+' MS='+a.ms+' SUCCESS='+(a.body&&a.body.success===true));if(a.status===200&&a.body.success===true)return a;await new Promise(r=>setTimeout(r,400));}throw new Error('stable authoritative laser read unavailable');}
+          (async()=>{const s=await edgeSession();const allowed=Array.isArray(s.body&&s.body.user&&s.body.user.screens)?s.body.user.screens.map(text).filter(Boolean):[];console.log('T9_LASER_SESSION_SCREENS='+JSON.stringify(allowed));if(allowed.length&& !allowed.includes('laser')){console.log('T9_LASER_AUTHORIZATION=BLOCKED');process.exit(42);}const edgeToken=text(s.body.edgeToken);const q=new URLSearchParams({screen:'laser',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});const d=await req(base+'/v1/edge/orders/02cr/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});assert.equal(d.status,200,'D1 '+JSON.stringify(d.body));assert.equal(d.body.success,true);const a=await authoritativeLaser();const dk=(d.body.rows||[]).map(key).sort(),ak=(a.body.rows||[]).map(key).sort();assert.deepEqual(dk,ak,'canonical laser identity parity mismatch');assert.equal(Number(d.body.pagination&&d.body.pagination.totalRows),Number(a.body.pagination&&a.body.pagination.totalRows),'laser totalRows mismatch');for(const name of ['بنود الأوردرات','العملاء','عملاء منع التسليم بالمديونية']){const m=(d.body.mirrors||[]).find(x=>text(x&&x.sheetName)===name);assert.ok(m,'missing mirror '+name);assert.equal(text(m.status),'ready');assert.equal(Number(m.rowCount||0),Number(m.sourceLastRow||0));}console.log('T9_LASER_CANONICAL_PARITY=PASS rows='+dk.length+' d1Ms='+d.ms+' appsMs='+a.ms+' sessionMs='+s.ms);})().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
