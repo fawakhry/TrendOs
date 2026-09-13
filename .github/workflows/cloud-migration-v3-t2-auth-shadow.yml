@@ -7,7 +7,9 @@ on:
     paths:
       - 'cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql'
       - 'cloudflare-d1/src/cloud-auth-shadow-v1.mjs'
+      - 'cloudflare-d1/src/cloud-session-bridge-v3.mjs'
       - 'cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs'
+      - 'cloudflare-d1/test/cloud-session-bridge-v3-auth-shadow.test.mjs'
       - '.github/workflows/cloud-migration-v3-t2-auth-shadow.yml'
   workflow_dispatch:
 
@@ -25,6 +27,8 @@ jobs:
           node-version: '22'
       - name: Run T2 auth shadow contract tests
         run: node cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs
+      - name: Run cloud-first bridge integration tests
+        run: node cloudflare-d1/test/cloud-session-bridge-v3-auth-shadow.test.mjs
       - name: Assert repository-only migration boundary
         shell: bash
         run: |
