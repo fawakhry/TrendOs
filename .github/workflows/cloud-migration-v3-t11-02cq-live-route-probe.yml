@@ -1,0 +1,34 @@
+name: TrendOS T11 02CQ Live Route Probe
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-02cq-live-route-probe.yml'
+
+permissions:
+  contents: read
+
+env:
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe 02CQ read-only status route via GET and POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=process.env.APPS_SCRIPT_URL;
+          async function req(label,url,opt={}){const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{};const last=b&&b.lastResult&&typeof b.lastResult==='object'?b.lastResult:null;console.log(label+'='+JSON.stringify({http:r.status,ms:Date.now()-t,success:b&&b.success===true,checkpoint:String(b&&b.checkpoint||''),enabled:b&&b.enabled===true,hasLastResult:!!last,lastResult:last?{success:last.success===true,mutated:last.mutated===true,productionMirrorMutated:last.productionMirrorMutated===true,targetCount:Number(last.targetCount||0),checkedAt:String(last.checkedAt||'')}:null,messagePresent:!!String(b&&b.message||'')}));return{status:r.status,body:b};}
+          await req('T11_02CQ_STATUS_GET',base+'?action=getD1ScreenViewMirrorRefresh02CQStatus&_ts='+Date.now(),{method:'GET',headers:{accept:'application/json'}});
+          await req('T11_02CQ_STATUS_POST',base,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getD1ScreenViewMirrorRefresh02CQStatus',_ts:Date.now()})});
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
