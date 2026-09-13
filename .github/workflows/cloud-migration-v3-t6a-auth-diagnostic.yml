@@ -1,0 +1,77 @@
+name: TrendOS Cloud Migration V3 T6A Auth Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6a-prod-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t6a-auth-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Verify rollback baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/edge/health" > /tmp/edge.json
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/write.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/write.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('POST_ROLLBACK_BASELINE=PASS');
+          NODE
+
+      - name: Direct Apps Script POST verification diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          node <<'NODE'
+          const url=process.env.APPS_SCRIPT_API_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          (async()=>{
+            const started=Date.now();
+            const r=await fetch(url,{
+              method:'POST',redirect:'follow',cache:'no-store',
+              headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+              body:JSON.stringify({action:'verifyEmployeeSession',username,token,_edge:1,_ts:Date.now()})
+            });
+            const durationMs=Date.now()-started;
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const safe={httpStatus:r.status,durationMs,success:body&&body.success===true,message:String(body&&body.message||'').slice(0,180),hasUser:!!(body&&body.user),returnedUsername:!!String(body&&body.username||'')};
+            console.log('DIRECT_APPS_SCRIPT_POST_RESULT='+JSON.stringify(safe));
+            if(r.status!==200) process.exit(2);
+          })().catch(e=>{console.error('DIRECT_APPS_SCRIPT_POST_ERROR='+String(e&&e.message||e));process.exit(1)});
+          NODE
+
+      - name: Confirm current Worker is rolled back legacy session path
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/legacy-session.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{}' "$PROD_URL/v1/edge/session")"
+          node <<'NODE'
+          const fs=require('fs');
+          let x={}; try{x=JSON.parse(fs.readFileSync('/tmp/legacy-session.json','utf8')||'{}')}catch{}
+          console.log('CURRENT_WORKER_EMPTY_SESSION_SAFE='+JSON.stringify({status:Number(process.env.CODE||0),success:x.success===true,message:String(x.message||'').slice(0,120)}));
+          NODE
+          echo "CURRENT_WORKER_EMPTY_SESSION_HTTP=$code"
+          echo 'NO_DEPLOY=YES'
+          echo 'NO_D1_MIGRATION=YES'
+          echo 'NO_SECRET_CHANGE=YES'
