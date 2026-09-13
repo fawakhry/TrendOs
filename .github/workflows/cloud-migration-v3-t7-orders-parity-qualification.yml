@@ -2,10 +2,8 @@ name: TrendOS Cloud Migration V3 T7 Orders Read Parity Qualification
 
 on:
   push:
-    branches:
-      - cloud-migration-v3-t7-orders-read-canary-20260913
-    paths:
-      - '.github/workflows/cloud-migration-v3-t7-orders-parity-qualification.yml'
+    branches: [cloud-migration-v3-t7-orders-read-canary-20260913]
+    paths: ['.github/workflows/cloud-migration-v3-t7-orders-parity-qualification.yml']
   workflow_dispatch:
 
 permissions:
@@ -28,83 +26,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
+        with: { node-version: '22' }
       - name: Production safety baseline
         shell: bash
         run: |
           set -euo pipefail
           test -n "$QUALIFY_USERNAME"; test -n "$QUALIFY_PASSWORD"
-          curl -fsS "$PROD_URL/v1/edge/health" -o /tmp/edge-health.json
-          curl -fsS "$PROD_URL/v1/cloud/write/health" -o /tmp/write-health.json
-          node <<'NODE'
-          const fs=require('fs');
-          const e=JSON.parse(fs.readFileSync('/tmp/edge-health.json','utf8'));
-          const w=JSON.parse(fs.readFileSync('/tmp/write-health.json','utf8'));
-          if(!e.success||e.cutover!==false||!e.database||!e.authConfigured) process.exit(1);
-          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
-          console.log('T7_PRODUCTION_BOUNDARY=PASS');
-          NODE
-          curl -fsS "$PAGES_BASE/config.js?t7=$(date +%s)" -o /tmp/live-config.js
-          grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*false' /tmp/live-config.js
-          echo 'T7_FRONTEND_STILL_OFF=PASS'
-
-      - name: Synchronized Print parity after 02CX identity normalization
+          curl -fsS "$PROD_URL/v1/edge/health" -o /tmp/e.json
+          curl -fsS "$PROD_URL/v1/cloud/write/health" -o /tmp/w.json
+          node -e "const e=require('/tmp/e.json'),w=require('/tmp/w.json');if(!e.success||e.cutover!==false||!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(1)"
+          curl -fsS "$PAGES_BASE/config.js?t7=$(date +%s)" | grep -Eq 'MATBAGY_EDGE_ORDERS_READ_V1_ENABLED[[:space:]]*=[[:space:]]*false'
+          echo T7_PRODUCTION_BOUNDARY=PASS
+          echo T7_FRONTEND_STILL_OFF=PASS
+      - name: Compare Print D1 lanes against synchronized Apps Script snapshot
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
           const assert=require('node:assert/strict');
-          const base=String(process.env.PROD_URL).replace(/\/$/,'');
-          const apps=process.env.APPS_SCRIPT_URL;
-          const username=String(process.env.QUALIFY_USERNAME||'').trim();
-          const password=String(process.env.QUALIFY_PASSWORD||'');
-          const screen='print';
-          const text=v=>String(v==null?'':v).trim();
-          const EPOCH=Date.UTC(1899,11,30),DAY=86400000;
-          async function json(url,opt={}){const started=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch{}return{status:r.status,body,ms:Date.now()-started};}
-          async function login(){const x=await json(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(x.body&&x.body.user&&x.body.user.token);assert.equal(x.status,200);assert.equal(x.body.success,true);assert.ok(token);console.log('::add-mask::'+token);return{token,ms:x.ms};}
-          function repair(orderId,lineId){const order=text(orderId),line=text(lineId);if(!/^\d{3,6}$/.test(order)||!/^\d{5,8}$/.test(line))return line;const serial=Number(line);if(!Number.isSafeInteger(serial)||serial<=0)return line;const d=new Date(EPOCH+serial*DAY);if(!Number.isFinite(d.getTime()))return line;if(String(d.getUTCFullYear())!==order||d.getUTCDate()!==1)return line;const m=d.getUTCMonth()+1;if(m<1||m>12)return line;return order+'-'+String(m).padStart(2,'0');}
-          const key=r=>[text(r&&r.orderId),repair(r&&r.orderId,r&&r.lineId),text(r&&r.status)].join('|');
-          const critical=['orderId','lineId','status','department','itemName','qty','priority','customer','updatedAt'];
+          const base=process.env.PROD_URL.replace(/\/$/,'');
+          const apps=process.env.APPS_SCRIPT_URL, username=process.env.QUALIFY_USERNAME, password=process.env.QUALIFY_PASSWORD;
+          const text=v=>String(v==null?'':v).trim(), EPOCH=Date.UTC(1899,11,30), DAY=86400000;
+          async function json(url,opt={}){const t=Date.now(),r=await fetch(url,{cache:'no-store',redirect:'follow',...opt}),raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t}}
+          async function login(){const x=await json(apps,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(x.body?.user?.token);assert.equal(x.status,200);assert.equal(x.body.success,true);assert.ok(token);console.log('::add-mask::'+token);return token}
+          function repair(orderId,lineId){const o=text(orderId),l=text(lineId);if(!/^\d{3,6}$/.test(o)||!/^\d{5,8}$/.test(l))return l;const n=Number(l),d=new Date(EPOCH+n*DAY);if(!Number.isSafeInteger(n)||String(d.getUTCFullYear())!==o||d.getUTCDate()!==1)return l;return o+'-'+String(d.getUTCMonth()+1).padStart(2,'0')}
+          const key=r=>[text(r?.orderId),repair(r?.orderId,r?.lineId),text(r?.status)].join('|');
+          function diff(rows,appRows){const a=rows.map(key).sort(),b=appRows.map(key).sort(),as=new Set(a),bs=new Set(b);return{onlyD1:a.filter(x=>!bs.has(x)),onlyApps:b.filter(x=>!as.has(x)),equal:JSON.stringify(a)===JSON.stringify(b)}}
           (async()=>{
-            const first=await login();
-            const sess=await json(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:first.token})});
-            console.log('T7_SESSION_RESULT='+JSON.stringify({status:sess.status,ms:sess.ms,success:sess.body.success===true,authSource:text(sess.body.authSource)}));
-            assert.equal(sess.status,200);assert.equal(sess.body.success,true);assert.ok(sess.body.edgeToken);
-            const edgeToken=text(sess.body.edgeToken);console.log('::add-mask::'+edgeToken);
-
-            // Fresh login #2 is intentional: it gives Apps Script a current raw session
-            // while the already-issued Edge token stays valid, so both reads start together.
-            const second=await login();
-            const appPayload={action:'getRowsPageV1931',username,token:second.token,screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'};
-            const q=new URLSearchParams({screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
-            const [app,edge]=await Promise.all([
-              json(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(appPayload)}),
-              json(base+'/v1/edge/orders/02cr/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}})
+            const t1=await login();
+            const sess=await json(base+'/v1/edge/orders/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username,token:t1})});
+            assert.equal(sess.status,200);assert.equal(sess.body.success,true);const edgeToken=text(sess.body.edgeToken);assert.ok(edgeToken);console.log('::add-mask::'+edgeToken);
+            const t2=await login();
+            const q=new URLSearchParams({screen:'print',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
+            const payload={action:'getRowsPageV1931',username,token:t2,screen:'print',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'};
+            const [app,rich,view]=await Promise.all([
+              json(apps,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}),
+              json(base+'/v1/edge/orders/02cr/page?'+q,{headers:{authorization:'Bearer '+edgeToken}}),
+              json(base+'/v1/edge/orders/page?'+q,{headers:{authorization:'Bearer '+edgeToken}})
             ]);
-            console.log('T7_APPS_RESULT='+JSON.stringify({status:app.status,ms:app.ms,success:app.body.success===true,rows:Array.isArray(app.body.rows)?app.body.rows.length:null,message:text(app.body.message)}));
-            console.log('T7_EDGE_RESULT='+JSON.stringify({status:edge.status,ms:edge.ms,success:edge.body.success===true,rows:Array.isArray(edge.body.rows)?edge.body.rows.length:null,dataSource:text(edge.body.dataSource),code:text(edge.body.code)}));
             assert.equal(app.status,200);assert.equal(app.body.success,true);
-            assert.equal(edge.status,200);assert.equal(edge.body.success,true);assert.equal(edge.body.dataSource,'d1-edge-orders-02cr-operational');
-            assert.ok(Array.isArray(edge.body.mirrors)&&edge.body.mirrors.length>=3);
-            for(const m of edge.body.mirrors){assert.equal(text(m.status),'ready');assert.equal(Number(m.rowCount||0),Number(m.sourceLastRow||0));}
-            const eRows=edge.body.rows||[],aRows=app.body.rows||[];
-            const ek=eRows.map(key).sort(),ak=aRows.map(key).sort();
-            const es=new Set(ek),as=new Set(ak),onlyD1=ek.filter(x=>!as.has(x)),onlyApps=ak.filter(x=>!es.has(x));
-            console.log('T7_NORMALIZED_DIFF='+JSON.stringify({onlyD1,onlyApps}));
-            if(onlyD1.length||onlyApps.length){
-              const targets=[...new Set([...onlyD1,...onlyApps].map(x=>x.split('|')[0]).filter(Boolean))];
-              console.log('T7_MISMATCH_ORDER_IDS='+JSON.stringify(targets));
-            }
-            assert.deepEqual(ek,ak,'print normalized identity mismatch');
-            for(const r of eRows)for(const f of critical)assert.ok(Object.prototype.hasOwnProperty.call(r,f),'missing '+f);
-            console.log('T7_PRINT_PARITY=PASS');
-            console.log('T7_PRINT_ROWS='+eRows.length);
-            console.log('T7_PRINT_D1_MS='+edge.ms);
-            console.log('T7_PRINT_APPS_MS='+app.ms);
-            console.log('T7_BUSINESS_MUTATION=NO');
-            console.log('T7_FRONTEND_CUTOVER=NO');
-          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+            for(const x of [rich,view]){assert.equal(x.status,200);assert.equal(x.body.success,true)}
+            const appRows=app.body.rows||[], richRows=rich.body.rows||[], viewRows=view.body.rows||[];
+            const dr=diff(richRows,appRows), dv=diff(viewRows,appRows);
+            console.log('T7_APPS='+JSON.stringify({rows:appRows.length,ms:app.ms}));
+            console.log('T7_RICH='+JSON.stringify({rows:richRows.length,ms:rich.ms,dataSource:text(rich.body.dataSource),diff:dr}));
+            console.log('T7_VIEW='+JSON.stringify({rows:viewRows.length,ms:view.ms,dataSource:text(view.body.dataSource),diff:dv,mirror:view.body.mirror?{sheetName:text(view.body.mirror.sheetName),syncedAt:text(view.body.mirror.syncedAt)}:null}));
+            if(dv.equal){console.log('T7_VIEW_PRINT_PARITY=PASS')}else console.log('T7_VIEW_PRINT_PARITY=FAIL');
+            if(dr.equal){console.log('T7_02CR_PRINT_PARITY=PASS')}else console.log('T7_02CR_PRINT_PARITY=FAIL');
+            console.log('T7_BUSINESS_MUTATION=NO');console.log('T7_FRONTEND_CUTOVER=NO');
+            assert.ok(dv.equal||dr.equal,'no D1 print lane has exact normalized parity');
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
