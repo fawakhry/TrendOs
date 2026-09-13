@@ -1,0 +1,29 @@
+name: TrendOS Static Source Audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout review branch
+        uses: actions/checkout@v4
+
+      - name: Runtime versions
+        run: |
+          node --version
+          git rev-parse HEAD
+
+      - name: Static audit
+        run: node scripts/trendos-static-audit.mjs Code.gs app.js
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trendos-static-audit
+          path: audit-output/trendos-static-audit.md
+          if-no-files-found: error
