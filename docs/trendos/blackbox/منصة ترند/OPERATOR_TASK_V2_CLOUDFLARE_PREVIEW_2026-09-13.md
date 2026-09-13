@@ -287,3 +287,22 @@ Safety conclusion recorded by the workflow:
 - `NO_TASK_MUTATION=YES`
 
 This supersedes the earlier temporary queued observations. The next allowed step is a fresh GET-only Production verification of current Edge/core behavior, followed by authenticated Operator Task status qualification before any canary mutation or frontend employee rollout.
+
+## 2026-09-13 live Production GET-only verification — PASS
+
+A fresh live browser verification was performed against Production without credentials and without mutation.
+
+Observed current state:
+
+- `GET /v1/edge/health` returned a successful `trendos-edge-gateway-v1` health body with `database=true`, `authConfigured=true`, `upstreamConfigured=true`, and `cutover=false`.
+- The same health body reports mirror freshness as stale for customers/orders/messages/conversations. This is noted as an existing data-freshness condition only; no remediation is included in Operator Task V2 activation scope because Production remains `cutover=false`.
+- `GET /v1/cloud/write/health` returned `success=true`, `enabled=true`, `writesAccepted=true`, `schemaReady=true`, `pendingOutbox=0`, `schemaMutationFree=true`, `cutover=false`, and `sheetsAuthoritative=true`.
+- `GET /v1/operator/tasks/status` returned `{"success":false,"code":"invalid-token-format"}` without an Edge-disabled response.
+
+Conclusion:
+
+- Current Production behavior independently confirms the Operator Task Edge gate is active and auth remains fail-closed.
+- Core Cloud Write state remains preserved and Sheets remain authoritative.
+- No `claimNext`, `completeTask`, D1 migration, secret change, Gaber Material Control activation, or RP-08 action was performed.
+
+Next step: inspect the exact authenticated-session path and frontend rollout gates for Wael/Gaber, then perform only read-only authenticated status qualification if an existing safe session/credential path is available.
