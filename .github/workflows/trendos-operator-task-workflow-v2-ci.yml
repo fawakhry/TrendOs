@@ -7,8 +7,12 @@ on:
     paths:
       - 'operator-task-workflow-v2.gs'
       - 'operator-task-workflow-v2.js'
+      - 'operator-task-edge-proxy-v2.gs'
       - 'v1932-router.gs'
+      - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
       - 'tests/operator_task_workflow_v2_contract.test.mjs'
+      - 'tests/operator_task_edge_v2.test.mjs'
       - '.github/workflows/trendos-operator-task-workflow-v2-ci.yml'
   workflow_dispatch:
 
@@ -26,29 +30,41 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Syntax check backend
+      - name: Syntax check Apps Script candidates
         run: |
           cp operator-task-workflow-v2.gs /tmp/operator-task-workflow-v2.js
           node --check /tmp/operator-task-workflow-v2.js
-
-      - name: Syntax check frontend
-        run: node --check operator-task-workflow-v2.js
-
-      - name: Syntax check V1932 router
-        run: |
+          cp operator-task-edge-proxy-v2.gs /tmp/operator-task-edge-proxy-v2.js
+          node --check /tmp/operator-task-edge-proxy-v2.js
           cp v1932-router.gs /tmp/v1932-router.js
           node --check /tmp/v1932-router.js
 
-      - name: Run operator task contract
-        run: node --test tests/operator_task_workflow_v2_contract.test.mjs
+      - name: Syntax check browser and Cloudflare candidates
+        run: |
+          node --check operator-task-workflow-v2.js
+          node --check cloudflare-d1/src/operator-task-edge-v2.mjs
+          node --check cloudflare-d1/src/index_v2.js
+
+      - name: Run operator task contracts
+        run: node --test tests/operator_task_workflow_v2_contract.test.mjs tests/operator_task_edge_v2.test.mjs
 
       - name: Fail closed static safety checks
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -nE '\.setProperty[[:space:]]*\(' operator-task-workflow-v2.gs
+          ! grep -nE '\.setProperty[[:space:]]*\(' operator-task-workflow-v2.gs operator-task-edge-proxy-v2.gs
           ! grep -nE 'claimFly|FLY_PRINT|pressStart|pressStop' operator-task-workflow-v2.gs operator-task-workflow-v2.js
+          ! grep -nE 'env\.DB' cloudflare-d1/src/operator-task-edge-v2.mjs
+          ! grep -nE 'body\.username|payload\.token|employeeToken' cloudflare-d1/src/operator-task-edge-v2.mjs
           grep -n "action === 'operatorTaskV2'" v1932-router.gs
           grep -n "typeof operatorTaskV2_ === 'function'" v1932-router.gs
+          grep -n "action === 'operatorTaskEdgeProxyV2'" v1932-router.gs
+          grep -n "typeof operatorTaskEdgeProxyV2_ === 'function'" v1932-router.gs
+          grep -n "TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED" cloudflare-d1/src/operator-task-edge-v2.mjs
+          grep -n "TRENDOS_OPERATOR_TASK_PROXY_SECRET" cloudflare-d1/src/operator-task-edge-v2.mjs operator-task-edge-proxy-v2.gs
+          grep -n "IDEMPOTENCY_KEY_REQUIRED" cloudflare-d1/src/operator-task-edge-v2.mjs
+          grep -n "findUser_(otepTxtV2_(operator))" operator-task-edge-proxy-v2.gs
+          grep -n "authorize_(user.username,user.token)" operator-task-edge-proxy-v2.gs
+          grep -n "isOperatorTaskEdgePath(path)" cloudflare-d1/src/index_v2.js
           grep -n "MISSING_OR_INVALID_DELIVERY_DUE_DATE" operator-task-workflow-v2.gs
           grep -n "otSourceStatusWriteV2_(task,auth,'بدء التنفيذ'" operator-task-workflow-v2.gs
