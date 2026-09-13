@@ -46,7 +46,7 @@ function values(overrides = {}) {
     row(3, values({ orderId: '5001', priority: 'عادي', updated: '2026-09-13T17:00:00.000Z' })),
     row(4, values({ orderId: '5002', priority: 'عاجل', updated: '2026-09-12T17:00:00.000Z' })),
     row(5, values({ orderId: '5003', status: 'تم التسليم' })),
-    row(6, values({ orderId: 'CW-PROD-QUAL-1', status: 'cloud-qualification', entryType: '', source: '' }))
+    row(6, values({ orderId: 'CW-PROD-QUAL-1', status: 'cloud-qualification', priority: 'qualification', entryType: '', source: '' }))
   ]);
   assert.deepEqual(mapped.map((x) => x.orderId), ['5002','5001','CW-PROD-QUAL-1']);
   assert.equal(mapped[1].lineId, '01012345678');
