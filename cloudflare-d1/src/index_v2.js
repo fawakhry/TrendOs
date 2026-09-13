@@ -2,6 +2,7 @@ import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
+import { handleCloudSessionBridgeV3, isCloudSessionBridgeV3Path } from './cloud-session-bridge-v3.mjs';
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
@@ -23,6 +24,13 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    // CLOUD-MIGRATION-V3/T6A: exact session paths only. This replaces the
+    // legacy Apps Script GET verification transport with POST and does not
+    // alter business reads, business writes, D1 authority, Tasks, or secrets.
+    if (isCloudSessionBridgeV3Path(path)) {
+      return handleCloudSessionBridgeV3(request, env, ctx);
+    }
 
     // Canonical TrendOS-native Accounting route and read-only integration contract.
     if (isAccountingNativeModulePath(path)) {
