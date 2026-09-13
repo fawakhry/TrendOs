@@ -1,0 +1,44 @@
+name: TrendOS T11 Service View Formula Probe
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-view-formula-probe.yml'
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect Service view headers and formulas only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=process.env.PROD_URL;
+          const name='واجهة خدمة العملاء';
+          const r=await fetch(base+'/v1/mirror/sheet?name='+encodeURIComponent(name)+'&limit=20&offset=0',{headers:{accept:'application/json'},cache:'no-store'});
+          const raw=await r.text(); let b={}; try{b=JSON.parse(raw||'{}')}catch{}
+          if(r.status!==200||b.success!==true) throw new Error('mirror read failed HTTP '+r.status);
+          const s=b.sheet||{}, h=Array.isArray(s.headers)?s.headers:[], rows=Array.isArray(s.rows)?s.rows:[];
+          console.log('T11_SERVICE_VIEW_META='+JSON.stringify({syncedAt:s.syncedAt,sourceLastRow:s.sourceLastRow,sourceLastCol:s.sourceLastCol,rowCount:s.rowCount,status:s.status,note:s.note,headerCount:h.length}));
+          h.forEach((x,i)=>console.log('HEADER['+(i+1)+']='+String(x==null?'':x)));
+          let formulaCells=0;
+          const formulas=[];
+          for(const row of rows){const f=Array.isArray(row.formulas)?row.formulas:[];for(let i=0;i<f.length;i++){const formula=String(f[i]||'').trim();if(!formula)continue;formulaCells++;formulas.push({rowNumber:Number(row.rowNumber||0),column:i+1,header:String(h[i]||''),formula});}}
+          console.log('T11_SERVICE_VIEW_FORMULA_COUNT='+formulaCells);
+          console.log('T11_SERVICE_VIEW_FORMULAS='+JSON.stringify(formulas.slice(0,40)));
+          console.log('BUSINESS_ROW_VALUES_EXPOSED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
