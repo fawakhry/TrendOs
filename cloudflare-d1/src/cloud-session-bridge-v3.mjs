@@ -1,5 +1,10 @@
 import { issueEdgeSessionToken } from './edge-gateway.mjs';
 import { issueOrdersEdgeToken } from './edge-orders-read-v1.mjs';
+import {
+  cloudAuthShadowEnabled,
+  lookupCloudAuthShadow,
+  rememberCloudAuthShadow
+} from './cloud-auth-shadow-v1.mjs';
 
 const EDGE_SESSION_PATH = '/v1/edge/session';
 const ORDERS_SESSION_PATH = '/v1/edge/orders/session';
@@ -121,10 +126,35 @@ export async function verifyEmployeeSessionViaPost(username, employeeToken, env,
     if (!body || body.success !== true) {
       return { ok: false, kind: 'auth', status: response.status, message: text(body && body.message) || 'Employee session rejected' };
     }
-    return { ok: true, body };
+    return { ok: true, body, authSource: 'apps-script-post' };
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function verifyEmployeeSessionCloudFirst(username, employeeToken, env, lane = 'edge') {
+  if (cloudAuthShadowEnabled(env)) {
+    try {
+      const shadow = await lookupCloudAuthShadow(username, employeeToken, env);
+      if (shadow.hit) {
+        return { ok: true, body: shadow.body, authSource: 'd1-auth-shadow-v1' };
+      }
+    } catch (err) {
+      // A shadow lookup failure never authenticates the caller. The authoritative
+      // Apps Script POST verifier remains the secure fallback while T2 is shadow-only.
+    }
+  }
+
+  const upstream = await verifyEmployeeSessionViaPost(username, employeeToken, env, lane);
+  if (upstream.ok && cloudAuthShadowEnabled(env)) {
+    try {
+      await rememberCloudAuthShadow(username, employeeToken, upstream.body, env);
+    } catch (err) {
+      // Cache population is non-authoritative. Successful upstream verification
+      // remains valid even if the shadow table is unavailable or not migrated.
+    }
+  }
+  return upstream;
 }
 
 async function parseCredentials(request) {
@@ -145,7 +175,7 @@ async function exchangeGeneralSession(request, env, cors) {
   if (!credentials.ok) return json({ success: false, message: credentials.message }, credentials.status, cors);
   if (!text(env.EDGE_SESSION_SECRET)) return json({ success: false, message: 'Edge authentication is not configured' }, 503, cors);
 
-  const verified = await verifyEmployeeSessionViaPost(credentials.username, credentials.token, env, 'edge');
+  const verified = await verifyEmployeeSessionCloudFirst(credentials.username, credentials.token, env, 'edge');
   if (!verified.ok) {
     const status = verified.kind === 'upstream' ? 502 : (verified.kind === 'input' ? 400 : 401);
     return json({ success: false, message: verified.message, code: verified.kind === 'upstream' ? 'apps-script-verification-upstream' : 'employee-session-rejected' }, status, cors);
@@ -166,6 +196,7 @@ async function exchangeGeneralSession(request, env, cors) {
     expiresAt: new Date((now + ttl) * 1000).toISOString(),
     expiresIn: ttl,
     user: { username: canonicalUsername },
+    authSource: verified.authSource || 'apps-script-post',
     sessionBridge: 'cloud-session-bridge-v3-post'
   }, 200, cors);
 }
@@ -175,7 +206,7 @@ async function exchangeOrdersSession(request, env, cors) {
   if (!credentials.ok) return json({ success: false, message: credentials.message }, credentials.status, cors);
   if (!text(env.EDGE_SESSION_SECRET)) return json({ success: false, message: 'Edge authentication is not configured' }, 503, cors);
 
-  const verified = await verifyEmployeeSessionViaPost(credentials.username, credentials.token, env, 'orders');
+  const verified = await verifyEmployeeSessionCloudFirst(credentials.username, credentials.token, env, 'orders');
   if (!verified.ok) {
     const status = verified.kind === 'upstream' ? 502 : (verified.kind === 'input' ? 400 : 401);
     return json({ success: false, message: verified.message, code: verified.kind === 'upstream' ? 'apps-script-verification-upstream' : 'employee-session-rejected' }, status, cors);
@@ -186,7 +217,7 @@ async function exchangeOrdersSession(request, env, cors) {
   const canonicalUsername = text(user.username || upstream.username || credentials.username);
   const role = text(user.role || upstream.role || 'service').toLowerCase();
   const department = text(user.department || upstream.department);
-  const screens = screensForRole(role);
+  const screens = Array.isArray(user.screens) && user.screens.length ? user.screens.map(text) : screensForRole(role);
   const ttl = sessionTtlSeconds(env);
   const now = Math.floor(Date.now() / 1000);
   const edgeToken = await issueOrdersEdgeToken({ sub: canonicalUsername, role, department, screens }, text(env.EDGE_SESSION_SECRET), now, ttl);
@@ -196,6 +227,7 @@ async function exchangeOrdersSession(request, env, cors) {
     expiresIn: ttl,
     expiresAt: new Date((now + ttl) * 1000).toISOString(),
     user: { username: canonicalUsername, role, department, screens },
+    authSource: verified.authSource || 'apps-script-post',
     sessionBridge: 'cloud-session-bridge-v3-post'
   }, 200, cors);
 }
