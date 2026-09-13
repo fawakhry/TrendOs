@@ -1,0 +1,38 @@
+name: TrendOS Cloud Migration V3 T2 Auth Shadow
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-20260913
+    paths:
+      - 'cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql'
+      - 'cloudflare-d1/src/cloud-auth-shadow-v1.mjs'
+      - 'cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs'
+      - '.github/workflows/cloud-migration-v3-t2-auth-shadow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-auth-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run T2 auth shadow contract tests
+        run: node cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs
+      - name: Assert repository-only migration boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-20260913"
+          test -f cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql
+          ! grep -qiE 'employee_token[[:space:]]+TEXT|raw_token[[:space:]]+TEXT' cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql
+          echo "PRODUCTION_D1_MIGRATION=NO"
+          echo "PRODUCTION_DEPLOY=NO"
+          echo "SECRET_CHANGE=NO"
+          echo "RAW_EMPLOYEE_TOKEN_COLUMN=NO"
