@@ -1,0 +1,102 @@
+name: TrendOS T9 Laser Production D1 Read Cutover
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t9-laser-production-cutover.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-t9-laser-production-cutover
+  cancel-in-progress: false
+
+jobs:
+  promote-laser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PAGES_BASE: https://fawakhry.github.io/TrendOs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pre-cutover production authority boundary
+        run: |
+          set -euo pipefail
+          curl -fsS "$PROD_URL/v1/edge/health" > /tmp/e.json
+          curl -fsS "$PROD_URL/v1/cloud/write/health" > /tmp/w.json
+          node - <<'NODE'
+          const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/e.json')),w=JSON.parse(fs.readFileSync('/tmp/w.json'));
+          if(!e.success||e.cutover!==false||!e.database||!e.authConfigured)process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);
+          console.log('T9_LASER_PRE_BOUNDARY=PASS');
+          NODE
+      - name: Promote laser alongside print on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('config.js'); s=p.read_text()
+          old="window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print'];"
+          new="window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser'];"
+          if old not in s: raise SystemExit('unexpected current allowed screens')
+          s=s.replace(old,new,1)
+          s=s.replace('trendos-edge-orders-read-v1.js?v=20260913-t8-print-global1','trendos-edge-orders-read-v1.js?v=20260913-t9-print-laser1',1)
+          p.write_text(s)
+          PY
+          grep -Fq "MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser']" config.js
+          grep -Fq 'MATBAGY_EDGE_ORDERS_CANARY_ONLY = false' config.js
+          git config user.name trendos-cloud-migration
+          git config user.email actions@users.noreply.github.com
+          git add config.js
+          git commit -m 'prod: add qualified laser D1 orders reads'
+          echo "T9_LASER_CUTOVER_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          git push origin HEAD:main
+          echo 'T9_LASER_PUSHED=1' >> "$GITHUB_ENV"
+      - name: Verify Pages laser state
+        run: |
+          set -euo pipefail
+          ok=0
+          for i in $(seq 1 24); do
+            curl -fsS "$PAGES_BASE/config.js?t9=$(date +%s)-$i" -o /tmp/c.js || true
+            if grep -Fq "MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser']" /tmp/c.js 2>/dev/null && grep -Fq 'trendos-edge-orders-read-v1.js?v=20260913-t9-print-laser1' /tmp/c.js 2>/dev/null; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo 'T9_LASER_PAGES=PASS'
+      - name: Post-cutover authority boundary
+        run: |
+          set -euo pipefail
+          curl -fsS "$PROD_URL/v1/edge/health" > /tmp/e2.json
+          curl -fsS "$PROD_URL/v1/cloud/write/health" > /tmp/w2.json
+          node - <<'NODE'
+          const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/e2.json')),w=JSON.parse(fs.readFileSync('/tmp/w2.json'));
+          if(!e.success||e.cutover!==false)process.exit(1);if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);
+          console.log('T9_LASER_POST_BOUNDARY=PASS');
+          NODE
+      - name: Automatic rollback on failure
+        if: ${{ failure() && env.T9_LASER_PUSHED == '1' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git fetch origin main; git checkout -B main origin/main
+          git config user.name trendos-cloud-migration; git config user.email actions@users.noreply.github.com
+          git revert --no-edit "$T9_LASER_CUTOVER_SHA"; git push origin HEAD:main
+          echo 'T9_LASER_ROLLBACK=COMMITTED'
+      - name: Final
+        if: ${{ success() }}
+        run: |
+          echo 'T9_LASER_PRODUCTION_D1_READ=PASS'
+          echo 'PRINT_LASER=D1_FIRST'
+          echo 'SERVICE_PRESS=APPS_SCRIPT'
+          echo 'DEBT=APPS_SCRIPT'
+          echo 'WRITES=APPS_SCRIPT'
