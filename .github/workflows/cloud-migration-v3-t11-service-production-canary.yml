@@ -1,0 +1,171 @@
+name: TrendOS T11 Service Production D1 Read Canary
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t11-service-worker-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-production-canary.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t11-service-production-canary
+  cancel-in-progress: false
+
+jobs:
+  service-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      BASE_PROD_WORKER_COMMIT: b3176c8d82ad974094c3328d23e29556e209bba3
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: T11 narrow production scope gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"; test -n "$CLOUDFLARE_ACCOUNT_ID"; test -n "$QUALIFY_USERNAME"; test -n "$QUALIFY_PASSWORD"
+          git fetch --no-tags origin "$BASE_PROD_WORKER_COMMIT"
+          changed="$(git diff --name-only "$BASE_PROD_WORKER_COMMIT" HEAD | sort)"
+          printf '%s\n' "$changed"
+          bad="$(printf '%s\n' "$changed" | grep -Ev '^(cloudflare-d1/src/edge-orders-service-read-v1\.mjs|cloudflare-d1/src/index_v2\.js|cloudflare-d1/test/edge-orders-service-read-v1\.test\.mjs|\.github/workflows/cloud-migration-v3-t11-service-worker-contract\.yml|\.github/workflows/cloud-migration-v3-t11-service-production-canary\.yml)$' || true)"
+          test -z "$bad"
+          git diff --exit-code "$BASE_PROD_WORKER_COMMIT" HEAD -- cloudflare-d1/wrangler.toml config.js
+          test ! -f cloudflare-d1/migrations/0005_operator_task_v3_read_projection.sql
+          grep -Eq '^TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED = "true"$' cloudflare-d1/wrangler.toml
+          grep -Eq '^CLOUD_AUTH_SHADOW_TTL_SECONDS = "300"$' cloudflare-d1/wrangler.toml
+          echo 'T11_SERVICE_PROD_SCOPE=PASS'
+
+      - name: T11 Service contracts
+        run: |
+          set -euo pipefail
+          node cloudflare-d1/test/edge-orders-service-read-v1.test.mjs
+          node --check cloudflare-d1/src/edge-orders-service-read-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          echo 'T11_SERVICE_CONTRACTS=PASS'
+
+      - name: Production baseline before deploy
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/edge/health" > /tmp/t11-pre-edge.json
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/cloud/write/health" > /tmp/t11-pre-write.json
+          node - <<'NODE'
+          const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/t11-pre-edge.json'));const w=JSON.parse(fs.readFileSync('/tmp/t11-pre-write.json'));
+          if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured)process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);
+          console.log('T11_PREDEPLOY_BASELINE=PASS');
+          NODE
+
+      - name: Dry run and deploy T11 Service Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          rm -rf /tmp/t11-service-dry
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/t11-service-dry
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml | tee /tmp/t11-service-deploy.txt
+          echo 'T11_SERVICE_DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+
+      - name: Production baseline after deploy
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/edge/health" > /tmp/t11-post-edge.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/health" > /tmp/t11-post-write.json
+          node - <<'NODE'
+          const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/t11-post-edge.json'));const w=JSON.parse(fs.readFileSync('/tmp/t11-post-write.json'));
+          if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured)process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);
+          console.log('T11_POSTDEPLOY_BASELINE=PASS');
+          NODE
+
+      - name: Live Service D1 vs Apps Script parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=String(process.env.PROD_URL).replace(/\/$/,'');
+          const apps=process.env.APPS_SCRIPT_API_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const cleanPhone=v=>{let d=String(v||'').replace(/[^0-9]/g,'');if(d.startsWith('0020'))d=d.slice(2);if(d.startsWith('20')&&d.length===12)d='0'+d.slice(2);if(/^1[0125]\d{8}$/.test(d))d='0'+d;return d;};
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const ms=Date.now()-t,raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms};}
+          async function login(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body&&l.body.user&&l.body.user.token);if(l.status===200&&l.body.success===true&&token){console.log('::add-mask::'+token);return token;}await new Promise(r=>setTimeout(r,300));}throw new Error('fresh login failed');}
+          async function ordersSession(){for(let n=1;n<=4;n++){const token=await login();const s=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});console.log('T11_SESSION_ATTEMPT='+n+' STATUS='+s.status+' MS='+s.ms);if(s.status===200&&s.body.success===true&&s.body.edgeToken){console.log('::add-mask::'+text(s.body.edgeToken));return s.body.edgeToken;}await new Promise(r=>setTimeout(r,400));}throw new Error('stable orders edge session unavailable');}
+          async function authoritative(){for(let n=1;n<=4;n++){const token=await login();const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body.success===true)return a;await new Promise(r=>setTimeout(r,400));}throw new Error('authoritative service read unavailable');}
+          function signature(rows){return (rows||[]).map(r=>text(r.orderId)+'|'+text(r.status)+'|'+cleanPhone(r.lineId||r.customerPhone));}
+          (async()=>{
+            let last='';
+            for(let attempt=1;attempt<=3;attempt++){
+              const edgeToken=await ordersSession();
+              const d=await req(base+'/v1/edge/orders/service/page?screen=service&page=1&pageSize=100&statusFilter=__ACTIVE__',{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});
+              if(d.status!==200||d.body.success!==true){last='D1 HTTP '+d.status+' code='+text(d.body&&d.body.code);console.log('T11_PARITY_ATTEMPT='+attempt+' '+last);await new Promise(r=>setTimeout(r,5000));continue;}
+              const a=await authoritative();
+              const ds=signature(d.body.rows),as=signature(a.body.rows);
+              const dIds=(d.body.rows||[]).map(r=>text(r.orderId)),aIds=(a.body.rows||[]).map(r=>text(r.orderId));
+              const same=JSON.stringify(ds)===JSON.stringify(as)&&Number(d.body.pagination&&d.body.pagination.totalRows)===Number(a.body.pagination&&a.body.pagination.totalRows);
+              console.log('T11_PARITY_ATTEMPT='+attempt+' '+JSON.stringify({same,d1Rows:ds.length,appsRows:as.length,d1Total:Number(d.body.pagination&&d.body.pagination.totalRows||0),appsTotal:Number(a.body.pagination&&a.body.pagination.totalRows||0),d1Ms:d.ms,appsMs:a.ms,dataSource:text(d.body.dataSource),mirrorSyncedAt:text(d.body.mirror&&d.body.mirror.syncedAt)}));
+              if(same){
+                if(d.body.dataSource!=='d1-edge-orders-service-v1')throw new Error('unexpected Service D1 dataSource');
+                console.log('T11_SERVICE_LIVE_PARITY=PASS');
+                console.log('T11_SERVICE_D1_MS='+d.ms);
+                console.log('T11_SERVICE_APPS_MS='+a.ms);
+                console.log('T11_SERVICE_ROWS='+ds.length);
+                return;
+              }
+              const aSet=new Set(aIds),dSet=new Set(dIds);
+              console.log('T11_MISSING_IDS='+JSON.stringify(aIds.filter(x=>!dSet.has(x)).slice(0,20)));
+              console.log('T11_EXTRA_IDS='+JSON.stringify(dIds.filter(x=>!aSet.has(x)).slice(0,20)));
+              last='live parity mismatch';
+              await new Promise(r=>setTimeout(r,8000));
+            }
+            throw new Error(last||'Service live parity failed');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Verify debt and write authority boundaries
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=String(process.env.PROD_URL).replace(/\/$/,''); const apps=process.env.APPS_SCRIPT_API_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||''),text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={}){const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}
+          (async()=>{const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body&&l.body.user&&l.body.user.token);if(!token)throw new Error('login');console.log('::add-mask::'+token);const s=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username,token})});if(s.status!==200||!s.body.edgeToken)throw new Error('session');console.log('::add-mask::'+text(s.body.edgeToken));const d=await req(base+'/v1/edge/orders/service/page?screen=service&statusFilter=__DEBT__',{headers:{authorization:'Bearer '+s.body.edgeToken}});if(d.status!==409||d.body.fallback!=='apps-script')throw new Error('debt boundary');const w=await req(base+'/v1/cloud/write/health');if(w.status!==200||w.body.sheetsAuthoritative!==true||w.body.cutover!==false)throw new Error('write authority boundary');console.log('T11_DEBT_FALLBACK=PASS');console.log('SHEETS_WRITE_AUTHORITY_CHANGED=NO');console.log('TASK_MUTATION=NO');console.log('SECRET_CHANGE=NO');})().catch(e=>{console.error(e.message||e);process.exit(1)});
+          NODE
+
+      - name: Automatic rollback on T11 failure
+        if: ${{ failure() && env.T11_SERVICE_DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} rollback --config wrangler.toml --message "Rollback T11 Service D1 read canary failure"
+          echo 'T11_SERVICE_ROLLBACK_ATTEMPTED=YES'
+
+      - name: Final T11 Service conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'T11_SERVICE_WORKER_CANARY=PASS'
+          echo 'PRODUCTION_SERVICE_FRONTEND_CUTOVER=NO'
+          echo 'SHEETS_WRITE_AUTHORITY_CHANGED=NO'
+          echo 'D1_MIGRATION=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'SECRET_CHANGE=NO'
