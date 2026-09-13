@@ -1,0 +1,49 @@
+name: TrendOS T11 Service Worker Contract
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t11-service-worker-canary-20260913
+    paths:
+      - cloudflare-d1/src/edge-orders-service-read-v1.mjs
+      - cloudflare-d1/src/index_v2.js
+      - cloudflare-d1/test/edge-orders-service-read-v1.test.mjs
+      - .github/workflows/cloud-migration-v3-t11-service-worker-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assert narrow source scope
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin b3176c8d82ad974094c3328d23e29556e209bba3
+          changed="$(git diff --name-only b3176c8d82ad974094c3328d23e29556e209bba3...HEAD | sort)"
+          echo "$changed"
+          echo "$changed" | grep -qx 'cloudflare-d1/src/edge-orders-service-read-v1.mjs'
+          echo "$changed" | grep -qx 'cloudflare-d1/src/index_v2.js'
+          echo "$changed" | grep -qx 'cloudflare-d1/test/edge-orders-service-read-v1.test.mjs'
+          bad="$(echo "$changed" | grep -Ev '^(cloudflare-d1/src/edge-orders-service-read-v1\.mjs|cloudflare-d1/src/index_v2\.js|cloudflare-d1/test/edge-orders-service-read-v1\.test\.mjs|\.github/workflows/cloud-migration-v3-t11-service-worker-contract\.yml)$' || true)"
+          test -z "$bad"
+          echo 'T11_SERVICE_SCOPE=PASS'
+      - name: Run Service D1 read contract
+        run: |
+          set -euo pipefail
+          node cloudflare-d1/test/edge-orders-service-read-v1.test.mjs
+      - name: Assert production boundaries remain unchanged
+        run: |
+          set -euo pipefail
+          grep -q 'TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          grep -q 'TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          echo 'PRODUCTION_DEPLOY=NO'
+          echo 'D1_MIGRATION=NO'
+          echo 'SHEETS_WRITE_AUTHORITY_CHANGED=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'SECRET_CHANGE=NO'
