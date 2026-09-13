@@ -1,0 +1,58 @@
+name: TrendOS T11 Service Screen View D1 Parity V2
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-screen-view-parity-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-service-view:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Service screen-view live parity with safe diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const key=r=>[text(r&&r.orderId),text(r&&r.lineId),text(r&&r.status)].join('|');
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const ms=Date.now()-t,raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms};}
+          async function login(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body&&l.body.user&&l.body.user.token);if(l.status===200&&l.body.success===true&&token){console.log('::add-mask::'+token);return token;}}throw new Error('fresh login failed');}
+          async function edgeSession(){for(let n=1;n<=4;n++){const token=await login();const s=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});console.log('T11V2_SESSION_ATTEMPT='+n+' STATUS='+s.status+' MS='+s.ms);if(s.status===200&&s.body.success===true&&s.body.edgeToken){console.log('::add-mask::'+text(s.body.edgeToken));return s;}await new Promise(r=>setTimeout(r,400));}throw new Error('stable edge session unavailable');}
+          async function authoritative(){for(let n=1;n<=4;n++){const token=await login();const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});console.log('T11V2_APPS_ATTEMPT='+n+' STATUS='+a.status+' MS='+a.ms+' SUCCESS='+(a.body&&a.body.success===true));if(a.status===200&&a.body.success===true)return a;await new Promise(r=>setTimeout(r,400));}throw new Error('stable service read unavailable');}
+          (async()=>{
+            const s=await edgeSession(); const edgeToken=text(s.body.edgeToken);
+            const hbGet=await req(apps+'?action=getD1OrdersLowUsageHeartbeatV1&_ts='+Date.now(),{headers:{accept:'application/json'}});
+            console.log('T11V2_HEARTBEAT='+JSON.stringify({status:hbGet.status,ms:hbGet.ms,success:hbGet.body&&hbGet.body.success===true,lowUsage:hbGet.body&&hbGet.body.lowUsage===true,lastIdleAt:hbGet.body&&hbGet.body.lastIdleCheck&&hbGet.body.lastIdleCheck.at,lastIdleSuccess:hbGet.body&&hbGet.body.lastIdleCheck&&hbGet.body.lastIdleCheck.success,sourceChanged:hbGet.body&&hbGet.body.lastIdleCheck&&hbGet.body.lastIdleCheck.sourceChanged,d1RequestMade:hbGet.body&&hbGet.body.lastIdleCheck&&hbGet.body.lastIdleCheck.d1RequestMade,d1WriteMade:hbGet.body&&hbGet.body.lastIdleCheck&&hbGet.body.lastIdleCheck.d1WriteMade,source:(hbGet.body&&hbGet.body.lastIdleCheck&&Array.isArray(hbGet.body.lastIdleCheck.source)?hbGet.body.lastIdleCheck.source.map(x=>({sheetName:x.sheetName,sourceLastRow:x.sourceLastRow,sourceLastCol:x.sourceLastCol,displayHashPresent:!!x.displayHash})):[])}));
+            const q=new URLSearchParams({screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
+            const d=await req(base+'/v1/edge/orders/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});
+            console.log('T11V2_D1_GATE='+JSON.stringify({status:d.status,ms:d.ms,success:d.body&&d.body.success===true,code:d.body&&d.body.code,dataSource:d.body&&d.body.dataSource,idleHeartbeat:d.body&&d.body.idleHeartbeat,ordersMirror:d.body&&d.body.ordersMirror,mirror:d.body&&d.body.mirror}));
+            assert.equal(d.status,200,'D1 service gate blocked: '+JSON.stringify(d.body));
+            assert.equal(d.body.success,true);
+            const a=await authoritative();
+            const dk=(d.body.rows||[]).map(key).sort(),ak=(a.body.rows||[]).map(key).sort();
+            if(JSON.stringify(dk)!==JSON.stringify(ak)){console.log('T11V2_COUNTS='+JSON.stringify({d1:dk.length,apps:ak.length,d1Total:d.body.pagination&&d.body.pagination.totalRows,appsTotal:a.body.pagination&&a.body.pagination.totalRows}));console.log('T11V2_D1_SAMPLE='+JSON.stringify(dk.slice(0,8)));console.log('T11V2_APPS_SAMPLE='+JSON.stringify(ak.slice(0,8)));}
+            assert.deepEqual(dk,ak,'service screen-view identity parity mismatch');
+            assert.equal(Number(d.body.pagination&&d.body.pagination.totalRows),Number(a.body.pagination&&a.body.pagination.totalRows),'service totalRows mismatch');
+            console.log('T11V2_SERVICE_SCREEN_VIEW_PARITY=PASS rows='+dk.length+' d1Ms='+d.ms+' appsMs='+a.ms+' sessionMs='+s.ms+' mirror='+JSON.stringify(d.body.mirror||{}));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
