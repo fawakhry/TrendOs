@@ -1,0 +1,18 @@
+name: TrendOS T11 Service Sort Contract
+on:
+  push:
+    branches: [cloud-migration-v3-t6b-auth-shadow-canary-20260913]
+    paths: ['.github/workflows/cloud-migration-v3-t11-service-sort-contract.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract getRowsPageV1931 contract only
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '/^function getRowsPageV1931_\(e\)/{flag=1} flag{print} flag && /^}/{exit}' Code.gs
+          echo 'PRODUCTION_MUTATION=NO'
