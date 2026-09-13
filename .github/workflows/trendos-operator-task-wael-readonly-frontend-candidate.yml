@@ -1,0 +1,113 @@
+name: TrendOS Operator Task V2 Wael Readonly Frontend Candidate
+
+on:
+  push:
+    branches:
+      - operator-task-v2-production-activation-20260913
+    paths:
+      - 'operator-task-readonly-canary-v1.js'
+      - 'tests/operator_task_readonly_canary_v1.test.mjs'
+      - '.github/workflows/trendos-operator-task-wael-readonly-frontend-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-wael-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EXPECTED_PROD_MAIN: a16a474bf37ec96b7d1d55d2de5557d2d9cdc782
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Lock exact Production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_PROD_MAIN"
+          rm -rf /tmp/trendos-ot-wael-ro
+          git worktree add --detach /tmp/trendos-ot-wael-ro "$EXPECTED_PROD_MAIN"
+          cp operator-task-readonly-canary-v1.js /tmp/trendos-ot-wael-ro/operator-task-readonly-canary-v1.js
+
+      - name: Build exact Wael-only index patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/trendos-ot-wael-ro/index.html')
+          s=p.read_text(encoding='utf-8')
+          anchor='<script src="app.js?v=trendos-02cw-globalcounts-hotfix-20260906e"></script>'
+          block='''<script src="app.js?v=trendos-02cw-globalcounts-hotfix-20260906e"></script>\n<script>\nwindow.MATBAGY_OPERATOR_TASK_READONLY_CANARY_V1 = true;\nwindow.MATBAGY_OPERATOR_TASK_READONLY_CANARY_USERS = ['وائل'];\n</script>\n<script src="operator-task-readonly-canary-v1.js?v=20260913-wael-ro1"></script>'''
+          if anchor not in s:
+              raise SystemExit('APP_SCRIPT_ANCHOR_NOT_FOUND')
+          if 'operator-task-readonly-canary-v1.js' in s:
+              raise SystemExit('CANARY_ALREADY_PRESENT')
+          p.write_text(s.replace(anchor,block,1),encoding='utf-8')
+          PY
+
+      - name: Run readonly canary contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check /tmp/trendos-ot-wael-ro/operator-task-readonly-canary-v1.js
+          TRENDOS_TEST_ROOT=/tmp/trendos-ot-wael-ro node tests/operator_task_readonly_canary_v1.test.mjs
+          node --check operator-task-workflow-v2.js
+          node --test tests/operator_task_workflow_v2_contract.test.mjs
+          node --test tests/operator_task_gaber_material_ui_v1.test.mjs
+          echo 'WAEL_READONLY_CANARY_CONTRACTS=PASS'
+
+      - name: Assert exact bounded Production diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/trendos-ot-wael-ro
+          git add -N operator-task-readonly-canary-v1.js
+          git diff --check
+          mapfile -t files < <(git diff --name-only | sort)
+          printf 'CHANGED_FILES=%s\n' "${files[*]}"
+          test "${#files[@]}" -eq 2
+          printf '%s\n' "${files[@]}" | grep -qx 'index.html'
+          printf '%s\n' "${files[@]}" | grep -qx 'operator-task-readonly-canary-v1.js'
+          grep -Fq "window.MATBAGY_OPERATOR_TASK_READONLY_CANARY_USERS = ['وائل'];" index.html
+          ! grep -Fq "['وائل','جابر']" index.html
+          ! grep -Fq '/v1/operator/tasks/claim-next' operator-task-readonly-canary-v1.js
+          ! grep -Fq '/v1/operator/tasks/complete' operator-task-readonly-canary-v1.js
+          ! grep -Fq 'gaberMaterial' operator-task-readonly-canary-v1.js
+          echo 'WAEL_READONLY_PRODUCTION_SCOPE=PASS'
+
+      - name: Production safety baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROD_URL='https://trendos-d1-api.trendmall-contact.workers.dev'
+          curl --fail --silent --show-error "$PROD_URL/v1/edge/health" > /tmp/edge.json
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/write.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/write.json','utf8'));
+          if(!e.success||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('WAEL_READONLY_PRODUCTION_BASELINE=PASS');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'WAEL_READONLY_FRONTEND_CANDIDATE=PASS'
+          echo 'NO_CLAIM_NEXT=YES'
+          echo 'NO_COMPLETE_TASK=YES'
+          echo 'NO_GABER_FRONTEND_EXPOSURE=YES'
+          echo 'NO_GABER_MATERIAL_ENABLE=YES'
+          echo 'NO_EDGE_SESSION_SECRET_CHANGE=YES'
+          echo 'NO_D1_MIGRATION=YES'
+          echo 'NO_RP08=YES'
