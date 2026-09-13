@@ -22,6 +22,10 @@ function text(value) {
   return String(value == null ? '' : value).trim();
 }
 
+function enabledValue(value) {
+  return String(value || '').trim().toLowerCase() === 'true';
+}
+
 function clampInt(value, fallback, min, max) {
   const n = Number(value);
   return Number.isFinite(n) ? Math.max(min, Math.min(max, Math.trunc(n))) : fallback;
@@ -73,6 +77,12 @@ function screensForRole(roleValue) {
 
 function sessionTtlSeconds(env) {
   return clampInt(env.EDGE_SESSION_TTL_SECONDS, DEFAULT_TTL_SECONDS, 60, MAX_TTL_SECONDS);
+}
+
+function maybeShadowDiagnostic(env, verified) {
+  return enabledValue(env && env.TRENDOS_CLOUD_AUTH_SHADOW_DIAGNOSTIC_V1_ENABLED)
+    ? { authShadowDiagnostic: verified && verified.shadowDiagnostic ? verified.shadowDiagnostic : { lookup: 'unknown', store: 'unknown' } }
+    : {};
 }
 
 export function isCloudSessionBridgeV3Path(path) {
@@ -133,28 +143,32 @@ export async function verifyEmployeeSessionViaPost(username, employeeToken, env,
 }
 
 export async function verifyEmployeeSessionCloudFirst(username, employeeToken, env, lane = 'edge') {
-  if (cloudAuthShadowEnabled(env)) {
-    try {
-      const shadow = await lookupCloudAuthShadow(username, employeeToken, env);
-      if (shadow.hit) {
-        return { ok: true, body: shadow.body, authSource: 'd1-auth-shadow-v1' };
-      }
-    } catch (err) {
-      // Shadow lookup is non-authoritative. A lookup failure never authenticates;
-      // the qualified Apps Script POST verifier remains the secure fallback.
+  const shadowEnabled = cloudAuthShadowEnabled(env);
+  let lookupReason = shadowEnabled ? 'not-attempted' : 'disabled';
+  let storeReason = 'not-attempted';
+
+  if (shadowEnabled) {
+    const shadow = await lookupCloudAuthShadow(username, employeeToken, env);
+    lookupReason = text(shadow && shadow.reason) || (shadow && shadow.hit ? 'hit' : 'unknown');
+    if (shadow && shadow.hit) {
+      return {
+        ok: true,
+        body: shadow.body,
+        authSource: 'd1-auth-shadow-v1',
+        shadowDiagnostic: { lookup: 'hit', store: 'not-needed' }
+      };
     }
   }
 
   const upstream = await verifyEmployeeSessionViaPost(username, employeeToken, env, lane);
-  if (upstream.ok && cloudAuthShadowEnabled(env)) {
-    try {
-      await rememberCloudAuthShadow(username, employeeToken, upstream.body, env);
-    } catch (err) {
-      // Cache population is non-authoritative. Upstream verification remains valid
-      // if the D1 shadow write is temporarily unavailable.
-    }
+  if (upstream.ok && shadowEnabled) {
+    const remembered = await rememberCloudAuthShadow(username, employeeToken, upstream.body, env);
+    storeReason = text(remembered && remembered.reason) || (remembered && remembered.stored ? 'stored' : 'unknown');
   }
-  return upstream;
+  return {
+    ...upstream,
+    shadowDiagnostic: { lookup: lookupReason, store: storeReason }
+  };
 }
 
 async function parseCredentials(request) {
@@ -197,7 +211,8 @@ async function exchangeGeneralSession(request, env, cors) {
     expiresIn: ttl,
     user: { username: canonicalUsername },
     authSource: verified.authSource || 'apps-script-post',
-    sessionBridge: 'cloud-session-bridge-v3-post'
+    sessionBridge: 'cloud-session-bridge-v3-post',
+    ...maybeShadowDiagnostic(env, verified)
   }, 200, cors);
 }
 
@@ -228,7 +243,8 @@ async function exchangeOrdersSession(request, env, cors) {
     expiresAt: new Date((now + ttl) * 1000).toISOString(),
     user: { username: canonicalUsername, role, department, screens },
     authSource: verified.authSource || 'apps-script-post',
-    sessionBridge: 'cloud-session-bridge-v3-post'
+    sessionBridge: 'cloud-session-bridge-v3-post',
+    ...maybeShadowDiagnostic(env, verified)
   }, 200, cors);
 }
 
