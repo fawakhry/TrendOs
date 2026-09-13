@@ -1,0 +1,119 @@
+name: TrendOS Operator Task V2 Production Auth Status Readonly
+
+on:
+  push:
+    branches:
+      - operator-task-v2-production-activation-20260913
+    paths:
+      - '.github/workflows/trendos-operator-task-production-auth-status-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-operator-task-production-auth-status-readonly
+  cancel-in-progress: false
+
+jobs:
+  qualify-auth-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Hard read-only safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          echo 'AUTH_STATUS_READONLY_SAFETY_GATE=PASS'
+          echo 'NO_CLAIM_NEXT=YES'
+          echo 'NO_COMPLETE_TASK=YES'
+          echo 'NO_D1_MIGRATION=YES'
+          echo 'NO_SECRET_CHANGE=YES'
+
+      - name: Production core baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/edge/health" > /tmp/edge-health.json
+          curl --fail --silent --show-error "$PROD_URL/v1/cloud/write/health" > /tmp/cloud-write-health.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/edge-health.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/cloud-write-health.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!c.success||c.cutover!==false||c.sheetsAuthoritative!==true) process.exit(2);
+          console.log('PRODUCTION_CORE_BASELINE=PASS');
+          NODE
+
+      - name: Exchange existing employee credential for temporary Edge session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/edge/session',{
+              method:'POST',cache:'no-store',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,token})
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==200||body.success!==true||!body.edgeToken) throw new Error('EDGE_SESSION_EXCHANGE_FAILED status='+r.status+' code='+String(body.code||''));
+            fs.writeFileSync('/tmp/edge-token',String(body.edgeToken),{mode:0o600});
+            console.log('EDGE_SESSION_EXCHANGE=PASS');
+          })().catch(e=>{console.error(e.message||e);process.exit(1)});
+          NODE
+
+      - name: Authenticated Operator Task status GET only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.PROD_URL;
+          const token=fs.readFileSync('/tmp/edge-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/operator/tasks/status',{
+              method:'GET',cache:'no-store',
+              headers:{accept:'application/json',authorization:'Bearer '+token}
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==200||body.success!==true) throw new Error('AUTH_STATUS_FAILED status='+r.status+' code='+String(body.code||'')+' message='+String(body.message||''));
+            const safe={
+              success:true,
+              role:String(body.role||''),
+              department:String(body.department||''),
+              hasActiveTask:!!body.task,
+              availableCount:Number(body.availableCount||0),
+              exceptionCount:Number(body.exceptionCount||0),
+              materialControlEnabled:body.materialControlEnabled===true,
+              flyPrintCount:Array.isArray(body.flyPrint)?body.flyPrint.length:Number(body.flyPrintCount||0),
+              pressCandidateCount:Number(body.pressCandidateCount||0)
+            };
+            if(safe.materialControlEnabled) throw new Error('GABER_MATERIAL_CONTROL_UNEXPECTEDLY_ENABLED');
+            console.log('AUTHENTICATED_OPERATOR_TASK_STATUS=PASS');
+            console.log('SAFE_STATUS_SUMMARY='+JSON.stringify(safe));
+          })().catch(e=>{console.error(e.message||e);process.exit(1)});
+          NODE
+
+      - name: Safety conclusion
+        if: ${{ success() }}
+        run: |
+          rm -f /tmp/edge-token
+          echo 'PRODUCTION_AUTH_STATUS_READONLY=PASS'
+          echo 'NO_CLAIM_NEXT=YES'
+          echo 'NO_COMPLETE_TASK=YES'
+          echo 'NO_EDGE_SESSION_SECRET_CHANGE=YES'
+          echo 'NO_PROXY_SECRET_CHANGE=YES'
+          echo 'NO_GABER_MATERIAL_ENABLE=YES'
+          echo 'NO_D1_MIGRATION=YES'
+          echo 'NO_RP08=YES'
