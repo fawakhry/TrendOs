@@ -91,14 +91,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          code=''
-          for attempt in $(seq 1 10); do
+          ready='false'
+          for attempt in $(seq 1 12); do
             code="$(curl --silent --show-error --output /tmp/ot-health.json --write-out '%{http_code}' "$PREVIEW_URL/v1/edge/health" || true)"
-            cat /tmp/ot-health.json 2>/dev/null || true
-            if [ "$code" = '200' ]; then break; fi
+            body="$(cat /tmp/ot-health.json 2>/dev/null || true)"
+            echo "health attempt=$attempt status=$code body=$body"
+            if [ "$code" = '200' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/ot-health.json','utf8')); process.exit(x.success&&x.database&&x.authConfigured&&x.cutover===false?0:1)"; then
+              ready='true'
+              break
+            fi
             sleep 3
           done
-          test "$code" = '200'
+          test "$ready" = 'true'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/ot-health.json','utf8')); if(!x.success||!x.database||!x.authConfigured||x.cutover!==false) process.exit(1); console.log('EDGE_HEALTH=PASS')"
 
       - name: Verify Operator Task routes are default-OFF
