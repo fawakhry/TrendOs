@@ -1,0 +1,43 @@
+name: TrendOS T11 Service Lines Header Probe
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-lines-header-probe.yml'
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Print safe Lines header indexes only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=process.env.PROD_URL;
+          const name='بنود الأوردرات';
+          const r=await fetch(base+'/v1/mirror/sheet?name='+encodeURIComponent(name)+'&limit=1&offset=0',{headers:{accept:'application/json'},cache:'no-store'});
+          const raw=await r.text(); let b={}; try{b=JSON.parse(raw||'{}')}catch{}
+          if(r.status!==200||b.success!==true) throw new Error('mirror read failed HTTP '+r.status);
+          const s=b.sheet||{}; const h=Array.isArray(s.headers)?s.headers:[];
+          console.log('T11_LINES_HEADER_META='+JSON.stringify({count:h.length,syncedAt:s.syncedAt,sourceLastRow:s.sourceLastRow,sourceLastCol:s.sourceLastCol,status:s.status}));
+          h.forEach((x,i)=>console.log('HEADER['+(i+1)+']='+String(x==null?'':x)));
+          const wanted=['رقم الأوردر','Order ID','كود الأوردر','اسم الشات / المكتب','اسم العميل','Customer Name','القسم','Department','رقم البند','Line ID','اسم البند / نوع الشغل','اسم البند','Item Name','الكمية','Qty','مسؤول القسم','Assigned To','الأولوية','Priority','الحالة','Status','رقم العميل الخارجي','رقم العميل','رقم الهاتف','Phone'];
+          const normalized=v=>String(v==null?'':v).trim().replace(/\s+/g,' ');
+          const map={}; h.forEach((x,i)=>{const k=normalized(x);if(k)map[k]=i+1});
+          const resolved={}; for(const w of wanted) if(map[normalized(w)]) resolved[w]=map[normalized(w)];
+          console.log('T11_LINES_RESOLVED='+JSON.stringify(resolved));
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
