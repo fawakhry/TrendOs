@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_T7_PRINT_WAEL_CANARY_20260913';
+  var VERSION = 'EDGE_ORDERS_READ_T8_PRINT_GLOBAL_20260913';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SESSION_SKEW_MS = 30000;
@@ -314,13 +314,19 @@
   return !!username && allowed.indexOf(username) >= 0;
 }
 
+function edgeScreenAllowed(params) {
+  var allowed = Array.isArray(window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS)
+    ? window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS.map(function (value) { return text(value).toLowerCase(); })
+    : [];
+  if (!allowed.length) return true;
+  return allowed.indexOf(text(params && params.screen).toLowerCase()) >= 0;
+}
+
 function eligible(action, params) {
   if (action !== 'getRowsPageV1931') return false;
   if (text(params && params.statusFilter) === '__DEBT__') return false;
-  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true) {
-    if (!canaryUserAllowed()) return false;
-    if (text(params && params.screen).toLowerCase() !== 'print') return false;
-  }
+  if (!edgeScreenAllowed(params)) return false;
+  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true && !canaryUserAllowed()) return false;
   return true;
 }
 

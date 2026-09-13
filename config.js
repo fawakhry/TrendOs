@@ -13,8 +13,9 @@ window.MATBAGY_SECURE_API_PROXY_URL = "";
 // Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
 window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
-window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = true;
+window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = false;
 window.MATBAGY_EDGE_ORDERS_CANARY_USERS = ['وائل','wael'];
+window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print'];
 // 02CU: stale required D1 Orders mirrors fail open to authoritative Apps Script.
 window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
 
@@ -91,7 +92,7 @@ function trendLoadModuleV1932(id, src){
   (document.head || document.documentElement).appendChild(s);
 }
 
-trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260913-t7-wael1');
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260913-t8-print-global1');
 
 // 02CU resume guard: returning to the platform must not trigger legacy safeRefresh.
 window.MATBAGY_DISABLE_RETURN_AUTO_REFRESH_V1 = true;
