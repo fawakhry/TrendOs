@@ -94,20 +94,10 @@ jobs:
           curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
           node -e "const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/pre-edge.json'));const w=JSON.parse(fs.readFileSync('/tmp/pre-write.json'));if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured)process.exit(1);if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);console.log('T6B_FINAL_PREDEPLOY_BASELINE=PASS')"
 
-      - name: Fresh qualification login
-        shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs=require('fs');
-          (async()=>{const started=Date.now();const r=await fetch(process.env.APPS_SCRIPT_API_URL,{method:'POST',redirect:'follow',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username:String(process.env.QUALIFY_USERNAME||'').trim(),password:String(process.env.QUALIFY_PASSWORD||'')})});const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch{};const token=String(body&&body.user&&body.user.token||'').trim();if(r.status!==200||body.success!==true||!token)process.exit(1);console.log('::add-mask::'+token);fs.writeFileSync('/tmp/t6b-final-token',token,{mode:0o600});console.log('T6B_FINAL_LOGIN=PASS');console.log('T6B_FINAL_LOGIN_MS='+(Date.now()-started));})().catch(()=>process.exit(1));
-          NODE
-
       - name: Dry run and deploy final T6B Worker
         shell: bash
         run: |
           set -euo pipefail
-          test -s /tmp/t6b-final-token
           cd cloudflare-d1
           rm -rf /tmp/t6b-final-dry
           npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/t6b-final-dry
@@ -123,14 +113,40 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/health" > /tmp/post-write.json
           node -e "const fs=require('fs');const e=JSON.parse(fs.readFileSync('/tmp/post-edge.json'));const w=JSON.parse(fs.readFileSync('/tmp/post-write.json'));if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured)process.exit(1);if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true)process.exit(2);console.log('T6B_FINAL_POSTDEPLOY_BASELINE=PASS')"
 
-      - name: Prove Apps Script miss then D1 hits
+      - name: Fresh login immediately followed by Apps Script miss and D1 hits
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
-          const fs=require('fs');const base=String(process.env.PROD_URL).replace(/\/$/,'');const username=String(process.env.QUALIFY_USERNAME||'').trim();const token=fs.readFileSync('/tmp/t6b-final-token','utf8').trim();
-          async function call(path,source,max){const t=Date.now();const r=await fetch(base+path,{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});const ms=Date.now()-t;const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{};console.log('T6B_FINAL_SESSION='+JSON.stringify({path,status:r.status,ms,success:b.success===true,authSource:String(b.authSource||''),bridge:String(b.sessionBridge||'')}));if(r.status!==200||b.success!==true||!b.edgeToken||b.authSource!==source||b.sessionBridge!=='cloud-session-bridge-v3-post'||ms>=max)throw new Error('qualification failed '+path+' source='+String(b.authSource||''));return ms}
-          (async()=>{const miss=await call('/v1/edge/session','apps-script-post',15000);const hit=await call('/v1/edge/session','d1-auth-shadow-v1',5000);const orders=await call('/v1/edge/orders/session','d1-auth-shadow-v1',5000);console.log('T6B_FINAL_AUTH_SHADOW=PASS');console.log('T6B_FINAL_MISS_MS='+miss);console.log('T6B_FINAL_HIT_MS='+hit);console.log('T6B_FINAL_ORDERS_HIT_MS='+orders)})().catch(e=>{console.error(e.message||e);process.exit(1)});
+          const base=String(process.env.PROD_URL).replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          async function edgeCall(path,token,source,max){
+            const t=Date.now();
+            const r=await fetch(base+path,{method:'POST',cache:'no-store',credentials:'omit',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});
+            const ms=Date.now()-t; const raw=await r.text(); let b={}; try{b=JSON.parse(raw||'{}')}catch{}
+            console.log('T6B_FINAL_SESSION='+JSON.stringify({path,status:r.status,ms,success:b.success===true,authSource:String(b.authSource||''),bridge:String(b.sessionBridge||'')}));
+            if(r.status!==200||b.success!==true||!b.edgeToken||b.authSource!==source||b.sessionBridge!=='cloud-session-bridge-v3-post'||ms>=max) throw new Error('qualification failed '+path+' source='+String(b.authSource||''));
+            return ms;
+          }
+          (async()=>{
+            const loginStarted=Date.now();
+            const lr=await fetch(process.env.APPS_SCRIPT_API_URL,{method:'POST',redirect:'follow',cache:'no-store',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});
+            const loginRaw=await lr.text(); let loginBody={}; try{loginBody=JSON.parse(loginRaw||'{}')}catch{}
+            const token=String(loginBody&&loginBody.user&&loginBody.user.token||'').trim();
+            if(lr.status!==200||loginBody.success!==true||!token) throw new Error('fresh login failed');
+            console.log('::add-mask::'+token);
+            console.log('T6B_FINAL_LOGIN=PASS');
+            console.log('T6B_FINAL_LOGIN_MS='+(Date.now()-loginStarted));
+            const miss=await edgeCall('/v1/edge/session',token,'apps-script-post',15000);
+            const hit=await edgeCall('/v1/edge/session',token,'d1-auth-shadow-v1',5000);
+            const orders=await edgeCall('/v1/edge/orders/session',token,'d1-auth-shadow-v1',5000);
+            console.log('T6B_FINAL_AUTH_SHADOW=PASS');
+            console.log('T6B_FINAL_MISS_MS='+miss);
+            console.log('T6B_FINAL_HIT_MS='+hit);
+            console.log('T6B_FINAL_ORDERS_HIT_MS='+orders);
+            console.log('T6B_QUALIFICATION_TOKEN_PERSISTED=NO');
+          })().catch(e=>{console.error(e.message||e);process.exit(1)});
           NODE
 
       - name: Verify D1 row safety and Task boundary
@@ -154,10 +170,6 @@ jobs:
           cd cloudflare-d1
           npx --yes wrangler@${WRANGLER_VERSION} rollback --config wrangler.toml --message "Rollback final T6B Auth Shadow qualification failure"
           echo 'T6B_FINAL_ROLLBACK_ATTEMPTED=YES'
-
-      - name: Cleanup qualification token
-        if: ${{ always() }}
-        run: rm -f /tmp/t6b-final-token
 
       - name: Final T6B conclusion
         if: ${{ success() }}
