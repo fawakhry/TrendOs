@@ -78,22 +78,34 @@ export async function lookupCloudAuthShadow(username, employeeToken, env, nowMs 
 
   const key = usernameKey(username);
   if (!key || !text(employeeToken)) return { hit: false, reason: 'credentials-missing' };
-  const fingerprint = await cloudAuthTokenFingerprint(username, employeeToken, env);
-  const row = await env.DB.prepare(`
-    SELECT canonical_username AS canonicalUsername,
-           role,
-           department,
-           screens_json AS screensJson,
-           verified_at_ms AS verifiedAtMs,
-           expires_at_ms AS expiresAtMs,
-           source
-      FROM cloud_auth_sessions_v1
-     WHERE username_key = ?
-       AND token_fingerprint = ?
-       AND revoked_at_ms IS NULL
-       AND expires_at_ms > ?
-     LIMIT 1
-  `).bind(key, fingerprint, Number(nowMs)).first();
+
+  let fingerprint = '';
+  try {
+    fingerprint = await cloudAuthTokenFingerprint(username, employeeToken, env);
+  } catch (err) {
+    return { hit: false, reason: 'fingerprint-error' };
+  }
+
+  let row = null;
+  try {
+    row = await env.DB.prepare(`
+      SELECT canonical_username AS canonicalUsername,
+             role,
+             department,
+             screens_json AS screensJson,
+             verified_at_ms AS verifiedAtMs,
+             expires_at_ms AS expiresAtMs,
+             source
+        FROM cloud_auth_sessions_v1
+       WHERE username_key = ?
+         AND token_fingerprint = ?
+         AND revoked_at_ms IS NULL
+         AND expires_at_ms > ?
+       LIMIT 1
+    `).bind(key, fingerprint, Number(nowMs)).first();
+  } catch (err) {
+    return { hit: false, reason: 'db-read-error' };
+  }
 
   if (!row) return { hit: false, reason: 'miss' };
   let screens = [];
@@ -102,6 +114,7 @@ export async function lookupCloudAuthShadow(username, employeeToken, env, nowMs 
 
   return {
     hit: true,
+    reason: 'hit',
     fingerprint,
     body: {
       success: true,
@@ -126,48 +139,59 @@ export async function rememberCloudAuthShadow(username, employeeToken, verifiedB
 
   const claims = verifiedClaims(username, verifiedBody);
   if (!claims.usernameKey || !claims.canonicalUsername) return { stored: false, reason: 'claims-missing' };
-  const fingerprint = await cloudAuthTokenFingerprint(username, employeeToken, env);
+
+  let fingerprint = '';
+  try {
+    fingerprint = await cloudAuthTokenFingerprint(username, employeeToken, env);
+  } catch (err) {
+    return { stored: false, reason: 'fingerprint-error' };
+  }
+
   const expiresAtMs = Number(nowMs) + ttlSeconds(env) * 1000;
+  try {
+    const result = await env.DB.prepare(`
+      INSERT INTO cloud_auth_sessions_v1 (
+        username_key,
+        token_fingerprint,
+        canonical_username,
+        role,
+        department,
+        screens_json,
+        verified_at_ms,
+        expires_at_ms,
+        last_seen_at_ms,
+        revoked_at_ms,
+        source,
+        schema_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'apps-script-post', 1)
+      ON CONFLICT(username_key, token_fingerprint) DO UPDATE SET
+        canonical_username = excluded.canonical_username,
+        role = excluded.role,
+        department = excluded.department,
+        screens_json = excluded.screens_json,
+        verified_at_ms = excluded.verified_at_ms,
+        expires_at_ms = excluded.expires_at_ms,
+        last_seen_at_ms = excluded.last_seen_at_ms,
+        revoked_at_ms = NULL,
+        source = excluded.source,
+        schema_version = excluded.schema_version
+    `).bind(
+      claims.usernameKey,
+      fingerprint,
+      claims.canonicalUsername,
+      claims.role,
+      claims.department,
+      JSON.stringify(claims.screens),
+      Number(nowMs),
+      expiresAtMs,
+      Number(nowMs)
+    ).run();
+    if (result && result.success === false) return { stored: false, reason: 'db-write-unsuccessful' };
+  } catch (err) {
+    return { stored: false, reason: 'db-write-error' };
+  }
 
-  await env.DB.prepare(`
-    INSERT INTO cloud_auth_sessions_v1 (
-      username_key,
-      token_fingerprint,
-      canonical_username,
-      role,
-      department,
-      screens_json,
-      verified_at_ms,
-      expires_at_ms,
-      last_seen_at_ms,
-      revoked_at_ms,
-      source,
-      schema_version
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'apps-script-post', 1)
-    ON CONFLICT(username_key, token_fingerprint) DO UPDATE SET
-      canonical_username = excluded.canonical_username,
-      role = excluded.role,
-      department = excluded.department,
-      screens_json = excluded.screens_json,
-      verified_at_ms = excluded.verified_at_ms,
-      expires_at_ms = excluded.expires_at_ms,
-      last_seen_at_ms = excluded.last_seen_at_ms,
-      revoked_at_ms = NULL,
-      source = excluded.source,
-      schema_version = excluded.schema_version
-  `).bind(
-    claims.usernameKey,
-    fingerprint,
-    claims.canonicalUsername,
-    claims.role,
-    claims.department,
-    JSON.stringify(claims.screens),
-    Number(nowMs),
-    expiresAtMs,
-    Number(nowMs)
-  ).run();
-
-  return { stored: true, fingerprint, expiresAtMs };
+  return { stored: true, reason: 'stored', fingerprint, expiresAtMs };
 }
 
 export async function touchCloudAuthShadow(username, employeeToken, env, nowMs = Date.now()) {
