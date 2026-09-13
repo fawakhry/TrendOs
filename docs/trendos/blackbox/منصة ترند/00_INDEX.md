@@ -17,17 +17,48 @@ Canonical production identity:
 - Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
 - Bound Apps Script Project ID: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`
 - Repository: `fawakhry/TrendOs`
-- Working branch: `agent/go-live-2026-09-01-integrity`
 
 Do not substitute BACKUP/STAGING workbooks. The workbook tab `سكريبت Apps Script` is not live Head authority.
 
-## CURRENT CHECKPOINT — RP-07 CLOSED / PASS — 2026-09-13
+## CURRENT CHECKPOINT — T6B CLOUD AUTH SHADOW PASS — 2026-09-13
 
 Status:
 
-**RP-07 PASS / CLOSED — FINAL PRODUCTION HEALTH GATE = ZERO CORE P0 BLOCKERS — NEXT TRACK OPERATOR TASK V2**
+**T6B PASS / RETAINED IN PRODUCTION — D1 AUTH SHADOW ENABLED — FRONTEND EDGE ORDERS READ STILL OFF — SHEETS WRITE AUTHORITY UNCHANGED**
 
 Newest authoritative record:
+
+`TRENDOS_BLACKBOX_2026-09-13_T6B_CLOUD_AUTH_SHADOW_CANARY_PASS.md`
+
+Final production evidence:
+
+- workflow run `34768601492` — SUCCESS
+- job `103753950827`
+- Worker Version ID `3b819fd3-e73d-46f8-9150-f73c282706ab`
+- Apps Script verification miss: `4105 ms`
+- D1 auth-shadow hit: `129 ms`
+- Orders-session D1 auth-shadow hit: `122 ms`
+- auth-shadow TTL: `300 s`
+- raw employee token stored in D1: NO
+
+Retained boundary after T6B:
+
+- Sheets / Apps Script remain authoritative for business writes;
+- frontend `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED` remains false;
+- no Task mutation/authority rollout;
+- no Gaber Material Control rollout;
+- no secret rotation/change;
+- no Apps Script production deploy by T6B.
+
+Immediate next controlled stage:
+
+**read-only Cloud/D1 Orders parity + freshness + latency qualification while the frontend flag stays OFF.**
+
+A later user-visible frontend Orders cutover is a separate decision boundary.
+
+## RP-07 — CLOSED / PASS
+
+Authoritative closure record:
 
 `TRENDOS_BLACKBOX_2026-09-13_RP07_FINAL_HEALTH_PASS_CLOSED.md`
 
@@ -35,28 +66,8 @@ Final production health result:
 
 - `OPEN_CORE_P0_BLOCKERS = 0`
 - `Status = PASS`
-- `Last Updated = 9/12/2026 18:21:09`
-- `IDs JSON = []`
-- `derivedFrom = []`
-- temporary `RP07_TEMP_RUN` file removed after the one-shot health rebuild: YES.
-
-Final P0 health metrics are PASS:
-
-- `ACTIVE_DUPLICATE_LINE_IDS = 0`
-- `INVALID_LINE_IDS = 0`
-- `DUPLICATE_ATTENDANCE_SESSIONS = 0`
-- `DUPLICATE_CLEANING_RECORDS = 0`
-- `DUPLICATE_INVOICE_DRAFTS = 0`
-- `CLOSED_ORDERS_WITH_DRAFT = 0`
-- `PRESS_COMPLETED_WITHOUT_SESSION = 0`
-- `AUTOMATION_LAST_ERROR = 0`
-
-RP-07 closure does not itself change the retained Phase 2 safety baseline:
-
-- all nine Integrity flags remain semantically OFF unless separately authorized;
-- no RP-07 production deployment/version/trigger is retained;
-- standalone `v1932-router.gs` remains prohibited live;
-- no D1 write authority or Cloudflare authority cutover is implied by closure.
+- all eight final P0 health metrics PASS
+- temporary `RP07_TEMP_RUN` removed after the one-shot health rebuild.
 
 Supporting RP-07 records:
 
@@ -68,15 +79,15 @@ Supporting RP-07 records:
 - `TRENDOS_BLACKBOX_2026-09-10_RP07_RUNTIME_DEPLOYMENT_BOUNDARY.md`
 - `TRENDOS_BLACKBOX_2026-09-11_RP07_RUNTIME_PHASE0B_READONLY_PASS.md`
 
-## Operator Task Workflow V2
+## Operator Task track
 
-Status: **IMMEDIATE NEXT PRODUCTION TRACK — DESIGN/PREP + GITHUB CANDIDATE EXIST — RUNTIME/DEPLOYMENT/AUTHORITY CHANGE NOT YET IMPLIED BY RP-07 CLOSURE**
+Status: **ISOLATED DESIGN/PREP ONLY — PRODUCTION TASK MUTATIONS OFF**
 
-Owner-locked roadmap order:
+Old Operator Task V2 must not be reintroduced into the main Apps Script hot path. Any continuation uses its own controlled isolation boundary.
 
-`Operator Task V2 -> Department Invoice + Material Shadow/Parity (Gaber LASER + Wael PRINT) -> Laser + Print Accounting Control -> RP-08`
+Owner-locked business roadmap remains:
 
-Operator Task V2 may now proceed under its own controlled boundary because RP-07 is CLOSED/PASS.
+`Operator Task -> Department Invoice + Material Shadow/Parity (Gaber LASER + Wael PRINT) -> Laser + Print Accounting Control -> RP-08`
 
 ## RP-06
 
@@ -89,15 +100,15 @@ Final record:
 ## Shared safety invariants
 
 - Sheets / Apps Script authoritative for business writes until an explicitly approved authority cutover.
-- eligible Orders reads D1-first with Apps Script fallback.
+- frontend Edge Orders Read remains OFF until qualification plus a separate cutover decision.
 - `__DEBT__` remains Apps Script.
 - 02CL / reconcile OFF.
 - generic drain OFF.
 - no `EDGE_SESSION_SECRET` rotation/change.
-- no Production deploy without separate approval.
+- no Apps Script Production deploy without separate approval.
 - no Integrity flag mutation without a separate approved boundary.
 - standalone `v1932-router.gs` must not be added live.
-- Operator Task D1 write authority remains OFF/not authorized until its own boundary approves it.
-- Department Invoice + Material Shadow/Parity follows Operator Task V2.
+- Operator Task D1 write authority remains OFF/not authorized.
+- Department Invoice + Material Shadow/Parity follows Operator Task.
 - Laser + Print Accounting Control follows that track before RP-08.
 - RP-08 not started.
