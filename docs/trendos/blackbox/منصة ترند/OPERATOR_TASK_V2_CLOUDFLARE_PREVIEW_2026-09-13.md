@@ -386,3 +386,102 @@ Safety boundary remains unchanged:
 - Do not grant D1 Task write authority or run D1 migrations.
 - Do not execute Production `claimNext` or `completeTask` yet.
 - Do not start RP-08.
+
+## 2026-09-13 Operator Task V2 problem summary — REVIEW ONLY / NO REMEDIATION
+
+This section records the current problem summary requested by the owner before any repair, deployment, or Production mutation. It is a diagnostic checkpoint only.
+
+### Confirmed blockers / observed problems
+
+1. **Authenticated Edge session is currently a P0 blocker for Operator Task qualification.**
+   - `POST /v1/edge/session` repeatedly returned HTTP `502` after approximately 15–16 seconds.
+   - This occurs before authenticated `GET /v1/operator/tasks/status` can be executed.
+   - The timing matches the existing 15-second Apps Script verification timeout closely.
+
+2. **`getRowsPageV1931` is a confirmed major latency source in the Apps Script/Sheets lane.**
+   - A direct read-only Apps Script probe exceeded a 30-second fetch timeout.
+   - With a longer timeout the request eventually reached the Apps Script response.
+   - This proves the underlying Google/Apps Script read path is slow independently of the Edge-session penalty.
+   - It is not yet proven to be the sole root cause of every observed `502` or `404`.
+
+3. **Google Apps Script / Sheets remains in the synchronous hot path.**
+   - The Cloudflare Operator Task route is deployed and Edge-enabled, but authenticated operation still depends on Apps Script session verification and the Apps Script task backend.
+   - Therefore Cloudflare currently does not eliminate Google latency from the request path.
+
+4. **`claimNext` has not yet received a real Production mutation qualification.**
+   - No Production `claimNext` has been executed during the recorded activation/diagnostic sequence.
+   - Therefore real-data end-to-end claim behavior is still unproven.
+
+5. **`completeTask` has not yet received a real Production mutation qualification.**
+   - No Production `completeTask` has been executed during the recorded activation/diagnostic sequence.
+   - Therefore real-data end-to-end completion behavior and all associated side effects remain unproven.
+
+6. **`operatorTaskEdgeProxyV2` still proxies the operational task request to Apps Script.**
+   - The Worker route exists and the Edge flag is active, but Apps Script remains the operational backend authority for Operator Task V2 at this checkpoint.
+   - No D1 Task write authority has been granted.
+
+7. **Session and Task availability are tightly coupled.**
+   - A failure or timeout in employee/session verification prevents access to the Task API even when the Operator Task route itself is healthy and enabled.
+
+### Required hardening risks before calling the Task system Production-ready
+
+The following are design risks that must be explicitly verified or closed in code/tests; they are not being recorded here as already observed Production data-corruption incidents:
+
+1. **Atomic claim / race protection.**
+   - `claimNext` must guarantee that two concurrent employees cannot successfully claim the same task.
+   - The target invariant is a conditional atomic state transition such as `AVAILABLE -> CLAIMED`, including claimant and claim timestamp/version checks.
+
+2. **Idempotent completion.**
+   - `completeTask` must tolerate browser/network retries without applying completion or downstream business effects twice.
+   - A stable operation/idempotency key should protect repeated requests.
+
+3. **Partial-failure consistency.**
+   - Task state, audit/event recording, and any business-side effect must not be left mutually inconsistent if one step succeeds and another fails.
+
+4. **Timeout/retry safety.**
+   - A `502` or timeout must not cause the frontend to blindly retry a mutation whose server-side result is unknown.
+   - Mutation responses and retries need a deterministic operation identity/state lookup.
+
+5. **Google lock/row dependency is not a scalable final authority model.**
+   - As task/order volume grows, synchronous Sheet scans, range access, and Apps Script locking will reintroduce latency and contention.
+
+### Current architectural assessment
+
+Current effective path:
+
+`TrendOS -> Cloudflare Worker -> Edge session / operatorTaskEdgeProxyV2 -> Apps Script -> Google Sheets / operatorTaskV2 -> task result`
+
+Therefore the presence of a Cloudflare Edge route does **not** yet mean the task engine is Cloud-native. Google remains in the critical request path and can still block the user-facing request.
+
+### Safe repair direction recorded for later implementation
+
+The intended hardened Task core, before any decision to publish, should be evaluated against this target shape:
+
+`Fast session validation -> Task Service -> atomic claim -> idempotent complete -> durable audit/event log`
+
+Additionally, heavyweight generic row reads such as `getRowsPageV1931` should not be a prerequisite for claiming or completing an Operator Task.
+
+If/when Task authority is later moved to Cloudflare/D1, the target operational path should become:
+
+`TrendOS -> Cloudflare Task Service -> D1 -> response`
+
+with Google Sheets retained only as an asynchronous mirror/reporting/admin surface rather than a synchronous dependency. This is a future migration direction, not an authority change at this checkpoint.
+
+### Production readiness decision at this checkpoint
+
+**Operator Task V2 is not yet classified as Production-ready.**
+
+The principal immediate blocker is the authenticated Edge session `502` / 15-second Apps Script verification boundary. The principal confirmed performance issue is the slow Apps Script `getRowsPageV1931` path. The principal architectural limitation is continued synchronous dependency on Apps Script/Google Sheets.
+
+No remediation was applied by this documentation update.
+
+Safety state remains unchanged:
+
+- No code repair was deployed.
+- No Worker or Apps Script deployment was changed.
+- No Script Property or trigger was changed.
+- No Business Data was changed.
+- No Production `claimNext` or `completeTask` was executed.
+- `EDGE_SESSION_SECRET` was not changed or rotated.
+- `TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED` was not changed.
+- No D1 Task write authority or D1 migration was introduced.
