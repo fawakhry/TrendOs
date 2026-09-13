@@ -1,0 +1,67 @@
+name: TrendOS T11 Service Exclusion Rule
+
+on:
+  push:
+    branches: [cloud-migration-v3-t6b-auth-shadow-canary-20260913]
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-exclusion-rule.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Derive operational exclusion rule without exposing business identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const norm=v=>text(v).replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();
+          const assert=(c,m)=>{if(!c)throw new Error(m||'assertion failed')};
+          async function req(url,opt={}){const c=new AbortController();const timer=setTimeout(()=>c.abort(),45000);try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}finally{clearTimeout(timer)}}
+          async function authoritative(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a.body;await new Promise(r=>setTimeout(r,350));}throw new Error('authoritative Service read unavailable')}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert(r.status===200&&r.body?.success===true,'Orders mirror unavailable');return r.body.sheet||{}}
+          const [a,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+          const headers=Array.isArray(m0.headers)?m0.headers:[], rows=[...(m0.rows||[]),...(m1.rows||[])];
+          const data=rows.filter(r=>Number(r?.rowNumber||0)>1).map(r=>Array.isArray(r.display)&&r.display.length?r.display:(r.values||[]));
+          const h={};headers.forEach((x,i)=>{h[text(x)]=i});
+          const orderCol=Number.isInteger(h['رقم الأوردر'])?h['رقم الأوردر']:0;
+          const codeCol=Number.isInteger(h['كود الأوردر'])?h['كود الأوردر']:1;
+          const statusCol=Number.isInteger(h['الحالة العامة'])?h['الحالة العامة']:11;
+          const liveIds=new Set();
+          for(const r of (a.rows||[])){const id=text(r?.orderId||r?.orderCode);if(id)liveIds.add(id)}
+          const requestNew=data.filter(r=>norm(r[statusCol])===norm('طلب جديد'));
+          const included=requestNew.filter(r=>liveIds.has(text(r[orderCol])||text(r[codeCol])));
+          const excluded=requestNew.filter(r=>!liveIds.has(text(r[orderCol])||text(r[codeCol])));
+          assert(included.length===26,'expected 26 included طلب جديد, got '+included.length);
+          assert(excluded.length===9,'expected 9 excluded طلب جديد, got '+excluded.length);
+          const safeHeader=/نوع العميل|القسم|أولوية|حالة|عدد البنود|بنود جاهزة|بنود غير جاهزة|تسليم|كيان|تنفيذ|مصدر|مرحلة|طباعة|مكبس|ليزر|جاهز|مؤجل|استلام|تصميم|تشغيل|فرع/i;
+          const denyHeader=/اسم|رقم العميل|هاتف|موبايل|واتس|عنوان|ملاحظ|وصف|شات|مكتب|كود الأوردر|رقم الأوردر|رابط|ملف/i;
+          const cols=[];
+          headers.forEach((name,i)=>{const hn=text(name);if(safeHeader.test(hn)&&!denyHeader.test(hn))cols.push({i,name:hn})});
+          function dist(set,col){const out={};for(const r of set){const v=text(r[col])||'(blank)';out[v]=(out[v]||0)+1}return out}
+          function pureSplit(a,b){const ka=new Set(Object.keys(a)), kb=new Set(Object.keys(b));let overlap=0;for(const x of ka)if(kb.has(x))overlap++;return overlap===0}
+          const summaries=[];
+          for(const c of cols){const inc=dist(included,c.i), exc=dist(excluded,c.i);const vals=new Set([...Object.keys(inc),...Object.keys(exc)]);if(vals.size>12)continue;summaries.push({column:c.i+1,header:c.name,included:inc,excluded:exc,pureSplit:pureSplit(inc,exc)})}
+          summaries.sort((a,b)=>(b.pureSplit?1:0)-(a.pureSplit?1:0)||Object.keys(a.included).length+Object.keys(a.excluded).length-(Object.keys(b.included).length+Object.keys(b.excluded).length));
+          console.log('T11_SERVICE_EXCLUSION_META='+JSON.stringify({activeRows:(a.rows||[]).length,requestNew:requestNew.length,included:included.length,excluded:excluded.length,mirrorSyncedAt:m0.syncedAt}));
+          console.log('T11_SERVICE_EXCLUSION_OPERATIONAL_DISTS='+JSON.stringify(summaries));
+          console.log('BUSINESS_IDENTITIES_EXPOSED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
