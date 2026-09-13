@@ -1,0 +1,65 @@
+name: TrendOS T11 Service Orders Identity Map
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-orders-identity-map.yml'
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+  QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+  QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Map deployed Service contract to Orders by identity safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const digits=v=>text(v).replace(/\D/g,'');
+          const assert=(c,m)=>{if(!c)throw new Error(m||'assertion failed')};
+          async function req(url,opt={}){const t=Date.now();const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),45000);try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:ctrl.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
+          async function authoritative(){for(let n=1;n<=3;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a;await new Promise(r=>setTimeout(r,350));}throw new Error('authoritative Service read unavailable');}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert(r.status===200,'mirror HTTP '+r.status);assert(r.body?.success===true,'mirror success false');return r.body.sheet||{};}
+          const [a,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+          const headers=Array.isArray(m0.headers)?m0.headers:[], src=[...(m0.rows||[]),...(m1.rows||[])];
+          const rows=src.filter(r=>Number(r?.rowNumber||0)>1).map(r=>({d:Array.isArray(r.display)&&r.display.length?r.display:(r.values||[])}));
+          const idxByIdentity=new Map();
+          for(const r of rows){for(const c of [0,1]){const v=text(r.d[c]);if(!v)continue;if(!idxByIdentity.has(v))idxByIdentity.set(v,[]);idxByIdentity.get(v).push(r);}}
+          const appsRows=Array.isArray(a.body?.rows)?a.body.rows:[];
+          const responseFields=appsRows.length?Object.keys(appsRows[0]).sort():[];
+          const fields=['orderId','orderCode','lineId','customerPhone','customer','department','itemName','qty','assignedTo','priority','status','ready','heatPress','flyPrint','createdAt','updatedAt','notes'];
+          const exact={};const digit={};fields.forEach(f=>{exact[f]=new Array(headers.length).fill(0);digit[f]=new Array(headers.length).fill(0)});
+          let mapped=0,ambiguous=0,unmapped=0;
+          const includedSourceRows=new Set();
+          for(const ar of appsRows){const ids=[text(ar?.orderId),text(ar?.orderCode)].filter(Boolean);let candidates=[];for(const id of ids){const hit=idxByIdentity.get(id)||[];for(const r of hit)if(!candidates.includes(r))candidates.push(r);}if(!candidates.length){unmapped++;continue;}if(candidates.length>1)ambiguous++;const r=candidates[0];mapped++;includedSourceRows.add(r);const d=r.d;for(const f of fields){const v=text(ar?.[f]);if(!v)continue;const vd=digits(v);for(let c=0;c<headers.length;c++){const sv=text(d[c]);if(sv===v)exact[f][c]++;if(vd&&digits(sv)===vd)digit[f][c]++;}}}
+          const summary={};for(const f of fields){const arr=[];for(let c=0;c<headers.length;c++){if(exact[f][c]||digit[f][c])arr.push({column:c+1,header:text(headers[c]),exact:exact[f][c],digits:digit[f][c]});}arr.sort((x,y)=>y.exact-x.exact||y.digits-x.digits||x.column-y.column);summary[f]=arr.slice(0,5);}
+          const countBy=(items,col)=>{const o={};for(const r of items){const k=text(r.d[col])||'(blank)';o[k]=(o[k]||0)+1;}return o};
+          const nonblankOrders=rows.filter(r=>text(r.d[0])||text(r.d[1]));
+          const included=nonblankOrders.filter(r=>includedSourceRows.has(r));
+          const excluded=nonblankOrders.filter(r=>!includedSourceRows.has(r));
+          console.log('T11_SERVICE_RESPONSE_FIELDS='+JSON.stringify(responseFields));
+          console.log('T11_SERVICE_IDENTITY_META='+JSON.stringify({appsRows:appsRows.length,mapped,ambiguous,unmapped,ordersRows:nonblankOrders.length,mirrorSyncedAt:m0.syncedAt,appsMs:a.ms}));
+          console.log('T11_SERVICE_ORDERS_FIELD_MAP='+JSON.stringify(summary));
+          console.log('T11_SERVICE_INCLUDED_STATUS_COUNTS='+JSON.stringify(countBy(included,11)));
+          console.log('T11_SERVICE_EXCLUDED_STATUS_COUNTS='+JSON.stringify(countBy(excluded,11)));
+          console.log('T11_SERVICE_INCLUDED_PRIORITY_COUNTS='+JSON.stringify(countBy(included,10)));
+          console.log('BUSINESS_VALUES_EXPOSED=NO');
+          console.log('PRODUCTION_BUSINESS_MUTATION=NO');
+          NODE
