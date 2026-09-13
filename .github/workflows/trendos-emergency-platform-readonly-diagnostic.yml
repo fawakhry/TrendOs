@@ -1,0 +1,78 @@
+name: TrendOS Emergency Platform Readonly Diagnostic
+
+on:
+  push:
+    branches:
+      - operator-task-v2-production-activation-20260913
+    paths:
+      - .github/workflows/trendos-emergency-platform-readonly-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+    steps:
+      - name: Probe production POST routes read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          node <<'NODE'
+          const base=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=String(process.env.QUALIFY_EMPLOYEE_TOKEN||'').trim();
+
+          async function probe(name, payload, timeoutMs){
+            const controller=new AbortController();
+            const timer=setTimeout(()=>controller.abort(), timeoutMs);
+            const start=Date.now();
+            try {
+              const r=await fetch(base,{
+                method:'POST',
+                headers:{'content-type':'text/plain;charset=utf-8','accept':'application/json'},
+                body:JSON.stringify(Object.assign({_ts:Date.now()},payload)),
+                redirect:'follow',
+                signal:controller.signal
+              });
+              const elapsed=Date.now()-start;
+              const raw=await r.text();
+              let body={}; try{ body=JSON.parse(raw||'{}'); }catch{}
+              console.log(`${name}_HTTP_STATUS=${r.status}`);
+              console.log(`${name}_ELAPSED_MS=${elapsed}`);
+              console.log(`${name}_SUCCESS=${body&&body.success===true?'YES':'NO'}`);
+              console.log(`${name}_MESSAGE=${String(body&&body.message||'').slice(0,160)}`);
+              console.log(`${name}_JSON=${raw && raw.trim().startsWith('{') ? 'YES':'NO'}`);
+              return {name,status:r.status,elapsed,success:body&&body.success===true,message:String(body&&body.message||'')};
+            } catch(e) {
+              const elapsed=Date.now()-start;
+              console.log(`${name}_ERROR=${e&&e.name||'Error'}:${e&&e.message||e}`);
+              console.log(`${name}_ELAPSED_MS=${elapsed}`);
+              return {name,status:0,elapsed,success:false,error:String(e&&e.name||'Error')};
+            } finally { clearTimeout(timer); }
+          }
+
+          (async()=>{
+            const results=[];
+            results.push(await probe('POST_PING',{action:'ping'},20000));
+            results.push(await probe('POST_VERIFY_EMPLOYEE_SESSION',{action:'verifyEmployeeSession',username,token,_edge:'1'},45000));
+            results.push(await probe('POST_GET_ROWS_PAGE_V1931',{action:'getRowsPageV1931',username,token,screen:'print',page:1,pageSize:5,statusFilter:'__ACTIVE__'},70000));
+            console.log('NO_BUSINESS_MUTATION=YES');
+            console.log('NO_SECRET_CHANGE=YES');
+            console.log('NO_CLAIM_COMPLETE=YES');
+            const ping=results[0], verify=results[1], rows=results[2];
+            if(ping.status===404) console.log('DIAGNOSIS=WEB_APP_POST_DEPLOYMENT_404');
+            else if(verify.status===404 && rows.status!==404) console.log('DIAGNOSIS=VERIFY_EMPLOYEE_SESSION_ROUTE_404');
+            else if(rows.status===404) console.log('DIAGNOSIS=GET_ROWS_PAGE_V1931_ROUTE_404');
+            else if(rows.status===0 || rows.elapsed>30000) console.log('DIAGNOSIS=GET_ROWS_PAGE_V1931_SLOW_OR_TIMEOUT');
+            else console.log('DIAGNOSIS=POST_ROUTES_RESPONDING');
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
