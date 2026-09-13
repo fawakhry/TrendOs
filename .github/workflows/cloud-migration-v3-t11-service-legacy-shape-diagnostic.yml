@@ -1,0 +1,39 @@
+name: TrendOS T11 Service Legacy Shape Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-legacy-shape-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare canonical field presence on blank-source active orders
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=process.env.PROD_URL;
+          const text=v=>String(v==null?'':v).trim();
+          const hidden=s=>['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى','ملغي'].includes(text(s));
+          async function get(offset){const u=base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset;const r=await fetch(u,{headers:{accept:'application/json'},cache:'no-store'});const b=await r.json();if(r.status!==200||b.success!==true)throw new Error('mirror failed');return b.sheet||{};}
+          function idx(h,n){return h.map(text).lastIndexOf(n)}
+          const [a,b]=await Promise.all([get(0),get(500)]),headers=a.headers||[],rows=[...(a.rows||[]),...(b.rows||[])];
+          const fields=['كود الأوردر','القسم الرئيسي','timestamp','id','department','status','createdBy','open','firstCreatedAt','lastAdditionAt','updatedAt','updatedBy','نوع إدخال العميل','علامة العميل الخارجي'];
+          const ix=Object.fromEntries(fields.map(f=>[f,idx(headers,f)])); const idIx=idx(headers,'رقم الأوردر'), statusIx=idx(headers,'الحالة العامة'), sourceIx=idx(headers,'مصدر الطلب'), lineIx=idx(headers,'عدد البنود');
+          const result=[];
+          for(const item of rows){if(Number(item.rowNumber||0)<=1)continue;const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]);const id=text(d[idIx]),status=text(d[statusIx])||'طلب جديد',source=text(d[sourceIx]);if(!id||hidden(status)||source)continue;const presence={};for(const f of fields)presence[f]=ix[f]>=0&&text(d[ix[f]])!=='';result.push({orderId:id,rowNumber:Number(item.rowNumber||0),status,lineCount:text(d[lineIx]),presence});}
+          console.log('T11_BLANK_SOURCE_SHAPES='+JSON.stringify(result));
+          console.log('PII_LOGGED=NO');
+          NODE
