@@ -42,12 +42,16 @@ jobs:
           async function authoritative(){for(let n=1;n<=4;n++){const token=await login();const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body.success===true)return a;await new Promise(r=>setTimeout(r,300));}throw new Error('service authoritative read failed');}
           function idx(headers,names,fallback=-1){const h=headers.map(text);for(const n of names){const i=h.lastIndexOf(n);if(i>=0)return i;}return fallback;}
           (async()=>{
-            const [a,m]=await Promise.all([
+            const mirrorUrl=o=>base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+o;
+            const [a,m0,m500]=await Promise.all([
               authoritative(),
-              req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=1000&offset=0',{headers:{accept:'application/json'}})
+              req(mirrorUrl(0),{headers:{accept:'application/json'}}),
+              req(mirrorUrl(500),{headers:{accept:'application/json'}})
             ]);
-            assert.equal(m.status,200); assert.equal(m.body.success,true);
-            const s=m.body.sheet||{},headers=Array.isArray(s.headers)?s.headers:[],rows=Array.isArray(m.body.rows)?m.body.rows:[];
+            assert.equal(m0.status,200); assert.equal(m0.body.success,true);
+            assert.equal(m500.status,200); assert.equal(m500.body.success,true);
+            const s=m0.body.sheet||{},headers=Array.isArray(s.headers)?s.headers:[];
+            const rows=[...(Array.isArray(s.rows)?s.rows:[]),...(Array.isArray(m500.body.sheet&&m500.body.sheet.rows)?m500.body.sheet.rows:[])];
             const c={orderId:idx(headers,['رقم الأوردر','id'],0),phone:idx(headers,['رقم العميل','customerPhone'],5),priority:idx(headers,['الأولوية'],10),status:idx(headers,['الحالة العامة','status'],11),updated:idx(headers,['آخر تحديث','updatedAt'],12),customer:idx(headers,['اسم الشات / المكتب','customerName'],3),notes:idx(headers,['ملاحظات','notes'],18)};
             const projected=[];
             for(const item of rows){if(Number(item.rowNumber||0)<=1)continue;const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]);const orderId=text(d[c.orderId]);if(!orderId)continue;const status=text(d[c.status])||'طلب جديد';if(hidden(status))continue;projected.push({rowNumber:Number(item.rowNumber||0),orderId,lineId:cleanPhone(d[c.phone]),customer:text(d[c.customer]),priority:text(d[c.priority])||'عادي',status,updatedAt:text(d[c.updated]),notes:text(d[c.notes])});}
@@ -63,7 +67,7 @@ jobs:
             const missingInD1=[...aBy.keys()].filter(id=>!pBy.has(id));
             const extraInD1=[...pBy.keys()].filter(id=>!aBy.has(id));
             const sequenceMatch=JSON.stringify(aKey)===JSON.stringify(pKey);
-            console.log('T11_SERVICE_ORDERS_PROJECTION='+JSON.stringify({appsRows:appRows.length,d1ProjectedRows:projected.length,d1PageRows:p100.length,appsTotal:Number(a.body.pagination&&a.body.pagination.totalRows||0),statusMatches,phoneMatches,bothMatches,missingCount:missingInD1.length,extraCount:extraInD1.length,sequenceMatch,d1SyncedAt:s.syncedAt,d1Note:s.note,appsMs:a.ms,mirrorMs:m.ms}));
+            console.log('T11_SERVICE_ORDERS_PROJECTION='+JSON.stringify({appsRows:appRows.length,d1ProjectedRows:projected.length,d1PageRows:p100.length,appsTotal:Number(a.body.pagination&&a.body.pagination.totalRows||0),statusMatches,phoneMatches,bothMatches,missingCount:missingInD1.length,extraCount:extraInD1.length,sequenceMatch,d1SyncedAt:s.syncedAt,d1Note:s.note,appsMs:a.ms,mirrorMs:m0.ms+m500.ms}));
             console.log('T11_SERVICE_MISSING_ORDER_IDS='+JSON.stringify(missingInD1.slice(0,20)));
             console.log('T11_SERVICE_EXTRA_ORDER_IDS='+JSON.stringify(extraInD1.slice(0,20)));
             if(appRows.length!==projected.length||missingInD1.length||extraInD1.length||statusMatches!==appRows.length||phoneMatches!==appRows.length) process.exit(2);
