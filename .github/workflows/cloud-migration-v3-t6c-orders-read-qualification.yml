@@ -1,0 +1,170 @@
+name: TrendOS Cloud Migration V3 T6C Orders Read Qualification
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6c-orders-read-qualification-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t6c-orders-read-qualification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-cloud-migration-v3-t6c-orders-read-qualification
+  cancel-in-progress: false
+
+jobs:
+  qualify-orders-read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      T6B_BASE_COMMIT: e9cabf9d2c3f7a494464a12d6bec50fa71c7acf2
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: T6C exact read-only scope gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          git fetch --no-tags --depth=1 origin "$T6B_BASE_COMMIT"
+          git diff --name-only "$T6B_BASE_COMMIT" HEAD | sort > /tmp/t6c-files.txt
+          printf '%s\n' '.github/workflows/cloud-migration-v3-t6c-orders-read-qualification.yml' > /tmp/t6c-allowed.txt
+          diff -u /tmp/t6c-allowed.txt /tmp/t6c-files.txt
+          grep -Eq '^window\.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;' config.js
+          echo 'T6C_SCOPE_GATE=PASS'
+          echo 'PRODUCTION_DEPLOYMENT=NO'
+          echo 'FRONTEND_EDGE_ORDERS_READ_CHANGED=NO'
+          echo 'BUSINESS_DATA_MUTATION=NO'
+
+      - name: Production safety baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/edge/health" > /tmp/t6c-edge-health.json
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/cloud/write/health" > /tmp/t6c-write-health.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/t6c-edge-health.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/t6c-write-health.json','utf8'));
+          if(!e.success||e.cutover!==false||!e.database||!e.authConfigured||!e.upstreamConfigured) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('T6C_PRODUCTION_BASELINE=PASS');
+          NODE
+
+      - name: Apps Script versus D1 Orders page parity and latency
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=String(process.env.APPS_SCRIPT_API_URL||'').trim();
+          const edge=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const norm=v=>text(v).replace(/\s+/g,' ').trim();
+          const key=r=>`${text(r&&r.orderId)}|${text(r&&r.lineId)}`;
+          async function jsonFetch(url,options){
+            const started=Date.now();
+            const r=await fetch(url,{cache:'no-store',redirect:'follow',...options});
+            const ms=Date.now()-started;
+            const raw=await r.text();
+            let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            return {status:r.status,ok:r.ok,ms,body};
+          }
+          (async()=>{
+            const login=await jsonFetch(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});
+            const token=text(login.body&&login.body.user&&login.body.user.token);
+            if(login.status!==200||login.body.success!==true||!token) throw new Error(`login failed status=${login.status}`);
+            console.log('::add-mask::'+token);
+            console.log('T6C_LOGIN_MS='+login.ms);
+
+            const session=await jsonFetch(edge+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});
+            const edgeToken=text(session.body&&session.body.edgeToken);
+            if(session.status!==200||session.body.success!==true||!edgeToken) throw new Error(`orders session failed status=${session.status}`);
+            console.log('::add-mask::'+edgeToken);
+            console.log('T6C_ORDERS_SESSION_MS='+session.ms);
+            console.log('T6C_ORDERS_SESSION_AUTH_SOURCE='+text(session.body.authSource));
+
+            const screens=Array.isArray(session.body&&session.body.user&&session.body.user.screens)?session.body.user.screens.map(text):[];
+            const preferred=['service','print','laser','press'];
+            const screen=preferred.find(x=>screens.includes(x))||screens.find(Boolean)||'service';
+            const params={screen,page:1,pageSize:50,statusFilter:'__ACTIVE__'};
+
+            const appsPayload={action:'getRowsPageV1931',username,token,...params};
+            const appPage=await jsonFetch(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(appsPayload)});
+            if(appPage.status!==200||appPage.body.success!==true||!Array.isArray(appPage.body.rows)) throw new Error(`Apps Script page failed status=${appPage.status} message=${text(appPage.body&&appPage.body.message)}`);
+
+            const qs=new URLSearchParams(Object.entries(params).map(([k,v])=>[k,String(v)]));
+            const d1Page=await jsonFetch(edge+'/v1/edge/orders/02cr/page?'+qs.toString(),{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});
+            if(d1Page.status!==200||d1Page.body.success!==true||!Array.isArray(d1Page.body.rows)) throw new Error(`D1 page failed status=${d1Page.status} code=${text(d1Page.body&&d1Page.body.code)} message=${text(d1Page.body&&d1Page.body.message)}`);
+
+            const aRows=appPage.body.rows;
+            const dRows=d1Page.body.rows;
+            const aKeys=aRows.map(key);
+            const dKeys=dRows.map(key);
+            if(aKeys.some(k=>k==='|')||dKeys.some(k=>k==='|')) throw new Error('missing stable orderId/lineId identity in qualification page');
+            const aSet=new Set(aKeys), dSet=new Set(dKeys);
+            const onlyApps=[...aSet].filter(k=>!dSet.has(k));
+            const onlyD1=[...dSet].filter(k=>!aSet.has(k));
+            const appTotal=Number(appPage.body.pagination&&appPage.body.pagination.totalRows);
+            const d1Total=Number(d1Page.body.pagination&&d1Page.body.pagination.totalRows);
+
+            const dByKey=new Map(dRows.map(r=>[key(r),r]));
+            let fieldMismatches=0;
+            for(const r of aRows){
+              const other=dByKey.get(key(r)); if(!other) continue;
+              for(const f of ['status','priority','department']){
+                if(norm(r&&r[f])!==norm(other&&other[f])) fieldMismatches++;
+              }
+            }
+
+            console.log('T6C_SCREEN='+screen);
+            console.log('T6C_APPS_SCRIPT_PAGE_MS='+appPage.ms);
+            console.log('T6C_D1_PAGE_MS='+d1Page.ms);
+            console.log('T6C_APPS_SCRIPT_PAGE_ROWS='+aRows.length);
+            console.log('T6C_D1_PAGE_ROWS='+dRows.length);
+            console.log('T6C_APPS_SCRIPT_TOTAL_ROWS='+appTotal);
+            console.log('T6C_D1_TOTAL_ROWS='+d1Total);
+            console.log('T6C_ONLY_APPS_KEYS='+onlyApps.length);
+            console.log('T6C_ONLY_D1_KEYS='+onlyD1.length);
+            console.log('T6C_CORE_FIELD_MISMATCHES='+fieldMismatches);
+            console.log('T6C_D1_DATA_SOURCE='+text(d1Page.body.dataSource));
+            console.log('T6C_D1_VERSION='+text(d1Page.body.version));
+            console.log('T6C_REQUIRED_MIRRORS='+(Array.isArray(d1Page.body.mirrors)?d1Page.body.mirrors.length:0));
+            console.log('T6C_LOGICAL_FRESHNESS='+(d1Page.body.logicalFreshness&&d1Page.body.logicalFreshness.ok===true?'YES':'NO'));
+
+            if(!Number.isFinite(appTotal)||!Number.isFinite(d1Total)||appTotal!==d1Total) throw new Error(`totalRows parity failed apps=${appTotal} d1=${d1Total}`);
+            if(onlyApps.length||onlyD1.length) throw new Error(`page identity parity failed onlyApps=${onlyApps.length} onlyD1=${onlyD1.length}`);
+            if(fieldMismatches) throw new Error(`core field parity failed mismatches=${fieldMismatches}`);
+            if(d1Page.ms>=2000) throw new Error(`D1 page latency gate failed ms=${d1Page.ms}`);
+            if(!Array.isArray(d1Page.body.mirrors)||d1Page.body.mirrors.length<3) throw new Error('required mirror metadata missing');
+
+            console.log('T6C_ORDERS_PARITY=PASS');
+            console.log('T6C_ORDERS_D1_LATENCY_GATE=PASS');
+            console.log('T6C_BUSINESS_DATA_MUTATION=NO');
+            console.log('T6C_FRONTEND_CUTOVER=NO');
+          })().catch(err=>{console.error('T6C_FAILURE='+String(err&&err.message||err));process.exit(1)});
+          NODE
+
+      - name: Final T6C conclusion
+        run: |
+          echo 'T6C_READONLY_ORDERS_QUALIFICATION=PASS'
+          echo 'PRODUCTION_WORKER_DEPLOYMENT=NO'
+          echo 'APPS_SCRIPT_DEPLOYMENT=NO'
+          echo 'FRONTEND_EDGE_ORDERS_READ_ENABLED=NO'
+          echo 'SHEETS_WRITE_AUTHORITY_CHANGED=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'SECRET_CHANGE=NO'
