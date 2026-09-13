@@ -1,0 +1,77 @@
+name: TrendOS Operator Task V2 Production Pre-Activation Read-Only
+
+on:
+  push:
+    branches:
+      - operator-task-v2-production-activation-20260913
+    paths:
+      - '.github/workflows/trendos-operator-task-production-preactivation-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preactivation-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      EDGE_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Probe Apps Script Edge proxy secret state — GET only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -L --silent --show-error --output /tmp/proxy.json --write-out '%{http_code}' --get \
+            --data-urlencode 'action=operatorTaskEdgeProxyV2' \
+            --data-urlencode 'protocol=TRENDOS_OT_EDGE_V1' \
+            --data-urlencode 'method=GET' \
+            --data-urlencode 'op=status' \
+            --data-urlencode 'operator=preactivation-probe' \
+            --data-urlencode 'sessionJti=preactivation-probe' \
+            --data-urlencode 'assertedAt=0' \
+            --data-urlencode 'payloadJson={}' \
+            --data-urlencode 'signature=invalid' \
+            "$APPS_SCRIPT_API_URL")"
+          echo "APPS_SCRIPT_HTTP=$code"
+          cat /tmp/proxy.json
+          test "$code" = '200'
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/proxy.json','utf8'));
+          console.log('APPS_SCRIPT_PROXY_PROBE=' + JSON.stringify(x));
+          if(String(x&&x.message||'').includes('Action غير معروف.')) process.exit(2);
+          if(String(x&&x.code||'')==='EDGE_PROXY_SECRET_NOT_CONFIGURED') {
+            console.log('APPS_SCRIPT_PROXY_SECRET_CONFIGURED=NO');
+          } else {
+            console.log('APPS_SCRIPT_PROXY_SECRET_CONFIGURED=YES_OR_LATER_GATE');
+          }
+          NODE
+
+      - name: Probe current Production Worker — GET only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --silent --show-error "$EDGE_URL/v1/edge/health" > /tmp/edge-health.json
+          curl --silent --show-error "$EDGE_URL/v1/cloud/write/health" > /tmp/cloud-write.json
+          task_code="$(curl --silent --show-error --output /tmp/task-status.json --write-out '%{http_code}' "$EDGE_URL/v1/operator/tasks/status")"
+          echo "EDGE_HEALTH=$(cat /tmp/edge-health.json)"
+          echo "CLOUD_WRITE_HEALTH=$(cat /tmp/cloud-write.json)"
+          echo "OPERATOR_TASK_EDGE_HTTP=$task_code"
+          echo "OPERATOR_TASK_EDGE_BODY=$(cat /tmp/task-status.json)"
+          node - <<'NODE'
+          const fs=require('fs');
+          const edge=JSON.parse(fs.readFileSync('/tmp/edge-health.json','utf8'));
+          const cw=JSON.parse(fs.readFileSync('/tmp/cloud-write.json','utf8'));
+          if(edge.success!==true||edge.cutover!==false) process.exit(3);
+          if(cw.success!==true||cw.cutover!==false||cw.sheetsAuthoritative!==true) process.exit(4);
+          console.log('PRODUCTION_BASELINE_READONLY_PASS');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'READ_ONLY_ONLY=YES'
+          echo 'NO_POST=YES'
+          echo 'NO_PROPERTIES_CHANGED=YES'
+          echo 'NO_BUSINESS_DATA_CHANGED=YES'
