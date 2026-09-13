@@ -77,6 +77,7 @@ jobs:
             console.log('T7_LOGIN_MS='+login.ms);
 
             const sess=await json(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})});
+            console.log('T7_SESSION_RESULT='+JSON.stringify({status:sess.status,ms:sess.ms,success:sess.body.success===true,authSource:text(sess.body.authSource),message:text(sess.body.message),code:text(sess.body.code)}));
             assert.equal(sess.status,200); assert.equal(sess.body.success,true); assert.ok(sess.body.edgeToken);
             assert.ok(['apps-script-post','d1-auth-shadow-v1'].includes(text(sess.body.authSource)));
             const edgeToken=text(sess.body.edgeToken); console.log('::add-mask::'+edgeToken);
@@ -86,10 +87,12 @@ jobs:
             let screens=Array.isArray(sess.body&&sess.body.user&&sess.body.user.screens)?sess.body.user.screens.map(text).filter(Boolean):[];
             screens=[...new Set(screens.filter(s=>['service','print','laser','press'].includes(s)))];
             if(!screens.length) screens=['service'];
+            console.log('T7_QUALIFIED_SCREENS='+JSON.stringify(screens));
             const summary=[];
             for(const screen of screens){
               const q=new URLSearchParams({screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'});
               const edge=await json(base+'/v1/edge/orders/02cr/page?'+q,{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});
+              console.log('T7_EDGE_RESULT='+JSON.stringify({screen,status:edge.status,ms:edge.ms,success:edge.body.success===true,code:text(edge.body.code),message:text(edge.body.message),rows:Array.isArray(edge.body.rows)?edge.body.rows.length:null,dataSource:text(edge.body.dataSource)}));
               assert.equal(edge.status,200,screen+' edge status'); assert.equal(edge.body.success,true,screen+' edge success');
               assert.equal(edge.body.dataSource,'d1-edge-orders-02cr-operational');
               assert.ok(Array.isArray(edge.body.mirrors)&&edge.body.mirrors.length>=3,screen+' mirrors missing');
@@ -99,6 +102,7 @@ jobs:
               }
               const appPayload={action:'getRowsPageV1931',username,token:employeeToken,screen,page:'1',pageSize:'100',statusFilter:'__ACTIVE__'};
               const app=await json(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(appPayload)});
+              console.log('T7_APPS_RESULT='+JSON.stringify({screen,status:app.status,ms:app.ms,success:app.body.success===true,code:text(app.body.code),message:text(app.body.message),rows:Array.isArray(app.body.rows)?app.body.rows.length:null}));
               assert.equal(app.status,200,screen+' apps status'); assert.equal(app.body.success,true,screen+' apps success');
               const eRows=edge.body.rows||[], aRows=app.body.rows||[];
               const ek=eRows.map(key).sort(), ak=aRows.map(key).sort();
