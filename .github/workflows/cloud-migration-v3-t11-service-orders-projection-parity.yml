@@ -1,0 +1,73 @@
+name: TrendOS T11 Service Orders Projection Parity
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-orders-projection-parity.yml
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare Apps Script Service with fresh Orders mirror projection
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"; test -n "$QUALIFY_PASSWORD"
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const cleanPhone=v=>{let d=String(v||'').replace(/[^0-9]/g,'');if(d.startsWith('0020'))d=d.slice(2);if(d.startsWith('20')&&d.length===12)d='0'+d.slice(2);if(/^1[0125]\d{8}$/.test(d))d='0'+d;return d;};
+          const hidden=s=>['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى','ملغي'].includes(text(s));
+          const rank=p=>{p=text(p);if(p==='عاجل'||p==='VIP')return 0;if(p==='عادي'||!p)return 1;if(p==='مؤجل')return 2;return 9;};
+          const arabicDigits=v=>String(v||'').replace(/[٠-٩]/g,d=>({'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'}[d]||d));
+          const dateMs=v=>{const r=arabicDigits(text(v));if(!r)return 0;const n=Date.parse(r);return Number.isFinite(n)?n:0;};
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const ms=Date.now()-t,raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms};}
+          async function login(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body&&l.body.user&&l.body.user.token);if(l.status===200&&l.body.success===true&&token){console.log('::add-mask::'+token);return token;}await new Promise(r=>setTimeout(r,300));}throw new Error('fresh login failed');}
+          async function authoritative(){for(let n=1;n<=4;n++){const token=await login();const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body.success===true)return a;await new Promise(r=>setTimeout(r,300));}throw new Error('service authoritative read failed');}
+          function idx(headers,names,fallback=-1){const h=headers.map(text);for(const n of names){const i=h.lastIndexOf(n);if(i>=0)return i;}return fallback;}
+          (async()=>{
+            const [a,m]=await Promise.all([
+              authoritative(),
+              req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=1000&offset=0',{headers:{accept:'application/json'}})
+            ]);
+            assert.equal(m.status,200); assert.equal(m.body.success,true);
+            const s=m.body.sheet||{},headers=Array.isArray(s.headers)?s.headers:[],rows=Array.isArray(m.body.rows)?m.body.rows:[];
+            const c={orderId:idx(headers,['رقم الأوردر','id'],0),phone:idx(headers,['رقم العميل','customerPhone'],5),priority:idx(headers,['الأولوية'],10),status:idx(headers,['الحالة العامة','status'],11),updated:idx(headers,['آخر تحديث','updatedAt'],12),customer:idx(headers,['اسم الشات / المكتب','customerName'],3),notes:idx(headers,['ملاحظات','notes'],18)};
+            const projected=[];
+            for(const item of rows){if(Number(item.rowNumber||0)<=1)continue;const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]);const orderId=text(d[c.orderId]);if(!orderId)continue;const status=text(d[c.status])||'طلب جديد';if(hidden(status))continue;projected.push({rowNumber:Number(item.rowNumber||0),orderId,lineId:cleanPhone(d[c.phone]),customer:text(d[c.customer]),priority:text(d[c.priority])||'عادي',status,updatedAt:text(d[c.updated]),notes:text(d[c.notes])});}
+            projected.sort((x,y)=>rank(x.priority)-rank(y.priority)||dateMs(y.updatedAt)-dateMs(x.updatedAt)||x.rowNumber-y.rowNumber);
+            const appRows=Array.isArray(a.body.rows)?a.body.rows:[];
+            const p100=projected.slice(0,100);
+            const aKey=appRows.map(r=>text(r.orderId)+'|'+text(r.status));
+            const pKey=p100.map(r=>text(r.orderId)+'|'+text(r.status));
+            const aBy=new Map(appRows.map(r=>[text(r.orderId),{status:text(r.status),phone:cleanPhone(r.lineId||r.customerPhone)}]));
+            const pBy=new Map(p100.map(r=>[text(r.orderId),{status:text(r.status),phone:cleanPhone(r.lineId)}]));
+            let statusMatches=0,phoneMatches=0,bothMatches=0;
+            for(const [id,av] of aBy){const pv=pBy.get(id);if(!pv)continue;if(av.status===pv.status)statusMatches++;if(av.phone&&av.phone===pv.phone)phoneMatches++;if(av.status===pv.status&&av.phone===pv.phone)bothMatches++;}
+            const missingInD1=[...aBy.keys()].filter(id=>!pBy.has(id));
+            const extraInD1=[...pBy.keys()].filter(id=>!aBy.has(id));
+            const sequenceMatch=JSON.stringify(aKey)===JSON.stringify(pKey);
+            console.log('T11_SERVICE_ORDERS_PROJECTION='+JSON.stringify({appsRows:appRows.length,d1ProjectedRows:projected.length,d1PageRows:p100.length,appsTotal:Number(a.body.pagination&&a.body.pagination.totalRows||0),statusMatches,phoneMatches,bothMatches,missingCount:missingInD1.length,extraCount:extraInD1.length,sequenceMatch,d1SyncedAt:s.syncedAt,d1Note:s.note,appsMs:a.ms,mirrorMs:m.ms}));
+            console.log('T11_SERVICE_MISSING_ORDER_IDS='+JSON.stringify(missingInD1.slice(0,20)));
+            console.log('T11_SERVICE_EXTRA_ORDER_IDS='+JSON.stringify(extraInD1.slice(0,20)));
+            if(appRows.length!==projected.length||missingInD1.length||extraInD1.length||statusMatches!==appRows.length||phoneMatches!==appRows.length) process.exit(2);
+            console.log('T11_SERVICE_ORDERS_PROJECTION_IDENTITY=PASS');
+            console.log('T11_SERVICE_SEQUENCE_MATCH='+(sequenceMatch?'YES':'NO'));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
