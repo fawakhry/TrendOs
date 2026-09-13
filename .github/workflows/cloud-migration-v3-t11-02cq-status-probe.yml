@@ -1,0 +1,32 @@
+name: TrendOS T11 02CQ Screen View Status Probe
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-02cq-status-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe 02CQ status only
+        run: |
+          node <<'NODE'
+          const base=process.env.APPS_SCRIPT_URL;
+          async function call(method){const t=Date.now();const opt=method==='POST'?{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getD1ScreenViewMirrorRefresh02CQStatus',_ts:Date.now()})}:{method:'GET',headers:{accept:'application/json'}};const url=method==='GET'?base+'?action=getD1ScreenViewMirrorRefresh02CQStatus&_ts='+Date.now():base;const r=await fetch(url,{redirect:'follow',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{};const safe={http:r.status,ms:Date.now()-t,success:b&&b.success===true,checkpoint:b&&b.checkpoint,enabled:b&&b.enabled,lastResult:b&&b.lastResult?{success:b.lastResult.success,checkpoint:b.lastResult.checkpoint,runId:b.lastResult.runId,checkedAt:b.lastResult.checkedAt,targetCount:b.lastResult.targetCount,message:b.lastResult.message}:null,message:b&&b.message};console.log('STATUS_'+method+'='+JSON.stringify(safe));}
+          await call('POST');
+          await call('GET');
+          NODE
