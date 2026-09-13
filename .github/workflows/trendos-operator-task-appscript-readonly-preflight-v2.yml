@@ -1,0 +1,76 @@
+name: TrendOS Operator Task V2 Apps Script Readonly Preflight
+
+on:
+  push:
+    branches:
+      - preview/operator-task-v2-20260913
+    paths:
+      - '.github/workflows/trendos-operator-task-appscript-readonly-preflight-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publication-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - name: Probe Operator Task V2 route without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -L --silent --show-error --output /tmp/ot-task.json --write-out '%{http_code}' --get \
+            --data-urlencode 'action=operatorTaskV2' \
+            --data-urlencode 'op=status' \
+            --data-urlencode '_ot_preview=1' \
+            "$APPS_SCRIPT_API_URL")"
+          echo "HTTP=$code"
+          cat /tmp/ot-task.json
+          test "$code" = '200'
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/ot-task.json','utf8'));
+          const msg=String(x&&x.message||'');
+          if(msg.includes('Operator Task V2 backend غير منشور')) {
+            console.error('OPERATOR_TASK_BACKEND=NOT_PUBLISHED');
+            process.exit(2);
+          }
+          console.log('OPERATOR_TASK_ROUTE=REACHABLE');
+          console.log('OPERATOR_TASK_RESPONSE=' + JSON.stringify(x));
+          NODE
+
+      - name: Probe Edge proxy route with deliberately invalid assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -L --silent --show-error --output /tmp/ot-proxy.json --write-out '%{http_code}' --get \
+            --data-urlencode 'action=operatorTaskEdgeProxyV2' \
+            --data-urlencode 'protocol=INVALID_PREVIEW_ASSERTION' \
+            --data-urlencode 'method=GET' \
+            --data-urlencode 'op=status' \
+            --data-urlencode 'operator=preview-probe' \
+            --data-urlencode 'sessionJti=preview-probe' \
+            --data-urlencode 'assertedAt=0' \
+            --data-urlencode 'payloadJson={}' \
+            --data-urlencode 'signature=invalid' \
+            "$APPS_SCRIPT_API_URL")"
+          echo "HTTP=$code"
+          cat /tmp/ot-proxy.json
+          test "$code" = '200'
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/ot-proxy.json','utf8'));
+          const msg=String(x&&x.message||'');
+          if(msg.includes('Operator Task Edge proxy backend غير منشور')) {
+            console.error('OPERATOR_TASK_EDGE_PROXY=NOT_PUBLISHED');
+            process.exit(2);
+          }
+          if(String(x&&x.code||'')!=='EDGE_PROXY_PROTOCOL_INVALID') {
+            console.error('OPERATOR_TASK_EDGE_PROXY=UNQUALIFIED_RESPONSE ' + JSON.stringify(x));
+            process.exit(3);
+          }
+          console.log('OPERATOR_TASK_EDGE_PROXY=REACHABLE_FAIL_CLOSED');
+          NODE

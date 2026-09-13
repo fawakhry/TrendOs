@@ -1,0 +1,124 @@
+name: TrendOS Operator Task V2 Cloudflare Preview
+
+on:
+  push:
+    branches:
+      - preview/operator-task-v2-20260913
+    paths:
+      - 'operator-task-workflow-v2.js'
+      - 'operator-task-workflow-v2.gs'
+      - 'operator-task-edge-proxy-v2.gs'
+      - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/preview/index.js'
+      - 'cloudflare-d1/preview/wrangler.operator-task-v2.toml'
+      - 'tests/operator_task_*'
+      - '.github/workflows/trendos-operator-task-cloudflare-preview-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-operator-task-v2-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qualify-and-deploy-default-off:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+      PREVIEW_URL: https://trendos-operator-task-v2-preview.trendmall-contact.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Operator Task V2 contract tests
+        run: |
+          set -euo pipefail
+          node --test tests/operator_task_workflow_v2_contract.test.mjs
+          node --test tests/operator_task_edge_v2.test.mjs
+          node --test tests/operator_task_gaber_material_gate_v1.test.mjs
+          node --test tests/operator_task_gaber_material_ui_v1.test.mjs
+
+      - name: Verify preview is fail-closed and mutation-safe
+        shell: bash
+        run: |
+          set -euo pipefail
+          cfg='cloudflare-d1/preview/wrangler.operator-task-v2.toml'
+          grep -Eq '^name = "trendos-operator-task-v2-preview"$' "$cfg"
+          grep -Eq '^TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED = "false"$' "$cfg"
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"$' "$cfg"
+          ! grep -Eq '^migrations_dir[[:space:]]*=' "$cfg"
+          ! grep -Eq 'TRENDOS_OPERATOR_TASK_PROXY_SECRET[[:space:]]*=' "$cfg"
+          echo 'PASS: isolated preview is default-OFF, Cloud Write OFF, no migrations, no committed proxy secret.'
+
+      - name: Verify deploy credentials are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo 'Missing CLOUDFLARE_API_TOKEN' && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo 'Missing CLOUDFLARE_ACCOUNT_ID' && exit 1)
+          test -n "$EDGE_SESSION_SECRET" || (echo 'Missing TRENDOS_EDGE_SESSION_SECRET_PREVIEW' && exit 1)
+
+      - name: Deploy isolated Operator Task preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.33.2'
+          workingDirectory: 'cloudflare-d1/preview'
+          command: deploy --config wrangler.operator-task-v2.toml
+
+      - name: Bind Edge session secret to isolated Worker
+        shell: bash
+        working-directory: cloudflare-d1/preview
+        run: |
+          set -euo pipefail
+          printf '%s' "$EDGE_SESSION_SECRET" | npx wrangler@4.33.2 secret put EDGE_SESSION_SECRET --config wrangler.operator-task-v2.toml
+          echo 'PASS: EDGE_SESSION_SECRET bound to isolated Operator Task preview Worker.'
+
+      - name: Verify isolated Worker health
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready='false'
+          for attempt in $(seq 1 12); do
+            code="$(curl --silent --show-error --output /tmp/ot-health.json --write-out '%{http_code}' "$PREVIEW_URL/v1/edge/health" || true)"
+            body="$(cat /tmp/ot-health.json 2>/dev/null || true)"
+            echo "health attempt=$attempt status=$code body=$body"
+            if [ "$code" = '200' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/ot-health.json','utf8')); process.exit(x.success&&x.database&&x.authConfigured&&x.cutover===false?0:1)"; then
+              ready='true'
+              break
+            fi
+            sleep 3
+          done
+          test "$ready" = 'true'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/ot-health.json','utf8')); if(!x.success||!x.database||!x.authConfigured||x.cutover!==false) process.exit(1); console.log('EDGE_HEALTH=PASS')"
+
+      - name: Verify Operator Task routes are default-OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/ot-disabled.json --write-out '%{http_code}' "$PREVIEW_URL/v1/operator/tasks/status")"
+          cat /tmp/ot-disabled.json
+          test "$code" = '503'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/ot-disabled.json','utf8')); if(x.success!==false||x.code!=='OPERATOR_TASK_EDGE_DISABLED') process.exit(1); console.log('OPERATOR_TASK_DEFAULT_OFF=PASS')"
+
+      - name: Verify Cloud Write remains disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/cloud-write.json --write-out '%{http_code}' "$PREVIEW_URL/v1/cloud/write/health")"
+          cat /tmp/cloud-write.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/cloud-write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.cutover!==false||x.sheetsAuthoritative!==true) process.exit(1); console.log('CLOUD_WRITE_OFF=PASS')"
