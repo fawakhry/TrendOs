@@ -1,0 +1,32 @@
+name: TrendOS T11 Orders Heartbeat Transport Probe
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-heartbeat-transport-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe GET and POST heartbeat
+        run: |
+          node <<'NODE'
+          const base=process.env.APPS_SCRIPT_URL;
+          async function probe(name,url,opt){const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);const s=Date.now();try{const r=await fetch(url,{redirect:'follow',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}console.log(name+'_HTTP='+r.status);console.log(name+'_MS='+(Date.now()-s));console.log(name+'_SUCCESS='+(b&&b.success===true));console.log(name+'_LOW_USAGE='+(b&&b.lowUsage===true));console.log(name+'_LAST_IDLE_PRESENT='+!!(b&&b.lastIdleCheck));console.log(name+'_CODE='+String(b&&b.code||''));}catch(e){console.log(name+'_ERROR='+String(e&&e.name||e));console.log(name+'_MS='+(Date.now()-s));}finally{clearTimeout(t)}}
+          await probe('HEARTBEAT_GET',base+'?action=getD1OrdersLowUsageHeartbeatV1&_ts='+Date.now(),{method:'GET',headers:{accept:'application/json'}});
+          await probe('HEARTBEAT_POST',base,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getD1OrdersLowUsageHeartbeatV1',_ts:Date.now()})});
+          NODE
