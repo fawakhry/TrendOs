@@ -1,0 +1,85 @@
+name: TrendOS Cloud Migration V3 T4 Freshness Sync
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-20260913
+    paths:
+      - 'cloudflare-d1/D1_Orders_Live_Sync.gs'
+      - 'cloudflare-d1/D1_Orders_Live_Sync_V2.gs'
+      - 'cloudflare-d1/D1_Orders_Low_Usage_Control_V1.gs'
+      - 'cloudflare-d1/D1_Orders_Low_Usage_Heartbeat_V1.gs'
+      - 'cloudflare-d1/D1_Zero_Idle_Control.gs'
+      - 'cloudflare-d1/D1_Screen_View_Mirror_Refresh_02CQ.gs'
+      - 'cloudflare-d1/D1_Operational_Enrichment_Live_Sync_02CR.gs'
+      - 'cloudflare-d1/src/edge-orders-freshness-gate.mjs'
+      - 'cloudflare-d1/src/edge-orders-idle-heartbeat.mjs'
+      - 'cloudflare-d1/src/edge-orders-idle-verifier.mjs'
+      - 'cloudflare-d1/src/mirror-delta-gate.mjs'
+      - 'tests/d1_orders_live_sync_atomic_v1.test.mjs'
+      - 'tests/d1_orders_live_sync_delta_v2.test.mjs'
+      - 'tests/d1_orders_low_usage_control_v1.test.mjs'
+      - 'tests/d1_orders_low_usage_heartbeat_v1.test.mjs'
+      - 'tests/d1_zero_idle_control_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_idle_verifier_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs'
+      - 'tests/apps_script_d1_operational_enrichment_live_sync_02cr.test.mjs'
+      - 'tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs'
+      - 'tests/cloudflare_edge_orders_02cr_canary.test.mjs'
+      - 'tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs'
+      - 'tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs'
+      - 'tests/cloudflare_edge_orders_line_identity_02cx.test.mjs'
+      - '.github/workflows/cloud-migration-v3-t4-freshness-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-freshness-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Orders sync atomic and delta contracts
+        run: |
+          node tests/d1_orders_live_sync_atomic_v1.test.mjs
+          node tests/d1_orders_live_sync_delta_v2.test.mjs
+      - name: Run low-usage and zero-idle contracts
+        run: |
+          node tests/d1_orders_low_usage_control_v1.test.mjs
+          node tests/d1_orders_low_usage_heartbeat_v1.test.mjs
+          node tests/d1_zero_idle_control_v1.test.mjs
+      - name: Run freshness fail-closed contracts
+        run: |
+          node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_verifier_v1.test.mjs
+          node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
+      - name: Run bounded support mirror contracts
+        run: |
+          node tests/apps_script_d1_operational_enrichment_live_sync_02cr.test.mjs
+          node tests/apps_script_d1_screen_view_mirror_refresh_02cq.test.mjs
+      - name: Run Edge data-shape regressions
+        run: |
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_operational_enrichment_02cr.test.mjs
+          node tests/cloudflare_edge_orders_duplicate_headers_02cr.test.mjs
+          node tests/cloudflare_edge_orders_line_identity_02cx.test.mjs
+      - name: Assert repository-only T4 boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-20260913"
+          echo "PRODUCTION_SYNC_ENABLE=NO"
+          echo "PRODUCTION_WORKER_DEPLOY=NO"
+          echo "PRODUCTION_D1_MIGRATION=NO"
+          echo "PRODUCTION_FRONTEND_CUTOVER=NO"
+          echo "SHEETS_WRITE_AUTHORITY_CHANGED=NO"
+          echo "TASK_MUTATION=NO"
+          echo "SECRET_CHANGE=NO"
