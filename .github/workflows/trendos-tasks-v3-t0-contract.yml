@@ -1,0 +1,32 @@
+name: TrendOS Tasks V3 T0 Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - tasks-v3-isolation-review-20260913
+    paths:
+      - tasks-v3-bridge-readonly.gs
+      - tests/tasks_v3_readonly_bridge_contract.test.mjs
+      - .github/workflows/trendos-tasks-v3-t0-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout review branch
+        uses: actions/checkout@v4
+
+      - name: Run Tasks V3 read-only isolation contract
+        run: node tests/tasks_v3_readonly_bridge_contract.test.mjs
+
+      - name: Safety summary
+        run: |
+          echo 'TASKS_V3_T0_ONLY=YES'
+          echo 'PRODUCTION_DEPLOYMENT=NO'
+          echo 'BUSINESS_DATA_MUTATION=NO'
+          echo 'TASK_MUTATION_CODE_PRESENT=NO'
+          echo 'MAIN_APPS_SCRIPT_ROUTER_CHANGE=NO'
