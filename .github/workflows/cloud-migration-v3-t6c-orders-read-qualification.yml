@@ -43,8 +43,11 @@ jobs:
           git diff --name-only "$T6B_BASE_COMMIT" HEAD | sort > /tmp/t6c-files.txt
           printf '%s\n' '.github/workflows/cloud-migration-v3-t6c-orders-read-qualification.yml' > /tmp/t6c-allowed.txt
           diff -u /tmp/t6c-allowed.txt /tmp/t6c-files.txt
-          grep -Eq '^window\.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;' config.js
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+          git show origin/main:config.js | grep -Eq '^window\.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;'
+          git diff --exit-code "$T6B_BASE_COMMIT" HEAD -- config.js cloudflare-d1/src/index_v2.js cloudflare-d1/wrangler.toml
           echo 'T6C_SCOPE_GATE=PASS'
+          echo 'PRODUCTION_MAIN_FRONTEND_EDGE_ORDERS_READ_ENABLED=NO'
           echo 'PRODUCTION_DEPLOYMENT=NO'
           echo 'FRONTEND_EDGE_ORDERS_READ_CHANGED=NO'
           echo 'BUSINESS_DATA_MUTATION=NO'
