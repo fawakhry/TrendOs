@@ -1,0 +1,59 @@
+name: TrendOS T11 Service Modern Shape Parity
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-modern-shape-parity.yml
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare exact modern Service projection against Apps Script
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert=require('node:assert/strict');
+          const base=process.env.PROD_URL,apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(),password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const cleanPhone=v=>{let d=String(v||'').replace(/[^0-9]/g,'');if(d.startsWith('0020'))d=d.slice(2);if(d.startsWith('20')&&d.length===12)d='0'+d.slice(2);if(/^1[0125]\d{8}$/.test(d))d='0'+d;return d;};
+          const hidden=s=>['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى','ملغي'].includes(text(s));
+          async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{cache:'no-store',redirect:'follow',...opt});const ms=Date.now()-t,raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms};}
+          async function login(){for(let n=0;n<4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const t=text(l.body&&l.body.user&&l.body.user.token);if(l.status===200&&l.body.success===true&&t){console.log('::add-mask::'+t);return t;}await new Promise(r=>setTimeout(r,300));}throw new Error('login failed');}
+          async function authoritative(){for(let n=0;n<4;n++){const token=await login();const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body.success===true)return a;await new Promise(r=>setTimeout(r,300));}throw new Error('authoritative failed');}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert.equal(r.status,200);assert.equal(r.body.success,true);return r;}
+          function idx(h,names){const a=h.map(text);for(const n of names){const i=a.lastIndexOf(n);if(i>=0)return i;}return -1;}
+          (async()=>{
+            const [auth,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+            const s=m0.body.sheet||{},headers=s.headers||[],rows=[...(s.rows||[]),...((m1.body.sheet&&m1.body.sheet.rows)||[])];
+            const c={id:idx(headers,['رقم الأوردر','id']),phone:idx(headers,['رقم العميل','customerPhone']),status:idx(headers,['الحالة العامة','status']),entryType:idx(headers,['نوع إدخال العميل']),rowId:idx(headers,['id'])};
+            const candidate=[];
+            for(const item of rows){if(Number(item.rowNumber||0)<=1)continue;const d=Array.isArray(item.display)&&item.display.length?item.display:(item.values||[]);const id=text(d[c.id]),status=text(d[c.status])||'طلب جديد',entryType=text(d[c.entryType]);if(!id||hidden(status))continue;const isQualification=status==='cloud-qualification'||id.startsWith('CW-PROD-QUAL-');if(!entryType&&!isQualification)continue;candidate.push({rowNumber:Number(item.rowNumber||0),orderId:id,status,phone:cleanPhone(d[c.phone])});}
+            const appRows=Array.isArray(auth.body.rows)?auth.body.rows:[];
+            const appMap=new Map(appRows.map(r=>[text(r.orderId),{status:text(r.status),phone:cleanPhone(r.lineId||r.customerPhone)}]));
+            const d1Map=new Map(candidate.map(r=>[r.orderId,{status:r.status,phone:r.phone}]));
+            const missing=[...appMap.keys()].filter(id=>!d1Map.has(id)); const extra=[...d1Map.keys()].filter(id=>!appMap.has(id));
+            const mismatches=[];for(const [id,a] of appMap){const d=d1Map.get(id);if(d&&(a.status!==d.status||a.phone!==d.phone))mismatches.push({orderId:id,statusEqual:a.status===d.status,phoneEqual:a.phone===d.phone});}
+            const appSeq=appRows.map(r=>text(r.orderId)); const rowSeq=candidate.map(r=>r.orderId);
+            console.log('T11_MODERN_SHAPE='+JSON.stringify({apps:appRows.length,candidate:candidate.length,missing:missing.length,extra:extra.length,mismatches:mismatches.length,rawRowOrderMatch:JSON.stringify(appSeq)===JSON.stringify(rowSeq),appsMs:auth.ms,mirrorMs:m0.ms+m1.ms,syncedAt:s.syncedAt}));
+            console.log('T11_MODERN_MISSING='+JSON.stringify(missing)); console.log('T11_MODERN_EXTRA='+JSON.stringify(extra)); console.log('T11_MODERN_MISMATCHES='+JSON.stringify(mismatches));
+            if(JSON.stringify(appSeq)!==JSON.stringify(rowSeq)){console.log('T11_APPS_ORDER_IDS='+JSON.stringify(appSeq));console.log('T11_D1_ROW_ORDER_IDS='+JSON.stringify(rowSeq));}
+            assert.equal(candidate.length,appRows.length);assert.equal(missing.length,0);assert.equal(extra.length,0);assert.equal(mismatches.length,0);
+            console.log('T11_SERVICE_MODERN_SHAPE_IDENTITY=PASS');
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
