@@ -44,7 +44,7 @@ function otepDispatchV2_(op,payload,auth){
   if(typeof otStatusV2_!=='function')return {success:false,code:'OPERATOR_TASK_BACKEND_MISSING',message:'Operator Task V2 backend غير منشور.'};
   if(op==='status')return otStatusV2_(auth);
   if(op==='claimNext')return otClaimNextV2_(auth);
-  if(op==='completeTask')return otCompleteTaskV2_({taskId:otepTxtV2_(payload.taskId),finalStatus:otepTxtV2_(payload.finalStatus),notes:otepTxtV2_(payload.notes)},auth);
+  if(op==='completeTask')return otCompleteTaskV2_({taskId:otepTxtV2_(payload.taskId),finalStatus:otepTxtV2_(payload.finalStatus),notes:otepTxtV2_(payload.notes),materialClosePayload:otepTxtV2_(payload.materialClosePayload)},auth);
   if(op==='flyPrint'){
     otRequireEnabledV2_();if(auth.operatorTaskRole!=='WAEL')return {success:false,code:'WAEL_ONLY',message:'طباعة على الطاير متاحة لوائل فقط.'};
     return {success:true,items:otFlyLaneV2_()};
