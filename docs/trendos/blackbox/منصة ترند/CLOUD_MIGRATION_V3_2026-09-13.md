@@ -29,6 +29,7 @@ Production frontend emergency baseline remains `MATBAGY_EDGE_ORDERS_READ_V1_ENAB
 - Direct read-only diagnostic run `34738294725` observed GET `verifyEmployeeSession` => HTTP 404 after 27.389 seconds.
 - POST `verifyEmployeeSession` was independently observed to reach the Apps Script application lane successfully in roughly 4 seconds.
 - `getRowsPageV1931` remains independently slow; Cloud migration must therefore remove request-time Apps Script dependency rather than only increasing timeouts.
+- Owner rollback evidence from the Tasks V3 review records that the breaking Apps Script Version 156 was rolled back to the immediately previous production deployment. The exact prior numeric version was not independently observed and must not be guessed. Platform operation recovered after rollback.
 
 ## T1 — isolated POST session bridge — PASS
 
@@ -56,9 +57,10 @@ Qualification:
 - Workflow: `TrendOS Cloud Migration V3 T1 Session Bridge`
 - Run: `34753119462`
 - Conclusion: `SUCCESS`
+- compatibility rerun after T2 integration: `34753227559` => `SUCCESS`
 - `Run T1 session bridge contract tests`: SUCCESS
 - `Assert production isolation`: SUCCESS
-- Expected contract output includes:
+- expected contract output includes:
   - `CLOUD_SESSION_BRIDGE_V3_T1=PASS`
   - `APPS_SCRIPT_VERIFY_METHOD=POST`
   - `EMPLOYEE_TOKEN_IN_URL=NO`
@@ -66,22 +68,101 @@ Qualification:
 
 T1 is code/contract qualified only. It is NOT deployed to Production.
 
+## T2 — Cloud-native Auth Shadow — PASS / DEFAULT OFF
+
+Repository-only candidate migration:
+
+- `cloudflare-d1/migrations/0004_cloud_auth_shadow_v1.sql`
+- commit `3900186aa5e16ff857f8fd1a77834661f1aeffe8`
+- table: `cloud_auth_sessions_v1`
+- raw employee tokens are intentionally never stored.
+- session key is `(username_key, token_fingerprint)`.
+- fingerprint is a domain-separated HMAC-SHA256 derived using the existing `EDGE_SESSION_SECRET`; the secret itself was not changed or rotated.
+- bounded cache TTL default 300 seconds, minimum 60, maximum 900.
+- explicit expiry and revocation fields are present.
+
+Auth module:
+
+- `cloudflare-d1/src/cloud-auth-shadow-v1.mjs`
+- commit `d10806654c1750d18c806fe4442760aa59791810`
+- gate: `TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED`
+- default state: OFF.
+
+Cloud-first session integration:
+
+- commit `aa63791c4e6d3dcde6fd952d86c40b6a1a1dba9b`
+- on shadow hit: D1 validates the already-established bounded session projection and Apps Script is not called.
+- on shadow miss: authoritative Apps Script POST verification remains the fallback.
+- after a successful Apps Script POST verification, the shadow may be populated with fingerprint + bounded user claims.
+- shadow lookup/write failure never grants authentication and does not invalidate an otherwise successful authoritative verification.
+
+Tests / workflow:
+
+- unit tests commit: `bc741accdc9addac0c044a83e380db9600478838`
+- session-shadow integration test commit: `88a239207626a932f1ffb7ab00509808d57cd395`
+- workflow integration commit: `bee8b8d836e68cc9d7cd4cb4204c5a744ba3d5c9`
+- run `34753251908` => `SUCCESS`
+- local SQLite migration validation commit: `67230c1f9163e00aa7922da3f3113180c408c7cb`
+- run `34753283469` => `SUCCESS`
+
+Qualified contract:
+
+- shadow hit => zero Apps Script fetches;
+- shadow miss => Apps Script POST fallback;
+- raw employee token is absent from D1 write arguments;
+- local SQLite candidate migration applies cleanly;
+- candidate table starts empty;
+- `PRODUCTION_D1_MIGRATION=NO`;
+- `PRODUCTION_DEPLOY=NO`;
+- production auth-shadow flag remains OFF/not deployed.
+
+## T3 — Cloud-native Orders read readiness — PASS
+
+Readiness qualification connects the new D1 auth shadow contract to the existing signed Orders Edge token and D1 Orders read canary.
+
+Artifacts:
+
+- test: `cloudflare-d1/test/cloud-orders-read-v3-readiness.test.mjs`
+- test commit: `27a41c6b11d1ad43dbbeb481a3608541ea01255b`
+- workflow: `.github/workflows/cloud-migration-v3-t3-orders-readiness.yml`
+- workflow commit: `651bcfaaee1d73e5f90d3138d88f4cf984332473`
+
+Qualification:
+
+- run `34753308941` => `SUCCESS`
+- normal flow under the contract:
+  - D1 auth-shadow hit;
+  - Orders Edge token issued;
+  - D1 Orders page read;
+  - Apps Script network calls = `0`;
+  - response `dataSource = d1-edge-orders`;
+  - no D1/business mutation in the read handler.
+- `statusFilter=__DEBT__` intentionally remains `fallback=apps-script` because debt remains authoritative in the Apps Script/Sheets lane.
+
+T3 is readiness only. Production Edge Orders Read remains disabled. No Worker deployment or D1 migration has been performed.
+
+## T4 — Cloud-native Operator Task V3 read projection — IN PROGRESS
+
+The older Tasks V3 isolation branch was reviewed as behavior/reference material only. It will not be bulk-merged because it diverges substantially and contains unrelated frontend/static changes.
+
+T4 direction:
+
+- Cloudflare + D1 for Task read/status projections;
+- existing Edge session/auth primitives for operator identity;
+- no Task route added to the main Apps Script router;
+- no request-time main Apps Script dependency for ordinary Task status/read;
+- no `claimNext` / `completeTask` routes in this phase;
+- no Task D1 write authority;
+- Sheets remains authoritative for business state;
+- future mutation bridge, if approved later, must be isolated and compare-and-set against authoritative source state.
+
+Candidate T4 gate: `TRENDOS_OPERATOR_TASK_V3_READ_ENABLED`, default OFF.
+
 ## Roadmap from this checkpoint
 
-### T2 — Cloud-native Auth Shadow
-
-Create an isolated D1 auth/session shadow contract so Cloudflare can validate an already-established employee session without calling Apps Script on every request. Raw employee tokens must never be stored. Candidate design must use a non-reversible verifier/fingerprint, bounded TTL/revocation semantics, explicit schema versioning, and fail-closed behavior.
-
-T2 development/migrations remain repository-only until a separate production migration decision.
-
-### T3 — Orders read qualification
-
-After T2 parity/freshness qualification, qualify D1 Orders reads without request-time Apps Script auth verification. Only then consider re-enabling the Production Edge Orders read flag under a separate production decision.
-
-### T4 — Operator Task V3
-
-Build Task V3 on cloud-native read/auth primitives; do not restore the old Apps-Script-heavy V2 proxy architecture.
-
-### Later phases
-
-Move remaining read-heavy customer/conversation surfaces, then introduce cloud write/outbox authority under explicit gates. Accounting, stock, material control and financial authority remain last-stage cutovers.
+1. Finish T4 repository-only Task V3 read projection and contract tests.
+2. Qualify zero-Apps-Script ordinary Task status reads using signed Edge identity.
+3. Stop before the first Production D1 migration / Worker deploy decision.
+4. If separately approved later: deploy code first under default-OFF gates, then stage auth-shadow/read-only canaries before any mutation authority.
+5. Production Task mutation remains a later explicit owner decision after read-only canary acceptance.
+6. Accounting, stock, Gaber Material Control and financial authority remain later-stage cutovers.
