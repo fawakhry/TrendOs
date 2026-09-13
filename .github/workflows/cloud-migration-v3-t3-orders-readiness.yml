@@ -1,0 +1,39 @@
+name: TrendOS Cloud Migration V3 T3 Orders Readiness
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-20260913
+    paths:
+      - 'cloudflare-d1/src/cloud-session-bridge-v3.mjs'
+      - 'cloudflare-d1/src/cloud-auth-shadow-v1.mjs'
+      - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'cloudflare-d1/src/edge-orders-read-v1-canary.mjs'
+      - 'cloudflare-d1/test/cloud-orders-read-v3-readiness.test.mjs'
+      - '.github/workflows/cloud-migration-v3-t3-orders-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-orders-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run T3 cloud-native orders readiness test
+        run: node cloudflare-d1/test/cloud-orders-read-v3-readiness.test.mjs
+      - name: Assert no production cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-20260913"
+          echo "PRODUCTION_EDGE_ORDERS_ENABLE=NO"
+          echo "PRODUCTION_WORKER_DEPLOY=NO"
+          echo "PRODUCTION_D1_MIGRATION=NO"
+          echo "SHEETS_WRITE_AUTHORITY_CHANGED=NO"
+          echo "TASK_MUTATION=NO"
