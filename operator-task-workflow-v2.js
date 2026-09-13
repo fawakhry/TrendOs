@@ -4,20 +4,91 @@ if(window.__TRENDOS_OPERATOR_TASK_V2__)return;
 window.__TRENDOS_OPERATOR_TASK_V2__=true;
 if(window.MATBAGY_OPERATOR_TASK_V2!==true)return;
 
-const API=String(window.TREND_API_URL||window.API_URL||'').trim();
-if(!API)return;
+const DEFAULT_EDGE_API='https://trendos-d1-api.trendmall-contact.workers.dev';
+const SESSION_PATH='/v1/edge/session';
+const ROUTES={
+  status:{method:'GET',path:'/v1/operator/tasks/status'},
+  claimNext:{method:'POST',path:'/v1/operator/tasks/claim-next',mutation:true},
+  completeTask:{method:'POST',path:'/v1/operator/tasks/complete',mutation:true},
+  flyPrint:{method:'GET',path:'/v1/operator/fly-print'},
+  pressCandidates:{method:'GET',path:'/v1/operator/press-candidates'},
+  metrics:{method:'GET',path:'/v1/operator/tasks/metrics'}
+};
+const SESSION_SKEW_MS=30000;
+let edgeSession={token:'',expiresAt:0,inflight:null};
 let root=null,last=null,busy=false,pressOpen=false,pressItems=[],timer=null,bootTimer=null;
 
 function txt(v){return String(v==null?'':v).trim();}
 function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();}
 function state(){return window.trendosState||window.state||{};}
 function user(){return state().user||null;}
-function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||''},extra||{});}
+function employeeSession(){
+  const u=user()||{};let saved={};
+  try{saved=JSON.parse(sessionStorage.getItem('trendos_session')||'{}').user||{};}catch(e){}
+  return {
+    username:txt(u.username||u.name||saved.username||saved.name||sessionStorage.getItem('matbagy_username')||sessionStorage.getItem('matbagy_user_name')),
+    token:txt(u.token||saved.token||window.sessionToken||sessionStorage.getItem('matbagy_session_token'))
+  };
+}
+function edgeBase(){return txt(window.MATBAGY_OPERATOR_TASK_EDGE_API_URL||window.MATBAGY_EDGE_ORDERS_API_URL||window.MATBAGY_EDGE_API_URL||DEFAULT_EDGE_API).replace(/\/+$/,'');}
+function clearEdgeSession(){edgeSession.token='';edgeSession.expiresAt=0;edgeSession.inflight=null;}
 function esc(v){return txt(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function fmtSec(sec){sec=Math.max(0,Math.floor(Number(sec)||0));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}
 function taskSec(task){if(!task)return 0;if(task.state==='COMPLETED')return Number(task.workSec||0);const start=new Date(task.startedAt).getTime();return isFinite(start)?Math.max(0,Math.floor((Date.now()-start)/1000)):0;}
-async function directApi(payload){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'operatorTaskV2'},payload)),cache:'no-store',credentials:'omit'});const raw=await r.text();try{return JSON.parse(raw);}catch(e){throw new Error('Operator Task backend لا يرجع JSON.');}}
-async function api(op,extra){const payload=auth(Object.assign({op:op},extra||{}));if(typeof window.trendosSecureApiV1922==='function'){try{const d=await window.trendosSecureApiV1922('operatorTaskV2',payload);if(d&&!(norm(d.message).includes('غير معروف')||norm(d.message).includes('غير منشور')))return d;}catch(e){}}return directApi(payload);}
+function requestId(op,extra){
+  const suffix=txt(extra&&extra.taskId)||Date.now().toString(36);
+  if(window.crypto&&typeof window.crypto.randomUUID==='function')return 'ot2-'+op+'-'+suffix+'-'+window.crypto.randomUUID();
+  return 'ot2-'+op+'-'+suffix+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+}
+async function parseJson(r){
+  const raw=await r.text();let body;
+  try{body=JSON.parse(raw||'{}');}catch(e){throw new Error('Operator Task Edge لا يرجع JSON.');}
+  if(!r.ok&&body&&body.success!==false)body.success=false;
+  if(!r.ok&&body&&!body.message)body.message='Operator Task Edge HTTP '+r.status;
+  return body;
+}
+async function exchangeEdgeSession(){
+  const current=employeeSession();
+  if(!current.username||!current.token)throw new Error('جلسة الموظف غير متاحة لإنشاء Edge session.');
+  const r=await fetch(edgeBase()+SESSION_PATH,{method:'POST',cache:'no-store',credentials:'omit',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username:current.username,token:current.token})});
+  const body=await parseJson(r);
+  if(!r.ok||!body||body.success!==true)throw new Error(body&&body.message||'تعذر إنشاء Edge session.');
+  edgeSession.token=txt(body.edgeToken);
+  edgeSession.expiresAt=Date.parse(body.expiresAt||'')||(Date.now()+Math.max(60000,Number(body.expiresIn||600)*1000));
+  if(!edgeSession.token)throw new Error('Edge session token غير موجود.');
+  return edgeSession.token;
+}
+async function ensureEdgeSession(){
+  if(edgeSession.token&&edgeSession.expiresAt-SESSION_SKEW_MS>Date.now())return edgeSession.token;
+  if(edgeSession.inflight)return edgeSession.inflight;
+  edgeSession.inflight=exchangeEdgeSession().finally(function(){edgeSession.inflight=null;});
+  return edgeSession.inflight;
+}
+function safeMutationBody(op,extra){
+  extra=extra||{};
+  if(op==='claimNext')return {};
+  if(op==='completeTask')return {taskId:txt(extra.taskId),finalStatus:txt(extra.finalStatus),notes:txt(extra.notes)};
+  return {};
+}
+async function edgeApiOnce(op,extra,idempotencyKey,retry){
+  const route=ROUTES[op];if(!route)throw new Error('عملية Operator Task غير مدعومة عبر Edge: '+op);
+  const token=await ensureEdgeSession();
+  const headers={accept:'application/json',authorization:'Bearer '+token};
+  const opts={method:route.method,cache:'no-store',credentials:'omit',headers:headers};
+  if(route.method==='POST'){
+    headers['content-type']='application/json';
+    if(route.mutation)headers['idempotency-key']=idempotencyKey;
+    opts.body=JSON.stringify(safeMutationBody(op,extra));
+  }
+  let r=await fetch(edgeBase()+route.path,opts);
+  if(r.status===401&&retry!==false){clearEdgeSession();return edgeApiOnce(op,extra,idempotencyKey,false);}
+  return parseJson(r);
+}
+async function api(op,extra){
+  const route=ROUTES[op];if(!route)throw new Error('عملية Operator Task غير مدعومة عبر Edge: '+op);
+  const key=route.mutation?requestId(op,extra):'';
+  return edgeApiOnce(op,extra,key,true);
+}
 function hide(el){if(el)el.style.display='none';}
 function privacyMask(role){
   if(role!=='WAEL'&&role!=='GABER')return;
@@ -47,18 +118,13 @@ function pressHtml(count){
   if(!pressItems.length)return out+'<div style="padding:8px;color:#66788a;font-size:12px">لا توجد أوردرات مكبس حاليًا.</div>';
   return out+'<div style="margin-top:8px;border:1px solid #edf1f4;border-radius:10px;padding:8px">'+pressItems.map(function(x){return '<div style="padding:8px 0;border-bottom:1px solid #f1f3f5"><b>🔥 أوردر '+esc(x.orderId)+'</b> — '+esc(x.itemName||'-')+'<div style="font-size:11px;color:#66788a">'+esc(x.customer||'-')+' • بند '+esc(x.lineId)+' • '+esc(x.status||'-')+'</div></div>';}).join('')+'</div>';
 }
-async function mountGaberMaterial(d){
-  if(!d||d.role!=='GABER'||d.materialControlEnabled!==true||!d.task)return;
-  const mount=document.getElementById('trendGaberMaterialV1Mount');if(!mount)return;
-  const mod=window.TrendOSGaberMaterialUiV1;if(!mod||typeof mod.mountTask!=='function'){mount.innerHTML='<div style="margin-top:10px;color:#9b1c1c">واجهة قفلة خامات جابر غير محملة.</div>';return;}
-  try{const bootstrap=await api('gaberMaterialBootstrap',{taskId:d.task.taskId});if(!bootstrap||!bootstrap.success)throw new Error(bootstrap&&bootstrap.message||'تعذر تحميل بيانات خامات التاسك.');if(!last||!last.task||last.task.taskId!==d.task.taskId)return;mod.mountTask(mount,{task:d.task,bootstrap:bootstrap,api:api});}catch(err){mount.innerHTML='<div style="margin-top:10px;color:#9b1c1c">'+esc(err&&err.message||err)+'</div>';}
-}
-function renderEmployee(d){const r=ensureRoot();if(!r)return;last=d;privacyMask(d.role);const title=d.role==='WAEL'?'شغل وائل — الطباعة':'شغل جابر — الليزر';let html=css()+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><b style="font-size:19px">'+title+'</b><div style="font-size:12px;color:#66788a">التاسك العادي بيتحدد تلقائيًا من النظام.</div></div><button data-ot="refresh" class="ghost">تحديث</button></div>';html+=taskHtml(d.task||null);if(d.role==='GABER'&&d.materialControlEnabled===true&&d.task)html+='<div id="trendGaberMaterialV1Mount"></div>';if(d.role==='WAEL'){html+='<div style="margin-top:12px;border:1px solid #f1d18a;border-radius:12px;padding:10px"><b>⚡ الطباعة على الطاير</b>'+flyHtml(d.flyPrint)+'</div>';html+='<div style="margin-top:12px;border:1px solid #f1d18a;border-radius:12px;padding:10px"><b>🔥 المكبس</b>'+pressHtml(d.pressCandidateCount)+'</div>';}r.innerHTML=html;if(d.role==='GABER'&&d.materialControlEnabled===true&&d.task)mountGaberMaterial(d);}
-function renderManager(m,status){const r=ensureRoot();if(!r)return;last=status||{role:'MANAGER'};const rows=m&&m.employees||[];let html=css()+'<div style="display:flex;justify-content:space-between"><b>📊 أداء التاسكات</b><button data-ot="metrics" class="ghost">تحديث</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:10px">'+rows.map(function(x){return '<div style="border:1px solid #edf1f4;border-radius:10px;padding:10px"><b>'+esc(x.employee)+'</b><div>'+Number(x.completedOrders||0)+' أوردر • '+Number(x.completedTasks||0)+' تاسك</div><small>إجمالي '+fmtSec(x.totalWorkSec)+' • متوسط '+fmtSec(x.averageWorkSec)+'</small></div>';}).join('')+'</div>';if(status&&status.materialControlEnabled===true)html+='<div id="trendGaberMaterialManagerV1Mount"></div>';r.innerHTML=html;if(status&&status.materialControlEnabled===true){const mod=window.TrendOSGaberMaterialUiV1,mount=document.getElementById('trendGaberMaterialManagerV1Mount');if(mod&&mount&&typeof mod.mountManager==='function')mod.mountManager(mount,{api:api});else if(mount)mount.innerHTML='<div style="margin-top:10px;color:#9b1c1c">واجهة رقابة خامات جابر غير محملة.</div>';}}
-async function refresh(){if(busy||!user())return;busy=true;try{const d=await api('status');if(!d||!d.success||d.enabled!==true){last=d;return;}if(d.role==='MANAGER'){const m=await api('metrics');if(m&&m.success)renderManager(m,d);return;}renderEmployee(d);}catch(e){console.warn('Operator Task V2:',e);}finally{busy=false;}}
+function renderEmployee(d){const r=ensureRoot();if(!r)return;last=d;privacyMask(d.role);const title=d.role==='WAEL'?'شغل وائل — الطباعة':'شغل جابر — الليزر';let html=css()+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><b style="font-size:19px">'+title+'</b><div style="font-size:12px;color:#66788a">التاسك العادي بيتحدد تلقائيًا من النظام.</div></div><button data-ot="refresh" class="ghost">تحديث</button></div>';html+=taskHtml(d.task||null);if(d.role==='WAEL'){html+='<div style="margin-top:12px;border:1px solid #f1d18a;border-radius:12px;padding:10px"><b>⚡ الطباعة على الطاير</b>'+flyHtml(d.flyPrint)+'</div>';html+='<div style="margin-top:12px;border:1px solid #f1d18a;border-radius:12px;padding:10px"><b>🔥 المكبس</b>'+pressHtml(d.pressCandidateCount)+'</div>';}r.innerHTML=html;}
+function renderManager(m,status){const r=ensureRoot();if(!r)return;last=status||{role:'MANAGER'};const rows=m&&m.employees||[];let html=css()+'<div style="display:flex;justify-content:space-between"><b>📊 أداء التاسكات</b><button data-ot="metrics" class="ghost">تحديث</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:10px">'+rows.map(function(x){return '<div style="border:1px solid #edf1f4;border-radius:10px;padding:10px"><b>'+esc(x.employee)+'</b><div>'+Number(x.completedOrders||0)+' أوردر • '+Number(x.completedTasks||0)+' تاسك</div><small>إجمالي '+fmtSec(x.totalWorkSec)+' • متوسط '+fmtSec(x.averageWorkSec)+'</small></div>';}).join('')+'</div>';r.innerHTML=html;}
+async function refresh(){if(busy||!user())return;busy=true;try{const d=await api('status');if(!d||!d.success||d.enabled!==true){last=d;return;}if(d.role==='MANAGER'){const m=await api('metrics');if(m&&m.success)renderManager(m,d);return;}renderEmployee(d);}catch(e){console.warn('Operator Task V2 Edge:',e);}finally{busy=false;}}
 async function act(op,extra){if(busy)return null;busy=true;try{const d=await api(op,extra);if(!d||!d.success)throw new Error(d&&d.message||'تعذر تنفيذ العملية.');return d;}catch(e){alert(txt(e&&e.message||e));return null;}finally{busy=false;}}
-async function onClick(e){const b=e.target&&e.target.closest?e.target.closest('[data-ot]'):null;if(!b)return;const a=b.getAttribute('data-ot');if(a==='refresh'){await refresh();return;}if(a==='claim'){const d=await act('claimNext');if(d)await refresh();return;}if(a==='ready'||a==='delivered'){if(!last||!last.task)return;const finalStatus=a==='ready'?'جاهز للاستلام':'تم التسليم';const extra={taskId:last.task.taskId,finalStatus:finalStatus};if(last.role==='GABER'&&last.materialControlEnabled===true){const mod=window.TrendOSGaberMaterialUiV1;if(!mod||typeof mod.getPayload!=='function'){alert('واجهة قفلة خامات جابر غير جاهزة.');return;}try{extra.materialClosePayload=JSON.stringify(mod.getPayload(last.task));}catch(err){alert(txt(err&&err.message||err));return;}}if(!confirm('تأكيد تحويل التاسك إلى '+finalStatus+'؟'))return;const d=await act('completeTask',extra);if(d){alert('الوقت الفعلي: '+fmtSec(d.actualWorkSec||d.task&&d.task.workSec));await refresh();}return;}if(a==='pressToggle'){if(pressOpen){pressOpen=false;pressItems=[];if(last)renderEmployee(last);return;}const d=await act('pressCandidates');if(d){pressItems=Array.isArray(d.items)?d.items:[];pressOpen=true;if(last)renderEmployee(last);}return;}if(a==='metrics'){const m=await act('metrics');if(m)renderManager(m,last&&last.role==='MANAGER'?last:null);}}
+async function onClick(e){const b=e.target&&e.target.closest?e.target.closest('[data-ot]'):null;if(!b)return;const a=b.getAttribute('data-ot');if(a==='refresh'){await refresh();return;}if(a==='claim'){const d=await act('claimNext');if(d)await refresh();return;}if(a==='ready'||a==='delivered'){if(!last||!last.task)return;const finalStatus=a==='ready'?'جاهز للاستلام':'تم التسليم';const extra={taskId:last.task.taskId,finalStatus:finalStatus};if(!confirm('تأكيد تحويل التاسك إلى '+finalStatus+'؟'))return;const d=await act('completeTask',extra);if(d){alert('الوقت الفعلي: '+fmtSec(d.actualWorkSec||d.task&&d.task.workSec));await refresh();}return;}if(a==='pressToggle'){if(pressOpen){pressOpen=false;pressItems=[];if(last)renderEmployee(last);return;}const d=await act('pressCandidates');if(d){pressItems=Array.isArray(d.items)?d.items:[];pressOpen=true;if(last)renderEmployee(last);}return;}if(a==='metrics'){const m=await act('metrics');if(m)renderManager(m,last&&last.role==='MANAGER'?last:null);}}
 function tick(){if(!root||!last||!last.task)return;const el=root.querySelector('[data-ot-timer]');if(el)el.textContent=fmtSec(taskSec(last.task));}
 function boot(){if(!user())return;if(!root)refresh();}
+window.TrendOSOperatorTaskV2Transport={mode:'cloudflare-edge-bearer-apps-script-authority',api:edgeBase(),routes:Object.keys(ROUTES).reduce(function(out,k){out[k]=ROUTES[k].path;return out;},{}),clearSession:clearEdgeSession,stats:function(){return {sessionExpiresAt:edgeSession.expiresAt||0,hasSession:!!edgeSession.token};}};
 timer=setInterval(tick,1000);bootTimer=setInterval(boot,2500);boot();
 })();
