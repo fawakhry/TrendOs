@@ -1,0 +1,46 @@
+name: TrendOS T11 Service Filter Semantics
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-filter-semantics.yml'
+
+permissions:
+  contents: read
+
+env:
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+  QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+  QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read Service filter totals only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={}){const t=Date.now();const c=new AbortController();const timer=setTimeout(()=>c.abort(),45000);try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
+          const login=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});
+          const token=text(login.body?.user?.token); if(login.status!==200||login.body?.success!==true||!token) throw new Error('login failed'); console.log('::add-mask::'+token);
+          const filters=['__ACTIVE__','طلب جديد','تم التسليم','جاهز للاستلام',''];
+          for(const statusFilter of filters){
+            const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'1',statusFilter})});
+            const rows=Array.isArray(a.body?.rows)?a.body.rows:[];
+            console.log('T11_SERVICE_FILTER='+JSON.stringify({filter:statusFilter||'(none)',http:a.status,ms:a.ms,success:a.body?.success===true,totalRows:Number(a.body?.pagination?.totalRows||0),returnedRows:rows.length,statusCounts:a.body?.statusCounts&&typeof a.body.statusCounts==='object'?a.body.statusCounts:null}));
+            if(a.status!==200||a.body?.success!==true) throw new Error('filter request failed: '+(statusFilter||'(none)'));
+          }
+          console.log('BUSINESS_VALUES_EXPOSED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
