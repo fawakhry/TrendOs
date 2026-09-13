@@ -6,6 +6,7 @@ import { handleCloudSessionBridgeV3, isCloudSessionBridgeV3Path } from './cloud-
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
+import { handleEdgeOrdersServiceReadRequest, isEdgeOrdersServiceReadPath } from './edge-orders-service-read-v1.mjs';
 import { repairEdgeOrdersResponse02CX } from './edge-orders-line-id-repair-02cx.mjs';
 import { guardEdgeOrdersPageRequest } from './edge-orders-freshness-gate.mjs';
 import {
@@ -30,6 +31,12 @@ export default {
     // alter business reads, business writes, D1 authority, Tasks, or secrets.
     if (isCloudSessionBridgeV3Path(path)) {
       return handleCloudSessionBridgeV3(request, env, ctx);
+    }
+
+    // T11 Service read lane: isolated order-level projection from the fresh
+    // authoritative Orders mirror. Writes and debt reads remain Apps Script.
+    if (isEdgeOrdersServiceReadPath(path)) {
+      return handleEdgeOrdersServiceReadRequest(request, env, ctx);
     }
 
     // Canonical TrendOS-native Accounting route and read-only integration contract.
