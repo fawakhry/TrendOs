@@ -78,10 +78,14 @@ jobs:
           wranglerVersion: '4.33.2'
           workingDirectory: 'cloudflare-d1/preview'
           command: deploy --config wrangler.operator-task-v2.toml
-          secrets: |
-            EDGE_SESSION_SECRET
-        env:
-          EDGE_SESSION_SECRET: ${{ secrets.TRENDOS_EDGE_SESSION_SECRET_PREVIEW }}
+
+      - name: Bind Edge session secret to isolated Worker
+        shell: bash
+        working-directory: cloudflare-d1/preview
+        run: |
+          set -euo pipefail
+          printf '%s' "$EDGE_SESSION_SECRET" | npx wrangler@4.33.2 secret put EDGE_SESSION_SECRET --config wrangler.operator-task-v2.toml
+          echo 'PASS: EDGE_SESSION_SECRET bound to isolated Operator Task preview Worker.'
 
       - name: Verify isolated Worker health
         shell: bash
