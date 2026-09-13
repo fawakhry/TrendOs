@@ -29,12 +29,12 @@ jobs:
         run: |
           set -euo pipefail
           node <<'NODE'
-          const assert=require('node:assert/strict');
           const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
           const username=String(process.env.QUALIFY_USERNAME||'').trim();
           const password=String(process.env.QUALIFY_PASSWORD||'');
           const text=v=>String(v==null?'':v).trim();
           const digits=v=>text(v).replace(/\D/g,'');
+          const assert=(cond,msg)=>{if(!cond)throw new Error(msg||'assertion failed')};
           async function req(url,opt={}){const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}
           async function authoritative(){
             for(let n=1;n<=4;n++){
@@ -48,7 +48,7 @@ jobs:
           }
           async function mirror(offset){
             const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('بنود الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});
-            assert.equal(r.status,200); assert.equal(r.body?.success,true); return r.body.sheet||{};
+            assert(r.status===200,'mirror HTTP '+r.status); assert(r.body?.success===true,'mirror success false'); return r.body.sheet||{};
           }
           const [a,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
           const headers=Array.isArray(m0.headers)?m0.headers:[];
