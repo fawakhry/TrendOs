@@ -23,6 +23,6 @@ assert.match(strips,/setTimeout\(function\(\)\{refresh\(\{source:'boot-delayed'\
 assert.match(strips,/TrendPollCoordinatorV1/);
 assert.match(cfg,/MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false/);
 assert.match(cfg,/MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false/);
-assert.match(cfg,/attendance-v1\.js\?v=20260906perf1/);
-assert.match(cfg,/go-live-autopilot-v1\.js\?v=20260906perf1/);
+assert.match(cfg,/attendance-v1\.js\?v=20260906perfhotfix1/);
+assert.match(cfg,/go-live-autopilot-v1\.js\?v=20260906perfhotfix1/);
 console.log('STARTUP_REQUEST_STORM_FRONTEND_GUARD_PASS');
