@@ -1,0 +1,52 @@
+name: TrendOS T11 Service Orders Candidate Parity
+
+on:
+  push:
+    branches: [cloud-migration-v3-t6b-auth-shadow-canary-20260913]
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-orders-candidate-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Compare Service candidate from D1 Orders against deployed Apps Script
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto=await import('node:crypto');
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim(); const norm=v=>text(v).replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();
+          const hash=v=>crypto.createHash('sha256').update(String(v)).digest('hex').slice(0,16); const assert=(c,m)=>{if(!c)throw new Error(m||'assert')};
+          async function req(url,opt={}){const c=new AbortController();const timer=setTimeout(()=>c.abort(),45000);const t=Date.now();try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
+          async function live(){for(let n=1;n<=4;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a;await new Promise(r=>setTimeout(r,350));}throw new Error('Service read unavailable')}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});assert(r.status===200&&r.body?.success===true,'Orders mirror unavailable');return r.body.sheet||{}}
+          const [a,m0,m1]=await Promise.all([live(),mirror(0),mirror(500)]); const headers=m0.headers||[], raw=[...(m0.rows||[]),...(m1.rows||[])]; const hm={};headers.forEach((x,i)=>hm[text(x)]=i); const idx=(n,f)=>Number.isInteger(hm[n])?hm[n]:f;
+          const c={order:idx('رقم الأوردر',0),code:idx('كود الأوردر',1),created:idx('تاريخ الإنشاء',2),customer:idx('اسم الشات / المكتب',3),phone:idx('رقم العميل',5),dept:idx('القسم الرئيسي',8),item:idx('وصف مختصر',9),priority:idx('الأولوية',10),status:idx('الحالة العامة',11),updated:idx('آخر تحديث',12),qty:idx('عدد البنود',13),ready:idx('بنود جاهزة',14),notReady:idx('بنود غير جاهزة',15),partial:idx('تسليم جزئي؟',16),entity:idx('الكيان المنفذ الرئيسي',17),notes:idx('ملاحظات',18)};
+          const hidden=new Set(['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى']); const rank=p=>{p=text(p)||'عادي';return p==='عاجل'||p==='VIP'?0:p==='عادي'?1:p==='مؤجل'?2:9};
+          const candidate=[];
+          for(const rr of raw){const rn=Number(rr?.rowNumber||0);if(rn<=1)continue;const d=(rr.display&&rr.display.length?rr.display:rr.values)||[];const orderId=text(d[c.order])||text(d[c.code]);if(!orderId)continue;const status=text(d[c.status])||'طلب جديد';if(status==='طلب جديد'&&rn<=14)continue;if(hidden.has(status))continue;candidate.push({sourceRowNumber:rn,orderId,orderCode:text(d[c.code])||orderId,lineId:text(d[c.phone]),customerPhone:text(d[c.phone]),customer:text(d[c.customer]),department:text(d[c.dept]),itemName:text(d[c.item]),qty:text(d[c.qty]),assignedTo:text(d[c.dept]),priority:text(d[c.priority])||'عادي',status,ready:text(d[c.ready]),notes:text(d[c.notes]),createdAt:text(d[c.created]),updatedAt:text(d[c.updated]),notReady:text(d[c.notReady]),partial:text(d[c.partial]),executionEntity:text(d[c.entity])});}
+          candidate.sort((x,y)=>rank(x.priority)-rank(y.priority)||x.sourceRowNumber-y.sourceRowNumber);
+          const appsRows=(a.body?.rows||[]).map(x=>({orderId:text(x.orderId),orderCode:text(x.orderCode)||text(x.orderId),lineId:text(x.lineId),customerPhone:text(x.customerPhone),customer:text(x.customer),department:text(x.department),itemName:text(x.itemName),qty:text(x.qty),assignedTo:text(x.assignedTo),priority:text(x.priority)||'عادي',status:text(x.status)||'طلب جديد',ready:text(x.ready),notes:text(x.notes)}));
+          const candRows=candidate.map(x=>({orderId:x.orderId,orderCode:x.orderCode,lineId:x.lineId,customerPhone:x.customerPhone,customer:x.customer,department:x.department,itemName:x.itemName,qty:x.qty,assignedTo:x.assignedTo,priority:x.priority,status:x.status,ready:x.ready,notes:x.notes}));
+          const key=x=>[x.orderId,x.orderCode,x.lineId,x.customerPhone,x.customer,x.department,x.itemName,x.qty,x.assignedTo,x.priority,x.status,x.ready,x.notes].join('|');
+          const multiset=(list)=>{const m=new Map();for(const x of list){const k=key(x);m.set(k,(m.get(k)||0)+1)}return m}; const A=multiset(appsRows), C=multiset(candRows); let missing=0,extra=0;for(const [k,n] of A)missing+=Math.max(0,n-(C.get(k)||0));for(const [k,n] of C)extra+=Math.max(0,n-(A.get(k)||0));
+          const sequenceExact=appsRows.length===candRows.length&&appsRows.every((x,i)=>key(x)===key(candRows[i])); const multisetExact=missing===0&&extra===0&&appsRows.length===candRows.length;
+          console.log('T11_SERVICE_CANDIDATE_PARITY='+JSON.stringify({appsRows:appsRows.length,candidateRows:candRows.length,missing,extra,multisetExact,sequenceExact,appsMs:a.ms,mirrorSyncedAt:m0.syncedAt,appsHash:hash(appsRows.map(key).join('\n')),candidateHash:hash(candRows.map(key).join('\n'))}));
+          console.log('LEGACY_EXCLUSION=status طلب جديد AND sourceRowNumber<=14'); console.log('BUSINESS_IDENTITIES_EXPOSED=NO'); console.log('PRODUCTION_MUTATION=NO'); if(!multisetExact)process.exit(23); console.log('T11_SERVICE_CANDIDATE_PARITY=PASS');
+          NODE
