@@ -1,0 +1,60 @@
+name: TrendOS Cloud Migration V3 T6B Auth Shadow Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t6b-auth-shadow-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  d1-auth-shadow-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read Auth Shadow table state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --json --command "SELECT COUNT(*) AS total_rows, SUM(CASE WHEN revoked_at_ms IS NULL AND expires_at_ms > CAST(strftime('%s','now') AS INTEGER)*1000 THEN 1 ELSE 0 END) AS active_rows, MIN(length(token_fingerprint)) AS min_fp_len, MAX(length(token_fingerprint)) AS max_fp_len FROM cloud_auth_sessions_v1" > /tmp/t6b-state.json
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --json --command "SELECT sql FROM sqlite_master WHERE type='table' AND name='cloud_auth_sessions_v1'" > /tmp/t6b-schema-sql.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/t6b-state.json','utf8'));
+          const rows=[];(function walk(v){if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if('total_rows'in v)rows.push(v);Object.values(v).forEach(walk)}})(x);
+          if(!rows.length)process.exit(1);
+          const r=rows[0];
+          console.log('T6B_DIAG_TOTAL_ROWS='+Number(r.total_rows||0));
+          console.log('T6B_DIAG_ACTIVE_ROWS='+Number(r.active_rows||0));
+          console.log('T6B_DIAG_MIN_FP_LEN='+(r.min_fp_len==null?'NULL':Number(r.min_fp_len)));
+          console.log('T6B_DIAG_MAX_FP_LEN='+(r.max_fp_len==null?'NULL':Number(r.max_fp_len)));
+          const schema=fs.readFileSync('/tmp/t6b-schema-sql.json','utf8');
+          if(!schema.includes('cloud_auth_sessions_v1')||!schema.includes('token_fingerprint'))process.exit(2);
+          console.log('T6B_DIAG_SCHEMA_PRESENT=YES');
+          NODE
+      - name: Synthetic D1 insert-select-delete contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          now="$(($(date +%s)*1000))"
+          exp="$((now+60000))"
+          fp='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "INSERT INTO cloud_auth_sessions_v1(username_key,token_fingerprint,canonical_username,role,department,screens_json,verified_at_ms,expires_at_ms,last_seen_at_ms,revoked_at_ms,source,schema_version) VALUES('__t6b_probe__','$fp','__t6b_probe__','service','','[]',$now,$exp,$now,NULL,'diagnostic',1) ON CONFLICT(username_key,token_fingerprint) DO UPDATE SET last_seen_at_ms=excluded.last_seen_at_ms,expires_at_ms=excluded.expires_at_ms" >/tmp/t6b-insert.txt
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --json --command "SELECT COUNT(*) AS probe_rows, MIN(length(token_fingerprint)) AS fp_len FROM cloud_auth_sessions_v1 WHERE username_key='__t6b_probe__'" > /tmp/t6b-probe.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/t6b-probe.json','utf8'));let r=null;(function w(v){if(Array.isArray(v))return v.forEach(w);if(v&&typeof v==='object'){if('probe_rows'in v)r=v;Object.values(v).forEach(w)}})(x);if(!r||Number(r.probe_rows)!==1||Number(r.fp_len)!==64)process.exit(1);console.log('T6B_DIAG_D1_INSERT_SELECT=PASS')"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "DELETE FROM cloud_auth_sessions_v1 WHERE username_key='__t6b_probe__'" >/tmp/t6b-delete.txt
+          echo 'T6B_DIAG_SYNTHETIC_ROW_CLEANED=YES'
