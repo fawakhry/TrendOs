@@ -70,6 +70,11 @@ function trendosV1932TryRoute_(e, payload) {
     return output_({ success:false, message:'Cleaning backend غير منشور.' }, callback);
   }
 
+  if (action === 'operatorTaskEdgeProxyV2') {
+    if (typeof operatorTaskEdgeProxyV2_ === 'function') return output_(operatorTaskEdgeProxyV2_(event), callback);
+    return output_({ success:false, message:'Operator Task Edge proxy backend غير منشور.' }, callback);
+  }
+
   if (action === 'operatorTaskV2') {
     if (typeof operatorTaskV2_ === 'function') return output_(operatorTaskV2_(event), callback);
     return output_({ success:false, message:'Operator Task V2 backend غير منشور.' }, callback);
