@@ -3,6 +3,7 @@ import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleCloudSessionBridgeV3, isCloudSessionBridgeV3Path } from './cloud-session-bridge-v3.mjs';
+import { handleOperatorTaskV3ReadRequest, isOperatorTaskV3ReadPath } from './operator-task-v3-read.mjs';
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
@@ -31,6 +32,13 @@ export default {
     // or D1 authority is changed by this interception.
     if (isCloudSessionBridgeV3Path(path)) {
       return handleCloudSessionBridgeV3(request, env, ctx);
+    }
+
+    // CLOUD-MIGRATION-V3/T4: D1-only Operator Task read projection.
+    // Exact V3 status path only, default-OFF, GET-only and mutation-free.
+    // It intentionally does not fall through to the legacy V2 Apps Script proxy.
+    if (isOperatorTaskV3ReadPath(path)) {
+      return handleOperatorTaskV3ReadRequest(request, env, ctx);
     }
 
     // Canonical TrendOS-native Accounting route and read-only integration contract.
@@ -67,8 +75,8 @@ export default {
       return handleEdgeOrdersReadCanaryRequest(request, env, ctx);
     }
 
-    // Operator Task V2 hybrid facade. Exact paths only; fail-closed/default-OFF;
-    // Apps Script/Sheets remains Task write authority; this lane has no D1 Task writes.
+    // Operator Task V2 hybrid facade retained unchanged for compatibility.
+    // No V3 route delegates to this Apps Script proxy.
     if (isOperatorTaskEdgePath(path)) {
       return handleOperatorTaskEdgeRequest(request, env, ctx);
     }
