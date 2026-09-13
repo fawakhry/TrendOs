@@ -1,0 +1,78 @@
+name: TrendOS Cloud Migration V3 T5 Pre-Cutover
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-20260913
+    paths:
+      - 'cloudflare-d1/**'
+      - 'trendos-edge-orders-read-v1.js'
+      - 'config.js'
+      - 'app.js'
+      - 'tests/frontend_edge_orders_cutover_02ct.test.mjs'
+      - 'tests/startup_request_storm_frontend_guard.test.mjs'
+      - 'tests/trendos_polling_coalescing_v1.test.mjs'
+      - 'tests/trendos_resume_no_autorefresh_v1.test.mjs'
+      - 'tests/trendos_return_traffic_quiet_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_read_v1.test.mjs'
+      - 'tests/cloudflare_edge_orders_dashboard_02cn.test.mjs'
+      - 'tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs'
+      - 'tests/cloudflare_edge_orders_active_summary_02cw.test.mjs'
+      - 'tests/frontend_flyprint_lane_stability_02cv.test.mjs'
+      - 'tests/frontend_order_status_write_consistency_02cv.test.mjs'
+      - 'tests/trendos_predeploy_package_v1.test.js'
+      - '.github/workflows/cloud-migration-v3-t5-precutover.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-precutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Re-run Cloud session and auth contracts
+        run: |
+          node cloudflare-d1/test/cloud-session-bridge-v3.test.mjs
+          node cloudflare-d1/test/cloud-auth-shadow-v1.test.mjs
+          node cloudflare-d1/test/cloud-session-bridge-v3-auth-shadow.test.mjs
+          node cloudflare-d1/test/cloud-orders-read-v3-readiness.test.mjs
+      - name: Qualify Edge Orders contract surface
+        run: |
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_dashboard_02cn.test.mjs
+          node tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs
+          node tests/cloudflare_edge_orders_active_summary_02cw.test.mjs
+          node tests/cloudflare_edge_orders_freshness_gate_v1.test.mjs
+          node tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs
+          node tests/cloudflare_edge_orders_line_identity_02cx.test.mjs
+      - name: Qualify frontend cutover and traffic controls
+        run: |
+          node tests/frontend_edge_orders_cutover_02ct.test.mjs
+          node tests/startup_request_storm_frontend_guard.test.mjs
+          node tests/trendos_polling_coalescing_v1.test.mjs
+          node tests/trendos_resume_no_autorefresh_v1.test.mjs
+          node tests/trendos_return_traffic_quiet_v1.test.mjs
+          node tests/frontend_flyprint_lane_stability_02cv.test.mjs
+          node tests/frontend_order_status_write_consistency_02cv.test.mjs
+      - name: Run predeploy package regression
+        run: node tests/trendos_predeploy_package_v1.test.js
+      - name: Assert production remains untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-20260913"
+          grep -q 'window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = false;' config.js
+          echo "CURRENT_PRODUCTION_FRONTEND_EDGE_READ=false"
+          echo "PRODUCTION_WORKER_DEPLOY=NO"
+          echo "PRODUCTION_D1_MIGRATION=NO"
+          echo "PRODUCTION_SYNC_ENABLE=NO"
+          echo "PRODUCTION_FRONTEND_CUTOVER=NO"
+          echo "SHEETS_WRITE_AUTHORITY_CHANGED=NO"
+          echo "TASK_MUTATION=NO"
+          echo "SECRET_CHANGE=NO"
