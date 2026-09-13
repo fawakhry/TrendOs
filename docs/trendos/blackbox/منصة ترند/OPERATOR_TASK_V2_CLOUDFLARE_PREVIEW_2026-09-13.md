@@ -253,3 +253,37 @@ A second direct GitHub read of production Edge-enable workflow run `34737318430`
 - Head SHA: `c910d26bc01b1b143d3c9ba179792567c6d60ba2`
 
 No execution logs exist yet because the job has not started. No production activation step was taken from this observation. The next allowed action remains another read of this same run after GitHub reaches a terminal result.
+
+## 2026-09-13 production Edge enable — SUCCESS
+
+A fresh repository Actions listing showed the terminal state for the previously queued run, and the job steps plus decoded execution logs were then inspected directly.
+
+Authoritative result:
+
+- Workflow: `TrendOS Operator Task V2 Production Edge Enable`
+- Run ID: `34737318430`
+- Head SHA: `c910d26bc01b1b143d3c9ba179792567c6d60ba2`
+- Run status: `completed`
+- Run conclusion: `success`
+- Job `enable-edge`: `completed / success`
+- All safety, contract, baseline, dry-run, deploy, and post-deploy verification steps succeeded.
+- Automatic rollback step was skipped because post-deploy verification succeeded.
+
+Deployment evidence from the logs:
+
+- Wrangler dry-run exposed `TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED = "true"`.
+- Production deploy exposed the same Edge flag as `"true"`.
+- Production Worker Version ID: `1b95d243-0233-4ca2-b710-68f64032145c`.
+- Post-deploy production baseline: PASS.
+- Unauthenticated `GET /v1/operator/tasks/status` returned HTTP 401 with `{"success":false,"code":"invalid-token-format"}` rather than `OPERATOR_TASK_EDGE_DISABLED`.
+- `PRODUCTION_OPERATOR_TASK_EDGE_ENABLED_AUTH_FAIL_CLOSED=PASS`.
+- `PRODUCTION_OPERATOR_TASK_EDGE_ENABLE=PASS`.
+
+Safety conclusion recorded by the workflow:
+
+- `NO_EDGE_SESSION_SECRET_CHANGE=YES`
+- `NO_PROXY_SECRET_CHANGE=YES`
+- `NO_D1_MIGRATION=YES`
+- `NO_TASK_MUTATION=YES`
+
+This supersedes the earlier temporary queued observations. The next allowed step is a fresh GET-only Production verification of current Edge/core behavior, followed by authenticated Operator Task status qualification before any canary mutation or frontend employee rollout.
