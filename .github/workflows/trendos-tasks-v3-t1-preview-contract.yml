@@ -1,0 +1,52 @@
+name: TrendOS Tasks V3 T1 Preview Contract
+
+on:
+  push:
+    branches:
+      - tasks-v3-t1-preview-candidate-20260914
+    paths:
+      - 'cloudflare-d1/src/tasks-v3-readonly-preview.mjs'
+      - 'tests/tasks_v3_worker_preview_contract.test.mjs'
+      - 'tests/tasks_v3_readonly_bridge_contract.test.mjs'
+      - '.github/workflows/trendos-tasks-v3-t1-preview-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify no production entrypoint wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f cloudflare-d1/src/tasks-v3-readonly-preview.mjs
+          if grep -R --line-number --fixed-strings "tasks-v3-readonly-preview.mjs" cloudflare-d1/src/index.js cloudflare-d1/src/index_v2.js 2>/dev/null; then
+            echo "T1_PREVIEW_PRODUCTION_ENTRYPOINT_WIRING=FAIL"
+            exit 1
+          fi
+          echo "T1_PREVIEW_PRODUCTION_ENTRYPOINT_WIRING=ABSENT"
+
+      - name: Run Tasks V3 T0 bridge contract
+        run: node --test tests/tasks_v3_readonly_bridge_contract.test.mjs
+
+      - name: Run Tasks V3 T1 preview adapter contract
+        run: node --test tests/tasks_v3_worker_preview_contract.test.mjs
+
+      - name: Emit qualification markers
+        run: |
+          echo "TASKS_V3_T1_PREVIEW_CONTRACT=PASS"
+          echo "PRODUCTION_DEPLOYMENT=NO"
+          echo "TASK_MUTATION=NO"
+          echo "SECRET_CHANGE=NO"
