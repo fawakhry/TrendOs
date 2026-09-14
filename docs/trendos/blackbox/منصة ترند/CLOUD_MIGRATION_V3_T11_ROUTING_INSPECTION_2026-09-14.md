@@ -96,7 +96,7 @@ Result: **PASS**
 - Emitted bundle contains Service handler marker `d1-edge-orders-service-v1`: PASS.
 
 ### Interpretation
-No wiring patch is currently required in `production-shadow/index.js`, `src/index_v2.js`, or `src/edge-orders-service-v1.mjs`. Source dispatch and emitted Wrangler bundle both contain the qualified Service route. The attempt-3 HTTP 404 therefore occurred after bundling, at the production deployment activation/edge-verification boundary (for example serving the pre-canary stable version during verification), not because the candidate source lacked the route.
+No wiring patch is currently required in `production-shadow/index.js`, `src/index_v2.js`, or `src/edge-orders-service-v1.mjs`. Source dispatch and emitted Wrangler bundle both contain the qualified Service route. The attempt-3 HTTP 404 therefore occurred after bundling, at the production deployment activation/edge-verification boundary, not because the candidate source lacked the route.
 
 ### Production mutation
 - Production mutation in this step: **NO**.
@@ -115,5 +115,74 @@ Unchanged:
 - `__DEBT__` Apps Script
 - Sheets/Apps Script business-write authority retained
 
+## Step 4 — Hardened narrow T11 Production canary / attempt 4
+Result: **FAIL after route activation; automatic rollback PASS**
+
+### Canary identifiers
+- Workflow: `TrendOS T11 Service Worker Production Canary`
+- Run ID: `34849337401`
+- Job ID: `103992998299`
+- Commit SHA: `6c6f797af4e0de672d9718dfd8cb2a4f347b1662`
+- Temporary Worker Version: `3df273b6-51fc-472c-acfd-ebddfe2889fd`
+- Restored Worker Version: `3b819fd3-e73d-46f8-9150-f73c282706ab`
+
+### What passed before failure
+- Hard T11 Worker scope/credential gate: PASS.
+- Service runtime contracts: PASS.
+- Pre-deploy Production baseline: PASS.
+- Pre-deploy Edge session: PASS on attempt 1.
+  - login HTTP 200, 6949 ms
+  - orders session exchange HTTP 200, 4787 ms
+  - `authSource=apps-script-post`
+- Exact Wrangler dry-run: PASS.
+- Dry-run emitted Service route marker/path: PASS.
+- Worker deploy command: PASS.
+- Service route activation gate: PASS at attempt 6 after the edge converged:
+  - attempt 1 = 404
+  - attempt 2 = 401
+  - attempt 3 = 404
+  - attempts 4, 5, 6 = 401
+- Post-deploy Production baseline: PASS.
+
+### Exact live failure
+The authenticated Service request reached the candidate Service handler, so the original runtime 404 problem was no longer the blocking failure.
+
+Observed result:
+- HTTP: `503`
+- duration: `6491 ms`
+- code: `service-orders-mirror-stale`
+- freshness mode: `idle-heartbeat-error`
+- freshness ok: false
+- parity against Apps Script was not reached because the Service candidate failed closed on freshness first.
+
+### Interpretation
+- Source wiring: proven good.
+- Wrangler bundle: proven good.
+- Production route activation: proven good after edge propagation.
+- Current blocker is now specifically the Service freshness fallback heartbeat path, not routing, auth session acquisition, or pre/post deploy baseline.
+- No Service frontend cutover is permitted at this state.
+
+### Production mutation
+- Production mutation in this step: **YES — narrow temporary T11 Worker canary only**.
+- Worker deployed: **YES**, temporary version `3df273b6-51fc-472c-acfd-ebddfe2889fd`.
+- Apps Script deploy: **NO**.
+- Business writes: **NO**.
+- D1 business-write authority change: **NO**.
+- Sheets/Apps Script write authority change: **NO**.
+- Task mutation: **NO**.
+- `EDGE_SESSION_SECRET` changed: **NO**.
+- `TRENDOS_OPERATOR_TASK_PROXY_SECRET` changed: **NO**.
+- Gaber Material Control changed: **NO**.
+- Automatic rollback: **YES — SUCCESS**.
+- Rollback restored Worker `3b819fd3-e73d-46f8-9150-f73c282706ab` to 100% traffic.
+
+### Current Production State
+- Worker: `3b819fd3-e73d-46f8-9150-f73c282706ab` at 100% traffic.
+- Print/Laser/Press: D1-first + Apps Script fallback retained.
+- Service: still Apps Script only.
+- `__DEBT__`: Apps Script.
+- All business writes: Sheets / Apps Script authoritative.
+- Frontend Service cutover: **NO**.
+
 ### Next exact step
-Harden the existing narrow T11 production canary so it proves the newly deployed Worker version is actually serving the Service route before authoritative parity. Keep automatic rollback. Do not add a runtime wiring change. Add only deployment-activation verification/retry around the Service route and keep the same T11 runtime scope. Then execute the same narrow Production canary; Service frontend remains OFF until live route parity PASS.
+READ-ONLY inspect the Service freshness fallback chain only: `verifyServiceFreshness()` -> `fetchOrdersIdleHeartbeat()` -> Apps Script heartbeat transport/response -> `inspectOrdersIdleHeartbeat()`. Determine why the production candidate produced `idle-heartbeat-error` after 6491 ms. Do not redo Service contract discovery or prior 35/35 parity. If a branch-only correction is proven necessary, patch only the smallest Service/freshness file(s), test branch-only first, expand the T11 scope gate only for the exact required file, then rerun the same narrow canary with automatic rollback.
