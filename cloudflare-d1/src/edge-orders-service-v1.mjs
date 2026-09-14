@@ -71,10 +71,11 @@ function mapOrderRow(row, cols) {
   const d = Array.isArray(row.display) && row.display.length ? row.display : (row.values || []);
   const orderId = text(at(d, cols.orderId)) || text(at(d, cols.orderCode));
   const phone = text(at(d, cols.customerPhone));
+  const qty = text(at(d, cols.qty)) || '1';
   return {
     rowNumber:Number(row.rowNumber || 0), orderId, orderCode:text(at(d, cols.orderCode)) || orderId,
     lineId:phone, customerPhone:phone, customer:text(at(d, cols.customer)), department:text(at(d, cols.department)),
-    itemName:text(at(d, cols.itemName)), qty:text(at(d, cols.qty)), assignedTo:text(at(d, cols.department)),
+    itemName:text(at(d, cols.itemName)), qty, assignedTo:text(at(d, cols.department)),
     priority:text(at(d, cols.priority)) || 'عادي', status:text(at(d, cols.status)) || 'طلب جديد', ready:text(at(d, cols.ready)),
     notes:text(at(d, cols.notes)), receivedAt:text(at(d, cols.createdAt)), updatedAt:text(at(d, cols.updatedAt)),
     expectedDeliveryAt:text(at(d, cols.expected)), expectedDeliveryText:text(at(d, cols.expected)),
