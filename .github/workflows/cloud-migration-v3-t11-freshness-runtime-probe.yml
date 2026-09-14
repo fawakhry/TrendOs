@@ -100,28 +100,30 @@ jobs:
           const token=fs.readFileSync('/tmp/t11-freshness-edge-token','utf8').trim();
           const text=v=>String(v==null?'':v).trim();
           async function req(url,opt={},timeoutMs=20000){const c=new AbortController();const timer=setTimeout(()=>c.abort(),timeoutMs);try{const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
-          const path='/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=1&statusFilter='+encodeURIComponent('__ACTIVE__');
-          const r=await req(base+path,{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+token}},20000);
-          const b=r.body||{};
-          const mirrorMeta=Array.isArray(b.mirrors)?b.mirrors.map(m=>({sheetName:text(m.sheetName),fresh:m.fresh===true,ageSeconds:Number(m.ageSeconds||0),maxAgeSeconds:Number(m.maxAgeSeconds||0),structurallyReady:m.structurallyReady===true,statusReady:m.statusReady===true,parity:m.parity===true,noteReady:m.noteReady===true})):[];
-          const result={http:r.status,ms:r.ms,success:b.success===true,code:text(b.code),dataSource:text(b.dataSource),logicalFreshnessOk:b.logicalFreshness?.ok===true,logicalFreshnessMode:text(b.logicalFreshness?.mode),idleHeartbeatOk:b.idleHeartbeat?.ok===true,idleHeartbeatMode:text(b.idleHeartbeat?.mode),mirrors:mirrorMeta};
-          console.log('T11_02CR_RUNTIME_RESULT='+JSON.stringify(result));
-          if(r.status===200&&b.success===true&&b.logicalFreshness?.ok===true){
-            console.log('T11_02CR_FRESHNESS_PATH=HEARTBEAT_EXTENDED');
-          } else if(r.status===200&&b.success===true){
-            console.log('T11_02CR_FRESHNESS_PATH=WRITE_AGE_FRESH');
-          } else if(r.status===503){
-            console.log('T11_02CR_FRESHNESS_PATH=FAIL_CLOSED_FALLBACK');
-          } else {
-            console.log('T11_02CR_FRESHNESS_PATH=UNEXPECTED_HTTP_'+r.status);
-          }
-          console.log('T11_02CR_RUNTIME_PROBE=COMPLETE');
-          console.log('PRODUCTION_MUTATION=NO');
-          console.log('WORKER_DEPLOY=NO');
-          console.log('APPS_SCRIPT_DEPLOY=NO');
-          console.log('BUSINESS_WRITE=NO');
-          console.log('TASK_MUTATION=NO');
-          console.log('SECRET_CHANGE=NO');
+          (async()=>{
+            const path='/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=1&statusFilter='+encodeURIComponent('__ACTIVE__');
+            const r=await req(base+path,{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+token}},20000);
+            const b=r.body||{};
+            const mirrorMeta=Array.isArray(b.mirrors)?b.mirrors.map(m=>({sheetName:text(m.sheetName),fresh:m.fresh===true,ageSeconds:Number(m.ageSeconds||0),maxAgeSeconds:Number(m.maxAgeSeconds||0),structurallyReady:m.structurallyReady===true,statusReady:m.statusReady===true,parity:m.parity===true,noteReady:m.noteReady===true})):[];
+            const result={http:r.status,ms:r.ms,success:b.success===true,code:text(b.code),dataSource:text(b.dataSource),logicalFreshnessOk:b.logicalFreshness?.ok===true,logicalFreshnessMode:text(b.logicalFreshness?.mode),idleHeartbeatOk:b.idleHeartbeat?.ok===true,idleHeartbeatMode:text(b.idleHeartbeat?.mode),mirrors:mirrorMeta};
+            console.log('T11_02CR_RUNTIME_RESULT='+JSON.stringify(result));
+            if(r.status===200&&b.success===true&&b.logicalFreshness?.ok===true){
+              console.log('T11_02CR_FRESHNESS_PATH=HEARTBEAT_EXTENDED');
+            } else if(r.status===200&&b.success===true){
+              console.log('T11_02CR_FRESHNESS_PATH=WRITE_AGE_FRESH');
+            } else if(r.status===503){
+              console.log('T11_02CR_FRESHNESS_PATH=FAIL_CLOSED_FALLBACK');
+            } else {
+              console.log('T11_02CR_FRESHNESS_PATH=UNEXPECTED_HTTP_'+r.status);
+            }
+            console.log('T11_02CR_RUNTIME_PROBE=COMPLETE');
+            console.log('PRODUCTION_MUTATION=NO');
+            console.log('WORKER_DEPLOY=NO');
+            console.log('APPS_SCRIPT_DEPLOY=NO');
+            console.log('BUSINESS_WRITE=NO');
+            console.log('TASK_MUTATION=NO');
+            console.log('SECRET_CHANGE=NO');
+          })().catch(err=>{console.error(err.message||err);process.exit(1)});
           NODE
 
       - name: Cleanup ephemeral token
