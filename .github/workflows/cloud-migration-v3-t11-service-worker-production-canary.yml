@@ -147,7 +147,10 @@ jobs:
           rm -rf /tmp/trendos-t11-dryrun
           npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/trendos-t11-dryrun
           test -d /tmp/trendos-t11-dryrun
+          grep -R -F -q '/v1/edge/orders/service/page' /tmp/trendos-t11-dryrun
+          grep -R -F -q 'd1-edge-orders-service-v1' /tmp/trendos-t11-dryrun
           echo 'T11_WORKER_DRY_RUN=PASS'
+          echo 'T11_WORKER_DRY_RUN_SERVICE_ROUTE=PASS'
 
       - name: Deploy T11 Service route production canary
         shell: bash
@@ -156,8 +159,36 @@ jobs:
           cd cloudflare-d1
           npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml | tee /tmp/t11-deploy.txt
           echo 'T11_DEPLOYED=1' >> "$GITHUB_ENV"
-          sleep 5
-          echo 'T11_SERVICE_WORKER_DEPLOYED=YES'
+          version_id="$(sed -nE 's/.*Current Version ID: ([0-9a-f-]{36}).*/\1/p' /tmp/t11-deploy.txt | tail -1)"
+          if [ -n "$version_id" ]; then
+            echo "T11_DEPLOYED_WORKER_VERSION=$version_id"
+            echo "T11_DEPLOYED_WORKER_VERSION=$version_id" >> "$GITHUB_ENV"
+          fi
+          echo 'T11_SERVICE_WORKER_DEPLOY_COMMAND=PASS'
+
+      - name: Wait for Service route activation at production edge
+        shell: bash
+        run: |
+          set -euo pipefail
+          consecutive=0
+          for attempt in $(seq 1 20); do
+            probe="$PROD_URL/v1/edge/orders/service/page?screen=service&page=1&pageSize=1&statusFilter=__ACTIVE__&activationProbe=${GITHUB_RUN_ID}-${attempt}-$(date +%s%N)"
+            code="$(curl --silent --show-error --max-time 10 --header 'cache-control: no-store' --output /tmp/t11-activation.json --write-out '%{http_code}' "$probe" || true)"
+            echo "T11_SERVICE_ACTIVATION_ATTEMPT={\"attempt\":$attempt,\"http\":\"$code\"}"
+            if [ "$code" = '401' ]; then
+              consecutive=$((consecutive + 1))
+            else
+              consecutive=0
+            fi
+            if [ "$consecutive" -ge 3 ]; then
+              echo 'T11_SERVICE_ROUTE_ACTIVATION=PASS'
+              echo "T11_SERVICE_ROUTE_ACTIVATION_ATTEMPT=$attempt"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'T11_SERVICE_ROUTE_ACTIVATION=FAIL'
+          exit 1
 
       - name: Post-deploy production baseline
         shell: bash
@@ -189,7 +220,15 @@ jobs:
           async function req(url,opt={},timeoutMs=45000){const c=new AbortController();const timer=setTimeout(()=>c.abort(),timeoutMs);try{const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
           (async()=>{
             const path='/v1/edge/orders/service/page?screen=service&page=1&pageSize=100&statusFilter='+encodeURIComponent('__ACTIVE__');
-            const edge=await req(base+path,{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+edgeToken}},20000);
+            let edge=null;
+            for(let attempt=1;attempt<=4;attempt++){
+              const candidate=await req(base+path+'&parityProbe='+Date.now()+'-'+attempt,{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+edgeToken,'cache-control':'no-store'}},20000);
+              console.log('T11_SERVICE_EDGE_ATTEMPT='+JSON.stringify({attempt,http:candidate.status,ms:candidate.ms,success:candidate.body?.success===true,dataSource:text(candidate.body?.dataSource),code:text(candidate.body?.code)}));
+              if(candidate.status===200&&candidate.body?.success===true){edge=candidate;break;}
+              if(candidate.status!==404) { edge=candidate; break; }
+              if(attempt<4) await new Promise(resolve=>setTimeout(resolve,2000));
+            }
+            if(!edge) throw new Error('Service route produced no response');
             console.log('T11_SERVICE_EDGE_RESULT='+JSON.stringify({http:edge.status,ms:edge.ms,success:edge.body?.success===true,dataSource:text(edge.body?.dataSource),totalRows:Number(edge.body?.pagination?.totalRows||0),exclusionCount:Number(edge.body?.exclusionCount||0),freshnessOk:edge.body?.freshness?.ok===true,freshnessMode:text(edge.body?.freshness?.mode)}));
             if(edge.status!==200||edge.body?.success!==true) throw new Error('Service route failed HTTP '+edge.status+' code='+text(edge.body?.code));
             if(text(edge.body?.dataSource)!=='d1-edge-orders-service-v1') throw new Error('Service dataSource mismatch');
