@@ -59,5 +59,67 @@ Unchanged:
 - all business writes: Sheets / Apps Script authoritative.
 - frontend Service cutover: NO.
 
+## Step 7 — Corrected stable Production 02CR freshness runtime probe
+Result: **PASS — stable 02CR is currently using heartbeat-extended logical freshness**
+
+### Diagnostic identifiers
+- Workflow: `TrendOS T11 Freshness Runtime Probe`
+- Run ID: `34851236245`
+- Job ID: `103999403225`
+- Commit SHA: `4337e83256c2da356a95a5f3526224e891da0908`
+- Worker Version: **no new Worker deployed; stable Production remained `3b819fd3-e73d-46f8-9150-f73c282706ab`**
+
+### What was corrected
+Only the branch-side diagnostic script was corrected for Node 22 by wrapping the asynchronous 02CR request in an async IIFE. No runtime Worker source, Wrangler config, Apps Script source, secrets, D1 data, frontend config, or business authority was changed.
+
+### Runtime evidence
+- Hard read-only scope gate: PASS.
+- Stable Production baseline: PASS.
+- Edge session acquisition: PASS on attempt 3.
+  - attempt 1 login HTTP 200 in `39695 ms`, but no usable token/exchange proceeded.
+  - attempt 2 login HTTP 200 in `8678 ms`; Orders session HTTP `502` in `15255 ms`.
+  - attempt 3 login HTTP 200 in `17909 ms`; Orders session HTTP 200 in `5496 ms`; `authSource=apps-script-post`.
+- Stable Production Print 02CR request:
+  - HTTP `200`
+  - duration `4979 ms`
+  - `success=true`
+  - `dataSource=d1-edge-orders-02cr-operational`
+  - `logicalFreshness.ok=true`
+  - `logicalFreshness.mode=verified-idle-source-unchanged`
+- Diagnostic classification: `T11_02CR_FRESHNESS_PATH=HEARTBEAT_EXTENDED`.
+- Ephemeral Edge token cleanup: PASS.
+
+### Interpretation
+This is the decisive freshness-runtime result:
+- the retained stable Print/02CR D1 route is not relying only on write-age freshness at this moment;
+- it successfully invoked the idle-source heartbeat proof and served D1 after `verified-idle-source-unchanged`;
+- therefore the heartbeat contract and Worker-side verifier are capable of succeeding in Production;
+- the earlier direct heartbeat probe timeouts and Service Canary 4 `idle-heartbeat-error` are evidence of intermittent upstream Apps Script heartbeat/session availability, not a permanently broken route or incompatible response contract;
+- Service and 02CR both ultimately depend on the same `fetchOrdersIdleHeartbeat` verifier when their relevant mirrors age out, but the Service canary happened to hit the unavailable period.
+
+The current blocker is therefore no longer source wiring, route precedence, bundle composition, or a proven Service freshness logic mismatch. The remaining qualification risk is transient Apps Script heartbeat availability during the Service canary.
+
+### Production mutation
+- Production mutation in this step: **NO**.
+- Worker deploy: **NO**.
+- Worker Version created: **NO**.
+- Apps Script deploy: **NO**.
+- D1 migration/write: **NO**.
+- Business writes: **NO**.
+- Task mutation: **NO**.
+- `EDGE_SESSION_SECRET` changed: **NO**.
+- `TRENDOS_OPERATOR_TASK_PROXY_SECRET` changed: **NO**.
+- Gaber Material Control changed: **NO**.
+- Rollback required: **NO**.
+
+### Current Production State
+Unchanged:
+- stable Worker Version: `3b819fd3-e73d-46f8-9150-f73c282706ab` at 100% traffic.
+- Print/Laser/Press: D1-first + Apps Script fallback retained.
+- Service: Apps Script only.
+- `__DEBT__`: Apps Script.
+- all business writes: Sheets / Apps Script authoritative.
+- frontend Service cutover: **NO**.
+
 ### Next exact step
-Correct only the branch-side diagnostic script in `.github/workflows/cloud-migration-v3-t11-freshness-runtime-probe.yml` so Node 22 can execute the authenticated 02CR probe, then rerun it read-only. Do not deploy a Worker. Do not modify Apps Script. Record the resulting HTTP/code/dataSource/logicalFreshness metadata before any further action.
+Before changing any runtime freshness logic, re-run the existing narrow T11 Service Worker Production Canary unchanged (with its route-activation gate and automatic rollback) while the same heartbeat path is demonstrably capable of succeeding. This is still inside the already-approved T11 Service-read canary boundary. If the canary fails again specifically on intermittent `idle-heartbeat-error`, stop broadening runtime behavior and evaluate a branch-only bounded retry strategy for the existing heartbeat verifier before another Production canary. Do not change Apps Script, secrets, business-write authority, Tasks, or frontend Service routing.
