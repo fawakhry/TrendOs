@@ -14,7 +14,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    timeout-minutes: 7
     env:
       APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
     steps:
@@ -22,37 +22,42 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Probe production Apps Script ping without mutation
+      - name: Require two consecutive healthy production pings
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
           const url=process.env.APPS_SCRIPT_URL;
+          const MAX_HEALTHY_MS=15000;
           async function once(attempt){
             const c=new AbortController(); const timer=setTimeout(()=>c.abort(),45000); const t=Date.now();
             try{
               const r=await fetch(url,{method:'POST',redirect:'follow',cache:'no-store',signal:c.signal,headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'ping'})});
               const raw=await r.text(); let b={}; try{b=JSON.parse(raw||'{}')}catch{}
-              const out={attempt,http:r.status,ms:Date.now()-t,success:b?.success===true,contentType:String(r.headers.get('content-type')||'')};
-              console.log('T11_APPS_SCRIPT_HEALTH_ATTEMPT='+JSON.stringify(out));
+              const ms=Date.now()-t;
+              const contentType=String(r.headers.get('content-type')||'');
+              const healthy=r.status===200 && b?.success===true && /^application\/json/i.test(contentType) && ms<MAX_HEALTHY_MS;
+              const out={attempt,http:r.status,ms,success:b?.success===true,contentType,healthy};
+              console.log('T11_APPS_SCRIPT_STABILITY_ATTEMPT='+JSON.stringify(out));
               return out;
             } catch(err){
-              const out={attempt,http:0,ms:Date.now()-t,success:false,error:String(err&&err.name||'request-error')};
-              console.log('T11_APPS_SCRIPT_HEALTH_ATTEMPT='+JSON.stringify(out));
+              const out={attempt,http:0,ms:Date.now()-t,success:false,healthy:false,error:String(err&&err.name||'request-error')};
+              console.log('T11_APPS_SCRIPT_STABILITY_ATTEMPT='+JSON.stringify(out));
               return out;
             } finally { clearTimeout(timer); }
           }
           (async()=>{
-            const results=[];
-            for(let i=1;i<=3;i++){
-              results.push(await once(i));
-              if(results[results.length-1].http===200 && results[results.length-1].success===true) break;
-              if(i<3) await new Promise(r=>setTimeout(r,5000));
+            const results=[]; let consecutive=0;
+            for(let i=1;i<=5;i++){
+              const r=await once(i); results.push(r);
+              consecutive=r.healthy ? consecutive+1 : 0;
+              if(consecutive>=2) break;
+              if(i<5) await new Promise(resolve=>setTimeout(resolve,5000));
             }
-            const healthy=results.some(x=>x.http===200&&x.success===true);
-            console.log('T11_APPS_SCRIPT_HEALTH='+JSON.stringify({healthy,attempts:results.length}));
+            const stable=consecutive>=2;
+            console.log('T11_APPS_SCRIPT_STABILITY='+JSON.stringify({stable,attempts:results.length,requiredConsecutive:2,maxHealthyMs:MAX_HEALTHY_MS}));
             console.log('PRODUCTION_MUTATION=NO');
-            if(!healthy) process.exit(41);
-            console.log('T11_APPS_SCRIPT_HEALTH_PROBE=PASS');
+            if(!stable) process.exit(42);
+            console.log('T11_APPS_SCRIPT_STABILITY_GATE=PASS');
           })().catch(err=>{console.error(String(err&&err.message||err));process.exit(1)});
           NODE
