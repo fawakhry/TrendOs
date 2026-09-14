@@ -1,0 +1,36 @@
+name: TrendOS Tasks V3 T1 Preview Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - operator-task-v3-t1-preview-20260914
+    paths:
+      - tasks-v3-preview/**
+      - tests/tasks_v3_t1_preview_contract.test.mjs
+      - .github/workflows/trendos-tasks-v3-t1-preview-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout T1 preview branch
+        uses: actions/checkout@v4
+
+      - name: Run T1 preview isolation contract
+        run: node tests/tasks_v3_t1_preview_contract.test.mjs
+
+      - name: Safety summary
+        run: |
+          echo 'TASKS_V3_T1_PREVIEW_PACKAGE=YES'
+          echo 'PRODUCTION_DEPLOYMENT=NO'
+          echo 'PRODUCTION_SPREADSHEET_ACCESS=BLOCKED_BY_CODE'
+          echo 'BUSINESS_DATA_MUTATION=NO'
+          echo 'TASK_MUTATION_CODE_PRESENT=NO'
+          echo 'MAIN_APPS_SCRIPT_ROUTER_CHANGE=NO'
+          echo 'SECRET_ROTATION=NO'
+          echo 'GABER_MATERIAL_CONTROL_CHANGE=NO'
+          echo 'D1_WRITE_AUTHORITY_CHANGE=NO'
