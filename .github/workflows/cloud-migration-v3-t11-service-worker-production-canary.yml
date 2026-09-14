@@ -79,6 +79,7 @@ jobs:
           grep -q "'/v1/edge/orders/service/page'" cloudflare-d1/src/edge-orders-service-v1.mjs
           grep -q "fallback:'apps-script'" cloudflare-d1/src/edge-orders-service-v1.mjs
           grep -q "OWNER_APPROVED_EXCLUSION_HASHES" cloudflare-d1/src/edge-orders-service-v1.mjs
+          grep -q "verifyServiceFreshness" cloudflare-d1/src/edge-orders-service-v1.mjs
           count="$(grep -oE "'[0-9a-f]{64}'" cloudflare-d1/src/edge-orders-service-v1.mjs | wc -l | tr -d ' ')"
           test "$count" = '9'
           ! grep -Eq 'claimNext|completeTask|claim-next|/complete' cloudflare-d1/src/edge-orders-service-v1.mjs
@@ -100,10 +101,47 @@ jobs:
           console.log('T11_PREDEPLOY_PRODUCTION_BASELINE=PASS');
           NODE
 
+      - name: Acquire qualification Edge token before deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const apps=process.env.APPS_SCRIPT_URL;
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={},timeoutMs=30000){const c=new AbortController();const timer=setTimeout(()=>c.abort(),timeoutMs);try{const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
+          (async()=>{
+            let success=null;
+            for(let attempt=1;attempt<=3;attempt++){
+              try{
+                const login=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})},30000);
+                const employeeToken=text(login.body?.user?.token);
+                if(login.status!==200||login.body?.success!==true||!employeeToken){console.log('T11_PREDEPLOY_SESSION_ATTEMPT='+JSON.stringify({attempt,loginHttp:login.status,loginMs:login.ms,exchangeHttp:0}));continue;}
+                console.log('::add-mask::'+employeeToken);
+                const exchange=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})},30000);
+                const edgeToken=text(exchange.body?.edgeToken);
+                console.log('T11_PREDEPLOY_SESSION_ATTEMPT='+JSON.stringify({attempt,loginHttp:login.status,loginMs:login.ms,exchangeHttp:exchange.status,exchangeMs:exchange.ms,success:exchange.body?.success===true,authSource:text(exchange.body?.authSource)}));
+                if(exchange.status===200&&exchange.body?.success===true&&edgeToken){success={employeeToken,edgeToken,attempt};break;}
+              }catch(err){console.log('T11_PREDEPLOY_SESSION_ATTEMPT='+JSON.stringify({attempt,error:String(err&&err.name||'request-error')}));}
+            }
+            if(!success) throw new Error('could not acquire qualification Edge session before deploy');
+            console.log('::add-mask::'+success.edgeToken);
+            fs.writeFileSync('/tmp/t11-employee-token',success.employeeToken,{mode:0o600});
+            fs.writeFileSync('/tmp/t11-edge-token',success.edgeToken,{mode:0o600});
+            console.log('T11_PREDEPLOY_EDGE_SESSION=PASS');
+            console.log('T11_PREDEPLOY_EDGE_SESSION_ATTEMPT='+success.attempt);
+            console.log('T11_EPHEMERAL_TOKENS_PERSISTED_TO_GITHUB=NO');
+          })().catch(err=>{console.error(err.message||err);process.exit(1)});
+          NODE
+
       - name: Dry run exact T11 Worker
         shell: bash
         run: |
           set -euo pipefail
+          test -s /tmp/t11-edge-token
           cd cloudflare-d1
           rm -rf /tmp/trendos-t11-dryrun
           npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/trendos-t11-dryrun
@@ -140,25 +178,15 @@ jobs:
         run: |
           set -euo pipefail
           node <<'NODE'
+          const fs=require('fs');
           const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
           const apps=process.env.APPS_SCRIPT_URL;
           const username=String(process.env.QUALIFY_USERNAME||'').trim();
           const password=String(process.env.QUALIFY_PASSWORD||'');
+          const edgeToken=fs.readFileSync('/tmp/t11-edge-token','utf8').trim();
           const text=v=>String(v==null?'':v).trim();
           async function req(url,opt={},timeoutMs=45000){const c=new AbortController();const timer=setTimeout(()=>c.abort(),timeoutMs);try{const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
           (async()=>{
-            let login=null, employeeToken='';
-            for(let n=1;n<=3;n++){
-              login=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});
-              employeeToken=text(login.body?.user?.token);
-              if(login.status===200&&login.body?.success===true&&employeeToken) break;
-            }
-            if(!employeeToken) throw new Error('fresh login failed');
-            console.log('::add-mask::'+employeeToken);
-            const exchange=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})},20000);
-            const edgeToken=text(exchange.body?.edgeToken);
-            if(exchange.status!==200||exchange.body?.success!==true||!edgeToken) throw new Error('orders session exchange failed HTTP '+exchange.status);
-            console.log('::add-mask::'+edgeToken);
             const path='/v1/edge/orders/service/page?screen=service&page=1&pageSize=100&statusFilter='+encodeURIComponent('__ACTIVE__');
             const edge=await req(base+path,{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+edgeToken}},20000);
             if(edge.status!==200||edge.body?.success!==true) throw new Error('Service route failed HTTP '+edge.status+' code='+text(edge.body?.code));
@@ -166,8 +194,18 @@ jobs:
             if(Number(edge.body?.exclusionCount)!==9) throw new Error('Service exclusion count mismatch');
             if(Number(edge.body?.pagination?.totalRows)!==35) throw new Error('Service totalRows mismatch got='+Number(edge.body?.pagination?.totalRows||0));
             if(!edge.body?.freshness||edge.body.freshness.ok!==true) throw new Error('Service freshness proof missing');
-            const auth=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token:employeeToken,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});
-            if(auth.status!==200||auth.body?.success!==true) throw new Error('authoritative parity read failed');
+
+            let auth=null;
+            for(let attempt=1;attempt<=3;attempt++){
+              const login=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})},30000);
+              const employeeToken=text(login.body?.user?.token);
+              if(!employeeToken) continue;
+              console.log('::add-mask::'+employeeToken);
+              auth=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token:employeeToken,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})},45000);
+              if(auth.status===200&&auth.body?.success===true) break;
+              auth=null;
+            }
+            if(!auth) throw new Error('authoritative parity read failed');
             const fields=['orderId','lineId','status','priority','customer','department','itemName','qty','ready'];
             const key=r=>fields.map(f=>text(r&&r[f])).join('|');
             const multiset=list=>{const m=new Map();for(const x of list)m.set(x,(m.get(x)||0)+1);return m};
@@ -207,6 +245,13 @@ jobs:
           cd cloudflare-d1
           npx --yes wrangler@${WRANGLER_VERSION} rollback --config wrangler.toml --message "Rollback T11 Service Worker canary qualification failure"
           echo 'T11_AUTOMATIC_ROLLBACK_ATTEMPTED=YES'
+
+      - name: Cleanup ephemeral qualification tokens
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -f /tmp/t11-edge-token /tmp/t11-employee-token
+          echo 'T11_EPHEMERAL_TOKENS_CLEANED=YES'
 
       - name: T11 Worker success conclusion
         if: ${{ success() }}
