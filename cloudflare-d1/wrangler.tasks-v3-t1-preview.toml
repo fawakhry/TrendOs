@@ -1,0 +1,8 @@
+name = "trendos-tasks-v3-t1-preview-20260914"
+main = "src/tasks-v3-t1-preview-worker.mjs"
+compatibility_date = "2026-09-14"
+workers_dev = true
+preview_urls = true
+
+[vars]
+TASKS_V3_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbya5NyWMpBLEt_wR7Qklq1YC7PPFJI02-M1xKTMgx-0CdoI4zzW0z0rwAix8JYRst6bJA/exec"
