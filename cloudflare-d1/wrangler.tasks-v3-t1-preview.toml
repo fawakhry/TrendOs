@@ -1,3 +1,4 @@
+# Isolated Tasks V3 T1 preview configuration; intentionally no production routes.
 name = "trendos-tasks-v3-t1-preview-20260914"
 main = "src/tasks-v3-t1-preview-worker.mjs"
 compatibility_date = "2026-09-14"
