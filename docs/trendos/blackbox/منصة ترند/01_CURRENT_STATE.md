@@ -16,14 +16,14 @@ Every new session must read `00_PROJECT_LOCATOR.md`, `00_INDEX.md`, this file, t
 ## CURRENT AUTHORITATIVE HANDOFF
 Newest authoritative record:
 
-`CLOUD_MIGRATION_V3_T11_CURRENT_HANDOFF_2026-09-14.md`
+`CLOUD_MIGRATION_V3_T11_COMPLETE_HANDOFF_2026-09-14.md`
 
-Checkpoint commit:
-`12ccf880865ea3ee80f73f424931d831900239d7`
+Handoff creation commit:
+`b9cf23860a25a1af07a2dc9911282165be85557c`
 
 ## Current production runtime
 ### Worker/Auth
-- retained stable Worker Version ID: `3b819fd3-e73d-46f8-9150-f73c282706ab`
+- retained Production Worker Version ID: `7964189a-2456-4f5f-bc22-532ae4971e8c`
 - T6B D1 Auth Shadow: ENABLED / RETAINED
 - `cloud_auth_sessions_v1`: retained
 - Auth Shadow TTL: `300 s`
@@ -31,100 +31,138 @@ Checkpoint commit:
 - business-write authority: Sheets / Apps Script
 
 ### Frontend Orders reads
-Production `main/config.js` currently has Edge Orders read enabled globally only for:
+Production `main` commit:
+`02ce4a11fdd822e75906d4fadc4bc0dca3dea9a9`
+
+Production `main/config.js` has Edge Orders read enabled globally for:
 - `print`
 - `laser`
 - `press`
+- `service`
 
 Therefore:
 - Print: D1-first + Apps Script fallback — LIVE
 - Laser: D1-first + Apps Script fallback — LIVE
 - Press: D1-first + Apps Script fallback — LIVE
-- Service: Apps Script — NOT CUT OVER
-- `__DEBT__`: Apps Script
-- writes: Apps Script / Sheets
+- Service: D1-first + Apps Script fallback — LIVE
+- `__DEBT__`: Apps Script only
+- writes: Apps Script / Sheets authoritative
 
 Production frontend commits:
 - Print: `56e586a56c3b7dd91020a0eb074584c9444cd032`
 - Laser: `b83f63a191568e188082aaecc42bd071ea630d91`
-- Press/current main state: `44e0b01dd636ec81ef2a298b714a329cd3f828c9`
+- Press: `44e0b01dd636ec81ef2a298b714a329cd3f828c9`
+- Service/current main: `02ce4a11fdd822e75906d4fadc4bc0dca3dea9a9`
 
-## T11 Service read — current status
-Status: **SERVICE CONTRACT/PARITY PASS; PRODUCTION ROUTE NOT RETAINED; FRONTEND SERVICE CUTOVER OFF**
+## T11 Service read — COMPLETE / RETAINED
+Status: **SERVICE WORKER ROUTE RETAINED + SERVICE FRONTEND CUT OVER + APPS SCRIPT FALLBACK RETAINED**
 
-Completed and must not be repeated:
-- source/contract discovery
-- 35/35 Service identity mapping
+Do not repeat:
+- Service source/contract discovery
+- 35/35 identity mapping
 - owner-approved exclusion of 9 extra `طلب جديد` orders
-- exclusions stored only as SHA-256 fingerprints
-- `qty` deployed default behavior matched
-- Service candidate freshness/fallback semantics built
-- live candidate parity PASS 35/35
+- exclusion fingerprint design
+- Service candidate parity
+- production entrypoint routing diagnosis
+- Worker activation/route qualification
+- frontend Service routing candidate
+- production frontend Service cutover
 
-Final candidate parity:
-- run `34835539259` — PASS
+Final Service parity facts:
+- candidate parity run `34835539259`: PASS
 - candidate rows `35`
-- Apps Script rows `35`
+- Apps Script authoritative rows `35`
+- missing `0`
+- extra `0`
+- statusCounts exact YES
+- owner-approved exclusions `9`
+- exclusions stored only as SHA-256 fingerprints
+
+## Final Production Worker qualification
+Workflow: `TrendOS T11 Service Worker Production Canary`
+- run `34849337401`
+- attempt `2`
+- job `104000507950`
+- source commit `6c6f797af4e0de672d9718dfd8cb2a4f347b1662`
+- retained Worker Version `7964189a-2456-4f5f-bc22-532ae4971e8c`
+
+Live Service qualification:
+- HTTP 200
+- `dataSource=d1-edge-orders-service-v1`
+- rows `35`
+- authoritative rows `35`
 - missing `0`
 - extra `0`
 - statusCounts exact YES
 - exclusions `9`
+- freshness `verified-idle-source-unchanged`
+- unauthenticated Service/02CR/Task boundaries PASS
+- rollback NO; successful Worker retained
 
-Candidate runtime files:
-- `cloudflare-d1/src/edge-orders-service-v1.mjs`
-- minimal candidate wiring in `cloudflare-d1/src/index_v2.js`
+Authoritative record:
+`CLOUD_MIGRATION_V3_T11_SERVICE_WORKER_CANARY_PASS_2026-09-14.md`
 
-Latest candidate logic head before handoff docs:
-`7cf905aa5bc35ff320059975b5df0b7e186321f5`
+## Final Production frontend qualification/cutover
+Branch-only candidate:
+- workflow `TrendOS T11 Service Frontend Candidate`
+- run `34852602434`
+- job `104004039864`
+- result PASS
 
-## Latest production canary — T11 attempt 3
-- workflow: `TrendOS T11 Service Worker Production Canary`
-- run `34845916070`
-- job `103981697653`
-- scope gate PASS
-- runtime contracts PASS
-- predeploy baseline PASS
-- predeploy Edge session PASS on attempt 2:
-  - login `5792 ms`
-  - Orders session `3621 ms`
-  - `authSource=apps-script-post`
-- dry-run PASS
-- temporary Worker Version `606a23aa-a755-46ca-929b-97a4bea1d4d6`
-- postdeploy baseline PASS
-- Service route request returned HTTP `404` in `154 ms`
-- automatic rollback SUCCESS
-- restored Worker Version `3b819fd3-e73d-46f8-9150-f73c282706ab`
-- frontend Service remained OFF
+Candidate proved:
+- Service uses `/v1/edge/orders/service/page`
+- Print remains on `/v1/edge/orders/02cr/page`
+- Service requires `dataSource=d1-edge-orders-service-v1`
+- Service requires `freshness.ok=true`
+- Service Edge/freshness failure falls back to Apps Script
+- `__DEBT__` makes zero Edge requests and remains Apps Script-only
+- no write/task/secret behavior changed
 
-## Immediate next controlled stage
-Status: **READ-ONLY PRODUCTION ENTRYPOINT ROUTING INSPECTION**
+Production cutover:
+- workflow `TrendOS T11 Service Frontend Production Cutover`
+- run `34852840558`
+- job `104004832316`
+- workflow commit `d6b2935fa64581d5eeed44253772785b449ca08a`
+- Production main commit `02ce4a11fdd822e75906d4fadc4bc0dca3dea9a9`
+- result PASS
+- automatic rollback SKIPPED because all gates passed
 
-Do not repeat Service parity. The candidate already matched 35/35.
+Pre-cutover readiness evidence:
+- login HTTP 200 in `9045 ms`
+- Orders session HTTP 200 in `5954 ms`
+- `authSource=apps-script-post`
+- Service readiness attempt 1: HTTP 503 in `6026 ms`, `idle-heartbeat-error`
+- Service readiness attempt 2: HTTP 200 in `3063 ms`, freshness `verified-idle-source-unchanged`
 
-Inspect the actual production Worker dispatch chain beginning at:
-1. `cloudflare-d1/production-shadow/index.js`
-2. modules/handlers delegated by that entrypoint
-3. `cloudflare-d1/src/index_v2.js`
-4. `cloudflare-d1/src/edge-orders-service-v1.mjs`
+Exact Production frontend mutation:
+- only `config.js`
+- only `trendos-edge-orders-read-v1.js`
+- 25 insertions / 5 deletions
+- GitHub Pages propagation PASS
+- post-cutover Edge/Cloud Write authority gates PASS
+- Service and existing 02CR unauthenticated route boundaries PASS
+- ephemeral qualification token cleaned
 
-Reason: `wrangler.toml` uses `production-shadow/index.js` as main, while the candidate wiring was added in `src/index_v2.js`, and the deployed candidate returned a fast 404 for the expected Service route.
+Authoritative record:
+`CLOUD_MIGRATION_V3_T11_SERVICE_FRONTEND_PRODUCTION_PASS_2026-09-14.md`
 
-Goal: identify the exact missing runtime wiring and prepare the smallest possible candidate patch. Do not broaden scope. If an entrypoint file must change, allow only that exact change in the T11 scope gate and retain automatic rollback. Only after live Service route parity PASS may frontend Service be added to the allowed D1 screens.
+## Earlier 404 conclusion — CLOSED
+The earlier fast Service 404 was not missing Service source wiring.
+
+READ-ONLY routing/bundle diagnostics proved the production entrypoint chain and Wrangler bundle contained the Service route. Later activation observations showed initial 404 responses transitioning to 401 during deployment propagation. The final canary added route-presence readiness gating and passed.
+
+Do not reopen this diagnosis unless new production evidence directly contradicts the retained T11 state.
 
 ## Apps Script stability context
-Apps Script had intermittent latency/404 behavior during T11 qualification.
+Apps Script showed intermittent latency/availability during T11 qualification. This is retained context, not an open T11 blocker.
 
-Direct verify diagnostic:
-- run `34836406769`
-- login `5278 ms`
-- POST `verifyEmployeeSession` -> HTTP 404 in `35035 ms`
+Relevant evidence:
+- verify diagnostic run `34836406769`: login `5278 ms`, `verifyEmployeeSession` HTTP 404 in `35035 ms`
+- later stability gate run `34845398493`: PASS
+- freshness runtime probe run `34851236245`: HTTP 200, logical freshness `verified-idle-source-unchanged`
+- final Service Worker qualification also passed with `verified-idle-source-unchanged`
 
-Later health recovery/stability evidence:
-- unstable recovery run `34845111466`
-- stable gate run `34845398493` — PASS
-- two consecutive healthy JSON pings: `12093 ms`, `4037 ms`
-
-This is context only; do not restart session migration work.
+Do not restart session migration work from this context.
 
 ## RP-07
 Status: CLOSED / PASS.
@@ -132,26 +170,41 @@ Status: CLOSED / PASS.
 - final health record: `TRENDOS_BLACKBOX_2026-09-13_RP07_FINAL_HEALTH_PASS_CLOSED.md`
 
 ## Operator Task track
-Status: isolated design/prep only; production Task mutations remain OFF.
+Status: **ISOLATED DESIGN/PREP ONLY — PRODUCTION TASK MUTATIONS OFF**.
 - no production `claimNext`
 - no production `completeTask`
 - no Operator Task D1 write authority
 - Gaber Material Control separate/OFF
 
+Owner-locked business roadmap:
+`Operator Task -> Department Invoice + Material Shadow/Parity (Gaber LASER + Wael PRINT) -> Laser + Print Accounting Control -> RP-08`
+
 ## RP-06
 Status: CLOSED / RECOVERY COMPLETE.
 Final record: `TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
 
+## Immediate next controlled stage
+T11 Service-read work is complete. **Do not continue modifying Production under T11.**
+
+The next production-changing track is outside the completed T11 boundary and requires explicit owner selection/approval before execution.
+
+Until that approval:
+- no production Task mutation
+- no write-authority transfer
+- no Apps Script Production deployment
+- no secret change
+- no Gaber Material Control rollout/change
+- no RP-08
+
 ## Hard safety invariants
 - Sheets / Apps Script remain authoritative for business writes until explicit owner approval.
-- Print/Laser/Press D1-first reads must not be regressed.
-- Service remains Apps Script until its Worker route live canary passes.
+- preserve Print/Laser/Press/Service D1-first reads and Apps Script fallback.
 - `__DEBT__` remains Apps Script.
 - no Apps Script Production deploy without separate approval.
 - no `EDGE_SESSION_SECRET` change/rotation.
 - no `TRENDOS_OPERATOR_TASK_PROXY_SECRET` change/rotation.
 - no Gaber Material rollout/change.
-- no Task production mutation.
+- no Task production mutation (`claimNext`, `completeTask`, claim-next, complete).
 - no D1 business-write authority move.
 - no RP-08.
 - no Integrity flag change without a separate approved boundary.
