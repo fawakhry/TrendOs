@@ -6,6 +6,7 @@ import { handleCloudSessionBridgeV3, isCloudSessionBridgeV3Path } from './cloud-
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
+import { handleEdgeOrdersServiceRequest, isEdgeOrdersServicePath } from './edge-orders-service-v1.mjs';
 import { repairEdgeOrdersResponse02CX } from './edge-orders-line-id-repair-02cx.mjs';
 import { guardEdgeOrdersPageRequest } from './edge-orders-freshness-gate.mjs';
 import {
@@ -41,6 +42,14 @@ export default {
     // into the shared TrendOS shell. It does not change financial write authority.
     if (isAccountingPreviewPath(path)) {
       return handleAccountingPreviewRequest(request, env, ctx);
+    }
+
+    // CLOUD-MIGRATION-V3/T11: Service-only Orders read candidate. This route is
+    // independent from 02CR because Service is order-level and the three
+    // production department screens are line-level. It remains unreachable from
+    // the frontend until a separate parity-gated cutover enables screen=service.
+    if (isEdgeOrdersServicePath(path)) {
+      return handleEdgeOrdersServiceRequest(request, env, ctx);
     }
 
     // PERF-CF-02CR qualified production-read route. 02CU wraps the existing
