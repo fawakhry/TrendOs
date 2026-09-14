@@ -14,7 +14,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
       APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
       QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Measure direct Apps Script POST session verification
+      - name: Compare deployed generic POST routing and session verification
         shell: bash
         run: |
           set -euo pipefail
@@ -33,18 +33,41 @@ jobs:
           const username=String(process.env.QUALIFY_USERNAME||'').trim();
           const password=String(process.env.QUALIFY_PASSWORD||'');
           const text=v=>String(v==null?'':v).trim();
-          async function req(payload,timeoutMs=60000){const c=new AbortController();const timer=setTimeout(()=>c.abort(),timeoutMs);try{const t=Date.now();const r=await fetch(url,{method:'POST',redirect:'follow',cache:'no-store',signal:c.signal,headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
+          async function req(payload,timeoutMs=60000){
+            const c=new AbortController(); const timer=setTimeout(()=>c.abort(),timeoutMs);
+            try{
+              const t=Date.now();
+              const r=await fetch(url,{method:'POST',redirect:'follow',cache:'no-store',signal:c.signal,headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+              const raw=await r.text(); let b={}; try{b=JSON.parse(raw||'{}')}catch{}
+              return {status:r.status,body:b,ms:Date.now()-t,contentType:String(r.headers.get('content-type')||'')};
+            } finally { clearTimeout(timer); }
+          }
+          async function safe(label,payload){
+            try{
+              const r=await req(payload,60000);
+              console.log(label+'='+JSON.stringify({http:r.status,ms:r.ms,success:r.body?.success===true,userPresent:!!r.body?.user,messagePresent:!!text(r.body?.message),rowsPresent:Array.isArray(r.body?.rows),contentType:r.contentType}));
+              return r;
+            } catch(err){
+              console.log(label+'='+JSON.stringify({error:String(err&&err.name||'request-error')}));
+              return {status:0,body:{},ms:60000};
+            }
+          }
           (async()=>{
+            const ping=await safe('T11_POST_PING',{action:'ping'});
             const login=await req({action:'login',username,password},60000);
             const token=text(login.body?.user?.token);
+            console.log('T11_DIRECT_LOGIN='+JSON.stringify({http:login.status,ms:login.ms,success:login.body?.success===true,tokenPresent:!!token}));
             if(login.status!==200||login.body?.success!==true||!token) throw new Error('login failed');
             console.log('::add-mask::'+token);
-            console.log('T11_DIRECT_LOGIN='+JSON.stringify({http:login.status,ms:login.ms,success:true}));
-            const verify=await req({action:'verifyEmployeeSession',username,token},60000);
-            const safe={http:verify.status,ms:verify.ms,success:verify.body?.success===true,userPresent:!!verify.body?.user,messagePresent:!!text(verify.body?.message)};
-            console.log('T11_DIRECT_VERIFY_POST='+JSON.stringify(safe));
+            const verify=await safe('T11_DIRECT_VERIFY_POST',{action:'verifyEmployeeSession',username,token});
+            const rows=await safe('T11_DIRECT_ROWS_POST',{action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'5',statusFilter:'__ACTIVE__'});
+            const ping2=await safe('T11_POST_PING_AFTER',{action:'ping'});
             console.log('TOKEN_EXPOSED=NO');
             console.log('BUSINESS_MUTATION=NO');
+            console.log('T11_ROUTING_COMPARISON_COMPLETE=YES');
+            if(ping.status!==200||ping.body?.success!==true) process.exit(31);
+            if(ping2.status!==200||ping2.body?.success!==true) process.exit(32);
             if(verify.status!==200||verify.body?.success!==true) process.exit(21);
+            if(rows.status!==200||rows.body?.success!==true) process.exit(22);
           })().catch(err=>{console.error(String(err&&err.message||err));process.exit(1)});
           NODE
