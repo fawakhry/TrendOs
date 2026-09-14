@@ -1,0 +1,92 @@
+name: TrendOS T11 Routing Bundle Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-routing-bundle-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t11-routing-bundle-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Assert production source dispatch chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^main = "production-shadow/index\.js"$' cloudflare-d1/wrangler.toml
+          grep -Fq "import core from '../src/index_v2.js';" cloudflare-d1/production-shadow/index.js
+          grep -Fq "return core.fetch(request, env, ctx);" cloudflare-d1/production-shadow/index.js
+          grep -Fq "isEdgeOrdersServicePath(path)" cloudflare-d1/src/index_v2.js
+          grep -Fq "'/v1/edge/orders/service/page'" cloudflare-d1/src/edge-orders-service-v1.mjs
+          echo 'T11_SOURCE_DISPATCH_CHAIN=PASS'
+
+      - name: Execute production entrypoint locally for Service route
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import worker from './cloudflare-d1/production-shadow/index.js';
+          const request = new Request('https://local.test/v1/edge/orders/service/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__', {
+            method: 'GET',
+            headers: { accept: 'application/json' }
+          });
+          const response = await worker.fetch(request, {
+            EDGE_SESSION_SECRET: 'diagnostic-only-not-production',
+            CORS_ORIGINS: 'https://fawakhry.github.io'
+          }, {});
+          const raw = await response.text();
+          let body = {};
+          try { body = JSON.parse(raw || '{}'); } catch {}
+          console.log('T11_LOCAL_ENTRYPOINT_RESULT=' + JSON.stringify({ status: response.status, code: body.code || '', success: body.success === true }));
+          if (response.status !== 401) {
+            throw new Error('Service route did not reach Service handler through production entrypoint; expected unauthenticated 401, got ' + response.status);
+          }
+          console.log('T11_LOCAL_ENTRYPOINT_SERVICE_ROUTE=PASS');
+          NODE
+
+      - name: Build exact Wrangler production bundle without deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          rm -rf /tmp/trendos-t11-routing-bundle
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/trendos-t11-routing-bundle
+          test -d /tmp/trendos-t11-routing-bundle
+          find /tmp/trendos-t11-routing-bundle -maxdepth 2 -type f -print | sort
+          echo 'T11_WRANGLER_DRY_RUN=PASS'
+
+      - name: Assert Service route exists in emitted bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -R -F -q '/v1/edge/orders/service/page' /tmp/trendos-t11-routing-bundle
+          grep -R -F -q 'd1-edge-orders-service-v1' /tmp/trendos-t11-routing-bundle
+          echo 'T11_BUNDLE_SERVICE_PATH=PASS'
+          echo 'T11_BUNDLE_SERVICE_HANDLER_MARKER=PASS'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'WORKER_DEPLOY=NO'
+          echo 'APPS_SCRIPT_DEPLOY=NO'
+          echo 'BUSINESS_WRITE=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'SECRET_CHANGE=NO'
