@@ -1,0 +1,270 @@
+name: TrendOS T11 Service Frontend Candidate
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - '.github/workflows/cloud-migration-v3-t11-service-frontend-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      EXPECTED_MAIN_HEAD: 44e0b01dd636ec81ef2a298b714a329cd3f828c9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard branch-only scope gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-t6b-auth-shadow-canary-20260913"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN_HEAD"
+          rm -rf /tmp/t11-service-frontend
+          mkdir -p /tmp/t11-service-frontend
+          git show origin/main:config.js > /tmp/t11-service-frontend/config.js
+          git show origin/main:trendos-edge-orders-read-v1.js > /tmp/t11-service-frontend/trendos-edge-orders-read-v1.js
+          echo 'T11_FRONTEND_CANDIDATE_SCOPE=BRANCH_ONLY_TEMP_FILES'
+          echo 'PRODUCTION_FRONTEND_MUTATION=NO'
+          echo 'WORKER_DEPLOY=NO'
+          echo 'APPS_SCRIPT_DEPLOY=NO'
+          echo 'BUSINESS_WRITE=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'SECRET_CHANGE=NO'
+
+      - name: Apply exact Service-only frontend candidate patch in temp
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('/tmp/t11-service-frontend')
+          cfg = root / 'config.js'
+          js = root / 'trendos-edge-orders-read-v1.js'
+
+          c = cfg.read_text()
+          old = "window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser','press'];"
+          new = "window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser','press','service'];"
+          if c.count(old) != 1:
+              raise SystemExit('unexpected allowed-screen baseline')
+          c = c.replace(old, new, 1)
+          old_cache = "trendos-edge-orders-read-v1.js?v=20260913-t10-print-laser-press1"
+          new_cache = "trendos-edge-orders-read-v1.js?v=20260914-t11-print-laser-press-service1"
+          if c.count(old_cache) != 1:
+              raise SystemExit('unexpected loader cache baseline')
+          c = c.replace(old_cache, new_cache, 1)
+          cfg.write_text(c)
+
+          s = js.read_text()
+          old_version = "var VERSION = 'EDGE_ORDERS_READ_T8_PRINT_GLOBAL_20260913';"
+          new_version = "var VERSION = 'EDGE_ORDERS_READ_T11_SERVICE_20260914';"
+          if s.count(old_version) != 1:
+              raise SystemExit('unexpected loader version baseline')
+          s = s.replace(old_version, new_version, 1)
+
+          old_path = "var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';"
+          new_path = old_path + "\n  var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';"
+          if s.count(old_path) != 1:
+              raise SystemExit('unexpected 02CR path baseline')
+          s = s.replace(old_path, new_path, 1)
+
+          anchor = "  async function edgePage(params) {\n"
+          helper = """  function isServiceScreen(params) {
+            return text(params && params.screen).toLowerCase() === 'service';
+          }
+
+          function pagePathFor(params) {
+            return isServiceScreen(params) ? SERVICE_PAGE_PATH : QUALIFIED_PAGE_PATH;
+          }
+
+          function validateServiceResponse(body) {
+            if (text(body && body.dataSource) !== 'd1-edge-orders-service-v1') {
+              throw mirrorFreshnessError('Service D1 data source mismatch', 'EDGE_SERVICE_SOURCE');
+            }
+            if (!body || !body.freshness || body.freshness.ok !== true) {
+              throw mirrorFreshnessError('Service D1 freshness proof missing', 'EDGE_SERVICE_FRESHNESS');
+            }
+            return body;
+          }
+
+"""
+          if s.count(anchor) != 1:
+              raise SystemExit('unexpected edgePage anchor')
+          s = s.replace(anchor, helper + anchor, 1)
+
+          old_request = "    var requestKey = QUALIFIED_PAGE_PATH + '?' + key;"
+          new_request = "    var requestKey = pagePathFor(params || {}) + '?' + key;"
+          if s.count(old_request) != 1:
+              raise SystemExit('unexpected request path baseline')
+          s = s.replace(old_request, new_request, 1)
+
+          old_return = "      return normalizeEdgeLineIdentities(validateRequiredMirrors(await jsonResponse(response)));"
+          new_return = "      var body = await jsonResponse(response);\n      return isServiceScreen(params) ? validateServiceResponse(body) : normalizeEdgeLineIdentities(validateRequiredMirrors(body));"
+          if s.count(old_return) != 1:
+              raise SystemExit('unexpected response validation baseline')
+          s = s.replace(old_return, new_return, 1)
+
+          old_loader_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
+          new_loader_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    servicePagePath: SERVICE_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
+          if s.count(old_loader_meta) != 1:
+              raise SystemExit('unexpected loader metadata baseline')
+          s = s.replace(old_loader_meta, new_loader_meta, 1)
+          js.write_text(s)
+          PY
+
+          node --check /tmp/t11-service-frontend/trendos-edge-orders-read-v1.js
+          grep -Fq "MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser','press','service']" /tmp/t11-service-frontend/config.js
+          grep -Fq 'trendos-edge-orders-read-v1.js?v=20260914-t11-print-laser-press-service1' /tmp/t11-service-frontend/config.js
+          grep -Fq "SERVICE_PAGE_PATH = '/v1/edge/orders/service/page'" /tmp/t11-service-frontend/trendos-edge-orders-read-v1.js
+          grep -Fq "QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page'" /tmp/t11-service-frontend/trendos-edge-orders-read-v1.js
+          grep -Fq "text(params && params.statusFilter) === '__DEBT__'" /tmp/t11-service-frontend/trendos-edge-orders-read-v1.js
+          grep -Fq "return original.apply(this, args);" /tmp/t11-service-frontend/trendos-edge-orders-read-v1.js
+          echo 'T11_FRONTEND_CANDIDATE_STATIC_CONTRACTS=PASS'
+
+      - name: Execute browser-like routing and fallback contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const source = fs.readFileSync('/tmp/t11-service-frontend/trendos-edge-orders-read-v1.js', 'utf8');
+
+          function makeJsonResponse(body, status=200) {
+            return new Response(JSON.stringify(body), {
+              status,
+              headers: {'content-type':'application/json'}
+            });
+          }
+
+          const calls = [];
+          let mode = 'service-ok';
+          let originalCalls = 0;
+          const storage = new Map();
+          const sessionStorage = {
+            getItem(k) { return storage.has(k) ? storage.get(k) : null; },
+            setItem(k,v) { storage.set(k, String(v)); },
+            removeItem(k) { storage.delete(k); }
+          };
+          sessionStorage.setItem('trendos_session', JSON.stringify({user:{username:'qa-user', token:'employee-token'}}));
+
+          async function mockFetch(url, options={}) {
+            const u = String(url);
+            calls.push({url:u, method:String(options.method||'GET').toUpperCase()});
+            if (u.endsWith('/v1/edge/orders/session')) {
+              return makeJsonResponse({success:true,edgeToken:'edge-token',expiresAt:new Date(Date.now()+600000).toISOString()});
+            }
+            if (u.includes('/v1/edge/orders/service/page')) {
+              if (mode === 'service-bad-freshness') {
+                return makeJsonResponse({success:true,dataSource:'d1-edge-orders-service-v1',freshness:{ok:false},rows:[],pagination:{totalRows:0}});
+              }
+              return makeJsonResponse({
+                success:true,
+                dataSource:'d1-edge-orders-service-v1',
+                freshness:{ok:true,mode:'verified-idle-source-unchanged'},
+                rows:[{orderId:'S1',lineId:'01000000000',status:'طلب جديد'}],
+                pagination:{totalRows:1},
+                statusCounts:{'طلب جديد':1},
+                exclusionCount:9
+              });
+            }
+            if (u.includes('/v1/edge/orders/02cr/page')) {
+              const now = new Date().toISOString();
+              return makeJsonResponse({
+                success:true,
+                dataSource:'d1-edge-orders-02cr-operational',
+                mirrors:[
+                  {sheetName:'بنود الأوردرات',status:'ready',rowCount:10,sourceLastRow:10,syncedAt:now},
+                  {sheetName:'العملاء',status:'ready',rowCount:5,sourceLastRow:5,syncedAt:now},
+                  {sheetName:'عملاء منع التسليم بالمديونية',status:'ready',rowCount:2,sourceLastRow:2,syncedAt:now}
+                ],
+                rows:[{orderId:'P1',lineId:'P1-01',status:'طلب جديد'}],
+                pagination:{totalRows:1}
+              });
+            }
+            throw new Error('Unexpected fetch URL: '+u);
+          }
+
+          async function original(action, params) {
+            originalCalls += 1;
+            return {success:true,dataSource:'apps-script-original',action,params};
+          }
+
+          const window = {
+            MATBAGY_EDGE_ORDERS_READ_V1_ENABLED:true,
+            MATBAGY_EDGE_ORDERS_CANARY_ONLY:false,
+            MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS:['print','laser','press','service'],
+            MATBAGY_EDGE_ORDERS_API_URL:'https://edge.test',
+            MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS:300000,
+            trendosSecureApiV1922: original,
+            state:{user:{username:'qa-user',token:'employee-token'}}
+          };
+
+          const context = vm.createContext({
+            window, sessionStorage, fetch:mockFetch, Response, Headers, URL, URLSearchParams,
+            TextEncoder, TextDecoder, Date, Map, Set, Promise, JSON, Math, Number, String,
+            Object, Array, RegExp, Error, console, setInterval, clearInterval, setTimeout, clearTimeout
+          });
+          vm.runInContext(source, context, {filename:'trendos-edge-orders-read-v1.js'});
+
+          (async()=>{
+            if (typeof window.trendosSecureApiV1922 !== 'function' || !window.trendosSecureApiV1922.__trendosEdgeOrdersReadV1) {
+              throw new Error('Edge wrapper did not install');
+            }
+
+            // Service must use its dedicated order-level route and must not fall back on a qualified response.
+            calls.length = 0; originalCalls = 0; mode = 'service-ok';
+            const service = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'service',page:1,pageSize:100,statusFilter:'__ACTIVE__'});
+            if (service.dataSource !== 'd1-edge-orders-service-v1') throw new Error('Service did not return Edge result');
+            if (!calls.some(c=>c.url.includes('/v1/edge/orders/service/page'))) throw new Error('Service path not used');
+            if (calls.some(c=>c.url.includes('/v1/edge/orders/02cr/page'))) throw new Error('Service incorrectly used 02CR path');
+            if (originalCalls !== 0) throw new Error('Service unexpectedly fell back');
+            console.log('T11_FRONTEND_SERVICE_ROUTE=PASS');
+
+            // Print must remain on the existing 02CR route.
+            calls.length = 0; originalCalls = 0;
+            const print = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'print',page:1,pageSize:5,statusFilter:'__ACTIVE__'});
+            if (print.dataSource !== 'd1-edge-orders-02cr-operational') throw new Error('Print did not return 02CR Edge result');
+            if (!calls.some(c=>c.url.includes('/v1/edge/orders/02cr/page'))) throw new Error('Print 02CR path not used');
+            if (calls.some(c=>c.url.includes('/v1/edge/orders/service/page'))) throw new Error('Print incorrectly used Service path');
+            if (originalCalls !== 0) throw new Error('Print unexpectedly fell back');
+            console.log('T11_FRONTEND_PRINT_02CR_INTACT=PASS');
+
+            // A Service freshness failure must fail open to authoritative Apps Script.
+            calls.length = 0; originalCalls = 0; mode = 'service-bad-freshness';
+            const fallback = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'service',page:1,pageSize:100,statusFilter:'__ACTIVE__'});
+            if (fallback.dataSource !== 'apps-script-original') throw new Error('Service freshness failure did not fall back');
+            if (originalCalls !== 1) throw new Error('Service fallback call count mismatch');
+            console.log('T11_FRONTEND_SERVICE_FALLBACK=PASS');
+
+            // Debt must remain Apps Script-only and must not attempt Edge.
+            calls.length = 0; originalCalls = 0; mode = 'service-ok';
+            const debt = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'service',page:1,pageSize:100,statusFilter:'__DEBT__'});
+            if (debt.dataSource !== 'apps-script-original') throw new Error('Debt did not stay on Apps Script');
+            if (calls.length !== 0) throw new Error('Debt attempted Edge');
+            if (originalCalls !== 1) throw new Error('Debt Apps Script call count mismatch');
+            console.log('T11_FRONTEND_DEBT_APPS_SCRIPT_ONLY=PASS');
+
+            console.log('T11_SERVICE_FRONTEND_CANDIDATE=PASS');
+            console.log('PRODUCTION_FRONTEND_MUTATION=NO');
+            console.log('WORKER_DEPLOY=NO');
+            console.log('APPS_SCRIPT_DEPLOY=NO');
+            console.log('BUSINESS_WRITE=NO');
+            console.log('TASK_MUTATION=NO');
+            console.log('SECRET_CHANGE=NO');
+          })().catch(err=>{console.error(err && err.stack || err);process.exit(1)});
+          NODE
