@@ -1,0 +1,221 @@
+name: TrendOS T11 Service Worker Production Canary
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-worker-production-canary.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t11-service-worker-production-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      WORKER_BASELINE_COMMIT: b3176c8d82ad974094c3328d23e29556e209bba3
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard T11 Worker scope and credential gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "cloud-migration-v3-t6b-auth-shadow-canary-20260913"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          git fetch --no-tags --depth=1 origin "$WORKER_BASELINE_COMMIT"
+          git diff --name-only "$WORKER_BASELINE_COMMIT" HEAD -- cloudflare-d1/src cloudflare-d1/production-shadow cloudflare-d1/wrangler.toml cloudflare-d1/migrations | sort > /tmp/t11-runtime-files.txt
+          cat > /tmp/t11-runtime-allowed.txt <<'EOF'
+          cloudflare-d1/src/edge-orders-service-v1.mjs
+          cloudflare-d1/src/index_v2.js
+          EOF
+          sort -o /tmp/t11-runtime-allowed.txt /tmp/t11-runtime-allowed.txt
+          diff -u /tmp/t11-runtime-allowed.txt /tmp/t11-runtime-files.txt
+          git diff --exit-code "$WORKER_BASELINE_COMMIT" HEAD -- cloudflare-d1/wrangler.toml cloudflare-d1/migrations cloudflare-d1/production-shadow
+          cfg='cloudflare-d1/wrangler.toml'
+          grep -Eq '^name = "trendos-d1-api"$' "$cfg"
+          grep -Eq '^main = "production-shadow/index\.js"$' "$cfg"
+          grep -Eq '^TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_PRODUCTION_SHADOW_V2_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED = "false"$' "$cfg"
+          grep -Eq '^TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED = "true"$' "$cfg"
+          grep -Eq '^TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED = "true"$' "$cfg"
+          grep -Eq '^CLOUD_AUTH_SHADOW_TTL_SECONDS = "300"$' "$cfg"
+          echo 'T11_WORKER_SCOPE_GATE=PASS'
+          echo 'D1_MIGRATION_INCLUDED=NO'
+          echo 'FRONTEND_CUTOVER_INCLUDED=NO'
+          echo 'WRITE_AUTHORITY_CHANGE_INCLUDED=NO'
+          echo 'TASK_MUTATION_INCLUDED=NO'
+
+      - name: T11 Service runtime contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/edge-orders-service-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          grep -q "'/v1/edge/orders/service/page'" cloudflare-d1/src/edge-orders-service-v1.mjs
+          grep -q "fallback:'apps-script'" cloudflare-d1/src/edge-orders-service-v1.mjs
+          grep -q "OWNER_APPROVED_EXCLUSION_HASHES" cloudflare-d1/src/edge-orders-service-v1.mjs
+          count="$(grep -oE "'[0-9a-f]{64}'" cloudflare-d1/src/edge-orders-service-v1.mjs | wc -l | tr -d ' ')"
+          test "$count" = '9'
+          ! grep -Eq 'claimNext|completeTask|claim-next|/complete' cloudflare-d1/src/edge-orders-service-v1.mjs
+          echo 'T11_SERVICE_RUNTIME_CONTRACTS=PASS'
+          echo 'OWNER_APPROVED_EXCLUSION_HASH_COUNT=9'
+
+      - name: Pre-deploy production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/edge/health" > /tmp/pre-edge.json
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROD_URL/v1/cloud/write/health" > /tmp/pre-write.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/pre-edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/pre-write.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('T11_PREDEPLOY_PRODUCTION_BASELINE=PASS');
+          NODE
+
+      - name: Dry run exact T11 Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          rm -rf /tmp/trendos-t11-dryrun
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config wrangler.toml --outdir /tmp/trendos-t11-dryrun
+          test -d /tmp/trendos-t11-dryrun
+          echo 'T11_WORKER_DRY_RUN=PASS'
+
+      - name: Deploy T11 Service route production canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml | tee /tmp/t11-deploy.txt
+          echo 'T11_DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+          echo 'T11_SERVICE_WORKER_DEPLOYED=YES'
+
+      - name: Post-deploy production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/edge/health" > /tmp/post-edge.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$PROD_URL/v1/cloud/write/health" > /tmp/post-write.json
+          node <<'NODE'
+          const fs=require('fs');
+          const e=JSON.parse(fs.readFileSync('/tmp/post-edge.json','utf8'));
+          const w=JSON.parse(fs.readFileSync('/tmp/post-write.json','utf8'));
+          if(!e.success||e.database!==true||e.authConfigured!==true||e.upstreamConfigured!==true||e.cutover!==false) process.exit(1);
+          if(!w.success||w.cutover!==false||w.sheetsAuthoritative!==true) process.exit(2);
+          console.log('T11_POSTDEPLOY_PRODUCTION_BASELINE=PASS');
+          NODE
+
+      - name: Live authenticated Service route parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const apps=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={},timeoutMs=45000){const c=new AbortController();const timer=setTimeout(()=>c.abort(),timeoutMs);try{const t=Date.now();const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
+          (async()=>{
+            let login=null, employeeToken='';
+            for(let n=1;n<=3;n++){
+              login=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});
+              employeeToken=text(login.body?.user?.token);
+              if(login.status===200&&login.body?.success===true&&employeeToken) break;
+            }
+            if(!employeeToken) throw new Error('fresh login failed');
+            console.log('::add-mask::'+employeeToken);
+            const exchange=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})},20000);
+            const edgeToken=text(exchange.body?.edgeToken);
+            if(exchange.status!==200||exchange.body?.success!==true||!edgeToken) throw new Error('orders session exchange failed HTTP '+exchange.status);
+            console.log('::add-mask::'+edgeToken);
+            const path='/v1/edge/orders/service/page?screen=service&page=1&pageSize=100&statusFilter='+encodeURIComponent('__ACTIVE__');
+            const edge=await req(base+path,{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+edgeToken}},20000);
+            if(edge.status!==200||edge.body?.success!==true) throw new Error('Service route failed HTTP '+edge.status+' code='+text(edge.body?.code));
+            if(text(edge.body?.dataSource)!=='d1-edge-orders-service-v1') throw new Error('Service dataSource mismatch');
+            if(Number(edge.body?.exclusionCount)!==9) throw new Error('Service exclusion count mismatch');
+            if(Number(edge.body?.pagination?.totalRows)!==35) throw new Error('Service totalRows mismatch got='+Number(edge.body?.pagination?.totalRows||0));
+            if(!edge.body?.freshness||edge.body.freshness.ok!==true) throw new Error('Service freshness proof missing');
+            const auth=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token:employeeToken,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});
+            if(auth.status!==200||auth.body?.success!==true) throw new Error('authoritative parity read failed');
+            const fields=['orderId','lineId','status','priority','customer','department','itemName','qty','ready'];
+            const key=r=>fields.map(f=>text(r&&r[f])).join('|');
+            const multiset=list=>{const m=new Map();for(const x of list)m.set(x,(m.get(x)||0)+1);return m};
+            const diff=(a,b)=>{let n=0;for(const [k,v] of a)n+=Math.max(0,v-(b.get(k)||0));return n};
+            const em=multiset((edge.body.rows||[]).map(key)), am=multiset((auth.body.rows||[]).map(key));
+            const missing=diff(am,em), extra=diff(em,am);
+            const status=(o)=>JSON.stringify(Object.fromEntries(Object.entries(o||{}).sort()));
+            const statusExact=status(edge.body.statusCounts)===status(auth.body.statusCounts);
+            const exact=missing===0&&extra===0&&statusExact&&Number(auth.body?.pagination?.totalRows)===35;
+            console.log('T11_SERVICE_LIVE_ROUTE='+JSON.stringify({edgeHttp:edge.status,edgeMs:edge.ms,appsMs:auth.ms,totalRows:Number(edge.body?.pagination?.totalRows||0),missing,extra,statusExact,exclusionCount:Number(edge.body?.exclusionCount||0),freshnessMode:text(edge.body?.freshness?.mode)}));
+            if(!exact) throw new Error('live Service parity mismatch');
+            console.log('T11_SERVICE_LIVE_ROUTE_PARITY=PASS');
+          })().catch(err=>{console.error(err.message||err);process.exit(1)});
+          NODE
+
+      - name: Verify fail-closed unauthenticated boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          service_code="$(curl --silent --show-error --output /tmp/service-unauth.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/service/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__")"
+          test "$service_code" = '401'
+          existing_code="$(curl --silent --show-error --output /tmp/existing-unauth.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter=__ACTIVE__")"
+          test "$existing_code" = '401'
+          task_code="$(curl --silent --show-error --output /tmp/task-unauth.json --write-out '%{http_code}' "$PROD_URL/v1/operator/tasks/status")"
+          test "$task_code" = '401'
+          echo 'T11_UNAUTH_BOUNDARIES=PASS'
+          echo 'EXISTING_02CR_ROUTE_INTACT=YES'
+          echo 'TASK_ROUTE_FAIL_CLOSED=YES'
+
+      - name: Automatic rollback on post-deploy failure
+        if: ${{ failure() && env.T11_DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'T11 post-deploy qualification failed; rolling back production Worker.'
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} rollback --config wrangler.toml --message "Rollback T11 Service Worker canary qualification failure"
+          echo 'T11_AUTOMATIC_ROLLBACK_ATTEMPTED=YES'
+
+      - name: T11 Worker success conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'T11_SERVICE_WORKER_PRODUCTION_CANARY=PASS'
+          echo 'FRONTEND_SERVICE_CUTOVER=NO'
+          echo 'D1_MIGRATION=NO'
+          echo 'SHEETS_WRITE_AUTHORITY_CHANGED=NO'
+          echo 'TASK_MUTATION=NO'
+          echo 'EDGE_SESSION_SECRET_CHANGED=NO'
+          echo 'TASK_PROXY_SECRET_CHANGED=NO'
+          echo 'GABER_GATE_CHANGED=NO'
