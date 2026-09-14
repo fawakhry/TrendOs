@@ -9,6 +9,7 @@ const TASKS_V3_LEDGER_SHEET = 'تشغيل - سجل المهام V3';
 const TASKS_V3_MAX_ASSERTION_AGE_SECONDS = 120;
 
 function doPost(e) {
+  const bridgeStartedAt = Date.now();
   let payload;
   try {
     payload = JSON.parse((e && e.postData && e.postData.contents) || '{}');
@@ -16,15 +17,27 @@ function doPost(e) {
     return tasksV3Output_({ success: false, code: 'INVALID_JSON' });
   }
 
-  const verified = tasksV3VerifyAssertion_(payload);
+  const op = tasksV3Text_(payload.op);
+  const diagnostic = op === 'health' ? {
+    verifyAssertionMs: 0,
+    propertiesMs: 0,
+    openSpreadsheetMs: 0,
+    sheetLookupMs: 0,
+    totalBridgeMs: 0
+  } : null;
+  const verifyStartedAt = diagnostic ? Date.now() : 0;
+  const verified = tasksV3VerifyAssertion_(payload, diagnostic);
+  if (diagnostic) diagnostic.verifyAssertionMs = Date.now() - verifyStartedAt;
   if (!verified.ok) return tasksV3Output_({ success: false, code: verified.code });
 
-  const op = tasksV3Text_(payload.op);
   const role = tasksV3Role_(payload.role);
   const operator = tasksV3Text_(payload.operator);
 
   if (op === 'health') {
-    return tasksV3Output_(tasksV3Health_());
+    const response = tasksV3Health_(diagnostic);
+    diagnostic.totalBridgeMs = Date.now() - bridgeStartedAt;
+    response.diagnostic = diagnostic;
+    return tasksV3Output_(response);
   }
   if (op === 'status') {
     if (!tasksV3RoleAllowed_(role, ['WAEL', 'GABER', 'MANAGER'])) {
@@ -71,10 +84,24 @@ function tasksV3Properties_() {
   return PropertiesService.getScriptProperties();
 }
 
-function tasksV3Spreadsheet_() {
-  const id = tasksV3Text_(tasksV3Properties_().getProperty('TASKS_V3_SPREADSHEET_ID'));
+function tasksV3ScriptProperty_(name, diagnostic) {
+  const startedAt = diagnostic ? Date.now() : 0;
+  try {
+    return tasksV3Properties_().getProperty(name);
+  } finally {
+    if (diagnostic) diagnostic.propertiesMs += Date.now() - startedAt;
+  }
+}
+
+function tasksV3Spreadsheet_(diagnostic) {
+  const id = tasksV3Text_(tasksV3ScriptProperty_('TASKS_V3_SPREADSHEET_ID', diagnostic));
   if (!id) throw new Error('TASKS_V3_SPREADSHEET_ID_NOT_CONFIGURED');
-  return SpreadsheetApp.openById(id);
+  const startedAt = diagnostic ? Date.now() : 0;
+  try {
+    return SpreadsheetApp.openById(id);
+  } finally {
+    if (diagnostic) diagnostic.openSpreadsheetMs += Date.now() - startedAt;
+  }
 }
 
 function tasksV3RequiredSheet_(name) {
@@ -115,7 +142,7 @@ function tasksV3ConstantTimeEquals_(a, b) {
   return diff === 0;
 }
 
-function tasksV3VerifyAssertion_(payload) {
+function tasksV3VerifyAssertion_(payload, diagnostic) {
   if (tasksV3Text_(payload.protocol) !== TASKS_V3_PROTOCOL) {
     return { ok: false, code: 'PROTOCOL_INVALID' };
   }
@@ -129,7 +156,7 @@ function tasksV3VerifyAssertion_(payload) {
     return { ok: false, code: 'ASSERTION_IDENTITY_INCOMPLETE' };
   }
 
-  const secret = tasksV3Text_(tasksV3Properties_().getProperty('TASKS_V3_SHARED_SECRET'));
+  const secret = tasksV3Text_(tasksV3ScriptProperty_('TASKS_V3_SHARED_SECRET', diagnostic));
   if (!secret) return { ok: false, code: 'BRIDGE_SECRET_NOT_CONFIGURED' };
 
   const expected = tasksV3HmacHex_(tasksV3Canonical_(payload), secret);
@@ -242,11 +269,18 @@ function tasksV3Status_(operator, role) {
   }
 }
 
-function tasksV3Health_() {
+function tasksV3Health_(diagnostic) {
   try {
-    const ss = tasksV3Spreadsheet_();
-    const index = ss.getSheetByName(TASKS_V3_INDEX_SHEET);
-    const ledger = ss.getSheetByName(TASKS_V3_LEDGER_SHEET);
+    const ss = tasksV3Spreadsheet_(diagnostic);
+    const lookupStartedAt = diagnostic ? Date.now() : 0;
+    let index;
+    let ledger;
+    try {
+      index = ss.getSheetByName(TASKS_V3_INDEX_SHEET);
+      ledger = ss.getSheetByName(TASKS_V3_LEDGER_SHEET);
+    } finally {
+      if (diagnostic) diagnostic.sheetLookupMs += Date.now() - lookupStartedAt;
+    }
     return {
       success: true,
       version: 'TASKS_V3_READONLY_T0',
