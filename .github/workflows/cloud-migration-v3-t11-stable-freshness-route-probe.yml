@@ -1,0 +1,77 @@
+name: TrendOS T11 Stable 02CR Freshness Route Probe
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-stable-freshness-route-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t11-stable-02cr-freshness-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read-only stable 02CR freshness probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          node <<'NODE'
+          const apps=process.env.APPS_SCRIPT_URL;
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          async function req(url,opt={},timeoutMs=30000){
+            const c=new AbortController(); const timer=setTimeout(()=>c.abort(),timeoutMs);
+            try { const t=Date.now(); const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt}); const raw=await r.text(); let b={}; try{b=JSON.parse(raw||'{}')}catch{} return {status:r.status,body:b,ms:Date.now()-t}; }
+            finally { clearTimeout(timer); }
+          }
+          (async()=>{
+            const login=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})},30000);
+            const employeeToken=text(login.body?.user?.token);
+            console.log('T11_STABLE_PROBE_LOGIN='+JSON.stringify({http:login.status,ms:login.ms,success:login.body?.success===true}));
+            if(login.status!==200||login.body?.success!==true||!employeeToken) throw new Error('qualification login failed');
+            console.log('::add-mask::'+employeeToken);
+            const exchange=await req(base+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token:employeeToken})},30000);
+            const edgeToken=text(exchange.body?.edgeToken);
+            console.log('T11_STABLE_PROBE_SESSION='+JSON.stringify({http:exchange.status,ms:exchange.ms,success:exchange.body?.success===true,authSource:text(exchange.body?.authSource)}));
+            if(exchange.status!==200||exchange.body?.success!==true||!edgeToken) throw new Error('edge session exchange failed');
+            console.log('::add-mask::'+edgeToken);
+            const path='/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=5&statusFilter='+encodeURIComponent('__ACTIVE__')+'&probe='+Date.now();
+            const result=await req(base+path,{method:'GET',headers:{accept:'application/json',authorization:'Bearer '+edgeToken,'cache-control':'no-store'}},30000);
+            const mirrors=Array.isArray(result.body?.mirrors)?result.body.mirrors.map(m=>({sheetName:text(m?.sheetName),status:text(m?.status),syncedAt:text(m?.syncedAt),rowCount:Number(m?.rowCount||0),sourceLastRow:Number(m?.sourceLastRow||0),note:text(m?.note)})):[];
+            const lf=result.body?.logicalFreshness||null;
+            console.log('T11_STABLE_02CR_RESULT='+JSON.stringify({http:result.status,ms:result.ms,success:result.body?.success===true,code:text(result.body?.code),dataSource:text(result.body?.dataSource),logicalFreshness:lf?{ok:lf.ok===true,mode:text(lf.mode),checkedAt:text(lf.checkedAt),failedChecks:Array.isArray(lf.failedChecks)?lf.failedChecks:[]}:null,mirrors}));
+            if(result.status!==200||result.body?.success!==true) throw new Error('stable 02CR read failed http='+result.status+' code='+text(result.body?.code));
+            if(text(result.body?.dataSource)!=='d1-edge-orders-02cr-operational') throw new Error('stable 02CR did not serve D1 operational data');
+            console.log('T11_STABLE_02CR_FRESHNESS_ROUTE_PROBE=PASS');
+            console.log('PRODUCTION_MUTATION=NO');
+            console.log('WORKER_DEPLOY=NO');
+            console.log('APPS_SCRIPT_DEPLOY=NO');
+            console.log('BUSINESS_WRITE=NO');
+            console.log('TASK_MUTATION=NO');
+            console.log('SECRET_CHANGE=NO');
+          })().catch(err=>{console.error(err.message||err);process.exit(1)});
+          NODE
