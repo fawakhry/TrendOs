@@ -78,5 +78,42 @@ Unchanged:
 - `__DEBT__` Apps Script
 - Sheets/Apps Script business-write authority retained
 
+## Step 3 — Branch-only production entrypoint + Wrangler bundle diagnostic
+Result: **PASS**
+
+### Diagnostic workflow
+- Workflow: `TrendOS T11 Routing Bundle Diagnostic`
+- Run ID: `34849075212`
+- Job ID: `103992137281`
+- Commit SHA: `6b36abb453f0f5e6b98973f52a5cccd3fcc17b23`
+- Wrangler: `4.33.2`
+
+### Assertions passed
+- Production source dispatch chain: PASS.
+- Direct local execution of `production-shadow/index.js` against `/v1/edge/orders/service/page?...` reached the Service handler and returned unauthenticated HTTP `401` as expected, proving the path did not fall through to a 404 locally.
+- Exact Wrangler production bundle dry-run: PASS.
+- Emitted bundle contains exact Service path `/v1/edge/orders/service/page`: PASS.
+- Emitted bundle contains Service handler marker `d1-edge-orders-service-v1`: PASS.
+
+### Interpretation
+No wiring patch is currently required in `production-shadow/index.js`, `src/index_v2.js`, or `src/edge-orders-service-v1.mjs`. Source dispatch and emitted Wrangler bundle both contain the qualified Service route. The attempt-3 HTTP 404 therefore occurred after bundling, at the production deployment activation/edge-verification boundary (for example serving the pre-canary stable version during verification), not because the candidate source lacked the route.
+
+### Production mutation
+- Production mutation in this step: **NO**.
+- Worker deploy: **NO**.
+- Apps Script deploy: **NO**.
+- Business writes: **NO**.
+- Task mutation: **NO**.
+- Secret changes: **NO**.
+- Rollback required: **NO**.
+
+### Current Production State
+Unchanged:
+- stable Worker: `3b819fd3-e73d-46f8-9150-f73c282706ab`
+- Print/Laser/Press D1-first retained
+- Service Apps Script only
+- `__DEBT__` Apps Script
+- Sheets/Apps Script business-write authority retained
+
 ### Next exact step
-Create/run a branch-only, mutation-free Wrangler bundle diagnostic that uses the same `cloudflare-d1/wrangler.toml` and Wrangler `4.33.2`, then assert that the emitted bundle contains the exact Service path and Service handler wiring. Do not deploy Production in that diagnostic. Only after bundle proof should the T11 Production canary be changed or rerun.
+Harden the existing narrow T11 production canary so it proves the newly deployed Worker version is actually serving the Service route before authoritative parity. Keep automatic rollback. Do not add a runtime wiring change. Add only deployment-activation verification/retry around the Service route and keep the same T11 runtime scope. Then execute the same narrow Production canary; Service frontend remains OFF until live route parity PASS.
