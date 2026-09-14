@@ -1,0 +1,55 @@
+name: TrendOS T11 Service Single-Field Diff
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-field-diff.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+
+jobs:
+  diff:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Identify field names only for Service mismatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto=await import('node:crypto');
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim(), password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim(); const hash=v=>crypto.createHash('sha256').update(String(v)).digest('hex');
+          const EX=new Set(['1245e0f4e67e6ddd8f372de7f68600380ab1438f27f47ba45752b0ffa423e392','31ea43f205c124649678207a42b1f8cc1081aeefe5eae1b771d378d39ec2399a','65711b0c91f290b46814d789a283a0d87ba0b5539ce6cc6acd1d0e3d7b3d57de','8c86a34f5ae4709588fb7dff504925527414e1732af291d52575a87d85d097be','af09e068b9ba95b8424e9d0ca74af1ed38ea41fbdbd044085edfb86937e4085c','ba3c81028254460bb6f4cc63636f3da88f42b0bcfcf140c05fbfb063de90093f','c6d8a6e65e96b479efd7485483ffa312ac95ab55f1e689ba6f2f44eab212d254','cf3ff1a00fa1836509df654dd27e81bd2e64b6ee293b26a7b96817388e44a711','d516e83af2a27b96ea0ac8447d094fca22d7f20a5385637bbbe25315432cc44f']);
+          const BASE_HIDDEN=new Set(['تم التسليم','مكرر','ملغى','ملغي']); const ACTIVE_HIDDEN=new Set(['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى','ملغي']);
+          async function req(url,opt={}){const c=new AbortController();const timer=setTimeout(()=>c.abort(),45000);try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}finally{clearTimeout(timer)}}
+          async function authoritative(){for(let n=1;n<=3;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a.body;}throw new Error('authoritative unavailable');}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});if(r.status!==200||r.body?.success!==true)throw new Error('mirror unavailable');return r.body.sheet||{};}
+          const [auth,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+          const headers=Array.isArray(m0.headers)?m0.headers:[]; const hm={}; headers.forEach((h,i)=>{const k=text(h);if(k&&!Object.hasOwn(hm,k))hm[k]=i}); const idx=(n,f)=>Number.isInteger(hm[n])?hm[n]:f;
+          const C={order:idx('رقم الأوردر',0),code:idx('كود الأوردر',1),customer:idx('اسم الشات / المكتب',3),phone:idx('رقم العميل',5),department:idx('القسم الرئيسي',8),item:idx('وصف مختصر',9),priority:idx('الأولوية',10),status:idx('الحالة العامة',11),qty:idx('عدد البنود',13),ready:idx('بنود جاهزة',14)};
+          const candidate=new Map();
+          for(const r of [...(m0.rows||[]),...(m1.rows||[])]){if(Number(r?.rowNumber||0)<=1)continue;const d=Array.isArray(r.display)&&r.display.length?r.display:(r.values||[]);const orderId=text(d[C.order])||text(d[C.code]);if(!orderId)continue;const status=text(d[C.status])||'طلب جديد';if(BASE_HIDDEN.has(status)||ACTIVE_HIDDEN.has(status))continue;if(status==='طلب جديد'&&EX.has(hash(orderId)))continue;candidate.set(orderId,{orderId,lineId:text(d[C.phone]),status,priority:text(d[C.priority])||'عادي',customer:text(d[C.customer]),department:text(d[C.department]),itemName:text(d[C.item]),qty:text(d[C.qty]),ready:text(d[C.ready])});}
+          const fields=['lineId','status','priority','customer','department','itemName','qty','ready']; const mismatch={};fields.forEach(f=>mismatch[f]=0);
+          let mapped=0,unmapped=0;
+          for(const a of auth.rows||[]){const id=text(a?.orderId);const c=candidate.get(id);if(!c){unmapped++;continue;}mapped++;for(const f of fields){if(text(a?.[f])!==text(c?.[f]))mismatch[f]++;}}
+          const nonzero=Object.fromEntries(Object.entries(mismatch).filter(([,n])=>n>0));
+          console.log('T11_SERVICE_FIELD_DIFF='+JSON.stringify({mapped,unmapped,fieldMismatchCounts:nonzero}));
+          console.log('BUSINESS_VALUES_EXPOSED=NO'); console.log('PRODUCTION_MUTATION=NO');
+          NODE
