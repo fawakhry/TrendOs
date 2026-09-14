@@ -1,0 +1,61 @@
+name: TrendOS T11 Service Exclusion Hashes
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-service-exclusion-hashes.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+
+jobs:
+  derive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Derive SHA256 fingerprints for owner-approved Service exclusions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = await import('node:crypto');
+          const apps=process.env.APPS_SCRIPT_URL, base=process.env.PROD_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          const hash=v=>crypto.createHash('sha256').update(String(v)).digest('hex');
+          async function req(url,opt={}){const c=new AbortController();const timer=setTimeout(()=>c.abort(),45000);try{const r=await fetch(url,{redirect:'follow',cache:'no-store',signal:c.signal,...opt});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b};}finally{clearTimeout(timer)}}
+          async function authoritative(){for(let n=1;n<=3;n++){const l=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password})});const token=text(l.body?.user?.token);if(!token)continue;console.log('::add-mask::'+token);const a=await req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:'1',pageSize:'100',statusFilter:'__ACTIVE__'})});if(a.status===200&&a.body?.success===true)return a.body;}throw new Error('authoritative Service read unavailable');}
+          async function mirror(offset){const r=await req(base+'/v1/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=500&offset='+offset,{headers:{accept:'application/json'}});if(r.status!==200||r.body?.success!==true)throw new Error('orders mirror unavailable');return r.body.sheet||{};}
+          const [auth,m0,m1]=await Promise.all([authoritative(),mirror(0),mirror(500)]);
+          const headers=Array.isArray(m0.headers)?m0.headers:[]; const hm={}; headers.forEach((h,i)=>hm[text(h)]=i);
+          const orderCol=Number.isInteger(hm['رقم الأوردر'])?hm['رقم الأوردر']:0;
+          const codeCol=Number.isInteger(hm['كود الأوردر'])?hm['كود الأوردر']:1;
+          const statusCol=Number.isInteger(hm['الحالة العامة'])?hm['الحالة العامة']:11;
+          const activeIds=new Set((auth.rows||[]).flatMap(r=>[text(r?.orderId),text(r?.orderCode)]).filter(Boolean));
+          const rows=[...(m0.rows||[]),...(m1.rows||[])].filter(r=>Number(r?.rowNumber||0)>1);
+          const excluded=[];
+          for(const row of rows){const d=Array.isArray(row.display)&&row.display.length?row.display:(row.values||[]);const id=text(d[orderCol])||text(d[codeCol]);const status=text(d[statusCol]);if(id&&status==='طلب جديد'&&!activeIds.has(id))excluded.push(id);}
+          const unique=[...new Set(excluded)].sort();
+          if(unique.length!==9) throw new Error('Expected exactly 9 owner-approved exclusions, got '+unique.length);
+          const hashes=unique.map(hash).sort();
+          console.log('T11_SERVICE_EXCLUSION_COUNT='+hashes.length);
+          console.log('T11_SERVICE_EXCLUSION_SHA256='+JSON.stringify(hashes));
+          console.log('RAW_ORDER_IDS_EXPOSED=NO');
+          console.log('CUSTOMER_DATA_EXPOSED=NO');
+          console.log('PRODUCTION_BUSINESS_MUTATION=NO');
+          NODE
