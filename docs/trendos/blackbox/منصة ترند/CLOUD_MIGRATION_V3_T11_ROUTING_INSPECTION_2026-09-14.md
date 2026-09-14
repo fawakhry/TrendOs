@@ -184,5 +184,49 @@ Observed result:
 - All business writes: Sheets / Apps Script authoritative.
 - Frontend Service cutover: **NO**.
 
+## Step 5 — READ-ONLY Apps Script heartbeat transport probe
+Result: **FAIL — both heartbeat transports timed out**
+
+### Diagnostic identifiers
+- Workflow: `TrendOS T11 Orders Heartbeat Transport Probe`
+- Run ID: `34850399442`
+- Job ID: `103996585998`
+- Commit SHA: `4181d031b1c3a6f6b881d2c9914d5b2515381aef`
+- Worker Version: **N/A**
+
+### Exact result
+The existing branch-only diagnostic probed the same Apps Script heartbeat action `getD1OrdersLowUsageHeartbeatV1` by both GET and POST with a 20-second abort limit.
+
+Observed:
+- GET: `AbortError` after `20004 ms`.
+- POST: `AbortError` after `20001 ms`.
+- No HTTP response was received before either timeout.
+- GitHub marked the job `success` only because the diagnostic script logs transport errors without exiting non-zero; the diagnostic result itself is **FAIL**.
+
+### Interpretation
+- The attempt-4 `idle-heartbeat-error` is consistent with a real upstream heartbeat transport timeout/unresponsiveness.
+- This is not evidence of a JSON parsing-only problem.
+- This is not a POST-vs-GET mismatch because both transports failed to produce any response within 20 seconds.
+- Do not weaken or bypass the freshness guard based on this result.
+
+### Production mutation
+- Production mutation in this step: **NO**.
+- Worker deploy: **NO**.
+- Apps Script deploy: **NO**.
+- D1 migration: **NO**.
+- Business writes: **NO**.
+- Task mutation: **NO**.
+- Secret changes: **NO**.
+- Rollback required: **NO**.
+
+### Current Production State
+Unchanged:
+- Worker: `3b819fd3-e73d-46f8-9150-f73c282706ab` at 100% traffic.
+- Print/Laser/Press: D1-first + Apps Script fallback retained.
+- Service: Apps Script only.
+- `__DEBT__`: Apps Script.
+- Sheets / Apps Script remain authoritative for all business writes.
+- Frontend Service cutover: **NO**.
+
 ### Next exact step
-READ-ONLY inspect the Service freshness fallback chain only: `verifyServiceFreshness()` -> `fetchOrdersIdleHeartbeat()` -> Apps Script heartbeat transport/response -> `inspectOrdersIdleHeartbeat()`. Determine why the production candidate produced `idle-heartbeat-error` after 6491 ms. Do not redo Service contract discovery or prior 35/35 parity. If a branch-only correction is proven necessary, patch only the smallest Service/freshness file(s), test branch-only first, expand the T11 scope gate only for the exact required file, then rerun the same narrow canary with automatic rollback.
+Run a READ-ONLY freshness-runtime-status diagnostic against the stable Production Print/02CR route to determine whether current Production D1 reads are passing freshness through `mirror-meta` and therefore avoiding the broken heartbeat fallback. In parallel, inspect why the Service candidate fell through to heartbeat rather than accepting mirror metadata. If the Service metadata query/selection is wrong, patch only that branch-side Service/freshness logic and test branch-only. If fixing the heartbeat itself requires Apps Script Production deployment, stop at the owner-approval boundary; do not deploy Apps Script automatically.
