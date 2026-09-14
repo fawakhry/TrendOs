@@ -83,3 +83,39 @@ Create a branch-only T11 frontend candidate test that starts from the exact curr
 - no write/task/secret/authority behavior changes.
 
 Do not modify `main` until this branch-only candidate passes.
+
+## Step 2 — First branch-only frontend candidate workflow parse
+Result: **FAIL — WORKFLOW YAML PARSE/VALIDATION ONLY; NO JOB EXECUTED**
+
+### Identifiers
+- Candidate workflow: `cloud-migration-v3-t11-service-frontend-candidate.yml`
+- Candidate workflow commit: `113992b708a3781e08f1f2365667062061206afd`
+- Run ID: `34852231504`
+- Job ID: **none** — GitHub returned an empty jobs list.
+
+### Failure reason
+The workflow failed before runner allocation. Inspection showed a Python triple-quoted helper inside a YAML `run: |` block had a closing delimiter that dropped below the block indentation, making the workflow invalid YAML/Actions syntax.
+
+No candidate patch or browser-like test executed, so this failure is not evidence against the Service frontend logic.
+
+### Production mutation
+- Production mutation: **NO**.
+- `main` changed: **NO**.
+- Worker deploy: **NO**.
+- Apps Script deploy: **NO**.
+- Business write: **NO**.
+- Task mutation: **NO**.
+- Secret change: **NO**.
+- Rollback required: **NO**.
+
+### Current Production State
+Unchanged:
+- Worker: `7964189a-2456-4f5f-bc22-532ae4971e8c` retained.
+- Print/Laser/Press: D1-first + Apps Script fallback.
+- Service Worker route: qualified/live.
+- Service frontend: Apps Script only.
+- `__DEBT__`: Apps Script.
+- writes: Sheets / Apps Script authoritative.
+
+### Next exact step
+Fix only the branch-side candidate workflow YAML formatting by replacing the problematic multiline Python literal with indentation-safe string construction. Re-run the same branch-only candidate tests. Do not modify `main`.
