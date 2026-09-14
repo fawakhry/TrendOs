@@ -83,25 +83,27 @@ jobs:
           s = s.replace(old_path, new_path, 1)
 
           anchor = "  async function edgePage(params) {\n"
-          helper = """  function isServiceScreen(params) {
-            return text(params && params.screen).toLowerCase() === 'service';
-          }
-
-          function pagePathFor(params) {
-            return isServiceScreen(params) ? SERVICE_PAGE_PATH : QUALIFIED_PAGE_PATH;
-          }
-
-          function validateServiceResponse(body) {
-            if (text(body && body.dataSource) !== 'd1-edge-orders-service-v1') {
-              throw mirrorFreshnessError('Service D1 data source mismatch', 'EDGE_SERVICE_SOURCE');
-            }
-            if (!body || !body.freshness || body.freshness.ok !== true) {
-              throw mirrorFreshnessError('Service D1 freshness proof missing', 'EDGE_SERVICE_FRESHNESS');
-            }
-            return body;
-          }
-
-"""
+          helper_lines = [
+              "  function isServiceScreen(params) {",
+              "    return text(params && params.screen).toLowerCase() === 'service';",
+              "  }",
+              "",
+              "  function pagePathFor(params) {",
+              "    return isServiceScreen(params) ? SERVICE_PAGE_PATH : QUALIFIED_PAGE_PATH;",
+              "  }",
+              "",
+              "  function validateServiceResponse(body) {",
+              "    if (text(body && body.dataSource) !== 'd1-edge-orders-service-v1') {",
+              "      throw mirrorFreshnessError('Service D1 data source mismatch', 'EDGE_SERVICE_SOURCE');",
+              "    }",
+              "    if (!body || !body.freshness || body.freshness.ok !== true) {",
+              "      throw mirrorFreshnessError('Service D1 freshness proof missing', 'EDGE_SERVICE_FRESHNESS');",
+              "    }",
+              "    return body;",
+              "  }",
+              ""
+          ]
+          helper = "\n".join(helper_lines) + "\n"
           if s.count(anchor) != 1:
               raise SystemExit('unexpected edgePage anchor')
           s = s.replace(anchor, helper + anchor, 1)
@@ -118,11 +120,11 @@ jobs:
               raise SystemExit('unexpected response validation baseline')
           s = s.replace(old_return, new_return, 1)
 
-          old_loader_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
-          new_loader_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    servicePagePath: SERVICE_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
-          if s.count(old_loader_meta) != 1:
+          old_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
+          new_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    servicePagePath: SERVICE_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
+          if s.count(old_meta) != 2:
               raise SystemExit('unexpected loader metadata baseline')
-          s = s.replace(old_loader_meta, new_loader_meta, 1)
+          s = s.replace(old_meta, new_meta)
           js.write_text(s)
           PY
 
@@ -226,7 +228,6 @@ jobs:
               throw new Error('Edge wrapper did not install');
             }
 
-            // Service must use its dedicated order-level route and must not fall back on a qualified response.
             calls.length = 0; originalCalls = 0; mode = 'service-ok';
             const service = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'service',page:1,pageSize:100,statusFilter:'__ACTIVE__'});
             if (service.dataSource !== 'd1-edge-orders-service-v1') throw new Error('Service did not return Edge result');
@@ -235,7 +236,6 @@ jobs:
             if (originalCalls !== 0) throw new Error('Service unexpectedly fell back');
             console.log('T11_FRONTEND_SERVICE_ROUTE=PASS');
 
-            // Print must remain on the existing 02CR route.
             calls.length = 0; originalCalls = 0;
             const print = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'print',page:1,pageSize:5,statusFilter:'__ACTIVE__'});
             if (print.dataSource !== 'd1-edge-orders-02cr-operational') throw new Error('Print did not return 02CR Edge result');
@@ -244,14 +244,12 @@ jobs:
             if (originalCalls !== 0) throw new Error('Print unexpectedly fell back');
             console.log('T11_FRONTEND_PRINT_02CR_INTACT=PASS');
 
-            // A Service freshness failure must fail open to authoritative Apps Script.
             calls.length = 0; originalCalls = 0; mode = 'service-bad-freshness';
             const fallback = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'service',page:1,pageSize:100,statusFilter:'__ACTIVE__'});
             if (fallback.dataSource !== 'apps-script-original') throw new Error('Service freshness failure did not fall back');
             if (originalCalls !== 1) throw new Error('Service fallback call count mismatch');
             console.log('T11_FRONTEND_SERVICE_FALLBACK=PASS');
 
-            // Debt must remain Apps Script-only and must not attempt Edge.
             calls.length = 0; originalCalls = 0; mode = 'service-ok';
             const debt = await window.trendosSecureApiV1922('getRowsPageV1931',{screen:'service',page:1,pageSize:100,statusFilter:'__DEBT__'});
             if (debt.dataSource !== 'apps-script-original') throw new Error('Debt did not stay on Apps Script');
