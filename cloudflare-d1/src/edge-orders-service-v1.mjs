@@ -1,7 +1,10 @@
 import { buildDashboardFromRows, buildOrdersSummary, verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
+import { inspectOrdersIdleHeartbeat, ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS } from './edge-orders-idle-heartbeat.mjs';
+import { fetchOrdersIdleHeartbeat, ordersIdleHeartbeatVerifierEnabled } from './edge-orders-idle-verifier.mjs';
 
 const PATH = '/v1/edge/orders/service/page';
 const ORDERS_SHEET = 'الأوردرات';
+const LINES_SHEET = 'بنود الأوردرات';
 const ORDERS_LIVE_NOTES = new Set(['TrendOS orders live sync V1', 'TrendOS orders live sync V2 quota-aware']);
 const OWNER_APPROVED_EXCLUSION_HASHES = new Set([
   '1245e0f4e67e6ddd8f372de7f68600380ab1438f27f47ba45752b0ffa423e392',
@@ -16,6 +19,7 @@ const OWNER_APPROVED_EXCLUSION_HASHES = new Set([
 ]);
 const BASE_HIDDEN_STATUSES = new Set(['تم التسليم', 'مكرر', 'ملغى', 'ملغي']);
 const ACTIVE_HIDDEN_STATUSES = new Set(['جاهز للاستلام', 'تم التسليم', 'مكرر', 'تم التنفيذ', 'جاهز للطباعة', 'ملغى', 'ملغي']);
+const DEFAULT_MAX_AGE_SECONDS = 300;
 
 function text(v) { return String(v == null ? '' : v).trim(); }
 function clampInt(v, fallback, min, max) { const n = Number(v); return Number.isFinite(n) ? Math.max(min, Math.min(max, Math.trunc(n))) : fallback; }
@@ -26,11 +30,22 @@ function bearer(request) { const m = text(request.headers.get('Authorization')).
 function normalizeArabic(value) { return text(value).toLowerCase().replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim(); }
 function searchKey(value) { return normalizeArabic(value).replace(/[^0-9a-z\u0600-\u06ff ]/g,' ').replace(/\s+/g,' ').trim(); }
 function priorityRank(p) { const v=text(p)||'عادي'; if(v==='عاجل'||v==='VIP') return 0; if(v==='عادي') return 1; if(v==='مؤجل') return 2; return 9; }
+function parseSqliteUtc(value) { const raw=text(value); if(!raw) return 0; const normalized=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw)?raw.replace(' ','T')+'Z':raw; const ms=Date.parse(normalized); return Number.isFinite(ms)?ms:0; }
+function maxAgeSeconds(env) { const n=Number(env && env.EDGE_ORDERS_02CR_MAX_AGE_SECONDS); return Number.isFinite(n)?Math.max(300,Math.min(900,Math.trunc(n))):DEFAULT_MAX_AGE_SECONDS; }
+function heartbeatMaxAgeSeconds(env) { const n=Number(env && env.EDGE_ORDERS_IDLE_HEARTBEAT_MAX_AGE_SECONDS); return Number.isFinite(n)?Math.max(300,Math.min(1800,Math.trunc(n))):ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS; }
 
 async function sha256Hex(value) {
   const bytes = new TextEncoder().encode(String(value));
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function readCatalog(env, sheetName) {
+  return env.DB.prepare(`
+    SELECT source_last_row AS sourceLastRow, source_last_col AS sourceLastCol,
+           row_count AS rowCount, status, synced_at AS syncedAt, note
+      FROM sheet_catalog WHERE sheet_name = ? LIMIT 1
+  `).bind(sheetName).first();
 }
 
 async function readOrdersMirror(env) {
@@ -50,6 +65,32 @@ async function readOrdersMirror(env) {
     headers: JSON.parse(catalog.headersJson || '[]'),
     rows: (query.results || []).map(r => ({rowNumber:Number(r.rowNumber || 0), values:JSON.parse(r.valuesJson || '[]'), display:JSON.parse(r.displayJson || '[]')}))
   };
+}
+
+async function verifyServiceFreshness(env, ordersCatalog, nowMs=Date.now()) {
+  const syncedMs=parseSqliteUtc(ordersCatalog && ordersCatalog.syncedAt);
+  const ageSeconds=syncedMs?Math.max(0,Math.round((nowMs-syncedMs)/1000)):Number.MAX_SAFE_INTEGER;
+  if(ageSeconds<=maxAgeSeconds(env)) return {ok:true,mode:'write-age-fresh',ageSeconds};
+  if(!ordersIdleHeartbeatVerifierEnabled(env)) return {ok:false,mode:'idle-verifier-disabled',ageSeconds};
+  const linesCatalog=await readCatalog(env,LINES_SHEET);
+  if(!linesCatalog) return {ok:false,mode:'lines-shape-missing',ageSeconds};
+  let heartbeat;
+  try {
+    const status=await fetchOrdersIdleHeartbeat(env);
+    heartbeat=inspectOrdersIdleHeartbeat(status,{
+      nowMs,
+      maxAgeSeconds:heartbeatMaxAgeSeconds(env),
+      expectedOrdersSourceLastRow:Number(ordersCatalog.sourceLastRow||0),
+      expectedOrdersSourceLastCol:Number(ordersCatalog.sourceLastCol||0),
+      expectedLinesSourceLastRow:Number(linesCatalog.sourceLastRow||0),
+      expectedLinesSourceLastCol:Number(linesCatalog.sourceLastCol||0)
+    });
+  } catch (err) {
+    return {ok:false,mode:'idle-heartbeat-error',ageSeconds};
+  }
+  return heartbeat && heartbeat.ok===true
+    ? {ok:true,mode:'verified-idle-source-unchanged',ageSeconds,checkedAt:heartbeat.checkedAt}
+    : {ok:false,mode:'idle-heartbeat-invalid',ageSeconds,failedChecks:heartbeat && heartbeat.failedChecks || []};
 }
 
 function headerIndex(headers) {
@@ -127,6 +168,8 @@ export async function handleEdgeOrdersServiceRequest(request, env) {
   try {
     const mirror=await readOrdersMirror(env);
     if (!mirrorQualified(mirror)) return json({success:false,code:'service-orders-mirror-not-qualified',fallback:'apps-script',mirrors:[mirrorMeta(mirror)]},503,corsHeaders(request,env));
+    const freshness=await verifyServiceFreshness(env,mirror.catalog,Date.now());
+    if(!freshness.ok) return json({success:false,code:'service-orders-mirror-stale',fallback:'apps-script',freshness,mirrors:[mirrorMeta(mirror)]},503,corsHeaders(request,env));
     const cols=headerIndex(mirror.headers);
     const mapped=mirror.rows.filter(r=>Number(r.rowNumber||0)>1).map(r=>mapOrderRow(r,cols));
     const base=[];
@@ -146,7 +189,7 @@ export async function handleEdgeOrdersServiceRequest(request, env) {
       activeSummaryCounts:buildOrdersSummary(activeRows), pagination:{page,pageSize,totalRows,totalPages,hasOlder:page<totalPages},
       statusCounts:statusCounts(ordered), serverPaged:true, dataVersion:text(mirror.catalog.syncedAt)||'d1',
       version:'D1_SERVICE_READ_V1_OWNER_EXCLUSIONS', dataSource:'d1-edge-orders-service-v1', edgeSession:verified.payload.sub,
-      exclusionMode:'owner-approved-sha256', exclusionCount:OWNER_APPROVED_EXCLUSION_HASHES.size, mirrors:[mirrorMeta(mirror)]
+      exclusionMode:'owner-approved-sha256', exclusionCount:OWNER_APPROVED_EXCLUSION_HASHES.size, freshness, mirrors:[mirrorMeta(mirror)]
     },200,corsHeaders(request,env));
   } catch (err) {
     return json({success:false,code:'service-d1-candidate-error',fallback:'apps-script',message:String(err&&err.message?err.message:err)},502,corsHeaders(request,env));
