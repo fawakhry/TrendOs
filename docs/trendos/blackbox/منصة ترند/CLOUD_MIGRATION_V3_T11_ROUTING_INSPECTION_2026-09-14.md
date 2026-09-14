@@ -228,5 +228,53 @@ Unchanged:
 - Sheets / Apps Script remain authoritative for all business writes.
 - Frontend Service cutover: **NO**.
 
+## Step 6 — READ-ONLY stable 02CR freshness runtime diagnostic attempt
+Result: **FAIL / INCONCLUSIVE — stable route itself was not reached**
+
+### Diagnostic A
+- Workflow: `TrendOS T11 Stable 02CR Freshness Route Probe`
+- Run ID: `34850875260`
+- Job ID: `103998211240`
+- Commit SHA: `24d4cf70b083484d06db3a8f9bb2470caf2b8beb`
+- Worker Version: **N/A**
+- Login: HTTP 200 in `27683 ms`, success=true.
+- Edge session exchange: HTTP `502` in `15241 ms`, success=false.
+- Because Edge session exchange failed, `/v1/edge/orders/02cr/page` was not called.
+
+### Diagnostic B discovered on newer branch head
+- Workflow: `TrendOS T11 Freshness Runtime Probe`
+- Run ID: `34850882017`
+- Job ID: `103998226814`
+- Commit SHA: `332cc7db04e7735a4dd239ec32b55281051e762d`
+- Stable Production baseline: PASS.
+- Read-only Edge session: PASS after Apps Script login / exchange.
+- The actual 02CR probe step failed before making the request because Node 22 rejected mixed `require()` plus top-level `await` with `ERR_AMBIGUOUS_MODULE_SYNTAX`.
+- Therefore this run also produced no 02CR freshness result.
+
+### Source comparison completed during this step
+- Stable 02CR route is `/v1/edge/orders/02cr/page`.
+- Stable 02CR freshness guard checks `بنود الأوردرات`, `العملاء`, and `عملاء منع التسليم بالمديونية` metadata first.
+- If Lines is within the write-age freshness budget, 02CR passes without using the idle heartbeat.
+- Service instead checks the `الأوردرات` catalog write age directly and falls into idle heartbeat when that catalog is older than the budget.
+- This difference can explain why existing Print/Laser/Press can remain healthy while the Service candidate enters the heartbeat fallback, but runtime metadata evidence is still required before changing Service logic.
+
+### Production mutation
+- Production mutation in this step: **NO**.
+- Worker deploy: **NO**.
+- Apps Script deploy: **NO**.
+- Business writes: **NO**.
+- Task mutation: **NO**.
+- Secret changes: **NO**.
+- Rollback required: **NO**.
+
+### Current Production State
+Unchanged:
+- Worker: `3b819fd3-e73d-46f8-9150-f73c282706ab` at 100% traffic.
+- Print/Laser/Press: D1-first + Apps Script fallback retained.
+- Service: Apps Script only.
+- `__DEBT__`: Apps Script.
+- Sheets / Apps Script remain authoritative for all business writes.
+- Frontend Service cutover: **NO**.
+
 ### Next exact step
-Run a READ-ONLY freshness-runtime-status diagnostic against the stable Production Print/02CR route to determine whether current Production D1 reads are passing freshness through `mirror-meta` and therefore avoiding the broken heartbeat fallback. In parallel, inspect why the Service candidate fell through to heartbeat rather than accepting mirror metadata. If the Service metadata query/selection is wrong, patch only that branch-side Service/freshness logic and test branch-only. If fixing the heartbeat itself requires Apps Script Production deployment, stop at the owner-approval boundary; do not deploy Apps Script automatically.
+Rerun the branch-only stable 02CR freshness probe with the same resilient multi-attempt login/session acquisition used by the T11 canary and a syntactically valid Node wrapper. Obtain the stable route's HTTP/dataSource and freshness metadata without logging business rows. Do not deploy any Worker or Apps Script code. Only after this runtime evidence should Service freshness logic be patched or another T11 canary be considered.
