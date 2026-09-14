@@ -1,5 +1,6 @@
 name: TrendOS T11 Orders Heartbeat Transport Probe
 
+# Read-only T11 diagnostic; this comment refreshes the branch-only probe run after canary attempt 4.
 on:
   push:
     branches:
