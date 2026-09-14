@@ -1,0 +1,50 @@
+name: TrendOS T11 Direct Session Verify Diagnostic
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t6b-auth-shadow-canary-20260913
+    paths:
+      - .github/workflows/cloud-migration-v3-t11-direct-session-verify-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Measure direct Apps Script POST session verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const url=process.env.APPS_SCRIPT_URL;
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const text=v=>String(v==null?'':v).trim();
+          async function req(payload,timeoutMs=60000){const c=new AbortController();const timer=setTimeout(()=>c.abort(),timeoutMs);try{const t=Date.now();const r=await fetch(url,{method:'POST',redirect:'follow',cache:'no-store',signal:c.signal,headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}return{status:r.status,body:b,ms:Date.now()-t};}finally{clearTimeout(timer)}}
+          (async()=>{
+            const login=await req({action:'login',username,password},60000);
+            const token=text(login.body?.user?.token);
+            if(login.status!==200||login.body?.success!==true||!token) throw new Error('login failed');
+            console.log('::add-mask::'+token);
+            console.log('T11_DIRECT_LOGIN='+JSON.stringify({http:login.status,ms:login.ms,success:true}));
+            const verify=await req({action:'verifyEmployeeSession',username,token},60000);
+            const safe={http:verify.status,ms:verify.ms,success:verify.body?.success===true,userPresent:!!verify.body?.user,messagePresent:!!text(verify.body?.message)};
+            console.log('T11_DIRECT_VERIFY_POST='+JSON.stringify(safe));
+            console.log('TOKEN_EXPOSED=NO');
+            console.log('BUSINESS_MUTATION=NO');
+            if(verify.status!==200||verify.body?.success!==true) process.exit(21);
+          })().catch(err=>{console.error(String(err&&err.message||err));process.exit(1)});
+          NODE
