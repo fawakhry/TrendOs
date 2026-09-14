@@ -36,5 +36,47 @@ Result: **PASS**
 - `__DEBT__`: Apps Script.
 - Sheets / Apps Script remain authoritative for all business writes.
 
+## Step 2 — READ-ONLY source dispatch inspection
+Result: **PASS — Service route is wired in source; no source precedence blocker found**
+
+### Actual production dispatcher
+- `cloudflare-d1/wrangler.toml` sets `main = "production-shadow/index.js"`.
+- `cloudflare-d1/production-shadow/index.js` imports `../src/index_v2.js` as `core`.
+- The production entrypoint handles only two exact/specific pre-core families first:
+  - production reconcile qualification prefix
+  - exact production shadow observer path
+- All other requests are delegated with `return core.fetch(request, env, ctx)`.
+
+### Service route source wiring
+- `cloudflare-d1/src/index_v2.js` imports:
+  - `handleEdgeOrdersServiceRequest`
+  - `isEdgeOrdersServicePath`
+  from `./edge-orders-service-v1.mjs`.
+- The Service predicate is checked before the 02CR Orders route, the generic Orders route, and before falling through to `base.fetch(...)`.
+- `cloudflare-d1/src/edge-orders-service-v1.mjs` defines the exact path:
+  - `/v1/edge/orders/service/page`
+- `isEdgeOrdersServicePath(path)` normalizes trailing slash only and performs an exact equality comparison.
+- Neither `isProductionShadowPath()` nor `isProductionReconcileQualificationPath()` matches the Service path.
+
+### Interpretation
+The repository source at the controlled branch contains the expected Service runtime wiring and there is no visible route-precedence conflict that explains the fast HTTP 404. Therefore the next suspected boundary is the exact Wrangler deploy bundle / deployed artifact rather than missing source routing.
+
+### Production mutation
+- Production mutation in this step: **NO**.
+- Worker deploy: **NO**.
+- Apps Script deploy: **NO**.
+- Business writes: **NO**.
+- Task mutation: **NO**.
+- Secret changes: **NO**.
+- Rollback required: **NO**.
+
+### Current Production State
+Unchanged:
+- stable Worker: `3b819fd3-e73d-46f8-9150-f73c282706ab`
+- Print/Laser/Press D1-first retained
+- Service Apps Script only
+- `__DEBT__` Apps Script
+- Sheets/Apps Script business-write authority retained
+
 ### Next exact step
-Continue READ-ONLY inspection of the actual production Worker dispatch/bundle chain: `wrangler.toml` -> `production-shadow/index.js` -> delegated predicates/handlers -> `src/index_v2.js` -> `src/edge-orders-service-v1.mjs`, then prove whether the Service route is present in the exact deploy bundle before any fourth Production canary.
+Create/run a branch-only, mutation-free Wrangler bundle diagnostic that uses the same `cloudflare-d1/wrangler.toml` and Wrangler `4.33.2`, then assert that the emitted bundle contains the exact Service path and Service handler wiring. Do not deploy Production in that diagnostic. Only after bundle proof should the T11 Production canary be changed or rerun.
