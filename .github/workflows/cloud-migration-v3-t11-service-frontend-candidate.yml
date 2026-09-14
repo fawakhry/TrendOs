@@ -119,12 +119,6 @@ jobs:
           if s.count(old_return) != 1:
               raise SystemExit('unexpected response validation baseline')
           s = s.replace(old_return, new_return, 1)
-
-          old_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
-          new_meta = "    pagePath: QUALIFIED_PAGE_PATH,\n    servicePagePath: SERVICE_PAGE_PATH,\n    maxMirrorAgeMs: maxMirrorAgeMs(),"
-          if s.count(old_meta) != 2:
-              raise SystemExit('unexpected loader metadata baseline')
-          s = s.replace(old_meta, new_meta)
           js.write_text(s)
           PY
 
