@@ -8,9 +8,10 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_T8_PRINT_GLOBAL_20260913';
+  var VERSION = 'EDGE_ORDERS_READ_T11_SERVICE_20260914';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
+  var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
@@ -277,9 +278,27 @@
     return query.toString();
   }
 
+  function isServiceScreen(params) {
+    return text(params && params.screen).toLowerCase() === 'service';
+  }
+
+  function pagePathFor(params) {
+    return isServiceScreen(params) ? SERVICE_PAGE_PATH : QUALIFIED_PAGE_PATH;
+  }
+
+  function validateServiceResponse(body) {
+    if (text(body && body.dataSource) !== 'd1-edge-orders-service-v1') {
+      throw mirrorFreshnessError('Service D1 data source mismatch', 'EDGE_SERVICE_SOURCE');
+    }
+    if (!body || !body.freshness || body.freshness.ok !== true) {
+      throw mirrorFreshnessError('Service D1 freshness proof missing', 'EDGE_SERVICE_FRESHNESS');
+    }
+    return body;
+  }
+
   async function edgePage(params) {
     var key = queryString(params || {});
-    var requestKey = QUALIFIED_PAGE_PATH + '?' + key;
+    var requestKey = pagePathFor(params || {}) + '?' + key;
     if (inflight.has(requestKey)) return inflight.get(requestKey);
 
     var task = (async function () {
@@ -296,7 +315,8 @@
           headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
         });
       }
-      return normalizeEdgeLineIdentities(validateRequiredMirrors(await jsonResponse(response)));
+      var body = await jsonResponse(response);
+      return isServiceScreen(params) ? validateServiceResponse(body) : normalizeEdgeLineIdentities(validateRequiredMirrors(body));
     })();
 
     inflight.set(requestKey, task);
