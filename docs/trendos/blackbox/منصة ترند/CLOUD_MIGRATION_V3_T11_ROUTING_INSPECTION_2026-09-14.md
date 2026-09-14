@@ -276,5 +276,48 @@ Unchanged:
 - Sheets / Apps Script remain authoritative for all business writes.
 - Frontend Service cutover: **NO**.
 
+## Step 7 — Stable 02CR freshness probe retry with resilient session acquisition
+Result: **FAIL / INCONCLUSIVE — Apps Script login transport was unstable; stable route was not reached**
+
+### Diagnostic identifiers
+- Workflow: `TrendOS T11 Stable 02CR Freshness Route Probe`
+- Run ID: `34851153732`
+- Job ID: `103999144379`
+- Commit SHA: `58f589e5dfb6a7c739d841135ff421e9ffea990a`
+- Worker Version: **N/A**
+
+### Exact result
+The branch-only workflow retried read-only qualification login/session acquisition up to three times before calling the stable 02CR route.
+
+Observed:
+- Attempt 1: Apps Script login HTTP `404` in `14402 ms`; no exchange attempted.
+- Attempt 2: Apps Script login request `AbortError` at the 45-second timeout.
+- Attempt 3: Apps Script login HTTP `404` in `34650 ms`; no exchange attempted.
+- No Edge token was acquired.
+- `/v1/edge/orders/02cr/page` was therefore not called.
+
+### Interpretation
+- The read-only runtime route probe remains blocked by transient/degraded Apps Script authentication transport, not by a Worker read failure.
+- Combined with Step 5, Apps Script-based heartbeat/login diagnostics are currently unreliable enough that they should not be used as the sole evidence for changing the Service freshness guard.
+- This does not authorize any Apps Script deployment or secret change.
+
+### Production mutation
+- Production mutation in this step: **NO**.
+- Worker deploy: **NO**.
+- Apps Script deploy: **NO**.
+- Business writes: **NO**.
+- Task mutation: **NO**.
+- Secret changes: **NO**.
+- Rollback required: **NO**.
+
+### Current Production State
+Unchanged:
+- Worker: `3b819fd3-e73d-46f8-9150-f73c282706ab` at 100% traffic.
+- Print/Laser/Press: D1-first + Apps Script fallback retained.
+- Service: Apps Script only.
+- `__DEBT__`: Apps Script.
+- Sheets / Apps Script remain authoritative for all business writes.
+- Frontend Service cutover: **NO**.
+
 ### Next exact step
-Rerun the branch-only stable 02CR freshness probe with the same resilient multi-attempt login/session acquisition used by the T11 canary and a syntactically valid Node wrapper. Obtain the stable route's HTTP/dataSource and freshness metadata without logging business rows. Do not deploy any Worker or Apps Script code. Only after this runtime evidence should Service freshness logic be patched or another T11 canary be considered.
+Run a branch-only **SELECT-only remote D1 `sheet_catalog` probe** using the existing Cloudflare credentials and `wrangler.toml`. Read only the metadata rows for `الأوردرات`, `بنود الأوردرات`, `العملاء`, and `عملاء منع التسليم بالمديونية`, calculate current `synced_at` ages, and compare them to the Service/02CR freshness budgets. Do not update D1, deploy a Worker, change secrets, or call Apps Script. This should establish whether Service is uniquely entering heartbeat because the Orders catalog write age is stale while 02CR mirrors remain fresh.
