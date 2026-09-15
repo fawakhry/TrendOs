@@ -1,0 +1,39 @@
+name: TrendOS Tasks V3 T1.5 Read Probe
+
+on:
+  push:
+    branches:
+      - tasks-v3-t15-d1-read-replica-preview-20260915
+    paths:
+      - '.github/workflows/trendos-tasks-v3-t15-read-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe T1.5 public read path
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://trendos-tasks-v3-t15-preview-20260915.trendmall-contact.workers.dev'
+          for op in health status; do
+            echo "=== $op ==="
+            tmp_body=$(mktemp)
+            tmp_headers=$(mktemp)
+            code=$(curl -sS --max-time 15 \
+              -D "$tmp_headers" \
+              -o "$tmp_body" \
+              -w '%{http_code}' \
+              -X POST "$URL" \
+              -H 'content-type: application/json' \
+              -H 'accept: application/json' \
+              --data "{\"op\":\"$op\",\"operator\":\"wael-preview\",\"role\":\"WAEL\"}" || true)
+            echo "HTTP=$code"
+            grep -iE '^(server-timing|content-type|cf-ray|server):' "$tmp_headers" || true
+            echo 'BODY:'
+            cat "$tmp_body" || true
+            echo
+          done
