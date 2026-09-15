@@ -47,12 +47,13 @@ class FakeDb {
 const db = new FakeDb();
 const env = {
   TASKS_V3_PREVIEW_DB: db,
-  TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS: '180'
+  TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS: '180',
+  TASKS_V3_T1_SOURCE_URL: 'https://example.invalid/t1-preview'
 };
 
-let proxyCalls = 0;
-const fakeProxy = async ({ op }) => {
-  proxyCalls += 1;
+let sourceCalls = 0;
+const fakeSource = async ({ op }) => {
+  sourceCalls += 1;
   if (op === 'health') {
     return {
       success: true,
@@ -95,16 +96,16 @@ const fakeProxy = async ({ op }) => {
       }
     };
   }
-  throw new Error('unexpected proxy op');
+  throw new Error('unexpected source op');
 };
 
 const refreshed = await refreshTasksV3T15Snapshot({
   env,
   nowSeconds: 1000,
-  proxyImpl: fakeProxy
+  sourceImpl: fakeSource
 });
 assert.equal(refreshed.success, true);
-assert.equal(proxyCalls, 2, 'refresh should use exactly health + status upstream calls');
+assert.equal(sourceCalls, 2, 'refresh should use exactly health + status source calls');
 assert.ok(db.row, 'snapshot row must be persisted');
 assert.equal(JSON.parse(db.row.source_health_json).diagnostic, undefined, 'diagnostic must not be persisted');
 
@@ -122,7 +123,7 @@ for (const op of ['health', 'status', 'flyPrint', 'pressCandidates']) {
   assert.equal(result.replica.authoritativeSource, 'SHEETS');
   assert.equal(result.replica.ageSeconds, 50);
 }
-assert.equal(proxyCalls, 2, 'read path must not call Apps Script proxy');
+assert.equal(sourceCalls, 2, 'read path must not call refresh source');
 
 const stale = await readTasksV3T15Preview({
   env,
@@ -159,8 +160,14 @@ const workerSource = fs.readFileSync(
   new URL('../src/tasks-v3-t15-preview-worker.mjs', import.meta.url),
   'utf8'
 );
+const replicaSource = fs.readFileSync(
+  new URL('../src/tasks-v3-t15-d1-preview.mjs', import.meta.url),
+  'utf8'
+);
 assert.equal(workerSource.includes('TASKS_V3_APPS_SCRIPT_URL'), false, 'fetch worker must not reference Apps Script URL');
 assert.equal(workerSource.includes('proxyTasksV3ReadonlyPreview'), false, 'fetch worker must not call upstream proxy');
 assert.equal(workerSource.includes("upstream;dur=0.00"), true, 'server timing must prove zero synchronous upstream');
+assert.equal(replicaSource.includes('TASKS_V3_SHARED_SECRET'), false, 'T1.5 must not duplicate the shared secret');
+assert.equal(replicaSource.includes('TASKS_V3_APPS_SCRIPT_URL'), false, 'T1.5 must not call Apps Script directly');
 
 console.log('TASKS_V3_T15_PREVIEW_CONTRACT_PASS');
