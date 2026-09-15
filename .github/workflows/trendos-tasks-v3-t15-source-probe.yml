@@ -1,0 +1,67 @@
+name: TrendOS Tasks V3 T1.5 Source Probe
+
+on:
+  push:
+    branches:
+      - tasks-v3-t15-d1-read-replica-preview-20260915
+    paths:
+      - '.github/workflows/trendos-tasks-v3-t15-source-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe T1 source with exact T1.5 refresh request
+        shell: bash
+        run: |
+          set -u
+          URL='https://daf384a9-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev'
+
+          probe() {
+            local label="$1"
+            local extra_header="$2"
+            local op="$3"
+            local body
+            body=$(printf '{"op":"%s","operator":"wael-preview","role":"WAEL","payloadJson":"{}"}' "$op")
+
+            echo "=== $label / $op ==="
+            tmp_body=$(mktemp)
+            tmp_headers=$(mktemp)
+
+            if [ -n "$extra_header" ]; then
+              code=$(curl -sS --max-time 15 \
+                -D "$tmp_headers" \
+                -o "$tmp_body" \
+                -w '%{http_code}' \
+                -X POST "$URL" \
+                -H 'content-type: application/json' \
+                -H 'accept: application/json' \
+                -H "$extra_header" \
+                --data "$body" || true)
+            else
+              code=$(curl -sS --max-time 15 \
+                -D "$tmp_headers" \
+                -o "$tmp_body" \
+                -w '%{http_code}' \
+                -X POST "$URL" \
+                -H 'content-type: application/json' \
+                -H 'accept: application/json' \
+                --data "$body" || true)
+            fi
+
+            echo "HTTP=$code"
+            grep -iE '^(server-timing|content-type|cf-ray|server):' "$tmp_headers" || true
+            echo 'BODY:'
+            cat "$tmp_body" || true
+            echo
+          }
+
+          probe 'EXACT_T15_HEADERS' '' 'health'
+          probe 'EXACT_T15_HEADERS' '' 'status'
+          probe 'BROWSER_LIKE_HEADER' 'user-agent: Mozilla/5.0' 'health'
+          probe 'BROWSER_LIKE_HEADER' 'user-agent: Mozilla/5.0' 'status'
