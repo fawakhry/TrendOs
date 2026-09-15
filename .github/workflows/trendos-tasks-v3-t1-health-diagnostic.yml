@@ -63,7 +63,15 @@ jobs:
                   parsed = None
               return status, server_timing, raw, parsed, transport_error, client_ms
 
-          # Do not waste a full 30-call run if this runner is blocked before the Worker.
+          def extract_diagnostic(parsed):
+              if not isinstance(parsed, dict):
+                  return None
+              bridge_body = parsed.get('body')
+              if not isinstance(bridge_body, dict):
+                  return None
+              diagnostic = bridge_body.get('diagnostic')
+              return diagnostic if isinstance(diagnostic, dict) else None
+
           status, server_timing, raw, parsed, transport_error, client_ms = request_once()
           print('CONNECTIVITY_PRECHECK=' + json.dumps({
               'http': status,
@@ -84,7 +92,7 @@ jobs:
           ]
           rows = []
 
-          # Precheck is deliberately excluded from the 30 qualification samples.
+          # Precheck is excluded from the 30 qualification samples.
           for i in range(1, 31):
               status, server_timing, raw, parsed, transport_error, client_ms = request_once()
               row = {
@@ -101,8 +109,8 @@ jobs:
               row['workerMs'] = float(m.group(1)) if m else None
               row['upstreamMs'] = float(m.group(2)) if m else None
 
-              diagnostic = parsed.get('diagnostic') if isinstance(parsed, dict) else None
-              if isinstance(diagnostic, dict):
+              diagnostic = extract_diagnostic(parsed)
+              if diagnostic is not None:
                   for key in ['verifyAssertionMs', 'propertiesMs', 'openSpreadsheetMs', 'sheetLookupMs', 'totalBridgeMs']:
                       val = diagnostic.get(key)
                       row[key] = float(val) if isinstance(val, (int, float)) else None
