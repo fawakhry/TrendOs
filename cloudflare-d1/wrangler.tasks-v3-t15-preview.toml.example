@@ -1,0 +1,20 @@
+# TEMPLATE ONLY — intentionally not deployable until an isolated preview D1 database exists.
+# Never point this config at trendos-main or its database id.
+name = "trendos-tasks-v3-t15-preview-20260915"
+main = "src/tasks-v3-t15-preview-worker.mjs"
+compatibility_date = "2026-09-15"
+workers_dev = true
+preview_urls = true
+
+[vars]
+TASKS_V3_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbya5NyWMpBLEt_wR7Qklq1YC7PPFJI02-M1xKTMgx-0CdoI4zzW0z0rwAix8JYRst6bJA/exec"
+TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS = "180"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "TASKS_V3_PREVIEW_DB"
+database_name = "trendos-tasks-v3-t15-preview-20260915"
+database_id = "REPLACE_WITH_ISOLATED_PREVIEW_D1_DATABASE_ID"
+migrations_dir = "migrations-tasks-v3-t15-preview"
