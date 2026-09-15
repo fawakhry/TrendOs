@@ -1,0 +1,143 @@
+name: TrendOS Tasks V3 T1 Health Diagnostic
+
+on:
+  push:
+    branches:
+      - tasks-v3-t1-preview-candidate-20260914
+    paths:
+      - .github/workflows/trendos-tasks-v3-t1-health-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  t1-health-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Run 30 read-only health calls
+        env:
+          PREVIEW_URL: https://daf384a9-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
+        run: |
+          python - <<'PY'
+          import json, math, os, re, time, urllib.request, urllib.error
+
+          url = os.environ['PREVIEW_URL']
+          body = json.dumps({
+              'op': 'health',
+              'operator': 'wael-preview',
+              'role': 'WAEL',
+              'payloadJson': '{}',
+          }).encode('utf-8')
+
+          server_re = re.compile(r'worker;dur=([0-9.]+),\s*upstream;dur=([0-9.]+)')
+          fields = [
+              'workerMs', 'upstreamMs', 'verifyAssertionMs', 'propertiesMs',
+              'openSpreadsheetMs', 'sheetLookupMs', 'totalBridgeMs'
+          ]
+          rows = []
+
+          for i in range(1, 31):
+              req = urllib.request.Request(
+                  url,
+                  data=body,
+                  headers={'Content-Type': 'application/json'},
+                  method='POST',
+              )
+              started = time.perf_counter()
+              status = None
+              server_timing = ''
+              raw = ''
+              transport_error = None
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      status = resp.status
+                      server_timing = resp.headers.get('Server-Timing', '')
+                      raw = resp.read().decode('utf-8', errors='replace')
+              except urllib.error.HTTPError as exc:
+                  status = exc.code
+                  server_timing = exc.headers.get('Server-Timing', '')
+                  raw = exc.read().decode('utf-8', errors='replace')
+              except Exception as exc:
+                  transport_error = type(exc).__name__ + ': ' + str(exc)
+
+              client_ms = round((time.perf_counter() - started) * 1000, 2)
+              parsed = None
+              try:
+                  parsed = json.loads(raw) if raw else None
+              except Exception:
+                  parsed = None
+
+              row = {
+                  'run': i,
+                  'http': status,
+                  'clientMs': client_ms,
+                  'success': bool(isinstance(parsed, dict) and parsed.get('success') is True),
+                  'code': parsed.get('code') if isinstance(parsed, dict) else None,
+                  'transportError': transport_error,
+                  'serverTiming': server_timing,
+              }
+
+              m = server_re.search(server_timing or '')
+              row['workerMs'] = float(m.group(1)) if m else None
+              row['upstreamMs'] = float(m.group(2)) if m else None
+
+              diagnostic = parsed.get('diagnostic') if isinstance(parsed, dict) else None
+              if isinstance(diagnostic, dict):
+                  for key in ['verifyAssertionMs', 'propertiesMs', 'openSpreadsheetMs', 'sheetLookupMs', 'totalBridgeMs']:
+                      val = diagnostic.get(key)
+                      row[key] = float(val) if isinstance(val, (int, float)) else None
+              else:
+                  for key in ['verifyAssertionMs', 'propertiesMs', 'openSpreadsheetMs', 'sheetLookupMs', 'totalBridgeMs']:
+                      row[key] = None
+
+              rows.append(row)
+              print(json.dumps({
+                  'run': row['run'], 'http': row['http'], 'success': row['success'],
+                  'workerMs': row['workerMs'], 'upstreamMs': row['upstreamMs'],
+                  'verifyAssertionMs': row['verifyAssertionMs'],
+                  'propertiesMs': row['propertiesMs'],
+                  'openSpreadsheetMs': row['openSpreadsheetMs'],
+                  'sheetLookupMs': row['sheetLookupMs'],
+                  'totalBridgeMs': row['totalBridgeMs'],
+                  'code': row['code'], 'transportError': row['transportError']
+              }, ensure_ascii=False))
+
+          good = [r for r in rows if r['http'] == 200 and r['success']]
+
+          def nearest_rank(values, q):
+              vals = sorted(v for v in values if isinstance(v, (int, float)))
+              if not vals:
+                  return None
+              rank = max(1, math.ceil(q * len(vals)))
+              return vals[rank - 1]
+
+          summary = {
+              'attempts': len(rows),
+              'http200Success': len(good),
+              'transportFailures': sum(1 for r in rows if r['transportError']),
+              'httpFailures': sum(1 for r in rows if r['http'] not in (None, 200)),
+              'metrics': {},
+          }
+          for field in fields:
+              vals = [r[field] for r in good if isinstance(r.get(field), (int, float))]
+              summary['metrics'][field] = {
+                  'samples': len(vals),
+                  'p50': nearest_rank(vals, 0.50),
+                  'p95': nearest_rank(vals, 0.95),
+                  'min': min(vals) if vals else None,
+                  'max': max(vals) if vals else None,
+              }
+
+          print('T1_HEALTH_DIAGNOSTIC_SUMMARY=' + json.dumps(summary, ensure_ascii=False, sort_keys=True))
+          with open('t1-health-diagnostic.json', 'w', encoding='utf-8') as fh:
+              json.dump({'summary': summary, 'runs': rows}, fh, ensure_ascii=False, indent=2)
+          PY
+
+      - name: Upload diagnostic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasks-v3-t1-health-diagnostic
+          path: t1-health-diagnostic.json
+          if-no-files-found: error
