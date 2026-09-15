@@ -1,0 +1,20 @@
+# TrendOS Tasks V3 T1.5 — isolated preview only.
+# DO NOT point this config at trendos-main or production routes.
+name = "trendos-tasks-v3-t15-preview-20260915"
+main = "src/tasks-v3-t15-preview-worker.mjs"
+compatibility_date = "2026-09-15"
+workers_dev = true
+preview_urls = true
+
+[vars]
+TASKS_V3_T1_SOURCE_URL = "https://daf384a9-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev"
+TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS = "180"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "TASKS_V3_PREVIEW_DB"
+database_name = "trendos-tasks-v3-t15-preview-20260915"
+database_id = "4c4d48f2-8c5d-45f2-9d41-c426c17ed93c"
+migrations_dir = "migrations-tasks-v3-t15-preview"
