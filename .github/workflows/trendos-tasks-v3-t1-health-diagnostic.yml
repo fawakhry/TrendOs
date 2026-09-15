@@ -16,35 +16,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Run 30 read-only health calls
+      - name: Connectivity precheck then 30 read-only health calls
         env:
           PREVIEW_URL: https://daf384a9-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
         run: |
           python - <<'PY'
-          import json, math, os, re, time, urllib.request, urllib.error
+          import json, math, os, re, time, urllib.request, urllib.error, sys
 
           url = os.environ['PREVIEW_URL']
-          body = json.dumps({
+          payload = {
               'op': 'health',
               'operator': 'wael-preview',
               'role': 'WAEL',
               'payloadJson': '{}',
-          }).encode('utf-8')
+          }
+          body = json.dumps(payload).encode('utf-8')
+          headers = {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36',
+          }
 
-          server_re = re.compile(r'worker;dur=([0-9.]+),\s*upstream;dur=([0-9.]+)')
-          fields = [
-              'workerMs', 'upstreamMs', 'verifyAssertionMs', 'propertiesMs',
-              'openSpreadsheetMs', 'sheetLookupMs', 'totalBridgeMs'
-          ]
-          rows = []
-
-          for i in range(1, 31):
-              req = urllib.request.Request(
-                  url,
-                  data=body,
-                  headers={'Content-Type': 'application/json'},
-                  method='POST',
-              )
+          def request_once():
+              req = urllib.request.Request(url, data=body, headers=headers, method='POST')
               started = time.perf_counter()
               status = None
               server_timing = ''
@@ -61,14 +55,38 @@ jobs:
                   raw = exc.read().decode('utf-8', errors='replace')
               except Exception as exc:
                   transport_error = type(exc).__name__ + ': ' + str(exc)
-
               client_ms = round((time.perf_counter() - started) * 1000, 2)
               parsed = None
               try:
                   parsed = json.loads(raw) if raw else None
               except Exception:
                   parsed = None
+              return status, server_timing, raw, parsed, transport_error, client_ms
 
+          # Do not waste a full 30-call run if this runner is blocked before the Worker.
+          status, server_timing, raw, parsed, transport_error, client_ms = request_once()
+          print('CONNECTIVITY_PRECHECK=' + json.dumps({
+              'http': status,
+              'clientMs': client_ms,
+              'serverTiming': server_timing,
+              'json': parsed,
+              'rawPrefix': raw[:300],
+              'transportError': transport_error,
+          }, ensure_ascii=False))
+          if status != 200 or not isinstance(parsed, dict) or parsed.get('success') is not True:
+              print('PRECHECK_BLOCKED_BEFORE_VALID_T1_RESPONSE=1')
+              sys.exit(2)
+
+          server_re = re.compile(r'worker;dur=([0-9.]+),\s*upstream;dur=([0-9.]+)')
+          fields = [
+              'workerMs', 'upstreamMs', 'verifyAssertionMs', 'propertiesMs',
+              'openSpreadsheetMs', 'sheetLookupMs', 'totalBridgeMs'
+          ]
+          rows = []
+
+          # Precheck is deliberately excluded from the 30 qualification samples.
+          for i in range(1, 31):
+              status, server_timing, raw, parsed, transport_error, client_ms = request_once()
               row = {
                   'run': i,
                   'http': status,
@@ -136,6 +154,7 @@ jobs:
           PY
 
       - name: Upload diagnostic artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: tasks-v3-t1-health-diagnostic
