@@ -1,7 +1,5 @@
 // TrendOS Tasks V3 T1.5 — isolated D1 read-replica preview.
-// Fetch/read path MUST NOT call Apps Script. Sheets remain authoritative via scheduled refresh.
-
-import { proxyTasksV3ReadonlyPreview } from './tasks-v3-readonly-preview.mjs';
+// Fetch/read path MUST NOT call Google. Sheets remain authoritative via async refresh through the qualified T1 preview source.
 
 export const TASKS_V3_T15_SNAPSHOT_KEY = 'wael-preview';
 export const TASKS_V3_T15_ALLOWED_OPS = Object.freeze([
@@ -12,18 +10,14 @@ export const TASKS_V3_T15_ALLOWED_OPS = Object.freeze([
 ]);
 export const TASKS_V3_T15_ALLOWED_ROLE = 'WAEL';
 export const TASKS_V3_T15_DEFAULT_MAX_AGE_SECONDS = 180;
+export const TASKS_V3_T15_SOURCE_TIMEOUT_MS = 10000;
 
 function text(value) {
   return String(value == null ? '' : value).trim();
 }
 
 function failure(code, detail = '', httpStatus = 400) {
-  return {
-    success: false,
-    code,
-    detail: text(detail),
-    httpStatus
-  };
+  return { success: false, code, detail: text(detail), httpStatus };
 }
 
 function maxAgeSeconds(env) {
@@ -53,45 +47,82 @@ function stripHealthDiagnostic(body) {
   return clean;
 }
 
+export async function callTasksV3T1Source({
+  env,
+  op,
+  operator,
+  role = TASKS_V3_T15_ALLOWED_ROLE,
+  fetchImpl = globalThis.fetch,
+  timeoutMs = TASKS_V3_T15_SOURCE_TIMEOUT_MS
+}) {
+  const url = text(env && env.TASKS_V3_T1_SOURCE_URL);
+  if (!url) return failure('TASKS_V3_T15_SOURCE_URL_MISSING', '', 503);
+  if (typeof fetchImpl !== 'function') return failure('TASKS_V3_T15_SOURCE_FETCH_UNAVAILABLE', '', 503);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1, Number(timeoutMs) || TASKS_V3_T15_SOURCE_TIMEOUT_MS));
+  try {
+    const response = await fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json'
+      },
+      body: JSON.stringify({
+        op: text(op),
+        operator: text(operator),
+        role: text(role).toUpperCase(),
+        payloadJson: '{}'
+      }),
+      signal: controller.signal
+    });
+
+    const raw = await response.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(raw || '{}');
+    } catch (_) {
+      return failure('TASKS_V3_T15_SOURCE_INVALID_JSON', '', 503);
+    }
+
+    if (!response.ok || !parsed || parsed.success !== true || !parsed.body) {
+      return failure(
+        'TASKS_V3_T15_SOURCE_REJECTED',
+        parsed && parsed.code ? parsed.code : String(response.status),
+        503
+      );
+    }
+
+    return parsed;
+  } catch (err) {
+    if (controller.signal.aborted || (err && err.name === 'AbortError')) {
+      return failure('TASKS_V3_T15_SOURCE_TIMEOUT', '', 503);
+    }
+    return failure('TASKS_V3_T15_SOURCE_ERROR', err && err.name, 503);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function refreshTasksV3T15Snapshot({
   env,
   operator = TASKS_V3_T15_SNAPSHOT_KEY,
   role = TASKS_V3_T15_ALLOWED_ROLE,
   nowSeconds = Math.floor(Date.now() / 1000),
-  proxyImpl = proxyTasksV3ReadonlyPreview
+  sourceImpl = callTasksV3T1Source
 }) {
   const db = previewDb(env);
   if (!db) return failure('TASKS_V3_T15_DB_NOT_CONFIGURED', '', 503);
-  if (typeof proxyImpl !== 'function') return failure('TASKS_V3_T15_SYNC_PROXY_UNAVAILABLE', '', 503);
+  if (typeof sourceImpl !== 'function') return failure('TASKS_V3_T15_SOURCE_UNAVAILABLE', '', 503);
 
-  const sourceHealth = await proxyImpl({
-    env,
-    op: 'health',
-    operator,
-    role,
-    payloadJson: '{}'
-  });
+  const sourceHealth = await sourceImpl({ env, op: 'health', operator, role });
   if (!sourceHealth || sourceHealth.success !== true || !sourceHealth.body) {
-    return failure(
-      'TASKS_V3_T15_SOURCE_HEALTH_FAILED',
-      sourceHealth && sourceHealth.code,
-      503
-    );
+    return failure('TASKS_V3_T15_SOURCE_HEALTH_FAILED', sourceHealth && sourceHealth.code, 503);
   }
 
-  const sourceStatus = await proxyImpl({
-    env,
-    op: 'status',
-    operator,
-    role,
-    payloadJson: '{}'
-  });
+  const sourceStatus = await sourceImpl({ env, op: 'status', operator, role });
   if (!sourceStatus || sourceStatus.success !== true || !sourceStatus.body) {
-    return failure(
-      'TASKS_V3_T15_SOURCE_STATUS_FAILED',
-      sourceStatus && sourceStatus.code,
-      503
-    );
+    return failure('TASKS_V3_T15_SOURCE_STATUS_FAILED', sourceStatus && sourceStatus.code, 503);
   }
 
   const healthJson = JSON.stringify(stripHealthDiagnostic(sourceHealth.body));
@@ -115,7 +146,7 @@ export async function refreshTasksV3T15Snapshot({
     Number(nowSeconds),
     healthJson,
     statusJson,
-    'TASKS_V3_T15_D1_PREVIEW_1'
+    'TASKS_V3_T15_D1_PREVIEW_2'
   ).run();
 
   return {
@@ -166,28 +197,17 @@ export async function readTasksV3T15Preview({
     return failure('TASKS_V3_T15_REPLICA_STALE', String(ageSeconds), 503);
   }
 
-  const parsedHealth = parseStoredJson(
-    row.source_health_json,
-    'TASKS_V3_T15_HEALTH_SNAPSHOT_INVALID'
-  );
+  const parsedHealth = parseStoredJson(row.source_health_json, 'TASKS_V3_T15_HEALTH_SNAPSHOT_INVALID');
   if (!parsedHealth.ok) return parsedHealth.error;
 
-  const parsedStatus = parseStoredJson(
-    row.source_status_json,
-    'TASKS_V3_T15_STATUS_SNAPSHOT_INVALID'
-  );
+  const parsedStatus = parseStoredJson(row.source_status_json, 'TASKS_V3_T15_STATUS_SNAPSHOT_INVALID');
   if (!parsedStatus.ok) return parsedStatus.error;
 
   let body;
-  if (normalizedOp === 'health') {
-    body = parsedHealth.value;
-  } else if (normalizedOp === 'status') {
-    body = parsedStatus.value;
-  } else if (normalizedOp === 'flyPrint') {
-    body = parsedStatus.value.flyPrint;
-  } else {
-    body = parsedStatus.value.pressCandidates;
-  }
+  if (normalizedOp === 'health') body = parsedHealth.value;
+  else if (normalizedOp === 'status') body = parsedStatus.value;
+  else if (normalizedOp === 'flyPrint') body = parsedStatus.value.flyPrint;
+  else body = parsedStatus.value.pressCandidates;
 
   if (!body || typeof body !== 'object' || body.success !== true) {
     return failure('TASKS_V3_T15_REPLICA_PAYLOAD_INVALID', normalizedOp, 503);
