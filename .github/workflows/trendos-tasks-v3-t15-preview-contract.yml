@@ -8,6 +8,7 @@ on:
       - 'cloudflare-d1/src/tasks-v3-t15-*.mjs'
       - 'cloudflare-d1/test/tasks-v3-t15-preview-contract.mjs'
       - 'cloudflare-d1/migrations-tasks-v3-t15-preview/**'
+      - 'cloudflare-d1/wrangler.tasks-v3-t15-preview.toml'
       - 'cloudflare-d1/wrangler.tasks-v3-t15-preview.toml.example'
       - '.github/workflows/trendos-tasks-v3-t15-preview-contract.yml'
   workflow_dispatch:
@@ -26,6 +27,7 @@ jobs:
       - name: Guard against production D1 binding reuse
         run: |
           if grep -R "5c4b92bf-e043-4f6e-bd6d-d514a92cd825" \
+            cloudflare-d1/wrangler.tasks-v3-t15-preview.toml \
             cloudflare-d1/wrangler.tasks-v3-t15-preview.toml.example \
             cloudflare-d1/src/tasks-v3-t15-*.mjs \
             cloudflare-d1/migrations-tasks-v3-t15-preview; then
