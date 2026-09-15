@@ -1,0 +1,33 @@
+name: TrendOS Tasks V3 T1.5 v3 Contract
+
+on:
+  push:
+    branches:
+      - tasks-v3-t15-d1-read-replica-preview-20260915
+    paths:
+      - 'cloudflare-d1/src/tasks-v3-t15-*-v3.mjs'
+      - 'cloudflare-d1/test/tasks-v3-t15-preview-v3-contract.mjs'
+      - 'cloudflare-d1/dashboard/tasks-v3-t15-preview-worker-v3.single.mjs'
+      - '.github/workflows/trendos-tasks-v3-t15-v3-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify T1.5 v3 contract
+        run: node cloudflare-d1/test/tasks-v3-t15-preview-v3-contract.mjs
+      - name: Guard production and mutation symbols
+        run: |
+          if grep -R -E "5c4b92bf-e043-4f6e-bd6d-d514a92cd825|claimNext|completeTask|APPS_SCRIPT_API_URL|TRENDOS_OPERATOR_TASK_PROXY_SECRET|TASKS_V3_SHARED_SECRET" \
+            cloudflare-d1/src/tasks-v3-t15-d1-preview-v3.mjs \
+            cloudflare-d1/src/tasks-v3-t15-preview-worker-v3.mjs \
+            cloudflare-d1/dashboard/tasks-v3-t15-preview-worker-v3.single.mjs; then
+            echo "Forbidden production/mutation/secret symbol found in T1.5 v3"
+            exit 1
+          fi
