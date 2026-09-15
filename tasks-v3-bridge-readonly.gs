@@ -34,7 +34,7 @@ function doPost(e) {
   const operator = tasksV3Text_(payload.operator);
 
   if (op === 'health') {
-    const response = tasksV3Health_(diagnostic);
+    const response = tasksV3Health_(diagnostic, verified.properties);
     diagnostic.totalBridgeMs = Date.now() - bridgeStartedAt;
     response.diagnostic = diagnostic;
     return tasksV3Output_(response);
@@ -93,8 +93,21 @@ function tasksV3ScriptProperty_(name, diagnostic) {
   }
 }
 
-function tasksV3Spreadsheet_(diagnostic) {
-  const id = tasksV3Text_(tasksV3ScriptProperty_('TASKS_V3_SPREADSHEET_ID', diagnostic));
+function tasksV3ScriptPropertiesSnapshot_(diagnostic) {
+  const startedAt = diagnostic ? Date.now() : 0;
+  try {
+    return tasksV3Properties_().getProperties();
+  } finally {
+    if (diagnostic) diagnostic.propertiesMs += Date.now() - startedAt;
+  }
+}
+
+function tasksV3Spreadsheet_(diagnostic, properties) {
+  const id = tasksV3Text_(
+    properties && Object.prototype.hasOwnProperty.call(properties, 'TASKS_V3_SPREADSHEET_ID')
+      ? properties.TASKS_V3_SPREADSHEET_ID
+      : tasksV3ScriptProperty_('TASKS_V3_SPREADSHEET_ID', diagnostic)
+  );
   if (!id) throw new Error('TASKS_V3_SPREADSHEET_ID_NOT_CONFIGURED');
   const startedAt = diagnostic ? Date.now() : 0;
   try {
@@ -156,14 +169,21 @@ function tasksV3VerifyAssertion_(payload, diagnostic) {
     return { ok: false, code: 'ASSERTION_IDENTITY_INCOMPLETE' };
   }
 
-  const secret = tasksV3Text_(tasksV3ScriptProperty_('TASKS_V3_SHARED_SECRET', diagnostic));
+  let properties = null;
+  let secret;
+  if (diagnostic) {
+    properties = tasksV3ScriptPropertiesSnapshot_(diagnostic);
+    secret = tasksV3Text_(properties.TASKS_V3_SHARED_SECRET);
+  } else {
+    secret = tasksV3Text_(tasksV3ScriptProperty_('TASKS_V3_SHARED_SECRET', diagnostic));
+  }
   if (!secret) return { ok: false, code: 'BRIDGE_SECRET_NOT_CONFIGURED' };
 
   const expected = tasksV3HmacHex_(tasksV3Canonical_(payload), secret);
   if (!tasksV3ConstantTimeEquals_(expected, payload.signature)) {
     return { ok: false, code: 'SIGNATURE_INVALID' };
   }
-  return { ok: true };
+  return { ok: true, properties: properties };
 }
 
 function tasksV3HeaderMap_(sheet) {
@@ -269,9 +289,9 @@ function tasksV3Status_(operator, role) {
   }
 }
 
-function tasksV3Health_(diagnostic) {
+function tasksV3Health_(diagnostic, properties) {
   try {
-    const ss = tasksV3Spreadsheet_(diagnostic);
+    const ss = tasksV3Spreadsheet_(diagnostic, properties);
     const lookupStartedAt = diagnostic ? Date.now() : 0;
     let index;
     let ledger;
