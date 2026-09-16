@@ -1,12 +1,14 @@
-// TrendOS Tasks V3 — ISOLATED READ-ONLY BRIDGE SKELETON
+// TrendOS Tasks V3 — T2 PRODUCTION READ-ONLY WAEL CANARY BRIDGE
 // IMPORTANT: This file is for a SEPARATE Google Apps Script project/deployment.
 // DO NOT copy it into the main TrendOS Apps Script project.
-// T0/T2 scope: signed read-only status/lane queries only. No business mutation code exists here.
+// T2 scope: signed read-only status/lane queries for one configured Wael operator only.
+// No claim/complete routes and no business mutation code exist here.
 
 const TASKS_V3_PROTOCOL = 'TRENDOS_TASKS_V3_READONLY_1';
 const TASKS_V3_INDEX_SHEET = 'تشغيل - فهرس المهام V3';
 const TASKS_V3_LEDGER_SHEET = 'تشغيل - سجل المهام V3';
 const TASKS_V3_MAX_ASSERTION_AGE_SECONDS = 120;
+const TASKS_V3_T2_VERSION = 'TASKS_V3_READONLY_T2_WAEL_CANARY_1';
 
 function doPost(e) {
   const bridgeStartedAt = Date.now();
@@ -39,22 +41,18 @@ function doPost(e) {
     response.diagnostic = diagnostic;
     return tasksV3Output_(response);
   }
+
+  if (!tasksV3T2CanaryAllowed_(operator, role)) {
+    return tasksV3Output_({ success: false, code: 'T2_CANARY_FORBIDDEN' });
+  }
+
   if (op === 'status') {
-    if (!tasksV3RoleAllowed_(role, ['WAEL', 'GABER', 'MANAGER'])) {
-      return tasksV3Output_({ success: false, code: 'CAPABILITY_FORBIDDEN' });
-    }
     return tasksV3Output_(tasksV3Status_(operator, role));
   }
   if (op === 'flyPrint') {
-    if (!tasksV3RoleAllowed_(role, ['WAEL', 'MANAGER'])) {
-      return tasksV3Output_({ success: false, code: 'CAPABILITY_FORBIDDEN' });
-    }
     return tasksV3Output_(tasksV3Lane_('flyPrint'));
   }
   if (op === 'pressCandidates') {
-    if (!tasksV3RoleAllowed_(role, ['WAEL', 'MANAGER'])) {
-      return tasksV3Output_({ success: false, code: 'CAPABILITY_FORBIDDEN' });
-    }
     return tasksV3Output_(tasksV3Lane_('press'));
   }
 
@@ -72,12 +70,7 @@ function tasksV3Text_(value) {
 }
 
 function tasksV3Role_(value) {
-  const role = tasksV3Text_(value).toUpperCase();
-  return ['WAEL', 'GABER', 'MANAGER'].indexOf(role) !== -1 ? role : 'OTHER';
-}
-
-function tasksV3RoleAllowed_(role, allowed) {
-  return (allowed || []).indexOf(role) !== -1;
+  return tasksV3Text_(value).toUpperCase() === 'WAEL' ? 'WAEL' : 'OTHER';
 }
 
 function tasksV3Properties_() {
@@ -100,6 +93,13 @@ function tasksV3ScriptPropertiesSnapshot_(diagnostic) {
   } finally {
     if (diagnostic) diagnostic.propertiesMs += Date.now() - startedAt;
   }
+}
+
+function tasksV3T2CanaryAllowed_(operator, role) {
+  if (role !== 'WAEL') return false;
+  const configured = tasksV3Text_(tasksV3ScriptProperty_('TASKS_V3_T2_CANARY_OPERATOR'));
+  if (!configured) return false;
+  return tasksV3Text_(operator).toLowerCase() === configured.toLowerCase();
 }
 
 function tasksV3Spreadsheet_(diagnostic, properties) {
@@ -186,17 +186,6 @@ function tasksV3VerifyAssertion_(payload, diagnostic) {
   return { ok: true, properties: properties };
 }
 
-function tasksV3HeaderMap_(sheet) {
-  const cols = Math.max(1, sheet.getLastColumn());
-  const values = sheet.getRange(1, 1, 1, cols).getDisplayValues()[0];
-  const map = {};
-  values.forEach(function (name, index) {
-    const key = tasksV3Text_(name);
-    if (key) map[key] = index;
-  });
-  return map;
-}
-
 function tasksV3Rows_(sheet) {
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
@@ -272,18 +261,15 @@ function tasksV3Lane_(kind) {
 
 function tasksV3Status_(operator, role) {
   try {
-    const response = {
+    return {
       success: true,
-      version: 'TASKS_V3_READONLY_T0',
+      version: TASKS_V3_T2_VERSION,
       operator: tasksV3Text_(operator),
       role: role,
-      activeTask: tasksV3ActiveTask_(operator)
+      activeTask: tasksV3ActiveTask_(operator),
+      flyPrint: tasksV3Lane_('flyPrint'),
+      pressCandidates: tasksV3Lane_('press')
     };
-    if (role === 'WAEL' || role === 'MANAGER') {
-      response.flyPrint = tasksV3Lane_('flyPrint');
-      response.pressCandidates = tasksV3Lane_('press');
-    }
-    return response;
   } catch (err) {
     return { success: false, code: tasksV3Text_(err && err.message) || 'TASKS_V3_READ_ERROR' };
   }
@@ -303,10 +289,11 @@ function tasksV3Health_(diagnostic, properties) {
     }
     return {
       success: true,
-      version: 'TASKS_V3_READONLY_T0',
+      version: TASKS_V3_T2_VERSION,
       spreadsheetConfigured: true,
       indexReady: !!index,
       ledgerReady: !!ledger,
+      canaryConfigured: !!tasksV3Text_(tasksV3ScriptProperty_('TASKS_V3_T2_CANARY_OPERATOR', diagnostic)),
       readOnly: true
     };
   } catch (err) {
