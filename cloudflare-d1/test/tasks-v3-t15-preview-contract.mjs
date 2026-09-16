@@ -44,34 +44,19 @@ class FakeDb {
   }
 }
 
-const db = new FakeDb();
-const env = {
-  TASKS_V3_PREVIEW_DB: db,
-  TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS: '180',
-  TASKS_V3_T1_SOURCE_URL: 'https://example.invalid/t1-preview'
-};
+let serviceCalls = 0;
+const service = {
+  async fetch(request) {
+    serviceCalls += 1;
+    assert.equal(request.method, 'POST');
+    assert.equal(new URL(request.url).hostname, 'tasks-v3-t1.internal');
+    assert.match(request.headers.get('user-agent') || '', /TrendOS-T15-Preview-Refresh/);
+    const payload = await request.json();
+    assert.equal(payload.op, 'status');
+    assert.equal(payload.operator, 'wael-preview');
+    assert.equal(payload.role, 'WAEL');
 
-let sourceCalls = 0;
-const fakeSource = async ({ op }) => {
-  sourceCalls += 1;
-  if (op === 'health') {
-    return {
-      success: true,
-      code: 'OK',
-      status: 200,
-      body: {
-        success: true,
-        version: 'TASKS_V3_READONLY_T0',
-        spreadsheetConfigured: true,
-        indexReady: true,
-        ledgerReady: true,
-        readOnly: true,
-        diagnostic: { totalBridgeMs: 999 }
-      }
-    };
-  }
-  if (op === 'status') {
-    return {
+    return Response.json({
       success: true,
       code: 'OK',
       status: 200,
@@ -94,20 +79,28 @@ const fakeSource = async ({ op }) => {
           count: 1
         }
       }
-    };
+    });
   }
-  throw new Error('unexpected source op');
+};
+
+const db = new FakeDb();
+const env = {
+  TASKS_V3_PREVIEW_DB: db,
+  TASKS_V3_T1_SERVICE: service,
+  TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS: '180'
 };
 
 const refreshed = await refreshTasksV3T15Snapshot({
   env,
-  nowSeconds: 1000,
-  sourceImpl: fakeSource
+  nowSeconds: 1000
 });
 assert.equal(refreshed.success, true);
-assert.equal(sourceCalls, 2, 'refresh should use exactly health + status source calls');
+assert.equal(serviceCalls, 1, 'successful refresh must use one service-binding status call');
 assert.ok(db.row, 'snapshot row must be persisted');
-assert.equal(JSON.parse(db.row.source_health_json).diagnostic, undefined, 'diagnostic must not be persisted');
+assert.equal(db.row.snapshot_key, 'wael-preview');
+assert.equal(db.row.snapshot_version, 'TASKS_V3_T15_D1_SERVICE_BINDING_CANONICAL_1');
+assert.equal(JSON.parse(db.row.source_health_json).diagnostic, undefined);
+assert.equal(JSON.parse(db.row.source_health_json).readOnly, true);
 
 for (const op of ['health', 'status', 'flyPrint', 'pressCandidates']) {
   const result = await readTasksV3T15Preview({
@@ -123,7 +116,7 @@ for (const op of ['health', 'status', 'flyPrint', 'pressCandidates']) {
   assert.equal(result.replica.authoritativeSource, 'SHEETS');
   assert.equal(result.replica.ageSeconds, 50);
 }
-assert.equal(sourceCalls, 2, 'read path must not call refresh source');
+assert.equal(serviceCalls, 1, 'read path must never call the upstream service');
 
 const stale = await readTasksV3T15Preview({
   env,
@@ -164,10 +157,21 @@ const replicaSource = fs.readFileSync(
   new URL('../src/tasks-v3-t15-d1-preview.mjs', import.meta.url),
   'utf8'
 );
-assert.equal(workerSource.includes('TASKS_V3_APPS_SCRIPT_URL'), false, 'fetch worker must not reference Apps Script URL');
-assert.equal(workerSource.includes('proxyTasksV3ReadonlyPreview'), false, 'fetch worker must not call upstream proxy');
-assert.equal(workerSource.includes("upstream;dur=0.00"), true, 'server timing must prove zero synchronous upstream');
-assert.equal(replicaSource.includes('TASKS_V3_SHARED_SECRET'), false, 'T1.5 must not duplicate the shared secret');
-assert.equal(replicaSource.includes('TASKS_V3_APPS_SCRIPT_URL'), false, 'T1.5 must not call Apps Script directly');
+const wranglerSource = fs.readFileSync(
+  new URL('../wrangler.tasks-v3-t15-preview.toml', import.meta.url),
+  'utf8'
+);
+
+assert.equal(workerSource.includes('TASKS_V3_APPS_SCRIPT_URL'), false);
+assert.equal(workerSource.includes('proxyTasksV3ReadonlyPreview'), false);
+assert.equal(workerSource.includes('upstream;dur=0.00'), true);
+assert.equal(replicaSource.includes('TASKS_V3_SHARED_SECRET'), false);
+assert.equal(replicaSource.includes('TASKS_V3_APPS_SCRIPT_URL'), false);
+assert.equal(replicaSource.includes('TASKS_V3_T1_SOURCE_URL'), false);
+assert.equal(replicaSource.includes('TASKS_V3_T1_SERVICE'), true);
+assert.equal(wranglerSource.includes('TASKS_V3_T1_SOURCE_URL'), false);
+assert.equal(wranglerSource.includes('binding = "TASKS_V3_T1_SERVICE"'), true);
+assert.equal(wranglerSource.includes('service = "trendos-tasks-v3-t1-preview-20260914"'), true);
+assert.equal(wranglerSource.includes('database_id = "4c4d48f2-8c5d-45f2-9d41-c426c17ed93c"'), true);
 
 console.log('TASKS_V3_T15_PREVIEW_CONTRACT_PASS');
