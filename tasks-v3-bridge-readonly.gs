@@ -141,7 +141,11 @@ function tasksV3Hex_(bytes) {
 }
 
 function tasksV3HmacHex_(value, secret) {
-  return tasksV3Hex_(Utilities.computeHmacSha256Signature(value, secret));
+  return tasksV3Hex_(Utilities.computeHmacSha256Signature(
+    value,
+    secret,
+    Utilities.Charset.UTF_8
+  ));
 }
 
 function tasksV3ConstantTimeEquals_(a, b) {
