@@ -1,0 +1,395 @@
+{
+  "runId": 35157734701,
+  "commit": "9e3f2972f77c029632d8ca20086568077bc43c7e",
+  "summary": {
+    "workerUrl": "https://t2-utf8-v5-20260916-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev",
+    "total": 30,
+    "successCount": 8,
+    "httpFailures": 22,
+    "transportFailures": 0,
+    "semanticFailures": 0,
+    "operationMix": {
+      "health": 8,
+      "status": 8,
+      "flyPrint": 7,
+      "pressCandidates": 7
+    },
+    "p50Ms": 1724.71,
+    "p95Ms": 2359.5,
+    "maxMs": 2359.5,
+    "upstreamP50Ms": 1617,
+    "upstreamP95Ms": 2333,
+    "upstreamMaxMs": 2333,
+    "acceptanceP95Ms": 2000,
+    "acceptancePass": false
+  },
+  "allAttemptDiagnosticOnly": {
+    "p50Ms": 5185.78,
+    "p95Ms": 5241.07,
+    "maxMs": 5267.97,
+    "upstreamP50Ms": 5000,
+    "upstreamP95Ms": 5000,
+    "upstreamMaxMs": 5000
+  },
+  "arabicHealthProof": [
+    {
+      "phase": "ARABIC_HEALTH_PROOF",
+      "attempt": 1,
+      "http": 200,
+      "success": true,
+      "code": "OK",
+      "version": "TASKS_V3_READONLY_T2_WAEL_CANARY_2",
+      "serverTiming": "worker;dur=1584.00, upstream;dur=1584.00"
+    },
+    {
+      "phase": "ARABIC_HEALTH_PROOF",
+      "attempt": 2,
+      "http": 200,
+      "success": true,
+      "code": "OK",
+      "version": "TASKS_V3_READONLY_T2_WAEL_CANARY_2",
+      "serverTiming": "worker;dur=1812.00, upstream;dur=1812.00"
+    },
+    {
+      "phase": "ARABIC_HEALTH_PROOF",
+      "attempt": 3,
+      "http": 200,
+      "success": true,
+      "code": "OK",
+      "version": "TASKS_V3_READONLY_T2_WAEL_CANARY_2",
+      "serverTiming": "worker;dur=2620.00, upstream;dur=2620.00"
+    }
+  ],
+  "samples": [
+    {
+      "n": 1,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 1856.57,
+      "upstreamMs": 1633,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 2,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 1724.71,
+      "upstreamMs": 1696,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 3,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 1741.97,
+      "upstreamMs": 1700,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 4,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 1599.85,
+      "upstreamMs": 1408,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 5,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 1520.97,
+      "upstreamMs": 1493,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 6,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 2359.5,
+      "upstreamMs": 2333,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 7,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 1800.65,
+      "upstreamMs": 1617,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 8,
+      "op": "health",
+      "httpStatus": 200,
+      "success": true,
+      "elapsedMs": 1556.98,
+      "upstreamMs": 1531,
+      "code": "OK",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 9,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5027.72,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 10,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5236.44,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 11,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5181.74,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 12,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5228.31,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 13,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5267.97,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 14,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5182.56,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 15,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5191.1,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 16,
+      "op": "status",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5187.82,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 17,
+      "op": "flyPrint",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5241.07,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 18,
+      "op": "flyPrint",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5200.49,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 19,
+      "op": "flyPrint",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5199.34,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 20,
+      "op": "flyPrint",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5181.5,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 21,
+      "op": "flyPrint",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5185.78,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 22,
+      "op": "flyPrint",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5190.39,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 23,
+      "op": "flyPrint",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5185.95,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 24,
+      "op": "pressCandidates",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5205.17,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 25,
+      "op": "pressCandidates",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5179.71,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 26,
+      "op": "pressCandidates",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5189.51,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 27,
+      "op": "pressCandidates",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5193.31,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 28,
+      "op": "pressCandidates",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5191.21,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 29,
+      "op": "pressCandidates",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5181.01,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    },
+    {
+      "n": 30,
+      "op": "pressCandidates",
+      "httpStatus": 400,
+      "success": false,
+      "elapsedMs": 5195.01,
+      "upstreamMs": 5000,
+      "code": "TASKS_V3_PREVIEW_UPSTREAM_TIMEOUT",
+      "resultCount": null,
+      "transportError": null
+    }
+  ]
+}
