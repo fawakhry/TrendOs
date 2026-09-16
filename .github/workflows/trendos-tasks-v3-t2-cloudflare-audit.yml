@@ -88,7 +88,7 @@ jobs:
           for name in "$T1_NAME" "$T15_NAME" "$T2_NAME"; do
             echo "=== SECRET NAMES ONLY: $name ==="
             set +e
-            npx --yes wrangler@4 secret list --name "$name" --json 2>/tmp/${name}.secret.err | \
+            npx --yes wrangler@4 secret list --name "$name" --format json 2>/tmp/${name}.secret.err | \
               jq -r 'if type == "array" then .[] | (.name // .) else . end' 2>/dev/null
             rc=${PIPESTATUS[0]}
             set -e
