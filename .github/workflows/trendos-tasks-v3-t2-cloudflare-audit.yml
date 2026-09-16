@@ -1,0 +1,193 @@
+name: TrendOS Tasks V3 T2 Cloudflare Read-Only Audit
+
+on:
+  push:
+    branches:
+      - tasks-v3-t2-readonly-wael-canary-20260916
+    paths:
+      - '.github/workflows/trendos-tasks-v3-t2-cloudflare-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      T1_NAME: trendos-tasks-v3-t1-preview-20260914
+      T15_NAME: trendos-tasks-v3-t15-preview-20260915
+      T2_NAME: trendos-tasks-v3-t2-readonly-wael-canary-20260916
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require existing Cloudflare read credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
+      - name: Safety gate - this workflow must remain read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='.github/workflows/trendos-tasks-v3-t2-cloudflare-audit.yml'
+          if grep -nE 'wrangler(@[0-9]+)?[[:space:]].*(deploy|delete|secret[[:space:]]+put|secret[[:space:]]+delete)|curl[[:space:]].*(-X|--request)[[:space:]]*(POST|PUT|PATCH|DELETE)' "$file"; then
+            echo 'Forbidden Cloudflare mutation command found in audit workflow'
+            exit 1
+          fi
+          echo 'READ_ONLY_AUDIT_GATE_PASS'
+
+      - name: Show Wrangler version
+        run: npx --yes wrangler@4 --version
+
+      - name: List Workers via Cloudflare API GET
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts"
+          curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Accept: application/json' \
+            "$api" > /tmp/workers.json
+
+          jq -e '.success == true' /tmp/workers.json >/dev/null
+          echo '=== WORKERS ==='
+          jq -r '.result[] | [.id, (.created_on // ""), (.modified_on // "")] | @tsv' /tmp/workers.json | sort
+          echo '=== TARGET PRESENCE ==='
+          for name in "$T1_NAME" "$T15_NAME" "$T2_NAME" trendos-main; do
+            if jq -e --arg name "$name" '.result[] | select(.id == $name)' /tmp/workers.json >/dev/null; then
+              echo "$name PRESENT"
+            else
+              echo "$name ABSENT"
+            fi
+          done
+
+      - name: Read deployment status for isolated Tasks V3 Workers
+        shell: bash
+        run: |
+          set -u
+          for name in "$T1_NAME" "$T15_NAME" "$T2_NAME"; do
+            echo "=== DEPLOYMENT STATUS: $name ==="
+            set +e
+            npx --yes wrangler@4 deployments status --name "$name" --json
+            rc=$?
+            set -e
+            echo "DEPLOYMENT_STATUS_RC=$rc"
+          done
+
+      - name: List Worker secret names only
+        shell: bash
+        run: |
+          set -u
+          for name in "$T1_NAME" "$T15_NAME" "$T2_NAME"; do
+            echo "=== SECRET NAMES ONLY: $name ==="
+            set +e
+            npx --yes wrangler@4 secret list --name "$name" --json 2>/tmp/${name}.secret.err | \
+              jq -r 'if type == "array" then .[] | (.name // .) else . end' 2>/dev/null
+            rc=${PIPESTATUS[0]}
+            set -e
+            echo "SECRET_LIST_RC=$rc"
+            if [ "$rc" -ne 0 ]; then
+              sed -E 's/[A-Za-z0-9_=-]{32,}/[REDACTED]/g' /tmp/${name}.secret.err || true
+            fi
+          done
+
+      - name: List account Worker custom domains via GET
+        shell: bash
+        run: |
+          set -u
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"
+          set +e
+          code=$(curl -sS -o /tmp/domains.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Accept: application/json' \
+            "$api")
+          rc=$?
+          set -e
+          echo "CUSTOM_DOMAINS_HTTP=$code CURL_RC=$rc"
+          if [ "$rc" -eq 0 ] && [ "$code" = '200' ]; then
+            jq -r '.result[]? | [(.hostname // ""), (.service // ""), (.environment // "")] | @tsv' /tmp/domains.json | sort
+          else
+            jq '{success, errors: [.errors[]? | {code, message}]}' /tmp/domains.json 2>/dev/null || true
+          fi
+
+      - name: List zone Worker routes via GET when permitted
+        shell: bash
+        run: |
+          set -u
+          set +e
+          code=$(curl -sS -o /tmp/zones.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Accept: application/json' \
+            "https://api.cloudflare.com/client/v4/zones?account.id=${CLOUDFLARE_ACCOUNT_ID}&per_page=50")
+          rc=$?
+          set -e
+          echo "ZONES_HTTP=$code CURL_RC=$rc"
+          if [ "$rc" -ne 0 ] || [ "$code" != '200' ]; then
+            jq '{success, errors: [.errors[]? | {code, message}]}' /tmp/zones.json 2>/dev/null || true
+            exit 0
+          fi
+
+          jq -r '.result[] | [.id, .name] | @tsv' /tmp/zones.json | while IFS=$'\t' read -r zid zname; do
+            set +e
+            rcode=$(curl -sS -o /tmp/routes.json -w '%{http_code}' \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H 'Accept: application/json' \
+              "https://api.cloudflare.com/client/v4/zones/${zid}/workers/routes")
+            rrc=$?
+            set -e
+            echo "=== ROUTES: $zname HTTP=$rcode CURL_RC=$rrc ==="
+            if [ "$rrc" -eq 0 ] && [ "$rcode" = '200' ]; then
+              jq -r '.result[]? | [(.pattern // ""), (.script // "")] | @tsv' /tmp/routes.json | \
+                grep -E 'trendos|tasks-v3|^$' || true
+            else
+              jq '{success, errors: [.errors[]? | {code, message}]}' /tmp/routes.json 2>/dev/null || true
+            fi
+          done
+
+      - name: Check account Secrets Store metadata via GET only
+        shell: bash
+        run: |
+          set -u
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/secrets_store/stores"
+          set +e
+          code=$(curl -sS -o /tmp/stores.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Accept: application/json' \
+            "$api")
+          rc=$?
+          set -e
+          echo "SECRETS_STORE_LIST_HTTP=$code CURL_RC=$rc"
+          if [ "$rc" -ne 0 ] || [ "$code" != '200' ]; then
+            jq '{success, errors: [.errors[]? | {code, message}]}' /tmp/stores.json 2>/dev/null || true
+            exit 0
+          fi
+
+          jq -r '.result[]? | [(.id // ""), (.name // "")] | @tsv' /tmp/stores.json | while IFS=$'\t' read -r sid sname; do
+            echo "=== SECRETS STORE: $sname ==="
+            set +e
+            scode=$(curl -sS -o /tmp/store-secrets.json -w '%{http_code}' \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H 'Accept: application/json' \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/secrets_store/stores/${sid}/secrets")
+            src=$?
+            set -e
+            echo "STORE_SECRET_LIST_HTTP=$scode CURL_RC=$src"
+            if [ "$src" -eq 0 ] && [ "$scode" = '200' ]; then
+              jq -r '.result[]? | (.name // empty)' /tmp/store-secrets.json | sort
+            else
+              jq '{success, errors: [.errors[]? | {code, message}]}' /tmp/store-secrets.json 2>/dev/null || true
+            fi
+          done
+
+      - name: Audit conclusion
+        shell: bash
+        run: |
+          echo 'Cloudflare audit completed with GET/read-only commands only.'
+          echo 'No Worker, route, secret, variable, D1, or production frontend mutation was performed.'
