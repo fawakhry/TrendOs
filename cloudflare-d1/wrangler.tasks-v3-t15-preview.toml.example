@@ -7,11 +7,14 @@ workers_dev = true
 preview_urls = true
 
 [vars]
-TASKS_V3_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbya5NyWMpBLEt_wR7Qklq1YC7PPFJI02-M1xKTMgx-0CdoI4zzW0z0rwAix8JYRst6bJA/exec"
 TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS = "180"
 
 [triggers]
 crons = ["* * * * *"]
+
+[[services]]
+binding = "TASKS_V3_T1_SERVICE"
+service = "trendos-tasks-v3-t1-preview-20260914"
 
 [[d1_databases]]
 binding = "TASKS_V3_PREVIEW_DB"
