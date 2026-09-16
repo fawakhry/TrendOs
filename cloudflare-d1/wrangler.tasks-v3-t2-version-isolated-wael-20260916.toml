@@ -7,7 +7,7 @@ workers_dev = true
 preview_urls = true
 
 [vars]
-TASKS_V3_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzo6zcypF7mhECUrfqkP4u0NuzrV373vUQjLMk4o-TMbe4TyV93WkPnrsmeKVHSgCH1Bg/exec"
+TASKS_V3_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3kOnV85cwZEmUXwTaN4ygUI9vR8nXiW0xqofez6O3NJuwD5o9x2B9Hux253tcDx1eyQ/exec"
 
 [secrets]
 required = ["TASKS_V3_SHARED_SECRET"]
