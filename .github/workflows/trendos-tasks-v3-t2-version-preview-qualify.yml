@@ -21,9 +21,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       T1_NAME: trendos-tasks-v3-t1-preview-20260914
       T2_CONFIG: cloudflare-d1/wrangler.tasks-v3-t2-version-isolated-wael-20260916.toml
-      T2_PREVIEW_ALIAS: t2-wael-20260916
-      T2_WORKER_URL: https://t2-wael-20260916-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
-      T2_APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbzo6zcypF7mhECUrfqkP4u0NuzrV373vUQjLMk4o-TMbe4TyV93WkPnrsmeKVHSgCH1Bg/exec
+      T2_PREVIEW_ALIAS: t2-utf8-v5-20260916
+      T2_WORKER_URL: https://t2-utf8-v5-20260916-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
+      T2_APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbz3kOnV85cwZEmUXwTaN4ygUI9vR8nXiW0xqofez6O3NJuwD5o9x2B9Hux253tcDx1eyQ/exec
 
     steps:
       - uses: actions/checkout@v4
@@ -126,6 +126,24 @@ jobs:
           test "$passed" = '1'
           echo 'T2_PREVIEW_GET_REJECTED_405'
 
+      - name: Prove Arabic health authentication on UTF-8 V5
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          let passed = 0;
+          for (let i = 1; i <= 3; i++) {
+            try {
+              const r = await fetch(process.env.T2_WORKER_URL, {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({op:'health',operator:'وائل',role:'WAEL',payloadJson:'{}'}),signal:AbortSignal.timeout(15000)});
+              const b = await r.json();
+              const ok = r.ok && b.success === true && b.body?.success === true && b.body?.readOnly === true && b.body?.version === 'TASKS_V3_READONLY_T2_WAEL_CANARY_2';
+              if (ok) passed++;
+              console.log(JSON.stringify({phase:'ARABIC_HEALTH_PROOF',attempt:i,http:r.status,success:ok,code:b.code,version:b.body?.version,serverTiming:r.headers.get('server-timing')}));
+            } catch(e) { console.log(JSON.stringify({phase:'ARABIC_HEALTH_PROOF',attempt:i,success:false,error:e.name})); }
+          }
+          console.log('ARABIC_HEALTH_PROOF_SUCCESS_COUNT='+passed);
+          if (!passed) process.exitCode=2;
+          NODE
+
       - name: Run 30-sample T2 read-only qualification
         id: qualification
         shell: bash
@@ -149,7 +167,9 @@ jobs:
         run: |
           set -u
           echo '=== ACTIVE T1 DEPLOYMENT FINAL ==='
-          npx --yes wrangler@4 deployments status --name "$T1_NAME" --json || true
+          npx --yes wrangler@4 deployments status --name "$T1_NAME" --json > /tmp/t1-active-final.json
+          jq -S '{id, versions}' /tmp/t1-active-final.json > /tmp/t1-active-final-normalized.json
+          cat /tmp/t1-active-final-normalized.json
           echo '=== SECRET NAMES ONLY ==='
           npx --yes wrangler@4 secret list --name "$T1_NAME" --format json 2>/dev/null | jq -r '.[] | .name' || true
 
@@ -172,6 +192,9 @@ jobs:
             echo 'Active T1 deployment comparison incomplete.'
             exit 1
           fi
+
+          diff -u /tmp/t1-active-before-normalized.json /tmp/t1-active-final-normalized.json
+          echo 'ACTIVE_T1_FINAL_UNCHANGED'
 
           rc='${{ steps.qualification.outputs.rc }}'
           test -n "$rc" || { echo 'Qualification did not run to completion.'; exit 1; }
