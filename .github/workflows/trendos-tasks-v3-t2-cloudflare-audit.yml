@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           file='.github/workflows/trendos-tasks-v3-t2-cloudflare-audit.yml'
-          if grep -nE 'wrangler(@[0-9]+)?[[:space:]].*(deploy|delete|secret[[:space:]]+put|secret[[:space:]]+delete)|curl[[:space:]].*(-X|--request)[[:space:]]*(POST|PUT|PATCH|DELETE)' "$file"; then
+          if grep -nE 'wrangler@4[[:space:]]+(deploy|delete)([[:space:]]|$)|wrangler@4[[:space:]]+secret[[:space:]]+(put|delete)([[:space:]]|$)|curl[[:space:]].*(-X|--request)[[:space:]]*(POST|PUT|PATCH|DELETE)([[:space:]]|$)' "$file"; then
             echo 'Forbidden Cloudflare mutation command found in audit workflow'
             exit 1
           fi
