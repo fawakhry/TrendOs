@@ -30,6 +30,44 @@ function upstreamFromServerTiming(value) {
   return match ? Number(match[1]) : null;
 }
 
+function operationSemanticOk(op, body) {
+  if (!body || body.success !== true || !body.body || body.body.success !== true) return false;
+  const upstream = body.body;
+
+  if (op === 'health') {
+    return upstream.readOnly === true &&
+      upstream.version === expectedVersion &&
+      upstream.sourceReady === true &&
+      upstream.canaryConfigured === true;
+  }
+
+  if (op === 'status') {
+    return upstream.readOnly === true &&
+      upstream.version === expectedVersion &&
+      upstream.operator === operator &&
+      upstream.role === role &&
+      upstream.activeTask === null &&
+      upstream.flyPrint && upstream.flyPrint.success === true &&
+      upstream.pressCandidates && upstream.pressCandidates.success === true;
+  }
+
+  if (op === 'flyPrint') {
+    return upstream.lane === 'flyPrint' &&
+      Array.isArray(upstream.rows) &&
+      Number.isInteger(upstream.count) &&
+      upstream.count === upstream.rows.length;
+  }
+
+  if (op === 'pressCandidates') {
+    return upstream.lane === 'press' &&
+      Array.isArray(upstream.rows) &&
+      Number.isInteger(upstream.count) &&
+      upstream.count === upstream.rows.length;
+  }
+
+  return false;
+}
+
 const samples = [];
 let httpFailures = 0;
 let transportFailures = 0;
@@ -66,20 +104,13 @@ for (let i = 0; i < ops.length; i += 1) {
   const elapsedMs = performance.now() - started;
   const upstreamMs = response ? upstreamFromServerTiming(response.headers.get('server-timing')) : null;
   const httpOk = Boolean(response && response.ok);
-  const semanticOk = Boolean(
-    httpOk &&
-    body &&
-    body.success === true &&
-    body.body &&
-    body.body.success === true &&
-    body.body.readOnly === true &&
-    body.body.version === expectedVersion
-  );
+  const semanticOk = Boolean(httpOk && operationSemanticOk(op, body));
 
   if (!response) transportFailures += 1;
   else if (!response.ok) httpFailures += 1;
   if (response && response.ok && !semanticOk) semanticFailures += 1;
 
+  const upstreamBody = body && body.body;
   const sample = {
     n: i + 1,
     op,
@@ -88,6 +119,7 @@ for (let i = 0; i < ops.length; i += 1) {
     elapsedMs: round(elapsedMs),
     upstreamMs: round(upstreamMs),
     code: body && body.code || null,
+    resultCount: upstreamBody && Number.isInteger(upstreamBody.count) ? upstreamBody.count : null,
     transportError: transportError || null
   };
   samples.push(sample);
