@@ -35,15 +35,15 @@ function doPost(e) {
   const role = tasksV3Role_(payload.role);
   const operator = tasksV3Text_(payload.operator);
 
+  if (!tasksV3T2CanaryAllowed_(operator, role)) {
+    return tasksV3Output_({ success: false, code: 'T2_CANARY_FORBIDDEN' });
+  }
+
   if (op === 'health') {
     const response = tasksV3Health_(diagnostic, verified.properties);
     diagnostic.totalBridgeMs = Date.now() - bridgeStartedAt;
     response.diagnostic = diagnostic;
     return tasksV3Output_(response);
-  }
-
-  if (!tasksV3T2CanaryAllowed_(operator, role)) {
-    return tasksV3Output_({ success: false, code: 'T2_CANARY_FORBIDDEN' });
   }
 
   if (op === 'status') return tasksV3Output_(tasksV3Status_(operator, role));
