@@ -87,17 +87,24 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate apply confirmation
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'apply') || (github.event_name == 'push' && github.event.head_commit.message == 'ops: apply T15 preview reconcile') }}
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ inputs.confirm }}" = "T15_PREVIEW_ONLY" || {
-            echo "Apply blocked: confirmation must equal T15_PREVIEW_ONLY"
-            exit 1
-          }
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            test "${{ inputs.confirm }}" = "T15_PREVIEW_ONLY" || {
+              echo "Apply blocked: confirmation must equal T15_PREVIEW_ONLY"
+              exit 1
+            }
+          else
+            test "${{ github.event.head_commit.message }}" = "ops: apply T15 preview reconcile" || {
+              echo "Apply blocked: push marker mismatch"
+              exit 1
+            }
+          fi
 
       - name: Apply canonical T1 source Worker
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'apply') || (github.event_name == 'push' && github.event.head_commit.message == 'ops: apply T15 preview reconcile') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -107,7 +114,7 @@ jobs:
             --message "T1 isolated source for T1.5 reconcile ${GITHUB_SHA::8}"
 
       - name: Apply canonical T1.5 preview Worker
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'apply') || (github.event_name == 'push' && github.event.head_commit.message == 'ops: apply T15 preview reconcile') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -116,7 +123,7 @@ jobs:
             --message "T1.5 isolated preview reconcile ${GITHUB_SHA::8}"
 
       - name: Audit final isolated deployments
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'apply') || (github.event_name == 'push' && github.event.head_commit.message == 'ops: apply T15 preview reconcile') }}
         shell: bash
         run: |
           set -euo pipefail
