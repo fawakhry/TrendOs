@@ -1,0 +1,115 @@
+name: TrendOS Tasks V3 T2 Auth Separation Diagnostic
+
+on:
+  push:
+    branches:
+      - tasks-v3-t2-readonly-wael-canary-20260916
+    paths:
+      - '.github/workflows/trendos-tasks-v3-t2-auth-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auth-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read-only T1 vs T2 health comparison
+        shell: bash
+        env:
+          T1_URL: https://trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
+          T2_URL: https://69b3737c-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const targets = [
+            {
+              name: 'T1_ACTIVE',
+              url: process.env.T1_URL,
+              payload: { op: 'health', operator: 'wael-preview', role: 'WAEL', payloadJson: '{}' }
+            },
+            {
+              name: 'T2_VERSION_PREVIEW',
+              url: process.env.T2_URL,
+              payload: { op: 'health', operator: 'وائل', role: 'WAEL', payloadJson: '{}' }
+            }
+          ];
+
+          async function call(target, attempt) {
+            const started = Date.now();
+            let response;
+            try {
+              response = await fetch(target.url, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', accept: 'application/json' },
+                body: JSON.stringify(target.payload),
+                signal: AbortSignal.timeout(12000)
+              });
+            } catch (err) {
+              console.log(JSON.stringify({
+                target: target.name,
+                attempt,
+                transportError: String(err && err.name || err),
+                elapsedMs: Date.now() - started
+              }));
+              return { transport: false, ok: false, code: 'TRANSPORT_ERROR' };
+            }
+
+            const text = await response.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch (_) {}
+            const record = {
+              target: target.name,
+              attempt,
+              httpStatus: response.status,
+              elapsedMs: Date.now() - started,
+              serverTiming: response.headers.get('server-timing') || '',
+              success: !!(body && body.success === true),
+              code: body && body.code || '',
+              upstreamSuccess: !!(body && body.body && body.body.success === true),
+              upstreamCode: body && body.body && body.body.code || '',
+              upstreamVersion: body && body.body && body.body.version || ''
+            };
+            console.log(JSON.stringify(record));
+            return { transport: true, ok: record.success, code: record.code, status: record.httpStatus };
+          }
+
+          const summary = {};
+          for (const target of targets) {
+            summary[target.name] = [];
+            for (let i = 1; i <= 5; i++) {
+              summary[target.name].push(await call(target, i));
+            }
+          }
+
+          const t1 = summary.T1_ACTIVE;
+          const t2 = summary.T2_VERSION_PREVIEW;
+          const t1Success = t1.some(x => x.ok === true);
+          const t2Success = t2.some(x => x.ok === true);
+          const t2SignatureInvalid = t2.some(x => x.code === 'SIGNATURE_INVALID');
+
+          console.log('DIAGNOSTIC_SUMMARY=' + JSON.stringify({
+            t1Success,
+            t2Success,
+            t2SignatureInvalid,
+            t1Attempts: t1.length,
+            t2Attempts: t2.length
+          }));
+
+          if (!t1Success) {
+            console.error('Diagnostic inconclusive: no successful T1 health sample.');
+            process.exit(2);
+          }
+          if (t2Success) {
+            console.log('T2 accepted at least one assertion; endpoint-secret mismatch is not established.');
+            process.exit(0);
+          }
+          if (!t2SignatureInvalid) {
+            console.error('Diagnostic inconclusive: T2 did not succeed, but no SIGNATURE_INVALID was observed.');
+            process.exit(3);
+          }
+
+          console.log('DIAGNOSTIC_RESULT=T1_AUTH_OK_T2_SIGNATURE_REJECTED');
+          NODE
