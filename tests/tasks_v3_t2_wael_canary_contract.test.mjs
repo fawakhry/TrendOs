@@ -7,7 +7,6 @@ const forbidden = [
   ['main authorize dependency', /\bauthorize_\s*\(/],
   ['main user lookup dependency', /\bfindUser_\s*\(/],
   ['main line mutation dependency', /\bupdateLine_\s*\(/],
-  ['business source sheet literal', /بنود الأوردرات/],
   ['sheet creation', /\.insertSheet\s*\(/],
   ['row append', /\.appendRow\s*\(/],
   ['cell write', /\.setValue\s*\(/],
@@ -24,9 +23,11 @@ for (const [label, re] of forbidden) {
 
 assert.match(src, /TASKS_V3_T2_VERSION/);
 assert.match(src, /TASKS_V3_T2_CANARY_OPERATOR/);
+assert.match(src, /TASKS_V3_T2_SPREADSHEET_ID/);
 assert.match(src, /T2_CANARY_FORBIDDEN/);
 assert.match(src, /role !== 'WAEL'/);
 assert.match(src, /readOnly:\s*true/);
+assert.match(src, /TASKS_V3_T2_SOURCE_SHEET\s*=\s*['"]بنود الأوردرات['"]/);
 
 for (const op of ['health', 'status', 'flyPrint', 'pressCandidates']) {
   assert.match(src, new RegExp(`op === ['"]${op}['"]`));
@@ -38,6 +39,11 @@ for (const forbiddenOp of ['claim' + 'Next', 'complete' + 'Task']) {
 
 // Production spreadsheet identity must remain runtime configuration, never source-coded.
 assert.equal(src.includes('1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI'), false);
-assert.match(src, /TASKS_V3_SPREADSHEET_ID/);
+
+// T2 direct projection is intentionally bounded to 9 narrow columns, never the 92-column row body.
+for (const col of ['A', 'E', 'F', 'J', 'K', 'M', 'R', 'AG', 'AS']) {
+  assert.match(src, new RegExp(`tasksV3Column_\\(sheet, ['"]${col}['"]`));
+}
+assert.equal(/getRange\([^\n]*,\s*92\s*\)/.test(src), false);
 
 console.log('TASKS_V3_T2_WAEL_CANARY_CONTRACT=PASS');
