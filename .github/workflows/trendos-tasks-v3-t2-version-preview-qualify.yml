@@ -41,7 +41,6 @@ jobs:
           set -euo pipefail
           cfg="$T2_CONFIG"
           src='cloudflare-d1/src/tasks-v3-t2-readonly-wael-worker.mjs'
-          adapter='cloudflare-d1/src/tasks-v3-readonly-preview.mjs'
           workflow='.github/workflows/trendos-tasks-v3-t2-version-preview-qualify.yml'
 
           grep -F 'name = "trendos-tasks-v3-t1-preview-20260914"' "$cfg"
@@ -110,9 +109,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          code=$(curl -sS -o /tmp/t2-get.json -w '%{http_code}' "$T2_WORKER_URL")
-          test "$code" = '405'
-          jq -e '.code == "METHOD_NOT_ALLOWED"' /tmp/t2-get.json >/dev/null
+          passed=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            rm -f /tmp/t2-get.json
+            set +e
+            code=$(curl -sS --max-time 10 -o /tmp/t2-get.json -w '%{http_code}' "$T2_WORKER_URL")
+            rc=$?
+            set -e
+            echo "SMOKE_ATTEMPT=$attempt CURL_RC=$rc HTTP=$code"
+            if [ "$rc" -eq 0 ] && [ "$code" = '405' ] && jq -e '.code == "METHOD_NOT_ALLOWED"' /tmp/t2-get.json >/dev/null 2>&1; then
+              passed=1
+              break
+            fi
+            sleep 2
+          done
+          test "$passed" = '1'
           echo 'T2_PREVIEW_GET_REJECTED_405'
 
       - name: Run 30-sample T2 read-only qualification
