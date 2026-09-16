@@ -1,0 +1,46 @@
+name: TrendOS Tasks V3 T2 Preview URL Diagnostic
+
+on:
+  push:
+    branches:
+      - tasks-v3-t2-readonly-wael-canary-20260916
+    paths:
+      - '.github/workflows/trendos-tasks-v3-t2-preview-url-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      T2_ALIAS_URL: https://t2-wael-20260916-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
+      T2_VERSION_URL: https://fa4a32d7-trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
+
+    steps:
+      - name: GET-only preview probe
+        shell: bash
+        run: |
+          set -u
+          for label in ALIAS VERSION; do
+            if [ "$label" = 'ALIAS' ]; then url="$T2_ALIAS_URL"; else url="$T2_VERSION_URL"; fi
+            echo "=== $label ==="
+            for attempt in 1 2 3; do
+              rm -f /tmp/body /tmp/headers
+              set +e
+              code=$(curl -sS -L --max-time 10 -D /tmp/headers -o /tmp/body -w '%{http_code}' "$url")
+              rc=$?
+              set -e
+              echo "ATTEMPT=$attempt CURL_RC=$rc HTTP=$code"
+              echo 'HEADERS:'
+              grep -Ei '^(HTTP/|content-type:|server:|cf-ray:|location:|allow:)' /tmp/headers || true
+              echo 'BODY:'
+              head -c 500 /tmp/body 2>/dev/null || true
+              echo
+              if [ "$rc" -eq 0 ] && [ "$code" = '405' ]; then break; fi
+              sleep 2
+            done
+          done
+          echo 'GET-only diagnostic complete; no Cloudflare mutation performed.'
