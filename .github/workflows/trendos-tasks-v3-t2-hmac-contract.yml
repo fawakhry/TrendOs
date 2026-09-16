@@ -1,0 +1,45 @@
+name: TrendOS Tasks V3 T2 UTF-8 HMAC Contract
+
+on:
+  push:
+    branches:
+      - tasks-v3-t2-readonly-wael-canary-20260916
+    paths:
+      - 'tasks-v3-bridge-readonly.gs'
+      - 'cloudflare-d1/src/tasks-v3-readonly-preview.mjs'
+      - 'cloudflare-d1/src/tasks-v3-t2-readonly-wael-worker.mjs'
+      - 'cloudflare-d1/test/tasks-v3-t2-readonly-wael-contract.mjs'
+      - 'cloudflare-d1/test/tasks-v3-t2-hmac-utf8-contract.mjs'
+      - '.github/workflows/trendos-tasks-v3-t2-hmac-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: T2 read-only safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          bridge='tasks-v3-bridge-readonly.gs'
+          worker='cloudflare-d1/src/tasks-v3-t2-readonly-wael-worker.mjs'
+          grep -F "Utilities.Charset.UTF_8" "$bridge"
+          grep -F "const T2_OPERATOR = 'وائل';" "$worker"
+          grep -F "const T2_ROLE = 'WAEL';" "$worker"
+          if grep -nE 'claimNext|completeTask|APPS_SCRIPT_API_URL|TRENDOS_OPERATOR_TASK_PROXY_SECRET|EDGE_SESSION_SECRET' "$bridge" "$worker"; then
+            echo 'Forbidden mutation/production symbol found.'
+            exit 1
+          fi
+          echo 'T2_READONLY_SAFETY_GATE_PASS'
+
+      - name: Run T2 worker contract
+        run: node cloudflare-d1/test/tasks-v3-t2-readonly-wael-contract.mjs
+
+      - name: Run Arabic UTF-8 HMAC contract
+        run: node cloudflare-d1/test/tasks-v3-t2-hmac-utf8-contract.mjs
