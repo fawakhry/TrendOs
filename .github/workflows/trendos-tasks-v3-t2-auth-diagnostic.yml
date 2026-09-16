@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Read-only T1 vs T2 health comparison
+      - name: Read-only ASCII vs Arabic HMAC comparison
         shell: bash
         env:
           T1_URL: https://trendos-tasks-v3-t1-preview-20260914.trendmall-contact.workers.dev
@@ -26,12 +26,17 @@ jobs:
           node <<'NODE'
           const targets = [
             {
-              name: 'T1_ACTIVE',
+              name: 'T1_ASCII_OPERATOR',
               url: process.env.T1_URL,
               payload: { op: 'health', operator: 'wael-preview', role: 'WAEL', payloadJson: '{}' }
             },
             {
-              name: 'T2_VERSION_PREVIEW',
+              name: 'T1_ARABIC_OPERATOR',
+              url: process.env.T1_URL,
+              payload: { op: 'health', operator: 'وائل', role: 'WAEL', payloadJson: '{}' }
+            },
+            {
+              name: 'T2_ARABIC_OPERATOR',
               url: process.env.T2_URL,
               payload: { op: 'health', operator: 'وائل', role: 'WAEL', payloadJson: '{}' }
             }
@@ -48,13 +53,8 @@ jobs:
                 signal: AbortSignal.timeout(12000)
               });
             } catch (err) {
-              console.log(JSON.stringify({
-                target: target.name,
-                attempt,
-                transportError: String(err && err.name || err),
-                elapsedMs: Date.now() - started
-              }));
-              return { transport: false, ok: false, code: 'TRANSPORT_ERROR' };
+              console.log(JSON.stringify({ target: target.name, attempt, transportError: String(err && err.name || err), elapsedMs: Date.now() - started }));
+              return { ok: false, code: 'TRANSPORT_ERROR' };
             }
 
             const text = await response.text();
@@ -73,43 +73,43 @@ jobs:
               upstreamVersion: body && body.body && body.body.version || ''
             };
             console.log(JSON.stringify(record));
-            return { transport: true, ok: record.success, code: record.code, status: record.httpStatus };
+            return { ok: record.success, code: record.code };
           }
 
           const summary = {};
           for (const target of targets) {
             summary[target.name] = [];
-            for (let i = 1; i <= 5; i++) {
-              summary[target.name].push(await call(target, i));
-            }
+            for (let i = 1; i <= 3; i++) summary[target.name].push(await call(target, i));
           }
 
-          const t1 = summary.T1_ACTIVE;
-          const t2 = summary.T2_VERSION_PREVIEW;
-          const t1Success = t1.some(x => x.ok === true);
-          const t2Success = t2.some(x => x.ok === true);
-          const t2SignatureInvalid = t2.some(x => x.code === 'SIGNATURE_INVALID');
+          const anySuccess = name => summary[name].some(x => x.ok === true);
+          const anySigInvalid = name => summary[name].some(x => x.code === 'SIGNATURE_INVALID');
+          const result = {
+            t1AsciiSuccess: anySuccess('T1_ASCII_OPERATOR'),
+            t1ArabicSuccess: anySuccess('T1_ARABIC_OPERATOR'),
+            t1ArabicSignatureInvalid: anySigInvalid('T1_ARABIC_OPERATOR'),
+            t2ArabicSuccess: anySuccess('T2_ARABIC_OPERATOR'),
+            t2ArabicSignatureInvalid: anySigInvalid('T2_ARABIC_OPERATOR')
+          };
+          console.log('DIAGNOSTIC_SUMMARY=' + JSON.stringify(result));
 
-          console.log('DIAGNOSTIC_SUMMARY=' + JSON.stringify({
-            t1Success,
-            t2Success,
-            t2SignatureInvalid,
-            t1Attempts: t1.length,
-            t2Attempts: t2.length
-          }));
-
-          if (!t1Success) {
-            console.error('Diagnostic inconclusive: no successful T1 health sample.');
+          if (!result.t1AsciiSuccess) {
+            console.error('Inconclusive: T1 ASCII control had no successful sample.');
             process.exit(2);
           }
-          if (t2Success) {
-            console.log('T2 accepted at least one assertion; endpoint-secret mismatch is not established.');
+          if (!result.t1ArabicSuccess && result.t1ArabicSignatureInvalid) {
+            console.log('DIAGNOSTIC_RESULT=ARABIC_CANONICAL_HMAC_MISMATCH_CONFIRMED');
             process.exit(0);
           }
-          if (!t2SignatureInvalid) {
-            console.error('Diagnostic inconclusive: T2 did not succeed, but no SIGNATURE_INVALID was observed.');
-            process.exit(3);
+          if (result.t1ArabicSuccess && !result.t2ArabicSuccess && result.t2ArabicSignatureInvalid) {
+            console.log('DIAGNOSTIC_RESULT=ARABIC_HMAC_OK_T2_DEPLOYED_VERIFIER_DIFFERS');
+            process.exit(0);
+          }
+          if (result.t2ArabicSuccess) {
+            console.log('DIAGNOSTIC_RESULT=T2_NOW_ACCEPTS_ARABIC_ASSERTION');
+            process.exit(0);
           }
 
-          console.log('DIAGNOSTIC_RESULT=T1_AUTH_OK_T2_SIGNATURE_REJECTED');
+          console.error('Diagnostic inconclusive; inspect recorded response codes.');
+          process.exit(3);
           NODE
