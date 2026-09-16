@@ -11,6 +11,7 @@ on:
       - 'cloudflare-d1/wrangler.tasks-v3-t15-preview.toml'
       - 'cloudflare-d1/wrangler.tasks-v3-t15-preview.toml.example'
       - '.github/workflows/trendos-tasks-v3-t15-preview-contract.yml'
+      - '.github/workflows/trendos-tasks-v3-t15-cloudflare-reconcile.yml'
   workflow_dispatch:
 
 permissions:
@@ -22,13 +23,35 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+
       - name: Verify isolated T1.5 read-replica contract
         run: node cloudflare-d1/test/tasks-v3-t15-preview-contract.mjs
+
       - name: Syntax-check canonical preview worker
         run: node --check cloudflare-d1/src/tasks-v3-t15-preview-worker.mjs
-      - name: Guard against production D1 binding reuse
+
+      - name: Guard canonical service-binding configuration
+        shell: bash
         run: |
-          if grep -R "5c4b92bf-e043-4f6e-bd6d-d514a92cd825" \
+          set -euo pipefail
+          grep -F 'binding = "TASKS_V3_T1_SERVICE"' cloudflare-d1/wrangler.tasks-v3-t15-preview.toml
+          grep -F 'service = "trendos-tasks-v3-t1-preview-20260914"' cloudflare-d1/wrangler.tasks-v3-t15-preview.toml
+          grep -F 'TASKS_V3_T15_MAX_SNAPSHOT_AGE_SECONDS = "180"' cloudflare-d1/wrangler.tasks-v3-t15-preview.toml
+          grep -F 'crons = ["* * * * *"]' cloudflare-d1/wrangler.tasks-v3-t15-preview.toml
+
+          if grep -R -F 'TASKS_V3_T1_SOURCE_URL' \
+            cloudflare-d1/src/tasks-v3-t15-*.mjs \
+            cloudflare-d1/wrangler.tasks-v3-t15-preview.toml \
+            cloudflare-d1/wrangler.tasks-v3-t15-preview.toml.example; then
+            echo "Obsolete public T1 source URL is forbidden"
+            exit 1
+          fi
+
+      - name: Guard against production D1 binding reuse
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -F '5c4b92bf-e043-4f6e-bd6d-d514a92cd825' \
             cloudflare-d1/wrangler.tasks-v3-t15-preview.toml \
             cloudflare-d1/wrangler.tasks-v3-t15-preview.toml.example \
             cloudflare-d1/src/tasks-v3-t15-*.mjs \
@@ -36,9 +59,12 @@ jobs:
             echo "Production D1 database id is forbidden in T1.5 preview files"
             exit 1
           fi
+
       - name: Guard mutations and legacy fallback
+        shell: bash
         run: |
-          if grep -R -E "claimNext|completeTask|APPS_SCRIPT_API_URL|TRENDOS_OPERATOR_TASK_PROXY_SECRET" \
+          set -euo pipefail
+          if grep -R -E 'claimNext|completeTask|APPS_SCRIPT_API_URL|TRENDOS_OPERATOR_TASK_PROXY_SECRET' \
             cloudflare-d1/src/tasks-v3-t15-*.mjs; then
             echo "Mutation or legacy fallback symbol found in T1.5 preview"
             exit 1
