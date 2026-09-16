@@ -1,0 +1,10 @@
+# TrendOS Tasks V3 T2 — isolated production read-only Wael canary.
+# No production routes. No frontend binding. No mutation operations.
+name = "trendos-tasks-v3-t2-readonly-wael-canary-20260916"
+main = "src/tasks-v3-t2-readonly-wael-worker.mjs"
+compatibility_date = "2026-09-16"
+workers_dev = true
+preview_urls = true
+
+[vars]
+TASKS_V3_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzo6zcypF7mhECUrfqkP4u0NuzrV373vUQjLMk4o-TMbe4TyV93WkPnrsmeKVHSgCH1Bg/exec"
