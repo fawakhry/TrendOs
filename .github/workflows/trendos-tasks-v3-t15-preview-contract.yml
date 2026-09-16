@@ -6,7 +6,6 @@ on:
       - tasks-v3-t15-d1-read-replica-preview-20260915
     paths:
       - 'cloudflare-d1/src/tasks-v3-t15-*.mjs'
-      - 'cloudflare-d1/dashboard/tasks-v3-t15-preview-worker.single.mjs'
       - 'cloudflare-d1/test/tasks-v3-t15-preview-contract.mjs'
       - 'cloudflare-d1/migrations-tasks-v3-t15-preview/**'
       - 'cloudflare-d1/wrangler.tasks-v3-t15-preview.toml'
@@ -25,15 +24,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify isolated T1.5 read-replica contract
         run: node cloudflare-d1/test/tasks-v3-t15-preview-contract.mjs
-      - name: Syntax-check dashboard worker bundle
-        run: node --check cloudflare-d1/dashboard/tasks-v3-t15-preview-worker.single.mjs
+      - name: Syntax-check canonical preview worker
+        run: node --check cloudflare-d1/src/tasks-v3-t15-preview-worker.mjs
       - name: Guard against production D1 binding reuse
         run: |
           if grep -R "5c4b92bf-e043-4f6e-bd6d-d514a92cd825" \
             cloudflare-d1/wrangler.tasks-v3-t15-preview.toml \
             cloudflare-d1/wrangler.tasks-v3-t15-preview.toml.example \
             cloudflare-d1/src/tasks-v3-t15-*.mjs \
-            cloudflare-d1/dashboard/tasks-v3-t15-preview-worker.single.mjs \
             cloudflare-d1/migrations-tasks-v3-t15-preview; then
             echo "Production D1 database id is forbidden in T1.5 preview files"
             exit 1
@@ -41,8 +39,7 @@ jobs:
       - name: Guard mutations and legacy fallback
         run: |
           if grep -R -E "claimNext|completeTask|APPS_SCRIPT_API_URL|TRENDOS_OPERATOR_TASK_PROXY_SECRET" \
-            cloudflare-d1/src/tasks-v3-t15-*.mjs \
-            cloudflare-d1/dashboard/tasks-v3-t15-preview-worker.single.mjs; then
+            cloudflare-d1/src/tasks-v3-t15-*.mjs; then
             echo "Mutation or legacy fallback symbol found in T1.5 preview"
             exit 1
           fi
