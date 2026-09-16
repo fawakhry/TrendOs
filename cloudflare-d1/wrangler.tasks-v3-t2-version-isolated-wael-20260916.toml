@@ -1,0 +1,13 @@
+# TrendOS Tasks V3 T2 — version-isolated Wael canary on the existing isolated T1 Worker service.
+# This configuration is for `wrangler versions upload` only. It must never be deployed/promoted during T2 qualification.
+name = "trendos-tasks-v3-t1-preview-20260914"
+main = "src/tasks-v3-t2-readonly-wael-worker.mjs"
+compatibility_date = "2026-09-16"
+workers_dev = true
+preview_urls = true
+
+[vars]
+TASKS_V3_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzo6zcypF7mhECUrfqkP4u0NuzrV373vUQjLMk4o-TMbe4TyV93WkPnrsmeKVHSgCH1Bg/exec"
+
+[secrets]
+required = ["TASKS_V3_SHARED_SECRET"]
