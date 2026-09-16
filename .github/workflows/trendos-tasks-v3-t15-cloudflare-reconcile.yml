@@ -1,6 +1,11 @@
 name: TrendOS Tasks V3 T1.5 Cloudflare Preview Reconcile
 
 on:
+  push:
+    branches:
+      - tasks-v3-t15-d1-read-replica-preview-20260915
+    paths:
+      - '.github/workflows/trendos-tasks-v3-t15-cloudflare-reconcile.yml'
   workflow_dispatch:
     inputs:
       mode:
@@ -82,7 +87,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate apply confirmation
-        if: ${{ inputs.mode == 'apply' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -92,7 +97,7 @@ jobs:
           }
 
       - name: Apply canonical T1 source Worker
-        if: ${{ inputs.mode == 'apply' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -102,7 +107,7 @@ jobs:
             --message "T1 isolated source for T1.5 reconcile ${GITHUB_SHA::8}"
 
       - name: Apply canonical T1.5 preview Worker
-        if: ${{ inputs.mode == 'apply' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -111,7 +116,7 @@ jobs:
             --message "T1.5 isolated preview reconcile ${GITHUB_SHA::8}"
 
       - name: Audit final isolated deployments
-        if: ${{ inputs.mode == 'apply' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' }}
         shell: bash
         run: |
           set -euo pipefail
