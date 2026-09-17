@@ -89,3 +89,24 @@ Sheets v4 Advanced Service remains disabled. Latency smoke remains locked. T2 re
 
 ### SAFETY / ROLLBACK STATE
 No Secret value or Script Property was read or changed by this polling/resume step. No function Run, Deploy/version, Services change, production spreadsheet/business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, T3, Gaber Material Control, RP-08, or merge occurred.
+
+---
+
+## 2026-09-18 01:08 EEST — read-only inspection launch rejected before run creation
+
+### STEP
+Attempted the required independent state inspection of current saved `Code.gs` with a read-only goal and `strict` agent mode.
+
+### RESULT / FAILURE
+TinyFish returned HTTP 400 before creating any browser run:
+`Your account is not enabled for strict agent mode yet. Join the beta program at /beta, then retry.`
+
+No run ID was created. No browser session opened and no Apps Script mutation occurred.
+
+### DECISION / IMPACT
+Retry the same read-only state inspection using default agent mode only. Do not start a source reconciliation retry before the current saved `Code.gs` state is independently established.
+
+Sheets v4, latency smoke, deployment/version, function Run, Properties/Secrets, and T3 remain locked.
+
+### SAFETY
+No source edit/Save, function Run, Deploy/version, Services change, Script Properties/Secret access, production business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, or T3 occurred.
