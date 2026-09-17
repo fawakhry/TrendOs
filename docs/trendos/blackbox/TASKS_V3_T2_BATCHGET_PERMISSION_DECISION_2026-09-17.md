@@ -88,3 +88,28 @@ Implementation details:
 - no write API was introduced.
 
 Safety state remains unchanged: no Secret/property access, no production data write, no Task mutation, no deploy/version change, no T1/V4/V5 change, no T3.
+
+---
+
+## BatchGet contract gate PASS
+
+Added `cloudflare-d1/test/tasks-v3-t2-batchget-contract.mjs` in commit `adbd6bed3a300abc9fb8bc6d3854cdafb07d56b0` and wired it into `.github/workflows/trendos-tasks-v3-t2-hmac-contract.yml` in commit `51aa84c0b072132c9875a7b80eed93c88d0b7266`.
+
+GitHub Actions run: `35241339901`.
+Job: `105270249734`.
+Conclusion: `success`.
+
+Passed steps:
+- T2 read-only safety gate;
+- T2 Worker contract;
+- Arabic UTF-8 HMAC contract;
+- T2 batchGet read-only contract.
+
+The batchGet gate specifically locks:
+- exactly one `Sheets.Spreadsheets.Values.batchGet(...)` call;
+- exactly approved source columns `A, E, F, J, K, M, R, AG, AS`;
+- `majorDimension: COLUMNS`;
+- `valueRenderOption: FORMATTED_VALUE`;
+- no `getDataRange`, `getRange`, `getDisplayValues`, wide `A:AS` read, Sheets write methods, `claimNext`, or `completeTask` in the bridge candidate.
+
+This is repository/CI evidence only. The isolated Apps Script Head is still broken/unrestored because the browser runner has not created a live restore session. No live service/deployment/source mutation is claimed yet.
