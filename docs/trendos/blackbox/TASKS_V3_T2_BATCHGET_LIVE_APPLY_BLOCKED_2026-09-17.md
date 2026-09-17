@@ -159,3 +159,21 @@ Do not request additional Google Doc permissions. Use the exact same staging can
 
 ### SAFETY / ROLLBACK STATE
 No new permission request is relied upon. No Deploy/version, Run, Properties/Secret access, Services change, business-data write, Task mutation, T1/V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred in this cancelled path.
+
+---
+
+## 2026-09-17 19:19 EEST — staging source applied to isolated Head
+
+### STEP
+Used the exact raw repository source at commit `31565dfdbf7b63744b32b02e5042a5f6b0664249` (the same source previously verified against the staging document) as a read-only source. TinyFish run `1ca2b493-8de3-4e41-a6f9-abd7d6fbc881` selected/copied that source, opened the exact isolated T2 Apps Script project, replaced all `Code.gs` content, and saved Head only.
+
+### RESULT
+Paste and save completed successfully. Apps Script displayed Saved to Drive / cloud-saved state. The file expanded to 321+ lines and the editor returned to a clean saved state. No function execution occurred.
+
+This step establishes only that the source was pasted and saved; semantic/static marker verification is intentionally deferred to the next independent read-only inspection.
+
+### DECISION / IMPACT
+Proceed immediately to independent static verification of saved Head. Do not enable Google Sheets API / Sheets v4 until the required markers are proven present and forbidden markers absent.
+
+### SAFETY / ROLLBACK STATE
+No Deploy/version creation, function Run, Properties/Secret access, Services change, business-data write, Task mutation, T1/V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred. Only isolated T2 `Code.gs` Head was replaced and saved.
