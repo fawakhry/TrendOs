@@ -10,6 +10,7 @@ on:
       - 'cloudflare-d1/src/tasks-v3-t2-readonly-wael-worker.mjs'
       - 'cloudflare-d1/test/tasks-v3-t2-readonly-wael-contract.mjs'
       - 'cloudflare-d1/test/tasks-v3-t2-hmac-utf8-contract.mjs'
+      - 'cloudflare-d1/test/tasks-v3-t2-batchget-contract.mjs'
       - '.github/workflows/trendos-tasks-v3-t2-hmac-contract.yml'
   workflow_dispatch:
 
@@ -43,3 +44,6 @@ jobs:
 
       - name: Run Arabic UTF-8 HMAC contract
         run: node cloudflare-d1/test/tasks-v3-t2-hmac-utf8-contract.mjs
+
+      - name: Run T2 batchGet read-only contract
+        run: node cloudflare-d1/test/tasks-v3-t2-batchget-contract.mjs
