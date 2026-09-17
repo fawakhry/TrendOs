@@ -82,3 +82,29 @@ Keep the live Apps Script Head frozen. Do not edit, save, execute, deploy, or be
 
 ### SAFETY / ROLLBACK STATE
 No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Script Property value read, spreadsheet write, business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
+
+---
+
+## 2026-09-17 17:07 EEST — complete deterministic Code.gs Head extraction
+
+### STEP
+Immediately before this write, fetched branch `tasks-v3-t2-readonly-wael-canary-20260916` and confirmed head `f0f08dea7aa104ffd80b839aa02f142b13b4ec5e`.
+
+Performed a second strict read-only deterministic extraction of `Code.gs` using TinyFish Browser Context Profile `prof_1d816f291ab64d65`, explicitly requiring sequential line-numbered capture with no gaps and no source inference.
+
+TinyFish run: `62dde7b3-b6c0-4ce8-a868-151960c9b240`.
+
+### RESULT
+TinyFish established the current `Code.gs` file contains exactly 33 lines, with complete contiguous coverage lines 1-33 and no missing ranges. Lines 1-30 match the opening portion of repository blob `87a94fa4a932eb94a819d7e964eecf3bbfc5626a` through:
+`if (!verified.ok) return tasksV3Output_({ success: false, code: verified.code });`
+Lines 31-33 are blank.
+
+Therefore `Code.gs` Head is definitively not byte/content-equivalent to repository `tasks-v3-bridge-readonly.gs`; the repository contains substantial additional functions and the full production projection/read path that are absent from this specific Head file.
+
+This result supersedes the earlier ambiguous viewport-only summaries for `Code.gs` itself. It does NOT yet prove that the Apps Script project as a whole lacks the remaining functions because they may exist in other `.gs` files.
+
+### DECISION / IMPACT
+Do not restore, edit, deploy, run, or benchmark yet. Next read-only action is to enumerate every project file and determine whether the remaining T2 functions exist in other files. Only after full project-source reconciliation can a safe live Head baseline be established.
+
+### SAFETY / ROLLBACK STATE
+No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Script Property value read, spreadsheet write, business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
