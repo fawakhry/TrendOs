@@ -60,3 +60,32 @@ Do not enable Services, run functions, deploy/version, access Properties/Secrets
 
 ### ROLLBACK / SAFETY STATE
 Existing V4/V5 deployments and active T1 were not changed. No production spreadsheet/business-data write or Task mutation occurred. T3 remains locked.
+
+---
+
+## 2026-09-18 01:07 EEST — simple reconciliation retry reached terminal timeout
+
+### STEP
+Per the explicit resume instruction, did not start any new reconciliation. Polled the already-running TinyFish retry only:
+
+`895352f2-5bfc-4732-80e0-8c8e3494dc64`
+
+The run had been started to apply the exact authoritative source directly onto the empty `Code.gs` and Save Head only. Services, function Run, Deploy/version, Properties/Secrets, verification, settings, and business-data access remained outside scope.
+
+### RESULT / FAILURE
+The run reached terminal state **FAILED** with provider timeout after:
+- duration: `1199s`
+- step count: `105`
+- final provider step/error: `This task timed out before it finished. Try a simpler goal, or retry.`
+
+The last previously observed in-run step was around checking whether text had been entered and the save state, but the terminal result did not confirm successful save. Therefore this retry is **not** accepted as a successful reconciliation and no assumption is made about current `Code.gs` contents.
+
+### DECISION / IMPACT
+Before any further source retry, Services action, function Run, Deploy/version, or latency smoke, perform one independent strictly read-only inspection of the current saved `Code.gs` state.
+
+If the exact authoritative source is proven present and saved, record that result and proceed to the independent static verification gate. If the file is empty/partial/incorrect, document that state first and then use only a new bounded source-recovery action.
+
+Sheets v4 Advanced Service remains disabled. Latency smoke remains locked. T2 remains not qualified. T3 remains locked.
+
+### SAFETY / ROLLBACK STATE
+No Secret value or Script Property was read or changed by this polling/resume step. No function Run, Deploy/version, Services change, production spreadsheet/business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, T3, Gaber Material Control, RP-08, or merge occurred.
