@@ -67,3 +67,76 @@ No V4/V5 change occurred.
 No Worker promotion/custom route/domain change occurred.
 No D1 business-write authority transfer occurred.
 No T3, Gaber Material Control, RP-08, or merge to main occurred.
+
+---
+
+## 2026-09-17 22:35 EEST — deterministic saved-Head verification completed: FAIL
+
+### STEP
+Confirmed branch head was exactly checkpoint `cd13b00767c3a7da0c338661bffa4a8b79f1d9bd`, then opened the exact isolated T2 Apps Script project with Browser Context Profile `prof_1d816f291ab64d65` for a deterministic read-only verification of the currently saved `Code.gs`.
+
+TinyFish run: `02aaf235-a00e-4a21-b177-7f0e37248db4`.
+
+No source edit, typing, Save, function Run, Deploy/version creation, Script Properties/Secret access, Services change, triggers/settings/manifest change, other-project access, or business-data mutation was permitted or performed.
+
+### RESULT
+Overall static verification: **FAIL**.
+
+Required markers positively found:
+- `TASKS_V3_READONLY_T2_WAEL_CANARY_3_BATCHGET` — found once; visible at line 7.
+- exact approved source-column constant `['A', 'E', 'F', 'J', 'K', 'M', 'R', 'AG', 'AS']` — found once; visible at line 9.
+
+Required markers not found by whole-file Monaco search:
+- `Sheets.Spreadsheets.Values.batchGet`
+- `majorDimension: 'COLUMNS'`
+- `valueRenderOption: 'FORMATTED_VALUE'`
+- `Utilities.Charset.UTF_8`
+- `function tasksV3ProductionProjection_`
+- `function tasksV3Status_`
+- `function tasksV3Health_`
+
+Forbidden executable markers were not found:
+- `claimNext`
+- `completeTask`
+- executable `getDataRange`
+- `function tasksV3Column_`
+- sequential `getRange(...).getDisplayValues()` path
+- broad `A:AS` source read
+- `Values.update`
+- `Values.append`
+- `batchUpdate`
+- `setValue` / `setValues`
+- `appendRow` / `appendRows`
+- `clear`
+- `insert`
+- `delete`
+
+Header comments contain documentation-only mentions such as `No getDataRange`; these are not executable calls.
+
+The browser inspection also reported a native Apps Script `getRangeList(...).getValues()` read shape rather than the required Advanced Sheets API `batchGet` implementation. This observation is diagnostic only; the verification FAIL is already established by the missing required literal markers above.
+
+### DECISION / IMPACT
+The verification gate did **not** pass. Therefore, per the owner-approved sequence:
+- **Google Sheets API / Sheets v4 Advanced Service was NOT enabled.**
+- **No latency smoke was executed.**
+- No function Run was executed.
+- No Deploy/version was created.
+- T2 remains not qualified.
+- T3 remains locked.
+
+Do not proceed to Services or latency smoke until the saved Head discrepancy is reconciled and a subsequent independent deterministic static verification passes all required markers.
+
+### SAFETY / ROLLBACK STATE
+No Secret value was read, displayed, copied, changed, or rotated.
+No Script Properties were opened or changed.
+No Apps Script source edit or Save occurred during verification.
+No Advanced Service was enabled.
+No function was executed.
+No deployment/version was created or changed.
+No production spreadsheet/business-data write occurred.
+No Task mutation, `claimNext`, or `completeTask` occurred.
+No T1 change occurred.
+No V4/V5 change occurred.
+No Worker promotion/custom route/domain change occurred.
+No D1 business-write authority transfer occurred.
+No T3, Gaber Material Control, RP-08, or merge to main occurred.
