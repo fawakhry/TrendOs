@@ -195,3 +195,33 @@ The reconciliation plan remains valid and unchanged, but must execute in a TinyF
 
 ### SAFETY / ROLLBACK STATE
 No Secret value was read, displayed, copied, changed, or rotated. No Script Properties were opened or changed. No Apps Script source edit or Save occurred in this blocked attempt. No Services change, function Run, Deploy/version, production business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, T3, Gaber Material Control, RP-08, or merge occurred.
+
+---
+
+## 2026-09-18 00:43 EEST — bounded source reconciliation timed out after editor mutation began
+
+### STEP
+Confirmed branch head as checkpoint `58480d4ec102112b959d54de5bda957f330eabb6`. Fetched the exact repository source `tasks-v3-bridge-readonly.gs` from commit `31565dfdbf7b63744b32b02e5042a5f6b0664249`; source blob SHA is `e515103e32e01643cbe60832df9ed1bbf0f6c6d8`.
+
+Started the approved bounded reconciliation against isolated Apps Script project `1F7_z6csPm4Q6Sx-HV59SNDbShqzVcMXfsauZFakLFH_caEYpiCHjTOGV` using Browser Context Profile `prof_1d816f291ab64d65`.
+
+TinyFish run: `4eedb76f-d5a3-432e-a32a-b57def700bb1`.
+
+The run was explicitly limited to:
+- copy the full raw source from commit `31565df...`;
+- replace `Code.gs` only;
+- Save Head only;
+- stop before verification, Services, function Run, Deploy/version, Properties/Secrets, settings, or business-data access.
+
+### RESULT / FAILURE
+The browser run entered the Apps Script editor and began editor mutation. Its progress included selection/deletion and save-related steps, but it did not return a terminal success confirmation for the intended exact-source replacement. The run ultimately FAILED with provider timeout after 82 steps / roughly 1198 seconds.
+
+Because the run crossed the mutation boundary before timing out, the current saved Head state is **UNKNOWN**. It is not safe to assume either that the exact source was fully applied or that the previous Head remains intact.
+
+### DECISION / IMPACT
+Before any retry, verification, Services enablement, or function execution, perform a strictly read-only state inspection of the isolated `Code.gs` to establish the actual saved Head state. Do not enable Google Sheets API / Sheets v4 and do not run latency smoke while the Head state is unknown.
+
+If the read-only inspection proves the exact authoritative source is already saved, proceed to the separate deterministic verification gate. If it proves the file is empty/partial/mismatched, re-run only the bounded exact-source reconciliation and save Head, then verify independently.
+
+### SAFETY / ROLLBACK STATE
+No Secret value was read, displayed, copied, changed, or rotated. No Script Properties were opened or changed. No function Run or Deploy/version was requested or performed. No Services change was requested or performed. No business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, T3, Gaber Material Control, RP-08, or merge occurred. Apps Script `Code.gs` Head may have been modified; its exact saved state must be reconciled read-only before proceeding.
