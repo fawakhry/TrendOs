@@ -116,3 +116,28 @@ Before any retry or any Advanced Service change, inspect the isolated T2 `Code.g
 
 ### SAFETY / ROLLBACK STATE
 No deployment/version creation was requested or authorized in this run. No function Run, Properties/Secret access, business-data write, Task mutation, T1 change, V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge is known to have occurred. Service enabling was explicitly deferred until static verification and was not requested in this run.
+
+---
+
+## 2026-09-17 19:11 EEST — post-timeout static Head inspection
+
+### STEP
+Performed a new TinyFish read-only inspection of the exact isolated project URL after the timed-out apply attempt. Run: `bfc7806e-a181-412a-9b2f-2a14fc553161`. The run was explicitly prohibited from editing, saving, running, deploying, changing Services/settings/triggers/manifest/Properties, or accessing business data.
+
+### RESULT / FAILURE
+The saved `Code.gs` Head did not contain any required batchGet staging markers. TinyFish reported all required markers absent, including:
+- `TASKS_V3_READONLY_T2_WAEL_CANARY_3_BATCHGET`
+- approved `TASKS_V3_T2_SOURCE_COLUMNS`
+- `Sheets.Spreadsheets.Values.batchGet`
+- `majorDimension: 'COLUMNS'`
+- `valueRenderOption: 'FORMATTED_VALUE'`
+- `Utilities.Charset.UTF_8`
+- `tasksV3ProductionProjection_`, `tasksV3Status_`, `tasksV3Health_`
+
+Forbidden markers `function tasksV3Column_(`, `claimNext`, `completeTask`, and `getDataRange` were also absent. The editor showed no unsaved changes. TinyFish described the visible Head as only generic/template functions (`onOpen`, `showPrompt`, `showAlert`) rather than the expected T2 bridge.
+
+### DECISION / IMPACT
+Static verification FAILS. Do not enable Google Sheets API / Sheets v4 yet. Proceed only with a simpler bounded source-apply operation to replace `Code.gs` with the already-verified staging candidate, Save Head only, then repeat static verification in a separate read-only run.
+
+### SAFETY / ROLLBACK STATE
+This inspection performed no mutation. No Deploy/version, Run, Properties/Secret access, Services change, business-data write, Task mutation, T1/V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred.
