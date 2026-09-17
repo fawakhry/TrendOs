@@ -134,3 +134,29 @@ Next permitted action is to restore the isolated project's Head from that exact 
 
 ### SAFETY / ROLLBACK STATE
 No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Script Property value read, spreadsheet write, business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
+
+---
+
+## 2026-09-17 17:44 EEST — Head restore automation timed out; final Head state unknown
+
+### STEP
+Per the resume checkpoint, did not start a new TinyFish automation. Polled the existing restore run `f415ca69-c278-40b3-85e4-2b325f425b00` until terminal before any further Apps Script action.
+
+Immediately before recording this result, confirmed branch `tasks-v3-t2-readonly-wael-canary-20260916` head was still `d6d4cc6313361062331cd1d9aed02105dfb0c834`.
+
+The run had been attempting to restore only the isolated Apps Script Head from repository source blob `87a94fa4a932eb94a819d7e964eecf3bbfc5626a`, with no deployment requested.
+
+### RESULT / FAILURE
+TinyFish terminal status: `FAILED`.
+
+Error: `This task timed out before it finished. Try a simpler goal, or retry.`
+
+Run metadata: duration `1199s`, stepCount `79`.
+
+Because the run timed out while interacting with the Monaco editor and did not return a terminal success/result confirming the final editor contents or save state, the restore is NOT considered successful. The current Apps Script Head state is explicitly **unknown/indeterminate** until a deterministic read-only verification is performed. No assumption is made that the prior 33-line truncated Head remains unchanged, and no assumption is made that the full repository source was saved.
+
+### DECISION / IMPACT
+Freeze further remediation work until the current Head is re-read deterministically. Do not run benchmarks, instrumentation, deployment, or qualification against an unverified Head. The next safe action is a read-only exact source verification of `Code.gs`; if the full baseline is present, continue with static safety/contract verification. If it is partial/truncated or otherwise inconsistent, record that failure and restore the baseline using a safer bounded method before continuing.
+
+### SAFETY / ROLLBACK STATE
+No new TinyFish run was created during this resume step. No deployment was requested by the timed-out restore automation, and V4/V5 plus active T1 remain the documented rollback/reference state. No Secret value was read, displayed, copied, changed, or rotated; no Script Properties were intentionally opened or changed; no production business-data write, spreadsheet/schema write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge was performed by this resume step. Because the editor automation timed out, the isolated Head source/save state itself remains unverified and must not be represented as unchanged.
