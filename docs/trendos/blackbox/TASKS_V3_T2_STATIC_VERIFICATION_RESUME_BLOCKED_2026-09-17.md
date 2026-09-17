@@ -67,3 +67,47 @@ No V4/V5 change occurred.
 No Worker promotion/custom route/domain change occurred.
 No D1 business-write authority transfer occurred.
 No T3, Gaber Material Control, RP-08, or merge to main occurred.
+
+---
+
+## 2026-09-17 ~20:06 EEST — independent saved-Head static verification did not pass
+
+### STEP
+Re-confirmed branch head before the browser inspection as `2fd38840a14f5f722480cdd55dee2867b7fc69bd`. Ran an independent TinyFish browser inspection against the exact isolated T2 Apps Script project using Browser Context Profile `prof_1d816f291ab64d65`.
+
+TinyFish run: `3db4fc46-e28e-4a81-b52d-0116eca33707`.
+
+The run was explicitly read-only. It was prohibited from editing/typing, Save, function Run, Deploy/version creation, Script Properties/Secret access, Services changes, triggers/settings/manifest changes, or business-data mutation.
+
+### RESULT / FAILURE
+TinyFish completed but reported the static verification as **FAIL / PARTIALLY COMPLETE**, not PASS.
+
+Markers positively observed:
+- `TASKS_V3_READONLY_T2_WAEL_CANARY_3_BATCHGET`
+- exact approved source-column constant: `['A', 'E', 'F', 'J', 'K', 'M', 'R', 'AG', 'AS']`
+- no `claimNext`
+- no `completeTask`
+- no executable `getDataRange`
+- no `tasksV3Column_`
+- no sequential `getRange(...).getDisplayValues()` path
+- no broad `A:AS` read was established
+
+Required markers that this independent run did **not** prove present and reported as not found:
+- `Sheets.Spreadsheets.Values.batchGet`
+- `majorDimension: 'COLUMNS'`
+- `valueRenderOption: 'FORMATTED_VALUE'`
+- `Utilities.Charset.UTF_8`
+- `tasksV3ProductionProjection_`
+- `tasksV3Status_`
+
+The run reported `tasksV3Health_` inconsistently (referenced/present in one section, definition not confirmed in another), and also reported generic ambiguous hits for write-like method names without attributing them deterministically to executable `Code.gs` source. It explicitly stated that full-file coverage was not complete in one deterministic view.
+
+Therefore this run is not accepted as a PASS and does not satisfy the service-enable gate.
+
+### DECISION / IMPACT
+Per the owner-approved gate, **Google Sheets API / Sheets v4 Advanced Service was NOT enabled** because static verification did not PASS. No latency smoke was run because the prerequisite gate was not met.
+
+Keep T2 Head frozen pending a deterministic read-only verification that proves all required markers present and all forbidden mutation paths absent. Do not infer source rollback or source corruption from this incomplete browser extraction alone; the prior successful Head apply remains separately documented.
+
+### SAFETY / ROLLBACK STATE
+No source edit or Save occurred in the verification run. No function executed. No Deploy/version was created or changed. No Script Properties or Secret values were opened/read/changed. No Services were changed. No spreadsheet/business-data write or Task mutation occurred. No T1/V4/V5/Worker route change occurred. T3 remains locked.
