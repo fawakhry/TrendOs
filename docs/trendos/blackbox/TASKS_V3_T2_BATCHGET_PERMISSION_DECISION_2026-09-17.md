@@ -67,3 +67,24 @@ Scope of approval:
 - does not authorize any write operation, wider source-column footprint, timeout increase, deployment promotion, T1 change, V4/V5 overwrite, Secret/property changes, T3, merge to main, or production business-data mutation.
 
 Execution order remains: restore/verify isolated Head baseline first, enable Sheets service, implement batchGet read path, static safety/contract verification, read-only smoke/latency diagnostic, then only if qualified create a new isolated version/deployment and run the exact 30-sample qualification.
+
+---
+
+## Repo-only batchGet implementation prepared
+
+Commit: `31565dfdbf7b63744b32b02e5042a5f6b0664249`.
+
+Changed only `tasks-v3-bridge-readonly.gs` on the T2 branch. No Apps Script live project/deployment was changed by this commit.
+
+Implementation details:
+- version marker advanced to `TASKS_V3_READONLY_T2_WAEL_CANARY_3_BATCHGET`;
+- approved columns are centralized as exactly `A, E, F, J, K, M, R, AG, AS`;
+- business projection now uses one read-only `Sheets.Spreadsheets.Values.batchGet(...)` request;
+- requested ranges are open-ended single columns from row 2 on the same source sheet, avoiding a separate `getLastRow()`/nine-`getRange()` sequence;
+- `majorDimension` is `COLUMNS` and `valueRenderOption` is `FORMATTED_VALUE`;
+- output projection/filtering semantics remain unchanged;
+- `health` path remains on the existing built-in Spreadsheet service for source readiness diagnostics;
+- HMAC remains explicit UTF-8;
+- no write API was introduced.
+
+Safety state remains unchanged: no Secret/property access, no production data write, no Task mutation, no deploy/version change, no T1/V4/V5 change, no T3.
