@@ -220,3 +220,25 @@ Retry the identical restore intent without any custom `agent_config` step/durati
 
 ### SAFETY / ROLLBACK STATE
 Because the request was rejected before run creation, no browser session was started and no Apps Script mutation occurred. No code edit/save, function execution, deployment, version, Script Property/secret access, Service/settings change, spreadsheet/business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred.
+
+---
+
+## 2026-09-17 17:55 EEST — deterministic Drive export proves Code.gs is byte-empty; revisions unsupported
+
+### STEP
+Before this write, confirmed branch head `66174a8b2c4832fd3bea44c8b97a362799a8a4f3`. Used the authenticated Google Drive connector against the isolated Apps Script file ID `1F7_z6csPm4Q6Sx-HV59SNDbShqzVcMXfsauZFakLFH_caEYpiCHjTOGV` strictly read-only. File metadata confirmed MIME type `application/vnd.google-apps.script`, owner `d.fawakhry@gmail.com`, and writer `trendmall.contact@gmail.com`.
+
+Fetched the project through canonical Drive file URL using raw export MIME type `application/vnd.google-apps.script+json`. This is a deterministic project export independent of the Monaco editor. Then attempted a read-only Drive revision listing for the same file ID.
+
+### RESULT / FAILURE
+The raw Apps Script project export is 738 bytes and contains exactly two project files: manifest `appsscript` plus `Code` (`server_js`). The exported `Code` entry is byte/content-empty: `"source":""`. The manifest remains present and lists timezone `Africa/Cairo`, V8 runtime, webapp access/execute settings, and the existing AdSense/AdminDirectory advanced services.
+
+Therefore the current isolated Apps Script **Head Code.gs is deterministically empty**, not merely visually empty or truncated. Repository restoration baseline remains blob `87a94fa4a932eb94a819d7e964eecf3bbfc5626a`.
+
+Drive revision listing failed read-only with HTTP 403 `revisionsNotSupported`; Apps Script Drive files do not expose Drive revision history through this path, so no prior Head can be recovered via `revisions.list`.
+
+### DECISION / IMPACT
+Do not benchmark, instrument, deploy, or qualify the empty Head. The only verified restoration source remains repository blob `87a94fa...`. Any restore must affect only isolated Head `Code.gs`, preserve the existing manifest, create no version/deployment, and be followed immediately by another deterministic `application/vnd.google-apps.script+json` export comparing the restored Code source to the repository baseline before any execution.
+
+### SAFETY / ROLLBACK STATE
+All Google Drive actions in this step were read-only. No Apps Script source write, manifest/Service change, function execution, deployment/version creation, Script Property/secret access, spreadsheet/business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 deployments and active T1 remain untouched.
