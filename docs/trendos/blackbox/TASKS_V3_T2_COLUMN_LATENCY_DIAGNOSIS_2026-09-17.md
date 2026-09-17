@@ -160,3 +160,23 @@ Freeze further remediation work until the current Head is re-read deterministica
 
 ### SAFETY / ROLLBACK STATE
 No new TinyFish run was created during this resume step. No deployment was requested by the timed-out restore automation, and V4/V5 plus active T1 remain the documented rollback/reference state. No Secret value was read, displayed, copied, changed, or rotated; no Script Properties were intentionally opened or changed; no production business-data write, spreadsheet/schema write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge was performed by this resume step. Because the editor automation timed out, the isolated Head source/save state itself remains unverified and must not be represented as unchanged.
+
+---
+
+## 2026-09-17 17:44 EEST — read-only Head verification launch blocked before run creation
+
+### STEP
+After recording the terminal timeout above, attempted the next safe action only: start a bounded read-only verification of the current isolated Apps Script `Code.gs` state using Browser Context Profile `prof_1d816f291ab64d65`. The goal was only to determine whether Head remained 33-line truncated, became the full repository baseline, or was left in an intermediate state. No edit/save/deploy/execute/property/service/settings action was requested.
+
+Immediately before this repository write, confirmed branch head `9e9e88d327cf4d4b1d6bf4f4e0b4eac1b1466c73`.
+
+### RESULT / FAILURE
+TinyFish refused the automation before any browser run was created, returning: `Resource not found: TinyFish.run_web_automation.`
+
+Therefore there is no new TinyFish run ID, no browser session was started by this attempt, and no new evidence about the current `Code.gs` contents was produced. The isolated Head state remains explicitly **unknown/indeterminate** after the timed-out restore attempt.
+
+### DECISION / IMPACT
+Do not retry the restore, do not benchmark, instrument, deploy, or qualify while Head is unverified. The next action remains a deterministic read-only `Code.gs` verification once TinyFish `run_web_automation` is available again. Only after that verification may baseline restoration or safety/contract verification proceed.
+
+### SAFETY / ROLLBACK STATE
+This failed launch caused no Apps Script browser session and no Apps Script mutation. No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Secret value access, spreadsheet write, production business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched as the documented rollback/reference state.
