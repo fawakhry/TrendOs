@@ -141,3 +141,21 @@ Static verification FAILS. Do not enable Google Sheets API / Sheets v4 yet. Proc
 
 ### SAFETY / ROLLBACK STATE
 This inspection performed no mutation. No Deploy/version, Run, Properties/Secret access, Services change, business-data write, Task mutation, T1/V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred.
+
+---
+
+## 2026-09-17 19:15 EEST — staging-doc copy path cancelled before permission expansion
+
+### STEP
+Started TinyFish run `081bf543-ef0e-4e2b-a239-8c8ca065d8dc` to perform only Select All/Copy from the verified staging Google Doc, then Paste/Save into isolated `Code.gs`.
+
+### RESULT / FAILURE
+The staging document was read-only for the browser profile. TinyFish moved toward requesting edit access (`Request edit access` / `Submit access request`) instead of completing a pure copy operation. This would expand permissions outside the bounded source-apply task.
+
+The run was cancelled before proceeding further. No Apps Script source apply was confirmed and no service change occurred.
+
+### DECISION / IMPACT
+Do not request additional Google Doc permissions. Use the exact same staging candidate from repository commit `31565dfdbf7b63744b32b02e5042a5f6b0664249`, which was already verified against the staging document and passed CI, via a read-only raw GitHub source path. Apply that exact text to isolated `Code.gs`, Save Head only, then perform static verification separately.
+
+### SAFETY / ROLLBACK STATE
+No new permission request is relied upon. No Deploy/version, Run, Properties/Secret access, Services change, business-data write, Task mutation, T1/V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred in this cancelled path.
