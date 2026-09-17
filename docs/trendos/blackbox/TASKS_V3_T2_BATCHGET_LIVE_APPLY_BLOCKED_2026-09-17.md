@@ -73,3 +73,28 @@ No D1 business-write authority transfer occurred.
 No T3, Gaber Material Control, RP-08, or merge to main occurred.
 
 Existing V4/V5 and active T1 remain the rollback/reference state.
+
+---
+
+## 2026-09-17 18:46 EEST — resume baseline revalidated before live apply
+
+### STEP
+Resumed exactly from checkpoint `0e12faf5a36f627166cc5fb183b01e8b0f120c92`. Re-fetched branch `tasks-v3-t2-readonly-wael-canary-20260916` before any live mutation and confirmed the current branch head is still exactly `0e12faf5a36f627166cc5fb183b01e8b0f120c92`.
+
+Fetched the repository staging candidate at commit `31565dfdbf7b63744b32b02e5042a5f6b0664249` and revalidated the exact source markers before applying anything live.
+
+### RESULT
+Staging candidate remains the approved batchGet source:
+- version marker `TASKS_V3_READONLY_T2_WAEL_CANARY_3_BATCHGET`
+- approved source columns exactly `A, E, F, J, K, M, R, AG, AS`
+- `Sheets.Spreadsheets.Values.batchGet`
+- `majorDimension: 'COLUMNS'`
+- `valueRenderOption: 'FORMATTED_VALUE'`
+- explicit UTF-8 HMAC retained
+- no `claimNext`, `completeTask`, `getDataRange`, or sheet/schema write path introduced by this candidate
+
+### DECISION / IMPACT
+Proceed with the already-approved bounded live sequence only: apply the verified staging source to `Code.gs` in the isolated T2 project, Save Head only, then perform static verification. Do not deploy, run functions, or open/change Script Properties before static verification passes. Google Sheets API / Sheets v4 Advanced Service may be enabled only after that verification, per owner approval.
+
+### SAFETY / ROLLBACK STATE
+No Apps Script mutation, deployment, function execution, Properties access, Secret access, business-data write, Task mutation, T1 change, V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred during this revalidation step.
