@@ -180,3 +180,25 @@ Do not retry the restore, do not benchmark, instrument, deploy, or qualify while
 
 ### SAFETY / ROLLBACK STATE
 This failed launch caused no Apps Script browser session and no Apps Script mutation. No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Secret value access, spreadsheet write, production business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched as the documented rollback/reference state.
+
+---
+
+## 2026-09-17 17:47 EEST — post-timeout read-only Head verification shows effectively empty Code.gs
+
+### STEP
+Before this repository write, confirmed branch `tasks-v3-t2-readonly-wael-canary-20260916` head `f683b4dc81779a520ca88e185635ff1b3745735d`.
+
+Ran bounded read-only TinyFish verification `7a757dde-5382-4682-b850-5d8491f765bc` against the same isolated Apps Script project using Browser Context Profile `prof_1d816f291ab64d65`. No edit/save/deploy/run/property/settings action was requested.
+
+### RESULT / FAILURE
+The run completed successfully and reported `Code.gs` selected with only line 1 visible, no editor scrollbar, and no additional code present. It concluded the file does not extend beyond line 33 and appears essentially empty.
+
+Therefore the timed-out restore did not leave a verified full baseline in Head. The current observed Head is more incomplete than the prior deterministic 33-line state. This read is sufficient to block all benchmarking/instrumentation/deployment against Head, but it does not claim byte-for-byte empty content beyond what the editor exposed.
+
+The repository baseline was re-read immediately after this observation: `tasks-v3-bridge-readonly.gs` on the current branch still has blob SHA `87a94fa4a932eb94a819d7e964eecf3bbfc5626a`, confirming the intended restoration source has not drifted.
+
+### DECISION / IMPACT
+Do not benchmark, instrument, deploy, or qualify the current Head. Restore only the isolated Apps Script Head from the verified baseline blob using a bounded method, then perform static safety/contract verification before any latency diagnostic execution.
+
+### SAFETY / ROLLBACK STATE
+The verification was read-only. No function execution, deployment, Script Property/secret access, Service/settings change, spreadsheet/business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. Existing V4/V5 deployments and active T1 remain untouched.
