@@ -140,3 +140,32 @@ No V4/V5 change occurred.
 No Worker promotion/custom route/domain change occurred.
 No D1 business-write authority transfer occurred.
 No T3, Gaber Material Control, RP-08, or merge to main occurred.
+
+---
+
+## 2026-09-18 00:19 EEST — saved Head divergence isolated to live Apps Script state
+
+### STEP
+Resumed from documented commit `02f47920843da41fa64d04721438770ca2128b1e`. Re-confirmed the branch head before analysis as exactly that commit.
+
+Compared repository commit `31565dfdbf7b63744b32b02e5042a5f6b0664249` (the owner-approved batchGet source candidate) against current branch head `02f47920843da41fa64d04721438770ca2128b1e`.
+
+### RESULT
+The compare is 15 commits ahead with **no change at all to `tasks-v3-bridge-readonly.gs`** after commit `31565df...`. The only changed files after that source commit are CI/test and Blackbox documentation files.
+
+Therefore the `getRangeList(...).getValues()` implementation observed in saved Apps Script Head is **not represented by any subsequent repository source change**. The authoritative repository candidate remains the exact `31565df...` batchGet implementation.
+
+This establishes a live-source divergence, not an approved repository implementation change.
+
+### DECISION / IMPACT
+The next remediation is a bounded source reconciliation only:
+1. replace isolated T2 `Code.gs` Head with the exact `tasks-v3-bridge-readonly.gs` content from commit `31565dfdbf7b63744b32b02e5042a5f6b0664249`;
+2. Save Head only;
+3. perform a separate deterministic read-only verification;
+4. only if that verification PASSes, enable the already owner-approved Google Sheets API / Sheets v4 Advanced Service;
+5. then run read-only latency smoke.
+
+Do not preserve or benchmark the undocumented `getRangeList` live variant. Do not enable Services against a mismatched Head.
+
+### SAFETY / ROLLBACK STATE
+No Apps Script mutation occurred in this analysis step. No Secret or Script Property was read or changed. No function Run, Deploy/version, Services change, business-data write, Task mutation, T1/V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred.
