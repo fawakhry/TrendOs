@@ -4,8 +4,9 @@
 // No claim/complete routes. No sheet/schema writes. No getDataRange/full 92-column scan.
 
 const TASKS_V3_PROTOCOL = 'TRENDOS_TASKS_V3_READONLY_1';
-const TASKS_V3_T2_VERSION = 'TASKS_V3_READONLY_T2_WAEL_CANARY_2';
+const TASKS_V3_T2_VERSION = 'TASKS_V3_READONLY_T2_WAEL_CANARY_3_BATCHGET';
 const TASKS_V3_T2_SOURCE_SHEET = 'بنود الأوردرات';
+const TASKS_V3_T2_SOURCE_COLUMNS = Object.freeze(['A', 'E', 'F', 'J', 'K', 'M', 'R', 'AG', 'AS']);
 const TASKS_V3_MAX_ASSERTION_AGE_SECONDS = 120;
 const TASKS_V3_T2_TERMINAL_STATUSES = Object.freeze(['تم التسليم', 'ملغى', 'مكرر']);
 
@@ -94,13 +95,18 @@ function tasksV3T2CanaryAllowed_(operator, role) {
   return !!configured && tasksV3Text_(operator).toLowerCase() === configured.toLowerCase();
 }
 
-function tasksV3Spreadsheet_(diagnostic, properties) {
+function tasksV3SpreadsheetId_(diagnostic, properties) {
   const id = tasksV3Text_(
     properties && Object.prototype.hasOwnProperty.call(properties, 'TASKS_V3_T2_SPREADSHEET_ID')
       ? properties.TASKS_V3_T2_SPREADSHEET_ID
       : tasksV3ScriptProperty_('TASKS_V3_T2_SPREADSHEET_ID', diagnostic)
   );
   if (!id) throw new Error('TASKS_V3_T2_SPREADSHEET_ID_NOT_CONFIGURED');
+  return id;
+}
+
+function tasksV3Spreadsheet_(diagnostic, properties) {
+  const id = tasksV3SpreadsheetId_(diagnostic, properties);
   const startedAt = diagnostic ? Date.now() : 0;
   try {
     return SpreadsheetApp.openById(id);
@@ -196,28 +202,39 @@ function tasksV3TerminalStatus_(value) {
   return TASKS_V3_T2_TERMINAL_STATUSES.indexOf(tasksV3Text_(value)) !== -1;
 }
 
-function tasksV3Column_(sheet, column, lastRow) {
-  if (lastRow < 2) return [];
-  return sheet.getRange(column + '2:' + column + lastRow).getDisplayValues().map(function (row) {
-    return row[0];
+function tasksV3BatchColumns_() {
+  const spreadsheetId = tasksV3SpreadsheetId_();
+  const sheetRangePrefix = "'" + TASKS_V3_T2_SOURCE_SHEET + "'!";
+  const ranges = TASKS_V3_T2_SOURCE_COLUMNS.map(function (column) {
+    return sheetRangePrefix + column + '2:' + column;
+  });
+
+  const response = Sheets.Spreadsheets.Values.batchGet(spreadsheetId, {
+    ranges: ranges,
+    majorDimension: 'COLUMNS',
+    valueRenderOption: 'FORMATTED_VALUE'
+  });
+  const valueRanges = response && response.valueRanges ? response.valueRanges : [];
+
+  return TASKS_V3_T2_SOURCE_COLUMNS.map(function (_, index) {
+    const valueRange = valueRanges[index];
+    const values = valueRange && valueRange.values;
+    return values && values[0] ? values[0] : [];
   });
 }
 
 function tasksV3ProductionProjection_() {
-  const sheet = tasksV3SourceSheet_();
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
-
-  // Bounded narrow-column reads only. Production source has 92 columns; T2 reads 9 columns.
-  const orderIds = tasksV3Column_(sheet, 'A', lastRow);
-  const departments = tasksV3Column_(sheet, 'E', lastRow);
-  const lineIds = tasksV3Column_(sheet, 'F', lastRow);
-  const priorities = tasksV3Column_(sheet, 'J', lastRow);
-  const statuses = tasksV3Column_(sheet, 'K', lastRow);
-  const updated = tasksV3Column_(sheet, 'M', lastRow);
-  const pressFlags = tasksV3Column_(sheet, 'R', lastRow);
-  const expectedDelivery = tasksV3Column_(sheet, 'AG', lastRow);
-  const flyFlags = tasksV3Column_(sheet, 'AS', lastRow);
+  // One read-only Sheets API request for exactly the approved 9 non-contiguous source columns.
+  const columns = tasksV3BatchColumns_();
+  const orderIds = columns[0] || [];
+  const departments = columns[1] || [];
+  const lineIds = columns[2] || [];
+  const priorities = columns[3] || [];
+  const statuses = columns[4] || [];
+  const updated = columns[5] || [];
+  const pressFlags = columns[6] || [];
+  const expectedDelivery = columns[7] || [];
+  const flyFlags = columns[8] || [];
 
   const out = [];
   for (let i = 0; i < lineIds.length; i++) {
