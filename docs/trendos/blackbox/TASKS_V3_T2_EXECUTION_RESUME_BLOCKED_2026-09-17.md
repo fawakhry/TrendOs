@@ -169,3 +169,29 @@ Do not preserve or benchmark the undocumented `getRangeList` live variant. Do no
 
 ### SAFETY / ROLLBACK STATE
 No Apps Script mutation occurred in this analysis step. No Secret or Script Property was read or changed. No function Run, Deploy/version, Services change, business-data write, Task mutation, T1/V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred.
+
+---
+
+## 2026-09-18 00:20 EEST — bounded source reconciliation blocked before browser run creation
+
+### STEP
+Confirmed branch head after the divergence-isolation checkpoint as `ee9dbc9434ce1ed5a7299df517e6e7cc7c10ecb0`.
+
+Attempted the approved bounded reconciliation using Browser Context Profile `prof_1d816f291ab64d65`:
+- open exact repository source at commit `31565dfdbf7b63744b32b02e5042a5f6b0664249`;
+- copy the full `tasks-v3-bridge-readonly.gs` file exactly;
+- open isolated T2 Apps Script project `1F7_z6csPm4Q6Sx-HV59SNDbShqzVcMXfsauZFakLFH_caEYpiCHjTOGV`;
+- replace `Code.gs` only;
+- Save Head only;
+- stop before any verification, Services, Run, Deploy/version, Properties, settings, or business-data access.
+
+### RESULT / BLOCKER
+`TinyFish.run_web_automation` returned `Resource not found` before creating a browser run. The connector was rediscovered as required and the exact same bounded call was attempted once more; it again returned `Resource not found` before run creation.
+
+No TinyFish run ID exists for either attempt. Therefore the reconciliation did **not** start and no Apps Script source mutation occurred.
+
+### DECISION / IMPACT
+The reconciliation plan remains valid and unchanged, but must execute in a TinyFish session where browser execution is operational. The next live action is still source reconciliation from exact commit `31565df...`, followed by a separate deterministic read-only verification. Do not enable Sheets v4, run latency smoke, deploy, or start T3 until that verification passes.
+
+### SAFETY / ROLLBACK STATE
+No Secret value was read, displayed, copied, changed, or rotated. No Script Properties were opened or changed. No Apps Script source edit or Save occurred in this blocked attempt. No Services change, function Run, Deploy/version, production business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, T3, Gaber Material Control, RP-08, or merge occurred.
