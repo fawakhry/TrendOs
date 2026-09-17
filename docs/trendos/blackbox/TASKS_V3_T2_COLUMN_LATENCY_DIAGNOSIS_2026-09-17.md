@@ -108,3 +108,29 @@ Do not restore, edit, deploy, run, or benchmark yet. Next read-only action is to
 
 ### SAFETY / ROLLBACK STATE
 No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Script Property value read, spreadsheet write, business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
+
+---
+
+## 2026-09-17 17:09 EEST — complete project file inventory confirms truncated Head
+
+### STEP
+Before this repository write, confirmed branch head `daad51e40810874ad6090ead9f5f2bc65cc7a5df`.
+
+Used TinyFish Browser Context Profile `prof_1d816f291ab64d65` to enumerate the isolated Apps Script project's Files pane strictly read-only.
+
+TinyFish run: `424a05f6-4c88-4fb2-ab69-bfc24bac913a`.
+
+### RESULT / FAILURE
+The project contains exactly one source file: `Code.gs`. There are no additional `.gs` files or folders in the Files pane, and `appsscript.json` is not visible.
+
+Combined with the deterministic 33-line extraction from run `62dde7b3-b6c0-4ce8-a868-151960c9b240`, this proves the current Apps Script Head source is truncated and does not contain the complete repository bridge implementation.
+
+The UI also lists AdSense and AdminDirectory under Libraries/Services; no Advanced Sheets service was observed. No service configuration was changed.
+
+### DECISION / IMPACT
+The live Head cannot be used as the current business-read baseline or benchmark target. The safe baseline restoration source is repository blob `87a94fa4a932eb94a819d7e964eecf3bbfc5626a`, which is the exact source previously published as V5 and contains the full T2 read-only bridge with explicit UTF-8 HMAC and nine approved narrow source columns.
+
+Next permitted action is to restore the isolated project's Head from that exact repository source only (no deployment), then perform static safety/contract verification before any read-only diagnostic execution.
+
+### SAFETY / ROLLBACK STATE
+No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Script Property value read, spreadsheet write, business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
