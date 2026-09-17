@@ -58,3 +58,27 @@ Do not edit, deploy, run, or benchmark live Apps Script Head based on these summ
 
 ### SAFETY / ROLLBACK STATE
 No code edit/save, function execution, deployment, Services change, manifest change, property access, trigger/settings change, spreadsheet write, business-data write, Task mutation, T1 change, secret access, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
+
+---
+
+## 2026-09-17 17:01 EEST — deterministic source retrieval attempt remained incomplete
+
+### STEP
+Immediately before this repository write, re-fetched branch `tasks-v3-t2-readonly-wael-canary-20260916` and confirmed head remained `12cadbc02ee83e5427b120ba80486c505ee7d403`.
+
+Opened the same isolated Apps Script project with TinyFish Browser Context Profile `prof_1d816f291ab64d65` and requested a strictly read-only, non-mutating, exact-text retrieval of `Code.gs`; no source inference or summarization was permitted.
+
+TinyFish run: `696c1462-1618-4dcf-92f1-fd2282b38251`.
+
+### RESULT / FAILURE
+TinyFish returned the first visible 32 lines of `Code.gs` verbatim. Those lines match the opening portion of repository blob `87a94fa4a932eb94a819d7e964eecf3bbfc5626a` through the start of `doPost` assertion handling.
+
+However, the same TinyFish result explicitly warned that the extraction may contain only the visible editor viewport and may not include source beyond line 32. Therefore this run does NOT establish an exact full-Head source baseline and does not resolve the earlier contradictory browser readouts.
+
+No conclusion is drawn about the implementation below the captured viewport, including the business-read path, enabled services, manifest, or any previously reported wide-read/RangeList shapes.
+
+### DECISION / IMPACT
+Keep the live Apps Script Head frozen. Do not edit, save, execute, deploy, or benchmark Head until the complete source is retrieved deterministically or another authoritative read-only source is available. Repository blob `87a94fa...` plus the previously recovered latency-probe execution logs remain the deterministic evidence baseline for analysis only.
+
+### SAFETY / ROLLBACK STATE
+No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Script Property value read, spreadsheet write, business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
