@@ -202,3 +202,21 @@ Do not benchmark, instrument, deploy, or qualify the current Head. Restore only 
 
 ### SAFETY / ROLLBACK STATE
 The verification was read-only. No function execution, deployment, Script Property/secret access, Service/settings change, spreadsheet/business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. Existing V4/V5 deployments and active T1 remain untouched.
+
+---
+
+## 2026-09-17 17:51 EEST — bounded restore launch rejected before run creation
+
+### STEP
+Attempted to start a bounded restore of only the isolated Apps Script Head `Code.gs` from the verified raw repository source. The automation explicitly prohibited function execution, deployment, version creation, Script Properties, Services, and settings changes.
+
+Immediately before this event the branch head was `d3199cae58692b6c20851d0411752e52db45dc22` and the verified repository source blob remained `87a94fa4a932eb94a819d7e964eecf3bbfc5626a`.
+
+### RESULT / FAILURE
+TinyFish rejected the request before creating a run because this account is not enabled for custom max steps. HTTP 400: `Your account is not enabled for custom max steps yet.` No run ID was created.
+
+### DECISION / IMPACT
+Retry the identical restore intent without any custom `agent_config` step/duration controls. Do not change the restoration source or safety boundaries.
+
+### SAFETY / ROLLBACK STATE
+Because the request was rejected before run creation, no browser session was started and no Apps Script mutation occurred. No code edit/save, function execution, deployment, version, Script Property/secret access, Service/settings change, spreadsheet/business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred.
