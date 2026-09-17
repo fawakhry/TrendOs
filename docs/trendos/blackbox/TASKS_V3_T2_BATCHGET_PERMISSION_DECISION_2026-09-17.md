@@ -53,3 +53,17 @@ No D1 business-write authority transfer occurred.
 No T3, Gaber Material Control, RP-08, or merge to main occurred.
 
 Existing V4/V5 and active T1 remain the rollback/reference state.
+
+---
+
+## 2026-09-17 — owner decision received
+
+Owner explicitly approved **Advanced Sheets Service for T2 only**.
+
+Scope of approval:
+- applies only to isolated Apps Script project `1F7_z6csPm4Q6Sx-HV59SNDbShqzVcMXfsauZFakLFH_caEYpiCHjTOGV`;
+- permits enabling the Advanced Google Sheets service in that isolated project;
+- permits replacing the nine sequential approved-column reads with a `spreadsheets.values.batchGet` implementation over exactly `A, E, F, J, K, M, R, AG, AS`;
+- does not authorize any write operation, wider source-column footprint, timeout increase, deployment promotion, T1 change, V4/V5 overwrite, Secret/property changes, T3, merge to main, or production business-data mutation.
+
+Execution order remains: restore/verify isolated Head baseline first, enable Sheets service, implement batchGet read path, static safety/contract verification, read-only smoke/latency diagnostic, then only if qualified create a new isolated version/deployment and run the exact 30-sample qualification.
