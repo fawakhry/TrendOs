@@ -77,3 +77,34 @@ Existing V4/V5 and active T1 remain the rollback/reference state.
 ## Resume action
 
 Use a conversation/session where `TinyFish.run_web_automation` is available with Browser Context Profile `prof_1d816f291ab64d65` and execute ONLY the bounded staging-document-to-`Code.gs` Head restore described above. Then perform a fresh read-only static contract verification before any latency instrumentation, benchmark, deployment, or qualification.
+
+---
+
+## 2026-09-17 18:20 EEST — restore retry blocked again; latency path decision evidence tightened
+
+### STEP
+Confirmed branch head remained `14cbcb78a0d148ee6e50c9e09a84631eb82828eb` before this write. Re-discovered TinyFish browser automation and retried ONLY the bounded staging-document-to-`Code.gs` Head restore using Browser Context Profile `prof_1d816f291ab64d65`.
+
+The requested action remained limited to replacing `Code.gs` from staging document `1iwWgHmwV4x-W4gxAPde7coMNYfjR3EMzQjW0mJCY53o`, saving Head, verifying marker/function presence, and stopping before any deploy/run/properties/services/settings action.
+
+### RESULT / FAILURE
+`TinyFish.run_web_automation` again returned `Resource not found` before any browser run was created. Therefore no Apps Script change occurred and the isolated Head remains un-restored/unverified.
+
+Google Drive search also confirmed the shared Apps Script project is not exposed through the current Drive connector as an `application/vnd.google-apps.script` file that can be safely updated in place, so Drive cannot substitute for the browser restore path.
+
+Repository searches found no existing `clasp`, `script.googleapis.com`, or Apps Script API deployment/update workflow in `fawakhry/TrendOs` that could restore Head without introducing a new authentication mechanism.
+
+### LATENCY DECISION EVIDENCE
+Official Google Apps Script documentation confirms `RangeList` exposes `getRanges()` but no bulk `getValues()` / `getDisplayValues()` method. Therefore `RangeList` does not provide a documented single-call value retrieval replacement for the current nine narrow reads.
+
+Official Google Sheets API documentation confirms `spreadsheets.values.batchGet` can retrieve multiple A1 ranges in one request and defaults to `FORMATTED_VALUE`, which matches the existing `getDisplayValues()` semantics closely for the approved nine source columns. Google also documents that the Advanced Sheets service must be explicitly enabled before use in Apps Script.
+
+This tightens the technical decision boundary: the known documented single-request path for the same nine non-contiguous ranges is Sheets API `values.batchGet`, but using the Advanced Sheets service would change the isolated Apps Script project's Services configuration and therefore is NOT performed implicitly.
+
+### DECISION / IMPACT
+Continue to freeze live Head remediation until the baseline restore can be completed in an authenticated browser session. No latency benchmark, deployment, or qualification should run against the broken Head.
+
+Once Head is restored and static contract verification passes, a no-Service-change experiment can still benchmark `RangeList.getRanges()` plus reads if desired, but it is not treated as a documented bulk-read solution. If the owner wants the documented one-request approach, explicit approval is required before enabling Advanced Sheets service / changing project service configuration.
+
+### SAFETY / ROLLBACK STATE
+No browser run was created by the failed restore attempt. No code edit/save, function execution, deployment, Services/manifest/property/trigger/settings change, Secret value access, spreadsheet write, production business-data write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. Existing V4/V5 and active T1 remain untouched.
