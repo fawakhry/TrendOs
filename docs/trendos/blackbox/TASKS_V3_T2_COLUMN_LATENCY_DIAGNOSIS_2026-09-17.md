@@ -38,3 +38,23 @@ Stop treating repository source as automatically identical to Apps Script Head. 
 
 ### SAFETY / ROLLBACK STATE
 No Apps Script code edit/save/deploy/run occurred. No Script Properties were opened or changed. No secret value was read, copied, displayed, changed, or rotated. No business-data write, sheet/schema write, Task mutation, `claimNext`, `completeTask`, T1 change, Worker promotion, custom route/domain change, D1 business-write authority, T3, Gaber Material Control, RP-08, or merge occurred. Existing V4/V5 deployments remain untouched and are the rollback/reference state documented in prior checkpoints.
+
+---
+
+## 2026-09-17 16:25 EEST — contradictory second browser readout
+
+### STEP
+Confirmed branch head before this write remained `f48a6d50ade0303ca885e50c8648b76cbbcd25ae`. Performed a second independent TinyFish read-only inspection of the same isolated Apps Script project to reconcile the reported source drift and inspect Services/manifest state.
+
+TinyFish run: `c3d91116-4641-4c21-9d1f-15184e35a80e`.
+
+### RESULT / FAILURE
+The second browser extraction contradicted both the first extraction and the repository source. It reported a mixture of wide reads (`A2:AS`, `A2:M`) and a `RangeList` over the nine approved columns, plus placeholder/stub functions not present in repository blob `87a94fa...`. It also reported enabled Services `AdSense` and `AdminDirectory`, with no Advanced Sheets API enabled.
+
+Because the two browser extractions are mutually inconsistent and the second description includes source shapes that do not match the repository baseline, these TinyFish summaries are not accepted as authoritative source text. No live-code conclusion is drawn from either summary beyond the fact that the editor is accessible under the requested authenticated profile.
+
+### DECISION / IMPACT
+Do not edit, deploy, run, or benchmark live Apps Script Head based on these summaries. Reconcile the Apps Script Head using an exact-text retrieval method or another deterministic read-only source before changing anything. Until then, the repository blob plus previously recovered execution logs remain the only deterministic source/evidence pair.
+
+### SAFETY / ROLLBACK STATE
+No code edit/save, function execution, deployment, Services change, manifest change, property access, trigger/settings change, spreadsheet write, business-data write, Task mutation, T1 change, secret access, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred. V4/V5 and active T1 remain untouched.
