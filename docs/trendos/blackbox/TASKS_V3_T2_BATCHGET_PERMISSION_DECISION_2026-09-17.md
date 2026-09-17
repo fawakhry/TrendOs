@@ -113,3 +113,25 @@ The batchGet gate specifically locks:
 - no `getDataRange`, `getRange`, `getDisplayValues`, wide `A:AS` read, Sheets write methods, `claimNext`, or `completeTask` in the bridge candidate.
 
 This is repository/CI evidence only. The isolated Apps Script Head is still broken/unrestored because the browser runner has not created a live restore session. No live service/deployment/source mutation is claimed yet.
+
+---
+
+## 2026-09-17 18:41 EEST — staging document advanced to CI-passed batchGet source
+
+### STEP
+Before this repository write, confirmed branch head `185916d145e1e9384e17e803fc6d551b750d858e` and re-fetched `tasks-v3-bridge-readonly.gs` blob `e515103e32e01643cbe60832df9ed1bbf0f6c6d8` from the T2 branch.
+
+Updated temporary staging Google Doc `1iwWgHmwV4x-W4gxAPde7coMNYfjR3EMzQjW0mJCY53o` from the prior `_2` sequential-read baseline to the exact current batchGet candidate source. The write used Google Docs revision guard `requiredRevisionId=ANLCKQn-nvDWoPwMzTnAWaWv2UwFvzm-QFnx_Y4JovAJiELk0bd6D534VqUH05MkMIA1wI0zignLtip4RXvp4EjBbYYt6JNTppqTZ2PluQ` and completed at new revision `ANLCKQmwu2b288OxJze02vPmfQdhTUPSiTayxpFGreJK_y6CXR8ZlwnYRgvuw_veEbWV9Nd4L_deYu39MNmeUiJo_xRwgzw3AQoXgbtKUg`.
+
+### VERIFICATION
+Exact-text checks against the new staging revision confirmed:
+- `TASKS_V3_READONLY_T2_WAEL_CANARY_3_BATCHGET` present;
+- exact source-column constant `['A', 'E', 'F', 'J', 'K', 'M', 'R', 'AG', 'AS']` present;
+- `Sheets.Spreadsheets.Values.batchGet` present;
+- `valueRenderOption: 'FORMATTED_VALUE'` present;
+- old `function tasksV3Column_` absent.
+
+The staging document contains no Secret value. This update changes only the temporary source staging document; it does not change Apps Script Head, Services, deployments, Script Properties, production business data, T1, V4/V5, or Cloudflare traffic.
+
+### NEXT
+The next live action remains bounded to the isolated T2 Apps Script project: replace `Code.gs` with this verified staging source, save Head only, verify static markers, then enable the owner-approved Advanced Sheets Service. No function execution or deployment occurs until those checks pass.
