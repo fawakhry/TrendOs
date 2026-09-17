@@ -110,3 +110,24 @@ Sheets v4, latency smoke, deployment/version, function Run, Properties/Secrets, 
 
 ### SAFETY
 No source edit/Save, function Run, Deploy/version, Services change, Script Properties/Secret access, production business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, or T3 occurred.
+
+---
+
+## 2026-09-18 01:09 EEST — default inspection launch rejected due custom agent limits
+
+### STEP
+Retried the same independent read-only `Code.gs` state inspection using default agent mode, but still supplied custom `max_steps` / `max_duration_seconds` bounds.
+
+### RESULT / FAILURE
+TinyFish returned HTTP 400 before creating any browser run:
+`Your account is not enabled for custom max steps yet. Join the beta program at /beta, then retry.`
+
+No run ID was created and no browser session opened. No Apps Script mutation occurred.
+
+### DECISION / IMPACT
+Retry the exact same read-only inspection with no custom agent configuration at all. Do not begin a new source reconciliation until current saved Head state is established.
+
+Sheets v4, latency smoke, deployment/version, function Run, Properties/Secrets, and T3 remain locked.
+
+### SAFETY
+No source edit/Save, function Run, Deploy/version, Services change, Script Properties/Secret access, production business-data write, Task mutation, T1/V4/V5 change, Worker promotion, D1 authority change, or T3 occurred.
