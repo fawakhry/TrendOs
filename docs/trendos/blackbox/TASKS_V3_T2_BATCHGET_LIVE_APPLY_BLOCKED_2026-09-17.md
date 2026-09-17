@@ -98,3 +98,21 @@ Proceed with the already-approved bounded live sequence only: apply the verified
 
 ### SAFETY / ROLLBACK STATE
 No Apps Script mutation, deployment, function execution, Properties access, Secret access, business-data write, Task mutation, T1 change, V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge occurred during this revalidation step.
+
+---
+
+## 2026-09-17 19:09 EEST — bounded live apply automation timed out
+
+### STEP
+Started TinyFish run `07f98d2b-dad8-4cba-8671-56e7a1088f8c` using Browser Context Profile `prof_1d816f291ab64d65` with the approved sequence: obtain full verified staging source, replace isolated T2 `Code.gs`, Save Head only, then static verification; explicitly prohibited Deploy, Run, Properties, Secret access, Services changes, settings/triggers, and business-data access.
+
+### RESULT / FAILURE
+The browser automation timed out after 1199 seconds at step count 105 before returning a terminal success state. The run repeatedly attempted to extract/export the staging document and navigate between the staging document and Apps Script editor, but did not return authoritative confirmation that `Code.gs` was saved or that static verification completed.
+
+Because the run failed terminally, no assumption is made about the current Apps Script Head state. In particular, this log does NOT claim the staging source was applied, saved, or absent.
+
+### DECISION / IMPACT
+Before any retry or any Advanced Service change, inspect the isolated T2 `Code.gs` read-only and determine its exact current static state. If the approved batchGet markers are already present and forbidden markers absent, treat source apply as completed and proceed only to service enabling. If not, perform a simpler source-apply attempt. Do not deploy, run functions, or access Properties before this verification.
+
+### SAFETY / ROLLBACK STATE
+No deployment/version creation was requested or authorized in this run. No function Run, Properties/Secret access, business-data write, Task mutation, T1 change, V4/V5 change, Worker promotion, T3, Gaber Material Control, RP-08, or merge is known to have occurred. Service enabling was explicitly deferred until static verification and was not requested in this run.
