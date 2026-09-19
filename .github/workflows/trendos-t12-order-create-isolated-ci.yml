@@ -53,6 +53,9 @@ on:
       - 'tests/t12_d1_guarded_recovery_batch_v1.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-d1-guarded-recovery-preview-handler-v1.mjs'
       - 'tests/t12_d1_guarded_recovery_preview_handler_v1.test.mjs'
+      - 'cloudflare-d1/t12-preview/r4-preview-local-entry.mjs'
+      - 'cloudflare-d1/t12-preview/wrangler.r4-preview.local.toml'
+      - 'tests/t12_d1_r4_local_preview_isolation.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-script-properties-replay-fixed150-delete-once.gs'
       - 'tests/t12_script_properties_replay_fixed150_delete_once.test.mjs'
       - 'Code.gs'
@@ -112,6 +115,8 @@ jobs:
           node --check tests/t12_d1_guarded_recovery_batch_v1.test.mjs
           node --check cloudflare-d1/t12-preview/t12-d1-guarded-recovery-preview-handler-v1.mjs
           node --check tests/t12_d1_guarded_recovery_preview_handler_v1.test.mjs
+          node --check cloudflare-d1/t12-preview/r4-preview-local-entry.mjs
+          node --check tests/t12_d1_r4_local_preview_isolation.test.mjs
           node --check tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
@@ -141,4 +146,5 @@ jobs:
           node tests/t12_d1_targeted_recovery_plan_v1.test.mjs
           node --experimental-sqlite tests/t12_d1_guarded_recovery_batch_v1.test.mjs
           node tests/t12_d1_guarded_recovery_preview_handler_v1.test.mjs
+          node tests/t12_d1_r4_local_preview_isolation.test.mjs
           node tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
