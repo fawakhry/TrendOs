@@ -1,0 +1,16 @@
+# DISPOSABLE LOCAL-ONLY R4 PREVIEW. NEVER use this file with wrangler deploy,
+# --remote, a production D1 ID, customer rows, or production credentials.
+# The UUID below is a reserved placeholder, not a Cloudflare database.
+name = "trendos-r4-disposable-local-preview"
+main = "./r4-preview-local-entry.mjs"
+compatibility_date = "2026-09-20"
+workers_dev = false
+
+[vars]
+R4_PREVIEW_ENABLED = "false"
+R4_TEST_DATABASE_ONLY = "true"
+
+[[d1_databases]]
+binding = "R4_TEST_DB"
+database_name = "trendos-r4-disposable-local-fixture"
+database_id = "00000000-0000-0000-0000-000000000000"
