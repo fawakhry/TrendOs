@@ -114,3 +114,34 @@ Exact next engineering step:
 - derive a canonical parity matrix for `createManualOrder_`, including Order ID, Line ID, debt/auth, activity log, summary/upsert, queue/data-version, and idempotency behavior;
 - build only an isolated Cloud-native candidate after that matrix is complete;
 - production mutation remains blocked until explicit owner approval.
+
+
+## T12 continuation — shadow intent + isolated schema qualification
+Additional branch-only artifacts:
+- `cloudflare-d1/src/t12-order-create-shadow-intent.mjs`
+- `cloudflare-d1/schema-prep/t12-order-create-shadow-v1.sql`
+- `tests/t12_order_create_shadow_intent.test.mjs`
+- `tests/t12_order_create_shadow_schema.test.mjs`
+- `tests/t12_order_create_repo_parity.test.mjs`
+- parity matrix: `CLOUD_MIGRATION_V3_T12_ORDER_CREATE_PARITY_MATRIX_2026-09-19.md`
+
+Latest successful isolated CI:
+- Run: `35450025684`
+- Head: `4f9fad9da2dcd1bdc17affcd758b394b7db07ecc`
+- Conclusion: **SUCCESS**
+- markers:
+  - `T12 isolated fail-closed preflight tests PASS; assertions=20`
+  - `T12 repository createManualOrder parity markers PASS; markers=21`
+  - `T12 pure shadow-intent planner PASS; no business Order/Line IDs allocated; no runtime wiring.`
+  - `T12 shadow schema prep PASS; isolated sqlite constraints and idempotency keys verified.`
+
+The schema is deliberately under `schema-prep/`, not `migrations/`, so it is not part of any automatic/normal Wrangler migration sequence.
+
+The shadow intent deliberately allocates neither a business Order ID nor a Line ID. This avoids dual-authority numeric-ID collision while Google remains able to create orders.
+
+Repository baseline risk evidence:
+- V1908 create replay responses are stored in Script Properties under `TRENDOS_CREATE_ORDER_V1908_<requestKey>`;
+- repository baseline has no same-key cleanup operation;
+- this remains a plausible quota-accumulation mechanism, but live Version 155 root cause is not declared proven without authoritative live-source/property evidence.
+
+No production boundary changed.
