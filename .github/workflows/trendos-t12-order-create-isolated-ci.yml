@@ -24,6 +24,8 @@ on:
       - 'tests/t12_order_create_cutover_state.test.mjs'
       - 'cloudflare-d1/src/t12-order-create-input-guard.mjs'
       - 'tests/t12_order_create_input_guard.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-script-properties-quota-audit-readonly.gs'
+      - 'tests/t12_script_properties_quota_audit_readonly.test.mjs'
       - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
   workflow_dispatch:
@@ -63,6 +65,7 @@ jobs:
           node --check tests/t12_order_create_cutover_state.test.mjs
           node --check cloudflare-d1/src/t12-order-create-input-guard.mjs
           node --check tests/t12_order_create_input_guard.test.mjs
+          node --check tests/t12_script_properties_quota_audit_readonly.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
       - name: Run isolated no-mutation tests
@@ -76,3 +79,4 @@ jobs:
           node --experimental-sqlite tests/t12_order_id_authority_candidate.test.mjs
           node tests/t12_order_create_cutover_state.test.mjs
           node tests/t12_order_create_input_guard.test.mjs
+          node tests/t12_script_properties_quota_audit_readonly.test.mjs
