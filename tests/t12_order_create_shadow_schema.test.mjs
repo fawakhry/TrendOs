@@ -64,4 +64,31 @@ assert.throws(()=>db.prepare(`
   VALUES (?, ?, ?, ?)
 `).run('REQ-1','activity','order-create-intent','{}'));
 
-console.log('T12 shadow schema prep PASS; isolated sqlite constraints and idempotency keys verified.');
+
+/* Atomicity rehearsal: an invalid second line must not leave a partial intent. */
+db.exec('BEGIN IMMEDIATE');
+try {
+  db.prepare(`
+    INSERT INTO t12_order_create_intents
+    (client_request_id, provisional_ref, actor, identity_mode, customer_name, department, priority, canonical_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('REQ-ATOMIC','t12-order-intent:REQ-ATOMIC','wael','registered','عميل','متعدد الأقسام','عادي','{}');
+  db.prepare(`
+    INSERT INTO t12_order_create_line_intents
+    (client_request_id, ordinal, provisional_line_ref, department, assigned_to, item_name, qty, priority)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('REQ-ATOMIC',1,'t12-order-intent:REQ-ATOMIC:line:01','طباعة','وائل','كومبو - طباعة',1,'عادي');
+  db.prepare(`
+    INSERT INTO t12_order_create_line_intents
+    (client_request_id, ordinal, provisional_line_ref, department, assigned_to, item_name, qty, priority)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('REQ-ATOMIC',2,'t12-order-intent:REQ-ATOMIC:line:02','ليزر','جابر','كومبو - ليزر',0,'عادي');
+  db.exec('COMMIT');
+  assert.fail('invalid qty should have failed transaction');
+} catch (err) {
+  db.exec('ROLLBACK');
+}
+assert.equal(db.prepare("SELECT COUNT(*) AS c FROM t12_order_create_intents WHERE client_request_id='REQ-ATOMIC'").get().c,0);
+assert.equal(db.prepare("SELECT COUNT(*) AS c FROM t12_order_create_line_intents WHERE client_request_id='REQ-ATOMIC'").get().c,0);
+
+console.log('T12 shadow schema prep PASS; isolated sqlite constraints, idempotency keys, and rollback atomicity verified.');
