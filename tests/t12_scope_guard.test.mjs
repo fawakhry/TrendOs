@@ -8,7 +8,8 @@ const files=out.split('\0').map(x=>x.trim()).filter(Boolean);
 const exact=new Set([
   '.github/workflows/trendos-t12-order-create-isolated-ci.yml',
   'docs/trendos/blackbox/منصة ترند/00_INDEX.md',
-  'docs/trendos/blackbox/منصة ترند/TRENDOS_PRODUCTION_INCIDENT_PROPERTIES_QUOTA_TRIGGER_PAUSE_LOG_2026-09-19.md'
+  'docs/trendos/blackbox/منصة ترند/TRENDOS_PRODUCTION_INCIDENT_PROPERTIES_QUOTA_TRIGGER_PAUSE_LOG_2026-09-19.md',
+  'docs/trendos/blackbox/منصة ترند/TRENDOS_D1_PAUSED_SYNC_RECOVERY_PROTOCOL_2026-09-19.md'
 ]);
 const prefixes=[
   'cloudflare-d1/src/t12-',
