@@ -32,6 +32,8 @@ on:
       - 'tests/t12_script_properties_replay_private_backup.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-script-properties-replay-backup-sheet-verify-readonly.gs'
       - 'tests/t12_script_properties_replay_backup_sheet_verify_readonly.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-script-properties-replay-fixed150-delete-once.gs'
+      - 'tests/t12_script_properties_replay_fixed150_delete_once.test.mjs'
       - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
   workflow_dispatch:
@@ -75,6 +77,7 @@ jobs:
           node --check tests/t12_script_properties_replay_cleanup_preview.test.mjs
           node --check tests/t12_script_properties_replay_private_backup.test.mjs
           node --check tests/t12_script_properties_replay_backup_sheet_verify_readonly.test.mjs
+          node --check tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
       - name: Run isolated no-mutation tests
@@ -92,3 +95,4 @@ jobs:
           node tests/t12_script_properties_replay_cleanup_preview.test.mjs
           node tests/t12_script_properties_replay_private_backup.test.mjs
           node tests/t12_script_properties_replay_backup_sheet_verify_readonly.test.mjs
+          node tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
