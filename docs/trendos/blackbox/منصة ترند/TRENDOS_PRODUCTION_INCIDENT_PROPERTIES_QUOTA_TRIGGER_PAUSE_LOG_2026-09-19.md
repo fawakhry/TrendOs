@@ -84,3 +84,13 @@ Next response must first reconcile any newly supplied trigger screenshot with R0
 | 14 | GitHub Actions isolated CI run `35455969908`, head `bd7275d7d627831f67bfd5f11eb0ff5630f6c10e`. | **SUCCESS**; the isolated test/scope guard continues to pass. This run does NOT confirm production trigger count, Script Property cleanup, or D1 parity. |
 
 **Next incident checkpoint:** R0, confirming the final same-project trigger count and capturing the exact observed current state. Do not record a zero count, any Script Property deletion, or recovery of Print as performed until independent verification arrives.
+
+## R0 verified continuation — owner screenshot available in conversation
+
+| Step | Actor / evidence | Outcome |
+|---|---|---|
+| 15 | Owner-provided Apps Script **Triggers** screenshot from the same project shows **Showing 0 triggers** / **No results** and a UI toast **Trigger permanently deleted** following the two earlier photographed 1-minute and 5-minute time-driven triggers. The screenshot is available in the conversation; no customer data or secrets transcribed. | **R0 PASS — verified by owner screenshot** that the displayed user's installable trigger list is empty after deletion. The assistant did not perform the deletion. This does not rule out triggers owned by other accounts and is not proof that running executions were terminated. |
+
+**Corrected current state:** The historical R0/“pending” and “next screenshot needed” entries above describe what was known at the time of their writing. They are now superseded by this verified owner screenshot. Do **not** ask the owner to delete either trigger again. Do **not** recreate them until Script Property quota, D1 freshness and recovery gates R1–R4 are completed.
+
+**R1 NOW ACTIVE — READ-ONLY PROPERTY INVENTORY.** No production Script Property, Sheet, Cloudflare Worker, D1 schema/data, deployed Apps Script version, or `main` change has been made by the assistant. Storage quota is still not measured; the snapshot does not establish that Print has recovered. The two scheduled synchronization streams are stopped for this user's visible triggers, so D1 may grow stale while Apps Script/Sheets remain authoritative for business writes.
