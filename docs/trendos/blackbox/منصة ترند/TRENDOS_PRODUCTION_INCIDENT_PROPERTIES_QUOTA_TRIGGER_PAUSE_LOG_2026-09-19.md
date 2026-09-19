@@ -140,3 +140,13 @@ Additional counters: `replayOlderThan48Hours=679`, `replayOlderThan7Days=576`, `
 **R2 NEXT — PREVIEW / owner approval needed for deletion:** Design a bounded, oldest-first cleanup candidate restricted to `TRENDOS_CREATE_ORDER_V1908_co_<13 digit epoch>_<suffix>`; require >7-day age and JSON `success===true` with a saved timestamp older than retention, preserve the newest 48h in any case, cap each batch, and verify backup/archive and order-idempotency safeguards before any deletion. Old request retries after replay-key deletion can create duplicates: retain audited backup and verify that those requests cannot be reissued through current frontend; never silently declare old replay deletion risk-free. Request separate explicit authorization of the exact deletion protocol. Any pass/fail result of actual R2 must be logged subsequently.
 
 **Current stop point:** R0 verified PAUSED / R1 live inventory PASS / R2 cleanup NOT PERFORMED / production quotas still failing or recovery not yet independently verified / R3-R6 PENDING.
+
+## R2 dry-run preview preparation — GitHub-only / 2026-09-19
+
+| Step | Performed action | Evidence |
+|---|---|---|
+| 19 | Added `cloudflare-d1/t12-preview/t12-script-properties-replay-cleanup-preview.gs` on isolated T12 branch. | Commit `e6b449a351ee8b7c78793f060059bd5360063bc4`. **READ-ONLY**; only scans matching replay records and returns aggregate 7-day/48-hour eligibility counts and oldest 150 approximate bytes. No individual keys, order IDs or values logged. |
+| 20 | Added isolated static safety test `tests/t12_script_properties_replay_cleanup_preview.test.mjs` and included it in T12 CI. | CI run `35456836923` at `c9faa8991bb42684134ae76a0d3805f312dbc854` = **SUCCESS**. |
+| 21 | Prepared proposed R2 policy: only >7-day V1908 replay records whose JSON `success===true`, nonblank `orderId` and `savedAt` >7 days; first batch max **150** oldest; retain all recent entries and all D1 baseline/secret/counter keys. | **PROPOSED ONLY; NO LIVE CLEANUP PERFORMED**. Deleting even an aged replay entry removes one layer of duplicate-request protection if an ancient request is retransmitted; require verified recoverable secure backup and explicit owner approval of a bounded production cleanup before any deletion. |
+
+**Next operational action:** owner may run only the read-only `trendosReplayCleanupPreviewReadOnly20260919` helper from the isolated branch in original bound Apps Script Head (without Deploy), then provide its aggregated output. Do not copy raw Script Properties values to chat or GitHub. R2 remains PENDING until a separately authorized, verified backup-and-delete action is completed.
