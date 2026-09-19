@@ -19,6 +19,7 @@ on:
       - 'cloudflare-d1/schema-prep/t12-order-id-authority-v1.sql'
       - 'cloudflare-d1/src/t12-order-id-authority-candidate.mjs'
       - 'tests/t12_order_id_authority_candidate.test.mjs'
+      - 'tests/t12_scope_guard.test.mjs'
       - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
   workflow_dispatch:
@@ -51,6 +52,9 @@ jobs:
           node --check tests/t12_order_create_shadow_handler.test.mjs
           node --check cloudflare-d1/src/t12-order-id-authority-candidate.mjs
           node --check tests/t12_order_id_authority_candidate.test.mjs
+          node --check tests/t12_scope_guard.test.mjs
+      - name: Run T12 hard scope guard
+        run: node tests/t12_scope_guard.test.mjs
       - name: Run isolated no-mutation tests
         run: |
           node tests/t12_order_create_preflight.test.mjs
