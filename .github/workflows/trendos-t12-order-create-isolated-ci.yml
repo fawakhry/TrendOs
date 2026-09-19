@@ -36,6 +36,8 @@ on:
       - 'tests/t12_d1_sync_metadata_readonly.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-d1-source-baseline-drift-readonly-20260919.gs'
       - 'tests/t12_d1_source_baseline_drift_readonly.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-d1-mirror-catalog-readonly-20260919.gs'
+      - 'tests/t12_d1_mirror_catalog_readonly.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-script-properties-replay-fixed150-delete-once.gs'
       - 'tests/t12_script_properties_replay_fixed150_delete_once.test.mjs'
       - 'Code.gs'
@@ -83,6 +85,7 @@ jobs:
           node --check tests/t12_script_properties_replay_backup_sheet_verify_readonly.test.mjs
           node --check tests/t12_d1_sync_metadata_readonly.test.mjs
           node --check tests/t12_d1_source_baseline_drift_readonly.test.mjs
+          node --check tests/t12_d1_mirror_catalog_readonly.test.mjs
           node --check tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
@@ -103,4 +106,5 @@ jobs:
           node tests/t12_script_properties_replay_backup_sheet_verify_readonly.test.mjs
           node tests/t12_d1_sync_metadata_readonly.test.mjs
           node tests/t12_d1_source_baseline_drift_readonly.test.mjs
+          node tests/t12_d1_mirror_catalog_readonly.test.mjs
           node tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
