@@ -94,3 +94,17 @@ Next response must first reconcile any newly supplied trigger screenshot with R0
 **Corrected current state:** The historical R0/“pending” and “next screenshot needed” entries above describe what was known at the time of their writing. They are now superseded by this verified owner screenshot. Do **not** ask the owner to delete either trigger again. Do **not** recreate them until Script Property quota, D1 freshness and recovery gates R1–R4 are completed.
 
 **R1 NOW ACTIVE — READ-ONLY PROPERTY INVENTORY.** No production Script Property, Sheet, Cloudflare Worker, D1 schema/data, deployed Apps Script version, or `main` change has been made by the assistant. Storage quota is still not measured; the snapshot does not establish that Print has recovered. The two scheduled synchronization streams are stopped for this user's visible triggers, so D1 may grow stale while Apps Script/Sheets remain authoritative for business writes.
+
+## R1 diagnostic preparation — GitHub-only / NOT RUN ON PRODUCTION
+
+| Step | Actor / performed action | Verified result |
+|---|---|---|
+| 16 | Assistant added isolated read-only Apps Script diagnostic source at `cloudflare-d1/t12-preview/t12-script-properties-quota-audit-readonly.gs`. Commit `64283bdab1784b722d2aefe2d5793eb6e9f08872`. | **GITHUB-ONLY PREPARED**. Not copied, saved or executed in production Apps Script. |
+| 17 | Assistant added a static safety test at `tests/t12_script_properties_quota_audit_readonly.test.mjs`; added the file and test to isolated CI. | **GITHUB-ONLY PREPARED**. Test asserts no property writes/deletes, Apps Script trigger or sheet operations, network calls or unredacted secret logging. |
+| 18 | Isolated GitHub Actions run `35456228399` at head `8acc550cfd587b5d37615ceafac18d4bc60fa739`. | **SUCCESS**. This proves static test and T12 CI pass, not that the live property storage has been measured or repaired. |
+
+The read-only diagnostic uses the local bound project's `getKeys()` and `getProperty()` solely to aggregate approximate key/value UTF-8 byte counts in fixed buckets: V1908 replay, D1 V2 baseline chunks, other D1 synchronization properties, and remainder. It logs **bucket counts and sizes only**. It does not log raw keys or values, does not mutate anything, and does not infer that particular old replays may safely be removed.
+
+**R1 live execution is PENDING:** Using this helper in the bound project would require an explicit, limited addition to Apps Script `Head` and a manual read-only function run by the owner (NOT a Version 155 web-app deployment). Owner approval to modify `Head` for this diagnostic has not yet been captured. Do not claim the assistant directly accessed the live project; TinyFish authenticated browser run was not started because of insufficient credits. If an existing authorized read-only diagnostic is available without code modification, prefer it.
+
+**Operational warning:** Trigger-count screenshot R0 PASS does not release the storage quota. Keep both previously removed scheduled synchronization triggers off while measuring R1; D1 data may be stale. Any cleanup of saved-response keys or baseline chunks is still blocked by backup/idempotency/mirror qualification gates.
