@@ -213,3 +213,17 @@ The helper reads only successful V1908 replay records older than seven days by b
 Important operational safeguards: an owner-created backup is **not yet verified**; do not run the backup helper again if a previous run may have succeeded during a disconnect until the private Drive backup and original Execution record have been checked. Do not paste the backup filename, ID, URL, raw file contents, individual key names, order IDs or customer data into a chat or repository. A verified backup must be reconciled with authoritative Sheets and current replay keys before any separately reviewed deletion of the specific backup-covered set. D1 freshness/parity is still unknown.
 
 **Current gate:** R0 PASS / R1 fresh live audit PASS / R2 preview PASS / R2 owner approval recorded / R2 backup helper CI PASS but **live backup NOT VERIFIED / cleanup NOT EXECUTED**. No production Head edit, property deletion, trigger recreation, deployment or order-data mutation by the assistant.
+
+## R2 live private backup — owner executed / exact-readback PASS — 2026-09-19
+
+Owner provided the sanitized execution result of `trendosReplayPrivateBackupOnce20260919`:
+
+```json
+{"audit":"TRENDOS_R2_PRIVATE_BACKUP_VERIFIED_20260919","success":true,"backupCreated":true,"backupAccessPrivate":true,"exactReadbackVerified":true,"backedUpRecordCount":150,"replayPropertiesDeleted":0,"cleanupAllowedAutomatically":false}
+```
+
+**BACKUP GATE PASS according to owner-run helper receipt:** one restricted-access My Drive backup was created containing 150 complete replay key-value pairs, reread and equality-verified when the function returned. No backup file name/URL/ID, response values or customer/order data were copied into GitHub or chat. The assistant did not create or open this private backup and cannot independently confirm its current existence after the function returned. **No replay key has yet been deleted.**
+
+**Next gate: R2 authoritative-order + exact-source verification READ ONLY.** Before deleting any records, re-read this existing private backup, confirm it is still private and each key-value exactly equals the corresponding current Script Property; compare **all 150 backed-up business order IDs** against original `الأوردرات` / `بنود الأوردرات` and archived order/line tabs as appropriate. An absent/ambiguous order, missing original backup, backup ambiguity, changed property, stale source, or unverified duplicate/retry control MUST block deletion; do not create a second backup or select a freshly shifted oldest-150 cohort. Backup existence and sheet parity alone do not prove all duplicate-retry risks are resolved, so a separate reviewed fixed-set delete protocol is required. Keep the scheduled sync triggers off; do not touch D1 baseline/auth/order-number properties or deploy.
+
+**Checkpoint:** R0 triggers paused PASS; R1 live audit PASS; R2 preview PASS; R2 owner-executed private 150-record backup and readback PASS; R2 sheet parity/property-match/delete NOT DONE; R3–R6 pending.
