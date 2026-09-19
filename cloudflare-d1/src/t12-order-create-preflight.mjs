@@ -3,6 +3,7 @@
  * Do not confuse a ready intent with an authorized production write.
  */
 import { buildCanonicalOrderCreateIntentV2 } from './cloud-write-order-contract-v2.mjs';
+import { checkT12OrderCreateInputShape } from './t12-order-create-input-guard.mjs';
 
 export const T12_PREFLIGHT_VERSION = 'TRENDOS_T12_ORDER_CREATE_PREFLIGHT_20260919';
 const SIDE_EFFECTS = Object.freeze([
@@ -34,6 +35,8 @@ function fail(reason, extra = {}) {
 }
 export function evaluateT12OrderCreatePreflight(input, evidence = {}) {
   if (!plainObject(input) || !plainObject(evidence)) return fail('invalid-input');
+  const shape=checkT12OrderCreateInputShape(input);
+  if(!shape.valid)return fail(shape.reason,{unexpectedFields:shape.unexpectedFields,sensitiveFields:shape.sensitiveFields});
   const intent = buildCanonicalOrderCreateIntentV2(input);
   if (!intent.valid) return fail('canonical-intent-invalid', { errors: intent.errors });
   if (intent.businessOrderIdStrategy !== 'apps-script-allocated' ||
