@@ -55,7 +55,7 @@ assert.equal(x.identity.externalCustomerId,'987');
 
 x=buildT12OrderCreateShadowIntent({...base(),orderId:'1001'},'wael');
 assert.equal(x.success,false);
-assert.equal(x.reason,'canonical-intent-invalid');
+assert.equal(x.reason,'unsupported-create-fields-must-be-mapped');
 assert.equal(x.productionCutoverAuthorized,false);
 
 console.log('T12 pure shadow-intent planner PASS; no business Order/Line IDs allocated; no runtime wiring.');
