@@ -49,7 +49,9 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
     if (!Number.isInteger(count) || count < 1 || count > maxRows ||
         count !== lastRow || !Number.isInteger(sheetId) || sheetId < 0 ||
         !Number.isInteger(Number(old.sourceLastCol)) || Number(old.sourceLastCol) < 1 ||
-        !Array.isArray(old.rowHashes) || old.rowHashes.length !== count) {
+        !Array.isArray(old.rowHashes) || old.rowHashes.length > count ||
+        typeof old.hash !== 'string' || !/^[a-f0-9]{64}$/.test(old.hash) ||
+        !/^[a-f0-9]{64}$/.test(base.fingerprint)) {
       throw new Error('R4_G1_ABORT_BASELINE_SHAPE_UNSAFE');
     }
     var dimensionsMatch = String(cat.sheetId) === String(sheetId) &&
@@ -68,6 +70,8 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
       } else expected[String(n)] = pair[1];
     });
     if (malformedBaselineHashes) throw new Error('R4_G1_ABORT_BASELINE_HASHES_INVALID');
+    var indexedBaselineRows = Object.keys(expected).length;
+    var baselineRowsWithoutStoredHash = count - indexedBaselineRows;
     var headers = null, rows = [], mismatch = 0, missing = 0, wrongNumbers = 0;
     var pageMetadataStable = true;
     for (var offset = 0; offset < count; offset += pageSize) {
@@ -101,7 +105,8 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
         rows.push(shaped);
         if (!Object.prototype.hasOwnProperty.call(expected, String(rowNumber))) {
           missing++;
-        } else if (d1OrdersLiveSyncV2DigestHex_(JSON.stringify(shaped)) !==
+        } else if (Object.prototype.hasOwnProperty.call(expected, String(rowNumber)) &&
+            d1OrdersLiveSyncV2DigestHex_(JSON.stringify(shaped)) !==
             expected[String(rowNumber)]) mismatch++;
       });
     }
@@ -113,12 +118,17 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
     ) : '';
     var entireSnapshotHashMatch = snapshotHash === old.hash;
     tabs.push({
-      tabIndex: tabIndex, baselineRows: count, mirrorCatalogRows: Number(cat.rowCount),
+      tabIndex: tabIndex, baselineRows: count,
+      indexedBaselineRows: indexedBaselineRows,
+      baselineRowsWithoutStoredHash: baselineRowsWithoutStoredHash,
+      mirrorCatalogRows: Number(cat.rowCount),
       comparedRows: rows.length, mismatchedRowHashes: mismatch,
       absentBaselineRowNumbers: missing, malformedRemoteRowNumbers: wrongNumbers,
       baselineDimensionsAndV2NoteMatch: dimensionsMatch,
       pageMetadataStable: pageMetadataStable,
-      fullSheetSnapshotHashMatch: entireSnapshotHashMatch
+      fullSheetSnapshotHashMatch: entireSnapshotHashMatch,
+      sparseIndexCoveredByFullSnapshotHash: baselineRowsWithoutStoredHash > 0 &&
+        entireSnapshotHashMatch
     });
     captured.push({
       sheetName: name, sourceLastRow: Number(cat.sourceLastRow),
@@ -132,8 +142,10 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
   });
   var remoteBaselineFingerprint = d1OrdersLiveSyncV2DigestHex_(JSON.stringify(captured));
   var allMirrorRowsMatchLocalBaseline = catalogStable &&
+    /^[a-f0-9]{64}$/.test(remoteBaselineFingerprint) &&
     remoteBaselineFingerprint === base.fingerprint && tabs.every(function(t) {
       return t.baselineRows === t.comparedRows &&
+        t.indexedBaselineRows + t.baselineRowsWithoutStoredHash === t.baselineRows &&
         t.baselineRows === t.mirrorCatalogRows &&
         t.mismatchedRowHashes === 0 && t.absentBaselineRowNumbers === 0 &&
         t.malformedRemoteRowNumbers === 0 &&
@@ -151,7 +163,7 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
     allMirrorRowsMatchLocalBaseline: allMirrorRowsMatchLocalBaseline,
     deltaExecutionAuthorizedByThisAudit: false,
     triggerRestartAuthorizedByThisAudit: false,
-    note: 'GET-only mirror-vs-existing-local-baseline snapshot; does not compare current source, perform sync or authorize any D1/property mutation.'
+    note: 'Sparse row-hash indexes are permitted only with exact full-sheet snapshot SHA-256 and combined baseline fingerprint equality. This GET-only read does not compare current source, sync or authorize any mutation.'
   };
   Logger.log(JSON.stringify(result));
   return result;
