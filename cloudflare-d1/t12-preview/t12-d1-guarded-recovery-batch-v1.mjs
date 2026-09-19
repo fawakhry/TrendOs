@@ -98,6 +98,7 @@ export function buildIsolatedGuardedRecoveryBatch(db, snapshot) {
   requireSafe(db && typeof db.prepare==='function', 'DB_ADAPTER');
   const plan=buildTargetedRecoveryPlan(snapshot);
   verifyInput(plan);
+  requireSafe(plan.publicSummary.totalCandidateUpserts > 0, 'NO_DIFF');
   const statements=[];
   // Both catalog guards are the FIRST two statements in the SAME transaction.
   for (const s of plan.sheets) statements.push(catalogGuard(db,s));
