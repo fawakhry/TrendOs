@@ -7,6 +7,14 @@ import { buildIsolatedGuardedRecoveryBatch } from
 const schema=fs.readFileSync(new URL('../cloudflare-d1/migrations/0002_full_sheet_mirror.sql',
   import.meta.url),'utf8');
 const names=['الأوردرات','بنود الأوردرات'];
+// The candidate must remain unreferenced by live Worker and Apps Script.
+for(const livePath of ['../cloudflare-d1/src/index_v2.js',
+  '../cloudflare-d1/src/mirror-delta-gate.mjs',
+  '../cloudflare-d1/production-shadow/index.js']){
+  const live=fs.readFileSync(new URL(livePath,import.meta.url),'utf8');
+  assert.equal(live.includes('t12-d1-guarded-recovery-batch-v1'),false,
+    'guarded candidate must not be routed through '+livePath);
+}
 const note='TrendOS orders live sync V2 quota-aware';
 const row=(n,v)=>({rowNumber:n,values:[v],display:[v],formulas:['']});
 function snapshot() {
@@ -144,6 +152,19 @@ let cases=0;
   const input=snapshot();input.sourceStable=false;
   assert.throws(()=>buildIsolatedGuardedRecoveryBatch(db,input),
     /R4_PLAN_ABORT_UNSTABLE_OR_UNVERIFIED_SNAPSHOT/);
+  checkOriginal(db);
+  cases++;
+}
+{
+  const db=new D1Sqlite();
+  const input=snapshot();
+  // Equal source and mirror must never send a catalog-only write.
+  for(let i=0;i<2;i++){
+    input.sourceTabs[i].sourceLastRow=2;
+    input.sourceTabs[i].rows=input.mirrorTabs[i].rows.map(r=>({...r}));
+  }
+  assert.throws(()=>buildIsolatedGuardedRecoveryBatch(db,input),
+    /R4_BATCH_ABORT_NO_DIFF/);
   checkOriginal(db);
   cases++;
 }
