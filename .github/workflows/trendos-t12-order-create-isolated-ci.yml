@@ -44,6 +44,7 @@ on:
       - 'tests/t12_d1_mirror_baseline_lineage_readonly.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-d1-baseline-shape-diagnostic-readonly-20260919.gs'
       - 'tests/t12_d1_baseline_shape_diagnostic_readonly.test.mjs'
+      - 'tests/t12_d1_mirror_baseline_sparse_fullhash.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-script-properties-replay-fixed150-delete-once.gs'
       - 'tests/t12_script_properties_replay_fixed150_delete_once.test.mjs'
       - 'Code.gs'
@@ -95,6 +96,7 @@ jobs:
           node --check tests/t12_d1_rows_parity_readonly.test.mjs
           node --check tests/t12_d1_mirror_baseline_lineage_readonly.test.mjs
           node --check tests/t12_d1_baseline_shape_diagnostic_readonly.test.mjs
+          node --check tests/t12_d1_mirror_baseline_sparse_fullhash.test.mjs
           node --check tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
@@ -119,4 +121,5 @@ jobs:
           node tests/t12_d1_rows_parity_readonly.test.mjs
           node tests/t12_d1_mirror_baseline_lineage_readonly.test.mjs
           node tests/t12_d1_baseline_shape_diagnostic_readonly.test.mjs
+          node tests/t12_d1_mirror_baseline_sparse_fullhash.test.mjs
           node tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
