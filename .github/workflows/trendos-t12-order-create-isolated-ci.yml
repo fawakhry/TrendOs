@@ -16,6 +16,9 @@ on:
       - 'tests/t12_order_create_shadow_store.test.mjs'
       - 'cloudflare-d1/t12-preview/order-create-shadow-handler.mjs'
       - 'tests/t12_order_create_shadow_handler.test.mjs'
+      - 'cloudflare-d1/schema-prep/t12-order-id-authority-v1.sql'
+      - 'cloudflare-d1/src/t12-order-id-authority-candidate.mjs'
+      - 'tests/t12_order_id_authority_candidate.test.mjs'
       - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
   workflow_dispatch:
@@ -46,6 +49,8 @@ jobs:
           node --check tests/t12_order_create_shadow_store.test.mjs
           node --check cloudflare-d1/t12-preview/order-create-shadow-handler.mjs
           node --check tests/t12_order_create_shadow_handler.test.mjs
+          node --check cloudflare-d1/src/t12-order-id-authority-candidate.mjs
+          node --check tests/t12_order_id_authority_candidate.test.mjs
       - name: Run isolated no-mutation tests
         run: |
           node tests/t12_order_create_preflight.test.mjs
@@ -54,3 +59,4 @@ jobs:
           node --experimental-sqlite tests/t12_order_create_shadow_schema.test.mjs
           node --experimental-sqlite tests/t12_order_create_shadow_store.test.mjs
           node --experimental-sqlite tests/t12_order_create_shadow_handler.test.mjs
+          node --experimental-sqlite tests/t12_order_id_authority_candidate.test.mjs
