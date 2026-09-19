@@ -72,7 +72,7 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
     if (malformedBaselineHashes) throw new Error('R4_G1_ABORT_BASELINE_HASHES_INVALID');
     var indexedBaselineRows = Object.keys(expected).length;
     var baselineRowsWithoutStoredHash = count - indexedBaselineRows;
-    var headers = null, rows = [], mismatch = 0, missing = 0, wrongNumbers = 0;
+    var headers = null, rows = [], mismatch = 0, rowsWithoutStoredHashInRemote = 0, wrongNumbers = 0;
     var pageMetadataStable = true;
     for (var offset = 0; offset < count; offset += pageSize) {
       var response = d1FullGet_('/v1/mirror/sheet?name=' +
@@ -104,8 +104,8 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
         };
         rows.push(shaped);
         if (!Object.prototype.hasOwnProperty.call(expected, String(rowNumber))) {
-          missing++;
-        } else if (Object.prototype.hasOwnProperty.call(expected, String(rowNumber)) &&
+          rowsWithoutStoredHashInRemote++;
+        } else if (
             d1OrdersLiveSyncV2DigestHex_(JSON.stringify(shaped)) !==
             expected[String(rowNumber)]) mismatch++;
       });
@@ -123,7 +123,8 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
       baselineRowsWithoutStoredHash: baselineRowsWithoutStoredHash,
       mirrorCatalogRows: Number(cat.rowCount),
       comparedRows: rows.length, mismatchedRowHashes: mismatch,
-      absentBaselineRowNumbers: missing, malformedRemoteRowNumbers: wrongNumbers,
+      rowsWithoutStoredHashInRemote: rowsWithoutStoredHashInRemote,
+      malformedRemoteRowNumbers: wrongNumbers,
       baselineDimensionsAndV2NoteMatch: dimensionsMatch,
       pageMetadataStable: pageMetadataStable,
       fullSheetSnapshotHashMatch: entireSnapshotHashMatch,
@@ -147,7 +148,8 @@ function trendosD1MirrorBaselineLineageReadOnly20260919() {
       return t.baselineRows === t.comparedRows &&
         t.indexedBaselineRows + t.baselineRowsWithoutStoredHash === t.baselineRows &&
         t.baselineRows === t.mirrorCatalogRows &&
-        t.mismatchedRowHashes === 0 && t.absentBaselineRowNumbers === 0 &&
+        t.mismatchedRowHashes === 0 &&
+        t.rowsWithoutStoredHashInRemote === t.baselineRowsWithoutStoredHash &&
         t.malformedRemoteRowNumbers === 0 &&
         t.baselineDimensionsAndV2NoteMatch && t.pageMetadataStable &&
         t.fullSheetSnapshotHashMatch;
