@@ -178,3 +178,15 @@ The owner manually ran the READ-ONLY `trendosReplayCleanupPreviewReadOnly2026091
 Owner explicitly approved secure private backup, authoritative-order verification, and a bounded cleanup of **verified eligible** older V1908 replay records (maximum 150), with before/after measurement, retention of D1 baseline/auth/order numbering properties and revalidation after cleanup.
 
 **Approval is not evidence of execution.** No backup has yet been verified and no property deletion has occurred. The assistant has no Apps Script project edit/execute capability in this connection; the owner must run any reviewed helper manually inside the correct bound Apps Script project. Next checkpoint: implement and separately test a safe private Drive backup + exact content verification helper (no Script Property writes/deletes), and obtain a sanitized backup verification result; only then review Sheet order parity and deletion gate. Never print or put unredacted backup data or Drive file identifiers in chat/GitHub.
+
+## Disconnection recovery / state reconciliation — 2026-09-19
+
+The owner reported intermittent internet and stated that some steps may already have been executed, and instructed us to check and continue rather than repeat operations.
+
+**GitHub verification:** isolated branch `cloud-migration-v3-t12-order-create-ci-20260919` head before this entry was `ae78a90f300f3b50e6116a50418e9343f0c2efc8`, the documentation commit recording owner authorization. The proposed backup helper `cloudflare-d1/t12-preview/t12-script-properties-replay-private-backup.gs` was **NOT FOUND** on this branch at inspection; earlier assistant draft for it had not been committed. There was no GitHub evidence of a completed backup/delete step.
+
+**Private Drive discovery:** a metadata-only name search for `TRENDOS_R2` and `quota backup` found no matching files. This is **not evidence that no privately named backup exists elsewhere**. No backup contents or secret properties were read and no Drive file was modified.
+
+**Live execution visibility gap:** Neither connected GitHub nor Drive can read the current Apps Script Script Properties or currently installed triggers through the available connection. Therefore changes after the owner's last sanitized snapshot are **UNKNOWN**. Do not infer that 679 replay keys remain, that a 150-key batch was deleted, or that the quota/Print issue has resolved merely from stale R1/R2 output.
+
+**Safe resume protocol:** first re-run the already installed *read-only* `trendosPropertyQuotaAuditReadOnly20260919` and `trendosReplayCleanupPreviewReadOnly20260919` in the original bound Apps Script Head and compare the fresh aggregate output to the earlier 739/679/576 report. Never re-run a delete operation or create a new batch merely because an earlier browser/chat operation timed out. If a backup or deletion ran during disconnection, obtain the original Apps Script Execution record (sanitized) and a fresh aggregate result; reconcile counts and confirm the matching private backup **before any further mutation**.
