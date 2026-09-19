@@ -106,6 +106,21 @@ Owner-locked business roadmap:
 
 The next production-changing stage is outside T11 and requires explicit owner selection/approval before execution.
 
+## T12 — ORDER CREATE GITHUB PREP PASS — 2026-09-19
+Status: **GITHUB-ONLY PREP PASS / PRODUCTION SOURCE EXACTNESS PENDING / NO CUTOVER AUTHORIZED**
+
+Authoritative T12 prep record:
+`CLOUD_MIGRATION_V3_T12_ORDER_CREATE_GITHUB_PREP_PASS_2026-09-19.md`
+
+- isolated branch: `cloud-migration-v3-t12-order-create-ci-20260919`
+- isolated CI run `35449528052`: SUCCESS
+- no Production deployment or data/config mutation
+- no `main` change
+- no Worker route wiring
+- no D1/Sheets/Apps Script write
+- live Production UI shows Apps Script Version 155, but byte-exact source parity is still PENDING
+- T12 production create cutover remains blocked until the twelve evidence gates pass and the owner explicitly authorizes a later production checkpoint
+
 ## RP-06
 Status: **CLOSED — RECOVERY COMPLETE**
 Final record: `TRENDOS_BLACKBOX_2026-09-10_RP06_RECOVERY_COMPLETE.md`
