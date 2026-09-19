@@ -28,6 +28,8 @@ on:
       - 'tests/t12_script_properties_quota_audit_readonly.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-script-properties-replay-cleanup-preview.gs'
       - 'tests/t12_script_properties_replay_cleanup_preview.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-script-properties-replay-private-backup.gs'
+      - 'tests/t12_script_properties_replay_private_backup.test.mjs'
       - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
   workflow_dispatch:
@@ -69,6 +71,7 @@ jobs:
           node --check tests/t12_order_create_input_guard.test.mjs
           node --check tests/t12_script_properties_quota_audit_readonly.test.mjs
           node --check tests/t12_script_properties_replay_cleanup_preview.test.mjs
+          node --check tests/t12_script_properties_replay_private_backup.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
       - name: Run isolated no-mutation tests
@@ -84,3 +87,4 @@ jobs:
           node tests/t12_order_create_input_guard.test.mjs
           node tests/t12_script_properties_quota_audit_readonly.test.mjs
           node tests/t12_script_properties_replay_cleanup_preview.test.mjs
+          node tests/t12_script_properties_replay_private_backup.test.mjs
