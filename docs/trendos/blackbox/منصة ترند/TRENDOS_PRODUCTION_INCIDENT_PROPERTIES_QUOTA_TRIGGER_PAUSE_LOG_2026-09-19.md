@@ -333,3 +333,26 @@ Owner ran the local READ-ONLY `trendosD1SyncMetadataReadOnly20260919` and suppli
 ## R4 read-only source-vs-baseline drift audit prepared — 2026-09-19
 
 Added `cloudflare-d1/t12-preview/t12-d1-source-baseline-drift-readonly-20260919.gs`, function `trendosD1SourceBaselineDriftReadOnly20260919`, on isolated branch; it uses existing V2 capture and delta comparison only to read the two authoritative source tabs and existing local baseline, returning aggregate changed/new and tail-deleted row counts, source-vs-baseline fingerprint difference, and 24-hour full-rebase eligibility. This does not call the Cloudflare D1 API and does not establish actual mirror parity. It does not write properties, sheets, network data, create triggers, sync or deploy. Added `tests/t12_d1_source_baseline_drift_readonly.test.mjs` (static and mock drift safety) and isolated CI run `35460985203`, head `30223bd257772082321baca4ee21954b8c1e6dec` = SUCCESS. This helper has NOT been executed in live Apps Script. Next owner action: add to original bound Apps Script Head without Deploy; manually run once and share sanitized JSON only. Keep sync triggers paused pending mirror parity and quota-safe catch-up.
+
+## R4 owner-run source-vs-baseline drift audit — READ-ONLY PASS / parity still unknown — 2026-09-19
+
+Owner supplied the sanitized output from `trendosD1SourceBaselineDriftReadOnly20260919`:
+
+| Metric | Observed |
+|---|---:|
+| `mutationPerformed` | `false` |
+| `localBaselineValid` | `true` |
+| `baselineSavedAt` | `2026-09-19T15:23:23.422Z` |
+| `sourceChangedSinceBaseline` | `true` |
+| `rowLevelDeltaComputable` | `true` |
+| `totalChangedOrNewRows` | **159** |
+| `totalDeletedTailRows` | **0** |
+| Orders (tab 0) prior 633 / current 634 / changed or new 9 / tail-deleted 0 | observed |
+| Order Lines (tab 1) prior 689 / current 690 / changed or new 150 / tail-deleted 0 | observed |
+| `fullRebaseDueBy24HourPolicy` | `false` |
+
+**Interpretation:** The authoritative Sheets snapshot now differs from the saved **local baseline** in 159 row positions/hashes: 9 on Orders and 150 on Order Lines. These are NOT 159 newly created orders nor proof that 159 rows are absent from Cloudflare D1. It is possible for some row changes to reflect differing data formatting, update metadata or legitimate edits; only read-only actual mirror inspection can establish present D1 parity. The two original source sheet row totals each increased by one; no tail-row deletion is indicated. Baseline valid, delta structurally computable, and a full rebase is not due by 24-hour policy at the instant of the audit. This source capture itself is read-only and did not synchronize.
+
+**Next verification gate:** inspect the existing D1 mirror via authenticated GET/read-only route and compare exact supported metadata/row-level source evidence before any D1 write; DO NOT invoke V2 tick, V1 low-usage tick, start functions or re-create the stopped triggers. Consider storage quota headroom and transient writes before any future delta/catch-up.
+
+**Status:** platform UI owner-reported restored and newer doGet/doPost show Completed; 589 Script Properties / ~463028 measured bytes after fixed150 cleanup; baseline valid; source drift observed; **D1 current parity unverified**, sync jobs still paused.
