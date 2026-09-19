@@ -36,7 +36,11 @@ export async function handleR4RecoveryPreviewRequest(request, env) {
   }
   if (request.method !== 'POST') return response(405, 'method-not-allowed');
   if (!auth(request, env)) return response(401, 'unauthorized');
-  if (!env.DB || typeof env.DB.batch !== 'function') return response(503, 'test-db-required');
+  // Explicitly refuse the production DB binding used by the live Worker.
+  if (env.DB) return response(423, 'production-db-binding-forbidden');
+  if (!env.R4_TEST_DB || typeof env.R4_TEST_DB.batch !== 'function') {
+    return response(503, 'dedicated-test-db-required');
+  }
   const length = Number(request.headers.get('content-length') || 0);
   if (!Number.isFinite(length) || length > 262144) return response(413, 'body-too-large');
   let raw = '';
@@ -50,11 +54,11 @@ export async function handleR4RecoveryPreviewRequest(request, env) {
     return response(400, 'invalid-preview-contract');
   }
   let candidate;
-  try { candidate = buildIsolatedGuardedRecoveryBatch(env.DB, input.snapshot); }
+  try { candidate = buildIsolatedGuardedRecoveryBatch(env.R4_TEST_DB, input.snapshot); }
   catch (_) { return response(409, 'preflight-rejected'); }
   // No automatic retries. A lost response can happen AFTER commit.
   try {
-    await env.DB.batch(candidate.statements);
+    await env.R4_TEST_DB.batch(candidate.statements);
   } catch (_) {
     return response(503, 'commit-unknown-reconcile-with-get');
   }
