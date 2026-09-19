@@ -108,3 +108,13 @@ The read-only diagnostic uses the local bound project's `getKeys()` and `getProp
 **R1 live execution is PENDING:** Using this helper in the bound project would require an explicit, limited addition to Apps Script `Head` and a manual read-only function run by the owner (NOT a Version 155 web-app deployment). Owner approval to modify `Head` for this diagnostic has not yet been captured. Do not claim the assistant directly accessed the live project; TinyFish authenticated browser run was not started because of insufficient credits. If an existing authorized read-only diagnostic is available without code modification, prefer it.
 
 **Operational warning:** Trigger-count screenshot R0 PASS does not release the storage quota. Keep both previously removed scheduled synchronization triggers off while measuring R1; D1 data may be stale. Any cleanup of saved-response keys or baseline chunks is still blocked by backup/idempotency/mirror qualification gates.
+
+## R1 live execution request — access boundary, 2026-09-19
+
+The owner explicitly approved adding the read-only diagnostic to the original bound Apps Script project's Head and running it without a deployment.
+
+**Execution result: NOT PERFORMED.** The currently connected Google Drive actions cover Docs/Sheets/Slides/Drive but have no Apps Script project source-edit or scripts.run operation. The only connected authenticated browser-automation provider already rejected the prior run at start due to an insufficient wallet balance; no authenticated browser session could be started. Therefore the assistant has not edited the live Apps Script Head, executed the helper, read live Script Properties, or made any Production change.
+
+The diagnostic source remains available on the isolated GitHub branch at `cloudflare-d1/t12-preview/t12-script-properties-quota-audit-readonly.gs` with successful static CI `35456228399`. Approved manual handoff for the owner: add a **new, temporary .gs file** in the confirmed bound Apps Script project, copy only the diagnostic function from this source, save **Head only** without deployment, run `trendosPropertyQuotaAuditReadOnly20260919` manually, and share **only the aggregated JSON log** after verifying no sensitive property values were copied. Do not run order-create, sync, cleanup, or deployment functions as a diagnostic substitute.
+
+**R1 remains PENDING. R2 cleanup NOT STARTED; R0 user-owned visible trigger pause remains verified (Showing 0 triggers).**
