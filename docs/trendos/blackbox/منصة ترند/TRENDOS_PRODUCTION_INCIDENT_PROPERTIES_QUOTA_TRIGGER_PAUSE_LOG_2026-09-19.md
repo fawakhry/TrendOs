@@ -366,3 +366,16 @@ Added isolated helper `cloudflare-d1/t12-preview/t12-d1-mirror-catalog-readonly-
 **Next owner action:** copy the helper into a new temporary .gs file in original bound Apps Script Head (without Deploy), run the specific read-only function once, and share sanitized JSON only. This GET-based result can establish mirror catalog count/metadata lag or alignment, **not row-content parity**. Do not run `d1OrdersLiveSyncTickV2`/`d1OrdersLowUsageTickV1`, invoke start/stop functions, recreate both triggers, modify Script Properties, or rerun the fixed150 deletion. If mirror catalog dimensions differ, plan a bounded sync and full source-vs-D1 row comparison before permission to restart any job.
 
 **Current:** production UI owner-reported restored, 589 properties after cleanup, local V2 baseline valid, source drift 159 rows, D1 mirror catalog/parity NOT YET VERIFIED, both scheduled sync triggers still paused.
+
+## R4 live read-only D1 catalog — CONFIRMED DIMENSION LAG / 2026-09-19
+
+Owner executed `trendosD1MirrorCatalogReadOnly20260919` and provided a sanitized GET-only JSON report:
+
+| Tab | Authoritative source rows (incl header) | Mirror catalog rowCount/sourceLastRow | Source/mirror columns | Mirror status | Mirror syncedAt |
+|---|---:|---:|---:|---|---|
+| Orders | 634 | 633 / 633 | 67 / 67 | ready | 2026-09-19 16:38:25 (as returned, timezone unspecified) |
+| Order Lines | 690 | 689 / 689 | 82 / 82 | ready | 2026-09-19 16:38:25 (as returned, timezone unspecified) |
+
+`mutationPerformed=false`, `remoteMethod=GET`, both catalog records present exactly once, `allCatalogDimensionsMatch=false`, `rowContentParityVerified=false`, `triggerRestartAuthorizedByThisAudit=false`. **D1 catalog is confirmed one row behind for each tab**, while source-vs-local-baseline read-only hash audit separately reported **9 changed/new Orders rows + 150 changed/new Order Lines rows** since baseline. Do not conflate 159 changed/new source row positions with 159 missing D1 rows or business orders.
+
+**R4 NEXT:** GET-only actual D1 row-content comparison using canonical stored row serialization and source snapshot; first inspect established `/v1/mirror/sheet?name=...&limit=...&offset=...` pagination, access control and row fidelity, then develop isolated static/mock-tested read-only verifier. No D1 write, delta, rebase, Script Property update, trigger recreation, deployment, or further V1908 deletion has occurred/been approved at this gate. Check quota headroom and baseline lineage before planning bounded catch-up. The D1 catalog result is owner-run and not independent remote DB access by assistant.
