@@ -109,7 +109,7 @@ export function buildTargetedRecoveryPlan({ sourceTabs, mirrorTabs,
   });
   // The estimate measures the actual in-memory proposal; no order fields,
   // row contents, identifiers, or row hashes are returned in publicSummary.
-  const rawBytes = Buffer.byteLength(JSON.stringify({ sheets }), 'utf8');
+  const rawBytes = new TextEncoder().encode(JSON.stringify({ sheets })).length;
   assert(rawBytes <= maxPayloadBytes, 'PAYLOAD_BUDGET');
   const publicSummary = {
     tabCounts: sheets.map((s, i) => ({
