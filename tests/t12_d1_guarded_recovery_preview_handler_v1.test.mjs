@@ -37,7 +37,7 @@ const db={prepare(sql){return{bind(...args){return{sql,args}}}},
   async batch(statements){batches++;assert.equal(statements.length,8);return[{success:true}]}};
 const env=(extra={})=>({
   R4_PREVIEW_ENABLED:'true',R4_TEST_DATABASE_ONLY:'true',
-  R4_PREVIEW_SECRET:secret,DB:db,...extra
+  R4_PREVIEW_SECRET:secret,R4_TEST_DB:db,...extra
 });
 function req({method='POST', auth=true, body={operation:'preview-test-apply',snapshot:snapshot()},headers={}}={}){
   return new Request('https://example.invalid'+R4_RECOVERY_PREVIEW_PATH,{
@@ -59,6 +59,8 @@ async function expect(status, request, environment) {
 assert.equal((await expect(423,req(),env({R4_PREVIEW_ENABLED:'false'}))).writes,0);
 assert.equal((await expect(423,req(),env({R4_TEST_DATABASE_ONLY:'false'}))).writes,0);
 assert.equal((await expect(405,req({method:'GET'}),env())).writes,0);
+assert.equal((await expect(423,req(),env({DB:db}))).writes,0);
+assert.equal((await expect(503,req(),env({R4_TEST_DB:null}))).writes,0);
 assert.equal((await expect(401,req({auth:false}),env())).writes,0);
 assert.equal((await expect(413,req({headers:{'content-length':'300000'}}),env())).writes,0);
 assert.equal((await expect(400,req({body:'{bad'}),env())).writes,0);
@@ -69,7 +71,7 @@ const allowed=await expect(200,req(),env());
 assert.equal(allowed.writes,1);
 assert.equal(allowed.data.summary.totalCandidateUpserts,4);
 const ambiguousDb={...db,async batch(){batches++;throw new Error('test-after-commit-lost-response')}};
-const ambiguous=await expect(503,req(),env({DB:ambiguousDb}));
+const ambiguous=await expect(503,req(),env({R4_TEST_DB:ambiguousDb}));
 assert.equal(ambiguous.writes,1);
 assert.equal(ambiguous.data.reason,'commit-unknown-reconcile-with-get');
 console.log('R4 unrouted preview handler PASS: default-off, auth, bounded body, fail-closed, synthetic test DB only, ambiguous response.');
