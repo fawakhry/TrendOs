@@ -50,7 +50,18 @@ function trendosD1TargetedRecoveryPreflightReadOnly20260919() {
           cat.note !== 'TrendOS orders live sync V2 quota-aware') {
         throw new Error('R4_RECOVERY_PREFLIGHT_ABORT_D1_BASE_UNSAFE');
       }
+      var sourceSheetIdentityMatchesD1 = src.sheetId != null && cat.sheetId != null &&
+        String(src.sheetId) === String(cat.sheetId);
+      var sourceRowsContiguous = src.rows.length === Number(src.sourceLastRow) &&
+        Array.isArray(src.headers) && src.headers.length === Number(src.sourceLastCol) &&
+        src.rows.every(function(row,i) {
+          return Number(row.rowNumber) === i+1 &&
+            Array.isArray(row.values) && row.values.length === src.sourceLastCol &&
+            Array.isArray(row.display) && row.display.length === src.sourceLastCol &&
+            Array.isArray(row.formulas) && row.formulas.length === src.sourceLastCol;
+        });
       var remote = Object.create(null), seen = 0, duplicates = 0;
+      var remoteHeadersMatchSource = true, remoteRowsInRange = true;
       var pageMetadataStable = true;
       for (var offset=0; offset<baseCount; offset+=pageSize) {
         var res = d1FullGet_('/v1/mirror/sheet?name=' + encodeURIComponent(name) +
@@ -59,6 +70,9 @@ function trendosD1TargetedRecoveryPreflightReadOnly20260919() {
         if (!res || res.success !== true || !sh || sh.sheetName !== name ||
             !Array.isArray(sh.rows)) {
           throw new Error('R4_RECOVERY_PREFLIGHT_ABORT_D1_PAGE');
+        }
+        if (JSON.stringify(sh.headers) !== JSON.stringify(src.headers)) {
+          remoteHeadersMatchSource = false;
         }
         if (tag(sh) !== tag(cat) || Number(sh.offset)!==offset ||
             Number(sh.limit)!==pageSize ||
@@ -71,6 +85,10 @@ function trendosD1TargetedRecoveryPreflightReadOnly20260919() {
               !Array.isArray(row.formulas)) {
             throw new Error('R4_RECOVERY_PREFLIGHT_ABORT_D1_ROW_SHAPE');
           }
+          if (Number(row.rowNumber) < 1 || Number(row.rowNumber) > baseCount ||
+              row.values.length !== src.sourceLastCol ||
+              row.display.length !== src.sourceLastCol ||
+              row.formulas.length !== src.sourceLastCol) remoteRowsInRange = false;
           var k = String(Number(row.rowNumber));
           if (Object.prototype.hasOwnProperty.call(remote,k)) duplicates++;
           else {
@@ -102,7 +120,12 @@ function trendosD1TargetedRecoveryPreflightReadOnly20260919() {
         duplicateRemoteRows:duplicates,
         d1PageMetadataStable:pageMetadataStable,
         sourceGrowthFromD1Base:src.sourceLastRow-baseCount,
-        sourceColumnsMatchD1:Number(src.sourceLastCol)===Number(cat.sourceLastCol)
+        sourceColumnsMatchD1:Number(src.sourceLastCol)===Number(cat.sourceLastCol),
+        sourceSheetIdentityMatchesD1:sourceSheetIdentityMatchesD1,
+        sourceRowsContiguous:sourceRowsContiguous,
+        remoteHeadersMatchSource:remoteHeadersMatchSource,
+        remoteRowsInRange:remoteRowsInRange && seen===baseCount,
+        catalogRowCountMatchesSourceLastRow:baseCount===Number(cat.sourceLastRow)
       });
     });
     var afterCatalog=getCatalog();
@@ -135,7 +158,9 @@ function trendosD1TargetedRecoveryPreflightReadOnly20260919() {
       return x.unexpectedRowsInD1===0 && x.duplicateRemoteRows===0 &&
         x.d1PageMetadataStable && x.sourceGrowthFromD1Base>=0 &&
         x.missingSourceRowsInD1===x.sourceGrowthFromD1Base &&
-        x.sourceColumnsMatchD1;
+        x.sourceColumnsMatchD1 && x.sourceSheetIdentityMatchesD1 &&
+        x.sourceRowsContiguous && x.remoteHeadersMatchSource &&
+        x.remoteRowsInRange && x.catalogRowCountMatchesSourceLastRow;
     });
     var result={
       audit:'TRENDOS_D1_TARGETED_RECOVERY_PREFLIGHT_READ_ONLY_20260919',
