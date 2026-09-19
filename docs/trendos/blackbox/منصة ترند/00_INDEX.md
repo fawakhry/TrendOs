@@ -18,6 +18,16 @@ Canonical production identity:
 
 Do not substitute BACKUP/STAGING workbooks. The workbook tab `سكريبت Apps Script` is not live Head authority.
 
+## PRODUCTION INCIDENT — APPS SCRIPT PROPERTIES QUOTA — 2026-09-19
+Status: **INCIDENT OPEN / OWNER-REPORTED TEMPORARY TRIGGER DELETION / FINAL 0-TRIGGER CHECK PENDING / NO PROPERTY CLEANUP VERIFIED / D1 FRESHNESS UNQUALIFIED**.
+
+Authoritative append-only incident ledger:
+`TRENDOS_PRODUCTION_INCIDENT_PROPERTIES_QUOTA_TRIGGER_PAUSE_LOG_2026-09-19.md`
+
+Evidence from owner's production Apps Script screenshots: Print quota error; Version 155; repeated low-usage and operational enrichment scheduled errors; two time-driven triggers observed before pause; trigger schedules recorded as 1 minute (enrichment) and 5 minutes (Orders low usage). Owner subsequently referred to deletion, but a fresh confirming zero-trigger observation is still pending.
+
+**This is an operational incident and temporary synchronization pause, not an Apps Script code deploy and not a T12 Cloud Order-create cutover.** Sheets / Apps Script remain business-write authority; D1 mirror may be stale. No production property cleanup is confirmed; do not treat trigger deletion as quota repair. Recovery gates R0–R6 and secrets-safe instructions live in the incident ledger.
+
 ## CURRENT CHECKPOINT — T11 SERVICE READ MIGRATION COMPLETE / RETAINED — 2026-09-14
 Status:
 
