@@ -7,6 +7,8 @@ on:
     paths:
       - 'cloudflare-d1/src/t12-order-create-preflight.mjs'
       - 'tests/t12_order_create_preflight.test.mjs'
+      - 'tests/t12_order_create_repo_parity.test.mjs'
+      - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
   workflow_dispatch:
 
@@ -28,5 +30,8 @@ jobs:
         run: |
           node --check cloudflare-d1/src/t12-order-create-preflight.mjs
           node --check tests/t12_order_create_preflight.test.mjs
+          node --check tests/t12_order_create_repo_parity.test.mjs
       - name: Run isolated no-mutation tests
-        run: node tests/t12_order_create_preflight.test.mjs
+        run: |
+          node tests/t12_order_create_preflight.test.mjs
+          node tests/t12_order_create_repo_parity.test.mjs
