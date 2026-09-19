@@ -1,0 +1,32 @@
+name: TrendOS T12 Order Create Isolated CI
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t12-order-create-ci-20260919
+    paths:
+      - 'cloudflare-d1/src/t12-order-create-preflight.mjs'
+      - 'tests/t12_order_create_preflight.test.mjs'
+      - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  t12-pure-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout isolated T12 branch
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check pure preflight and test
+        run: |
+          node --check cloudflare-d1/src/t12-order-create-preflight.mjs
+          node --check tests/t12_order_create_preflight.test.mjs
+      - name: Run isolated no-mutation tests
+        run: node tests/t12_order_create_preflight.test.mjs
