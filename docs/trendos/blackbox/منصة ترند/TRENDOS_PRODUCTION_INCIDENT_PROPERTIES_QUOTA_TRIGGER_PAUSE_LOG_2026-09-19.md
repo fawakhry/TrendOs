@@ -198,3 +198,18 @@ Owner sent another sanitized live result from `trendosPropertyQuotaAuditReadOnly
 Owner then uploaded a screenshot of a **ChatGPT message-sending failure** during connectivity interruption; this is not evidence of any Apps Script, GitHub, Drive or Script Properties action. Do not infer a backup or cleanup took place from the interrupted chat.
 
 **Safe continuation point:** R0 paused (owner-visible 0 triggers), R1 fresh audit PASS (still 679 replay records), R2 dry run PASS, owner approval for restricted backup and bounded validated deletion recorded, but **no verified private backup or actual deletion**. Prepare private one-time backup/verification as separate operation; do not run deletion automatically and do not repeat any operation if a successful backup receipt may exist in a later log.
+
+## R2 one-time private backup helper prepared — GitHub-only, 2026-09-19
+
+Following the unchanged fresh live quota snapshot (739 total, 679 replay keys, 559224 estimated bytes; 578 now >7 days) and the owner's report of interrupted chat message delivery, the assistant prepared a **separate private backup-only helper**, not a cleanup executor.
+
+| Step | Action | Evidence / state |
+|---|---|---|
+| 22 | Created `cloudflare-d1/t12-preview/t12-script-properties-replay-private-backup.gs`, function `trendosReplayPrivateBackupOnce20260919`. | Commit `894e81fd808c7e37c6819f28b900d75c8f505ce8`. **GitHub only**; this function was not inserted or executed in the owner's live Apps Script project by the assistant. |
+| 23 | Added static safety test and wired it to isolated T12 CI. | CI run `35458836234` at `f43d150306c8338f336b97ba9c8f411f6efe7812`: **SUCCESS**. No live Drive or Apps Script result is implied. |
+
+The helper reads only successful V1908 replay records older than seven days by both timestamp and savedAt, selects at most 150 oldest records with deterministic sorting, re-reads each source value under the script lock, then creates **one NEW raw JSON file in the owner's My Drive root** containing **complete sensitive replay key-value pairs**. It refuses to proceed if there are fewer than 150 eligible records, verifies file access reports PRIVATE and no explicit editors/viewers, re-reads exact file contents to verify equality, and logs only a sanitized receipt with 150 count, backup verification and **0 Script Property deletions**. If unexpected sharing access is detected, the new file is moved to Trash and the operation fails closed. Neither this helper nor its CI tests remove any property or alter the platform's orders.
+
+Important operational safeguards: an owner-created backup is **not yet verified**; do not run the backup helper again if a previous run may have succeeded during a disconnect until the private Drive backup and original Execution record have been checked. Do not paste the backup filename, ID, URL, raw file contents, individual key names, order IDs or customer data into a chat or repository. A verified backup must be reconciled with authoritative Sheets and current replay keys before any separately reviewed deletion of the specific backup-covered set. D1 freshness/parity is still unknown.
+
+**Current gate:** R0 PASS / R1 fresh live audit PASS / R2 preview PASS / R2 owner approval recorded / R2 backup helper CI PASS but **live backup NOT VERIFIED / cleanup NOT EXECUTED**. No production Head edit, property deletion, trigger recreation, deployment or order-data mutation by the assistant.
