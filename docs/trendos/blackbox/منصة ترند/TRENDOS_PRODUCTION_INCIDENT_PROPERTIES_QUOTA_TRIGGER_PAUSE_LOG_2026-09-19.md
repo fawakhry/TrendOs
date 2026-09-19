@@ -118,3 +118,25 @@ The owner explicitly approved adding the read-only diagnostic to the original bo
 The diagnostic source remains available on the isolated GitHub branch at `cloudflare-d1/t12-preview/t12-script-properties-quota-audit-readonly.gs` with successful static CI `35456228399`. Approved manual handoff for the owner: add a **new, temporary .gs file** in the confirmed bound Apps Script project, copy only the diagnostic function from this source, save **Head only** without deployment, run `trendosPropertyQuotaAuditReadOnly20260919` manually, and share **only the aggregated JSON log** after verifying no sensitive property values were copied. Do not run order-create, sync, cleanup, or deployment functions as a diagnostic substitute.
 
 **R1 remains PENDING. R2 cleanup NOT STARTED; R0 user-owned visible trigger pause remains verified (Showing 0 triggers).**
+
+## R1 live measurement — OWNER EXECUTED / PASS — 2026-09-19
+
+Owner provided the sanitized aggregated JSON output from manual live execution of `trendosPropertyQuotaAuditReadOnly20260919` in the original Apps Script project. No secret values or individual order identifiers were provided.
+
+| Bucket | Count | Approximate key+UTF-8-value bytes |
+|---|---:|---:|
+| `CREATE_ORDER_V1908_REPLAYS` | 679 | 442413 |
+| `D1_ORDERS_V2_BASELINE_CHUNKS` | 13 | 88905 |
+| `D1_SYNC_OTHER` | 23 | 5496 |
+| `ALL_REMAINING_PROPERTIES` | 24 | 22410 |
+| **TOTAL** | **739** | **559224** |
+
+Additional counters: `replayOlderThan48Hours=679`, `replayOlderThan7Days=576`, `replayAgeUndetermined=0`, `baselineHighestIndexObserved=12`, `baselineChunkCountObserved=13`.
+
+**R1 PASS** for the live inventory: approximately 442k bytes are accumulated V1908 successful-create replay records (~79% of measured footprint); ~89k bytes are D1 V2 baseline chunks (~16%). These are measurements, not a verified safe-delete candidate list. All 679 key-encoded request timestamps are more than 48h old according to the audit clock; 576 are more than 7d. No customer's individual response value or request key is in this record.
+
+**Engineering implication:** The immediate largest quota pressure is accumulated per-order replay records, not necessarily a D1 baseline leak. Do **not** delete the 13 D1 baseline chunks or their count: they represent a coherent delta-sync baseline. No property has been deleted as part of R1. Temporary trigger pause R0 remains in effect; D1 may be stale. A measured total above the store quota can be explained by the helper's approximate UTF-8 sizing versus service accounting and/or the service storage state; do not claim an exact billable quota delta.
+
+**R2 NEXT — PREVIEW / owner approval needed for deletion:** Design a bounded, oldest-first cleanup candidate restricted to `TRENDOS_CREATE_ORDER_V1908_co_<13 digit epoch>_<suffix>`; require >7-day age and JSON `success===true` with a saved timestamp older than retention, preserve the newest 48h in any case, cap each batch, and verify backup/archive and order-idempotency safeguards before any deletion. Old request retries after replay-key deletion can create duplicates: retain audited backup and verify that those requests cannot be reissued through current frontend; never silently declare old replay deletion risk-free. Request separate explicit authorization of the exact deletion protocol. Any pass/fail result of actual R2 must be logged subsequently.
+
+**Current stop point:** R0 verified PAUSED / R1 live inventory PASS / R2 cleanup NOT PERFORMED / production quotas still failing or recovery not yet independently verified / R3-R6 PENDING.
