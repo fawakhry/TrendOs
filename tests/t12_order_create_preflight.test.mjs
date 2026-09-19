@@ -31,7 +31,7 @@ function blocked(input,evidence,reason) {
 blocked(null,{},'invalid-input');
 blocked(good(),null,'invalid-input');
 blocked({...good(),clientRequestId:''},{},'canonical-intent-invalid');
-blocked({...good(),orderId:'CW-123'},{},'canonical-intent-invalid');
+blocked({...good(),orderId:'CW-123'},{},'unsupported-create-fields-must-be-mapped');
 blocked({...good(),qty:0},{},'canonical-intent-invalid');
 blocked({...good(),department:'مجهول'},{},'canonical-intent-invalid');
 const partial=blocked(good(),{},'qualification-evidence-missing');
