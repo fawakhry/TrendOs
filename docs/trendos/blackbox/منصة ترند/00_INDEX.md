@@ -107,6 +107,7 @@ Owner-locked business roadmap:
 The next production-changing stage is outside T11 and requires explicit owner selection/approval before execution.
 
 ## T12 — ORDER CREATE GITHUB PREP PASS — 2026-09-19
+Current T12 handoff: `CLOUD_MIGRATION_V3_T12_CURRENT_HANDOFF_2026-09-19.md`
 Status: **GITHUB-ONLY PREP PASS / PRODUCTION SOURCE EXACTNESS PENDING / NO CUTOVER AUTHORIZED**
 
 Authoritative T12 prep record:
