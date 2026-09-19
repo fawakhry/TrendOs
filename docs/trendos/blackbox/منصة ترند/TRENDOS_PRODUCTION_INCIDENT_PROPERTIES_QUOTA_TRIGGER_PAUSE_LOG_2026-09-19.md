@@ -238,3 +238,30 @@ Owner provided the sanitized execution result of `trendosReplayPrivateBackupOnce
 **Next owner action:** Without creating another backup or changing deployment, add the read-only verifier as a separate temporary Script file in the confirmed original Apps Script project and run `trendosReplayBackupSheetVerifyReadOnly20260919` once. Supply ONLY its aggregate JSON report or its sanitized `R2_VERIFY_ABORT_...` error code; do not share backup file data/name/URL, order IDs, project secrets, or screenshots of such values. If more than one similarly named backup is found, pause and reconcile privately. If original workbook name or header fails, review non-mutating source resolution before any cleanup. No deletion helper has been authored, copied or executed at this point.
 
 **Stop point:** R0 visible trigger pause verified / R1 live quota audit PASS / R2 150-record verified backup PASS from owner-run receipt / R2 current-property and authoritative-order parity **PENDING** / actual deletion **NOT DONE** / R3–R6 pending.
+
+## R2 owner-run backup/source/authoritative Sheet verification — PASS, but delete risk gate remains — 2026-09-19
+
+Owner reported aggregate output from `trendosReplayBackupSheetVerifyReadOnly20260919`:
+
+| Check | Reported result |
+|---|---:|
+| `mutationPerformed` | `false` |
+| `backupExistsPrivateAndHas150Records` | `true` |
+| `backedUpRecordCount` | 150 |
+| `uniqueBusinessOrderCount` | 119 |
+| `currentReplayMissing` | 0 |
+| `currentReplayValueMismatches` | 0 |
+| `notCurrentlyOlderThanSevenDays` | 0 |
+| `requiredSourcesMissing` | 0 |
+| `missingSummary` / `missingLines` / `missingBoth` | 0 / 0 / 0 |
+| `summariesAndLinesFound` | 119 |
+| `backupAndSheetChecksPass` | `true` |
+| `deletionPerformed` / `deletionAuthorizedByThisReport` | `false` / `false` |
+
+Sheet check counts by index (0 original orders / 1 original lines / 2 archived orders / 3 archived lines): rows scanned `633/689/2871/4110`, unique targeted matches `79/79/40/42`. All 119 unique saved business order IDs have at least one summary and line across active or archived tabs. These are counters, not raw customer/order data. **Backing-up 150 replay request keys means 119 distinct business orders, not 150 different orders.** Exactly matching current Script Property content does not prove future retry cannot occur.
+
+**Additional repository review, NOT live byte-exact Version 155 verification:** GitHub `Code.gs` `createManualOrder_` first calls `trendosV1908ReadSavedResponse_` and replays the saved response if the request key matches; the separate `trendosV1908RecentDuplicate_` guard only scans the last 120 rows of ACTIVE order lines and compares a fingerprint within about ten minutes (closed statuses skipped). It does not prove old 7-day-plus requests or archived orders will be blocked once their replay property is deleted. Consequently the old replay entries are an active idempotency control, not merely a dispensable cache. The exact deployed Version 155 source has not been exported; do not overstate parity.
+
+**R2 decision gate:** owner earlier approved cleanup of *verified safe* old replay entries (maximum 150), but this live report itself says `deletionAuthorizedByThisReport=false`; backup and sheet parity do not establish preservation of old-request idempotency. Do not label a blind deletion fully safe. Prior to any property deletion, require either (A) separately validated/deployed lookup-before-create for the exact original request key against durable private backup/index, with race/rollback testing and explicit production deploy authorization, OR (B) explicit owner acceptance of the residual risk that retrying a historic client request could create a duplicate order, plus a signed-off bounded deletion protocol under script lock with final exact-value comparison, fixed backed-up key set, no new candidate selection, no D1/auth/counter mutation, partial-run reconciliation, and fresh quota/Print checks. Option B is emergency operational risk acceptance, not equivalent to preserved idempotency. No deletion performed at this checkpoint.
+
+**CURRENT:** R0 trigger pause confirmed / R1 measured full quota / R2 private 150-record backup PASS and authoritative 119-order match PASS / **replay deletion NOT DONE; idempotency risk decision PENDING** / R3–R6 pending. No Script Properties or business data changed by this response.
