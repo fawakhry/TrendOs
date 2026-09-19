@@ -150,3 +150,25 @@ Additional counters: `replayOlderThan48Hours=679`, `replayOlderThan7Days=576`, `
 | 21 | Prepared proposed R2 policy: only >7-day V1908 replay records whose JSON `success===true`, nonblank `orderId` and `savedAt` >7 days; first batch max **150** oldest; retain all recent entries and all D1 baseline/secret/counter keys. | **PROPOSED ONLY; NO LIVE CLEANUP PERFORMED**. Deleting even an aged replay entry removes one layer of duplicate-request protection if an ancient request is retransmitted; require verified recoverable secure backup and explicit owner approval of a bounded production cleanup before any deletion. |
 
 **Next operational action:** owner may run only the read-only `trendosReplayCleanupPreviewReadOnly20260919` helper from the isolated branch in original bound Apps Script Head (without Deploy), then provide its aggregated output. Do not copy raw Script Properties values to chat or GitHub. R2 remains PENDING until a separately authorized, verified backup-and-delete action is completed.
+
+## R2 owner-run live preview — PASS / deletion still pending — 2026-09-19
+
+The owner manually ran the READ-ONLY `trendosReplayCleanupPreviewReadOnly20260919` helper and supplied the aggregate report, confirming:
+
+| Observation | Owner's live report |
+|---|---:|
+| `mutationPerformed` | `false` |
+| `pendingOwnerApprovalForDeletion` | `true` |
+| `totalReplayCount` | 679 |
+| `totalReplayBytesApprox` | 442413 |
+| `eligibleOver7DaysWithSuccessSavedAtAndOrderId` | 576 |
+| `oldestFirstProposedBatchCount` | 150 |
+| `proposedBatchBytesApprox` | 96208 |
+| `skipped.tooRecent` | 103 |
+| Other skip categories combined | 0 |
+
+**Interpretation:** Under the helper's strict seven-day key/savedAt and successful-response filters, 576 old records are *candidates for further verification*, not automatically safe-to-delete records. The first 150 oldest would free approximately 96,208 measured key+value bytes if removed. This does not prove that those 150 business orders still exist in the authoritative Sheet, that retries cannot recur, that all candidates are recoverably backed up, or that the quota will stay below the limit once writes resume. Current frontend and deployed Apps Script version 155 must not be presumed to guarantee that a seven-day-old request key can never be retransmitted.
+
+**R2 deletion gate stays CLOSED.** Before any production deletion: separately approve an exact bounded batch; create a restricted-access backup of the complete selected key-value replay records **outside Script Properties** and verify integrity/retrievability; validate the referenced business order IDs against the authoritative Sheet or an equally reliable source; preserve recent records and every D1 baseline/secret/counter key; ensure safe retry behavior for old requests; then perform a bounded deletion with before/after aggregate audit and production read-only test. Do not publish replay backups in GitHub, a chat message, or a widely shared Drive folder. No deletion was performed by this preview.
+
+**Latest status:** R0 verified 0 owner-visible triggers / R1 live inventory PASS / R2 live dry-run PASS (150 candidate records, approx 96,208 bytes) / **R2 backup, validation and deletion NOT YET DONE** / R3-R6 pending.
