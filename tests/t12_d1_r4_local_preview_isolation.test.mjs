@@ -52,7 +52,7 @@ testDb.exec(fixture);
 assert.equal(testDb.prepare('SELECT COUNT(*) AS n FROM sheet_catalog').get().n,2);
 assert.equal(testDb.prepare('SELECT COUNT(*) AS n FROM sheet_rows').get().n,4);
 assert.equal(testDb.prepare(
-  "SELECT COUNT(*) AS n FROM sheet_rows WHERE values_json NOT IN ('[\\\"h\\\"]','[\\\"synthetic-old\\\"]')"
-).get().n,0);
+  'SELECT COUNT(*) AS n FROM sheet_rows WHERE values_json NOT IN (?,?)'
+).get('["h"]','["synthetic-old"]').n,0);
 testDb.close();
 console.log('R4 local preview isolation PASS: no production binding, exact routes, default-off, no live Worker wiring.');
