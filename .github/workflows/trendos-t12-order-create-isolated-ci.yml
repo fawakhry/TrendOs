@@ -10,6 +10,8 @@ on:
       - 'tests/t12_order_create_repo_parity.test.mjs'
       - 'cloudflare-d1/src/t12-order-create-shadow-intent.mjs'
       - 'tests/t12_order_create_shadow_intent.test.mjs'
+      - 'cloudflare-d1/schema-prep/t12-order-create-shadow-v1.sql'
+      - 'tests/t12_order_create_shadow_schema.test.mjs'
       - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
   workflow_dispatch:
@@ -35,8 +37,10 @@ jobs:
           node --check tests/t12_order_create_repo_parity.test.mjs
           node --check cloudflare-d1/src/t12-order-create-shadow-intent.mjs
           node --check tests/t12_order_create_shadow_intent.test.mjs
+          node --check tests/t12_order_create_shadow_schema.test.mjs
       - name: Run isolated no-mutation tests
         run: |
           node tests/t12_order_create_preflight.test.mjs
           node tests/t12_order_create_repo_parity.test.mjs
           node tests/t12_order_create_shadow_intent.test.mjs
+          node --experimental-sqlite tests/t12_order_create_shadow_schema.test.mjs
