@@ -73,3 +73,14 @@ All timestamps below refer to 2026-09-19 and are as displayed in owner screensho
 **INCIDENT OPEN / PRODUCTION STORAGE-QUOTA FAILURE VERIFIED / TRIGGER PAUSE USER-REPORTED BUT ZERO-TRIGGER EVIDENCE PENDING / STORAGE CLEANUP NOT PERFORMED / D1 FRESHNESS NOT QUALIFIED / T12 GITHUB-ONLY.**
 
 Next response must first reconcile any newly supplied trigger screenshot with R0 and append its observed result. Record **every subsequent action** in this file or an append-only continuation with time, evidence, scope, actor, result, and rollback, before advancing gates. Never describe planned actions as performed.
+
+## GitHub recording continuation — 2026-09-19
+
+| Step | Actor / performed operation | Result / verification |
+|---|---|---|
+| 11 | Assistant created this incident log on isolated T12 branch; incident-log creation commit `1a3748e1e1e45960677c0f3da69f9bc2ad01797d`. | **GITHUB DOC WRITE COMPLETE**; does not mutate production. |
+| 12 | Assistant updated platform `00_INDEX.md` to prominently link incident and distinguish user-reported trigger pause from independently verified removal; index commit `9507ff3f0dafa753b7935596541378ea5cd2849b`. | **GITHUB DOC WRITE COMPLETE**; no production change. |
+| 13 | Assistant updated the isolated T12 Git diff scope guard to permit only this specifically named production-incident ledger as extra documentation; guard commit `bd7275d7d627831f67bfd5f11eb0ff5630f6c10e`. | **GITHUB CODE CHANGE COMPLETE**, strictly CI diff-whitelist only; production files untouched. |
+| 14 | GitHub Actions isolated CI run `35455969908`, head `bd7275d7d627831f67bfd5f11eb0ff5630f6c10e`. | **SUCCESS**; the isolated test/scope guard continues to pass. This run does NOT confirm production trigger count, Script Property cleanup, or D1 parity. |
+
+**Next incident checkpoint:** R0, confirming the final same-project trigger count and capturing the exact observed current state. Do not record a zero count, any Script Property deletion, or recovery of Print as performed until independent verification arrives.
