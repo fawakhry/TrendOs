@@ -4,6 +4,7 @@
  * It deliberately DOES NOT allocate a production business Order ID or Line ID.
  */
 import { buildCanonicalOrderCreateIntentV2 } from './cloud-write-order-contract-v2.mjs';
+import { checkT12OrderCreateInputShape } from './t12-order-create-input-guard.mjs';
 
 export const T12_SHADOW_INTENT_VERSION = 'TRENDOS_T12_ORDER_CREATE_SHADOW_INTENT_20260919';
 
@@ -21,7 +22,9 @@ function fail(reason, extra={}){
   });
 }
 export function buildT12OrderCreateShadowIntent(input={}, actor=''){
-  const canonical = buildCanonicalOrderCreateIntentV2({...input, actor: text(actor || input.actor)});
+  const shape=checkT12OrderCreateInputShape(input);
+  if(!shape.valid)return fail(shape.reason,{unexpectedFields:shape.unexpectedFields,sensitiveFields:shape.sensitiveFields});
+  const canonical = buildCanonicalOrderCreateIntentV2({...input, actor: text(actor)});
   if (!canonical.valid) return fail('canonical-intent-invalid',{errors:canonical.errors || []});
 
   const p = canonical.canonicalCreateParams;
