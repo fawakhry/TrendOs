@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import localWorker from '../cloudflare-d1/t12-preview/r4-preview-local-entry.mjs';
 
 const localConfig=fs.readFileSync(new URL(
@@ -43,4 +44,15 @@ assert.equal(res.status,404);
 res=await localWorker.fetch(req('/v1/t12-preview/d1-recovery/apply','POST'),
   {R4_PREVIEW_ENABLED:'false',R4_TEST_DATABASE_ONLY:'true'});
 assert.equal(res.status,423);
+const fixture=fs.readFileSync(new URL(
+  '../cloudflare-d1/t12-preview/r4-preview-synthetic-fixture.sql',
+  import.meta.url),'utf8');
+const testDb=new DatabaseSync(':memory:');
+testDb.exec(fixture);
+assert.equal(testDb.prepare('SELECT COUNT(*) AS n FROM sheet_catalog').get().n,2);
+assert.equal(testDb.prepare('SELECT COUNT(*) AS n FROM sheet_rows').get().n,4);
+assert.equal(testDb.prepare(
+  "SELECT COUNT(*) AS n FROM sheet_rows WHERE values_json NOT IN ('[\\\"h\\\"]','[\\\"synthetic-old\\\"]')"
+).get().n,0);
+testDb.close();
 console.log('R4 local preview isolation PASS: no production binding, exact routes, default-off, no live Worker wiring.');
