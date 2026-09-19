@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 
 const BASE='f07cc56501fba1c29c0ef72cccda78e494935373';
-const out=execFileSync('git',['diff','--name-only',BASE+'...HEAD'],{encoding:'utf8'});
-const files=out.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+const out=execFileSync('git',['-c','core.quotepath=false','diff','--name-only','-z',BASE+'...HEAD'],{encoding:'utf8'});
+const files=out.split('\0').map(x=>x.trim()).filter(Boolean);
 
 const exact=new Set([
   '.github/workflows/trendos-t12-order-create-isolated-ci.yml',
