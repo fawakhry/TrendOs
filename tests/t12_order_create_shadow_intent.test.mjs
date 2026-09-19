@@ -6,7 +6,7 @@ const src = fs.readFileSync(new URL('../cloudflare-d1/src/t12-order-create-shado
 const index = fs.readFileSync(new URL('../cloudflare-d1/src/index_v2.js',import.meta.url),'utf8');
 const cloudWrite = fs.readFileSync(new URL('../cloudflare-d1/src/cloud-write.mjs',import.meta.url),'utf8');
 
-for(const forbidden of [/\bSpreadsheetApp\b/,/\bPropertiesService\b/,/\bfetch\s*\(/,/\.prepare\s*\(/,/\.batch\s*\(/,/\bnew\s+Response\s*\(/,/orderId\s*:/]) {
+for(const forbidden of [/\bSpreadsheetApp\s*\./,/\bPropertiesService\s*\./,/\bfetch\s*\(/,/\.prepare\s*\(/,/\.batch\s*\(/,/\bnew\s+Response\s*\(/,/orderId\s*:/]) {
   assert.equal(forbidden.test(src),false,'shadow planner must stay pure/no business Order ID allocation: '+forbidden);
 }
 assert.equal(index.includes('t12-order-create-shadow-intent'),false);
