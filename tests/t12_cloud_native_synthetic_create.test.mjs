@@ -35,10 +35,18 @@ class SyntheticD1 {
         VALUES (1,?,?,?,1601)`).run('T12_SYNTHETIC_ONLY',misconfigured?0:1,1);
     }
     this.failStatement=0;this.ambiguousAfterCommit=false;
+    this.batchTurn=Promise.resolve();
   }
   prepare(sql){return new Stmt(this,sql);}
   async batch(statements){
-    this.raw.exec('BEGIN IMMEDIATE');
+    // Model D1's serialized DB.batch transaction even when HTTP calls race.
+    // Preflight GETs may overlap; uniqueness + atomic transaction arbitrate.
+    let release;
+    const previous=this.batchTurn;
+    this.batchTurn=new Promise(resolve=>{release=resolve;});
+    await previous;
+    try {
+      this.raw.exec('BEGIN IMMEDIATE');
     try {
       for(let i=0;i<statements.length;i++){
         if(this.failStatement===i+1)throw Error('SIMULATED_MID_TRANSACTION_FAILURE');
@@ -49,7 +57,8 @@ class SyntheticD1 {
       try{this.raw.exec('ROLLBACK');}catch{}
       throw e;
     }
-    if(this.ambiguousAfterCommit)throw Error('SIMULATED_LOST_SUCCESS_AFTER_COMMIT');
+      if(this.ambiguousAfterCommit)throw Error('SIMULATED_LOST_SUCCESS_AFTER_COMMIT');
+    }finally {release();}
   }
   count(name){return Number(this.raw.prepare('SELECT COUNT(*) AS n FROM '+name).get().n);}
   sequence(){return Number(this.raw.prepare('SELECT next_order_number AS n FROM t12_synth_control').get().n);}
