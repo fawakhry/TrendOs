@@ -66,7 +66,8 @@ function trendosR5SyncRiskReadOnlyObserverCandidate20260920() {
     r5TriggerCount:r5Count,legacySyncTriggerCount:legacyActive,
     tabCounts:tabs,earlyWarning:riskCodes.length>0,
     riskCodes:riskCodes,fullRowParityVerified:false,
-    latestTickExecutionStatusVerified:false,quotaBytesMeasured:false,\n    existingRowContentOrMax64CandidateCountVerified:false,
+    latestTickExecutionStatusVerified:false,quotaBytesMeasured:false,
+    existingRowContentOrMax64CandidateCountVerified:false,
     note:'READ ONLY. Healthy dimension/trigger checks do not prove full row parity, existing-row upsert count <=64, future stability, or Apps Script Property quota; a lag can clear on next scheduled tick. Do not manually restart on this result.'
   };
   Logger.log(JSON.stringify(report));return report;
