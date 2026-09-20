@@ -15,7 +15,9 @@ assert.equal(x.productionActivationAuthorized,false);
 assert.equal(x.ownerDecisionRequired,false);
 
 const authorityBlocked=['allocatorSeedPinned','googleCreateFreezeMechanismQualified',
-  'allGoogleCreateEntrypointsFenceQualified','legacyReplayContinuityQualified',
+  'allGoogleCreateEntrypointsFenceQualified',
+  'allGoogleOrderLineMutationEntrypointsFenceQualified',
+  'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
   'cloudReadAndFallbackParityQualified','rollbackMechanismQualified'];
 const shadowQualified={...all,productionVersion155SourceExact:false,
@@ -35,7 +37,9 @@ assert.equal(x.productionActivationAuthorized,false);
 assert.equal(x.currentProductionAuthorityMustRemainGoogleUntilDecision,true);
 
 for(const key of [
-  'allGoogleCreateEntrypointsFenceQualified','legacyReplayContinuityQualified',
+  'allGoogleCreateEntrypointsFenceQualified',
+  'allGoogleOrderLineMutationEntrypointsFenceQualified',
+  'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
   'cloudReadAndFallbackParityQualified'
 ]){
