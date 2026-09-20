@@ -6,7 +6,7 @@
  * mutate Script Properties, or call createManualOrder_ itself.
  * All lookup/reserve/commit calls require the ACTUAL acquired global ScriptLock
  * object from the original caller; absent/unacquired lock aborts, never writes.
- * A later separately approved integration must verify the deployed live source
+ * Key identity is GLOBAL per client request ID. Authenticated principal is\n * included in the payload digest: same key from another account blocks as\n * CONFLICT rather than allocating another Order ID or replaying private data.\n * A later separately approved integration must verify the deployed live source
  * and create a protected "TRENDOS_ORDER_REQUEST_LEDGER_V1" tab with EXACT headers.
  *
  * Integration contract (original global ScriptLock MUST already be held):
@@ -62,8 +62,8 @@ function trendosDurableReplayV1Identity_(requestKey,principal,requestParams) {
     if(JSON.stringify(safe[name]).length>8000)
       throw new Error('DURABLE_REPLAY_PAYLOAD_TOO_LARGE');
   });
-  return {keyDigest:trendosDurableReplayV1Hash_(JSON.stringify(['v1',who,key])),
-    payloadDigest:trendosDurableReplayV1Hash_(JSON.stringify(safe))};
+  return {keyDigest:trendosDurableReplayV1Hash_(JSON.stringify(['v1',key])),
+    payloadDigest:trendosDurableReplayV1Hash_(JSON.stringify(['v1',who,safe]))};
 }
 function trendosDurableReplayV1Sheet_(ss) {
   if(!ss||ss.getId()!=='1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI')
