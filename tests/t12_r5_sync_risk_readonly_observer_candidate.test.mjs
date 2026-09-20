@@ -11,14 +11,18 @@ for(const bad of [/\.setProperty\s*\(/,/\.deleteProperty\s*\(/,
   /MailApp\./,/GmailApp\./])assert.doesNotMatch(src,bad,'observer must not mutate production');
 
 function run({triggers=['trendosR5PeriodicOrdersTick20260920'],source=[643,699],
-  remote=[641,697],statuses=['ready','ready'],sheetIds=[11,12],\n  remoteIds=[11,12],sourceCols=[16,18],remoteCols=[16,18],\n  catalogLastRows=[641,697],notes=['TrendOS orders live sync V2 quota-aware',\n    'TrendOS orders live sync V2 quota-aware']}={}){
+  remote=[641,697],statuses=['ready','ready'],sheetIds=[11,12],
+  remoteIds=[11,12],sourceCols=[16,18],remoteCols=[16,18],
+  catalogLastRows=[641,697],notes=['TrendOS orders live sync V2 quota-aware',
+    'TrendOS orders live sync V2 quota-aware']}={}){
   const logs=[];
   const names=['الأوردرات','بنود الأوردرات'];
   const wb={
     getId:()=> '1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI',
     getSheetByName(name){
       const i=names.indexOf(name);
-      return i<0?null:{getLastRow:()=>source[i],\n        getSheetId:()=>sheetIds[i],getLastColumn:()=>sourceCols[i]};
+      return i<0?null:{getLastRow:()=>source[i],
+        getSheetId:()=>sheetIds[i],getLastColumn:()=>sourceCols[i]};
     }
   };
   const api={
@@ -30,7 +34,9 @@ function run({triggers=['trendosR5PeriodicOrdersTick20260920'],source=[643,699],
     d1FullGet_(url){
       assert.equal(url,'/v1/mirror/sheets');
       return {success:true,sheets:names.map((name,i)=>({
-        sheetName:name,rowCount:remote[i],sourceLastRow:catalogLastRows[i],\n        sourceLastCol:remoteCols[i],sheetId:remoteIds[i],note:notes[i],\n        status:statuses[i]
+        sheetName:name,rowCount:remote[i],sourceLastRow:catalogLastRows[i],
+        sourceLastCol:remoteCols[i],sheetId:remoteIds[i],note:notes[i],
+        status:statuses[i]
       }))};
     },
     Logger:{log:x=>logs.push(x)}
@@ -41,7 +47,8 @@ function run({triggers=['trendosR5PeriodicOrdersTick20260920'],source=[643,699],
   assert.equal(result.workerPostPerformed,false);
   assert.equal(result.latestTickExecutionStatusVerified,false);
   assert.equal(result.fullRowParityVerified,false);
-  assert.equal(result.quotaBytesMeasured,false);\n  assert.equal(result.existingRowContentOrMax64CandidateCountVerified,false);
+  assert.equal(result.quotaBytesMeasured,false);
+  assert.equal(result.existingRowContentOrMax64CandidateCountVerified,false);
   assert.doesNotMatch(logs.join(''),/customer|phone|secret/i);
   return result;
 }
