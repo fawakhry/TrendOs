@@ -52,8 +52,7 @@ function setup(mode='ok'){
       mutations.push('appendRow'); rows.push(values.slice());
     }
   };
-  const ss={
-    getId:()=>mode==='wrongWorkbook'?'wrong':'1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI',
+  const heldLock={hasLock:()=>true}, unheldLock={hasLock:()=>false};\n  const ss={\n    getId:()=>mode==='wrongWorkbook'?'wrong':'1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI',
     getSheetByName(name){return mode==='missingSheet'?null:
       name==='TRENDOS_ORDER_REQUEST_LEDGER_V1'?sheet:null;}
   };
@@ -75,12 +74,21 @@ function setup(mode='ok'){
       clientRequestId:req,username:'wael',token:'SUPER_SECRET',
       customerName:'a customer',itemName:'mug',qty
     });
-  return {sandbox,ss,rows,mutations,flushes,identity,
-    failFlushAt(n){throwFlushAt=n},
-    lookup(x){return sandbox.trendosDurableReplayV1Lookup_(ss,x)},
-    reserve(x){return sandbox.trendosDurableReplayV1Reserve_(ss,x)},
-    commit(r,response){return sandbox.trendosDurableReplayV1Commit_(ss,r,response)}};
+  return {sandbox,ss,rows,mutations,flushes,identity,heldLock,unheldLock,\n    failFlushAt(n){throwFlushAt=n},
+    lookup(x){return sandbox.trendosDurableReplayV1Lookup_(ss,x,heldLock)},\n    reserve(x){return sandbox.trendosDurableReplayV1Reserve_(ss,x,heldLock)},\n    commit(r,response){return sandbox.trendosDurableReplayV1Commit_(ss,r,response,heldLock)}};
 }
+{
+  const x=setup(),key=x.identity();
+  assert.throws(()=>x.sandbox.trendosDurableReplayV1Lookup_(x.ss,key),
+    /DURABLE_REPLAY_GLOBAL_SCRIPT_LOCK_REQUIRED/);
+  assert.throws(()=>x.sandbox.trendosDurableReplayV1Reserve_(x.ss,key,x.unheldLock),
+    /DURABLE_REPLAY_GLOBAL_SCRIPT_LOCK_REQUIRED/);
+  assert.throws(()=>x.sandbox.trendosDurableReplayV1Commit_(x.ss,
+    {kind:'RESERVED'}, {success:true,orderId:'a',lineId:'b'}, x.unheldLock),
+    /DURABLE_REPLAY_GLOBAL_SCRIPT_LOCK_REQUIRED/);
+  assert.equal(x.rows.length,1,'no ledger reservation without acquired lock');
+}
+
 const response={success:true,orderId:'ORD-101',lineId:'ORD-101-01',
     message:'business create complete',linesCreated:1};
 {
@@ -163,4 +171,4 @@ for(const bad of ['wrongWorkbook','missingSheet','badHeader']){
   x.reserve(key);x.rows.push(x.rows[1].slice());
   assert.throws(()=>x.lookup(key),/DURABLE_REPLAY_DUPLICATE_DIGEST/);
 }
-console.log('Durable replay candidate isolated PASS: same-key single reserve, pending/timeout fail-closed, replay, payload conflicts, ledger identity, no Property writes');
+console.log('Durable replay candidate isolated PASS: held global ScriptLock required, same-key single reserve, pending/timeout fail-closed, replay, payload conflicts, ledger identity, no Property writes');
