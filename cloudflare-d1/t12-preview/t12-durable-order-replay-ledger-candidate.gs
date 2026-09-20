@@ -160,6 +160,13 @@ function trendosDurableReplayV1Commit_(ss,reservation,response) {
     [json,String(response.orderId),String(response.lineId)]
   ]);
   SpreadsheetApp.flush();
+  var staged=trendosDurableReplayV1Find_(sheet,reservation.keyDigest);
+  if(!staged||staged.rowNumber!==reservation.rowNumber||
+     staged.payloadDigest!==reservation.payloadDigest||
+     staged.state!=='PENDING'||staged.responseJson!==json||
+     staged.orderId!==String(response.orderId)||
+     staged.lineId!==String(response.lineId))
+    throw new Error('DURABLE_REPLAY_STAGED_RESPONSE_UNVERIFIED_NO_RETRY');
   // State COMMITTED is written last. If the status write is interrupted,
   // next retry still sees PENDING; a human must reconcile, never re-create.
   sheet.getRange(row.rowNumber,3).setValue('COMMITTED');
