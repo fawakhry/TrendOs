@@ -15,7 +15,7 @@ assert.equal(productionEntry.includes('r5-orders-periodic-guarded-handler-candid
 assert.equal(productionEntry.includes('if (isR5ProductionRecoveryPath(path))'),true);
 assert.match(productionCfg,/TRENDOS_R5_PERIODIC_ENABLED = "false"/);
 assert.match(productionCfg,/TRENDOS_R4_RECOVERY_ENABLED = "false"/);
-assert.match(productionCfg,/TRENDOS_R5_PERIODIC_TARGET = "trendos-main\\/5c4b92bf-e043-4f6e-bd6d-d514a92cd825"/);
+assert.equal(productionCfg.includes('TRENDOS_R5_PERIODIC_TARGET = "trendos-main/5c4b92bf-e043-4f6e-bd6d-d514a92cd825"'),true);
 assert.equal(productionCfg.includes('TRENDOS_R5_PERIODIC_ENABLED = "true"'),false);
 new vm.Script(script); // Syntax check of the actual isolated GAS candidate.
 for (const forbidden of [/getScriptProperties\s*\(/,/setProperty\s*\(/,
