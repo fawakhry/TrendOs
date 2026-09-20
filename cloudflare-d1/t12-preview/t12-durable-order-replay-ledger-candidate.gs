@@ -4,7 +4,9 @@
  *
  * This script intentionally does NOT create its own sheet, modify Code.gs,
  * mutate Script Properties, or call createManualOrder_ itself.
- * All lookup/reserve/commit calls require the ACTUAL acquired global ScriptLock\n * object from the original caller; absent/unacquired lock aborts, never writes.\n * A later separately approved integration must verify the deployed live source
+ * All lookup/reserve/commit calls require the ACTUAL acquired global ScriptLock
+ * object from the original caller; absent/unacquired lock aborts, never writes.
+ * A later separately approved integration must verify the deployed live source
  * and create a protected "TRENDOS_ORDER_REQUEST_LEDGER_V1" tab with EXACT headers.
  *
  * Integration contract (original global ScriptLock MUST already be held):
@@ -114,7 +116,14 @@ function trendosDurableReplayV1Interpret_(row,payloadDigest) {
     idempotentReplay:true,duplicatePrevented:true
   })};
 }
-function trendosDurableReplayV1RequireLock_(heldLock) {\n  if (!heldLock || typeof heldLock.hasLock!=='function' ||\n      heldLock.hasLock()!==true)\n    throw new Error('DURABLE_REPLAY_GLOBAL_SCRIPT_LOCK_REQUIRED');\n}\n/** Original caller must pass its currently held GLOBAL create-order ScriptLock. */\nfunction trendosDurableReplayV1Lookup_(ss,identity,heldLock) {\n  trendosDurableReplayV1RequireLock_(heldLock);
+function trendosDurableReplayV1RequireLock_(heldLock) {
+  if (!heldLock || typeof heldLock.hasLock!=='function' ||
+      heldLock.hasLock()!==true)
+    throw new Error('DURABLE_REPLAY_GLOBAL_SCRIPT_LOCK_REQUIRED');
+}
+/** Original caller must pass its currently held GLOBAL create-order ScriptLock. */
+function trendosDurableReplayV1Lookup_(ss,identity,heldLock) {
+  trendosDurableReplayV1RequireLock_(heldLock);
   if(!identity||!/^[0-9a-f]{64}$/.test(identity.keyDigest)||
      !/^[0-9a-f]{64}$/.test(identity.payloadDigest))
     throw new Error('DURABLE_REPLAY_INVALID_IDENTITY');
@@ -124,7 +133,10 @@ function trendosDurableReplayV1RequireLock_(heldLock) {\n  if (!heldLock || type
     identity.payloadDigest);
 }
 /** Reserve before order ID allocation or any business write; one-time only. */
-function trendosDurableReplayV1Reserve_(ss,identity,heldLock) {\n  trendosDurableReplayV1RequireLock_(heldLock);\n  var sheet=trendosDurableReplayV1Sheet_(ss);\n  var state=trendosDurableReplayV1Lookup_(ss,identity,heldLock);
+function trendosDurableReplayV1Reserve_(ss,identity,heldLock) {
+  trendosDurableReplayV1RequireLock_(heldLock);
+  var sheet=trendosDurableReplayV1Sheet_(ss);
+  var state=trendosDurableReplayV1Lookup_(ss,identity,heldLock);
   if(state.kind!=='NEW')return state;
   var at=new Date().toISOString(),headers=trendosDurableReplayV1Headers_();
   sheet.appendRow([identity.keyDigest,identity.payloadDigest,'PENDING','','','',
@@ -138,7 +150,9 @@ function trendosDurableReplayV1Reserve_(ss,identity,heldLock) {\n  trendosDurabl
     keyDigest:identity.keyDigest,payloadDigest:identity.payloadDigest};
 }
 /** Commit ONLY the corresponding PENDING reservation after writes are done. */
-function trendosDurableReplayV1Commit_(ss,reservation,response,heldLock) {\n  trendosDurableReplayV1RequireLock_(heldLock);\n  if(!reservation||reservation.kind!=='RESERVED'||
+function trendosDurableReplayV1Commit_(ss,reservation,response,heldLock) {
+  trendosDurableReplayV1RequireLock_(heldLock);
+  if(!reservation||reservation.kind!=='RESERVED'||
      !response||response.success!==true||
      !String(response.orderId||'').trim()||
      !String(response.lineId||'').trim())
