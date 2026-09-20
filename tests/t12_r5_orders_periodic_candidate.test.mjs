@@ -11,8 +11,12 @@ const productionEntry=fs.readFileSync(new URL(
   '../cloudflare-d1/production-shadow/index.js',import.meta.url),'utf8');
 const productionCfg=fs.readFileSync(new URL(
   '../cloudflare-d1/wrangler.toml',import.meta.url),'utf8');
-assert.equal(productionEntry.includes('r5-orders-periodic-guarded-handler-candidate'),false);
-assert.equal(productionCfg.includes('TRENDOS_R5_PERIODIC_ENABLED'),false);
+assert.equal(productionEntry.includes('r5-orders-periodic-guarded-handler-candidate'),true);
+assert.equal(productionEntry.includes('if (isR5ProductionRecoveryPath(path))'),true);
+assert.match(productionCfg,/TRENDOS_R5_PERIODIC_ENABLED = "false"/);
+assert.match(productionCfg,/TRENDOS_R4_RECOVERY_ENABLED = "false"/);
+assert.match(productionCfg,/TRENDOS_R5_PERIODIC_TARGET = "trendos-main\\/5c4b92bf-e043-4f6e-bd6d-d514a92cd825"/);
+assert.equal(productionCfg.includes('TRENDOS_R5_PERIODIC_ENABLED = "true"'),false);
 new vm.Script(script); // Syntax check of the actual isolated GAS candidate.
 for (const forbidden of [/getScriptProperties\s*\(/,/setProperty\s*\(/,
   /deleteProperty\s*\(/,/\/v1\/mirror\/delta/,
