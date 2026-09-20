@@ -27,6 +27,7 @@ on:
       - 'tests/t12_cloud_native_synthetic_create.test.mjs'
       - 'tests/t12_google_create_writer_inventory.test.mjs'
       - 'tests/t12_google_order_lifecycle_writer_inventory.test.mjs'
+      - 'tests/t12_legacy_cloud_write_boundary.test.mjs'
       - 'cloudflare-d1/src/t12-order-create-cutover-state.mjs'
       - 'tests/t12_order_create_cutover_state.test.mjs'
       - 'cloudflare-d1/src/t12-order-create-input-guard.mjs'
@@ -119,6 +120,7 @@ jobs:
           node --check tests/t12_cloud_native_synthetic_create.test.mjs
           node --check tests/t12_google_create_writer_inventory.test.mjs
           node --check tests/t12_google_order_lifecycle_writer_inventory.test.mjs
+          node --check tests/t12_legacy_cloud_write_boundary.test.mjs
           node --check tests/t12_order_create_cutover_state.test.mjs
           node --check cloudflare-d1/src/t12-order-create-input-guard.mjs
           node --check tests/t12_order_create_input_guard.test.mjs
@@ -165,6 +167,7 @@ jobs:
           node tests/t12_cloud_client_key_admission.test.mjs
           node tests/t12_google_create_writer_inventory.test.mjs
           node tests/t12_google_order_lifecycle_writer_inventory.test.mjs
+          node tests/t12_legacy_cloud_write_boundary.test.mjs
           node tests/t12_order_create_input_guard.test.mjs
           node tests/t12_script_properties_quota_audit_readonly.test.mjs
           node tests/t12_script_properties_replay_cleanup_preview.test.mjs
