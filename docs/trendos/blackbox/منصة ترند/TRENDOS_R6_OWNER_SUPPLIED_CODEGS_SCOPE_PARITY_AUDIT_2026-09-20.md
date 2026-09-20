@@ -1,0 +1,32 @@
+# TrendOS R6 — owner-supplied Code.gs-like text review / 2026-09-20
+
+## Scope and handling
+The owner uploaded a local text attachment as the source requested for R6 live-code review. **This file was NOT committed/uploaded into GitHub, copied into the synthetic workbook, placed in Drive or executed in Apps Script.** Keep its source private. This document reports only sanitized structure and analysis. The owner did NOT supply a verified deployed Version 155 export, live project file manifest or an authenticated Apps Script Projects `getContent` response; therefore this is a comparison of the uploaded text vs the GitHub baseline, NOT a proof of deployed Version 155 byte parity, route identity or current production Head contents.
+
+Uploaded artifact inspected in sandbox: 810687 bytes, 14467 physical text lines, SHA-256 `2d586432d517f9fa5ece3cba06e0353e40af6ce933887fbe9ee621d132ff6dce`. Node.js `--check` syntax PASS; syntactic acceptance does not verify Apps Script globals, link resolution, spreadsheet dependencies or deployment behavior. The isolated branch GitHub `Code.gs` baseline has 12281 text lines; the uploaded text includes additional trailing modules/hotfixes. **NEVER replace the supplied file with repo Code.gs** or append all its contents into any live file.
+
+## Exact selected create/replay section comparison against repository baseline
+The following top-level function blocks have the SAME UTF-16 code-unit lengths AND independently computed FNV32 text signatures between the owner-supplied text and branch `Code.gs` (source-position offset is +31 lines for the upload): 
+`trendosV1908RequestKey_` 143 / 9d63ac5c,
+`trendosV1908PropKey_` 159 / 21e915e6,
+`trendosV1908ReadSavedResponse_` 280 / 38553605,
+`trendosV1908SaveResponse_` 387 / 3463a918,
+`createManualOrder_` 10977 / 6e100ef4,
+`accountingSaveIdempotentV1913_` 308 / 41bf2d91.
+A matching noncryptographic text fingerprint is scoped positive evidence for these blocks, **NOT** byte-proof for the entire upload or deployed Web App Version 155. The original-bound project may contain separate .gs files overriding functions/routes, and deployed versions may differ from editor Head.
+
+Findings in uploaded file:
+- `createManualOrder_` authorizes, obtains the global ScriptLock, reads `trendosV1908ReadSavedResponse_` at its entry, later performs Order/Line business writes and calls `trendosV1908SaveResponse_` on successful response near the end.
+- `trendosV1908SaveResponse_` writes one `TRENDOS_CREATE_ORDER_V1908_...` Script Property for successful requests, truncates JSON to 8000 chars, and silently swallows a failed `setProperty`. `accountingSaveIdempotentV1913_` separately also writes up to 8000 chars and swallows write failures. The existing `makeOrderId_` increments `TRENDOS_NEXT_SIMPLE_ORDER_NO` using `setProperty`; a full shared store can therefore impact canonical Order-ID allocation EVEN IF future replay entries move to a durable ledger. This is why R6 cannot be described as a complete quota fix simply by replacing new V1908 writes.
+- Uploaded text contains 10 `.setProperty(` and one `.deleteProperty(` call site (lexical site counts, not verified calls at runtime). Not all are growing keys; review `authPepperV1922_`, `makeOrderId_`, `trendosBumpDataVersionV1931_`, `accountingSaveIdempotentV1913_`, `trendosV1908SaveResponse_` and all actual callers separately. Avoid clearing data-version, numeric order counter, pepper, financial idempotency or previous D1 V2 baseline to force headroom.
+- At least the global-looking function names `getRows_` (lines 3991/14114), `getDashboard_` (4942/14169), and `updateLine_` (4195/14381) are declared twice, with explicit trailing TIMEOUT/SAVE hotfix overrides. A local function named `score` also appears twice but is not evidence of a conflicting global override by itself. Apps Script global namespace across OTHER .gs files could contain additional overrides; do not copy only the earlier versions or assume the repo `Code.gs` alone defines runtime.
+- The uploaded text has NO declaration of `trendosR5PeriodicOrdersTick20260920` and NO R6 durable ledger function. R5's actually running handler was previously installed in a **separate Apps Script file**; absence in this upload is NOT evidence it has been deleted or stopped. Preserve `R5_Orders_Periodic_20260920` and do not reinstall/start legacy sync.
+
+## Exact integration gate affected by new evidence
+1. Obtain current original-bound Apps Script **complete file manifest with filenames, modified times/version, and actual source for create-order relevant files**, as well as read-only deployed Version 155 source or deployment ID proof; also verify actual frontend `app.js` deployed commit and alternative `mbCreateOrder_` / customer portal / integrities routes.
+2. Review the LAST effective definitions of `createManualOrder_`, `doGet`, `doPost`, `getRows_`, `updateLine_`, `makeOrderId_`, and any other global symbol overrides across all live .gs files. Do not assume source text is a standalone runtime snapshot.
+3. Test durable ledger integration with pure validations and original Lock timing, including all 10 property writers, accounting ID allocation, forceCreate frontend warning confirmation, partial writes, archive/open-order reuse, and R5 natural tick. Never replace the complete 14k-line source using 12k-line GitHub baseline.
+4. The owner-approved sandbox workbook remains `https://docs.google.com/spreadsheets/d/136diLukmM3Me7TmWP8cuwW3Z4lSb0UQZIfQ4I7eMr1Q/edit`, owner-private dummy data only. Production workbook and Apps Script source still unchanged by this comparison. Running any test writer must be strictly restricted to this synthetic workbook via a separate test-only harness; the production ID guard in the deployable candidate must remain intact.
+
+## Immediate handoff
+We can continue exact local/source analysis without new production mutations. The missing decisive evidence is **the live Apps Script file inventory and live deployment source identity**, particularly the separate R5 file and possible route/function overrides. Owner can provide a screenshot of the Files sidebar plus deployment Version 155 information or a private Apps Script project source export with credentials/secret values redacted, not Script Properties, passwords, raw backup or customer rows. Source text supplied through chat should not be forwarded to GitHub.
