@@ -71,6 +71,7 @@ on:
       - 'Code.gs'
       - '.github/workflows/trendos-t12-order-create-isolated-ci.yml'
       - '.github/workflows/trendos-r4-production-recovery-controlled.yml'
+      - '.github/workflows/trendos-r5-periodic-controlled.yml'
   workflow_dispatch:
 
 permissions:
