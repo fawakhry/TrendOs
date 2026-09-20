@@ -7,6 +7,8 @@ on:
     paths:
       - 'cloudflare-d1/t12-preview/t12-replay-new150-cohort-sheet-preflight-readonly-20260920.gs'
       - 'tests/t12_replay_new150_cohort_sheet_preflight_readonly_20260920.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-replay-new150-private-backup-once-20260920.gs'
+      - 'tests/t12_replay_new150_private_backup_once_20260920.test.mjs'
       - '.github/workflows/trendos-safety-replay-cohort-readonly-ci.yml'
   workflow_dispatch:
 
@@ -31,4 +33,6 @@ jobs:
         with:
           node-version: '22'
       - name: Run synthetic read-only cohort tests (no production access)
-        run: node tests/t12_replay_new150_cohort_sheet_preflight_readonly_20260920.test.mjs
+        run: |
+          node tests/t12_replay_new150_cohort_sheet_preflight_readonly_20260920.test.mjs
+          node tests/t12_replay_new150_private_backup_once_20260920.test.mjs
