@@ -1,0 +1,75 @@
+name: TrendOS R4 Production Recovery Controlled
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Temporary recovery route state
+        required: true
+        type: choice
+        options:
+          - enable
+          - disable
+      confirmation:
+        description: Type DEPLOY_R4_RECOVERY_TO_TRENDOS_D1_API
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-r4-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact authorization and target guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.confirmation }}' = 'DEPLOY_R4_RECOVERY_TO_TRENDOS_D1_API'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fx 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -F "'/v1/admin/r4/orders-recovery/apply'" cloudflare-d1/src/r4-guarded-recovery-production.mjs
+      - name: Run R4 safety qualification
+        run: |
+          node tests/t12_d1_targeted_recovery_plan_v1.test.mjs
+          node --experimental-sqlite tests/t12_d1_guarded_recovery_batch_v1.test.mjs
+          node tests/t12_d1_r4_production_recovery_route.test.mjs
+          node tests/t12_d1_direct_cas_bounded_catchup.test.mjs
+      - name: Select temporary route state
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ inputs.action }}' = 'enable' ]; then
+            sed -i 's/TRENDOS_R4_RECOVERY_ENABLED = "false"/TRENDOS_R4_RECOVERY_ENABLED = "true"/' cloudflare-d1/wrangler.toml
+          else
+            grep -Fx 'TRENDOS_R4_RECOVERY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          fi
+      - name: Deploy exact production Worker
+        run: npx --yes wrangler@4 deploy --config cloudflare-d1/wrangler.toml
+      - name: Verify route state without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/r4-route.json --write-out '%{http_code}' "$PROD_URL/v1/admin/r4/orders-recovery/apply")"
+          if [ '${{ inputs.action }}' = 'enable' ]; then
+            test "$code" = '405'
+            grep -F 'method-not-allowed' /tmp/r4-route.json
+          else
+            test "$code" = '423'
+            grep -F 'recovery-disabled-or-wrong-target' /tmp/r4-route.json
+          fi
+          grep -F '"automaticRetryAllowed":false' /tmp/r4-route.json
