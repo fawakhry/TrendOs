@@ -11,6 +11,8 @@ on:
       - 'tests/t12_replay_new150_private_backup_once_20260920.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-durable-order-replay-ledger-candidate.gs'
       - 'tests/t12_durable_order_replay_ledger_candidate.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-order-create-client-intent-candidate.mjs'
+      - 'tests/t12_order_create_client_intent_candidate.test.mjs'
       - '.github/workflows/trendos-safety-replay-cohort-readonly-ci.yml'
   workflow_dispatch:
 
@@ -39,3 +41,4 @@ jobs:
           node tests/t12_replay_new150_cohort_sheet_preflight_readonly_20260920.test.mjs
           node tests/t12_replay_new150_private_backup_once_20260920.test.mjs
           node tests/t12_durable_order_replay_ledger_candidate.test.mjs
+          node tests/t12_order_create_client_intent_candidate.test.mjs
