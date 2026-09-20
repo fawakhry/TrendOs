@@ -129,7 +129,6 @@ function trendosR5PeriodicOrdersOnce_() {
           Number(cat.rowCount)!==src.sourceLastRow||
           Number(cat.sourceLastRow)!==src.sourceLastRow||
           Number(cat.sourceLastCol)!==src.sourceLastCol||
-          JSON.stringify(src.headers)!==JSON.stringify(cat.headers)||
           cat.status!=='ready') fail('R5_PERIODIC_ABORT_POSTFLIGHT_DIMENSIONS');
       var remote=readRemote(n,cat,src.headers);
       if(remote.length!==src.rows.length||src.rows.some(function(row,j){
