@@ -20,14 +20,7 @@ for(const invalid of ['','anything','cld1_1790000000000_short',
   'cld1_1499999999999_TEST_12345678901',
   'cld1_1790000000000_TEST_12345678901\n','\tcld1_1790000000000_TEST_12345678901\t']){
   const r=classifyT12ClientRequestKey(invalid);
-  if(invalid==='\tcld1_1790000000000_TEST_12345678901\t') {
-    // Trimming is permitted only at API boundary, never a new request key.
-    assert.equal(r.kind,'CLOUD_SYNTHETIC_ELIGIBLE');
-  } else if(invalid.includes('\n')){
-    // A newline is removed by trim here; production must additionally enforce
-    // request-key byte identity at its authenticated Cloud route boundary.
-    assert.equal(r.kind,'CLOUD_SYNTHETIC_ELIGIBLE');
-  } else assert.equal(r.kind,'REJECT');
+  assert.equal(r.kind,'REJECT','reject raw whitespace aliases');
   assert.equal(r.createAuthorized,false);
 }
 const n=classifyT12ClientRequestKey('cld1_1790000000000_TEST_12345678901');
