@@ -60,7 +60,7 @@ function trendosDurableReplayV1Identity_(requestKey,principal,requestParams) {
     if(JSON.stringify(safe[name]).length>8000)
       throw new Error('DURABLE_REPLAY_PAYLOAD_TOO_LARGE');
   });
-  return {keyDigest:trendosDurableReplayV1Hash_('v1|'+who+'|'+key),
+  return {keyDigest:trendosDurableReplayV1Hash_(JSON.stringify(['v1',who,key])),
     payloadDigest:trendosDurableReplayV1Hash_(JSON.stringify(safe))};
 }
 function trendosDurableReplayV1Sheet_(ss) {
