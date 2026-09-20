@@ -94,7 +94,7 @@ function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigge
       for(const s of payload.proposal.sheets){
         const m=remote.find(x=>x.sheetName===s.sheetName);
         for(const u of s.upserts){
-          assert.deepEqual(m.rows[u.rowNumber-1]||null,u.expectedBefore);
+          assert.equal(JSON.stringify(m.rows[u.rowNumber-1]||null),JSON.stringify(u.expectedBefore));
           m.rows[u.rowNumber-1]={...u.replacement};
         }
         m.rowCount=s.sourceLastRow;m.sourceLastRow=s.sourceLastRow;
