@@ -104,6 +104,11 @@ function complete(db,n){
     'legacy-request-read-only-or-reconcile-no-create');
   assert.equal((await add(db,params('arbitrary-shared-key'))).reason,
     'new-cloud-request-namespace-required');
+  assert.equal((await add(db,{...params(),clientRequestId:' cld1_1790000000000_TEST_12345678901'})).success,false);
+  assert.equal((await add(db,{...params(),requestId:'co_1790000000000_legacy'})).reason,
+    'exactly-one-raw-cloud-client-key-required');
+  assert.equal((await add(db,{...params(),clientRequestId:undefined,requestId:'cld1_1790000000000_TEST_12345678901'})).reason,
+    'exactly-one-raw-cloud-client-key-required');
   assert.equal((await add(db,params(),'')).reason,'authenticated-test-actor-required');
   noBusinessWrites(db);db.close();
 }
