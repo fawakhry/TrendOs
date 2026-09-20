@@ -7,6 +7,7 @@
  */
 import { buildCanonicalOrderCreateIntentV2 } from './cloud-write-order-contract-v2.mjs';
 import { checkT12OrderCreateInputShape } from './t12-order-create-input-guard.mjs';
+import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
 
 export const T12_CLOUD_NATIVE_SYNTHETIC_VERSION='T12_CLOUD_NATIVE_SYNTHETIC_CREATE_20260920';
 const MODE='isolated-cloud-native-synthetic-qualification';
@@ -86,6 +87,11 @@ export async function createT12CloudNativeSynthetic(db,input={},actor='',gates={
   const intent=buildCanonicalOrderCreateIntentV2(input);
   if(!intent.valid)return fail('synthetic-canonical-intent-invalid');
   const p=intent.normalized;
+  const namespace=classifyT12ClientRequestKey(p.clientRequestId);
+  if(namespace.kind==='LEGACY_REPLAY_ONLY')
+    return fail('legacy-request-read-only-or-reconcile-no-create');
+  if(namespace.kind!=='CLOUD_SYNTHETIC_ELIGIBLE')
+    return fail('new-cloud-request-namespace-required');
   // This rehearsal tests ONE narrow transaction; it does not silently claim
   // debt/registered-lookup/open-order reuse/multi/press/laser side-effect parity.
   if(p.identityMode!=='registered'||p.department!=='طباعة'||p.heatPress||
