@@ -172,6 +172,11 @@ function trendosR5PeriodicOrdersTick20260920() {
       ['R5_PERIODIC_ABORT_LOCK_NOT_AVAILABLE','R5_PERIODIC_ABORT_SOURCE_CHANGED',
        'R5_PERIODIC_ABORT_CATALOG_CHANGED',
        'R5_PERIODIC_ABORT_IDLE_SOURCE_OR_D1_CHANGED'].indexOf(result.errorCode)>=0;
+    // A confirmed COMMIT with a newer source is not an ambiguous POST: the
+    // next scheduled tick can capture fresh source+remote snapshots safely.
+    if(result&&result.postConfirmed===true&&result.outcomeUnknown!==true&&
+        result.errorCode==='R5_PERIODIC_ABORT_POSTFLIGHT_SOURCE_CHANGED')
+      retryable=true;
     if(!retryable){
       trendosR5PeriodicOrdersRemoveOwnTrigger_();
       result=Object.assign({},result||{}, {scheduledSyncDisarmed:true});
