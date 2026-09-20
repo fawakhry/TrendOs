@@ -12,8 +12,8 @@
 export const T12_CLOUD_CLIENT_KEY_ADMISSION='T12_CLOUD_CLIENT_KEY_ADMISSION_ISOLATED_20260920';
 const NEW=/^cld1_(\d{13})_([A-Za-z0-9_-]{16,80})$/;
 export function classifyT12ClientRequestKey(requestKey){
-  const key=String(requestKey??'').trim();
-  if(!key||key.length>160||/[\u0000-\u001f]/.test(key))
+  const key=String(requestKey??'');
+  if(!key||key.length>160||key!==key.trim()||/[\u0000-\u001f]/.test(key))
     return {kind:'REJECT',createAuthorized:false,reason:'invalid-client-key'};
   if(/^co_/.test(key)||/^TRENDOS_CREATE_ORDER_V1908_/.test(key)){
     return {kind:'LEGACY_REPLAY_ONLY',createAuthorized:false,
