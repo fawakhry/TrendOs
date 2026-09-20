@@ -52,7 +52,9 @@ function setup(mode='ok'){
       mutations.push('appendRow'); rows.push(values.slice());
     }
   };
-  const heldLock={hasLock:()=>true}, unheldLock={hasLock:()=>false};\n  const ss={\n    getId:()=>mode==='wrongWorkbook'?'wrong':'1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI',
+  const heldLock={hasLock:()=>true}, unheldLock={hasLock:()=>false};
+  const ss={
+    getId:()=>mode==='wrongWorkbook'?'wrong':'1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI',
     getSheetByName(name){return mode==='missingSheet'?null:
       name==='TRENDOS_ORDER_REQUEST_LEDGER_V1'?sheet:null;}
   };
@@ -74,8 +76,11 @@ function setup(mode='ok'){
       clientRequestId:req,username:'wael',token:'SUPER_SECRET',
       customerName:'a customer',itemName:'mug',qty
     });
-  return {sandbox,ss,rows,mutations,flushes,identity,heldLock,unheldLock,\n    failFlushAt(n){throwFlushAt=n},
-    lookup(x){return sandbox.trendosDurableReplayV1Lookup_(ss,x,heldLock)},\n    reserve(x){return sandbox.trendosDurableReplayV1Reserve_(ss,x,heldLock)},\n    commit(r,response){return sandbox.trendosDurableReplayV1Commit_(ss,r,response,heldLock)}};
+  return {sandbox,ss,rows,mutations,flushes,identity,heldLock,unheldLock,
+    failFlushAt(n){throwFlushAt=n},
+    lookup(x){return sandbox.trendosDurableReplayV1Lookup_(ss,x,heldLock)},
+    reserve(x){return sandbox.trendosDurableReplayV1Reserve_(ss,x,heldLock)},
+    commit(r,response){return sandbox.trendosDurableReplayV1Commit_(ss,r,response,heldLock)}};
 }
 {
   const x=setup(),key=x.identity();
