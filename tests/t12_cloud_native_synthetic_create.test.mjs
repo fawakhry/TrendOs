@@ -67,7 +67,7 @@ class SyntheticD1 {
 const gates={mode:'isolated-cloud-native-synthetic-qualification',
   allowSyntheticBusinessCreate:true,testDatabaseIsolationVerified:true,
   googleCreateFrozenInTest:true,r5MirrorFencedInTest:true,edgeSessionVerifiedInTest:true};
-const params=(key='co_1790000000000_TEST001',qty=1)=>({
+const params=(key='cld1_1790000000000_TEST_12345678901',qty=1)=>({
   clientRequestId:key,customerName:'SYNTHETIC TEST CUSTOMER',
   customerPhone:'01000000000',itemName:'TEST MUG',qty,
   department:'طباعة',priority:'عادي',status:'طلب جديد'
@@ -100,6 +100,10 @@ function complete(db,n){
     'unsupported-canonical-business-case-not-qualified');
   assert.equal((await add(db,{...params(),department:'متعدد الأقسام'})).success,false);
   assert.equal((await add(db,{...params(),forceCreate:'YES'})).success,false);
+  assert.equal((await add(db,params('co_1790000000000_TEST001'))).reason,
+    'legacy-request-read-only-or-reconcile-no-create');
+  assert.equal((await add(db,params('arbitrary-shared-key'))).reason,
+    'new-cloud-request-namespace-required');
   assert.equal((await add(db,params(),'')).reason,'authenticated-test-actor-required');
   noBusinessWrites(db);db.close();
 }
@@ -137,7 +141,7 @@ for(const db of [new SyntheticD1({seed:false})]){
   assert.equal(differentActor.reason,'same-key-actor-or-payload-conflict');
   assert.equal(db.sequence(),1602);
   complete(db,1);
-  const second=await add(db,params('co_1790000000001_TEST002'));
+  const second=await add(db,params('cld1_1790000000001_TEST_12345678902'));
   assert.equal(second.orderId,'1602');
   assert.equal(second.lineId,'1602-01');
   assert.equal(db.sequence(),1603);
