@@ -63,6 +63,9 @@ on:
       - 'tests/t12_d1_r4_production_recovery_route.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-d1-direct-cas-bounded-catchup-20260920.gs'
       - 'tests/t12_d1_direct_cas_bounded_catchup.test.mjs'
+      - 'cloudflare-d1/t12-preview/r5-orders-periodic-guarded-handler-candidate.mjs'
+      - 'cloudflare-d1/t12-preview/r5-orders-periodic-bound-appsscript-candidate.gs'
+      - 'tests/t12_r5_orders_periodic_candidate.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-script-properties-replay-fixed150-delete-once.gs'
       - 'tests/t12_script_properties_replay_fixed150_delete_once.test.mjs'
       - 'Code.gs'
@@ -129,6 +132,8 @@ jobs:
           node --check cloudflare-d1/production-shadow/index.js
           node --check tests/t12_d1_r4_production_recovery_route.test.mjs
           node --check tests/t12_d1_direct_cas_bounded_catchup.test.mjs
+          node --check cloudflare-d1/t12-preview/r5-orders-periodic-guarded-handler-candidate.mjs
+          node --check tests/t12_r5_orders_periodic_candidate.test.mjs
           node --check tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
@@ -161,4 +166,5 @@ jobs:
           node --experimental-sqlite tests/t12_d1_r4_local_preview_isolation.test.mjs
           node tests/t12_d1_r4_production_recovery_route.test.mjs
           node tests/t12_d1_direct_cas_bounded_catchup.test.mjs
+          node tests/t12_r5_orders_periodic_candidate.test.mjs
           node tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
