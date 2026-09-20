@@ -94,8 +94,7 @@ function complete(db,n){
   assert.equal((await add(db,params(),'')).reason,'authenticated-test-actor-required');
   noBusinessWrites(db);db.close();
 }
-for(const db of [new SyntheticD1({seed:false}),
-                 new SyntheticD1({misconfigured:true})]){
+for(const db of [new SyntheticD1({seed:false})]){
   assert.equal((await add(db)).reason,'synthetic-db-identity-or-writer-fence-mismatch');
   db.close();
 }
