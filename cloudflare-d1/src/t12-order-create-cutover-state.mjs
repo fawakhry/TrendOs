@@ -19,6 +19,8 @@ const REQUIRED=Object.freeze([
   'allocatorSeedPinned',
   'googleCreateFreezeMechanismQualified',
   'allGoogleCreateEntrypointsFenceQualified',
+  'allGoogleOrderLineMutationEntrypointsFenceQualified',
+  'cloudNativeOrderLineLifecycleParityQualified',
   'legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified',
   'r5MirrorWriterFenceQualified',
@@ -53,7 +55,9 @@ export function evaluateT12CreateCutoverState(evidence={}){
   }
 
   const authorityKeys=['allocatorSeedPinned','googleCreateFreezeMechanismQualified',
-    'allGoogleCreateEntrypointsFenceQualified','legacyReplayContinuityQualified',
+    'allGoogleCreateEntrypointsFenceQualified',
+    'allGoogleOrderLineMutationEntrypointsFenceQualified',
+    'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
     'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
     'cloudReadAndFallbackParityQualified','rollbackMechanismQualified'];
   const authorityMissing=authorityKeys.filter(k=>evidence[k]!==true);
