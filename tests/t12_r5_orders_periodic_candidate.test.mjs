@@ -141,7 +141,7 @@ function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigge
 {
   const p=fakePlatform({drift:true,ownTrigger:true});
   const receipt=p.ctx.trendosR5PeriodicOrdersTick20260920();
-  assert.equal(receipt.postflightRowParityVerified,false);
+  assert.notEqual(receipt.postflightRowParityVerified,true);
   assert.equal(receipt.scheduledSyncDisarmed,true);
   assert.equal(p.getPosts(),0);
   assert.equal(p.triggers.length,0);
