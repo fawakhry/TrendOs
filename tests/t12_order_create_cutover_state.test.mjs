@@ -14,14 +14,19 @@ assert.equal(x.state,'github-shadow-engineering');
 assert.equal(x.productionActivationAuthorized,false);
 assert.equal(x.ownerDecisionRequired,false);
 
-const shadowQualified={...all,productionVersion155SourceExact:false,allocatorSeedPinned:false,googleCreateFreezeMechanismQualified:false,rollbackMechanismQualified:false};
+const authorityBlocked=['allocatorSeedPinned','googleCreateFreezeMechanismQualified',
+  'allGoogleCreateEntrypointsFenceQualified','legacyReplayContinuityQualified',
+  'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
+  'cloudReadAndFallbackParityQualified','rollbackMechanismQualified'];
+const shadowQualified={...all,productionVersion155SourceExact:false,
+  ...Object.fromEntries(authorityBlocked.map(key=>[key,false]))};
 x=evaluateT12CreateCutoverState(shadowQualified);
 assert.equal(x.state,'live-source-reconciliation-required');
 assert.deepEqual(x.missing,['productionVersion155SourceExact']);
 
 x=evaluateT12CreateCutoverState({...shadowQualified,productionVersion155SourceExact:true});
 assert.equal(x.state,'exclusive-authority-design-required');
-assert.deepEqual(new Set(x.missing),new Set(['allocatorSeedPinned','googleCreateFreezeMechanismQualified','rollbackMechanismQualified']));
+assert.deepEqual(new Set(x.missing),new Set(authorityBlocked));
 
 x=evaluateT12CreateCutoverState(all);
 assert.equal(x.state,'engineering-ready-for-owner-decision');
@@ -29,6 +34,16 @@ assert.equal(x.ownerDecisionRequired,true);
 assert.equal(x.productionActivationAuthorized,false);
 assert.equal(x.currentProductionAuthorityMustRemainGoogleUntilDecision,true);
 
+for(const key of [
+  'allGoogleCreateEntrypointsFenceQualified','legacyReplayContinuityQualified',
+  'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
+  'cloudReadAndFallbackParityQualified'
+]){
+  const blocked=evaluateT12CreateCutoverState({...all,[key]:false});
+  assert.equal(blocked.state,'exclusive-authority-design-required');
+  assert.ok(blocked.missing.includes(key));
+  assert.equal(blocked.productionActivationAuthorized,false);
+}
 for(const key of T12_CREATE_CUTOVER_REQUIRED_EVIDENCE){
   const ev={...all,[key]:false};
   const r=evaluateT12CreateCutoverState(ev);
