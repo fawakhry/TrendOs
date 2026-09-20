@@ -84,14 +84,23 @@ export async function createT12CloudNativeSynthetic(db,input={},actor='',gates={
   if(!safeActor||safeActor.length>100)return fail('authenticated-test-actor-required');
   const shape=checkT12OrderCreateInputShape(input);
   if(!shape.valid)return fail('synthetic-input-shape-refused');
-  const intent=buildCanonicalOrderCreateIntentV2(input);
-  if(!intent.valid)return fail('synthetic-canonical-intent-invalid');
-  const p=intent.normalized;
-  const namespace=classifyT12ClientRequestKey(p.clientRequestId);
+  // Do not normalize/truncate/choose among aliases before classifying
+  // the raw client key: a retry must keep byte-for-byte identity.
+  const aliases=['clientRequestId','requestId','idempotencyKey','idempotency_key']
+    .filter(k=>Object.prototype.hasOwnProperty.call(input,k));
+  if(aliases.length!==1||aliases[0]!=='clientRequestId'||
+     typeof input.clientRequestId!=='string')
+    return fail('exactly-one-raw-cloud-client-key-required');
+  const namespace=classifyT12ClientRequestKey(input.clientRequestId);
   if(namespace.kind==='LEGACY_REPLAY_ONLY')
     return fail('legacy-request-read-only-or-reconcile-no-create');
   if(namespace.kind!=='CLOUD_SYNTHETIC_ELIGIBLE')
     return fail('new-cloud-request-namespace-required');
+  const intent=buildCanonicalOrderCreateIntentV2(input);
+  if(!intent.valid)return fail('synthetic-canonical-intent-invalid');
+  const p=intent.normalized;
+  if(p.clientRequestId!==input.clientRequestId)
+    return fail('cloud-client-key-normalization-refused');
   // This rehearsal tests ONE narrow transaction; it does not silently claim
   // debt/registered-lookup/open-order reuse/multi/press/laser side-effect parity.
   if(p.identityMode!=='registered'||p.department!=='طباعة'||p.heatPress||
