@@ -21,6 +21,8 @@ on:
       - 'tests/t12_order_id_authority_candidate.test.mjs'
       - 'tests/t12_scope_guard.test.mjs'
       - 'cloudflare-d1/src/t12-cloud-native-synthetic-create.mjs'
+      - 'cloudflare-d1/src/t12-cloud-client-key-admission.mjs'
+      - 'tests/t12_cloud_client_key_admission.test.mjs'
       - 'cloudflare-d1/schema-prep/t12-cloud-native-synthetic-create-v1.sql'
       - 'tests/t12_cloud_native_synthetic_create.test.mjs'
       - 'tests/t12_google_create_writer_inventory.test.mjs'
@@ -111,6 +113,8 @@ jobs:
           node --check tests/t12_scope_guard.test.mjs
           node --check cloudflare-d1/src/t12-order-create-cutover-state.mjs
           node --check cloudflare-d1/src/t12-cloud-native-synthetic-create.mjs
+          node --check cloudflare-d1/src/t12-cloud-client-key-admission.mjs
+          node --check tests/t12_cloud_client_key_admission.test.mjs
           node --check tests/t12_cloud_native_synthetic_create.test.mjs
           node --check tests/t12_google_create_writer_inventory.test.mjs
           node --check tests/t12_order_create_cutover_state.test.mjs
@@ -156,6 +160,7 @@ jobs:
           node --experimental-sqlite tests/t12_order_id_authority_candidate.test.mjs
           node tests/t12_order_create_cutover_state.test.mjs
           node --experimental-sqlite tests/t12_cloud_native_synthetic_create.test.mjs
+          node tests/t12_cloud_client_key_admission.test.mjs
           node tests/t12_google_create_writer_inventory.test.mjs
           node tests/t12_order_create_input_guard.test.mjs
           node tests/t12_script_properties_quota_audit_readonly.test.mjs
