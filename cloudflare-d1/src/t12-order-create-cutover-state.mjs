@@ -18,6 +18,11 @@ const REQUIRED=Object.freeze([
   'readYourWriteQualified',
   'allocatorSeedPinned',
   'googleCreateFreezeMechanismQualified',
+  'allGoogleCreateEntrypointsFenceQualified',
+  'legacyReplayContinuityQualified',
+  'stableClientRequestAcrossTimeoutQualified',
+  'r5MirrorWriterFenceQualified',
+  'cloudReadAndFallbackParityQualified',
   'rollbackMechanismQualified'
 ]);
 
@@ -47,7 +52,10 @@ export function evaluateT12CreateCutoverState(evidence={}){
     return result('live-source-reconciliation-required',['productionVersion155SourceExact']);
   }
 
-  const authorityKeys=['allocatorSeedPinned','googleCreateFreezeMechanismQualified','rollbackMechanismQualified'];
+  const authorityKeys=['allocatorSeedPinned','googleCreateFreezeMechanismQualified',
+    'allGoogleCreateEntrypointsFenceQualified','legacyReplayContinuityQualified',
+    'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
+    'cloudReadAndFallbackParityQualified','rollbackMechanismQualified'];
   const authorityMissing=authorityKeys.filter(k=>evidence[k]!==true);
   if(authorityMissing.length) return result('exclusive-authority-design-required',authorityMissing);
 
