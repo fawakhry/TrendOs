@@ -54,7 +54,8 @@ assert.equal((await code(409,request('POST',{operation:'r5-orders-periodic-apply
 
 const names=['الأوردرات','بنود الأوردرات'];
 const row=(n,v)=>({rowNumber:n,values:[v],display:[v],formulas:['']});
-function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigger=false}={}) {
+function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigger=false,
+  sourceRaceAfterPost=false}={}) {
   const source=names.map((sheetName,i)=>({sheetName,sheetId:i+11,sourceLastRow:3,
     sourceLastCol:1,headers:['h'],rows:[row(1,'h'),row(2,'synthetic-new'),row(3,'synthetic-tail')]}));
   const remote=names.map((name,i)=>({sheetName:name,sheetId:i+11,
@@ -100,6 +101,7 @@ function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigge
         m.rowCount=s.sourceLastRow;m.sourceLastRow=s.sourceLastRow;
         m.syncedAt='2026-09-20 12:00:01';
       }
+      if(sourceRaceAfterPost&&posts===1)source[0].rows[1]=row(2,'synthetic-newer');
       if(ambiguous)throw Error('synthetic response lost after commit');
       return {success:true,reason:'periodic-d1-commit-observed',
         summary:{totalCandidateUpserts:total}};
@@ -146,4 +148,15 @@ function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigge
   assert.equal(p.getPosts(),0);
   assert.equal(p.triggers.length,0);
 }
-console.log('R5 isolated candidate PASS: default-off/auth/target/syntax/routing, idle, fresh bounded CAS, ambiguous outcome disarm, schema drift disarm; synthetic only.');
+{
+  const p=fakePlatform({needUpdate:true,sourceRaceAfterPost:true,ownTrigger:true});
+  const first=p.ctx.trendosR5PeriodicOrdersTick20260920();
+  assert.equal(first.postConfirmed,true);
+  assert.equal(first.errorCode,'R5_PERIODIC_ABORT_POSTFLIGHT_SOURCE_CHANGED');
+  assert.equal(p.triggers.length,1); // confirmed write, no ambiguous retry
+  const next=p.ctx.trendosR5PeriodicOrdersTick20260920();
+  assert.equal(next.postflightRowParityVerified,true);
+  assert.equal(p.getPosts(),2); // second fresh snapshot, not blind repeat
+  assert.equal(p.triggers.length,1);
+}
+console.log('R5 isolated candidate PASS: default-off/auth/target/syntax/routing, idle, bounded CAS, ambiguous outcome disarm, source-race fresh next tick, schema drift disarm; synthetic only.');
