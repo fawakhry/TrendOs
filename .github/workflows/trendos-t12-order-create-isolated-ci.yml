@@ -57,6 +57,12 @@ on:
       - 'cloudflare-d1/t12-preview/wrangler.r4-preview.local.toml'
       - 'cloudflare-d1/t12-preview/r4-preview-synthetic-fixture.sql'
       - 'tests/t12_d1_r4_local_preview_isolation.test.mjs'
+      - 'cloudflare-d1/src/r4-guarded-recovery-production.mjs'
+      - 'cloudflare-d1/production-shadow/index.js'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'tests/t12_d1_r4_production_recovery_route.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-d1-direct-cas-bounded-catchup-20260920.gs'
+      - 'tests/t12_d1_direct_cas_bounded_catchup.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-script-properties-replay-fixed150-delete-once.gs'
       - 'tests/t12_script_properties_replay_fixed150_delete_once.test.mjs'
       - 'Code.gs'
@@ -118,6 +124,10 @@ jobs:
           node --check tests/t12_d1_guarded_recovery_preview_handler_v1.test.mjs
           node --check cloudflare-d1/t12-preview/r4-preview-local-entry.mjs
           node --check tests/t12_d1_r4_local_preview_isolation.test.mjs
+          node --check cloudflare-d1/src/r4-guarded-recovery-production.mjs
+          node --check cloudflare-d1/production-shadow/index.js
+          node --check tests/t12_d1_r4_production_recovery_route.test.mjs
+          node --check tests/t12_d1_direct_cas_bounded_catchup.test.mjs
           node --check tests/t12_script_properties_replay_fixed150_delete_once.test.mjs
       - name: Run T12 hard scope guard
         run: node tests/t12_scope_guard.test.mjs
@@ -148,4 +158,6 @@ jobs:
           node --experimental-sqlite tests/t12_d1_guarded_recovery_batch_v1.test.mjs
           node tests/t12_d1_guarded_recovery_preview_handler_v1.test.mjs
           node --experimental-sqlite tests/t12_d1_r4_local_preview_isolation.test.mjs
+          node tests/t12_d1_r4_production_recovery_route.test.mjs
+          node tests/t12_d1_direct_cas_bounded_catchup.test.mjs
           node tests/t12_script_properties_replay_fixed150_delete_once.test.mjs

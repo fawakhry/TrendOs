@@ -9,7 +9,10 @@ const exact=new Set([
   '.github/workflows/trendos-t12-order-create-isolated-ci.yml',
   'docs/trendos/blackbox/منصة ترند/00_INDEX.md',
   'docs/trendos/blackbox/منصة ترند/TRENDOS_PRODUCTION_INCIDENT_PROPERTIES_QUOTA_TRIGGER_PAUSE_LOG_2026-09-19.md',
-  'docs/trendos/blackbox/منصة ترند/TRENDOS_D1_PAUSED_SYNC_RECOVERY_PROTOCOL_2026-09-19.md'
+  'docs/trendos/blackbox/منصة ترند/TRENDOS_D1_PAUSED_SYNC_RECOVERY_PROTOCOL_2026-09-19.md',
+  'cloudflare-d1/wrangler.toml',
+  'cloudflare-d1/production-shadow/index.js',
+  'cloudflare-d1/src/r4-guarded-recovery-production.mjs'
 ]);
 const prefixes=[
   'cloudflare-d1/src/t12-',
@@ -20,9 +23,7 @@ const prefixes=[
 ];
 const forbidden=[
   'config.js','index.html','app.js','Code.gs',
-  'cloudflare-d1/wrangler.toml',
-  'cloudflare-d1/src/index_v2.js',
-  'cloudflare-d1/production-shadow/index.js'
+  'cloudflare-d1/src/index_v2.js'
 ];
 
 for(const f of files){
@@ -30,4 +31,4 @@ for(const f of files){
   assert(exact.has(f)||prefixes.some(p=>f.startsWith(p)),'T12 out-of-scope file changed: '+f);
 }
 assert(files.length>0);
-console.log('T12 scope guard PASS; changed files='+files.length+'; production/runtime entrypoints untouched.');
+console.log('T12 scope guard PASS; changed files='+files.length+'; only exact approved R4 production files allowed.');

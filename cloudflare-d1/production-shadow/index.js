@@ -7,11 +7,19 @@ import {
   handleProductionReconcileQualificationRequest,
   isProductionReconcileQualificationPath
 } from '../src/cloud-write-production-reconcile-qualification.mjs';
+import {
+  handleR4ProductionRecoveryRequest,
+  isR4ProductionRecoveryPath
+} from '../src/r4-guarded-recovery-production.mjs';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    if (isR4ProductionRecoveryPath(path)) {
+      return handleR4ProductionRecoveryRequest(request, env, ctx);
+    }
 
     // PERF-CF-02CL: isolated, exact-target Production qualification route.
     // Execution remains fail-closed while TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED != true.

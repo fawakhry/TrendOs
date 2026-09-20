@@ -12,16 +12,38 @@ function fail(code) { throw new Error('R4_BATCH_ABORT_' + code); }
 function requireSafe(ok, code) { if (!ok) fail(code); }
 const json = x => JSON.stringify(x);
 function verifyInput(plan) {
+  const expectedNote='TrendOS orders live sync V2 quota-aware';
   requireSafe(plan && plan.productionWriteAuthorized === false &&
+    plan.publicSummary && plan.publicSummary.productionWriteAuthorized === false &&
     Array.isArray(plan.sheets) && plan.sheets.length === 2, 'UNSAFE_PLAN');
   requireSafe(plan.sheets[0].sheetName === 'الأوردرات' &&
     plan.sheets[1].sheetName === 'بنود الأوردرات', 'TAB_MANIFEST');
-  requireSafe(plan.sheets.every(s => s.sourceLastRow >= s.baseRowCount &&
-    s.sourceLastCol > 0 && s.upserts.every(u =>
+  requireSafe(plan.sheets.every(s => Number.isInteger(s.sourceLastRow) &&
+    Number.isInteger(s.baseRowCount) && s.baseRowCount >= 1 &&
+    s.sourceLastRow >= s.baseRowCount && s.sourceLastRow <= 5000 &&
+    Number.isInteger(s.sourceLastCol) && s.sourceLastCol > 0 &&
+    s.sourceLastCol <= 10000 && String(s.sheetId || '') &&
+    s.expectedNote === expectedNote && Array.isArray(s.headers) &&
+    s.headers.length === s.sourceLastCol && Array.isArray(s.upserts) &&
+    s.upserts.every(u =>
       u.rowNumber >= 1 && u.rowNumber <= s.sourceLastRow &&
-      u.replacement.rowNumber === u.rowNumber)), 'INVALID_ROWS');
+      u.replacement && u.replacement.rowNumber === u.rowNumber &&
+      ['values','display','formulas'].every(k =>
+        Array.isArray(u.replacement[k]) && u.replacement[k].length === s.sourceLastCol) &&
+      (u.expectedBefore === null ||
+        (u.expectedBefore.rowNumber === u.rowNumber &&
+          ['values','display','formulas'].every(k =>
+            Array.isArray(u.expectedBefore[k]) &&
+            u.expectedBefore[k].length === s.sourceLastCol))))), 'INVALID_ROWS');
   requireSafe(plan.sheets.every(s => s.upserts.every((u, i, all) =>
     i === 0 || all[i - 1].rowNumber < u.rowNumber)), 'DUPLICATE_OR_UNORDERED_CANDIDATE');
+  const total=plan.sheets.reduce((n,s)=>n+s.upserts.length,0);
+  requireSafe(total >= 0 && total <= 64 &&
+    plan.publicSummary.totalCandidateUpserts === total &&
+    plan.sheets.every(s =>
+      s.upserts.filter(u=>u.expectedBefore===null).length === s.appendedRows &&
+      s.upserts.filter(u=>u.expectedBefore!==null).length === s.changedExistingRows),
+  'CANDIDATE_BUDGET');
 }
 function catalogGuard(db, s) {
   const headers = json(s.headers);
@@ -97,6 +119,11 @@ function catalogAdvance(db, s) {
 export function buildIsolatedGuardedRecoveryBatch(db, snapshot) {
   requireSafe(db && typeof db.prepare==='function', 'DB_ADAPTER');
   const plan=buildTargetedRecoveryPlan(snapshot);
+  return buildGuardedRecoveryBatchFromPlan(db,plan);
+}
+
+export function buildGuardedRecoveryBatchFromPlan(db, plan) {
+  requireSafe(db && typeof db.prepare==='function', 'DB_ADAPTER');
   verifyInput(plan);
   requireSafe(plan.publicSummary.totalCandidateUpserts > 0, 'NO_DIFF');
   const statements=[];
