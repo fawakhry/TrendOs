@@ -1,0 +1,112 @@
+name: TrendOS R5 Production Periodic Controlled
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Temporary periodic route state
+        required: true
+        type: choice
+        options:
+          - disable
+          - enable
+      confirmation:
+        description: Type DEPLOY_R5_PERIODIC_TO_TRENDOS_D1_API
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-r5-periodic-controlled
+  cancel-in-progress: false
+
+jobs:
+  controlled-r5-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      R5_ACTION: ${{ inputs.action }}
+      R5_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Checkout exact qualified isolated periodic commit
+        uses: actions/checkout@v4
+        with:
+          ref: b7e85647ac205b93f22e9f9ea1da58b21d54e4c0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact authorization and target guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$R5_CONFIRMATION" = 'DEPLOY_R5_PERIODIC_TO_TRENDOS_D1_API'
+          test "$R5_ACTION" = 'enable' || test "$R5_ACTION" = 'disable'
+          test "$(git rev-parse HEAD)" = 'b7e85647ac205b93f22e9f9ea1da58b21d54e4c0'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fx 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -F "'/v1/admin/r5/orders-periodic/apply'" cloudflare-d1/t12-preview/r5-orders-periodic-guarded-handler-candidate.mjs
+          grep -Fx 'TRENDOS_R4_RECOVERY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_R5_PERIODIC_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'if (isR5ProductionRecoveryPath(path))' cloudflare-d1/production-shadow/index.js
+      - name: Run R5 safety qualification
+        run: |
+          node tests/t12_d1_targeted_recovery_plan_v1.test.mjs
+          node --experimental-sqlite tests/t12_d1_guarded_recovery_batch_v1.test.mjs
+          node tests/t12_r5_orders_periodic_candidate.test.mjs
+      - name: Select temporary route state
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$R5_ACTION" = 'enable' ]; then
+            grep -Fx 'TRENDOS_R5_PERIODIC_ENABLED = "false"' cloudflare-d1/wrangler.toml
+            sed -i 's/TRENDOS_R5_PERIODIC_ENABLED = "false"/TRENDOS_R5_PERIODIC_ENABLED = "true"/' cloudflare-d1/wrangler.toml
+            grep -Fx 'TRENDOS_R5_PERIODIC_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          else
+            grep -Fx 'TRENDOS_R5_PERIODIC_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          fi
+      - name: Deploy exact production Worker
+        id: deploy
+        run: npx --yes wrangler@4 deploy --config cloudflare-d1/wrangler.toml
+      - name: Verify route state and existing GET health without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=423
+          reason=periodic-disabled-or-wrong-target
+          if [ "$R5_ACTION" = 'enable' ]; then expected=405; reason=method-not-allowed; fi
+          ready=false
+          for attempt in 1 2 3 4 5; do
+            code="$(curl --silent --show-error --output /tmp/r5-route.json --write-out '%{http_code}' "$PROD_URL/v1/admin/r5/orders-periodic/apply" || true)"
+            if [ "$code" = "$expected" ] && grep -Fq "$reason" /tmp/r5-route.json && grep -Fq '"automaticRetryAllowed":false' /tmp/r5-route.json; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          catalog_code="$(curl --silent --show-error --output /tmp/r5-catalog.json --write-out '%{http_code}' "$PROD_URL/v1/mirror/sheets")"
+          test "$catalog_code" = 200
+          grep -Fq '"success":true' /tmp/r5-catalog.json
+          echo 'R5 HTTP gates PASS: GET only; no Apps Script trigger or D1 POST.'
+      - name: Emergency disable R5 route if enabled deploy passed but GET gate failed
+        if: ${{ failure() && steps.deploy.outcome == 'success' && inputs.action == 'enable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/TRENDOS_R5_PERIODIC_ENABLED = "true"/TRENDOS_R5_PERIODIC_ENABLED = "false"/' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_R5_PERIODIC_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          npx --yes wrangler@4 deploy --config cloudflare-d1/wrangler.toml
+          code="$(curl --silent --show-error --output /tmp/r5-disabled.json --write-out '%{http_code}' "$PROD_URL/v1/admin/r5/orders-periodic/apply")"
+          test "$code" = 423
+          grep -Fq 'periodic-disabled-or-wrong-target' /tmp/r5-disabled.json
+          echo 'Emergency route disable PASS; initial enable run remains FAILED.'
