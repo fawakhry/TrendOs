@@ -71,8 +71,8 @@ function setup(mode='ok'){
     }}}
   };
   vm.createContext(sandbox); vm.runInContext(src,sandbox,{filename:path});
-  const identity=(req='co_1234567890123_abc',qty='2')=>
-    sandbox.trendosDurableReplayV1Identity_(req,'wael',{
+  const identity=(req='co_1234567890123_abc',qty='2',principal='wael')=>
+    sandbox.trendosDurableReplayV1Identity_(req,principal,{
       clientRequestId:req,username:'wael',token:'SUPER_SECRET',
       customerName:'a customer',itemName:'mug',qty
     });
@@ -103,6 +103,11 @@ const response={success:true,orderId:'ORD-101',lineId:'ORD-101-01',
   assert.equal(key.keyDigest.length,64);
   assert.notEqual(x.identity('co_1234567890123_other').keyDigest,key.keyDigest);
   assert.notEqual(x.identity('co_1234567890123_abc','3').payloadDigest,key.payloadDigest);
+  const alternatePrincipal=x.identity('co_1234567890123_abc','2','gaber');
+  assert.equal(alternatePrincipal.keyDigest,key.keyDigest,
+    'same client request ID stays GLOBAL across authenticated users');
+  assert.notEqual(alternatePrincipal.payloadDigest,key.payloadDigest,
+    'principal changes must conflict, not replay another account response');
   assert.equal(x.lookup(key).kind,'NEW');
   let reserved=x.reserve(key);
   assert.equal(reserved.kind,'RESERVED');
@@ -111,6 +116,9 @@ const response={success:true,orderId:'ORD-101',lineId:'ORD-101-01',
   assert.equal(x.reserve(key).kind,'PENDING');
   assert.equal(x.rows.length,2,'same key cannot create second reservation');
   assert.equal(x.lookup(x.identity('co_1234567890123_abc','3')).kind,'CONFLICT');
+  assert.equal(x.lookup(alternatePrincipal).kind,'CONFLICT');
+  assert.equal(x.reserve(alternatePrincipal).kind,'CONFLICT');
+  assert.equal(x.rows.length,2);
   assert.equal(x.lookup(x.identity('co_1234567890123_other')).kind,'NEW');
   let committed=x.commit(reserved,response);
   assert.equal(committed.kind,'COMMITTED');
@@ -176,4 +184,4 @@ for(const bad of ['wrongWorkbook','missingSheet','badHeader']){
   x.reserve(key);x.rows.push(x.rows[1].slice());
   assert.throws(()=>x.lookup(key),/DURABLE_REPLAY_DUPLICATE_DIGEST/);
 }
-console.log('Durable replay candidate isolated PASS: held global ScriptLock required, same-key single reserve, pending/timeout fail-closed, replay, payload conflicts, ledger identity, no Property writes');
+console.log('Durable replay candidate isolated PASS: held global ScriptLock required, same-key single reserve, pending/timeout fail-closed, replay, payload + cross-account conflicts, global ledger identity, no Property writes');
