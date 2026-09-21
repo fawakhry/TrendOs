@@ -498,13 +498,14 @@ const fail=(code,status=423)=>json({
 const enabled=x=>String(x||'').toLowerCase()==='true';
 async function hasPrivateTestBearer(request,secret){
   const actual=String(request.headers.get('Authorization')||'');
-  const match=/^Bearer ([A-Za-z0-9._~-]{32,256})$/.exec(actual);
-  if(!match||typeof secret!=='string'||secret.length<32)return false;
+  if(!actual.startsWith('Bearer ')||typeof secret!=='string'||secret.length<32)return false;
+  const token=actual.slice(7);
+  if(token.length<32||token.length>256)return false;
   const subtle=globalThis.crypto&&globalThis.crypto.subtle;
   if(!subtle)return false;
   const enc=new TextEncoder();
   const [x,y]=await Promise.all([
-    subtle.digest('SHA-256',enc.encode(match[1])),
+    subtle.digest('SHA-256',enc.encode(token)),
     subtle.digest('SHA-256',enc.encode(secret))
   ]);
   const a=new Uint8Array(x),b=new Uint8Array(y);
