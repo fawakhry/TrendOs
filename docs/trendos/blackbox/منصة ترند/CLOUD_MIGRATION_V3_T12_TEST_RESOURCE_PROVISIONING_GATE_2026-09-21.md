@@ -1,5 +1,8 @@
 # TrendOS T12 — Owner-approved separate Cloudflare TEST resource provisioning / 2026-09-21
 
+> **CURRENT STATE / OWNER STOP (2026-09-21):** The TEST D1 and Worker were created and the TEST Worker code deployed. Owner's final TEST screenshot shows active version `a672734e` (owner said it was deployed with TEST enabled=true), while a later non-active saved version `cb92607f` followed a flag edit. **The currently active route is NOT proven disabled.** The owner explicitly stopped here. Read [the complete current stop/handoff checkpoint](CLOUD_MIGRATION_V3_T12_TEST_CLOUDFLARE_OWNER_STOP_HANDOFF_2026-09-21.md) FIRST before any resumption; the earlier setup and 'Hello World/not deployed' steps below are historical only. No Cloudflare or production change was made by this documentation update.
+
+
 **Owner decision:** The owner expressly approved creation of ONE NEW isolated Cloudflare D1 TEST database and ONE NEW isolated TEST Worker for synthetic-only order-create qualification. This is NOT approval for production Cloud Order writes, real business/customer data copying, Script Properties deletion, R5 trigger change, Google writer freeze, release of old replay backups, or use of the existing production D1 binding.
 
 ## Tools / actual provisioning outcome
