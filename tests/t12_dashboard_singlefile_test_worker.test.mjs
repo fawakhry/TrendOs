@@ -4,6 +4,8 @@ const src=fs.readFileSync(new URL('../cloudflare-d1/t12-preview/t12-dashboard-si
 const production=fs.readFileSync(new URL('../cloudflare-d1/production-shadow/index.js',import.meta.url),'utf8');
 assert.doesNotMatch(src,/^\\s*import\\s/m);
 assert.match(src,/T12_SYNTHETIC_TEST_ENABLED/);
+assert.match(src,/\.replace\(\/\[٠-٩\]\/g, \(d\) => String\(/);
+assert.match(src,/const subtle=\(\/\*\* @type \{any\} \*\/ \(globalThis\)\)\.crypto\?\.subtle;/);
 assert.match(src,/ISOLATED_T12_SYNTHETIC_ONLY/);
 assert.match(src,/T12_SYNTHETIC_TEST_BEARER_SECRET/);
 assert.doesNotMatch(production,/t12-dashboard-singlefile-test-worker/);
