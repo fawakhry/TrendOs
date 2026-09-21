@@ -29,7 +29,7 @@ function boolish(value) {
 
 function digits(value) {
   return text(value)
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
     .replace(/[^0-9]/g, '');
 }
 
