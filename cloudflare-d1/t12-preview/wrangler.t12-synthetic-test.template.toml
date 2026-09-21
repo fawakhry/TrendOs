@@ -1,0 +1,20 @@
+# T12 TEST-ONLY separate Worker. Copy to wrangler.t12-synthetic-test.toml
+# ONLY AFTER the owner creates a NEW distinct TEST D1 database and Worker.
+# NEVER modify cloudflare-d1/wrangler.toml or bind the production D1 ID.
+#
+# Replace ONLY <NEW_TEST_D1_DATABASE_ID> with the newly created TEST D1 UUID.
+# Keep test flag OFF until schema, secret and isolated binding checks pass.
+# No original Apps Script URL, production DB, production secrets or routes here.
+name = "trendos-t12-synthetic-test"
+main = "./t12-cloud-native-synthetic-test-worker.mjs"
+compatibility_date = "2026-09-20"
+workers_dev = true
+
+[vars]
+T12_SYNTHETIC_TEST_ENABLED = "false"
+T12_SYNTHETIC_TEST_ATTESTATION = "ISOLATED_T12_SYNTHETIC_ONLY"
+
+[[d1_databases]]
+binding = "T12_SYNTHETIC_DB"
+database_name = "trendos-t12-synthetic-test"
+database_id = "<NEW_TEST_D1_DATABASE_ID>"
