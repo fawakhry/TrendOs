@@ -22,7 +22,7 @@ async function hasPrivateTestBearer(request,secret){
   if(!actual.startsWith('Bearer ')||typeof secret!=='string'||secret.length<32)return false;
   const token=actual.slice(7);
   if(token.length<32||token.length>256)return false;
-  const subtle=globalThis.crypto&&globalThis.crypto.subtle;
+  const subtle=(/** @type {any} */ (globalThis)).crypto?.subtle;
   if(!subtle)return false;
   const enc=new TextEncoder();
   const [x,y]=await Promise.all([
