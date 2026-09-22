@@ -54,9 +54,10 @@ FROM classified;
 -- output aggregates, NEVER rows or raw displayed order IDs.
 WITH mirror_ids AS (
   SELECT sheet_name, row_number, synced_at,
-         CASE WHEN json_valid(display_json)=1
-                   AND json_type(display_json)='array'
-              THEN CAST(json_extract(display_json,'$[0]') AS TEXT)
+         CASE WHEN json_valid(display_json)=1 THEN
+                CASE WHEN json_type(display_json)='array'
+                     THEN CAST(json_extract(display_json,'$[0]') AS TEXT)
+                     ELSE NULL END
               ELSE NULL END AS displayed_id,
          json_valid(display_json) AS valid_json
   FROM sheet_rows
