@@ -123,10 +123,44 @@ assert.equal(db.count('t12_order_create_intents','client_request_id=?',['T12-BAD
 db=new D1Sqlite({failAfter:2});
 let failed=await persistT12OrderCreateShadow(db,base({clientRequestId:'T12-ROLLBACK'}),'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true});
 assert.equal(failed.success,false);
-assert.equal(failed.reason,'shadow-transaction-failed');
+assert.equal(failed.reason,'shadow-transaction-outcome-unknown-no-retry');
+assert.equal(failed.stored,false);
 assert.equal(db.count('t12_order_create_intents','client_request_id=?',['T12-ROLLBACK']),0);
 assert.equal(db.count('t12_order_create_line_intents','client_request_id=?',['T12-ROLLBACK']),0);
 assert.equal(db.count('t12_order_create_shadow_events','client_request_id=?',['T12-ROLLBACK']),0);
+
+/* Batch exceptions must never imply a safe automatic re-create.
+ * Case 1: the isolated adapter rolled back and a subsequent lookup sees no row.
+ * Case 2: the adapter COMMITTED the entire batch but lost its response.
+ * Both cases use only local in-memory SQLite shadow tables.
+ */
+const committedButAckLost=new D1Sqlite();
+const originalCommittedBatch=committedButAckLost.batch.bind(committedButAckLost);
+committedButAckLost.batch=async statements=>{
+  await originalCommittedBatch(statements);
+  throw new Error('injected-transport-acknowledgement-lost-after-commit');
+};
+const ackForm=base({clientRequestId:'T12-ACK-LOST'});
+const acknowledged=await persistT12OrderCreateShadow(
+  committedButAckLost,ackForm,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true}
+);
+assert.equal(acknowledged.success,true);
+assert.equal(acknowledged.idempotent,true);
+assert.equal(acknowledged.stored,false);
+assert.equal(acknowledged.concurrentReplay,true);
+assert.equal(committedButAckLost.count('t12_order_create_intents'),1);
+assert.equal(committedButAckLost.count('t12_order_create_line_intents'),1);
+assert.equal(committedButAckLost.count('t12_order_create_shadow_events'),2);
+
+const rolledBackButReadFailed=new D1Sqlite({failAfter:2,failReadAt:2});
+const unknown=await persistT12OrderCreateShadow(
+  rolledBackButReadFailed,base({clientRequestId:'T12-UNKNOWN-READ'}),'wael',
+  {mode:'isolated-shadow-qualification',allowShadowMutation:true}
+);
+assert.equal(unknown.success,false);
+assert.equal(unknown.reason,'shadow-transaction-outcome-unknown-no-retry');
+assert.equal(rolledBackButReadFailed.count('t12_order_create_intents'),0);
+
 
 
 // A saved header alone must never qualify an incomplete same-key replay.
@@ -164,4 +198,4 @@ assert.equal((await persistT12OrderCreateShadow(mismatchedActor,actorInput,'wael
 mismatchedActor.raw.prepare('UPDATE t12_order_create_intents SET actor=? WHERE client_request_id=?').run('another-actor','T12-ACTOR');
 assert.equal((await persistT12OrderCreateShadow(mismatchedActor,actorInput,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true})).reason,'idempotency-key-payload-conflict');
 
-console.log('T12 isolated D1 shadow store PASS; failed initial ledger reads refuse writes/replays, atomic replay, actor binding and incomplete footprint fail closed.');
+console.log('T12 isolated D1 shadow store PASS; initial read and ambiguous batch failure guard, committed-ack-loss recovery, actor binding and complete footprint verified.');
