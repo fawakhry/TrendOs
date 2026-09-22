@@ -10,6 +10,8 @@ const exact=new Set([
   '.github/workflows/trendos-r4-production-recovery-controlled.yml',
   '.github/workflows/trendos-r5-periodic-controlled.yml',
   'docs/trendos/blackbox/منصة ترند/00_INDEX.md',
+  'docs/trendos/blackbox/منصة ترند/TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md',
+  'docs/trendos/blackbox/منصة ترند/TRENDOS_T12_NEW_CHAT_HANDOFF_AFTER_EXACT_KEY_REPLAY_2026-09-22.md',
   'docs/trendos/blackbox/منصة ترند/TRENDOS_PRODUCTION_INCIDENT_PROPERTIES_QUOTA_TRIGGER_PAUSE_LOG_2026-09-19.md',
   'docs/trendos/blackbox/منصة ترند/TRENDOS_D1_PAUSED_SYNC_RECOVERY_PROTOCOL_2026-09-19.md',
   'cloudflare-d1/wrangler.toml',
