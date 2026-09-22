@@ -5,7 +5,7 @@
  * and persist the logical intent before any network send or browser reload.
  */
 import {classifyT12ClientRequestKey} from './t12-cloud-client-key-admission.mjs';
-export const T12_CLIENT_KEY_CONTINUITY_GUARD_VERSION='T12_CLIENT_KEY_CONTINUITY_20260922';
+export const T12_CLIENT_KEY_CONTINUITY_GUARD_VERSION='T12_CLIENT_KEY_CONTINUITY_20260922_INVALID_CONTEXT_FAIL_CLOSED';
 const DIGEST=/^[a-f0-9]{64}$/;
 const EPOCH=/^[A-Za-z0-9_-]{8,100}$/;
 const STATES=new Set(['PREPARED_NEVER_SENT','MAY_HAVE_SENT','COMMITTED','CONFLICT']);
@@ -18,7 +18,9 @@ function result(disposition,reason){return Object.freeze({success:disposition!==
  * record must be an already READ+VERIFIED server-ledger record, never
  * arbitrary browser/caller flags. This pure function cannot verify provenance.
  */
-export function planT12ClientKeyContinuity({rawKey,actorSubject,intentDigest,cutoverEpoch,record}={}){
+export function planT12ClientKeyContinuity(context={}){
+  if(!plain(context))return result('REFUSE','invalid-continuity-context');
+  const {rawKey,actorSubject,intentDigest,cutoverEpoch,record}=context;
   if(typeof rawKey!=='string')return result('REFUSE','raw-client-key-required');
   const key=classifyT12ClientRequestKey(rawKey);
   if(key.kind==='LEGACY_REPLAY_ONLY')
