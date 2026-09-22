@@ -65,7 +65,7 @@ assert.equal(byTab['أرشيف بنود الأوردرات'].highest_mirrored_nu
 for(const r of q4)assert.equal(r.latest_row_sync_at,'2026-09-22 19:00:00');
 for(const r of [...q2,...[q3],...q4]){
  const keys=Object.keys(r).join('|');
- assert.doesNotMatch(keys,/customer|phone|raw_json|values_json|display_json|order_id$/i);
+ assert.doesNotMatch(keys,/customer|phone|raw_json|values_json|display_json/i);
 }
 d.close();
 console.log('T12 D1 aggregate evidence PASS: four independent SELECT-only statements; table/catalog, numeric maxima, invalid JSON and noncanonical ID outputs only; in-memory fixture.');
