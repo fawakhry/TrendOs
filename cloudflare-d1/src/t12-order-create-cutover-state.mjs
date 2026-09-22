@@ -2,7 +2,7 @@
  * T12 Order-create cutover readiness state machine.
  * PURE / NO IO / NO ROUTING / NO PRODUCTION ACTIVATION.
  */
-export const T12_CREATE_CUTOVER_STATE_VERSION='TRENDOS_T12_CREATE_CUTOVER_STATE_20260919';
+export const T12_CREATE_CUTOVER_STATE_VERSION='TRENDOS_T12_CREATE_CUTOVER_STATE_20260922_FIFTH_WRITER_AND_REPLAY_RETENTION';
 
 const REQUIRED=Object.freeze([
   'productionVersion155SourceExact',
@@ -19,6 +19,8 @@ const REQUIRED=Object.freeze([
   'allocatorSeedPinned',
   'googleCreateFreezeMechanismQualified',
   'allGoogleCreateEntrypointsFenceQualified',
+  'integrityDraftSubmitWriterFenceQualified',
+  'historicGoogleReplayKeyRetentionQualified',
   'allGoogleOrderLineMutationEntrypointsFenceQualified',
   'cloudNativeOrderLineLifecycleParityQualified',
   'legacyReplayContinuityQualified',
@@ -56,6 +58,8 @@ export function evaluateT12CreateCutoverState(evidence={}){
 
   const authorityKeys=['allocatorSeedPinned','googleCreateFreezeMechanismQualified',
     'allGoogleCreateEntrypointsFenceQualified',
+    'integrityDraftSubmitWriterFenceQualified',
+    'historicGoogleReplayKeyRetentionQualified',
     'allGoogleOrderLineMutationEntrypointsFenceQualified',
     'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
     'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
