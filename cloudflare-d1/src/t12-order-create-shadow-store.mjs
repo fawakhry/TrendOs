@@ -6,7 +6,7 @@
  */
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 
-export const T12_SHADOW_STORE_VERSION = 'TRENDOS_T12_ORDER_CREATE_SHADOW_STORE_20260922_INITIAL_READ_FAIL_CLOSED';
+export const T12_SHADOW_STORE_VERSION = 'TRENDOS_T12_ORDER_CREATE_SHADOW_STORE_20260922_AMBIGUOUS_BATCH_FAIL_CLOSED';
 
 function text(v){ return String(v == null ? '' : v).trim(); }
 function fail(reason, extra={}){
@@ -159,7 +159,10 @@ export async function persistT12OrderCreateShadow(db,input={},actor='',options={
       };
     }
     if (raced) return fail('idempotency-key-payload-conflict',{conflict:true,requestKey:intent.requestKey});
-    return fail('shadow-transaction-failed',{message:text(err&&err.message)||'unknown'});
+    // Even if the subsequent SELECT finds nothing, a timed-out batch may have
+    // committed and not yet become visible to this adapter. Never suggest an
+    // automatic new CREATE/key after any ambiguous D1 batch rejection.
+    return fail('shadow-transaction-outcome-unknown-no-retry');
   }
 
   // Verify the complete read-your-write footprint before reporting success.
