@@ -32,3 +32,7 @@ The lines' auxiliary `orderId` column BM contained a header but no order-ID valu
 5. Once all live sources are identity-confirmed, take a new consistent read-only baseline and separately agree any later time-bounded writer-fence/final re-read. The current sequential candidate-sheet reads are never a frozen cutover snapshot.
 
 **Safe stop:** Continue GitHub-only source/testing work when possible. Production Google retains exclusive business order number authority; no deployment, freeze, D1 SQL write, customer CREATE, duplicate synthetic POST, R5 mutation, or historic replay-key deletion happened in this phase.
+
+
+## Additional script-project metadata verification (read-only)
+Using only the `scriptId` already contained in the owner-uploaded provisional JSON, Google Drive `get_file_metadata` confirmed an accessible file whose MIME type is `application/vnd.google-apps.script`. Drive labels this project `Untitled project` and reports a modification on 2026-09-20, later than the previously owner-shown Version 155 deployment dated 2026-09-06. This establishes the existence/type of the project associated with the uploaded JSON identifier, not which historical source was published. Drive returned no parent spreadsheet identifier; absence of returned parent metadata must NOT be construed as proof of the bound or standalone status. Do not infer that current Head equals immutable deployed Version 155, or that the candidate workbook is its production backend. The original private scriptId itself is intentionally not copied into this report.
