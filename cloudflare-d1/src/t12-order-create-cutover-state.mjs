@@ -2,7 +2,7 @@
  * T12 Order-create cutover readiness state machine.
  * PURE / NO IO / NO ROUTING / NO PRODUCTION ACTIVATION.
  */
-export const T12_CREATE_CUTOVER_STATE_VERSION='TRENDOS_T12_CREATE_CUTOVER_STATE_20260922_FIFTH_WRITER_AND_REPLAY_RETENTION';
+export const T12_CREATE_CUTOVER_STATE_VERSION='TRENDOS_T12_CREATE_CUTOVER_STATE_20260922_HISTORIC_LINE_IDENTITY_GATE';
 
 const REQUIRED=Object.freeze([
   'productionVersion155SourceExact',
@@ -23,6 +23,7 @@ const REQUIRED=Object.freeze([
   'historicGoogleReplayKeyRetentionQualified',
   'allGoogleOrderLineMutationEntrypointsFenceQualified',
   'cloudNativeOrderLineLifecycleParityQualified',
+  'historicalLineIdentityMappingQualified',
   'legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified',
   'r5MirrorWriterFenceQualified',
@@ -61,7 +62,8 @@ export function evaluateT12CreateCutoverState(evidence={}){
     'integrityDraftSubmitWriterFenceQualified',
     'historicGoogleReplayKeyRetentionQualified',
     'allGoogleOrderLineMutationEntrypointsFenceQualified',
-    'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
+    'cloudNativeOrderLineLifecycleParityQualified','historicalLineIdentityMappingQualified',
+    'legacyReplayContinuityQualified',
     'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
     'cloudReadAndFallbackParityQualified','rollbackMechanismQualified'];
   const authorityMissing=authorityKeys.filter(k=>evidence[k]!==true);
