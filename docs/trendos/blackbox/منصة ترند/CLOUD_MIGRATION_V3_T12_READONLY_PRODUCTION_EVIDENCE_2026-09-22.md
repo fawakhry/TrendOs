@@ -48,3 +48,26 @@ Another read-only pass used ONLY columns A (displayed Order number) of current/a
 - Both checks are sequential API reads while normal operations continue; they are not a final frozen cutover baseline. Only summary counts have been retained in GitHub. The order-number property, D1 mirror binding/high-water, and post-fence line-number reconciliation remain unknown.
 
 **Engineering implication:** The future canonical Cloud writer must determine the next line ordinal across all applicable current AND historic line representations and distinguish intentional historical row duplication from an actual write duplicate. The 17 current additional row-label occurrences deserve targeted **read-only** legacy semantics review before any business-line ID allocator is activated. No user-created/customer order or line was mutated by this inspection.
+
+
+## Duplicate displayed line-label technical-field comparison (owner-approved read-only, non-atomic)
+A further bounded pass through the **owner-confirmed currently operated workbook** retrieved ONLY four to seven isolated technical columns per Lines tab: displayed order number A, displayed line label F, status K, last update M, optional auxiliary `id` BL and `status` BS, and archived date CE for the archive tab. It did NOT retrieve customer names, phone numbers, item details, prices, credentials or original row payloads, and never exported any individual original ID, status or timestamp to the repository. Each technical column was read in a separate API call while Google may have continued writing; grouping by displayed row position across calls is **not an atomic snapshot**.
+
+Observed aggregate-only within-tab grouping by exact displayed (Order number, Line label):
+
+| Technical observation | Current Lines | Archived Lines |
+| --- | ---: | ---: |
+| Rows examined after header | 750 | 4110 |
+| Distinct displayed (order,line) pairs | 733 | 3056 |
+| Distinct repeated pairs | 15 | 1005 |
+| Additional rows in repeated pairs | 17 | 1054 |
+| Repeated pairs with more than two rows | 2 | 30 |
+| Repeated pairs whose observed status fields differ | **15** | **0** |
+| Repeated pairs whose last-update fields differ | 10 | 40 |
+| Repeated pairs whose archived-date field differs | N/A | 21 |
+| Repeated pairs with all auxiliary BL `id` entries blank | 15 | 1005 |
+| Repeated pairs with all auxiliary BS `status` entries blank | 15 | 1005 |
+
+Among unique *pair keys*, 733/733 current line labels start with their displayed order number plus dash. In archive only 390/3056 unique pair keys do, versus 2666/3056 alternate legacy label formats. The earlier row-count observation remains 546/4110 modern-prefix archived **rows**; do not confuse per-distinct-pair counts with per-row counts.
+
+**Interpretation limit:** All 15 repeated current pair groups have differing observed primary `الحالة` statuses, compatible with—but NOT proof of—different status/history snapshots. The 1005 repeated archive pairs have equal observed statuses, with some differing timestamps. Neither observation proves a duplicate customer CREATE or qualifies a distinct canonical line-ID mapping. Because BL/BS are blank on the repeated groups, these optional fields do NOT supply a stable per-row identity for those groups. NEVER automatically merge, delete, renumber, or allocate next line number from repeated displayed F labels. Before actual Cloud CREATE/line lifecycle cutover, separately qualify lineage/identity of every current and archived logical line from **independently consistent authorized evidence**, with a deterministic non-destructive migration policy and rollback. `historicalLineIdentityMappingQualified` MUST remain unsatisfied; this read-only profile has not resolved it.
