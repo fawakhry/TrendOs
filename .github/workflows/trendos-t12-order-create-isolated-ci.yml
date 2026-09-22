@@ -21,6 +21,8 @@ on:
       - 'tests/t12_order_id_authority_candidate.test.mjs'
       - 'cloudflare-d1/src/t12-order-id-seed-evidence.mjs'
       - 'tests/t12_order_id_seed_evidence.test.mjs'
+      - 'cloudflare-d1/t12-preview/t12-production-d1-aggregate-evidence-readonly-20260922.sql'
+      - 'tests/t12_production_d1_aggregate_evidence_readonly.test.mjs'
       - 'tests/t12_scope_guard.test.mjs'
       - 'cloudflare-d1/src/t12-cloud-native-synthetic-create.mjs'
       - 'cloudflare-d1/src/t12-cloud-client-key-admission.mjs'
@@ -125,6 +127,7 @@ jobs:
           node --check tests/t12_order_id_authority_candidate.test.mjs
           node --check cloudflare-d1/src/t12-order-id-seed-evidence.mjs
           node --check tests/t12_order_id_seed_evidence.test.mjs
+          node --check tests/t12_production_d1_aggregate_evidence_readonly.test.mjs
           node --check tests/t12_scope_guard.test.mjs
           node --check cloudflare-d1/src/t12-order-create-cutover-state.mjs
           node --check cloudflare-d1/src/t12-cloud-native-synthetic-create.mjs
@@ -184,6 +187,7 @@ jobs:
           node --experimental-sqlite tests/t12_order_create_shadow_handler.test.mjs
           node --experimental-sqlite tests/t12_order_id_authority_candidate.test.mjs
           node tests/t12_order_id_seed_evidence.test.mjs
+          node --experimental-sqlite tests/t12_production_d1_aggregate_evidence_readonly.test.mjs
           node tests/t12_order_create_cutover_state.test.mjs
           node --experimental-sqlite tests/t12_cloud_native_synthetic_create.test.mjs
           node tests/t12_cloud_client_key_admission.test.mjs
