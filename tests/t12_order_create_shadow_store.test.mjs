@@ -24,10 +24,11 @@ class D1Stmt {
   run(){return this.db.raw.prepare(this.sql).run(...this.params);}
 }
 class D1Sqlite {
-  constructor({failAfter=0}={}){
+  constructor({failAfter=0,truncateAfter=0}={}){
     this.raw=new DatabaseSync(':memory:');
     this.raw.exec(schema);
     this.failAfter=failAfter;
+    this.truncateAfter=truncateAfter;
   }
   prepare(sql){return new D1Stmt(this,sql);}
   async batch(statements){
@@ -37,6 +38,7 @@ class D1Sqlite {
       for(const s of statements){
         i++;
         if(this.failAfter && i===this.failAfter) throw new Error('injected-batch-failure');
+        if(this.truncateAfter && i>this.truncateAfter) break;
         s.run();
       }
       this.raw.exec('COMMIT');
@@ -103,4 +105,40 @@ assert.equal(db.count('t12_order_create_intents','client_request_id=?',['T12-ROL
 assert.equal(db.count('t12_order_create_line_intents','client_request_id=?',['T12-ROLLBACK']),0);
 assert.equal(db.count('t12_order_create_shadow_events','client_request_id=?',['T12-ROLLBACK']),0);
 
-console.log('T12 isolated D1 shadow store PASS; auth gate, atomic batch, replay, conflict and rollback verified.');
+
+// A saved header alone must never qualify an incomplete same-key replay.
+for(const [name,sql] of [
+  ['missing-line',"DELETE FROM t12_order_create_line_intents WHERE client_request_id='T12-CORRUPT'"],
+  ['changed-quantity',"UPDATE t12_order_create_line_intents SET qty=99 WHERE client_request_id='T12-CORRUPT'"],
+  ['missing-event',"DELETE FROM t12_order_create_shadow_events WHERE client_request_id='T12-CORRUPT' AND event_key='queue:01'"],
+  ['changed-event',"UPDATE t12_order_create_shadow_events SET payload_json='{}' WHERE client_request_id='T12-CORRUPT' AND event_key='activity'"],
+  ['abandoned',"UPDATE t12_order_create_intents SET qualification_status='abandoned' WHERE client_request_id='T12-CORRUPT'"]
+]){
+  const corrupt=new D1Sqlite(),form=base({clientRequestId:'T12-CORRUPT'});
+  assert.equal((await persistT12OrderCreateShadow(corrupt,form,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true})).success,true,name);
+  corrupt.raw.exec(sql);
+  const before={intents:corrupt.count('t12_order_create_intents'),lines:corrupt.count('t12_order_create_line_intents'),events:corrupt.count('t12_order_create_shadow_events')};
+  const reply=await persistT12OrderCreateShadow(corrupt,form,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true});
+  assert.equal(reply.success,false,name);
+  assert.equal(reply.reason,'shadow-ledger-incomplete-no-retry',name);
+  assert.equal(reply.stored,false,name);
+  assert.deepEqual({intents:corrupt.count('t12_order_create_intents'),lines:corrupt.count('t12_order_create_line_intents'),events:corrupt.count('t12_order_create_shadow_events')},before,name);
+}
+
+// A faulty adapter that resolves an incomplete batch must not report success.
+const truncated=new D1Sqlite({truncateAfter:2});
+const truncatedInput=base({clientRequestId:'T12-TRUNCATED'});
+const truncatedResult=await persistT12OrderCreateShadow(truncated,truncatedInput,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true});
+assert.equal(truncatedResult.success,false);
+assert.equal(truncatedResult.reason,'shadow-commit-footprint-unverified-no-retry');
+assert.equal(truncated.count('t12_order_create_intents'),1);
+assert.equal(truncated.count('t12_order_create_line_intents'),1);
+assert.equal(truncated.count('t12_order_create_shadow_events'),0);
+assert.equal((await persistT12OrderCreateShadow(truncated,truncatedInput,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true})).reason,'shadow-ledger-incomplete-no-retry');
+
+const mismatchedActor=new D1Sqlite(),actorInput=base({clientRequestId:'T12-ACTOR'});
+assert.equal((await persistT12OrderCreateShadow(mismatchedActor,actorInput,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true})).success,true);
+mismatchedActor.raw.prepare('UPDATE t12_order_create_intents SET actor=? WHERE client_request_id=?').run('another-actor','T12-ACTOR');
+assert.equal((await persistT12OrderCreateShadow(mismatchedActor,actorInput,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true})).reason,'idempotency-key-payload-conflict');
+
+console.log('T12 isolated D1 shadow store PASS; atomic replay, actor binding and missing/corrupt line/event fail-closed footprint verified.');
