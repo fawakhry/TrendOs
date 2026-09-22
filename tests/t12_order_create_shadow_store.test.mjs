@@ -20,15 +20,17 @@ assert.equal(/\bfetch\s*\(/.test(source),false);
 class D1Stmt {
   constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}
   bind(...params){this.params=params;return this;}
-  async first(){return this.db.raw.prepare(this.sql).get(...this.params) || null;}
+  async first(){this.db.readCalls++;if(this.db.failReadAt && this.db.readCalls===this.db.failReadAt)throw new Error('injected-initial-ledger-read-unavailable');return this.db.raw.prepare(this.sql).get(...this.params) || null;}
   run(){return this.db.raw.prepare(this.sql).run(...this.params);}
 }
 class D1Sqlite {
-  constructor({failAfter=0,truncateAfter=0}={}){
+  constructor({failAfter=0,truncateAfter=0,failReadAt=0}={}){
     this.raw=new DatabaseSync(':memory:');
     this.raw.exec(schema);
     this.failAfter=failAfter;
     this.truncateAfter=truncateAfter;
+    this.failReadAt=failReadAt;
+    this.readCalls=0;
   }
   prepare(sql){return new D1Stmt(this,sql);}
   async batch(statements){
@@ -56,6 +58,27 @@ class D1Sqlite {
 function base(overrides={}){
   return {clientRequestId:'T12-STORE-001',customerName:'عميل اختبار',customerPhone:'01012345678',department:'طباعة',itemName:'تابلوه',qty:2,status:'طلب جديد',...overrides};
 }
+
+// An unavailable FIRST ledger read must fail closed before *any* batch write.
+const initialReadUnavailable=new D1Sqlite({failReadAt:1});
+const noRead=await persistT12OrderCreateShadow(initialReadUnavailable,base({clientRequestId:'T12-READ-UNAVAILABLE'}),'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true});
+assert.equal(noRead.success,false);
+assert.equal(noRead.reason,'shadow-initial-ledger-read-unavailable-no-retry');
+assert.equal(noRead.stored,false);
+for(const table of ['t12_order_create_intents','t12_order_create_line_intents','t12_order_create_shadow_events'])
+  assert.equal(initialReadUnavailable.count(table),0,'no INSERT on unavailable initial ledger read');
+
+// The same failure on a previously committed key must not invent a new order.
+const priorReadUnavailable=new D1Sqlite();
+const priorForm=base({clientRequestId:'T12-PRIOR-READ-UNAVAILABLE'});
+assert.equal((await persistT12OrderCreateShadow(priorReadUnavailable,priorForm,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true})).success,true);
+priorReadUnavailable.failReadAt=priorReadUnavailable.readCalls+1;
+const failedReplayRead=await persistT12OrderCreateShadow(priorReadUnavailable,priorForm,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true});
+assert.equal(failedReplayRead.success,false);
+assert.equal(failedReplayRead.reason,'shadow-initial-ledger-read-unavailable-no-retry');
+assert.equal(priorReadUnavailable.count('t12_order_create_intents'),1);
+assert.equal(priorReadUnavailable.count('t12_order_create_line_intents'),1);
+assert.equal(priorReadUnavailable.count('t12_order_create_shadow_events'),2);
 
 let db=new D1Sqlite();
 let x=await persistT12OrderCreateShadow(db,base(),'wael',{});
@@ -141,4 +164,4 @@ assert.equal((await persistT12OrderCreateShadow(mismatchedActor,actorInput,'wael
 mismatchedActor.raw.prepare('UPDATE t12_order_create_intents SET actor=? WHERE client_request_id=?').run('another-actor','T12-ACTOR');
 assert.equal((await persistT12OrderCreateShadow(mismatchedActor,actorInput,'wael',{mode:'isolated-shadow-qualification',allowShadowMutation:true})).reason,'idempotency-key-payload-conflict');
 
-console.log('T12 isolated D1 shadow store PASS; atomic replay, actor binding and missing/corrupt line/event fail-closed footprint verified.');
+console.log('T12 isolated D1 shadow store PASS; failed initial ledger reads refuse writes/replays, atomic replay, actor binding and incomplete footprint fail closed.');
