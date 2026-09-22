@@ -31,7 +31,7 @@ for(let i=0;i<tabNames.length;i++){
    i===1?['4307','4306']:i===2?['3761']:['3761'];
  for(let ix=0;ix<=ids.length;ix++){
   const datum=ix===0?'["رقم الأوردر"]':ids[ix-1]==='not-json'?'invalid_json':JSON.stringify([ids[ix-1]]);
-  d.prepare('INSERT INTO sheet_rows(sheet_name,row_number,display_json) VALUES (?,?,?)').run(tab,ix+1,datum);
+  d.prepare('INSERT INTO sheet_rows(sheet_name,row_number,display_json,synced_at) VALUES (?,?,?,?)').run(tab,ix+1,datum,'2026-09-22 19:00:00');
  }
 }
 for(const id of ['4307','4306','LEGACY-1','00001','9007199254740992']){
