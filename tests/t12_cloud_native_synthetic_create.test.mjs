@@ -188,4 +188,38 @@ for(const failAt of [1,2,3,4,5,6]){
   assert.equal(db.sequence(),1602);
   db.close();
 }
-console.log('T12 Cloud synthetic atomic-create PASS: 6-step rollback, same-key/cross-account replay, unknown-outcome readback, 8-call concurrency, single ID and no production wiring');
+
+// NEW T12 GitHub-only race matrix: conflicting bodies for ONE request key.
+// This uses a fresh private in-memory SQLite fixture; no Worker or D1 access.
+{
+  const db=new SyntheticD1();
+  const requests=[params(undefined,1),params(undefined,2),params(undefined,1),params(undefined,2)];
+  const results=await Promise.all(requests.map(p=>add(db,p)));
+  assert.equal(results.filter(r=>r.success===true&&r.stored===true).length,1,
+    'one exact request key must be committed at most once');
+  assert.equal(results.filter(r=>r.success===false&&r.reason==='same-key-actor-or-payload-conflict').length,2,
+    'both callers with the conflicting body must fail closed');
+  assert.equal(results.filter(r=>r.success===true&&r.idempotent===true).length,1,
+    'only an identical-body contender can receive the saved result');
+  assert.equal(new Set(results.filter(r=>r.success).map(r=>r.orderId)).size,1);
+  assert.equal(db.sequence(),1602);
+  complete(db,1);
+  db.close();
+}
+// Distinct concurrent keys must receive distinct IDs, not share the result
+// of a same-key request or create gaps in this successful local transaction.
+{
+  const db=new SyntheticD1();
+  const jobs=Array.from({length:5},(_,i)=>
+    add(db,params('cld1_179000000000'+i+'_DISTINCT_'+String(i).padStart(16,'0'))));
+  const results=await Promise.all(jobs);
+  assert.equal(results.every(r=>r.success===true&&r.stored===true),true);
+  assert.equal(new Set(results.map(r=>r.orderId)).size,5);
+  assert.deepEqual(results.map(r=>Number(r.orderId)).sort((a,b)=>a-b),
+    [1601,1602,1603,1604,1605]);
+  assert.equal(db.sequence(),1606);
+  complete(db,5);
+  db.close();
+}
+
+console.log('T12 Cloud synthetic atomic-create PASS: 6-step rollback, same-key/cross-account replay, unknown-outcome readback, 8-call same-key + mixed-payload and distinct-key mock concurrency, single ID and no production wiring');
