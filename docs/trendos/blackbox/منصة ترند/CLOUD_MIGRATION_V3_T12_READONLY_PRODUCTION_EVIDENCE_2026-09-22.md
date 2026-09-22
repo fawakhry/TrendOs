@@ -82,3 +82,21 @@ Among unique *pair keys*, 733/733 current line labels start with their displayed
 **Seed status:** `scriptPropertiesNext` observation can now be recorded as **OWNER-REPORTED / HISTORICAL / NOT FROZEN**, not as `allocatorSeedPinned`. Production D1 mirror/actual binding/high-water, exact deployed V155 source and the effective bound-project/source identity, all five Google writer fences, full archived/current source consistency, R5 ownership and post-freeze final recheck are not qualified. No real Cloud CREATE order or D1 allocator seed was issued. The pure `reconcileT12OrderIdSeedEvidence` must NOT receive fabricated production D1 or same-snapshot source values just to produce a candidate.
 
 **Safety and traceability:** This output is a single numeric Script Property value, not a dump of other properties or authentication tokens. The owner-side helper's code is read-only, but adding/saving its separate temporary `.gs` file would modify the Apps Script draft/Head. Do not assert that source was not edited; do not infer deployment or triggered execution changes without evidence. Any later removal of that temporary source file is a separate owner decision/action, not implied by this observation.
+
+
+## Fresh read-only ID-column observation after owner counter output / 2026-09-22
+
+**Sequential API reads from the owner-confirmed main workbook (NOT a frozen snapshot):** Connected Google Sheets metadata now reports grid row counts 698 current Orders, 754 current Lines, 2872 archived Orders, and 4111 archived Lines, each including header. A fresh pass retrieved **only column A displayed order number** across those four tabs, no customer, item, financial, status or private data, and computed these counts without persisting raw ID arrays:
+
+| Tab | Displayed nonempty order-number rows | Numeric rows | Legacy/non-numeric rows | Maximum numeric order ID |
+| --- | ---: | ---: | ---: | ---: |
+| Current Orders | 697 | 684 | 13 | **4307** |
+| Current Lines | 753 | 741 | 12 | **4307** |
+| Archived Orders | 2871 | 2623 | 248 | **3761** |
+| Archived Lines | 4110 | 3672 | 438 | **3761** |
+
+At these separate read times, **no displayed numeric ID at or above the owner's reported property value 4308** was observed in those columns. The new current Orders and current Lines totals each have three more rows than the earlier provisional observations (earlier 694 and 750 non-header rows). This is compatible with continued business activity, but a row-count difference cannot identify who created rows or prove they are newly completed business orders. The user-provided property observation 4308 and these subsequent Sheets reads are **not atomic**; do not assert that 4308 remains the current unused next ID now or that a duplicate is impossible. The only established fact about that number is the owner's earlier one-time output.
+
+**Bounded static source audit, source identity caveat:** The repository's `Code.gs` source and the owner's previously uploaded lossy V155 JSON both contain the function `makeOrderId_`, whose visible ASCII code reads `TRENDOS_NEXT_SIMPLE_ORDER_NO`, uses a sheet scan only on missing/zero property, derives `orderId=String(next)`, then calls `props.setProperty(key,String(next+1))` **before** returning the newly chosen order ID to the calling writer. The visible fallback `getNextSimpleOrderNumber_` scans current Orders and Lines only; it does not reference archived Orders/Lines in the observed function body. This is static code observation only: the uploaded purported V155 export is lossily encoded, does not prove deployed immutable source/version, and live deployment/runtime equivalence is not attested. A counter larger than a sequential Sheet maximum therefore is **not proof** of a missing customer order or a safe instruction to reset/reseed property.
+
+**Still blocked:** No production D1 high-water/freshness/binding observation or final fenced snapshot; the actual deployed Version 155 source/Integrity flags and full lifecycle parity remain unqualified. Do not run any more create/replay tests or alter original Sheet/number property based on this comparison. The owner's helper output is historical, not a promise of an unallocated business ID.
