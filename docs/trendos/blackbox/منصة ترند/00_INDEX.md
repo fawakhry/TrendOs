@@ -3,6 +3,8 @@
 هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**.
 
 ## Startup order
+**Active T12 migration, current continuity entrypoint (2026-09-22):** Read [`CLOUD_MIGRATION_V3_T12_CONTINUATION_HANDOFF_2026-09-22.md`](CLOUD_MIGRATION_V3_T12_CONTINUATION_HANDOFF_2026-09-22.md) FIRST and the newest entry in [`TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md`](TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md). These override historical T11/T12 stop points for T12 progress only. Record every successful AND failed step on isolated branch; preserve original production Google authority. The earlier initial branch listed below is historical, not the current T12 working branch.
+
 كل شات/جلسة جديدة تقرأ بالترتيب:
 1. `00_PROJECT_LOCATOR.md`
 2. `00_INDEX.md`
