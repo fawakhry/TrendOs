@@ -19,7 +19,8 @@ const authorityBlocked=['allocatorSeedPinned','googleCreateFreezeMechanismQualif
   'integrityDraftSubmitWriterFenceQualified',
   'historicGoogleReplayKeyRetentionQualified',
   'allGoogleOrderLineMutationEntrypointsFenceQualified',
-  'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
+  'cloudNativeOrderLineLifecycleParityQualified','historicalLineIdentityMappingQualified',
+  'legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
   'cloudReadAndFallbackParityQualified','rollbackMechanismQualified'];
 const shadowQualified={...all,productionVersion155SourceExact:false,
@@ -43,7 +44,8 @@ for(const key of [
   'integrityDraftSubmitWriterFenceQualified',
   'historicGoogleReplayKeyRetentionQualified',
   'allGoogleOrderLineMutationEntrypointsFenceQualified',
-  'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
+  'cloudNativeOrderLineLifecycleParityQualified','historicalLineIdentityMappingQualified',
+  'legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
   'cloudReadAndFallbackParityQualified'
 ]){
