@@ -6,6 +6,13 @@ const actor='employee-001',digest='a'.repeat(64),epoch='cutover_20260922';
 const record={clientRequestId:key,actorSubject:actor,intentDigest:digest,
   cutoverEpoch:epoch,deliveryState:'PREPARED_NEVER_SENT'};
 const ctx={rawKey:key,actorSubject:actor,intentDigest:digest,cutoverEpoch:epoch,record};
+for(const malformed of [null,[],42,'text',Object.create({inherited:true})]){
+  const rejected=plan(malformed);
+  assert.equal(rejected.disposition,'REFUSE');
+  assert.equal(rejected.reason,'invalid-continuity-context');
+  assert.equal(rejected.createAuthorized,false);
+  assert.equal(rejected.productionAuthorized,false);
+}
 let r=plan(ctx);
 assert.equal(r.disposition,'RESUME_SAME_KEY_AFTER_INDEPENDENT_SERVER_ADMISSION');
 assert.equal(r.createAuthorized,false);
