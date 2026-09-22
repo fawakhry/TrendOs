@@ -6,7 +6,7 @@
  */
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 
-export const T12_SHADOW_STORE_VERSION = 'TRENDOS_T12_ORDER_CREATE_SHADOW_STORE_20260922_FOOTPRINT';
+export const T12_SHADOW_STORE_VERSION = 'TRENDOS_T12_ORDER_CREATE_SHADOW_STORE_20260922_INITIAL_READ_FAIL_CLOSED';
 
 function text(v){ return String(v == null ? '' : v).trim(); }
 function fail(reason, extra={}){
@@ -71,9 +71,15 @@ export async function persistT12OrderCreateShadow(db,input={},actor='',options={
   if (!intent.valid) return fail('shadow-intent-invalid',{errors:intent.errors || []});
 
   const canonicalJson=canonicalPayload(intent);
-  const existing=await db.prepare(
-    'SELECT client_request_id AS clientRequestId, provisional_ref AS provisionalRef, actor, canonical_json AS canonicalJson, qualification_status AS qualificationStatus FROM t12_order_create_intents WHERE client_request_id = ? LIMIT 1'
-  ).bind(intent.requestKey).first();
+  let existing;
+  try {
+    existing=await db.prepare(
+      'SELECT client_request_id AS clientRequestId, provisional_ref AS provisionalRef, actor, canonical_json AS canonicalJson, qualification_status AS qualificationStatus FROM t12_order_create_intents WHERE client_request_id = ? LIMIT 1'
+    ).bind(intent.requestKey).first();
+  } catch {
+    // Unknown ledger state: never write a second intent on a failed first read.
+    return fail('shadow-initial-ledger-read-unavailable-no-retry');
+  }
 
   if (existing) {
     if (existing.canonicalJson===canonicalJson && existing.actor===text(actor)) {
