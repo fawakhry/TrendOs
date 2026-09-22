@@ -28,6 +28,7 @@ on:
       - 'cloudflare-d1/schema-prep/t12-cloud-native-synthetic-create-v1.sql'
       - 'tests/t12_cloud_native_synthetic_create.test.mjs'
       - 'tests/t12_google_create_writer_inventory.test.mjs'
+      - 'tests/t12_supplemental_google_writer_inventory.test.mjs'
       - 'tests/t12_google_order_lifecycle_writer_inventory.test.mjs'
       - 'tests/t12_legacy_cloud_write_boundary.test.mjs'
       - 'cloudflare-d1/t12-preview/t12-cloud-native-synthetic-test-worker.mjs'
@@ -129,6 +130,7 @@ jobs:
           node --check tests/t12_cloud_client_key_admission.test.mjs
           node --check tests/t12_cloud_native_synthetic_create.test.mjs
           node --check tests/t12_google_create_writer_inventory.test.mjs
+          node --check tests/t12_supplemental_google_writer_inventory.test.mjs
           node --check tests/t12_google_order_lifecycle_writer_inventory.test.mjs
           node --check tests/t12_legacy_cloud_write_boundary.test.mjs
           node --check cloudflare-d1/t12-preview/t12-cloud-native-synthetic-test-worker.mjs
@@ -182,6 +184,7 @@ jobs:
           node --experimental-sqlite tests/t12_cloud_native_synthetic_create.test.mjs
           node tests/t12_cloud_client_key_admission.test.mjs
           node tests/t12_google_create_writer_inventory.test.mjs
+          node tests/t12_supplemental_google_writer_inventory.test.mjs
           node tests/t12_google_order_lifecycle_writer_inventory.test.mjs
           node tests/t12_legacy_cloud_write_boundary.test.mjs
           node --experimental-sqlite tests/t12_cloud_native_synthetic_test_worker.test.mjs
