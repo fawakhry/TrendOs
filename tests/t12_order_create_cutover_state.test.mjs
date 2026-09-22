@@ -16,6 +16,8 @@ assert.equal(x.ownerDecisionRequired,false);
 
 const authorityBlocked=['allocatorSeedPinned','googleCreateFreezeMechanismQualified',
   'allGoogleCreateEntrypointsFenceQualified',
+  'integrityDraftSubmitWriterFenceQualified',
+  'historicGoogleReplayKeyRetentionQualified',
   'allGoogleOrderLineMutationEntrypointsFenceQualified',
   'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
@@ -38,6 +40,8 @@ assert.equal(x.currentProductionAuthorityMustRemainGoogleUntilDecision,true);
 
 for(const key of [
   'allGoogleCreateEntrypointsFenceQualified',
+  'integrityDraftSubmitWriterFenceQualified',
+  'historicGoogleReplayKeyRetentionQualified',
   'allGoogleOrderLineMutationEntrypointsFenceQualified',
   'cloudNativeOrderLineLifecycleParityQualified','legacyReplayContinuityQualified',
   'stableClientRequestAcrossTimeoutQualified','r5MirrorWriterFenceQualified',
