@@ -1,4 +1,4 @@
-# TrendOS T12/R5 — CURRENT new-chat starter prompt (owner copy/paste), updated after Entry 120 / 2026-09-23
+# TrendOS T12/R5 — CURRENT new-chat starter prompt (owner copy/paste), updated after Entry 123 / 2026-09-23
 
 > **This version supersedes the previous frozen Entry 106 and the pre-run Entry 113 starter text.** Prior text and all older commits remain in Git history and original journal; do not rely on the earlier statement “I have not approved installing the helper,” which is now superseded by owner-reported completed installation at Entry 112. This starter prompt grants **NO new permission** to run any live function or write production data.
 
@@ -24,6 +24,14 @@
 
 اتحفظت خطة القرار المنفصلة، بلا أي كود أو كتابة حقيقية، في `docs/trendos/blackbox/منصة ترند/CLOUD_MIGRATION_V3_T12_128_ROW_CANDIDATE_D1_RECOVERY_PLAN_REVIEW_2026-09-23.md`، واتسجّلت في Entry 120. ابدأ بقراءتها فقط لما تحتاج المرحلة دي. الإنتاج لسه على Google في الإنشاء والترقيم، وD1 **لم تتحدّث** بالـ128 من شغل الخطة. الخطوة المسموحة بدون إذن إنتاجي جديد: تصميم واختبار **مرشح معزول ببيانات وهمية** لمعاملة D1 واحدة atomic عبر التابين وبـCAS حقيقي، بعد مراجعة حدود الطلب والمعاملة والتراجع. أي قراءة تشغيلية إضافية أو كتابة/Deploy/تفعيل trigger أو نقل إنشاء الأوردرات تحتاج تصريحًا منفصلًا محددًا، ولا تستخدم `نفذ` القديم كإذن.
 
+
+## Entry 123 capacity update — إياك تكرر مراجعة سعة الـ128
+
+بعد Entry 122، المالك قال `كمل`، واتعمل فاحص **سعة صناعي PURE COUNTS / NO SQL / NO IO** مستقل في `cloudflare-d1/t12-preview/t12-d1-128-recovery-capacity-envelope-v1.mjs` مع اختبار `tests/t12_d1_128_recovery_capacity_envelope_v1.test.mjs`. CI المعزول `35877476059` **SUCCESS** عند commit `ab2bfc6ada41f2072a80549c32edbe4d6fea3074`. تفاصيل الكود، الاختبار، أي تصحيح، وروابط الأدلة في journal **Entry 123**؛ ملف خطة الـ128 اتحدّث بقيود السعة الجديدة.
+
+**النتيجة المُثبتة حسابيًا فقط:** تصميم CAS الأصلي من 2 catalog guards + 128 per-row CAS + 2 catalog advances = **132 SQL statements**. صفحة Cloudflare الرسمية: 50 query لكل Worker invocation على Free و1000 على Paid؛ **نوع حسابنا غير معروف**، وبايتات payload الفعلية ومدة تنفيذ D1 والـarchive لسه غير مُقاسة. نجاح CI لا يعني إن عندنا مسار يكتب الـ128؛ الموديول الجديد لا ينتج SQL ولا يصدر أي إذن كتابة، ومفيش أي route جديدة أو تعديل إنتاجي.
+
+**النقطة التالية فقط:** تصميم معزول/غير مربوط للإنتاج لمعاملة CAS عبر التابين تقل عن 50 statement أو إثبات خطة الحساب وحدودها أولًا، ثم اختبارات صناعية للـrollback وlost-response/NO RETRY؛ لا ترفع حدود 64/5 الموجودة، لا تبدأ مزامنة إنتاجية، ولا تعيد فحص القراءة السابق. أي TEST D1 أو production read/write يحتاج موافقة جديدة محددة.
 
 **قاعدة ثابتة من المالك:** سجل **كل خطوة** مباشرةً بعد نتيجتها — PASS/FAIL/BLOCKED/NOT RUN، مين نفذها وبأي دليل، HEAD قبل الخطوة، ملفات/دوال/commit/CI، موافقة المالك وحدودها، هل حصل أي أثر إنتاجي، الأخطاء والمجهولات، ونقطة الاستكمال — بEntry متسلسلة append-only في نفس journal ونفس الفرع، وحدّث handoff والبرومبت عند تغير الحالة. سجل حتى محاولات الوصول الفاشلة والتصحيحات، من غير أسرار أو صفوف عملاء على GitHub. ما تقولش إن حاجة اتنفذت لأنك اقترحتها. لا تعد شغل مسجل من الأول.
 
