@@ -803,3 +803,12 @@ The first screenshot also includes a prior unrelated `near "try": syntax error a
 **Next owner-only READ-ONLY step:** In the displayed binding panel owner may click linked target `trendos-main`, confirm the D1 database page header actually reads `trendos-main` (not TEST or staging), open its SQL Console and run **only Query 1** as a standalone SELECT. Share only the output table names or cropped query-result grid, with database/account IDs, customer rows, credentials and tokens hidden. If any expected table is absent/error occurs, STOP; no table creation, schema migration, Worker deploy, R5 change or corrective SQL. Query 2–4 remain prepared but must not be run until Query 1 passes and the owner can verify the selected D1 page identity.
 
 **Authority unchanged:** The observed numeric next property `4308` is owner-reported historical and non-frozen. Google Sheets/Apps Script still own actual business CREATE and numbering. No actual customer order, Apps Script execution, Google Sheet, R5, TEST/production D1 or Worker was mutated by this screenshot verification and journal write.
+
+
+## Entry 90 — continuation handoff write initially blocked, retry succeeded; SQL preflight remains owner pending / 2026-09-23
+
+**Initial attempt BLOCKED:** After Entry 89, an attempted GitHub update of the full continuation handoff was blocked by the tool with an indeterminate request-safety message. The branch remained at Entry 89's commit on a direct refetch; do not claim the blocked call saved any content. No operational Cloudflare or Google action was attempted.
+
+**Recovery PASS:** Retried a shorter handoff-only update and received commit `b4f4606da745a0713d3ea9660924e734e34adb1b`. It records the visible screenshot evidence: `trendos-d1-api`, binding `DB`, database `trendos-main`, and the exact next owner-only read-only action. The initial write refusal was a tool-side handoff update issue, not a failed SQL query, worker incident or source test. Existing owner image remains in the conversation, not committed to the repo.
+
+**Next step:** Owner opens the linked `trendos-main` D1 database page from the verified binding, confirms that page's title, runs ONLY Query 1 from `cloudflare-d1/t12-preview/t12-production-d1-aggregate-evidence-readonly-20260922.sql` in its SQL Console, and supplies only the three technical table names or sanitized error. Neither Query 1 nor any other SQL has been executed in this continuation; no settings were changed. Google remains active business CREATE/number authority.
