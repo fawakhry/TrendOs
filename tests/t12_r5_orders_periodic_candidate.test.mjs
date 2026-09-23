@@ -163,4 +163,29 @@ function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigge
   assert.equal(p.getPosts(),2); // second fresh snapshot, not blind repeat
   assert.equal(p.triggers.length,1);
 }
-console.log('R5 isolated candidate PASS: default-off/auth/target/syntax/routing, idle, bounded CAS, ambiguous outcome disarm, source-race fresh next tick, schema drift disarm; synthetic only.');
+// An already stale mirror must NOT be restarted as the 10-minute small-delta
+// worker: >5 additional source rows per tab is an explicit no-write guard.
+// Synthetic rows only; this is NOT a live database observation or recovery.
+for (const [extra,expectPass] of [[4,true],[5,false]]) {
+  const p=fakePlatform({needUpdate:true,ownTrigger:true});
+  // Initial synthetic source has 3 rows and synthetic remote has 2;
+  // append 4 => gap 5 (permitted), append 5 => gap 6 (must fail closed).
+  for(let i=4;i<4+extra;i++)p.source[0].rows.push(row(i,'synthetic-append-'+i));
+  p.source[0].sourceLastRow=p.source[0].rows.length;
+  const result=p.ctx.trendosR5PeriodicOrdersTick20260920();
+  if(expectPass){
+    assert.equal(result.postflightRowParityVerified,true,'5-row fixture stays within isolated cap');
+    assert.equal(p.getPosts(),1);
+    assert.equal(p.triggers.length,1);
+  }else{
+    assert.equal(result.errorCode,'R5_PERIODIC_ABORT_SOURCE_REMOTE_SHAPE');
+    assert.equal(result.postflightRowParityVerified,false);
+    assert.equal(result.mutationPerformed,false);
+    assert.equal(result.outcomeUnknown,false);
+    assert.equal(result.scheduledSyncDisarmed,true);
+    assert.equal(p.getPosts(),0,'gap beyond 5 must NEVER call production-like write handler');
+    assert.equal(p.triggers.length,0,'unsafe large-gap scheduled run disarms itself');
+    assert.equal(p.remote[0].rows.length,2,'synthetic D1 remote remains untouched');
+  }
+}
+console.log('R5 isolated candidate PASS: default-off/auth/target/syntax/routing, idle, bounded CAS, ambiguous outcome disarm, source-race fresh next tick, schema drift disarm, 5-vs-6 row growth gate; synthetic only.');
