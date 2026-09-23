@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المدخل الوحيد المقترح لقراءة المشروع واستكماله**  
-> إصدار الكتاب: **1.6-DRAFT — تعميق طبقة كتّاب Apps Script/D1/المهام/واتساب مع جرد 1184 ملفًا؛ غير مكتمل الاعتماد** · تاريخ الإنشاء: 2026-09-24 · المرجع الثابت للفهرس: `64d89c88dcc7078dc7fa20215c776312fceb3382` · المستودع: `fawakhry/TrendOs` · فرع إعداد الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **1.7-DRAFT — تدقيق تعارض راوتر/حارس updateLine واختبارات النصوص مع جرد 1184 ملفًا؛ غير مكتمل الاعتماد** · تاريخ الإنشاء: 2026-09-24 · المرجع الثابت للفهرس: `64d89c88dcc7078dc7fa20215c776312fceb3382` · المستودع: `fawakhry/TrendOs` · فرع إعداد الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 > **اقرأني أولًا — قبل أي استكمال:** [`الصندوق الاسود.md`](الصندوق%20الاسود.md) ← [`اقرأني_أولًا.md`](اقرأني_أولًا.md) ← **هذا الكتاب** ← آخر Entry في السجل النشط وآخر Handoff للفرع. **القاعدة رقم 1: حدّث الكتاب وسجّل كل خطوة أثناء الشغل، سواء نجحت أو فشلت أو توقفت، ثم حدّث التسليم والـHEAD قبل الانتقال للخطوة التالية.** التوثيق ليس شيئًا يُؤجَّل لآخر المحادثة. لا تنفّذ تغييرات إنتاجية لمجرد أن المستخدم قال «كمل»؛ كل إجراء مؤثر يحتاج تفويضه المحدد وحدود السلامة الخاصة به.
 
@@ -467,6 +467,35 @@ index.html createOrderBtn click -> app.js createOrder()
 
 **نقطة الفحص الآمنة التالية داخل GitHub:** تتبع مسارات dispatch في `Code.gs`/ `v1932-router.gs` للنداء الفعلي لكل موديول، تحليل أسماء الدوال المكررة والمستدعي الأساسي/الـLock وDebt Gate ثم مراجعة اختبارات كل مسار. بدون رؤية جميع ملفات source الفعلية في deployed Apps Script، تظل فرضية غياب حارس التسليم من **patch المرشح** خطرًا مشروطًا وليست عطلًا مثبتًا في الإنتاج. **لا تغير Code.gs أو تكوين Trigger أو أسرار أو بيانات هنا.**
 
+### 5.10 تصادم راوتر V1932 ودالة حفظ البند — لماذا اختبار الواجهة وحده لا يحدد كود الإنتاج
+
+**لقطة GitHub ثابتة فقط، بلا استدعاء Apps Script:** `Code.gs` blob `3496ef9b9370cced27eafaa7dbbb299616be933c`، و`v1932-router.gs` blob `313dfc1eacaa8a5369ff9e0b97a0294a2df5420a`، و`trendos-integrity-router-v1.gs` blob `34ae925b35fcf8295a8857dfe587cfa26b48b6b8`، و`tests/trendos_v1932_static.test.js` blob `6eb168eda7923c69e184c569ec30adf2f1f8fb6f`، و`tests/t12_google_order_lifecycle_writer_inventory.test.mjs` blob `05c037221412a3bc362ec1b478a8d5ec0c5d627c`. راجعنا التعريفات كاملة/اختبارات static المعنية، لكن لا توجد لدينا صورة byte-exact لكل ملفات الـApps Script المنشورة أو نتيجة Runtime تثبت مسار الـdispatch المسيطر.
+
+```text
+واجهة الموظف: saveLine -> api('updateLine') -> doPost -> trendosV1932TryRoute_
+   |
+   +-- v1932-router.gs adapter, إن كان هو التعريف الفعّال:
+   |     Integrity master+ORDER_LINE ON -> trendosUpdateLineV1_
+   |     Integrity OFF/عدم المسار -> doGet legacy -> updateLine_
+   |
+   +-- Code.gs built-in trendosV1932TryRoute_, إن كان هو التعريف الفعّال:
+         لا يفحص Integrity في متن هذا التعريف -> doGet legacy -> updateLine_
+   |
+   +-- updateLine_ أيضاً له تعريف في append-only SAVE_TIMEOUT_HOTFIX_V3 patch؛
+         تحديد أي تعريف/وظيفة يشتغل في المشروع الأصلي غير مثبت.
+```
+
+| الدليل الفعلي | العبرة العملية لفني IT |
+|---|---|
+| [`Code.gs:67`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/Code.gs#L67) / [`Code.gs:143`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/Code.gs#L143) / [`Code.gs:11837`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/Code.gs#L11837) | `doGet` يطلب `trendosV1932TryRoute_` أولًا، وبعد أي `null` يذهب إلى `action==='updateLine'` وينادي `updateLine_`. تعريف V1932 **الموجود داخل Code.gs** (11837–11875) لا يستدعي `trendosIntegrityTryRouteV1_` أصلًا، لكنه يوجّه بعض وظائف الإصدار مباشرة. وجود راوتر منفصل على GitHub لا يعني أن هذا التعريف لم يعد مستخدمًا في مشروع Apps Script فعلي. |
+| [`v1932-router.gs:4`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/v1932-router.gs#L4) / [`v1932-router.gs:26`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/v1932-router.gs#L26) | ملف `v1932-router.gs` يعرّف **نفس الاسم** `trendosV1932TryRoute_`؛ عند وصول action، إن كانت `trendosIntegrityTryRouteV1_` متاحة و`handled` يرجع ناتج Integrity قبل fallback؛ وإلا يواصل. هل هذا الـadapter موجود/فعّال في deployed Head وما أسبقية التعريف بين ملفين؟ **UNKNOWN**. لا تخمن سلوك Apps Script من ترتيب GitHub أو لقب `V1932`. |
+| [`trendos-integrity-router-v1.gs:22`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/trendos-integrity-router-v1.gs#L22) / [`trendos-integrity-router-v1.gs:50`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/trendos-integrity-router-v1.gs#L50) / [`trendos-integrity-router-v1.gs:76`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/trendos-integrity-router-v1.gs#L76) | راوتر Integrity يربط `updateLine` تحديدًا بـ`trendosUpdateLineV1_` عند Master وFamily `ORDER_LINE` المفعّلين، وإلا يعيد `null` إلى المسار القديم. تفعيل الـFamily في Script Properties مُسبق شرط منطقي **في هذا الكود** وليس دليلًا أنه ON في الإنتاج. |
+| [`Code.gs:4154`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/Code.gs#L4154) / [`Code.gs:4164`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/Code.gs#L4164) / [`Code.gs:4219`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/Code.gs#L4219) | handler الأساسي `updateLine_` يستعلم عن المديونية وقائمة منع التسليم ويستدعي `trendosDeliveryGateV1931_` قبل `تم التسليم`، ثم يغير صفوف/ملخص الأوردر ويرسل نشاط/Queue. مسار `rowNumber` فيه يختار رقم الصف أولًا قبل مطابقة `lineId`؛ يلزم حارس هوية ثابت عند تحديث عرض مشتق أو mirrored rows. |
+| [`apps-script/patches/SAVE_TIMEOUT_HOTFIX_V3_APPEND_ONLY_SAFE.gs:164`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/apps-script/patches/SAVE_TIMEOUT_HOTFIX_V3_APPEND_ONLY_SAFE.gs#L164) / [`trendos-order-line-integrity-v1.gs:275`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/trendos-order-line-integrity-v1.gs#L275) | patch fast-save يعرّف `updateLine_` بالاسم نفسه، بلا استدعاء صريح لحارس المديونية/Script Lock في هذا المتن، بينما handler Integrity باسم منفصل يتضمنهما. **لا إثبات لأي تجاوز مالي حي**: قد يكون مسار Integrity هو المختار أو patch غير منشور؛ المعالجة تبدأ بفحص مسار الـdispatch في المصدر المنشور، بدون تغيير كود أو إجراء تسليم حقيقي بغرض التجربة. |
+| [`tests/trendos_v1932_static.test.js:1`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/trendos_v1932_static.test.js#L1) / [`tests/t12_google_order_lifecycle_writer_inventory.test.mjs:1`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_google_order_lifecycle_writer_inventory.test.mjs#L1) | اختبار V1932 يتحقق بوجود نصوص/مسارات في ملفات GitHub مستقلة فقط ولا يقارن أي تعريفين متعارضين أو deployed project؛ واختبار T12 Lifecycle يفحص الحد الأدنى لخمسة handlers **داخل Code.gs**، ولا يراجع بالضرورة ملف patch أو route الفعّال. PASS لهذه الاختبارات لا يسد فجوة تعريفات الدوال ولا يلغي حارس المديونية/رقم البند. **لم يُشغّل أي اختبار في هذه الدفعة.** |
+
+**عقد المعالجة قبل إنتاج:** حصر ملفات Apps Script الحية ونسخة deployment حرفيًا مع إثبات أسبقية التعريف ومسار `updateLine` المختار لكل من status update/Task/WhatsApp؛ مراجعة `lineId` و`orderId` و`rowNumber` وثبات القفل وحارس المديونية والإعادة عند timeout، ثم اختبارات معزولة ببيانات وهمية وموافقة على أي تغيير كود/نشر. ما دام `deployedSourceExact=UNKNOWN` فالناتج هنا `STATIC_CONDITIONAL_FINDING / NO PROD CHANGE`. لا تجرب `تم التسليم` على عميل حقيقي ولا تزيل patch/Integrity flags لمحاولة معرفة المسار.
+
 ## 6. مزامنة D1 والحادثة الحالية والقيود الحاسمة
 
 **حدود العمل المقصود عند آخر توقف:** إعادة مرآة **تابين حاليين فقط**: `الأوردرات` و`بنود الأوردرات`. لا تشمل تلقائيًا `أرشيف الأوردرات` أو `أرشيف بنود الأوردرات` أو إثراء الأقسام أو نقل Cloud CREATE.
@@ -791,7 +820,7 @@ index.html createOrderBtn click -> app.js createOrder()
 
 ### 11.2 مفتاح المراجعة وحالة الثغرات
 
-`M:METADATA_ONLY` = مسار/حجم/SHA فقط عند هذه الدورة، لا تأهيل كامل للدوال والآثار. `P:SCOPED_REVIEW` = قراءة مصدر محدد لغرض موثق في فصل الكتاب، مش كل فروعه. `A:ORIGINAL_ARCHIVE` = أصل تاريخي محفوظ بالنص والـSHA ولا يدل على الحالة الحالية. `L:REDIRECT` = مسار توافق باقٍ لا يُمحى. `LIVE:EDITABLE` = دليل/سجل نشط لا يجوز إرساله للأرشيف لمجرد قراءته. اجتياز `CERTIFIED` يتطلب مراجعة وظائف وتبعيات ومصدر البيانات والاختبارات والتثبيت/الإنتاج فعلًا، **ولا يوجد اعتماد شامل هنا**. الأعداد: `M:METADATA_ONLY` **1124**؛ `P:SCOPED_REVIEW` **34**؛ `L:REDIRECT` **10**؛ `A:ORIGINAL_ARCHIVE` **10**؛ `LIVE:EDITABLE` **6**؛ المجموع **1184**. أحدث source/runtime الحقيقي غير مثبت بمجرد فهرس GitHub.
+`M:METADATA_ONLY` = مسار/حجم/SHA فقط عند هذه الدورة، لا تأهيل كامل للدوال والآثار. `P:SCOPED_REVIEW` = قراءة مصدر محدد لغرض موثق في فصل الكتاب، مش كل فروعه. `A:ORIGINAL_ARCHIVE` = أصل تاريخي محفوظ بالنص والـSHA ولا يدل على الحالة الحالية. `L:REDIRECT` = مسار توافق باقٍ لا يُمحى. `LIVE:EDITABLE` = دليل/سجل نشط لا يجوز إرساله للأرشيف لمجرد قراءته. اجتياز `CERTIFIED` يتطلب مراجعة وظائف وتبعيات ومصدر البيانات والاختبارات والتثبيت/الإنتاج فعلًا، **ولا يوجد اعتماد شامل هنا**. الأعداد: `M:METADATA_ONLY` **1121**؛ `P:SCOPED_REVIEW` **37**؛ `L:REDIRECT` **10**؛ `A:ORIGINAL_ARCHIVE` **10**؛ `LIVE:EDITABLE` **6**؛ المجموع **1184**. أحدث source/runtime الحقيقي غير مثبت بمجرد فهرس GitHub.
 
 ### 11.3 فهرس جميع مسارات اللقطة
 
@@ -1900,7 +1929,7 @@ index.html createOrderBtn click -> app.js createOrder()
 | [`tests/t12_d1_targeted_recovery_preflight_readonly.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_d1_targeted_recovery_preflight_readonly.test.mjs) | TEST | 6807 | `7c6fe217e9b65723eb05700e3574b362f0af0c3e` | M:METADATA_ONLY |
 | [`tests/t12_dashboard_singlefile_test_worker.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_dashboard_singlefile_test_worker.test.mjs) | TEST | 1328 | `b016e2e6c6a58a019d2bb6ac8a44fc6cb1359219` | M:METADATA_ONLY |
 | [`tests/t12_google_create_writer_inventory.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_google_create_writer_inventory.test.mjs) | TEST | 2264 | `8f5677e9275c9905ccb61494051b22ddef6617ac` | P:SCOPED_REVIEW |
-| [`tests/t12_google_order_lifecycle_writer_inventory.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_google_order_lifecycle_writer_inventory.test.mjs) | TEST | 1301 | `05c037221412a3bc362ec1b478a8d5ec0c5d627c` | M:METADATA_ONLY |
+| [`tests/t12_google_order_lifecycle_writer_inventory.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_google_order_lifecycle_writer_inventory.test.mjs) | TEST | 1301 | `05c037221412a3bc362ec1b478a8d5ec0c5d627c` | P:SCOPED_REVIEW |
 | [`tests/t12_legacy_cloud_write_boundary.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_legacy_cloud_write_boundary.test.mjs) | TEST | 1610 | `c5bff3d8969e39fde42869eeccde7d93f4b367fe` | M:METADATA_ONLY |
 | [`tests/t12_order_create_cutover_state.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_order_create_cutover_state.test.mjs) | TEST | 3074 | `d4e62a260c8ad989f17b308235576a254394d4f0` | M:METADATA_ONLY |
 | [`tests/t12_order_create_input_guard.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/t12_order_create_input_guard.test.mjs) | TEST | 2285 | `5224d242a6041700a3f07f16e1a303cd4949d0b1` | M:METADATA_ONLY |
@@ -1941,7 +1970,7 @@ index.html createOrderBtn click -> app.js createOrder()
 | [`tests/trendos_resume_no_autorefresh_v1.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/trendos_resume_no_autorefresh_v1.test.mjs) | TEST | 2158 | `d2ec9564816ef430e2b7b0ca10df6e87c334146f` | M:METADATA_ONLY |
 | [`tests/trendos_return_traffic_quiet_v1.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/trendos_return_traffic_quiet_v1.test.mjs) | TEST | 4641 | `b1c81860cfc92129170244800c0713129d27af85` | M:METADATA_ONLY |
 | [`tests/trendos_v1921.test.js`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/trendos_v1921.test.js) | TEST | 1171 | `e9d1c2536c5d9034e01bf62183a680dc3dd38381` | M:METADATA_ONLY |
-| [`tests/trendos_v1932_static.test.js`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/trendos_v1932_static.test.js) | TEST | 1675 | `6eb168eda7923c69e184c569ec30adf2f1f8fb6f` | M:METADATA_ONLY |
+| [`tests/trendos_v1932_static.test.js`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/trendos_v1932_static.test.js) | TEST | 1675 | `6eb168eda7923c69e184c569ec30adf2f1f8fb6f` | P:SCOPED_REVIEW |
 | [`tests/trendos_whatsapp_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/trendos_whatsapp_integrity_v1.test.js) | TEST | 6929 | `924962b313fae6170425037a3d8cd0378aaa7b8f` | M:METADATA_ONLY |
 | [`tests/work_queue_v1_contract.test.mjs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tests/work_queue_v1_contract.test.mjs) | TEST | 5158 | `d62a1038bff1924ad3ffa187863e5dc25ed1c151` | M:METADATA_ONLY |
 | [`tools/patch_02cv_order_status_ux.py`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/tools/patch_02cv_order_status_ux.py) | OTHER_OR_ROOT | 2412 | `aec31b1d85056d59f23065b9deedf218f6b5c869` | M:METADATA_ONLY |
@@ -1973,7 +2002,7 @@ index.html createOrderBtn click -> app.js createOrder()
 | [`trendos-rp07-legacy-containment-v1.gs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/trendos-rp07-legacy-containment-v1.gs) | CODE_OR_CONFIG | 3439 | `47d932c76498593063ea6f0289e9c9a663686b0d` | M:METADATA_ONLY |
 | [`trendos-whatsapp-integrity-v1.gs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/trendos-whatsapp-integrity-v1.gs) | CODE_OR_CONFIG | 16169 | `c3e59c50f17de2604f0192a5b8f651e53caf9018` | P:SCOPED_REVIEW |
 | [`V1932_RELEASE.md`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/V1932_RELEASE.md) | OTHER_OR_ROOT | 471 | `c5904515f1642ab32057418696f40fb61ae854ef` | L:REDIRECT |
-| [`v1932-router.gs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/v1932-router.gs) | CODE_OR_CONFIG | 5108 | `313dfc1eacaa8a5369ff9e0b97a0294a2df5420a` | M:METADATA_ONLY |
+| [`v1932-router.gs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/v1932-router.gs) | CODE_OR_CONFIG | 5108 | `313dfc1eacaa8a5369ff9e0b97a0294a2df5420a` | P:SCOPED_REVIEW |
 | [`v1940-deploy-health.gs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/v1940-deploy-health.gs) | CODE_OR_CONFIG | 2569 | `41e57f19de8e865888a1b8bad2cc478c44c438c3` | M:METADATA_ONLY |
 | [`WORK_QUEUE_V1_CANDIDATE.md`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/WORK_QUEUE_V1_CANDIDATE.md) | OTHER_OR_ROOT | 2859 | `3b8889d96a00d7f9300a1c3146cd78de10886952` | M:METADATA_ONLY |
 | [`work-queue-backend-v1.gs`](https://github.com/fawakhry/TrendOs/blob/64d89c88dcc7078dc7fa20215c776312fceb3382/work-queue-backend-v1.gs) | CODE_OR_CONFIG | 30671 | `87a82c18889c1c5533d94ed3f965c875c1533485` | P:SCOPED_REVIEW |
@@ -2007,5 +2036,7 @@ index.html createOrderBtn click -> app.js createOrder()
 | 2026-09-24 | 1.5-DRAFT | فهرسة كل 155 عنوانًا من T12 Journal ومقدمة 17 خطوة مع إبراز تكرار Entry54 سبع مرات دون تغيير سجل التاريخ، وإعادة بناء جميع 1184 صفًا من Git tree الجديد مع دلتا جردي 1171 و1182 | فهرسة العناوين ≠ تحليل دلالي لكل متن Entry؛ جرد الأسماء ≠ اختبار كل كود أو النسخة المنشورة؛ Journal/Book mutable بعد snapshot. |
 
 | 2026-09-24 | 1.6-DRAFT | إعادة ترتيب §5.4 قبل §5.5؛ قراءة ثابتة لعشرة مصادر GS إضافية وتحليل مخاطر duplicate updateLine_/Debts Lock، فصل 3 مزامنات D1، ازدواج Work Queue/Task ونتائج WhatsApp/Meta الجزئية؛ تحديث 10 صفوف مراجعة في §11 | 34 ملفًا فقط أصبح لها فحص جزئي مسمّى ضمن 1184 ملفًا، و1124 لا تزال metadata-only؛ لا إثبات code deployed/إصلاح live أو مراجعة كل الفروع/كل التاريخ. |
+
+| 2026-09-24 | 1.7-DRAFT | مصدر ثابت/اختبارات يحدد تكرار اسم trendosV1932TryRoute_ بين Code.gs والـadapter وأسبقية مسار updateLine عند Integrity/patch؛ ثلاثة ملفات جرى رفع تغطيتها إلى scoped review | نتيجة شرطية في GitHub فقط، لا إثبات لأي bypass منشور ولا تشغيل اختبار أو مساس بعميل؛ 1121 ملف metadata-only والنسخة المنشورة مجهولة. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
