@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المدخل الوحيد المقترح لقراءة المشروع واستكماله**  
-> إصدار الكتاب: **0.5 — خريطة إنشاء الأوردر وقراءة Edge وتحليل فجوة تحميل بين T12 وmain؛ غير مكتمل الاعتماد** · تاريخ الإنشاء: 2026-09-24 · المرجع الثابت للفهرس: `9032ebf97f79614a294760d960551a990aadb6f6` · المستودع: `fawakhry/TrendOs` · فرع إعداد الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **0.6 — خريطة frontend API وطلب الأوردر والمهلات والمفاتيح والجلسات؛ غير مكتمل الاعتماد** · تاريخ الإنشاء: 2026-09-24 · المرجع الثابت للفهرس: `9032ebf97f79614a294760d960551a990aadb6f6` · المستودع: `fawakhry/TrendOs` · فرع إعداد الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 **ابدأ من هذا الملف فقط عند التعرف على المشروع؛ ولا تعتبر أي فصل مكتملًا لمجرد وجود عنوان أو رابط.** النسخة دي بدأت فعليًا، وفي آخرها فهرس لجميع ملفات GitHub في لقطة محددة مع حالة المراجعة. الأكواد الأصلية ستبقى في ملفاتها ومكان تشغيلها؛ الرابط إلى الكود المثبت بالـcommit يعطيك النص الكامل له من دون تكوين نسخة تنفيذية ثانية داخل الكتاب. **لم تتم قراءة كل الملفات دلاليًا ولا مطابقة نسخ Apps Script وWorker المنشورة كاملة حتى الآن.** ما لم نتحقق منه موسوم `غير مثبت`، وعدم ذكر خطر لا يعني عدم وجوده.
 
@@ -202,6 +202,100 @@ Browser/customer/employee request
 **جدول فروق حالة الملفات:** `T12 config.js` blob `57462643d55ea3ee483b9ef04b6e93e09d01561d`؛ `main config.js` blob `e763259eaf18594427fee718f4bfcc70a061d1be`؛ `main trend-master-resilience-safe-v1931.js` blob `e4afce8365613743c87636a35db7f50d887f0b3a`. الروابط الثابتة المناسبة: [Main safe module](https://github.com/fawakhry/TrendOs/blob/5b9688ff5c3a3e5cc771203739641df47adfe909/trend-master-resilience-safe-v1931.js) و[Main config](https://github.com/fawakhry/TrendOs/blob/5b9688ff5c3a3e5cc771203739641df47adfe909/config.js). **ليست توصية بنسخ ملف واحد بشكل أعمى**؛ يجب حصر أي اختلافات في imports/تعريفات `window` والكاش والسلوك قبل أي تغيير.
 
 **خطوة المراجعة البرمجية التالية داخل GitHub فقط:** استكمال مطابقة `app.js` الفعلي بالـwrap/loader، وبقية الملفات التي يطلبها `config.js` والـWorker Routes واختبارات الـfallback، ثم كل ملفات source/test/workflow المتبقية من §11. عدم العثور على ملف داخل T12 دليل Git-tree فقط ولا ينفي احتمال عرضه من `main` على المنصة الحية.
+
+### 5.8 تحليل واقعي لاستدعاءات `app.js` وربطها بالـbackend (دفعة مراجعة الكود الثالثة)
+
+**المصدر المثبت:** [`app.js` كاملًا](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js)، blob `ba959df33f6e1d84674932208ad763ce62127264`، **10,836 سطرًا** في نسخة GitHub محل المراجعة. فُحص النص كاملًا للبحث عن استدعاءات `api/apiPost/apiJsonp/apiV1896` ذات اسم `action` نصي ثابت، وفُحصت الوظائف التالية في مواقعها؛ هذه مطابقة **static literal**، ولا تشمل أسماء action المحسوبة ديناميكيًا أو ملفات JavaScript أخرى، ولا تُثبت أن الراوتر المنشور يطابق نسخة GitHub.
+
+```text
+index.html createOrderBtn click -> app.js createOrder()
+  -> authParams() + clientRequestId -> app.js api('createManualOrder')
+  -> app.js trendosSecureApiV1922(action, params)
+  -> fetch POST text/plain (90s AbortController) to configured proxy or Apps Script
+  -> [optional Edge wrapper ONLY for qualified paged reads]
+  -> Apps Script doPost -> V1932/V1900/V1898 routers -> doGet action dispatch
+  -> createManualOrder_ (Google authority) -> Orders + Lines + replay receipt
+  -> browser result: confirmation + possible manual WhatsApp + loadRows(true)
+```
+
+**خريطة الوظائف في الواجهة والحواف الحرجة:**
+
+| واجهة المصدر | سلوك موثق من الكود | مخاطرة محتملة / شرط اختبار |
+|---|---|---|
+| [`app.js:1440`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1440) `trendosSecureApiV1922` | المُرسل الأساسي يستخدم HTTP POST و`Content-Type:text/plain;charset=utf-8`، يدمج `action` و`_ts` في JSON ويستعمل `AbortController` بمهلة **90 ثانية**؛ يرجع JSON أو رسالة timeout/رد غير صالح. [`app.js:1452`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1452) `api` و[`app.js:1456`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1456) `apiPost` يمرران إليه. | **Timeout أو JSON غير صالح لا يثبت أن الكتابة فشلت على Google**؛ لا تنشئ requestId جديدًا وتعيد CREATE فورًا بعد نتيجة غير معلومة. `_ts` ليس مفتاح idempotency. وجود خيار proxy في config يستدعي تحقق من route المستعمل عند النشر. |
+| [`app.js:5620`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5620) `createOrder` → [`app.js:5636`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5636) → [`app.js:5673`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5673) | زر [`app.js:7295`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L7295) ينشئ `clientRequestId` مرة عند استدعاء الوظيفة، يوقف الضغط المكرر محليًا عبر `createOrder._busy`، ثم يستدعي `createManualOrder`؛ إذا أعاد السيرفر `needsConfirmation && warningOnly` ويوافق الموظف يمكنه إرسال `forceCreate=YES` **بنفس المفتاح داخل المحاولة**. | `createOrder._busy` حماية للواجهة الحالية فقط. **إذا أعاد المستخدم الضغط بعد timeout/refresh يبدأ استدعاء جديد بمفتاح جديد**، وقد تكون الكتابة الأولى نجحت؛ مصدر الحقيقة هو استعلام مستقل على Google بالهوية/المفتاح والـreplay. `forceCreate` يتطلب تحققًا مستقلًا من gate السيرفر ولا يجيز تجاوز التكرار عمومًا. |
+| [`app.js:5677`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5677) و[`app.js:5705`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5705) و[`app.js:5741`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5741) | بعد نجاح CREATE، الواجهة تُظهر الرقم وتتيح نسخ رسالة واتساب، وبعد تأكيد بشري `recordRegistrationWhatsApp`، ثم `loadRows(true)` في الخلفية. | نجاح حفظ الأوردر **لا يساوي** نجاح إرسال واتساب أو تحديث جدول القراءة؛ هذه عمليات منفصلة وقد تفشل لاحقًا. لا تعيد إنشاء الأوردر لتعويض فشل إشعار أو refresh. |
+| [`app.js:3743`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3743) → [`app.js:3804`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3804) → [`app.js:3838`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3838) | عميل البوابة ينشئ `createCustomerDraft` ثم `addCustomerDraftItem`؛ رفع الملفات يتم بندًا بندًا عبر `uploadCustomerDraftFile`، وبعد التأكيد `submitCustomerDraft`؛ نجاح الاستجابة يحدث `draft.submitted` محليًا ثم إعادة تحميل قائمة الطلبات. | لو نجحت كتابة بند وفشل رفع مرفق أو انقطع الرد في submit، لا يجوز استنتاج أن المسودة لم تتحول إلى أوردر أو أن ملفاتها اكتملت. تأهيل مسار recovery يشمل draftId وitemId وOrder ID وتطابق عدد البنود والمرفقات، دون replay آلي. |
+| [`app.js:4513`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4513) `loadRows` → [`app.js:4518`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4518) | `getRowsPageV1931` يطلب شاشة الموظف والفلاتر ورقم الصفحة؛ يغير `state.rows` وpagination ويعيد رسم العرض، ومن المحتمل أن يمر على Edge read wrapper المؤهّل وفق §5.7. | حدّد المصدر الفعلي للقراءة واشتراطات mirrors عند تفسير تقرير/عداد؛ تحديث الواجهة ليس فحصًا مستقلًا لتطابق Google مع D1. |
+| [`app.js:5057`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5057) `saveLine` → [`app.js:5070`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5070) | `updateLine` يرسل هوية order/line والـrowNumber والحالة والملاحظات؛ بعد `success:true` يغير state ثم ينادي `loadRows(true)`. | الـrowNumber من عرض قديم ليس هوية عمل ثابتة. تأهيل حارس `identitySafeUpdateLineParams` وApps Script `resolveActiveLine` والـpost-write fallback لازم يسبق أي تحديث للمرآة. |
+| [`app.js:4644`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4644) → [`app.js:4650`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4650)، [`app.js:4684`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4684) → [`app.js:4690`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4690) | bulk status وarchive delivered يحتفظان بمفتاح requestId أثناء محاولة مجهولة، ويصفرانه فقط بعد رد نجاح؛ الأرشفة الخاصة بالأوردرات المسلَّمة تحرّك بيانات **الشيت التشغيلي** إلى أرشيف مختلف عن أرشيف GitHub الخاص بالوثائق. | **الأرشيفان مختلفان تمامًا**: نقل docs في GitHub لا يجيز `archiveDeliveredDepartmentV1926` أو حذف صفوف أعمال. بعد timeout يجب إثبات نتيجة التنفيذ وscope قبل أي إعادة؛ لا تعدّل row-count الحالي كما لو كان سجلًا تاريخيًا. |
+| [`app.js:5008`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5008) → [`app.js:5028`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5028) | رسالة WhatsApp تُنسخ، يقرر الموظف يدويًا أنه أرسلها ثم يُستدعى `markCustomerNotified` لتسجيلها في Google. | سجّل فرق `message composed` / `operator confirmed sent` / `backend recorded`، ولا تستنتج تسليمًا على Meta أو للمستلم من نجاح التسجيل وحده. |
+| [`app.js:1679`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1679) / [`app.js:1691`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1691) / [`app.js:1703`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1703) | Session الموظف تُحفظ في `sessionStorage` مع token ويُزال token من `localStorage` القديم في المسار المعتاد. | لاحظ أيضًا [`app.js:10790`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L10790) → [`app.js:10797`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L10797): موديول فتح EasyStore يكتب كائن SSO يتضمن token إلى `localStorage` تحت `MATBAGY_EMPLOYEE_SSO`. هذا **مسار تخزين مستقل ذو سطح تعرض أوسع** من `sessionStorage`؛ يلزم فحص فعلي لنموذج الثقة/المدة والمسح/التطبيق المستهلك وCSP قبل تصنيف أثر أمني على الإنتاج أو تغيير مفاتيح الدخول. ممنوع تسجيل قيم token في الكتاب. |
+
+**دليل استدعاءات `app.js` الحرفية ضمن هذه اللقطة:** رصد ثابت **58 action اسمًا مختلفًا** و**77 موضع استدعاء نصي** للدوال الأربع المحددة. العمود الأخير يحدد عدد المواضع في هذا الملف، وأول موضع له رابط سطر؛ **ليس عدد مرات استخدام live ولا سجلًا لكل alias backend**. مراجعة أسماء `action` حرفيًا مقابل `Code.gs` تثبت وجود الأسماء كنصوص في ذلك الملف، لكنها ليست برهانًا مستقلًا أن كل مسار فعّال/مصرّح أو أن backend helper موجود في كل نسخة منشورة.
+
+| `action` في الواجهة | أول موضع `app.js` | مواضع حرفية |
+|---|---:|---:|
+| `addCustomerDraftItem` | [`app.js:3804`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3804) | 1 |
+| `approveAccountingDeptInvoice` | [`app.js:9170`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L9170) | 1 |
+| `archiveDeliveredDepartmentV1926` | [`app.js:4690`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4690) | 1 |
+| `assignCustomerBranch` | [`app.js:2782`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2782) | 1 |
+| `bulkUpdateDepartmentStatusV1926` | [`app.js:4650`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4650) | 1 |
+| `changeCustomerPassword` | [`app.js:3926`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3926) | 1 |
+| `changePassword` | [`app.js:5906`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5906) | 1 |
+| `createCustomer` | [`app.js:5506`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5506) | 1 |
+| `createCustomerDraft` | [`app.js:3746`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3746) | 1 |
+| `createManualOrder` | [`app.js:5673`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5673) | 1 |
+| `customerLogin` | [`app.js:1788`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1788) | 1 |
+| `customerLogout` | [`app.js:3944`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3944) | 1 |
+| `deletePlatformAd` | [`app.js:2920`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2920) | 1 |
+| `ensureDemoCustomer` | [`app.js:5467`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5467) | 1 |
+| `getAccounting` | [`app.js:866`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L866) | 6 |
+| `getCustomerOrders` | [`app.js:3329`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3329) | 1 |
+| `getCustomerPortalAccountsV1859` | [`app.js:9096`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L9096) | 1 |
+| `getDashboard` | [`app.js:4129`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4129) | 1 |
+| `getDeptInvoiceDraftV1887` | [`app.js:9159`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L9159) | 1 |
+| `getFranchiseBranches` | [`app.js:2550`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2550) | 1 |
+| `getKnowledge` | [`app.js:4408`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4408) | 1 |
+| `getLeadPhoneNumbers` | [`app.js:1996`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1996) | 1 |
+| `getMarketplace` | [`app.js:3143`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3143) | 1 |
+| `getMatbagyNotes` | [`app.js:6118`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L6118) | 1 |
+| `getOrderConversation` | [`app.js:5143`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5143) | 1 |
+| `getPartyAccountV1858` | [`app.js:8337`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L8337) | 2 |
+| `getPlatformAds` | [`app.js:2826`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2826) | 1 |
+| `getPlatformSections` | [`app.js:2336`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2336) | 1 |
+| `getRows` | [`app.js:1558`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1558) | 1 |
+| `getRowsPageV1931` | [`app.js:4518`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4518) | 1 |
+| `getServiceProviderRoutes` | [`app.js:2172`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2172) | 1 |
+| `getTrendMasterCenterV1931` | [`app.js:4245`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4245) | 1 |
+| `getWhiteLabelSettings` | [`app.js:1878`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1878) | 1 |
+| `initAccounting` | [`app.js:850`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L850) | 1 |
+| `login` | [`app.js:1754`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1754) | 1 |
+| `logout` | [`app.js:5954`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5954) | 1 |
+| `markCustomerNotified` | [`app.js:5028`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5028) | 2 |
+| `recalculateAccountingMaterials` | [`app.js:6372`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L6372) | 1 |
+| `saveAccountingDeptLine` | [`app.js:1246`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1246) | 6 |
+| `saveAccountingFinalInvoice` | [`app.js:1346`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1346) | 2 |
+| `saveAccountingMaterial` | [`app.js:1037`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1037) | 4 |
+| `saveAccountingTemplate` | [`app.js:1066`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1066) | 1 |
+| `saveFranchiseBranch` | [`app.js:2758`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2758) | 1 |
+| `saveKnowledge` | [`app.js:4486`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L4486) | 1 |
+| `saveMarketplaceProduct` | [`app.js:3238`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3238) | 1 |
+| `saveMarketplaceVendor` | [`app.js:3207`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3207) | 1 |
+| `saveMatbagyNote` | [`app.js:6138`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L6138) | 2 |
+| `savePartyLedgerTransaction` | [`app.js:8354`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L8354) | 1 |
+| `savePlatformSection` | [`app.js:2470`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2470) | 1 |
+| `saveServiceProviderRoute` | [`app.js:2296`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L2296) | 1 |
+| `saveWhiteLabelSettings` | [`app.js:1974`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L1974) | 1 |
+| `searchCustomers` | [`app.js:5776`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5776) | 3 |
+| `sendOrderConversationMessage` | [`app.js:5286`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5286) | 1 |
+| `submitCustomerDraft` | [`app.js:3852`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3852) | 1 |
+| `updateLine` | [`app.js:5070`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5070) | 1 |
+| `uploadCustomerDraftFile` | [`app.js:3762`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3762) | 1 |
+| `uploadOrderConversationFile` | [`app.js:5274`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L5274) | 1 |
+| `uploadPlatformAd` | [`app.js:3081`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js#L3081) | 1 |
+
+**حدود المراجعة التالية:** خرائط `app.js` لا تشمل بعد جميع الـcallbacks/dynamic actions أو اختلافات modules الأخرى ولا تحقق صلاحيات 58 عملية من deployed Head؛ تُراجع function-by-function ثم تصل بكل backend handler والمخطط/الاختبار/الفشل المعني. لا تنفّذ واجهة حية أو اختبار CREATE/Archive لتأكيد توثيق GitHub. ملفات `.js/.gs` الأصلية تظل في مكانها ولا تُنقل إلى أرشيف الوثائق.
 
 ### 5.4 خريطة التبعيات التي لا يجوز تخطيها عند تحديث الكود
 
@@ -1520,5 +1614,6 @@ Browser/customer/employee request
 | 2026-09-24 | 0.3 | قراءة وأرشفة كاملة لثلاثة مراجع تاريخية إضافية: خطة Core 01/09، إغلاق RP-07، وتسليم T11؛ دمج معناها وحدود صلاحيتها الزمنية في الكتاب | الأرشفة لا تعني أن الحالة التاريخية هي الحالة الحالية؛ كل الأكواد وباقي الـdocs غير المقروءة ما زالت ضمن خطة المراجعة. |
 | 2026-09-24 | 0.4 | مراجعة ثابتة تفصيلية لمسار doGet/doPost → الراوترات → Google workbook → رقم الأوردر → إنشاء الملخص والبنود → replay receipt، مع حالات failure/duplicate والتمييز عن مسارات Tasks/mirror | الأكواد مرتبطة بنسخة GitHub مثبتة، **ولم تثبت مطابقة النسخ المنشورة أو تغطية كل فروع الملفات الكبيرة**؛ لا تشغيل ولا أرشفة ملفات مصدر. |
 | 2026-09-24 | 0.5 | مراجعة config.js + index.html + Edge Orders wrapper، تسجيل بوابات freshness/قراءة بعد الكتابة، وكشف اختلاف أصل JS موجود على main وغير موجود في T12 | اكتشاف static فقط، لا حكم على HTTP الإنتاج أو تشغيل اختبارات أو تغيير Assets؛ باقي Source/Docs يحتاج مراجعة كاملة. |
+| 2026-09-24 | 0.6 | مراجعة `app.js` ومسارات استدعاء API الثابتة، timeout/replay وقراءة/كتابة الحالة وWhatsApp وSSO وسجل للأفعال الحرفية بسطر مصدر | قراءة ثابتة لا تثبت التشغيل في deployed Head أو تغطية action ديناميكي/الوحدات الأخرى؛ إنتاج Google/Cloudflare لم يتغير. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
