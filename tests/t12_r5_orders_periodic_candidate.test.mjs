@@ -59,7 +59,7 @@ assert.equal((await code(409,request('POST',{operation:'r5-orders-periodic-apply
 const names=['الأوردرات','بنود الأوردرات'];
 const row=(n,v)=>({rowNumber:n,values:[v],display:[v],formulas:['']});
 function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigger=false,
-  sourceRaceAfterPost=false}={}) {
+  sourceRaceAfterPost=false,releaseLockThrows=false}={}) {
   const source=names.map((sheetName,i)=>({sheetName,sheetId:i+11,sourceLastRow:3,
     sourceLastCol:1,headers:['h'],rows:[row(1,'h'),row(2,'synthetic-new'),row(3,'synthetic-tail')]}));
   const remote=names.map((name,i)=>({sheetName:name,sheetId:i+11,
@@ -73,7 +73,9 @@ function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigge
   const triggers=ownTrigger?[{getHandlerFunction(){return 'trendosR5PeriodicOrdersTick20260920'}}]:[];
   const logs=[];let posts=0,propsWrites=0;
   const ctx={
-    LockService:{getScriptLock(){return {tryLock(){return true},releaseLock(){}}}},
+    LockService:{getScriptLock(){return {tryLock(){return true},releaseLock(){
+      if(releaseLockThrows)throw Error('synthetic release lock throws AFTER inner POST');
+    }}}},
     ScriptApp:{getProjectTriggers(){return [...triggers]},deleteTrigger(t){
       const i=triggers.indexOf(t);if(i>=0)triggers.splice(i,1);
     },newTrigger(){throw Error('unexpected trigger creation in tick')}},
@@ -191,4 +193,25 @@ for (const [extra,expectPass] of [[4,true],[5,false]]) {
     assert.equal(p.remote[0].rows.length,2,'synthetic D1 remote remains untouched');
   }
 }
-console.log('R5 isolated candidate PASS: default-off/auth/target/syntax/routing, idle, bounded CAS, ambiguous outcome disarm, source-race fresh next tick, schema drift disarm, 5-vs-6 row growth gate; synthetic only.');
+// An unexpected outer exception AFTER a confirmed synthetic D1 commit can
+// make the public R5 receipt understate mutation even with outcomeUnknown:false.
+// This tests epistemic uncertainty ONLY; do not infer actual Sep 21 DB writes.
+{
+  const p=fakePlatform({needUpdate:true,ownTrigger:true,releaseLockThrows:true});
+  const result=p.ctx.trendosR5PeriodicOrdersTick20260920();
+  const publicReceipt=JSON.parse(p.logs.at(-1));
+  assert.equal(result.errorCode,'R5_PERIODIC_ABORT_UNEXPECTED');
+  assert.equal(result.postflightRowParityVerified,false);
+  assert.equal(result.mutationPerformed,false,'outer wrapper masks previous successful mutation flag');
+  assert.equal(result.outcomeUnknown,false);
+  assert.equal(result.scheduledSyncDisarmed,true);
+  assert.equal(publicReceipt.errorCode,'R5_PERIODIC_ABORT_UNEXPECTED');
+  assert.equal(publicReceipt.mutationPerformed,false);
+  assert.equal(publicReceipt.outcomeUnknown,false);
+  assert.equal(publicReceipt.postflightRowParityVerified,false);
+  assert.equal(publicReceipt.scheduledSyncDisarmed,true);
+  assert.equal(p.getPosts(),1,'the synthetic D1 POST was already confirmed before releaseLock threw');
+  assert.equal(p.remote[0].rows.length,3,'synthetic remote changed despite public no-mutation receipt');
+  assert.equal(p.triggers.length,0,'outer generic failure still disarmed synthetic recurring trigger');
+}
+console.log('R5 isolated candidate PASS: default-off/auth/target/syntax/routing, idle, bounded CAS, ambiguous outcome disarm, source-race fresh next tick, schema drift disarm, 5-vs-6 row growth gate and post-commit lock-release receipt ambiguity; synthetic only.');
