@@ -59,7 +59,7 @@ assert.equal((await code(409,request('POST',{operation:'r5-orders-periodic-apply
 const names=['الأوردرات','بنود الأوردرات'];
 const row=(n,v)=>({rowNumber:n,values:[v],display:[v],formulas:['']});
 function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigger=false,
-  sourceRaceAfterPost=false,releaseLockThrows=false}={}) {
+  sourceRaceAfterPost=false,releaseLockThrows=false,lockAcquireThrows=false}={}) {
   const source=names.map((sheetName,i)=>({sheetName,sheetId:i+11,sourceLastRow:3,
     sourceLastCol:1,headers:['h'],rows:[row(1,'h'),row(2,'synthetic-new'),row(3,'synthetic-tail')]}));
   const remote=names.map((name,i)=>({sheetName:name,sheetId:i+11,
@@ -73,7 +73,10 @@ function fakePlatform({needUpdate=false, ambiguous=false, drift=false, ownTrigge
   const triggers=ownTrigger?[{getHandlerFunction(){return 'trendosR5PeriodicOrdersTick20260920'}}]:[];
   const logs=[];let posts=0,propsWrites=0;
   const ctx={
-    LockService:{getScriptLock(){return {tryLock(){return true},releaseLock(){
+    LockService:{getScriptLock(){return {tryLock(){
+      if(lockAcquireThrows)throw Error('synthetic lock acquisition throws BEFORE any POST');
+      return true;
+    },releaseLock(){
       if(releaseLockThrows)throw Error('synthetic release lock throws AFTER inner POST');
     }}}},
     ScriptApp:{getProjectTriggers(){return [...triggers]},deleteTrigger(t){
@@ -213,5 +216,17 @@ for (const [extra,expectPass] of [[4,true],[5,false]]) {
   assert.equal(p.getPosts(),1,'the synthetic D1 POST was already confirmed before releaseLock threw');
   assert.equal(p.remote[0].rows.length,3,'synthetic remote changed despite public no-mutation receipt');
   assert.equal(p.triggers.length,0,'outer generic failure still disarmed synthetic recurring trigger');
+
+  // The *same exact public log* is also possible with an exception BEFORE any
+  // HTTP request. Do not classify the owner's historic D1 write outcome from
+  // this generic receipt alone: mutually exclusive real states fit the log.
+  const prior=fakePlatform({needUpdate:true,ownTrigger:true,lockAcquireThrows:true});
+  const initialFailure=prior.ctx.trendosR5PeriodicOrdersTick20260920();
+  assert.equal(initialFailure.errorCode,'R5_PERIODIC_ABORT_UNEXPECTED');
+  assert.equal(prior.getPosts(),0,'pre-acquisition exception has no write attempt');
+  assert.equal(prior.remote[0].rows.length,2,'pre-acquisition exception leaves synthetic D1 alone');
+  assert.equal(prior.triggers.length,0);
+  assert.deepEqual(JSON.parse(prior.logs.at(-1)),publicReceipt,
+    'same generic receipt may mean zero writes OR a confirmed prior synthetic commit');
 }
 console.log('R5 isolated candidate PASS: default-off/auth/target/syntax/routing, idle, bounded CAS, ambiguous outcome disarm, source-race fresh next tick, schema drift disarm, 5-vs-6 row growth gate and post-commit lock-release receipt ambiguity; synthetic only.');
