@@ -1,3 +1,9 @@
+## CURRENT OWNER OVERRIDE — Entry 135 (2026-09-23)
+
+**اقرأ النقطة دي قبل أي نص أقدم تحتها:** المالك قال بوضوح **مفيش قواعد جديدة ولا اختبارات متكررة ولا حاجات جديدة** وطلب مراجعة الصندوق الأسود والفرع بدل إعادة شغل امبارح. السجل Entry 135 وملف continuation handoff بيصححوا اقتراح Entry 134 بقاعدة جديدة: **الاقتراح ملغي.** قاعدة TEST `trendos-t12-synthetic-test` موجودة من 21 سبتمبر، وتجربة CREATE الوهمي الحقيقي على Cloudflare D1 حصلت مرة ونجحت HTTP 201 (Entry 42)، وتجربة نفس المفتاح مرة نجحت HTTP 200 stored:false/idempotent:true (Entry 51)، واترجع Worker للايقاف HTTP 423 وفحوص D1 بعد التجربة حافظت على الصفوف والعدادات (Entries 53–55). لا تطلب إعادة أي واحدة منهم. الستة جداول `t12_synth_*` الحالية صحيحة لغرض الاختبار القديم.
+
+**الفارق اللي لازم يفضل واضح:** اختبار إصلاح مرآة الأوردرات للـ128 موضع صف (packed-CAS، 36 عبارة) نجح فقط على SQLite محلي وهمي + CI `35878664661` (Entry 125)، ولم يُشغَّل على Cloudflare D1. عدم تشغيله مش مبرر لاستدراج المالك لإنشاء DB أو جداول أو Worker جديدة خلافًا لتوجيهه الحالي. ما تنقلش سلطة CREATE من Google، ولا تشغّل R5، ولا تكتب إنتاجيًا اعتمادًا على الاختبارات القديمة. أي تعليمات أقدم تحت عن طلب إنشاء قاعدة TEST أو تكرار اختبارات تعتبر **ملغاة**؛ استكمل من أحدث Journal Entry فقط ضمن طلب المالك الحالي. ده تحديث توثيق فقط، بدون أي اختبار أو مورد جديد.
+
 # TrendOS T12/R5 — CURRENT new-chat starter prompt (owner copy/paste), updated after Entry 127 / 2026-09-23
 
 > **This version supersedes the previous frozen Entry 106 and the pre-run Entry 113 starter text.** Prior text and all older commits remain in Git history and original journal; do not rely on the earlier statement “I have not approved installing the helper,” which is now superseded by owner-reported completed installation at Entry 112. This starter prompt grants **NO new permission** to run any live function or write production data.
