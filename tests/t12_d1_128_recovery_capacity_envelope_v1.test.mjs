@@ -49,10 +49,10 @@ reject('tail growth exceeds design bound',i=>{
 },'DESIGN_TAIL_CEILING');
 reject('total over 160 only isolated design max',i=>{
   for(const t of i.tabs){
-    t.sourceRowCount=75;t.d1BaseRowCount=11;t.changedExistingRows=17;
+    t.sourceRowCount=81;t.d1BaseRowCount=17;t.changedExistingRows=17;
     t.missingSourceRowsInD1=64;t.candidateRowsForUpsert=81;
   }
-},'INVALID_COUNTS');
+},'DESIGN_TOTAL_CEILING');
 // Still no authorization even if a tiny hypothetical shape fits the Free budget.
 const small=sample();
 for(const t of small.tabs){
