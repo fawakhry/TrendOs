@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { buildTargetedRecoveryPlan, publicTargetedRecoverySummary } from
   '../cloudflare-d1/t12-preview/t12-d1-targeted-recovery-plan-v1.mjs';
 
@@ -82,3 +83,19 @@ denied('untrusted elevated caps',f=>{f.maxCandidates=1000},'CANDIDATE_LIMIT');
 denied('missing note',f=>{f.mirrorTabs[1].catalog.note='wrong'},'MIRROR_CATALOG');
 console.log('R4 isolated targeted-recovery planner PASS: '+cases+
   ' negative cases, exact two-tab synthetic proposal, no IO/write authorization.');
+
+// T12 packed prototype must never change live V1 64-ceiling.
+const originalPlanner=fs.readFileSync(new URL(
+  '../cloudflare-d1/t12-preview/t12-d1-targeted-recovery-plan-v1.mjs',
+  import.meta.url),'utf8');
+assert.match(originalPlanner,/const MAX_CANDIDATES = 64;/);
+const originalBatch=fs.readFileSync(new URL(
+  '../cloudflare-d1/t12-preview/t12-d1-guarded-recovery-batch-v1.mjs',
+  import.meta.url),'utf8');
+assert.match(originalBatch,/total >= 0 && total <= 64/);
+for(const name of ['../cloudflare-d1/production-shadow/index.js',
+  '../cloudflare-d1/src/index_v2.js',
+  '../cloudflare-d1/src/r4-guarded-recovery-production.mjs']){
+  const live=fs.readFileSync(new URL(name,import.meta.url),'utf8');
+  assert.equal(live.includes('t12-d1-128-packed-cas-batch-isolated-v1'),false);
+}
