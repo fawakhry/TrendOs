@@ -1,4 +1,4 @@
-# TrendOS T12/R5 — CURRENT new-chat starter prompt (owner copy/paste), updated after Entry 125 / 2026-09-23
+# TrendOS T12/R5 — CURRENT new-chat starter prompt (owner copy/paste), updated after Entry 127 / 2026-09-23
 
 > **This version supersedes the previous frozen Entry 106 and the pre-run Entry 113 starter text.** Prior text and all older commits remain in Git history and original journal; do not rely on the earlier statement “I have not approved installing the helper,” which is now superseded by owner-reported completed installation at Entry 112. This starter prompt grants **NO new permission** to run any live function or write production data.
 
@@ -40,6 +40,12 @@
 **مهم:** ده اختبار SQLite محلي صناعي، مش Cloudflare D1 حي، ولا يوجد route أو Deploy أو إذن كتابة. حدود 64 candidate إجمالي/5 نمو بكل تاب في المسار الإنتاجي القديم لم تتغير؛ إنشاء الأوردرات وترقيمها مازال في Google. النوع الفعلي لحساب Cloudflare ومدة/حجم المعاملة الحقيقية وسلامة مرآة الأرشيف غير متحققين، ولقطة الـ128 السابقة قديمة.
 
 **نقطة الاستكمال:** اختبار صناعي فقط على قاعدة **TEST D1 منفصلة ومؤكد إنها مش trendos-main** يحتاج موافقة مالك منفصلة على ذلك التشغيل؛ لا تشغّل أي TEST D1 تلقائيًا ولا تقرّب من قاعدة الإنتاج. أي write إنتاجي أو R5 restart أو baseline reset أو Cloud CREATE محتاج موافقات منفصلة لاحقًا ودليل مصدر جديد. حافظ على log كل خطوة، ولا تعد CI أو live preflight اللي اتعملوا.
+
+## Entry 127 test-D1 identity update — الموافقة موجودة، الاختبار السحابي نفسه لسه NOT RUN
+
+المالك وافق صراحةً على اختبار نموذج packed-CAS ببيانات **وهمية فقط** على D1 تجريبية منفصلة ثبت إنها **ليست** قاعدة الإنتاج `trendos-main`، ومن غير أي كتابة إنتاجية أو Deploy أو تشغيل R5. الموافقة محفوظة في journal **Entry 127**. فحصنا ملفات TEST في GitHub: معرّف القاعدة في `wrangler.t12-synthetic-test.template.toml` مجرد placeholder `<NEW_TEST_D1_DATABASE_ID>`، وفي `wrangler.r4-preview.local.toml` UUID صفري محلي وهمي. ما عندناش دليل على اسم/UUID/ربط قاعدة D1 TEST حقيقية؛ مفيش وصول Cloudflare مباشر هنا، ومفيش فحص/كتابة سحابية TEST أو PROD حصلت. تطبيق TEST Worker القديم خاص بـsynthetic CREATE ومش مسار packed-CAS recovery.
+
+**الخطوة التالية بالضبط:** Work يفتح حساب Cloudflare للمالك ويعمل فحص READ-ONLY لقائمة D1 لتحديد هل توجد قاعدة TEST منفصلة، ويأكد اسمها/UUID وأنها ليست `trendos-main` وليست مربوطة بمسار إنتاجي، بدون SQL أو إنشاء موارد أو Deploy أو عرض أسرار/صفوف عملاء. لو غير موجودة/غير مؤكدة: STOP واطلب قرارًا منفصلًا قبل إنشاء قاعدة جديدة. بعد تأكيد الهوية فقط نجهز harness TEST مخصص لاستعادة packed-CAS، وننفذ التجربة المصطنعة ضمن موافقة الاختبار الحالية، من غير لمس PROD. لا تعيد CI المحلي القديم لمجرد تكرار الاختبار، وسجّل كل خطوة.
 
 **قاعدة ثابتة من المالك:** سجل **كل خطوة** مباشرةً بعد نتيجتها — PASS/FAIL/BLOCKED/NOT RUN، مين نفذها وبأي دليل، HEAD قبل الخطوة، ملفات/دوال/commit/CI، موافقة المالك وحدودها، هل حصل أي أثر إنتاجي، الأخطاء والمجهولات، ونقطة الاستكمال — بEntry متسلسلة append-only في نفس journal ونفس الفرع، وحدّث handoff والبرومبت عند تغير الحالة. سجل حتى محاولات الوصول الفاشلة والتصحيحات، من غير أسرار أو صفوف عملاء على GitHub. ما تقولش إن حاجة اتنفذت لأنك اقترحتها. لا تعد شغل مسجل من الأول.
 
