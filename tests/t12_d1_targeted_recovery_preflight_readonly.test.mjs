@@ -99,4 +99,46 @@ srcRows[0][1].rowNumber=2;
 
 assert.equal(drift.productionWriteAuthorizedByThisAudit,false);
 assert.equal(drift.triggerRestartAuthorizedByThisAudit,false);
+
+// Preflight lock denial and D1 GET fault are isolated tests: no actual
+// Apps Script lock, Cloudflare GET, customer records or production calls.
+const originalLockService=ctx.LockService;
+const originalGet=ctx.d1FullGet_;
+const capturesBeforeDeniedLock=capCount;
+let deniedReleaseCalls=0, deniedGetCalls=0;
+ctx.LockService={getScriptLock(){return {
+  tryLock(waitMs){assert.equal(waitMs,30000);return false;},
+  releaseLock(){deniedReleaseCalls++;}
+}}};
+ctx.d1FullGet_=()=>{deniedGetCalls++;throw new Error('unexpected D1 access after denied lock');};
+assert.throws(
+  ()=>ctx.trendosD1TargetedRecoveryPreflightReadOnly20260919(),
+  /R4_RECOVERY_PREFLIGHT_ABORT_SCRIPT_LOCK/
+);
+assert.equal(capCount,capturesBeforeDeniedLock,'denied lock must prevent source capture');
+assert.equal(deniedGetCalls,0,'denied lock must prevent all D1 GETs');
+assert.equal(deniedReleaseCalls,0,'lock that was not acquired must not be released');
+
+let acquiredLocks=0, releasedLocks=0, sheetPageReads=0;
+ctx.LockService={getScriptLock(){return {
+  tryLock(waitMs){assert.equal(waitMs,30000);acquiredLocks++;return true;},
+  releaseLock(){releasedLocks++;}
+}}};
+ctx.d1FullGet_=(path)=>{
+  if(path.startsWith('/v1/mirror/sheet?')){
+    sheetPageReads++;
+    throw new Error('SYNTHETIC_D1_GET_INTERRUPTED');
+  }
+  return originalGet(path);
+};
+assert.throws(
+  ()=>ctx.trendosD1TargetedRecoveryPreflightReadOnly20260919(),
+  /SYNTHETIC_D1_GET_INTERRUPTED/
+);
+assert.equal(sheetPageReads,1,'test must fail during D1 row pagination');
+assert.equal(acquiredLocks,1);
+assert.equal(releasedLocks,1,'acquired lock must release after a failed D1 GET');
+ctx.LockService=originalLockService;
+ctx.d1FullGet_=originalGet;
+
 console.log('TrendOS R4 preflight PASS: synthetic identity/header/catalog/source-row drift fails closed; no writes.');
