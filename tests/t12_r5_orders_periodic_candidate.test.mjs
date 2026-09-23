@@ -179,7 +179,10 @@ for (const [extra,expectPass] of [[4,true],[5,false]]) {
     assert.equal(p.triggers.length,1);
   }else{
     assert.equal(result.errorCode,'R5_PERIODIC_ABORT_SOURCE_REMOTE_SHAPE');
-    assert.equal(result.postflightRowParityVerified,false);
+    assert.notEqual(result.postflightRowParityVerified,true,'inner error receipt must never qualify parity');
+    const publicReceipt=JSON.parse(p.logs.at(-1));
+    assert.equal(publicReceipt.postflightRowParityVerified,false,'public audit normalizes absent field to false');
+    assert.equal(publicReceipt.errorCode,'R5_PERIODIC_ABORT_SOURCE_REMOTE_SHAPE');
     assert.equal(result.mutationPerformed,false);
     assert.equal(result.outcomeUnknown,false);
     assert.equal(result.scheduledSyncDisarmed,true);
