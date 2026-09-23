@@ -52,3 +52,10 @@ As of the Entry 117 screenshot: **production write BLOCKED** by existing 64-cand
 - Most recent isolated preflight CI `35863725111` SUCCESS applies ONLY to its older test commit `023d0a9e380e934d23f6cdaa92c6404006fc7bf8`. **No new tests/CI/deployment or live D1 operations** were performed to prepare this document.
 
 **Document status: PREPARED; owner write authorization: NO; live repair: NOT RUN.**
+
+
+## P2 qualification update — isolated current-shape regression (2026-09-23)
+
+GitHub-only test evidence now protects the existing STOP boundary. Commit `3a34f0c6f9503fed099b988330174c4a8dd9f01b` changed only `tests/t12_d1_targeted_recovery_plan_v1.test.mjs` to add a fabricated two-tab fixture with 11 changed existing + 53 tail appends per tab = 64 candidates/tab = 128 total, matching only the aggregate SHAPE from Entry 117 (no real row values/IDs). The current trusted planner rejects this exact shape with `R4_PLAN_ABORT_CANDIDATE_BUDGET`; isolated CI run `35873583458`, job `107223646952`, completed SUCCESS. Canonical journal Entry 122 records full provenance.
+
+This is a **negative safety qualification**, not evidence that 128 can be safely written. Remaining P2 work is unchanged: any new 128+-capable candidate must stay isolated/unrouted/default-off and separately prove statement/body/runtime budget, exact pre-image CAS, cross-tab atomic rollback, concurrent-write rejection and commit-unknown/no-retry behavior using fabricated data and dedicated TEST-D1 evidence before a production proposal. Do not weaken existing 64/5 guards in-place merely to accommodate the old screenshot counts.
