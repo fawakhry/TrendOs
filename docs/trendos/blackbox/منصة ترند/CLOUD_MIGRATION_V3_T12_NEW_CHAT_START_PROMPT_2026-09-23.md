@@ -1,4 +1,4 @@
-# TrendOS T12/R5 — CURRENT new-chat starter prompt (owner copy/paste), updated after Entry 123 / 2026-09-23
+# TrendOS T12/R5 — CURRENT new-chat starter prompt (owner copy/paste), updated after Entry 125 / 2026-09-23
 
 > **This version supersedes the previous frozen Entry 106 and the pre-run Entry 113 starter text.** Prior text and all older commits remain in Git history and original journal; do not rely on the earlier statement “I have not approved installing the helper,” which is now superseded by owner-reported completed installation at Entry 112. This starter prompt grants **NO new permission** to run any live function or write production data.
 
@@ -32,6 +32,14 @@
 **النتيجة المُثبتة حسابيًا فقط:** تصميم CAS الأصلي من 2 catalog guards + 128 per-row CAS + 2 catalog advances = **132 SQL statements**. صفحة Cloudflare الرسمية: 50 query لكل Worker invocation على Free و1000 على Paid؛ **نوع حسابنا غير معروف**، وبايتات payload الفعلية ومدة تنفيذ D1 والـarchive لسه غير مُقاسة. نجاح CI لا يعني إن عندنا مسار يكتب الـ128؛ الموديول الجديد لا ينتج SQL ولا يصدر أي إذن كتابة، ومفيش أي route جديدة أو تعديل إنتاجي.
 
 **النقطة التالية فقط:** تصميم معزول/غير مربوط للإنتاج لمعاملة CAS عبر التابين تقل عن 50 statement أو إثبات خطة الحساب وحدودها أولًا، ثم اختبارات صناعية للـrollback وlost-response/NO RETRY؛ لا ترفع حدود 64/5 الموجودة، لا تبدأ مزامنة إنتاجية، ولا تعيد فحص القراءة السابق. أي TEST D1 أو production read/write يحتاج موافقة جديدة محددة.
+
+## Entry 125 packed-CAS update — آخر حالة، لا تعيد اختبارات الـ128 القديمة
+
+تم إنشاء نموذج **معزول وغير مربوط بالإنتاج**: `cloudflare-d1/t12-preview/t12-d1-128-packed-cas-planner-isolated-v1.mjs` و`t12-d1-128-packed-cas-batch-isolated-v1.mjs` واختبار SQLite صناعي `tests/t12_d1_128_packed_cas_batch_isolated_v1.test.mjs`. GitHub Actions CI `35878664661` عند `773479097eaa64e6cf9d51f6fc8072080dcf055b` **SUCCESS**؛ 128 موضع صف في التابين اتوزعوا على **36 عبارة SQL** في **معاملة SQLite وهمية واحدة**، مع اختبار rollback على تعارض صف/خطأ وسط العملية، وحالة الرد المفقود بعد commit بلا retry. الشرح والـcommits والأخطاء والمحاولات موثقة في journal **Entry 125**، وخطة الـ128 اتحدّثت.
+
+**مهم:** ده اختبار SQLite محلي صناعي، مش Cloudflare D1 حي، ولا يوجد route أو Deploy أو إذن كتابة. حدود 64 candidate إجمالي/5 نمو بكل تاب في المسار الإنتاجي القديم لم تتغير؛ إنشاء الأوردرات وترقيمها مازال في Google. النوع الفعلي لحساب Cloudflare ومدة/حجم المعاملة الحقيقية وسلامة مرآة الأرشيف غير متحققين، ولقطة الـ128 السابقة قديمة.
+
+**نقطة الاستكمال:** اختبار صناعي فقط على قاعدة **TEST D1 منفصلة ومؤكد إنها مش trendos-main** يحتاج موافقة مالك منفصلة على ذلك التشغيل؛ لا تشغّل أي TEST D1 تلقائيًا ولا تقرّب من قاعدة الإنتاج. أي write إنتاجي أو R5 restart أو baseline reset أو Cloud CREATE محتاج موافقات منفصلة لاحقًا ودليل مصدر جديد. حافظ على log كل خطوة، ولا تعد CI أو live preflight اللي اتعملوا.
 
 **قاعدة ثابتة من المالك:** سجل **كل خطوة** مباشرةً بعد نتيجتها — PASS/FAIL/BLOCKED/NOT RUN، مين نفذها وبأي دليل، HEAD قبل الخطوة، ملفات/دوال/commit/CI، موافقة المالك وحدودها، هل حصل أي أثر إنتاجي، الأخطاء والمجهولات، ونقطة الاستكمال — بEntry متسلسلة append-only في نفس journal ونفس الفرع، وحدّث handoff والبرومبت عند تغير الحالة. سجل حتى محاولات الوصول الفاشلة والتصحيحات، من غير أسرار أو صفوف عملاء على GitHub. ما تقولش إن حاجة اتنفذت لأنك اقترحتها. لا تعد شغل مسجل من الأول.
 
