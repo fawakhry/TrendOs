@@ -53,6 +53,30 @@ denied('source row deletion',f=>{f.sourceTabs[0].rows.pop();f.sourceTabs[0].sour
   f.mirrorTabs[0].catalog.rowCount=3;f.mirrorTabs[0].catalog.sourceLastRow=3;
   f.mirrorTabs[0].rows.push(row(3,'x'))},'MIRROR_DIMENSIONS');
 denied('candidate cap',f=>{f.maxCandidates=3},'CANDIDATE_BUDGET');
+// Synthetic regression matching only the observed 2026-09-23 aggregate SHAPE:
+// each tab has 12 mirror rows and 65 source rows: 11 changed existing +
+// 53 appended = 64 candidates/tab, 128 total. No production row values/IDs.
+{
+  const big=fixture();
+  for (let t=0;t<2;t++) {
+    const src=big.sourceTabs[t], mir=big.mirrorTabs[t];
+    src.sourceLastRow=65;
+    src.rows=[];
+    mir.catalog.sourceLastRow=12;
+    mir.catalog.rowCount=12;
+    mir.rows=[];
+    for (let n=1;n<=65;n++) {
+      const sourceValue=n<=11?'changed-'+n:(n===12?'same-12':'tail-'+n);
+      src.rows.push(row(n,sourceValue));
+      if (n<=12) mir.rows.push(row(n,n<=11?'old-'+n:'same-12'));
+    }
+  }
+  assert.throws(()=>buildTargetedRecoveryPlan(big),e=>
+    e && e.message==='R4_PLAN_ABORT_CANDIDATE_BUDGET',
+    'current-shape 128 candidates must fail closed under existing 64-total ceiling');
+  cases++;
+}
+
 denied('payload cap',f=>{f.maxPayloadBytes=80},'PAYLOAD_BUDGET');
 denied('untrusted elevated caps',f=>{f.maxCandidates=1000},'CANDIDATE_LIMIT');
 denied('missing note',f=>{f.mirrorTabs[1].catalog.note='wrong'},'MIRROR_CATALOG');
