@@ -1,10 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المدخل الوحيد المقترح لقراءة المشروع واستكماله**  
-> إصدار الكتاب: **0.1 — تأسيس فعلي، غير مكتمل الاعتماد** · تاريخ الإنشاء: 2026-09-24 · المرجع الثابت للفهرس: \`9032ebf97f79614a294760d960551a990aadb6f6\` · المستودع: \`fawakhry/TrendOs\` · فرع إعداد الكتاب: \`cloud-migration-v3-t12-order-create-ci-20260919\`.
+> إصدار الكتاب: **0.2 — تأسيس وأرشفة أولية، غير مكتمل الاعتماد** · تاريخ الإنشاء: 2026-09-24 · المرجع الثابت للفهرس: `9032ebf97f79614a294760d960551a990aadb6f6` · المستودع: `fawakhry/TrendOs` · فرع إعداد الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
-**ابدأ من هذا الملف فقط عند التعرف على المشروع؛ ولا تعتبر أي فصل مكتملًا لمجرد وجود عنوان أو رابط.** النسخة دي بدأت فعليًا، وفي آخرها فهرس لجميع ملفات GitHub في لقطة محددة مع حالة المراجعة. الأكواد الأصلية ستبقى في ملفاتها ومكان تشغيلها؛ الرابط إلى الكود المثبت بالـcommit يعطيك النص الكامل له من دون تكوين نسخة تنفيذية ثانية داخل الكتاب. **لم تتم قراءة كل الملفات دلاليًا ولا مطابقة نسخ Apps Script وWorker المنشورة كاملة حتى الآن.** ما لم نتحقق منه موسوم \`غير مثبت\`، وعدم ذكر خطر لا يعني عدم وجوده.
+**ابدأ من هذا الملف فقط عند التعرف على المشروع؛ ولا تعتبر أي فصل مكتملًا لمجرد وجود عنوان أو رابط.** النسخة دي بدأت فعليًا، وفي آخرها فهرس لجميع ملفات GitHub في لقطة محددة مع حالة المراجعة. الأكواد الأصلية ستبقى في ملفاتها ومكان تشغيلها؛ الرابط إلى الكود المثبت بالـcommit يعطيك النص الكامل له من دون تكوين نسخة تنفيذية ثانية داخل الكتاب. **لم تتم قراءة كل الملفات دلاليًا ولا مطابقة نسخ Apps Script وWorker المنشورة كاملة حتى الآن.** ما لم نتحقق منه موسوم `غير مثبت`، وعدم ذكر خطر لا يعني عدم وجوده.
 
-> **قاعدة السلامة:** لا ينفّذ هذا الكتاب أي إجراء. أي تعليمات تاريخية مقتبسة من مستند قديم أو ملف كود \`PREPARED\` لا تُعد موافقة على Run أو SQL أو Deploy أو Delete أو نقل صلاحية كتابة أو استعادة إنتاجية. يمنع وضع بيانات العملاء وTokens والقيم السرية في هذا الملف.
+> **قاعدة السلامة:** لا ينفّذ هذا الكتاب أي إجراء. أي تعليمات تاريخية مقتبسة من مستند قديم أو ملف كود `PREPARED` لا تُعد موافقة على Run أو SQL أو Deploy أو Delete أو نقل صلاحية كتابة أو استعادة إنتاجية. يمنع وضع بيانات العملاء وTokens والقيم السرية في هذا الملف.
 
 ## فهرس القراءة السريع
 
@@ -27,13 +27,13 @@
 
 الكتاب مكوّن من نص مفهوم لغير المطور، وجانب تقني لكل وظيفة: ملف المصدر، الدالة/المسار، تبعياته، القارئ والكاتب، بياناته، الصلاحيات، الأخطاء والتراجع، ودليل اختباره. **الشرح ليس نسخة تنفيذية؛ الكود المُرجع إليه من رابط مثبت بالـcommit هو الكود المخزن في GitHub في هذه اللقطة فقط، وليس بالضرورة ما يعمل الآن في Apps Script أو Cloudflare.**
 
-أول ما تبدأ محادثة: اقرأ «الحالة الراهنة» في §2 و«آخر حادثة» في §6 و«نقطة الوقوف» في §10. لا تبدأ تنفيذ أي شيء إذا كان تاريخ الرصد قديمًا أو متعارضًا، أو إذا لم تُغلق البوابات المذكورة. الملفات تحت \`docs/archive/\` تحفظ التاريخ فقط وليست أوامر قابلة للتنفيذ؛ الأرشفة لا تعني الحذف من Git history.
+أول ما تبدأ محادثة: اقرأ «الحالة الراهنة» في §2 و«آخر حادثة» في §6 و«نقطة الوقوف» في §10. لا تبدأ تنفيذ أي شيء إذا كان تاريخ الرصد قديمًا أو متعارضًا، أو إذا لم تُغلق البوابات المذكورة. الملفات تحت `docs/archive/` تحفظ التاريخ فقط وليست أوامر قابلة للتنفيذ؛ الأرشفة لا تعني الحذف من Git history.
 
 ### طريقة التحديث المرنة دون فقد التفاصيل
 
-عند كل خطوة جديدة: ثبّت HEAD القديم ونوع المصدر ووقت الرصد؛ حدّد في الكتاب الجملة المتأثرة؛ أضف دليلًا مؤرخًا وحالة \`PLANNED | PREPARED | TESTED | DEPLOYED | VERIFIED | BLOCKED | SUPERSEDED\`؛ عدّل «الحالة الراهنة» إذا ثبت تغيّرها، مع إبقاء السرد التاريخي وسبب النسخ الجديدة؛ عدّل مرجع الكود إلى commit جديد **فقط** بعد إعادة مطابقة التبعيات؛ حدّث سجل التغيير في §12. لا يُستبدل الاستنتاج غير المحسوم بعبارة حاسمة. إذا تحرك ملف أو تغير اسمه: حدّث فهرس §11 وروابطه وروابط مستهلكيه والاختبارات قبل نقل المصدر.
+عند كل خطوة جديدة: ثبّت HEAD القديم ونوع المصدر ووقت الرصد؛ حدّد في الكتاب الجملة المتأثرة؛ أضف دليلًا مؤرخًا وحالة `PLANNED | PREPARED | TESTED | DEPLOYED | VERIFIED | BLOCKED | SUPERSEDED`؛ عدّل «الحالة الراهنة» إذا ثبت تغيّرها، مع إبقاء السرد التاريخي وسبب النسخ الجديدة؛ عدّل مرجع الكود إلى commit جديد **فقط** بعد إعادة مطابقة التبعيات؛ حدّث سجل التغيير في §12. لا يُستبدل الاستنتاج غير المحسوم بعبارة حاسمة. إذا تحرك ملف أو تغير اسمه: حدّث فهرس §11 وروابطه وروابط مستهلكيه والاختبارات قبل نقل المصدر.
 
-**شرط إغلاق الفصول:** كل وظيفة مثبتة في فهرس المستودع لها مسار عمل وقراءة/كتابة وتبعيات واختبار وحالة نشر وإشارة للأخطاء أو توثيق \`غير مثبت\`. نسبة اكتمال الكتاب تساوي الملفات/الوظائف التي اجتازت المراجعة الحقيقية، لا مجرد عدد الروابط. أي اختلاف من بيانات الإنتاج يتقدم على وصف قديم، بعد التحقق وليس التخمين.
+**شرط إغلاق الفصول:** كل وظيفة مثبتة في فهرس المستودع لها مسار عمل وقراءة/كتابة وتبعيات واختبار وحالة نشر وإشارة للأخطاء أو توثيق `غير مثبت`. نسبة اكتمال الكتاب تساوي الملفات/الوظائف التي اجتازت المراجعة الحقيقية، لا مجرد عدد الروابط. أي اختلاف من بيانات الإنتاج يتقدم على وصف قديم، بعد التحقق وليس التخمين.
 
 ## 2. هوية TrendOS ومصادر الحقيقة
 
@@ -41,20 +41,20 @@
 
 **البنية المسجلة:**
 
-\`\`\`text
+```text
 Customer / Employee / Manager
   -> GitHub Pages: index.html + config.js + app.js + frontend modules
   -> Google Apps Script: authenticated actions + Google Sheets (current business-write authority)
   -> Cloudflare Worker: read/session/fallback paths + protected mirror/import lanes
   -> Cloudflare D1: read replica / performance mirror + isolated experimental schemas
   -> Apps Script fallback when Edge not eligible or fresh
-\`\`\`
+```
 
-**المصدر المعتمد للكتابة التجارية الآن:** Google Sheets + Apps Script. لا يُستنتج نقل إنشاء وترقيم الأوردرات إلى D1 من وجود كود \`cloud-write\` أو علم مفعّل في نسخة GitHub أو نجاح اختبار مفبرك. **Order ID** هو المفتاح المنطقي للطلب، و**Line ID** للبند النشط؛ الصفوف التاريخية \`مكرر\` تحفظ للتدقيق ولا تدخل تلقائيًا في المنطق النشط.
+**المصدر المعتمد للكتابة التجارية الآن:** Google Sheets + Apps Script. لا يُستنتج نقل إنشاء وترقيم الأوردرات إلى D1 من وجود كود `cloud-write` أو علم مفعّل في نسخة GitHub أو نجاح اختبار مفبرك. **Order ID** هو المفتاح المنطقي للطلب، و**Line ID** للبند النشط؛ الصفوف التاريخية `مكرر` تحفظ للتدقيق ولا تدخل تلقائيًا في المنطق النشط.
 
 **المراجع الأساسية في إصدار الفهرس:** [الصندوق الأسود](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/%D8%A7%D9%84%D8%B5%D9%86%D8%AF%D9%88%D9%82%20%D8%A7%D9%84%D8%A7%D8%B3%D9%88%D8%AF.md)، [القرارات](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/docs/trendos/TRENDOS_DECISIONS.md)، [خارطة الطريق](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/docs/trendos/TRENDOS_ROADMAP_2027-03-01.md)، [مراجعة الحوادث والمسار](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/docs/trendos/blackbox/%D9%85%D9%86%D8%B5%D8%A9%20%D8%AA%D8%B1%D9%86%D8%AF/TRENDOS_T12_REPOSITORY_ROADMAP_INCIDENT_REVIEW_2026-09-24.md)، [سجل T12 التفصيلي](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/docs/trendos/blackbox/%D9%85%D9%86%D8%B5%D8%A9%20%D8%AA%D8%B1%D9%86%D8%AF/TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md). هذه روابط مصدر تاريخي؛ **الكتاب هو مدخل القراءة المقترح، لكن لا يُنقل المحتوى القابل للتدقيق من سجل حي قبل إثبات التكافؤ**.
 
-**ما ثبت بتاريخ رصده:** فحص الصحة في 2026-09-12 أغلق RP-07 بنتيجة \`OPEN_CORE_P0_BLOCKERS=0\` لذلك الوقت. وفي T11 تم تفعيل قراءة D1 أولًا لأقسام الطباعة والليزر والمكبس وخدمة العملاء مع Apps Script fallback؛ لم تُنقل سلطة الكتابة. الحادثة اللاحقة في سبتمبر لا تلغي نجاح الماضي، لكنها تمنع اعتبار الماضي إثباتًا للحالة الحالية.
+**ما ثبت بتاريخ رصده:** فحص الصحة في 2026-09-12 أغلق RP-07 بنتيجة `OPEN_CORE_P0_BLOCKERS=0` لذلك الوقت. وفي T11 تم تفعيل قراءة D1 أولًا لأقسام الطباعة والليزر والمكبس وخدمة العملاء مع Apps Script fallback؛ لم تُنقل سلطة الكتابة. الحادثة اللاحقة في سبتمبر لا تلغي نجاح الماضي، لكنها تمنع اعتبار الماضي إثباتًا للحالة الحالية.
 
 ## 3. خطة مشروع 1 مارس 2027 وحالة كل مرحلة
 
@@ -81,17 +81,17 @@ Customer / Employee / Manager
 | الخطوة | الوظيفة التجارية | ربط الكود/مصدر الحقيقة المطلوب التحقق منه |
 |---|---|---|
 | 1 | وصول العميل من القنوات/Lead Hunter والتعرّف على هويته | واجهات Customer Manager/Lead Hunter ومفاتيح الربط؛ أي هوية إضافية تحتاج دليل dedupe. |
-| 2 | محادثة، متطلبات المنتج وموافقة العميل | \`customer-manager-v1.js\` + \`customer-manager-backend-v1932.gs\` + WhatsApp؛ لا رد آلي باختراع سعر أو وعد. |
-| 3 | Draft → تأكيد إنشاء أوردر حقيقي | \`app.js\` → \`Code.gs\` \`doGet/doPost\` → \`mbCreateOrder_\` أو مسارات أخرى؛ الكود المنشور الحقيقي والـflags غير مثبتين 1:1. |
-| 4 | توليد Order ID/Line ID وتثبيت بنود الطلب | \`makeOrderId_\` و\`trendosV1922NextLineNumber_\` وملف \`trendos-order-line-integrity-v1.gs\` المحتمل؛ Google authority، Script Lock/idempotency والتكرار ضرورية. |
-| 5 | موافقة التصميم ورفع النسخ | المشروع يريد \`Proof → customer approval → Print Ready → Archive\` لكن الربط الفعلي بكل Order/Line يحتاج تأكيد مستقل. |
-| 6 | فرز قسم الطباعة/الليزر/المكبس/الخدمة | D1-first reads مع Apps Script fallback؛ لا ترجع حالة قديمة من مرآة غير مؤهلة؛ \`__DEBT__\` خارج مسار Edge. |
-| 7 | بداية/نهاية مهام الموظفين والدوام والنظافة | \`operator-task-workflow-v2.gs\`/T2 مستقلاً + \`attendance-*.gs\`, \`cleaning-backend-v1.gs\`; لا تفعّل تعديل Tasks أو عقوبات HR لمجرد وجود المصدر. |
-| 8 | اعتماد خامات وتكلفة وفاتورة القسم | \`trendos-invoice-integrity-v1.gs\`, \`gaber-material-*.js/.gs\`, EasyStore/accounting؛ لا تُخترع أسعار ولا يتم الخصم مرتين. |
-| 9 | حالة التسليم، المنع بسبب المديونية والإشعار | \`Code.gs\` status/archival + customer feedback/WhatsApp؛ لازم حالة دورية محدثة ومراجعة العميل. |
+| 2 | محادثة، متطلبات المنتج وموافقة العميل | `customer-manager-v1.js` + `customer-manager-backend-v1932.gs` + WhatsApp؛ لا رد آلي باختراع سعر أو وعد. |
+| 3 | Draft → تأكيد إنشاء أوردر حقيقي | `app.js` → `Code.gs` `doGet/doPost` → `mbCreateOrder_` أو مسارات أخرى؛ الكود المنشور الحقيقي والـflags غير مثبتين 1:1. |
+| 4 | توليد Order ID/Line ID وتثبيت بنود الطلب | `makeOrderId_` و`trendosV1922NextLineNumber_` وملف `trendos-order-line-integrity-v1.gs` المحتمل؛ Google authority، Script Lock/idempotency والتكرار ضرورية. |
+| 5 | موافقة التصميم ورفع النسخ | المشروع يريد `Proof → customer approval → Print Ready → Archive` لكن الربط الفعلي بكل Order/Line يحتاج تأكيد مستقل. |
+| 6 | فرز قسم الطباعة/الليزر/المكبس/الخدمة | D1-first reads مع Apps Script fallback؛ لا ترجع حالة قديمة من مرآة غير مؤهلة؛ `__DEBT__` خارج مسار Edge. |
+| 7 | بداية/نهاية مهام الموظفين والدوام والنظافة | `operator-task-workflow-v2.gs`/T2 مستقلاً + `attendance-*.gs`, `cleaning-backend-v1.gs`; لا تفعّل تعديل Tasks أو عقوبات HR لمجرد وجود المصدر. |
+| 8 | اعتماد خامات وتكلفة وفاتورة القسم | `trendos-invoice-integrity-v1.gs`, `gaber-material-*.js/.gs`, EasyStore/accounting؛ لا تُخترع أسعار ولا يتم الخصم مرتين. |
+| 9 | حالة التسليم، المنع بسبب المديونية والإشعار | `Code.gs` status/archival + customer feedback/WhatsApp؛ لازم حالة دورية محدثة ومراجعة العميل. |
 | 10 | التحصيل والأرشيف والتغذية الراجعة والتعلم | نظام المبيعات/الحسابات والأرشيف يبقى Google authority حاليًا؛ AI مساعدة وليست سجلًا تجاريًا حيًا. |
 
-**حوادث يجب وصلها بهذا التسلسل:** مضاعفة الحفظ عند timeout، تكرار Line ID النشط مقابل \`مكرر\` التاريخي، هوية الطلب عقب تحديث حالة/أرشفة، Script Properties quota مع مفاتيح إعادة الطلب، مرآة D1 قديمة تعطي لقطة قديمة، نجاح خارجي مع استجابة ضائعة، وصفحة Worker مستقلة لا تثبت جدول D1 المكتوب.
+**حوادث يجب وصلها بهذا التسلسل:** مضاعفة الحفظ عند timeout، تكرار Line ID النشط مقابل `مكرر` التاريخي، هوية الطلب عقب تحديث حالة/أرشفة، Script Properties quota مع مفاتيح إعادة الطلب، مرآة D1 قديمة تعطي لقطة قديمة، نجاح خارجي مع استجابة ضائعة، وصفحة Worker مستقلة لا تثبت جدول D1 المكتوب.
 
 ## 5. خريطة الأكواد: الواجهة ثم Apps Script ثم Cloudflare
 
@@ -99,27 +99,27 @@ Customer / Employee / Manager
 
 | ملف المصدر الكامل المثبت بالـcommit | الدور / الحدّ |
 |---|---|
-| [\`index.html\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/index.html) | هيكل واجهة GitHub Pages ووسوم التحميل والإصدار والكاش؛ لا يُستنتج إصدار الإنتاج من تسمية واجهة قديمة. |
-| [\`config.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/config.js) | API URL الافتراضي إلى Apps Script؛ مسار Edge Orders وfeature flags وتحميل الوحدات؛ قيم branch ليست دليلًا على runtime محفوظ. |
-| [\`app.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js) | العميل/الأوردرات/الفلاتر/حالات الأقسام وعمليات الواجهة؛ ملف كبير (10,836 سطر في مراجعة سابقة لهذا الـblob)؛ لا يكفي count الدوال لمعرفة كل الـcall graph. |
-| [\`trendos-edge-orders-read-v1.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-edge-orders-read-v1.js) | قرار D1-first أو Apps Script fallback وحواجز بعد الكتابة والديون. |
-| [\`trendos-poll-coordinator-v1.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-poll-coordinator-v1.js) | coalescing وhidden-tab throttle؛ لا تشغّل تحديث شاشة لا يطابق مصدرها. |
-| [\`manager-center-v1932.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/manager-center-v1932.js) | واجهة الإدارة والتدخلات؛ دليل الوظائف المنشورة منفصل عن وجود الملف. |
-| [\`customer-manager-v1.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/customer-manager-v1.js) | محادثات العميل وواجهة الاقتراح/الإرسال؛ راجع صلاحية المستخدم وتوثيق الموافقات. |
-| [\`operator-task-workflow-v2.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/operator-task-workflow-v2.js) | المهام التشغيلية UI، لا تُفعل الكتابة تلقائيًا. |
-| [\`attendance-v1.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/attendance-v1.js), [\`press-control-v1.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/press-control-v1.js) | الحضور والمكبس؛ صنّف calls غير القراءة والقرارات الصلاحية قبل قبول سلوك نشر. |
+| [`index.html`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/index.html) | هيكل واجهة GitHub Pages ووسوم التحميل والإصدار والكاش؛ لا يُستنتج إصدار الإنتاج من تسمية واجهة قديمة. |
+| [`config.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/config.js) | API URL الافتراضي إلى Apps Script؛ مسار Edge Orders وfeature flags وتحميل الوحدات؛ قيم branch ليست دليلًا على runtime محفوظ. |
+| [`app.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/app.js) | العميل/الأوردرات/الفلاتر/حالات الأقسام وعمليات الواجهة؛ ملف كبير (10,836 سطر في مراجعة سابقة لهذا الـblob)؛ لا يكفي count الدوال لمعرفة كل الـcall graph. |
+| [`trendos-edge-orders-read-v1.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-edge-orders-read-v1.js) | قرار D1-first أو Apps Script fallback وحواجز بعد الكتابة والديون. |
+| [`trendos-poll-coordinator-v1.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-poll-coordinator-v1.js) | coalescing وhidden-tab throttle؛ لا تشغّل تحديث شاشة لا يطابق مصدرها. |
+| [`manager-center-v1932.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/manager-center-v1932.js) | واجهة الإدارة والتدخلات؛ دليل الوظائف المنشورة منفصل عن وجود الملف. |
+| [`customer-manager-v1.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/customer-manager-v1.js) | محادثات العميل وواجهة الاقتراح/الإرسال؛ راجع صلاحية المستخدم وتوثيق الموافقات. |
+| [`operator-task-workflow-v2.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/operator-task-workflow-v2.js) | المهام التشغيلية UI، لا تُفعل الكتابة تلقائيًا. |
+| [`attendance-v1.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/attendance-v1.js), [`press-control-v1.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/press-control-v1.js) | الحضور والمكبس؛ صنّف calls غير القراءة والقرارات الصلاحية قبل قبول سلوك نشر. |
 
 ### 5.2 المصدر الرئيسي الحقيقي للأوردرات — لا تخلط نسخ GitHub بالمنشور
 
-- [\`Code.gs\` كاملًا](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/Code.gs) يحتوي \`doGet\` و\`doPost\` والعديد من مسارات العملاء، الأوردرات، الحسابات والمخزون؛ **الـblob المثبت هنا ملف GitHub وليس مشروع Apps Script الأصلي بجميع ملفاته**. البحث التعريفي رصد 631 تعريف \`function\` على مستوى نصه (قد توجد دوال مكررة أو تعاريف بأنماط أخرى). اللقطة التاريخية لنسخة API المربوطة Version155 كانت غير دقيقة Unicode ولم تثبت byte-exact؛ **ممنوع استبدال Head بهذه النسخة**.
-- خمسة مسارات معروفة لتوليد الرقم في مراجعة T12: \`mbCreateOrder_\`، \`createCustomerPortalOrder_\`، \`submitCustomerDraft_\`، \`createManualOrder_\` في \`Code.gs\`، والخامس \`trendosCustomerDraftSubmitV1_\` → \`trendosCustomerDraftResolveOrderIdV1_\` في [\`trendos-order-line-integrity-v1.gs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-order-line-integrity-v1.gs). **العدد حد أدنى من مصدر مرجعي، مش جرد مضمون لآخر نسخة منشورة**. \`NEXT_ORDER_NO\` قيمة تاريخية لا تُستخدم لإنشاء/إعادة ضبط الرقم.
-- [\`trendos-integrity-router-v1.gs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-integrity-router-v1.gs) يربط عائلة Integrity وراء flags وصلاحيات؛ اكتشاف الدالة وحده لا يثبت أن الراوتر منشور أو العلم ON.
-- [\`trendos-invoice-integrity-v1.gs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-invoice-integrity-v1.gs) يمسك فواتير Draft/Final وتوابع idempotency. [\`work-queue-backend-v1.gs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/work-queue-backend-v1.gs) و[\`operator-task-workflow-v2.gs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/operator-task-workflow-v2.gs) فيهما مسارات كتابة Google، لذا مراجعة P0 للـlocks/أدوار المستخدم لازمة قبل أي تعديل.
-- [\`apps-script/patches/\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/apps-script/patches/TIMEOUT_HOTFIX_V2_APPEND_ONLY_SAFE.gs) يحوي Hotfix/candidate مستقل؛ لا تنفّذ patch كأنها مُثبتة live. \`README_V1931\` و\`APPS_SCRIPT_DEPLOY_V1940\` وثيقتان تاريخيتان فيهما نصائح نقل/نشر **لا تنطبق تلقائيًا على Head الحالي**.
+- [`Code.gs` كاملًا](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/Code.gs) يحتوي `doGet` و`doPost` والعديد من مسارات العملاء، الأوردرات، الحسابات والمخزون؛ **الـblob المثبت هنا ملف GitHub وليس مشروع Apps Script الأصلي بجميع ملفاته**. البحث التعريفي رصد 631 تعريف `function` على مستوى نصه (قد توجد دوال مكررة أو تعاريف بأنماط أخرى). اللقطة التاريخية لنسخة API المربوطة Version155 كانت غير دقيقة Unicode ولم تثبت byte-exact؛ **ممنوع استبدال Head بهذه النسخة**.
+- خمسة مسارات معروفة لتوليد الرقم في مراجعة T12: `mbCreateOrder_`، `createCustomerPortalOrder_`، `submitCustomerDraft_`، `createManualOrder_` في `Code.gs`، والخامس `trendosCustomerDraftSubmitV1_` → `trendosCustomerDraftResolveOrderIdV1_` في [`trendos-order-line-integrity-v1.gs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-order-line-integrity-v1.gs). **العدد حد أدنى من مصدر مرجعي، مش جرد مضمون لآخر نسخة منشورة**. `NEXT_ORDER_NO` قيمة تاريخية لا تُستخدم لإنشاء/إعادة ضبط الرقم.
+- [`trendos-integrity-router-v1.gs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-integrity-router-v1.gs) يربط عائلة Integrity وراء flags وصلاحيات؛ اكتشاف الدالة وحده لا يثبت أن الراوتر منشور أو العلم ON.
+- [`trendos-invoice-integrity-v1.gs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/trendos-invoice-integrity-v1.gs) يمسك فواتير Draft/Final وتوابع idempotency. [`work-queue-backend-v1.gs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/work-queue-backend-v1.gs) و[`operator-task-workflow-v2.gs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/operator-task-workflow-v2.gs) فيهما مسارات كتابة Google، لذا مراجعة P0 للـlocks/أدوار المستخدم لازمة قبل أي تعديل.
+- [`apps-script/patches/`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/apps-script/patches/TIMEOUT_HOTFIX_V2_APPEND_ONLY_SAFE.gs) يحوي Hotfix/candidate مستقل؛ لا تنفّذ patch كأنها مُثبتة live. `README_V1931` و`APPS_SCRIPT_DEPLOY_V1940` وثيقتان تاريخيتان فيهما نصائح نقل/نشر **لا تنطبق تلقائيًا على Head الحالي**.
 
 ### 5.3 Worker + D1 — مسارات حقيقية في نسخة GitHub
 
-\`\`\`text
+```text
 cloudflare-d1/wrangler.toml
   main=production-shadow/index.js
       R4 exact route / R5 exact route / qualification route / observer
@@ -127,39 +127,39 @@ cloudflare-d1/wrangler.toml
           session bridge, accounting, service read, 02CR read, Edge
           operator task facade, cloud-write gate, imports,
           mirror delta, mirror-gate, fallback legacy index.js
-\`\`\`
+```
 
 | ملف مثبت | معنى أمني/تشغيلي |
 |---|---|
-| [\`cloudflare-d1/wrangler.toml\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/wrangler.toml) | اسم Worker وD1 \`DB\` وتكوين Candidate. **إعدادات المستودع ليست شاهدًا على متغيرات النسخة المنشورة**. لا تُحفظ قيمة أي Secret في الكتاب. |
-| [\`production-shadow/index.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/production-shadow/index.js) | ممر dispatch لــR4/R5 والـobserver ثم core؛ لا تفعّل route مغلقًا لمجرد وجود import. |
-| [\`src/index_v2.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/index_v2.js) | Router المسارات الأساسية؛ endpoint موجود في كود مرشح لا يعني أنه فعّال في النسخة live. |
-| [\`src/cloud-session-bridge-v3.mjs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/cloud-session-bridge-v3.mjs) | تبادل جلسة الموظف عبر POST، ثم عقود Edge permission/TTL؛ لا تستعمل مصادقة عميل حقيقي في CI. |
-| [\`src/edge-orders-read-02cr-freshness.mjs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs) | تحقق freshness لــOrders/Lines ومتطلبات شاشة القسم وfallback، قد تحتاج مصادر إثراء منفصلة. |
-| [\`src/edge-orders-service-v1.mjs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/edge-orders-service-v1.mjs) | طلبات خدمة العملاء المجمعة ومستثنيات تاريخية مؤهلة؛ لا تُطبّق تلقائيًا على جميع الأقسام. |
-| [\`src/edge-orders-freshness-gate.mjs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/edge-orders-freshness-gate.mjs) | رفض البيانات غير الجاهزة/القديمة عن مسار القراءة وحماية fallback؛ heartbeat قد يثبت source idle فقط بشروطه. |
-| [\`src/mirror-gate.mjs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/mirror-gate.mjs) | \`GET\` mirror/read؛ POST import يتطلب \`MIGRATION_SECRET\`، مع \`heartbeat\` الذي قد يحدّث metadata؛ **مش كل GET مضمون بدون side effects خارجي قبل مراجعة الملف الفعلي**. |
-| [\`src/mirror.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/mirror.js) | وظائف \`importSheetStage\` و\`promoteStagedSheets\` وlegacy import؛ انظر §6. |
-| [\`src/cloud-write-gate.mjs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/cloud-write-gate.mjs) | Gate خاص Cloud Write مع session؛ وجود قيمة \`true\` في repo لا ينقل سلطة real CREATE أو يشهد أن endpoint مباشر غير مستخدم في PROD. |
+| [`cloudflare-d1/wrangler.toml`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/wrangler.toml) | اسم Worker وD1 `DB` وتكوين Candidate. **إعدادات المستودع ليست شاهدًا على متغيرات النسخة المنشورة**. لا تُحفظ قيمة أي Secret في الكتاب. |
+| [`production-shadow/index.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/production-shadow/index.js) | ممر dispatch لــR4/R5 والـobserver ثم core؛ لا تفعّل route مغلقًا لمجرد وجود import. |
+| [`src/index_v2.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/index_v2.js) | Router المسارات الأساسية؛ endpoint موجود في كود مرشح لا يعني أنه فعّال في النسخة live. |
+| [`src/cloud-session-bridge-v3.mjs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/cloud-session-bridge-v3.mjs) | تبادل جلسة الموظف عبر POST، ثم عقود Edge permission/TTL؛ لا تستعمل مصادقة عميل حقيقي في CI. |
+| [`src/edge-orders-read-02cr-freshness.mjs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs) | تحقق freshness لــOrders/Lines ومتطلبات شاشة القسم وfallback، قد تحتاج مصادر إثراء منفصلة. |
+| [`src/edge-orders-service-v1.mjs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/edge-orders-service-v1.mjs) | طلبات خدمة العملاء المجمعة ومستثنيات تاريخية مؤهلة؛ لا تُطبّق تلقائيًا على جميع الأقسام. |
+| [`src/edge-orders-freshness-gate.mjs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/edge-orders-freshness-gate.mjs) | رفض البيانات غير الجاهزة/القديمة عن مسار القراءة وحماية fallback؛ heartbeat قد يثبت source idle فقط بشروطه. |
+| [`src/mirror-gate.mjs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/mirror-gate.mjs) | `GET` mirror/read؛ POST import يتطلب `MIGRATION_SECRET`، مع `heartbeat` الذي قد يحدّث metadata؛ **مش كل GET مضمون بدون side effects خارجي قبل مراجعة الملف الفعلي**. |
+| [`src/mirror.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/mirror.js) | وظائف `importSheetStage` و`promoteStagedSheets` وlegacy import؛ انظر §6. |
+| [`src/cloud-write-gate.mjs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/cloud-write-gate.mjs) | Gate خاص Cloud Write مع session؛ وجود قيمة `true` في repo لا ينقل سلطة real CREATE أو يشهد أن endpoint مباشر غير مستخدم في PROD. |
 
 ### 5.4 خريطة التبعيات التي لا يجوز تخطيها عند تحديث الكود
 
-\`index.html\` → \`config.js\` → \`app.js\`/الوحدات → Google \`doGet/doPost\` أو Edge session → Worker router → D1/read fallback أو Google write. و\`Google Apps Script project\` قد يحتوي ملفات إضافية عن \`Code.gs\`، لذا الرجوع إلى GitHub وحده **غير كافٍ** لمعرفة تعارض الدوال والـoverride والإصدار المنشور. يشمل الجرد النهائي: كل action alias، كل \`fetch\` و\`google.script.run\`/UrlFetch، كل Lock/Script Property، كل SQL migration، الـWorker binding والـroute، كل Trigger وGitHub Action، كل محتوى UI يتم تحديثه بعد write، وكل مسار rollback.
+`index.html` → `config.js` → `app.js`/الوحدات → Google `doGet/doPost` أو Edge session → Worker router → D1/read fallback أو Google write. و`Google Apps Script project` قد يحتوي ملفات إضافية عن `Code.gs`، لذا الرجوع إلى GitHub وحده **غير كافٍ** لمعرفة تعارض الدوال والـoverride والإصدار المنشور. يشمل الجرد النهائي: كل action alias، كل `fetch` و`google.script.run`/UrlFetch، كل Lock/Script Property، كل SQL migration، الـWorker binding والـroute، كل Trigger وGitHub Action، كل محتوى UI يتم تحديثه بعد write، وكل مسار rollback.
 
 ## 6. مزامنة D1 والحادثة الحالية والقيود الحاسمة
 
-**حدود العمل المقصود عند آخر توقف:** إعادة مرآة **تابين حاليين فقط**: \`الأوردرات\` و\`بنود الأوردرات\`. لا تشمل تلقائيًا \`أرشيف الأوردرات\` أو \`أرشيف بنود الأوردرات\` أو إثراء الأقسام أو نقل Cloud CREATE.
+**حدود العمل المقصود عند آخر توقف:** إعادة مرآة **تابين حاليين فقط**: `الأوردرات` و`بنود الأوردرات`. لا تشمل تلقائيًا `أرشيف الأوردرات` أو `أرشيف بنود الأوردرات` أو إثراء الأقسام أو نقل Cloud CREATE.
 
 المسار الذي تمت قراءته في الكود وليس تشغيله:
-1. [\`D1_Orders_Live_Sync_V2.gs\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/D1_Orders_Live_Sync_V2.gs) يلتقط Google snapshot للتابين، ويُرسل 80 صفًا في طلب stage، ثم يطلب promote لكليهما.
-2. [\`mirror.js\`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/mirror.js) ينفذ stage صفًا بعبارة SQL لكل صف تقريبًا؛ reset في stage يمسح staging المرتبط باسم التاب وليس فقط run ID؛ التداخل قد يتلف snapshot منافسًا.
-3. promote يراجع كتالوج المرحلة ثم يحذف/يعيد إدخال **كل** صفوف التابين داخل D1 batch، لا يطبق \`exact live preimage CAS\` مستقلًا عن الكاتب الخارجي لحظة الـcommit؛ أي تغير متزامن يستلزم حارسًا حقيقيًا أو توقفًا آمنًا.
-4. تشغيل \`d1OrdersLiveSyncTickV2\` بدون مراجعة قد يختار full rebase ويعدل baseline/lastFull في Script Properties؛ ليس probe ولا استعادة مأمونة تلقائيًا.
+1. [`D1_Orders_Live_Sync_V2.gs`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/D1_Orders_Live_Sync_V2.gs) يلتقط Google snapshot للتابين، ويُرسل 80 صفًا في طلب stage، ثم يطلب promote لكليهما.
+2. [`mirror.js`](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/mirror.js) ينفذ stage صفًا بعبارة SQL لكل صف تقريبًا؛ reset في stage يمسح staging المرتبط باسم التاب وليس فقط run ID؛ التداخل قد يتلف snapshot منافسًا.
+3. promote يراجع كتالوج المرحلة ثم يحذف/يعيد إدخال **كل** صفوف التابين داخل D1 batch، لا يطبق `exact live preimage CAS` مستقلًا عن الكاتب الخارجي لحظة الـcommit؛ أي تغير متزامن يستلزم حارسًا حقيقيًا أو توقفًا آمنًا.
+4. تشغيل `d1OrdersLiveSyncTickV2` بدون مراجعة قد يختار full rebase ويعدل baseline/lastFull في Script Properties؛ ليس probe ولا استعادة مأمونة تلقائيًا.
 5. [R4 الحالي](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/src/r4-guarded-recovery-production.mjs) و[المخطط المحلي المحزم](https://github.com/fawakhry/TrendOs/blob/9032ebf97f79614a294760d960551a990aadb6f6/cloudflare-d1/t12-preview/t12-d1-128-packed-cas-batch-isolated-v1.mjs) ليسا بديلًا مختبرًا عن هذا الخطر: R4 محدد 64 موضعًا/5 tail للتاب، و36 عبارة CAS نجحت على SQLite محليًا فقط.
 
-**الأدلة التاريخية، ليست لقطة live متزامنة:** المصدر Google row indices 705/761 (شامل header)، وD1 catalog/actual 652/708 برصد آخر منفصل؛ فحص Work السابق وجد 11 changed +53 tail لكل تاب =128 **موضع صف** لا أوردرات. stage tables موجودة وكانتا خاليتين عند رصدهما. Worker Paid ظهر Active؛ لوحة D1 عرضت \`Rows written=50\` في 24 ساعة لكن الكاتب والتاب غير معروفين. الأصل Google Triggers صفري حسب مالكه وWorker Cron/Queues/Email فارغة حسب صورة الإعدادات، لكن HTTP/manual/other-project writers لا يختفون بذلك.
+**الأدلة التاريخية، ليست لقطة live متزامنة:** المصدر Google row indices 705/761 (شامل header)، وD1 catalog/actual 652/708 برصد آخر منفصل؛ فحص Work السابق وجد 11 changed +53 tail لكل تاب =128 **موضع صف** لا أوردرات. stage tables موجودة وكانتا خاليتين عند رصدهما. Worker Paid ظهر Active؛ لوحة D1 عرضت `Rows written=50` في 24 ساعة لكن الكاتب والتاب غير معروفين. الأصل Google Triggers صفري حسب مالكه وWorker Cron/Queues/Email فارغة حسب صورة الإعدادات، لكن HTTP/manual/other-project writers لا يختفون بذلك.
 
-**نتيجة الحادثة:** R5 آخر نجاح idle ~Sep21 03:13؛ 03:23 سجل \`R5_PERIODIC_ABORT_UNEXPECTED\` و\`scheduledSyncDisarmed:true\`. رسالة الغلاف \`mutationPerformed:false\` لا تُثبت أن SQL لم يُكتب: CI المحلي أثبت سيناريو مؤكد الالتزام ثم فشل releaseLock ينتج نفس الرسالة. السبب الحقيقي/نتيجة transaction الحيّة في تلك اللحظة مجهولان. لا يُعاد تشغيل R5 ولا V2 tick لعمل اختبار.
+**نتيجة الحادثة:** R5 آخر نجاح idle ~Sep21 03:13؛ 03:23 سجل `R5_PERIODIC_ABORT_UNEXPECTED` و`scheduledSyncDisarmed:true`. رسالة الغلاف `mutationPerformed:false` لا تُثبت أن SQL لم يُكتب: CI المحلي أثبت سيناريو مؤكد الالتزام ثم فشل releaseLock ينتج نفس الرسالة. السبب الحقيقي/نتيجة transaction الحيّة في تلك اللحظة مجهولان. لا يُعاد تشغيل R5 ولا V2 tick لعمل اختبار.
 
 **بوابات لا يمكن تخطيها قبل أي كتابة PROD:** تحقق نسخة Apps Script/Worker المنشورة + المتغيرات الفعلية والكتّاب، snapshot Google/D1 ثابت ومتطابق الهوية/الأعمدة وبصمة المحتوى مع Lock/quiet window وفصل منافسي الكتابة، headroom Apps Script Properties والمدة والحصص/التكلفة، تحقق staging محتوى وشكلًا، موافقة مالك محددة لعملية واحدة تستبدل التابين فقط، استعلامات GET-only لتسوية نتيجة commit غير المؤكدة بلا إعادة POST أعمى، ثم parity محتوى مستقل بعد العملية وقبل تعديل baseline أو triggers.
 
@@ -168,12 +168,12 @@ cloudflare-d1/wrangler.toml
 | الخطر | كيف نكتشفه ونمنع تكراره |
 |---|---|
 | استجابة الطلب ضاعت بعد إنشاء أوردر | client/server idempotency مرتبط بالمستخدم والطلب، مرجع محفوظ قبل الإرسال، بحث عن نتيجة الالتزام قبل retry، عدم إصدار رقم جديد بسبب reload. |
-| \`Script Properties quota\` | رصد الحجم والعدد بطريقة لا تكشف القيم، نسخ تاريخي قبل أي تنظيف، لا تحذف مفاتيح replay القديمة؛ حذف الـ150 حدث فعلًا ولا يُكرر. |
+| `Script Properties quota` | رصد الحجم والعدد بطريقة لا تكشف القيم، نسخ تاريخي قبل أي تنظيف، لا تحذف مفاتيح replay القديمة؛ حذف الـ150 حدث فعلًا ولا يُكرر. |
 | تداخل حقن mirror أو تغير مصدر Google | المصدر fingerprint قبل/بعد والتابين معًا، حراسة stage وwriters، لا promote بعد تغير بنيوي أو commit مجهول. |
-| D1 قديم لكنه يقول \`ready\` | فحص التاريخ والبصمة والصفوف الحقيقة؛ catalog row count مساوي للجدول ليس freshness مقابل Google. |
+| D1 قديم لكنه يقول `ready` | فحص التاريخ والبصمة والصفوف الحقيقة؛ catalog row count مساوي للجدول ليس freshness مقابل Google. |
 | Cloudflare Worker session/roles | لا تعتمد CORS كصلاحية؛ bearer verification على مسارات محمية، فصل بيانات الموظفين والعملاء، role-scoped reads/POSTs. |
 | ضغط Apps Script وإعادة الحفظ | حدد عمليات UI/الـpolling وtimeouts؛ قفل/طلب ثابت يمنع double-save؛ التعديل الذي ربما نجح لا يكرر بلا تحقق. |
-| تاريخ Line ID \`مكرر\` | حافظ عليه كأثر تدقيق، واستبعده فقط من المنطق النشط وفق القاعدة؛ لا تستنتج من تكرار شكل العرض فساد كل الأوردرات. |
+| تاريخ Line ID `مكرر` | حافظ عليه كأثر تدقيق، واستبعده فقط من المنطق النشط وفق القاعدة؛ لا تستنتج من تكرار شكل العرض فساد كل الأوردرات. |
 | قرار مالي أو HR آلي | لا تخترع سعرًا/تسوية/إجراء تأديبيًا، ولا تقبل AI memory كحقيقة دفع/حالة حية؛ الموافقات التشغيلية مستقلة. |
 
 ## 8. سجل الحوادث من أول المشروع لأحدث نقطة
@@ -184,23 +184,23 @@ cloudflare-d1/wrangler.toml
 |---|---|---|
 | Aug–Sep26 | Integrity/Core قديم: حالات تاريخية مكررة، عدم تطابق Press session وتحديثات registry؛ مدونة في Ledger/RP-06 | RP-07 health أغلق P0 في snapshot Sep12، لكن هذا ليس شهادة V1 كاملة الآن. |
 | Sep4–13 | تذبذب mirror freshness، read auth/cache/Worker routing و404→401 أثناء T11، ثم T11 qualified | نجاح Worker/frontend وقت إصدار T11؛ لا يعني تحديث mirror مستمرًا بعد الحادثة اللاحقة. |
-| Sep19 | امتلاء \`Script Properties\` وتعطل/ضغط UI وبعض sync؛ مالك المشروع أوقف مشغلين قديمين ونفّذ تنظيفًا محدودًا لـ150 replay keys بعد حفظ نسخة | لا تكرر أي حذف؛ تحسين الحصة المؤقت لا يثبت زوال الأصل أو يسمح بإزالة بقية مفاتيح replay. |
-| Sep20–21 | R4 bounded then R5 periodic worked then self-disarmed بــgeneric error | الكود المرشح يفسر إمكان فشل \`finally\` بعد POST؛ السبب/الـcommit الحقيقي غير معلوم. |
+| Sep19 | امتلاء `Script Properties` وتعطل/ضغط UI وبعض sync؛ مالك المشروع أوقف مشغلين قديمين ونفّذ تنظيفًا محدودًا لـ150 replay keys بعد حفظ نسخة | لا تكرر أي حذف؛ تحسين الحصة المؤقت لا يثبت زوال الأصل أو يسمح بإزالة بقية مفاتيح replay. |
+| Sep20–21 | R4 bounded then R5 periodic worked then self-disarmed بــgeneric error | الكود المرشح يفسر إمكان فشل `finally` بعد POST؛ السبب/الـcommit الحقيقي غير معلوم. |
 | Sep21–22 | TEST synthetic Cloud-native first create/replay PASS ثم TEST disabled | ليس real order CREATE authority ولا إثبات لدورة Ordes كلها أو packed CAS على D1. |
 | Sep23 | Google/D1 source lag، staged tables zero، NO visible triggers وWorker screenshots ثم D1 Metrics 50 rows written | لا تضاهي هذه النتائج بوقت واحد أو باسم كاتب معلوم؛ PROD mirror restore لم يُنفذ. |
 | Sep24 | مراجعة شاملة للمسار ثم البدء في هذا الكتاب | الأصل شغال وفق سلطة Google، لكن اكتمال V1 والإصلاح الشامل غير مثبت؛ لا توجد عمليات تشغيل حية تمت أثناء كتابة الكتاب. |
 
 ## 9. النشر والاختبار وخطة الرجوع
 
-**الفروع ليست إنتاجًا:** \`main\` للواجهة الحالية وفق آخر دليل مؤرخ، T12 فرع التحضير المنعزل، وفرع Tasks T2 مستقل. Action PASS في فرع اختبار مش إثبات منشور حي. قبل أي نشر: حدد source hash وdeployed version، حصر الملفات/flags ومسارات action، توثيق backup، تجربة preflight على معطيات خيالية خارج PROD بأذن منفصل، اختبارات المصادقة/الفشل/الرجوع، حماية بيانات العملاء، rollback exact version، موافقة محددة وتأكيد ما بعد النشر.
+**الفروع ليست إنتاجًا:** `main` للواجهة الحالية وفق آخر دليل مؤرخ، T12 فرع التحضير المنعزل، وفرع Tasks T2 مستقل. Action PASS في فرع اختبار مش إثبات منشور حي. قبل أي نشر: حدد source hash وdeployed version، حصر الملفات/flags ومسارات action، توثيق backup، تجربة preflight على معطيات خيالية خارج PROD بأذن منفصل، اختبارات المصادقة/الفشل/الرجوع، حماية بيانات العملاء، rollback exact version، موافقة محددة وتأكيد ما بعد النشر.
 
-\`Cloudflare Workers\` قد يحمل إعدادات \`vars\` مختلفة عن \`wrangler.toml\` في GitHub. \`Apps Script Head\` و\`Version 155\` المسجل تاريخيًا غير مثبت تطابقهما مع repo \`Code.gs\` بالكامل أو كل الموديولات. \`GitHub Pages\` تحميل عدة JavaScript وسلوك كاش، ولا يكفي نجاح صفحة رئيسية لإثبات عدم وجود حالة UI قديمة بعد تنفيذ حفظ.
+`Cloudflare Workers` قد يحمل إعدادات `vars` مختلفة عن `wrangler.toml` في GitHub. `Apps Script Head` و`Version 155` المسجل تاريخيًا غير مثبت تطابقهما مع repo `Code.gs` بالكامل أو كل الموديولات. `GitHub Pages` تحميل عدة JavaScript وسلوك كاش، ولا يكفي نجاح صفحة رئيسية لإثبات عدم وجود حالة UI قديمة بعد تنفيذ حفظ.
 
 **ممنوع عند إعداد هذا الكتاب:** تشغيل Workflow يؤدي Deploy، تفعيل R5/Triggers، تغيير Properties/Secrets، حذف Data/شيتات/جداول SQL، إنشاء TEST جديدة أو نقل إنشاء الأوردرات إلى Cloudflare. هذه ليست إجراءات توثيق.
 
 ## 10. مصفوفة اكتمال الكتاب وشروط الأرشفة
 
-**حالة هذا الإصدار:** \`WORKING_DRAFT / NOT A COMPLETE CERTIFICATION\`. تمت ميتاداتا وفهرسة جميع الملفات المذكورة في §11، لكن بعض محتويات الملفات راجعت جزئيًا فقط وأكثر الملفات لا تزال metadata-only. مطلوب فحص كل ملف غير مؤرشف؛ استخراج كل function/route/import/branch/write من الكود، توثيق كل خطأ تاريخي وربطه بالمصدر والاختبار، مراجعة جميع 163 test files و163 GitHub files وبقية Docs والملفات المستقلة/المجاورة. **لا تختصر 1171 رابطًا إلى "1171 ملفًا مقروءًا".**
+**حالة هذا الإصدار:** `WORKING_DRAFT / NOT A COMPLETE CERTIFICATION`. تمت ميتاداتا وفهرسة جميع الملفات المذكورة في §11، لكن بعض محتويات الملفات راجعت جزئيًا فقط وأكثر الملفات لا تزال metadata-only. مطلوب فحص كل ملف غير مؤرشف؛ استخراج كل function/route/import/branch/write من الكود، توثيق كل خطأ تاريخي وربطه بالمصدر والاختبار، مراجعة جميع 163 test files و163 GitHub files وبقية Docs والملفات المستقلة/المجاورة. **لا تختصر 1171 رابطًا إلى "1171 ملفًا مقروءًا".**
 
 **معايير النقل الفعلي لوثيقة تاريخية:** قراءتها كاملة + نسخ محتواها الأصلي بشكل مُراجع إلى مسار أرشيف معلوم + إدراج جميع قراراتها وأخطائها وأوامرها التاريخية وتحذيراتها في الكتاب + التحقق من المسارات والروابط التي تشير إلى اسمها القديم أو ترك redirect صالح + حفظ GitHub blob/commit للمراجعة + readback للبصمة وحالة الكتاب + عدم كونها journal/handoff/fixture/workflow/test/README نشطًا تعتمد عليه أدوات أو شات حالي. **لا تمسح ملف كود أو اختبار أو workflow لمجرد أن محتواه موصوف في الكتاب.** إذا لم تثبت التبعيات: نسخة أرشيفية آمنة مع إبقاء الأصل مؤقتًا، لا تخمين وحذف.
 
@@ -208,9 +208,23 @@ cloudflare-d1/wrangler.toml
 
 **نقطة الاستكمال المسموح بها الآن:** GitHub-only code/docs inventory + book expansion. العمل الحقيقي في Cloudflare وApps Script **PAUSED**. لا تزعم استعادة D1، ولا تطلب إعادة لقطة R5 executions أو إنشاء DB. عند كل جلسة ابدأ من هذا الكتاب وسجل حالة التغطية لا من الصفر.
 
+### أول دفعة أرشفة نُفذت فعليًا — 2026-09-24
+
+تمت قراءة ثلاث وثائق إصدار تاريخية كاملة، ونسخ النص الأصلي **مطابقًا للـblob SHA** إلى `docs/archive/trendos-master-book/2026-09-24/`، ثم استبدال نصوصها الطويلة في المسار القديم بوصلة قصيرة إلى الأرشيف وهذا الكتاب. بذلك **لم تُحذف المستندات أو تنكسر روابط المسارات القديمة**، وفي الوقت نفسه النص التاريخي الطويل متاح من الأرشيف فقط. المحتوى التاريخي ليس تعليمات Deploy حديثة؛ خصوصًا نصوص استبدال `Code.gs` وتفعيل triggers.
+
+| الوثيقة التاريخية | كامل الأصل المؤرشف | Blob SHA للنص الأصلي | حالة المسار القديم |
+|---|---|---|---|
+| `README_V1931.md` | [نص V1931 كامل](docs/archive/trendos-master-book/2026-09-24/README_V1931.md) | `e7f72eae437e4421938b7317d19db89e1fb49c28` | رابط توافق فقط |
+| `V1932_RELEASE.md` | [نص V1932 كامل](docs/archive/trendos-master-book/2026-09-24/V1932_RELEASE.md) | `36e65aa067cc6b65dbef49cb2927eb40a6b2c794` | رابط توافق فقط |
+| `APPS_SCRIPT_DEPLOY_V1940.md` | [نص V1940 كامل](docs/archive/trendos-master-book/2026-09-24/APPS_SCRIPT_DEPLOY_V1940.md) | `49f0fafea76184832942f4b4861b6f5699442796` | رابط توافق فقط |
+
+**ملخص حفظ محتوى هذه الوثائق في الكتاب:** V1931 يشرح الأرشفة وسرعة pagination وسياسة منع التسليم بقائمة مديونية خاصة وQueue الرسائل والمخزون وقفل اليوم وAttendance Hybrid ويحتوي تعليمات نشر تاريخية لا تُنفَّذ الآن. V1932 يضيف Manager Center وCustomer Manager/WhatsApp وAI/backend/router وأسماء Script Property اللازمة بلا قيم؛ وصف "أضف سطور الراوتر" تاريخي وليس أمر نشر. V1940 يحصي الـbackend المقترح للدوام والتنظيف والموارد البشرية والمكبس والفواتير والـfrontend منفصلًا، وشروط صحة النشر وحدود HR/السعر/الكهرباء؛ ليس دليلًا على وجود/نشر جميع هذه الملفات اليوم. التفاصيل الأصلية الكاملة محفوظة في الأرشيف بالأسماء والبصمات أعلاه.
+
+**ملاحظة تغطية الفهرس:** جدول §11 مصوَّر على الـcommit السابق لإنشاء الكتاب، ولذلك يسجل أسماء هذه الوثائق بمحتواها وقت اللقطة، بينما الرابط إلى نصها التاريخي الدائم الآن هو عمود الأرشيف أعلاه. لاحقًا عند إعادة توليد الفهرس من HEAD أحدث يجب تضمين هذا الكتاب وملفات الأرشيف وروابط التوافق مع حالة `ARCHIVED`، من دون محو لقطة الفهرس القديمة.
+
 ## 11. الفهرس التقني لكل الملفات والأكواد
 
-**طريقة القراءة:** الجدول تحت الأقسام يعرض *كل ملف من Git tree عند HEAD \`9032ebf97f79614a294760d960551a990aadb6f6\`* (حالة metadata-only لا تعني قراءة المحتوى). \`R\` = تمت مراجعة النص لأغراض محددة في هذه/المراجعة السابقة، لا cert للإصدار المنشور؛ \`M\` = الاسم وSHA والحجم فقط، ومراجعة النص التفصيلية متبقية. رابط كل ملف يفتح **الكود/النص الأصلي كاملًا كما كان عند commit ثابت**. القائمة snapshot؛ أي ملف أُضيف بعد HEAD هذا لن يظهر إلا في تحديث فهرس لاحق؛ ملفات فرع Tasks المنفصل ليست ضمن هذا الـtree. أسماء الأكواد والملفات ليست دليلًا على إنها مستدعاة أو منشورة.
+**طريقة القراءة:** الجدول تحت الأقسام يعرض *كل ملف من Git tree عند HEAD `9032ebf97f79614a294760d960551a990aadb6f6`* (حالة metadata-only لا تعني قراءة المحتوى). `R` = تمت مراجعة النص لأغراض محددة في هذه/المراجعة السابقة، لا cert للإصدار المنشور؛ `M` = الاسم وSHA والحجم فقط، ومراجعة النص التفصيلية متبقية. رابط كل ملف يفتح **الكود/النص الأصلي كاملًا كما كان عند commit ثابت**. القائمة snapshot؛ أي ملف أُضيف بعد HEAD هذا لن يظهر إلا في تحديث فهرس لاحق؛ ملفات فرع Tasks المنفصل ليست ضمن هذا الـtree. أسماء الأكواد والملفات ليست دليلًا على إنها مستدعاة أو منشورة.
 
 ### F — GitHub Actions/automation — 163 ملفًا
 
@@ -1430,4 +1444,4 @@ cloudflare-d1/wrangler.toml
 |---|---|---|---|
 | 2026-09-24 | 0.1 | الكتاب الرئيسي تأسس على فرع T12 الحالي؛ خريطة التشغيل وخطة 1 مارس والحوادث الأساسية وكود API/Sync والخريطة ذات روابط كاملة لكل ملف | كل الروابط وblobs من Git tree، لكن **القراءة الدلالية الكاملة/نسخة الإنتاج/فهرس فرع Tasks والتغطية النهائية لم تكتمل**. لا أرشفة نهائية أو تشغيل إنتاجي مُصرح بهذا الإصدار. |
 
-**قاعدة التوسعة:** الأجزاء \`M\` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى \`R\` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى \`CERTIFIED\` إلا بعد source+runtime parity والاختبارات اللازمة.
+| 2026-09-24 | 0.2 | أرشفة 3 وثائق تاريخية مطابقة للـblob مع الإبقاء على وصلات توافق، إصلاح تنسيق Markdown، توثيق مكان المستندات بعد النقل | بقية الوثائق والـmetadata-only تحتاج مراجعة، ولا مصدر إنتاجي أو اختبار تغيّر. |\n\n**قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
