@@ -2024,3 +2024,9 @@ TASK_ID `ITBOOK-HISTORICAL-20260924-03`, STEP_ID `11-T6B-EVIDENCE-BOOK-FIRST`, P
 ## Entry 192 — PREPARED: historical T6B document archive copy
 
 TASK ITBOOK-HISTORICAL-20260924-03, STEP12. HEAD before: `167786c719ebec0319b03a303e57950f134622ce`. Original: `docs/trendos/blackbox/منصة ترند/TRENDOS_BLACKBOX_2026-09-13_T6B_CLOUD_AUTH_SHADOW_CANARY_PASS.md`, blob `ee8b3f56de90097c2c2e75c185ac6059dacdcb24`; its dated facts are integrated in book v2.6 by Entry191. Archive target: `docs/archive/trendos-master-book/2026-09-24/TRENDOS_BLACKBOX_2026-09-13_T6B_CLOUD_AUTH_SHADOW_CANARY_PASS.md`, absent at preflight. Scope: copy complete original unchanged, then verify exact archive and original blob and text; DO NOT change original path before independent verification. No other system action. If a write is uncertain, inspect target first instead of blindly retrying.
+
+## Entry 193 — STEP12 COMMITTED_VERIFIED: exact T6B original archive copy
+
+PREPARED Entry192 `aa96db45e6e10ed7f64e6181885edc7471a0b1b7`. One GitHub DOC_COPY archive commit `09e48f677cab52a89a6702b00fb3020aeb9d2e5f`: `docs/archive/trendos-master-book/2026-09-24/TRENDOS_BLACKBOX_2026-09-13_T6B_CLOUD_AUTH_SHADOW_CANARY_PASS.md`. Independent readback of original and archive confirms exact full text (4984 characters) and identical Git blob `ee8b3f56de90097c2c2e75c185ac6059dacdcb24`, branch HEAD equals archive commit. RESULT `COMMITTED_VERIFIED`; old source path remains intact and unmodified. Book §8.3 had already integrated dated facts in Entry191; book §11 has NOT yet been changed to ARCHIVED and must not be assumed updated.
+
+NEXT: update Handoff, then separate PREPARED step to replace old historical path with a short compatibility redirect pointing to verified archive and living book, independently verify. Then adjust book §10/§11 first page and counts and journal/Handoff. No production, code, CI, SQL or business action occurred.
