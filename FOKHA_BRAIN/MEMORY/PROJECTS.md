@@ -1,12 +1,13 @@
 # Fokha Projects — High-Level Registry
 
 > هذا الملف فهرس مشاريع فقط. لا يحتفظ بتفاصيل أي مشروع أو حالاته أو قراراته التنفيذية.
-> Updated: 2026-09-12.
+> Updated: 2026-09-24.
 
 | Project | Status | Repository / Source | Canonical Branch |
 |---|---|---|---|
 | Fokha | Building | `fawakhry/TrendOs/FOKHA_BRAIN` مؤقتًا | `main` |
 | Trend Mall / TrendOS | Active | `fawakhry/TrendOs` | `main` |
+| Matbagy Evaluations / برنامج التقييمات | Manual pilot; public docs only, private profile store pending | `fawakhry/Matbagy/evaluations/` (PUBLIC; entry `جت هب برنامج التقييمات.md`) | `main` |
 | Matbagy Design Workflow / صندوق مطبعجي | Active | `fawakhry/Matbagy-Design-Workflow` | `agent/initial-mvp` |
 | Matbagy Photo Sheets | Active / Separate | `fawakhry/Matbagy` | `main` |
 | EasyStore | Active / Separate | `fawakhry/EasyStore` | `main` |
