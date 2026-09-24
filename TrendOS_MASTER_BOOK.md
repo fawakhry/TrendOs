@@ -3,6 +3,8 @@
 > إصدار الكتاب: **3.37-DRAFT — legacy Customer Manager Worker GET/auth and prepared WhatsApp writer reviewed; TEST packed-CAS NOT_RUN, PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+**تحديث MIG Entry330 (24 سبتمبر):** جرى تسليم checkpoint للشات الجديد بعد توثيق Stage1/Stage2 وصور الصفوف والـCatalog، وتجهيز tiny packed-CAS harness في GitHub فقط. لم يُجر اختبار D1 batch أو rollback على TEST أو استعادة مرآة PROD؛ انظر §6.26 وآخر Journal/Handoff.
+
 
 **تحديث MIG Entry328 (24 سبتمبر):** تم تحضير source-only harness مصغّر لـTEST mirror packed-CAS مع runbook للـnegative rollback ثم positive fake-only؛ لم يُشغّل D1 `batch()` ولا ينفذ الكود SQL أو Deploy، والموافقة الحالية لا تشمل SQL كتابة. راجع §6.25.
 
@@ -1687,6 +1689,12 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 
 **بوابات الإذن غير المستوفاة:** يلزم إثبات حديث مستقل لحساب Cloudflare وUUID الفعلي للـBinding `54a3c05e-cde9-4979-814f-d40f941edcd5`، ونسخة منفذ TEST المغلق افتراضيًا ومنع اتصال الإنتاج وغياب أي writer منافس، وموافقة مالك دقيقة منفصلة قبل إنشاء أو نشر/تفعيل منفذ أو تنفيذ أي batch. وجود UUID ثابت داخل المصدر ليس شهادة ربط سحابية. حالة `negative-conflict` بعد أي استجابة مجهولة هي STOP/SELECT-only reconcile **بلا retry**؛ اختبار الصغير لا يثبت صلاحية packed-CAS لعدد 142 موضع أو الحمولة الفعلية أو quota/runtime أو writer-fence. لا إعادة لخطوات Stage1/2 أو صور الإثبات/الاختبارات المحلية القديمة. لا Google Sheets/Apps Script/Properties/Triggers/R4/R5/V2 ولا Cloudflare production `trendos-main` أو تعديل جداول `t12_synth_*` الستة أو `_cf_KV`. Real D1 TEST packed-CAS = NOT_RUN، PROD mirror = NOT_RESTORED، سلطة CREATE/ترقيم الأوردر الحقيقية ما زالت لدى Google.
 
+
+### 6.26 MIG-T12-NEW-CHAT-CHECKPOINT — تسليم آخر حالة موثقة (24 سبتمبر 2026 / Entry330)
+
+على قاعدة TEST القائمة trendos-t12-synthetic-test UUID 54a3c05e-cde9-4979-814f-d40f941edcd5 أنشأ المالك جداول sheet_catalog وsheet_rows وsheet_migration_runs وتحقق من الأعمدة 9/6/9 وعلاقة FK والفهارس الثلاثة، ثم نفذ Stage1 وStage2 ببيانات مختلقة، وأظهر COUNT الأخير 2/4/0/2/2 في Entries315–317. صورتا القراءة المباشرة أثبتتا محتوى الصفوف الأربعة الوهمية وبيانات صفّي catalog في Entries320/325، كل منهما في وقت مختلف. استعلام WITH/CASE المركّب فشل برسالة Cloudflare malformed ولا يُحتسب PASS، بينما SELECT 1 والاستعلامان المباشران نجحا. الجداول الستة t12_synth_* و_cf_KV تخص تجربة CREATE/replay قديمة منفصلة ولم تُمس. لا تعِد أي INSERT أو CREATE أو فحوص إثبات سابقة.
+
+في Entry328 جُهز مصدر GitHub-only `cloudflare-d1/t12-preview/t12-existing-test-mirror-packed-cas-qualification-isolated-20260924.mjs` والـrunbook المقابل؛ الأول يجهز 5 عبارات لحالة تعارض سلبية و4 لحالة إيجابية، ولا ينفذ D1.batch ولا يرتبط بWorker منشور. لا اختبار real D1 packed-CAS أو rollback أو تأهيل 142 موضعًا أو الحمولة/الحصة الحقيقية. الخطوة التالية مراجعة مصدر المعاملة المعزولة وهوية binding ومنفذ TEST ثم طلب موافقة محددة قبل أي كتابة TEST؛ negative أولًا وpositive بموافقة منفصلة. الاستجابة المجهولة تُعالج بالمصالحة بالقراءة فقط دون إعادة تلقائية. ممنوع SQL على trendos-main أو كتابة بيانات عملاء في TEST أو المساس بـGoogle Sheets/Apps Script/Worker/Properties/Triggers/R4/R5/V2 أو نقل سلطة CREATE والترقيم؛ مرآة الإنتاج NOT_RESTORED، وGoogle ما زال صاحب السلطة. شات التوثيق الموازي §5.50 وما بعده محفوظ؛ تحقق من أحدث HEAD وJournal/Handoff قبل أي تعديل جديد.
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
 | الخطر | كيف نكتشفه ونمنع تكراره |
