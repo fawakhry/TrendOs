@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.1-DRAFT — مسار Edge 02CR ومراجعة شروط القراءة وسجل آخر نقطة؛ مراجعة الأكواد والإنتاج غير مكتملة** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.2-DRAFT — بوابة سلامة استعادة مرآة Orders/Lines ضمن استكمال نقل المنصة؛ إنتاج D1 لم يُستعد** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -8,11 +8,11 @@
 
 | سؤال الاستلام | آخر نقطة مثبتة وقت كتابة الصفحة |
 |---|---|
-| **المهمة والفرع** | بناء وتدقيق كتاب ومكتبة IT TrendOS فقط، الفرع `cloud-migration-v3-t12-order-create-ci-20260919`؛ GitHub قراءة وتوثيق دون أي تفويض لتشغيل الإنتاج. |
+| **المهمة والفرع** | استكمال نقل TrendOS بأمان: **حسم شرط استعادة مرآة التابين الحاليين على D1 أولًا** ثم استكمال تأهيل النقل التدريجي، دون نقل صلاحية CREATE/الترقيم عن Google. العمل الحالي GitHub مراجعة كود وتوثيق فقط على `cloud-migration-v3-t12-order-create-ci-20260919`. |
 | **آخر عمل فني اكتمل** | §5.13 مسارات POST Bridge وD1 Auth Shadow **STEP10 COMMITTED_VERIFIED في Entry189**، وشهادة T6B التاريخية §8.3 **STEP11 COMMITTED_VERIFIED في Entry191**، وحفظ الأصل في أرشيف GitHub **STEP12 Entry193** والرابط القديم **STEP13 Entry195**. إنتاج اليوم يحتاج دليلًا أحدث منفصلًا. |
-| **آخر إجراء توثيقي اكتمل** | **STEP18 COMMITTED_VERIFIED في Entry205**: كتاب v3.0 commit `556b7bef27665c18159138f6005226490ac39760`، blob `079359a98ae941a4d1a2854fc9e89ac1ff484c25`؛ فصل §5.15 عن شروط Idle Heartbeat ومحدودية hash-present. التحقق من الكتاب والتسليم أحدث من تاريخ تحرير الصفحة؛ آخر Entry تتقدم على أي سطر PREPARED قديم. |
-| **الخطوة الجارية لحظة تحرير الصفحة** | **STEP19 PREPARED في Entry206**: مراجعة مصدر بوابة القراءة `edge-orders-read-02cr-freshness.mjs` واختبارها. بعد حفظ هذا الفصل تأكد من Entry207/التسليم قبل تنفيذ أي خطوة تالية؛ عبارة PREPARED هنا لقطة أثناء كتابة الكتاب فقط. |
-| **الخطوة التالية المحددة** | بعد تحقق STEP19 وكتابة Entry207/Handoff، جهّز مراجعة مصدر واحد جديد من **1104 ملفات metadata-only** عند لقطة §11، مع السبب والخطر والمصدر والاختبار. لا تعد STEP15–19 ولا تغيّر الإنتاج. |
+| **آخر إجراء توثيقي اكتمل** | **STEP19 COMMITTED_VERIFIED Entry207**: مراجعة بوابة 02CR الثابتة، الكتاب v3.1 عند commit `6b0dc648753e3968c152eeb963ecd99ced6f14fd` وblob `29556f515fe36cb82984d437f44dc52897c8195e`؛ Handoff Entry207 تحقق من حفظه عند HEAD `510344b90344581d5eaff52b0b592efea4e9e6a1` قبل STEP20. |
+| **الخطوة الجارية لحظة تحرير الصفحة** | **STEP20 PREPARED Entry208**: تدقيق مخاطر Heartbeat metadata-only وV2 stage/promote وعقد منع الكتابة المنافسة، وتسجيل بوابة الاستعادة في §6.1. أحدث Journal بعد حفظ الكتاب يتقدم على PREPARED في هذه الصفحة. |
+| **الخطوة التالية المحددة** | بعد التحقق من كتاب §6.1 ثم Entry209 وHandoff، حدّد **هوية وسلوك الكاتب/النسخة المنشورة ومسار التزام واحد مؤهّل** بدليل مؤرخ جديد؛ لا تُعد صور العدادات/Triggers التاريخية أو تشغّل V2/R4/R5. أي تشخيص Apps Script يمسك Script Lock أو أي إجراء على Cloudflare الإنتاج يحتاج نطاق موافقة صريحًا منفصلًا. |
 | **حالة الإنتاج — دليل مؤرخ لا تحديث جديد** | آخر دليل صاحب المشروع المستعمل هنا **23 سبتمبر 2026**: Google Sheets/Apps Script مصدر الأوردر الحقيقي وترقيمه، ومرآة D1 الإنتاجية لتابَي `الأوردرات` و`بنود الأوردرات` لم تثبت استعادتها؛ مصير R5 الأخير والكتّاب المتنافسين والنسخة المنشورة الدقيقة غير محسومة. لا SQL/Sync/Deploy/Trigger/R4/R5/Create بناءً على تعليمات الكتاب. |
 | **حالة تغطية الكود والتاريخ** | فهرس §11 التاريخي المثبت عند `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b`: **1185 ملفًا = 1104 metadata-only + 53 scoped static reviews + 11 أصلًا تاريخيًا مؤرشفًا + 11 Redirects + 6 ملفات دليل/سجل نشطة** بعد STEP19. ده جرد ملفات وقائمة مراجعات محدودة، **مش** فحص دلالي كامل للكود ولا SHA حي لكل GitHub أو نسخة الإنتاج المنشورة. |
 
@@ -683,6 +683,24 @@ GET /v1/edge/orders/02cr/page (qualified route only)
 **نتيجة الحادثة:** R5 آخر نجاح idle ~Sep21 03:13؛ 03:23 سجل `R5_PERIODIC_ABORT_UNEXPECTED` و`scheduledSyncDisarmed:true`. رسالة الغلاف `mutationPerformed:false` لا تُثبت أن SQL لم يُكتب: CI المحلي أثبت سيناريو مؤكد الالتزام ثم فشل releaseLock ينتج نفس الرسالة. السبب الحقيقي/نتيجة transaction الحيّة في تلك اللحظة مجهولان. لا يُعاد تشغيل R5 ولا V2 tick لعمل اختبار.
 
 **بوابات لا يمكن تخطيها قبل أي كتابة PROD:** تحقق نسخة Apps Script/Worker المنشورة + المتغيرات الفعلية والكتّاب، snapshot Google/D1 ثابت ومتطابق الهوية/الأعمدة وبصمة المحتوى مع Lock/quiet window وفصل منافسي الكتابة، headroom Apps Script Properties والمدة والحصص/التكلفة، تحقق staging محتوى وشكلًا، موافقة مالك محددة لعملية واحدة تستبدل التابين فقط، استعلامات GET-only لتسوية نتيجة commit غير المؤكدة بلا إعادة POST أعمى، ثم parity محتوى مستقل بعد العملية وقبل تعديل baseline أو triggers.
+
+### 6.1 بوابة استعادة المرآة قبل أي تقدم في نقل صلاحية أوردرات الإنتاج — STEP20 (2026-09-24)
+
+**الحالة:** `STATIC_SOURCE_RISK_CONFIRMED / PRODUCTION_RECOVERY_NOT_RUN / WRITER_FENCE_UNKNOWN`. طلب المالك الآن هو استكمال نقل المنصة، لا الاستمرار في فهرسة الكتاب فقط. **العمل المسموح في هذه STEP:** قراءة نطاقات كود GitHub والتوثيق، بلا طلب إلى API/SQL/Apps Script أو تجربة في TEST/PROD. دليل الإنتاج الأحدث المستخدم هنا يخص رصد المالك 23 سبتمبر فقط؛ قد تغيرت البيانات منذ ذلك الرصد، فلا تُرقّ الأرقام التاريخية إلى baseline آني.
+
+**خريطة مسارات الكتابة التي يجب تفريقها قبل القرار:**
+
+| المسار / دليل الكود الثابت | الأثر الفعلي الممكن والمخاطرة | بوابة تأهيله |
+|---|---|---|
+| [`src/index_v2.js`](https://github.com/fawakhry/TrendOs/blob/510344b90344581d5eaff52b0b592efea4e9e6a1/cloudflare-d1/src/index_v2.js#L94) → [`src/mirror-gate.mjs`](https://github.com/fawakhry/TrendOs/blob/510344b90344581d5eaff52b0b592efea4e9e6a1/cloudflare-d1/src/mirror-gate.mjs#L310) | راوتر GitHub يمرر `POST /v1/import/sheet` بمفتاح migration صحيح إلى المنطق القديم؛ و`POST /v1/mirror/heartbeat` بعد التوثيق إلى تحديث الكتالوج. كود GitHub لا يثبت أي نسخة/Flag/Binding منشورة فعليًا. | افصل GET المراقبة عن أي POST حتى لو اسمه Heartbeat؛ اعرف المصدر المنشور والجهات القادرة على إرسال POST قبل تصميم recovery. |
+| [`heartbeatMirrorSheets`](https://github.com/fawakhry/TrendOs/blob/510344b90344581d5eaff52b0b592efea4e9e6a1/cloudflare-d1/src/mirror-gate.mjs#L215) | يفحص بالـSELECT أن `status=ready` وأن `sourceLastRow/sourceLastCol/rowCount` و`note` الاختياري تطابق ما أرسله caller، **من دون مقارنة بيانات الصفوف أو hash مصدر Google بـD1**؛ ثم `UPDATE sheet_catalog SET synced_at=CURRENT_TIMESTAMP` داخل batch. `rowDataMutationFree:true` في الرد يعني عدم تغيير صفوف العمل بهذا المسار، **لا** أن العملية READ_ONLY أو أن محتوى المرآة مطابق. | لا تستخدم تاريخ `synced_at` حديثًا ولا HTTP 200 ولا مساواة rowCount لإعلان استعادة مرآة كانت متأخرة؛ يلزم محتوى Google/D1 متطابق وتثبيت خط مصدره. |
+| [`importSheetStage`](https://github.com/fawakhry/TrendOs/blob/510344b90344581d5eaff52b0b592efea4e9e6a1/cloudflare-d1/src/mirror.js#L281) | `reset=true` يحذف staging rows/catalog بحسب `sheet_name` دون تقييد الحذف بـ`run_id`. يمكن لهذا أن يفسد staging عملية موازية ولو لم يمس الصفوف المنشورة لحظتها. صحة عدد الصفوف النهائية لا تعني تطابق محتواها مع صورة Google الحديثة. | منع تداخل عمليات stage لكل تاب بموجب lock/fence أو عزل run حقيقي مثبت، وفحص هوية البصمة والأبعاد والمحتوى قبل promote. |
+| [`promoteStagedSheets`](https://github.com/fawakhry/TrendOs/blob/510344b90344581d5eaff52b0b592efea4e9e6a1/cloudflare-d1/src/mirror.js#L455) | يقرأ كتالوج stage أولًا، ثم ينشئ لكل تاب أوامر `DELETE FROM sheet_rows`، وكتابة catalog، و`INSERT...SELECT` من stage، ويسجل migration ويحذف stage في batch واحدة. **لا** يشترط داخل الالتزام أن الصورة الحية القديمة ما زالت مساوية لبصمة D1 المتوقعة أو أن Google لم تتغير بعد التقاطها أو أن كاتبًا خارجيًا لم يسبق العملية/يعقبها. | atomic D1 batch مفيد ضد ظهور نصف استبدال، لكنه ليس حصانة من lost update؛ تأهيل fencing شامل لجميع كتّاب نفس التابين أو CAS أصيل داخل نفس المعاملة مع snapshot Google مستقر. |
+| [`d1OrdersLiveSyncTickV2`](https://github.com/fawakhry/TrendOs/blob/510344b90344581d5eaff52b0b592efea4e9e6a1/cloudflare-d1/D1_Orders_Live_Sync_V2.gs#L319) | غياب baseline أو استحقاق fullRebase يدخل إلى `FullSync_` وقد يحدث promote للتابين، ثم يعدّل Script Properties للـbaseline/lastFull؛ عند بعض الأخطاء يمكنه مسح baseline. | **ممنوع كتشخيص قراءة فقط**، وممنوع استخدام `start...` أو V1 أو R4/R5 بديلًا بلا تأهيل مستقل. |
+
+**الاستنتاج المحدد:** لا يمكن تقديم مسار V2 الحالي من GitHub وحده باعتباره **`SAFE_TO_RESTORE_PROD`** الآن؛ فحص كتالوج المرحلة السابق للـbatch لا يغلق نافذة التزام كاتب منافس، وHeartbeat قد يمنح timestamp حديثًا من دون محتوى متطابق. كذلك لا يثبت وجود صفر Triggers في مشروع واحد أن لا HTTP/manual/other Worker writers. هذه ثغرة *تأهيل مسار الاستعادة*، لا حكم بأن SQL سابقًا أتلف بيانات؛ واقعة R5 عند 03:23 Sep21 تبقى `UNKNOWN_COMMIT_DISPOSITION` إلى أن يثبت عكس ذلك بدليل مستقل.
+
+**عقد الخطوة الآمنة التالية، وليس تصريح تشغيل:** (أ) جرد دقيق **للهوية الفعلية** للـWorker/Apps Script/الـbinding والكتّاب الذين يصلون إلى التابين الحاليين، دون إعادة أرقام قديمة؛ (ب) تصميم وسيلة توقف/عزل معتمدة لكل writer أو CAS transactional يمنع write race، مع Source Google snapshot متماسك في quiet window وقياس Lock/Properties/budget؛ (ج) إثبات هوية الصفوف/الأعمدة والبصمات لمحتوى المصدر والهدف والـstage وتوقعات الإضافة/الحذف/التغيير؛ (د) تأهيل معاملة واحدة تفشل مغلقة مع تسوية GET-only عند timeout/unknown commit **من دون retry POST**؛ (هـ) موافقة منفصلة صريحة على عملية كتابة محددة إلى `trendos-main` يتلوها postflight محتوى مستقل للتّابين قبل تحديث baseline أو triggers. TEST/SQLite السابقة ليست شهادة صلاحية على D1 الإنتاج. **لا يشمل هذا العقد** الأرشيف أو Operational Enrichment أو انتقال Authority لـCloud CREATE؛ لكل مسار موافقته ومعاييره المستقلة.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
@@ -2258,5 +2276,7 @@ GET /v1/edge/orders/02cr/page (qualified route only)
 | 2026-09-24 | 3.0-DRAFT | STEP18: فصل hash-present عن content-parity في عقد Idle Heartbeat وتوثيق شرط العمر/الساعة والـcallsite، تحديث أول صفحة و§11.2 ومراجعة مصدر واحد M→P | Docs/reading فقط؛ لا اختبار أو بيانات إنتاج أو استعادة D1؛ Journal الأحدث يتقدم على PREPARED بالصفحة. |
 
 | 2026-09-24 | 3.1-DRAFT | STEP19: مصدر بوابة 02CR بالكامل واختبار وهمي مرتبط؛ شرح auth passthrough وCatalog الثلاثي وEnrichment وIdle-Freshness وFallback، تصحيح صفحة الاستكمال وعنوان §11 القديم؛ ترقية مصدر واحد M→P | الكود والاختبار قُرئا ولم يُشغلا؛ لا دليل deployed/live parity؛ المصدر التجاري Google ولم يحدث إصلاح إنتاج. |
+
+| 2026-09-24 | 3.2-DRAFT | STEP20: استكمال نقل المنصة من بوابة Mirror recovery: فحص راوتر POST/heartbeat وV2 staging/promote وTick؛ §6.1 يميز timestamp/catalog parity عن محتوى الصفوف، ويحدد عزل جميع writers/صورة مصدر ثابتة/transaction CAS/postflight وحدود الموافقة | GitHub source windows + book فقط؛ لا إنتاج/TEST/CI أو مصدر صفوف، ولا ترقية مصطنعة لجرد §11 أو إعلان استعادة المرآة. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
