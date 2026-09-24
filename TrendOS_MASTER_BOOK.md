@@ -4,6 +4,8 @@
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
+**تحديث MIG Entry318 (24 سبتمبر):** Stage1/2 الوهميتان PASS عددًا؛ أُعد SELECT واحد للقراءة فقط يتحقق من محتوى الأربع صفوف وهوية catalog قبل اختبار packed-CAS. لا SQL كتابة أو TEST Worker deploy؛ انظر §6.22.
+
 **تحديث MIG Entry317 (24 سبتمبر):** فحص المالك بالقراءة فقط على نفس قاعدة TEST أكد Stage2 `2/4/0/2/2`؛ تعدّ Stage2 PASS من حيث العدد والتوزيع، وأصبحت حالة UNKNOWN التاريخية في §6.20 محسومة. لا تعيد INSERT؛ packed-CAS الحقيقية لم تُنفّذ، ومرآة PROD لم تُستعد. انظر §6.21.
 
 **تحديث MIG Entry316 (24 سبتمبر):** أرسل المالك أمر Stage2 المحروس لبيانات وهمية وأفاد برسالة Cloudflare `This query returned no data`؛ لا دليل عدد صفوف بعد، لذا Stage2 EFFECT UNKNOWN، لا تُكرر INSERT؛ فقط SELECT الخماسي 2/4/0/2/2 من نفس TEST UUID. انظر §6.20.
@@ -1591,6 +1593,15 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 ### 6.21 MIG-T12-TEST-MIRROR-STAGE2-COUNT-VERIFIED — نتيجة مرآة TEST الوهمية 2/4/0/2/2 (24 سبتمبر 2026 / Entry317)
 
 وصلت صورة جديدة من المالك لواجهة Cloudflare D1 Console لقاعدة `trendos-t12-synthetic-test` وUUID `54a3c05e-cde9-4979-814f-d40f941edcd5`، وتظهر نتيجة استعلام SELECT مستقل بعد Stage2: `catalog_rows=2`، `mirror_rows=4`، `migration_run_rows=0`، `fake_order_tab_rows=2`، `fake_line_tab_rows=2`. هذه **Stage2 COUNT READBACK PASS** في وقت الصورة، وتُحسم حالة `STAGE2_EFFECT_UNKNOWN` المؤقتة في §6.20 دون حذف التاريخ. الحسابات تثبت العدد والتوزيع بين التابين الاصطناعيين، لا فحصًا بايتياً لكل قيم JSON أو اختبار packed-CAS حقيقي. **لا تكرر INSERT Stage1 أو Stage2 أو أي CREATE/INDEX قديم، ولا تُشغّل SQL إضافيًا تلقائيًا.** الاختبار اللاحق لمعاملة Cloudflare D1 الحقيقية عبر التابين يحتاج خطة دقيقة على TEST وحدها، وحراس CAS، وقياس حدود الحمولة/الاستجابة المفقودة/التراجع، ثم موافقة مالك محددة منفصلة؛ النجاح المحلي SQLite 8/8 و42 عبارة تاريخي مختلف، والـTEST CREATE/replay القديم على `t12_synth_*` مختلف كذلك. Real D1 TEST packed-CAS NOT_RUN، مرآة `trendos-main` الإنتاجية NOT_RESTORED؛ لا Google/Apps Script/Worker/Deploy/R4/R5/V2 ولا نقل إنشاء وترقيم الأوردرات إلى Cloudflare.
+
+
+### 6.22 MIG-T12-EXACT-FAKE-BASELINE-READONLY — تأهيل محتوى مرآة TEST قبل packed-CAS (24 سبتمبر 2026 / Entry318)
+
+بعد إثبات المالك Stage2 بالعدد والتوزيع `2/4/0/2/2` في Entry317، راجع مساعد IT blobs المصدرية المعزولة `t12-d1-128-packed-cas-planner-isolated-v1.mjs` و`t12-d1-128-packed-cas-batch-isolated-v1.mjs` و`t12-d1-142-all-row-preimage-guard-isolated-v1.mjs` و`t12-d1-142-chunked-preimage-guard-isolated-v1.mjs`، وكذلك مسار TEST Worker `t12-cloud-native-synthetic-test-worker.mjs`. القائمة المعزولة تنتج عبارات مشروطة تتطلب تنفيذًا ذريًا واحدًا عبر `D1Database.batch` وتقييد صفوف لم تتغير، **لكن لم تُربط بمسار TEST منشور**؛ Worker الاختبار الحالي خاص بالـsynthetic Order CREATE ومغلق تاريخيًا، فلا يجوز اعتباره منفذًا للـmirror أو لصق عبارات batch واحدة واحدة في Console. النجاح المحلي 8/8 و42 عبارة موثق سلفًا ولا يعاد. 
+
+**خطوة التأهيل الجديدة الوحيدة:** الملف [exact TEST fixture read-only gate](cloudflare-d1/t12-preview/t12-existing-test-mirror-exact-fixture-readonly-20260924.sql) عبارة SELECT واحدة تتحقق، بالإضافة إلى الأعداد، من `sheet_id` وheader/metadata المصطنعة وتطابق محتوى `values_json/display_json/formulas_json` للأربعة صفوف بالضبط ومن علامة TEST، دون عرض بيانات عملاء أو تعديل أي جدول. يجب اختيار قاعدة `trendos-t12-synthetic-test` UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` يدويًا في Console؛ علامة TEST داخل SQL لا تحل محل اختيار القاعدة. نتيجة `PASS_EXACT_SYNTHETIC_BASELINE_READ_ONLY` تؤهل **هوية fixture وقت القراءة فقط** ولا تختبر CAS أو writer fence أو المعاملة أو الحصة. أي `STOP_BASELINE_MISMATCH_NO_WRITE` أو خطأ: توقف ومصالحة قراءة فقط دون إعادة Stage1/2.
+
+**خطة الاختبار التالي غير المصرّح بتنفيذه بعد:** بناء harness معزول موجّه إلى Binding TEST المثبت فقط، default OFF، باستخدام prepared statements لمعاملة واحدة `DB.batch` عبر التابين؛ اختبار تعارض preimage للصف غير المرشح مع إثبات rollback ثم سيناريو النجاح على بيانات مختلقة، read-only postflight؛ إذا ضاعت الاستجابة فـread-only reconcile ولا retry تلقائي. فحص هوية Binding ونسخة Worker وسقف الاستعلامات/الحمولة وغياب الكتّاب المنافسين يحتاج إثباتًا وموافقة محددة قبل أي TEST Worker modification/Deploy/enable أو SQL write. لا مساس بـ`trendos-main` أو Google/Apps Script/Properties/Triggers/R4/R5/V2 أو جداول `t12_synth_*` و`_cf_KV`، ولا استعادة لمرآة PROD أو نقل CREATE.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
