@@ -4,6 +4,8 @@
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
+**تحديث MIG Entry328 (24 سبتمبر):** تم تحضير source-only harness مصغّر لـTEST mirror packed-CAS مع runbook للـnegative rollback ثم positive fake-only؛ لم يُشغّل D1 `batch()` ولا ينفذ الكود SQL أو Deploy، والموافقة الحالية لا تشمل SQL كتابة. راجع §6.25.
+
 **تحديث MIG Entry325 (24 سبتمبر):** حقول Catalog الوهمية مثبتة من صورة المالك، مع أربعة صفوف وهمية مثبتة سابقًا في Entry320. فشل استعلام WITH المركب لا يعني فساد البيانات؛ لا نعيد القراءة أو INSERT. اختبار D1 packed-CAS الحقيقي لم يُشغّل؛ انظر §6.24.
 
 **تحديث MIG Entry320 (24 سبتمبر):** صورة المالك أثبتت محتوى الصفوف الوهمية الأربع مباشرةً (`values/display/formulas`) على TEST؛ الاستعلام المركب §6.22 فشل بالواجهة، وليس دليلًا على تلف البيانات. المتبقي قراءة حقول catalog فقط، ولا packed-CAS/SQL write بعد؛ راجع §6.23.
@@ -1661,6 +1663,15 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 ### 6.24 MIG-T12-TEST-MIRROR-CATALOG-OWNER-VERIFIED — فحص Catalog المباشر (24 سبتمبر / Entry325)
 
 المالك أرسل صورة جديدة من Cloudflare D1 Console على قاعدة TEST trendos-t12-synthetic-test UUID 54a3c05e-cde9-4979-814f-d40f941edcd5. SELECT مباشر من sheet_catalog أعاد صفين فقط: الأوردرات / SYNTHETIC_TEST_MIRROR_9001، وبنود الأوردرات / SYNTHETIC_TEST_MIRROR_9002، وكل صف headers_json=["synthetic_header"] وsource_last_row=2 وsource_last_col=1 وrow_count=2 وstatus=ready وnote=TrendOS orders live sync V2 quota-aware. دليل قراءة مباشر للحقول في وقت الصورة؛ دليل الصفوف الأربعة values/display/formulas من Entry320 منفصل زمنيًا، واستعلام WITH/CASE المركّب فشل في Cloudflare UI ولا يُسجل PASS. **CATALOG_DIRECT_FIELD_READBACK_PASS** يقتصر على الصورة، وليس شهادة لقطة ذرية مشتركة مع sheet_rows أو إثبات CAS. الخطوة التالية تجهيز harness جديد معزول في GitHub لمعاملة TEST packed-CAS واحدة عبر التابين وحراسة صور الصفوف غير المرشحة، بدون تنفيذ SQL أو تعديل Worker؛ أي تشغيل/Deploy/كتابة يحتاج موافقة مستقلة وهوية Binding مؤكدة. لا إعادة Stage1/2، ولا TEST CREATE/replay قديم، ولا PROD trendos-main أو Google/Apps Script/R4/R5/V2 أو نقل سلطة إنشاء الأوردرات.
+
+
+### 6.25 MIG-T12-TINY-ATOMIC-CAS-HARNESS — تأهيل مصدر معزول للمرآة الوهمية على TEST (24 سبتمبر 2026 / Entry328)
+
+استكمالًا لإثبات المالك أعداد المرآة المصطنعة 2/4/0/2/2 (Entry317) وصور قيم الصفوف الأربع (Entry320) وحقول Catalog (Entry325)، جرى تحضير مصدر مستقل جديد للـ**GitHub فقط**: [tiny TEST CAS prepared-statement source](cloudflare-d1/t12-preview/t12-existing-test-mirror-packed-cas-qualification-isolated-20260924.mjs) Git blob `aad845188c35bc8f1f18a4d9b7e9cf7ea7c0380d`، و[runbook للقرار وحالات التراجع/الرد المفقود](cloudflare-d1/t12-preview/t12-existing-test-mirror-packed-cas-qualification-runbook-20260924.md) Git blob `efc10bc399fe87e3be388500d1c0905d747acaae`. إنشاء ملفات Git لا ينفّذ Cloudflare SQL، ولا توجد `DB.batch()` أو Worker route أو Deploy أو اتصال بقاعدة D1 في هذا المصدر. لم يُشغّل harness ولا اختبار جديد على Cloudflare أو CI في هذه الدفعة، ولم يُستبدل الكود المعزول التاريخي لـ142 صفًا.
+
+**الحد الفني للمرشح الصغير فقط:** مصدر الـbuilder يجهز 4 prepared statements لمسار `positive`، أو 5 لمسار `negative-conflict` (حارسا preimage للـCatalog/أربع صفوف وهمية تشمل header غير المرشح، ثم تضارب اصطناعي في بند TEST، ثم CAS على row 2 في التابين). عند تقديم كل العبارات لاحقًا في **استدعاء واحد ذري** لـ`D1Database.batch` بواسطة منفّذ TEST مؤهل مستقل، المتوقع فشل CAS الأخير في السيناريو السلبي وما يستلزمه من rollback للأمر السابق وتحديث الأوردر. هذه **فرضية اختبار موثقة وليست نتيجة D1 مثبتة**. السيناريو الإيجابي — بعد إغلاق السيناريو السلبي وقراءة ما بعده وموافقة مستقلة — يستبدل OLD→NEW الوهميتين عبر التابين. `NOT NULL` المقصود عند تعارض الصورة القديمة هو حارس فشل؛ لا يجوز إرسال عبارات منفصلة إلى Console أو تنفيذها خارج معاملة واحدة.
+
+**بوابات الإذن غير المستوفاة:** يلزم إثبات حديث مستقل لحساب Cloudflare وUUID الفعلي للـBinding `54a3c05e-cde9-4979-814f-d40f941edcd5`، ونسخة منفذ TEST المغلق افتراضيًا ومنع اتصال الإنتاج وغياب أي writer منافس، وموافقة مالك دقيقة منفصلة قبل إنشاء أو نشر/تفعيل منفذ أو تنفيذ أي batch. وجود UUID ثابت داخل المصدر ليس شهادة ربط سحابية. حالة `negative-conflict` بعد أي استجابة مجهولة هي STOP/SELECT-only reconcile **بلا retry**؛ اختبار الصغير لا يثبت صلاحية packed-CAS لعدد 142 موضع أو الحمولة الفعلية أو quota/runtime أو writer-fence. لا إعادة لخطوات Stage1/2 أو صور الإثبات/الاختبارات المحلية القديمة. لا Google Sheets/Apps Script/Properties/Triggers/R4/R5/V2 ولا Cloudflare production `trendos-main` أو تعديل جداول `t12_synth_*` الستة أو `_cf_KV`. Real D1 TEST packed-CAS = NOT_RUN، PROD mirror = NOT_RESTORED، سلطة CREATE/ترقيم الأوردر الحقيقية ما زالت لدى Google.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
