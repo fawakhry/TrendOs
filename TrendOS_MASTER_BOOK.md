@@ -4,6 +4,8 @@
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
+**تحديث MIG Entry317 (24 سبتمبر):** فحص المالك بالقراءة فقط على نفس قاعدة TEST أكد Stage2 `2/4/0/2/2`؛ تعدّ Stage2 PASS من حيث العدد والتوزيع، وأصبحت حالة UNKNOWN التاريخية في §6.20 محسومة. لا تعيد INSERT؛ packed-CAS الحقيقية لم تُنفّذ، ومرآة PROD لم تُستعد. انظر §6.21.
+
 **تحديث MIG Entry316 (24 سبتمبر):** أرسل المالك أمر Stage2 المحروس لبيانات وهمية وأفاد برسالة Cloudflare `This query returned no data`؛ لا دليل عدد صفوف بعد، لذا Stage2 EFFECT UNKNOWN، لا تُكرر INSERT؛ فقط SELECT الخماسي 2/4/0/2/2 من نفس TEST UUID. انظر §6.20.
 
 **تحديث MIG Entry315 (24 سبتمبر):** صورة المالك الأحدث من نفس قاعدة TEST UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` تؤكد COUNT مستقلًا `sheet_catalog/sheet_rows/sheet_migration_runs = 2/0/0`. بذلك Stage1 **PASS بفحص عدد الصفوف في صورة المالك**، وليس مجرد رسالة `This query returned no data` القديمة. Stage2 (4 صفوف وهمية) لم تُنفذ بعد؛ لا تكرر Stage1. راجع §6.19.
@@ -1584,6 +1586,11 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 ### 6.20 MIG-T12-STAGE2-OWNER-INSERT-SUBMITTED — إرسال INSERT الثاني دون إثبات عدد الصفوف (24 سبتمبر 2026 / Entry316)
 
 المالك وافق صراحة على Stage2 فقط، ثم أرسل نص أمر `INSERT INTO sheet_rows ... SELECT` المحروس المطابق للمصدر الأصلي ببيانات وهمية، ونتيجة واجهة Cloudflare `This query returned no data`. آخر إثبات سابق لقاعدة TEST UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` هو قراءة Stage1 `2/0/0` في Entry315/§6.19، لكن الرسالة الحالية وحدها لا تثبت أن Stage2 أضافت 4 صفوف؛ قد ينتج INSERT SELECT صفر صفوف بسبب شروط الحراسة، وصورة ما بعد التنفيذ غير متاحة بعد. **STAGE2_EFFECT_UNKNOWN، وليس PASS ولا FAIL**. لا تكرر INSERT مهما كانت الاستجابة. الخطوة التالية الوحيدة استعلام SELECT القراءة فقط من الملف نفسه على قاعدة TEST الصحيحة لحساب `catalog_rows,mirror_rows,migration_run_rows,fake_order_tab_rows,fake_line_tab_rows`، المطلوب `2/4/0/2/2`. أي اختلاف أو خطأ يستدعي STOP ومصالحة SELECT-only قبل أي إجراء آخر. هذا سجل إثبات من كلام المالك وليس تنفيذ SQL من المساعد؛ لا packed-CAS/DB.batch TEST بعد، ومرآة `trendos-main` الإنتاجية NOT_RESTORED وسلطة CREATE/الترقيم باقية في Google Sheets/Apps Script. احفظ §5.45+ وجرد §11 والتاريخ كاملًا.
+
+
+### 6.21 MIG-T12-TEST-MIRROR-STAGE2-COUNT-VERIFIED — نتيجة مرآة TEST الوهمية 2/4/0/2/2 (24 سبتمبر 2026 / Entry317)
+
+وصلت صورة جديدة من المالك لواجهة Cloudflare D1 Console لقاعدة `trendos-t12-synthetic-test` وUUID `54a3c05e-cde9-4979-814f-d40f941edcd5`، وتظهر نتيجة استعلام SELECT مستقل بعد Stage2: `catalog_rows=2`، `mirror_rows=4`، `migration_run_rows=0`، `fake_order_tab_rows=2`، `fake_line_tab_rows=2`. هذه **Stage2 COUNT READBACK PASS** في وقت الصورة، وتُحسم حالة `STAGE2_EFFECT_UNKNOWN` المؤقتة في §6.20 دون حذف التاريخ. الحسابات تثبت العدد والتوزيع بين التابين الاصطناعيين، لا فحصًا بايتياً لكل قيم JSON أو اختبار packed-CAS حقيقي. **لا تكرر INSERT Stage1 أو Stage2 أو أي CREATE/INDEX قديم، ولا تُشغّل SQL إضافيًا تلقائيًا.** الاختبار اللاحق لمعاملة Cloudflare D1 الحقيقية عبر التابين يحتاج خطة دقيقة على TEST وحدها، وحراس CAS، وقياس حدود الحمولة/الاستجابة المفقودة/التراجع، ثم موافقة مالك محددة منفصلة؛ النجاح المحلي SQLite 8/8 و42 عبارة تاريخي مختلف، والـTEST CREATE/replay القديم على `t12_synth_*` مختلف كذلك. Real D1 TEST packed-CAS NOT_RUN، مرآة `trendos-main` الإنتاجية NOT_RESTORED؛ لا Google/Apps Script/Worker/Deploy/R4/R5/V2 ولا نقل إنشاء وترقيم الأوردرات إلى Cloudflare.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
