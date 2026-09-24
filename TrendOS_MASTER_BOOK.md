@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.4-DRAFT — توثيق منسق تحديث الشاشات واختباره؛ نقطة نقل D1 تُؤخذ من أحدث Journal/Handoff** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.5-DRAFT — توثيق مسارات Clock-in القديمة وحارس Integrity وحدود الاختبار؛ نقطة D1 الحية من أحدث Journal/Handoff** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -14,7 +14,7 @@
 | **الخطوة الجارية لحظة تحرير الصفحة** | **STEP20 COMMITTED_VERIFIED Entry209** بوابة الاستعادة §6.1؛ **MIG-LIVE-01 Entry211**: هوية Google metadata verified؛ تنفيذ Apps Script فحص المصدر/المرآة `BLOCKED` حتى تأكيد وجود الدالة وفترة هدوء عمل. آخر Journal/Handoff يتقدمان على هذه الصفحة عند أي كتابة متزامنة. |
 | **الخطوة التالية المحددة** | تحقق read-only من وجود الدالة `trendosD1TargetedRecoveryPreflightReadOnly20260919` في Apps Script الأصلي ووقت خلو النظام من إنشاء أوردرات حقيقية؛ لا تنفّذ Run قبل الاثنين، ولا تعتبر موافقة الفحص تصريحًا بالمزامنة/SQL أو تغيير الكتابة. مسار Customer Manager المنفصل يعمل على نفس GitHub branch وله Entry210 PREPARED مستقلة؛ لا تنسخ نتائجه أو تُلغها بسبب هذه الخطوة. |
 | **حالة الإنتاج — دليل مؤرخ لا تحديث جديد** | آخر دليل صاحب المشروع المستعمل هنا **23 سبتمبر 2026**: Google Sheets/Apps Script مصدر الأوردر الحقيقي وترقيمه، ومرآة D1 الإنتاجية لتابَي `الأوردرات` و`بنود الأوردرات` لم تثبت استعادتها؛ مصير R5 الأخير والكتّاب المتنافسين والنسخة المنشورة الدقيقة غير محسومة. لا SQL/Sync/Deploy/Trigger/R4/R5/Create بناءً على تعليمات الكتاب. |
-| **حالة تغطية الكود والتاريخ** | فهرس §11 التاريخي المثبت عند `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b`: **1185 ملفًا = 1101 metadata-only + 56 scoped static reviews + 11 أصلًا تاريخيًا مؤرشفًا + 11 Redirects + 6 ملفات دليل/سجل نشطة** بعد DOC-CM1 وDOC-POLL (لقطة فهرس ثابتة، وليست HEAD حيًا)؛ لقطة §11 قديمة مثبتة لا تمثل تغيّر الـHEAD مباشرة بعد STEP19. ده جرد ملفات وقائمة مراجعات محدودة، **مش** فحص دلالي كامل للكود ولا SHA حي لكل GitHub أو نسخة الإنتاج المنشورة. |
+| **حالة تغطية الكود والتاريخ** | فهرس §11 التاريخي المثبت عند `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b`: **1185 ملفًا = 1098 metadata-only + 59 scoped static reviews + 11 أصلًا تاريخيًا مؤرشفًا + 11 Redirects + 6 ملفات دليل/سجل نشطة** بعد DOC-CM1 وDOC-POLL وDOC-ATT-CLOCK (لقطة ثابتة وليست HEAD حيًا)؛ لقطة §11 قديمة مثبتة لا تمثل تغيّر الـHEAD مباشرة بعد STEP19. ده جرد ملفات وقائمة مراجعات محدودة، **مش** فحص دلالي كامل للكود ولا SHA حي لكل GitHub أو نسخة الإنتاج المنشورة. |
 
 **مسار التوثيق الموازي DOC-CM1:** §5.17 يشرح الواجهة القديمة لمدير العملاء فقط دون تغيير مسار استعادة D1. منذ آخر حفظ لهذه الصفحة قد يكون الشات الآخر أضاف Entries تشغيلية أحدث؛ ابدأ بآخر Entry فعلية والـHandoff قبل اختيار أي خطوة إنتاجية، ولا تعتبر DOC-CM1 تأكيدًا لسلامة النسخة المنشورة.
 
@@ -723,6 +723,38 @@ config.js -> dynamic-load trendos-poll-coordinator-v1.js
 
 **Runbook لموظف IT عند شاشة «بتحدث كتير/بتعرض حالة قديمة»:** حدّد اسم الشاشة والـkey وعمر القراءة والـAPI الفعلي، وافصل local skipped/coalesced عن HTTP failure وعن D1 mirror stale؛ افحص نتيجة الكتابة الحقيقية عند مصدرها قبل إعادة إرسالها؛ لا تُفعل forced polling أو تُعطّل hidden-tab guard لمعالجة اختلاف Google/D1. فحص prod ممنوع من مجرد كتابة هذا الفصل، ويتطلب موافقة ونسخة deployed وشروط الخصوصية. **Open gaps:** لم يُراجع كل callsite/الموديولات التابعة/اختبارات browser runtime، ولم يُثبت تطابق هذا blob مع `main` المنشور أو DOM في أجهزة الموظفين.
 
+### 5.19 تسجيل الحضور اليومي: ثلاثة مسارات تحمل أسماء متشابهة لكنها ليست نفس عقد التنفيذ — DOC-ATT-CLOCK-20260924-01
+
+**مصدر المراجعة وحالة الثقة:** تمت قراءة [واجهة تسجيل الحضور القديمة](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-ui-v1.js) كاملة (blob `5f356700992d94767531528c3f9abc8472afcb27`) و[Backend تسجيل الحضور القديم](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-backend-v1.gs) كاملًا (blob `a153c377da0f7d1997bba4f309a1b076a7ef5df8`)، و[اختبار Attendance/Cleaning Integrity](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_attendance_cleaning_integrity_v1.test.js) كاملًا (blob `a715d5eb5fd8ddc17c680a4bc3c71f30f06b94dd`). كما قرأنا كامل [جرد Attendance/Clock-in التاريخي](docs/trendos/inventory/ATTENDANCE_CLOCKIN_INVENTORY.md) (blob `1d53882034e6eaf82c688ba4b3c8f32467a9a79e`) وفحصنا **مواضع محددة فقط** في `Code.gs` و`trendos-attendance-cleaning-integrity-v1.gs` و`config.js`. هذه مراجعة كود وتاريخ قديم دون أي سجلات حضور حية أو تشغيل/اختبار Production. **لا يُفترض أن مسار Legacy أو Integrity المنشور هو أيٌّ من ملفات GitHub حتى تُثبت نسخة المشروع الأصلية كاملة.**
+
+```text
+config.js -> attendance-clockin-ui-v1.js
+  click start/overlayStart -> recordClockin() [900ms delay]
+  -> GET ?action=attendanceClockinV1&op=clockin&username=...&token=...
+  -> Code.gs V1932 router: attendanceClockinV1_
+     also: separate attendance-clockin-backend-v1.gs defines SAME NAME
+  -> unknown exact deployed effective function/precedence (requires live source inventory)
+  -> if request throws / response success!==true -> local fallback:
+      GET getMatbagyNotes (may be a writer upstream) -> GET saveMatbagyNote
+      -> localStorage daily flag + local display
+  ALTERNATE, NOT AUTOMATICALLY ROUTED BY SAME NAME:
+  trendos-attendance-cleaning-integrity-v1.gs
+     trendosAttendanceClockinV1_ -> script lock -> canonical per-day session
+     trendosAttendanceV1_ -> guarded attendance events
+```
+
+| عقد الوظيفة ومصدرها | ما الذي أثبته النص، وما الذي لا يثبته؟ |
+|---|---|
+| [`attendance-clockin-ui-v1.js` المصدر](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-ui-v1.js) | GET يبني query باستخدام `username` و`token` إلى Google Web App؛ ولو فشل التسجيل أو رد `success:false` ينتقل إلى `fallbackRecord` الذي قد ينشئ Notes مصنّفة `ATTENDANCE_CLOCKIN_V1`. **التسجيل في Notes ليس مطابقًا تلقائيًا لقيد `سجل الدوام`**؛ عبارة «الحضور» على الشاشة نتيجة محلية محتملة، وليست إثبات أن ورقة حضور الإنتاج اتحدّثت. تمرير token داخل URL سطح عرض في logs/history/redirects؛ لا تسجل token حقيقيًا في الكتاب، ويتطلب تقييمًا أمنيًا منفصلًا قبل تعديل الواجهة. |
+| [`fallbackRecord` داخل الواجهة](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-ui-v1.js) | يفحص localStorage يوميًا وقد يستعلم عن Notes لتجنب تكرار معلومة احتياطية؛ بعد `await get('saveMatbagyNote',...)` يكتب flag محليًا **بدون فحص صريح لـ`response.success`** إذا لم يحصل throw. وبالتالي رد Backend `success:false` عبر HTTP سليم قد يترك flag محليًا مع عدم ثبوت الحفظ؛ كما يمكن للمستخدم إعادة المحاولة من جهاز آخر. هذه مخاطرة عقد Static، لا إثبات وقوعها اليوم. |
+| [`attendance-clockin-backend-v1.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-backend-v1.gs) | `attendanceClockinV1_` يتحقق من الهوية ويبحث عن أحدث سطر لنفس الموظف واليوم، ويستدعي `attendanceStartV1_` إن غاب، ثم يكتب 4 أعمدة حضور أو يعيد `alreadyRecorded` إذا السطر المختار مسجّل. `attClockEnsureCols_` قد يضيف أعمدة ويعيد **كتابة رؤوس الأعمدة عند البحث نفسه**، فلا تعتبر GET/status قراءة خالصة. لا توجد Script Lock حول مسار find→create→check→write داخل هذا المصدر؛ منع التكرار محدود بسطر مختار وليس فريدًا لكل موظف/يوم عبر جميع السطور. |
+| [`Code.gs:11863–11873`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/Code.gs#L11863-L11873)، [`Code.gs:11985–11989`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/Code.gs#L11985-L11989) | الراوتر الموجود بنص GitHub يوجه `attendanceClockinV1` إلى دالة `attendanceClockinV1_` **بنفس اسم الدالة المحدد في Backend منفصل** لكن محتواها في Code.gs مختلف عن ملف Legacy. ترتيب ملفات مشروع Apps Script المنشور ونسخة source الدقيقة غير مثبتين، لذا لا يجوز اعتبار اختبار دالة باسم آخر شهادة عن المسار الفعلي. `attendanceV1 op=state/config` في نسخة Code.gs يمكن أن يعيد كتابة بيانات دوام محسوبة عبر `attState_`/ensure؛ اسم GET ليس إذن فحص بلا آثار. |
+| [`trendos-attendance-cleaning-integrity-v1.gs:164–227`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-attendance-cleaning-integrity-v1.gs#L164-L227) | الموديول الأحدث في GitHub يعرف **`trendosAttendanceClockinV1_`** (اسم مختلف) تحت `trendosWithLock_('script')`، ويتعامل مع `canonical session` و`businessDay`، ويتحقق من clock-in قبل أحداث تشغيل لاحقة؛ لا دليل في مصدر الروتَر أعلاه على أنه استُبدل تلقائيًا بالاسم القديم. الربط المنشور والـwrapper الفعلي للـbackend ما زالا `UNKNOWN`. |
+| [`tests/trendos_attendance_cleaning_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_attendance_cleaning_integrity_v1.test.js) | الاختبار يستخدم `vm` وSheets/Lock **مقلَّدة** لتحقق تكرار Start/Clock-in/Resume، جلسة مكررة، يوم مغلق، وقائمة تنظيف؛ **يقرأ ويختبر Integrity module فقط** لا ملفَي Legacy UI/Backend ولا router الحقيقي في Apps Script، ولا يُحاكي تنافس تنفيذين حقيقيين؛ لم يُشغّل في هذه الدفعة. وجود PASS تاريخي له لا يثبت علاج كل تكرارات الحضور الحية أو تفعيل الحارس في الإنتاج. |
+| [`ATTENDANCE_CLOCKIN_INVENTORY.md`](docs/trendos/inventory/ATTENDANCE_CLOCKIN_INVENTORY.md) | جرد تاريخي مؤرخ قبل حارس Integrity وثّق وقت فحصه غياب قفل على إنشاء الجلسة، وتكرارات حضور/نبضات، وأن بعض قراءات الحالة تُحدث الكتابة؛ **لا يُنقل التشخيص التاريخي تلقائيًا إلى حالة اليوم** ولا تُنسخ أسماء موظفين/صفوف الحضور إلى هذا الكتاب. تُحفظ الوثيقة في موقعها كدليل مراجعة سابق حتى يثبت اكتمال نقل كل الأدلة وفحص المراجع. |
+
+**Runbook IT للحضور — فهم فقط قبل أي تدخل:** افصل `UI local flag` و`Notes fallback` و`سجل الدوام` و`نبض الحضور`، ولا تصلح اختلاف الحضور بإعادة إرسال `clockin` أو مسح LocalStorage/صفوف، ولا تطلق اختبار تسجيل حي لمجرد كتابة الكتيب. لأي تذكرة يراجع الموظف source/route المنشور الذي يخدم request بالفعل، تاريخ العمل بالقاهرة، حالة الجلسة canonical وأثر القراءة على الشيت، مع موافقة محددة تحمي بيانات الموظفين من التكرار. **OPEN_GAP:** ما هي الدالة الفعلية المنشورة للـaction، وهل Integrity wrapper متصل؟ لا يوجد دليل محدث مستقل في هذه الدفعة. أخطاء التصحيح/التكرار الواردة هنا حدود معمارية قابلة للفحص، وليست حكمًا جديدًا على حضور أي شخص.
+
 ## 6. مزامنة D1 والحادثة الحالية والقيود الحاسمة
 
 **حدود العمل المقصود عند آخر توقف:** إعادة مرآة **تابين حاليين فقط**: `الأوردرات` و`بنود الأوردرات`. لا تشمل تلقائيًا `أرشيف الأوردرات` أو `أرشيف بنود الأوردرات` أو إثراء الأقسام أو نقل Cloud CREATE.
@@ -1102,8 +1134,8 @@ config.js -> dynamic-load trendos-poll-coordinator-v1.js
 
 | نوع التغطية | عدد الملفات عند `05ca9c9329ae` | ماذا يثبت؟ |
 |---|---:|---|
-| `M:METADATA_ONLY` | **1101** | اسم/حجم/SHA فقط؛ ليس مراجعة تنفيذ/تبعيات أو فهم الكود. |
-| `P:SCOPED_REVIEW` | **56** | جرى فحص نطاق محدد مرتبط بفصل/واقعة؛ ليس اختبارًا شاملًا لكل الدوال. حالة P نُقلت فقط عندما تطابقت `path+blob SHA` القديمة. |
+| `M:METADATA_ONLY` | **1098** | اسم/حجم/SHA فقط؛ ليس مراجعة تنفيذ/تبعيات أو فهم الكود. |
+| `P:SCOPED_REVIEW` | **59** | جرى فحص نطاق محدد مرتبط بفصل/واقعة؛ ليس اختبارًا شاملًا لكل الدوال. حالة P نُقلت فقط عندما تطابقت `path+blob SHA` القديمة. |
 | `A:ORIGINAL_ARCHIVE` | **11** | أصل وثيقة تاريخية محفوظ، ولا يحل محل المصدر التنفيذي الحالي. |
 | `L:REDIRECT` | **11** | وصلة توافق لمسار وثيقة قديمة، لا تُحذف قبل فحص مراجعها. |
 | `LIVE:EDITABLE` | **6** | مدخل/كتاب/Journal/Handoff نشط، لا يؤرشف لمجرد قراءته. تحديث SHA يتطلب مراجعة رأس الملف والـHEAD. |
@@ -1312,8 +1344,8 @@ config.js -> dynamic-load trendos-poll-coordinator-v1.js
 | [`apps-script/patches/TIMEOUT_HOTFIX_V2_APPEND_ONLY_SAFE.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/apps-script/patches/TIMEOUT_HOTFIX_V2_APPEND_ONLY_SAFE.gs) | APPS_SCRIPT_CANDIDATE | 13798 | `b751ff3134c2f8b9498932206cdaf0f1102feb2e` | M:METADATA_ONLY |
 | [`ATTENDANCE_V1_INTEGRATION.md`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/ATTENDANCE_V1_INTEGRATION.md) | OTHER_OR_ROOT | 3354 | `d9d01f9349e544be12c97964dc96fcea76a88b82` | M:METADATA_ONLY |
 | [`attendance-backend-v1.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-backend-v1.gs) | CODE_OR_CONFIG | 17608 | `0b77ff05442cff00903274679c0b049f3f8c4285` | M:METADATA_ONLY |
-| [`attendance-clockin-backend-v1.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-backend-v1.gs) | CODE_OR_CONFIG | 3879 | `a153c377da0f7d1997bba4f309a1b076a7ef5df8` | M:METADATA_ONLY |
-| [`attendance-clockin-ui-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-ui-v1.js) | CODE_OR_CONFIG | 4896 | `5f356700992d94767531528c3f9abc8472afcb27` | M:METADATA_ONLY |
+| [`attendance-clockin-backend-v1.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-backend-v1.gs) | CODE_OR_CONFIG | 3879 | `a153c377da0f7d1997bba4f309a1b076a7ef5df8` | P:SCOPED_STATIC_REVIEW §5.19 DOC-ATT-CLOCK-20260924-01 (full text read; deployed route/real attendance unverified) |
+| [`attendance-clockin-ui-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-clockin-ui-v1.js) | CODE_OR_CONFIG | 4896 | `5f356700992d94767531528c3f9abc8472afcb27` | P:SCOPED_STATIC_REVIEW §5.19 DOC-ATT-CLOCK-20260924-01 (full text read; deployed route/real attendance unverified) |
 | [`attendance-live-timer-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-live-timer-v1.js) | CODE_OR_CONFIG | 4957 | `73b1d9de050c1ba0ee9947a520c9df3c223ab71d` | M:METADATA_ONLY |
 | [`attendance-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/attendance-v1.js) | CODE_OR_CONFIG | 33202 | `f3c5a5e87a3ddd8e6539fac8da4655929c07f33e` | M:METADATA_ONLY |
 | [`build/apps-script/TrendOS_BACKEND_UNIFIED_V147_CANDIDATE.manifest.json`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/build/apps-script/TrendOS_BACKEND_UNIFIED_V147_CANDIDATE.manifest.json) | CODE_OR_CONFIG | 3501 | `39540d2862a035e426326b13a10c3f46bb097786` | M:METADATA_ONLY |
@@ -2243,7 +2275,7 @@ config.js -> dynamic-load trendos-poll-coordinator-v1.js
 | [`tests/t12_synthetic_resource_config_guard.test.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/t12_synthetic_resource_config_guard.test.mjs) | TEST | 1982 | `11681ce0720c023e4d8dec21fa44dac9a480ffde` | M:METADATA_ONLY |
 | [`tests/trend_master_resilience_v1931.test.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trend_master_resilience_v1931.test.mjs) | TEST | 7890 | `de1fcc91d1b8e77c011e6311876a2af7612dc8e8` | M:METADATA_ONLY |
 | [`tests/trendos_andon_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_andon_integrity_v1.test.js) | TEST | 4556 | `33e2e91b18259c6004bae6e19d5085d396d6ec16` | M:METADATA_ONLY |
-| [`tests/trendos_attendance_cleaning_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_attendance_cleaning_integrity_v1.test.js) | TEST | 10479 | `a715d5eb5fd8ddc17c680a4bc3c71f30f06b94dd` | M:METADATA_ONLY |
+| [`tests/trendos_attendance_cleaning_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_attendance_cleaning_integrity_v1.test.js) | TEST | 10479 | `a715d5eb5fd8ddc17c680a4bc3c71f30f06b94dd` | P:SCOPED_STATIC_REVIEW §5.19 DOC-ATT-CLOCK-20260924-01 (full text read; deployed route/real attendance unverified) |
 | [`tests/trendos_core_p0_registry_writer_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_core_p0_registry_writer_v1.test.js) | TEST | 19140 | `05fbd72caca6d9fd5302afa441cf8d38a66b1f7d` | M:METADATA_ONLY |
 | [`tests/trendos_core_p0_remediation_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_core_p0_remediation_v1.test.js) | TEST | 5779 | `d6a3c53e22c24c08f225b073e0ea6a5256dadf63` | M:METADATA_ONLY |
 | [`tests/trendos_handover_ops_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_handover_ops_integrity_v1.test.js) | TEST | 7951 | `5cbc3dd0e3ac382aa135b7d9b0a2a357f5fd8226` | M:METADATA_ONLY |
@@ -2347,5 +2379,6 @@ config.js -> dynamic-load trendos-poll-coordinator-v1.js
 
 | 2026-09-24 | 3.3-DRAFT | DOC-CM1: قراءة الواجهة القديمة لـCustomer Manager بالكامل وربط المصدر المستقل/حارس الإرسال والاختبار الوهمي؛ تسجيل مخاطر GET مع token والكتابة داخل Inbox/Thread واحتمال تكرار send والفرق مع مصدر merged؛ ترقية صف frontend واحد M→P | GitHub Docs فقط بالتوازي مع نقل D1؛ لا تشغيل Meta/Google/Cloudflare/CI أو جمع محتوى عملاء، ولا شهادة deployed-source parity. |
 | 2026-09-24 | 3.4-DRAFT | DOC-POLL: قراءة منسق polling واختبار regex كاملَين وفحص مواقع الاستدعاء ثم توثيق ترتيب hidden/inFlight/minInterval والفارق بين Refresh وكتابة Backend؛ ترقيتان M→P في لقطة §11 المثبتة | لا تشغيل اختبار/متصفح/إنتاج، ولا تغير في خط MIR-LIVE/Google، والتغطية 1101 ملفًا metadata-only عند اللقطة التاريخية؛ راجع أحدث RESULT/HEAD لتأكيد حفظ هذه النسخة. |
+| 2026-09-24 | 3.5-DRAFT | DOC-ATT-CLOCK: قراءة UI/Backend القديمين واختبار Integrity كاملين، مقارنة أسماء دوال V1932 وحارس الدوام وجرد تاريخي، وتوثيق اختلاف مسار Notes عن ورقة الحضور وثغرات إثبات المنظومة؛ 3 صفوف ثابتة M→P | لا سجلات موظفين حية ولا اختبار/فحص Google أو Apps Script، والـTest لا يغطي Legacy أو النسخة المنشورة، والتغطية ليست فحصًا كاملًا للمستودع. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
