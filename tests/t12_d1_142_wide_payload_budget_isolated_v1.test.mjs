@@ -47,7 +47,7 @@ class LocalDb extends FakeDb{
   constructor(snap){super();this.raw=new DatabaseSync(':memory:');
     this.raw.exec(fs.readFileSync(new URL('../cloudflare-d1/migrations/0002_full_sheet_mirror.sql',import.meta.url),'utf8'));
     for(const tab of snap.mirrorTabs){const c=tab.catalog;
-      this.raw.prepare(\`INSERT INTO sheet_catalog (sheet_name,sheet_id,headers_json,source_last_row,source_last_col,row_count,status,note) VALUES(?,?,?,?,?,?,'ready',?)\`).run(tab.sheetName,String(c.sheetId),JSON.stringify(c.headers),c.rowCount,c.sourceLastCol,c.rowCount,note);
+      this.raw.prepare(`INSERT INTO sheet_catalog (sheet_name,sheet_id,headers_json,source_last_row,source_last_col,row_count,status,note) VALUES(?,?,?,?,?,?,'ready',?)`).run(tab.sheetName,String(c.sheetId),JSON.stringify(c.headers),c.rowCount,c.sourceLastCol,c.rowCount,note);
       const stmt=this.raw.prepare('INSERT INTO sheet_rows(sheet_name,row_number,values_json,display_json,formulas_json) VALUES (?,?,?,?,?)');
       for(const r of tab.rows)stmt.run(tab.sheetName,r.rowNumber,JSON.stringify(r.values),JSON.stringify(r.display),JSON.stringify(r.formulas));
     }
