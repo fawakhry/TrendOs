@@ -4,6 +4,8 @@
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
+**تحديث MIG Entry310 (24 سبتمبر):** صورة المالك تُظهر إرسال Stage1 INSERT المحروس على TEST UUID الصحيح مع رسالة `This query returned no data`؛ **عدد الصفوف المتأثر مجهول حتى فحص COUNT بالقراءة فقط**. لا تُكرر INSERT ولا تنتقل إلى Stage2؛ انظر §6.18.
+
 **دي لقطة مكتوبة بعد كل خطوة أثناء جلسة العمل، مش متابعة تلقائية بعد انتهاء الشات.** قبل أي إجراء اقرأ [آخر Entry فعلية](docs/trendos/blackbox/منصة%20ترند/TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md)، [آخر Handoff نشط](docs/trendos/blackbox/منصة%20ترند/CLOUD_MIGRATION_V3_T12_CONTINUATION_HANDOFF_2026-09-22.md)، والـHEAD الحالي. **لو السجل أحدث من هذه الصفحة فالسجل هو المرجع؛ لا تعيد الكتابة بناءً على حالة PREPARED أقدم.** تعليمات [اقرأني أولًا](اقرأني_أولًا.md) تحدد PREPARE → APPLY → VERIFY → RECORD → RESUME وكيف نتصرف لو الاتصال انقطع.
 
 | سؤال الاستلام | آخر نقطة مثبتة وقت كتابة الصفحة |
@@ -1534,6 +1536,11 @@ Apps Script candidate one-record writer:
 **مهم لتجنب تعارض متوازي أو response مجهول:** هذه أوامر إعداد fixture **لم تُنفَّذ بعد** أثناء كتابة هذا الفصل، ولا يُسمح بلصق الملف كله دفعة واحدة أو تكرار أي INSERT إذا ضاعت الاستجابة. بعد أول INSERT يقرأ المالك COUNT `catalog_rows/mirror_rows/migration_run_rows` ويشترط `2/0/0` قبل المرحلة الثانية؛ بعدها postflight `2/4/0` و`2/2` لكل تاب. عند أي خطأ أو نتيجة غير مطابقة: STOP، قراءة فقط للمصالحة، لا DELETE/DROP/إعادة الأوامر تلقائيًا. لا تستعمل `r4-preview-synthetic-fixture.sql` لأنه مقيّد ببيئة Wrangler محلية disposable، ولا تنسخ Google Order IDs أو عملاء أو مصدر الإنتاج أو أسرار TEST.
 
 **حدّ هذه المرحلة:** إعداد هذه البيانات في TEST لا يساوي تشغيل `buildIsolated142ChunkedPreimageBatch` على Cloudflare: ذلك الـbuilder غير موصول بWorker منشور، وD1 `DB.batch` وحارس كل صف غير مرشح وlost-ACK/postflight والحصة الحقيقية لم تؤهَّل؛ التنفيذ يحتاج خطة منفصلة وموافقة دقيقة على TEST-only transaction وتأكيد binding هوية القاعدة وأعلام النشر. لا مساس بستة `t12_synth_*` قديمة أو `_cf_KV` أو `trendos-main`، ولا Worker Deploy أو Apps Script/Sheets/Props/Triggers أو R4/R5/V2 أو نقل Order CREATE عن Google.
+
+
+### 6.18 MIG-T12-TEST-MIRROR-STAGE1-OWNER-SCREENSHOT — إرسال INSERT والنتيجة غير محسومة (24 سبتمبر 2026 / Entry310)
+
+وصلت من المالك صورة جديدة لـCloudflare Console تُظهر قاعدة TEST الحالية `trendos-t12-synthetic-test` وUUID `54a3c05e-cde9-4979-814f-d40f941edcd5` في عنوان Console، ونص `INSERT INTO sheet_catalog` المحروس للمرحلة الأولى من ملف §6.17؛ أعادت الواجهة `This query returned no data`. **هذا ليس إثباتًا لإدخال صفين ولا صفوف صفر** لأن أمر `INSERT ... SELECT` قد ينجح بدون صفوف عندما لا تتحقق الحراسة. لا توجد نتيجة SELECT عددية بعد الأمر في الصورة، والنتيجة الفعلية `STAGE1_EFFECT_UNKNOWN`. الصورة دليل المالك، وليست API receipt مستقلًا؛ لا تنفّذ INSERT ثانية تحت أي ظرف قبل مصالحة قراءة فقط وتفسير النتيجة. **الخطوة الوحيدة التالية:** `SELECT (SELECT COUNT(*) FROM sheet_catalog) AS catalog_rows, (SELECT COUNT(*) FROM sheet_rows) AS mirror_rows, (SELECT COUNT(*) FROM sheet_migration_runs) AS migration_run_rows;` على نفس UUID TEST؛ توقّع `2/0/0` قبل النظر في Stage2، وأوقف العمل عند نتيجة مخالفة أو خطأ. لا CREATE TABLE/INDEX ولا تغيير الجداول `t12_synth_*` أو `_cf_KV`، ولا TEST Stage2/packed-CAS أو PROD `trendos-main` أو Google/Apps Script/Worker/Deploy/Properties/Triggers/R4/R5/V2. لم تُستعد مرآة الإنتاج ولم تُنقل سلطة إنشاء/ترقيم الأوردرات عن Google.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
