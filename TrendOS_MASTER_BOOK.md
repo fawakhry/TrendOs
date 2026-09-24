@@ -4,6 +4,8 @@
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
+**تحديث MIG Entry325 (24 سبتمبر):** حقول Catalog الوهمية مثبتة من صورة المالك، مع أربعة صفوف وهمية مثبتة سابقًا في Entry320. فشل استعلام WITH المركب لا يعني فساد البيانات؛ لا نعيد القراءة أو INSERT. اختبار D1 packed-CAS الحقيقي لم يُشغّل؛ انظر §6.24.
+
 **تحديث MIG Entry320 (24 سبتمبر):** صورة المالك أثبتت محتوى الصفوف الوهمية الأربع مباشرةً (`values/display/formulas`) على TEST؛ الاستعلام المركب §6.22 فشل بالواجهة، وليس دليلًا على تلف البيانات. المتبقي قراءة حقول catalog فقط، ولا packed-CAS/SQL write بعد؛ راجع §6.23.
 
 **تحديث MIG Entry318 (24 سبتمبر):** Stage1/2 الوهميتان PASS عددًا؛ أُعد SELECT واحد للقراءة فقط يتحقق من محتوى الأربع صفوف وهوية catalog قبل اختبار packed-CAS. لا SQL كتابة أو TEST Worker deploy؛ انظر §6.22.
@@ -1638,6 +1640,11 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 الصورة الأحدث من المالك داخل Console قاعدة TEST `trendos-t12-synthetic-test` ذات UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` تعرض نجاح الاستعلام البسيط `SELECT sheet_name,row_number,values_json,display_json,formulas_json FROM sheet_rows ORDER BY sheet_name,row_number`: صفّ عنوان `["synthetic_header"]` وصف `["SYNTHETIC TEST MIRROR OLD ORDER"]` لتاب «الأوردرات»، وصف عنوان مماثل وصف `["SYNTHETIC TEST MIRROR OLD LINE"]` لتاب «بنود الأوردرات». كل `display_json` مطابق لـ`values_json` المقابل، و`formulas_json='[""]'` لكل صف في الصورة. إذن **أربع صور الصفوف الوهمية MATCH وقت القراءة**؛ العدد والتوزيع `2/4/0/2/2` ثابتان سابقًا في §6.21.
 
 الاستعلام المُركب ذو `WITH ... SELECT CASE` المُعدّ في §6.22 واجه رسالة واجهة Cloudflare `The request is malformed: Requests without any query are not supported`؛ لا يوجد دليل على سبب الخطأ ولا يُسجل PASS لذلك الاستعلام. استعلام `SELECT 1 AS console_check` نجح بقيمة `1`، والـSELECT البسيط أعلاه نجح، فلا دليل على تلف البيانات. **لم تُتحقق بعد حقول صفَّي `sheet_catalog` نفسها من قراءة محتواها المباشر**، ولا معنى لإعادة الاختبارات السابقة. الخطوة التالية الوحيدة SELECT بسيط للحقول `sheet_name,sheet_id,headers_json,source_last_row,source_last_col,row_count,status,note` من `sheet_catalog` على TEST نفسها، ومقابلة صفَّي IDs `SYNTHETIC_TEST_MIRROR_9001/9002` وheaders وrow_count مع ملف Stage1 الأصلي. لا SQL كتابة/Worker Deploy، ولا D1 packed-CAS على TEST حتى تُعد معاملة ذرية منفصلة وتُعتمد؛ مرآة PROD NOT_RESTORED وGoogle مسؤول عن CREATE والترقيم.
+
+
+### 6.24 MIG-T12-TEST-MIRROR-CATALOG-OWNER-VERIFIED — فحص Catalog المباشر (24 سبتمبر / Entry325)
+
+المالك أرسل صورة جديدة من Cloudflare D1 Console على قاعدة TEST trendos-t12-synthetic-test UUID 54a3c05e-cde9-4979-814f-d40f941edcd5. SELECT مباشر من sheet_catalog أعاد صفين فقط: الأوردرات / SYNTHETIC_TEST_MIRROR_9001، وبنود الأوردرات / SYNTHETIC_TEST_MIRROR_9002، وكل صف headers_json=["synthetic_header"] وsource_last_row=2 وsource_last_col=1 وrow_count=2 وstatus=ready وnote=TrendOS orders live sync V2 quota-aware. دليل قراءة مباشر للحقول في وقت الصورة؛ دليل الصفوف الأربعة values/display/formulas من Entry320 منفصل زمنيًا، واستعلام WITH/CASE المركّب فشل في Cloudflare UI ولا يُسجل PASS. **CATALOG_DIRECT_FIELD_READBACK_PASS** يقتصر على الصورة، وليس شهادة لقطة ذرية مشتركة مع sheet_rows أو إثبات CAS. الخطوة التالية تجهيز harness جديد معزول في GitHub لمعاملة TEST packed-CAS واحدة عبر التابين وحراسة صور الصفوف غير المرشحة، بدون تنفيذ SQL أو تعديل Worker؛ أي تشغيل/Deploy/كتابة يحتاج موافقة مستقلة وهوية Binding مؤكدة. لا إعادة Stage1/2، ولا TEST CREATE/replay قديم، ولا PROD trendos-main أو Google/Apps Script/R4/R5/V2 أو نقل سلطة إنشاء الأوردرات.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
