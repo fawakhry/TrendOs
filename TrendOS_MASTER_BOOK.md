@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **2.9-DRAFT — دراسة مصدر Heartbeat للقراءة وتحديث نقطة الاستكمال؛ التغطية الدلالية والإنتاج غير مكتملين** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.0-DRAFT — دراسة عقد قرار Heartbeat وإصلاح سجل التغطية؛ مراجعة الأكواد والإنتاج غير مكتملة** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -10,11 +10,11 @@
 |---|---|
 | **المهمة والفرع** | بناء وتدقيق كتاب ومكتبة IT TrendOS فقط، الفرع `cloud-migration-v3-t12-order-create-ci-20260919`؛ GitHub قراءة وتوثيق دون أي تفويض لتشغيل الإنتاج. |
 | **آخر عمل فني اكتمل** | §5.13 مسارات POST Bridge وD1 Auth Shadow **STEP10 COMMITTED_VERIFIED في Entry189**، وشهادة T6B التاريخية §8.3 **STEP11 COMMITTED_VERIFIED في Entry191**، وحفظ الأصل في أرشيف GitHub **STEP12 Entry193** والرابط القديم **STEP13 Entry195**. إنتاج اليوم يحتاج دليلًا أحدث منفصلًا. |
-| **آخر إجراء توثيقي اكتمل** | **STEP15 COMMITTED_VERIFIED في Entry199**: كتاب v2.8 عند commit `dec172849e05c8e187b089b4edbc99cd8c01ac5a`، blob `9a4a94b5a8a0ea1d46d6a3132e33d3e8cf0237d3`. تحقّق مستقِل من فهرس §11: **1185 مسارًا فريدًا، 0 اختلاف SHA/حجم/رابط** مع لقطة `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b`، وحُدّث Handoff في commit `a34ed5f251eac0e88babef410ffa5beb62df6f7e`. الجرد metadata فقط، مش مراجعة كل كود. |
-| **الخطوة الجارية لحظة تحرير الصفحة** | **STEP16 COMMITTED_VERIFIED في Entry201**؛ **STEP17 PREPARED في Entry202** لدراسة Heartbeat داخل كتاب IT. هذا وصف أثناء تعديل الكتاب؛ راجع آخر Entry الفعلية لمعرفة نتيجة STEP17 بعد حفظها، ولا تُعد STEP16. |
-| **الخطوة التالية المحددة** | بعد تسجيل STEP17 والتحقق من الكتاب والتسليم، اختر **ملف مصدر آخر واحد** من 1106 ملفات metadata-only عند لقطة الجرد، وفق أثره التشغيلي والحادثة والاختبار. لا تعِد جرد STEP15/تحديث STEP16، ولا تنفذ إنتاجًا أو CI لمجرد قراءة الكود. |
+| **آخر إجراء توثيقي اكتمل** | **STEP17 COMMITTED_VERIFIED Entry203**: كتاب v2.9 عند commit `b9530a2cac4c65f88191a1aaf4fa458a4ec3adf1`، blob `51bb482c23de05f40a7fb6a476b8fd59b46234db`. §5.14 يوثق قراءة مصدر Idle Verifier واختباره فقط، وليس تشغيلًا أو إثباتًا لمرآة D1 الحية. |
+| **الخطوة الجارية لحظة تحرير الصفحة** | **STEP18 PREPARED Entry204**: مراجعة النص الكامل لعقد `inspectOrdersIdleHeartbeat` وربطه ببوابة Freshness في §5.15. يُقرأ أحدث Journal/Handoff لإثبات النتيجة النهائية بدل اعتبار PREPARED أمرًا بإعادة العمل. |
+| **الخطوة التالية المحددة** | بعد readback للكتاب وEntry205 والتسليم، اختر مصدرًا واحدًا جديدًا من 1105 ملفات metadata-only عند لقطة §11 لفحصه دلاليًا في خطوة مستقلة؛ لا تُعد STEP15–18، ولا تنفذ إنتاجًا أو CI بناءً على نص تاريخي. |
 | **حالة الإنتاج — دليل مؤرخ لا تحديث جديد** | آخر دليل صاحب المشروع المستعمل هنا **23 سبتمبر 2026**: Google Sheets/Apps Script مصدر الأوردر الحقيقي وترقيمه، ومرآة D1 الإنتاجية لتابَي `الأوردرات` و`بنود الأوردرات` لم تثبت استعادتها؛ مصير R5 الأخير والكتّاب المتنافسين والنسخة المنشورة الدقيقة غير محسومة. لا SQL/Sync/Deploy/Trigger/R4/R5/Create بناءً على تعليمات الكتاب. |
-| **حالة تغطية الكود والتاريخ** | فهرس §11 محدث ومثبت عند `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b`: **1185 ملفًا عند لقطة الفهرس الثابتة** = 1106 metadata-only + 51 scoped static reviews (بعد STEP17) + 11 أصلًا تاريخيًا مؤرشفًا + 11 Redirects + 6 ملفات دليل/سجل نشطة. **دي لقطة جرد وليست تغطية دلالية لكل ملف ولا نسخة HEAD الحية بعد الكتابة ولا تأهيلًا لكود الإنتاج المنشور**؛ المراجعة التفصيلية والتطابق مع بيئة التشغيل مطلوبان قبل اعتماد الكتاب مكتملًا. |
+| **حالة تغطية الكود والتاريخ** | §11 يسجل 1185 ملفًا في snapshot ثابت `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b`: **1105 metadata-only + 52 scoped reviews + 11 archived originals + 11 redirects + 6 active guides** بعد STEP18. اكتمال metadata لا يعني اكتمال قراءة الأكواد ولا تطابق GitHub مع كود الإنتاج المنشور. |
 
 **نظام القراءة:** أول شات جديد أو أول استلام لموظف IT: اقرأ [الصندوق الأسود](الصندوق%20الاسود.md)، ثم [اقرأني أولًا كاملة](اقرأني_أولًا.md)، ثم **الكتاب كله مرة واحدة** على أجزاء لو الحجم كبير، ثم أحدث Journal/Handoff. لا تدّعي إنك قريت الكتاب كله لو نتيجة الأداة اتقصت. في **نفس الشات بعد قراءة أولى كاملة مثبتة**: «كتاب ترند اقراه وكمل» يعني هذه الصفحة + أحدث Entry/Handoff/HEAD + الفصل المتغير والكود المعني فقط، مش إعادة كل التاريخ. ولو الاعتماديات أو source الحرج اتغيروا لازم تقرأ التغييرات كاملة حتى لو سبق الاطلاع عليهم.
 
@@ -625,6 +625,20 @@ Edge read / index_v2.js (عند تفعيل gate المناسب)
 
 **حد السلامة المربوط بحادثة 19–23 سبتمبر:** آخر دليل المالك (23 سبتمبر) لم يثبت استعادة مرآة الإنتاج لتابَي `الأوردرات` و`بنود الأوردرات`. لا يكفي timestamp أو `rowCount` أو heartbeat وحده قبل أي D1-full-replace أو نقل صلاحية كتابة. هذه STEP تغطية مصدر واحد من صفوف `M:METADATA_ONLY` فقط، وليست علاجًا للحادثة أو خطوة تشغيلية. ملفات الكود والاختبارات تبقى في مكانها، لذلك **لا أرشفة لها بعد القراءة**.
 
+### 5.15 بوابة قرار Idle Heartbeat — STEP18 (2026-09-24، مراجعة GitHub فقط)
+
+**قرأنا المصدر كاملًا** [`cloudflare-d1/src/edge-orders-idle-heartbeat.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-idle-heartbeat.mjs) عند blob `11fc442d0d7a2ba242f3ee60fe970adec2cc8b78`، وربطناه بنص [`edge-orders-freshness-gate.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-freshness-gate.mjs)، blob `34fe30371fa94b616a9c6555f40097a3ff26e7d4`، وVerifier واختباره المشروحَين في §5.14؛ **لم تُشغّل الاختبارات ولم يُفحص Worker أو Apps Script المنشوران أو بيانات Google/D1 الحية**.
+
+**المدخلات وعقد الرفض:** `inspectOrdersIdleHeartbeat(status, options)` يفحص `lastIdleCheck` للتابين الحاليين `الأوردرات` و`بنود الأوردرات` وفق `sheetName`، مع expected last row/column اختياريين. يفرض `success/lowUsage/lightweightIdleDetection/enabled/lightFingerprintPresent`، فاصل 5 دقائق، `lowUsageTriggerCount=1` وlegacy/V2 trigger صفرًا، `lastError=null` و`consecutiveErrors=0`، صفر Cloudflare requests وD1 writes في حالة unchanged، و`sourceChanged=false` و`d1RequestMade=false` و`d1WriteMade=false` وmode حرفيًا `unchanged-light-fingerprint-no-d1-request`؛ ويشترط أبعادًا سليمة للتابين وحدًا زمنيًا. النتيجة `{ok,mode,ageSeconds,maxAgeSeconds,failedChecks,source}`؛ عند فشل أي شرط يعيد `idle-heartbeat-invalid` وأسماء الفحوص الفاشلة بدل شهادة خمول.
+
+**حدود إثبات المحتوى:** [`sourceEntryHealthy/sourceShapeMatches`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-idle-heartbeat.mjs#L29) يتحققان أن `sourceLastRow/sourceLastCol >= 0` و`displayHash` **موجود غير فارغ**، ويقارنان الأبعاد المتوقعة إن كانت أرقامًا finite؛ الكود **لا يقارن قيمة displayHash ببصمة محتوى D1**. إذًا `verified-idle-source-unchanged` ليس content parity، ولا يثبت علاج انجراف المرآة السابق أو توقف كتّاب D1 المنافسين.
+
+**الزمن:** العمر الافتراضي 720 ثانية، والحد مضبوط 300–1800 ثانية، والتاريخ الغائب/غير القابل للتحليل يفشل بسن أقصى؛ لكن `Math.max(0,...)` يعامل تاريخ فحص مستقبليًا بأنه صفر ثانية، فلا يوجد هنا رفض صريح لاختلاف الساعة. كذلك `lastError == null` يقبل `undefined` وكذلك `null`؛ تسجيل حقل الخطأ المفقود يحتاج فحص عقد المنتج الفعلي قبل شهادة تشغيل.
+
+**الـcallsite والأثر:** [`guardEdgeOrdersPageRequest`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-freshness-gate.mjs#L134) يتحقق من bearer/screen ومن كتالوجي D1 أولًا؛ يستدعي Heartbeat اختياريًا **فقط في حالة stale بسبب العمر وحده** بعد اجتياز status/parity/live-note للتابين، ولا يستبدل فشل البنية أو البيانات الظاهر بإقرار خمول؛ عند عدم التأهيل يعيد HTTP 503 و`fallback=apps-script`. وجود fallback/HTTP GET في نسخة GitHub ليس دليل سلامة action المنشور في Apps Script أو أن المرآة تماثلت بعد R5.
+
+**فجوات باقية:** التحقق من source/target content hashes والـwriters الفعليين، والنسخة المنتشرة وتوقيت الساعة/التحديث، وتغطية جميع فروع هذه الدالة باختبار مخصص، وفحص إنتاج مؤرخ — كلها `UNKNOWN/NOT_RUN`. تم ترقية صف **المصدر الأساسي الواحد** فقط في §11 من M→P؛ لا أرشفة كود/اختبارات ولا تشغيل R4/R5/V2 Tick أو SQL/Deploy/Trigger/Properties.
+
 ## 6. مزامنة D1 والحادثة الحالية والقيود الحاسمة
 
 **حدود العمل المقصود عند آخر توقف:** إعادة مرآة **تابين حاليين فقط**: `الأوردرات` و`بنود الأوردرات`. لا تشمل تلقائيًا `أرشيف الأوردرات` أو `أرشيف بنود الأوردرات` أو إثراء الأقسام أو نقل Cloud CREATE.
@@ -978,8 +992,8 @@ Edge read / index_v2.js (عند تفعيل gate المناسب)
 
 | نوع التغطية | عدد الملفات عند `05ca9c9329ae` | ماذا يثبت؟ |
 |---|---:|---|
-| `M:METADATA_ONLY` | **1107** | اسم/حجم/SHA فقط؛ ليس مراجعة تنفيذ/تبعيات أو فهم الكود. |
-| `P:SCOPED_REVIEW` | **50** | جرى فحص نطاق محدد مرتبط بفصل/واقعة؛ ليس اختبارًا شاملًا لكل الدوال. حالة P نُقلت فقط عندما تطابقت `path+blob SHA` القديمة. |
+| `M:METADATA_ONLY` | **1105** | اسم/حجم/SHA فقط؛ ليس مراجعة تنفيذ/تبعيات أو فهم الكود. |
+| `P:SCOPED_REVIEW` | **52** | جرى فحص نطاق محدد مرتبط بفصل/واقعة؛ ليس اختبارًا شاملًا لكل الدوال. حالة P نُقلت فقط عندما تطابقت `path+blob SHA` القديمة. |
 | `A:ORIGINAL_ARCHIVE` | **11** | أصل وثيقة تاريخية محفوظ، ولا يحل محل المصدر التنفيذي الحالي. |
 | `L:REDIRECT` | **11** | وصلة توافق لمسار وثيقة قديمة، لا تُحذف قبل فحص مراجعها. |
 | `LIVE:EDITABLE` | **6** | مدخل/كتاب/Journal/Handoff نشط، لا يؤرشف لمجرد قراءته. تحديث SHA يتطلب مراجعة رأس الملف والـHEAD. |
@@ -1249,7 +1263,7 @@ Edge read / index_v2.js (عند تفعيل gate المناسب)
 | [`cloudflare-d1/src/cloud-write.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/cloud-write.mjs) | CLOUD_CODE_OR_CONFIG | 14774 | `aa4e62ad5ff3c6324c288f72e6b2a1ee5a5af6d0` | P:SCOPED_REVIEW |
 | [`cloudflare-d1/src/edge-gateway.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-gateway.mjs) | CLOUD_CODE_OR_CONFIG | 18090 | `db88e925cbda3ab9a9597860248a3faffa54a8ac` | P:SCOPED_REVIEW |
 | [`cloudflare-d1/src/edge-orders-freshness-gate.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-freshness-gate.mjs) | CLOUD_CODE_OR_CONFIG | 8381 | `34fe30371fa94b616a9c6555f40097a3ff26e7d4` | M:METADATA_ONLY |
-| [`cloudflare-d1/src/edge-orders-idle-heartbeat.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-idle-heartbeat.mjs) | CLOUD_CODE_OR_CONFIG | 5050 | `11fc442d0d7a2ba242f3ee60fe970adec2cc8b78` | M:METADATA_ONLY |
+| [`cloudflare-d1/src/edge-orders-idle-heartbeat.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-idle-heartbeat.mjs) | CLOUD_CODE_OR_CONFIG | 5050 | `11fc442d0d7a2ba242f3ee60fe970adec2cc8b78` | P:SCOPED_STATIC_REVIEW §5.15 Entry204/205 (full source read, callsite inspected; no live verification) |
 | [`cloudflare-d1/src/edge-orders-idle-verifier.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-idle-verifier.mjs) | CLOUD_CODE_OR_CONFIG | 3967 | `fbb8e257e61e4d6c54c5079a34f0bc8e63fa2842` | P:SCOPED_STATIC_REVIEW §5.14 Entry202/203 (source+test read; live not verified) |
 | [`cloudflare-d1/src/edge-orders-line-id-repair-02cx.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-line-id-repair-02cx.mjs) | CLOUD_CODE_OR_CONFIG | 2173 | `5a1690371008e628746c7b300b150d9a313b8836` | M:METADATA_ONLY |
 | [`cloudflare-d1/src/edge-orders-operational-enrichment-02cr.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/cloudflare-d1/src/edge-orders-operational-enrichment-02cr.mjs) | CLOUD_CODE_OR_CONFIG | 6884 | `212bf8db1d0c71c9c8b6e1906b79bcbcce484f10` | M:METADATA_ONLY |
@@ -2212,5 +2226,7 @@ Edge read / index_v2.js (عند تفعيل gate المناسب)
 | 2026-09-24 | 2.7-DRAFT | تسجيل نسخة T6B الأرشيفية الكاملة المحققة SHA/النص، وRedirect القديم، وتحديث أول صفحة وفرق شجرة 1185 عن جرد 1184 المثبت تاريخيًا | لا تعديل لأرقام/صفوف snapshot القديمة أو إثبات deployed Code/استعادة D1؛ خطوة توثيق فقط. |
 | 2026-09-24 | 2.8-DRAFT | STEP15: إعادة توليد جرد الشجرة المثبتة 1185 ملفًا مع SHA/الحجم والرابط لكل مسار، ورعاية اختلاف T6B الأرشيفي وتحويل المسار القديم إلى Redirect دون حذف الأصل التاريخي | 1107 ملف metadata-only و50 مراجعة محدودة؛ لا تعني الفهرسة فهم الكود كاملًا أو مطابقة Apps Script/Cloudflare المنشور؛ نتيجة الخطوة في Journal تتقدم على PREPARED بالصفحة الأولى. |
 | 2026-09-24 | 2.9-DRAFT | STEP17: قراءة source كاملة لـEdge Orders Idle Verifier وملف test والسياق وشرح cache/GET/flags/idle proof في §5.14، وترقية صف واحد فقط من M إلى P؛ تصحيح آخر نقطة STEP16 وفق Entry201 | توثيق GitHub فقط؛ لا تشغيل test ولا إثبات GET المنشور أو تماثل Google/D1؛ آخر Entry بعد الكتابة يتقدم على عبارة PREPARED بالصفحة الأولى. |
+
+| 2026-09-24 | 3.0-DRAFT | STEP18: فصل hash-present عن content-parity في عقد Idle Heartbeat وتوثيق شرط العمر/الساعة والـcallsite، تحديث أول صفحة و§11.2 ومراجعة مصدر واحد M→P | Docs/reading فقط؛ لا اختبار أو بيانات إنتاج أو استعادة D1؛ Journal الأحدث يتقدم على PREPARED بالصفحة. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
