@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.3-DRAFT — توثيق IT الموازي لمدير العملاء/واتساب؛ حالة نقل D1 من آخر Journal/Handoff** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.4-DRAFT — توثيق منسق تحديث الشاشات واختباره؛ نقطة نقل D1 تُؤخذ من أحدث Journal/Handoff** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -10,7 +10,7 @@
 |---|---|
 | **المهمة والفرع** | استكمال نقل TrendOS بأمان: **حسم شرط استعادة مرآة التابين الحاليين على D1 أولًا** ثم استكمال تأهيل النقل التدريجي، دون نقل صلاحية CREATE/الترقيم عن Google. العمل الحالي GitHub مراجعة كود وتوثيق فقط على `cloud-migration-v3-t12-order-create-ci-20260919`. |
 | **آخر عمل فني اكتمل** | §5.13 مسارات POST Bridge وD1 Auth Shadow **STEP10 COMMITTED_VERIFIED في Entry189**، وشهادة T6B التاريخية §8.3 **STEP11 COMMITTED_VERIFIED في Entry191**، وحفظ الأصل في أرشيف GitHub **STEP12 Entry193** والرابط القديم **STEP13 Entry195**. إنتاج اليوم يحتاج دليلًا أحدث منفصلًا. |
-| **آخر إجراء توثيقي اكتمل** | **STEP19 COMMITTED_VERIFIED Entry207**: مراجعة بوابة 02CR الثابتة، الكتاب v3.1 عند commit `6b0dc648753e3968c152eeb963ecd99ced6f14fd` وblob `29556f515fe36cb82984d437f44dc52897c8195e`؛ Handoff Entry207 تحقق من حفظه عند HEAD `510344b90344581d5eaff52b0b592efea4e9e6a1` قبل STEP20. |
+| **آخر إجراء توثيقي اكتمل** | **DOC-CM1 Entry213** كتاب v3.3 مثبت؛ **DOC-POLL-20260924-01 Entry214 PREPARED**: الفصل §5.18 يراجع منسق polling واختباره، ونتيجة حفظه/آخر HEAD تُؤخذ من آخر Entry RESULT بعد readback. هذا المسار توثيقي فقط ولا يغيّر نتيجة MIG-LIVE-01. |
 | **الخطوة الجارية لحظة تحرير الصفحة** | **STEP20 COMMITTED_VERIFIED Entry209** بوابة الاستعادة §6.1؛ **MIG-LIVE-01 Entry211**: هوية Google metadata verified؛ تنفيذ Apps Script فحص المصدر/المرآة `BLOCKED` حتى تأكيد وجود الدالة وفترة هدوء عمل. آخر Journal/Handoff يتقدمان على هذه الصفحة عند أي كتابة متزامنة. |
 | **الخطوة التالية المحددة** | تحقق read-only من وجود الدالة `trendosD1TargetedRecoveryPreflightReadOnly20260919` في Apps Script الأصلي ووقت خلو النظام من إنشاء أوردرات حقيقية؛ لا تنفّذ Run قبل الاثنين، ولا تعتبر موافقة الفحص تصريحًا بالمزامنة/SQL أو تغيير الكتابة. مسار Customer Manager المنفصل يعمل على نفس GitHub branch وله Entry210 PREPARED مستقلة؛ لا تنسخ نتائجه أو تُلغها بسبب هذه الخطوة. |
 | **حالة الإنتاج — دليل مؤرخ لا تحديث جديد** | آخر دليل صاحب المشروع المستعمل هنا **23 سبتمبر 2026**: Google Sheets/Apps Script مصدر الأوردر الحقيقي وترقيمه، ومرآة D1 الإنتاجية لتابَي `الأوردرات` و`بنود الأوردرات` لم تثبت استعادتها؛ مصير R5 الأخير والكتّاب المتنافسين والنسخة المنشورة الدقيقة غير محسومة. لا SQL/Sync/Deploy/Trigger/R4/R5/Create بناءً على تعليمات الكتاب. |
@@ -697,6 +697,32 @@ Customer Manager UI -> customer-manager-v1.js api(op) -> fetch GET URL query
 
 **Runbook موظف IT عند `UNKNOWN_SEND_COMMIT`:** تجميد إعادة الإرسال، تثبيت المصدر/الـDeployment والـroute الحي أولًا، مقارنة دليل Meta والـGoogle ledger بطريقة مأذونة ومنقحة من بيانات العملاء، وتسجيل PASS/UNKNOWN/FAIL دون إنشاء رسالة جديدة. أي تعديل على طريقة الطلب GET/POST أو مخطط الخصوصية أو dedupe يحتاج تذكرة واختبارات منفصلة وموافقة؛ لم يحدث أي تنفيذ في DOC-CM1. **التغطية الحالية M→P تخص ملف الواجهة `customer-manager-v1.js` فقط؛ الملفات السياقية لم تُعتمد أو تُرقَّ تلقائيًا.**
 
+### 5.18 منسّق تحديث الشاشات — متى يُسقط طلب قراءة ومتى يشارك طلبًا جاريًا؟ DOC-POLL-20260924-01
+
+**النطاق المثبت:** تمت قراءة النص الكامل لـ[`trendos-poll-coordinator-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-poll-coordinator-v1.js) (Git blob `c5245c62e9af7eb29a480b91cce45f23044f6e6d`، 2233 byte) والنص الكامل لاختبار [`tests/trendos_polling_coalescing_v1.test.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_polling_coalescing_v1.test.mjs) (blob `d22482c5d2d79cd025469b701e534b36c434f2bf`، 3572 byte)، وفُحصت مواقع استدعائه في `config.js` و`operations-hub-v1.js` و`employee-manager-strips-v2.js` و`press-control-v1.js` و`customer-feedback-v1.js` فقط. **مراجعة Static نطاقية للملفين، ليست تحليلًا كاملًا لكل الوحدات المرتبطة أو دليلًا على النسخة المنشورة أو اختبارًا منفذًا الآن.**
+
+```text
+config.js -> dynamic-load trendos-poll-coordinator-v1.js
+  caller -> TrendPollCoordinatorV1.run(key, task, options)
+       hidden + !allowHidden ? {skipped:true,reason:'hidden'}
+       already inFlight for SAME key ? return same promise (coalesced)
+       !force + elapsed from lastStartedAt < minIntervalMs ? skipped:min-interval
+       else execute task; record start/finish/error; clear inFlight
+  stats(key?) -> counters / timing / last error (diagnostics, not backend parity)
+```
+
+**العقد الفعلي:** خريطة `Map` واحدة على مستوى صفحة المتصفح؛ كل key له `inFlight`, `lastStartedAt`, `lastCompletedAt`, `lastError` وعدادات `skippedHidden/skippedFresh/coalesced`. الترتيب مهم: منع الخلفية يحدث **قبل** فحص `inFlight`، فتعود الشاشة المخفية بنتيجة skipped حتى لو توجد Promise قديمة لنفس المفتاح؛ `force` يتجاوز **فاصل الوقت فقط**، ولا يتجاوز `hidden` ما لم تضبط `allowHidden:true`، ولا يصنع طلبًا ثانيًا طالما نفس key قيد التنفيذ. فاصل التحديث محسوب من **بداية** الطلب السابق وليس اكتماله. `stats` تعرض عدادات متصفح محلية وليس دليل freshness أو تطابق Google مع D1. الملفات ليست trigger خلفي أو قارئ بيانات بحد ذاتها؛ `task` الممرّرة هي التي تحدد إن كان المسار قراءة أو كتابة.
+
+| الاستدعاء/الدليل | دوره وما لا يثبته |
+|---|---|
+| [`config.js:139–141`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/config.js#L139-L141)، [`operations-hub-v1.js:14–17`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/operations-hub-v1.js#L14-L17) | التحميل الديناميكي من `config.js` ومحاولة Operations Hub تحميل بديل إن لم يوجد object/loader؛ ترتيب تحميل JavaScript في الصفحة وظهور module فعليًا يحتاجان اختبار متصفح/نسخة منشورة منفصلًا؛ وجود مسار التحميل ليس دليلاً على نجاحه عند جميع العملاء. |
+| [`employee-manager-strips-v2.js:113–130`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/employee-manager-strips-v2.js#L113-L130) | مراجعة callsite فقط: min interval للموظف 45 ثانية، hidden skip، key `employee-manager`، واستدعاء force بعد عملية كتابة. `force` لا يضمن refresh إذا same-key Promise ما زالت جارية أو الصفحة مخفية؛ لذلك لا تعتبر تحديث الشاشة دليلًا على نجاح عملية الكتابة أو زوال D1 staleness. |
+| [`press-control-v1.js:46–50`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/press-control-v1.js#L46-L50) | callsite `press-status` وmin 90 ثانية والتحقق من عدم ظهور الصفحة/الانشغال. هذه قراءة حالة شاشة وليست تصريح تشغيل مكبس أو اعتماد بيانات Production الحية. |
+| [`customer-feedback-v1.js:9–21`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/customer-feedback-v1.js#L9-L21) | `MIN_SCAN_MS=8min` وlocal busy/hidden gate، **لكن scan قد يغيّر حالة Backend**؛ لذلك لا يمر من الـgeneric read coordinator. مجرد GET أو `scan` في اسم action لا يعني read-only؛ راجع عقد Backend قبل تنفيذ أي probe. |
+| [`tests/trendos_polling_coalescing_v1.test.mjs:1`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_polling_coalescing_v1.test.mjs#L1) | الاختبار يفحص وجود/غياب **أنماط نصية regex** في coordinator/config/callers؛ لا يُحاكي جدولة حقيقية أو تزامن Promise/انقطاع الشبكة ولا يثبت فعلية module load أو صحة production data. Assertions عن `MATBAGY_EDGE_READ_V1_ENABLED`/old loader تتعلق باسم Feature قديم، ولا تعني أن `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED` الحالي OFF؛ راجع `config.js` و§5.7 وتاريخ النشر. لم يُشغَّل test في هذه الدفعة. |
+
+**Runbook لموظف IT عند شاشة «بتحدث كتير/بتعرض حالة قديمة»:** حدّد اسم الشاشة والـkey وعمر القراءة والـAPI الفعلي، وافصل local skipped/coalesced عن HTTP failure وعن D1 mirror stale؛ افحص نتيجة الكتابة الحقيقية عند مصدرها قبل إعادة إرسالها؛ لا تُفعل forced polling أو تُعطّل hidden-tab guard لمعالجة اختلاف Google/D1. فحص prod ممنوع من مجرد كتابة هذا الفصل، ويتطلب موافقة ونسخة deployed وشروط الخصوصية. **Open gaps:** لم يُراجع كل callsite/الموديولات التابعة/اختبارات browser runtime، ولم يُثبت تطابق هذا blob مع `main` المنشور أو DOM في أجهزة الموظفين.
+
 ## 6. مزامنة D1 والحادثة الحالية والقيود الحاسمة
 
 **حدود العمل المقصود عند آخر توقف:** إعادة مرآة **تابين حاليين فقط**: `الأوردرات` و`بنود الأوردرات`. لا تشمل تلقائيًا `أرشيف الأوردرات` أو `أرشيف بنود الأوردرات` أو إثراء الأقسام أو نقل Cloud CREATE.
@@ -1076,8 +1102,8 @@ Customer Manager UI -> customer-manager-v1.js api(op) -> fetch GET URL query
 
 | نوع التغطية | عدد الملفات عند `05ca9c9329ae` | ماذا يثبت؟ |
 |---|---:|---|
-| `M:METADATA_ONLY` | **1103** | اسم/حجم/SHA فقط؛ ليس مراجعة تنفيذ/تبعيات أو فهم الكود. |
-| `P:SCOPED_REVIEW` | **54** | جرى فحص نطاق محدد مرتبط بفصل/واقعة؛ ليس اختبارًا شاملًا لكل الدوال. حالة P نُقلت فقط عندما تطابقت `path+blob SHA` القديمة. |
+| `M:METADATA_ONLY` | **1101** | اسم/حجم/SHA فقط؛ ليس مراجعة تنفيذ/تبعيات أو فهم الكود. |
+| `P:SCOPED_REVIEW` | **56** | جرى فحص نطاق محدد مرتبط بفصل/واقعة؛ ليس اختبارًا شاملًا لكل الدوال. حالة P نُقلت فقط عندما تطابقت `path+blob SHA` القديمة. |
 | `A:ORIGINAL_ARCHIVE` | **11** | أصل وثيقة تاريخية محفوظ، ولا يحل محل المصدر التنفيذي الحالي. |
 | `L:REDIRECT` | **11** | وصلة توافق لمسار وثيقة قديمة، لا تُحذف قبل فحص مراجعها. |
 | `LIVE:EDITABLE` | **6** | مدخل/كتاب/Journal/Handoff نشط، لا يؤرشف لمجرد قراءته. تحديث SHA يتطلب مراجعة رأس الملف والـHEAD. |
@@ -2228,7 +2254,7 @@ Customer Manager UI -> customer-manager-v1.js api(op) -> fetch GET URL query
 | [`tests/trendos_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_integrity_v1.test.js) | TEST | 8902 | `204e97f9339dd6f44896dbd432593d5c87c3db9b` | M:METADATA_ONLY |
 | [`tests/trendos_invoice_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_invoice_integrity_v1.test.js) | TEST | 12959 | `8c705925e768f6f93718561e5ebc687034384fc0` | M:METADATA_ONLY |
 | [`tests/trendos_order_line_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_order_line_integrity_v1.test.js) | TEST | 6143 | `1b0370b8c579674178157f1d2efc50a2c1e39760` | M:METADATA_ONLY |
-| [`tests/trendos_polling_coalescing_v1.test.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_polling_coalescing_v1.test.mjs) | TEST | 3572 | `d22482c5d2d79cd025469b701e534b36c434f2bf` | M:METADATA_ONLY |
+| [`tests/trendos_polling_coalescing_v1.test.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_polling_coalescing_v1.test.mjs) | TEST | 3572 | `d22482c5d2d79cd025469b701e534b36c434f2bf` | P:SCOPED_STATIC_REVIEW §5.18 DOC-POLL-20260924-01 (full test text read; test NOT run) |
 | [`tests/trendos_predeploy_package_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_predeploy_package_v1.test.js) | TEST | 3408 | `5eb3a59793f53065b191e1b1164d4a642ba693cc` | M:METADATA_ONLY |
 | [`tests/trendos_press_integrity_v1.test.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_press_integrity_v1.test.js) | TEST | 9579 | `fed827f0976589bd926c34d3e67f0830eab56437` | M:METADATA_ONLY |
 | [`tests/trendos_resume_no_autorefresh_v1.test.mjs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/tests/trendos_resume_no_autorefresh_v1.test.mjs) | TEST | 2158 | `d2ec9564816ef430e2b7b0ca10df6e87c334146f` | M:METADATA_ONLY |
@@ -2259,7 +2285,7 @@ Customer Manager UI -> customer-manager-v1.js api(op) -> fetch GET URL query
 | [`trendos-integrity-v1.package.json`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-integrity-v1.package.json) | CODE_OR_CONFIG | 2893 | `e1ac0727607ca507e799fb66662099b0575f0c6c` | M:METADATA_ONLY |
 | [`trendos-invoice-integrity-v1.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-invoice-integrity-v1.gs) | CODE_OR_CONFIG | 28485 | `18dd8783bbf7bf14531bcf7bf7d870d938d82473` | M:METADATA_ONLY |
 | [`trendos-order-line-integrity-v1.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-order-line-integrity-v1.gs) | CODE_OR_CONFIG | 26056 | `e93155c0a0cdef09ffaf5a0bfdf62bba202ff436` | P:SCOPED_REVIEW |
-| [`trendos-poll-coordinator-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-poll-coordinator-v1.js) | CODE_OR_CONFIG | 2233 | `c5245c62e9af7eb29a480b91cce45f23044f6e6d` | M:METADATA_ONLY |
+| [`trendos-poll-coordinator-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-poll-coordinator-v1.js) | CODE_OR_CONFIG | 2233 | `c5245c62e9af7eb29a480b91cce45f23044f6e6d` | P:SCOPED_STATIC_REVIEW §5.18 DOC-POLL-20260924-01 (full source read; no live proof) |
 | [`trendos-press-integrity-v1.gs`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-press-integrity-v1.gs) | CODE_OR_CONFIG | 24866 | `e63473445a338179ac50f39cb7d3b82424e30af3` | M:METADATA_ONLY |
 | [`trendos-resume-no-autorefresh-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-resume-no-autorefresh-v1.js) | CODE_OR_CONFIG | 2251 | `6b906e25b77c5f933a96a257a3abc11a0fb0ef0c` | M:METADATA_ONLY |
 | [`trendos-return-traffic-quiet-v1.js`](https://github.com/fawakhry/TrendOs/blob/05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b/trendos-return-traffic-quiet-v1.js) | CODE_OR_CONFIG | 2844 | `f75258a481dbb62c101189204caf6a3561432c74` | M:METADATA_ONLY |
@@ -2320,5 +2346,6 @@ Customer Manager UI -> customer-manager-v1.js api(op) -> fetch GET URL query
 | 2026-09-24 | 3.2.1-DRAFT | Entry211: فحص metadata مباشر للشيت الأصلي وتوثيق أن rowCount المحجوز ليس آخر صف فعلي؛ مراجعة نص helper Lock/GET؛ محاولة فحص Apps Script UI توقفت قبل بدء المتصفح بسبب نفاد رصيد الأداة، لا تشغيل للدالة | لا rows/PII/SQL/Apps Script Run/Sync؛ يلزم تثبيت الدالة وهدوء العمل قبل فحص القفل، وموافقة منفصلة لاستعادة D1. |
 
 | 2026-09-24 | 3.3-DRAFT | DOC-CM1: قراءة الواجهة القديمة لـCustomer Manager بالكامل وربط المصدر المستقل/حارس الإرسال والاختبار الوهمي؛ تسجيل مخاطر GET مع token والكتابة داخل Inbox/Thread واحتمال تكرار send والفرق مع مصدر merged؛ ترقية صف frontend واحد M→P | GitHub Docs فقط بالتوازي مع نقل D1؛ لا تشغيل Meta/Google/Cloudflare/CI أو جمع محتوى عملاء، ولا شهادة deployed-source parity. |
+| 2026-09-24 | 3.4-DRAFT | DOC-POLL: قراءة منسق polling واختبار regex كاملَين وفحص مواقع الاستدعاء ثم توثيق ترتيب hidden/inFlight/minInterval والفارق بين Refresh وكتابة Backend؛ ترقيتان M→P في لقطة §11 المثبتة | لا تشغيل اختبار/متصفح/إنتاج، ولا تغير في خط MIR-LIVE/Google، والتغطية 1101 ملفًا metadata-only عند اللقطة التاريخية؛ راجع أحدث RESULT/HEAD لتأكيد حفظ هذه النسخة. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
