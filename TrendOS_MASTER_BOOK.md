@@ -4,6 +4,8 @@
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
+**تحديث MIG Entry320 (24 سبتمبر):** صورة المالك أثبتت محتوى الصفوف الوهمية الأربع مباشرةً (`values/display/formulas`) على TEST؛ الاستعلام المركب §6.22 فشل بالواجهة، وليس دليلًا على تلف البيانات. المتبقي قراءة حقول catalog فقط، ولا packed-CAS/SQL write بعد؛ راجع §6.23.
+
 **تحديث MIG Entry318 (24 سبتمبر):** Stage1/2 الوهميتان PASS عددًا؛ أُعد SELECT واحد للقراءة فقط يتحقق من محتوى الأربع صفوف وهوية catalog قبل اختبار packed-CAS. لا SQL كتابة أو TEST Worker deploy؛ انظر §6.22.
 
 **تحديث MIG Entry317 (24 سبتمبر):** فحص المالك بالقراءة فقط على نفس قاعدة TEST أكد Stage2 `2/4/0/2/2`؛ تعدّ Stage2 PASS من حيث العدد والتوزيع، وأصبحت حالة UNKNOWN التاريخية في §6.20 محسومة. لا تعيد INSERT؛ packed-CAS الحقيقية لم تُنفّذ، ومرآة PROD لم تُستعد. انظر §6.21.
@@ -1602,6 +1604,13 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 **خطوة التأهيل الجديدة الوحيدة:** الملف [exact TEST fixture read-only gate](cloudflare-d1/t12-preview/t12-existing-test-mirror-exact-fixture-readonly-20260924.sql) عبارة SELECT واحدة تتحقق، بالإضافة إلى الأعداد، من `sheet_id` وheader/metadata المصطنعة وتطابق محتوى `values_json/display_json/formulas_json` للأربعة صفوف بالضبط ومن علامة TEST، دون عرض بيانات عملاء أو تعديل أي جدول. يجب اختيار قاعدة `trendos-t12-synthetic-test` UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` يدويًا في Console؛ علامة TEST داخل SQL لا تحل محل اختيار القاعدة. نتيجة `PASS_EXACT_SYNTHETIC_BASELINE_READ_ONLY` تؤهل **هوية fixture وقت القراءة فقط** ولا تختبر CAS أو writer fence أو المعاملة أو الحصة. أي `STOP_BASELINE_MISMATCH_NO_WRITE` أو خطأ: توقف ومصالحة قراءة فقط دون إعادة Stage1/2.
 
 **خطة الاختبار التالي غير المصرّح بتنفيذه بعد:** بناء harness معزول موجّه إلى Binding TEST المثبت فقط، default OFF، باستخدام prepared statements لمعاملة واحدة `DB.batch` عبر التابين؛ اختبار تعارض preimage للصف غير المرشح مع إثبات rollback ثم سيناريو النجاح على بيانات مختلقة، read-only postflight؛ إذا ضاعت الاستجابة فـread-only reconcile ولا retry تلقائي. فحص هوية Binding ونسخة Worker وسقف الاستعلامات/الحمولة وغياب الكتّاب المنافسين يحتاج إثباتًا وموافقة محددة قبل أي TEST Worker modification/Deploy/enable أو SQL write. لا مساس بـ`trendos-main` أو Google/Apps Script/Properties/Triggers/R4/R5/V2 أو جداول `t12_synth_*` و`_cf_KV`، ولا استعادة لمرآة PROD أو نقل CREATE.
+
+
+### 6.23 MIG-T12-FOUR-ROW-CONTENT-READBACK — محتوى الصفوف الوهمية الأربع مؤكد من صورة المالك (24 سبتمبر 2026 / Entry320)
+
+الصورة الأحدث من المالك داخل Console قاعدة TEST `trendos-t12-synthetic-test` ذات UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` تعرض نجاح الاستعلام البسيط `SELECT sheet_name,row_number,values_json,display_json,formulas_json FROM sheet_rows ORDER BY sheet_name,row_number`: صفّ عنوان `["synthetic_header"]` وصف `["SYNTHETIC TEST MIRROR OLD ORDER"]` لتاب «الأوردرات»، وصف عنوان مماثل وصف `["SYNTHETIC TEST MIRROR OLD LINE"]` لتاب «بنود الأوردرات». كل `display_json` مطابق لـ`values_json` المقابل، و`formulas_json='[""]'` لكل صف في الصورة. إذن **أربع صور الصفوف الوهمية MATCH وقت القراءة**؛ العدد والتوزيع `2/4/0/2/2` ثابتان سابقًا في §6.21.
+
+الاستعلام المُركب ذو `WITH ... SELECT CASE` المُعدّ في §6.22 واجه رسالة واجهة Cloudflare `The request is malformed: Requests without any query are not supported`؛ لا يوجد دليل على سبب الخطأ ولا يُسجل PASS لذلك الاستعلام. استعلام `SELECT 1 AS console_check` نجح بقيمة `1`، والـSELECT البسيط أعلاه نجح، فلا دليل على تلف البيانات. **لم تُتحقق بعد حقول صفَّي `sheet_catalog` نفسها من قراءة محتواها المباشر**، ولا معنى لإعادة الاختبارات السابقة. الخطوة التالية الوحيدة SELECT بسيط للحقول `sheet_name,sheet_id,headers_json,source_last_row,source_last_col,row_count,status,note` من `sheet_catalog` على TEST نفسها، ومقابلة صفَّي IDs `SYNTHETIC_TEST_MIRROR_9001/9002` وheaders وrow_count مع ملف Stage1 الأصلي. لا SQL كتابة/Worker Deploy، ولا D1 packed-CAS على TEST حتى تُعد معاملة ذرية منفصلة وتُعتمد؛ مرآة PROD NOT_RESTORED وGoogle مسؤول عن CREATE والترقيم.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
