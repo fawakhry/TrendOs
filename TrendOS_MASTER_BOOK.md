@@ -4,6 +4,8 @@
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
+**تحديث MIG Entry316 (24 سبتمبر):** أرسل المالك أمر Stage2 المحروس لبيانات وهمية وأفاد برسالة Cloudflare `This query returned no data`؛ لا دليل عدد صفوف بعد، لذا Stage2 EFFECT UNKNOWN، لا تُكرر INSERT؛ فقط SELECT الخماسي 2/4/0/2/2 من نفس TEST UUID. انظر §6.20.
+
 **تحديث MIG Entry315 (24 سبتمبر):** صورة المالك الأحدث من نفس قاعدة TEST UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` تؤكد COUNT مستقلًا `sheet_catalog/sheet_rows/sheet_migration_runs = 2/0/0`. بذلك Stage1 **PASS بفحص عدد الصفوف في صورة المالك**، وليس مجرد رسالة `This query returned no data` القديمة. Stage2 (4 صفوف وهمية) لم تُنفذ بعد؛ لا تكرر Stage1. راجع §6.19.
 
 **تحديث MIG Entry310 (24 سبتمبر):** صورة المالك تُظهر إرسال Stage1 INSERT المحروس على TEST UUID الصحيح مع رسالة `This query returned no data`؛ **عدد الصفوف المتأثر مجهول حتى فحص COUNT بالقراءة فقط**. لا تُكرر INSERT ولا تنتقل إلى Stage2؛ انظر §6.18.
@@ -1577,6 +1579,11 @@ Apps Script candidate one-record writer:
 ### 6.19 MIG-T12-TEST-MIRROR-STAGE1-COUNT-CONFIRMED — فحص المالك بعد Stage1 (24 سبتمبر 2026 / Entry315)
 
 Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact TEST resource trendos-t12-synthetic-test and URL UUID 54a3c05e-cde9-4979-814f-d40f941edcd5. Independently executed owner SELECT counts display catalog_rows=2, mirror_rows=0, migration_run_rows=0. The earlier guarded Stage1 INSERT in Entry310 therefore has its expected postflight 2/0/0 at this observation; Stage1 TEST FAKE BASELINE CATALOG=PASS_BY_OWNER_SCREENSHOT. Screenshot proves aggregate counts, not byte-level identity/headers of both inserted records, concurrent writer absence, or any completed mirror DB.batch/packed-CAS. No Stage2 INSERT appears in the screenshot. استعلام المالك للعدّ الثلاثي طابق **2/0/0** بالضبط على قاعدة TEST المحددة، فيُستبدل وصف `Stage1 effect UNKNOWN` الوارد في §6.18 بوصف **Stage1 COUNT READBACK PASS** الآن؛ يبقى §6.18 وصفًا تاريخيًا صحيحًا قبل وصول الصورة الثانية. النتائج لا تثبت محتوى هوية الصفين على مستوى الحقول أو نجاح Stage2/packed-CAS. **الخطوة التالية منفصلة بعد موافقة مالك صريحة:** إدخال أربعة صفوف مرآة مختلقة باستخدام Stage2 المحروس الموجود في الملف الأصلي `cloudflare-d1/t12-preview/t12-existing-test-mirror-two-tab-fake-baseline-20260924.sql` على UUID TEST نفسه فقط؛ بعد التنفيذ القراءة فقط `2/4/0` و`2/2` بحسب التابين. لا إعادة Stage1 ولا إعادة اختبارات SQLite أو CREATE جدول/فهرس قديم. إذا رد INSERT غامض أو العدد غير مطابق: STOP + SELECT-only reconcile، بلا retry تلقائي. لا SQL على `trendos-main` ولا بيانات عميل حقيقية/Google/Apps Script/Worker/Deploy/R4/R5/V2؛ مرآة PROD NOT_RESTORED وسلطة CREATE/الترقيم في Google.
+
+
+### 6.20 MIG-T12-STAGE2-OWNER-INSERT-SUBMITTED — إرسال INSERT الثاني دون إثبات عدد الصفوف (24 سبتمبر 2026 / Entry316)
+
+المالك وافق صراحة على Stage2 فقط، ثم أرسل نص أمر `INSERT INTO sheet_rows ... SELECT` المحروس المطابق للمصدر الأصلي ببيانات وهمية، ونتيجة واجهة Cloudflare `This query returned no data`. آخر إثبات سابق لقاعدة TEST UUID `54a3c05e-cde9-4979-814f-d40f941edcd5` هو قراءة Stage1 `2/0/0` في Entry315/§6.19، لكن الرسالة الحالية وحدها لا تثبت أن Stage2 أضافت 4 صفوف؛ قد ينتج INSERT SELECT صفر صفوف بسبب شروط الحراسة، وصورة ما بعد التنفيذ غير متاحة بعد. **STAGE2_EFFECT_UNKNOWN، وليس PASS ولا FAIL**. لا تكرر INSERT مهما كانت الاستجابة. الخطوة التالية الوحيدة استعلام SELECT القراءة فقط من الملف نفسه على قاعدة TEST الصحيحة لحساب `catalog_rows,mirror_rows,migration_run_rows,fake_order_tab_rows,fake_line_tab_rows`، المطلوب `2/4/0/2/2`. أي اختلاف أو خطأ يستدعي STOP ومصالحة SELECT-only قبل أي إجراء آخر. هذا سجل إثبات من كلام المالك وليس تنفيذ SQL من المساعد؛ لا packed-CAS/DB.batch TEST بعد، ومرآة `trendos-main` الإنتاجية NOT_RESTORED وسلطة CREATE/الترقيم باقية في Google Sheets/Apps Script. احفظ §5.45+ وجرد §11 والتاريخ كاملًا.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
