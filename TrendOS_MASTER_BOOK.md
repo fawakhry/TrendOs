@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.12.1-DRAFT — تشخيص توقف التشغيل المباشر وقيود Apps Script/D1؛ حفظ مراجعة جابر v3.12؛ الإنتاج لم تثبت عودته** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.12.2-DRAFT — تحقق إضافي من إتاحة واجهة الدخول وإعدادات API المنشورة؛ سبب توقف أوردرات الموظفين ما زال غير محسوم** · تاريخ التحديث: 2026-09-24 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -1078,6 +1078,9 @@ Separately implemented idempotency helper, NOT the route above:
 **استمرار النشاط يدويًا أثناء الحادثة:** سجّل استقبال الطلبات الجديدة خارج TrendOS تحت مراجع `TEMP` تميّزها بوضوح عن Order ID الرسمي، واحتفظ بأصل المستند ومكانه، وقارن كل طلب بمعاملات Google الأصلية المؤكدة قبل الإدخال لاحقاً. لا تعدّل تابات الأوردرات مباشرة ولا تصدر أرقاماً رسمية يدوياً خارج آلية الترقيم المعتمدة.
 
 **النتيجة حتى هذه القراءة:** `LIVE_TRIAGE_PARTIAL / ROOT_CAUSE_UNKNOWN / APPS_SCRIPT_LIGHT_PINGS_PASS / SHEET_DEPENDENT_HEALTH_TIMEOUT / CLOUD_WRITE_ACCEPTING_TRUE / PROD_RESTORATION_NOT_VERIFIED`. الخطوة التي تتطلب دليلًا جديدًا هي فحص طلب الواجهة الفاشل أو سجل تنفيذ Apps Script المرتبط به؛ من دون ذلك لا يوجد تغيير إنتاجي محدد يمكن اختباره/التراجع عنه بأمان. هذا المسار مستقل عن تحسين حارس `packed-CAS` المعزول بالفصول §6.5–6.6.
+
+
+**تحقق ويب إضافي لنفس الحادثة (READ_ONLY):** GET عام على `https://fawakhry.github.io/TrendOs/` أعاد صفحة Portal حقيقية تتضمن تسجيل دخول الموظف والعميل (الصفحة العامة فقط، لا تسجيل دخول أو جلسة أو أوردر). GET عام مباشر على `/TrendOs/config.js` المنشور أظهر `WEB_APP_URL` الذي اختُبر أعلاه (وليس مجرد كود على فرع GitHub) وميزة Edge Orders Read التي تعيد fallback إلى Apps Script عند الفشل. هذا يستبعد انقطاع استضافة صفحة الدخول العامة **وقت الفحص فقط**؛ ولا يثبت عمل أي جلسة موظف/طلب getRowsPageV1931/عملية حفظ. نظراً لأن Apps Script lightweight pings نجحت بينما spreadsheet-dependent health timed out، أول دليل مطلوب لعزل السبب هو `Network` للطلب الفاشل الفعلي مع `HTTP status,action,time` أو نتيجة `Executions` المطابقة، بلا Token أو PII. لا تفتح جزءاً حساساً من production بحساب مجهول أو تشغّل create dummy لتجربة الوضع.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
@@ -2682,4 +2685,4 @@ Separately implemented idempotency helper, NOT the route above:
 
 | 2026-09-24 | 3.12-DRAFT | DOC-GABER-CONTROL-PURE: فصل §5.26 لمحرك Pure للتكلفة وتصنيف التالف واتزان العهدة، وربط فجوتي explicit STANDARD مع سبب abnormal وblank→zero بمشروع §3.1؛ ترقية محرك القرار واختباره فقط M→P | SOURCE_FULL_READ/TEST_TEXT_READ_NOT_RUN؛ التصنيف ومصدر التكلفة/الـflags الفعلية تحتاج اختبار backend ورخصة مستقلة، لا Apps Script/Google/Task/Stock/CI/D1 أو كود إنتاج. |
 
-| 2026-09-24 | 3.12.1-DRAFT | INCIDENT-SERVICE-RESTORE: رصد GET حي محدود يميز Edge health / Cloud Write قبول الكتابة / Apps Script ping مقابل health timeout، وقراءة metadata للشيت؛ إضافة §6.8 وأولوية عزل طلب الإنتاج الفاشل دون المساس بإضافات Gaber v3.12 | هذا فحص READ-ONLY جزئي، لا إثبات سبب التعطل أو عودة إنشاء الأوردرات أو استعادة مرآة D1؛ لم تحدث SQL/POST/تغييرات Cloudflare/Google/Apps Script/Properties/Triggers/Deploy. |\n\n**قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
+| 2026-09-24 | 3.12.1-DRAFT | INCIDENT-SERVICE-RESTORE: رصد GET حي محدود يميز Edge health / Cloud Write قبول الكتابة / Apps Script ping مقابل health timeout، وقراءة metadata للشيت؛ إضافة §6.8 وأولوية عزل طلب الإنتاج الفاشل دون المساس بإضافات Gaber v3.12 | هذا فحص READ-ONLY جزئي، لا إثبات سبب التعطل أو عودة إنشاء الأوردرات أو استعادة مرآة D1؛ لم تحدث SQL/POST/تغييرات Cloudflare/Google/Apps Script/Properties/Triggers/Deploy. |\n\n| 2026-09-24 | 3.12.2-DRAFT | INCIDENT-SERVICE-RESTORE follow-up: فحص GET مباشر للـPortal العام وconfig.js المنشور؛ صفحة الدخول تستجيب وإعداد API المنشور مطابق للمسار المُختبر؛ تأكيد أن المشكلة داخل العمليات الموثقة بعد الواجهة لا يمكن عزله بلا خطأ HTTP للطلب الفاشل | لا تسجيل دخول أو إثبات Create/Orders، لا تغيير تشغيل/سورس إنتاج؛ المرآة غير مستعادة وسبب توقف الشغل لم يُحسم. |\n\n**قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
