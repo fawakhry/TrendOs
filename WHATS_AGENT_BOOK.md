@@ -1008,3 +1008,364 @@ META:
 5. اختبار inbound ثم outbound بعملية واحدة فقط.
 
 **لا يتم إرسال أي WhatsApp production test قبل حل Meta association وتأكيد Runtime composition.**
+
+
+---
+
+## 34) قفل النطاق الحالي — واتس ايجنت فقط
+
+بتوجيه مباشر من صاحب المشروع بتاريخ 2026-09-26:
+
+> **العمل الحالي يخص مرحلة واتس ايجنت فقط، والتعديل المسموح به داخل GitHub هو هذا الكتاب فقط: `WHATS_AGENT_BOOK.md`.**
+
+حتى يصدر توجيه جديد صريح:
+
+- لا تعديل على أي ملف كود.
+- لا تعديل على أي Branch آخر.
+- لا Deploy.
+- لا تعديل Apps Script.
+- لا تعديل Cloudflare.
+- لا تعديل Meta assets.
+- لا تعديل WABA أو Phone Number.
+- لا تغيير Secrets أو Script Properties.
+- لا إنشاء PR أو Merge.
+- لا تنفيذ Migration أو Deregister.
+- لا إرسال WhatsApp production test.
+- لا تغيير أي شيء خارج هذا الكتاب.
+
+أي معلومة جديدة تخص واتس ايجنت يتم تسجيلها هنا أولًا.
+
+---
+
+## 35) خطة استكمال مرحلة واتس ايجنت
+
+هذه هي الخطة الرسمية من آخر نقطة توقف. لا يتم القفز لمرحلة لاحقة قبل إغلاق المرحلة السابقة بدليل واضح.
+
+### WA-01 — تثبيت هوية حساب واتساب الحالي
+
+**الحالة: PASS / موثق من Meta Support**
+
+المثبت حاليًا:
+
+```text
+Business: المطبعجي
+Current WABA: 834859482664148
+Phone: ending 2077
+WABA status: ACTIVE
+```
+
+ملاحظة:
+
+`26751382591203706` يظل WABA تاريخيًا فقط ولا يستخدم كمرجع حالي إلا إذا ظهر دليل جديد.
+
+---
+
+### WA-02 — تثبيت خطأ الـOnboarding الحقيقي
+
+**الحالة: PASS / موثق من Meta Support**
+
+الخطأ:
+
+`INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA`
+
+المعنى التشخيصي الحالي:
+
+- الرقم موجود أصلًا على WhatsApp Business App.
+- محاولة onboarding الحالية لا تكتمل.
+- لا يتم تحويل هذا التشخيص تلقائيًا إلى قرار Migration.
+- المطلوب ما زال Coexistence.
+
+---
+
+### WA-03 — تثبيت حالة App Association
+
+**الحالة: PARTIAL**
+
+المثبت:
+
+- App موجود: `TrendOS Connect`
+- App ID: `1774246503594854`
+- Meta onboarding backend أظهر:
+  `App Created = NOT_STARTED`
+
+غير المثبت حتى الآن:
+
+- هل الـWABA الحالي `834859482664148` مربوط فعليًا بـTrendOS Connect داخل مسار WhatsApp الحالي؟
+- هل الـassociation ناقص في backend أم أن onboarding الجاري هو المسار الخطأ؟
+- هل Coexistence eligibility متاحة لهذا الحساب/الرقم في وضعه الحالي؟
+
+**بوابة الإغلاق:**
+لا تعتبر WA-03 مغلقة إلا إذا ظهر دليل واضح من Meta أو شاشة إعدادات موثقة يحدد App ↔ WABA association.
+
+---
+
+### WA-04 — حسم مسار Coexistence
+
+**الحالة: BLOCKED BY WA-03**
+
+الهدف:
+
+```text
+WhatsApp Business App
++
+نفس الرقم الحالي
++
+Cloud API / TrendOS
+=
+Coexistence
+```
+
+الممنوع خلال هذه المرحلة:
+
+- Migration عادي.
+- Deregister.
+- Delete number.
+- Replace number.
+- إنشاء WABA بديل لمجرد تجاوز الخطأ.
+
+**بوابة الإغلاق:**
+دليل أن الرقم مؤهل لمسار Coexistence الصحيح أو توثيق رسمي/دعم Meta يحدد سبب عدم الأهلية.
+
+---
+
+### WA-05 — تثبيت Meta onboarding بنجاح
+
+**الحالة: NOT STARTED**
+
+يبدأ فقط بعد إغلاق WA-03 وWA-04.
+
+معيار النجاح:
+
+- TrendOS Connect معروف لدى onboarding backend.
+- WABA الصحيح ظاهر.
+- Phone asset الصحيح ظاهر.
+- لا يظهر `INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA` في المسار الصحيح.
+- لا يوجد `Onboarding failure`.
+- لا يتم فقد WhatsApp Business App نتيجة الخطوة.
+
+---
+
+### WA-06 — Webhook Verification
+
+**الحالة: NOT STARTED**
+
+لا يبدأ قبل نجاح Meta onboarding.
+
+المطلوب لاحقًا:
+
+- GET verification ينجح.
+- verify token موجود في Runtime بدون كشف قيمته.
+- Meta تقبل Callback URL.
+- Subscription تُثبت.
+
+معيار النجاح:
+
+```text
+Meta webhook verification = PASS
+```
+
+---
+
+### WA-07 — Inbound Message Test
+
+**الحالة: NOT STARTED**
+
+بعد WA-06:
+
+- إرسال رسالة اختبار واحدة من رقم خارجي.
+- وصول webhook مرة واحدة.
+- استخراج Meta Message ID.
+- تسجيل الرسالة مرة واحدة.
+- عدم إنشاء duplicate.
+
+معيار النجاح:
+
+```text
+1 WhatsApp message
+→ 1 webhook logical event
+→ 1 stored message
+```
+
+---
+
+### WA-08 — Customer Context Test
+
+**الحالة: NOT STARTED**
+
+بعد نجاح الاستقبال:
+
+- مطابقة رقم العميل.
+- جلب بيانات العميل.
+- جلب آخر أوردر صالح.
+- قراءة حالة الأوردر.
+- عدم اختراع بيانات عند عدم وجودها.
+
+معيار النجاح:
+
+AI/Customer Manager يرى سياق حقيقي مرتبط بالعميل الصحيح.
+
+---
+
+### WA-09 — AI Suggest فقط
+
+**الحالة: NOT STARTED**
+
+أول تشغيل للذكاء الاصطناعي يكون:
+
+**Suggestion only — بدون Auto Send**
+
+يتم اختبار:
+
+- سؤال عن حالة أوردر.
+- سؤال روتيني.
+- شكوى.
+- طلب خصم.
+- طلب تعويض.
+
+المطلوب:
+
+- الأسئلة الآمنة → اقتراح رد.
+- الشكوى/الخصم/التعويض → Manager escalation.
+- لا إرسال تلقائي في هذه المرحلة.
+
+---
+
+### WA-10 — Outbound Manual Send
+
+**الحالة: NOT STARTED**
+
+بعد نجاح Suggest:
+
+- موظف يعتمد رسالة واحدة.
+- إرسال واحد فقط.
+- الحصول على Meta Message ID.
+- تسجيل الرسالة.
+- تأكيد وصولها للموبايل الآخر.
+
+لا Auto Retry إذا كانت نتيجة الإرسال غير محسومة.
+
+---
+
+### WA-11 — Idempotency / Duplicate Test
+
+**الحالة: NOT STARTED**
+
+اختبار نفس `clientRequestId` مرتين.
+
+المطلوب:
+
+```text
+Request #1 → SEND
+Same Request #2 → DUPLICATE PREVENTED
+```
+
+ثم اختبار ambiguous result:
+
+- لا إعادة إرسال تلقائي.
+- الحالة تتوقف للمراجعة.
+
+---
+
+### WA-12 — Auto Reply Canary
+
+**الحالة: NOT STARTED**
+
+لا يبدأ إلا بعد نجاح WA-01 إلى WA-11.
+
+أول Auto Reply يكون محدودًا جدًا، مثل:
+
+- تأكيد استلام الرسالة.
+- حالة أوردر مؤكدة من النظام.
+- معلومة ثابتة موجودة في TrendOS.
+
+ممنوع في Canary:
+
+- خصومات.
+- تعويضات.
+- Refund.
+- شكاوى.
+- مواعيد غير مؤكدة.
+- أسعار غير موجودة في المصدر.
+
+---
+
+### WA-13 — Go-Live
+
+**الحالة: NOT STARTED**
+
+يتم إعلان واتس ايجنت Live فقط عند وجود أدلة تشغيل حقيقية على:
+
+- Inbound PASS.
+- Context PASS.
+- Suggest PASS.
+- Manual outbound PASS.
+- Duplicate prevention PASS.
+- Manager escalation PASS.
+- Coexistence/phone behavior PASS.
+- عدم وجود Secret في GitHub.
+- وجود rollback واضح.
+
+---
+
+## 36) ترتيب التنفيذ المختصر
+
+```text
+WA-01 PASS
+   ↓
+WA-02 PASS
+   ↓
+WA-03 App Association
+   ↓
+WA-04 Coexistence Eligibility
+   ↓
+WA-05 Meta Onboarding
+   ↓
+WA-06 Webhook Verify
+   ↓
+WA-07 Inbound Test
+   ↓
+WA-08 Customer Context
+   ↓
+WA-09 AI Suggest
+   ↓
+WA-10 Manual Send
+   ↓
+WA-11 Idempotency
+   ↓
+WA-12 Auto Reply Canary
+   ↓
+WA-13 Go-Live
+```
+
+### آخر Gate حالي
+
+المرحلة الحالية المتوقفة عندها:
+
+`WA-03 — App Association = PARTIAL`
+
+والسؤال المطلوب إغلاقه قبل أي تقدم:
+
+**هل TrendOS Connect مرتبط فعليًا بالـWABA الحالي 834859482664148 في مسار WhatsApp/Coexistence، أم أن Meta onboarding backend لا يرى هذا الربط؟**
+
+---
+
+## 37) بروتوكول تسجيل كل خطوة قادمة
+
+كل خطوة جديدة تسجل هنا بالشكل التالي:
+
+```text
+Step:
+Date:
+System:
+Action:
+Mode: READ-ONLY / WRITE
+Expected:
+Actual:
+Evidence:
+Result: PASS / FAIL / PARTIAL / BLOCKED
+Production changed?: YES / NO
+Next exact step:
+Do not repeat:
+```
+
+ولا يتم تغيير Status لأي WA gate إلا بدليل صريح.
