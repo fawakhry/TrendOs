@@ -3106,3 +3106,16 @@ Recovered the master book from the last verified non-empty blob `0441922e872da99
 ## Entry 348 — PREPARED MIG-T12-142-D1COMPAT-REMOTE-RETRY-OWNER-AUTHORIZED-20260926 / 2026-09-26 Cairo
 
 OWNER_APPROVAL=«تشغيل POST واحد للـ142 على قاعدة TEST الحالية، بدون Retry وبدون PROD.» Scope is exactly one positive POST against existing isolated TEST D1 after a fresh read-only exact `LARGE_BASELINE` preflight. No seed, no second POST, no Worker deploy, no production binding, no Google/Apps Script mutation. Any ambiguous HTTP outcome is reconciled by GET only. Prepared workflow `.github/workflows/trendos-t12-test-mirror-142-d1compat-retry-once.yml` pins worker blob `314ac2c0b47debced9a29a80275e4e7694a8c429` and D1-compatible guard blob `ca0a28aca901466094a748c0e59b681328f7808c`. Required success state is `LARGE_TARGET` with catalog=2, mirror=1480, migration=0, control=1, tabs 712/768, oldChanged=0, newChanged=11, tailRows=60 each.
+
+
+## Entry 349 — RESULT MIG-T12-142-D1COMPAT-REMOTE-RETRY-PASS-20260926 / 2026-09-26 Cairo
+
+Owner explicitly authorized exactly one POST to the current TEST database, with no retry and no PROD. Workflow run `36241360286` / job `108402352595` completed SUCCESS. Preconditions passed: exact TEST identity `trendos-t12-synthetic-test`; local contracts 8/8 + 8/8; fresh remote preflight was exactly `LARGE_BASELINE` with catalog=2, mirror=1360, migration=0, control=1, tabs 652/708, baseCatalog=1, targetCatalog=0, oldChanged=11, newChanged=0, tailRows=0.
+
+Exactly one positive POST was issued. Result: `CURL_RC=0 HTTP=200`; response `success=true`, `code=positive-pass`, `productionAuthorized=false`, public plan candidateUpserts=142, statements=42, guardChunkCounts=[9,12], guardBindCounts=[19,22]. No second POST occurred.
+
+Independent GET within the same run immediately after the POST proved `LARGE_TARGET`: catalog=2, mirror=1480, migration=0, control=1; tabs 712/768; baseCatalog=0, targetCatalog=1; oldChanged=0, newChanged=11; tailRows=60 on both tabs. Marker: `REAL_TEST_142_D1COMPAT_RETRY_DATA_PASS=1`. No Worker deploy, no production binding, no Google/Apps Script mutation. PROD `trendos-main` untouched/not restored; Cloud production CREATE remains NOT_CUT_OVER.
+
+## Entry 350 — RESULT MIG-T12-142-INDEPENDENT-READONLY-TARGET-CONFIRM-20260926 / 2026-09-26 Cairo
+
+Separate read-only workflow run `36241424226` / job `108402538878` completed SUCCESS after Entry349. It used GET only against the same isolated TEST D1 and independently reconfirmed `LARGE_TARGET`: catalog=2, mirror=1480, migration=0, control=1; first tab 712 rows and second tab 768 rows; targetCatalog=1 on both; oldChanged=0, newChanged=11, tailRows=60 on both. No POST, SQL mutation, seed, DDL, Worker deploy or PROD binding occurred in this confirmation. Current TEST state is `LARGE_TARGET`. This qualifies the fabricated historical-shape 142-position TEST path for the specific D1-compatible guard construction; it does not restore PROD, authorize production canary, or transfer business CREATE/numbering authority from Google/Apps Script.
