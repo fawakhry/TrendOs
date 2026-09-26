@@ -1,8 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.45-DRAFT — T11 orders headers/service qualification workflow sources reviewed; production probes not run; TEST LARGE_TARGET; PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.46-DRAFT — Production Cloud order writers live-fenced OFF; V1/R4/R5 confirmed disabled; CREATE remains Google-authoritative; TEST LARGE_TARGET; PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+
+**تحديث LIVE Entry358 (26 سبتمبر):** تم تحويل التركيز إلى إقفال مسار الأوردرات أولًا. فحص Cloudflare الحي أثبت أن Worker الإنتاج `trendos-d1-api` كان مربوطًا بـ`DB -> trendos-main`، وأن V1 Cloud Write كان قبل القفل `enabled=true / writesAccepted=true` مع schema جاهزة و`pendingOutbox=0` رغم `cutover=false / sheetsAuthoritative=true`. SELECT-only في D1 وجد footprint واحدًا فقط من نوع qualification: `CW-PROD-QUAL-33975124471` بتاريخ 5 سبتمبر، event `create/reconciled/synced` وoutbox `synced` attempt=1؛ لا دليل على استعمال V1 كمسار أوردرات عملاء مستمر. المالك غيّر ونشر `TRENDOS_CLOUD_WRITE_V1_ENABLED=false` ثم أثبت health أن `enabled=false / writesAccepted=false`. كما غيّر ونشر `TRENDOS_R5_PERIODIC_ENABLED=false` وأثبت مسار R5 رد `periodic-disabled-or-wrong-target`، وأثبت R4 رد `recovery-disabled-or-wrong-target` بينما flag الخاص به كان false أصلًا. لا Cron/Queue/Email triggers على Worker. النتيجة الحالية: `CLOUD_WRITE_V1=OFF_CONFIRMED`, `R5=OFF_CONFIRMED`, `R4=OFF_CONFIRMED`, `CLOUD_CREATE=NOT_CUT_OVER`; Google/Apps Script يظل سلطة CREATE/numbering. تنبيه مهم: `wrangler.toml` في الفرع ما زال يصرح V1=true، لذلك يوجد source/live config drift يجب إصلاحه قبل أي Worker deploy جديد.
 
 **تحديث DOC Entry356 (26 سبتمبر):** تمت قراءة خمسة Workflows T11 التالية كاملة من blobs فهرس §11: Orders mirror headers probe، routing bundle diagnostic، Service candidate live parity، Service deployed contract parity، Service exclusion hashes. أربعة منها تضرب production لو شُغلت ولذلك لم تُشغّل؛ routing bundle فقط يفحص source dispatch محليًا ويشغّل production entrypoint محليًا وWrangler dry-run بلا deploy. مقارنات Service التاريخية تبني candidate من mirrors وتطابقها مع Apps Script، لكنها تعتمد mapping/hidden statuses/exclusion hashes ثابتة ولا تثبت deployed parity الحالي أو freshness الحالية. خمسة ملفات فقط M→P؛ الجرد يصبح M957/P200. لا تغيير للحالة التشغيلية: TEST=`LARGE_TARGET`، PROD mirror غير مستعاد، وGoogle/Apps Script ما زالا سلطة CREATE/numbering.
 
@@ -1850,6 +1852,30 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 هذا يثبت مسار 142 الصناعي ذي الشكل التاريخي على D1 TEST باستخدام الـD1-compatible guard. لا يثبت استعادة `trendos-main` ولا writer fence إنتاجي ولا تكافؤ بيانات Google الحية ولا يجيز production canary أو نقل CREATE/الترقيم. الحالة الحالية: `TEST=LARGE_TARGET`; `PROD_MIRROR=NOT_RESTORED`; `CLOUD_CREATE=NOT_CUT_OVER`; Google/Apps Script يظلان سلطة الإنشاء والترقيم التجاري.
 
 
+
+### 6.33 — Production order-writer fence: V1/R4/R5 مقفولة حيًا، وGit config drift يمنع أي deploy قبل التصحيح — Entry358
+
+**سبب الخطوة:** بعد قرار المالك «نقفل الأوردرات الأول»، تم الانتقال من الفهرسة العامة إلى حصر كتابات الأوردرات الفعلية على Cloudflare قبل بناء CREATE جديد. الأدلة أدناه من Cloudflare Production مباشرة عبر لقطات المالك، GETات قراءة فقط، وSELECT-only في D1؛ أي قيمة Secret لم تُفتح أو تُسجّل.
+
+**الحالة الحية قبل القفل:** Worker `trendos-d1-api` كان يعرض version `654a3c91` على 100% traffic قبل تغييرات الـvariables اليدوية. الـbinding الظاهر `DB -> trendos-main`، ولا توجد Cron/Queue/Email triggers في Trigger events. كانت flags المرصودة: `TRENDOS_CLOUD_WRITE_V1_ENABLED=true`, `TRENDOS_PRODUCTION_SHADOW_V2_ENABLED=true`, `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED=false`, `TRENDOS_R4_RECOVERY_ENABLED=false`, `TRENDOS_R5_PERIODIC_ENABLED=true`. أسماء Secrets المرصودة شملت `EDGE_SESSION_SECRET` و`MIGRATION_SECRET` فقط دون قيم.
+
+**V1 live capability قبل القفل:** GET القراءة فقط إلى `/v1/cloud/write/health` عند `2026-09-26T14:46:18.720Z` أعاد `success=true, database=true, enabled=true, authConfigured=true, writesAccepted=true, schemaReady=true, pendingOutbox=0, schemaMutationFree=true, cutover=false, sheetsAuthoritative=true`. هذا يثبت أن route كان قادرًا على قبول كتابة authenticated إلى binding الإنتاج رغم أن سلطة الأعمال لم تُنقل.
+
+**مصالحة footprint قبل التعطيل — D1 SELECT-only:** `cloud_write_events` احتوى صفًا واحدًا فقط؛ حالته `create / reconciled / synced` وأول/آخر وقت `2026-09-05 15:43:41`. `cloud_write_outbox` احتوى صفًا واحدًا `synced`, attempts=1, no last_error. عدد `orders` التي تبدأ `CW-%` كان 1. الهوية نفسها `CW-PROD-QUAL-33975124471`، status `cloud-qualification`, department `SYSTEM-QUALIFICATION`, priority `qualification`، وملاحظة event تخص `02CL qualification`. هذا footprint تأهيل تاريخي، وليس أوردر عميل عادي. لم تنفذ أي DML/DDL في هذه المصالحة.
+
+**writer fence الذي نفذه المالك:** 
+1. غُيّر فقط `TRENDOS_CLOUD_WRITE_V1_ENABLED` إلى `false` وتم Deploy. GET health التالي عند `2026-09-26T14:55:13.009Z` أعاد `enabled=false`, `writesAccepted=false`, مع `database=true`, `schemaReady=true`, `pendingOutbox=0`, `cutover=false`, `sheetsAuthoritative=true`. **V1 OFF_CONFIRMED.**
+2. غُيّر `TRENDOS_R5_PERIODIC_ENABLED` إلى `false` وتم Deploy. GET على `/v1/admin/r5/orders-periodic/apply` أعاد `success=false, reason=periodic-disabled-or-wrong-target, automaticRetryAllowed=false, requiresPostWriteReadOnlyParity=false, triggerRestartAuthorized=false`. **R5 OFF_CONFIRMED.**
+3. R4 كان flag الخاص به false أصلًا؛ GET على `/v1/admin/r4/orders-recovery/apply` أعاد `success=false, reason=recovery-disabled-or-wrong-target, automaticRetryAllowed=false, requiresPostWriteReadOnlyParity=false, triggerRestartAuthorized=false`. **R4 OFF_CONFIRMED.**
+4. `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED` بقي false ولم يُرسل أي reconciliation POST.
+
+**نقطة الخطر الجديدة — config drift:** source الحالي في `cloudflare-d1/wrangler.toml` على الفرع ما زال يضع `TRENDOS_CLOUD_WRITE_V1_ENABLED="true"` و`TRENDOS_R5_PERIODIC_ENABLED="false"`. live Production بعد القفل هو V1=false/R5=false. إذن V1 لديه **SOURCE/LIVE CONFIG DRIFT**؛ لا يُسمح بأي Wrangler deploy جديد من هذا source قبل تعديل config repo إلى false ومراجعة diff، وإلا قد يعاد تسليح V1 حسب semantics النشر. الـversion IDs الجديدة بعد تغييري V1/R5 لم تُلتقط بعد؛ لذلك لا تدّع deployed-source byte parity حتى نقرأ deployment/version الحالي لاحقًا.
+
+**الحالة التشغيلية بعد القفل:** `CLOUD_WRITE_V1=OFF_CONFIRMED`; `R4_PRODUCTION_RECOVERY=OFF_CONFIRMED`; `R5_PRODUCTION_RECOVERY=OFF_CONFIRMED`; `PROD_RECONCILE_QUALIFY=OFF_OBSERVED`; `PROD_MIRROR=NOT_RESTORED`; `CLOUD_CREATE=NOT_CUT_OVER`. Google Sheets + Apps Script يظلان سلطة Order CREATE/numbering. لم يُنشأ أي customer order ولم تتغير business rows في D1 أثناء هذه السلسلة؛ التغييرات الإنتاجية الوحيدة كانت Cloudflare variable deployments لإغلاق writers.
+
+**NEXT:** أصلح source-of-deploy أولًا بجعل V1 false في `wrangler.toml` على الفرع مع test/readback، ثم إثبات كل Google/Apps Script create + line mutation entrypoints والallocator/replay keys وwriter fences. لا تعيد V1/R4/R5 ولا ترسل order-create POST للوصول فقط.
+
+
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
 | الخطر | كيف نكتشفه ونمنع تكراره |
@@ -3555,5 +3581,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.44-DRAFT | DOC-T11-SESSION-FRESHNESS-HEARTBEAT Entry354: full read of direct-session, freshness probe/status, getRows extractor and heartbeat transport workflow sources; §5.52; exactly five §11 M→P | M962/P195; production-facing workflows NOT_RUN. Freshness metadata/heartbeat/session success are not content parity or deployed-source proof; getRows workflow is local extraction only. TEST LARGE_TARGET; PROD mirror NOT_RESTORED; Google/Apps Script retain CREATE/number authority. |
 
 | 2026-09-26 | 3.45-DRAFT | DOC-T11-ORDERS-HEADERS-SERVICE-QUALIFICATION Entry356: full read of Orders headers, routing bundle, Service candidate/deployed parity and exclusion-hash workflows; §5.53; exactly five §11 M→P | M957/P200; production-facing workflows NOT_RUN. Routing bundle proof is local/dry-run only; Service parity/exclusion logic is historical and snapshot/filter dependent, not current deployed/content parity. TEST LARGE_TARGET; PROD mirror NOT_RESTORED; Google/Apps Script retain CREATE/number authority. |
+
+| 2026-09-26 | 3.46-DRAFT | LIVE Entry358: Cloudflare Production order-writer fence. V1 was live enabled/write-capable with one historical 02CL qualification footprint; owner deployed V1=false and R5=false; read-only route checks confirmed V1 writesAccepted=false, R5 disabled and R4 disabled. §6.33 records evidence and source/live config drift. | M957/P200 unchanged. CLOUD_WRITE_V1=OFF_CONFIRMED; R4=OFF_CONFIRMED; R5=OFF_CONFIRMED; PROD mirror NOT_RESTORED; Cloud CREATE NOT_CUT_OVER; Google/Apps Script retain CREATE/number authority. Repository wrangler.toml still V1=true and must be corrected before any future Worker deploy. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
