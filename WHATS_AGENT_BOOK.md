@@ -2005,3 +2005,217 @@ I need to preserve the existing WhatsApp Business App and conversations.
 - لا تضغط أي Migration/Deregister/Delete.
 - لا تعيد Continue في Developer Portal أثناء وجود temporary block.
 - لا تغيّر الرقم.
+
+
+---
+
+## 48) Meta Support final diagnosis — 2026-09-26
+
+### Support response received
+
+Meta Support returned a deeper technical diagnosis for the current WhatsApp setup.
+
+### 1. App ↔ WABA association
+
+Meta confirmed:
+
+- WABA: `834859482664148`
+- WABA status: **ACTIVE**
+- Developer-side onboarding state: `App Created: NOT_STARTED`
+- TrendOS Connect exists, but Meta backend does **not yet recognize it as the owner/linked app for this WABA's API functions**.
+
+Meta explicitly connected this backend disconnect with the repeated:
+
+`Onboarding failure`
+
+### 2. Temporary block reason
+
+Meta stated that:
+
+`تم حظرك مؤقتًا من القيام بهذا الإجراء`
+
+is likely a safety cooldown caused by multiple rapid attempts to link a number that the onboarding flow currently considers ineligible.
+
+Meta's guidance:
+
+- stop further Developer Portal attempts;
+- wait approximately **24–48 hours** with no additional onboarding attempts.
+
+### 3. Coexistence eligibility
+
+Meta explicitly reported:
+
+`INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA`
+
+and said that the current phone/WABA combination is **not eligible for standard coexistence in its current state**.
+
+Meta described the current options as:
+
+- Standard path: mobile app OR API.
+- Coexistence path: specialized / eligibility-gated.
+- If Continue fails, the backend has not flagged this WABA/number as eligible for coexistence.
+
+### 4. Conversation preservation requirement
+
+The project requirement remains:
+
+- keep the existing WhatsApp Business App;
+- keep the current number;
+- keep existing conversations;
+- do not migrate/deregister/delete.
+
+Meta warned that moving the number to Cloud API via the standard migration path does not preserve the existing WhatsApp Business App chat history in the required way.
+
+Therefore:
+
+`STANDARD MIGRATION = REJECTED FOR THIS PROJECT`
+
+### 5. Meta's recommended fallback
+
+Meta recommended using a **separate dedicated phone number** for TrendOS / API automation if API features are needed while preserving the current mobile app setup.
+
+---
+
+## 49) Updated gate status after Meta diagnosis
+
+### WA-03 — App Association
+
+`BLOCKED / BACKEND ASSOCIATION INCOMPLETE`
+
+Evidence:
+
+`App Created = NOT_STARTED`
+
+Meta backend does not recognize TrendOS Connect as the linked owner/app for WABA `834859482664148`.
+
+### WA-04 — Coexistence Eligibility
+
+`BLOCKED / CURRENTLY INELIGIBLE`
+
+Evidence:
+
+`INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA`
+
+Meta explicitly stated that the current WABA/phone combination is not eligible for standard coexistence in its current state.
+
+### WA-05 — Meta Onboarding
+
+`BLOCKED`
+
+Reason:
+
+- onboarding failure;
+- backend app association incomplete;
+- current coexistence eligibility absent;
+- temporary action cooldown active.
+
+### Temporary cooldown
+
+`WAIT 24–48 HOURS — NO MORE ONBOARDING ATTEMPTS`
+
+Do not press Continue repeatedly during this period.
+
+---
+
+## 50) Current decision tree
+
+### Path A — Preserve current WhatsApp number + chats
+
+This remains the highest-priority preservation requirement.
+
+Current status:
+
+`COEXISTENCE = NOT AVAILABLE / NOT ELIGIBLE IN CURRENT STATE`
+
+No migration action is approved.
+
+### Path B — Dedicated new number for Whats Agent
+
+This is now the clean fallback path recommended by Meta if automation is needed without touching the current WhatsApp Business App.
+
+Target architecture:
+
+```text
+Current number
+→ remains on WhatsApp Business App
+→ conversations preserved
+
+New dedicated number
+→ WhatsApp Cloud API
+→ TrendOS Connect
+→ Whats Agent automation
+```
+
+### Path C — Standard migration of current number
+
+`NOT APPROVED`
+
+Reason:
+
+- conflicts with requirement to preserve current WhatsApp Business App usage and conversation history.
+
+---
+
+## 51) Next action after this diagnosis
+
+For the next **24–48 hours**:
+
+- no Developer Portal onboarding attempts;
+- no Continue retries;
+- no Migration;
+- no Deregister;
+- no Delete;
+- no Tech Provider experiment.
+
+After cooldown expires, the project owner has two safe options:
+
+### Option 1 — Recheck eligibility once
+
+Do one read-only/controlled eligibility recheck to see whether the temporary block cleared and whether Meta changed the WABA eligibility state.
+
+If the same error remains:
+
+`INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA`
+
+stop retrying.
+
+### Option 2 — Start dedicated-number setup
+
+Use a new phone number exclusively for Whats Agent / Cloud API while leaving the current WhatsApp Business App untouched.
+
+This becomes the practical implementation path if preserving the current number and chats is non-negotiable and Meta keeps coexistence ineligible.
+
+---
+
+## 52) Current authoritative status snapshot
+
+```text
+APP:
+  Name ...................... TrendOS Connect
+  App ID .................... 1774246503594854
+
+CURRENT WABA:
+  WABA ID ................... 834859482664148
+  Status .................... ACTIVE
+  Phone ..................... ending 2077
+
+META ONBOARDING:
+  Progress .................. ~40%
+  App Created ............... NOT_STARTED
+  Error ..................... INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA
+  Continue .................. ONBOARDING FAILURE
+  Temporary action block .... ACTIVE
+
+COEXISTENCE:
+  Current eligibility ....... NOT ELIGIBLE / NOT ENABLED
+
+PROJECT POLICY:
+  Preserve current chats .... REQUIRED
+  Preserve current app ...... REQUIRED
+  Migration ................. NOT APPROVED
+  Deregister ................ NOT APPROVED
+  Delete current number ..... NOT APPROVED
+
+FALLBACK:
+  Dedicated new API number .. RECOMMENDED PRACTICAL PATH
+```
