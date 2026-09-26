@@ -28,7 +28,7 @@ class Stmt{
   async run(){return this.db.raw.prepare(this.sql).run(...this.params);}
 }
 class CandidateD1{
-  constructor({seed=true,badFence=false,policyEpoch='test_epoch_20260926'}={}){
+  constructor({seed=true,policyEpoch='test_epoch_20260926'}={}){
     this.raw=new DatabaseSync(':memory:');
     this.raw.exec('PRAGMA foreign_keys=ON;');
     this.raw.exec(schema);
@@ -37,7 +37,7 @@ class CandidateD1{
       (singleton,fixture_marker,google_writer_fenced,r5_mirror_writer_fenced,
        next_order_number,policy_epoch)
       VALUES (1,'T12_BUSINESS_CANDIDATE_ONLY',?,?,5001,?)
-    `).run(badFence?0:1,1,policyEpoch);
+    `).run(1,1,policyEpoch);
     this.failStatement=0;
     this.ambiguousAfterCommit=false;
     this.turn=Promise.resolve();
@@ -139,7 +139,12 @@ function counts(db,{requests=1,orders=1,lines=1,events=1,outbox=1}={}){
   noWrites(db);db.close();
 }
 {
-  const db=new CandidateD1({badFence:true});
+  const db=new CandidateD1({policyEpoch:'different_test_epoch'});
+  assert.equal((await add(db)).reason,'candidate-db-identity-fence-or-policy-mismatch');
+  db.close();
+}
+{
+  const db=new CandidateD1({seed:false});
   assert.equal((await add(db)).reason,'candidate-db-identity-fence-or-policy-mismatch');
   db.close();
 }
