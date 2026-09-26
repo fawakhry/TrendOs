@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.54-DRAFT — Production D1 mirror scanned READ-ONLY end-to-end; max numeric Order ID=4261 with no ID >=4322, but mirror lags Google max 4321 by 60 and is stale; allocator seed remains unpinned** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.55-DRAFT — guarded one-shot atomic full-rebase helper prepared in GitHub for the 60-row D1 lag; production execution NOT STARTED; no Apps Script/D1 mutation from browser attempt** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -3695,5 +3695,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.53-DRAFT | ORDER Entry372: final bounded Google reread at 19:48:39 Cairo repeated 4321/4321/3761/3761 at A712/A768/A2872/A4111; no numeric ID >=4322 | M957/P200 unchanged. FROZEN_GOOGLE_NUMERIC_CONSISTENCY=PASS against next=4322, but snapshot does not prove writer quiescence; WRITE_QUIESCENCE_UNVERIFIED=true; ALLOCATOR_SEED_PINNED=false pending Production D1 + final reconciliation; Version155 exact source still UNVERIFIED. |
 
 | 2026-09-26 | 3.54-DRAFT | ORDER Entry373: production D1 mirror GET-only full paged scan; current Orders/Lines max=4261, archives max=3610, no numeric ID >=4322; health/database PASS | M957/P200 unchanged. D1_ALLOCATOR_COLLISION=NO but D1 mirror is stale and 60 IDs behind Google max4321; D1_MIRROR_PARITY=STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false; Google/Apps Script remain CREATE/number authority. |
+
+| 2026-09-26 | 3.55-DRAFT | ORDER Entry374: prepared `t12-d1-one-shot-atomic-full-rebase-20260926.gs` plus static safety test for a no-trigger/no-property one-shot atomic Orders+Lines mirror rebase; helper stages both tabs, rechecks source/catalog before promote, performs GET parity after promote, and forbids automatic retry on ambiguous POST | Production execution NOT STARTED because cloud-browser automation did not start (wallet out of funds). No Apps Script edit/run and no D1 mutation occurred from that attempt. ALLOCATOR_SEED_PINNED=false; D1_MIRROR_PARITY remains STALE/BLOCKED until an authorized one-shot run and postflight parity. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
