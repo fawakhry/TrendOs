@@ -38,11 +38,14 @@ function packExpected(rows){
 export function buildReadOnlyGuardProbe(db,s){
   if(!db||typeof db.prepare!=='function') throw Error('READONLY_PROBE_DB_ADAPTER');
   const chunks=packExpected(expectedUnchangedRows(s));
-  const pieces=chunks.map(()=>`SELECT CAST(json_extract(e.value,'$.n') AS INTEGER) n,
-    json_extract(e.value,'$.v') v,json_extract(e.value,'$.d') d,
-    json_extract(e.value,'$.f') f FROM json_each(?) AS e`);
+  const chunkArgs=chunks.map(()=> 'json(?)').join(',');
   const h=j(headers(s.width));
-  const sql=`WITH expected AS MATERIALIZED (${pieces.join('\nUNION ALL\n')})
+  const sql=`WITH expected AS MATERIALIZED (
+  SELECT CAST(json_extract(e.value,'$.n') AS INTEGER) n,
+    json_extract(e.value,'$.v') v,json_extract(e.value,'$.d') d,
+    json_extract(e.value,'$.f') f
+  FROM json_each(json_array(${chunkArgs})) AS c,
+       json_each(c.value) AS e)
 SELECT
   (SELECT COUNT(*) FROM expected) expected_rows,
   (SELECT COUNT(*) FROM expected x LEFT JOIN sheet_rows r
