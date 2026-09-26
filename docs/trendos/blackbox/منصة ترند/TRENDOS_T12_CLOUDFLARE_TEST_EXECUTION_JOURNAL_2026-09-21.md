@@ -3643,3 +3643,8 @@ RESULT=`COMMITTED_VERIFIED` for finish-book Batches03–06; source/doc reading o
 15 additional root M files received full-text disposition after Batch02: employee drag/coach/prayer/cleaning/HR/theme/attendance-timer, Work Queue/Attendance/Operator Task contracts, Operations Hub, Press backend/UI, D1 Fast Auth V2.5, Accounting historical ledger, Trend Master panel reader, CORE-P0 remediation, Edge Read V1, Go-Live Autopilot, Manager Center and Ops Coach. Key repair gaps were integrated into Master Book, including no-lock HR/Cleaning/Press writers, dual/fallback persistence paths, name-based role shortcuts, status call with possible Press sheet creation, default-off/not-deployed candidates, hidden-edge cache/fallback semantics, Manager backend data exposure considerations, mutation-capable Go-Live UI, Press fallback count-only close, and Employee Ops Coach dd/mm parser defect.
 
 Fixed inventory now `M922 / P235 / A11 / Redirect11 / LIVE6`. No source-only review was promoted to CERTIFIED_CURRENT. Production state from Entry384 remains unchanged and untouched.
+
+
+## Entry 395 PREPARE — MASTER-BOOK-FINISH-BATCH-07-WORKQUEUE-EMPLOYEE-MANAGER-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of `work-queue-v1.js` and `employee-manager-strips-v2.js`. Goal: separate superseded Work Queue V1 behavior from current Operator Task V2 and document Employee Manager read/refresh/role/action behavior and any backend coupling. No execution or deployment.
