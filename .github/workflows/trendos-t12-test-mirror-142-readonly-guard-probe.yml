@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           test "$TEST_DB_UUID" != "$PROD_DB_UUID"
           test "$(git hash-object cloudflare-d1/t12-preview/t12-existing-test-mirror-142-readonly-guard-probe-20260926.mjs)" = "a873d7a0c1d85c75c04e1c30eda37791150f7f76"
-          test "$(git hash-object tests/t12_existing_test_mirror_142_readonly_guard_probe_v1.test.mjs)" = "6b1410f2c67a97d6b8eb6309026a06b0f701c2be"
+          test "$(git hash-object tests/t12_existing_test_mirror_142_readonly_guard_probe_v1.test.mjs)" = "acd8f1272a9adc35d4f11ade21739b4160004e29"
           node --experimental-sqlite tests/t12_existing_test_mirror_142_readonly_guard_probe_v1.test.mjs
 
       - name: Verify exact remote TEST D1 identity read-only
