@@ -3416,3 +3416,35 @@ State after Entry373:
 Master Book advanced to `3.54-DRAFT`, commit `cf04399c7445285a27ed585b3c522d0524f7303c`, blob `916e6abfb5c39d87bb6b40e2d1defbe0f5e13189`.
 
 **NEXT:** do not enable Cloud CREATE. First establish a safe D1 mirror catch-up/reconciliation path or otherwise produce a current D1 snapshot; then repeat bounded Google + D1 comparison under a documented write-quiescence window. Immutable Version155 exact-source parity remains a separate gate.
+
+
+## Entry 374 — RESULT GUARDED-ONE-SHOT-D1-FULL-REBASE-PREP-20260926 / 2026-09-26 Cairo
+
+The 60-row Production D1 lag cannot use the existing bounded R4/R5 paths safely: their reviewed growth/candidate guards are intentionally much smaller. A dedicated temporary one-shot helper was therefore prepared in GitHub only:
+
+- `cloudflare-d1/t12-preview/t12-d1-one-shot-atomic-full-rebase-20260926.gs`
+- helper commit: `b05c9b1d0071790c658373d390865bfd7fadd7c1`
+- static safety test: `tests/t12_d1_one_shot_atomic_full_rebase_20260926.test.mjs`
+- test-file commit: `1f341dec09513125636c30be24636ec82f36b438`
+
+Safety contract encoded in the helper:
+- exact production workbook guard;
+- refuses known Orders/Lines/enrichment sync triggers;
+- no `setProperty`, `deleteProperty`, trigger creation/deletion, Sheet mutation, start/tick shortcut, or baseline clearing;
+- uses existing V2 atomic staging for both Orders and Lines;
+- re-captures source fingerprint and re-reads live catalog before promote;
+- aborts before live promote if source/catalog drift is observed;
+- promotes both tabs atomically once;
+- performs complete paginated GET readback and exact row-hash parity after promote;
+- ambiguous POST outcome is reconciled by GET only and is never automatically retried.
+
+An attempt to open the operational Apps Script project with cloud-browser automation was made after owner authorization, but the automation run was **not started** because the browser wallet had insufficient funds. Therefore:
+- `PRODUCTION_ONE_SHOT_REBASE_EXECUTION=NOT_STARTED`
+- `APPS_SCRIPT_MUTATION_FROM_ATTEMPT=NO`
+- `D1_MUTATION_FROM_ATTEMPT=NO`
+- `D1_MIRROR_PARITY=STALE/BLOCKED`
+- `ALLOCATOR_SEED_PINNED=false`
+
+Master Book advanced to `3.55-DRAFT`, commit `b32a3f960c6c4cd748192557d9a4c44889d3e299`, blob `2040e909179bf361c1d75f6bfec31869bb069826`.
+
+**NEXT:** either restore cloud-browser execution capability or run the reviewed helper manually in the already-open Apps Script editor exactly once, then immediately record its sanitized receipt and independently GET-verify Production D1 parity. Do not use R4/R5, startD1*, or recurring sync as a shortcut.
