@@ -1,8 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.50-DRAFT — live Google Order-ID source snapshot read-only: max numeric 4321 across current data, archives lower; allocator seed still blocked on Script Property + Production D1 + final freeze** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.51-DRAFT — live Apps Script project/deployment identity and writer structure verified; Version 155 exact source still pending; allocator seed still blocked on Script Property + Production D1 + final freeze** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+
+**تحديث LIVE Apps Script (26 سبتمبر / Entry365-live):** لقطات المالك من مشروع Apps Script التشغيلي أثبتت أن Active deployment هو **Version 155 — Sep 6, 2026, 7:45 AM**، وأن Deployment/Web-app URL يبدأ بنفس prefix الموجود في Cloudflare `APPS_SCRIPT_API_URL`، لذلك هو المشروع الصحيح المرتبط بالـWorker. Editor HEAD الحي يحتوي `createManualOrder_` مع ScriptLock + V1908 request-key/saved-response replay، ويحتوي `makeOrderId_` الذي يستخدم Script Properties key `TRENDOS_NEXT_SIMPLE_ORDER_NO` تحت ScriptLock، كما يحتوي `trendos-order-line-integrity-v1.gs` وفيه `trendosCustomerDraftSubmitV1_` مع lock/existing-order replay/integrity guards. المناطق المرئية تطابق repository blobs الحالية نصيًا/هيكليًا. **لكن** شاشة editor تعرض HEAD الحالي بينما Manage deployments تعرض Version 155؛ لذلك `PRODUCTION_VERSION155_SOURCE_EXACT` ما زال `UNVERIFIED` حتى ربط Project History/immutable version بالمصدر بدون Save/Deploy.
 
 **تحديث ORDER Entry369 (26 سبتمبر):** قراءة مباشرة من Google Sheets عبر connector عرّفت الشيت التشغيلي الحالي `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY` وقرأت فقط عمود `رقم الأوردر` من الأربع مصادر الإلزامية. أعلى numeric ID في `الأوردرات` و`بنود الأوردرات` هو **4321**؛ الأرشيفين أعلى رقم فيهما **3761**. counts: currentOrders 711 nonblank = 698 numeric + 13 legacy؛ currentLines 767 = 755 + 12؛ archivedOrders 2871 = 2623 + 248؛ archivedLines 4110 = 3672 + 438؛ unsupported=0. إذن `4322` lower-bound candidate فقط. `TRENDOS_NEXT_SIMPLE_ORDER_NO` live Script Property وProduction D1 mirror aggregate وfinal frozen reread لم تُجمع بعد، ولذلك `ALLOCATOR_SEED_PINNED=false` ولا يجوز seed/allocate Production.
 
@@ -1950,6 +1952,20 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 هذا يثبت أن أعلى numeric ID المرصود في مصادر Google الأربعة هو 4321 وأن next candidate من Google rows وحدها لا يقل عن 4322. لكنه **لا يثبت** sequence seed: يجب مقارنة `TRENDOS_NEXT_SIMPLE_ORDER_NO` الحي لأنه قد يكون أعلى، ويجب إدخال Production D1 mirror source لنفس snapshot contract، ثم بعد writer freeze الحقيقي إعادة القراءة قبل نقل authority. tab `سكريبت Apps Script` يحتوي نص الكود الذي يذكر property لكنه لا يحتوي قيمة Script Properties الحية. الحالة: `GOOGLE_ID_SOURCES_READ=4/4`; `GOOGLE_MAX_NUMERIC_ORDER_ID=4321`; `ALLOCATOR_SEED_PINNED=false`.
 
 
+
+### 6.38 — Live Apps Script project identity + writer structure verified; immutable Version 155 exactness still open — owner screenshots
+
+**Live project/deployment identity:** Manage deployments في مشروع Apps Script الحي أظهر Active deployment = **Version 155 on Sep 6, 2026, 7:45 AM**. Deployment ID/Web-app URL الظاهر يبدأ بنفس prefix المرصود سابقًا في Cloudflare `APPS_SCRIPT_API_URL` (`AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyF...`)، لذلك تم تثبيت أن المشروع المفتوح هو مشروع backend الذي يشير إليه Worker الإنتاجي. لم يحدث Run/Save/Deploy.
+
+**Writer structure in live editor HEAD:** لقطات `Code.gs` أظهرت `createManualOrder_(e)` مع auth/canCreateOrder، `LockService.getScriptLock()` وwait 30s، ثم `trendosV1908RequestKey_(p)` و`trendosV1908ReadSavedResponse_` وإرجاع duplicate-prevented saved response. لقطة `makeOrderId_(sheet, now, skipLock)` أظهرت ScriptLock و`PropertiesService.getScriptProperties()` والمفتاح `TRENDOS_NEXT_SIMPLE_ORDER_NO`، قراءة next ثم fallback إلى `getNextSimpleOrderNumber_` ثم حفظ `next+1`. هذه المقاطع تطابق repository `Code.gs` blob `3496ef9b9370cced27eafaa7dbbb299616be933c` في المناطق المرصودة.
+
+**Supplemental Integrity writer:** الملف الحي `trendos-order-line-integrity-v1.gs` موجود، ولقطة `trendosCustomerDraftSubmitV1_(e)` أثبتت customer auth، script lock، draft state gate، existing-order reuse/duplicate protection، وitem-integrity validation. المقاطع المرئية تتطابق مع repository blob `e93155c0a0cdef09ffaf5a0bfdf62bba202ff436` في المنطقة المرصودة.
+
+**حد الدليل:** Apps Script editor HEAD ليس تلقائيًا snapshot Version 155 immutable. لذلك نثبت الآن `ORDER_WRITER_LIVE_PROJECT=VERIFIED` و`ORDER_WRITER_LIVE_STRUCTURE=VERIFIED`، لكن لا نرفع `PRODUCTION_VERSION155_SOURCE_EXACT` إلى true قبل Project History/version evidence أو export رسمي يربط Version 155 بالمصدر. `ORDER_WRITER_FENCE_PHASE` يبقى OPEN بسبب هذا الحاجز، وكذلك `ALLOCATOR_SEED_PINNED=false` لأن Script Property live value وProduction D1 mirror aggregate وfinal freeze لم تكتمل.
+
+**NEXT combined read-only evidence:** (1) Project History: snapshot/version metadata around Version 155 / Sep 6 2026 7:45 AM, no restore/save; (2) Project Settings → Script properties: read value of `TRENDOS_NEXT_SIMPLE_ORDER_NO` فقط؛ لا تعدله. هذه اللقطات مع Production D1 mirror MAX ستقفل live-source/seed evidence بشكل أسرع.
+
+
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
 | الخطر | كيف نكتشفه ونمنع تكراره |
@@ -3665,5 +3681,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.49-DRAFT | ORDER Entry365–368: isolated Business CREATE candidate schema/engine/tests added under T12 only; CI 36254012805 PASS for numeric allocator, one/multi Lines atomic commit, durable replay/conflict, rollback, lost-ACK readback, concurrency, activity/outbox and no production wiring | M957/P200 unchanged. Transaction mechanics PASS_LOCAL; live Apps Script source exact, allocator seed, business policy runtime parity, lifecycle parity and production canary remain gated. V1/R4/R5 stay OFF; Google/Apps Script remains authority. |
 
 | 2026-09-26 | 3.50-DRAFT | ORDER Entry369: live Google Sheets read-only scan of Order ID column across current Orders/Lines + both archives; max numeric=4321, legacy IDs classified, unsupported=0 | M957/P200 unchanged. Google source side of allocator evidence is captured; Script Property next, Production D1 mirror aggregate and final frozen reread remain required. ALLOCATOR_SEED_PINNED=false. |
+
+| 2026-09-26 | 3.51-DRAFT | LIVE Apps Script evidence: production project identity tied to Cloudflare URL prefix; Active deployment Version155/date captured; live editor writer/allocator/draft-submit markers match repo regions; exact immutable Version155 source still unverified | M957/P200 unchanged. ORDER_WRITER_LIVE_PROJECT=VERIFIED; ORDER_WRITER_LIVE_STRUCTURE=VERIFIED; PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED; ALLOCATOR_SEED_PINNED=false; V1/R4/R5 OFF. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
