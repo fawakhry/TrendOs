@@ -3629,3 +3629,8 @@ READ/DOC_WRITE only. Full-text review of seven root M files: WORK_QUEUE_V1_CANDI
 ## Entry 392 PREPARE — MASTER-BOOK-FINISH-BATCH-05-ROOT-CONTROL-RECOVERY-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of: TRENDOS_ACCOUNTING_EXECUTION_LEDGER_2026-09-05.md, trend-master-panels-v1931.gs, trendos-core-p0-remediation-v1.gs, trendos-edge-read-v1.js, go-live-autopilot-v1.js. Goal: capture historical-vs-current boundaries, mutation capability, fail-closed behavior, dependencies and repair use. No execution/deploy/test.
+
+
+## Entry 393 PREPARE — MASTER-BOOK-FINISH-BATCH-06-MANAGER-PRESS-COACH-UI-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of manager-center-v1932.js, press-control-v1.js and employee-ops-coach-v1.js. Capture role exposure, network calls, mutation/read split, timers/polling, coupling to other modules and repair risks. No runtime or test execution.
