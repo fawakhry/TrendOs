@@ -1,8 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.49-DRAFT — isolated Business CREATE transaction candidate PASS; allocator + one/multi Lines + idempotency + rollback + lost-ACK + read-your-write qualified locally; live source/seed/cutover still gated** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.50-DRAFT — live Google Order-ID source snapshot read-only: max numeric 4321 across current data, archives lower; allocator seed still blocked on Script Property + Production D1 + final freeze** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+
+**تحديث ORDER Entry369 (26 سبتمبر):** قراءة مباشرة من Google Sheets عبر connector عرّفت الشيت التشغيلي الحالي `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY` وقرأت فقط عمود `رقم الأوردر` من الأربع مصادر الإلزامية. أعلى numeric ID في `الأوردرات` و`بنود الأوردرات` هو **4321**؛ الأرشيفين أعلى رقم فيهما **3761**. counts: currentOrders 711 nonblank = 698 numeric + 13 legacy؛ currentLines 767 = 755 + 12؛ archivedOrders 2871 = 2623 + 248؛ archivedLines 4110 = 3672 + 438؛ unsupported=0. إذن `4322` lower-bound candidate فقط. `TRENDOS_NEXT_SIMPLE_ORDER_NO` live Script Property وProduction D1 mirror aggregate وfinal frozen reread لم تُجمع بعد، ولذلك `ALLOCATOR_SEED_PINNED=false` ولا يجوز seed/allocate Production.
 
 **تحديث ORDER Entry365–368 (26 سبتمبر):** تم بناء وتأهيل `T12 isolated Business CREATE candidate` جديد تحت T12 فقط، غير مربوط بأي production route. الـschema والengine يخصصان numeric Order ID داخل TEST-only control، ويكتبون atomically request ledger + Order + one/multi Lines + activity + queue outbox، ثم يعملون read-your-write قبل success. CI run `36254012805` / job `108437236884` PASS: same-key replay، conflicting payload/actor، rollback عبر كل حدود المعاملة، lost-ACK readback، 8-call same-key concurrency، distinct-key monotonic IDs، multi-department Lines وheat-press semantics، وكلها `productionAuthorized=false`. لا Worker deploy أو remote D1 write. ده يقفل transaction mechanics محليًا لكنه لا يقفل live Apps Script source exact، allocator seed من business data، runtime customer/debt/open-order parity، lifecycle parity أو Production canary.
 
@@ -1933,6 +1935,21 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 **ما أُثبت الآن:** `ISOLATED_BUSINESS_TRANSACTION_MECHANICS=PASS`؛ `MULTILINE_ATOMICITY=PASS_LOCAL`؛ `DURABLE_IDEMPOTENCY_CONFLICT=PASS_LOCAL`؛ `TIMEOUT_LOST_ACK_READBACK=PASS_LOCAL`؛ `READ_YOUR_WRITE=PASS_LOCAL`؛ `CONCURRENT_ALLOCATOR=PASS_LOCAL`. **ما لم يثبت بعد:** deployed Apps Script source exact، live numeric seed، actual runtime auth/customer/debt/open-order reads، Cloud lifecycle after CREATE، Google freeze/cutover mechanism، production read/fallback parity، real TEST execution of this newer business-candidate schema، أو Production canary.
 
 
+
+### 6.37 — Live Google Order-ID source snapshot: max 4321، seed ما زال غير مثبت — Entry369
+
+تمت قراءة Google Sheets مباشرة من الملف التشغيلي `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY` عبر connector قراءة فقط. Metadata عرّف حدود tabs، ثم قرئ العمود A فقط لأن header في الأربع tabs هو `رقم الأوردر`. لم تُنشر raw IDs ولم تُقرأ بيانات عميل خارج هذا العمود.
+
+| المصدر | nonblank IDs | numeric | legacy | unsupported | أعلى numeric |
+|---|---:|---:|---:|---:|---:|
+| الأوردرات | 711 | 698 | 13 | 0 | **4321** |
+| بنود الأوردرات | 767 | 755 | 12 | 0 | **4321** |
+| أرشيف الأوردرات | 2871 | 2623 | 248 | 0 | **3761** |
+| أرشيف بنود الأوردرات | 4110 | 3672 | 438 | 0 | **3761** |
+
+هذا يثبت أن أعلى numeric ID المرصود في مصادر Google الأربعة هو 4321 وأن next candidate من Google rows وحدها لا يقل عن 4322. لكنه **لا يثبت** sequence seed: يجب مقارنة `TRENDOS_NEXT_SIMPLE_ORDER_NO` الحي لأنه قد يكون أعلى، ويجب إدخال Production D1 mirror source لنفس snapshot contract، ثم بعد writer freeze الحقيقي إعادة القراءة قبل نقل authority. tab `سكريبت Apps Script` يحتوي نص الكود الذي يذكر property لكنه لا يحتوي قيمة Script Properties الحية. الحالة: `GOOGLE_ID_SOURCES_READ=4/4`; `GOOGLE_MAX_NUMERIC_ORDER_ID=4321`; `ALLOCATOR_SEED_PINNED=false`.
+
+
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
 | الخطر | كيف نكتشفه ونمنع تكراره |
@@ -3646,5 +3663,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.48-DRAFT | ORDER Entry362–364: repository writer map completed; current create writers/allocator/replay/Integrity draft writer/lifecycle writers documented; isolated T12 CI run 36251332713 PASS after scope-guard baseline fix | M957/P200 unchanged. ORDER_WRITER_REPO_MAP=COMPLETE; LIVE Apps Script source exact UNVERIFIED; writer-fence phase remains OPEN. Cloud V1/R4/R5 stay OFF; Google/Apps Script remain CREATE/number authority. |
 
 | 2026-09-26 | 3.49-DRAFT | ORDER Entry365–368: isolated Business CREATE candidate schema/engine/tests added under T12 only; CI 36254012805 PASS for numeric allocator, one/multi Lines atomic commit, durable replay/conflict, rollback, lost-ACK readback, concurrency, activity/outbox and no production wiring | M957/P200 unchanged. Transaction mechanics PASS_LOCAL; live Apps Script source exact, allocator seed, business policy runtime parity, lifecycle parity and production canary remain gated. V1/R4/R5 stay OFF; Google/Apps Script remains authority. |
+
+| 2026-09-26 | 3.50-DRAFT | ORDER Entry369: live Google Sheets read-only scan of Order ID column across current Orders/Lines + both archives; max numeric=4321, legacy IDs classified, unsupported=0 | M957/P200 unchanged. Google source side of allocator evidence is captured; Script Property next, Production D1 mirror aggregate and final frozen reread remain required. ALLOCATOR_SEED_PINNED=false. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
