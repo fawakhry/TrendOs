@@ -1413,3 +1413,27 @@ However Google frozen max is `4321`, so D1 is 60 numeric IDs behind Google and t
 Master Book is now `3.54-DRAFT`, commit `cf04399c7445285a27ed585b3c522d0524f7303c`, blob `916e6abfb5c39d87bb6b40e2d1defbe0f5e13189`. Journal Entry373 commit `61f9c44bf2aab0bf214d9b00a93a59a4b4ef5aea`, blob `7dd1d95f2719418d708909c0a26f58d5ef65ac5d`.
 
 **NEXT FAST-TRACK:** do not enable Cloud CREATE. Establish a safe D1 mirror catch-up/reconciliation path first, then repeat bounded Google + D1 comparison under documented write quiescence. Immutable Version155 exact-source parity remains separately open.
+
+
+## Entry 374 LIVE update — guarded one-shot D1 full-rebase prepared / 2026-09-26 Cairo
+
+Because the current Production D1 Orders/Lines mirror is 60 rows behind the authoritative Google source, the existing small-gap R4/R5 recovery lanes are not suitable. A temporary, fail-closed one-shot atomic full-rebase helper was prepared on the T12 branch instead:
+
+- helper: `cloudflare-d1/t12-preview/t12-d1-one-shot-atomic-full-rebase-20260926.gs`
+- helper commit: `b05c9b1d0071790c658373d390865bfd7fadd7c1`
+- static safety test: `tests/t12_d1_one_shot_atomic_full_rebase_20260926.test.mjs`
+- test commit: `1f341dec09513125636c30be24636ec82f36b438`
+
+The helper performs no Google Sheet, Script Property, trigger, allocator, or deployment mutation. It stages both current source snapshots, re-checks source/catalog stability before one atomic promote, then full GET-verifies row parity. It refuses blind retry after ambiguous promote outcome.
+
+Cloud-browser automation was invoked to install/run this helper in the exact operational Apps Script project, but the browser run did not start due insufficient browser-wallet credit. Consequently no Apps Script source change, execution, D1 POST, or production mutation occurred in that attempt.
+
+Current gate state:
+- `PRODUCTION_ONE_SHOT_REBASE_EXECUTION=NOT_STARTED`
+- `D1_MIRROR_PARITY=STALE/BLOCKED`
+- `ALLOCATOR_SEED_PINNED=false`
+- Google/Apps Script remains CREATE/number authority.
+
+Master Book: `3.55-DRAFT`, commit `b32a3f960c6c4cd748192557d9a4c44889d3e299`, blob `2040e909179bf361c1d75f6bfec31869bb069826`. Journal Entry374 commit will follow this handoff update sequence.
+
+**NEXT FAST-TRACK:** execute the reviewed one-shot helper exactly once in the already-open Apps Script editor, then immediately GET-verify both mirror tabs. Do not deploy, restore, start recurring sync, or invoke R4/R5.
