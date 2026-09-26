@@ -3683,3 +3683,8 @@ READ/DOC_WRITE only. Full-text chunked review of `attendance-v1.js`. Capture nat
 ## Entry 402 PREPARE — MASTER-BOOK-FINISH-BATCH-14-P0-REGISTRY-WRITER-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text chunked review of `trendos-core-p0-registry-writer-v1.gs`. Capture registry schema, authorization, supported metric types, evidence validation/hash semantics, create/update/deactivate behavior, locks/idempotency/audit history and repair/reopen risks. No runtime/test/workflow execution.
+
+
+## Entry 403 PREPARE — MASTER-BOOK-FINISH-BATCH-15-ACCOUNTING-HISTORY-THEME-CSS-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of `TRENDOS_ACCOUNTING_BLACKBOX_2026-09-04.md` and `matbagy_theme_v1860.css`. Capture historical accounting authority/decisions and classify dated evidence versus current truth; for CSS capture UI scope, hidden/role-state styling, layout dependencies and any operationally relevant selectors. No runtime/test/workflow execution.
