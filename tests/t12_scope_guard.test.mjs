@@ -16,7 +16,8 @@ const exact=new Set([
   'docs/trendos/blackbox/منصة ترند/TRENDOS_D1_PAUSED_SYNC_RECOVERY_PROTOCOL_2026-09-19.md',
   'cloudflare-d1/wrangler.toml',
   'cloudflare-d1/production-shadow/index.js',
-  'cloudflare-d1/src/r4-guarded-recovery-production.mjs'
+  'cloudflare-d1/src/r4-guarded-recovery-production.mjs',
+  'TrendOS_MASTER_BOOK.md'
 ]);
 const prefixes=[
   'cloudflare-d1/src/t12-',
