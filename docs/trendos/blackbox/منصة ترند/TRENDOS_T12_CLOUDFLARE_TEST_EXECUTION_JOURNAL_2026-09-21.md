@@ -3673,3 +3673,8 @@ READ/DOC_WRITE only. Full-text review of `trendos-press-integrity-v1.gs`. Captur
 ## Entry 400 PREPARE — MASTER-BOOK-FINISH-BATCH-12-INVOICE-INTEGRITY-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of `trendos-invoice-integrity-v1.gs`. Capture invoice draft/final identity, source-line selection, pricing/payment validation, idempotency/locking, ledger/journal side effects, WhatsApp/message behavior, rollback/partial-write risks, repair diagnostics and deployment gaps. No runtime/test/workflow execution.
+
+
+## Entry 401 PREPARE — MASTER-BOOK-FINISH-BATCH-13-ATTENDANCE-FRONTEND-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text chunked review of `attendance-v1.js`. Capture native-vs-fallback routing, auth transport, local/session state, presence timers, heartbeat/missed-check mutations, prayer/rest flows, retry/deduplication, UI acknowledgement and coupling to return-traffic guards. No runtime/test/workflow execution.
