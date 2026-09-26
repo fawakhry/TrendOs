@@ -1485,3 +1485,62 @@ C) No usable coexistence path
 `NEXT ACTION = READ-ONLY SCREEN INSPECTION`
 
 لا يوجد أي تغيير Production مطلوب في هذه الخطوة.
+
+
+---
+
+## 41) Evidence — Meta for Developers Dashboard — 2026-09-26
+
+### Screenshot observation
+
+داخل تطبيق:
+
+`TrendOS Connect`
+
+ظهر في لوحة المعلومات:
+
+- حالة استخدام WhatsApp موجودة بالفعل.
+- السطر الظاهر:
+  **تخصيص التواصل مع العملاء من خلال حالة استخدام واتساب**
+  وعليه علامة نجاح خضراء.
+- هذا يثبت أن WhatsApp use case مضافة إلى التطبيق.
+- الشاشة الحالية **لا تعرض WABA ID** ولا Phone Number ID ولا App ↔ WABA association.
+- يوجد خيار **الانضمام كموفر خدمات تقنية** في نفس الصفحة، لكن لا يتم استخدامه حاليًا لأن الحاجة إليه ما زالت غير مثبتة.
+
+### Result
+
+`WA-03 = PARTIAL`
+
+المثبت الآن:
+
+```text
+App exists ................ PASS
+WhatsApp use case added ... PASS
+App ↔ WABA association .... UNKNOWN
+Coexistence path .......... UNKNOWN
+```
+
+### Next exact step
+
+**READ-ONLY**
+
+من القائمة اليمنى داخل Meta for Developers:
+
+`حالات الاستخدام`
+
+ثم فتح حالة استخدام WhatsApp فقط، بدون الضغط على Tech Provider أو أي Migration/Onboarding تنفيذي.
+
+المطلوب من الخطوة التالية:
+
+- معرفة هل تظهر إعدادات WhatsApp نفسها.
+- هل يظهر WABA الحالي `834859482664148`.
+- هل يظهر رقم الهاتف/Phone Number ID.
+- هل يظهر Embedded Signup / Coexistence / Existing WhatsApp Business App number.
+
+### Do not repeat / Do not action
+
+- لا تضغط `الانضمام كموفر خدمات تقنية`.
+- لا Migration.
+- لا Deregister.
+- لا Delete number.
+- لا إنشاء WABA جديد.
