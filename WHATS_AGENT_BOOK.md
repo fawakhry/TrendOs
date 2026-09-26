@@ -1749,3 +1749,52 @@ Initial setup gate ............. YES
 ### Why this step
 
 صفحة `إعداد واجهة API` لم تعطِ أي بيانات ربط فعلية بعد. لذلك فحص `التكوين` أولًا أقل مخاطرة ويساعدنا نعرف هل التطبيق لديه Embedded Signup / Coexistence configuration قبل إنشاء أي أصول جديدة.
+
+
+---
+
+## 45) Evidence — Configuration tab is also blocked by initial setup gate — 2026-09-26
+
+### Screenshot observation
+
+داخل:
+
+`Meta for Developers → TrendOS Connect → WhatsApp → التكوين`
+
+رغم اختيار تبويب **التكوين**، ظل المحتوى يعرض نفس بطاقة الإعداد الأولي:
+
+- Business Portfolio: **المطبعجي**
+- Meta تعرض أنها ستوفر **رقم هاتف اختباري**
+- زر **متابعة**
+- لا يظهر WABA / Phone Number ID / Webhook / Embedded Signup configuration حتى الآن.
+
+### Result
+
+`WA-03 = PARTIAL / INITIAL APP SETUP GATE CONFIRMED`
+
+كل تبويبات WhatsApp الأساسية التي تم فتحها حتى الآن ترجع لنفس initial setup gate، لذلك لا يمكن رؤية App ↔ WABA association قبل عبور هذا الـgate.
+
+### Clarification about Continue
+
+تمت مراجعة وصف مسار WhatsApp Cloud API developer setup: زر **Continue / متابعة** في هذا الـinitial setup يقوم عادةً بربط الـMeta App بالـBusiness Manager/Portfolio المختار وإضافة **WhatsApp test phone number** لاستخدامه في الاختبار. هذا المسار لا يعني وحده Migration للرقم الحقيقي الحالي.
+
+لكن بعد الضغط يجب فحص الشاشة الناتجة وعدم إضافة/تسجيل الرقم الحقيقي قبل التأكد من مسار Coexistence.
+
+### Next exact step
+
+`ACTION = PRESS CONTINUE ON INITIAL TEST SETUP`
+
+الهدف:
+
+1. إكمال App setup الأساسي.
+2. جعل Developer Console يعرض API setup الحقيقي.
+3. معرفة WABA / Phone Number IDs التي ينشئها/يعرضها التطبيق.
+4. عدم لمس الرقم الحقيقي الحالي.
+
+### Guardrails after Continue
+
+- إذا ظهر **Test Number فقط** → نكمل قراءة الشاشة.
+- إذا طلب إدخال الرقم الحقيقي → نتوقف ونوثق الشاشة.
+- إذا ظهر Migration / Deregister → نتوقف.
+- إذا ظهر Coexistence / Existing WhatsApp Business App → نوثق ونكمل منه.
+- لا يتم حذف أو نقل الرقم الحالي.
