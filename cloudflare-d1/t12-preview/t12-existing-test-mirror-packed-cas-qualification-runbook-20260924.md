@@ -90,3 +90,10 @@ execution → read-only rollback postflight → separate positive approval.
 GitHub Actions run `36236179021`, job `108388228705`, used Wrangler 4.141.0 with local Worker execution and a remote binding to the independently verified TEST D1 UUID `54a3c05e-cde9-4979-814f-d40f941edcd5`. No Worker deployment occurred. Remote preflight was exact `2/4/0` with control=1, exact catalog=2 and exact mirror rows=4. One negative POST only returned HTTP 200 and `negativeRollbackVerified=true`; the separate read-only postflight returned the identical exact baseline. Marker: `REAL_TEST_NEGATIVE_ROLLBACK_PASS`.
 
 The earlier run `36236017624` is not a D1 test result: Wrangler 4.33.2 treated the D1 binding as local, preflight returned 503 and no negative POST was sent. Do not repeat either run. The next gate remains a **separate owner approval** for a fresh-baseline, tiny positive TEST batch. This PASS does not qualify the 142-position payload or production recovery.
+
+
+## Real Cloudflare TEST tiny positive qualification — DATA PASS / 2026-09-26
+
+Run `36237156164`, job `108390905584`, performed exactly one positive POST after a fresh exact OLD preflight. PRE: 2 catalog, 4 mirror rows, 0 migration runs, 2 exact headers, 2 OLD row2, 0 NEW row2. POST returned CURL_RC=0 / HTTP 200. Independent read-only POSTFLIGHT: same base counts and metadata, 0 OLD row2, 2 NEW row2, state=NEW. Therefore **do not rerun the positive test**.
+
+The GitHub job's final check is red because of a shell heredoc syntax error after the successful postflight; it is not evidence of a D1 data failure. The workflow tail was corrected afterward without triggering a new run. This tiny PASS still does not qualify the historical 142-position large payload, quotas, concurrency/writer fence, or production recovery.

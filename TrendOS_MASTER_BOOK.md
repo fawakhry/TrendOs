@@ -1,8 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.39-DRAFT — real Cloudflare TEST negative D1 batch rollback PASS; positive NOT_AUTHORIZED, PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.40-DRAFT — real Cloudflare TEST tiny positive atomic write PASS; TEST rows now NEW, PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+**تحديث MIG Entry338 (26 سبتمبر):** تم تنفيذ Tiny Positive على Cloudflare D1 TEST الحقيقية مرة واحدة فقط. preflight أثبت `OLD/OLD` exact، POST رجع HTTP 200، وpostflight مستقل أثبت `NEW/NEW` exact مع بقاء 2 catalog/4 rows/0 migration وheaders/control كما هي. الـjob انتهى Failure بسبب heredoc shell syntax بعد نجاح postflight، وليس فشل بيانات؛ لم يُعد POST. انظر §6.29.
+
 **تحديث MIG Entry336 (26 سبتمبر):** تم تأهيل السيناريو السلبي على Cloudflare D1 TEST الحقيقية عبر `wrangler dev` محلي + remote D1 binding فقط، بدون Worker deploy. Run `36236179021`/job `108388228705` PASS؛ preflight وpostflight كلاهما `2/4/0`, control=1, exact catalog=2, exact mirror rows=4، والـPOST السلبي أُرسل مرة واحدة فقط HTTP 200 مع `REAL_TEST_NEGATIVE_ROLLBACK_PASS`. السيناريو الإيجابي غير مصرح به؛ انظر §6.28.
 
 **تحديث MIG Entry332 (26 سبتمبر):** أُضيف اختبار محلي معزول لعقد Tiny CAS وشُغّل على نفس Git blobs للمصدر/الاختبار/مخطط المرآة؛ النتيجة `PASS 6/6`: rollback سلبي كامل، commit إيجابي ذري في SQLite المحلي، رفض drift للصف والـcatalog، lost-ACK بعد commit مع منع blind replay، ورفض scenario غير معروف. لم يحدث أي Cloudflare D1/Worker/CI/Google write؛ انظر §6.27.
@@ -1742,6 +1744,27 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 **ملاحظة CI/Cloudflare Git integration:** pushا trigger حركا أيضًا Cloudflare Git-integration builds غير مقصودة لWorkers أخرى؛ checks الظاهرة انتهت `FAILURE` ولم يظهر نجاح deploy منها. لا نستخدم pushes إضافية بلا حاجة، ولا نفسر build failure كإثبات runtime rollback لكل Worker. مسار الاختبار المقصود نفسه لم ينشر Worker.
 
 **الحالة بعد Entry336:** `REAL_TEST_NEGATIVE_ROLLBACK=PASS`; `REAL_TEST_POSITIVE=NOT_RUN / NOT_AUTHORIZED`; `142_POSITION_LARGE_PAYLOAD_REAL_D1=NOT_QUALIFIED`; `PROD_D1_MIRROR=NOT_RESTORED`. الخطوة التالية إن أراد المالك الاستمرار هي موافقة منفصلة صريحة على **positive tiny TEST batch فقط** بعد baseline read جديد، ثم read-only postflight. لا تمنح هذه النتيجة أي إذن لـ`trendos-main` أو R4/R5/V2 أو Cloud CREATE؛ Google Sheets + Apps Script ما زالا سلطة CREATE/الترقيم.
+
+
+### 6.29 MIG-T12-REAL-TEST-POSITIVE-ATOMIC — Cloudflare D1 TEST تحولت OLD→NEW على التابين معًا (Entry338، 26 سبتمبر 2026)
+
+**الموافقة والتنفيذ:** المالك قال «نفذ» بعد Entry336، فاقتصر النطاق على Tiny Positive في قاعدة TEST الحالية. commit المشغّل `ea196afcad48c03f0ff92a63ce1cc61540157e54`، GitHub Actions run `36237156164` / job `108390905584`. المصدر الإيجابي blob `d8152d0cb40c32c4af298cb3f050a97575739ac7`، واختباره المحلي blob `8655c7c5dd3ef96c92e54b584d9cbdd980453926`. local contracts مرّت: Tiny CAS 6/6 وPositive remote worker 7/7. Cloudflare API read-only أكد قاعدة `trendos-t12-synthetic-test` قبل التنفيذ. استخدم Wrangler 4.141.0؛ الكود شُغّل محليًا وD1 binding وحدها كانت remote، بلا `wrangler deploy`.
+
+**Fresh preflight قبل الكتابة:** القراءة البعيدة أعادت:
+`catalogRows=2, mirrorRows=4, migrationRows=0, controlMatches=1, exactCatalogRows=2, exactHeaderRows=2, exactOldRows=2, exactNewRows=0, baseExact=true, state=OLD`.
+لم يبدأ الـPOST إلا بعد هذا الشرط.
+
+**الكتابة الوحيدة:** سجل الـlog
+`POSITIVE_POST_ATTEMPTED=1 CURL_RC=0 HTTP=200`.
+المسار لا يحتوي retry تلقائيًا ويستخدم `prepareTestOnlyMirrorCasStatements(...,'positive')` الذي يبني 4 prepared statements داخل `D1Database.batch` واحدة.
+
+**Postflight مستقل بعد الكتابة:** القراءة التالية أعادت:
+`catalogRows=2, mirrorRows=4, migrationRows=0, controlMatches=1, exactCatalogRows=2, exactHeaderRows=2, exactOldRows=0, exactNewRows=2, baseExact=true, state=NEW`.
+بذلك كلا row2 الوهميين انتقلا معًا إلى NEW، وبقيت headers/catalog/control/counts ضمن baseline المحدد، ولم يظهر partial OLD/NEW.
+
+**لماذا check الـjob ظاهر Failure رغم نجاح البيانات:** بعد طباعة postflight NEW وقع shell syntax error `unexpected end of file` في كتلة heredoc اللاحقة التي كان دورها فقط إعادة قراءة JSON استجابة الـHTTP وكتابة marker إضافي. الخطأ وقع **بعد** POST=200 و**بعد** postflight NEW المثبت. لم يُرسل POST آخر، ولا يجوز إعادة الـPositive لأن قاعدة TEST الآن NEW. تم تصحيح الـworkflow في commit التوثيق اللاحق باستخدام `node -e` بدل heredoc، مع `[skip ci]` ومن دون trigger.
+
+**الحالة:** `REAL_TEST_TINY_POSITIVE_DATA=PASS`; `TEST_MIRROR_STATE=NEW`; `NEGATIVE_ROLLBACK=PASS`; `142_POSITION_REAL_D1=NOT_QUALIFIED`; `PROD_MIRROR=NOT_RESTORED`; `CLOUD_PRODUCTION_CREATE=NOT_CUT_OVER`. هذا الاختبار لا يبرر نقل CREATE/الترقيم بعد. الخطوة الفنية التالية هي تأهيل الحجم/الشكل الأقرب للحمل الحقيقي (142 موضعًا، payload/quota/runtime/concurrency وwriter fence) على TEST قبل أي Canary إنتاجي.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 

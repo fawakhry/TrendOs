@@ -121,15 +121,7 @@ jobs:
           NODE
 
           if [ "$curl_rc" = 0 ] && [ "$code" = 200 ]; then
-            node <<'NODE'
-            const fs=require('fs');
-            const x=JSON.parse(fs.readFileSync('/tmp/positive.json','utf8'));
-            if(x.success!==true||x.scenario!=='positive'||
-               x.positiveCommitVerified!==true||
-               x.blindRetryAllowed!==false||
-               x.state?.state!=='NEW') process.exit(1);
-            console.log('REAL_TEST_POSITIVE_ATOMIC_COMMIT_PASS');
-            NODE
+            node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/positive.json','utf8'));if(x.success!==true||x.scenario!=='positive'||x.positiveCommitVerified!==true||x.blindRetryAllowed!==false||x.state?.state!=='NEW')process.exit(1);console.log('REAL_TEST_POSITIVE_ATOMIC_COMMIT_PASS')"
           else
             echo 'REAL_TEST_POSITIVE_COMMIT_RECONCILED_BY_POSTFLIGHT; RESPONSE_NOT_RETRIED'
           fi
