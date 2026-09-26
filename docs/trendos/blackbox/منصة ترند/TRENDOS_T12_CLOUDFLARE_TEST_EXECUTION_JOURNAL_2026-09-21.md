@@ -3567,3 +3567,23 @@ Owner goal: keep TrendOS knowledge complete for repair while reducing new-chat r
 Safety rules: no item may be labeled `CERTIFIED_CURRENT` without source+runtime parity and required tests. Current §11 inventory contains zero formal CERTIFIED rows. Initial closures may use only `CERTIFIED_HISTORICAL`, `CLOSED_BY_OWNER_DECISION`, or `SUPERSEDED_HISTORICAL` with explicit reopen triggers. All removed inline detail must remain recoverable from Git history or a linked appendix; no source code is deleted or moved.
 
 EXPECTED: smaller active Master Book with zero knowledge loss, explicit repair pointers, no operational state change. FAIL-CLOSED: if any extracted appendix cannot be verified or Master Book reconstruction loses a source section, stop before replacing the book.
+
+
+## Entry 386 RESULT — MASTER-BOOK-COMPACTION-CLOSED-REGISTRY-20260927 / 2026-09-27 Cairo
+
+TASK_ID: MASTER-BOOK-COMPACTION-20260927. STEP_ID: RESULT-01. RESULT=`COMMITTED_VERIFIED`. Documentation-only compaction completed; no runtime/production mutation occurred.
+
+Verified documentation effects:
+- Pre-compaction Master Book pointer saved for Git-history recovery.
+- Fixed 1185-path §11 inventory externalized to `docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md`; current fixed counts remain M957/P200/A11/Redirect11/LIVE6.
+- Historical Master Book changelog externalized to `TRENDOS_MASTER_CHANGELOG_ARCHIVE_PRE_COMPACTION.md`.
+- T12 Journal title index copy externalized to `TRENDOS_T12_JOURNAL_TITLE_INDEX_SNAPSHOT_2026-09-26.md`; canonical Journal remains this append-only file.
+- Closed-component registry created at `TRENDOS_CLOSED_COMPONENTS_INDEX.md`.
+- Completed archive-batch detail externalized to `TRENDOS_HISTORICAL_ARCHIVE_BATCHES_REGISTRY.md`.
+- Active Master Book reduced from 1,075,940 characters before compaction to 522,216 characters after the final closed-history collapse (~51.5% reduction), while heavy detail remains recoverable via appendices/Git history.
+- `اقرأني_أولًا.md` no longer requires a new chat to read the full Master Book. New-chat mandatory reading is now the Black Box + instructions + Master Book first page/quick index/task chapter + latest Journal/Handoff/HEAD; heavy appendices are demand-loaded only.
+- Historical T6B is classified `CERTIFIED_HISTORICAL`, the Sep24 non-incident interpretation is `SUPERSEDED_HISTORICAL`, and Entries374–377 full-rebase are `CLOSED_BY_OWNER_DECISION / DO_NOT_RETRY`. No subsystem was promoted to `CERTIFIED_CURRENT`; the fixed inventory had zero formal CERTIFIED rows before this pass.
+
+Primary documentation commits in this pass include PREPARE `3f5ca78b9e7cc4af5341cc57e9ca9bd6bce6381c`, Master Book compaction `cc38043b7eb103331644d0d7b9d724b766f08e9e`, onboarding update `4f303f7f9c5b5eb0f6ea314cdaa94328badbe605`, archive-registry extraction `d33ee09d0082843a4d59dfa4fe590b5b9d7db0cc`, and final closed-history collapse `1a71799e4f89c7ca5365e192c2a5150d6dc5f7c0`. Final Master Book blob observed before this RESULT entry: `52c2e5884fdc30b02b44434f1fbf643e9f878590`.
+
+Operational state is unchanged from Entry384: `INSTALL_DISABLED_RUN=FAIL_PERMISSION_7500`; migration 0005 NOT_APPLIED; Worker NOT_DEPLOYED from that run; canary NOT_ARMED; order4322 NOT_CREATED; general Production CREATE cutover NO. Owner approval remains install-disabled only. NEXT operational step remains repair/replace GitHub Actions `CLOUDFLARE_API_TOKEN` permissions and rerun the same install-disabled action only; do not run arm-one.
