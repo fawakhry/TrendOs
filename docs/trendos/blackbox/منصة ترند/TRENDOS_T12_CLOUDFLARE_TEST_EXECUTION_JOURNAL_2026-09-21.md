@@ -3514,3 +3514,18 @@ Test commit `57ddeeaa8483f5c20814ef29b4a7c61cc534f5b0`; dedicated CI commit `182
 The general T12 workflow's hard scope guard still fails because of a pre-existing out-of-scope `WHATS_AGENT_BOOK.md` diff against its fixed baseline. That guard was not weakened. A narrow read-only dedicated workflow ran the isolated CREATE qualification only.
 
 Critical boundary: `t12-business-create-candidate.mjs` remains isolated, `productionAuthorized=false`, and is not imported by the production worker. Fresh-start transaction mechanics are qualified; Production Cloud CREATE is not active yet.
+
+
+## Entry 379 LIVE update — Production CREATE canary prepared / 2026-09-26 Cairo
+
+A fresh-start production-canary schema/engine/handler was added but initially left unrouted. Control seed is 4322 with canary budget zero. The isolated contract proves one unique create, idempotent replay, rollback, ambiguous-ACK readback, same-key concurrency collapse and admin Orders Edge authentication. Commit `3a373880be5ee778081e75a97f13cbf22dd7e6b0`; run `36264851918` SUCCESS. No Production mutation.
+
+## Entry 380 LIVE update — route wired default-OFF / 2026-09-26 Cairo
+
+The handler is now imported by `production-shadow/index.js`, while `wrangler.toml` pins `TRENDOS_T12_PROD_CREATE_CANARY_ENABLED="false"`. Dedicated integration run `36264911935` SUCCESS. No deploy and migration 0005 is not applied.
+
+## Entry 381 LIVE update — controlled lifecycle workflow prepared / 2026-09-26 Cairo
+
+Manual-only workflow `trendos-t12-production-create-canary-controlled.yml` was added at commit `aac54e70bfcbb4ce393c01e06c77b2efbd512dce`. It requires exact confirmation and supports only install-disabled, arm-one and disable. It pins source hashes and target database, reruns qualification, verifies health/state, and emergency-disarms a failed arm. It has no push trigger.
+
+Current state: code qualified; route wired in repo but default-OFF; migration not applied; Worker not deployed from this change; budget not armed; order 4322 not created; general Production CREATE cutover remains OFF.

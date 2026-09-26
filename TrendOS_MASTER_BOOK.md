@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.59-DRAFT — one-shot executed once with exact result unknown; owner pivoted to fresh-start Cloud CREATE from 4322; isolated fresh-start CI PASS; production CREATE still not routed** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.62-DRAFT — fresh-start Production CREATE canary prepared, routed default-OFF and CI-qualified; controlled install/arm/disable workflow prepared; no Production migration/deploy/canary executed yet** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -3701,6 +3701,9 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.57-DRAFT | ORDER Entry376: hardened one-shot static safety qualification PASS, 26/26 assertions, failed=0; helper/test blobs pinned | No production execution or D1 mutation. PRODUCTION_ONE_SHOT_REBASE_EXECUTION remains NOT_STARTED; D1_MIRROR_PARITY=STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false. |
 | 2026-09-26 | 3.58-DRAFT | ORDER Entry377: one-shot executed exactly once; Apps Script completed but return JSON unavailable; GET row counts 712 Orders / 768 Lines; exact parity unknown; no retry | Owner declared historical Google orders completed/not required for migration. Historical mirror parity/backfill is no longer the CREATE cutover objective; do not rerun one-shot. |
 | 2026-09-26 | 3.59-DRAFT | ORDER Entry378: fresh-start business CREATE qualification from next order 4322 passed dedicated isolated CI | First create 4322, idempotent replay no duplicate/no number consumption, next create 4323, no dependency on legacy mirror markers. Production CREATE remains NOT ROUTED / NOT AUTHORIZED. |
+| 2026-09-26 | 3.60-DRAFT | ORDER Entry379: one-shot Production CREATE canary schema/engine/handler prepared unrouted; isolated CI run 36264851918 PASS | Seed 4322, default budget 0, one-unique-create budget, idempotent replay, rollback, lost-ACK readback, concurrency and admin-auth handler qualified; no Production mutation. |
+| 2026-09-26 | 3.61-DRAFT | ORDER Entry380: canary route wired in production-shadow with TRENDOS_T12_PROD_CREATE_CANARY_ENABLED=false; dedicated integration CI run 36264911935 PASS | Repository-only wiring; no Worker deploy and no D1 migration applied. |
+| 2026-09-26 | 3.62-DRAFT | ORDER Entry381: manual controlled install-disabled / arm-one / disable workflow prepared with exact source/hash/target guards and emergency disarm | Workflow has no automatic trigger. Production schema/deploy/arm/canary remain NOT_EXECUTED. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
 
@@ -3773,3 +3776,47 @@ GitHub Actions run `36263998591` = **SUCCESS**.
 الـworkflow العام فشل في hard scope guard بسبب تغيير سابق خارج نطاق T12 في `WHATS_AGENT_BOOK.md` مقارنة بالـbaseline الثابت؛ لم يتم توسيع أو تعطيل الـguard. تم استخدام dedicated read-only CI لتشغيل اختبار CREATE المعزول فقط.
 
 الحد الفاصل: `t12-business-create-candidate.mjs` ما زال ISOLATED و`productionAuthorized=false` وغير مستورد من production worker. منطق fresh-start 4322 مؤهل، لكن Production Cloud CREATE لم يُفعّل بعد.
+
+
+## تحديث ORDER Entry379 — 26 سبتمبر 2026 / one-shot Production CREATE canary prepared and isolated CI PASS
+
+تم تجهيز schema additive جديد `0005_t12_production_create_canary.sql` مع control seed `next_order_number=4322` و`canary_remaining=0`، بالإضافة إلى engine وhandler مستقلين لواحد Production canary فقط. في هذه المرحلة لم يكن الـhandler موصلًا بأي Production route ولم تُطبق migration على D1.
+
+خصائص الأمان المؤهلة:
+- budget يسمح بإنشاء Unique order واحد فقط بعد arm صريح.
+- أول رقم مؤهل = `4322`.
+- replay لنفس clientRequestId بعد استهلاك budget يعيد 4322 ولا ينشئ Duplicate.
+- الطلب المختلف الثاني يُرفض بـ`production-canary-budget-exhausted`.
+- transaction rollback عند أي failure قبل commit.
+- lost ACK يُحسم readback بدون blind retry.
+- نفس-key concurrency ينهار إلى أوردر واحد فقط.
+- admin Orders Edge token مطلوب عند الـhandler.
+
+Commit: `3a373880be5ee778081e75a97f13cbf22dd7e6b0`. GitHub Actions run `36264851918` = **SUCCESS**.
+
+## تحديث ORDER Entry380 — 26 سبتمبر 2026 / Production route wired default-OFF; integration CI PASS
+
+تم توصيل `t12-production-create-canary-handler.mjs` داخل `production-shadow/index.js` وإضافة `TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"` إلى `wrangler.toml`. هذا تغيير repository فقط؛ لم يحدث Deploy ولم تُطبق D1 migration.
+
+Commit: `c3df62100a5988063870ed99770d7d4c35f9ef59`. Dedicated canary CI run `36264911935` = **SUCCESS** بعد الربط. Route state في المصدر = installed/default-OFF.
+
+## تحديث ORDER Entry381 — 26 سبتمبر 2026 / controlled Production canary lifecycle workflow prepared
+
+أضيف workflow يدوي فقط: `.github/workflows/trendos-t12-production-create-canary-controlled.yml`.
+لا يوجد push trigger ولا تنفيذ تلقائي. يتطلب confirmation حرفي `CONTROL_T12_PROD_CREATE_CANARY_4322` ويقبل فقط:
+- `install-disabled`: يطبق migration additive 0005، ينشر Worker والflag ما زال false، ثم GET health يثبت schemaReady + next=4322 + budget=0.
+- `arm-one`: لا يعمل إلا إذا next=4322 وbudget=0 ولا يوجد 4322 في جدول الـcloud-native الجديد؛ يرفع budget إلى 1 مؤقتًا وينشر flag=true.
+- `disable`: يصفر budget وينشر flag=false بدون تغيير next order number.
+
+الـworkflow يثبت hashes للـWorker/wrangler/schema/engine/handler/test قبل أي خطوة، ويعيد تشغيل isolated qualification، وله emergency disarm إذا فشل مسار arm.
+
+Commit: `aac54e70bfcbb4ce393c01e06c77b2efbd512dce`.
+
+الحالة الحالية الدقيقة:
+`PROD_CREATE_CANARY_CODE=QUALIFIED`؛
+`PROD_CREATE_CANARY_ROUTE=WIRED_IN_REPO_DEFAULT_OFF`؛
+`PROD_CREATE_CANARY_MIGRATION_APPLIED=NO`؛
+`PROD_CREATE_CANARY_WORKER_DEPLOYED=NO`؛
+`PROD_CREATE_CANARY_ARMED=NO`؛
+`PROD_CREATE_CANARY_4322_EXECUTED=NO`؛
+`GENERAL_PRODUCTION_CREATE_CUTOVER=NO`.
