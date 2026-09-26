@@ -1669,3 +1669,83 @@ Coexistence path ............ UNKNOWN
 - لا Delete.
 - لا Create WABA.
 - لا Tech Provider.
+
+
+---
+
+## 44) Evidence — API Setup tab still gated by WhatsApp setup — 2026-09-26
+
+### Screenshot observation
+
+داخل:
+
+`Meta for Developers → TrendOS Connect → WhatsApp → إعداد واجهة API`
+
+تم اختيار تبويب **إعداد واجهة API**، لكن محتوى الصفحة ظل يعرض نفس بطاقة إعداد WhatsApp الأساسية:
+
+- Business Portfolio: **المطبعجي**
+- رسالة تفيد بأن Meta ستوفر **رقم هاتف اختباري** لإرسال رسائل إلى عدد محدود من الأرقام.
+- زر **متابعة**.
+- لم يظهر:
+  - WABA ID
+  - Phone Number ID
+  - Access Token
+  - Test recipient controls
+  - Existing production number
+  - Coexistence controls
+
+### Interpretation
+
+هذا دليل مهم أن **WhatsApp developer console للتطبيق لم يصل بعد إلى شاشة API configuration الفعلية**.
+
+الحالة المرئية تبدو كـinitial setup gate، وهو متوافق مع تشخيص Meta السابق:
+
+`App Created = NOT_STARTED`
+
+لكن لا نعتبر هذا وحده إثباتًا أن الضغط على **متابعة** هو مسار Coexistence الصحيح.
+
+### Result
+
+`WA-03 = PARTIAL / STRONGER EVIDENCE`
+
+```text
+WhatsApp Use Case added ........ PASS
+Business Portfolio selected .... PASS
+API console initialized ........ NOT YET VISIBLE
+WABA shown in app .............. NO
+Phone Number ID shown .......... NO
+Coexistence option shown ....... NO
+Initial setup gate ............. YES
+```
+
+### Next exact step
+
+**READ-ONLY**
+
+بدل الضغط على **متابعة** الآن، افتح من القائمة الجانبية داخل WhatsApp:
+
+`التكوين`
+
+الهدف:
+
+- معرفة هل توجد Embedded Signup configuration.
+- معرفة هل يوجد configuration ID.
+- معرفة هل يوجد Webhook / Callback setup.
+- البحث عن أي خيار متعلق بـ:
+  - Embedded Signup
+  - WhatsApp Business App
+  - Coexistence
+  - Existing number
+
+### Do not action
+
+- لا تضغط **متابعة** بعد.
+- لا تنشئ رقمًا جديدًا.
+- لا Migration.
+- لا Deregister.
+- لا Delete.
+- لا Tech Provider onboarding.
+
+### Why this step
+
+صفحة `إعداد واجهة API` لم تعطِ أي بيانات ربط فعلية بعد. لذلك فحص `التكوين` أولًا أقل مخاطرة ويساعدنا نعرف هل التطبيق لديه Embedded Signup / Coexistence configuration قبل إنشاء أي أصول جديدة.
