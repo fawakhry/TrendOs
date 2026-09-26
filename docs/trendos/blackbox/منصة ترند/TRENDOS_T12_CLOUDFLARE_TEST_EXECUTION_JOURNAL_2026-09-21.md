@@ -3624,3 +3624,8 @@ READ/DOC_WRITE only. Full-text review of eight remaining root M sources: employe
 ## Entry 391 PREPARE — MASTER-BOOK-FINISH-BATCH-04-ROOT-WORKQUEUE-HR-PRESS-AUTH-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of seven root M files: WORK_QUEUE_V1_CANDIDATE.md, ATTENDANCE_V1_INTEGRATION.md, OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md, hr-v1.js, operations-hub-v1.js, press-control-backend-v1.gs, D1_Fast_Auth_V2_5_Safe.gs. Capture contracts, write paths, auth/role semantics, frontend/backend dependencies, feature flags and repair gaps. No runtime/test/workflow execution.
+
+
+## Entry 392 PREPARE — MASTER-BOOK-FINISH-BATCH-05-ROOT-CONTROL-RECOVERY-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of: TRENDOS_ACCOUNTING_EXECUTION_LEDGER_2026-09-05.md, trend-master-panels-v1931.gs, trendos-core-p0-remediation-v1.gs, trendos-edge-read-v1.js, go-live-autopilot-v1.js. Goal: capture historical-vs-current boundaries, mutation capability, fail-closed behavior, dependencies and repair use. No execution/deploy/test.
