@@ -3614,3 +3614,8 @@ Batch02: eight small root source/config files were read in full and classified `
 Fixed inventory count after these batches: `M945 / P212 / A11 / Redirect11 / LIVE6`. No `CERTIFIED_CURRENT` promotion occurred. Inventory blob after Batch02: `4d7050e748a6377b780eac46e2a689dcaf5f3117`; Master Book blob after Batch02: `4445080d3ce1070db1ccda324464bdd978d4c340`.
 
 Operational Entry384 blocker remains unchanged: Cloudflare token permission 7500; book-finishing lane performs no production actions.
+
+
+## Entry 390 PREPARE — MASTER-BOOK-FINISH-BATCH-03-ROOT-EMPLOYEE-OPS-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of eight remaining root M sources: employee-manager-strips-drag-v2.js, trendos-rp07-legacy-containment-v1.gs, employee-ops-coach-drag-v1.js, employee-prayer-prep-v1.js, hr-backend-v1.gs, matbagy_theme_v1860.js, attendance-live-timer-v1.js, employee-cleaning-prep-v1.js. Record routes/state/side effects/dependencies and deployment gaps; no execution or certification.
