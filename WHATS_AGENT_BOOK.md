@@ -1798,3 +1798,119 @@ Initial setup gate ............. YES
 - إذا ظهر Migration / Deregister → نتوقف.
 - إذا ظهر Coexistence / Existing WhatsApp Business App → نوثق ونكمل منه.
 - لا يتم حذف أو نقل الرقم الحالي.
+
+
+---
+
+## 46) Evidence — Continue reproduces Onboarding failure + temporary action block — 2026-09-26
+
+### Action performed by user
+
+داخل:
+
+`Meta for Developers → TrendOS Connect → WhatsApp`
+
+تم الضغط على زر:
+
+**متابعة**
+
+في شاشة الـinitial WhatsApp setup gate.
+
+### Actual result
+
+ظهر Toast أحمر بالنص:
+
+```text
+Onboarding failure
+تم حظرك مؤقتًا من القيام بهذا الإجراء.
+```
+
+### أهمية الدليل
+
+هذه ليست مجرد شاشة `Onboarding failure` عامة فقط؛ Meta تعرض أيضًا **temporary action block** على تنفيذ الإجراء نفسه.
+
+بالتالي:
+
+- تكرار الضغط على **متابعة** الآن غير مفيد.
+- لا نعيد المحاولة عدة مرات.
+- لا نستخدم Retry متكرر لتجاوز الحظر.
+- لا نغيّر الرقم أو WABA كاستجابة للحظر.
+- لا نعمل Migration أو Deregister.
+
+### Result
+
+`WA-03 = BLOCKED`
+
+`WA-04 = BLOCKED`
+
+التصنيف الحالي:
+
+```text
+WhatsApp use case ............ PASS
+Business Portfolio ........... PASS
+Initial app setup gate ....... REACHED
+Continue action .............. FAIL
+Meta toast ................... ONBOARDING FAILURE
+Temporary action block ....... CONFIRMED
+App ↔ WABA association ....... STILL UNRESOLVED
+Coexistence eligibility ...... STILL UNRESOLVED
+```
+
+### Correlation with earlier Meta diagnostics
+
+هذا الفشل يأتي بعد التشخيص السابق الذي أعطى:
+
+- Current WABA: `834859482664148`
+- Phone ending: `2077`
+- WABA status: `ACTIVE`
+- Error: `INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA`
+- Onboarding progress: ~40%
+- Backend state: `App Created = NOT_STARTED`
+
+الدليل الجديد لا يلغي التشخيص السابق؛ بل يضيف أن محاولة عبور الـinitial setup gate نفسها أصبحت الآن محظورة مؤقتًا.
+
+### Next exact step
+
+**لا نضغط Continue مرة أخرى الآن.**
+
+المسار التالي هو دعم Meta فقط، مع إرسال التشخيص الموحّد التالي:
+
+```text
+My WhatsApp onboarding is still blocked.
+
+Meta App: TrendOS Connect
+App ID: 1774246503594854
+Current WABA: 834859482664148
+Phone: ending 2077
+Previous case: 28296372606625034
+
+Previous diagnostics showed:
+- WABA ACTIVE
+- INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA
+- onboarding progress ~40%
+- App Created = NOT_STARTED
+
+Today, when I pressed Continue in:
+Meta for Developers → TrendOS Connect → WhatsApp initial setup
+
+the UI returned:
+"Onboarding failure"
+and:
+"تم حظرك مؤقتًا من القيام بهذا الإجراء"
+(You have been temporarily blocked from taking this action.)
+
+Please check the backend onboarding/App-to-WABA association and remove or explain the temporary action block.
+
+Critical requirement:
+I need WhatsApp Business App + Cloud API Coexistence if eligible.
+Do not migrate, deregister, delete, or replace the current phone number.
+```
+
+### Do not repeat
+
+- لا تضغط Continue بشكل متكرر.
+- لا تعيد Embedded Signup عدة مرات أثناء وجود temporary block.
+- لا تبدأ Migration.
+- لا Deregister.
+- لا Delete.
+- لا Tech Provider onboarding كحل تجريبي.
