@@ -3092,3 +3092,12 @@ The owner-approved remote-write boundary remains unchanged. The TEST qualificati
 ## Entry 345 — PREPARED MIG-T12-142-D1COMPAT-REMOTE-RETRY-GATE-20260926 / 2026-09-26 Cairo
 
 Next technically justified step is one separately authorized TEST-only 142 positive retry from a fresh read-only `LARGE_BASELINE` preflight, using the D1-compatible guard blob `ca0a28aca901466094a748c0e59b681328f7808c`. Preconditions: exact TEST identity, exact baseline 2 catalog / 1360 rows / 0 migration / control=1, no production binding, no Worker deploy, and no concurrent writer. The retry must be maximum one POST; any ambiguous response must be reconciled by GET only and never blind-retried. Success requires independent `LARGE_TARGET` = 2 catalog / 1480 rows / targetCatalog=1 / oldChanged=0 / newChanged=11 / tailRows=60 on both tabs. This entry is PREPARED ONLY and grants no mutation permission. PROD mirror remains NOT_RESTORED and Cloud production CREATE remains NOT_CUT_OVER.
+
+
+## Entry 346 — FAIL DOC-MASTER-BOOK-OVERSIZE-FETCH-ZERO-COMMIT-20260926 / 2026-09-26 Cairo
+
+While updating `TrendOS_MASTER_BOOK.md`, the connector returned an empty content body for the oversized current file and the first update commit `666d4cbe5e5149a867b9266dbe0fc2322978efd0` therefore temporarily wrote a zero-byte master book. This was a documentation-write failure only; no runtime, Cloudflare, Google, SQL, Apps Script, Worker, trigger, or business data was changed. The failure was detected immediately by direct root metadata readback showing size=0 and blob `e69de29bb2d1d6434b8b29ae775ad8c2e48c5391`.
+
+## Entry 347 — RESULT DOC-MASTER-BOOK-RESTORE-AFTER-ZERO-COMMIT-20260926 / 2026-09-26 Cairo
+
+Recovered the master book from the last verified non-empty blob `0441922e872da99c7accbe6c0e5584395b38148c` (1,010,405 characters), reapplied the Entry342–345 update in memory, and committed the restored book as `dcc2a4e10a85364eeba6d70a2329575f8800fbef` / blob `d92bd0f29cc748908f43acea59e7e561334a19ae`. Independent repository-root readback reports the restored file size as 1,190,146 bytes, not zero. This recovery affects documentation only. Current TEST state remains `LARGE_BASELINE`; 142 retry remains NOT_RUN; PROD remains NOT_RESTORED.
