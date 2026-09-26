@@ -3619,3 +3619,8 @@ Operational Entry384 blocker remains unchanged: Cloudflare token permission 7500
 ## Entry 390 PREPARE — MASTER-BOOK-FINISH-BATCH-03-ROOT-EMPLOYEE-OPS-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of eight remaining root M sources: employee-manager-strips-drag-v2.js, trendos-rp07-legacy-containment-v1.gs, employee-ops-coach-drag-v1.js, employee-prayer-prep-v1.js, hr-backend-v1.gs, matbagy_theme_v1860.js, attendance-live-timer-v1.js, employee-cleaning-prep-v1.js. Record routes/state/side effects/dependencies and deployment gaps; no execution or certification.
+
+
+## Entry 391 PREPARE — MASTER-BOOK-FINISH-BATCH-04-ROOT-WORKQUEUE-HR-PRESS-AUTH-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of seven root M files: WORK_QUEUE_V1_CANDIDATE.md, ATTENDANCE_V1_INTEGRATION.md, OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md, hr-v1.js, operations-hub-v1.js, press-control-backend-v1.gs, D1_Fast_Auth_V2_5_Safe.gs. Capture contracts, write paths, auth/role semantics, frontend/backend dependencies, feature flags and repair gaps. No runtime/test/workflow execution.
