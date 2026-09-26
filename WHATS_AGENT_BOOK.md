@@ -1914,3 +1914,94 @@ Do not migrate, deregister, delete, or replace the current phone number.
 - لا Deregister.
 - لا Delete.
 - لا Tech Provider onboarding كحل تجريبي.
+
+
+---
+
+## 47) Evidence — Business Support thread reopened with reply box available — 2026-09-26
+
+### Screenshot observation
+
+داخل:
+
+`Meta Business Support Home`
+
+تم فتح نفس محادثة الدعم الخاصة بمشكلة WhatsApp Business Onboarding.
+
+الرد الحالي من Meta ما زال يقول:
+
+- لا يمكن تنفيذ manual technical escalation في الوقت الحالي.
+- Verify App Association داخل TrendOS Connect.
+- مراجعة Embedded Signup errors.
+- مراجعة Coexistence eligibility.
+- استخدام Report a Problem / Developer Support إذا استمر الخطأ.
+
+يوجد أسفل المحادثة مربع:
+
+**إضافة رد...**
+
+كما ظهر Popup تقييم رضا عن المساعدة ويمكن إغلاقه بدون إرسال تقييم الآن.
+
+### لماذا هذه نقطة جيدة؟
+
+عندنا دليل جديد لم يكن موجودًا وقت رد Meta السابق:
+
+```text
+Onboarding failure
+تم حظرك مؤقتًا من القيام بهذا الإجراء.
+```
+
+لذلك الأفضل الآن الرد **في نفس Thread** بدل بدء محادثة جديدة، حتى يبقى التشخيص القديم والجديد في سياق واحد.
+
+### Next exact step
+
+1. إغلاق Popup التقييم من علامة X فقط.
+2. استخدام مربع **إضافة رد...**
+3. إرسال النص التالي كما هو:
+
+```text
+I followed the steps you provided and verified the app setup path.
+
+New evidence:
+When I go to:
+Meta for Developers → TrendOS Connect → WhatsApp
+
+and press Continue on the initial WhatsApp setup screen, I now receive:
+
+"Onboarding failure"
+and
+"تم حظرك مؤقتًا من القيام بهذا الإجراء"
+(You have been temporarily blocked from taking this action.)
+
+Current details:
+App: TrendOS Connect
+App ID: 1774246503594854
+Current WABA: 834859482664148
+Phone: ending 2077
+Previous case: 28296372606625034
+
+Your previous diagnostic showed:
+- WABA ACTIVE
+- INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA
+- onboarding progress ~40%
+- App Created = NOT_STARTED
+
+The WhatsApp use case is already added to TrendOS Connect, but the developer console is still blocked at the initial setup gate and does not show the actual WABA/Phone Number ID configuration.
+
+Please check:
+1. the backend App ↔ WABA association,
+2. the reason for the temporary action block,
+3. whether this WABA/number is eligible for WhatsApp Business App + Cloud API Coexistence,
+4. the exact supported path to complete Coexistence without migration.
+
+Critical requirement:
+Do NOT migrate, deregister, delete, or replace the current phone number.
+I need to preserve the existing WhatsApp Business App and conversations.
+```
+
+### Guardrails
+
+- لا تبدأ New Chat قبل تجربة الرد في نفس Thread.
+- لا تضغط أي Migration/Deregister/Delete.
+- لا تعيد Continue في Developer Portal أثناء وجود temporary block.
+- لا تغيّر الرقم.
