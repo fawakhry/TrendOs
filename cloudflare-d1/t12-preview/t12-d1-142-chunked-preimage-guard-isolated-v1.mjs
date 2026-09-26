@@ -45,9 +45,14 @@ function guardForTab(db,plan,source,mirror) {
   const chunks=packExpected(unchanged);
   const totalBytes=chunks.reduce((acc,c)=>acc+bytes(c),0);
   ensure(totalBytes<=MAX_ALL_GUARD_BYTES,'TOTAL_GUARD_PAYLOAD_BYTES');
-  const pieces=chunks.length ? chunks.map(()=>"SELECT CAST(json_extract(e.value,'$.n') AS INTEGER) n,\n    json_extract(e.value,'$.v') v,json_extract(e.value,'$.d') d,\n    json_extract(e.value,'$.f') f FROM json_each(?) AS e") :
-    ['SELECT NULL n,NULL v,NULL d,NULL f WHERE 0'];
-  const sql="WITH expected AS MATERIALIZED ("+pieces.join('\nUNION ALL\n')+")\n"+
+  const chunkArgs=chunks.length ? chunks.map(()=>"json(?)").join(',') : "";
+  const expectedSql=chunks.length
+    ? "SELECT CAST(json_extract(e.value,'$.n') AS INTEGER) n,\n"+
+      "    json_extract(e.value,'$.v') v,json_extract(e.value,'$.d') d,\n"+
+      "    json_extract(e.value,'$.f') f\n"+
+      "FROM json_each(json_array("+chunkArgs+")) AS c, json_each(c.value) AS e"
+    : "SELECT NULL n,NULL v,NULL d,NULL f WHERE 0";
+  const sql="WITH expected AS MATERIALIZED ("+expectedSql+")\n"+
     "INSERT INTO sheet_catalog (sheet_name,status) VALUES (?,CASE WHEN\n"+
     "EXISTS(SELECT 1 FROM sheet_catalog c WHERE c.sheet_name=? AND c.sheet_id=?\n"+
     "AND c.headers_json=? AND c.source_last_row=? AND c.source_last_col=?\n"+
