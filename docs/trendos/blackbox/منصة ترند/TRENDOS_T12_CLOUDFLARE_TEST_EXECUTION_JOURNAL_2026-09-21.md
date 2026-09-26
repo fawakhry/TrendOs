@@ -3556,3 +3556,14 @@ Owner manually dispatched `TrendOS T12 Production CREATE Canary Controlled` with
 Source/target/hash guards PASS and the isolated canary qualification PASS. The first remote D1 command, `wrangler d1 migrations apply trendos-main --remote`, reached the expected database id but Cloudflare rejected the query with API error code 7500: insufficient permission. The migration step therefore failed before the Worker deploy; health verification was skipped. `arm-one` was also skipped.
 
 No Worker deploy, D1 canary arm, order 4322 creation, or general CREATE cutover occurred. Treat migration 0005 as NOT_APPLIED for this run. Required recovery is API-token permission repair, followed by the same `install-disabled` action only; `arm-one` remains unauthorized.
+
+
+## Entry 385 PREPARE — MASTER-BOOK-COMPACTION-CLOSED-REGISTRY-20260927 / 2026-09-27 Cairo
+
+TASK_ID: MASTER-BOOK-COMPACTION-20260927. STEP_ID: PREPARE-01. Scope is GitHub documentation only on branch `cloud-migration-v3-t12-order-create-ci-20260919`; no runtime code, Cloudflare, D1, Apps Script, Google Sheets, workflow dispatch, secrets, flags, deployment, or production mutation is authorized by this step.
+
+Owner goal: keep TrendOS knowledge complete for repair while reducing new-chat reading cost. Planned documentation-only action: preserve a pre-compaction Git pointer, externalize the fixed §11 1185-path inventory and historical Master Book change log into referenced appendices, add a closed-components registry, collapse only historical/superseded/owner-retired material in the active Master Book, and change onboarding so a new chat reads the compact active core + latest Journal/Handoff rather than the full heavy appendices.
+
+Safety rules: no item may be labeled `CERTIFIED_CURRENT` without source+runtime parity and required tests. Current §11 inventory contains zero formal CERTIFIED rows. Initial closures may use only `CERTIFIED_HISTORICAL`, `CLOSED_BY_OWNER_DECISION`, or `SUPERSEDED_HISTORICAL` with explicit reopen triggers. All removed inline detail must remain recoverable from Git history or a linked appendix; no source code is deleted or moved.
+
+EXPECTED: smaller active Master Book with zero knowledge loss, explicit repair pointers, no operational state change. FAIL-CLOSED: if any extracted appendix cannot be verified or Master Book reconstruction loses a source section, stop before replacing the book.
