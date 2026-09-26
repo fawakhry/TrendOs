@@ -3587,3 +3587,10 @@ Verified documentation effects:
 Primary documentation commits in this pass include PREPARE `3f5ca78b9e7cc4af5341cc57e9ca9bd6bce6381c`, Master Book compaction `cc38043b7eb103331644d0d7b9d724b766f08e9e`, onboarding update `4f303f7f9c5b5eb0f6ea314cdaa94328badbe605`, archive-registry extraction `d33ee09d0082843a4d59dfa4fe590b5b9d7db0cc`, and final closed-history collapse `1a71799e4f89c7ca5365e192c2a5150d6dc5f7c0`. Final Master Book blob observed before this RESULT entry: `52c2e5884fdc30b02b44434f1fbf643e9f878590`.
 
 Operational state is unchanged from Entry384: `INSTALL_DISABLED_RUN=FAIL_PERMISSION_7500`; migration 0005 NOT_APPLIED; Worker NOT_DEPLOYED from that run; canary NOT_ARMED; order4322 NOT_CREATED; general Production CREATE cutover NO. Owner approval remains install-disabled only. NEXT operational step remains repair/replace GitHub Actions `CLOUDFLARE_API_TOKEN` permissions and rerun the same install-disabled action only; do not run arm-one.
+
+
+## Entry 387 PREPARE — MASTER-BOOK-FINISH-BATCH-01-OUT-OF-SCOPE-20260927 / 2026-09-27 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260927. STEP_ID: BATCH-01-OUT-OF-SCOPE. DOC_READ/DOC_WRITE only on branch `cloud-migration-v3-t12-order-create-ci-20260919`. No runtime/Cloudflare/D1/Apps Script/Google/workflow execution is authorized.
+
+Goal: begin closing the remaining fixed §11 `M:METADATA_ONLY` inventory after compaction. First batch is limited to the four FOKHA knowledge-system files that the inventory already classifies outside TrendOS scope. Read all four full texts, confirm whether they contain any TrendOS operational dependency that must remain in the active repair core, then classify them explicitly without deleting or moving them. Success = every file in this batch has full-text disposition and repair/book impact recorded; otherwise remain M/UNKNOWN.
