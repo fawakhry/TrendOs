@@ -1,0 +1,64 @@
+name: TrendOS T12 TEST Mirror 142 ReadOnly Reconcile
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t12-order-create-ci-20260919
+    paths:
+      - 'docs/trendos/staging/RUN_T12_TEST_MIRROR_142_RECONCILE_READONLY_20260926.trigger'
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TEST_DB_UUID: 54a3c05e-cde9-4979-814f-d40f941edcd5
+      TEST_DB_NAME: trendos-t12-synthetic-test
+      PROD_DB_UUID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source and TEST identity
+        run: |
+          set -euo pipefail
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-existing-test-mirror-142-remote-dev-worker-20260926.mjs)" = "314ac2c0b47debced9a29a80275e4e7694a8c429"
+          test "$TEST_DB_UUID" != "$PROD_DB_UUID"
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$TEST_DB_UUID"             > /tmp/test-db.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/test-db.json','utf8'));if(x.success!==true||x.result?.name!==process.env.TEST_DB_NAME)process.exit(1);console.log('TEST_D1_IDENTITY_READ_ONLY_PASS name='+x.result.name)"
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4.141.0
+      - name: Read remote 142 state only
+        run: |
+          set -euo pipefail
+          cat > cloudflare-d1/t12-preview/.t12-142-readonly-runtime.toml <<EOF
+          name = "trendos-t12-mirror-142-readonly"
+          main = "./t12-existing-test-mirror-142-remote-dev-worker-20260926.mjs"
+          compatibility_date = "2026-09-26"
+          [[d1_databases]]
+          binding = "T12_SYNTHETIC_DB"
+          database_name = "$TEST_DB_NAME"
+          database_id = "$TEST_DB_UUID"
+          remote = true
+          EOF
+          ! grep -q 'trendos-main' cloudflare-d1/t12-preview/.t12-142-readonly-runtime.toml
+          ! grep -q "$PROD_DB_UUID" cloudflare-d1/t12-preview/.t12-142-readonly-runtime.toml
+          CI=1 npx wrangler dev             --config cloudflare-d1/t12-preview/.t12-142-readonly-runtime.toml             --ip 127.0.0.1 --port 8787 >/tmp/t12-142-readonly.log 2>&1 &
+          PID=$!
+          cleanup(){ kill "$PID" >/dev/null 2>&1 || true; wait "$PID" >/dev/null 2>&1 || true; rm -f cloudflare-d1/t12-preview/.t12-142-readonly-runtime.toml; }
+          trap cleanup EXIT
+          ok=0
+          for i in $(seq 1 40); do
+            if curl --silent --show-error --max-time 8               http://127.0.0.1:8787/__t12/local/142-qualification               -o /tmp/state.json; then
+              if node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/state.json','utf8'));process.exit(x.success===true?0:1)"; then ok=1;break;fi
+            fi
+            sleep 2
+          done
+          test "$ok" = 1
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/state.json','utf8'));console.log('T142_READONLY_RECONCILE='+JSON.stringify(x.state));if(!['LARGE_BASELINE','LARGE_TARGET','MISMATCH'].includes(x.state?.state))process.exit(1)"
