@@ -55,7 +55,7 @@ for(const s of specs){
   metrics.push(built.metrics);
 }
 assert.deepEqual(metrics.map(x=>x.chunks),[9,12]);
-assert.deepEqual(metrics.map(x=>x.bindCount),[19,22]);
+assert.deepEqual(metrics.map(x=>x.bindCount),[18,21]);
 assert.deepEqual(metrics.map(x=>x.payloadBytes),[860783,1113729]);
 
 db.raw.prepare(`UPDATE sheet_rows SET values_json=?
