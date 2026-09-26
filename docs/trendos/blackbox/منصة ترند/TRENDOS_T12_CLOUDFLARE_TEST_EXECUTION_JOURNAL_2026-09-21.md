@@ -3119,3 +3119,8 @@ Independent GET within the same run immediately after the POST proved `LARGE_TAR
 ## Entry 350 — RESULT MIG-T12-142-INDEPENDENT-READONLY-TARGET-CONFIRM-20260926 / 2026-09-26 Cairo
 
 Separate read-only workflow run `36241424226` / job `108402538878` completed SUCCESS after Entry349. It used GET only against the same isolated TEST D1 and independently reconfirmed `LARGE_TARGET`: catalog=2, mirror=1480, migration=0, control=1; first tab 712 rows and second tab 768 rows; targetCatalog=1 on both; oldChanged=0, newChanged=11, tailRows=60 on both. No POST, SQL mutation, seed, DDL, Worker deploy or PROD binding occurred in this confirmation. Current TEST state is `LARGE_TARGET`. This qualifies the fabricated historical-shape 142-position TEST path for the specific D1-compatible guard construction; it does not restore PROD, authorize production canary, or transfer business CREATE/numbering authority from Google/Apps Script.
+
+
+## Entry 351 — RESULT MIG-T12-142-PASS-DOC-CHECKPOINT-20260926 / 2026-09-26 Cairo
+
+Master Book updated to `3.42-DRAFT` in commit `35781d33bbbfaa25b8caf0f2ecf20c5887cfa475`, blob `ef14916a4bd63b5b66549a1a39c1bf4b32bcdea1`. Independent repository-root readback reports non-zero size 1,192,932 bytes. Book now records Entry349–350, real TEST `LARGE_TARGET`, exactly-one-POST/no-retry scope, and the continuing boundaries: `PROD_MIRROR=NOT_RESTORED`, `CLOUD_CREATE=NOT_CUT_OVER`, Google/Apps Script remain business CREATE/number authority. No additional TEST or PROD mutation was performed while documenting.
