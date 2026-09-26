@@ -3658,3 +3658,8 @@ READ/DOC_WRITE only. Full-text review of `trend-master-resilience-v1931.js` and 
 ## Entry 397 PREPARE — MASTER-BOOK-FINISH-BATCH-09-INTEGRITY-ATTENDANCE-CORE-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of `trendos-integrity-v1.gs` and `attendance-backend-v1.gs`. Capture feature-flag semantics, locks, hashing/idempotency helpers, spreadsheet dependencies, attendance state transitions, mutation/duplicate behavior, authorization, repair diagnostics and deployment gaps. No runtime/test/workflow execution.
+
+
+## Entry 398 PREPARE — MASTER-BOOK-FINISH-BATCH-10-INTEGRITY-DASHBOARD-ATTENDANCE-CLEANING-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of `trendos-integrity-dashboard-v1.gs` and `trendos-attendance-cleaning-integrity-v1.gs`. Capture dashboard read/write behavior, registry/flag dependencies, repair hooks, attendance/cleaning wrappers, idempotency/locking, mutation boundaries and deployment gaps. No runtime/test/workflow execution.
