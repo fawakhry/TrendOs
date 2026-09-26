@@ -1,0 +1,40 @@
+name: TrendOS T12 142 D1-Compatible Local Contract
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t12-order-create-ci-20260919
+    paths:
+      - 'docs/trendos/staging/RUN_T12_142_D1COMPAT_LOCAL_20260926.trigger'
+
+permissions:
+  contents: read
+
+jobs:
+  local142:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact isolated sources
+        run: |
+          set -euo pipefail
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-d1-142-chunked-preimage-guard-isolated-v1.mjs)" = "ca0a28aca901466094a748c0e59b681328f7808c"
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-d1-128-packed-cas-planner-isolated-v1.mjs)" = "55e2e3a236aae8aa7f7577b92874a95e878539f5"
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-d1-128-packed-cas-batch-isolated-v1.mjs)" = "f03c0d7318a41e4afa45a8b7c7cac84707016822"
+          test "$(git hash-object tests/t12_d1_142_chunked_preimage_large_isolated_v1.test.mjs)" = "ff0a30f16dc1c0e68ad64727fff435f23e53c404"
+          test "$(git hash-object tests/t12_existing_test_mirror_142_remote_dev_worker_v1.test.mjs)" = "590bcd1d26677e7c34b22854fe1f48c566c83225"
+      - name: Run local SQLite contracts only
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/t12_d1_142_chunked_preimage_large_isolated_v1.test.mjs
+          node --experimental-sqlite tests/t12_existing_test_mirror_142_remote_dev_worker_v1.test.mjs
+      - name: Assert compound SELECT removed
+        run: |
+          set -euo pipefail
+          ! grep -q "pieces.join.*UNION ALL" cloudflare-d1/t12-preview/t12-d1-142-chunked-preimage-guard-isolated-v1.mjs
+          grep -q "json_each(json_array(" cloudflare-d1/t12-preview/t12-d1-142-chunked-preimage-guard-isolated-v1.mjs
+          echo "T142_D1COMPAT_LOCAL_CONTRACT=PASS"
