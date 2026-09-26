@@ -1,0 +1,134 @@
+name: TrendOS T12 Production CREATE Canary Controlled
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Canary lifecycle action
+        required: true
+        type: choice
+        options:
+          - install-disabled
+          - arm-one
+          - disable
+      confirmation:
+        description: Type CONTROL_T12_PROD_CREATE_CANARY_4322
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-production-create-canary-controlled
+  cancel-in-progress: false
+
+jobs:
+  controlled:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      ACTION: ${{ inputs.action }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact authorization and source guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = 'CONTROL_T12_PROD_CREATE_CANARY_4322'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$ACTION" = 'install-disabled' || test "$ACTION" = 'arm-one' || test "$ACTION" = 'disable'
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fx 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          test "$(git hash-object cloudflare-d1/production-shadow/index.js)" = 'cabf0237c3aea2479b56ab237eeb9877c86254a4'
+          test "$(git hash-object cloudflare-d1/wrangler.toml)" = '7fdc44b5f8b35c45009a80771aa2bce63da5748c'
+          test "$(git hash-object cloudflare-d1/migrations/0005_t12_production_create_canary.sql)" = '95224bb1afa50a6344fd0cf755a40d20ca7b9a6a'
+          test "$(git hash-object cloudflare-d1/src/t12-production-create-canary.mjs)" = '84d4d6c3b57067d665e52d8142380b23e2c1701e'
+          test "$(git hash-object cloudflare-d1/src/t12-production-create-canary-handler.mjs)" = '853c234ab85ea00a83a8ced4cec6a0b3cce4cbf5'
+          test "$(git hash-object tests/t12_production_create_canary.test.mjs)" = '8d2d8c589fcffe71b8f8b57b32c376299b4e2ce2'
+
+      - name: Re-run isolated qualification
+        run: node --experimental-sqlite tests/t12_production_create_canary.test.mjs
+
+      - name: Install additive migration while route stays disabled
+        if: ${{ inputs.action == 'install-disabled' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 migrations apply trendos-main --remote --config cloudflare-d1/wrangler.toml
+          npx --yes wrangler@4 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command             "SELECT singleton,marker,next_order_number,canary_remaining,policy_epoch FROM t12_prod_create_control WHERE singleton=1;" > /tmp/control.txt
+          grep -F 'T12_PROD_CREATE_CANARY_V1' /tmp/control.txt
+          grep -F '4322' /tmp/control.txt
+          grep -F 'owner_fresh_start_20260926' /tmp/control.txt
+
+      - name: Arm exactly one unique create
+        if: ${{ inputs.action == 'arm-one' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command             "UPDATE t12_prod_create_control SET canary_remaining=1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1' AND next_order_number=4322 AND canary_remaining=0 AND NOT EXISTS(SELECT 1 FROM t12_prod_orders WHERE order_id='4322');"
+          npx --yes wrangler@4 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command             "SELECT next_order_number,canary_remaining,(SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4322') AS existing_4322 FROM t12_prod_create_control WHERE singleton=1;" > /tmp/armed.txt
+          grep -E '4322' /tmp/armed.txt
+          grep -E '1' /tmp/armed.txt
+          sed -i 's/TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"/TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "true"/' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "true"' cloudflare-d1/wrangler.toml
+
+      - name: Disarm DB budget before disabled deploy
+        if: ${{ inputs.action == 'disable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command             "UPDATE t12_prod_create_control SET canary_remaining=0,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1';"
+
+      - name: Deploy exact Worker state
+        id: deploy
+        run: npx --yes wrangler@4 deploy --config cloudflare-d1/wrangler.toml
+
+      - name: Verify health and state
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=false
+          for i in 1 2 3 4 5; do
+            code="$(curl --silent --show-error --output /tmp/h.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/create-canary/health" || true)"
+            if [ "$code" = 200 ]; then ok=true; break; fi
+            sleep 2
+          done
+          test "$ok" = true
+          cat /tmp/h.json
+          grep -F '"schemaReady":true' /tmp/h.json
+          if [ "$ACTION" = 'arm-one' ]; then
+            grep -F '"enabled":true' /tmp/h.json
+            grep -F '"nextOrderNumber":4322' /tmp/h.json
+            grep -F '"canaryRemaining":1' /tmp/h.json
+          elif [ "$ACTION" = 'install-disabled' ]; then
+            grep -F '"enabled":false' /tmp/h.json
+            grep -F '"nextOrderNumber":4322' /tmp/h.json
+            grep -F '"canaryRemaining":0' /tmp/h.json
+          else
+            grep -F '"enabled":false' /tmp/h.json
+            grep -F '"canaryRemaining":0' /tmp/h.json
+          fi
+
+      - name: Emergency disarm on failed arm
+        if: ${{ failure() && inputs.action == 'arm-one' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command             "UPDATE t12_prod_create_control SET canary_remaining=0,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1';" || true
+          sed -i 's/TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "true"/TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"/' cloudflare-d1/wrangler.toml
+          npx --yes wrangler@4 deploy --config cloudflare-d1/wrangler.toml || true
