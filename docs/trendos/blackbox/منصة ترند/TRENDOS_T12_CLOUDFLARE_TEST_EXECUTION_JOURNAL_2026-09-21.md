@@ -3336,3 +3336,35 @@ Therefore `GOOGLE_MAX_ORDER_ID=4321`, `GOOGLE_NEXT_EXPECTED=4322`, and `GOOGLE_A
 Master Book advanced to `3.52-DRAFT`, commit `8cf4f7ae74ca639da6aa6b7bcfdc7c17e2a024e2`, blob `93e63051a0d294e3e6e00e8ac0c1c6c06897a6b2`.
 
 **NEXT:** READ-ONLY Production D1 mirror MAX numeric Order ID, then final frozen cross-source reread. Keep Google/Apps Script as CREATE/number authority; V1/R4/R5 and Cloud writers remain OFF.
+
+
+## Entry 372 — RESULT FINAL-BOUNDED-GOOGLE-REREAD-20260926 / 2026-09-26 Cairo
+
+A second READ-ONLY bounded reread of the four mandatory Google Sheets Order-ID sources was completed at **2026-09-26 19:48:39 Cairo**.
+
+Observed evidence:
+- `FROZEN_CURRENT_ORDERS_MAX=4321`, cell `A712`, last row `712`
+- `FROZEN_CURRENT_LINES_MAX=4321`, cell `A768`, last row `768`
+- `FROZEN_ARCHIVED_ORDERS_MAX=3761`, cell `A2872`, last row `2872`
+- `FROZEN_ARCHIVED_LINES_MAX=3761`, cell `A4111`, last row `4111`
+- `ANY_NUMERIC_ORDER_ID_GTE_4322=NO`
+- `FROZEN_GOOGLE_MAX_ORDER_ID=4321`
+- `SCRIPT_PROPERTY_NEXT=4322`
+- `FROZEN_GOOGLE_NUMERIC_CONSISTENCY=PASS`
+
+This reread reproduces the prior Google maxima exactly and shows no numeric collision with the live next-value `4322`.
+
+**Evidence boundary:** Work explicitly reported that writer shutdown/quiescence was not independently verified. This is therefore a bounded, internally consistent read snapshot, not proof that all writers were frozen for the entire evidence window. Record `WRITE_QUIESCENCE_UNVERIFIED=true`; do not promote this evidence to a completed authority-transfer freeze.
+
+State after Entry372:
+- `VERSION155_HISTORY=VERIFIED`
+- `SCRIPT_PROPERTY_LIVE_READ=VERIFIED`
+- `GOOGLE_ALLOCATOR_NUMERIC_CONSISTENCY=PASS`
+- `FROZEN_GOOGLE_NUMERIC_CONSISTENCY=PASS`
+- `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED`
+- `ALLOCATOR_SEED_PINNED=false`
+- `ORDER_WRITER_FENCE_PHASE=OPEN`
+
+Master Book advanced to `3.53-DRAFT`, commit `7b17f62a665d668967156649ddfa43f548bd771f`, blob `f0a0a89b046305325ad1d1763f1e8469b4b3e140`.
+
+**NEXT:** collect Production D1 mirror MAX numeric Order ID READ-ONLY and reconcile it against Google max `4321` / next `4322`. Separately inspect immutable Version155 source if accessible. No Cloud writer, order creation, property mutation, deployment, or restore is authorized.
