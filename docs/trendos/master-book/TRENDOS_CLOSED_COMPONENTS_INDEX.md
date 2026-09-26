@@ -21,6 +21,8 @@
 | Old inline §8.2 T12 Journal title list | `CLOSED_NAVIGATION_COPY` | It duplicated navigation already available from the canonical append-only Journal. | Only for audit of the old index snapshot. | `TRENDOS_T12_JOURNAL_TITLE_INDEX_SNAPSHOT_2026-09-26.md`. |
 | Old inline §11 1185-path inventory table | `CLOSED_HEAVY_REFERENCE` | It is required for coverage accounting, but not for every new chat. It remains an appendix and is opened only when a file/coverage question requires it. | Coverage work, repair of a named file, audit of M/P/A/L classifications, or inventory refresh. | `TRENDOS_COVERAGE_INVENTORY_05ca9c9.md`. |
 
+| Work Queue V1 legacy task system | `SUPERSEDED_HISTORICAL / DO_NOT_ENABLE` | Owner requirements replaced V1 with Operator Task V2. Full review confirms V1 exposes claim/start/pause/resume/complete, Fly Print as an active task, mutable Press batches, and queue tie-break by source row; these conflict with V2. Backend is flag-gated but source remains only for lineage. | Only for audit/regression archaeology or if the owner explicitly reverses the V2 contract. Never enable V1 as a shortcut. | `WORK_QUEUE_V1_CANDIDATE.md`; `work-queue-v1.js`; `work-queue-backend-v1.gs`; contract test; candidate + inertness workflows; Entry391/395. |
+
 ## Rule for future closure
 
 A component can be removed from mandatory active reading only after one of the statuses above is assigned with evidence and a reopen trigger. A live subsystem must not become `CERTIFIED_CURRENT` merely because tests passed in GitHub; current deployed/runtime identity must also be proven. When source/deployment changes, certification is invalidated or narrowed until reverified.
