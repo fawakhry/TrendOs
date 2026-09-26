@@ -154,15 +154,25 @@ Historical WABA = 26751382591203706
 
 ## 5) طبقة WhatsApp Integrity
 
-على فرع:
+تمت مراجعتها أولًا على فرع:
 
 `agent/go-live-2026-09-01-integrity`
 
-يوجد:
+ثم في مراجعة 2026-09-26 تم التأكد أنها موجودة **أيضًا على فرع العمل الحالي**:
 
-`trendos-whatsapp-integrity-v1.gs`
+`cloud-migration-v3-t12-order-create-ci-20260919`
 
-الحالة:
+الملفات الأساسية الموجودة على فرع العمل الحالي:
+
+- `trendos-integrity-v1.gs`
+- `trendos-whatsapp-integrity-v1.gs`
+- `customer-manager-send-integrity-v1.js`
+
+كما أن `trendos-whatsapp-integrity-v1.gs` على فرع العمل الحالي يحمل نفس Blob SHA الذي ظهر على فرع integrity وقت الفحص:
+
+`c3e59c50f17de2604f0192a5b8f651e53caf9018`
+
+الحالة ما زالت:
 
 **PREPARED ONLY — DO NOT DEPLOY BLINDLY**
 
@@ -876,3 +886,125 @@ DELETE NUMBER: NOT APPROVED
 - ما الذي لا يجب تكراره؟
 
 **هذا الملف هو نقطة البداية الرسمية لأي شات جديد خاص بواتس ايجنت.**
+
+
+---
+
+## 33) مراجعة مصدر واتس ايجنت على فرع العمل — 2026-09-26
+
+تم تنفيذ مراجعة GitHub فقط بدون أي تغيير Production.
+
+### HEAD وقت الفحص
+
+`73e40f7d8c6ab8713efbfd675f5fb425a8256aa3`
+
+وكان هذا هو Commit إنشاء كتاب واتس ايجنت.
+
+### النتيجة 1 — Integrity موجودة بالفعل على الفرع الحالي
+
+تم التأكد من وجود:
+
+- `trendos-integrity-v1.gs`
+- `trendos-whatsapp-integrity-v1.gs`
+- `customer-manager-send-integrity-v1.js`
+
+إذن لم يعد صحيحًا اعتبار طبقة Integrity حبيسة فرع `agent/go-live-2026-09-01-integrity` فقط.
+
+**لكن وجود الملفات في GitHub لا يثبت أنها منشورة أو مفعلة داخل Apps Script Production.**
+
+### النتيجة 2 — الـRouter جاهز لاستدعاء Integrity إذا كانت موجودة في Runtime
+
+`v1932-router.gs` يحتوي على guards اختيارية:
+
+- `trendosIntegrityTryWebhookV1_`
+- `trendosIntegrityTryRouteV1_`
+
+ويحاول استخدام Integrity قبل fallback للمسار القديم.
+
+هذا يعني أن source composition الحالي لديه bridge للتشغيل الآمن، لكن Runtime activation ما زال يحتاج إثبات.
+
+### النتيجة 3 — المسار القديم ما زال موجودًا
+
+`customer-manager-backend-v1932.gs` ما زال يحتوي على:
+
+`customerManagerV1_(op="send") -> cmMetaSend_() -> append`
+
+أي أن fallback القديم نفسه ليس logically idempotent.
+
+الأمان الحقيقي يعتمد على أن Integrity route تكون فعلًا ضمن الـRuntime composition وتلتقط send قبل هذا fallback.
+
+### النتيجة 4 — Health check الحالي غير كافٍ لإثبات WhatsApp live readiness
+
+`v1940-deploy-health.gs` يتحقق من وجود:
+
+- `OPENAI_API_KEY`
+- `WHATSAPP_TOKEN`
+- `WHATSAPP_PHONE_NUMBER_ID`
+
+ويتأكد من وجود top-level modules.
+
+لكنه لا يثبت:
+
+- قيمة `WHATSAPP_PHONE_NUMBER_ID` الصحيحة.
+- ارتباطه بالـWABA الحالي.
+- `WHATSAPP_VERIFY_TOKEN`.
+- نجاح webhook verification.
+- وصول webhook حقيقي من Meta.
+- تفعيل Integrity path.
+- نجاح send حقيقي.
+- عدم تكرار send عند retry.
+
+لذلك:
+
+`readyForFullGoLive=true`
+
+من هذا helper وحده **لا يكفي** لإعلان واتس ايجنت Live.
+
+### النتيجة 5 — لا يوجد WABA ID hardcoded في المصدر الذي تم فحصه
+
+بحث GitHub عن:
+
+- `834859482664148`
+- `26751382591203706`
+
+لم يُظهر اعتمادًا برمجيًا مباشرًا في source الافتراضي.
+
+وده جيد من ناحية التصميم: WABA نفسه لا يجب أن يكون secret أو runtime routing key hardcoded داخل send helper؛ الإرسال يعتمد على `WHATSAPP_PHONE_NUMBER_ID` وToken داخل Script Properties.
+
+### الحالة بعد المراجعة
+
+```text
+GITHUB SOURCE:
+  WhatsApp base code ........ FOUND
+  Router bridge ............. FOUND
+  Integrity foundation ...... FOUND
+  WhatsApp Integrity ........ FOUND
+  Frontend request-id patch . FOUND
+
+PRODUCTION ACTIVATION:
+  Integrity deployed ........ UNKNOWN
+  Current Phone Number ID ... UNKNOWN
+  Current Token validity .... UNKNOWN
+  Webhook live .............. UNKNOWN
+  Real send ................. BLOCKED BY META ONBOARDING
+
+META:
+  Current WABA .............. 834859482664148
+  Error ..................... INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA
+  App Created state ......... NOT_STARTED
+  Desired mode .............. COEXISTENCE
+```
+
+### الخطوة التالية بعد هذا الفحص
+
+الأولوية ليست كتابة send code جديد.
+
+الأولوية:
+
+1. حسم Meta App ↔ WABA ↔ Coexistence association.
+2. بعد نجاح Meta، فحص Runtime Apps Script read-only.
+3. إثبات أن Integrity موجودة في deployed composition.
+4. ضبط/التحقق من Phone Number ID وWebhook properties بدون كشف Secrets.
+5. اختبار inbound ثم outbound بعملية واحدة فقط.
+
+**لا يتم إرسال أي WhatsApp production test قبل حل Meta association وتأكيد Runtime composition.**
