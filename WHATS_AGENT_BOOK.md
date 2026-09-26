@@ -1544,3 +1544,57 @@ Coexistence path .......... UNKNOWN
 - لا Deregister.
 - لا Delete number.
 - لا إنشاء WABA جديد.
+
+
+---
+
+## 42) Evidence — WhatsApp Use Case list — 2026-09-26
+
+### Screenshot observation
+
+داخل:
+
+`Meta for Developers → TrendOS Connect → حالات الاستخدام`
+
+ظهر Use Case واضح باسم:
+
+**التواصل مع العملاء عبر واتساب**
+
+ومعه زر:
+
+**تخصيص**
+
+### ما يثبته هذا الدليل
+
+- WhatsApp Use Case موجود داخل TrendOS Connect.
+- الوصول إلى إعدادات WhatsApp يتم من خلال زر **تخصيص**.
+- هذه الشاشة لا تعرض WABA ID ولا Phone Number ID ولا Coexistence status حتى الآن.
+
+### Result
+
+`WA-03 = PARTIAL`
+
+### Next exact step
+
+**READ-ONLY NAVIGATION**
+
+اضغط:
+
+`تخصيص`
+
+داخل بطاقة **التواصل مع العملاء عبر واتساب** فقط.
+
+الهدف من الشاشة التالية:
+
+- رؤية إعدادات WhatsApp المرتبطة بالتطبيق.
+- البحث عن WABA الحالي `834859482664148`.
+- البحث عن Phone Number / Phone Number ID.
+- البحث عن Embedded Signup / Coexistence / Existing WhatsApp Business App number.
+
+### Do not action
+
+- لا Migration.
+- لا Deregister.
+- لا Delete number.
+- لا Tech Provider.
+- لا إنشاء WABA جديد.
