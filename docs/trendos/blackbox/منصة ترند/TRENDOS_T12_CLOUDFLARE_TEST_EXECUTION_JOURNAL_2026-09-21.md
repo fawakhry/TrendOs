@@ -3538,3 +3538,12 @@ Owner explicitly approved **install-disabled only**. Scope: apply additive migra
 Execution from the current chat was blocked before mutation: the available GitHub connector has no workflow_dispatch action; an attempted one-shot push-trigger workaround was rejected by safety tooling before any GitHub write; TinyFish browser could not start because its wallet balance is negative. Therefore no migration, Worker deploy, D1 control update, route enable, or order create occurred.
 
 State: OWNER_INSTALL_DISABLED_APPROVAL=YES; OWNER_ARM_ONE_APPROVAL=NO; INSTALL_DISABLED_EXECUTION=BLOCKED_BEFORE_MUTATION; PROD_CREATE_CANARY_MIGRATION_APPLIED=NO; PROD_CREATE_CANARY_WORKER_DEPLOYED=NO; PROD_CREATE_CANARY_ARMED=NO; PROD_CREATE_CANARY_4322_EXECUTED=NO; GENERAL_PRODUCTION_CREATE_CUTOVER=NO.
+
+
+## Entry 383 LIVE update — workflow visibility root cause fixed on default branch / 2026-09-26 Cairo
+
+Owner could not see `TrendOS T12 Production CREATE Canary Controlled` in GitHub Actions, so no run was started. Root cause: the workflow existed on the T12 branch but not on repository default branch `main`.
+
+Safety check of `main` showed only R4 and R5 controlled workflows, both manual `workflow_dispatch` with no push trigger. The exact T12 control workflow file was therefore copied to `main` only, with no runtime code transfer and no Cloudflare action. Main commit: `1100750af2932a26c1b4a2ddc0fba2884af5f0ca`; workflow blob: `c4603edd4844591b8cdacda94dbea55f7775d6bf`.
+
+No workflow was dispatched by this fix. No migration, Worker deploy, D1 control mutation, arm, or CREATE occurred. Owner approval remains limited to `install-disabled`; `arm-one` remains unauthorized.

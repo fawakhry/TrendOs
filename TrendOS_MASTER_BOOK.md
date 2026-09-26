@@ -3840,3 +3840,23 @@ Commit: `aac54e70bfcbb4ce393c01e06c77b2efbd512dce`.
 `PROD_CREATE_CANARY_ARMED=NO`؛
 `PROD_CREATE_CANARY_4322_EXECUTED=NO`؛
 `GENERAL_PRODUCTION_CREATE_CUTOVER=NO`.
+
+
+## تحديث ORDER Entry383 — 26 سبتمبر 2026 / GitHub Actions visibility recovery; workflow exposed on default branch
+
+محاولة المالك تشغيل `TrendOS T12 Production CREATE Canary Controlled` من صفحة Actions توقفت قبل أي تنفيذ لأن الـworkflow لم يكن ظاهرًا. السبب تم إثباته: ملف التحكم كان موجودًا على فرع T12 فقط، بينما default branch للمستودع هو `main`، والملف لم يكن موجودًا على `main`.
+
+تم فحص `main` قبل الإصلاح ووجد عليه فقط R4 وR5 controlled workflows، وكلاهما `workflow_dispatch` يدوي بدون push trigger. لذلك تم نسخ **ملف workflow فقط** إلى `main` بدون نقل أي runtime code أو تغيير Cloudflare state.
+
+Main commit: `1100750af2932a26c1b4a2ddc0fba2884af5f0ca`.
+Workflow blob على main يطابق فرع T12: `c4603edd4844591b8cdacda94dbea55f7775d6bf`.
+
+لا يوجد أي تشغيل تلقائي ناتج عن هذه الخطوة، ولم يحدث migration أو Worker deploy أو D1 mutation أو arm أو CREATE. موافقة المالك ما زالت **install-disabled فقط**؛ `arm-one` غير مصرح به.
+
+الحالة:
+`WORKFLOW_DEFAULT_BRANCH_VISIBILITY_FIX=COMPLETE`؛
+`INSTALL_DISABLED_EXECUTION=NOT_STARTED_AFTER_VISIBILITY_FIX`؛
+`PROD_CREATE_CANARY_MIGRATION_APPLIED=NO`؛
+`PROD_CREATE_CANARY_WORKER_DEPLOYED=NO`؛
+`PROD_CREATE_CANARY_ARMED=NO`؛
+`PROD_CREATE_CANARY_4322_EXECUTED=NO`.
