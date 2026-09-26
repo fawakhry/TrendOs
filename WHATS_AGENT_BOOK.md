@@ -1369,3 +1369,119 @@ Do not repeat:
 ```
 
 ولا يتم تغيير Status لأي WA gate إلا بدليل صريح.
+
+
+---
+
+## 38) قرار المسارات الثلاثة — تبسيط تنفيذي
+
+تم تثبيت القرار التشغيلي بصيغة بسيطة حتى لا يحصل خلط:
+
+### المسار A — المطلوب الأساسي
+
+```text
+نفس رقم WhatsApp الحالي
++
+WhatsApp Business App يظل شغال
++
+TrendOS / Whats Agent يرد آليًا
+=
+COEXISTENCE
+```
+
+هذا هو المسار المفضل.
+
+### المسار B — البديل السريع عند تعذر Coexistence
+
+```text
+رقم جديد مستقل
++
+Cloud API / TrendOS
++
+Auto Reply
+```
+
+هذا المسار لا يلمس الرقم الحالي، ويمكن استخدامه كحل عملي أو اختبار.
+
+### المسار C — غير مطلوب حاليًا
+
+```text
+نقل الرقم الحالي بالكامل من WhatsApp Business App إلى API
+=
+MIGRATION
+```
+
+هذا المسار **غير معتمد حاليًا** لأنه لا يحقق هدف الإبقاء على WhatsApp Business App كما هو.
+
+---
+
+## 39) تصحيح نقطة Tech Provider
+
+تم سحب افتراض أن "الانضمام كمزود خدمات تقنية" هو الخطوة التالية المؤكدة.
+
+الحالة الصحيحة:
+
+- خيار Tech Provider قد يكون متعلقًا ببناء حلول onboarding لعملاء آخرين.
+- لم يثبت أنه مطلوب لحل حالة رقم المطبعجي نفسه.
+- لذلك **لا نضغط Tech Provider ولا نبدأ أي onboarding خاص به** بدون دليل صريح أنه مطلوب لمسار Coexistence لهذا الحساب.
+
+الحالة:
+
+`TECH_PROVIDER_REQUIREMENT = UNCONFIRMED / DO NOT ACTION`
+
+---
+
+## 40) الخطوة التنفيذية التالية — بدون أي تغيير
+
+### الهدف
+
+معرفة هل Meta تعطي لهذا التطبيق والحساب **مسار Coexistence فعلي** أم لا.
+
+### الإجراء
+
+داخل:
+
+`Meta for Developers → TrendOS Connect → WhatsApp`
+
+نفتح صفحة WhatsApp فقط ونبحث بصريًا عن أي من الآتي:
+
+- WhatsApp Business App
+- Coexistence
+- Embedded Signup
+- Existing WhatsApp Business App number
+- Connect existing number
+- أي onboarding flow يذكر الاحتفاظ بتطبيق WhatsApp Business الحالي
+
+### الممنوع
+
+- لا Continue على Migration عادي.
+- لا Delete.
+- لا Deregister.
+- لا Replace number.
+- لا Create new WABA.
+- لا Tech Provider onboarding.
+- لا تغيير إعدادات قبل قراءة الشاشة.
+
+### المطلوب من الدليل
+
+Screenshot واحدة لصفحة WhatsApp داخل `TrendOS Connect`.
+
+بعدها يتم تصنيف النتيجة:
+
+```text
+A) Coexistence option visible
+   → نكمل نفس الرقم.
+
+B) Standard onboarding only
+   → لا نكمل التسجيل العادي.
+   → نرجع لمسار الدعم/eligibility.
+
+C) No usable coexistence path
+   → يبقى رقم جديد هو fallback الأسرع بدون لمس الرقم الحالي.
+```
+
+### الحالة الحالية
+
+`NEXT ACTION = READ-ONLY SCREEN INSPECTION`
+
+لا يوجد أي تغيير Production مطلوب في هذه الخطوة.
