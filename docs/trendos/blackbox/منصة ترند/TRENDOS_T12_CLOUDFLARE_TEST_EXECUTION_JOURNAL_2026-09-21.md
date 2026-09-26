@@ -3101,3 +3101,8 @@ While updating `TrendOS_MASTER_BOOK.md`, the connector returned an empty content
 ## Entry 347 — RESULT DOC-MASTER-BOOK-RESTORE-AFTER-ZERO-COMMIT-20260926 / 2026-09-26 Cairo
 
 Recovered the master book from the last verified non-empty blob `0441922e872da99c7accbe6c0e5584395b38148c` (1,010,405 characters), reapplied the Entry342–345 update in memory, and committed the restored book as `dcc2a4e10a85364eeba6d70a2329575f8800fbef` / blob `d92bd0f29cc748908f43acea59e7e561334a19ae`. Independent repository-root readback reports the restored file size as 1,190,146 bytes, not zero. This recovery affects documentation only. Current TEST state remains `LARGE_BASELINE`; 142 retry remains NOT_RUN; PROD remains NOT_RESTORED.
+
+
+## Entry 348 — PREPARED MIG-T12-142-D1COMPAT-REMOTE-RETRY-OWNER-AUTHORIZED-20260926 / 2026-09-26 Cairo
+
+OWNER_APPROVAL=«تشغيل POST واحد للـ142 على قاعدة TEST الحالية، بدون Retry وبدون PROD.» Scope is exactly one positive POST against existing isolated TEST D1 after a fresh read-only exact `LARGE_BASELINE` preflight. No seed, no second POST, no Worker deploy, no production binding, no Google/Apps Script mutation. Any ambiguous HTTP outcome is reconciled by GET only. Prepared workflow `.github/workflows/trendos-t12-test-mirror-142-d1compat-retry-once.yml` pins worker blob `314ac2c0b47debced9a29a80275e4e7694a8c429` and D1-compatible guard blob `ca0a28aca901466094a748c0e59b681328f7808c`. Required success state is `LARGE_TARGET` with catalog=2, mirror=1480, migration=0, control=1, tabs 712/768, oldChanged=0, newChanged=11, tailRows=60 each.
