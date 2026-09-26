@@ -1545,3 +1545,14 @@ Owner manually dispatched `TrendOS T12 Production CREATE Canary Controlled` with
 Source/target/hash guards PASS and the isolated canary qualification PASS. The first remote D1 command, `wrangler d1 migrations apply trendos-main --remote`, reached the expected database id but Cloudflare rejected the query with API error code 7500: insufficient permission. The migration step therefore failed before the Worker deploy; health verification was skipped. `arm-one` was also skipped.
 
 No Worker deploy, D1 canary arm, order 4322 creation, or general CREATE cutover occurred. Treat migration 0005 as NOT_APPLIED for this run. Required recovery is API-token permission repair, followed by the same `install-disabled` action only; `arm-one` remains unauthorized.
+
+
+## Entry 386 handoff update — compact Master Book / 2026-09-27 Cairo
+
+Documentation compaction is complete and verified. `TrendOS_MASTER_BOOK.md` is now v3.65-DRAFT-COMPACT and its active size was reduced from 1,075,940 to 522,216 characters (~51.5%). Heavy §11 inventory, historical changelog, Journal title index, completed archive-batch detail, and closed-component details are now linked appendices rather than mandatory inline reading. `اقرأني_أولًا.md` now requires new chats to read only the active repair core relevant to the task, not the full historical book.
+
+No runtime code/source was deleted or moved. No Cloudflare/D1/Apps Script/Google/workflow action occurred from this documentation pass. No current subsystem is labeled CERTIFIED_CURRENT. Closed statuses are narrow and reversible by explicit triggers: T6B CERTIFIED_HISTORICAL; Sep24 non-incident SUPERSEDED_HISTORICAL; Entries374–377 full-rebase CLOSED_BY_OWNER_DECISION/DO_NOT_RETRY.
+
+Current operational blocker remains Entry384: install-disabled run `36272464176` failed at the first remote D1 migration command with Cloudflare API permission code 7500. Migration0005 NOT_APPLIED, Worker NOT_DEPLOYED from that run, canary NOT_ARMED, order4322 NOT_CREATED, general cutover NO. Owner approval is still install-disabled only. NEXT: repair GitHub Actions CLOUDFLARE_API_TOKEN D1/Worker permissions, then rerun install-disabled only; do not arm-one.
+
+Journal RESULT commit: `90654f297494878a5a17d1fea1c4dde7507e9298`.
