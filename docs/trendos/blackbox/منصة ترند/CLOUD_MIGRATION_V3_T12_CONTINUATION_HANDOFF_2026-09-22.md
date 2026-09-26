@@ -1352,3 +1352,20 @@ Owner supplied read-only Apps Script screenshots for the operational backend pro
 Master Book is now `3.51-DRAFT`, commit `218234c4e978c5f13cde81cedc046eb28cb1821c`, blob `7782a67246f2671a85f51ffb817d4925112e3e15`; Journal RESULT Entry370 commit `4437d88e404328f35691a005aaedc8c515b361dd`. State: `ORDER_WRITER_LIVE_PROJECT=VERIFIED`; `ORDER_WRITER_LIVE_STRUCTURE=VERIFIED`; `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED`; `ORDER_WRITER_FENCE_PHASE=OPEN`; `ALLOCATOR_SEED_PINNED=false`. Cloud V1/R4/R5 remain OFF; Google/Apps Script remains business CREATE/number authority.
 
 **NEXT FAST-TRACK READ-ONLY EVIDENCE:** owner opens Apps Script Project History and captures the snapshot/version metadata corresponding to Version155/Sep6 7:45AM if available, without restore/save. Also open Project Settings → Script properties and capture only the value of `TRENDOS_NEXT_SIMPLE_ORDER_NO`; do not edit. Production D1 mirror max numeric Order ID is still required for final allocator seed. Record every result before moving forward.
+
+
+## Entry 371 LIVE update — Google allocator history/property evidence / 2026-09-26 Cairo
+
+Owner-provided evidence closes the Google-side history/property/numeric-consistency checks without changing production. Apps Script Project History visibly confirms **Version 155 — Sep 6, 2026, 7:45 AM**; therefore `VERSION155_HISTORY=VERIFIED`. A dedicated READ-ONLY property getter returned `TRENDOS_NEXT_SIMPLE_ORDER_NO=4322`, so `SCRIPT_PROPERTY_LIVE_READ=VERIFIED`.
+
+Google Sheets READ-ONLY maxima are:
+- current Orders: `4321` at `الأوردرات!A712`
+- current Lines: `4321` at `بنود الأوردرات!A768`
+- archived Orders: `3761` at `أرشيف الأوردرات!A2872`
+- archived Lines: `3761` at `أرشيف بنود الأوردرات!A4111`
+
+Thus `GOOGLE_MAX_ORDER_ID=4321`, `GOOGLE_NEXT_EXPECTED=4322`, and `GOOGLE_ALLOCATOR_NUMERIC_CONSISTENCY=PASS`. These observations do not prove exact immutable Version155 source parity, so `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED` remains. `ALLOCATOR_SEED_PINNED=false` also remains pending Production D1 mirror MAX and the final frozen reread before any CREATE/number-authority transfer.
+
+Master Book is now `3.52-DRAFT`, commit `8cf4f7ae74ca639da6aa6b7bcfdc7c17e2a024e2`, blob `93e63051a0d294e3e6e00e8ac0c1c6c06897a6b2`. Journal Entry371 commit `c17f1a98e6bf046f43309bd189205a3810083d9b`, blob `c18471a7a469625f147f896965cfbbb8f0409529`.
+
+**NEXT FAST-TRACK READ-ONLY:** collect Production D1 mirror MAX numeric Order ID; separately inspect immutable Version155 source markers if accessible. Keep Google/Apps Script as business CREATE/number authority. Do not enable Cloud writers, deploy Worker, restore Apps Script, or mutate allocator state.
