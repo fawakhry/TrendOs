@@ -1,0 +1,26 @@
+name: TrendOS T12 Production CREATE Canary Isolated CI
+on:
+  push:
+    branches: [cloud-migration-v3-t12-order-create-ci-20260919]
+    paths:
+      - '.github/workflows/trendos-t12-production-create-canary-isolated-ci.yml'
+      - 'cloudflare-d1/migrations/0005_t12_production_create_canary.sql'
+      - 'cloudflare-d1/src/t12-production-create-canary.mjs'
+      - 'cloudflare-d1/src/t12-production-create-canary-handler.mjs'
+      - 'tests/t12_production_create_canary.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: |
+          node --check cloudflare-d1/src/t12-production-create-canary.mjs
+          node --check cloudflare-d1/src/t12-production-create-canary-handler.mjs
+          node --check tests/t12_production_create_canary.test.mjs
+      - run: node --experimental-sqlite tests/t12_production_create_canary.test.mjs
