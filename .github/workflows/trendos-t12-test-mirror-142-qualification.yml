@@ -36,7 +36,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test "$TEST_DB_UUID" != "$PROD_DB_UUID"
-          test "$(git hash-object cloudflare-d1/t12-preview/t12-d1-142-chunked-preimage-guard-isolated-v1.mjs)" = "88db31bf8d33a46cd028702c0ac8d0455d1e8ee7"
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-d1-142-chunked-preimage-guard-isolated-v1.mjs)" = "ca0a28aca901466094a748c0e59b681328f7808c"
           test "$(git hash-object tests/t12_d1_142_chunked_preimage_large_isolated_v1.test.mjs)" = "ff0a30f16dc1c0e68ad64727fff435f23e53c404"
           test "$(git hash-object cloudflare-d1/t12-preview/t12-existing-test-mirror-142-remote-dev-worker-20260926.mjs)" = "314ac2c0b47debced9a29a80275e4e7694a8c429"
           test "$(git hash-object tests/t12_existing_test_mirror_142_remote_dev_worker_v1.test.mjs)" = "590bcd1d26677e7c34b22854fe1f48c566c83225"
