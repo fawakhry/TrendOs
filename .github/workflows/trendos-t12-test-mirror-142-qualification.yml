@@ -1,0 +1,129 @@
+name: TrendOS T12 TEST Mirror 142 Remote Qualification
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t12-order-create-ci-20260919
+    paths:
+      - 'docs/trendos/staging/RUN_T12_TEST_MIRROR_142_20260926.trigger'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-test-mirror-142-qualification
+  cancel-in-progress: false
+
+jobs:
+  qualify142:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TEST_DB_UUID: 54a3c05e-cde9-4979-814f-d40f941edcd5
+      TEST_DB_NAME: trendos-t12-synthetic-test
+      PROD_DB_UUID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Local 142 contracts first
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$TEST_DB_UUID" != "$PROD_DB_UUID"
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-d1-142-chunked-preimage-guard-isolated-v1.mjs)" = "88db31bf8d33a46cd028702c0ac8d0455d1e8ee7"
+          test "$(git hash-object tests/t12_d1_142_chunked_preimage_large_isolated_v1.test.mjs)" = "ff0a30f16dc1c0e68ad64727fff435f23e53c404"
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-existing-test-mirror-142-remote-dev-worker-20260926.mjs)" = "314ac2c0b47debced9a29a80275e4e7694a8c429"
+          test "$(git hash-object tests/t12_existing_test_mirror_142_remote_dev_worker_v1.test.mjs)" = "590bcd1d26677e7c34b22854fe1f48c566c83225"
+          node --experimental-sqlite tests/t12_d1_142_chunked_preimage_large_isolated_v1.test.mjs
+          node --experimental-sqlite tests/t12_existing_test_mirror_142_remote_dev_worker_v1.test.mjs
+
+      - name: Verify exact remote TEST D1 identity read-only
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$TEST_DB_UUID"             > /tmp/test-db.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/test-db.json','utf8'));if(x.success!==true||x.result?.name!==process.env.TEST_DB_NAME||String(x.result.uuid||x.result.id||process.env.TEST_DB_UUID)!==process.env.TEST_DB_UUID)process.exit(1);console.log('TEST_D1_IDENTITY_READ_ONLY_PASS name='+x.result.name)"
+
+      - name: Install Wrangler with remote bindings
+        run: npm install --no-save wrangler@4.141.0
+
+      - name: Run historical-shape 142 qualification on TEST only
+        run: |
+          set -euo pipefail
+          cat > cloudflare-d1/t12-preview/.t12-142-remote-runtime.toml <<EOF
+          name = "trendos-t12-mirror-142-remote-dev"
+          main = "./t12-existing-test-mirror-142-remote-dev-worker-20260926.mjs"
+          compatibility_date = "2026-09-26"
+
+          [[d1_databases]]
+          binding = "T12_SYNTHETIC_DB"
+          database_name = "$TEST_DB_NAME"
+          database_id = "$TEST_DB_UUID"
+          remote = true
+          EOF
+          ! grep -q 'trendos-main' cloudflare-d1/t12-preview/.t12-142-remote-runtime.toml
+          ! grep -q "$PROD_DB_UUID" cloudflare-d1/t12-preview/.t12-142-remote-runtime.toml
+
+          CI=1 npx wrangler dev             --config cloudflare-d1/t12-preview/.t12-142-remote-runtime.toml             --ip 127.0.0.1 --port 8787 > /tmp/t12-142-wrangler.log 2>&1 &
+          DEV_PID=$!
+          cleanup() {
+            kill "$DEV_PID" >/dev/null 2>&1 || true
+            wait "$DEV_PID" >/dev/null 2>&1 || true
+            rm -f cloudflare-d1/t12-preview/.t12-142-remote-runtime.toml
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --show-error --max-time 5               http://127.0.0.1:8787/__t12/local/142-qualification               -o /tmp/state0.json; then
+              if node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/state0.json','utf8'));process.exit(x.success===true&&x.state?.state==='TINY_NEW'?0:1)"; then
+                ready=1; break
+              fi
+            fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            tail -120 /tmp/t12-142-wrangler.log || true
+            exit 1
+          fi
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/state0.json','utf8'));console.log('T142_PRESEED='+JSON.stringify(x.state))"
+
+          set +e
+          seed_code="$(curl --silent --show-error --max-time 45             --output /tmp/seed.json --write-out '%{http_code}'             -H 'content-type: application/json'             --data '{"action":"seed","confirmation":"SEED_142_SYNTHETIC_FROM_TINY_NEW"}'             http://127.0.0.1:8787/__t12/local/142-qualification)"
+          seed_rc=$?
+          set -e
+          echo "T142_SEED_POST_ATTEMPTED=1 CURL_RC=$seed_rc HTTP=$seed_code"
+          # No seed retry: reconcile by GET only.
+          curl --fail --silent --show-error --max-time 15             http://127.0.0.1:8787/__t12/local/142-qualification             -o /tmp/baseline.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/baseline.json','utf8'));if(!x.success||x.state?.state!=='LARGE_BASELINE'||x.state?.mirrorRows!==1360)process.exit(1);console.log('T142_BASELINE='+JSON.stringify(x.state))"
+
+          set +e
+          pos_code="$(curl --silent --show-error --max-time 90             --output /tmp/positive142.json --write-out '%{http_code}'             -H 'content-type: application/json'             --data '{"action":"positive","confirmation":"RUN_142_POSITIVE_ON_EXISTING_TEST_ONLY"}'             http://127.0.0.1:8787/__t12/local/142-qualification)"
+          pos_rc=$?
+          set -e
+          echo "T142_POSITIVE_POST_ATTEMPTED=1 CURL_RC=$pos_rc HTTP=$pos_code"
+          # Never retry the 142 batch. Reconcile by GET only.
+          curl --fail --silent --show-error --max-time 20             http://127.0.0.1:8787/__t12/local/142-qualification             -o /tmp/target.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/target.json','utf8'));if(!x.success||x.state?.state!=='LARGE_TARGET'||x.state?.mirrorRows!==1480)process.exit(1);console.log('T142_TARGET='+JSON.stringify(x.state))"
+
+          if [ "$pos_rc" = 0 ] && [ "$pos_code" = 200 ]; then
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/positive142.json','utf8'));if(!x.success||x.code!=='positive-pass'||x.publicPlan?.candidateUpserts!==142||x.publicPlan?.statements!==42||x.after?.state!=='LARGE_TARGET')process.exit(1);console.log('REAL_TEST_142_PASS='+JSON.stringify(x.publicPlan))"
+          else
+            echo 'REAL_TEST_142_COMMIT_RECONCILED_BY_TARGET_GET; RESPONSE_NOT_RETRIED'
+          fi
+
+      - name: Record sanitized result
+        if: ${{ always() }}
+        run: |
+          {
+            echo '### TrendOS T12 real TEST 142 qualification'
+            echo '- Worker code ran locally; only TEST D1 binding was remote.'
+            echo '- No Worker deploy and no production database binding.'
+            echo '- Seed POST: maximum one attempt, then GET-only reconcile.'
+            echo '- 142 positive batch: maximum one attempt, then GET-only reconcile.'
+          } >> "$GITHUB_STEP_SUMMARY"
