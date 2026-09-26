@@ -1598,3 +1598,74 @@ Coexistence path .......... UNKNOWN
 - لا Delete number.
 - لا Tech Provider.
 - لا إنشاء WABA جديد.
+
+
+---
+
+## 43) Evidence — WhatsApp Quickstart screen — 2026-09-26
+
+### Screenshot observation
+
+داخل:
+
+`Meta for Developers → TrendOS Connect → حالات الاستخدام → تخصيص → التواصل على واتساب`
+
+ظهرت قائمة WhatsApp الجانبية وبها:
+
+- `الأذونات والميزات`
+- `البدء السريع`
+- `إعداد واجهة API`
+- `التكوين`
+- `الموارد`
+
+وفي شاشة **البدء السريع** ظهر:
+
+- Business Portfolio المحدد: **المطبعجي**
+- بطاقة WhatsApp Business Portfolio.
+- رسالة تفيد بوجود/توفير **رقم هاتف اختباري من واتساب** لإرسال رسائل إلى عدد محدود من الأرقام.
+- زر **متابعة**.
+
+### Interpretation
+
+هذه الشاشة تبدو كمسار Quickstart/Test القياسي، وليست دليلًا بحد ذاتها على Coexistence.
+
+لذلك لا نضغط **متابعة** الآن، لأن هدفنا ليس بدء Standard onboarding أو Test Phone flow قبل حسم App ↔ WABA ↔ Coexistence.
+
+### Result
+
+`WA-03 = PARTIAL`
+
+المثبت:
+
+```text
+TrendOS Connect ............. PASS
+WhatsApp use case ........... PASS
+Business Portfolio selected . المطبعجي
+Standard Quickstart ......... VISIBLE
+Current WABA association .... UNKNOWN
+Coexistence path ............ UNKNOWN
+```
+
+### Next exact step
+
+**READ-ONLY NAVIGATION**
+
+اضغط من القائمة اليمنى:
+
+`إعداد واجهة API`
+
+الهدف من الصفحة التالية:
+
+- معرفة WABA الظاهر للتطبيق.
+- معرفة Phone Number / Phone Number ID إن ظهر.
+- معرفة هل الصفحة تشير إلى رقم اختباري أم الرقم الحالي.
+- عدم إنشاء أو تغيير أي أصل.
+
+### Do not action
+
+- لا تضغط `متابعة` في Quickstart الآن.
+- لا Migration.
+- لا Deregister.
+- لا Delete.
+- لا Create WABA.
+- لا Tech Provider.
