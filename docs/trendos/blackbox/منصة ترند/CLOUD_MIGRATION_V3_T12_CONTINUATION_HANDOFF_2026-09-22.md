@@ -1460,3 +1460,29 @@ Current gate state remains:
 - Google/Apps Script remains CREATE/number authority.
 
 Next: qualify this hardened helper, then execute it exactly once in the operational Apps Script project and immediately perform GET-only postflight reconciliation. Do not deploy, enable recurring sync, or invoke R4/R5.
+
+
+## Entry 376 LIVE update — hardened one-shot static qualification PASS / 2026-09-26 Cairo
+
+The Entry375 hardened helper was re-read from the active T12 branch and qualified against the complete static safety assertion set.
+
+Result: `PASS` — 26/26 assertions, zero failures.
+
+Pinned evidence:
+- helper blob `80129205329e604b35c03fc1893ee2f2bdc9f91b`
+- test blob `09e3b7c8dffe4779a6a31f6730d2230944230e77`
+- hardening commit `7e90f58250e489511e8dbbf2e97a72f76670b8af`
+- success requires `exactParity && sourceStillSame`
+- source-advanced post-promote outcome fails closed with `T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY`
+- no staged-parity-only success gate remains
+- no Script Property write/delete, trigger create/delete, Sheet setValue/setValues, recurring-sync start, or baseline-clear pattern exists in the helper.
+
+No production Apps Script execution and no D1 mutation occurred during qualification.
+
+Current state remains:
+- `PRODUCTION_ONE_SHOT_REBASE_EXECUTION=NOT_STARTED`
+- `D1_MIRROR_PARITY=STALE/BLOCKED`
+- `ALLOCATOR_SEED_PINNED=false`
+- Google/Apps Script remains CREATE/number authority.
+
+Exact next production action: install/persist the pinned helper blob in the operational Apps Script project, run only `trendosT12OneShotAtomicFullRebase20260926` once, capture the sanitized receipt, then independently GET-verify both current mirror tabs. No Deploy, recurring sync, R4/R5, or blind retry.

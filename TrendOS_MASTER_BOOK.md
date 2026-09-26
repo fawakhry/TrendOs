@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.56-DRAFT — one-shot rebase success hardened to require post-promote authoritative-source stability; production execution still NOT STARTED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.57-DRAFT — hardened one-shot rebase statically qualified PASS (26/26 assertions); production execution still NOT STARTED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -3698,6 +3698,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 
 | 2026-09-26 | 3.55-DRAFT | ORDER Entry374: prepared `t12-d1-one-shot-atomic-full-rebase-20260926.gs` plus static safety test for a no-trigger/no-property one-shot atomic Orders+Lines mirror rebase; helper stages both tabs, rechecks source/catalog before promote, performs GET parity after promote, and forbids automatic retry on ambiguous POST | Production execution NOT STARTED because cloud-browser automation did not start (wallet out of funds). No Apps Script edit/run and no D1 mutation occurred from that attempt. ALLOCATOR_SEED_PINNED=false; D1_MIRROR_PARITY remains STALE/BLOCKED until an authorized one-shot run and postflight parity. |
 | 2026-09-26 | 3.56-DRAFT | ORDER Entry375: hardened one-shot success gate to require post-promote Google source fingerprint stability in addition to exact D1 parity | GitHub-only change; production execution still NOT_STARTED. If source advances after promote, return fail-closed with T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY and no automatic retry. D1_MIRROR_PARITY remains STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false. |
+| 2026-09-26 | 3.57-DRAFT | ORDER Entry376: hardened one-shot static safety qualification PASS, 26/26 assertions, failed=0; helper/test blobs pinned | No production execution or D1 mutation. PRODUCTION_ONE_SHOT_REBASE_EXECUTION remains NOT_STARTED; D1_MIRROR_PARITY=STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
 
@@ -3718,3 +3719,25 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 `D1_MIRROR_PARITY=STALE/BLOCKED`;
 `ALLOCATOR_SEED_PINNED=false`.
 الخطوة التالية تبقى: تأهيل التعديل بالاختبار ثم تشغيل الـone-shot مرة واحدة فقط في المشروع التشغيلي، وبعدها GET postflight/reconciliation؛ لا Deploy ولا recurring sync ولا R4/R5.
+
+
+## تحديث ORDER Entry376 — 26 سبتمبر 2026 / hardened one-shot static qualification PASS
+
+تم تأهيل نسخة Entry375 الحالية من الـhelper بعد القراءة من نفس فرع التشغيل. نتيجة فحص السلامة: **PASS — 26/26 assertions، failed=0**.
+
+الأدلة المثبتة:
+- helper blob: `80129205329e604b35c03fc1893ee2f2bdc9f91b`
+- test blob: `09e3b7c8dffe4779a6a31f6730d2230944230e77`
+- GitHub hardening commit: `7e90f58250e489511e8dbbf2e97a72f76670b8af`
+- success gate: `exactParity && sourceStillSame`
+- stale-after-promote fail code: `T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY`
+- staged-parity-only success gate absent
+- forbidden property/trigger/Sheet-write patterns absent from the helper.
+
+لم ينفذ هذا التأهيل أي Apps Script production run أو D1 POST/mutation. لذلك الحالة التشغيلية لا تتغير:
+`PRODUCTION_ONE_SHOT_REBASE_EXECUTION=NOT_STARTED`؛
+`D1_MIRROR_PARITY=STALE/BLOCKED`؛
+`ALLOCATOR_SEED_PINNED=false`؛
+Google/Apps Script ما زال CREATE/number authority.
+
+الخطوة التشغيلية التالية فقط: تثبيت نفس helper blob في Apps Script التشغيلي وتشغيل `trendosT12OneShotAtomicFullRebase20260926` **مرة واحدة**، ثم GET-only reconciliation. ممنوع Deploy أو recurring sync أو R4/R5 أو blind retry.
