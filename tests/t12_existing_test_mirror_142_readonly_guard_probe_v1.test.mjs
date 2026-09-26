@@ -49,6 +49,8 @@ for(const s of specs){
   assert.equal(Number(r.mismatches),0);
   assert.equal(Number(r.catalog_matches),1);
   assert.equal(Number(r.actual_rows),s.base);
+  assert(!built.stmt.sql.includes('UNION ALL'));
+  assert(built.stmt.sql.includes('json_array('));
   assert(built.metrics.sqlBytes<100000);
   assert(built.metrics.bindCount<=100);
   assert(built.metrics.maxChunkBytes<=100000);
