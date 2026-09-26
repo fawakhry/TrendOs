@@ -1260,3 +1260,10 @@ Read-only run 36238221783 proved TEST remained `LARGE_BASELINE` after the single
 ## Entry 346–347 documentation recovery / 2026-09-26 Cairo
 
 A connector oversized-file fetch returned empty content during a Master Book update, causing temporary zero-byte commit `666d4cbe5e5149a867b9266dbe0fc2322978efd0`. Root metadata readback caught it immediately. The book was restored from verified blob `0441922e872da99c7accbe6c0e5584395b38148c`, Entry342–345 updates were reapplied, and recovery commit `dcc2a4e10a85364eeba6d70a2329575f8800fbef` produced non-zero blob `d92bd0f29cc748908f43acea59e7e561334a19ae` with repository size 1,190,146 bytes. Documentation incident only; no runtime or business mutation. Current TEST remains `LARGE_BASELINE`; 142 retry NOT_RUN.
+
+
+## Entry 349–350 update — real TEST 142 D1-compatible PASS / 2026-09-26 Cairo
+
+Owner authorized exactly one TEST-only 142 POST with no retry and no PROD. Run `36241360286` completed SUCCESS. Fresh preflight was exact `LARGE_BASELINE` (2 catalog / 1360 mirror / 0 migration / control=1; tabs 652/708). Exactly one POST returned HTTP200 with `positive-pass`, candidateUpserts=142 and statements=42. GET postflight proved exact `LARGE_TARGET`: 2 catalog / 1480 mirror / 0 migration / control=1; tabs 712/768; targetCatalog=1, oldChanged=0, newChanged=11, tailRows=60 on both. No retry occurred.
+
+Separate GET-only run `36241424226` then independently reconfirmed the same `LARGE_TARGET` state. No Worker deploy, production binding, Google/Apps Script mutation, or PROD SQL occurred. Current TEST state is `LARGE_TARGET`. This validates the fabricated historical-shape 142-position path on real TEST D1 with the D1-compatible guard, but it does NOT restore PROD or authorize production canary/cutover. Google Sheets + Apps Script remain business CREATE/number authority.
