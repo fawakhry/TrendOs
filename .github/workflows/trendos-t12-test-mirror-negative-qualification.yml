@@ -58,7 +58,7 @@ jobs:
           NODE
 
       - name: Install pinned Wrangler
-        run: npm install --no-save wrangler@4.33.2
+        run: npm install --no-save wrangler@4.141.0
 
       - name: Run one remote TEST negative batch with read-only pre/postflight
         run: |

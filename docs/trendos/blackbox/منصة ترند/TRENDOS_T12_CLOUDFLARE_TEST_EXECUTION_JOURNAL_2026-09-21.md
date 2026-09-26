@@ -3032,3 +3032,12 @@ TASK=MIG-T12-TINY-CAS-LOCAL-CONTRACT-20260926; PREPARED Entry331 commit 37009baf
 ## Entry 333 — PREPARED MIG-T12-TEST-MIRROR-NEGATIVE-EXECUTOR-20260926 / 2026-09-26 Cairo
 
 OWNER_APPROVAL=موافق. Resume after Entry332. Authorized scope: GitHub/local preparation for a negative-only mirror CAS route on the existing TEST Worker and, only after independent TEST resource/binding verification, one TEST negative transaction plus read-only postflight. No positive scenario, no new database or Worker, no production D1, no Google/Apps Script changes. Unknown remote outcome means read-only reconciliation and no retry. HEAD_BEFORE=8cc5c8854e3d67281d6b9d4df2864d845b7d41dc.
+
+
+## Entry 334 — RESULT MIG-T12-TEST-MIRROR-NEGATIVE-ATTEMPT1-BLOCKED-NO-REMOTE-IO-20260926 / 2026-09-26 Cairo
+
+Workflow run 36236017624 on trigger commit 37eec28434ad2461814c49edb1b88683b50496c2: local source contract PASS 6/6 twice and Cloudflare D1 identity GET PASS for trendos-t12-synthetic-test. Remote step FAILED BEFORE POST because pinned Wrangler 4.33.2 reported remote as unexpected D1 field and exposed env.T12_SYNTHETIC_DB as local; all GET preflights returned 503 against empty local D1. Logs show no NEGATIVE_POST_ATTEMPTED line and no POST execution. RESULT=BLOCKED_TOOL_VERSION / REMOTE_D1_MUTATION_NOT_ATTEMPTED / TEST_BASELINE_UNCHANGED_BY_THIS_RUN. Two unrelated Cloudflare Git-integration build checks triggered by the push and both concluded FAILURE; no successful deployment signal. No retry of any unknown remote outcome because none existed.
+
+## Entry 335 — PREPARED MIG-T12-TEST-MIRROR-NEGATIVE-REMOTE-RETRY-WRANGLER-20260926 / 2026-09-26 Cairo
+
+Same owner-approved negative-only scope. Update only the qualification workflow pin from Wrangler 4.33.2 to 4.141.0, which supports remote bindings per current Cloudflare docs; preserve exact source hashes, TEST UUID/name control-plane GET, no Worker deploy, single POST only after exact remote baseline GET, and read-only postflight. Trigger attempt 2 in the same commit so there is only one additional repository push. Positive remains unauthorized. Unknown POST response remains no-retry.
