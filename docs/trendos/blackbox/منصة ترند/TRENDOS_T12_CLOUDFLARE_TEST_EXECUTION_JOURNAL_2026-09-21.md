@@ -3668,3 +3668,8 @@ READ/DOC_WRITE only. Full-text review of `trendos-integrity-dashboard-v1.gs` and
 ## Entry 399 PREPARE — MASTER-BOOK-FINISH-BATCH-11-PRESS-INTEGRITY-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of `trendos-press-integrity-v1.gs`. Capture queue/view/session authority, locks, status/mutation boundaries, idempotency/replay, recovery behavior, source-line updates, legacy compatibility and deployment gaps. No runtime/test/workflow execution.
+
+
+## Entry 400 PREPARE — MASTER-BOOK-FINISH-BATCH-12-INVOICE-INTEGRITY-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of `trendos-invoice-integrity-v1.gs`. Capture invoice draft/final identity, source-line selection, pricing/payment validation, idempotency/locking, ledger/journal side effects, WhatsApp/message behavior, rollback/partial-write risks, repair diagnostics and deployment gaps. No runtime/test/workflow execution.
