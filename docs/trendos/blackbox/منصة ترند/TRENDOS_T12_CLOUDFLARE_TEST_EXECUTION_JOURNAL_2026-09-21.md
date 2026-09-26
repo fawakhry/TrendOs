@@ -3594,3 +3594,10 @@ Operational state is unchanged from Entry384: `INSTALL_DISABLED_RUN=FAIL_PERMISS
 TASK_ID: MASTER-BOOK-FINISH-20260927. STEP_ID: BATCH-01-OUT-OF-SCOPE. DOC_READ/DOC_WRITE only on branch `cloud-migration-v3-t12-order-create-ci-20260919`. No runtime/Cloudflare/D1/Apps Script/Google/workflow execution is authorized.
 
 Goal: begin closing the remaining fixed §11 `M:METADATA_ONLY` inventory after compaction. First batch is limited to the four FOKHA knowledge-system files that the inventory already classifies outside TrendOS scope. Read all four full texts, confirm whether they contain any TrendOS operational dependency that must remain in the active repair core, then classify them explicitly without deleting or moving them. Success = every file in this batch has full-text disposition and repair/book impact recorded; otherwise remain M/UNKNOWN.
+
+
+## Entry 388 PREPARE — MASTER-BOOK-FINISH-BATCH-02-SMALL-ROOT-SOURCE-20260927 / 2026-09-27 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260927. STEP_ID: BATCH-02-SMALL-ROOT-SOURCE. READ/DOC_WRITE only. No test/workflow/runtime execution.
+
+Scope: full-text review of eight small root source/config files still M: `trendos-integrity-runtime-tools-v1.gs`, `reset-cache.html`, `cleaning-backend-v1.gs`, `trendos-resume-no-autorefresh-v1.js`, `v1940-deploy-health.gs`, `trendos-return-traffic-quiet-v1.js`, `trendos-integrity-v1.package.json`, `privacy.html`. Record purpose, side effects, dependencies, repair relevance and any open deployment/runtime gap. Only full-read disposition may move them M→P; no current certification is implied.
