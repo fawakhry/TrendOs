@@ -64,3 +64,22 @@ no new DB/schema/index and no writes to six existing legacy test tables.
 **Preparation result only:** The GitHub source exists; TEST real D1 CAS and
 transactional rollback are NOT_RUN, production D1 mirror NOT_RESTORED, Google
 Sheets/Apps Script retain real business CREATE and numbering authority.
+
+
+## Local SQLite contract gate — 2026-09-26
+
+A repository test now exists at
+`tests/t12_existing_test_mirror_tiny_cas_contract_isolated_v1.test.mjs`
+(Git blob `943567db81bcdee12b4afbbdc7fd62f086f309ca`).
+It was executed locally against the exact current candidate source blob
+`aad845188c35bc8f1f18a4d9b7e9cf7ea7c0380d` and exact mirror schema blob
+`1857534062b93eb24adbacdf7d3234bcaae69384` using Node v22.16.0
+with `--experimental-sqlite`. Result: **PASS 6/6, exit 0**.
+
+Covered locally: negative rollback, positive two-tab atomic mock commit,
+row-preimage drift abort, catalog drift abort, lost response after commit with
+blind replay failing closed, and invalid scenario rejection. This does **not**
+authorize or prove real Cloudflare D1 behavior. No CI was run and no TEST
+executor/route/Worker exists from this step. The separate-approval sequence
+below remains unchanged: real TEST identity/binding proof → negative one-batch
+execution → read-only rollback postflight → separate positive approval.
