@@ -3317,3 +3317,22 @@ Next manual read-only action: open Apps Script **Project history** (clock/histor
 Owner-provided read-only Apps Script screenshots were documented in Master Book `3.51-DRAFT`, commit `218234c4e978c5f13cde81cedc046eb28cb1821c`, blob `7782a67246f2671a85f51ffb817d4925112e3e15`. Evidence establishes the correct live project by matching the deployment/web-app URL prefix to Cloudflare `APPS_SCRIPT_API_URL`, Active deployment Version 155 on Sep 6 2026 7:45 AM, and live editor HEAD markers for `createManualOrder_`, V1908 replay guard, `makeOrderId_` using `TRENDOS_NEXT_SIMPLE_ORDER_NO` under ScriptLock, and `trendosCustomerDraftSubmitV1_` with integrity/duplicate guards. Inspected source regions match current repository blobs `3496ef9b9370cced27eafaa7dbbb299616be933c` and `e93155c0a0cdef09ffaf5a0bfdf62bba202ff436`.
 
 Evidence limitation is explicit: editor HEAD is not automatically immutable Version 155 source. State is `ORDER_WRITER_LIVE_PROJECT=VERIFIED`, `ORDER_WRITER_LIVE_STRUCTURE=VERIFIED`, `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED`, `ORDER_WRITER_FENCE_PHASE=OPEN`, `ALLOCATOR_SEED_PINNED=false`. No Save/Deploy/Run or production mutation occurred. Next read-only owner evidence should combine Project History/version metadata and Script Property `TRENDOS_NEXT_SIMPLE_ORDER_NO` value; Production D1 mirror MAX remains another seed input.
+
+
+## Entry 371 — RESULT GOOGLE-ALLOCATOR-HISTORY-PROPERTY-EVIDENCE-20260926 / 2026-09-26 Cairo
+
+Owner-provided read-only evidence advances the Google side of the Order CREATE allocator gate. Apps Script **Project history** visibly shows **Version 155 — September 6, 2026, 7:45 AM**, with Version154 at 7:31 AM and Version156 on Sep 13 at 5:50 AM; therefore `VERSION155_HISTORY=VERIFIED`. This verifies the history/version metadata only; immutable Version155 source regions have not yet been inspected and compared, so `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED` remains unchanged.
+
+A dedicated READ-ONLY function using `PropertiesService.getScriptProperties().getProperty('TRENDOS_NEXT_SIMPLE_ORDER_NO')` returned `NEXT_ORDER_NO=4322`; therefore `SCRIPT_PROPERTY_LIVE_READ=VERIFIED` and `TRENDOS_NEXT_SIMPLE_ORDER_NO=4322`. No property write, Save, Deploy, Restore, or order creation occurred.
+
+Google Sheets operational evidence is now pinned for the four mandatory Google sources:
+- `CURRENT_ORDERS_MAX=4321` at `الأوردرات!A712`
+- `CURRENT_LINES_MAX=4321` at `بنود الأوردرات!A768`
+- `ARCHIVED_ORDERS_MAX=3761` at `أرشيف الأوردرات!A2872`
+- `ARCHIVED_LINES_MAX=3761` at `أرشيف بنود الأوردرات!A4111`
+
+Therefore `GOOGLE_MAX_ORDER_ID=4321`, `GOOGLE_NEXT_EXPECTED=4322`, and `GOOGLE_ALLOCATOR_NUMERIC_CONSISTENCY=PASS` because the live next-value is exactly one greater than the highest numeric Google Order ID observed. This is not final allocator pinning: `ALLOCATOR_SEED_PINNED=false` remains until the Production D1 mirror maximum is collected READ-ONLY and a final bounded/frozen reread is completed before any authority transfer.
+
+Master Book advanced to `3.52-DRAFT`, commit `8cf4f7ae74ca639da6aa6b7bcfdc7c17e2a024e2`, blob `93e63051a0d294e3e6e00e8ac0c1c6c06897a6b2`.
+
+**NEXT:** READ-ONLY Production D1 mirror MAX numeric Order ID, then final frozen cross-source reread. Keep Google/Apps Script as CREATE/number authority; V1/R4/R5 and Cloud writers remain OFF.
