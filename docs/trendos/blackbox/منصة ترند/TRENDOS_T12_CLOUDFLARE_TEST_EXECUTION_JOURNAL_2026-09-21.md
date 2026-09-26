@@ -3271,3 +3271,8 @@ Order-only continuation from HEAD `4f8e0f8f705db261c0f1eb41b3c260400498b0bd`. Ex
 ## Entry 366 — PREPARED T12-SCOPE-GUARD-DOC-ALLOWLIST-20260926-24 / 2026-09-26 Cairo
 
 Isolated CI run `36253850455`, job `108436809330`, reached syntax PASS then stopped at the hard scope guard before candidate tests. Exact failure: `T12 out-of-scope file changed: TrendOS_MASTER_BOOK.md`. This is caused by the owner's new mandatory rule that every Order step update the root Master Book; it is documentation, not production runtime. Scoped correction: add exactly `TrendOS_MASTER_BOOK.md` to the guard's exact documentation allowlist. Do not change forbidden runtime paths (`config.js`, `index.html`, `app.js`, `Code.gs`, `cloudflare-d1/src/index_v2.js`) and do not broaden prefixes. Then allow the existing isolated CI to rerun. No Cloudflare/Google/Apps Script mutation or deploy.
+
+
+## Entry 367 — PREPARED T12-BUSINESS-CANDIDATE-FIXTURE-CORRECTION-20260926-25 / 2026-09-26 Cairo
+
+CI run `36253937921`, job `108437039144`, passed syntax and hard scope guard and reached the new business-create test. Failure occurred before candidate logic at test fixture construction: SQLite rejected an intentionally bad control row because schema `CHECK(google_writer_fenced=1)` correctly prevents storing an unfenced fixture. This is a TEST FIXTURE error, not a candidate transaction failure. Scoped repair: remove the impossible bad-fence seed case and test the existing fail-closed DB identity/policy gate using a valid control row with a mismatched `policy_epoch` (or missing control), leaving schema/candidate/runtime files unchanged. Then let isolated CI rerun. No deploy, Cloudflare call, Apps Script call, Google write or Production mutation.
