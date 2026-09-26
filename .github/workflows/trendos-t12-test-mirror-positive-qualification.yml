@@ -1,0 +1,147 @@
+name: TrendOS T12 TEST Mirror Positive Remote Qualification
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t12-order-create-ci-20260919
+    paths:
+      - 'docs/trendos/staging/RUN_T12_TEST_MIRROR_POSITIVE_20260926.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-test-mirror-positive-qualification
+  cancel-in-progress: false
+
+jobs:
+  positive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TEST_DB_UUID: 54a3c05e-cde9-4979-814f-d40f941edcd5
+      TEST_DB_NAME: trendos-t12-synthetic-test
+      PROD_DB_UUID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Local source contracts first
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$TEST_DB_UUID" != "$PROD_DB_UUID"
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-existing-test-mirror-packed-cas-qualification-isolated-20260924.mjs)" = "aad845188c35bc8f1f18a4d9b7e9cf7ea7c0380d"
+          test "$(git hash-object cloudflare-d1/t12-preview/t12-existing-test-mirror-positive-remote-dev-worker-20260926.mjs)" = "d8152d0cb40c32c4af298cb3f050a97575739ac7"
+          test "$(git hash-object tests/t12_existing_test_mirror_positive_remote_dev_worker_v1.test.mjs)" = "8655c7c5dd3ef96c92e54b584d9cbdd980453926"
+          test "$(git hash-object cloudflare-d1/migrations/0002_full_sheet_mirror.sql)" = "1857534062b93eb24adbacdf7d3234bcaae69384"
+          node --experimental-sqlite tests/t12_existing_test_mirror_tiny_cas_contract_isolated_v1.test.mjs
+          node --experimental-sqlite tests/t12_existing_test_mirror_positive_remote_dev_worker_v1.test.mjs
+
+      - name: Verify exact remote TEST D1 identity read-only
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$TEST_DB_UUID"             > /tmp/test-db.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/test-db.json','utf8'));
+          if(x.success!==true||!x.result||x.result.name!==process.env.TEST_DB_NAME) process.exit(1);
+          if(String(x.result.uuid||x.result.id||process.env.TEST_DB_UUID)!==process.env.TEST_DB_UUID) process.exit(1);
+          console.log('TEST_D1_IDENTITY_READ_ONLY_PASS name='+x.result.name);
+          NODE
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.141.0
+
+      - name: Run one remote TEST positive batch with read-only pre/postflight
+        run: |
+          set -euo pipefail
+          cat > cloudflare-d1/t12-preview/.t12-positive-remote-runtime.toml <<EOF
+          name = "trendos-t12-mirror-positive-remote-dev"
+          main = "./t12-existing-test-mirror-positive-remote-dev-worker-20260926.mjs"
+          compatibility_date = "2026-09-26"
+
+          [[d1_databases]]
+          binding = "T12_SYNTHETIC_DB"
+          database_name = "$TEST_DB_NAME"
+          database_id = "$TEST_DB_UUID"
+          remote = true
+          EOF
+          ! grep -q 'trendos-main' cloudflare-d1/t12-preview/.t12-positive-remote-runtime.toml
+          ! grep -q "$PROD_DB_UUID" cloudflare-d1/t12-preview/.t12-positive-remote-runtime.toml
+
+          CI=1 npx wrangler dev             --config cloudflare-d1/t12-preview/.t12-positive-remote-runtime.toml             --ip 127.0.0.1 --port 8787 > /tmp/t12-positive-wrangler-dev.log 2>&1 &
+          DEV_PID=$!
+          cleanup() {
+            kill "$DEV_PID" >/dev/null 2>&1 || true
+            wait "$DEV_PID" >/dev/null 2>&1 || true
+            rm -f cloudflare-d1/t12-preview/.t12-positive-remote-runtime.toml
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for i in $(seq 1 40); do
+            if curl --silent --show-error --max-time 5               http://127.0.0.1:8787/__t12/local/mirror-positive               -o /tmp/positive-preflight.json; then
+              if node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/positive-preflight.json','utf8')); process.exit(x.success===true&&x.state?.state==='OLD'&&x.state?.baseExact===true?0:1)"; then
+                ready=1
+                break
+              fi
+            fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            tail -100 /tmp/t12-positive-wrangler-dev.log || true
+            exit 1
+          fi
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/positive-preflight.json','utf8')); console.log('REMOTE_TEST_POSITIVE_PREFLIGHT='+JSON.stringify(x.state))"
+
+          POST_ATTEMPTED=1
+          set +e
+          code="$(curl --silent --show-error --max-time 30             --output /tmp/positive.json --write-out '%{http_code}'             -H 'content-type: application/json'             --data '{"scenario":"positive","confirmation":"RUN_POSITIVE_ON_EXISTING_TEST_ONLY"}'             http://127.0.0.1:8787/__t12/local/mirror-positive)"
+          curl_rc=$?
+          set -e
+          echo "POSITIVE_POST_ATTEMPTED=$POST_ATTEMPTED CURL_RC=$curl_rc HTTP=$code"
+
+          # Never retry the POST. Reconcile by a fresh read only.
+          curl --fail --silent --show-error --max-time 10             http://127.0.0.1:8787/__t12/local/mirror-positive             -o /tmp/positive-postflight.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/positive-postflight.json','utf8'));
+          const s=x.state||{};
+          if(!x.success||s.state!=='NEW'||s.baseExact!==true||
+             s.exactOldRows!==0||s.exactNewRows!==2) process.exit(1);
+          console.log('REMOTE_TEST_POSITIVE_POSTFLIGHT='+JSON.stringify(s));
+          NODE
+
+          if [ "$curl_rc" = 0 ] && [ "$code" = 200 ]; then
+            node <<'NODE'
+            const fs=require('fs');
+            const x=JSON.parse(fs.readFileSync('/tmp/positive.json','utf8'));
+            if(x.success!==true||x.scenario!=='positive'||
+               x.positiveCommitVerified!==true||
+               x.blindRetryAllowed!==false||
+               x.state?.state!=='NEW') process.exit(1);
+            console.log('REAL_TEST_POSITIVE_ATOMIC_COMMIT_PASS');
+            NODE
+          else
+            echo 'REAL_TEST_POSITIVE_COMMIT_RECONCILED_BY_POSTFLIGHT; RESPONSE_NOT_RETRIED'
+          fi
+
+      - name: Record sanitized result
+        if: ${{ always() }}
+        run: |
+          {
+            echo '### TrendOS T12 TEST mirror positive qualification'
+            echo '- No Worker deploy occurred; worker code ran in local dev.'
+            echo '- Only the configured TEST D1 binding was remote.'
+            echo '- Exactly one positive POST is present; no automatic retry.'
+            if [ -f /tmp/positive-preflight.json ]; then echo '- OLD preflight captured.'; fi
+            if [ -f /tmp/positive-postflight.json ]; then echo '- NEW read-only postflight captured.'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
