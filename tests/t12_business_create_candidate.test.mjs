@@ -20,6 +20,10 @@ assert.doesNotMatch(candidate,/\b(?:fetch|SpreadsheetApp|PropertiesService|Scrip
 assert.doesNotMatch(candidate,/new\s+Response\s*\(/);
 assert.doesNotMatch(schema,/\b(?:DROP|DELETE|ALTER)\b/i);
 assert.match(T12_BUSINESS_CREATE_CANDIDATE_VERSION,/ISOLATED/);
+for(const legacyMirrorMarker of ['sheet_rows','sheet_catalog','d1OrdersLiveSync','الأوردرات','بنود الأوردرات']){
+  assert.equal(candidate.includes(legacyMirrorMarker),false,
+    'fresh-start CREATE candidate must not depend on legacy mirror source: '+legacyMirrorMarker);
+}
 
 class Stmt{
   constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}
@@ -28,7 +32,7 @@ class Stmt{
   async run(){return this.db.raw.prepare(this.sql).run(...this.params);}
 }
 class CandidateD1{
-  constructor({seed=true,policyEpoch='test_epoch_20260926'}={}){
+  constructor({seed=true,policyEpoch='test_epoch_20260926',nextOrderNumber=5001}={}){
     this.raw=new DatabaseSync(':memory:');
     this.raw.exec('PRAGMA foreign_keys=ON;');
     this.raw.exec(schema);
@@ -36,8 +40,9 @@ class CandidateD1{
       INSERT INTO t12_biz_control
       (singleton,fixture_marker,google_writer_fenced,r5_mirror_writer_fenced,
        next_order_number,policy_epoch)
-      VALUES (1,'T12_BUSINESS_CANDIDATE_ONLY',?,?,5001,?)
-    `).run(1,1,policyEpoch);
+      VALUES (1,'T12_BUSINESS_CANDIDATE_ONLY',?,?,?,?)
+    `).run(1,1,nextOrderNumber,policyEpoch);
+    this.initialNext=nextOrderNumber;
     this.failStatement=0;
     this.ambiguousAfterCommit=false;
     this.turn=Promise.resolve();
@@ -105,7 +110,7 @@ const tables=['t12_biz_request_ledger','t12_biz_orders','t12_biz_lines',
   't12_biz_events','t12_biz_outbox'];
 function noWrites(db){
   for(const t of tables)assert.equal(db.count(t),0,t);
-  assert.equal(db.next(),5001);
+  assert.equal(db.next(),db.initialNext);
 }
 function counts(db,{requests=1,orders=1,lines=1,events=1,outbox=1}={}){
   assert.equal(db.count('t12_biz_request_ledger'),requests);
@@ -242,6 +247,39 @@ for(let failAt=1;failAt<=7;failAt++){
     [5001,5002,5003,5004,5005]);
   counts(db,{requests:5,orders:5,lines:5,events:5,outbox:5});
   assert.equal(db.next(),5006);db.close();
+}
+
+{
+  // Owner-approved fresh-start qualification: historical completed orders are
+  // not a prerequisite for the NEW cloud CREATE lane. Preserve numeric
+  // continuity by starting at the already-observed next number 4322.
+  const db=new CandidateD1({nextOrderNumber:4322});
+  for(const t of tables)assert.equal(db.count(t),0,'fresh-start business table must start empty: '+t);
+  assert.equal(db.next(),4322);
+
+  const firstKey='cld1_1790000001000_FRESHSTART_123456789012';
+  const first=await add(db,input(firstKey));
+  assert.equal(first.success,true);
+  assert.equal(first.stored,true);
+  assert.equal(first.idempotent,false);
+  assert.equal(first.orderId,'4322');
+  assert.deepEqual(first.lineIds,['4322-01']);
+  assert.equal(db.next(),4323);
+
+  const replay=await add(db,input(firstKey));
+  assert.equal(replay.success,true);
+  assert.equal(replay.stored,false);
+  assert.equal(replay.idempotent,true);
+  assert.equal(replay.orderId,'4322');
+  assert.equal(db.next(),4323,'idempotent replay must not consume a new order number');
+
+  const second=await add(db,input('cld1_1790000001001_FRESHSTART_123456789013'));
+  assert.equal(second.success,true);
+  assert.equal(second.orderId,'4323');
+  assert.deepEqual(second.lineIds,['4323-01']);
+  assert.equal(db.next(),4324);
+  counts(db,{requests:2,orders:2,lines:2,events:2,outbox:2});
+  db.close();
 }
 
 console.log('T12 isolated BUSINESS CREATE candidate PASS: numeric allocator, one/multi-line atomic commit, durable replay/conflict, rollback, lost-ACK readback, concurrency, activity/outbox and no production wiring');
