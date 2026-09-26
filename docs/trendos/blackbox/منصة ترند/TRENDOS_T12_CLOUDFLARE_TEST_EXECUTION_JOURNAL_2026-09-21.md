@@ -3497,3 +3497,20 @@ Current state remains:
 - Google/Apps Script remains CREATE/number authority.
 
 Exact next production action: install/persist the pinned helper blob in the operational Apps Script project, run only `trendosT12OneShotAtomicFullRebase20260926` once, capture the sanitized receipt, then independently GET-verify both current mirror tabs. No Deploy, recurring sync, R4/R5, or blind retry.
+
+
+## Entry 377 LIVE update — one-shot executed once; exact result unknown / 2026-09-26 Cairo
+
+The hardened helper blob `80129205329e604b35c03fc1893ee2f2bdc9f91b` was installed in the verified operational Apps Script project and `trendosT12OneShotAtomicFullRebase20260926` was executed exactly once after project/workbook identity and zero matching triggers were verified. Apps Script reported `Execution completed` but did not expose the function return JSON. Therefore success/errorCode/sourceStillSame cannot be claimed. GET-only reads returned 712 current Orders rows and 768 current Lines rows: row counts only; exact parity remains UNKNOWN. No retry occurred.
+
+Owner operating decision: all historical Google orders are completed/delivered and are not required for forward migration. Treat the active operational backlog as zero Orders / zero Lines. Historical mirror parity/backfill is no longer a cutover objective. Do not rerun the full rebase and do not delete Production history merely to make the mirror empty.
+
+## Entry 378 LIVE update — owner fresh-start CREATE from 4322 isolated qualification PASS / 2026-09-26 Cairo
+
+GitHub-only qualification starts candidate business tables empty with `next_order_number=4322`, proves first new order=4322, exact replay returns 4322 without consuming another ID, and a distinct next request=4323. Candidate source is asserted independent from legacy mirror markers (`sheet_rows`, `sheet_catalog`, Arabic Google mirror names, `d1OrdersLiveSync`).
+
+Test commit `57ddeeaa8483f5c20814ef29b4a7c61cc534f5b0`; dedicated CI commit `182631c8119756aaf557cc6f736c4e7cbba371c9`; GitHub Actions run `36263998591` = SUCCESS.
+
+The general T12 workflow's hard scope guard still fails because of a pre-existing out-of-scope `WHATS_AGENT_BOOK.md` diff against its fixed baseline. That guard was not weakened. A narrow read-only dedicated workflow ran the isolated CREATE qualification only.
+
+Critical boundary: `t12-business-create-candidate.mjs` remains isolated, `productionAuthorized=false`, and is not imported by the production worker. Fresh-start transaction mechanics are qualified; Production Cloud CREATE is not active yet.

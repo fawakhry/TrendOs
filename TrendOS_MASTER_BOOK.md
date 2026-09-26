@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.57-DRAFT — hardened one-shot rebase statically qualified PASS (26/26 assertions); production execution still NOT STARTED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.59-DRAFT — one-shot executed once with exact result unknown; owner pivoted to fresh-start Cloud CREATE from 4322; isolated fresh-start CI PASS; production CREATE still not routed** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -3699,6 +3699,8 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.55-DRAFT | ORDER Entry374: prepared `t12-d1-one-shot-atomic-full-rebase-20260926.gs` plus static safety test for a no-trigger/no-property one-shot atomic Orders+Lines mirror rebase; helper stages both tabs, rechecks source/catalog before promote, performs GET parity after promote, and forbids automatic retry on ambiguous POST | Production execution NOT STARTED because cloud-browser automation did not start (wallet out of funds). No Apps Script edit/run and no D1 mutation occurred from that attempt. ALLOCATOR_SEED_PINNED=false; D1_MIRROR_PARITY remains STALE/BLOCKED until an authorized one-shot run and postflight parity. |
 | 2026-09-26 | 3.56-DRAFT | ORDER Entry375: hardened one-shot success gate to require post-promote Google source fingerprint stability in addition to exact D1 parity | GitHub-only change; production execution still NOT_STARTED. If source advances after promote, return fail-closed with T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY and no automatic retry. D1_MIRROR_PARITY remains STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false. |
 | 2026-09-26 | 3.57-DRAFT | ORDER Entry376: hardened one-shot static safety qualification PASS, 26/26 assertions, failed=0; helper/test blobs pinned | No production execution or D1 mutation. PRODUCTION_ONE_SHOT_REBASE_EXECUTION remains NOT_STARTED; D1_MIRROR_PARITY=STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false. |
+| 2026-09-26 | 3.58-DRAFT | ORDER Entry377: one-shot executed exactly once; Apps Script completed but return JSON unavailable; GET row counts 712 Orders / 768 Lines; exact parity unknown; no retry | Owner declared historical Google orders completed/not required for migration. Historical mirror parity/backfill is no longer the CREATE cutover objective; do not rerun one-shot. |
+| 2026-09-26 | 3.59-DRAFT | ORDER Entry378: fresh-start business CREATE qualification from next order 4322 passed dedicated isolated CI | First create 4322, idempotent replay no duplicate/no number consumption, next create 4323, no dependency on legacy mirror markers. Production CREATE remains NOT ROUTED / NOT AUTHORIZED. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
 
@@ -3741,3 +3743,33 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 Google/Apps Script ما زال CREATE/number authority.
 
 الخطوة التشغيلية التالية فقط: تثبيت نفس helper blob في Apps Script التشغيلي وتشغيل `trendosT12OneShotAtomicFullRebase20260926` **مرة واحدة**، ثم GET-only reconciliation. ممنوع Deploy أو recurring sync أو R4/R5 أو blind retry.
+
+
+## تحديث ORDER Entry377 — 26 سبتمبر 2026 / one-shot executed once; exact result unknown; no retry
+
+تم تثبيت helper blob `80129205329e604b35c03fc1893ee2f2bdc9f91b` في مشروع Apps Script التشغيلي بعد إثبات Script ID والـWorkbook container ووجود صفر Triggers مطابقة، ثم تشغيل `trendosT12OneShotAtomicFullRebase20260926` **مرة واحدة فقط**. Apps Script عرض `Execution completed` لكنه لم يعرض JSON return؛ لذلك لا يجوز إثبات `success` أو `errorCode` أو `sourceStillSameAfterPromote` من السجل.
+
+GET-only بعد التنفيذ أعاد 712 صفًا للأوردرات و768 صفًا لبنود الأوردرات. هذا يثبت row-count فقط، وليس exact parity. لم يحدث أي retry.
+
+قرار المالك التشغيلي: الأوردرات التاريخية الحالية على Google مكتملة وتم تسليمها ولا توجد أوردرات/بنود نشطة مطلوبة للترحيل. لذلك historical mirror parity/backfill لم يعد هدف cutover. الموجود في D1 يعامل كسجل تاريخي غير مطلوب لمسار CREATE الجديد؛ لا يُعاد تشغيل الـone-shot ولا يُجرى حذف Production لمجرد جعل المرآة فارغة.
+
+الحالة:
+`ONE_SHOT_EXECUTED=YES_ONCE`؛ `ONE_SHOT_RESULT=UNKNOWN`؛ `AUTOMATIC_RETRY_PERFORMED=NO`؛ `D1_ORDERS_ROW_COUNT=712`؛ `D1_LINES_ROW_COUNT=768`؛ `EXACT_PARITY=UNKNOWN/NO_LONGER_CUTOVER_OBJECTIVE`.
+
+## تحديث ORDER Entry378 — 26 سبتمبر 2026 / fresh-start CREATE from 4322 isolated CI PASS
+
+تم تأهيل سيناريو fresh-start في `tests/t12_business_create_candidate.test.mjs` بدون أي Production mutation:
+- جداول business CREATE تبدأ فارغة.
+- `next_order_number=4322` حفاظًا على استمرارية رقم الأوردر ومنع التصادم مع التاريخ.
+- أول create ينتج order `4322` وline `4322-01`.
+- replay لنفس `clientRequestId` يعيد نفس الأوردر ولا يستهلك رقمًا جديدًا.
+- الطلب المختلف التالي ينتج order `4323`.
+- المحرك المرشح لا يعتمد على `sheet_rows` أو `sheet_catalog` أو أسماء Google mirror العربية أو `d1OrdersLiveSync`.
+
+Test commit: `57ddeeaa8483f5c20814ef29b4a7c61cc534f5b0`.
+Dedicated isolated CI commit: `182631c8119756aaf557cc6f736c4e7cbba371c9`.
+GitHub Actions run `36263998591` = **SUCCESS**.
+
+الـworkflow العام فشل في hard scope guard بسبب تغيير سابق خارج نطاق T12 في `WHATS_AGENT_BOOK.md` مقارنة بالـbaseline الثابت؛ لم يتم توسيع أو تعطيل الـguard. تم استخدام dedicated read-only CI لتشغيل اختبار CREATE المعزول فقط.
+
+الحد الفاصل: `t12-business-create-candidate.mjs` ما زال ISOLATED و`productionAuthorized=false` وغير مستورد من production worker. منطق fresh-start 4322 مؤهل، لكن Production Cloud CREATE لم يُفعّل بعد.
