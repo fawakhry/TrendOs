@@ -1,8 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.46-DRAFT — Production Cloud order writers live-fenced OFF; V1/R4/R5 confirmed disabled; CREATE remains Google-authoritative; TEST LARGE_TARGET; PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.47-DRAFT — Order writer source/live config parity restored for V1; V1/R4/R5 remain OFF; no Worker deploy; CREATE remains Google-authoritative** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+
+**تحديث CONFIG Entry360–361 (26 سبتمبر):** بعد قفل V1 حيًا على Cloudflare، تم إصلاح source-of-deploy في GitHub فقط: `cloudflare-d1/wrangler.toml` blob تغير من `f46ce684f60e2deb2994926e883215e029f31c3b` إلى `78ab7ccbc3692eb5cf8753f82f84ea8b2df50e43` عبر commit `becd59f0f588dce3e34c62045835b819f48e0755`. readback مستقل أثبت 28 سطرًا قبل/بعد وفرقًا واحدًا فقط: `TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"` → `"false"`. R4 وR5 في المصدر بقيا false. لم يحدث Worker deploy ولا Cloudflare mutation ولا SQL ولا POST. بهذا أُزيل config drift الخاص بـV1 على الفرع، لكن deployed-version/source byte parity بعد تغييرات Dashboard ما زالت تحتاج قراءة مستقلة قبل أي deploy جديد.
 
 **تحديث LIVE Entry358 (26 سبتمبر):** تم تحويل التركيز إلى إقفال مسار الأوردرات أولًا. فحص Cloudflare الحي أثبت أن Worker الإنتاج `trendos-d1-api` كان مربوطًا بـ`DB -> trendos-main`، وأن V1 Cloud Write كان قبل القفل `enabled=true / writesAccepted=true` مع schema جاهزة و`pendingOutbox=0` رغم `cutover=false / sheetsAuthoritative=true`. SELECT-only في D1 وجد footprint واحدًا فقط من نوع qualification: `CW-PROD-QUAL-33975124471` بتاريخ 5 سبتمبر، event `create/reconciled/synced` وoutbox `synced` attempt=1؛ لا دليل على استعمال V1 كمسار أوردرات عملاء مستمر. المالك غيّر ونشر `TRENDOS_CLOUD_WRITE_V1_ENABLED=false` ثم أثبت health أن `enabled=false / writesAccepted=false`. كما غيّر ونشر `TRENDOS_R5_PERIODIC_ENABLED=false` وأثبت مسار R5 رد `periodic-disabled-or-wrong-target`، وأثبت R4 رد `recovery-disabled-or-wrong-target` بينما flag الخاص به كان false أصلًا. لا Cron/Queue/Email triggers على Worker. النتيجة الحالية: `CLOUD_WRITE_V1=OFF_CONFIRMED`, `R5=OFF_CONFIRMED`, `R4=OFF_CONFIRMED`, `CLOUD_CREATE=NOT_CUT_OVER`; Google/Apps Script يظل سلطة CREATE/numbering. تنبيه مهم: `wrangler.toml` في الفرع ما زال يصرح V1=true، لذلك يوجد source/live config drift يجب إصلاحه قبل أي Worker deploy جديد.
 
@@ -1876,6 +1878,18 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 **NEXT:** أصلح source-of-deploy أولًا بجعل V1 false في `wrangler.toml` على الفرع مع test/readback، ثم إثبات كل Google/Apps Script create + line mutation entrypoints والallocator/replay keys وwriter fences. لا تعيد V1/R4/R5 ولا ترسل order-create POST للوصول فقط.
 
 
+
+### 6.34 — Source-of-deploy V1 fence aligned with live Production — Entry360–361
+
+بعد Entry358–359 كان live Production قد أصبح `TRENDOS_CLOUD_WRITE_V1_ENABLED=false` بينما `wrangler.toml` في الفرع بقي `true`، وهو drift خطير لأن deploy لاحق من المصدر القديم قد يعيد تسليح V1. تم تنفيذ تعديل GitHub scoped واحد فقط في commit `becd59f0f588dce3e34c62045835b819f48e0755`: تغيير قيمة V1 في `cloudflare-d1/wrangler.toml` إلى `false`، بدون أي deploy.
+
+**Readback exact:** blob القديم `f46ce684f60e2deb2994926e883215e029f31c3b` والجديد `78ab7ccbc3692eb5cf8753f82f84ea8b2df50e43` كلاهما 28 سطرًا، والفارق الوحيد في السطر 12 هو `TRENDOS_CLOUD_WRITE_V1_ENABLED = "true"` → `"false"`. `TRENDOS_R4_RECOVERY_ENABLED="false"` و`TRENDOS_R5_PERIODIC_ENABLED="false"` لم يتغيرا.
+
+**الحدود:** هذه الخطوة أصلحت **repository config intent** فقط، ولم تغيّر الـWorker المنشور؛ لذلك لا تُستخدم وحدها لإثبات deployed source/version parity. live Production كان مثبتًا بالفعل V1=false من health بعد deploy اليدوي، وR4/R5 OFF من route gates. قبل أي Worker deploy لاحق يجب مراجعة diff الكامل، ثم بعد deploy - إذا أُذن به - إعادة read-only verification للversion/flags/binding. لا إعادة تفعيل V1/R4/R5 ولا order POST.
+
+**الحالة الحالية:** `SOURCE_V1_FLAG=FALSE_CONFIRMED`; `LIVE_V1_FLAG=FALSE_CONFIRMED`; `R4=OFF_CONFIRMED`; `R5=OFF_CONFIRMED`; `PROD_MIRROR=NOT_RESTORED`; `CLOUD_CREATE=NOT_CUT_OVER`; Google/Apps Script ما زالا سلطة CREATE/numbering.
+
+
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
 | الخطر | كيف نكتشفه ونمنع تكراره |
@@ -3583,5 +3597,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.45-DRAFT | DOC-T11-ORDERS-HEADERS-SERVICE-QUALIFICATION Entry356: full read of Orders headers, routing bundle, Service candidate/deployed parity and exclusion-hash workflows; §5.53; exactly five §11 M→P | M957/P200; production-facing workflows NOT_RUN. Routing bundle proof is local/dry-run only; Service parity/exclusion logic is historical and snapshot/filter dependent, not current deployed/content parity. TEST LARGE_TARGET; PROD mirror NOT_RESTORED; Google/Apps Script retain CREATE/number authority. |
 
 | 2026-09-26 | 3.46-DRAFT | LIVE Entry358: Cloudflare Production order-writer fence. V1 was live enabled/write-capable with one historical 02CL qualification footprint; owner deployed V1=false and R5=false; read-only route checks confirmed V1 writesAccepted=false, R5 disabled and R4 disabled. §6.33 records evidence and source/live config drift. | M957/P200 unchanged. CLOUD_WRITE_V1=OFF_CONFIRMED; R4=OFF_CONFIRMED; R5=OFF_CONFIRMED; PROD mirror NOT_RESTORED; Cloud CREATE NOT_CUT_OVER; Google/Apps Script retain CREATE/number authority. Repository wrangler.toml still V1=true and must be corrected before any future Worker deploy. |
+
+| 2026-09-26 | 3.47-DRAFT | CONFIG Entry360–361: source/live parity for Cloud Write V1 restored by changing only `TRENDOS_CLOUD_WRITE_V1_ENABLED` true→false in `cloudflare-d1/wrangler.toml`; exact old/new blob diff verified one line only; no Worker deploy | M957/P200 unchanged. SOURCE_V1_FLAG=FALSE_CONFIRMED; LIVE_V1_FLAG=FALSE_CONFIRMED; R4/R5 OFF; Cloud CREATE NOT_CUT_OVER; Google/Apps Script remain CREATE/number authority. Deployed-version/source parity still requires separate read-only verification. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
