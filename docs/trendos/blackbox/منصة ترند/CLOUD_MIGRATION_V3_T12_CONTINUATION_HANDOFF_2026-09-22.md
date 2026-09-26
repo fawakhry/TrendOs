@@ -1369,3 +1369,23 @@ Thus `GOOGLE_MAX_ORDER_ID=4321`, `GOOGLE_NEXT_EXPECTED=4322`, and `GOOGLE_ALLOCA
 Master Book is now `3.52-DRAFT`, commit `8cf4f7ae74ca639da6aa6b7bcfdc7c17e2a024e2`, blob `93e63051a0d294e3e6e00e8ac0c1c6c06897a6b2`. Journal Entry371 commit `c17f1a98e6bf046f43309bd189205a3810083d9b`, blob `c18471a7a469625f147f896965cfbbb8f0409529`.
 
 **NEXT FAST-TRACK READ-ONLY:** collect Production D1 mirror MAX numeric Order ID; separately inspect immutable Version155 source markers if accessible. Keep Google/Apps Script as business CREATE/number authority. Do not enable Cloud writers, deploy Worker, restore Apps Script, or mutate allocator state.
+
+
+## Entry 372 LIVE update — final bounded Google reread / 2026-09-26 Cairo
+
+A repeat READ-ONLY bounded scan of the same four Google Sheets Order-ID sources at **2026-09-26 19:48:39 Cairo** reproduced the prior values exactly:
+
+- current Orders: `4321` at `A712`; last row `712`
+- current Lines: `4321` at `A768`; last row `768`
+- archived Orders: `3761` at `A2872`; last row `2872`
+- archived Lines: `3761` at `A4111`; last row `4111`
+- no numeric Order ID `>=4322` observed
+- `FROZEN_GOOGLE_MAX_ORDER_ID=4321`
+- live documented `SCRIPT_PROPERTY_NEXT=4322`
+- `FROZEN_GOOGLE_NUMERIC_CONSISTENCY=PASS`
+
+Evidence limitation: the Work run explicitly did **not** verify that all production writers were stopped during the read window. Treat this as a stable bounded reread, not a hard write-frozen cutover snapshot. Keep `WRITE_QUIESCENCE_UNVERIFIED=true`, `ALLOCATOR_SEED_PINNED=false`, and `ORDER_WRITER_FENCE_PHASE=OPEN`.
+
+Master Book is now `3.53-DRAFT`, commit `7b17f62a665d668967156649ddfa43f548bd771f`, blob `f0a0a89b046305325ad1d1763f1e8469b4b3e140`. Journal Entry372 commit `b6bd6cc3521fa86f6ad65f41e57ab903d8ccbc11`, blob `8fe497826069c19484edea67c2fa8ba018025c59`.
+
+**NEXT FAST-TRACK READ-ONLY:** query Production D1 mirror for MAX numeric Order ID and reconcile against Google max `4321` / next `4322`. Exact immutable Version155 source parity remains a separate open evidence gate. Do not enable Cloud CREATE or mutate Google allocator state.
