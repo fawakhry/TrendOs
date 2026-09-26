@@ -1437,3 +1437,26 @@ Current gate state:
 Master Book: `3.55-DRAFT`, commit `b32a3f960c6c4cd748192557d9a4c44889d3e299`, blob `2040e909179bf361c1d75f6bfec31869bb069826`. Journal Entry374 commit will follow this handoff update sequence.
 
 **NEXT FAST-TRACK:** execute the reviewed one-shot helper exactly once in the already-open Apps Script editor, then immediately GET-verify both mirror tabs. Do not deploy, restore, start recurring sync, or invoke R4/R5.
+
+
+## Entry 375 LIVE update — post-promote authoritative-source stability gate / 2026-09-26 Cairo
+
+A safety review of the Entry374 one-shot helper found one remaining classification gap: the success branch accepted exact D1 parity against the staged snapshot even when the authoritative Google source had advanced after promote (`sourceStillSameAfterPromote=false`). With write quiescence still unverified, that could label an immediately stale mirror as success.
+
+GitHub-only hardening applied:
+- success now requires `exactParity && sourceStillSame`;
+- exact staged parity plus a changed authoritative source returns `success=false`;
+- dedicated fail-closed code: `T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY`;
+- `automaticRetryAllowed=false` remains mandatory;
+- no blind second promote, no trigger/property/Sheet/deployment mutation;
+- regression assertions forbid reverting to staged-parity-only success.
+
+No production Apps Script edit/run and no D1 mutation occurred during Entry375.
+
+Current gate state remains:
+- `PRODUCTION_ONE_SHOT_REBASE_EXECUTION=NOT_STARTED`
+- `D1_MIRROR_PARITY=STALE/BLOCKED`
+- `ALLOCATOR_SEED_PINNED=false`
+- Google/Apps Script remains CREATE/number authority.
+
+Next: qualify this hardened helper, then execute it exactly once in the operational Apps Script project and immediately perform GET-only postflight reconciliation. Do not deploy, enable recurring sync, or invoke R4/R5.

@@ -13,6 +13,11 @@ assert.match(src, /SOURCE_CHANGED_BEFORE_PROMOTE/);
 assert.match(src, /CATALOG_CHANGED_BEFORE_PROMOTE/);
 assert.match(src, /atomicAction:\s*'promote'/);
 assert.match(src, /GET_RECONCILIATION_AFTER_AMBIGUOUS_POST/);
+assert.match(src, /if\s*\(exactParity\s*&&\s*sourceStillSame\)/);
+assert.match(src, /T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY/);
+assert.match(src, /parityReachedButSourceAdvanced:\s*exactParity\s*&&\s*!sourceStillSame/);
+assert.equal(/if\s*\(exactParity\s*\)\s*\{/.test(src), false,
+  'success must not depend on staged parity alone');
 assert.match(src, /automaticRetryAllowed:\s*false/);
 assert.match(src, /d1OrdersLowUsageTickV1/);
 assert.match(src, /d1OrdersLiveSyncTickV2/);

@@ -11,6 +11,7 @@
  * - Re-captures source and re-reads live catalog BEFORE one atomic promote.
  * - If source/catalog changed, aborts before promote.
  * - After promote, reads the complete live mirror and verifies exact row parity.
+ * - Re-captures the authoritative source after promote; success requires the source fingerprint to remain unchanged.
  * - A lost/ambiguous promote response is NEVER blindly retried; GET reconciliation decides.
  *
  * Dependencies already present in the production Apps Script project:
@@ -259,7 +260,7 @@ function trendosT12OneShotAtomicFullRebase20260926() {
     var sourceAfter = d1OrdersLiveSyncV2CaptureAll_();
     var sourceStillSame = !!sourceAfter && sourceAfter.fingerprint === source.fingerprint;
 
-    if (exactParity) {
+    if (exactParity && sourceStillSame) {
       return {
         audit: AUDIT,
         success: true,
@@ -300,7 +301,10 @@ function trendosT12OneShotAtomicFullRebase20260926() {
       outcomeUnknown: promoteAttempted && !promoteConfirmed,
       automaticRetryAllowed: false,
       sourceStillSameAfterPromote: sourceStillSame,
-      errorCode: promoteConfirmed ?
+      parityReachedButSourceAdvanced: exactParity && !sourceStillSame,
+      errorCode: exactParity && !sourceStillSame ?
+        'T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY' :
+        promoteConfirmed ?
         'T12_REBASE_POSTFLIGHT_PARITY_FAILED_NO_RETRY' :
         'T12_REBASE_PROMOTE_OUTCOME_UNCERTAIN_NO_RETRY',
       promoteError: promoteError ? 'captured-not-logged' : '',

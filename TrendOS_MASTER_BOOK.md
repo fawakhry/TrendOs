@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.55-DRAFT — guarded one-shot atomic full-rebase helper prepared in GitHub for the 60-row D1 lag; production execution NOT STARTED; no Apps Script/D1 mutation from browser attempt** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.56-DRAFT — one-shot rebase success hardened to require post-promote authoritative-source stability; production execution still NOT STARTED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -3697,5 +3697,24 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.54-DRAFT | ORDER Entry373: production D1 mirror GET-only full paged scan; current Orders/Lines max=4261, archives max=3610, no numeric ID >=4322; health/database PASS | M957/P200 unchanged. D1_ALLOCATOR_COLLISION=NO but D1 mirror is stale and 60 IDs behind Google max4321; D1_MIRROR_PARITY=STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false; Google/Apps Script remain CREATE/number authority. |
 
 | 2026-09-26 | 3.55-DRAFT | ORDER Entry374: prepared `t12-d1-one-shot-atomic-full-rebase-20260926.gs` plus static safety test for a no-trigger/no-property one-shot atomic Orders+Lines mirror rebase; helper stages both tabs, rechecks source/catalog before promote, performs GET parity after promote, and forbids automatic retry on ambiguous POST | Production execution NOT STARTED because cloud-browser automation did not start (wallet out of funds). No Apps Script edit/run and no D1 mutation occurred from that attempt. ALLOCATOR_SEED_PINNED=false; D1_MIRROR_PARITY remains STALE/BLOCKED until an authorized one-shot run and postflight parity. |
+| 2026-09-26 | 3.56-DRAFT | ORDER Entry375: hardened one-shot success gate to require post-promote Google source fingerprint stability in addition to exact D1 parity | GitHub-only change; production execution still NOT_STARTED. If source advances after promote, return fail-closed with T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY and no automatic retry. D1_MIRROR_PARITY remains STALE/BLOCKED; ALLOCATOR_SEED_PINNED=false. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
+
+
+## تحديث ORDER Entry375 — 26 سبتمبر 2026 / GitHub-only post-promote source-stability hardening
+
+مراجعة أمان إضافية للـ one-shot helper الخاص بفجوة D1 ذات الـ60 صفًا كشفت أن مسار النجاح كان يقبل `exactParity=true` مقابل الـsnapshot المرحلي حتى لو تحرك مصدر Google السلطوي بعد الـpromote وأصبح `sourceStillSameAfterPromote=false`. وبما أن `WRITE_QUIESCENCE_UNVERIFIED=true` ما زال قائمًا، كان ذلك يسمح نظريًا بتصنيف مرآة أصبحت قديمة فورًا على أنها نجاح.
+
+تم تقوية `cloudflare-d1/t12-preview/t12-d1-one-shot-atomic-full-rebase-20260926.gs` على GitHub فقط بحيث:
+- النجاح يتطلب الآن `exactParity && sourceStillSame`.
+- إذا تحققت parity مع الـsnapshot لكن تحرك المصدر بعد الـpromote، فالنتيجة `success=false` مع `T12_REBASE_POSTFLIGHT_SOURCE_CHANGED_NO_RETRY`.
+- يظل `automaticRetryAllowed=false`؛ لا توجد إعادة promote عمياء ولا mutation إضافية.
+- أضيف regression assertion يمنع عودة شرط `if (exactParity)` منفردًا ويثبت gate الجديد.
+- لم يحدث أي تعديل Apps Script production أو Google Sheets أو Script Properties أو Triggers أو D1 خلال هذا التغيير.
+
+الحالة بعد Entry375:
+`PRODUCTION_ONE_SHOT_REBASE_EXECUTION=NOT_STARTED`;
+`D1_MIRROR_PARITY=STALE/BLOCKED`;
+`ALLOCATOR_SEED_PINNED=false`.
+الخطوة التالية تبقى: تأهيل التعديل بالاختبار ثم تشغيل الـone-shot مرة واحدة فقط في المشروع التشغيلي، وبعدها GET postflight/reconciliation؛ لا Deploy ولا recurring sync ولا R4/R5.
