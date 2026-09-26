@@ -3368,3 +3368,51 @@ State after Entry372:
 Master Book advanced to `3.53-DRAFT`, commit `7b17f62a665d668967156649ddfa43f548bd771f`, blob `f0a0a89b046305325ad1d1763f1e8469b4b3e140`.
 
 **NEXT:** collect Production D1 mirror MAX numeric Order ID READ-ONLY and reconcile it against Google max `4321` / next `4322`. Separately inspect immutable Version155 source if accessible. No Cloud writer, order creation, property mutation, deployment, or restore is authorized.
+
+
+## Entry 373 — RESULT PRODUCTION-D1-MIRROR-ALLOCATOR-SCAN-20260926 / 2026-09-26 Cairo
+
+Production D1 was inspected READ-ONLY through the deployed Worker using GET requests only.
+
+Health evidence:
+- endpoint: `https://trendos-d1-api.trendmall-contact.workers.dev/health`
+- `success=true`
+- `service=trendos-d1`
+- `database=true`
+- Worker time: `2026-09-26T17:04:21.537Z` (~20:04 Cairo)
+
+The public production mirror catalog and all rows for the four mandatory Order-ID sources were scanned page-by-page using `GET /v1/mirror/sheet`, max 500 rows/page, 18 pages total. No mutation method was used.
+
+Observed D1 mirror maxima:
+- `D1_CURRENT_ORDERS_MAX=4261` at mirror cell `A652`; mirror rowCount/sourceLastRow `652`; `syncedAt=2026-09-20 17:43:19`
+- `D1_CURRENT_LINES_MAX=4261` at mirror cell `A708`; mirror rowCount/sourceLastRow `708`; `syncedAt=2026-09-20 17:43:19`
+- `D1_ARCHIVED_ORDERS_MAX=3610` at mirror cell `A2765`; mirror rowCount/sourceLastRow `2765`; `syncedAt=2026-08-29 15:28:53`
+- `D1_ARCHIVED_LINES_MAX=3610` at mirror cell `A3984`; mirror rowCount/sourceLastRow `3984`; `syncedAt=2026-08-29 15:33:20`
+
+Across the complete scanned mirror:
+- `PRODUCTION_D1_MIRROR_MAX=4261`
+- `D1_ANY_NUMERIC_ORDER_ID_GTE_4322=NO`
+- `D1_ALLOCATOR_COLLISION=NO`
+
+Cross-source comparison:
+- Google frozen max: `4321`
+- live Script Property next: `4322`
+- Production D1 mirror max: `4261`
+- D1 gap behind Google numeric max: `60`
+
+Therefore the D1 mirror does not contain a numeric collision with next `4322`, but it is not current enough to establish final parity. `D1_MIRROR_PARITY=STALE/BLOCKED`. Current Orders/Lines mirror metadata is dated Sep 20 and is materially behind the Sep 26 Google snapshot; archives are older still.
+
+State after Entry373:
+- `VERSION155_HISTORY=VERIFIED`
+- `SCRIPT_PROPERTY_LIVE_READ=VERIFIED`
+- `FROZEN_GOOGLE_NUMERIC_CONSISTENCY=PASS`
+- `D1_ALLOCATOR_COLLISION=NO`
+- `D1_MIRROR_PARITY=STALE/BLOCKED`
+- `WRITE_QUIESCENCE_UNVERIFIED=true`
+- `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED`
+- `ALLOCATOR_SEED_PINNED=false`
+- `ORDER_WRITER_FENCE_PHASE=OPEN`
+
+Master Book advanced to `3.54-DRAFT`, commit `cf04399c7445285a27ed585b3c522d0524f7303c`, blob `916e6abfb5c39d87bb6b40e2d1defbe0f5e13189`.
+
+**NEXT:** do not enable Cloud CREATE. First establish a safe D1 mirror catch-up/reconciliation path or otherwise produce a current D1 snapshot; then repeat bounded Google + D1 comparison under a documented write-quiescence window. Immutable Version155 exact-source parity remains a separate gate.
