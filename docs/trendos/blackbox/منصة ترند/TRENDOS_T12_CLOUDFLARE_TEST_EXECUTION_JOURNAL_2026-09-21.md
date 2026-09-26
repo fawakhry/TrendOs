@@ -3601,3 +3601,16 @@ Goal: begin closing the remaining fixed §11 `M:METADATA_ONLY` inventory after c
 TASK_ID: MASTER-BOOK-FINISH-20260927. STEP_ID: BATCH-02-SMALL-ROOT-SOURCE. READ/DOC_WRITE only. No test/workflow/runtime execution.
 
 Scope: full-text review of eight small root source/config files still M: `trendos-integrity-runtime-tools-v1.gs`, `reset-cache.html`, `cleaning-backend-v1.gs`, `trendos-resume-no-autorefresh-v1.js`, `v1940-deploy-health.gs`, `trendos-return-traffic-quiet-v1.js`, `trendos-integrity-v1.package.json`, `privacy.html`. Record purpose, side effects, dependencies, repair relevance and any open deployment/runtime gap. Only full-read disposition may move them M→P; no current certification is implied.
+
+
+## Entry 389 RESULT — MASTER-BOOK-FINISH-BATCH-01-02-20260927 / 2026-09-27 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260927. RESULT=`COMMITTED_VERIFIED` for Batch01 and Batch02. Documentation/source-reading only; no runtime action.
+
+Batch01: four FOKHA knowledge files were read in full and classified `P:FULL_READ_OUT_OF_TREND_SCOPE Entry387`; they explicitly preserve TrendOS Project Memory/Black Box as the operational source of truth and create no TrendOS runtime dependency.
+
+Batch02: eight small root source/config files were read in full and classified `P:FULL_SOURCE_READ Entry388 / DEPLOYED_UNKNOWN`. Key repair findings recorded in Master Book: Cleaning V1 append path has no lock around dedupe+append; reset-cache unregisters all same-origin service workers before selective cache deletion; return/resume traffic guards monkey-patch browser APIs and depend on stack/source/load-order; V1940 health proves presence/config booleans not integration runtime; Integrity package is PREPARED_NOT_APPROVED_FOR_PRODUCTION and flags default OFF; privacy.html is static policy text, not runtime proof.
+
+Fixed inventory count after these batches: `M945 / P212 / A11 / Redirect11 / LIVE6`. No `CERTIFIED_CURRENT` promotion occurred. Inventory blob after Batch02: `4d7050e748a6377b780eac46e2a689dcaf5f3117`; Master Book blob after Batch02: `4445080d3ce1070db1ccda324464bdd978d4c340`.
+
+Operational Entry384 blocker remains unchanged: Cloudflare token permission 7500; book-finishing lane performs no production actions.
