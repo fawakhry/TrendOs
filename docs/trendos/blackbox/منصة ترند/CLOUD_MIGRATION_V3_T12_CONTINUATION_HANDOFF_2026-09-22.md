@@ -1565,3 +1565,10 @@ Book-finishing lane is active; production work stays paused. 12 former M files h
 Continue with the remaining M files in related batches: root live code/docs first, then Apps Script candidates, Cloudflare source, tests, workflows, and historical documents. Current production blocker from Entry384 remains permission 7500 and is not being acted on in this documentation lane.
 
 Journal RESULT commit: `e15e1c15155047133032e222bc45094e7075bfe2`.
+
+
+## Entry 394 handoff — Master Book finish batches 03–06 / 2026-09-27 Cairo
+
+Book completion continues with production paused. Fixed coverage is now `M922/P235/A11/Redirect11/LIVE6`; 35 former metadata-only files have been dispositioned since compaction began. Root repair map now includes concrete auth, retry/idempotency, lock, fallback-persistence, date parsing, polling, Press, Edge cache and UI mutation risks. Continue remaining root M sources before Apps Script/Cloudflare/test/workflow/docs batches. No CERTIFIED_CURRENT was granted from static source review.
+
+Journal RESULT commit: `635806bde91e4f4d001303f2c6d98bff9f46ed32`.
