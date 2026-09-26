@@ -31,6 +31,9 @@ on:
       - 'tests/t12_client_key_continuity_guard.test.mjs'
       - 'cloudflare-d1/schema-prep/t12-cloud-native-synthetic-create-v1.sql'
       - 'tests/t12_cloud_native_synthetic_create.test.mjs'
+      - 'cloudflare-d1/schema-prep/t12-business-create-candidate-v1.sql'
+      - 'cloudflare-d1/src/t12-business-create-candidate.mjs'
+      - 'tests/t12_business_create_candidate.test.mjs'
       - 'tests/t12_google_create_writer_inventory.test.mjs'
       - 'tests/t12_supplemental_google_writer_inventory.test.mjs'
       - 'tests/t12_google_order_lifecycle_writer_inventory.test.mjs'
@@ -141,6 +144,8 @@ jobs:
           node --check cloudflare-d1/src/t12-client-key-continuity-guard.mjs
           node --check tests/t12_client_key_continuity_guard.test.mjs
           node --check tests/t12_cloud_native_synthetic_create.test.mjs
+          node --check cloudflare-d1/src/t12-business-create-candidate.mjs
+          node --check tests/t12_business_create_candidate.test.mjs
           node --check tests/t12_google_create_writer_inventory.test.mjs
           node --check tests/t12_supplemental_google_writer_inventory.test.mjs
           node --check tests/t12_google_order_lifecycle_writer_inventory.test.mjs
@@ -200,6 +205,7 @@ jobs:
           node --experimental-sqlite tests/t12_production_d1_aggregate_evidence_readonly.test.mjs
           node tests/t12_order_create_cutover_state.test.mjs
           node --experimental-sqlite tests/t12_cloud_native_synthetic_create.test.mjs
+          node --experimental-sqlite tests/t12_business_create_candidate.test.mjs
           node tests/t12_cloud_client_key_admission.test.mjs
           node tests/t12_client_key_continuity_guard.test.mjs
           node tests/t12_google_create_writer_inventory.test.mjs
