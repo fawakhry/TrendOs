@@ -1,0 +1,35 @@
+name: TrendOS T12 Fresh Start 4322 Isolated CI
+
+on:
+  push:
+    branches:
+      - cloud-migration-v3-t12-order-create-ci-20260919
+    paths:
+      - '.github/workflows/trendos-t12-fresh-start-4322-isolated-ci.yml'
+      - 'tests/t12_business_create_candidate.test.mjs'
+      - 'cloudflare-d1/src/t12-business-create-candidate.mjs'
+      - 'cloudflare-d1/schema-prep/t12-business-create-candidate-v1.sql'
+      - 'cloudflare-d1/src/t12-order-create-shadow-intent.mjs'
+      - 'cloudflare-d1/src/t12-cloud-client-key-admission.mjs'
+      - 'cloudflare-d1/src/t12-order-create-input-guard.mjs'
+      - 'cloudflare-d1/src/cloud-write-order-contract-v2.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-start-4322:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check cloudflare-d1/src/t12-business-create-candidate.mjs
+          node --check tests/t12_business_create_candidate.test.mjs
+      - name: Run isolated fresh-start CREATE qualification
+        run: node --experimental-sqlite tests/t12_business_create_candidate.test.mjs
