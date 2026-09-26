@@ -3154,3 +3154,63 @@ Continue DOC lane from HEAD `34cf02c036023a77aaae0fe049171524b38a7a4a`, Book `3.
 ## Entry 357 — RESULT DOC-T11-ORDERS-HEADERS-SERVICE-QUALIFICATION-WORKFLOWS-20260926-17 / 2026-09-26 Cairo
 
 Master Book batch applied in commit `afb4569f61d17e64e1b82cba89c52fb4bee571b6`, blob `c524c84dc58e3c85b942f3f5a433734fb7540105`, version `3.45-DRAFT`. Independent full `fetch_blob` readback returned 1,031,299 non-zero characters and verified §5.53, fixed counts M957/P200, and all five exact workflow SHA rows promoted to `P:SCOPED_REVIEW`. Source findings: Orders headers probe reads production mirror metadata/headers but no row values; routing bundle diagnostic proves source dispatch/local entrypoint 401 plus Wrangler dry-run bundle only, no deploy; Service candidate parity reconstructs Service rows from Orders mirror using fixed header mapping, hidden statuses and nine hard-coded exclusion hashes before comparing to Apps Script; deployed contract parity compares a selected key projection from Lines mirror to Apps Script with line-ID digit normalization and priority/status rules; exclusion-hash workflow derives exactly nine historical `طلب جديد` exclusions and prints SHA256 only. These are historical/source contracts and snapshot/filter-dependent diagnostics, not current deployed/content parity. No workflow dispatch, production HTTP, login/token exchange, Cloudflare D1 mutation, Worker deploy, Apps Script/Google mutation or main push occurred. Operational state unchanged: TEST=`LARGE_TARGET`; PROD_MIRROR=`NOT_RESTORED`; CLOUD_CREATE=`NOT_CUT_OVER`; Google Sheets + Apps Script remain business CREATE/number authority.
+
+
+## Entry 358 — LIVE RESULT ORDER-CLOSEOUT-CLOUDFLARE-WRITER-FENCE-20260926-18 / 2026-09-26 Cairo
+
+Owner manually inspected and changed Cloudflare Production while this session supplied scoped instructions. This entry captures actions already completed and observed; it does not authorize any additional production write.
+
+### Live Worker / routing evidence captured before writer fencing
+- Worker/service: `trendos-d1-api`.
+- Cloudflare UI showed active version `654a3c91` at 100% traffic before the manual variable deployments; exact post-change deployment/version IDs were not captured and remain an evidence gap.
+- Production workers.dev endpoint observed: `trendos-d1-api.trendmall-contact.workers.dev`.
+- No Custom Domain/extra Route was shown in the Domains & Routes view.
+- Live D1 binding shown as `DB -> trendos-main`. Repository target identity remains `trendos-main/5c4b92bf-e043-4f6e-bd6d-d514a92cd825`; the database UUID was not separately re-read from D1 Overview during this sequence.
+- Trigger events view showed no Cron triggers, no Queue consumers and no Email triggers. This proves no Cloudflare-native scheduled trigger was configured for R5 at observation time; it does not exclude external HTTP callers.
+
+### Live flags/secrets observed before changes
+- `TRENDOS_CLOUD_WRITE_V1_ENABLED=true`.
+- `TRENDOS_PRODUCTION_SHADOW_V2_ENABLED=true`.
+- `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED=false`.
+- `TRENDOS_R4_RECOVERY_ENABLED=false`.
+- `TRENDOS_R5_PERIODIC_ENABLED=true`.
+- Secret names/presence observed included `EDGE_SESSION_SECRET` and `MIGRATION_SECRET`; values were not opened or recorded.
+
+### Deployed bundle evidence supplied by owner
+The owner exported/pasted the deployed Worker bundle. It contained the Cloud Write V1 route and the production recovery wrappers, including `/v1/cloud/orders`, the Cloud Write gate, `/v1/admin/r4/orders-recovery/apply`, and `/v1/admin/r5/orders-periodic/apply`. The bundle therefore confirmed these write-capable routes were present in the deployed code, subject to their flags/auth gates.
+
+### Cloud Write V1 live health before fence
+Read-only GET `/v1/cloud/write/health` returned at `2026-09-26T14:46:18.720Z`:
+`success=true database=true enabled=true authConfigured=true writesAccepted=true schemaReady=true pendingOutbox=0 schemaMutationFree=true cutover=false sheetsAuthoritative=true`.
+This established that the V1 route was live, schema-ready, authenticated and capable of accepting writes to the Production binding even though business cutover remained false and Sheets remained authoritative.
+
+### Production D1 read-only footprint reconciliation before disabling V1
+Owner ran SELECT-only D1 Console queries. Results:
+- `cloud_write_events`: exactly 1 row.
+- Grouped event state: one `create / reconciled / synced` event.
+- First and last cloud-write timestamp were the same: `2026-09-05 15:43:41`.
+- `cloud_write_outbox`: one row, status `synced`, attempts `1`, empty last_error.
+- Orders with `order_id LIKE 'CW-%'`: exactly 1.
+- Exact identity: `entity_id/order_id = CW-PROD-QUAL-33975124471`, order status `cloud-qualification`, department `SYSTEM-QUALIFICATION`, priority `qualification`; event note identified `02CL qualification`. This is qualification footprint, not evidence of an ordinary customer order.
+No INSERT/UPDATE/DELETE/DDL was run in this reconciliation.
+
+### Production writer fence actions completed by owner
+1. Owner changed only `TRENDOS_CLOUD_WRITE_V1_ENABLED` from `true` to `false`, then deployed the variable change. Post-deploy read-only health at `2026-09-26T14:55:13.009Z` returned: `database=true enabled=false authConfigured=true writesAccepted=false schemaReady=true pendingOutbox=0 schemaMutationFree=true cutover=false sheetsAuthoritative=true`. Result: **Cloud Write V1 is live-fenced OFF**.
+2. Owner changed `TRENDOS_R5_PERIODIC_ENABLED` from `true` to `false` and deployed that variable change. GET to `/v1/admin/r5/orders-periodic/apply` returned `success=false reason=periodic-disabled-or-wrong-target automaticRetryAllowed=false requiresPostWriteReadOnlyParity=false triggerRestartAuthorized=false`. Result: **R5 production recovery route is live-fenced OFF**.
+3. `TRENDOS_R4_RECOVERY_ENABLED` had already been observed false. Owner then GET-checked `/v1/admin/r4/orders-recovery/apply`; response: `success=false reason=recovery-disabled-or-wrong-target automaticRetryAllowed=false requiresPostWriteReadOnlyParity=false triggerRestartAuthorized=false`. Result: **R4 production recovery route is confirmed fail-closed OFF**.
+4. `TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED` remained false; no reconciliation POST was sent.
+
+### Important configuration drift introduced/confirmed
+Current repository `cloudflare-d1/wrangler.toml` on this branch still declares `TRENDOS_CLOUD_WRITE_V1_ENABLED="true"` and `TRENDOS_R5_PERIODIC_ENABLED="false"`. After the owner's manual Cloudflare variable deployments, live Production is now V1=false and R5=false. Therefore **repository config and live Production are currently inconsistent for V1**. A future Wrangler deploy from unchanged repository configuration may risk re-enabling V1 depending on deploy semantics. Treat this as a blocking config-parity item before any future Worker deploy.
+
+### Current state after Entry358
+- `CLOUD_WRITE_V1=OFF_CONFIRMED`.
+- `R5_PRODUCTION_RECOVERY=OFF_CONFIRMED`.
+- `R4_PRODUCTION_RECOVERY=OFF_CONFIRMED`.
+- `PROD_RECONCILE_QUALIFY=OFF_OBSERVED`.
+- `PROD_MIRROR=NOT_RESTORED` remains unchanged.
+- `CLOUD_CREATE=NOT_CUT_OVER` remains unchanged.
+- Google Sheets + Apps Script remain business Order CREATE/number authority.
+- No customer order was created and no Production D1 business row was mutated during this closeout sequence; the only Production mutations were Cloudflare configuration variable deployments that fenced writers OFF.
+
+**NEXT SAFE STEP:** before any further Worker deploy, reconcile repository config so the source-of-deploy also says `TRENDOS_CLOUD_WRITE_V1_ENABLED="false"`, then independently verify deployed version/flags after that source change. In parallel, continue order-only qualification: prove all Google/Apps Script create/line writer entrypoints and allocator/replay fencing before designing Cloud CREATE. Do not enable V1/R4/R5 or send any order-create POST merely to test reachability.
