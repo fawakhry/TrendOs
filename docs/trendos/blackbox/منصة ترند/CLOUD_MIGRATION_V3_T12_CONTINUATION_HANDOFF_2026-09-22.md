@@ -1518,3 +1518,12 @@ The handler is now imported by `production-shadow/index.js`, while `wrangler.tom
 Manual-only workflow `trendos-t12-production-create-canary-controlled.yml` was added at commit `aac54e70bfcbb4ce393c01e06c77b2efbd512dce`. It requires exact confirmation and supports only install-disabled, arm-one and disable. It pins source hashes and target database, reruns qualification, verifies health/state, and emergency-disarms a failed arm. It has no push trigger.
 
 Current state: code qualified; route wired in repo but default-OFF; migration not applied; Worker not deployed from this change; budget not armed; order 4322 not created; general Production CREATE cutover remains OFF.
+
+
+## Entry 382 LIVE update — install-disabled approved, execution blocked before mutation / 2026-09-26 Cairo
+
+Owner explicitly approved **install-disabled only**. Scope: apply additive migration 0005 to trendos-main, deploy the exact Worker with the CREATE canary flag remaining false, then GET-only health verify schemaReady=true, nextOrderNumber=4322, canaryRemaining=0, enabled=false. This does NOT authorize arm-one, CREATE POST, order 4322 creation, or general cutover.
+
+Execution from the current chat was blocked before mutation: the available GitHub connector has no workflow_dispatch action; an attempted one-shot push-trigger workaround was rejected by safety tooling before any GitHub write; TinyFish browser could not start because its wallet balance is negative. Therefore no migration, Worker deploy, D1 control update, route enable, or order create occurred.
+
+State: OWNER_INSTALL_DISABLED_APPROVAL=YES; OWNER_ARM_ONE_APPROVAL=NO; INSTALL_DISABLED_EXECUTION=BLOCKED_BEFORE_MUTATION; PROD_CREATE_CANARY_MIGRATION_APPLIED=NO; PROD_CREATE_CANARY_WORKER_DEPLOYED=NO; PROD_CREATE_CANARY_ARMED=NO; PROD_CREATE_CANARY_4322_EXECUTED=NO; GENERAL_PRODUCTION_CREATE_CUTOVER=NO.

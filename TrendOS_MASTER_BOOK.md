@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.62-DRAFT — fresh-start Production CREATE canary prepared, routed default-OFF and CI-qualified; controlled install/arm/disable workflow prepared; no Production migration/deploy/canary executed yet** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.63-DRAFT — owner explicitly approved install-disabled only; execution blocked by available tooling before any Production mutation; arm-one remains unauthorized** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -3704,6 +3704,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | 3.60-DRAFT | ORDER Entry379: one-shot Production CREATE canary schema/engine/handler prepared unrouted; isolated CI run 36264851918 PASS | Seed 4322, default budget 0, one-unique-create budget, idempotent replay, rollback, lost-ACK readback, concurrency and admin-auth handler qualified; no Production mutation. |
 | 2026-09-26 | 3.61-DRAFT | ORDER Entry380: canary route wired in production-shadow with TRENDOS_T12_PROD_CREATE_CANARY_ENABLED=false; dedicated integration CI run 36264911935 PASS | Repository-only wiring; no Worker deploy and no D1 migration applied. |
 | 2026-09-26 | 3.62-DRAFT | ORDER Entry381: manual controlled install-disabled / arm-one / disable workflow prepared with exact source/hash/target guards and emergency disarm | Workflow has no automatic trigger. Production schema/deploy/arm/canary remain NOT_EXECUTED. |
+| 2026-09-26 | 3.63-DRAFT | ORDER Entry382: owner explicitly approved install-disabled only; execution tooling blocked before mutation | No migration/deploy/flag change/D1 mutation occurred. arm-one remains unapproved and unexecuted. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
 
@@ -3815,6 +3816,25 @@ Commit: `aac54e70bfcbb4ce393c01e06c77b2efbd512dce`.
 الحالة الحالية الدقيقة:
 `PROD_CREATE_CANARY_CODE=QUALIFIED`؛
 `PROD_CREATE_CANARY_ROUTE=WIRED_IN_REPO_DEFAULT_OFF`؛
+`PROD_CREATE_CANARY_MIGRATION_APPLIED=NO`؛
+`PROD_CREATE_CANARY_WORKER_DEPLOYED=NO`؛
+`PROD_CREATE_CANARY_ARMED=NO`؛
+`PROD_CREATE_CANARY_4322_EXECUTED=NO`؛
+`GENERAL_PRODUCTION_CREATE_CUTOVER=NO`.
+
+
+## تحديث ORDER Entry382 — 26 سبتمبر 2026 / owner approved install-disabled only; execution BLOCKED before mutation
+
+المالك أعطى موافقة صريحة ومحدودة على `install-disabled` فقط. هذه الموافقة تغطي فقط: تطبيق migration additive `0005_t12_production_create_canary.sql` على `trendos-main`، نشر الـWorker مع `TRENDOS_T12_PROD_CREATE_CANARY_ENABLED=false`، ثم GET-only health لإثبات `schemaReady=true` و`nextOrderNumber=4322` و`canaryRemaining=0` و`enabled=false`.
+
+لا تشمل الموافقة `arm-one` ولا أي CREATE POST ولا إنشاء order 4322 ولا general cutover.
+
+محاولة تنفيذ هذه الموافقة من المحادثة الحالية توقفت **قبل أي Production mutation** لأن موصل GitHub المتاح لا يوفر `workflow_dispatch`، ومحاولة بديل push-trigger one-shot رُفضت بواسطة safety tooling قبل إنشاء أي commit/workflow. المتصفح السحابي TinyFish أيضًا غير قابل للتشغيل بسبب رصيد سلبي؛ لذلك لم يتم تطبيق migration، ولم يتم deploy، ولم يتغير أي flag أو D1 control row.
+
+الحالة بعد Entry382:
+`OWNER_INSTALL_DISABLED_APPROVAL=YES`؛
+`OWNER_ARM_ONE_APPROVAL=NO`؛
+`INSTALL_DISABLED_EXECUTION=BLOCKED_BEFORE_MUTATION`؛
 `PROD_CREATE_CANARY_MIGRATION_APPLIED=NO`؛
 `PROD_CREATE_CANARY_WORKER_DEPLOYED=NO`؛
 `PROD_CREATE_CANARY_ARMED=NO`؛
