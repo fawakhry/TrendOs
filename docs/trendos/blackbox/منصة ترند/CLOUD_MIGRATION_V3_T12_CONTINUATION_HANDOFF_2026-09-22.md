@@ -1389,3 +1389,27 @@ Evidence limitation: the Work run explicitly did **not** verify that all product
 Master Book is now `3.53-DRAFT`, commit `7b17f62a665d668967156649ddfa43f548bd771f`, blob `f0a0a89b046305325ad1d1763f1e8469b4b3e140`. Journal Entry372 commit `b6bd6cc3521fa86f6ad65f41e57ab903d8ccbc11`, blob `8fe497826069c19484edea67c2fa8ba018025c59`.
 
 **NEXT FAST-TRACK READ-ONLY:** query Production D1 mirror for MAX numeric Order ID and reconcile against Google max `4321` / next `4322`. Exact immutable Version155 source parity remains a separate open evidence gate. Do not enable Cloud CREATE or mutate Google allocator state.
+
+
+## Entry 373 LIVE update — production D1 mirror allocator scan / 2026-09-26 Cairo
+
+Production D1 was checked READ-ONLY via the deployed Worker using GET only. Health returned `success=true`, `service=trendos-d1`, `database=true` at `2026-09-26T17:04:21.537Z` (~20:04 Cairo).
+
+A complete paged scan of the four mandatory mirror sources produced:
+- current Orders max `4261` at mirror `A652`, synced `2026-09-20 17:43:19`
+- current Lines max `4261` at mirror `A708`, synced `2026-09-20 17:43:19`
+- archived Orders max `3610` at mirror `A2765`, synced `2026-08-29 15:28:53`
+- archived Lines max `3610` at mirror `A3984`, synced `2026-08-29 15:33:20`
+
+No numeric Order ID `>=4322` was found. Therefore:
+- `PRODUCTION_D1_MIRROR_MAX=4261`
+- `D1_ALLOCATOR_COLLISION=NO`
+
+However Google frozen max is `4321`, so D1 is 60 numeric IDs behind Google and the mirror metadata is stale. Therefore:
+- `D1_MIRROR_PARITY=STALE/BLOCKED`
+- `ALLOCATOR_SEED_PINNED=false`
+- `ORDER_WRITER_FENCE_PHASE=OPEN`
+
+Master Book is now `3.54-DRAFT`, commit `cf04399c7445285a27ed585b3c522d0524f7303c`, blob `916e6abfb5c39d87bb6b40e2d1defbe0f5e13189`. Journal Entry373 commit `61f9c44bf2aab0bf214d9b00a93a59a4b4ef5aea`, blob `7dd1d95f2719418d708909c0a26f58d5ef65ac5d`.
+
+**NEXT FAST-TRACK:** do not enable Cloud CREATE. Establish a safe D1 mirror catch-up/reconciliation path first, then repeat bounded Google + D1 comparison under documented write quiescence. Immutable Version155 exact-source parity remains separately open.
