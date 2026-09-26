@@ -7,8 +7,9 @@ import {handleT12ProductionCreateCanaryRequest,isT12ProductionCreateCanaryPath} 
 const schema=fs.readFileSync(new URL('../cloudflare-d1/migrations/0005_t12_production_create_canary.sql',import.meta.url),'utf8');
 const prod=fs.readFileSync(new URL('../cloudflare-d1/production-shadow/index.js',import.meta.url),'utf8');
 const wr=fs.readFileSync(new URL('../cloudflare-d1/wrangler.toml',import.meta.url),'utf8');
-assert.equal(prod.includes('t12-production-create-canary-handler'),false);
-assert.equal(wr.includes('TRENDOS_T12_PROD_CREATE_CANARY_ENABLED'),false);
+assert.equal(prod.includes('t12-production-create-canary-handler'),true);
+assert.match(prod,/isT12ProductionCreateCanaryPath/);
+assert.match(wr,/TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"/);
 assert.equal(/\b(?:DROP|DELETE|ALTER)\b/i.test(schema),false);
 assert(isT12ProductionCreateCanaryPath('/v1/t12/orders/create-canary'));
 class Stmt{constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}bind(...p){this.params=p;return this;}async first(){return this.db.raw.prepare(this.sql).get(...this.params)||null;}async all(){return {results:this.db.raw.prepare(this.sql).all(...this.params)}}async run(){return this.db.raw.prepare(this.sql).run(...this.params);}}

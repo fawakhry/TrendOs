@@ -15,11 +15,21 @@ import {
   handleR5ProductionRecoveryRequest,
   isR5ProductionRecoveryPath
 } from '../t12-preview/r5-orders-periodic-guarded-handler-candidate.mjs';
+import {
+  handleT12ProductionCreateCanaryRequest,
+  isT12ProductionCreateCanaryPath
+} from '../src/t12-production-create-canary-handler.mjs';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    // T12 owner-approved fresh-start CREATE canary. Installed default-OFF.
+    // The D1 control table also enforces a one-unique-create budget.
+    if (isT12ProductionCreateCanaryPath(path)) {
+      return handleT12ProductionCreateCanaryRequest(request, env, ctx);
+    }
 
     if (isR4ProductionRecoveryPath(path)) {
       return handleR4ProductionRecoveryRequest(request, env, ctx);
