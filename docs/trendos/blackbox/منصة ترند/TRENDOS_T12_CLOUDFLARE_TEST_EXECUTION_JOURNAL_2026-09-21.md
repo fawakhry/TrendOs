@@ -3214,3 +3214,10 @@ Current repository `cloudflare-d1/wrangler.toml` on this branch still declares `
 - No customer order was created and no Production D1 business row was mutated during this closeout sequence; the only Production mutations were Cloudflare configuration variable deployments that fenced writers OFF.
 
 **NEXT SAFE STEP:** before any further Worker deploy, reconcile repository config so the source-of-deploy also says `TRENDOS_CLOUD_WRITE_V1_ENABLED="false"`, then independently verify deployed version/flags after that source change. In parallel, continue order-only qualification: prove all Google/Apps Script create/line writer entrypoints and allocator/replay fencing before designing Cloud CREATE. Do not enable V1/R4/R5 or send any order-create POST merely to test reachability.
+
+
+## Entry 359 — RESULT DOC-ORDER-CLOSEOUT-WRITER-FENCE-CHECKPOINT-20260926-19 / 2026-09-26 Cairo
+
+Master Book updated to `3.46-DRAFT` in commit `85d9c9cec6a99c745d3b7d75c4273568e2369f39`, blob `8821891c8b3740a6a727ea6c5187fb8c0be428d5`. Independent full `fetch_blob` readback returned 1,037,307 non-zero characters and verified page-one live update, §6.33, `CLOUD_WRITE_V1=OFF_CONFIRMED`, `R4_PRODUCTION_RECOVERY=OFF_CONFIRMED`, `R5_PRODUCTION_RECOVERY=OFF_CONFIRMED`, and the explicit `SOURCE/LIVE CONFIG DRIFT` warning. Inventory counts remain M957/P200/A11/L11/LIVE6 because this was live operational evidence, not §11 source promotion.
+
+Current order-closeout boundary: Cloudflare V1 order create writer is fenced OFF; R4 and R5 recovery writers are fenced OFF; PROD reconcile qualify remains OFF; no Cloudflare-native trigger exists; Production mirror remains NOT_RESTORED; Cloud CREATE remains NOT_CUT_OVER; Google Sheets + Apps Script remain business CREATE/number authority. The remaining immediate blocker before any Worker deploy is repository config parity: current `cloudflare-d1/wrangler.toml` still declares `TRENDOS_CLOUD_WRITE_V1_ENABLED="true"` while live Production is false. Do not deploy the Worker from unchanged source until this is corrected and reviewed. No additional Production mutation occurred while documenting Entry358–359.
