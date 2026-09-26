@@ -1,6 +1,6 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.63-DRAFT — owner explicitly approved install-disabled only; execution blocked by available tooling before any Production mutation; arm-one remains unauthorized** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.64-DRAFT — install-disabled manual run reached Cloudflare but failed before remote D1 migration due API token permission 7500; no deploy/arm/create; token permission repair required** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
 
@@ -3860,3 +3860,31 @@ Workflow blob على main يطابق فرع T12: `c4603edd4844591b8cdacda94dbea5
 `PROD_CREATE_CANARY_WORKER_DEPLOYED=NO`؛
 `PROD_CREATE_CANARY_ARMED=NO`؛
 `PROD_CREATE_CANARY_4322_EXECUTED=NO`.
+
+
+## تحديث ORDER Entry384 — 26 سبتمبر 2026 / install-disabled run reached Cloudflare; D1 API permission BLOCKED before migration
+
+شغّل المالك workflow `TrendOS T12 Production CREATE Canary Controlled` يدويًا على فرع T12 مع `action=install-disabled` وconfirmation الصحيح. Run: `36272464176`، job: `108488891702`، HEAD: `00abf19fb321e31a8246329369b32c688ce0406c`.
+
+النتائج قبل الفشل:
+- checkout للفرع الصحيح PASS.
+- confirmation / Cloudflare account env / exact target guards PASS.
+- hashes للـWorker/wrangler/migration/engine/handler/test PASS.
+- isolated Production CREATE canary qualification PASS.
+- `arm-one` = SKIPPED.
+
+الفشل حدث في أول أمر Cloudflare D1 remote داخل خطوة `Install additive migration while route stays disabled`: `wrangler d1 migrations apply trendos-main --remote` وصل إلى قاعدة `trendos-main` بالـdatabase id المتوقع، لكن Cloudflare API أعاد `You do not have permission to perform this operation [code: 7500]` عند endpoint query. لذلك workflow خرج FAILURE قبل Worker deploy، وHealth verification لم يبدأ.
+
+التصنيف: `D1_API_TOKEN_PERMISSION_BLOCKED`. لا يوجد دليل على تطبيق migration جزئي؛ الطلب remote D1 رُفض بصلاحيات قبل تنفيذ migration. لا يوجد deploy من هذا run، ولا arm، ولا order 4322، ولا general cutover.
+
+الحالة:
+`OWNER_INSTALL_DISABLED_APPROVAL=YES`؛
+`OWNER_ARM_ONE_APPROVAL=NO`؛
+`INSTALL_DISABLED_RUN=FAIL_PERMISSION_7500`؛
+`PROD_CREATE_CANARY_MIGRATION_APPLIED=NO`؛
+`PROD_CREATE_CANARY_WORKER_DEPLOYED=NO`؛
+`PROD_CREATE_CANARY_ARMED=NO`؛
+`PROD_CREATE_CANARY_4322_EXECUTED=NO`؛
+`GENERAL_PRODUCTION_CREATE_CUTOVER=NO`.
+
+NEXT: repair/replace GitHub Actions `CLOUDFLARE_API_TOKEN` so it has D1 write/edit permission on the TrendOS account and sufficient Worker deploy permission for the existing `trendos-d1-api` Worker; then rerun the same `install-disabled` action only. Do not run `arm-one`.

@@ -3547,3 +3547,12 @@ Owner could not see `TrendOS T12 Production CREATE Canary Controlled` in GitHub 
 Safety check of `main` showed only R4 and R5 controlled workflows, both manual `workflow_dispatch` with no push trigger. The exact T12 control workflow file was therefore copied to `main` only, with no runtime code transfer and no Cloudflare action. Main commit: `1100750af2932a26c1b4a2ddc0fba2884af5f0ca`; workflow blob: `c4603edd4844591b8cdacda94dbea55f7775d6bf`.
 
 No workflow was dispatched by this fix. No migration, Worker deploy, D1 control mutation, arm, or CREATE occurred. Owner approval remains limited to `install-disabled`; `arm-one` remains unauthorized.
+
+
+## Entry 384 LIVE update — install-disabled blocked by Cloudflare D1 token permission / 2026-09-26 Cairo
+
+Owner manually dispatched `TrendOS T12 Production CREATE Canary Controlled` with `action=install-disabled` and the exact confirmation. Run `36272464176`, job `108488891702`, HEAD `00abf19fb321e31a8246329369b32c688ce0406c`.
+
+Source/target/hash guards PASS and the isolated canary qualification PASS. The first remote D1 command, `wrangler d1 migrations apply trendos-main --remote`, reached the expected database id but Cloudflare rejected the query with API error code 7500: insufficient permission. The migration step therefore failed before the Worker deploy; health verification was skipped. `arm-one` was also skipped.
+
+No Worker deploy, D1 canary arm, order 4322 creation, or general CREATE cutover occurred. Treat migration 0005 as NOT_APPLIED for this run. Required recovery is API-token permission repair, followed by the same `install-disabled` action only; `arm-one` remains unauthorized.
