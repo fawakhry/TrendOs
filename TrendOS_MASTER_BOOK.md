@@ -16,7 +16,7 @@
 
 **فجوات ما زالت مفتوحة عند الحاجة لمساراتها:** `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED` ما لم توجد بينة أحدث؛ أي source/deployment تغير يبطل certification السابقة لذلك المكون. لا يوجد حاليًا subsystem موسوم `CERTIFIED_CURRENT` في سجل الإغلاق.
 
-**التغطية:** الجرد التاريخي الثابت = 1185 path: `M957 / P200 / A11 / Redirect11 / LIVE6`. الجدول الكامل خارج القراءة الإلزامية في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md).
+**التغطية:** الجرد التاريخي الثابت = 1185 path: `M953 / P204 / A11 / Redirect11 / LIVE6`. الجدول الكامل خارج القراءة الإلزامية في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md).
 
 **قراءة شات جديد:** الصندوق الأسود → `اقرأني_أولًا.md` → هذه الصفحة + فهرس القراءة السريع + الفصل المرتبط بالعطل → آخر Journal/Handoff/HEAD. لا تحمل الملاحق الثقيلة أو الأجزاء المقفولة إلا إذا Trigger الإصلاح يطلبها.
 
@@ -1998,9 +1998,13 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 
 ## 11. جرد الملفات والتغطية — ملحق ثقيل، ليس قراءة تلقائية
 
-الجرد الكامل لكل **1185 path** مع SHA/size/role/status محفوظ في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md). الحصيلة الحالية: `M957 / P200 / A11 / Redirect11 / LIVE6`. افتح الملحق فقط إذا كانت المهمة تتطلب ملفًا بعينه، مراجعة coverage، أو تحديث inventory. لا تُعيد تحميله في كل شات.
+الجرد الكامل لكل **1185 path** مع SHA/size/role/status محفوظ في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md). الحصيلة الحالية: `M953 / P204 / A11 / Redirect11 / LIVE6`. افتح الملحق فقط إذا كانت المهمة تتطلب ملفًا بعينه، مراجعة coverage، أو تحديث inventory. لا تُعيد تحميله في كل شات.
 
 سجل تغييرات الكتاب التاريخي نُقل إلى [TRENDOS_MASTER_CHANGELOG_ARCHIVE_PRE_COMPACTION.md](docs/trendos/master-book/TRENDOS_MASTER_CHANGELOG_ARCHIVE_PRE_COMPACTION.md). النسخة الكاملة قبل الضغط قابلة للاسترجاع عبر [MASTER_BOOK_PRE_COMPACTION_SNAPSHOT_POINTER_2026-09-27.md](docs/trendos/master-book/MASTER_BOOK_PRE_COMPACTION_SNAPSHOT_POINTER_2026-09-27.md).
+
+### دفعات إغلاق الجرد أثناء إنهاء الكتاب
+
+- **Batch 01 / Entry387 — FOKHA out-of-scope full read:** قُرئت بالكامل الملفات `FOKHA_BRAIN/اقرأني_أولا.md` و`FOKHA_BRAIN/PROMPTS/برومبت_استخراج_المعرفة_والداتا.md` و`FOKHA_BRAIN/STANDARD/FOKHA_EXTRACTION_STANDARD.md` و`عقل_فوخا.md`. جميعها تؤكد أن Fokha Brain طبقة معرفة عامة لا مصدر حقيقة تشغيلية لـTrendOS، وأن Project Memory/Black Box الخاص بـTrendOS يظل السلطة التنفيذية. لا توجد dependency تشغيلية تجبر قراءتها لإصلاح TrendOS؛ صُنفت `P:FULL_READ_OUT_OF_TREND_SCOPE Entry387` بدون حذف أو نقل. حصيلة الجرد بعد الدفعة: `M953 / P204 / A11 / Redirect11 / LIVE6`.
 
 ### آخر تغييرات نشطة لازمة للاستكمال
 
