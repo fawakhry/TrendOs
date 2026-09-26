@@ -1267,3 +1267,8 @@ A connector oversized-file fetch returned empty content during a Master Book upd
 Owner authorized exactly one TEST-only 142 POST with no retry and no PROD. Run `36241360286` completed SUCCESS. Fresh preflight was exact `LARGE_BASELINE` (2 catalog / 1360 mirror / 0 migration / control=1; tabs 652/708). Exactly one POST returned HTTP200 with `positive-pass`, candidateUpserts=142 and statements=42. GET postflight proved exact `LARGE_TARGET`: 2 catalog / 1480 mirror / 0 migration / control=1; tabs 712/768; targetCatalog=1, oldChanged=0, newChanged=11, tailRows=60 on both. No retry occurred.
 
 Separate GET-only run `36241424226` then independently reconfirmed the same `LARGE_TARGET` state. No Worker deploy, production binding, Google/Apps Script mutation, or PROD SQL occurred. Current TEST state is `LARGE_TARGET`. This validates the fabricated historical-shape 142-position path on real TEST D1 with the D1-compatible guard, but it does NOT restore PROD or authorize production canary/cutover. Google Sheets + Apps Script remain business CREATE/number authority.
+
+
+## Entry 351 documentation checkpoint / 2026-09-26 Cairo
+
+Master Book is now `3.42-DRAFT`, commit `35781d33bbbfaa25b8caf0f2ecf20c5887cfa475`, blob `ef14916a4bd63b5b66549a1a39c1bf4b32bcdea1`; root readback size 1,192,932 bytes. Current TEST state remains independently confirmed `LARGE_TARGET` after the exactly-one-POST 142 PASS. No further TEST/PROD mutation occurred while documenting. PROD remains NOT_RESTORED and Google/Apps Script remain business CREATE/number authority.
