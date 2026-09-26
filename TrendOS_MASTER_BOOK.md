@@ -1,8 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.41-DRAFT — 142 TEST stayed LARGE_BASELINE after 503; D1 compound-SELECT cause isolated; compatible guard read-only + local PASS; retry NOT_RUN** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.42-DRAFT — real TEST 142 D1-compatible retry PASS; independent read-only LARGE_TARGET confirmed; PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+**تحديث MIG Entry349–350 (26 سبتمبر):** بموافقة المالك الصريحة تم تنفيذ POST واحد فقط للـ142 على D1 TEST الحالية، بدون Retry وبدون PROD. preflight كان `LARGE_BASELINE` exact (2 catalog / 1360 rows / 0 migration؛ 652/708). الـPOST الوحيد رجع HTTP200 و`positive-pass` لخطة 142 candidate / 42 statements. GET postflight أثبت `LARGE_TARGET` exact: 1480 rows = 712/768، targetCatalog=1 للتابين، oldChanged=0، newChanged=11، tailRows=60 لكل تاب. Run مستقل GET-only أعاد نفس `LARGE_TARGET`. لا Worker deploy ولا PROD binding ولا Google/Apps Script mutation؛ PROD ما زال NOT_RESTORED وCloud production CREATE ما زال NOT_CUT_OVER.
+
 **تحديث MIG Entry342–345 (26 سبتمبر):** بعد محاولة 142 الوحيدة التي رجعت HTTP503، فحص GET-only مستقل أثبت أن TEST بقيت `LARGE_BASELINE` (2 catalog / 1360 rows / 0 migration؛ 652/708، oldChanged=11، newChanged=0). التشخيص القراءة فقط عزل السبب في Guard القديم: D1 رفض `UNION ALL` الكبير برسالة `too many terms in compound SELECT`. بعد تحويل Guard إلى nested `json_each(json_array(json(?),...))` نجح probe القراءة فقط HTTP200/mismatches=0، ثم عُدّل مصدر 142 الحقيقي إلى blob `ca0a28aca901466094a748c0e59b681328f7808c` واجتاز Local CI 8/8 + 8/8. لم يُنفذ POST 142 جديد. الخطوة التالية تحتاج تصريحًا منفصلًا لمحاولة TEST واحدة فقط؛ PROD ما زال NOT_RESTORED.
 
 **تحديث MIG Entry338 (26 سبتمبر):** تم تنفيذ Tiny Positive على Cloudflare D1 TEST الحقيقية مرة واحدة فقط. preflight أثبت `OLD/OLD` exact، POST رجع HTTP 200، وpostflight مستقل أثبت `NEW/NEW` exact مع بقاء 2 catalog/4 rows/0 migration وheaders/control كما هي. الـjob انتهى Failure بسبب heredoc shell syntax بعد نجاح postflight، وليس فشل بيانات؛ لم يُعد POST. انظر §6.29.
@@ -1782,6 +1784,18 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 طُبق نفس الشكل على المصدر الحقيقي المعزول `t12-d1-142-chunked-preimage-guard-isolated-v1.mjs` وأصبح blob `ca0a28aca901466094a748c0e59b681328f7808c`. Local-only Run `36240640225` مرّ: historical-shape contract 8/8 وremote-worker local contract 8/8. Workflow التأهيل البعيد تم تحديث pin فقط ولم يُشغل. الحالة الحالية: `TEST=LARGE_BASELINE`; `142_RETRY=NOT_RUN`; `PROD_MIRROR=NOT_RESTORED`; `CLOUD_CREATE=NOT_CUT_OVER`.
 
 
+
+### 6.32 — real TEST 142 D1-compatible PASS + independent readback — Entry349–350
+
+بعد موافقة المالك على محاولة واحدة فقط، شُغّل المسار على قاعدة TEST المعزولة من `LARGE_BASELINE` exact. Run `36241360286` / job `108402352595` اجتاز اختبارات المصدر المحلية وهوية TEST، ثم أثبت preflight: catalog=2، mirror=1360، migration=0، control=1، والتابان 652/708 مع oldChanged=11 وnewChanged=0.
+
+تم إرسال POST واحد فقط؛ `CURL_RC=0 HTTP=200`، والاستجابة كانت `success=true`, `code=positive-pass`, `productionAuthorized=false`، والخطة candidateUpserts=142 وstatements=42 وguardChunkCounts=[9,12]. لم يحدث أي retry.
+
+الـGET التالي أثبت `LARGE_TARGET`: catalog=2، mirror=1480، migration=0، control=1؛ التابان 712/768، targetCatalog=1، oldChanged=0، newChanged=11، tailRows=60 لكل تاب. بعد انتهاء الـrun، Run مستقل قراءة فقط `36241424226` / job `108402538878` أعاد نفس `LARGE_TARGET` بالكامل.
+
+هذا يثبت مسار 142 الصناعي ذي الشكل التاريخي على D1 TEST باستخدام الـD1-compatible guard. لا يثبت استعادة `trendos-main` ولا writer fence إنتاجي ولا تكافؤ بيانات Google الحية ولا يجيز production canary أو نقل CREATE/الترقيم. الحالة الحالية: `TEST=LARGE_TARGET`; `PROD_MIRROR=NOT_RESTORED`; `CLOUD_CREATE=NOT_CUT_OVER`; Google/Apps Script يظلان سلطة الإنشاء والترقيم التجاري.
+
+
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 
 | الخطر | كيف نكتشفه ونمنع تكراره |
@@ -3479,5 +3493,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-24 | 3.37-DRAFT | DOC-CM-CLOUDFLARE-READ-AND-WA-WRITER Entry327 PREPARED: two full original M sources legacy Worker and WhatsApp mock test, §5.50; update two existing CM maps and new MAP-CM-LEGACY-D1-IMPORT-ATOMICITY | M972/P185, test READ_NOT_RUN; candidate GET lacks explicit role/owner gate but actual deployed/external auth UNKNOWN; import 4 separate group DB batches not atomic across all, GAS send integrity PREPARED ONLY. Parallel MIG Entry328 TEST harness source-only and PROD mirror NOT_RESTORED; Journal RESULT/Handoff/readback required. |
 
 | 2026-09-26 | 3.41-DRAFT | Entry342–345: read-only reconcile kept TEST at LARGE_BASELINE after 142 HTTP503; GET-only probe isolated D1 `too many terms in compound SELECT`; non-compound nested-json guard passed remote read-only and local 8/8+8/8; real guard blob updated and retry workflow pin prepared | No new 142 POST, no Worker deploy, no PROD/Google mutation; TEST retry still requires separate authorization; PROD mirror NOT_RESTORED and Google remains CREATE/number authority. |
+
+| 2026-09-26 | 3.42-DRAFT | Entry349–350: owner-authorized one-shot 142 TEST retry passed HTTP200 from exact LARGE_BASELINE to exact LARGE_TARGET 1480 rows; separate GET-only run reconfirmed target | Exactly one POST, no retry, no Worker deploy/PROD binding/Google mutation. TEST historical-shape 142 path qualified; PROD mirror still NOT_RESTORED and production canary/cutover not authorized. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
