@@ -1,8 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.38-DRAFT — Tiny TEST mirror CAS local contract PASS 6/6; real Cloudflare D1 batch NOT_RUN, PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.39-DRAFT — real Cloudflare TEST negative D1 batch rollback PASS; positive NOT_AUTHORIZED, PROD NOT_RESTORED** · تاريخ التحديث: 2026-09-26 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 ## الصفحة الأولى — آخر نقطة موثقة | استكمال IT ترند بدون إعادة الشغل
+**تحديث MIG Entry336 (26 سبتمبر):** تم تأهيل السيناريو السلبي على Cloudflare D1 TEST الحقيقية عبر `wrangler dev` محلي + remote D1 binding فقط، بدون Worker deploy. Run `36236179021`/job `108388228705` PASS؛ preflight وpostflight كلاهما `2/4/0`, control=1, exact catalog=2, exact mirror rows=4، والـPOST السلبي أُرسل مرة واحدة فقط HTTP 200 مع `REAL_TEST_NEGATIVE_ROLLBACK_PASS`. السيناريو الإيجابي غير مصرح به؛ انظر §6.28.
+
 **تحديث MIG Entry332 (26 سبتمبر):** أُضيف اختبار محلي معزول لعقد Tiny CAS وشُغّل على نفس Git blobs للمصدر/الاختبار/مخطط المرآة؛ النتيجة `PASS 6/6`: rollback سلبي كامل، commit إيجابي ذري في SQLite المحلي، رفض drift للصف والـcatalog، lost-ACK بعد commit مع منع blind replay، ورفض scenario غير معروف. لم يحدث أي Cloudflare D1/Worker/CI/Google write؛ انظر §6.27.
 
 **تحديث MIG Entry330 (24 سبتمبر):** جرى تسليم checkpoint للشات الجديد بعد توثيق Stage1/Stage2 وصور الصفوف والـCatalog، وتجهيز tiny packed-CAS harness في GitHub فقط. لم يُجر اختبار D1 batch أو rollback على TEST أو استعادة مرآة PROD؛ انظر §6.26 وآخر Journal/Handoff.
@@ -1720,6 +1722,26 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 `LOCAL_SYNTHETIC_SQLITE_PASS_6_OF_6` لنفس المصدر الحالي فقط. لا تثبت Cloudflare D1 `batch()` الحقيقي أو rollback/serialization/runtime/quotas، ولا هوية الـbinding الحالية، ولا غياب Writer منافس، ولا صلاحية التصميم لحجم 142 موضعًا أو payload الحقيقي. لم يتم تشغيل GitHub Actions، ولم يُنشأ TEST executor أو route أو deploy أو SQL، ولم تُمس قاعدة `trendos-t12-synthetic-test` أو `trendos-main`.
 
 **بوابة الاستكمال التالية:** قبل أي كتابة TEST حقيقية يلزم **موافقة مالك منفصلة ومحددة** على إنشاء/مراجعة منفذ TEST-only default-OFF ثم إثبات الحساب والـbinding والـUUID الحاليين وعدم وصوله للإنتاج. وبعد ذلك — بموافقة تنفيذ مستقلة — السيناريو السلبي وحده أولًا في **D1Database.batch واحدة** مع postflight قراءة فقط؛ أي response مجهول = STOP/SELECT-only reconciliation بلا retry. السيناريو الإيجابي يحتاج موافقة منفصلة بعد rollback سلبي مثبت. لا تنقل هذه النتيجة إلى استعادة PROD أو Cloud CREATE؛ مرآة `trendos-main` ما زالت `NOT_RESTORED`، وGoogle Sheets + Apps Script ما زالا سلطة CREATE/الترقيم.
+
+
+### 6.28 MIG-T12-REAL-TEST-NEGATIVE-ROLLBACK — Cloudflare D1 TEST PASS بدون Worker Deploy (Entry336، 26 سبتمبر 2026)
+
+**النتيجة التنفيذية:** بعد Entry333 approval وEntry334 محاولة أولى آمنة لم تصل إلى D1 البعيدة بسبب Wrangler 4.33.2 الذي تجاهل `remote=true`، تم تحديث مسار التأهيل إلى Wrangler 4.141.0 وتشغيل GitHub Actions run `36236179021`، job `108388228705`، على commit `d3d2477b20ad95ac7e6b94897474da09ca2927f9`. جميع خطوات job نجحت، بما فيها local source contracts، تعريف قاعدة TEST عبر Cloudflare API، وremote negative batch مع pre/postflight.
+
+**هوية ونطاق التنفيذ:** Cloudflare API read-only أكد الاسم `trendos-t12-synthetic-test` للـUUID `54a3c05e-cde9-4979-814f-d40f941edcd5`. لم يحدث `wrangler deploy`: الكود شُغّل محليًا عبر `wrangler dev`، والـD1 binding وحدها كانت remote. الـruntime config المؤقت رفض نصيًا `trendos-main` وUUID الإنتاج المعروف. المصدر المستخدم للـnegative route هو blob `ed39d2f88f0bf059d4a3dd72c4e8f33df3b8cd54` ويحتوي **negative-conflict فقط** ولا يوجد positive route.
+
+**الدليل قبل/بعد:** قبل المعاملة أعاد الـGET:
+`catalogRows=2, mirrorRows=4, migrationRows=0, controlMatches=1, exactCatalogRows=2, exactMirrorRows=4, exact=true`.
+ثم أُرسل POST واحد فقط، `CURL_RC=0`, `HTTP=200`. استجابة المسار أثبتت
+`negativeRollbackVerified=true`, `expectedConstraintObserved=true`, `blindRetryAllowed=false`.
+بعده أعاد GET مستقل نفس الأعداد ونفس `exact=true`، ثم سجل الـjob
+`REAL_TEST_NEGATIVE_ROLLBACK_PASS`. بذلك التأهيل يثبت على **قاعدة TEST الحقيقية** أن الفشل المقصود داخل `D1Database.batch` أعاد المرآة الوهمية إلى نفس baseline المرصود في هذا السيناريو.
+
+**المحاولة الأولى محفوظة وليست PASS:** run `36236017624` استخدم Wrangler 4.33.2؛ logs قالت `Unexpected fields ... remote` وعرّفت D1 كـ`local`، فكل GET رجع 503 ولم يظهر `NEGATIVE_POST_ATTEMPTED`. لذلك `REMOTE_D1_MUTATION_NOT_ATTEMPTED` في المحاولة الأولى. لا يوجد retry لنتيجة remote مجهولة؛ المحاولة الثانية كانت إصلاح أداة قبل أول remote POST حقيقي.
+
+**ملاحظة CI/Cloudflare Git integration:** pushا trigger حركا أيضًا Cloudflare Git-integration builds غير مقصودة لWorkers أخرى؛ checks الظاهرة انتهت `FAILURE` ولم يظهر نجاح deploy منها. لا نستخدم pushes إضافية بلا حاجة، ولا نفسر build failure كإثبات runtime rollback لكل Worker. مسار الاختبار المقصود نفسه لم ينشر Worker.
+
+**الحالة بعد Entry336:** `REAL_TEST_NEGATIVE_ROLLBACK=PASS`; `REAL_TEST_POSITIVE=NOT_RUN / NOT_AUTHORIZED`; `142_POSITION_LARGE_PAYLOAD_REAL_D1=NOT_QUALIFIED`; `PROD_D1_MIRROR=NOT_RESTORED`. الخطوة التالية إن أراد المالك الاستمرار هي موافقة منفصلة صريحة على **positive tiny TEST batch فقط** بعد baseline read جديد، ثم read-only postflight. لا تمنح هذه النتيجة أي إذن لـ`trendos-main` أو R4/R5/V2 أو Cloud CREATE؛ Google Sheets + Apps Script ما زالا سلطة CREATE/الترقيم.
 
 ## 7. الأمن والاعتمادية والتعامل مع الأخطاء
 

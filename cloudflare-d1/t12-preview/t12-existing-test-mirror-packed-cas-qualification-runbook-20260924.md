@@ -83,3 +83,10 @@ authorize or prove real Cloudflare D1 behavior. No CI was run and no TEST
 executor/route/Worker exists from this step. The separate-approval sequence
 below remains unchanged: real TEST identity/binding proof → negative one-batch
 execution → read-only rollback postflight → separate positive approval.
+
+
+## Real Cloudflare TEST negative qualification — PASS / 2026-09-26
+
+GitHub Actions run `36236179021`, job `108388228705`, used Wrangler 4.141.0 with local Worker execution and a remote binding to the independently verified TEST D1 UUID `54a3c05e-cde9-4979-814f-d40f941edcd5`. No Worker deployment occurred. Remote preflight was exact `2/4/0` with control=1, exact catalog=2 and exact mirror rows=4. One negative POST only returned HTTP 200 and `negativeRollbackVerified=true`; the separate read-only postflight returned the identical exact baseline. Marker: `REAL_TEST_NEGATIVE_ROLLBACK_PASS`.
+
+The earlier run `36236017624` is not a D1 test result: Wrangler 4.33.2 treated the D1 binding as local, preflight returned 503 and no negative POST was sent. Do not repeat either run. The next gate remains a **separate owner approval** for a fresh-baseline, tiny positive TEST batch. This PASS does not qualify the 142-position payload or production recovery.
