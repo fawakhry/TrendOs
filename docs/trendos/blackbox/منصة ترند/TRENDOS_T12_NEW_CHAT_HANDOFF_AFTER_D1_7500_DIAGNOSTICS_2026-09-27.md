@@ -82,6 +82,13 @@ Department order screens currently read through mirror `sheet_catalog/sheet_rows
    - remote `SELECT 1` succeeded with `changed_db=false`.
    - `wrangler d1 migrations list` succeeded and shows only `0005_t12_production_create_canary.sql` pending.
    - no mutations.
+7. Diagnostic A1 — direct `PRAGMA foreign_keys = ON` on isolated TEST D1 only:
+   - diagnostic branch commit `c139880bb935812d3515e92bcc4714e3f71b8ded`
+   - run `36335043750`, job `108664175135` = SUCCESS
+   - target identity guard confirmed `trendos-t12-synthetic-test` / `54a3c05e-cde9-4979-814f-d40f941edcd5`, explicitly excluding production DB name/UUID.
+   - Wrangler 4.142.0 direct remote execute of `PRAGMA foreign_keys = ON;` succeeded with `changes=0`, `changed_db=false`, `rows_written=0`.
+   - schema object count stayed `24 -> 24`.
+   - this rules out the PRAGMA statement alone as sufficient to reproduce 7500; migration bookkeeping/transaction behavior is still untested.
 
 ## Current diagnosis
 Do NOT continue with the old assumption “GitHub token has no D1 access.” Current evidence proves account discovery, D1 discovery/info, and reads work from the GitHub secret. It also proves no-op DML/DDL SQL shapes are accepted. Yet the migration apply path still reproducibly gets 7500. Therefore:
@@ -91,10 +98,10 @@ ROOT_CAUSE=UNKNOWN
 TOKEN_ROTATION_REQUIRED=NOT_PROVEN
 ```
 
-Possible causes such as a specific statement in migration 0005, migration transaction behavior, a D1 restriction, or a Wrangler/API path difference are hypotheses only until tested.
+Direct `PRAGMA foreign_keys = ON` has now passed on the isolated TEST D1 and is no longer a leading standalone cause. Remaining hypotheses include Wrangler migration bookkeeping/transaction behavior, another statement or statement combination in migration 0005, a persistent-write permission distinction, or a migration API/path-specific restriction.
 
 ## Next step for the new chat
-Start with read-only/non-destructive isolation of the 7500. Prefer the existing `trendos-t12-synthetic-test` for any statement that could persist a schema/data change. Compare each construct in migration 0005, beginning with the least invasive suspects (including `PRAGMA foreign_keys = ON` and migration bookkeeping/transaction behavior), against the successful Wrangler read path. Do not apply migration 0005 to production again until the exact failure is understood or a safe corrected migration/workflow is qualified.
+Next single diagnostic step: isolate Wrangler migration bookkeeping / migration-apply behavior on `trendos-t12-synthetic-test` using a dedicated TEST-only migration directory with a harmless PRAGMA-only migration. Any persistent migration ledger metadata must stay in TEST only. Do not apply migration 0005 to production again until the exact failure is understood or a safe corrected migration/workflow is qualified.
 
 If a corrected production path is later ready, rerun `install-disabled` only with the exact approved inputs above. Success must independently verify:
 ```
@@ -116,4 +123,4 @@ Then STOP. Do not run `arm-one` without a new explicit owner approval.
 - On any ambiguous remote write outcome: no blind retry; reconcile by read first.
 
 ## Documentation trail
-Canonical journal now includes Entries 412–417 for this session. Static review completion before these diagnostics is commit `c66f2b4ac1473436249451f56c0ecc75ac7fad61`. This handoff is the preferred compact entry point for the next chat.
+Canonical large journal remains at Entries 412–417 to avoid rereading/replacing the full 1MB+ file during this compact continuation. Diagnostic A1 is recorded immediately as **Entry 418 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A1_PRAGMA_2026-09-27.md`, evidence commit `ca6fd5b3fc4b20176f891d755ee7e8176730ad1c`. Static review completion before these diagnostics is commit `c66f2b4ac1473436249451f56c0ecc75ac7fad61`. This handoff is the preferred compact entry point for the next chat.
