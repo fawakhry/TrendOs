@@ -1,0 +1,138 @@
+name: TrendOS T12 Synthetic D1 Persistent Write Qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type QUALIFY_T12_SYNTHETIC_D1_ONLY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-synthetic-d1-write-qualification
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Verify token identity, qualify TEST D1 write, and clean up
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          import urllib.error
+          import urllib.request
+
+          ACCOUNT = 'aeadb43110dbb950f8b1ed7683ad9ce0'
+          DB_NAME = 'trendos-t12-synthetic-test'
+          DB_ID = '54a3c05e-cde9-4979-814f-d40f941edcd5'
+          EXPECTED_TOKEN_ID = '46244467c1de37daa419a38f6fb39921'
+          PROD_NAME = 'trendos-main'
+          PROD_ID = '5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+
+          def stop(reason):
+              print(reason, flush=True)
+              print('PRODUCTION_TOUCHED=NO', flush=True)
+              sys.exit(1)
+
+          # No request, including token verification, before local input guards.
+          if os.environ.get('CONFIRMATION') != 'QUALIFY_T12_SYNTHETIC_D1_ONLY':
+              stop('CONFIRMATION=INVALID')
+          if (os.environ.get('CLOUDFLARE_ACCOUNT_ID') != ACCOUNT or
+                  DB_NAME != 'trendos-t12-synthetic-test' or
+                  DB_ID != '54a3c05e-cde9-4979-814f-d40f941edcd5' or
+                  DB_NAME == PROD_NAME or DB_ID == PROD_ID):
+              stop('TARGET_GUARD=FAIL')
+          token = os.environ.get('CLOUDFLARE_API_TOKEN', '')
+          if not token:
+              stop('TOKEN_VERIFY=FAIL')
+          run_id = os.environ.get('GITHUB_RUN_ID', '')
+          attempt = os.environ.get('GITHUB_RUN_ATTEMPT', '')
+          if not re.fullmatch(r'[0-9]{1,20}', run_id) or not re.fullmatch(r'[0-9]{1,5}', attempt):
+              stop('RUN_ID_GUARD=FAIL')
+          table = f't12_diag_persistent_{run_id}_{attempt}'
+          base = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DB_ID}'
+
+          def call(url, method='GET', sql=None):
+              body = None if sql is None else json.dumps({'sql': sql}).encode()
+              headers = {'Authorization': 'Bearer ' + token, 'Accept': 'application/json'}
+              if body is not None:
+                  headers['Content-Type'] = 'application/json'
+              req = urllib.request.Request(url, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      status, raw = response.status, response.read()
+              except urllib.error.HTTPError as error:
+                  status, raw = error.code, error.read()
+              except Exception:
+                  return 0, {}
+              try:
+                  return status, json.loads(raw)
+              except (ValueError, UnicodeDecodeError):
+                  return status, {}
+
+          status, verify = call('https://api.cloudflare.com/client/v4/user/tokens/verify')
+          result = verify.get('result') or {}
+          if status != 200 or verify.get('success') is not True or result.get('status') != 'active':
+              stop('TOKEN_VERIFY=FAIL')
+          print('TOKEN_VERIFY=PASS', flush=True)
+          if result.get('id') != EXPECTED_TOKEN_ID:
+              stop('TOKEN_ID_MATCH=NO')
+          print('TOKEN_ID_MATCH=YES', flush=True)
+
+          status, info = call(base)
+          db = info.get('result') or {}
+          if (status != 200 or info.get('success') is not True or
+                  db.get('uuid') != DB_ID or db.get('name') != DB_NAME or
+                  db.get('uuid') == PROD_ID or db.get('name') == PROD_NAME):
+              stop('TEST_DB_IDENTITY=FAIL')
+          print('TEST_DB_IDENTITY=PASS', flush=True)
+
+          def query(sql):
+              return call(base + '/query', 'POST', sql)
+
+          def count():
+              status, response = query(
+                  "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='" + table + "';")
+              if status != 200 or response.get('success') is not True:
+                  stop('SYNTHETIC_READ=FAIL')
+              try:
+                  value = response['result'][0]['results'][0]['n']
+              except (KeyError, IndexError, TypeError):
+                  stop('SYNTHETIC_READ=INVALID')
+              if type(value) is not int or value not in (0, 1):
+                  stop('SYNTHETIC_READ=INVALID')
+              return value
+
+          if count() != 0:
+              stop('DIAGNOSTIC_TABLE_ALREADY_EXISTS')
+          status, created = query(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY);')
+          # Reconcile even if CREATE returned an error; never blindly retry CREATE.
+          if count() != 1:
+              stop('SYNTHETIC_PERSISTENT_D1_WRITE=FAIL')
+          create_ok = status == 200 and created.get('success') is True
+          status, dropped = query(f'DROP TABLE "{table}";')
+          # Reconcile DROP even when its response is ambiguous; never retry blindly.
+          if count() != 0:
+              stop('SYNTHETIC_CLEANUP=FAIL_RESIDUAL_TABLE')
+          if not create_ok:
+              stop('SYNTHETIC_PERSISTENT_D1_WRITE=AMBIGUOUS_CLEANED')
+          if status != 200 or dropped.get('success') is not True:
+              stop('SYNTHETIC_CLEANUP=AMBIGUOUS_ABSENT')
+          print('SYNTHETIC_PERSISTENT_D1_WRITE=PASS')
+          print('SYNTHETIC_CLEANUP=PASS')
+          print('PRODUCTION_TOUCHED=NO')
+          PY
