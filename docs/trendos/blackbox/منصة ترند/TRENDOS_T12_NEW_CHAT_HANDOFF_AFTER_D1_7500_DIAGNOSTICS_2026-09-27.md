@@ -175,3 +175,13 @@ Next required evidence before any production retry: independently compare the da
 - The screenshot does not show token ID or D1 resource/account scope, so equality with verified GitHub User API Token ID `659ab8957571c4b35f019d6e8701af20` remains unproven.
 - Entry 425 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A8_DASHBOARD_TOKEN_LIST_2026-09-27.md`, commit `77599fff2f0e15653284564bbc8c89abf00ba1e9`.
 - Next step: view token details only and capture Token ID + D1 resource/account scope; no Edit/Roll/Delete/Create/save.
+
+## A9 dashboard token resource-scope evidence
+- Owner screenshot of Token Summary confirms `trendos-github-actions-cloudflare-preview` has `D1 Write` and `Workers Scripts Write` on the **entire** account `aeadb43110dbb950f8b1ed7683ad9ce0`.
+- The account ID exactly matches the account ID validated by GitHub diagnostics.
+- IP filtering says `All IP addresses allowed`.
+- Therefore account scope/IP filtering do not explain the 7500 for this dashboard token.
+- Dashboard token ID is still not visible, while GitHub Secret credential ID is `659ab8957571c4b35f019d6e8701af20`.
+- Credential identity mismatch is now strongly suspected but not yet proven.
+- Entry 426 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A9_DASHBOARD_TOKEN_SCOPE_2026-09-27.md`, commit `284e59b46399e174c5582abf9536fde78beae4a2`.
+- Next step: obtain the dashboard token ID read-only, preferably from the current page URL, and compare it to the GitHub token ID. No token/secret change yet.
