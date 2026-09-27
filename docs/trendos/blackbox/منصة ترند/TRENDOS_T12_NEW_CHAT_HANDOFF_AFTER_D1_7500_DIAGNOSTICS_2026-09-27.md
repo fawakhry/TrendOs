@@ -254,3 +254,16 @@ Next required evidence before any production retry: independently compare the da
 - Repository workflow search found only `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` references; no existing GitHub Actions path for `EDGE_SESSION_SECRET`.
 - Do not rotate/add the production edge-session secret under the CREATE authorization. Safe next path: use an already-authenticated TrendOS admin browser session to exchange its employee session for an edge token and issue the single canary POST with live-state checks and no retry.
 - Entry 435 RESULT: `TRENDOS_T12_PRODUCTION_CREATE_4322_A18_BLOCKED_NO_CREATE_2026-09-27.md`, commit `ec30fff31289d22ea146409dc3d367a0eba85cba`.
+
+## A19 production canary CREATE 4322 succeeded — Entry 436
+- Owner explicitly authorized one CREATE for Order `4322`.
+- Execution was performed from the already-authenticated TrendOS Admin browser session; no password/session/Edge token was shared in chat.
+- Live precheck before POST: `schemaReady=true`, `enabled=true`, `nextOrderNumber=4322`, `canaryRemaining=1`, `generalCutover=false`.
+- Exactly one CREATE POST was sent. HTTP `201`.
+- Readback returned HTTP `200` and `orderId=4322`.
+- Final script success markers: `ORDER_4322_CREATED=YES`, `CANARY_BUDGET_CONSUMED=YES`, `NO_RETRY_PERFORMED=YES`.
+- Those final markers were emitted only after verifying `nextOrderNumber=4323`, `canaryRemaining=0`, `schemaReady=true`, and `generalCutover=false`.
+- Current snapshot: `MIGRATION_0005=APPLIED`, `INSTALL_DISABLED_QUALIFIED=YES`, `ORDER_4322_CREATED=YES`, `NEXT_ORDER_NUMBER=4323`, `CANARY_REMAINING=0`, `GENERAL_CREATE_CUTOVER=NO`.
+- No general CREATE cutover, historical Orders/Order Lines backfill, or Apps Script authority change occurred.
+- Entry 436 RESULT: `TRENDOS_T12_PRODUCTION_CREATE_4322_SUCCESS_A19_2026-09-27.md`, commit `948cade322af0a8b3625f23444c763760c5d3664`.
+- STOP. Any further arm/canary/general cutover requires fresh explicit owner authorization.
