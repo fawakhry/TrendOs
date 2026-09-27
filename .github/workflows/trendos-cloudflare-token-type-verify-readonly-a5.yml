@@ -1,0 +1,57 @@
+name: TrendOS Cloudflare Token Type Verify ReadOnly A5
+
+on:
+  push:
+    branches:
+      - diagnostic/cloudflare-token-readonly-20260927
+    paths:
+      - '.github/workflows/trendos-cloudflare-token-type-verify-readonly-a5.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-token-type:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_ACCOUNT_ID: aeadb43110dbb950f8b1ed7683ad9ce0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify credential type/status read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test "$CLOUDFLARE_ACCOUNT_ID" = "$EXPECTED_ACCOUNT_ID"
+
+          user_http="$(curl --silent --show-error             --output /tmp/user-verify.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/user/tokens/verify" || true)"
+          echo "USER_TOKEN_VERIFY_HTTP=$user_http"
+          echo "USER_TOKEN_VERIFY_SUCCESS=$(jq -r '.success // false' /tmp/user-verify.json)"
+          echo "USER_TOKEN_VERIFY_ID=$(jq -r '.result.id // "none"' /tmp/user-verify.json)"
+          echo "USER_TOKEN_VERIFY_STATUS=$(jq -r '.result.status // "none"' /tmp/user-verify.json)"
+          echo "USER_TOKEN_VERIFY_ERROR_CODE=$(jq -r 'if (.errors|length)>0 then (.errors[0].code|tostring) else "none" end' /tmp/user-verify.json)"
+
+          account_http="$(curl --silent --show-error             --output /tmp/account-verify.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens/verify" || true)"
+          echo "ACCOUNT_TOKEN_VERIFY_HTTP=$account_http"
+          echo "ACCOUNT_TOKEN_VERIFY_SUCCESS=$(jq -r '.success // false' /tmp/account-verify.json)"
+          echo "ACCOUNT_TOKEN_VERIFY_ID=$(jq -r '.result.id // "none"' /tmp/account-verify.json)"
+          echo "ACCOUNT_TOKEN_VERIFY_STATUS=$(jq -r '.result.status // "none"' /tmp/account-verify.json)"
+          echo "ACCOUNT_TOKEN_VERIFY_ERROR_CODE=$(jq -r 'if (.errors|length)>0 then (.errors[0].code|tostring) else "none" end' /tmp/account-verify.json)"
+
+          if [ "$user_http" = "200" ] && [ "$(jq -r '.success' /tmp/user-verify.json)" = "true" ]; then
+            echo "CREDENTIAL_TYPE_EVIDENCE=USER_API_TOKEN"
+            exit 0
+          fi
+          if [ "$account_http" = "200" ] && [ "$(jq -r '.success' /tmp/account-verify.json)" = "true" ]; then
+            echo "CREDENTIAL_TYPE_EVIDENCE=ACCOUNT_API_TOKEN"
+            exit 0
+          fi
+
+          echo "CREDENTIAL_TYPE_EVIDENCE=UNRESOLVED"
+          exit 1
