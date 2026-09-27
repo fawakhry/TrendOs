@@ -1,0 +1,166 @@
+name: TrendOS T12 Disable And Inspect 4322 A20
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-order-4322-readonly-a20-20260927
+    paths:
+      - '.github/workflows/trendos-t12-disable-and-inspect-4322-a20.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-production-create-canary-controlled
+  cancel-in-progress: false
+
+jobs:
+  disable_and_inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact guards and preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'aeadb43110dbb950f8b1ed7683ad9ce0'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fx 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          python3 - <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          EXPECTED='46244467c1de37daa419a38f6fb39921'
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+          def call(url,method='GET',sql=None):
+              body=None if sql is None else json.dumps({'sql':sql}).encode()
+              h={'Authorization':'Bearer '+token,'Accept':'application/json'}
+              if body is not None:h['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=body,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r: status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e: status=e.code; raw=e.read()
+              try:data=json.loads(raw)
+              except Exception:data={}
+              return status,data
+          s,v=call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
+          rr=v.get('result') or {}
+          if s!=200 or v.get('success') is not True or rr.get('status')!='active' or rr.get('id')!=EXPECTED:
+              print('TOKEN_GUARD=FAIL');sys.exit(1)
+          print('TOKEN_GUARD=PASS')
+          base=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}'
+          sql="SELECT next_order_number AS nextOrderNumber,canary_remaining AS canaryRemaining,(SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4322') AS orderCount FROM t12_prod_create_control WHERE singleton=1;"
+          s,r=call(base+'/query','POST',sql)
+          try: row=r['result'][0]['results'][0]
+          except Exception: row={}
+          if s!=200 or r.get('success') is not True or row.get('nextOrderNumber')!=4323 or row.get('canaryRemaining')!=0 or row.get('orderCount')!=1:
+              print('PRE_DISABLE_D1_STATE=FAIL');print(json.dumps(row,sort_keys=True));sys.exit(1)
+          print('PRE_DISABLE_D1_STATE=PASS')
+          PY
+
+      - name: Disable canary budget and deploy route disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.142.0 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command "UPDATE t12_prod_create_control SET canary_remaining=0,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1';"
+          npx --yes wrangler@4.142.0 deploy --config cloudflare-d1/wrangler.toml
+
+      - name: Verify disabled health
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.request
+          base=os.environ['PROD_URL'].rstrip('/')
+          h=None
+          for _ in range(5):
+              try:
+                  with urllib.request.urlopen(base+'/v1/t12/orders/create-canary/health',timeout=20) as r:
+                      if r.status==200:
+                          h=json.loads(r.read());break
+              except Exception: pass
+              time.sleep(2)
+          if not isinstance(h,dict): print('DISABLE_HEALTH=FAIL');sys.exit(1)
+          c=h.get('control') or {}
+          ok=(h.get('success') is True and h.get('schemaReady') is True and h.get('enabled') is False and c.get('nextOrderNumber')==4323 and c.get('canaryRemaining')==0 and h.get('generalCutover') is False)
+          if not ok:
+              print('DISABLE_HEALTH=FAIL');print(json.dumps(h,sort_keys=True));sys.exit(1)
+          print('DISABLE_HEALTH=PASS')
+          print('CANARY_ENABLED=false')
+          print('NEXT_ORDER_NUMBER=4323')
+          print('CANARY_REMAINING=0')
+          print('GENERAL_CREATE_CUTOVER=NO')
+          PY
+
+      - name: Read-only inspect 4322 integrity and mirror visibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+          url=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}/query'
+          def q(sql):
+              req=urllib.request.Request(url,data=json.dumps({'sql':sql}).encode(),headers={'Authorization':'Bearer '+token,'Accept':'application/json','Content-Type':'application/json'},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r: status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e: status=e.code; raw=e.read()
+              try:data=json.loads(raw)
+              except Exception:data={}
+              if status!=200 or data.get('success') is not True:
+                  print('READ_FAIL');sys.exit(1)
+              return data['result'][0]['results']
+
+          control=q("SELECT marker,next_order_number AS nextOrderNumber,canary_remaining AS canaryRemaining,policy_epoch AS policyEpoch FROM t12_prod_create_control WHERE singleton=1;")
+          orders=q("SELECT COUNT(*) AS n,MIN(order_id) AS orderId,MIN(status) AS status,MIN(department) AS department,MIN(priority) AS priority,MIN(source) AS source FROM t12_prod_orders WHERE order_id='4322';")
+          lines=q("SELECT COUNT(*) AS n,MIN(line_id) AS firstLineId,MIN(order_id) AS orderId,MIN(status) AS status,MIN(department) AS department,SUM(qty) AS totalQty FROM t12_prod_lines WHERE order_id='4322';")
+          ledger=q("SELECT COUNT(*) AS n,MIN(status) AS status,MIN(order_id) AS orderId FROM t12_prod_request_ledger WHERE order_id='4322';")
+          events=q("SELECT COUNT(*) AS n,GROUP_CONCAT(event_type,',') AS eventTypes FROM t12_prod_events WHERE order_id='4322';")
+          outbox=q("SELECT COUNT(*) AS n,SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending,SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS done,SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed FROM t12_prod_outbox WHERE order_id='4322';")
+          mirror=q("SELECT COUNT(*) AS n FROM sheet_rows WHERE sheet_name='بنود الأوردرات' AND (values_json LIKE '%4322%' OR display_json LIKE '%4322%');")
+
+          c=control[0] if control else {}
+          o=orders[0] if orders else {}
+          l=lines[0] if lines else {}
+          g=ledger[0] if ledger else {}
+          e=events[0] if events else {}
+          x=outbox[0] if outbox else {}
+          m=mirror[0] if mirror else {}
+
+          ok=(c.get('nextOrderNumber')==4323 and c.get('canaryRemaining')==0 and o.get('n')==1 and o.get('orderId')=='4322' and o.get('status')=='طلب جديد' and l.get('n')==1 and l.get('firstLineId')=='4322-01' and l.get('orderId')=='4322' and g.get('n')==1 and g.get('status')=='COMMITTED' and g.get('orderId')=='4322' and e.get('n')==1 and x.get('n')==1)
+          if not ok:
+              print('ORDER_4322_INTEGRITY=FAIL')
+              print(json.dumps({'control':c,'orders':o,'lines':l,'ledger':g,'events':e,'outbox':x,'mirror':m},ensure_ascii=False,sort_keys=True))
+              sys.exit(1)
+
+          print('ORDER_4322_INTEGRITY=PASS')
+          print('ORDER_ROWS=1')
+          print('LINE_ROWS=1')
+          print('FIRST_LINE_ID=4322-01')
+          print('LEDGER_ROWS=1')
+          print('LEDGER_STATUS=COMMITTED')
+          print('EVENT_ROWS='+str(e.get('n')))
+          print('OUTBOX_ROWS='+str(x.get('n')))
+          print('OUTBOX_PENDING='+str(x.get('pending') or 0))
+          print('OUTBOX_DONE='+str(x.get('done') or 0))
+          print('OUTBOX_FAILED='+str(x.get('failed') or 0))
+          print('MIRROR_4322_MATCH_COUNT='+str(m.get('n') or 0))
+          print('READ_ONLY_INSPECTION=PASS')
+          PY
