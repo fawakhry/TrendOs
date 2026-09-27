@@ -1,0 +1,61 @@
+name: TrendOS Cloudflare Token ReadOnly Probe
+
+on:
+  push:
+    branches:
+      - diagnostic/cloudflare-token-readonly-20260927
+    paths:
+      - '.github/workflows/trendos-cloudflare-token-readonly-probe.yml'
+      - 'docs/trendos/diagnostics/CLOUDFLARE_TOKEN_READONLY_PROBE_TRIGGER.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_ACCOUNT_ID: aeadb43110dbb950f8b1ed7683ad9ce0
+      EXPECTED_TOKEN_ID: 46244467c1de37daa419a38f6fb39921
+      DATABASE_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+    steps:
+      - name: Read-only identity and D1 permission probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          if [ "$CLOUDFLARE_ACCOUNT_ID" = "$EXPECTED_ACCOUNT_ID" ]; then
+            echo "ACCOUNT_ID_MATCH=true"
+          else
+            echo "ACCOUNT_ID_MATCH=false"
+          fi
+
+          verify_code="$(curl --silent --show-error             --output /tmp/verify.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens/verify" || true)"
+          echo "TOKEN_VERIFY_HTTP=$verify_code"
+          jq -r '"TOKEN_VERIFY_SUCCESS=" + ((.success // false)|tostring)' /tmp/verify.json
+          jq -r '"TOKEN_STATUS=" + (.result.status // "unknown")' /tmp/verify.json
+          token_id="$(jq -r '.result.id // ""' /tmp/verify.json)"
+          if [ -n "$token_id" ] && [ "$token_id" = "$EXPECTED_TOKEN_ID" ]; then
+            echo "TOKEN_ID_MATCH=true"
+          else
+            echo "TOKEN_ID_MATCH=false"
+          fi
+
+          db_code="$(curl --silent --show-error             --output /tmp/db.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$DATABASE_ID" || true)"
+          echo "D1_GET_HTTP=$db_code"
+          jq -r '"D1_GET_SUCCESS=" + ((.success // false)|tostring)' /tmp/db.json
+          jq -r '"D1_NAME=" + (.result.name // "unknown")' /tmp/db.json
+          jq -r 'if (.errors|length)>0 then "D1_GET_ERROR_CODE=" + ((.errors[0].code // "unknown")|tostring) else "D1_GET_ERROR_CODE=none" end' /tmp/db.json
+
+          query_code="$(curl --silent --show-error             --output /tmp/query.json             --write-out '%{http_code}'             -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data '{"sql":"SELECT 1 AS readonly_probe"}'             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$DATABASE_ID/query" || true)"
+          echo "D1_SELECT_HTTP=$query_code"
+          jq -r '"D1_SELECT_SUCCESS=" + ((.success // false)|tostring)' /tmp/query.json
+          jq -r 'if (.errors|length)>0 then "D1_SELECT_ERROR_CODE=" + ((.errors[0].code // "unknown")|tostring) else "D1_SELECT_ERROR_CODE=none" end' /tmp/query.json
+
+          echo "PROBE_MUTATIONS=NONE"
