@@ -109,6 +109,12 @@ Department order screens currently read through mirror `sheet_catalog/sheet_rows
    - exact Cloudflare response: `You do not have permission to perform this operation. [code: 7500]` on the TEST D1 `/query` endpoint.
    - independent post-attempt read returned `n=0`; no residual schema change.
    - therefore real persistent D1 writes are denied through the current GitHub Actions credential even outside migrations apply.
+11. Diagnostic A5 — GitHub Cloudflare credential type/status read-only:
+   - diagnostic branch commit `2536856335fdb093e28cf4bc13122b392b844e7e`
+   - run `36335828533`, job `108666372827` = SUCCESS
+   - `GET /user/tokens/verify` returned HTTP 200 / success=true / status=active / token ID `659ab8957571c4b35f019d6e8701af20`.
+   - account-token verify returned HTTP 401, proving the repository credential is a User API Token rather than an Account API Token.
+   - UI token ID equality and exact policy/permission set remain unproven.
 
 ## Current diagnosis
 Do NOT continue with the old assumption “GitHub token has no D1 access.” Current evidence proves account discovery, D1 discovery/info, and reads work from the GitHub secret. It also proves no-op DML/DDL SQL shapes are accepted. Yet the migration apply path still reproducibly gets 7500. Therefore:
@@ -121,7 +127,7 @@ TOKEN_ROTATION_REQUIRED=NOT_PROVEN
 Direct `PRAGMA foreign_keys = ON` passes on the isolated TEST D1, while a PRAGMA-only `wrangler d1 migrations apply` fails with 7500. A4 now independently proves that a real persistent direct `CREATE TABLE` outside migrations apply also returns Cloudflare code 7500 and leaves no schema change. The blocker is therefore an actual persistent D1 write authorization/credential-context failure, not migration 0005 content or migration bookkeeping specifically. The exact identity/permission context of the GitHub-stored credential is still not proven.
 
 ## Next step for the new chat
-Next single diagnostic step: verify the current Cloudflare API-token self-verification/identity mechanism, then run a read-only GitHub-secret credential diagnostic that proves token validity/status/identity or permission context as far as the API allows, without printing the token. Do not rotate/change the token or GitHub Secret yet, and do not apply migration 0005 to production.
+Next single diagnostic step: perform a read-only token-details lookup for verified User API Token ID `659ab8957571c4b35f019d6e8701af20` using the same GitHub credential. Record only non-secret token name/policy/resource/permission metadata if Cloudflare permits self-inspection; if denied, record the denial. Do not rotate/change the token or GitHub Secret yet, and do not apply migration 0005 to production.
 
 If a corrected production path is later ready, rerun `install-disabled` only with the exact approved inputs above. Success must independently verify:
 ```
@@ -143,4 +149,4 @@ Then STOP. Do not run `arm-one` without a new explicit owner approval.
 - On any ambiguous remote write outcome: no blind retry; reconcile by read first.
 
 ## Documentation trail
-Canonical large journal remains at Entries 412–417 to avoid rereading/replacing the full 1MB+ file during this compact continuation. Diagnostic A1 is recorded as **Entry 418 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A1_PRAGMA_2026-09-27.md`, commit `ca6fd5b3fc4b20176f891d755ee7e8176730ad1c`. Diagnostic A2 is recorded as **Entry 419 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A2_MIGRATION_BOOKKEEPING_2026-09-27.md`, commit `61e3ba4d3104275e1870f2ed27abacfef355c546`. Diagnostic A3 is recorded as **Entry 420 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A3_PERSISTENT_DDL_2026-09-27.md`, commit `455bbb2bf4cb24d146a1183d28fe7b69b1b6fa33`. Diagnostic A4 is recorded as **Entry 421 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A4_PERSISTENT_DDL_7500_2026-09-27.md`, commit `e34e9f951963fcaa710b4c81a23b91e3f86010a8`. Static review completion before these diagnostics is commit `c66f2b4ac1473436249451f56c0ecc75ac7fad61`. This handoff is the preferred compact entry point for the next chat.
+Canonical large journal remains at Entries 412–417 to avoid rereading/replacing the full 1MB+ file during this compact continuation. Diagnostic A1 is recorded as **Entry 418 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A1_PRAGMA_2026-09-27.md`, commit `ca6fd5b3fc4b20176f891d755ee7e8176730ad1c`. Diagnostic A2 is recorded as **Entry 419 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A2_MIGRATION_BOOKKEEPING_2026-09-27.md`, commit `61e3ba4d3104275e1870f2ed27abacfef355c546`. Diagnostic A3 is recorded as **Entry 420 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A3_PERSISTENT_DDL_2026-09-27.md`, commit `455bbb2bf4cb24d146a1183d28fe7b69b1b6fa33`. Diagnostic A4 is recorded as **Entry 421 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A4_PERSISTENT_DDL_7500_2026-09-27.md`, commit `e34e9f951963fcaa710b4c81a23b91e3f86010a8`. Diagnostic A5 is recorded as **Entry 422 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A5_TOKEN_TYPE_VERIFY_2026-09-27.md`, commit `fe1f893556576c2b4f6e2c2eb364bbbb2554c7e1`. Static review completion before these diagnostics is commit `c66f2b4ac1473436249451f56c0ecc75ac7fad61`. This handoff is the preferred compact entry point for the next chat.
