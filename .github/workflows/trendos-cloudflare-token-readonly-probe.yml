@@ -1,4 +1,4 @@
-name: TrendOS Cloudflare Token Identity Verify
+name: TrendOS D1 PRAGMA Migration Diagnostic
 
 on:
   push:
@@ -12,26 +12,36 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      EXPECTED_TOKEN_ID: 46244467c1de37daa419a38f6fb39921
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
     steps:
-      - name: Verify token identity
+      - name: Probe exact migration PRAGMA without persistent changes
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
           test -n "$CLOUDFLARE_API_TOKEN"
-          code="$(curl --silent --show-error             --output /tmp/verify.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/user/tokens/verify" || true)"
-          echo "VERIFY_HTTP=$code"
-          jq -r '"VERIFY_SUCCESS=" + ((.success // false)|tostring)' /tmp/verify.json
-          jq -r '"TOKEN_STATUS=" + (.result.status // "unknown")' /tmp/verify.json
-          token_id="$(jq -r '.result.id // ""' /tmp/verify.json)"
-          echo "TOKEN_ID=$token_id"
-          if [ "$token_id" = "$EXPECTED_TOKEN_ID" ]; then
-            echo "TOKEN_ID_MATCH_EXPECTED=true"
-          else
-            echo "TOKEN_ID_MATCH_EXPECTED=false"
-          fi
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$DATABASE_ID/query"
+
+          call_sql() {
+            local label="$1"
+            local sql="$2"
+            local out="/tmp/$label.json"
+            local code
+            code="$(curl --silent --show-error --output "$out" --write-out '%{http_code}'               -X POST               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -nc --arg sql "$sql" '{sql:$sql}')"               "$api" || true)"
+            echo "$label HTTP=$code"
+            jq -c '{success,errors,result}' "$out"
+          }
+
+          call_sql foreign_keys_read "PRAGMA foreign_keys;"
+          call_sql foreign_keys_on "PRAGMA foreign_keys = ON;"
+          call_sql defer_foreign_keys_read "PRAGMA defer_foreign_keys;"
+          call_sql defer_foreign_keys_on "PRAGMA defer_foreign_keys = ON;"
+
+          echo "PERSISTED_DATA_CHANGES=NONE"
+          echo "PERSISTED_SCHEMA_CHANGES=NONE"
