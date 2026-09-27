@@ -5,6 +5,7 @@ import {
   verifyOrdersEdgeToken
 } from './edge-orders-read-v1.mjs';
 import { enrichFromMirrors02CR } from './edge-orders-operational-enrichment-02cr.mjs';
+import { mergeT12ReadOverlayRows, readT12CloudNativeOverlay } from './t12-read-overlay.mjs';
 
 const PATH_02CR = '/v1/edge/orders/02cr/page';
 const LINES_NOTE_02CR = 'TrendOS orders live sync V2 quota-aware';
@@ -243,7 +244,9 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
     }
 
     const mapped = mapMirrorRows(lines.headers, lines.rows, screen);
-    const enriched = sortOperationalRows(enrichFromMirrors02CR(mapped, customers, restrictions, new Date()), screen);
+    const overlay = await readT12CloudNativeOverlay(env, screen);
+    const merged = mergeT12ReadOverlayRows(mapped, overlay.rows);
+    const enriched = sortOperationalRows(enrichFromMirrors02CR(merged, customers, restrictions, new Date()), screen);
     const counts = statusCounts(enriched);
     const activeRows = enriched.filter((row) => rowMatchesAppsFilters(row, { statusFilter:'__ACTIVE__' }));
     const activeSummaryCounts = buildOrdersSummary(activeRows);
@@ -266,8 +269,17 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
       statusOrderCounts:counts.statusOrderCounts,
       serverPaged:true,
       dataVersion:text(lines.catalog.syncedAt) || 'd1',
-      version:'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY',
-      dataSource:'d1-edge-orders-02cr-operational',
+      version:'D1_ORDERS_READ_02CR_T12_OVERLAY_V1',
+      dataSource:'d1-edge-orders-02cr+t12-native',
+      readOverlay:{
+        enabled:true,
+        mirrorRows:mapped.length,
+        cloudNativeRows:overlay.rows.length,
+        mergedRows:merged.length,
+        nextOrderNumber:overlay.control.nextOrderNumber,
+        canaryRemaining:overlay.control.canaryRemaining,
+        policyEpoch:overlay.control.policyEpoch
+      },
       edgeSession:verified.payload.sub,
       mirrors:mirrors.map(([name, mirror]) => safeMirrorMeta(name, mirror))
     }, 200, corsHeaders(request, env));
