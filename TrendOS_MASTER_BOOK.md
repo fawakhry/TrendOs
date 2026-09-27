@@ -1,14 +1,14 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.65-DRAFT-COMPACT — active repair core compacted; heavy inventory/journal index/changelog externalized; closed-component registry added; no runtime change; install-disabled still blocked by Cloudflare token permission 7500** · تاريخ التحديث: 2026-09-27 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.66-DRAFT-COMPACT — latest T12 Cloudflare diagnostics recorded; install-disabled attempt 2 still fails 7500 only at migration apply; token/account/D1 discovery and Wrangler read path pass; no canary activation** · تاريخ التحديث: 2026-09-27 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 > **قاعدة القراءة المضغوطة من 2026-09-27:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. اكتمال المعرفة يتحقق من هذا الملف + الملاحق المرتبطة + الـJournal/Handoff + Git history. في شات جديد اقرأ الصفحة الأولى، فهرس القراءة السريع، الفصل المرتبط بالعطل، وآخر Journal/Handoff فقط. **لا تقرأ §11 inventory أو فهرس Journal التاريخي أو changelog القديم تلقائيًا.** افتحها فقط عند عطل/تدقيق يحتاجها. الأجزاء المقفولة تُراجع من [Closed Components Registry](docs/trendos/master-book/TRENDOS_CLOSED_COMPONENTS_INDEX.md) فقط إذا تحقق Reopen Trigger.
 
 ## الصفحة الأولى — الحالة النشطة فقط | استكمال IT ترند بدون إعادة التاريخ
 
-**آخر حقيقة تشغيلية موثقة:** Entry384. المالك شغّل `TrendOS T12 Production CREATE Canary Controlled` يدويًا مع `action=install-disabled`. Run `36272464176` وصل Cloudflare واجتاز source/target/hash guards والـisolated qualification، ثم فشل أول أمر D1 remote قبل تطبيق migration بسبب API permission error `7500`. لم يحدث Worker deploy، ولم يتم `arm-one`، ولم يُنشأ order `4322`، ولم يحدث general CREATE cutover.
+**آخر حقيقة تشغيلية موثقة:** Journal Entries412–417. `install-disabled` Run `36272464176` فشل مرة ثانية في attempt 2 عند `wrangler d1 migrations apply` بنفس Cloudflare code `7500`; لم تُطبق migration 0005 ولم يحدث Worker deploy/arm/create. بعد ذلك نجحت probes معزولة: Run `36330387663` أثبت وصول GitHub secret للحساب و`trendos-main` وSELECT؛ Run `36332643459` قبل no-op DML/DDL دون أثر دائم؛ Run `36332810401` أثبت أن Wrangler 4.142.0 ينجح في whoami/list/info/remote SELECT/migrations list وأن migration 0005 ما زالت pending. لذلك سبب 7500 أصبح `MIGRATION_APPLY_SPECIFIC / ROOT_CAUSE_UNKNOWN` وليس «غياب D1 access» مثبتًا.
 
-**الخطوة التالية الوحيدة في المسار النشط:** إصلاح/استبدال GitHub Actions `CLOUDFLARE_API_TOKEN` بصلاحية D1 write/edit على حساب TrendOS وبصلاحية Worker deploy اللازمة، ثم إعادة **نفس `install-disabled` فقط** والتحقق من `schemaReady=true`, `nextOrderNumber=4322`, `canaryRemaining=0`, `enabled=false`. `arm-one` غير مصرح به حاليًا.
+**الخطوة التالية الوحيدة في المسار النشط:** اعزل سبب `7500` الخاص بمسار migration 0005 بفحوص غير مدمرة، ويفضل استخدام `trendos-t12-synthetic-test` لأي عبارة قد تكتب فعليًا. لا تغيّر/تستبدل التوكن على فرضية قديمة بلا دليل، ولا تعِد `install-disabled` في الإنتاج قبل تحديد السبب أو تأهيل migration/workflow مصحح. عند الجاهزية يُعاد **`install-disabled` فقط** بنفس inputs المعتمدة، ثم يتحقق من `schemaReady=true`, `nextOrderNumber=4322`, `canaryRemaining=0`, `enabled=false`. `arm-one` غير مصرح به حاليًا.
 
 **سلطة البيانات الحالية:** Google Sheets + Apps Script يظلان سلطة business CREATE/numbering. Cloud Write V1 وR4 وR5 موثقة OFF في آخر فحص ذي صلة. مسار Production canary في الـrepo default-OFF؛ migration 0005 غير مطبقة بحسب Entry384، والـWorker لم يُنشر من ذلك run.
 
@@ -20,7 +20,7 @@
 
 **قراءة شات جديد:** الصندوق الأسود → `اقرأني_أولًا.md` → هذه الصفحة + فهرس القراءة السريع + الفصل المرتبط بالعطل → آخر Journal/Handoff/HEAD. لا تحمل الملاحق الثقيلة أو الأجزاء المقفولة إلا إذا Trigger الإصلاح يطلبها.
 
-**مصادر الاستكمال:** [Journal T12 النشط](docs/trendos/blackbox/منصة%20ترند/TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md) · [Handoff النشط](docs/trendos/blackbox/منصة%20ترند/CLOUD_MIGRATION_V3_T12_CONTINUATION_HANDOFF_2026-09-22.md) · [Closed Components Registry](docs/trendos/master-book/TRENDOS_CLOSED_COMPONENTS_INDEX.md).
+**مصادر الاستكمال:** [Journal T12 النشط](docs/trendos/blackbox/منصة%20ترند/TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md) · [Handoff الأحدث بعد تشخيص 7500](docs/trendos/blackbox/منصة%20ترند/TRENDOS_T12_NEW_CHAT_HANDOFF_AFTER_D1_7500_DIAGNOSTICS_2026-09-27.md) · [Closed Components Registry](docs/trendos/master-book/TRENDOS_CLOSED_COMPONENTS_INDEX.md).
 
 ## تخصيص الكتاب لموظف IT — الدليل التشغيلي والمكتبة البرمجية الوحيدة لشرح TrendOS
 

@@ -1,3 +1,9 @@
+# CURRENT HANDOFF POINTER — 2026-09-27
+
+> **Latest T12 continuation:** read `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_NEW_CHAT_HANDOFF_AFTER_D1_7500_DIAGNOSTICS_2026-09-27.md` first. It supersedes the operational state below for current T12 work. Current blocker: migration 0005 remains pending; `install-disabled` attempt 2 still returns Cloudflare 7500 at migration apply, while GitHub-secret D1 discovery/read and Wrangler read/list/info/migrations-list diagnostics pass. `arm-one` remains NOT authorized. Historical data backfill policy is customers only; do not backfill old orders/lines.
+
+> The older handoff text below is retained for history and must not be used as the current execution state.
+
 # TrendOS Handoff
 
 > **Read this in every new TrendOS execution chat.**
