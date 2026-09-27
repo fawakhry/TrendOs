@@ -203,3 +203,10 @@ Next required evidence before any production retry: independently compare the da
 - The new workflow was **not run**; no D1 query/write, Secret change, Cloudflare dashboard action, production migration/deploy/arm/order action occurred. `WORKFLOW_SOURCE=READY_WAITING_FOR_SECRET_UPDATE`. Entry 428 RESULT is `TRENDOS_T12_D1_7500_DIAGNOSTIC_A11_SYNTHETIC_WRITE_WORKFLOW_READY_2026-09-27.md`, commit `71246858db0ec0c4f65f1489f6df10ed7911df98`.
 - `MIGRATION_0005=NOT_APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=NO`, `CANARY_ARMED=NO`, `ORDER_4322_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`. No merge to diagnostic branch or main. GitHub may require default-branch registration to expose a new branch-only workflow in Actions.
 - Next: credential value must be updated manually by an authorized operator. Verify the ID first; only then run the TEST qualification workflow and confirm its cleanup. Production remains blocked.
+
+## A12 token identity gate reread — Entry 429
+- GitHub branch matched documented HEAD `5de45b606a71fae4aa442e75a5306900c5d6d336` before this step.
+- Only the existing A5 read-only verification job was rerun: run `36335828533`, job `108682842677`, success. At 2026-09-27 18:43:02 UTC, `GET /user/tokens/verify` returned HTTP 200, success=true, status=active, token ID `659ab8957571c4b35f019d6e8701af20`.
+- Required ID remains `46244467c1de37daa419a38f6fb39921`; `TOKEN_ID_MATCH=NO`. Synthetic qualification was not dispatched; `SYNTHETIC_PERSISTENT_D1_WRITE=NOT_RUN`, `SYNTHETIC_CLEANUP=NOT_RUN`, `PRODUCTION_TOUCHED=NO`.
+- `READY_WAITING_FOR_SECRET_UPDATE`. Production baseline remains `MIGRATION_0005=NOT_APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=NO`, `CANARY_ARMED=NO`, `ORDER_4322_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 429 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A12_TOKEN_GATE_STILL_BLOCKED_2026-09-27.md`, commit `292d735bf1889d39f0700f3f0b9a03c8c172b890`.
