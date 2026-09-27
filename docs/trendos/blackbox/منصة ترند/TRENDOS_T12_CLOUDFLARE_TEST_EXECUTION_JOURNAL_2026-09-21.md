@@ -3703,3 +3703,8 @@ READ/DOC_WRITE only. Full-text review of all 16 remaining `apps-script/patches/*
 ## Entry 406 PREPARE — MASTER-BOOK-FINISH-BATCH-18-MISC-BUILD-SCRIPTS-TOOLS-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of the four remaining metadata-only files outside docs/workflows/tests/cloudflare: Apps Script V147 candidate manifest, V150 dry-run patch composer, 02CV UX patcher, and 02CW global-counter patcher. Classify mutation surface and repair relevance; no script execution.
+
+
+## Entry 407 PREPARE — MASTER-BOOK-FINISH-BATCH-19-CLOUDFLARE-CORE-CONFIG-MIGRATIONS-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of the 21 remaining Cloudflare/D1 metadata-only files outside `src/`, `t12-preview/`, and `test/`: top-level Apps Script mirror/sync/cutover controllers, migration SQL, preview/staging/production-shadow configs, schema-prep SQL and status documentation. Classify actual mutation capability, target environment, flags/guards, read-vs-write semantics, schema authority and repair relevance. No Cloudflare/D1 execution, deployment, SQL application, Apps Script execution or workflow dispatch.
