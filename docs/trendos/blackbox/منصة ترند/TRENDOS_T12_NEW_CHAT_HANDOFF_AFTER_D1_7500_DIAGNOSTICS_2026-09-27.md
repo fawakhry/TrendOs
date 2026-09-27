@@ -238,3 +238,9 @@ Next required evidence before any production retry: independently compare the da
 - New state: `MIGRATION_0005=APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=YES`, `CANARY_ARMED=NO`, `ORDER_4322_CREATED_BY_THIS_RUN=NO`, `GENERAL_CREATE_CUTOVER=NO`, `INSTALL_DISABLED_QUALIFIED=YES`.
 - Entry 433 RESULT: `TRENDOS_T12_PRODUCTION_INSTALL_DISABLED_SUCCESS_A16_2026-09-27.md`, commit `fa6a3ce7f9ad21e258064c1165939d94c0f6085a`.
 - STOP. `arm-one` still requires separate explicit owner authorization.
+
+## A17 production arm-one succeeded — Entry 434
+- Owner explicitly authorized `arm-one`. Controlled workflow run `36344812039`, job `108691756394`, source `69e607cf730f678a6eefd0088adccb80a4833d18`, inputs `action=arm-one` and `confirmation=CONTROL_T12_PROD_CREATE_CANARY_4322`, conclusion success. Exact guards and isolated qualification succeeded; migration and disable skipped; Arm exactly one unique create, Deploy exact Worker state, and Verify health succeeded; Emergency disarm skipped.
+- Arm reconciliation: `next_order_number=4322`, `canary_remaining=1`, `existing_4322=0`. Run health: `schemaReady=true`, `enabled=true`, `nextOrderNumber=4322`, `canaryRemaining=1`, `generalCutover=false`. No CREATE request was sent by this task.
+- Snapshot state: `MIGRATION_0005=APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=YES`, `INSTALL_DISABLED_QUALIFIED=YES`, `CANARY_ARMED=YES`, `CANARY_REMAINING=1`, `NEXT_ORDER_NUMBER=4322`, `ORDER_4322_CREATED_BY_THIS_RUN=NO`, `GENERAL_CREATE_CUTOVER=NO`. This is run evidence; live state may change afterward.
+- Entry 434 RESULT: `TRENDOS_T12_PRODUCTION_ARM_ONE_SUCCESS_A17_2026-09-27.md`, commit `5a4bc3c3ec73b55649ea0cd42ea8bfdee220458e`. Stop; any single CREATE needs fresh owner authorization and state check.
