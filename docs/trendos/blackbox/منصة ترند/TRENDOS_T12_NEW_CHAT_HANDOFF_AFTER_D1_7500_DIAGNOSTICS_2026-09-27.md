@@ -168,3 +168,10 @@ Canonical large journal remains at Entries 412–417 to avoid rereading/replacin
 - Entry 424 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A7_EFFECTIVE_WRITE_AUTH_2026-09-27.md`, commit `c302948b283342db232c1d9f5868a8012ff63a56`.
 
 Next required evidence before any production retry: independently compare the dashboard token identity/scope with verified GitHub token ID above. Production migration 0005 remains blocked.
+
+## A8 dashboard token-list evidence
+- Owner screenshot shows dashboard token `trendos-github-actions-cloudflare-preview` is Active.
+- Visible permissions include `D1 Write` and `Workers Scripts Write` plus two additional hidden permissions.
+- The screenshot does not show token ID or D1 resource/account scope, so equality with verified GitHub User API Token ID `659ab8957571c4b35f019d6e8701af20` remains unproven.
+- Entry 425 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A8_DASHBOARD_TOKEN_LIST_2026-09-27.md`, commit `77599fff2f0e15653284564bbc8c89abf00ba1e9`.
+- Next step: view token details only and capture Token ID + D1 resource/account scope; no Edit/Roll/Delete/Create/save.
