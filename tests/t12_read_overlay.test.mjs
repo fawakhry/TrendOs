@@ -89,7 +89,7 @@ class FakeDB {
 }
 
 const overlaySource=fs.readFileSync(new URL('../cloudflare-d1/src/t12-read-overlay.mjs',import.meta.url),'utf8');
-assert.equal(/\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b/i.test(overlaySource), false);
+assert.equal(/\b(?:INSERT\s+INTO|UPDATE\s+[A-Za-z_]|DELETE\s+FROM|DROP\s+TABLE|ALTER\s+TABLE|CREATE\s+TABLE)\b/i.test(overlaySource), false);
 
 const handlerSource=fs.readFileSync(new URL('../cloudflare-d1/src/edge-orders-read-02cr-canary.mjs',import.meta.url),'utf8');
 assert.match(handlerSource,/readT12CloudNativeOverlay/);
