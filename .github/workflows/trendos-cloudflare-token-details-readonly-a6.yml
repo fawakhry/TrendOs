@@ -1,0 +1,49 @@
+name: TrendOS Cloudflare Token Details ReadOnly A6
+
+on:
+  push:
+    branches:
+      - diagnostic/cloudflare-token-readonly-20260927
+    paths:
+      - '.github/workflows/trendos-cloudflare-token-details-readonly-a6.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  token-details:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TOKEN_ID: 659ab8957571c4b35f019d6e8701af20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Read verified token details if authorized
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test "$TOKEN_ID" = "659ab8957571c4b35f019d6e8701af20"
+
+          http="$(curl --silent --show-error             --output /tmp/token-details.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/user/tokens/$TOKEN_ID" || true)"
+
+          echo "TOKEN_DETAILS_HTTP=$http"
+          echo "TOKEN_DETAILS_SUCCESS=$(jq -r '.success // false' /tmp/token-details.json)"
+          echo "TOKEN_DETAILS_ERROR_CODE=$(jq -r 'if (.errors|length)>0 then (.errors[0].code|tostring) else "none" end' /tmp/token-details.json)"
+
+          if [ "$http" = "200" ] && [ "$(jq -r '.success' /tmp/token-details.json)" = "true" ]; then
+            echo "TOKEN_DETAILS_ID=$(jq -r '.result.id // "none"' /tmp/token-details.json)"
+            echo "TOKEN_DETAILS_NAME=$(jq -r '.result.name // "none"' /tmp/token-details.json)"
+            echo "TOKEN_DETAILS_STATUS=$(jq -r '.result.status // "none"' /tmp/token-details.json)"
+            jq -r '.result.policies[]? | .effect as $e | .permission_groups[]? | "TOKEN_PERMISSION=" + $e + ":" + (.name // .id)' /tmp/token-details.json
+            jq -c '.result.policies[]?.resources // empty' /tmp/token-details.json | sed 's/^/TOKEN_RESOURCES=/'
+            echo "TOKEN_DETAILS_READ=PASS"
+            exit 0
+          fi
+
+          echo "TOKEN_DETAILS_READ=DENIED_OR_UNAVAILABLE"
+          exit 1
