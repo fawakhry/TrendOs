@@ -63,7 +63,7 @@ jobs:
         run: |
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$TEST_DB_ID/query"
-          curl --silent --show-error -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data '{"sql":"SELECT COUNT(*) AS c FROM sqlite_master WHERE name LIKE '''t12_prod_%''' OR name='''diag_migrations_20260927''';"}'             "$api" > /tmp/pre.json
+          curl --silent --show-error -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data "$(jq -nc --arg sql "SELECT COUNT(*) AS c FROM sqlite_master WHERE name LIKE 't12_prod_%' OR name='diag_migrations_20260927';" '{sql:$sql}')"             "$api" > /tmp/pre.json
           cat /tmp/pre.json
           test "$(jq -r '.success' /tmp/pre.json)" = "true"
           test "$(jq -r '.result[0].results[0].c' /tmp/pre.json)" = "0"
@@ -83,7 +83,7 @@ jobs:
         run: |
           set +e
           api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$TEST_DB_ID/query"
-          curl --silent --show-error -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data '{"sql":"SELECT name,type FROM sqlite_master WHERE name LIKE '''t12_prod_%''' OR name='''diag_migrations_20260927''' ORDER BY name;"}'             "$api" > /tmp/verify.json
+          curl --silent --show-error -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data "$(jq -nc --arg sql "SELECT name,type FROM sqlite_master WHERE name LIKE 't12_prod_%' OR name='diag_migrations_20260927' ORDER BY name;" '{sql:$sql}')"             "$api" > /tmp/verify.json
           cat /tmp/verify.json
 
       - name: Synthetic-test cleanup
@@ -97,7 +97,7 @@ jobs:
           cat /tmp/cleanup.json
           test "$(jq -r '.success' /tmp/cleanup.json)" = "true"
 
-          curl --silent --show-error -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data '{"sql":"SELECT COUNT(*) AS c FROM sqlite_master WHERE name LIKE '''t12_prod_%''' OR name='''diag_migrations_20260927''';"}'             "$api" > /tmp/post.json
+          curl --silent --show-error -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data "$(jq -nc --arg sql "SELECT COUNT(*) AS c FROM sqlite_master WHERE name LIKE 't12_prod_%' OR name='diag_migrations_20260927';" '{sql:$sql}')"             "$api" > /tmp/post.json
           cat /tmp/post.json
           test "$(jq -r '.success' /tmp/post.json)" = "true"
           test "$(jq -r '.result[0].results[0].c' /tmp/post.json)" = "0"
