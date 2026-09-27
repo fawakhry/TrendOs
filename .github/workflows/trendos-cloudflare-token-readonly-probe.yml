@@ -1,4 +1,4 @@
-name: TrendOS D1 Actual Write Permission Probe
+name: TrendOS Cloudflare Token Identity Verify
 
 on:
   push:
@@ -12,54 +12,26 @@ permissions:
   contents: read
 
 jobs:
-  probe:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 5
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      TEST_DB_ID: 54a3c05e-cde9-4979-814f-d40f941edcd5
+      EXPECTED_TOKEN_ID: 46244467c1de37daa419a38f6fb39921
     steps:
-      - name: Actual schema-write probe on synthetic test only
+      - name: Verify token identity
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$TEST_DB_ID/query"
-          table="diag_token_write_probe_20260927"
-
-          call_sql() {
-            local sql="$1"
-            local out="$2"
-            curl --silent --show-error               --output "$out"               --write-out '%{http_code}'               -X POST               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -nc --arg sql "$sql" '{sql:$sql}')"               "$api" || true
-          }
-
-          pre="$(call_sql "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name='$table';" /tmp/pre.json)"
-          echo "PRECHECK_HTTP=$pre"
-          cat /tmp/pre.json
-          test "$pre" = "200"
-          test "$(jq -r '.result[0].results[0].c' /tmp/pre.json)" = "0"
-
-          create="$(call_sql "CREATE TABLE $table (id INTEGER PRIMARY KEY);" /tmp/create.json)"
-          echo "CREATE_HTTP=$create"
-          cat /tmp/create.json
-          echo "CREATE_SUCCESS=$(jq -r '.success' /tmp/create.json)"
-          echo "CREATE_ERROR_CODE=$(jq -r 'if (.errors|length)>0 then .errors[0].code else "none" end' /tmp/create.json)"
-
-          if [ "$create" = "200" ] && [ "$(jq -r '.success' /tmp/create.json)" = "true" ]; then
-            echo "ACTUAL_D1_WRITE_PERMISSION=PASS"
-            drop="$(call_sql "DROP TABLE $table;" /tmp/drop.json)"
-            echo "DROP_HTTP=$drop"
-            cat /tmp/drop.json
-            test "$drop" = "200"
-            test "$(jq -r '.success' /tmp/drop.json)" = "true"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          code="$(curl --silent --show-error             --output /tmp/verify.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/user/tokens/verify" || true)"
+          echo "VERIFY_HTTP=$code"
+          jq -r '"VERIFY_SUCCESS=" + ((.success // false)|tostring)' /tmp/verify.json
+          jq -r '"TOKEN_STATUS=" + (.result.status // "unknown")' /tmp/verify.json
+          token_id="$(jq -r '.result.id // ""' /tmp/verify.json)"
+          echo "TOKEN_ID=$token_id"
+          if [ "$token_id" = "$EXPECTED_TOKEN_ID" ]; then
+            echo "TOKEN_ID_MATCH_EXPECTED=true"
           else
-            echo "ACTUAL_D1_WRITE_PERMISSION=FAIL"
+            echo "TOKEN_ID_MATCH_EXPECTED=false"
           fi
-
-          post="$(call_sql "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name='$table';" /tmp/post.json)"
-          echo "POSTCHECK_HTTP=$post"
-          cat /tmp/post.json
-          test "$post" = "200"
-          test "$(jq -r '.result[0].results[0].c' /tmp/post.json)" = "0"
-          echo "SYNTHETIC_DB_RESTORED=true"
-          echo "PRODUCTION_MUTATIONS=NONE"
