@@ -1572,3 +1572,12 @@ Journal RESULT commit: `e15e1c15155047133032e222bc45094e7075bfe2`.
 Book completion continues with production paused. Fixed coverage is now `M922/P235/A11/Redirect11/LIVE6`; 35 former metadata-only files have been dispositioned since compaction began. Root repair map now includes concrete auth, retry/idempotency, lock, fallback-persistence, date parsing, polling, Press, Edge cache and UI mutation risks. Continue remaining root M sources before Apps Script/Cloudflare/test/workflow/docs batches. No CERTIFIED_CURRENT was granted from static source review.
 
 Journal RESULT commit: `635806bde91e4f4d001303f2c6d98bff9f46ed32`.
+
+
+## Entry 410 handoff — Cloudflare metadata-only family closed / 2026-09-27 Cairo
+
+Book-finishing lane only. All remaining 34 Cloudflare/D1 M files have been full-read/dispositioned; `cloudflare-d1/* M=0`. Fixed coverage is now `M812/P345/A11/Redirect11/LIVE6`. Remaining M is tests 109 + workflows 134 + documentation/evidence 569. No runtime action and no CERTIFIED_CURRENT promotion.
+
+Next documentation lane: full-review tests, then workflows, then historical documentation/evidence. Production blocker remains Entry384 and is not being executed here.
+
+Journal RESULT commit: `bd414ee672a929a28304b2ec5f5c232a12089d24`.
