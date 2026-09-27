@@ -1,4 +1,4 @@
-name: TrendOS D1 PRAGMA Migration Diagnostic
+name: TrendOS Cloudflare Token Metadata ReadOnly
 
 on:
   push:
@@ -12,36 +12,28 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      DATABASE_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
     steps:
-      - name: Probe exact migration PRAGMA without persistent changes
+      - name: Resolve active secret token metadata read-only
         shell: bash
         run: |
           set -u
-          test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
-          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$DATABASE_ID/query"
+          verify="$(curl --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             https://api.cloudflare.com/client/v4/user/tokens/verify)"
+          token_id="$(printf '%s' "$verify" | jq -r '.result.id // ""')"
+          echo "TOKEN_ID=$token_id"
+          echo "TOKEN_STATUS=$(printf '%s' "$verify" | jq -r '.result.status // "unknown"')"
 
-          call_sql() {
-            local label="$1"
-            local sql="$2"
-            local out="/tmp/$label.json"
-            local code
-            code="$(curl --silent --show-error --output "$out" --write-out '%{http_code}'               -X POST               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -nc --arg sql "$sql" '{sql:$sql}')"               "$api" || true)"
-            echo "$label HTTP=$code"
-            jq -c '{success,errors,result}' "$out"
-          }
+          user_code="$(curl --silent --show-error             --output /tmp/user-token.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/user/tokens/$token_id" || true)"
+          echo "USER_TOKEN_DETAILS_HTTP=$user_code"
+          jq -c '{success,errors,result:{id:.result.id,name:.result.name,status:.result.status,policies:.result.policies}}' /tmp/user-token.json 2>/dev/null || true
 
-          call_sql foreign_keys_read "PRAGMA foreign_keys;"
-          call_sql foreign_keys_on "PRAGMA foreign_keys = ON;"
-          call_sql defer_foreign_keys_read "PRAGMA defer_foreign_keys;"
-          call_sql defer_foreign_keys_on "PRAGMA defer_foreign_keys = ON;"
+          acct_code="$(curl --silent --show-error             --output /tmp/account-token.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens/$token_id" || true)"
+          echo "ACCOUNT_TOKEN_DETAILS_HTTP=$acct_code"
+          jq -c '{success,errors,result:{id:.result.id,name:.result.name,status:.result.status,policies:.result.policies}}' /tmp/account-token.json 2>/dev/null || true
 
-          echo "PERSISTED_DATA_CHANGES=NONE"
-          echo "PERSISTED_SCHEMA_CHANGES=NONE"
+          echo "MUTATIONS=NONE"
