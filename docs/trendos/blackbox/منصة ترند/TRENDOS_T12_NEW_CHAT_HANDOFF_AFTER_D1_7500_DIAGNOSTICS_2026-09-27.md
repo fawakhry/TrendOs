@@ -267,3 +267,15 @@ Next required evidence before any production retry: independently compare the da
 - No general CREATE cutover, historical Orders/Order Lines backfill, or Apps Script authority change occurred.
 - Entry 436 RESULT: `TRENDOS_T12_PRODUCTION_CREATE_4322_SUCCESS_A19_2026-09-27.md`, commit `948cade322af0a8b3625f23444c763760c5d3664`.
 - STOP. Any further arm/canary/general cutover requires fresh explicit owner authorization.
+
+## A20/A21 canary disabled; Order 4322 integrity verified — Entry 437
+- Owner authorized `disable` plus read-only inspection of Order `4322`.
+- A20 diagnostic branch `diagnostic/t12-order-4322-readonly-a20-20260927`, workflow commit `8c0c77d9e2a7f63d24b1b93755516f30026516e0`, run `36345780694`, job `108694511272`.
+- A20 guards passed; pre-disable D1 state was `nextOrderNumber=4323`, `canaryRemaining=0`, Order `4322` count=1. D1 disable UPDATE succeeded and Worker deployed with `TRENDOS_T12_PROD_CREATE_CANARY_ENABLED="false"` (version `6c8b5e2b-b1be-47de-b49f-ceb701dad705`). Immediate Python health read failed to obtain a response; no mutation/deploy retry was performed.
+- A21 independent read-only branch `diagnostic/t12-order-4322-post-disable-readonly-a21-20260927`, workflow commit `a479c0267c5460b5e58645526c647b198aa2cd19`, run `36345863553`, job `108694741595`, SUCCESS.
+- A21 health HTTP 200: `schemaReady=true`, `enabled=false`, `nextOrderNumber=4323`, `canaryRemaining=0`, `generalCutover=false`; `DISABLE_HEALTH=PASS`.
+- Order integrity: `ORDER_ROWS=1`, `LINE_ROWS=1`, `FIRST_LINE_ID=4322-01`, `LEDGER_ROWS=1`, `LEDGER_STATUS=COMMITTED`, `EVENT_ROWS=1`, `EVENT_TYPES=order-create-canary`, `ORDER_4322_INTEGRITY=PASS`.
+- Downstream snapshot: `OUTBOX_ROWS=1`, `OUTBOX_PENDING=1`, `OUTBOX_DONE=0`, `OUTBOX_FAILED=0`, `MIRROR_4322_MATCH_COUNT=0`. Order `4322` is not in the current `sheet_rows` mirror.
+- Current state: `ORDER_4322_CREATED=YES`, `ORDER_4322_INTEGRITY=PASS`, `NEXT_ORDER_NUMBER=4323`, `CANARY_REMAINING=0`, `CANARY_ENABLED=false`, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 437 RESULT: `TRENDOS_T12_DISABLE_AND_4322_READONLY_VERIFIED_A20_A21_2026-09-27.md`, commit `ea479d8279715098dc2ea4c836337cb151b91149`.
+- No new create, re-arm, general cutover, historical Orders/Order Lines backfill, or Apps Script change occurred.
