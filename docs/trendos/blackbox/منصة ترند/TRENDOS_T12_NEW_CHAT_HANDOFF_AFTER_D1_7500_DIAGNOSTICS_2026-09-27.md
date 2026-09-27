@@ -244,3 +244,13 @@ Next required evidence before any production retry: independently compare the da
 - Arm reconciliation: `next_order_number=4322`, `canary_remaining=1`, `existing_4322=0`. Run health: `schemaReady=true`, `enabled=true`, `nextOrderNumber=4322`, `canaryRemaining=1`, `generalCutover=false`. No CREATE request was sent by this task.
 - Snapshot state: `MIGRATION_0005=APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=YES`, `INSTALL_DISABLED_QUALIFIED=YES`, `CANARY_ARMED=YES`, `CANARY_REMAINING=1`, `NEXT_ORDER_NUMBER=4322`, `ORDER_4322_CREATED_BY_THIS_RUN=NO`, `GENERAL_CREATE_CUTOVER=NO`. This is run evidence; live state may change afterward.
 - Entry 434 RESULT: `TRENDOS_T12_PRODUCTION_ARM_ONE_SUCCESS_A17_2026-09-27.md`, commit `5a4bc3c3ec73b55649ea0cd42ea8bfdee220458e`. Stop; any single CREATE needs fresh owner authorization and state check.
+
+## A18 authorized CREATE attempt blocked before request — Entry 435
+- Owner explicitly authorized one production canary CREATE for Order 4322.
+- Diagnostic branch `diagnostic/t12-production-create-4322-a18-20260927`, workflow commit `f9d58d22c412438284341e6e51de31449f0e99be`.
+- Run `36345137476`, job `108692679804` failed closed immediately with `EDGE_SESSION_SECRET=UNAVAILABLE_NO_CREATE`.
+- Because the required admin edge-signing secret is not available to GitHub Actions, the workflow stopped before token verification/live health/D1 preflight and before any CREATE POST.
+- `CREATE_REQUEST_SENT_ONCE=NO`, `ORDER_4322_CREATED_BY_A18=NO`; no production mutation, Worker deploy, or canary budget change occurred from A18.
+- Repository workflow search found only `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` references; no existing GitHub Actions path for `EDGE_SESSION_SECRET`.
+- Do not rotate/add the production edge-session secret under the CREATE authorization. Safe next path: use an already-authenticated TrendOS admin browser session to exchange its employee session for an edge token and issue the single canary POST with live-state checks and no retry.
+- Entry 435 RESULT: `TRENDOS_T12_PRODUCTION_CREATE_4322_A18_BLOCKED_NO_CREATE_2026-09-27.md`, commit `ec30fff31289d22ea146409dc3d367a0eba85cba`.
