@@ -1,0 +1,87 @@
+name: TrendOS T12 Overlay Fallback Cause A25
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-overlay-fallback-cause-a25-20260928
+    paths:
+      - '.github/workflows/trendos-t12-overlay-fallback-cause-a25.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Read mirror freshness and overlay state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys, urllib.request, urllib.error, datetime
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          EXPECTED='46244467c1de37daa419a38f6fb39921'
+          token=os.environ.get('CLOUDFLARE_API_TOKEN','')
+          if os.environ.get('CLOUDFLARE_ACCOUNT_ID')!=ACCOUNT or not token:
+              print('LOCAL_GUARD=FAIL');sys.exit(1)
+
+          def call(url,method='GET',sql=None):
+              body=None if sql is None else json.dumps({'sql':sql}).encode()
+              headers={'Authorization':'Bearer '+token,'Accept':'application/json'}
+              if body is not None: headers['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=body,headers=headers,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e:
+                  status=e.code; raw=e.read()
+              try:data=json.loads(raw)
+              except Exception:data={}
+              return status,data
+
+          s,v=call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
+          vr=v.get('result') or {}
+          if s!=200 or v.get('success') is not True or vr.get('status')!='active' or vr.get('id')!=EXPECTED:
+              print('TOKEN_GUARD=FAIL');sys.exit(1)
+          print('TOKEN_GUARD=PASS')
+
+          base=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}'
+          sql="""SELECT sheet_name AS sheetName,status,row_count AS rowCount,source_last_row AS sourceLastRow,source_last_col AS sourceLastCol,synced_at AS syncedAt,note
+          FROM sheet_catalog
+          WHERE sheet_name IN ('بنود الأوردرات','العملاء','عملاء منع التسليم بالمديونية','الأوردرات')
+          ORDER BY sheet_name;"""
+          s,r=call(base+'/query','POST',sql)
+          if s!=200 or r.get('success') is not True:
+              print('CATALOG_READ=FAIL');sys.exit(1)
+          rows=r['result'][0]['results']
+          print('CATALOG_READ=PASS')
+          now=datetime.datetime.now(datetime.timezone.utc)
+          for row in rows:
+              raw=row.get('syncedAt') or ''
+              age='NA'
+              try:
+                  dt=datetime.datetime.fromisoformat(raw.replace(' ','T')+'+00:00' if 'T' not in raw and '+' not in raw and not raw.endswith('Z') else raw.replace('Z','+00:00'))
+                  age=int((now-dt).total_seconds())
+              except Exception:
+                  pass
+              print('MIRROR|%s|status=%s|rows=%s|source=%s|ageSeconds=%s|note=%s' % (
+                  row.get('sheetName'),row.get('status'),row.get('rowCount'),row.get('sourceLastRow'),age,row.get('note')
+              ))
+
+          sql2="""SELECT
+          (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4322') AS order4322,
+          (SELECT COUNT(*) FROM t12_prod_lines WHERE order_id='4322') AS line4322,
+          (SELECT COUNT(*) FROM sheet_rows WHERE sheet_name='بنود الأوردرات' AND (values_json LIKE '%4322%' OR display_json LIKE '%4322%')) AS mirror4322,
+          (SELECT next_order_number FROM t12_prod_create_control WHERE singleton=1) AS nextOrderNumber,
+          (SELECT canary_remaining FROM t12_prod_create_control WHERE singleton=1) AS canaryRemaining;"""
+          s,r=call(base+'/query','POST',sql2)
+          row=r['result'][0]['results'][0] if s==200 and r.get('success') is True else {}
+          print('OVERLAY_STATE='+json.dumps(row,ensure_ascii=False,sort_keys=True))
+          print('PRODUCTION_MUTATION=NO')
+          PY
