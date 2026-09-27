@@ -3693,3 +3693,8 @@ READ/DOC_WRITE only. Full-text review of `TRENDOS_ACCOUNTING_BLACKBOX_2026-09-04
 ## Entry 404 PREPARE — MASTER-BOOK-FINISH-BATCH-16-ROOT-STYLES-CLOSE-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of the final root M file `styles.css`. Goal: document global layout/visibility/RTL/overflow/z-index/print/support implications and close the root-file metadata-only backlog. No runtime/test/workflow execution.
+
+
+## Entry 405 PREPARE — MASTER-BOOK-FINISH-BATCH-17-APPS-SCRIPT-PATCH-FAMILY-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of all 16 remaining `apps-script/patches/*` metadata-only files in the fixed inventory. Goal: classify each as candidate/dry-run/rehearsal/harness/recovery/hotfix, document exact read/write capability, flags/approval guards/idempotency/recovery semantics and whether it is historical/superseded or still repair-relevant. No Apps Script execution, deployment, property mutation, Sheets mutation, Cloudflare call or workflow dispatch.
