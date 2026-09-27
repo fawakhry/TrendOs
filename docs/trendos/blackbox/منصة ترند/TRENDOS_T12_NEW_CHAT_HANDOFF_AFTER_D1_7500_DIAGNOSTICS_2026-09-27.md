@@ -290,3 +290,15 @@ Next required evidence before any production retry: independently compare the da
 - State: `T12_READ_OVERLAY_IMPLEMENTED=YES`, `T12_READ_OVERLAY_DEPLOYED=YES`, `ORDER_4322_CREATED=YES`, `ORDER_4322_INTEGRITY=PASS`, no historical Orders/Order Lines backfill.
 - Entry 438 RESULT: `TRENDOS_T12_READ_OVERLAY_ENTRY_438_2026-09-28.md`, commit `c754ea1b8f0436bc7cd07f3e371d697657149dd7`.
 - Next: authenticated UI verification that Order `4322` appears on the print screen. No further mutation is authorized by this entry.
+
+## UI fallback root cause after Read Overlay — Entry 439
+- User reported Order 4322 still absent from print UI after Entry 438 Worker overlay deploy.
+- A25 read-only diagnostic: run `36357416138`, job `108727789423`, branch `diagnostic/t12-overlay-fallback-cause-a25-20260928`, workflow commit `cc7f9592f214b0885732e0808b7381fd48fe0318`.
+- Mirror ages: Orders + Order Lines ~102651s; Customers + debt restrictions ~714173s. All structurally ready/parity, but far beyond the 02CR freshness budget.
+- Therefore 02CR fails closed and the frontend wrapper falls back to Apps Script only.
+- Cloud-native state remained correct: `order4322=1`, `line4322=1`, `mirror4322=0`, `nextOrderNumber=4323`, `canaryRemaining=0`.
+- Main frontend still uses `/v1/edge/orders/02cr/page` and explicitly falls back to the original Apps Script function. Main JS version `EDGE_ORDERS_READ_T11_SERVICE_20260914`.
+- Root cause: stale-mirror safety bypasses the deployed Worker overlay at the live UI layer.
+- Safe fix requires a frontend hybrid fallback on GitHub Pages: Apps Script legacy rows + independent T12 Cloud-native overlay rows. This requires explicit authorization to modify `main`.
+- Entry 439 RESULT: `TRENDOS_T12_READ_OVERLAY_UI_FALLBACK_ENTRY_439_2026-09-28.md`, commit `0ad27b479dcb57ad9f515f8e63e8dbe1f40dddfa`.
+- No main change was made.
