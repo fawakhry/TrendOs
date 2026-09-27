@@ -1,0 +1,142 @@
+name: TrendOS T12 Production Single CREATE 4322 A18
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-production-create-4322-a18-20260927
+    paths:
+      - '.github/workflows/trendos-t12-production-create-4322-a18.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-production-create-canary-controlled
+  cancel-in-progress: false
+
+jobs:
+  create_one:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EDGE_SESSION_SECRET: ${{ secrets.EDGE_SESSION_SECRET }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preflight, send one CREATE, and reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { issueOrdersEdgeToken } from './cloudflare-d1/src/edge-orders-read-v1.mjs';
+
+          const ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0';
+          const DB_ID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825';
+          const EXPECTED_TOKEN_ID='46244467c1de37daa419a38f6fb39921';
+          const BASE=(process.env.PROD_URL||'').replace(/\/$/,'');
+          const cfToken=process.env.CLOUDFLARE_API_TOKEN||'';
+          const accountSecret=process.env.CLOUDFLARE_ACCOUNT_ID||'';
+          const edgeSecret=process.env.EDGE_SESSION_SECRET||'';
+
+          const stop=(m)=>{ console.log(m); process.exit(1); };
+          if(accountSecret!==ACCOUNT || !cfToken) stop('LOCAL_GUARD=FAIL');
+          if(!edgeSecret) stop('EDGE_SESSION_SECRET=UNAVAILABLE_NO_CREATE');
+
+          async function cf(url, options={}){
+            const r=await fetch(url,{...options,headers:{Authorization:'Bearer '+cfToken,Accept:'application/json',...(options.headers||{})}});
+            let body={}; try{ body=await r.json(); }catch{}
+            return {status:r.status,body};
+          }
+          async function d1(sql){
+            return cf('https://api.cloudflare.com/client/v4/accounts/'+ACCOUNT+'/d1/database/'+DB_ID+'/query',{
+              method:'POST',
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({sql})
+            });
+          }
+
+          const verify=await cf('https://api.cloudflare.com/client/v4/accounts/'+ACCOUNT+'/tokens/verify');
+          const vr=verify.body?.result||{};
+          if(verify.status!==200 || verify.body?.success!==true || vr.status!=='active' || vr.id!==EXPECTED_TOKEN_ID) stop('TOKEN_VERIFY_OR_ID=FAIL_NO_CREATE');
+          console.log('TOKEN_VERIFY=PASS');
+          console.log('TOKEN_ID_MATCH=YES');
+
+          const healthResp=await fetch(BASE+'/v1/t12/orders/create-canary/health',{headers:{accept:'application/json'}});
+          let health={}; try{health=await healthResp.json();}catch{}
+          const hc=health.control||{};
+          if(healthResp.status!==200 || health.success!==true || health.schemaReady!==true || health.enabled!==true || hc.nextOrderNumber!==4322 || hc.canaryRemaining!==1 || health.generalCutover!==false) stop('LIVE_HEALTH_PREFLIGHT=FAIL_NO_CREATE');
+          console.log('LIVE_HEALTH_PREFLIGHT=PASS');
+
+          const pre=await d1("SELECT next_order_number AS nextOrderNumber,canary_remaining AS canaryRemaining,(SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4322') AS existing4322 FROM t12_prod_create_control WHERE singleton=1;");
+          let preRow={}; try{preRow=pre.body.result[0].results[0];}catch{}
+          if(pre.status!==200 || pre.body?.success!==true || preRow.nextOrderNumber!==4322 || preRow.canaryRemaining!==1 || preRow.existing4322!==0) stop('LIVE_D1_PREFLIGHT=FAIL_NO_CREATE');
+          console.log('LIVE_D1_PREFLIGHT=PASS');
+          console.log('ORDER_4322_PREEXISTING=NO');
+
+          const now=Date.now();
+          const requestKey='cld1_'+String(now)+'_PRODCANARY_'+String(process.env.GITHUB_RUN_ID)+'_'+String(process.env.GITHUB_RUN_ATTEMPT);
+          const edgeToken=await issueOrdersEdgeToken({sub:'owner-a18',role:'admin',department:'',screens:['service','print','laser','press','']},edgeSecret,Math.floor(now/1000),600);
+          const payload={
+            clientRequestId:requestKey,
+            customerMode:'خارجي / عابر',
+            externalCustomerId:'999001',
+            customerName:'T12 CANARY CUSTOMER',
+            customerPhone:'01000000000',
+            department:'طباعة',
+            itemName:'T12 CANARY ITEM',
+            qty:1,
+            priority:'عادي',
+            status:'طلب جديد',
+            source:'T12 Production Canary'
+          };
+
+          let postStatus=0, postBody={};
+          try{
+            const r=await fetch(BASE+'/v1/t12/orders/create-canary',{
+              method:'POST',
+              headers:{authorization:'Bearer '+edgeToken,'content-type':'application/json','x-t12-canary-confirm':'4322',accept:'application/json'},
+              body:JSON.stringify(payload)
+            });
+            postStatus=r.status;
+            try{postBody=await r.json();}catch{}
+          }catch{
+            console.log('CREATE_HTTP=AMBIGUOUS');
+          }
+          console.log('CREATE_REQUEST_SENT_ONCE=YES');
+          console.log('CREATE_HTTP_STATUS='+String(postStatus||'AMBIGUOUS'));
+
+          const reconcile=await d1("SELECT c.next_order_number AS nextOrderNumber,c.canary_remaining AS canaryRemaining,(SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4322') AS orderCount,(SELECT COUNT(*) FROM t12_prod_lines WHERE order_id='4322') AS lineCount,(SELECT COUNT(*) FROM t12_prod_request_ledger WHERE request_key='"+requestKey+"' AND order_id='4322' AND status='COMMITTED') AS ledgerCommitted FROM t12_prod_create_control c WHERE c.singleton=1;");
+          let row={}; try{row=reconcile.body.result[0].results[0];}catch{}
+          const committed=reconcile.status===200 && reconcile.body?.success===true && row.nextOrderNumber===4323 && row.canaryRemaining===0 && row.orderCount===1 && row.lineCount===1 && row.ledgerCommitted===1;
+          if(!committed){
+            console.log('CREATE_RECONCILE=FAIL_NO_RETRY');
+            console.log('ORDER_4322_CREATED=NO_OR_UNPROVEN');
+            process.exit(1);
+          }
+
+          const order=await d1("SELECT order_id AS orderId,request_key AS requestKey,customer_name AS customerName,department,priority,status,source FROM t12_prod_orders WHERE order_id='4322' LIMIT 1;");
+          let orderRow={}; try{orderRow=order.body.result[0].results[0];}catch{}
+          if(order.status!==200 || order.body?.success!==true || orderRow.orderId!=='4322' || orderRow.requestKey!==requestKey || orderRow.status!=='طلب جديد') stop('ORDER_4322_READBACK=FAIL_NO_RETRY');
+
+          const health2Resp=await fetch(BASE+'/v1/t12/orders/create-canary/health',{headers:{accept:'application/json'}});
+          let health2={}; try{health2=await health2Resp.json();}catch{}
+          const hc2=health2.control||{};
+          if(health2Resp.status!==200 || health2.success!==true || health2.schemaReady!==true || health2.enabled!==true || hc2.nextOrderNumber!==4323 || hc2.canaryRemaining!==0 || health2.generalCutover!==false) stop('POST_CREATE_HEALTH=FAIL_NO_RETRY');
+
+          console.log('CREATE_RECONCILE=PASS');
+          console.log('ORDER_4322_CREATED=YES');
+          console.log('ORDER_4322_READBACK=PASS');
+          console.log('NEXT_ORDER_NUMBER=4323');
+          console.log('CANARY_REMAINING=0');
+          console.log('CANARY_ENABLED=true');
+          console.log('GENERAL_CREATE_CUTOVER=NO');
+          console.log('NO_RETRY_PERFORMED=YES');
+          NODE
