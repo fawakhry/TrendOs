@@ -210,3 +210,9 @@ Next required evidence before any production retry: independently compare the da
 - Required ID remains `46244467c1de37daa419a38f6fb39921`; `TOKEN_ID_MATCH=NO`. Synthetic qualification was not dispatched; `SYNTHETIC_PERSISTENT_D1_WRITE=NOT_RUN`, `SYNTHETIC_CLEANUP=NOT_RUN`, `PRODUCTION_TOUCHED=NO`.
 - `READY_WAITING_FOR_SECRET_UPDATE`. Production baseline remains `MIGRATION_0005=NOT_APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=NO`, `CANARY_ARMED=NO`, `ORDER_4322_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 429 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A12_TOKEN_GATE_STILL_BLOCKED_2026-09-27.md`, commit `292d735bf1889d39f0700f3f0b9a03c8c172b890`.
+
+## A13 Account Token gate correction — Entry 430 PREPARATION
+- The intended token is a Cloudflare **Account API Token**, ID `46244467c1de37daa419a38f6fb39921`. Prior User Token diagnostics described the old GitHub Secret credential (`659ab8957571c4b35f019d6e8701af20`), not the intended token. `EXPECTED_CREDENTIAL_TYPE=ACCOUNT_API_TOKEN`.
+- Synthetic TEST workflow now verifies `GET /accounts/aeadb43110dbb950f8b1ed7683ad9ce0/tokens/verify` with HTTP 200, success=true, active status and exact ID before any D1 query. Corrective commit `ce55089e7eef92fd9963ecf3baee7f23730060a0` on working branch only; TEST and production-exclusion guards unchanged.
+- Entry 430 PREPARATION: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A13_ACCOUNT_TOKEN_GATE_CORRECTION_2026-09-27.md`, commit `6204001ed9396165fa992579b4772bcdc9511d51`.
+- GitHub `CLOUDFLARE_API_TOKEN` update form is open for direct owner entry and submission. No Secret update or workflow dispatch was performed yet; `SYNTHETIC_PERSISTENT_D1_WRITE=NOT_RUN`, `PRODUCTION_TOUCHED=NO`. Production baseline remains unchanged. After owner submission, verify the Account Token ID read-only before TEST qualification; do not run production install-disabled in this task.
