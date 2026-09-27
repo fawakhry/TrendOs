@@ -1,4 +1,4 @@
-name: TrendOS Wrangler D1 ReadOnly Diagnostics
+name: TrendOS D1 PRAGMA Foreign-Key Diagnostic
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -28,48 +28,33 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Confirm exact target
+      - name: Exact target guard
         shell: bash
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
-          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
           grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
           grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
-          echo "TARGET_GUARD=PASS"
 
-      - name: Wrangler identity
+      - name: Read current foreign_keys pragma
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wrangler@4.142.0 whoami
+          npx --yes wrangler@4.142.0 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command "PRAGMA foreign_keys;"
 
-      - name: Wrangler D1 list
+      - name: Attempt redundant foreign_keys ON and capture result
         shell: bash
         run: |
-          set -euo pipefail
-          npx --yes wrangler@4.142.0 d1 list
-
-      - name: Wrangler D1 info
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx --yes wrangler@4.142.0 d1 info trendos-main --config cloudflare-d1/wrangler.toml
-
-      - name: Wrangler D1 SELECT
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx --yes wrangler@4.142.0 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command "SELECT 1 AS wrangler_readonly_probe;"
-
-      - name: Wrangler migration status read-only
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx --yes wrangler@4.142.0 d1 migrations list trendos-main --remote --config cloudflare-d1/wrangler.toml
-
-      - name: Final marker
-        shell: bash
-        run: |
-          echo "DIAGNOSTIC_MUTATIONS=NONE"
+          set +e
+          npx --yes wrangler@4.142.0 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command "PRAGMA foreign_keys = ON;" > /tmp/pragma-on.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/pragma-on.log
+          echo "PRAGMA_ON_EXIT_CODE=$rc"
+          if grep -Fq 'You do not have permission to perform this operation. [code: 7500]' /tmp/pragma-on.log; then
+            echo "PRAGMA_ON_MATCHES_MIGRATION_FAILURE=true"
+          else
+            echo "PRAGMA_ON_MATCHES_MIGRATION_FAILURE=false"
+          fi
+          echo "PERSISTED_MUTATIONS=NONE"
