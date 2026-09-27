@@ -156,3 +156,15 @@ Then STOP. Do not run `arm-one` without a new explicit owner approval.
 
 ## Documentation trail
 Canonical large journal remains at Entries 412–417 to avoid rereading/replacing the full 1MB+ file during this compact continuation. Diagnostic A1 is recorded as **Entry 418 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A1_PRAGMA_2026-09-27.md`, commit `ca6fd5b3fc4b20176f891d755ee7e8176730ad1c`. Diagnostic A2 is recorded as **Entry 419 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A2_MIGRATION_BOOKKEEPING_2026-09-27.md`, commit `61e3ba4d3104275e1870f2ed27abacfef355c546`. Diagnostic A3 is recorded as **Entry 420 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A3_PERSISTENT_DDL_2026-09-27.md`, commit `455bbb2bf4cb24d146a1183d28fe7b69b1b6fa33`. Diagnostic A4 is recorded as **Entry 421 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A4_PERSISTENT_DDL_7500_2026-09-27.md`, commit `e34e9f951963fcaa710b4c81a23b91e3f86010a8`. Diagnostic A5 is recorded as **Entry 422 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A5_TOKEN_TYPE_VERIFY_2026-09-27.md`, commit `fe1f893556576c2b4f6e2c2eb364bbbb2554c7e1`. Diagnostic A6 is recorded as **Entry 423 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A6_TOKEN_DETAILS_READONLY_2026-09-27.md`, commit `33c06dbcdedf22312e310b9891d300e3fa2f7bd5`. Static review completion before these diagnostics is commit `c66f2b4ac1473436249451f56c0ecc75ac7fad61`. This handoff is the preferred compact entry point for the next chat.
+
+## A7 latest authorization conclusion
+- Cloudflare current D1 API docs show the D1 query endpoint accepts D1 Read or D1 Write credentials, while D1 Write is the mutation permission.
+- Executed evidence now proves reads/no-op operations succeed but a real persistent `CREATE TABLE` returns Cloudflare code `7500` on isolated TEST D1.
+- Latest blocker classification: `D1_EFFECTIVE_WRITE_AUTHORIZATION_MISSING_7500`.
+- GitHub credential is active User API Token ID `659ab8957571c4b35f019d6e8701af20`.
+- Exact policy set cannot be self-read: Token Details returned HTTP 403 / code 9109.
+- Prior available dashboard context does not contain a token ID, so equality between the reviewed dashboard token and the GitHub token is not proven.
+- No token, GitHub Secret, production schema, Worker, canary, order, trigger, or Apps Script property has been changed.
+- Entry 424 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A7_EFFECTIVE_WRITE_AUTH_2026-09-27.md`, commit `c302948b283342db232c1d9f5868a8012ff63a56`.
+
+Next required evidence before any production retry: independently compare the dashboard token identity/scope with verified GitHub token ID above. Production migration 0005 remains blocked.
