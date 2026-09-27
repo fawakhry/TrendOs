@@ -228,3 +228,13 @@ Next required evidence before any production retry: independently compare the da
 - Run `36343574693`, job `108688230630` succeeded. Logs: `TOKEN_VERIFY=PASS`, `TOKEN_ID_MATCH=YES`, `EXPECTED_CREDENTIAL_TYPE=ACCOUNT_API_TOKEN`, `TEST_DB_IDENTITY=PASS`, `SYNTHETIC_PERSISTENT_D1_WRITE=PASS`, `SYNTHETIC_CLEANUP=PASS`, `PRODUCTION_TOUCHED=NO`. TEST D1 `trendos-t12-synthetic-test` / `54a3c05e-cde9-4979-814f-d40f941edcd5` only; preflight absent, CREATE present, DROP absent, no blind retry.
 - `SYNTHETIC_D1_WRITE_QUALIFIED=YES`; `READY_FOR_PRODUCTION_INSTALL_DISABLED_RETRY=YES`. Production install-disabled was not run; separate authorization is required. Production baseline stays `MIGRATION_0005=NOT_APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=NO`, `CANARY_ARMED=NO`, `ORDER_4322_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 432 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A15_SYNTHETIC_WRITE_QUALIFIED_2026-09-27.md`, commit `9865f27032c15df15eaa5dd8ca9b8e4d61982e97`.
+
+## A16 production install-disabled succeeded — Entry 433
+- Owner explicitly authorized `install-disabled` after A15 TEST qualification.
+- Reused controlled workflow run `36272464176`; attempt 3, job `108689776320`, same workflow source SHA `00abf19fb321e31a8246329369b32c688ce0406c` and exact inputs `action=install-disabled`, `confirmation=CONTROL_T12_PROD_CREATE_CANARY_4322`.
+- Job conclusion: SUCCESS. Exact guards PASS; isolated qualification PASS; migration `0005_t12_production_create_canary.sql` applied successfully; Worker deploy succeeded.
+- Post-install health: `schemaReady=true`, `enabled=false`, `nextOrderNumber=4322`, `canaryRemaining=0`, `generalCutover=false`, policy epoch `owner_fresh_start_20260926`.
+- `arm-one` was skipped. No order create action was executed by this run. Production is installed but disabled.
+- New state: `MIGRATION_0005=APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=YES`, `CANARY_ARMED=NO`, `ORDER_4322_CREATED_BY_THIS_RUN=NO`, `GENERAL_CREATE_CUTOVER=NO`, `INSTALL_DISABLED_QUALIFIED=YES`.
+- Entry 433 RESULT: `TRENDOS_T12_PRODUCTION_INSTALL_DISABLED_SUCCESS_A16_2026-09-27.md`, commit `fa6a3ce7f9ad21e258064c1165939d94c0f6085a`.
+- STOP. `arm-one` still requires separate explicit owner authorization.
