@@ -185,3 +185,13 @@ Next required evidence before any production retry: independently compare the da
 - Credential identity mismatch is now strongly suspected but not yet proven.
 - Entry 426 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A9_DASHBOARD_TOKEN_SCOPE_2026-09-27.md`, commit `284e59b46399e174c5582abf9536fde78beae4a2`.
 - Next step: obtain the dashboard token ID read-only, preferably from the current page URL, and compare it to the GitHub token ID. No token/secret change yet.
+
+## A10 token identity mismatch proven
+- Owner-provided Cloudflare Token Summary route exposes dashboard token ID `46244467c1de37daa419a38f6fb39921`.
+- GitHub Actions credential was independently verified as active User API Token ID `659ab8957571c4b35f019d6e8701af20`.
+- The IDs differ. `TOKEN_IDENTITY_MATCH=NO` is now proven.
+- The dashboard token is the one whose Token Summary shows D1 Write over the entire expected account; GitHub Actions is using a different token.
+- Root cause classification: `GITHUB_SECRET_POINTS_TO_DIFFERENT_CLOUDFLARE_TOKEN`.
+- No token, GitHub Secret, production D1 schema, Worker, canary, order, trigger, or Apps Script property was changed.
+- Entry 427 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A10_TOKEN_ID_MISMATCH_PROVEN_2026-09-27.md`, commit `cf782757cfbd1e48a97f79f9b1761c6dea43939e`.
+- Next: correct repository credential to an intended D1-Write credential, then qualify a real persistent write on `trendos-t12-synthetic-test` before any production `install-disabled` retry. `arm-one` remains forbidden.
