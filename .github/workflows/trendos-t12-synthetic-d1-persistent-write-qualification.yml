@@ -84,7 +84,7 @@ jobs:
               except (ValueError, UnicodeDecodeError):
                   return status, {}
 
-          status, verify = call('https://api.cloudflare.com/client/v4/user/tokens/verify')
+          status, verify = call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
           result = verify.get('result') or {}
           if status != 200 or verify.get('success') is not True or result.get('status') != 'active':
               stop('TOKEN_VERIFY=FAIL')
@@ -92,6 +92,8 @@ jobs:
           if result.get('id') != EXPECTED_TOKEN_ID:
               stop('TOKEN_ID_MATCH=NO')
           print('TOKEN_ID_MATCH=YES', flush=True)
+          print('TOKEN_ID=' + EXPECTED_TOKEN_ID, flush=True)
+          print('EXPECTED_CREDENTIAL_TYPE=ACCOUNT_API_TOKEN', flush=True)
 
           status, info = call(base)
           db = info.get('result') or {}
