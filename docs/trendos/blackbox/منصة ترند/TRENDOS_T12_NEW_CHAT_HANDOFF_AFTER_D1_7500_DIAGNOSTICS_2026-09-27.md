@@ -195,3 +195,11 @@ Next required evidence before any production retry: independently compare the da
 - No token, GitHub Secret, production D1 schema, Worker, canary, order, trigger, or Apps Script property was changed.
 - Entry 427 RESULT: `TRENDOS_T12_D1_7500_DIAGNOSTIC_A10_TOKEN_ID_MISMATCH_PROVEN_2026-09-27.md`, commit `cf782757cfbd1e48a97f79f9b1761c6dea43939e`.
 - Next: correct repository credential to an intended D1-Write credential, then qualify a real persistent write on `trendos-t12-synthetic-test` before any production `install-disabled` retry. `arm-one` remains forbidden.
+
+## A11 GitHub-only workflow preparation — Entry 428
+- Working branch matched documented HEAD `1f0c02c46855129c7d67ff84df874ab393780d35` before edits.
+- Manual-only workflow added: `.github/workflows/trendos-t12-synthetic-d1-persistent-write-qualification.yml`, commit `b87aa14342e42cc05e3616e1bfe983d7ebe90aa9`. It gates all D1 queries on successful active User Token verification and exact ID `46244467c1de37daa419a38f6fb39921`; exact TEST name/UUID and account identity are checked; production name/UUID are excluded. It will CREATE, read sqlite_master, DROP, and read again for a unique diagnostic table on TEST only, without blind mutation retry.
+- Existing A5 read-only verification rerun: run `36335828533`, job `108679776910`, success, 2026-09-27 18:25 UTC. Current GitHub Secret token remains active User Token ID `659ab8957571c4b35f019d6e8701af20`, so `TOKEN_ID_MATCH=NO`.
+- The new workflow was **not run**; no D1 query/write, Secret change, Cloudflare dashboard action, production migration/deploy/arm/order action occurred. `WORKFLOW_SOURCE=READY_WAITING_FOR_SECRET_UPDATE`. Entry 428 RESULT is `TRENDOS_T12_D1_7500_DIAGNOSTIC_A11_SYNTHETIC_WRITE_WORKFLOW_READY_2026-09-27.md`, commit `71246858db0ec0c4f65f1489f6df10ed7911df98`.
+- `MIGRATION_0005=NOT_APPLIED`, `WORKER_DEPLOY_FROM_INSTALL_DISABLED=NO`, `CANARY_ARMED=NO`, `ORDER_4322_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`. No merge to diagnostic branch or main. GitHub may require default-branch registration to expose a new branch-only workflow in Actions.
+- Next: credential value must be updated manually by an authorized operator. Verify the ID first; only then run the TEST qualification workflow and confirm its cleanup. Production remains blocked.
