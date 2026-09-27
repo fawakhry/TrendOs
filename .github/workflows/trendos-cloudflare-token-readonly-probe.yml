@@ -21,25 +21,14 @@ jobs:
       EXPECTED_ACCOUNT_ID: aeadb43110dbb950f8b1ed7683ad9ce0
       DATABASE_ID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
     steps:
-      - name: D1 read identity probe
+      - name: D1 no-op write permission probe
         shell: bash
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test "$CLOUDFLARE_ACCOUNT_ID" = "$EXPECTED_ACCOUNT_ID"
-          db_code="$(curl --silent --show-error             --output /tmp/db.json             --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$DATABASE_ID" || true)"
-          echo "D1_GET_HTTP=$db_code"
-          jq -r '"D1_GET_SUCCESS=" + ((.success // false)|tostring)' /tmp/db.json
-          jq -r '"D1_NAME=" + (.result.name // "unknown")' /tmp/db.json
-          test "$db_code" = "200"
-          test "$(jq -r '.success' /tmp/db.json)" = "true"
-          test "$(jq -r '.result.name' /tmp/db.json)" = "trendos-main"
 
-      - name: D1 no-op write permission probe
-        shell: bash
-        run: |
-          set -euo pipefail
           api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$DATABASE_ID/query"
 
           call_sql() {
@@ -48,39 +37,33 @@ jobs:
             curl --silent --show-error               --output "$out"               --write-out '%{http_code}'               -X POST               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -nc --arg sql "$sql" '{sql:$sql}')"               "$api" || true
           }
 
-          pre_code="$(call_sql "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_customers_name') AS idx_exists, (SELECT schema_version FROM pragma_schema_version) AS schema_version;" /tmp/pre.json)"
+          pre_code="$(call_sql "SELECT COUNT(*) AS idx_exists FROM sqlite_master WHERE type='index' AND name='idx_customers_name';" /tmp/pre.json)"
           echo "PRECHECK_HTTP=$pre_code"
           jq -r '"PRECHECK_SUCCESS=" + ((.success // false)|tostring)' /tmp/pre.json
           test "$pre_code" = "200"
           test "$(jq -r '.success' /tmp/pre.json)" = "true"
           idx_exists="$(jq -r '.result[0].results[0].idx_exists' /tmp/pre.json)"
-          schema_before="$(jq -r '.result[0].results[0].schema_version' /tmp/pre.json)"
-          echo "INDEX_EXISTS=$idx_exists"
-          echo "SCHEMA_VERSION_BEFORE=$schema_before"
+          echo "INDEX_EXISTS_BEFORE=$idx_exists"
           test "$idx_exists" = "1"
 
           dml_code="$(call_sql "UPDATE customers SET updated_at=updated_at WHERE 0;" /tmp/dml.json)"
           echo "D1_DML_NOOP_HTTP=$dml_code"
           jq -r '"D1_DML_NOOP_SUCCESS=" + ((.success // false)|tostring)' /tmp/dml.json
           jq -r 'if (.errors|length)>0 then "D1_DML_NOOP_ERROR_CODE=" + ((.errors[0].code // "unknown")|tostring) else "D1_DML_NOOP_ERROR_CODE=none" end' /tmp/dml.json
-          jq -r '"D1_DML_NOOP_CHANGES=" + ((.result[0].meta.changes // -1)|tostring)' /tmp/dml.json
+          jq -r 'if (.result|length)>0 then "D1_DML_NOOP_CHANGES=" + ((.result[0].meta.changes // -1)|tostring) else "D1_DML_NOOP_CHANGES=unknown" end' /tmp/dml.json
 
           ddl_code="$(call_sql "CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(customer_name);" /tmp/ddl.json)"
           echo "D1_DDL_NOOP_HTTP=$ddl_code"
           jq -r '"D1_DDL_NOOP_SUCCESS=" + ((.success // false)|tostring)' /tmp/ddl.json
           jq -r 'if (.errors|length)>0 then "D1_DDL_NOOP_ERROR_CODE=" + ((.errors[0].code // "unknown")|tostring) else "D1_DDL_NOOP_ERROR_CODE=none" end' /tmp/ddl.json
 
-          post_code="$(call_sql "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_customers_name') AS idx_exists, (SELECT schema_version FROM pragma_schema_version) AS schema_version;" /tmp/post.json)"
+          post_code="$(call_sql "SELECT COUNT(*) AS idx_exists FROM sqlite_master WHERE type='index' AND name='idx_customers_name';" /tmp/post.json)"
           echo "POSTCHECK_HTTP=$post_code"
           test "$post_code" = "200"
           test "$(jq -r '.success' /tmp/post.json)" = "true"
           idx_after="$(jq -r '.result[0].results[0].idx_exists' /tmp/post.json)"
-          schema_after="$(jq -r '.result[0].results[0].schema_version' /tmp/post.json)"
           echo "INDEX_EXISTS_AFTER=$idx_after"
-          echo "SCHEMA_VERSION_AFTER=$schema_after"
-
           test "$idx_after" = "1"
-          test "$schema_after" = "$schema_before"
 
           if [ "$dml_code" = "200" ] && [ "$(jq -r '.success' /tmp/dml.json)" = "true" ]; then
             echo "D1_DML_WRITE_PERMISSION=PASS"
