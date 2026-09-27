@@ -95,6 +95,13 @@ Department order screens currently read through mirror `sheet_catalog/sheet_rows
    - dedicated migration directory contained only `9001_diag_pragma_only.sql` with `PRAGMA foreign_keys = ON;`.
    - `wrangler d1 migrations apply trendos-t12-synthetic-test --remote` failed with the same Cloudflare code `7500` on the TEST DB query endpoint.
    - therefore the failure is not specific to migration 0005's business statements and is reproducible on a separate TEST D1 via Wrangler migration apply.
+9. Diagnostic A3 — persistent direct DDL on isolated TEST D1:
+   - diagnostic branch commit `3f36620507fbc3f89fd0d67ca01472a31c698551`
+   - run `36335470930`, job `108665363223`
+   - preflight confirmed the uniquely named diagnostic table absent (`n=0`).
+   - direct `wrangler d1 execute` attempted a real `CREATE TABLE`; the command exited non-zero.
+   - independent reconcile read confirmed the table still absent (`n=0`), so no residual schema change exists.
+   - exact Cloudflare error code was not captured in this run because stderr/stdout were redirected to a temp file and the shell exited before `cat`; do not overclaim A3 as an independently observed 7500.
 
 ## Current diagnosis
 Do NOT continue with the old assumption “GitHub token has no D1 access.” Current evidence proves account discovery, D1 discovery/info, and reads work from the GitHub secret. It also proves no-op DML/DDL SQL shapes are accepted. Yet the migration apply path still reproducibly gets 7500. Therefore:
@@ -104,10 +111,10 @@ ROOT_CAUSE=UNKNOWN
 TOKEN_ROTATION_REQUIRED=NOT_PROVEN
 ```
 
-Direct `PRAGMA foreign_keys = ON` passes on the isolated TEST D1, but a PRAGMA-only `wrangler d1 migrations apply` fails with the same 7500 on that TEST D1. Migration 0005's payload is therefore not the distinguishing factor. Remaining leading hypotheses are: a persistent-write authorization distinction, Wrangler migration ledger/bookkeeping SQL, or migration-apply transaction/API semantics.
+Direct `PRAGMA foreign_keys = ON` passes on the isolated TEST D1, while a PRAGMA-only `wrangler d1 migrations apply` fails with 7500. A3 then showed that a real persistent direct `CREATE TABLE` also fails outside migrations apply, with an independent read proving no table persisted. This materially shifts the leading hypothesis toward a D1 persistent-write authorization/path distinction; the exact A3 error body still needs capture before attributing a specific Cloudflare code or token defect.
 
 ## Next step for the new chat
-Next single diagnostic step: on `trendos-t12-synthetic-test` only, execute one explicit persistent direct DDL mutation through `wrangler d1 execute` using a uniquely named empty diagnostic table; reconcile by read, and remove it only after confirmed creation. This will separate general persistent-write authorization from Wrangler migration bookkeeping/transaction behavior. Do not apply migration 0005 to production again yet.
+Next single diagnostic step: call the Cloudflare D1 REST query endpoint directly against `trendos-t12-synthetic-test` for one uniquely named persistent diagnostic `CREATE TABLE`, capture the JSON response/error, then reconcile by read. This separates the underlying D1 API/write-authorization behavior from Wrangler. Do not change the token/secret and do not apply migration 0005 to production yet.
 
 If a corrected production path is later ready, rerun `install-disabled` only with the exact approved inputs above. Success must independently verify:
 ```
@@ -129,4 +136,4 @@ Then STOP. Do not run `arm-one` without a new explicit owner approval.
 - On any ambiguous remote write outcome: no blind retry; reconcile by read first.
 
 ## Documentation trail
-Canonical large journal remains at Entries 412–417 to avoid rereading/replacing the full 1MB+ file during this compact continuation. Diagnostic A1 is recorded as **Entry 418 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A1_PRAGMA_2026-09-27.md`, commit `ca6fd5b3fc4b20176f891d755ee7e8176730ad1c`. Diagnostic A2 is recorded as **Entry 419 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A2_MIGRATION_BOOKKEEPING_2026-09-27.md`, commit `61e3ba4d3104275e1870f2ed27abacfef355c546`. Static review completion before these diagnostics is commit `c66f2b4ac1473436249451f56c0ecc75ac7fad61`. This handoff is the preferred compact entry point for the next chat.
+Canonical large journal remains at Entries 412–417 to avoid rereading/replacing the full 1MB+ file during this compact continuation. Diagnostic A1 is recorded as **Entry 418 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A1_PRAGMA_2026-09-27.md`, commit `ca6fd5b3fc4b20176f891d755ee7e8176730ad1c`. Diagnostic A2 is recorded as **Entry 419 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A2_MIGRATION_BOOKKEEPING_2026-09-27.md`, commit `61e3ba4d3104275e1870f2ed27abacfef355c546`. Diagnostic A3 is recorded as **Entry 420 RESULT** in `TRENDOS_T12_D1_7500_DIAGNOSTIC_A3_PERSISTENT_DDL_2026-09-27.md`, commit `455bbb2bf4cb24d146a1183d28fe7b69b1b6fa33`. Static review completion before these diagnostics is commit `c66f2b4ac1473436249451f56c0ecc75ac7fad61`. This handoff is the preferred compact entry point for the next chat.
