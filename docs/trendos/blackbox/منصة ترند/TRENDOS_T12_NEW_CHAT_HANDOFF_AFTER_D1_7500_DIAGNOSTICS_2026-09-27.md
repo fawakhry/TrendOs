@@ -279,3 +279,14 @@ Next required evidence before any production retry: independently compare the da
 - Current state: `ORDER_4322_CREATED=YES`, `ORDER_4322_INTEGRITY=PASS`, `NEXT_ORDER_NUMBER=4323`, `CANARY_REMAINING=0`, `CANARY_ENABLED=false`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 437 RESULT: `TRENDOS_T12_DISABLE_AND_4322_READONLY_VERIFIED_A20_A21_2026-09-27.md`, commit `ea479d8279715098dc2ea4c836337cb151b91149`.
 - No new create, re-arm, general cutover, historical Orders/Order Lines backfill, or Apps Script change occurred.
+
+## T12 Read Overlay deployed — Entry 438
+- Owner approved a read overlay combining qualified Sheets-mirror rows with Cloud-native T12 rows.
+- Working implementation adds `cloudflare-d1/src/t12-read-overlay.mjs`, integrates it into `cloudflare-d1/src/edge-orders-read-02cr-canary.mjs`, and adds `tests/t12_read_overlay.test.mjs`.
+- Cloud-native rows are mapped into the existing operational row shape, deduplicated by `lineId`, preferred over a future duplicate mirror copy, and marked `cloudNative=true`, `readOnly=true`, `writeAuthority=cloudflare-t12`.
+- A23 qualification run `36354963557`, job `108720759812`: SUCCESS. `OVERLAY_UNIT_TEST=PASS`, `PROD_OVERLAY_SHAPE=PASS`, `ORDER_4322_READY_FOR_OVERLAY=YES`, `MIRROR_4322_MATCH_COUNT=0`, `PRODUCTION_MUTATION=NO`.
+- A24 production deploy run `36355018666`, job `108720919540`: SUCCESS. Worker Version ID `cd283820-11e2-4eec-a6ca-2723a70df77a`.
+- Post-deploy safety: `CANARY_ENABLED=false`, `NEXT_ORDER_NUMBER=4323`, `CANARY_REMAINING=0`, `GENERAL_CREATE_CUTOVER=NO`.
+- State: `T12_READ_OVERLAY_IMPLEMENTED=YES`, `T12_READ_OVERLAY_DEPLOYED=YES`, `ORDER_4322_CREATED=YES`, `ORDER_4322_INTEGRITY=PASS`, no historical Orders/Order Lines backfill.
+- Entry 438 RESULT: `TRENDOS_T12_READ_OVERLAY_ENTRY_438_2026-09-28.md`, commit `c754ea1b8f0436bc7cd07f3e371d697657149dd7`.
+- Next: authenticated UI verification that Order `4322` appears on the print screen. No further mutation is authorized by this entry.
