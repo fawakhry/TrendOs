@@ -3708,3 +3708,8 @@ READ/DOC_WRITE only. Full-text review of the four remaining metadata-only files 
 ## Entry 407 PREPARE — MASTER-BOOK-FINISH-BATCH-19-CLOUDFLARE-CORE-CONFIG-MIGRATIONS-20260927 / 2026-09-27 Cairo
 
 READ/DOC_WRITE only. Full-text review of the 21 remaining Cloudflare/D1 metadata-only files outside `src/`, `t12-preview/`, and `test/`: top-level Apps Script mirror/sync/cutover controllers, migration SQL, preview/staging/production-shadow configs, schema-prep SQL and status documentation. Classify actual mutation capability, target environment, flags/guards, read-vs-write semantics, schema authority and repair relevance. No Cloudflare/D1 execution, deployment, SQL application, Apps Script execution or workflow dispatch.
+
+
+## Entry 408 PREPARE — MASTER-BOOK-FINISH-BATCH-20-CLOUDFLARE-SRC-RUNTIME-20260927 / 2026-09-27 Cairo
+
+READ/DOC_WRITE only. Full-text review of all 17 remaining `cloudflare-d1/src/*` metadata-only runtime files. Capture route exposure, D1 read/write statements, auth/idempotency/client-key/order-ID contracts, fallback behavior, environment gates, recovery semantics and whether each file is production-capable, preview/test-only, or candidate. No Worker deploy, D1 query, migration, secret change or workflow dispatch.
