@@ -1,0 +1,84 @@
+name: TrendOS T12 D1 Persistent DDL Error Capture Synthetic
+
+on:
+  push:
+    branches:
+      - diagnostic/cloudflare-token-readonly-20260927
+    paths:
+      - '.github/workflows/trendos-t12-d1-persistent-ddl-error-capture-synthetic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  a4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TEST_DB_NAME: trendos-t12-synthetic-test
+      TEST_DB_UUID: 54a3c05e-cde9-4979-814f-d40f941edcd5
+      DIAG_TABLE: t12_diag_a4_persistent_write_20260927
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify TEST D1 identity
+        run: |
+          set -euo pipefail
+          test "$TEST_DB_NAME" = "trendos-t12-synthetic-test"
+          test "$TEST_DB_UUID" = "54a3c05e-cde9-4979-814f-d40f941edcd5"
+          test "$TEST_DB_UUID" != "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
+
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4.142.0
+
+      - name: Build TEST-only config
+        run: |
+          set -euo pipefail
+          cat > cloudflare-d1/t12-preview/.diag-a4.toml <<EOF
+          name = "trendos-t12-a4-synthetic"
+          compatibility_date = "2026-09-27"
+          [[d1_databases]]
+          binding = "T12_SYNTHETIC_DB"
+          database_name = "trendos-t12-synthetic-test"
+          database_id = "54a3c05e-cde9-4979-814f-d40f941edcd5"
+          EOF
+          ! grep -q 'trendos-main' cloudflare-d1/t12-preview/.diag-a4.toml
+          ! grep -q '5c4b92bf-e043-4f6e-bd6d-d514a92cd825' cloudflare-d1/t12-preview/.diag-a4.toml
+
+      - name: Preflight absence
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$TEST_DB_NAME" --remote             --config cloudflare-d1/t12-preview/.diag-a4.toml             --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='$DIAG_TABLE';"             > /tmp/a4-pre.txt
+          cat /tmp/a4-pre.txt
+          grep -F '"n": 0' /tmp/a4-pre.txt
+
+      - name: A4 capture persistent CREATE result
+        run: |
+          set -uo pipefail
+          set +e
+          npx wrangler d1 execute "$TEST_DB_NAME" --remote             --config cloudflare-d1/t12-preview/.diag-a4.toml             --command "CREATE TABLE $DIAG_TABLE (id INTEGER PRIMARY KEY, marker TEXT NOT NULL);"             > /tmp/a4-create.txt 2>&1
+          rc=$?
+          set -e
+          echo "A4_CREATE_RC=$rc"
+          cat /tmp/a4-create.txt
+
+          npx wrangler d1 execute "$TEST_DB_NAME" --remote             --config cloudflare-d1/t12-preview/.diag-a4.toml             --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='$DIAG_TABLE';"             > /tmp/a4-post.txt
+          cat /tmp/a4-post.txt
+
+          if [ "$rc" = "0" ]; then
+            grep -F '"n": 1' /tmp/a4-post.txt
+            npx wrangler d1 execute "$TEST_DB_NAME" --remote               --config cloudflare-d1/t12-preview/.diag-a4.toml               --command "DROP TABLE $DIAG_TABLE;"
+            echo "DIAG_A4_PERSISTENT_DDL=PASS_CLEANED"
+            exit 0
+          fi
+
+          grep -F '"n": 0' /tmp/a4-post.txt
+          echo "DIAG_A4_PERSISTENT_DDL=FAIL_NO_RESIDUAL_SCHEMA"
+          exit 1
