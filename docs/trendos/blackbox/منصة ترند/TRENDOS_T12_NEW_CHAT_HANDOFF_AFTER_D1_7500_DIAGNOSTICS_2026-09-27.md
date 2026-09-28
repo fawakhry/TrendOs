@@ -334,3 +334,15 @@ Next required evidence before any production retry: independently compare the da
 - Cloud-native `updateLine` and `markCustomerNotified` now route to Cloudflare; legacy rows still use Apps Script.
 - State: `T12_OPERATIONAL_RUNTIME=LIVE`, `CANARY_ENABLED=false`, `CANARY_REMAINING=0`, `NEXT_ORDER_NUMBER=4323`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 442: `TRENDOS_T12_OPERATIONAL_RUNTIME_LIVE_ENTRY_442_2026-09-28.md`, commit `b2a6a3f33f7b1005609b2afa289734360e25b104`.
+
+## General CREATE route live; 4323 canary armed — Entry 443
+- Added migration `0007_t12_general_create_control.sql`, guarded general CREATE core/handler, route wiring and isolated tests.
+- A32 run `36409710404` stopped before Production because isolated testing caught replay-after-budget ordering. A33 run `36409844052` confirmed it. No Production mutation occurred in those failed qualifications.
+- Core fixed so a committed identical request is reconciled from the ledger before the one-shot budget gate.
+- A34 run `36410012546`, job `108887739387`: SUCCESS. Isolated CREATE PASS; migration 0007 applied; route deployed OFF; Worker Version ID `23d5aac9-d4ef-4df4-b77d-3d869adcdd06`. Pre/post state: mode OFF, nextOrderNumber 4323, general budget 0, legacy budget 0, Order 4323 absent.
+- A35 frontend qualification run `36410411145`, job `108889010604`: SUCCESS. Main now routes `createManualOrder` to Cloud and never falls back to Apps Script CREATE. Main commits `861e940a4c40191a2bf170e3ba7de94be01739cd` and `9f134cefcc18dc805032fd83f67087cd1bee50c1`; Pages run `36410502340` SUCCESS.
+- Frontend version `EDGE_ORDERS_T12_GENERAL_CREATE_20260928`; deterministic Cloud key conversion, safe-field projection, pending-key reconciliation for ambiguous manual retry, and no automatic ambiguous retry are active.
+- A36 run `36410572176`, job `108889529250`: SUCCESS. `GENERAL_CANARY_ARM=PASS`.
+- Current state: `GENERAL_CREATE_MODE=CANARY`, `GENERAL_CREATE_CANARY_REMAINING=1`, `NEXT_ORDER_NUMBER=4323`, `ORDER_4323_CREATED=NO`, `LEGACY_CANARY_REMAINING=0`, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 443: `TRENDOS_T12_GENERAL_CREATE_4323_CANARY_READY_ENTRY_443_2026-09-28.md`, commit `6c8d501a5a056abe13f7c0a21927bac922f58578`.
+- Next proof: one Admin CREATE from normal Add Order UI, expected Order 4323. On verified success, switch general-create DB gate CANARY -> GENERAL.
