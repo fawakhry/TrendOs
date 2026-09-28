@@ -2,6 +2,10 @@
 
 هذا المجلد هو الذاكرة الرسمية لمسار **TrendOS Main Platform**.
 
+## Latest T12 handoff — Entry 451 / 2026-09-28
+
+Apps Script legacy order writer fence is deployed on the existing Web App at Version 157. Mahmoud's Google Sheets business references are re-keyed from 4322/4322-01 to 4323/4323-01 while Order and Line stay `تم التسليم`. Full cell-level evidence: [Entry 451](TRENDOS_T12_LEGACY_WRITERS_LIVE_SHEET_4322_REKEY_ENTRY_451_2026-09-28.md). Cloudflare/D1 were not touched. Owner's remaining manual Cloud action is to retire/prevent the pending outbox of historical Canary 4322; leave its delivered runtime and real D1 Order 4323 unchanged. The direct /exec fail-closed HTTP response was blocked from this environment and remains unverified.
+
 ## Startup order
 **Active T12 migration, current continuity entrypoint (2026-09-22):** Read [`CLOUD_MIGRATION_V3_T12_CONTINUATION_HANDOFF_2026-09-22.md`](CLOUD_MIGRATION_V3_T12_CONTINUATION_HANDOFF_2026-09-22.md) FIRST and the newest entry in [`TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md`](TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md). These override historical T11/T12 stop points for T12 progress only. Record every successful AND failed step on isolated branch; preserve original production Google authority. The earlier initial branch listed below is historical, not the current T12 working branch.
 
