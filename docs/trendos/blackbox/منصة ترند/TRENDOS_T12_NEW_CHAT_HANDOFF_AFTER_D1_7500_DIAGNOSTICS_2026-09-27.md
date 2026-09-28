@@ -453,3 +453,15 @@ Next required evidence before any production retry: independently compare the da
 - No Worker/D1/Apps Script/Sheets mutation was required.
 - Remaining evidence only: first real Cloud-native Laser order should be observed in Laser and have one runtime status/notes update verified end-to-end; Customer Service should be visually confirmed after Ctrl+F5.
 - Entry file: `TRENDOS_T12_LASER_SERVICE_02CR_ENTRY_453_2026-09-28.md`.
+
+
+## Entry 454 — Order 4324 CREATE PASS; Laser post-CREATE display gap
+- Owner created one real Laser order from the normal TrendOS UI. Platform returned: `تم إضافة الأوردر: 4324 | التسليم المتوقع: ٣٠ سبتمبر ٢٠٢٦`.
+- Owner then reported the new row was not visible as محمود مناع in the Laser screen.
+- A48 read-only verification: branch `diagnostic/t12-order-4324-readback-a48-20260928`, workflow commit `c78866d7dfce05668a10c8cb8bab6693ffc71913`, run `36469971685`, job `109089452994`, SUCCESS, `PRODUCTION_MUTATION=NO`.
+- D1 proves exactly one Order `4324` and Line `4324-01`, customer محمود مناع / `01007131332`, department ليزر, item `أوردر جديد - ليزر`, qty 1, priority عادي, base/order status `طلب جديد`, one COMMITTED ledger row, one pending outbox row, `GENERAL` mode, `nextOrderNumber=4325`.
+- Conclusion: `ORDER_4324_CREATE=PASS`. Current defect domain is post-CREATE UI read/display/refresh only; do not create Order 4325 for diagnosis.
+- Diagnose `createManualOrder` success flow in `app.js` plus `trendos-edge-orders-read-v1.js`: forced `loadRows(true)`, screen persistence, Cloud identity seeding, pagination reset, stale page/cache state, filters, and exact `/v1/edge/orders/02cr/page?screen=laser` usage.
+- Safety: no blind CREATE retry, no Google Sheets repair for 4324, no legacy writer reopening, no D1/Cloudflare mutation without separately proven need/approval.
+- Closure target: make 4324 visible in Laser, then perform one status transition on `4324-01` (e.g. `بدأ التنفيذ`) and read-only verify the same runtime status through D1, Laser, and Customer Service.
+- Entry file: `TRENDOS_T12_LIVE_LASER_ORDER_4324_DISPLAY_GAP_ENTRY_454_2026-09-28.md`, documentation commit `0a144b89fd58c073504cdeca90d87752b0c6a338`.
