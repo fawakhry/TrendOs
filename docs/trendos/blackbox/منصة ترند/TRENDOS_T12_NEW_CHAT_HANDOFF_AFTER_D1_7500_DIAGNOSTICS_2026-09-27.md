@@ -364,6 +364,6 @@ Next required evidence before any production retry: independently compare the da
 - Frontend now maps blank item to `أوردر جديد - <department>`, resolves a missing registered phone through exact Apps Script `searchCustomers` read-only match, and translates canonical `errors[]` to explicit Arabic messages. No Apps Script CREATE fallback was restored.
 - Main commits: `8b8aa8ceefcdfd27587861e6d080383ca65b97cd` and `df38b2ef08b37385a87626757e4ff65badaafaa8`.
 - Frontend version `EDGE_ORDERS_T12_CREATE_UI_CONTRACT_20260928`; cache `trendos-edge-orders-read-v1.js?v=20260928-t12-create-ui-contract1`.
-- Pages run `36442530502`: build succeeded; deployment was still in progress at the moment of Entry 445 documentation.
+- Pages run `36442530502`: SUCCESS for exact main HEAD `df38b2ef08b37385a87626757e4ff65badaafaa8`.
 - Canary unchanged: `GENERAL_CREATE_MODE=CANARY`, `GENERAL_CREATE_CANARY_REMAINING=1`, `NEXT_ORDER_NUMBER=4323`, `ORDER_4323_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 445 commit `fec8f9ae977d7efa10d6ebad1a6c3b651a84235e`.
