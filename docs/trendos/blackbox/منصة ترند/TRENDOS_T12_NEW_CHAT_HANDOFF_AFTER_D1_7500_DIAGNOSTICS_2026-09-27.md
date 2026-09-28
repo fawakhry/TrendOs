@@ -495,3 +495,17 @@ Next required evidence before any production retry: independently compare the da
 - Existing recovery module `D1_Operational_Enrichment_Live_Sync_02CR.gs` is designed specifically for Customers + debt restrictions using heartbeat/row-delta/atomic full rebase and a one-minute trigger; it never writes Sheets.
 - Plan: first restore 02CR enrichment freshness for fast Orders reads; then migrate safe operational Customer directory fields from the real Customer master to normalized D1, add authenticated Cloud search, route frontend search Cloud-first, and keep Customer CREATE/update on Sheets until separately qualified. Portal password/session-token fields are excluded from the Cloud directory migration.
 - Entry file: `TRENDOS_T12_CUSTOMERS_STALE_MIRROR_ORDER_LATENCY_ENTRY_457_2026-09-28.md`, documentation commit `ff5dd00ebd44faa1ef655353f2049494973da808`.
+
+
+## Entry 468 — Customer D1 search live + Orders stale backoff
+- A50 V4 customer enrichment refresh run `36488039329`, job `109149625983`: SUCCESS. D1 Customer mirror now has 248/248 rows, 18 safe operational columns, Restrictions 1/1, sensitive credential rows 0. No Sheets/Order mutation.
+- A51 added authenticated read-only `/v1/edge/customers/search`, reusing Orders Edge session auth and reading the safe D1 Customer mirror. Backend qualification run `36492570926`: SUCCESS; production-shadow wiring run `36492827748`: SUCCESS.
+- Guarded Worker deploy run `36492891790`, job `109165416354`: SUCCESS. Verified Customer mirror preflight 248 rows, protected route HTTP 401 anonymously, Cloud Write still OFF, no D1 migrations, Order CREATE unchanged.
+- One earlier Worker deploy attempt `36492647628` hit old-route propagation during immediate verification and automatically rolled back. Retry added bounded propagation polling and passed.
+- Frontend `searchCustomers` is now D1-first; D1 matches return immediately, while a D1 miss or error intentionally falls back to Apps Script so newly-created/not-yet-mirrored customers remain discoverable. Customer CREATE/update stays Apps Script/Sheets authoritative.
+- A51 frontend CI `36492504443`: SUCCESS. PR #14 merged to main `1557c78b0b75c3267905097b6a0e257e899771e7`; GitHub Pages run `36492972706`: SUCCESS exact SHA.
+- A52 mitigates repeated Orders delay without weakening debt freshness. After known `EDGE_MIRROR_STALE` or `02cr-mirror-stale`, frontend opens a 2-minute in-memory cooldown and subsequent reads go directly to Apps Script + T12 overlay instead of repeatedly attempting an already-known-stale 02CR route. Backend freshness/debt guards remain unchanged.
+- A52 CI `36493414696`: SUCCESS. PR #15 merged to main `b1345af6076cf2350f03842f3d0071bb4b6cb84d`; frontend version `EDGE_ORDERS_T12_CUSTOMER_D1_A51_STALE_BACKOFF_A52_20260929`; cache `20260929-t12-a52-stale-backoff`; GitHub Pages run `36493477410`: SUCCESS exact SHA.
+- Current authority: Customer search D1-first with Apps Script miss/error fallback; Customer CREATE/update still Apps Script/Sheets; Orders 02CR first when qualified, known-stale cooldown then Apps Script + T12 overlay; Cloud-native CREATE/runtime unchanged.
+- No Order 4325 creation and no Order status mutation occurred in A51/A52.
+- Entry file: `TRENDOS_T12_CUSTOMER_D1_SEARCH_ORDER_LATENCY_A51_A52_ENTRY_468_2026-09-29.md`, documentation commit `9945bd4e1893ba0f19148310aa1eb583d4eddda7`.
