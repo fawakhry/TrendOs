@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_CREATE_ERRORS_20260928';
+  var VERSION = 'EDGE_ORDERS_T12_CREATE_UI_CONTRACT_20260928';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
@@ -452,7 +452,7 @@
       department: text(p.department),
       heatPress: text(p.heatPress),
       flyPrint: text(p.flyPrint),
-      itemName: text(p.itemName),
+      itemName: text(p.itemName) || ('أوردر جديد - ' + (text(p.department) || 'عام')),
       qty: p.qty == null ? 1 : p.qty,
       priority: text(p.priority),
       status: text(p.status) || 'طلب جديد',
@@ -493,11 +493,64 @@
 
   function createFailureMessage(body) {
     var reason = text(body && (body.message || body.reason || body.code));
+    var errors = body && Array.isArray(body.errors) ? body.errors.map(text).filter(Boolean) : [];
+    var labels = {
+      'registered-customer-name-required': 'اسم العميل المسجل مطلوب.',
+      'registered-customer-phone-required': 'رقم العميل المسجل مطلوب أو لازم تختاره من نتائج البحث.',
+      'external-customer-id-min-3-digits': 'للعميل الخارجي اكتب 3 أرقام على الأقل.',
+      'supported-department-required': 'اختر قسم صحيح: طباعة أو ليزر أو متعدد الأقسام.',
+      'fly-print-requires-print-department': 'طباعة على الطاير متاحة لقسم الطباعة فقط.',
+      'item-name-required': 'اسم البند مطلوب.',
+      'positive-qty-required': 'الكمية لازم تكون أكبر من صفر.',
+      'initial-status-must-be-new': 'الأوردر الجديد لازم يبدأ بحالة طلب جديد.',
+      'supported-priority-required': 'الأولوية غير مدعومة.'
+    };
+    if (reason === 'canonical-business-intent-invalid' && errors.length) {
+      return errors.map(function (e) { return labels[e] || e; }).join(' | ');
+    }
     if (reason === 'general-create-off') return 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد.';
     if (reason === 'registered-customer-phone-required') return 'العميل المسجل لازم يكون له رقم هاتف قبل فتح الأوردر.';
     if (reason === 'general-create-canary-not-armed') return 'اختبار إنشاء الأوردر غير مسلح حاليًا.';
     if (/unknown|not-verified|unavailable/i.test(reason)) return 'نتيجة تسجيل الأوردر غير مؤكدة. لا تعيد الإرسال تلقائيًا؛ اضغط مرة أخرى بنفس البيانات ليتم التحقق بنفس المفتاح.';
     return reason || 'تعذر تسجيل الأوردر الجديد على Cloud.';
+  }
+
+  function normalizeCustomerLookupName(value) {
+    return text(value).toLowerCase()
+      .replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و')
+      .replace(/ئ/g, 'ي').replace(/[ةه]/g, 'ه').replace(/\s+/g, ' ').trim();
+  }
+
+  async function resolveRegisteredCustomerForCloud(context, original, params) {
+    var p = Object.assign({}, params || {});
+    var mode = text(p.customerMode).toLowerCase();
+    var registered = !mode.includes('خارجي') && !mode.includes('عابر') && mode !== 'external' && mode !== 'transient';
+    if (!registered || text(p.customerPhone)) return { success: true, params: p };
+
+    var name = text(p.customerName);
+    if (!name) return { success: false, message: 'اسم العميل المسجل مطلوب.' };
+
+    var searchParams = {
+      q: name,
+      username: p.username,
+      token: p.token
+    };
+    var result;
+    try { result = await original.call(context, 'searchCustomers', searchParams); }
+    catch (e) { return { success: false, message: 'تعذر التحقق من بيانات العميل المسجل. اختاره من قائمة البحث أولًا.' }; }
+
+    var customers = result && result.success && Array.isArray(result.customers) ? result.customers : [];
+    var key = normalizeCustomerLookupName(name);
+    var exact = customers.filter(function (x) {
+      return normalizeCustomerLookupName(x && x.name) === key && text(x && x.phone);
+    });
+    if (exact.length !== 1) {
+      return { success: false, message: 'اختار العميل المسجل من قائمة البحث عشان رقم الهاتف يتحدد قبل فتح الأوردر.' };
+    }
+    p.customerName = text(exact[0].name) || name;
+    p.customerPhone = text(exact[0].phone);
+    if (!text(p.customerType) && text(exact[0].type)) p.customerType = text(exact[0].type);
+    return { success: true, params: p };
   }
 
   async function t12CreateManualOrder(params) {
@@ -661,7 +714,9 @@ function eligible(action, params) {
       // New Order IDs are Cloud-native from 4322 onward. Never fall back to
       // Apps Script CREATE because its legacy allocator may collide with Cloud IDs.
       if (action === 'createManualOrder') {
-        return t12CreateManualOrder(params || {});
+        var resolved = await resolveRegisteredCustomerForCloud(this, original, params || {});
+        if (!resolved.success) return { success: false, code: 'T12_REGISTERED_CUSTOMER_RESOLUTION_REQUIRED', message: resolved.message };
+        return t12CreateManualOrder(resolved.params || {});
       }
 
       // Legacy-row writes remain Apps Script; Cloud-native line writes use T12 runtime.
