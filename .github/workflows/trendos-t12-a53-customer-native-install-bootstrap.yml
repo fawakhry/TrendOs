@@ -1,0 +1,228 @@
+name: TrendOS T12 A53 Customer Native Install Bootstrap
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-native-a53b-20260929
+    paths:
+      - 'docs/trendos/staging/A53_CUSTOMER_NATIVE_INSTALL.trigger'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a53-customer-native-production
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify exact A53 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fx 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          node --experimental-sqlite tests/t12_customer_master_a53.test.mjs
+          node --experimental-sqlite tests/t12_customer_master_production_shadow_a53.test.mjs
+          node --experimental-sqlite tests/t12_general_create.test.mjs
+          echo 'A53_PREDEPLOY_QUALIFICATION=PASS'
+
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4.142.0
+
+      - name: Verify existing Production prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('t12_prod_create_control','t12_prod_orders','t12_prod_lines','t12_prod_line_runtime','t12_prod_general_create_control') ORDER BY name;              SELECT sheet_name,row_count,source_last_row,source_last_col,status,note FROM sheet_catalog WHERE sheet_name='العملاء' LIMIT 1;"             > /tmp/a53_pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/a53_pre.json','utf8'));
+          const rows=(Array.isArray(x)?x:[x]).flatMap(v=>Array.isArray(v?.results)?v.results:[]);
+          const required=['t12_prod_create_control','t12_prod_orders','t12_prod_lines','t12_prod_line_runtime','t12_prod_general_create_control'];
+          const names=new Set(rows.map(r=>r.name).filter(Boolean));
+          for(const n of required) if(!names.has(n)) throw new Error('missing prerequisite '+n);
+          const c=rows.find(r=>r.sheet_name==='العملاء')||{};
+          const pass=c.status==='ready'&&Number(c.row_count)===Number(c.source_last_row)&&Number(c.row_count)===248&&Number(c.source_last_col)===18&&c.note==='PERF-CF-02CR enrichment live sync V1';
+          console.log('A53_CUSTOMER_MIRROR_GUARD='+JSON.stringify({rowCount:c.row_count,sourceLastRow:c.source_last_row,sourceLastCol:c.source_last_col,status:c.status,note:c.note,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Build deterministic safe customer bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT row_number,display_json FROM sheet_rows WHERE sheet_name='العملاء' ORDER BY row_number;"             > /tmp/a53_mirror_rows.json
+          node <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const x=JSON.parse(fs.readFileSync('/tmp/a53_mirror_rows.json','utf8'));
+          const rows=(Array.isArray(x)?x:[x]).flatMap(v=>Array.isArray(v?.results)?v.results:[]);
+          const header=JSON.parse(rows.find(r=>Number(r.row_number)===1)?.display_json||'[]');
+          const idx=(names,fb=-1)=>{for(const n of names){const i=header.lastIndexOf(n);if(i>=0)return i;}return fb};
+          const I={
+            name:idx(['اسم الشات / المكتب','اسم العميل','Customer Name'],0),
+            manager:idx(['اسم المسؤول','المسؤول','Manager'],-1),
+            phone:idx(['رقم العميل الأساسي','رقم العميل','رقم الهاتف','Phone'],-1),
+            extra:idx(['رقم إضافي','رقم إضافى','Extra Phone'],-1),
+            type:idx(['نوع العميل','Customer Type'],-1),
+            active:idx(['مفعل؟','مفعل','Active'],-1),
+            notes:idx(['ملاحظات','Notes'],-1),
+            debt:idx(['مديونية حالية','رصيد العميل','مديونية','customerDebt','remainingBalance'],-1),
+            branchCode:idx(['كود فرع مطبعجي','Branch Code'],-1),
+            branchName:idx(['اسم فرع مطبعجي','Branch Name'],-1),
+            chatCode:idx(['كود الشات','Chat Code'],-1),
+            customerCode:idx(['كود العميل','Customer Code'],-1)
+          };
+          const text=v=>String(v??'').trim();
+          const key=v=>text(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim().replace(/[^0-9a-z\u0600-\u06ff ]/g,' ').replace(/\s+/g,' ').trim();
+          const phone=v=>{let d=String(v??'').replace(/[^0-9]/g,'');if(d.startsWith('0020'))d=d.slice(2);if(d.startsWith('20')&&d.length===12)d='0'+d.slice(2);if(/^1[0125]\d{8}$/.test(d))d='0'+d;return d};
+          const type=v=>{const s=text(v);if(['جملة','جملة VIP','خارجي','نوع العميل'].includes(s))return s;const l=s.toLowerCase();if(l.includes('vip'))return 'جملة VIP';if(s.includes('جمل')||l.includes('wholesale'))return 'جملة';return 'خارجي'};
+          const debt=v=>{const m={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};let s=text(v).replace(/[٠-٩]/g,d=>m[d]||d);if(!s||/^#/.test(s))return 0;s=s.replace(/,/g,'.').replace(/[^0-9.\-]/g,'');const n=Number(s);return Number.isFinite(n)&&n>=0&&n<=500000?n:0};
+          const q=v=>"'"+String(v??'').replace(/'/g,"''")+"'";
+          const data=[];
+          for(const r of rows){
+            const rn=Number(r.row_number||0); if(rn<=1)continue;
+            const a=JSON.parse(r.display_json||'[]');
+            const name=text(a[I.name]); const p=phone(I.phone>=0?a[I.phone]:''); const ex=phone(I.extra>=0?a[I.extra]:'');
+            if(!name&&!p&&!ex)continue;
+            data.push({
+              customerId:'CUS-L'+String(rn).padStart(6,'0'),
+              legacyRowNumber:rn,
+              name,nameKey:key(name),
+              manager:text(I.manager>=0?a[I.manager]:''),
+              phone:p,extraPhone:ex,
+              type:type(I.type>=0?a[I.type]:''),
+              active:text(I.active>=0?a[I.active]:'')==='لا'?'لا':'نعم',
+              debtAmount:debt(I.debt>=0?a[I.debt]:''),
+              notes:text(I.notes>=0?a[I.notes]:''),
+              branchCode:text(I.branchCode>=0?a[I.branchCode]:''),
+              branchName:text(I.branchName>=0?a[I.branchName]:''),
+              chatCode:text(I.chatCode>=0?a[I.chatCode]:''),
+              customerCode:text(I.customerCode>=0?a[I.customerCode]:'')
+            });
+          }
+          if(data.length!==247)throw new Error('expected 247 operational customers, got '+data.length);
+          const canonical=data.map(r=>[r.customerId,r.legacyRowNumber,r.name,r.nameKey,r.manager,r.phone,r.extraPhone,r.type,r.active,r.debtAmount,r.notes,r.branchCode,r.branchName,r.chatCode,r.customerCode]);
+          const digest=crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+          fs.writeFileSync('/tmp/a53_expected.json',JSON.stringify({count:data.length,digest,canonical}));
+          const sql=['BEGIN TRANSACTION;'];
+          for(const r of data){
+            sql.push(
+              "INSERT INTO t12_customers (customer_id,legacy_row_number,customer_name,customer_name_key,manager,phone,extra_phone,customer_type,active,debt_amount,notes,branch_code,branch_name,legacy_chat_code,legacy_customer_code,source,created_by,version,created_at,updated_at) VALUES ("+
+              [q(r.customerId),r.legacyRowNumber,q(r.name),q(r.nameKey),q(r.manager),q(r.phone),q(r.extraPhone),q(r.type),q(r.active),Number(r.debtAmount),q(r.notes),q(r.branchCode),q(r.branchName),q(r.chatCode),q(r.customerCode),q('legacy-mirror'),q('a53-bootstrap'),'1','CURRENT_TIMESTAMP','CURRENT_TIMESTAMP'].map((v,i)=>i>=18?v:v).join(',')+
+              ") ON CONFLICT(customer_id) DO UPDATE SET customer_name=excluded.customer_name,customer_name_key=excluded.customer_name_key,manager=excluded.manager,phone=excluded.phone,extra_phone=excluded.extra_phone,customer_type=excluded.customer_type,active=excluded.active,debt_amount=excluded.debt_amount,notes=excluded.notes,branch_code=excluded.branch_code,branch_name=excluded.branch_name,legacy_chat_code=excluded.legacy_chat_code,legacy_customer_code=excluded.legacy_customer_code,updated_at=CURRENT_TIMESTAMP WHERE t12_customers.source='legacy-mirror' AND t12_customers.version=1;"
+            );
+          }
+          sql.push('COMMIT;');
+          fs.writeFileSync('/tmp/a53_bootstrap.sql',sql.join('\n'));
+          console.log('A53_BOOTSTRAP_PLAN='+JSON.stringify({count:data.length,digest,secretColumnsIncluded:false}));
+          NODE
+
+      - name: Apply additive A53 migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply trendos-main --remote --config cloudflare-d1/wrangler.toml
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT marker,mode,canary_remaining,next_customer_number,policy_epoch FROM t12_customer_control WHERE singleton=1;"             > /tmp/a53_control.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/a53_control.json','utf8'));
+          const rows=(Array.isArray(x)?x:[x]).flatMap(v=>Array.isArray(v?.results)?v.results:[]);
+          const c=rows[0]||{};
+          const pass=c.marker==='T12_CUSTOMER_MASTER_V1'&&c.mode==='OFF'&&Number(c.canary_remaining)===0&&Number(c.next_customer_number)===1;
+          console.log('A53_CONTROL_AFTER_MIGRATION='+JSON.stringify({...c,pass}));
+          if(!pass)process.exit(1);
+          NODE
+
+      - name: Bootstrap 247 legacy customers into native master
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --file /tmp/a53_bootstrap.sql
+
+      - name: Verify exact bootstrap parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT customer_id AS customerId,legacy_row_number AS legacyRowNumber,customer_name AS name,customer_name_key AS nameKey,manager,phone,extra_phone AS extraPhone,customer_type AS type,active,debt_amount AS debtAmount,notes,branch_code AS branchCode,branch_name AS branchName,legacy_chat_code AS chatCode,legacy_customer_code AS customerCode,source,version FROM t12_customers WHERE legacy_row_number IS NOT NULL ORDER BY legacy_row_number;              SELECT COUNT(*) AS totalCustomers,SUM(CASE WHEN source='legacy-mirror' THEN 1 ELSE 0 END) AS legacyCustomers,SUM(CASE WHEN source='cloud-native' THEN 1 ELSE 0 END) AS cloudCustomers FROM t12_customers;              SELECT marker,mode,canary_remaining,next_customer_number FROM t12_customer_control WHERE singleton=1;"             > /tmp/a53_native.json
+          node <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const expected=JSON.parse(fs.readFileSync('/tmp/a53_expected.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/a53_native.json','utf8'));
+          const sets=(Array.isArray(x)?x:[x]).map(v=>Array.isArray(v?.results)?v.results:[]);
+          const customers=sets.find(s=>s.length&&Object.prototype.hasOwnProperty.call(s[0],'customerId'))||[];
+          const counts=sets.flat().find(r=>Object.prototype.hasOwnProperty.call(r,'totalCustomers'))||{};
+          const control=sets.flat().find(r=>r.marker==='T12_CUSTOMER_MASTER_V1')||{};
+          const canonical=customers.map(r=>[r.customerId,Number(r.legacyRowNumber),r.name,r.nameKey,r.manager,r.phone,r.extraPhone,r.type,r.active,Number(r.debtAmount||0),r.notes,r.branchCode,r.branchName,r.chatCode,r.customerCode]);
+          const digest=crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+          const pass=customers.length===expected.count&&digest===expected.digest&&Number(counts.totalCustomers)===247&&Number(counts.legacyCustomers)===247&&Number(counts.cloudCustomers||0)===0&&control.mode==='OFF'&&Number(control.canary_remaining)===0;
+          console.log('A53_BOOTSTRAP_VERIFY='+JSON.stringify({nativeRows:customers.length,totalCustomers:counts.totalCustomers,legacyCustomers:counts.legacyCustomers,cloudCustomers:counts.cloudCustomers,digestMatch:digest===expected.digest,mode:control.mode,canaryRemaining:control.canary_remaining,pass}));
+          if(!pass)process.exit(1);
+          NODE
+
+      - name: Deploy Worker code with customer writes OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+
+      - name: Verify Production customer master health
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 20); do
+            code="$(curl --silent --show-error --output /tmp/a53_health.json --write-out '%{http_code}' "$PROD_URL/v1/t12/customers/write/health" || true)"
+            echo "A53_HEALTH_ATTEMPT=$attempt HTTP=$code"
+            if [ "$code" = '200' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a53_health.json','utf8')); if(!x.success||x.schemaReady!==true||x.mode!=='OFF'||Number(x.customerCount)!==247||x.generalCutover!==false)process.exit(1)"; then
+              ok=1; break
+            fi
+            sleep 3
+          done
+          test "$ok" = '1'
+          cat /tmp/a53_health.json
+          anon="$(curl --silent --show-error --output /tmp/a53_anon.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{}' "$PROD_URL/v1/t12/customers/write" || true)"
+          test "$anon" = '401'
+          echo 'A53_PRODUCTION_CUSTOMER_MASTER_INSTALLED_OFF=PASS'
+
+      - name: Verify unrelated authorities unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          order_health="$(curl --silent --show-error --output /tmp/a53_order_health.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/create/health")"
+          test "$order_health" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a53_order_health.json','utf8')); if(!x.success||x.generalCutover!==true)process.exit(1)"
+          write_code="$(curl --silent --show-error --output /tmp/a53_cw.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$write_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a53_cw.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false)process.exit(1)"
+          echo 'CUSTOMER_NATIVE_ROWS=247'
+          echo 'CUSTOMER_WRITE_MODE=OFF'
+          echo 'CUSTOMER_FRONTEND_CUTOVER=NO'
+          echo 'ORDER_CREATE_GENERAL=UNCHANGED'
+          echo 'GOOGLE_SHEETS_MUTATION=NO'
+          echo 'A53_INSTALL_BOOTSTRAP=PASS'
+
+      - name: Automatic Worker rollback on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo 'A53 Worker verification failed; rolling back Worker code. Additive D1 customer schema remains inert with mode OFF.'
+          npx wrangler rollback --config cloudflare-d1/wrangler.toml --message "TrendOS A53 rollback after failed customer-master verification"
