@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const client=fs.readFileSync('trendos-edge-orders-read-v1.js','utf8');
 const config=fs.readFileSync('config.js','utf8');
 
-assert.match(client,/EDGE_ORDERS_T12_CUSTOMER_D1_A51_STALE_BACKOFF_A52_20260929/);
+assert.match(client,/EDGE_ORDERS_T12_CUSTOMER_(?:D1_A51_STALE_BACKOFF_A52|PROJECTION_A55)_20260929/);
 assert.match(client,/DEFAULT_STALE_FALLBACK_COOLDOWN_MS = 2 \* 60 \* 1000/);
 assert.match(client,/MAX_STALE_FALLBACK_COOLDOWN_MS = 5 \* 60 \* 1000/);
 assert.match(client,/function isKnownMirrorStaleError\(err\)/);
@@ -21,7 +21,7 @@ assert.match(client,/CUSTOMER_SEARCH_PATH = '\/v1\/edge\/customers\/search'/);
 assert.match(client,/if \(action === 'createManualOrder'\)/);
 assert.match(client,/T12_GENERAL_CREATE_PATH = '\/v1\/t12\/orders\/create'/);
 assert.match(client,/staleFallbackUntil: staleFallbackUntil \|\| 0/);
-assert.match(config,/trendos-edge-orders-read-v1\.js\?v=20260929-t12-a52-stale-backoff/);
+assert.match(config,/trendos-edge-orders-read-v1\.js\?v=20260929-t12-(?:a52-stale-backoff|a55-customer-projection)/);
 
 // The cooldown must short-circuit before the normal D1 page attempt.
 const bypassPos=client.indexOf('if (staleFallbackActive())');
