@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_D1_SEARCH_A51_20260929';
+  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_D1_A51_STALE_BACKOFF_A52_20260929';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var CUSTOMER_SEARCH_PATH = '/v1/edge/customers/search';
@@ -24,6 +24,8 @@
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
   var DEFAULT_POST_WRITE_BARRIER_MS = 6 * 60 * 1000;
   var MAX_POST_WRITE_BARRIER_MS = 10 * 60 * 1000;
+  var DEFAULT_STALE_FALLBACK_COOLDOWN_MS = 2 * 60 * 1000;
+  var MAX_STALE_FALLBACK_COOLDOWN_MS = 5 * 60 * 1000;
   var POST_WRITE_BARRIER_STORAGE_KEY = 'trendos_edge_orders_post_write_barrier_v1';
   var GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS = Date.UTC(1899, 11, 30);
   var GOOGLE_SHEETS_SERIAL_DAY_MS = 24 * 60 * 60 * 1000;
@@ -31,11 +33,13 @@
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
   var postWriteBarrier = { until: 0, orderId: '', lineId: '', status: '' };
+  var staleFallbackUntil = 0;
   var cloudNativeLineIds = new Set();
   var metrics = {
     edgeSuccess: 0,
     fallbacks: 0,
     staleFallbacks: 0,
+    staleCooldownBypasses: 0,
     logicalFreshnessAccepted: 0,
     postWriteFallbacks: 0,
     rowNumberStrippedWrites: 0,
@@ -67,6 +71,30 @@
     var configured = Number(window.MATBAGY_EDGE_ORDERS_POST_WRITE_BARRIER_MS);
     if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_POST_WRITE_BARRIER_MS;
     return Math.min(configured, MAX_POST_WRITE_BARRIER_MS);
+  }
+
+  function staleFallbackCooldownMs() {
+    var configured = Number(window.MATBAGY_EDGE_ORDERS_STALE_FALLBACK_COOLDOWN_MS);
+    if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_STALE_FALLBACK_COOLDOWN_MS;
+    return Math.min(configured, MAX_STALE_FALLBACK_COOLDOWN_MS);
+  }
+
+  function isKnownMirrorStaleError(err) {
+    var code = text(err && err.code).toLowerCase();
+    return code === 'edge_mirror_stale' || code === '02cr-mirror-stale';
+  }
+
+  function openStaleFallbackCooldown() {
+    staleFallbackUntil = Date.now() + staleFallbackCooldownMs();
+  }
+
+  function staleFallbackActive() {
+    if (!staleFallbackUntil) return false;
+    if (staleFallbackUntil <= Date.now()) {
+      staleFallbackUntil = 0;
+      return false;
+    }
+    return true;
   }
 
   function parseMirrorTime(value) {
@@ -822,6 +850,14 @@ function eligible(action, params) {
         return hybridAppsScriptFallback(this, original, action, params || {}, args);
       }
 
+      if (staleFallbackActive()) {
+        metrics.fallbacks += 1;
+        metrics.staleCooldownBypasses += 1;
+        metrics.lastFallbackAt = Date.now();
+        metrics.lastFallbackReason = 'EDGE_MIRROR_STALE_COOLDOWN';
+        return hybridAppsScriptFallback(this, original, action, params || {}, args);
+      }
+
       try {
         var result = await edgePage(params || {});
         metrics.edgeSuccess += 1;
@@ -831,7 +867,10 @@ function eligible(action, params) {
         metrics.fallbacks += 1;
         metrics.lastFallbackAt = Date.now();
         metrics.lastFallbackReason = text(err && (err.code || err.message));
-        if (err && err.code === 'EDGE_MIRROR_STALE') metrics.staleFallbacks += 1;
+        if (isKnownMirrorStaleError(err)) {
+          metrics.staleFallbacks += 1;
+          openStaleFallbackCooldown();
+        }
         try {
           console.warn('[TrendOS Orders Edge 02CX] D1 read unavailable/freshness failed; using Apps Script fallback:', err && err.message ? err.message : err);
         } catch (ignore) {}
@@ -854,6 +893,7 @@ function eligible(action, params) {
       pagePath: QUALIFIED_PAGE_PATH,
       maxMirrorAgeMs: maxMirrorAgeMs(),
       postWriteBarrierMs: postWriteBarrierMs(),
+      staleFallbackCooldownMs: staleFallbackCooldownMs(),
       clearSession: clearSession,
       clearPostWriteBarrier: clearPostWriteBarrier,
       repairSerializedLineId: repairSerializedLineId,
@@ -864,6 +904,9 @@ function eligible(action, params) {
           edgeSuccess: metrics.edgeSuccess,
           fallbacks: metrics.fallbacks,
           staleFallbacks: metrics.staleFallbacks,
+          staleCooldownBypasses: metrics.staleCooldownBypasses,
+          staleFallbackActive: staleFallbackActive(),
+          staleFallbackUntil: staleFallbackUntil || 0,
           logicalFreshnessAccepted: metrics.logicalFreshnessAccepted,
           postWriteFallbacks: metrics.postWriteFallbacks,
           rowNumberStrippedWrites: metrics.rowNumberStrippedWrites,
@@ -897,6 +940,7 @@ function eligible(action, params) {
     pagePath: QUALIFIED_PAGE_PATH,
     maxMirrorAgeMs: maxMirrorAgeMs(),
     postWriteBarrierMs: postWriteBarrierMs(),
+    staleFallbackCooldownMs: staleFallbackCooldownMs(),
     install: install,
     clearSession: clearSession,
     clearPostWriteBarrier: clearPostWriteBarrier,
