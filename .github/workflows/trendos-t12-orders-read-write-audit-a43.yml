@@ -1,0 +1,131 @@
+name: TrendOS T12 Orders Read Write Audit A43
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-orders-read-write-audit-a43-20260928
+    paths:
+      - '.github/workflows/trendos-t12-orders-read-write-audit-a43.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Production read-only D1 integrity audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,sys,urllib.request,urllib.error,datetime
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          EXPECTED='46244467c1de37daa419a38f6fb39921'
+          token=os.environ.get('CLOUDFLARE_API_TOKEN','')
+          if os.environ.get('CLOUDFLARE_ACCOUNT_ID')!=ACCOUNT or not token:
+              print('LOCAL_GUARD=FAIL');sys.exit(1)
+
+          def call(url,method='GET',sql=None):
+              body=None if sql is None else json.dumps({'sql':sql}).encode()
+              h={'Authorization':'Bearer '+token,'Accept':'application/json'}
+              if body is not None:h['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=body,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e:
+                  status=e.code; raw=e.read()
+              try:data=json.loads(raw)
+              except Exception:data={}
+              return status,data
+
+          s,v=call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
+          vr=v.get('result') or {}
+          if s!=200 or v.get('success') is not True or vr.get('status')!='active' or vr.get('id')!=EXPECTED:
+              print('TOKEN_GUARD=FAIL');sys.exit(1)
+          print('TOKEN_GUARD=PASS')
+
+          url=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}/query'
+          sql="""SELECT
+            (SELECT mode FROM t12_prod_general_create_control WHERE singleton=1) AS generalMode,
+            (SELECT canary_remaining FROM t12_prod_general_create_control WHERE singleton=1) AS generalBudget,
+            (SELECT next_order_number FROM t12_prod_create_control WHERE singleton=1) AS nextOrderNumber,
+            (SELECT canary_remaining FROM t12_prod_create_control WHERE singleton=1) AS legacyBudget,
+            (SELECT COUNT(*) FROM t12_prod_orders) AS orderCount,
+            (SELECT COUNT(*) FROM t12_prod_lines) AS lineCount,
+            (SELECT COUNT(*) FROM t12_prod_request_ledger) AS ledgerCount,
+            (SELECT COUNT(*) FROM t12_prod_request_ledger WHERE status='COMMITTED') AS committedLedgerCount,
+            (SELECT COUNT(*) FROM t12_prod_events) AS createEventCount,
+            (SELECT COUNT(*) FROM t12_prod_outbox) AS outboxCount,
+            (SELECT COUNT(*) FROM t12_prod_outbox WHERE status='pending') AS outboxPending,
+            (SELECT COUNT(*) FROM t12_prod_outbox WHERE status='done') AS outboxDone,
+            (SELECT COUNT(*) FROM t12_prod_outbox WHERE status='failed') AS outboxFailed,
+            (SELECT COUNT(*) FROM t12_prod_line_runtime) AS runtimeRows,
+            (SELECT COUNT(*) FROM t12_prod_runtime_events) AS runtimeEventRows,
+            (SELECT MAX(CAST(order_id AS INTEGER)) FROM t12_prod_orders WHERE order_id GLOB '[0-9]*') AS maxNumericOrder,
+            (SELECT COUNT(*) FROM t12_prod_orders o LEFT JOIN t12_prod_request_ledger l ON l.request_key=o.request_key WHERE l.request_key IS NULL) AS ordersMissingLedger,
+            (SELECT COUNT(*) FROM t12_prod_lines x LEFT JOIN t12_prod_orders o ON o.order_id=x.order_id WHERE o.order_id IS NULL) AS orphanLines,
+            (SELECT COUNT(*) FROM t12_prod_line_runtime r LEFT JOIN t12_prod_lines l ON l.line_id=r.line_id WHERE l.line_id IS NULL) AS orphanRuntime,
+            (SELECT COUNT(*) FROM t12_prod_outbox x LEFT JOIN t12_prod_lines l ON l.line_id=x.line_id WHERE l.line_id IS NULL) AS orphanOutbox;
+          """
+          s,r=call(url,'POST',sql)
+          try: row=r['result'][0]['results'][0]
+          except Exception: row={}
+          if s!=200 or r.get('success') is not True:
+              print('CORE_AUDIT=FAIL');sys.exit(1)
+          print('CORE_AUDIT='+json.dumps(row,ensure_ascii=False,sort_keys=True))
+
+          q2="""SELECT order_id AS orderId, customer_mode AS customerMode, customer_name AS customerName,
+                       customer_phone AS customerPhone, department, priority, status, source,
+                       created_at AS createdAt
+                  FROM t12_prod_orders
+                 ORDER BY CAST(order_id AS INTEGER);"""
+          s2,r2=call(url,'POST',q2)
+          orders=r2['result'][0]['results'] if s2==200 and r2.get('success') is True else []
+          print('ORDERS='+json.dumps(orders,ensure_ascii=False,sort_keys=True))
+
+          q3="""SELECT order_id AS orderId,line_id AS lineId,department,item_name AS itemName,qty,priority,status,
+                       assigned_to AS assignedTo,heat_press AS heatPress,fly_print AS flyPrint
+                  FROM t12_prod_lines
+                 ORDER BY CAST(order_id AS INTEGER),ordinal;"""
+          s3,r3=call(url,'POST',q3)
+          lines=r3['result'][0]['results'] if s3==200 and r3.get('success') is True else []
+          print('LINES='+json.dumps(lines,ensure_ascii=False,sort_keys=True))
+
+          q4="""SELECT sheet_name AS sheetName,status,row_count AS rowCount,source_last_row AS sourceLastRow,
+                       synced_at AS syncedAt,note
+                  FROM sheet_catalog
+                 WHERE sheet_name IN ('الأوردرات','بنود الأوردرات','العملاء','عملاء منع التسليم بالمديونية')
+                 ORDER BY sheet_name;"""
+          s4,r4=call(url,'POST',q4)
+          mirrors=r4['result'][0]['results'] if s4==200 and r4.get('success') is True else []
+          print('MIRRORS='+json.dumps(mirrors,ensure_ascii=False,sort_keys=True))
+          print('PRODUCTION_MUTATION=NO')
+          PY
+
+      - name: Public health audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS "$PROD_URL/v1/t12/orders/create/health" | tee /tmp/create.json
+          echo
+          curl -sS "$PROD_URL/v1/t12/orders/line-runtime/health" | tee /tmp/runtime.json
+          echo
+          python3 - <<'PY'
+          import json,sys
+          c=json.load(open('/tmp/create.json'))
+          r=json.load(open('/tmp/runtime.json'))
+          if not (c.get('success') is True and c.get('mode')=='GENERAL' and c.get('generalCutover') is True):
+              print('CREATE_HEALTH=FAIL');sys.exit(1)
+          if not (r.get('success') is True and r.get('schemaReady') is True):
+              print('RUNTIME_HEALTH=FAIL');sys.exit(1)
+          print('CREATE_HEALTH=PASS')
+          print('RUNTIME_HEALTH=PASS')
+          PY
