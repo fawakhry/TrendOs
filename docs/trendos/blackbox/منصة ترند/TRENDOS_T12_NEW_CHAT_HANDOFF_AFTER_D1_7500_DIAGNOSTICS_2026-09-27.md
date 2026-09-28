@@ -410,3 +410,12 @@ Next required evidence before any production retry: independently compare the da
 - Production Apps Script deployment did not start because browser automation execution is blocked by insufficient external automation wallet balance.
 - Therefore production Apps Script, Sheet data, D1 runtime/outbox remain unchanged. Do not mutate collision data before the live writer fence is deployed.
 - Entry file: `TRENDOS_T12_LEGACY_CREATE_FENCE_COLLISION_4322_ENTRY_449_2026-09-28.md`.
+
+
+## Entry 450 — delivered state verified before collision repair
+- Owner closed old platform orders and also marked the Mahmoud test order delivered.
+- Live Sheet: Mahmoud Order 4322 / Line 4322-01 are now `تم التسليم`.
+- A45 read-only D1 verification: branch `diagnostic/t12-check-delivered-4323-a45-20260928`, run `36463538372`, job `109067813845`: SUCCESS, `PRODUCTION_MUTATION=NO`.
+- D1 canary 4322 runtime status is `تم التسليم`; D1 Mahmoud 4323 runtime status is also `تم التسليم`.
+- Updated repair policy: preserve delivered state everywhere; Sheet Mahmoud references still re-key 4322 -> 4323 after live Apps Script legacy-writer fence; keep D1 canary 4322 as historical technical record with delivered runtime; do NOT change it to ملغى; still retire/prevent canary 4322 pending outbox from ever reconciling into Sheets.
+- Entry file: `TRENDOS_T12_DELIVERED_STATE_BEFORE_COLLISION_REPAIR_ENTRY_450_2026-09-28.md`.
