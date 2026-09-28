@@ -399,3 +399,14 @@ Next required evidence before any production retry: independently compare the da
 - T12 outbox has pending rows with no active generic consumer found; prior 02CL was an exact bounded qualification and its generic drain remained disabled.
 - Entry 448: `TRENDOS_T12_ORDERS_READ_WRITE_AUDIT_ENTRY_448_2026-09-28.md`, commit `d5e264d9b2077f15a5c09563258096a3d39bdd9d`.
 - Highest-priority corrective order: fence remaining legacy ID allocators; reconcile collision 4322; Service overlay; Cloud delivery/bulk/archive; customer portal/conversation; outbox; fallback pagination/counters; expected delivery/debt; urgent notifications; durable ambiguous-create key.
+
+
+## Entry 449 — legacy create fence prepared, collision repair gated
+- Owner authorized closing legacy writers and repairing the 4322 collision.
+- Repo fence commits: `2fd41374cf62b5b7c111270684dc52e8a1731d4f`, `5f46b4c4e51b5c5c6c567468519faffd619f3700`, test `dc30793515766241181866e95d15979a4fdf9d35`.
+- A44 diagnostic: branch `diagnostic/t12-legacy-create-fence-a44-20260928`, run `36459402744`, job `109053864185`, SUCCESS.
+- Live Sheet references confirmed for legacy business 4322: Orders row 713, Lines row 769, Activity row 12179, Operations Alerts row 2125. No operational Sheet 4323 found.
+- Intended repair remains: Sheet business 4322 -> 4323; D1 canary 4322 preserved but hidden/retired; canary outbox prevented from future reconciliation.
+- Production Apps Script deployment did not start because browser automation execution is blocked by insufficient external automation wallet balance.
+- Therefore production Apps Script, Sheet data, D1 runtime/outbox remain unchanged. Do not mutate collision data before the live writer fence is deployed.
+- Entry file: `TRENDOS_T12_LEGACY_CREATE_FENCE_COLLISION_4322_ENTRY_449_2026-09-28.md`.
