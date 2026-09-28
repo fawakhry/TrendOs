@@ -5,10 +5,12 @@ import {
   readT12Customer,
   upsertT12Customer
 } from './t12-customer-master.mjs';
+import { projectLegacyCustomer } from './t12-customer-legacy-projection.mjs';
 
 const BASE='/v1/t12/customers/write';
 const HEALTH=BASE+'/health';
 const READBACK=BASE+'/readback';
+const LEGACY_PROJECTION='/v1/t12/customers/legacy-projection';
 
 function text(v){return String(v==null?'':v).trim();}
 function normalizedUser(v){
@@ -54,7 +56,7 @@ async function auth(req,env){
 
 export function isT12CustomerWritePath(path){
   const p=String(path||'').replace(/\/+$/,'')||'/';
-  return p===BASE||p===HEALTH||p===READBACK;
+  return p===BASE||p===HEALTH||p===READBACK||p===LEGACY_PROJECTION;
 }
 
 export async function handleT12CustomerWriteRequest(req,env){
@@ -85,6 +87,19 @@ export async function handleT12CustomerWriteRequest(req,env){
   if(path===READBACK&&req.method==='GET'){
     const customer=await readT12Customer(env.DB,url.searchParams.get('customerId'));
     return json(customer?{success:true,cloudNative:true,customer}:{success:false,code:'customer-not-found'},customer?200:404,req,env);
+  }
+
+  if(path===LEGACY_PROJECTION){
+    if(req.method!=='POST')return json({success:false,code:'method-not-allowed'},405,req,env);
+    let body={};
+    try{body=await req.json();}catch{return json({success:false,code:'invalid-json'},400,req,env);}
+    const projected=await projectLegacyCustomer(env.DB,body,text(a.payload.sub));
+    let projectionStatus=400;
+    if(projected.success)projectionStatus=projected.stored?201:200;
+    else if(/conflict|ambiguous/.test(text(projected.reason)))projectionStatus=409;
+    else if(/unknown|not-verified|unavailable|incomplete/.test(text(projected.reason)))projectionStatus=503;
+    else if(/requires-customer-write-off/.test(text(projected.reason)))projectionStatus=423;
+    return json({...projected,authoritativeSource:'apps-script'},projectionStatus,req,env);
   }
 
   if(path!==BASE||req.method!=='POST')return json({success:false,code:'method-not-allowed'},405,req,env);
