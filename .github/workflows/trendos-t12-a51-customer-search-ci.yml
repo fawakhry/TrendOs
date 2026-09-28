@@ -1,0 +1,45 @@
+name: TrendOS T12 A51 D1 Customer Search CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-search-d1-a51-20260929
+    paths:
+      - 'cloudflare-d1/src/edge-customer-search-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/cloudflare_edge_customer_search_a51.test.mjs'
+      - '.github/workflows/trendos-t12-a51-customer-search-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Customer-search contract
+        run: node tests/cloudflare_edge_customer_search_a51.test.mjs
+      - name: Existing Edge regression tests
+        run: |
+          node tests/cloudflare_edge_gateway_v1.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
+      - name: Static mutation boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          f=cloudflare-d1/src/edge-customer-search-v1.mjs
+          ! grep -Eiq '\b(INSERT|UPDATE|DELETE|REPLACE|DROP|ALTER|CREATE TABLE)\b' "$f"
+          grep -F "verifyOrdersEdgeToken" "$f"
+          grep -F "sheet_name = ?" "$f"
+          grep -F "dataSource: 'd1-customer-directory'" "$f"
+          echo 'A51_CUSTOMER_SEARCH_READONLY=PASS'
+          echo 'CUSTOMER_WRITE_AUTHORITY=APPS_SCRIPT'
+          echo 'PRODUCTION_MUTATION=NO'
