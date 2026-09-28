@@ -315,3 +315,11 @@ Next required evidence before any production retry: independently compare the da
 - Current state: `HYBRID_READ_OVERLAY_MAIN=LIVE`, `ORDER_4322_CREATED=YES`, `ORDER_4322_INTEGRITY=PASS`, `CANARY_ENABLED=false`, `CANARY_REMAINING=0`, `NEXT_ORDER_NUMBER=4323`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 440 RESULT: `TRENDOS_T12_HYBRID_READ_OVERLAY_MAIN_LIVE_ENTRY_440_2026-09-28.md`, commit `6f9df5b03100ff926bf48a3a87ac4e64df515f30`.
 - Next: user-visible verification after hard refresh that Order `4322` appears in the print screen.
+
+## Order 4322 visible in live print UI — Entry 441
+- User supplied a screenshot from the live TrendOS print screen after refresh.
+- Screenshot shows Order `4322`, customer `T12 CANARY CUSTOMER`, item `T12 CANARY ITEM`, department `طباعة`, quantity `1`, status `طلب جديد`, priority `عادي`.
+- This confirms the live GitHub Pages frontend is rendering the Cloud-native T12 order through the Hybrid Read Overlay.
+- State: `ORDER_4322_VISIBLE_IN_PRINT_UI=YES`, `HYBRID_READ_OVERLAY_UI_VERIFIED=YES`, `CANARY_ENABLED=false`, `CANARY_REMAINING=0`, `NEXT_ORDER_NUMBER=4323`, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 441 RESULT: `TRENDOS_T12_ORDER_4322_PRINT_UI_VISIBLE_ENTRY_441_2026-09-28.md`, commit `1a13cfbe5e3eb5b105cea8cd96be0a3945637bbf`.
+- Read-overlay proof phase complete. Any CREATE broadening or Cloud-native write handling requires separate explicit owner authorization.
