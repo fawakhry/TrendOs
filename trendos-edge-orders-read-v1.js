@@ -8,11 +8,13 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_T12_HYBRID_20260928';
+  var VERSION = 'EDGE_ORDERS_T12_RUNTIME_20260928';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
+  var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
+  var T12_RUNTIME_NOTIFY_PATH = '/v1/t12/orders/line-runtime/notify';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
@@ -365,6 +367,33 @@
     return body;
   }
 
+  async function t12RuntimePost(path, payload) {
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + path, {
+      method: 'POST', cache: 'no-store', credentials: 'omit',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(payload || {})
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + path, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(payload || {})
+      });
+    }
+    return jsonResponse(response);
+  }
+
   function mergeHybridFallback(appsResult, overlayBody, params) {
     var base = appsResult && typeof appsResult === 'object' ? Object.assign({}, appsResult) : { success: true };
     var legacyRows = Array.isArray(base.rows) ? base.rows.slice() : [];
@@ -460,16 +489,30 @@ function eligible(action, params) {
         if (!canaryUserAllowed()) return original.apply(this, args);
         var requestedLineId = text(params && params.lineId);
         if (requestedLineId && cloudNativeLineIds.has(requestedLineId)) {
-          return {
-            success: false,
-            code: 'T12_CLOUD_NATIVE_READ_ONLY',
-            message: 'هذا الأوردر Cloud-native ظاهر للقراءة فقط في مرحلة الـHybrid الحالية.'
-          };
+          return t12RuntimePost(T12_RUNTIME_UPDATE_PATH, {
+            orderId: text(params && params.orderId),
+            lineId: requestedLineId,
+            status: text(params && params.status),
+            notes: text(params && params.notes)
+          });
         }
         var safeParams = identitySafeUpdateLineParams(params || {});
         var writeResult = await original.call(this, action, safeParams);
         if (writeResult && writeResult.success === true) openPostWriteBarrier(safeParams);
         return writeResult;
+      }
+
+      if (action === 'markCustomerNotified') {
+        var notifyLineId = text(params && params.lineId);
+        if (notifyLineId && cloudNativeLineIds.has(notifyLineId)) {
+          return t12RuntimePost(T12_RUNTIME_NOTIFY_PATH, {
+            orderId: text(params && params.orderId),
+            lineId: notifyLineId,
+            whatsappType: text(params && params.whatsappType),
+            message: text(params && params.message)
+          });
+        }
+        return original.apply(this, args);
       }
 
       if (!eligible(action, params || {})) return original.apply(this, args);
