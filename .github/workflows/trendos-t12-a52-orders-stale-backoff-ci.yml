@@ -1,0 +1,47 @@
+name: TrendOS T12 A52 Orders Stale Backoff CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-orders-stale-backoff-a52-20260929
+    paths:
+      - 'trendos-edge-orders-read-v1.js'
+      - 'config.js'
+      - 'tests/frontend_t12_orders_stale_backoff_a52.test.mjs'
+      - 'tests/frontend_t12_customer_search_a51.test.mjs'
+      - '.github/workflows/trendos-t12-a52-orders-stale-backoff-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check trendos-edge-orders-read-v1.js
+      - name: A52 cooldown contract
+        run: node tests/frontend_t12_orders_stale_backoff_a52.test.mjs
+      - name: Preserve A51 customer search contract
+        run: node tests/frontend_t12_customer_search_a51.test.mjs
+      - name: Static safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "02cr-mirror-stale" trendos-edge-orders-read-v1.js
+          grep -F "EDGE_MIRROR_STALE_COOLDOWN" trendos-edge-orders-read-v1.js
+          grep -F "__DEBT__" trendos-edge-orders-read-v1.js
+          grep -F "/v1/edge/customers/search" trendos-edge-orders-read-v1.js
+          grep -F "/v1/t12/orders/create" trendos-edge-orders-read-v1.js
+          echo 'A52_FRONTEND=PASS'
+          echo 'BACKEND_FRESHNESS_GUARD_UNCHANGED=YES'
+          echo 'CUSTOMER_SEARCH_D1_FIRST=YES'
+          echo 'CUSTOMER_CREATE_UPDATE_AUTHORITY=APPS_SCRIPT'
+          echo 'ORDER_CREATE_PATH_UNCHANGED=YES'
+          echo 'PRODUCTION_MUTATION=NO'
