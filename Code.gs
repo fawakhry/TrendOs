@@ -64,6 +64,31 @@ function trendosPortalRedirectV1931_() {
   return HtmlService.createHtmlOutput('<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="1;url='+safeUrl+'"><title>TrendOS</title></head><body style="font-family:Tahoma,Arial;text-align:center;padding:48px;background:#f8fafc;color:#123047"><h2>جاري فتح TrendOS V1932…</h2><p>رابط Apps Script مخصص للـ API، وسيتم تحويلك إلى صفحة البرنامج.</p><p><a href="'+safeUrl+'">اضغط هنا إذا لم يتم التحويل تلقائيًا</a></p><script>setTimeout(function(){location.replace('+JSON.stringify(url)+')},500)</script></body></html>').setTitle("TrendOS V1932");
 }
 
+// T12 Cloud Order-ID authority fence — Entry 449.
+// GENERAL CREATE is live on Cloud/D1. Legacy Apps Script numeric allocation is
+// fail-closed so no browser, portal, Matbagy client, or stale caller can create
+// another official numeric Order ID in Google Sheets.
+const TRENDOS_LEGACY_ORDER_CREATE_DISABLED_V1 = true;
+const TRENDOS_LEGACY_ORDER_CREATE_ACTIONS_V1 = {
+  createOrder: true,
+  createMatbagyOrder: true,
+  clientCreateOrder: true,
+  createCustomerPortalOrder: true,
+  submitCustomerDraft: true,
+  createManualOrder: true,
+  trendosCustomerDraftSubmitV1: true
+};
+
+function trendosLegacyOrderCreateFenceV1_(action) {
+  action = normalize_(action);
+  if (TRENDOS_LEGACY_ORDER_CREATE_DISABLED_V1 !== true || !TRENDOS_LEGACY_ORDER_CREATE_ACTIONS_V1[action]) return null;
+  return {
+    success: false,
+    code: "T12_CLOUD_ORDER_ID_AUTHORITY",
+    legacyCreateBlocked: true,
+    message: "تم إيقاف إنشاء الأوردر من المسار القديم لحماية تسلسل الأرقام. استخدم مسار TrendOS Cloud."
+  };
+}
 function doGet(e) {
   e = e || { parameter: {} };
 
@@ -79,11 +104,14 @@ function doGet(e) {
 
   const action = normalize_(e.parameter.action);
   const callback = normalize_(e.parameter.callback);
+  const legacyCreateFence = trendosLegacyOrderCreateFenceV1_(action);
 
   let result;
 
   try {
-    if (!action && cleanPhone_(e.parameter.phone || e.parameter.customerPhone || e.parameter.code)) {
+    if (legacyCreateFence) {
+      result = legacyCreateFence;
+    } else if (!action && cleanPhone_(e.parameter.phone || e.parameter.customerPhone || e.parameter.code)) {
       result = mbActivate_(e);
     } else if (!action) {
       return trendosPortalRedirectV1931_();
@@ -1261,6 +1289,9 @@ function defaultAssigned_(department) {
  * لا يغير أرقام الأوردرات القديمة مثل TM2606...، ويمنع التكرار بالقفل.
  ************************************************************/
 function makeOrderId_(sheet, now, skipLock) {
+  if (TRENDOS_LEGACY_ORDER_CREATE_DISABLED_V1 === true) {
+    throw new Error("T12_CLOUD_ORDER_ID_AUTHORITY: legacy Apps Script Order-ID allocation is disabled.");
+  }
   const lock = skipLock ? null : LockService.getScriptLock();
   if (lock) lock.waitLock(20000);
 
