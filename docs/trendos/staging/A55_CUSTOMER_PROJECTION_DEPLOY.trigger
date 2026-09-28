@@ -1,0 +1,6 @@
+authorized_by_owner=2026-09-29
+purpose=install_authenticated_apps_script_to_native_customer_projection
+customer_write_authority=APPS_SCRIPT
+native_general_write=OFF
+google_sheets_mutation=NO
+order_create_unchanged=YES
