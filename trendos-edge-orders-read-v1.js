@@ -8,13 +8,16 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_RUNTIME_20260928';
+  var VERSION = 'EDGE_ORDERS_T12_GENERAL_CREATE_20260928';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
   var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
   var T12_RUNTIME_NOTIFY_PATH = '/v1/t12/orders/line-runtime/notify';
+  var T12_GENERAL_CREATE_PATH = '/v1/t12/orders/create';
+  var T12_GENERAL_CREATE_HEALTH_PATH = '/v1/t12/orders/create/health';
+  var T12_PENDING_CREATE_STORAGE_KEY = 'trendos_t12_pending_create_v1';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
@@ -394,6 +397,157 @@
     return jsonResponse(response);
   }
 
+  function t12CreateFingerprint(params) {
+    var p = params || {};
+    return JSON.stringify([
+      text(p.customerMode), text(p.customerExternalId || p.externalCustomerId),
+      text(p.customerName), text(p.customerPhone), text(p.department),
+      text(p.heatPress), text(p.flyPrint), text(p.itemName), text(p.qty),
+      text(p.priority), text(p.status), text(p.source), text(p.notes)
+    ]);
+  }
+
+  function cloudCreateKeyFromLegacy(raw) {
+    var value = text(raw);
+    if (/^cld1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(value)) return value;
+    var m = value.match(/^co_(\d{13})_([A-Za-z0-9_-]+)$/);
+    if (!m) return '';
+    var suffix = ('ui_' + m[2] + '_trendos_create').replace(/[^A-Za-z0-9_-]/g, '_');
+    if (suffix.length < 16) suffix += '_0000000000000000';
+    return 'cld1_' + m[1] + '_' + suffix.slice(0, 80);
+  }
+
+  function readPendingCreate() {
+    try {
+      var parsed = JSON.parse(sessionStorage.getItem(T12_PENDING_CREATE_STORAGE_KEY) || '{}');
+      if (!parsed || !parsed.cloudKey || !parsed.fingerprint || !parsed.createdAt) return null;
+      if (Date.now() - Number(parsed.createdAt) > 20 * 60 * 1000) {
+        sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY);
+        return null;
+      }
+      return parsed;
+    } catch (e) { return null; }
+  }
+
+  function rememberPendingCreate(fingerprint, cloudKey) {
+    try {
+      sessionStorage.setItem(T12_PENDING_CREATE_STORAGE_KEY, JSON.stringify({
+        fingerprint: fingerprint, cloudKey: cloudKey, createdAt: Date.now()
+      }));
+    } catch (e) {}
+  }
+
+  function clearPendingCreate() {
+    try { sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY); } catch (e) {}
+  }
+
+  function safeT12CreatePayload(params, cloudKey) {
+    var p = params || {};
+    return {
+      clientRequestId: cloudKey,
+      customerMode: text(p.customerMode),
+      externalCustomerId: text(p.customerExternalId || p.externalCustomerId),
+      customerName: text(p.customerName),
+      customerPhone: text(p.customerPhone),
+      department: text(p.department),
+      heatPress: text(p.heatPress),
+      flyPrint: text(p.flyPrint),
+      itemName: text(p.itemName),
+      qty: p.qty == null ? 1 : p.qty,
+      priority: text(p.priority),
+      status: text(p.status) || 'طلب جديد',
+      source: text(p.source),
+      notes: text(p.notes)
+    };
+  }
+
+  async function t12GeneralCreateHealth() {
+    var response = await fetch(edgeBase() + T12_GENERAL_CREATE_HEALTH_PATH, {
+      method: 'GET', cache: 'no-store', credentials: 'omit',
+      headers: { 'accept': 'application/json' }
+    });
+    return jsonResponse(response);
+  }
+
+  function createFailureMessage(body) {
+    var reason = text(body && (body.message || body.reason || body.code));
+    if (reason === 'general-create-off') return 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد.';
+    if (reason === 'registered-customer-phone-required') return 'العميل المسجل لازم يكون له رقم هاتف قبل فتح الأوردر.';
+    if (reason === 'general-create-canary-not-armed') return 'اختبار إنشاء الأوردر غير مسلح حاليًا.';
+    if (/unknown|not-verified|unavailable/i.test(reason)) return 'نتيجة تسجيل الأوردر غير مؤكدة. لا تعيد الإرسال تلقائيًا؛ اضغط مرة أخرى بنفس البيانات ليتم التحقق بنفس المفتاح.';
+    return reason || 'تعذر تسجيل الأوردر الجديد على Cloud.';
+  }
+
+  async function t12CreateManualOrder(params) {
+    var health = await t12GeneralCreateHealth();
+    if (!health || health.success !== true || health.schemaReady !== true) {
+      return { success: false, code: 'T12_GENERAL_CREATE_UNAVAILABLE', message: 'مسار تسجيل الأوردرات الجديد غير جاهز. لم يتم الإرسال إلى Apps Script.' };
+    }
+    if (text(health.mode) === 'OFF') {
+      return { success: false, code: 'T12_GENERAL_CREATE_OFF', message: 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد. لم يتم الإرسال إلى Apps Script.' };
+    }
+
+    var fingerprint = t12CreateFingerprint(params || {});
+    var pending = readPendingCreate();
+    var cloudKey = pending && pending.fingerprint === fingerprint
+      ? text(pending.cloudKey)
+      : cloudCreateKeyFromLegacy(params && params.clientRequestId);
+    if (!cloudKey) {
+      return { success: false, code: 'T12_CLOUD_KEY_REQUIRED', message: 'تعذر إنشاء مفتاح آمن للأوردر. لم يتم الإرسال.' };
+    }
+    rememberPendingCreate(fingerprint, cloudKey);
+
+    var payload = safeT12CreatePayload(params || {}, cloudKey);
+    var token = await ensureSession();
+    var headers = {
+      'accept': 'application/json',
+      'content-type': 'application/json',
+      'authorization': 'Bearer ' + token
+    };
+    if (text(health.mode) === 'CANARY') {
+      headers['x-t12-general-canary-confirm'] = String(Number(health.nextOrderNumber || 0));
+    }
+
+    var response;
+    try {
+      response = await fetch(edgeBase() + T12_GENERAL_CREATE_PATH, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: headers,
+        body: JSON.stringify(payload)
+      });
+    } catch (networkErr) {
+      return {
+        success: false,
+        code: 'T12_CREATE_NETWORK_AMBIGUOUS_NO_RETRY',
+        message: 'الاتصال انقطع أثناء تسجيل الأوردر. نفس البيانات ستستخدم نفس المفتاح عند المحاولة التالية للتحقق بدون تكرار.',
+        retryAutomatically: false
+      };
+    }
+
+    if (response.status === 401) {
+      // A 401 is pre-mutation, so one token refresh is safe.
+      clearSession();
+      token = await ensureSession();
+      headers['authorization'] = 'Bearer ' + token;
+      response = await fetch(edgeBase() + T12_GENERAL_CREATE_PATH, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: headers,
+        body: JSON.stringify(payload)
+      });
+    }
+
+    var body = await jsonResponse(response);
+    if (body && body.success === true) {
+      clearPendingCreate();
+      return body;
+    }
+
+    var reason = text(body && (body.reason || body.code));
+    if (!/unknown|not-verified|unavailable/i.test(reason) && response.status < 500) clearPendingCreate();
+    if (body && !body.message) body.message = createFailureMessage(body);
+    return body || { success: false, code: 'T12_CREATE_FAILED', message: 'تعذر تسجيل الأوردر الجديد على Cloud.' };
+  }
+
   function mergeHybridFallback(appsResult, overlayBody, params) {
     var base = appsResult && typeof appsResult === 'object' ? Object.assign({}, appsResult) : { success: true };
     var legacyRows = Array.isArray(base.rows) ? base.rows.slice() : [];
@@ -482,7 +636,14 @@ function eligible(action, params) {
     async function wrapped(action, params) {
       var args = arguments;
 
-      // Writes remain authoritative Apps Script writes. updateLine is normalized
+      // New Order IDs are Cloud-native from 4322 onward. Never fall back to
+      // Apps Script CREATE because its legacy allocator may collide with Cloud IDs.
+      if (action === 'createManualOrder') {
+        return t12CreateManualOrder(params || {});
+      }
+
+      // Legacy-row writes remain Apps Script; Cloud-native line writes use T12 runtime.
+      // updateLine is normalized
       // to stable identity before it reaches Apps Script, then a persisted read
       // barrier prevents a browser refresh from repainting an older D1 mirror.
       if (action === 'updateLine') {
