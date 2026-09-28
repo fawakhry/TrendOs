@@ -1,0 +1,68 @@
+name: TrendOS T12 A53 Customer Native Preflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-native-a53-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a53-customer-native-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4.142.0
+      - name: Read-only production customer audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT COUNT(*) AS normalized_customers FROM customers;              SELECT sheet_name,row_count,source_last_row,source_last_col,status,synced_at,note,headers_json FROM sheet_catalog WHERE sheet_name='العملاء' LIMIT 1;              SELECT COUNT(*) AS customer_mirror_rows FROM sheet_rows WHERE sheet_name='العملاء';              SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 't12%customer%' ORDER BY name;"             > /tmp/a53.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/a53.json','utf8'));
+          const sets=Array.isArray(x)?x:[x];
+          const resultSets=[];
+          for(const item of sets){
+            if(item && Array.isArray(item.results)) resultSets.push(item.results);
+          }
+          const flat=resultSets.flat();
+          const normalized=flat.find(r=>Object.prototype.hasOwnProperty.call(r,'normalized_customers'))||{};
+          const catalog=flat.find(r=>r.sheet_name==='العملاء')||{};
+          const mirror=flat.find(r=>Object.prototype.hasOwnProperty.call(r,'customer_mirror_rows'))||{};
+          const t12=flat.filter(r=>String(r.name||'').includes('customer'));
+          const out={
+            normalizedCustomers:Number(normalized.normalized_customers||0),
+            mirrorRows:Number(mirror.customer_mirror_rows||0),
+            catalog:{
+              rowCount:Number(catalog.row_count||0),
+              sourceLastRow:Number(catalog.source_last_row||0),
+              sourceLastCol:Number(catalog.source_last_col||0),
+              status:String(catalog.status||''),
+              syncedAt:String(catalog.synced_at||''),
+              note:String(catalog.note||''),
+              headers:JSON.parse(catalog.headers_json||'[]')
+            },
+            existingT12CustomerTables:t12.map(r=>r.name)
+          };
+          console.log('A53_CUSTOMER_NATIVE_PREFLIGHT='+JSON.stringify(out));
+          if(out.catalog.status!=='ready') process.exit(1);
+          if(out.catalog.rowCount!==out.catalog.sourceLastRow) process.exit(1);
+          if(out.mirrorRows!==out.catalog.rowCount) process.exit(1);
+          console.log('A53_PREFLIGHT=PASS');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
