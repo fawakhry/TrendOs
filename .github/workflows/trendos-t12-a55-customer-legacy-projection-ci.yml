@@ -1,0 +1,48 @@
+name: TrendOS T12 A55 Customer Legacy Projection CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-legacy-projection-a55-20260929
+    paths:
+      - 'cloudflare-d1/src/t12-customer-legacy-projection.mjs'
+      - 'cloudflare-d1/src/t12-customer-write-handler.mjs'
+      - 'tests/t12_customer_legacy_projection_a55.test.mjs'
+      - 'tests/t12_customer_master_a53.test.mjs'
+      - '.github/workflows/trendos-t12-a55-customer-legacy-projection-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/t12-customer-legacy-projection.mjs
+          node --check cloudflare-d1/src/t12-customer-write-handler.mjs
+      - name: Projection contract
+        run: node --experimental-sqlite tests/t12_customer_legacy_projection_a55.test.mjs
+      - name: Preserve native customer master contract
+        run: node --experimental-sqlite tests/t12_customer_master_a53.test.mjs
+      - name: Preserve native search contract
+        run: node --experimental-sqlite tests/t12_customer_native_search_a54.test.mjs
+      - name: Static authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "projection-requires-customer-write-off" cloudflare-d1/src/t12-customer-legacy-projection.mjs
+          grep -F "authoritativeSource:'apps-script'" cloudflare-d1/src/t12-customer-write-handler.mjs
+          grep -F "/v1/t12/customers/legacy-projection" cloudflare-d1/src/t12-customer-write-handler.mjs
+          echo 'A55_LEGACY_PROJECTION=PASS'
+          echo 'CUSTOMER_WRITE_AUTHORITY=APPS_SCRIPT'
+          echo 'NATIVE_GENERAL_WRITE=OFF'
+          echo 'FRONTEND_CUTOVER=NO'
+          echo 'PRODUCTION_MUTATION=NO'
