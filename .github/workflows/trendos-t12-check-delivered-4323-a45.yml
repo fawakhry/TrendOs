@@ -1,0 +1,61 @@
+name: TrendOS T12 Check Delivered 4323 A45
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-check-delivered-4323-a45-20260928
+    paths:
+      - '.github/workflows/trendos-t12-check-delivered-4323-a45.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Read-only D1 check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,sys,urllib.request,urllib.error
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+          url=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}/query'
+          sql="""SELECT
+            o.order_id AS orderId,
+            o.customer_name AS customerName,
+            o.customer_phone AS customerPhone,
+            o.status AS baseOrderStatus,
+            l.line_id AS lineId,
+            l.status AS baseLineStatus,
+            COALESCE(r.status,'') AS runtimeStatus,
+            COALESCE(r.notes,'') AS runtimeNotes,
+            COALESCE(r.updated_by,'') AS runtimeUpdatedBy,
+            COALESCE(r.updated_at,'') AS runtimeUpdatedAt,
+            (SELECT COUNT(*) FROM t12_prod_runtime_events e WHERE e.order_id=o.order_id) AS runtimeEventCount
+          FROM t12_prod_orders o
+          JOIN t12_prod_lines l ON l.order_id=o.order_id
+          LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+          WHERE o.order_id IN ('4322','4323')
+          ORDER BY CAST(o.order_id AS INTEGER);"""
+          req=urllib.request.Request(url,data=json.dumps({'sql':sql}).encode(),headers={'Authorization':'Bearer '+token,'Accept':'application/json','Content-Type':'application/json'},method='POST')
+          try:
+            with urllib.request.urlopen(req,timeout=30) as r:
+              status=r.status; data=json.loads(r.read())
+          except urllib.error.HTTPError as e:
+            status=e.code
+            try:data=json.loads(e.read())
+            except Exception:data={}
+          if status!=200 or data.get('success') is not True:
+            print('D1_CHECK=FAIL');sys.exit(1)
+          rows=data['result'][0]['results']
+          print('D1_ROWS='+json.dumps(rows,ensure_ascii=False,sort_keys=True))
+          print('PRODUCTION_MUTATION=NO')
+          PY
