@@ -73,10 +73,17 @@ jobs:
           health_code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/a51_health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
           test "$health_code" = '200'
           node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a51_health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true) process.exit(1)"
-          anon_code="$(curl --silent --show-error --output /tmp/a51_anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/customers/search?q=test")"
-          cat /tmp/a51_anon.json
-          test "$anon_code" = '401'
-          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a51_anon.json','utf8')); if(x.success!==false||!String(x.message||'').includes('Unauthorized')) process.exit(1)"
+          route_pass=0
+          for attempt in $(seq 1 20); do
+            anon_code="$(curl --silent --show-error --output /tmp/a51_anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/customers/search?q=test" || true)"
+            echo "A51_ROUTE_PROPAGATION_ATTEMPT=$attempt HTTP=$anon_code"
+            if [ "$anon_code" = '401' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a51_anon.json','utf8')); if(x.success!==false||!String(x.message||'').includes('Unauthorized customer search')) process.exit(1)"; then
+              route_pass=1
+              break
+            fi
+            sleep 3
+          done
+          test "$route_pass" = '1'
           echo 'A51_PROD_CUSTOMER_ROUTE_PROTECTED=PASS'
 
       - name: Verify no unrelated authority changed
