@@ -465,3 +465,12 @@ Next required evidence before any production retry: independently compare the da
 - Safety: no blind CREATE retry, no Google Sheets repair for 4324, no legacy writer reopening, no D1/Cloudflare mutation without separately proven need/approval.
 - Closure target: make 4324 visible in Laser, then perform one status transition on `4324-01` (e.g. `بدأ التنفيذ`) and read-only verify the same runtime status through D1, Laser, and Customer Service.
 - Entry file: `TRENDOS_T12_LIVE_LASER_ORDER_4324_DISPLAY_GAP_ENTRY_454_2026-09-28.md`, documentation commit `0a144b89fd58c073504cdeca90d87752b0c6a338`.
+
+
+## Entry 455 — Order 4324 visible in Laser UI
+- Owner supplied a live Laser screenshot showing Order `4324`, customer `محمود مناع`, phone `01007131332`, item `أوردر جديد - ليزر`, department `ليزر`. Therefore `ORDER_4324_LASER_VISIBLE=YES`.
+- Screenshot currently shows row status `تم التسليم`; do not force a backwards transition to `بدأ التنفيذ` merely for the prior test plan.
+- Live main SHA `eb0329525689ab737d866ff674debbebd91f5851` was reviewed. Post-CREATE frontend already calls `loadRows(true)`, but only after WhatsApp registration/copy flow, without resetting `state.currentPage`, and with current filters preserved. `cloudNativeLineIds` is learned from a subsequent Cloud-native read, not seeded directly from CREATE success.
+- Qualified 02CR routing for operational screens is live. No frontend mutation was made because current live evidence already proves 4324 visible.
+- Next safe proof: read-only reconcile current D1 runtime status for `4324-01`, then confirm the same status in Laser and Customer Service. Preserve current real business state. No Order 4325.
+- Entry file: `TRENDOS_T12_ORDER_4324_LASER_VISIBLE_ENTRY_455_2026-09-28.md`, documentation commit `3f246bf98bd0a3990bcf49918acafb0f96e5ea9c`.
