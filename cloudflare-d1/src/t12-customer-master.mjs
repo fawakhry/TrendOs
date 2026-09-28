@@ -179,7 +179,7 @@ function canonicalJson({actor,epoch,requestKey,customerId,operation,fields}){
   });
 }
 
-async function verifiedLedger(db,requestKey,actor,epoch,canonical){
+async function replayByRequestKey(db,requestKey,actor,epoch,fields){
   const l=await row(db,`
     SELECT actor,policy_epoch AS policyEpoch,canonical_json AS canonicalJson,
            customer_id AS customerId,operation,status,response_json AS responseJson
@@ -188,7 +188,10 @@ async function verifiedLedger(db,requestKey,actor,epoch,canonical){
      LIMIT 1
   `,requestKey);
   if(!l)return {kind:'MISSING'};
-  if(text(l.actor)!==actor||text(l.policyEpoch)!==epoch||text(l.canonicalJson)!==canonical)return {kind:'CONFLICT'};
+  const expected=canonicalJson({
+    actor,epoch,requestKey,customerId:text(l.customerId),operation:text(l.operation),fields
+  });
+  if(text(l.actor)!==actor||text(l.policyEpoch)!==epoch||text(l.canonicalJson)!==expected)return {kind:'CONFLICT'};
   if(text(l.status)!=='COMMITTED')return {kind:'INDETERMINATE'};
   const customer=await readT12Customer(db,l.customerId);
   if(!customer)return {kind:'INDETERMINATE'};
@@ -218,6 +221,14 @@ export async function upsertT12Customer(db,input={},actor='',options={}){
   if(!ctl||text(ctl.marker)!==CONTROL_MARKER)return fail('customer-control-invalid');
   const mode=text(ctl.mode),epoch=text(ctl.policyEpoch);
   const canary=options.canary===true;
+
+  let existing;
+  try{existing=await replayByRequestKey(db,requestKey,safeActor,epoch,fields);}
+  catch{return fail('customer-ledger-read-unavailable-no-retry');}
+  if(existing.kind==='VERIFIED')return {...existing.response,stored:false,idempotent:true};
+  if(existing.kind==='CONFLICT')return fail('same-customer-request-key-conflict');
+  if(existing.kind==='INDETERMINATE')return fail('existing-customer-transaction-incomplete-no-retry');
+
   if(canary){
     if(mode!=='CANARY'||Number(ctl.canaryRemaining)!==1)return fail('customer-canary-not-armed');
   }else if(mode!=='GENERAL'){
@@ -239,13 +250,7 @@ export async function upsertT12Customer(db,input={},actor='',options={}){
   const nextNo=Number(ctl.nextCustomerNumber||0);
   const customerId=target?text(target.customerId):('CUS-C'+String(nextNo).padStart(6,'0'));
   const canonical=canonicalJson({actor:safeActor,epoch,requestKey,customerId,operation,fields});
-
-  let existing;
-  try{existing=await verifiedLedger(db,requestKey,safeActor,epoch,canonical);}
-  catch{return fail('customer-ledger-read-unavailable-no-retry');}
-  if(existing.kind==='VERIFIED')return {...existing.response,stored:false,idempotent:true};
-  if(existing.kind==='CONFLICT')return fail('same-customer-request-key-conflict');
-  if(existing.kind==='INDETERMINATE')return fail('existing-customer-transaction-incomplete-no-retry');
+  const resultVersion=operation==='CREATE'?1:(Number(target.version||0)+1);
 
   const statements=[];
   if(operation==='CREATE'){
@@ -260,7 +265,7 @@ export async function upsertT12Customer(db,input={},actor='',options={}){
       (customer_id,legacy_row_number,customer_name,customer_name_key,manager,phone,extra_phone,
        customer_type,active,debt_amount,notes,branch_code,branch_name,legacy_chat_code,
        legacy_customer_code,source,created_by,version,created_at,updated_at)
-      SELECT ?,NULL,?,?,?,?,?,?,?,?,?,?,?,?,'','','cloud-native',?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+      SELECT ?,NULL,?,?,?,?,?,?,?,?,?,?,?,'','','cloud-native',?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
        WHERE EXISTS(
          SELECT 1 FROM t12_customer_control
           WHERE singleton=1 AND marker=? AND next_customer_number=?
@@ -289,15 +294,20 @@ export async function upsertT12Customer(db,input={},actor='',options={}){
   statements.push(stmt(db,`
     INSERT INTO t12_customer_request_ledger
     (request_key,actor,policy_epoch,canonical_json,customer_id,operation,status,response_json)
-    VALUES (?,?,?,?,?,?,'COMMITTED','{}')
-  `,requestKey,safeActor,epoch,canonical,customerId,operation));
+    SELECT ?,?,?,?,?,?,'COMMITTED','{}'
+      FROM t12_customers
+     WHERE customer_id=? AND version=?
+  `,requestKey,safeActor,epoch,canonical,customerId,operation,customerId,resultVersion));
 
   statements.push(stmt(db,`
     INSERT INTO t12_customer_events
     (customer_id,request_key,event_type,actor,payload_json)
-    VALUES (?,?,?,?,?)
-  `,customerId,requestKey,operation==='CREATE'?'customer-create':'customer-update',safeActor,
-    JSON.stringify({name:fields.customerName,phonePresent:!!fields.phone,extraPhonePresent:!!fields.extraPhone,debtAmount:fields.debtAmount,active:fields.active})
+    SELECT customer_id,request_key,?,?,?
+      FROM t12_customer_request_ledger
+     WHERE request_key=? AND status='COMMITTED'
+  `,operation==='CREATE'?'customer-create':'customer-update',safeActor,
+    JSON.stringify({name:fields.customerName,phonePresent:!!fields.phone,extraPhonePresent:!!fields.extraPhone,debtAmount:fields.debtAmount,active:fields.active}),
+    requestKey
   ));
 
   if(canary){
@@ -305,13 +315,17 @@ export async function upsertT12Customer(db,input={},actor='',options={}){
       UPDATE t12_customer_control
          SET canary_remaining=0,updated_at=CURRENT_TIMESTAMP
        WHERE singleton=1 AND marker=? AND mode='CANARY' AND canary_remaining=1
-    `,CONTROL_MARKER));
+         AND EXISTS(
+           SELECT 1 FROM t12_customer_request_ledger
+            WHERE request_key=? AND status='COMMITTED'
+         )
+    `,CONTROL_MARKER,requestKey));
   }
 
   try{await db.batch(statements);}
   catch{
     let recovered;
-    try{recovered=await verifiedLedger(db,requestKey,safeActor,epoch,canonical);}
+    try{recovered=await replayByRequestKey(db,requestKey,safeActor,epoch,fields);}
     catch{return fail('customer-transaction-outcome-unknown-no-retry');}
     if(recovered.kind==='VERIFIED')return {...recovered.response,stored:false,idempotent:true,ambiguousAckRecovered:true};
     if(recovered.kind==='CONFLICT')return fail('same-customer-request-key-conflict');
