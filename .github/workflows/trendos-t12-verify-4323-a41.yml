@@ -1,0 +1,99 @@
+name: TrendOS T12 Verify Order 4323 A41
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-verify-4323-a41-20260928
+    paths:
+      - '.github/workflows/trendos-t12-verify-4323-a41.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Read-only verify Order 4323 and consumed canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,sys,urllib.request,urllib.error
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          EXPECTED='46244467c1de37daa419a38f6fb39921'
+          token=os.environ.get('CLOUDFLARE_API_TOKEN','')
+          if os.environ.get('CLOUDFLARE_ACCOUNT_ID')!=ACCOUNT or not token:
+              print('LOCAL_GUARD=FAIL');sys.exit(1)
+
+          def call(url,method='GET',sql=None):
+              body=None if sql is None else json.dumps({'sql':sql}).encode()
+              h={'Authorization':'Bearer '+token,'Accept':'application/json'}
+              if body is not None:h['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=body,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e:
+                  status=e.code; raw=e.read()
+              try:data=json.loads(raw)
+              except Exception:data={}
+              return status,data
+
+          s,v=call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
+          vr=v.get('result') or {}
+          if s!=200 or v.get('success') is not True or vr.get('status')!='active' or vr.get('id')!=EXPECTED:
+              print('TOKEN_GUARD=FAIL');sys.exit(1)
+          print('TOKEN_GUARD=PASS')
+
+          url=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}/query'
+          sql="""SELECT
+            (SELECT mode FROM t12_prod_general_create_control WHERE singleton=1) AS mode,
+            (SELECT canary_remaining FROM t12_prod_general_create_control WHERE singleton=1) AS generalCanaryRemaining,
+            (SELECT next_order_number FROM t12_prod_create_control WHERE singleton=1) AS nextOrderNumber,
+            (SELECT canary_remaining FROM t12_prod_create_control WHERE singleton=1) AS legacyCanaryRemaining,
+            (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4323') AS orderRows,
+            (SELECT COUNT(*) FROM t12_prod_lines WHERE order_id='4323') AS lineRows,
+            (SELECT MIN(line_id) FROM t12_prod_lines WHERE order_id='4323') AS firstLineId,
+            (SELECT COUNT(*) FROM t12_prod_request_ledger WHERE order_id='4323') AS ledgerRows,
+            (SELECT MIN(status) FROM t12_prod_request_ledger WHERE order_id='4323') AS ledgerStatus,
+            (SELECT COUNT(*) FROM t12_prod_events WHERE order_id='4323') AS eventRows,
+            (SELECT COUNT(*) FROM t12_prod_outbox WHERE order_id='4323') AS outboxRows,
+            (SELECT SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) FROM t12_prod_outbox WHERE order_id='4323') AS outboxPending;
+          """
+          s,r=call(url,'POST',sql)
+          try: row=r['result'][0]['results'][0]
+          except Exception: row={}
+          ok=(s==200 and r.get('success') is True
+              and row.get('mode')=='CANARY'
+              and row.get('generalCanaryRemaining')==0
+              and row.get('nextOrderNumber')==4324
+              and row.get('legacyCanaryRemaining')==0
+              and row.get('orderRows')==1
+              and row.get('lineRows')==1
+              and row.get('firstLineId')=='4323-01'
+              and row.get('ledgerRows')==1
+              and row.get('ledgerStatus')=='COMMITTED'
+              and row.get('eventRows')==1
+              and row.get('outboxRows')==1)
+          if not ok:
+              print('ORDER_4323_VERIFICATION=FAIL')
+              print(json.dumps(row,sort_keys=True,ensure_ascii=False))
+              sys.exit(1)
+
+          print('ORDER_4323_VERIFICATION=PASS')
+          print('ORDER_4323_CREATED=YES')
+          print('LINE_ID=4323-01')
+          print('LEDGER_STATUS=COMMITTED')
+          print('GENERAL_CREATE_MODE=CANARY')
+          print('GENERAL_CREATE_CANARY_REMAINING=0')
+          print('NEXT_ORDER_NUMBER=4324')
+          print('LEGACY_CANARY_REMAINING=0')
+          print('OUTBOX_PENDING='+str(row.get('outboxPending') or 0))
+          print('PRODUCTION_MUTATION=NO')
+          PY
