@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_GENERAL_CREATE_20260928';
+  var VERSION = 'EDGE_ORDERS_T12_CREATE_ERRORS_20260928';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
@@ -469,6 +469,28 @@
     return jsonResponse(response);
   }
 
+  async function t12JsonAnyStatus(response) {
+    var body = {};
+    try { body = await response.json(); }
+    catch (e) {
+      body = {
+        success: false,
+        code: 'T12_NON_JSON_RESPONSE',
+        message: 'رد Cloud غير صالح (HTTP ' + String(response && response.status || '') + ').'
+      };
+    }
+    if (body && typeof body === 'object') {
+      body.httpStatus = Number(response && response.status || 0);
+      return body;
+    }
+    return {
+      success: false,
+      code: 'T12_INVALID_RESPONSE_BODY',
+      message: 'رد Cloud غير متوقع.',
+      httpStatus: Number(response && response.status || 0)
+    };
+  }
+
   function createFailureMessage(body) {
     var reason = text(body && (body.message || body.reason || body.code));
     if (reason === 'general-create-off') return 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد.';
@@ -536,7 +558,7 @@
       });
     }
 
-    var body = await jsonResponse(response);
+    var body = await t12JsonAnyStatus(response);
     if (body && body.success === true) {
       clearPendingCreate();
       return body;
