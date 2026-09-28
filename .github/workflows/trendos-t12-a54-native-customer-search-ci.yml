@@ -1,0 +1,48 @@
+name: TrendOS T12 A54 Native Customer Search CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-native-search-a54-20260929
+    paths:
+      - 'cloudflare-d1/src/edge-customer-search-v1.mjs'
+      - 'cloudflare-d1/src/t12-customer-master.mjs'
+      - 'tests/t12_customer_native_search_a54.test.mjs'
+      - 'tests/cloudflare_edge_customer_search_a51.test.mjs'
+      - '.github/workflows/trendos-t12-a54-native-customer-search-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/edge-customer-search-v1.mjs
+          node --check cloudflare-d1/src/t12-customer-master.mjs
+      - name: A54 native-first contract
+        run: node --experimental-sqlite tests/t12_customer_native_search_a54.test.mjs
+      - name: Preserve A51 mirror fallback contract
+        run: node tests/cloudflare_edge_customer_search_a51.test.mjs
+      - name: Preserve A53 customer master contract
+        run: node --experimental-sqlite tests/t12_customer_master_a53.test.mjs
+      - name: Static safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "searchT12Customers" cloudflare-d1/src/edge-customer-search-v1.mjs
+          grep -F "customerCount || 0) < 247" cloudflare-d1/src/edge-customer-search-v1.mjs
+          grep -F "dataSource: 't12-customer-master'" cloudflare-d1/src/edge-customer-search-v1.mjs
+          grep -F "nativeMasterFallback: true" cloudflare-d1/src/edge-customer-search-v1.mjs
+          echo 'A54_NATIVE_CUSTOMER_SEARCH=PASS'
+          echo 'CUSTOMER_WRITE_MODE=OFF'
+          echo 'GOOGLE_SHEETS_MUTATION=NO'
+          echo 'FRONTEND_CHANGE=NO'

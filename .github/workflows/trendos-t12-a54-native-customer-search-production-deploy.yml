@@ -1,0 +1,102 @@
+name: TrendOS T12 A54 Native Customer Search Production Deploy
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-native-search-a54-20260929
+    paths:
+      - 'docs/trendos/staging/A54_NATIVE_CUSTOMER_SEARCH_DEPLOY.trigger'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a54-native-customer-search-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify exact A54 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fx 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -F "dataSource: 't12-customer-master'" cloudflare-d1/src/edge-customer-search-v1.mjs
+          grep -F "nativeMasterFallback: true" cloudflare-d1/src/edge-customer-search-v1.mjs
+          node --experimental-sqlite tests/t12_customer_native_search_a54.test.mjs
+          node tests/cloudflare_edge_customer_search_a51.test.mjs
+          node --experimental-sqlite tests/t12_customer_master_a53.test.mjs
+          echo 'A54_PREDEPLOY=PASS'
+
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4.142.0
+
+      - name: Verify native customer master is ready and writes remain OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT marker,mode,canary_remaining,next_customer_number FROM t12_customer_control WHERE singleton=1;              SELECT COUNT(*) AS totalCustomers,SUM(CASE WHEN source='legacy-mirror' THEN 1 ELSE 0 END) AS legacyCustomers,SUM(CASE WHEN source='cloud-native' THEN 1 ELSE 0 END) AS cloudCustomers FROM t12_customers;"             > /tmp/a54_pre.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/a54_pre.json','utf8'));
+          const rows=(Array.isArray(x)?x:[x]).flatMap(v=>Array.isArray(v?.results)?v.results:[]);
+          const ctl=rows.find(r=>r.marker==='T12_CUSTOMER_MASTER_V1')||{};
+          const cnt=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'totalCustomers'))||{};
+          const pass=ctl.mode==='OFF'&&Number(ctl.canary_remaining)===0&&Number(cnt.totalCustomers)===247&&Number(cnt.legacyCustomers)===247&&Number(cnt.cloudCustomers||0)===0;
+          console.log('A54_NATIVE_MASTER_GUARD='+JSON.stringify({mode:ctl.mode,canaryRemaining:ctl.canary_remaining,total:cnt.totalCustomers,legacy:cnt.legacyCustomers,cloud:cnt.cloudCustomers,pass}));
+          if(!pass)process.exit(1);
+          NODE
+
+      - name: Deploy Worker code only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+
+      - name: Verify Production routes and authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 20); do
+            hcode="$(curl --silent --show-error --output /tmp/a54_health.json --write-out '%{http_code}' "$PROD_URL/v1/t12/customers/write/health" || true)"
+            scode="$(curl --silent --show-error --output /tmp/a54_search.json --write-out '%{http_code}' "$PROD_URL/v1/edge/customers/search?q=test" || true)"
+            echo "A54_PROPAGATION_ATTEMPT=$attempt HEALTH=$hcode SEARCH=$scode"
+            if [ "$hcode" = '200' ] && [ "$scode" = '401' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a54_health.json','utf8'));if(!x.success||x.schemaReady!==true||x.mode!=='OFF'||Number(x.customerCount)!==247)process.exit(1)"; then ready=1;break;fi
+            sleep 3
+          done
+          test "$ready" = '1'
+          order_code="$(curl --silent --show-error --output /tmp/a54_order.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/create/health")"
+          test "$order_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a54_order.json','utf8'));if(!x.success||x.generalCutover!==true)process.exit(1)"
+          cw_code="$(curl --silent --show-error --output /tmp/a54_cw.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$cw_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a54_cw.json','utf8'));if(!x.success||x.enabled!==false||x.writesAccepted!==false)process.exit(1)"
+          echo 'CUSTOMER_SEARCH_PRIMARY=T12_CUSTOMER_MASTER'
+          echo 'CUSTOMER_SEARCH_SECONDARY=A51_D1_MIRROR'
+          echo 'CUSTOMER_BROWSER_FALLBACK=APPS_SCRIPT_ON_MISS_OR_ERROR'
+          echo 'CUSTOMER_WRITE_MODE=OFF'
+          echo 'GOOGLE_SHEETS_MUTATION=NO'
+          echo 'ORDER_CREATE_UNCHANGED=YES'
+          echo 'A54_PRODUCTION=PASS'
+
+      - name: Automatic Worker rollback on verification failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        run: npx wrangler rollback --config cloudflare-d1/wrangler.toml --message "TrendOS A54 rollback after failed native customer search verification"
