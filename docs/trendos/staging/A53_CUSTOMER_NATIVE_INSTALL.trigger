@@ -1,0 +1,5 @@
+authorized_by_owner=2026-09-29
+purpose=install_cloud_native_customer_master_off_and_bootstrap_safe_legacy_rows
+customer_write_mode=OFF
+frontend_cutover=NO
+google_sheets_mutation=NO
