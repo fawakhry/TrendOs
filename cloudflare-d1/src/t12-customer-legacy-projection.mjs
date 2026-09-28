@@ -195,7 +195,7 @@ export async function projectLegacyCustomer(db,input={},actor=''){
   const customerId=operation==='UPDATE'
     ? text(resolved.row.customerId)
     : ('CUS-C'+String(nextNo).padStart(6,'0'));
-  const expectedVersion=operation==='UPDATE'?Number(resolved.row.version||0):1;
+  const expectedVersion=operation==='UPDATE'?(Number(resolved.row.version||0)+1):1;
   const canonicalJson=canonical({actor:safeActor,epoch,requestKey,customerId,operation,fields});
   const statements=[];
 
