@@ -8,6 +8,7 @@ on:
       - 'cloudflare-d1/src/edge-customer-search-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/cloudflare_edge_customer_search_a51.test.mjs'
+      - 'tests/cloudflare_a51_production_shadow_customer_route.test.mjs'
       - '.github/workflows/trendos-t12-a51-customer-search-ci.yml'
   workflow_dispatch:
 
@@ -25,6 +26,8 @@ jobs:
           node-version: '22'
       - name: Customer-search contract
         run: node tests/cloudflare_edge_customer_search_a51.test.mjs
+      - name: Production-shadow route wiring
+        run: node tests/cloudflare_a51_production_shadow_customer_route.test.mjs
       - name: Existing token and gateway regression tests
         run: |
           node tests/cloudflare_edge_gateway_v1.test.mjs
