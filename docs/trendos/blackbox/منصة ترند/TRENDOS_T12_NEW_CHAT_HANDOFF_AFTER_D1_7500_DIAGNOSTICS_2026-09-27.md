@@ -419,3 +419,24 @@ Next required evidence before any production retry: independently compare the da
 - D1 canary 4322 runtime status is `تم التسليم`; D1 Mahmoud 4323 runtime status is also `تم التسليم`.
 - Updated repair policy: preserve delivered state everywhere; Sheet Mahmoud references still re-key 4322 -> 4323 after live Apps Script legacy-writer fence; keep D1 canary 4322 as historical technical record with delivered runtime; do NOT change it to ملغى; still retire/prevent canary 4322 pending outbox from ever reconciling into Sheets.
 - Entry file: `TRENDOS_T12_DELIVERED_STATE_BEFORE_COLLISION_REPAIR_ENTRY_450_2026-09-28.md`.
+
+
+## Entry 451 — Apps Script legacy writer fence LIVE + Mahmoud Sheet re-key
+- ChatGPT Work deployed the existing Apps Script Web App as Version 157 with the legacy order writer fence; only `Code.gs` and `trendos-order-line-integrity-v1.gs` were edited. Properties/Triggers unchanged.
+- Exact HTTP fence response could not be observed from the Work environment, so runtime HTTP probe is not recorded as PASS; deployment/source save is confirmed.
+- Google Sheets Mahmoud business references were re-keyed from `4322 / 4322-01` to `4323 / 4323-01` across 14 bounded cells while preserving `تم التسليم`.
+- No Mahmoud business reference remains under 4322; unrelated alert-id substring `ALT-41C64322` for Order 3534 was correctly left untouched.
+- Entry file: `TRENDOS_T12_LEGACY_WRITERS_LIVE_SHEET_4322_REKEY_ENTRY_451_2026-09-28.md`.
+- Documentation commits from Work: `60b2ceb3`, handoff `95f13de3`, compact index `ad377566`.
+
+## Entry 452 — D1 canary 4322 outbox retired; collision repair closed
+- Owner manually executed the guarded D1 UPDATE for historical canary `4322 / 4322-01 / queue:01` only.
+- Post-write D1 Console SELECT visibly confirmed:
+  - 4322 = T12 CANARY CUSTOMER, runtime `تم التسليم`, outbox `done`
+  - 4323 = محمود مناع / 01007131332, runtime `تم التسليم`, outbox `pending`
+  - general mode = `GENERAL`
+  - general canary remaining = `0`
+- The UPDATE modified only `t12_prod_outbox`; control tables were not targeted. Last verified `next_order_number=4324`, `legacy_canary_remaining=0` therefore remain unchanged.
+- Real Mahmoud 4323 outbox was intentionally untouched.
+- 4322 collision is now operationally repaired across Sheets + D1 identity/outbox boundaries.
+- Entry file: `TRENDOS_T12_CANARY_4322_OUTBOX_RETIRED_ENTRY_452_2026-09-28.md`.
