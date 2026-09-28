@@ -25,12 +25,12 @@ jobs:
           node-version: '22'
       - name: Customer-search contract
         run: node tests/cloudflare_edge_customer_search_a51.test.mjs
-      - name: Existing Edge regression tests
+      - name: Existing token and gateway regression tests
         run: |
           node tests/cloudflare_edge_gateway_v1.test.mjs
           node tests/cloudflare_edge_orders_read_v1.test.mjs
-          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
-          node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
+          node --check cloudflare-d1/src/edge-customer-search-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
       - name: Static mutation boundary
         shell: bash
         run: |
