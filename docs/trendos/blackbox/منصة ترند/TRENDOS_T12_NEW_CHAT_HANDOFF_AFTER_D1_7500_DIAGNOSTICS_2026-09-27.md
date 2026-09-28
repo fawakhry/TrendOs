@@ -440,3 +440,16 @@ Next required evidence before any production retry: independently compare the da
 - Real Mahmoud 4323 outbox was intentionally untouched.
 - 4322 collision is now operationally repaired across Sheets + D1 identity/outbox boundaries.
 - Entry file: `TRENDOS_T12_CANARY_4322_OUTBOX_RETIRED_ENTRY_452_2026-09-28.md`.
+
+
+## Entry 453 — Laser + Customer Service use qualified 02CR + T12 overlay
+- Owner prioritized Laser and Customer Service before Delivery Gate/accounting.
+- Root issue: frontend routed `screen=service` to older `/v1/edge/orders/service/page`, which is Orders-mirror-only. Existing qualified `/v1/edge/orders/02cr/page` already supports Service and merges T12 Cloud-native line rows before filters/counters/pagination.
+- Frontend candidate A46 corrected Service to use the same qualified 02CR lane as Print/Laser. Corrected run `36467429782`, job `109080905373`: SUCCESS.
+- Laser backend overlay A47: run `36467506382`, job `109081158279`: SUCCESS. Proved Laser-only Cloud filtering, runtime status preservation, Service all-department mapping, Cloud duplicate precedence, and merge-before-filter/pagination.
+- Main frontend commit `c3cbf5d1ea63864c3c64c956ca7f583ecadaae56`; exact live main/config SHA `eb0329525689ab737d866ff674debbebd91f5851`.
+- Frontend version `EDGE_ORDERS_T12_LASER_SERVICE_02CR_20260928`; cache `20260928-t12-laser-service-02cr`.
+- GitHub Pages run `36467595843`: build/deploy SUCCESS.
+- No Worker/D1/Apps Script/Sheets mutation was required.
+- Remaining evidence only: first real Cloud-native Laser order should be observed in Laser and have one runtime status/notes update verified end-to-end; Customer Service should be visually confirmed after Ctrl+F5.
+- Entry file: `TRENDOS_T12_LASER_SERVICE_02CR_ENTRY_453_2026-09-28.md`.
