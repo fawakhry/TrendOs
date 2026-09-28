@@ -1,0 +1,88 @@
+name: TrendOS T12 Hybrid Overlay Production Deploy A27
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-hybrid-overlay-production-deploy-a27-20260928
+    paths:
+      - '.github/workflows/trendos-t12-hybrid-overlay-production-deploy-a27.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-hybrid-overlay-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact source and safety guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'aeadb43110dbb950f8b1ed7683ad9ce0'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fx 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          test "$(git hash-object cloudflare-d1/src/t12-read-overlay.mjs)" = '1ab15cd53bcaa4cbb07a19d29487a360ef8b5dc0'
+          test "$(git hash-object cloudflare-d1/src/t12-read-overlay-handler.mjs)" = '0fc291e51ee832a71bb39cb329e76e916a9ff894'
+          test "$(git hash-object cloudflare-d1/src/index_v2.js)" = '8636a6fbb31a2195b9b4c7a4a024f3c4517112b5'
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          echo 'SOURCE_GUARDS=PASS'
+          echo 'CREATE_ROUTE_CONFIG_DISABLED=YES'
+
+      - name: Deploy hybrid overlay endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.142.0 deploy --config cloudflare-d1/wrangler.toml
+
+      - name: Verify route and create safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/overlay.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/read-overlay?screen=print" || true)"
+          echo "OVERLAY_UNAUTH_HTTP=$code"
+          cat /tmp/overlay.json || true
+          test "$code" = "401"
+
+          hcode=""
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            hcode="$(curl --silent --show-error --output /tmp/h.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/create-canary/health" || true)"
+            if [ "$hcode" = "200" ]; then break; fi
+            sleep 2
+          done
+          test "$hcode" = "200"
+          python3 - <<'PY'
+          import json,sys
+          h=json.load(open('/tmp/h.json','r',encoding='utf-8'))
+          c=h.get('control') or {}
+          ok=(h.get('success') is True and h.get('schemaReady') is True and h.get('enabled') is False and c.get('nextOrderNumber')==4323 and c.get('canaryRemaining')==0 and h.get('generalCutover') is False)
+          if not ok:
+              print('POST_DEPLOY_CREATE_SAFETY=FAIL');sys.exit(1)
+          print('OVERLAY_ENDPOINT_LIVE=YES')
+          print('OVERLAY_ENDPOINT_AUTH_REQUIRED=YES')
+          print('POST_DEPLOY_CREATE_SAFETY=PASS')
+          print('CANARY_ENABLED=false')
+          print('NEXT_ORDER_NUMBER=4323')
+          print('CANARY_REMAINING=0')
+          print('GENERAL_CREATE_CUTOVER=NO')
+          PY
