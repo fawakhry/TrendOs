@@ -8,9 +8,10 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_LASER_SERVICE_02CR_20260928';
+  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_D1_SEARCH_A51_20260929';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
+  var CUSTOMER_SEARCH_PATH = '/v1/edge/customers/search';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
   var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
@@ -44,6 +45,9 @@
     hybridOverlaySuccess: 0,
     hybridOverlayFailures: 0,
     hybridOverlayRows: 0,
+    customerEdgeSuccess: 0,
+    customerFallbacks: 0,
+    customerMissFallbacks: 0,
     lastFallbackAt: 0,
     lastFallbackReason: ''
   };
@@ -340,6 +344,27 @@
     finally { inflight.delete(requestKey); }
   }
 
+  async function edgeCustomerSearch(params) {
+    var query = new URLSearchParams();
+    var q = text(params && params.q);
+    if (q) query.set('q', q);
+    var requestKey = CUSTOMER_SEARCH_PATH + (query.toString() ? ('?' + query.toString()) : '');
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + requestKey, {
+      method: 'GET', cache: 'no-store', credentials: 'omit',
+      headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + requestKey, {
+        method: 'GET', cache: 'no-store', credentials: 'omit',
+        headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+      });
+    }
+    return jsonResponse(response);
+  }
+
   function rowIdentity(row) {
     var lineId = text(row && row.lineId);
     if (lineId) return 'line:' + lineId;
@@ -539,8 +564,15 @@
       token: p.token
     };
     var result;
-    try { result = await original.call(context, 'searchCustomers', searchParams); }
-    catch (e) { return { success: false, message: 'تعذر التحقق من بيانات العميل المسجل. اختاره من قائمة البحث أولًا.' }; }
+    try {
+      result = await edgeCustomerSearch(searchParams);
+      if (!result || !Array.isArray(result.customers) || !result.customers.length) {
+        result = await original.call(context, 'searchCustomers', searchParams);
+      }
+    } catch (e) {
+      try { result = await original.call(context, 'searchCustomers', searchParams); }
+      catch (fallbackErr) { return { success: false, message: 'تعذر التحقق من بيانات العميل المسجل. اختاره من قائمة البحث أولًا.' }; }
+    }
 
     var customers = result && result.success && Array.isArray(result.customers) ? result.customers : [];
     var key = normalizeCustomerLookupName(name);
@@ -714,6 +746,30 @@ function eligible(action, params) {
     async function wrapped(action, params) {
       var args = arguments;
 
+      // Customer lookup is Cloud/D1-first. A D1 miss intentionally falls back
+      // to Apps Script so newly-added customers remain visible until customer
+      // write authority is migrated in a later gated step.
+      if (action === 'searchCustomers') {
+        var customerQuery = text(params && params.q);
+        if (!customerQuery) return { success: true, customers: [] };
+        try {
+          var customerResult = await edgeCustomerSearch(params || {});
+          if (customerResult && Array.isArray(customerResult.customers) && customerResult.customers.length) {
+            metrics.customerEdgeSuccess += 1;
+            return customerResult;
+          }
+          metrics.customerMissFallbacks += 1;
+          metrics.customerFallbacks += 1;
+          return original.apply(this, args);
+        } catch (customerErr) {
+          metrics.customerFallbacks += 1;
+          try {
+            console.warn('[TrendOS Customer D1 A51] Cloud customer search unavailable; using Apps Script fallback:', customerErr && customerErr.message ? customerErr.message : customerErr);
+          } catch (ignore) {}
+          return original.apply(this, args);
+        }
+      }
+
       // New Order IDs are Cloud-native from 4322 onward. Never fall back to
       // Apps Script CREATE because its legacy allocator may collide with Cloud IDs.
       if (action === 'createManualOrder') {
@@ -789,7 +845,8 @@ function eligible(action, params) {
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 't12-qualified-02cr-all-operational-screens-with-cloud-native-fallback',
+      mode: 't12-02cr-orders-plus-d1-customer-search-with-apps-script-fallback',
+      customerSearchPath: CUSTOMER_SEARCH_PATH,
       serviceUsesQualified02CR: true,
       canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
       canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
@@ -816,6 +873,9 @@ function eligible(action, params) {
           hybridOverlaySuccess: metrics.hybridOverlaySuccess,
           hybridOverlayFailures: metrics.hybridOverlayFailures,
           hybridOverlayRows: metrics.hybridOverlayRows,
+          customerEdgeSuccess: metrics.customerEdgeSuccess,
+          customerFallbacks: metrics.customerFallbacks,
+          customerMissFallbacks: metrics.customerMissFallbacks,
           cloudNativeLineIds: cloudNativeLineIds.size,
           postWriteBarrierActive: postWriteBarrierActive(),
           postWriteBarrierUntil: postWriteBarrier.until || 0,
