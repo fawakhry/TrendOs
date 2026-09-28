@@ -1,0 +1,101 @@
+name: TrendOS T12 A51 Customer Search Production Deploy
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-search-d1-a51-20260929
+    paths:
+      - 'docs/trendos/staging/A51_CUSTOMER_SEARCH_DEPLOY.trigger'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a51-customer-search-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify exact A51 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -F "isEdgeCustomerSearchPath" cloudflare-d1/src/index_v2.js
+          grep -F "/v1/edge/customers/search" cloudflare-d1/src/edge-customer-search-v1.mjs
+          node tests/cloudflare_edge_customer_search_a51.test.mjs
+          node tests/cloudflare_edge_gateway_v1.test.mjs
+          node tests/cloudflare_edge_orders_read_v1.test.mjs
+          echo 'A51_PREDEPLOY_QUALIFICATION=PASS'
+
+      - name: Verify D1 customer mirror precondition read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save wrangler@4.142.0
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT sheet_name,row_count,source_last_row,source_last_col,status,synced_at,note FROM sheet_catalog WHERE sheet_name='العملاء' LIMIT 1;" > /tmp/a51_customer_catalog.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/a51_customer_catalog.json','utf8'));
+          const row=(Array.isArray(x)?x[0]:x)?.results?.[0]||{};
+          const pass=row.sheet_name==='العملاء'&&Number(row.row_count)===Number(row.source_last_row)&&Number(row.row_count)>=248&&row.status==='ready'&&row.note==='PERF-CF-02CR enrichment live sync V1';
+          console.log('A51_CUSTOMER_MIRROR_PREFLIGHT='+JSON.stringify({rowCount:row.row_count,sourceLastRow:row.source_last_row,sourceLastCol:row.source_last_col,status:row.status,syncedAt:row.synced_at,note:row.note,pass}));
+          if(!pass) process.exit(1);
+          NODE
+
+      - name: Deploy Worker code only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml | tee /tmp/a51_deploy.log
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          echo 'A51_WORKER_DEPLOYED=YES'
+          sleep 5
+
+      - name: Verify production route and health
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/a51_health.json --write-out '%{http_code}' "$PROD_URL/v1/edge/health")"
+          test "$health_code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a51_health.json','utf8')); if(!x.success||x.database!==true||x.authConfigured!==true||x.upstreamConfigured!==true) process.exit(1)"
+          anon_code="$(curl --silent --show-error --output /tmp/a51_anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/customers/search?q=test")"
+          cat /tmp/a51_anon.json
+          test "$anon_code" = '401'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a51_anon.json','utf8')); if(x.success!==false||!String(x.message||'').includes('Unauthorized')) process.exit(1)"
+          echo 'A51_PROD_CUSTOMER_ROUTE_PROTECTED=PASS'
+
+      - name: Verify no unrelated authority changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/a51_write.json --write-out '%{http_code}' "$PROD_URL/v1/cloud/write/health")"
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a51_write.json','utf8')); if(!x.success||x.enabled!==false||x.writesAccepted!==false||x.sheetsAuthoritative!==true) process.exit(1)"
+          echo 'CUSTOMER_SEARCH=D1_READ_FIRST'
+          echo 'CUSTOMER_CREATE_UPDATE=APPS_SCRIPT'
+          echo 'ORDER_CREATE_UNCHANGED=YES'
+          echo 'D1_MIGRATIONS=NO'
+          echo 'A51_WORKER_PRODUCTION=PASS'
+
+      - name: Automatic rollback on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo 'A51 post-deploy verification failed; rolling back Worker.'
+          npx wrangler rollback --config cloudflare-d1/wrangler.toml --message "TrendOS A51 rollback after failed customer-search verification"
