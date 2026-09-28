@@ -356,3 +356,14 @@ Next required evidence before any production retry: independently compare the da
 - 4323 remains unconsumed. Do not retry Create until client-path/origin issue is identified.
 - Likely remaining fault domain: browser/network reachability to workers.dev or UI served from an Origin different from the configured GitHub Pages Origin.
 - Entry 444 commit `660f3aa36768da7fe515abe3007d2029e9332690`.
+
+## Add Order UI contract alignment before 4323 retry — Entry 445
+- Live armed-canary CREATE returned `canonical-business-intent-invalid`; no Order 4323 was created.
+- Root mismatch: UI allows blank item name and optional registered-customer phone, while Cloud canonical CREATE requires non-empty item and unambiguous registered phone.
+- A40 branch `diagnostic/t12-create-ui-contract-a40-20260928`; run `36442421488`, job `108996031328`: SUCCESS.
+- Frontend now maps blank item to `أوردر جديد - <department>`, resolves a missing registered phone through exact Apps Script `searchCustomers` read-only match, and translates canonical `errors[]` to explicit Arabic messages. No Apps Script CREATE fallback was restored.
+- Main commits: `8b8aa8ceefcdfd27587861e6d080383ca65b97cd` and `df38b2ef08b37385a87626757e4ff65badaafaa8`.
+- Frontend version `EDGE_ORDERS_T12_CREATE_UI_CONTRACT_20260928`; cache `trendos-edge-orders-read-v1.js?v=20260928-t12-create-ui-contract1`.
+- Pages run `36442530502`: build succeeded; deployment was still in progress at the moment of Entry 445 documentation.
+- Canary unchanged: `GENERAL_CREATE_MODE=CANARY`, `GENERAL_CREATE_CANARY_REMAINING=1`, `NEXT_ORDER_NUMBER=4323`, `ORDER_4323_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 445 commit `fec8f9ae977d7efa10d6ebad1a6c3b651a84235e`.
