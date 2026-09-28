@@ -92,7 +92,7 @@ function trendLoadModuleV1932(id, src){
   (document.head || document.documentElement).appendChild(s);
 }
 
-trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260928-t12-create-ui-contract1');
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260928-t12-laser-service-02cr');
 
 // 02CU resume guard: returning to the platform must not trigger legacy safeRefresh.
 window.MATBAGY_DISABLE_RETURN_AUTO_REFRESH_V1 = true;
