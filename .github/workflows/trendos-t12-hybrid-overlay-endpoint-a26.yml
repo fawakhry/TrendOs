@@ -1,0 +1,82 @@
+name: TrendOS T12 Hybrid Overlay Endpoint Qualification A26
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-hybrid-overlay-endpoint-a26-20260928
+    paths:
+      - '.github/workflows/trendos-t12-hybrid-overlay-endpoint-a26.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run isolated endpoint tests
+        run: |
+          set -euo pipefail
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node --check cloudflare-d1/src/t12-read-overlay.mjs
+          node --check cloudflare-d1/src/t12-read-overlay-handler.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          grep -Fx 'TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          echo 'HYBRID_OVERLAY_ENDPOINT_TESTS=PASS'
+          echo 'CANARY_ROUTE_CONFIG_DISABLED=YES'
+
+      - name: Verify production state read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,sys,urllib.request,urllib.error
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          EXPECTED='46244467c1de37daa419a38f6fb39921'
+          token=os.environ.get('CLOUDFLARE_API_TOKEN','')
+          if os.environ.get('CLOUDFLARE_ACCOUNT_ID')!=ACCOUNT or not token:
+              print('LOCAL_GUARD=FAIL');sys.exit(1)
+          def call(url,method='GET',sql=None):
+              body=None if sql is None else json.dumps({'sql':sql}).encode()
+              h={'Authorization':'Bearer '+token,'Accept':'application/json'}
+              if body is not None:h['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=body,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r: status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e:
+                  status=e.code; raw=e.read()
+              try:data=json.loads(raw)
+              except Exception:data={}
+              return status,data
+          s,v=call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
+          rr=v.get('result') or {}
+          if s!=200 or v.get('success') is not True or rr.get('status')!='active' or rr.get('id')!=EXPECTED:
+              print('TOKEN_GUARD=FAIL');sys.exit(1)
+          print('TOKEN_GUARD=PASS')
+          base=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}'
+          sql="""SELECT
+            (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4322') AS orderCount,
+            (SELECT COUNT(*) FROM t12_prod_lines WHERE order_id='4322') AS lineCount,
+            (SELECT next_order_number FROM t12_prod_create_control WHERE singleton=1) AS nextOrderNumber,
+            (SELECT canary_remaining FROM t12_prod_create_control WHERE singleton=1) AS canaryRemaining;"""
+          s,r=call(base+'/query','POST',sql)
+          row=r['result'][0]['results'][0] if s==200 and r.get('success') is True else {}
+          ok=(row.get('orderCount')==1 and row.get('lineCount')==1 and row.get('nextOrderNumber')==4323 and row.get('canaryRemaining')==0)
+          if not ok:
+              print('PROD_STATE=FAIL');print(json.dumps(row,sort_keys=True));sys.exit(1)
+          print('PROD_STATE=PASS')
+          print('PRODUCTION_MUTATION=NO')
+          PY
