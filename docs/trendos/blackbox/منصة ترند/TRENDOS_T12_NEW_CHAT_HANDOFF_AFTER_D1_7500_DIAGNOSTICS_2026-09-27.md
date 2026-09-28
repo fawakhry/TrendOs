@@ -474,3 +474,12 @@ Next required evidence before any production retry: independently compare the da
 - Qualified 02CR routing for operational screens is live. No frontend mutation was made because current live evidence already proves 4324 visible.
 - Next safe proof: read-only reconcile current D1 runtime status for `4324-01`, then confirm the same status in Laser and Customer Service. Preserve current real business state. No Order 4325.
 - Entry file: `TRENDOS_T12_ORDER_4324_LASER_VISIBLE_ENTRY_455_2026-09-28.md`, documentation commit `3f246bf98bd0a3990bcf49918acafb0f96e5ea9c`.
+
+
+## Entry 456 — Order 4324 visible in Customer Service UI
+- Owner supplied a live Customer Service screenshot showing Order `4324`, customer `محمود مناع`, phone `01007131332`, item `أوردر جديد - ليزر`, department `ليزر`, priority `عادي`, visible status `تم التسليم`.
+- The same real Cloud-native Order 4324 is now visibly readable in both Laser and Customer Service: `ORDER_4324_LASER_VISIBLE=YES`, `ORDER_4324_CUSTOMER_SERVICE_VISIBLE=YES`.
+- Preserve the current real business state. Do not force a backwards transition to `بدأ التنفيذ` and do not create Order 4325 for proof.
+- One formal evidence item remains before full operational runtime closure: read-only D1 reconciliation of current runtime status for `4324-01` and confirmation that it matches visible UI status `تم التسليم`.
+- No D1/Sheets mutation, no legacy writer reopening, and no new CREATE occurred in this entry.
+- Entry file: `TRENDOS_T12_ORDER_4324_CUSTOMER_SERVICE_VISIBLE_ENTRY_456_2026-09-28.md`, documentation commit `b65a6a094922865496deb5e08ba8ef76bacdeb34`.
