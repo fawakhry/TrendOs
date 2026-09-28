@@ -1,0 +1,30 @@
+name: TrendOS T12 Legacy Create Fence A44
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-legacy-create-fence-a44-20260928
+    paths:
+      - '.github/workflows/trendos-t12-legacy-create-fence-a44.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify legacy create fence
+        run: node tests/t12_legacy_create_fence.test.mjs
+      - name: Re-run legacy writer inventories
+        run: |
+          node tests/t12_google_create_writer_inventory.test.mjs
+          node tests/t12_google_order_lifecycle_writer_inventory.test.mjs
+          node tests/t12_supplemental_google_writer_inventory.test.mjs
+      - name: Conclusion
+        run: echo 'T12_LEGACY_CREATE_FENCE_A44=PASS'
