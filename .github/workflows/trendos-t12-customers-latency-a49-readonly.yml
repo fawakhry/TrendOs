@@ -1,0 +1,127 @@
+name: TrendOS T12 Customers + Latency A49 Read-Only
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-customers-latency-a49-20260928
+    paths:
+      - '.github/workflows/trendos-t12-customers-latency-a49-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-customers-latency-a49-readonly
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EDGE_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static read-only safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -E "UPDATE |INSERT |DELETE |CREATE |DROP |ALTER |wrangler deploy|migrations apply|secret put" .github/workflows/trendos-t12-customers-latency-a49-readonly.yml | grep -v "Static read-only safety gate"; then
+            echo "Mutating command detected" >&2
+            exit 1
+          fi
+          echo "PRODUCTION_MUTATION=NO"
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.142.0
+
+      - name: Read D1 customer and mirror state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS normalizedCustomers FROM customers;" > /tmp/customers_count.json
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT sheet_name AS sheetName,row_count AS rowCount,source_last_row AS sourceLastRow,source_last_col AS sourceLastCol,status,synced_at AS syncedAt,note FROM sheet_catalog WHERE sheet_name='العملاء';" > /tmp/customer_catalog.json
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT entity,row_count AS rowCount,created_at AS createdAt,note FROM migration_runs WHERE entity='customers' ORDER BY id DESC LIMIT 3;" > /tmp/customer_migrations.json
+          node <<'NODE'
+          const fs=require('fs');
+          function rows(file){
+            const x=JSON.parse(fs.readFileSync(file,'utf8'));
+            const arr=Array.isArray(x)?x:[x];
+            const first=arr[0]||{};
+            return first.results||first.result?.[0]?.results||[];
+          }
+          const count=rows('/tmp/customers_count.json')[0]||{};
+          const cat=rows('/tmp/customer_catalog.json')[0]||{};
+          const mig=rows('/tmp/customer_migrations.json');
+          const ageSec=cat.syncedAt?Math.max(0,Math.round((Date.now()-Date.parse(String(cat.syncedAt).replace(' ','T')+'Z'))/1000)):null;
+          console.log('D1_CUSTOMER_STATE='+JSON.stringify({
+            normalizedCustomers:Number(count.normalizedCustomers||0),
+            mirrorRows:Number(cat.rowCount||0),
+            mirrorSourceLastRow:Number(cat.sourceLastRow||0),
+            mirrorSourceLastCol:Number(cat.sourceLastCol||0),
+            mirrorStatus:String(cat.status||''),
+            mirrorAgeSeconds:ageSec,
+            mirrorNote:String(cat.note||''),
+            recentMigrationRuns:mig.map(x=>({rowCount:Number(x.rowCount||0),createdAt:x.createdAt,note:String(x.note||'').slice(0,160)}))
+          }));
+          NODE
+
+      - name: Measure current read-path latency without logging PII
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_EMPLOYEE_TOKEN"
+          node <<'NODE'
+          const edge=process.env.EDGE_URL, apps=process.env.APPS_SCRIPT_URL;
+          const username=process.env.QUALIFY_USERNAME, token=process.env.QUALIFY_EMPLOYEE_TOKEN;
+          async function req(url,opt={}) {
+            const t=Date.now();
+            const r=await fetch(url,{cache:'no-store',...opt});
+            const raw=await r.text();
+            let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            return {ms:Date.now()-t,status:r.status,body};
+          }
+          async function session(){
+            return req(edge+'/v1/edge/orders/session',{method:'POST',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({username,token})});
+          }
+          async function edgeRows(edgeToken){
+            return req(edge+'/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=5&statusFilter=__ACTIVE__',{headers:{accept:'application/json',authorization:'Bearer '+edgeToken}});
+          }
+          async function appsCustomerSearch(){
+            return req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'searchCustomers',username,token,q:'__TRENDOS_NO_MATCH_A49__'})});
+          }
+          async function appsRows(){
+            return req(apps,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'getRowsPageV1931',username,token,screen:'service',page:1,pageSize:5,statusFilter:'__ACTIVE__'})});
+          }
+          (async()=>{
+            const s=await session();
+            if(s.status!==200||!s.body.edgeToken) throw new Error('edge session failed '+s.status);
+            const e=[],c=[],a=[];
+            for(let i=0;i<4;i++){const x=await edgeRows(s.body.edgeToken);e.push({ms:x.ms,status:x.status,success:x.body&&x.body.success===true,code:x.body&&x.body.code||''});}
+            for(let i=0;i<4;i++){const x=await appsCustomerSearch();c.push({ms:x.ms,status:x.status,success:x.body&&x.body.success===true,count:Array.isArray(x.body&&x.body.customers)?x.body.customers.length:null});}
+            for(let i=0;i<3;i++){const x=await appsRows();a.push({ms:x.ms,status:x.status,success:x.body&&x.body.success===true});}
+            const avg=x=>Math.round(x.reduce((s,v)=>s+v.ms,0)/x.length);
+            console.log('A49_LATENCY='+JSON.stringify({
+              edgeSessionMs:s.ms,
+              edge02crMs:e.map(x=>x.ms), edge02crAvgMs:avg(e), edge02crStatuses:e.map(x=>x.status), edge02crCodes:e.map(x=>x.code),
+              appsCustomerSearchMs:c.map(x=>x.ms), appsCustomerSearchAvgMs:avg(c), appsCustomerSearchCounts:c.map(x=>x.count),
+              appsRowsMs:a.map(x=>x.ms), appsRowsAvgMs:avg(a), appsRowsStatuses:a.map(x=>x.status)
+            }));
+          })().catch(e=>{console.error(e&&e.stack||e);process.exit(1)});
+          NODE
+
+      - name: Final safety result
+        run: |
+          echo "A49_READONLY=PASS"
+          echo "PRODUCTION_MUTATION=NO"
