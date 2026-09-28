@@ -1,0 +1,51 @@
+name: TrendOS T12 A53 Customer Native CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-native-a53b-20260929
+    paths:
+      - 'cloudflare-d1/migrations/0008_t12_customer_master.sql'
+      - 'cloudflare-d1/src/t12-customer-master.mjs'
+      - 'cloudflare-d1/src/t12-customer-write-handler.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/t12_customer_master_a53.test.mjs'
+      - '.github/workflows/trendos-t12-a53-customer-native-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/t12-customer-master.mjs
+          node --check cloudflare-d1/src/t12-customer-write-handler.mjs
+          node --check cloudflare-d1/src/index_v2.js
+      - name: Isolated customer master contract
+        run: node --experimental-sqlite tests/t12_customer_master_a53.test.mjs
+      - name: Existing T12 regression
+        run: |
+          node --experimental-sqlite tests/t12_general_create.test.mjs
+          node tests/cloudflare_edge_customer_search_a51.test.mjs
+      - name: Static safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "mode TEXT NOT NULL CHECK(mode IN ('OFF','CANARY','GENERAL'))" cloudflare-d1/migrations/0008_t12_customer_master.sql
+          grep -F "VALUES (1,'T12_CUSTOMER_MASTER_V1','OFF',0,1" cloudflare-d1/migrations/0008_t12_customer_master.sql
+          grep -F "customer-write-off" cloudflare-d1/src/t12-customer-write-handler.mjs
+          grep -F "ambiguous-customer-match" cloudflare-d1/src/t12-customer-master.mjs
+          grep -F "same-customer-request-key-conflict" cloudflare-d1/src/t12-customer-master.mjs
+          echo 'A53_CUSTOMER_NATIVE_CI=PASS'
+          echo 'DEFAULT_WRITE_MODE=OFF'
+          echo 'FRONTEND_CUTOVER=NO'
+          echo 'GOOGLE_SHEETS_MUTATION=NO'
