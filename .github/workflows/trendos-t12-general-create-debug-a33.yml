@@ -1,0 +1,27 @@
+name: TrendOS T12 General CREATE Debug A33
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-general-create-debug-a33-20260928
+    paths:
+      - '.github/workflows/trendos-t12-general-create-debug-a33.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run isolated general CREATE test only
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/t12_general_create.test.mjs
