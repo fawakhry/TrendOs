@@ -2,6 +2,7 @@ import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
+import { handleEdgeCustomerSearchRequest, isEdgeCustomerSearchPath } from './edge-customer-search-v1.mjs';
 import { handleCloudSessionBridgeV3, isCloudSessionBridgeV3Path } from './cloud-session-bridge-v3.mjs';
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
@@ -45,6 +46,12 @@ export default {
     // into the shared TrendOS shell. It does not change financial write authority.
     if (isAccountingPreviewPath(path)) {
       return handleAccountingPreviewRequest(request, env, ctx);
+    }
+
+    // T12 A51: authenticated D1 customer directory search. Read-only mirror lane;
+    // customer CREATE/update remains Apps Script-authoritative with frontend fallback.
+    if (isEdgeCustomerSearchPath(path)) {
+      return handleEdgeCustomerSearchRequest(request, env, ctx);
     }
 
     // CLOUD-MIGRATION-V3/T11: Service-only Orders read candidate. This route is
