@@ -62,7 +62,7 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456')=>({
 {
   const db=new D1('CANARY',1);
   const first=await createT12GeneralOrder(db,input(),actor,{canary:true});
-  assert.equal(first.success,true); assert.equal(first.orderId,'4323'); assert.deepEqual(first.lineIds,['4323-01']);
+  assert.equal(first.success,true,JSON.stringify(first)); assert.equal(first.orderId,'4323'); assert.deepEqual(first.lineIds,['4323-01']);
   assert.deepEqual(db.control(),{nextNo:4324,mode:'CANARY',remaining:0});
   const replay=await createT12GeneralOrder(db,input(),actor,{canary:true});
   assert.equal(replay.success,true); assert.equal(replay.idempotent,true); assert.equal(replay.orderId,'4323');
