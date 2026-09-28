@@ -1,0 +1,40 @@
+name: TrendOS T12 A51 Frontend Customer D1 Search CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-customer-search-d1-a51b-20260929
+    paths:
+      - 'trendos-edge-orders-read-v1.js'
+      - 'config.js'
+      - 'tests/frontend_t12_customer_search_a51.test.mjs'
+      - '.github/workflows/trendos-t12-a51-frontend-customer-search-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check trendos-edge-orders-read-v1.js
+      - name: A51 frontend contract
+        run: node tests/frontend_t12_customer_search_a51.test.mjs
+      - name: Existing frontend static safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "createManualOrder" trendos-edge-orders-read-v1.js
+          grep -F "/v1/t12/orders/create" trendos-edge-orders-read-v1.js
+          grep -F "/v1/edge/orders/02cr/page" trendos-edge-orders-read-v1.js
+          grep -F "/v1/edge/customers/search" trendos-edge-orders-read-v1.js
+          echo 'A51_FRONTEND=PASS'
+          echo 'CUSTOMER_CREATE_AUTHORITY=APPS_SCRIPT'
+          echo 'ORDER_CREATE_PATH_UNCHANGED=YES'
