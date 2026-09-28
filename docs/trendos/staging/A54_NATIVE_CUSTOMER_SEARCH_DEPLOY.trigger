@@ -1,0 +1,5 @@
+authorized_by_owner=2026-09-29
+purpose=switch_customer_search_primary_to_native_t12_customer_master
+customer_write_mode=OFF
+google_sheets_mutation=NO
+order_create_unchanged=YES
