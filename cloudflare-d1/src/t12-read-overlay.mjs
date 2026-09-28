@@ -72,7 +72,7 @@ export function mapT12CloudNativeRows(rows, screen) {
 
     const sourceName = text(source.source);
     const createdAt = text(source.orderCreatedAt || source.lineCreatedAt);
-    const updatedAt = text(source.lineUpdatedAt || source.orderUpdatedAt || createdAt);
+    const updatedAt = text(source.runtimeUpdatedAt || source.lineUpdatedAt || source.orderUpdatedAt || createdAt);
 
     out.push({
       rowNumber: 0,
@@ -102,12 +102,12 @@ export function mapT12CloudNativeRows(rows, screen) {
       debtNotes: '',
       updatedAt,
       notes: text(source.notes),
-      customerNotified: '',
-      notifiedAt: '',
-      notifiedBy: '',
-      lastWhatsAppMessage: '',
-      lastWhatsAppAt: '',
-      lastWhatsAppBy: '',
+      customerNotified: text(source.customerNotified),
+      notifiedAt: text(source.notifiedAt),
+      notifiedBy: text(source.notifiedBy),
+      lastWhatsAppMessage: text(source.lastWhatsAppMessage),
+      lastWhatsAppAt: text(source.lastWhatsAppAt),
+      lastWhatsAppBy: text(source.lastWhatsAppBy),
       receivedAt: createdAt,
       expectedDeliveryAt: '',
       expectedDeliveryText: '',
@@ -174,7 +174,7 @@ export async function readT12CloudNativeOverlay(env, screen) {
            l.item_name AS itemName,
            l.qty,
            l.priority,
-           l.status,
+           COALESCE(r.status,l.status) AS status,
            l.heat_press AS heatPress,
            l.fly_print AS flyPrint,
            l.created_at AS lineCreatedAt,
@@ -184,11 +184,19 @@ export async function readT12CloudNativeOverlay(env, screen) {
            o.customer_phone AS customerPhone,
            o.external_customer_id AS externalCustomerId,
            o.source,
-           o.notes,
+           COALESCE(r.notes,o.notes) AS notes,
+           COALESCE(r.customer_notified,'') AS customerNotified,
+           COALESCE(r.notified_at,'') AS notifiedAt,
+           COALESCE(r.notified_by,'') AS notifiedBy,
+           COALESCE(r.last_whatsapp_message,'') AS lastWhatsAppMessage,
+           COALESCE(r.last_whatsapp_at,'') AS lastWhatsAppAt,
+           COALESCE(r.last_whatsapp_by,'') AS lastWhatsAppBy,
+           r.updated_at AS runtimeUpdatedAt,
            o.created_at AS orderCreatedAt,
            o.updated_at AS orderUpdatedAt
       FROM t12_prod_lines l
       JOIN t12_prod_orders o ON o.order_id = l.order_id
+      LEFT JOIN t12_prod_line_runtime r ON r.line_id = l.line_id
      ORDER BY o.created_at DESC, l.ordinal ASC
   `).all();
 
