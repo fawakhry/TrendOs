@@ -323,3 +323,14 @@ Next required evidence before any production retry: independently compare the da
 - State: `ORDER_4322_VISIBLE_IN_PRINT_UI=YES`, `HYBRID_READ_OVERLAY_UI_VERIFIED=YES`, `CANARY_ENABLED=false`, `CANARY_REMAINING=0`, `NEXT_ORDER_NUMBER=4323`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 441 RESULT: `TRENDOS_T12_ORDER_4322_PRINT_UI_VISIBLE_ENTRY_441_2026-09-28.md`, commit `1a13cfbe5e3eb5b105cea8cd96be0a3945637bbf`.
 - Read-overlay proof phase complete. Any CREATE broadening or Cloud-native write handling requires separate explicit owner authorization.
+
+## Cloud-native operational runtime live — Entry 442
+- Owner asked to continue rapidly toward restoring platform operation.
+- Migration `0006_t12_operational_runtime.sql` added operational state tables without altering immutable CREATE rows.
+- A30 run `36408536753`, job `108882943023`: SUCCESS. `RUNTIME_SCHEMA=PASS`, `ORDER_4322_PRESTATE=PASS`, `RUNTIME_HEALTH=PASS`, `CREATE_SAFETY=PASS`. Worker Version ID `4e2d427c-789c-4fdd-86c7-c2f3987ca80a`.
+- Runtime routes live: `/v1/t12/orders/line-runtime/health`, `/update`, `/notify`. They use authenticated Edge sessions and mutate only Cloud-native runtime state.
+- A31 frontend qualification run `36408740253`, job `108883592464`: SUCCESS. `T12 runtime frontend routing PASS`, `RUNTIME_FRONTEND_QUALIFICATION=PASS`.
+- Main frontend commits: `30265964a4d1fdeb0722e4170f7749cf0510c1b3` (runtime routing) and `a25889dc3ae444de931f9f9b64fc13e32c784808` (cache version). GitHub Pages run `36408821266`: SUCCESS.
+- Cloud-native `updateLine` and `markCustomerNotified` now route to Cloudflare; legacy rows still use Apps Script.
+- State: `T12_OPERATIONAL_RUNTIME=LIVE`, `CANARY_ENABLED=false`, `CANARY_REMAINING=0`, `NEXT_ORDER_NUMBER=4323`, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 442: `TRENDOS_T12_OPERATIONAL_RUNTIME_LIVE_ENTRY_442_2026-09-28.md`, commit `b2a6a3f33f7b1005609b2afa289734360e25b104`.
