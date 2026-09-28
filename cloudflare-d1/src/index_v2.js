@@ -17,6 +17,7 @@ import {
 import { handleT12ReadOverlayRequest, isT12ReadOverlayPath } from './t12-read-overlay-handler.mjs';
 import { handleT12OperationalRuntimeRequest, isT12OperationalRuntimePath } from './t12-operational-runtime-handler.mjs';
 import { handleT12GeneralCreateRequest, isT12GeneralCreatePath } from './t12-general-create-handler.mjs';
+import { handleT12CustomerWriteRequest, isT12CustomerWritePath } from './t12-customer-write-handler.mjs';
 import { handleCloudWriteRequest, isCloudWritePath } from './cloud-write-gate.mjs';
 import { handleNormalizedImportRequest, isNormalizedImportPath } from './normalized-import-gate.mjs';
 import { handleAccountingPreviewRequest, isAccountingPreviewPath } from './accounting-preview.mjs';
@@ -98,6 +99,12 @@ export default {
     // T12 guarded Cloud-native CREATE lane. DB control defaults OFF.
     if (isT12GeneralCreatePath(path)) {
       return handleT12GeneralCreateRequest(request, env, ctx);
+    }
+
+    // T12 Cloud-native customer master write lane. Schema/control defaults OFF.
+    // Search remains the independent A51 read lane until customer write cutover.
+    if (isT12CustomerWritePath(path)) {
+      return handleT12CustomerWriteRequest(request, env, ctx);
     }
 
     // Operator Task V2 hybrid facade. Exact paths only; fail-closed/default-OFF;
