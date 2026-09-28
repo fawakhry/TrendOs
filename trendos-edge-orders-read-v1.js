@@ -8,10 +8,11 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_D1_A51_STALE_BACKOFF_A52_20260929';
+  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_PROJECTION_A55_20260929';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var CUSTOMER_SEARCH_PATH = '/v1/edge/customers/search';
+  var CUSTOMER_LEGACY_PROJECTION_PATH = '/v1/t12/customers/legacy-projection';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
   var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
@@ -26,6 +27,11 @@
   var MAX_POST_WRITE_BARRIER_MS = 10 * 60 * 1000;
   var DEFAULT_STALE_FALLBACK_COOLDOWN_MS = 2 * 60 * 1000;
   var MAX_STALE_FALLBACK_COOLDOWN_MS = 5 * 60 * 1000;
+  var DEFAULT_CUSTOMER_POST_WRITE_BARRIER_MS = 10 * 60 * 1000;
+  var MAX_CUSTOMER_POST_WRITE_BARRIER_MS = 20 * 60 * 1000;
+  var CUSTOMER_POST_WRITE_BARRIER_STORAGE_KEY = 'trendos_customer_post_write_barrier_v1';
+  var CUSTOMER_PENDING_PROJECTION_STORAGE_KEY = 'trendos_customer_pending_projection_v1';
+  var CUSTOMER_PENDING_PROJECTION_MAX_AGE_MS = 30 * 60 * 1000;
   var POST_WRITE_BARRIER_STORAGE_KEY = 'trendos_edge_orders_post_write_barrier_v1';
   var GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS = Date.UTC(1899, 11, 30);
   var GOOGLE_SHEETS_SERIAL_DAY_MS = 24 * 60 * 60 * 1000;
@@ -34,6 +40,7 @@
   var inflight = new Map();
   var postWriteBarrier = { until: 0, orderId: '', lineId: '', status: '' };
   var staleFallbackUntil = 0;
+  var customerPostWriteBarrierUntil = 0;
   var cloudNativeLineIds = new Set();
   var metrics = {
     edgeSuccess: 0,
@@ -52,6 +59,10 @@
     customerEdgeSuccess: 0,
     customerFallbacks: 0,
     customerMissFallbacks: 0,
+    customerProjectionSuccess: 0,
+    customerProjectionFailures: 0,
+    customerProjectionReplays: 0,
+    customerPostWriteFallbacks: 0,
     lastFallbackAt: 0,
     lastFallbackReason: ''
   };
@@ -95,6 +106,102 @@
       return false;
     }
     return true;
+  }
+
+  function customerPostWriteBarrierMs() {
+    var configured = Number(window.MATBAGY_CUSTOMER_POST_WRITE_BARRIER_MS);
+    if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_CUSTOMER_POST_WRITE_BARRIER_MS;
+    return Math.min(configured, MAX_CUSTOMER_POST_WRITE_BARRIER_MS);
+  }
+
+  function persistCustomerPostWriteBarrier() {
+    try {
+      if (!customerPostWriteBarrierUntil) sessionStorage.removeItem(CUSTOMER_POST_WRITE_BARRIER_STORAGE_KEY);
+      else sessionStorage.setItem(CUSTOMER_POST_WRITE_BARRIER_STORAGE_KEY, String(customerPostWriteBarrierUntil));
+    } catch (e) {}
+  }
+
+  function restoreCustomerPostWriteBarrier() {
+    var until = 0;
+    try { until = Number(sessionStorage.getItem(CUSTOMER_POST_WRITE_BARRIER_STORAGE_KEY) || 0); } catch (e) {}
+    customerPostWriteBarrierUntil = Number.isFinite(until) && until > Date.now() ? until : 0;
+    if (!customerPostWriteBarrierUntil) {
+      try { sessionStorage.removeItem(CUSTOMER_POST_WRITE_BARRIER_STORAGE_KEY); } catch (e) {}
+    }
+    return customerPostWriteBarrierUntil > 0;
+  }
+
+  function openCustomerPostWriteBarrier() {
+    customerPostWriteBarrierUntil = Date.now() + customerPostWriteBarrierMs();
+    persistCustomerPostWriteBarrier();
+  }
+
+  function clearCustomerPostWriteBarrier() {
+    customerPostWriteBarrierUntil = 0;
+    persistCustomerPostWriteBarrier();
+  }
+
+  function customerPostWriteBarrierActive() {
+    if (!customerPostWriteBarrierUntil) return false;
+    if (customerPostWriteBarrierUntil <= Date.now()) {
+      clearCustomerPostWriteBarrier();
+      return false;
+    }
+    return true;
+  }
+
+  function customerProjectionRequestKey() {
+    var suffix = '';
+    try {
+      var bytes = new Uint8Array(12);
+      crypto.getRandomValues(bytes);
+      suffix = Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    } catch (e) {
+      suffix = ('r_' + Math.random().toString(36).slice(2) + '_' + Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9_-]/g, '');
+    }
+    if (suffix.length < 16) suffix += '0000000000000000';
+    return 'custp_' + String(Date.now()) + '_' + suffix.slice(0, 80);
+  }
+
+  function customerProjectionPayload(params, requestKey) {
+    var p = params || {};
+    return {
+      clientRequestId: requestKey,
+      customerName: text(p.customerName),
+      manager: text(p.manager),
+      phone: text(p.phone || p.customerPhone),
+      extraPhone: text(p.extraPhone || p.customerExtraPhone),
+      customerType: text(p.customerType || p.type),
+      active: text(p.active) || 'نعم',
+      debtAmount: p.debtAmount == null ? 0 : p.debtAmount,
+      notes: text(p.notes),
+      franchiseBranchCode: text(p.franchiseBranchCode || p.branchCode),
+      franchiseBranchName: text(p.franchiseBranchName || p.branchName)
+    };
+  }
+
+  function readPendingCustomerProjection() {
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(CUSTOMER_PENDING_PROJECTION_STORAGE_KEY) || 'null'); } catch (e) {}
+    if (!saved || !saved.payload || !text(saved.payload.clientRequestId) || !Number(saved.createdAt)) return null;
+    if (Date.now() - Number(saved.createdAt) > CUSTOMER_PENDING_PROJECTION_MAX_AGE_MS) {
+      try { sessionStorage.removeItem(CUSTOMER_PENDING_PROJECTION_STORAGE_KEY); } catch (e) {}
+      return null;
+    }
+    return saved;
+  }
+
+  function rememberPendingCustomerProjection(payload) {
+    try {
+      sessionStorage.setItem(CUSTOMER_PENDING_PROJECTION_STORAGE_KEY, JSON.stringify({
+        createdAt: Date.now(),
+        payload: payload
+      }));
+    } catch (e) {}
+  }
+
+  function clearPendingCustomerProjection() {
+    try { sessionStorage.removeItem(CUSTOMER_PENDING_PROJECTION_STORAGE_KEY); } catch (e) {}
   }
 
   function parseMirrorTime(value) {
@@ -391,6 +498,62 @@
       });
     }
     return jsonResponse(response);
+  }
+
+  async function t12CustomerLegacyProjection(payload) {
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + CUSTOMER_LEGACY_PROJECTION_PATH, {
+      method: 'POST', cache: 'no-store', credentials: 'omit',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(payload || {})
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + CUSTOMER_LEGACY_PROJECTION_PATH, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(payload || {})
+      });
+    }
+    var body = await t12JsonAnyStatus(response);
+    if (response.ok && body && body.success === true) return body;
+    var err = new Error(text(body && (body.message || body.reason || body.code)) || ('Customer projection HTTP ' + response.status));
+    err.status = response.status;
+    err.reason = text(body && (body.reason || body.code));
+    throw err;
+  }
+
+  function terminalCustomerProjectionError(err) {
+    var status = Number(err && err.status || 0);
+    return status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429;
+  }
+
+  async function flushPendingCustomerProjection() {
+    var pending = readPendingCustomerProjection();
+    if (!pending) return false;
+    try {
+      var result = await t12CustomerLegacyProjection(pending.payload);
+      if (result && result.success === true) {
+        clearPendingCustomerProjection();
+        clearCustomerPostWriteBarrier();
+        metrics.customerProjectionSuccess += 1;
+        metrics.customerProjectionReplays += 1;
+        return true;
+      }
+    } catch (err) {
+      metrics.customerProjectionFailures += 1;
+      if (terminalCustomerProjectionError(err)) clearPendingCustomerProjection();
+    }
+    return false;
   }
 
   function rowIdentity(row) {
@@ -774,12 +937,59 @@ function eligible(action, params) {
     async function wrapped(action, params) {
       var args = arguments;
 
+      // Customer CREATE/update remains Apps Script-authoritative during A55.
+      // After a successful Sheet save, project the same safe operational fields
+      // into the native customer master. A failed projection opens a persisted
+      // read barrier so this browser does not repaint stale native customer data.
+      if (action === 'createCustomer') {
+        var legacyCustomerResult = await original.apply(this, args);
+        if (!legacyCustomerResult || legacyCustomerResult.success !== true) return legacyCustomerResult;
+
+        var projectionPayload = customerProjectionPayload(params || {}, customerProjectionRequestKey());
+        rememberPendingCustomerProjection(projectionPayload);
+        try {
+          var projectionResult = await t12CustomerLegacyProjection(projectionPayload);
+          clearPendingCustomerProjection();
+          clearCustomerPostWriteBarrier();
+          metrics.customerProjectionSuccess += 1;
+          legacyCustomerResult.cloudProjection = {
+            success: true,
+            customerId: text(projectionResult && projectionResult.customerId),
+            operation: text(projectionResult && projectionResult.operation),
+            authoritativeSource: 'apps-script'
+          };
+        } catch (projectionErr) {
+          metrics.customerProjectionFailures += 1;
+          openCustomerPostWriteBarrier();
+          if (terminalCustomerProjectionError(projectionErr)) clearPendingCustomerProjection();
+          legacyCustomerResult.cloudProjection = {
+            success: false,
+            deferred: !terminalCustomerProjectionError(projectionErr),
+            reason: text(projectionErr && (projectionErr.reason || projectionErr.message))
+          };
+          try {
+            console.warn('[TrendOS Customer A55] Apps Script save succeeded but native projection is pending/unavailable:', projectionErr && projectionErr.message ? projectionErr.message : projectionErr);
+          } catch (ignore) {}
+        }
+        return legacyCustomerResult;
+      }
+
       // Customer lookup is Cloud/D1-first. A D1 miss intentionally falls back
       // to Apps Script so newly-added customers remain visible until customer
       // write authority is migrated in a later gated step.
       if (action === 'searchCustomers') {
         var customerQuery = text(params && params.q);
         if (!customerQuery) return { success: true, customers: [] };
+
+        if (customerPostWriteBarrierActive()) {
+          await flushPendingCustomerProjection();
+          if (customerPostWriteBarrierActive()) {
+            metrics.customerFallbacks += 1;
+            metrics.customerPostWriteFallbacks += 1;
+            return original.apply(this, args);
+          }
+        }
+
         try {
           var customerResult = await edgeCustomerSearch(params || {});
           if (customerResult && Array.isArray(customerResult.customers) && customerResult.customers.length) {
@@ -884,8 +1094,9 @@ function eligible(action, params) {
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 't12-02cr-orders-plus-d1-customer-search-with-apps-script-fallback',
+      mode: 't12-a55-apps-script-customer-write-through-native-projection',
       customerSearchPath: CUSTOMER_SEARCH_PATH,
+      customerProjectionPath: CUSTOMER_LEGACY_PROJECTION_PATH,
       serviceUsesQualified02CR: true,
       canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
       canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
@@ -894,7 +1105,9 @@ function eligible(action, params) {
       maxMirrorAgeMs: maxMirrorAgeMs(),
       postWriteBarrierMs: postWriteBarrierMs(),
       staleFallbackCooldownMs: staleFallbackCooldownMs(),
+      customerPostWriteBarrierMs: customerPostWriteBarrierMs(),
       clearSession: clearSession,
+      clearCustomerPostWriteBarrier: clearCustomerPostWriteBarrier,
       clearPostWriteBarrier: clearPostWriteBarrier,
       repairSerializedLineId: repairSerializedLineId,
       stats: function () {
@@ -919,6 +1132,13 @@ function eligible(action, params) {
           customerEdgeSuccess: metrics.customerEdgeSuccess,
           customerFallbacks: metrics.customerFallbacks,
           customerMissFallbacks: metrics.customerMissFallbacks,
+          customerProjectionSuccess: metrics.customerProjectionSuccess,
+          customerProjectionFailures: metrics.customerProjectionFailures,
+          customerProjectionReplays: metrics.customerProjectionReplays,
+          customerPostWriteFallbacks: metrics.customerPostWriteFallbacks,
+          customerPostWriteBarrierActive: customerPostWriteBarrierActive(),
+          customerPostWriteBarrierUntil: customerPostWriteBarrierUntil || 0,
+          customerProjectionPending: !!readPendingCustomerProjection(),
           cloudNativeLineIds: cloudNativeLineIds.size,
           postWriteBarrierActive: postWriteBarrierActive(),
           postWriteBarrierUntil: postWriteBarrier.until || 0,
@@ -933,6 +1153,7 @@ function eligible(action, params) {
   }
 
   restorePostWriteBarrier();
+  restoreCustomerPostWriteBarrier();
 
   window.TrendOSEdgeOrdersReadV1Loader = {
     version: VERSION,
@@ -941,7 +1162,9 @@ function eligible(action, params) {
     maxMirrorAgeMs: maxMirrorAgeMs(),
     postWriteBarrierMs: postWriteBarrierMs(),
     staleFallbackCooldownMs: staleFallbackCooldownMs(),
+    customerPostWriteBarrierMs: customerPostWriteBarrierMs(),
     install: install,
+    clearCustomerPostWriteBarrier: clearCustomerPostWriteBarrier,
     clearSession: clearSession,
     clearPostWriteBarrier: clearPostWriteBarrier,
     repairSerializedLineId: repairSerializedLineId
