@@ -2,3 +2,5 @@ authorized_by_owner=2026-09-29
 purpose=d1_customer_search_read_first
 customer_writes=apps_script
 d1_migrations=no
+
+retry_after_propagation_fix=1
