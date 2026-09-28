@@ -1581,3 +1581,12 @@ Book-finishing lane only. All remaining 34 Cloudflare/D1 M files have been full-
 Next documentation lane: full-review tests, then workflows, then historical documentation/evidence. Production blocker remains Entry384 and is not being executed here.
 
 Journal RESULT commit: `bd414ee672a929a28304b2ec5f5c232a12089d24`.
+
+
+## Entry 451 handoff — live legacy fence + delivered Mahmoud Sheet re-key / 2026-09-28 Cairo
+
+Canonical detail: `TRENDOS_T12_LEGACY_WRITERS_LIVE_SHEET_4322_REKEY_ENTRY_451_2026-09-28.md` (commit `60b2ceb3c717fb666ce8a21200a69f18b1091e97`). Existing Apps Script Web App deployment `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg` updated to Version 157, same URL/settings; `Code.gs` and `trendos-order-line-integrity-v1.gs` only. Dynamic `/exec?action=createManualOrder` response could not be inspected from this environment (browser ERR_BLOCKED_BY_CLIENT, terminal timeout); do not report HTTP probe PASS.
+
+Google Sheets Mahmoud `4322 / 4322-01` re-keyed to `4323 / 4323-01` across 14 exact cells in Orders, Lines, Activity, and Alerts. The live Order/Line status remains `تم التسليم`. Final workbook search found no Mahmoud reference under 4322; only unrelated alert ID substring `ALT-41C64322` for Order 3534 remains. `CLOUDFLARE_TOUCHED=NO`; `D1_TOUCHED=NO`.
+
+Owner's remaining Cloud-only manual action: retire/prevent pending outbox for the historical D1 Canary 4322. Leave its runtime `تم التسليم` and real D1 Order 4323 untouched. No Cloud step was executed in Entry 451.
