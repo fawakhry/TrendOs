@@ -332,11 +332,12 @@ export async function upsertT12Customer(db,input={},actor='',options={}){
     return fail('customer-transaction-outcome-unknown-no-retry');
   }
 
-  const customer=await readT12Customer(db,customerId);
-  if(!customer)return fail('customer-commit-not-verified-no-retry',{customerId});
+  let confirmed;
+  try{confirmed=await replayByRequestKey(db,requestKey,safeActor,epoch,fields);}
+  catch{return fail('customer-commit-not-verified-no-retry',{customerId});}
+  if(confirmed.kind!=='VERIFIED')return fail('customer-commit-not-verified-no-retry',{customerId});
   return {
-    success:true,cloudNative:true,stored:true,idempotent:false,
-    customerId,operation,updated:operation==='UPDATE',customer,
+    ...confirmed.response,stored:true,idempotent:false,
     canary,version:T12_CUSTOMER_MASTER_VERSION
   };
 }
