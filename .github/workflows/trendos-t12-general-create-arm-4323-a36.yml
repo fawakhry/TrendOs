@@ -1,0 +1,92 @@
+name: TrendOS T12 General CREATE Arm 4323 A36
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-general-create-arm-4323-a36-20260928
+    paths:
+      - '.github/workflows/trendos-t12-general-create-arm-4323-a36.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-general-create
+  cancel-in-progress: false
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Preflight and arm exactly Order 4323
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'aeadb43110dbb950f8b1ed7683ad9ce0'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          python3 - <<'PY'
+          import json,os,sys,urllib.request,urllib.error
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          EXPECTED='46244467c1de37daa419a38f6fb39921'
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+          headers={'Authorization':'Bearer '+token,'Accept':'application/json','Content-Type':'application/json'}
+          def call(url,method='GET',sql=None):
+              body=None if sql is None else json.dumps({'sql':sql}).encode()
+              h=dict(headers)
+              if body is None:h.pop('Content-Type',None)
+              req=urllib.request.Request(url,data=body,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r: status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e:
+                  status=e.code; raw=e.read()
+              try:data=json.loads(raw)
+              except Exception:data={}
+              return status,data
+          s,v=call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
+          rr=v.get('result') or {}
+          if s!=200 or v.get('success') is not True or rr.get('status')!='active' or rr.get('id')!=EXPECTED:
+              print('TOKEN_GUARD=FAIL');sys.exit(1)
+          print('TOKEN_GUARD=PASS')
+          url=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}/query'
+          pre="""SELECT g.mode,g.canary_remaining AS generalBudget,c.next_order_number AS nextNo,c.canary_remaining AS legacyBudget,
+                         (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4323') AS order4323
+                    FROM t12_prod_general_create_control g JOIN t12_prod_create_control c ON c.singleton=g.singleton
+                   WHERE g.singleton=1;"""
+          s,r=call(url,'POST',pre)
+          try: row=r['result'][0]['results'][0]
+          except Exception: row={}
+          ok=(s==200 and r.get('success') is True and row.get('mode')=='OFF' and row.get('generalBudget')==0 and row.get('nextNo')==4323 and row.get('legacyBudget')==0 and row.get('order4323')==0)
+          if not ok:
+              print('GENERAL_CANARY_PREFLIGHT=FAIL');print(json.dumps(row,sort_keys=True));sys.exit(1)
+          print('GENERAL_CANARY_PREFLIGHT=PASS')
+          update="""UPDATE t12_prod_general_create_control
+                       SET mode='CANARY',canary_remaining=1,updated_at=CURRENT_TIMESTAMP
+                     WHERE singleton=1 AND marker='T12_GENERAL_CREATE_V1'
+                       AND mode='OFF' AND canary_remaining=0
+                       AND EXISTS(SELECT 1 FROM t12_prod_create_control WHERE singleton=1 AND next_order_number=4323 AND canary_remaining=0)
+                       AND NOT EXISTS(SELECT 1 FROM t12_prod_orders WHERE order_id='4323');"""
+          s,r=call(url,'POST',update)
+          post="""SELECT g.mode,g.canary_remaining AS generalBudget,c.next_order_number AS nextNo,c.canary_remaining AS legacyBudget,
+                          (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4323') AS order4323
+                     FROM t12_prod_general_create_control g JOIN t12_prod_create_control c ON c.singleton=g.singleton
+                    WHERE g.singleton=1;"""
+          s2,r2=call(url,'POST',post)
+          try: row2=r2['result'][0]['results'][0]
+          except Exception: row2={}
+          armed=(s2==200 and r2.get('success') is True and row2.get('mode')=='CANARY' and row2.get('generalBudget')==1 and row2.get('nextNo')==4323 and row2.get('legacyBudget')==0 and row2.get('order4323')==0)
+          if not armed:
+              # fail closed: best-effort return to OFF if an ambiguous update occurred.
+              call(url,'POST',"UPDATE t12_prod_general_create_control SET mode='OFF',canary_remaining=0,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_GENERAL_CREATE_V1' AND NOT EXISTS(SELECT 1 FROM t12_prod_orders WHERE order_id='4323');")
+              print('GENERAL_CANARY_ARM=FAIL_DISARM_ATTEMPTED');print(json.dumps(row2,sort_keys=True));sys.exit(1)
+          print('GENERAL_CANARY_ARM=PASS')
+          print('GENERAL_CREATE_MODE=CANARY')
+          print('CANARY_REMAINING=1')
+          print('NEXT_ORDER_NUMBER=4323')
+          print('ORDER_4323_CREATED=NO')
+          print('GENERAL_CREATE_CUTOVER=NO')
+          PY
