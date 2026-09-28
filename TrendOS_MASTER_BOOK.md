@@ -1,26 +1,30 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.66-DRAFT-COMPACT — latest T12 Cloudflare diagnostics recorded; install-disabled attempt 2 still fails 7500 only at migration apply; token/account/D1 discovery and Wrangler read path pass; no canary activation** · تاريخ التحديث: 2026-09-27 · المرجع الثابت لفهرس §11: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.67-DRAFT-COMPACT — current T12 Orders + Customer authority reconciled through A55; GENERAL Order CREATE live; customer native master/search live with customer writes still Apps Script-authoritative; final documentation/evidence coverage pass + post-snapshot delta in progress** · تاريخ التحديث: 2026-09-29 · الجرد الثابت: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` + Delta snapshot `67aae5c790bf03a225782c9f5c8a8754273b866a` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 > **قاعدة القراءة المضغوطة من 2026-09-27:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. اكتمال المعرفة يتحقق من هذا الملف + الملاحق المرتبطة + الـJournal/Handoff + Git history. في شات جديد اقرأ الصفحة الأولى، فهرس القراءة السريع، الفصل المرتبط بالعطل، وآخر Journal/Handoff فقط. **لا تقرأ §11 inventory أو فهرس Journal التاريخي أو changelog القديم تلقائيًا.** افتحها فقط عند عطل/تدقيق يحتاجها. الأجزاء المقفولة تُراجع من [Closed Components Registry](docs/trendos/master-book/TRENDOS_CLOSED_COMPONENTS_INDEX.md) فقط إذا تحقق Reopen Trigger.
 
 ## الصفحة الأولى — الحالة النشطة فقط | استكمال IT ترند بدون إعادة التاريخ
 
-**آخر حقيقة تشغيلية موثقة:** Journal Entries412–417. `install-disabled` Run `36272464176` فشل مرة ثانية في attempt 2 عند `wrangler d1 migrations apply` بنفس Cloudflare code `7500`; لم تُطبق migration 0005 ولم يحدث Worker deploy/arm/create. بعد ذلك نجحت probes معزولة: Run `36330387663` أثبت وصول GitHub secret للحساب و`trendos-main` وSELECT؛ Run `36332643459` قبل no-op DML/DDL دون أثر دائم؛ Run `36332810401` أثبت أن Wrangler 4.142.0 ينجح في whoami/list/info/remote SELECT/migrations list وأن migration 0005 ما زالت pending. لذلك سبب 7500 أصبح `MIGRATION_APPLY_SPECIFIC / ROOT_CAUSE_UNKNOWN` وليس «غياب D1 access» مثبتًا.
+**آخر HEAD تشغيلي تمت مصالحته مع الكتاب:** `67aae5c790bf03a225782c9f5c8a8754273b866a` (Merge T12 A55 customer legacy projection). هذه الصفحة تلغي كحالة حالية النصوص الأقدم التي كانت تقول إن migration 0005 ما زالت pending أو إن Google/Apps Script ما زال سلطة Order CREATE العامة؛ تلك كانت صحيحة تاريخيًا قبل Entries447+.
 
-**الخطوة التالية الوحيدة في المسار النشط:** اعزل سبب `7500` الخاص بمسار migration 0005 بفحوص غير مدمرة، ويفضل استخدام `trendos-t12-synthetic-test` لأي عبارة قد تكتب فعليًا. لا تغيّر/تستبدل التوكن على فرضية قديمة بلا دليل، ولا تعِد `install-disabled` في الإنتاج قبل تحديد السبب أو تأهيل migration/workflow مصحح. عند الجاهزية يُعاد **`install-disabled` فقط** بنفس inputs المعتمدة، ثم يتحقق من `schemaReady=true`, `nextOrderNumber=4322`, `canaryRemaining=0`, `enabled=false`. `arm-one` غير مصرح به حاليًا.
+**Orders — السلطة الحالية:** Entry447 أثبت `GENERAL_CREATE_MODE=GENERAL` و`generalCutover=true`. تسلسل Order IDs Cloud-native كان عند القطع `nextOrderNumber=4324`; Legacy create canary disabled. Apps Script legacy numeric allocator تم fencing في الـWeb App الحالي Version 157 وفق Entry451 (`makeOrderId_` fail-closed بـ`T12_CLOUD_ORDER_ID_AUTHORITY` ومسار draft التكميلي يفحص نفس fence). إصلاح collision 4322 اكتمل: محمود مناع أصبح `4323/4323-01` في Sheets وD1 وحالته `تم التسليم`; canary التقني `4322` بقي منفصلًا وتم تحويل outbox الخاص به إلى `done` في Entry452. **لا تعكس أو تعيد استخدام 4322.**
 
-**سلطة البيانات الحالية:** Google Sheets + Apps Script يظلان سلطة business CREATE/numbering. Cloud Write V1 وR4 وR5 موثقة OFF في آخر فحص ذي صلة. مسار Production canary في الـrepo default-OFF؛ migration 0005 غير مطبقة بحسب Entry384، والـWorker لم يُنشر من ذلك run.
+**Orders — القراءة/التشغيل:** Print + Laser + Customer Service تستخدم qualified 02CR + T12 Cloud overlay في الواجهة الحالية (Entry453). Cloud-native single-line status/notes تذهب إلى T12 operational runtime؛ legacy lines تبقى على Apps Script. عند فشل freshness/02CR يوجد Apps Script + independent T12 overlay fallback. Entry448 يظل Repair Map للثغرات غير المغلقة: bulk/archive/restore، debt/invoice delivery gate للـCloud rows، customer portal/conversation/proofs، downstream outbox الحقيقي، fallback pagination/counters، expected-delivery/debt enrichment، urgent notification polling، وdurable ambiguous-create continuity.
 
-**Fresh-start CREATE:** transaction/canary mechanics من `4322` مؤهلة في isolated CI، لكن التأهيل لا يساوي Production activation. historical D1 full-rebase Entries374–377 أصبح `CLOSED_BY_OWNER_DECISION / DO_NOT_RETRY`; لا تعِد تشغيله.
+**Customers — القراءة الحالية:** A51 نقل Customer Search إلى D1-first، ثم A53 ثبت Cloud-native customer master schema/mirror bootstrap، ثم A54 جعل **`T12_CUSTOMER_MASTER` هو البحث الأساسي**. Production A54 run `36496479361` PASS مع `customerCount=247`, `mode=OFF`. الترتيب الحالي: Native master primary → A51 D1 mirror secondary → browser Apps Script fallback عند miss/error. A52 أضاف stale-02CR cooldown دقيقتين لإزالة repeated double-hop بدون إضعاف freshness/debt guards.
 
-**فجوات ما زالت مفتوحة عند الحاجة لمساراتها:** `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED` ما لم توجد بينة أحدث؛ أي source/deployment تغير يبطل certification السابقة لذلك المكون. لا يوجد حاليًا subsystem موسوم `CERTIFIED_CURRENT` في سجل الإغلاق.
+**Customers — الكتابة الحالية:** **سلطة Customer CREATE/UPDATE ما زالت Apps Script/Google Sheets.** A53 زرع 247 legacy customers في `t12_customers` مع `source=legacy-mirror`, customer-write `mode=OFF`, canary budget 0، بدون Cloud-native customers. A55 نشر route محمي `/v1/t12/customers/legacy-projection` لعمل projection من Apps Script authority إلى native master، لكنه يعمل فقط عندما customer write mode=`OFF`; A55 Production run `36497059522` PASS وأثبت `CUSTOMER_WRITE_AUTHORITY=APPS_SCRIPT` و`CUSTOMER_NATIVE_GENERAL_WRITE=OFF`. لا تعتبر وجود `t12-customer-master.mjs` إذنًا لتفعيل native customer write.
 
-**التغطية:** الجرد التاريخي الثابت = 1185 path: `M569 / P588 / A11 / Redirect11 / LIVE6`. الجدول الكامل خارج القراءة الإلزامية في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md).
+**Customer native contract للإصلاح:** migration `0008_t12_customer_master.sql` تنشئ control + `t12_customers` + request ledger + events. Native create/update engine يستخدم clientRequestId بصيغة `cust1_*`, durable ledger/idempotent replay, optimistic version on UPDATE, D1 batch, lost-ACK readback و`no-retry` عند outcome مجهول. Legacy projection يستخدم `custp_*`, يطابق phone ثم exact normalized name، يرفض ambiguous match، ويكتب فقط rows من `source=legacy-mirror` عند UPDATE. Customer write handler يتطلب signed Orders Edge token وrole service/admin أو identities المسموح بها في المصدر؛ canary يتطلب admin + exact confirmation. **كل ذلك source-capable لكن general customer write غير مفعّل.**
 
-**قراءة شات جديد:** الصندوق الأسود → `اقرأني_أولًا.md` → هذه الصفحة + فهرس القراءة السريع + الفصل المرتبط بالعطل → آخر Journal/Handoff/HEAD. لا تحمل الملاحق الثقيلة أو الأجزاء المقفولة إلا إذا Trigger الإصلاح يطلبها.
+**حالة الكتاب والجرد:** الجرد الثابت 1185 path وصل حاليًا إلى `M504 / P653 / A11 / Redirect11 / LIVE6`. لأن المشروع استمر بعد Snapshot `05ca9c9`، تم إنشاء [Post-snapshot Delta Inventory](docs/trendos/master-book/TRENDOS_COVERAGE_DELTA_05ca9c9_TO_67aae5c.md): عند HEAD `67aae5c...` كان هناك **133 path جديدًا** ولا path قديم محذوف؛ **20** منها قُرئت/صُنفت في Entry469 و**113** ما زالت تحتاج disposition. لذلك الكتاب **لم يُغلق نهائيًا بعد**، لكن لا توجد ملفات تشغيل جديدة مخفية خارج الجرد بعد الآن.
 
-**مصادر الاستكمال:** [Journal T12 النشط](docs/trendos/blackbox/منصة%20ترند/TRENDOS_T12_CLOUDFLARE_TEST_EXECUTION_JOURNAL_2026-09-21.md) · [Handoff الأحدث بعد تشخيص 7500](docs/trendos/blackbox/منصة%20ترند/TRENDOS_T12_NEW_CHAT_HANDOFF_AFTER_D1_7500_DIAGNOSTICS_2026-09-27.md) · [Closed Components Registry](docs/trendos/master-book/TRENDOS_CLOSED_COMPONENTS_INDEX.md).
+**قراءة شات جديد الآن:** `الصندوق الاسود.md` → `اقرأني_أولًا.md` → هذه الصفحة → الفصل المرتبط بالعطل → أحدث Journal/Current Handoff/HEAD. لا تقرأ 504 وثيقة M أو 113 Delta-M تلقائيًا؛ هي backlog كتابة الكتاب وليست onboarding. افتح وثيقة تاريخية فقط إذا Repair Map/Reopen Trigger يحتاجها.
+
+**مسار إغلاق الكتاب الجاري:** Entry467 = final documentation/evidence pass للـfixed inventory، مع dedupe حسب Git blob SHA. Entry469 = مصالحة الحالة الحية A51–A55 + إنشاء Delta Inventory. الإغلاق النهائي يتطلب `fixed M=0` و`delta M=0` أو تصنيف صريح OUT_OF_SCOPE/SUPERSEDED/CLOSED لكل صف، مع عدم تحويل static read إلى `CERTIFIED_CURRENT` بدون deployed/runtime evidence.
+
+**مصادر الحالة الحالية:** Entry447 (GENERAL CREATE) · Entry448 (Orders audit/repair gaps) · Entry451 (live Apps Script fence + Sheet re-key) · Entry452 (canary outbox retired) · Entry453 (Laser/Service 02CR) · Entry468 (A51/A52 customer search/latency) · A53 Production run `36495988708` · A54 run `36496479361` · A55 run `36497059522`.
 
 ## تخصيص الكتاب لموظف IT — الدليل التشغيلي والمكتبة البرمجية الوحيدة لشرح TrendOS
 
@@ -1419,6 +1423,27 @@ Apps Script candidate one-record writer:
 **النتيجة:** هذه workflows مفيدة لتوثيق هندسة تأهيل T11 القديمة: local routing proof منفصل عن live data parity، وService parity كان مبنيًا على تحويل/فلترة محددين. لا يجوز اعتبار نجاح أو وجود هذه الملفات دليلًا أن Service D1-first الحالي مطابق أو أن PROD mirror مستعاد. أي current qualification يجب أن يثبت deployed Worker/source/bindings، snapshot freshness متزامن، business filter contract الحالي، ثم مقارنة محتوى مناسبة دون كشف بيانات العملاء. لا تغيير في حدود السلطة: `PROD_MIRROR=NOT_RESTORED` و`CLOUD_CREATE=NOT_CUT_OVER` وGoogle/Apps Script سلطة CREATE/numbering.
 
 
+### 5.54 T12 Customer authority A51–A55 — Native read live, legacy projection live, native general write OFF (CURRENT-20260929)
+
+**مصدر الحقيقة الحالي:** Entry468 + source blobs الحالية + Production job logs A53/A54/A55. هذا الفصل أحدث من §5.17/§5.49/§5.50 في مسار البحث عن العميل؛ تلك الفصول تبقى مفيدة لCustomer Manager/WhatsApp وتاريخ D1 bridge، لكنها لا تصف Customer Master authority بعد A54.
+
+| الطبقة | الحالة الحالية | إصلاح/خطر يجب تذكره |
+|---|---|---|
+| Authoritative Customer write | Apps Script / Google Sheets | A55 يثبت ذلك صراحة. لا تغيّر `t12_customer_control.mode` من OFF بناءً على وجود schema فقط. |
+| Native D1 master | `t12_customers`, 247 legacy rows بعد A53 | A53 run `36495988708` أثبت digest parity، `legacy=247`, `cloud=0`, mode OFF. IDs bootstrap من `CUS-L<row>`؛ Cloud-created IDs مستقبلًا `CUS-C######`. |
+| Search | T12 native master primary | A54 route يبحث `t12_customers` إذا marker صحيح وcustomerCount>=247؛ secondary هو A51 mirror، ثم browser Apps Script fallback. Empty result من native master ليس failure؛ frontend policy يحدد fallback behavior. |
+| General native customer write | OFF | Engine موجود ويدعم CREATE/UPDATE/idempotency لكنه غير مخول تشغيليًا. Health `generalCutover=false`. |
+| Legacy projection | Protected route live | POST `/v1/t12/customers/legacy-projection`; يتطلب Edge auth + customer-manager role gate، ويعمل فقط mode OFF. يرفض ambiguous phone/name matches وunknown outcomes بلا blind retry. |
+| Customer request ledger | Durable D1 ledger | `request_key` unique؛ نفس key مع payload مختلف = conflict؛ PREPARED/incomplete أو lost outcome = no retry حتى readback/reconciliation. |
+| Customer events | Append-only audit | `customer-create`, `customer-update`, `legacy-bootstrap` schema allows event history؛ وجود event لا يغيّر authority وحده. |
+| Sensitive fields | excluded from A53 bootstrap | A50/A53 path استبعد portal password/session-token material من safe operational directory. لا توسع projection ليشمل secrets. |
+
+**Runbook عند مشكلة «العميل مش ظاهر»:** افحص بالترتيب native-master health/count/mode → authenticated `/v1/edge/customers/search` → هل native ready؟ → A51 mirror readiness/parity/note → browser Apps Script fallback. لا تصلح المشكلة بتفعيل customer writes أو بإعادة bootstrap قبل إثبات source/current count والـmode.
+
+**Runbook عند اختلاف العميل بين Sheets وD1:** طالما mode OFF، Sheets/Apps Script هو write authority. استخدم projection semantics لا native general write: request key ثابت للعملية، exact readback، phone-first ثم normalized-name match، توقف عند ambiguity، ولا تُحوّل row `source=cloud-native` إلى legacy-mirror بالـprojection. أي move إلى CANARY/GENERAL يحتاج مشروع cutover مستقل.
+
+**Current evidence:** `0008_t12_customer_master.sql` blob `c638b2afca70471c9916d6f644111cdce1157b45`; `t12-customer-master.mjs` `01c3e2a19dfcc9dcdcc58ac079c0c61ede6818d9`; write handler `3e604ac731a53b3c8e00994ba9fd0f32c9da4a69`; legacy projection `6b71315184e18e43dfc74be65795ed8b986faab7`; edge search `35d957a524d5cd262e44a838f3d6a1a307de9917`. Production jobs: A53 `109175570782`/run `36495988708` PASS; A54 `109177124637`/run `36496479361` PASS; A55 `109178976960`/run `36497059522` PASS.
+
 ## 6. مزامنة D1 والحادثة الحالية والقيود الحاسمة
 
 **حدود العمل المقصود عند آخر توقف:** إعادة مرآة **تابين حاليين فقط**: `الأوردرات` و`بنود الأوردرات`. لا تشمل تلقائيًا `أرشيف الأوردرات` أو `أرشيف بنود الأوردرات` أو إثراء الأقسام أو نقل Cloud CREATE.
@@ -1998,7 +2023,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 
 ## 11. جرد الملفات والتغطية — ملحق ثقيل، ليس قراءة تلقائية
 
-الجرد الكامل لكل **1185 path** مع SHA/size/role/status محفوظ في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md). الحصيلة الحالية: `M569 / P588 / A11 / Redirect11 / LIVE6`. افتح الملحق فقط إذا كانت المهمة تتطلب ملفًا بعينه، مراجعة coverage، أو تحديث inventory. لا تُعيد تحميله في كل شات.
+الجرد الثابت لكل **1185 path** مع SHA/size/role/status محفوظ في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md). الحصيلة الحالية: `M504 / P653 / A11 / Redirect11 / LIVE6`. الملفات المضافة بعد اللقطة لا تُخفى: تُتبع في [TRENDOS_COVERAGE_DELTA_05ca9c9_TO_67aae5c.md](docs/trendos/master-book/TRENDOS_COVERAGE_DELTA_05ca9c9_TO_67aae5c.md) (133 path عند snapshot HEAD؛ P20/M113 عند Entry469). افتح الجرد/Delta فقط عند coverage أو repair لملف بعينه.
 
 سجل تغييرات الكتاب التاريخي نُقل إلى [TRENDOS_MASTER_CHANGELOG_ARCHIVE_PRE_COMPACTION.md](docs/trendos/master-book/TRENDOS_MASTER_CHANGELOG_ARCHIVE_PRE_COMPACTION.md). النسخة الكاملة قبل الضغط قابلة للاسترجاع عبر [MASTER_BOOK_PRE_COMPACTION_SNAPSHOT_POINTER_2026-09-27.md](docs/trendos/master-book/MASTER_BOOK_PRE_COMPACTION_SNAPSHOT_POINTER_2026-09-27.md).
 
