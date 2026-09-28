@@ -1,0 +1,204 @@
+name: TrendOS T12 General CREATE Cutover A42
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-general-create-cutover-a42-20260928
+    paths:
+      - '.github/workflows/trendos-t12-general-create-cutover-a42.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-general-create
+  cancel-in-progress: false
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Guard and switch CANARY to GENERAL
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'aeadb43110dbb950f8b1ed7683ad9ce0'
+          test -n "$CLOUDFLARE_API_TOKEN"
+
+          python3 - <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          EXPECTED='46244467c1de37daa419a38f6fb39921'
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+
+          def call(url, method='GET', sql=None):
+              body=None if sql is None else json.dumps({'sql':sql}).encode()
+              headers={'Authorization':'Bearer '+token,'Accept':'application/json'}
+              if body is not None:
+                  headers['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=body,headers=headers,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      status=r.status; raw=r.read()
+              except urllib.error.HTTPError as e:
+                  status=e.code; raw=e.read()
+              try:
+                  data=json.loads(raw)
+              except Exception:
+                  data={}
+              return status,data
+
+          s,v=call(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/tokens/verify')
+          vr=v.get('result') or {}
+          if s!=200 or v.get('success') is not True or vr.get('status')!='active' or vr.get('id')!=EXPECTED:
+              print('TOKEN_GUARD=FAIL'); sys.exit(1)
+          print('TOKEN_GUARD=PASS')
+
+          url=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}/query'
+
+          pre="""SELECT
+              g.mode,
+              g.canary_remaining AS generalBudget,
+              g.policy_epoch AS policyEpoch,
+              c.next_order_number AS nextNo,
+              c.canary_remaining AS legacyBudget,
+              (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4323') AS order4323,
+              (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4324') AS order4324,
+              (SELECT COUNT(*) FROM t12_prod_request_ledger WHERE order_id='4323' AND status='COMMITTED') AS ledger4323
+            FROM t12_prod_general_create_control g
+            JOIN t12_prod_create_control c ON c.singleton=g.singleton
+            WHERE g.singleton=1;"""
+          s,r=call(url,'POST',pre)
+          try:
+              row=r['result'][0]['results'][0]
+          except Exception:
+              row={}
+          ok=(s==200 and r.get('success') is True
+              and row.get('mode')=='CANARY'
+              and row.get('generalBudget')==0
+              and row.get('nextNo')==4324
+              and row.get('legacyBudget')==0
+              and row.get('order4323')==1
+              and row.get('order4324')==0
+              and row.get('ledger4323')==1)
+          if not ok:
+              print('GENERAL_CUTOVER_PREFLIGHT=FAIL')
+              print(json.dumps(row,sort_keys=True))
+              sys.exit(1)
+          print('GENERAL_CUTOVER_PREFLIGHT=PASS')
+
+          update="""UPDATE t12_prod_general_create_control
+                       SET mode='GENERAL',canary_remaining=0,updated_at=CURRENT_TIMESTAMP
+                     WHERE singleton=1
+                       AND marker='T12_GENERAL_CREATE_V1'
+                       AND mode='CANARY'
+                       AND canary_remaining=0
+                       AND EXISTS(
+                         SELECT 1 FROM t12_prod_create_control
+                          WHERE singleton=1
+                            AND next_order_number=4324
+                            AND canary_remaining=0
+                       )
+                       AND EXISTS(
+                         SELECT 1 FROM t12_prod_orders WHERE order_id='4323'
+                       )
+                       AND EXISTS(
+                         SELECT 1 FROM t12_prod_request_ledger
+                          WHERE order_id='4323' AND status='COMMITTED'
+                       )
+                       AND NOT EXISTS(
+                         SELECT 1 FROM t12_prod_orders WHERE order_id='4324'
+                       );"""
+          s,r=call(url,'POST',update)
+          if s!=200 or r.get('success') is not True:
+              print('GENERAL_CUTOVER_UPDATE=FAIL'); sys.exit(1)
+
+          s2,r2=call(url,'POST',pre)
+          try:
+              row2=r2['result'][0]['results'][0]
+          except Exception:
+              row2={}
+          post=(s2==200 and r2.get('success') is True
+                and row2.get('mode')=='GENERAL'
+                and row2.get('generalBudget')==0
+                and row2.get('nextNo')==4324
+                and row2.get('legacyBudget')==0
+                and row2.get('order4323')==1
+                and row2.get('order4324')==0
+                and row2.get('ledger4323')==1)
+          if not post:
+              print('GENERAL_CUTOVER_POSTSTATE=FAIL')
+              print(json.dumps(row2,sort_keys=True))
+              sys.exit(1)
+
+          print('GENERAL_CUTOVER_POSTSTATE=PASS')
+          print('GENERAL_CREATE_MODE=GENERAL')
+          print('GENERAL_CREATE_CANARY_REMAINING=0')
+          print('NEXT_ORDER_NUMBER=4324')
+          print('ORDER_4324_CREATED=NO')
+          print('LEGACY_CANARY_REMAINING=0')
+          PY
+
+      - name: Verify live health
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=""
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            code="$(curl --silent --show-error --output /tmp/g.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/create/health" || true)"
+            if [ "$code" = "200" ]; then break; fi
+            sleep 2
+          done
+          echo "GENERAL_HEALTH_HTTP=$code"
+          cat /tmp/g.json || true
+          test "$code" = "200"
+
+          legacy=""
+          for i in 1 2 3 4 5; do
+            legacy="$(curl --silent --show-error --output /tmp/c.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/create-canary/health" || true)"
+            if [ "$legacy" = "200" ]; then break; fi
+            sleep 2
+          done
+          test "$legacy" = "200"
+
+          python3 - <<'PY'
+          import json,sys
+          g=json.load(open('/tmp/g.json','r',encoding='utf-8'))
+          c=json.load(open('/tmp/c.json','r',encoding='utf-8'))
+          ctl=c.get('control') or {}
+
+          ok=(g.get('success') is True
+              and g.get('schemaReady') is True
+              and g.get('mode')=='GENERAL'
+              and g.get('canaryRemaining')==0
+              and g.get('nextOrderNumber')==4324
+              and g.get('legacyCanaryRemaining')==0
+              and g.get('generalCutover') is True)
+          if not ok:
+              print('GENERAL_CREATE_HEALTH=FAIL')
+              print(json.dumps(g,sort_keys=True))
+              sys.exit(1)
+
+          legacy_ok=(c.get('enabled') is False
+              and ctl.get('nextOrderNumber')==4324
+              and ctl.get('canaryRemaining')==0
+              and c.get('generalCutover') is False)
+          if not legacy_ok:
+              print('LEGACY_CANARY_SAFETY=FAIL')
+              print(json.dumps(c,sort_keys=True))
+              sys.exit(1)
+
+          print('GENERAL_CREATE_HEALTH=PASS')
+          print('GENERAL_CREATE_MODE=GENERAL')
+          print('GENERAL_CREATE_CUTOVER=YES')
+          print('NEXT_ORDER_NUMBER=4324')
+          print('LEGACY_CANARY_ENABLED=false')
+          print('LEGACY_CANARY_REMAINING=0')
+          PY
