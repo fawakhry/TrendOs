@@ -346,3 +346,13 @@ Next required evidence before any production retry: independently compare the da
 - Current state: `GENERAL_CREATE_MODE=CANARY`, `GENERAL_CREATE_CANARY_REMAINING=1`, `NEXT_ORDER_NUMBER=4323`, `ORDER_4323_CREATED=NO`, `LEGACY_CANARY_REMAINING=0`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 443: `TRENDOS_T12_GENERAL_CREATE_4323_CANARY_READY_ENTRY_443_2026-09-28.md`, commit `6c8d501a5a056abe13f7c0a21927bac922f58578`.
 - Next proof: one Admin CREATE from normal Add Order UI, expected Order 4323. On verified success, switch general-create DB gate CANARY -> GENERAL.
+
+## Browser NetworkError on armed 4323 — Entry 444
+- User attempted the armed 4323 canary from the UI and got `NetworkError when attempting to fetch resource.`
+- A37 run `36413164125`, job `108897923998`: SUCCESS.
+- Live `/v1/t12/orders/create/health` from Origin `https://fawakhry.github.io`: HTTP 200, mode CANARY, canaryRemaining 1, nextOrderNumber 4323, generalCutover false.
+- CREATE preflight: PASS; exact GitHub Pages Origin allowed; authorization/content-type/x-t12-general-canary-confirm allowed.
+- Edge session preflight: PASS.
+- 4323 remains unconsumed. Do not retry Create until client-path/origin issue is identified.
+- Likely remaining fault domain: browser/network reachability to workers.dev or UI served from an Origin different from the configured GitHub Pages Origin.
+- Entry 444 commit `660f3aa36768da7fe515abe3007d2029e9332690`.
