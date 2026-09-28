@@ -34,7 +34,7 @@ Main updates:
 - `config.js`: commit / main HEAD `df38b2ef08b37385a87626757e4ff65badaafaa8`
 - Frontend version `EDGE_ORDERS_T12_CREATE_UI_CONTRACT_20260928`
 - Cache loader `trendos-edge-orders-read-v1.js?v=20260928-t12-create-ui-contract1`
-- GitHub Pages run `36442530502` started for the exact main head; build job succeeded and deployment was in progress at documentation time.
+- GitHub Pages run `36442530502`: SUCCESS for exact main HEAD `df38b2ef08b37385a87626757e4ff65badaafaa8`.
 
 Canary safety remains:
 ```
