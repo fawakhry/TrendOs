@@ -1,0 +1,49 @@
+name: TrendOS T12 Browser Network Diagnostic A37
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-browser-network-a37-20260928
+    paths:
+      - '.github/workflows/trendos-t12-browser-network-a37.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Probe live browser CORS contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://trendos-d1-api.trendmall-contact.workers.dev'
+          ORIGIN='https://fawakhry.github.io'
+
+          echo '=== HEALTH GET ==='
+          curl -sS -D /tmp/hh -o /tmp/hb -H "Origin: $ORIGIN" "$URL/v1/t12/orders/create/health"
+          cat /tmp/hh
+          cat /tmp/hb
+          grep -qi '^access-control-allow-origin: https://fawakhry.github.io' /tmp/hh
+          echo 'HEALTH_CORS=PASS'
+
+          echo '=== CREATE PREFLIGHT ==='
+          curl -sS -D /tmp/ph -o /tmp/pb -X OPTIONS             -H "Origin: $ORIGIN"             -H 'Access-Control-Request-Method: POST'             -H 'Access-Control-Request-Headers: authorization,content-type,x-t12-general-canary-confirm'             "$URL/v1/t12/orders/create"
+          cat /tmp/ph
+          cat /tmp/pb || true
+          grep -qi '^access-control-allow-origin: https://fawakhry.github.io' /tmp/ph
+          grep -qi '^access-control-allow-methods: .*POST' /tmp/ph
+          grep -qi '^access-control-allow-headers: .*authorization' /tmp/ph
+          grep -qi '^access-control-allow-headers: .*x-t12-general-canary-confirm' /tmp/ph
+          echo 'CREATE_PREFLIGHT=PASS'
+
+          echo '=== SESSION PREFLIGHT ==='
+          curl -sS -D /tmp/sh -o /tmp/sb -X OPTIONS             -H "Origin: $ORIGIN"             -H 'Access-Control-Request-Method: POST'             -H 'Access-Control-Request-Headers: content-type'             "$URL/v1/edge/orders/session"
+          cat /tmp/sh
+          cat /tmp/sb || true
+          grep -qi '^access-control-allow-origin: https://fawakhry.github.io' /tmp/sh
+          grep -qi '^access-control-allow-methods: .*POST' /tmp/sh
+          grep -qi '^access-control-allow-headers: .*content-type' /tmp/sh
+          echo 'SESSION_PREFLIGHT=PASS'
