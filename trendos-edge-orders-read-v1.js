@@ -8,9 +8,10 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_LASER_SERVICE_02CR_20260928';
+  var VERSION = 'EDGE_ORDERS_T12_CUSTOMERS_D1_SEARCH_20260929';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
+  var CUSTOMER_SEARCH_PATH = '/v1/edge/customers/search';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
   var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
@@ -44,6 +45,9 @@
     hybridOverlaySuccess: 0,
     hybridOverlayFailures: 0,
     hybridOverlayRows: 0,
+    customerEdgeSuccess: 0,
+    customerFallbacks: 0,
+    customerStaleFallbacks: 0,
     lastFallbackAt: 0,
     lastFallbackReason: ''
   };
@@ -278,6 +282,50 @@
     if (session.inflight) return session.inflight;
     session.inflight = exchangeSession().finally(function () { session.inflight = null; });
     return session.inflight;
+  }
+
+  function customerEdgeEnabled() {
+    return window.MATBAGY_EDGE_CUSTOMERS_READ_V1_ENABLED === true;
+  }
+
+  async function edgeCustomerSearch(params) {
+    var token = await ensureSession();
+    var query = new URLSearchParams();
+    query.set('q', text(params && params.q));
+    var url = edgeBase() + CUSTOMER_SEARCH_PATH + '?' + query.toString();
+    var response = await fetch(url, {
+      method: 'GET', cache: 'no-store', credentials: 'omit',
+      headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(url, {
+        method: 'GET', cache: 'no-store', credentials: 'omit',
+        headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+      });
+    }
+    var body = await jsonResponse(response);
+    if (text(body && body.dataSource) !== 'd1-edge-customers-v1' || !Array.isArray(body && body.customers)) {
+      throw mirrorFreshnessError('Customer D1 response shape mismatch', 'EDGE_CUSTOMERS_SOURCE');
+    }
+    return body;
+  }
+
+  async function customerSearchCloudFirst(context, original, params) {
+    if (!customerEdgeEnabled()) return original.call(context, 'searchCustomers', params || {});
+    try {
+      var result = await edgeCustomerSearch(params || {});
+      metrics.customerEdgeSuccess += 1;
+      return result;
+    } catch (err) {
+      metrics.customerFallbacks += 1;
+      if (err && err.code === 'edge-customers-stale') metrics.customerStaleFallbacks += 1;
+      try {
+        console.warn('[TrendOS Customer Edge] D1 customer search unavailable; using Apps Script fallback:', err && err.message ? err.message : err);
+      } catch (ignore) {}
+      return original.call(context, 'searchCustomers', params || {});
+    }
   }
 
   function queryString(params) {
@@ -539,7 +587,7 @@
       token: p.token
     };
     var result;
-    try { result = await original.call(context, 'searchCustomers', searchParams); }
+    try { result = await customerSearchCloudFirst(context, original, searchParams); }
     catch (e) { return { success: false, message: 'تعذر التحقق من بيانات العميل المسجل. اختاره من قائمة البحث أولًا.' }; }
 
     var customers = result && result.success && Array.isArray(result.customers) ? result.customers : [];
@@ -714,6 +762,12 @@ function eligible(action, params) {
     async function wrapped(action, params) {
       var args = arguments;
 
+      // Customer directory reads are Cloud/D1-first while the mirror is fresh.
+      // Any stale/unready D1 state fails open to the existing Apps Script search.
+      if (action === 'searchCustomers') {
+        return customerSearchCloudFirst(this, original, params || {});
+      }
+
       // New Order IDs are Cloud-native from 4322 onward. Never fall back to
       // Apps Script CREATE because its legacy allocator may collide with Cloud IDs.
       if (action === 'createManualOrder') {
@@ -791,10 +845,13 @@ function eligible(action, params) {
       enabled: true,
       mode: 't12-qualified-02cr-all-operational-screens-with-cloud-native-fallback',
       serviceUsesQualified02CR: true,
+      customerSearchCloudFirst: customerEdgeEnabled(),
       canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
       canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
       api: edgeBase(),
       pagePath: QUALIFIED_PAGE_PATH,
+    customerSearchPath: CUSTOMER_SEARCH_PATH,
+      customerSearchPath: CUSTOMER_SEARCH_PATH,
       maxMirrorAgeMs: maxMirrorAgeMs(),
       postWriteBarrierMs: postWriteBarrierMs(),
       clearSession: clearSession,
@@ -816,6 +873,9 @@ function eligible(action, params) {
           hybridOverlaySuccess: metrics.hybridOverlaySuccess,
           hybridOverlayFailures: metrics.hybridOverlayFailures,
           hybridOverlayRows: metrics.hybridOverlayRows,
+          customerEdgeSuccess: metrics.customerEdgeSuccess,
+          customerFallbacks: metrics.customerFallbacks,
+          customerStaleFallbacks: metrics.customerStaleFallbacks,
           cloudNativeLineIds: cloudNativeLineIds.size,
           postWriteBarrierActive: postWriteBarrierActive(),
           postWriteBarrierUntil: postWriteBarrier.until || 0,
