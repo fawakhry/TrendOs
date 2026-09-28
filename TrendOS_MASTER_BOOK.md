@@ -16,7 +16,7 @@
 
 **فجوات ما زالت مفتوحة عند الحاجة لمساراتها:** `PRODUCTION_VERSION155_SOURCE_EXACT=UNVERIFIED` ما لم توجد بينة أحدث؛ أي source/deployment تغير يبطل certification السابقة لذلك المكون. لا يوجد حاليًا subsystem موسوم `CERTIFIED_CURRENT` في سجل الإغلاق.
 
-**التغطية:** الجرد التاريخي الثابت = 1185 path: `M608 / P549 / A11 / Redirect11 / LIVE6`. الجدول الكامل خارج القراءة الإلزامية في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md).
+**التغطية:** الجرد التاريخي الثابت = 1185 path: `M569 / P588 / A11 / Redirect11 / LIVE6`. الجدول الكامل خارج القراءة الإلزامية في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md).
 
 **قراءة شات جديد:** الصندوق الأسود → `اقرأني_أولًا.md` → هذه الصفحة + فهرس القراءة السريع + الفصل المرتبط بالعطل → آخر Journal/Handoff/HEAD. لا تحمل الملاحق الثقيلة أو الأجزاء المقفولة إلا إذا Trigger الإصلاح يطلبها.
 
@@ -1998,7 +1998,7 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 
 ## 11. جرد الملفات والتغطية — ملحق ثقيل، ليس قراءة تلقائية
 
-الجرد الكامل لكل **1185 path** مع SHA/size/role/status محفوظ في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md). الحصيلة الحالية: `M608 / P549 / A11 / Redirect11 / LIVE6`. افتح الملحق فقط إذا كانت المهمة تتطلب ملفًا بعينه، مراجعة coverage، أو تحديث inventory. لا تُعيد تحميله في كل شات.
+الجرد الكامل لكل **1185 path** مع SHA/size/role/status محفوظ في [TRENDOS_COVERAGE_INVENTORY_05ca9c9.md](docs/trendos/master-book/TRENDOS_COVERAGE_INVENTORY_05ca9c9.md). الحصيلة الحالية: `M569 / P588 / A11 / Redirect11 / LIVE6`. افتح الملحق فقط إذا كانت المهمة تتطلب ملفًا بعينه، مراجعة coverage، أو تحديث inventory. لا تُعيد تحميله في كل شات.
 
 سجل تغييرات الكتاب التاريخي نُقل إلى [TRENDOS_MASTER_CHANGELOG_ARCHIVE_PRE_COMPACTION.md](docs/trendos/master-book/TRENDOS_MASTER_CHANGELOG_ARCHIVE_PRE_COMPACTION.md). النسخة الكاملة قبل الضغط قابلة للاسترجاع عبر [MASTER_BOOK_PRE_COMPACTION_SNAPSHOT_POINTER_2026-09-27.md](docs/trendos/master-book/MASTER_BOOK_PRE_COMPACTION_SNAPSHOT_POINTER_2026-09-27.md).
 
@@ -2053,6 +2053,8 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 - **Batch 24 / Entry461 — all 21 legacy 02xx workflows full-read:** the family spans OFF-readiness probes, source CI, preview qualification, production read-only baselines, frontend candidates and historical hotfix/deploy paths. Seven are mutation-capable historical procedures: 02CV frontend promote pushes to `main`; 02CW frontend promote and undefined-status hotfix push Production frontend changes; Worker code-only deploy publishes Worker code; version-promote sends an exact Cloudflare version to 100% with rollback; safety rollback explicitly restores a pinned version; zero-traffic upload creates a new Worker version/preview alias without routing Production traffic. The remainder are read-only/candidate/working-branch CI (including 02CL's fail-closed disabled POST check and 02CU production read probes). All are pinned to old commits/version IDs and must not be dispatched as current repair shortcuts. Coverage: `M642 / P515 / A11 / Redirect11 / LIVE6`.
 
 - **Batch 25 / Entry463 — core workflow families full-read (34 workflows):** Apps Script Cloud Write V150/staging workflows are old source/read probes except one conditional repo-only `Code.gs` candidate commit; no Apps Script deployment is performed by that family. Cloud Write V2 contains real staging/preview mutations (staging D1 provisioning, Preview deploy, staging secret rotation) and two manual Production Shadow deployment workflows that can deploy the Production Worker with Cloud Write still OFF; these are historical controlled procedures, not current shortcuts. Integrity is CI/read-only; Accounting runtime workflows exercise isolated Preview planning with `persisted=false/authoritativeWrites=false`. Operator Task includes Preview deploy+secret, Production code-only OFF deploy, and Production Edge-enable deploy with rollback; current use requires fresh authorization/runtime reconciliation. R4 and R5 are manual Production Worker deploy controls: R4 can enable/disable the guarded recovery route, R5 can enable/disable periodic route and emergency-disable after failed qualification. **Never dispatch R4/R5 from book-reading alone.** Coverage: `M608 / P549 / A11 / Redirect11 / LIVE6`.
+
+- **Batch 26 / Entry465 — final 39 workflow files full-read; workflow M backlog = 0:** remaining workflow lineage includes Preview deploys, Production Edge secret rotation, Production Worker deploy/freshness-guard with rollback, frontend hotfix pushes to `main`, controlled Cloud Write enable, one bounded synthetic Production Cloud Write qualification, canonical schema migration apply, and controlled migration-ledger reconciliation. Read-only families cover freshness, schema/ledger forensics, cutover probes, stability, CI and staging isolation. All mutation-capable historical procedures are demand-load only and **must not be dispatched from onboarding/book reading**. Current coverage now `M569 / P588 / A11 / Redirect11 / LIVE6`; **all 569 remaining M rows are documentation/evidence only**.
 
 ### آخر تغييرات نشطة لازمة للاستكمال
 
