@@ -3763,3 +3763,10 @@ Diagnostic commit `58e4ced6ec7cb06c684fd7530ee37ce9f0ec346d` ran `TrendOS Wrangl
 Current blocker is therefore narrowed: the GitHub secret and Wrangler can identify/list/info/read `trendos-main`, and direct no-op SQL shapes are accepted, while `wrangler d1 migrations apply` for migration 0005 reproducibly returns Cloudflare code 7500. Root cause is still UNKNOWN and must be isolated before another production migration attempt. Do NOT rotate/change the token merely on the old assumption that D1 access is absent; do NOT run `arm-one`; do NOT create order 4322; do NOT rerun the historical one-shot rebase.
 
 Owner migration policy remains: migrate ALL TrendOS functionality to Cloudflare over time, but historical data backfill is CUSTOMERS ONLY. Do not spend more time backfilling historical Orders or Order Lines. New cloud-native order numbering must preserve continuity starting at 4322. The next safe task is to isolate the migration-apply-specific 7500 using non-destructive diagnostics (prefer the existing synthetic/test D1 or read/no-op checks) and identify the exact migration statement/API behavior before any further production `install-disabled` attempt.
+
+
+## Entry 418 PREPARE — MASTER-BOOK-FINISH-WORKFLOWS-HISTORICAL-CANARIES-20260929 / 2026-09-29 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: WF-HIST-CANARIES-01. Documentation/source-read lane only; no workflow dispatch, no production mutation.
+
+Scope: full-text review of all remaining metadata-only T6/T8/T9 and Trend Master resilience/canary workflows (11 files). Record trigger model, read/write capability, target/deployment assumptions, secrets/guards, historical-vs-current relevance, and reopen conditions. Success = every scoped workflow receives full-read disposition in the fixed inventory and the active Master Book captures only repair-relevant knowledge.
