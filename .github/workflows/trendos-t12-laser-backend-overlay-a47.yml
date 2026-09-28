@@ -1,0 +1,24 @@
+name: TrendOS T12 Laser Backend Overlay A47
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-laser-backend-overlay-a47-20260928
+    paths:
+      - 'tests/t12_laser_backend_overlay_a47.test.mjs'
+      - '.github/workflows/trendos-t12-laser-backend-overlay-a47.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/t12_laser_backend_overlay_a47.test.mjs
+      - run: echo 'T12_LASER_BACKEND_OVERLAY_A47=PASS'
