@@ -8,10 +8,11 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_T11_SERVICE_20260914';
+  var VERSION = 'EDGE_ORDERS_READ_T12_HYBRID_20260928';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
+  var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
@@ -24,6 +25,7 @@
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
   var postWriteBarrier = { until: 0, orderId: '', lineId: '', status: '' };
+  var cloudNativeLineIds = new Set();
   var metrics = {
     edgeSuccess: 0,
     fallbacks: 0,
@@ -34,6 +36,9 @@
     postWriteBarriersOpened: 0,
     lineIdRepairs: 0,
     writeIdentityRepairs: 0,
+    hybridOverlaySuccess: 0,
+    hybridOverlayFailures: 0,
+    hybridOverlayRows: 0,
     lastFallbackAt: 0,
     lastFallbackReason: ''
   };
@@ -218,9 +223,12 @@
       if (!row || typeof row !== 'object') return row;
       var current = text(row.lineId);
       var repaired = repairSerializedLineId(row.orderId, current);
-      if (!repaired || repaired === current) return row;
-      metrics.lineIdRepairs += 1;
-      return Object.assign({}, row, { lineId: repaired });
+      var normalized = (!repaired || repaired === current) ? row : Object.assign({}, row, { lineId: repaired });
+      if (normalized !== row) metrics.lineIdRepairs += 1;
+      if (normalized && normalized.cloudNative === true && text(normalized.lineId)) {
+        cloudNativeLineIds.add(text(normalized.lineId));
+      }
+      return normalized;
     });
     return body;
   }
@@ -324,6 +332,92 @@
     finally { inflight.delete(requestKey); }
   }
 
+  function rowIdentity(row) {
+    var lineId = text(row && row.lineId);
+    if (lineId) return 'line:' + lineId;
+    var orderId = text(row && row.orderId);
+    return orderId ? 'order:' + orderId : '';
+  }
+
+  async function t12OverlayPage(params) {
+    var key = queryString(params || {});
+    var requestKey = T12_OVERLAY_PATH + '?' + key;
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + requestKey, {
+      method: 'GET', cache: 'no-store', credentials: 'omit',
+      headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + requestKey, {
+        method: 'GET', cache: 'no-store', credentials: 'omit',
+        headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+      });
+    }
+    var body = await jsonResponse(response);
+    if (text(body && body.dataSource) !== 't12-prod-native' || body.readOnly !== true) {
+      throw new Error('T12 read overlay response mismatch');
+    }
+    (body.rows || []).forEach(function (row) {
+      if (row && row.cloudNative === true && text(row.lineId)) cloudNativeLineIds.add(text(row.lineId));
+    });
+    return body;
+  }
+
+  function mergeHybridFallback(appsResult, overlayBody, params) {
+    var base = appsResult && typeof appsResult === 'object' ? Object.assign({}, appsResult) : { success: true };
+    var legacyRows = Array.isArray(base.rows) ? base.rows.slice() : [];
+    var cloudRows = overlayBody && Array.isArray(overlayBody.rows) ? overlayBody.rows.slice() : [];
+    if (!cloudRows.length) {
+      base.hybridOverlay = { enabled: true, cloudNativeRows: 0, merged: false };
+      return base;
+    }
+
+    var seen = new Set();
+    var merged = [];
+    cloudRows.concat(legacyRows).forEach(function (row) {
+      var key = rowIdentity(row);
+      if (key && seen.has(key)) return;
+      if (key) seen.add(key);
+      merged.push(row);
+    });
+    base.rows = merged;
+    if (base.pagination && typeof base.pagination === 'object') {
+      var pg = Object.assign({}, base.pagination);
+      var added = Math.max(0, merged.length - legacyRows.length);
+      var total = Number(pg.totalRows || 0);
+      if (Number.isFinite(total)) pg.totalRows = total + added;
+      base.pagination = pg;
+    }
+    base.dataSource = 'apps-script+t12-native';
+    base.hybridOverlay = {
+      enabled: true,
+      cloudNativeRows: cloudRows.length,
+      mergedRows: merged.length,
+      control: overlayBody.control || null,
+      readOnly: true
+    };
+    return base;
+  }
+
+  async function hybridAppsScriptFallback(context, original, action, params, args) {
+    var appsResult = await original.apply(context, args);
+    try {
+      var overlay = await t12OverlayPage(params || {});
+      var merged = mergeHybridFallback(appsResult, overlay, params || {});
+      metrics.hybridOverlaySuccess += 1;
+      metrics.hybridOverlayRows += Array.isArray(overlay.rows) ? overlay.rows.length : 0;
+      return merged;
+    } catch (overlayErr) {
+      metrics.hybridOverlayFailures += 1;
+      try {
+        console.warn('[TrendOS T12 Hybrid Overlay] overlay unavailable; returning Apps Script only:', overlayErr && overlayErr.message ? overlayErr.message : overlayErr);
+      } catch (ignore) {}
+      return appsResult;
+    }
+  }
+
   function canaryUserAllowed() {
   if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY !== true) return true;
   var user = currentUser();
@@ -364,6 +458,14 @@ function eligible(action, params) {
       // barrier prevents a browser refresh from repainting an older D1 mirror.
       if (action === 'updateLine') {
         if (!canaryUserAllowed()) return original.apply(this, args);
+        var requestedLineId = text(params && params.lineId);
+        if (requestedLineId && cloudNativeLineIds.has(requestedLineId)) {
+          return {
+            success: false,
+            code: 'T12_CLOUD_NATIVE_READ_ONLY',
+            message: 'هذا الأوردر Cloud-native ظاهر للقراءة فقط في مرحلة الـHybrid الحالية.'
+          };
+        }
         var safeParams = identitySafeUpdateLineParams(params || {});
         var writeResult = await original.call(this, action, safeParams);
         if (writeResult && writeResult.success === true) openPostWriteBarrier(safeParams);
@@ -377,7 +479,7 @@ function eligible(action, params) {
         metrics.postWriteFallbacks += 1;
         metrics.lastFallbackAt = Date.now();
         metrics.lastFallbackReason = 'EDGE_POST_WRITE_READ_BARRIER';
-        return original.apply(this, args);
+        return hybridAppsScriptFallback(this, original, action, params || {}, args);
       }
 
       try {
@@ -393,7 +495,7 @@ function eligible(action, params) {
         try {
           console.warn('[TrendOS Orders Edge 02CX] D1 read unavailable/freshness failed; using Apps Script fallback:', err && err.message ? err.message : err);
         } catch (ignore) {}
-        return original.apply(this, args);
+        return hybridAppsScriptFallback(this, original, action, params || {}, args);
       }
     }
 
@@ -403,7 +505,7 @@ function eligible(action, params) {
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 't7-print-wael-canary-d1-read-first-apps-script-authoritative',
+      mode: 't12-hybrid-edge-first-apps-script-plus-cloud-native-fallback',
       canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
       canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
       api: edgeBase(),
@@ -426,6 +528,10 @@ function eligible(action, params) {
           postWriteBarriersOpened: metrics.postWriteBarriersOpened,
           lineIdRepairs: metrics.lineIdRepairs,
           writeIdentityRepairs: metrics.writeIdentityRepairs,
+          hybridOverlaySuccess: metrics.hybridOverlaySuccess,
+          hybridOverlayFailures: metrics.hybridOverlayFailures,
+          hybridOverlayRows: metrics.hybridOverlayRows,
+          cloudNativeLineIds: cloudNativeLineIds.size,
           postWriteBarrierActive: postWriteBarrierActive(),
           postWriteBarrierUntil: postWriteBarrier.until || 0,
           postWriteOrderId: postWriteBarrier.orderId,
