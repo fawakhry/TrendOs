@@ -5708,6 +5708,12 @@ Trend Mall`;
         alert("تنبيه قائمة منع التسليم\n\nالعميل: " + params.customerName + "\nالمديونية: " + (resDebtAmount ? (resDebtAmount + " ج") : "مسجلة على العميل") + "\n\nهذا العميل حدده ضياء؛ لا يتم التسليم حتى تصفير المديونية.");
       }
 
+      if ($("tableSearch")) $("tableSearch").value = String(res.orderId || "");
+      if ($("statusFilter")) $("statusFilter").value = "";
+      if ($("priorityFilter")) $("priorityFilter").value = "";
+      if ($("heatPressFilter")) $("heatPressFilter").value = "";
+      state.currentPage = 1;
+
       const phoneForWhatsApp = lightCustomerDigits(params.customerPhone);
       if (!external && phoneForWhatsApp.length >= 10) {
         const registrationRow = {
