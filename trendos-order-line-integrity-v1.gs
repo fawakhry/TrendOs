@@ -197,6 +197,10 @@ function trendosCustomerDraftUploadFileV1_(payload) {
 }
 
 function trendosCustomerDraftSubmitV1_(e) {
+  const legacyFence = typeof trendosLegacyOrderCreateFenceV1_ === 'function'
+    ? trendosLegacyOrderCreateFenceV1_('trendosCustomerDraftSubmitV1')
+    : null;
+  if (legacyFence) return legacyFence;
   e = e || {parameter:{}};
   const p = e.parameter || {};
   const auth = customerAuthorize_(p.customerCode || p.code, p.token);
