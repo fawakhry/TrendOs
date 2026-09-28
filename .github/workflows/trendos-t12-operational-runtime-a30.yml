@@ -1,0 +1,128 @@
+name: TrendOS T12 Operational Runtime A30
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-operational-runtime-a30-20260928
+    paths:
+      - '.github/workflows/trendos-t12-operational-runtime-a30.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-operational-runtime
+  cancel-in-progress: false
+
+jobs:
+  install_and_deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'aeadb43110dbb950f8b1ed7683ad9ce0'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          grep -Fx 'TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          test "$(git hash-object cloudflare-d1/migrations/0006_t12_operational_runtime.sql)" = 'b2e3431f5132872658d81f065624b0a6e69da2ac'
+          test "$(git hash-object cloudflare-d1/src/t12-operational-runtime-handler.mjs)" = '94fbb0648025ca96af7a1d624b25b7c270ccde03'
+          test "$(git hash-object cloudflare-d1/src/t12-read-overlay.mjs)" = 'ef8e9f5d6131486eaf9bd4d61ff23457379f8ba2'
+          test "$(git hash-object cloudflare-d1/src/index_v2.js)" = '75bb7dcebfafc5366f357e8e81911f05100d99d6'
+          node --check cloudflare-d1/src/t12-operational-runtime-handler.mjs
+          node --check cloudflare-d1/src/t12-read-overlay.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          echo 'SOURCE_GUARDS=PASS'
+
+      - name: Apply migration 0006
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.142.0 d1 migrations apply trendos-main --remote --config cloudflare-d1/wrangler.toml
+
+      - name: Verify runtime schema and 4322 pre-state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,sys,urllib.request,urllib.error
+          ACCOUNT='aeadb43110dbb950f8b1ed7683ad9ce0'
+          DBID='5c4b92bf-e043-4f6e-bd6d-d514a92cd825'
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+          url=f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DBID}/query'
+          def q(sql):
+              req=urllib.request.Request(url,data=json.dumps({'sql':sql}).encode(),headers={'Authorization':'Bearer '+token,'Accept':'application/json','Content-Type':'application/json'},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r: status=r.status; data=json.loads(r.read())
+              except urllib.error.HTTPError as e:
+                  status=e.code
+                  try:data=json.loads(e.read())
+                  except Exception:data={}
+              if status!=200 or data.get('success') is not True:
+                  print('D1_READ=FAIL');sys.exit(1)
+              return data['result'][0]['results']
+          tables=q("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('t12_prod_line_runtime','t12_prod_runtime_events') ORDER BY name;")
+          names=sorted([r.get('name') for r in tables])
+          if names!=['t12_prod_line_runtime','t12_prod_runtime_events']:
+              print('RUNTIME_SCHEMA=FAIL');print(names);sys.exit(1)
+          state=q("SELECT (SELECT COUNT(*) FROM t12_prod_orders WHERE order_id='4322') AS orders,(SELECT COUNT(*) FROM t12_prod_lines WHERE line_id='4322-01') AS lines,(SELECT next_order_number FROM t12_prod_create_control WHERE singleton=1) AS nextNo,(SELECT canary_remaining FROM t12_prod_create_control WHERE singleton=1) AS budget;")[0]
+          if state.get('orders')!=1 or state.get('lines')!=1 or state.get('nextNo')!=4323 or state.get('budget')!=0:
+              print('RUNTIME_PRESTATE=FAIL');print(state);sys.exit(1)
+          print('RUNTIME_SCHEMA=PASS')
+          print('ORDER_4322_PRESTATE=PASS')
+          PY
+
+      - name: Deploy operational runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.142.0 deploy --config cloudflare-d1/wrangler.toml
+
+      - name: Verify runtime health and CREATE remains disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          rcode=""
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            rcode="$(curl --silent --show-error --output /tmp/runtime.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/line-runtime/health" || true)"
+            if [ "$rcode" = "200" ]; then break; fi
+            sleep 2
+          done
+          echo "RUNTIME_HEALTH_HTTP=$rcode"
+          cat /tmp/runtime.json || true
+          test "$rcode" = "200"
+
+          ccode=""
+          for i in 1 2 3 4 5; do
+            ccode="$(curl --silent --show-error --output /tmp/create.json --write-out '%{http_code}' "$PROD_URL/v1/t12/orders/create-canary/health" || true)"
+            if [ "$ccode" = "200" ]; then break; fi
+            sleep 2
+          done
+          test "$ccode" = "200"
+          python3 - <<'PY'
+          import json,sys
+          r=json.load(open('/tmp/runtime.json'))
+          c=json.load(open('/tmp/create.json'))
+          ctl=c.get('control') or {}
+          if r.get('success') is not True or r.get('schemaReady') is not True:
+              print('RUNTIME_HEALTH=FAIL');sys.exit(1)
+          if c.get('enabled') is not False or ctl.get('nextOrderNumber')!=4323 or ctl.get('canaryRemaining')!=0 or c.get('generalCutover') is not False:
+              print('CREATE_SAFETY=FAIL');sys.exit(1)
+          print('RUNTIME_HEALTH=PASS')
+          print('CREATE_SAFETY=PASS')
+          print('CANARY_ENABLED=false')
+          print('NEXT_ORDER_NUMBER=4323')
+          print('CANARY_REMAINING=0')
+          PY
