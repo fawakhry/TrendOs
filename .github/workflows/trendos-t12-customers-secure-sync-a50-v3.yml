@@ -1,0 +1,211 @@
+name: TrendOS T12 Customers Secure Sync A50 V3
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-customers-secure-sync-a50-20260929
+    paths:
+      - '.github/workflows/trendos-t12-customers-secure-sync-a50-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-t12-customers-secure-sync-a50-v3
+  cancel-in-progress: false
+
+jobs:
+  secure-customer-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PUBLIC_KEY_PATH: docs/trendos/staging/a50_v3_public_key.json
+      MANIFEST_PATH: docs/trendos/staging/a50_v3_manifest.json
+      PART_PREFIX: docs/trendos/staging/a50_v3_payload.part
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Exact production target and scope guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          echo 'A50_V3_SCOPE=sheet_rows+sheet_catalog customers/restrictions only'
+          echo 'GOOGLE_SHEETS_MUTATION=NO'
+          echo 'ORDER_CREATE=NO'
+          echo 'ORDER_STATUS_MUTATION=NO'
+
+      - name: Generate ephemeral transfer key and publish public half
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/a50_v3_private.pem >/dev/null 2>&1
+          chmod 600 /tmp/a50_v3_private.pem
+          openssl pkey -in /tmp/a50_v3_private.pem -pubout -out /tmp/a50_v3_public.pem >/dev/null 2>&1
+          pub="$(base64 -w0 /tmp/a50_v3_public.pem)"
+          mkdir -p "$(dirname "$PUBLIC_KEY_PATH")"
+          node -e "require('fs').writeFileSync(process.env.PUBLIC_KEY_PATH,JSON.stringify({version:1,runId:process.env.GITHUB_RUN_ID,alg:'RSA-OAEP-SHA256',publicKeyB64:process.argv[1]})+'\\n')" "$pub"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$PUBLIC_KEY_PATH"
+          git commit -m "diag: publish A50 V3 ephemeral public key for run $GITHUB_RUN_ID"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          echo 'A50_V3_PUBLIC_KEY_PUBLISHED=YES'
+          echo "A50_V3_RECIPIENT_RUN_ID=$GITHUB_RUN_ID"
+
+      - name: Wait for encrypted sanitized customer payload parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 120); do
+            git fetch --quiet origin "$GITHUB_REF_NAME"
+            if git cat-file -e "origin/$GITHUB_REF_NAME:$MANIFEST_PATH" 2>/dev/null; then
+              git show "origin/$GITHUB_REF_NAME:$MANIFEST_PATH" > /tmp/a50_v3_manifest.json
+              parts="$(node -e "const x=require('/tmp/a50_v3_manifest.json'); if(String(x.recipientRunId)!==String(process.env.GITHUB_RUN_ID)) process.exit(2); const n=Number(x.parts); if(!Number.isInteger(n)||n<1||n>30) process.exit(3); process.stdout.write(String(n))")"
+              all=1
+              : > /tmp/a50_v3_envelope.json
+              for n in $(seq -w 1 "$parts"); do
+                p="$PART_PREFIX$n"
+                if ! git cat-file -e "origin/$GITHUB_REF_NAME:$p" 2>/dev/null; then all=0; break; fi
+                git show "origin/$GITHUB_REF_NAME:$p" >> /tmp/a50_v3_envelope.json
+              done
+              if [ "$all" = '1' ]; then ready=1; break; fi
+            fi
+            echo "A50_V3_PAYLOAD_WAIT_ATTEMPT=$attempt"
+            sleep 5
+          done
+          test "$ready" = '1'
+          test -s /tmp/a50_v3_envelope.json
+          echo 'A50_V3_ENCRYPTED_PAYLOAD_RECEIVED=YES'
+
+      - name: Decrypt and validate sanitized payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const envelope=JSON.parse(fs.readFileSync('/tmp/a50_v3_envelope.json','utf8'));
+          if(envelope.version!==1||envelope.alg!=='RSA-OAEP-SHA256+AES-256-GCM') throw new Error('bad envelope');
+          if(String(envelope.recipientRunId)!==String(process.env.GITHUB_RUN_ID)) throw new Error('recipient mismatch');
+          const privateKey=fs.readFileSync('/tmp/a50_v3_private.pem','utf8');
+          const key=crypto.privateDecrypt({key:privateKey,padding:crypto.constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},Buffer.from(envelope.encryptedKey,'base64'));
+          const decipher=crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(envelope.nonce,'base64'));
+          decipher.setAuthTag(Buffer.from(envelope.tag,'base64'));
+          const plain=Buffer.concat([decipher.update(Buffer.from(envelope.ciphertext,'base64')),decipher.final()]);
+          fs.writeFileSync('/tmp/a50_v3_payload.json',plain,{mode:0o600});
+          const p=JSON.parse(plain.toString('utf8'));
+          if(p.version!==1) throw new Error('payload version');
+          if(p.sourceSpreadsheetId!=='1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI') throw new Error('source identity mismatch');
+          if(p.mirrorNote!=='PERF-CF-02CR enrichment live sync V1') throw new Error('mirror note mismatch');
+          const c=p.customerMirror||{},r=p.restrictionMirror||{};
+          if(c.sheetName!=='العملاء'||r.sheetName!=='عملاء منع التسليم بالمديونية') throw new Error('sheet scope mismatch');
+          if(Number(c.sourceLastRow)!==248||!Array.isArray(c.rows)||c.rows.length!==248) throw new Error('customer parity mismatch');
+          if(Number(r.sourceLastRow)!==1||!Array.isArray(r.rows)||r.rows.length!==1) throw new Error('restriction parity mismatch');
+          const raw=JSON.stringify(p);
+          if(/كلمة مرور|توكن|device\s*id|password|session.?token|sha256:|v1922\$/i.test(raw)) throw new Error('sensitive customer credential material detected');
+          const required=['اسم الشات / المكتب','رقم العميل الأساسي','مديونية','كود العميل'];
+          for(const h of required) if(!c.headers.includes(h)) throw new Error('missing safe header '+h);
+          console.log('A50_V3_PAYLOAD_VALID=YES');
+          console.log('A50_V3_CUSTOMER_ROWS='+c.rows.length);
+          console.log('A50_V3_CUSTOMER_SAFE_COLS='+c.headers.length);
+          console.log('A50_V3_RESTRICTION_ROWS='+r.rows.length);
+          NODE
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.142.0
+
+      - name: Preflight current D1 mirror targets read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT sheet_name,row_count,source_last_row,source_last_col,status,synced_at,note FROM sheet_catalog WHERE sheet_name IN ('العملاء','عملاء منع التسليم بالمديونية') ORDER BY sheet_name;"             > /tmp/a50_v3_preflight.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/a50_v3_preflight.json','utf8'));
+          const rows=(Array.isArray(x)?x[0]:x)?.results||[];
+          if(rows.length!==2) throw new Error('required catalog rows missing');
+          console.log('A50_V3_PREFLIGHT_CATALOG_ROWS='+rows.length);
+          for(const r of rows) console.log('A50_V3_PREFLIGHT_META='+JSON.stringify({sheet_name:r.sheet_name,row_count:r.row_count,source_last_row:r.source_last_row,source_last_col:r.source_last_col,status:r.status,synced_at:r.synced_at,note:r.note}));
+          NODE
+
+      - name: Generate exact scoped D1 SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),p=JSON.parse(fs.readFileSync('/tmp/a50_v3_payload.json','utf8'));
+          const q=v=>"'"+String(v==null?'':v).replace(/'/g,"''")+"'";
+          const statements=[];
+          function sync(m){
+            for(const row of m.rows){
+              const values=JSON.stringify(Array.isArray(row.values)?row.values:[]);
+              statements.push("INSERT INTO sheet_rows (sheet_name,row_number,values_json,display_json,formulas_json,synced_at) VALUES ("+
+                [q(m.sheetName),Number(row.rowNumber),q(values),q(values),q('[]'),'CURRENT_TIMESTAMP'].join(',')+
+                ") ON CONFLICT(sheet_name,row_number) DO UPDATE SET values_json=excluded.values_json,display_json=excluded.display_json,formulas_json=excluded.formulas_json,synced_at=CURRENT_TIMESTAMP;");
+            }
+            statements.push("DELETE FROM sheet_rows WHERE sheet_name="+q(m.sheetName)+" AND row_number>"+Number(m.sourceLastRow)+";");
+            statements.push("UPDATE sheet_catalog SET headers_json="+q(JSON.stringify(m.headers))+",source_last_row="+Number(m.sourceLastRow)+",source_last_col="+Number(m.sourceLastCol)+",row_count="+Number(m.rows.length)+",status='ready',synced_at=CURRENT_TIMESTAMP,note="+q(p.mirrorNote)+" WHERE sheet_name="+q(m.sheetName)+";");
+          }
+          sync(p.customerMirror); sync(p.restrictionMirror);
+          fs.writeFileSync('/tmp/a50_v3_sync.sql',statements.join('\n'),{mode:0o600});
+          console.log('A50_V3_SQL_STATEMENTS='+statements.length);
+          NODE
+          test -s /tmp/a50_v3_sync.sql
+          if grep -Eiq '\b(orders|order_lines|t12_prod_|messages|conversations|users|account|invoice)\b' /tmp/a50_v3_sync.sql; then
+            echo 'A50 V3 forbidden non-customer target detected' >&2
+            exit 1
+          fi
+
+      - name: Apply one-time customer enrichment mirror refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --file /tmp/a50_v3_sync.sql >/tmp/a50_v3_apply.log
+          echo 'A50_V3_D1_MIRROR_REFRESH_APPLIED=YES'
+
+      - name: Verify fresh parity and sanitization
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT sheet_name,row_count,source_last_row,source_last_col,status,synced_at,note,(SELECT COUNT(*) FROM sheet_rows r WHERE r.sheet_name=sheet_catalog.sheet_name) AS actual_rows FROM sheet_catalog WHERE sheet_name IN ('العملاء','عملاء منع التسليم بالمديونية') ORDER BY sheet_name;" > /tmp/a50_v3_verify.json
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT COUNT(*) AS sensitive_rows FROM sheet_rows WHERE sheet_name='العملاء' AND (values_json LIKE '%sha256:%' OR values_json LIKE '%v1922$%' OR values_json LIKE '%توكن%' OR values_json LIKE '%كلمة مرور%');" > /tmp/a50_v3_sensitive.json
+          node <<'NODE'
+          const fs=require('fs');
+          function rows(path){const x=JSON.parse(fs.readFileSync(path,'utf8'));return (Array.isArray(x)?x[0]:x)?.results||[];}
+          const v=rows('/tmp/a50_v3_verify.json');
+          const by=Object.fromEntries(v.map(x=>[x.sheet_name,x]));
+          const c=by['العملاء'],r=by['عملاء منع التسليم بالمديونية'];
+          if(!c||Number(c.row_count)!==248||Number(c.source_last_row)!==248||Number(c.actual_rows)!==248||c.status!=='ready'||c.note!=='PERF-CF-02CR enrichment live sync V1') throw new Error('customer verify failed');
+          if(!r||Number(r.row_count)!==1||Number(r.source_last_row)!==1||Number(r.actual_rows)!==1||r.status!=='ready'||r.note!=='PERF-CF-02CR enrichment live sync V1') throw new Error('restriction verify failed');
+          const s=rows('/tmp/a50_v3_sensitive.json')[0]||{};
+          if(Number(s.sensitive_rows||0)!==0) throw new Error('sensitive rows remain');
+          const now=Date.now();
+          for(const x of v){
+            const t=Date.parse(String(x.synced_at||'').replace(' ','T')+'Z');
+            if(!Number.isFinite(t)||Math.abs(now-t)>5*60*1000) throw new Error('mirror timestamp not fresh');
+            console.log('A50_V3_POST_META='+JSON.stringify({sheet_name:x.sheet_name,row_count:x.row_count,source_last_row:x.source_last_row,source_last_col:x.source_last_col,status:x.status,synced_at:x.synced_at,note:x.note}));
+          }
+          console.log('A50_V3_SENSITIVE_ROWS=0');
+          console.log('A50_V3_FRESHNESS_PASS=YES');
+          NODE
+
+      - name: Cleanup private material
+        if: ${{ always() }}
+        run: rm -f /tmp/a50_v3_private.pem /tmp/a50_v3_public.pem /tmp/a50_v3_manifest.json /tmp/a50_v3_envelope.json /tmp/a50_v3_payload.json /tmp/a50_v3_sync.sql /tmp/a50_v3_apply.log
+
+      - name: Final result
+        run: |
+          echo 'A50_V3_CUSTOMER_ENRICHMENT_REFRESH=PASS'
+          echo 'GOOGLE_SHEETS_MUTATION=NO'
+          echo 'ORDER_CREATE=NO'
+          echo 'ORDER_STATUS_MUTATION=NO'
