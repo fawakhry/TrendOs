@@ -1,0 +1,26 @@
+name: TrendOS T12 Laser Service 02CR A46
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-laser-service-02cr-a46-20260928
+    paths:
+      - 'trendos-edge-orders-read-v1.js'
+      - 'tests/t12_laser_service_02cr_a46.test.mjs'
+      - '.github/workflows/trendos-t12-laser-service-02cr-a46.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check trendos-edge-orders-read-v1.js
+      - run: node tests/t12_laser_service_02cr_a46.test.mjs
+      - run: echo 'T12_LASER_SERVICE_02CR_A46=PASS'
