@@ -1,0 +1,52 @@
+name: TrendOS T12 Hybrid Main Candidate Qualification A28
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-hybrid-main-candidate-a28-20260928
+    paths:
+      - '.github/workflows/trendos-t12-hybrid-main-candidate-a28.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify exact frontend diff scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          git diff --name-only origin/main...HEAD | sort > /tmp/diff.txt
+          cat /tmp/diff.txt
+          grep -Fx 'config.js' /tmp/diff.txt
+          grep -Fx 'trendos-edge-orders-read-v1.js' /tmp/diff.txt
+          grep -Fx 'tests/t12_hybrid_frontend_fallback.test.mjs' /tmp/diff.txt
+          test "$(wc -l < /tmp/diff.txt | tr -d ' ')" = "3"
+          echo 'FRONTEND_DIFF_SCOPE=PASS'
+
+      - name: Run hybrid frontend tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check trendos-edge-orders-read-v1.js
+          node --check config.js
+          node tests/t12_hybrid_frontend_fallback.test.mjs
+          grep -F "var VERSION = 'EDGE_ORDERS_READ_T12_HYBRID_20260928';" trendos-edge-orders-read-v1.js
+          grep -F "var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';" trendos-edge-orders-read-v1.js
+          grep -F "T12_CLOUD_NATIVE_READ_ONLY" trendos-edge-orders-read-v1.js
+          grep -F "apps-script+t12-native" trendos-edge-orders-read-v1.js
+          grep -F "trendos-edge-orders-read-v1.js?v=20260928-t12-hybrid-overlay1" config.js
+          echo 'HYBRID_FRONTEND_TESTS=PASS'
+          echo 'MAIN_NOT_MODIFIED_BY_QUALIFICATION=YES'
