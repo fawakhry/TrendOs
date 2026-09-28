@@ -10,6 +10,48 @@ function isHeatPress(value) {
   return v === '1' || v === 'true' || v === 'yes' || v === 'نعم' || v === 'مكبس';
 }
 
+
+function normalizeArabic(value) {
+  return text(value).toLowerCase()
+    .replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي').replace(/[ةه]/g, 'ه').replace(/\s+/g, ' ').trim();
+}
+
+function searchKey(value) {
+  return normalizeArabic(value).replace(/[^0-9a-z\u0600-\u06ff ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function hiddenStatus(status) {
+  return ['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى','ملغي'].includes(text(status));
+}
+
+export function filterT12OverlayRows(rows, params = {}) {
+  const q = searchKey(params.query || params.q || '');
+  const status = text(params.statusFilter || params.status || '');
+  const priority = text(params.priorityFilter || params.priority || '');
+  const heat = text(params.heatPressFilter || '');
+
+  return (rows || []).filter((row) => {
+    if (q) {
+      const blob = searchKey([
+        row.orderId,row.lineId,row.customer,row.customerPhone,row.department,row.itemName,row.notes
+      ].join(' '));
+      if (!blob.includes(q)) return false;
+    }
+    if (heat === 'only' && !isHeatPress(row.heatPress)) return false;
+    if (heat === 'without' && isHeatPress(row.heatPress)) return false;
+    if (status === '__ACTIVE__' && hiddenStatus(row.status)) return false;
+    if (status === '__READY_PICKUP__' && !['جاهز للاستلام','في قسم التسليمات','تم التنفيذ'].includes(text(row.status))) return false;
+    if (status === '__CANCELLED__' && !['ملغي','ملغى'].includes(text(row.status))) return false;
+    if (status === '__OVERDUE__' && text(row.overdue) !== 'نعم') return false;
+    if (status === '__DEBT__') return false;
+    if (status && !status.startsWith('__') && text(row.status) !== status) return false;
+    if (priority === '__ACTIVE__' && !['عاجل','عادي','VIP',''].includes(text(row.priority))) return false;
+    if (priority && priority !== '__ACTIVE__' && text(row.priority) !== priority) return false;
+    return true;
+  });
+}
+
 function screenMatches(screen, department, heatPress) {
   const lane = text(screen) || 'service';
   const dept = text(department);
