@@ -66,3 +66,49 @@ jobs:
           console.log('A53_PREFLIGHT=PASS');
           console.log('PRODUCTION_MUTATION=NO');
           NODE
+      - name: Audit safe customer identity collisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT row_number,display_json FROM sheet_rows WHERE sheet_name='العملاء' ORDER BY row_number;" > /tmp/a53_customer_rows.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/a53_customer_rows.json','utf8'));
+          const rows=(Array.isArray(x)?x:[x]).flatMap(v=>Array.isArray(v?.results)?v.results:[]);
+          const normalizeArabic=v=>String(v??'').trim().toLowerCase().replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();
+          const cleanPhone=v=>{
+            let d=String(v??'').replace(/[^0-9]/g,'');
+            if(d.startsWith('0020')) d=d.slice(2);
+            if(d.startsWith('20')&&d.length===12)d='0'+d.slice(2);
+            if(/^1[0125]\d{8}$/.test(d))d='0'+d;
+            return d;
+          };
+          const header=JSON.parse(rows.find(r=>Number(r.row_number)===1)?.display_json||'[]');
+          const idx=(names,fb=-1)=>{for(const n of names){const i=header.lastIndexOf(n);if(i>=0)return i;}return fb};
+          const ni=idx(['اسم الشات / المكتب','اسم العميل','Customer Name'],0);
+          const pi=idx(['رقم العميل الأساسي','رقم العميل','رقم الهاتف','Phone'],-1);
+          const xi=idx(['رقم إضافي','رقم إضافى','Extra Phone'],-1);
+          const ai=idx(['مفعل؟','مفعل','Active'],-1);
+          const names=new Map(), phones=new Map();
+          let customers=0,active=0,inactive=0,noPhone=0;
+          for(const r of rows){
+            if(Number(r.row_number)<=1)continue;
+            const a=JSON.parse(r.display_json||'[]');
+            const name=normalizeArabic(a[ni]);
+            const phone=cleanPhone(pi>=0?a[pi]:'');
+            const extra=cleanPhone(xi>=0?a[xi]:'');
+            if(!name&&!phone&&!extra)continue;
+            customers++;
+            const av=String(ai>=0?a[ai]:'').trim();
+            if(!av||av==='نعم')active++; else inactive++;
+            if(!phone&&!extra)noPhone++;
+            if(name) names.set(name,(names.get(name)||0)+1);
+            for(const p of [phone,extra].filter(Boolean)) phones.set(p,(phones.get(p)||0)+1);
+          }
+          const duplicateNames=[...names.values()].filter(v=>v>1).length;
+          const duplicatePhones=[...phones.values()].filter(v=>v>1).length;
+          console.log('A53_IDENTITY_AUDIT='+JSON.stringify({customers,active,inactive,noPhone,duplicateNames,duplicatePhones}));
+          if(duplicateNames||duplicatePhones) console.log('A53_IDENTITY_COLLISIONS_REQUIRE_MERGE_POLICY=YES');
+          else console.log('A53_IDENTITY_COLLISIONS_REQUIRE_MERGE_POLICY=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
