@@ -56,19 +56,23 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   if(!control||control.generalMarker!==GENERAL_MARKER||control.createMarker!==CREATE_MARKER)return fail('general-create-control-invalid');
   const mode=text(control.mode);
   const isCanary=options.canary===true;
-  if(isCanary){
-    if(mode!=='CANARY'||Number(control.canaryRemaining)!==1)return fail('general-create-canary-not-armed');
-  }else if(mode!=='GENERAL'){
-    return fail('general-create-not-enabled',{mode});
-  }
   if(Number(control.legacyCanaryRemaining)!==0)return fail('legacy-canary-budget-must-remain-zero');
 
+  // Idempotent replay must be resolved before checking a one-shot canary budget.
+  // A lost/late ACK after the budget is consumed must return the already-committed
+  // order rather than looking like a second create attempt.
   const epoch=text(control.policyEpoch),canonicalJson=canonical(intent,safeActor,epoch);
   let existing;
   try{existing=await verifiedRead(db,intent,canonicalJson,safeActor,epoch);}catch{return fail('ledger-read-unavailable-no-retry');}
   if(existing.kind==='VERIFIED')return {...existing.response,stored:false,idempotent:true,version:T12_GENERAL_CREATE_VERSION};
   if(existing.kind==='CONFLICT')return fail('same-key-actor-payload-or-policy-conflict');
   if(existing.kind==='INDETERMINATE')return fail('existing-transaction-incomplete-no-retry');
+
+  if(isCanary){
+    if(mode!=='CANARY'||Number(control.canaryRemaining)!==1)return fail('general-create-canary-not-armed');
+  }else if(mode!=='GENERAL'){
+    return fail('general-create-not-enabled',{mode});
+  }
 
   const nextNo=Number(control.nextNo);
   if(!Number.isSafeInteger(nextNo)||nextNo<4323)return fail('next-order-number-invalid',{nextOrderNumber:nextNo});
