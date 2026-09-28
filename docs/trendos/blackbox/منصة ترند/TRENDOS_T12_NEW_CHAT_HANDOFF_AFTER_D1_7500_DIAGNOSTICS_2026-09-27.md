@@ -483,3 +483,15 @@ Next required evidence before any production retry: independently compare the da
 - One formal evidence item remains before full operational runtime closure: read-only D1 reconciliation of current runtime status for `4324-01` and confirmation that it matches visible UI status `تم التسليم`.
 - No D1/Sheets mutation, no legacy writer reopening, and no new CREATE occurred in this entry.
 - Entry file: `TRENDOS_T12_ORDER_4324_CUSTOMER_SERVICE_VISIBLE_ENTRY_456_2026-09-28.md`, documentation commit `b65a6a094922865496deb5e08ba8ef76bacdeb34`.
+
+
+## Entry 457 — Customer mirror stale; Orders latency root cause
+- Owner reported delayed order rendering and requested moving Customers off Sheets.
+- Audit confirms frontend `searchCustomers` and `createCustomer` still route to Apps Script/Google Sheets. Cloud CREATE customer-phone resolution can also call original Apps Script `searchCustomers`.
+- Live authoritative spreadsheet `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`, ID `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`; Customer sheet metadata shows 248 grid rows / 56 columns.
+- A49 read-only branch `diagnostic/t12-customers-latency-a49-20260928`, commit `1157709d88e8f02237fae09828e7f5ca8c87cf4f`, run `36475178461`, job `109106975382`. D1 inspection succeeded; overall run later failed only because stored qualification employee credentials returned 401 during timing. `PRODUCTION_MUTATION=NO`.
+- D1 state: normalized customers=103; Customer mirror rows/sourceLastRow=246; sourceLastCol=47; status ready; note `PERF-CF-02CR enrichment live sync V1`; mirror age ≈789070 seconds (~9.1 days). Recent normalized customer imports were 100 + 3 rows, both explicitly “customers derived from orders” on 2026-08-27.
+- 02CR freshness guard requires Customers + debt-restriction enrichment mirrors fresh (default budget 300s). The stale Customer mirror can make the Edge read reject then browser fall back to Apps Script, producing the noticeable double-hop delay. Classification: `ORDER_LOAD_LATENCY_ROOT_CAUSE=STALE_02CR_CUSTOMER_ENRICHMENT_MIRROR`, `CUSTOMER_SEARCH_AUTHORITY=GOOGLE_SHEETS`, `NORMALIZED_D1_CUSTOMERS=INCOMPLETE`.
+- Existing recovery module `D1_Operational_Enrichment_Live_Sync_02CR.gs` is designed specifically for Customers + debt restrictions using heartbeat/row-delta/atomic full rebase and a one-minute trigger; it never writes Sheets.
+- Plan: first restore 02CR enrichment freshness for fast Orders reads; then migrate safe operational Customer directory fields from the real Customer master to normalized D1, add authenticated Cloud search, route frontend search Cloud-first, and keep Customer CREATE/update on Sheets until separately qualified. Portal password/session-token fields are excluded from the Cloud directory migration.
+- Entry file: `TRENDOS_T12_CUSTOMERS_STALE_MIRROR_ORDER_LATENCY_ENTRY_457_2026-09-28.md`, documentation commit `ff5dd00ebd44faa1ef655353f2049494973da808`.
