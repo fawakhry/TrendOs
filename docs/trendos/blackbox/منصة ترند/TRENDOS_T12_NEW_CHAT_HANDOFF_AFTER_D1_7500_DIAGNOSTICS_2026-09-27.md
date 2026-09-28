@@ -375,3 +375,14 @@ Next required evidence before any production retry: independently compare the da
 - Current gate remains `GENERAL_CREATE_MODE=CANARY`, budget consumed, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 446 commit `d68fc2411a3623e65c3042a8d8583211c031ee8f`.
 - Next state transition `CANARY -> GENERAL` is a broad CREATE cutover and still requires explicit owner authorization before execution.
+
+## GENERAL CREATE live — Entry 447
+- Owner explicitly authorized `GENERAL CREATE`.
+- A42 branch `diagnostic/t12-general-create-cutover-a42-20260928`, workflow commit `13bfc01cad60ceaa3b3075c25e9690bceb01d670`, run `36446695709`, job `109010726781`: SUCCESS.
+- Preflight verified: mode CANARY, consumed general canary budget 0, nextOrderNumber 4324, legacy canary 0, Order 4323 exists exactly once with COMMITTED ledger, Order 4324 absent.
+- Controlled transition `CANARY -> GENERAL` succeeded.
+- Live health: `schemaReady=true`, `mode=GENERAL`, `generalCutover=true`, `canaryRemaining=0`, `nextOrderNumber=4324`, `legacyCanaryRemaining=0`.
+- Old create-canary route remains disabled. No Order 4324 was created by the cutover.
+- State: `GENERAL_CREATE_CUTOVER=YES`, `GENERAL_CREATE_MODE=GENERAL`, `NEXT_ORDER_NUMBER=4324`, `ORDER_4324_CREATED=NO`, `LEGACY_CANARY_ENABLED=false`, `LEGACY_CANARY_REMAINING=0`, `T12_OPERATIONAL_RUNTIME=LIVE`, `HYBRID_READ_OVERLAY_MAIN=LIVE`.
+- Entry 447: `TRENDOS_T12_GENERAL_CREATE_LIVE_ENTRY_447_2026-09-28.md`, commit `d9283ee68bc540078b4c8cf70caab6b07296c966`.
+- Normal Add Order UI may now create new Cloud-native orders starting with Order 4324.
