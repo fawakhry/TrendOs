@@ -1,0 +1,102 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import { issueOrdersEdgeToken } from '../cloudflare-d1/src/edge-orders-read-v1.mjs';
+import { createT12GeneralOrder } from '../cloudflare-d1/src/t12-general-create.mjs';
+import { handleT12GeneralCreateRequest } from '../cloudflare-d1/src/t12-general-create-handler.mjs';
+
+const schema5=fs.readFileSync(new URL('../cloudflare-d1/migrations/0005_t12_production_create_canary.sql',import.meta.url),'utf8');
+const schema7=fs.readFileSync(new URL('../cloudflare-d1/migrations/0007_t12_general_create_control.sql',import.meta.url),'utf8');
+
+class Stmt {
+  constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}
+  bind(...p){this.params=p;return this;}
+  async first(){return this.db.raw.prepare(this.sql).get(...this.params)||null;}
+  async all(){return {results:this.db.raw.prepare(this.sql).all(...this.params)};}
+  async run(){return this.db.raw.prepare(this.sql).run(...this.params);}
+}
+class D1 {
+  constructor(mode='CANARY',budget=1){
+    this.raw=new DatabaseSync(':memory:');
+    this.raw.exec('PRAGMA foreign_keys=ON;');
+    this.raw.exec(schema5);
+    this.raw.exec(schema7);
+    this.raw.prepare('UPDATE t12_prod_create_control SET next_order_number=4323,canary_remaining=0 WHERE singleton=1').run();
+    this.raw.prepare('UPDATE t12_prod_general_create_control SET mode=?,canary_remaining=? WHERE singleton=1').run(mode,budget);
+    this.turn=Promise.resolve(); this.failAt=0; this.ambiguous=false;
+  }
+  prepare(sql){return new Stmt(this,sql);}
+  async batch(ss){
+    let release; const prev=this.turn; this.turn=new Promise(r=>release=r); await prev;
+    try{
+      this.raw.exec('BEGIN IMMEDIATE');
+      try{
+        for(let i=0;i<ss.length;i++){ if(this.failAt===i+1)throw Error('SIM_FAIL'); await ss[i].run(); }
+        this.raw.exec('COMMIT');
+      }catch(e){ try{this.raw.exec('ROLLBACK');}catch{} throw e; }
+      if(this.ambiguous)throw Error('SIM_LOST_ACK');
+    }finally{release();}
+  }
+  control(){
+    const x=this.raw.prepare('SELECT next_order_number nextNo FROM t12_prod_create_control WHERE singleton=1').get();
+    const g=this.raw.prepare('SELECT mode,canary_remaining remaining FROM t12_prod_general_create_control WHERE singleton=1').get();
+    return {nextNo:Number(x.nextNo),mode:g.mode,remaining:Number(g.remaining)};
+  }
+  count(t){return Number(this.raw.prepare('SELECT COUNT(*) n FROM '+t).get().n);}
+}
+const actor='admin-owner';
+const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456')=>({
+  clientRequestId:key,
+  customerMode:'خارجي / عابر',
+  externalCustomerId:'999002',
+  customerName:'T12 GENERAL CUSTOMER',
+  customerPhone:'01000000001',
+  department:'طباعة',
+  itemName:'T12 GENERAL ITEM',
+  qty:1,
+  priority:'عادي',
+  status:'طلب جديد',
+  source:'T12 General Create'
+});
+
+{
+  const db=new D1('CANARY',1);
+  const first=await createT12GeneralOrder(db,input(),actor,{canary:true});
+  assert.equal(first.success,true); assert.equal(first.orderId,'4323'); assert.deepEqual(first.lineIds,['4323-01']);
+  assert.deepEqual(db.control(),{nextNo:4324,mode:'CANARY',remaining:0});
+  const replay=await createT12GeneralOrder(db,input(),actor,{canary:true});
+  assert.equal(replay.success,true); assert.equal(replay.idempotent,true); assert.equal(replay.orderId,'4323');
+  const second=await createT12GeneralOrder(db,input('cld1_1790000020001_GENERALCANARY_1234567890123457'),actor,{canary:true});
+  assert.equal(second.success,false); assert.equal(second.reason,'general-create-canary-not-armed');
+}
+{
+  const db=new D1('GENERAL',0);
+  const first=await createT12GeneralOrder(db,input('cld1_1790000021000_GENERALCREATE_1234567890123456'),actor,{canary:false});
+  assert.equal(first.success,true); assert.equal(first.orderId,'4323');
+  const second=await createT12GeneralOrder(db,input('cld1_1790000021001_GENERALCREATE_1234567890123457'),actor,{canary:false});
+  assert.equal(second.success,true); assert.equal(second.orderId,'4324');
+  assert.deepEqual(db.control(),{nextNo:4325,mode:'GENERAL',remaining:0});
+}
+{
+  const db=new D1('CANARY',1); db.ambiguous=true;
+  const r=await createT12GeneralOrder(db,input(),actor,{canary:true});
+  assert.equal(r.success,true); assert.equal(r.ambiguousAckRecovered,true); assert.equal(r.orderId,'4323');
+}
+{
+  const db=new D1('OFF',0);
+  const env={DB:db,EDGE_SESSION_SECRET:'unit-secret',CORS_ORIGINS:'https://fawakhry.github.io'};
+  let req=new Request('https://x/v1/t12/orders/create/health');
+  let res=await handleT12GeneralCreateRequest(req,env);
+  assert.equal(res.status,200);
+  let h=await res.json(); assert.equal(h.mode,'OFF'); assert.equal(h.nextOrderNumber,4323); assert.equal(h.generalCutover,false);
+
+  const token=await issueOrdersEdgeToken({sub:'admin-owner',role:'admin',department:'',screens:['service','print','laser','press','']},'unit-secret',Math.floor(Date.now()/1000),600);
+  req=new Request('https://x/v1/t12/orders/create',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(input())});
+  res=await handleT12GeneralCreateRequest(req,env); assert.equal(res.status,423);
+
+  db.raw.prepare("UPDATE t12_prod_general_create_control SET mode='CANARY',canary_remaining=1").run();
+  req=new Request('https://x/v1/t12/orders/create',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json','x-t12-general-canary-confirm':'4323'},body:JSON.stringify(input())});
+  res=await handleT12GeneralCreateRequest(req,env); assert.equal(res.status,201);
+  const body=await res.json(); assert.equal(body.orderId,'4323'); assert.equal(body.generalCutover,false);
+}
+console.log('T12 general CREATE isolated PASS');
