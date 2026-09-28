@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_CREATE_UI_CONTRACT_20260928';
+  var VERSION = 'EDGE_ORDERS_T12_LASER_SERVICE_02CR_20260928';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
@@ -296,7 +296,10 @@
   }
 
   function pagePathFor(params) {
-    return isServiceScreen(params) ? SERVICE_PAGE_PATH : QUALIFIED_PAGE_PATH;
+    // Entry 453: all operational screens, including Customer Service, use the
+    // qualified line-level 02CR route. It already merges T12 Cloud-native rows
+    // before filters/counters/pagination and matches Apps Script getRows_ shape.
+    return QUALIFIED_PAGE_PATH;
   }
 
   function validateServiceResponse(body) {
@@ -329,7 +332,7 @@
         });
       }
       var body = await jsonResponse(response);
-      return isServiceScreen(params) ? validateServiceResponse(body) : normalizeEdgeLineIdentities(validateRequiredMirrors(body));
+      return normalizeEdgeLineIdentities(validateRequiredMirrors(body));
     })();
 
     inflight.set(requestKey, task);
@@ -786,7 +789,8 @@ function eligible(action, params) {
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 't12-hybrid-edge-first-apps-script-plus-cloud-native-fallback',
+      mode: 't12-qualified-02cr-all-operational-screens-with-cloud-native-fallback',
+      serviceUsesQualified02CR: true,
       canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
       canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
       api: edgeBase(),
