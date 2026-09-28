@@ -1,0 +1,36 @@
+name: TrendOS T12 Health Query Diagnostic A38
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-health-query-a38-20260928
+    paths:
+      - '.github/workflows/trendos-t12-health-query-a38.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe exact health URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://trendos-d1-api.trendmall-contact.workers.dev/v1/t12/orders/create/health'
+          echo '=== PLAIN ==='
+          curl -sS -D /tmp/h1 -o /tmp/b1 "$BASE"
+          cat /tmp/h1
+          cat /tmp/b1
+          echo
+          echo '=== WITH UTM ==='
+          curl -sS -D /tmp/h2 -o /tmp/b2 "$BASE?utm_source=chatgpt.com"
+          cat /tmp/h2
+          cat /tmp/b2
+          echo
+          echo '=== WITH ORIGIN + UTM ==='
+          curl -sS -D /tmp/h3 -o /tmp/b3 -H 'Origin: https://fawakhry.github.io' "$BASE?utm_source=chatgpt.com"
+          cat /tmp/h3
+          cat /tmp/b3
