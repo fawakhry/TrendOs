@@ -367,3 +367,11 @@ Next required evidence before any production retry: independently compare the da
 - Pages run `36442530502`: SUCCESS for exact main HEAD `df38b2ef08b37385a87626757e4ff65badaafaa8`.
 - Canary unchanged: `GENERAL_CREATE_MODE=CANARY`, `GENERAL_CREATE_CANARY_REMAINING=1`, `NEXT_ORDER_NUMBER=4323`, `ORDER_4323_CREATED=NO`, `GENERAL_CREATE_CUTOVER=NO`.
 - Entry 445 commit `fec8f9ae977d7efa10d6ebad1a6c3b651a84235e`.
+
+## Order 4323 general CREATE canary verified — Entry 446
+- User supplied live UI evidence that normal Add Order created Order `4323` successfully.
+- A41 read-only verification branch `diagnostic/t12-verify-4323-a41-20260928`, workflow commit `92647e969c8bcceb14feee0311d7f799d0d47593`, run `36445599313`, job `109006982718`: SUCCESS.
+- Verified: `ORDER_4323_CREATED=YES`, `LINE_ID=4323-01`, `LEDGER_STATUS=COMMITTED`, `GENERAL_CREATE_CANARY_REMAINING=0`, `NEXT_ORDER_NUMBER=4324`, `LEGACY_CANARY_REMAINING=0`, `OUTBOX_PENDING=1`, `PRODUCTION_MUTATION=NO`.
+- Current gate remains `GENERAL_CREATE_MODE=CANARY`, budget consumed, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 446 commit `d68fc2411a3623e65c3042a8d8583211c031ee8f`.
+- Next state transition `CANARY -> GENERAL` is a broad CREATE cutover and still requires explicit owner authorization before execution.
