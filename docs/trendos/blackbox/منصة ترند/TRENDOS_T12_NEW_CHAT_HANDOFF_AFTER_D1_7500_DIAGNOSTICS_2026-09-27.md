@@ -386,3 +386,16 @@ Next required evidence before any production retry: independently compare the da
 - State: `GENERAL_CREATE_CUTOVER=YES`, `GENERAL_CREATE_MODE=GENERAL`, `NEXT_ORDER_NUMBER=4324`, `ORDER_4324_CREATED=NO`, `LEGACY_CANARY_ENABLED=false`, `LEGACY_CANARY_REMAINING=0`, `T12_OPERATIONAL_RUNTIME=LIVE`, `HYBRID_READ_OVERLAY_MAIN=LIVE`.
 - Entry 447: `TRENDOS_T12_GENERAL_CREATE_LIVE_ENTRY_447_2026-09-28.md`, commit `d9283ee68bc540078b4c8cf70caab6b07296c966`.
 - Normal Add Order UI may now create new Cloud-native orders starting with Order 4324.
+
+## Comprehensive Orders read/write audit — Entry 448
+- Owner requested a full review of every order read/write path. Audit was read-only; no Production data/code mutation.
+- A43 branch `diagnostic/t12-orders-read-write-audit-a43-20260928`, workflow commit `5a58e69631c1a5cd68d2e1b741d083919bad563a`, run `36448021009`, job `109015249952`: SUCCESS.
+- D1 core integrity healthy: GENERAL mode, nextOrderNumber 4324, 2 orders/2 lines/2 COMMITTED ledgers, zero orphan orders/lines/runtime/outbox. Both T12 outbox rows are still pending (0 done/0 failed).
+- Live Google Sheet verification found a real identity collision: Sheet Order/Line `4322/4322-01` = محمود مناع / 01007131332, while D1 `4322` = T12 CANARY CUSTOMER. D1 `4323` = محمود مناع. Sheet has no 4323. Sheet 4322 and D1 4323 strongly match the same business request.
+- Legacy Google numeric allocators remain in repo/live-facing architecture: `mbCreateOrder_`, `createCustomerPortalOrder_`, `submitCustomerDraft_`, `createManualOrder_`, plus supplemental customer-draft allocation. Browser wrapper redirects only normal `createManualOrder`; server-side legacy allocators are not fenced.
+- Critical read gaps: Service D1 route has no T12 overlay when fresh; hybrid fallback pagination/counters are not globally recomputed; Cloud expected-delivery/debt/overdue data is incomplete; urgent `getRows` polling is Apps Script-only.
+- Critical lifecycle gaps: Cloud runtime basic single-line status/notes works, but delivery debt/invoice gate, bulk status, bulk delivery, archive/restore are still Sheets-only. Registration WhatsApp metadata immediately after CREATE can fall through to Apps Script before Cloud identity is learned.
+- Customer portal remains Sheets-only for `submitCustomerDraft`, `getCustomerOrders`, and order conversations/proofs; Cloud 4323 is absent from Sheets, so customer-facing order identity/read can diverge.
+- T12 outbox has pending rows with no active generic consumer found; prior 02CL was an exact bounded qualification and its generic drain remained disabled.
+- Entry 448: `TRENDOS_T12_ORDERS_READ_WRITE_AUDIT_ENTRY_448_2026-09-28.md`, commit `d5e264d9b2077f15a5c09563258096a3d39bdd9d`.
+- Highest-priority corrective order: fence remaining legacy ID allocators; reconcile collision 4322; Service overlay; Cloud delivery/bulk/archive; customer portal/conversation; outbox; fallback pagination/counters; expected delivery/debt; urgent notifications; durable ambiguous-create key.
