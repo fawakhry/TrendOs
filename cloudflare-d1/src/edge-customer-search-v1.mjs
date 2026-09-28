@@ -1,4 +1,5 @@
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
+import { customerControlState, searchT12Customers } from './t12-customer-master.mjs';
 
 const PATH = '/v1/edge/customers/search';
 const SHEET = 'العملاء';
@@ -246,6 +247,25 @@ async function loadDirectory(env, nowMs = Date.now()) {
   return { catalog, customers, cached: false };
 }
 
+export async function searchNativeCustomerDirectory(env, query, limit = 12) {
+  const state = await customerControlState(env && env.DB);
+  if (!state || text(state.marker) !== 'T12_CUSTOMER_MASTER_V1' || Number(state.customerCount || 0) < 247) {
+    return { ready: false, customers: [], state: state || null };
+  }
+  const customers = await searchT12Customers(env.DB, query, limit);
+  return {
+    ready: true,
+    customers,
+    state: {
+      marker: text(state.marker),
+      mode: text(state.mode),
+      customerCount: Number(state.customerCount || 0),
+      policyEpoch: text(state.policyEpoch),
+      updatedAt: text(state.updatedAt)
+    }
+  };
+}
+
 export async function searchCustomerDirectory(env, query, limit = 12, nowMs = Date.now()) {
   const q = searchKey(query);
   if (!q) {
@@ -297,10 +317,34 @@ export async function handleEdgeCustomerSearchRequest(request, env) {
     return json({ success: false, message: 'Unauthorized customer search', code: verified.reason }, 401, request, env);
   }
 
+  const url = new URL(request.url);
+  const q = text(url.searchParams.get('q'));
+  if (!q) {
+    return json({
+      success: true,
+      customers: [],
+      dataSource: 't12-customer-master',
+      edgeSession: verified.payload.sub
+    }, 200, request, env);
+  }
+
   try {
-    const url = new URL(request.url);
-    const q = text(url.searchParams.get('q'));
-    if (!q) return json({ success: true, customers: [], dataSource: 'd1-customer-directory', edgeSession: verified.payload.sub }, 200, request, env);
+    const native = await searchNativeCustomerDirectory(env, q, 12);
+    if (native.ready) {
+      return json({
+        success: true,
+        customers: native.customers,
+        dataSource: 't12-customer-master',
+        edgeSession: verified.payload.sub,
+        nativeMaster: native.state
+      }, 200, request, env);
+    }
+  } catch (nativeErr) {
+    // A54 intentionally falls through to the qualified A51 mirror. The browser
+    // still retains Apps Script fallback if both D1 customer read lanes fail.
+  }
+
+  try {
     const result = await searchCustomerDirectory(env, q, 12, Date.now());
     return json({
       success: true,
@@ -308,7 +352,8 @@ export async function handleEdgeCustomerSearchRequest(request, env) {
       dataSource: 'd1-customer-directory',
       edgeSession: verified.payload.sub,
       mirror: result.mirror,
-      cacheHit: result.cached === true
+      cacheHit: result.cached === true,
+      nativeMasterFallback: true
     }, 200, request, env);
   } catch (err) {
     return json({
