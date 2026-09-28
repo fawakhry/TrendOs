@@ -302,3 +302,16 @@ Next required evidence before any production retry: independently compare the da
 - Safe fix requires a frontend hybrid fallback on GitHub Pages: Apps Script legacy rows + independent T12 Cloud-native overlay rows. This requires explicit authorization to modify `main`.
 - Entry 439 RESULT: `TRENDOS_T12_READ_OVERLAY_UI_FALLBACK_ENTRY_439_2026-09-28.md`, commit `0ad27b479dcb57ad9f515f8e63e8dbe1f40dddfa`.
 - No main change was made.
+
+## Hybrid Read Overlay live on main — Entry 440
+- Owner explicitly authorized modifying `main` for the Hybrid Read Overlay.
+- Worker prerequisite: A26 run `36400323114` SUCCESS; A27 run `36400429148` SUCCESS; authenticated SELECT-only endpoint `/v1/t12/orders/read-overlay` is live. Worker Version ID `f5416139-da80-4bd1-9042-e2482e7fd4ef`.
+- Worker safety after deploy: unauthenticated overlay request HTTP 401; CREATE remains `enabled=false`, `nextOrderNumber=4323`, `canaryRemaining=0`, `generalCutover=false`.
+- Main commit `cdf127629c8bdea1210d304bb8bc460487beca74` (`Merge T12 hybrid read overlay`) is live. Frontend version `EDGE_ORDERS_READ_T12_HYBRID_20260928`; cache-bust `trendos-edge-orders-read-v1.js?v=20260928-t12-hybrid-overlay1`.
+- Behavior: fresh qualified Edge reads stay first choice. On stale-mirror fallback, Apps Script supplies legacy rows and the frontend independently fetches authenticated T12 Cloud-native rows and merges them. Cloud-native identities are read-only and `updateLine` is blocked with `T12_CLOUD_NATIVE_READ_ONLY` before Apps Script.
+- A28 run `36400838856` did not test runtime because its shallow diff check had no merge base after main moved concurrently; this was a qualification harness failure, not a hybrid runtime failure.
+- A29 post-merge qualification was based directly on exact main SHA `cdf127629c8bdea1210d304bb8bc460487beca74`: run `36407399736`, job `108879316894`, SUCCESS. `T12 hybrid frontend fallback isolated PASS`, `POST_MERGE_FRONTEND_QUALIFICATION=PASS`.
+- GitHub Pages build/deployment run `36401207356` for exact main SHA `cdf127629c8bdea1210d304bb8bc460487beca74`: SUCCESS.
+- Current state: `HYBRID_READ_OVERLAY_MAIN=LIVE`, `ORDER_4322_CREATED=YES`, `ORDER_4322_INTEGRITY=PASS`, `CANARY_ENABLED=false`, `CANARY_REMAINING=0`, `NEXT_ORDER_NUMBER=4323`, `GENERAL_CREATE_CUTOVER=NO`.
+- Entry 440 RESULT: `TRENDOS_T12_HYBRID_READ_OVERLAY_MAIN_LIVE_ENTRY_440_2026-09-28.md`, commit `6f9df5b03100ff926bf48a3a87ac4e64df515f30`.
+- Next: user-visible verification after hard refresh that Order `4322` appears in the print screen.
