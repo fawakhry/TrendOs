@@ -1,0 +1,36 @@
+name: TrendOS T12 General CREATE Frontend A35
+
+on:
+  push:
+    branches:
+      - diagnostic/t12-general-create-main-a35-20260928
+    paths:
+      - '.github/workflows/trendos-t12-general-create-main-a35.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify guarded Cloud CREATE frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check trendos-edge-orders-read-v1.js
+          node --check config.js
+          node tests/t12_general_create_frontend.test.mjs
+          grep -F "var VERSION = 'EDGE_ORDERS_T12_GENERAL_CREATE_20260928';" trendos-edge-orders-read-v1.js
+          grep -F "T12_GENERAL_CREATE_PATH" trendos-edge-orders-read-v1.js
+          grep -F "T12_CREATE_NETWORK_AMBIGUOUS_NO_RETRY" trendos-edge-orders-read-v1.js
+          grep -F "action === 'createManualOrder'" trendos-edge-orders-read-v1.js
+          grep -F "trendos-edge-orders-read-v1.js?v=20260928-t12-general-create1" config.js
+          echo 'GENERAL_CREATE_FRONTEND_QUALIFICATION=PASS'
