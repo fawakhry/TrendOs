@@ -4,3 +4,5 @@ customer_search=d1
 customer_write=d1
 google_customer_authority=no
 order_mutation=no
+
+retry_shared_phone_policy=1
