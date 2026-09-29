@@ -3865,3 +3865,12 @@ NEXT documentation lane: continue Entry467 final evidence pass from fixed M504 w
 ## Entry 470 PREPARE — ONBOARDING-CURRENT-A55-DELTA-RECONCILIATION-20260929 / 2026-09-29 Cairo
 
 TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: ONBOARDING-A55-01. DOC_WRITE only. Update `اقرأني_أولًا.md` so new-chat routing points to the current A55 handoff, recognizes both fixed + post-snapshot delta inventories, and removes the obsolete rule that Google/Apps Script is current Order CREATE authority. Preserve Customer write authority as Apps Script/Google and preserve all production authorization gates. No runtime/workflow/data action.
+
+
+## Entry 470 RESULT — ONBOARDING-CURRENT-A55-DELTA-RECONCILIATION-20260929 / 2026-09-29 Cairo
+
+RESULT=`COMMITTED_VERIFIED`. `اقرأني_أولًا.md` now points T12 new-chat intake to `TRENDOS_T12_NEW_CHAT_HANDOFF_AFTER_CUSTOMER_A55_2026-09-29.md`, documents both fixed and post-snapshot delta inventories, defines book closure as fixed M=0 + delta M=0 (or explicit closed/superseded/out-of-scope dispositions), and replaces the obsolete Google Order CREATE authority statement with the current split: T12 Cloud GENERAL owns new Order CREATE; Apps Script legacy numeric CREATE is fenced; Customer CREATE/UPDATE remains Apps Script/Google with native customer general write OFF. No runtime action. Commit `2eb16c9cf60d510ab61d85770d550b89cf9e969a`.
+
+## Entry 471 PREPARE — MASTER-BOOK-DOC-BATCH-PERF-CF-02BH-02BS-20260929 / 2026-09-29 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: DOC-DUP-PERF-01. READ/DOC_WRITE only. Full-read the unique Git blobs for historical PERF-CF docs 02BH/02BJ, 02BL, 02BM, 02BN, 02BP, 02BQ, 02BR and 02BS. Each blob currently has two exact path copies under `docs/trendos/blackbox/` and `docs/trendos/blackbox/منصة ترند/`. Read each unique blob once, record historical repair-relevant facts, then disposition both paths by verified identical SHA. No workflow/runtime/data action.
