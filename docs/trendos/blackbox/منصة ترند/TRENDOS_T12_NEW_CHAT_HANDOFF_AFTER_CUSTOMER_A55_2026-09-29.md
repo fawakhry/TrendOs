@@ -246,3 +246,36 @@ Next:
 design a fail-closed compatibility bridge where D1 is the authentication authority and legacy Apps Script business routes accept only a trusted Cloudflare-authenticated assertion/token exchange. This bridge must be temporary/removable and must not require storing plaintext credentials or exposing the historical password pepper.
 
 Do not change Order IDs/statuses while implementing the auth compatibility bridge.
+
+
+---
+
+# A61 compatibility bridge checkpoint — Entry480
+
+PR #26 merged:
+`18ed4404a35a835f54912c819f4d0dcc83325b8e`
+
+Dedicated CI:
+`36584280155` — SUCCESS.
+
+Current bridge contract:
+- D1 native employee session is verified in Cloudflare first.
+- the native employee token is not forwarded to Apps Script.
+- Cloudflare signs a short-lived HMAC assertion bound to employee + exact target action + canonical target payload digest.
+- Apps Script accepts the assertion only through `cloudEmployeeLegacyBridgeExecuteV1`.
+- Apps Script validates action/payload/expiry/signature, consumes a nonce with Script Cache + Script Lock, then creates an execution-scoped virtual employee context.
+- auth actions are forbidden through the bridge.
+- repository runtime defaults remain disabled and the bridge action allowlist is empty.
+- no Production deploy or D1/Order mutation occurred.
+
+Current authority:
+```ini
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+A61_NATIVE_AUTH_CODE=MERGED_DEFAULT_OFF
+A61_LEGACY_AUTH_BRIDGE=MERGED_DEFAULT_OFF
+A61_PRODUCTION_CUTOVER=NO
+ZERO_GOOGLE_COMPLETE=NO
+```
+
+Next safe step:
+classify the remaining employee-authenticated Apps Script actions into read-only / business-write / maintenance / forbidden-auth categories and derive the minimum temporary bridge allowlist. Do not enable the bridge or native login until that classification and Production qualification are complete.
