@@ -97,6 +97,18 @@ EMPLOYEE_LOGIN=GOOGLE_BACKED
 ZERO_GOOGLE_COMPLETE=NO
 ```
 
+**A61 Phase 3 — action classification + op-scoped bridge policy:** PR #27 merged at `49c4ba4bfeb9741fff1989d2a4ab837beab4239e`; dedicated CI run `36586353524` = SUCCESS. Follow-up on the original A58 audit found two active backend actions the old regex missed (`hrV1`, `attendanceClockinV1`), so the observed runtime-action strings are at least 82. Fifteen of those are nested op labels, yielding 67 observed top-level runtime actions. Multiplexed employee actions now require exact `action:op` bridge policy, preventing a read policy such as `pressControlV1:status` from implicitly authorizing `:start/:stop`. A 28-rule read-only pilot set is documented in Entry481 but **not enabled**. The bridge flag remains false and its repository allowlist remains empty. Several active frontend modules still call `TREND_API_URL/API_URL` directly, so a frontend employee dispatcher is required before native login can be enabled.
+
+```ini
+A61_ACTION_CLASSIFICATION=PASS
+A58_REPORTED_ACTION_STRINGS=80
+A61_OBSERVED_ACTION_STRINGS=82
+A61_TOP_LEVEL_RUNTIME_ACTIONS=67
+A61_READ_ONLY_PILOT_POLICIES=28
+A61_BRIDGE_POLICY=ACTION_PLUS_OP_FOR_MULTIPLEXERS
+A61_BRIDGE_PRODUCTION_ENABLEMENT=NO
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
