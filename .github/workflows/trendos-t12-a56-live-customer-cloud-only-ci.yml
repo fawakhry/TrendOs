@@ -1,0 +1,43 @@
+name: TrendOS T12 A56 Live Customer Cloud-Only CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-a56-customer-cloud-only-live-20260929
+    paths:
+      - 'trendos-edge-orders-read-v1.js'
+      - 'app.js'
+      - 'config.js'
+      - 'tests/frontend_t12_customer_cloud_only_a56_live.test.mjs'
+      - '.github/workflows/trendos-t12-a56-live-customer-cloud-only-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check trendos-edge-orders-read-v1.js
+          node --check app.js
+      - name: A56 live customer Cloud-only contract
+        run: node tests/frontend_t12_customer_cloud_only_a56_live.test.mjs
+      - name: Preserve A51/A52 frontend safety
+        run: |
+          node tests/frontend_t12_customer_search_a51.test.mjs
+          node tests/frontend_t12_orders_stale_backoff_a52.test.mjs
+      - name: Boundary
+        run: |
+          echo 'CUSTOMER_SEARCH=D1_ONLY'
+          echo 'CUSTOMER_WRITE=D1_ONLY'
+          echo 'CUSTOMER_GOOGLE_BROWSER_FALLBACK=NO'
+          echo 'ORDER_CREATE_UNCHANGED=YES'
+          echo 'PRODUCTION_MUTATION=NO'
