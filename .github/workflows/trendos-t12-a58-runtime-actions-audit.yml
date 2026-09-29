@@ -1,0 +1,56 @@
+name: TrendOS T12 A58 Active Runtime Action Audit
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/A58_RUNTIME_ACTION_AUDIT.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract active frontend API actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const config=fs.readFileSync('config.js','utf8');
+          const active=new Set(['app.js']);
+          for(const m of config.matchAll(/trendLoadModuleV1932\([^,]+,\s*['"]([^'"]+\.js)(?:\?[^'"]*)?['"]\)/g)) active.add(m[1]);
+          const actions=new Map();
+          const directGoogle=[];
+          for(const file of [...active].sort()){
+            if(!fs.existsSync(file)) continue;
+            const s=fs.readFileSync(file,'utf8');
+            const set=new Set();
+            const regexes=[
+              /\bapi\(\s*['"]([^'"]+)['"]/g,
+              /\bapiPost\(\s*['"]([^'"]+)['"]/g,
+              /trendosSecureApiV1922\(\s*['"]([^'"]+)['"]/g,
+              /action\s*:\s*['"]([^'"]+)['"]/g
+            ];
+            for(const re of regexes){let m;while((m=re.exec(s)))set.add(m[1]);}
+            if(set.size) actions.set(file,[...set].sort());
+            if(/script\.google\.com|docs\.google\.com|TREND_API_URL|WEB_APP_URL|API_URL/.test(s)) directGoogle.push(file);
+          }
+          const all=[...new Set([...actions.values()].flat())].sort();
+          console.log('A58_ACTIVE_FILES='+JSON.stringify([...active].sort()));
+          console.log('A58_ACTIVE_ACTION_COUNT='+all.length);
+          console.log('A58_ACTIVE_ACTIONS='+JSON.stringify(all));
+          for(const [file,list] of actions) console.log('A58_FILE_ACTIONS='+JSON.stringify({file,actions:list}));
+          console.log('A58_ACTIVE_FILES_WITH_GOOGLE_API_REFERENCES='+JSON.stringify(directGoogle.sort()));
+          console.log('A58_CONFIG_GOOGLE_ENDPOINT='+( /script\.google\.com/.test(config) ? 'YES':'NO'));
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
