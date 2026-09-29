@@ -464,7 +464,7 @@ HEAD_PROJECT_FILE_COUNT=54
 HEAD_CODE_SYNTAX=PASS
 LIVE_HEAD_RUNTIME_FUNCTIONS=PASS
 LIVE_HEAD_A61_BRIDGE=ABSENT
-PRODUCTION_BACKUP_COPY=YES
+PRODUCTION_BACKUP_COPY_VERIFIED=NO
 APPS_SCRIPT_DEPLOY=NO
 ```
 
@@ -480,3 +480,6 @@ Do not merge PR #30 as a replacement for Production code. It records the exact a
 Immutable Version 157 source remains unavailable, so accidental-save byte-for-byte recovery is still formally unverified. No source edit, Script Properties mutation, new version, deploy, D1 mutation, Cloudflare mutation, Order mutation, Customer mutation, or Accounting mutation has occurred.
 
 Next Production action, only after an explicit install decision: apply the recorded A61 patch additively to the current live HEAD, never paste current main wholesale.
+
+
+Backup-copy correction: a Drive copy request returned success and an ID, but immediate metadata/readback returned 404 and title search did not locate the copy. Do not treat that copy as a verified backup. The read-only exported HEAD captured outside Apps Script remains the recovery source artifact.
