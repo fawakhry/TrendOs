@@ -3874,3 +3874,12 @@ RESULT=`COMMITTED_VERIFIED`. `اقرأني_أولًا.md` now points T12 new-cha
 ## Entry 471 PREPARE — MASTER-BOOK-DOC-BATCH-PERF-CF-02BH-02BS-20260929 / 2026-09-29 Cairo
 
 TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: DOC-DUP-PERF-01. READ/DOC_WRITE only. Full-read the unique Git blobs for historical PERF-CF docs 02BH/02BJ, 02BL, 02BM, 02BN, 02BP, 02BQ, 02BR and 02BS. Each blob currently has two exact path copies under `docs/trendos/blackbox/` and `docs/trendos/blackbox/منصة ترند/`. Read each unique blob once, record historical repair-relevant facts, then disposition both paths by verified identical SHA. No workflow/runtime/data action.
+
+
+## Entry 471 RESULT — MASTER-BOOK-DOC-BATCH-PERF-CF-02BH-02BS-20260929 / 2026-09-29 Cairo
+
+RESULT=`COMMITTED_VERIFIED`. Eight unique historical PERF-CF blobs (02BH/02BJ, 02BL, 02BM, 02BN, 02BP, 02BQ, 02BR, 02BS) were full-read once; each has an exact SHA-identical duplicate path in the second blackbox tree, so 16 fixed-inventory M rows were dispositioned as `P:FULL_BLOB_READ Entry471 / SUPERSEDED_HISTORICAL / SAME_BLOB_PAIR`. Master Book and Closed Components Registry now retain only the repair-relevant capsule: staging synthetic identity/canonical writes 3885/3886, legacy Line-ID Date/display-value behavior, isolated Cloudflare→Apps Script staging bridge, idempotent replay, mutation-free Production Shadow, and Production Cloud Write OFF throughout. Fixed coverage: `M488/P669/A11/Redirect11/LIVE6`. No runtime/workflow action.
+
+## Entry 472 PREPARE — MASTER-BOOK-DOC-BATCH-PERF-CF-02BT-02CA-20260929 / 2026-09-29 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: DOC-DUP-PERF-02. READ/DOC_WRITE only. Full-read unique blobs for historical PERF-CF 02BT, 02BU, 02BV, 02BW, 02BX, 02BY, 02BZ, 02CA and 02CA_FINAL_VERIFY. Each is expected to have an exact duplicate path in the second blackbox tree; verify SHA identity via fixed inventory before dispositioning both. Capture only repair-relevant transitions/failures/rollback evidence. No workflow/runtime/data action.
