@@ -272,6 +272,11 @@ function doPost(e) {
     payload = {};
   }
 
+  const earlyAction = normalize_(payload.action || (e.parameter && e.parameter.action));
+  if (earlyAction === "cloudEmployeeLegacyBridgeExecuteV1") {
+    return output_(trendosCloudEmployeeLegacyBridgeExecuteV1_(payload), "");
+  }
+
   // V1932 FULL: Meta webhook and new backend actions must run before older routers.
   const v1932Response = trendosV1932TryRoute_(e, payload);
   if (v1932Response) return v1932Response;
@@ -749,9 +754,11 @@ function login_(e) {
 }
 
 // T12 A61 compatibility bridge.
-// Cloudflare authenticates the employee against D1, then sends Apps Script a
-// short-lived signed assertion instead of forwarding the employee's native
-// session token. The shared secret lives only in runtime properties/secrets.
+// D1 remains employee auth authority. Cloudflare sends Apps Script a short-lived,
+// action-bound and body-bound assertion. The employee's native D1 session token
+// and plaintext password never reach the legacy business action.
+var TRENDOS_CLOUD_EMPLOYEE_CONTEXT_V1_ = null;
+
 function trendosEmployeeLegacyBridgeEnabledV1_() {
   try {
     return normalize_(PropertiesService.getScriptProperties().getProperty("TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED")).toLowerCase() === "true";
@@ -786,51 +793,117 @@ function trendosEmployeeLegacyBridgeDecodeV1_(payloadB64) {
   }
 }
 
-function trendosVerifyEmployeeLegacyBridgeTokenV1_(username, token) {
-  token = String(token || "");
-  if (token.indexOf("cfv1.") !== 0) return { handled: false };
+function trendosEmployeeLegacyStableValueV1_(value) {
+  if (Array.isArray(value)) {
+    return value.map(function(item){ return trendosEmployeeLegacyStableValueV1_(item); });
+  }
+  if (value && typeof value === "object") {
+    const out = {};
+    Object.keys(value).sort().forEach(function(key){
+      out[key] = trendosEmployeeLegacyStableValueV1_(value[key]);
+    });
+    return out;
+  }
+  return value;
+}
 
+function trendosEmployeeLegacyPayloadDigestV1_(payload) {
+  return authDigestV1922_(JSON.stringify(trendosEmployeeLegacyStableValueV1_(payload || {})));
+}
+
+function trendosEmployeeLegacyBridgeForbiddenActionV1_(action) {
+  action = normalize_(action);
+  return !action ||
+    action === "login" ||
+    action === "logout" ||
+    action === "verifyEmployeeSession" ||
+    action === "changePassword" ||
+    action === "customerLogin" ||
+    action === "customerLogout" ||
+    action === "changeCustomerPassword" ||
+    action === "cloudEmployeeLegacyBridgeExecuteV1";
+}
+
+function trendosConsumeEmployeeLegacyBridgeNonceV1_(nonce, expSeconds) {
+  nonce = normalize_(nonce);
+  if (!nonce || nonce.length > 160) return false;
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return false;
+  try {
+    const cache = CacheService.getScriptCache();
+    const key = "t12_emp_bridge_nonce_" + authDigestV1922_(nonce);
+    if (cache.get(key)) return false;
+    const now = Math.floor(Date.now() / 1000);
+    const ttl = Math.max(30, Math.min(180, Number(expSeconds || 0) - now + 30));
+    cache.put(key, "1", ttl);
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function trendosVerifyEmployeeLegacyBridgeAssertionV1_(username, targetAction, targetPayload, token) {
   if (!trendosEmployeeLegacyBridgeEnabledV1_()) {
-    return { handled: true, ok: false, message: "مسار اعتماد الموظف السحابي غير مفعل." };
+    return { ok: false, message: "مسار اعتماد الموظف السحابي غير مفعل." };
   }
 
   const secret = trendosEmployeeLegacyBridgeSecretV1_();
   if (secret.length < 32) {
-    return { handled: true, ok: false, message: "مسار اعتماد الموظف السحابي غير مضبوط." };
+    return { ok: false, message: "مسار اعتماد الموظف السحابي غير مضبوط." };
   }
 
+  token = String(token || "");
   if (token.length > 4096) {
-    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+    return { ok: false, message: "اعتماد الموظف السحابي غير صالح." };
   }
 
   const parts = token.split(".");
   if (parts.length !== 3 || parts[0] !== "cfv1" || !parts[1] || !parts[2]) {
-    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+    return { ok: false, message: "اعتماد الموظف السحابي غير صالح." };
   }
 
   const expected = trendosEmployeeLegacyBridgeHmacV1_(parts[1], secret);
   if (!constantTimeEqualsV1922_(expected, parts[2])) {
-    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+    return { ok: false, message: "اعتماد الموظف السحابي غير صالح." };
   }
 
   const claims = trendosEmployeeLegacyBridgeDecodeV1_(parts[1]);
   if (!claims || Number(claims.v) !== 1) {
-    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+    return { ok: false, message: "اعتماد الموظف السحابي غير صالح." };
   }
 
   const now = Math.floor(Date.now() / 1000);
   const iat = Number(claims.iat || 0);
   const exp = Number(claims.exp || 0);
   if (!iat || !exp || iat > now + 30 || iat < now - 120 || exp <= now || exp > now + 120) {
-    return { handled: true, ok: false, message: "انتهت صلاحية اعتماد الموظف السحابي." };
+    return { ok: false, message: "انتهت صلاحية اعتماد الموظف السحابي." };
   }
 
   const subject = normalize_(claims.sub);
   if (!subject || subject !== normalize_(username)) {
-    return { handled: true, ok: false, message: "اعتماد الموظف السحابي لا يطابق المستخدم." };
+    return { ok: false, message: "اعتماد الموظف السحابي لا يطابق المستخدم." };
   }
+
+  targetAction = normalize_(targetAction);
+  if (trendosEmployeeLegacyBridgeForbiddenActionV1_(targetAction) || normalize_(claims.action) !== targetAction) {
+    return { ok: false, message: "اعتماد الموظف السحابي لا يطابق الإجراء." };
+  }
+
+  const bodyDigest = trendosEmployeeLegacyPayloadDigestV1_(targetPayload || {});
+  if (!constantTimeEqualsV1922_(bodyDigest, normalize_(claims.bodyDigest))) {
+    return { ok: false, message: "اعتماد الموظف السحابي لا يطابق محتوى الطلب." };
+  }
+
   if (claims.active === false) {
-    return { handled: true, ok: false, message: "هذا المستخدم غير مفعل." };
+    return { ok: false, message: "هذا المستخدم غير مفعل." };
+  }
+  if (claims.mustChange === true) {
+    return { ok: false, message: "يجب تغيير كلمة المرور قبل متابعة العمل." };
+  }
+
+  if (!trendosConsumeEmployeeLegacyBridgeNonceV1_(claims.nonce, exp)) {
+    return { ok: false, message: "اعتماد الموظف السحابي مستخدم أو غير صالح." };
   }
 
   const role = normalize_(claims.role).toLowerCase() || "service";
@@ -838,7 +911,6 @@ function trendosVerifyEmployeeLegacyBridgeTokenV1_(username, token) {
   const screens = Array.isArray(claims.screens) ? claims.screens.map(function(v){ return normalize_(v); }) : [];
 
   return {
-    handled: true,
     ok: true,
     authSource: "cloudflare-d1-native-v1",
     user: {
@@ -847,16 +919,64 @@ function trendosVerifyEmployeeLegacyBridgeTokenV1_(username, token) {
       department: department,
       role: role,
       active: "نعم",
-      mustChange: claims.mustChange === true ? "نعم" : "لا",
+      mustChange: "لا",
       screens: screens,
       cloudAuthBridgeV1: true
     }
   };
 }
 
+function trendosCloudEmployeeLegacyBridgeExecuteV1_(payload) {
+  payload = payload || {};
+  const targetAction = normalize_(payload.targetAction);
+  const targetPayload = payload.targetPayload && typeof payload.targetPayload === "object"
+    ? payload.targetPayload
+    : {};
+  const username = normalize_(payload.username || targetPayload.username);
+
+  if (trendosEmployeeLegacyBridgeForbiddenActionV1_(targetAction)) {
+    return { success: false, message: "الإجراء غير مسموح عبر جسر اعتماد الموظف السحابي." };
+  }
+  if (normalize_(targetPayload.action) !== targetAction || normalize_(targetPayload.username) !== username) {
+    return { success: false, message: "بيانات جسر اعتماد الموظف السحابي غير متطابقة." };
+  }
+
+  const verified = trendosVerifyEmployeeLegacyBridgeAssertionV1_(
+    username,
+    targetAction,
+    targetPayload,
+    payload.cloudEmployeeAssertionV1
+  );
+  if (!verified.ok) return { success: false, message: verified.message };
+
+  const previous = TRENDOS_CLOUD_EMPLOYEE_CONTEXT_V1_;
+  TRENDOS_CLOUD_EMPLOYEE_CONTEXT_V1_ = {
+    username: verified.user.username,
+    action: targetAction,
+    user: verified.user
+  };
+
+  try {
+    const forwarded = Object.assign({}, targetPayload, {
+      action: targetAction,
+      username: verified.user.username
+    });
+    delete forwarded.token;
+    return doGet({
+      parameter: forwarded,
+      requestMethod: "POST",
+      __returnRawV1922: true
+    });
+  } finally {
+    TRENDOS_CLOUD_EMPLOYEE_CONTEXT_V1_ = previous;
+  }
+}
+
 function authorize_(username, token) {
-  const cloudBridge = trendosVerifyEmployeeLegacyBridgeTokenV1_(username, token);
-  if (cloudBridge.handled) return cloudBridge;
+  const context = TRENDOS_CLOUD_EMPLOYEE_CONTEXT_V1_;
+  if (context && normalize_(context.username) === normalize_(username) && context.user) {
+    return { ok: true, user: context.user, authSource: "cloudflare-d1-native-v1" };
+  }
 
   const user = findUser_(normalize_(username));
   if (!user) return { ok: false, message: "المستخدم غير موجود." };
