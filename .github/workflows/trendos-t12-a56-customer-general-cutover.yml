@@ -60,6 +60,7 @@ jobs:
           const counts=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'total'))||{};
           const dupPhone=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'duplicate_phone_groups'))||{};
           const dupExtra=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'duplicate_extra_phone_groups'))||{};
+          const dupIdentity=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'duplicate_identity_groups'))||{};
           const ledger=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'ledger_rows'))||{};
           const out={
             mode:String(control.mode||''),
@@ -71,14 +72,17 @@ jobs:
             cloud:Number(counts.cloud_count||0),
             duplicatePhoneGroups:Number(dupPhone.duplicate_phone_groups||0),
             duplicateExtraPhoneGroups:Number(dupExtra.duplicate_extra_phone_groups||0),
+            duplicateIdentityGroups:Number(dupIdentity.duplicate_identity_groups||0),
             ledgerRows:Number(ledger.ledger_rows||0)
           };
           console.log('A56_CUSTOMER_PREFLIGHT='+JSON.stringify(out));
           if(!['OFF','GENERAL'].includes(out.mode)) throw new Error('unexpected customer mode');
           if(out.total < 247) throw new Error('customer master incomplete');
           if(out.nextCustomerNumber < 1) throw new Error('invalid next customer number');
-          if(out.duplicatePhoneGroups!==0) throw new Error('duplicate primary phone groups require reconciliation');
-          if(out.duplicateExtraPhoneGroups!==0) throw new Error('duplicate extra phone groups require reconciliation');
+          if(out.duplicateIdentityGroups!==0) throw new Error('exact duplicate customer identities require reconciliation');
+          if(out.duplicatePhoneGroups||out.duplicateExtraPhoneGroups){
+            console.log('A56_SHARED_PHONE_POLICY=PHONE_THEN_EXACT_NAME');
+          }
           NODE
 
       - name: Verify production route before mutation
