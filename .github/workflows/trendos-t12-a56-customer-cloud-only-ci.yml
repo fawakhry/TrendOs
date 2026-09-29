@@ -1,0 +1,43 @@
+name: TrendOS T12 A56 Customer Cloud-Only CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'trendos-edge-orders-read-v1.js'
+      - 'app.js'
+      - 'tests/frontend_t12_customer_cloud_only_a56.test.mjs'
+      - '.github/workflows/trendos-t12-a56-customer-cloud-only-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check trendos-edge-orders-read-v1.js
+          node --check app.js
+      - name: A56 customer Cloud-only frontend contract
+        run: node tests/frontend_t12_customer_cloud_only_a56.test.mjs
+      - name: Preserve native customer backend tests
+        run: |
+          node --experimental-sqlite tests/t12_customer_master_a53.test.mjs
+          node --experimental-sqlite tests/t12_customer_native_search_a54.test.mjs
+          node --experimental-sqlite tests/t12_customer_legacy_projection_a55.test.mjs
+      - name: Boundary
+        run: |
+          echo 'CUSTOMER_BROWSER_GOOGLE_FALLBACK=NO'
+          echo 'CUSTOMER_SEARCH_TARGET=T12_CUSTOMER_MASTER'
+          echo 'CUSTOMER_WRITE_TARGET=T12_CUSTOMER_MASTER'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'A56_CUSTOMER_FRONTEND_CANDIDATE=PASS'
