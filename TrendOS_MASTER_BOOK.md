@@ -120,6 +120,17 @@ A61_D1_MIGRATION_APPLIED=NO
 EMPLOYEE_LOGIN=GOOGLE_BACKED
 ```
 
+**A61 Phase 5 — Apps Script bridge reapplied to current main, source-only:** PR #29 merged to `main` at `12dd9d31bcd36db736f0c06191812bdcc5167bad`; CI run `36590223481` = SUCCESS. CI proved that removing only the A61 bridge block and dedicated wrapper route makes `Code.gs` byte-for-byte equal to current main, so no unrelated backend regression was introduced. The bridge remains fail-closed and has not been deployed to Apps Script Production. No shared secret or runtime flag has been configured. Detailed record: Entry483.
+
+```ini
+A61_MAIN_APPS_SCRIPT_BRIDGE_SOURCE=MERGED
+A61_MAIN_APPS_SCRIPT_BRIDGE_CI=PASS
+A61_APPS_SCRIPT_PRODUCTION_DEPLOY=NO
+A61_BRIDGE_SECRET_CONFIGURED=NO
+A61_NATIVE_EMPLOYEE_LOGIN=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
