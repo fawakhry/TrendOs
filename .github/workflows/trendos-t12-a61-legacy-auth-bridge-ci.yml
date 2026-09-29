@@ -9,6 +9,7 @@ on:
       - 'cloudflare-d1/src/employee-legacy-bridge-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/employee_legacy_auth_bridge_a61.test.mjs'
+      - 'tests/employee_legacy_action_classification_a61.test.mjs'
       - '.github/workflows/trendos-t12-a61-legacy-auth-bridge-ci.yml'
   workflow_dispatch:
 
@@ -36,6 +37,9 @@ jobs:
 
       - name: A61 legacy auth bridge contract
         run: node tests/employee_legacy_auth_bridge_a61.test.mjs
+
+      - name: A61 action classification contract
+        run: node tests/employee_legacy_action_classification_a61.test.mjs
 
       - name: Fail-closed and secret hygiene boundary
         shell: bash
