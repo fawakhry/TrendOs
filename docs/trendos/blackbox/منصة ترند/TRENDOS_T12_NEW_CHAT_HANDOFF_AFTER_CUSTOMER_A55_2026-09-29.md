@@ -403,3 +403,23 @@ Next owner action:
 install/deploy the current-main Apps Script source containing the A61 bridge while setting `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false`. The shared bridge secret must be created outside GitHub and stored only in Apps Script Script Properties and later as a Cloudflare Worker secret. Do not enable native login yet.
 
 After that owner step, continue Entry484 Phase B: apply additive D1 migration `0009_employee_auth_native_v1.sql` with mode remaining OFF, then configure the matching Cloudflare secret and deploy the Worker with all A61 flags still false.
+
+
+---
+
+# A61 Apps Script single-file clarification
+
+Current `main/Code.gs` is a single-file build and embeds:
+`trendosV1932TryRoute_`, `customerManagerV1_`, `customerFeedbackV1_`,
+`attendanceV1_`, `attendanceClockinV1_`, `hrV1_`, `cleaningV1_`,
+`pressControlV1_`, and `goLiveAutopilotV1_`.
+
+Therefore missing separate `.gs` module tabs in Apps Script is not by itself evidence that the wrong project is open.
+
+To identify the correct Production Apps Script project, require:
+1. active Web App deployment /exec URL matches current `main/config.js` exactly:
+   `https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec`
+2. opened project contains the embedded runtime functions above.
+
+If either check fails, stop before editing/deploying.
+Do not add duplicate modular files to the single-file build.
