@@ -86,6 +86,17 @@ APPS_SCRIPT_AUTH_FALLBACK=YES
 ZERO_GOOGLE_COMPLETE=NO
 ```
 
+**A61 Phase 2 — legacy auth compatibility bridge qualified, not live:** PR #26 merged to the Cloud working branch at `18ed4404a35a835f54912c819f4d0dcc83325b8e`. The bridge keeps D1 as employee auth authority while legacy business actions remain on Apps Script: Cloudflare verifies the D1 session, signs a short-lived assertion bound to employee + exact action + canonical payload digest, and calls one dedicated Apps Script wrapper. Apps Script validates signature/expiry/body binding, consumes a nonce under Script Lock/Cache to reject replay, then exposes a temporary in-execution virtual user to existing authorization helpers. The raw native D1 session token and plaintext password are never forwarded. Dedicated CI run `36584280155` = SUCCESS. Production flags remain OFF and the exact action allowlist remains empty. Detailed record: Entry480.
+
+```ini
+A61_LEGACY_AUTH_BRIDGE_CODE=MERGED
+A61_LEGACY_AUTH_BRIDGE_CI=PASS
+A61_BRIDGE_PRODUCTION_ENABLEMENT=NO
+EMPLOYEE_LEGACY_BRIDGE_ACTIONS=EMPTY
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
