@@ -28,6 +28,17 @@ const FORBIDDEN_ACTIONS = new Set([
   UPSTREAM_WRAPPER_ACTION
 ]);
 
+const OP_SCOPED_ACTIONS = new Set([
+  'attendanceV1',
+  'attendanceClockinV1',
+  'cleaningV1',
+  'customerFeedbackV1',
+  'customerManagerV1',
+  'goLiveAutopilotV1',
+  'hrV1',
+  'pressControlV1'
+]);
+
 function text(value) {
   return String(value == null ? '' : value).trim();
 }
@@ -164,10 +175,16 @@ export function isEmployeeLegacyBridgePath(path) {
   return path === PATH || path === HEALTH_PATH;
 }
 
-export function employeeLegacyBridgeActionAllowed(action, env) {
+export function employeeLegacyBridgeActionAllowed(action, env, body = {}) {
   const value = text(action);
   if (!value || FORBIDDEN_ACTIONS.has(value)) return false;
-  return configuredActions(env).has(value);
+  const policies = configuredActions(env);
+  if (OP_SCOPED_ACTIONS.has(value)) {
+    const op = text(body && body.op);
+    if (!op) return false;
+    return policies.has(value + ':' + op);
+  }
+  return policies.has(value);
 }
 
 export async function createEmployeeLegacyBridgeAssertionV1(
@@ -229,7 +246,8 @@ async function health(env) {
     enabled: employeeLegacyBridgeEnabled(env),
     upstreamConfigured: !!text(env && env.APPS_SCRIPT_API_URL),
     secretConfigured: text(env && env.EMPLOYEE_LEGACY_BRIDGE_SECRET_V1).length >= 32,
-    allowedActionCount: actions.size,
+    allowedPolicyCount: actions.size,
+    opScopedActions: Array.from(OP_SCOPED_ACTIONS).sort(),
     assertionTtlSeconds: assertionTtlSeconds(env),
     rawNativeTokenForwarded: false,
     plaintextPasswordForwarded: false,
@@ -269,8 +287,13 @@ export async function handleEmployeeLegacyBridgeRequest(request, env) {
   if (!parsed.ok) return json({ success: false, message: parsed.message }, parsed.status, cors);
   const body = parsed.body || {};
   const action = text(body.action);
-  if (!employeeLegacyBridgeActionAllowed(action, env)) {
-    return json({ success: false, code: 'legacy-action-not-allowed', action }, 403, cors);
+  if (!employeeLegacyBridgeActionAllowed(action, env, body)) {
+    return json({
+      success: false,
+      code: 'legacy-action-not-allowed',
+      action,
+      op: text(body && body.op)
+    }, 403, cors);
   }
 
   const credentials = nativeCredentials(request, body);
