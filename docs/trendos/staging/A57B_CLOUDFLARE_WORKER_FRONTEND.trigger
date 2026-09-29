@@ -8,3 +8,5 @@ no_google_mutation=yes
 no_d1_data_mutation=yes
 
 redeploy_after_main_entrypoint=ac980a22f354f441d34ff8851f8c2eb1877626dc
+
+redeploy_after_a60=6e96f9b9c9a870c9c1f961dc3e2f5f72d9ca11d7
