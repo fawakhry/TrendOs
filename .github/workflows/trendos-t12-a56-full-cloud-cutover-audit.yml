@@ -22,13 +22,13 @@ jobs:
         run: |
           set -euo pipefail
           echo '=== A56 RUNTIME GOOGLE DEPENDENCY INVENTORY ==='
-          rg -n --hidden             --glob '!docs/**'             --glob '!**/*.md'             --glob '!cloudflare-d1/apps-script-importer.gs'             --glob '!cloudflare-d1/D1_Full_Migration.gs'             --glob '!cloudflare-d1/D1_Orders_Read_Cutover.gs'             --glob '!cloudflare-d1/**/*.sql'             '(script\.google\.com|docs\.google\.com|WEB_APP_URL|TREND_API_URL|API_URL|TRENDOS_SHEET_ID|TRENDOS_SHEET_URL|SpreadsheetApp|PropertiesService|getSheetByName|openById)' .             | tee /tmp/a56_google_runtime.txt || true
+          grep -RInE --exclude='*.md' --exclude-dir='.git' --exclude-dir='docs'             --exclude='apps-script-importer.gs' --exclude='D1_Full_Migration.gs' --exclude='D1_Orders_Read_Cutover.gs'             '(script\.google\.com|docs\.google\.com|WEB_APP_URL|TREND_API_URL|API_URL|TRENDOS_SHEET_ID|TRENDOS_SHEET_URL|SpreadsheetApp|PropertiesService|getSheetByName|openById)' .             | tee /tmp/a56_google_runtime.txt || true
 
           echo '=== A56 FRONTEND/API CALLS ==='
-          rg -n --hidden             --glob '*.js' --glob '*.html'             '(api\(|fetch\(|TREND_API_URL|API_URL|WEB_APP_URL|MATBAGY_EDGE_ORDERS_API_URL|MATBAGY_EDGE_API_URL)' .             | tee /tmp/a56_frontend_calls.txt || true
+          find . -type f \( -name '*.js' -o -name '*.html' \) -not -path './.git/*' -print0             | xargs -0 grep -nHE '(api\(|fetch\(|TREND_API_URL|API_URL|WEB_APP_URL|MATBAGY_EDGE_ORDERS_API_URL|MATBAGY_EDGE_API_URL)'             | tee /tmp/a56_frontend_calls.txt || true
 
           echo '=== A56 CLOUD ROUTES ==='
-          rg -n             --glob 'cloudflare-d1/src/**' --glob 'cloudflare-d1/production-shadow/**'             "(/v1/|pathname|is.*Path|handle.*Request)" cloudflare-d1             | tee /tmp/a56_cloud_routes.txt || true
+          find cloudflare-d1/src cloudflare-d1/production-shadow -type f \( -name '*.js' -o -name '*.mjs' \) -print0             | xargs -0 grep -nHE '(/v1/|pathname|is[A-Za-z0-9_]*Path|handle[A-Za-z0-9_]*Request)'             | tee /tmp/a56_cloud_routes.txt || true
 
           runtime_google="$(wc -l < /tmp/a56_google_runtime.txt | tr -d ' ')"
           frontend_calls="$(wc -l < /tmp/a56_frontend_calls.txt | tr -d ' ')"
