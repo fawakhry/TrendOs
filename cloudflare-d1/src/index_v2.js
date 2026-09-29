@@ -5,6 +5,7 @@ import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs'
 import { handleEdgeCustomerSearchRequest, isEdgeCustomerSearchPath } from './edge-customer-search-v1.mjs';
 import { handleCloudSessionBridgeV3, isCloudSessionBridgeV3Path } from './cloud-session-bridge-v3.mjs';
 import { handleEmployeeNativeAuthRequest, isEmployeeNativeAuthPath } from './employee-auth-native-v1.mjs';
+import { handleEmployeeLegacyBridgeRequest, isEmployeeLegacyBridgePath } from './employee-legacy-bridge-v1.mjs';
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
@@ -36,6 +37,12 @@ export default {
     // and Wrangler flags keep this fail-closed until a separate production cutover.
     if (isEmployeeNativeAuthPath(path)) {
       return handleEmployeeNativeAuthRequest(request, env, ctx);
+    }
+
+    // T12 A61 compatibility bridge. D1 authenticates the employee; Apps Script
+    // receives only a short-lived server-to-server assertion. Default-OFF.
+    if (isEmployeeLegacyBridgePath(path)) {
+      return handleEmployeeLegacyBridgeRequest(request, env, ctx);
     }
 
     // CLOUD-MIGRATION-V3/T6A: exact session paths only. This replaces the
