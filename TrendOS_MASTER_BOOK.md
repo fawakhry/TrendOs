@@ -1,30 +1,122 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.67-DRAFT-COMPACT — current T12 Orders + Customer authority reconciled through A55; GENERAL Order CREATE live; customer native master/search live with customer writes still Apps Script-authoritative; final documentation/evidence coverage pass + post-snapshot delta in progress** · تاريخ التحديث: 2026-09-29 · الجرد الثابت: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` + Delta snapshot `67aae5c790bf03a225782c9f5c8a8754273b866a` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
+> إصدار الكتاب: **3.68-DRAFT-COMPACT — reconciled through A60; GENERAL Order CREATE live; Customer search/write Cloud-native on D1; canonical frontend hosted on Cloudflare Worker Assets; employee forced-password reset live; zero-Google migration still in progress because employee auth and 80 remaining generic runtime actions are not yet fully Cloud-native** · تاريخ التحديث: 2026-09-29 · الجرد الثابت: `05ca9c9329ae58c6eeeb9c285589cfa5d2f9927b` + Delta snapshot `67aae5c790bf03a225782c9f5c8a8754273b866a` · المستودع: `fawakhry/TrendOs` · فرع الكتاب: `cloud-migration-v3-t12-order-create-ci-20260919`.
 
 > **قاعدة القراءة المضغوطة من 2026-09-27:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. اكتمال المعرفة يتحقق من هذا الملف + الملاحق المرتبطة + الـJournal/Handoff + Git history. في شات جديد اقرأ الصفحة الأولى، فهرس القراءة السريع، الفصل المرتبط بالعطل، وآخر Journal/Handoff فقط. **لا تقرأ §11 inventory أو فهرس Journal التاريخي أو changelog القديم تلقائيًا.** افتحها فقط عند عطل/تدقيق يحتاجها. الأجزاء المقفولة تُراجع من [Closed Components Registry](docs/trendos/master-book/TRENDOS_CLOSED_COMPONENTS_INDEX.md) فقط إذا تحقق Reopen Trigger.
 
 ## الصفحة الأولى — الحالة النشطة فقط | استكمال IT ترند بدون إعادة التاريخ
 
-**آخر HEAD تشغيلي تمت مصالحته مع الكتاب:** `67aae5c790bf03a225782c9f5c8a8754273b866a` (Merge T12 A55 customer legacy projection). هذه الصفحة تلغي كحالة حالية النصوص الأقدم التي كانت تقول إن migration 0005 ما زالت pending أو إن Google/Apps Script ما زال سلطة Order CREATE العامة؛ تلك كانت صحيحة تاريخيًا قبل Entries447+.
+**آخر حالة تشغيلية تمت مصالحتها مع الكتاب:** Customer/Frontend/Auth progress through A60. أحدث main وظيفي مرتبط بالواجهة هو `6e96f9b9c9a870c9c1f961dc3e2f5f72d9ca11d7`، وتلاه commit hygiene `e5efcb39acf33a70ce13f16125e307a51994bb65`. Cloudflare frontend redeploy run `36576677571` = SUCCESS. هذه الصفحة تلغي كحالة حالية النصوص الأقدم التي قالت إن Customer GENERAL write ما زال OFF أو إن customer browser fallback إلى Google ما زال مسموحًا.
 
 **Orders — السلطة الحالية:** Entry447 أثبت `GENERAL_CREATE_MODE=GENERAL` و`generalCutover=true`. تسلسل Order IDs Cloud-native كان عند القطع `nextOrderNumber=4324`; Legacy create canary disabled. Apps Script legacy numeric allocator تم fencing في الـWeb App الحالي Version 157 وفق Entry451 (`makeOrderId_` fail-closed بـ`T12_CLOUD_ORDER_ID_AUTHORITY` ومسار draft التكميلي يفحص نفس fence). إصلاح collision 4322 اكتمل: محمود مناع أصبح `4323/4323-01` في Sheets وD1 وحالته `تم التسليم`; canary التقني `4322` بقي منفصلًا وتم تحويل outbox الخاص به إلى `done` في Entry452. **لا تعكس أو تعيد استخدام 4322.**
 
 **Orders — القراءة/التشغيل:** Print + Laser + Customer Service تستخدم qualified 02CR + T12 Cloud overlay في الواجهة الحالية (Entry453). Cloud-native single-line status/notes تذهب إلى T12 operational runtime؛ legacy lines تبقى على Apps Script. عند فشل freshness/02CR يوجد Apps Script + independent T12 overlay fallback. Entry448 يظل Repair Map للثغرات غير المغلقة: bulk/archive/restore، debt/invoice delivery gate للـCloud rows، customer portal/conversation/proofs، downstream outbox الحقيقي، fallback pagination/counters، expected-delivery/debt enrichment، urgent notification polling، وdurable ambiguous-create continuity.
 
-**Customers — القراءة الحالية:** A51 نقل Customer Search إلى D1-first، ثم A53 ثبت Cloud-native customer master schema/mirror bootstrap، ثم A54 جعل **`T12_CUSTOMER_MASTER` هو البحث الأساسي**. Production A54 run `36496479361` PASS مع `customerCount=247`, `mode=OFF`. الترتيب الحالي: Native master primary → A51 D1 mirror secondary → browser Apps Script fallback عند miss/error. A52 أضاف stale-02CR cooldown دقيقتين لإزالة repeated double-hop بدون إضعاف freshness/debt guards.
+**Customers — القراءة الحالية:** A51 بدأ D1-first، A53 ثبت Cloud-native customer master وbootstrap لـ247 عميل legacy، A54 جعل **`T12_CUSTOMER_MASTER` هو البحث الأساسي**، ثم A56 أنهى cutover الواجهة: البحث عن العملاء أصبح **Cloud/D1-only** في المتصفح. لا يوجد browser fallback إلى Apps Script/Google للـCustomer search. عند فشل Cloud search تُعاد نتيجة فشل صريحة بدل الرجوع إلى Google. A52 stale-02CR cooldown دقيقتين ما زال قائمًا لمسار Orders ولا يضعف freshness/debt guards.
 
-**Customers — الكتابة الحالية:** **سلطة Customer CREATE/UPDATE ما زالت Apps Script/Google Sheets.** A53 زرع 247 legacy customers في `t12_customers` مع `source=legacy-mirror`, customer-write `mode=OFF`, canary budget 0، بدون Cloud-native customers. A55 نشر route محمي `/v1/t12/customers/legacy-projection` لعمل projection من Apps Script authority إلى native master، لكنه يعمل فقط عندما customer write mode=`OFF`; A55 Production run `36497059522` PASS وأثبت `CUSTOMER_WRITE_AUTHORITY=APPS_SCRIPT` و`CUSTOMER_NATIVE_GENERAL_WRITE=OFF`. لا تعتبر وجود `t12-customer-master.mjs` إذنًا لتفعيل native customer write.
+**Customers — الكتابة الحالية:** **سلطة Customer CREATE/UPDATE أصبحت D1 Native.** A56 نفذ guarded GENERAL cutover في Production؛ run `36572088014` = SUCCESS. الحالة المثبتة: `CUSTOMER_MASTER_ROWS=247`, `CUSTOMER_WRITE_MODE=GENERAL`, `CUSTOMER_SEARCH_AUTHORITY=D1`, `CUSTOMER_WRITE_AUTHORITY=D1`, `GOOGLE_CUSTOMER_WRITE_AUTHORITY=NO`. واجهة A56 ترسل `createCustomer` إلى `/v1/t12/customers/write` ولا تنفذ Apps Script fallback. duplicate phone groups الموجودة في legacy data تُحل بسياسة fail-closed: phone/extra-phone exact أولًا، ثم exact normalized name عند shared phone، وأي ambiguity غير محلولة تُرفض.
 
-**Customer native contract للإصلاح:** migration `0008_t12_customer_master.sql` تنشئ control + `t12_customers` + request ledger + events. Native create/update engine يستخدم clientRequestId بصيغة `cust1_*`, durable ledger/idempotent replay, optimistic version on UPDATE, D1 batch, lost-ACK readback و`no-retry` عند outcome مجهول. Legacy projection يستخدم `custp_*`, يطابق phone ثم exact normalized name، يرفض ambiguous match، ويكتب فقط rows من `source=legacy-mirror` عند UPDATE. Customer write handler يتطلب signed Orders Edge token وrole service/admin أو identities المسموح بها في المصدر؛ canary يتطلب admin + exact confirmation. **كل ذلك source-capable لكن general customer write غير مفعّل.**
+**Customer native contract الحالي:** migration `0008_t12_customer_master.sql` تنشئ control + `t12_customers` + request ledger + events. Native create/update يستخدم `cust1_*`, durable ledger/idempotent replay, optimistic version on UPDATE, D1 batch, lost-ACK readback و`no-retry` عند outcome مجهول. Legacy projection `custp_*` بقي كأداة reconciliation تاريخية/انتقالية وليس writer authority. الـhandler `/v1/t12/customers/write` يتطلب signed Orders Edge token وصلاحية مناسبة. منذ A56، `mode=GENERAL` في Production، وواجهة العملاء Cloud-only.
 
-**حالة الكتاب والجرد:** الجرد الثابت 1185 path وصل حاليًا إلى `M409 / P748 / A11 / Redirect11 / LIVE6`. لأن المشروع استمر بعد Snapshot `05ca9c9`، تم إنشاء [Post-snapshot Delta Inventory](docs/trendos/master-book/TRENDOS_COVERAGE_DELTA_05ca9c9_TO_67aae5c.md): عند HEAD `67aae5c...` كان هناك **133 path جديدًا** ولا path قديم محذوف؛ **20** منها قُرئت/صُنفت في Entry469 و**113** ما زالت تحتاج disposition. لذلك الكتاب **لم يُغلق نهائيًا بعد**، لكن لا توجد ملفات تشغيل جديدة مخفية خارج الجرد بعد الآن.
+**حالة الكتاب والجرد:** الجرد الثابت 1185 path وصل حاليًا إلى `M403 / P754 / A11 / Redirect11 / LIVE6`. Post-snapshot Delta عند snapshot `67aae5c...` ما زال `M113 / P20`. إذن backlog التوثيق المفتوح = **516 مسارًا** (`403 fixed M + 113 delta M`) قبل أي إعادة جرد لاحقة لتغييرات A56–A60. الكتاب **لم يُغلق نهائيًا بعد**؛ ومع ذلك الحالة التشغيلية الجديدة A56–A60 مسجلة صراحة في Entries477–478 وهذه الصفحة والـHandoff.
 
-**قراءة شات جديد الآن:** `الصندوق الاسود.md` → `اقرأني_أولًا.md` → هذه الصفحة → الفصل المرتبط بالعطل → أحدث Journal/Current Handoff/HEAD. لا تقرأ 504 وثيقة M أو 113 Delta-M تلقائيًا؛ هي backlog كتابة الكتاب وليست onboarding. افتح وثيقة تاريخية فقط إذا Repair Map/Reopen Trigger يحتاجها.
+**قراءة شات جديد الآن:** `الصندوق الاسود.md` → `اقرأني_أولًا.md` → هذه الصفحة → الفصل المرتبط بالعطل → أحدث Journal/Current Handoff/HEAD. لا تقرأ 403 وثيقة fixed-M أو 113 Delta-M تلقائيًا؛ هي backlog كتابة الكتاب وليست onboarding. افتح وثيقة تاريخية فقط إذا Repair Map/Reopen Trigger يحتاجها.
 
-**مسار إغلاق الكتاب الجاري:** Entry467 = final documentation/evidence pass للـfixed inventory، مع dedupe حسب Git blob SHA. Entry469 = مصالحة الحالة الحية A51–A55 + إنشاء Delta Inventory. الإغلاق النهائي يتطلب `fixed M=0` و`delta M=0` أو تصنيف صريح OUT_OF_SCOPE/SUPERSEDED/CLOSED لكل صف، مع عدم تحويل static read إلى `CERTIFIED_CURRENT` بدون deployed/runtime evidence.
+**مسار إغلاق الكتاب الجاري:** owner priority الحالية هي إكمال platform cutover أولًا ثم إغلاق الكتاب على المعمارية النهائية. Entry467/469 ما زالا backlog توثيق، لكن Entries477–478 تسجل A56–A60. الإغلاق النهائي يتطلب `fixed M=0` و`delta M=0` أو تصنيف صريح OUT_OF_SCOPE/SUPERSEDED/CLOSED لكل صف، وبعد انتهاء Zero-Google يجب إعادة جرد Delta لتضمين الملفات الجديدة منذ `67aae5c...`.
 
-**مصادر الحالة الحالية:** Entry447 (GENERAL CREATE) · Entry448 (Orders audit/repair gaps) · Entry451 (live Apps Script fence + Sheet re-key) · Entry452 (canary outbox retired) · Entry453 (Laser/Service 02CR) · Entry468 (A51/A52 customer search/latency) · A53 Production run `36495988708` · A54 run `36496479361` · A55 run `36497059522`.
+**مصادر الحالة الحالية:** Entry447 (GENERAL CREATE) · Entry448 (Orders repair gaps) · Entry451–453 (legacy fence/collision/02CR) · Entry468 (A51/A52) · A53 run `36495988708` · A54 run `36496479361` · A55 run `36497059522` · Entry477 (A56–A58 Zero-Google cutover) · A56 customer GENERAL run `36572088014` · A57B Cloudflare frontend run `36573466254` · A58 audit run `36573676009` · A59 auth preflight run `36574201570` · Entry478 / A60 CI `36576533460` + frontend redeploy `36576677571`.
+
+## تحديث الحالة التشغيلية A56–A60 — 29 سبتمبر 2026
+
+### A56 — Customer GENERAL cutover / Google customer authority removed
+- Preflight وجد 247 customer master rows.
+- shared phone groups في legacy data: primary=3، extra=1، exact duplicate identity groups=0.
+- identity policy: phone exact → exact normalized name عند shared phone → fail closed عند ambiguity.
+- customer write control أصبح `GENERAL`.
+- browser customer search/create/update أصبح Cloud-only؛ لا Apps Script fallback.
+- run `36572088014` = SUCCESS.
+- PR #22 نقل customer browser authority إلى D1؛ main functional SHA `3b1f3cd4969d8fa30a1ff24c635978bf4799fdb9`.
+
+### A57/A57B — Frontend hosting moved to Cloudflare
+- محاولة Cloudflare Pages فشلت fail-closed بسبب token permission error؛ لم تترك deployment مكسورًا.
+- البديل الناجح: dedicated Cloudflare Worker Assets باسم `trendos-ui`.
+- canonical URL: `https://trendos-ui.trendmall-contact.workers.dev`.
+- API Worker CORS يسمح بالـCloudflare frontend origin.
+- A57B run `36573466254` = SUCCESS.
+- legacy GitHub Pages entrypoint أصبح redirect إلى Cloudflare؛ main SHA `ac980a22f354f441d34ff8851f8c2eb1877626dc`.
+
+### A58 — Zero-Google runtime audit
+- 19 active runtime JS files.
+- 80 distinct literal API actions ما زالت ضمن generic API surface.
+- `TREND_API_URL/API_URL` ما زال يشير إلى Apps Script لمسارات غير العملاء.
+- لذلك `ZERO_GOOGLE_COMPLETE=NO`.
+- run `36573676009` = SUCCESS.
+
+### A59 — Native employee auth preflight
+Read-only D1 audit:
+- Users catalog present.
+- rows=10 / mirrorRows=10 / sourceLastCol=19 / status=ready.
+- hashed-password rows=6.
+- username/password/token/role/department/active columns موجودة.
+- existing D1 auth table: `cloud_auth_sessions_v1`.
+- لا Production mutation.
+- run `36574201570` = SUCCESS.
+- **مهم:** هذا preflight لا يعني أن Employee Login أصبح D1-native؛ Cloud session bridge ما زال يرجع إلى Apps Script عند shadow miss.
+
+### A60 — Employee forced password reset
+- 8 employee accounts الحالية تم reset إلى temporary owner-provided credential.
+- كل rows تم ضبط `mustChange=نعم`.
+- كل employee tokens القديمة تم مسحها/revoke.
+- قيمة الـtemporary credential **لا تُكتب في الكتاب أو Git history**.
+- الواجهة تفتح password modal عند first login، وتخفي/تعطّل Cancel، و`closePasswordModal()` يرفض الإغلاق أثناء `mustChange=true`.
+- backend الحالي يحقق old password، يفرض new password بطول أدنى، يكتب hash جديد، يزيل must-change، يمسح token ويفرض re-login.
+- A60 CI `36576533460` = SUCCESS.
+- PR #24 merged؛ main functional SHA `6e96f9b9c9a870c9c1f961dc3e2f5f72d9ca11d7`.
+- frontend Cloudflare redeploy `36576677571` = SUCCESS.
+
+### خريطة السلطة الحالية بعد A60
+
+```ini
+FRONTEND_HOSTING=CLOUDFLARE_WORKER_ASSETS
+FRONTEND_CANONICAL_URL=https://trendos-ui.trendmall-contact.workers.dev
+
+CUSTOMER_SEARCH=D1_NATIVE
+CUSTOMER_CREATE_UPDATE=D1_NATIVE
+CUSTOMER_GOOGLE_FALLBACK=NO
+
+ORDER_CREATE=T12_D1_GENERAL
+ORDER_CLOUD_NATIVE_RUNTIME=T12_D1
+LEGACY_ORDER_PATHS=PARTIALLY_GOOGLE_BACKED
+
+EMPLOYEE_PASSWORD_RESET=LIVE
+EMPLOYEE_FIRST_LOGIN_CHANGE=MANDATORY
+EMPLOYEE_LOGIN_AUTHORITY=APPS_SCRIPT_FOR_NOW
+EMPLOYEE_AUTH_D1_NATIVE_COMPLETE=NO
+
+GENERIC_API_BASE=APPS_SCRIPT_FOR_REMAINING_ACTIONS
+ACTIVE_LITERAL_API_ACTIONS_TO_MIGRATE=80
+ZERO_GOOGLE_COMPLETE=NO
+```
+
+### خطة التنفيذ حتى Zero-Google
+1. Native employee/auth authority في D1 وإلغاء Apps Script verification fallback.
+2. نقل remaining legacy Orders reads/writes إلى Cloud.
+3. Attendance / HR / Press.
+4. Accounting / ledgers.
+5. Customer portal / files / conversations.
+6. Trend Master / notes / customer-manager / feedback / automation.
+7. Platform content / marketplace / franchise / white-label.
+8. تحويل generic `TREND_API_URL/API_URL` إلى Cloudflare.
+9. إثبات runtime scan:
+   `SCRIPT_GOOGLE_RUNTIME=0`,
+   `DOCS_GOOGLE_RUNTIME=0`,
+   `APPS_SCRIPT_FALLBACK=0`,
+   `GOOGLE_SHEET_AUTHORITY=0`.
+10. بعد ذلك فقط: إعادة جرد الكتاب وإغلاق fixed/delta backlog.
+
+التفاصيل الكاملة: Entry477 وEntry478 في `docs/trendos/blackbox/منصة ترند/`.
+
+---
 
 ## تخصيص الكتاب لموظف IT — الدليل التشغيلي والمكتبة البرمجية الوحيدة لشرح TrendOS
 
@@ -2100,6 +2192,10 @@ Owner-supplied second Cloudflare D1 Console screenshot in this chat shows exact 
 | 2026-09-26 | Entry382–383 | install-disabled فقط مصرح؛ تم إصلاح ظهور الـworkflow على default branch بدون runtime mutation. |
 | 2026-09-26 | 3.64 / Entry384 | install-disabled وصل Cloudflare لكنه فشل قبل migration بكود 7500 بسبب API token permission؛ لا deploy/arm/create. |
 | 2026-09-27 | 3.65 / Entry385+ | ضغط الكتاب Documentation-only؛ الملاحق الثقيلة وسجل الإغلاق خارج القراءة الإجبارية؛ لا تغيير runtime. |
+| 2026-09-29 | 3.68 / Entry477 | A56 Customer GENERAL cutover PASS؛ Customer search/write = D1، Google customer authority removed. |
+| 2026-09-29 | 3.68 / Entry477 | A57B Cloudflare Worker Assets frontend LIVE؛ GitHub entry redirects to Cloudflare؛ A58 أثبت 80 generic actions ما زالت تحتاج migration. |
+| 2026-09-29 | 3.68 / A59 | Native auth preflight PASS؛ users mirror ready لكن Employee Login ما زال Apps Script-authoritative. |
+| 2026-09-29 | 3.68 / Entry478 | A60 reset 8 employee accounts to temporary credential, must-change required, old tokens revoked, forced password modal live. |
 
 **قاعدة التوسعة:** الأجزاء `M` تُفتح واحدًا واحدًا، يُضاف مضمونها الحقيقي في الفصل المناسب مع الوظائف والأخطاء وبنود الاختبار، ثم تتحول إلى `R` فقط مع سبب وحدّ مراجعة معلوم؛ ولا تتحول إلى `CERTIFIED` إلا بعد source+runtime parity والاختبارات اللازمة.
 
