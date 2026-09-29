@@ -449,3 +449,34 @@ Do not re-read values. Do not rotate credentials during source recovery. In part
 
 Next:
 read only the Production Script ID from Project Settings -> IDs. Do not touch Code.gs or Script Properties. Use that exact Script ID to test already-connected Drive metadata/revision access before requesting any new Google API permission.
+
+
+---
+
+# A61 live-head reconcile — Entry486
+
+The current Production Apps Script HEAD was captured read-only outside the editor using existing Drive access.
+
+```ini
+PRODUCTION_VERSION=157
+HEAD_READONLY_CAPTURE=YES
+HEAD_PROJECT_FILE_COUNT=54
+HEAD_CODE_SYNTAX=PASS
+LIVE_HEAD_RUNTIME_FUNCTIONS=PASS
+LIVE_HEAD_A61_BRIDGE=ABSENT
+PRODUCTION_BACKUP_COPY=YES
+APPS_SCRIPT_DEPLOY=NO
+```
+
+Critical finding: live Production HEAD contains a Production-only save-timeout hotfix absent from current GitHub `main`. Never overwrite Production `Code.gs` wholesale from main.
+
+A source-only candidate was built from the captured live HEAD by adding only the qualified A61 compatibility bridge. It adds 229 lines, preserves the live hotfix, passes syntax/bridge contract checks, and removing the A61 additions reproduces the captured live HEAD exactly.
+
+Audit artifacts are in draft PR #30:
+`candidate/t12-a61-live-head-reconcile-20260929`
+
+Do not merge PR #30 as a replacement for Production code. It records the exact additive patch and Entry486.
+
+Immutable Version 157 source remains unavailable, so accidental-save byte-for-byte recovery is still formally unverified. No source edit, Script Properties mutation, new version, deploy, D1 mutation, Cloudflare mutation, Order mutation, Customer mutation, or Accounting mutation has occurred.
+
+Next Production action, only after an explicit install decision: apply the recorded A61 patch additively to the current live HEAD, never paste current main wholesale.
