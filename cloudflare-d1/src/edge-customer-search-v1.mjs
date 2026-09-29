@@ -1,4 +1,5 @@
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
+import { customerControlState, searchT12Customers } from './t12-customer-master.mjs';
 
 const PATH = '/v1/edge/customers/search';
 const SHEET = 'العملاء';
@@ -12,9 +13,15 @@ const DEFAULT_ORIGINS = [
   'http://127.0.0.1:5500'
 ];
 
-let directoryCache = { syncedAt: '', loadedAt: 0, customers: [] };
+let directoryCache = {
+  syncedAt: '',
+  loadedAt: 0,
+  customers: []
+};
 
-function text(value) { return String(value == null ? '' : value).trim(); }
+function text(value) {
+  return String(value == null ? '' : value).trim();
+}
 
 function cleanPhone(value) {
   let digits = String(value || '').replace(/[^0-9]/g, '');
@@ -31,12 +38,20 @@ function arabicDigits(value) {
 
 function normalizeArabic(value) {
   return text(value).toLowerCase()
-    .replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي').replace(/[ةه]/g, 'ه').replace(/\s+/g, ' ').trim();
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/[ةه]/g, 'ه')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function searchKey(value) {
-  return normalizeArabic(value).replace(/[^0-9a-z\u0600-\u06ff ]/g, ' ').replace(/\s+/g, ' ').trim();
+  return normalizeArabic(value)
+    .replace(/[^0-9a-z\u0600-\u06ff ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function parseDebtAmount(value) {
@@ -53,7 +68,9 @@ function parseArray(value) {
   try {
     const parsed = JSON.parse(String(value || '[]'));
     return Array.isArray(parsed) ? parsed : [];
-  } catch (err) { return []; }
+  } catch (err) {
+    return [];
+  }
 }
 
 function headerIndex(headers, aliases, fallback = -1) {
@@ -79,7 +96,9 @@ function sqliteUtcMs(value) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
-function authSecret(env) { return text(env && env.EDGE_SESSION_SECRET); }
+function authSecret(env) {
+  return text(env && env.EDGE_SESSION_SECRET);
+}
 
 function bearer(request) {
   const match = text(request && request.headers && request.headers.get('Authorization')).match(/^Bearer\s+(.+)$/i);
@@ -87,7 +106,10 @@ function bearer(request) {
 }
 
 function configuredOrigins(env) {
-  const configured = String((env && env.CORS_ORIGINS) || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const configured = String((env && env.CORS_ORIGINS) || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
   return configured.length ? configured : DEFAULT_ORIGINS;
 }
 
@@ -106,7 +128,11 @@ function corsHeaders(request, env) {
 function json(payload, status, request, env) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...corsHeaders(request, env) }
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      ...corsHeaders(request, env)
+    }
   });
 }
 
@@ -160,8 +186,7 @@ function buildDirectory(headers, rows) {
   const seen = new Set();
   for (const item of rows || []) {
     if (Number(item && item.rowNumber || 0) <= 1) continue;
-    const displayed = parseArray(item.displayJson);
-    const row = displayed.length ? displayed : parseArray(item.valuesJson);
+    const row = parseArray(item.displayJson).length ? parseArray(item.displayJson) : parseArray(item.valuesJson);
     const active = c.active >= 0 ? normalizeArabic(at(row, c.active)) : '';
     if (active && active !== 'نعم') continue;
     const name = text(at(row, c.name));
@@ -174,8 +199,15 @@ function buildDirectory(headers, rows) {
     if (!name || seen.has(key)) continue;
     seen.add(key);
     out.push({
-      name, manager, phone: phone || extraPhone, extraPhone, type,
-      debt, debtAmount: debt, currentBalance: debt, remainingBalance: debt,
+      name,
+      manager,
+      phone: phone || extraPhone,
+      extraPhone,
+      type,
+      debt,
+      debtAmount: debt,
+      currentBalance: debt,
+      remainingBalance: debt,
       _search: searchKey([name, manager, phone, extraPhone, type].join(' '))
     });
   }
@@ -190,9 +222,11 @@ async function loadDirectory(env, nowMs = Date.now()) {
     throw err;
   }
 
-  if (directoryCache.customers.length &&
-      directoryCache.syncedAt === text(catalog.syncedAt) &&
-      Number(nowMs) - directoryCache.loadedAt <= CACHE_MS) {
+  if (
+    directoryCache.customers.length &&
+    directoryCache.syncedAt === text(catalog.syncedAt) &&
+    Number(nowMs) - directoryCache.loadedAt <= CACHE_MS
+  ) {
     return { catalog, customers: directoryCache.customers, cached: true };
   }
 
@@ -205,23 +239,51 @@ async function loadDirectory(env, nowMs = Date.now()) {
   }
 
   const customers = buildDirectory(headers, rows);
-  directoryCache = { syncedAt: text(catalog.syncedAt), loadedAt: Number(nowMs), customers };
+  directoryCache = {
+    syncedAt: text(catalog.syncedAt),
+    loadedAt: Number(nowMs),
+    customers
+  };
   return { catalog, customers, cached: false };
+}
+
+export async function searchNativeCustomerDirectory(env, query, limit = 12) {
+  const state = await customerControlState(env && env.DB);
+  if (!state || text(state.marker) !== 'T12_CUSTOMER_MASTER_V1' || Number(state.customerCount || 0) < 247) {
+    return { ready: false, customers: [], state: state || null };
+  }
+  const customers = await searchT12Customers(env.DB, query, limit);
+  return {
+    ready: true,
+    customers,
+    state: {
+      marker: text(state.marker),
+      mode: text(state.mode),
+      customerCount: Number(state.customerCount || 0),
+      policyEpoch: text(state.policyEpoch),
+      updatedAt: text(state.updatedAt)
+    }
+  };
 }
 
 export async function searchCustomerDirectory(env, query, limit = 12, nowMs = Date.now()) {
   const q = searchKey(query);
-  if (!q) return { customers: [], mirror: null, cached: false };
+  if (!q) {
+    return {
+      customers: [],
+      mirror: { sheetName: SHEET, ready: true, rowCount: 0, sourceLastRow: 0, syncedAt: '', ageSeconds: null },
+      cached: false
+    };
+  }
 
   const loaded = await loadDirectory(env, nowMs);
   const matches = [];
-  const safeLimit = Math.max(1, Math.min(12, Number(limit) || 12));
   for (const customer of loaded.customers) {
     if (!customer._search.includes(q)) continue;
     const safe = { ...customer };
     delete safe._search;
     matches.push(safe);
-    if (matches.length >= safeLimit) break;
+    if (matches.length >= Math.max(1, Math.min(12, Number(limit) || 12))) break;
   }
 
   const syncedMs = sqliteUtcMs(loaded.catalog.syncedAt);
@@ -241,7 +303,9 @@ export async function searchCustomerDirectory(env, query, limit = 12, nowMs = Da
   };
 }
 
-export function isEdgeCustomerSearchPath(path) { return text(path) === PATH; }
+export function isEdgeCustomerSearchPath(path) {
+  return text(path) === PATH;
+}
 
 export async function handleEdgeCustomerSearchRequest(request, env) {
   const cors = corsHeaders(request, env);
@@ -249,12 +313,38 @@ export async function handleEdgeCustomerSearchRequest(request, env) {
   if (request.method !== 'GET') return json({ success: false, message: 'Method not allowed' }, 405, request, env);
 
   const verified = await verifyOrdersEdgeToken(bearer(request), authSecret(env));
-  if (!verified.ok) return json({ success: false, message: 'Unauthorized customer search', code: verified.reason }, 401, request, env);
+  if (!verified.ok) {
+    return json({ success: false, message: 'Unauthorized customer search', code: verified.reason }, 401, request, env);
+  }
+
+  const url = new URL(request.url);
+  const q = text(url.searchParams.get('q'));
+  if (!q) {
+    return json({
+      success: true,
+      customers: [],
+      dataSource: 't12-customer-master',
+      edgeSession: verified.payload.sub
+    }, 200, request, env);
+  }
 
   try {
-    const url = new URL(request.url);
-    const q = text(url.searchParams.get('q'));
-    if (!q) return json({ success: true, customers: [], dataSource: 'd1-customer-directory', edgeSession: verified.payload.sub }, 200, request, env);
+    const native = await searchNativeCustomerDirectory(env, q, 12);
+    if (native.ready) {
+      return json({
+        success: true,
+        customers: native.customers,
+        dataSource: 't12-customer-master',
+        edgeSession: verified.payload.sub,
+        nativeMaster: native.state
+      }, 200, request, env);
+    }
+  } catch (nativeErr) {
+    // A54 intentionally falls through to the qualified A51 mirror. The browser
+    // still retains Apps Script fallback if both D1 customer read lanes fail.
+  }
+
+  try {
     const result = await searchCustomerDirectory(env, q, 12, Date.now());
     return json({
       success: true,
@@ -262,7 +352,8 @@ export async function handleEdgeCustomerSearchRequest(request, env) {
       dataSource: 'd1-customer-directory',
       edgeSession: verified.payload.sub,
       mirror: result.mirror,
-      cacheHit: result.cached === true
+      cacheHit: result.cached === true,
+      nativeMasterFallback: true
     }, 200, request, env);
   } catch (err) {
     return json({
