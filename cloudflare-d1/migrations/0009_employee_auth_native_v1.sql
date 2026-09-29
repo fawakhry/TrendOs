@@ -1,7 +1,7 @@
 -- TrendOS T12 A61
 -- Native employee authentication foundation.
 -- Additive and inert by default: control mode OFF.
--- Password plaintext, legacy AUTH_PASSWORD_PEPPER, and raw session tokens are never stored.
+-- Plaintext passwords, legacy pepper secret values, and raw session tokens are never stored.
 
 CREATE TABLE IF NOT EXISTS employee_auth_control_v1 (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
