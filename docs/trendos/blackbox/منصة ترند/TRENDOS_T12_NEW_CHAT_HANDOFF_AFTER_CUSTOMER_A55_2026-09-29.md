@@ -483,3 +483,24 @@ Next Production action, only after an explicit install decision: apply the recor
 
 
 Backup-copy correction: a Drive copy request returned success and an ID, but immediate metadata/readback returned 404 and title search did not locate the copy. Do not treat that copy as a verified backup. The read-only exported HEAD captured outside Apps Script remains the recovery source artifact.
+
+
+---
+
+# A61 Phase A source-install revision — Entry487
+
+Do not open Script Properties during the source-only install. Prior inspection surfaced sensitive values and the bridge is already fail-closed when its flag is absent/not exactly true or its secret is absent/invalid.
+
+Production source install strategy:
+1. use the current live Production HEAD as base;
+2. apply only the exact A61 additive patch from draft PR #30;
+3. construct/verify outside Apps Script editor;
+4. require candidate SHA-256:
+   `0980dd77395d2cc895d4344beb6db2156ad03fe1ee230fcea6c30c1ff393b295`;
+5. replace live `Code.gs` once only after the hash matches;
+6. do not paste GitHub `main/Code.gs` wholesale;
+7. preserve the Production-only save-timeout hotfix;
+8. create a new version on the existing deployment only after exact-source verification;
+9. keep Deployment ID/access model unchanged.
+
+No Script Properties, D1, Cloudflare, Orders, Customers, or Accounting mutation belongs in this step.
