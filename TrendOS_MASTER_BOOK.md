@@ -146,6 +146,18 @@ NATIVE_EMPLOYEE_LOGIN=NO
 NEXT_OWNER_ACTION=APPS_SCRIPT_OFF_STATE_INSTALL
 ```
 
+**A61 source-recovery incident — Entry485:** Production project identity is confirmed and the deployed Web App remains Version 157. An accidental editor interaction caused a HEAD autosave but no deploy. Project History comparison stalled, and Work has no Apps Script API read access, so HEAD integrity remains unverified. Sensitive Script Property values were previously surfaced in tool output; known property names are `AUTH_PASSWORD_PEPPER` and `OPENAI_API_KEY`, but no values are documented. Do not rotate `AUTH_PASSWORD_PEPPER` without a controlled password migration because legacy V1922 password hashes depend on it. Next recovery step is read-only: obtain the Production Script ID only, then try existing connected Drive metadata/revision access before requesting any new API permission.
+
+```ini
+PRODUCTION_VERSION=157
+PRODUCTION_RUNTIME_CHANGED_BY_AUTOSAVE=NO
+ACCIDENTAL_SAVE_RECOVERY=NOT_VERIFIED
+APPS_SCRIPT_API_READ=UNAVAILABLE
+SCRIPT_PROPERTIES_TOUCHED=NO
+APPS_SCRIPT_DEPLOY=NO
+NEXT_RECOVERY=READ_SCRIPT_ID_THEN_DRIVE_READONLY
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
