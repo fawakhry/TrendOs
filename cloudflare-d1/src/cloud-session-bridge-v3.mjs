@@ -5,6 +5,10 @@ import {
   lookupCloudAuthShadow,
   rememberCloudAuthShadow
 } from './cloud-auth-shadow-v1.mjs';
+import {
+  verifyNativeEmployeeSession,
+  employeeAuthNativeOnlyEnabled
+} from './employee-auth-native-v1.mjs';
 
 const EDGE_SESSION_PATH = '/v1/edge/session';
 const ORDERS_SESSION_PATH = '/v1/edge/orders/session';
@@ -143,6 +147,25 @@ export async function verifyEmployeeSessionViaPost(username, employeeToken, env,
 }
 
 export async function verifyEmployeeSessionCloudFirst(username, employeeToken, env, lane = 'edge') {
+  const native = await verifyNativeEmployeeSession(username, employeeToken, env);
+  if (native && native.hit) {
+    return {
+      ok: true,
+      body: native.body,
+      authSource: native.authSource || 'd1-native-employee-v1',
+      shadowDiagnostic: { lookup: 'native-session-hit', store: 'not-needed' }
+    };
+  }
+  if (employeeAuthNativeOnlyEnabled(env)) {
+    return {
+      ok: false,
+      kind: 'auth',
+      message: 'Employee session rejected',
+      authSource: 'd1-native-employee-v1',
+      shadowDiagnostic: { lookup: native && native.reason || 'native-session-miss', store: 'not-attempted' }
+    };
+  }
+
   const shadowEnabled = cloudAuthShadowEnabled(env);
   let lookupReason = shadowEnabled ? 'not-attempted' : 'disabled';
   let storeReason = 'not-attempted';

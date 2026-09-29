@@ -4,6 +4,7 @@ import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleEdgeCustomerSearchRequest, isEdgeCustomerSearchPath } from './edge-customer-search-v1.mjs';
 import { handleCloudSessionBridgeV3, isCloudSessionBridgeV3Path } from './cloud-session-bridge-v3.mjs';
+import { handleEmployeeNativeAuthRequest, isEmployeeNativeAuthPath } from './employee-auth-native-v1.mjs';
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
@@ -30,6 +31,12 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    // T12 A61: Native employee auth foundation. Exact paths only; schema/control
+    // and Wrangler flags keep this fail-closed until a separate production cutover.
+    if (isEmployeeNativeAuthPath(path)) {
+      return handleEmployeeNativeAuthRequest(request, env, ctx);
+    }
 
     // CLOUD-MIGRATION-V3/T6A: exact session paths only. This replaces the
     // legacy Apps Script GET verification transport with POST and does not
