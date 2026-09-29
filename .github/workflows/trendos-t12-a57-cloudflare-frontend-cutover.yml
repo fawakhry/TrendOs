@@ -1,0 +1,158 @@
+name: TrendOS T12 A57 Cloudflare Frontend Cutover
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/A57_CLOUDFLARE_FRONTEND_CUTOVER.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a57-cloudflare-frontend-cutover
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PAGES_PROJECT: trendos-ui
+      PAGES_ORIGIN: https://trendos-ui.pages.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact target and source guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'https://trendos-ui.pages.dev' cloudflare-d1/wrangler.toml
+          git fetch --quiet origin main
+          MAIN_SHA="$(git rev-parse origin/main)"
+          echo "MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+          echo "A57_MAIN_SHA=$MAIN_SHA"
+          echo 'A57_TARGET_PAGES=trendos-ui'
+          echo 'A57_GOOGLE_MUTATION=NO'
+          echo 'A57_D1_MUTATION=NO'
+
+      - name: Qualify Worker source before CORS deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/index_v2.js
+          node --check cloudflare-d1/src/t12-customer-master.mjs
+          node --check cloudflare-d1/src/t12-customer-write-handler.mjs
+          node --experimental-sqlite tests/t12_customer_master_a53.test.mjs
+          node --experimental-sqlite tests/t12_customer_native_search_a54.test.mjs
+          node --experimental-sqlite tests/t12_customer_legacy_projection_a55.test.mjs
+          echo 'A57_WORKER_SOURCE_QUALIFIED=PASS'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.142.0
+
+      - name: Ensure Cloudflare Pages project exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H 'Content-Type: application/json'             --output /tmp/a57_pages_get.json             --write-out '%{http_code}'             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PAGES_PROJECT")"
+          if [ "$code" = '404' ]; then
+            create_code="$(curl --silent --show-error               -X POST               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               -H 'Content-Type: application/json'               --data '{"name":"trendos-ui","production_branch":"main"}'               --output /tmp/a57_pages_create.json               --write-out '%{http_code}'               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects")"
+            cat /tmp/a57_pages_create.json
+            test "$create_code" = '200'
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a57_pages_create.json','utf8')); if(!x.success||!x.result||x.result.name!=='trendos-ui') process.exit(1)"
+            echo 'A57_PAGES_PROJECT_CREATED=YES'
+          else
+            cat /tmp/a57_pages_get.json
+            test "$code" = '200'
+            node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a57_pages_get.json','utf8')); if(!x.success||!x.result||x.result.name!=='trendos-ui') process.exit(1)"
+            echo 'A57_PAGES_PROJECT_EXISTS=YES'
+          fi
+
+      - name: Deploy Worker code/config for Pages CORS
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml | tee /tmp/a57_worker_deploy.log
+          echo 'A57_WORKER_CORS_DEPLOY=PASS'
+
+      - name: Verify Pages origin is accepted by Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            curl --silent --show-error -i -X OPTIONS               -H "Origin: $PAGES_ORIGIN"               -H 'Access-Control-Request-Method: GET'               -H 'Access-Control-Request-Headers: authorization'               "$WORKER_URL/v1/edge/customers/search" > /tmp/a57_cors.txt || true
+            if grep -qi "access-control-allow-origin: $PAGES_ORIGIN" /tmp/a57_cors.txt; then
+              echo 'A57_WORKER_PAGES_CORS=PASS'
+              break
+            fi
+            if [ "$attempt" = '20' ]; then
+              cat /tmp/a57_cors.txt
+              exit 1
+            fi
+            sleep 3
+          done
+
+      - name: Build static frontend from exact main
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-main /tmp/trendos-ui
+          git worktree add --detach /tmp/trendos-main "$MAIN_SHA"
+          mkdir -p /tmp/trendos-ui
+          find /tmp/trendos-main -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0             | xargs -0 -I{} cp "{}" /tmp/trendos-ui/
+          test -f /tmp/trendos-ui/index.html
+          test -f /tmp/trendos-ui/app.js
+          test -f /tmp/trendos-ui/config.js
+          test -f /tmp/trendos-ui/trendos-edge-orders-read-v1.js
+          grep -F '20260929-t12-a56-customer-cloud-only-live' /tmp/trendos-ui/config.js
+          grep -F "customerAuthority: 'cloud-only'" /tmp/trendos-ui/trendos-edge-orders-read-v1.js
+          find /tmp/trendos-ui -type f | sort
+          echo 'A57_STATIC_BUILD=PASS'
+
+      - name: Deploy frontend to Cloudflare Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler pages deploy /tmp/trendos-ui             --project-name "$PAGES_PROJECT"             --branch main             --commit-hash "$MAIN_SHA"             --commit-dirty=false             | tee /tmp/a57_pages_deploy.log
+          echo 'A57_PAGES_DEPLOY=PASS'
+
+      - name: Verify Cloudflare Pages production
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            root_code="$(curl --silent --show-error --location --output /tmp/a57_index.html --write-out '%{http_code}' "$PAGES_ORIGIN/?a57=$MAIN_SHA" || true)"
+            cfg_code="$(curl --silent --show-error --location --output /tmp/a57_config.js --write-out '%{http_code}' "$PAGES_ORIGIN/config.js?a57=$MAIN_SHA" || true)"
+            edge_code="$(curl --silent --show-error --location --output /tmp/a57_edge.js --write-out '%{http_code}' "$PAGES_ORIGIN/trendos-edge-orders-read-v1.js?a57=$MAIN_SHA" || true)"
+            if [ "$root_code" = '200' ] && [ "$cfg_code" = '200' ] && [ "$edge_code" = '200' ]                && grep -Fq '20260929-t12-a56-customer-cloud-only-live' /tmp/a57_config.js                && grep -Fq "customerAuthority: 'cloud-only'" /tmp/a57_edge.js; then
+              echo 'A57_CLOUDFLARE_FRONTEND_LIVE=PASS'
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "root=$root_code config=$cfg_code edge=$edge_code"
+          exit 1
+
+      - name: Final
+        run: |
+          echo "A57_FRONTEND_ORIGIN=$PAGES_ORIGIN"
+          echo "A57_FRONTEND_MAIN_SHA=$MAIN_SHA"
+          echo 'A57_FRONTEND_HOSTING=CLOUDFLARE_PAGES'
+          echo 'A57_CUSTOMER_AUTHORITY=D1'
+          echo 'A57_GOOGLE_MUTATION=NO'
+          echo 'A57_D1_MUTATION=NO'
