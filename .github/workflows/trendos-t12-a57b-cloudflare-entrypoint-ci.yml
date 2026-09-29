@@ -1,0 +1,30 @@
+name: TrendOS T12 A57B Cloudflare Entrypoint CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-a57b-cloudflare-entrypoint-live-20260929
+    paths:
+      - 'index.html'
+      - 'config.js'
+      - 'tests/frontend_t12_cloudflare_entrypoint_a57b.test.mjs'
+      - '.github/workflows/trendos-t12-a57b-cloudflare-entrypoint-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/frontend_t12_cloudflare_entrypoint_a57b.test.mjs
+      - run: |
+          echo 'LEGACY_GITHUB_ENTRYPOINT=REDIRECT_TO_CLOUDFLARE'
+          echo 'CLOUDFLARE_FRONTEND=https://trendos-ui.trendmall-contact.workers.dev'
+          echo 'PRODUCTION_MUTATION=NO'
