@@ -42,8 +42,23 @@ Patch commit:
 `a1c855b52bf68ef070747d0842836ee6f4ce27aa`
 
 ## Safety boundary
-No Apps Script edit, Script Properties change, new version, deploy, D1 mutation, Cloudflare mutation, Order mutation, Customer mutation, or Accounting mutation was performed.
+No Apps Script source edit, Script Properties change, new version, deploy, D1 mutation, Cloudflare mutation, Order mutation, Customer mutation, or Accounting mutation was performed.
 
 Immutable Version 157 source is still not captured. The accidental editor autosave therefore remains not byte-for-byte verified.
 
 Do not deploy current GitHub `main/Code.gs` wholesale. Any Production install must preserve the live HEAD and apply only the recorded A61 additive delta.
+
+
+## Backup-copy verification correction
+
+A Drive copy request for the current Apps Script project returned a new file ID, but immediate metadata/readback on that returned ID produced `404 File not found`, and a title search did not find the copy.
+
+Therefore the backup copy is **not accepted as verified evidence**.
+
+```ini
+PRODUCTION_BACKUP_COPY_REQUEST=RETURNED_SUCCESS
+PRODUCTION_BACKUP_COPY_READBACK=FAILED_404
+PRODUCTION_BACKUP_COPY_VERIFIED=NO
+```
+
+The independent read-only HEAD capture already held outside Apps Script remains the recovery artifact used for candidate construction.
