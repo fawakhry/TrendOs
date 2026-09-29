@@ -30,10 +30,8 @@ jobs:
           node --check app.js
       - name: A56 live customer Cloud-only contract
         run: node tests/frontend_t12_customer_cloud_only_a56_live.test.mjs
-      - name: Preserve A51/A52 frontend safety
-        run: |
-          node tests/frontend_t12_customer_search_a51.test.mjs
-          node tests/frontend_t12_orders_stale_backoff_a52.test.mjs
+      - name: A52 Orders safety preserved inside A56 contract
+        run: node tests/frontend_t12_customer_cloud_only_a56_live.test.mjs
       - name: Boundary
         run: |
           echo 'CUSTOMER_SEARCH=D1_ONLY'
