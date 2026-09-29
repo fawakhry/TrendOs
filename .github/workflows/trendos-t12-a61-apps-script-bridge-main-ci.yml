@@ -1,0 +1,53 @@
+name: TrendOS T12 A61 Apps Script Bridge Main CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Code.gs'
+      - 'tests/apps_script_employee_legacy_bridge_main_a61.test.mjs'
+      - 'tests/apps_script_employee_legacy_bridge_main_delta_a61.test.mjs'
+      - '.github/workflows/trendos-t12-a61-apps-script-bridge-main-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Apps Script syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp Code.gs /tmp/Code.a61-main.js
+          node --check /tmp/Code.a61-main.js
+
+      - name: A61 Apps Script bridge contract
+        run: node tests/apps_script_employee_legacy_bridge_main_a61.test.mjs
+
+      - name: Main-lineage bridge-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          node tests/apps_script_employee_legacy_bridge_main_delta_a61.test.mjs
+
+      - name: Secret hygiene and no-deploy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'A61_SECRET_HYGIENE=PASS'
+          echo 'APPS_SCRIPT_DEPLOY=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'ORDER_MUTATION=NO'
