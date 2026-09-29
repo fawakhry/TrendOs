@@ -131,6 +131,8 @@ A61_NATIVE_EMPLOYEE_LOGIN=NO
 EMPLOYEE_LOGIN=GOOGLE_BACKED
 ```
 
+**A61 Apps Script project identity clarification:** current `main/Code.gs` is a **single-file build** and already embeds the V1932 router plus Customer Manager/Feedback, Attendance, Clock-in, HR, Cleaning, Press and Go-Live runtime functions. Therefore absence of separate modular `.gs` files in the live Apps Script editor is not by itself a blocker. Production-project identity must be confirmed by matching the active Web App deployment to the exact `main/config.js` Production `/exec` endpoint and by verifying the expected embedded functions in the opened project. Do not add duplicate module files on top of the single-file build merely to satisfy older manifest wording.
+
 **A61 Phase 6 pre-installation gate — OFF-state runbook ready:** Entry484 defines the owner-run Production installation sequence for Apps Script + D1 + Cloudflare while keeping every A61 switch OFF. Source-only preflight was rechecked directly after the chat stream interruption and passed: current `main` frontend flags are false/empty; current-main Apps Script bridge/wrapper are present; Cloud Worker auth/bootstrap/native-only/bridge flags are false; bridge allowlist is empty; D1 migration defaults and seeds control mode `OFF`; both read-only health routes are present. **No Production mutation was performed by this verification.**
 
 ```ini
