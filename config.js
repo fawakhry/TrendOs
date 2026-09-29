@@ -22,7 +22,7 @@ window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
 window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
 window.MATBAGY_FILE_SERVER_URL = "https://files.matbagy.com";
 window.MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
-window.MATBAGY_ROTET_URL = "https://fawakhry.github.io/TrendOs/?rotet=matbagy";
+window.MATBAGY_ROTET_URL = "https://trendos-ui.trendmall-contact.workers.dev/?rotet=matbagy";
 window.MATBAGY_EASY_STORE_URL = "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_LEAD_HUNTER_URL = "https://fawakhry.github.io/trendos-lead-hunter/";
 window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es50-v1925-fast-read-write-20260812a';
