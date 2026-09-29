@@ -12,6 +12,14 @@ window.MATBAGY_SECURE_API_PROXY_URL = "";
 // Production Orders read cutover 02CT: qualified D1 route first for getRowsPageV1931 only.
 // Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
 window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
+
+// T12 A61 employee API dispatcher foundation. Default-OFF: no runtime change
+// until native employee auth and the temporary legacy bridge are separately qualified.
+window.MATBAGY_EMPLOYEE_API_URL = window.MATBAGY_EDGE_ORDERS_API_URL;
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;
+window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;
+window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];
+
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
 window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = false;
 window.MATBAGY_EDGE_ORDERS_CANARY_USERS = ['وائل','wael'];

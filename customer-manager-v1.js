@@ -14,10 +14,19 @@
   function auth(extra){ const u=user()||{}; return Object.assign({username:u.username||u.name||"",token:u.token||""},extra||{}); }
   function esc(v){ return txt(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#039;"); }
   async function api(op, extra){
-    const p=auth(Object.assign({action:"customerManagerV1",op:op},extra||{}));
-    const q=new URLSearchParams(); Object.keys(p).forEach(k=>q.set(k,txt(p[k])));
-    const r=await fetch(API_URL+(API_URL.indexOf("?")===-1?"?":"&")+q.toString(),{cache:"no-store",credentials:"omit"});
-    const d=await r.json(); if(!d||d.success===false) throw new Error((d&&d.message)||"تعذر الاتصال بمدير العملاء"); return d;
+    const authPayload=auth(Object.assign({op:op},extra||{}));
+    const legacy=async function(){
+      const p=Object.assign({action:"customerManagerV1"},authPayload);
+      const q=new URLSearchParams(); Object.keys(p).forEach(k=>q.set(k,txt(p[k])));
+      const r=await fetch(API_URL+(API_URL.indexOf("?")===-1?"?":"&")+q.toString(),{cache:"no-store",credentials:"omit"});
+      const d=await r.json(); if(!d||d.success===false) throw new Error((d&&d.message)||"تعذر الاتصال بمدير العملاء"); return d;
+    };
+    if(typeof window.trendosEmployeeApiV1==="function"){
+      const d=await window.trendosEmployeeApiV1("customerManagerV1",authPayload,legacy);
+      if(!d||d.success===false) throw new Error((d&&d.message)||"تعذر الاتصال بمدير العملاء");
+      return d;
+    }
+    return await legacy();
   }
   function isManager(){ const u=user()||{}; const role=txt(u.role).toLowerCase(); const key=txt(u.username||u.name).toLowerCase(); return role==="admin"||key.indexOf("ضياء")!==-1||key.indexOf("diaa")!==-1||role==="service"; }
   function styles(){ if(document.getElementById("cmV1Style"))return; const s=document.createElement("style"); s.id="cmV1Style"; s.textContent=`
