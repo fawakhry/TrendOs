@@ -147,3 +147,69 @@ Next execution priority:
 
 Entry:
 `TRENDOS_T12_ZERO_GOOGLE_CUTOVER_A56_A58_ENTRY_477_2026-09-29.md`
+
+
+---
+
+# A59/A60 reconciliation — 2026-09-29
+
+## A59 — Employee/Auth read-only preflight
+Run `36574201570` — SUCCESS.
+
+Confirmed:
+```ini
+USERS_MIRROR_PRESENT=YES
+USERS_ROW_COUNT=10
+USERS_SOURCE_LAST_ROW=10
+USERS_SOURCE_LAST_COL=19
+USERS_MIRROR_ROWS=10
+HASHED_PASSWORD_ROWS=6
+USERNAME_COLUMN=YES
+PASSWORD_COLUMN=YES
+TOKEN_COLUMN=YES
+ROLE_COLUMN=YES
+DEPARTMENT_COLUMN=YES
+ACTIVE_COLUMN=YES
+EXISTING_AUTH_TABLE=cloud_auth_sessions_v1
+USERS_MIRROR_SYNCED_AT=2026-08-29 15:43:42
+```
+
+Current Cloud Session Bridge behavior:
+- D1 auth shadow first when enabled.
+- shadow miss falls back to `APPS_SCRIPT_API_URL`.
+- therefore Employee/Auth still has a Google runtime dependency.
+
+## A60 — forced first-login password change
+Owner-directed live reset affected 8 current employee accounts. The temporary credential value is intentionally **not** recorded here.
+
+Verified:
+```ini
+EMPLOYEE_TEMP_PASSWORD_RESET=YES
+MUST_CHANGE_FIRST_LOGIN=YES
+OLD_EMPLOYEE_TOKENS_REVOKED=YES
+CANCEL_MANDATORY_CHANGE=BLOCKED
+```
+
+Qualification and promotion:
+- CI `36576533460` — SUCCESS.
+- PR #24 merged.
+- functional main `6e96f9b9c9a870c9c1f961dc3e2f5f72d9ca11d7`.
+- logging-hygiene main `e5efcb39acf33a70ce13f16125e307a51994bb65`.
+- Cloudflare frontend redeploy `36576677571` — SUCCESS.
+- detailed record: `TRENDOS_T12_EMPLOYEE_FORCE_PASSWORD_RESET_A60_ENTRY_478_2026-09-29.md`.
+
+## Master Book reconciliation
+The active first page was reconciled through A60 in commit:
+`ee8648923f3b8e813d8c1596f36ef14130147fea`.
+
+## Next
+A61 = migrate Employee Login/Auth to D1/Cloudflare in guarded phases:
+1. schema/native verifier design;
+2. isolated tests;
+3. native password-change migration path;
+4. transitional login only if strictly required;
+5. production readback;
+6. remove Apps Script auth fallback only after proof.
+
+Do not alter Order IDs/statuses during A61.
+Do not store plaintext passwords, pepper, tokens, or secret values in GitHub.
