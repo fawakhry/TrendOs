@@ -423,3 +423,29 @@ To identify the correct Production Apps Script project, require:
 
 If either check fails, stop before editing/deploying.
 Do not add duplicate modular files to the single-file build.
+
+
+---
+
+# A61 source recovery incident — Entry485
+
+Production Apps Script project and Deployment ID are confirmed; deployed runtime remains Version 157.
+
+An accidental editor search wrote into the first line and was visually restored, but Apps Script autosaved HEAD. No deployment followed.
+
+Current state:
+```ini
+PRODUCTION_VERSION=157
+PRODUCTION_RUNTIME_CHANGED_BY_AUTOSAVE=NO
+PROJECT_HISTORY_COMPARE=UNAVAILABLE
+ACCIDENTAL_SAVE_RECOVERY=NOT_VERIFIED
+APPS_SCRIPT_API_READ=UNAVAILABLE
+APPS_SCRIPT_DEPLOY=NO
+```
+
+Sensitive Script Property values were previously surfaced in tool output. Known names from established context:
+`AUTH_PASSWORD_PEPPER`, `OPENAI_API_KEY`.
+Do not re-read values. Do not rotate credentials during source recovery. In particular, do not rotate AUTH_PASSWORD_PEPPER without a controlled legacy password migration/re-hash plan.
+
+Next:
+read only the Production Script ID from Project Settings -> IDs. Do not touch Code.gs or Script Properties. Use that exact Script ID to test already-connected Drive metadata/revision access before requesting any new Google API permission.
