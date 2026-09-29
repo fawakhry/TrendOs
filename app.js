@@ -1763,7 +1763,9 @@ Trend Mall`;
       state.screen = allowed.indexOf(state.screen) !== -1 ? state.screen : allowed[0];
       saveSession();
       bootMain();
-      if (state.user.mustChange) openPasswordModal();
+      if (state.user.mustChange) {
+        openPasswordModal();
+      }
     } catch (err) {
       setMsg("loginMsg", err.message || "حصل خطأ أثناء الدخول.", true);
     } finally {
@@ -5886,10 +5888,21 @@ Trend Mall`;
 
   function openPasswordModal() {
     $("passwordModal").classList.remove("hidden");
-    setMsg("passMsg", "", false);
+    var forced = !!(state.user && state.user.mustChange);
+    var cancelBtn = $("cancelPassBtn");
+    if (cancelBtn) {
+      cancelBtn.classList.toggle("hidden", forced);
+      cancelBtn.disabled = forced;
+    }
+    setMsg("passMsg", forced ? "لازم تغيّر كلمة المرور المؤقتة قبل متابعة استخدام المنصة." : "", false);
+    try { $("oldPassword").focus(); } catch (e) {}
   }
 
   function closePasswordModal() {
+    if (state.user && state.user.mustChange) {
+      setMsg("passMsg", "لازم تغيّر كلمة المرور المؤقتة قبل متابعة استخدام المنصة.", true);
+      return;
+    }
     $("passwordModal").classList.add("hidden");
     ["oldPassword", "newPassword", "confirmPassword"].forEach(function (id) { $(id).value = ""; });
   }
