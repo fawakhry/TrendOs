@@ -7,6 +7,10 @@ on:
     paths:
       - 'trendos-edge-orders-read-v1.js'
       - 'app.js'
+      - 'config.js'
+      - 'cloudflare-d1/src/t12-customer-master.mjs'
+      - 'cloudflare-d1/src/t12-customer-write-handler.mjs'
+      - 'tests/t12_customer_master_a53.test.mjs'
       - 'tests/frontend_t12_customer_cloud_only_a56.test.mjs'
       - '.github/workflows/trendos-t12-a56-customer-cloud-only-ci.yml'
   workflow_dispatch:
