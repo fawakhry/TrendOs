@@ -65,6 +65,34 @@ The existing Production manifest remains authoritative:
 Important:
 do not use an old Apps Script sheet/export as the source.
 
+### Single-file reconciliation — current main
+
+The current `main/Code.gs` is a **single-file build**. It already embeds the runtime functions that older modular deployment documentation lists as separate `.gs` files.
+
+Verified inside current `main/Code.gs`:
+- `trendosV1932TryRoute_`
+- `customerManagerV1_`
+- `customerFeedbackV1_`
+- `attendanceV1_`
+- `attendanceClockinV1_`
+- `hrV1_`
+- `cleaningV1_`
+- `pressControlV1_`
+- `goLiveAutopilotV1_`
+
+Therefore, **absence of separate files such as `v1932-router.gs`, `attendance-backend-v1.gs`, or `hr-backend-v1.gs` inside the live Apps Script project is not by itself a deployment blocker** when the current single-file `Code.gs` contains these functions.
+
+Do not add duplicate modular files on top of the single-file build just to satisfy the older file-list wording.
+
+Production project identity must instead be verified by both:
+1. the deployed Web App `/exec` URL / Deployment ID matching current `main/config.js`; and
+2. the currently opened project's code containing the expected production functions/routes.
+
+Current expected Production Web App deployment from `main/config.js`:
+`https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec`
+
+If the opened Apps Script project's active deployment does not match that exact deployment, stop before editing or deploying.
+
 ### Required Apps Script files
 Keep the complete current Production set, including:
 - `Code.gs`
