@@ -73,3 +73,162 @@ No workflow dispatch, Worker deploy, D1 SQL, Apps Script deployment/property cha
 
 ## Latest documentation record
 Journal Entry469 records the current-head reconciliation and delta inventory creation.
+
+
+---
+
+# Post-A55 continuation — A56/A57B/A58
+
+## Customer cutover complete
+Production customer authority is now Cloud/D1:
+```ini
+CUSTOMER_MASTER_ROWS=247
+CUSTOMER_WRITE_MODE=GENERAL
+CUSTOMER_SEARCH_AUTHORITY=D1
+CUSTOMER_WRITE_AUTHORITY=D1
+CUSTOMER_GOOGLE_FALLBACK=NO
+```
+
+A56 cutover run:
+`36572088014` — SUCCESS.
+
+Live customer frontend candidate CI:
+`36572624648` — SUCCESS.
+
+PR #22 merged to main:
+`3b1f3cd4969d8fa30a1ff24c635978bf4799fdb9`
+
+## Frontend is now hosted on Cloudflare
+Cloudflare Pages attempt failed closed because the existing token lacks Pages permission. No Pages mutation remained.
+
+A57B deployed a dedicated Cloudflare Worker Assets frontend instead:
+`https://trendos-ui.trendmall-contact.workers.dev`
+
+A57B run:
+`36573466254` — SUCCESS.
+
+Verified:
+```ini
+FRONTEND_HOSTING=CLOUDFLARE_WORKER_ASSETS
+A57B_FRONTEND_LIVE=PASS
+A57B_API_CORS=PASS
+A57B_CUSTOMER_GENERAL=PASS
+```
+
+## Remaining zero-Google work
+A58 active runtime audit run:
+`36573676009` — SUCCESS.
+
+Current active frontend/module inventory:
+- 19 active JS runtime files.
+- 80 distinct literal API actions.
+- generic `TREND_API_URL/API_URL` still points to Apps Script.
+- employee login/auth still Google-backed.
+- Cloud session bridge uses D1 auth shadow first but falls back to Apps Script on a miss.
+
+Therefore:
+```ini
+CUSTOMERS_CLOSED=YES
+CLOUDFLARE_FRONTEND_LIVE=YES
+ZERO_GOOGLE_COMPLETE=NO
+ACTIVE_LITERAL_API_ACTIONS=80
+```
+
+Next execution priority:
+1. native D1 employee/auth authority;
+2. remaining Orders Google-backed read/write paths;
+3. Attendance/HR/Press;
+4. Accounting;
+5. customer portal/files/conversations;
+6. Trend Master/notes/customer-manager/feedback/automation;
+7. platform/marketplace/franchise/white-label;
+8. flip generic API base to Cloudflare;
+9. prove runtime Google dependency = 0.
+
+Entry:
+`TRENDOS_T12_ZERO_GOOGLE_CUTOVER_A56_A58_ENTRY_477_2026-09-29.md`
+
+
+---
+
+## A59/A60 — Employee auth preparation and forced password reset
+
+### A59 native-auth preflight
+Read-only Production audit run:
+`36574201570` — SUCCESS.
+
+Verified in D1 mirror:
+```ini
+USERS_CATALOG_PRESENT=YES
+USERS_ROW_COUNT=10
+USERS_MIRROR_ROWS=10
+USERS_HASHED_PASSWORD_ROWS=6
+USERNAME_COLUMN=YES
+PASSWORD_COLUMN=YES
+TOKEN_COLUMN=YES
+ROLE_COLUMN=YES
+DEPARTMENT_COLUMN=YES
+ACTIVE_COLUMN=YES
+EXISTING_AUTH_TABLE=cloud_auth_sessions_v1
+PRODUCTION_MUTATION=NO
+```
+
+This proved the current user/auth source is mirrored, but did **not** complete native D1 login. The current Cloud session bridge still falls back to Apps Script when D1 auth shadow misses.
+
+### A60 employee password reset
+Owner instructed resetting all current employee accounts to one temporary password and requiring a password change on first login.
+
+Live Users sheet result:
+```ini
+EMPLOYEE_ACCOUNTS_UPDATED=8
+TEMP_PASSWORD_RESET=YES
+MUST_CHANGE_FIRST_LOGIN=YES
+OLD_EMPLOYEE_TOKENS_REVOKED=YES
+```
+
+The temporary credential value is deliberately not stored in repository documentation.
+
+Frontend enforcement:
+- mandatory password modal when `state.user.mustChange=true`;
+- cancel is hidden/disabled while the change is mandatory;
+- modal cannot be closed until password change succeeds;
+- existing backend already requires old password, minimum new-password length, clears token and forces re-login.
+
+A60 CI:
+`36576533460` — SUCCESS.
+
+Promotion:
+- PR #24 merged.
+- functional main SHA: `6e96f9b9c9a870c9c1f961dc3e2f5f72d9ca11d7`
+- logging-hygiene main SHA: `e5efcb39acf33a70ce13f16125e307a51994bb65`
+
+Cloudflare frontend redeploy:
+`36576677571` — SUCCESS.
+
+### Current precise platform state
+```ini
+FRONTEND_HOSTING=CLOUDFLARE_WORKER
+CUSTOMER_SEARCH=D1_NATIVE
+CUSTOMER_CREATE_UPDATE=D1_NATIVE
+CUSTOMER_GOOGLE_FALLBACK=NO
+EMPLOYEE_TEMP_RESET=LIVE
+FIRST_LOGIN_PASSWORD_CHANGE=MANDATORY
+EMPLOYEE_LOGIN_AUTHORITY=APPS_SCRIPT_FOR_NOW
+ZERO_GOOGLE_COMPLETE=NO
+ACTIVE_LITERAL_API_ACTIONS_TO_MIGRATE=80
+```
+
+Next execution priority remains:
+1. native employee/auth authority in D1 with no Apps Script verification fallback;
+2. remaining legacy Orders reads/writes;
+3. Attendance/HR/Press;
+4. Accounting;
+5. portal/files/conversations;
+6. Trend Master/notes/customer-manager/feedback/automation;
+7. platform/marketplace/franchise/white-label;
+8. flip generic `TREND_API_URL/API_URL` to Cloudflare;
+9. prove runtime Google dependency = 0.
+
+Latest detailed entries:
+- Entry477 — `TRENDOS_T12_ZERO_GOOGLE_CUTOVER_A56_A58_ENTRY_477_2026-09-29.md`
+- Entry478 — `TRENDOS_T12_EMPLOYEE_FORCE_PASSWORD_RESET_A60_ENTRY_478_2026-09-29.md`
