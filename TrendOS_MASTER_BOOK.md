@@ -158,6 +158,22 @@ APPS_SCRIPT_DEPLOY=NO
 NEXT_RECOVERY=READ_SCRIPT_ID_THEN_DRIVE_READONLY
 ```
 
+**A61 live-head reconciliation — Entry486:** existing connected Drive access successfully captured the current Production Apps Script HEAD outside the editor. The project has 54 files; live `Code` syntax and required V1932 runtime functions pass, but the A61 bridge is absent. The live HEAD also contains a Production-only save-timeout hotfix that current GitHub `main` does not contain, so **never replace Production `Code.gs` wholesale from main**. A candidate was generated from the live HEAD by adding only the qualified A61 bridge delta; 229 lines were added, the Production hotfix was preserved, syntax/contract checks passed, and removing the A61 additions reproduces the captured live HEAD exactly. A backup copy of the current Apps Script project was created before any source installation. No Production edit/deploy occurred. Exact patch/audit artifacts are staged in draft PR #30 on `candidate/t12-a61-live-head-reconcile-20260929`. Immutable Version 157 source is still unavailable, so accidental-save integrity remains formally unverified.
+
+```ini
+HEAD_DRIVE_READONLY_CAPTURE=YES
+HEAD_PROJECT_FILE_COUNT=54
+LIVE_HEAD_RUNTIME_FUNCTIONS=PASS
+LIVE_HEAD_A61_BRIDGE=ABSENT
+LIVE_HEAD_PRODUCTION_ONLY_DELTA=YES
+A61_LIVE_HEAD_CANDIDATE=QUALIFIED_SOURCE_ONLY
+A61_ADDED_LINES=229
+PRODUCTION_BACKUP_COPY=YES
+PR30=DRAFT_AUDIT_ONLY
+APPS_SCRIPT_DEPLOY=NO
+ACCIDENTAL_SAVE_RECOVERY=NOT_VERIFIED
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
