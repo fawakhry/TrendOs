@@ -748,7 +748,116 @@ function login_(e) {
   };
 }
 
+// T12 A61 compatibility bridge.
+// Cloudflare authenticates the employee against D1, then sends Apps Script a
+// short-lived signed assertion instead of forwarding the employee's native
+// session token. The shared secret lives only in runtime properties/secrets.
+function trendosEmployeeLegacyBridgeEnabledV1_() {
+  try {
+    return normalize_(PropertiesService.getScriptProperties().getProperty("TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED")).toLowerCase() === "true";
+  } catch (err) {
+    return false;
+  }
+}
+
+function trendosEmployeeLegacyBridgeSecretV1_() {
+  try {
+    return String(PropertiesService.getScriptProperties().getProperty("EMPLOYEE_LEGACY_BRIDGE_SECRET_V1") || "");
+  } catch (err) {
+    return "";
+  }
+}
+
+function trendosEmployeeLegacyBridgeHmacV1_(payloadB64, secret) {
+  const bytes = Utilities.computeHmacSha256Signature(
+    "trendos-employee-legacy-bridge-v1\n" + String(payloadB64 || ""),
+    String(secret || ""),
+    Utilities.Charset.UTF_8
+  );
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/g, "");
+}
+
+function trendosEmployeeLegacyBridgeDecodeV1_(payloadB64) {
+  try {
+    const bytes = Utilities.base64DecodeWebSafe(String(payloadB64 || ""));
+    return JSON.parse(Utilities.newBlob(bytes).getDataAsString("UTF-8"));
+  } catch (err) {
+    return null;
+  }
+}
+
+function trendosVerifyEmployeeLegacyBridgeTokenV1_(username, token) {
+  token = String(token || "");
+  if (token.indexOf("cfv1.") !== 0) return { handled: false };
+
+  if (!trendosEmployeeLegacyBridgeEnabledV1_()) {
+    return { handled: true, ok: false, message: "مسار اعتماد الموظف السحابي غير مفعل." };
+  }
+
+  const secret = trendosEmployeeLegacyBridgeSecretV1_();
+  if (secret.length < 32) {
+    return { handled: true, ok: false, message: "مسار اعتماد الموظف السحابي غير مضبوط." };
+  }
+
+  if (token.length > 4096) {
+    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+  }
+
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "cfv1" || !parts[1] || !parts[2]) {
+    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+  }
+
+  const expected = trendosEmployeeLegacyBridgeHmacV1_(parts[1], secret);
+  if (!constantTimeEqualsV1922_(expected, parts[2])) {
+    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+  }
+
+  const claims = trendosEmployeeLegacyBridgeDecodeV1_(parts[1]);
+  if (!claims || Number(claims.v) !== 1) {
+    return { handled: true, ok: false, message: "اعتماد الموظف السحابي غير صالح." };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const iat = Number(claims.iat || 0);
+  const exp = Number(claims.exp || 0);
+  if (!iat || !exp || iat > now + 30 || iat < now - 120 || exp <= now || exp > now + 120) {
+    return { handled: true, ok: false, message: "انتهت صلاحية اعتماد الموظف السحابي." };
+  }
+
+  const subject = normalize_(claims.sub);
+  if (!subject || subject !== normalize_(username)) {
+    return { handled: true, ok: false, message: "اعتماد الموظف السحابي لا يطابق المستخدم." };
+  }
+  if (claims.active === false) {
+    return { handled: true, ok: false, message: "هذا المستخدم غير مفعل." };
+  }
+
+  const role = normalize_(claims.role).toLowerCase() || "service";
+  const department = normalize_(claims.department);
+  const screens = Array.isArray(claims.screens) ? claims.screens.map(function(v){ return normalize_(v); }) : [];
+
+  return {
+    handled: true,
+    ok: true,
+    authSource: "cloudflare-d1-native-v1",
+    user: {
+      username: subject,
+      name: subject,
+      department: department,
+      role: role,
+      active: "نعم",
+      mustChange: claims.mustChange === true ? "نعم" : "لا",
+      screens: screens,
+      cloudAuthBridgeV1: true
+    }
+  };
+}
+
 function authorize_(username, token) {
+  const cloudBridge = trendosVerifyEmployeeLegacyBridgeTokenV1_(username, token);
+  if (cloudBridge.handled) return cloudBridge;
+
   const user = findUser_(normalize_(username));
   if (!user) return { ok: false, message: "المستخدم غير موجود." };
   if (user.active && user.active !== "نعم") return { ok: false, message: "هذا المستخدم غير مفعل." };
