@@ -3883,3 +3883,12 @@ RESULT=`COMMITTED_VERIFIED`. Eight unique historical PERF-CF blobs (02BH/02BJ, 0
 ## Entry 472 PREPARE — MASTER-BOOK-DOC-BATCH-PERF-CF-02BT-02CA-20260929 / 2026-09-29 Cairo
 
 TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: DOC-DUP-PERF-02. READ/DOC_WRITE only. Full-read unique blobs for historical PERF-CF 02BT, 02BU, 02BV, 02BW, 02BX, 02BY, 02BZ, 02CA and 02CA_FINAL_VERIFY. Each is expected to have an exact duplicate path in the second blackbox tree; verify SHA identity via fixed inventory before dispositioning both. Capture only repair-relevant transitions/failures/rollback evidence. No workflow/runtime/data action.
+
+
+## Entry 472 RESULT — MASTER-BOOK-DOC-BATCH-PERF-CF-02BT-02CA-20260929 / 2026-09-29 Cairo
+
+RESULT=`COMMITTED_VERIFIED`. Nine unique historical PERF-CF blobs (02BT, 02BU, 02BV, 02BW, 02BX, 02BY, 02BZ, 02CA, 02CA_FINAL_VERIFY) were full-read; each has an exact SHA-identical duplicate path, so 18 fixed-inventory M rows were dispositioned `P:FULL_BLOB_READ Entry472 / SUPERSEDED_HISTORICAL / SAME_BLOB_PAIR`. Repair capsule recorded: read-only Preview Shadow, no-deploy integration candidates, deployment trigger audit, dual-signal freshness correction, controlled wrapper deployment with Shadow/Cloud Write OFF, then fixed-synthetic mutation-free Production Shadow observation ON. 02CA final PASS is historical only. Fixed coverage `M470/P687/A11/Redirect11/LIVE6`. No runtime action.
+
+## Entry 473 PREPARE — MASTER-BOOK-DOC-BATCH-PERF-CF-02CB-02CE-20260929 / 2026-09-29 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: DOC-DUP-PERF-03. READ/DOC_WRITE only. Full-read the unique historical PERF-CF 02CB, 02CC, 02CD and 02CE family blobs (including START/PASS/BLOCKER/diagnostic variants) that exist as exact path duplicates in both blackbox trees. Capture stability, readiness, migration/schema blockers and failure semantics needed for repair archaeology, then disposition both exact-SHA paths. No workflow/runtime/data action.
