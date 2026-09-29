@@ -232,3 +232,26 @@ Next execution priority remains:
 Latest detailed entries:
 - Entry477 — `TRENDOS_T12_ZERO_GOOGLE_CUTOVER_A56_A58_ENTRY_477_2026-09-29.md`
 - Entry478 — `TRENDOS_T12_EMPLOYEE_FORCE_PASSWORD_RESET_A60_ENTRY_478_2026-09-29.md`
+
+
+---
+
+## Latest canonical documentation reconciliation
+Entry479:
+`TRENDOS_MASTER_BOOK_RECONCILIATION_THROUGH_A60_ENTRY_479_2026-09-29.md`
+
+Master Book:
+`3.68-DRAFT-COMPACT`
+
+Canonical documentation commit chain:
+- Entry477 import: `459addb02f5827fd08e454e62df7e8b3bff210f9`
+- Entry478 import: `4b92445820aef6ee48eceeacaf0e5f85a36aa316`
+- Handoff reconciliation: `6a6099e02a13709d90eca2836a218e1dca55d284`
+- Master Book reconciliation: `a0e909844538f706b6063a61a5951b105b9ac0d7`
+- Entry479: `667044a44d6f252c69c8cbbfe5e3f8d93a17f67d`
+
+Rule from now on:
+Every runtime cutover/repair that changes authority, route, schema, deployment state, operational safety boundary, or user-facing recovery behavior must update:
+1. the relevant Master Book chapter/current-state page;
+2. an append-only Entry;
+3. the current Handoff when the next chat would otherwise read stale authority.
