@@ -213,3 +213,36 @@ A61 = migrate Employee Login/Auth to D1/Cloudflare in guarded phases:
 
 Do not alter Order IDs/statuses during A61.
 Do not store plaintext passwords, pepper, tokens, or secret values in GitHub.
+
+
+---
+
+# A61 foundation checkpoint — Entry479
+
+A61 Phase 1 native employee auth foundation is merged on the Cloud branch.
+
+Merge SHA:
+`549809bd770c97d619c40f903accc369fd0166fc`
+
+Qualification:
+- A61 CI run `36581513796` — SUCCESS.
+- exact changed scope: native auth migration/module, session bridge integration, worker route, default-OFF flags, isolated test.
+- detailed record: `TRENDOS_T12_NATIVE_EMPLOYEE_AUTH_FOUNDATION_A61_ENTRY_479_2026-09-29.md`.
+
+Current authority remains:
+```ini
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+EMPLOYEE_SESSION_BRIDGE=D1_NATIVE_CHECK_THEN_SHADOW_THEN_APPS_SCRIPT
+A61_PRODUCTION_CUTOVER=NO
+ZERO_GOOGLE_COMPLETE=NO
+```
+
+Do not enable native employee login yet.
+
+Blocking compatibility fact:
+the remaining Apps Script business actions still authorize the employee with the Apps Script Users-sheet token. A D1-only browser token would break those legacy actions.
+
+Next:
+design a fail-closed compatibility bridge where D1 is the authentication authority and legacy Apps Script business routes accept only a trusted Cloudflare-authenticated assertion/token exchange. This bridge must be temporary/removable and must not require storing plaintext credentials or exposing the historical password pepper.
+
+Do not change Order IDs/statuses while implementing the auth compatibility bridge.
