@@ -73,3 +73,77 @@ No workflow dispatch, Worker deploy, D1 SQL, Apps Script deployment/property cha
 
 ## Latest documentation record
 Journal Entry469 records the current-head reconciliation and delta inventory creation.
+
+
+---
+
+# Post-A55 continuation — A56/A57B/A58
+
+## Customer cutover complete
+Production customer authority is now Cloud/D1:
+```ini
+CUSTOMER_MASTER_ROWS=247
+CUSTOMER_WRITE_MODE=GENERAL
+CUSTOMER_SEARCH_AUTHORITY=D1
+CUSTOMER_WRITE_AUTHORITY=D1
+CUSTOMER_GOOGLE_FALLBACK=NO
+```
+
+A56 cutover run:
+`36572088014` — SUCCESS.
+
+Live customer frontend candidate CI:
+`36572624648` — SUCCESS.
+
+PR #22 merged to main:
+`3b1f3cd4969d8fa30a1ff24c635978bf4799fdb9`
+
+## Frontend is now hosted on Cloudflare
+Cloudflare Pages attempt failed closed because the existing token lacks Pages permission. No Pages mutation remained.
+
+A57B deployed a dedicated Cloudflare Worker Assets frontend instead:
+`https://trendos-ui.trendmall-contact.workers.dev`
+
+A57B run:
+`36573466254` — SUCCESS.
+
+Verified:
+```ini
+FRONTEND_HOSTING=CLOUDFLARE_WORKER_ASSETS
+A57B_FRONTEND_LIVE=PASS
+A57B_API_CORS=PASS
+A57B_CUSTOMER_GENERAL=PASS
+```
+
+## Remaining zero-Google work
+A58 active runtime audit run:
+`36573676009` — SUCCESS.
+
+Current active frontend/module inventory:
+- 19 active JS runtime files.
+- 80 distinct literal API actions.
+- generic `TREND_API_URL/API_URL` still points to Apps Script.
+- employee login/auth still Google-backed.
+- Cloud session bridge uses D1 auth shadow first but falls back to Apps Script on a miss.
+
+Therefore:
+```ini
+CUSTOMERS_CLOSED=YES
+CLOUDFLARE_FRONTEND_LIVE=YES
+ZERO_GOOGLE_COMPLETE=NO
+ACTIVE_LITERAL_API_ACTIONS=80
+```
+
+Next execution priority:
+1. native D1 employee/auth authority;
+2. remaining Orders Google-backed read/write paths;
+3. Attendance/HR/Press;
+4. Accounting;
+5. customer portal/files/conversations;
+6. Trend Master/notes/customer-manager/feedback/automation;
+7. platform/marketplace/franchise/white-label;
+8. flip generic API base to Cloudflare;
+9. prove runtime Google dependency = 0.
+
+Entry:
+`TRENDOS_T12_ZERO_GOOGLE_CUTOVER_A56_A58_ENTRY_477_2026-09-29.md`
