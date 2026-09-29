@@ -92,3 +92,5 @@ console.log('AUTH_AUTHORITY=D1_NATIVE');
 console.log('RAW_NATIVE_TOKEN_FORWARDED=NO');
 console.log('PLAINTEXT_PASSWORD_FORWARDED=NO');
 console.log('BRIDGE_PRODUCTION_ENABLED=NO');
+
+// CI boundary check uses repository config only.
