@@ -1,0 +1,64 @@
+name: TrendOS T12 A59 Native Auth Preflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/A59_NATIVE_AUTH_PREFLIGHT.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.142.0
+      - name: Read-only auth source audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT sheet_name,row_count,source_last_row,source_last_col,status,synced_at,note,headers_json FROM sheet_catalog WHERE sheet_name='المستخدمين' LIMIT 1;              SELECT COUNT(*) AS user_mirror_rows FROM sheet_rows WHERE sheet_name='المستخدمين';              SELECT COUNT(*) AS hashed_password_rows FROM sheet_rows WHERE sheet_name='المستخدمين' AND (display_json LIKE '%v1922$%' OR values_json LIKE '%v1922$%');              SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE '%auth%' OR name LIKE '%user%' OR name LIKE '%employee%') ORDER BY name;"             > /tmp/a59.json
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/a59.json','utf8'));
+          const flat=(Array.isArray(raw)?raw:[raw]).flatMap(v=>Array.isArray(v?.results)?v.results:[]);
+          const catalog=flat.find(r=>r.sheet_name==='المستخدمين')||{};
+          const mirror=flat.find(r=>Object.prototype.hasOwnProperty.call(r,'user_mirror_rows'))||{};
+          const hashed=flat.find(r=>Object.prototype.hasOwnProperty.call(r,'hashed_password_rows'))||{};
+          let headers=[];
+          try{headers=JSON.parse(catalog.headers_json||'[]')}catch{}
+          const safeHeaders=headers.map(String);
+          const tables=flat.filter(r=>r.name).map(r=>String(r.name));
+          const out={
+            catalogPresent:!!catalog.sheet_name,
+            rowCount:Number(catalog.row_count||0),
+            sourceLastRow:Number(catalog.source_last_row||0),
+            sourceLastCol:Number(catalog.source_last_col||0),
+            status:String(catalog.status||''),
+            syncedAt:String(catalog.synced_at||''),
+            mirrorRows:Number(mirror.user_mirror_rows||0),
+            hashedPasswordRows:Number(hashed.hashed_password_rows||0),
+            hasUsernameColumn:safeHeaders.some(h=>/اسم المستخدم|Username/i.test(h)),
+            hasPasswordColumn:safeHeaders.some(h=>/كلمة المرور|Password/i.test(h)),
+            hasTokenColumn:safeHeaders.some(h=>/^Token$/i.test(h)),
+            hasRoleColumn:safeHeaders.some(h=>/الصلاحية|Role/i.test(h)),
+            hasDepartmentColumn:safeHeaders.some(h=>/القسم|Department/i.test(h)),
+            hasActiveColumn:safeHeaders.some(h=>/مفعل|Active/i.test(h)),
+            existingAuthTables:tables
+          };
+          console.log('A59_AUTH_PREFLIGHT='+JSON.stringify(out));
+          console.log('A59_PASSWORD_VALUES_LOGGED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
