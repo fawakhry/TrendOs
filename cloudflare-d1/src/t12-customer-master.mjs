@@ -146,19 +146,33 @@ export async function searchT12Customers(db,q,limit=12){
 }
 
 async function exactMatches(db,fields){
+  const phoneCandidates=[fields.phone,fields.extraPhone].filter(Boolean);
+  if(phoneCandidates.length){
+    const placeholders=phoneCandidates.map(()=>'?').join(',');
+    const res=await db.prepare(`
+      SELECT customer_id AS customerId,customer_name AS name,phone,extra_phone AS extraPhone,version
+        FROM t12_customers
+       WHERE phone IN (${placeholders}) OR extra_phone IN (${placeholders})
+       ORDER BY customer_id
+       LIMIT 4
+    `).bind(...phoneCandidates,...phoneCandidates).all();
+    const phoneRows=(res&&res.results)||[];
+    const seenPhone=new Set();
+    const uniquePhone=phoneRows.filter(r=>{
+      const id=text(r.customerId);
+      if(!id||seenPhone.has(id))return false;
+      seenPhone.add(id);return true;
+    });
+    if(uniquePhone.length)return uniquePhone;
+  }
+
   const res=await db.prepare(`
     SELECT customer_id AS customerId,customer_name AS name,phone,extra_phone AS extraPhone,version
       FROM t12_customers
      WHERE customer_name_key=?
-        OR (?<>'' AND (phone=? OR extra_phone=?))
-        OR (?<>'' AND (phone=? OR extra_phone=?))
      ORDER BY customer_id
      LIMIT 4
-  `).bind(
-    fields.customerNameKey,
-    fields.phone,fields.phone,fields.phone,
-    fields.extraPhone,fields.extraPhone,fields.extraPhone
-  ).all();
+  `).bind(fields.customerNameKey).all();
   const rows=(res&&res.results)||[];
   const seen=new Set();
   return rows.filter(r=>{
