@@ -5511,11 +5511,11 @@ Trend Mall`;
     try {
       const res = await api("createCustomer", params);
       if (!res.success) {
-        setMsg("addCustomerStatus", res.message || "فشل حفظ بيانات العميل في الشيت.", true);
+        setMsg("addCustomerStatus", res.message || "فشل حفظ بيانات العميل على Cloud.", true);
         return;
       }
 
-      setMsg("addCustomerStatus", res.message || "تم حفظ بيانات العميل في شيت العملاء.", false);
+      setMsg("addCustomerStatus", res.message || "تم حفظ بيانات العميل على Cloud.", false);
       ["newClientName", "newClientPhone", "newClientExtraPhone", "newClientType", "newClientNotes"].forEach(function (id) {
         const el = $(id);
         if (el) el.value = "";
@@ -5546,7 +5546,7 @@ Trend Mall`;
         message: message
       }));
     } catch (e) {
-      setLoading("تم فتح واتساب، لكن لم يتم تسجيل رسالة التسجيل في الشيت.", true);
+      setLoading("تم فتح واتساب، لكن لم يتم تسجيل رسالة التسجيل على Cloud.", true);
     }
   }
 
@@ -5586,7 +5586,7 @@ Trend Mall`;
     }
     if (debtBox && external) {
       debtBox.className = "v1896-addorder-debt-box muted";
-      debtBox.textContent = "عميل خارجي / عابر: لن يتم حفظه في شيت العملاء.";
+      debtBox.textContent = "عميل خارجي / عابر: لن يتم حفظه في سجل العملاء.";
     } else if (!external && typeof refreshAddOrderDebt === "function") {
       setTimeout(refreshAddOrderDebt, 50);
     }
