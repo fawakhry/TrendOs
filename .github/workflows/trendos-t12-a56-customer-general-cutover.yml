@@ -1,0 +1,137 @@
+name: TrendOS T12 A56 Customer GENERAL Cutover
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/A56_CUSTOMER_GENERAL_CUTOVER.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a56-customer-general-cutover
+  cancel-in-progress: false
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact target guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fx 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -F 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -F 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          echo 'A56_TARGET=trendos-main'
+          echo 'CUSTOMER_ONLY=YES'
+          echo 'ORDER_MUTATION=NO'
+          echo 'GOOGLE_MUTATION=NO'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.142.0
+
+      - name: Customer master preflight read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "SELECT marker,mode,canary_remaining,next_customer_number,policy_epoch,updated_at FROM t12_customer_control WHERE singleton=1;              SELECT COUNT(*) AS total, SUM(CASE WHEN source='legacy-mirror' THEN 1 ELSE 0 END) AS legacy_count, SUM(CASE WHEN source='cloud-native' THEN 1 ELSE 0 END) AS cloud_count FROM t12_customers;              SELECT COUNT(*) AS duplicate_phone_groups FROM (SELECT phone FROM t12_customers WHERE phone<>'' GROUP BY phone HAVING COUNT(*)>1);              SELECT COUNT(*) AS duplicate_extra_phone_groups FROM (SELECT extra_phone FROM t12_customers WHERE extra_phone<>'' GROUP BY extra_phone HAVING COUNT(*)>1);              SELECT COUNT(*) AS ledger_rows FROM t12_customer_request_ledger;"             > /tmp/a56_customer_preflight.json
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/a56_customer_preflight.json','utf8'));
+          const sets=(Array.isArray(raw)?raw:[raw]).map(x=>x&&Array.isArray(x.results)?x.results:[]);
+          const flat=sets.flat();
+          const control=flat.find(x=>x.marker==='T12_CUSTOMER_MASTER_V1')||{};
+          const counts=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'total'))||{};
+          const dupPhone=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'duplicate_phone_groups'))||{};
+          const dupExtra=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'duplicate_extra_phone_groups'))||{};
+          const ledger=flat.find(x=>Object.prototype.hasOwnProperty.call(x,'ledger_rows'))||{};
+          const out={
+            mode:String(control.mode||''),
+            canaryRemaining:Number(control.canary_remaining||0),
+            nextCustomerNumber:Number(control.next_customer_number||0),
+            policyEpoch:String(control.policy_epoch||''),
+            total:Number(counts.total||0),
+            legacy:Number(counts.legacy_count||0),
+            cloud:Number(counts.cloud_count||0),
+            duplicatePhoneGroups:Number(dupPhone.duplicate_phone_groups||0),
+            duplicateExtraPhoneGroups:Number(dupExtra.duplicate_extra_phone_groups||0),
+            ledgerRows:Number(ledger.ledger_rows||0)
+          };
+          console.log('A56_CUSTOMER_PREFLIGHT='+JSON.stringify(out));
+          if(!['OFF','GENERAL'].includes(out.mode)) throw new Error('unexpected customer mode');
+          if(out.total < 247) throw new Error('customer master incomplete');
+          if(out.nextCustomerNumber < 1) throw new Error('invalid next customer number');
+          if(out.duplicatePhoneGroups!==0) throw new Error('duplicate primary phone groups require reconciliation');
+          if(out.duplicateExtraPhoneGroups!==0) throw new Error('duplicate extra phone groups require reconciliation');
+          NODE
+
+      - name: Verify production route before mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/a56_health_before.json --write-out '%{http_code}' "$PROD_URL/v1/t12/customers/write/health")"
+          cat /tmp/a56_health_before.json
+          test "$code" = '200'
+          node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a56_health_before.json','utf8')); if(!x.success||!x.schemaReady||!['OFF','GENERAL'].includes(x.mode)||Number(x.customerCount)<247) process.exit(1)"
+          anon="$(curl --silent --show-error --output /tmp/a56_anon.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{}' "$PROD_URL/v1/t12/customers/write")"
+          test "$anon" = '401'
+          echo 'A56_CUSTOMER_WRITE_ROUTE_PROTECTED=PASS'
+
+      - name: Enable native customer GENERAL write authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command             "UPDATE t12_customer_control SET mode='GENERAL',canary_remaining=0,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_CUSTOMER_MASTER_V1' AND mode IN ('OFF','GENERAL');              SELECT changes() AS changed;              SELECT marker,mode,canary_remaining,next_customer_number,policy_epoch,updated_at FROM t12_customer_control WHERE singleton=1;"             > /tmp/a56_customer_cutover.json
+          cat /tmp/a56_customer_cutover.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/a56_customer_cutover.json','utf8'));
+          const flat=(Array.isArray(x)?x:[x]).flatMap(v=>Array.isArray(v?.results)?v.results:[]);
+          const ctl=flat.find(r=>r.marker==='T12_CUSTOMER_MASTER_V1')||{};
+          if(ctl.mode!=='GENERAL'||Number(ctl.canary_remaining)!==0) throw new Error('customer GENERAL cutover not persisted');
+          console.log('A56_CUSTOMER_NATIVE_GENERAL_WRITE=PASS');
+          console.log('CUSTOMER_WRITE_AUTHORITY=D1');
+          console.log('GOOGLE_CUSTOMER_WRITE_AUTHORITY=NO');
+          NODE
+
+      - name: Production health after cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 10); do
+            code="$(curl --silent --show-error --output /tmp/a56_health_after.json --write-out '%{http_code}' "$PROD_URL/v1/t12/customers/write/health" || true)"
+            if [ "$code" = '200' ] && node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/a56_health_after.json','utf8')); if(!x.success||x.mode!=='GENERAL'||x.generalCutover!==true||Number(x.customerCount)<247) process.exit(1)"; then
+              cat /tmp/a56_health_after.json
+              echo 'A56_CUSTOMER_HEALTH_GENERAL=PASS'
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/a56_health_after.json || true
+          exit 1
+
+      - name: Final
+        run: |
+          echo 'A56_CUSTOMER_CUTOVER=PASS'
+          echo 'CUSTOMER_SEARCH_AUTHORITY=D1'
+          echo 'CUSTOMER_WRITE_AUTHORITY=D1'
+          echo 'CUSTOMER_GOOGLE_RUNTIME_AUTHORITY=NO'
+          echo 'ORDER_CREATE_UNCHANGED=YES'
+          echo 'ORDER_STATUS_MUTATION=NO'
+          echo 'GOOGLE_MUTATION=NO'
