@@ -109,18 +109,25 @@ Keep the complete current Production set, including:
 
 The A61 bridge is now inside the current-main `Code.gs`.
 
-### Add Script Properties
-Create:
+### Script Properties — deferred during source-only install
+Do **not** open Script Properties during the source-only installation.
 
-```text
-TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
-EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=<fresh secret generated outside GitHub>
+The A61 Apps Script bridge is fail-closed when its enable flag is absent or not exactly `true`, and it also rejects execution if the bridge secret is absent/invalid. Therefore the safe source-install state is:
+
+```ini
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=ABSENT_OR_FALSE
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=NOT_REQUIRED_FOR_SOURCE_INSTALL
+BRIDGE_RUNTIME=OFF
 ```
 
-Rules:
-- use a new random secret with at least 32 characters/bytes of entropy;
-- never paste the secret into GitHub, chat documentation, source code, screenshots, or commits;
-- the same secret must later be stored as a Cloudflare Worker secret.
+This avoids exposing unrelated sensitive Script Properties during source installation.
+
+Only during a later, separately authorized bridge-enable phase:
+- add/set `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false` before any enablement;
+- create a fresh `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1` outside GitHub/chat/logs;
+- install the same secret as the Cloudflare Worker secret;
+- verify both sides while the bridge remains OFF;
+- enable only under the dedicated canary runbook.
 
 ### Deploy Apps Script
 Use the current process:
