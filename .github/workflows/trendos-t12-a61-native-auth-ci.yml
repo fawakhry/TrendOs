@@ -1,0 +1,51 @@
+name: TrendOS T12 A61 Native Employee Auth CI
+
+on:
+  pull_request:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/migrations/0009_employee_auth_native_v1.sql'
+      - 'cloudflare-d1/src/employee-auth-native-v1.mjs'
+      - 'cloudflare-d1/src/cloud-session-bridge-v3.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'tests/employee_auth_native_a61.test.mjs'
+      - '.github/workflows/trendos-t12-a61-native-auth-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node --check cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          node --check cloudflare-d1/production-shadow/index.js
+
+      - name: A61 native employee auth foundation contract
+        run: node tests/employee_auth_native_a61.test.mjs
+
+      - name: Fail-closed boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' cloudflare-d1/wrangler.toml
+          ! grep -R --line-number --fixed-strings 'AUTH_PASSWORD_PEPPER' cloudflare-d1/src/employee-auth-native-v1.mjs cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+          echo 'A61_NATIVE_AUTH_FOUNDATION=PASS'
+          echo 'A61_PRODUCTION_MUTATION=NO'
+          echo 'A61_FRONTEND_CUTOVER=NO'
+          echo 'A61_APPS_SCRIPT_AUTH_FALLBACK_REMOVED=NO'
