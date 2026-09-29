@@ -339,3 +339,32 @@ Eight direct employee modules now support the dispatcher without changing OFF-mo
 
 Next:
 create a fresh branch from current main and apply only the qualified Apps Script bridge primitives to current main Code.gs. Do not copy the old Cloud-branch Code.gs wholesale. Source merge is allowed after CI; Production Apps Script deployment, Cloud Worker deployment, D1 migration, shared-secret configuration, and native-login enablement remain separate guarded steps.
+
+
+---
+
+# A61 current-main Apps Script bridge checkpoint — Entry483
+
+PR #29 merged to current main:
+`12dd9d31bcd36db736f0c06191812bdcc5167bad`
+
+CI:
+`36590223481` — SUCCESS.
+
+Safety proof:
+after removing only the A61 bridge block and dedicated early wrapper route, Code.gs equals current main byte-for-byte.
+
+Current state:
+```ini
+MAIN_FRONTEND_DISPATCHER=MERGED_DEFAULT_OFF
+MAIN_APPS_SCRIPT_BRIDGE=MERGED_DEFAULT_OFF
+CLOUD_A61_BACKEND=MERGED_CLOUD_BRANCH_DEFAULT_OFF
+APPS_SCRIPT_PRODUCTION_DEPLOY=NO
+CLOUDFLARE_A61_DEPLOY=NO
+D1_AUTH_MIGRATION=NO
+BRIDGE_SECRET_CONFIGURED=NO
+NATIVE_LOGIN=NO
+```
+
+Next guarded phase:
+prepare OFF-state Production installation instructions. Cloudflare/D1 changes remain owner-operated. Do not enable native login or bridge policy until Apps Script + Worker + D1 migration are installed and validated with every A61 runtime switch still OFF.
