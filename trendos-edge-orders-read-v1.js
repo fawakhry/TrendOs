@@ -8,14 +8,24 @@
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_READ_02CX_LINE_ID_GUARD_20260908';
+  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_D1_A51_STALE_BACKOFF_A52_20260929';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
+  var CUSTOMER_SEARCH_PATH = '/v1/edge/customers/search';
+  var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
+  var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
+  var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
+  var T12_RUNTIME_NOTIFY_PATH = '/v1/t12/orders/line-runtime/notify';
+  var T12_GENERAL_CREATE_PATH = '/v1/t12/orders/create';
+  var T12_GENERAL_CREATE_HEALTH_PATH = '/v1/t12/orders/create/health';
+  var T12_PENDING_CREATE_STORAGE_KEY = 'trendos_t12_pending_create_v1';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
   var DEFAULT_POST_WRITE_BARRIER_MS = 6 * 60 * 1000;
   var MAX_POST_WRITE_BARRIER_MS = 10 * 60 * 1000;
+  var DEFAULT_STALE_FALLBACK_COOLDOWN_MS = 2 * 60 * 1000;
+  var MAX_STALE_FALLBACK_COOLDOWN_MS = 5 * 60 * 1000;
   var POST_WRITE_BARRIER_STORAGE_KEY = 'trendos_edge_orders_post_write_barrier_v1';
   var GOOGLE_SHEETS_SERIAL_EPOCH_UTC_MS = Date.UTC(1899, 11, 30);
   var GOOGLE_SHEETS_SERIAL_DAY_MS = 24 * 60 * 60 * 1000;
@@ -23,16 +33,25 @@
   var session = { token: '', expiresAt: 0, inflight: null };
   var inflight = new Map();
   var postWriteBarrier = { until: 0, orderId: '', lineId: '', status: '' };
+  var staleFallbackUntil = 0;
+  var cloudNativeLineIds = new Set();
   var metrics = {
     edgeSuccess: 0,
     fallbacks: 0,
     staleFallbacks: 0,
+    staleCooldownBypasses: 0,
     logicalFreshnessAccepted: 0,
     postWriteFallbacks: 0,
     rowNumberStrippedWrites: 0,
     postWriteBarriersOpened: 0,
     lineIdRepairs: 0,
     writeIdentityRepairs: 0,
+    hybridOverlaySuccess: 0,
+    hybridOverlayFailures: 0,
+    hybridOverlayRows: 0,
+    customerEdgeSuccess: 0,
+    customerFallbacks: 0,
+    customerMissFallbacks: 0,
     lastFallbackAt: 0,
     lastFallbackReason: ''
   };
@@ -52,6 +71,30 @@
     var configured = Number(window.MATBAGY_EDGE_ORDERS_POST_WRITE_BARRIER_MS);
     if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_POST_WRITE_BARRIER_MS;
     return Math.min(configured, MAX_POST_WRITE_BARRIER_MS);
+  }
+
+  function staleFallbackCooldownMs() {
+    var configured = Number(window.MATBAGY_EDGE_ORDERS_STALE_FALLBACK_COOLDOWN_MS);
+    if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_STALE_FALLBACK_COOLDOWN_MS;
+    return Math.min(configured, MAX_STALE_FALLBACK_COOLDOWN_MS);
+  }
+
+  function isKnownMirrorStaleError(err) {
+    var code = text(err && err.code).toLowerCase();
+    return code === 'edge_mirror_stale' || code === '02cr-mirror-stale';
+  }
+
+  function openStaleFallbackCooldown() {
+    staleFallbackUntil = Date.now() + staleFallbackCooldownMs();
+  }
+
+  function staleFallbackActive() {
+    if (!staleFallbackUntil) return false;
+    if (staleFallbackUntil <= Date.now()) {
+      staleFallbackUntil = 0;
+      return false;
+    }
+    return true;
   }
 
   function parseMirrorTime(value) {
@@ -217,9 +260,12 @@
       if (!row || typeof row !== 'object') return row;
       var current = text(row.lineId);
       var repaired = repairSerializedLineId(row.orderId, current);
-      if (!repaired || repaired === current) return row;
-      metrics.lineIdRepairs += 1;
-      return Object.assign({}, row, { lineId: repaired });
+      var normalized = (!repaired || repaired === current) ? row : Object.assign({}, row, { lineId: repaired });
+      if (normalized !== row) metrics.lineIdRepairs += 1;
+      if (normalized && normalized.cloudNative === true && text(normalized.lineId)) {
+        cloudNativeLineIds.add(text(normalized.lineId));
+      }
+      return normalized;
     });
     return body;
   }
@@ -277,9 +323,30 @@
     return query.toString();
   }
 
+  function isServiceScreen(params) {
+    return text(params && params.screen).toLowerCase() === 'service';
+  }
+
+  function pagePathFor(params) {
+    // Entry 453: all operational screens, including Customer Service, use the
+    // qualified line-level 02CR route. It already merges T12 Cloud-native rows
+    // before filters/counters/pagination and matches Apps Script getRows_ shape.
+    return QUALIFIED_PAGE_PATH;
+  }
+
+  function validateServiceResponse(body) {
+    if (text(body && body.dataSource) !== 'd1-edge-orders-service-v1') {
+      throw mirrorFreshnessError('Service D1 data source mismatch', 'EDGE_SERVICE_SOURCE');
+    }
+    if (!body || !body.freshness || body.freshness.ok !== true) {
+      throw mirrorFreshnessError('Service D1 freshness proof missing', 'EDGE_SERVICE_FRESHNESS');
+    }
+    return body;
+  }
+
   async function edgePage(params) {
     var key = queryString(params || {});
-    var requestKey = QUALIFIED_PAGE_PATH + '?' + key;
+    var requestKey = pagePathFor(params || {}) + '?' + key;
     if (inflight.has(requestKey)) return inflight.get(requestKey);
 
     var task = (async function () {
@@ -296,7 +363,8 @@
           headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
         });
       }
-      return normalizeEdgeLineIdentities(validateRequiredMirrors(await jsonResponse(response)));
+      var body = await jsonResponse(response);
+      return normalizeEdgeLineIdentities(validateRequiredMirrors(body));
     })();
 
     inflight.set(requestKey, task);
@@ -304,11 +372,398 @@
     finally { inflight.delete(requestKey); }
   }
 
-  function eligible(action, params) {
-    if (action !== 'getRowsPageV1931') return false;
-    if (text(params && params.statusFilter) === '__DEBT__') return false;
-    return true;
+  async function edgeCustomerSearch(params) {
+    var query = new URLSearchParams();
+    var q = text(params && params.q);
+    if (q) query.set('q', q);
+    var requestKey = CUSTOMER_SEARCH_PATH + (query.toString() ? ('?' + query.toString()) : '');
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + requestKey, {
+      method: 'GET', cache: 'no-store', credentials: 'omit',
+      headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + requestKey, {
+        method: 'GET', cache: 'no-store', credentials: 'omit',
+        headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+      });
+    }
+    return jsonResponse(response);
   }
+
+  function rowIdentity(row) {
+    var lineId = text(row && row.lineId);
+    if (lineId) return 'line:' + lineId;
+    var orderId = text(row && row.orderId);
+    return orderId ? 'order:' + orderId : '';
+  }
+
+  async function t12OverlayPage(params) {
+    var key = queryString(params || {});
+    var requestKey = T12_OVERLAY_PATH + '?' + key;
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + requestKey, {
+      method: 'GET', cache: 'no-store', credentials: 'omit',
+      headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + requestKey, {
+        method: 'GET', cache: 'no-store', credentials: 'omit',
+        headers: { 'accept': 'application/json', 'authorization': 'Bearer ' + token }
+      });
+    }
+    var body = await jsonResponse(response);
+    if (text(body && body.dataSource) !== 't12-prod-native' || body.readOnly !== true) {
+      throw new Error('T12 read overlay response mismatch');
+    }
+    (body.rows || []).forEach(function (row) {
+      if (row && row.cloudNative === true && text(row.lineId)) cloudNativeLineIds.add(text(row.lineId));
+    });
+    return body;
+  }
+
+  async function t12RuntimePost(path, payload) {
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + path, {
+      method: 'POST', cache: 'no-store', credentials: 'omit',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(payload || {})
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + path, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(payload || {})
+      });
+    }
+    return jsonResponse(response);
+  }
+
+  function t12CreateFingerprint(params) {
+    var p = params || {};
+    return JSON.stringify([
+      text(p.customerMode), text(p.customerExternalId || p.externalCustomerId),
+      text(p.customerName), text(p.customerPhone), text(p.department),
+      text(p.heatPress), text(p.flyPrint), text(p.itemName), text(p.qty),
+      text(p.priority), text(p.status), text(p.source), text(p.notes)
+    ]);
+  }
+
+  function cloudCreateKeyFromLegacy(raw) {
+    var value = text(raw);
+    if (/^cld1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(value)) return value;
+    var m = value.match(/^co_(\d{13})_([A-Za-z0-9_-]+)$/);
+    if (!m) return '';
+    var suffix = ('ui_' + m[2] + '_trendos_create').replace(/[^A-Za-z0-9_-]/g, '_');
+    if (suffix.length < 16) suffix += '_0000000000000000';
+    return 'cld1_' + m[1] + '_' + suffix.slice(0, 80);
+  }
+
+  function readPendingCreate() {
+    try {
+      var parsed = JSON.parse(sessionStorage.getItem(T12_PENDING_CREATE_STORAGE_KEY) || '{}');
+      if (!parsed || !parsed.cloudKey || !parsed.fingerprint || !parsed.createdAt) return null;
+      if (Date.now() - Number(parsed.createdAt) > 20 * 60 * 1000) {
+        sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY);
+        return null;
+      }
+      return parsed;
+    } catch (e) { return null; }
+  }
+
+  function rememberPendingCreate(fingerprint, cloudKey) {
+    try {
+      sessionStorage.setItem(T12_PENDING_CREATE_STORAGE_KEY, JSON.stringify({
+        fingerprint: fingerprint, cloudKey: cloudKey, createdAt: Date.now()
+      }));
+    } catch (e) {}
+  }
+
+  function clearPendingCreate() {
+    try { sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY); } catch (e) {}
+  }
+
+  function safeT12CreatePayload(params, cloudKey) {
+    var p = params || {};
+    return {
+      clientRequestId: cloudKey,
+      customerMode: text(p.customerMode),
+      externalCustomerId: text(p.customerExternalId || p.externalCustomerId),
+      customerName: text(p.customerName),
+      customerPhone: text(p.customerPhone),
+      department: text(p.department),
+      heatPress: text(p.heatPress),
+      flyPrint: text(p.flyPrint),
+      itemName: text(p.itemName) || ('أوردر جديد - ' + (text(p.department) || 'عام')),
+      qty: p.qty == null ? 1 : p.qty,
+      priority: text(p.priority),
+      status: text(p.status) || 'طلب جديد',
+      source: text(p.source),
+      notes: text(p.notes)
+    };
+  }
+
+  async function t12GeneralCreateHealth() {
+    var response = await fetch(edgeBase() + T12_GENERAL_CREATE_HEALTH_PATH, {
+      method: 'GET', cache: 'no-store', credentials: 'omit',
+      headers: { 'accept': 'application/json' }
+    });
+    return jsonResponse(response);
+  }
+
+  async function t12JsonAnyStatus(response) {
+    var body = {};
+    try { body = await response.json(); }
+    catch (e) {
+      body = {
+        success: false,
+        code: 'T12_NON_JSON_RESPONSE',
+        message: 'رد Cloud غير صالح (HTTP ' + String(response && response.status || '') + ').'
+      };
+    }
+    if (body && typeof body === 'object') {
+      body.httpStatus = Number(response && response.status || 0);
+      return body;
+    }
+    return {
+      success: false,
+      code: 'T12_INVALID_RESPONSE_BODY',
+      message: 'رد Cloud غير متوقع.',
+      httpStatus: Number(response && response.status || 0)
+    };
+  }
+
+  function createFailureMessage(body) {
+    var reason = text(body && (body.message || body.reason || body.code));
+    var errors = body && Array.isArray(body.errors) ? body.errors.map(text).filter(Boolean) : [];
+    var labels = {
+      'registered-customer-name-required': 'اسم العميل المسجل مطلوب.',
+      'registered-customer-phone-required': 'رقم العميل المسجل مطلوب أو لازم تختاره من نتائج البحث.',
+      'external-customer-id-min-3-digits': 'للعميل الخارجي اكتب 3 أرقام على الأقل.',
+      'supported-department-required': 'اختر قسم صحيح: طباعة أو ليزر أو متعدد الأقسام.',
+      'fly-print-requires-print-department': 'طباعة على الطاير متاحة لقسم الطباعة فقط.',
+      'item-name-required': 'اسم البند مطلوب.',
+      'positive-qty-required': 'الكمية لازم تكون أكبر من صفر.',
+      'initial-status-must-be-new': 'الأوردر الجديد لازم يبدأ بحالة طلب جديد.',
+      'supported-priority-required': 'الأولوية غير مدعومة.'
+    };
+    if (reason === 'canonical-business-intent-invalid' && errors.length) {
+      return errors.map(function (e) { return labels[e] || e; }).join(' | ');
+    }
+    if (reason === 'general-create-off') return 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد.';
+    if (reason === 'registered-customer-phone-required') return 'العميل المسجل لازم يكون له رقم هاتف قبل فتح الأوردر.';
+    if (reason === 'general-create-canary-not-armed') return 'اختبار إنشاء الأوردر غير مسلح حاليًا.';
+    if (/unknown|not-verified|unavailable/i.test(reason)) return 'نتيجة تسجيل الأوردر غير مؤكدة. لا تعيد الإرسال تلقائيًا؛ اضغط مرة أخرى بنفس البيانات ليتم التحقق بنفس المفتاح.';
+    return reason || 'تعذر تسجيل الأوردر الجديد على Cloud.';
+  }
+
+  function normalizeCustomerLookupName(value) {
+    return text(value).toLowerCase()
+      .replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و')
+      .replace(/ئ/g, 'ي').replace(/[ةه]/g, 'ه').replace(/\s+/g, ' ').trim();
+  }
+
+  async function resolveRegisteredCustomerForCloud(context, original, params) {
+    var p = Object.assign({}, params || {});
+    var mode = text(p.customerMode).toLowerCase();
+    var registered = !mode.includes('خارجي') && !mode.includes('عابر') && mode !== 'external' && mode !== 'transient';
+    if (!registered || text(p.customerPhone)) return { success: true, params: p };
+
+    var name = text(p.customerName);
+    if (!name) return { success: false, message: 'اسم العميل المسجل مطلوب.' };
+
+    var searchParams = {
+      q: name,
+      username: p.username,
+      token: p.token
+    };
+    var result;
+    try {
+      result = await edgeCustomerSearch(searchParams);
+      if (!result || !Array.isArray(result.customers) || !result.customers.length) {
+        result = await original.call(context, 'searchCustomers', searchParams);
+      }
+    } catch (e) {
+      try { result = await original.call(context, 'searchCustomers', searchParams); }
+      catch (fallbackErr) { return { success: false, message: 'تعذر التحقق من بيانات العميل المسجل. اختاره من قائمة البحث أولًا.' }; }
+    }
+
+    var customers = result && result.success && Array.isArray(result.customers) ? result.customers : [];
+    var key = normalizeCustomerLookupName(name);
+    var exact = customers.filter(function (x) {
+      return normalizeCustomerLookupName(x && x.name) === key && text(x && x.phone);
+    });
+    if (exact.length !== 1) {
+      return { success: false, message: 'اختار العميل المسجل من قائمة البحث عشان رقم الهاتف يتحدد قبل فتح الأوردر.' };
+    }
+    p.customerName = text(exact[0].name) || name;
+    p.customerPhone = text(exact[0].phone);
+    if (!text(p.customerType) && text(exact[0].type)) p.customerType = text(exact[0].type);
+    return { success: true, params: p };
+  }
+
+  async function t12CreateManualOrder(params) {
+    var health = await t12GeneralCreateHealth();
+    if (!health || health.success !== true || health.schemaReady !== true) {
+      return { success: false, code: 'T12_GENERAL_CREATE_UNAVAILABLE', message: 'مسار تسجيل الأوردرات الجديد غير جاهز. لم يتم الإرسال إلى Apps Script.' };
+    }
+    if (text(health.mode) === 'OFF') {
+      return { success: false, code: 'T12_GENERAL_CREATE_OFF', message: 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد. لم يتم الإرسال إلى Apps Script.' };
+    }
+
+    var fingerprint = t12CreateFingerprint(params || {});
+    var pending = readPendingCreate();
+    var cloudKey = pending && pending.fingerprint === fingerprint
+      ? text(pending.cloudKey)
+      : cloudCreateKeyFromLegacy(params && params.clientRequestId);
+    if (!cloudKey) {
+      return { success: false, code: 'T12_CLOUD_KEY_REQUIRED', message: 'تعذر إنشاء مفتاح آمن للأوردر. لم يتم الإرسال.' };
+    }
+    rememberPendingCreate(fingerprint, cloudKey);
+
+    var payload = safeT12CreatePayload(params || {}, cloudKey);
+    var token = await ensureSession();
+    var headers = {
+      'accept': 'application/json',
+      'content-type': 'application/json',
+      'authorization': 'Bearer ' + token
+    };
+    if (text(health.mode) === 'CANARY') {
+      headers['x-t12-general-canary-confirm'] = String(Number(health.nextOrderNumber || 0));
+    }
+
+    var response;
+    try {
+      response = await fetch(edgeBase() + T12_GENERAL_CREATE_PATH, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: headers,
+        body: JSON.stringify(payload)
+      });
+    } catch (networkErr) {
+      return {
+        success: false,
+        code: 'T12_CREATE_NETWORK_AMBIGUOUS_NO_RETRY',
+        message: 'الاتصال انقطع أثناء تسجيل الأوردر. نفس البيانات ستستخدم نفس المفتاح عند المحاولة التالية للتحقق بدون تكرار.',
+        retryAutomatically: false
+      };
+    }
+
+    if (response.status === 401) {
+      // A 401 is pre-mutation, so one token refresh is safe.
+      clearSession();
+      token = await ensureSession();
+      headers['authorization'] = 'Bearer ' + token;
+      response = await fetch(edgeBase() + T12_GENERAL_CREATE_PATH, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: headers,
+        body: JSON.stringify(payload)
+      });
+    }
+
+    var body = await t12JsonAnyStatus(response);
+    if (body && body.success === true) {
+      clearPendingCreate();
+      return body;
+    }
+
+    var reason = text(body && (body.reason || body.code));
+    if (!/unknown|not-verified|unavailable/i.test(reason) && response.status < 500) clearPendingCreate();
+    if (body && !body.message) body.message = createFailureMessage(body);
+    return body || { success: false, code: 'T12_CREATE_FAILED', message: 'تعذر تسجيل الأوردر الجديد على Cloud.' };
+  }
+
+  function mergeHybridFallback(appsResult, overlayBody, params) {
+    var base = appsResult && typeof appsResult === 'object' ? Object.assign({}, appsResult) : { success: true };
+    var legacyRows = Array.isArray(base.rows) ? base.rows.slice() : [];
+    var cloudRows = overlayBody && Array.isArray(overlayBody.rows) ? overlayBody.rows.slice() : [];
+    if (!cloudRows.length) {
+      base.hybridOverlay = { enabled: true, cloudNativeRows: 0, merged: false };
+      return base;
+    }
+
+    var seen = new Set();
+    var merged = [];
+    cloudRows.concat(legacyRows).forEach(function (row) {
+      var key = rowIdentity(row);
+      if (key && seen.has(key)) return;
+      if (key) seen.add(key);
+      merged.push(row);
+    });
+    base.rows = merged;
+    if (base.pagination && typeof base.pagination === 'object') {
+      var pg = Object.assign({}, base.pagination);
+      var added = Math.max(0, merged.length - legacyRows.length);
+      var total = Number(pg.totalRows || 0);
+      if (Number.isFinite(total)) pg.totalRows = total + added;
+      base.pagination = pg;
+    }
+    base.dataSource = 'apps-script+t12-native';
+    base.hybridOverlay = {
+      enabled: true,
+      cloudNativeRows: cloudRows.length,
+      mergedRows: merged.length,
+      control: overlayBody.control || null,
+      readOnly: true
+    };
+    return base;
+  }
+
+  async function hybridAppsScriptFallback(context, original, action, params, args) {
+    var appsResult = await original.apply(context, args);
+    try {
+      var overlay = await t12OverlayPage(params || {});
+      var merged = mergeHybridFallback(appsResult, overlay, params || {});
+      metrics.hybridOverlaySuccess += 1;
+      metrics.hybridOverlayRows += Array.isArray(overlay.rows) ? overlay.rows.length : 0;
+      return merged;
+    } catch (overlayErr) {
+      metrics.hybridOverlayFailures += 1;
+      try {
+        console.warn('[TrendOS T12 Hybrid Overlay] overlay unavailable; returning Apps Script only:', overlayErr && overlayErr.message ? overlayErr.message : overlayErr);
+      } catch (ignore) {}
+      return appsResult;
+    }
+  }
+
+  function canaryUserAllowed() {
+  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY !== true) return true;
+  var user = currentUser();
+  var username = text(user && user.username).toLowerCase();
+  var allowed = Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS)
+    ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.map(function (value) { return text(value).toLowerCase(); })
+    : [];
+  return !!username && allowed.indexOf(username) >= 0;
+}
+
+function edgeScreenAllowed(params) {
+  var allowed = Array.isArray(window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS)
+    ? window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS.map(function (value) { return text(value).toLowerCase(); })
+    : [];
+  if (!allowed.length) return true;
+  return allowed.indexOf(text(params && params.screen).toLowerCase()) >= 0;
+}
+
+function eligible(action, params) {
+  if (action !== 'getRowsPageV1931') return false;
+  if (text(params && params.statusFilter) === '__DEBT__') return false;
+  if (!edgeScreenAllowed(params)) return false;
+  if (window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true && !canaryUserAllowed()) return false;
+  return true;
+}
 
   function install() {
     if (window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED !== true) return false;
@@ -319,14 +774,70 @@
     async function wrapped(action, params) {
       var args = arguments;
 
-      // Writes remain authoritative Apps Script writes. updateLine is normalized
+      // Customer lookup is Cloud/D1-first. A D1 miss intentionally falls back
+      // to Apps Script so newly-added customers remain visible until customer
+      // write authority is migrated in a later gated step.
+      if (action === 'searchCustomers') {
+        var customerQuery = text(params && params.q);
+        if (!customerQuery) return { success: true, customers: [] };
+        try {
+          var customerResult = await edgeCustomerSearch(params || {});
+          if (customerResult && Array.isArray(customerResult.customers) && customerResult.customers.length) {
+            metrics.customerEdgeSuccess += 1;
+            return customerResult;
+          }
+          metrics.customerMissFallbacks += 1;
+          metrics.customerFallbacks += 1;
+          return original.apply(this, args);
+        } catch (customerErr) {
+          metrics.customerFallbacks += 1;
+          try {
+            console.warn('[TrendOS Customer D1 A51] Cloud customer search unavailable; using Apps Script fallback:', customerErr && customerErr.message ? customerErr.message : customerErr);
+          } catch (ignore) {}
+          return original.apply(this, args);
+        }
+      }
+
+      // New Order IDs are Cloud-native from 4322 onward. Never fall back to
+      // Apps Script CREATE because its legacy allocator may collide with Cloud IDs.
+      if (action === 'createManualOrder') {
+        var resolved = await resolveRegisteredCustomerForCloud(this, original, params || {});
+        if (!resolved.success) return { success: false, code: 'T12_REGISTERED_CUSTOMER_RESOLUTION_REQUIRED', message: resolved.message };
+        return t12CreateManualOrder(resolved.params || {});
+      }
+
+      // Legacy-row writes remain Apps Script; Cloud-native line writes use T12 runtime.
+      // updateLine is normalized
       // to stable identity before it reaches Apps Script, then a persisted read
       // barrier prevents a browser refresh from repainting an older D1 mirror.
       if (action === 'updateLine') {
+        if (!canaryUserAllowed()) return original.apply(this, args);
+        var requestedLineId = text(params && params.lineId);
+        if (requestedLineId && cloudNativeLineIds.has(requestedLineId)) {
+          return t12RuntimePost(T12_RUNTIME_UPDATE_PATH, {
+            orderId: text(params && params.orderId),
+            lineId: requestedLineId,
+            status: text(params && params.status),
+            notes: text(params && params.notes)
+          });
+        }
         var safeParams = identitySafeUpdateLineParams(params || {});
         var writeResult = await original.call(this, action, safeParams);
         if (writeResult && writeResult.success === true) openPostWriteBarrier(safeParams);
         return writeResult;
+      }
+
+      if (action === 'markCustomerNotified') {
+        var notifyLineId = text(params && params.lineId);
+        if (notifyLineId && cloudNativeLineIds.has(notifyLineId)) {
+          return t12RuntimePost(T12_RUNTIME_NOTIFY_PATH, {
+            orderId: text(params && params.orderId),
+            lineId: notifyLineId,
+            whatsappType: text(params && params.whatsappType),
+            message: text(params && params.message)
+          });
+        }
+        return original.apply(this, args);
       }
 
       if (!eligible(action, params || {})) return original.apply(this, args);
@@ -336,7 +847,15 @@
         metrics.postWriteFallbacks += 1;
         metrics.lastFallbackAt = Date.now();
         metrics.lastFallbackReason = 'EDGE_POST_WRITE_READ_BARRIER';
-        return original.apply(this, args);
+        return hybridAppsScriptFallback(this, original, action, params || {}, args);
+      }
+
+      if (staleFallbackActive()) {
+        metrics.fallbacks += 1;
+        metrics.staleCooldownBypasses += 1;
+        metrics.lastFallbackAt = Date.now();
+        metrics.lastFallbackReason = 'EDGE_MIRROR_STALE_COOLDOWN';
+        return hybridAppsScriptFallback(this, original, action, params || {}, args);
       }
 
       try {
@@ -348,11 +867,14 @@
         metrics.fallbacks += 1;
         metrics.lastFallbackAt = Date.now();
         metrics.lastFallbackReason = text(err && (err.code || err.message));
-        if (err && err.code === 'EDGE_MIRROR_STALE') metrics.staleFallbacks += 1;
+        if (isKnownMirrorStaleError(err)) {
+          metrics.staleFallbacks += 1;
+          openStaleFallbackCooldown();
+        }
         try {
           console.warn('[TrendOS Orders Edge 02CX] D1 read unavailable/freshness failed; using Apps Script fallback:', err && err.message ? err.message : err);
         } catch (ignore) {}
-        return original.apply(this, args);
+        return hybridAppsScriptFallback(this, original, action, params || {}, args);
       }
     }
 
@@ -362,11 +884,16 @@
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 'qualified-d1-orders-read-first-line-id-repaired-persisted-read-your-write-apps-script-authoritative',
+      mode: 't12-02cr-orders-plus-d1-customer-search-with-apps-script-fallback',
+      customerSearchPath: CUSTOMER_SEARCH_PATH,
+      serviceUsesQualified02CR: true,
+      canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
+      canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
       api: edgeBase(),
       pagePath: QUALIFIED_PAGE_PATH,
       maxMirrorAgeMs: maxMirrorAgeMs(),
       postWriteBarrierMs: postWriteBarrierMs(),
+      staleFallbackCooldownMs: staleFallbackCooldownMs(),
       clearSession: clearSession,
       clearPostWriteBarrier: clearPostWriteBarrier,
       repairSerializedLineId: repairSerializedLineId,
@@ -377,12 +904,22 @@
           edgeSuccess: metrics.edgeSuccess,
           fallbacks: metrics.fallbacks,
           staleFallbacks: metrics.staleFallbacks,
+          staleCooldownBypasses: metrics.staleCooldownBypasses,
+          staleFallbackActive: staleFallbackActive(),
+          staleFallbackUntil: staleFallbackUntil || 0,
           logicalFreshnessAccepted: metrics.logicalFreshnessAccepted,
           postWriteFallbacks: metrics.postWriteFallbacks,
           rowNumberStrippedWrites: metrics.rowNumberStrippedWrites,
           postWriteBarriersOpened: metrics.postWriteBarriersOpened,
           lineIdRepairs: metrics.lineIdRepairs,
           writeIdentityRepairs: metrics.writeIdentityRepairs,
+          hybridOverlaySuccess: metrics.hybridOverlaySuccess,
+          hybridOverlayFailures: metrics.hybridOverlayFailures,
+          hybridOverlayRows: metrics.hybridOverlayRows,
+          customerEdgeSuccess: metrics.customerEdgeSuccess,
+          customerFallbacks: metrics.customerFallbacks,
+          customerMissFallbacks: metrics.customerMissFallbacks,
+          cloudNativeLineIds: cloudNativeLineIds.size,
           postWriteBarrierActive: postWriteBarrierActive(),
           postWriteBarrierUntil: postWriteBarrier.until || 0,
           postWriteOrderId: postWriteBarrier.orderId,
@@ -403,6 +940,7 @@
     pagePath: QUALIFIED_PAGE_PATH,
     maxMirrorAgeMs: maxMirrorAgeMs(),
     postWriteBarrierMs: postWriteBarrierMs(),
+    staleFallbackCooldownMs: staleFallbackCooldownMs(),
     install: install,
     clearSession: clearSession,
     clearPostWriteBarrier: clearPostWriteBarrier,
