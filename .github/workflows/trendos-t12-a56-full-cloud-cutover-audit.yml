@@ -1,0 +1,46 @@
+name: TrendOS T12 A56 Full Cloud Cutover Audit
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a56-full-cloud-cutover-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runtime Google dependency inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== A56 RUNTIME GOOGLE DEPENDENCY INVENTORY ==='
+          rg -n --hidden             --glob '!docs/**'             --glob '!**/*.md'             --glob '!cloudflare-d1/apps-script-importer.gs'             --glob '!cloudflare-d1/D1_Full_Migration.gs'             --glob '!cloudflare-d1/D1_Orders_Read_Cutover.gs'             --glob '!cloudflare-d1/**/*.sql'             '(script\.google\.com|docs\.google\.com|WEB_APP_URL|TREND_API_URL|API_URL|TRENDOS_SHEET_ID|TRENDOS_SHEET_URL|SpreadsheetApp|PropertiesService|getSheetByName|openById)' .             | tee /tmp/a56_google_runtime.txt || true
+
+          echo '=== A56 FRONTEND/API CALLS ==='
+          rg -n --hidden             --glob '*.js' --glob '*.html'             '(api\(|fetch\(|TREND_API_URL|API_URL|WEB_APP_URL|MATBAGY_EDGE_ORDERS_API_URL|MATBAGY_EDGE_API_URL)' .             | tee /tmp/a56_frontend_calls.txt || true
+
+          echo '=== A56 CLOUD ROUTES ==='
+          rg -n             --glob 'cloudflare-d1/src/**' --glob 'cloudflare-d1/production-shadow/**'             "(/v1/|pathname|is.*Path|handle.*Request)" cloudflare-d1             | tee /tmp/a56_cloud_routes.txt || true
+
+          runtime_google="$(wc -l < /tmp/a56_google_runtime.txt | tr -d ' ')"
+          frontend_calls="$(wc -l < /tmp/a56_frontend_calls.txt | tr -d ' ')"
+          cloud_routes="$(wc -l < /tmp/a56_cloud_routes.txt | tr -d ' ')"
+
+          echo "A56_RUNTIME_GOOGLE_MATCHES=$runtime_google"
+          echo "A56_FRONTEND_API_MATCHES=$frontend_calls"
+          echo "A56_CLOUD_ROUTE_MATCHES=$cloud_routes"
+
+          echo '=== A56 FILE SUMMARY ==='
+          awk -F: '{print $1}' /tmp/a56_google_runtime.txt | sort | uniq -c | sort -nr | head -100
+
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'GOOGLE_MUTATION=NO'
+          echo 'A56_AUDIT=PASS'
