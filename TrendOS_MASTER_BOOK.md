@@ -109,6 +109,17 @@ A61_BRIDGE_POLICY=ACTION_PLUS_OP_FOR_MULTIPLEXERS
 A61_BRIDGE_PRODUCTION_ENABLEMENT=NO
 ```
 
+**A61 Phase 4 — frontend employee dispatcher qualified, not deployed:** PR #28 merged to current `main` at `86bb83bb57d0d967c8c8c46b4703244d2e12c51a`; CI run `36587865304` = SUCCESS. New `employee-api-dispatcher-v1.js` is default-OFF and preserves current transport while OFF. It prepares native employee auth routing, approved temporary legacy bridge routing, customer-session separation, and Cloud-native order/customer preservation. Eight direct-call employee modules were wired to the dispatcher with exact legacy invokers, and hybrid Orders fallback is bridge-safe in future native mode. **No frontend redeploy occurred yet.** The next source task is to reapply the qualified Apps Script assertion bridge onto current `main` `Code.gs`, because the Cloud-branch backend snapshot must not be deployed wholesale.
+
+```ini
+A61_FRONTEND_DISPATCHER=MERGED_MAIN_DEFAULT_OFF
+A61_FRONTEND_DISPATCHER_CI=PASS
+A61_FRONTEND_REDEPLOY=NO
+A61_APPS_SCRIPT_BRIDGE_DEPLOY=NO
+A61_D1_MIGRATION_APPLIED=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
