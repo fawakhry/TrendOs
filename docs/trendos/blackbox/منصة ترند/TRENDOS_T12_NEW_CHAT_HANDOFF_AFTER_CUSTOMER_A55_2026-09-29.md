@@ -279,3 +279,38 @@ ZERO_GOOGLE_COMPLETE=NO
 
 Next safe step:
 classify the remaining employee-authenticated Apps Script actions into read-only / business-write / maintenance / forbidden-auth categories and derive the minimum temporary bridge allowlist. Do not enable the bridge or native login until that classification and Production qualification are complete.
+
+
+---
+
+# A61 action classification checkpoint — Entry481
+
+PR #27 merged:
+`49c4ba4bfeb9741fff1989d2a4ab837beab4239e`
+
+CI:
+`36586353524` — SUCCESS.
+
+Key findings:
+- A58 reported 80 action strings.
+- A61 review found two active routes missed by the A58 regex: `hrV1` and `attendanceClockinV1`.
+- corrected observed action strings >= 82.
+- 15 are nested op labels, so observed top-level runtime actions = 67.
+- 49 top-level employee-authenticated legacy business actions remain temporary bridge/migration candidates after excluding Cloud-native, auth-control, customer-session, blocked and maintenance actions.
+- first proposed read-only bridge pilot = 28 exact policies.
+- multiplexed actions require exact `action:op` rules.
+- bridge remains disabled and repository allowlist remains empty.
+
+Important frontend blocker:
+these active modules still call `TREND_API_URL/API_URL` directly with the employee token:
+`attendance-clockin-ui-v1.js`,
+`attendance-live-timer-v1.js`,
+`employee-cleaning-prep-v1.js`,
+`customer-manager-v1.js`,
+`customer-feedback-v1.js`,
+`go-live-autopilot-v1.js`,
+`hr-v1.js`.
+`press-control-v1.js` uses the secure wrapper first but still has a direct Apps Script fallback.
+
+Next:
+build an isolated frontend employee API dispatcher from the current main/frontend lineage, not from the old Cloud branch frontend snapshot. Keep all runtime cutover flags OFF until CI and live qualification are complete.
