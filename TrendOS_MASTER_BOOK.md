@@ -75,6 +75,17 @@ APPS_SCRIPT_AUTH_FALLBACK=NO
 
 **A61 design contract المقترح:** D1 Employee Master يحتوي فقط على stable employee id/username، password verifier/hash، mustChange، active، role، department، screens/permissions، session version/revocation generation، timestamps. لا يُكتب password/pepper/token secret في repo أو docs.
 
+**A61 Phase 1 — foundation qualified, not live:** PR #25 merged to the Cloud branch at `549809bd770c97d619c40f903accc369fd0166fc`. Additive migration `0009_employee_auth_native_v1.sql` + native auth module + native-session-first bridge are merged. PBKDF2 salted verifiers and HMAC session fingerprints are used; no plaintext credential/legacy pepper/raw session token is stored. A61 CI run `36581513796` = SUCCESS. All Production auth flags remain OFF and no D1 migration/Worker deploy/frontend cutover occurred. **Employee Login authority is still Apps Script.** Critical blocker: remaining legacy Apps Script actions still expect the Apps Script employee token, so a D1-only login cannot be enabled until a fail-closed compatibility bridge is qualified. Detailed record: Entry479.
+
+```ini
+A61_FOUNDATION_CODE=MERGED
+A61_NATIVE_AUTH_CI=PASS
+A61_PRODUCTION_CUTOVER=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+APPS_SCRIPT_AUTH_FALLBACK=YES
+ZERO_GOOGLE_COMPLETE=NO
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
