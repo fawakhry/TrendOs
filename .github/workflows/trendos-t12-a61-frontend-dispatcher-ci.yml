@@ -1,0 +1,62 @@
+name: TrendOS T12 A61 Frontend Employee Dispatcher CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
+      - 'index.html'
+      - 'trendos-edge-orders-read-v1.js'
+      - 'attendance-clockin-ui-v1.js'
+      - 'attendance-live-timer-v1.js'
+      - 'employee-cleaning-prep-v1.js'
+      - 'customer-manager-v1.js'
+      - 'customer-feedback-v1.js'
+      - 'go-live-autopilot-v1.js'
+      - 'hr-v1.js'
+      - 'press-control-v1.js'
+      - 'tests/frontend_employee_api_dispatcher_a61.test.mjs'
+      - '.github/workflows/trendos-t12-a61-frontend-dispatcher-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax
+        run: |
+          node --check employee-api-dispatcher-v1.js
+          node --check trendos-edge-orders-read-v1.js
+          node --check attendance-clockin-ui-v1.js
+          node --check attendance-live-timer-v1.js
+          node --check employee-cleaning-prep-v1.js
+          node --check customer-manager-v1.js
+          node --check customer-feedback-v1.js
+          node --check go-live-autopilot-v1.js
+          node --check hr-v1.js
+          node --check press-control-v1.js
+
+      - name: A61 frontend dispatcher contract
+        run: node tests/frontend_employee_api_dispatcher_a61.test.mjs
+
+      - name: Default-off boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' config.js
+          grep -F 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' config.js
+          grep -F 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];' config.js
+          echo 'A61_FRONTEND_DISPATCHER_DEFAULT_OFF=PASS'
+          echo 'PRODUCTION_CUTOVER=NO'
+          echo 'ORDER_MUTATION=NO'
