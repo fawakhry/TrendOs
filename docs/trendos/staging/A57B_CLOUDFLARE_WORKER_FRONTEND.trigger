@@ -6,3 +6,5 @@ api_worker=trendos-d1-api
 customer_authority=d1
 no_google_mutation=yes
 no_d1_data_mutation=yes
+
+redeploy_after_main_entrypoint=ac980a22f354f441d34ff8851f8c2eb1877626dc
