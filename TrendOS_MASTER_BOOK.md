@@ -1,10 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.68-DRAFT-COMPACT — current T12 Cloud cutover reconciled through A60; Customers D1-native; Cloudflare frontend live; Employee/Auth is next Zero-Google blocker** · تاريخ التحديث: 2026-09-29 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.69-DRAFT-COMPACT — T12 Cloud cutover reconciled through A61 Phase 5 / Entry484; Employee Auth source foundations qualified; OFF-state Production installation is next** · تاريخ التحديث: 2026-09-29 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A60
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Phase 5
 
 **Checkpoint قبل هذا التحديث:** Working-branch HEAD المعروف `b500be4975f8d323c33e8ab8664f77cc28f787e2` (Entry478 documentation). آخر `main` وظيفي معروف `e5efcb39acf33a70ce13f16125e307a51994bb65` (A60 logging hygiene). هذه الصفحة تلغي كحالة حالية أي نص أقدم يقول إن Customer write authority ما زالت Apps Script أو إن واجهة TrendOS الأساسية ما زالت GitHub Pages.
 
@@ -129,6 +129,19 @@ A61_APPS_SCRIPT_PRODUCTION_DEPLOY=NO
 A61_BRIDGE_SECRET_CONFIGURED=NO
 A61_NATIVE_EMPLOYEE_LOGIN=NO
 EMPLOYEE_LOGIN=GOOGLE_BACKED
+```
+
+**A61 Phase 6 pre-installation gate — OFF-state runbook ready:** Entry484 defines the owner-run Production installation sequence for Apps Script + D1 + Cloudflare while keeping every A61 switch OFF. Source-only preflight was rechecked directly after the chat stream interruption and passed: current `main` frontend flags are false/empty; current-main Apps Script bridge/wrapper are present; Cloud Worker auth/bootstrap/native-only/bridge flags are false; bridge allowlist is empty; D1 migration defaults and seeds control mode `OFF`; both read-only health routes are present. **No Production mutation was performed by this verification.**
+
+```ini
+A61_OFF_STATE_RUNBOOK=READY
+A61_SOURCE_PREFLIGHT=PASS
+APPS_SCRIPT_PRODUCTION_DEPLOY=NO
+D1_AUTH_MIGRATION_APPLIED=NO
+CLOUDFLARE_A61_DEPLOY=NO
+FRONTEND_A61_REDEPLOY=NO
+NATIVE_EMPLOYEE_LOGIN=NO
+NEXT_OWNER_ACTION=APPS_SCRIPT_OFF_STATE_INSTALL
 ```
 
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
