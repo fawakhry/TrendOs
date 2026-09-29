@@ -314,3 +314,28 @@ these active modules still call `TREND_API_URL/API_URL` directly with the employ
 
 Next:
 build an isolated frontend employee API dispatcher from the current main/frontend lineage, not from the old Cloud branch frontend snapshot. Keep all runtime cutover flags OFF until CI and live qualification are complete.
+
+
+---
+
+# A61 frontend dispatcher checkpoint — Entry482
+
+PR #28 merged to current main:
+`86bb83bb57d0d967c8c8c46b4703244d2e12c51a`
+
+CI:
+`36587865304` — SUCCESS.
+
+Frontend now contains a default-OFF employee dispatcher foundation. No Cloudflare frontend redeploy occurred in this phase.
+
+Current defaults:
+```ini
+MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false
+MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES=[]
+```
+
+Eight direct employee modules now support the dispatcher without changing OFF-mode behavior. Hybrid Orders legacy fallback is also prepared to use the bridge in future native mode.
+
+Next:
+create a fresh branch from current main and apply only the qualified Apps Script bridge primitives to current main Code.gs. Do not copy the old Cloud-branch Code.gs wholesale. Source merge is allowed after CI; Production Apps Script deployment, Cloud Worker deployment, D1 migration, shared-secret configuration, and native-login enablement remain separate guarded steps.
