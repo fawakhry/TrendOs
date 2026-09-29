@@ -1,0 +1,86 @@
+name: TrendOS T12 A61 OFF-State Installation Preflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/migrations/0009_employee_auth_native_v1.sql'
+      - 'cloudflare-d1/src/employee-auth-native-v1.mjs'
+      - 'cloudflare-d1/src/employee-legacy-bridge-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_OFF_STATE_PRODUCTION_INSTALL_RUNBOOK_ENTRY_484_2026-09-29.md'
+      - '.github/workflows/trendos-t12-a61-off-state-install-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fetch current main source
+        run: git fetch origin main --quiet
+
+      - name: Cloud A61 source syntax
+        run: |
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node --check cloudflare-d1/src/employee-legacy-bridge-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+
+      - name: Worker remains fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' cloudflare-d1/wrangler.toml
+
+      - name: D1 migration defaults OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "mode TEXT NOT NULL DEFAULT 'OFF'" cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+          grep -F "VALUES (1, 'T12_EMPLOYEE_AUTH_V1', 'OFF', 1);" cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+          ! grep -F 'AUTH_PASSWORD_PEPPER' cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+
+      - name: Current main frontend remains OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/main:config.js > /tmp/main-config.js
+          git show origin/main:employee-api-dispatcher-v1.js > /tmp/main-dispatcher.js
+          grep -F 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' /tmp/main-config.js
+          grep -F 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' /tmp/main-config.js
+          grep -F 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];' /tmp/main-config.js
+          node --check /tmp/main-dispatcher.js
+
+      - name: Current main Apps Script bridge present
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/main:Code.gs > /tmp/main-Code.gs
+          grep -F 'function trendosVerifyEmployeeLegacyBridgeAssertionV1_' /tmp/main-Code.gs
+          grep -F 'cloudEmployeeLegacyBridgeExecuteV1' /tmp/main-Code.gs
+          grep -F 'getProperty("EMPLOYEE_LEGACY_BRIDGE_SECRET_V1")' /tmp/main-Code.gs
+
+      - name: No A61 production mutation
+        run: |
+          echo 'A61_OFF_STATE_PREFLIGHT=PASS'
+          echo 'CLOUDFLARE_DEPLOY=NO'
+          echo 'D1_REMOTE_MUTATION=NO'
+          echo 'APPS_SCRIPT_DEPLOY=NO'
+          echo 'FRONTEND_REDEPLOY=NO'
+          echo 'NATIVE_LOGIN_ENABLEMENT=NO'
