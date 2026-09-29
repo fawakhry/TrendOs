@@ -757,8 +757,22 @@
     return base;
   }
 
+  async function employeeLegacyFallback(context, original, action, params, args) {
+    if (
+      window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 === true &&
+      typeof window.trendosEmployeeLegacyFallbackV1 === 'function'
+    ) {
+      return window.trendosEmployeeLegacyFallbackV1(
+        action,
+        params || {},
+        function () { return original.apply(context, args); }
+      );
+    }
+    return original.apply(context, args);
+  }
+
   async function hybridAppsScriptFallback(context, original, action, params, args) {
-    var appsResult = await original.apply(context, args);
+    var appsResult = await employeeLegacyFallback(context, original, action, params, args);
     try {
       var overlay = await t12OverlayPage(params || {});
       var merged = mergeHybridFallback(appsResult, overlay, params || {});
@@ -865,7 +879,13 @@ function eligible(action, params) {
           });
         }
         var safeParams = identitySafeUpdateLineParams(params || {});
-        var writeResult = await original.call(this, action, safeParams);
+        var writeResult = await employeeLegacyFallback(
+          this,
+          original,
+          action,
+          safeParams,
+          [action, safeParams]
+        );
         if (writeResult && writeResult.success === true) openPostWriteBarrier(safeParams);
         return writeResult;
       }
@@ -880,7 +900,7 @@ function eligible(action, params) {
             message: text(params && params.message)
           });
         }
-        return original.apply(this, args);
+        return employeeLegacyFallback(this, original, action, params || {}, args);
       }
 
       if (!eligible(action, params || {})) return original.apply(this, args);
