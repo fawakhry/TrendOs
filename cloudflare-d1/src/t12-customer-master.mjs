@@ -163,7 +163,12 @@ async function exactMatches(db,fields){
       if(!id||seenPhone.has(id))return false;
       seenPhone.add(id);return true;
     });
-    if(uniquePhone.length)return uniquePhone;
+    if(uniquePhone.length===1)return uniquePhone;
+    if(uniquePhone.length>1){
+      const byName=uniquePhone.filter(r=>customerSearchKey(r&&r.name)===fields.customerNameKey);
+      if(byName.length===1)return byName;
+      return uniquePhone;
+    }
   }
 
   const res=await db.prepare(`
