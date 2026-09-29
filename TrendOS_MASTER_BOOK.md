@@ -174,6 +174,8 @@ APPS_SCRIPT_DEPLOY=NO
 ACCIDENTAL_SAVE_RECOVERY=NOT_VERIFIED
 ```
 
+**A61 Phase A install revision — Entry487:** Script Properties access is deferred during source installation because prior inspection surfaced sensitive values. The bridge is fail-closed when its flag is absent/not exactly true and when its secret is absent/invalid, so source install can proceed safely with no Script Properties access. Production source must be current live HEAD + the exact qualified A61 additive patch only; never paste GitHub main wholesale. Pre-save candidate SHA-256 must equal `0980dd77395d2cc895d4344beb6db2156ad03fe1ee230fcea6c30c1ff393b295`. After exact-source verification, create a new version on the existing deployment while keeping the same Deployment ID/access model. D1/Cloudflare remain out of scope until this source install is verified.
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
