@@ -166,6 +166,25 @@ assert.equal(customerSearchKey('أحمد  محمد'),'احمد محمد');
 
 {
   const db=new D1('GENERAL',0);
+  db.seedLegacy({id:'CUS-L000002',row:2,name:'اسم مكرر',phone:'01011111111'});
+  db.seedLegacy({id:'CUS-L000003',row:3,name:'اسم مكرر',phone:'01022222222'});
+  const r=await upsertT12Customer(
+    db,
+    makeInput('cust1_1790000032001_CUSTOMERPHONE_1234567890123456',{
+      customerName:'اسم مكرر',
+      phone:'01022222222',
+      debtAmount:'90'
+    }),
+    actor
+  );
+  assert.equal(r.success,true,JSON.stringify(r));
+  assert.equal(r.operation,'UPDATE');
+  assert.equal(r.customerId,'CUS-L000003');
+  assert.equal(Number(r.customer.debtAmount),90);
+}
+
+{
+  const db=new D1('GENERAL',0);
   db.seedLegacy({id:'CUS-L000002',row:2,name:'عميل نشط',phone:'01011111111',active:'نعم'});
   db.seedLegacy({id:'CUS-L000003',row:3,name:'عميل غير نشط',phone:'01022222222',active:'لا'});
   const active=await searchT12Customers(db,'عميل',12);
