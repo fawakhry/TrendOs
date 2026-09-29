@@ -368,3 +368,38 @@ NATIVE_LOGIN=NO
 
 Next guarded phase:
 prepare OFF-state Production installation instructions. Cloudflare/D1 changes remain owner-operated. Do not enable native login or bridge policy until Apps Script + Worker + D1 migration are installed and validated with every A61 runtime switch still OFF.
+
+
+---
+
+# A61 OFF-state installation gate — Entry484
+
+Runbook:
+`TRENDOS_T12_A61_OFF_STATE_PRODUCTION_INSTALL_RUNBOOK_ENTRY_484_2026-09-29.md`
+
+Source-only preflight after creation:
+```ini
+MAIN_FRONTEND_NATIVE_FLAG=false
+MAIN_FRONTEND_BRIDGE_FLAG=false
+MAIN_FRONTEND_BRIDGE_POLICIES=EMPTY
+MAIN_EMPLOYEE_DISPATCHER=PRESENT
+MAIN_APPS_SCRIPT_BRIDGE=PRESENT
+MAIN_APPS_SCRIPT_WRAPPER=PRESENT
+WORKER_EMPLOYEE_AUTH=false
+WORKER_LEGACY_BOOTSTRAP=false
+WORKER_NATIVE_ONLY=false
+WORKER_LEGACY_BRIDGE=false
+WORKER_BRIDGE_ALLOWLIST=EMPTY
+D1_MIGRATION_DEFAULT_MODE=OFF
+D1_MIGRATION_SEED_MODE=OFF
+NATIVE_AUTH_HEALTH_ROUTE=PRESENT
+LEGACY_BRIDGE_HEALTH_ROUTE=PRESENT
+SOURCE_PREFLIGHT=PASS
+```
+
+No Production mutation occurred in this preflight.
+
+Next owner action:
+install/deploy the current-main Apps Script source containing the A61 bridge while setting `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false`. The shared bridge secret must be created outside GitHub and stored only in Apps Script Script Properties and later as a Cloudflare Worker secret. Do not enable native login yet.
+
+After that owner step, continue Entry484 Phase B: apply additive D1 migration `0009_employee_auth_native_v1.sql` with mode remaining OFF, then configure the matching Cloudflare secret and deploy the Worker with all A61 flags still false.
