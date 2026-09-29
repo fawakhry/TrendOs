@@ -4,6 +4,7 @@ const PATH = '/v1/employee/legacy-action';
 const HEALTH_PATH = '/v1/employee/legacy-action/health';
 const ASSERTION_DOMAIN = 'trendos-employee-legacy-bridge-v1';
 const ASSERTION_PREFIX = 'cfv1';
+const UPSTREAM_WRAPPER_ACTION = 'cloudEmployeeLegacyBridgeExecuteV1';
 const DEFAULT_TTL_SECONDS = 45;
 const MAX_TTL_SECONDS = 90;
 const DEFAULT_ORIGINS = [
@@ -23,7 +24,8 @@ const FORBIDDEN_ACTIONS = new Set([
   'changePassword',
   'customerLogin',
   'customerLogout',
-  'changeCustomerPassword'
+  'changeCustomerPassword',
+  UPSTREAM_WRAPPER_ACTION
 ]);
 
 function text(value) {
@@ -94,6 +96,12 @@ async function hmacBase64Url(value, secret) {
   return base64Url(new Uint8Array(signature));
 }
 
+async function sha256Base64Url(value) {
+  const bytes = new TextEncoder().encode(String(value == null ? '' : value));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return base64Url(new Uint8Array(digest));
+}
+
 function assertionTtlSeconds(env) {
   return clampInt(
     env && env.EMPLOYEE_LEGACY_BRIDGE_ASSERTION_TTL_SECONDS,
@@ -112,6 +120,42 @@ function configuredActions(env) {
   );
 }
 
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) out[key] = stableValue(value[key]);
+    return out;
+  }
+  return value;
+}
+
+export function canonicalLegacyPayloadV1(value) {
+  return JSON.stringify(stableValue(value && typeof value === 'object' ? value : {}));
+}
+
+export async function legacyPayloadDigestV1(value) {
+  return sha256Base64Url(canonicalLegacyPayloadV1(value));
+}
+
+function sanitizedTargetPayload(body, nativeUser, action) {
+  const target = { ...(body || {}) };
+  delete target.token;
+  delete target.password;
+  delete target.oldPassword;
+  delete target.newPassword;
+  delete target.confirmPassword;
+  delete target.employeePassword;
+  delete target.cloudEmployeeAssertionV1;
+  delete target.targetAction;
+  delete target.targetPayload;
+  delete target._cloudEmployeeAuthBridgeV1;
+  delete target._ts;
+  target.action = text(action);
+  target.username = text(nativeUser && (nativeUser.username || nativeUser.name));
+  return target;
+}
+
 export function employeeLegacyBridgeEnabled(env) {
   return enabledValue(env && env.TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED);
 }
@@ -123,11 +167,16 @@ export function isEmployeeLegacyBridgePath(path) {
 export function employeeLegacyBridgeActionAllowed(action, env) {
   const value = text(action);
   if (!value || FORBIDDEN_ACTIONS.has(value)) return false;
-  const allowed = configuredActions(env);
-  return allowed.has(value);
+  return configuredActions(env).has(value);
 }
 
-export async function createEmployeeLegacyBridgeAssertionV1(user, action, env, nowSeconds = Math.floor(Date.now() / 1000)) {
+export async function createEmployeeLegacyBridgeAssertionV1(
+  user,
+  action,
+  targetPayload,
+  env,
+  nowSeconds = Math.floor(Date.now() / 1000)
+) {
   const secret = text(env && env.EMPLOYEE_LEGACY_BRIDGE_SECRET_V1);
   if (secret.length < 32) throw new Error('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1 is not configured');
   const username = text(user && (user.username || user.name));
@@ -143,14 +192,13 @@ export async function createEmployeeLegacyBridgeAssertionV1(user, action, env, n
     mustChange: !!(user && user.mustChange),
     active: user && user.active !== false,
     action: text(action),
+    bodyDigest: await legacyPayloadDigestV1(targetPayload),
     iat: now,
     exp: now + assertionTtlSeconds(env),
     nonce: crypto.randomUUID()
   };
-  const payloadBytes = new TextEncoder().encode(JSON.stringify(claims));
-  const payload = base64Url(payloadBytes);
-  const signingInput = ASSERTION_DOMAIN + '\n' + payload;
-  const signature = await hmacBase64Url(signingInput, secret);
+  const payload = base64Url(new TextEncoder().encode(JSON.stringify(claims)));
+  const signature = await hmacBase64Url(ASSERTION_DOMAIN + '\n' + payload, secret);
   return {
     token: ASSERTION_PREFIX + '.' + payload + '.' + signature,
     claims
@@ -185,6 +233,9 @@ async function health(env) {
     assertionTtlSeconds: assertionTtlSeconds(env),
     rawNativeTokenForwarded: false,
     plaintextPasswordForwarded: false,
+    assertionBoundToAction: true,
+    assertionBoundToPayload: true,
+    replayNonceIssued: true,
     authAuthority: 'd1-native-employee-v1'
   };
 }
@@ -240,17 +291,18 @@ export async function handleEmployeeLegacyBridgeRequest(request, env) {
     return json({ success: false, code: 'employee-password-change-required' }, 428, cors);
   }
 
-  const assertion = await createEmployeeLegacyBridgeAssertionV1(nativeUser, action, env);
-  const forwarded = { ...body };
-  delete forwarded.password;
-  delete forwarded.oldPassword;
-  delete forwarded.newPassword;
-  delete forwarded.confirmPassword;
-  delete forwarded.employeePassword;
-  forwarded.username = text(nativeUser.username || credentials.username);
-  forwarded.token = assertion.token;
-  forwarded._cloudEmployeeAuthBridgeV1 = 1;
-  forwarded._ts = Date.now();
+  const targetPayload = sanitizedTargetPayload(body, nativeUser, action);
+  const assertion = await createEmployeeLegacyBridgeAssertionV1(nativeUser, action, targetPayload, env);
+
+  const forwarded = {
+    action: UPSTREAM_WRAPPER_ACTION,
+    username: text(nativeUser.username || credentials.username),
+    targetAction: action,
+    targetPayload,
+    cloudEmployeeAssertionV1: assertion.token,
+    _cloudEmployeeAuthBridgeV1: 1,
+    _ts: Date.now()
+  };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
