@@ -251,11 +251,12 @@
     return true;
   }
 
-  window.trendosEmployeeApiV1 = async function (action, params) {
+  window.trendosEmployeeApiV1 = async function (action, params, legacyInvoker) {
     var actionText = text(action);
     var p = params || {};
 
     if (!nativeEnabled()) {
+      if (typeof legacyInvoker === 'function') return legacyInvoker();
       var current = currentSecureApi();
       if (!current) throw routeError('EMPLOYEE_API_NOT_READY', 'Employee API غير جاهز.');
       return current(actionText, p);
