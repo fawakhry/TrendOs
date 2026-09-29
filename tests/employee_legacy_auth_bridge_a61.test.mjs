@@ -12,7 +12,7 @@ import {
 
 const env = {
   TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED: 'true',
-  EMPLOYEE_LEGACY_BRIDGE_ACTIONS: 'getRows,getDashboard,updateLine',
+  EMPLOYEE_LEGACY_BRIDGE_ACTIONS: 'getRows,getDashboard,updateLine,pressControlV1:status,attendanceV1:state',
   EMPLOYEE_LEGACY_BRIDGE_ASSERTION_TTL_SECONDS: '45',
   EMPLOYEE_LEGACY_BRIDGE_SECRET_V1: '0123456789abcdef0123456789abcdef0123456789abcdef'
 };
@@ -25,6 +25,11 @@ assert.equal(isEmployeeLegacyBridgePath('/v1/employee/auth/login'), false);
 
 assert.equal(employeeLegacyBridgeActionAllowed('getRows', env), true);
 assert.equal(employeeLegacyBridgeActionAllowed('updateLine', env), true);
+assert.equal(employeeLegacyBridgeActionAllowed('pressControlV1', env, { op: 'status' }), true);
+assert.equal(employeeLegacyBridgeActionAllowed('pressControlV1', env, { op: 'start' }), false);
+assert.equal(employeeLegacyBridgeActionAllowed('pressControlV1', { ...env, EMPLOYEE_LEGACY_BRIDGE_ACTIONS: 'pressControlV1' }, { op: 'status' }), false);
+assert.equal(employeeLegacyBridgeActionAllowed('attendanceV1', env, { op: 'state' }), true);
+assert.equal(employeeLegacyBridgeActionAllowed('attendanceV1', env, { op: 'start' }), false);
 assert.equal(employeeLegacyBridgeActionAllowed('login', env), false);
 assert.equal(employeeLegacyBridgeActionAllowed('changePassword', env), false);
 assert.equal(employeeLegacyBridgeActionAllowed('cloudEmployeeLegacyBridgeExecuteV1', env), false);
@@ -105,6 +110,7 @@ console.log('A61_LEGACY_AUTH_BRIDGE_CONTRACT=PASS');
 console.log('ASSERTION_ACTION_BOUND=YES');
 console.log('ASSERTION_PAYLOAD_BOUND=YES');
 console.log('ASSERTION_REPLAY_GUARD=YES');
+console.log('MULTIPLEXED_ACTION_POLICY=ACTION_PLUS_OP');
 console.log('RAW_NATIVE_TOKEN_FORWARDED=NO');
 console.log('PLAINTEXT_PASSWORD_FORWARDED=NO');
 console.log('PRODUCTION_ENABLE=NO');
