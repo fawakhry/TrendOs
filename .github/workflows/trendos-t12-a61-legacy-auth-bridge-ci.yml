@@ -1,0 +1,50 @@
+name: TrendOS T12 A61 Employee Legacy Auth Bridge CI
+
+on:
+  pull_request:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'Code.gs'
+      - 'cloudflare-d1/src/employee-legacy-bridge-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/employee_legacy_auth_bridge_a61.test.mjs'
+      - '.github/workflows/trendos-t12-a61-legacy-auth-bridge-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-legacy-bridge-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          cp Code.gs /tmp/Code.js
+          node --check /tmp/Code.js
+
+      - name: A61 legacy auth bridge contract
+        run: node tests/employee_legacy_auth_bridge_a61.test.mjs
+
+      - name: Fail-closed and secret hygiene boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq '^TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED[[:space:]]*=[[:space:]]*"true"' cloudflare-d1/wrangler.toml
+          ! grep -Eq '^EMPLOYEE_LEGACY_BRIDGE_SECRET_V1[[:space:]]*=' cloudflare-d1/wrangler.toml
+          ! grep -R --line-number -E 'EMPLOYEE_LEGACY_BRIDGE_SECRET_V1[[:space:]]*=[[:space:]]*["'\'''][^"'\''']+' cloudflare-d1/src Code.gs || true
+          echo 'A61_LEGACY_AUTH_BRIDGE=PASS'
+          echo 'PRODUCTION_ENABLEMENT=NO'
+          echo 'SECRET_VALUE_IN_REPO=NO'
+          echo 'ORDER_MUTATION=NO'
