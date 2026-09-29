@@ -3897,3 +3897,8 @@ TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: DOC-DUP-PERF-03. READ/DOC_WRITE o
 ## Entry 473 RESULT — MASTER-BOOK-DOC-BATCH-PERF-CF-02CB-02CE-20260929 / 2026-09-29 Cairo
 
 RESULT=`COMMITTED_VERIFIED`. 13 unique historical PERF-CF blobs in the 02CB–02CE family were full-read and 26 SHA-identical duplicate paths dispositioned as historical. Repair-relevant capsule recorded in Master Book + Closed Components Registry: Shadow stability; missing Cloud Write schema; unsafe generic migration-list state; 0001/0002/0003 ledger drift; exact-file owner-authorized 0003 install that made runtime schema ready while Cloud Write remained OFF and ledger remained unreconciled. Fixed coverage is now `M444/P713/A11/Redirect11/LIVE6`. No runtime/workflow/data action was executed in this documentation step.
+
+
+## Entry 474 PREPARE — MASTER-BOOK-REMAINING-EXACT-DUPLICATES-20260929 / 2026-09-29 Cairo
+
+TASK_ID: MASTER-BOOK-FINISH-20260929. STEP_ID: DOC-DUP-FINAL. READ/DOC_WRITE only. Remaining fixed-inventory M contains exactly 12 SHA-duplicate groups (24 paths): PERF-CF 02CF START/PASS, 02CG START/PASS, 02CH START/contract-false-positive/controlled-contract-start/PASS, 02CI, 02CJ authorized-start/PASS, and PLATFORM_CF_SCOPE_AND_CURRENT_STATE. Full-read each unique blob once, disposition both exact-SHA paths, and record migration-ledger/current-scope repair facts. No runtime/workflow/data action.
