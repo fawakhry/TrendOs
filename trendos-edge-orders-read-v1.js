@@ -12,6 +12,7 @@
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var CUSTOMER_SEARCH_PATH = '/v1/edge/customers/search';
+  var CUSTOMER_WRITE_PATH = '/v1/t12/customers/write';
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
   var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
@@ -372,6 +373,44 @@
     finally { inflight.delete(requestKey); }
   }
 
+  function customerCloudRequestId(raw) {
+    var v = text(raw);
+    if (/^cust1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(v)) return v;
+    var now = Date.now();
+    var suffix = ('ui_' + Math.random().toString(36).slice(2) + '_' + Math.random().toString(36).slice(2) + '_customer').replace(/[^A-Za-z0-9_-]/g, '_');
+    while (suffix.length < 16) suffix += '0';
+    return 'cust1_' + String(now) + '_' + suffix.slice(0, 80);
+  }
+
+  async function edgeCustomerWrite(params) {
+    var payload = Object.assign({}, params || {});
+    payload.clientRequestId = customerCloudRequestId(payload.clientRequestId);
+    var token = await ensureSession();
+    var response = await fetch(edgeBase() + CUSTOMER_WRITE_PATH, {
+      method: 'POST', cache: 'no-store', credentials: 'omit',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(payload)
+    });
+    if (response.status === 401) {
+      clearSession();
+      token = await ensureSession();
+      response = await fetch(edgeBase() + CUSTOMER_WRITE_PATH, {
+        method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(payload)
+      });
+    }
+    return jsonResponse(response);
+  }
+
   async function edgeCustomerSearch(params) {
     var query = new URLSearchParams();
     var q = text(params && params.q);
@@ -594,12 +633,8 @@
     var result;
     try {
       result = await edgeCustomerSearch(searchParams);
-      if (!result || !Array.isArray(result.customers) || !result.customers.length) {
-        result = await original.call(context, 'searchCustomers', searchParams);
-      }
     } catch (e) {
-      try { result = await original.call(context, 'searchCustomers', searchParams); }
-      catch (fallbackErr) { return { success: false, message: 'تعذر التحقق من بيانات العميل المسجل. اختاره من قائمة البحث أولًا.' }; }
+      return { success: false, message: 'تعذر التحقق من بيانات العميل على Cloud. لم يتم الرجوع إلى Google.' };
     }
 
     var customers = result && result.success && Array.isArray(result.customers) ? result.customers : [];
@@ -774,27 +809,35 @@ function eligible(action, params) {
     async function wrapped(action, params) {
       var args = arguments;
 
-      // Customer lookup is Cloud/D1-first. A D1 miss intentionally falls back
-      // to Apps Script so newly-added customers remain visible until customer
-      // write authority is migrated in a later gated step.
+      // A56 customer authority: search and create/update are Cloud-only.
+      // No browser fallback to Apps Script/Google is allowed for customer actions.
       if (action === 'searchCustomers') {
         var customerQuery = text(params && params.q);
-        if (!customerQuery) return { success: true, customers: [] };
+        if (!customerQuery) return { success: true, customers: [], dataSource: 't12-customer-master' };
         try {
           var customerResult = await edgeCustomerSearch(params || {});
-          if (customerResult && Array.isArray(customerResult.customers) && customerResult.customers.length) {
-            metrics.customerEdgeSuccess += 1;
-            return customerResult;
-          }
-          metrics.customerMissFallbacks += 1;
-          metrics.customerFallbacks += 1;
-          return original.apply(this, args);
+          metrics.customerEdgeSuccess += 1;
+          return customerResult;
         } catch (customerErr) {
           metrics.customerFallbacks += 1;
-          try {
-            console.warn('[TrendOS Customer D1 A51] Cloud customer search unavailable; using Apps Script fallback:', customerErr && customerErr.message ? customerErr.message : customerErr);
-          } catch (ignore) {}
-          return original.apply(this, args);
+          return {
+            success: false,
+            customers: [],
+            code: 'CUSTOMER_CLOUD_SEARCH_UNAVAILABLE',
+            message: 'تعذر البحث عن العملاء على Cloud. لم يتم الرجوع إلى Google.'
+          };
+        }
+      }
+
+      if (action === 'createCustomer') {
+        try {
+          return await edgeCustomerWrite(params || {});
+        } catch (customerWriteErr) {
+          return {
+            success: false,
+            code: 'CUSTOMER_CLOUD_WRITE_UNAVAILABLE',
+            message: 'تعذر حفظ العميل على Cloud. لم يتم الإرسال إلى Google.'
+          };
         }
       }
 
@@ -886,6 +929,8 @@ function eligible(action, params) {
       enabled: true,
       mode: 't12-02cr-orders-plus-d1-customer-search-with-apps-script-fallback',
       customerSearchPath: CUSTOMER_SEARCH_PATH,
+      customerWritePath: CUSTOMER_WRITE_PATH,
+      customerAuthority: 'cloud-only',
       serviceUsesQualified02CR: true,
       canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
       canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
