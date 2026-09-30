@@ -1,0 +1,37 @@
+name: TrendOS T12 A61 Session Verify Timeout Qualify TEMP
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-session-verify-timeout-qualify-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+      - run: node tests/employee_auth_native_a61.test.mjs
+      - name: Default-OFF proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' cloudflare-d1/wrangler.toml
+          grep -F 'const LEGACY_SESSION_VERIFY_TIMEOUT_MS = 90000;' cloudflare-d1/src/employee-auth-native-v1.mjs
+          echo 'A61_SESSION_VERIFY_TIMEOUT_QUALIFIED=PASS'
