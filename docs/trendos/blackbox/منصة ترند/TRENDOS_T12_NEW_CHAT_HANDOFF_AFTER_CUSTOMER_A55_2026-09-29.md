@@ -872,3 +872,33 @@ After production verification, first engineering task is Cloud-native duplicate-
 
 Detailed record:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_02CR_DEGRADED_ENRICHMENT_VISIBILITY_ENTRY_496_2026-09-30.md`
+
+
+---
+
+# Entry497 current checkpoint — 2026-09-30
+
+Entry496 was manually deployed to Production, but Orders still failed before read on `POST /v1/edge/orders/session` with Apps Script verification timeout.
+
+Repo-only Entry497 removes that redundant post-login verification dependency:
+
+```ini
+ENTRY497_SOURCE_QUALIFIED=YES
+ENTRY497_PRODUCTION_DEPLOYED=NO
+ORDERS_SESSION_AFTER_LOGIN=D1_SHADOW
+ORDERS_SESSION_SECOND_GOOGLE_VERIFY=NO_ON_SHADOW_HIT
+SHADOW_SLIDING_EXPIRY=YES
+SHADOW_REVOKE_ON_LOGOUT=YES
+SHADOW_REVOKE_ON_CHANGE_PASSWORD=YES
+ORDERS_EDGE_SESSION_TTL_SECONDS=240
+RAW_EMPLOYEE_TOKEN_STORED=NO
+PLAINTEXT_PASSWORD_STORED=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+QUALIFICATION_RUN=36745917638_SUCCESS
+```
+
+Manual next step: deploy API Worker only, preserve all existing bindings/variables/secrets, hard refresh, logout/login once, then open Customer Service Orders. No frontend deployment is required for Entry497.
+
+Detailed record:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_SESSION_D1_SHADOW_HANDOFF_ENTRY_497_2026-09-30.md`
