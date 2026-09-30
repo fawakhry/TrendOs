@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          ref: 420b3bf467c916a07f432207c752fa86c2096159
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -36,17 +36,17 @@ jobs:
           node --check /tmp/entry495-ui/frontend-dist/browser-api-transport-v1.js
           node --check /tmp/entry495-ui/frontend-dist/employee-api-dispatcher-v1.js
           grep -F '/v1/legacy-api' /tmp/entry495-ui/frontend-dist/browser-api-transport-v1.js >/dev/null
-          cat > /tmp/entry495-ui/DEPLOY.txt <<'TXT'
-TrendOS Entry495 frontend manual deploy package
-
-Do not edit Bindings, Variables, Secrets, or D1.
-
-From this folder run:
-npx --yes wrangler@4.142.0 deploy --config wrangler.frontend.toml
-
-Target worker: trendos-ui
-Assets binding: ASSETS
-TXT
+          printf '%s\n' \
+            'TrendOS Entry495 frontend manual deploy package' \
+            '' \
+            'Do not edit Bindings, Variables, Secrets, or D1.' \
+            '' \
+            'From this folder run:' \
+            'npx --yes wrangler@4.142.0 deploy --config wrangler.frontend.toml' \
+            '' \
+            'Target worker: trendos-ui' \
+            'Assets binding: ASSETS' \
+            > /tmp/entry495-ui/DEPLOY.txt
           cd /tmp
           zip -qr "$GITHUB_WORKSPACE/trendos-entry495-frontend-manual.zip" entry495-ui
           sha256sum "$GITHUB_WORKSPACE/trendos-entry495-frontend-manual.zip" > "$GITHUB_WORKSPACE/trendos-entry495-frontend-manual.sha256"
