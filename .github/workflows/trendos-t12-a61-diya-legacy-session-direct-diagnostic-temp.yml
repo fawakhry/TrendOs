@@ -1,0 +1,119 @@
+name: TrendOS T12 A61 Diya Direct Legacy Session Diagnostic TEMP
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-diya-legacy-session-direct-diagnostic-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Confirm production employee auth is OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" >/tmp/auth.json
+          node <<'NODE'
+          const a=JSON.parse(require('fs').readFileSync('/tmp/auth.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||Number(a.nativeReadyCount||0)!==0)process.exit(10);
+          console.log('A61_DIRECT_DIAG_PROD_AUTH_OFF=PASS');
+          NODE
+
+      - name: Login then directly verify same Apps Script session
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${QUALIFY_USERNAME:-}"
+          test -n "${QUALIFY_PASSWORD:-}"
+          node <<'NODE'
+          const fs=require('fs');
+          const url=String(process.env.APPS_SCRIPT_API_URL||'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const classify=(msg)=>{
+            msg=String(msg||'');
+            if(msg.includes('انتهت الجلسة')) return 'SESSION_TOKEN_OR_EXPIRY_REJECTED';
+            if(msg.includes('غير مصرح له بفتح ملفات مطبعجي')) return 'ACCOUNTING_PERMISSION_REJECTED';
+            if(msg.includes('المستخدم غير موجود')) return 'USER_NOT_FOUND';
+            if(msg.includes('غير مفعل')) return 'USER_INACTIVE';
+            if(msg.startsWith('خطأ في السيرفر:')) return 'SERVER_ERROR';
+            return 'OTHER_REJECTION';
+          };
+          const req=async(payload,timeoutMs=120000)=>{
+            const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+            try{
+              const r=await fetch(url,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({...payload,_ts:Date.now()}),redirect:'follow',signal:ctrl.signal});
+              const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+              return {r,body};
+            } finally { clearTimeout(timer); }
+          };
+          (async()=>{
+            let token='',canonical=username;
+            try{
+              const login=await req({action:'login',username,password});
+              const ok=login.r.status===200&&login.body&&login.body.success===true;
+              console.log('A61_DIRECT_LEGACY_LOGIN_HTTP='+login.r.status);
+              console.log('A61_DIRECT_LEGACY_LOGIN='+(ok?'PASS':'FAIL'));
+              if(!ok){
+                console.log('A61_DIRECT_LEGACY_LOGIN_RATE_LIMITED='+(login.body&&login.body.rateLimited===true?'YES':'NO'));
+                process.exitCode=21; return;
+              }
+              token=String(login.body&&login.body.user&&login.body.user.token||'').trim();
+              canonical=String(login.body&&login.body.user&&(login.body.user.username||login.body.user.name)||username).trim();
+              if(!token){process.exitCode=22;return;}
+              console.log('::add-mask::'+token);
+              console.log('A61_DIRECT_CANONICAL_USERNAME_MATCH='+(canonical===username?'YES':'NO'));
+
+              await new Promise(r=>setTimeout(r,1500));
+              const verify=await req({action:'verifyEmployeeSession',username:canonical,token});
+              const vok=verify.r.status===200&&verify.body&&verify.body.success===true;
+              console.log('A61_DIRECT_VERIFY_HTTP='+verify.r.status);
+              console.log('A61_DIRECT_VERIFY='+(vok?'PASS':'FAIL'));
+              console.log('A61_DIRECT_VERIFY_CLASS='+(vok?'NONE':classify(verify.body&&verify.body.message)));
+              if(!vok) process.exitCode=23;
+            } finally {
+              if(token){
+                try{
+                  const out=await req({action:'logout',username:canonical,token},60000);
+                  console.log('A61_DIRECT_TEMP_LOGOUT='+(out.r.status===200&&out.body&&out.body.success===true?'PASS':'BEST_EFFORT_FAILED'));
+                }catch(_){console.log('A61_DIRECT_TEMP_LOGOUT=BEST_EFFORT_FAILED');}
+              }
+            }
+          })().catch(err=>{
+            console.log('A61_DIRECT_DIAG_EXCEPTION='+String(err&&err.name||'unknown'));
+            process.exit(24);
+          });
+          NODE
+
+      - name: Confirm production remains OFF
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" >/tmp/auth-final.json
+          node <<'NODE'
+          const a=JSON.parse(require('fs').readFileSync('/tmp/auth-final.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||Number(a.nativeReadyCount||0)!==0)process.exit(31);
+          console.log('A61_DIRECT_DIAG_FINAL_PROD_AUTH_OFF=PASS');
+          NODE
