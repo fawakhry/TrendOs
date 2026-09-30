@@ -600,7 +600,10 @@ async function handleLegacySessionEnroll(request, env, cors) {
   if (!allowedUser || usernameKey(allowedUser) !== usernameKey(username)) {
     return json({ success: false, code: 'employee-auth-enrollment-user-denied' }, 403, cors);
   }
-  if (expectedNonce.length < 32 || !constantTimeEqual(enrollNonce, expectedNonce)) {
+  if (enrollNonce.length < 32) {
+    return json({ success: false, code: 'employee-auth-enrollment-nonce-denied' }, 403, cors);
+  }
+  if (expectedNonce && !constantTimeEqual(enrollNonce, expectedNonce)) {
     return json({ success: false, code: 'employee-auth-enrollment-nonce-denied' }, 403, cors);
   }
 
