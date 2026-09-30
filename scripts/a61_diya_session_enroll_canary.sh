@@ -131,6 +131,18 @@ npx --yes wrangler@"$WRANGLER_VERSION" deploy --config wrangler.a61-enroll-canar
 sleep 4
 cd "$ROOT"
 
+curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" >/tmp/a61-enroll-window-health.json
+node <<'NODE'
+const a=JSON.parse(require('fs').readFileSync('/tmp/a61-enroll-window-health.json','utf8'));
+console.log('A61_ENROLL_HEALTH_MODE='+String(a.mode||''));
+console.log('A61_ENROLL_HEALTH_AUTH_ENABLED='+(a.envEnabled===true?'YES':'NO'));
+console.log('A61_ENROLL_HEALTH_SESSION_ENROLL='+(a.legacySessionEnrollEnabled===true?'YES':'NO'));
+console.log('A61_ENROLL_HEALTH_CANARY_USER='+(a.enrollCanaryUserConfigured===true?'YES':'NO'));
+console.log('A61_ENROLL_HEALTH_NATIVE_ONLY='+(a.nativeOnly===true?'YES':'NO'));
+if(!a.success||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacySessionEnrollEnabled!==true||a.enrollCanaryUserConfigured!==true||a.nativeOnly!==false)process.exit(25);
+console.log('A61_ENROLLMENT_WINDOW=PASS');
+NODE
+
 node <<'NODE'
 const fs=require('fs');
 const base=String(process.env.PROD_URL||'https://trendos-d1-api.trendmall-contact.workers.dev').replace(/\/$/,'');
