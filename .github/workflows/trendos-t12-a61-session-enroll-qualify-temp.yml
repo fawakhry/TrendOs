@@ -1,0 +1,39 @@
+name: TrendOS T12 A61 Session Enrollment Qualify TEMP
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-session-enroll-qualify-temp.yml'
+permissions:
+  contents: read
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          node --check cloudflare-d1/production-shadow/index.js
+      - name: Native auth contract
+        run: node tests/employee_auth_native_a61.test.mjs
+      - name: Enrollment fail-closed boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "/v1/employee/auth/enroll-legacy-session" cloudflare-d1/src/employee-auth-native-v1.mjs
+          grep -Fq "d1-native-legacy-session-enroll-v1" cloudflare-d1/src/employee-auth-native-v1.mjs
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'EMPLOYEE_AUTH_ENROLL_CANARY_USER = ""' cloudflare-d1/wrangler.toml
+          grep -Fx 'EMPLOYEE_AUTH_ENROLL_NONCE = ""' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' cloudflare-d1/wrangler.toml
+          ! grep -R --line-number --fixed-strings 'AUTH_PASSWORD_PEPPER' cloudflare-d1/src/employee-auth-native-v1.mjs
+          echo 'A61_SESSION_ENROLLMENT=QUALIFIED_DEFAULT_OFF'
+          echo 'PRODUCTION_MUTATION=NO'
