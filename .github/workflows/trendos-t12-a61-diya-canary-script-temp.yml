@@ -1,5 +1,5 @@
 name: TrendOS T12 A61 Diya Canary Script TEMP
-# rerun: staged enrollment diagnostics
+# rerun: live enrollment health gate
 on:
   push:
     branches:
