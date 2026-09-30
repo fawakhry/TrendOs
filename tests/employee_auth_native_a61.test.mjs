@@ -54,8 +54,6 @@ assert.equal(employeeAuthEnabled(disabledEnv), false);
 assert.equal(employeeAuthLegacyBootstrapEnabled(disabledEnv), false);
 assert.equal(employeeAuthNativeOnlyEnabled(disabledEnv), false);
 assert.equal(employeeAuthLegacySessionEnrollEnabled(disabledEnv), false);
-assert.match(moduleSource, /legacySessionEnrollEnabled: employeeAuthLegacySessionEnrollEnabled\(env\)/);
-assert.match(moduleSource, /enrollCanaryUserConfigured/);
 
 const migration = fs.readFileSync('cloudflare-d1/migrations/0009_employee_auth_native_v1.sql', 'utf8');
 assert.match(migration, /T12_EMPLOYEE_AUTH_V1/);
@@ -65,6 +63,8 @@ assert.match(migration, /employee_auth_sessions_v1/);
 assert.doesNotMatch(migration, /plaintext_password|raw_password|AUTH_PASSWORD_PEPPER/i);
 
 const moduleSource = fs.readFileSync('cloudflare-d1/src/employee-auth-native-v1.mjs', 'utf8');
+assert.match(moduleSource, /legacySessionEnrollEnabled: employeeAuthLegacySessionEnrollEnabled\(env\)/);
+assert.match(moduleSource, /enrollCanaryUserConfigured/);
 assert.match(moduleSource, /pbkdf2-sha256-v1/);
 assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED/);
 assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000/);
