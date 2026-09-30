@@ -294,11 +294,18 @@ async function upsertBootstrappedUser(env, username, password, legacyBody, nowMs
   const department = text(user.department);
   const screens = safeScreens(user.screens, role);
   const mustChange = user.mustChange === false ? 0 : 1;
-  const verifier = await hashEmployeePasswordV1(password, { iterations: passwordIterations(env) });
+  let verifier;
+  try {
+    verifier = await hashEmployeePasswordV1(password, { iterations: passwordIterations(env) });
+  } catch (err) {
+    try { err.employeeAuthStage = 'password-hash'; } catch (_) {}
+    throw err;
+  }
   const key = usernameKey(canonicalUsername || username);
   const employeeId = 'EMP-' + crypto.randomUUID();
 
-  await env.DB.prepare(`
+  try {
+    await env.DB.prepare(`
     INSERT INTO employee_auth_users_v1 (
       employee_id,username_key,canonical_username,
       password_scheme,password_iterations,password_salt_hex,password_hash_hex,
@@ -337,6 +344,10 @@ async function upsertBootstrappedUser(env, username, password, legacyBody, nowMs
     Number(nowMs),
     Number(nowMs)
   ).run();
+  } catch (err) {
+    try { err.employeeAuthStage = 'd1-user-upsert'; } catch (_) {}
+    throw err;
+  }
 
   return findUser(env, key);
 }
@@ -621,7 +632,16 @@ async function handleLegacySessionEnroll(request, env, cors) {
 
   const legacyBody = verified.body || {};
   legacyBody.user = { ...(legacyBody.user || {}), mustChange: requestedMustChange };
-  const row = await upsertBootstrappedUser(env, username, password, legacyBody, Date.now());
+  let row = null;
+  try {
+    row = await upsertBootstrappedUser(env, username, password, legacyBody, Date.now());
+  } catch (err) {
+    return json({
+      success: false,
+      code: 'employee-auth-enrollment-upsert-failed',
+      stage: text(err && err.employeeAuthStage) || 'unknown'
+    }, 503, cors);
+  }
   if (!row) return json({ success: false, code: 'employee-auth-enrollment-db-failed' }, 503, cors);
 
   return json({
