@@ -1,0 +1,86 @@
+name: TrendOS T12 A61 Session-Bound OFF Deploy TEMP
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-sessionbound-off-deploy-temp.yml'
+permissions:
+  contents: read
+concurrency:
+  group: trendos-t12-a61-sessionbound-off-deploy-temp
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/a.json
+          node -e "const a=JSON.parse(require('fs').readFileSync('/tmp/a.json')); if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||a.nativeOnly!==false||Number(a.nativeReadyCount||0)!==0)process.exit(1)"
+          echo 'A61_SESSIONBOUND_OFF_PREFLIGHT=PASS'
+      - name: Runner-only keep-vars config
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          node <<'NODE'
+          const fs=require('fs');
+          let c=fs.readFileSync('wrangler.toml','utf8');
+          c=c.replace('workers_dev = true','workers_dev = true\nkeep_vars = true');
+          fs.writeFileSync('wrangler.a61-sessionbound-off.toml',c);
+          NODE
+      - name: Deploy default-OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.a61-sessionbound-off.toml | tee /tmp/deploy.txt
+          echo 'A61_SESSIONBOUND_OFF_DEPLOY=PASS'
+      - name: Postdeploy verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 4
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/a.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" > /tmp/b.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" > /tmp/c.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" > /tmp/o.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/a.json'));
+          const b=JSON.parse(fs.readFileSync('/tmp/b.json'));
+          const c=JSON.parse(fs.readFileSync('/tmp/c.json'));
+          const o=JSON.parse(fs.readFileSync('/tmp/o.json'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||a.nativeOnly!==false||Number(a.nativeReadyCount||0)!==0)process.exit(1);
+          if(!b.success||b.enabled!==false||b.secretConfigured!==false)process.exit(2);
+          if(!c.success||c.mode!=='GENERAL'||Number(c.customerCount||0)<247)process.exit(3);
+          if(!o.success||o.mode!=='GENERAL')process.exit(4);
+          console.log('A61_SESSIONBOUND_OFF_POSTDEPLOY=PASS');
+          console.log('AUTH_MODE=OFF');
+          console.log('NATIVE_READY_COUNT=0');
+          console.log('BRIDGE_ENABLED=NO');
+          console.log('CUSTOMER_MODE=GENERAL');
+          console.log('ORDER_CREATE_MODE=GENERAL');
+          NODE
+      - name: Cleanup
+        if: ${{ always() }}
+        run: rm -f cloudflare-d1/wrangler.a61-sessionbound-off.toml
