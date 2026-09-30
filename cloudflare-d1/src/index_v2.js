@@ -1,3 +1,4 @@
+import { LEGACY_BROWSER_PATH, handleLegacyBrowserTransport } from './legacy-browser-transport-v1.mjs';
 import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
@@ -32,6 +33,9 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    // Browser legacy transport: fixed server-side upstream; no authority cutover.
+    if (path === LEGACY_BROWSER_PATH) return handleLegacyBrowserTransport(request, env);
 
     // T12 A61: Native employee auth foundation. Exact paths only; schema/control
     // and Wrangler flags keep this fail-closed until a separate production cutover.

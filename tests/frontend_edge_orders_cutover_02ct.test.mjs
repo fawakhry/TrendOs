@@ -54,6 +54,7 @@ let originalCalls = 0;
 const window = {
   MATBAGY_EDGE_ORDERS_READ_V1_ENABLED: true,
   MATBAGY_EDGE_ORDERS_API_URL: 'https://edge.test',
+  MATBAGY_EDGE_ORDERS_STALE_FALLBACK_COOLDOWN_MS: 1,
   MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS: 5 * 60 * 1000,
   state: { user: { username: 'employee', token: 'employee-token' } },
   trendosSecureApiV1922: async function (action, params) {
@@ -62,11 +63,12 @@ const window = {
   }
 };
 
+let clockOffset = 0;
 const context = {
   window,
   console: { warn() {}, log() {}, error() {} },
   Map,
-  Date,
+  Date: class extends Date { static now() { return Date.now() + clockOffset; } },
   Math,
   JSON,
   String,
@@ -88,6 +90,7 @@ const context = {
       if (pageMode === 'stale-lines-old-proof') return response(200, { success: true, rows: [{ orderId: 'old-proof' }], mirrors: mirrors({ lines: 6 * 60 * 1000 }), logicalFreshness: logicalProof({ checkedAgeMs: 16 * 60 * 1000 }) });
       if (pageMode === 'stale-customer-proof') return response(200, { success: true, rows: [{ orderId: 'stale-customer' }], mirrors: mirrors({ lines: 6 * 60 * 1000, customers: 6 * 60 * 1000 }), logicalFreshness: logicalProof() });
       if (pageMode === 'missing-mirror') return response(200, { success: true, version: 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY', rows: [{ orderId: 'missing' }], mirrors: mirrors().slice(1) });
+      if (pageMode === 'http503-stale') return response(503, {success:false,code:'02CR_MIRROR_STALE',message:'02CR enrichment mirror is older than the freshness budget'});
       if (pageMode === 'invalid-json') return response(200, 'not-json');
       return response(500, { success: false, message: 'edge failed' });
     }
@@ -128,50 +131,55 @@ assert.equal(originalCalls, 2);
 
 pageMode = 'stale-lines-no-proof';
 const staleFallback = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
-assert.equal(staleFallback.source, 'apps-script');
-assert.equal(originalCalls, 3);
+assert.equal(staleFallback.code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(originalCalls, 2);
 let stats = window.TrendOSEdgeOrdersReadV1.stats();
 assert.equal(stats.staleFallbacks, 1);
 assert.equal(stats.fallbacks, 1);
 assert.equal(stats.lastFallbackReason, 'EDGE_MIRROR_STALE');
 assert.equal(stats.logicalFreshnessAccepted, 0);
 
+clockOffset += 2;
 pageMode = 'stale-lines-proof';
 const logical = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
 assert.equal(logical.rows[0].orderId, 'logical');
-assert.equal(originalCalls, 3, 'valid logical freshness must retain the D1-first read');
+assert.equal(originalCalls, 2, 'valid logical freshness must retain the D1-first read');
 stats = window.TrendOSEdgeOrdersReadV1.stats();
 assert.equal(stats.logicalFreshnessAccepted, 1);
 assert.equal(stats.edgeSuccess, 2);
 
 pageMode = 'stale-lines-bad-shape';
-assert.equal((await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print' })).source, 'apps-script');
-assert.equal(originalCalls, 4);
+assert.equal((await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print' })).code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(originalCalls, 2);
 
+clockOffset += 2;
 pageMode = 'stale-lines-old-proof';
-assert.equal((await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print' })).source, 'apps-script');
-assert.equal(originalCalls, 5);
+assert.equal((await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print' })).code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(originalCalls, 2);
 
+clockOffset += 2;
 pageMode = 'stale-customer-proof';
-assert.equal((await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print' })).source, 'apps-script', 'heartbeat proof must never cover customer enrichment staleness');
-assert.equal(originalCalls, 6);
+assert.equal((await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print' })).code, 'ORDERS_CLOUD_UNAVAILABLE', 'heartbeat proof must never cover customer enrichment staleness');
+assert.equal(originalCalls, 2);
 
+clockOffset += 2;
 pageMode = 'missing-mirror';
 const missingFallback = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'laser', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
-assert.equal(missingFallback.source, 'apps-script');
-assert.equal(originalCalls, 7);
+assert.equal(missingFallback.code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(originalCalls, 2);
 stats = window.TrendOSEdgeOrdersReadV1.stats();
 assert.equal(stats.lastFallbackReason, 'EDGE_MIRROR_MISSING');
 
+clockOffset += 2;
 pageMode = 'http500';
 const fallback500 = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'laser', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
-assert.equal(fallback500.source, 'apps-script');
-assert.equal(originalCalls, 8);
+assert.equal(fallback500.code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(originalCalls, 2);
 
 pageMode = 'invalid-json';
 const fallbackJson = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5, statusFilter: '__ACTIVE__' });
-assert.equal(fallbackJson.source, 'apps-script');
-assert.equal(originalCalls, 9);
+assert.equal(fallbackJson.code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(originalCalls, 2);
 
 stats = window.TrendOSEdgeOrdersReadV1.stats();
 assert.equal(stats.edgeSuccess, 2);
@@ -179,4 +187,13 @@ assert.equal(stats.fallbacks, 7);
 assert.equal(stats.staleFallbacks, 4);
 assert.equal(stats.logicalFreshnessAccepted, 1);
 
-console.log('PERF_CF_02CU_FRONTEND_DUAL_SIGNAL_FRESHNESS_FALLBACK_PASS');
+clockOffset += 2;
+pageMode = 'http503-stale';
+const unavailable503 = await window.trendosSecureApiV1922('getRowsPageV1931', {screen:'print'});
+assert.equal(unavailable503.success, false);
+assert.equal(unavailable503.code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(originalCalls, 2, '503 must not call legacy page transport');
+assert.equal(window.state.user.token, 'employee-token', '503 must preserve session');
+assert.doesNotMatch(unavailable503.message, /انتهت الجلسة/);
+
+console.log('PERF_CF_02CU_FRONTEND_DUAL_SIGNAL_FRESHNESS_FAIL_CLOSED_PASS');

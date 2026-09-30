@@ -4,8 +4,7 @@
   if (window.__TRENDOS_CUSTOMER_MANAGER_V1__) return;
   window.__TRENDOS_CUSTOMER_MANAGER_V1__ = true;
 
-  const API_URL = String(window.TREND_API_URL || window.API_URL || "").trim();
-  if (!API_URL || window.MATBAGY_CUSTOMER_MANAGER_V1 === false) return;
+  if (window.MATBAGY_CUSTOMER_MANAGER_V1 === false) return;
 
   const state = { rows: [], selected: null, timer: null, root: null, modal: null };
   function txt(v){ return String(v == null ? "" : v); }
@@ -13,12 +12,7 @@
   function user(){ return (appState() || {}).user || null; }
   function auth(extra){ const u=user()||{}; return Object.assign({username:u.username||u.name||"",token:u.token||""},extra||{}); }
   function esc(v){ return txt(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#039;"); }
-  async function api(op, extra){
-    const p=auth(Object.assign({action:"customerManagerV1",op:op},extra||{}));
-    const q=new URLSearchParams(); Object.keys(p).forEach(k=>q.set(k,txt(p[k])));
-    const r=await fetch(API_URL+(API_URL.indexOf("?")===-1?"?":"&")+q.toString(),{cache:"no-store",credentials:"omit"});
-    const d=await r.json(); if(!d||d.success===false) throw new Error((d&&d.message)||"تعذر الاتصال بمدير العملاء"); return d;
-  }
+  async function api(op, extra){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1('customerManagerV1',Object.assign({op:op,username:(user()||{}).username||(user()||{}).name||'',token:(user()||{}).token||''},extra||{}));if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
   function isManager(){ const u=user()||{}; const role=txt(u.role).toLowerCase(); const key=txt(u.username||u.name).toLowerCase(); return role==="admin"||key.indexOf("ضياء")!==-1||key.indexOf("diaa")!==-1||role==="service"; }
   function styles(){ if(document.getElementById("cmV1Style"))return; const s=document.createElement("style"); s.id="cmV1Style"; s.textContent=`
     #cmV1Btn{position:fixed;right:14px;bottom:14px;z-index:2147481000;border:0;border-radius:999px;padding:12px 16px;background:#005bff;color:#fff;font:bold 14px Tahoma;box-shadow:0 10px 30px rgba(0,0,0,.2);cursor:pointer}

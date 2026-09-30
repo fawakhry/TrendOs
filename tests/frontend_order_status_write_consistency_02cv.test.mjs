@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('../trendos-edge-orders-read-v1.js', import.meta.url), 'utf8');
-assert.match(source, /EDGE_ORDERS_READ_02CX_LINE_ID_GUARD_20260908/);
+assert.match(source, /repairSerializedLineId/);
 assert.match(source, /EDGE_POST_WRITE_READ_BARRIER/);
 assert.match(source, /delete safe\.rowNumber/);
 assert.match(source, /DEFAULT_POST_WRITE_BARRIER_MS\s*=\s*6\s*\*\s*60\s*\*\s*1000/);
@@ -133,9 +133,9 @@ assert.ok(Number(persisted.until) > Date.now());
 // older but physically-fresh D1 mirror.
 const fetchCountBeforeBarrierRead = fetchCalls.length;
 result = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5 });
-assert.equal(result.source, 'apps-script');
+assert.equal(result.code, 'ORDERS_CLOUD_UNAVAILABLE');
 assert.equal(fetchCalls.length, fetchCountBeforeBarrierRead, 'barrier read must not even query the stale Edge page');
-assert.equal(originalCalls.length, 2);
+assert.equal(originalCalls.length, 1);
 stats = window.TrendOSEdgeOrdersReadV1.stats();
 assert.equal(stats.postWriteFallbacks, 1);
 assert.equal(stats.lastFallbackReason, 'EDGE_POST_WRITE_READ_BARRIER');
@@ -168,8 +168,8 @@ reloadContext.globalThis = reloadContext;
 vm.createContext(reloadContext);
 vm.runInContext(source, reloadContext, { filename: 'trendos-edge-orders-read-v1.js#reload' });
 const reloadResult = await reloadWindow.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5 });
-assert.equal(reloadResult.source, 'apps-script');
-assert.equal(reloadOriginalCalls.length, 1);
+assert.equal(reloadResult.code, 'ORDERS_CLOUD_UNAVAILABLE');
+assert.equal(reloadOriginalCalls.length, 0);
 assert.equal(reloadFetchCalls.length, 0);
 assert.equal(reloadWindow.TrendOSEdgeOrdersReadV1.stats().postWriteBarrierActive, true);
 

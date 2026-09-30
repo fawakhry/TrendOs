@@ -1,13 +1,13 @@
 (function(){
 'use strict';if(window.__TRENDOS_PRESS_CONTROL_V1__)return;window.__TRENDOS_PRESS_CONTROL_V1__=true;
-const API=String(window.TREND_API_URL||window.API_URL||'').trim();if(!API)return;
+
 const REFRESH_MS=120000,MIN_REFRESH_MS=90000;let refreshBusy=false,lastRefreshAt=0;
 function txt(v){return String(v==null?'':v).trim();}function norm(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه');}
 function asciiDigits(v){return txt(v).replace(/[٠-٩]/g,function(ch){return String(ch.charCodeAt(0)-1632);}).replace(/[۰-۹]/g,function(ch){return String(ch.charCodeAt(0)-1776);});}
 function user(){const s=window.trendosState||window.state||{};return s.user||null;}function allowed(){const u=user()||{},k=norm((u.username||u.name||'')+' '+(u.role||''));return k.includes('ريفان')||k.includes('revan')||k.includes('rivan')||k.includes('وائل')||k.includes('wael')||k.includes('ضياء')||k.includes('diaa')||norm(u.role)==='admin';}
 function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||''},extra||{});}function unsupported(d){const m=norm(d&&d.message);return !d||m.includes('غير معروف')||m.includes('غير منشور')||m.includes('unsupported')||m.includes('unknown action');}
-async function directApi(p){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'pressControlV1'},p)),cache:'no-store',credentials:'omit'});const raw=await r.text();let d=null;try{d=JSON.parse(raw);}catch(e){throw new Error('Web App لا يرجع JSON. انشر New version وتأكد أن رابط /exec الحالي صحيح. HTTP '+r.status);}return d;}
-async function api(op,extra){const p=auth(Object.assign({op:op},extra||{}));if(typeof window.trendosSecureApiV1922==='function'){try{const d=await window.trendosSecureApiV1922('pressControlV1',p);if(!unsupported(d))return d;}catch(e){/* fallback to direct Web App */}}return await directApi(p);}
+async function directApi(p){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1('pressControlV1',p);if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
+async function api(op,extra){return directApi(auth(Object.assign({op:op},extra||{})));}
 function queueLabel(q){q=q||{};const items=Array.isArray(q.items)?q.items:[];const unique={};items.forEach(function(x){const id=txt(x.orderId||x['رقم الأوردر']||x.order||'');if(id)unique[id]=1;});const lines=Number(q.count||items.length||0),orders=Object.keys(unique).length||Number(q.orderCount||q.orders||0)||lines;let out='Queue المكبس: '+orders+' أوردر • '+lines+' بند';if(Number(q.urgent||0)>0)out+=' • عاجل: '+Number(q.urgent||0)+' بند';return out;}
 function integrityPressSession(s){return !!(s&&txt(s.sessionId)&&Array.isArray(s.startItems));}
 function exactStopPayload(s){

@@ -1,7 +1,6 @@
 (function () {
   "use strict";
 
-  const API_URL = (window.TREND_API_URL || window.API_URL || "").trim();
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
   const UI_VERSION = 'V1931_TREND_MASTER';
 
@@ -177,6 +176,7 @@
     serverPaging: { enabled: true, page: 1, pageSize: 5, totalRows: 0, totalPages: 1 },
     serverStatusCounts: {},
     serverStatusOrderCounts: {},
+    activeSummaryCounts: null,
     rowsFilterTimer: null,
     trendMaster: null,
     trendMasterLoading: false,
@@ -1438,15 +1438,8 @@ Trend Mall`;
   }
 
   window.trendosSecureApiV1922 = async function(action, params) {
-    const endpoint=String(window.MATBAGY_SECURE_API_PROXY_URL||API_URL||'').trim();
-    if(!endpoint||endpoint.indexOf('PUT_YOUR_WEB_APP_URL_HERE')!==-1) throw new Error('رابط API الآمن غير مضبوط في config.js');
-    const controller=new AbortController(),timer=setTimeout(function(){controller.abort();},90000);
-    try{
-      const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:action,_ts:Date.now()},params||{})),signal:controller.signal,credentials:'omit',redirect:'follow'});
-      if(!response.ok) throw new Error('فشل الاتصال بالسيرفر ('+response.status+')');
-      const text=await response.text();
-      try{return JSON.parse(text||'{}');}catch(e){throw new Error('رد السيرفر غير صالح. اضبط MATBAGY_SECURE_API_PROXY_URL.');}
-    }catch(e){if(e&&e.name==='AbortError')throw new Error('انتهت مهلة الاتصال بالسيرفر.');throw e;}finally{clearTimeout(timer);}
+    if (typeof window.trendosLegacyApiTransportV1 !== 'function') throw new Error('Cloud API transport غير جاهز.');
+    return window.trendosLegacyApiTransportV1(action, params);
   };
 
   function api(action, params) { return window.trendosSecureApiV1922(action, params); }
@@ -1454,9 +1447,6 @@ Trend Mall`;
 
 
   async function apiPost(action, payload) {
-    if (!API_URL || API_URL.indexOf("PUT_YOUR_WEB_APP_URL_HERE") !== -1) {
-      throw new Error("رابط Web App غير موجود في config.js");
-    }
     return window.trendosSecureApiV1922(action, payload);
   }
 
@@ -1762,7 +1752,9 @@ Trend Mall`;
       state.screen = allowed.indexOf(state.screen) !== -1 ? state.screen : allowed[0];
       saveSession();
       bootMain();
-      if (state.user.mustChange) openPasswordModal();
+      if (state.user.mustChange) {
+        openPasswordModal();
+      }
     } catch (err) {
       setMsg("loginMsg", err.message || "حصل خطأ أثناء الدخول.", true);
     } finally {
@@ -4177,7 +4169,7 @@ Trend Mall`;
     if (!card) return;
     const show = !!state.user;
     card.classList.toggle("hidden", !show);
-    if (show && !state.trendMaster && !state.trendMasterLoading) loadTrendMasterCenter(false);
+    if (show && !state.trendMaster && !state.trendMasterLoading && $("trendMasterStatus")) $("trendMasterStatus").textContent = "اضغط «تحديث المركز» لتحميل البيانات.";
   }
 
   function trendListItem(title, meta, actions, badge) {
@@ -4526,7 +4518,7 @@ Trend Mall`;
       }));
       if (!res.success) {
         setLoading(res.message || "فشل تحميل الأوردرات.", true);
-        if ((res.message || "").indexOf("انتهت الجلسة") !== -1) logout();
+        if (!res.code && (res.message || "").indexOf("انتهت الجلسة") !== -1) logout();
         return;
       }
 
@@ -4536,6 +4528,7 @@ Trend Mall`;
       state.currentPage = Number(state.serverPaging.page || 1) || 1;
       state.serverStatusCounts = res.statusCounts || {};
       state.serverStatusOrderCounts = res.statusOrderCounts || {};
+      if (res.activeSummaryCounts && typeof res.activeSummaryCounts === "object") state.activeSummaryCounts = res.activeSummaryCounts;
       if (!state.bulkStatusSaving) state.bulkStatusRequestId = "";
       if (!state.archiveDeliveredSaving) state.archiveDeliveredRequestId = "";
       if (res.dashboard) {
@@ -4714,7 +4707,7 @@ Trend Mall`;
     const q = ($("tableSearch").value || "").trim().toLowerCase();
     const qNormalized = normalizeArabic(q);
     const status = $("statusFilter").value;
-    const priority = $("priorityFilter").value || "__ACTIVE__";
+    const priority = $("priorityFilter").value;
     const heatPressFilter = $("heatPressFilter") ? ($("heatPressFilter").value || "") : "";
 
     const filtered = state.rows.filter(function (r) {
@@ -4793,27 +4786,27 @@ Trend Mall`;
   }
 
   function renderStats(rows) {
-    const total = rows.length;
-    const urgent = rows.filter(function (r) { return text(r.priority) === "عاجل" || text(r.priority) === "VIP"; }).length;
-    const normal = rows.filter(function (r) { return !text(r.priority) || text(r.priority) === "عادي"; }).length;
-    const problem = rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;
-    const overdue = rows.filter(isOverdueRow).length;
-    const debts = rows.filter(hasDebt).length;
-    const heatPress = rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
-    const cancelled = rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
-    const flyPrint = rows.filter(function (r) {
-      return isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]);
-    }).length;
-    $("statsBar").innerHTML =
-      '<span>المعروض: <b>' + total + '</b></span>' +
-      '<span>عاجل: <b>' + urgent + '</b></span>' +
-      '<span>عادي: <b>' + normal + '</b></span>' +
-      '<span class="stat-danger">متأخر: <b>' + overdue + '</b></span>' +
-      '<span class="stat-danger">مديونية: <b>' + debts + '</b></span>' +
-      '<span class="stat-press">مكبس: <b>' + heatPress + '</b></span>' +
-      '<span class="stat-fly">طباعة على الطاير: <b>' + flyPrint + '</b></span>' +
-      '<span class="stat-cancelled">ملغى: <b>' + cancelled + '</b></span>' +
-      '<span>مشاكل/متوقف: <b>' + problem + '</b></span>';
+    const summary = state.serverPaging.enabled && state.activeSummaryCounts && typeof state.activeSummaryCounts === "object"
+      ? state.activeSummaryCounts : null;
+    const displayed = summary ? Number(summary.total || 0) : rows.length;
+    const urgent = summary ? Number(summary.urgent || 0) : rows.filter(r => r.priority === "عاجل" || r.priority === "VIP").length;
+    const normal = summary ? Number(summary.normal || 0) : rows.filter(r => !r.priority || r.priority === "عادي").length;
+    const problem = summary ? Number(summary.problems || 0) : rows.filter(function (r) { return ["متوقف"].indexOf(text(r.status)) !== -1; }).length;
+    const overdue = summary ? Number(summary.overdue || 0) : rows.filter(isOverdueRow).length;
+    const debts = summary ? Number(summary.debts || 0) : rows.filter(hasDebt).length;
+    const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
+    const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
+    const flyPrint = summary ? Number(summary.flyPrint || 0) : rows.filter(r => isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])).length;
+    statsBar.innerHTML =
+      "<span class='stat-chip'>المعروض: <b>" + displayed + "</b></span>" +
+      "<span class='stat-chip blue'>عاجل: <b>" + urgent + "</b></span>" +
+      "<span class='stat-chip'>عادي: <b>" + normal + "</b></span>" +
+      "<span class='stat-chip red'>متأخرة: <b>" + overdue + "</b></span>" +
+      "<span class='stat-chip red'>مديونية: <b>" + debts + "</b></span>" +
+      "<span class='stat-chip red'>مكبس: <b>" + heatPress + "</b></span>" +
+      "<span class='stat-chip'>طباعة على الطاير: <b>" + flyPrint + "</b></span>" +
+      "<span class='stat-chip blue'>ملغي: <b>" + cancelled + "</b></span>" +
+      "<span class='stat-chip'>مشاكل/متوقف: <b>" + problem + "</b></span>";
   }
 
   function compactOrderCell(r) {
@@ -4883,7 +4876,7 @@ Trend Mall`;
         "<td class=\"order-cell\">" + compactOrderCell(r) + "</td>" +
         "<td class=\"customer-cell\">" + compactCustomerCell(r) + "</td>" +
         "<td class=\"work-cell\">" + compactWorkCell(r) + "</td>" +
-        "<td class=\"status-cell\"><div class=\"priority-pill\">" + escapeHtml(r.priority || "-") + "</div>" + statusSelect(r.status) + "</td>" +
+        "<td class=\"status-cell\">" + statusBadges(r) + statusSelect(r.status) + "</td>" +
         "<td class=\"notes-cell\"><input class=\"row-notes\" value=\"" + escapeHtml(r.notes) + "\" placeholder=\"ملاحظات\"></td>" +
         "<td class=\"actions-cell\">" + whatsappActions(r, i) + "<button class=\"primary save-line\" data-i=\"" + i + "\">حفظ</button></td>" +
         "</tr>";
@@ -5091,7 +5084,11 @@ Trend Mall`;
         openInvoiceModal(Object.assign({}, row, { status: status, notes: notes }));
       }
 
-      loadRows(true); // V1925: أظهر نجاح الحفظ فورًا ثم حدّث الجدول في الخلفية.
+      // 02CV UX: the authoritative write already succeeded. Re-render the local
+      // state immediately so hidden statuses disappear without waiting for another
+      // Apps Script page read. A later manual/qualified refresh remains authoritative.
+      applyFiltersAndRender(false);
+      setLoading("تم حفظ التعديل في الشيت.");
       setTimeout(function () { btn.textContent = "حفظ"; }, 900);
     } catch (err) {
       alert(err.message || "خطأ أثناء الحفظ.");
@@ -5880,10 +5877,21 @@ Trend Mall`;
 
   function openPasswordModal() {
     $("passwordModal").classList.remove("hidden");
-    setMsg("passMsg", "", false);
+    var forced = !!(state.user && state.user.mustChange);
+    var cancelBtn = $("cancelPassBtn");
+    if (cancelBtn) {
+      cancelBtn.classList.toggle("hidden", forced);
+      cancelBtn.disabled = forced;
+    }
+    setMsg("passMsg", forced ? "لازم تغيّر كلمة المرور المؤقتة قبل متابعة استخدام المنصة." : "", false);
+    try { $("oldPassword").focus(); } catch (e) {}
   }
 
   function closePasswordModal() {
+    if (state.user && state.user.mustChange) {
+      setMsg("passMsg", "لازم تغيّر كلمة المرور المؤقتة قبل متابعة استخدام المنصة.", true);
+      return;
+    }
     $("passwordModal").classList.add("hidden");
     ["oldPassword", "newPassword", "confirmPassword"].forEach(function (id) { $(id).value = ""; });
   }
@@ -9215,7 +9223,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1903 External Customer Safe Order';
   window.MATBAGY_BUILD_VERSION = 'TrendOS V1896 Debt + Catalog Hard Lock';
   window.MATBAGY_BATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
-  function $(id){return document.getElementById(id);} 
+  function $(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function num(v){var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
@@ -9332,7 +9340,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
   window.TRENDOS_LOADED_APP_VERSION = 'TrendOS V1903 External Customer Safe Order';
   window.MATBAGY_BUILD_VERSION = 'TrendOS V1896 Debt + Catalog Hard Lock';
   window.MATBAGY_BATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
-  function $(id){return document.getElementById(id);} 
+  function $(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function nkey(v){return txt(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/[ؤ]/g,'و').replace(/[ئ]/g,'ي');}
   function num(v){var n=parseFloat(String(v||'').replace(/[٬,]/g,'.').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}

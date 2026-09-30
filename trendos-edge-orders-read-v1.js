@@ -1,14 +1,14 @@
 /* TrendOS Edge Orders Read V1
  * Reads getRowsPageV1931 from the qualified Cloudflare/D1 route first when enabled.
- * Every write and every unsupported/sensitive read stays on Apps Script.
- * Any Edge error or stale required mirror fails open to the original Apps Script function.
+ * Legacy actions use the dispatcher and server-side Cloud transport.
+ * Any Edge error or stale required mirror fails closed without a legacy read.
  * 02CV adds read-your-write consistency for updateLine without changing write authority.
  * 02CX repairs Google-Sheets date-coerced Line IDs and persists the write barrier across refresh.
  */
 (function () {
   'use strict';
 
-  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_D1_A51_STALE_BACKOFF_A52_20260929';
+  var VERSION = 'EDGE_ORDERS_T12_CUSTOMER_CLOUD_ONLY_A56_20260929';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var QUALIFIED_PAGE_PATH = '/v1/edge/orders/02cr/page';
   var CUSTOMER_SEARCH_PATH = '/v1/edge/customers/search';
@@ -757,21 +757,24 @@
     return base;
   }
 
-  async function hybridAppsScriptFallback(context, original, action, params, args) {
-    var appsResult = await original.apply(context, args);
-    try {
-      var overlay = await t12OverlayPage(params || {});
-      var merged = mergeHybridFallback(appsResult, overlay, params || {});
-      metrics.hybridOverlaySuccess += 1;
-      metrics.hybridOverlayRows += Array.isArray(overlay.rows) ? overlay.rows.length : 0;
-      return merged;
-    } catch (overlayErr) {
-      metrics.hybridOverlayFailures += 1;
-      try {
-        console.warn('[TrendOS T12 Hybrid Overlay] overlay unavailable; returning Apps Script only:', overlayErr && overlayErr.message ? overlayErr.message : overlayErr);
-      } catch (ignore) {}
-      return appsResult;
+  async function employeeLegacyFallback(context, original, action, params, args) {
+    if (
+      window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 === true &&
+      typeof window.trendosEmployeeLegacyFallbackV1 === 'function'
+    ) {
+      return window.trendosEmployeeLegacyFallbackV1(
+        action,
+        params || {},
+        function () { return original.apply(context, args); }
+      );
     }
+    return original.apply(context, args);
+  }
+
+  function ordersUnavailable(reason) {
+    return { success: false, code: 'ORDERS_CLOUD_UNAVAILABLE', reason: reason,
+      message: 'تعذر تحميل الأوردرات من Cloud بسبب عدم جاهزية البيانات أو الاتصال. الجلسة محفوظة؛ أعد المحاولة لاحقًا.',
+      dataSource: 'cloud-unavailable', retryable: true };
   }
 
   function canaryUserAllowed() {
@@ -865,7 +868,13 @@ function eligible(action, params) {
           });
         }
         var safeParams = identitySafeUpdateLineParams(params || {});
-        var writeResult = await original.call(this, action, safeParams);
+        var writeResult = await employeeLegacyFallback(
+          this,
+          original,
+          action,
+          safeParams,
+          [action, safeParams]
+        );
         if (writeResult && writeResult.success === true) openPostWriteBarrier(safeParams);
         return writeResult;
       }
@@ -880,7 +889,7 @@ function eligible(action, params) {
             message: text(params && params.message)
           });
         }
-        return original.apply(this, args);
+        return employeeLegacyFallback(this, original, action, params || {}, args);
       }
 
       if (!eligible(action, params || {})) return original.apply(this, args);
@@ -890,7 +899,7 @@ function eligible(action, params) {
         metrics.postWriteFallbacks += 1;
         metrics.lastFallbackAt = Date.now();
         metrics.lastFallbackReason = 'EDGE_POST_WRITE_READ_BARRIER';
-        return hybridAppsScriptFallback(this, original, action, params || {}, args);
+        return ordersUnavailable(metrics.lastFallbackReason);
       }
 
       if (staleFallbackActive()) {
@@ -898,7 +907,7 @@ function eligible(action, params) {
         metrics.staleCooldownBypasses += 1;
         metrics.lastFallbackAt = Date.now();
         metrics.lastFallbackReason = 'EDGE_MIRROR_STALE_COOLDOWN';
-        return hybridAppsScriptFallback(this, original, action, params || {}, args);
+        return ordersUnavailable(metrics.lastFallbackReason);
       }
 
       try {
@@ -915,9 +924,9 @@ function eligible(action, params) {
           openStaleFallbackCooldown();
         }
         try {
-          console.warn('[TrendOS Orders Edge 02CX] D1 read unavailable/freshness failed; using Apps Script fallback:', err && err.message ? err.message : err);
+          console.warn('[TrendOS Orders Edge 02CX] D1 read unavailable/freshness failed; failing closed:', err && err.message ? err.message : err);
         } catch (ignore) {}
-        return hybridAppsScriptFallback(this, original, action, params || {}, args);
+        return ordersUnavailable(metrics.lastFallbackReason);
       }
     }
 
@@ -927,7 +936,7 @@ function eligible(action, params) {
     window.TrendOSEdgeOrdersReadV1 = {
       version: VERSION,
       enabled: true,
-      mode: 't12-02cr-orders-plus-d1-customer-search-with-apps-script-fallback',
+      mode: 't12-02cr-cloud-only-fail-closed',
       customerSearchPath: CUSTOMER_SEARCH_PATH,
       customerWritePath: CUSTOMER_WRITE_PATH,
       customerAuthority: 'cloud-only',

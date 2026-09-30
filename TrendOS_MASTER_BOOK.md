@@ -1,10 +1,13 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.73-DRAFT-COMPACT — T12 A61 Diya credential proven; direct bootstrap hardened through Entry494** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.74-DRAFT-COMPACT — T12 A61 browser Google transport fix qualified in Repo; Entry495** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 ## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Direct Bootstrap qualification / Entry494
+
+**Entry495 — أحدث عمل Repo-only، غير منشور:** تم تأهيل إصلاح direct Browser→Google transport. الواجهة تستخدم dispatcher وCloud `/v1/legacy-api`، وGoogle يبقى upstream server-side مؤقتًا. أخطاء Orders 02CR freshness/503 تفشل بوضوح دون browser fallback أو مسح الجلسة. احتُفظ بإصلاحات current-main الخاصة بـA60 وOrders UX أثناء توفيق مصدر الفرع. الـgeneric aliases القديمة أصبحت metadata فارغة ولم تُقلب عالميًا إلى Cloudflare. 11 اختبارًا معزولًا + syntax PASS؛ لا Cloudflare/Apps Script deploy، لا Wrangler، لا D1 migration، لا secrets/properties/flags/data mutation. الخطوة التالية نشر يدوي من المالك: API source أولًا ثم frontend assets من نفس commit المؤهل، مع بقاء A61 كله OFF. **Zero-Google لم يكتمل؛ Auth والأعمال القديمة ما زالت Google-backed server-side.**
+Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_BROWSER_GOOGLE_TRANSPORT_FIX_ENTRY_495_2026-09-30.md`.
 
 **Checkpoint قبل هذا التحديث:** Working-branch HEAD المعروف `b500be4975f8d323c33e8ab8664f77cc28f787e2` (Entry478 documentation). آخر `main` وظيفي معروف `e5efcb39acf33a70ce13f16125e307a51994bb65` (A60 logging hygiene). هذه الصفحة تلغي كحالة حالية أي نص أقدم يقول إن Customer write authority ما زالت Apps Script أو إن واجهة TrendOS الأساسية ما زالت GitHub Pages.
 
@@ -2518,3 +2521,9 @@ Workflow blob على main يطابق فرع T12: `c4603edd4844591b8cdacda94dbea5
 `GENERAL_PRODUCTION_CREATE_CUTOVER=NO`.
 
 NEXT: repair/replace GitHub Actions `CLOUDFLARE_API_TOKEN` so it has D1 write/edit permission on the TrendOS account and sufficient Worker deploy permission for the existing `trendos-d1-api` Worker; then rerun the same `install-disabled` action only. Do not run `arm-one`.
+
+
+
+## Entry495 — 30 سبتمبر 2026 / Browser Cloud transport Repo-only qualification
+
+إصلاح CORS/direct Apps Script browser fallback مؤهل في المصدر فقط. راجع Entry495 لتفاصيل السبب، الملفات، الاختبارات، تسلسل النشر اليدوي وأوامر التحقق. لا تعِد D1/Apps Script أو Enrollment canary. Production لم يتغير في هذه المهمة.

@@ -5,7 +5,7 @@ window.__TRENDOS_OPERATOR_TASK_V2__=true;
 if(window.MATBAGY_OPERATOR_TASK_V2!==true)return;
 
 const DEFAULT_EDGE_API='https://trendos-d1-api.trendmall-contact.workers.dev';
-const APPS_SCRIPT_API=String(window.TREND_API_URL||window.API_URL||'').trim();
+
 const SESSION_PATH='/v1/edge/session';
 const ROUTES={
   status:{method:'GET',path:'/v1/operator/tasks/status'},
@@ -91,16 +91,7 @@ async function api(op,extra){
   return edgeApiOnce(op,extra,key,true);
 }
 function legacyMaterialAuth(extra){const u=employeeSession();return Object.assign({username:u.username,token:u.token},extra||{});}
-async function materialApi(op,extra){
-  if(String(op||'').indexOf('gaberMaterial')!==0)throw new Error('Material API operation خارج النطاق.');
-  const payload=legacyMaterialAuth(Object.assign({op:op},extra||{}));
-  if(typeof window.trendosSecureApiV1922==='function'){
-    try{const d=await window.trendosSecureApiV1922('operatorTaskV2',payload);if(d&&!(norm(d.message).includes('غير معروف')||norm(d.message).includes('غير منشور')))return d;}catch(e){}
-  }
-  if(!APPS_SCRIPT_API)throw new Error('Material backend URL غير متاح.');
-  const r=await fetch(APPS_SCRIPT_API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'operatorTaskV2'},payload)),cache:'no-store',credentials:'omit'});
-  const raw=await r.text();try{return JSON.parse(raw);}catch(e){throw new Error('Material backend لا يرجع JSON.');}
-}
+async function materialApi(op,extra){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1('operatorTaskV2',legacyMaterialAuth(Object.assign({op:op},extra||{})));if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
 function hide(el){if(el)el.style.display='none';}
 function privacyMask(role){
   if(role!=='WAEL'&&role!=='GABER')return;

@@ -17,7 +17,7 @@ assert.match(saveSource, /row\.status = status;[\s\S]*?applyFiltersAndRender\(fa
 assert.doesNotMatch(saveSource, /loadRows\(true\);/);
 assert.match(saveSource, /if \(!res\.success\)/, 'failed writes must still be handled before local success render');
 
-assert.match(index, /app\.js\?v=trendos-02cv-statusux-20260906b/);
+assert.match(index, /app\.js\?v=20260930-a61-cloud-transport/);
 assert.doesNotMatch(index, /app\.js\?v=trendos-02cu-resume-20260906a/);
 
 console.log('PERF_CF_02CV_ORDER_STATUS_UX_PASS');

@@ -798,3 +798,43 @@ Do not repeat migration 0009. Do not configure/read the Legacy Bridge secret. Do
 
 Detailed record:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_DIYA_DIRECT_BOOTSTRAP_READY_BLOCKED_ENTRY_494_2026-09-30.md`
+
+
+
+---
+
+# Entry495 — latest Repo-only browser transport checkpoint — 2026-09-30
+
+The urgent frontend direct-Google/CORS fix is qualified in source, not deployed. Entry493 and Entry494 remain preserved as historical auth checkpoints; no enrollment/canary was repeated.
+
+Browser legacy API requests now use explicit Cloud `/v1/legacy-api`, backed by a fixed server-only upstream using the existing `APPS_SCRIPT_API_URL`. The generic API aliases are retired/empty, not globally flipped to Cloudflare. Legacy Apps Script session/action authorization remains unchanged. Native Auth and Legacy Bridge remain OFF; no bridge secret is needed or created.
+
+Orders 02CR stale/503/missing-mirror/invalid-JSON, stale cooldown and persisted post-write barriers fail closed with `ORDERS_CLOUD_UNAVAILABLE`; no legacy page fallback and no employee-session clearing. Existing current-main A60 forced-password-change, Orders summary/status UX and dispatcher-safe legacy writes were retained in the branch candidate.
+
+11 isolated tests + frontend/server-source syntax passed. New CI is isolated/no secrets/no Production calls. Existing deployment/canary triggers were checked; no Production workflow is triggered by these changed paths.
+
+```ini
+SOURCE_QUALIFIED=YES
+SOURCE_DEPLOYED=NO
+APPS_SCRIPT_PRODUCTION_VERSION=158
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+NATIVE_USER_COUNT=0
+NATIVE_READY_COUNT=0
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+CLOUDFLARE_DEPLOY=NO
+WRANGLER_EXECUTED=NO
+D1_MIGRATION=NO
+SECRETS_MUTATION=NO
+SCRIPT_PROPERTIES_MUTATION=NO
+PRODUCTION_FLAGS_MUTATION=NO
+ORDER_MUTATION=NO
+CUSTOMER_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+NEXT_STEP=OWNER_MANUAL_CLOUD_TRANSPORT_INSTALL_AND_FRONTEND_VERIFY
+```
+
+Production state above is the supplied/documented checkpoint, not a new live read. Owner manual sequence: compare Production drift; publish qualified API entry/import graph first preserving bindings/dependencies and A61 OFF; verify non-mutating transport/CORS probes; publish frontend assets from the same qualified branch commit (historical A57B workflow builds unmodified main, so do not use it blindly); verify zero browser Apps Script requests and session/Orders error behavior. Do not repeat migration 0009 or session-bound enrollment, alter freshness/control data, or enable native/bridge flags.
+
+Detailed source inventory, tests, owner-only steps and verification commands:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_BROWSER_GOOGLE_TRANSPORT_FIX_ENTRY_495_2026-09-30.md`

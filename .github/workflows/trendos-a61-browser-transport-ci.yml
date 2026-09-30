@@ -1,0 +1,37 @@
+name: TrendOS A61 browser Cloud transport regression
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['**/*.js', '**/*.html', 'tests/**', 'cloudflare-d1/src/legacy-browser-transport-v1.mjs', '.github/workflows/trendos-a61-browser-transport-ci.yml']
+  pull_request:
+    paths: ['**/*.js', '**/*.html', 'tests/**', 'cloudflare-d1/src/legacy-browser-transport-v1.mjs', '.github/workflows/trendos-a61-browser-transport-ci.yml']
+permissions:
+  contents: read
+jobs:
+  isolated-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Syntax
+        run: |
+          set -e
+          for f in *.js; do node --check "$f"; done
+          node --check cloudflare-d1/src/index_v2.js
+          node --check cloudflare-d1/src/legacy-browser-transport-v1.mjs
+      - name: Isolated transport, dispatcher, Orders and A61 regressions
+        run: |
+          set -e
+          node tests/frontend_no_direct_google_transport_a61.test.mjs
+          node tests/legacy_browser_transport_a61.test.mjs
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          node tests/frontend_legacy_module_dispatch_a61.test.mjs
+          node tests/frontend_edge_orders_cutover_02ct.test.mjs
+          node tests/frontend_order_status_write_consistency_02cv.test.mjs
+          node tests/frontend_order_status_ux_02cv.test.mjs
+          node tests/frontend_flyprint_lane_stability_02cv.test.mjs
+          node tests/frontend_t12_customer_cloud_only_a56.test.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          node tests/employee_legacy_auth_bridge_a61.test.mjs

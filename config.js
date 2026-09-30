@@ -1,6 +1,6 @@
 // TrendOS / Matbagy Benha - unified accounting configuration.
-// TrendOS and EasyStore must use the same Apps Script deployment so invoices and debts stay in sync.
-window.WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec";
+// Legacy authority stays on its existing server-side deployment. Browser uses explicit Cloud transport.
+window.WEB_APP_URL = ""; // Deprecated: upstream URL is server-only; aliases are not repointed.
 window.TREND_API_URL = window.WEB_APP_URL;
 window.API_URL = window.WEB_APP_URL;
 window.TRENDOS_SHEET_ID = "1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI";
@@ -10,19 +10,27 @@ window.TRENDOS_UNIFIED_ACCOUNTING_BACKEND = true;
 window.MATBAGY_SECURE_API_PROXY_URL = "";
 
 // Production Orders read cutover 02CT: qualified D1 route first for getRowsPageV1931 only.
-// Writes, debt reads, unsupported reads, and every Edge failure stay/fall back to Apps Script.
+// Legacy actions use Cloud transport; Orders freshness failures fail closed.
 window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.workers.dev";
+
+// T12 A61 employee API dispatcher foundation. Default-OFF: no runtime change
+// until native employee auth and the temporary legacy bridge are separately qualified.
+window.MATBAGY_EMPLOYEE_API_URL = window.MATBAGY_EDGE_ORDERS_API_URL;
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;
+window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;
+window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];
+
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
 window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = false;
 window.MATBAGY_EDGE_ORDERS_CANARY_USERS = ['وائل','wael'];
 window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser','press','service'];
-// 02CU: stale required D1 Orders mirrors fail open to authoritative Apps Script.
+// Stale D1 Orders mirrors fail closed; no direct Google fallback.
 window.MATBAGY_EDGE_ORDERS_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
 
 window.MATBAGY_REMOTE_FILES_URL = "https://files.matbagy.com";
 window.MATBAGY_FILE_SERVER_URL = "https://files.matbagy.com";
 window.MATBAGY_SHEETS_URL = "https://fawakhry.github.io/Matbagy/?from=trendos";
-window.MATBAGY_ROTET_URL = "https://fawakhry.github.io/TrendOs/?rotet=matbagy";
+window.MATBAGY_ROTET_URL = "https://trendos-ui.trendmall-contact.workers.dev/?rotet=matbagy";
 window.MATBAGY_EASY_STORE_URL = "https://fawakhry.github.io/EasyStore/";
 window.MATBAGY_LEAD_HUNTER_URL = "https://fawakhry.github.io/trendos-lead-hunter/";
 window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es50-v1925-fast-read-write-20260812a';
@@ -92,61 +100,61 @@ function trendLoadModuleV1932(id, src){
   (document.head || document.documentElement).appendChild(s);
 }
 
-trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260929-t12-a56-customer-cloud-only');
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260930-a61-cloud-transport');
 
 // 02CU resume guard: returning to the platform must not trigger legacy safeRefresh.
 window.MATBAGY_DISABLE_RETURN_AUTO_REFRESH_V1 = true;
-trendLoadModuleV1932('trendResumeNoAutoRefreshV1Loader','trendos-resume-no-autorefresh-v1.js?v=20260906a');
+trendLoadModuleV1932('trendResumeNoAutoRefreshV1Loader','trendos-resume-no-autorefresh-v1.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_ATTENDANCE_V1 = true;
-trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260906perfhotfix1');
+trendLoadModuleV1932('trendAttendanceV1Loader','attendance-v1.js?v=20260930-a61-cloud-transport');
 window.__TRENDOS_ATTENDANCE_REST_LIMIT__ = 30;
-trendLoadModuleV1932('trendAttendanceLiveTimerV1Loader','attendance-live-timer-v1.js?v=20260824a');
+trendLoadModuleV1932('trendAttendanceLiveTimerV1Loader','attendance-live-timer-v1.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_ATTENDANCE_CLOCKIN_V1 = true;
 window.TRENDOS_ATTENDANCE_START = '12:00';
-trendLoadModuleV1932('trendAttendanceClockinV1Loader','attendance-clockin-ui-v1.js?v=20260824a');
+trendLoadModuleV1932('trendAttendanceClockinV1Loader','attendance-clockin-ui-v1.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_PRAYER_PREP_V1 = true;
-trendLoadModuleV1932('trendPrayerPrepV1Loader','employee-prayer-prep-v1.js?v=20260824a');
+trendLoadModuleV1932('trendPrayerPrepV1Loader','employee-prayer-prep-v1.js?v=20260930-a61-cloud-transport');
 
 // Daily pre-opening machine/place cleaning. Uses Cairo time and supports special-day overrides.
 window.MATBAGY_CLEANING_PREP_V1 = true;
 window.TRENDOS_DEFAULT_WORKDAY_START = '12:00';
 window.TRENDOS_CLEANING_PREP_MINUTES = 30;
 window.TRENDOS_WORKDAY_OVERRIDES = {'2026-08-25':'10:00','2026-08-26':'10:00'};
-trendLoadModuleV1932('trendCleaningPrepV1Loader','employee-cleaning-prep-v1.js?v=20260824b');
+trendLoadModuleV1932('trendCleaningPrepV1Loader','employee-cleaning-prep-v1.js?v=20260930-a61-cloud-transport');
 
 // Compact HR self-service for all staff; admin receives broader HR data after backend deploy.
 window.MATBAGY_HR_V1 = true;
-trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260824b');
+trendLoadModuleV1932('trendHrV1Loader','hr-v1.js?v=20260930-a61-cloud-transport');
 
 // Press batch control for Rivan/Wael/admin.
 window.MATBAGY_PRESS_CONTROL_V1 = true;
-trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260906-02cw');
+trendLoadModuleV1932('trendPressControlV1Loader','press-control-v1.js?v=20260930-a61-cloud-transport');
 
-trendLoadModuleV1932('trendMasterResilienceSafeV1931Loader','trend-master-resilience-safe-v1931.js?v=20260906safe1');
-trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260906a');
-trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260906perfhotfix1');
+trendLoadModuleV1932('trendMasterResilienceSafeV1931Loader','trend-master-resilience-v1931.js?v=20260930-a61-cloud-transport');
+trendLoadModuleV1932('trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260930-a61-cloud-transport');
+trendLoadModuleV1932('trendCustomerManagerV1Loader','customer-manager-v1.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_CUSTOMER_FEEDBACK_V1 = true;
 window.MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1 = false;
-trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260906perfhotfix1');
+trendLoadModuleV1932('trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2 = true;
-trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260906perfhotfix1');
+trendLoadModuleV1932('trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_DRAG_V2 = true;
-trendLoadModuleV1932('trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260824b');
+trendLoadModuleV1932('trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_EMPLOYEE_ANDON_V1 = true;
-trendLoadModuleV1932('trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20260824b');
+trendLoadModuleV1932('trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20260930-a61-cloud-transport');
 
 window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;
 window.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false;
-trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260906perfhotfix1');
+trendLoadModuleV1932('trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260930-a61-cloud-transport');
 
 // Unified floating tools, visible version, and one refresh point.
 window.MATBAGY_OPERATIONS_HUB_V1 = true;
-trendLoadModuleV1932('trendOperationsHubV1Loader','operations-hub-v1.js?v=20260824b');
+trendLoadModuleV1932('trendOperationsHubV1Loader','operations-hub-v1.js?v=20260930-a61-cloud-transport');

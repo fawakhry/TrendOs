@@ -4,8 +4,7 @@
   window.__TRENDOS_EMPLOYEE_OPS_COACH_V1__=true;
   if(window.MATBAGY_EMPLOYEE_OPS_COACH_V1===false) return;
 
-  const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim();
-  if(!API_URL) return;
+
   const REFRESH_MS=5*60*1000;
   const ui={root:null,panel:null,rows:[],notes:[],loading:false,lastOk:0,timer:null};
   const txt=v=>String(v==null?'':v).trim();
@@ -16,7 +15,7 @@
   function isAdmin(){const u=user()||{},k=(txt(u.username||u.name)+' '+txt(u.role)).toLowerCase();return txt(u.role).toLowerCase()==='admin'||k.includes('ضياء')||k.includes('diaa');}
   function screen(){return txt(state().screen||'');}
   function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||'',screen:screen()},extra||{});}
-  async function api(action,extra){const payload=auth(extra||{});if(typeof window.trendosSecureApiV1922==='function')return window.trendosSecureApiV1922(action,payload);const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},payload)),cache:'no-store',credentials:'omit'});return r.json();}
+  async function api(action,extra){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1(action,auth(extra||{}));if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
   function norm(s){return txt(s).toLowerCase().replace(/[إأآا]/g,'ا').replace(/[ى]/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();}
   function isDone(r){return ['تم التسليم','جاهز للاستلام','ملغى','ملغي','مكرر'].includes(txt(r.status));}
   function isUrgent(r){const p=norm(r.priority),f=norm(r.flyPrint||r.quickPrint||r.fastPrint||r['طباعة على الطاير']||r['طباعة ع الطاير']);return p.includes('عاجل')||p==='vip'||f==='نعم'||f==='true'||f==='1'||f.includes('الطاير');}

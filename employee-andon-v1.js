@@ -4,18 +4,12 @@
   window.__TRENDOS_EMPLOYEE_ANDON_V1__=true;
   if(window.MATBAGY_EMPLOYEE_ANDON_V1===false) return;
 
-  const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim();
   const txt=v=>String(v==null?'':v).trim();
   function state(){return window.trendosState||window.state||{};}
   function user(){return state().user||null;}
   function name(){const u=user()||{};return txt(u.username||u.name)||'الموظف';}
   function screen(){return txt(state().screen||'');}
-  async function api(action,extra){
-    const u=user()||{},p=Object.assign({username:u.username||u.name||'',token:u.token||'',screen:screen()},extra||{});let d;
-    if(typeof window.trendosSecureApiV1922==='function')d=await window.trendosSecureApiV1922(action,p);
-    else{const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},p)),cache:'no-store',credentials:'omit'});d=await r.json();}
-    if(!d||d.success===false)throw new Error((d&&d.message)||'تعذر إرسال طلب المساعدة');return d;
-  }
+  async function api(action,extra){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1(action,auth(extra||{}));if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
   function styles(){
     if(document.getElementById('trendEmployeeAndonV1Style'))return;
     const s=document.createElement('style');s.id='trendEmployeeAndonV1Style';s.textContent=`

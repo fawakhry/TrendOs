@@ -4,11 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Trend Mall | فكرتك جاهزة</title>
+  <script>
+    (function () {
+      if (location.hostname === 'fawakhry.github.io') {
+        var target = 'https://trendos-ui.trendmall-contact.workers.dev' + location.pathname.replace(/^\/TrendOs\/?/, '/') + location.search + location.hash;
+        location.replace(target);
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=trendos-v1931-trend-master-20260812a">
-  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1931-trend-master-20260812a">
+  <link rel="stylesheet" href="styles.css?v=trendos-02cu-resume-20260906a">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-02cu-resume-20260906a">
 </head>
 <body>
 <main class="app">
@@ -756,8 +764,8 @@
           <option>ملغي</option>
         </select>
         <select id="priorityFilter">
-          <option value="__ACTIVE__" selected>العاجل والعادي فقط</option>
-          <option value="">كل الأولويات</option>
+          <option value="__ACTIVE__">العاجل والعادي فقط</option>
+          <option value="" selected>كل الأولويات</option>
           <option>عاجل</option>
           <option>عادي</option>
           <option>مؤجل</option>
@@ -1306,15 +1314,18 @@
   </section>
 </main>
 
-<script src="config.js?v=trendos-v1931-trend-master-20260812a"></script>
-<script src="app.js?v=trendos-v1931-trend-master-20260812a"></script>
-<script src="matbagy_theme_v1860.js?v=trendos-v1931-trend-master-20260812a"></script>
+<script src="trendos-return-traffic-quiet-v1.js?v=trendos-02cu-return-quiet-20260906a"></script>
+<script src="config.js?v=20260930-a61-cloud-transport"></script>
+<script src="browser-api-transport-v1.js?v=20260930-a61-cloud-transport"></script>
+<script src="app.js?v=20260930-a61-cloud-transport"></script>
+<script src="employee-api-dispatcher-v1.js?v=20260930-a61-cloud-transport"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-02cu-resume-20260906a"></script>
 
 <script>
 (function(){
   'use strict';
   var BUILD = 'TrendOS V1931 Trend Master';
-  var CACHE_TAG = 'trendos-v1931-trend-master-20260812a';
+  var CACHE_TAG = 'trendos-02cu-resume-20260906a';
   window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
   window.TRENDOS_PATCH_VERSION = 'V1931_TREND_MASTER';
   window.TRENDOS_LOADED_APP_VERSION = BUILD;

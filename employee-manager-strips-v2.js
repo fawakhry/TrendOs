@@ -4,7 +4,6 @@
   window.__TRENDOS_EMPLOYEE_MANAGER_STRIPS_V2__=true;
   if(window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2===false) return;
 
-  const API_URL=String(window.TREND_API_URL||window.API_URL||'').trim();
   const REFRESH_MS=60*1000;
   const MIN_REFRESH_MS=45*1000;
   const ui={root:null,rows:[],notes:[],lastOk:0,lastRefreshAt:0,busy:false,sending:false,timer:null};
@@ -18,13 +17,7 @@
   function isAdmin(){const k=norm(name()+' '+role());return role()==='admin'||k.includes('ضياء')||k.includes('diaa');}
   function screen(){return txt(state().screen||'');}
   function auth(extra){const u=user()||{};return Object.assign({username:u.username||u.name||'',token:u.token||'',screen:screen()},extra||{});}
-  async function api(action,extra){
-    if(!API_URL) throw new Error('API غير مضبوط');
-    const p=auth(extra||{});let d;
-    if(typeof window.trendosSecureApiV1922==='function')d=await window.trendosSecureApiV1922(action,p);
-    else{const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},p)),cache:'no-store',credentials:'omit'});d=await r.json();}
-    if(!d||d.success===false)throw new Error((d&&d.message)||'تعذر تحديث المتابعة');return d;
-  }
+  async function api(action,extra){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1(action,auth(extra||{}));if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
   function isDone(r){return ['تم التسليم','جاهز للاستلام','ملغى','ملغي','مكرر'].includes(txt(r.status));}
   function isUrgent(r){const p=norm(r.priority),f=norm(r.flyPrint||r.quickPrint||r.fastPrint||r['طباعة على الطاير']||r['طباعة ع الطاير']);return p.includes('عاجل')||p==='vip'||f==='نعم'||f==='true'||f==='1'||f.includes('الطاير');}
   function parseDate(v){const s=txt(v);if(!s)return null;let m=s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3],23,59,59);m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);if(m)return new Date(+m[3],+m[1]-1,+m[2],23,59,59);const d=new Date(s);return isNaN(d.getTime())?null:d;}

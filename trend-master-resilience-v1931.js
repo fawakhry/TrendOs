@@ -30,7 +30,6 @@
     var n=Number(cfg[panel]);
     return n>0?n:defaultTimeouts[panel]||15000;
   }
-  function endpoint(){ return txt(window.MATBAGY_SECURE_API_PROXY_URL||window.TREND_API_URL||window.API_URL||'').trim(); }
   function isAuthError(message){ return /session|token|login|تسجيل|جلسة|صلاحية|دخول/i.test(txt(message)); }
   function cleanContext(params){
     return Object.assign({},params||{}, {
@@ -38,22 +37,7 @@
       archiveQuery:(params&&params.archiveQuery)||((window.trendosState||window.state||{}).archiveQuery)||''
     });
   }
-  function requestPanel(panel,params){
-    var url=endpoint();
-    if(!url) return Promise.reject(new Error('رابط API غير مضبوط.'));
-    var controller=new AbortController();
-    var timer=setTimeout(function(){controller.abort();},timeoutFor(panel));
-    var body=Object.assign({action:PANEL_ACTION,panel:panel,_ts:Date.now()},params||{});
-    return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),signal:controller.signal,credentials:'omit',redirect:'follow',cache:'no-store'})
-      .then(function(r){return r.text();})
-      .then(function(raw){
-        var data; try{data=JSON.parse(raw||'{}');}catch(e){throw new Error('رد Trend Master غير صالح.');}
-        if(!data||data.success===false) throw new Error((data&&data.message)||'تعذر تحميل القسم.');
-        return data;
-      })
-      .catch(function(err){ if(err&&err.name==='AbortError') throw new Error('انتهت مهلة تحميل القسم.'); throw err; })
-      .finally(function(){clearTimeout(timer);});
-  }
+  function requestPanel(panel,params){if(typeof window.trendosEmployeeApiV1!=='function')return Promise.reject(new Error('Cloud dispatcher غير جاهز.'));return window.trendosEmployeeApiV1(PANEL_ACTION,Object.assign({},params||{},{panel:panel})).then(function(data){if(!data||data.success===false)throw new Error((data&&data.message)||'تعذر تحميل القسم.');return data;});}
   function readPanel(panel,params,options){
     params=cleanContext(params); options=options||{};
     var key=cacheKey(panel,params);

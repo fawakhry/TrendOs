@@ -4,8 +4,7 @@
   if (window.__TRENDOS_ATTENDANCE_V1_LOADED__) return;
   window.__TRENDOS_ATTENDANCE_V1_LOADED__ = true;
 
-  const API_URL = String(window.TREND_API_URL || window.API_URL || "").trim();
-  if (!API_URL || window.MATBAGY_ATTENDANCE_V1 === false) return;
+  if (window.MATBAGY_ATTENDANCE_V1 === false) return;
 
   const VERSION = "V1.1_HYBRID_20260824";
   const CATEGORY = "ATTENDANCE_V1";
@@ -64,13 +63,7 @@
       token: u.token || ""
     }, extra || {});
   }
-  async function api(action, extra) {
-    const params = authParams(extra || {});
-    if (typeof window.trendosSecureApiV1922 === "function") return window.trendosSecureApiV1922(action, params);
-    const res = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(Object.assign({action:action},params)), cache:"no-store", credentials:"omit" });
-    const data = await res.json();
-    return data || {};
-  }
+  async function api(action, extra){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1(action,authParams(extra||{}));if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
   async function callAttendanceBackend(op, extra) {
     const out = await api("attendanceV1", Object.assign({ op: op }, extra || {}));
     if (!out || out.success === false) throw new Error((out && out.message) || "Attendance backend unavailable");

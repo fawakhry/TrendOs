@@ -4,8 +4,7 @@ if(window.__TRENDOS_WORK_QUEUE_V1__)return;
 window.__TRENDOS_WORK_QUEUE_V1__=true;
 if(window.MATBAGY_WORK_QUEUE_V1!==true)return;
 
-const API=String(window.TREND_API_URL||window.API_URL||'').trim();
-if(!API)return;
+
 let root=null,last=null,pressListOpen=false,pressItems=[],busy=false,timer=null,bootTimer=null;
 
 function txt(v){return String(v==null?'':v).trim();}
@@ -27,17 +26,8 @@ function timeSec(task){
   return Math.max(0,Math.floor((end-start)/1000)-Number(task.pausedTotalSec||0));
 }
 function batchSec(batch){if(!batch)return 0;if(batch.state==='COMPLETED')return Number(batch.durationSec||0);const t=new Date(batch.startedAt).getTime();return isFinite(t)?Math.max(0,Math.floor((Date.now()-t)/1000)):0;}
-async function directApi(p){
-  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:'workQueueV1'},p)),cache:'no-store',credentials:'omit'});
-  const raw=await r.text();let d=null;try{d=JSON.parse(raw);}catch(e){throw new Error('Work Queue backend لا يرجع JSON.');}return d;
-}
-async function api(op,extra){
-  const p=auth(Object.assign({op:op},extra||{}));
-  if(typeof window.trendosSecureApiV1922==='function'){
-    try{const d=await window.trendosSecureApiV1922('workQueueV1',p);if(d&&!(norm(d.message).includes('غير معروف')||norm(d.message).includes('غير منشور')))return d;}catch(e){}
-  }
-  return directApi(p);
-}
+async function directApi(p){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1('workQueueV1',p);if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
+async function api(op,extra){return directApi(auth(Object.assign({op:op},extra||{})));}
 function hide(el){if(el)el.style.display='none';}
 function applyPrivacyMask(role){
   if(role!=='GABER'&&role!=='WAEL')return;
