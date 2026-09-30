@@ -1,0 +1,364 @@
+name: TrendOS T12 A61 Diya Session Enrollment Canary TEMP
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-diya-session-enroll-canary-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a61-diya-session-enroll-canary-temp
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard gate and OFF-state preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${QUALIFY_USERNAME:-}"
+          test -n "${QUALIFY_PASSWORD:-}"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/a.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" > /tmp/b.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" > /tmp/c.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" > /tmp/o.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/a.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/b.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/c.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/o.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) process.exit(11);
+          if(!b.success||b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) process.exit(12);
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL'||Number(c.customerCount||0)<247) process.exit(13);
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') process.exit(14);
+          console.log('A61_DIYA_ENROLL_PREFLIGHT=PASS');
+          console.log('PRE_NATIVE_READY_COUNT=0');
+          NODE
+
+      - name: Obtain short-lived legacy session from verified credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const toml=fs.readFileSync('cloudflare-d1/wrangler.toml','utf8');
+          const m=toml.match(/^APPS_SCRIPT_API_URL = "([^"]+)"$/m);
+          if(!m) process.exit(21);
+          const upstream=m[1];
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),120000);
+            let r;
+            try {
+              r=await fetch(upstream,{
+                method:'POST',
+                headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+                body:JSON.stringify({action:'login',username,password,_ts:Date.now()}),
+                redirect:'follow',
+                signal:ctrl.signal
+              });
+            } finally { clearTimeout(timer); }
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token){
+              console.error('A61_LEGACY_LOGIN_FOR_ENROLL=FAIL status='+r.status);
+              process.exit(22);
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/legacy-token',token,{mode:0o600});
+            fs.writeFileSync('/tmp/apps-url',upstream,{mode:0o600});
+            fs.writeFileSync('/tmp/must-change',body.user&&body.user.mustChange===true?'true':'false',{mode:0o600});
+            console.log('A61_LEGACY_LOGIN_FOR_ENROLL=PASS');
+            console.log('LEGACY_TOKEN_VALUE_LOGGED=NO');
+          })().catch(err=>{console.error('A61_LEGACY_LOGIN_FOR_ENROLL=ERROR type='+String(err&&err.name||'error'));process.exit(23);});
+          NODE
+
+      - name: Generate protected one-run enrollment gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          NONCE="$(openssl rand -hex 32)"
+          echo "::add-mask::$NONCE"
+          echo "ENROLL_NONCE=$NONCE" >> "$GITHUB_ENV"
+          cd cloudflare-d1
+          node <<'NODE'
+          const fs=require('fs');
+          let c=fs.readFileSync('wrangler.toml','utf8');
+          const user=String(process.env.QUALIFY_USERNAME||'').trim();
+          const nonce=String(process.env.ENROLL_NONCE||'').trim();
+          const q=s=>JSON.stringify(s);
+          c=c.replace('workers_dev = true','workers_dev = true\nkeep_vars = true');
+          c=c.replace('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"','TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"');
+          c=c.replace('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"','TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "true"');
+          c=c.replace('EMPLOYEE_AUTH_ENROLL_CANARY_USER = ""','EMPLOYEE_AUTH_ENROLL_CANARY_USER = '+q(user));
+          c=c.replace('EMPLOYEE_AUTH_ENROLL_NONCE = ""','EMPLOYEE_AUTH_ENROLL_NONCE = '+q(nonce));
+          if(!c.includes('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"')) process.exit(31);
+          if(!c.includes('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"')) process.exit(32);
+          if(!c.includes('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"')) process.exit(33);
+          fs.writeFileSync('wrangler.a61-enroll-canary.toml',c);
+          NODE
+
+      - name: Open enrollment window
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "UPDATE employee_auth_control_v1 SET mode='TRANSITIONAL',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1' AND mode='OFF';" > /tmp/open.txt
+          echo 'CONTROL_OPENED=YES' >> "$GITHUB_ENV"
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.a61-enroll-canary.toml > /tmp/enroll-deploy.txt
+          echo 'ENROLL_DEPLOYED=YES' >> "$GITHUB_ENV"
+          sleep 4
+          cd "$GITHUB_WORKSPACE"
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/eh.json
+          node <<'NODE'
+          const a=JSON.parse(require('fs').readFileSync('/tmp/eh.json','utf8'));
+          if(!a.success||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||Number(a.nativeReadyCount||0)!==0) process.exit(41);
+          console.log('A61_ENROLLMENT_WINDOW=PASS');
+          NODE
+
+      - name: Enroll Diya from verified legacy session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const legacyToken=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+          const mustChange=fs.readFileSync('/tmp/must-change','utf8').trim()==='true';
+          const enrollNonce=String(process.env.ENROLL_NONCE||'').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/enroll-legacy-session',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,legacyToken,password,mustChange,enrollNonce}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==200||body.success!==true||String(body.authSource||'')!=='d1-native-legacy-session-enroll-v1'){
+              console.error('A61_DIYA_ENROLL=FAIL status='+r.status+' code='+String(body.code||'')+' message='+String(body.message||'').slice(0,100));
+              process.exit(51);
+            }
+            console.log('A61_DIYA_ENROLL=PASS');
+            console.log('A61_DIYA_ENROLL_AUTH_SOURCE=d1-native-legacy-session-enroll-v1');
+            console.log('PASSWORD_VALUE_LOGGED=NO');
+          })().catch(()=>process.exit(52));
+          NODE
+          echo 'ENROLL_SUCCEEDED=YES' >> "$GITHUB_ENV"
+
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/post-enroll.json
+          node <<'NODE'
+          const a=JSON.parse(require('fs').readFileSync('/tmp/post-enroll.json','utf8'));
+          if(!a.success||Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1) process.exit(53);
+          console.log('A61_NATIVE_USER_COUNT=1');
+          console.log('A61_NATIVE_READY_COUNT=1');
+          NODE
+
+      - name: Revoke temporary Apps Script session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const upstream=fs.readFileSync('/tmp/apps-url','utf8').trim();
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(upstream,{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+              body:JSON.stringify({action:'logout',username,token,_ts:Date.now()}),
+              redirect:'follow'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==200||body.success!==true) process.exit(61);
+            console.log('A61_TEMP_LEGACY_SESSION_REVOKED=PASS');
+          })().catch(()=>process.exit(62));
+          NODE
+          echo 'LEGACY_SESSION_REVOKED=YES' >> "$GITHUB_ENV"
+
+      - name: Switch to native-only canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          node <<'NODE'
+          const fs=require('fs');
+          let c=fs.readFileSync('wrangler.toml','utf8');
+          c=c.replace('workers_dev = true','workers_dev = true\nkeep_vars = true');
+          c=c.replace('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"','TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"');
+          c=c.replace('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"','TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"');
+          if(!c.includes('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"')) process.exit(71);
+          if(!c.includes('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"')) process.exit(72);
+          if(!c.includes('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"')) process.exit(73);
+          fs.writeFileSync('wrangler.a61-native-only-canary.toml',c);
+          NODE
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.a61-native-only-canary.toml > /tmp/native-deploy.txt
+          echo 'NATIVE_ONLY_DEPLOYED=YES' >> "$GITHUB_ENV"
+          sleep 4
+          cd "$GITHUB_WORKSPACE"
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/nh.json
+          node <<'NODE'
+          const a=JSON.parse(require('fs').readFileSync('/tmp/nh.json','utf8'));
+          if(!a.success||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.nativeOnly!==true||Number(a.nativeReadyCount||0)!==1) process.exit(74);
+          console.log('A61_NATIVE_ONLY_WINDOW=PASS');
+          NODE
+
+      - name: Prove D1-native login and session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            let r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),cache:'no-store'
+            });
+            let raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token||String(body.authSource||'')!=='d1-native-employee-v1'){
+              console.error('A61_DIYA_NATIVE_LOGIN=FAIL status='+r.status+' code='+String(body.code||''));
+              process.exit(81);
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/native-token',token,{mode:0o600});
+            console.log('A61_DIYA_NATIVE_LOGIN=PASS');
+            console.log('A61_DIYA_LOGIN_AUTH_SOURCE=d1-native-employee-v1');
+
+            r=await fetch(base+'/v1/employee/auth/session',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,token}),cache:'no-store'
+            });
+            raw=await r.text(); body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==200||body.success!==true||String(body.authSource||'')!=='d1-native-employee-v1') process.exit(82);
+            console.log('A61_DIYA_NATIVE_SESSION=PASS');
+          })().catch(()=>process.exit(83));
+          NODE
+
+      - name: Revoke native canary session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/native-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,token}),cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) process.exit(91);
+            console.log('A61_DIYA_NATIVE_SESSION_REVOKED=PASS');
+          })().catch(()=>process.exit(92));
+          NODE
+
+      - name: Restore canonical OFF state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "UPDATE employee_auth_control_v1 SET mode='OFF',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1';" > /tmp/close.txt
+          echo 'CONTROL_OPENED=NO' >> "$GITHUB_ENV"
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml > /tmp/off-deploy.txt
+          echo 'NATIVE_ONLY_DEPLOYED=NO' >> "$GITHUB_ENV"
+          sleep 4
+
+      - name: Final proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/fa.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" > /tmp/fb.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" > /tmp/fc.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" > /tmp/fo.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/fa.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/fb.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/fc.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/fo.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1) process.exit(101);
+          if(!b.success||b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) process.exit(102);
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL'||Number(c.customerCount||0)<247) process.exit(103);
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') process.exit(104);
+          console.log('A61_DIYA_SESSION_ENROLL_CANARY=SUCCESS');
+          console.log('FINAL_AUTH_MODE=OFF');
+          console.log('FINAL_NATIVE_USER_COUNT=1');
+          console.log('FINAL_NATIVE_READY_COUNT=1');
+          console.log('FINAL_BRIDGE_ENABLED=NO');
+          console.log('CUSTOMER_MODE=GENERAL');
+          console.log('ORDER_CREATE_MODE=GENERAL');
+          NODE
+
+      - name: Emergency restore OFF
+        if: ${{ failure() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "UPDATE employee_auth_control_v1 SET mode='OFF',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1';"
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml
+          echo 'A61_EMERGENCY_OFF_RESTORE_ATTEMPTED=YES'
+
+      - name: Best-effort legacy session cleanup on failure
+        if: ${{ failure() && env.LEGACY_SESSION_REVOKED != 'YES' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -f /tmp/legacy-token ] && [ -f /tmp/apps-url ]; then
+            node <<'NODE'
+            const fs=require('fs');
+            const upstream=fs.readFileSync('/tmp/apps-url','utf8').trim();
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+            fetch(upstream,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'logout',username,token,_ts:Date.now()}),redirect:'follow'}).catch(()=>{});
+            NODE
+          fi
+          echo 'A61_LEGACY_SESSION_CLEANUP_ATTEMPTED=YES'
+
+      - name: Cleanup ephemeral material
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -f /tmp/legacy-token /tmp/apps-url /tmp/must-change /tmp/native-token
+          rm -f cloudflare-d1/wrangler.a61-enroll-canary.toml cloudflare-d1/wrangler.a61-native-only-canary.toml
+          echo 'A61_EPHEMERAL_MATERIAL_CLEANED=YES'
