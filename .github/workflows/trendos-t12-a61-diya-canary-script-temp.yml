@@ -23,6 +23,8 @@ jobs:
       WRANGLER_VERSION: 4.33.2
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
