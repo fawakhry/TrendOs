@@ -36,5 +36,6 @@ jobs:
           node tests/frontend_order_status_ux_02cv.test.mjs
           node tests/frontend_flyprint_lane_stability_02cv.test.mjs
           node tests/frontend_t12_customer_cloud_only_a56.test.mjs
+          node tests/frontend_session_and_zero_google_read_entry499.test.mjs
           node tests/employee_auth_native_a61.test.mjs
           node tests/employee_legacy_auth_bridge_a61.test.mjs
