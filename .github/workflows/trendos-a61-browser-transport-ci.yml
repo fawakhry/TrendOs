@@ -29,6 +29,7 @@ jobs:
           node tests/frontend_no_direct_google_transport_a61.test.mjs
           node tests/legacy_browser_transport_a61.test.mjs
           node tests/cloudflare_orders_session_shadow_handoff_entry497.test.mjs
+          node tests/cloudflare_legacy_session_race_guard_entry504.test.mjs
           node tests/frontend_employee_api_dispatcher_a61.test.mjs
           node tests/frontend_legacy_module_dispatch_a61.test.mjs
           node tests/frontend_edge_orders_cutover_02ct.test.mjs
