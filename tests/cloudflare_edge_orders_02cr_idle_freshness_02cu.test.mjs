@@ -112,41 +112,22 @@ function request(extra = '') {
   assert.equal(heartbeatCalls, 0);
 }
 
-// Old D1 write-time metadata is accepted only with a recent source-unchanged proof.
+// Zero-Google: old D1 write-time metadata stays readable when the snapshot
+// remains structurally qualified. No Apps Script heartbeat is consulted.
 {
   let heartbeatCalls = 0;
   const result = await guardEdgeOrders02CRFreshness(request(), env(), NOW, {
     fetchIdleHeartbeat: async () => { heartbeatCalls += 1; return heartbeat(); }
   });
   assert.equal(result.pass, true);
-  assert.equal(heartbeatCalls, 1);
-  assert.equal(result.logicalFreshness.ok, true);
-  assert.equal(result.logicalFreshness.mode, 'verified-idle-source-unchanged');
-  assert.equal(result.logicalFreshness.source.lines.sourceLastRow, 2636);
-  assert.equal(result.logicalFreshness.source.lines.sourceLastCol, 28);
-}
-
-// Source-shape mismatch fails closed.
-{
-  const result = await guardEdgeOrders02CRFreshness(request(), env(), NOW, {
-    fetchIdleHeartbeat: async () => heartbeat({ linesRows: 2635 })
-  });
-  assert.equal(result.pass, false);
-  assert.equal(result.response.status, 503);
-  const body = await result.response.json();
-  assert.equal(body.fallback, 'apps-script');
-  assert.equal(body.code, '02cr-mirror-stale');
-  assert.ok(body.idleHeartbeat.failedChecks.includes('linesSourceShapeMatches'));
-}
-
-// A heartbeat reporting source change can never extend logical freshness.
-{
-  const result = await guardEdgeOrders02CRFreshness(request(), env(), NOW, {
-    fetchIdleHeartbeat: async () => heartbeat({ sourceChanged: true })
-  });
-  assert.equal(result.pass, false);
-  const body = await result.response.json();
-  assert.ok(body.idleHeartbeat.failedChecks.includes('sourceUnchanged'));
+  assert.equal(heartbeatCalls, 0);
+  assert.equal(result.logicalFreshness, null);
+  assert.equal(result.baseSnapshotFreshness.degraded, true);
+  assert.equal(result.baseSnapshotFreshness.mode, 'stale-structurally-qualified');
+  assert.equal(result.baseSnapshotFreshness.authority, 'd1-qualified-snapshot+t12-native-overlay');
+  assert.equal(result.baseSnapshotFreshness.googleHeartbeatRequired, false);
+  assert.equal(result.baseSnapshotFreshness.lines.sourceLastRow, 2636);
+  assert.equal(result.baseSnapshotFreshness.lines.sourceLastCol, 28);
 }
 
 // Customer/restriction enrichment can be stale without hiding the Orders list.
@@ -183,13 +164,15 @@ function request(extra = '') {
   assert.equal((await result.response.json()).code, '02cr-mirror-not-ready');
 }
 
-// If the verifier is OFF, stale Lines keep failing open to Apps Script.
+// Google heartbeat configuration is irrelevant to the Zero-Google read gate.
 {
+  let heartbeatCalls = 0;
   const result = await guardEdgeOrders02CRFreshness(request(), env({ heartbeatEnabled: 'false' }), NOW, {
-    fetchIdleHeartbeat: async () => heartbeat()
+    fetchIdleHeartbeat: async () => { heartbeatCalls += 1; return heartbeat(); }
   });
-  assert.equal(result.pass, false);
-  assert.equal((await result.response.json()).fallback, 'apps-script');
+  assert.equal(result.pass, true);
+  assert.equal(heartbeatCalls, 0);
+  assert.equal(result.baseSnapshotFreshness.degraded, true);
 }
 
 // Sensitive debt lane remains owned by Apps Script/original 02CR handler.
@@ -215,8 +198,11 @@ function request(extra = '') {
 
 const wrapperSource = fs.readFileSync(new URL('../cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs', import.meta.url), 'utf8');
 assert.match(wrapperSource, /body\.logicalFreshness\s*=\s*logicalFreshness/);
+assert.match(wrapperSource, /body\.baseSnapshotFreshness\s*=\s*baseSnapshotFreshness/);
 assert.match(wrapperSource, /body\.enrichmentFreshness\s*=\s*enrichmentFreshness/);
+assert.match(wrapperSource, /02CR_LINES_STALE_SNAPSHOT_ADVISORY/);
 assert.match(wrapperSource, /02CR_ENRICHMENT_STALE_ADVISORY/);
+assert.doesNotMatch(wrapperSource, /fetchOrdersIdleHeartbeat|ordersIdleHeartbeatVerifierEnabled|APPS_SCRIPT_API_URL/);
 assert.doesNotMatch(wrapperSource, /INSERT\s+INTO|UPDATE\s+sheet_|DELETE\s+FROM|wrangler\s+deploy/i);
 
-console.log('PERF_CF_02CU_02CR_DUAL_SIGNAL_IDLE_FRESHNESS_PASS');
+console.log('ENTRY498_02CR_ZERO_GOOGLE_STALE_SNAPSHOT_VISIBILITY_PASS');
