@@ -3,16 +3,6 @@ import {
   isEdgeOrders02CRPath
 } from './edge-orders-read-02cr-canary.mjs';
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
-import {
-  inspectOrdersIdleHeartbeat,
-  ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS
-} from './edge-orders-idle-heartbeat.mjs';
-import {
-  fetchOrdersIdleHeartbeat,
-  ordersIdleHeartbeatVerifierEnabled
-} from './edge-orders-idle-verifier.mjs';
-
-const ORDERS_SHEET = 'الأوردرات';
 const LINES_SHEET = 'بنود الأوردرات';
 const CUSTOMERS_SHEET = 'العملاء';
 const RESTRICTIONS_SHEET = 'عملاء منع التسليم بالمديونية';
@@ -51,13 +41,6 @@ function maxAgeSeconds(env) {
   const configured = Number(env && env.EDGE_ORDERS_02CR_MAX_AGE_SECONDS);
   if (Number.isFinite(configured)) return Math.max(300, Math.min(900, Math.trunc(configured)));
   return DEFAULT_MAX_AGE_SECONDS;
-}
-
-function idleHeartbeatMaxAgeSeconds(env) {
-  const configured = Number(env && env.EDGE_ORDERS_IDLE_HEARTBEAT_MAX_AGE_SECONDS);
-  return Number.isFinite(configured)
-    ? Math.max(300, Math.min(1800, Math.trunc(configured)))
-    : ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS;
 }
 
 function configuredOrigins(env) {
@@ -218,89 +201,30 @@ export async function guardEdgeOrders02CRFreshness(request, env, nowMs = Date.no
     restrictions: safeInspection(RESTRICTIONS_SHEET, restrictions)
   };
 
-  if (lines.fresh) return { pass: true, logicalFreshness: null, mirrors, enrichmentFreshness };
+  const baseSnapshotFreshness = {
+    degraded: !lines.fresh,
+    mode: lines.fresh ? 'write-age-fresh' : 'stale-structurally-qualified',
+    lines: safeInspection(LINES_SHEET, lines),
+    authority: 'd1-qualified-snapshot+t12-native-overlay',
+    googleHeartbeatRequired: false
+  };
 
-  if (!ordersIdleHeartbeatVerifierEnabled(env)) {
-    return {
-      pass: false,
-      response: blockedResponse(request, env, '02cr-mirror-stale', 'Orders lines mirror is stale and idle-source verification is disabled.', mirrors)
-    };
-  }
-
-  let ordersCatalog;
-  try {
-    ordersCatalog = await readCatalog(env, ORDERS_SHEET);
-  } catch (err) {
-    ordersCatalog = null;
-  }
-  if (!ordersCatalog) {
-    return {
-      pass: false,
-      response: blockedResponse(request, env, '02cr-mirror-stale', 'Orders source-shape metadata is unavailable for idle verification.', mirrors)
-    };
-  }
-
-  const orders = inspectCatalog(ordersCatalog, '', nowMs, budget, { ordersNote: true });
-  if (!orders.structurallyReady) {
-    return {
-      pass: false,
-      response: blockedResponse(
-        request,
-        env,
-        '02cr-mirror-stale',
-        'Orders source-shape metadata is not structurally qualified for idle verification.',
-        [...mirrors, safeInspection(ORDERS_SHEET, orders)]
-      )
-    };
-  }
-
-  let heartbeat;
-  try {
-    const fetchHeartbeat = typeof options.fetchIdleHeartbeat === 'function'
-      ? options.fetchIdleHeartbeat
-      : () => fetchOrdersIdleHeartbeat(env);
-    const status = await fetchHeartbeat({ request, env, nowMs });
-    heartbeat = inspectOrdersIdleHeartbeat(status, {
-      nowMs: Number(nowMs),
-      maxAgeSeconds: idleHeartbeatMaxAgeSeconds(env),
-      expectedOrdersSourceLastRow: orders.sourceLastRow,
-      expectedOrdersSourceLastCol: orders.sourceLastCol,
-      expectedLinesSourceLastRow: lines.sourceLastRow,
-      expectedLinesSourceLastCol: lines.sourceLastCol
-    });
-  } catch (err) {
-    heartbeat = {
-      ok: false,
-      mode: 'idle-heartbeat-verification-error',
-      failedChecks: ['verifierError']
-    };
-  }
-
-  if (!heartbeat.ok) {
-    return {
-      pass: false,
-      response: blockedResponse(
-        request,
-        env,
-        '02cr-mirror-stale',
-        'Orders lines mirror is stale and the source-unchanged proof failed closed.',
-        [...mirrors, safeInspection(ORDERS_SHEET, orders)],
-        heartbeat
-      )
-    };
-  }
-
+  // Zero-Google cutover: once the D1 Lines snapshot is structurally qualified,
+  // its wall-clock sync age is advisory. New Cloud-native Orders/Lines and
+  // runtime state are merged by the T12 overlay. Do not call Apps Script merely
+  // to prove an unchanged Google source before rendering Orders.
   return {
     pass: true,
-    logicalFreshness: heartbeat,
-    mirrors: [...mirrors, safeInspection(ORDERS_SHEET, orders)],
-    enrichmentFreshness
+    logicalFreshness: null,
+    mirrors,
+    enrichmentFreshness,
+    baseSnapshotFreshness
   };
 }
 
-async function decorateFreshness(response, logicalFreshness, enrichmentFreshness) {
+async function decorateFreshness(response, logicalFreshness, enrichmentFreshness, baseSnapshotFreshness) {
   if (!response || !response.ok) return response;
-  if (!logicalFreshness && !enrichmentFreshness) return response;
+  if (!logicalFreshness && !enrichmentFreshness && !baseSnapshotFreshness) return response;
   let body;
   try {
     body = await response.json();
@@ -309,6 +233,17 @@ async function decorateFreshness(response, logicalFreshness, enrichmentFreshness
   }
   if (!body || body.success !== true) return response;
   if (logicalFreshness) body.logicalFreshness = logicalFreshness;
+  if (baseSnapshotFreshness) {
+    body.baseSnapshotFreshness = baseSnapshotFreshness;
+    if (baseSnapshotFreshness.degraded === true) {
+      const warnings = Array.isArray(body.warnings) ? body.warnings.slice() : [];
+      warnings.push({
+        code: '02CR_LINES_STALE_SNAPSHOT_ADVISORY',
+        message: 'Orders are served from the qualified D1 base snapshot plus the T12 Cloud-native overlay; Google heartbeat verification is not required.'
+      });
+      body.warnings = warnings;
+    }
+  }
   if (enrichmentFreshness) {
     body.enrichmentFreshness = enrichmentFreshness;
     if (enrichmentFreshness.degraded === true) {
@@ -331,7 +266,12 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env, ctx) {
   const guarded = await guardEdgeOrders02CRFreshness(request, env, Date.now());
   if (!guarded.pass) return guarded.response;
   const response = await handleQualified02CR(request, env, ctx);
-  return decorateFreshness(response, guarded.logicalFreshness, guarded.enrichmentFreshness);
+  return decorateFreshness(
+    response,
+    guarded.logicalFreshness,
+    guarded.enrichmentFreshness,
+    guarded.baseSnapshotFreshness
+  );
 }
 
 export { isEdgeOrders02CRPath };
