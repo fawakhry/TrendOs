@@ -149,19 +149,23 @@ function request(extra = '') {
   assert.ok(body.idleHeartbeat.failedChecks.includes('sourceUnchanged'));
 }
 
-// Customer/restriction enrichment has no heartbeat proof and must remain physically fresh.
+// Customer/restriction enrichment can be stale without hiding the Orders list.
 {
   let heartbeatCalls = 0;
   const staleCustomer = catalog({ rows: 500, cols: 15, note: ENRICHMENT_NOTE, ageSeconds: 400 });
+  const freshLines = catalog({ rows: 2636, cols: 28, note: LINES_NOTE, ageSeconds: 30 });
   const result = await guardEdgeOrders02CRFreshness(
     request(),
-    env({ catalogs: { 'العملاء': staleCustomer } }),
+    env({ catalogs: { 'العملاء': staleCustomer, 'بنود الأوردرات': freshLines } }),
     NOW,
     { fetchIdleHeartbeat: async () => { heartbeatCalls += 1; return heartbeat(); } }
   );
-  assert.equal(result.pass, false);
-  assert.equal(heartbeatCalls, 0, 'stale enrichment must fail before heartbeat fetch');
-  assert.equal((await result.response.json()).fallback, 'apps-script');
+  assert.equal(result.pass, true);
+  assert.equal(heartbeatCalls, 0, 'fresh Orders lines must not need heartbeat');
+  assert.equal(result.enrichmentFreshness.degraded, true);
+  assert.equal(result.enrichmentFreshness.mode, 'stale-structurally-qualified');
+  assert.equal(result.enrichmentFreshness.customers.fresh, false);
+  assert.equal(result.enrichmentFreshness.restrictions.fresh, true);
 }
 
 // Structural qualification is never bypassed by heartbeat.
@@ -211,6 +215,8 @@ function request(extra = '') {
 
 const wrapperSource = fs.readFileSync(new URL('../cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs', import.meta.url), 'utf8');
 assert.match(wrapperSource, /body\.logicalFreshness\s*=\s*logicalFreshness/);
+assert.match(wrapperSource, /body\.enrichmentFreshness\s*=\s*enrichmentFreshness/);
+assert.match(wrapperSource, /02CR_ENRICHMENT_STALE_ADVISORY/);
 assert.doesNotMatch(wrapperSource, /INSERT\s+INTO|UPDATE\s+sheet_|DELETE\s+FROM|wrangler\s+deploy/i);
 
 console.log('PERF_CF_02CU_02CR_DUAL_SIGNAL_IDLE_FRESHNESS_PASS');
