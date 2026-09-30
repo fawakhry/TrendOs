@@ -5,6 +5,7 @@ const VERIFY_PATH = '/v1/employee/auth/session';
 const LOGOUT_PATH = '/v1/employee/auth/logout';
 const PASSWORD_PATH = '/v1/employee/auth/password/change';
 const HEALTH_PATH = '/v1/employee/auth/health';
+const ENROLL_PATH = '/v1/employee/auth/enroll-legacy-session';
 
 const DEFAULT_ITERATIONS = 180000;
 const MIN_ITERATIONS = 100000;
@@ -14,6 +15,7 @@ const MAX_SESSION_TTL_SECONDS = 86400;
 const LOGIN_LIMIT = 5;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
 const LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000;
+const LEGACY_SESSION_VERIFY_TIMEOUT_MS = 20000;
 const PASSWORD_SCHEME = 'pbkdf2-sha256-v1';
 const DEFAULT_ORIGINS = [
   'https://fawakhry.github.io',
@@ -142,8 +144,12 @@ export function employeeAuthNativeOnlyEnabled(env) {
   return enabledValue(env && env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1);
 }
 
+export function employeeAuthLegacySessionEnrollEnabled(env) {
+  return enabledValue(env && env.TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED);
+}
+
 export function isEmployeeNativeAuthPath(path) {
-  return [LOGIN_PATH, VERIFY_PATH, LOGOUT_PATH, PASSWORD_PATH, HEALTH_PATH].includes(path);
+  return [LOGIN_PATH, VERIFY_PATH, LOGOUT_PATH, PASSWORD_PATH, HEALTH_PATH, ENROLL_PATH].includes(path);
 }
 
 export async function hashEmployeePasswordV1(password, options = {}) {
@@ -524,6 +530,105 @@ async function health(env) {
   };
 }
 
+
+async function verifyLegacySessionForEnrollment(username, legacyToken, env) {
+  const upstream = text(env && env.APPS_SCRIPT_API_URL);
+  if (!upstream) return { ok: false, kind: 'config', message: 'Legacy session verification is not configured' };
+  if (!username || !legacyToken) return { ok: false, kind: 'input', message: 'username and legacyToken are required' };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LEGACY_SESSION_VERIFY_TIMEOUT_MS);
+  try {
+    let response;
+    try {
+      response = await fetch(upstream, {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'verifyEmployeeSession', username: text(username), token: text(legacyToken), _ts: Date.now() }),
+        redirect: 'follow',
+        signal: controller.signal
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        kind: 'upstream',
+        message: err && err.name === 'AbortError'
+          ? 'Legacy session verification timed out'
+          : 'Legacy session verification request failed'
+      };
+    }
+
+    const raw = await response.text();
+    let body = {};
+    try { body = JSON.parse(raw || '{}'); } catch (err) {
+      return { ok: false, kind: 'upstream', message: 'Legacy session verification returned invalid JSON' };
+    }
+    if (!response.ok || !body || body.success !== true) {
+      return { ok: false, kind: 'auth', message: text(body && body.message) || 'Legacy employee session rejected' };
+    }
+    return { ok: true, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function handleLegacySessionEnroll(request, env, cors) {
+  const parsed = await parseJson(request);
+  if (!parsed.ok) return json({ success: false, message: parsed.message }, parsed.status, cors);
+
+  const username = text(parsed.body && parsed.body.username);
+  const legacyToken = text(parsed.body && parsed.body.legacyToken);
+  const password = String(parsed.body && parsed.body.password || '');
+  const enrollNonce = text(parsed.body && parsed.body.enrollNonce);
+  const requestedMustChange = parsed.body && parsed.body.mustChange === true;
+
+  if (!username || !legacyToken || !password || !enrollNonce) {
+    return json({ success: false, message: 'username, legacyToken, password and enrollNonce are required' }, 400, cors);
+  }
+
+  const control = await controlState(env);
+  if (!control.schemaReady ||
+      control.mode !== 'TRANSITIONAL' ||
+      !employeeAuthEnabled(env) ||
+      !employeeAuthLegacySessionEnrollEnabled(env) ||
+      employeeAuthNativeOnlyEnabled(env)) {
+    return json({ success: false, code: 'employee-auth-enrollment-disabled', mode: control.mode }, 503, cors);
+  }
+
+  const allowedUser = text(env && env.EMPLOYEE_AUTH_ENROLL_CANARY_USER);
+  const expectedNonce = text(env && env.EMPLOYEE_AUTH_ENROLL_NONCE);
+  if (!allowedUser || usernameKey(allowedUser) !== usernameKey(username)) {
+    return json({ success: false, code: 'employee-auth-enrollment-user-denied' }, 403, cors);
+  }
+  if (expectedNonce.length < 32 || !constantTimeEqual(enrollNonce, expectedNonce)) {
+    return json({ success: false, code: 'employee-auth-enrollment-nonce-denied' }, 403, cors);
+  }
+
+  const existing = await findUser(env, username);
+  if (existing && existing.passwordScheme === PASSWORD_SCHEME && text(existing.passwordHashHex)) {
+    return json({ success: false, code: 'employee-auth-already-enrolled' }, 409, cors);
+  }
+
+  const verified = await verifyLegacySessionForEnrollment(username, legacyToken, env);
+  if (!verified.ok) {
+    const status = verified.kind === 'upstream' || verified.kind === 'config' ? 502 :
+      (verified.kind === 'input' ? 400 : 401);
+    return json({ success: false, code: 'employee-auth-legacy-session-rejected', message: verified.message }, status, cors);
+  }
+
+  const legacyBody = verified.body || {};
+  legacyBody.user = { ...(legacyBody.user || {}), mustChange: requestedMustChange };
+  const row = await upsertBootstrappedUser(env, username, password, legacyBody, Date.now());
+  if (!row) return json({ success: false, code: 'employee-auth-enrollment-db-failed' }, 503, cors);
+
+  return json({
+    success: true,
+    user: publicUser(row),
+    authSource: 'd1-native-legacy-session-enroll-v1',
+    plaintextStored: false
+  }, 200, cors);
+}
+
 async function handleLogin(request, env, cors) {
   const parsed = await parseJson(request);
   if (!parsed.ok) return json({ success: false, message: parsed.message }, parsed.status, cors);
@@ -707,6 +812,7 @@ export async function handleEmployeeNativeAuthRequest(request, env) {
   }
 
   if (request.method !== 'POST') return json({ success: false, message: 'Method not allowed' }, 405, cors);
+  if (path === ENROLL_PATH) return handleLegacySessionEnroll(request, env, cors);
   if (path === LOGIN_PATH) return handleLogin(request, env, cors);
   if (path === VERIFY_PATH) return handleVerify(request, env, cors);
   if (path === LOGOUT_PATH) return handleLogout(request, env, cors);
