@@ -1,5 +1,5 @@
 name: TrendOS T12 A61 Session Verify Timeout Qualify TEMP
-# rerun: safe enrollment failure staging
+# rerun: safe enrollment health gate
 
 on:
   push:
