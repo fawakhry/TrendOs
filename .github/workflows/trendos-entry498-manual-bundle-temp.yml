@@ -1,0 +1,43 @@
+name: TrendOS Entry498 Manual Worker Bundle TEMP
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry498-manual-bundle-temp.yml'
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 28d67401461a445d71e7d21994ffc1eb2413ecce
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build Entry498 Worker bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          npx --yes esbuild@0.25.10 cloudflare-d1/production-shadow/index.js \
+            --bundle \
+            --format=esm \
+            --platform=browser \
+            --target=es2022 \
+            --outfile=dist/trendos-entry498-worker.js
+          node --check dist/trendos-entry498-worker.js
+          grep -F '02CR_LINES_STALE_SNAPSHOT_ADVISORY' dist/trendos-entry498-worker.js >/dev/null
+          grep -F 'googleHeartbeatRequired: false' dist/trendos-entry498-worker.js >/dev/null
+          grep -F 'd1-auth-shadow-v1' dist/trendos-entry498-worker.js >/dev/null
+          sha256sum dist/trendos-entry498-worker.js | tee dist/trendos-entry498-worker.sha256
+          echo 'ENTRY498_MANUAL_BUNDLE=PASS'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trendos-entry498-manual-worker
+          path: |
+            dist/trendos-entry498-worker.js
+            dist/trendos-entry498-worker.sha256
+          if-no-files-found: error
