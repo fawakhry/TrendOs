@@ -72,6 +72,8 @@ assert.match(moduleSource, /employee\/auth\/enroll-legacy-session/);
 assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED/);
 assert.match(moduleSource, /EMPLOYEE_AUTH_ENROLL_CANARY_USER/);
 assert.match(moduleSource, /EMPLOYEE_AUTH_ENROLL_NONCE/);
+assert.match(moduleSource, /enrollNonce\.length < 32/);
+assert.match(moduleSource, /if \(expectedNonce && !constantTimeEqual\(enrollNonce, expectedNonce\)\)/);
 assert.match(moduleSource, /verifyEmployeeSession/);
 assert.match(moduleSource, /d1-native-legacy-session-enroll-v1/);
 assert.doesNotMatch(moduleSource, /AUTH_PASSWORD_PEPPER/);
