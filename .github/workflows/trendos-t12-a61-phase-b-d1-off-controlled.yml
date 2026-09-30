@@ -1,0 +1,200 @@
+name: TrendOS T12 A61 Phase B D1 OFF Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-phase-b-d1-off-controlled.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  phase-b-d1-off:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      RESULT_FILE: docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_PHASE_B_D1_OFF_EXECUTION_RESULT_2026-09-30.md
+      TARGET_MIGRATION: 0009_employee_auth_native_v1.sql
+      CONFIG: cloudflare-d1/wrangler.toml
+      DATABASE: trendos-main
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Controlled D1 migration and OFF verification
+        id: phase_b
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          STATUS="FAILED"
+          REASON="UNKNOWN"
+          D1_AUTH_MIGRATION_APPLIED="NO"
+          CONTROL_MODE="NOT_VERIFIED"
+          TABLES_VERIFIED="NO"
+          PRE_PENDING="NOT_VERIFIED"
+          POST_PENDING="NOT_VERIFIED"
+
+          mkdir -p "$(dirname "$RESULT_FILE")"
+
+          finish() {
+            local rc=$?
+            cat > "$RESULT_FILE" <<EOF
+          # TrendOS T12 — A61 Phase B D1 OFF execution result
+
+          Date: 2026-09-30 UTC runner
+
+          ```ini
+          PHASE_B_STATUS=$STATUS
+          FAILURE_REASON=$REASON
+          TARGET_MIGRATION=$TARGET_MIGRATION
+          PRE_PENDING_MIGRATIONS=$PRE_PENDING
+          D1_AUTH_MIGRATION_APPLIED=$D1_AUTH_MIGRATION_APPLIED
+          POST_PENDING_MIGRATIONS=$POST_PENDING
+          EMPLOYEE_AUTH_CONTROL_MODE=$CONTROL_MODE
+          EMPLOYEE_AUTH_TABLES_VERIFIED=$TABLES_VERIFIED
+          APPS_SCRIPT_PRODUCTION_VERSION=158
+          APPS_SCRIPT_MUTATION=NO
+          CLOUDFLARE_WORKER_DEPLOY=NO
+          ORDER_MUTATION=NO
+          CUSTOMER_MUTATION=NO
+          ACCOUNTING_MUTATION=NO
+          ```
+
+          This workflow is limited to the additive D1 migration gate from Entry484 Phase B.
+          It does not deploy a Worker or enable native auth/bootstrap/native-only/legacy bridge flags.
+          EOF
+            exit "$rc"
+          }
+          trap finish EXIT
+
+          fail() {
+            REASON="$1"
+            exit 1
+          }
+
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || fail "CLOUDFLARE_API_TOKEN_MISSING"
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || fail "CLOUDFLARE_ACCOUNT_ID_MISSING"
+          [ -f "$CONFIG" ] || fail "WRANGLER_CONFIG_MISSING"
+          [ -f "cloudflare-d1/migrations/$TARGET_MIGRATION" ] || fail "TARGET_MIGRATION_MISSING"
+
+          grep -F "mode TEXT NOT NULL DEFAULT 'OFF'" "cloudflare-d1/migrations/$TARGET_MIGRATION" >/dev/null             || fail "MIGRATION_DEFAULT_NOT_OFF"
+          grep -F "VALUES (1, 'T12_EMPLOYEE_AUTH_V1', 'OFF', 1)" "cloudflare-d1/migrations/$TARGET_MIGRATION" >/dev/null             || fail "MIGRATION_SEED_NOT_OFF"
+
+          mapfile -t LOCAL_MIGRATIONS < <(find cloudflare-d1/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
+          [ "${#LOCAL_MIGRATIONS[@]}" -gt 0 ] || fail "NO_LOCAL_MIGRATIONS"
+
+          EXTRA_LOCAL=""
+          for f in "${LOCAL_MIGRATIONS[@]}"; do
+            if [[ "$f" > "$TARGET_MIGRATION" ]]; then
+              EXTRA_LOCAL="${EXTRA_LOCAL}${EXTRA_LOCAL:+,}$f"
+            fi
+          done
+          [ -z "$EXTRA_LOCAL" ] || fail "UNRELATED_LOCAL_MIGRATIONS_AFTER_0009:$EXTRA_LOCAL"
+
+          npx --yes wrangler@4 d1 migrations list "$DATABASE" --remote --config "$CONFIG" > /tmp/a61-pre-list.txt 2>&1             || fail "REMOTE_MIGRATIONS_LIST_FAILED"
+
+          mapfile -t PENDING < <(grep -oE '[0-9]{4}_[A-Za-z0-9._-]+\.sql' /tmp/a61-pre-list.txt | sort -u || true)
+          if [ "${#PENDING[@]}" -eq 0 ]; then
+            PRE_PENDING="NONE"
+            fail "TARGET_0009_NOT_PENDING"
+          fi
+          PRE_PENDING="$(IFS=,; echo "${PENDING[*]}")"
+          [ "${#PENDING[@]}" -eq 1 ] && [ "${PENDING[0]}" = "$TARGET_MIGRATION" ]             || fail "PENDING_SET_NOT_EXACTLY_0009:$PRE_PENDING"
+
+          npx --yes wrangler@4 d1 migrations apply "$DATABASE" --remote --config "$CONFIG" > /tmp/a61-apply.txt 2>&1             || fail "REMOTE_MIGRATION_APPLY_FAILED"
+          D1_AUTH_MIGRATION_APPLIED="YES"
+
+          npx --yes wrangler@4 d1 migrations list "$DATABASE" --remote --config "$CONFIG" > /tmp/a61-post-list.txt 2>&1             || fail "POST_APPLY_MIGRATIONS_LIST_FAILED"
+
+          mapfile -t PENDING_AFTER < <(grep -oE '[0-9]{4}_[A-Za-z0-9._-]+\.sql' /tmp/a61-post-list.txt | sort -u || true)
+          if [ "${#PENDING_AFTER[@]}" -eq 0 ]; then
+            POST_PENDING="NONE"
+          else
+            POST_PENDING="$(IFS=,; echo "${PENDING_AFTER[*]}")"
+            fail "POST_APPLY_PENDING_MIGRATIONS_REMAIN:$POST_PENDING"
+          fi
+
+          npx --yes wrangler@4 d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT singleton,marker,mode,policy_epoch FROM employee_auth_control_v1 WHERE singleton=1;"             > /tmp/a61-control.json 2>/tmp/a61-control.err             || fail "CONTROL_QUERY_FAILED"
+
+          node <<'NODE' || exit 41
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/a61-control.json','utf8'));
+          const found = [];
+          const walk = (v) => {
+            if (Array.isArray(v)) return v.forEach(walk);
+            if (v && typeof v === 'object') {
+              if (v.marker === 'T12_EMPLOYEE_AUTH_V1') found.push(v);
+              Object.values(v).forEach(walk);
+            }
+          };
+          walk(data);
+          if (found.length !== 1) process.exit(2);
+          const row = found[0];
+          if (Number(row.singleton) !== 1 || row.mode !== 'OFF' || Number(row.policy_epoch) !== 1) process.exit(3);
+          NODE
+          NODE_RC=$?
+          [ "$NODE_RC" -eq 0 ] || fail "CONTROL_ROW_NOT_EXACT_OFF"
+          CONTROL_MODE="OFF"
+
+          npx --yes wrangler@4 d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1') ORDER BY name;"             > /tmp/a61-tables.json 2>/tmp/a61-tables.err             || fail "TABLE_VERIFY_QUERY_FAILED"
+
+          node <<'NODE' || exit 42
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/a61-tables.json','utf8'));
+          const names = new Set();
+          const walk = (v) => {
+            if (Array.isArray(v)) return v.forEach(walk);
+            if (v && typeof v === 'object') {
+              if (typeof v.name === 'string') names.add(v.name);
+              Object.values(v).forEach(walk);
+            }
+          };
+          walk(data);
+          const expected = ['employee_auth_control_v1','employee_auth_sessions_v1','employee_auth_users_v1'];
+          if (expected.some(n => !names.has(n))) process.exit(2);
+          NODE
+          NODE_RC=$?
+          [ "$NODE_RC" -eq 0 ] || fail "AUTH_TABLES_NOT_ALL_PRESENT"
+          TABLES_VERIFIED="YES"
+
+          STATUS="SUCCESS"
+          REASON="NONE"
+
+      - name: Record sanitized Phase B result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$RESULT_FILE" ]; then
+            mkdir -p "$(dirname "$RESULT_FILE")"
+            cat > "$RESULT_FILE" <<EOF
+          # TrendOS T12 — A61 Phase B D1 OFF execution result
+
+          ```ini
+          PHASE_B_STATUS=FAILED
+          FAILURE_REASON=RESULT_FILE_NOT_PRODUCED
+          D1_AUTH_MIGRATION_APPLIED=UNKNOWN
+          EMPLOYEE_AUTH_CONTROL_MODE=NOT_VERIFIED
+          CLOUDFLARE_WORKER_DEPLOY=NO
+          ```
+          EOF
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$RESULT_FILE"
+          git diff --cached --quiet || git commit -m "docs: record A61 Phase B D1 OFF execution result"
+          git push origin HEAD:candidate/t12-full-cloud-cutover-a56-20260929
