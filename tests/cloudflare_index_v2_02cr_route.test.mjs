@@ -17,10 +17,10 @@ assert.doesNotMatch(src, /MATBAGY_EDGE_ORDERS_READ_V1_ENABLED/);
 assert.doesNotMatch(src, /EDGE_SESSION_SECRET\s*=|wrangler\s+deploy|genericDrainEnabled/);
 
 const wrapper = fs.readFileSync(new URL('../cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs', import.meta.url), 'utf8');
-assert.match(wrapper, /inspectOrdersIdleHeartbeat/);
-assert.match(wrapper, /ordersIdleHeartbeatVerifierEnabled/);
-assert.match(wrapper, /fetchOrdersIdleHeartbeat/);
 assert.match(wrapper, /handleQualified02CR/);
+assert.match(wrapper, /02CR_LINES_STALE_SNAPSHOT_ADVISORY/);
+assert.match(wrapper, /googleHeartbeatRequired:\s*false/);
+assert.doesNotMatch(wrapper, /inspectOrdersIdleHeartbeat|ordersIdleHeartbeatVerifierEnabled|fetchOrdersIdleHeartbeat|APPS_SCRIPT_API_URL/);
 assert.doesNotMatch(wrapper, /INSERT\s+INTO|UPDATE\s+sheet_|DELETE\s+FROM/i);
 
 const repair = fs.readFileSync(new URL('../cloudflare-d1/src/edge-orders-line-id-repair-02cx.mjs', import.meta.url), 'utf8');
@@ -28,4 +28,4 @@ assert.match(repair, /repairSerializedLineId02CX/);
 assert.match(repair, /repairEdgeOrdersResponse02CX/);
 assert.doesNotMatch(repair, /INSERT\s+INTO|UPDATE\s+sheet_|DELETE\s+FROM|fetch\s*\(/i, '02CX response repair must stay mutation/network free');
 
-console.log('PERF_CF_02CX_02CR_FRESHNESS_AND_IDENTITY_ROUTE_PASS');
+console.log('ENTRY498_02CX_02CR_ZERO_GOOGLE_ROUTE_PASS');
