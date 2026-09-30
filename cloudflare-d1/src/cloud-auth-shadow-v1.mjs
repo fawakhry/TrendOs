@@ -167,6 +167,28 @@ export async function rememberCloudAuthShadow(username, employeeToken, verifiedB
   }
 
   const expiresAtMs = Number(nowMs) + ttlSeconds(env) * 1000;
+
+  // A new successful login is authoritative for this username. Revoke every
+  // older fingerprint before storing the new one so a stale browser/module
+  // cannot pass Cloud validation and reach Apps Script with an obsolete token.
+  // Apps Script currently clears the stored employee token on any auth mismatch,
+  // so allowing an older shadow through could destroy the brand-new session.
+  try {
+    const revokeOthers = await env.DB.prepare(`
+      UPDATE cloud_auth_sessions_v1
+         SET revoked_at_ms = ?,
+             last_seen_at_ms = ?
+       WHERE username_key = ?
+         AND token_fingerprint <> ?
+         AND revoked_at_ms IS NULL
+    `).bind(Number(nowMs), Number(nowMs), claims.usernameKey, fingerprint).run();
+    if (revokeOthers && revokeOthers.success === false) {
+      return { stored: false, reason: 'prior-shadow-revoke-unsuccessful' };
+    }
+  } catch (err) {
+    return { stored: false, reason: 'prior-shadow-revoke-error' };
+  }
+
   try {
     const result = await env.DB.prepare(`
       INSERT INTO cloud_auth_sessions_v1 (
