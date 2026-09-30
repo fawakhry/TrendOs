@@ -78,6 +78,9 @@ assert.match(moduleSource, /enrollNonce\.length < 32/);
 assert.match(moduleSource, /if \(expectedNonce && !constantTimeEqual\(enrollNonce, expectedNonce\)\)/);
 assert.match(moduleSource, /verifyEmployeeSession/);
 assert.match(moduleSource, /d1-native-legacy-session-enroll-v1/);
+assert.match(moduleSource, /employee-auth-enrollment-upsert-failed/);
+assert.match(moduleSource, /employeeAuthStage = 'password-hash'/);
+assert.match(moduleSource, /employeeAuthStage = 'd1-user-upsert'/);
 assert.doesNotMatch(moduleSource, /AUTH_PASSWORD_PEPPER/);
 assert.doesNotMatch(moduleSource, /console\.log\([^\n]*password/i);
 
