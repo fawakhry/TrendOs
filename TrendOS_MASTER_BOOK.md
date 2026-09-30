@@ -1,10 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.71-DRAFT-COMPACT — T12 A61 frontend dispatcher live default-OFF; native bootstrap canary safely blocked through Entry492** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.72-DRAFT-COMPACT — T12 A61 Diya enrollment gate qualified; credential path blocked safely through Entry493** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 frontend OFF-state / Entry492
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Diya enrollment-gate qualification / Entry493
 
 **Checkpoint قبل هذا التحديث:** Working-branch HEAD المعروف `b500be4975f8d323c33e8ab8664f77cc28f787e2` (Entry478 documentation). آخر `main` وظيفي معروف `e5efcb39acf33a70ce13f16125e307a51994bb65` (A60 logging hygiene). هذه الصفحة تلغي كحالة حالية أي نص أقدم يقول إن Customer write authority ما زالت Apps Script أو إن واجهة TrendOS الأساسية ما زالت GitHub Pages.
 
@@ -18,6 +18,31 @@ APPS_SCRIPT_RUNTIME_AUTHORITY=0
 GOOGLE_RUNTIME_DEPENDENCY=0
 ```
 إغلاق الكتاب النهائي متوقف مؤقتًا حتى اكتمال نقل Runtime من Google وإثبات Zero-Google audit.
+
+**A61 — Entry493 / أحدث نقطة مؤكدة:** مسار session-bound enrollment أصبح مؤهلًا ومثبتًا default-OFF. Gate-first canary run `36701443364` أثبت قبل أي Login أن نافذة الاختبار نفسها صحيحة: `TRANSITIONAL` + Employee Auth ON + Session Enrollment ON + exact canary user configured + Native-only OFF. بعد ذلك Apps Script login لحساب `ضياء` رجع HTTP 200 لكن `success=false` بدون rate-limit وبدون server-error، رغم أن guarded runs سابقة وصلت `A61_LEGACY_LOGIN_FOR_ENROLL=PASS`. قراءة Users sheet مباشرة وبأعمدة غير حساسة فقط أثبتت أن `ضياء` موجود، `مفعل=نعم`، `الصلاحية=مدير`، `mustChange=لا`. Password/Token columns لم تُقرأ. لم يُنشأ أي native verifier.
+
+Independent post-canary read-only run `36701918580` = SUCCESS:
+```ini
+CLOUDFLARE_ACTIVE_DEPLOYMENT=8b3623a7-7c64-4225-b830-b800b366c573
+CLOUDFLARE_ACTIVE_VERSION=ca1f193c-9496-4dfe-b0ea-1e299b314e95
+A61_LIVE_BUNDLE_SHA256=a000921d0841d41e3dd2b7e8da969e08eb2abc528cd1fad631fcfb1703646c73
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+NATIVE_USER_COUNT=0
+NATIVE_READY_COUNT=0
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_OWNER_ACTION=RECONFIRM_CURRENT_DIYA_LOGIN_PASSWORD_OUTSIDE_CHAT_AND_REFRESH_PROTECTED_QUALIFY_SECRET_THEN_RUN_ONE_GUARDED_CANARY
+```
+Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_DIYA_ENROLLMENT_GATE_QUALIFIED_CREDENTIAL_BLOCK_ENTRY_493_2026-09-30.md`.
 
 **Customers — A56 مكتمل:** Customer master = 247 row داخل D1. Production run `36572088014` = SUCCESS. الكتابة والبحث الآن D1-native / GENERAL، ولا يوجد browser fallback إلى Apps Script. قبل القطع وُجدت 3 مجموعات duplicate primary phone و1 extra-phone group بدون exact duplicate identity؛ السياسة المعتمدة: exact phone أولًا، ثم exact normalized name عند مشاركة الرقم، وأي ambiguity متبقٍ يفشل مغلقًا. لا يوجد auto-merge أعمى للعملاء.
 ```ini
