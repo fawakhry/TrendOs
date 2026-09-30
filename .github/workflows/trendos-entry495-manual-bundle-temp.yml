@@ -1,0 +1,36 @@
+name: TrendOS Entry495 Manual Worker Bundle TEMP
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry495-manual-bundle-temp.yml'
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build single-file Worker bundle
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          npx --yes esbuild@0.25.10 cloudflare-d1/production-shadow/index.js             --bundle             --format=esm             --platform=browser             --target=es2022             --outfile=dist/trendos-entry495-worker.js
+          node --check dist/trendos-entry495-worker.js
+          grep -F '"/v1/legacy-api"' dist/trendos-entry495-worker.js >/dev/null
+          grep -F 'APPS_SCRIPT_API_URL' dist/trendos-entry495-worker.js >/dev/null
+          echo "ENTRY495_MANUAL_BUNDLE=PASS"
+          sha256sum dist/trendos-entry495-worker.js | tee dist/trendos-entry495-worker.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trendos-entry495-manual-worker
+          path: |
+            dist/trendos-entry495-worker.js
+            dist/trendos-entry495-worker.sha256
+          if-no-files-found: error
