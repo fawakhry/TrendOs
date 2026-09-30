@@ -1,3 +1,4 @@
+import { rememberCloudAuthShadow, revokeCloudAuthShadow } from './cloud-auth-shadow-v1.mjs';
 /* Temporary transport only: Apps Script still authorizes legacy sessions/actions.
  * Fixed upstream from server config; no D1 writes, credential storage, or native bridge.
  */
@@ -62,6 +63,29 @@ export async function handleLegacyBrowserTransport(request, env) {
     let data;
     try { data = JSON.parse(raw); } catch { return reply({ success: false, code: 'LEGACY_UPSTREAM_INVALID_JSON' }, 502, origin); }
     if (!data || Array.isArray(data) || typeof data !== 'object') return reply({ success: false, code: 'LEGACY_UPSTREAM_INVALID_JSON' }, 502, origin);
+
+    // A successful legacy auth response is the one Google round-trip we already
+    // paid for. Seed the D1 fingerprint shadow here so Orders/session does not
+    // immediately perform a second Apps Script verification. This is best-effort
+    // and never stores plaintext password/token.
+    if (data.success === true && (body.action === 'login' || body.action === 'verifyEmployeeSession')) {
+      const authUser = data.user || {};
+      const username = String(authUser.username || authUser.name || data.username || body.username || body.name || '').trim();
+      const token = String(authUser.token || data.token || body.token || '').trim();
+      if (username && token) {
+        try { await rememberCloudAuthShadow(username, token, data, env); } catch {}
+      }
+    }
+
+    // Logout/password-change invalidates the previously verified fingerprint.
+    if (data.success === true && (body.action === 'logout' || body.action === 'changePassword')) {
+      const username = String(body.username || body.name || '').trim();
+      const token = String(body.token || '').trim();
+      if (username && token) {
+        try { await revokeCloudAuthShadow(username, token, env); } catch {}
+      }
+    }
+
     // Rebuild response locally; never expose Google Location/redirect headers to Browser.
     return reply(data, 200, origin);
   } catch {
