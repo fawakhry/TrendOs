@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry515 attendanceV1 identified as first session rejection
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry516 rejected attendance payload-merge hypothesis
+
+**Entry516 — hypothesis rejected before code change:** أثناء مراجعة `doPost()` ظهر مبدئيًا احتمال أن `attendanceV1` يُستدعى قبل دمج JSON payload في `e.parameter`. بعد قراءة `trendosV1932TryRoute_` كاملة ثبت أن هذا غير صحيح: الراوتر يستدعي `routes[action]({parameter:Object.assign({}, p, payload || {})})`، وبالتالي `username/token/op` من الـPOST موجودة فعلًا داخل parameter. لم يتم إجراء أي تعديل مبني على الفرضية الخاطئة. التشخيص ينتقل الآن إلى `v1932Auth_()` / `authorize_()` لمعرفة لماذا نفس token المقبول في D1 shadow يُرفض في Apps Script.
 
 **Entry515 — first failing action identified:** Payload لنفس أول طلب `POST /v1/legacy-api` الذي عاد `success:false` برسالة انتهاء الجلسة أظهر `action="attendanceV1"` و`op="state"` لحساب الموظف `ضياء`. قيمة token لم تُسجل في الكتاب. هذا يحدد أول auth/application rejection بعد Fresh Login داخل مسار Attendance state، وليس Orders transport أو CORS. لا Deploy جديد قبل مراجعة مسار attendance في الـRepo وتحديد سبب رفض الجلسة.
 
