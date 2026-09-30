@@ -207,16 +207,18 @@ export async function guardEdgeOrders02CRFreshness(request, env, nowMs = Date.no
     };
   }
 
-  // The sanitized low-usage heartbeat proves Orders + Lines only. Enrichment
-  // mirrors have no independent source proof, so they must remain write-age fresh.
-  if (!customers.fresh || !restrictions.fresh) {
-    return {
-      pass: false,
-      response: blockedResponse(request, env, '02cr-mirror-stale', '02CR enrichment mirror is older than the freshness budget.', mirrors)
-    };
-  }
+  // Orders visibility must not be coupled to the short write-age budget of
+  // advisory enrichment mirrors. Structural qualification remains mandatory.
+  // Debt-filtered reads are excluded from this path above, so stale enrichment
+  // is surfaced explicitly instead of hiding the operational Orders list.
+  const enrichmentFreshness = {
+    degraded: !customers.fresh || !restrictions.fresh,
+    mode: (!customers.fresh || !restrictions.fresh) ? 'stale-structurally-qualified' : 'write-age-fresh',
+    customers: safeInspection(CUSTOMERS_SHEET, customers),
+    restrictions: safeInspection(RESTRICTIONS_SHEET, restrictions)
+  };
 
-  if (lines.fresh) return { pass: true, logicalFreshness: null, mirrors };
+  if (lines.fresh) return { pass: true, logicalFreshness: null, mirrors, enrichmentFreshness };
 
   if (!ordersIdleHeartbeatVerifierEnabled(env)) {
     return {
@@ -291,12 +293,14 @@ export async function guardEdgeOrders02CRFreshness(request, env, nowMs = Date.no
   return {
     pass: true,
     logicalFreshness: heartbeat,
-    mirrors: [...mirrors, safeInspection(ORDERS_SHEET, orders)]
+    mirrors: [...mirrors, safeInspection(ORDERS_SHEET, orders)],
+    enrichmentFreshness
   };
 }
 
-async function decorateLogicalFreshness(response, logicalFreshness) {
-  if (!logicalFreshness || !response || !response.ok) return response;
+async function decorateFreshness(response, logicalFreshness, enrichmentFreshness) {
+  if (!response || !response.ok) return response;
+  if (!logicalFreshness && !enrichmentFreshness) return response;
   let body;
   try {
     body = await response.json();
@@ -304,7 +308,18 @@ async function decorateLogicalFreshness(response, logicalFreshness) {
     return response;
   }
   if (!body || body.success !== true) return response;
-  body.logicalFreshness = logicalFreshness;
+  if (logicalFreshness) body.logicalFreshness = logicalFreshness;
+  if (enrichmentFreshness) {
+    body.enrichmentFreshness = enrichmentFreshness;
+    if (enrichmentFreshness.degraded === true) {
+      const warnings = Array.isArray(body.warnings) ? body.warnings.slice() : [];
+      warnings.push({
+        code: '02CR_ENRICHMENT_STALE_ADVISORY',
+        message: 'Orders are available from D1; customer/debt enrichment is structurally valid but older than the short freshness budget.'
+      });
+      body.warnings = warnings;
+    }
+  }
   const headers = new Headers(response.headers);
   headers.set('content-type', 'application/json; charset=utf-8');
   headers.set('cache-control', 'no-store');
@@ -316,7 +331,7 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env, ctx) {
   const guarded = await guardEdgeOrders02CRFreshness(request, env, Date.now());
   if (!guarded.pass) return guarded.response;
   const response = await handleQualified02CR(request, env, ctx);
-  return decorateLogicalFreshness(response, guarded.logicalFreshness);
+  return decorateFreshness(response, guarded.logicalFreshness, guarded.enrichmentFreshness);
 }
 
 export { isEdgeOrders02CRPath };
