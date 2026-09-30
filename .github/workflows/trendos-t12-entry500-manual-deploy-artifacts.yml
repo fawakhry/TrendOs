@@ -1,0 +1,124 @@
+name: TrendOS T12 Entry500 Manual Deploy Artifacts
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-entry500-manual-deploy-artifacts.yml'
+      - 'cloudflare-d1/**'
+      - '*.js'
+      - '*.css'
+      - '*.html'
+      - 'tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs'
+      - 'tests/cloudflare_index_v2_02cr_route.test.mjs'
+      - 'tests/frontend_session_and_zero_google_read_entry499.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-manual-deploy-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout qualified branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify qualified Entry498 and Entry499 lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 09b630b12e8d2abfbfe003c3701a90444a1a30a8 HEAD
+          git merge-base --is-ancestor 8f1dc09dd2e9f61434b645659bdd2604e02f2d3e HEAD
+          git merge-base --is-ancestor eedf24c7857bd20a3d7b82c5bdc4c75dcfcd4da2 HEAD
+          grep -F "authority: 'd1-qualified-snapshot+t12-native-overlay'" cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs
+          grep -F "googleHeartbeatRequired: false" cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs
+          grep -F "02CR_LINES_STALE_SNAPSHOT_ADVISORY" cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs
+          grep -F "Data/read failures must never destroy the employee browser session." app.js
+          grep -F "employee-session-unavailable" press-control-v1.js
+
+      - name: Re-run Entry498 and Entry499 qualification tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_edge_orders_02cr_idle_freshness_02cu.test.mjs
+          node tests/cloudflare_index_v2_02cr_route.test.mjs
+          node tests/frontend_session_and_zero_google_read_entry499.test.mjs
+
+      - name: Build single-file Entry498 API bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/api
+          npx --yes esbuild@0.25.0 cloudflare-d1/production-shadow/index.js             --bundle             --format=esm             --platform=browser             --target=es2022             --legal-comments=none             --outfile=dist/api/trendos-entry498-worker.js
+          grep -F "d1-qualified-snapshot+t12-native-overlay" dist/api/trendos-entry498-worker.js
+          grep -F "02CR_LINES_STALE_SNAPSHOT_ADVISORY" dist/api/trendos-entry498-worker.js
+          sha256sum dist/api/trendos-entry498-worker.js > dist/api/SHA256SUMS.txt
+          cat > dist/api/DEPLOY_README.txt <<EOF
+TrendOS T12 Entry498 manual API artifact
+Source branch: ${GITHUB_REF_NAME}
+Source commit: ${GITHUB_SHA}
+Target Worker: trendos-d1-api
+
+Manual-only deployment rules:
+- Do not use this workflow to deploy.
+- Preserve all existing Cloudflare Bindings, Variables and Secrets.
+- Do not rerun D1 migration 0009.
+- Do not alter Order IDs or Statuses.
+- After upload, promote the new API version to 100% traffic and verify /v1/edge/orders/02cr/page returns 200.
+EOF
+
+      - name: Package Entry499 frontend assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/frontend
+          find . -maxdepth 1 -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) -print0             | xargs -0 -I{} cp "{}" dist/frontend/
+          test -f dist/frontend/index.html
+          test -f dist/frontend/app.js
+          test -f dist/frontend/trendos-edge-orders-read-v1.js
+          test -f dist/frontend/press-control-v1.js
+          grep -F "Data/read failures must never destroy the employee browser session." dist/frontend/app.js
+          grep -F "d1-qualified-snapshot+t12-native-overlay" dist/frontend/trendos-edge-orders-read-v1.js
+          grep -F "employee-session-unavailable" dist/frontend/press-control-v1.js
+          (
+            cd dist/frontend
+            sha256sum * > SHA256SUMS.txt
+          )
+          cat > dist/frontend/DEPLOY_README.txt <<EOF
+TrendOS T12 Entry499 manual frontend artifact
+Source branch: ${GITHUB_REF_NAME}
+Source commit: ${GITHUB_SHA}
+Target Worker: trendos-ui
+
+Manual-only deployment rules:
+- Deploy frontend assets only.
+- Preserve the existing ASSETS binding.
+- Do not change Cloudflare Secrets, Variables or other Bindings.
+- After upload, promote the frontend version to 100% traffic, hard refresh, then login once.
+- A data-service 5xx must not clear the employee session.
+EOF
+
+      - name: Upload Entry498 API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trendos-entry498-api-manual
+          path: dist/api/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Entry499 frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trendos-entry499-frontend-manual
+          path: dist/frontend/
+          if-no-files-found: error
+          retention-days: 14
