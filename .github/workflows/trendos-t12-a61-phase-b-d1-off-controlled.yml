@@ -17,7 +17,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      RESULT_FILE: docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_PHASE_B_D1_OFF_EXECUTION_RESULT_2026-09-30.md
+      RESULT_FILE: docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_PHASE_B_D1_OFF_EXECUTION_RESULT_2026-09-30.txt
       TARGET_MIGRATION: 0009_employee_auth_native_v1.sql
       CONFIG: cloudflare-d1/wrangler.toml
       DATABASE: trendos-main
@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Controlled D1 migration and OFF verification
+      - name: Idempotent controlled D1 migration and OFF verification
         id: phase_b
         continue-on-error: true
         shell: bash
@@ -41,7 +41,7 @@ jobs:
 
           STATUS="FAILED"
           REASON="UNKNOWN"
-          D1_AUTH_MIGRATION_APPLIED="NO"
+          APPLY_STATE="NO"
           CONTROL_MODE="NOT_VERIFIED"
           TABLES_VERIFIED="NO"
           PRE_PENDING="NOT_VERIFIED"
@@ -49,39 +49,28 @@ jobs:
 
           mkdir -p "$(dirname "$RESULT_FILE")"
 
-          finish() {
-            local rc=$?
-            cat > "$RESULT_FILE" <<EOF
-          # TrendOS T12 — A61 Phase B D1 OFF execution result
-
-          Date: 2026-09-30 UTC runner
-
-          ```ini
-          PHASE_B_STATUS=$STATUS
-          FAILURE_REASON=$REASON
-          TARGET_MIGRATION=$TARGET_MIGRATION
-          PRE_PENDING_MIGRATIONS=$PRE_PENDING
-          D1_AUTH_MIGRATION_APPLIED=$D1_AUTH_MIGRATION_APPLIED
-          POST_PENDING_MIGRATIONS=$POST_PENDING
-          EMPLOYEE_AUTH_CONTROL_MODE=$CONTROL_MODE
-          EMPLOYEE_AUTH_TABLES_VERIFIED=$TABLES_VERIFIED
-          APPS_SCRIPT_PRODUCTION_VERSION=158
-          APPS_SCRIPT_MUTATION=NO
-          CLOUDFLARE_WORKER_DEPLOY=NO
-          ORDER_MUTATION=NO
-          CUSTOMER_MUTATION=NO
-          ACCOUNTING_MUTATION=NO
-          ```
-
-          This workflow is limited to the additive D1 migration gate from Entry484 Phase B.
-          It does not deploy a Worker or enable native auth/bootstrap/native-only/legacy bridge flags.
-          EOF
-            exit "$rc"
+          record() {
+            {
+              echo "PHASE_B_STATUS=$STATUS"
+              echo "FAILURE_REASON=$REASON"
+              echo "TARGET_MIGRATION=$TARGET_MIGRATION"
+              echo "PRE_PENDING_MIGRATIONS=$PRE_PENDING"
+              echo "D1_AUTH_MIGRATION_APPLIED=$APPLY_STATE"
+              echo "POST_PENDING_MIGRATIONS=$POST_PENDING"
+              echo "EMPLOYEE_AUTH_CONTROL_MODE=$CONTROL_MODE"
+              echo "EMPLOYEE_AUTH_TABLES_VERIFIED=$TABLES_VERIFIED"
+              echo "APPS_SCRIPT_PRODUCTION_VERSION=158"
+              echo "APPS_SCRIPT_MUTATION=NO"
+              echo "CLOUDFLARE_WORKER_DEPLOY=NO"
+              echo "ORDER_MUTATION=NO"
+              echo "CUSTOMER_MUTATION=NO"
+              echo "ACCOUNTING_MUTATION=NO"
+            } > "$RESULT_FILE"
           }
-          trap finish EXIT
 
           fail() {
             REASON="$1"
+            record
             exit 1
           }
 
@@ -107,15 +96,17 @@ jobs:
           npx --yes wrangler@4 d1 migrations list "$DATABASE" --remote --config "$CONFIG" > /tmp/a61-pre-list.txt 2>&1             || fail "REMOTE_MIGRATIONS_LIST_FAILED"
 
           mapfile -t PENDING < <(grep -oE '[0-9]{4}_[A-Za-z0-9._-]+\.sql' /tmp/a61-pre-list.txt | sort -u || true)
+
           if [ "${#PENDING[@]}" -eq 0 ]; then
             PRE_PENDING="NONE"
-            fail "TARGET_0009_NOT_PENDING"
-          fi
-          PRE_PENDING="$(IFS=,; echo "${PENDING[*]}")"
-          [ "${#PENDING[@]}" -eq 1 ] && [ "${PENDING[0]}" = "$TARGET_MIGRATION" ]             || fail "PENDING_SET_NOT_EXACTLY_0009:$PRE_PENDING"
+            APPLY_STATE="ALREADY_APPLIED"
+          else
+            PRE_PENDING="$(IFS=,; echo "${PENDING[*]}")"
+            [ "${#PENDING[@]}" -eq 1 ] && [ "${PENDING[0]}" = "$TARGET_MIGRATION" ]               || fail "PENDING_SET_NOT_EXACTLY_0009:$PRE_PENDING"
 
-          npx --yes wrangler@4 d1 migrations apply "$DATABASE" --remote --config "$CONFIG" > /tmp/a61-apply.txt 2>&1             || fail "REMOTE_MIGRATION_APPLY_FAILED"
-          D1_AUTH_MIGRATION_APPLIED="YES"
+            npx --yes wrangler@4 d1 migrations apply "$DATABASE" --remote --config "$CONFIG" > /tmp/a61-apply.txt 2>&1               || fail "REMOTE_MIGRATION_APPLY_FAILED"
+            APPLY_STATE="YES"
+          fi
 
           npx --yes wrangler@4 d1 migrations list "$DATABASE" --remote --config "$CONFIG" > /tmp/a61-post-list.txt 2>&1             || fail "POST_APPLY_MIGRATIONS_LIST_FAILED"
 
@@ -129,7 +120,7 @@ jobs:
 
           npx --yes wrangler@4 d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT singleton,marker,mode,policy_epoch FROM employee_auth_control_v1 WHERE singleton=1;"             > /tmp/a61-control.json 2>/tmp/a61-control.err             || fail "CONTROL_QUERY_FAILED"
 
-          node <<'NODE' || exit 41
+          node <<'NODE'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync('/tmp/a61-control.json','utf8'));
           const found = [];
@@ -145,13 +136,12 @@ jobs:
           const row = found[0];
           if (Number(row.singleton) !== 1 || row.mode !== 'OFF' || Number(row.policy_epoch) !== 1) process.exit(3);
           NODE
-          NODE_RC=$?
-          [ "$NODE_RC" -eq 0 ] || fail "CONTROL_ROW_NOT_EXACT_OFF"
+          [ "$?" -eq 0 ] || fail "CONTROL_ROW_NOT_EXACT_OFF"
           CONTROL_MODE="OFF"
 
           npx --yes wrangler@4 d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1') ORDER BY name;"             > /tmp/a61-tables.json 2>/tmp/a61-tables.err             || fail "TABLE_VERIFY_QUERY_FAILED"
 
-          node <<'NODE' || exit 42
+          node <<'NODE'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync('/tmp/a61-tables.json','utf8'));
           const names = new Set();
@@ -166,12 +156,12 @@ jobs:
           const expected = ['employee_auth_control_v1','employee_auth_sessions_v1','employee_auth_users_v1'];
           if (expected.some(n => !names.has(n))) process.exit(2);
           NODE
-          NODE_RC=$?
-          [ "$NODE_RC" -eq 0 ] || fail "AUTH_TABLES_NOT_ALL_PRESENT"
+          [ "$?" -eq 0 ] || fail "AUTH_TABLES_NOT_ALL_PRESENT"
           TABLES_VERIFIED="YES"
 
           STATUS="SUCCESS"
           REASON="NONE"
+          record
 
       - name: Record sanitized Phase B result
         if: always()
@@ -180,17 +170,13 @@ jobs:
           set -euo pipefail
           if [ ! -f "$RESULT_FILE" ]; then
             mkdir -p "$(dirname "$RESULT_FILE")"
-            cat > "$RESULT_FILE" <<EOF
-          # TrendOS T12 — A61 Phase B D1 OFF execution result
-
-          ```ini
-          PHASE_B_STATUS=FAILED
-          FAILURE_REASON=RESULT_FILE_NOT_PRODUCED
-          D1_AUTH_MIGRATION_APPLIED=UNKNOWN
-          EMPLOYEE_AUTH_CONTROL_MODE=NOT_VERIFIED
-          CLOUDFLARE_WORKER_DEPLOY=NO
-          ```
-          EOF
+            {
+              echo "PHASE_B_STATUS=FAILED"
+              echo "FAILURE_REASON=RESULT_FILE_NOT_PRODUCED"
+              echo "D1_AUTH_MIGRATION_APPLIED=UNKNOWN"
+              echo "EMPLOYEE_AUTH_CONTROL_MODE=NOT_VERIFIED"
+              echo "CLOUDFLARE_WORKER_DEPLOY=NO"
+            } > "$RESULT_FILE"
           fi
 
           git config user.name "github-actions[bot]"
