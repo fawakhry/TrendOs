@@ -902,3 +902,33 @@ Manual next step: deploy API Worker only, preserve all existing bindings/variabl
 
 Detailed record:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_SESSION_D1_SHADOW_HANDOFF_ENTRY_497_2026-09-30.md`
+
+
+---
+
+# Entry498 current checkpoint — 2026-09-30
+
+After Entry497 Production install, Orders session advanced successfully past the prior Apps Script verification timeout. The remaining 503 was the legacy 02CR Google heartbeat freshness proof for the old D1 Lines snapshot.
+
+Entry498 Repo-only source is qualified:
+
+```ini
+ENTRY498_SOURCE_QUALIFIED=YES
+ENTRY498_PRODUCTION_DEPLOYED=NO
+ORDERS_02CR_GOOGLE_HEARTBEAT_REQUIRED=NO
+ORDERS_LINES_STRUCTURAL_QUALIFICATION=REQUIRED
+ORDERS_LINES_WALL_CLOCK_STALENESS=ADVISORY
+ORDERS_READ_AUTHORITY=D1_QUALIFIED_SNAPSHOT_PLUS_T12_NATIVE_OVERLAY
+BROWSER_DIRECT_GOOGLE=NO
+ORDERS_02CR_REGRESSION_RUN=36747545768_SUCCESS
+BROWSER_CLOUD_TRANSPORT_RUN=36747545745_SUCCESS
+```
+
+Next owner action: deploy API Worker only, preserve bindings/variables/secrets, promote to 100%, hard refresh, then verify Customer Service Orders render and `/v1/edge/orders/02cr/page` returns 200.
+
+No frontend deploy is required for Entry498.
+
+Important: Entry498 removes Google from the Orders read-visibility proof. Legacy historical line mutation paths remain a separate Zero-Google migration item.
+
+Detailed record:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_D1_SNAPSHOT_ZERO_GOOGLE_VISIBILITY_ENTRY_498_2026-09-30.md`
