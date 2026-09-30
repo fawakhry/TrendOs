@@ -80,32 +80,6 @@ if(!o.success||o.mode!=='GENERAL')process.exit(4);
 console.log('A61_DIYA_ENROLL_PREFLIGHT=PASS');
 NODE
 
-node <<'NODE'
-const fs=require('fs');
-const toml=fs.readFileSync('cloudflare-d1/wrangler.toml','utf8');
-const m=toml.match(/^APPS_SCRIPT_API_URL = "([^"]+)"$/m);
-if(!m)process.exit(10);
-const upstream=m[1];
-const username=String(process.env.QUALIFY_USERNAME||'').trim();
-const password=String(process.env.QUALIFY_PASSWORD||'');
-(async()=>{
-  const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),120000);
-  let r;
-  try {
-    r=await fetch(upstream,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password,_ts:Date.now()}),redirect:'follow',signal:ctrl.signal});
-  } finally { clearTimeout(timer); }
-  const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
-  const token=String(body&&body.user&&body.user.token||'').trim();
-  if(r.status!==200||body.success!==true||!token)process.exit(11);
-  console.log('::add-mask::'+token);
-  fs.writeFileSync('/tmp/a61-legacy-token',token,{mode:0o600});
-  fs.writeFileSync('/tmp/a61-apps-url',upstream,{mode:0o600});
-  fs.writeFileSync('/tmp/a61-must-change',body.user&&body.user.mustChange===true?'true':'false',{mode:0o600});
-  fs.writeFileSync('/tmp/a61-user-key',String(body.user&&body.user.username||username).trim().toLowerCase(),{mode:0o600});
-  console.log('A61_LEGACY_LOGIN_FOR_ENROLL=PASS');
-})().catch(()=>process.exit(12));
-NODE
-
 NONCE="$(openssl rand -hex 32)"
 echo "::add-mask::$NONCE"
 export ENROLL_NONCE="$NONCE"
@@ -141,6 +115,38 @@ console.log('A61_ENROLL_HEALTH_CANARY_USER='+(a.enrollCanaryUserConfigured===tru
 console.log('A61_ENROLL_HEALTH_NATIVE_ONLY='+(a.nativeOnly===true?'YES':'NO'));
 if(!a.success||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacySessionEnrollEnabled!==true||a.enrollCanaryUserConfigured!==true||a.nativeOnly!==false)process.exit(25);
 console.log('A61_ENROLLMENT_WINDOW=PASS');
+NODE
+
+node <<'NODE'
+const fs=require('fs');
+const toml=fs.readFileSync('cloudflare-d1/wrangler.toml','utf8');
+const m=toml.match(/^APPS_SCRIPT_API_URL = "([^"]+)"$/m);
+if(!m)process.exit(10);
+const upstream=m[1];
+const username=String(process.env.QUALIFY_USERNAME||'').trim();
+const password=String(process.env.QUALIFY_PASSWORD||'');
+(async()=>{
+  const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),120000);
+  let r;
+  try {
+    r=await fetch(upstream,{method:'POST',headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',username,password,_ts:Date.now()}),redirect:'follow',signal:ctrl.signal});
+  } finally { clearTimeout(timer); }
+  const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+  const token=String(body&&body.user&&body.user.token||'').trim();
+  if(r.status!==200||body.success!==true||!token){
+    console.log('A61_LEGACY_LOGIN_FOR_ENROLL=FAIL');
+    console.log('A61_LEGACY_LOGIN_HTTP_STATUS='+String(r.status||0));
+    console.log('A61_LEGACY_LOGIN_RATE_LIMITED='+(body&&body.rateLimited===true?'YES':'NO'));
+    console.log('A61_LEGACY_LOGIN_SERVER_ERROR='+(String(body&&body.message||'').indexOf('خطأ في السيرفر:')===0?'YES':'NO'));
+    process.exit(11);
+  }
+  console.log('::add-mask::'+token);
+  fs.writeFileSync('/tmp/a61-legacy-token',token,{mode:0o600});
+  fs.writeFileSync('/tmp/a61-apps-url',upstream,{mode:0o600});
+  fs.writeFileSync('/tmp/a61-must-change',body.user&&body.user.mustChange===true?'true':'false',{mode:0o600});
+  fs.writeFileSync('/tmp/a61-user-key',String(body.user&&body.user.username||username).trim().toLowerCase(),{mode:0o600});
+  console.log('A61_LEGACY_LOGIN_FOR_ENROLL=PASS');
+})().catch(()=>process.exit(12));
 NODE
 
 node <<'NODE'
