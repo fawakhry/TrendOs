@@ -1,10 +1,18 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.79-DRAFT-COMPACT — T12 new-chat freeze after Entry499 artifact failure; Entry500** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.80-DRAFT-COMPACT — Mandatory step ledger; Entry506 fresh-login failure** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Production verification freeze / Entry500
+> **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
+
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry506 fresh-login auth failure
+
+**Entry506 — Fresh Login qualification FAILED بعد Entry504:** المالك اختبر Login جديد بعد أن أصبح API Entry504 Active على Production. النتيجة: الواجهة تفتح ثم تظهر فورًا الرسالة الحمراء `انتهت الجلسة. سجل الدخول مرة أخرى.`؛ Console في الصورة لا يعرض 502 ولا stale-D1 warning، ويظهر فقط Customer Manager bridge startup log. إذن `ENTRY504_FRESH_LOGIN_QUALIFIED=NO`. لا Deploy جديد قبل التقاط أول failing `/v1/legacy-api` request/response من Network لتحديد الـaction والـHTTP/code بدقة. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ENTRY504_FRESH_LOGIN_FAILED_ENTRY_506_2026-09-30.md`.
+
+**Entry505 — Entry504 Production checkpoint:** المالك نشر API Entry504 يدويًا على `trendos-d1-api`; Active short version `b3deae0e` على `100%` Traffic. Orders UI بقي ظاهرًا، لكن الجلسة القديمة كانت تعرض session-expired، لذلك كان Fresh Login verification مطلوبًا. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ENTRY504_PRODUCTION_DEPLOY_CHECKPOINT_ENTRY_505_2026-09-30.md`.
+
+**Entry504 — Employee-session race guard:** تم إلغاء كل D1 auth shadows الأقدم عند Login جديد ومنع stale/missing employee tokens في Cloudflare قبل Apps Script، مع إبقاء explicit logout. Regression CI `36760287110` = SUCCESS، manual API artifact run `36760373871` = SUCCESS، Production short version بعد نشر المالك `b3deae0e`. Fresh Login لاحقًا فشل (Entry506)، لذلك هذا الإصلاح وحده غير كافٍ.
 
 **Entry500 — أحدث checkpoint / New-chat freeze:** آخر Production مؤكد من صور المالك هو API short version `86b713d9` على 100% Traffic. بعده ظهرت عودة سريعة لشاشة الدخول + repeated `/v1/legacy-api 502` + `Required D1 mirror is stale: بنود الأوردرات`. Entry498 API وEntry499 frontend مؤهلان في الـRepo لكن **نشرهما غير مؤكد ويُعامل كـNO حتى التحقق** لأن آخر تصريح صريح من المالك كان فشل تنزيل الـartifact. الشات الجديد يجب أن يتحقق من Production أولًا، ثم ينشر Entry498 API يدويًا بواسطة المالك، وبعد نجاحه Entry499 frontend فقط. إذا فشل تنزيل ChatGPT مرة أخرى، لا نكرر sandbox downloads؛ نستخدم GitHub Actions artifact أو owner-side build. بعد ثبات Orders والجلسة: إصلاح duplicate-order creation هو أول مهمة. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_NEW_CHAT_FREEZE_AFTER_ENTRY499_DOWNLOAD_FAILURE_ENTRY_500_2026-09-30.md`.
 
