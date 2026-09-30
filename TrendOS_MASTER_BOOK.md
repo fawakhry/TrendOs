@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry525 clean fresh-login failure reproduced
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry526 clean capture first request is login
+
+**Entry526 — clean capture first real request identified as login:** In the preserved Network sequence that started before Fresh Login, the first selected real `legacy-api` fetch has Payload `action="login"` for the employee account. A password value was visible locally in DevTools/screenshot; no credential value is recorded in this book or repeated in chat. This establishes the correct chronological anchor for the session failure analysis. No deploy or runtime mutation occurred. Next: inspect the Response of this exact login request before evaluating any later module call.
 
 **Entry525 — clean Fresh Login failure reproduced with preserved Network sequence:** From the Entry524 clean baseline, owner pressed Employee Login exactly once. TrendOS authenticated into the main UI, Orders/service content rendered, then the red message `انتهت الجلسة. سجل الدخول مرة أخرى.` appeared again. DevTools Network retained the complete sequence from before login because `Keep log` was enabled; the capture shows multiple `legacy-api` preflight/fetch requests, mostly HTTP 200, plus one pending request. This is the first trustworthy end-to-end capture beginning before login. No token/password values are recorded. No deploy or runtime mutation occurred. Next diagnostic: inspect the first real `legacy-api` fetch in chronological order to establish whether it is the login request and its response before examining later calls.
 
