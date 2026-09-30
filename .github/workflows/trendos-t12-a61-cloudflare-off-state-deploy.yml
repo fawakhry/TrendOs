@@ -1,0 +1,490 @@
+name: TrendOS T12 A61 Cloudflare OFF-State Controlled Deploy
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-cloudflare-off-state-deploy.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-t12-a61-cloudflare-off-state-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-off-state:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false"
+      WORKER_NAME: trendos-d1-api
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PREVIEW_URL: https://a61-off-trendos-d1-api.trendmall-contact.workers.dev
+      CONFIG: cloudflare-d1/wrangler.toml
+      RUNTIME_CONFIG: cloudflare-d1/wrangler.a61-off.runtime.toml
+      DATABASE: trendos-main
+      BASELINE_REF: 4e21657674d3cc4eb815447ec2a66578ab3e6f43
+      EXPECTED_LIVE_BUNDLE_SHA256: ef841a76643c28e8ef8ea8b72e5ea758ab5b970c59f4655e1a61d0211ede32a3
+      EXPECTED_TARGET_BUNDLE_SHA256: befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494
+      EXPECTED_PREVIOUS_VERSION: ec0fd00b-f4b8-4abf-8b79-449ee1637f3a
+      EXPECTED_APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+      RESULT_FILE: docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_CLOUDFLARE_OFF_STATE_DEPLOY_RESULT_2026-09-30.txt
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Final predeploy lock and zero-traffic upload
+        id: install
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          STATUS="FAILED"
+          REASON="UNKNOWN"
+          PREVIOUS_DEPLOYMENT_ID="NOT_VERIFIED"
+          PREVIOUS_VERSION="NOT_VERIFIED"
+          TARGET_VERSION="NONE"
+          TARGET_PROMOTED="NO"
+          ROLLBACK_REQUIRED="NO"
+          PROD_VERSION_AFTER="NOT_VERIFIED"
+          LIVE_BUNDLE="NOT_VERIFIED"
+          TARGET_BUNDLE="NOT_VERIFIED"
+          SOURCE_DELTA="NOT_VERIFIED"
+          A61_FLAGS="NOT_VERIFIED"
+          SETTINGS_BOUNDARY="NOT_VERIFIED"
+          KEEP_VARS_GUARD="NO"
+          D1_MODE_PRE="NOT_VERIFIED"
+          D1_MODE_POST="NOT_VERIFIED"
+          PREVIEW_AUTH="NOT_VERIFIED"
+          PREVIEW_BRIDGE="NOT_VERIFIED"
+          PROD_AUTH="NOT_VERIFIED"
+          PROD_BRIDGE="NOT_VERIFIED"
+          BRIDGE_SECRET="NOT_VERIFIED"
+          CUSTOMER_MODE_PRE="NOT_VERIFIED"
+          CUSTOMER_MODE_POST="NOT_VERIFIED"
+          CUSTOMER_COUNT_PRE="NOT_VERIFIED"
+          CUSTOMER_COUNT_POST="NOT_VERIFIED"
+          ORDER_MODE_PRE="NOT_VERIFIED"
+          ORDER_MODE_POST="NOT_VERIFIED"
+          BUSINESS_HEALTH_POST="NOT_VERIFIED"
+
+          mkdir -p "$(dirname "$RESULT_FILE")"
+
+          record() {
+            {
+              echo "CLOUDFLARE_A61_OFF_STATE_STATUS=$STATUS"
+              echo "FAILURE_REASON=$REASON"
+              echo "PREVIOUS_DEPLOYMENT_ID=$PREVIOUS_DEPLOYMENT_ID"
+              echo "PREVIOUS_VERSION=$PREVIOUS_VERSION"
+              echo "TARGET_VERSION=$TARGET_VERSION"
+              echo "TARGET_PROMOTED=$TARGET_PROMOTED"
+              echo "PROD_VERSION_AFTER=$PROD_VERSION_AFTER"
+              echo "ROLLBACK_REQUIRED=$ROLLBACK_REQUIRED"
+              echo "LIVE_PREDEPLOY_BUNDLE_SHA256=$LIVE_BUNDLE"
+              echo "A61_TARGET_BUNDLE_SHA256=$TARGET_BUNDLE"
+              echo "PRODUCTION_DRIFT_PREDEPLOY=$([ "$LIVE_BUNDLE" = "$EXPECTED_LIVE_BUNDLE_SHA256" ] && echo NO || echo NOT_CLEARED)"
+              echo "CLOUDFLARE_SOURCE_DELTA_SCOPE=$SOURCE_DELTA"
+              echo "A61_TARGET_FLAGS=$A61_FLAGS"
+              echo "LIVE_SETTINGS_BOUNDARY=$SETTINGS_BOUNDARY"
+              echo "KEEP_VARS_GUARD=$KEEP_VARS_GUARD"
+              echo "APPS_SCRIPT_API_URL_UNCHANGED=YES"
+              echo "D1_AUTH_CONTROL_MODE_PRE=$D1_MODE_PRE"
+              echo "D1_AUTH_CONTROL_MODE_POST=$D1_MODE_POST"
+              echo "PREVIEW_AUTH_HEALTH=$PREVIEW_AUTH"
+              echo "PREVIEW_BRIDGE_HEALTH=$PREVIEW_BRIDGE"
+              echo "PRODUCTION_AUTH_HEALTH=$PROD_AUTH"
+              echo "PRODUCTION_BRIDGE_HEALTH=$PROD_BRIDGE"
+              echo "EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=$BRIDGE_SECRET"
+              echo "CUSTOMER_MODE_PRE=$CUSTOMER_MODE_PRE"
+              echo "CUSTOMER_MODE_POST=$CUSTOMER_MODE_POST"
+              echo "CUSTOMER_COUNT_PRE=$CUSTOMER_COUNT_PRE"
+              echo "CUSTOMER_COUNT_POST=$CUSTOMER_COUNT_POST"
+              echo "ORDER_CREATE_MODE_PRE=$ORDER_MODE_PRE"
+              echo "ORDER_CREATE_MODE_POST=$ORDER_MODE_POST"
+              echo "BUSINESS_HEALTH_POST=$BUSINESS_HEALTH_POST"
+              echo "NATIVE_EMPLOYEE_LOGIN=NO"
+              echo "TRANSITIONAL_BOOTSTRAP=NO"
+              echo "NATIVE_ONLY=NO"
+              echo "LEGACY_BRIDGE_ENABLED=NO"
+              echo "BRIDGE_ALLOWLIST_EMPTY=YES"
+              echo "APPS_SCRIPT_MUTATION=NO"
+              echo "D1_MUTATION=NO"
+              echo "ORDER_MUTATION=NO"
+              echo "CUSTOMER_MUTATION=NO"
+              echo "ACCOUNTING_MUTATION=NO"
+              echo "SECRET_WRITE=NO"
+            } > "$RESULT_FILE"
+          }
+
+          fail() {
+            REASON="$1"
+            record
+            exit 1
+          }
+
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || fail "CLOUDFLARE_API_TOKEN_MISSING"
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || fail "CLOUDFLARE_ACCOUNT_ID_MISSING"
+          [ -f "$CONFIG" ] || fail "WRANGLER_CONFIG_MISSING"
+
+          # Require the successful read-only preflight checkpoint.
+          grep -Fx 'PREFLIGHT_STATUS=SUCCESS' docs/trendos/blackbox/منصة\ ترند/TRENDOS_T12_A61_CLOUDFLARE_READONLY_PREFLIGHT_RESULT_2026-09-30.txt >/dev/null || fail "READONLY_PREFLIGHT_NOT_SUCCESS"
+          grep -Fx 'PRODUCTION_DRIFT=NO' docs/trendos/blackbox/منصة\ ترند/TRENDOS_T12_A61_CLOUDFLARE_READONLY_PREFLIGHT_RESULT_2026-09-30.txt >/dev/null || fail "READONLY_PREFLIGHT_DRIFT_NOT_CLEAR"
+
+          # No secret-management commands are authorized in this workflow.
+          SELF=".github/workflows/trendos-t12-a61-cloudflare-off-state-deploy.yml"
+          ! grep -Eq 'wrangler(@[^ ]+)?[[:space:]]+(versions[[:space:]]+)?secret[[:space:]]+(put|delete|bulk)' "$SELF" || fail "SECRET_MUTATION_COMMAND_PRESENT"
+
+          # Exact OFF-state target.
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' "$CONFIG" >/dev/null || fail "AUTH_FLAG_NOT_FALSE"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' "$CONFIG" >/dev/null || fail "BOOTSTRAP_FLAG_NOT_FALSE"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' "$CONFIG" >/dev/null || fail "NATIVE_ONLY_FLAG_NOT_FALSE"
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' "$CONFIG" >/dev/null || fail "BRIDGE_FLAG_NOT_FALSE"
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' "$CONFIG" >/dev/null || fail "BRIDGE_ALLOWLIST_NOT_EMPTY"
+          grep -Fx "APPS_SCRIPT_API_URL = \"$EXPECTED_APPS_SCRIPT_API_URL\"" "$CONFIG" >/dev/null || fail "APPS_SCRIPT_URL_CHANGED"
+          ! grep -F 'EMPLOYEE_LEGACY_BRIDGE_SECRET_V1' "$CONFIG" >/dev/null || fail "BRIDGE_SECRET_MUST_REMAIN_DEFERRED"
+          A61_FLAGS="PASS_OFF_EMPTY"
+
+          # Cloudflare source delta must still be A61-only.
+          git diff --name-only "$BASELINE_REF"..HEAD -- cloudflare-d1/ | sort > /tmp/cloud-delta.txt
+          cat > /tmp/expected-cloud-delta.txt <<'EOF'
+          cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+          cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          cloudflare-d1/src/employee-auth-native-v1.mjs
+          cloudflare-d1/src/employee-legacy-bridge-v1.mjs
+          cloudflare-d1/src/index_v2.js
+          cloudflare-d1/wrangler.toml
+          EOF
+          sed -i 's/^[[:space:]]*//' /tmp/expected-cloud-delta.txt
+          diff -u /tmp/expected-cloud-delta.txt /tmp/cloud-delta.txt >/tmp/cloud-delta.diff || fail "UNEXPECTED_CLOUDFLARE_SOURCE_DELTA"
+          SOURCE_DELTA="PASS_A61_ONLY"
+
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs || fail "NATIVE_AUTH_SYNTAX_FAILED"
+          node --check cloudflare-d1/src/employee-legacy-bridge-v1.mjs || fail "LEGACY_BRIDGE_SYNTAX_FAILED"
+          node --check cloudflare-d1/src/index_v2.js || fail "INDEX_V2_SYNTAX_FAILED"
+
+          # Immediate live deployment lock.
+          npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/pre-deployments.json 2>/tmp/pre-deployments.err || fail "DEPLOYMENTS_LIST_FAILED"
+          node <<'NODE' || exit 31
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/pre-deployments.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const d=ds[0]||{};
+          const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(!d.id||full.length!==1||full[0].id!==process.env.EXPECTED_PREVIOUS_VERSION) process.exit(2);
+          fs.writeFileSync('/tmp/prev-deployment.txt',String(d.id));
+          fs.writeFileSync('/tmp/prev-version.txt',full[0].id);
+          NODE
+          [ "$?" -eq 0 ] || fail "LIVE_VERSION_CHANGED_SINCE_PREFLIGHT"
+          PREVIOUS_DEPLOYMENT_ID="$(cat /tmp/prev-deployment.txt)"
+          PREVIOUS_VERSION="$(cat /tmp/prev-version.txt)"
+
+          # Re-read live settings. Do not output any secret names or values.
+          curl --compressed --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/settings"             -o /tmp/live-settings.json || fail "LIVE_SETTINGS_READ_FAILED"
+          node <<'NODE' || exit 32
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/live-settings.json','utf8'));
+          if(!x||x.success!==true||!x.result) process.exit(2);
+          const b=Array.isArray(x.result.bindings)?x.result.bindings:[];
+          const by=new Map(b.map(v=>[String(v.name||''),v]));
+          const val=(name)=>{const v=by.get(name);return v&&(v.type==='plain_text'||v.type==='json')?String(v.text??v.value??''):'';};
+          const falseOrAbsent=(name)=>!by.has(name)||val(name).trim().toLowerCase()==='false';
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED')) process.exit(3);
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')) process.exit(4);
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')) process.exit(5);
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')) process.exit(6);
+          if(by.has('EMPLOYEE_LEGACY_BRIDGE_ACTIONS')&&val('EMPLOYEE_LEGACY_BRIDGE_ACTIONS')!=='') process.exit(7);
+          if(by.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1')) process.exit(8);
+          if(val('APPS_SCRIPT_API_URL')!==process.env.EXPECTED_APPS_SCRIPT_API_URL) process.exit(9);
+          const db=by.get('DB');
+          if(!db||db.type!=='d1'||String(db.id||db.database_id||'')!=='5c4b92bf-e043-4f6e-bd6d-d514a92cd825') process.exit(10);
+          const unsupported=b.filter(v=>!['plain_text','json','secret_text','d1'].includes(String(v.type||'')));
+          if(unsupported.length) process.exit(11);
+          fs.writeFileSync('/tmp/settings-boundary.txt','PASS');
+          NODE
+          [ "$?" -eq 0 ] || fail "LIVE_SETTINGS_BOUNDARY_MISMATCH"
+          SETTINGS_BOUNDARY="PASS"
+
+          # Immediate byte-for-byte live source lock using Cloudflare's read-only content endpoint.
+          curl --compressed --fail --silent --show-error             -D /tmp/live-content.headers             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/content/v2"             -o /tmp/live-content.body || fail "LIVE_WORKER_CONTENT_READ_FAILED"
+
+          python3 - <<'PY' || exit 33
+          from pathlib import Path
+          from email.parser import BytesParser
+          from email.policy import default
+          import hashlib
+          hs=Path('/tmp/live-content.headers').read_text(errors='ignore').splitlines()
+          cts=[line.split(':',1)[1].strip() for line in hs if line.lower().startswith('content-type:')]
+          ct=cts[-1] if cts else 'application/javascript'
+          body=Path('/tmp/live-content.body').read_bytes()
+          payload=None
+          if 'multipart/' in ct.lower():
+              msg=BytesParser(policy=default).parsebytes(('Content-Type: '+ct+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+body)
+              candidates=[]
+              for part in msg.iter_parts():
+                  data=part.get_payload(decode=True) or b''
+                  fn=(part.get_filename() or '').lower()
+                  name=(part.get_param('name',header='content-disposition') or '').lower()
+                  pct=part.get_content_type().lower()
+                  if 'javascript' in pct or fn.endswith(('.js','.mjs')) or name.endswith(('.js','.mjs')):
+                      candidates.append(data)
+              if candidates: payload=max(candidates,key=len)
+          else:
+              payload=body
+          if not payload: raise SystemExit(2)
+          payload=payload.replace(b'\r\n',b'\n').rstrip()+b'\n'
+          sha=hashlib.sha256(payload).hexdigest()
+          Path('/tmp/live.sha').write_text(sha)
+          PY
+          [ "$?" -eq 0 ] || fail "LIVE_WORKER_CONTENT_PARSE_FAILED"
+          LIVE_BUNDLE="$(cat /tmp/live.sha)"
+          [ "$LIVE_BUNDLE" = "$EXPECTED_LIVE_BUNDLE_SHA256" ] || fail "LIVE_BUNDLE_CHANGED_SINCE_PREFLIGHT"
+
+          # Build target locally and lock the exact qualified target hash.
+          npx --yes wrangler@4.33.2 deploy --dry-run --outdir /tmp/a61-target-bundle --config "$CONFIG" >/tmp/target-dryrun.log 2>&1 || fail "TARGET_DRYRUN_BUILD_FAILED"
+          python3 - <<'PY' || exit 34
+          from pathlib import Path
+          import hashlib
+          fs=[p for p in Path('/tmp/a61-target-bundle').rglob('*') if p.is_file() and p.suffix.lower() in ('.js','.mjs')]
+          if not fs: raise SystemExit(2)
+          p=max(fs,key=lambda x:x.stat().st_size)
+          data=p.read_bytes().replace(b'\r\n',b'\n').rstrip()+b'\n'
+          Path('/tmp/target.sha').write_text(hashlib.sha256(data).hexdigest())
+          PY
+          [ "$?" -eq 0 ] || fail "TARGET_BUNDLE_HASH_FAILED"
+          TARGET_BUNDLE="$(cat /tmp/target.sha)"
+          [ "$TARGET_BUNDLE" = "$EXPECTED_TARGET_BUNDLE_SHA256" ] || fail "TARGET_BUNDLE_CHANGED_SINCE_PREFLIGHT"
+
+          # D1 verification only: migration is NOT re-run.
+          npx --yes wrangler@4.33.2 d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT singleton,marker,mode,policy_epoch FROM employee_auth_control_v1 WHERE singleton=1;"             > /tmp/d1-control-pre.json 2>/tmp/d1-control-pre.err || fail "D1_CONTROL_READ_FAILED"
+          node <<'NODE' || exit 35
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-control-pre.json','utf8'));const found=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker==='T12_EMPLOYEE_AUTH_V1')found.push(v);Object.values(v).forEach(walk)}};
+          walk(x);if(found.length!==1||Number(found[0].singleton)!==1||found[0].mode!=='OFF')process.exit(2);
+          NODE
+          [ "$?" -eq 0 ] || fail "D1_CONTROL_NOT_OFF"
+          D1_MODE_PRE="OFF"
+
+          # Capture current public business health only; no business reads/writes requiring a session.
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" -o /tmp/customer-pre.json || fail "CUSTOMER_PRE_HEALTH_FAILED"
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" -o /tmp/order-pre.json || fail "ORDER_PRE_HEALTH_FAILED"
+          node <<'NODE' || exit 36
+          const fs=require('fs');const c=JSON.parse(fs.readFileSync('/tmp/customer-pre.json'));const o=JSON.parse(fs.readFileSync('/tmp/order-pre.json'));
+          if(c.success!==true||c.schemaReady!==true||c.mode!=='GENERAL')process.exit(2);
+          if(o.success!==true||o.schemaReady!==true||o.mode!=='GENERAL')process.exit(3);
+          fs.writeFileSync('/tmp/customer-mode-pre.txt',String(c.mode));
+          fs.writeFileSync('/tmp/customer-count-pre.txt',String(c.customerCount??0));
+          fs.writeFileSync('/tmp/order-mode-pre.txt',String(o.mode));
+          NODE
+          [ "$?" -eq 0 ] || fail "BUSINESS_PRE_HEALTH_BOUNDARY_FAILED"
+          CUSTOMER_MODE_PRE="$(cat /tmp/customer-mode-pre.txt)"
+          CUSTOMER_COUNT_PRE="$(cat /tmp/customer-count-pre.txt)"
+          ORDER_MODE_PRE="$(cat /tmp/order-mode-pre.txt)"
+
+          # Preserve any Dashboard-only plaintext vars while applying explicit A61 OFF vars.
+          python3 - <<'PY' || exit 37
+          from pathlib import Path
+          p=Path('cloudflare-d1/wrangler.toml')
+          s=p.read_text()
+          marker='workers_dev = true\n'
+          if marker not in s: raise SystemExit(2)
+          out=s.replace(marker,marker+'keep_vars = true\n',1)
+          Path('cloudflare-d1/wrangler.a61-off.runtime.toml').write_text(out)
+          PY
+          [ "$?" -eq 0 ] || fail "KEEP_VARS_RUNTIME_CONFIG_FAILED"
+          grep -Fx 'keep_vars = true' "$RUNTIME_CONFIG" >/dev/null || fail "KEEP_VARS_GUARD_MISSING"
+          KEEP_VARS_GUARD="YES_RUNTIME_ONLY"
+
+          # Snapshot existing versions, then upload the exact A61 version with ZERO Production traffic.
+          npx --yes wrangler@4.33.2 versions list --name "$WORKER_NAME" --json > /tmp/versions-before.json 2>/tmp/versions-before.err || fail "VERSIONS_BEFORE_LIST_FAILED"
+          npx --yes wrangler@4.33.2 versions upload             --config "$RUNTIME_CONFIG"             --preview-alias a61-off             --message "TrendOS T12 A61 OFF-state candidate; all auth/bridge flags OFF"             >/tmp/a61-upload.log 2>&1 || fail "A61_ZERO_TRAFFIC_UPLOAD_FAILED"
+
+          npx --yes wrangler@4.33.2 versions list --name "$WORKER_NAME" --json > /tmp/versions-after.json 2>/tmp/versions-after.err || fail "VERSIONS_AFTER_LIST_FAILED"
+          node <<'NODE' || exit 38
+          const fs=require('fs');
+          const norm=x=>Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[]);
+          const b=norm(JSON.parse(fs.readFileSync('/tmp/versions-before.json','utf8')));
+          const a=norm(JSON.parse(fs.readFileSync('/tmp/versions-after.json','utf8')));
+          const old=new Set(b.map(v=>String(v.id||v.version_id||'')));
+          const fresh=a.filter(v=>{const id=String(v.id||v.version_id||'');return id&&!old.has(id)});
+          if(fresh.length!==1)process.exit(2);
+          fs.writeFileSync('/tmp/target-version.txt',String(fresh[0].id||fresh[0].version_id));
+          NODE
+          [ "$?" -eq 0 ] || fail "A61_TARGET_VERSION_NOT_UNIQUE"
+          TARGET_VERSION="$(cat /tmp/target-version.txt)"
+
+          # Qualify the uploaded version at Preview URL before any Production traffic.
+          for i in 1 2 3 4 5 6 7 8; do
+            if curl --fail --silent --show-error "$PREVIEW_URL/v1/employee/auth/health" -o /tmp/preview-auth.json               && curl --fail --silent --show-error "$PREVIEW_URL/v1/employee/legacy-action/health" -o /tmp/preview-bridge.json               && curl --fail --silent --show-error "$PREVIEW_URL/v1/edge/health" -o /tmp/preview-edge.json               && curl --fail --silent --show-error "$PREVIEW_URL/v1/t12/customers/write/health" -o /tmp/preview-customer.json               && curl --fail --silent --show-error "$PREVIEW_URL/v1/t12/orders/create/health" -o /tmp/preview-order.json; then
+              break
+            fi
+            sleep $((i*2))
+          done
+          [ -s /tmp/preview-auth.json ] || fail "PREVIEW_HEALTH_UNAVAILABLE"
+
+          node <<'NODE' || exit 39
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/preview-auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/preview-bridge.json','utf8'));
+          const e=JSON.parse(fs.readFileSync('/tmp/preview-edge.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/preview-customer.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/preview-order.json','utf8'));
+          if(a.success!==true||a.schemaReady!==true||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||a.plaintextStored!==false)process.exit(2);
+          if(b.success!==true||b.enabled!==false||b.upstreamConfigured!==true||b.secretConfigured!==false||Number(b.allowedPolicyCount)!==0||b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false||b.authAuthority!=='d1-native-employee-v1')process.exit(3);
+          if(e.success!==true)process.exit(4);
+          if(c.success!==true||c.schemaReady!==true||c.mode!=='GENERAL')process.exit(5);
+          if(o.success!==true||o.schemaReady!==true||o.mode!=='GENERAL')process.exit(6);
+          NODE
+          [ "$?" -eq 0 ] || fail "A61_PREVIEW_OFF_STATE_QUALIFICATION_FAILED"
+          PREVIEW_AUTH="PASS_OFF"
+          PREVIEW_BRIDGE="PASS_DISABLED"
+          BRIDGE_SECRET="DEFERRED_NOT_CONFIGURED"
+
+          # Promote only the exact preview-qualified version.
+          npx --yes wrangler@4.33.2 versions deploy "${TARGET_VERSION}@100%"             --yes             --config "$RUNTIME_CONFIG"             --message "TrendOS T12 A61 OFF-state Production installation"             >/tmp/a61-promote.log 2>&1 || fail "A61_PRODUCTION_PROMOTE_FAILED"
+          TARGET_PROMOTED="YES"
+          ROLLBACK_REQUIRED="YES"
+          touch /tmp/a61-promoted
+          sleep 8
+
+          # Production OFF-state health and business-boundary verification.
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" -o /tmp/prod-auth.json || fail "PROD_AUTH_HEALTH_FAILED"
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" -o /tmp/prod-bridge.json || fail "PROD_BRIDGE_HEALTH_FAILED"
+          curl --fail --silent --show-error "$PROD_URL/v1/edge/health" -o /tmp/prod-edge.json || fail "PROD_EDGE_HEALTH_FAILED"
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" -o /tmp/customer-post.json || fail "CUSTOMER_POST_HEALTH_FAILED"
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" -o /tmp/order-post.json || fail "ORDER_POST_HEALTH_FAILED"
+
+          node <<'NODE' || exit 40
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/prod-auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/prod-bridge.json','utf8'));
+          const e=JSON.parse(fs.readFileSync('/tmp/prod-edge.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/customer-post.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/order-post.json','utf8'));
+          const pre=Number(process.env.CUSTOMER_COUNT_PRE_ENV||0);
+          if(a.success!==true||a.schemaReady!==true||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||a.plaintextStored!==false)process.exit(2);
+          if(b.success!==true||b.enabled!==false||b.upstreamConfigured!==true||b.secretConfigured!==false||Number(b.allowedPolicyCount)!==0||b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false||b.authAuthority!=='d1-native-employee-v1')process.exit(3);
+          if(e.success!==true)process.exit(4);
+          if(c.success!==true||c.schemaReady!==true||c.mode!=='GENERAL'||Number(c.customerCount||0)<pre)process.exit(5);
+          if(o.success!==true||o.schemaReady!==true||o.mode!=='GENERAL')process.exit(6);
+          fs.writeFileSync('/tmp/customer-mode-post.txt',String(c.mode));
+          fs.writeFileSync('/tmp/customer-count-post.txt',String(c.customerCount??0));
+          fs.writeFileSync('/tmp/order-mode-post.txt',String(o.mode));
+          NODE
+          [ "$?" -eq 0 ] || fail "PRODUCTION_OFF_STATE_OR_BUSINESS_HEALTH_FAILED"
+          PROD_AUTH="PASS_OFF"
+          PROD_BRIDGE="PASS_DISABLED"
+          CUSTOMER_MODE_POST="$(cat /tmp/customer-mode-post.txt)"
+          CUSTOMER_COUNT_POST="$(cat /tmp/customer-count-post.txt)"
+          ORDER_MODE_POST="$(cat /tmp/order-mode-post.txt)"
+          BUSINESS_HEALTH_POST="PASS"
+
+          # Confirm protected read routes still exist and remain auth-protected.
+          orders_code="$(curl --silent --show-error --output /tmp/orders-anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/orders/02cr/page?screen=print&page=1&pageSize=1&statusFilter=__ACTIVE__")"
+          customer_code="$(curl --silent --show-error --output /tmp/customer-anon.json --write-out '%{http_code}' "$PROD_URL/v1/edge/customers/search?q=probe")"
+          [ "$orders_code" = "401" ] || fail "ORDERS_ROUTE_AUTH_BOUNDARY_REGRESSED"
+          [ "$customer_code" = "401" ] || fail "CUSTOMER_ROUTE_AUTH_BOUNDARY_REGRESSED"
+
+          # D1 control must still be OFF. Read-only SELECT only.
+          npx --yes wrangler@4.33.2 d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT singleton,marker,mode,policy_epoch FROM employee_auth_control_v1 WHERE singleton=1;"             > /tmp/d1-control-post.json 2>/tmp/d1-control-post.err || fail "D1_CONTROL_POST_READ_FAILED"
+          node <<'NODE' || exit 41
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-control-post.json','utf8'));const found=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker==='T12_EMPLOYEE_AUTH_V1')found.push(v);Object.values(v).forEach(walk)}};
+          walk(x);if(found.length!==1||Number(found[0].singleton)!==1||found[0].mode!=='OFF')process.exit(2);
+          NODE
+          [ "$?" -eq 0 ] || fail "D1_CONTROL_POST_NOT_OFF"
+          D1_MODE_POST="OFF"
+
+          # Confirm exact target is the sole active Production version.
+          npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/post-deployments.json 2>/tmp/post-deployments.err || fail "POST_DEPLOYMENTS_LIST_FAILED"
+          node <<'NODE' || exit 42
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/post-deployments.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const d=ds[0]||{};const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1||full[0].id!==process.env.TARGET_VERSION)process.exit(2);
+          fs.writeFileSync('/tmp/prod-version-after.txt',full[0].id);
+          NODE
+          [ "$?" -eq 0 ] || fail "TARGET_NOT_ACTIVE_100_PERCENT"
+          PROD_VERSION_AFTER="$(cat /tmp/prod-version-after.txt)"
+
+          # Postdeploy settings: flags remain OFF, allowlist empty, bridge secret still absent, upstream unchanged.
+          curl --compressed --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/settings"             -o /tmp/post-settings.json || fail "POST_SETTINGS_READ_FAILED"
+          node <<'NODE' || exit 43
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/post-settings.json','utf8'));
+          if(!x||x.success!==true||!x.result)process.exit(2);
+          const b=Array.isArray(x.result.bindings)?x.result.bindings:[];const by=new Map(b.map(v=>[String(v.name||''),v]));
+          const val=n=>{const v=by.get(n);return v&&(v.type==='plain_text'||v.type==='json')?String(v.text??v.value??''):'';};
+          if(val('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED')!=='false')process.exit(3);
+          if(val('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')!=='false')process.exit(4);
+          if(val('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')!=='false')process.exit(5);
+          if(val('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')!=='false')process.exit(6);
+          if(val('EMPLOYEE_LEGACY_BRIDGE_ACTIONS')!=='')process.exit(7);
+          if(by.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1'))process.exit(8);
+          if(val('APPS_SCRIPT_API_URL')!==process.env.EXPECTED_APPS_SCRIPT_API_URL)process.exit(9);
+          NODE
+          [ "$?" -eq 0 ] || fail "POST_SETTINGS_OFF_STATE_FAILED"
+
+          ROLLBACK_REQUIRED="NO"
+          STATUS="SUCCESS"
+          REASON="NONE"
+          record
+
+      - name: Roll back previous Worker version if post-promotion qualification failed
+        if: ${{ failure() || steps.install.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          if [ -f /tmp/a61-promoted ] && [ -f "$RUNTIME_CONFIG" ] && [ -n "${PREVIOUS_VERSION:-}" ]; then
+            npx --yes wrangler@4.33.2 versions deploy "${PREVIOUS_VERSION}@100%"               --yes               --config "$RUNTIME_CONFIG"               --message "Rollback failed A61 OFF-state qualification"               >/tmp/a61-rollback.log 2>&1 || true
+            sleep 6
+            if [ -f "$RESULT_FILE" ]; then
+              sed -i 's/^ROLLBACK_REQUIRED=.*/ROLLBACK_REQUIRED=YES_EXECUTED/' "$RESULT_FILE"
+            fi
+          fi
+
+      - name: Persist sanitized OFF-state result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$RESULT_FILE" ]; then
+            mkdir -p "$(dirname "$RESULT_FILE")"
+            {
+              echo 'CLOUDFLARE_A61_OFF_STATE_STATUS=FAILED'
+              echo 'FAILURE_REASON=RESULT_FILE_NOT_PRODUCED'
+              echo 'NATIVE_EMPLOYEE_LOGIN=NO'
+              echo 'D1_MUTATION=NO'
+              echo 'SECRET_WRITE=NO'
+            } > "$RESULT_FILE"
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$RESULT_FILE"
+          git diff --cached --quiet || git commit -m "docs: record A61 Cloudflare OFF-state deployment result"
+          git push origin HEAD:candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Enforce successful OFF-state installation
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fx 'CLOUDFLARE_A61_OFF_STATE_STATUS=SUCCESS' "$RESULT_FILE"
+          grep -Fx 'D1_AUTH_CONTROL_MODE_POST=OFF' "$RESULT_FILE"
+          grep -Fx 'PRODUCTION_AUTH_HEALTH=PASS_OFF' "$RESULT_FILE"
+          grep -Fx 'PRODUCTION_BRIDGE_HEALTH=PASS_DISABLED' "$RESULT_FILE"
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED' "$RESULT_FILE"
+          grep -Fx 'NATIVE_EMPLOYEE_LOGIN=NO' "$RESULT_FILE"
+          echo 'A61_CLOUDFLARE_OFF_STATE_INSTALLATION=PASS'
