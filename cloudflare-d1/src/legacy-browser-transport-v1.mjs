@@ -1,4 +1,4 @@
-import { rememberCloudAuthShadow, revokeCloudAuthShadow } from './cloud-auth-shadow-v1.mjs';
+import { cloudAuthShadowEnabled, lookupCloudAuthShadow, rememberCloudAuthShadow, revokeCloudAuthShadow } from './cloud-auth-shadow-v1.mjs';
 /* Temporary transport only: Apps Script still authorizes legacy sessions/actions.
  * Fixed upstream from server config. Successful employee auth may seed/revoke only
  * the HMAC-fingerprinted D1 auth shadow; plaintext passwords/tokens are never stored.
@@ -25,6 +25,14 @@ export const LEGACY_BROWSER_ACTIONS = new Set([
   'savePlatformSection', 'saveServiceProviderRoute', 'saveWhiteLabelSettings',
   'sendOrderConversationMessage', 'uploadOrderConversationFile', 'uploadPlatformAd'
 ]);
+const LEGACY_CUSTOMER_SESSION_ACTIONS = new Set([
+  'customerLogin', 'customerLogout', 'changeCustomerPassword', 'getCustomerOrders',
+  'getCustomerPortalAccountsV1859', 'createCustomerDraft', 'addCustomerDraftItem',
+  'submitCustomerDraft', 'uploadCustomerDraftFile'
+]);
+function requiresEmployeeShadow(action) {
+  return action !== 'login' && action !== 'logout' && !LEGACY_CUSTOMER_SESSION_ACTIONS.has(action);
+}
 function reply(body, status, origin) {
   return new Response(JSON.stringify(body), { status, headers: {
     'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store',
@@ -44,6 +52,27 @@ export async function handleLegacyBrowserTransport(request, env) {
   if (!body || Array.isArray(body) || typeof body !== 'object' || !LEGACY_BROWSER_ACTIONS.has(body.action)) {
     return reply({ success: false, code: 'LEGACY_ACTION_DENIED', message: 'الإجراء غير متاح عبر Cloud transport.' }, 403, origin);
   }
+
+  // Entry504 session-race guard. Production Apps Script currently clears the
+  // stored employee token when any authenticated action arrives with a missing
+  // or obsolete token. Require the exact D1 fingerprint that was seeded by the
+  // successful login before forwarding employee-authenticated legacy actions.
+  // Stale/background modules therefore fail locally and cannot destroy the new
+  // session in Google. Login/customer sessions keep their existing authority;
+  // explicit logout is safe to forward because Apps Script clears only on match.
+  if (cloudAuthShadowEnabled(env) && requiresEmployeeShadow(body.action)) {
+    const username = String(body.username || body.name || '').trim();
+    const token = String(body.token || '').trim();
+    const shadow = await lookupCloudAuthShadow(username, token, env);
+    if (!shadow.hit) {
+      return reply({
+        success: false,
+        code: 'EMPLOYEE_SESSION_SHADOW_REQUIRED',
+        message: 'طلب موظف قديم أو غير مؤكد تم إيقافه على Cloud؛ الجلسة الحالية لم تُلغَ.'
+      }, 401, origin);
+    }
+  }
+
   // Caller cannot select a target, forward headers, or use this path for D1-native actions.
   let upstream;
   try {
@@ -65,16 +94,31 @@ export async function handleLegacyBrowserTransport(request, env) {
     try { data = JSON.parse(raw); } catch { return reply({ success: false, code: 'LEGACY_UPSTREAM_INVALID_JSON' }, 502, origin); }
     if (!data || Array.isArray(data) || typeof data !== 'object') return reply({ success: false, code: 'LEGACY_UPSTREAM_INVALID_JSON' }, 502, origin);
 
-    // A successful legacy auth response is the one Google round-trip we already
-    // paid for. Seed the D1 fingerprint shadow here so Orders/session does not
-    // immediately perform a second Apps Script verification. This is best-effort
-    // and never stores plaintext password/token.
+    // The login response must establish the exact Cloud fingerprint before the
+    // browser is allowed to boot authenticated modules. rememberCloudAuthShadow()
+    // also revokes every older fingerprint for this username, closing the race
+    // where a stale module could invalidate the brand-new Apps Script token.
     if (data.success === true && (body.action === 'login' || body.action === 'verifyEmployeeSession')) {
       const authUser = data.user || {};
       const username = String(authUser.username || authUser.name || data.username || body.username || body.name || '').trim();
       const token = String(authUser.token || data.token || body.token || '').trim();
       if (username && token) {
-        try { await rememberCloudAuthShadow(username, token, data, env); } catch {}
+        let remembered = { stored: false, reason: 'not-attempted' };
+        try { remembered = await rememberCloudAuthShadow(username, token, data, env); }
+        catch { remembered = { stored: false, reason: 'exception' }; }
+        if (body.action === 'login' && cloudAuthShadowEnabled(env) && remembered.stored !== true) {
+          return reply({
+            success: false,
+            code: 'EMPLOYEE_LOGIN_SHADOW_NOT_COMMITTED',
+            message: 'تم التحقق من بيانات الدخول لكن تعذر تثبيت جلسة Cloud بأمان. أعد المحاولة.'
+          }, 503, origin);
+        }
+      } else if (body.action === 'login' && cloudAuthShadowEnabled(env)) {
+        return reply({
+          success: false,
+          code: 'EMPLOYEE_LOGIN_SHADOW_CREDENTIALS_MISSING',
+          message: 'رد الدخول لم يتضمن جلسة موظف قابلة للتثبيت على Cloud.'
+        }, 502, origin);
       }
     }
 
