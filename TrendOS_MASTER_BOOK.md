@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry514 application-level session rejection captured
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry515 attendanceV1 identified as first session rejection
+
+**Entry515 — first failing action identified:** Payload لنفس أول طلب `POST /v1/legacy-api` الذي عاد `success:false` برسالة انتهاء الجلسة أظهر `action="attendanceV1"` و`op="state"` لحساب الموظف `ضياء`. قيمة token لم تُسجل في الكتاب. هذا يحدد أول auth/application rejection بعد Fresh Login داخل مسار Attendance state، وليس Orders transport أو CORS. لا Deploy جديد قبل مراجعة مسار attendance في الـRepo وتحديد سبب رفض الجلسة.
 
 **Entry514 — application-level session rejection captured:** لنفس طلب `POST /v1/legacy-api` الذي رجع HTTP `200 OK`، تبويب Response أظهر JSON: `{"success":false,"message":"انتهت الجلسة. سجل الدخول مرة أخرى."}`. إذن Transport/CORS ناجحان، والفشل صادر من منطق التطبيق/Auth في upstream path. لا Deploy جديد. الخطوة التالية الوحيدة: فتح Payload لنفس الطلب لتحديد قيمة `action` فقط، مع عدم كشف قيمة `token` إن ظهرت.
 
