@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry529 next post-login fetch row identified visually
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry530 first post-login action is getKnowledge
+
+**Entry530 — first post-login action identified:** In the clean preserved Network sequence, the first real `legacy-api` fetch after the successful `login` request has Payload `action="getKnowledge"` for the employee account. No `op` field is present. The session token value was not recorded. This establishes `getKnowledge` as the first post-login application call in chronological order; whether it is the trigger remains unknown until its Response is inspected. No deploy or runtime mutation occurred.
 
 **Entry529 — next post-login fetch row identified visually:** In the preserved Network list, the currently selected highlighted row is the successful login fetch. The next real `legacy-api` fetch after it is the first subsequent row whose Type is `fetch`, after skipping intervening `preflight` rows; in the supplied screenshot it is the row showing approximately `Size 2.7 kB` and `Time 6.29 s`. No payload/response has been inspected yet, so no auth conclusion changes. No deploy or runtime mutation occurred.
 
