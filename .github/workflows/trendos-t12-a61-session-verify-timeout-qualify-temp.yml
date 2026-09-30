@@ -1,5 +1,5 @@
 name: TrendOS T12 A61 Session Verify Timeout Qualify TEMP
-# rerun: fixed enrollment health test
+# rerun: gate before legacy login
 
 on:
   push:
@@ -24,6 +24,7 @@ jobs:
           node-version: '22'
       - run: node --check cloudflare-d1/src/employee-auth-native-v1.mjs
       - run: node tests/employee_auth_native_a61.test.mjs
+      - run: bash -n scripts/a61_diya_session_enroll_canary.sh
       - name: Default-OFF proof
         shell: bash
         run: |
