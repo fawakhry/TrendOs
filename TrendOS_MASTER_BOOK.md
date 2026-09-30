@@ -1,10 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.78-DRAFT-COMPACT — T12 frontend session persistence qualified; Entry499** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.79-DRAFT-COMPACT — T12 new-chat freeze after Entry499 artifact failure; Entry500** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد frontend session persistence / Entry499
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Production verification freeze / Entry500
+
+**Entry500 — أحدث checkpoint / New-chat freeze:** آخر Production مؤكد من صور المالك هو API short version `86b713d9` على 100% Traffic. بعده ظهرت عودة سريعة لشاشة الدخول + repeated `/v1/legacy-api 502` + `Required D1 mirror is stale: بنود الأوردرات`. Entry498 API وEntry499 frontend مؤهلان في الـRepo لكن **نشرهما غير مؤكد ويُعامل كـNO حتى التحقق** لأن آخر تصريح صريح من المالك كان فشل تنزيل الـartifact. الشات الجديد يجب أن يتحقق من Production أولًا، ثم ينشر Entry498 API يدويًا بواسطة المالك، وبعد نجاحه Entry499 frontend فقط. إذا فشل تنزيل ChatGPT مرة أخرى، لا نكرر sandbox downloads؛ نستخدم GitHub Actions artifact أو owner-side build. بعد ثبات Orders والجلسة: إصلاح duplicate-order creation هو أول مهمة. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_NEW_CHAT_FREEZE_AFTER_ENTRY499_DOWNLOAD_FAILURE_ENTRY_500_2026-09-30.md`.
 
 **Entry499 — أحدث عمل Repo-only، غير منشور:** Frontend اتعدل لقبول Entry498 stale D1 advisory بإثبات metadata مطابق، وإلغاء أي auto-logout مبني على رسالة فشل تحميل بيانات، وإيقاف Press polling بعد اختفاء employee token. Explicit logout فقط هو اللي يمسح الجلسة. CI `36749869635` = SUCCESS. المطلوب نشر `trendos-ui` فقط؛ API لا يحتاج نشر جديد لـEntry499. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_FRONTEND_SESSION_PERSISTENCE_AND_ZERO_GOOGLE_READ_ENTRY_499_2026-09-30.md`.
 
