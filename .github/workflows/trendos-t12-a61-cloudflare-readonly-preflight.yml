@@ -1,0 +1,330 @@
+name: TrendOS T12 A61 Cloudflare Read-Only Preflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-cloudflare-readonly-preflight.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-t12-a61-cloudflare-readonly-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER_NAME: trendos-d1-api
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      CONFIG: cloudflare-d1/wrangler.toml
+      BASELINE_REF: 4e21657674d3cc4eb815447ec2a66578ab3e6f43
+      RESULT_FILE: docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_CLOUDFLARE_READONLY_PREFLIGHT_RESULT_2026-09-30.txt
+      EXPECTED_APPS_SCRIPT_API_URL: https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read-only production drift gate
+        id: gate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          STATUS="FAILED"
+          REASON="UNKNOWN"
+          LIVE_DEPLOYMENT_ID="NOT_VERIFIED"
+          LIVE_VERSION_ID="NOT_VERIFIED"
+          LIVE_BUNDLE_SHA256="NOT_VERIFIED"
+          BASELINE_BUNDLE_SHA256="NOT_VERIFIED"
+          TARGET_BUNDLE_SHA256="NOT_VERIFIED"
+          PRODUCTION_DRIFT="NOT_VERIFIED"
+          TARGET_RELATION="NOT_VERIFIED"
+          SOURCE_DELTA="NOT_VERIFIED"
+          A61_FLAGS="NOT_VERIFIED"
+          APPS_SCRIPT_URL="NOT_VERIFIED"
+          LIVE_SETTINGS="NOT_VERIFIED"
+          EDGE_HEALTH="NOT_VERIFIED"
+          CUSTOMER_HEALTH="NOT_VERIFIED"
+          CUSTOMER_MODE="NOT_VERIFIED"
+          CUSTOMER_COUNT="NOT_VERIFIED"
+          ORDER_HEALTH="NOT_VERIFIED"
+          ORDER_MODE="NOT_VERIFIED"
+          D1_BINDING="NOT_VERIFIED"
+
+          mkdir -p "$(dirname "$RESULT_FILE")"
+
+          record() {
+            {
+              echo "PREFLIGHT_STATUS=$STATUS"
+              echo "FAILURE_REASON=$REASON"
+              echo "WORKER_NAME=$WORKER_NAME"
+              echo "LIVE_DEPLOYMENT_ID=$LIVE_DEPLOYMENT_ID"
+              echo "LIVE_VERSION_ID=$LIVE_VERSION_ID"
+              echo "LIVE_BUNDLE_SHA256=$LIVE_BUNDLE_SHA256"
+              echo "PRE_A61_BASELINE_BUNDLE_SHA256=$BASELINE_BUNDLE_SHA256"
+              echo "A61_TARGET_BUNDLE_SHA256=$TARGET_BUNDLE_SHA256"
+              echo "PRODUCTION_DRIFT=$PRODUCTION_DRIFT"
+              echo "TARGET_RELATION=$TARGET_RELATION"
+              echo "CLOUDFLARE_SOURCE_DELTA_SCOPE=$SOURCE_DELTA"
+              echo "A61_TARGET_FLAGS=$A61_FLAGS"
+              echo "APPS_SCRIPT_API_URL_UNCHANGED=$APPS_SCRIPT_URL"
+              echo "LIVE_WORKER_SETTINGS=$LIVE_SETTINGS"
+              echo "D1_BINDING_TRENDOS_MAIN=$D1_BINDING"
+              echo "EDGE_HEALTH=$EDGE_HEALTH"
+              echo "CUSTOMER_HEALTH=$CUSTOMER_HEALTH"
+              echo "CUSTOMER_MODE=$CUSTOMER_MODE"
+              echo "CUSTOMER_COUNT=$CUSTOMER_COUNT"
+              echo "ORDER_CREATE_HEALTH=$ORDER_HEALTH"
+              echo "ORDER_CREATE_MODE=$ORDER_MODE"
+              echo "D1_MUTATION=NO"
+              echo "CLOUDFLARE_DEPLOY=NO"
+              echo "CLOUDFLARE_SETTINGS_MUTATION=NO"
+              echo "SECRET_READ_VALUE=NO"
+              echo "SECRET_WRITE=NO"
+              echo "APPS_SCRIPT_MUTATION=NO"
+              echo "ORDER_MUTATION=NO"
+              echo "CUSTOMER_MUTATION=NO"
+              echo "ACCOUNTING_MUTATION=NO"
+            } > "$RESULT_FILE"
+          }
+
+          fail() {
+            REASON="$1"
+            record
+            exit 1
+          }
+
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || fail "CLOUDFLARE_API_TOKEN_MISSING"
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || fail "CLOUDFLARE_ACCOUNT_ID_MISSING"
+          [ -f "$CONFIG" ] || fail "WRANGLER_CONFIG_MISSING"
+
+          # Exact A61 target must remain default-OFF.
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' "$CONFIG" >/dev/null || fail "AUTH_FLAG_NOT_FALSE"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' "$CONFIG" >/dev/null || fail "BOOTSTRAP_FLAG_NOT_FALSE"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' "$CONFIG" >/dev/null || fail "NATIVE_ONLY_FLAG_NOT_FALSE"
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' "$CONFIG" >/dev/null || fail "BRIDGE_FLAG_NOT_FALSE"
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' "$CONFIG" >/dev/null || fail "BRIDGE_ALLOWLIST_NOT_EMPTY"
+          A61_FLAGS="PASS_OFF_EMPTY"
+
+          # Apps Script upstream must be unchanged from the established Production endpoint.
+          grep -Fx "APPS_SCRIPT_API_URL = \"$EXPECTED_APPS_SCRIPT_API_URL\"" "$CONFIG" >/dev/null || fail "TARGET_APPS_SCRIPT_URL_CHANGED"
+          git show "$BASELINE_REF:$CONFIG" > /tmp/baseline-wrangler.toml || fail "BASELINE_CONFIG_UNAVAILABLE"
+          grep -Fx "APPS_SCRIPT_API_URL = \"$EXPECTED_APPS_SCRIPT_API_URL\"" /tmp/baseline-wrangler.toml >/dev/null || fail "BASELINE_APPS_SCRIPT_URL_MISMATCH"
+          APPS_SCRIPT_URL="YES"
+
+          # The Cloudflare source delta from the live pre-A61 lineage must be exactly the qualified A61 set.
+          git diff --name-only "$BASELINE_REF"..HEAD -- cloudflare-d1/ | sort > /tmp/cloud-delta.txt
+          cat > /tmp/expected-cloud-delta.txt <<'EOF'
+          cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+          cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          cloudflare-d1/src/employee-auth-native-v1.mjs
+          cloudflare-d1/src/employee-legacy-bridge-v1.mjs
+          cloudflare-d1/src/index_v2.js
+          cloudflare-d1/wrangler.toml
+          EOF
+          sed -i 's/^[[:space:]]*//' /tmp/expected-cloud-delta.txt
+          diff -u /tmp/expected-cloud-delta.txt /tmp/cloud-delta.txt >/tmp/cloud-delta.diff || fail "UNEXPECTED_CLOUDFLARE_SOURCE_DELTA"
+          SOURCE_DELTA="PASS_A61_ONLY"
+
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs || fail "NATIVE_AUTH_SYNTAX_FAILED"
+          node --check cloudflare-d1/src/employee-legacy-bridge-v1.mjs || fail "LEGACY_BRIDGE_SYNTAX_FAILED"
+          node --check cloudflare-d1/src/index_v2.js || fail "INDEX_V2_SYNTAX_FAILED"
+
+          # Read current active Production deployment. No writes.
+          npx --yes wrangler@4.33.2 deployments list --name "$WORKER_NAME" --json > /tmp/deployments.json 2>/tmp/deployments.err || fail "DEPLOYMENTS_LIST_FAILED"
+          node <<'NODE' || exit 41
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const d=ds[0]||{};
+          const active=(Array.isArray(d.versions)?d.versions:[]).map(v=>({id:String(v.version_id||v.id||''),percentage:Number(v.percentage||0)}));
+          const full=active.filter(v=>v.id&&v.percentage===100);
+          if(!d.id||full.length!==1) process.exit(2);
+          fs.writeFileSync('/tmp/live-deployment-id.txt',String(d.id));
+          fs.writeFileSync('/tmp/live-version-id.txt',full[0].id);
+          NODE
+          [ "$?" -eq 0 ] || fail "ACTIVE_DEPLOYMENT_NOT_SINGLE_100_PERCENT"
+          LIVE_DEPLOYMENT_ID="$(cat /tmp/live-deployment-id.txt)"
+          LIVE_VERSION_ID="$(cat /tmp/live-version-id.txt)"
+
+          # Read Worker settings from Cloudflare API. Never print or persist secret values.
+          curl --compressed --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/settings"             -o /tmp/live-settings.json || fail "LIVE_SETTINGS_READ_FAILED"
+
+          node <<'NODE' || exit 42
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/live-settings.json','utf8'));
+          if(!x || x.success!==true || !x.result) process.exit(2);
+          const b=Array.isArray(x.result.bindings)?x.result.bindings:[];
+          const by=new Map(b.map(v=>[String(v.name||''),v]));
+          const text=(name)=>{ const v=by.get(name); return v && (v.type==='plain_text'||v.type==='json') ? String(v.text??v.value??'') : ''; };
+          const falseOrAbsent=(name)=>!by.has(name) || text(name).trim().toLowerCase()==='false';
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED')) process.exit(3);
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')) process.exit(4);
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')) process.exit(5);
+          if(!falseOrAbsent('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')) process.exit(6);
+          if(by.has('EMPLOYEE_LEGACY_BRIDGE_ACTIONS') && text('EMPLOYEE_LEGACY_BRIDGE_ACTIONS')!=='') process.exit(7);
+          if(text('APPS_SCRIPT_API_URL')!==process.env.EXPECTED_APPS_SCRIPT_API_URL) process.exit(8);
+          const db=by.get('DB');
+          if(!db || db.type!=='d1' || String(db.id||db.database_id||'')!=='5c4b92bf-e043-4f6e-bd6d-d514a92cd825') process.exit(9);
+          fs.writeFileSync('/tmp/live-settings-pass.txt','PASS');
+          NODE
+          [ "$?" -eq 0 ] || fail "LIVE_SETTINGS_BOUNDARY_MISMATCH"
+          LIVE_SETTINGS="PASS_SAFE_BOUNDARY"
+          D1_BINDING="YES"
+
+          # Download current live Worker source read-only. Body is never printed.
+          curl --compressed --fail --silent --show-error             -D /tmp/live-content.headers             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/content"             -o /tmp/live-content.body || fail "LIVE_WORKER_CONTENT_READ_FAILED"
+
+          python3 - <<'PY' || exit 43
+          from pathlib import Path
+          from email.parser import BytesParser
+          from email.policy import default
+          headers=Path('/tmp/live-content.headers').read_text(errors='ignore').splitlines()
+          cts=[line.split(':',1)[1].strip() for line in headers if line.lower().startswith('content-type:')]
+          ct=cts[-1] if cts else 'application/javascript'
+          body=Path('/tmp/live-content.body').read_bytes()
+          payload=None
+          if 'multipart/' in ct.lower():
+              msg=BytesParser(policy=default).parsebytes(('Content-Type: '+ct+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+body)
+              candidates=[]
+              for part in msg.iter_parts():
+                  data=part.get_payload(decode=True) or b''
+                  fn=(part.get_filename() or '').lower()
+                  name=(part.get_param('name',header='content-disposition') or '').lower()
+                  pct=part.get_content_type().lower()
+                  if 'javascript' in pct or fn.endswith(('.js','.mjs')) or name.endswith(('.js','.mjs')):
+                      candidates.append(data)
+              if candidates:
+                  payload=max(candidates,key=len)
+          else:
+              payload=body
+          if not payload:
+              raise SystemExit(2)
+          payload=payload.replace(b'\r\n',b'\n').rstrip()+b'\n'
+          Path('/tmp/live-worker.js').write_bytes(payload)
+          PY
+          [ "$?" -eq 0 ] || fail "LIVE_WORKER_CONTENT_PARSE_FAILED"
+
+          # Build the exact pre-A61 baseline and current A61 target locally. --dry-run cannot mutate Production.
+          git worktree add --detach /tmp/a61-baseline "$BASELINE_REF" >/tmp/worktree.log 2>&1 || fail "BASELINE_WORKTREE_FAILED"
+          (
+            cd /tmp/a61-baseline
+            npx --yes wrangler@4.33.2 deploy --dry-run --outdir /tmp/a61-baseline-bundle --config cloudflare-d1/wrangler.toml >/tmp/base-dryrun.log 2>&1
+          ) || fail "BASELINE_DRYRUN_BUILD_FAILED"
+
+          npx --yes wrangler@4.33.2 deploy --dry-run --outdir /tmp/a61-target-bundle --config "$CONFIG" >/tmp/target-dryrun.log 2>&1 || fail "TARGET_DRYRUN_BUILD_FAILED"
+
+          python3 - <<'PY' || exit 44
+          from pathlib import Path
+          import hashlib
+          def choose(root):
+              fs=[p for p in Path(root).rglob('*') if p.is_file() and p.suffix.lower() in ('.js','.mjs')]
+              if not fs: raise SystemExit(2)
+              p=max(fs,key=lambda x:x.stat().st_size)
+              data=p.read_bytes().replace(b'\r\n',b'\n').rstrip()+b'\n'
+              return data
+          live=Path('/tmp/live-worker.js').read_bytes()
+          base=choose('/tmp/a61-baseline-bundle')
+          target=choose('/tmp/a61-target-bundle')
+          Path('/tmp/base-worker.js').write_bytes(base)
+          Path('/tmp/target-worker.js').write_bytes(target)
+          for name,data in [('live',live),('base',base),('target',target)]:
+              Path('/tmp/'+name+'.sha').write_text(hashlib.sha256(data).hexdigest())
+          if live==base:
+              Path('/tmp/relation.txt').write_text('LIVE_EQUALS_PRE_A61_BASELINE')
+          elif live==target:
+              Path('/tmp/relation.txt').write_text('LIVE_ALREADY_EQUALS_A61_TARGET')
+          else:
+              Path('/tmp/relation.txt').write_text('LIVE_DIFFERS_FROM_BASELINE_AND_TARGET')
+          PY
+          [ "$?" -eq 0 ] || fail "BUNDLE_HASH_BUILD_FAILED"
+
+          LIVE_BUNDLE_SHA256="$(cat /tmp/live.sha)"
+          BASELINE_BUNDLE_SHA256="$(cat /tmp/base.sha)"
+          TARGET_BUNDLE_SHA256="$(cat /tmp/target.sha)"
+          TARGET_RELATION="$(cat /tmp/relation.txt)"
+
+          if [ "$TARGET_RELATION" = "LIVE_EQUALS_PRE_A61_BASELINE" ]; then
+            PRODUCTION_DRIFT="NO"
+          elif [ "$TARGET_RELATION" = "LIVE_ALREADY_EQUALS_A61_TARGET" ]; then
+            PRODUCTION_DRIFT="NO_BUT_TARGET_ALREADY_LIVE"
+            fail "A61_TARGET_ALREADY_LIVE_UNEXPECTED"
+          else
+            PRODUCTION_DRIFT="YES_OR_UNPROVEN"
+            fail "LIVE_WORKER_DOES_NOT_MATCH_KNOWN_PRE_A61_BASELINE"
+          fi
+
+          # Public read-only health snapshots before any deploy.
+          curl --fail --silent --show-error "$PROD_URL/v1/edge/health" -o /tmp/edge-health.json || fail "EDGE_HEALTH_FAILED"
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" -o /tmp/customer-health.json || fail "CUSTOMER_HEALTH_FAILED"
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" -o /tmp/order-health.json || fail "ORDER_CREATE_HEALTH_FAILED"
+
+          node <<'NODE' || exit 45
+          const fs=require('fs');
+          const edge=JSON.parse(fs.readFileSync('/tmp/edge-health.json','utf8'));
+          const cust=JSON.parse(fs.readFileSync('/tmp/customer-health.json','utf8'));
+          const ord=JSON.parse(fs.readFileSync('/tmp/order-health.json','utf8'));
+          if(edge.success!==true) process.exit(2);
+          if(cust.success!==true || cust.schemaReady!==true) process.exit(3);
+          if(ord.success!==true || ord.schemaReady!==true) process.exit(4);
+          fs.writeFileSync('/tmp/customer-mode.txt',String(cust.mode||''));
+          fs.writeFileSync('/tmp/customer-count.txt',String(cust.customerCount??''));
+          fs.writeFileSync('/tmp/order-mode.txt',String(ord.mode||''));
+          NODE
+          [ "$?" -eq 0 ] || fail "BUSINESS_HEALTH_BOUNDARY_FAILED"
+          EDGE_HEALTH="PASS"
+          CUSTOMER_HEALTH="PASS"
+          CUSTOMER_MODE="$(cat /tmp/customer-mode.txt)"
+          CUSTOMER_COUNT="$(cat /tmp/customer-count.txt)"
+          ORDER_HEALTH="PASS"
+          ORDER_MODE="$(cat /tmp/order-mode.txt)"
+
+          STATUS="SUCCESS"
+          REASON="NONE"
+          record
+
+      - name: Persist sanitized preflight result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$RESULT_FILE" ]; then
+            mkdir -p "$(dirname "$RESULT_FILE")"
+            {
+              echo 'PREFLIGHT_STATUS=FAILED'
+              echo 'FAILURE_REASON=RESULT_FILE_NOT_PRODUCED'
+              echo 'D1_MUTATION=NO'
+              echo 'CLOUDFLARE_DEPLOY=NO'
+              echo 'SECRET_WRITE=NO'
+            } > "$RESULT_FILE"
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$RESULT_FILE"
+          git diff --cached --quiet || git commit -m "docs: record A61 Cloudflare read-only preflight result"
+          git push origin HEAD:candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Enforce preflight success
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fx 'PREFLIGHT_STATUS=SUCCESS' "$RESULT_FILE"
+          grep -Fx 'PRODUCTION_DRIFT=NO' "$RESULT_FILE"
+          grep -Fx 'CLOUDFLARE_DEPLOY=NO' "$RESULT_FILE"
+          echo 'A61_CLOUDFLARE_READONLY_PREFLIGHT=PASS'
