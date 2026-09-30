@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry522 explicit logout completed
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry523 clean pre-login Network capture ready
+
+**Entry523 — clean pre-login Network capture ready:** Owner reopened DevTools on the landing page before employee login. Network tab is active, `Keep log` remains enabled, and the request list is empty/clean. Employee Login card is visible but has not yet been clicked. This is the correct baseline for a fresh-login capture. No deploy or runtime mutation occurred.
 
 **Entry522 — explicit logout completed; clean landing page reached:** Owner clicked Logout and the main UI returned to the landing page with Employee Login and Customer Login. The press widget still displayed the prior session-expired state on the landing page, confirming that the widget lifecycle is independent from the main employee view. The first attempt to write this Entry was blocked by execution safety before any repository mutation; this retry records both the operational result and that blocked documentation attempt. No deploy, secret, variable, binding, D1, Order ID, or Order Status change occurred. Next: reopen DevTools before a fresh login capture.
 
