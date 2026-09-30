@@ -131,6 +131,41 @@
     return true;
   }
 
+  function zeroGoogleSnapshotStalenessAccepted(body, name, mirror) {
+    if (name === 'بنود الأوردرات') {
+      var base = body && body.baseSnapshotFreshness;
+      var proof = base && base.lines;
+      return !!(
+        base &&
+        base.degraded === true &&
+        text(base.mode) === 'stale-structurally-qualified' &&
+        text(base.authority) === 'd1-qualified-snapshot+t12-native-overlay' &&
+        base.googleHeartbeatRequired === false &&
+        proof &&
+        proof.structurallyReady === true &&
+        Number(proof.sourceLastRow || 0) === Number(mirror.sourceLastRow || 0) &&
+        Number(proof.sourceLastCol || 0) === Number(mirror.sourceLastCol || 0) &&
+        Number(proof.rowCount || 0) === Number(mirror.rowCount || 0)
+      );
+    }
+
+    if (name === 'العملاء' || name === 'عملاء منع التسليم بالمديونية') {
+      var enrichment = body && body.enrichmentFreshness;
+      var part = name === 'العملاء' ? enrichment && enrichment.customers : enrichment && enrichment.restrictions;
+      return !!(
+        enrichment &&
+        enrichment.degraded === true &&
+        text(enrichment.mode) === 'stale-structurally-qualified' &&
+        part &&
+        part.structurallyReady === true &&
+        Number(part.sourceLastRow || 0) === Number(mirror.sourceLastRow || 0) &&
+        Number(part.sourceLastCol || 0) === Number(mirror.sourceLastCol || 0) &&
+        Number(part.rowCount || 0) === Number(mirror.rowCount || 0)
+      );
+    }
+    return false;
+  }
+
   function validateRequiredMirrors(body) {
     var mirrors = body && Array.isArray(body.mirrors) ? body.mirrors : [];
     var maxAge = maxMirrorAgeMs();
@@ -146,6 +181,10 @@
       var age = now - syncedAt;
       if (age < -2 * 60 * 1000) throw mirrorFreshnessError('Required D1 mirror timestamp is in the future: ' + name, 'EDGE_MIRROR_CLOCK');
       if (age > maxAge) {
+        if (zeroGoogleSnapshotStalenessAccepted(body, name, mirror)) {
+          logicalAccepted = true;
+          return;
+        }
         if (name === 'بنود الأوردرات' && logicalLinesFreshnessValid(body, mirror, now)) {
           logicalAccepted = true;
           return;
