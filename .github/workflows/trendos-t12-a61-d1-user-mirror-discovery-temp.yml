@@ -1,0 +1,29 @@
+name: TrendOS T12 A61 D1 User Mirror Discovery TEMP
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-d1-user-mirror-discovery-temp.yml'
+permissions:
+  contents: read
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only auth/user table discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "SELECT name FROM sqlite_schema WHERE type='table' AND (lower(name) LIKE '%user%' OR lower(name) LIKE '%auth%' OR lower(name) LIKE '%employee%') ORDER BY name;" | tee /tmp/tables.txt
+          echo 'A61_D1_USER_MIRROR_DISCOVERY=PASS'
