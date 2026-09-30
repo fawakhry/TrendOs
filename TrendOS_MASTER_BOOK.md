@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry507 legacy-api 401 evidence
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry508 Network capture shows legacy-api HTTP 200
+
+**Entry508 — Network capture بعد فتح DevTools:** المالك فتح تبويب Network أثناء بقاء رسالة انتهاء الجلسة. القائمة تُظهر عدة طلبات `legacy-api` من نوع fetch، ومعظمها HTTP `200`، وبينها طلب واحد Pending؛ preflight أيضًا 200. هذا يعني أن لقطة Network الحالية لا تثبت Transport-level 401، ويرجّح أن فشل الجلسة موجود داخل JSON application response (`success:false`) أو أن 401 في Console كانت من طلبات سابقة. لا Deploy جديد. الخطوة التالية الوحيدة: اختيار أول `legacy-api` من نوع fetch (ليس preflight) وفتح تبويب Response لقراءة JSON، بدون كشف token.
 
 **Entry507 — أول دليل Network/Console بعد فشل Fresh Login:** صورة المالك أظهرت 4 طلبات متتالية `POST /v1/legacy-api` رجعت `401` فور فتح الجلسة، مع استمرار رسالة `انتهت الجلسة. سجل الدخول مرة أخرى.`. لا توجد 502 ظاهرة في هذه اللقطة. هذا يضيّق العطل إلى Auth rejection من Cloud transport بعد Entry504، لكن لا نحدد الـaction أو code قبل قراءة أول Request من Network. الخطوة التالية الوحيدة: فتح تبويب Network ثم اختيار أول `legacy-api` 401 وقراءة Response/Payload بدون كشف token.
 
