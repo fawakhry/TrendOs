@@ -932,3 +932,22 @@ Important: Entry498 removes Google from the Orders read-visibility proof. Legacy
 
 Detailed record:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_D1_SNAPSHOT_ZERO_GOOGLE_VISIBILITY_ENTRY_498_2026-09-30.md`
+
+
+---
+
+# Entry499 current checkpoint — 2026-09-30
+
+After Entry498 API install, the remaining failure was frontend-side: local mirror validation still rejected stale D1 metadata, and `loadRows` still had a message-based auto-logout heuristic. Entry499 fixes both and stops press polling without an employee token.
+
+```ini
+ENTRY499_SOURCE_QUALIFIED=YES
+ENTRY499_PRODUCTION_DEPLOYED=NO
+FRONTEND_STALE_D1_ADVISORY_ACCEPTED=YES_WITH_EXACT_PROOF
+DATA_READ_FAILURE_AUTO_LOGOUT=NO
+PRESS_POLL_WITHOUT_EMPLOYEE_SESSION=NO
+EXPLICIT_LOGOUT_PRESERVED=YES
+QUALIFICATION_RUN=36749869635_SUCCESS
+```
+
+Next owner action: deploy frontend `trendos-ui` only from the Entry499 bundle, preserve ASSETS binding, promote to 100%, hard refresh, login once, verify session remains open and Orders render. API Worker requires no Entry499 redeploy.
