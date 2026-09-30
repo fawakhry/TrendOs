@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry523 clean pre-login Network capture ready
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry524 clean employee login form ready
+
+**Entry524 — clean employee login form ready:** Owner opened Employee Login from the clean landing-page baseline. DevTools Network remains empty with `Keep log` enabled. Login credentials are entered locally in the browser; no password or token value is recorded in the book. Login button has not yet been pressed. No deploy or runtime mutation occurred. Next: press Login exactly once and observe the first resulting Network sequence.
 
 **Entry523 — clean pre-login Network capture ready:** Owner reopened DevTools on the landing page before employee login. Network tab is active, `Keep log` remains enabled, and the request list is empty/clean. Employee Login card is visible but has not yet been clicked. This is the correct baseline for a fresh-login capture. No deploy or runtime mutation occurred.
 
