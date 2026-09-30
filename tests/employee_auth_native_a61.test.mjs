@@ -61,6 +61,9 @@ assert.doesNotMatch(migration, /plaintext_password|raw_password|AUTH_PASSWORD_PE
 const moduleSource = fs.readFileSync('cloudflare-d1/src/employee-auth-native-v1.mjs', 'utf8');
 assert.match(moduleSource, /pbkdf2-sha256-v1/);
 assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED/);
+assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000/);
+assert.match(moduleSource, /Legacy login bootstrap timed out/);
+assert.match(moduleSource, /Legacy login bootstrap request failed/);
 assert.doesNotMatch(moduleSource, /AUTH_PASSWORD_PEPPER/);
 assert.doesNotMatch(moduleSource, /console\.log\([^\n]*password/i);
 
