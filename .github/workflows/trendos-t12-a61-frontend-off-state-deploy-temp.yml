@@ -1,0 +1,136 @@
+name: TrendOS T12 A61 Frontend OFF-State Deploy TEMP
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-frontend-off-state-deploy-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a61-frontend-off-state-deploy-temp
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EXPECTED_MAIN_SHA: 12dd9d31bcd36db736f0c06191812bdcc5167bad
+      WRANGLER_VERSION: 4.142.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Production preflight and exact source lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          grep -Fx 'name = "trendos-ui"' cloudflare-d1/wrangler.frontend.toml
+          grep -Fx 'main = "src/frontend-static-worker.mjs"' cloudflare-d1/wrangler.frontend.toml
+          git fetch --quiet --depth=1 origin main
+          MAIN_SHA="$(git rev-parse FETCH_HEAD)"
+          test "$MAIN_SHA" = "$EXPECTED_MAIN_SHA"
+          echo "MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?a61pre=$GITHUB_SHA" > /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?a61pre=$GITHUB_SHA" > /tmp/live-index.html
+          grep -Fq '20260929-t12-a56-customer-cloud-only-live' /tmp/live-config.js
+          grep -Fq 'trendos-ui.trendmall-contact.workers.dev' /tmp/live-index.html
+          if grep -Fq 'MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true' /tmp/live-config.js; then exit 31; fi
+          echo 'A61_FRONTEND_LIVE_BASELINE=PASS'
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" > /tmp/auth-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" > /tmp/bridge-pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-pre.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-pre.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false) process.exit(32);
+          if(!b.success||b.enabled!==false) process.exit(33);
+          console.log('A61_BACKEND_OFF_BEFORE_FRONTEND_DEPLOY=PASS');
+          NODE
+
+      - name: Build and qualify exact-main frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/trendos-main cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/trendos-main "$MAIN_SHA"
+          cd /tmp/trendos-main
+          node --check employee-api-dispatcher-v1.js
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          grep -Fx 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' config.js
+          grep -Fx 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' config.js
+          grep -Fx 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];' config.js
+          grep -Fq 'employee-api-dispatcher-v1.js?v=20260929-t12-a61-dispatcher-foundation' index.html
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/trendos-main -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+          test -f cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          echo 'A61_FRONTEND_EXACT_MAIN_QUALIFIED=PASS'
+
+      - name: Deploy frontend Worker Assets only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save wrangler@${WRANGLER_VERSION}
+          npx wrangler deploy --config cloudflare-d1/wrangler.frontend.toml | tee /tmp/a61_frontend_deploy.log
+          echo 'A61_FRONTEND_ONLY_DEPLOY=PASS'
+
+      - name: Production verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 20); do
+            root="$(curl --silent --show-error --location --output /tmp/live-index.html --write-out '%{http_code}' "$FRONTEND_URL/?a61=$MAIN_SHA" || true)"
+            cfg="$(curl --silent --show-error --location --output /tmp/live-config.js --write-out '%{http_code}' "$FRONTEND_URL/config.js?a61=$MAIN_SHA" || true)"
+            disp="$(curl --silent --show-error --location --output /tmp/live-dispatcher.js --write-out '%{http_code}' "$FRONTEND_URL/employee-api-dispatcher-v1.js?a61=$MAIN_SHA" || true)"
+            if [ "$root" = 200 ] && [ "$cfg" = 200 ] && [ "$disp" = 200 ] \
+              && grep -Fq 'employee-api-dispatcher-v1.js?v=20260929-t12-a61-dispatcher-foundation' /tmp/live-index.html \
+              && grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' /tmp/live-config.js \
+              && grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' /tmp/live-config.js \
+              && grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];' /tmp/live-config.js \
+              && grep -Fq 'T12_A61_EMPLOYEE_API_DISPATCHER_V1_20260929' /tmp/live-dispatcher.js; then
+              ok=1; break
+            fi
+            sleep 2
+          done
+          test "$ok" = 1
+          echo 'A61_FRONTEND_DISPATCHER_LIVE_DEFAULT_OFF=PASS'
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" > /tmp/auth-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" > /tmp/bridge-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health" > /tmp/customer-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health" > /tmp/order-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-post.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-post.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/customer-post.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/order-post.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||Number(a.nativeReadyCount||0)!==0) process.exit(41);
+          if(!b.success||b.enabled!==false) process.exit(42);
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL'||Number(c.customerCount||0)<247) process.exit(43);
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') process.exit(44);
+          console.log('A61_FRONTEND_POSTDEPLOY_RUNTIME=PASS');
+          console.log('EMPLOYEE_AUTH=OFF');
+          console.log('LEGACY_BRIDGE=OFF');
+          console.log('NATIVE_READY_COUNT=0');
+          console.log('CUSTOMER_MODE=GENERAL');
+          console.log('ORDER_CREATE_MODE=GENERAL');
+          NODE
