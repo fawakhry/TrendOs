@@ -1,0 +1,289 @@
+name: TrendOS T12 A61 Diya Native Bootstrap Canary V2 TEMP
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-diya-native-bootstrap-canary-v2-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-t12-a61-diya-native-bootstrap-canary-v2-temp
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "candidate/t12-full-cloud-cutover-a56-20260929"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${QUALIFY_USERNAME:-}"
+          test -n "${QUALIFY_PASSWORD:-}"
+          test "${#QUALIFY_PASSWORD}" -ge 6
+
+          cfg='cloudflare-d1/wrangler.toml'
+          grep -Fx 'name = "trendos-d1-api"' "$cfg"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' "$cfg"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' "$cfg"
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' "$cfg"
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' "$cfg"
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' "$cfg"
+
+          echo 'A61_DIYA_SCOPE_GATE=PASS'
+          echo 'QUALIFY_USERNAME_PRESENT=YES'
+          echo 'QUALIFY_PASSWORD_PRESENT=YES'
+          echo 'QUALIFY_VALUES_LOGGED=NO'
+          echo 'BRIDGE_ENABLEMENT=NO'
+          echo 'BRIDGE_SECRET_ACCESS=NO'
+
+      - name: Fresh OFF-state preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/auth-pre.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" > /tmp/bridge-pre.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" > /tmp/customer-pre.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" > /tmp/order-pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-pre.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-pre.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/customer-pre.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/order-pre.json','utf8'));
+          if(!a.success||a.schemaReady!==true||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false) process.exit(11);
+          if(Number(a.nativeReadyCount||0)!==0) process.exit(12);
+          if(!b.success||b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) process.exit(13);
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL'||Number(c.customerCount||0)<247) process.exit(14);
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') process.exit(15);
+          console.log('A61_DIYA_PREFLIGHT=PASS');
+          console.log('PRE_NATIVE_READY_COUNT=0');
+          NODE
+
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "SELECT mode,marker FROM employee_auth_control_v1 WHERE singleton=1;" > /tmp/d1-pre.txt
+          grep -q 'OFF' /tmp/d1-pre.txt
+          grep -q 'T12_EMPLOYEE_AUTH_V1' /tmp/d1-pre.txt
+          echo 'A61_D1_CONTROL_PREFLIGHT=OFF'
+
+      - name: Build runner-only transitional config
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          node <<'NODE'
+          const fs=require('fs');
+          let out=fs.readFileSync('wrangler.toml','utf8');
+          out=out.replace('workers_dev = true','workers_dev = true\nkeep_vars = true');
+          out=out.replace('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"','TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"');
+          out=out.replace('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"','TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "true"');
+          if(!out.includes('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"')) process.exit(21);
+          if(!out.includes('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"')) process.exit(22);
+          if(!out.includes('EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""')) process.exit(23);
+          fs.writeFileSync('wrangler.a61-diya-canary.toml',out);
+          NODE
+          echo 'A61_RUNNER_ONLY_TRANSITIONAL_CONFIG=PASS'
+
+      - name: Open TRANSITIONAL and deploy bootstrap-only Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "UPDATE employee_auth_control_v1 SET mode='TRANSITIONAL',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1' AND mode='OFF'; SELECT changes() AS changed;" > /tmp/open.txt
+          grep -Eq '"changes": 1|"changed": 1| 1' /tmp/open.txt
+          echo 'CONTROL_OPENED=YES' >> "$GITHUB_ENV"
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.a61-diya-canary.toml > /tmp/deploy-open.txt
+          echo 'TRANSITIONAL_DEPLOYED=YES' >> "$GITHUB_ENV"
+          sleep 4
+          echo 'A61_TRANSITIONAL_DEPLOY=PASS'
+
+      - name: Verify transitional boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/auth-open.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" > /tmp/bridge-open.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-open.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-open.json','utf8'));
+          if(!a.success||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) process.exit(31);
+          if(!b.success||b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) process.exit(32);
+          console.log('A61_TRANSITIONAL_BOUNDARY=PASS');
+          NODE
+
+      - name: Bootstrap Diya qualification account
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token||String(body.authSource||'')!=='d1-native-bootstrap-v1'){
+              console.error('A61_DIYA_BOOTSTRAP=FAIL status='+r.status+' source='+String(body.authSource||'')+' code='+String(body.code||''));
+              process.exit(41);
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/native-token-1',token,{mode:0o600});
+            console.log('A61_DIYA_BOOTSTRAP=PASS');
+            console.log('BOOTSTRAP_AUTH_SOURCE=d1-native-bootstrap-v1');
+            console.log('CREDENTIAL_VALUES_LOGGED=NO');
+          })().catch(()=>process.exit(42));
+          NODE
+
+      - name: Verify bootstrap session and native verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          const token1=fs.readFileSync('/tmp/native-token-1','utf8').trim();
+          (async()=>{
+            let r=await fetch(base+'/v1/employee/auth/session',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,token:token1}),cache:'no-store'
+            });
+            let body={}; try{body=JSON.parse(await r.text()||'{}')}catch{}
+            if(r.status!==200||body.success!==true||String(body.authSource||'')!=='d1-native-employee-v1') process.exit(51);
+            console.log('A61_DIYA_NATIVE_SESSION_1=PASS');
+
+            r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),cache:'no-store'
+            });
+            body={}; try{body=JSON.parse(await r.text()||'{}')}catch{}
+            const token2=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token2||String(body.authSource||'')!=='d1-native-employee-v1') process.exit(52);
+            console.log('::add-mask::'+token2);
+            fs.writeFileSync('/tmp/native-token-2',token2,{mode:0o600});
+            console.log('A61_DIYA_SECOND_LOGIN_NATIVE=PASS');
+            console.log('SECOND_LOGIN_AUTH_SOURCE=d1-native-employee-v1');
+          })().catch(()=>process.exit(53));
+          NODE
+
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/auth-ready.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-ready.json','utf8'));
+          if(!a.success||Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1) process.exit(54);
+          console.log('A61_NATIVE_USER_COUNT=1');
+          console.log('A61_NATIVE_READY_COUNT=1');
+          NODE
+
+      - name: Revoke both native canary sessions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.PROD_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          (async()=>{
+            for(const file of ['/tmp/native-token-1','/tmp/native-token-2']){
+              const token=fs.readFileSync(file,'utf8').trim();
+              const r=await fetch(base+'/v1/employee/auth/logout',{
+                method:'POST',headers:{accept:'application/json','content-type':'application/json'},
+                body:JSON.stringify({username,token}),cache:'no-store'
+              });
+              const body=JSON.parse(await r.text()||'{}');
+              if(r.status!==200||body.success!==true) process.exit(61);
+            }
+            console.log('A61_DIYA_NATIVE_SESSIONS_REVOKED=PASS');
+          })().catch(()=>process.exit(62));
+          NODE
+
+      - name: Restore canonical OFF state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "UPDATE employee_auth_control_v1 SET mode='OFF',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1';" > /tmp/close.txt
+          echo 'CONTROL_OPENED=NO' >> "$GITHUB_ENV"
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml > /tmp/deploy-off.txt
+          echo 'TRANSITIONAL_DEPLOYED=NO' >> "$GITHUB_ENV"
+          sleep 4
+          echo 'A61_CANONICAL_OFF_RESTORED=PASS'
+
+      - name: Final postflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" > /tmp/auth-final.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" > /tmp/bridge-final.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" > /tmp/customer-final.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" > /tmp/order-final.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-final.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-final.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/customer-final.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/order-final.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1) process.exit(71);
+          if(!b.success||b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) process.exit(72);
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL'||Number(c.customerCount||0)<247) process.exit(73);
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') process.exit(74);
+          console.log('A61_DIYA_NATIVE_BOOTSTRAP_CANARY=SUCCESS');
+          console.log('FINAL_AUTH_MODE=OFF');
+          console.log('FINAL_NATIVE_USER_COUNT=1');
+          console.log('FINAL_NATIVE_READY_COUNT=1');
+          console.log('FINAL_BRIDGE_ENABLED=NO');
+          console.log('CUSTOMER_MODE=GENERAL');
+          console.log('ORDER_CREATE_MODE=GENERAL');
+          NODE
+
+      - name: Emergency restore OFF on failure
+        if: ${{ failure() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "UPDATE employee_auth_control_v1 SET mode='OFF',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1';"
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.toml
+          echo 'A61_EMERGENCY_OFF_RESTORE_ATTEMPTED=YES'
+
+      - name: Cleanup ephemeral material
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -f /tmp/native-token-1 /tmp/native-token-2
+          rm -f cloudflare-d1/wrangler.a61-diya-canary.toml
+          echo 'A61_EPHEMERAL_MATERIAL_CLEANED=YES'
