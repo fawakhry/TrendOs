@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry511 OPTIONS preflight confirmed
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry512 selected request still OPTIONS
+
+**Entry512 — selected request still OPTIONS:** لقطة DevTools الجديدة تؤكد أن الصف المحدد حاليًا ما زال `Request Method: OPTIONS` مع `200 OK`. في قائمة Network تظهر طلبات `legacy-api` متتابعة؛ المطلوب اختيار الصف التالي المقابل لنفس الزوج حتى يظهر `Request Method: POST`. لا استنتاج جديد عن Auth ولا Deploy جديد.
 
 **Entry511 — OPTIONS preflight confirmed / no auth conclusion:** تم فتح طلب `legacy-api` لكنه كان Request Method=`OPTIONS` وليس POST. النتيجة `200 OK` مع CORS سليم و`content-length: 2`. هذا يثبت نجاح الـpreflight فقط ولا يفسر انتهاء الجلسة. محاولة أولى لتسجيل Entry511 في الكتاب حُجبت بواسطة أداة التنفيذ قبل أي Repo mutation؛ إعادة المحاولة الحالية هي توثيق ذلك الفشل أيضًا. لا Deploy ولا تغيير Runtime. الخطوة التالية الوحيدة: اختيار صف `legacy-api` الذي Type=`fetch` وRequest Method=`POST` ثم فتح Response JSON.
 
