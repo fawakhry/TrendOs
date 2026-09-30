@@ -14,7 +14,8 @@ const DEFAULT_SESSION_TTL_SECONDS = 28800;
 const MAX_SESSION_TTL_SECONDS = 86400;
 const LOGIN_LIMIT = 5;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
-const LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000;
+const LEGACY_BOOTSTRAP_TIMEOUT_MS = 90000;
+const LEGACY_BOOTSTRAP_TRANSIENT_RETRY_MS = 1500;
 const LEGACY_SESSION_VERIFY_TIMEOUT_MS = 90000;
 const PASSWORD_SCHEME = 'pbkdf2-sha256-v1';
 const DEFAULT_ORIGINS = [
@@ -356,34 +357,74 @@ async function legacyLoginBootstrap(username, password, env, nowMs) {
   const upstream = text(env && env.APPS_SCRIPT_API_URL);
   if (!upstream) return { ok: false, kind: 'config', message: 'Legacy bootstrap is not configured' };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LEGACY_BOOTSTRAP_TIMEOUT_MS);
   let body = {};
-  try {
-    let response;
+  let success = false;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), LEGACY_BOOTSTRAP_TIMEOUT_MS);
     try {
-      response = await fetch(upstream, {
-        method: 'POST',
-        headers: { accept: 'application/json', 'content-type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'login', username: text(username), password: String(password || ''), _ts: Date.now() }),
-        redirect: 'follow',
-        signal: controller.signal
-      });
-    } catch (err) {
-      if (err && err.name === 'AbortError') {
-        return { ok: false, kind: 'upstream', message: 'Legacy login bootstrap timed out' };
+      let response;
+      let raw = '';
+      try {
+        response = await fetch(upstream, {
+          method: 'POST',
+          headers: { accept: 'application/json', 'content-type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'login', username: text(username), password: String(password || ''), _ts: Date.now() }),
+          redirect: 'follow',
+          signal: controller.signal
+        });
+        raw = await response.text();
+      } catch (err) {
+        if (err && err.name === 'AbortError') {
+          return { ok: false, kind: 'upstream', message: 'Legacy login bootstrap timed out' };
+        }
+        return { ok: false, kind: 'upstream', message: 'Legacy login bootstrap request failed' };
       }
-      return { ok: false, kind: 'upstream', message: 'Legacy login bootstrap request failed' };
-    }
-    const raw = await response.text();
-    try { body = JSON.parse(raw || '{}'); } catch (err) {
-      return { ok: false, kind: 'upstream', message: 'Legacy login returned invalid JSON' };
-    }
-    if (!response.ok || !body || body.success !== true) {
+
+      try {
+        body = JSON.parse(raw || '{}');
+      } catch (err) {
+        const retryable = attempt === 1 && (
+          response.status === 404 ||
+          response.status === 408 ||
+          response.status === 429 ||
+          response.status >= 500
+        );
+        if (retryable) {
+          await new Promise((resolve) => setTimeout(resolve, LEGACY_BOOTSTRAP_TRANSIENT_RETRY_MS));
+          continue;
+        }
+        return { ok: false, kind: 'upstream', message: 'Legacy login returned invalid JSON' };
+      }
+
+      if (response.ok && body && body.success === true) {
+        success = true;
+        break;
+      }
+
+      const retryable = attempt === 1 && (
+        response.status === 404 ||
+        response.status === 408 ||
+        response.status === 429 ||
+        response.status >= 500
+      );
+      if (retryable) {
+        await new Promise((resolve) => setTimeout(resolve, LEGACY_BOOTSTRAP_TRANSIENT_RETRY_MS));
+        continue;
+      }
+
+      if (!response.ok) {
+        return { ok: false, kind: 'upstream', message: 'Legacy login bootstrap upstream rejected the request' };
+      }
       return { ok: false, kind: 'auth', message: text(body && body.message) || 'Employee login rejected' };
+    } finally {
+      clearTimeout(timer);
     }
-  } finally {
-    clearTimeout(timer);
+  }
+
+  if (!success) {
+    return { ok: false, kind: 'upstream', message: 'Legacy login bootstrap upstream unavailable' };
   }
 
   const row = await upsertBootstrappedUser(env, username, password, body, nowMs);
