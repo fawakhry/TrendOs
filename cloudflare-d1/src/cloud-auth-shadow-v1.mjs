@@ -108,6 +108,25 @@ export async function lookupCloudAuthShadow(username, employeeToken, env, nowMs 
   }
 
   if (!row) return { hit: false, reason: 'miss' };
+
+  // Sliding expiry keeps an already-verified active browser session Cloud-native
+  // while it is being used. The token fingerprint remains exact; no plaintext
+  // token is stored. Logout/change-password explicitly revoke the fingerprint.
+  const extendedExpiresAtMs = Number(nowMs) + ttlSeconds(env) * 1000;
+  try {
+    await env.DB.prepare(`
+      UPDATE cloud_auth_sessions_v1
+         SET last_seen_at_ms = ?,
+             expires_at_ms = ?
+       WHERE username_key = ?
+         AND token_fingerprint = ?
+         AND revoked_at_ms IS NULL
+         AND expires_at_ms > ?
+    `).bind(Number(nowMs), extendedExpiresAtMs, key, fingerprint, Number(nowMs)).run();
+  } catch (err) {
+    // Read success remains authoritative for this request; extension is best-effort.
+  }
+
   let screens = [];
   try { screens = JSON.parse(text(row.screensJson) || '[]'); } catch (err) { screens = []; }
   if (!Array.isArray(screens)) screens = [];
@@ -192,6 +211,32 @@ export async function rememberCloudAuthShadow(username, employeeToken, verifiedB
   }
 
   return { stored: true, reason: 'stored', fingerprint, expiresAtMs };
+}
+
+export async function revokeCloudAuthShadow(username, employeeToken, env, nowMs = Date.now()) {
+  if (!cloudAuthShadowEnabled(env) || !env || !env.DB) return { revoked: false, reason: 'disabled-or-db-missing' };
+  const key = usernameKey(username);
+  if (!key || !text(employeeToken)) return { revoked: false, reason: 'credentials-missing' };
+  let fingerprint = '';
+  try {
+    fingerprint = await cloudAuthTokenFingerprint(username, employeeToken, env);
+  } catch (err) {
+    return { revoked: false, reason: 'fingerprint-error' };
+  }
+  try {
+    const result = await env.DB.prepare(`
+      UPDATE cloud_auth_sessions_v1
+         SET revoked_at_ms = ?,
+             last_seen_at_ms = ?
+       WHERE username_key = ?
+         AND token_fingerprint = ?
+         AND revoked_at_ms IS NULL
+    `).bind(Number(nowMs), Number(nowMs), key, fingerprint).run();
+    if (result && result.success === false) return { revoked: false, reason: 'db-write-unsuccessful' };
+    return { revoked: true, reason: 'revoked', fingerprint };
+  } catch (err) {
+    return { revoked: false, reason: 'db-write-error' };
+  }
 }
 
 export async function touchCloudAuthShadow(username, employeeToken, env, nowMs = Date.now()) {
