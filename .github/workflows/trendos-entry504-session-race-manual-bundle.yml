@@ -1,0 +1,71 @@
+name: TrendOS Entry504 Session Race Manual API Bundle
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry504-session-race-manual-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout qualified Entry504 source
+        uses: actions/checkout@v4
+        with:
+          ref: 76477ccf7160634c75d7c21c8547bdbe4ff29f15
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Re-run Entry504 qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/legacy_browser_transport_a61.test.mjs
+          node tests/cloudflare_orders_session_shadow_handoff_entry497.test.mjs
+          node tests/cloudflare_legacy_session_race_guard_entry504.test.mjs
+
+      - name: Build Entry504 API bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          npx --yes esbuild@0.25.10 cloudflare-d1/production-shadow/index.js \
+            --bundle \
+            --format=esm \
+            --platform=browser \
+            --target=es2022 \
+            --outfile=dist/trendos-entry504-worker.js
+          node --check dist/trendos-entry504-worker.js
+          grep -F 'EMPLOYEE_SESSION_SHADOW_REQUIRED' dist/trendos-entry504-worker.js >/dev/null
+          grep -F 'EMPLOYEE_LOGIN_SHADOW_NOT_COMMITTED' dist/trendos-entry504-worker.js >/dev/null
+          grep -F 'token_fingerprint <> ?' dist/trendos-entry504-worker.js >/dev/null
+          grep -F '02CR_LINES_STALE_SNAPSHOT_ADVISORY' dist/trendos-entry504-worker.js >/dev/null
+          sha256sum dist/trendos-entry504-worker.js > dist/trendos-entry504-worker.sha256
+          printf '%s\n' \
+            'TrendOS T12 Entry504 — API MANUAL DEPLOY ONLY' \
+            'Qualified source: 76477ccf7160634c75d7c21c8547bdbe4ff29f15' \
+            'Target Worker: trendos-d1-api' \
+            'Purpose: stop stale/missing employee tokens before Apps Script and revoke prior D1 shadows on new login.' \
+            'Preserve all existing Bindings, Variables and Secrets.' \
+            'Do not rerun D1 migration 0009.' \
+            'Do not change trendos-ui.' \
+            'Do not alter Order IDs or Statuses.' \
+            'No Wrangler command is included or authorized.' \
+            > dist/DEPLOY_ENTRY504_MANUAL.txt
+
+      - name: Upload Entry504 API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trendos-entry504-api-session-race-manual
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90
