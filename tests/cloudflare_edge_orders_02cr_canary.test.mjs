@@ -46,7 +46,25 @@ function fakeEnv(overrides = {}) {
       prepare(sql) {
         const isCatalog = /FROM\s+sheet_catalog/i.test(sql);
         const isRows = /FROM\s+sheet_rows/i.test(sql);
+        const isOverlayControl = /FROM\s+t12_prod_create_control/i.test(sql);
+        const isOverlayRows = /FROM\s+t12_prod_lines/i.test(sql);
         return {
+          async first() {
+            if (isOverlayControl) {
+              return {
+                marker: 'T12_PROD_CREATE_CANARY_V1',
+                nextOrderNumber: 6000,
+                canaryRemaining: 0,
+                policyEpoch: 'test',
+                updatedAt: '2026-09-06 01:00:00'
+              };
+            }
+            return null;
+          },
+          async all() {
+            if (isOverlayRows) return { results: [] };
+            return { results: [] };
+          },
           bind(sheetName) {
             return {
               async first() {
