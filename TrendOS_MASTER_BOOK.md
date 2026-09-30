@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry506 fresh-login auth failure
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry507 legacy-api 401 evidence
+
+**Entry507 — أول دليل Network/Console بعد فشل Fresh Login:** صورة المالك أظهرت 4 طلبات متتالية `POST /v1/legacy-api` رجعت `401` فور فتح الجلسة، مع استمرار رسالة `انتهت الجلسة. سجل الدخول مرة أخرى.`. لا توجد 502 ظاهرة في هذه اللقطة. هذا يضيّق العطل إلى Auth rejection من Cloud transport بعد Entry504، لكن لا نحدد الـaction أو code قبل قراءة أول Request من Network. الخطوة التالية الوحيدة: فتح تبويب Network ثم اختيار أول `legacy-api` 401 وقراءة Response/Payload بدون كشف token.
 
 **Entry506 — Fresh Login qualification FAILED بعد Entry504:** المالك اختبر Login جديد بعد أن أصبح API Entry504 Active على Production. النتيجة: الواجهة تفتح ثم تظهر فورًا الرسالة الحمراء `انتهت الجلسة. سجل الدخول مرة أخرى.`؛ Console في الصورة لا يعرض 502 ولا stale-D1 warning، ويظهر فقط Customer Manager bridge startup log. إذن `ENTRY504_FRESH_LOGIN_QUALIFIED=NO`. لا Deploy جديد قبل التقاط أول failing `/v1/legacy-api` request/response من Network لتحديد الـaction والـHTTP/code بدقة. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ENTRY504_FRESH_LOGIN_FAILED_ENTRY_506_2026-09-30.md`.
 
