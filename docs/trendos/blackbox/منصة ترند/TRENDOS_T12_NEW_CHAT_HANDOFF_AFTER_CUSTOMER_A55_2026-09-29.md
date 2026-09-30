@@ -741,3 +741,60 @@ Do not repeat D1 migration 0009. Do not configure/read `EMPLOYEE_LEGACY_BRIDGE_S
 
 Detailed record:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_DIYA_ENROLLMENT_GATE_QUALIFIED_CREDENTIAL_BLOCK_ENTRY_493_2026-09-30.md`
+
+
+---
+
+# A61 Entry494 current checkpoint — 2026-09-30
+
+The owner reconfirmed Diya's current credential and refreshed the protected Actions secret. The guarded canary proved the credential is valid because the legacy Apps Script login succeeded.
+
+The session-bound enrollment route is now retired for this canary: after successful login, the second Apps Script `verifyEmployeeSession` request failed independently (401 on the first Entry494 run and 502 on the single controlled retry). Do not retry this two-request path.
+
+The existing one-request Cloudflare `legacyLoginBootstrap()` path was hardened on the current branch:
+- timeout 90 seconds;
+- exactly one retry only on 404/408/429/5xx;
+- no retry on normal HTTP 200 auth rejection;
+- plaintext password not stored;
+- temporary legacy token cleanup remains best-effort.
+
+Source commit: `60de00862d261ac68d774a8d1836e96889678f00`
+Test commit: `3fc91867383aeba7f70c7fdb6227220b5e0e3f3f`
+Qualification run `36705645597` = SUCCESS.
+
+Production direct-bootstrap execution has NOT happened yet. The connected GitHub mutation path refused creation/modification of a sensitive workflow combining protected credentials with Cloudflare/D1 mutation; that boundary was not bypassed. Historical V2 direct-bootstrap runs must not be rerun because they checkout historical source.
+
+Independent final read-only run `36707102974` = SUCCESS:
+
+```ini
+APPS_SCRIPT_PRODUCTION_VERSION=158
+CLOUDFLARE_ACTIVE_DEPLOYMENT=09221ed7-8906-4b5a-8d3e-f6669e326801
+CLOUDFLARE_ACTIVE_VERSION=939076d7-8d0a-48f8-ab6c-693176817b2b
+
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+
+DIYA_QUALIFICATION_CREDENTIAL=PROVEN_VALID
+SESSION_BOUND_ENROLLMENT=DO_NOT_RETRY
+DIRECT_BOOTSTRAP_HARDENED_SOURCE=QUALIFIED_DEFAULT_OFF
+DIRECT_BOOTSTRAP_PRODUCTION_CANARY=NOT_EXECUTED
+NATIVE_USER_COUNT=0
+NATIVE_READY_COUNT=0
+
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_STEP=EXECUTE_CURRENT_HEAD_DIRECT_BOOTSTRAP_CANARY_THROUGH_APPROVED_PATH
+```
+
+Do not repeat migration 0009. Do not configure/read the Legacy Bridge secret. Do not enable Native-only or Bridge generally. Do not retry session-bound enrollment.
+
+Detailed record:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_DIYA_DIRECT_BOOTSTRAP_READY_BLOCKED_ENTRY_494_2026-09-30.md`
