@@ -99,7 +99,7 @@ const main = await call('');
 assert.equal(main.res.status, 200);
 const body = main.body;
 assert.equal(body.success, true);
-assert.equal(body.version, 'D1_ORDERS_READ_02CR_OPERATIONAL_CANARY');
+assert.equal(body.version, 'D1_ORDERS_READ_02CR_T12_OVERLAY_V1');
 assert.equal(body.rows.length, 1);
 assert.equal(body.rows[0].orderId, '5001');
 assert.equal(body.rows[0].lineId, '5001-01');
