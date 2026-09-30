@@ -7,7 +7,8 @@ import {
   isEmployeeNativeAuthPath,
   employeeAuthEnabled,
   employeeAuthLegacyBootstrapEnabled,
-  employeeAuthNativeOnlyEnabled
+  employeeAuthNativeOnlyEnabled,
+  employeeAuthLegacySessionEnrollEnabled
 } from '../cloudflare-d1/src/employee-auth-native-v1.mjs';
 
 const password = 'A61-test-password-123';
@@ -38,18 +39,21 @@ for (const path of [
   '/v1/employee/auth/session',
   '/v1/employee/auth/logout',
   '/v1/employee/auth/password/change',
-  '/v1/employee/auth/health'
+  '/v1/employee/auth/health',
+  '/v1/employee/auth/enroll-legacy-session'
 ]) assert.equal(isEmployeeNativeAuthPath(path), true);
 assert.equal(isEmployeeNativeAuthPath('/v1/t12/orders/create'), false);
 
 const disabledEnv = {
   TRENDOS_EMPLOYEE_AUTH_V1_ENABLED: 'false',
   TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED: 'false',
-  TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1: 'false'
+  TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1: 'false',
+  TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED: 'false'
 };
 assert.equal(employeeAuthEnabled(disabledEnv), false);
 assert.equal(employeeAuthLegacyBootstrapEnabled(disabledEnv), false);
 assert.equal(employeeAuthNativeOnlyEnabled(disabledEnv), false);
+assert.equal(employeeAuthLegacySessionEnrollEnabled(disabledEnv), false);
 
 const migration = fs.readFileSync('cloudflare-d1/migrations/0009_employee_auth_native_v1.sql', 'utf8');
 assert.match(migration, /T12_EMPLOYEE_AUTH_V1/);
@@ -64,6 +68,12 @@ assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED/);
 assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000/);
 assert.match(moduleSource, /Legacy login bootstrap timed out/);
 assert.match(moduleSource, /Legacy login bootstrap request failed/);
+assert.match(moduleSource, /employee-auth\/enroll-legacy-session/);
+assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED/);
+assert.match(moduleSource, /EMPLOYEE_AUTH_ENROLL_CANARY_USER/);
+assert.match(moduleSource, /EMPLOYEE_AUTH_ENROLL_NONCE/);
+assert.match(moduleSource, /verifyEmployeeSession/);
+assert.match(moduleSource, /d1-native-legacy-session-enroll-v1/);
 assert.doesNotMatch(moduleSource, /AUTH_PASSWORD_PEPPER/);
 assert.doesNotMatch(moduleSource, /console\.log\([^\n]*password/i);
 
@@ -83,6 +93,9 @@ const wrangler = fs.readFileSync('cloudflare-d1/wrangler.toml', 'utf8');
 assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"/);
 assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"/);
 assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"/);
+assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"/);
+assert.match(wrangler, /EMPLOYEE_AUTH_ENROLL_CANARY_USER = ""/);
+assert.match(wrangler, /EMPLOYEE_AUTH_ENROLL_NONCE = ""/);
 
 console.log('A61_NATIVE_AUTH_FOUNDATION=PASS');
 console.log('PLAINTEXT_PASSWORD_STORED=NO');
