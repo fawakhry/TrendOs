@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry512 selected request still OPTIONS
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry513 POST 200 request selected
+
+**Entry513 — first real legacy-api POST selected:** لقطة DevTools تؤكد اختيار طلب `https://trendos-d1-api.trendmall-contact.workers.dev/v1/legacy-api` الحقيقي، `Request Method=POST`, `Status Code=200 OK`, وCORS/JSON headers سليمة. إذن الطلب وصل Cloudflare بنجاح والقرار التالي يعتمد على JSON Response لهذا الطلب نفسه. لا Deploy ولا Runtime mutation. الخطوة التالية الوحيدة: فتح تبويب `Response` لنفس الطلب وقراءة body فقط.
 
 **Entry512 — selected request still OPTIONS:** لقطة DevTools الجديدة تؤكد أن الصف المحدد حاليًا ما زال `Request Method: OPTIONS` مع `200 OK`. في قائمة Network تظهر طلبات `legacy-api` متتابعة؛ المطلوب اختيار الصف التالي المقابل لنفس الزوج حتى يظهر `Request Method: POST`. لا استنتاج جديد عن Auth ولا Deploy جديد.
 
