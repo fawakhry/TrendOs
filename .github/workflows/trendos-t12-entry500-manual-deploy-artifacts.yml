@@ -65,57 +65,73 @@ jobs:
   entry499-frontend:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout current packaging tools
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Checkout qualified Entry499 source
         uses: actions/checkout@v4
         with:
           ref: 229ab05fc8203e1ad77f10cfc6e6ca2169868787
+          path: qualified-entry499
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
-      - name: Qualify and package Entry499 frontend
+      - name: Qualify and package Entry499 frontend with no-Wrangler uploader
         shell: bash
         run: |
           set -euo pipefail
+          cd qualified-entry499
           node --check app.js
           node --check trendos-edge-orders-read-v1.js
           node --check press-control-v1.js
           node tests/frontend_session_and_zero_google_read_entry499.test.mjs
           node tests/frontend_no_direct_google_transport_a61.test.mjs
           node tests/frontend_edge_orders_cutover_02ct.test.mjs
+          cd ..
 
           rm -rf dist/frontend-package
           mkdir -p dist/frontend-package/frontend-dist
-          find . -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 \
+          find qualified-entry499 -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 \
             | xargs -0 -I{} cp "{}" dist/frontend-package/frontend-dist/
-          cp cloudflare-d1/src/frontend-static-worker.mjs dist/frontend-package/frontend-static-worker.mjs
+          cp qualified-entry499/cloudflare-d1/src/frontend-static-worker.mjs dist/frontend-package/frontend-static-worker.mjs
+
+          cp tools/trendos-entry499-direct-upload.mjs dist/frontend-package/entry499-direct-upload.mjs
+          cp tools/trendos-entry499-direct-upload.ps1 dist/frontend-package/upload-entry499-version.ps1
+          cp tools/trendos-entry499-direct-upload.cmd dist/frontend-package/RUN_ENTRY499_UPLOAD.cmd
+          cp tools/TRENDOS_ENTRY499_DIRECT_UPLOAD_README.txt dist/frontend-package/README_ENTRY499_DIRECT_UPLOAD.txt
 
           grep -F 'function zeroGoogleSnapshotStalenessAccepted' dist/frontend-package/frontend-dist/trendos-edge-orders-read-v1.js >/dev/null
           grep -F 'Data/read failures must never destroy the employee browser session.' dist/frontend-package/frontend-dist/app.js >/dev/null
           grep -F 'employee-session-unavailable' dist/frontend-package/frontend-dist/press-control-v1.js >/dev/null
           if grep -F 'indexOf("انتهت الجلسة") !== -1) logout();' dist/frontend-package/frontend-dist/app.js; then exit 31; fi
 
+          node dist/frontend-package/entry499-direct-upload.mjs --package dist/frontend-package --dry-run
+
           (
             cd dist/frontend-package
             find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
           )
           printf '%s\n' \
-            'TrendOS T12 Entry499 — FRONTEND MANUAL DEPLOY ONLY' \
-            'Qualified source: 229ab05fc8203e1ad77f10cfc6e6ca2169868787' \
+            'TrendOS T12 Entry499 — NO-WRANGLER MANUAL VERSION CREATION' \
+            'Qualified frontend source: 229ab05fc8203e1ad77f10cfc6e6ca2169868787' \
             'Target: trendos-ui' \
-            'Frontend only; do not redeploy trendos-d1-api for Entry499.' \
-            'Preserve the existing ASSETS binding.' \
-            'Do not change Cloudflare Secrets, Variables or other Bindings.' \
-            'No Wrangler command is required or authorized by this artifact.' \
+            'Double-click RUN_ENTRY499_UPLOAD.cmd on Windows.' \
+            'The tool uploads assets and creates a Worker VERSION only.' \
+            'It does NOT deploy or promote traffic.' \
+            'Do not paste the Cloudflare API Token into chat or GitHub.' \
+            'Do not touch trendos-d1-api in this step.' \
             > dist/frontend-package/DEPLOY_ENTRY499_MANUAL.txt
-          echo 'ENTRY499_FRONTEND_MANUAL_BUNDLE=PASS'
+          echo 'ENTRY499_FRONTEND_DIRECT_UPLOAD_PACKAGE=PASS'
 
       - name: Upload Entry499 frontend artifact
         uses: actions/upload-artifact@v4
         with:
-          name: trendos-entry499-frontend-manual-entry500
+          name: trendos-entry499-frontend-direct-upload-entry502
           path: dist/frontend-package/
           if-no-files-found: error
           retention-days: 90
