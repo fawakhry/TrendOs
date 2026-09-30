@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry526 clean capture first request is login
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry527 login response succeeds; failure is post-login
+
+**Entry527 — login response succeeds; session failure occurs after login:** Response of the exact first `legacy-api` fetch in the clean capture returned `success=true`, an explicit `expiresAt`, and employee identity/role metadata for the admin user. The returned token value was intentionally not recorded. Therefore credential validation and the login transaction itself succeed; the session is being invalidated or rejected by a later post-login request/module. No deploy or runtime mutation occurred. Next: select the next real `legacy-api` fetch after the login request in chronological order and inspect only its Payload action/op.
 
 **Entry526 — clean capture first real request identified as login:** In the preserved Network sequence that started before Fresh Login, the first selected real `legacy-api` fetch has Payload `action="login"` for the employee account. A password value was visible locally in DevTools/screenshot; no credential value is recorded in this book or repeated in chat. This establishes the correct chronological anchor for the session failure analysis. No deploy or runtime mutation occurred. Next: inspect the Response of this exact login request before evaluating any later module call.
 
