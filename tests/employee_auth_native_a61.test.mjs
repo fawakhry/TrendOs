@@ -54,6 +54,8 @@ assert.equal(employeeAuthEnabled(disabledEnv), false);
 assert.equal(employeeAuthLegacyBootstrapEnabled(disabledEnv), false);
 assert.equal(employeeAuthNativeOnlyEnabled(disabledEnv), false);
 assert.equal(employeeAuthLegacySessionEnrollEnabled(disabledEnv), false);
+assert.match(moduleSource, /legacySessionEnrollEnabled: employeeAuthLegacySessionEnrollEnabled\(env\)/);
+assert.match(moduleSource, /enrollCanaryUserConfigured/);
 
 const migration = fs.readFileSync('cloudflare-d1/migrations/0009_employee_auth_native_v1.sql', 'utf8');
 assert.match(migration, /T12_EMPLOYEE_AUTH_V1/);
