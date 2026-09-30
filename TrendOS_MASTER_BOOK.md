@@ -1,10 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.76-DRAFT-COMPACT — T12 Orders session D1 shadow handoff qualified; Entry497** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.77-DRAFT-COMPACT — T12 Orders D1 snapshot Zero-Google visibility qualified; Entry498** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد Orders session D1 shadow handoff / Entry497
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد Orders D1 snapshot visibility / Entry498
+
+**Entry498 — أحدث عمل Repo-only، غير منشور:** تم إزالة Google/Apps Script idle-heartbeat كشرط لعرض Orders عندما يكون D1 Lines snapshot قديم زمنيًا لكنه structurally qualified. مصدر العرض أصبح D1 qualified base snapshot + T12 native overlay؛ تقادم snapshot أصبح advisory مع `02CR_LINES_STALE_SNAPSHOT_ADVISORY`. Structural qualification/parity ما زالت fail-closed. CI: `36747545768` SUCCESS وBrowser transport `36747545745` SUCCESS. الخطوة التالية: نشر API Worker يدويًا فقط ثم تحقق 200 وظهور الأوردرات. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_D1_SNAPSHOT_ZERO_GOOGLE_VISIBILITY_ENTRY_498_2026-09-30.md`.
 
 **Entry497 — أحدث عمل Repo-only، غير منشور:** تم إزالة طلب Apps Script الثاني من Orders session بعد Login ناجح. Cloudflare يزرع fingerprint HMAC للجلسة المؤكدة في D1 auth shadow؛ Orders session يصدر Edge token من D1، مع sliding expiry، وLogout/ChangePassword يعملان revoke للـfingerprint. Orders Edge TTL أصبح 240s داخل نافذة shadow 300s. لا plaintext password/token storage. CI run `36745917638` = SUCCESS. Employee Login نفسه ما زال Google-backed؛ Zero-Google غير مكتمل. الخطوة التالية: نشر API Worker يدويًا، ثم logout/login مرة واحدة لتغذية shadow، وبعدها فتح Orders. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_SESSION_D1_SHADOW_HANDOFF_ENTRY_497_2026-09-30.md`.
 
