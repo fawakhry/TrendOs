@@ -1,10 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.69-DRAFT-COMPACT — T12 Cloud cutover reconciled through A61 Phase 5 / Entry484; Employee Auth source foundations qualified; OFF-state Production installation is next** · تاريخ التحديث: 2026-09-29 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.70-DRAFT-COMPACT — T12 A61 Cloudflare OFF-state Production installation verified through Entry491; native employee login remains OFF/Google-backed** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Phase 5
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Cloudflare OFF-state installation / Entry491
 
 **Checkpoint قبل هذا التحديث:** Working-branch HEAD المعروف `b500be4975f8d323c33e8ab8664f77cc28f787e2` (Entry478 documentation). آخر `main` وظيفي معروف `e5efcb39acf33a70ce13f16125e307a51994bb65` (A60 logging hygiene). هذه الصفحة تلغي كحالة حالية أي نص أقدم يقول إن Customer write authority ما زالت Apps Script أو إن واجهة TrendOS الأساسية ما زالت GitHub Pages.
 
@@ -200,6 +200,29 @@ NATIVE_EMPLOYEE_LOGIN=NO
 NEXT_OWNER_ACTION=ENTRY484_PHASE_C_D_CLOUDFLARE_OFF_STATE
 ```
 
+**A61 Phase C/D — Cloudflare Worker OFF-state installed and verified — Entry491:** read-only drift preflight proved the live Worker bundle matched the exact pre-A61 baseline byte-for-byte before deployment. The qualified A61 target was uploaded at zero traffic, Preview-qualified with all Auth/Bridge controls OFF, then promoted to Production. Independent post-deploy read-only verification run `36688742762` proved active version `3232b4ce-1d1f-47d4-81a3-475c3ab5614e` and live bundle SHA-256 `befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494`, exactly equal to the locked A61 target. D1 auth control remains `OFF`; all four A61 runtime flags are false; bridge allowlist is empty; `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1` remains deferred/not configured; `APPS_SCRIPT_API_URL` is unchanged. Customers remain D1-native `GENERAL` at 247 rows and Orders create remains `GENERAL`. Employee login is still Google-backed. A controlled-deploy workflow verification bug produced a misleading failed result artifact after promotion; the authoritative state is the independent post-deploy verification file and Entry491. **Stop before native-login canary or any enablement.**
+
+```ini
+CLOUDFLARE_A61_DEPLOY=YES_OFF_STATE
+CLOUDFLARE_ACTIVE_VERSION=3232b4ce-1d1f-47d4-81a3-475c3ab5614e
+A61_LIVE_BUNDLE_SHA256=befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_ACTIONS=
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+APPS_SCRIPT_API_URL_UNCHANGED=YES
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+NATIVE_EMPLOYEE_LOGIN=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_OWNER_ACTION=STOP_AWAIT_NEW_APPROVAL
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
@@ -211,7 +234,7 @@ GOOGLE_SHEET_RUNTIME_AUTHORITY=0
 GOOGLE_RUNTIME_DEPENDENCY=0
 ```
 
-**مصادر الحالة الحالية:** Entry477 (A56–A58) · A59 read-only preflight run `36574201570` · Entry478 (A60) · PRs #22/#23/#24 · frontend deployment run `36576677571`. كل خطوة لاحقة يجب أن تحدّث هذه الصفحة + Entry تفصيلي + Handoff فورًا.
+**مصادر الحالة الحالية:** Entry477 (A56–A58) · A59 read-only preflight run `36574201570` · Entry478 (A60) · Entry489 (Apps Script v158) · Entry490 (D1 auth schema OFF) · Entry491 (Cloudflare A61 OFF-state install) · Cloudflare preflight run `36687886593` · authoritative post-deploy verification run `36688742762`. كل خطوة لاحقة يجب أن تحدّث هذه الصفحة + Entry تفصيلي + Handoff فورًا.
 
 ## تخصيص الكتاب لموظف IT — الدليل التشغيلي والمكتبة البرمجية الوحيدة لشرح TrendOS
 
