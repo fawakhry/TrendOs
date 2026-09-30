@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry520 old-session poll confirmed after clear
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry521 logout control visible before clean capture
+
+**Entry521 — Logout control visible before clean pre-login capture:** لقطة المالك تُظهر لوحة TrendOS الرئيسية باسم المستخدم ضياء، وزر `خروج` ظاهر بوضوح، بينما Widget المكبس ما زال يعرض `انتهت الجلسة. سجل الدخول مرة أخرى.`. الهدف الآن إنهاء الجلسة القديمة صراحةً قبل Fresh Login capture مع إبقاء Network Keep log مفعّلًا. لا Deploy ولا Runtime mutation.
 
 **Entry520 — old-session poll confirmed in clean Network view:** صورة المالك تؤكد بعد Clear أن Network يحتوي فقط زوج `legacy-api` جديد تقريبًا: fetch واحد `Pending` وpreflight `200`، مع بقاء رسالة انتهاء الجلسة في واجهة المكبس. `Keep log` ما زال مفعّلًا. هذا يؤكد أن polling القديم يستمر أثناء الجلسة المنتهية، وبالتالي يجب الوصول أولًا إلى شاشة الدخول قبل Fresh Login capture. لا Deploy ولا Runtime mutation.
 
