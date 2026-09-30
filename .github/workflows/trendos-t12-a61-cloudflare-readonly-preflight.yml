@@ -188,7 +188,7 @@ jobs:
           D1_BINDING="YES"
 
           # Download current live Worker source read-only. Body is never printed.
-          curl --compressed --fail --silent --show-error             -D /tmp/live-content.headers             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/content"             -o /tmp/live-content.body || fail "LIVE_WORKER_CONTENT_READ_FAILED"
+          curl --compressed --fail --silent --show-error             -D /tmp/live-content.headers             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/content/v2"             -o /tmp/live-content.body || fail "LIVE_WORKER_CONTENT_READ_FAILED"
 
           python3 - <<'PY' || exit 43
           from pathlib import Path
