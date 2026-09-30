@@ -1,0 +1,40 @@
+name: TrendOS T12 A61 Bootstrap Timeout Qualify TEMP
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-bootstrap-timeout-qualify-temp.yml'
+permissions:
+  contents: read
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node --check cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          node --check cloudflare-d1/production-shadow/index.js
+      - name: Native auth contract
+        run: node tests/employee_auth_native_a61.test.mjs
+      - name: Scope proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'const LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000;' cloudflare-d1/src/employee-auth-native-v1.mjs
+          grep -Fq "Legacy login bootstrap timed out" cloudflare-d1/src/employee-auth-native-v1.mjs
+          grep -Fq "Legacy login bootstrap request failed" cloudflare-d1/src/employee-auth-native-v1.mjs
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' cloudflare-d1/wrangler.toml
+          echo 'A61_BOOTSTRAP_TIMEOUT_FIX=QUALIFIED'
+          echo 'PRODUCTION_MUTATION=NO'
