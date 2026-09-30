@@ -951,3 +951,46 @@ QUALIFICATION_RUN=36749869635_SUCCESS
 ```
 
 Next owner action: deploy frontend `trendos-ui` only from the Entry499 bundle, preserve ASSETS binding, promote to 100%, hard refresh, login once, verify session remains open and Orders render. API Worker requires no Entry499 redeploy.
+
+
+---
+
+# Entry500 new-chat freeze — 2026-09-30
+
+Latest owner-confirmed Production API dashboard state:
+
+```ini
+CLOUDFLARE_API_WORKER=trendos-d1-api
+LATEST_CONFIRMED_API_SHORT_VERSION=86b713d9
+LATEST_CONFIRMED_API_TRAFFIC=100%
+LATEST_CONFIRMED_API_ERROR_RATE=0%
+```
+
+After that install the browser still showed rapid return to the entry screen, repeated `POST /v1/legacy-api -> 502`, and an Orders-side `Required D1 mirror is stale: بنود الأوردرات` message. The press widget also reported that the session ended.
+
+Entry498 API and Entry499 frontend are qualified in Repo, but the owner then reported artifact **download failure**. Therefore do not claim either is deployed. Treat both as source-qualified / Production-unconfirmed until Cloudflare is checked explicitly.
+
+```ini
+ENTRY498_SOURCE_QUALIFIED=YES
+ENTRY498_PRODUCTION_DEPLOYED=UNCONFIRMED_ASSUME_NO
+ENTRY499_SOURCE_QUALIFIED=YES
+ENTRY499_PRODUCTION_DEPLOYED=UNCONFIRMED_ASSUME_NO
+ZERO_GOOGLE_COMPLETE=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+NEXT_PRIORITY=VERIFY_PRODUCTION_THEN_ENTRY498_API_THEN_ENTRY499_FRONTEND
+AFTER_STABLE_ORDERS=FIX_DUPLICATE_ORDER_CREATION
+```
+
+Owner rule remains strict: repo work may be executed by the assistant, but all Cloudflare deployment / Wrangler / Worker / Secret / Variable / Binding changes are owner-manual only.
+
+If ChatGPT artifact download fails again, do not loop on sandbox file links. Prefer GitHub Actions artifact or owner-side build from the qualified branch.
+
+Read first in the new chat:
+1. first page of `TrendOS_MASTER_BOOK.md`
+2. Entry500
+3. Entry498
+4. Entry499
+5. this Handoff tail
+
+Detailed freeze record:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_NEW_CHAT_FREEZE_AFTER_ENTRY499_DOWNLOAD_FAILURE_ENTRY_500_2026-09-30.md`
