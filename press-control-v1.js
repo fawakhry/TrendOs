@@ -42,7 +42,13 @@ function exactStopPayload(s){
 let root=null,last=null;function ensure(){if(!allowed()||root)return;root=document.createElement('section');root.id='trendPressControlV1';root.style.cssText='position:fixed;right:14px;bottom:14px;z-index:2147481800;width:min(340px,calc(100vw - 28px));direction:rtl;font-family:Tahoma,Arial,sans-serif;background:#fff;border:1px solid #d8e2ec;border-radius:14px;box-shadow:0 10px 30px rgba(20,45,70,.16);overflow:hidden;color:#153047';root.innerHTML='<div style="background:#0f766e;color:#fff;padding:9px 11px;font-weight:700">🔥 متابعة المكبس</div><div style="padding:10px"><div data-p="state">جاري القراءة...</div><div style="display:flex;gap:7px;margin-top:9px"><button data-p-action="start" style="flex:1;border:0;border-radius:9px;padding:9px;background:#0f766e;color:#fff;font-weight:700;cursor:pointer">تشغيل المكبس</button><button data-p-action="stop" style="flex:1;border:0;border-radius:9px;padding:9px;background:#b42318;color:#fff;font-weight:700;cursor:pointer">قفل المكبس</button></div><div data-p="hint" style="font-size:11px;color:#66788a;margin-top:7px">الموعد الثابت 5:00 م — تشغيل مبكر مسموح للعاجل.</div></div>';document.body.appendChild(root);root.addEventListener('click',click);}
 function render(d){last=d;if(!root)return;const q=d&&d.queue?d.queue:{count:0,urgent:0,items:[]},s=d&&d.session?d.session:null,label=queueLabel(q);const el=root.querySelector('[data-p="state"]');if(s){el.innerHTML='<b>المكبس شغال الآن</b><br>'+label+'<br>بدأ: '+txt(s.startedAt||'')+' • المشغل: '+txt(s.operator||'-');}else{el.innerHTML='<b>المكبس مقفول</b><br>'+label;}const st=root.querySelector('[data-p-action="start"]'),sp=root.querySelector('[data-p-action="stop"]'),hint=root.querySelector('[data-p="hint"]');st.disabled=!!s;sp.disabled=!s;st.style.opacity=s?'.45':'1';sp.style.opacity=s?'1':'.45';if(hint)hint.textContent=s&&integrityPressSession(s)?'القفل الآمن: اختر البنود الفعلية من Snapshot بداية الجلسة — لا يعتمد على رقم يدوي.':'الموعد الثابت 5:00 م — تشغيل مبكر مسموح للعاجل.';}
 async function refresh(options){
-  const opts=options||{};ensure();if(!root)return {skipped:true,reason:'not-mounted'};
+  const opts=options||{},u=user()||{};
+  if(!txt(u.token)){
+    if(root&&root.remove)root.remove();
+    root=null;last=null;
+    return {skipped:true,reason:'employee-session-unavailable'};
+  }
+  ensure();if(!root)return {skipped:true,reason:'not-mounted'};
   if(document.hidden&&!opts.force)return {skipped:true,reason:'hidden'};
   if(refreshBusy)return {skipped:true,reason:'in-flight'};
   if(!opts.force&&lastRefreshAt&&Date.now()-lastRefreshAt<MIN_REFRESH_MS)return {skipped:true,reason:'min-interval'};
