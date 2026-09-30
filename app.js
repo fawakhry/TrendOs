@@ -4517,8 +4517,9 @@ Trend Mall`;
         heatPressFilter: ($("heatPressFilter") || {}).value || ""
       }));
       if (!res.success) {
+        // Data/read failures must never destroy the employee browser session.
+        // Authentication is revoked only by explicit logout/password flows.
         setLoading(res.message || "فشل تحميل الأوردرات.", true);
-        if (!res.code && (res.message || "").indexOf("انتهت الجلسة") !== -1) logout();
         return;
       }
 
