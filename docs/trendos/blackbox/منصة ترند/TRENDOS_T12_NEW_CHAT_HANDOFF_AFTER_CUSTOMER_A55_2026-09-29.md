@@ -671,3 +671,73 @@ Do not send or store an employee password in chat/repo/docs/logs. Refresh the pr
 
 Detailed record:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_FRONTEND_OFF_STATE_AND_NATIVE_CANARY_BLOCKED_ENTRY_492_2026-09-30.md`
+
+
+---
+
+# A61 Entry493 current checkpoint — 2026-09-30
+
+Owner continued A61 using employee `ضياء` as the single-user canary. The protected credential was never printed/read.
+
+The safer session-bound enrollment route is now installed default-OFF and qualified. The gate-first canary proved the temporary Cloudflare/D1 enrollment window itself is correct before credential use:
+
+```ini
+A61_ENROLL_HEALTH_MODE=TRANSITIONAL
+A61_ENROLL_HEALTH_AUTH_ENABLED=YES
+A61_ENROLL_HEALTH_SESSION_ENROLL=YES
+A61_ENROLL_HEALTH_CANARY_USER=YES
+A61_ENROLL_HEALTH_NATIVE_ONLY=NO
+A61_ENROLLMENT_WINDOW=PASS
+```
+
+The latest Apps Script login then returned HTTP 200 with `success=false`, not rate-limited and not server-error classified. Earlier guarded runs had passed the same protected login path, so do not hammer retries. A read-only Users-sheet check that excluded Password and Token columns proves:
+```ini
+DIYA_USER_PRESENT=YES
+DIYA_ACTIVE=YES
+DIYA_ROLE=مدير
+DIYA_DEPARTMENT=الادارة
+DIYA_MUST_CHANGE=NO
+```
+
+No native D1 user/verifier was created.
+
+Independent post-canary OFF verification run `36701918580` = SUCCESS:
+```ini
+APPS_SCRIPT_PRODUCTION_VERSION=158
+
+CLOUDFLARE_ACTIVE_DEPLOYMENT=8b3623a7-7c64-4225-b830-b800b366c573
+CLOUDFLARE_ACTIVE_VERSION=ca1f193c-9496-4dfe-b0ea-1e299b314e95
+A61_LIVE_BUNDLE_SHA256=a000921d0841d41e3dd2b7e8da969e08eb2abc528cd1fad631fcfb1703646c73
+
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED=false
+EMPLOYEE_AUTH_ENROLL_CANARY_USER=
+EMPLOYEE_AUTH_ENROLL_NONCE=
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_ACTIONS=
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+
+AUTH_HEALTH=PASS_OFF
+BRIDGE_HEALTH=PASS_DISABLED
+NATIVE_USER_COUNT=0
+NATIVE_READY_COUNT=0
+
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+
+NATIVE_EMPLOYEE_LOGIN=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+A61_ENROLLMENT_WINDOW_QUALIFIED=YES
+A61_DIYA_CANARY=BLOCKED_CURRENT_LEGACY_CREDENTIAL_RECONFIRMATION
+NEXT_OWNER_ACTION=RECONFIRM_CURRENT_DIYA_LOGIN_PASSWORD_OUTSIDE_CHAT_AND_REFRESH_PROTECTED_QUALIFY_SECRET_THEN_RUN_ONE_GUARDED_CANARY
+```
+
+Do not repeat D1 migration 0009. Do not configure/read `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`. Do not enable Native-only or Bridge generally. Next action is only: reconfirm the current Diya login password outside chat, refresh `TRENDOS_PROD_QUALIFY_PASSWORD`, then execute one gate-first guarded canary.
+
+Detailed record:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_DIYA_ENROLLMENT_GATE_QUALIFIED_CREDENTIAL_BLOCK_ENTRY_493_2026-09-30.md`
