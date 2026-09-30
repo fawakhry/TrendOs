@@ -1,0 +1,248 @@
+name: TrendOS T12 A61 Entry491 Documentation
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-entry491-document.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  document:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - name: Verify authoritative postdeploy result
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESULT='docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_POSTDEPLOY_READONLY_VERIFY_RESULT_2026-09-30.txt'
+          grep -Fx 'POSTDEPLOY_VERIFY_STATUS=SUCCESS' "$RESULT"
+          grep -Fx 'LIVE_EQUALS_A61_TARGET=YES' "$RESULT"
+          grep -Fx 'AUTH_HEALTH=PASS_OFF' "$RESULT"
+          grep -Fx 'BRIDGE_HEALTH=PASS_DISABLED' "$RESULT"
+          grep -Fx 'D1_AUTH_CONTROL_MODE=OFF' "$RESULT"
+          grep -Fx 'EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED' "$RESULT"
+
+      - name: Write Entry491 and advance Master Book + Handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENTRY='docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_CLOUDFLARE_OFF_STATE_INSTALL_SUCCESS_ENTRY_491_2026-09-30.md'
+          cat > "$ENTRY" <<'EOF'
+          # TrendOS T12 — Entry491 — A61 Cloudflare OFF-state installation verified
+
+          Date: 2026-09-30
+          Branch: `candidate/t12-full-cloud-cutover-a56-20260929`
+          Worker: `trendos-d1-api`
+
+          ## Outcome
+
+          A61 Worker source is now installed in Cloudflare Production in **OFF-state only**. No native employee login, transitional bootstrap, native-only mode, legacy bridge, bridge allowlist, or bridge secret was enabled.
+
+          Authoritative post-deploy read-only verification:
+          - GitHub Actions run: `36688742762`
+          - active deployment: `f2b306fb-5d54-4ede-8a7e-cdfc7289b103`
+          - active version: `3232b4ce-1d1f-47d4-81a3-475c3ab5614e`
+          - live Worker bundle SHA-256: `befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494`
+          - exact A61 target bundle SHA-256: `befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494`
+          - live equals qualified A61 target: **YES**
+
+          ## Preflight evidence
+
+          Read-only preflight run `36687886593` proved before deployment that:
+          - active Production version was `ec0fd00b-f4b8-4abf-8b79-449ee1637f3a`;
+          - live Production bundle SHA-256 was `ef841a76643c28e8ef8ea8b72e5ea758ab5b970c59f4655e1a61d0211ede32a3`;
+          - that hash matched the exact pre-A61 baseline bundle byte-for-byte;
+          - the target A61 bundle hash was already locked as `befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494`;
+          - the Cloudflare source delta from the live baseline was exactly the qualified A61 set;
+          - current live settings were inside the safe boundary, `APPS_SCRIPT_API_URL` was unchanged, and D1 binding still pointed to `trendos-main`;
+          - Customers and Orders health were already `GENERAL` before the install.
+
+          The deployment used a runner-only temporary Wrangler config with `keep_vars=true` so Dashboard-only plaintext variables would not be erased. The canonical `cloudflare-d1/wrangler.toml` was not changed for this guard. No secret put/delete/bulk command was authorized.
+
+          ## OFF-state verification
+
+          ```ini
+          TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+          TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+          TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+          TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+          EMPLOYEE_LEGACY_BRIDGE_ACTIONS=
+          EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+          APPS_SCRIPT_API_URL_UNCHANGED=YES
+
+          AUTH_HEALTH=PASS_OFF
+          BRIDGE_HEALTH=PASS_DISABLED
+          D1_AUTH_CONTROL_MODE=OFF
+
+          CUSTOMER_MODE=GENERAL
+          CUSTOMER_COUNT=247
+          ORDER_CREATE_MODE=GENERAL
+          PROTECTED_ROUTES=PASS_AUTH_PROTECTED
+
+          NATIVE_EMPLOYEE_LOGIN=NO
+          EMPLOYEE_LOGIN=GOOGLE_BACKED
+          ZERO_GOOGLE_COMPLETE=NO
+          ```
+
+          `/v1/employee/auth/health` reports schema ready with control mode `OFF`, environment auth disabled, bootstrap disabled, native-only disabled, and no plaintext password storage. `/v1/employee/legacy-action/health` reports bridge disabled, allowlist count zero, upstream still configured, and bridge secret not configured.
+
+          Customers remained D1-native `GENERAL` at 247 rows and Orders create remained `GENERAL`. Anonymous probes against the protected Orders and Customer read routes still returned the expected authentication boundary rather than exposing data.
+
+          ## Controlled-deploy runner incident
+
+          Controlled deploy run `36688462685` successfully reached zero-traffic upload, Preview qualification, Production promotion, Production OFF-state health checks, protected-route checks, and post-deploy D1 `OFF` verification. Its final active-version assertion then exited with code `42` because a shell variable containing the target version was not exported into the Node subprocess.
+
+          The result-writer therefore emitted:
+          `TRENDOS_T12_A61_CLOUDFLARE_OFF_STATE_DEPLOY_RESULT_2026-09-30.txt`
+          as an incomplete failed artifact. That file is **not authoritative for Production state** and is superseded by:
+          `TRENDOS_T12_A61_POSTDEPLOY_READONLY_VERIFY_RESULT_2026-09-30.txt`.
+
+          The rollback command was not executed; the independently verified A61 target remained the sole 100% active Production version. The verification defect did not enable any A61 runtime flag or modify business data.
+
+          ## Mutation boundary
+
+          ```ini
+          APPS_SCRIPT_MUTATION=NO_DURING_CLOUDFLARE_PHASE
+          D1_MIGRATION_REAPPLY=NO
+          D1_BUSINESS_MUTATION=NO
+          ORDER_MUTATION=NO
+          CUSTOMER_MUTATION=NO
+          ACCOUNTING_MUTATION=NO
+          SCRIPT_PROPERTIES_TOUCHED=NO
+          BRIDGE_SECRET_CREATED=NO
+          NATIVE_LOGIN_CANARY=NO
+          ```
+
+          ## Stop point
+
+          OFF-state Worker installation is complete and independently verified. **Stop here.** Do not begin native-login canary, bootstrap, native-only, legacy-bridge enablement, allowlist population, or secret creation without a new owner-approved phase and fresh read-only preflight.
+          EOF
+          sed -i 's/^          //' "$ENTRY"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          master=Path('TrendOS_MASTER_BOOK.md')
+          s=master.read_text()
+          old='> إصدار الكتاب: **3.69-DRAFT-COMPACT — T12 Cloud cutover reconciled through A61 Phase 5 / Entry484; Employee Auth source foundations qualified; OFF-state Production installation is next** · تاريخ التحديث: 2026-09-29 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.'
+          new='> إصدار الكتاب: **3.70-DRAFT-COMPACT — T12 A61 Cloudflare OFF-state Production installation verified through Entry491; native employee login remains OFF/Google-backed** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.'
+          if old not in s: raise SystemExit('MASTER_VERSION_LINE_NOT_FOUND')
+          s=s.replace(old,new,1)
+          old_h='## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Phase 5'
+          new_h='## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Cloudflare OFF-state installation / Entry491'
+          if old_h not in s: raise SystemExit('MASTER_ACTIVE_HEADING_NOT_FOUND')
+          s=s.replace(old_h,new_h,1)
+
+          marker='**بعد Auth — ترتيب Zero-Google:**'
+          block='''**A61 Phase C/D — Cloudflare Worker OFF-state installed and verified — Entry491:** read-only drift preflight proved the live Worker bundle matched the exact pre-A61 baseline byte-for-byte before deployment. The qualified A61 target was uploaded at zero traffic, Preview-qualified with all Auth/Bridge controls OFF, then promoted to Production. Independent post-deploy read-only verification run `36688742762` proved active version `3232b4ce-1d1f-47d4-81a3-475c3ab5614e` and live bundle SHA-256 `befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494`, exactly equal to the locked A61 target. D1 auth control remains `OFF`; all four A61 runtime flags are false; bridge allowlist is empty; `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1` remains deferred/not configured; `APPS_SCRIPT_API_URL` is unchanged. Customers remain D1-native `GENERAL` at 247 rows and Orders create remains `GENERAL`. Employee login is still Google-backed. A controlled-deploy workflow verification bug produced a misleading failed result artifact after promotion; the authoritative state is the independent post-deploy verification file and Entry491. **Stop before native-login canary or any enablement.**
+
+```ini
+CLOUDFLARE_A61_DEPLOY=YES_OFF_STATE
+CLOUDFLARE_ACTIVE_VERSION=3232b4ce-1d1f-47d4-81a3-475c3ab5614e
+A61_LIVE_BUNDLE_SHA256=befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_ACTIONS=
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+APPS_SCRIPT_API_URL_UNCHANGED=YES
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+NATIVE_EMPLOYEE_LOGIN=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_OWNER_ACTION=STOP_AWAIT_NEW_APPROVAL
+```
+
+'''
+          if 'A61 Phase C/D — Cloudflare Worker OFF-state installed and verified — Entry491' not in s:
+              if marker not in s: raise SystemExit('MASTER_INSERT_MARKER_NOT_FOUND')
+              s=s.replace(marker,block+marker,1)
+
+          source_prefix='**مصادر الحالة الحالية:**'
+          lines=s.splitlines()
+          for i,line in enumerate(lines):
+              if line.startswith(source_prefix):
+                  lines[i]='**مصادر الحالة الحالية:** Entry477 (A56–A58) · A59 read-only preflight run `36574201570` · Entry478 (A60) · Entry489 (Apps Script v158) · Entry490 (D1 auth schema OFF) · Entry491 (Cloudflare A61 OFF-state install) · Cloudflare preflight run `36687886593` · authoritative post-deploy verification run `36688742762`. كل خطوة لاحقة يجب أن تحدّث هذه الصفحة + Entry تفصيلي + Handoff فورًا.'
+                  break
+          else:
+              raise SystemExit('MASTER_SOURCES_LINE_NOT_FOUND')
+          master.write_text('\n'.join(lines)+'\n')
+
+          handoff=Path('docs/trendos/blackbox/منصة ترند/TRENDOS_T12_NEW_CHAT_HANDOFF_AFTER_CUSTOMER_A55_2026-09-29.md')
+          h=handoff.read_text()
+          marker_h='## A61 Cloudflare OFF-state Production installation — Entry491 — 2026-09-30'
+          if marker_h not in h:
+              h += f'''\n\n{marker_h}
+
+Authoritative current state:
+
+```ini
+APPS_SCRIPT_PRODUCTION_VERSION=158
+A61_SOURCE_INSTALLED=YES
+SAVE_TIMEOUT_HOTFIX_V3_PRESERVED=YES
+DEPLOYMENT_ID_UNCHANGED=YES
+EXEC_URL_UNCHANGED=YES
+SCRIPT_PROPERTIES_TOUCHED=NO
+A61_BRIDGE_RUNTIME=OFF
+
+D1_AUTH_MIGRATION_APPLIED=ALREADY_APPLIED
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+EMPLOYEE_AUTH_TABLES_VERIFIED=YES
+POST_PENDING_MIGRATIONS=NONE
+
+CLOUDFLARE_A61_DEPLOY=YES_OFF_STATE
+CLOUDFLARE_ACTIVE_DEPLOYMENT=f2b306fb-5d54-4ede-8a7e-cdfc7289b103
+CLOUDFLARE_ACTIVE_VERSION=3232b4ce-1d1f-47d4-81a3-475c3ab5614e
+A61_LIVE_BUNDLE_SHA256=befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494
+A61_TARGET_BUNDLE_MATCH=YES
+
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_ACTIONS=
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+APPS_SCRIPT_API_URL_UNCHANGED=YES
+
+AUTH_HEALTH=PASS_OFF
+BRIDGE_HEALTH=PASS_DISABLED
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+PROTECTED_ROUTES=PASS_AUTH_PROTECTED
+
+NATIVE_EMPLOYEE_LOGIN=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_OWNER_ACTION=STOP_AWAIT_NEW_APPROVAL
+```
+
+Read-only drift preflight run `36687886593` proved the pre-deploy live Worker matched the exact pre-A61 baseline bundle. Controlled deploy run `36688462685` promoted the A61 OFF-state candidate, but its final version assertion had a shell-to-Node environment bug and did not produce an authoritative success result file. No rollback command executed. Independent post-deploy read-only run `36688742762` is authoritative and proves the A61 target is the sole live 100% version with every Auth/Bridge control OFF and no bridge secret configured.
+
+Do not repeat Phase B. Do not create/read/store `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`. Do not enable native auth, bootstrap, native-only, legacy bridge, or bridge actions. Do not move to native-login canary unless the owner explicitly opens a new phase.
+'''
+          handoff.write_text(h)
+          PY
+
+      - name: Commit documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add TrendOS_MASTER_BOOK.md             'docs/trendos/blackbox/منصة ترند/TRENDOS_T12_NEW_CHAT_HANDOFF_AFTER_CUSTOMER_A55_2026-09-29.md'             'docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_CLOUDFLARE_OFF_STATE_INSTALL_SUCCESS_ENTRY_491_2026-09-30.md'
+          git diff --cached --quiet || git commit -m "docs: record A61 Cloudflare OFF-state success Entry491"
+          git push origin HEAD:candidate/t12-full-cloud-cutover-a56-20260929
