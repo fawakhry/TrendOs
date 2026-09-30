@@ -1,10 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.75-DRAFT-COMPACT — T12 Orders 02CR visibility qualified; Entry496** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.76-DRAFT-COMPACT — T12 Orders session D1 shadow handoff qualified; Entry497** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد Orders 02CR visibility / Entry496
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد Orders session D1 shadow handoff / Entry497
+
+**Entry497 — أحدث عمل Repo-only، غير منشور:** تم إزالة طلب Apps Script الثاني من Orders session بعد Login ناجح. Cloudflare يزرع fingerprint HMAC للجلسة المؤكدة في D1 auth shadow؛ Orders session يصدر Edge token من D1، مع sliding expiry، وLogout/ChangePassword يعملان revoke للـfingerprint. Orders Edge TTL أصبح 240s داخل نافذة shadow 300s. لا plaintext password/token storage. CI run `36745917638` = SUCCESS. Employee Login نفسه ما زال Google-backed؛ Zero-Google غير مكتمل. الخطوة التالية: نشر API Worker يدويًا، ثم logout/login مرة واحدة لتغذية shadow، وبعدها فتح Orders. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_SESSION_D1_SHADOW_HANDOFF_ENTRY_497_2026-09-30.md`.
 
 **Entry496 — أحدث عمل Repo-only، غير منشور:** تم إصلاح حجب قائمة الأوردرات بسبب تقادم enrichment mirrors. Orders/Lines freshness والـstructural qualification ما زالوا محميين؛ تقادم customer/restriction enrichment أصبح advisory بدل إخفاء الأوردرات بالكامل، مع `enrichmentFreshness.degraded=true` وwarning `02CR_ENRICHMENT_STALE_ADVISORY`. فلتر `__DEBT__` الحساس لم يُنقل إلى هذا المسار. Permanent CI run `36742881020` = SUCCESS. الخطوة التالية: نشر API Worker يدويًا فقط؛ لا frontend change مطلوب لهذه المرحلة. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_02CR_DEGRADED_ENRICHMENT_VISIBILITY_ENTRY_496_2026-09-30.md`.
 
