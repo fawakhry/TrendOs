@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry517 clean pre-login capture required
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry518 Keep log enabled
+
+**Entry518 — clean capture preparation / Keep log enabled:** لقطة DevTools تؤكد أن خيار `Keep log` في Network أصبح مفعّلًا قبل إعادة اختبار الدخول. كانت تفاصيل Payload القديمة ظاهرة أثناء اللقطة؛ قيمة session token لم تُسجل ولن تُنسخ في الكتاب. لا استنتاج Auth جديد ولا Deploy. الخطوة التالية الوحيدة: مسح قائمة Network الحالية مع إبقاء Keep log مفعّلًا، لبدء Capture نظيف قبل إعادة الدخول.
 
 **Entry517 — Attendance failure is evidence, not yet root trigger:** مراجعة `attendance-v1.js` أثبتت أن `attendanceV1 op=state` عند الفشل يتم التقاطه داخل `detectMode()` ويتحول الموديول إلى fallback؛ لا توجد فيه دعوة `logout()` أو `clearSession()`. كذلك لقطة Network الحالية بدأت بعد أن كانت الجلسة منتهية بالفعل، لذلك Attendance هو أول failing action الذي تم فحصه في اللقطة الحالية وليس دليلًا أنه أول action سبّب كسر الـtoken. المطلوب Capture جديد يبدأ قبل Login مع Preserve/Keep log، ثم تحديد أول POST بعد login الذي يعيد session-expired. لا تعديل كود أو Deploy في هذه الخطوة.
 
