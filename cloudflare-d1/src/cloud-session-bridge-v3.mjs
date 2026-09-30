@@ -14,6 +14,7 @@ const EDGE_SESSION_PATH = '/v1/edge/session';
 const ORDERS_SESSION_PATH = '/v1/edge/orders/session';
 const DEFAULT_TTL_SECONDS = 600;
 const MAX_TTL_SECONDS = 900;
+const ORDERS_SESSION_MAX_TTL_SECONDS = 240;
 const DEFAULT_ORIGINS = [
   'https://fawakhry.github.io',
   'http://localhost:8000',
@@ -81,6 +82,10 @@ function screensForRole(roleValue) {
 
 function sessionTtlSeconds(env) {
   return clampInt(env.EDGE_SESSION_TTL_SECONDS, DEFAULT_TTL_SECONDS, 60, MAX_TTL_SECONDS);
+}
+
+function ordersSessionTtlSeconds(env) {
+  return Math.min(sessionTtlSeconds(env), ORDERS_SESSION_MAX_TTL_SECONDS);
 }
 
 function maybeShadowDiagnostic(env, verified) {
@@ -256,7 +261,7 @@ async function exchangeOrdersSession(request, env, cors) {
   const role = text(user.role || upstream.role || 'service').toLowerCase();
   const department = text(user.department || upstream.department);
   const screens = Array.isArray(user.screens) && user.screens.length ? user.screens.map(text) : screensForRole(role);
-  const ttl = sessionTtlSeconds(env);
+  const ttl = ordersSessionTtlSeconds(env);
   const now = Math.floor(Date.now() / 1000);
   const edgeToken = await issueOrdersEdgeToken({ sub: canonicalUsername, role, department, screens }, text(env.EDGE_SESSION_SECRET), now, ttl);
   return json({
