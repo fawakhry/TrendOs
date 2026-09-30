@@ -550,3 +550,53 @@ NATIVE_EMPLOYEE_LOGIN=NO
 ```
 
 Do not enable auth yet. Next action is Entry484 Cloudflare OFF-state installation only: Worker source may be deployed with every A61 flag false and legacy bridge allowlist empty, followed by OFF/disabled health verification.
+
+
+## A61 Cloudflare OFF-state Production installation — Entry491 — 2026-09-30
+
+Authoritative current state:
+
+```ini
+APPS_SCRIPT_PRODUCTION_VERSION=158
+A61_SOURCE_INSTALLED=YES
+SAVE_TIMEOUT_HOTFIX_V3_PRESERVED=YES
+DEPLOYMENT_ID_UNCHANGED=YES
+EXEC_URL_UNCHANGED=YES
+SCRIPT_PROPERTIES_TOUCHED=NO
+A61_BRIDGE_RUNTIME=OFF
+
+D1_AUTH_MIGRATION_APPLIED=ALREADY_APPLIED
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+EMPLOYEE_AUTH_TABLES_VERIFIED=YES
+POST_PENDING_MIGRATIONS=NONE
+
+CLOUDFLARE_A61_DEPLOY=YES_OFF_STATE
+CLOUDFLARE_ACTIVE_DEPLOYMENT=f2b306fb-5d54-4ede-8a7e-cdfc7289b103
+CLOUDFLARE_ACTIVE_VERSION=3232b4ce-1d1f-47d4-81a3-475c3ab5614e
+A61_LIVE_BUNDLE_SHA256=befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494
+A61_TARGET_BUNDLE_MATCH=YES
+
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_ACTIONS=
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+APPS_SCRIPT_API_URL_UNCHANGED=YES
+
+AUTH_HEALTH=PASS_OFF
+BRIDGE_HEALTH=PASS_DISABLED
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+PROTECTED_ROUTES=PASS_AUTH_PROTECTED
+
+NATIVE_EMPLOYEE_LOGIN=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_OWNER_ACTION=STOP_AWAIT_NEW_APPROVAL
+```
+
+Read-only drift preflight run `36687886593` proved the pre-deploy live Worker matched the exact pre-A61 baseline bundle. Controlled deploy run `36688462685` promoted the A61 OFF-state candidate, but its final version assertion had a shell-to-Node environment bug and did not produce an authoritative success result file. No rollback command executed. Independent post-deploy read-only run `36688742762` is authoritative and proves the A61 target is the sole live 100% version with every Auth/Bridge control OFF and no bridge secret configured.
+
+Do not repeat Phase B. Do not create/read/store `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`. Do not enable native auth, bootstrap, native-only, legacy bridge, or bridge actions. Do not move to native-login canary unless the owner explicitly opens a new phase.
