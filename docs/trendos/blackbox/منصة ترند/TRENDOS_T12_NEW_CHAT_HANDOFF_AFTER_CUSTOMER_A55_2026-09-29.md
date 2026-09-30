@@ -838,3 +838,37 @@ Production state above is the supplied/documented checkpoint, not a new live rea
 
 Detailed source inventory, tests, owner-only steps and verification commands:
 `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_BROWSER_GOOGLE_TRANSPORT_FIX_ENTRY_495_2026-09-30.md`
+
+
+---
+
+# Entry496 current checkpoint — 2026-09-30
+
+Owner manually installed Entry495 API + frontend. Browser direct Google/CORS is gone and legacy browser transport works through Cloudflare. Production Orders still showed HTTP 503 because 02CR enrichment mirrors exceeded the short freshness budget.
+
+Repo-only Entry496 fixes Orders visibility without restoring Google fallback:
+
+```ini
+ENTRY496_SOURCE_QUALIFIED=YES
+ENTRY496_PRODUCTION_DEPLOYED=NO
+ORDERS_02CR_STALE_ENRICHMENT_BLOCKS_VISIBILITY=NO
+ORDERS_LINES_FRESHNESS_GUARD=PRESERVED
+ORDERS_ENRICHMENT_STRUCTURAL_GUARD=PRESERVED
+DEBT_FILTER_CLOUD_02CR=NO
+BROWSER_GOOGLE_FALLBACK=NO
+PERMANENT_02CR_CI_RUN=36742881020_SUCCESS
+```
+
+Source behavior:
+- structurally invalid Lines/Customers/Restrictions still fail closed;
+- Orders/Lines freshness still uses existing write-age/idle-heartbeat verification;
+- stale but structurally qualified customer/restriction enrichment is advisory and no longer hides Orders;
+- successful responses expose `enrichmentFreshness` and warning `02CR_ENRICHMENT_STALE_ADVISORY` when degraded;
+- sensitive `__DEBT__` lane remains excluded from 02CR Cloud operational reads.
+
+Next owner action: manually publish the qualified API Worker to `trendos-d1-api` preserving all existing Variables/Secrets/Bindings. No frontend redeploy is required for Entry496. Then hard-refresh TrendOS and verify `/v1/edge/orders/02cr/page` returns 200 and Orders cards render.
+
+After production verification, first engineering task is Cloud-native duplicate-order guard.
+
+Detailed record:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_02CR_DEGRADED_ENRICHMENT_VISIBILITY_ENTRY_496_2026-09-30.md`
