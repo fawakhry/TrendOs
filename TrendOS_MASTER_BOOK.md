@@ -176,6 +176,18 @@ ACCIDENTAL_SAVE_RECOVERY=NOT_VERIFIED
 
 **A61 Phase A install revision — Entry487:** Script Properties access is deferred during source installation because prior inspection surfaced sensitive values. The bridge is fail-closed when its flag is absent/not exactly true and when its secret is absent/invalid, so source install can proceed safely with no Script Properties access. Production source must be current live HEAD + the exact qualified A61 additive patch only; never paste GitHub main wholesale. Pre-save candidate SHA-256 must equal `0980dd77395d2cc895d4344beb6db2156ad03fe1ee230fcea6c30c1ff393b295`. After exact-source verification, create a new version on the existing deployment while keeping the same Deployment ID/access model. D1/Cloudflare remain out of scope until this source install is verified.
 
+**A61 Phase A Production install — Entry489:** Production Apps Script source installation and deployment succeeded. The qualified live-head candidate (exact PR30 additive A61 delta over captured Production HEAD) matched SHA-256 `0980dd77395d2cc895d4344beb6db2156ad03fe1ee230fcea6c30c1ff393b295`, preserved the Production save-timeout hotfix, and was deployed as **Version 158** on the existing Web App deployment. Deployment ID and `/exec` URL remained unchanged. Script Properties were not touched, so the A61 bridge runtime remains OFF. No D1 or Cloudflare mutation occurred. Next step is Entry484 Phase B: additive D1 auth migration with control mode verified `OFF`.
+
+```ini
+APPS_SCRIPT_PRODUCTION_DEPLOY=YES
+APPS_SCRIPT_PRODUCTION_VERSION=158
+A61_SOURCE_INSTALLED=YES
+A61_BRIDGE_RUNTIME=OFF
+D1_AUTH_MIGRATION_APPLIED=NO
+CLOUDFLARE_A61_DEPLOY=NO
+NEXT_OWNER_ACTION=ENTRY484_PHASE_B_D1_MIGRATION_OFF
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
