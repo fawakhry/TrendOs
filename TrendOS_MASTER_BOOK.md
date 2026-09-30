@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry521 logout control visible before clean capture
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry522 explicit logout completed
+
+**Entry522 — explicit logout completed; clean landing page reached:** Owner clicked Logout and the main UI returned to the landing page with Employee Login and Customer Login. The press widget still displayed the prior session-expired state on the landing page, confirming that the widget lifecycle is independent from the main employee view. The first attempt to write this Entry was blocked by execution safety before any repository mutation; this retry records both the operational result and that blocked documentation attempt. No deploy, secret, variable, binding, D1, Order ID, or Order Status change occurred. Next: reopen DevTools before a fresh login capture.
 
 **Entry521 — Logout control visible before clean pre-login capture:** لقطة المالك تُظهر لوحة TrendOS الرئيسية باسم المستخدم ضياء، وزر `خروج` ظاهر بوضوح، بينما Widget المكبس ما زال يعرض `انتهت الجلسة. سجل الدخول مرة أخرى.`. الهدف الآن إنهاء الجلسة القديمة صراحةً قبل Fresh Login capture مع إبقاء Network Keep log مفعّلًا. لا Deploy ولا Runtime mutation.
 
