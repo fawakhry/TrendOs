@@ -2,7 +2,7 @@
 
 Date: 2026-09-29 Cairo
 Repository: `fawakhry/TrendOs`
-Working branch: `cloud-migration-v3-t12-order-create-ci-20260919`
+Working branch: `candidate/t12-full-cloud-cutover-a56-20260929`
 
 ## Read first
 1. `الصندوق الاسود.md`
@@ -600,3 +600,74 @@ NEXT_OWNER_ACTION=STOP_AWAIT_NEW_APPROVAL
 Read-only drift preflight run `36687886593` proved the pre-deploy live Worker matched the exact pre-A61 baseline bundle. Controlled deploy run `36688462685` promoted the A61 OFF-state candidate, but its final version assertion had a shell-to-Node environment bug and did not produce an authoritative success result file. No rollback command executed. Independent post-deploy read-only run `36688742762` is authoritative and proves the A61 target is the sole live 100% version with every Auth/Bridge control OFF and no bridge secret configured.
 
 Do not repeat Phase B. Do not create/read/store `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`. Do not enable native auth, bootstrap, native-only, legacy bridge, or bridge actions. Do not move to native-login canary unless the owner explicitly opens a new phase.
+
+
+---
+
+# A61 Entry492 current checkpoint — 2026-09-30
+
+Owner explicitly authorized continuing transfer after Entry491.
+
+## What changed
+- A single-user native bootstrap canary was attempted using protected GitHub Actions qualification credentials.
+- Preflight passed; native auth/bootstrap was temporarily opened in TRANSITIONAL mode while Native-only and Legacy Bridge stayed OFF.
+- Apps Script rejected the stored qualification credential with HTTP 401. The credential value was never read or logged and is treated as stale after A60.
+- No native verifier was created: `NATIVE_READY_COUNT=0`.
+- Emergency rollback restored D1 auth control OFF and canonical Worker OFF-state.
+- Independent rollback verification run `36692423714` = SUCCESS.
+- Authoritative A61 verifier run `36688742762`, attempt 2 = SUCCESS.
+- Current API Worker is byte-for-byte the locked A61 target.
+- Exact current-main frontend was deployed to Cloudflare with Employee Dispatcher present but all employee cutover flags default-OFF.
+- D1 read-only discovery found no separate Users mirror table from which to seed native employee profiles.
+- Temporary workflows created for the canary/deploy/discovery were deleted.
+
+## Authoritative current state
+```ini
+APPS_SCRIPT_PRODUCTION_VERSION=158
+A61_SOURCE_INSTALLED=YES
+SAVE_TIMEOUT_HOTFIX_V3_PRESERVED=YES
+SCRIPT_PROPERTIES_TOUCHED=NO
+
+CLOUDFLARE_A61_DEPLOY=YES_OFF_STATE
+CLOUDFLARE_ACTIVE_DEPLOYMENT=d28ab053-3811-46dd-ae79-ca23137f6a79
+CLOUDFLARE_ACTIVE_VERSION=a2f0bb11-3fbc-4f9b-ba87-a8a6826a7a92
+A61_LIVE_BUNDLE_SHA256=befde84a727cf7bb0b7f3a8769b7b5aad560d783ab7edf9f783430e84b083494
+A61_TARGET_BUNDLE_MATCH=YES
+SETTINGS_OFF_STATE=PASS
+
+A61_FRONTEND_DISPATCHER_LIVE=YES_DEFAULT_OFF
+A61_FRONTEND_VERSION=48c7ae87-0998-4e67-97df-b198a54d97e1
+A61_FRONTEND_SOURCE_MAIN=12dd9d31bcd36db736f0c06191812bdcc5167bad
+
+D1_AUTH_MIGRATION_APPLIED=YES
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+EMPLOYEE_AUTH_TABLES_VERIFIED=YES
+NATIVE_READY_COUNT=0
+
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+EMPLOYEE_LEGACY_BRIDGE_ACTIONS=
+EMPLOYEE_LEGACY_BRIDGE_SECRET_V1=DEFERRED_NOT_CONFIGURED
+APPS_SCRIPT_API_URL_UNCHANGED=YES
+
+AUTH_HEALTH=PASS_OFF
+BRIDGE_HEALTH=PASS_DISABLED
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+PROTECTED_ROUTES=PASS_AUTH_PROTECTED
+
+NATIVE_EMPLOYEE_LOGIN=NO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+A61_NATIVE_BOOTSTRAP_CANARY=BLOCKED_STALE_QUALIFY_CREDENTIAL
+NEXT_OWNER_ACTION=REFRESH_PRODUCTION_QUALIFICATION_CREDENTIAL_OUTSIDE_CHAT_THEN_RERUN_SINGLE_USER_NATIVE_BOOTSTRAP_CANARY
+```
+
+## Next step
+Do not send or store an employee password in chat/repo/docs/logs. Refresh the protected Production qualification credential through the external secret-management path, then rerun exactly one native bootstrap canary. Keep bridge enablement, Native-only mode, bulk employee migration, Legacy Orders cutover, and generic API-base flip closed until the single-user canary succeeds.
+
+Detailed record:
+`docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_FRONTEND_OFF_STATE_AND_NATIVE_CANARY_BLOCKED_ENTRY_492_2026-09-30.md`
