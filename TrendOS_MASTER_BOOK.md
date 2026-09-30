@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry528 same login response repeated; no new diagnostic
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry529 next post-login fetch row identified visually
+
+**Entry529 — next post-login fetch row identified visually:** In the preserved Network list, the currently selected highlighted row is the successful login fetch. The next real `legacy-api` fetch after it is the first subsequent row whose Type is `fetch`, after skipping intervening `preflight` rows; in the supplied screenshot it is the row showing approximately `Size 2.7 kB` and `Time 6.29 s`. No payload/response has been inspected yet, so no auth conclusion changes. No deploy or runtime mutation occurred.
 
 **Entry528 — same successful login Response repeated / no new diagnostic:** Owner supplied the same JSON Response already captured in Entry527 for the initial `action="login"` request: `success=true` with employee metadata and expiry. Token value remains intentionally unrecorded. No new post-login action has been inspected yet, so diagnosis is unchanged. No deploy or runtime mutation occurred. Next: select the next real `legacy-api` fetch after login, open Payload, and report only `action` and `op` if present.
 
