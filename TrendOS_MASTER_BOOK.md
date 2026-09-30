@@ -188,6 +188,18 @@ CLOUDFLARE_A61_DEPLOY=NO
 NEXT_OWNER_ACTION=ENTRY484_PHASE_B_D1_MIGRATION_OFF
 ```
 
+**A61 Phase B D1 OFF — Entry490:** additive D1 auth migration is complete and verified in Production. Remote migration list has no pending A61 migration; `employee_auth_control_v1`, `employee_auth_users_v1`, and `employee_auth_sessions_v1` exist; the control row is still `mode=OFF`, marker `T12_EMPLOYEE_AUTH_V1`, `policy_epoch=1`. Apps Script remains Version 158. No Worker deploy, auth enablement, Orders/Customers/Accounting mutation occurred.
+
+```ini
+A61_D1_MIGRATION_APPLIED=YES
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+EMPLOYEE_AUTH_TABLES_VERIFIED=YES
+APPS_SCRIPT_PRODUCTION_VERSION=158
+CLOUDFLARE_A61_DEPLOY=NO
+NATIVE_EMPLOYEE_LOGIN=NO
+NEXT_OWNER_ACTION=ENTRY484_PHASE_C_D_CLOUDFLARE_OFF_STATE
+```
+
 **بعد Auth — ترتيب Zero-Google:** Legacy Orders → Attendance/Cleaning/HR/Press → Accounting/Party ledger → Customer portal/conversations/files/proofs → Trend Master/notes/customer-manager/feedback/automation → Platform content/marketplace/franchise/white-label → flip generic API base → final runtime audit.
 
 **معيار الإغلاق النهائي:**
