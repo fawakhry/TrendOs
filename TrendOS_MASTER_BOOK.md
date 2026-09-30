@@ -1,10 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.77-DRAFT-COMPACT — T12 Orders D1 snapshot Zero-Google visibility qualified; Entry498** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.78-DRAFT-COMPACT — T12 frontend session persistence qualified; Entry499** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد Orders D1 snapshot visibility / Entry498
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد frontend session persistence / Entry499
+
+**Entry499 — أحدث عمل Repo-only، غير منشور:** Frontend اتعدل لقبول Entry498 stale D1 advisory بإثبات metadata مطابق، وإلغاء أي auto-logout مبني على رسالة فشل تحميل بيانات، وإيقاف Press polling بعد اختفاء employee token. Explicit logout فقط هو اللي يمسح الجلسة. CI `36749869635` = SUCCESS. المطلوب نشر `trendos-ui` فقط؛ API لا يحتاج نشر جديد لـEntry499. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_FRONTEND_SESSION_PERSISTENCE_AND_ZERO_GOOGLE_READ_ENTRY_499_2026-09-30.md`.
 
 **Entry498 — أحدث عمل Repo-only، غير منشور:** تم إزالة Google/Apps Script idle-heartbeat كشرط لعرض Orders عندما يكون D1 Lines snapshot قديم زمنيًا لكنه structurally qualified. مصدر العرض أصبح D1 qualified base snapshot + T12 native overlay؛ تقادم snapshot أصبح advisory مع `02CR_LINES_STALE_SNAPSHOT_ADVISORY`. Structural qualification/parity ما زالت fail-closed. CI: `36747545768` SUCCESS وBrowser transport `36747545745` SUCCESS. الخطوة التالية: نشر API Worker يدويًا فقط ثم تحقق 200 وظهور الأوردرات. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ORDERS_D1_SNAPSHOT_ZERO_GOOGLE_VISIBILITY_ENTRY_498_2026-09-30.md`.
 
