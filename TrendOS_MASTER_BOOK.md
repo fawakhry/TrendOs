@@ -6,7 +6,9 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry508 Network capture shows legacy-api HTTP 200
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry509 legacy-api HTTP 200 headers confirmed
+
+**Entry509 — أول legacy-api fetch headers confirmed:** المالك فتح أول طلب `POST /v1/legacy-api` من نوع fetch. النتيجة: HTTP `200 OK`, `content-type: application/json; charset=utf-8`, `cache-control: no-store`, CORS صحيح للواجهة `https://trendos-ui.trendmall-contact.workers.dev`, و`content-length: 143`. إذن Transport/network/CORS لهذا الطلب ناجح، والمطلوب قراءة JSON Response نفسه لتحديد `success/code/message`. لا Deploy جديد قبل ذلك.
 
 **Entry508 — Network capture بعد فتح DevTools:** المالك فتح تبويب Network أثناء بقاء رسالة انتهاء الجلسة. القائمة تُظهر عدة طلبات `legacy-api` من نوع fetch، ومعظمها HTTP `200`، وبينها طلب واحد Pending؛ preflight أيضًا 200. هذا يعني أن لقطة Network الحالية لا تثبت Transport-level 401، ويرجّح أن فشل الجلسة موجود داخل JSON application response (`success:false`) أو أن 401 في Console كانت من طلبات سابقة. لا Deploy جديد. الخطوة التالية الوحيدة: اختيار أول `legacy-api` من نوع fetch (ليس preflight) وفتح تبويب Response لقراءة JSON، بدون كشف token.
 
