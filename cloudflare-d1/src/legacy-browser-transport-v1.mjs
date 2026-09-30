@@ -1,6 +1,7 @@
 import { rememberCloudAuthShadow, revokeCloudAuthShadow } from './cloud-auth-shadow-v1.mjs';
 /* Temporary transport only: Apps Script still authorizes legacy sessions/actions.
- * Fixed upstream from server config; no D1 writes, credential storage, or native bridge.
+ * Fixed upstream from server config. Successful employee auth may seed/revoke only
+ * the HMAC-fingerprinted D1 auth shadow; plaintext passwords/tokens are never stored.
  */
 export const LEGACY_BROWSER_PATH = '/v1/legacy-api';
 export const LEGACY_BROWSER_ACTIONS = new Set([
