@@ -1,10 +1,10 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.72-DRAFT-COMPACT — T12 A61 Diya enrollment gate qualified; credential path blocked safely through Entry493** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.73-DRAFT-COMPACT — T12 A61 Diya credential proven; direct bootstrap hardened through Entry494** · تاريخ التحديث: 2026-09-30 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Diya enrollment-gate qualification / Entry493
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover بعد A61 Direct Bootstrap qualification / Entry494
 
 **Checkpoint قبل هذا التحديث:** Working-branch HEAD المعروف `b500be4975f8d323c33e8ab8664f77cc28f787e2` (Entry478 documentation). آخر `main` وظيفي معروف `e5efcb39acf33a70ce13f16125e307a51994bb65` (A60 logging hygiene). هذه الصفحة تلغي كحالة حالية أي نص أقدم يقول إن Customer write authority ما زالت Apps Script أو إن واجهة TrendOS الأساسية ما زالت GitHub Pages.
 
@@ -20,6 +20,27 @@ GOOGLE_RUNTIME_DEPENDENCY=0
 إغلاق الكتاب النهائي متوقف مؤقتًا حتى اكتمال نقل Runtime من Google وإثبات Zero-Google audit.
 
 **A61 — Entry493 / أحدث نقطة مؤكدة:** مسار session-bound enrollment أصبح مؤهلًا ومثبتًا default-OFF. Gate-first canary run `36701443364` أثبت قبل أي Login أن نافذة الاختبار نفسها صحيحة: `TRANSITIONAL` + Employee Auth ON + Session Enrollment ON + exact canary user configured + Native-only OFF. بعد ذلك Apps Script login لحساب `ضياء` رجع HTTP 200 لكن `success=false` بدون rate-limit وبدون server-error، رغم أن guarded runs سابقة وصلت `A61_LEGACY_LOGIN_FOR_ENROLL=PASS`. قراءة Users sheet مباشرة وبأعمدة غير حساسة فقط أثبتت أن `ضياء` موجود، `مفعل=نعم`، `الصلاحية=مدير`، `mustChange=لا`. Password/Token columns لم تُقرأ. لم يُنشأ أي native verifier.
+
+**A61 — Entry494 / أحدث نقطة مؤكدة:** تم إثبات أن credential ضياء الحالي صحيح لأن Apps Script login نجح، لكن session-bound enrollment فشل مرتين بعد نجاح login عند طلب `verifyEmployeeSession` الثاني (مرة 401 ومرة 502). لذلك هذا المسار لا يُعاد. مسار Cloudflare `legacyLoginBootstrap()` الأحادي تم تقويته إلى timeout 90s مع retry واحد فقط على 404/408/429/5xx، وتأهيل المصدر نجح في run `36705645597`. لم يتم تشغيل direct-bootstrap Production canary لأن أداة GitHub المتصلة رفضت إنشاء/تعديل workflow Production حساسة تجمع protected credentials مع Cloudflare/D1 mutation، ولم يتم تجاوز هذا القيد. التحقق النهائي read-only run `36707102974` = SUCCESS وأثبت Runtime OFF و`NATIVE_READY_COUNT=0` وCustomers=247 GENERAL وOrder Create=GENERAL وBridge OFF. Detailed record: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_A61_DIYA_DIRECT_BOOTSTRAP_READY_BLOCKED_ENTRY_494_2026-09-30.md`.
+
+```ini
+DIYA_QUALIFICATION_CREDENTIAL=PROVEN_VALID
+SESSION_BOUND_ENROLLMENT=DO_NOT_RETRY
+DIRECT_BOOTSTRAP_HARDENED_SOURCE=QUALIFIED_DEFAULT_OFF
+DIRECT_BOOTSTRAP_PRODUCTION_CANARY=NOT_EXECUTED
+CLOUDFLARE_ACTIVE_DEPLOYMENT=09221ed7-8906-4b5a-8d3e-f6669e326801
+CLOUDFLARE_ACTIVE_VERSION=939076d7-8d0a-48f8-ab6c-693176817b2b
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+NATIVE_USER_COUNT=0
+NATIVE_READY_COUNT=0
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+CUSTOMER_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+ORDER_CREATE_MODE=GENERAL
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_STEP=EXECUTE_CURRENT_HEAD_DIRECT_BOOTSTRAP_CANARY_THROUGH_APPROVED_PATH
+```
 
 Independent post-canary read-only run `36701918580` = SUCCESS:
 ```ini
