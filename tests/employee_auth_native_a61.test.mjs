@@ -67,7 +67,11 @@ assert.match(moduleSource, /legacySessionEnrollEnabled: employeeAuthLegacySessio
 assert.match(moduleSource, /enrollCanaryUserConfigured/);
 assert.match(moduleSource, /pbkdf2-sha256-v1/);
 assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED/);
-assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000/);
+assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 90000/);
+assert.match(moduleSource, /LEGACY_BOOTSTRAP_TRANSIENT_RETRY_MS = 1500/);
+assert.match(moduleSource, /response\.status === 404/);
+assert.match(moduleSource, /response\.status >= 500/);
+assert.match(moduleSource, /attempt === 1/);
 assert.match(moduleSource, /LEGACY_SESSION_VERIFY_TIMEOUT_MS = 90000/);
 assert.match(moduleSource, /raw = await response\.text\(\)/);
 assert.match(moduleSource, /Legacy login bootstrap timed out/);
