@@ -15,7 +15,7 @@ const MAX_SESSION_TTL_SECONDS = 86400;
 const LOGIN_LIMIT = 5;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
 const LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000;
-const LEGACY_SESSION_VERIFY_TIMEOUT_MS = 20000;
+const LEGACY_SESSION_VERIFY_TIMEOUT_MS = 90000;
 const PASSWORD_SCHEME = 'pbkdf2-sha256-v1';
 const DEFAULT_ORIGINS = [
   'https://fawakhry.github.io',
@@ -540,6 +540,7 @@ async function verifyLegacySessionForEnrollment(username, legacyToken, env) {
   const timer = setTimeout(() => controller.abort(), LEGACY_SESSION_VERIFY_TIMEOUT_MS);
   try {
     let response;
+    let raw = '';
     try {
       response = await fetch(upstream, {
         method: 'POST',
@@ -548,6 +549,7 @@ async function verifyLegacySessionForEnrollment(username, legacyToken, env) {
         redirect: 'follow',
         signal: controller.signal
       });
+      raw = await response.text();
     } catch (err) {
       return {
         ok: false,
@@ -557,8 +559,6 @@ async function verifyLegacySessionForEnrollment(username, legacyToken, env) {
           : 'Legacy session verification request failed'
       };
     }
-
-    const raw = await response.text();
     let body = {};
     try { body = JSON.parse(raw || '{}'); } catch (err) {
       return { ok: false, kind: 'upstream', message: 'Legacy session verification returned invalid JSON' };
