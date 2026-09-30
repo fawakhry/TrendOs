@@ -531,3 +531,22 @@ NEXT_STEP=ENTRY484_PHASE_B_D1_MIGRATION_OFF
 ```
 
 Do not reopen Script Properties during this handoff. A61 bridge runtime remains OFF. Next action is the additive D1 migration with employee auth control verified OFF before any Worker/auth enablement.
+
+
+---
+
+# A61 Phase B D1 OFF success — Entry490
+
+Production D1 Phase B is complete.
+
+```ini
+A61_D1_MIGRATION_APPLIED=YES
+POST_PENDING_MIGRATIONS=NONE
+EMPLOYEE_AUTH_CONTROL_MODE=OFF
+EMPLOYEE_AUTH_TABLES_VERIFIED=YES
+APPS_SCRIPT_PRODUCTION_VERSION=158
+CLOUDFLARE_WORKER_DEPLOY=NO
+NATIVE_EMPLOYEE_LOGIN=NO
+```
+
+Do not enable auth yet. Next action is Entry484 Cloudflare OFF-state installation only: Worker source may be deployed with every A61 flag false and legacy bridge allowlist empty, followed by OFF/disabled health verification.
