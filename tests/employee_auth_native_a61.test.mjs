@@ -68,7 +68,7 @@ assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED/);
 assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000/);
 assert.match(moduleSource, /Legacy login bootstrap timed out/);
 assert.match(moduleSource, /Legacy login bootstrap request failed/);
-assert.match(moduleSource, /employee-auth\/enroll-legacy-session/);
+assert.match(moduleSource, /employee\/auth\/enroll-legacy-session/);
 assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED/);
 assert.match(moduleSource, /EMPLOYEE_AUTH_ENROLL_CANARY_USER/);
 assert.match(moduleSource, /EMPLOYEE_AUTH_ENROLL_NONCE/);
