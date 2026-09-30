@@ -1,0 +1,55 @@
+name: TrendOS T12 A61 Post-Canary OFF Verify TEMP
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-t12-a61-postcanary-off-verify-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify OFF state and business health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$PROD_URL/v1/employee/auth/health" > /tmp/a.json
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$PROD_URL/v1/employee/legacy-action/health" > /tmp/b.json
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$PROD_URL/v1/t12/customers/write/health" > /tmp/c.json
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$PROD_URL/v1/t12/orders/create/health" > /tmp/o.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/a.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/b.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/c.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/o.json','utf8'));
+          if(!a.success||a.schemaReady!==true||a.mode!=='OFF'||a.envEnabled!==false||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false) process.exit(1);
+          if(Number(a.nativeReadyCount||0)!==0) process.exit(2);
+          if(!b.success||b.enabled!==false) process.exit(3);
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL') process.exit(4);
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') process.exit(5);
+          console.log('A61_POSTCANARY_OFF_VERIFY=PASS');
+          console.log('NATIVE_READY_COUNT=0');
+          console.log('CUSTOMER_MODE=GENERAL');
+          console.log('ORDER_CREATE_MODE=GENERAL');
+          NODE
+          cd cloudflare-d1
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config wrangler.toml --command "SELECT mode,marker,policy_epoch FROM employee_auth_control_v1 WHERE singleton=1;" > /tmp/d1.txt
+          grep -q 'OFF' /tmp/d1.txt
+          grep -q 'T12_EMPLOYEE_AUTH_V1' /tmp/d1.txt
+          echo 'A61_D1_CONTROL=OFF'
