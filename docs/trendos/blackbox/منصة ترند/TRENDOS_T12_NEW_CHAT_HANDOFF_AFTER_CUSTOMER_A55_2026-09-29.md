@@ -504,3 +504,30 @@ Production source install strategy:
 9. keep Deployment ID/access model unchanged.
 
 No Script Properties, D1, Cloudflare, Orders, Customers, or Accounting mutation belongs in this step.
+
+
+---
+
+# A61 Phase A Production deploy success — Entry489
+
+Production Apps Script Phase A is complete.
+
+```ini
+SOURCE_BASE=CAPTURED_LIVE_PRODUCTION_HEAD
+A61_PATCH=PR30_EXACT
+CANDIDATE_SHA256=0980dd77395d2cc895d4344beb6db2156ad03fe1ee230fcea6c30c1ff393b295
+CANDIDATE_HASH_MATCH=YES
+SAVE_TIMEOUT_HOTFIX_V3_PRESERVED=YES
+A61_BRIDGE_SOURCE_PRESENT=YES
+SCRIPT_PROPERTIES_TOUCHED=NO
+PREVIOUS_VERSION=157
+NEW_VERSION=158
+DEPLOYMENT_ID_UNCHANGED=YES
+EXEC_URL_UNCHANGED=YES
+APPS_SCRIPT_DEPLOY=SUCCESS
+D1_MUTATION=NO
+CLOUDFLARE_MUTATION=NO
+NEXT_STEP=ENTRY484_PHASE_B_D1_MIGRATION_OFF
+```
+
+Do not reopen Script Properties during this handoff. A61 bridge runtime remains OFF. Next action is the additive D1 migration with employee auth control verified OFF before any Worker/auth enablement.
