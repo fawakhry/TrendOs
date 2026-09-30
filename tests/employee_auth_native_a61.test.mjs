@@ -66,6 +66,8 @@ const moduleSource = fs.readFileSync('cloudflare-d1/src/employee-auth-native-v1.
 assert.match(moduleSource, /pbkdf2-sha256-v1/);
 assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED/);
 assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 45000/);
+assert.match(moduleSource, /LEGACY_SESSION_VERIFY_TIMEOUT_MS = 90000/);
+assert.match(moduleSource, /raw = await response\.text\(\)/);
 assert.match(moduleSource, /Legacy login bootstrap timed out/);
 assert.match(moduleSource, /Legacy login bootstrap request failed/);
 assert.match(moduleSource, /employee\/auth\/enroll-legacy-session/);
