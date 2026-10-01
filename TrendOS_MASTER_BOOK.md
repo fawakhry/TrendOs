@@ -26,6 +26,25 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry563 — Cloudflare rollback confirmation screen verified before execution:** READY/NO-OP — Owner screenshot shows Cloudflare `Rollback trendos-ui` confirmation with current deployed version prefix `589844aa` and rollback target `71364637` labeled `TrendOS Entry499 frontend manual version; create only, no deployment`. This matches the authorized rollback target from Entry562. Rollback has not yet been executed at this entry. No other settings are shown for change.
+
+```ini
+ENTRY563_ROLLBACK_SCREEN_VERIFIED=YES
+CURRENT_VERSION_PREFIX=589844aa
+ROLLBACK_TARGET_VERSION=71364637
+ROLLBACK_EXECUTED=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=CLICK_CLOUDFLARE_ROLLBACK_BUTTON_THEN_VERIFY_71364637_ACTIVE_AT_100_PERCENT
+```
+
+
 **Entry562 — post-refresh Orders acceptance test failed; session survived but Orders did not load:** FAILURE/READ-ONLY — After waiting following the browser refresh from Entry561, owner provided a second Production screenshot showing the Orders/printing section still without loaded order rows. The signed-in page/session remained present, so employee session persistence passed, but the required Orders reload after Browser Refresh did not. No order status, customer data, D1, Apps Script, API Worker, secrets, variables, bindings, or routes were changed during this test. Acceptance criterion for the promoted frontend is therefore failed and no controlled write test is authorized. Recommended immediate action: rollback only `trendos-ui` Production traffic to prior known active version `71364637` at 100%, with all other settings untouched.
 
 ```ini
