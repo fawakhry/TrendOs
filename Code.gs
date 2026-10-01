@@ -981,10 +981,25 @@ function authorize_(username, token) {
   const user = findUser_(normalize_(username));
   if (!user) return { ok: false, message: "المستخدم غير موجود." };
   if (user.active && user.active !== "نعم") return { ok: false, message: "هذا المستخدم غير مفعل." };
-  if (!token || !constantTimeEqualsV1922_(user.token, normalize_(token)) || sessionExpiredV1922_(user.lastLogin)) {
+
+  const presentedToken = normalize_(token);
+  const storedToken = normalize_(user.token);
+
+  // Session safety invariant:
+  // a missing/stale/mismatched request must NEVER revoke the currently stored
+  // employee session. Otherwise an old in-flight tab/module can arrive after a
+  // successful new login and erase the brand-new token (session-kill race).
+  if (!presentedToken || !storedToken || !constantTimeEqualsV1922_(storedToken, presentedToken)) {
+    return { ok: false, message: "انتهت الجلسة. سجل الدخول مرة أخرى." };
+  }
+
+  // Expiry belongs to the exact currently presented session, so clearing that
+  // matching expired token is safe and preserves explicit expiry semantics.
+  if (sessionExpiredV1922_(user.lastLogin)) {
     if (user.colToken) safeSet_(user.sheet, user.rowNumber, user.colToken, "");
     return { ok: false, message: "انتهت الجلسة. سجل الدخول مرة أخرى." };
   }
+
   return { ok: true, user: user };
 }
 
