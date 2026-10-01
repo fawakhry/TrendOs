@@ -26,6 +26,25 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry577 — repo-only initial Edge readiness fix implemented; final CI blocked by stale old cache-tag assertion:** PARTIAL/CI-FAIL — Implemented source-only startup repair in `app.js`: `bootMain()` no longer calls initial `loadRows()` directly; it now waits for the Edge Orders router, attempts loader installation, retries up to 40×250ms, and fails closed instead of sending the initial Orders read through legacy transport. App source commit: `7b7774089470838305d226f307a88bd12ea932a7`. Added dedicated regression `tests/frontend_orders_initial_edge_ready_entry577.test.mjs` in commit `0da90f090ec11999b3e1d477b81067064988f116`; wired it into A61 CI in commit `7bccd830137f925c65770da93d3d0f2f61497825`. A61 run `36903598444` = SUCCESS and A56 run `36903369789` = SUCCESS for the source fix. Then bumped `index.html` app cache tag to `20261001-initial-edge-ready` in commit `4d666c33a10e164bb9a57b7e233717aede05b3f5` and locked it in the new regression at `b5dee1d15b4d1721e43dcd0c8a802149cfd67c27`. Final A61 run `36903753017` failed because pre-existing `tests/frontend_order_status_ux_02cv.test.mjs` still asserts the old app cache tag `20260930-a61-cloud-transport`; this is a stale test expectation, not evidence that the startup fix failed. No Production deploy occurred.
+
+```ini
+ENTRY577_STARTUP_FIX_IMPLEMENTED=YES
+APP_SOURCE_COMMIT=7b7774089470838305d226f307a88bd12ea932a7
+DEDICATED_REGRESSION_ADDED=YES
+DEDICATED_REGRESSION_CI_WIRED=YES
+A61_PRE_CACHE_TAG_RUN_36903598444=SUCCESS
+A56_SOURCE_RUN_36903369789=SUCCESS
+APP_CACHE_TAG=20261001-initial-edge-ready
+FINAL_A61_RUN_36903753017=FAIL_STALE_TEST_EXPECTATION
+STALE_TEST=tests/frontend_order_status_ux_02cv.test.mjs
+PRODUCTION_DEPLOYED=NO
+ACTIVE_PRODUCTION_FRONTEND=71364637
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=UPDATE_STALE_CACHE_TAG_ASSERTION_AND_RERUN_CI
+```
+
+
 **Entry576 — source confirms section-tab click reissues loadRows after startup and explains owner recovery behavior:** CONFIRMED/READ-ONLY — Source review of `app.js` shows `renderTabs()` assigns each Printing/Laser/Customer Service tab an `onclick` handler that updates `state.screen`, resets paging/edit state, rerenders UI, and ends with `loadRows()`. This exactly explains the owner's Entry575 observation: Browser Refresh initial load can miss Edge-wrapper readiness, then a later section click triggers a fresh Orders read after the wrapper has installed and Orders render normally. This closes the behavioral diagnosis without requiring any Production mutation.
 
 ```ini
