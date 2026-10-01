@@ -1,0 +1,77 @@
+name: TrendOS Entry546 Frontend Refresh Recovery Manual Bundle
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry546-frontend-refresh-recovery-manual-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout packaging tools
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout exact qualified frontend source
+        uses: actions/checkout@v4
+        with:
+          ref: 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051
+          path: qualified-source
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Qualify exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd qualified-source
+          test "$(git rev-parse HEAD)" = "98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051"
+          grep -F '20261001-post-refresh-recovery' config.js >/dev/null
+          grep -F 'recoverPostWriteBarrier' trendos-edge-orders-read-v1.js >/dev/null
+          grep -F 'postWriteBarrierRecoveries' trendos-edge-orders-read-v1.js >/dev/null
+          node --check trendos-edge-orders-read-v1.js
+          node tests/frontend_order_status_write_consistency_02cv.test.mjs
+          node tests/frontend_employee_session_isolation_entry533.test.mjs
+          node tests/frontend_no_direct_google_transport_a61.test.mjs
+          cd ..
+          echo 'ENTRY546_SOURCE_QUALIFIED=PASS'
+
+      - name: Build frontend-only package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist/entry546
+          mkdir -p dist/entry546/frontend-dist
+          find qualified-source -maxdepth 1 -type f ( -name '*.html' -o -name '*.js' -o -name '*.css' ) -print0             | xargs -0 -I{} cp "{}" dist/entry546/frontend-dist/
+          cp qualified-source/cloudflare-d1/src/frontend-static-worker.mjs dist/entry546/frontend-static-worker.mjs
+          cp tools/trendos-entry546-direct-upload.mjs dist/entry546/entry546-direct-upload.mjs
+          cp tools/trendos-entry546-direct-upload.ps1 dist/entry546/upload-entry546-version.ps1
+          cp tools/trendos-entry546-direct-upload.cmd dist/entry546/RUN_ENTRY546_UPLOAD.cmd
+          cp tools/TRENDOS_ENTRY546_DIRECT_UPLOAD_README.txt dist/entry546/README_ENTRY546.txt
+          node dist/entry546/entry546-direct-upload.mjs --package dist/entry546 --dry-run
+          (
+            cd dist/entry546
+            find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          )
+          printf '%s
+'             'TrendOS Orders Refresh Recovery - FRONTEND ONLY'             'Qualified source: 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051'             'Target: trendos-ui'             'Creates a Worker VERSION only; no deployment or traffic change.'             'Do not touch trendos-d1-api, D1, Apps Script, Secrets, Variables, Bindings or Routes.'             > dist/entry546/DEPLOY_ENTRY546_MANUAL.txt
+          echo 'ENTRY546_FRONTEND_MANUAL_BUNDLE=PASS'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trendos-entry546-frontend-refresh-recovery
+          path: dist/entry546/
+          if-no-files-found: error
+          retention-days: 90
