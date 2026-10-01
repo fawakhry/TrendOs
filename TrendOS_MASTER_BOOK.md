@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.82-DRAFT-COMPACT — Entry533 preventive session audit PASS / Entry531 publish ready** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.83-DRAFT-COMPACT — Entry531 source synchronized in Apps Script / manual publish pending** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry533 preventive session audit PASS; Entry531 manual Apps Script publish ready
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry531 source synchronized in Apps Script; manual publish still pending
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,22 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry534 — Apps Script Production Code.gs source synchronization confirmed / NO DEPLOY YET:** SUCCESS/PRE-PUBLISH — المالك نفّذ المطابقة اليدوية عبر ChatGPT Work ثم قدّم تقريرًا وصورة شاشة باسم `entry531-code-gs-saved-20261001.jpg`. التقرير المؤكد: `APPS_SCRIPT_CODE_GS_MATCH_GITHUB=YES`, `APPS_SCRIPT_CODE_GS_SAVED=YES`, `ENTRY531_SOURCE_PRESENT_IN_APPS_SCRIPT=YES`, `DEPLOYMENT_CHANGED=NO`, `NEW_VERSION_CREATED=NO`, `CLOUDFLARE_TOUCHED=NO`, `D1_TOUCHED=NO`, `READY_FOR_OWNER_MANUAL_APPS_SCRIPT_PUBLISH=YES`. إذن محرر Apps Script Production أصبح يحمل مصدر Entry531 المؤهل ومحفوظًا، لكن Web App deployment الحالي لم يتغير بعد ولا تزال `ENTRY531_APPS_SCRIPT_PRODUCTION_DEPLOYED=NO` حتى ينفّذ المالك يدويًا New version على **نفس** deployment الحالي. لا يُنشأ deployment جديد، ولا يتغير Web App URL/Deployment ID/execute-as/access، ولا Cloudflare/D1/Secrets/Variables/Bindings/Orders mutation. الخطوة التالية الوحيدة: المالك يفتح Deploy → Manage deployments → Edit لنفس Web App deployment → Version: New version → Deploy، ثم يرسل رقم النسخة أو صورة نجاح النشر لتسجيلها والتحقق من استقرار الجلسة.
+
+```ini
+ENTRY534_APPS_SCRIPT_CODE_GS_MATCH_GITHUB=YES
+ENTRY534_APPS_SCRIPT_CODE_GS_SAVED=YES
+ENTRY531_SOURCE_PRESENT_IN_APPS_SCRIPT=YES
+ENTRY531_APPS_SCRIPT_PRODUCTION_DEPLOYED=NO
+ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES
+DEPLOYMENT_CHANGED=NO
+NEW_VERSION_CREATED=NO
+CLOUDFLARE_TOUCHED=NO
+D1_TOUCHED=NO
+NEXT_OWNER_ACTION=PUBLISH_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
 ```
 
 
