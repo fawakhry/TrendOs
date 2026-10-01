@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.96-DRAFT-COMPACT — Entry590 cloud-native duplicate-order guard Repo-qualified** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.97-DRAFT-COMPACT — Entry591 duplicate-order Production preflight PASS; install gated** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry590 duplicate-order guard Repo-qualified; Production preflight next
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry591 duplicate-order Production preflight PASS; explicit Production install authorization required
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,49 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry591 — duplicate-order guard Production preflight passed read-only; live API lineage reconciled; install remains gated:** SUCCESS/READ-ONLY — Before any D1 migration or API Worker deployment, a dedicated Production preflight was run against `trendos-d1-api`. The first two comparison attempts were intentionally fail-closed while reconciling the exact historical build lineage: run `36912187101`/follow-up `36912297874` used an incorrect recent documentation baseline; run `36912450551` corrected the source lineage to Entry504 but still compared a Wrangler dry-run bundle against a Production Worker that had historically been built by the Entry504 manual `esbuild@0.25.10` procedure. No mutation occurred in any failed attempt. Historical workflow run `36760373871` proved the exact Entry504 manual bundle was built from qualified source `76477ccf7160634c75d7c21c8547bdbe4ff29f15` using `esbuild@0.25.10 cloudflare-d1/production-shadow/index.js --bundle --format=esm --platform=browser --target=es2022`. The preflight was corrected to reproduce that exact build method. Final run `36912595837`, job `110538670233`, completed **SUCCESS**.
+
+The final read-only evidence establishes: active API deployment `48197cec-4adc-4183-9ba9-26104c0634da`, active API version `b3deae0e-6503-4dfb-ab27-0344d43ddad5` at the current 100% deployment; the downloaded live Worker SHA-256 equals the exact Entry504 manual esbuild baseline SHA-256 `95eb969e1aaea5ee21ac5a8b7b859c40d5874dbf14ef56644d4dbb44bcf6ca53`; the qualified duplicate-guard target bundle SHA-256 is `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`; and the cloud source delta from the exact Entry504 qualified source to the current guard target is exactly three files: migration `0010_t12_duplicate_order_guard.sql`, `t12-general-create.mjs`, and `t12-general-create-handler.mjs`. Public create health is still PASS with `ORDER_CREATE_MODE=GENERAL`. A remote D1 SELECT-only sqlite_master probe proved `t12_prod_duplicate_order_guard` is currently absent, so migration 0010 has not been applied. No Cloudflare deploy, D1 write, order/customer/status mutation, Apps Script change, Secret/Variable/Binding/Route change occurred.
+
+Per the active runbook authorization gate, generic continuation is not treated as authorization to execute Production SQL/deploy. The next Production action must therefore remain stopped until explicit authorization names the bounded operation: apply **only** additive migration 0010 to `trendos-main`, deploy **only** the qualified `trendos-d1-api` guard target while preserving existing settings/bindings/secrets/routes, then perform read-only postflight. No business CREATE test is required or authorized for installation itself.
+
+```ini
+ENTRY591_DUPLICATE_GUARD_PRODUCTION_PREFLIGHT=PASS
+FINAL_PREFLIGHT_RUN=36912595837
+FINAL_PREFLIGHT_JOB=110538670233
+LIVE_API_DEPLOYMENT_ID=48197cec-4adc-4183-9ba9-26104c0634da
+LIVE_API_VERSION_ID=b3deae0e-6503-4dfb-ab27-0344d43ddad5
+LIVE_API_TRAFFIC_PERCENT=100
+ENTRY504_QUALIFIED_SOURCE=76477ccf7160634c75d7c21c8547bdbe4ff29f15
+ENTRY504_BUILD_METHOD=ESBUILD_0_25_10_PRODUCTION_SHADOW_INDEX
+LIVE_BUNDLE_SHA256=95eb969e1aaea5ee21ac5a8b7b859c40d5874dbf14ef56644d4dbb44bcf6ca53
+ENTRY504_BASELINE_BUNDLE_SHA256=95eb969e1aaea5ee21ac5a8b7b859c40d5874dbf14ef56644d4dbb44bcf6ca53
+LIVE_EQUALS_ENTRY504_MANUAL_ESBUILD=YES
+GUARD_TARGET_BUNDLE_SHA256=2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67
+TARGET_DIFFERS_FROM_BASELINE=YES
+GUARD_SOURCE_DELTA_SCOPE=PASS_EXACT_3_FILES
+ORDER_CREATE_HEALTH=PASS
+ORDER_CREATE_MODE=GENERAL
+DUPLICATE_GUARD_TABLE_PRESENT=NO
+MIGRATION_0010_APPLIED=NO
+PRODUCTION_GUARD_DEPLOYED=NO
+CLOUDFLARE_DEPLOY=NO
+D1_REMOTE_MUTATION=NO
+API_WORKER_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+CUSTOMER_DATA_MUTATED=NO
+ORDER_STATUS_MUTATED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+PRODUCTION_INSTALL_AUTHORIZED=NO
+NEXT_ACTION=EXPLICITLY_AUTHORIZE_EXACT_MIGRATION_0010_PLUS_EXACT_API_GUARD_TARGET_INSTALL
 ```
 
 
