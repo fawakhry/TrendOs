@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const app = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
+assert.match(index, /app\.js\?v=20261001-initial-edge-ready/);
 assert.match(app, /function secureApiChainHasEdgeOrdersRouter\(fn\)/);
 assert.match(app, /function loadInitialRowsWhenEdgeReady\(\)/);
 assert.match(app, /MATBAGY_EDGE_ORDERS_READ_V1_ENABLED !== true/);
