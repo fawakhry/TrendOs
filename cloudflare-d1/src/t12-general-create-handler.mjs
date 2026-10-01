@@ -51,6 +51,12 @@ async function control(db){
     return row||null;
   }catch{return null;}
 }
+async function duplicateGuardReady(db){
+  try{
+    const row=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='t12_prod_duplicate_order_guard' LIMIT 1").first();
+    return !!row;
+  }catch{return false;}
+}
 async function readback(db,orderId){
   const id=text(orderId);
   if(!id)return {success:false,code:'order-id-required'};
@@ -83,12 +89,14 @@ export async function handleT12GeneralCreateRequest(req,env){
 
   if(path===HEALTH&&req.method==='GET'){
     const ctl=await control(env.DB);
-    const schemaReady=!!ctl&&text(ctl.marker)==='T12_GENERAL_CREATE_V1';
+    const guardReady=await duplicateGuardReady(env.DB);
+    const schemaReady=!!ctl&&text(ctl.marker)==='T12_GENERAL_CREATE_V1'&&guardReady;
     return json({
       success:schemaReady,
       service:'t12-general-create',
       version:T12_GENERAL_CREATE_VERSION,
       schemaReady,
+      duplicateGuardReady:guardReady,
       mode:schemaReady?text(ctl.mode):'UNKNOWN',
       canaryRemaining:schemaReady?Number(ctl.canaryRemaining||0):0,
       nextOrderNumber:schemaReady?Number(ctl.nextOrderNumber||0):0,
@@ -126,7 +134,7 @@ export async function handleT12GeneralCreateRequest(req,env){
   let status=400;
   if(result.success)status=result.stored?201:200;
   else if(/not-enabled|not-armed|budget|off/.test(text(result.reason)))status=423;
-  else if(/conflict/.test(text(result.reason)))status=409;
+  else if(result.duplicatePrevented===true||/conflict|duplicate/.test(text(result.reason)))status=409;
   else if(/unknown|not-verified|unavailable/.test(text(result.reason)))status=503;
 
   return json({
