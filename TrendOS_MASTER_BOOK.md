@@ -26,6 +26,16 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry542 — Orders recovery frontend cache tag bumped:** SUCCESS / NOT DEPLOYED — تم تعديل `config.js` في commit `98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051` لتغيير cache tag الخاص فقط بـ`trendos-edge-orders-read-v1.js` إلى `20261001-post-refresh-recovery`، حتى لا تبقى المتصفحات على النسخة القديمة بعد أي Frontend publish لاحق. لا تغيير لباقي الموديولات أو Cloudflare Worker/D1 أو Apps Script. هذا commit يجب أن يشغّل A61 regression workflow تلقائيًا على فرع candidate.
+
+```ini
+ENTRY542_CONFIG_COMMIT=98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051
+EDGE_MODULE_CACHE_TAG=20261001-post-refresh-recovery
+PRODUCTION_DEPLOYED=NO
+NEXT_ACTION=VERIFY_GITHUB_ACTIONS_CI
+```
+
+
 **Entry541 — Refresh/write-consistency regression updated for safe D1 recovery:** SUCCESS / NOT DEPLOYED — تم تحديث `tests/frontend_order_status_write_consistency_02cv.test.mjs` في commit `6964f628ce543e0d10012eb73fbc6f5c1c968a9e`. الاختبار الآن يثبت حالتين: (1) مباشرة بعد write بينما D1 ما زال يعرض status قديمًا، يسمح الكود بـEdge readback probe فقط ثم يبقى `ORDERS_CLOUD_UNAVAILABLE` بدون أي browser legacy/Google fallback؛ (2) بعد full browser refresh، عندما يعرض D1 نفس lineId بالحالة الجديدة المكتوبة، يتم exchange لـEdge session ثم targeted probe ثم normal page load، تُمسح persisted barrier، وتبقى `originalCalls=0`. هذا يقفل regression المطلوب بدون إضعاف read-your-write consistency.
 
 ```ini
