@@ -10,6 +10,8 @@ on:
       - cloudflare-d1/src/t12-general-create.mjs
       - cloudflare-d1/src/t12-general-create-handler.mjs
       - trendos-edge-orders-read-v1.js
+      - config.js
+      - index.html
       - tests/t12_general_create.test.mjs
       - tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
       - .github/workflows/trendos-t12-duplicate-order-guard-ci.yml
@@ -45,6 +47,8 @@ jobs:
           grep -F "duplicateGuardReady" cloudflare-d1/src/t12-general-create-handler.mjs
           grep -F "duplicatePrevented===true" cloudflare-d1/src/t12-general-create-handler.mjs
           grep -F "تم منع إنشاء أوردر مكرر" trendos-edge-orders-read-v1.js
+          grep -F "trendos-edge-orders-read-v1.js?v=20261001-duplicate-order-guard-ui" config.js
+          grep -F "config.js?v=20261001-duplicate-order-guard-ui" index.html
           if grep -Eiq '\b(DROP|ALTER)\b' cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql; then
             echo "Non-additive migration statement detected"
             exit 1
