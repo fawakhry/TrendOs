@@ -26,6 +26,23 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry571 — browser Network proves Orders failure occurs before Edge Orders requests are emitted:** DIAGNOSIS/READ-ONLY — Owner opened DevTools Network after hard refresh. With filter `edge`, the frontend asset `trendos-edge-orders-read-v1.js?v=20260930-a61-cloud-transport` loaded with HTTP 200. With filter `edge/orders`, DevTools showed 0 matching requests out of the captured request set; therefore neither `POST /v1/edge/orders/session` nor `GET /v1/edge/orders/02cr/page` was emitted during the failing Orders load. Since Entry569 already proved the API Worker and D1 health endpoint are reachable, the current failure is before the Edge Orders network stage: frontend dispatcher/wrapper installation or pre-network session/transport logic. No mutation occurred.
+
+```ini
+ENTRY571_NETWORK_CAPTURE=PASS_DIAGNOSTIC
+EDGE_ORDERS_SCRIPT_HTTP=200
+EDGE_ORDERS_SESSION_REQUEST_EMITTED=NO
+EDGE_ORDERS_02CR_REQUEST_EMITTED=NO
+API_HEALTH=PASS
+FAILURE_STAGE=FRONTEND_PRE_NETWORK
+ORDER_DATA_MUTATED=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=REVIEW_EXACT_ENTRY499_FRONTEND_DISPATCHER_AND_WRAPPER_INSTALLATION_PATH
+```
+
+
 **Entry570 — source trace isolates Orders read sequence to session exchange then 02CR page GET:** DIAGNOSIS/READ-ONLY — Source review of `trendos-edge-orders-read-v1.js` confirms Orders loading first performs `POST /v1/edge/orders/session` using the already-held employee browser session, expects an `edgeToken`, then performs authenticated `GET /v1/edge/orders/02cr/page`. A 401 on the page route triggers one session re-exchange/retry. Since Entry569 proved `/health` and D1 binding are healthy, the next non-mutating diagnostic is to inspect browser Network status codes for these two requests only, without exposing request tokens or bodies. No Production mutation occurred.
 
 ```ini
