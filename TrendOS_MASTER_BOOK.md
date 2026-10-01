@@ -26,6 +26,39 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry588 — owner runtime acceptance confirms refresh fix working in Production after connection interruption:** SUCCESS/OWNER-ACCEPTANCE — After the Production promote and post-promote read-only verification in Entries585–587, the owner later resumed the chat after an internet interruption and explicitly confirmed that the platform worked after the fix. This is accepted as runtime confirmation that the targeted refresh defect — Orders disappearing immediately after Browser Refresh until a section tab was clicked — is resolved on the promoted frontend. No additional Production action was required to obtain this confirmation.
+
+```ini
+ENTRY588_OWNER_RUNTIME_ACCEPTANCE=PASS
+FRONTEND_TARGET=trendos-ui
+ACTIVE_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+ACTIVE_TRAFFIC_PERCENT=100
+ROOT_CAUSE=FRONTEND_INITIAL_LOAD_EDGE_ROUTER_STARTUP_RACE
+REFRESH_FIX_DEPLOYED=YES
+ORDERS_REFRESH_DISAPPEARANCE_RESOLVED=YES
+ORDERS_LOAD_AFTER_REFRESH=PASS_OWNER_CONFIRMED
+EMPLOYEE_SESSION_AFTER_REFRESH=PASS_PREVIOUSLY_VERIFIED
+FRONTEND_HTTP_200=YES
+CONFIG_CACHE_TAG_PRESENT=YES
+RECOVER_POST_WRITE_BARRIER_PRESENT=YES
+POST_WRITE_BARRIER_RECOVERIES_PRESENT=YES
+INITIAL_EDGE_READY_HELPER_PRESENT=YES
+APP_CACHE_TAG_PRESENT=YES
+PRODUCTION_URL_UNCHANGED=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+REFRESH_FIX_ACCEPTANCE=CLOSED_PASS
+NEXT_ACTION=CLOUD_NATIVE_DUPLICATE_ORDER_GUARD
+```
+
+
 **Entry587 — redundant guarded promote invocation stopped safely because target was already active:** NO-OP/SAFE-GUARD — A subsequent owner-authorized promote workflow run `36906805887` executed its exact pre-promote guard and stopped before any POST because the current active Production deployment was already `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at 100%. The guard expected the previous version `71364637-50f4-4ef3-b348-0e1432cdc090`, so it failed closed with `Current active deployment changed unexpectedly`. This confirms no duplicate promote or extra traffic mutation occurred in this invocation. Entry586 remains the authoritative post-promote verification.
 
 ```ini
