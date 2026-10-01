@@ -1,0 +1,106 @@
+name: TrendOS Entry595 Frontend Read-Only Verify
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry595-frontend-readonly-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TARGET_WORKER: trendos-ui
+      TARGET_VERSION_ID: a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e
+      PROD_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - name: Verify active frontend target GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments"             > /tmp/deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const list=Array.isArray(body?.result?.deployments)?body.result.deployments:(Array.isArray(body?.result)?body.result:[]);
+          if(!list.length) throw new Error('No deployments');
+          const active=(list[0].versions||[]).map(v=>({id:String(v?.version_id||v?.id||''),p:Number(v?.percentage ?? v?.traffic_percentage ?? NaN)}));
+          if(active.length!==1||active[0].id!==process.env.TARGET_VERSION_ID||active[0].p!==100){
+            throw new Error('Active target mismatch: '+JSON.stringify(active));
+          }
+          console.log('ENTRY595_ACTIVE_VERSION='+active[0].id);
+          console.log('ENTRY595_ACTIVE_TRAFFIC=100');
+          NODE
+
+      - name: Verify public frontend files and markers GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in 1 2 3; do
+            stamp="$(date +%s)-$attempt"
+            root_code="$(curl --silent --show-error -H 'Cache-Control: no-cache' --output /tmp/root.html --write-out '%{http_code}' "$PROD_URL/?entry595=$stamp")"
+            config_code="$(curl --silent --show-error -H 'Cache-Control: no-cache' --output /tmp/config.js --write-out '%{http_code}' "$PROD_URL/config.js?v=20261001-duplicate-order-guard-ui&entry595=$stamp")"
+            edge_code="$(curl --silent --show-error -H 'Cache-Control: no-cache' --output /tmp/edge.js --write-out '%{http_code}' "$PROD_URL/trendos-edge-orders-read-v1.js?v=20261001-duplicate-order-guard-ui&entry595=$stamp")"
+            app_code="$(curl --silent --show-error -H 'Cache-Control: no-cache' --output /tmp/app.js --write-out '%{http_code}' "$PROD_URL/app.js?v=20261001-initial-edge-ready&entry595=$stamp")"
+
+            echo "ATTEMPT=$attempt ROOT_HTTP=$root_code CONFIG_HTTP=$config_code EDGE_HTTP=$edge_code APP_HTTP=$app_code"
+            root_config=NO; root_app=NO; config_edge=NO; edge_reason=NO; edge_message=NO; edge_recovery=NO; edge_metric=NO; app_ready=NO; app_secure=NO
+            grep -Fq 'config.js?v=20261001-duplicate-order-guard-ui' /tmp/root.html && root_config=YES || true
+            grep -Fq 'app.js?v=20261001-initial-edge-ready' /tmp/root.html && root_app=YES || true
+            grep -Fq 'trendos-edge-orders-read-v1.js?v=20261001-duplicate-order-guard-ui' /tmp/config.js && config_edge=YES || true
+            grep -Fq "reason === 'duplicate-order-window-active'" /tmp/edge.js && edge_reason=YES || true
+            grep -Fq 'تم منع إنشاء أوردر مكرر' /tmp/edge.js && edge_message=YES || true
+            grep -Fq 'recoverPostWriteBarrier' /tmp/edge.js && edge_recovery=YES || true
+            grep -Fq 'postWriteBarrierRecoveries' /tmp/edge.js && edge_metric=YES || true
+            grep -Fq 'function loadInitialRowsWhenEdgeReady()' /tmp/app.js && app_ready=YES || true
+            grep -Fq 'function secureApiChainHasEdgeOrdersRouter(fn)' /tmp/app.js && app_secure=YES || true
+
+            echo "ROOT_CONFIG_TAG=$root_config"
+            echo "ROOT_APP_TAG=$root_app"
+            echo "CONFIG_EDGE_TAG=$config_edge"
+            echo "EDGE_DUPLICATE_REASON=$edge_reason"
+            echo "EDGE_DUPLICATE_MESSAGE=$edge_message"
+            echo "EDGE_REFRESH_RECOVERY=$edge_recovery"
+            echo "EDGE_RECOVERY_METRIC=$edge_metric"
+            echo "APP_INITIAL_EDGE_READY=$app_ready"
+            echo "APP_SECURE_CHAIN=$app_secure"
+
+            if [ "$root_code" = 200 ] && [ "$config_code" = 200 ] && [ "$edge_code" = 200 ] && [ "$app_code" = 200 ]               && [ "$root_config" = YES ] && [ "$root_app" = YES ] && [ "$config_edge" = YES ]               && [ "$edge_reason" = YES ] && [ "$edge_message" = YES ]               && [ "$edge_recovery" = YES ] && [ "$edge_metric" = YES ]               && [ "$app_ready" = YES ] && [ "$app_secure" = YES ]; then
+              ok=1
+              break
+            fi
+            sleep 3
+          done
+          test "$ok" = 1
+          echo 'ENTRY595_PUBLIC_FRONTEND_MARKERS=PASS'
+
+      - name: Verify API duplicate guard still healthy GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health" > /tmp/api-health.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/api-health.json','utf8'));
+          if(x.success!==true||x.schemaReady!==true||x.duplicateGuardReady!==true||x.mode!=='GENERAL'){
+            throw new Error('API guard health mismatch');
+          }
+          console.log('ENTRY595_API_DUPLICATE_GUARD=PASS');
+          console.log('ORDER_CREATE_MODE=GENERAL');
+          console.log('DUPLICATE_GUARD_READY=YES');
+          NODE
+          echo 'CLOUDFLARE_MUTATION=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'APPS_SCRIPT_MUTATION=NO'
+          echo 'ORDER_DATA_MUTATION=NO'
