@@ -34,6 +34,7 @@ const sessionStorage = {
   removeItem(key) { storage.delete(String(key)); }
 };
 
+let edgeTargetStatus = 'طلب جديد';
 function edgeBody() {
   return {
     success: true,
@@ -43,7 +44,7 @@ function edgeBody() {
       // surfaced their raw Sheets serials (721721 / 752767) as line IDs.
       { rowNumber: 307, orderId: '3876', lineId: '721721', status: 'تحت التنفيذ' },
       { rowNumber: 397, orderId: '3961', lineId: '752767', status: 'طلب جديد' },
-      { rowNumber: 77, orderId: '1001', lineId: '1001-1', status: 'طلب جديد' }
+      { rowNumber: 77, orderId: '1001', lineId: '1001-1', status: edgeTargetStatus }
     ],
     mirrors: mirrors()
   };
@@ -129,19 +130,21 @@ assert.equal(persisted.orderId, '1001');
 assert.equal(persisted.lineId, '1001-1');
 assert.ok(Number(persisted.until) > Date.now());
 
-// The immediate reload after save must read authoritative Apps Script, not an
-// older but physically-fresh D1 mirror.
+// The immediate read after save may probe D1, but it must not expose the old
+// status or fall back to browser Google while the written line is still stale.
 const fetchCountBeforeBarrierRead = fetchCalls.length;
 result = await window.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5 });
 assert.equal(result.code, 'ORDERS_CLOUD_UNAVAILABLE');
-assert.equal(fetchCalls.length, fetchCountBeforeBarrierRead, 'barrier read must not even query the stale Edge page');
-assert.equal(originalCalls.length, 1);
+assert.ok(fetchCalls.length > fetchCountBeforeBarrierRead, 'barrier recovery must probe Edge for the written line');
+assert.equal(originalCalls.length, 1, 'barrier recovery must not call browser legacy transport');
 stats = window.TrendOSEdgeOrdersReadV1.stats();
 assert.equal(stats.postWriteFallbacks, 1);
+assert.equal(stats.postWriteBarrierRecoveries, 0);
 assert.equal(stats.lastFallbackReason, 'EDGE_POST_WRITE_READ_BARRIER');
 
-// A full browser refresh creates a new module instance. The persisted session barrier
-// must still force Apps Script until the D1 mirror has had time to catch up.
+// A full browser refresh creates a new module instance. Once D1 exposes the exact
+// written line/status, the persisted barrier must clear and the normal page must load.
+edgeTargetStatus = 'تحت التنفيذ';
 const reloadOriginalCalls = [];
 const reloadFetchCalls = [];
 const reloadWindow = {
@@ -161,17 +164,24 @@ const reloadContext = {
   setInterval, clearInterval, sessionStorage,
   fetch: async function (url) {
     reloadFetchCalls.push(String(url));
-    throw new Error('persisted barrier should prevent Edge fetch after refresh');
+    if (String(url).endsWith('/v1/edge/orders/session')) {
+      return response(200, { success: true, edgeToken: 'edge-token-reload', expiresIn: 600 });
+    }
+    if (String(url).includes('/v1/edge/orders/02cr/page?')) return response(200, edgeBody());
+    throw new Error('Unexpected reload fetch URL: ' + url);
   }
 };
 reloadContext.globalThis = reloadContext;
 vm.createContext(reloadContext);
 vm.runInContext(source, reloadContext, { filename: 'trendos-edge-orders-read-v1.js#reload' });
 const reloadResult = await reloadWindow.trendosSecureApiV1922('getRowsPageV1931', { screen: 'print', page: 1, pageSize: 5 });
-assert.equal(reloadResult.code, 'ORDERS_CLOUD_UNAVAILABLE');
-assert.equal(reloadOriginalCalls.length, 0);
-assert.equal(reloadFetchCalls.length, 0);
-assert.equal(reloadWindow.TrendOSEdgeOrdersReadV1.stats().postWriteBarrierActive, true);
+assert.equal(reloadResult.success, true);
+assert.equal(reloadResult.rows[2].status, 'تحت التنفيذ');
+assert.equal(reloadOriginalCalls.length, 0, 'refresh recovery must remain Edge-only');
+assert.ok(reloadFetchCalls.length >= 3, 'refresh recovery must exchange session, probe the written line, then load the requested page');
+assert.equal(reloadWindow.TrendOSEdgeOrdersReadV1.stats().postWriteBarrierActive, false);
+assert.equal(reloadWindow.TrendOSEdgeOrdersReadV1.stats().postWriteBarrierRecoveries, 1);
+assert.equal(storage.has('trendos_edge_orders_post_write_barrier_v1'), false);
 
 // Once the barrier is cleared/expired, normal D1-first behavior resumes.
 window.TrendOSEdgeOrdersReadV1.clearPostWriteBarrier();
