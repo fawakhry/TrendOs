@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.90-DRAFT-COMPACT — owner local Cloudflare access restored; frontend publish not started** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.91-DRAFT-COMPACT — active trendos-ui deployment confirmed old Entry499; refresh-fix version absent** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — owner local Cloudflare access restored; Orders refresh frontend publish still pending
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — active trendos-ui is old Entry499; Orders refresh fix needs a new frontend-only version
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,22 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry546 — Cloudflare Deployments inspected; active frontend is old Entry499 version, refresh-fix version absent:** READ-ONLY / CONFIRMED — المالك فتح `trendos-ui → Production → Deployments`. Screenshot يثبت أن Active deployment هو Version ID `71364637` عند Traffic `100%`، وVersion History يصفه `TrendOS Entry499 frontend manual version; create only, no deployment`. لا تظهر Version جديدة مرتبطة بمصدر إصلاح refresh الحالي `98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051`. لذلك **ممنوع Promote لأي Version ظاهرة حاليًا** باعتبارها إصلاح Entry543؛ الإصلاح غير موجود بعد كنسخة Cloudflare. الصفحة تعرض أيضًا `No builds exist yet for this worker`، لذلك مسار Build/Deploy عبر Dashboard غير متاح مباشرة من هذه الحالة. لا mutation حدث.
+
+```ini
+ENTRY546_ACTIVE_FRONTEND_VERSION_ID=71364637
+ENTRY546_ACTIVE_FRONTEND_DESCRIPTION=ENTRY499_OLD_VERSION
+ENTRY546_ACTIVE_TRAFFIC_PERCENT=100
+ENTRY546_REFRESH_FIX_VERSION_PRESENT=NO
+ENTRY546_RECENT_BUILDS=NONE
+FRONTEND_DEPLOYED_REFRESH_FIX=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+NEXT_ACTION=CREATE_SAFE_FRONTEND_ONLY_VERSION_UPLOADER_FOR_COMMIT_98cc788
 ```
 
 
