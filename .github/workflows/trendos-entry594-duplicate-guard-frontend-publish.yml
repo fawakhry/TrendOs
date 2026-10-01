@@ -1,4 +1,5 @@
 name: TrendOS Entry594 Duplicate Guard Frontend Publish
+# Entry594 authorized publish trigger
 
 on:
   push:
