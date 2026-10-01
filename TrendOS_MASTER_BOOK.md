@@ -26,6 +26,20 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry576 — source confirms section-tab click reissues loadRows after startup and explains owner recovery behavior:** CONFIRMED/READ-ONLY — Source review of `app.js` shows `renderTabs()` assigns each Printing/Laser/Customer Service tab an `onclick` handler that updates `state.screen`, resets paging/edit state, rerenders UI, and ends with `loadRows()`. This exactly explains the owner's Entry575 observation: Browser Refresh initial load can miss Edge-wrapper readiness, then a later section click triggers a fresh Orders read after the wrapper has installed and Orders render normally. This closes the behavioral diagnosis without requiring any Production mutation.
+
+```ini
+ENTRY576_TAB_CLICK_LOADROWS_CONFIRMED=YES
+TAB_CLICK_RECOVERY_MECHANISM=loadRows()
+REFRESH_FAILURE_SCOPE=INITIAL_BOOT_LOAD_ONLY
+ORDERS_READ_PATH_AFTER_TAB_CLICK=WORKING
+ROOT_CAUSE=FRONTEND_STARTUP_ORDERING_RACE
+ORDER_DATA_MUTATED=NO
+NEW_DEPLOY_AUTHORIZED=NO
+NEXT_ACTION=REPO_ONLY_FIX_BOOT_LOAD_TO_WAIT_FOR_EDGE_ROUTER_READINESS_AND_ADD_REGRESSION
+```
+
+
 **Entry575 — owner runtime observation confirms refresh-only initial-load race; section click immediately recovers Orders:** CONFIRMED/READ-ONLY — Owner clarified the exact Production behavior: immediately after Browser Refresh, Orders disappear/do not load; however clicking any operational section tab such as Printing, Laser, or Customer Service causes Orders to appear and work normally. This proves the persistent data/API path is healthy after startup and the defect is specifically the first Orders load after page boot. The behavior matches Entry574's startup-ordering race hypothesis: the initial `loadRows()` can run before the Edge Orders wrapper is installed, while a later section-triggered reload runs after wrapper readiness and succeeds. No business mutation occurred.
 
 ```ini
