@@ -34,6 +34,9 @@
 
 **Entry533 — broadened regression CI:** SUCCESS — GitHub Actions run `36855971271` على commit `90802d691820f8119307738756179ee5c2644bc1` = SUCCESS. Job `isolated-regression`, خطوة `Syntax`, وخطوة `Isolated transport, dispatcher, Orders and A61 regressions` كلها SUCCESS. هذا هو دليل qualification النهائي للـactive-runtime session-isolation regression الموسّع.
 
+**Entry533 — Apps Script publish-scope verification:** SUCCESS — GitHub commit history المقيّد بـ`Code.gs` يثبت أن آخر commit لمس الملف هو Entry531 primary fix `4d5ef491af4e24baf01ed1f98ae0f298f2874785`؛ لا توجد تغييرات لاحقة على `Code.gs` في الفرع. Blob SHA الحالي `e91d78dcceeeca2804e721d58e065a6a7181bfc2` يطابق Blob SHA عند commit Entry531 حرفيًا. إذن نشر `Code.gs` الحالي لا يضم Runtime Code.gs تغييرات بعد Entry531. هذا يؤهل Entry531 نفسه للنشر اليدوي دون الحاجة Runtime Entry جديد قبله، بشرط نشر نفس المصدر الحالي فقط وعدم تغيير إعدادات deployment.
+
+
 
 
 
