@@ -26,6 +26,29 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry559 — owner-browser read-only marker verification confirms deployed refresh-recovery source; initial misses were search typos:** SUCCESS/READ-ONLY — owner screenshots of Production `config.js` and `trendos-edge-orders-read-v1.js` show the deployed refresh-recovery source. In `config.js`, the visible loader line contains `trendos-edge-orders-read-v1.js?v=20261001-post-refresh-recovery`; the browser find box returned 0/0 only because the entered query was `61001-post-refresh-recovery 2` rather than the exact marker. In the orders JS, `recoverPostWriteBarrier` is confirmed present with two matches (1/2 and 2/2). The source also visibly contains `metrics.postWriteBarrierRecoveries += 1;`; the browser find box returned 0/0 only because the entered query included extra trailing characters `postWriteBarrierRecoveries 3.`. Therefore all three required markers are present in the promoted Production frontend. This verification was read-only and caused no business/runtime mutation.
+
+```ini
+ENTRY559_OWNER_BROWSER_MARKER_VERIFICATION=PASS
+CONFIG_CACHE_TAG_PRESENT=YES
+RECOVER_POST_WRITE_BARRIER_PRESENT=YES
+POST_WRITE_BARRIER_RECOVERIES_PRESENT=YES
+FRONTEND_PROMOTED_TO_100=YES
+PROMOTED_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+API_TOKEN_REVOKED=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=VERIFY_ROOT_PRODUCTION_UI_LOADS_NORMALLY_THEN_RUN_REFRESH_BEHAVIOR_TEST_WITH_READ_ONLY_FIRST
+```
+
+
 **Entry558 — post-promote public read-only verification blocked by external fetch transport:** BLOCKED/NO-OP — immediately after Entry557, attempted GET-only verification of Production URLs `/config.js`, `/trendos-edge-orders-read-v1.js`, and root `/`. The available web fetch transport returned `DisabledError` / inaccessible before reaching the origin, so no valid conclusion about marker presence or HTTP status can be drawn from this tool. Production promote evidence from Cloudflare Dashboard remains valid. No mutation occurred.
 
 ```ini
