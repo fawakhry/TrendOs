@@ -1,0 +1,155 @@
+name: TrendOS Entry582 Promote Frontend Exact Version
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry582-promote-frontend-exact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry582-promote-frontend-exact
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TARGET_WORKER: trendos-ui
+      EXPECTED_CURRENT_VERSION: 71364637-50f4-4ef3-b348-0e1432cdc090
+      TARGET_VERSION_ID: b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+    steps:
+      - name: Guard exact current and target versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/versions"             > /tmp/versions-before.json
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments"             > /tmp/deployments-before.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const versions=JSON.parse(fs.readFileSync('/tmp/versions-before.json','utf8'));
+          const deployments=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const target=process.env.TARGET_VERSION_ID;
+          const expected=process.env.EXPECTED_CURRENT_VERSION;
+
+          function walk(value, fn) {
+            if (Array.isArray(value)) return value.some(v=>walk(v,fn));
+            if (value && typeof value==='object') {
+              if (fn(value)) return true;
+              return Object.values(value).some(v=>walk(v,fn));
+            }
+            return fn(value);
+          }
+
+          if (!walk(versions,v=>typeof v==='string' && v===target)) {
+            throw new Error('Target version missing before promote');
+          }
+
+          const list=Array.isArray(deployments?.result?.deployments)
+            ? deployments.result.deployments
+            : (Array.isArray(deployments?.result) ? deployments.result : []);
+          if (!list.length) throw new Error('No deployments returned before promote');
+
+          const active=Array.isArray(list[0]?.versions) ? list[0].versions : [];
+          const normalized=active.map(v=>({
+            version_id:String(v?.version_id||v?.id||''),
+            percentage:Number(v?.percentage ?? v?.traffic_percentage ?? NaN)
+          }));
+
+          if (normalized.length !== 1 ||
+              normalized[0].version_id !== expected ||
+              normalized[0].percentage !== 100) {
+            throw new Error('Current deployment changed; refusing promote: '+JSON.stringify(normalized));
+          }
+          if (normalized.some(v=>v.version_id===target && v.percentage>0)) {
+            throw new Error('Target unexpectedly already has traffic');
+          }
+
+          console.log('ENTRY582_PRE_PROMOTE_GUARD=PASS');
+          console.log('CURRENT_VERSION_ID='+normalized[0].version_id);
+          console.log('CURRENT_TRAFFIC_PERCENT='+normalized[0].percentage);
+          console.log('TARGET_VERSION_ID='+target);
+          NODE
+
+      - name: Promote exact target version to 100 percent
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/promote.json <<JSON
+          {
+            "strategy":"percentage",
+            "versions":[
+              {
+                "version_id":"$TARGET_VERSION_ID",
+                "percentage":100
+              }
+            ],
+            "annotations":{
+              "workers/message":"TrendOS Entry582 initial Orders Edge readiness promote",
+              "workers/triggered_by":"Entry582 controlled frontend promote"
+            }
+          }
+          JSON
+
+          curl --fail --silent --show-error             -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data-binary @/tmp/promote.json             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments"             > /tmp/promote-response.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/promote-response.json','utf8'));
+          if (body?.success !== true) throw new Error('Cloudflare promote response success=false');
+          const result=body?.result||{};
+          const versions=Array.isArray(result.versions)?result.versions:[];
+          if (versions.length!==1 ||
+              String(versions[0]?.version_id||'')!==process.env.TARGET_VERSION_ID ||
+              Number(versions[0]?.percentage)!==100) {
+            throw new Error('Unexpected promote response: '+JSON.stringify(versions));
+          }
+          console.log('ENTRY582_PROMOTE_POST=SUCCESS');
+          console.log('DEPLOYMENT_ID='+String(result.id||''));
+          console.log('PROMOTED_VERSION_ID='+String(versions[0].version_id));
+          console.log('PROMOTED_TRAFFIC_PERCENT='+Number(versions[0].percentage));
+          NODE
+
+      - name: Verify active deployment after promote
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments"             > /tmp/deployments-after.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const deployments=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));
+          const target=process.env.TARGET_VERSION_ID;
+          const list=Array.isArray(deployments?.result?.deployments)
+            ? deployments.result.deployments
+            : (Array.isArray(deployments?.result) ? deployments.result : []);
+          if (!list.length) throw new Error('No deployments returned after promote');
+          const active=Array.isArray(list[0]?.versions) ? list[0].versions : [];
+          const normalized=active.map(v=>({
+            version_id:String(v?.version_id||v?.id||''),
+            percentage:Number(v?.percentage ?? v?.traffic_percentage ?? NaN)
+          }));
+          if (normalized.length!==1 ||
+              normalized[0].version_id!==target ||
+              normalized[0].percentage!==100) {
+            throw new Error('Post-promote deployment mismatch: '+JSON.stringify(normalized));
+          }
+          console.log('ENTRY582_POST_PROMOTE_VERIFY=PASS');
+          console.log('ACTIVE_VERSION_ID='+normalized[0].version_id);
+          console.log('ACTIVE_TRAFFIC_PERCENT='+normalized[0].percentage);
+          console.log('API_WORKER_TOUCHED=NO');
+          console.log('D1_TOUCHED=NO');
+          console.log('APPS_SCRIPT_TOUCHED=NO');
+          NODE
