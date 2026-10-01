@@ -7,6 +7,7 @@ import { handleT12GeneralCreateRequest } from '../cloudflare-d1/src/t12-general-
 
 const schema5=fs.readFileSync(new URL('../cloudflare-d1/migrations/0005_t12_production_create_canary.sql',import.meta.url),'utf8');
 const schema7=fs.readFileSync(new URL('../cloudflare-d1/migrations/0007_t12_general_create_control.sql',import.meta.url),'utf8');
+const schema10=fs.readFileSync(new URL('../cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql',import.meta.url),'utf8');
 
 class Stmt {
   constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}
@@ -21,6 +22,7 @@ class D1 {
     this.raw.exec('PRAGMA foreign_keys=ON;');
     this.raw.exec(schema5);
     this.raw.exec(schema7);
+    this.raw.exec(schema10);
     this.raw.prepare('UPDATE t12_prod_create_control SET next_order_number=4323,canary_remaining=0 WHERE singleton=1').run();
     this.raw.prepare('UPDATE t12_prod_general_create_control SET mode=?,canary_remaining=? WHERE singleton=1').run(mode,budget);
     this.turn=Promise.resolve(); this.failAt=0; this.ambiguous=false;
@@ -45,7 +47,7 @@ class D1 {
   count(t){return Number(this.raw.prepare('SELECT COUNT(*) n FROM '+t).get().n);}
 }
 const actor='admin-owner';
-const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456')=>({
+const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
   clientRequestId:key,
   customerMode:'خارجي / عابر',
   externalCustomerId:'999002',
@@ -53,7 +55,7 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456')=>({
   customerPhone:'01000000001',
   department:'طباعة',
   itemName:'T12 GENERAL ITEM',
-  qty:1,
+  qty,
   priority:'عادي',
   status:'طلب جديد',
   source:'T12 General Create'
@@ -88,7 +90,7 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456')=>({
   let req=new Request('https://x/v1/t12/orders/create/health');
   let res=await handleT12GeneralCreateRequest(req,env);
   assert.equal(res.status,200);
-  let h=await res.json(); assert.equal(h.mode,'OFF'); assert.equal(h.nextOrderNumber,4323); assert.equal(h.generalCutover,false);
+  let h=await res.json(); assert.equal(h.mode,'OFF'); assert.equal(h.nextOrderNumber,4323); assert.equal(h.generalCutover,false); assert.equal(h.duplicateGuardReady,true);
 
   const token=await issueOrdersEdgeToken({sub:'admin-owner',role:'admin',department:'',screens:['service','print','laser','press','']},'unit-secret',Math.floor(Date.now()/1000),600);
   req=new Request('https://x/v1/t12/orders/create',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(input())});
@@ -99,4 +101,96 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456')=>({
   res=await handleT12GeneralCreateRequest(req,env); assert.equal(res.status,201);
   const body=await res.json(); assert.equal(body.orderId,'4323'); assert.equal(body.generalCutover,false);
 }
+{
+  const db=new D1('GENERAL',0);
+  const now=1800000000000;
+  const first=await createT12GeneralOrder(
+    db,
+    input('cld1_1800000000000_DUPGUARD_A_1234567890123456'),
+    actor,
+    {canary:false,nowMs:now}
+  );
+  assert.equal(first.success,true); assert.equal(first.orderId,'4323');
+  const duplicate=await createT12GeneralOrder(
+    db,
+    input('cld1_1800000000001_DUPGUARD_B_1234567890123457'),
+    actor,
+    {canary:false,nowMs:now+1000}
+  );
+  assert.equal(duplicate.success,false);
+  assert.equal(duplicate.reason,'duplicate-order-window-active');
+  assert.equal(duplicate.duplicatePrevented,true);
+  assert.equal(duplicate.existingOrderId,'4323');
+  assert.equal(db.count('t12_prod_orders'),1);
+  assert.deepEqual(db.control(),{nextNo:4324,mode:'GENERAL',remaining:0});
+}
+{
+  const db=new D1('GENERAL',0);
+  const now=1800000100000;
+  const first=await createT12GeneralOrder(
+    db,
+    input('cld1_1800000100000_WINDOW_A_1234567890123456'),
+    actor,
+    {canary:false,nowMs:now}
+  );
+  assert.equal(first.success,true);
+  const later=await createT12GeneralOrder(
+    db,
+    input('cld1_1800000220001_WINDOW_B_1234567890123457'),
+    actor,
+    {canary:false,nowMs:now+120001}
+  );
+  assert.equal(later.success,true);
+  assert.equal(later.orderId,'4324');
+  assert.equal(db.count('t12_prod_orders'),2);
+}
+{
+  const db=new D1('GENERAL',0);
+  const now=1800000300000;
+  const first=await createT12GeneralOrder(
+    db,
+    input('cld1_1800000300000_PAYLOAD_A_1234567890123456',1),
+    actor,
+    {canary:false,nowMs:now}
+  );
+  assert.equal(first.success,true);
+  const changed=await createT12GeneralOrder(
+    db,
+    input('cld1_1800000300001_PAYLOAD_B_1234567890123457',2),
+    actor,
+    {canary:false,nowMs:now+1000}
+  );
+  assert.equal(changed.success,true);
+  assert.equal(changed.orderId,'4324');
+  assert.equal(db.count('t12_prod_orders'),2);
+}
+{
+  const db=new D1('GENERAL',0);
+  const now=1800000400000;
+  const rs=await Promise.all([
+    createT12GeneralOrder(db,input('cld1_1800000400000_RACE_A_1234567890123456'),actor,{canary:false,nowMs:now}),
+    createT12GeneralOrder(db,input('cld1_1800000400001_RACE_B_1234567890123457'),actor,{canary:false,nowMs:now})
+  ]);
+  const successes=rs.filter(x=>x.success===true);
+  const blocked=rs.filter(x=>x.duplicatePrevented===true);
+  assert.equal(successes.length,1,JSON.stringify(rs));
+  assert.equal(blocked.length,1,JSON.stringify(rs));
+  assert.equal(db.count('t12_prod_orders'),1);
+  assert.deepEqual(db.control(),{nextNo:4324,mode:'GENERAL',remaining:0});
+}
+{
+  const db=new D1('GENERAL',0);
+  const env={DB:db,EDGE_SESSION_SECRET:'unit-secret',CORS_ORIGINS:'https://fawakhry.github.io'};
+  const token=await issueOrdersEdgeToken({sub:'admin-owner',role:'admin',department:'',screens:['service','print','laser','press','']},'unit-secret',Math.floor(Date.now()/1000),600);
+  let req=new Request('https://x/v1/t12/orders/create',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(input('cld1_1800000500000_HTTP_A_1234567890123456'))});
+  let res=await handleT12GeneralCreateRequest(req,env);
+  assert.equal(res.status,201);
+  req=new Request('https://x/v1/t12/orders/create',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(input('cld1_1800000500001_HTTP_B_1234567890123457'))});
+  res=await handleT12GeneralCreateRequest(req,env);
+  assert.equal(res.status,409);
+  const body=await res.json();
+  assert.equal(body.duplicatePrevented,true);
+  assert.equal(body.existingOrderId,'4323');
+}
+
 console.log('T12 general CREATE isolated PASS');
