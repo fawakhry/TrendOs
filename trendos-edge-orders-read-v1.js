@@ -684,6 +684,13 @@
     if (reason === 'general-create-off') return 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد.';
     if (reason === 'registered-customer-phone-required') return 'العميل المسجل لازم يكون له رقم هاتف قبل فتح الأوردر.';
     if (reason === 'general-create-canary-not-armed') return 'اختبار إنشاء الأوردر غير مسلح حاليًا.';
+    if (reason === 'duplicate-order-window-active') {
+      var existingOrderId = text(body && body.existingOrderId);
+      var retrySeconds = Math.max(1, Math.ceil(Number(body && body.retryAfterMs || 0) / 1000));
+      return existingOrderId
+        ? ('تم منع إنشاء أوردر مكرر. الأوردر الموجود رقم ' + existingOrderId + '. لو تقصد أوردر جديد بنفس البيانات، انتظر حوالي ' + retrySeconds + ' ثانية ثم أعد المحاولة.')
+        : ('تم منع إنشاء أوردر مكرر. لو تقصد أوردر جديد بنفس البيانات، انتظر حوالي ' + retrySeconds + ' ثانية ثم أعد المحاولة.');
+    }
     if (/unknown|not-verified|unavailable/i.test(reason)) return 'نتيجة تسجيل الأوردر غير مؤكدة. لا تعيد الإرسال تلقائيًا؛ اضغط مرة أخرى بنفس البيانات ليتم التحقق بنفس المفتاح.';
     return reason || 'تعذر تسجيل الأوردر الجديد على Cloud.';
   }
