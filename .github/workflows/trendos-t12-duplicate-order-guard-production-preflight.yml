@@ -1,4 +1,5 @@
 name: TrendOS T12 Duplicate Order Guard Production Preflight
+# Entry591 read-only trigger
 
 on:
   push:
