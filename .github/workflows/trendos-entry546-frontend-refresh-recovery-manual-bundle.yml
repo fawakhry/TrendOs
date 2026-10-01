@@ -53,7 +53,9 @@ jobs:
           set -euo pipefail
           rm -rf dist/entry546
           mkdir -p dist/entry546/frontend-dist
-          find qualified-source -maxdepth 1 -type f ( -name '*.html' -o -name '*.js' -o -name '*.css' ) -print0             | xargs -0 -I{} cp "{}" dist/entry546/frontend-dist/
+          for f in qualified-source/*.html qualified-source/*.js qualified-source/*.css; do
+            if [ -f "$f" ]; then cp "$f" dist/entry546/frontend-dist/; fi
+          done
           cp qualified-source/cloudflare-d1/src/frontend-static-worker.mjs dist/entry546/frontend-static-worker.mjs
           cp tools/trendos-entry546-direct-upload.mjs dist/entry546/entry546-direct-upload.mjs
           cp tools/trendos-entry546-direct-upload.ps1 dist/entry546/upload-entry546-version.ps1
@@ -64,8 +66,13 @@ jobs:
             cd dist/entry546
             find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
           )
-          printf '%s
-'             'TrendOS Orders Refresh Recovery - FRONTEND ONLY'             'Qualified source: 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051'             'Target: trendos-ui'             'Creates a Worker VERSION only; no deployment or traffic change.'             'Do not touch trendos-d1-api, D1, Apps Script, Secrets, Variables, Bindings or Routes.'             > dist/entry546/DEPLOY_ENTRY546_MANUAL.txt
+          {
+            echo 'TrendOS Orders Refresh Recovery - FRONTEND ONLY'
+            echo 'Qualified source: 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051'
+            echo 'Target: trendos-ui'
+            echo 'Creates a Worker VERSION only; no deployment or traffic change.'
+            echo 'Do not touch trendos-d1-api, D1, Apps Script, Secrets, Variables, Bindings or Routes.'
+          } > dist/entry546/DEPLOY_ENTRY546_MANUAL.txt
           echo 'ENTRY546_FRONTEND_MANUAL_BUNDLE=PASS'
 
       - name: Upload artifact
