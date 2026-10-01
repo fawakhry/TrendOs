@@ -26,6 +26,22 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry570 — source trace isolates Orders read sequence to session exchange then 02CR page GET:** DIAGNOSIS/READ-ONLY — Source review of `trendos-edge-orders-read-v1.js` confirms Orders loading first performs `POST /v1/edge/orders/session` using the already-held employee browser session, expects an `edgeToken`, then performs authenticated `GET /v1/edge/orders/02cr/page`. A 401 on the page route triggers one session re-exchange/retry. Since Entry569 proved `/health` and D1 binding are healthy, the next non-mutating diagnostic is to inspect browser Network status codes for these two requests only, without exposing request tokens or bodies. No Production mutation occurred.
+
+```ini
+ENTRY570_ORDERS_REQUEST_TRACE=COMPLETE
+ORDERS_STEP_1=POST_/v1/edge/orders/session
+ORDERS_STEP_2=GET_/v1/edge/orders/02cr/page
+API_HEALTH_ALREADY_PASS=YES
+NEXT_DIAGNOSTIC=BROWSER_NETWORK_STATUS_CODES_ONLY
+DO_NOT_EXPOSE_AUTH_TOKEN=YES
+ORDER_DATA_MUTATED=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+APPS_SCRIPT_TOUCHED=NO
+```
+
+
 **Entry569 — Production Cloud API health and D1 binding verified:** SUCCESS/READ-ONLY — Owner opened `https://trendos-d1-api.trendmall-contact.workers.dev/health` and received `{"success":true,"service":"trendos-d1","database":true,...}`. This proves the Production API Worker is reachable and its D1 binding can execute the health `SELECT 1`. Therefore the Orders UI error from Entry567 is narrower than total Worker/D1 outage. No write or business mutation occurred.
 
 ```ini
