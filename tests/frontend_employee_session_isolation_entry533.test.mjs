@@ -21,6 +21,18 @@ function extractFunction(code, name) {
   throw new Error('unterminated function ' + name);
 }
 
+function activeRuntimeJsFiles() {
+  const files = new Set();
+  for (const source of [read('index.html'), read('config.js')]) {
+    const re = /(?:src\s*=\s*["']|trendLoadModuleV1932\([^,]+,\s*["'])([^"'?]+\.js)/g;
+    for (const match of source.matchAll(re)) {
+      const file = String(match[1] || '').trim();
+      if (file && !/^https?:/i.test(file)) files.add(file);
+    }
+  }
+  return [...files];
+}
+
 const app = read('app.js');
 const clearMain = extractFunction(app, 'clearSession');
 const logoutMain = extractFunction(app, 'logout');
@@ -37,30 +49,25 @@ assert.equal(
   'main employee clearSession() must only be called by explicit logout()'
 );
 
-const moduleFiles = [
-  'attendance-v1.js',
-  'attendance-live-timer-v1.js',
-  'attendance-clockin-ui-v1.js',
-  'press-control-v1.js',
-  'customer-manager-v1.js',
-  'hr-v1.js',
-  'employee-cleaning-prep-v1.js'
-];
+const runtimeFiles = activeRuntimeJsFiles();
+assert.ok(runtimeFiles.includes('app.js'), 'app.js must remain in active runtime manifest');
+assert.ok(runtimeFiles.includes('trendos-edge-orders-read-v1.js'), 'Orders Edge runtime must remain covered');
 
-for (const file of moduleFiles) {
+const forbiddenEmployeeKeyRemoval =
+  /(?:sessionStorage|localStorage)\.removeItem\(\s*["'](?:trendos_session|matbagy_session_token|matbagy_username|matbagy_user_name|MATBAGY_EMPLOYEE_SSO)["']\s*\)/;
+const forbiddenWholeStorageClear = /(?:sessionStorage|localStorage)\.clear\s*\(/;
+const forbiddenMainUserNull = /state\.user\s*=\s*null/;
+const forbiddenEmployeeLogoutApi =
+  /(?:\bapi|trendosSecureApiV1922|trendosEmployeeApiV1)\s*\(\s*["']logout["']/;
+
+for (const file of runtimeFiles) {
+  if (file === 'app.js' || file === 'trendos-edge-orders-read-v1.js') continue;
   const source = read(file);
-  assert.doesNotMatch(source, /\bclearSession\s*\(/, file + ' must not clear the main employee session');
-  assert.doesNotMatch(source, /state\.user\s*=\s*null/, file + ' must not null the main employee user');
-  assert.doesNotMatch(
-    source,
-    /sessionStorage\.removeItem\(\s*["'](?:trendos_session|matbagy_session_token|matbagy_username|matbagy_user_name)["']\s*\)/,
-    file + ' must not remove employee browser-session keys'
-  );
-  assert.doesNotMatch(
-    source,
-    /localStorage\.removeItem\(\s*["'](?:trendos_session|matbagy_session_token|MATBAGY_EMPLOYEE_SSO)["']\s*\)/,
-    file + ' must not remove employee SSO/session keys'
-  );
+  assert.doesNotMatch(source, /\bclearSession\s*\(/, file + ' must not define/call a main-style clearSession');
+  assert.doesNotMatch(source, forbiddenMainUserNull, file + ' must not null the main employee user');
+  assert.doesNotMatch(source, forbiddenEmployeeKeyRemoval, file + ' must not remove employee browser-session keys');
+  assert.doesNotMatch(source, forbiddenWholeStorageClear, file + ' must not clear browser storage wholesale');
+  assert.doesNotMatch(source, forbiddenEmployeeLogoutApi, file + ' must not issue employee logout implicitly');
 }
 
 const orders = read('trendos-edge-orders-read-v1.js');
@@ -68,10 +75,10 @@ const ordersClear = extractFunction(orders, 'clearSession');
 assert.match(ordersClear, /session\.token\s*=\s*['"]/);
 assert.match(ordersClear, /session\.expiresAt\s*=\s*0/);
 assert.match(ordersClear, /session\.inflight\s*=\s*null/);
-assert.doesNotMatch(ordersClear, /storage\.removeItem|state\.user|trendos_session|matbagy_session_token|MATBAGY_EMPLOYEE_SSO/i);
+assert.doesNotMatch(ordersClear, /storage\.removeItem|storage\.clear|state\.user|trendos_session|matbagy_session_token|MATBAGY_EMPLOYEE_SSO/i);
 
 const transport = read('browser-api-transport-v1.js');
-assert.doesNotMatch(transport, /clearSession\s*\(|state\.user\s*=\s*null|removeItem\(/);
+assert.doesNotMatch(transport, /clearSession\s*\(|state\.user\s*=\s*null|removeItem\(|(?:sessionStorage|localStorage)\.clear\s*\(/);
 
 const code = read('Code.gs');
 const employeeTokenWrites = code.match(/safeSet_\([^\n;]*\bcolToken\b[^\n;]*\)/g) || [];
@@ -90,4 +97,5 @@ assert.doesNotMatch(
   'verifyEmployeeSession_ must never mutate the employee token'
 );
 
+console.log('ENTRY533_ACTIVE_RUNTIME_JS_FILES=' + runtimeFiles.length);
 console.log('ENTRY533_EMPLOYEE_SESSION_ISOLATION=PASS');
