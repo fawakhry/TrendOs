@@ -10,6 +10,9 @@
 
 **Entry533 — preventive session/auth audit STARTED / initial read ledger:** SUCCESS — على الفرع `candidate/t12-full-cloud-cutover-a56-20260929` تم التحقق من وجود الفرع وقراءة الصفحة الأولى فقط من Master Book، ثم قراءة Entry531 وEntry532 فقط حسب handoff. لا Production deploy ولا Wrangler ولا Secrets/Variables/Bindings ولا D1 migration ولا Order ID/Status mutation. نتيجة البداية: `PLATFORM_CURRENTLY_WORKING=YES`, `ENTRY531_SOURCE_QUALIFIED=YES`, `ENTRY531_APPS_SCRIPT_PRODUCTION_DEPLOYED=NO`. الخطوة التالية: Repo-only audit لمسارات employee session/auth المحددة في Entry532.
 
+**Entry533 — Code.gs employee-session audit:** SUCCESS — تمت مراجعة `login_()`, `authorize_()`, `verifyEmployeeSession_()`, `logoutEmployee_()`, `changePassword_()` وكل مراجع employee `colToken`/Last Login في `Code.gs`. لا يوجد مسار employee آخر يكتب/يمسح Token خارج: login writes new token+issuedAt؛ exact matching expired token clear داخل `authorize_()`؛ exact matching explicit logout clear؛ authenticated password change clear + forceRelogin. Missing/stale/mismatched token أصبح safe rejection ولا يمسح session. D1 bridge لا يكتب Google employee token. التصنيف: login=session establishment، authorize mismatch=safe-rejection، matching expiry=explicit lifecycle expiry، logout/password-change=explicit-authoritative. لم يظهر dangerous/destructive employee-token path إضافي في Code.gs. NO Production deploy/mutation.
+
+
 
 **Entry530 — first post-login action identified:** In the clean preserved Network sequence, the first real `legacy-api` fetch after the successful `login` request has Payload `action="getKnowledge"` for the employee account. No `op` field is present. The session token value was not recorded. This establishes `getKnowledge` as the first post-login application call in chronological order; whether it is the trigger remains unknown until its Response is inspected. No deploy or runtime mutation occurred.
 
