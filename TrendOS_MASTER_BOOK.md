@@ -26,6 +26,21 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry572 — UI error text maps to legacy Cloud transport; legacy-api status check required:** DIAGNOSIS/READ-ONLY — Entry499 source review shows the visible Arabic error `تعذر الاتصال بـ Cloud API.` is emitted by `browser-api-transport-v1.js` when the Cloudflare `POST /v1/legacy-api` response is non-2xx. Combined with Entry571 showing zero `edge/orders` requests, this strongly suggests the Orders call is reaching the legacy Cloud transport instead of the Edge Orders wrapper, but the exact `/v1/legacy-api` HTTP status has not yet been captured. Next step is Network filter `legacy-api` and record Name/Status only; do not inspect payload or authorization data. No mutation occurred.
+
+```ini
+ENTRY572_ERROR_TEXT_SOURCE=browser-api-transport-v1.js
+LIKELY_REQUEST_PATH=/v1/legacy-api
+EDGE_ORDERS_REQUESTS_EMITTED=NO
+LEGACY_API_STATUS=NOT_YET_CAPTURED
+ORDER_DATA_MUTATED=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=CAPTURE_BROWSER_NETWORK_LEGACY_API_STATUS_ONLY
+```
+
+
 **Entry571 — browser Network proves Orders failure occurs before Edge Orders requests are emitted:** DIAGNOSIS/READ-ONLY — Owner opened DevTools Network after hard refresh. With filter `edge`, the frontend asset `trendos-edge-orders-read-v1.js?v=20260930-a61-cloud-transport` loaded with HTTP 200. With filter `edge/orders`, DevTools showed 0 matching requests out of the captured request set; therefore neither `POST /v1/edge/orders/session` nor `GET /v1/edge/orders/02cr/page` was emitted during the failing Orders load. Since Entry569 already proved the API Worker and D1 health endpoint are reachable, the current failure is before the Edge Orders network stage: frontend dispatcher/wrapper installation or pre-network session/transport logic. No mutation occurred.
 
 ```ini
