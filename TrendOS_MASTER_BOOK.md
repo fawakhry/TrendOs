@@ -26,6 +26,25 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry566 — source-only diagnosis: current tab can retain pre-rollback JS; Entry499 requires hard refresh after version change:** DIAGNOSIS/NO-OP — Source review confirmed the Orders read module persists its post-write barrier only in browser `sessionStorage` under `trendos_edge_orders_post_write_barrier_v1`, with default lifetime 6 minutes and hard cap 10 minutes. Separately, the Entry499 deployment runbook explicitly requires a hard browser refresh after frontend version change. A Cloudflare rollback changes what new requests receive but does not replace JavaScript already loaded in the currently open tab. Therefore the post-rollback screenshot from Entry565 does not yet prove version `71364637` itself is failing; the tab may still be executing the previously loaded candidate runtime. No Production/runtime mutation occurred during this diagnosis.
+
+```ini
+ENTRY566_SOURCE_ONLY_DIAGNOSIS=COMPLETE
+POST_WRITE_BARRIER_STORAGE=sessionStorage
+POST_WRITE_BARRIER_KEY=trendos_edge_orders_post_write_barrier_v1
+POST_WRITE_BARRIER_DEFAULT_MS=360000
+POST_WRITE_BARRIER_MAX_MS=600000
+ROLLBACK_DOES_NOT_REPLACE_ALREADY_LOADED_TAB_JS=YES
+ENTRY499_RUNBOOK_HARD_REFRESH_REQUIRED=YES
+ORDER_DATA_MUTATED=NO
+NEW_DEPLOY_AUTHORIZED=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=HARD_REFRESH_CURRENT_PRODUCTION_TAB_THEN_RETEST_ORDERS_READ_ONLY
+```
+
+
 **Entry565 — Orders still fail to load after rollback; rollback restored version but not browser behavior:** FAILURE/READ-ONLY — Owner screenshot after successful rollback to active version `71364637` at 100% shows the Orders/printing section still not loading and the runtime indicator remains `جاري القراءة...`. Therefore rollback restored the prior frontend version but did not recover Orders behavior in the current browser state. The employee session/page remains present. No order/business mutation occurred. This result means the failure cannot yet be attributed solely to the promoted candidate; persisted client state/cache/session interaction must be diagnosed before any new deploy or write test.
 
 ```ini
