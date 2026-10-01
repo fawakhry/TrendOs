@@ -26,6 +26,23 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry560 — Production root UI load after frontend promote:** SUCCESS/READ-ONLY — Owner screenshot confirms the Production root UI opened normally after the frontend promotion. The current signed-in session is still present. No order or business data was changed in this step.
+
+```ini
+ENTRY560_PRODUCTION_ROOT_UI=PASS
+FRONTEND_HTTP_200=YES
+EMPLOYEE_SESSION_PRESENT_BEFORE_REFRESH_TEST=YES
+ORDERS_LOAD_AFTER_REFRESH=NOT_TESTED
+EMPLOYEE_SESSION_AFTER_REFRESH=NOT_TESTED
+ORDER_DATA_MUTATED=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=OPEN_ORDERS_READ_ONLY_THEN_BROWSER_REFRESH_AND_VERIFY_ORDERS_RELOAD_AND_SESSION_PERSISTS
+```
+
+
 **Entry559 — owner-browser read-only marker verification confirms deployed refresh-recovery source; initial misses were search typos:** SUCCESS/READ-ONLY — owner screenshots of Production `config.js` and `trendos-edge-orders-read-v1.js` show the deployed refresh-recovery source. In `config.js`, the visible loader line contains `trendos-edge-orders-read-v1.js?v=20261001-post-refresh-recovery`; the browser find box returned 0/0 only because the entered query was `61001-post-refresh-recovery 2` rather than the exact marker. In the orders JS, `recoverPostWriteBarrier` is confirmed present with two matches (1/2 and 2/2). The source also visibly contains `metrics.postWriteBarrierRecoveries += 1;`; the browser find box returned 0/0 only because the entered query included extra trailing characters `postWriteBarrierRecoveries 3.`. Therefore all three required markers are present in the promoted Production frontend. This verification was read-only and caused no business/runtime mutation.
 
 ```ini
