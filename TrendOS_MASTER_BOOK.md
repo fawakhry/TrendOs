@@ -26,6 +26,22 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry561 — post-refresh Orders screenshot captured while read still in progress:** PARTIAL/READ-ONLY — Owner performed the requested browser refresh and provided a Production screenshot while the Orders/printing area was still showing the runtime indicator `جاري القراءة...` (reading in progress). The page remained rendered and the signed-in session was still present, so there is no evidence of a logout/session destruction at this capture point. However the Orders table had not yet reached a terminal loaded/error state in the screenshot, so `ORDERS_LOAD_AFTER_REFRESH` cannot be marked PASS or FAIL yet. No order status or business data was changed.
+
+```ini
+ENTRY561_REFRESH_SCREENSHOT=PARTIAL_LOADING_IN_PROGRESS
+EMPLOYEE_SESSION_AFTER_REFRESH=PASS_SO_FAR
+ORDERS_LOAD_AFTER_REFRESH=NOT_TESTED_TERMINAL
+PERSISTENT_ORDERS_CLOUD_UNAVAILABLE=NOT_OBSERVED_IN_SCREENSHOT
+ORDER_DATA_MUTATED=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=WAIT_FOR_READING_TO_FINISH_WITHOUT_CLICKING_ANY_BUSINESS_ACTION_THEN_CAPTURE_FINAL_ORDERS_STATE
+```
+
+
 **Entry560 — Production root UI load after frontend promote:** SUCCESS/READ-ONLY — Owner screenshot confirms the Production root UI opened normally after the frontend promotion. The current signed-in session is still present. No order or business data was changed in this step.
 
 ```ini
