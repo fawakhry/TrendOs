@@ -26,6 +26,21 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry568 — source-only API reachability probe identified:** DIAGNOSIS/READ-ONLY — Source review of `cloudflare-d1/src/index.js` confirms a public GET `/health` route. It executes only `SELECT 1 AS ok` against the bound D1 database and returns service/database/time JSON; it performs no business writes. This is the next safe probe for the explicit Cloud API connection failure from Entry567. No Production mutation occurred.
+
+```ini
+ENTRY568_HEALTH_ROUTE_IDENTIFIED=YES
+HEALTH_URL=https://trendos-d1-api.trendmall-contact.workers.dev/health
+HEALTH_METHOD=GET
+HEALTH_D1_OPERATION=SELECT_1_ONLY
+HEALTH_BUSINESS_MUTATION=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=OWNER_OPEN_HEALTH_URL_IN_NEW_TAB_AND_CAPTURE_RESULT
+```
+
+
 **Entry567 — hard refresh confirms rollback frontend is active; Orders now fails with explicit Cloud API connection error:** FAILURE/READ-ONLY — Owner performed the required hard refresh after rollback. Production UI rendered, but the Orders/printing section now explicitly shows `تعذر الاتصال بـ Cloud API.` and no order rows loaded. This confirms the browser is no longer merely stuck on the pre-rollback runtime; the current blocker is the Cloud API/read path or its connectivity/auth dependency. Employee page/session remains present. No order/business data or Production configuration was changed.
 
 ```ini
