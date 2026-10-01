@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.91-DRAFT-COMPACT — active trendos-ui deployment confirmed old Entry499; refresh-fix version absent** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.92-DRAFT-COMPACT — Entry546 frontend-only uploader artifact ready; no production change** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — active trendos-ui is old Entry499; Orders refresh fix needs a new frontend-only version
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — active trendos-ui still old Entry499; safe frontend-only refresh-fix uploader artifact ready
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,24 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry548 — safe frontend-only uploader artifact built successfully:** SUCCESS / NO PRODUCTION CHANGE — تم إصلاح workflow syntax في commit `2db9e083c9acf6c4e68a4c523322df11c50633f4`. GitHub Actions run `36883054497` = SUCCESS. الـworkflow checkout للمصدر المؤهل exact commit `98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051`، تحقق من markers `20261001-post-refresh-recovery`, `recoverPostWriteBarrier`, `postWriteBarrierRecoveries`، وشغّل regressions اللازمة، ثم بنى artifact باسم `trendos-entry546-frontend-refresh-recovery`. Artifact id `11171199916`, size `310435` bytes, digest `sha256:3be0a3e887f9f85d6d945255af36f1598c4ecfebc0dc7fff684c8359b13b478a`. الحزمة تحتوي Windows launcher يرفع Frontend assets إلى `trendos-ui` ويُنشئ **Worker VERSION فقط**؛ لا deployment ولا traffic promotion. لا Cloudflare API call تم من CI، ولا Production mutation.
+
+```ini
+ENTRY548_WORKFLOW_RUN=36883054497
+ENTRY548_WORKFLOW_RESULT=SUCCESS
+ENTRY548_ARTIFACT_NAME=trendos-entry546-frontend-refresh-recovery
+ENTRY548_ARTIFACT_ID=11171199916
+ENTRY548_ARTIFACT_DIGEST=sha256:3be0a3e887f9f85d6d945255af36f1598c4ecfebc0dc7fff684c8359b13b478a
+FRONTEND_VERSION_CREATED=NO
+FRONTEND_DEPLOYED=NO
+TRAFFIC_CHANGED=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+NEXT_ACTION=OWNER_DOWNLOAD_ARTIFACT_AND_RUN_WINDOWS_VERSION_CREATOR_THEN_STOP_BEFORE_PROMOTE
 ```
 
 
