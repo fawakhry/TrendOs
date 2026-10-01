@@ -26,6 +26,30 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry562 — post-refresh Orders acceptance test failed; session survived but Orders did not load:** FAILURE/READ-ONLY — After waiting following the browser refresh from Entry561, owner provided a second Production screenshot showing the Orders/printing section still without loaded order rows. The signed-in page/session remained present, so employee session persistence passed, but the required Orders reload after Browser Refresh did not. No order status, customer data, D1, Apps Script, API Worker, secrets, variables, bindings, or routes were changed during this test. Acceptance criterion for the promoted frontend is therefore failed and no controlled write test is authorized. Recommended immediate action: rollback only `trendos-ui` Production traffic to prior known active version `71364637` at 100%, with all other settings untouched.
+
+```ini
+ENTRY562_REFRESH_ACCEPTANCE=FAIL
+ORDERS_LOAD_AFTER_REFRESH=FAIL
+EMPLOYEE_SESSION_AFTER_REFRESH=PASS
+PERSISTENT_ORDERS_CLOUD_UNAVAILABLE=NOT_CONFIRMED_VISIBLE
+ORDER_DATA_MUTATED=NO
+CONTROLLED_WRITE_TEST=NOT_AUTHORIZED
+FRONTEND_CURRENT_VERSION=589844aa-0a13-4ea8-8135-4caf47e32bfd
+ROLLBACK_TARGET_VERSION=71364637
+ROLLBACK_REQUIRED=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+NEXT_ACTION=ROLLBACK_TRENDOS_UI_ONLY_TO_VERSION_71364637_AT_100_PERCENT_THEN_VERIFY_ROOT_UI_AND_RECORD_RESULT
+```
+
+
 **Entry561 — post-refresh Orders screenshot captured while read still in progress:** PARTIAL/READ-ONLY — Owner performed the requested browser refresh and provided a Production screenshot while the Orders/printing area was still showing the runtime indicator `جاري القراءة...` (reading in progress). The page remained rendered and the signed-in session was still present, so there is no evidence of a logout/session destruction at this capture point. However the Orders table had not yet reached a terminal loaded/error state in the screenshot, so `ORDERS_LOAD_AFTER_REFRESH` cannot be marked PASS or FAIL yet. No order status or business data was changed.
 
 ```ini
