@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.97-DRAFT-COMPACT — Entry591 duplicate-order Production preflight PASS; install gated** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.98-DRAFT-COMPACT — Entry593 duplicate-order guard live in Production; postflight PASS** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry592 duplicate-order Production install explicitly authorized; execution pending
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry593 Cloud-native duplicate-order guard Production install PASS
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,50 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry593 — duplicate-order guard Production install completed and postflight passed:** SUCCESS/PRODUCTION — Owner authorization from Entry592 was executed through guarded GitHub Actions run `36914359158`, job `110544555506`, and the full job concluded **SUCCESS**. All pre-mutation gates passed first: exact authorized target source, exact three-file Cloud delta from Entry504, isolated create regression, exact target bundle SHA-256, current live API version/hash, Order Create GENERAL, guard table absent, pending migration set exactly `0010_t12_duplicate_order_guard.sql`, D1 business counters captured, and live bindings/variables matched the deployment config. Only then was migration 0010 applied to `trendos-main`; verification proved the new `t12_prod_duplicate_order_guard` table exists with zero rows and no pending migrations remain. The API Worker was then deployed using the exact prebuilt esbuild bundle with Wrangler `--no-bundle --keep-vars`, preserving dashboard variables and existing secrets.
+
+Postflight passed completely. New active API version is `23be0ab2-0a2b-4b81-bf54-e2f05f847989`, deployment `b8497ee0-a487-43c8-bcb3-b3f3ab83d3ff`, and live Worker SHA-256 exactly equals the qualified target `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`. Public health confirms Order Create remains `GENERAL` with `duplicateGuardReady=true`; Customer write remains `GENERAL`; Employee Auth remains `OFF`; Legacy Bridge remains disabled. D1 postflight compared pre/post counts and proved Orders, Lines, request ledger, and `next_order_number` did not change; guard rows remain zero immediately after installation. Bindings/Variables and secret presence/type snapshot matched exactly before/after. No route command was executed. No frontend or Apps Script deployment occurred and no business CREATE test was sent.
+
+A second workflow run `36914379249` existed only because the workflow-creation push itself and the explicit trigger push both generated events. Concurrency serialized it after the successful install. Its exact source-build step passed, then it failed **before any mutation** at the live-version precondition because Production was already on the new version. Migration, deploy, and all write-capable later steps were skipped. This is accepted as a fail-closed no-op and proves the installer cannot blindly repeat against the changed Production state.
+
+```ini
+ENTRY593_DUPLICATE_ORDER_GUARD_PRODUCTION=PASS
+AUTHORIZED_INSTALL_RUN=36914359158
+AUTHORIZED_INSTALL_JOB=110544555506
+MIGRATION_0010_APPLIED=YES
+DUPLICATE_GUARD_TABLE_PRESENT=YES
+DUPLICATE_GUARD_INITIAL_ROWS=0
+PENDING_MIGRATIONS_AFTER_INSTALL=NONE
+API_GUARD_DEPLOYED=YES
+ACTIVE_API_VERSION=23be0ab2-0a2b-4b81-bf54-e2f05f847989
+ACTIVE_API_DEPLOYMENT=b8497ee0-a487-43c8-bcb3-b3f3ab83d3ff
+ACTIVE_API_TRAFFIC_PERCENT=100
+ACTIVE_API_BUNDLE_SHA256=2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67
+ORDER_CREATE_MODE=GENERAL
+DUPLICATE_GUARD_READY=YES
+DUPLICATE_GUARD_WINDOW_MS=120000
+CUSTOMER_WRITE_MODE=GENERAL
+EMPLOYEE_AUTH_MODE=OFF
+LEGACY_BRIDGE_ENABLED=NO
+ORDER_ROWS_MUTATED=NO
+LINE_ROWS_MUTATED=NO
+REQUEST_LEDGER_MUTATED=NO
+NEXT_ORDER_NUMBER_CHANGED=NO
+ORDER_STATUS_MUTATED=NO
+BINDINGS_VARIABLES_SECRET_PRESENCE_UNCHANGED=YES
+ROUTE_COMMANDS_EXECUTED=NO
+FRONTEND_DEPLOYED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+BUSINESS_CREATE_TEST_SENT=NO
+SECOND_SERIALIZED_RUN=36914379249
+SECOND_SERIALIZED_RUN_RESULT=FAIL_CLOSED_PRE_VERSION_MISMATCH
+SECOND_SERIALIZED_RUN_MUTATION=NO
+DUPLICATE_ORDER_GUARD_STATUS=LIVE_PRODUCTION
+NEXT_ACTION=READ_ONLY_RUNTIME_ACCEPTANCE_OR_CONTINUE_ZERO_GOOGLE_PLAN
 ```
 
 
