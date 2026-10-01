@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.83-DRAFT-COMPACT — Entry531 source synchronized in Apps Script / manual publish pending** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.84-DRAFT-COMPACT — Entry531 Apps Script Production deployed as Version 159** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry531 source synchronized in Apps Script; manual publish still pending
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry531 Apps Script Production deployed; post-deploy session validation pending
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,20 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry535 — Entry531 Apps Script Production publish confirmed as Version 159:** SUCCESS — المالك قدّم صورة شاشة من Apps Script Manage deployments يظهر فيها النص `Deployment successfully updated.` و`Version 159` بتاريخ 2026-10-01. هذا يثبت أن Web App deployment الحالي تم تحديثه بنجاح بعد مزامنة `Code.gs` المؤهل في Entry531. لم يُذكر أو يُطلب أي تغيير Cloudflare/D1/Secrets/Variables/Bindings/Orders ضمن هذه الخطوة. لا نعرض أو نسجل Deployment ID أو Web App URL في السجل التشغيلي. الحالة الآن: `ENTRY531_APPS_SCRIPT_PRODUCTION_DEPLOYED=YES`, `ENTRY531_APPS_SCRIPT_PRODUCTION_VERSION=159`. الخطوة التالية: post-deploy session stability validation فقط، مع إبقاء Cloudflare/D1 بلا تغيير.
+
+```ini
+ENTRY535_APPS_SCRIPT_DEPLOYMENT_UPDATE=SUCCESS
+ENTRY531_APPS_SCRIPT_PRODUCTION_DEPLOYED=YES
+ENTRY531_APPS_SCRIPT_PRODUCTION_VERSION=159
+ENTRY531_SOURCE_QUALIFIED=YES
+POST_DEPLOY_SESSION_VALIDATION=PENDING
+CLOUDFLARE_TOUCHED=NO
+D1_TOUCHED=NO
+NEXT_ACTION=VALIDATE_EMPLOYEE_SESSION_STABILITY_ON_PRODUCTION
 ```
 
 
