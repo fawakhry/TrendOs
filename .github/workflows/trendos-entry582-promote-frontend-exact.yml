@@ -95,11 +95,7 @@ jobs:
                 "version_id":"$TARGET_VERSION_ID",
                 "percentage":100
               }
-            ],
-            "annotations":{
-              "workers/message":"TrendOS Entry582 initial Orders Edge readiness promote",
-              "workers/triggered_by":"Entry582 controlled frontend promote"
-            }
+            ]
           }
           JSON
 
