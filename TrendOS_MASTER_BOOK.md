@@ -26,6 +26,29 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry557 — verified frontend version promoted to 100% Production traffic:** SUCCESS/PRODUCTION-PROMOTE — owner screenshot from Cloudflare `trendos-ui → Production → Deployments` shows Active deployment version prefix `589844aa` deployed ~1 minute ago at `100%` traffic. This corresponds to the exact previously verified full Version ID `589844aa-0a13-4ea8-8135-4caf47e32bfd` and the target row remains labeled `TrendOS Orders refresh recovery; source 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051; create only, no deployment`. Previous active version `71364637` is no longer active. No Routes/Secrets/Variables/Bindings/API Worker/D1/Apps Script/order-data mutation was requested or observed in this step.
+
+```ini
+ENTRY557_FRONTEND_PROMOTE=SUCCESS
+FRONTEND_TARGET=trendos-ui
+PROMOTED_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+FRONTEND_PROMOTED_TO_100=YES
+PREVIOUS_ACTIVE_VERSION=71364637
+PRODUCTION_URL_UNCHANGED=YES
+API_TOKEN_REVOKED=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=READ_ONLY_VERIFY_CONFIG_CACHE_TAG_AND_ORDERS_RECOVERY_MARKERS_THEN_HTTP_200_UI_CHECK
+```
+
+
 **Entry556 — exposed Cloudflare API token revoke confirmed by owner:** SUCCESS/SECURITY-GATE-CLOSED — owner explicitly confirmed the exposed Cloudflare API token identified in Entry550 has been revoked. No token value was repeated or recorded. Exact target frontend Version ID remains verified as `589844aa-0a13-4ea8-8135-4caf47e32bfd` on `trendos-ui`; Production traffic has not yet been promoted in this step. Security prerequisite for manual Promote is now satisfied.
 
 ```ini
