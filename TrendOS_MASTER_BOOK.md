@@ -26,6 +26,28 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry564 — frontend rollback to prior Production version completed:** SUCCESS/ROLLBACK — Owner screenshot from Cloudflare `trendos-ui → Production → Deployments` shows Active deployment `71364637` at `100%` traffic, deployed seconds ago. The failed refresh-recovery candidate `589844aa-0a13-4ea8-8135-4caf47e32bfd` remains only in Version History and is no longer active. Rollback affected only `trendos-ui` traffic; no API Worker, D1, Apps Script, routes, secrets, variables, bindings, customer/order data, or order statuses were changed in this step.
+
+```ini
+ENTRY564_FRONTEND_ROLLBACK=SUCCESS
+FRONTEND_TARGET=trendos-ui
+ACTIVE_VERSION_ID=71364637
+ACTIVE_TRAFFIC_PERCENT=100
+FAILED_CANDIDATE_ACTIVE=NO
+ROLLED_BACK_FROM_VERSION=589844aa-0a13-4ea8-8135-4caf47e32bfd
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=VERIFY_PRODUCTION_UI_AND_ORDERS_READ_ONLY_ON_ROLLED_BACK_VERSION_THEN_DIAGNOSE_REFRESH_FIX_FROM_SOURCE_ONLY
+```
+
+
 **Entry563 — Cloudflare rollback confirmation screen verified before execution:** READY/NO-OP — Owner screenshot shows Cloudflare `Rollback trendos-ui` confirmation with current deployed version prefix `589844aa` and rollback target `71364637` labeled `TrendOS Entry499 frontend manual version; create only, no deployment`. This matches the authorized rollback target from Entry562. Rollback has not yet been executed at this entry. No other settings are shown for change.
 
 ```ini
