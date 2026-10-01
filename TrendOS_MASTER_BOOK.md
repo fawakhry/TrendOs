@@ -26,6 +26,32 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry585 — canonical promote POST succeeded; workflow failure was response-shape parser false negative; target is now active at 100%:** SUCCESS/PRODUCTION-PROMOTE — Retry workflow run `36905862684` passed the exact pre-promote guard and sent the canonical Cloudflare deployment body for target `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at 100%. Cloudflare returned `success=true`, but the workflow parser expected `result.versions` directly and found an empty array, so the job concluded FAILURE even though the deployment was created. Immediate GET-only verification via Entry580 run `36905119613` attempt 3 then failed its **old-version** expectation with explicit current deployment summary `[{"version_id":"b6674156-5f8f-4d57-b94b-e0b5422ae6c1","percentage":100}]`. This independently confirms the target version is now the sole active Production version at 100%. No additional POST was attempted after this confirmation.
+
+```ini
+ENTRY585_FRONTEND_PROMOTE=SUCCESS
+PROMOTE_RUN_ID=36905862684
+PROMOTE_RUN_UI_CONCLUSION=FAILURE_RESPONSE_SHAPE_PARSER
+CLOUDFLARE_POST_SUCCESS=TRUE
+POST_PROMOTE_VERIFY_RUN_ID=36905119613
+POST_PROMOTE_VERIFY_ATTEMPT=3
+ACTIVE_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+ACTIVE_TRAFFIC_PERCENT=100
+PREVIOUS_VERSION_ACTIVE=NO
+FRONTEND_PROMOTED_TO_100=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=POST_PROMOTE_HTTP_AND_MARKER_READ_ONLY_VERIFICATION_THEN_BROWSER_REFRESH_ACCEPTANCE_TEST
+```
+
+
 **Entry584 — post-failure read-only recheck confirms Production unchanged; retry narrowed to canonical deployment payload:** SUCCESS/READ-ONLY — Re-ran Entry580 read-only verification as run `36905119613` attempt 2 after the Entry583 HTTP 400. It completed SUCCESS and confirmed target `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` remains at 0% traffic while active Production remains `71364637-50f4-4ef3-b348-0e1432cdc090` at 100%. Therefore the rejected POST caused no traffic mutation. Retry will use the canonical Cloudflare deployment request body only: `strategy=percentage` plus one target version at 100%, with no client-supplied deployment annotations and no force flag.
 
 ```ini
