@@ -1,0 +1,79 @@
+name: TrendOS Entry580 Readonly Version Verify
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry580-readonly-version-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TARGET_WORKER: trendos-ui
+      TARGET_VERSION_ID: b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+      EXPECTED_ACTIVE_PREFIX: '71364637'
+    steps:
+      - name: Read-only Cloudflare verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/versions"             > /tmp/versions.json
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments"             > /tmp/deployments.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const versions = JSON.parse(fs.readFileSync('/tmp/versions.json','utf8'));
+          const deployments = JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const target = process.env.TARGET_VERSION_ID;
+          const expectedPrefix = process.env.EXPECTED_ACTIVE_PREFIX;
+
+          function walk(value, fn) {
+            if (Array.isArray(value)) return value.some(v => walk(v, fn));
+            if (value && typeof value === 'object') {
+              if (fn(value)) return true;
+              return Object.values(value).some(v => walk(v, fn));
+            }
+            return fn(value);
+          }
+          const targetPresent = walk(versions, v => typeof v === 'string' && v === target);
+          if (!targetPresent) throw new Error('Target version not found in version history');
+
+          const depList = Array.isArray(deployments?.result?.deployments)
+            ? deployments.result.deployments
+            : (Array.isArray(deployments?.result) ? deployments.result : []);
+          if (!depList.length) throw new Error('No deployments returned');
+
+          const active = depList[0];
+          const activeVersions = Array.isArray(active?.versions) ? active.versions : [];
+          const summary = activeVersions.map(v => ({
+            version_id: String(v?.version_id || v?.id || ''),
+            percentage: Number(v?.percentage ?? v?.traffic_percentage ?? NaN)
+          }));
+
+          const expectedActive = summary.find(v => v.version_id.startsWith(expectedPrefix));
+          if (!expectedActive) throw new Error('Expected active version prefix not found in current deployment: '+JSON.stringify(summary));
+          if (Number(expectedActive.percentage) !== 100) throw new Error('Expected active traffic is not 100: '+JSON.stringify(summary));
+          if (summary.some(v => v.version_id === target && Number(v.percentage) > 0)) {
+            throw new Error('Target version unexpectedly has production traffic');
+          }
+
+          console.log('ENTRY580_VERSION_PRESENT=YES');
+          console.log('TARGET_VERSION_ID='+target);
+          console.log('ACTIVE_VERSION_ID='+expectedActive.version_id);
+          console.log('ACTIVE_TRAFFIC_PERCENT='+expectedActive.percentage);
+          console.log('TARGET_VERSION_TRAFFIC_PERCENT=0');
+          console.log('PRODUCTION_UNCHANGED=YES');
+          NODE
