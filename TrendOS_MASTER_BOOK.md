@@ -32,6 +32,9 @@
 
 **Entry533 — regression broadened to active runtime manifest:** SUCCESS — تم تحديث `tests/frontend_employee_session_isolation_entry533.test.mjs` في commit `90802d691820f8119307738756179ee5c2644bc1` ليجمع تلقائيًا كل JavaScript runtime المحمّل من `index.html` و`config.js` ويمنع أي ملف نشط غير `app.js`/Orders Edge من تعريف/استدعاء main-style `clearSession`, وضع `state.user=null`, حذف employee session keys، مسح storage بالكامل، أو إصدار employee logout ضمنيًا. `app.js` وOrders Edge يخضعان لاختبارات مخصصة أدق. الهدف: منع رجوع cross-session destruction من Path جديد مستقبلًا.
 
+**Entry533 — broadened regression CI:** SUCCESS — GitHub Actions run `36855971271` على commit `90802d691820f8119307738756179ee5c2644bc1` = SUCCESS. Job `isolated-regression`, خطوة `Syntax`, وخطوة `Isolated transport, dispatcher, Orders and A61 regressions` كلها SUCCESS. هذا هو دليل qualification النهائي للـactive-runtime session-isolation regression الموسّع.
+
+
 
 
 
