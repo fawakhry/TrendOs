@@ -4004,6 +4004,52 @@ Trend Mall`;
     startRefresh();
   }
 
+  function secureApiChainHasEdgeOrdersRouter(fn) {
+    var current = fn;
+    var seen = 0;
+    while (typeof current === "function" && seen < 8) {
+      if (current.__trendosEdgeOrdersReadV1) return true;
+      current = current.__trendosEmployeeApiDownstream || current.__trendosOriginalSecureApiV1922 || null;
+      seen += 1;
+    }
+    return false;
+  }
+
+  function loadInitialRowsWhenEdgeReady() {
+    if (window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED !== true) {
+      loadRows();
+      return;
+    }
+
+    var attempts = 0;
+    var maxAttempts = 40;
+
+    function tryLoad() {
+      if (secureApiChainHasEdgeOrdersRouter(window.trendosSecureApiV1922)) {
+        loadRows();
+        return;
+      }
+
+      var loader = window.TrendOSEdgeOrdersReadV1Loader;
+      if (loader && typeof loader.install === "function") {
+        try { loader.install(); } catch (ignore) {}
+        if (secureApiChainHasEdgeOrdersRouter(window.trendosSecureApiV1922)) {
+          loadRows();
+          return;
+        }
+      }
+
+      attempts += 1;
+      if (attempts >= maxAttempts) {
+        setLoading("مسار Cloud للأوردرات لم يجهز بعد. اضغط تحديث البيانات.", true);
+        return;
+      }
+      setTimeout(tryLoad, 250);
+    }
+
+    tryLoad();
+  }
+
   function bootMain() {
     showMain();
     state.urgentNotificationEnabled = loadUrgentNotificationPreference();
@@ -4026,7 +4072,7 @@ Trend Mall`;
     toggleAddOrder();
     toggleAddCustomer();
     syncBulkStatusTool();
-    loadRows();
+    loadInitialRowsWhenEdgeReady();
     updateUrgentNotificationButton();
     startRefresh();
     if (state.urgentNotificationEnabled) startUrgentNotificationTimer();
