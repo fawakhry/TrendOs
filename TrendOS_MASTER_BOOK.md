@@ -26,6 +26,18 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry540 — Repo-only Orders post-refresh barrier recovery fix added:** SUCCESS / NOT DEPLOYED — تم تعديل `trendos-edge-orders-read-v1.js` في commit `847837ff5f3620fa2b4c2dc5031676652c980dda`. بدل أن يمنع `postWriteBarrier` كل Edge reads لمدة 6 دقائق بعد successful legacy `updateLine`، أصبح يعمل Edge-only targeted readback باستخدام lineId/orderId مع إزالة status/priority/heat filters. إذا أثبت D1 أن نفس lineId/orderId ظهر بالحالة المكتوبة، يتم مسح barrier ثم تحميل الصفحة المطلوبة طبيعيًا؛ إذا لم يظهر التحديث بعد أو فشل Edge، يظل السلوك fail-closed ويرجع `ORDERS_CLOUD_UNAVAILABLE`. لا Apps Script/Google browser fallback، ولا employee-session clear، ولا Cloudflare/D1 mutation. أضيف metric `postWriteBarrierRecoveries` للتشخيص. يلزم الآن تحديث regression الذي كان يتوقع أن refresh أثناء barrier لا يرسل أي Edge fetch.
+
+```ini
+ENTRY540_SOURCE_FIX_COMMIT=847837ff5f3620fa2b4c2dc5031676652c980dda
+POST_WRITE_BARRIER_RECOVERY=EDGE_ONLY_TARGETED_READBACK
+DIRECT_GOOGLE_FALLBACK=NO
+EMPLOYEE_SESSION_MUTATION=NO
+PRODUCTION_DEPLOYED=NO
+NEXT_ACTION=UPDATE_REFRESH_WRITE_CONSISTENCY_REGRESSION_AND_RUN_CI
+```
+
+
 **Entry539 — deterministic post-refresh Orders blocker identified in frontend source:** ROOT-CAUSE PATH FOUND / LIVE REASON NOT YET TELEMETRY-CONFIRMED — فحص `trendos-edge-orders-read-v1.js` وregression `tests/frontend_order_status_write_consistency_02cv.test.mjs` أثبت وجود مسار deterministic يطابق شكوى المالك: بعد نجاح legacy `updateLine` يفتح الكود `postWriteBarrier` لمدة افتراضية 6 دقائق ويخزنها في `sessionStorage` تحت `trendos_edge_orders_post_write_barrier_v1`، ثم يستعيدها بعد browser refresh. بعد A61 commit `420b3bf467c916a07f432207c752fa86c2096159` تم تغيير سلوك barrier من Apps Script fallback إلى `ORDERS_CLOUD_UNAVAILABLE` لمنع direct Google fallback؛ والـregression الحالي يثبت صراحة أن full refresh أثناء barrier لا يعمل أي Edge page fetch ويعيد unavailable. لذلك أي refresh بعد status/notes write ناجح يمكنه حجب الأوردرات حتى انتهاء barrier رغم أن employee session سليمة. الرسالة الظاهرة للمالك هي نفس رسالة `ordersUnavailable()`. ما زال السبب live الدقيق لكل محاولة refresh غير telemetry-confirmed لأن نفس الرسالة تستخدم أيضًا لفشل mirror/network، لكن هذا path وحده كافٍ لإنتاج العطل بشكل مؤكد ويحتاج إصلاحًا وقائيًا. خطة الإصلاح Repo-only: أثناء barrier نفذ Edge-only targeted readback بالـlineId/orderId؛ إذا ظهر status/notes المكتوبان في D1، امسح barrier وحمّل الصفحة طبيعيًا؛ إذا لم يظهر التحديث بعد، استمر fail-closed بدون Google fallback وبدون مسح employee session.
 
 ```ini
