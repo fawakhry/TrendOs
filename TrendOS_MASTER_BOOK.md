@@ -26,6 +26,32 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry581 — read-only Cloudflare verification confirms new version exists and Production remains unchanged:** SUCCESS/READ-ONLY — GitHub Actions workflow `TrendOS Entry580 Readonly Version Verify` run `36905119613` completed SUCCESS. Cloudflare GET-only verification confirmed target Version ID `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` exists in `trendos-ui` Version History. The current active Production deployment remains exact Version ID `71364637-50f4-4ef3-b348-0e1432cdc090` at `100%` traffic. The new target version has `0%` traffic. Therefore Production is unchanged and no promote/deployment has occurred.
+
+```ini
+ENTRY581_READONLY_VERIFY=PASS
+GITHUB_VERIFY_RUN_ID=36905119613
+FRONTEND_TARGET=trendos-ui
+TARGET_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+TARGET_VERSION_PRESENT=YES
+TARGET_VERSION_TRAFFIC_PERCENT=0
+ACTIVE_VERSION_ID=71364637-50f4-4ef3-b348-0e1432cdc090
+ACTIVE_TRAFFIC_PERCENT=100
+PRODUCTION_UNCHANGED=YES
+FRONTEND_PROMOTED_TO_100=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=OWNER_REVIEW_THEN_PROMOTE_ONLY_TARGET_VERSION_IF_AUTHORIZED
+```
+
+
 **Entry580 — qualified frontend Worker version created on trendos-ui with zero traffic change:** SUCCESS/CREATE-VERSION-ONLY — GitHub Actions workflow `TrendOS Entry579 Frontend Create Version Only` run `36904871826` completed SUCCESS using exact qualified source `c469afb3ccb8e3e8ed1d8b719ae341e5f541c753`. Source guards and frontend package passed. Cloudflare version creation returned full Version ID `b6674156-5f8f-4d57-b94b-e0b5422ae6c1`. Workflow output explicitly confirmed `TRAFFIC_CHANGED=NO` and `DEPLOYMENT_CREATED=NO`. No API Worker, D1, Apps Script, Routes, Variables, Secrets, Bindings, order/customer data, or order statuses were changed.
 
 ```ini
