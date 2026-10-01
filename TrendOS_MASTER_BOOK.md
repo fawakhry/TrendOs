@@ -26,6 +26,20 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry547 — first Entry546 frontend-only artifact workflow attempt invalid before jobs:** FAILURE/NO-OP — أُضيفت أدوات local frontend-only uploader ثم workflow `.github/workflows/trendos-entry546-frontend-refresh-recovery-manual-bundle.yml` في commit `9248ddc7a3c75cc88e5caca7084cacc5169447da`. GitHub Actions run `36882871444` = FAILURE مع `jobs.total_count=0`، أي فشل workflow parsing قبل أي job. قراءة الملف كشفت أن shell escaping في سطر `find` و`printf` تشوه أثناء إنشاء YAML. لا artifact أُنتج، لا Cloudflare API call، لا frontend version، ولا Production mutation. سيتم إصلاح workflow syntax فقط ثم إعادة push-trigger.
+
+```ini
+ENTRY547_RUN=36882871444
+ENTRY547_RESULT=FAILURE_BEFORE_JOBS
+ENTRY547_CAUSE=WORKFLOW_SHELL_ESCAPING_PARSE_ERROR
+ARTIFACT_CREATED=NO
+CLOUDFLARE_CALLED=NO
+FRONTEND_VERSION_CREATED=NO
+PRODUCTION_MUTATION=NO
+NEXT_ACTION=FIX_WORKFLOW_SYNTAX_AND_RETRY
+```
+
+
 **Entry546 — Cloudflare Deployments inspected; active frontend is old Entry499 version, refresh-fix version absent:** READ-ONLY / CONFIRMED — المالك فتح `trendos-ui → Production → Deployments`. Screenshot يثبت أن Active deployment هو Version ID `71364637` عند Traffic `100%`، وVersion History يصفه `TrendOS Entry499 frontend manual version; create only, no deployment`. لا تظهر Version جديدة مرتبطة بمصدر إصلاح refresh الحالي `98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051`. لذلك **ممنوع Promote لأي Version ظاهرة حاليًا** باعتبارها إصلاح Entry543؛ الإصلاح غير موجود بعد كنسخة Cloudflare. الصفحة تعرض أيضًا `No builds exist yet for this worker`، لذلك مسار Build/Deploy عبر Dashboard غير متاح مباشرة من هذه الحالة. لا mutation حدث.
 
 ```ini
