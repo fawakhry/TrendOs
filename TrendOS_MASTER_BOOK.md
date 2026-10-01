@@ -26,6 +26,24 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry574 — source review confirms startup ordering race can send initial Orders load through legacy transport before Edge wrapper installs:** DIAGNOSIS/READ-ONLY — Entry499 source ordering is: static `config.js` → static `browser-api-transport-v1.js` → static `app.js` → employee dispatcher. Inside `config.js`, the Orders Edge module is injected dynamically with `trendLoadModuleV1932(...trendos-edge-orders-read-v1.js...)` rather than synchronously awaited. In `app.js`, `bootMain()` calls `loadRows()` immediately. The Edge module's own fallback installation retries every 250ms only after its script executes. Therefore there is no startup synchronization guaranteeing the first `getRowsPageV1931` occurs after the Edge wrapper is installed. Entry571/573 runtime evidence matches this race: Edge asset HTTP 200, zero `edge/orders` requests, and legacy-api 502s during the initial Orders load. This is a source-confirmed race possibility and the next safe proof is a delayed manual read-only refresh after wrapper installation. No mutation occurred.
+
+```ini
+ENTRY574_STARTUP_ORDERING_RACE=SOURCE_CONFIRMED_POSSIBLE
+CONFIG_LOADS_EDGE_MODULE=DYNAMIC
+APP_BOOT_CALLS_LOADROWS_IMMEDIATELY=YES
+EDGE_INSTALL_HAS_DELAYED_RETRY=YES
+INITIAL_EDGE_ROUTING_GUARANTEE=NO
+RUNTIME_EVIDENCE_MATCHES_RACE=YES
+ORDER_DATA_MUTATED=NO
+NEW_DEPLOY_AUTHORIZED=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=WAIT_AT_LEAST_10_SECONDS_THEN_CLICK_UPDATE_DATA_ONCE_AND_OBSERVE_ORDERS_AND_EDGE_ORDERS_NETWORK
+```
+
+
 **Entry573 — browser Network confirms mixed legacy-api success with repeated 502 while Edge Orders requests remain absent:** DIAGNOSIS/READ-ONLY — Owner Network screenshot filtered to `legacy-api` shows many CORS preflight requests returning HTTP 200, multiple fetch requests returning HTTP 200, and several fetch requests returning HTTP 502. The Production UI simultaneously displays `تعذر الاتصال بـ Cloud API.`. Combined with Entry571 (zero `edge/orders` requests) and Entry569 (`/health` + D1 binding PASS), this rules out total Worker/D1 outage and narrows the live failure to specific legacy Cloud transport actions while the Orders Edge wrapper is apparently not handling `getRowsPageV1931`. No headers, payloads, responses, or tokens were inspected or exposed. No mutation occurred.
 
 ```ini
