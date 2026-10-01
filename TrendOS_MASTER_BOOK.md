@@ -42,6 +42,25 @@ NEXT_ACTION=REVIEW_NEW_VERSION_THEN_PROMOTE_TO_100_PERCENT_IF_CONFIRMED
 ```
 
 
+**Entry550 — Entry546 frontend-only Worker VERSION created successfully; no traffic promotion yet:** SUCCESS/PRE-PROMOTE — المالك قدّم Screenshot من Windows uploader يظهر `ENTRY546_VERSION_CREATED=YES`, `VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd`, `TRAFFIC_CHANGED=NO`, `DEPLOYMENT_CREATED=NO`, `PROMOTE_REQUIRED_MANUALLY=YES`. المصدر المؤهل هو `98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051` والهدف `trendos-ui` فقط. إذن version creation نجح ولم تتغير Production traffic بعد. **أمنياً:** Screenshot نفسه أظهر قيمة Cloudflare API Token في صفحة المتصفح خلف نافذة الـCMD؛ لا تُسجل القيمة في الكتاب ولا تُكرر في الشات. يجب على المالك إلغاء/Revoke هذا الـToken وإنشاء بديل قبل أي Cloudflare API use إضافي. لا حاجة لاستخدام التوكن المكشوف لعملية الـPromote اليدوي من Dashboard.
+
+```ini
+ENTRY550_FRONTEND_VERSION_CREATED=YES
+ENTRY550_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+ENTRY550_FRONTEND_SOURCE_COMMIT=98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051
+ENTRY550_TARGET_WORKER=trendos-ui
+ENTRY550_TRAFFIC_CHANGED=NO
+ENTRY550_DEPLOYMENT_CREATED=NO
+ENTRY550_PROMOTE_REQUIRED_MANUALLY=YES
+ENTRY550_API_TOKEN_EXPOSED_IN_SCREENSHOT=YES
+ENTRY550_EXPOSED_TOKEN_REVOKE_REQUIRED=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+NEXT_ACTION=REVOKE_EXPOSED_TOKEN_THEN_VERIFY_VERSION_ID_IN_TRENDOS_UI_DEPLOYMENTS_AND_PROMOTE_ONLY_THAT_VERSION
+```
+
+
 **Entry549 — owner launched Entry546 Windows uploader; local qualification passed, upload not started:** SUCCESS/PRE-UPLOAD — المالك قدّم Screenshot من Windows console يظهر `ENTRY546_PACKAGE=QUALIFIED`, `FRONTEND_SOURCE_COMMIT=98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051`, `TARGET_WORKER=trendos-ui`, `ASSET_COUNT=46`, `DEPLOYMENT_ACTION=NONE`, `DRY_RUN=PASS`. الأداة متوقفة الآن عند prompt `Cloudflare Account ID:` ولم يدخل Account ID/API Token بعد في الدليل المقدم؛ لذلك لا upload ولا Worker version ولا traffic change حدث حتى الآن.
 
 ```ini
