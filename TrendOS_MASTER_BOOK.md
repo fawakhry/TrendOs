@@ -26,6 +26,22 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry553 — raw GET fallback also blocked by runtime DNS; Cloudflare plugin discovery found no Cloudflare connector:** BLOCKED/NO-OP — جرت محاولة GET-only بديلة من runtime إلى نفس endpoints العامة، وفشلت الثلاثة قبل الاتصال بسبب `Temporary failure in name resolution`. بعدها تم فحص Plugin Directory عن Cloudflare/Workers deployments ولم يظهر Cloudflare connector متاح؛ النتائج كانت مزودين آخرين مثل Railway/Render/Vercel وليست صالحة للتحكم في حساب Cloudflare الحالي. لذلك لا يوجد في هذه الجلسة مسار بديل موثوق لإلغاء الـToken أو Promote من Dashboard بدون browser automation المتوقف بسبب الرصيد. لا Production mutation حدث.
+
+```ini
+ENTRY553_RAW_GET=BLOCKED_DNS
+ENTRY553_CLOUDFLARE_CONNECTOR_AVAILABLE=NO
+API_TOKEN_REVOKED=NOT_VERIFIED
+VERSION_ID_VERIFIED=NO
+FRONTEND_PROMOTED_TO_100=NO
+FRONTEND_HTTP_200=NOT_VERIFIED
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+```
+
+
 **Entry552 — public Production read-only probe via web fetch blocked by fetch transport; no mutation:** BLOCKED/NO-OP — بعد Entry551 جرت محاولة GET-only لثلاثة endpoints العامة فقط: `/config.js`, `/trendos-edge-orders-read-v1.js`, وroot `/` على trendos-ui. مسار web fetch أعاد `DisabledError` لكل الثلاثة قبل جلب المحتوى، لذلك لا يمكن اعتماد هذا المسار كدليل HTTP/marker في هذه الخطوة. لم يحدث أي POST/PUT/DELETE أو Dashboard action أو Production mutation.
 
 ```ini
