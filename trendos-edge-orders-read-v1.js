@@ -45,6 +45,7 @@
     postWriteFallbacks: 0,
     rowNumberStrippedWrites: 0,
     postWriteBarriersOpened: 0,
+    postWriteBarrierRecoveries: 0,
     lineIdRepairs: 0,
     writeIdentityRepairs: 0,
     hybridOverlaySuccess: 0,
@@ -276,6 +277,44 @@
     postWriteBarrier.status = text(params && params.status);
     metrics.postWriteBarriersOpened += 1;
     persistPostWriteBarrier();
+  }
+
+  function postWriteBarrierProbeParams(params) {
+    var target = text(postWriteBarrier.lineId || postWriteBarrier.orderId);
+    if (!target) return null;
+    var probe = Object.assign({}, params || {});
+    probe.page = 1;
+    probe.pageSize = Math.max(5, Math.min(20, Number(probe.pageSize) || 20));
+    probe.query = target;
+    probe.statusFilter = '';
+    probe.priorityFilter = '';
+    probe.heatPressFilter = '';
+    return probe;
+  }
+
+  function postWriteBarrierVisible(body) {
+    var lineId = text(postWriteBarrier.lineId);
+    var orderId = text(postWriteBarrier.orderId);
+    var expectedStatus = text(postWriteBarrier.status);
+    if (!lineId) return false;
+    var rows = body && Array.isArray(body.rows) ? body.rows : [];
+    return rows.some(function (row) {
+      if (text(row && row.lineId) !== lineId) return false;
+      if (orderId && text(row && row.orderId) !== orderId) return false;
+      if (expectedStatus && text(row && row.status) !== expectedStatus) return false;
+      return true;
+    });
+  }
+
+  async function recoverPostWriteBarrier(params) {
+    if (!postWriteBarrierActive()) return null;
+    var probeParams = postWriteBarrierProbeParams(params || {});
+    if (!probeParams) return null;
+    var probe = await edgePage(probeParams);
+    if (!postWriteBarrierVisible(probe)) return null;
+    clearPostWriteBarrier();
+    metrics.postWriteBarrierRecoveries += 1;
+    return edgePage(params || {});
   }
 
   function repairSerializedLineId(orderId, lineId) {
@@ -934,6 +973,18 @@ function eligible(action, params) {
       if (!eligible(action, params || {})) return original.apply(this, args);
 
       if (postWriteBarrierActive()) {
+        try {
+          var recovered = await recoverPostWriteBarrier(params || {});
+          if (recovered) {
+            metrics.edgeSuccess += 1;
+            recovered.dashboard = recovered.dashboard || null;
+            return recovered;
+          }
+        } catch (barrierErr) {
+          try {
+            console.warn('[TrendOS Orders Edge] post-write D1 readback not ready:', barrierErr && barrierErr.message ? barrierErr.message : barrierErr);
+          } catch (ignoreBarrierWarn) {}
+        }
         metrics.fallbacks += 1;
         metrics.postWriteFallbacks += 1;
         metrics.lastFallbackAt = Date.now();
@@ -1004,6 +1055,7 @@ function eligible(action, params) {
           postWriteFallbacks: metrics.postWriteFallbacks,
           rowNumberStrippedWrites: metrics.rowNumberStrippedWrites,
           postWriteBarriersOpened: metrics.postWriteBarriersOpened,
+          postWriteBarrierRecoveries: metrics.postWriteBarrierRecoveries,
           lineIdRepairs: metrics.lineIdRepairs,
           writeIdentityRepairs: metrics.writeIdentityRepairs,
           hybridOverlaySuccess: metrics.hybridOverlaySuccess,
