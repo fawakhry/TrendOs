@@ -26,6 +26,28 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry575 — owner runtime observation confirms refresh-only initial-load race; section click immediately recovers Orders:** CONFIRMED/READ-ONLY — Owner clarified the exact Production behavior: immediately after Browser Refresh, Orders disappear/do not load; however clicking any operational section tab such as Printing, Laser, or Customer Service causes Orders to appear and work normally. This proves the persistent data/API path is healthy after startup and the defect is specifically the first Orders load after page boot. The behavior matches Entry574's startup-ordering race hypothesis: the initial `loadRows()` can run before the Edge Orders wrapper is installed, while a later section-triggered reload runs after wrapper readiness and succeeds. No business mutation occurred.
+
+```ini
+ENTRY575_REFRESH_ONLY_FAILURE=YES
+ORDERS_AFTER_BROWSER_REFRESH=NOT_LOADED
+ORDERS_AFTER_SECTION_CLICK=PASS
+PRINT_TAB_RECOVERS=YES
+LASER_TAB_RECOVERS=YES
+CUSTOMER_SERVICE_TAB_RECOVERS=YES
+API_HEALTH=PASS
+D1_HEALTH=PASS
+EMPLOYEE_SESSION_PERSISTS=YES
+ROOT_CAUSE_CLASS=FRONTEND_STARTUP_ORDERING_RACE
+ORDER_DATA_MUTATED=NO
+NEW_DEPLOY_AUTHORIZED=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=SOURCE_ONLY_FIX_INITIAL_LOAD_TO_WAIT_FOR_EDGE_WRAPPER_OR_RETRY_AFTER_INSTALL_THEN_ADD_REGRESSION
+```
+
+
 **Entry574 — source review confirms startup ordering race can send initial Orders load through legacy transport before Edge wrapper installs:** DIAGNOSIS/READ-ONLY — Entry499 source ordering is: static `config.js` → static `browser-api-transport-v1.js` → static `app.js` → employee dispatcher. Inside `config.js`, the Orders Edge module is injected dynamically with `trendLoadModuleV1932(...trendos-edge-orders-read-v1.js...)` rather than synchronously awaited. In `app.js`, `bootMain()` calls `loadRows()` immediately. The Edge module's own fallback installation retries every 250ms only after its script executes. Therefore there is no startup synchronization guaranteeing the first `getRowsPageV1931` occurs after the Edge wrapper is installed. Entry571/573 runtime evidence matches this race: Edge asset HTTP 200, zero `edge/orders` requests, and legacy-api 502s during the initial Orders load. This is a source-confirmed race possibility and the next safe proof is a delayed manual read-only refresh after wrapper installation. No mutation occurred.
 
 ```ini
