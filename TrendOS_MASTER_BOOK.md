@@ -26,6 +26,30 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry580 — qualified frontend Worker version created on trendos-ui with zero traffic change:** SUCCESS/CREATE-VERSION-ONLY — GitHub Actions workflow `TrendOS Entry579 Frontend Create Version Only` run `36904871826` completed SUCCESS using exact qualified source `c469afb3ccb8e3e8ed1d8b719ae341e5f541c753`. Source guards and frontend package passed. Cloudflare version creation returned full Version ID `b6674156-5f8f-4d57-b94b-e0b5422ae6c1`. Workflow output explicitly confirmed `TRAFFIC_CHANGED=NO` and `DEPLOYMENT_CREATED=NO`. No API Worker, D1, Apps Script, Routes, Variables, Secrets, Bindings, order/customer data, or order statuses were changed.
+
+```ini
+ENTRY580_VERSION_CREATED=YES
+GITHUB_RUN_ID=36904871826
+FRONTEND_TARGET=trendos-ui
+QUALIFIED_SOURCE=c469afb3ccb8e3e8ed1d8b719ae341e5f541c753
+VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+TRAFFIC_CHANGED=NO
+DEPLOYMENT_CREATED=NO
+PROMOTE_REQUIRED_MANUALLY=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=READ_ONLY_VERIFY_VERSION_HISTORY_AND_ACTIVE_PRODUCTION_REMAINS_71364637_BEFORE_ANY_PROMOTE
+```
+
+
 **Entry579 — frontend create-version-only uploader prepared for qualified startup-race fix:** READY/REPO-ONLY — Added `tools/trendos-entry579-direct-version-upload.mjs` at commit `19770050b3a1588a821d044cf05f58408c5eac1e`. The uploader is hard-locked to Worker `trendos-ui`, qualified source `c469afb3ccb8e3e8ed1d8b719ae341e5f541c753`, ASSETS-only binding metadata, and Cloudflare Workers `/versions` API. It performs asset upload + Worker version creation only; it does **not** create a deployment and does **not** alter traffic. It also requires the previous refresh-recovery markers plus the new initial Edge readiness helper/cache tag before upload. No Production mutation has occurred yet.
 
 ```ini
