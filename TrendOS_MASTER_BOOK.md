@@ -26,6 +26,29 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry578 — initial Orders boot-load race fix fully qualified Repo-only:** SUCCESS/QUALIFIED-NOT-DEPLOYED — The stale cache-tag assertion identified in Entry577 was updated in `tests/frontend_order_status_ux_02cv.test.mjs` at commit `c469afb3ccb8e3e8ed1d8b719ae341e5f541c753`. Final A61 browser Cloud transport regression run `36904126678` completed **SUCCESS** on that HEAD. The actual frontend source fix remains commit `7b7774089470838305d226f307a88bd12ea932a7`: initial `bootMain()` no longer calls Orders `loadRows()` before Edge router readiness; it waits/retries installation and fails closed instead of leaking the initial read to `/v1/legacy-api`. `index.html` now uses cache tag `app.js?v=20261001-initial-edge-ready` from commit `4d666c33a10e164bb9a57b7e233717aede05b3f5`. Dedicated regression is present and wired into A61 CI. A56 source run `36903369789` = SUCCESS on the app source commit. **No Production deploy occurred.** Production frontend remains rolled back on version `71364637` at 100%.
+
+```ini
+ENTRY578_REPO_QUALIFICATION=PASS
+ROOT_CAUSE=FRONTEND_INITIAL_LOAD_EDGE_ROUTER_STARTUP_RACE
+APP_SOURCE_COMMIT=7b7774089470838305d226f307a88bd12ea932a7
+APP_CACHE_TAG_COMMIT=4d666c33a10e164bb9a57b7e233717aede05b3f5
+QUALIFICATION_HEAD=c469afb3ccb8e3e8ed1d8b719ae341e5f541c753
+A56_SOURCE_RUN_36903369789=SUCCESS
+A61_FINAL_RUN_36904126678=SUCCESS
+DEDICATED_REGRESSION=PASS
+PRODUCTION_DEPLOYED=NO
+ACTIVE_PRODUCTION_FRONTEND=71364637
+ACTIVE_PRODUCTION_TRAFFIC_PERCENT=100
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=CREATE_FRONTEND_ONLY_TRENDOS_UI_VERSION_FROM_QUALIFIED_HEAD_WITH_ZERO_TRAFFIC_CHANGE_THEN_REVIEW_BEFORE_PROMOTE
+```
+
+
 **Entry577 — repo-only initial Edge readiness fix implemented; final CI blocked by stale old cache-tag assertion:** PARTIAL/CI-FAIL — Implemented source-only startup repair in `app.js`: `bootMain()` no longer calls initial `loadRows()` directly; it now waits for the Edge Orders router, attempts loader installation, retries up to 40×250ms, and fails closed instead of sending the initial Orders read through legacy transport. App source commit: `7b7774089470838305d226f307a88bd12ea932a7`. Added dedicated regression `tests/frontend_orders_initial_edge_ready_entry577.test.mjs` in commit `0da90f090ec11999b3e1d477b81067064988f116`; wired it into A61 CI in commit `7bccd830137f925c65770da93d3d0f2f61497825`. A61 run `36903598444` = SUCCESS and A56 run `36903369789` = SUCCESS for the source fix. Then bumped `index.html` app cache tag to `20261001-initial-edge-ready` in commit `4d666c33a10e164bb9a57b7e233717aede05b3f5` and locked it in the new regression at `b5dee1d15b4d1721e43dcd0c8a802149cfd67c27`. Final A61 run `36903753017` failed because pre-existing `tests/frontend_order_status_ux_02cv.test.mjs` still asserts the old app cache tag `20260930-a61-cloud-transport`; this is a stale test expectation, not evidence that the startup fix failed. No Production deploy occurred.
 
 ```ini
