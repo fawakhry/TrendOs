@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.99-DRAFT-COMPACT — Entry594 duplicate-order frontend message qualified; trendos-ui publish authorized** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.00-DRAFT-COMPACT — Entry595 duplicate-order frontend message live; independent verification PASS** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry594 duplicate-order frontend message qualified; trendos-ui publish authorized
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry595 duplicate-order guard API + frontend message live in Production
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,52 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry595 — duplicate-order frontend message live in Production and independently reverified:** SUCCESS/PRODUCTION — Entry594 authorized frontend-only publish executed through workflow run `36915268349`. Preflight confirmed the then-active frontend was exactly `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at 100% and the Production API duplicate guard remained healthy in `GENERAL`. Exact qualified source `6a9cd90649cfa0ac75b25b725d53e9f779bb2c61` passed the duplicate-message regression plus the existing initial-Edge-ready/session/Orders regressions. A new Worker version `a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e` was created first with zero traffic, its existence was verified while the old version remained active, then the exact new version was promoted to 100% through deployment `21a12f7f-e323-4bc2-bb60-7ef4009d708e`.
+
+The publish workflow itself concluded FAILURE only because its immediate public post-promote marker block exited nonzero after the deployment had already been proven active. No rollback was performed because the failure source was not yet isolated. A separate GET-only verifier was then run: workflow `36915414626`, job `110548061098`, conclusion **SUCCESS**. It independently confirmed the exact target version at 100%, and on its first public attempt root/config/edge/app all returned HTTP 200. Required markers all passed: root `config.js?v=20261001-duplicate-order-guard-ui`, root `app.js?v=20261001-initial-edge-ready`, config `trendos-edge-orders-read-v1.js?v=20261001-duplicate-order-guard-ui`, edge `duplicate-order-window-active`, the Arabic `تم منع إنشاء أوردر مكرر` message, `recoverPostWriteBarrier`, `postWriteBarrierRecoveries`, and app initial-edge-ready/secure-chain helpers. API health simultaneously reconfirmed `ORDER_CREATE_MODE=GENERAL` and `DUPLICATE_GUARD_READY=YES`. Therefore the immediate publish-run postcheck failure is superseded by the independent current GET-only PASS and is treated as a transient verification failure, not a runtime regression.
+
+A second serialized publish run `36915292581` failed safely at the initial active-version precondition because Production had already changed to the new version. All version-create/promote steps were skipped, so it caused no second mutation. No API Worker, D1, Apps Script, order/customer data, Order ID, Order Status, or business CREATE test was touched by the frontend publish.
+
+```ini
+ENTRY595_DUPLICATE_FRONTEND_PRODUCTION=PASS
+PUBLISH_RUN=36915268349
+PUBLISH_RUN_UI_CONCLUSION=FAIL_POSTCHECK_AFTER_SUCCESSFUL_PROMOTE
+PROMOTED_FRONTEND_VERSION=a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e
+PROMOTED_FRONTEND_DEPLOYMENT=21a12f7f-e323-4bc2-bb60-7ef4009d708e
+ACTIVE_FRONTEND_TRAFFIC_PERCENT=100
+QUALIFIED_FRONTEND_SOURCE=6a9cd90649cfa0ac75b25b725d53e9f779bb2c61
+INDEPENDENT_VERIFY_RUN=36915414626
+INDEPENDENT_VERIFY_JOB=110548061098
+INDEPENDENT_VERIFY_RESULT=SUCCESS
+ROOT_HTTP_200=YES
+CONFIG_HTTP_200=YES
+EDGE_HTTP_200=YES
+APP_HTTP_200=YES
+ROOT_CONFIG_CACHE_TAG_PRESENT=YES
+ROOT_APP_INITIAL_EDGE_TAG_PRESENT=YES
+CONFIG_EDGE_CACHE_TAG_PRESENT=YES
+DUPLICATE_REASON_MARKER_PRESENT=YES
+DUPLICATE_ARABIC_MESSAGE_PRESENT=YES
+REFRESH_RECOVERY_MARKERS_PRESERVED=YES
+APP_INITIAL_EDGE_READY_HELPERS_PRESERVED=YES
+ORDER_CREATE_MODE=GENERAL
+DUPLICATE_GUARD_READY=YES
+SECOND_PUBLISH_RUN=36915292581
+SECOND_PUBLISH_RUN_RESULT=FAIL_CLOSED_PRE_VERSION_MISMATCH
+SECOND_PUBLISH_RUN_MUTATION=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+ORDER_STATUS_MUTATED=NO
+BUSINESS_CREATE_TEST_SENT=NO
+DUPLICATE_ORDER_GUARD_API_STATUS=LIVE
+DUPLICATE_ORDER_GUARD_FRONTEND_MESSAGE_STATUS=LIVE
+NEXT_ACTION=CONTINUE_ZERO_GOOGLE_PLAN
 ```
 
 
