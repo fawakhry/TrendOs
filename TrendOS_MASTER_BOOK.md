@@ -26,6 +26,36 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry586 — post-promote active deployment and public frontend markers verified:** SUCCESS/READ-ONLY — GitHub Actions workflow `TrendOS Entry585 Post Promote Readonly Verify` run `36906155553` completed SUCCESS. Cloudflare GET-only deployment verification confirmed active Production version `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at 100% traffic. Public GET checks confirmed HTTP 200 for root, `config.js`, `trendos-edge-orders-read-v1.js`, and `app.js`. Required markers were present: `20261001-post-refresh-recovery`, `recoverPostWriteBarrier`, `postWriteBarrierRecoveries`, `loadInitialRowsWhenEdgeReady()`, `secureApiChainHasEdgeOrdersRouter(fn)`, and root cache tag `app.js?v=20261001-initial-edge-ready`. No API Worker, D1, Apps Script, routes, bindings, variables, secrets, order/customer data, or statuses were changed.
+
+```ini
+ENTRY586_POST_PROMOTE_VERIFY=PASS
+VERIFY_RUN_ID=36906155553
+FRONTEND_TARGET=trendos-ui
+ACTIVE_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+ACTIVE_TRAFFIC_PERCENT=100
+FRONTEND_HTTP_200=YES
+CONFIG_CACHE_TAG_PRESENT=YES
+RECOVER_POST_WRITE_BARRIER_PRESENT=YES
+POST_WRITE_BARRIER_RECOVERIES_PRESENT=YES
+INITIAL_EDGE_READY_HELPER_PRESENT=YES
+APP_CACHE_TAG_PRESENT=YES
+PRODUCTION_URL_UNCHANGED=YES
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+ORDERS_LOAD_AFTER_REFRESH=NOT_TESTED
+EMPLOYEE_SESSION_AFTER_REFRESH=NOT_TESTED
+NEXT_ACTION=OWNER_BROWSER_REFRESH_ACCEPTANCE_TEST_WITHOUT_BUSINESS_MUTATION
+```
+
+
 **Entry585 — canonical promote POST succeeded; workflow failure was response-shape parser false negative; target is now active at 100%:** SUCCESS/PRODUCTION-PROMOTE — Retry workflow run `36905862684` passed the exact pre-promote guard and sent the canonical Cloudflare deployment body for target `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at 100%. Cloudflare returned `success=true`, but the workflow parser expected `result.versions` directly and found an empty array, so the job concluded FAILURE even though the deployment was created. Immediate GET-only verification via Entry580 run `36905119613` attempt 3 then failed its **old-version** expectation with explicit current deployment summary `[{"version_id":"b6674156-5f8f-4d57-b94b-e0b5422ae6c1","percentage":100}]`. This independently confirms the target version is now the sole active Production version at 100%. No additional POST was attempted after this confirmation.
 
 ```ini
