@@ -1,0 +1,91 @@
+name: TrendOS Entry579 Frontend Create Version Only
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry579-frontend-create-version-only.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry579-frontend-create-version-only
+  cancel-in-progress: false
+
+jobs:
+  create-version-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout workflow tools
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Checkout exact qualified frontend source
+        uses: actions/checkout@v4
+        with:
+          ref: c469afb3ccb8e3e8ed1d8b719ae341e5f541c753
+          path: qualified-source
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Exact source and safety guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          cd qualified-source
+          test "$(git rev-parse HEAD)" = "c469afb3ccb8e3e8ed1d8b719ae341e5f541c753"
+          grep -F '20261001-post-refresh-recovery' config.js >/dev/null
+          grep -F 'recoverPostWriteBarrier' trendos-edge-orders-read-v1.js >/dev/null
+          grep -F 'postWriteBarrierRecoveries' trendos-edge-orders-read-v1.js >/dev/null
+          grep -F 'function loadInitialRowsWhenEdgeReady()' app.js >/dev/null
+          grep -F 'function secureApiChainHasEdgeOrdersRouter(fn)' app.js >/dev/null
+          grep -F 'app.js?v=20261001-initial-edge-ready' index.html >/dev/null
+          node --check app.js
+          node --check trendos-edge-orders-read-v1.js
+          node tests/frontend_orders_initial_edge_ready_entry577.test.mjs
+          node tests/frontend_session_and_zero_google_read_entry499.test.mjs
+          node tests/frontend_edge_orders_cutover_02ct.test.mjs
+          cd ..
+          echo 'ENTRY579_SOURCE_GUARDS=PASS'
+
+      - name: Build frontend-only package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist/entry579
+          mkdir -p dist/entry579/frontend-dist
+          for f in qualified-source/*.html qualified-source/*.js qualified-source/*.css; do
+            if [ -f "$f" ]; then cp "$f" dist/entry579/frontend-dist/; fi
+          done
+          cp qualified-source/cloudflare-d1/src/frontend-static-worker.mjs dist/entry579/frontend-static-worker.mjs
+          echo 'ENTRY579_FRONTEND_PACKAGE=PASS'
+          echo 'TARGET_WORKER=trendos-ui'
+          echo 'QUALIFIED_SOURCE=c469afb3ccb8e3e8ed1d8b719ae341e5f541c753'
+          echo 'DEPLOYMENT_ACTION=NONE'
+          echo 'TRAFFIC_CHANGE=NONE'
+
+      - name: Create Cloudflare Worker version only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/trendos-entry579-direct-version-upload.mjs dist/entry579 | tee /tmp/entry579-version.txt
+          grep -F 'ENTRY579_VERSION_CREATED=YES' /tmp/entry579-version.txt
+          grep -F 'TRAFFIC_CHANGED=NO' /tmp/entry579-version.txt
+          grep -F 'DEPLOYMENT_CREATED=NO' /tmp/entry579-version.txt
+          grep -E '^VERSION_ID=[0-9a-f-]+$' /tmp/entry579-version.txt
+          cat /tmp/entry579-version.txt >> "$GITHUB_STEP_SUMMARY"
