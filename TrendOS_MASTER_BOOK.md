@@ -26,6 +26,24 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry583 — first guarded promote attempt rejected by Cloudflare HTTP 400 before deployment creation:** FAILURE/NO-CONFIRMED-MUTATION — Controlled workflow run `36905521959` passed its exact pre-promote guard: current active version `71364637-50f4-4ef3-b348-0e1432cdc090` at 100% and target `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` present. The subsequent POST to the Worker deployments endpoint was rejected by Cloudflare with HTTP 400. The post-promote verification step was skipped because the POST step failed. No successful deployment ID or promoted version output was produced. Production state must be re-verified read-only before any retry.
+
+```ini
+ENTRY583_PROMOTE_ATTEMPT=FAIL_HTTP_400
+PROMOTE_RUN_ID=36905521959
+PRE_PROMOTE_GUARD=PASS
+EXPECTED_CURRENT_VERSION=71364637-50f4-4ef3-b348-0e1432cdc090
+TARGET_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+DEPLOYMENT_ID=NONE
+FRONTEND_PROMOTED_TO_100=NOT_CONFIRMED
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=RERUN_READ_ONLY_VERSION_VERIFY_BEFORE_CORRECTED_PROMOTE_RETRY
+```
+
+
 **Entry582 — owner authorized controlled promote of exact qualified frontend version:** AUTHORIZED/PRE-PROMOTE — Owner explicitly authorized execution of the next step. Promote scope is locked to Worker `trendos-ui`, target Version ID `b6674156-5f8f-4d57-b94b-e0b5422ae6c1`, 100% traffic only, with a precondition that current active Production is still `71364637-50f4-4ef3-b348-0e1432cdc090` at 100% and target version exists at 0%. The controlled workflow must fail before mutation if either precondition differs. No `force` flag is allowed. No Routes, Domains, Bindings, Variables, Secrets, D1, API Worker, Apps Script, or business data are in scope.
 
 ```ini
