@@ -26,6 +26,25 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry565 — Orders still fail to load after rollback; rollback restored version but not browser behavior:** FAILURE/READ-ONLY — Owner screenshot after successful rollback to active version `71364637` at 100% shows the Orders/printing section still not loading and the runtime indicator remains `جاري القراءة...`. Therefore rollback restored the prior frontend version but did not recover Orders behavior in the current browser state. The employee session/page remains present. No order/business mutation occurred. This result means the failure cannot yet be attributed solely to the promoted candidate; persisted client state/cache/session interaction must be diagnosed before any new deploy or write test.
+
+```ini
+ENTRY565_POST_ROLLBACK_ORDERS=FAIL
+ACTIVE_VERSION_ID=71364637
+ACTIVE_TRAFFIC_PERCENT=100
+ORDERS_LOAD_AFTER_ROLLBACK=FAIL
+EMPLOYEE_SESSION_PRESENT=YES
+ORDER_DATA_MUTATED=NO
+NEW_DEPLOY_AUTHORIZED=NO
+CONTROLLED_WRITE_TEST=NOT_AUTHORIZED
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=SOURCE_ONLY_DIAGNOSIS_OF_PERSISTED_BROWSER_STATE_AND_ORDERS_READ_PATH
+```
+
+
 **Entry564 — frontend rollback to prior Production version completed:** SUCCESS/ROLLBACK — Owner screenshot from Cloudflare `trendos-ui → Production → Deployments` shows Active deployment `71364637` at `100%` traffic, deployed seconds ago. The failed refresh-recovery candidate `589844aa-0a13-4ea8-8135-4caf47e32bfd` remains only in Version History and is no longer active. Rollback affected only `trendos-ui` traffic; no API Worker, D1, Apps Script, routes, secrets, variables, bindings, customer/order data, or order statuses were changed in this step.
 
 ```ini
