@@ -26,6 +26,25 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry573 — browser Network confirms mixed legacy-api success with repeated 502 while Edge Orders requests remain absent:** DIAGNOSIS/READ-ONLY — Owner Network screenshot filtered to `legacy-api` shows many CORS preflight requests returning HTTP 200, multiple fetch requests returning HTTP 200, and several fetch requests returning HTTP 502. The Production UI simultaneously displays `تعذر الاتصال بـ Cloud API.`. Combined with Entry571 (zero `edge/orders` requests) and Entry569 (`/health` + D1 binding PASS), this rules out total Worker/D1 outage and narrows the live failure to specific legacy Cloud transport actions while the Orders Edge wrapper is apparently not handling `getRowsPageV1931`. No headers, payloads, responses, or tokens were inspected or exposed. No mutation occurred.
+
+```ini
+ENTRY573_LEGACY_API_NETWORK_CAPTURE=PASS_DIAGNOSTIC
+LEGACY_API_PREFLIGHT_200=YES
+LEGACY_API_FETCH_200_PRESENT=YES
+LEGACY_API_FETCH_502_PRESENT=YES
+EDGE_ORDERS_REQUESTS_EMITTED=NO
+API_HEALTH=PASS
+TOTAL_WORKER_OUTAGE=NO
+FAILURE_SCOPE=SPECIFIC_LEGACY_ACTIONS_AND_OR_EDGE_WRAPPER_CHAIN
+ORDER_DATA_MUTATED=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=READ_ONLY_CONSOLE_INSPECT_EDGE_WRAPPER_INSTALLATION_STATE_WITHOUT_TOKENS
+```
+
+
 **Entry572 — UI error text maps to legacy Cloud transport; legacy-api status check required:** DIAGNOSIS/READ-ONLY — Entry499 source review shows the visible Arabic error `تعذر الاتصال بـ Cloud API.` is emitted by `browser-api-transport-v1.js` when the Cloudflare `POST /v1/legacy-api` response is non-2xx. Combined with Entry571 showing zero `edge/orders` requests, this strongly suggests the Orders call is reaching the legacy Cloud transport instead of the Edge Orders wrapper, but the exact `/v1/legacy-api` HTTP status has not yet been captured. Next step is Network filter `legacy-api` and record Name/Status only; do not inspect payload or authorization data. No mutation occurred.
 
 ```ini
