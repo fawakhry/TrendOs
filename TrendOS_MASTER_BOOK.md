@@ -26,6 +26,24 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry558 — post-promote public read-only verification blocked by external fetch transport:** BLOCKED/NO-OP — immediately after Entry557, attempted GET-only verification of Production URLs `/config.js`, `/trendos-edge-orders-read-v1.js`, and root `/`. The available web fetch transport returned `DisabledError` / inaccessible before reaching the origin, so no valid conclusion about marker presence or HTTP status can be drawn from this tool. Production promote evidence from Cloudflare Dashboard remains valid. No mutation occurred.
+
+```ini
+ENTRY558_POST_PROMOTE_READ_PROBE=BLOCKED_FETCH_TRANSPORT
+CONFIG_CACHE_TAG_PRESENT=NOT_VERIFIED
+RECOVER_POST_WRITE_BARRIER_PRESENT=NOT_VERIFIED
+POST_WRITE_BARRIER_RECOVERIES_PRESENT=NOT_VERIFIED
+FRONTEND_HTTP_200=NOT_VERIFIED
+FRONTEND_PROMOTED_TO_100=YES
+PROMOTED_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=OWNER_BROWSER_READ_ONLY_VERIFY_CONFIG_AND_ORDERS_JS_MARKERS_AND_ROOT_UI_HTTP
+```
+
+
 **Entry557 — verified frontend version promoted to 100% Production traffic:** SUCCESS/PRODUCTION-PROMOTE — owner screenshot from Cloudflare `trendos-ui → Production → Deployments` shows Active deployment version prefix `589844aa` deployed ~1 minute ago at `100%` traffic. This corresponds to the exact previously verified full Version ID `589844aa-0a13-4ea8-8135-4caf47e32bfd` and the target row remains labeled `TrendOS Orders refresh recovery; source 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051; create only, no deployment`. Previous active version `71364637` is no longer active. No Routes/Secrets/Variables/Bindings/API Worker/D1/Apps Script/order-data mutation was requested or observed in this step.
 
 ```ini
