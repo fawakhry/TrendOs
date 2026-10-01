@@ -100,7 +100,7 @@ function trendLoadModuleV1932(id, src){
   (document.head || document.documentElement).appendChild(s);
 }
 
-trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20260930-a61-cloud-transport');
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20261001-post-refresh-recovery');
 
 // 02CU resume guard: returning to the platform must not trigger legacy safeRefresh.
 window.MATBAGY_DISABLE_RETURN_AUTO_REFRESH_V1 = true;
