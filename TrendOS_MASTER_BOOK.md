@@ -26,6 +26,24 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry579 — frontend create-version-only uploader prepared for qualified startup-race fix:** READY/REPO-ONLY — Added `tools/trendos-entry579-direct-version-upload.mjs` at commit `19770050b3a1588a821d044cf05f58408c5eac1e`. The uploader is hard-locked to Worker `trendos-ui`, qualified source `c469afb3ccb8e3e8ed1d8b719ae341e5f541c753`, ASSETS-only binding metadata, and Cloudflare Workers `/versions` API. It performs asset upload + Worker version creation only; it does **not** create a deployment and does **not** alter traffic. It also requires the previous refresh-recovery markers plus the new initial Edge readiness helper/cache tag before upload. No Production mutation has occurred yet.
+
+```ini
+ENTRY579_UPLOADER_PREPARED=YES
+UPLOADER_COMMIT=19770050b3a1588a821d044cf05f58408c5eac1e
+FRONTEND_TARGET=trendos-ui
+QUALIFIED_SOURCE=c469afb3ccb8e3e8ed1d8b719ae341e5f541c753
+UPLOAD_ACTION=CREATE_VERSION_ONLY
+DEPLOYMENT_ACTION=NONE
+TRAFFIC_CHANGE=NONE
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=CREATE_AND_RUN_GITHUB_ACTIONS_CREATE_VERSION_ONLY_WORKFLOW_USING_GITHUB_CLOUDFLARE_SECRET
+```
+
+
 **Entry578 — initial Orders boot-load race fix fully qualified Repo-only:** SUCCESS/QUALIFIED-NOT-DEPLOYED — The stale cache-tag assertion identified in Entry577 was updated in `tests/frontend_order_status_ux_02cv.test.mjs` at commit `c469afb3ccb8e3e8ed1d8b719ae341e5f541c753`. Final A61 browser Cloud transport regression run `36904126678` completed **SUCCESS** on that HEAD. The actual frontend source fix remains commit `7b7774089470838305d226f307a88bd12ea932a7`: initial `bootMain()` no longer calls Orders `loadRows()` before Edge router readiness; it waits/retries installation and fails closed instead of leaking the initial read to `/v1/legacy-api`. `index.html` now uses cache tag `app.js?v=20261001-initial-edge-ready` from commit `4d666c33a10e164bb9a57b7e233717aede05b3f5`. Dedicated regression is present and wired into A61 CI. A56 source run `36903369789` = SUCCESS on the app source commit. **No Production deploy occurred.** Production frontend remains rolled back on version `71364637` at 100%.
 
 ```ini
