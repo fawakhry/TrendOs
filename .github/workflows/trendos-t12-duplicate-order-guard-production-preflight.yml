@@ -23,7 +23,7 @@ jobs:
       DATABASE: trendos-main
       PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       CONFIG: cloudflare-d1/wrangler.toml
-      BASELINE_REF: b7f44623d5b8051df84b7fefea96e61b50e46e4b
+      BASELINE_REF: d1d7fdc915bbf6f6762a20596941bbb376b1cb34
 
     steps:
       - uses: actions/checkout@v4
@@ -122,7 +122,7 @@ jobs:
           for name,data in [('live',live),('base',base),('target',target)]:
               Path('/tmp/'+name+'.sha').write_text(hashlib.sha256(data).hexdigest())
           if live!=base:
-              raise SystemExit('LIVE_WORKER_DOES_NOT_MATCH_ENTRY589_BASELINE')
+              raise SystemExit('LIVE_WORKER_DOES_NOT_MATCH_ENTRY504_DEPLOY_BUNDLE')
           if target==base:
               raise SystemExit('TARGET_BUNDLE_UNCHANGED')
           PY
@@ -130,7 +130,7 @@ jobs:
           echo "LIVE_BUNDLE_SHA256=$(cat /tmp/live.sha)"
           echo "BASELINE_BUNDLE_SHA256=$(cat /tmp/base.sha)"
           echo "TARGET_BUNDLE_SHA256=$(cat /tmp/target.sha)"
-          echo 'LIVE_EQUALS_ENTRY589_BASELINE=YES'
+          echo 'LIVE_EQUALS_ENTRY504_DEPLOY_BUNDLE=YES'
           echo 'TARGET_DIFFERS_FROM_BASELINE=YES'
 
       - name: Verify current public create health
