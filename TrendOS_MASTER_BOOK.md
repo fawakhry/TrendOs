@@ -26,6 +26,28 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry587 — redundant guarded promote invocation stopped safely because target was already active:** NO-OP/SAFE-GUARD — A subsequent owner-authorized promote workflow run `36906805887` executed its exact pre-promote guard and stopped before any POST because the current active Production deployment was already `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at 100%. The guard expected the previous version `71364637-50f4-4ef3-b348-0e1432cdc090`, so it failed closed with `Current active deployment changed unexpectedly`. This confirms no duplicate promote or extra traffic mutation occurred in this invocation. Entry586 remains the authoritative post-promote verification.
+
+```ini
+ENTRY587_REDUNDANT_PROMOTE=NO_OP
+PROMOTE_RUN_ID=36906805887
+PRECHECK_STOPPED_BEFORE_POST=YES
+ACTIVE_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+ACTIVE_TRAFFIC_PERCENT=100
+DUPLICATE_PROMOTE_EXECUTED=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=OWNER_BROWSER_REFRESH_ACCEPTANCE_TEST_WITHOUT_BUSINESS_MUTATION
+```
+
+
 **Entry586 — post-promote active deployment and public frontend markers verified:** SUCCESS/READ-ONLY — GitHub Actions workflow `TrendOS Entry585 Post Promote Readonly Verify` run `36906155553` completed SUCCESS. Cloudflare GET-only deployment verification confirmed active Production version `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at 100% traffic. Public GET checks confirmed HTTP 200 for root, `config.js`, `trendos-edge-orders-read-v1.js`, and `app.js`. Required markers were present: `20261001-post-refresh-recovery`, `recoverPostWriteBarrier`, `postWriteBarrierRecoveries`, `loadInitialRowsWhenEdgeReady()`, `secureApiChainHasEdgeOrdersRouter(fn)`, and root cache tag `app.js?v=20261001-initial-edge-ready`. No API Worker, D1, Apps Script, routes, bindings, variables, secrets, order/customer data, or statuses were changed.
 
 ```ini
