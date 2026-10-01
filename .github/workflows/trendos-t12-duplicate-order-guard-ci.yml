@@ -1,4 +1,5 @@
 name: TrendOS T12 Duplicate Order Guard CI
+# Entry590 qualification trigger
 
 on:
   push:
