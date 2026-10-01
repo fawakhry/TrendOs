@@ -26,6 +26,23 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry569 — Production Cloud API health and D1 binding verified:** SUCCESS/READ-ONLY — Owner opened `https://trendos-d1-api.trendmall-contact.workers.dev/health` and received `{"success":true,"service":"trendos-d1","database":true,...}`. This proves the Production API Worker is reachable and its D1 binding can execute the health `SELECT 1`. Therefore the Orders UI error from Entry567 is narrower than total Worker/D1 outage. No write or business mutation occurred.
+
+```ini
+ENTRY569_API_HEALTH=PASS
+API_WORKER_REACHABLE=YES
+D1_BINDING_HEALTH=PASS
+HEALTH_SUCCESS=TRUE
+HEALTH_SERVICE=trendos-d1
+HEALTH_DATABASE=TRUE
+ORDER_DATA_MUTATED=NO
+API_WORKER_TOUCHED=NO
+D1_WRITES=NO
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=SOURCE_ONLY_TRACE_EXACT_ORDERS_REQUEST_THAT_MAPS_TO_CLOUD_API_CONNECTION_ERROR
+```
+
+
 **Entry568 — source-only API reachability probe identified:** DIAGNOSIS/READ-ONLY — Source review of `cloudflare-d1/src/index.js` confirms a public GET `/health` route. It executes only `SELECT 1 AS ok` against the bound D1 database and returns service/database/time JSON; it performs no business writes. This is the next safe probe for the explicit Cloud API connection failure from Entry567. No Production mutation occurred.
 
 ```ini
