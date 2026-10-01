@@ -22,6 +22,9 @@
 
 **Entry533 — preventive regression added:** SUCCESS — أُضيف `tests/frontend_employee_session_isolation_entry533.test.mjs` commit `0d32359d96b46dbf983ef5c7e91ee7c0caaee6dc`. الاختبار يقفل invariants الآتية: main `app.js clearSession()` لا يُستدعى إلا من explicit `logout()`؛ modules المحددة لا تمس employee browser-session keys أو `state.user`؛ Orders Edge `clearSession()` يظل local cache only؛ browser transport لا يمس storage؛ و`Code.gs` employee Token-column mutations تظل محصورة في login / exact-match expiry / explicit logout / password change، مع `verifyEmployeeSession_()` read-only بالنسبة للtoken. لا Production deploy.
 
+**Entry533 — CI wiring:** SUCCESS — تم ربط `tests/frontend_employee_session_isolation_entry533.test.mjs` بالworkflow `.github/workflows/trendos-a61-browser-transport-ci.yml` في commit `9a81992bbfe8c59ba96dc57e5f197a301ca99f7b`. لا Cloudflare/Apps Script Production deploy ولا D1 mutation.
+
+
 
 
 **Entry533 — frontend transport path probes:** FAILURE/NO-OP — `browser-api-transport-v1.js` وُجد ودُقق؛ probes لـ`legacy-api-transport-v1.js` و`trendos-legacy-api-transport-v1.js` رجعت NOT_FOUND فقط. لا Repo/Production mutation بخلاف توثيق الـMaster Book.
