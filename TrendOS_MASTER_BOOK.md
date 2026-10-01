@@ -26,6 +26,26 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry567 — hard refresh confirms rollback frontend is active; Orders now fails with explicit Cloud API connection error:** FAILURE/READ-ONLY — Owner performed the required hard refresh after rollback. Production UI rendered, but the Orders/printing section now explicitly shows `تعذر الاتصال بـ Cloud API.` and no order rows loaded. This confirms the browser is no longer merely stuck on the pre-rollback runtime; the current blocker is the Cloud API/read path or its connectivity/auth dependency. Employee page/session remains present. No order/business data or Production configuration was changed.
+
+```ini
+ENTRY567_HARD_REFRESH_COMPLETED=YES
+ACTIVE_FRONTEND_VERSION=71364637
+PRODUCTION_UI_RENDERED=YES
+ORDERS_LOAD_AFTER_HARD_REFRESH=FAIL
+ORDERS_VISIBLE_ERROR=CLOUD_API_CONNECTION_FAILED
+EMPLOYEE_SESSION_PRESENT=YES
+ORDER_DATA_MUTATED=NO
+NEW_DEPLOY_AUTHORIZED=NO
+CONTROLLED_WRITE_TEST=NOT_AUTHORIZED
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+NEXT_ACTION=READ_ONLY_VERIFY_TRENDOS_D1_API_REACHABILITY_AND_RELEVANT_HEALTH_ROUTE_BEFORE_ANY_DEPLOY
+```
+
+
 **Entry566 — source-only diagnosis: current tab can retain pre-rollback JS; Entry499 requires hard refresh after version change:** DIAGNOSIS/NO-OP — Source review confirmed the Orders read module persists its post-write barrier only in browser `sessionStorage` under `trendos_edge_orders_post_write_barrier_v1`, with default lifetime 6 minutes and hard cap 10 minutes. Separately, the Entry499 deployment runbook explicitly requires a hard browser refresh after frontend version change. A Cloudflare rollback changes what new requests receive but does not replace JavaScript already loaded in the currently open tab. Therefore the post-rollback screenshot from Entry565 does not yet prove version `71364637` itself is failing; the tab may still be executing the previously loaded candidate runtime. No Production/runtime mutation occurred during this diagnosis.
 
 ```ini
