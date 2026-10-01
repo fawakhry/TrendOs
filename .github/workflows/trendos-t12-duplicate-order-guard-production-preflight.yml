@@ -23,7 +23,7 @@ jobs:
       DATABASE: trendos-main
       PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       CONFIG: cloudflare-d1/wrangler.toml
-      BASELINE_REF: d1d7fdc915bbf6f6762a20596941bbb376b1cb34
+      BASELINE_REF: 76477ccf7160634c75d7c21c8547bdbe4ff29f15
 
     steps:
       - uses: actions/checkout@v4
@@ -102,27 +102,35 @@ jobs:
         run: |
           set -euo pipefail
           git worktree add --detach /tmp/guard-baseline "$BASELINE_REF" >/tmp/worktree.log 2>&1
+          mkdir -p /tmp/guard-baseline-bundle /tmp/guard-target-bundle
           (
             cd /tmp/guard-baseline
-            npx --yes wrangler@4.33.2 deploy --dry-run --outdir /tmp/guard-baseline-bundle --config cloudflare-d1/wrangler.toml >/tmp/base-dryrun.log 2>&1
+            npx --yes esbuild@0.25.10 cloudflare-d1/production-shadow/index.js \
+              --bundle \
+              --format=esm \
+              --platform=browser \
+              --target=es2022 \
+              --outfile=/tmp/guard-baseline-bundle/worker.js >/tmp/base-esbuild.log 2>&1
           )
-          npx --yes wrangler@4.33.2 deploy --dry-run --outdir /tmp/guard-target-bundle --config "$CONFIG" >/tmp/target-dryrun.log 2>&1
+          npx --yes esbuild@0.25.10 cloudflare-d1/production-shadow/index.js \
+            --bundle \
+            --format=esm \
+            --platform=browser \
+            --target=es2022 \
+            --outfile=/tmp/guard-target-bundle/worker.js >/tmp/target-esbuild.log 2>&1
 
           python3 - <<'PY'
           from pathlib import Path
           import hashlib
-          def choose(root):
-              fs=[p for p in Path(root).rglob('*') if p.is_file() and p.suffix.lower() in ('.js','.mjs')]
-              if not fs: raise SystemExit(2)
-              p=max(fs,key=lambda x:x.stat().st_size)
-              return p.read_bytes().replace(b'\r\n',b'\n').rstrip()+b'\n'
-          live=Path('/tmp/live-worker.js').read_bytes()
-          base=choose('/tmp/guard-baseline-bundle')
-          target=choose('/tmp/guard-target-bundle')
+          def norm(path):
+              return Path(path).read_bytes().replace(b'\r\n',b'\n').rstrip()+b'\n'
+          live=norm('/tmp/live-worker.js')
+          base=norm('/tmp/guard-baseline-bundle/worker.js')
+          target=norm('/tmp/guard-target-bundle/worker.js')
           for name,data in [('live',live),('base',base),('target',target)]:
               Path('/tmp/'+name+'.sha').write_text(hashlib.sha256(data).hexdigest())
           if live!=base:
-              raise SystemExit('LIVE_WORKER_DOES_NOT_MATCH_ENTRY504_DEPLOY_BUNDLE')
+              raise SystemExit('LIVE_WORKER_DOES_NOT_MATCH_ENTRY504_MANUAL_ESBUILD')
           if target==base:
               raise SystemExit('TARGET_BUNDLE_UNCHANGED')
           PY
@@ -130,7 +138,7 @@ jobs:
           echo "LIVE_BUNDLE_SHA256=$(cat /tmp/live.sha)"
           echo "BASELINE_BUNDLE_SHA256=$(cat /tmp/base.sha)"
           echo "TARGET_BUNDLE_SHA256=$(cat /tmp/target.sha)"
-          echo 'LIVE_EQUALS_ENTRY504_DEPLOY_BUNDLE=YES'
+          echo 'LIVE_EQUALS_ENTRY504_MANUAL_ESBUILD=YES'
           echo 'TARGET_DIFFERS_FROM_BASELINE=YES'
 
       - name: Verify current public create health
