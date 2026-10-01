@@ -26,6 +26,20 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry539 — deterministic post-refresh Orders blocker identified in frontend source:** ROOT-CAUSE PATH FOUND / LIVE REASON NOT YET TELEMETRY-CONFIRMED — فحص `trendos-edge-orders-read-v1.js` وregression `tests/frontend_order_status_write_consistency_02cv.test.mjs` أثبت وجود مسار deterministic يطابق شكوى المالك: بعد نجاح legacy `updateLine` يفتح الكود `postWriteBarrier` لمدة افتراضية 6 دقائق ويخزنها في `sessionStorage` تحت `trendos_edge_orders_post_write_barrier_v1`، ثم يستعيدها بعد browser refresh. بعد A61 commit `420b3bf467c916a07f432207c752fa86c2096159` تم تغيير سلوك barrier من Apps Script fallback إلى `ORDERS_CLOUD_UNAVAILABLE` لمنع direct Google fallback؛ والـregression الحالي يثبت صراحة أن full refresh أثناء barrier لا يعمل أي Edge page fetch ويعيد unavailable. لذلك أي refresh بعد status/notes write ناجح يمكنه حجب الأوردرات حتى انتهاء barrier رغم أن employee session سليمة. الرسالة الظاهرة للمالك هي نفس رسالة `ordersUnavailable()`. ما زال السبب live الدقيق لكل محاولة refresh غير telemetry-confirmed لأن نفس الرسالة تستخدم أيضًا لفشل mirror/network، لكن هذا path وحده كافٍ لإنتاج العطل بشكل مؤكد ويحتاج إصلاحًا وقائيًا. خطة الإصلاح Repo-only: أثناء barrier نفذ Edge-only targeted readback بالـlineId/orderId؛ إذا ظهر status/notes المكتوبان في D1، امسح barrier وحمّل الصفحة طبيعيًا؛ إذا لم يظهر التحديث بعد، استمر fail-closed بدون Google fallback وبدون مسح employee session.
+
+```ini
+ENTRY539_POST_REFRESH_BLOCKER_PATH=FOUND
+POST_WRITE_BARRIER_DEFAULT_MS=360000
+POST_WRITE_BARRIER_PERSISTS_ACROSS_REFRESH=YES
+A61_BARRIER_BEHAVIOR=ORDERS_CLOUD_UNAVAILABLE_NO_EDGE_FETCH
+DIRECT_GOOGLE_FALLBACK_REMAINS_FORBIDDEN=YES
+LIVE_LAST_FALLBACK_REASON=NOT_TELEMETRY_CONFIRMED
+PLANNED_FIX=EDGE_ONLY_TARGETED_READBACK_THEN_CLEAR_BARRIER_IF_WRITE_VISIBLE
+PRODUCTION_MUTATION=NO
+```
+
+
 **Entry538 — Post-refresh Orders reload failure reported / diagnosis started:** ISSUE REPROPORTED — المالك أكد أن employee session نفسها تظل شغالة بعد Version 159، لكن عند عمل browser refresh الصفحة لا تُحمّل الأوردرات. هذا يفصل المشكلة الحالية عن session-destruction: auth/session preservation = working، بينما Orders post-refresh bootstrap/read path = failing. لا توجد موافقة على Cloudflare/D1 mutation؛ التشخيص الحالي Repo-only/read-only. الخطوة التالية: فحص startup/bootstrap في `app.js` وOrders Edge session exchange/read path لمعرفة لماذا لا يُعاد تحميل الأوردرات بعد refresh.
 ```ini
 EMPLOYEE_SESSION_AFTER_REFRESH=WORKING
