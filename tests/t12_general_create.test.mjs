@@ -75,7 +75,7 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
   const db=new D1('GENERAL',0);
   const first=await createT12GeneralOrder(db,input('cld1_1790000021000_GENERALCREATE_1234567890123456'),actor,{canary:false});
   assert.equal(first.success,true); assert.equal(first.orderId,'4323');
-  const second=await createT12GeneralOrder(db,input('cld1_1790000021001_GENERALCREATE_1234567890123457'),actor,{canary:false});
+  const second=await createT12GeneralOrder(db,input('cld1_1790000021001_GENERALCREATE_1234567890123457',2),actor,{canary:false});
   assert.equal(second.success,true); assert.equal(second.orderId,'4324');
   assert.deepEqual(db.control(),{nextNo:4325,mode:'GENERAL',remaining:0});
 }
