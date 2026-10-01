@@ -26,6 +26,28 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry556 — exposed Cloudflare API token revoke confirmed by owner:** SUCCESS/SECURITY-GATE-CLOSED — owner explicitly confirmed the exposed Cloudflare API token identified in Entry550 has been revoked. No token value was repeated or recorded. Exact target frontend Version ID remains verified as `589844aa-0a13-4ea8-8135-4caf47e32bfd` on `trendos-ui`; Production traffic has not yet been promoted in this step. Security prerequisite for manual Promote is now satisfied.
+
+```ini
+ENTRY556_EXPOSED_TOKEN_REVOKE_CONFIRMED=YES
+API_TOKEN_REVOKED=YES
+FRONTEND_TARGET=trendos-ui
+EXPECTED_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+VERSION_ID_VERIFIED=YES
+FRONTEND_PROMOTED_TO_100=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=PROMOTE_ONLY_VERIFIED_VERSION_589844aa-0a13-4ea8-8135-4caf47e32bfd_TO_100_PERCENT_ON_TRENDOS_UI
+```
+
+
 **Entry555 — exact full frontend Version ID verified from Cloudflare copy control:** SUCCESS/PRE-PROMOTE — owner copied the full Version ID from the target row and provided `589844aa-0a13-4ea8-8135-4caf47e32bfd`. It matches the expected Entry546/Entry550 frontend-only version exactly. This closes the full-ID ambiguity from Entry554. No Promote or traffic change has occurred yet. Security gate remains: exposed Cloudflare API token revoke must be confirmed before promotion.
 
 ```ini
