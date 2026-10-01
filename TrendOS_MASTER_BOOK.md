@@ -26,6 +26,28 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry551 — Cloudflare revoke/promote execution blocked before Dashboard mutation by browser-wallet gate:** BLOCKED/NO-OP — في استكمال مباشر من Entry550 تم التحقق من وسيلة التنفيذ السحابي المتاحة قبل فتح Cloudflare. TinyFish wallet read-only عند 2026-10-01T16:26:17Z أعاد available balance = -0.16881 USD، والأداة صرحت أن أي browser run جديد لن يبدأ قبل إضافة رصيد. لذلك لم تبدأ جلسة Cloudflare Dashboard، ولم يتم حتى الآن التحقق من Revoke للتوكن المكشوف، ولم يتم فتح trendos-ui Deployments، ولم يتم Promote لأي Version. لا Cloudflare/D1/Apps Script/Orders/Secrets/Variables/Bindings/Routes mutation حدثت في هذه الخطوة. المطلوب التالي يظل: Revoke التوكن المكشوف أولًا، ثم التحقق exact-match من Version ID 589844aa-0a13-4ea8-8135-4caf47e32bfd على trendos-ui، ثم Promote لهذه النسخة وحدها إلى 100% إن تطابقت.
+
+```ini
+ENTRY551_EXECUTION_STATE=BLOCKED_BEFORE_CLOUDFLARE_MUTATION
+ENTRY551_BROWSER_WALLET_BALANCE_USD=-0.16881
+API_TOKEN_REVOKED=NOT_VERIFIED
+EXPECTED_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+VERSION_ID_VERIFIED=NO
+FRONTEND_PROMOTED_TO_100=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=REVOKE_EXPOSED_TOKEN_THEN_VERIFY_EXACT_VERSION_IN_TRENDOS_UI_AND_PROMOTE_ONLY_IF_MATCHED
+```
+
+
 **Entry550 — Entry546 frontend Worker version created successfully; no traffic change:** SUCCESS — المالك قدّم Screenshot من Windows uploader يثبت `ENTRY546_VERSION_CREATED=YES`, `TRAFFIC_CHANGED=NO`, `DEPLOYMENT_CREATED=NO`, `PROMOTE_REQUIRED_MANUALLY=YES`. تم إنشاء Version ID `589844aa-0a13-4ea8-8135-4caf47e32bfd` على `trendos-ui` من المصدر المؤهل `98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051`. لا Promote حدث بعد، والنسخة الفعالة Production لم تتغير.
 
 ```ini
