@@ -1,0 +1,51 @@
+name: TrendOS T12 Duplicate Order Guard CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql
+      - cloudflare-d1/src/t12-general-create.mjs
+      - cloudflare-d1/src/t12-general-create-handler.mjs
+      - trendos-edge-orders-read-v1.js
+      - tests/t12_general_create.test.mjs
+      - tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+      - .github/workflows/trendos-t12-duplicate-order-guard-ci.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run cloud-native create regression
+        run: node --experimental-sqlite tests/t12_general_create.test.mjs
+
+      - name: Run frontend duplicate-order messaging regression
+        run: node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+
+      - name: Verify guard is additive and fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "CREATE TABLE IF NOT EXISTS t12_prod_duplicate_order_guard" cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql
+          grep -F "T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000" cloudflare-d1/src/t12-general-create.mjs
+          grep -F "duplicate-order-window-active" cloudflare-d1/src/t12-general-create.mjs
+          grep -F "duplicateGuardReady" cloudflare-d1/src/t12-general-create-handler.mjs
+          grep -F "duplicatePrevented===true" cloudflare-d1/src/t12-general-create-handler.mjs
+          grep -F "تم منع إنشاء أوردر مكرر" trendos-edge-orders-read-v1.js
+          if grep -Eiq '\b(DROP|ALTER)\b' cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql; then
+            echo "Non-additive migration statement detected"
+            exit 1
+          fi
+          echo "T12_DUPLICATE_ORDER_GUARD_STATIC=PASS"
