@@ -24,6 +24,11 @@
 
 **Entry533 — CI wiring:** SUCCESS — تم ربط `tests/frontend_employee_session_isolation_entry533.test.mjs` بالworkflow `.github/workflows/trendos-a61-browser-transport-ci.yml` في commit `9a81992bbfe8c59ba96dc57e5f197a301ca99f7b`. لا Cloudflare/Apps Script Production deploy ولا D1 mutation.
 
+**Entry533 — CI execution:** SUCCESS — GitHub Actions push run `36855420798` على commit `9a81992bbfe8c59ba96dc57e5f197a301ca99f7b` اكتمل `SUCCESS`. Job `isolated-regression` = SUCCESS؛ خطوة `Syntax` = SUCCESS؛ وخطوة `Isolated transport, dispatcher, Orders and A61 regressions` = SUCCESS، وهي تتضمن Entry531 regression + Entry533 employee-session-isolation regression. Run سابق `36855382065` على commit إنشاء الاختبار نفسه = SUCCESS أيضًا، لكن run 36855420798 هو دليل التنفيذ بعد ربط Entry533 بالworkflow.
+
+**Entry533 — CI lookup diagnostics:** NO-OP/PARTIAL — `fetch_commit_workflow_runs` أعاد قائمة فارغة لأن الـadapter المتاح يفلتر PR-triggered runs فقط، وcombined commit statuses لم يعرض Push Actions checks. محاولة فتح صفحة commit عبر public web فشلت قبل أي mutation. تم تجاوز قيد العرض بقراءة GitHub Actions REST collection عبر GitHub connector، ومنه ثُبت run `36855420798=SUCCESS`. لا Production mutation.
+
+
 
 
 
