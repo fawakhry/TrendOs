@@ -2,9 +2,9 @@ name: TrendOS A61 browser Cloud transport regression
 on:
   push:
     branches: [candidate/t12-full-cloud-cutover-a56-20260929]
-    paths: ['**/*.js', '**/*.html', 'tests/**', 'cloudflare-d1/src/legacy-browser-transport-v1.mjs', '.github/workflows/trendos-a61-browser-transport-ci.yml']
+    paths: ['Code.gs', '**/*.js', '**/*.html', 'tests/**', 'cloudflare-d1/src/legacy-browser-transport-v1.mjs', '.github/workflows/trendos-a61-browser-transport-ci.yml']
   pull_request:
-    paths: ['**/*.js', '**/*.html', 'tests/**', 'cloudflare-d1/src/legacy-browser-transport-v1.mjs', '.github/workflows/trendos-a61-browser-transport-ci.yml']
+    paths: ['Code.gs', '**/*.js', '**/*.html', 'tests/**', 'cloudflare-d1/src/legacy-browser-transport-v1.mjs', '.github/workflows/trendos-a61-browser-transport-ci.yml']
 permissions:
   contents: read
 jobs:
