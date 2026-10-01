@@ -1,7 +1,8 @@
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
 
-export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20260928_V1';
+export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261001_DUP_GUARD_V1';
+export const T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000;
 const CREATE_MARKER='T12_PROD_CREATE_CANARY_V1';
 const GENERAL_MARKER='T12_GENERAL_CREATE_V1';
 
@@ -11,6 +12,52 @@ function row(stmt){return stmt&&typeof stmt.first==='function'?stmt.first():null
 function stmt(db,sql,...params){return db.prepare(sql).bind(...params);}
 function fail(reason,extra={}){return {success:false,cloudNative:true,retryAutomatically:false,version:T12_GENERAL_CREATE_VERSION,reason,...extra};}
 function canonical(intent,actor,epoch){return JSON.stringify({actor,policyEpoch:epoch,requestKey:intent.requestKey,identity:intent.identity,order:intent.order,lines:intent.lines,activityPlan:intent.activityPlan,queuePlans:intent.queuePlans});}
+function businessCanonical(intent){
+  return JSON.stringify({
+    identity:intent.identity,
+    order:{
+      department:intent.order.department,
+      priority:intent.order.priority,
+      status:intent.order.status,
+      notes:intent.order.notes,
+      heatPress:intent.order.heatPress,
+      flyPrint:intent.order.flyPrint
+    },
+    lines:intent.lines.map(line=>({
+      ordinal:line.ordinal,
+      department:line.department,
+      assignedTo:line.assignedTo,
+      itemName:line.itemName,
+      qty:line.qty,
+      priority:line.priority,
+      status:line.status,
+      heatPress:line.heatPress,
+      flyPrint:line.flyPrint
+    }))
+  });
+}
+async function sha256Hex(value){
+  const bytes=new TextEncoder().encode(String(value));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function activeDuplicateGuard(db,fingerprint,nowMs){
+  return row(db.prepare(`
+    SELECT request_key AS requestKey,order_id AS orderId,claimed_at_ms AS claimedAtMs,
+           expires_at_ms AS expiresAtMs
+      FROM t12_prod_duplicate_order_guard
+     WHERE fingerprint=? AND expires_at_ms>?
+     LIMIT 1
+  `).bind(fingerprint,nowMs));
+}
+function duplicateBlocked(guard,nowMs){
+  return fail('duplicate-order-window-active',{
+    duplicatePrevented:true,
+    existingOrderId:text(guard&&guard.orderId),
+    retryAfterMs:Math.max(0,Number(guard&&guard.expiresAtMs||0)-Number(nowMs||0)),
+    duplicateWindowMs:T12_DUPLICATE_ORDER_GUARD_WINDOW_MS
+  });
+}
 
 async function verifiedRead(db,intent,canonicalJson,actor,epoch){
   const key=intent.requestKey;
@@ -76,8 +123,25 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
 
   const nextNo=Number(control.nextNo);
   if(!Number.isSafeInteger(nextNo)||nextNo<4323)return fail('next-order-number-invalid',{nextOrderNumber:nextNo});
+
+  const nowMs=Number.isSafeInteger(Number(options.nowMs))&&Number(options.nowMs)>0?Number(options.nowMs):Date.now();
+  const canonicalBusinessJson=businessCanonical(intent);
+  let duplicateFingerprint;
+  try{duplicateFingerprint=await sha256Hex(canonicalBusinessJson);}
+  catch{return fail('duplicate-guard-fingerprint-unavailable-no-retry');}
+  let activeDuplicate;
+  try{activeDuplicate=await activeDuplicateGuard(db,duplicateFingerprint,nowMs);}
+  catch{return fail('duplicate-guard-unavailable-no-retry');}
+  if(activeDuplicate){
+    if(text(activeDuplicate.requestKey)===intent.requestKey)return fail('duplicate-guard-same-key-indeterminate-no-retry');
+    return duplicateBlocked(activeDuplicate,nowMs);
+  }
+  const expiresAtMs=nowMs+T12_DUPLICATE_ORDER_GUARD_WINDOW_MS;
   const orderId=String(nextNo);
   const s=[];
+  s.push(stmt(db,'DELETE FROM t12_prod_duplicate_order_guard WHERE fingerprint=? AND expires_at_ms<=?',duplicateFingerprint,nowMs));
+  s.push(stmt(db,'INSERT INTO t12_prod_duplicate_order_guard (fingerprint,request_key,order_id,canonical_business_json,claimed_at_ms,expires_at_ms) VALUES (?,?,?,?,?,?)',
+    duplicateFingerprint,intent.requestKey,'',canonicalBusinessJson,nowMs,expiresAtMs));
   s.push(stmt(db,"UPDATE t12_prod_create_control SET next_order_number=next_order_number+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1' AND canary_remaining=0 AND next_order_number=?",nextNo));
   s.push(stmt(db,"INSERT INTO t12_prod_request_ledger (request_key,actor,policy_epoch,canonical_json,order_id,status,response_json) SELECT ?,?,?,?,?,'PREPARED','{}' WHERE EXISTS(SELECT 1 FROM t12_prod_create_control WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1' AND canary_remaining=0 AND next_order_number=?)",
     intent.requestKey,safeActor,epoch,canonicalJson,orderId,nextNo+1));
@@ -96,6 +160,8 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
       'queue:'+String(line.ordinal).padStart(2,'0'),JSON.stringify(q),line.ordinal,intent.requestKey));
   }
   s.push(stmt(db,"UPDATE t12_prod_request_ledger SET status='COMMITTED',response_json=json_object('success',json('true'),'cloudNative',json('true'),'orderId',order_id) WHERE request_key=? AND status='PREPARED'",intent.requestKey));
+  s.push(stmt(db,'UPDATE t12_prod_duplicate_order_guard SET order_id=(SELECT order_id FROM t12_prod_request_ledger WHERE request_key=?),updated_at=CURRENT_TIMESTAMP WHERE fingerprint=? AND request_key=?',
+    intent.requestKey,duplicateFingerprint,intent.requestKey));
   if(isCanary){
     s.push(stmt(db,"UPDATE t12_prod_general_create_control SET canary_remaining=0,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_GENERAL_CREATE_V1' AND mode='CANARY' AND canary_remaining=1"));
   }
@@ -104,6 +170,10 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
     let recovered;try{recovered=await verifiedRead(db,intent,canonicalJson,safeActor,epoch);}catch{return fail('transaction-outcome-unknown-no-retry');}
     if(recovered.kind==='VERIFIED')return {...recovered.response,stored:false,idempotent:true,ambiguousAckRecovered:true,version:T12_GENERAL_CREATE_VERSION};
     if(recovered.kind==='CONFLICT')return fail('same-key-actor-payload-or-policy-conflict');
+    try{
+      const duplicate=await activeDuplicateGuard(db,duplicateFingerprint,nowMs);
+      if(duplicate&&text(duplicate.requestKey)!==intent.requestKey)return duplicateBlocked(duplicate,nowMs);
+    }catch{return fail('transaction-outcome-unknown-no-retry');}
     return fail('transaction-outcome-unknown-no-retry');
   }
 
