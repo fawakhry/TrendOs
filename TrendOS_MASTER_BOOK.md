@@ -26,6 +26,29 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry555 — exact full frontend Version ID verified from Cloudflare copy control:** SUCCESS/PRE-PROMOTE — owner copied the full Version ID from the target row and provided `589844aa-0a13-4ea8-8135-4caf47e32bfd`. It matches the expected Entry546/Entry550 frontend-only version exactly. This closes the full-ID ambiguity from Entry554. No Promote or traffic change has occurred yet. Security gate remains: exposed Cloudflare API token revoke must be confirmed before promotion.
+
+```ini
+ENTRY555_FULL_VERSION_ID_VERIFIED=YES
+FRONTEND_TARGET=trendos-ui
+EXPECTED_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+VERIFIED_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+VERSION_ID_VERIFIED=YES
+FRONTEND_PROMOTED_TO_100=NO
+API_TOKEN_REVOKED=NOT_CONFIRMED
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=CONFIRM_EXPOSED_TOKEN_REVOKED_THEN_PROMOTE_THIS_EXACT_VERSION_ONLY_TO_100_PERCENT
+```
+
+
 **Entry554 — Cloudflare Deployments screenshot verifies target row/source while Production still on old version:** SUCCESS/PRE-PROMOTE — owner screenshot from Cloudflare `Workers & Pages → trendos-ui → Production → Deployments` shows Active deployment `71364637` at 100% traffic, unchanged. Version History top row shows version prefix `589844aa` with description `TrendOS Orders refresh recovery; source 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051; create only, no deployment`. This matches the qualified frontend source and expected target family, but the screenshot only exposes the short prefix, not the full UUID, so exact full-ID verification is still required before any Promote. No Promote or traffic change occurred in this step.
 
 ```ini
