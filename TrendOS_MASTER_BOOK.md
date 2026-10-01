@@ -26,6 +26,23 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry582 — owner authorized controlled promote of exact qualified frontend version:** AUTHORIZED/PRE-PROMOTE — Owner explicitly authorized execution of the next step. Promote scope is locked to Worker `trendos-ui`, target Version ID `b6674156-5f8f-4d57-b94b-e0b5422ae6c1`, 100% traffic only, with a precondition that current active Production is still `71364637-50f4-4ef3-b348-0e1432cdc090` at 100% and target version exists at 0%. The controlled workflow must fail before mutation if either precondition differs. No `force` flag is allowed. No Routes, Domains, Bindings, Variables, Secrets, D1, API Worker, Apps Script, or business data are in scope.
+
+```ini
+ENTRY582_PROMOTE_AUTHORIZED=YES
+FRONTEND_TARGET=trendos-ui
+EXPECTED_CURRENT_VERSION=71364637-50f4-4ef3-b348-0e1432cdc090
+TARGET_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+TARGET_TRAFFIC_PERCENT=100
+FORCE_FLAG=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=RUN_GUARDED_CLOUDFLARE_DEPLOYMENT_POST_FOR_EXACT_TARGET_ONLY
+```
+
+
 **Entry581 — read-only Cloudflare verification confirms new version exists and Production remains unchanged:** SUCCESS/READ-ONLY — GitHub Actions workflow `TrendOS Entry580 Readonly Version Verify` run `36905119613` completed SUCCESS. Cloudflare GET-only verification confirmed target Version ID `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` exists in `trendos-ui` Version History. The current active Production deployment remains exact Version ID `71364637-50f4-4ef3-b348-0e1432cdc090` at `100%` traffic. The new target version has `0%` traffic. Therefore Production is unchanged and no promote/deployment has occurred.
 
 ```ini
