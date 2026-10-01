@@ -26,6 +26,21 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry552 — public Production read-only probe via web fetch blocked by fetch transport; no mutation:** BLOCKED/NO-OP — بعد Entry551 جرت محاولة GET-only لثلاثة endpoints العامة فقط: `/config.js`, `/trendos-edge-orders-read-v1.js`, وroot `/` على trendos-ui. مسار web fetch أعاد `DisabledError` لكل الثلاثة قبل جلب المحتوى، لذلك لا يمكن اعتماد هذا المسار كدليل HTTP/marker في هذه الخطوة. لم يحدث أي POST/PUT/DELETE أو Dashboard action أو Production mutation.
+
+```ini
+ENTRY552_PUBLIC_READ_PROBE=BLOCKED_FETCH_TRANSPORT
+CONFIG_CACHE_TAG_PRESENT=NOT_VERIFIED
+RECOVER_POST_WRITE_BARRIER_PRESENT=NOT_VERIFIED
+POST_WRITE_BARRIER_RECOVERIES_PRESENT=NOT_VERIFIED
+FRONTEND_HTTP_200=NOT_VERIFIED
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+```
+
+
 **Entry551 — Cloudflare revoke/promote execution blocked before Dashboard mutation by browser-wallet gate:** BLOCKED/NO-OP — في استكمال مباشر من Entry550 تم التحقق من وسيلة التنفيذ السحابي المتاحة قبل فتح Cloudflare. TinyFish wallet read-only عند 2026-10-01T16:26:17Z أعاد available balance = -0.16881 USD، والأداة صرحت أن أي browser run جديد لن يبدأ قبل إضافة رصيد. لذلك لم تبدأ جلسة Cloudflare Dashboard، ولم يتم حتى الآن التحقق من Revoke للتوكن المكشوف، ولم يتم فتح trendos-ui Deployments، ولم يتم Promote لأي Version. لا Cloudflare/D1/Apps Script/Orders/Secrets/Variables/Bindings/Routes mutation حدثت في هذه الخطوة. المطلوب التالي يظل: Revoke التوكن المكشوف أولًا، ثم التحقق exact-match من Version ID 589844aa-0a13-4ea8-8135-4caf47e32bfd على trendos-ui، ثم Promote لهذه النسخة وحدها إلى 100% إن تطابقت.
 
 ```ini
