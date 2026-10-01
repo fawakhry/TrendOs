@@ -28,6 +28,9 @@
 
 **Entry533 — full active-runtime JS sweep first attempt:** FAILURE/NO-OP — محاولة جمع وقراءة كل JavaScript runtime المحمّل من `index.html` و`config.js` داخل دفعة connector واحدة تجاوزت حد tool-calls قبل اكتمال القراءة. لا ملف runtime عُدّل ولا Production mutation حدث. Retry سيُنفذ على دفعات صغيرة.
 
+**Entry533 — full active-runtime JS sweep retry:** SUCCESS — بعد تقسيم القراءة إلى دفعات، تم استخراج قائمة JavaScript runtime الفعلية من `index.html` و`config.js` وفحص الملفات الإضافية المحملة فعليًا، بما فيها `trendos-return-traffic-quiet-v1.js`, `matbagy_theme_v1860.js`, `trendos-resume-no-autorefresh-v1.js`, `trend-master-resilience-v1931.js`, `manager-center-v1932.js`, `customer-feedback-v1.js`, `employee-manager-strips-v2.js`, `employee-manager-strips-drag-v2.js`, `employee-andon-v1.js`, `go-live-autopilot-v1.js`, `operations-hub-v1.js`, و`config.js`، إضافة للملفات التي دُققت سابقًا. لم يظهر أي hidden `clearSession`, main `logout`, `state.user=null` أو إزالة مفاتيح employee browser-session في الملفات الإضافية. النتيجة: لا dangerous/destructive active-runtime path جديد.
+
+
 
 **Entry533 — CI lookup diagnostics:** NO-OP/PARTIAL — `fetch_commit_workflow_runs` أعاد قائمة فارغة لأن الـadapter المتاح يفلتر PR-triggered runs فقط، وcombined commit statuses لم يعرض Push Actions checks. محاولة فتح صفحة commit عبر public web فشلت قبل أي mutation. تم تجاوز قيد العرض بقراءة GitHub Actions REST collection عبر GitHub connector، ومنه ثُبت run `36855420798=SUCCESS`. لا Production mutation.
 
