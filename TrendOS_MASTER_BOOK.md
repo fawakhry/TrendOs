@@ -26,6 +26,18 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry541 — Refresh/write-consistency regression updated for safe D1 recovery:** SUCCESS / NOT DEPLOYED — تم تحديث `tests/frontend_order_status_write_consistency_02cv.test.mjs` في commit `6964f628ce543e0d10012eb73fbc6f5c1c968a9e`. الاختبار الآن يثبت حالتين: (1) مباشرة بعد write بينما D1 ما زال يعرض status قديمًا، يسمح الكود بـEdge readback probe فقط ثم يبقى `ORDERS_CLOUD_UNAVAILABLE` بدون أي browser legacy/Google fallback؛ (2) بعد full browser refresh، عندما يعرض D1 نفس lineId بالحالة الجديدة المكتوبة، يتم exchange لـEdge session ثم targeted probe ثم normal page load، تُمسح persisted barrier، وتبقى `originalCalls=0`. هذا يقفل regression المطلوب بدون إضعاف read-your-write consistency.
+
+```ini
+ENTRY541_REGRESSION_COMMIT=6964f628ce543e0d10012eb73fbc6f5c1c968a9e
+STALE_D1_AFTER_WRITE=FAIL_CLOSED
+D1_CAUGHT_UP_AFTER_REFRESH=RECOVER_AND_LOAD
+BROWSER_GOOGLE_FALLBACK_CALLS=0
+PRODUCTION_DEPLOYED=NO
+NEXT_ACTION=BUMP_FRONTEND_MODULE_CACHE_TAG_AND_RUN_CI
+```
+
+
 **Entry540 — Repo-only Orders post-refresh barrier recovery fix added:** SUCCESS / NOT DEPLOYED — تم تعديل `trendos-edge-orders-read-v1.js` في commit `847837ff5f3620fa2b4c2dc5031676652c980dda`. بدل أن يمنع `postWriteBarrier` كل Edge reads لمدة 6 دقائق بعد successful legacy `updateLine`، أصبح يعمل Edge-only targeted readback باستخدام lineId/orderId مع إزالة status/priority/heat filters. إذا أثبت D1 أن نفس lineId/orderId ظهر بالحالة المكتوبة، يتم مسح barrier ثم تحميل الصفحة المطلوبة طبيعيًا؛ إذا لم يظهر التحديث بعد أو فشل Edge، يظل السلوك fail-closed ويرجع `ORDERS_CLOUD_UNAVAILABLE`. لا Apps Script/Google browser fallback، ولا employee-session clear، ولا Cloudflare/D1 mutation. أضيف metric `postWriteBarrierRecoveries` للتشخيص. يلزم الآن تحديث regression الذي كان يتوقع أن refresh أثناء barrier لا يرسل أي Edge fetch.
 
 ```ini
