@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.95-DRAFT-COMPACT — Entry589 refresh-fix Production reverified; acceptance closed PASS** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.96-DRAFT-COMPACT — Entry590 cloud-native duplicate-order guard Repo-qualified** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry589 refresh-fix Production reverified and closed PASS; next: Cloud-native duplicate-order guard
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry590 duplicate-order guard Repo-qualified; Production preflight next
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,53 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry590 — Cloud-native duplicate-order guard implemented and Repo-qualified; Production unchanged:** SUCCESS/REPO-ONLY — Implemented a D1-native short-window duplicate CREATE guard for the existing T12 GENERAL order-create lane. Existing same-`clientRequestId` replay semantics remain authoritative and unchanged; the new guard addresses a different failure class: the same canonical business order arriving under a *new* Cloud request key, such as double-click/reload/key regeneration. The guard computes a SHA-256 fingerprint from normalized customer/order/line business fields while excluding request key/actor, claims it atomically inside the same D1 batch, and suppresses a conflicting new key for 120 seconds. The claim expires so a genuinely repeated identical order can be created later. Duplicate suppression returns HTTP 409 with `duplicatePrevented=true` and the existing Order ID when available; the frontend maps that to a clear Arabic message. Migration `0010_t12_duplicate_order_guard.sql` is additive only and does not enable/disable/reroute CREATE by itself. General CREATE health now fails closed unless the guard table exists.
+
+Repo chain:
+- `aea02756024d77e956a25b23a8ad5f60a8f42f87` — additive guard table/index.
+- `c46625998e51e9a7c86325fb01e4a0cc64fbcafb` — atomic backend duplicate guard.
+- `018f8c886a5a5317b7506d1fcaa93e792b201874` — health readiness + HTTP 409 mapping.
+- `319d13695656b31fca750dd9c73200482c15c0d7` — backend regressions added.
+- `7bade13710fa3659c151a0e417b3168afaf8bee2` — frontend duplicate message.
+- `7360e07c7cea5e91cc1f0bd5853d8485a142ac23` — frontend regression.
+- `9ee41dda35b89a419b46e761f0d596bd3f0f7c10` / `52b217abc5d8989d7b15aa7d3f8513b5de721bf8` — dedicated CI workflow + trigger.
+
+Qualification history is preserved rather than hidden: first dedicated run `36911775696` failed because the **old test expectation** intentionally created two byte-identical business orders with different request keys and expected both to succeed; the new guard correctly blocked the second. Test commit `771563c2228786f2a76bafcd913ed0d1d79d4197` changed that old “two normal creates” case so the second order has a genuinely different quantity, while dedicated duplicate cases continue asserting suppression. Final dedicated run `36911836510` = **SUCCESS**: general CREATE regression PASS, duplicate frontend regression PASS, additive/fail-closed static verification PASS. A61 browser transport regression on the same HEAD, run `36911836383`, also = **SUCCESS**. Earlier A56 frontend regression after the frontend change, run `36911548756`, = **SUCCESS**.
+
+```ini
+ENTRY590_DUPLICATE_ORDER_GUARD_REPO=PASS
+DUPLICATE_GUARD_WINDOW_MS=120000
+SAME_CLIENT_REQUEST_ID_REPLAY=UNCHANGED
+NEW_KEY_SAME_BUSINESS_ORDER_WITHIN_WINDOW=BLOCKED
+DUPLICATE_HTTP_STATUS=409
+DUPLICATE_PREVENTED_FLAG=YES
+EXISTING_ORDER_ID_RETURNED_WHEN_AVAILABLE=YES
+IDENTICAL_ORDER_AFTER_WINDOW=ALLOWED
+CHANGED_BUSINESS_PAYLOAD_WITHIN_WINDOW=ALLOWED
+CONCURRENT_NEW_KEYS_SAME_PAYLOAD=ONE_CREATE_ONE_BLOCK
+MIGRATION_FILE=cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql
+DEDICATED_CI_FIRST_RUN=36911775696
+DEDICATED_CI_FIRST_RUN_RESULT=FAIL_EXPECTATION_UPDATED
+DEDICATED_CI_FINAL_RUN=36911836510
+DEDICATED_CI_FINAL_RESULT=SUCCESS
+A61_RUN=36911836383
+A61_RESULT=SUCCESS
+A56_RUN=36911548756
+A56_RESULT=SUCCESS
+PRODUCTION_GUARD_DEPLOYED=NO
+API_WORKER_TOUCHED=NO
+D1_REMOTE_TOUCHED=NO
+ORDER_DATA_MUTATED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+NEXT_ACTION=READ_ONLY_PRODUCTION_PREFLIGHT_FOR_DUPLICATE_GUARD_INSTALL
 ```
 
 
