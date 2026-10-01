@@ -6,7 +6,7 @@
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry591 duplicate-order Production preflight PASS; explicit Production install authorization required
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry592 duplicate-order Production install explicitly authorized; execution pending
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,27 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry592 — duplicate-order guard Production install explicitly authorized; execution pending:** AUTHORIZED/PRE-MUTATION — Owner explicitly authorized the exact Production operation: `migration 0010 + API deploy only`. Scope is locked to applying only additive migration `cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql` to D1 database `trendos-main`, then deploying only the previously qualified duplicate-order guard API target to Worker `trendos-d1-api`. The install must preserve existing Secrets, Variables, Bindings, Routes and workers.dev exposure; must not touch `trendos-ui`, Apps Script, customer data, order IDs, order statuses, or perform any business CREATE test. Entry591 read-only preconditions remain mandatory: current API version `b3deae0e-6503-4dfb-ab27-0344d43ddad5`, live Entry504 bundle SHA-256 `95eb969e1aaea5ee21ac5a8b7b859c40d5874dbf14ef56644d4dbb44bcf6ca53`, target guard bundle SHA-256 `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`, Order Create GENERAL, migration 0010 not yet applied. Any mismatch must fail before mutation.
+
+```ini
+ENTRY592_PRODUCTION_INSTALL_AUTHORIZED=YES
+AUTHORIZED_BY=OWNER
+AUTHORIZED_SCOPE=MIGRATION_0010_PLUS_API_DEPLOY_ONLY
+TARGET_DATABASE=trendos-main
+TARGET_WORKER=trendos-d1-api
+TARGET_MIGRATION=0010_t12_duplicate_order_guard.sql
+EXPECTED_PRE_VERSION=b3deae0e-6503-4dfb-ab27-0344d43ddad5
+EXPECTED_PRE_BUNDLE_SHA256=95eb969e1aaea5ee21ac5a8b7b859c40d5874dbf14ef56644d4dbb44bcf6ca53
+EXPECTED_TARGET_BUNDLE_SHA256=2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67
+FRONTEND_DEPLOY_AUTHORIZED=NO
+APPS_SCRIPT_CHANGE_AUTHORIZED=NO
+BUSINESS_CREATE_TEST_AUTHORIZED=NO
+ORDER_ID_OR_STATUS_MUTATION_AUTHORIZED=NO
+SECRETS_VARIABLES_BINDINGS_ROUTES_CHANGE_AUTHORIZED=NO
+EXECUTION_STATUS=PENDING
 ```
 
 
