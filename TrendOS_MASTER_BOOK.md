@@ -30,6 +30,9 @@
 
 **Entry533 — full active-runtime JS sweep retry:** SUCCESS — بعد تقسيم القراءة إلى دفعات، تم استخراج قائمة JavaScript runtime الفعلية من `index.html` و`config.js` وفحص الملفات الإضافية المحملة فعليًا، بما فيها `trendos-return-traffic-quiet-v1.js`, `matbagy_theme_v1860.js`, `trendos-resume-no-autorefresh-v1.js`, `trend-master-resilience-v1931.js`, `manager-center-v1932.js`, `customer-feedback-v1.js`, `employee-manager-strips-v2.js`, `employee-manager-strips-drag-v2.js`, `employee-andon-v1.js`, `go-live-autopilot-v1.js`, `operations-hub-v1.js`, و`config.js`، إضافة للملفات التي دُققت سابقًا. لم يظهر أي hidden `clearSession`, main `logout`, `state.user=null` أو إزالة مفاتيح employee browser-session في الملفات الإضافية. النتيجة: لا dangerous/destructive active-runtime path جديد.
 
+**Entry533 — regression broadened to active runtime manifest:** SUCCESS — تم تحديث `tests/frontend_employee_session_isolation_entry533.test.mjs` في commit `90802d691820f8119307738756179ee5c2644bc1` ليجمع تلقائيًا كل JavaScript runtime المحمّل من `index.html` و`config.js` ويمنع أي ملف نشط غير `app.js`/Orders Edge من تعريف/استدعاء main-style `clearSession`, وضع `state.user=null`, حذف employee session keys، مسح storage بالكامل، أو إصدار employee logout ضمنيًا. `app.js` وOrders Edge يخضعان لاختبارات مخصصة أدق. الهدف: منع رجوع cross-session destruction من Path جديد مستقبلًا.
+
+
 
 
 **Entry533 — CI lookup diagnostics:** NO-OP/PARTIAL — `fetch_commit_workflow_runs` أعاد قائمة فارغة لأن الـadapter المتاح يفلتر PR-triggered runs فقط، وcombined commit statuses لم يعرض Push Actions checks. محاولة فتح صفحة commit عبر public web فشلت قبل أي mutation. تم تجاوز قيد العرض بقراءة GitHub Actions REST collection عبر GitHub connector، ومنه ثُبت run `36855420798=SUCCESS`. لا Production mutation.
