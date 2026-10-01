@@ -26,6 +26,31 @@ NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EX
 ```
 
 
+**Entry554 — Cloudflare Deployments screenshot verifies target row/source while Production still on old version:** SUCCESS/PRE-PROMOTE — owner screenshot from Cloudflare `Workers & Pages → trendos-ui → Production → Deployments` shows Active deployment `71364637` at 100% traffic, unchanged. Version History top row shows version prefix `589844aa` with description `TrendOS Orders refresh recovery; source 98cc788f0f1cbde9e2404feb1a0c7ca6ad9f2051; create only, no deployment`. This matches the qualified frontend source and expected target family, but the screenshot only exposes the short prefix, not the full UUID, so exact full-ID verification is still required before any Promote. No Promote or traffic change occurred in this step.
+
+```ini
+ENTRY554_CLOUDFLARE_DEPLOYMENTS_VIEW=VERIFIED
+FRONTEND_TARGET=trendos-ui
+CURRENT_ACTIVE_VERSION=71364637
+CURRENT_ACTIVE_TRAFFIC_PERCENT=100
+TARGET_VERSION_PREFIX=589844aa
+TARGET_SOURCE_COMMIT_MATCH=YES
+EXPECTED_FULL_VERSION_ID=589844aa-0a13-4ea8-8135-4caf47e32bfd
+FULL_VERSION_ID_VERIFIED=NO
+FRONTEND_PROMOTED_TO_100=NO
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+NEXT_ACTION=VERIFY_FULL_TARGET_VERSION_ID_IN_VERSION_DETAILS_THEN_PROMOTE_ONLY_IF_EXACT_MATCH_AND_TOKEN_REVOKE_CONFIRMED
+```
+
+
 **Entry553 — raw GET fallback also blocked by runtime DNS; Cloudflare plugin discovery found no Cloudflare connector:** BLOCKED/NO-OP — جرت محاولة GET-only بديلة من runtime إلى نفس endpoints العامة، وفشلت الثلاثة قبل الاتصال بسبب `Temporary failure in name resolution`. بعدها تم فحص Plugin Directory عن Cloudflare/Workers deployments ولم يظهر Cloudflare connector متاح؛ النتائج كانت مزودين آخرين مثل Railway/Render/Vercel وليست صالحة للتحكم في حساب Cloudflare الحالي. لذلك لا يوجد في هذه الجلسة مسار بديل موثوق لإلغاء الـToken أو Promote من Dashboard بدون browser automation المتوقف بسبب الرصيد. لا Production mutation حدث.
 
 ```ini
