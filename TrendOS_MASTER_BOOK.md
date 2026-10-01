@@ -1,12 +1,12 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 > **MASTER BOOK / المرجع الوحيد لشرح واستكمال مشروع IT TrendOS**  
-> إصدار الكتاب: **3.94-DRAFT-COMPACT — Entry546 frontend version created; promote pending** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **3.95-DRAFT-COMPACT — Entry589 refresh-fix Production reverified; acceptance closed PASS** · تاريخ التحديث: 2026-10-01 · المستودع: `fawakhry/TrendOs` · فرع العمل التشغيلي/التوثيقي: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > **قاعدة القراءة المضغوطة:** هذا الملف هو **Active Repair Core** وليس مخزن كل النصوص الثقيلة inline. في شات جديد اقرأ الصفحة الأولى، الفصل المرتبط بالعطل، وآخر Entry/Handoff فقط. **لا تقرأ الكتاب كاملًا تلقائيًا.** الأجزاء المقفولة تُراجع فقط عند تحقق Reopen Trigger.
 
 > **قاعدة تسجيل إلزامية — MANDATORY STEP LEDGER:** من هذه النقطة فصاعدًا، **كل خطوة Repo / Cloudflare / GitHub / اختبار / تشخيص / Deploy / فشل / نجاح / Block / Rollback / No-op يجب تسجيلها في هذا الكتاب فور حدوثها**. كل سجل يذكر: ما الذي تم، أين تم، النتيجة الفعلية، الدليل (Version/Run/Artifact/صورة) إن وجد، ما الذي لم يتغير، والخطوة التالية. لا يعتمد المشروع على الشات وحده كمرجع تشغيلي.
 
-## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry546 refresh-fix version created with no traffic change; promote pending
+## الصفحة الأولى — الحالة النشطة فقط | T12 Zero-Google cutover — Entry589 refresh-fix Production reverified and closed PASS; next: Cloud-native duplicate-order guard
 
 **Entry533 — PREVENTIVE EMPLOYEE SESSION/AUTH AUDIT COMPLETE / PASS:** SUCCESS — أُنشئ التقرير النهائي `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_EMPLOYEE_SESSION_PREVENTIVE_AUDIT_ENTRY_533_2026-10-01.md` في commit `473da2c810736dbef2075187a07c3c49e96169f8`. المراجعة الشاملة لـ`Code.gs`، Cloud auth shadow/legacy transport/native auth/legacy bridge، `app.js`، كل runtime JS المحمّل فعليًا، Attendance/Press/Customer Manager/HR/Cleaning/Knowledge، وOrders Edge لم تجد أي dangerous/destructive employee-session path إضافي. Historical Production pre-Entry531 `authorize_()` يظل الخطر الوحيد حتى النشر اليدوي. Regression Entry533 موسع لكل active-runtime JS وCI run `36855971271=SUCCESS`. تاريخ `Code.gs` يثبت أن آخر تعديل للملف هو Entry531 commit `4d5ef491af4e24baf01ed1f98ae0f298f2874785`، والـcurrent blob SHA يطابق Entry531 حرفيًا. القرار: `ENTRY531_APPS_SCRIPT_PRODUCTION_PUBLISH_READY=YES`, `NEW_RUNTIME_FIX_REQUIRED_BEFORE_ENTRY531_PUBLISH=NO`. لم يحدث أي Production deploy أو Cloudflare/D1/Secrets/Variables/Bindings/Order mutation خلال Entry533.
 
@@ -23,6 +23,49 @@ CUSTOMER_MODE=GENERAL
 CUSTOMER_MASTER_ROWS=247
 ORDER_CREATE_MODE=GENERAL
 NEXT_OWNER_ACTION=MANUALLY_PUBLISH_CURRENT_ENTRY531_CODE_GS_AS_NEW_VERSION_OF_EXISTING_APPS_SCRIPT_WEB_APP_DEPLOYMENT_ONLY
+```
+
+
+**Entry589 — current Production state reverified read-only after chat restart; refresh-fix closure reconfirmed:** SUCCESS/READ-ONLY — Before any new T12 work, the active master-book entries were read and the exact post-promote verification job from Entry586 was inspected to confirm it performs Cloudflare/public GET-only checks with no deployment POST. The same successful GitHub Actions job was then re-run read-only: workflow run `36906155553`, new job `110527313043`, conclusion **SUCCESS**. Current Cloudflare deployments GET returned sole active frontend version `b6674156-5f8f-4d57-b94b-e0b5422ae6c1` at `100%` traffic. The same live check fetched Production root, `config.js`, `trendos-edge-orders-read-v1.js`, and `app.js`; all returned HTTP 200 and all required markers were present. The owner has separately confirmed the Browser Refresh defect is resolved in Production; this remains the behavioral acceptance evidence. No order/customer mutation or status change was performed. The previously exposed Cloudflare API token is owner-confirmed revoked; its value is not recorded anywhere in this entry. A secondary external content-extractor retry returned extraction errors and was not used as evidence; the authoritative current evidence is the successful GET-only GitHub Actions rerun and its logs.
+
+```ini
+ENTRY589_CURRENT_PRODUCTION_REVERIFY=PASS
+VERIFY_RUN_ID=36906155553
+VERIFY_JOB_ID=110527313043
+VERIFY_MODE=CLOUDFLARE_AND_PUBLIC_HTTP_GET_ONLY
+API_TOKEN_REVOKED=YES
+FRONTEND_TARGET=trendos-ui
+EXPECTED_FIXED_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+ACTIVE_VERSION_ID=b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+ACTIVE_TRAFFIC_PERCENT=100
+FIXED_VERSION_ACTIVE=YES
+PRODUCTION_URL_UNCHANGED=YES
+APP_INITIAL_EDGE_CACHE_TAG_PRESENT=YES
+INITIAL_EDGE_READY_HELPER_PRESENT=YES
+SECURE_API_CHAIN_HELPER_PRESENT=YES
+CONFIG_CACHE_TAG_PRESENT=YES
+RECOVER_POST_WRITE_BARRIER_PRESENT=YES
+POST_WRITE_BARRIER_RECOVERIES_PRESENT=YES
+FRONTEND_HTTP_200=YES
+ORDERS_LOAD_AFTER_REFRESH=PASS
+EMPLOYEE_SESSION_AFTER_REFRESH=PASS
+ORDERS_REFRESH_ACCEPTANCE_EVIDENCE=OWNER_CONFIRMED_ENTRY588
+EMPLOYEE_SESSION_EVIDENCE=PREVIOUS_RUNTIME_VERIFICATION_SAME_ACTIVE_VERSION
+API_WORKER_TOUCHED=NO
+D1_TOUCHED=NO
+APPS_SCRIPT_VERSION=159
+APPS_SCRIPT_TOUCHED=NO
+SECRETS_CHANGED=NO
+VARIABLES_CHANGED=NO
+BINDINGS_CHANGED=NO
+ROUTES_CHANGED=NO
+ORDER_DATA_MUTATED=NO
+SECONDARY_EXTERNAL_EXTRACTOR=PARTIAL_NOT_USED_AS_EVIDENCE
+REFRESH_FIX_PRODUCTION_STATUS=CLOSED_PASS
+NEXT_ACTION=CLOUD_NATIVE_DUPLICATE_ORDER_GUARD
+ZERO_GOOGLE_TARGET_SHEETS_RUNTIME_AUTHORITY=0
+ZERO_GOOGLE_TARGET_APPS_SCRIPT_RUNTIME_AUTHORITY=0
+ZERO_GOOGLE_TARGET_GOOGLE_RUNTIME_DEPENDENCY=0
 ```
 
 
