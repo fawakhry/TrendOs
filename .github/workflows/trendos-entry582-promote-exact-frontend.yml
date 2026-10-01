@@ -1,0 +1,167 @@
+name: TrendOS Entry582 Promote Exact Frontend Version
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry582-promote-exact-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry582-promote-exact-frontend
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TARGET_WORKER: trendos-ui
+      EXPECTED_CURRENT_VERSION: 71364637-50f4-4ef3-b348-0e1432cdc090
+      TARGET_VERSION_ID: b6674156-5f8f-4d57-b94b-e0b5422ae6c1
+    steps:
+      - name: Exact pre-promote guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/versions"             > /tmp/versions.json
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments"             > /tmp/deployments-before.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const versions = JSON.parse(fs.readFileSync('/tmp/versions.json','utf8'));
+          const deployments = JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const target = process.env.TARGET_VERSION_ID;
+          const expected = process.env.EXPECTED_CURRENT_VERSION;
+
+          function walk(value, fn) {
+            if (Array.isArray(value)) return value.some(v => walk(v, fn));
+            if (value && typeof value === 'object') {
+              if (fn(value)) return true;
+              return Object.values(value).some(v => walk(v, fn));
+            }
+            return fn(value);
+          }
+          if (!walk(versions, v => typeof v === 'string' && v === target)) {
+            throw new Error('Exact target version is not present');
+          }
+
+          const depList = Array.isArray(deployments?.result?.deployments)
+            ? deployments.result.deployments
+            : (Array.isArray(deployments?.result) ? deployments.result : []);
+          if (!depList.length) throw new Error('No current deployment');
+          const active = depList[0];
+          const current = (Array.isArray(active.versions) ? active.versions : []).map(v => ({
+            version_id: String(v?.version_id || v?.id || ''),
+            percentage: Number(v?.percentage ?? v?.traffic_percentage ?? NaN)
+          }));
+          if (current.length !== 1) throw new Error('Current deployment is not single-version 100%: '+JSON.stringify(current));
+          if (current[0].version_id !== expected || current[0].percentage !== 100) {
+            throw new Error('Current active deployment changed unexpectedly: '+JSON.stringify(current));
+          }
+
+          console.log('ENTRY582_PRECHECK=PASS');
+          console.log('CURRENT_VERSION_ID='+current[0].version_id);
+          console.log('CURRENT_TRAFFIC_PERCENT='+current[0].percentage);
+          console.log('TARGET_VERSION_ID='+target);
+          NODE
+
+      - name: Promote exact target version to 100 percent
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/promote.json <<JSON
+          {
+            "strategy": "percentage",
+            "versions": [
+              {
+                "version_id": "$TARGET_VERSION_ID",
+                "percentage": 100
+              }
+            ],
+            "annotations": {
+              "workers/message": "TrendOS Entry582 initial Orders Edge readiness promote; exact target only"
+            }
+          }
+          JSON
+
+          code="$(curl --silent --show-error             --output /tmp/promote-response.json             --write-out '%{http_code}'             -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data-binary @/tmp/promote.json             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments")"
+
+          test "$code" -ge 200
+          test "$code" -lt 300
+
+          node <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/promote-response.json','utf8'));
+          if(body.success!==true) throw new Error('Cloudflare promote success=false');
+          const versions=Array.isArray(body?.result?.versions)?body.result.versions:[];
+          if(versions.length!==1) throw new Error('Unexpected deployment versions: '+JSON.stringify(versions));
+          if(String(versions[0].version_id)!==process.env.TARGET_VERSION_ID || Number(versions[0].percentage)!==100) {
+            throw new Error('Promote response mismatch: '+JSON.stringify(versions));
+          }
+          console.log('ENTRY582_PROMOTE_RESPONSE=PASS');
+          console.log('DEPLOYMENT_ID='+String(body.result.id||''));
+          console.log('PROMOTED_VERSION_ID='+String(versions[0].version_id));
+          console.log('PROMOTED_TRAFFIC_PERCENT='+Number(versions[0].percentage));
+          NODE
+
+      - name: Read-only post-promote verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 2
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$TARGET_WORKER/deployments"             > /tmp/deployments-after.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const deployments=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));
+          const depList=Array.isArray(deployments?.result?.deployments)
+            ? deployments.result.deployments
+            : (Array.isArray(deployments?.result) ? deployments.result : []);
+          if(!depList.length) throw new Error('No deployment after promote');
+          const active=depList[0];
+          const versions=(Array.isArray(active.versions)?active.versions:[]).map(v=>({
+            version_id:String(v?.version_id||v?.id||''),
+            percentage:Number(v?.percentage ?? v?.traffic_percentage ?? NaN)
+          }));
+          if(versions.length!==1 || versions[0].version_id!==process.env.TARGET_VERSION_ID || versions[0].percentage!==100) {
+            throw new Error('Active deployment does not match exact target: '+JSON.stringify(versions));
+          }
+          console.log('ENTRY582_POSTVERIFY=PASS');
+          console.log('ACTIVE_VERSION_ID='+versions[0].version_id);
+          console.log('ACTIVE_TRAFFIC_PERCENT='+versions[0].percentage);
+          console.log('PRODUCTION_PROMOTED=YES');
+          NODE
+
+          code="$(curl --silent --show-error --output /tmp/root.html --write-out '%{http_code}' "https://trendos-ui.trendmall-contact.workers.dev/")"
+          test "$code" = "200"
+          grep -F 'app.js?v=20261001-initial-edge-ready' /tmp/root.html >/dev/null
+
+          curl --fail --silent --show-error "https://trendos-ui.trendmall-contact.workers.dev/config.js" > /tmp/config.js
+          grep -F '20261001-post-refresh-recovery' /tmp/config.js >/dev/null
+
+          curl --fail --silent --show-error "https://trendos-ui.trendmall-contact.workers.dev/app.js?v=20261001-initial-edge-ready" > /tmp/app.js
+          grep -F 'function loadInitialRowsWhenEdgeReady()' /tmp/app.js >/dev/null
+          grep -F 'function secureApiChainHasEdgeOrdersRouter(fn)' /tmp/app.js >/dev/null
+
+          curl --fail --silent --show-error "https://trendos-ui.trendmall-contact.workers.dev/trendos-edge-orders-read-v1.js" > /tmp/edge.js
+          grep -F 'recoverPostWriteBarrier' /tmp/edge.js >/dev/null
+          grep -F 'postWriteBarrierRecoveries' /tmp/edge.js >/dev/null
+
+          echo 'FRONTEND_HTTP_200=YES'
+          echo 'APP_CACHE_TAG_PRESENT=YES'
+          echo 'INITIAL_EDGE_READY_HELPER_PRESENT=YES'
+          echo 'CONFIG_CACHE_TAG_PRESENT=YES'
+          echo 'RECOVER_POST_WRITE_BARRIER_PRESENT=YES'
+          echo 'POST_WRITE_BARRIER_RECOVERIES_PRESENT=YES'
