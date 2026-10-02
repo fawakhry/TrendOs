@@ -36,12 +36,20 @@ jobs:
             curl --silent --show-error --output /tmp/health               --write-out "ENTRY601_API_HEALTH attempt=$i http=%{http_code} ttfb=%{time_starttransfer} total=%{time_total}\n"               "$API_URL/v1/t12/orders/create/health"
           done
 
-      - name: Measure legacy Apps Script upstream with read-only ping
+      - name: Measure legacy Apps Script login upstream with empty credentials
         shell: bash
         run: |
           set -euo pipefail
           for i in 1 2 3 4 5; do
-            curl --silent --show-error --output /tmp/ping               --write-out "ENTRY601_LEGACY_PING attempt=$i http=%{http_code} ttfb=%{time_starttransfer} total=%{time_total}\n"               -X POST               -H 'content-type: application/json'               --data '{"action":"ping"}'               "$API_URL/v1/legacy-api"
-            grep -q '"success"' /tmp/ping || { cat /tmp/ping; exit 1; }
+            curl --silent --show-error --output /tmp/login \
+              --write-out "ENTRY601_LEGACY_LOGIN_EMPTY attempt=$i http=%{http_code} ttfb=%{time_starttransfer} total=%{time_total}\n" \
+              -X POST \
+              -H 'content-type: application/json' \
+              -H 'Origin: https://trendos-ui.trendmall-contact.workers.dev' \
+              --data '{"action":"login","username":"","password":""}' \
+              "$API_URL/v1/legacy-api"
+            grep -Fq '"success":false' /tmp/login || { cat /tmp/login; exit 1; }
+            grep -Fq 'اكتب اسم المستخدم وكلمة المرور' /tmp/login || { cat /tmp/login; exit 1; }
           done
+          echo 'ENTRY601_LOGIN_EMPTY_IS_READONLY=YES'
           echo 'ENTRY601_MUTATION=NO'
