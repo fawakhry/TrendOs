@@ -201,3 +201,13 @@
 | 182 | `.github/workflows/trendos-t12-a56-customer-cloud-only-ci.yml` | TrendOS T12 A56 Customer Cloud-Only CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
 | 183 | `.github/workflows/trendos-t12-a56-customer-general-cutover.yml` | TrendOS T12 A56 Customer GENERAL Cutover | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets, mutation |
 | 184 | `.github/workflows/trendos-t12-a56-full-cloud-cutover-audit.yml` | TrendOS T12 A56 Full Cloud Cutover Audit | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration |
+| 185 | `.github/workflows/trendos-t12-a57-cloudflare-frontend-cutover.yml` | TrendOS T12 A57 Cloudflare Frontend Cutover | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets, mutation |
+| 186 | `.github/workflows/trendos-t12-a57b-cloudflare-worker-frontend.yml` | TrendOS T12 A57B Cloudflare Worker Frontend Cutover | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets, mutation |
+| 187 | `.github/workflows/trendos-t12-a58-runtime-actions-audit.yml` | TrendOS T12 A58 Active Runtime Action Audit | push,workflow_dispatch | 3 | READONLY | tests |
+| 188 | `.github/workflows/trendos-t12-a59-native-auth-preflight.yml` | TrendOS T12 A59 Native Auth Preflight | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets, mutation |
+| 189 | `.github/workflows/trendos-t12-a61-bootstrap-timeout-off-deploy-temp.yml` | TrendOS T12 A61 Bootstrap Timeout OFF Deploy TEMP | push | 2 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 190 | `.github/workflows/trendos-t12-a61-bootstrap-timeout-qualify-temp.yml` | TrendOS T12 A61 Bootstrap Timeout Qualify TEMP | push | 2 | READONLY | D1, Cloudflare, tests |
+| 191 | `.github/workflows/trendos-t12-a61-cloudflare-readonly-preflight.yml` | TrendOS T12 A61 Cloudflare Read-Only Preflight | push | 2 | MIXED | D1, Apps Script, Cloudflare, migration, secrets, mutation |
+| 192 | `.github/workflows/trendos-t12-a61-diya-native-bootstrap-canary-v2-temp.yml` | TrendOS T12 A61 Diya Native Bootstrap Canary V2 TEMP | push | 2 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 193 | `.github/workflows/trendos-t12-a61-diya-session-enroll-canary-temp.yml` | TrendOS T12 A61 Diya Session Enrollment Canary TEMP | push | 2 | MANUAL/TEMP | D1, Apps Script, Cloudflare, tests, secrets |
+| 194 | `.github/workflows/trendos-t12-a61-legacy-auth-bridge-ci.yml` | TrendOS T12 A61 Employee Legacy Auth Bridge CI | pull_request,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests, secrets |
