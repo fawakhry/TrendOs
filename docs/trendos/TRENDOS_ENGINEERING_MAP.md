@@ -50,7 +50,7 @@
 | B06 | Customers/Feedback/Manager | 8 | DONE |
 | B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
-| B09 | GitHub Actions current + historical workflows | 0 | PENDING |
+| B09 | GitHub Actions current + historical workflows | 24 / 220 | IN_PROGRESS |
 | B10 | tests/ | 0 | PENDING |
 | B11 | docs/ active engineering docs | 0 | PENDING |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
@@ -1161,3 +1161,12 @@ Edge worker module تمت قراءته سابقًا في B02، لكن تعليق
 - Work Queue V1 ثبت أنه superseded.
 - Operator Task V2 ثبت أنه candidate/hybrid وليس end-to-end live حسب source + غياب backend من `Code.gs`.
 - نقطة الاستئناف: **B09 — GitHub Actions current + historical workflows**.
+
+
+### 2026-10-03 — B09 resume after connection interruption
+- تم التحقق أن B00..B08 محفوظة بالفعل في GitHub.
+- `TRENDOS_WORKFLOW_CATALOG.md` موجود ولم يضع شيء من الدفعة الأولى.
+- تمت قراءة محتوى workflows **1..24 من أصل 220**.
+- workflows 13..24 أضيفت للكتالوج بعد فحص المحتوى الفعلي.
+- اكتشاف مهم: `cloud-migration-v3-t11-service-frontend-production-cutover.yml` ليس Read-only؛ لديه `contents: write` ويعدل `main` ثم يستطيع تنفيذ `git revert` آليًا عند فشل التحقق. لذلك تصنيفه **DEPLOY/MUTATION**.
+- نقطة الاستئناف الدقيقة: **workflow #25 — cloud-migration-v3-t11-service-lines-header-probe.yml**.
