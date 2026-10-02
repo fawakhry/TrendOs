@@ -1,0 +1,47 @@
+name: TrendOS Entry601 Login Latency Read-Only Diagnosis
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry601-login-latency-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - name: Measure static login surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in             "/?entry601=1"             "/config.js?v=20261002-legacy-line-runtime"             "/browser-api-transport-v1.js?v=20260930-a61-cloud-transport"             "/app.js?v=20261001-initial-edge-ready"             "/employee-api-dispatcher-v1.js?v=20260930-a61-cloud-transport"; do
+            curl --silent --show-error --output /tmp/body               --write-out "ENTRY601_STATIC path=$path http=%{http_code} dns=%{time_namelookup} connect=%{time_connect} tls=%{time_appconnect} ttfb=%{time_starttransfer} total=%{time_total} size=%{size_download}\n"               "$UI_URL$path"
+          done
+
+      - name: Measure direct Cloud API health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            curl --silent --show-error --output /tmp/health               --write-out "ENTRY601_API_HEALTH attempt=$i http=%{http_code} ttfb=%{time_starttransfer} total=%{time_total}\n"               "$API_URL/v1/t12/orders/create/health"
+          done
+
+      - name: Measure legacy Apps Script upstream with read-only ping
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            curl --silent --show-error --output /tmp/ping               --write-out "ENTRY601_LEGACY_PING attempt=$i http=%{http_code} ttfb=%{time_starttransfer} total=%{time_total}\n"               -X POST               -H 'content-type: application/json'               --data '{"action":"ping"}'               "$API_URL/v1/legacy-api"
+            grep -q '"success"' /tmp/ping || { cat /tmp/ping; exit 1; }
+          done
+          echo 'ENTRY601_MUTATION=NO'
