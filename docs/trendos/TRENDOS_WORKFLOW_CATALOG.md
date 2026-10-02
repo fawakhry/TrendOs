@@ -121,3 +121,13 @@
 | 102 | `.github/workflows/trendos-cloud-write-v2-production-shadow-live-preflight.yml` | TrendOS Cloud Write V2 Production Shadow Live Preflight | push,workflow_dispatch | 3 | MIXED | D1, tests |
 | 103 | `.github/workflows/trendos-cloud-write-v2-production-shadow-preview-method-probe.yml` | TrendOS V2 Production Shadow Preview Method Probe | push,workflow_dispatch | 3 | MIXED | D1, tests, mutation |
 | 104 | `.github/workflows/trendos-cloud-write-v2-production-shadow-preview.yml` | TrendOS Cloud Write V2 Production Shadow Preview | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 105 | `.github/workflows/trendos-cloud-write-v2-production-shadow-readonly-enable.yml` | TrendOS Production Shadow Read-Only Enable | workflow_dispatch | 2 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 106 | `.github/workflows/trendos-cloud-write-v2-production-shadow.yml` | TrendOS Cloud Write V2 Production Shadow Gate | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests |
+| 107 | `.github/workflows/trendos-cloud-write-v2-staging-bridge-live.yml` | TrendOS Cloud Write V2 Staging Bridge Live Proof | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, tests, secrets, mutation |
+| 108 | `.github/workflows/trendos-cloudflare-edge-preview.yml` | TrendOS Cloudflare Auto Preview | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 109 | `.github/workflows/trendos-cloudflare-freshness-diagnostics.yml` | TrendOS Cloudflare Freshness Diagnostics | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 110 | `.github/workflows/trendos-cloudflare-freshness-stability.yml` | TrendOS Cloudflare Freshness Stability | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests |
+| 111 | `.github/workflows/trendos-cloudflare-orders-dual-signal-preview.yml` | TrendOS Orders Dual-Signal Preview Qualification | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests, secrets |
+| 112 | `.github/workflows/trendos-core-p0-11-e2e-readonly-gate.yml` | TrendOS CORE-P0-11 E2E Readonly Gate | push,workflow_dispatch | 3 | MIXED | D1, tests, secrets |
+| 113 | `.github/workflows/trendos-d1-orders-low-usage-v1.yml` | TrendOS D1 Orders Low Usage V1 | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests |
+| 114 | `.github/workflows/trendos-d1-quota-v2.yml` | TrendOS D1 Quota V2 Isolated | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests |
