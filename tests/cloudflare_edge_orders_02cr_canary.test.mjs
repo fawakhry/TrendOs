@@ -99,7 +99,7 @@ const main = await call('');
 assert.equal(main.res.status, 200);
 const body = main.body;
 assert.equal(body.success, true);
-assert.equal(body.version, 'D1_ORDERS_READ_02CR_T12_OVERLAY_V1');
+assert.equal(body.version, 'D1_ORDERS_READ_02CR_T12_LEGACY_RUNTIME_V1');
 assert.equal(body.rows.length, 1);
 assert.equal(body.rows[0].orderId, '5001');
 assert.equal(body.rows[0].lineId, '5001-01');
@@ -114,6 +114,8 @@ assert.equal(body.pagination.totalRows, 1);
 assert.equal(body.activeSummaryCounts.total, 1);
 assert.equal(body.activeSummaryCounts.orderCount, 1);
 assert.equal(body.mirrors.length, 3);
+assert.equal(body.readOverlay.legacyRuntimeRows, 0);
+assert.equal(body.readOverlay.legacyRuntimeApplied, 0);
 
 assert.equal((await call('query=5001')).body.pagination.totalRows, 1);
 const notFound = (await call('query=NOTFOUND')).body;
