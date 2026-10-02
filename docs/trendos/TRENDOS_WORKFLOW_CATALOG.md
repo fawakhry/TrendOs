@@ -91,3 +91,13 @@
 | 72 | `.github/workflows/trendos-02cw-worker-postdeploy-readonly-temp.yml` | TrendOS 02CW Worker Postdeploy Readonly Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
 | 73 | `.github/workflows/trendos-02cw-worker-promote-version-temp.yml` | TrendOS 02CW Worker Version Promote Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
 | 74 | `.github/workflows/trendos-02cw-worker-rollback-safe-temp.yml` | TrendOS 02CW Worker Safety Rollback Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 75 | `.github/workflows/trendos-02cw-worker-summary-candidate-temp.yml` | TrendOS 02CW Worker Summary Candidate Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, git-write |
+| 76 | `.github/workflows/trendos-02cw-worker-zero-traffic-upload-temp.yml` | TrendOS 02CW Worker Zero Traffic Upload Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 77 | `.github/workflows/trendos-a61-browser-transport-ci.yml` | TrendOS A61 browser Cloud transport regression | push,pull_request | 3 | READONLY | D1, Cloudflare, tests |
+| 78 | `.github/workflows/trendos-accounting-binding-probe-preview-runtime.yml` | TrendOS Accounting Binding Probe Preview Runtime | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
+| 79 | `.github/workflows/trendos-accounting-d1-discovery-readonly.yml` | TrendOS Accounting D1 Discovery Readonly | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 80 | `.github/workflows/trendos-accounting-d1-preview-create.yml` | TrendOS Accounting D1 Preview Create | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests, secrets |
+| 81 | `.github/workflows/trendos-accounting-d1-preview-schema-apply.yml` | TrendOS Accounting D1 Preview Schema Apply | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests, secrets |
+| 82 | `.github/workflows/trendos-accounting-f2-runtime.yml` | TrendOS Accounting F2 Runtime | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests |
+| 83 | `.github/workflows/trendos-accounting-native-ci.yml` | TrendOS Accounting Native CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
+| 84 | `.github/workflows/trendos-accounting-persistence-readiness-preview-runtime.yml` | TrendOS Accounting Persistence Readiness Preview Runtime | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
