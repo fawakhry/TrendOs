@@ -96,8 +96,18 @@
 | 77 | `.github/workflows/trendos-a61-browser-transport-ci.yml` | TrendOS A61 browser Cloud transport regression | push,pull_request | 3 | READONLY | D1, Cloudflare, tests |
 | 78 | `.github/workflows/trendos-accounting-binding-probe-preview-runtime.yml` | TrendOS Accounting Binding Probe Preview Runtime | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
 | 79 | `.github/workflows/trendos-accounting-d1-discovery-readonly.yml` | TrendOS Accounting D1 Discovery Readonly | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests, secrets |
-| 80 | `.github/workflows/trendos-accounting-d1-preview-create.yml` | TrendOS Accounting D1 Preview Create | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests, secrets |
-| 81 | `.github/workflows/trendos-accounting-d1-preview-schema-apply.yml` | TrendOS Accounting D1 Preview Schema Apply | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests, secrets |
+| 80 | `.github/workflows/trendos-accounting-d1-preview-create.yml` | TrendOS Accounting D1 Preview Create | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets |
+| 81 | `.github/workflows/trendos-accounting-d1-preview-schema-apply.yml` | TrendOS Accounting D1 Preview Schema Apply | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets |
 | 82 | `.github/workflows/trendos-accounting-f2-runtime.yml` | TrendOS Accounting F2 Runtime | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests |
 | 83 | `.github/workflows/trendos-accounting-native-ci.yml` | TrendOS Accounting Native CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
 | 84 | `.github/workflows/trendos-accounting-persistence-readiness-preview-runtime.yml` | TrendOS Accounting Persistence Readiness Preview Runtime | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
+| 85 | `.github/workflows/trendos-accounting-persistence-schema-preflight-preview-runtime.yml` | TrendOS Accounting Persistence Schema Preflight Preview Runtime | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, tests, mutation |
+| 86 | `.github/workflows/trendos-accounting-preview-runtime.yml` | TrendOS Accounting Preview Runtime | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Apps Script, Cloudflare, tests, mutation |
+| 87 | `.github/workflows/trendos-apps-script-cloud-write-dryrun.yml` | TrendOS Apps Script Cloud Write Dry-Run Gate | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, tests, secrets |
+| 88 | `.github/workflows/trendos-apps-script-cloud-write-rehearsal.yml` | TrendOS Apps Script Cloud Write Rehearsal Gate | push,workflow_dispatch | 3 | CI | Apps Script, tests, secrets |
+| 89 | `.github/workflows/trendos-apps-script-heartbeat-route-probe.yml` | TrendOS Apps Script Heartbeat Route Probe | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests |
+| 90 | `.github/workflows/trendos-apps-script-latency-probe-temp.yml` | TrendOS Apps Script Latency Probe TEMP | push,workflow_dispatch | 3 | READONLY | Apps Script |
+| 91 | `.github/workflows/trendos-apps-script-staging-pull-dryrun.yml` | TrendOS Apps Script Staging Pull Dry-Run Gate | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, tests, secrets |
+| 92 | `.github/workflows/trendos-apps-script-v150-dryrun-integration.yml` | TrendOS Apps Script V150 Dry-Run Integration | push,workflow_dispatch | 5 | MIXED | Apps Script, tests, mutation |
+| 93 | `.github/workflows/trendos-apps-script-v150-live-probe.yml` | TrendOS Apps Script V150 Live Dry-Run Route Probe | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests, secrets |
+| 94 | `.github/workflows/trendos-cloud-write-isolated-integration.yml` | TrendOS Cloud Write Isolated Integration | push,workflow_dispatch | 4 | DEPLOY/MUTATION | D1, Apps Script, Cloudflare, migration, tests, secrets |
