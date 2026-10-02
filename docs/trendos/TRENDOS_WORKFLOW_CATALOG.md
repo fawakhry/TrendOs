@@ -81,3 +81,13 @@
 | 62 | `.github/workflows/trendos-02cu-02cr-idle-preview-qualify.yml` | TrendOS 02CU 02CR Idle Freshness Preview Qualification | push,workflow_dispatch | 2 | READONLY | Cloudflare, tests, secrets |
 | 63 | `.github/workflows/trendos-02cu-production-worker-baseline-readonly.yml` | TrendOS 02CU Production Worker Baseline Read-Only | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets |
 | 64 | `.github/workflows/trendos-02cu-stability-readonly.yml` | TrendOS 02CU Production Stability Read-Only | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, tests, secrets |
+| 65 | `.github/workflows/trendos-02cv-order-status-ux-candidate.yml` | TrendOS 02CV Order Status UX Candidate | push,workflow_dispatch | 3 | READONLY | tests |
+| 66 | `.github/workflows/trendos-02cv-order-status-ux-promote-temp.yml` | TrendOS 02CV Order Status UX Promote Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | tests, git-write |
+| 67 | `.github/workflows/trendos-02cw-fix-global-counter-patcher-temp.yml` | TrendOS 02CW Fix Global Counter Patcher Temp | push | 2 | MANUAL/TEMP | tests, git-write |
+| 68 | `.github/workflows/trendos-02cw-frontend-candidate-temp.yml` | TrendOS 02CW Frontend Candidate Temp | push,workflow_dispatch | 3 | READONLY | tests |
+| 69 | `.github/workflows/trendos-02cw-frontend-promote-temp.yml` | TrendOS 02CW Frontend Promote Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | tests, git-write |
+| 70 | `.github/workflows/trendos-02cw-frontend-undefined-status-hotfix-temp.yml` | TrendOS 02CW Frontend Undefined Status Hotfix Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | tests, git-write |
+| 71 | `.github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml` | TrendOS 02CW Worker Code-Only Deploy Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, migration, tests, secrets |
+| 72 | `.github/workflows/trendos-02cw-worker-postdeploy-readonly-temp.yml` | TrendOS 02CW Worker Postdeploy Readonly Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 73 | `.github/workflows/trendos-02cw-worker-promote-version-temp.yml` | TrendOS 02CW Worker Version Promote Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 74 | `.github/workflows/trendos-02cw-worker-rollback-safe-temp.yml` | TrendOS 02CW Worker Safety Rollback Temp | push,workflow_dispatch | 3 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
