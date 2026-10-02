@@ -24,7 +24,7 @@ function extractFunction(code, name) {
 function activeRuntimeJsFiles() {
   const files = new Set();
   for (const source of [read('index.html'), read('config.js')]) {
-    const re = /(?:src\s*=\s*["']|trendLoadModuleV1932\([^,]+,\s*["'])([^"'?]+\.js)/g;
+    const re = /(?:src\s*=\s*["']|trendLoadModuleV1932\([^,]+,\s*["']|\[\s*["'][^"']+["']\s*,\s*["'])([^"'?]+\.js)/g;
     for (const match of source.matchAll(re)) {
       const file = String(match[1] || '').trim();
       if (file && !/^https?:/i.test(file)) files.add(file);
