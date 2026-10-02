@@ -221,3 +221,13 @@
 | 202 | `.github/workflows/trendos-t12-a61-session-enroll-sessionbound-qualify-temp.yml` | TrendOS T12 A61 Session-Bound Enrollment Qualify TEMP | push | 2 | READONLY | D1, Cloudflare, tests |
 | 203 | `.github/workflows/trendos-t12-a61-sessionbound-off-deploy-temp.yml` | TrendOS T12 A61 Session-Bound OFF Deploy TEMP | push | 2 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
 | 204 | `.github/workflows/trendos-t12-duplicate-order-guard-ci.yml` | TrendOS T12 Duplicate Order Guard CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
+| 205 | `.github/workflows/trendos-t12-duplicate-order-guard-production-install.yml` | TrendOS T12 Duplicate Order Guard Production Install | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, migration, tests, secrets |
+| 206 | `.github/workflows/trendos-t12-duplicate-order-guard-production-preflight.yml` | TrendOS T12 Duplicate Order Guard Production Preflight | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, migration, tests, secrets |
+| 207 | `.github/workflows/trendos-t12-entry500-manual-deploy-artifacts.yml` | TrendOS T12 Entry500 Manual Deploy Artifacts | push,workflow_dispatch | 4 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 208 | `.github/workflows/trendos-t12-fresh-start-4322-isolated-ci.yml` | TrendOS T12 Fresh Start 4322 Isolated CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
+| 209 | `.github/workflows/trendos-t12-order-create-isolated-ci.yml` | TrendOS T12 Order Create Isolated CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
+| 210 | `.github/workflows/trendos-t12-production-create-canary-controlled.yml` | TrendOS T12 Production CREATE Canary Controlled | workflow_dispatch | 2 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 211 | `.github/workflows/trendos-t12-production-create-canary-isolated-ci.yml` | TrendOS T12 Production CREATE Canary Isolated CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
+| 212 | `.github/workflows/trendos-t12-synthetic-d1-persistent-write-qualification.yml` | TrendOS T12 Synthetic D1 Persistent Write Qualification | workflow_dispatch | 2 | READONLY | D1, Cloudflare, tests, secrets |
+| 213 | `.github/workflows/trendos-t12-test-mirror-142-d1compat-retry-once.yml` | TrendOS T12 TEST Mirror 142 D1-Compatible Retry Once | push | 2 | CI | D1, Cloudflare, migration, tests, secrets |
+| 214 | `.github/workflows/trendos-t12-test-mirror-142-qualification.yml` | TrendOS T12 TEST Mirror 142 Remote Qualification | push | 2 | READONLY | D1, Cloudflare, migration, tests, secrets |
