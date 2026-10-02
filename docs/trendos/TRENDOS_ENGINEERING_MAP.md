@@ -50,7 +50,7 @@
 | B06 | Customers/Feedback/Manager | 8 | DONE |
 | B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
-| B09 | GitHub Actions current + historical workflows | 24 / 220 | IN_PROGRESS |
+| B09 | GitHub Actions current + historical workflows | 64 / 220 | IN_PROGRESS |
 | B10 | tests/ | 0 | PENDING |
 | B11 | docs/ active engineering docs | 0 | PENDING |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
@@ -1170,3 +1170,11 @@ Edge worker module تمت قراءته سابقًا في B02، لكن تعليق
 - workflows 13..24 أضيفت للكتالوج بعد فحص المحتوى الفعلي.
 - اكتشاف مهم: `cloud-migration-v3-t11-service-frontend-production-cutover.yml` ليس Read-only؛ لديه `contents: write` ويعدل `main` ثم يستطيع تنفيذ `git revert` آليًا عند فشل التحقق. لذلك تصنيفه **DEPLOY/MUTATION**.
 - نقطة الاستئناف الدقيقة: **workflow #25 — cloud-migration-v3-t11-service-lines-header-probe.yml**.
+
+
+### 2026-10-03 — B09 checkpoint 64/220
+- تمت قراءة محتوى workflows **25..64** وحفظ النتائج في `TRENDOS_WORKFLOW_CATALOG.md`.
+- تم تصحيح workflows 26..33 و42 و45..47 إلى **READONLY** بعد فحص الطلبات الفعلية؛ POST فيها كان Login/Session/GetRows فقط وليس business mutation.
+- ثبت أن workflows 48 و49 و51 و53 تحتوي كتابة فعلية على GitHub `main` و/أو revert، ولذلك تبقى **MIXED**.
+- workflow 22 يبقى **DEPLOY/MUTATION** كما سجل سابقًا.
+- نقطة الاستئناف الدقيقة: **workflow #65 — trendos-02cv-order-status-ux-candidate.yml**.
