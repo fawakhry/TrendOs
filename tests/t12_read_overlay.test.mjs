@@ -93,8 +93,10 @@ assert.equal(/\b(?:INSERT\s+INTO|UPDATE\s+[A-Za-z_]|DELETE\s+FROM|DROP\s+TABLE|A
 
 const handlerSource=fs.readFileSync(new URL('../cloudflare-d1/src/edge-orders-read-02cr-canary.mjs',import.meta.url),'utf8');
 assert.match(handlerSource,/readT12CloudNativeOverlay/);
+assert.match(handlerSource,/readLegacyRuntimeRows/);
+assert.match(handlerSource,/applyLegacyRuntimeOverlay/);
 assert.match(handlerSource,/mergeT12ReadOverlayRows/);
-assert.match(handlerSource,/D1_ORDERS_READ_02CR_T12_OVERLAY_V1/);
+assert.match(handlerSource,/D1_ORDERS_READ_02CR_T12_LEGACY_RUNTIME_V1/);
 assert.match(handlerSource,/cloudNativeRows:overlay\.rows\.length/);
 
 console.log('T12 read overlay isolated PASS');
