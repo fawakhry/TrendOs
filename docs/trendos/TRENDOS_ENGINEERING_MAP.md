@@ -50,7 +50,7 @@
 | B06 | Customers/Feedback/Manager | 8 | DONE |
 | B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
-| B09 | GitHub Actions current + historical workflows | 64 / 220 | IN_PROGRESS |
+| B09 | GitHub Actions current + historical workflows | 104 / 220 | IN_PROGRESS |
 | B10 | tests/ | 0 | PENDING |
 | B11 | docs/ active engineering docs | 0 | PENDING |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
@@ -1178,3 +1178,12 @@ Edge worker module تمت قراءته سابقًا في B02، لكن تعليق
 - ثبت أن workflows 48 و49 و51 و53 تحتوي كتابة فعلية على GitHub `main` و/أو revert، ولذلك تبقى **MIXED**.
 - workflow 22 يبقى **DEPLOY/MUTATION** كما سجل سابقًا.
 - نقطة الاستئناف الدقيقة: **workflow #65 — trendos-02cv-order-status-ux-candidate.yml**.
+
+
+### 2026-10-03 — B09 checkpoint 104/220
+- تمت قراءة محتوى workflows **65..104** وحفظها.
+- workflows 66,67,69,70,71,74,75 صُنفت **MANUAL/TEMP** لأنها تستطيع تعديل branches أو نشر/rollback Worker.
+- workflows 80 و81 تم تصحيحها إلى **DEPLOY/MUTATION**: الأولى تنشئ D1 preview database عبر Cloudflare API POST، والثانية تطبق schema فعليًا على preview D1 عبر `wrangler d1 execute --remote`.
+- workflow 100 = controlled production-shadow deploy ويحتوي deploy/rollback فعلي؛ **MIXED**.
+- workflow 104 = preview deployment/mutation؛ **DEPLOY/MUTATION**.
+- نقطة الاستئناف الدقيقة: **workflow #105 — trendos-cloud-write-v2-production-shadow-readonly-enable.yml**.
