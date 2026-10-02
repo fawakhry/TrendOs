@@ -141,3 +141,13 @@
 | 122 | `.github/workflows/trendos-edge-orders-production-preflight.yml` | TrendOS Edge Orders Production Preflight | push,workflow_dispatch | 3 | READONLY | D1, tests |
 | 123 | `.github/workflows/trendos-edge-orders-read-v1.yml` | TrendOS Edge Orders Read V1 | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
 | 124 | `.github/workflows/trendos-entry504-session-race-manual-bundle.yml` | TrendOS Entry504 Session Race Manual API Bundle | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 125 | `.github/workflows/trendos-entry546-frontend-refresh-recovery-manual-bundle.yml` | TrendOS Entry546 Frontend Refresh Recovery Manual Bundle | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests, secrets |
+| 126 | `.github/workflows/trendos-entry579-frontend-create-version-only.yml` | TrendOS Entry579 Frontend Create Version Only | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests, secrets |
+| 127 | `.github/workflows/trendos-entry580-readonly-version-verify.yml` | TrendOS Entry580 Readonly Version Verify | push,workflow_dispatch | 3 | READONLY | Cloudflare, tests, secrets |
+| 128 | `.github/workflows/trendos-entry582-promote-exact-frontend.yml` | TrendOS Entry582 Promote Exact Frontend Version | push,workflow_dispatch | 3 | DEPLOY/MUTATION | Cloudflare, tests, secrets, mutation |
+| 129 | `.github/workflows/trendos-entry582-promote-frontend-exact.yml` | TrendOS Entry582 Promote Frontend Exact Version | push,workflow_dispatch | 3 | DEPLOY/MUTATION | Cloudflare, tests, secrets, mutation |
+| 130 | `.github/workflows/trendos-entry585-post-promote-readonly.yml` | TrendOS Entry585 Post Promote Readonly Verify | push,workflow_dispatch | 3 | READONLY | Cloudflare, tests, secrets |
+| 131 | `.github/workflows/trendos-entry594-duplicate-guard-frontend-publish.yml` | TrendOS Entry594 Duplicate Guard Frontend Publish | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets, mutation |
+| 132 | `.github/workflows/trendos-entry595-frontend-readonly-verify.yml` | TrendOS Entry595 Frontend Read-Only Verify | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets |
+| 133 | `.github/workflows/trendos-gaber-material-control-v1-ci.yml` | TrendOS Gaber Material Control V1 CI | push,pull_request | 3 | READONLY | D1, Apps Script, tests |
+| 134 | `.github/workflows/trendos-integrity-v1.yml` | TrendOS Integrity V1 | push,pull_request | 3 | CI | D1, Apps Script, Cloudflare, tests |
