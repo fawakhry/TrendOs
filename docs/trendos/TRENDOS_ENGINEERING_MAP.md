@@ -46,7 +46,7 @@
 | B02 | Cloudflare D1 primary worker/src | 34 | DONE |
 | B03 | D1 migrations/schema | 16 | DONE |
 | B04 | Apps Script + Code.gs families | 25 | DONE |
-| B05 | Attendance/Cleaning/HR/Press | 0 | PENDING |
+| B05 | Attendance/Cleaning/HR/Press | 7 | DONE |
 | B06 | Customers/Feedback/Manager | 0 | PENDING |
 | B07 | Accounting + material control | 0 | PENDING |
 | B08 | Integrity/queue/operator tasks | 0 | PENDING |
@@ -695,3 +695,88 @@ External integrations الظاهرة:
 - bridge architecture موثقة مع فصل foundation عن runtime authority.
 - patch family بالكامل تمت قراءتها وتصنيفها.
 - نقطة الاستئناف التالية: **B05 — Attendance/Cleaning/HR/Press**.
+
+
+## 11) B05 — Attendance / Cleaning / HR / Press — DONE
+
+تمت قراءة ملفات backend المنفصلة ووثيقة Attendance integration:
+- `attendance-backend-v1.gs` — SHA `0b77ff05442cff00903274679c0b049f3f8c4285`
+- `attendance-clockin-backend-v1.gs` — SHA `a153c377da0f7d1997bba4f309a1b076a7ef5df8`
+- `cleaning-backend-v1.gs` — SHA `700e03200fc810ffa00240e8a5f8cd33990c2573`
+- `hr-backend-v1.gs` — SHA `5c9dca6b65d9aab4e836b6ed3ec314737f848c2d`
+- `press-control-backend-v1.gs` — SHA `ba544600f19bd5ea59dbf7efcde9440a0c758b97`
+- `go-live-autopilot-v1.gs` — SHA `78a7fd85d542c6183d9a3787379269a950737c22`
+- `ATTENDANCE_V1_INTEGRATION.md` — SHA `d9d01f9349e544be12c97964dc96fcea76a88b82`
+
+### 11.1 Attendance
+
+`attendance-backend-v1.gs` يوفر native family:
+- start/pause/resume/rest/end.
+- presence pulse.
+- state computation.
+- productivity fallback.
+- prayer timing helper.
+- sheets: `سجل الدوام`, `نبض الحضور`, `إعدادات الدوام`, ويقرأ `سجل حركة الأوردرات`.
+
+`attendance-clockin-backend-v1.gs` يسجل أول حضور يومي مقابل schedule ويعتمد على:
+- `تشغيل - مواعيد خاصة`
+- `إعدادات الدوام`
+- `سجل الدوام`.
+
+وثيقة `ATTENDANCE_V1_INTEGRATION.md` تصف نسخة أقدم Hybrid fallback إلى `saveMatbagyNote/getMatbagyNotes/getActivityLog` وتقول إن backend الأصلي "اختياري لاحقًا". **هذه العبارة لم تعد تمثل single-file repo الحالي بالكامل** لأن `Code.gs` الحالي يحتوي فعليًا `attendanceV1_` و`attendanceClockinV1_` داخل V1932 router.
+
+**التصنيف الحالي:** frontend module LIVE-loaded؛ Apps Script backend موجود داخل single-file؛ لكن العائلة ما زالت ضمن Zero-Google open dependencies ولا تُصنف D1-native.
+
+### 11.2 Cleaning
+
+`cleaning-backend-v1.gs`:
+- action family `cleaningV1_`.
+- يكتب/يقرأ `تشغيل - النظافة اليومية`.
+- frontend counterpart محمّل عند `MATBAGY_CLEANING_PREP_V1=true`.
+
+**التصنيف:** LIVE frontend + Apps Script-backed family؛ TRANSITIONAL بالنسبة لهدف Zero-Google.
+
+### 11.3 HR
+
+`hr-backend-v1.gs`:
+- employee self-service + admin HR records.
+- route family `hrV1_`.
+- sheet أساسي ظاهر: `HR - الموظفين`.
+- التعليق داخل المصدر يثبت أن **قرارات التوظيف عالية الأثر لا يتم أتمتتها** داخل هذه الوحدة.
+
+**التصنيف:** LIVE-loaded UI + Apps Script backend؛ TRANSITIONAL حتى Cloud cutover مستقل.
+
+### 11.4 Press
+
+`press-control-backend-v1.gs`:
+- queue/status/start/stop session logic.
+- sheets: `تشغيل - جلسات المكبس`, `تشغيل - إعدادات المكبس`.
+- يحمل schedule/مدة التشغيل/قدرة المكبس والطاقة التقديرية.
+- permission message في المصدر يقيد التشغيل لريڤان/وائل/الإدارة.
+
+**التصنيف:** LIVE-loaded frontend + Apps Script backend؛ TRANSITIONAL لZero-Google.
+
+### 11.5 Go-Live Autopilot
+
+`go-live-autopilot-v1.gs`:
+`Ready -> Draft Invoice -> Final Invoice -> WhatsApp`.
+
+قاعدة أمان صريحة في المصدر:
+**تغيير الموظف للأوردر إلى Ready لا ينفذ financial posting تلقائيًا.**
+Ready ينشئ/يحدّث draft فقط، وfinalization يعيد استخدام `saveAccountingFinalInvoice_` وصلاحيات/Idempotency الحسابات الحالية.
+
+Frontend file محمّل، لكن `MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1=false`.
+
+### 11.6 العلاقة مع Code.gs
+
+هذه ملفات modular source مستقلة، لكن Production Apps Script lineage الحالي في الكتاب هو single-file `Code.gs` Version 159. لذلك:
+- وجود ملف backend منفصل لا يعني أنه ملف مستقل داخل مشروع Apps Script Production.
+- الدوال الرئيسية لهذه العائلات موجودة داخل `Code.gs`.
+- الصيانة يجب أن تبدأ من single-file qualified lineage ثم تستخدم الملفات المنفصلة كمرجع/وحدة مصدر عند الحاجة، لا كدليل نشر مستقل.
+
+### 11.7 نتيجة B05
+
+- ملفات مقروءة فعليًا: **7**.
+- Attendance/Cleaning/HR/Press/Autopilot تم ربطها بالواجهة وبـApps Script.
+- تم رصد توثيق Attendance الهجين القديم وتصحيحه مقابل الواقع الحالي في `Code.gs`.
+- نقطة الاستئناف التالية: **B06 — Customers / Feedback / Manager**.
