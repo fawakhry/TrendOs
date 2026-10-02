@@ -231,3 +231,9 @@
 | 212 | `.github/workflows/trendos-t12-synthetic-d1-persistent-write-qualification.yml` | TrendOS T12 Synthetic D1 Persistent Write Qualification | workflow_dispatch | 2 | READONLY | D1, Cloudflare, tests, secrets |
 | 213 | `.github/workflows/trendos-t12-test-mirror-142-d1compat-retry-once.yml` | TrendOS T12 TEST Mirror 142 D1-Compatible Retry Once | push | 2 | CI | D1, Cloudflare, migration, tests, secrets |
 | 214 | `.github/workflows/trendos-t12-test-mirror-142-qualification.yml` | TrendOS T12 TEST Mirror 142 Remote Qualification | push | 2 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 215 | `.github/workflows/trendos-t12-test-mirror-142-readonly-guard-probe.yml` | TrendOS T12 TEST Mirror 142 ReadOnly Guard Probe | push | 2 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 216 | `.github/workflows/trendos-t12-test-mirror-142-reconcile-readonly.yml` | TrendOS T12 TEST Mirror 142 ReadOnly Reconcile | push | 2 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 217 | `.github/workflows/trendos-t12-test-mirror-negative-qualification.yml` | TrendOS T12 TEST Mirror Negative Remote Qualification | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 218 | `.github/workflows/trendos-t12-test-mirror-positive-qualification.yml` | TrendOS T12 TEST Mirror Positive Remote Qualification | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests, secrets |
+| 219 | `.github/workflows/trendos-work-queue-v1-candidate.yml` | TrendOS Work Queue V1 Candidate CI | push,workflow_dispatch | 3 | READONLY | tests |
+| 220 | `.github/workflows/trendos-work-queue-v1-inertness-gate.yml` | TrendOS Work Queue V1 Production Inertness Gate | push,workflow_dispatch | 3 | READONLY | D1, secrets |
