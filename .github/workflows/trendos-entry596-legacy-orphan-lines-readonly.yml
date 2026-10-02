@@ -1,0 +1,111 @@
+name: TrendOS Entry596 Legacy Orphan Lines Read-Only Diagnosis
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry596-legacy-orphan-lines-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read D1 mirror only and list stale-active legacy rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT headers_json AS headersJson,source_last_row AS sourceLastRow,source_last_col AS sourceLastCol,row_count AS rowCount,status,synced_at AS syncedAt,note FROM sheet_catalog WHERE sheet_name='بنود الأوردرات' LIMIT 1; SELECT row_number AS rowNumber,values_json AS valuesJson,display_json AS displayJson FROM sheet_rows WHERE sheet_name='بنود الأوردرات' ORDER BY row_number;"             > /tmp/mirror.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/mirror.json','utf8'));
+          const resultSets=[];
+          const walk=v=>{
+            if(Array.isArray(v)){
+              if(v.length&&v.every(x=>x&&typeof x==='object')&&(v.some(x=>'headersJson'in x)||v.some(x=>'valuesJson'in x))) resultSets.push(v);
+              v.forEach(walk); return;
+            }
+            if(v&&typeof v==='object') Object.values(v).forEach(walk);
+          };
+          walk(raw);
+          let catalog=null, mirrorRows=[];
+          for(const set of resultSets){
+            for(const x of set){
+              if(x&&x.headersJson) catalog=x;
+              if(x&&x.valuesJson) mirrorRows.push(x);
+            }
+          }
+          if(!catalog) throw new Error('catalog not found');
+          if(!mirrorRows.length) throw new Error('mirror rows not found');
+
+          const headers=JSON.parse(catalog.headersJson||'[]').map(x=>String(x??'').trim());
+          const idx=(names,fallback)=>{
+            for(const n of names){const i=headers.indexOf(n);if(i>=0)return i;}
+            return fallback;
+          };
+          const c={
+            order:idx(['رقم الأوردر','Order ID'],0),
+            customer:idx(['اسم الشات / المكتب','اسم العميل','Customer Name'],2),
+            dept:idx(['القسم','Department'],4),
+            line:idx(['رقم البند','Line ID'],5),
+            item:idx(['اسم البند / نوع الشغل','اسم البند','Item Name'],6),
+            status:idx(['الحالة','Status'],10),
+            updated:idx(['آخر تحديث','Updated At'],12),
+            received:idx(['تاريخ الاستلام','تاريخ الإنشاء','Received At'],31)
+          };
+          const hidden=new Set(['جاهز للاستلام','تم التسليم','مكرر','تم التنفيذ','جاهز للطباعة','ملغى','ملغي']);
+          const text=v=>String(v??'').trim();
+          const rows=mirrorRows.map(x=>{
+            let vals=[],disp=[];
+            try{vals=JSON.parse(x.valuesJson||'[]')}catch{}
+            try{disp=JSON.parse(x.displayJson||'[]')}catch{}
+            const d=Array.isArray(disp)&&disp.length?disp:vals;
+            return {
+              rowNumber:Number(x.rowNumber||0),
+              orderId:text(d[c.order]),
+              lineIdDisplay:text(d[c.line]),
+              lineIdRaw:text(vals[c.line]),
+              customer:text(d[c.customer]),
+              department:text(d[c.dept]),
+              itemName:text(d[c.item]),
+              status:text(d[c.status])||'طلب جديد',
+              updatedAt:text(d[c.updated]),
+              receivedAt:text(d[c.received])
+            };
+          }).filter(x=>x.rowNumber>1&&x.lineIdDisplay);
+          const active=rows.filter(x=>!hidden.has(x.status));
+          console.log('ENTRY596_D1_MIRROR_READONLY=PASS');
+          console.log('MIRROR_SYNCED_AT='+String(catalog.syncedAt||''));
+          console.log('MIRROR_SOURCE_LAST_ROW='+Number(catalog.sourceLastRow||0));
+          console.log('MIRROR_ROW_COUNT='+Number(catalog.rowCount||0));
+          console.log('MIRROR_STATUS='+String(catalog.status||''));
+          console.log('MIRROR_NOTE='+String(catalog.note||''));
+          console.log('MIRROR_NONEMPTY_LINES='+rows.length);
+          console.log('MIRROR_ACTIVE_LINES='+active.length);
+          console.log('ACTIVE_ROWS_JSON='+JSON.stringify(active));
+          console.log('D1_MUTATION=NO');
+          console.log('CLOUDFLARE_DEPLOY=NO');
+          console.log('ORDER_DATA_MUTATION=NO');
+          NODE
