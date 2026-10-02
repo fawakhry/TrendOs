@@ -48,7 +48,7 @@
 | B04 | Apps Script + Code.gs families | 25 | DONE |
 | B05 | Attendance/Cleaning/HR/Press | 7 | DONE |
 | B06 | Customers/Feedback/Manager | 8 | DONE |
-| B07 | Accounting + material control | 0 | PENDING |
+| B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 0 | PENDING |
 | B09 | GitHub Actions current + historical workflows | 0 | PENDING |
 | B10 | tests/ | 0 | PENDING |
@@ -889,3 +889,134 @@ Tables:
 - Manager/Feedback compatibility paths موثقة.
 - تم اكتشاف endpoint قديم يحتاج Runtime verification.
 - نقطة الاستئناف التالية: **B07 — Accounting + material control**.
+
+
+## 13) B07 — Accounting + material control — DONE
+
+تمت قراءة **28 ملفًا** من عائلة Accounting وGaber Material Control قراءة محتوى فعلية، مع فصل Domain/Cloud/Apps Script/UI عن Runtime authority.
+
+### 13.1 Accounting domain + persistence contracts
+
+الملفات:
+- `accounting/domain-core-v1.js` — SHA `c18388ac16c68a5754b5381c20cfabdcad86dc2d`
+- `accounting/transaction-contract-v1.js` — SHA `803f90a6c99611f59b084ba04e0bf5cc28d93435`
+- `accounting/d1-persistence-adapter-v1.js` — SHA `6fd89901e5284613b6fa17271976495b443ace1a`
+- `accounting/memory-persistence-adapter-v1.js` — SHA `ac9ff544263f4c965ce445576219939d674893cc`
+- `accounting/persistence-composition-v1.js` — SHA `a45b90f8a9f7854c9a183719c56db77cbc57d26f`
+- `accounting/preview-persistence-caller-v1.js` — SHA `1e0ac10b954e00e3995dfdc3c6049a0a4c17a3d2`
+
+الدور:
+- Domain core يعرّف IDs/BOM/stock sufficiency/cost/formation movements بدون اعتماد مباشر على storage.
+- Transaction contract يثبت canonical payload + fingerprint + replay classification + idempotency intent.
+- D1 adapter يكتب `accounting_operation_idempotency` و`accounting_stock_movements`، ويحوّل EGP إلى integer piastres.
+- Memory adapter للاختبارات/atomicity regression.
+- Composition يقرر persistence implementation بناءً على stage/capabilities.
+- Preview caller لا يثبت Production write authority.
+
+**التصنيف:** Domain/contracts = REPO-READY architecture. D1 persistence path = **CANDIDATE/PREVIEW** حتى إثبات binding/schema/write cutover في Runtime.
+
+### 13.2 Cloud Accounting API / finance foundation
+
+الملفات:
+- `accounting-capabilities-v1.mjs` — `a8333c5827295a3b364fb8f4805395db85caf5da`
+- `accounting-contract-v1.mjs` — `7f9185706e529e07cadc5dbed0d8d2585b13c5f7`
+- `accounting-finance-api-v1.mjs` — `5bfbeff90263a2cb0bec39ea21b9741347c6b89b`
+- `accounting-finance-core-v1.mjs` — `a9c7cdf197b29ad49ff1ed457dc4fd07b0f1cfe2`
+- `accounting-finance-safe-v1.mjs` — `28586a2b6b246802310be920e7de09608934737a`
+- `accounting-foundation-api-v1.mjs` — `444392556c70aef308b90b846606bc87861570c5`
+- `accounting-foundation-v1.mjs` — `5920f7d45a6b8add3dea9458b76d7b026608cacc`
+- `accounting-operations-read-v1.mjs` — `81e3d05833842ab7507f30ecf873817877297caf`
+- `accounting-persistence-readiness-v1.mjs` — `ba4b9e5f6863f357ce5a65c8328aefff45b14fe1`
+- `accounting-persistence-schema-preflight-v1.mjs` — `5786b916f75f964bcd155f23d6c85636a080342b`
+- `accounting-native-module.mjs` — `65ebbbf37a0cff1bc807bd3f434eaf7b1282d05d`
+- `accounting-preview.mjs` — `e09525d9faf1419599ccfd729d8fa2bf1fe21552`
+
+Routes المهمة:
+- `/v1/accounting/finance`
+- `/v1/accounting/finance/plan`
+- `/v1/accounting/foundation`
+- `/v1/accounting/foundation/validate`
+- `/v1/accounting/operations/line`
+- `/v1/accounting/integration`
+- `/v1/accounting/capabilities`
+- `/v1/accounting/contract`
+- `/v1/accounting/validate`
+- `/v1/accounting/persistence-readiness`
+- `/v1/accounting/persistence-schema-preflight`
+- `/v1/accounting/persistence-binding-probe`
+
+ملاحظات حاكمة:
+- Finance core يبني posting plans ولا يثبت وحده تنفيذ journal مالي Live.
+- `accounting-operations-read-v1.mjs` ما زال يقرأ operational facts من `sheet_catalog/sheet_rows`، أي من mirror layer.
+- readiness/preflight modules مصممة تحديدًا لمنع اعتبار persistence جاهزًا قبل إثبات stage + capability + D1 binding + schema.
+- `accounting-preview.mjs` Preview UI/health وليست financial write authority.
+
+**التصنيف العام:** Cloud Accounting = **CANDIDATE/INTEGRATION/PREVIEW**، وليس D1 financial authority مثبتًا حتى الآن.
+
+### 13.3 Accounting Production authority الحالية
+
+`Code.gs` الذي تمت قراءته في B04 ما زال يحمل التنفيذ الواسع للحسابات:
+- materials/templates.
+- department lines.
+- final invoices.
+- purchases/sales.
+- party ledger.
+- customer accounts.
+- cashbox/day close.
+- debt/restriction.
+- stock movement helpers.
+- EasyStore bridges.
+
+وبالتالي، وبالاقتران مع §3 في الكتاب الرئيسي:
+**Accounting / Party Ledger ما زالت عائلة Zero-Google مفتوحة، ولا يجوز وصفها D1-native حاليًا.**
+
+Prepared schemas:
+- `schema-prep/accounting-finance-v1.sql`
+- `schema-prep/accounting-operations-v1.sql`
+
+تمت قراءتهما في B03 ويحتويان تحذيرًا صريحًا:
+`DO NOT APPLY TO D1 OR PRODUCTION WITHOUT A SEPARATE CUTOVER GATE`.
+
+### 13.4 Gaber Material Control
+
+الملفات:
+- `gaber-material-control-v1.js` — `03bb4028bf983dd0a94064ada3094b1b8e307ab0`
+- `gaber-material-movement-ledger-v1.js` — `654c897bf199ec8e51ef6c1063bf5eb00b4d94b6`
+- `gaber-material-persistence-v1.js` — `1b57199e529f53e66dd12a28f098c3dba30581a1`
+- `gaber-material-persistence-backend-v1.gs` — `c8890c62e6a230492ceb9499392508a946c18ec5`
+- `gaber-material-ui-v1.js` — `32eefbeaed8f340c3bd4a64e9ece53611f5c9c53`
+- `gaber-material-ui-backend-v1.gs` — `a3615c1745e0f839c6dc310ce5fac301fefcbabc`
+- `gaber-material-waste-decision-v1.gs` — `c321849222accab379b46a872da94ac09b0a4049`
+- `gaber-easystore-ledger-adapter-v1.js` — `e2916d475c963737cb41b14858e3eefeea773a4f`
+- `gaber-daily-material-flow-v1.js` — `2826e1e6028d5cbfefafea3890c2709c4227b01f`
+- `gaber-ledger-daily-report-v1.js` — `5d1cce2f88e2a06e7f7f928ba89b6442e4e19861`
+
+المنظومة تحقق:
+`Task -> material mapping -> issue/return/waste -> approval -> append-only movement ledger -> daily material report`.
+
+ضوابط بارزة:
+- لا يقبل ambiguous material mapping.
+- material balance يجب أن يتطابق.
+- abnormal waste يحتاج reason/evidence/approval.
+- self-approval للهالك ممنوع في backend.
+- persistence يستخدم deterministic fingerprint/record identity.
+- daily flow لا يضيف returned/offcut مرتين؛ `orderOutQty` هو final-good consumption.
+- EasyStore adapter يحوّل purchase/task close إلى candidate material events ويتحقق من stock-applied/reversal state.
+
+### 13.5 Gaber Runtime classification
+
+وجود UI/backend/persistence files لا يثبت تفعيلها Production. Backend يعتمد على flags مثل:
+`TRENDOS_GABER_MATERIAL_CONTROL_V1_ENABLED`
+وعلى Apps Script sheet stores/catalog.
+
+لا يوجد في baseline الحالي دليل Runtime يرفع هذه العائلة إلى Cloud/D1 authority.
+
+**التصنيف:** Gaber Material Control = **CANDIDATE/TRANSITIONAL guarded workflow** إلى أن يثبت Runtime أنه مفعّل ومربوط بالمسار التشغيلي، ومع ذلك قواعده وcontracts صالحة كمرجع تصميم/سلامة.
+
+### 13.6 نتيجة B07
+
+- الملفات المقروءة فعليًا: **28**.
+- تم الفصل بين accounting domain design، Cloud preview/native candidates، Apps Script authority الحالية، وprepared schema.
+- تم رسم Material Control/ledger/waste approval workflow.
+- لم يتم الادعاء بأن Accounting أو Gaber material أصبحتا D1 Production authority.
+- نقطة الاستئناف: **B08 — Integrity / Queue / Operator Tasks**.
