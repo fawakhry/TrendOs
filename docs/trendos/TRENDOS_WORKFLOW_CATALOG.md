@@ -42,12 +42,22 @@
 | 23 | `.github/workflows/cloud-migration-v3-t11-service-legacy-shape-diagnostic.yml` | TrendOS T11 Service Legacy Shape Diagnostic | push | 1 | READONLY | D1 mirror GET diagnostics |
 | 24 | `.github/workflows/cloud-migration-v3-t11-service-lines-exact-parity.yml` | TrendOS T11 Service Lines Exact Parity | push | 1 | READONLY | exact D1/Apps Script parity |
 | 25 | `.github/workflows/cloud-migration-v3-t11-service-lines-header-probe.yml` | TrendOS T11 Service Lines Header Probe | push | 2 | READONLY | D1, migration |
-| 26 | `.github/workflows/cloud-migration-v3-t11-service-live-field-origin.yml` | TrendOS T11 Service Live Field Origin | push | 2 | MIXED | D1, Apps Script, migration, secrets |
-| 27 | `.github/workflows/cloud-migration-v3-t11-service-modern-shape-parity.yml` | TrendOS T11 Service Modern Shape Parity | push | 2 | MIXED | D1, Apps Script, migration, tests, secrets |
-| 28 | `.github/workflows/cloud-migration-v3-t11-service-ordering-diagnostic.yml` | TrendOS T11 Service Ordering Diagnostic | push | 2 | MIXED | D1, Apps Script, migration, secrets |
-| 29 | `.github/workflows/cloud-migration-v3-t11-service-orders-candidate-parity.yml` | TrendOS T11 Service Orders Candidate Parity | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, secrets |
-| 30 | `.github/workflows/cloud-migration-v3-t11-service-orders-identity-map.yml` | TrendOS T11 Service Orders Identity Map | push | 2 | MIXED | D1, Apps Script, migration, secrets |
-| 31 | `.github/workflows/cloud-migration-v3-t11-service-orders-projection-parity.yml` | TrendOS T11 Service Orders Projection Parity | push | 2 | MIXED | D1, Apps Script, migration, tests, secrets |
-| 32 | `.github/workflows/cloud-migration-v3-t11-service-orders-rownum-map.yml` | TrendOS T11 Service Orders RowNumber Map | push | 2 | MIXED | D1, Apps Script, migration, secrets |
-| 33 | `.github/workflows/cloud-migration-v3-t11-service-range-boundary-proof.yml` | TrendOS T11 Service Row 270 Boundary Proof | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, secrets |
+| 26 | `.github/workflows/cloud-migration-v3-t11-service-live-field-origin.yml` | TrendOS T11 Service Live Field Origin | push | 2 | READONLY | D1, Apps Script, migration, secrets |
+| 27 | `.github/workflows/cloud-migration-v3-t11-service-modern-shape-parity.yml` | TrendOS T11 Service Modern Shape Parity | push | 2 | READONLY | D1, Apps Script, migration, tests, secrets |
+| 28 | `.github/workflows/cloud-migration-v3-t11-service-ordering-diagnostic.yml` | TrendOS T11 Service Ordering Diagnostic | push | 2 | READONLY | D1, Apps Script, migration, secrets |
+| 29 | `.github/workflows/cloud-migration-v3-t11-service-orders-candidate-parity.yml` | TrendOS T11 Service Orders Candidate Parity | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, secrets |
+| 30 | `.github/workflows/cloud-migration-v3-t11-service-orders-identity-map.yml` | TrendOS T11 Service Orders Identity Map | push | 2 | READONLY | D1, Apps Script, migration, secrets |
+| 31 | `.github/workflows/cloud-migration-v3-t11-service-orders-projection-parity.yml` | TrendOS T11 Service Orders Projection Parity | push | 2 | READONLY | D1, Apps Script, migration, tests, secrets |
+| 32 | `.github/workflows/cloud-migration-v3-t11-service-orders-rownum-map.yml` | TrendOS T11 Service Orders RowNumber Map | push | 2 | READONLY | D1, Apps Script, migration, secrets |
+| 33 | `.github/workflows/cloud-migration-v3-t11-service-range-boundary-proof.yml` | TrendOS T11 Service Row 270 Boundary Proof | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, secrets |
 | 34 | `.github/workflows/cloud-migration-v3-t11-service-row-builder-extract.yml` | TrendOS T11 Service Row Builder Extract | push | 2 | READONLY | migration |
+| 35 | `.github/workflows/cloud-migration-v3-t11-service-rownum-field-map.yml` | TrendOS T11 Service RowNumber Field Map | push | 2 | READONLY | D1, Apps Script, migration, secrets |
+| 36 | `.github/workflows/cloud-migration-v3-t11-service-screen-contract.yml` | TrendOS T11 Service Screen Contract | push | 2 | READONLY | migration |
+| 37 | `.github/workflows/cloud-migration-v3-t11-service-screen-view-parity-v2.yml` | TrendOS T11 Service Screen View D1 Parity V2 | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, secrets |
+| 38 | `.github/workflows/cloud-migration-v3-t11-service-screen-view-parity.yml` | TrendOS T11 Service Screen View D1 Parity | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, secrets |
+| 39 | `.github/workflows/cloud-migration-v3-t11-service-sort-contract.yml` | TrendOS T11 Service Sort Contract | push | 2 | READONLY | migration |
+| 40 | `.github/workflows/cloud-migration-v3-t11-service-source-rule-parity.yml` | TrendOS T11 Service Source Rule Parity | push | 2 | READONLY | D1, Apps Script, migration, secrets |
+| 41 | `.github/workflows/cloud-migration-v3-t11-service-view-formula-probe.yml` | TrendOS T11 Service View Formula Probe | push | 2 | READONLY | D1, migration |
+| 42 | `.github/workflows/cloud-migration-v3-t11-service-worker-production-canary.yml` | TrendOS T11 Service Worker Production Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 43 | `.github/workflows/cloud-migration-v3-t11-stable-freshness-route-probe.yml` | TrendOS T11 Stable 02CR Freshness Route Probe | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, tests, secrets |
+| 44 | `.github/workflows/cloud-migration-v3-t11-v1932-route-contract.yml` | TrendOS T11 V1932 Route Contract | push | 2 | READONLY | migration |
