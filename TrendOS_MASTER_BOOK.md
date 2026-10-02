@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.13-ZERO-GOOGLE-COMPACT — Entry598 legacy Orders Production preflight PASS** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.14-ZERO-GOOGLE-COMPACT — Entry600 legacy Orders Production repair verified live** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -28,38 +28,44 @@
 
 > **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. لا تعيد نسخ سلسلة تاريخية كاملة إذا كانت النتيجة النهائية تكفي.
 
-## 1. الحالة النشطة — Production baseline بعد Entry595
+## 1. الحالة النشطة — Production baseline بعد Entry600
 
 ### Frontend
 - Canonical frontend: Cloudflare Worker `trendos-ui`.
-- Entry595 أثبت أن duplicate-order frontend message منشور ومتحقق مستقلًا.
-- Active frontend version: `a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e` عند 100%.
-- Active frontend deployment: `21a12f7f-e323-4bc2-bb60-7ef4009d708e`.
-- Qualified frontend source: `6a9cd90649cfa0ac75b25b725d53e9f779bb2c61`.
-- Independent verify: run `36915414626`, job `110548061098` = SUCCESS.
+- Active frontend version: `ff4a2517-042c-48f0-8b43-98621c2a6957` عند 100%.
+- Active frontend deployment: `dafdd5bf-b6bd-4467-9fa0-a938e66ea2cf`.
+- Qualified frontend source: `c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281`.
+- `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED=true` live.
+- Legacy `updateLine` ذو stable Line ID يذهب إلى `/v1/t12/orders/line-runtime/legacy-update` بدل Apps Script.
 - Root/config/edge/app = HTTP 200.
-- Browser Refresh recovery وinitial Edge readiness وduplicate-order Arabic message كلها verified.
+- Browser Refresh recovery وinitial Edge readiness وduplicate-order Arabic message كلها preserved بعد Entry600.
+- Independent read-only verify: run `37027847139` = SUCCESS.
 - GitHub Pages القديم ليس canonical entrypoint.
 
 ### API / D1
 - Canonical API Worker: `trendos-d1-api`.
-- Entry593: migration `0010_t12_duplicate_order_guard.sql` applied successfully.
-- Active API version: `23be0ab2-0a2b-4b81-bf54-e2f05f847989`.
-- Active API deployment: `b8497ee0-a487-43c8-bcb3-b3f3ab83d3ff`.
-- Active API bundle SHA-256: `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`.
+- Migration `0010_t12_duplicate_order_guard.sql` applied.
+- Migration `0011_t12_legacy_line_runtime.sql` applied.
+- Active API version: `ce156662-a698-47fc-b73c-dfd4657be9f5`.
+- Active API deployment: `477ee04d-10ac-4fc3-9ba6-e81691bcd286`.
+- Active API bundle SHA-256: `7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6`.
 - `ORDER_CREATE_MODE=GENERAL`.
 - `DUPLICATE_GUARD_READY=YES`.
 - Duplicate guard window = 120000 ms.
 - `CUSTOMER_WRITE_MODE=GENERAL`.
-- `LEGACY_BRIDGE_ENABLED=NO` في حالة Entry593.
-- لا توجد pending migrations بعد تثبيت 0010 وفق postflight الخاص بـEntry593.
+- Legacy line runtime health = PASS، `legacySchemaReady=true`، `writeMode=cloud-native+legacy-overlay`.
+- `EMPLOYEE_AUTH_MODE=OFF` و`LEGACY_BRIDGE_ENABLED=NO` ما زالا كما هما.
+- لا توجد pending migrations بعد Entry600.
 
 ### Orders
 - New Order CREATE authority يعمل Cloud-native على D1 في GENERAL.
 - duplicate-order guard live في API والواجهة.
-- refresh disappearance defect مغلق بعد owner acceptance + GET-only verification.
+- refresh disappearance defect مغلق بعد owner acceptance + read-only verification.
+- Legacy status/notes update ذو stable Line ID أصبح Cloud/D1 عبر legacy runtime overlay؛ لا يعتمد على Apps Script line lookup لهذا المسار.
+- الـ15 stale legacy Orders المؤكدة تم reconcile إلى `تم التسليم` في D1 runtime بدون تغيير Order IDs وبدون Google write.
+- Base `sheet_rows` mirror التاريخي بقي كما هو ولم يُعاد كتابته؛ runtime overlay هو طبقة الحالة الحالية.
 - لا تُعد أي historical Google Order writer أو canary أو staging workflow سلطة حالية.
-- أي Legacy Orders action ما زال يظهر في Zero-Google audit يُعامل dependency متبقية حتى يثبت Runtime أنه أزيل.
+- أي Legacy Orders action آخر غير `updateLine` ما زال يظهر في Zero-Google audit يُعامل dependency متبقية حتى يثبت Runtime أنه أزيل.
 
 ### Entry596 — أوردرات Legacy قديمة ظاهرة Active رغم أنها مُسلّمة
 - الاسم العربي للبحث: **الأوردرات القديمة لا تقفل / البند غير موجود / أوردرات مسلمة ظاهرة / stale legacy orders / legacy line identity**.
@@ -72,8 +78,8 @@
 - ممنوع إصلاحها بالاعتماد على stale `rowNumber` لأن الصف قد يتحرك.
 - المسار الدائم المعتمد للتأهيل: **D1-native legacy-line runtime overlay** يطبق status/notes فوق الـmirror قبل الفلترة، ثم ينقل legacy updateLine إلى Cloud؛ لا تعديل Apps Script v159.
 - التشخيص لم يغيّر D1 أو Google أو Order Status أو Production.
-- الحالة الحالية: `ROOT_CAUSE_CONFIRMED=YES`, `PRODUCTION_FIX_DEPLOYED=NO`, `BUSINESS_RECONCILIATION_DONE=NO`.
-- الخطوة التالية: Repo-only qualification للـlegacy runtime overlay؛ وبعدها Production mutation تحتاج scope واضح قبل reconcile الـ15.
+- الحالة الحالية بعد Entry600: `ROOT_CAUSE_CONFIRMED=YES`, `PRODUCTION_FIX_DEPLOYED=YES`, `BUSINESS_RECONCILIATION_DONE=YES`, `STALE_15_RECONCILED=YES`.
+- هذه المشكلة مغلقة Production؛ لا تُعاد معالجة الـ15 مرة أخرى.
 
 ### Entry597 — Legacy Line Runtime Overlay مؤهل في Repo فقط
 - الاسم العربي للبحث: **إصلاح البند غير موجود / تقفيل الأوردرات القديمة من Cloud / Legacy Line Runtime / تشغيل البنود القديمة على D1**.
@@ -94,9 +100,8 @@
 - 02CR visibility regression بعد تعديل القراءة: run `37020169082` = SUCCESS.
 - Duplicate Guard CI بعد نقل cache tag: run `37020380457` = SUCCESS.
 - التشخيص الكامل مؤرشف في: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_STALE_LEGACY_ORDERS_DIAGNOSIS_ENTRY_596_2026-10-02.md`.
-- **Production لم يتغير:** migration 0011 لم تُطبق، API/Frontend لم يُنشرا بهذا patch، والـ15 حالة لم تُكتب في D1 runtime بعد.
-- الحالة: `REPO_QUALIFIED=YES`, `PRODUCTION_FIX_DEPLOYED=NO`, `STALE_15_RECONCILED=NO`.
-- الخطوة التالية الآمنة: Production read-only preflight يثبت active API/frontend الحاليين + أن migration 0011 absent + أن الـ15 ما زالت stale في D1؛ بعدها فقط يمكن طلب/تنفيذ scope محدد: 0011 → API → reconcile الـ15 المؤكدة → frontend → read-only postflight.
+- Entry597 أصبح historical qualification بعد نشر Entry599/600.
+- الحالة الحالية: `REPO_QUALIFIED=YES`, `PRODUCTION_FIX_DEPLOYED=YES`, `STALE_15_RECONCILED=YES`.
 
 ### Entry598 — Production preflight لإصلاح الأوردرات القديمة = PASS
 - Production preflight Read-only: run `37020759452`, job `110882922276` = **SUCCESS**.
@@ -108,6 +113,49 @@
 - Order Create ما زال `GENERAL` وDuplicate Guard = ready؛ current native runtime health = PASS.
 - preflight لم يغير D1/Cloudflare/Frontend/Apps Script/Order Status.
 - Production scope المطلوب للإغلاق، إذا صرّح به المالك صراحة: **apply 0011 فقط → deploy API target فقط → reconcile exactly the verified 15 rows to `تم التسليم` داخل legacy runtime overlay → deploy qualified frontend only → read-only postflight**. لا تغيير Order IDs، لا Google write، لا Apps Script v159، ولا business CREATE test.
+
+### Entry599/600 — إصلاح Production للأوردرات القديمة = CLOSED PASS
+- المالك صرّح صراحة بالنطاق: `0011 + API + reconcile الـ15 + frontend فقط`.
+- إعادة تحقق Google read-only قبل التنفيذ أثبتت أن الـ15 كلها ما زالت `تم التسليم`؛ ملاحظة Order `4317` الحالية `@koko.1072` وتم الحفاظ عليها.
+- Entry599 workflow run `37027377098` نفّذ بنجاح:
+  - preflight/source qualification = PASS.
+  - migration `0011_t12_legacy_line_runtime.sql` = applied.
+  - API deploy = PASS؛ active API version بعده `ce156662-a698-47fc-b73c-dfd4657be9f5`.
+  - API live bundle SHA-256 = `7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6`.
+  - legacy runtime health before reconcile = PASS.
+  - exact 15 rows reconciled إلى `تم التسليم`.
+  - exact 15 reconciliation events written.
+  - frontend target created ثم promoted إلى 100%؛ version `ff4a2517-042c-48f0-8b43-98621c2a6957`.
+- أول final postflight داخل Entry599 فشل **بعد نجاح كل mutations** أثناء asset marker check مباشرة بعد promote. طبقنا قاعدة failure-after-mutation: لم نعد أي mutation أو deploy، وعملنا reconcile/read-only مستقل فقط.
+- Entry600 independent read-only postflight run `37027847139` = **SUCCESS**:
+  - API version `ce156662-a698-47fc-b73c-dfd4657be9f5` @100%.
+  - API deployment `477ee04d-10ac-4fc3-9ba6-e81691bcd286`.
+  - API SHA exact target = YES.
+  - UI version `ff4a2517-042c-48f0-8b43-98621c2a6957` @100%.
+  - UI deployment `dafdd5bf-b6bd-4467-9fa0-a938e66ea2cf`.
+  - API bindings/vars = PASS.
+  - runtime/create/customer/auth/bridge health boundaries = PASS.
+  - `t12_legacy_line_runtime` rows = 15، كلها `تم التسليم`.
+  - reconciliation events = 15.
+  - exact identity set = الـ15 المؤكدة فقط.
+  - `4317` note preserved = YES.
+  - base mirror unchanged: timestamp `2026-09-26 18:33:08`, row/source count 768.
+  - frontend assets passed on independent check attempt 1؛ legacy runtime flag/route + duplicate message + refresh fix all present.
+- لا Google Sheets write، لا Apps Script touch، لا Order ID change، لا business CREATE test، ولا route command.
+- الحالة النهائية:
+```ini
+ENTRY600_READONLY_POSTFLIGHT=PASS
+PRODUCTION_REPAIR_EFFECTIVE=YES
+MIGRATION_0011_APPLIED=YES
+API_TARGET_LIVE=YES
+LEGACY_15_RECONCILED=YES
+LEGACY_15_DELIVERED=YES
+FRONTEND_TARGET_LIVE=YES
+GOOGLE_SHEETS_WRITE=NO
+APPS_SCRIPT_TOUCHED=NO
+ORDER_IDS_CHANGED=NO
+BUSINESS_CREATE_TEST_SENT=NO
+```
 
 ### Customers
 - Customer master = 247 rows في D1.
