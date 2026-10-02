@@ -45,7 +45,7 @@
 | B01 | Root frontend + runtime entrypoints | 27 | DONE |
 | B02 | Cloudflare D1 primary worker/src | 34 | DONE |
 | B03 | D1 migrations/schema | 16 | DONE |
-| B04 | Apps Script + Code.gs families | 0 | PENDING |
+| B04 | Apps Script + Code.gs families | 25 | DONE |
 | B05 | Attendance/Cleaning/HR/Press | 0 | PENDING |
 | B06 | Customers/Feedback/Manager | 0 | PENDING |
 | B07 | Accounting + material control | 0 | PENDING |
@@ -509,3 +509,189 @@ Accounting finance prep يتضمن append-only journals/entries/idempotency/audi
 - تم رسم عائلات D1 الأساسية وعلاقات T12 Orders/Runtime/Customers/Auth/Duplicate Guard.
 - لم يتم تحويل prepared accounting schema إلى deployed state.
 - نقطة الاستئناف التالية: **B04 — Apps Script + Code.gs families**.
+
+
+## 10) B04 — Apps Script + Code.gs families — DONE
+
+### 10.1 Code.gs الحالي
+
+تمت قراءة `Code.gs` — SHA `e91d78dcceeeca2804e721d58e065a6a7181bfc2`.
+
+خصائص الملف:
+- الحجم: نحو 694 KB.
+- الأسطر: 12,556.
+- الدوال top-level المستخرجة: **644**.
+- action/route-like names المستخرجة: **185**.
+- Sheet constants الصريحة: **39**.
+- Script Properties المستخدمة: **21**.
+
+أول تعليق في الملف يعرّفه كـ:
+`TrendOS + EasyStore unified Google Apps Script backend — V1932 FULL Go-Live / HR / WhatsApp / Attendance / Press`.
+
+### 10.2 Entry routing في Apps Script
+
+`doGet(e)`:
+1. يستدعي `trendosV1932TryRoute_`.
+2. ثم V1900 router.
+3. ثم V1898 router.
+4. ثم legacy/general action dispatcher.
+
+`doPost(e)`:
+1. يفك JSON payload.
+2. يعالج مبكرًا `cloudEmployeeLegacyBridgeExecuteV1`.
+3. ثم V1932/V1900/V1898.
+4. ثم upload/write actions أو يرجع إلى `doGet` كـPOST.
+
+### 10.3 Legacy Order CREATE fence
+
+`Code.gs` يحتوي:
+```js
+TRENDOS_LEGACY_ORDER_CREATE_DISABLED_V1 = true
+```
+
+والـactions المحظورة تشمل:
+- `createOrder`
+- `createMatbagyOrder`
+- `clientCreateOrder`
+- `createCustomerPortalOrder`
+- `submitCustomerDraft`
+- `createManualOrder`
+- `trendosCustomerDraftSubmitV1`
+
+الرسالة ترجع `T12_CLOUD_ORDER_ID_AUTHORITY`.
+
+**التصنيف:** هذا جزء **LIVE safety fence** يمنع Apps Script من إصدار official Order IDs بعد Cloud CREATE cutover.
+
+### 10.4 V1932 integrated route families
+
+داخل `Code.gs` route table:
+- `attendanceV1`
+- `attendanceClockinV1`
+- `customerManagerV1`
+- `customerFeedbackV1`
+- `hrV1`
+- `cleaningV1`
+- `pressControlV1`
+- `goLiveAutopilotV1`
+
+هذه الدوال موجودة فعليًا داخل single-file build الحالي.
+
+### 10.5 Google Sheets surface داخل Code.gs
+
+تم العثور على 39 Sheet constants صريحة، أهمها:
+- `المستخدمين`
+- `بنود الأوردرات`
+- `الأوردرات`
+- `العملاء`
+- `سجل حركة الأوردرات`
+- `سجل تنبيهات التشغيل`
+- `تقييم الموظفين اليومي`
+- `معرفة واتس AI`
+- `إعدادات واتس AI`
+- `سجل واتس AI`
+- `حسابات - الخامات`
+- `حسابات - البنود الثابتة`
+- `حسابات - فواتير الأقسام`
+- `حسابات - الفواتير النهائية`
+- `حسابات - حركة المخزون`
+- `مسودات طلبات العملاء`
+- `محادثات الأوردرات`
+- `مدير العملاء - المحادثات`
+- `مدير العملاء - الرسائل`
+- `تقييم العملاء`
+- `سجل الدوام`
+- `تشغيل - النظافة اليومية`
+- Marketplace / Franchise / White-label / Platform sheets.
+
+هذه القائمة هي خريطة واضحة لما **ما زال Apps Script قادرًا على التعامل معه**؛ لا تعني أن كل هذه العائلات ما زالت authority الحالية.
+
+### 10.6 Script Properties / integrations
+
+من `Code.gs`:
+- `EMPLOYEE_DEFAULT_PASSWORD`
+- `TRENDOS_SPREADSHEET_ID`
+- `AUTH_PASSWORD_PEPPER`
+- `SESSION_TTL_HOURS`
+- `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED`
+- `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`
+- `CUSTOMER_FILES_ROOT_FOLDER_ID`
+- `OPENAI_API_KEY`
+- `OPENAI_CUSTOMER_MODEL`
+- `WHATSAPP_TOKEN`
+- `WHATSAPP_PHONE_NUMBER_ID`
+- `WHATSAPP_GRAPH_VERSION`
+- `WHATSAPP_VERIFY_TOKEN`
+- `TRENDOS_CLOUD_WRITE_RECONCILE_DRYRUN_SECRET`
+وغيرها.
+
+External integrations الظاهرة:
+- OpenAI Responses API.
+- Meta/WhatsApp Graph API.
+- Google Drive thumbnail/files.
+- Aladhan prayer timings.
+- legacy portal URL.
+
+### 10.7 Employee legacy bridge داخل Apps Script
+
+`trendosCloudEmployeeLegacyBridgeExecuteV1_`:
+- يرفض forbidden actions.
+- يتحقق من Cloud assertion.
+- لا يمرر raw employee token إلى action.
+- يضع temporary cloud employee context.
+- يعيد التوجيه داخليًا إلى `doGet`.
+
+`authorize_` يستطيع قبول `authSource="cloudflare-d1-native-v1"` عندما يكون bridge context صالحًا، وإلا يستعمل stored Apps Script employee session.
+
+لكن بما أن Cloud/Frontend bridge flags ما زالت OFF، فهذا **foundation/transitional code وليس authority الحالية**.
+
+### 10.8 ملفات Apps Script المساندة
+
+تمت قراءة:
+- `v1932-router.gs` — SHA `313dfc1eacaa8a5369ff9e0b97a0294a2df5420a`.
+- `v1940-deploy-health.gs` — SHA `41e57f19de8e865888a1b8bad2cc478c44c438c3`.
+- `build/apps-script/TrendOS_BACKEND_UNIFIED_V147_CANDIDATE.manifest.json` — SHA `39540d2862a035e426326b13a10c3f46bb097786`.
+- `APPS_SCRIPT_DEPLOY_V1940.md` — archive redirect فقط.
+- `README_V1931.md` — archive redirect فقط.
+- `V1932_RELEASE.md` — archive redirect فقط.
+
+`v1932-router.gs` هو source adapter منفصل، لكن Production lineage الحالي موثق على single-file `Code.gs`; لذلك لا يُعتبر الملف المنفصل deployment authority وحده.
+
+الـV147 manifest = **HISTORICAL prepared candidate**, وليس تعليمات نشر حالية.
+
+### 10.9 apps-script/patches
+
+تمت قراءة جميع الملفات الـ18 تحت `apps-script/patches/`.
+
+عائلاتها:
+- Cloud Write V2 staging canonical adapter/auth bridge/first-write/preflight/recovery/side-effect qualification.
+- Production reconcile qualification.
+- Reconcile dry-run/rehearsal/self-test/staging pull.
+- Timeout hotfix V1/V2.
+- Save timeout hotfix V3.
+- D1 Orders low-usage heartbeat documentation.
+
+**التصنيف العام:** معظمها **CANDIDATE/HISTORICAL qualification tooling** وليست ملفات منفذة تلقائيًا في Production.
+
+نتيجة مقارنة أسماء الدوال مع single-file `Code.gs`:
+- `trendosCloudWriteReconcileDryRunV1_` موجود داخل `Code.gs`.
+- V1932 Attendance/Cleaning/Press/HR functions موجودة داخل `Code.gs`.
+- أسماء health الخاصة بTimeout V2 وSave Hotfix V3 ليست موجودة بنفس الاسم في `Code.gs`.
+- Staging Bridge V2 function غير موجودة بنفس الاسم في single-file.
+
+المعنى: لا يجوز افتراض أن patch file مستقل = deployed source. يجب تتبع ما تم دمجه فعليًا داخل `Code.gs` أو runtime.
+
+### 10.10 Deployment docs القديمة
+
+`APPS_SCRIPT_DEPLOY_V1940.md`, `README_V1931.md`, `V1932_RELEASE.md` أصبحت redirect files إلى archive وتقول صراحة:
+**Do not execute historical deployment instructions from this document.**
+
+لذلك تصنيفها = **HISTORICAL LINK COMPATIBILITY**.
+
+### 10.11 نتيجة B04
+
+- ملفات مقروءة فعليًا في B04: **25 ملفًا**.
+- single-file Apps Script الحالي تم تحليل router/actions/functions/sheets/properties.
+- Order CREATE fence تم إثباته.
+- bridge architecture موثقة مع فصل foundation عن runtime authority.
+- patch family بالكامل تمت قراءتها وتصنيفها.
+- نقطة الاستئناف التالية: **B05 — Attendance/Cleaning/HR/Press**.
