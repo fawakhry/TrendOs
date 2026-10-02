@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.15-ZERO-GOOGLE-COMPACT — Entry602 employee login latency root cause confirmed** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.16-ZERO-GOOGLE-COMPACT — Entry605 login-fast frontend live; native auth bridge gated** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -32,9 +32,10 @@
 
 ### Frontend
 - Canonical frontend: Cloudflare Worker `trendos-ui`.
-- Active frontend version: `ff4a2517-042c-48f0-8b43-98621c2a6957` عند 100%.
-- Active frontend deployment: `dafdd5bf-b6bd-4467-9fa0-a938e66ea2cf`.
-- Qualified frontend source: `c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281`.
+- Active frontend version: `adfb5056-af23-4d7f-8e12-7de6417dfce2` عند 100%.
+- Active frontend deployment: `a066abb8-4c33-4050-813b-123df4140450`.
+- Login-fast qualified source: `9150049fb169c9ca122003b5dc0b2bd960de61ed`.
+- Unauthenticated login/entry surface no longer eagerly fetches the 18 employee runtime modules; 2 critical modules start only after employee session boot, and the remaining 16 are deferred 250ms after authenticated boot.
 - `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED=true` live.
 - Legacy `updateLine` ذو stable Line ID يذهب إلى `/v1/t12/orders/line-runtime/legacy-update` بدل Apps Script.
 - Root/config/edge/app = HTTP 200.
@@ -199,6 +200,60 @@ BUSINESS_CREATE_TEST_SENT=NO
 - Entry601 runs: `37040400844` و`37040549662`.
 - Entry602 run: `37040933704` = SUCCESS.
 - الخطوة التالية: **Repo-qualify staged native employee login cutover + login-surface module deferral**، ثم Production preflight قبل أي تفعيل.
+
+### Entry603/604/605 — Login-fast Frontend Production = CLOSED PASS
+- الهدف: تقليل زمن ظهور/تفاعل واجهة الدخول بدون تغيير Employee Auth authority.
+- Entry603 Repo qualification:
+  - `tests/frontend_login_fast_surface_entry603.test.mjs` يثبت أن unauthenticated config ينشئ **0 dynamic employee module requests**.
+  - بعد session: critical modules = 2 (`trendos-edge-orders-read-v1.js` + resume guard).
+  - deferred authenticated modules = 16 بعد 250ms.
+  - `bootMain()` يبدأ authenticated loader قبل تحميل Rows، مع بقاء `loadInitialRowsWhenEdgeReady()` fail-closed.
+  - Entry603 CI final = run `37042691120` SUCCESS.
+  - Duplicate Guard CI = run `37042720774` SUCCESS.
+  - Entry597 legacy runtime CI = run `37042779029` SUCCESS.
+  - A61 full browser transport regression = run `37042884091` SUCCESS.
+- Entry604 Production publish:
+  - أول run `37043068818` وقف قبل إنشاء Version بسبب uploader qualification marker قديم؛ **no Production mutation**.
+  - run `37043168584`: qualification/pre-guard/package PASS، created version `adfb5056-af23-4d7f-8e12-7de6417dfce2` zero-traffic ثم promote accepted إلى 100%.
+  - postflight المدمج وقف بعد promote في static marker phase؛ لم يُعاد deploy.
+- Entry605 independent read-only postflight:
+  - run `37043542864` = **SUCCESS**.
+  - UI version `adfb5056-af23-4d7f-8e12-7de6417dfce2` @100%.
+  - UI deployment `a066abb8-4c33-4050-813b-123df4140450`.
+  - assets ready on attempt 1، root/config/app/edge HTTP 200.
+  - login-fast markers = YES.
+  - Native Auth frontend remains OFF.
+  - Duplicate Guard UI + Browser Refresh fix preserved.
+  - API create/runtime health preserved؛ no API deploy، no D1 mutation، no Apps Script touch.
+- الحالة:
+```ini
+LOGIN_FAST_FRONTEND_LIVE=YES
+UNAUTHENTICATED_DYNAMIC_EMPLOYEE_MODULES=0
+AUTH_CRITICAL_MODULES_AFTER_SESSION=2
+AUTH_DEFERRED_MODULES_AFTER_SESSION=16
+EMPLOYEE_NATIVE_AUTH=OFF
+APPS_SCRIPT_TOUCHED=NO
+```
+
+### Entry606 — Native Employee Auth cutover gate بعد إصلاح سرعة الواجهة
+- D1 native auth foundation/schema موجود ومؤهل، لكن Production readiness الحالي:
+```ini
+AUTH_CONTROL_MODE=OFF
+AUTH_ENV_ENABLED=NO
+NATIVE_AUTH_USERS=0
+NATIVE_READY_USERS=0
+NATIVE_AUTH_SESSIONS=0
+LEGACY_BRIDGE_ENABLED=NO
+LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
+```
+- الـA61 source يحتوي staged bootstrap/session-enrollment canaries ويستطيع تحويل أول Login إلى D1 ثم إثبات second login native، لكن التفعيل الدائم يحتاج Employee Legacy Bridge لأن أجزاء الموظفين غير المهاجرة بعد يجب أن تعمل بعد إصدار Native token.
+- Apps Script Version159 يحتوي bridge verification code بالفعل، لكنه يعتمد على Script Properties:
+  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED`
+  - `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`
+- لا يوجد في المستودع `clasp` أو Apps Script API credential/deploy path أو authorized maintenance endpoint لضبط هاتين الخاصيتين بأمان. لذلك **لا يتم تفعيل Native Auth/Frontend flag الآن**؛ هذا fail-closed وليس نقصًا في D1.
+- لا يجوز استخدام secret مكشوف في repo أو إعادة استخدام migration secret كبديل.
+- الخطوة التالية الوحيدة لإكمال Zero-Google login: ضبط bridge property/secret في Apps Script بطريقة آمنة ومصرح بها، ثم Cloudflare bridge secret/policies، ثم TRANSITIONAL bootstrap، ثم frontend native flag، ثم postflight/canary. إلى أن يحدث ذلك يظل login الفعلي Google-backed وقد يتأثر بزمن Apps Script، رغم أن واجهة الدخول نفسها أصبحت أخف.
 
 ### Customers
 - Customer master = 247 rows في D1.
