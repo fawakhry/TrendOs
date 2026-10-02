@@ -21,6 +21,7 @@ window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;
 window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];
 
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
+window.MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED = true;
 window.MATBAGY_EDGE_ORDERS_CANARY_ONLY = false;
 window.MATBAGY_EDGE_ORDERS_CANARY_USERS = ['وائل','wael'];
 window.MATBAGY_EDGE_ORDERS_ALLOWED_SCREENS = ['print','laser','press','service'];
@@ -100,7 +101,7 @@ function trendLoadModuleV1932(id, src){
   (document.head || document.documentElement).appendChild(s);
 }
 
-trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20261001-duplicate-order-guard-ui');
+trendLoadModuleV1932('trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime');
 
 // 02CU resume guard: returning to the platform must not trigger legacy safeRefresh.
 window.MATBAGY_DISABLE_RETURN_AUTO_REFRESH_V1 = true;
