@@ -49,7 +49,7 @@
 | B05 | Attendance/Cleaning/HR/Press | 7 | DONE |
 | B06 | Customers/Feedback/Manager | 8 | DONE |
 | B07 | Accounting + material control | 28 | DONE |
-| B08 | Integrity/queue/operator tasks | 0 | PENDING |
+| B08 | Integrity/queue/operator tasks | 22 | DONE |
 | B09 | GitHub Actions current + historical workflows | 0 | PENDING |
 | B10 | tests/ | 0 | PENDING |
 | B11 | docs/ active engineering docs | 0 | PENDING |
@@ -1020,3 +1020,144 @@ Prepared schemas:
 - تم رسم Material Control/ledger/waste approval workflow.
 - لم يتم الادعاء بأن Accounting أو Gaber material أصبحتا D1 Production authority.
 - نقطة الاستئناف: **B08 — Integrity / Queue / Operator Tasks**.
+
+
+## 14) B08 — Integrity / Queue / Operator Tasks — DONE
+
+تمت قراءة **22 ملفًا** من عائلة Integrity وWork Queue وOperator Task، ثم مقارنتها مباشرة مع single-file `Code.gs`.
+
+### 14.1 Integrity foundation
+
+الملفات الأساسية:
+- `trendos-integrity-v1.gs` — SHA `1696afc21856946675c621f6a8b05912fea0bc54`
+- `trendos-integrity-runtime-tools-v1.gs` — `d9346364c3a7dd6b7f00b70359493e35e03437c6`
+- `trendos-integrity-router-v1.gs` — `34ae925b35fcf8295a8857dfe587cfa26b48b6b8`
+- `trendos-integrity-dashboard-v1.gs` — `9ce3a4c3e1a11f318a7d1c87b12d6cf0c14aa838`
+- `trendos-core-p0-remediation-v1.gs` — `d5f7d82f07fe737f6a5d86422e0b8183d67a773d`
+- `trendos-core-p0-registry-writer-v1.gs` — `81e994945af7fefdd38538a7ca569e73483f3d24`
+- `trendos-rp07-legacy-containment-v1.gs` — `47d932c76498593063ea6f0289e9c9a663686b0d`
+
+Foundation capabilities:
+- stable ID normalization.
+- business calendar/schedule.
+- canonical JSON + SHA256 event keys.
+- locks.
+- idempotency claim/complete/fail.
+- automation run registry.
+- status normalization.
+- integrity resolution/evidence hashes.
+- health/dashboard metrics.
+- guarded remediation/registry write/rollback flows.
+
+Registry writer is heavily guarded by exact evidence hash + explicit approval properties + rollback/recovery contracts، وليس generic repair script.
+
+### 14.2 Integrity business families
+
+تمت قراءة:
+- `trendos-order-line-integrity-v1.gs` — `23b094a7f85137320ee4ca332f924119eb2767fc`
+- `trendos-invoice-integrity-v1.gs` — `18dd8783bbf7bf14531bcf7bf7d870d938d82473`
+- `trendos-press-integrity-v1.gs` — `e63473445a338179ac50f39cb7d3b82424e30af3`
+- `trendos-attendance-cleaning-integrity-v1.gs` — `fcb0f0aeee0f1f2a676c0af1c96b8b977d750732`
+- `trendos-whatsapp-integrity-v1.gs` — `c3e59c50f17de2604f0192a5b8f651e53caf9018`
+- `trendos-handover-ops-integrity-v1.gs` — `4f2301d2101c45cb21ff8466e09cf63849d12cc8`
+- `trendos-andon-integrity-v1.gs` — `6b61b9f0c4cae9bd47a85f59efd7780e95f04765`
+
+الدور التصميمي:
+- Order/Line: يمنع active Line-ID ambiguity ويقفل draft->order conversion عند تعارض البنود.
+- Invoice: canonical draft resolution + finalize checkpoints + idempotent safe flow.
+- Press: session/queue identity، open-session uniqueness، exact stop payload.
+- Attendance/Cleaning: canonical session/checklist، no blind completion.
+- WhatsApp: exact-once send/incoming idempotency.
+- Handover/Ops/Andon: operational events، request IDs، shift handover، manager resolution.
+
+### 14.3 Runtime classification للـIntegrity family
+
+تم فحص `Code.gs` الحالي مباشرة ولم توجد داخله الدوال:
+- `trendosIntegrityTryRouteV1_`
+- `trendosIntegrityDependencyHealthV1_`
+- `trendosUpdateLineV1_`
+- `trendosCoreP0RegistryWriteV1`
+- Integrity invoice/press route functions المذكورة أعلاه.
+
+كما أن `Code.gs` V1932 router الحالي لا يمر عبر `trendosIntegrityTryRouteV1_`.
+
+**النتيجة:** ملفات Integrity الحالية في GitHub = **CANDIDATE/HISTORICAL SAFETY ARCHITECTURE** وليست جزءًا مثبتًا من Apps Script Production Version 159. لا يجوز استخدام وصف قديم مثل "Integrity family ON" كحالة تشغيلية حالية بدون Runtime proof جديد.
+
+### 14.4 Work Queue V1
+
+الملفات:
+- `work-queue-backend-v1.gs` — `87a82c18889c1c5533d94ed3f965c875c1533485`
+- `work-queue-v1.js` — `12f084f0ec8f3fc86f4034bf65eda726d09dd84a`
+- `WORK_QUEUE_V1_CANDIDATE.md` — `3b8889d96a00d7f9300a1c3146cd78de10886952`
+
+الوثيقة الحالية تقول صراحة:
+**SUPERSEDED BY OPERATOR TASK WORKFLOW V2 — DO NOT DEPLOY / DO NOT ENABLE**.
+
+V1 historical contract كان يخفي queue العادية عن جابر/وائل ويستخدم claim/start/pause/resume/press batch، لكنه تعارض مع متطلبات V2.
+
+**التصنيف:** **HISTORICAL/SUPERSEDED**. Flags `TRENDOS_WORK_QUEUE_V1_ENABLED` و`MATBAGY_WORK_QUEUE_V1` يجب أن تبقيا disabled وفق الوثيقة.
+
+### 14.5 Operator Task Workflow V2
+
+الملفات:
+- `operator-task-workflow-v2.gs` — `e2ee3c460756eb39d711e93809f1073ca1aa3821`
+- `operator-task-workflow-v2.js` — `5877b083903fe3cdf5124744a9c2677edae3f1fd`
+- `operator-task-edge-proxy-v2.gs` — `7420d16c5fe789edc69cdb60e720832011cc5587`
+- `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md` — `9a2df860c870f6ec797e36253ee5fce1087a37f2`
+
+V2 contract:
+- ordinary backlog مخفي.
+- `claimNext` يختار ويبدأ التوقيت فورًا.
+- ترتيب: Urgent -> delivery due ASC -> Order sequence ASC.
+- missing/invalid due date = fail-closed exception.
+- one active ordinary task.
+- Fly Print لوائل فقط، دائم الظهور وخارج Tasks.
+- Press view لوائل read-only scoped.
+- جابر Laser فقط، لا Fly Print ولا Press.
+
+Frontend target يستخدم Cloud API routes:
+- `/v1/operator/tasks/status`
+- `/v1/operator/tasks/claim-next`
+- `/v1/operator/tasks/complete`
+- `/v1/operator/fly-print`
+- `/v1/operator/press-candidates`
+- `/v1/operator/tasks/metrics`
+
+Edge worker module تمت قراءته سابقًا في B02، لكن تعليقاته تقول إن Apps Script/Sheets ما زال Task write authority في هذا التصميم الهجين.
+
+### 14.6 Operator Task V2 Runtime classification
+
+`OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md` يقول:
+**GITHUB CODE CANDIDATE — HYBRID CLOUDFLARE INTEGRATION PREP ACTIVE — NOT DEPLOYED / NOT ENABLED**.
+
+وفحص `Code.gs` الحالي أثبت عدم وجود:
+- `operatorTaskV2_`
+- `operatorTaskEdgeProxyV2_`
+- `workQueueV1_`
+
+لذلك:
+- Cloud route source موجود و`TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED=true` في wrangler source.
+- لكن Apps Script write backend المطلوب غير موجود في single-file Production lineage.
+- **لا يوجد دليل كافٍ لوصف Operator Task V2 بأنها live end-to-end.**
+
+التصنيف الحالي = **CANDIDATE / PARTIALLY-WIRED SOURCE، وليس Production feature مثبتة**.
+
+### 14.7 Poll coordinator
+
+`trendos-poll-coordinator-v1.js` — SHA `c5245c62e9af7eb29a480b91cce45f23044f6e6d`.
+
+وظيفته:
+- coalescing لنفس poll.
+- minimum interval.
+- يتجنب polling عند hidden document افتراضيًا.
+- يحتفظ timestamps/errors/statistics.
+
+هذا utility مستقل ولا يثبت تفعيل أي feature business بمفرده.
+
+### 14.8 نتيجة B08
+
+- الملفات المقروءة فعليًا: **22**.
+- تم فصل Integrity safety architecture عن Production Apps Script الحالي.
+- Work Queue V1 ثبت أنه superseded.
+- Operator Task V2 ثبت أنه candidate/hybrid وليس end-to-end live حسب source + غياب backend من `Code.gs`.
+- نقطة الاستئناف: **B09 — GitHub Actions current + historical workflows**.
