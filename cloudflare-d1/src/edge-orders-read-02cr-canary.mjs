@@ -6,6 +6,7 @@ import {
 } from './edge-orders-read-v1.mjs';
 import { enrichFromMirrors02CR } from './edge-orders-operational-enrichment-02cr.mjs';
 import { mergeT12ReadOverlayRows, readT12CloudNativeOverlay } from './t12-read-overlay.mjs';
+import { applyLegacyRuntimeOverlay, readLegacyRuntimeRows } from './t12-legacy-line-runtime.mjs';
 
 const PATH_02CR = '/v1/edge/orders/02cr/page';
 const LINES_NOTE_02CR = 'TrendOS orders live sync V2 quota-aware';
@@ -244,8 +245,10 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
     }
 
     const mapped = mapMirrorRows(lines.headers, lines.rows, screen);
+    const legacyRuntimeRows = await readLegacyRuntimeRows(env);
+    const legacyApplied = applyLegacyRuntimeOverlay(mapped, legacyRuntimeRows);
     const overlay = await readT12CloudNativeOverlay(env, screen);
-    const merged = mergeT12ReadOverlayRows(mapped, overlay.rows);
+    const merged = mergeT12ReadOverlayRows(legacyApplied, overlay.rows);
     const enriched = sortOperationalRows(enrichFromMirrors02CR(merged, customers, restrictions, new Date()), screen);
     const counts = statusCounts(enriched);
     const activeRows = enriched.filter((row) => rowMatchesAppsFilters(row, { statusFilter:'__ACTIVE__' }));
@@ -269,11 +272,13 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
       statusOrderCounts:counts.statusOrderCounts,
       serverPaged:true,
       dataVersion:text(lines.catalog.syncedAt) || 'd1',
-      version:'D1_ORDERS_READ_02CR_T12_OVERLAY_V1',
-      dataSource:'d1-edge-orders-02cr+t12-native',
+      version:'D1_ORDERS_READ_02CR_T12_LEGACY_RUNTIME_V1',
+      dataSource:'d1-edge-orders-02cr+legacy-runtime+t12-native',
       readOverlay:{
         enabled:true,
         mirrorRows:mapped.length,
+        legacyRuntimeRows:legacyRuntimeRows.length,
+        legacyRuntimeApplied:legacyApplied.filter((row)=>row&&row.legacyRuntime===true).length,
         cloudNativeRows:overlay.rows.length,
         mergedRows:merged.length,
         nextOrderNumber:overlay.control.nextOrderNumber,
