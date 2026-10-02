@@ -1,8 +1,17 @@
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
+import { enrichFromMirrors02CR } from './edge-orders-operational-enrichment-02cr.mjs';
+import {
+  legacyRuntimeSchemaReady,
+  readLegacyRuntimeRows,
+  resolveLegacyMirrorLine,
+  verifyLegacyRuntimeState,
+  writeLegacyRuntimeState
+} from './t12-legacy-line-runtime.mjs';
 
 const BASE='/v1/t12/orders/line-runtime';
 const UPDATE_PATH=BASE+'/update';
 const NOTIFY_PATH=BASE+'/notify';
+const LEGACY_UPDATE_PATH=BASE+'/legacy-update';
 const HEALTH_PATH=BASE+'/health';
 
 const STATUSES=new Set([
@@ -67,6 +76,39 @@ async function readLine(db,lineId,orderId){
   `).bind(lineId,orderId).first();
   return row||null;
 }
+async function readMirrorForGate(env,sheetName){
+  const catalog=await env.DB.prepare(`
+    SELECT headers_json AS headersJson,status,row_count AS rowCount,source_last_row AS sourceLastRow
+      FROM sheet_catalog WHERE sheet_name=? LIMIT 1
+  `).bind(sheetName).first();
+  if(!catalog||text(catalog.status)!=='ready'||Number(catalog.rowCount||0)!==Number(catalog.sourceLastRow||0)){
+    throw new Error('delivery-gate-mirror-not-ready:'+sheetName);
+  }
+  const query=await env.DB.prepare(`
+    SELECT row_number AS rowNumber,values_json AS valuesJson,display_json AS displayJson
+      FROM sheet_rows WHERE sheet_name=? ORDER BY row_number
+  `).bind(sheetName).all();
+  return {
+    headers:JSON.parse(catalog.headersJson||'[]'),
+    rows:(query.results||[]).map((r)=>({
+      rowNumber:Number(r.rowNumber||0),
+      values:JSON.parse(r.valuesJson||'[]'),
+      display:JSON.parse(r.displayJson||'[]')
+    }))
+  };
+}
+async function legacyDeliveryGate(env,line){
+  const [customers,restrictions]=await Promise.all([
+    readMirrorForGate(env,'العملاء'),
+    readMirrorForGate(env,'عملاء منع التسليم بالمديونية')
+  ]);
+  const enriched=enrichFromMirrors02CR([line],customers,restrictions,new Date())[0]||line;
+  return {
+    ok:enriched.deliveryDebtRestricted!==true,
+    debtAmount:Number(enriched.debtAmount||0),
+    reason:text(enriched.debtRestrictionReason)
+  };
+}
 function currentState(line){
   return {
     status:text(line&&line.runtimeStatus)||text(line&&line.baseStatus)||'طلب جديد',
@@ -129,6 +171,54 @@ async function updateLine(req,env,payload){
   if(!confirmed)return json({success:false,code:'runtime-update-not-verified-no-retry'},503,req,env);
   return json({success:true,cloudNative:true,stored:true,orderId,lineId,status,notes,version:Number(confirmed.version||0)},200,req,env);
 }
+async function updateLegacyLine(req,env,payload){
+  let body={};try{body=await req.json();}catch{return json({success:false,code:'invalid-json'},400,req,env);}
+  const orderId=text(body.orderId),lineId=text(body.lineId),status=text(body.status),notes=text(body.notes);
+  if(!orderId||!lineId)return json({success:false,code:'line-identity-required'},400,req,env);
+  if(!STATUSES.has(status))return json({success:false,code:'status-not-allowed'},400,req,env);
+  if(notes.length>2500)return json({success:false,code:'notes-too-long'},400,req,env);
+
+  const native=await readLine(env.DB,lineId,orderId);
+  if(native)return json({success:false,code:'native-line-use-native-runtime'},409,req,env);
+
+  const line=await resolveLegacyMirrorLine(env,orderId,lineId);
+  if(!line)return json({success:false,code:'legacy-line-not-found'},404,req,env);
+  if(!actorAllowed(payload,line))return json({success:false,code:'line-screen-forbidden'},403,req,env);
+
+  const actor=text(payload.sub);
+  const runtimeRows=await readLegacyRuntimeRows(env);
+  const existing=runtimeRows.find((r)=>text(r.orderId)===orderId&&text(r.lineId)===lineId)||null;
+  const beforeStatus=text(existing&&existing.status)||text(line.status)||'طلب جديد';
+  const beforeNotes=existing&&existing.notes!=null?text(existing.notes):text(line.notes);
+  if(beforeStatus===status&&beforeNotes===notes){
+    return json({success:true,legacyRuntime:true,idempotent:true,orderId,lineId,status,notes,version:Number(existing&&existing.version||0)},200,req,env);
+  }
+
+  if(status==='تم التسليم'){
+    let gate;
+    try{gate=await legacyDeliveryGate(env,line);}
+    catch{return json({success:false,code:'delivery-gate-unavailable',message:'تعذر التحقق من بوابة المديونية؛ لم يتم تسجيل التسليم.'},503,req,env);}
+    if(!gate.ok){
+      return json({
+        success:false,code:'delivery-debt-restricted',deliveryBlocked:true,
+        debtAmount:gate.debtAmount,reason:gate.reason,
+        message:'لا يمكن تسجيل تم التسليم: العميل عليه مديونية وموجود في قائمة منع التسليم.'
+      },409,req,env);
+    }
+  }
+
+  try{
+    await writeLegacyRuntimeState(env,{line,beforeStatus,status,notes,actor,updateSource:'runtime'});
+  }catch{
+    const recovered=await verifyLegacyRuntimeState(env,orderId,lineId,status,notes);
+    if(!recovered)return json({success:false,code:'legacy-runtime-update-outcome-unknown-no-retry'},503,req,env);
+    return json({success:true,legacyRuntime:true,ambiguousAckRecovered:true,orderId,lineId,status,notes,version:Number(recovered.version||0)},200,req,env);
+  }
+  const confirmed=await verifyLegacyRuntimeState(env,orderId,lineId,status,notes);
+  if(!confirmed)return json({success:false,code:'legacy-runtime-update-not-verified-no-retry'},503,req,env);
+  return json({success:true,legacyRuntime:true,stored:true,orderId,lineId,status,notes,version:Number(confirmed.version||0)},200,req,env);
+}
+
 async function notifyLine(req,env,payload){
   let body={};try{body=await req.json();}catch{return json({success:false,code:'invalid-json'},400,req,env);}
   const orderId=text(body.orderId),lineId=text(body.lineId),type=text(body.whatsappType),message=text(body.message);
@@ -171,7 +261,7 @@ async function notifyLine(req,env,payload){
 
 export function isT12OperationalRuntimePath(path){
   const p=String(path||'').replace(/\/+$/,'')||'/';
-  return p===HEALTH_PATH||p===UPDATE_PATH||p===NOTIFY_PATH;
+  return p===HEALTH_PATH||p===UPDATE_PATH||p===NOTIFY_PATH||p===LEGACY_UPDATE_PATH;
 }
 
 export async function handleT12OperationalRuntimeRequest(req,env){
@@ -183,12 +273,22 @@ export async function handleT12OperationalRuntimeRequest(req,env){
       const rows=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('t12_prod_line_runtime','t12_prod_runtime_events')").all();
       ready=new Set((rows.results||[]).map(r=>text(r.name))).size===2;
     }catch{}
-    return json({success:ready,service:'t12-operational-runtime',schemaReady:ready,writeMode:'cloud-native-lines-only'},ready?200:503,req,env);
+    const legacyReady=await legacyRuntimeSchemaReady(env);
+    const allReady=ready&&legacyReady;
+    return json({
+      success:allReady,
+      service:'t12-operational-runtime',
+      schemaReady:allReady,
+      nativeSchemaReady:ready,
+      legacySchemaReady:legacyReady,
+      writeMode:'cloud-native+legacy-overlay'
+    },allReady?200:503,req,env);
   }
   if(!isT12OperationalRuntimePath(path))return null;
   if(req.method!=='POST')return json({success:false,code:'method-not-allowed'},405,req,env);
   const a=await auth(req,env);if(!a.ok)return a.response;
   if(path===UPDATE_PATH)return updateLine(req,env,a.payload);
+  if(path===LEGACY_UPDATE_PATH)return updateLegacyLine(req,env,a.payload);
   if(path===NOTIFY_PATH)return notifyLine(req,env,a.payload);
   return json({success:false,code:'not-found'},404,req,env);
 }
