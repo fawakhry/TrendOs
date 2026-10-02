@@ -41,3 +41,13 @@
 | 22 | `.github/workflows/cloud-migration-v3-t11-service-frontend-production-cutover.yml` | TrendOS T11 Service Frontend Production Cutover | push,workflow_dispatch | 1 | DEPLOY/MUTATION | contents:write; checkout main; commit/push cutover; automatic git revert on failed qualification |
 | 23 | `.github/workflows/cloud-migration-v3-t11-service-legacy-shape-diagnostic.yml` | TrendOS T11 Service Legacy Shape Diagnostic | push | 1 | READONLY | D1 mirror GET diagnostics |
 | 24 | `.github/workflows/cloud-migration-v3-t11-service-lines-exact-parity.yml` | TrendOS T11 Service Lines Exact Parity | push | 1 | READONLY | exact D1/Apps Script parity |
+| 25 | `.github/workflows/cloud-migration-v3-t11-service-lines-header-probe.yml` | TrendOS T11 Service Lines Header Probe | push | 2 | READONLY | D1, migration |
+| 26 | `.github/workflows/cloud-migration-v3-t11-service-live-field-origin.yml` | TrendOS T11 Service Live Field Origin | push | 2 | MIXED | D1, Apps Script, migration, secrets |
+| 27 | `.github/workflows/cloud-migration-v3-t11-service-modern-shape-parity.yml` | TrendOS T11 Service Modern Shape Parity | push | 2 | MIXED | D1, Apps Script, migration, tests, secrets |
+| 28 | `.github/workflows/cloud-migration-v3-t11-service-ordering-diagnostic.yml` | TrendOS T11 Service Ordering Diagnostic | push | 2 | MIXED | D1, Apps Script, migration, secrets |
+| 29 | `.github/workflows/cloud-migration-v3-t11-service-orders-candidate-parity.yml` | TrendOS T11 Service Orders Candidate Parity | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, secrets |
+| 30 | `.github/workflows/cloud-migration-v3-t11-service-orders-identity-map.yml` | TrendOS T11 Service Orders Identity Map | push | 2 | MIXED | D1, Apps Script, migration, secrets |
+| 31 | `.github/workflows/cloud-migration-v3-t11-service-orders-projection-parity.yml` | TrendOS T11 Service Orders Projection Parity | push | 2 | MIXED | D1, Apps Script, migration, tests, secrets |
+| 32 | `.github/workflows/cloud-migration-v3-t11-service-orders-rownum-map.yml` | TrendOS T11 Service Orders RowNumber Map | push | 2 | MIXED | D1, Apps Script, migration, secrets |
+| 33 | `.github/workflows/cloud-migration-v3-t11-service-range-boundary-proof.yml` | TrendOS T11 Service Row 270 Boundary Proof | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, secrets |
+| 34 | `.github/workflows/cloud-migration-v3-t11-service-row-builder-extract.yml` | TrendOS T11 Service Row Builder Extract | push | 2 | READONLY | migration |
