@@ -29,3 +29,15 @@
 | 11 | `.github/workflows/cloud-migration-v3-t11-orders-headers-probe.yml` | TrendOS T11 Orders Mirror Headers Probe | push | 1 | READONLY | D1, migration |
 | 12 | `.github/workflows/cloud-migration-v3-t11-routing-bundle-diagnostic.yml` | TrendOS T11 Routing Bundle Diagnostic | workflow_dispatch,push | 1 | READONLY | wrangler, D1, Cloudflare, migration |
 | 13 | `.github/workflows/cloud-migration-v3-t11-service-candidate-parity.yml` | TrendOS T11 Service Candidate Live Parity | workflow_dispatch,push | 1 | READONLY | D1, Apps Script, migration, secrets |
+| 13 | `.github/workflows/cloud-migration-v3-t11-service-candidate-parity.yml` | TrendOS T11 Service Candidate Live Parity | push,workflow_dispatch | 1 | READONLY | D1, Apps Script, migration, secrets |
+| 14 | `.github/workflows/cloud-migration-v3-t11-service-deployed-contract-parity.yml` | TrendOS T11 Service Deployed Contract Parity | push | 1 | READONLY | D1, Apps Script, migration, secrets |
+| 15 | `.github/workflows/cloud-migration-v3-t11-service-exclusion-hashes.yml` | TrendOS T11 Service Exclusion Hashes | push,workflow_dispatch | 1 | READONLY | D1, Apps Script, migration, secrets |
+| 16 | `.github/workflows/cloud-migration-v3-t11-service-exclusion-rule-v2.yml` | TrendOS T11 Service Exclusion Rule V2 | push,workflow_dispatch | 1 | READONLY | D1/Apps Script comparison |
+| 17 | `.github/workflows/cloud-migration-v3-t11-service-exclusion-rule.yml` | TrendOS T11 Service Exclusion Rule | push,workflow_dispatch | 1 | READONLY | D1/Apps Script comparison/tests |
+| 18 | `.github/workflows/cloud-migration-v3-t11-service-extra-orders-diagnostic.yml` | TrendOS T11 Service Extra Orders Diagnostic | push | 1 | READONLY | D1 mirror GET diagnostics |
+| 19 | `.github/workflows/cloud-migration-v3-t11-service-field-diff.yml` | TrendOS T11 Service Single-Field Diff | push,workflow_dispatch | 1 | READONLY | D1 vs Apps Script field diff |
+| 20 | `.github/workflows/cloud-migration-v3-t11-service-filter-semantics.yml` | TrendOS T11 Service Filter Semantics | push | 1 | READONLY | Apps Script read/login qualification |
+| 21 | `.github/workflows/cloud-migration-v3-t11-service-frontend-candidate.yml` | TrendOS T11 Service Frontend Candidate | push,workflow_dispatch | 1 | CI | builds/tests candidate in /tmp only |
+| 22 | `.github/workflows/cloud-migration-v3-t11-service-frontend-production-cutover.yml` | TrendOS T11 Service Frontend Production Cutover | push,workflow_dispatch | 1 | DEPLOY/MUTATION | contents:write; checkout main; commit/push cutover; automatic git revert on failed qualification |
+| 23 | `.github/workflows/cloud-migration-v3-t11-service-legacy-shape-diagnostic.yml` | TrendOS T11 Service Legacy Shape Diagnostic | push | 1 | READONLY | D1 mirror GET diagnostics |
+| 24 | `.github/workflows/cloud-migration-v3-t11-service-lines-exact-parity.yml` | TrendOS T11 Service Lines Exact Parity | push | 1 | READONLY | exact D1/Apps Script parity |
