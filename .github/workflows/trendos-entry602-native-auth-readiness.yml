@@ -1,0 +1,56 @@
+name: TrendOS Entry602 Native Auth Read-Only Readiness
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry602-native-auth-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read auth health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" > /tmp/auth.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          console.log('ENTRY602_AUTH_HEALTH='+JSON.stringify(x));
+          NODE
+
+      - name: Read native auth tables and control
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1; SELECT COUNT(*) AS userCount,SUM(CASE WHEN active=1 THEN 1 ELSE 0 END) AS activeCount,SUM(CASE WHEN password_scheme='pbkdf2-sha256-v1' AND password_hash_hex<>'' THEN 1 ELSE 0 END) AS nativeReadyCount,SUM(CASE WHEN must_change=1 THEN 1 ELSE 0 END) AS mustChangeCount FROM employee_auth_users_v1; SELECT COUNT(*) AS sessionCount,SUM(CASE WHEN revoked_at_ms IS NULL AND expires_at_ms>CAST(strftime('%s','now') AS INTEGER)*1000 THEN 1 ELSE 0 END) AS liveSessionCount FROM employee_auth_sessions_v1;"             > /tmp/d1.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8'));
+          const rows=[];const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')||Object.prototype.hasOwnProperty.call(v,'sessionCount'))rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          console.log('ENTRY602_D1_AUTH='+JSON.stringify(rows));
+          NODE
+          echo 'ENTRY602_MUTATION=NO'
