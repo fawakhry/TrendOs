@@ -142,6 +142,7 @@
   - base mirror unchanged: timestamp `2026-09-26 18:33:08`, row/source count 768.
   - frontend assets passed on independent check attempt 1؛ legacy runtime flag/route + duplicate message + refresh fix all present.
 - لا Google Sheets write، لا Apps Script touch، لا Order ID change، لا business CREATE test، ولا route command.
+- التقرير التفصيلي المؤرشف: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_LEGACY_ORDERS_PRODUCTION_REPAIR_ENTRY_599_600_2026-10-02.md`.
 - الحالة النهائية:
 ```ini
 ENTRY600_READONLY_POSTFLIGHT=PASS
