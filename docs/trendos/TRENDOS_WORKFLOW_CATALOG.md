@@ -181,3 +181,13 @@
 | 162 | `.github/workflows/trendos-production-shadow-stability-observation.yml` | TrendOS Production Shadow Stability Observation | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, tests, secrets |
 | 163 | `.github/workflows/trendos-production-worker-identify.yml` | TrendOS Production Worker Identify | push,workflow_dispatch | 3 | READONLY | D1 |
 | 164 | `.github/workflows/trendos-r4-production-recovery-controlled.yml` | TrendOS R4 Production Recovery Controlled | workflow_dispatch | 2 | CI | D1, Cloudflare, tests, secrets |
+| 165 | `.github/workflows/trendos-r5-periodic-controlled.yml` | TrendOS R5 Production Periodic Controlled | workflow_dispatch | 2 | CI | D1, Apps Script, Cloudflare, tests, secrets |
+| 166 | `.github/workflows/trendos-resume-no-autorefresh-v1-ci.yml` | TrendOS Resume No Auto Refresh V1 CI | push,workflow_dispatch | 3 | READONLY | tests |
+| 167 | `.github/workflows/trendos-return-traffic-quiet-v1-ci.yml` | TrendOS Return Traffic Quiet V1 CI | push,workflow_dispatch | 3 | READONLY | tests |
+| 168 | `.github/workflows/trendos-rp07-remediation-containment-ci.yml` | TrendOS RP-07 Remediation Containment CI | push,workflow_dispatch | 3 | READONLY | tests |
+| 169 | `.github/workflows/trendos-staging-synthetic-sample-bridge.yml` | TrendOS Staging Synthetic Sample Bridge Gate | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, tests |
+| 170 | `.github/workflows/trendos-staging-synthetic-sample-live-probe.yml` | TrendOS Staging Synthetic Sample Live Probe | push,workflow_dispatch | 3 | MIXED | D1, tests, secrets |
+| 171 | `.github/workflows/trendos-startup-request-storm-candidate-temp.yml` | TrendOS Startup Request Storm Candidate TEMP | push,workflow_dispatch | 3 | MANUAL/TEMP | tests, mutation |
+| 172 | `.github/workflows/trendos-t12-142-d1compatible-local-contract.yml` | TrendOS T12 142 D1-Compatible Local Contract | push | 2 | READONLY | D1, Cloudflare, migration, tests |
+| 173 | `.github/workflows/trendos-t12-a51-customer-search-ci.yml` | TrendOS T12 A51 D1 Customer Search CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
+| 174 | `.github/workflows/trendos-t12-a51-customer-search-production-deploy.yml` | TrendOS T12 A51 Customer Search Production Deploy | push | 2 | DEPLOY/MUTATION | D1, Cloudflare, migration, tests, secrets, mutation |
