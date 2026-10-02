@@ -61,3 +61,13 @@
 | 42 | `.github/workflows/cloud-migration-v3-t11-service-worker-production-canary.yml` | TrendOS T11 Service Worker Production Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
 | 43 | `.github/workflows/cloud-migration-v3-t11-stable-freshness-route-probe.yml` | TrendOS T11 Stable 02CR Freshness Route Probe | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, tests, secrets |
 | 44 | `.github/workflows/cloud-migration-v3-t11-v1932-route-contract.yml` | TrendOS T11 V1932 Route Contract | push | 2 | READONLY | migration |
+| 45 | `.github/workflows/cloud-migration-v3-t6a-login-production-session-canary.yml` | TrendOS Cloud Migration V3 T6A Login Production Session Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 46 | `.github/workflows/cloud-migration-v3-t6b-auth-shadow-production-canary.yml` | TrendOS Cloud Migration V3 T6B Auth Shadow Production Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 47 | `.github/workflows/cloud-migration-v3-t6b-final-production-canary.yml` | TrendOS Cloud Migration V3 T6B Final Production Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 48 | `.github/workflows/cloud-migration-v3-t8-global-orders-read-cutover-v2.yml` | TrendOS T8 Global Orders Read Cutover V2 | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, tests, secrets, git-write |
+| 49 | `.github/workflows/cloud-migration-v3-t8-global-orders-read-cutover.yml` | TrendOS T8 Global Orders Read Cutover | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, tests, secrets, git-write |
+| 50 | `.github/workflows/cloud-migration-v3-t8-print-contract-diagnostic.yml` | TrendOS T8 Print Contract Diagnostic | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, tests, secrets |
+| 51 | `.github/workflows/cloud-migration-v3-t8-print-global-cutover.yml` | TrendOS T8 Print Global D1 Read Cutover | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 52 | `.github/workflows/cloud-migration-v3-t9-laser-live-parity.yml` | TrendOS T9 Laser Live D1 Read Parity | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, tests, secrets |
+| 53 | `.github/workflows/cloud-migration-v3-t9-laser-production-cutover.yml` | TrendOS T9 Laser Production D1 Read Cutover | push,workflow_dispatch | 3 | MIXED | D1, migration, tests, git-write |
+| 54 | `.github/workflows/trend-master-resilience-v1931-ci.yml` | Trend Master V1931 Resilience CI | push,pull_request | 3 | READONLY | tests |
