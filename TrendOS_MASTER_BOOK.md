@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.16-ZERO-GOOGLE-COMPACT — Entry605 login-fast frontend live; native auth bridge gated** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.17-ZERO-GOOGLE-COMPACT — Entry607 post-disconnect resume checkpoint** · تاريخ التحديث: 2026-10-03 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -254,6 +254,59 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
 - لا يوجد في المستودع `clasp` أو Apps Script API credential/deploy path أو authorized maintenance endpoint لضبط هاتين الخاصيتين بأمان. لذلك **لا يتم تفعيل Native Auth/Frontend flag الآن**؛ هذا fail-closed وليس نقصًا في D1.
 - لا يجوز استخدام secret مكشوف في repo أو إعادة استخدام migration secret كبديل.
 - الخطوة التالية الوحيدة لإكمال Zero-Google login: ضبط bridge property/secret في Apps Script بطريقة آمنة ومصرح بها، ثم Cloudflare bridge secret/policies، ثم TRANSITIONAL bootstrap، ثم frontend native flag، ثم postflight/canary. إلى أن يحدث ذلك يظل login الفعلي Google-backed وقد يتأثر بزمن Apps Script، رغم أن واجهة الدخول نفسها أصبحت أخف.
+
+### Entry607 — نقطة استئناف بعد انقطاع النت — Current truth / لا تخمين
+- سبب الـEntry: المالك طلب مراجعة ما اكتمل وما بقي بعد انقطاع الاتصال أثناء تنفيذ تحسين Login/Auth.
+- Git branch الحالي عند المراجعة: `candidate/t12-full-cloud-cutover-a56-20260929`.
+- آخر commit قبل نقطة الاستئناف: `e6b2e6bde6777e5a0dc1c152c82120a90a497510` — `docs: close login-fast frontend and record native auth gate`.
+- **ما اكتمل فعلًا قبل الانقطاع:**
+  1. تشخيص Login latency Entry601/602.
+  2. Login-fast frontend optimization Entry603 qualified.
+  3. Login-fast frontend نُشر Production عبر Entry604 ثم أُثبت مستقلًا في Entry605.
+  4. Active UI = `adfb5056-af23-4d7f-8e12-7de6417dfce2` @100%.
+  5. Active UI deployment = `a066abb8-4c33-4050-813b-123df4140450`.
+  6. unauthenticated employee dynamic modules = `0`.
+  7. بعد employee session: critical modules = `2` فورًا، deferred modules = `16` بعد 250ms.
+  8. Duplicate Guard UI + Browser Refresh recovery + Legacy Line Runtime markers محفوظة.
+  9. Entry605 independent postflight run `37043542864` = SUCCESS.
+- **لا تعِد Entry604 publish.** run `37043168584` أنشأ/promote النسخة، وEntry605 أثبتها Live. أي failure داخل Entry604 بعد promote superseded بنتيجة Entry605 الناجحة.
+- **ما لم يُنفذ قبل الانقطاع: Native Employee Auth cutover.**
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false
+  AUTH_CONTROL_MODE=OFF
+  AUTH_ENV_ENABLED=NO
+  NATIVE_AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  NATIVE_AUTH_SESSIONS=0
+  LEGACY_BRIDGE_ENABLED=NO
+  LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+  LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
+  ```
+- السبب في التوقف مقصود Fail-closed: Native login لا يمكن تشغيله مع `NATIVE_AUTH_USERS=0`، والـlegacy employee actions تحتاج Compatibility Bridge بعد إصدار Native token.
+- Apps Script Version159 يحتوي كود التحقق من الـbridge لكنه يحتاج Script Properties مشتركة وآمنة:
+  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED`
+  - `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`
+- المستودع لا يحتوي حاليًا على `clasp`/Apps Script API credential path/authorized maintenance endpoint يسمح بضبط الـScript Properties بأمان من CI؛ لذلك لم يتم إنشاء secret مكشوف أو قلب flags بشكل عشوائي.
+- **المتبقي الحقيقي فقط لمسار Login الجذري:**
+  1. توفير/اعتماد طريقة آمنة لضبط Bridge secret + enable property في Apps Script أو نقل legacy employee actions اللازمة إلى Cloud بحيث لا نحتاج bridge.
+  2. ضبط Cloudflare bridge secret + allowed policies بنفس السر.
+  3. تشغيل TRANSITIONAL bootstrap/enrollment بصورة bounded.
+  4. إثبات first-login bootstrap ثم second-login native لمستخدم canary.
+  5. بعد readiness: تفعيل Frontend Native Auth flag ثم read-only postflight.
+  6. إغلاق Apps Script auth fallback بعد نقل الاعتمادات المطلوبة.
+- **الحالة الحالية بعد الانقطاع:**
+  ```ini
+  LOGIN_FAST_FRONTEND_LIVE=YES
+  EMPLOYEE_LOGIN_AUTHORITY=GOOGLE_APPS_SCRIPT
+  EMPLOYEE_NATIVE_AUTH=OFF
+  EMPLOYEE_NATIVE_AUTH_PRODUCTION_CUTOVER_DONE=NO
+  APPS_SCRIPT_VERSION=159
+  APPS_SCRIPT_TOUCHED_BY_LOGIN_FAST=NO
+  PRODUCTION_MUTATION_IN_ENTRY607=NO
+  RESUME_FROM=NATIVE_AUTH_BRIDGE_GATE
+  ```
+- نقطة الاستئناف الإلزامية لأي شات لاحق: **لا تعيد تشخيص Login-fast ولا تعيد Frontend publish؛ ابدأ من Native Auth Bridge Gate في Entry606/607.**
 
 ### Customers
 - Customer master = 247 rows في D1.
