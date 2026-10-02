@@ -211,3 +211,13 @@
 | 192 | `.github/workflows/trendos-t12-a61-diya-native-bootstrap-canary-v2-temp.yml` | TrendOS T12 A61 Diya Native Bootstrap Canary V2 TEMP | push | 2 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
 | 193 | `.github/workflows/trendos-t12-a61-diya-session-enroll-canary-temp.yml` | TrendOS T12 A61 Diya Session Enrollment Canary TEMP | push | 2 | MANUAL/TEMP | D1, Apps Script, Cloudflare, tests, secrets |
 | 194 | `.github/workflows/trendos-t12-a61-legacy-auth-bridge-ci.yml` | TrendOS T12 A61 Employee Legacy Auth Bridge CI | pull_request,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests, secrets |
+| 195 | `.github/workflows/trendos-t12-a61-native-auth-ci.yml` | TrendOS T12 A61 Native Employee Auth CI | pull_request,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
+| 196 | `.github/workflows/trendos-t12-a61-off-state-install-preflight.yml` | TrendOS T12 A61 OFF-State Installation Preflight | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, secrets |
+| 197 | `.github/workflows/trendos-t12-a61-phase-b-d1-off-controlled.yml` | TrendOS T12 A61 Phase B D1 OFF Controlled | push | 2 | DEPLOY/MUTATION | D1, Cloudflare, migration, secrets, mutation |
+| 198 | `.github/workflows/trendos-t12-a61-postdeploy-readonly-verify.yml` | TrendOS T12 A61 Post-Deploy Read-Only Verification | push | 2 | MIXED | D1, Apps Script, Cloudflare, secrets, mutation |
+| 199 | `.github/workflows/trendos-t12-a61-session-enroll-off-deploy-temp.yml` | TrendOS T12 A61 Session Enrollment OFF Deploy TEMP | push | 2 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 200 | `.github/workflows/trendos-t12-a61-session-enroll-qualify-temp.yml` | TrendOS T12 A61 Session Enrollment Qualify TEMP | push | 2 | READONLY | D1, Cloudflare, tests |
+| 201 | `.github/workflows/trendos-t12-a61-session-enroll-qualify-v2-temp.yml` | TrendOS T12 A61 Session Enrollment Qualify V2 TEMP | push | 2 | READONLY | D1, Cloudflare, tests |
+| 202 | `.github/workflows/trendos-t12-a61-session-enroll-sessionbound-qualify-temp.yml` | TrendOS T12 A61 Session-Bound Enrollment Qualify TEMP | push | 2 | READONLY | D1, Cloudflare, tests |
+| 203 | `.github/workflows/trendos-t12-a61-sessionbound-off-deploy-temp.yml` | TrendOS T12 A61 Session-Bound OFF Deploy TEMP | push | 2 | MANUAL/TEMP | D1, Cloudflare, tests, secrets |
+| 204 | `.github/workflows/trendos-t12-duplicate-order-guard-ci.yml` | TrendOS T12 Duplicate Order Guard CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
