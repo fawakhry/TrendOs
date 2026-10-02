@@ -131,3 +131,13 @@
 | 112 | `.github/workflows/trendos-core-p0-11-e2e-readonly-gate.yml` | TrendOS CORE-P0-11 E2E Readonly Gate | push,workflow_dispatch | 3 | MIXED | D1, tests, secrets |
 | 113 | `.github/workflows/trendos-d1-orders-low-usage-v1.yml` | TrendOS D1 Orders Low Usage V1 | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests |
 | 114 | `.github/workflows/trendos-d1-quota-v2.yml` | TrendOS D1 Quota V2 Isolated | push,workflow_dispatch | 3 | CI | D1, Cloudflare, tests |
+| 115 | `.github/workflows/trendos-edge-orders-preview-runtime-v2.yml` | TrendOS Edge Orders Preview Runtime V2 | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, tests, secrets |
+| 116 | `.github/workflows/trendos-edge-orders-preview-runtime.yml` | TrendOS Edge Orders Preview Runtime | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Apps Script, Cloudflare, tests, secrets, mutation |
+| 117 | `.github/workflows/trendos-edge-orders-production-alias-runtime-v2.yml` | TrendOS Edge Orders Production Alias Runtime V2 | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets |
+| 118 | `.github/workflows/trendos-edge-orders-production-alias-runtime.yml` | TrendOS Edge Orders Production Alias Runtime | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets |
+| 119 | `.github/workflows/trendos-edge-orders-production-deploy-v2.yml` | TrendOS Edge Orders Production Deploy V2 | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, migration, tests, secrets, mutation |
+| 120 | `.github/workflows/trendos-edge-orders-production-deploy.yml` | TrendOS Edge Orders Production Deploy | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, migration, tests, secrets, mutation |
+| 121 | `.github/workflows/trendos-edge-orders-production-freshness-guard.yml` | TrendOS Edge Orders Production Freshness Guard | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, migration, tests, secrets, mutation |
+| 122 | `.github/workflows/trendos-edge-orders-production-preflight.yml` | TrendOS Edge Orders Production Preflight | push,workflow_dispatch | 3 | READONLY | D1, tests |
+| 123 | `.github/workflows/trendos-edge-orders-read-v1.yml` | TrendOS Edge Orders Read V1 | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
+| 124 | `.github/workflows/trendos-entry504-session-race-manual-bundle.yml` | TrendOS Entry504 Session Race Manual API Bundle | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests, secrets |
