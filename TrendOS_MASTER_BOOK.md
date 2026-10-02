@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.11-ZERO-GOOGLE-COMPACT — Entry596 stale legacy Orders diagnosis** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.12-ZERO-GOOGLE-COMPACT — Entry597 legacy line runtime Repo-qualified** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -74,6 +74,29 @@
 - التشخيص لم يغيّر D1 أو Google أو Order Status أو Production.
 - الحالة الحالية: `ROOT_CAUSE_CONFIRMED=YES`, `PRODUCTION_FIX_DEPLOYED=NO`, `BUSINESS_RECONCILIATION_DONE=NO`.
 - الخطوة التالية: Repo-only qualification للـlegacy runtime overlay؛ وبعدها Production mutation تحتاج scope واضح قبل reconcile الـ15.
+
+### Entry597 — Legacy Line Runtime Overlay مؤهل في Repo فقط
+- الاسم العربي للبحث: **إصلاح البند غير موجود / تقفيل الأوردرات القديمة من Cloud / Legacy Line Runtime / تشغيل البنود القديمة على D1**.
+- Migration جديدة additive فقط: `cloudflare-d1/migrations/0011_t12_legacy_line_runtime.sql`؛ تنشئ `t12_legacy_line_runtime` + event ledger بدون `DROP/ALTER` وبدون تعديل `sheet_rows`.
+- Runtime module: `cloudflare-d1/src/t12-legacy-line-runtime.mjs` يحل هوية Legacy من D1 mirror مع 02CX date-coercion repair، ويحفظ status/notes كـoverlay منفصل قابل للتدقيق.
+- API endpoint المؤهل Repo-only: `/v1/t12/orders/line-runtime/legacy-update`.
+- مسار القراءة 02CR يطبق Legacy runtime overlay **قبل** active filtering/paging، ثم يدمج Cloud-native rows.
+- Frontend source المؤهل Repo-only يوجه `updateLine` ذو Line ID ثابت إلى D1 عند `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED=true`؛ لا يرجع Apps Script في هذا المسار، مع read-after-write barrier.
+- بوابة `تم التسليم` للـLegacy runtime تعيد فحص D1 mirrors للعملاء + قائمة منع التسليم بالمديونية وتفشل مغلقًا إذا gate غير جاهزة أو العميل restricted.
+- Entry597 CI run `37020236957`, job `110881395106` = **SUCCESS**:
+  - `ENTRY597_T12_LEGACY_LINE_RUNTIME=PASS`
+  - `PERF_CF_02CR_OPERATIONAL_CANARY_CONTRACT_PASS`
+  - `T12 read overlay isolated PASS`
+  - `PERF_CF_02CX_LINE_ID_AND_REFRESH_WRITE_CONSISTENCY_PASS`
+  - duplicate-order frontend regression PASS
+  - `ENTRY597_STATIC_SAFETY=PASS`
+- A61 browser regression بعد تغييرات الواجهة: run `37020203740` = SUCCESS.
+- 02CR visibility regression بعد تعديل القراءة: run `37020169082` = SUCCESS.
+- Duplicate Guard CI بعد نقل cache tag: run `37020380457` = SUCCESS.
+- التشخيص الكامل مؤرشف في: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_STALE_LEGACY_ORDERS_DIAGNOSIS_ENTRY_596_2026-10-02.md`.
+- **Production لم يتغير:** migration 0011 لم تُطبق، API/Frontend لم يُنشرا بهذا patch، والـ15 حالة لم تُكتب في D1 runtime بعد.
+- الحالة: `REPO_QUALIFIED=YES`, `PRODUCTION_FIX_DEPLOYED=NO`, `STALE_15_RECONCILED=NO`.
+- الخطوة التالية الآمنة: Production read-only preflight يثبت active API/frontend الحاليين + أن migration 0011 absent + أن الـ15 ما زالت stale في D1؛ بعدها فقط يمكن طلب/تنفيذ scope محدد: 0011 → API → reconcile الـ15 المؤكدة → frontend → read-only postflight.
 
 ### Customers
 - Customer master = 247 rows في D1.
