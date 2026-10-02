@@ -47,7 +47,7 @@
 | B03 | D1 migrations/schema | 16 | DONE |
 | B04 | Apps Script + Code.gs families | 25 | DONE |
 | B05 | Attendance/Cleaning/HR/Press | 7 | DONE |
-| B06 | Customers/Feedback/Manager | 0 | PENDING |
+| B06 | Customers/Feedback/Manager | 8 | DONE |
 | B07 | Accounting + material control | 0 | PENDING |
 | B08 | Integrity/queue/operator tasks | 0 | PENDING |
 | B09 | GitHub Actions current + historical workflows | 0 | PENDING |
@@ -780,3 +780,112 @@ Frontend file محمّل، لكن `MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1=false
 - Attendance/Cleaning/HR/Press/Autopilot تم ربطها بالواجهة وبـApps Script.
 - تم رصد توثيق Attendance الهجين القديم وتصحيحه مقابل الواقع الحالي في `Code.gs`.
 - نقطة الاستئناف التالية: **B06 — Customers / Feedback / Manager**.
+
+
+## 12) B06 — Customers / Feedback / Manager — DONE
+
+تمت قراءة الملفات التفصيلية:
+- `customer-manager-backend-v1932.gs` — SHA `8c645d72abaa68431fe6a0213f3b96af3f27e42f`
+- `customer-feedback-backend-v1.gs` — SHA `8c35dedebace40ca380979f1f556c021731a0548`
+- `customer_manager_d1_bridge_v1934.js` — SHA `23bab89102868770562c147a92a73247560436ae`
+- `customer_manager_guard_v1933.js` — SHA `74e6bb5c34c73235ddfbdf40d2c89a9e9b4b01c2`
+- `customer_manager_v1933.js` — SHA `be0a6ae7ecd23179053d80e9fd9a149d4a8ecb33`
+- `customer-manager-send-integrity-v1.js` — SHA `c952a64e914fe0434307ed22a41c374e255d0352`
+- `cloudflare-d1/src/t12-customer-master.mjs` — SHA `ca12f742d32ebab3d59dccc44e165d71435dd57a`
+- `cloudflare-d1/src/t12-customer-legacy-projection.mjs` — SHA `6b71315184e18e43dfc74be65795ed8b986faab7`
+
+### 12.1 Customer master — Cloud-native authority
+
+D1 customer master functions:
+- normalize/search key.
+- exact phone/name matching.
+- create/update validation.
+- idempotent request replay.
+- control mode.
+- legacy projection into `t12_customers`.
+
+Tables:
+`t12_customer_control`, `t12_customers`, `t12_customer_request_ledger`, `t12_customer_events`.
+
+هذا يتطابق مع baseline الكتاب:
+`CUSTOMER_WRITE_MODE=GENERAL`, `CUSTOMER_MASTER_ROWS=247`, `CUSTOMER_GOOGLE_FALLBACK=NO`.
+
+**التصنيف:** Customer master/search/write الأساسية = **LIVE D1 authority**.
+
+### 12.2 Customer Manager / WhatsApp backend
+
+`customer-manager-backend-v1932.gs` يقدم:
+- inbox/thread.
+- AI suggestion عبر OpenAI Responses API.
+- WhatsApp send عبر Meta Graph.
+- handoff/resolve.
+- Meta webhook verify/receive.
+- order/customer context lookup من Sheets.
+
+`Code.gs` الحالي يحتوي نفس عائلة V1932 داخل single-file، لذلك الملف المنفصل = modular source/reference، وليس deployment authority منفصلًا.
+
+### 12.3 Customer Feedback
+
+`customer-feedback-backend-v1.gs`:
+- يبحث عن delivered orders.
+- يطلب تقييم 1..5.
+- يلتقط الردود القادمة من WhatsApp.
+- يربط التقييم بالأوردر/الهاتف.
+- يحدد الحالات التي تحتاج متابعة.
+
+الواجهة `customer-feedback-v1.js` محملة، لكن `MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1=false`.
+
+**التصنيف:** feature frontend موجود، Apps Script family موجود؛ auto scan OFF. ليست D1-native authority مثبتة.
+
+### 12.4 Customer Manager V1933/V1934 legacy-live bridge
+
+`matbagy_theme_v1860.js` يحمّل فعليًا عند DOM ready:
+- `customer_manager_d1_bridge_v1934.js`
+- `customer_manager_v1933.js`
+- `customer_manager_guard_v1933.js`
+
+وهذا بالإضافة إلى `customer-manager-v1.js` الذي يحمّله `config.js`. إذن توجد **طبقتان من Customer Manager UI/compatibility code** في source live-loaded.
+
+`customer_manager_d1_bridge_v1934.js` يلف `window.trendosSecureApiV1922` ويعترض فقط:
+`customerManagerV1 + op=inbox/thread`.
+
+السلوك:
+- يحاول D1 read أولًا.
+- عند الفشل يرجع إلى Apps Script original transport.
+- يسجل mode: `read-first-with-apps-script-fallback`.
+
+### 12.5 Gap مهم: endpoint قديم في V1934 bridge
+
+الـbridge يحدد:
+`https://trendos.trendmall-contact.workers.dev`
+
+بينما canonical API في الكتاب الحالي:
+`https://trendos-d1-api.trendmall-contact.workers.dev`.
+
+هذا لا يثبت وحده أن هناك عطلًا، لكنه **runtime verification gap** ويجب اختباره عند Coverage Audit:
+- هل endpoint القديم ما زال active alias؟
+- هل V1934 bridge ما زال ينفذ فعليًا بعد wrappers الأحدث؟
+- هل inbox/thread يجب نقلهما إلى canonical `trendos-d1-api`؟
+
+حتى يتم التحقق: تصنيف هذا bridge = **LIVE-loaded legacy compatibility / authority UNKNOWN**.
+
+### 12.6 Send integrity
+
+`customer-manager-send-integrity-v1.js` يحتفظ request ID في `sessionStorage` ويعيد استخدامه عند retry حتى لا تتحول إعادة المحاولة إلى إرسال جديد مستقل.
+
+**الدور:** idempotency guard على إرسال Customer Manager.
+
+### 12.7 الفصل بين Customer master وCustomer Manager
+
+لا يجب الخلط بينهما:
+- Customer master الهوية/search/write = D1-native GENERAL.
+- Customer Manager conversation/WhatsApp/AI workflows = ما زالت تعتمد جزئيًا على Apps Script/legacy compatibility حسب المسار.
+- Customer Portal/Files/Proofs = عائلة منفصلة ما زالت ضمن Zero-Google open dependencies في الكتاب.
+
+### 12.8 نتيجة B06
+
+- ملفات جديدة مقروءة فعليًا: **8**، بالإضافة إلى ملفات الواجهة/Cloud routes المقروءة في B01/B02.
+- Customer master D1 authority موثقة.
+- Manager/Feedback compatibility paths موثقة.
+- تم اكتشاف endpoint قديم يحتاج Runtime verification.
+- نقطة الاستئناف التالية: **B07 — Accounting + material control**.
