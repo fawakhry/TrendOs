@@ -151,3 +151,13 @@
 | 132 | `.github/workflows/trendos-entry595-frontend-readonly-verify.yml` | TrendOS Entry595 Frontend Read-Only Verify | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets |
 | 133 | `.github/workflows/trendos-gaber-material-control-v1-ci.yml` | TrendOS Gaber Material Control V1 CI | push,pull_request | 3 | READONLY | D1, Apps Script, tests |
 | 134 | `.github/workflows/trendos-integrity-v1.yml` | TrendOS Integrity V1 | push,pull_request | 3 | CI | D1, Apps Script, Cloudflare, tests |
+| 135 | `.github/workflows/trendos-normalized-import-isolated.yml` | TrendOS Normalized Import Isolated | push,workflow_dispatch | 3 | CI | D1, Apps Script, Cloudflare, migration, tests |
+| 136 | `.github/workflows/trendos-operator-task-appscript-readonly-preflight-v2.yml` | TrendOS Operator Task V2 Apps Script Readonly Preflight | push,workflow_dispatch | 3 | READONLY | Apps Script, tests |
+| 137 | `.github/workflows/trendos-operator-task-cloudflare-preview-v2.yml` | TrendOS Operator Task V2 Cloudflare Preview | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, migration, tests, secrets |
+| 138 | `.github/workflows/trendos-operator-task-production-edge-codeonly-off.yml` | TrendOS Operator Task V2 Production Edge Code-Only OFF Deploy | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, migration, tests, secrets |
+| 139 | `.github/workflows/trendos-operator-task-production-edge-enable.yml` | TrendOS Operator Task V2 Production Edge Enable | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 140 | `.github/workflows/trendos-operator-task-production-preactivation-readonly.yml` | TrendOS Operator Task V2 Production Pre-Activation Diagnostic | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, secrets |
+| 141 | `.github/workflows/trendos-operator-task-proxy-secret-verify.yml` | TrendOS Operator Task V2 Proxy Secret Verify | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests, secrets |
+| 142 | `.github/workflows/trendos-operator-task-workflow-v2-ci.yml` | TrendOS Operator Task Workflow V2 CI | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests, secrets |
+| 143 | `.github/workflows/trendos-orders-02cr-visibility-regression.yml` | TrendOS Orders 02CR visibility regression | push,pull_request | 3 | READONLY | D1, Cloudflare, tests |
+| 144 | `.github/workflows/trendos-prod-latency-split-temp.yml` | TrendOS Production Latency Split TEMP | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, tests, secrets |
