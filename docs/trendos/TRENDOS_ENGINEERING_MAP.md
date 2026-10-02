@@ -51,7 +51,7 @@
 | B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
 | B09 | GitHub Actions current + historical workflows | 220 / 220 | DONE |
-| B10 | tests/ | 0 | PENDING |
+| B10 | tests/ | 30 / 200 | IN_PROGRESS |
 | B11 | docs/ active engineering docs | 0 | PENDING |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
 | B13 | Coverage audit: screens/buttons/functions/data | 0 | PENDING |
@@ -1225,3 +1225,10 @@ Edge worker module تمت قراءته سابقًا في B02، لكن تعليق
 
 نقطة الاستئناف التالية:
 **B10 — tests/**.
+
+
+### 2026-10-03 — B10 checkpoint 30/200
+- تم إنشاء `docs/trendos/TRENDOS_TEST_CATALOG.md`.
+- تمت قراءة أول **30 اختبارًا من أصل 200** وحفظ SHA/targets/case-count/family/runtime-dependency لكل ملف.
+- الدفعة الأولى تغطي أساسًا Apps Script Cloud Write، T11/T12 D1 sync، وAccounting/Cloudflare foundations.
+- نقطة الاستئناف الدقيقة: **test #31**.
