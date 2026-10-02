@@ -29,7 +29,6 @@
 | 11 | `.github/workflows/cloud-migration-v3-t11-orders-headers-probe.yml` | TrendOS T11 Orders Mirror Headers Probe | push | 1 | READONLY | D1, migration |
 | 12 | `.github/workflows/cloud-migration-v3-t11-routing-bundle-diagnostic.yml` | TrendOS T11 Routing Bundle Diagnostic | workflow_dispatch,push | 1 | READONLY | wrangler, D1, Cloudflare, migration |
 | 13 | `.github/workflows/cloud-migration-v3-t11-service-candidate-parity.yml` | TrendOS T11 Service Candidate Live Parity | workflow_dispatch,push | 1 | READONLY | D1, Apps Script, migration, secrets |
-| 13 | `.github/workflows/cloud-migration-v3-t11-service-candidate-parity.yml` | TrendOS T11 Service Candidate Live Parity | push,workflow_dispatch | 1 | READONLY | D1, Apps Script, migration, secrets |
 | 14 | `.github/workflows/cloud-migration-v3-t11-service-deployed-contract-parity.yml` | TrendOS T11 Service Deployed Contract Parity | push | 1 | READONLY | D1, Apps Script, migration, secrets |
 | 15 | `.github/workflows/cloud-migration-v3-t11-service-exclusion-hashes.yml` | TrendOS T11 Service Exclusion Hashes | push,workflow_dispatch | 1 | READONLY | D1, Apps Script, migration, secrets |
 | 16 | `.github/workflows/cloud-migration-v3-t11-service-exclusion-rule-v2.yml` | TrendOS T11 Service Exclusion Rule V2 | push,workflow_dispatch | 1 | READONLY | D1/Apps Script comparison |
