@@ -1,0 +1,198 @@
+name: TrendOS Entry604 Login Fast Surface Production Publish
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry604-login-fast-production.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry604-login-fast-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      UI_WORKER: trendos-ui
+      PROD_UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      PROD_API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EXPECTED_PRE_UI_VERSION: ff4a2517-042c-48f0-8b43-98621c2a6957
+      QUALIFIED_SOURCE: 9150049fb169c9ca122003b5dc0b2bd960de61ed
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFIED_SOURCE }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Re-run exact frontend qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$QUALIFIED_SOURCE"
+          node --check config.js
+          node --check app.js
+          node tests/frontend_login_fast_surface_entry603.test.mjs
+          node tests/frontend_orders_initial_edge_ready_entry577.test.mjs
+          node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+          node tests/frontend_employee_session_isolation_entry533.test.mjs
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          grep -F 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' config.js
+          grep -F 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' config.js
+          echo 'ENTRY604_FRONTEND_QUALIFICATION=PASS'
+
+      - name: Guard current frontend Production
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments"             > /tmp/ui-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const b=JSON.parse(fs.readFileSync('/tmp/ui-before.json','utf8'));
+          const list=Array.isArray(b?.result?.deployments)?b.result.deployments:(Array.isArray(b?.result)?b.result:[]);
+          if(!list.length) throw new Error('No UI deployment');
+          const v=(list[0].versions||[]).map(x=>({id:String(x?.version_id||x?.id||''),p:Number(x?.percentage ?? x?.traffic_percentage ?? NaN)}));
+          if(v.length!==1||v[0].id!==process.env.EXPECTED_PRE_UI_VERSION||v[0].p!==100) throw new Error('UI Production drift');
+          console.log('ENTRY604_PRE_UI_VERSION='+v[0].id);
+          console.log('ENTRY604_PRE_UI_TRAFFIC=100');
+          console.log('ENTRY604_PRE_UI_DEPLOYMENT='+String(list[0].id||''));
+          NODE
+
+          curl --fail --silent --show-error "$PROD_UI_URL/config.js?entry604=before" > /tmp/pre-config.js
+          curl --fail --silent --show-error "$PROD_UI_URL/?entry604=before" > /tmp/pre-root.html
+          grep -F 'config.js?v=20261002-legacy-line-runtime' /tmp/pre-root.html
+          ! grep -F 'config.js?v=20261002-login-fast-surface' /tmp/pre-root.html
+          ! grep -F '__TRENDOS_AUTH_DEFERRED_QUEUED_V1__' /tmp/pre-config.js
+          echo 'ENTRY604_PRE_UI_BASELINE=PASS'
+
+      - name: Build frontend package and adapted uploader
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist/entry604
+          mkdir -p dist/entry604/frontend-dist
+          for f in *.html *.js *.css; do
+            if [ -f "$f" ]; then cp "$f" dist/entry604/frontend-dist/; fi
+          done
+          cp cloudflare-d1/src/frontend-static-worker.mjs dist/entry604/frontend-static-worker.mjs
+
+          cp tools/trendos-entry594-direct-version-upload.mjs /tmp/entry604-upload.mjs
+          sed -i "s/6a9cd90649cfa0ac75b25b725d53e9f779bb2c61/$QUALIFIED_SOURCE/g" /tmp/entry604-upload.mjs
+          sed -i "s/config.js?v=20261001-duplicate-order-guard-ui/config.js?v=20261002-login-fast-surface/g" /tmp/entry604-upload.mjs
+          sed -i "s/app.js?v=20261001-initial-edge-ready/app.js?v=20261002-login-fast-surface/g" /tmp/entry604-upload.mjs
+          sed -i "s/TrendOS duplicate-order guard UI/TrendOS login-fast authenticated module deferral/g" /tmp/entry604-upload.mjs
+
+          grep -F 'config.js?v=20261002-login-fast-surface' dist/entry604/frontend-dist/index.html
+          grep -F 'app.js?v=20261002-login-fast-surface' dist/entry604/frontend-dist/index.html
+          grep -F 'trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime' dist/entry604/frontend-dist/config.js
+          grep -F 'trendosLoadAuthenticatedCriticalV1' dist/entry604/frontend-dist/config.js
+          grep -F 'trendosLoadAuthenticatedModulesV1' dist/entry604/frontend-dist/app.js
+          echo 'ENTRY604_PACKAGE=PASS'
+
+      - name: Create target version with zero traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          node /tmp/entry604-upload.mjs dist/entry604 | tee /tmp/version-create.txt
+          grep -F 'ENTRY594_VERSION_CREATED=YES' /tmp/version-create.txt
+          grep -F 'TRAFFIC_CHANGED=NO' /tmp/version-create.txt
+          version_id="$(grep -E '^VERSION_ID=[0-9a-f-]+$' /tmp/version-create.txt | tail -1 | cut -d= -f2)"
+          test -n "$version_id"
+          echo "$version_id" > /tmp/target-ui-version.txt
+          echo "ENTRY604_TARGET_UI_VERSION=$version_id"
+
+      - name: Re-guard then promote target to 100 percent
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(cat /tmp/target-ui-version.txt)"
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments"             > /tmp/ui-prepromote.json
+          node <<'NODE'
+          const fs=require('fs');
+          const b=JSON.parse(fs.readFileSync('/tmp/ui-prepromote.json','utf8'));
+          const list=Array.isArray(b?.result?.deployments)?b.result.deployments:(Array.isArray(b?.result)?b.result:[]);
+          const v=(list[0]?.versions||[]).map(x=>({id:String(x?.version_id||x?.id||''),p:Number(x?.percentage ?? x?.traffic_percentage ?? NaN)}));
+          if(v.length!==1||v[0].id!==process.env.EXPECTED_PRE_UI_VERSION||v[0].p!==100) throw new Error('UI drift before promote');
+          console.log('ENTRY604_PREPROMOTE_GUARD=PASS');
+          NODE
+
+          cat > /tmp/promote.json <<JSON
+          {"strategy":"percentage","versions":[{"version_id":"$target","percentage":100}]}
+          JSON
+          code="$(curl --silent --show-error --output /tmp/promote-response.json --write-out '%{http_code}'             -X POST             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H "Content-Type: application/json"             --data-binary @/tmp/promote.json             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments")"
+          test "$code" -ge 200
+          test "$code" -lt 300
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/promote-response.json','utf8'));
+          if(x.success!==true) throw new Error('promote failed');
+          console.log('ENTRY604_PROMOTE_ACCEPTED=YES');
+          NODE
+
+      - name: Read-only postflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(cat /tmp/target-ui-version.txt)"
+          ok=0
+          for attempt in 1 2 3 4 5 6 7 8; do
+            curl --fail --silent --show-error               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments"               > /tmp/ui-after.json
+            if TARGET="$target" node <<'NODE'
+          const fs=require('fs');
+          const b=JSON.parse(fs.readFileSync('/tmp/ui-after.json','utf8'));
+          const list=Array.isArray(b?.result?.deployments)?b.result.deployments:(Array.isArray(b?.result)?b.result:[]);
+          const v=(list[0]?.versions||[]).map(x=>({id:String(x?.version_id||x?.id||''),p:Number(x?.percentage ?? x?.traffic_percentage ?? NaN)}));
+          if(v.length!==1||v[0].id!==process.env.TARGET||v[0].p!==100) process.exit(2);
+          fs.writeFileSync('/tmp/final-deployment.txt',String(list[0].id||''));
+          NODE
+            then ok=1; break; fi
+            sleep 2
+          done
+          test "$ok" = 1
+
+          root_code="$(curl --silent --show-error --output /tmp/root.html --write-out '%{http_code}' "$PROD_UI_URL/?entry604=after")"
+          config_code="$(curl --silent --show-error --output /tmp/config.js --write-out '%{http_code}' "$PROD_UI_URL/config.js?v=20261002-login-fast-surface")"
+          app_code="$(curl --silent --show-error --output /tmp/app.js --write-out '%{http_code}' "$PROD_UI_URL/app.js?v=20261002-login-fast-surface")"
+          edge_code="$(curl --silent --show-error --output /tmp/edge.js --write-out '%{http_code}' "$PROD_UI_URL/trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime")"
+          test "$root_code" = 200
+          test "$config_code" = 200
+          test "$app_code" = 200
+          test "$edge_code" = 200
+
+          grep -F 'config.js?v=20261002-login-fast-surface' /tmp/root.html
+          grep -F 'app.js?v=20261002-login-fast-surface' /tmp/root.html
+          grep -F 'TRENDOS_AUTH_CRITICAL_MODULES_V1' /tmp/config.js
+          grep -F 'TRENDOS_AUTH_DEFERRED_MODULES_V1' /tmp/config.js
+          grep -F '__TRENDOS_AUTH_DEFERRED_QUEUED_V1__' /tmp/config.js
+          grep -F 'trendosLoadAuthenticatedModulesV1' /tmp/app.js
+          grep -F 'تم منع إنشاء أوردر مكرر' /tmp/edge.js
+          grep -F 'recoverPostWriteBarrier' /tmp/edge.js
+
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/create/health" > /tmp/api-health.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/api-health.json','utf8'));
+          if(x.success!==true||x.mode!=='GENERAL'||x.duplicateGuardReady!==true) throw new Error('API health regressed');
+          console.log('ENTRY604_API_UNCHANGED_HEALTH=PASS');
+          NODE
+
+          echo 'ENTRY604_PRODUCTION_PUBLISH=PASS'
+          echo "ACTIVE_UI_VERSION=$target"
+          echo "ACTIVE_UI_DEPLOYMENT=$(cat /tmp/final-deployment.txt)"
+          echo 'FRONTEND_LOGIN_FAST_SURFACE=LIVE'
+          echo 'UNAUTHENTICATED_DYNAMIC_EMPLOYEE_MODULES=0_BY_QUALIFIED_CONFIG'
+          echo 'API_DEPLOY=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
