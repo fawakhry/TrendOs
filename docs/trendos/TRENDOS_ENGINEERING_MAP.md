@@ -44,7 +44,7 @@
 | B00 | Repository catalog / baseline | 1 | DONE |
 | B01 | Root frontend + runtime entrypoints | 27 | DONE |
 | B02 | Cloudflare D1 primary worker/src | 34 | DONE |
-| B03 | D1 migrations/schema | 0 | PENDING |
+| B03 | D1 migrations/schema | 16 | DONE |
 | B04 | Apps Script + Code.gs families | 0 | PENDING |
 | B05 | Attendance/Cleaning/HR/Press | 0 | PENDING |
 | B06 | Customers/Feedback/Manager | 0 | PENDING |
@@ -400,3 +400,112 @@ Routes:
 - تم فصل المسارات LIVE عن OFF/CANDIDATE/TRANSITIONAL حسب flags + الكتاب الحي.
 - تم تحديد Google transitional dependencies داخل worker.
 - نقطة الاستئناف التالية: **B03 — D1 migrations/schema**.
+
+
+## 9) B03 — D1 migrations/schema — DONE
+
+تمت قراءة جميع migrations الحالية `0001..0010` وجميع ملفات `cloudflare-d1/schema-prep/` الموجودة في الجرد.
+
+### 9.1 Migrations المطبقة/المسجلة في السلسلة الحالية
+
+| Migration | SHA | الجداول الأساسية | الحالة الهندسية |
+|---|---|---|---|
+| `0001_init.sql` | `49c58dd275f8364d0632fabd669ef48b562ea895` | customers, orders, messages, conversations, migration_runs | DEPLOYED schema baseline |
+| `0002_full_sheet_mirror.sql` | `1857534062b93eb24adbacdf7d3234bcaae69384` | sheet_catalog, sheet_rows, sheet_migration_runs | DEPLOYED mirror baseline |
+| `0003_cloud_write_lane.sql` | `b4c81348f9b1e79519130033b5b1dffcc86eaa0b` | cloud_write_events, cloud_write_outbox | DEPLOYED schema; generic lane not current authority |
+| `0004_cloud_auth_shadow_v1.sql` | `e514e4675a89c9eb801e4bfd971d640c6f6a01df` | cloud_auth_sessions_v1 | DEPLOYED shadow foundation |
+| `0005_t12_production_create_canary.sql` | `95224bb1afa50a6344fd0cf755a40d20ca7b9a6a` | t12_prod_create_control/request_ledger/orders/lines/events/outbox | DEPLOYED T12 create foundation |
+| `0006_t12_operational_runtime.sql` | `b2e3431f5132872658d81f065624b0a6e69da2ac` | t12_prod_line_runtime, t12_prod_runtime_events | DEPLOYED operational overlay |
+| `0007_t12_general_create_control.sql` | `b21d0f63c6b7bfe5dce3fdc377d9dc8e6170b6af` | t12_prod_general_create_control | DEPLOYED general-create control |
+| `0008_t12_customer_master.sql` | `c638b2afca70471c9916d6f644111cdce1157b45` | t12_customer_control/customers/request_ledger/events | DEPLOYED customer master |
+| `0009_employee_auth_native_v1.sql` | `20739798d691286b47918299c099049cbcf50c46` | employee_auth_control/users/sessions | DEPLOYED schema foundation; runtime authority still OFF |
+| `0010_t12_duplicate_order_guard.sql` | `b1a77430716a78bac85910138e40b0dea72291b2` | t12_prod_duplicate_order_guard | **DEPLOYED and verified in Entry593** |
+
+مرجع الحالة الحية في الكتاب يقول إن `0010` applied ولا توجد pending migrations بعد Entry593. لذلك migrations السابقة جزء من schema lineage الحالي؛ لكن وجود الجدول لا يعني أن كل feature الذي يستخدمه مفعّل.
+
+### 9.2 T12 Orders schema
+
+`0005` ينشئ:
+- `t12_prod_create_control`: sequence/budget/policy epoch.
+- `t12_prod_request_ledger`: idempotent request key وربطه بـOrder ID.
+- `t12_prod_orders`: رأس الأوردر.
+- `t12_prod_lines`: السطور مع `UNIQUE(request_key, ordinal)`.
+- `t12_prod_events`: أحداث create.
+- `t12_prod_outbox`: outbox لكل line/event.
+
+`0006` يفصل الحالة التشغيلية القابلة للتغيير عن create facts:
+- `t12_prod_line_runtime`: status/notes/customer notification/WhatsApp/version.
+- `t12_prod_runtime_events`: audit event لكل تغيير.
+
+الحالات المسموحة في runtime:
+`طلب جديد`, `بدأ التنفيذ`, `تحت التنفيذ`, `جاهز للاستلام`, `تم التسليم`, `متوقف`, `مكرر`, `ملغى`.
+
+### 9.3 Customer master schema
+
+`0008`:
+- control mode: `OFF | CANARY | GENERAL`.
+- `t12_customers` يحمل الهوية، الاسم normalized key، أرقام الهاتف، النوع، الدين، الفرع، legacy codes، source، version.
+- source مقيد إلى `legacy-mirror | cloud-native`.
+- indexes للاسم والهاتف/الهاتف الإضافي والحالة.
+- request ledger لأوامر CREATE/UPDATE.
+- customer events لأحداث create/update/bootstrap.
+
+هذا schema هو أساس Customer master الذي يسجل الكتاب أنه GENERAL حاليًا.
+
+### 9.4 Employee native auth schema
+
+`0009`:
+- control mode: `OFF | TRANSITIONAL | NATIVE`.
+- users لا يخزنون plaintext؛ الحقول هي scheme/iterations/salt/hash.
+- sessions تخزن `token_fingerprint` لا raw token.
+- session_version/revocation/expiry موجودة.
+- default control = OFF.
+
+**النتيجة:** schema آمن وموجود، لكن authority لم تنتقل لأن runtime flags ما زالت OFF.
+
+### 9.5 Duplicate-order guard schema
+
+`0010`:
+- `fingerprint` = PRIMARY KEY.
+- `request_key` = UNIQUE.
+- `order_id`.
+- `canonical_business_json`.
+- `claimed_at_ms`, `expires_at_ms`.
+- expiry index.
+
+المعنى: الحارس يحتجز fingerprint للعملية خلال نافذة زمنية ويمنع طلب business-equivalent آخر من المرور كأوردر جديد. Runtime baseline يثبت `DUPLICATE_GUARD_READY=YES` ونافذة 120000ms.
+
+### 9.6 Base/mirror/cloud-write schema
+
+- `0001`: normalized customer/order/message/conversation model + migration_runs.
+- `0002`: raw/full-sheet mirror layer: `sheet_catalog`, `sheet_rows`, `sheet_migration_runs`.
+- `0003`: cloud write events/outbox، لكنه ليس authority الحالية لمجرد وجوده.
+- `0004`: bounded employee auth shadow session fingerprints.
+
+هذا يشرح وجود نموذجين متوازيين تاريخيًا:
+1. normalized/native data.
+2. sheet-mirror parity layer.
+T12 native tables أصبحت طبقة business authority للأجزاء التي تم cutover لها، بينما mirror ما زال ظاهرًا في بعض read/transitional paths.
+
+### 9.7 schema-prep — غير مطبق كـmigration
+
+تمت قراءة 6 ملفات prepared schema، وكلها منفصلة عمدًا عن `migrations/`:
+
+| الملف | SHA | الحالة |
+|---|---|---|
+| `accounting-finance-v1.sql` | `8d3a76316e7da9b0989dfe88d1abec329aeaa784` | **PREPARED ONLY — DO NOT APPLY** |
+| `accounting-operations-v1.sql` | `eebf6b188ef50198222f2272e759259006a8aaa1` | **PREPARED ONLY — DO NOT APPLY** |
+| `t12-business-create-candidate-v1.sql` | `d524796ee052162f89c403ea4c74f9e1728aaa11` | isolated candidate only |
+| `t12-cloud-native-synthetic-create-v1.sql` | `a3aaee2c24aa90f7f54f723a65b2e15185f0e84f` | synthetic qualification only |
+| `t12-order-create-shadow-v1.sql` | `17d89f4cc122ae259207650ff42d15003b46a2f4` | shadow prep only |
+| `t12-order-id-authority-v1.sql` | `4fd9eb7cf2c9abc24841cde9c4b6edaebe26a150` | isolated sequence candidate |
+
+Accounting finance prep يتضمن append-only journals/entries/idempotency/audit triggers التي تمنع UPDATE/DELETE، لكنه **ليس production schema** حتى يتم cutover منفصل.
+
+### 9.8 نتيجة B03
+
+- ملفات migration/schema المقروءة فعليًا: **16 ملفًا**.
+- تم فصل applied migration lineage عن prepared-only schema.
+- تم رسم عائلات D1 الأساسية وعلاقات T12 Orders/Runtime/Customers/Auth/Duplicate Guard.
+- لم يتم تحويل prepared accounting schema إلى deployed state.
+- نقطة الاستئناف التالية: **B04 — Apps Script + Code.gs families**.
