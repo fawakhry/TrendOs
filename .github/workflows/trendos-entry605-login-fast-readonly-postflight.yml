@@ -1,0 +1,100 @@
+name: TrendOS Entry605 Login Fast Read-Only Postflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry605-login-fast-readonly-postflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      UI_WORKER: trendos-ui
+      PROD_UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      PROD_API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EXPECTED_UI_VERSION: adfb5056-af23-4d7f-8e12-7de6417dfce2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Verify active UI version
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments"             > /tmp/ui.json
+          node <<'NODE'
+          const fs=require('fs');
+          const b=JSON.parse(fs.readFileSync('/tmp/ui.json','utf8'));
+          const list=Array.isArray(b?.result?.deployments)?b.result.deployments:(Array.isArray(b?.result)?b.result:[]);
+          if(!list.length) throw new Error('No UI deployment');
+          const v=(list[0].versions||[]).map(x=>({id:String(x?.version_id||x?.id||''),p:Number(x?.percentage ?? x?.traffic_percentage ?? NaN)}));
+          if(v.length!==1||v[0].id!==process.env.EXPECTED_UI_VERSION||v[0].p!==100) throw new Error('UI version drift');
+          console.log('ENTRY605_UI_VERSION='+v[0].id);
+          console.log('ENTRY605_UI_DEPLOYMENT='+String(list[0].id||''));
+          console.log('ENTRY605_UI_TRAFFIC=100');
+          NODE
+
+      - name: Verify live frontend assets with propagation retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            root_code="$(curl --silent --show-error --output /tmp/root.html --write-out '%{http_code}' "$PROD_UI_URL/?entry605=$attempt")"
+            config_code="$(curl --silent --show-error --output /tmp/config.js --write-out '%{http_code}' "$PROD_UI_URL/config.js?v=20261002-login-fast-surface&entry605=$attempt")"
+            app_code="$(curl --silent --show-error --output /tmp/app.js --write-out '%{http_code}' "$PROD_UI_URL/app.js?v=20261002-login-fast-surface&entry605=$attempt")"
+            edge_code="$(curl --silent --show-error --output /tmp/edge.js --write-out '%{http_code}' "$PROD_UI_URL/trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime&entry605=$attempt")"
+
+            if [ "$root_code" = 200 ] && [ "$config_code" = 200 ] && [ "$app_code" = 200 ] && [ "$edge_code" = 200 ]               && grep -Fq 'config.js?v=20261002-login-fast-surface' /tmp/root.html               && grep -Fq 'app.js?v=20261002-login-fast-surface' /tmp/root.html               && grep -Fq 'TRENDOS_AUTH_CRITICAL_MODULES_V1' /tmp/config.js               && grep -Fq 'TRENDOS_AUTH_DEFERRED_MODULES_V1' /tmp/config.js               && grep -Fq '__TRENDOS_AUTH_DEFERRED_QUEUED_V1__' /tmp/config.js               && grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' /tmp/config.js               && grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' /tmp/config.js               && grep -Fq 'trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime' /tmp/config.js               && grep -Fq 'trendosLoadAuthenticatedModulesV1' /tmp/app.js               && grep -Fq 'function loadInitialRowsWhenEdgeReady()' /tmp/app.js               && grep -Fq 'تم منع إنشاء أوردر مكرر' /tmp/edge.js               && grep -Fq 'recoverPostWriteBarrier' /tmp/edge.js; then
+              ok=1
+              echo "ENTRY605_ASSETS_READY_ATTEMPT=$attempt"
+              break
+            fi
+            echo "ENTRY605_ASSETS_NOT_READY_ATTEMPT=$attempt"
+            sleep 2
+          done
+          test "$ok" = 1
+          echo 'ENTRY605_FRONTEND_HTTP_200=YES'
+          echo 'ENTRY605_LOGIN_FAST_MARKERS=YES'
+          echo 'ENTRY605_NATIVE_AUTH_STILL_OFF=YES'
+          echo 'ENTRY605_DUPLICATE_GUARD_UI_PRESERVED=YES'
+          echo 'ENTRY605_REFRESH_FIX_PRESERVED=YES'
+
+      - name: Verify API unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/create/health" > /tmp/create.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/line-runtime/health" > /tmp/runtime.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/employee/auth/health" > /tmp/auth.json
+          node <<'NODE'
+          const fs=require('fs');
+          const c=JSON.parse(fs.readFileSync('/tmp/create.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/runtime.json','utf8'));
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          if(c.success!==true||c.mode!=='GENERAL'||c.duplicateGuardReady!==true) throw new Error('create health');
+          if(r.success!==true||r.legacySchemaReady!==true) throw new Error('runtime health');
+          if(a.success!==true||a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth state drift');
+          console.log('ENTRY605_API_CREATE=PASS');
+          console.log('ENTRY605_API_RUNTIME=PASS');
+          console.log('ENTRY605_AUTH_OFF_STATE=PASS');
+          NODE
+
+      - name: Result
+        run: |
+          echo 'ENTRY605_READONLY_POSTFLIGHT=PASS'
+          echo 'LOGIN_FAST_FRONTEND_LIVE=YES'
+          echo 'D1_MUTATION=NO'
+          echo 'API_DEPLOY=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
