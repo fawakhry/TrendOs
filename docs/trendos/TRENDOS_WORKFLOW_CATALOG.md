@@ -191,3 +191,13 @@
 | 172 | `.github/workflows/trendos-t12-142-d1compatible-local-contract.yml` | TrendOS T12 142 D1-Compatible Local Contract | push | 2 | READONLY | D1, Cloudflare, migration, tests |
 | 173 | `.github/workflows/trendos-t12-a51-customer-search-ci.yml` | TrendOS T12 A51 D1 Customer Search CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
 | 174 | `.github/workflows/trendos-t12-a51-customer-search-production-deploy.yml` | TrendOS T12 A51 Customer Search Production Deploy | push | 2 | DEPLOY/MUTATION | D1, Cloudflare, migration, tests, secrets, mutation |
+| 175 | `.github/workflows/trendos-t12-a53-customer-native-ci.yml` | TrendOS T12 A53 Customer Native CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration, tests |
+| 176 | `.github/workflows/trendos-t12-a53-customer-native-install-bootstrap.yml` | TrendOS T12 A53 Customer Native Install Bootstrap | push | 2 | DEPLOY/MUTATION | D1, Cloudflare, migration, tests, secrets, mutation |
+| 177 | `.github/workflows/trendos-t12-a53-customer-native-install-retry.yml` | TrendOS T12 A53 Customer Native Install Retry | push | 2 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets, mutation |
+| 178 | `.github/workflows/trendos-t12-a54-native-customer-search-ci.yml` | TrendOS T12 A54 Native Customer Search CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
+| 179 | `.github/workflows/trendos-t12-a54-native-customer-search-production-deploy.yml` | TrendOS T12 A54 Native Customer Search Production Deploy | push | 2 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets, mutation |
+| 180 | `.github/workflows/trendos-t12-a55-customer-legacy-projection-ci.yml` | TrendOS T12 A55 Customer Legacy Projection CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
+| 181 | `.github/workflows/trendos-t12-a55-customer-projection-production-deploy.yml` | TrendOS T12 A55 Customer Projection Production Deploy | push | 2 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets, mutation |
+| 182 | `.github/workflows/trendos-t12-a56-customer-cloud-only-ci.yml` | TrendOS T12 A56 Customer Cloud-Only CI | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, tests |
+| 183 | `.github/workflows/trendos-t12-a56-customer-general-cutover.yml` | TrendOS T12 A56 Customer GENERAL Cutover | push,workflow_dispatch | 3 | DEPLOY/MUTATION | D1, Cloudflare, tests, secrets, mutation |
+| 184 | `.github/workflows/trendos-t12-a56-full-cloud-cutover-audit.yml` | TrendOS T12 A56 Full Cloud Cutover Audit | push,workflow_dispatch | 3 | READONLY | D1, Cloudflare, migration |
