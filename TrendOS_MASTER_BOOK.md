@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.10-ZERO-GOOGLE-COMPACT — Entry595 baseline** · تاريخ التنظيف: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.11-ZERO-GOOGLE-COMPACT — Entry596 stale legacy Orders diagnosis** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -60,6 +60,20 @@
 - refresh disappearance defect مغلق بعد owner acceptance + GET-only verification.
 - لا تُعد أي historical Google Order writer أو canary أو staging workflow سلطة حالية.
 - أي Legacy Orders action ما زال يظهر في Zero-Google audit يُعامل dependency متبقية حتى يثبت Runtime أنه أزيل.
+
+### Entry596 — أوردرات Legacy قديمة ظاهرة Active رغم أنها مُسلّمة
+- الاسم العربي للبحث: **الأوردرات القديمة لا تقفل / البند غير موجود / أوردرات مسلمة ظاهرة / stale legacy orders / legacy line identity**.
+- Root cause مؤكد Read-only: D1 Lines mirror متوقف عند `2026-09-26 18:33:08` ويعرض **15 بندًا قديمًا كـ`طلب جديد`**، بينما نفس الـ15 بند في Google الحالي كلها **`تم التسليم`**.
+- Google الحالي: 768 بندًا؛ Active = 0؛ `تم التسليم=639`، `جاهز للاستلام=73`، `مكرر=36`، `ملغى=20`.
+- D1 read-only diagnosis: run `37018544009`, job `110875375520` = SUCCESS؛ D1 mirror source/row count = 768، stale-active = 15.
+- الـ15 المتأثرة: `TM2606150097`, `TM2606150098`, `TM2606150105`, `TM2606160146`, و`4310, 4312-4321`.
+- للأوردرات `4310..4321` ثبت date-coercion في Line ID؛ D1 يصلح الهوية للقراءة إلى مثل `4310-01` بينما raw legacy identity تاريخية، ومسار Apps Script `updateLine_` يفشل بالمقارنة ويعيد حرفيًا: `البند غير موجود في الشيت.`
+- لا يوجد فقد للأوردرات نفسها؛ المشكلة **stale D1 snapshot + legacy Line-ID write mismatch**.
+- ممنوع إصلاحها بالاعتماد على stale `rowNumber` لأن الصف قد يتحرك.
+- المسار الدائم المعتمد للتأهيل: **D1-native legacy-line runtime overlay** يطبق status/notes فوق الـmirror قبل الفلترة، ثم ينقل legacy updateLine إلى Cloud؛ لا تعديل Apps Script v159.
+- التشخيص لم يغيّر D1 أو Google أو Order Status أو Production.
+- الحالة الحالية: `ROOT_CAUSE_CONFIRMED=YES`, `PRODUCTION_FIX_DEPLOYED=NO`, `BUSINESS_RECONCILIATION_DONE=NO`.
+- الخطوة التالية: Repo-only qualification للـlegacy runtime overlay؛ وبعدها Production mutation تحتاج scope واضح قبل reconcile الـ15.
 
 ### Customers
 - Customer master = 247 rows في D1.
