@@ -92,6 +92,7 @@ jobs:
 
           cp tools/trendos-entry594-direct-version-upload.mjs /tmp/entry604-upload.mjs
           sed -i "s/6a9cd90649cfa0ac75b25b725d53e9f779bb2c61/$QUALIFIED_SOURCE/g" /tmp/entry604-upload.mjs
+          sed -i "s/trendos-edge-orders-read-v1.js?v=20261001-duplicate-order-guard-ui/trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime/g" /tmp/entry604-upload.mjs
           sed -i "s/config.js?v=20261001-duplicate-order-guard-ui/config.js?v=20261002-login-fast-surface/g" /tmp/entry604-upload.mjs
           sed -i "s/app.js?v=20261001-initial-edge-ready/app.js?v=20261002-login-fast-surface/g" /tmp/entry604-upload.mjs
           sed -i "s/TrendOS duplicate-order guard UI/TrendOS login-fast authenticated module deferral/g" /tmp/entry604-upload.mjs
