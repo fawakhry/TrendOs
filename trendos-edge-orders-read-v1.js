@@ -16,6 +16,7 @@
   var SERVICE_PAGE_PATH = '/v1/edge/orders/service/page';
   var T12_OVERLAY_PATH = '/v1/t12/orders/read-overlay';
   var T12_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/update';
+  var T12_LEGACY_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/legacy-update';
   var T12_RUNTIME_NOTIFY_PATH = '/v1/t12/orders/line-runtime/notify';
   var T12_GENERAL_CREATE_PATH = '/v1/t12/orders/create';
   var T12_GENERAL_CREATE_HEALTH_PATH = '/v1/t12/orders/create/health';
@@ -48,6 +49,7 @@
     postWriteBarrierRecoveries: 0,
     lineIdRepairs: 0,
     writeIdentityRepairs: 0,
+    legacyRuntimeWrites: 0,
     hybridOverlaySuccess: 0,
     hybridOverlayFailures: 0,
     hybridOverlayRows: 0,
@@ -937,22 +939,34 @@ function eligible(action, params) {
         return t12CreateManualOrder(resolved.params || {});
       }
 
-      // Legacy-row writes remain Apps Script; Cloud-native line writes use T12 runtime.
-      // updateLine is normalized
-      // to stable identity before it reaches Apps Script, then a persisted read
-      // barrier prevents a browser refresh from repainting an older D1 mirror.
+      // Cloud-native rows and legacy mirror rows have separate D1 runtime tables.
+      // Once the legacy runtime flag is armed, updateLine no longer depends on
+      // Apps Script/Google identity lookup for rows that have a stable lineId.
       if (action === 'updateLine') {
         if (!canaryUserAllowed()) return original.apply(this, args);
-        var requestedLineId = text(params && params.lineId);
+        var safeParams = identitySafeUpdateLineParams(params || {});
+        var requestedLineId = text(safeParams && safeParams.lineId);
         if (requestedLineId && cloudNativeLineIds.has(requestedLineId)) {
           return t12RuntimePost(T12_RUNTIME_UPDATE_PATH, {
-            orderId: text(params && params.orderId),
+            orderId: text(safeParams && safeParams.orderId),
             lineId: requestedLineId,
-            status: text(params && params.status),
-            notes: text(params && params.notes)
+            status: text(safeParams && safeParams.status),
+            notes: text(safeParams && safeParams.notes)
           });
         }
-        var safeParams = identitySafeUpdateLineParams(params || {});
+        if (requestedLineId && window.MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED === true) {
+          var legacyWrite = await t12RuntimePost(T12_LEGACY_RUNTIME_UPDATE_PATH, {
+            orderId: text(safeParams && safeParams.orderId),
+            lineId: requestedLineId,
+            status: text(safeParams && safeParams.status),
+            notes: text(safeParams && safeParams.notes)
+          });
+          if (legacyWrite && legacyWrite.success === true) {
+            metrics.legacyRuntimeWrites += 1;
+            openPostWriteBarrier(safeParams);
+          }
+          return legacyWrite;
+        }
         var writeResult = await employeeLegacyFallback(
           this,
           original,
@@ -1037,6 +1051,8 @@ function eligible(action, params) {
       customerSearchPath: CUSTOMER_SEARCH_PATH,
       customerWritePath: CUSTOMER_WRITE_PATH,
       customerAuthority: 'cloud-only',
+      legacyLineRuntimeEnabled: window.MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED === true,
+      legacyLineRuntimeUpdatePath: T12_LEGACY_RUNTIME_UPDATE_PATH,
       serviceUsesQualified02CR: true,
       canaryOnly: window.MATBAGY_EDGE_ORDERS_CANARY_ONLY === true,
       canaryUsers: Array.isArray(window.MATBAGY_EDGE_ORDERS_CANARY_USERS) ? window.MATBAGY_EDGE_ORDERS_CANARY_USERS.slice() : [],
@@ -1065,6 +1081,7 @@ function eligible(action, params) {
           postWriteBarrierRecoveries: metrics.postWriteBarrierRecoveries,
           lineIdRepairs: metrics.lineIdRepairs,
           writeIdentityRepairs: metrics.writeIdentityRepairs,
+          legacyRuntimeWrites: metrics.legacyRuntimeWrites,
           hybridOverlaySuccess: metrics.hybridOverlaySuccess,
           hybridOverlayFailures: metrics.hybridOverlayFailures,
           hybridOverlayRows: metrics.hybridOverlayRows,
