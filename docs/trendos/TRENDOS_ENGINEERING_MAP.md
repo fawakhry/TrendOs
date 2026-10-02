@@ -43,7 +43,7 @@
 |---|---|---:|---|
 | B00 | Repository catalog / baseline | 1 | DONE |
 | B01 | Root frontend + runtime entrypoints | 27 | DONE |
-| B02 | Cloudflare D1 primary worker/src | 0 | PENDING |
+| B02 | Cloudflare D1 primary worker/src | 34 | DONE |
 | B03 | D1 migrations/schema | 0 | PENDING |
 | B04 | Apps Script + Code.gs families | 0 | PENDING |
 | B05 | Attendance/Cleaning/HR/Press | 0 | PENDING |
@@ -242,3 +242,161 @@ MATBAGY_OPERATIONS_HUB_V1=true
 - Orders/Customer Cloud edge route map موثق.
 - Auth dispatcher موثق مع إثبات أن native employee auth ما زال OFF.
 - نقطة الاستئناف التالية: **B02 — Cloudflare D1 primary worker/src**.
+
+
+## 8) B02 — Cloudflare D1 primary worker/src — DONE
+
+### 8.1 Production entrypoint الفعلي في المصدر
+
+تمت قراءة:
+- `cloudflare-d1/wrangler.toml` — SHA `e519c37a12d68db4d575f3ed81200eba76a557f6`
+- `cloudflare-d1/production-shadow/index.js` — SHA `cabf0237c3aea2479b56ab237eeb9877c86254a4`
+- `cloudflare-d1/src/index_v2.js` — SHA `0516f88f96d21bb66a55c516a71842c80bc5b8a0`
+- `cloudflare-d1/src/index.js` — SHA `b789a87377b769536f422b991ac5485e58c5c3b2`
+- `cloudflare-d1/wrangler.frontend.toml` — SHA `335152e5a70870b7daf7718e295192cf3d686816`
+- `cloudflare-d1/src/frontend-static-worker.mjs` — SHA `f30211922a65f39dfcd4fe1ec166f89570f12f43`
+
+API config يحدد:
+```toml
+name = "trendos-d1-api"
+main = "production-shadow/index.js"
+database_name = "trendos-main"
+```
+
+وبالتالي سلسلة الـAPI source هي:
+`production-shadow/index.js -> src/index_v2.js -> route modules -> src/index.js base`.
+
+Frontend config يحدد:
+`trendos-ui -> src/frontend-static-worker.mjs -> ASSETS`.
+
+### 8.2 Flags المصدر في wrangler.toml
+
+```ini
+TRENDOS_CLOUD_WRITE_V1_ENABLED=false
+TRENDOS_PRODUCTION_SHADOW_V2_ENABLED=true
+TRENDOS_PROD_RECONCILE_QUALIFY_ENABLED=false
+TRENDOS_R4_RECOVERY_ENABLED=false
+TRENDOS_R5_PERIODIC_ENABLED=false
+TRENDOS_T12_PROD_CREATE_CANARY_ENABLED=false
+TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED=true
+TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED=true
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false
+TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED=false
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+```
+
+هذه **source config evidence** وليست بديلًا عن runtime vars الفعلية. بالنسبة لـEmployee Auth تتفق مع آخر runtime evidence في الكتاب: native OFF.
+
+### 8.3 Production router map
+
+`production-shadow/index.js` يمر أولًا على:
+1. T12 production create canary.
+2. R4 recovery.
+3. R5 periodic recovery.
+4. production reconcile qualification.
+5. production shadow observer.
+6. ثم `core.fetch()` من `src/index_v2.js`.
+
+`src/index_v2.js` يوجّه إلى:
+- legacy browser transport
+- employee native auth
+- employee legacy bridge
+- cloud session bridge
+- Accounting native/preview
+- customer search
+- Service Orders
+- 02CR Orders
+- general Edge Orders
+- T12 read overlay
+- T12 operational runtime
+- T12 general CREATE
+- T12 customer write
+- Operator Tasks edge
+- generic edge gateway
+- cloud write gate
+- normalized import
+- mirror delta
+- mirror reads
+- base API.
+
+### 8.4 الوحدات المقروءة فعليًا في route chain
+
+| الملف | SHA | أهم route/role | تصنيف الحالة |
+|---|---|---|---|
+| `production-shadow/observer.mjs` | `72dd06bda31e6f9e2db1bb47c8cccb3b49302fb6` | `/v1/cloud/write/v2/production-shadow` | TRANSITIONAL; source flag ON، authority لا تُستنتج |
+| `cloud-write-production-reconcile-qualification.mjs` | `5154337c78d5c4074fe2fb6172d83aee69e5f0bf` | qualification reconcile | CANDIDATE/OFF |
+| `r4-guarded-recovery-production.mjs` | `e328a6b336a0a6510c0bef5aebb30ab8b5c61073` | admin recovery | CANDIDATE/OFF |
+| `t12-preview/r5-orders-periodic-guarded-handler-candidate.mjs` | `4f79b574f4dfd9fea271dcf66e963154124450df` | periodic recovery | CANDIDATE/OFF |
+| `t12-production-create-canary-handler.mjs` | `853c234ab85ea00a83a8ced4cec6a0b3cce4cbf5` | create-canary | HISTORICAL/CANDIDATE; flag OFF |
+| `legacy-browser-transport-v1.mjs` | `0e308a5a55d54d6feb934d89072b9346b6d4ab57` | `/v1/legacy-api` -> Apps Script upstream | **TRANSITIONAL + LIVE-used for unmigrated actions** |
+| `mirror-gate.mjs` | `d9321c3a9c1678fd7a53abc6a24df73dbee25ebc` | mirror/import read controls | TRANSITIONAL/admin path |
+| `mirror-delta-gate.mjs` | `7822080e6f615d34065b0f2bc042c438443431de` | `/v1/mirror/delta` | TRANSITIONAL/admin path |
+| `edge-gateway.mjs` | `db88e925cbda3ab9a9597860248a3faffa54a8ac` | edge health/session/customer-manager | LIVE route infrastructure; per-feature authority separate |
+| `edge-customer-search-v1.mjs` | `35d957a524d5cd262e44a838f3d6a1a307de9917` | `/v1/edge/customers/search` | **LIVE** customer search path |
+| `cloud-session-bridge-v3.mjs` | `7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c` | edge session bridge | TRANSITIONAL |
+| `employee-auth-native-v1.mjs` | `e7bb20287efa16366fbd267251217fde90a33958` | employee native auth family | CANDIDATE/foundation; OFF |
+| `employee-legacy-bridge-v1.mjs` | `e317c9692970d8f31b2980fa07b692e882911928` | `/v1/employee/legacy-action` | CANDIDATE/foundation; OFF |
+| `operator-task-edge-v2.mjs` | `7ef7aa4a52246d6423ccd8c27c9457b76bcc8643` | operator task facade | TRANSITIONAL; edge enabled, Apps Script task write authority per code |
+| `edge-orders-read-v1-canary.mjs` | `8e43f6ad7e802f181d1ffe7a2a380020c3c55d4d` | `/v1/edge/orders/page` + session | LIVE route family |
+| `edge-orders-read-02cr-freshness.mjs` | `5754ddc481b65465bf997842cef3f41ac14ff0fd` | production-read freshness wrapper | LIVE route family |
+| `edge-orders-service-v1.mjs` | `3108fb8a82dcf6c7ab7bf251ae8e6576c0a73472` | `/v1/edge/orders/service/page` | LIVE route family |
+| `edge-orders-line-id-repair-02cx.mjs` | `5a1690371008e628746c7b300b150d9a313b8836` | Line-ID repair before response | LIVE helper in 02CR chain |
+| `edge-orders-freshness-gate.mjs` | `34fe30371fa94b616a9c6555f40097a3ff26e7d4` | Orders mirror readiness/freshness | LIVE guard |
+| `edge-orders-idle-verifier.mjs` | `fbb8e257e61e4d6c54c5079a34f0bc8e63fa2842` | Apps Script heartbeat verifier | TRANSITIONAL dependency until Zero-Google |
+| `t12-read-overlay-handler.mjs` | `0fc291e51ee832a71bb39cb329e76e916a9ff894` | `/v1/t12/orders/read-overlay` | LIVE T12 read path |
+| `t12-operational-runtime-handler.mjs` | `94fbb0648025ca96af7a1d624b25b7c270ccde03` | line runtime update/notify | LIVE T12 operational path |
+| `t12-general-create-handler.mjs` | `1acf27e9b0798bb0c0332a08d8e802d1e8edf0fc` | `/v1/t12/orders/create` | **LIVE** GENERAL create route |
+| `t12-customer-write-handler.mjs` | `3e604ac731a53b3c8e00994ba9fd0f32c9da4a69` | `/v1/t12/customers/write` | **LIVE** customer write family per book baseline |
+| `cloud-write-gate.mjs` | `677e1f6c2478a6e225b9d6b75f0aa0e0680331b2` | generic cloud write gate | OFF / not current authority |
+| `normalized-import-gate.mjs` | `116398e82baae83260a5698e4a8e859665a9a68e` | protected normalized import | admin/migration route; not business authority |
+| `accounting-preview.mjs` | `e09525d9faf1419599ccfd729d8fa2bf1fe21552` | accounting preview | CANDIDATE/integration; detailed authority B07 |
+| `accounting-native-module.mjs` | `65ebbbf37a0cff1bc807bd3f434eaf7b1282d05d` | native accounting router | CANDIDATE/integration; detailed authority B07 |
+
+### 8.5 Employee auth tables/code موجودة لكن السلطة لم تنتقل
+
+`employee-auth-native-v1.mjs` يتعامل مع:
+- `employee_auth_control_v1`
+- `employee_auth_users_v1`
+- `employee_auth_sessions_v1`
+
+Routes:
+`/login`, `/session`, `/logout`, `/password/change`, `/health`, `/enroll-legacy-session`.
+
+لكن كل employee-native cutover flags في المصدر OFF، لذلك:
+**وجود tables + routes + implementation = foundation فقط، وليس دليلًا على أن Login أصبح D1-native.**
+
+### 8.6 Transitional Google dependencies المرئية داخل Cloud worker
+
+تم إثبات source dependencies إلى `APPS_SCRIPT_API_URL` في:
+- `legacy-browser-transport-v1.mjs`
+- `edge-gateway.mjs`
+- `cloud-session-bridge-v3.mjs`
+- `employee-auth-native-v1.mjs` (bootstrap/transitional paths)
+- `employee-legacy-bridge-v1.mjs`
+- `operator-task-edge-v2.mjs`
+- `edge-orders-idle-verifier.mjs`
+
+وبالتالي Zero-Google لم يُغلق هندسيًا حتى لو كانت Orders CREATE/Customer master Cloud-native.
+
+### 8.7 D1 tables الظاهرة من route modules المقروءة
+
+من القراءة المباشرة ظهرت عائلات:
+- `sheet_catalog`, `sheet_rows` — mirror/read legacy parity layer.
+- `orders`, `customers`, `messages`, `conversations`, `migration_runs` — normalized/base data.
+- `t12_prod_orders`, `t12_prod_lines`, `t12_prod_line_runtime`, `t12_prod_runtime_events`.
+- `t12_prod_general_create_control`, `t12_prod_create_control`.
+- `employee_auth_control_v1`, `employee_auth_users_v1`, `employee_auth_sessions_v1`.
+- `cloud_write_outbox`, `cloud_write_events`.
+
+التعريف الدقيق للأعمدة والعلاقات ينتقل إلى B03 migrations/schema.
+
+### 8.8 نتيجة B02
+
+- ملفات Cloudflare entry/router/modules المقروءة فعليًا: **34 ملفًا**.
+- Production source entrypoint تم تثبيته من `wrangler.toml`.
+- route chain الفعلي تم رسمه من `production-shadow/index.js` و`index_v2.js`.
+- تم فصل المسارات LIVE عن OFF/CANDIDATE/TRANSITIONAL حسب flags + الكتاب الحي.
+- تم تحديد Google transitional dependencies داخل worker.
+- نقطة الاستئناف التالية: **B03 — D1 migrations/schema**.
