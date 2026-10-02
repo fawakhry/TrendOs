@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.12-ZERO-GOOGLE-COMPACT — Entry597 legacy line runtime Repo-qualified** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.13-ZERO-GOOGLE-COMPACT — Entry598 legacy Orders Production preflight PASS** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -97,6 +97,17 @@
 - **Production لم يتغير:** migration 0011 لم تُطبق، API/Frontend لم يُنشرا بهذا patch، والـ15 حالة لم تُكتب في D1 runtime بعد.
 - الحالة: `REPO_QUALIFIED=YES`, `PRODUCTION_FIX_DEPLOYED=NO`, `STALE_15_RECONCILED=NO`.
 - الخطوة التالية الآمنة: Production read-only preflight يثبت active API/frontend الحاليين + أن migration 0011 absent + أن الـ15 ما زالت stale في D1؛ بعدها فقط يمكن طلب/تنفيذ scope محدد: 0011 → API → reconcile الـ15 المؤكدة → frontend → read-only postflight.
+
+### Entry598 — Production preflight لإصلاح الأوردرات القديمة = PASS
+- Production preflight Read-only: run `37020759452`, job `110882922276` = **SUCCESS**.
+- Active API لم يتحرك: version `23be0ab2-0a2b-4b81-bf54-e2f05f847989`، deployment `b8497ee0-a487-43c8-bcb3-b3f3ab83d3ff`، live SHA-256 `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`.
+- API target المؤهل للإصلاح يُبنى من source `c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281`، والـCloudflare API delta عن source الحي = **4 ملفات فقط**: migration 0011 + legacy runtime module + operational runtime handler + 02CR read overlay. Target bundle SHA-256 = `7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6`.
+- Active Frontend لم يتحرك: version `a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e`، deployment `21a12f7f-e323-4bc2-bb60-7ef4009d708e` عند 100%؛ Legacy runtime frontend flag **غير منشور** بعد.
+- D1 table `t12_legacy_line_runtime` = absent؛ pending migrations = **0011 فقط**.
+- stale D1 set ما زال **بالضبط 15**، وmirror timestamp ما زال `2026-09-26 18:33:08`.
+- Order Create ما زال `GENERAL` وDuplicate Guard = ready؛ current native runtime health = PASS.
+- preflight لم يغير D1/Cloudflare/Frontend/Apps Script/Order Status.
+- Production scope المطلوب للإغلاق، إذا صرّح به المالك صراحة: **apply 0011 فقط → deploy API target فقط → reconcile exactly the verified 15 rows to `تم التسليم` داخل legacy runtime overlay → deploy qualified frontend only → read-only postflight**. لا تغيير Order IDs، لا Google write، لا Apps Script v159، ولا business CREATE test.
 
 ### Customers
 - Customer master = 247 rows في D1.
