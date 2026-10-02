@@ -50,7 +50,7 @@
 | B06 | Customers/Feedback/Manager | 8 | DONE |
 | B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
-| B09 | GitHub Actions current + historical workflows | 104 / 220 | IN_PROGRESS |
+| B09 | GitHub Actions current + historical workflows | 220 / 220 | DONE |
 | B10 | tests/ | 0 | PENDING |
 | B11 | docs/ active engineering docs | 0 | PENDING |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
@@ -1187,3 +1187,41 @@ Edge worker module تمت قراءته سابقًا في B02، لكن تعليق
 - workflow 100 = controlled production-shadow deploy ويحتوي deploy/rollback فعلي؛ **MIXED**.
 - workflow 104 = preview deployment/mutation؛ **DEPLOY/MUTATION**.
 - نقطة الاستئناف الدقيقة: **workflow #105 — trendos-cloud-write-v2-production-shadow-readonly-enable.yml**.
+
+
+## 15) B09 — GitHub Actions current + historical workflows — DONE
+
+تمت قراءة محتوى جميع ملفات `.github/workflows/` الحالية: **220/220** ملفًا، مع كتالوج مستقل في:
+`docs/trendos/TRENDOS_WORKFLOW_CATALOG.md`.
+
+### 15.1 سلامة الجرد
+- Workflow rows = **220**.
+- Missing numbers = **0**.
+- Duplicate numbers = **0**.
+- التصنيف الساكن الحالي: `READONLY=118`، `CI=14`، `DEPLOY/MUTATION=22`، `MIXED=47`، `MANUAL/TEMP=19`.
+
+### 15.2 قاعدة الأمان
+اسم Workflow لا يثبت أنه آمن أو Read-only. تم فحص محتوى YAML والأوامر الفعلية:
+- `contents: write`
+- `git push` / `git revert`
+- Wrangler deploy/version/rollback
+- D1 remote execute/migration
+- mutating HTTP methods
+ثم فُصلت ملفات الفحص عن ملفات النشر/التغيير.
+
+### 15.3 نتائج مهمة
+- عدد كبير من ملفات T10/T11/02xx تاريخي أو qualification/probe ولا يمثل authority حاليًا.
+- توجد workflows تاريخية قادرة على تعديل `main` أو فروع أخرى؛ لا تُعاد الاستعانة بها لمجرد نجاحها قديمًا.
+- Preview لا يعني Read-only: بعض Accounting preview workflows تنشئ قاعدة D1 أو تطبق schema على بيئة Preview.
+- Entry579/580/582/585/594/595 workflows تم فهرستها ضمن سلسلة Frontend الأخيرة، مع فصل create-version عن promote عن readonly verify.
+- A51..A61 وDuplicate Guard workflows تمت قراءتها وفهرستها؛ Runtime/كتاب Trend يظل الحكم على ما نُشر فعليًا.
+- Work Queue V1 workflows موجودة تاريخيًا لكن B08 أثبت أن V1 superseded/inert وليس feature حية.
+
+### 15.4 نتيجة B09
+`WORKFLOW_FILES_READ=220`
+`WORKFLOW_CATALOG_COMPLETE=YES`
+`WORKFLOW_PATHS_MISSING=0`
+`WORKFLOW_DUPLICATE_INDEX=0`
+
+نقطة الاستئناف التالية:
+**B10 — tests/**.
