@@ -4051,6 +4051,9 @@ Trend Mall`;
   }
 
   function bootMain() {
+    if (typeof window.trendosLoadAuthenticatedModulesV1 === "function") {
+      try { window.trendosLoadAuthenticatedModulesV1(); } catch (e) {}
+    }
     showMain();
     state.urgentNotificationEnabled = loadUrgentNotificationPreference();
     renderHeader();
