@@ -58,12 +58,12 @@
 | 39 | `.github/workflows/cloud-migration-v3-t11-service-sort-contract.yml` | TrendOS T11 Service Sort Contract | push | 2 | READONLY | migration |
 | 40 | `.github/workflows/cloud-migration-v3-t11-service-source-rule-parity.yml` | TrendOS T11 Service Source Rule Parity | push | 2 | READONLY | D1, Apps Script, migration, secrets |
 | 41 | `.github/workflows/cloud-migration-v3-t11-service-view-formula-probe.yml` | TrendOS T11 Service View Formula Probe | push | 2 | READONLY | D1, migration |
-| 42 | `.github/workflows/cloud-migration-v3-t11-service-worker-production-canary.yml` | TrendOS T11 Service Worker Production Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 42 | `.github/workflows/cloud-migration-v3-t11-service-worker-production-canary.yml` | TrendOS T11 Service Worker Production Canary | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests, secrets |
 | 43 | `.github/workflows/cloud-migration-v3-t11-stable-freshness-route-probe.yml` | TrendOS T11 Stable 02CR Freshness Route Probe | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, tests, secrets |
 | 44 | `.github/workflows/cloud-migration-v3-t11-v1932-route-contract.yml` | TrendOS T11 V1932 Route Contract | push | 2 | READONLY | migration |
-| 45 | `.github/workflows/cloud-migration-v3-t6a-login-production-session-canary.yml` | TrendOS Cloud Migration V3 T6A Login Production Session Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
-| 46 | `.github/workflows/cloud-migration-v3-t6b-auth-shadow-production-canary.yml` | TrendOS Cloud Migration V3 T6B Auth Shadow Production Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
-| 47 | `.github/workflows/cloud-migration-v3-t6b-final-production-canary.yml` | TrendOS Cloud Migration V3 T6B Final Production Canary | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 45 | `.github/workflows/cloud-migration-v3-t6a-login-production-session-canary.yml` | TrendOS Cloud Migration V3 T6A Login Production Session Canary | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 46 | `.github/workflows/cloud-migration-v3-t6b-auth-shadow-production-canary.yml` | TrendOS Cloud Migration V3 T6B Auth Shadow Production Canary | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests, secrets |
+| 47 | `.github/workflows/cloud-migration-v3-t6b-final-production-canary.yml` | TrendOS Cloud Migration V3 T6B Final Production Canary | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, migration, tests, secrets |
 | 48 | `.github/workflows/cloud-migration-v3-t8-global-orders-read-cutover-v2.yml` | TrendOS T8 Global Orders Read Cutover V2 | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, tests, secrets, git-write |
 | 49 | `.github/workflows/cloud-migration-v3-t8-global-orders-read-cutover.yml` | TrendOS T8 Global Orders Read Cutover | push,workflow_dispatch | 3 | MIXED | D1, Apps Script, migration, tests, secrets, git-write |
 | 50 | `.github/workflows/cloud-migration-v3-t8-print-contract-diagnostic.yml` | TrendOS T8 Print Contract Diagnostic | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, tests, secrets |
@@ -71,3 +71,13 @@
 | 52 | `.github/workflows/cloud-migration-v3-t9-laser-live-parity.yml` | TrendOS T9 Laser Live D1 Read Parity | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, migration, tests, secrets |
 | 53 | `.github/workflows/cloud-migration-v3-t9-laser-production-cutover.yml` | TrendOS T9 Laser Production D1 Read Cutover | push,workflow_dispatch | 3 | MIXED | D1, migration, tests, git-write |
 | 54 | `.github/workflows/trend-master-resilience-v1931-ci.yml` | Trend Master V1931 Resilience CI | push,pull_request | 3 | READONLY | tests |
+| 55 | `.github/workflows/trend-master-v1931-prod-readonly-canary.yml` | Trend Master V1931 Production Read-Only Canary | push,workflow_dispatch | 3 | READONLY | Apps Script, tests, secrets |
+| 56 | `.github/workflows/trendos-02cl-off-readiness-temp.yml` | TrendOS 02CL OFF Readiness TEMP | push | 2 | MANUAL/TEMP | D1, tests, secrets |
+| 57 | `.github/workflows/trendos-02cn-orders-read-hotpath-ci.yml` | TrendOS 02CN Orders Read Hot-Path CI | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, migration, tests, secrets |
+| 58 | `.github/workflows/trendos-02co-canary-wrapper-ci.yml` | TrendOS 02CO Canary Wrapper CI | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, migration, tests, secrets |
+| 59 | `.github/workflows/trendos-02cq-screen-view-mirror-refresh-ci.yml` | TrendOS 02CQ Screen View Mirror Refresh CI | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests, secrets |
+| 60 | `.github/workflows/trendos-02cr-field-completeness-ci.yml` | TrendOS 02CR Field Completeness CI | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests |
+| 61 | `.github/workflows/trendos-02ct-frontend-cutover-ci.yml` | TrendOS 02CT Frontend D1 Read Regression | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, Cloudflare, tests, secrets |
+| 62 | `.github/workflows/trendos-02cu-02cr-idle-preview-qualify.yml` | TrendOS 02CU 02CR Idle Freshness Preview Qualification | push,workflow_dispatch | 2 | READONLY | Cloudflare, tests, secrets |
+| 63 | `.github/workflows/trendos-02cu-production-worker-baseline-readonly.yml` | TrendOS 02CU Production Worker Baseline Read-Only | push,workflow_dispatch | 3 | MIXED | D1, Cloudflare, tests, secrets |
+| 64 | `.github/workflows/trendos-02cu-stability-readonly.yml` | TrendOS 02CU Production Stability Read-Only | push,workflow_dispatch | 3 | READONLY | D1, Apps Script, tests, secrets |
