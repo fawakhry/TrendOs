@@ -51,7 +51,7 @@
 | B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
 | B09 | GitHub Actions current + historical workflows | 220 / 220 | DONE |
-| B10 | tests/ | 30 / 200 | IN_PROGRESS |
+| B10 | tests/ | 90 / 200 | IN_PROGRESS |
 | B11 | docs/ active engineering docs | 0 | PENDING |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
 | B13 | Coverage audit: screens/buttons/functions/data | 0 | PENDING |
@@ -1232,3 +1232,10 @@ Edge worker module تمت قراءته سابقًا في B02، لكن تعليق
 - تمت قراءة أول **30 اختبارًا من أصل 200** وحفظ SHA/targets/case-count/family/runtime-dependency لكل ملف.
 - الدفعة الأولى تغطي أساسًا Apps Script Cloud Write، T11/T12 D1 sync، وAccounting/Cloudflare foundations.
 - نقطة الاستئناف الدقيقة: **test #31**.
+
+
+### 2026-10-03 — B10 checkpoint 90/200
+- تمت قراءة وحفظ اختبارات **31..90**.
+- التغطية حتى الآن تشمل Accounting persistence/native، Cloudflare edge/orders freshness، D1 sync/control، Employee Auth A61، وFrontend transport/status regression.
+- كل ملف مرتبط في `TRENDOS_TEST_CATALOG.md` بالـimports/targets وعدد حالات الاختبار واعتماده على runtime/network.
+- نقطة الاستئناف الدقيقة: **test #91**.
