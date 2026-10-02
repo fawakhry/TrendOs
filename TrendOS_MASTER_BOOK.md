@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.14-ZERO-GOOGLE-COMPACT — Entry600 legacy Orders Production repair verified live** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.15-ZERO-GOOGLE-COMPACT — Entry602 employee login latency root cause confirmed** · تاريخ التحديث: 2026-10-02 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -157,6 +157,48 @@ APPS_SCRIPT_TOUCHED=NO
 ORDER_IDS_CHANGED=NO
 BUSINESS_CREATE_TEST_SENT=NO
 ```
+
+### Entry601/602 — بطء واجهة/تسجيل دخول الموظفين — Root cause confirmed
+- الاسم العربي للبحث: **الدخول بطيء / واجهة الدخول بطيئة / تسجيل دخول الموظف بطيء / Apps Script login latency / Employee Auth**.
+- Entry601 read-only latency diagnosis:
+  - Static root ≈ `0.15s`.
+  - `config.js` ≈ `0.14s`.
+  - `app.js` حجمه ≈ `580731 bytes` ووصل ≈ `0.22s` في القياس.
+  - direct Cloud API health ≈ `0.36–0.45s`.
+  - legacy empty Login عبر `/v1/legacy-api` وصل Apps Script ثم رجع في محاولة ≈ `1.90s`.
+  - محاولة تالية علقت ≈ `28.53s` وانتهت `502 LEGACY_UPSTREAM_UNAVAILABLE`.
+- هذا القياس الفارغ لا ينفذ password hash ولا session write؛ لذلك يثبت أن جزءًا كبيرًا من البطء موجود في **Cloudflare → Apps Script/Google hop نفسه** قبل منطق الدخول الحقيقي.
+- Login الحقيقي أبطأ إضافيًا لأن Apps Script `login_` يعمل:
+  1. `findUser_` → فتح/قراءة Users Sheet.
+  2. `passwordHashV1922_` → 1200 SHA-256 rounds للحسابات المهاجرة.
+  3. كتابة Token.
+  4. كتابة Last Login.
+  5. `SpreadsheetApp.flush()`.
+- Frontend الحالي ما زال:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false
+  ```
+  لذلك Login authority الحالية Google-backed عبر `/v1/legacy-api`.
+- تحميل شاشة الدخول يحمل `app.js` الكبير وconfig يبدأ 18 dynamic modules؛ هذا حمل Frontend ثانوي يمكن تخفيفه، لكنه **ليس** سبب الـ28.5s.
+- Entry602 read-only native-auth readiness:
+  ```ini
+  AUTH_SCHEMA_READY=YES
+  AUTH_CONTROL_MODE=OFF
+  AUTH_ENV_ENABLED=NO
+  NATIVE_AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  NATIVE_AUTH_SESSIONS=0
+  LIVE_NATIVE_SESSIONS=0
+  PLAINTEXT_STORED=NO
+  ```
+- لذلك ممنوع مجرد قلب Native Auth إلى ON: لا يوجد مستخدمون مهاجرون حاليًا وسيؤدي ذلك إلى كسر الدخول/الأعمال القديمة.
+- الحل الجذري: staged Employee Auth cutover إلى D1 مع enrollment + compatibility bridge/Cloud migration للـlegacy employee actions، ثم تفعيل Native Login بعد إثبات readiness.
+- تحسين Frontend وحده (defer non-login modules) مسموح كتحسين مستقل لكنه لا يُعد إغلاقًا لمشكلة Login latency.
+- التشخيص فقط: لا Production mutation، لا Auth toggle، لا Google write، لا Apps Script deploy.
+- Entry601 runs: `37040400844` و`37040549662`.
+- Entry602 run: `37040933704` = SUCCESS.
+- الخطوة التالية: **Repo-qualify staged native employee login cutover + login-surface module deferral**، ثم Production preflight قبل أي تفعيل.
 
 ### Customers
 - Customer master = 247 rows في D1.
