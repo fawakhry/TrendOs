@@ -16,3 +16,16 @@
 
 | # | Workflow | Name | Triggers | Jobs | Static class | Key signals |
 |---:|---|---|---|---:|---|---|
+| 1 | `.github/workflows/cloud-migration-v3-t10-press-live-parity.yml` | TrendOS T10 Press Live D1 Read Parity | workflow_dispatch,push | 1 | READONLY | D1, Apps Script, migration, secrets |
+| 2 | `.github/workflows/cloud-migration-v3-t10-press-production-cutover.yml` | TrendOS T10 Press Production D1 Read Cutover | workflow_dispatch,push | 1 | READONLY | D1, migration |
+| 3 | `.github/workflows/cloud-migration-v3-t11-02cq-live-route-probe.yml` | TrendOS T11 02CQ Live Route Probe | push | 1 | READONLY | D1, Apps Script, migration |
+| 4 | `.github/workflows/cloud-migration-v3-t11-02cq-status-probe.yml` | TrendOS T11 02CQ Screen View Status Probe | workflow_dispatch,push | 1 | READONLY | D1, Apps Script, migration |
+| 5 | `.github/workflows/cloud-migration-v3-t11-apps-script-health-probe.yml` | TrendOS T11 Apps Script Health Probe | workflow_dispatch,push | 1 | READONLY | Apps Script, migration |
+| 6 | `.github/workflows/cloud-migration-v3-t11-direct-session-verify-diagnostic.yml` | TrendOS T11 Direct Session Verify Diagnostic | workflow_dispatch,push | 1 | READONLY | Apps Script, migration, secrets |
+| 7 | `.github/workflows/cloud-migration-v3-t11-freshness-runtime-probe.yml` | TrendOS T11 Freshness Runtime Probe | workflow_dispatch,push | 1 | READONLY | D1, Apps Script, migration, secrets |
+| 8 | `.github/workflows/cloud-migration-v3-t11-freshness-runtime-status.yml` | TrendOS T11 Freshness Runtime Status | push | 1 | READONLY | D1, Apps Script, migration |
+| 9 | `.github/workflows/cloud-migration-v3-t11-getrows-contract.yml` | TrendOS T11 getRows Contract | push | 1 | CI | migration, tests |
+| 10 | `.github/workflows/cloud-migration-v3-t11-heartbeat-transport-probe.yml` | TrendOS T11 Orders Heartbeat Transport Probe | workflow_dispatch,push | 1 | READONLY | D1, Apps Script, migration |
+| 11 | `.github/workflows/cloud-migration-v3-t11-orders-headers-probe.yml` | TrendOS T11 Orders Mirror Headers Probe | push | 1 | READONLY | D1, migration |
+| 12 | `.github/workflows/cloud-migration-v3-t11-routing-bundle-diagnostic.yml` | TrendOS T11 Routing Bundle Diagnostic | workflow_dispatch,push | 1 | READONLY | wrangler, D1, Cloudflare, migration |
+| 13 | `.github/workflows/cloud-migration-v3-t11-service-candidate-parity.yml` | TrendOS T11 Service Candidate Live Parity | workflow_dispatch,push | 1 | READONLY | D1, Apps Script, migration, secrets |
