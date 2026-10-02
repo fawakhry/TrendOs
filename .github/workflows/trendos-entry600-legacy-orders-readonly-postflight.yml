@@ -1,0 +1,222 @@
+name: TrendOS Entry600 Legacy Orders Read-Only Postflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry600-legacy-orders-readonly-postflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_WORKER: trendos-d1-api
+      UI_WORKER: trendos-ui
+      CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+      PROD_API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EXPECTED_API_VERSION: ce156662-a698-47fc-b73c-dfd4657be9f5
+      EXPECTED_API_SHA256: 7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6
+      EXPECTED_UI_VERSION: ff4a2517-042c-48f0-8b43-98621c2a6957
+      QUALIFIED_SOURCE: c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUALIFIED_SOURCE }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify active API and UI versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION deployments list --name "$API_WORKER" --json > /tmp/api-deployments.json
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments"             > /tmp/ui-deployments.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const ax=JSON.parse(fs.readFileSync('/tmp/api-deployments.json','utf8'));
+          const ads=(Array.isArray(ax)?ax:(ax&&Array.isArray(ax.items)?ax.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const ad=ads[0]||{};
+          const av=(ad.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)}));
+          if(!ad.id||av.length!==1||av[0].id!==process.env.EXPECTED_API_VERSION||av[0].p!==100) throw new Error('API active version mismatch');
+          console.log('ENTRY600_API_VERSION='+av[0].id);
+          console.log('ENTRY600_API_DEPLOYMENT='+ad.id);
+          console.log('ENTRY600_API_TRAFFIC=100');
+
+          const ux=JSON.parse(fs.readFileSync('/tmp/ui-deployments.json','utf8'));
+          const uds=Array.isArray(ux?.result?.deployments)?ux.result.deployments:(Array.isArray(ux?.result)?ux.result:[]);
+          const ud=uds[0]||{};
+          const uv=(ud.versions||[]).map(v=>({id:String(v?.version_id||v?.id||''),p:Number(v?.percentage ?? v?.traffic_percentage ?? NaN)}));
+          if(!ud.id||uv.length!==1||uv[0].id!==process.env.EXPECTED_UI_VERSION||uv[0].p!==100) throw new Error('UI active version mismatch');
+          console.log('ENTRY600_UI_VERSION='+uv[0].id);
+          console.log('ENTRY600_UI_DEPLOYMENT='+ud.id);
+          console.log('ENTRY600_UI_TRAFFIC=100');
+          NODE
+
+      - name: Verify live API exact bundle and settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --compressed --fail --silent --show-error             -D /tmp/api-content.headers             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$API_WORKER/content/v2"             -o /tmp/api-content.body
+
+          python3 - <<'PY'
+          from pathlib import Path
+          from email.parser import BytesParser
+          from email.policy import default
+          import hashlib,os
+          hs=Path('/tmp/api-content.headers').read_text(errors='ignore').splitlines()
+          cts=[x.split(':',1)[1].strip() for x in hs if x.lower().startswith('content-type:')]
+          ct=cts[-1] if cts else 'application/javascript'
+          body=Path('/tmp/api-content.body').read_bytes();payload=None
+          if 'multipart/' in ct.lower():
+              msg=BytesParser(policy=default).parsebytes(('Content-Type: '+ct+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+body)
+              cand=[]
+              for p in msg.iter_parts():
+                  d=p.get_payload(decode=True) or b''
+                  fn=(p.get_filename() or '').lower();n=(p.get_param('name',header='content-disposition') or '').lower();t=p.get_content_type().lower()
+                  if 'javascript' in t or fn.endswith(('.js','.mjs')) or n.endswith(('.js','.mjs')): cand.append(d)
+              if cand: payload=max(cand,key=len)
+          else: payload=body
+          if not payload: raise SystemExit(2)
+          payload=payload.replace(b'\r\n',b'\n').rstrip()+b'\n'
+          sha=hashlib.sha256(payload).hexdigest()
+          if sha!=os.environ['EXPECTED_API_SHA256']: raise SystemExit('API_SHA_MISMATCH')
+          print('ENTRY600_API_SHA256='+sha)
+          PY
+
+          curl --compressed --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$API_WORKER/settings"             -o /tmp/api-settings.json
+
+          python3 - <<'PY'
+          import json,tomllib
+          from pathlib import Path
+          x=json.loads(Path('/tmp/api-settings.json').read_text())
+          if x.get('success') is not True or not x.get('result'): raise SystemExit('SETTINGS_INVALID')
+          bindings=x['result'].get('bindings') or []
+          by={str(b.get('name','')):b for b in bindings}
+          cfg=tomllib.loads(Path('cloudflare-d1/wrangler.toml').read_text())
+          for name,val in (cfg.get('vars') or {}).items():
+              b=by.get(name)
+              if not b or b.get('type') not in ('plain_text','json'): raise SystemExit('VAR_MISSING:'+name)
+              if str(b.get('text',b.get('value','')))!=str(val): raise SystemExit('VAR_DRIFT:'+name)
+          db=by.get('DB')
+          if not db or db.get('type')!='d1' or str(db.get('id',db.get('database_id','')))!='5c4b92bf-e043-4f6e-bd6d-d514a92cd825': raise SystemExit('D1_BINDING_DRIFT')
+          print('ENTRY600_API_BINDINGS_VARS=PASS')
+          PY
+
+      - name: Verify API health boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/line-runtime/health" > /tmp/runtime.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/create/health" > /tmp/create.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/customers/write/health" > /tmp/customer.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/employee/legacy-action/health" > /tmp/bridge.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync('/tmp/runtime.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/create.json','utf8'));
+          const cu=JSON.parse(fs.readFileSync('/tmp/customer.json','utf8'));
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          if(r.success!==true||r.schemaReady!==true||r.nativeSchemaReady!==true||r.legacySchemaReady!==true||r.writeMode!=='cloud-native+legacy-overlay') throw new Error('runtime health');
+          if(c.success!==true||c.mode!=='GENERAL'||c.duplicateGuardReady!==true) throw new Error('create health');
+          if(cu.success!==true||cu.mode!=='GENERAL') throw new Error('customer health');
+          if(a.success!==true||a.mode!=='OFF'||a.envEnabled!==false||a.nativeOnly!==false) throw new Error('auth health');
+          if(b.success!==true||b.enabled!==false) throw new Error('bridge health');
+          console.log('ENTRY600_RUNTIME_HEALTH=PASS');
+          console.log('ENTRY600_CREATE_HEALTH=PASS');
+          console.log('ENTRY600_CUSTOMER_HEALTH=PASS');
+          console.log('ENTRY600_AUTH_OFF_STATE=PASS');
+          console.log('ENTRY600_BRIDGE_OFF_STATE=PASS');
+          NODE
+
+      - name: Verify migration and exact reconciled D1 state
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 migrations list "$DATABASE" --remote --config "$CONFIG" > /tmp/migrations.txt 2>&1
+          if grep -qE '[0-9]{4}_[A-Za-z0-9._-]+\.sql' /tmp/migrations.txt; then
+            cat /tmp/migrations.txt
+            exit 1
+          fi
+
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT COUNT(*) AS runtime_rows,COUNT(DISTINCT order_id) AS order_count,SUM(CASE WHEN status='تم التسليم' THEN 1 ELSE 0 END) AS delivered_count,SUM(CASE WHEN update_source='verified-reconciliation' THEN 1 ELSE 0 END) AS reconcile_count FROM t12_legacy_line_runtime; SELECT COUNT(*) AS event_rows,SUM(CASE WHEN event_type='verified-reconciliation' AND new_status='تم التسليم' THEN 1 ELSE 0 END) AS verified_events FROM t12_legacy_line_runtime_events; SELECT synced_at AS mirrorSyncedAt,row_count AS rowCount,source_last_row AS sourceLastRow FROM sheet_catalog WHERE sheet_name='بنود الأوردرات'; SELECT order_id AS orderId,line_id AS lineId,status,notes,source_row_number AS sourceRowNumber,update_source AS updateSource FROM t12_legacy_line_runtime ORDER BY source_row_number;"             > /tmp/d1.json
+
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8'));let runtime=null,events=null,catalog=null,rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'runtime_rows'))runtime=v;if(Object.prototype.hasOwnProperty.call(v,'event_rows'))events=v;if(v.mirrorSyncedAt)catalog=v;if(v.orderId)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          if(!runtime||Number(runtime.runtime_rows)!==15||Number(runtime.order_count)!==15||Number(runtime.delivered_count)!==15||Number(runtime.reconcile_count)!==15) throw new Error('runtime mismatch');
+          if(!events||Number(events.event_rows)!==15||Number(events.verified_events)!==15) throw new Error('events mismatch');
+          if(!catalog||String(catalog.mirrorSyncedAt)!=='2026-09-26 18:33:08'||Number(catalog.rowCount)!==768||Number(catalog.sourceLastRow)!==768) throw new Error('mirror drift');
+          const expected=['TM2606150097','TM2606150098','TM2606150105','TM2606160146','4310','4312','4313','4314','4315','4316','4317','4318','4319','4320','4321'].sort();
+          if(JSON.stringify(rows.map(r=>String(r.orderId)).sort())!==JSON.stringify(expected)) throw new Error('identity mismatch');
+          if(rows.some(r=>String(r.status)!=='تم التسليم'||String(r.updateSource)!=='verified-reconciliation')) throw new Error('row state mismatch');
+          const r4317=rows.find(r=>String(r.orderId)==='4317');
+          if(!r4317||String(r4317.notes)!=='@koko.1072') throw new Error('4317 note mismatch');
+          console.log('ENTRY600_RUNTIME_ROWS=15');
+          console.log('ENTRY600_DELIVERED_ROWS=15');
+          console.log('ENTRY600_RECONCILE_EVENTS=15');
+          console.log('ENTRY600_BASE_MIRROR_UNCHANGED=YES');
+          console.log('ENTRY600_4317_NOTE_PRESERVED=YES');
+          NODE
+
+      - name: Verify frontend assets with propagation retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            root_code="$(curl --silent --show-error --output /tmp/root.html --write-out '%{http_code}' "$PROD_UI_URL/?entry600=$attempt")"
+            config_code="$(curl --silent --show-error --output /tmp/config.js --write-out '%{http_code}' "$PROD_UI_URL/config.js?v=20261002-legacy-line-runtime&entry600=$attempt")"
+            edge_code="$(curl --silent --show-error --output /tmp/edge.js --write-out '%{http_code}' "$PROD_UI_URL/trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime&entry600=$attempt")"
+            app_code="$(curl --silent --show-error --output /tmp/app.js --write-out '%{http_code}' "$PROD_UI_URL/app.js?v=20261001-initial-edge-ready&entry600=$attempt")"
+
+            if [ "$root_code" = 200 ] && [ "$config_code" = 200 ] && [ "$edge_code" = 200 ] && [ "$app_code" = 200 ]               && grep -Fq 'config.js?v=20261002-legacy-line-runtime' /tmp/root.html               && grep -Fq 'trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime' /tmp/config.js               && grep -Fq 'MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED = true' /tmp/config.js               && grep -Fq "T12_LEGACY_RUNTIME_UPDATE_PATH = '/v1/t12/orders/line-runtime/legacy-update'" /tmp/edge.js               && grep -Fq 'تم منع إنشاء أوردر مكرر' /tmp/edge.js               && grep -Fq 'recoverPostWriteBarrier' /tmp/edge.js               && grep -Fq 'function loadInitialRowsWhenEdgeReady()' /tmp/app.js; then
+              echo "ENTRY600_FRONTEND_ASSETS_READY_ATTEMPT=$attempt"
+              ok=1
+              break
+            fi
+            echo "ENTRY600_FRONTEND_ASSETS_NOT_READY_ATTEMPT=$attempt"
+            sleep 2
+          done
+          test "$ok" = 1
+          echo 'ENTRY600_FRONTEND_HTTP_200=YES'
+          echo 'ENTRY600_FRONTEND_LEGACY_RUNTIME_FLAG=YES'
+          echo 'ENTRY600_FRONTEND_LEGACY_RUNTIME_ROUTE=YES'
+          echo 'ENTRY600_DUPLICATE_MESSAGE_PRESERVED=YES'
+          echo 'ENTRY600_REFRESH_FIX_PRESERVED=YES'
+
+      - name: Final result
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'ENTRY600_READONLY_POSTFLIGHT=PASS'
+          echo 'PRODUCTION_REPAIR_EFFECTIVE=YES'
+          echo 'MIGRATION_0011_APPLIED=YES'
+          echo 'API_TARGET_LIVE=YES'
+          echo 'LEGACY_15_RECONCILED=YES'
+          echo 'FRONTEND_TARGET_LIVE=YES'
+          echo 'GOOGLE_SHEETS_WRITE=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
+          echo 'ORDER_IDS_CHANGED=NO'
+          echo 'BUSINESS_CREATE_TEST_SENT=NO'
+          echo 'D1_MUTATION_IN_ENTRY600=NO'
+          echo 'CLOUDFLARE_MUTATION_IN_ENTRY600=NO'
