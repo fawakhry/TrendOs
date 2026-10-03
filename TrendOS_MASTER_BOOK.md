@@ -1206,6 +1206,23 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=READONLY_D1_SCHEMA_AND_ACTION_DATA_SOURCE_INVENTORY
   ```
+- Static current-source scan pinned **46 active legacy employee top-level actions** from Entry609 against current `Code.gs` router/handlers; no Production mutation.
+- Dedicated D1/Runtime read-only inventory workflow created:
+  - `.github/workflows/trendos-entry614-zero-google-d1-inventory-readonly.yml`
+  - commit `6e73eea786d2749651611e2b41aa47b657758358`
+  - reads Production auth/bridge/order/customer baselines, D1 sqlite schema, mirror catalog, and key counts using SELECT only.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_READONLY_INVENTORY_WORKFLOW_CREATED
+  COMMIT=6e73eea786d2749651611e2b41aa47b657758358
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_ENTRY614_D1_INVENTORY_RUN_AND_BUILD_MIGRATION_FAMILIES
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
