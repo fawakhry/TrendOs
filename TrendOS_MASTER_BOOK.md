@@ -722,6 +722,39 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=READ_CI_FOR_CF1BADB_AND_CLOSE_REPO_ONLY_QUALIFICATION_IF_PASS
   ```
+- Entry610 Run4 after the Runtime-policy correction:
+  - Run `37121571016`
+  - Job `111198537591`
+  - conclusion: **SUCCESS**
+  - `ENTRY609_ACTIVE_EMPLOYEE_LEGACY_TOP_LEVEL=46`
+  - `ENTRY609_TRANSPORT_EMPLOYEE_CANDIDATES=51`
+  - `ENTRY609_DORMANT_TRANSPORT_ONLY=5`
+  - `ENTRY609_ACTIVE_OP_POLICIES=29`
+  - `ENTRY609_FULL_ACTIVE_PARITY_POLICY_COUNT=69`
+  - `ENTRY609_READONLY_PILOT_POLICY_COUNT=27`
+  - `ENTRY609_CLEANING_STATUS_SUPPORTED=YES`
+  - Apps Script bridge route live, bridge enabled = NO.
+  - Production Auth/Bridge/frontend flags remain OFF.
+  - no Product/Production mutation.
+- Entry610 repo-only qualification is therefore closed PASS.
+- Safe staged-cutover contract now pinned:
+  1. keep Production Auth/Bridge OFF;
+  2. prepare canary routing/enrollment code default-OFF;
+  3. qualify exact 69 full-active-parity policies and 27 read-only pilot policies;
+  4. only after explicit Production approval: shared bridge secret/config, bridge enable, TRANSITIONAL auth/enrollment canary, controlled native login canary, postflight;
+  5. no global Native Auth ON while D1 native users = 0.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY610_REPO_ONLY_QUALIFICATION_PASS
+  RUN_ID=37121571016
+  JOB_ID=111198537591
+  COMMIT=cf1badb4d027d44d8e602b000587bab0a96f2480
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ENTRY611_PREPARE_DEFAULT_OFF_CANARY_NATIVE_LOGIN_ROUTING_REPO_ONLY
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
