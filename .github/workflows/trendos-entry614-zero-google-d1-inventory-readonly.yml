@@ -85,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT 'customers' AS table_name,COUNT(*) AS n FROM customers UNION ALL SELECT 'orders',COUNT(*) FROM orders UNION ALL SELECT 'order_lines',COUNT(*) FROM order_lines UNION ALL SELECT 'employee_auth_users_v1',COUNT(*) FROM employee_auth_users_v1 UNION ALL SELECT 'employee_auth_sessions_v1',COUNT(*) FROM employee_auth_sessions_v1;"             > /tmp/counts.json
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT 'customers' AS table_name,COUNT(*) AS n FROM customers UNION ALL SELECT 't12_customers',COUNT(*) FROM t12_customers UNION ALL SELECT 't12_prod_orders',COUNT(*) FROM t12_prod_orders UNION ALL SELECT 't12_prod_lines',COUNT(*) FROM t12_prod_lines UNION ALL SELECT 'employee_auth_users_v1',COUNT(*) FROM employee_auth_users_v1 UNION ALL SELECT 'employee_auth_sessions_v1',COUNT(*) FROM employee_auth_sessions_v1;"             > /tmp/counts.json
           node <<'NODE'
           const fs=require('fs'); const raw=JSON.parse(fs.readFileSync('/tmp/counts.json','utf8'));
           const rows=[]; const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){ if(v.table_name) rows.push(v); Object.values(v).forEach(walk); }}; walk(raw);
