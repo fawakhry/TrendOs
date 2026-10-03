@@ -207,3 +207,8 @@
 | 193 | `tests/trendos_predeploy_package_v1.test.js` | (inline/static) | 4 | GENERAL | NO |
 | 194 | `tests/trendos_press_integrity_v1.test.js` | (inline/static) | 2 | INTEGRITY | NO |
 | 195 | `tests/trendos_resume_no_autorefresh_v1.test.mjs` | (inline/static) | 0 | GENERAL | NO |
+| 196 | `tests/trendos_return_traffic_quiet_v1.test.mjs` | (inline/static) | 0 | GENERAL | NO |
+| 197 | `tests/trendos_v1921.test.js` | (inline/static) | 0 | GENERAL | NO |
+| 198 | `tests/trendos_v1932_static.test.js` | (inline/static) | 2 | GENERAL | YES |
+| 199 | `tests/trendos_whatsapp_integrity_v1.test.js` | (inline/static) | 3 | INTEGRITY | NO |
+| 200 | `tests/work_queue_v1_contract.test.mjs` | (inline/static) | 11 | GENERAL | NO |
