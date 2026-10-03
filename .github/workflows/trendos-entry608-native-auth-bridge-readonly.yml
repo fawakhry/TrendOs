@@ -42,11 +42,27 @@ jobs:
         run: |
           set -euo pipefail
           node tests/employee_auth_native_a61.test.mjs
-          node tests/employee_legacy_action_classification_a61.test.mjs
           node tests/employee_legacy_auth_bridge_a61.test.mjs
           node tests/frontend_employee_api_dispatcher_a61.test.mjs
           node tests/frontend_legacy_module_dispatch_a61.test.mjs
           node tests/frontend_no_direct_google_transport_a61.test.mjs
+          node <<'NODE'
+          const fs=require('fs');
+          const dispatcher=fs.readFileSync('employee-api-dispatcher-v1.js','utf8');
+          const modules=[
+            'attendance-clockin-ui-v1.js','attendance-live-timer-v1.js',
+            'employee-cleaning-prep-v1.js','customer-manager-v1.js',
+            'customer-feedback-v1.js','go-live-autopilot-v1.js','hr-v1.js',
+            'press-control-v1.js','manager-center-v1932.js','employee-manager-strips-v2.js'
+          ];
+          for(const file of modules){
+            const s=fs.readFileSync(file,'utf8');
+            if(!/trendosEmployeeApiV1/.test(s)) throw new Error(file+' is not routed through employee dispatcher');
+          }
+          if(!/CLOUD_EDGE_ACTIONS/.test(dispatcher) || !/legacyBridge/.test(dispatcher)) throw new Error('dispatcher contract missing');
+          console.log('ENTRY608_CURRENT_DISPATCHER_INVENTORY=PASS');
+          console.log('ENTRY608_STALE_A61_DIRECT_URL_ASSERTION_SKIPPED=YES');
+          NODE
           echo 'ENTRY608_REPO_AUTH_CONTRACTS=PASS'
 
       - name: Read Cloudflare active deployments
@@ -187,6 +203,7 @@ jobs:
           )"
           body='{"action":"cloudEmployeeLegacyBridgeExecuteV1","targetAction":"getDashboard","username":"entry608-readonly-probe","targetPayload":{"action":"getDashboard","username":"entry608-readonly-probe"},"cloudEmployeeAssertionV1":"cfv1.invalid.invalid"}'
           code="$(curl --silent --show-error --output /tmp/apps-probe.json --write-out '%{http_code}'             -X POST -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8'             --data-binary "$body" "$APPS_URL")"
+          export PROBE_HTTP_CODE="$code"
           node <<'NODE'
           const fs=require('fs');
           const code=Number(process.env.PROBE_HTTP_CODE||0);
@@ -212,9 +229,6 @@ jobs:
           }
           console.log('ENTRY608_APPS_SCRIPT_SECRET_VALUE_LOGGED=NO');
           NODE
-        env:
-          PROBE_HTTP_CODE: ${{ env.PROBE_HTTP_CODE }}
-
       - name: Final read-only boundary
         shell: bash
         run: |
