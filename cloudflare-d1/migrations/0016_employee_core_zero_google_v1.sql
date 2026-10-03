@@ -67,3 +67,15 @@ CREATE TABLE IF NOT EXISTS employee_core_events_v1 (
 );
 CREATE INDEX IF NOT EXISTS idx_employee_core_events_created
 ON employee_core_events_v1(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS employee_core_delivery_restrictions_v1 (
+  customer_key TEXT PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+  valid_until TEXT NOT NULL DEFAULT '',
+  updated_by TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_employee_core_delivery_restrictions_active
+ON employee_core_delivery_restrictions_v1(active,updated_at DESC);
