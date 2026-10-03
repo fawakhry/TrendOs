@@ -343,7 +343,7 @@
 
     var p = Object.assign({}, params || {});
     var token = text(p.token);
-    var username = text(p.username || p.name);
+    var username = text(p.username || p.name) || canarySessionUserKey;
     if (!username || !token) {
       throw routeError(
         'EMPLOYEE_NATIVE_SESSION_REQUIRED',
