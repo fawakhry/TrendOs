@@ -54,3 +54,12 @@
 | 46 | `docs/trendos/staging/APPLY_APPS_SCRIPT_V150_DRYRUN.trigger` | STAGING | - — TrendOS Apps Script V150 dry-run integration trigger. | trigger marker |
 | 47 | `docs/trendos/staging/APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md` | STAGING | 2026-09-05 — # PERF-CF-02CL — Apps Script Production Reconcile Qualification Deploy Manifest | PERF-CF-02CL — Apps Script Production Reconcile Qualification Deploy Manifest; Goal; Proven live baseline; Source to install; Exact router change |
 | 48 | `docs/trendos/staging/APPS_SCRIPT_V150_DRYRUN_DEPLOY_MANIFEST.md` | STAGING | 2026-09-04 — # Apps Script V150 Dry-Run Deployment Manifest | Apps Script V150 Dry-Run Deployment Manifest; Deployment purpose; Qualified source; Pre-deploy gates already passed; Deployment boundary |
+| 49 | `docs/trendos/staging/PROBE_APPS_SCRIPT_V150_DRYRUN.trigger` | STAGING | - — TrendOS Apps Script V150 live dry-run route probe trigger. | trigger marker |
+| 50 | `docs/trendos/staging/PROVISION_D1_STAGING.trigger` | STAGING | - — TrendOS dedicated D1 staging provisioning trigger. | trigger marker |
+| 51 | `docs/trendos/staging/RUN_T12_142_D1COMPAT_LOCAL_20260926.trigger` | STAGING | 2026-09-26 — NO_WORKER_DEPLOY=1 | trigger marker |
+| 52 | `docs/trendos/staging/RUN_T12_TEST_MIRROR_142_20260926.trigger` | STAGING | 2026-09-26 | trigger marker |
+| 53 | `docs/trendos/staging/RUN_T12_TEST_MIRROR_142_D1COMPAT_RETRY_ONCE_20260926.trigger` | STAGING | 2026-09-26 — NO_WORKER_DEPLOY=1 | trigger marker |
+| 54 | `docs/trendos/staging/RUN_T12_TEST_MIRROR_142_READONLY_GUARD_PROBE_20260926.trigger` | STAGING | 2026-09-26 — NO_WORKER_DEPLOY=1 | trigger marker |
+| 55 | `docs/trendos/staging/RUN_T12_TEST_MIRROR_142_RECONCILE_READONLY_20260926.trigger` | STAGING | 2026-09-26 — TASK=MIG-T12-142-READONLY-RECONCILE-AFTER-503 | trigger marker |
+| 56 | `docs/trendos/staging/RUN_T12_TEST_MIRROR_NEGATIVE_20260926.trigger` | STAGING | 2026-09-26 — TASK=MIG-T12-TEST-MIRROR-NEGATIVE-REMOTE-QUALIFICATION | trigger marker |
+| 57 | `docs/trendos/staging/RUN_T12_TEST_MIRROR_POSITIVE_20260926.trigger` | STAGING | 2026-09-26 — TASK=MIG-T12-TEST-MIRROR-POSITIVE-REMOTE-QUALIFICATION | trigger marker |
