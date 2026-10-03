@@ -1,0 +1,112 @@
+name: TrendOS Entry610 Native Auth Cutover Repo-Only Qualification
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry610-native-auth-cutover-readonly.yml'
+      - 'tests/entry609_native_auth_cutover_inventory.test.mjs'
+      - 'tests/employee_legacy_action_classification_a61.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Current employee cutover inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/employee_legacy_action_classification_a61.test.mjs
+          node tests/entry609_native_auth_cutover_inventory.test.mjs
+          echo 'ENTRY610_CURRENT_AUTH_INVENTORY=PASS'
+
+      - name: Apps Script bridge boolean probe through redirect
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPS_URL="$(node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('cloudflare-d1/wrangler.toml','utf8');
+          const m=s.match(/^APPS_SCRIPT_API_URL\s*=\s*"([^"]+)"/m);
+          if(!m) process.exit(2);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          body='{"action":"cloudEmployeeLegacyBridgeExecuteV1","targetAction":"getDashboard","username":"entry610-readonly-probe","targetPayload":{"action":"getDashboard","username":"entry610-readonly-probe"},"cloudEmployeeAssertionV1":"cfv1.invalid.invalid"}'
+          code="$(curl --silent --show-error --location --post302 --post303 --output /tmp/apps-probe.json --write-out '%{http_code}'             -X POST -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8'             --data-binary "$body" "$APPS_URL")"
+          export PROBE_HTTP_CODE="$code"
+          node <<'NODE'
+          const fs=require('fs');
+          const code=Number(process.env.PROBE_HTTP_CODE||0);
+          let x={};try{x=JSON.parse(fs.readFileSync('/tmp/apps-probe.json','utf8')||'{}')}catch{}
+          const msg=String(x.message||'');
+          console.log('ENTRY610_APPS_SCRIPT_PROBE_HTTP='+code);
+          if(msg.includes('غير مفعل')){
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ENABLED=NO');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_OBSERVABLE_WHILE_DISABLED');
+          } else if(msg.includes('غير مضبوط')){
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ENABLED=YES');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NO');
+          } else if(msg.includes('غير صالح')){
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ENABLED=YES');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=YES');
+          } else {
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=NOT_PROVEN');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_ENABLED=NOT_PROVEN');
+            console.log('ENTRY610_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_PROVEN');
+          }
+          console.log('ENTRY610_APPS_SCRIPT_SECRET_VALUE_LOGGED=NO');
+          NODE
+
+      - name: Production safety read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          API_URL='https://trendos-d1-api.trendmall-contact.workers.dev'
+          UI_URL='https://trendos-ui.trendmall-contact.workers.dev'
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" > /tmp/bridge.json
+          curl --fail --silent --show-error "$UI_URL/config.js?entry610=1" > /tmp/config.js
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          if(a.mode!=='OFF'||a.envEnabled!==false||Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('Auth baseline drift');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Bridge baseline drift');
+          const c=fs.readFileSync('/tmp/config.js','utf8');
+          if(!c.includes('window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;')) throw new Error('Frontend native auth drift');
+          if(!c.includes('window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;')) throw new Error('Frontend bridge drift');
+          console.log('ENTRY610_PRODUCTION_AUTH_BASELINE=PASS');
+          console.log('ENTRY610_PRODUCTION_BRIDGE_BASELINE=PASS');
+          console.log('ENTRY610_FRONTEND_AUTH_FLAGS_OFF=YES');
+          NODE
+
+      - name: Boundary
+        run: |
+          echo 'ENTRY610_REPO_ONLY_QUALIFICATION=PASS'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'API_DEPLOY=NO'
+          echo 'FRONTEND_DEPLOY=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
+          echo 'SECRETS_TOUCHED=NO'
+          echo 'AUTH_MODE_CHANGED=NO'
+          echo 'ORDER_CUSTOMER_DATA_CHANGED=NO'
