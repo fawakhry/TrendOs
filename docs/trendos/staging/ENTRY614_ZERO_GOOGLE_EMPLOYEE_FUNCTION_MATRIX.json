@@ -1,0 +1,129 @@
+{
+  "entry": 614,
+  "goal": "Zero-Google employee business functions before D1-native login cutover",
+  "runtimeRule": "No Production Compatibility Bridge; migrate business authority to Cloudflare/D1 first.",
+  "families": [
+    {
+      "id": "OPS_CORE",
+      "status": "REPO_QUALIFIED_SOURCE",
+      "actions": [
+        "attendanceV1",
+        "attendanceClockinV1",
+        "hrV1",
+        "cleaningV1",
+        "pressControlV1"
+      ],
+      "target": "D1 dedicated domain tables + /v1/employee/ops",
+      "migration": "0012_employee_ops_zero_google_v1.sql",
+      "externalDependencies": [],
+      "productionCutover": "pending data import + migration apply + controlled route enable"
+    },
+    {
+      "id": "CONTENT_CONFIG",
+      "status": "SCHEMA_STARTED",
+      "actions": [
+        "assignCustomerBranch",
+        "deletePlatformAd",
+        "getFranchiseBranches",
+        "getKnowledge",
+        "getLeadPhoneNumbers",
+        "getMarketplace",
+        "getMatbagyNotes",
+        "getPlatformAds",
+        "getPlatformSections",
+        "getServiceProviderRoutes",
+        "getWhiteLabelSettings",
+        "saveFranchiseBranch",
+        "saveKnowledge",
+        "saveMarketplaceProduct",
+        "saveMarketplaceVendor",
+        "saveMatbagyNote",
+        "savePlatformSection",
+        "saveServiceProviderRoute",
+        "saveWhiteLabelSettings",
+        "uploadPlatformAd"
+      ],
+      "target": "D1 content/config records + R2 for files/images",
+      "migration": "0013_employee_content_zero_google_v1.sql",
+      "externalDependencies": [
+        "Cloudflare R2 binding for new file/image uploads"
+      ],
+      "productionCutover": "pending handler + current-data import + R2"
+    },
+    {
+      "id": "CUSTOMER_COMMS_AUTOMATION",
+      "status": "PENDING",
+      "actions": [
+        "customerFeedbackV1",
+        "customerManagerV1",
+        "goLiveAutopilotV1",
+        "getOrderConversation",
+        "sendOrderConversationMessage",
+        "uploadOrderConversationFile"
+      ],
+      "target": "D1 conversations/feedback/automation + R2 + direct WhatsApp/OpenAI from Cloudflare",
+      "externalDependencies": [
+        "WhatsApp Cloud API secrets in Cloudflare",
+        "OpenAI secret in Cloudflare where required",
+        "R2"
+      ],
+      "productionCutover": "pending"
+    },
+    {
+      "id": "ACCOUNTING",
+      "status": "PENDING_NATIVE_PERSISTENCE",
+      "actions": [
+        "approveAccountingDeptInvoice",
+        "getAccounting",
+        "getDeptInvoiceDraftV1887",
+        "getPartyAccountV1858",
+        "saveAccountingDeptLine",
+        "saveAccountingFinalInvoice",
+        "saveAccountingMaterial",
+        "saveAccountingTemplate",
+        "savePartyLedgerTransaction"
+      ],
+      "target": "Existing TrendOS accounting native module upgraded from preview to D1 authoritative persistence",
+      "externalDependencies": [],
+      "productionCutover": "pending authoritative schema + idempotent posting + data import"
+    },
+    {
+      "id": "ORDER_CONTROL_VIEWS",
+      "status": "PARTIAL_CLOUD",
+      "actions": [
+        "archiveDeliveredDepartmentV1926",
+        "bulkUpdateDepartmentStatusV1926",
+        "getActivityLog",
+        "getDashboard",
+        "getRows",
+        "getTrendMasterCenterV1931"
+      ],
+      "hybridFallbacks": [
+        "updateLine",
+        "markCustomerNotified"
+      ],
+      "target": "T12 order/customer native tables + audit/archive D1",
+      "externalDependencies": [],
+      "productionCutover": "pending removal of remaining sheet mirror authority and legacy fallbacks"
+    }
+  ],
+  "totals": {
+    "activeLegacyTopLevel": 46,
+    "hybridFallbacks": 2,
+    "opsCore": 5,
+    "contentConfig": 20,
+    "customerCommsAutomation": 6,
+    "accounting": 9,
+    "orderControlViews": 6
+  },
+  "finalCutoverOrder": [
+    "OPS_CORE",
+    "CONTENT_CONFIG",
+    "CUSTOMER_COMMS_AUTOMATION",
+    "ACCOUNTING",
+    "ORDER_CONTROL_VIEWS",
+    "EMPLOYEE_AUTH_NATIVE_LAST",
+    "REMOVE_APPS_SCRIPT_EMPLOYEE_RUNTIME",
+    "FINAL_ZERO_GOOGLE_RUNTIME_AUDIT"
+  ]
+}
