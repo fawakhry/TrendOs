@@ -66,10 +66,12 @@ for (const file of [
   'customer-manager-v1.js',
   'customer-feedback-v1.js',
   'go-live-autopilot-v1.js',
-  'hr-v1.js'
+  'hr-v1.js',
+  'press-control-v1.js'
 ]) {
   const source = fs.readFileSync(file,'utf8');
-  assert.match(source, /TREND_API_URL|API_URL/);
+  assert.match(source, /trendosEmployeeApiV1/, file + ': employee dispatcher required');
+  assert.doesNotMatch(source, /TREND_API_URL|API_URL/, file + ': direct legacy API alias must stay removed');
 }
 
 console.log('A61_ACTION_CLASSIFICATION=PASS');
