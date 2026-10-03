@@ -484,6 +484,37 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=REMOVE_FORCED_POST_FROM_READONLY_CURL_REDIRECT_PROBE_AND_RERUN
   ```
+- Run4 `37121042270`, job `111197046754` = **SUCCESS** with redirect semantics aligned to the application path.
+- Apps Script live probe result:
+  ```ini
+  APPS_SCRIPT_BRIDGE_PROBE_HTTP=200
+  APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES
+  APPS_SCRIPT_BRIDGE_ENABLED=NO
+  APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_OBSERVABLE_WHILE_DISABLED
+  APPS_SCRIPT_SECRET_VALUE_LOGGED=NO
+  ```
+- Independent Cloudflare runtime remains:
+  ```ini
+  CF_BRIDGE_SECRET_PRESENT=NO
+  BRIDGE_ENABLED=NO
+  BRIDGE_SECRET_CONFIGURED=NO
+  BRIDGE_ALLOWED_POLICY_COUNT=0
+  AUTH_MODE=OFF
+  D1_USER_COUNT=0
+  ```
+- Runtime therefore agrees with the safe interpretation of Entries606/607: the compatibility bridge code exists on both sides, but **the Production bridge is not configured/armed**. Native Auth must remain OFF.
+- Run4 boundary:
+  ```ini
+  STATUS=ENTRY608_READONLY_ASSESSMENT_PASS
+  RUN_ID=37121042270
+  JOB_ID=111197046754
+  COMMIT=fc1dc2f17ddcf97e97bc1122ab220e9e3e284027
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=REPO_ONLY_BRIDGE_AND_ENROLLMENT_QUALIFICATION; PRODUCTION_SECRET_CONFIG_OR_AUTH_ENABLE_REQUIRES_EXPLICIT_APPROVAL
+  ```
 - لا نغيّر Product code بسبب هذا الفشل؛ نعدّل أداة الفحص فقط كي تقيس current truth بدل contract تاريخي superseded.
 - Run2 final read-only result:
   - workflow commit: `21addc5dc449679dba24c68ba8399f5905e74ea4`.
