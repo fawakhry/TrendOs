@@ -1269,6 +1269,27 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=BUILD_ZERO_GOOGLE_DOMAIN_SCHEMAS_AND_CLOUD_HANDLERS_REPO_ONLY
   ```
+- Zero-Google operational family source built repo-only:
+  - migration `0012_employee_ops_zero_google_v1.sql` commit `65eacba00ffb093e0381cb246300f86c050288fb`.
+  - D1-owned schemas added for Attendance, attendance pulses/config/special-times, HR employees/requests/skills/performance, Cleaning daily, Press settings/sessions, request ledger and audit events.
+  - control row `ENTRY614_EMPLOYEE_OPS_V1` defaults `OFF`; applying schema alone cannot cut traffic over.
+  - Cloud handler `cloudflare-d1/src/employee-ops-native-v1.mjs` commit `32d80569165c4eda797d7d4030c2e3683a98712d`.
+  - routes implemented for `attendanceV1`, `attendanceClockinV1`, `hrV1`, `cleaningV1`, `pressControlV1`.
+  - business logic contains **zero Apps Script/Google calls**; temporary auth verification can use existing Cloud session bridge until final D1-auth cutover.
+  - Worker route wired in `index_v2.js` commit `c1e21c7a8cfeaed27716cc6ab4ef06d6f183ddf8`.
+  - regression test `tests/entry614_employee_ops_native.test.mjs` commit `a69f0036442edfe1c92a76e776a643ea68260924`.
+- None of these commits are deployed; D1 migration 0012 is **not applied yet**.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_OPS_FAMILY_SOURCE_BUILT_REPO_ONLY
+  COMMIT=a69f0036442edfe1c92a76e776a643ea68260924
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=RUN_OPS_NATIVE_CI_THEN_BUILD_NEXT_ZERO_GOOGLE_FAMILIES
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
