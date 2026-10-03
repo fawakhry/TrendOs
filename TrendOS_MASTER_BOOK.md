@@ -878,6 +878,24 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=ADD_AND_RUN_ENTRY611_REPO_ONLY_CI
   ```
+- Dedicated Entry611 repository-only CI added:
+  - file: `.github/workflows/trendos-entry611-native-auth-canary-repo-ci.yml`
+  - runs canary regression + existing A61 dispatcher/module/no-direct-Google/native-auth/bridge/inventory suites;
+  - verifies repo flags remain default-OFF;
+  - verifies Production Auth/Bridge are still OFF and the Entry611 canary source has **not** been deployed.
+- Workflow commit: `d1cbf415aa5d3576a36b4e626e7ab9fa391aef5b`.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_REPO_ONLY_CI_CREATED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=d1cbf415aa5d3576a36b4e626e7ab9fa391aef5b
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_ENTRY611_CI_AND_FIX_REPO_ONLY_IF_NEEDED
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
