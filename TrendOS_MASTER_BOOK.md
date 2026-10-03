@@ -466,6 +466,24 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=FOLLOW_APPS_SCRIPT_REDIRECT_READONLY_AND_RECORD_RESULT; NO_AUTH_ENABLE
   ```
+- Run3 `37120854362`, job `111196510135` = **SUCCESS** after enabling redirect following.
+- All Cloudflare/D1/frontend baseline checks remained PASS and unchanged.
+- Apps Script diagnostic returned HTTP `405` because the probe used `curl -L` together with explicit `-X POST`; curl therefore forced POST onto the redirected `script.googleusercontent` content URL instead of following the redirect semantics used by the application fetch. No application request path or Production code changed.
+- Run3 boundary:
+  ```ini
+  STATUS=READONLY_PASS_PROBE_METHOD_STILL_INCONCLUSIVE
+  RUN_ID=37120854362
+  JOB_ID=111196510135
+  COMMIT=f2e29f3d101e3ba9a85acfe2a61ca3c95a4cd94a
+  APPS_SCRIPT_PROBE_HTTP=405
+  APPS_SCRIPT_BRIDGE_ENABLED=NOT_PROVEN
+  APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_PROVEN
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=REMOVE_FORCED_POST_FROM_READONLY_CURL_REDIRECT_PROBE_AND_RERUN
+  ```
 - لا نغيّر Product code بسبب هذا الفشل؛ نعدّل أداة الفحص فقط كي تقيس current truth بدل contract تاريخي superseded.
 - Run2 final read-only result:
   - workflow commit: `21addc5dc449679dba24c68ba8399f5905e74ea4`.
