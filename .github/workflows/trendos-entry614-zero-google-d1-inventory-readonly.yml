@@ -1,0 +1,101 @@
+name: TrendOS Entry614 Zero-Google D1 Inventory Read-Only
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry614-zero-google-d1-inventory-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+      PROD_API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Production baseline read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_API_URL/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/employee/legacy-action/health" > /tmp/bridge.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/create/health" > /tmp/orders.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/customers/write/health" > /tmp/customers.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/orders.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/customers.json','utf8'));
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('Auth drift');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Bridge drift');
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') throw new Error('Order baseline drift');
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL') throw new Error('Customer baseline drift');
+          console.log('ENTRY614_PRE_AUTH_OFF=YES');
+          console.log('ENTRY614_PRE_BRIDGE_OFF=YES');
+          console.log('ENTRY614_ORDER_BASELINE=PASS');
+          console.log('ENTRY614_CUSTOMER_BASELINE=PASS');
+          NODE
+
+      - name: Read D1 schema catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT name,type,sql FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name;"             > /tmp/schema.json
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/schema.json','utf8'));
+          const rows=[]; const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){ if(v.name&&v.type) rows.push(v); Object.values(v).forEach(walk); }}; walk(raw);
+          console.log('ENTRY614_D1_OBJECT_COUNT='+rows.length);
+          for(const r of rows) console.log('ENTRY614_D1_OBJECT='+r.type+'|'+r.name);
+          NODE
+
+      - name: Read mirror/catalog state
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT sheet_name,row_count,source_last_row,source_last_col,status,synced_at FROM sheet_catalog ORDER BY sheet_name;"             > /tmp/catalog.json || true
+          node <<'NODE'
+          const fs=require('fs');
+          let raw=[]; try{raw=JSON.parse(fs.readFileSync('/tmp/catalog.json','utf8'))}catch{}
+          const rows=[]; const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){ if(Object.prototype.hasOwnProperty.call(v,'sheet_name')) rows.push(v); Object.values(v).forEach(walk); }}; walk(raw);
+          console.log('ENTRY614_MIRROR_CATALOG_COUNT='+rows.length);
+          for(const r of rows) console.log('ENTRY614_MIRROR='+String(r.sheet_name)+'|'+Number(r.row_count||0)+'|'+String(r.status||'')+'|'+String(r.synced_at||''));
+          NODE
+
+      - name: Read key table counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT 'customers' AS table_name,COUNT(*) AS n FROM customers UNION ALL SELECT 'orders',COUNT(*) FROM orders UNION ALL SELECT 'order_lines',COUNT(*) FROM order_lines UNION ALL SELECT 'employee_auth_users_v1',COUNT(*) FROM employee_auth_users_v1 UNION ALL SELECT 'employee_auth_sessions_v1',COUNT(*) FROM employee_auth_sessions_v1;"             > /tmp/counts.json
+          node <<'NODE'
+          const fs=require('fs'); const raw=JSON.parse(fs.readFileSync('/tmp/counts.json','utf8'));
+          const rows=[]; const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){ if(v.table_name) rows.push(v); Object.values(v).forEach(walk); }}; walk(raw);
+          for(const r of rows) console.log('ENTRY614_COUNT='+r.table_name+'|'+Number(r.n||0));
+          NODE
+
+      - name: Boundary
+        run: |
+          echo 'ENTRY614_READONLY_INVENTORY=PASS'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
+          echo 'SECRETS_TOUCHED=NO'
