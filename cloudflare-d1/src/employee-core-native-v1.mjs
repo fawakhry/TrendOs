@@ -3,7 +3,7 @@ import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
 const READ_ACTIONS=new Set(['getRows','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
-const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926']);
+const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified']);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
   'https://fawakhry.github.io',
@@ -73,47 +73,70 @@ async function restrictions(env){
   return map;
 }
 async function coreRows(env,screen='service'){
-  const q=await env.DB.prepare(`
-    SELECT l.line_id AS lineId,l.order_id AS orderId,l.ordinal,l.department,l.assigned_to AS assignedTo,
-           l.item_name AS itemName,l.qty,l.priority,l.status AS baseStatus,l.heat_press AS heatPress,
-           l.fly_print AS flyPrint,l.created_at AS lineCreatedAt,l.updated_at AS lineUpdatedAt,
-           o.customer_mode AS customerMode,o.customer_name AS customerName,o.customer_phone AS customerPhone,
-           o.external_customer_id AS externalCustomerId,o.source,o.notes AS orderNotes,
-           o.created_at AS orderCreatedAt,o.updated_at AS orderUpdatedAt,
-           COALESCE(r.status,l.status) AS status,COALESCE(r.notes,o.notes) AS notes,
-           COALESCE(r.customer_notified,'') AS customerNotified,COALESCE(r.notified_at,'') AS notifiedAt,
-           COALESCE(r.notified_by,'') AS notifiedBy,COALESCE(r.last_whatsapp_message,'') AS lastWhatsAppMessage,
-           COALESCE(r.last_whatsapp_at,'') AS lastWhatsAppAt,COALESCE(r.last_whatsapp_by,'') AS lastWhatsAppBy,
-           COALESCE(r.updated_at,l.updated_at) AS runtimeUpdatedAt,
-           COALESCE(c.debt_amount,0) AS debtAmount,COALESCE(c.notes,'') AS debtNotes
-      FROM t12_prod_lines l
-      JOIN t12_prod_orders o ON o.order_id=l.order_id
-      LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
-      LEFT JOIN t12_customers c ON c.active='نعم' AND (
-           (o.customer_phone<>'' AND (c.phone=o.customer_phone OR c.extra_phone=o.customer_phone))
-           OR (o.customer_phone='' AND c.customer_name=o.customer_name)
-      )
-      LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
-     WHERE a.line_id IS NULL
-     ORDER BY o.created_at DESC,l.ordinal
-  `).all();
-  const deny=await restrictions(env);
-  return (q.results||[]).filter(r=>screenMatches(screen,r.department,r.heatPress)).map((r,i)=>{
+  const [native,imported]=await Promise.all([
+    env.DB.prepare(`
+      SELECT l.line_id AS lineId,l.order_id AS orderId,l.ordinal,l.department,l.assigned_to AS assignedTo,
+             l.item_name AS itemName,l.qty,l.priority,l.status AS baseStatus,l.heat_press AS heatPress,
+             l.fly_print AS flyPrint,l.created_at AS lineCreatedAt,l.updated_at AS lineUpdatedAt,
+             o.customer_mode AS customerMode,o.customer_name AS customerName,o.customer_phone AS customerPhone,
+             o.external_customer_id AS externalCustomerId,o.source,o.notes AS orderNotes,
+             o.created_at AS orderCreatedAt,o.updated_at AS orderUpdatedAt,
+             COALESCE(r.status,l.status) AS status,COALESCE(r.notes,o.notes) AS notes,
+             COALESCE(r.customer_notified,'') AS customerNotified,COALESCE(r.notified_at,'') AS notifiedAt,
+             COALESCE(r.notified_by,'') AS notifiedBy,COALESCE(r.last_whatsapp_message,'') AS lastWhatsAppMessage,
+             COALESCE(r.last_whatsapp_at,'') AS lastWhatsAppAt,COALESCE(r.last_whatsapp_by,'') AS lastWhatsAppBy,
+             COALESCE(r.updated_at,l.updated_at) AS runtimeUpdatedAt,
+             COALESCE(c.debt_amount,0) AS debtAmount,COALESCE(c.notes,'') AS debtNotes,
+             '' AS expectedDeliveryAt,'' AS receivedAt,'' AS registrationSent,'t12-prod' AS sourceKind
+        FROM t12_prod_lines l
+        JOIN t12_prod_orders o ON o.order_id=l.order_id
+        LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+        LEFT JOIN t12_customers c ON c.active='نعم' AND (
+             (o.customer_phone<>'' AND (c.phone=o.customer_phone OR c.extra_phone=o.customer_phone))
+             OR (o.customer_phone='' AND c.customer_name=o.customer_name)
+        )
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+       WHERE a.line_id IS NULL
+       ORDER BY o.created_at DESC,l.ordinal
+    `).all(),
+    env.DB.prepare(`
+      SELECT l.line_id AS lineId,l.order_id AS orderId,l.source_row AS ordinal,l.department,l.assigned_to AS assignedTo,
+             l.item_name AS itemName,l.qty,l.priority,l.status,l.heat_press AS heatPress,l.fly_print AS flyPrint,
+             l.updated_at AS lineUpdatedAt,o.customer_name AS customerName,o.customer_phone AS customerPhone,
+             '' AS customerMode,'' AS externalCustomerId,COALESCE(l.source,o.source) AS source,
+             o.notes AS orderNotes,o.received_at AS orderCreatedAt,o.updated_at AS orderUpdatedAt,
+             l.notes,l.customer_notified AS customerNotified,l.notified_at AS notifiedAt,l.notified_by AS notifiedBy,
+             l.last_whatsapp_message AS lastWhatsAppMessage,l.last_whatsapp_at AS lastWhatsAppAt,
+             l.last_whatsapp_by AS lastWhatsAppBy,l.updated_at AS runtimeUpdatedAt,l.debt_amount AS debtAmount,
+             l.debt_notes AS debtNotes,l.expected_delivery_at AS expectedDeliveryAt,l.received_at AS receivedAt,
+             l.registration_sent AS registrationSent,'core-import' AS sourceKind
+        FROM employee_core_lines_v1 l
+        JOIN employee_core_orders_v1 o ON o.order_id=l.order_id
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+       WHERE l.active=1 AND o.active=1 AND a.line_id IS NULL
+       ORDER BY l.source_row
+    `).all()
+  ]);
+  const deny=await restrictions(env),byId=new Map();
+  for(const r of [...(imported.results||[]),...(native.results||[])]) byId.set(text(r.lineId),r);
+  return [...byId.values()].filter(r=>screenMatches(screen,r.department,r.heatPress)).map((r,i)=>{
     const debt=num(r.debtAmount),restriction=deny.get(customerKey(r.customerName));
+    const ready=text(r.ready)|| (text(r.status)==='جاهز للاستلام'?'نعم':'');
     return {
-      rowNumber:i+1,orderId:text(r.orderId),orderCode:text(r.orderId),lineId:text(r.lineId),
+      rowNumber:num(r.ordinal,i+1),orderId:text(r.orderId),orderCode:text(r.orderId),lineId:text(r.lineId),
       customer:text(r.customerName),customerPhone:text(r.customerPhone),customerSource:text(r.source),source:text(r.source),
       externalCustomerId:text(r.externalCustomerId),customerMode:text(r.customerMode),department:text(r.department),
       itemName:text(r.itemName),qty:num(r.qty,1),assignedTo:text(r.assignedTo),priority:text(r.priority)||'عادي',
-      status:text(r.status)||'طلب جديد',ready:text(r.status)==='جاهز للاستلام'?'نعم':'',
+      status:text(r.status)||'طلب جديد',ready,
       heatPress:Number(r.heatPress||0)?'نعم':'لا',flyPrint:Number(r.flyPrint||0)?'نعم':'لا',quickPrint:Number(r.flyPrint||0)?'نعم':'لا',
       debtAmount:debt,debtHold:debt>0?'نعم':'لا',deliveryDebtRestricted:!!(debt>0&&restriction),
       debtRestrictionReason:restriction?text(restriction.reason):'',debtNotes:text(r.debtNotes),
       updatedAt:text(r.runtimeUpdatedAt||r.lineUpdatedAt||r.orderUpdatedAt),notes:text(r.notes),
       customerNotified:text(r.customerNotified),notifiedAt:text(r.notifiedAt),notifiedBy:text(r.notifiedBy),
       lastWhatsAppMessage:text(r.lastWhatsAppMessage),lastWhatsAppAt:text(r.lastWhatsAppAt),lastWhatsAppBy:text(r.lastWhatsAppBy),
-      receivedAt:text(r.orderCreatedAt||r.lineCreatedAt),expectedDeliveryAt:'',expectedDeliveryText:'',overdue:'لا',registrationSent:'',
-      cloudNative:true,writeAuthority:'cloudflare-d1',dataSource:'t12-prod-native'
+      receivedAt:text(r.receivedAt||r.orderCreatedAt),expectedDeliveryAt:text(r.expectedDeliveryAt),
+      expectedDeliveryText:text(r.expectedDeliveryAt),overdue:'لا',registrationSent:text(r.registrationSent),
+      cloudNative:true,writeAuthority:'cloudflare-d1',dataSource:text(r.sourceKind)||'d1-native',sourceKind:text(r.sourceKind)
     };
   });
 }
@@ -207,13 +230,20 @@ async function bulkStatus(env,user,body){
   if(changed.length){
     const statements=[];
     for(const row of changed){
-      statements.push(env.DB.prepare(`
-        INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
-        VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
-        ON CONFLICT(line_id) DO UPDATE SET status=excluded.status,updated_by=excluded.updated_by,version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
-      `).bind(row.lineId,row.orderId,toStatus,row.notes||'',user.username));
-      statements.push(env.DB.prepare("INSERT INTO t12_prod_runtime_events(order_id,line_id,event_type,old_status,new_status,actor,payload_json) VALUES(?,?,?,?,?,?,?)")
-        .bind(row.orderId,row.lineId,'bulk-status',fromStatus,toStatus,user.username,JSON.stringify({screen,requestId})));
+      if(row.sourceKind==='core-import'){
+        statements.push(env.DB.prepare("UPDATE employee_core_lines_v1 SET status=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=? AND active=1")
+          .bind(toStatus,user.username,row.lineId));
+        statements.push(env.DB.prepare("INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json) VALUES('line-status','line',?,?,?)")
+          .bind(row.lineId,user.username,JSON.stringify({orderId:row.orderId,oldStatus:fromStatus,newStatus:toStatus,screen,requestId})));
+      }else{
+        statements.push(env.DB.prepare(`
+          INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
+          VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
+          ON CONFLICT(line_id) DO UPDATE SET status=excluded.status,updated_by=excluded.updated_by,version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
+        `).bind(row.lineId,row.orderId,toStatus,row.notes||'',user.username));
+        statements.push(env.DB.prepare("INSERT INTO t12_prod_runtime_events(order_id,line_id,event_type,old_status,new_status,actor,payload_json) VALUES(?,?,?,?,?,?,?)")
+          .bind(row.orderId,row.lineId,'bulk-status',fromStatus,toStatus,user.username,JSON.stringify({screen,requestId})));
+      }
     }
     await env.DB.batch(statements);
     await env.DB.prepare("UPDATE employee_core_control_v1 SET data_version=data_version+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1").run();
@@ -234,21 +264,22 @@ async function archiveDelivered(env,user,body){
       INSERT OR IGNORE INTO employee_core_archive_lines_v1(line_id,order_id,department,item_name,qty,priority,status,notes,snapshot_json,archived_by,request_key)
       VALUES(?,?,?,?,?,?,?,?,?,?,?)
     `).bind(r.lineId,r.orderId,r.department,r.itemName,num(r.qty,1),r.priority,r.status,r.notes,JSON.stringify(r),user.username,requestId));
+    if(r.sourceKind==='core-import') statements.push(env.DB.prepare("UPDATE employee_core_lines_v1 SET active=0,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?").bind(user.username,r.lineId));
   }
   if(statements.length)await env.DB.batch(statements);
-  const orders=[...new Set(delivered.map(r=>r.orderId).filter(Boolean))],fully=[];
+  const orders=[...new Set(delivered.map(r=>r.orderId).filter(Boolean))],fully=[],remaining=await coreRows(env,'service');
   for(const orderId of orders){
-    const left=await env.DB.prepare(`
-      SELECT COUNT(*) AS n FROM t12_prod_lines l
-      LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
-      WHERE l.order_id=? AND a.line_id IS NULL
-    `).bind(orderId).first();
-    if(num(left&&left.n)===0){
-      const o=await env.DB.prepare("SELECT * FROM t12_prod_orders WHERE order_id=?").bind(orderId).first();
-      if(o){fully.push(orderId);await env.DB.prepare(`
-        INSERT OR IGNORE INTO employee_core_archive_orders_v1(order_id,customer_name,customer_phone,department,priority,status,source,notes,snapshot_json,archived_by,request_key)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?)
-      `).bind(orderId,text(o.customer_name),text(o.customer_phone),text(o.department),text(o.priority),'تم التسليم',text(o.source),text(o.notes),JSON.stringify(o),user.username,requestId).run();}
+    if(!remaining.some(r=>r.orderId===orderId)){
+      let o=await env.DB.prepare("SELECT order_id,customer_name,customer_phone,department,priority,status,source,notes,raw_json FROM employee_core_orders_v1 WHERE order_id=?").bind(orderId).first();
+      if(!o)o=await env.DB.prepare("SELECT order_id,customer_name,customer_phone,department,priority,status,source,notes,'{}' AS raw_json FROM t12_prod_orders WHERE order_id=?").bind(orderId).first();
+      if(o){
+        fully.push(orderId);
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO employee_core_archive_orders_v1(order_id,customer_name,customer_phone,department,priority,status,source,notes,snapshot_json,archived_by,request_key)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?)
+        `).bind(orderId,text(o.customer_name),text(o.customer_phone),text(o.department),text(o.priority),'تم التسليم',text(o.source),text(o.notes),text(o.raw_json)||JSON.stringify(o),user.username,requestId).run();
+        await env.DB.prepare("UPDATE employee_core_orders_v1 SET active=0,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE order_id=?").bind(user.username,orderId).run();
+      }
     }
   }
   if(delivered.length){
@@ -257,6 +288,52 @@ async function archiveDelivered(env,user,body){
   }
   const response={success:true,archivedLines:delivered.length,archivedOrders:fully.length,partialOrders:Math.max(0,orders.length-fully.length),screen,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
   await commitLedger(env,requestId,response);return response;
+}
+
+async function updateSingleLine(env,user,body){
+  const lineId=text(body.lineId||body.id),status=text(body.status),notes=body.notes==null?null:text(body.notes);
+  if(!lineId)return {success:false,message:'lineId مطلوب.'};
+  if(status&&!STATUSES.has(status))return {success:false,message:'الحالة غير مسموح بها.'};
+  const imported=await env.DB.prepare("SELECT order_id AS orderId,status,notes FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
+  if(imported){
+    await env.DB.prepare("UPDATE employee_core_lines_v1 SET status=CASE WHEN ?='' THEN status ELSE ? END,notes=CASE WHEN ? IS NULL THEN notes ELSE ? END,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?")
+      .bind(status,status,notes,notes,user.username,lineId).run();
+    await event(env,'updateLine','line',lineId,user.username,{orderId:imported.orderId,oldStatus:imported.status,status:status||imported.status});
+    return {success:true,lineId,orderId:text(imported.orderId),status:status||text(imported.status),notes:notes==null?text(imported.notes):notes,source:'employee-core-d1'};
+  }
+  const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
+  if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  await env.DB.prepare(`
+    INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
+    VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
+    ON CONFLICT(line_id) DO UPDATE SET
+      status=CASE WHEN excluded.status='' THEN t12_prod_line_runtime.status ELSE excluded.status END,
+      notes=excluded.notes,updated_by=excluded.updated_by,version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
+  `).bind(lineId,cloud.orderId,status,notes==null?'':notes,user.username).run();
+  return {success:true,lineId,orderId:text(cloud.orderId),status:status||text(cloud.status),notes:notes||'',source:'t12-prod-runtime'};
+}
+
+async function markNotified(env,user,body){
+  const lineId=text(body.lineId||body.id),message=text(body.message||body.lastWhatsAppMessage),when=text(body.notifiedAt)||new Date().toISOString();
+  if(!lineId)return {success:false,message:'lineId مطلوب.'};
+  const imported=await env.DB.prepare("SELECT order_id AS orderId FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
+  if(imported){
+    await env.DB.prepare("UPDATE employee_core_lines_v1 SET customer_notified='نعم',notified_at=?,notified_by=?,last_whatsapp_message=CASE WHEN ?='' THEN last_whatsapp_message ELSE ? END,last_whatsapp_at=?,last_whatsapp_by=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?")
+      .bind(when,user.username,message,message,when,user.username,user.username,lineId).run();
+    await event(env,'markCustomerNotified','line',lineId,user.username,{orderId:imported.orderId});
+    return {success:true,lineId,orderId:text(imported.orderId),source:'employee-core-d1'};
+  }
+  const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
+  if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  await env.DB.prepare(`
+    INSERT INTO t12_prod_line_runtime(line_id,order_id,status,customer_notified,notified_at,notified_by,last_whatsapp_message,last_whatsapp_at,last_whatsapp_by,updated_by,version,updated_at)
+    VALUES(?,?,?,'نعم',?,?,?,?,?,?,1,CURRENT_TIMESTAMP)
+    ON CONFLICT(line_id) DO UPDATE SET customer_notified='نعم',notified_at=excluded.notified_at,notified_by=excluded.notified_by,
+      last_whatsapp_message=CASE WHEN excluded.last_whatsapp_message='' THEN t12_prod_line_runtime.last_whatsapp_message ELSE excluded.last_whatsapp_message END,
+      last_whatsapp_at=excluded.last_whatsapp_at,last_whatsapp_by=excluded.last_whatsapp_by,updated_by=excluded.updated_by,
+      version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
+  `).bind(lineId,cloud.orderId,text(cloud.status),when,user.username,message,when,user.username,user.username).run();
+  return {success:true,lineId,orderId:text(cloud.orderId),source:'t12-prod-runtime'};
 }
 
 export function isEmployeeCoreNativePath(path){
@@ -270,7 +347,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:cors(request,env)});
   if(path===HEALTH&&request.method==='GET'){
     let schemaReady=false;
-    try{const r=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_core_control_v1','employee_core_request_ledger_v1','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_delivery_restrictions_v1')").first();schemaReady=num(r&&r.n)===6;}catch{}
+    try{const r=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_core_control_v1','employee_core_request_ledger_v1','employee_core_orders_v1','employee_core_lines_v1','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_delivery_restrictions_v1')").first();schemaReady=num(r&&r.n)===8;}catch{}
     const c=schemaReady?await control(env):{mode:'OFF',policyEpoch:0,dataVersion:0};
     return json({success:true,schemaReady,mode:text(c.mode)||'OFF',policyEpoch:num(c.policyEpoch),dataVersion:num(c.dataVersion),actions:[...READ_ACTIONS,...WRITE_ACTIONS],googleBusinessCalls:0,appsScriptBusinessAuthority:false,authBridgeTemporary:true},schemaReady?200:503,cors(request,env));
   }
@@ -294,6 +371,8 @@ export async function handleEmployeeCoreNativeRequest(request,env){
     else if(action==='getTrendMasterCenterV1931')out=await trendMaster(env,a.user,body);
     else if(action==='bulkUpdateDepartmentStatusV1926')out=await bulkStatus(env,a.user,body);
     else if(action==='archiveDeliveredDepartmentV1926')out=await archiveDelivered(env,a.user,body);
+    else if(action==='updateLine')out=await updateSingleLine(env,a.user,body);
+    else if(action==='markCustomerNotified')out=await markNotified(env,a.user,body);
     else out={success:false,code:'employee-core-action-unknown'};
     return json(out,out.success===false?400:200,cors(request,env));
   }catch(err){
