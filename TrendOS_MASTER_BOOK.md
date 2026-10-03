@@ -1346,6 +1346,27 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Apps_Script_touched=NO
   NEXT_ACTION=READ_CONTENT_REPO_CI
   ```
+- Content native repo CI:
+  - Run `37130621716`
+  - Job `111224828304`
+  - conclusion = **SUCCESS**
+  - 20 Content/Config actions covered.
+  - Google business calls = 0.
+  - file target = R2.
+  - migration default-OFF; no Production/D1/R2/API/App Script mutation.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_CONTENT_FAMILY_REPO_QUALIFIED
+  RUN_ID=37130621716
+  JOB_ID=111224828304
+  COMMIT=b86ebe6876f98b67e1da05538350dc982953121b
+  Production_touched=NO
+  D1_touched=NO
+  R2_touched=NO
+  Apps_Script_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=BUILD_CUSTOMER_COMMS_AUTOMATION_NATIVE_FAMILY
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
