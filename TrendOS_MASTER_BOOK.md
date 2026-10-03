@@ -948,6 +948,50 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=ENTRY612_PRODUCTION_MUTATION_PREFLIGHT_ONLY; DO_NOT_ENABLE_OR_DEPLOY_WITHOUT_EXPLICIT_APPROVAL
   ```
 
+
+### Entry612 — Production mutation preflight only
+- الاسم العربي للبحث: **بوابة ما قبل تفعيل Native Auth Canary في Production — قراءة فقط**.
+- يبدأ بعد Entry611 repo-only qualification PASS.
+- لا توجد موافقة في هذه المرحلة على:
+  - Cloudflare secret write.
+  - Apps Script Script Properties write.
+  - Apps Script deploy/version.
+  - D1 auth control mutation.
+  - API/Frontend deploy.
+  - employee enrollment/bootstrap.
+  - Auth/Bridge enablement.
+- قرار migration الآمن:
+  - **لا نحتاج تخزين كلمة مرور موظف في GitHub Secrets ولا استخراجها.**
+  - عند نافذة canary المعتمدة مستقبلًا، الموظف المختار يدخل كلمة مروره من واجهة TrendOS إلى Cloudflare عبر HTTPS.
+  - أول bootstrap canary فقط يتحقق من Legacy ثم يحفظ PBKDF2 verifier في D1؛ plaintext لا يُخزن.
+  - subsequent login لنفس الموظف يصبح D1-native.
+- Compatibility prerequisite قبل أي frontend canary:
+  - shared bridge secret مضبوط على Cloudflare + Apps Script بدون كشف القيمة.
+  - Apps Script bridge flag ON.
+  - Cloudflare bridge ON.
+  - exact full-active-parity policy count = 69.
+  - Auth mode = TRANSITIONAL، auth env enabled، native-only = OFF.
+  - legacy bootstrap enabled للـfirst canary migration فقط.
+- تحذير workflows تاريخية:
+  - توجد workflows TEMP قديمة مثل `trendos-t12-a61-diya-native-bootstrap-canary-v2-temp.yml` و`trendos-t12-a61-diya-session-enroll-canary-temp.yml` قادرة على Production mutation عند push على ملفها.
+  - **ممنوع تعديل/trigger هذه workflows ضمن Entry612**؛ لا نعيد canary تاريخي ولا نستخدم stored employee credential secrets.
+- blocker معروف قبل التفعيل:
+  - Cloudflare bridge secret حاليًا absent.
+  - Apps Script bridge حاليًا OFF.
+  - لا توجد أداة متاحة في هذه الجلسة لقراءة/تعديل Script Properties مباشرةً بطريقة آمنة؛ لا نخمن وجود secret. أي property mutation مستقبلية تحتاج مسار كتابة مصرح/واضح أو تنفيذ المالك بعد موافقة Production.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY612_STARTED_READONLY_PREFLIGHT
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=PENDING
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=BUILD_DEDICATED_ENTRY612_READONLY_PRODUCTION_GATE
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
