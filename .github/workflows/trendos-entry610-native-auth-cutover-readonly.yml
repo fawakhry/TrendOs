@@ -48,7 +48,7 @@ jobs:
           NODE
           )"
           body='{"action":"cloudEmployeeLegacyBridgeExecuteV1","targetAction":"getDashboard","username":"entry610-readonly-probe","targetPayload":{"action":"getDashboard","username":"entry610-readonly-probe"},"cloudEmployeeAssertionV1":"cfv1.invalid.invalid"}'
-          code="$(curl --silent --show-error --location --post302 --post303 --output /tmp/apps-probe.json --write-out '%{http_code}'             -X POST -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8'             --data-binary "$body" "$APPS_URL")"
+          code="$(curl --silent --show-error --location --output /tmp/apps-probe.json --write-out '%{http_code}'             -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8'             --data-binary "$body" "$APPS_URL")"
           export PROBE_HTTP_CODE="$code"
           node <<'NODE'
           const fs=require('fs');
