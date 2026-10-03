@@ -1,0 +1,107 @@
+name: TrendOS Entry611 Native Auth Canary Repo-Only CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'config.js'
+      - 'employee-api-dispatcher-v1.js'
+      - 'tests/frontend_employee_native_canary_entry611.test.mjs'
+      - 'tests/frontend_employee_api_dispatcher_a61.test.mjs'
+      - 'tests/frontend_legacy_module_dispatch_a61.test.mjs'
+      - 'tests/frontend_no_direct_google_transport_a61.test.mjs'
+      - 'tests/entry609_native_auth_cutover_inventory.test.mjs'
+      - 'tests/employee_auth_native_a61.test.mjs'
+      - 'tests/employee_legacy_auth_bridge_a61.test.mjs'
+      - '.github/workflows/trendos-entry611-native-auth-canary-repo-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check config.js
+          node --check employee-api-dispatcher-v1.js
+          node --check tests/frontend_employee_native_canary_entry611.test.mjs
+          echo 'ENTRY611_SYNTAX=PASS'
+
+      - name: Canary and A61 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/frontend_employee_native_canary_entry611.test.mjs
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          node tests/frontend_legacy_module_dispatch_a61.test.mjs
+          node tests/frontend_no_direct_google_transport_a61.test.mjs
+          node tests/entry609_native_auth_cutover_inventory.test.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          node tests/employee_legacy_auth_bridge_a61.test.mjs
+          echo 'ENTRY611_REGRESSION_SUITE=PASS'
+
+      - name: Default-off repository gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 69;' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];' config.js
+          echo 'ENTRY611_REPO_DEFAULT_OFF=YES'
+
+      - name: Production read-only baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          API_URL='https://trendos-d1-api.trendmall-contact.workers.dev'
+          UI_URL='https://trendos-ui.trendmall-contact.workers.dev'
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" > /tmp/bridge.json
+          curl --fail --silent --show-error "$UI_URL/config.js?entry611=1" > /tmp/live-config.js
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          const c=fs.readFileSync('/tmp/live-config.js','utf8');
+          if(a.mode!=='OFF'||a.envEnabled!==false||Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('Production Auth drift');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Production Bridge drift');
+          if(!c.includes('window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;')) throw new Error('Production frontend native-auth drift');
+          if(!c.includes('window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;')) throw new Error('Production frontend bridge drift');
+          // The new canary source is repo-only. It must not appear live before explicit deploy approval.
+          if(c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1')) throw new Error('Entry611 canary source unexpectedly live');
+          console.log('ENTRY611_PRODUCTION_AUTH_OFF=YES');
+          console.log('ENTRY611_PRODUCTION_BRIDGE_OFF=YES');
+          console.log('ENTRY611_CANARY_NOT_DEPLOYED=YES');
+          NODE
+
+      - name: Boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'ENTRY611_REPO_ONLY_QUALIFICATION=PASS'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'API_DEPLOY=NO'
+          echo 'FRONTEND_DEPLOY=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
+          echo 'SECRETS_TOUCHED=NO'
+          echo 'AUTH_MODE_CHANGED=NO'
+          echo 'ORDER_CUSTOMER_DATA_CHANGED=NO'
