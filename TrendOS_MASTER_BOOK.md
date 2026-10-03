@@ -843,6 +843,24 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=ADD_ENTRY611_CANARY_TESTS
   ```
+- Canary session identity handling hardened for business bridge calls:
+  - after successful canary native login/session verification, the selected username is remembered in-memory only;
+  - bridged calls can recover that username if a module omits it while still requiring the native bearer token;
+  - logout/password force-relogin clears the remembered canary identity.
+- Commit: `6d6d15767b0764410f91594a21abd54e52483555`.
+- Repository-only / not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_SESSION_IDENTITY_HARDENED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=6d6d15767b0764410f91594a21abd54e52483555
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_ENTRY611_CANARY_REGRESSION_TEST
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
