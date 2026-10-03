@@ -1088,6 +1088,41 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=WAIT_FOR_EXPLICIT_APPROVAL_AND_CANARY_USERNAME_BEFORE_ANY_PRODUCTION_MUTATION
   ```
 
+
+### Entry613 — Approved Production Canary for ضياء
+- الموافقة الصريحة المستلمة: **موافق على Production Canary، نفذ، والموظف: ضياء**.
+- الاسم العربي للبحث: **تنفيذ Canary Native Auth لموظف ضياء — staged production cutover**.
+- هذه الموافقة تسمح ببدء Production mutations المطلوبة للـcanary ضمن حدود الأمان المؤهلة في Entry610/611/612، مع منع Big Bang أو Global Native Auth.
+- Canary identity:
+  ```ini
+  CANARY_USERNAME=ضياء
+  CANARY_SCOPE=ONE_EMPLOYEE_ONLY
+  GLOBAL_NATIVE_AUTH=FORBIDDEN
+  NATIVE_ONLY=FORBIDDEN_UNTIL_POST_BOOTSTRAP_PROOF
+  ```
+- ترتيب التنفيذ الإلزامي:
+  1. تثبيت shared bridge secret نفسه في Cloudflare + Apps Script بدون إظهاره.
+  2. إثبات Apps Script bridge enabled + secret configured عبر challenge غير صالح فقط.
+  3. نشر Worker runner-only TRANSITIONAL: Auth enabled, legacy bootstrap enabled, native-only OFF, Bridge enabled, exact 69 policies.
+  4. D1 auth control من OFF إلى TRANSITIONAL فقط بعد نجاح 1–3.
+  5. postflight كامل Orders/Customers/refresh/duplicate guard.
+  6. نشر Frontend canary لضياء فقط؛ بقية الموظفين Legacy.
+  7. أول دخول ضياء من الواجهة يعمل bootstrap من Legacy إلى PBKDF2/D1 بدون تخزين plaintext.
+  8. إثبات second login = `d1-native-employee-v1` ثم Bridge business smoke.
+- ممنوع استخدام workflows التاريخية TEMP الخاصة بـDiya credentials أو تخزين كلمة مرور ضياء في GitHub.
+- blocker التنفيذي الحالي: نحتاج جلسة Browser Profile مصادق عليها إلى **Cloudflare Dashboard + Google Apps Script** لضبط السر المشترك وApps Script property بأمان؛ لا توجد API connector مباشرة لـScript Properties في الجلسة.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY613_APPROVED_EXECUTION_STARTED
+  APPROVAL=YES
+  CANARY_USERNAME=ضياء
+  Production_touched=NO_YET
+  D1_touched=NO_YET
+  Apps_Script_touched=NO_YET
+  Secrets_touched=NO_YET
+  NEXT_ACTION=QUALIFY_EXACT_ACTIVATION_MANIFEST_THEN_AUTHENTICATE_BROWSER_PROFILE_FOR_SECRET_INSTALL
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
