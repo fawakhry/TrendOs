@@ -1435,6 +1435,54 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=FIX_COVERAGE_TEST_REGEX_ONLY_AND_RERUN
   ```
 
+
+- Full Zero-Google employee business coverage rerun after test-only regex fix:
+  - Coverage Run `37132441990`
+  - Job `111230069890`
+  - conclusion = **SUCCESS**
+  - Browser transport regression Run `37132442037`
+  - Job `111230070035`
+  - conclusion = **SUCCESS**
+- Qualified source result:
+  ```ini
+  ENTRY614_ZERO_GOOGLE_EMPLOYEE_BUSINESS_COVERAGE=PASS
+  ENTRY614_ACTIVE_LEGACY_TOP_LEVEL=46
+  ENTRY614_NATIVE_FAMILY_COVERED_TOP_LEVEL=46
+  ENTRY614_UNCOVERED_ACTIVE_TOP_LEVEL=0
+  ENTRY614_HYBRID_UPDATE_NOTIFY_CLOUD_RUNTIME=YES
+  ENTRY614_CORE_GOOGLE_BUSINESS_CALLS=0
+  ENTRY614_ALL_NEW_CONTROLS_DEFAULT_OFF=YES
+  A61_NO_BROWSER_GOOGLE_TRANSPORT=PASS
+  ```
+- Production remained unchanged during qualification:
+  ```ini
+  ENTRY614_PRODUCTION_AUTH_OFF=YES
+  ENTRY614_PRODUCTION_BRIDGE_OFF=YES
+  ENTRY614_ORDER_BASELINE=PASS
+  ENTRY614_CUSTOMER_BASELINE=PASS
+  Production_touched=NO
+  D1_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  ```
+- Source coverage is now complete for all **46 currently active employee business top-level actions**, but Zero-Google is **not yet complete** because the new D1 domain tables have not been populated from current Production data and the frontend/API controls are still OFF. Current-data backfill/parity is the next mandatory gate.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_FULL_EMPLOYEE_BUSINESS_SOURCE_COVERAGE_PASS
+  RUN_ID=37132441990
+  JOB_ID=111230069890
+  SECONDARY_RUN_ID=37132442037
+  SECONDARY_JOB_ID=111230070035
+  COMMIT=6f7cd6f474aa6e3d9e3e22eec855593d623e41b7
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=BUILD_CURRENT_DATA_BACKFILL_AND_PARITY_GATE_FOR_0012_TO_0016
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
