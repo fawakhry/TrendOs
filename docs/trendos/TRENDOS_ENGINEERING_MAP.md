@@ -52,7 +52,7 @@
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
 | B09 | GitHub Actions current + historical workflows | 220 / 220 | DONE |
 | B10 | tests/ | 200 / 200 | DONE |
-| B11 | docs/ active engineering docs | 0 | PENDING |
+| B11 | docs/ active engineering docs | 26 / 26 | DONE |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
 | B13 | Coverage audit: screens/buttons/functions/data | 0 | PENDING |
 
@@ -1269,3 +1269,30 @@ TEST_DUPLICATE_INDEX=0
 
 نقطة الاستئناف التالية:
 **B11 — docs/ active engineering docs**.
+
+
+## 17) B11 — docs/ active engineering docs — DONE
+
+تمت قراءة **26 مستندًا هندسيًا مباشرًا** تحت `docs/trendos/` و`docs/trendos/implementation/`، وحفظ محتواها وتصنيفها في:
+`docs/trendos/TRENDOS_DOC_CATALOG.md`.
+
+### أهم ما ظهر
+- ملفات Integrity Phase 2..6 موثقة كـ prepared/tested/not deployed أو تاريخية؛ لا تُستخدم لإثبات Production الحالي.
+- `TRENDOS_DECISIONS.md`, `TRENDOS_EXECUTION_LEDGER.md`, `TRENDOS_PROJECT_MEMORY.md`, `TRENDOS_HANDOFF.md` تحتوي قرارات وحالات قديمة مهمة، لكنها لا تعلو على Master Book + Runtime الحالي.
+- `TRENDOS_REPOSITORY_CATALOG.md` هو **فهرس بحث حي** للمسارات، وليس إثبات Runtime.
+- `TRENDOS_ROADMAP_2027-03-01.md` هو **خطة المنتج** التي أعيد ربطها بالكتاب الرئيسي بعد Zero-Google.
+- ملفات Accounting/Integrity القديمة مهمة كمرجع تصميم وصيانة، لكن لا تثبت cutover أو deployment.
+- مستندات Matbagy داخل هذا المستودع هي مراجع تاريخية/معمارية؛ مصدر Matbagy الرسمي المنفصل يظل مستودعه المتخصص.
+
+### قاعدة التفسير
+أي مستند قديم يقول إن Google/Sheets أو Integrity/Cloud lane هي authority لا يُستخدم كحالة حالية إذا خالف `TrendOS_MASTER_BOOK.md` أو Runtime evidence الأحدث.
+
+### النتيجة
+```ini
+DIRECT_ENGINEERING_DOCS_READ=26
+DIRECT_ENGINEERING_DOCS_CATALOGED=YES
+B11_COMPLETE=YES
+```
+
+نقطة الاستئناف:
+**B12 — archive/historical docs + blackbox/checkpoints cross-check**.
