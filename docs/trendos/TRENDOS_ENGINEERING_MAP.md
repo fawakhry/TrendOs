@@ -51,7 +51,7 @@
 | B07 | Accounting + material control | 28 | DONE |
 | B08 | Integrity/queue/operator tasks | 22 | DONE |
 | B09 | GitHub Actions current + historical workflows | 220 / 220 | DONE |
-| B10 | tests/ | 90 / 200 | IN_PROGRESS |
+| B10 | tests/ | 200 / 200 | DONE |
 | B11 | docs/ active engineering docs | 0 | PENDING |
 | B12 | archive/historical docs + cross-check | 0 | PENDING |
 | B13 | Coverage audit: screens/buttons/functions/data | 0 | PENDING |
@@ -1239,3 +1239,33 @@ Edge worker module تمت قراءته سابقًا في B02، لكن تعليق
 - التغطية حتى الآن تشمل Accounting persistence/native، Cloudflare edge/orders freshness، D1 sync/control، Employee Auth A61، وFrontend transport/status regression.
 - كل ملف مرتبط في `TRENDOS_TEST_CATALOG.md` بالـimports/targets وعدد حالات الاختبار واعتماده على runtime/network.
 - نقطة الاستئناف الدقيقة: **test #91**.
+
+
+## 16) B10 — tests/ — DONE
+
+تمت قراءة محتوى جميع ملفات `tests/`: **200/200** ملفًا.
+
+الكتالوج الكامل:
+`docs/trendos/TRENDOS_TEST_CATALOG.md`
+
+### سلامة الجرد
+- Test rows = **200**.
+- Missing = **0**.
+- Duplicates = **0**.
+- Static declared test/it/describe count = **290**.
+- Files with external/runtime references = **141**.
+- Families: `AUTH=13`، `ORDERS/CLOUD-WRITE=62`، `GENERAL=51`، `CUSTOMER=8`، `ACCOUNTING=13`، `CLOUDFLARE/EDGE=39`، `ATTENDANCE/HR=1`، `PRESS=1`، `INTEGRITY=12`.
+
+### قاعدة الدليل
+قراءة test file تثبت ما الذي يحاول الاختبار التحقق منه، لكنها لا تثبت أن الاختبار نجح في CI. النجاح التشغيلي يحتاج run evidence منفصل.
+
+### النتيجة
+```ini
+TEST_FILES_READ=200
+TEST_CATALOG_COMPLETE=YES
+TEST_PATHS_MISSING=0
+TEST_DUPLICATE_INDEX=0
+```
+
+نقطة الاستئناف التالية:
+**B11 — docs/ active engineering docs**.
