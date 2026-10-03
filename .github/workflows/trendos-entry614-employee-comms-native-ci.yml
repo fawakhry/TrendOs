@@ -1,0 +1,86 @@
+name: TrendOS Entry614 Employee Comms Native Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql'
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/entry614_employee_comms_native.test.mjs'
+      - '.github/workflows/trendos-entry614-employee-comms-native-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax and contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-comms-native-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          node tests/entry614_employee_comms_native.test.mjs
+          echo 'ENTRY614_COMMS_REPO_CI=PASS'
+
+      - name: Migration default-OFF and additive
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "VALUES(1,'ENTRY614_EMPLOYEE_COMMS_V1','OFF',1,0)" cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql
+          ! grep -Eq 'DROP TABLE|DELETE FROM|UPDATE t12_prod_|UPDATE t12_customers' cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql
+          echo 'ENTRY614_COMMS_SCHEMA_DEFAULT_OFF=YES'
+
+      - name: No Google business runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq 'SpreadsheetApp|DriveApp|PropertiesService|script\.google\.com|drive\.google\.com|APPS_SCRIPT_API_URL' cloudflare-d1/src/employee-comms-native-v1.mjs
+          grep -Fq 'https://graph.facebook.com/' cloudflare-d1/src/employee-comms-native-v1.mjs
+          grep -Fq 'https://api.openai.com/' cloudflare-d1/src/employee-comms-native-v1.mjs
+          grep -Fq 'env.FILES' cloudflare-d1/src/employee-comms-native-v1.mjs
+          echo 'ENTRY614_COMMS_GOOGLE_BUSINESS_CALLS=0'
+          echo 'ENTRY614_COMMS_DIRECT_META_OPENAI_R2=YES'
+
+      - name: Production baseline read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='https://trendos-d1-api.trendmall-contact.workers.dev'
+          curl --fail --silent --show-error "$API/v1/employee/auth/health" > /tmp/a.json
+          curl --fail --silent --show-error "$API/v1/employee/legacy-action/health" > /tmp/b.json
+          curl --fail --silent --show-error "$API/v1/t12/orders/create/health" > /tmp/o.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/a.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/b.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/o.json','utf8'));
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth drift');
+          if(b.enabled!==false||b.secretConfigured!==false) throw new Error('bridge drift');
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders drift');
+          console.log('ENTRY614_PRODUCTION_AUTH_OFF=YES');
+          console.log('ENTRY614_PRODUCTION_BRIDGE_OFF=YES');
+          console.log('ENTRY614_PRODUCTION_ORDERS_BASELINE=PASS');
+          NODE
+
+      - name: Boundary
+        run: |
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'R2_MUTATION=NO'
+          echo 'SECRETS_TOUCHED=NO'
+          echo 'API_DEPLOY=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
