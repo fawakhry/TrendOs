@@ -278,6 +278,14 @@
     // canary even if the compatibility bridge later becomes unhealthy.
     if (action === 'logout' || action === 'changePassword') return true;
 
+    var minimum = canaryMinimumBridgePolicies();
+    if (!bridgeEnabled()) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: Bridge frontend ما زال مغلقًا.', 'frontend-bridge-disabled');
+    }
+    if (configuredPolicies().size < minimum) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: سياسات Bridge غير مكتملة.', 'frontend-bridge-policies');
+    }
+
     var key = canaryPreflightKey();
     if (canaryPreflightCache.key === key && Date.now() - canaryPreflightCache.at < CANARY_PREFLIGHT_CACHE_MS) {
       return true;
@@ -290,6 +298,13 @@
         validateCanaryPreflight(parts[0], parts[1]);
         canaryPreflightCache = { key: key, at: Date.now() };
         return true;
+      }).catch(function (err) {
+        if (err && err.code === 'EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED') throw err;
+        throw routeError(
+          'EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED',
+          'تعذر إثبات جاهزية Canary Native Auth. لم يتم تحويل الدخول إلى Legacy.',
+          text(err && err.code) || 'health-unavailable'
+        );
       }).finally(function () {
         canaryPreflightPromise = null;
       });
