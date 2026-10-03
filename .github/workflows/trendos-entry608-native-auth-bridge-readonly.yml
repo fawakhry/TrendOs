@@ -1,0 +1,231 @@
+name: TrendOS Entry608 Native Auth Bridge Read-Only Assessment
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry608-native-auth-bridge-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_WORKER: trendos-d1-api
+      UI_WORKER: trendos-ui
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      PROD_API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PROD_UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+      EXPECTED_API_VERSION: ce156662-a698-47fc-b73c-dfd4657be9f5
+      EXPECTED_UI_VERSION: adfb5056-af23-4d7f-8e12-7de6417dfce2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Repo auth and dispatcher qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/employee_auth_native_a61.test.mjs
+          node tests/employee_legacy_action_classification_a61.test.mjs
+          node tests/employee_legacy_auth_bridge_a61.test.mjs
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          node tests/frontend_legacy_module_dispatch_a61.test.mjs
+          node tests/frontend_no_direct_google_transport_a61.test.mjs
+          echo 'ENTRY608_REPO_AUTH_CONTRACTS=PASS'
+
+      - name: Read Cloudflare active deployments
+        shell: bash
+        run: |
+          set -euo pipefail
+          for worker in "$API_WORKER" "$UI_WORKER"; do
+            out="/tmp/${worker}-deployments.json"
+            curl --fail --silent --show-error               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$worker/deployments" > "$out"
+          done
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label,expected){
+            const b=JSON.parse(fs.readFileSync(path,'utf8'));
+            const list=Array.isArray(b?.result?.deployments)?b.result.deployments:(Array.isArray(b?.result)?b.result:[]);
+            if(!list.length) throw new Error(label+' deployment missing');
+            const d=list[0];
+            const versions=(d.versions||[]).map(x=>({id:String(x?.version_id||x?.id||''),p:Number(x?.percentage ?? x?.traffic_percentage ?? NaN)}));
+            if(versions.length!==1 || versions[0].p!==100) throw new Error(label+' traffic is not single-version 100%');
+            console.log('ENTRY608_'+label+'_VERSION='+versions[0].id);
+            console.log('ENTRY608_'+label+'_DEPLOYMENT='+String(d.id||''));
+            console.log('ENTRY608_'+label+'_TRAFFIC=100');
+            console.log('ENTRY608_'+label+'_EXPECTED_MATCH='+(versions[0].id===expected?'YES':'NO'));
+          }
+          active('/tmp/trendos-d1-api-deployments.json','API',process.env.EXPECTED_API_VERSION);
+          active('/tmp/trendos-ui-deployments.json','UI',process.env.EXPECTED_UI_VERSION);
+          NODE
+
+      - name: Read Cloudflare secret-name presence only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$API_WORKER/secrets"             > /tmp/api-secrets.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/api-secrets.json','utf8'));
+          const rows=Array.isArray(x?.result)?x.result:[];
+          const names=new Set(rows.map(v=>String(v?.name||'')));
+          console.log('ENTRY608_CF_BRIDGE_SECRET_PRESENT='+(names.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1')?'YES':'NO'));
+          console.log('ENTRY608_SECRET_VALUES_LOGGED=NO');
+          NODE
+
+      - name: Read live auth and bridge health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_API_URL/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/employee/legacy-action/health" > /tmp/bridge.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/create/health" > /tmp/create.json
+          curl --fail --silent --show-error "$PROD_API_URL/v1/t12/orders/line-runtime/health" > /tmp/line.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/create.json','utf8'));
+          const l=JSON.parse(fs.readFileSync('/tmp/line.json','utf8'));
+          console.log('ENTRY608_AUTH_MODE='+String(a.mode||''));
+          console.log('ENTRY608_AUTH_ENV_ENABLED='+(a.envEnabled===true?'YES':'NO'));
+          console.log('ENTRY608_AUTH_USERS='+Number(a.userCount||0));
+          console.log('ENTRY608_NATIVE_READY_USERS='+Number(a.nativeReadyCount||0));
+          console.log('ENTRY608_LEGACY_BOOTSTRAP_ENABLED='+(a.legacyBootstrapEnabled===true?'YES':'NO'));
+          console.log('ENTRY608_LEGACY_SESSION_ENROLL_ENABLED='+(a.legacySessionEnrollEnabled===true?'YES':'NO'));
+          console.log('ENTRY608_NATIVE_ONLY='+(a.nativeOnly===true?'YES':'NO'));
+          console.log('ENTRY608_ENROLL_CANARY_CONFIGURED='+(a.enrollCanaryUserConfigured===true?'YES':'NO'));
+          console.log('ENTRY608_ENROLL_NONCE_CONFIGURED='+(a.enrollNonceConfigured===true?'YES':'NO'));
+          console.log('ENTRY608_PLAINTEXT_STORED='+(a.plaintextStored===true?'YES':'NO'));
+          console.log('ENTRY608_BRIDGE_ENABLED='+(b.enabled===true?'YES':'NO'));
+          console.log('ENTRY608_BRIDGE_UPSTREAM_CONFIGURED='+(b.upstreamConfigured===true?'YES':'NO'));
+          console.log('ENTRY608_BRIDGE_SECRET_CONFIGURED='+(b.secretConfigured===true?'YES':'NO'));
+          console.log('ENTRY608_BRIDGE_ALLOWED_POLICY_COUNT='+Number(b.allowedPolicyCount||0));
+          console.log('ENTRY608_RAW_NATIVE_TOKEN_FORWARDED='+(b.rawNativeTokenForwarded===true?'YES':'NO'));
+          console.log('ENTRY608_PLAINTEXT_PASSWORD_FORWARDED='+(b.plaintextPasswordForwarded===true?'YES':'NO'));
+          if(c.success!==true || c.mode!=='GENERAL' || c.duplicateGuardReady!==true) throw new Error('Order create baseline regressed');
+          if(l.success!==true) throw new Error('Legacy line runtime baseline regressed');
+          console.log('ENTRY608_ORDER_CREATE_BASELINE=PASS');
+          console.log('ENTRY608_LEGACY_LINE_RUNTIME_BASELINE=PASS');
+          NODE
+
+      - name: Read native auth D1 counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1; SELECT COUNT(*) AS userCount,SUM(CASE WHEN password_scheme='pbkdf2-sha256-v1' AND password_hash_hex<>'' THEN 1 ELSE 0 END) AS nativeReadyCount,SUM(CASE WHEN must_change=1 THEN 1 ELSE 0 END) AS mustChangeCount FROM employee_auth_users_v1; SELECT COUNT(*) AS sessionCount,SUM(CASE WHEN revoked_at_ms IS NULL AND expires_at_ms>CAST(strftime('%s','now') AS INTEGER)*1000 THEN 1 ELSE 0 END) AS liveSessionCount FROM employee_auth_sessions_v1;"             > /tmp/d1-auth.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-auth.json','utf8'));
+          const rows=[];const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')||Object.prototype.hasOwnProperty.call(v,'sessionCount'))rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          for(const row of rows){
+            if(row.marker) console.log('ENTRY608_D1_CONTROL_MODE='+String(row.mode||''));
+            if(Object.prototype.hasOwnProperty.call(row,'userCount')){
+              console.log('ENTRY608_D1_USER_COUNT='+Number(row.userCount||0));
+              console.log('ENTRY608_D1_NATIVE_READY_COUNT='+Number(row.nativeReadyCount||0));
+              console.log('ENTRY608_D1_MUST_CHANGE_COUNT='+Number(row.mustChangeCount||0));
+            }
+            if(Object.prototype.hasOwnProperty.call(row,'sessionCount')){
+              console.log('ENTRY608_D1_SESSION_COUNT='+Number(row.sessionCount||0));
+              console.log('ENTRY608_D1_LIVE_SESSION_COUNT='+Number(row.liveSessionCount||0));
+            }
+          }
+          NODE
+
+      - name: Read live frontend safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_UI_URL/config.js?entry608=1" > /tmp/config.js
+          curl --fail --silent --show-error "$PROD_UI_URL/app.js?entry608=1" > /tmp/app.js
+          curl --fail --silent --show-error "$PROD_UI_URL/employee-api-dispatcher-v1.js?entry608=1" > /tmp/dispatcher.js
+          curl --fail --silent --show-error "$PROD_UI_URL/trendos-edge-orders-read-v1.js?entry608=1" > /tmp/edge.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' /tmp/config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' /tmp/config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];' /tmp/config.js
+          grep -Fq 'TRENDOS_AUTH_CRITICAL_MODULES_V1' /tmp/config.js
+          grep -Fq 'TRENDOS_AUTH_DEFERRED_MODULES_V1' /tmp/config.js
+          grep -Fq 'trendosEmployeeApiV1' /tmp/dispatcher.js
+          grep -Fq 'recoverPostWriteBarrier' /tmp/edge.js
+          grep -Fq 'postWriteBarrierRecoveries' /tmp/edge.js
+          grep -Fq 'تم منع إنشاء أوردر مكرر' /tmp/edge.js
+          grep -Fq '/v1/t12/orders/line-runtime/legacy-update' /tmp/edge.js
+          echo 'ENTRY608_FRONTEND_NATIVE_AUTH_OFF=YES'
+          echo 'ENTRY608_FRONTEND_BRIDGE_OFF=YES'
+          echo 'ENTRY608_FRONTEND_BRIDGE_POLICIES_EMPTY=YES'
+          echo 'ENTRY608_LOGIN_FAST_MARKERS=PASS'
+          echo 'ENTRY608_DUPLICATE_GUARD_UI_PRESERVED=YES'
+          echo 'ENTRY608_REFRESH_FIX_PRESERVED=YES'
+          echo 'ENTRY608_LEGACY_LINE_ROUTE_PRESERVED=YES'
+
+      - name: Probe Apps Script bridge gate without secret values
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPS_URL="$(node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync(process.env.CONFIG,'utf8');
+          const m=s.match(/^APPS_SCRIPT_API_URL\s*=\s*"([^"]+)"/m);
+          if(!m) process.exit(2);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          body='{"action":"cloudEmployeeLegacyBridgeExecuteV1","targetAction":"getDashboard","username":"entry608-readonly-probe","targetPayload":{"action":"getDashboard","username":"entry608-readonly-probe"},"cloudEmployeeAssertionV1":"cfv1.invalid.invalid"}'
+          code="$(curl --silent --show-error --output /tmp/apps-probe.json --write-out '%{http_code}'             -X POST -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8'             --data-binary "$body" "$APPS_URL")"
+          node <<'NODE'
+          const fs=require('fs');
+          const code=Number(process.env.PROBE_HTTP_CODE||0);
+          let x={};try{x=JSON.parse(fs.readFileSync('/tmp/apps-probe.json','utf8')||'{}')}catch{}
+          const msg=String(x.message||'');
+          console.log('ENTRY608_APPS_SCRIPT_BRIDGE_PROBE_HTTP='+code);
+          if(msg.includes('غير مفعل')){
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ENABLED=NO');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_OBSERVABLE_WHILE_DISABLED');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES');
+          } else if(msg.includes('غير مضبوط')){
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ENABLED=YES');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NO');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES');
+          } else if(msg.includes('غير صالح')){
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ENABLED=YES');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=YES');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES');
+          } else {
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ENABLED=NOT_PROVEN');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_PROVEN');
+            console.log('ENTRY608_APPS_SCRIPT_BRIDGE_ROUTE_LIVE=NOT_PROVEN');
+          }
+          console.log('ENTRY608_APPS_SCRIPT_SECRET_VALUE_LOGGED=NO');
+          NODE
+        env:
+          PROBE_HTTP_CODE: ${{ env.PROBE_HTTP_CODE }}
+
+      - name: Final read-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'ENTRY608_READONLY_ASSESSMENT=PASS'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'API_DEPLOY=NO'
+          echo 'FRONTEND_DEPLOY=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
+          echo 'SECRETS_TOUCHED=NO'
+          echo 'AUTH_MODE_CHANGED=NO'
+          echo 'ORDER_CUSTOMER_DATA_CHANGED=NO'
+          echo 'NEXT_ACTION=BRIDGE_SECRET_AND_POLICY_PREFLIGHT_ONLY_AFTER_EXPLICIT_PRODUCTION_APPROVAL'
