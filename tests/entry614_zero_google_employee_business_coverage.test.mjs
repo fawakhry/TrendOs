@@ -4,6 +4,7 @@ import fs from 'node:fs';
 const inv=fs.readFileSync('tests/entry609_native_auth_cutover_inventory.test.mjs','utf8');
 const core=fs.readFileSync('cloudflare-d1/src/employee-core-native-v1.mjs','utf8');
 const coreSql=fs.readFileSync('cloudflare-d1/migrations/0016_employee_core_zero_google_v1.sql','utf8');
+const currentOrdersSql=fs.readFileSync('cloudflare-d1/migrations/0017_employee_core_current_orders_v1.sql','utf8');
 const ops=fs.readFileSync('cloudflare-d1/src/employee-ops-native-v1.mjs','utf8');
 const content=fs.readFileSync('tests/entry614_employee_content_native.test.mjs','utf8');
 const comms=fs.readFileSync('tests/entry614_employee_comms_native.test.mjs','utf8');
@@ -43,7 +44,12 @@ assert.match(coreSql,/employee_core_archive_lines_v1/);
 assert.match(coreSql,/employee_core_delivery_restrictions_v1/);
 assert.match(coreSql,/employee_core_request_ledger_v1/);
 
-assert.doesNotMatch(core,/script\.google\.com|docs\.google\.com|SpreadsheetApp|DriveApp|UrlFetchApp|APPS_SCRIPT_API_URL/);
+for(const [name,source] of [['ops',ops],['core',core]]) {
+  assert.doesNotMatch(source,/sheet_rows|sheet_catalog|sheet_staging/,name+': runtime sheet mirror dependency must be zero');
+  assert.doesNotMatch(source,/script\.google\.com|docs\.google\.com|SpreadsheetApp|DriveApp|UrlFetchApp|APPS_SCRIPT_API_URL/,name+': direct Google dependency must be zero');
+}
+assert.match(currentOrdersSql,/employee_core_orders_v1/);
+assert.match(currentOrdersSql,/employee_core_lines_v1/);
 assert.match(core,/googleBusinessCalls:0/);
 assert.match(core,/appsScriptBusinessAuthority:false/);
 assert.doesNotMatch(core,/DELETE FROM t12_prod_orders|DELETE FROM t12_prod_lines/);
@@ -63,5 +69,7 @@ console.log('ENTRY614_NATIVE_FAMILY_COVERED_TOP_LEVEL=46');
 console.log('ENTRY614_UNCOVERED_ACTIVE_TOP_LEVEL=0');
 console.log('ENTRY614_HYBRID_UPDATE_NOTIFY_CLOUD_RUNTIME=YES');
 console.log('ENTRY614_CORE_GOOGLE_BUSINESS_CALLS=0');
+console.log('ENTRY614_RUNTIME_SHEET_MIRROR_DEPENDENCY=0');
+console.log('ENTRY614_CURRENT_ORDER_AUTHORITY=D1_NATIVE');
 console.log('ENTRY614_CORE_CONTROL_DEFAULT=OFF');
 console.log('ENTRY614_PRODUCTION_MUTATION=NO');
