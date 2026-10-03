@@ -1306,6 +1306,26 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   API_DEPLOY=NO
   NEXT_ACTION=BUILD_CONTENT_CONFIG_CONVERSATION_ACCOUNTING_FAMILIES_REPO_ONLY
   ```
+- Content/Config Zero-Google family started Repository-only:
+  - migration `0013_employee_content_zero_google_v1.sql` commit `135d6de491d4fd102ea2b4eca05d4a6f8b2dc79c`.
+  - adds default-OFF `employee_content_control_v1`, D1-native content records, file metadata, audit events, and seed records for original Platform Sections / HQ Franchise / Service Route defaults.
+  - native handler `employee-content-native-v1.mjs` commit `557488e52d927d5273fcaf1f9a4df2d2e71235da`.
+  - covers Platform Sections, Franchise branches + customer branch assignment, Service Routes, Marketplace vendors/products, White-label, lead phones, Platform Ads, Knowledge, Matbagy Notes.
+  - file/image writes target Cloudflare R2 binding `FILES`; **no Google Drive runtime path is used**. If R2 is absent, file writes fail closed.
+  - Worker route wired in `index_v2.js` commit `c1e0f6c219cf1f51809ad0224ee3196e66d8cfbf`.
+- All Content control remains default-OFF. Migration 0013 not applied and source not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_CONTENT_FAMILY_SOURCE_BUILT_REPO_ONLY
+  COMMIT=c1e0f6c219cf1f51809ad0224ee3196e66d8cfbf
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  R2_touched=NO
+  NEXT_ACTION=ADD_CONTENT_NATIVE_REGRESSION_AND_REPO_CI
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
