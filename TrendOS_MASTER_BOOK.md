@@ -1122,6 +1122,37 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO_YET
   NEXT_ACTION=QUALIFY_EXACT_ACTIVATION_MANIFEST_THEN_AUTHENTICATE_BROWSER_PROFILE_FOR_SECRET_INSTALL
   ```
+- Exact activation manifest pinned:
+  - file: `docs/trendos/staging/ENTRY613_DIYA_PRODUCTION_CANARY_MANIFEST.json`
+  - commit: `f292b8e4cbe034ea01b23daa42555abdd5e37de9`
+  - canary = `ضياء`
+  - exact bridge policies = 69
+  - global Native Auth remains forbidden.
+- Manifest regression added:
+  - file: `tests/entry613_diya_production_canary_manifest.test.mjs`
+  - commit: `63e1fb146ff892a8f51fd84fe182f7357eefc4a0`
+- Dedicated manifest CI:
+  - workflow commit: `467b6065b84dba55dfa120240d560797ebdb7f68`
+  - Run `37124017425`
+  - Job `111205584637`
+  - conclusion: **SUCCESS**
+  - verified `ENTRY613_CANARY_USERNAME=ضياء`, `ENTRY613_POLICY_COUNT=69`, `ENTRY613_GLOBAL_NATIVE_AUTH=NO`, `ENTRY613_REPO_DEFAULT_OFF=YES`.
+  - Production pre-mutation Auth/Bridge remained OFF.
+- Current execution gate is now only the authenticated secret/property installation on both Cloudflare and Google Apps Script.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY613_MANIFEST_QUALIFIED_WAITING_BROWSER_AUTH
+  RUN_ID=37124017425
+  JOB_ID=111205584637
+  COMMIT=467b6065b84dba55dfa120240d560797ebdb7f68
+  CANARY_USERNAME=ضياء
+  BRIDGE_POLICY_COUNT=69
+  Production_touched=NO_YET
+  D1_touched=NO_YET
+  Apps_Script_touched=NO_YET
+  Secrets_touched=NO_YET
+  NEXT_ACTION=AUTHENTICATE_TINYFISH_PROFILE_TO_CLOUDFLARE_AND_GOOGLE_APPS_SCRIPT_THEN_INSTALL_SHARED_SECRET
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
