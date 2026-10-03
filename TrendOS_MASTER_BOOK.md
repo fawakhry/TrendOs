@@ -1522,6 +1522,115 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=ENTRY615_CURRENT_DATA_BACKFILL_INVENTORY_AND_PARITY_PLAN
   ```
 
+
+### Entry615 — Zero-Google current-data backfill preview
+- الاسم العربي للبحث: **نسخ آخر بيانات Google الحية إلى D1 Native بدون إبقاء Google Runtime**.
+- يبدأ بعد Entry614 الذي أثبت:
+  - Employee business source coverage = **46/46**.
+  - `sheet_rows/sheet_catalog` runtime dependency = **0**.
+  - كل العائلات الجديدة default-OFF.
+  - Production لم تُلمس.
+- بعد انقطاع النت تم الرجوع للحالة الفعلية: آخر HEAD قبل Entry615 كان `f59840978424d40467ac01fbac07a79603ce439e`; لا يوجد Backfill Production منفذ ولا Entry615 مسجل في الكتاب.
+- تم تصدير نسخة XLSX read-only من Google Sheet التشغيل الحالي:
+  - Spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+  - Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+  - observed sheets = **91**
+  - snapshot SHA256: `f36ca58ad8ec42901f54e3145c3b313374aaaf950a44d973d8bf4ca8470974db`
+- لا تعديل على Google/Apps Script تم؛ القراءة/export فقط.
+- Backfill mapping مؤهل محليًا من الـXLSX الحالي إلى D1 native families. أهم source counts:
+  ```ini
+  CURRENT_ORDERS=222
+  CURRENT_LINES=250
+  ARCHIVE_ORDERS=3361
+  ARCHIVE_LINES=4628
+  ORDER_EVENTS=12724
+  ATTENDANCE_DAYS_SOURCE=119
+  ATTENDANCE_PULSES=186
+  CLEANING_SOURCE=207
+  FEEDBACK_SOURCE=176
+  GO_LIVE_DRAFT_SOURCE=41
+  NOTES=264
+  KNOWLEDGE=14
+  ACCOUNTING_DEPT_LINES=18
+  ACCOUNTING_FINAL_INVOICES=3
+  PARTY_LEDGER_ROWS=7
+  ```
+- Canonical D1 target counts after deterministic dedupe:
+  ```ini
+  ATTENDANCE_DAYS=87
+  ATTENDANCE_PULSES=186
+  CLEANING_ROWS=80
+  FEEDBACK_REQUESTS=166
+  GO_LIVE_DRAFTS=39
+  CURRENT_ORDERS=222
+  CURRENT_LINES=234
+  ARCHIVE_ORDERS=3361
+  ARCHIVE_LINES=3565
+  ORDER_EVENTS=12724
+  CONTENT_RECORDS=284
+  CONVERSATIONS=1
+  MESSAGES=6
+  RETAINED_LEGACY_ROWS=1250
+  ```
+- Deduplication لا يحذف التاريخ:
+  - attendance extras = 32.
+  - cleaning extras = 127.
+  - feedback extras = 10.
+  - go-live draft extras = 2.
+  - current-line duplicates = 16.
+  - archive-line repeated snapshots = 1063.
+  - كل الـ**1250** row الزائدة تُحفظ في `employee_zero_google_legacy_rows_v1` مع source sheet/row/reason/raw JSON.
+- Parity guards:
+  ```ini
+  ATTENDANCE_PULSE_ORPHANS_AFTER_REMAP=0
+  CURRENT_LINE_MISSING_CURRENT_ORDER_PARENT=0
+  RUNTIME_SHEET_MIRROR_DEPENDENCY=0
+  EMPLOYEE_BUSINESS_TOP_LEVEL_COVERAGE=46/46
+  ```
+- تم إصلاح source قبل Backfill:
+  - stale default Service Route seed أزيل من migration 0013 في commit `5784cbe6f087ff609b2005aa5fe0f8c5f5f6103e`.
+  - retention/parity migration `0018_zero_google_backfill_retention_v1.sql` أضيف في commit `8f87c201663255a69f39d0a9d386344abe1d6f29`.
+  - Entry615 manifest أضيف في commit `bea226e3be0442505346e63f24e24c6892a8b527`.
+  - aggregate preview evidence أضيف في commit `b5f0d12c1f24467aec53f6393d9bdba2bb525405`.
+- Backfill generator/package:
+  - تم بناء generator محلي robust من الـXLSX الحالي.
+  - نتج SQL محلي ≈ 35 MB، وحزمة مضغوطة ≈ 1.2 MB.
+  - **Production data داخل SQL لم تُرفع إلى GitHub عمدًا**.
+  - الحزمة مخصصة للتنفيذ اليدوي على D1 بعد تطبيق migrations 0012→0018 والتحقق من OFF controls.
+- مهم: source snapshot الحالي أظهر 2 attendance pulse session IDs غير موجودة كسطور مستقلة في سجل الدوام، لكن كلاهما لنفس employee/date له canonical attendance session؛ generator يعيد ربطهما بالـcanonical session، لذلك `ATTENDANCE_PULSE_ORPHANS_AFTER_REMAP=0`.
+- الحالة التشغيلية لم تتغير:
+  ```ini
+  Employee_Auth=OFF
+  Employee_Bridge=OFF
+  Employee_Ops_Control=NOT_APPLIED_OR_OFF
+  Employee_Content_Control=NOT_APPLIED_OR_OFF
+  Employee_Comms_Control=NOT_APPLIED_OR_OFF
+  Employee_Accounting_Control=NOT_APPLIED_OR_OFF
+  Employee_Core_Control=NOT_APPLIED_OR_OFF
+  Google_Employee_Runtime=STILL_LIVE
+  ZERO_GOOGLE_COMPLETE=NO
+  ```
+- لا نعتبر Zero-Google مكتملًا قبل:
+  1. تطبيق migrations 0012→0018 مع controls OFF.
+  2. Backfill SQL APPLY.
+  3. D1 parity = PASS.
+  4. family-by-family READONLY ثم GENERAL cutover.
+  5. frontend legacy business fallback = 0.
+  6. Employee Login/Auth → D1 Native كآخر خطوة.
+  7. إيقاف Apps Script employee runtime وGoogle migration/sync.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_BACKFILL_PREVIEW_PASS_WAITING_MANUAL_D1_APPLY
+  COMMIT=b5f0d12c1f24467aec53f6393d9bdba2bb525405
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  NEXT_ACTION=MANUAL_APPLY_MIGRATIONS_0012_TO_0018_WITH_CONTROLS_OFF_THEN_APPLY_ENTRY615_BACKFILL_SQL_AND_RUN_PARITY
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
