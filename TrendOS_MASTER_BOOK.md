@@ -825,6 +825,24 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=ADD_CANARY_REGRESSION_TESTS_AND_RUN_REPO_ONLY_CI
   ```
+- Fail-closed behavior tightened before qualification:
+  - missing frontend bridge/policy readiness fails before any Native login POST;
+  - Cloud health network/HTTP failures are normalized to `EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED`;
+  - selected canary never silently falls back to Legacy login when preflight cannot be proven.
+- Commit: `172fce835284b06d59d99aa325c5ba0a7f18728e`.
+- Repository-only / not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_FAIL_CLOSED_HARDENED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=172fce835284b06d59d99aa325c5ba0a7f18728e
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_ENTRY611_CANARY_TESTS
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
