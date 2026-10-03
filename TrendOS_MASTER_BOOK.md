@@ -991,6 +991,28 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=BUILD_DEDICATED_ENTRY612_READONLY_PRODUCTION_GATE
   ```
+- Dedicated Entry612 read-only Production preflight added:
+  - file: `.github/workflows/trendos-entry612-native-auth-production-readonly-preflight.yml`
+  - verifies Entry611 source qualification;
+  - verifies exact API/UI active versions/deployments;
+  - reads Cloudflare settings + secret **names only** without secret values;
+  - reads D1 Auth control/users/sessions with SELECT only;
+  - rechecks Auth/Bridge/Orders/Customers/frontend Production baselines;
+  - probes Apps Script bridge boolean state only;
+  - ends at an explicit approval gate and performs no mutation.
+- Commit: `c0ab3bd4b010d70d0e05b6f66f5ede29d24ccc73`.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY612_READONLY_PREFLIGHT_WORKFLOW_CREATED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=c0ab3bd4b010d70d0e05b6f66f5ede29d24ccc73
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_ENTRY612_PREFLIGHT_RUN_AND_RECORD_RESULT
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
