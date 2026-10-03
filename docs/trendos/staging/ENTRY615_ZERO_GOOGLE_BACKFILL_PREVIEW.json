@@ -1,0 +1,119 @@
+{
+  "entry": 615,
+  "sourceSnapshotSha256": "f36ca58ad8ec42901f54e3145c3b313374aaaf950a44d973d8bf4ca8470974db",
+  "sourceSpreadsheetId": "1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI",
+  "sourceSpreadsheetTitle": "TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY",
+  "sourceSheetCount": 91,
+  "sourceCounts": {
+    "attendanceDays": 119,
+    "attendancePulses": 186,
+    "attendanceSettings": 25,
+    "specialTimes": 2,
+    "hrEmployees": 4,
+    "hrRequests": 0,
+    "hrSkills": 9,
+    "hrPerformance": 0,
+    "cleaningRows": 207,
+    "pressSettings": 13,
+    "pressSessions": 2,
+    "platformSections": 4,
+    "franchiseBranches": 1,
+    "serviceRoutes": 0,
+    "marketplaceVendors": 0,
+    "marketplaceProducts": 0,
+    "platformAds": 0,
+    "whiteLabelSettingsRows": 15,
+    "knowledgeRows": 14,
+    "notesRows": 264,
+    "managerConversations": 1,
+    "managerMessages": 4,
+    "feedbackRows": 176,
+    "goLiveDraftRows": 41,
+    "orderConversationMessages": 2,
+    "accountingMaterials": 2,
+    "accountingTemplates": 1,
+    "accountingDeptLines": 18,
+    "accountingFinalInvoices": 3,
+    "accountingPartyLedger": 7,
+    "accountingStockMoves": 0,
+    "currentOrders": 222,
+    "currentLines": 250,
+    "archiveOrders": 3361,
+    "archiveLines": 4628,
+    "orderEvents": 12724,
+    "deliveryRestrictions": 0
+  },
+  "canonicalTargets": {
+    "attendanceDays": 87,
+    "attendancePulses": 186,
+    "attendanceSettings": 25,
+    "specialTimes": 2,
+    "hrEmployees": 4,
+    "hrSkills": 9,
+    "cleaningRows": 80,
+    "pressSettings": 10,
+    "pressSessions": 2,
+    "contentRecords": 284,
+    "conversations": 1,
+    "messages": 6,
+    "feedbackRequests": 166,
+    "goLiveDrafts": 39,
+    "accountingMaterials": 2,
+    "accountingTemplates": 1,
+    "accountingDeptLines": 18,
+    "accountingFinalInvoices": 3,
+    "accountingPartyLedger": 7,
+    "currentOrders": 222,
+    "currentLines": 234,
+    "archiveOrders": 3361,
+    "archiveLines": 3565,
+    "orderEvents": 12724,
+    "retainedLegacyRows": 1250
+  },
+  "dedupe": {
+    "attendance": {
+      "source": 119,
+      "canonical": 87,
+      "retained": 32
+    },
+    "cleaning": {
+      "source": 207,
+      "canonical": 80,
+      "retained": 127
+    },
+    "feedback": {
+      "source": 176,
+      "canonical": 166,
+      "retained": 10
+    },
+    "goLiveDrafts": {
+      "source": 41,
+      "canonical": 39,
+      "retained": 2
+    },
+    "currentLines": {
+      "source": 250,
+      "canonical": 234,
+      "retained": 16
+    },
+    "archiveLines": {
+      "source": 4628,
+      "canonical": 3565,
+      "retained": 1063
+    }
+  },
+  "parityGuards": {
+    "attendancePulseOrphansAfterRemap": 0,
+    "currentLineMissingCurrentOrderParents": 0,
+    "runtimeSheetMirrorDependency": 0,
+    "employeeBusinessTopLevelCoverage": "46/46",
+    "productionMutation": false
+  },
+  "localPackage": {
+    "generated": true,
+    "containsProductionData": true,
+    "committedToGitHub": false,
+    "sqlSizeBytes": 36404251,
+    "packagePurpose": "manual D1 backfill only after migrations 0012-0018 are applied and explicit production approval is reconfirmed"
+  }
+}
