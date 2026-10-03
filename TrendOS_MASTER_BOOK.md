@@ -693,6 +693,35 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=READ_ENTRY610_RUN2
   ```
+- Entry610 Run2 after fixing redirect semantics:
+  - Run `37121323955`
+  - Job `111197852535`
+  - conclusion: **SUCCESS**
+  - Apps Script probe: HTTP 200, bridge route live, bridge enabled = NO.
+  - Production Auth/Bridge/frontend flags remained OFF and baseline PASS.
+  - no Product/Production mutation.
+- Latest classification pin commit `bfc38b23808e782eced4dd4dea5a2c0c8cb99654` triggered:
+  - Entry610 Run3 `37121355420`, job `111197941597` = **SUCCESS**
+  - A61 browser Cloud transport run `37121355400` = **SUCCESS**
+  - Production mutation = NO.
+- Static handler audit corrected one Entry609 statement:
+  - `cleaningV1:status` is supported by current `Code.gs`; it is read-only.
+  - `attendanceV1:config`, `attendanceV1:heartbeat`, and `hrV1:employees` are also supported by the backend, but only the current frontend-required op set counts toward the 29 active op policies.
+  - therefore **29 active frontend op policies remains correct**, while the minimal read-only Bridge pilot must include `cleaningV1:status` and is **27 policies**, not 26.
+  - `getRowsPageV1931` remains excluded because it is Cloud/Edge authority.
+- Inventory test correction commit: `cf1badb4d027d44d8e602b000587bab0a96f2480`.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY610_RUNTIME_POLICY_CORRECTION_PENDING_CI
+  RUN_ID=37121355420
+  JOB_ID=111197941597
+  COMMIT=cf1badb4d027d44d8e602b000587bab0a96f2480
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_CI_FOR_CF1BADB_AND_CLOSE_REPO_ONLY_QUALIFICATION_IF_PASS
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
