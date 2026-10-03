@@ -678,6 +678,21 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=FIX_READONLY_REDIRECT_PROBE_METHOD_AND_RERUN
   ```
+- Apps Script redirect probe method fixed repo-only:
+  - removed forced POST preservation on redirected `script.googleusercontent.com` response;
+  - original request remains POST via `--data-binary`, standard 302 follow becomes GET for the generated output URL.
+  - commit: `d3fd89a86843eb6aa8a8ec1a815a366c07ffda98`.
+  ```ini
+  STATUS=ENTRY610_PROBE_METHOD_FIXED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=d3fd89a86843eb6aa8a8ec1a815a366c07ffda98
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_ENTRY610_RUN2
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
