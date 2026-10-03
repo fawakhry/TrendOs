@@ -644,6 +644,21 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=REFRESH_HEAD_AND_CREATE_ENTRY610_READONLY_WORKFLOW
   ```
+- Read-only qualification workflow created successfully after refreshing HEAD:
+  - file: `.github/workflows/trendos-entry610-native-auth-cutover-readonly.yml`
+  - commit: `753c40d3deae83914da579ab65104800048da3d3`
+  - it runs current A61 dispatcher contract + Entry609 inventory, follows the Apps Script 302 redirect with POST preserved for boolean-only bridge probing, and rechecks Production flags read-only.
+  ```ini
+  STATUS=ENTRY610_READONLY_WORKFLOW_CREATED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=753c40d3deae83914da579ab65104800048da3d3
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_ENTRY610_RUN_AND_RECORD_RESULT
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
