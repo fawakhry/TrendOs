@@ -601,7 +601,7 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   ```
 
 
-### Entry609 — Repo-only bridge and enrollment qualification
+### Entry610 — Repo-only bridge and enrollment qualification
 - الاسم العربي للبحث: **تأهيل Native Auth + Compatibility Bridge بدون لمس Production**.
 - نقطة البداية: Entry608 closed read-only with Runtime proving:
   - API/UI expected versions live at 100%.
@@ -631,7 +631,18 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   D1_touched=NO
   Apps_Script_touched=NO
   Secrets_touched=NO
-  NEXT_ACTION=VERIFY_TRIGGERED_A61_CI_THEN_RUN_FULL_ENTRY609_REPO_ONLY_QUALIFICATION
+  NEXT_ACTION=VERIFY_TRIGGERED_A61_CI_THEN_RUN_FULL_ENTRY610_REPO_ONLY_QUALIFICATION
+  ```
+- أثناء إضافة workflow مستقل حصل GitHub Contents conflict `409` لأن branch HEAD تحرك من commit آخر بين القراءة والكتابة. GitHub رفض الكتابة قبل commit؛ لا يوجد overwrite ولا Production mutation.
+  ```ini
+  STATUS=BLOCK_BRANCH_RACE_REBASE_REQUIRED
+  RUN_ID=NONE
+  JOB_ID=NONE
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=REFRESH_HEAD_AND_CREATE_ENTRY610_READONLY_WORKFLOW
   ```
 
 ### Customers
