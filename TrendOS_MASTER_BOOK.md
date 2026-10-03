@@ -1290,6 +1290,22 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   API_DEPLOY=NO
   NEXT_ACTION=RUN_OPS_NATIVE_CI_THEN_BUILD_NEXT_ZERO_GOOGLE_FAMILIES
   ```
+- Employee Ops native repo CI:
+  - Run `37130008916`
+  - conclusion = **SUCCESS**
+  - schema default-OFF verified, no Order/Customer schema mutation, Production Auth/Bridge stayed OFF, Orders baseline PASS.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_OPS_FAMILY_REPO_QUALIFIED
+  RUN_ID=37130008916
+  COMMIT=6139ba339a09686621ffff9a172946d1dbd518fc
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=BUILD_CONTENT_CONFIG_CONVERSATION_ACCOUNTING_FAMILIES_REPO_ONLY
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
