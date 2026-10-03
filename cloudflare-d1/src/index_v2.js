@@ -9,6 +9,7 @@ import { handleEmployeeNativeAuthRequest, isEmployeeNativeAuthPath } from './emp
 import { handleEmployeeLegacyBridgeRequest, isEmployeeLegacyBridgePath } from './employee-legacy-bridge-v1.mjs';
 import { handleEmployeeOpsNativeRequest, isEmployeeOpsNativePath } from './employee-ops-native-v1.mjs';
 import { handleEmployeeContentNativeRequest, isEmployeeContentNativePath } from './employee-content-native-v1.mjs';
+import { handleEmployeeCommsNativeRequest, isEmployeeCommsNativePath } from './employee-comms-native-v1.mjs';
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
@@ -57,6 +58,10 @@ export default {
 
     if (isEmployeeContentNativePath(path)) {
       return handleEmployeeContentNativeRequest(request, env, ctx);
+    }
+
+    if (isEmployeeCommsNativePath(path)) {
+      return handleEmployeeCommsNativeRequest(request, env, ctx);
     }
 
     // CLOUD-MIGRATION-V3/T6A: exact session paths only. This replaces the
