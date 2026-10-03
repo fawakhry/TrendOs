@@ -659,6 +659,25 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=READ_ENTRY610_RUN_AND_RECORD_RESULT
   ```
+- Entry610 Run1:
+  - Run `37121251255`
+  - Job `111197645665`
+  - conclusion: **SUCCESS**
+  - current inventory PASS: 46 active employee legacy top-level actions; 51 server transport candidates; 5 dormant transport-only; 29 active op policies; 69 full active parity policies; 26 current read-only pilot policies.
+  - Production baseline still PASS: Auth OFF, Bridge OFF, frontend flags OFF.
+  - Apps Script probe with POST preserved across redirect returned HTTP `405`; therefore bridge enable/secret presence remained `NOT_PROVEN`. This is a probe-method limitation, not an Auth/runtime failure.
+  - no Product/Production mutation.
+  ```ini
+  STATUS=ENTRY610_RUN1_PASS_APPS_PROBE_INCONCLUSIVE
+  RUN_ID=37121251255
+  JOB_ID=111197645665
+  COMMIT=753c40d3deae83914da579ab65104800048da3d3
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=FIX_READONLY_REDIRECT_PROBE_METHOD_AND_RERUN
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
