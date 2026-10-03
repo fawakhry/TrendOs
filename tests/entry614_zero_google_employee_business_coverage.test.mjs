@@ -35,7 +35,7 @@ assert.deepEqual(active.filter(a=>!covered.has(a)),[]);
 for(const a of coreActions) assert.ok(core.includes("'"+a+"'"),'core action missing: '+a);
 for(const a of opsActions) assert.ok(ops.includes("'"+a+"'"),'ops action missing: '+a);
 
-assert.match(coreSql,/ENTRY614_EMPLOYEE_CORE_V1','core control marker missing');
+assert.match(coreSql,/ENTRY614_EMPLOYEE_CORE_V1/,'core control marker missing');
 assert.match(coreSql,/mode TEXT NOT NULL CHECK\(mode IN \('OFF','READONLY','GENERAL'\)\)/);
 assert.match(coreSql,/VALUES\(1,'ENTRY614_EMPLOYEE_CORE_V1','OFF',0,1\)/);
 assert.match(coreSql,/employee_core_archive_orders_v1/);
