@@ -17,6 +17,11 @@ window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.w
 // until native employee auth and the temporary legacy bridge are separately qualified.
 window.MATBAGY_EMPLOYEE_API_URL = window.MATBAGY_EDGE_ORDERS_API_URL;
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;
+// Entry611: optional per-user native-auth canary. Default-OFF and empty means
+// exact legacy login behavior for every employee until Production approval.
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 69;
 window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;
 window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];
 
