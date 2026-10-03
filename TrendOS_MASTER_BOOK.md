@@ -414,6 +414,53 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=PATCH_READONLY_WORKFLOW_TO_USE_CURRENT_DISPATCHER_INVENTORY_AND_RERUN
   ```
 - لا نغيّر Product code بسبب هذا الفشل؛ نعدّل أداة الفحص فقط كي تقيس current truth بدل contract تاريخي superseded.
+- Run2 final read-only result:
+  - workflow commit: `21addc5dc449679dba24c68ba8399f5905e74ea4`.
+  - Run `37120688311`, Job `111196031173` = **SUCCESS**.
+  - Active API version/deployment unchanged: `ce156662-a698-47fc-b73c-dfd4657be9f5` / `477ee04d-10ac-4fc3-9ba6-e81691bcd286`, traffic 100%.
+  - Active UI version/deployment unchanged: `adfb5056-af23-4d7f-8e12-7de6417dfce2` / `a066abb8-4c33-4050-813b-123df4140450`, traffic 100%.
+  - Cloudflare secret-name list read succeeded; `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1` = **ABSENT**. No secret value was printed.
+  - Auth health and direct D1 read agree:
+    ```ini
+    AUTH_MODE=OFF
+    AUTH_ENV_ENABLED=NO
+    D1_USER_COUNT=0
+    D1_NATIVE_READY_COUNT=0
+    D1_SESSION_COUNT=0
+    D1_LIVE_SESSION_COUNT=0
+    LEGACY_BOOTSTRAP_ENABLED=NO
+    LEGACY_SESSION_ENROLL_ENABLED=NO
+    NATIVE_ONLY=NO
+    ENROLL_CANARY_CONFIGURED=NO
+    ENROLL_NONCE_CONFIGURED=NO
+    PLAINTEXT_STORED=NO
+    ```
+  - Bridge health:
+    ```ini
+    BRIDGE_ENABLED=NO
+    BRIDGE_UPSTREAM_CONFIGURED=YES
+    BRIDGE_SECRET_CONFIGURED=NO
+    BRIDGE_ALLOWED_POLICY_COUNT=0
+    RAW_NATIVE_TOKEN_FORWARDED=NO
+    PLAINTEXT_PASSWORD_FORWARDED=NO
+    ```
+  - Orders safety baseline preserved: GENERAL create + duplicate guard PASS; legacy line runtime PASS; frontend duplicate guard/refresh recovery/legacy-line route PASS.
+  - Apps Script invalid-assertion probe returned HTTP 302 before useful JSON classification, therefore Script Properties secret/enablement remain **NOT_PROVEN** from read-only public runtime. No mutation was attempted to resolve that ambiguity.
+  - Owner screenshot during Run2 shows `جارٍ تسجيل الدخول...` after submit; this is consistent with the remaining legacy Auth hop and is not evidence of a frontend static-load regression.
+  - Final Run2 boundary:
+    ```ini
+    STATUS=READONLY_ASSESSMENT_PASS_BRIDGE_GATE_BLOCKED
+    RUN_ID=37120688311
+    JOB_ID=111196031173
+    COMMIT=21addc5dc449679dba24c68ba8399f5905e74ea4
+    Production_touched=NO
+    D1_touched=NO
+    Apps_Script_touched=NO
+    Secrets_touched=NO
+    Auth_mode_changed=NO
+    Order_Customer_data_changed=NO
+    NEXT_ACTION=REPO_ONLY_EXACT_BRIDGE_POLICY_AND_ENROLLMENT_CUTOVER_PLAN; PRODUCTION_MUTATION_REQUIRES_EXPLICIT_APPROVAL
+    ```
 
 ### Customers
 - Customer master = 247 rows في D1.
