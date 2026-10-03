@@ -194,43 +194,28 @@ async function cleaningAction(env,user,op,body){
   await writeEvent(env,'cleaning',id,'complete',user.username,{dateKey},now);
   return {success:true,message:'تم تسجيل تنظيف وتجهيز المكان.'};
 }
-async function sheetObjects(env,sheetName){
-  const cat=await env.DB.prepare("SELECT headers_json FROM sheet_catalog WHERE sheet_name=?").bind(sheetName).first();
-  if(!cat) return [];
-  let headers=[]; try{headers=JSON.parse(cat.headers_json||'[]').map(text);}catch{}
-  const rows=await env.DB.prepare("SELECT row_number,display_json,values_json FROM sheet_rows WHERE sheet_name=? ORDER BY row_number").bind(sheetName).all();
-  return (rows.results||[]).map(r=>{
-    let vals=[]; try{vals=JSON.parse(r.display_json||r.values_json||'[]');}catch{}
-    const o={rowNumber:Number(r.row_number||0)}; headers.forEach((h,i)=>{if(h)o[h]=vals[i];}); return o;
-  });
-}
-function first(o,names){ for(const n of names){ if(o[n]!=null && text(o[n])) return o[n]; } return ''; }
 async function pressQueue(env){
-  const cloud=await env.DB.prepare(`
-    SELECT l.order_id AS orderId,l.priority,l.department,l.heat_press AS heatPress,
-           COALESCE(r.status,l.status) AS status
-    FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
-    WHERE (l.heat_press=1 OR l.department LIKE '%مكبس%')
-  `).all();
+  const [cloud,imported]=await Promise.all([
+    env.DB.prepare(`
+      SELECT l.order_id AS orderId,l.priority,l.department,l.heat_press AS heatPress,
+             COALESCE(r.status,l.status) AS status
+        FROM t12_prod_lines l
+        LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+       WHERE a.line_id IS NULL AND (l.heat_press=1 OR l.department LIKE '%مكبس%')
+    `).all(),
+    env.DB.prepare(`
+      SELECT order_id AS orderId,priority,department,heat_press AS heatPress,status
+        FROM employee_core_lines_v1
+       WHERE active=1 AND (heat_press=1 OR department LIKE '%مكبس%')
+    `).all()
+  ]);
   const seen=new Set(), urgent=new Set();
-  for(const r of cloud.results||[]){
+  for(const r of [...(cloud.results||[]),...(imported.results||[])]){
     if(TERMINAL_LINE_STATUSES.has(text(r.status))) continue;
-    const oid=text(r.orderId); if(!oid) continue; seen.add(oid);
+    const oid=text(r.orderId); if(!oid) continue;
+    seen.add(oid);
     if(['عاجل','VIP'].includes(text(r.priority))) urgent.add(oid);
-  }
-  const legacyRows=await sheetObjects(env,'بنود الأوردرات');
-  const overlays=await env.DB.prepare("SELECT line_id,status FROM t12_legacy_line_runtime").all();
-  const overlay=new Map((overlays.results||[]).map(r=>[text(r.line_id),text(r.status)]));
-  for(const r of legacyRows){
-    const dept=text(first(r,['القسم','القسم الرئيسي']));
-    const hp=key(first(r,['مكبس حراري']));
-    if(!(dept.includes('مكبس')||['نعم','1','true','yes','مكبس'].includes(hp))) continue;
-    const lineId=text(first(r,['Line ID','معرف البند','line_id']));
-    const status=overlay.get(lineId)||text(first(r,['الحالة','حالة البند']));
-    if(TERMINAL_LINE_STATUSES.has(status)) continue;
-    const oid=text(first(r,['رقم الأوردر','كود الأوردر','Order ID']));
-    if(!oid) continue; seen.add(oid);
-    const pri=text(first(r,['الأولوية','Priority'])); if(pri==='عاجل'||pri==='VIP') urgent.add(oid);
   }
   return {count:seen.size,urgent:urgent.size,orderIds:[...seen]};
 }
