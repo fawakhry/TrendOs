@@ -782,6 +782,27 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=ADD_DEFAULT_OFF_CANARY_CONFIG_AND_DISPATCHER_FAIL_CLOSED_ROUTING_WITH_TESTS
   ```
+- Default-OFF canary frontend config added Repository-only:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=false
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=[]
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=69
+  ```
+- Global `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false` and bridge flag remain unchanged.
+- Commit: `9ecb6c3a94e235a5857950f322aa33385e74d4be`.
+- This commit is **not deployed**.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_DEFAULT_OFF_CANARY_CONFIG_ADDED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=9ecb6c3a94e235a5857950f322aa33385e74d4be
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=IMPLEMENT_CANARY_DISPATCHER_PREFLIGHT_AND_TESTS_REPO_ONLY
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
