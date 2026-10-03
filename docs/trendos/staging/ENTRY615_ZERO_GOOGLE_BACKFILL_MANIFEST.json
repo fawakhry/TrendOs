@@ -1,0 +1,283 @@
+{
+  "entry": 615,
+  "source": {
+    "spreadsheetTitle": "TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY",
+    "spreadsheetId": "1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI",
+    "observedSheetCount": 91,
+    "snapshotMethod": "Google Drive export/read-only",
+    "runtimeDependencyAfterCutover": "NONE"
+  },
+  "policy": {
+    "googleRuntimeAllowedAfterCutover": false,
+    "sheetMirrorRuntimeAllowed": false,
+    "oneTimeMirrorRefreshAllowedForMigrationStaging": true,
+    "productionWriteAllowedByThisManifest": false,
+    "discardedLegacyRowsMustBeRetained": true
+  },
+  "families": {
+    "ops": [
+      {
+        "sourceSheet": "سجل الدوام",
+        "sourceRows": 119,
+        "targetTable": "employee_attendance_days_v1",
+        "canonicalRule": "one row per date+username; merge duplicate sessions",
+        "canonicalRows": 87,
+        "retainedExtras": 32
+      },
+      {
+        "sourceSheet": "نبض الحضور",
+        "sourceRows": 186,
+        "targetTable": "employee_attendance_pulses_v1",
+        "canonicalRule": "preserve all pulses and remap legacy session id to canonical attendance id"
+      },
+      {
+        "sourceSheet": "إعدادات الدوام",
+        "sourceRows": 25,
+        "targetTable": "employee_attendance_settings_v1",
+        "canonicalRule": "one row per setting key"
+      },
+      {
+        "sourceSheet": "تشغيل - مواعيد خاصة",
+        "sourceRows": 2,
+        "targetTable": "employee_attendance_special_times_v1",
+        "canonicalRule": "one row per date"
+      },
+      {
+        "sourceSheet": "HR - الموظفين",
+        "sourceRows": 4,
+        "targetTable": "employee_hr_employees_v1",
+        "canonicalRule": "employee id primary; display name may seed username until native auth cutover"
+      },
+      {
+        "sourceSheet": "HR - الطلبات والإجازات",
+        "sourceRows": 0,
+        "targetTable": "employee_hr_requests_v1"
+      },
+      {
+        "sourceSheet": "HR - مصفوفة المهارات",
+        "sourceRows": 9,
+        "targetTable": "employee_hr_skills_v1",
+        "canonicalRule": "deterministic generated skill id when legacy id absent"
+      },
+      {
+        "sourceSheet": "HR - الأداء والتطوير",
+        "sourceRows": 0,
+        "targetTable": "employee_hr_performance_v1"
+      },
+      {
+        "sourceSheet": "تشغيل - النظافة اليومية",
+        "sourceRows": 207,
+        "targetTable": "employee_cleaning_daily_v1",
+        "canonicalRule": "one latest row per date+username",
+        "canonicalRows": 80,
+        "retainedExtras": 127
+      },
+      {
+        "sourceSheet": "تشغيل - جلسات المكبس",
+        "sourceRows": 2,
+        "targetTable": "employee_press_sessions_v1"
+      },
+      {
+        "sourceSheet": "تشغيل - إعدادات المكبس",
+        "sourceRows": 13,
+        "targetTable": "employee_press_settings_v1",
+        "canonicalRule": "map legacy setting aliases to native setting keys"
+      }
+    ],
+    "content": [
+      {
+        "sourceSheet": "أقسام المنصة",
+        "sourceRows": 4,
+        "targetCollection": "platform_sections"
+      },
+      {
+        "sourceSheet": "فروع وفرنشايز مطبعجي",
+        "sourceRows": 1,
+        "targetCollection": "franchise_branches"
+      },
+      {
+        "sourceSheet": "ربط الخدمات بالمطابع",
+        "sourceRows": 0,
+        "targetCollection": "service_provider_routes",
+        "note": "stale default route seed removed before backfill"
+      },
+      {
+        "sourceSheet": "إعدادات نسخ المطابع",
+        "sourceRows": 15,
+        "targetCollection": "white_label",
+        "canonicalRule": "aggregate key/value rows into record_id=default"
+      },
+      {
+        "sourceSheet": "ماركت بليس - البائعين",
+        "sourceRows": 0,
+        "targetCollection": "marketplace_vendors"
+      },
+      {
+        "sourceSheet": "ماركت بليس - المنتجات",
+        "sourceRows": 0,
+        "targetCollection": "marketplace_products"
+      },
+      {
+        "sourceSheet": "إعلانات المنصة",
+        "sourceRows": 0,
+        "targetCollection": "platform_ads"
+      },
+      {
+        "sourceSheet": "معرفة واتس AI",
+        "sourceRows": 14,
+        "targetCollection": "knowledge"
+      },
+      {
+        "sourceSheet": "نوت مطبعجي",
+        "sourceRows": 264,
+        "targetCollection": "notes"
+      },
+      {
+        "sourceSheet": "content file references",
+        "sourceRowsWithFileRefs": 0,
+        "targetTable": "employee_content_files_v1",
+        "note": "no historical R2 asset move required for current content snapshot"
+      }
+    ],
+    "comms": [
+      {
+        "sourceSheet": "مدير العملاء - المحادثات",
+        "sourceRows": 1,
+        "targetTable": "conversations",
+        "canonicalRule": "upsert by phone"
+      },
+      {
+        "sourceSheet": "مدير العملاء - الرسائل",
+        "sourceRows": 4,
+        "targetTable": "messages",
+        "canonicalRule": "insert-or-ignore by message id/meta id"
+      },
+      {
+        "sourceSheet": "تقييم العملاء",
+        "sourceRows": 176,
+        "targetTable": "employee_feedback_requests_v1",
+        "canonicalRule": "latest request per order_id",
+        "canonicalRows": 166,
+        "retainedExtras": 10
+      },
+      {
+        "sourceSheet": "حسابات - مسودات الفواتير",
+        "sourceRows": 41,
+        "targetTable": "employee_go_live_drafts_v1",
+        "canonicalRule": "one draft per order_id; latest updated row wins"
+      },
+      {
+        "sourceSheet": "محادثات الأوردرات",
+        "sourceRows": 2,
+        "targetTable": "messages",
+        "canonicalRule": "preserve message id/order id; line id stored in raw_json"
+      },
+      {
+        "sourceSheet": "order conversation file references",
+        "sourceRowsWithFileRefs": 0,
+        "targetTable": "employee_order_conversation_files_v1"
+      }
+    ],
+    "accounting": [
+      {
+        "sourceSheet": "حسابات - الخامات",
+        "sourceRows": 2,
+        "targetTable": "employee_accounting_materials_v1"
+      },
+      {
+        "sourceSheet": "حسابات - البنود الثابتة",
+        "sourceRows": 1,
+        "targetTable": "employee_accounting_templates_v1"
+      },
+      {
+        "sourceSheet": "حسابات - فواتير الأقسام",
+        "sourceRows": 18,
+        "targetTable": "employee_accounting_dept_lines_v1"
+      },
+      {
+        "sourceSheet": "حسابات - الفواتير النهائية",
+        "sourceRows": 3,
+        "targetTable": "employee_accounting_final_invoices_v1"
+      },
+      {
+        "sourceSheet": "حسابات - كشف العملاء والموردين",
+        "sourceRows": 7,
+        "targetTable": "employee_accounting_party_ledger_v1"
+      },
+      {
+        "sourceSheet": "حسابات - حركة المخزون",
+        "sourceRows": 0,
+        "targetTable": "employee_accounting_stock_moves_v1"
+      },
+      {
+        "sourceSheet": "حسابات - حركة الحسابات",
+        "sourceRows": 0,
+        "note": "no live rows to import"
+      }
+    ],
+    "core": [
+      {
+        "sourceSheet": "الأوردرات",
+        "sourceRows": 222,
+        "targetTable": "employee_core_orders_v1",
+        "canonicalRows": 222
+      },
+      {
+        "sourceSheet": "بنود الأوردرات",
+        "sourceRows": 250,
+        "targetTable": "employee_core_lines_v1",
+        "canonicalRule": "prefer non-مكرر row then latest update per legacy line id",
+        "canonicalRows": 234,
+        "retainedExtras": 16
+      },
+      {
+        "sourceSheet": "أرشيف الأوردرات",
+        "sourceRows": 3361,
+        "targetTable": "employee_core_archive_orders_v1",
+        "canonicalRows": 3361
+      },
+      {
+        "sourceSheet": "أرشيف بنود الأوردرات",
+        "sourceRows": 4628,
+        "targetTable": "employee_core_archive_lines_v1",
+        "canonicalRule": "one operational archive line per legacy line id; preserve repeated snapshots separately",
+        "canonicalRows": 3565,
+        "retainedExtras": 1063
+      },
+      {
+        "sourceSheet": "سجل حركة الأوردرات",
+        "sourceRows": 12724,
+        "targetTable": "employee_core_events_v1",
+        "canonicalRule": "preserve all source events"
+      },
+      {
+        "sourceSheet": "عملاء منع التسليم بالمديونية",
+        "sourceRows": 0,
+        "targetTable": "employee_core_delivery_restrictions_v1"
+      }
+    ]
+  },
+  "retention": {
+    "table": "employee_zero_google_legacy_rows_v1",
+    "dispositions": [
+      "DEDUPED_OPERATIONAL_ROW",
+      "DUPLICATE_ARCHIVE_SNAPSHOT",
+      "DUPLICATE_ATTENDANCE_SESSION",
+      "DUPLICATE_CLEANING_ROW",
+      "DUPLICATE_FEEDBACK_REQUEST",
+      "UNMAPPED_LEGACY_ROW"
+    ]
+  },
+  "cutoverGate": [
+    "refresh current mirror once using existing copy-only Google migration or equivalent read-only export",
+    "apply migrations 0012-0018 with all family controls OFF",
+    "run backfill in PREVIEW and compare source/canonical/retained counts",
+    "run APPLY only after explicit production approval",
+    "verify parity with Google current snapshot",
+    "enable READONLY family by family",
+    "enable GENERAL family by family after write canaries",
+    "remove frontend legacy business fallback",
+    "migrate Employee Login/Auth to D1 last",
+    "disable Apps Script employee runtime and Google migration sync"
+  ]
+}
