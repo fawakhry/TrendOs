@@ -398,6 +398,22 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=CREATE_AND_RUN_DEDICATED_READONLY_ENTRY608_CONTROL_PLANE_CHECK; NO_AUTH_ENABLE
   ```
+- Dedicated read-only workflow created in commit `27387a7e02c305fab46a24a0309bee544d31f24d`.
+- First assessment run `37120602621`, job `111195790507` = **FAIL before Production checks**.
+- Failure cause: historical `tests/employee_legacy_action_classification_a61.test.mjs` still asserts that seven modules contain direct `TREND_API_URL|API_URL`; current source has already rerouted those modules through `trendosEmployeeApiV1`. This is a **stale test expectation**, not a runtime rollback.
+- Run1 boundary:
+  ```ini
+  STATUS=FAIL_STALE_TEST_EXPECTATION
+  RUN_ID=37120602621
+  JOB_ID=111195790507
+  COMMIT=27387a7e02c305fab46a24a0309bee544d31f24d
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=PATCH_READONLY_WORKFLOW_TO_USE_CURRENT_DISPATCHER_INVENTORY_AND_RERUN
+  ```
+- لا نغيّر Product code بسبب هذا الفشل؛ نعدّل أداة الفحص فقط كي تقيس current truth بدل contract تاريخي superseded.
 
 ### Customers
 - Customer master = 247 rows في D1.
