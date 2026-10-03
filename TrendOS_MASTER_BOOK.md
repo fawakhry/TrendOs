@@ -1326,6 +1326,26 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   R2_touched=NO
   NEXT_ACTION=ADD_CONTENT_NATIVE_REGRESSION_AND_REPO_CI
   ```
+- Content native regression added:
+  - `tests/entry614_employee_content_native.test.mjs`
+  - commit `c3a9450f9d7b9b7b8cc1d7a79cfadf4575e6d4f7`
+  - checks 20 action contracts, default-OFF schema, D1 authority marker, zero Google business calls, R2 file target, Worker routing.
+- Dedicated repo-only CI added:
+  - `.github/workflows/trendos-entry614-employee-content-native-ci.yml`
+  - commit `b86ebe6876f98b67e1da05538350dc982953121b`
+  - Production checks are read-only; no D1/R2/API/Apps Script mutation.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_CONTENT_REPO_CI_CREATED
+  COMMIT=b86ebe6876f98b67e1da05538350dc982953121b
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  Production_touched=NO
+  D1_touched=NO
+  R2_touched=NO
+  Apps_Script_touched=NO
+  NEXT_ACTION=READ_CONTENT_REPO_CI
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
