@@ -1245,6 +1245,30 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=PATCH_READONLY_COUNT_QUERY_TO_CURRENT_T12_TABLES_AND_RERUN
   ```
+- Entry614 inventory Run2:
+  - Run `37129432965`
+  - Job `111221415747`
+  - conclusion = **FAIL only in optional aggregate count query**.
+- Runtime schema + 87-sheet mirror catalog were re-read successfully and unchanged; no mutation occurred. The optional multi-table count statement remains nonessential to the migration design and is dropped from the critical gate rather than spending more rounds on diagnostics.
+- Authoritative structural conclusion:
+  ```ini
+  D1_NATIVE_EMPLOYEE_DOMAIN_TABLES=NOT_PRESENT
+  D1_GENERIC_HISTORICAL_SHEET_MIRROR=PRESENT
+  ORDERS_CUSTOMERS_AUTH_NATIVE_TABLES=PRESENT
+  ZERO_GOOGLE_REQUIRES_NEW_D1_DOMAIN_SCHEMAS=YES
+  ```
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_INVENTORY_SUFFICIENT_OPTIONAL_COUNT_DIAGNOSTIC_FAILED
+  RUN_ID=37129432965
+  JOB_ID=111221415747
+  COMMIT=9177b420460f9cd92cf567ac46a82522ed9ca17d
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=BUILD_ZERO_GOOGLE_DOMAIN_SCHEMAS_AND_CLOUD_HANDLERS_REPO_ONLY
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
