@@ -1367,6 +1367,29 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   API_DEPLOY=NO
   NEXT_ACTION=BUILD_CUSTOMER_COMMS_AUTOMATION_NATIVE_FAMILY
   ```
+- Customer Comms / Feedback / Go-Live family built Repository-only:
+  - migration `0014_employee_comms_zero_google_v1.sql` commit `84a99cadfd93c161c5337317885b1eef9cab70c5`.
+  - adds default-OFF control, feedback requests, go-live drafts, order-conversation R2 file metadata, audit events.
+  - native handler `employee-comms-native-v1.mjs` commit `56f440a6c9e741d2d47a4a24596036853f657342`.
+  - covers `customerManagerV1`, `customerFeedbackV1`, `goLiveAutopilotV1`, `getOrderConversation`, `sendOrderConversationMessage`, `uploadOrderConversationFile`.
+  - WhatsApp is called directly from Cloudflare using Cloudflare-held Meta credentials; AI suggestions call OpenAI directly from Cloudflare; files target R2.
+  - Meta webhook path is moved to Cloudflare source: `/v1/employee/comms/webhook`.
+  - `finalizeAndNotify` intentionally fails closed with `accounting-d1-authority-not-ready` until Accounting D1 authority is built; it does **not** fall back to Apps Script.
+  - Worker route wired in `index_v2.js` commit `19f0e48882fca52ef78eee1f01b978597e996dd7`.
+  - regression `tests/entry614_employee_comms_native.test.mjs` commit `7c7b427a509cb3e770e53b66cd498a70ee621b57`.
+- Source business paths contain zero Google/Apps Script calls. Migration/source not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_COMMS_FAMILY_SOURCE_BUILT_REPO_ONLY
+  COMMIT=7c7b427a509cb3e770e53b66cd498a70ee621b57
+  Production_touched=NO
+  D1_touched=NO
+  R2_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=RUN_COMMS_NATIVE_REPO_CI
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
