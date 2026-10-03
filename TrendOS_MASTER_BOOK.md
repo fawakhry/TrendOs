@@ -803,6 +803,28 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=IMPLEMENT_CANARY_DISPATCHER_PREFLIGHT_AND_TESTS_REPO_ONLY
   ```
+- Canary-aware employee dispatcher implemented Repository-only:
+  - non-canary employees preserve exact Legacy route while global Native Auth is OFF;
+  - canary selection is case-insensitive from the configured allowlist;
+  - canary login/session/business routing performs read-only health preflight;
+  - preflight requires TRANSITIONAL D1 auth readiness, bridge enabled/configured, shared-secret presence reported by Cloud runtime, assertion hygiene, and at least the configured policy minimum;
+  - any missing canary prerequisite fails closed with `EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED`; there is no silent fallback to Legacy login for a selected canary;
+  - logout and password-change recovery remain available for an already-native canary even if the bridge later becomes unhealthy;
+  - successful canary native session is remembered only in memory for routing; no password/secret is stored.
+- Dispatcher commit: `af5b2b7f915c05b4cc426e92047e678206b50c83`.
+- This source is **not deployed**.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_DISPATCHER_IMPLEMENTED_REPO_ONLY
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=af5b2b7f915c05b4cc426e92047e678206b50c83
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_CANARY_REGRESSION_TESTS_AND_RUN_REPO_ONLY_CI
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
