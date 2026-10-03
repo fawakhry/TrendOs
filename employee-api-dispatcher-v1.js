@@ -11,8 +11,14 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_A61_EMPLOYEE_API_DISPATCHER_V1_20260929';
+  var VERSION = 'T12_ENTRY611_EMPLOYEE_API_DISPATCHER_CANARY_V1_20261003';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
+  var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
+  var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
+  var CANARY_PREFLIGHT_CACHE_MS = 30000;
+  var canarySessionUserKey = '';
+  var canaryPreflightCache = { key: '', at: 0 };
+  var canaryPreflightPromise = null;
 
   var AUTH_PATHS = {
     login: '/v1/employee/auth/login',
@@ -61,6 +67,56 @@
 
   function nativeEnabled() {
     return window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 === true;
+  }
+
+  function userKey(value) {
+    return text(value).toLowerCase();
+  }
+
+  function canaryConfigEnabled() {
+    return window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 === true;
+  }
+
+  function configuredCanaryUsers() {
+    return new Set(
+      (Array.isArray(window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS)
+        ? window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS
+        : []
+      ).map(userKey).filter(Boolean)
+    );
+  }
+
+  function canaryUserKey(params) {
+    var explicit = userKey(params && (params.username || params.name));
+    return explicit || canarySessionUserKey;
+  }
+
+  function canaryUserSelected(params) {
+    if (!canaryConfigEnabled()) return false;
+    var key = canaryUserKey(params || {});
+    return !!key && configuredCanaryUsers().has(key);
+  }
+
+  function canaryRouteEnabled(params) {
+    return !nativeEnabled() && canaryUserSelected(params || {});
+  }
+
+  function nativeRouteEnabled(params) {
+    return nativeEnabled() || canaryUserSelected(params || {});
+  }
+
+  function rememberCanaryUser(params, body) {
+    if (!canaryConfigEnabled()) return;
+    var key = userKey(
+      (body && body.user && (body.user.username || body.user.name)) ||
+      (params && (params.username || params.name))
+    );
+    if (key && configuredCanaryUsers().has(key)) canarySessionUserKey = key;
+  }
+
+  function clearCanaryUser(params) {
+    var explicit = userKey(params && (params.username || params.name));
+    if (!explicit || explicit === canarySessionUserKey) canarySessionUserKey = '';
   }
 
   function bridgeEnabled() {
@@ -153,12 +209,106 @@
     }
   }
 
+  async function cloudGet(path) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 15000);
+    try {
+      var response = await fetch(edgeBase() + path, {
+        method: 'GET',
+        headers: { 'accept': 'application/json' },
+        cache: 'no-store',
+        credentials: 'omit',
+        redirect: 'error',
+        signal: controller.signal
+      });
+      return await readJson(response);
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        throw routeError('EMPLOYEE_API_TIMEOUT', 'انتهت مهلة فحص جاهزية Cloud Employee API.');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function canaryMinimumBridgePolicies() {
+    var n = Number(window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES || 69);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 69;
+  }
+
+  function canaryPreflightKey() {
+    return [
+      edgeBase(),
+      bridgeEnabled() ? 'bridge-on' : 'bridge-off',
+      configuredPolicies().size,
+      canaryMinimumBridgePolicies()
+    ].join('|');
+  }
+
+  function validateCanaryPreflight(auth, bridge) {
+    var minimum = canaryMinimumBridgePolicies();
+    if (!bridgeEnabled()) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: Bridge frontend ما زال مغلقًا.', 'frontend-bridge-disabled');
+    }
+    if (configuredPolicies().size < minimum) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: سياسات Bridge غير مكتملة.', 'frontend-bridge-policies');
+    }
+    if (!auth || auth.success !== true || auth.schemaReady !== true ||
+        auth.mode !== 'TRANSITIONAL' || auth.envEnabled !== true ||
+        auth.nativeOnly === true || auth.plaintextStored === true ||
+        !(auth.legacyBootstrapEnabled === true || Number(auth.nativeReadyCount || 0) > 0)) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز على Cloud.', 'auth-health');
+    }
+    if (!bridge || bridge.success !== true || bridge.enabled !== true ||
+        bridge.upstreamConfigured !== true || bridge.secretConfigured !== true ||
+        Number(bridge.allowedPolicyCount || 0) < minimum ||
+        bridge.rawNativeTokenForwarded === true || bridge.plaintextPasswordForwarded === true ||
+        bridge.assertionBoundToAction !== true || bridge.assertionBoundToPayload !== true ||
+        bridge.replayNonceIssued !== true) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Compatibility Bridge غير جاهز.', 'bridge-health');
+    }
+    return true;
+  }
+
+  async function ensureCanaryPreflight(action, params) {
+    if (!canaryRouteEnabled(params || {})) return true;
+    action = text(action);
+    // Revocation/password recovery must remain available to an already-native
+    // canary even if the compatibility bridge later becomes unhealthy.
+    if (action === 'logout' || action === 'changePassword') return true;
+
+    var key = canaryPreflightKey();
+    if (canaryPreflightCache.key === key && Date.now() - canaryPreflightCache.at < CANARY_PREFLIGHT_CACHE_MS) {
+      return true;
+    }
+    if (!canaryPreflightPromise) {
+      canaryPreflightPromise = Promise.all([
+        cloudGet(AUTH_HEALTH_PATH),
+        cloudGet(BRIDGE_HEALTH_PATH)
+      ]).then(function (parts) {
+        validateCanaryPreflight(parts[0], parts[1]);
+        canaryPreflightCache = { key: key, at: Date.now() };
+        return true;
+      }).finally(function () {
+        canaryPreflightPromise = null;
+      });
+    }
+    return canaryPreflightPromise;
+  }
+
   async function nativeAuth(action, params) {
     var path = AUTH_PATHS[action];
     if (!path) throw routeError('EMPLOYEE_AUTH_ACTION_UNKNOWN', 'إجراء مصادقة الموظف غير معروف.');
     var p = Object.assign({}, params || {});
     var token = text(p.token);
-    return cloudPost(path, p, token);
+    var canary = canaryRouteEnabled(p);
+    var out = await cloudPost(path, p, token);
+    if (canary && out && out.success !== false) {
+      if (action === 'login' || action === 'verifyEmployeeSession') rememberCanaryUser(p, out);
+      if (action === 'logout' || (action === 'changePassword' && out.forceRelogin === true)) clearCanaryUser(p);
+    }
+    return out;
   }
 
   async function legacyBridge(action, params) {
@@ -242,8 +392,10 @@
     if (original.__trendosEmployeeApiDispatcherV1) return true;
 
     async function wrapped(action, params) {
-      if (!nativeEnabled()) return original.apply(this, arguments);
-      return dispatchNative(action, params || {}, original, this, arguments);
+      var p = params || {};
+      if (!nativeRouteEnabled(p)) return original.apply(this, arguments);
+      await ensureCanaryPreflight(action, p);
+      return dispatchNative(action, p, original, this, arguments);
     }
 
     wrapped.__trendosEmployeeApiDispatcherV1 = true;
@@ -256,11 +408,13 @@
     var actionText = text(action);
     var p = params || {};
 
-    if (!nativeEnabled()) {
+    if (!nativeRouteEnabled(p)) {
       var current = currentSecureApi();
       if (!current) throw routeError('EMPLOYEE_API_NOT_READY', 'Employee API غير جاهز.');
       return current(actionText, p);
     }
+
+    await ensureCanaryPreflight(actionText, p);
 
     if (Object.prototype.hasOwnProperty.call(AUTH_PATHS, actionText)) {
       return nativeAuth(actionText, p);
@@ -284,16 +438,23 @@
   };
 
   window.trendosEmployeeLegacyFallbackV1 = async function (action, params, legacyInvoker) {
-    if (!nativeEnabled()) {
+    var p = params || {};
+    if (!nativeRouteEnabled(p)) {
       if (typeof window.trendosLegacyApiTransportV1 !== 'function') throw routeError('CLOUD_API_NOT_READY', 'Cloud API غير جاهز.');
-      return window.trendosLegacyApiTransportV1(action, params || {});
+      return window.trendosLegacyApiTransportV1(action, p);
     }
-    return legacyBridge(action, params || {});
+    await ensureCanaryPreflight(action, p);
+    return legacyBridge(action, p);
   };
 
   window.TrendOSEmployeeApiDispatcherV1 = {
     version: VERSION,
     nativeEnabled: nativeEnabled,
+    nativeRouteEnabled: nativeRouteEnabled,
+    canaryConfigEnabled: canaryConfigEnabled,
+    canaryUserSelected: canaryUserSelected,
+    canaryRouteEnabled: canaryRouteEnabled,
+    ensureCanaryPreflight: ensureCanaryPreflight,
     bridgeEnabled: bridgeEnabled,
     policyKey: policyKey,
     policyAllowed: policyAllowed,
