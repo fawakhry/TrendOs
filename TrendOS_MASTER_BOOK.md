@@ -861,6 +861,23 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=ADD_ENTRY611_CANARY_REGRESSION_TEST
   ```
+- Entry611 canary regression test added:
+  - file: `tests/frontend_employee_native_canary_entry611.test.mjs`
+  - covers default-OFF exact legacy behavior, non-canary legacy preservation, local preflight fail-closed, Runtime health fail-closed, case-insensitive canary selection, D1 Native login route, bridge bearer-only forwarding, password/token stripping, exact bridge policy denial, and logout recovery.
+- Commit: `6044411bab9d571949b5f5783399876e10ca9d31`.
+- No Production mutation.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_REGRESSION_TEST_ADDED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=6044411bab9d571949b5f5783399876e10ca9d31
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_AND_RUN_ENTRY611_REPO_ONLY_CI
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
