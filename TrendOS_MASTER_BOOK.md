@@ -600,6 +600,40 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=ADD_AND_RUN_ENTRY609_READONLY_CI
   ```
 
+
+### Entry609 — Repo-only bridge and enrollment qualification
+- الاسم العربي للبحث: **تأهيل Native Auth + Compatibility Bridge بدون لمس Production**.
+- نقطة البداية: Entry608 closed read-only with Runtime proving:
+  - API/UI expected versions live at 100%.
+  - Auth mode OFF.
+  - D1 employee users/sessions = 0.
+  - Cloudflare bridge OFF, shared secret absent, policies empty.
+  - Apps Script bridge route live but bridge flag OFF.
+- أول repo-only تصحيح: الاختبار التاريخي `tests/employee_legacy_action_classification_a61.test.mjs` كان يتوقع direct `TREND_API_URL/API_URL` في سبعة employee modules رغم أن current source نقلها بالفعل إلى `trendosEmployeeApiV1`.
+- تم تحديث الاختبار ليطلب dispatcher صراحةً ويمنع رجوع direct legacy API aliases في:
+  - attendance-clockin-ui-v1.js
+  - attendance-live-timer-v1.js
+  - employee-cleaning-prep-v1.js
+  - customer-manager-v1.js
+  - customer-feedback-v1.js
+  - go-live-autopilot-v1.js
+  - hr-v1.js
+  - press-control-v1.js
+- Commit: `6ee6c2b97ac8a150396a4024ddb4c14a1cfc8a66`.
+- هذا التعديل **test-only**؛ لا Product runtime code تغير.
+- التسجيل:
+  ```ini
+  STATUS=REPO_ONLY_TEST_CONTRACT_UPDATED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=6ee6c2b97ac8a150396a4024ddb4c14a1cfc8a66
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=VERIFY_TRIGGERED_A61_CI_THEN_RUN_FULL_ENTRY609_REPO_ONLY_QUALIFICATION
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
