@@ -564,6 +564,42 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
     NEXT_ACTION=REPO_ONLY_EXACT_BRIDGE_POLICY_AND_ENROLLMENT_CUTOVER_PLAN; PRODUCTION_MUTATION_REQUIRES_EXPLICIT_APPROVAL
     ```
 
+
+### Entry609 — Native Auth staged cutover inventory / repo-only qualification
+- الاسم العربي للبحث: **جرد وظائف الموظفين بعد Native Login / سياسات Compatibility Bridge / خطة الترحيل التدريجي**.
+- بدأ بعد Entry608 read-only PASS؛ لا يوجد أي Production mutation في هذه الخطوة.
+- Added current-truth inventory test:
+  - file: `tests/entry609_native_auth_cutover_inventory.test.mjs`
+  - commit: `4ab986949d787186449e2210d96ac73fb33104a6`
+- الهدف من الاختبار: تثبيت classification الحالية بدل الاعتماد على A61 historical assertions القديمة التي كانت تتوقع direct `TREND_API_URL/API_URL`.
+- Current inventory contract المثبت في test:
+  ```ini
+  ACTIVE_EMPLOYEE_LEGACY_TOP_LEVEL=46
+  TRANSPORT_EMPLOYEE_CANDIDATES=51
+  DORMANT_TRANSPORT_ONLY=5
+  ACTIVE_OP_POLICIES=29
+  FULL_ACTIVE_PARITY_POLICY_COUNT=69
+  READONLY_PILOT_POLICY_COUNT=26
+  ```
+- الـ5 الموجودة في legacy transport لكن ليست top-level active runtime في A58/A61 corrected inventory:
+  `getTrendMasterPanelV1931, operatorTaskV2, prepareReadyInvoice, updateRowV1931, workQueueV1`.
+- Full active parity = 38 non-op legacy employee actions + 29 exact `action:op` policies + 2 hybrid fallback policies `updateLine` و`markCustomerNotified`.
+- Read-only pilot current-truth = 26 policies. تم استبعاد:
+  - `getRowsPageV1931` لأنه Cloud/Edge authority وليس bridge policy.
+  - `cleaningV1:status` لأنه stale/unsupported؛ backend الحالي لـCleaning يقبل `complete` فقط.
+- هذه الخطوة Repository-only:
+  ```ini
+  STATUS=REPO_ONLY_INVENTORY_ADDED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=4ab986949d787186449e2210d96ac73fb33104a6
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_AND_RUN_ENTRY609_READONLY_CI
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
