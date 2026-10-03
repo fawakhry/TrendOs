@@ -308,6 +308,97 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   ```
 - نقطة الاستئناف الإلزامية لأي شات لاحق: **لا تعيد تشخيص Login-fast ولا تعيد Frontend publish؛ ابدأ من Native Auth Bridge Gate في Entry606/607.**
 
+
+### Entry608 — Native Auth read-only assessment after disconnect
+- الاسم العربي للبحث: **استكمال بطء الدخول / Native Auth بعد انقطاع النت / Bridge Gate / مراجعة فعلية بدون إعادة نشر**.
+- بدأنا من Entry606/607 كما يفرض الكتاب؛ **لم تتم إعادة Entry603/604/605** ولم يحدث rollback أو frontend re-deploy.
+- Git branch وقت المراجعة: `candidate/t12-full-cloud-cutover-a56-20260929`.
+- HEAD الفعلي وقت المراجعة: `4216890cff461968e61224bb4a6bc69c4bea9db1` — `docs: audit checkpoints 121 through 135`.
+- مقارنة HEAD الحالي مع آخر HEAD المذكور وقت الانقطاع `e6b2e6bde6777e5a0dc1c152c82120a90a497510`: الفرع متقدم **64 commit**، والفرق المرصود في المقارنة وثائقي/كتالوجات فقط؛ لم يظهر تغير Runtime source في هذه المسافة.
+- آخر GitHub Actions المؤثر في Production ما زال Entry605: run `37043542864`, job `110959245541` = **SUCCESS**. فشل Entry604 بعد promote لا يُستخدم كحكم نهائي؛ Entry605 supersedes it.
+- Live frontend read-only:
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false`.
+  - `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false`.
+  - `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES=[]`.
+  - Login-fast module deferral موجود Live.
+  - Refresh recovery markers `postWriteBarrierRecoveries` + `recoverPostWriteBarrier` موجودة Live.
+  - Duplicate Guard marker وLegacy line route `/v1/t12/orders/line-runtime/legacy-update` محفوظان Live.
+- Live Native Auth health:
+  ```ini
+  AUTH_SCHEMA_READY=YES
+  AUTH_CONTROL_MODE=OFF
+  AUTH_ENV_ENABLED=NO
+  LEGACY_BOOTSTRAP_ENABLED=NO
+  LEGACY_SESSION_ENROLL_ENABLED=NO
+  NATIVE_ONLY=NO
+  ENROLL_CANARY_CONFIGURED=NO
+  ENROLL_NONCE_CONFIGURED=NO
+  NATIVE_AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  PLAINTEXT_STORED=NO
+  ```
+- Live Cloudflare Employee Legacy Bridge health:
+  ```ini
+  LEGACY_BRIDGE_ENABLED=NO
+  LEGACY_BRIDGE_UPSTREAM_CONFIGURED=YES
+  LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+  LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
+  RAW_NATIVE_TOKEN_FORWARDED=NO
+  PLAINTEXT_PASSWORD_FORWARDED=NO
+  ```
+- Apps Script v159 source contains the compatibility verification path `cloudEmployeeLegacyBridgeExecuteV1` and reads only these Script Properties:
+  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED`
+  - `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`
+- **Apps Script property value/secret presence is not safely observable through the current authorized repo/runtime read-only interfaces without either privileged Script Properties access or a mutation/deploy.** لذلك الحكم الحالي fail-closed: `APPS_SCRIPT_BRIDGE_RUNTIME_READY=NOT_PROVEN`. لا نفترض وجود secret لمجرد وجود الكود.
+- Employee action inventory من A58/A61، بعد تصحيح `hrV1` و`attendanceClockinV1`: **67 top-level observed runtime actions**.
+  - Cloud/Edge employee-routed actions الحالية التي لا يجب إرجاعها إلى Apps Script: `searchCustomers, createCustomer, createManualOrder, getRowsPageV1931, updateLine, markCustomerNotified`.
+  - Employee auth control-plane: `login, logout, changePassword, verifyEmployeeSession` -> D1 native auth routes عند التفعيل.
+  - Customer-session actions = 9 وتبقى على authority الخاصة بها.
+  - Maintenance blocked = `ensureDemoCustomer, initAccounting, recalculateAccountingMaterials`.
+  - **46 top-level employee legacy business actions** ستحتاج Compatibility Bridge مباشرةً في dispatcher عند Native mode، ما لم تُنقل إلى Cloud أولًا.
+  - Multiplexed bridge actions التي يجب أن تكون policy = `action:op`: `attendanceV1, attendanceClockinV1, cleaningV1, customerFeedbackV1, customerManagerV1, goLiveAutopilotV1, hrV1, pressControlV1`.
+  - يوجد fallback إضافي يحتاج bridge عند بعض Legacy الحالات: `updateLine` إذا لم يوجد stable Line ID، و`markCustomerNotified` للـlegacy rows. `getRowsPageV1931` الحالي Cloud read ويفشل مغلقًا بدل legacy read fallback.
+- طريقة enrollment الآمنة الموجودة في source لا تستخرج plaintext password من Google/D1:
+  1. `/v1/employee/auth/enroll-legacy-session` يعمل فقط في `TRANSITIONAL` ومع enable صريح + canary user + nonce؛ يتحقق من **legacy session token** مع Apps Script ثم يبني PBKDF2 verifier من كلمة المرور التي يدخلها المستخدم وقت enrollment، ولا يخزن plaintext.
+  2. login bootstrap البديل يستطيع في TRANSITIONAL التحقق من أول password عبر Apps Script ثم تخزين PBKDF2 فقط؛ لكنه يبقي first-bootstrap login معتمدًا على Google ولذلك ليس النهاية المطلوبة.
+- Staged cutover المؤهل تصميميًا، بدون تنفيذ Production الآن:
+  ```text
+  OFF
+    -> bridge secret/config readiness proven on Apps Script + Cloudflare
+    -> exact bridge allowlist qualified (read-only pilot first, then required writes)
+    -> TRANSITIONAL auth control
+    -> bounded legacy-session enrollment/bootstrap canary
+    -> first canary enrollment PASS
+    -> second canary login D1-native PASS
+    -> compatibility actions PASS with native token never sent to Apps Script
+    -> frontend native flag controlled enable
+    -> read-only postflight
+    -> expand employees/policies gradually
+    -> NATIVE only after remaining Google employee dependencies are removed
+  ```
+- Fail-closed blockers الآن:
+  1. `NATIVE_AUTH_USERS=0`.
+  2. Cloudflare bridge secret absent.
+  3. Cloudflare bridge policies empty.
+  4. Apps Script bridge property/secret readiness غير مثبت Runtime.
+  5. لذلك **Auth ON الآن ممنوع**.
+- صورة المالك أثناء المراجعة تتوافق مع Entry605: login surface تظهر وتحمل static assets؛ لا تُستخدم كدليل على نجاح post-click Auth، لكنها تدعم أن مشكلة ما قبل الضغط ليست هي blocker الحالي.
+- هذه الجولة حتى هذه النقطة Read-only على Production؛ لم نغيّر D1/Auth/Cloudflare/App Script/Orders/Customers.
+- التسجيل:
+  ```ini
+  STATUS=READONLY_ASSESSMENT_PASS_WITH_BRIDGE_GATE_BLOCK
+  RUN_ID=NONE_DIRECT_READONLY
+  JOB_ID=NONE_DIRECT_READONLY
+  LAST_VERIFIED_ACTION_RUN=37043542864
+  LAST_VERIFIED_ACTION_JOB=110959245541
+  COMMIT=PENDING_THIS_BOOK_UPDATE
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=CREATE_AND_RUN_DEDICATED_READONLY_ENTRY608_CONTROL_PLANE_CHECK; NO_AUTH_ENABLE
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
