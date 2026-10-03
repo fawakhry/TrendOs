@@ -1483,6 +1483,45 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=BUILD_CURRENT_DATA_BACKFILL_AND_PARITY_GATE_FOR_0012_TO_0016
   ```
 
+
+- Latest Entry614 qualification after removing runtime sheet-mirror dependency:
+  - Zero-Google business coverage Run `37133424459`
+  - Job `111232962114`
+  - conclusion = **SUCCESS**
+  - Browser transport regression Run `37133424434`
+  - Job `111232961923`
+  - conclusion = **SUCCESS**
+- Current repo truth:
+  ```ini
+  ENTRY614_ZERO_GOOGLE_EMPLOYEE_BUSINESS_COVERAGE=PASS
+  ENTRY614_ACTIVE_LEGACY_TOP_LEVEL=46
+  ENTRY614_NATIVE_FAMILY_COVERED_TOP_LEVEL=46
+  ENTRY614_UNCOVERED_ACTIVE_TOP_LEVEL=0
+  ENTRY614_HYBRID_UPDATE_NOTIFY_CLOUD_RUNTIME=YES
+  ENTRY614_CORE_GOOGLE_BUSINESS_CALLS=0
+  ENTRY614_RUNTIME_SHEET_MIRROR_DEPENDENCY=0
+  ENTRY614_CURRENT_ORDER_AUTHORITY=D1_NATIVE
+  ENTRY614_ALL_NEW_CONTROLS_DEFAULT_OFF=YES
+  A61_NO_BROWSER_GOOGLE_TRANSPORT=PASS
+  ```
+- Source-only Zero-Google business migration is now complete, but the D1 native domain tables are still empty/not applied in Production and the live frontend/API routing is still unchanged. Therefore **current-data backfill + parity** is now the blocking stage.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_ZERO_GOOGLE_BUSINESS_SOURCE_COMPLETE
+  RUN_ID=37133424459
+  JOB_ID=111232962114
+  SECONDARY_RUN_ID=37133424434
+  SECONDARY_JOB_ID=111232961923
+  COMMIT=f59840978424d40467ac01fbac07a79603ce439e
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  NEXT_ACTION=ENTRY615_CURRENT_DATA_BACKFILL_INVENTORY_AND_PARITY_PLAN
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
