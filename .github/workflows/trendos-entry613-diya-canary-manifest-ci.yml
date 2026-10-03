@@ -1,0 +1,55 @@
+name: TrendOS Entry613 Diya Production Canary Manifest CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/ENTRY613_DIYA_PRODUCTION_CANARY_MANIFEST.json'
+      - 'tests/entry613_diya_production_canary_manifest.test.mjs'
+      - 'tests/entry609_native_auth_cutover_inventory.test.mjs'
+      - 'tests/frontend_employee_native_canary_entry611.test.mjs'
+      - '.github/workflows/trendos-entry613-diya-canary-manifest-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify manifest and canary source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry613_diya_production_canary_manifest.test.mjs
+          node tests/frontend_employee_native_canary_entry611.test.mjs
+          node tests/entry609_native_auth_cutover_inventory.test.mjs
+          echo 'ENTRY613_MANIFEST_CI=PASS'
+      - name: Production remains untouched before secret install
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error 'https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/auth/health' > /tmp/auth.json
+          curl --fail --silent --show-error 'https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/legacy-action/health' > /tmp/bridge.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          if(!a.success||a.mode!=='OFF'||a.envEnabled!==false||Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('auth production drift');
+          if(!b.success||b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge production drift');
+          console.log('ENTRY613_PREMUTATION_AUTH_OFF=YES');
+          console.log('ENTRY613_PREMUTATION_BRIDGE_OFF=YES');
+          NODE
+      - name: Boundary
+        run: |
+          echo 'ENTRY613_PRODUCTION_MUTATION=NO'
+          echo 'ENTRY613_NEXT=AUTHENTICATED_BROWSER_SECRET_INSTALL'
