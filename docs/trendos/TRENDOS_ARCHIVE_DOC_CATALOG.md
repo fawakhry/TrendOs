@@ -39,3 +39,18 @@
 | 31 | `docs/trendos/inventory/ORDERS_LINES_INVENTORY.md` | INVENTORY | 2026-09-01 — > **Important:** this document describes repository source currently inspected. It does **not** prove the exact source deployed behind historical Apps Script Ve | TrendOS Phase 0 — Orders & Order Lines Inventory; Inventory result; 1. Staff/manual order creation; Event; Frontend |
 | 32 | `docs/trendos/inventory/PRESS_INVENTORY.md` | INVENTORY | 2026-08-24 — ## Status | TrendOS Phase 0 — Heat Press Inventory; Status; 1. Routes and current source; 2. Current queue contract; 3. Current live source queue |
 | 33 | `docs/trendos/inventory/PRODUCTION_SOURCE_RECONCILIATION.md` | INVENTORY | 2026-08-30 — # TrendOS Phase 0 — Production Source Reconciliation | TrendOS Phase 0 — Production Source Reconciliation; Status; 1. Production endpoint and deployment; 2. Live Version 143 runtime identity; 3. Version 143 top-level D1 routes are directly verified |
+| 34 | `docs/trendos/inventory/WHATSAPP_CUSTOMER_MANAGER_INVENTORY.md` | INVENTORY | - — > Phase 0 read-only inventory. No production mutation was performed. | WhatsApp / Customer Manager Inventory; Scope; 1. Inbound Customer Manager — merged/current Code snapshot; Strong duplicate protection inside `cmAppendMessage_()`; 2. Critical source dependency gap: `cmMetaMessageExists_()` |
+| 35 | `docs/trendos/staging/A51_CUSTOMER_SEARCH_DEPLOY.trigger` | STAGING | 2026-09-29 | trigger marker |
+| 36 | `docs/trendos/staging/A53_CUSTOMER_NATIVE_INSTALL.trigger` | STAGING | 2026-09-29 | trigger marker |
+| 37 | `docs/trendos/staging/A53_CUSTOMER_NATIVE_RETRY.trigger` | STAGING | 2026-09-29 | trigger marker |
+| 38 | `docs/trendos/staging/A54_NATIVE_CUSTOMER_SEARCH_DEPLOY.trigger` | STAGING | 2026-09-29 | trigger marker |
+| 39 | `docs/trendos/staging/A55_CUSTOMER_PROJECTION_DEPLOY.trigger` | STAGING | 2026-09-29 | trigger marker |
+| 40 | `docs/trendos/staging/A56_CUSTOMER_GENERAL_CUTOVER.trigger` | STAGING | 2026-09-29 | trigger marker |
+| 41 | `docs/trendos/staging/A57_CLOUDFLARE_FRONTEND_CUTOVER.trigger` | STAGING | 2026-09-29 | trigger marker |
+| 42 | `docs/trendos/staging/A57B_CLOUDFLARE_WORKER_FRONTEND.trigger` | STAGING | 2026-09-29 — redeploy_after_main_entrypoint=ac980a22f354f441d34ff8851f8c2eb1877626dc | trigger marker |
+| 43 | `docs/trendos/staging/A58_RUNTIME_ACTION_AUDIT.trigger` | STAGING | 2026-09-29 — production_mutation=no | trigger marker |
+| 44 | `docs/trendos/staging/A59_NATIVE_AUTH_PREFLIGHT.trigger` | STAGING | 2026-09-29 — password_values_logged=no | trigger marker |
+| 45 | `docs/trendos/staging/APPLY_ACCOUNTING_PREVIEW_OPERATIONS_SCHEMA.trigger` | STAGING | 2026-09-05 — Production: forbidden | trigger marker |
+| 46 | `docs/trendos/staging/APPLY_APPS_SCRIPT_V150_DRYRUN.trigger` | STAGING | - — TrendOS Apps Script V150 dry-run integration trigger. | trigger marker |
+| 47 | `docs/trendos/staging/APPS_SCRIPT_02CL_PRODUCTION_RECONCILE_DEPLOY_MANIFEST.md` | STAGING | 2026-09-05 — # PERF-CF-02CL — Apps Script Production Reconcile Qualification Deploy Manifest | PERF-CF-02CL — Apps Script Production Reconcile Qualification Deploy Manifest; Goal; Proven live baseline; Source to install; Exact router change |
+| 48 | `docs/trendos/staging/APPS_SCRIPT_V150_DRYRUN_DEPLOY_MANIFEST.md` | STAGING | 2026-09-04 — # Apps Script V150 Dry-Run Deployment Manifest | Apps Script V150 Dry-Run Deployment Manifest; Deployment purpose; Qualified source; Pre-deploy gates already passed; Deployment boundary |
