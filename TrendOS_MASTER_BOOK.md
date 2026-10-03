@@ -1154,6 +1154,59 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=AUTHENTICATE_TINYFISH_PROFILE_TO_CLOUDFLARE_AND_GOOGLE_APPS_SCRIPT_THEN_INSTALL_SHARED_SECRET
   ```
 
+- قرار المالك بعد التأهيل وقبل أي mutation: **لا نفعّل Compatibility Bridge على Production؛ ننقل كل وظائف الموظفين إلى Cloudflare/D1 أولًا ونُنهي Zero-Google، ثم ننقل Login/Auth كآخر خطوة.**
+- Entry613 أصبح superseded قبل secret install / bridge enable / D1 TRANSITIONAL / frontend canary.
+- لا Google Script Property تغيرت، لا Cloudflare secret أضيف، لا Auth mode تغير، لا deploy Production تم.
+- إغلاق Entry613:
+  ```ini
+  STATUS=SUPERSEDED_BY_ZERO_GOOGLE_FUNCTIONS_FIRST
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  NEXT_ACTION=ENTRY614_ZERO_GOOGLE_EMPLOYEE_FUNCTIONS_FIRST
+  ```
+
+
+### Entry614 — Zero-Google Employee Functions First
+- الاسم العربي للبحث: **انقل كل وظائف الموظفين من Google/Apps Script إلى Cloudflare + D1 أولًا ثم اقفل Google نهائيًا**.
+- قرار المالك صريح: **لا Compatibility Bridge Production**. لا نضيف Shared Secret ولا Script Properties جديدة على Google.
+- الهدف النهائي لهذه السلسلة:
+  ```ini
+  EMPLOYEE_BUSINESS_ACTIONS_APPS_SCRIPT=0
+  EMPLOYEE_RUNTIME_GOOGLE_DEPENDENCY=0
+  EMPLOYEE_LOGIN=D1_NATIVE
+  EMPLOYEE_SESSION=D1_NATIVE
+  APPS_SCRIPT_AUTH_FALLBACK=0
+  ZERO_GOOGLE_COMPLETE=YES
+  ```
+- نقطة البداية الحالية من Runtime/Entries609-612:
+  - 46 top-level active legacy employee business actions.
+  - 29 active op-scoped policies.
+  - 2 hybrid legacy fallbacks: `updateLine`, `markCustomerNotified`.
+  - 69 full-active-parity policy keys were bridge-equivalent inventory; الآن ستستخدم كمصفوفة نقل، لا كBridge allowlist.
+  - `getRowsPageV1931` Cloud/Edge بالفعل.
+  - Orders create/customer write/duplicate guard/refresh fix/legacy line baseline يجب الحفاظ عليهم.
+- استراتيجية النقل:
+  1. read-only inventory: D1 schema + action→handler→data-source map.
+  2. نقل read-only actions إلى Cloud/D1 أولًا.
+  3. نقل writes لكل عائلة مع idempotency/audit/versioning.
+  4. إزالة frontend legacy fallbacks لكل عائلة بعد qualification.
+  5. تكرار حتى `EMPLOYEE_BUSINESS_ACTIONS_APPS_SCRIPT=0`.
+  6. بعدها فقط Employee Login/Auth → D1 Native، ثم حذف Apps Script employee runtime.
+- لا Big Bang Production. كل family لها repo qualification → read-only preflight → controlled deploy → postflight.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_STARTED_ZERO_GOOGLE_FUNCTIONS_FIRST
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READONLY_D1_SCHEMA_AND_ACTION_DATA_SOURCE_INVENTORY
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
