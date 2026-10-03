@@ -1391,6 +1391,50 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=RUN_COMMS_NATIVE_REPO_CI
   ```
 
+
+- Zero-Google final active business gap audit:
+  - Entry609 active legacy top-level actions = **46**.
+  - Qualified native family coverage before Core = **40**:
+    - Ops = 5.
+    - Content/Config = 20.
+    - Comms/Feedback/Go-Live = 6.
+    - Accounting/Party Ledger = 9.
+  - remaining active top-level actions = **6**:
+    `archiveDeliveredDepartmentV1926`, `bulkUpdateDepartmentStatusV1926`, `getActivityLog`, `getDashboard`, `getRows`, `getTrendMasterCenterV1931`.
+  - hybrid `updateLine` + `markCustomerNotified` already have Cloud operational runtime routes and will have frontend legacy fallback removed only after data/cutover qualification.
+- Employee Core Zero-Google source built Repository-only:
+  - migration `0016_employee_core_zero_google_v1.sql`
+    - initial commit `8182ee288efc8909d41b1ec29e66cb892ed694a3`
+    - delivery restriction authority added commit `9717a092853017774fc04ca7509268c4a1718f41`.
+  - Cloud handler `employee-core-native-v1.mjs` commit `da15abb86c6827011867d4df3dad05844d25bbd6`.
+  - Worker route wired commit `33727783166e5983cf3cc03eaaa7cd2722f93e45`.
+  - coverage test commit `06c4bcb118994060dad260c2c76dbe54d407374e`.
+  - combined repo-only CI workflow commit `2052e38fbd69119c1e3cc5ff9eacae1d47bbb93e`.
+  - source control defaults OFF; migration is **not applied**, API/frontend are **not deployed**.
+  - Core archive uses additive D1 archive snapshots and never deletes `t12_prod_orders/t12_prod_lines`.
+  - Core business source contains no direct Google/Apps Script calls; current employee session verification remains temporary until final Auth cutover.
+- Full business coverage CI Run1:
+  - Run `37132362436`
+  - Job `111229836717`
+  - conclusion = **FAIL in test syntax only**.
+  - All four previously built family regressions and all handler syntax checks passed before the failure.
+  - failure: malformed regex literal in new coverage test at the `ENTRY614_EMPLOYEE_CORE_V1` marker assertion.
+  - no Production/D1/Apps Script mutation occurred.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_FULL_BUSINESS_COVERAGE_RUN1_FAIL_TEST_SYNTAX
+  RUN_ID=37132362436
+  JOB_ID=111229836717
+  COMMIT=2052e38fbd69119c1e3cc5ff9eacae1d47bbb93e
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  NEXT_ACTION=FIX_COVERAGE_TEST_REGEX_ONLY_AND_RERUN
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
