@@ -86,13 +86,17 @@ const readOnlyPilot = [
   'getFranchiseBranches','getKnowledge','getLeadPhoneNumbers','getMarketplace',
   'getMatbagyNotes','getOrderConversation','getPartyAccountV1858','getPlatformAds',
   'getPlatformSections','getRows','getServiceProviderRoutes','getTrendMasterCenterV1931',
-  'getWhiteLabelSettings','attendanceV1:state','attendanceV1:config',
+  'getWhiteLabelSettings','attendanceV1:state','attendanceV1:config','cleaningV1:status',
   'customerManagerV1:inbox','customerManagerV1:thread','goLiveAutopilotV1:listDrafts',
   'hrV1:myRequests','hrV1:requests','hrV1:employees','pressControlV1:status'
 ];
-assert.equal(readOnlyPilot.length,26);
+assert.equal(readOnlyPilot.length,27);
 assert.ok(!readOnlyPilot.includes('getRowsPageV1931'), 'Cloud edge read must not be a bridge policy');
-assert.ok(!readOnlyPilot.includes('cleaningV1:status'), 'unsupported stale cleaning policy must not return');
+
+const code = fs.readFileSync('Code.gs','utf8');
+assert.match(code,/function cleaningV1_\([\s\S]*?op===\"status\"/, 'cleaningV1:status must remain a supported read-only bridge probe');
+assert.match(code,/function attendanceV1_\([\s\S]*?op===\"state\"\|\|op===\"config\"/, 'attendanceV1:config must remain supported');
+assert.match(code,/function hrV1_\([\s\S]*?op===\"employees\"/, 'hrV1:employees must remain supported');
 
 assert.match(config,/MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false/);
 assert.match(config,/MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false/);
@@ -109,6 +113,7 @@ console.log('ENTRY609_TRANSPORT_EMPLOYEE_CANDIDATES=51');
 console.log('ENTRY609_DORMANT_TRANSPORT_ONLY=5');
 console.log('ENTRY609_ACTIVE_OP_POLICIES=29');
 console.log('ENTRY609_FULL_ACTIVE_PARITY_POLICY_COUNT=69');
-console.log('ENTRY609_READONLY_PILOT_POLICY_COUNT=26');
+console.log('ENTRY609_READONLY_PILOT_POLICY_COUNT=27');
+console.log('ENTRY609_CLEANING_STATUS_SUPPORTED=YES');
 console.log('ENTRY609_AUTH_FLAGS_STILL_OFF=YES');
 console.log('ENTRY609_PRODUCTION_MUTATION=NO');
