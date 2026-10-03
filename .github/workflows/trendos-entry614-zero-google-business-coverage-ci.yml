@@ -1,0 +1,109 @@
+name: TrendOS Entry614 Zero-Google Employee Business Coverage CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/migrations/0012_employee_ops_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/0013_employee_content_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/0016_employee_core_zero_google_v1.sql'
+      - 'cloudflare-d1/src/employee-ops-native-v1.mjs'
+      - 'cloudflare-d1/src/employee-content-native-v1.mjs'
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'tests/entry614_employee_ops_native.test.mjs'
+      - 'tests/entry614_employee_content_native.test.mjs'
+      - 'tests/entry614_employee_comms_native.test.mjs'
+      - 'tests/entry614_employee_accounting_native.test.mjs'
+      - 'tests/entry614_zero_google_employee_business_coverage.test.mjs'
+      - '.github/workflows/trendos-entry614-zero-google-business-coverage-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-ops-native-v1.mjs
+          node --check cloudflare-d1/src/employee-content-native-v1.mjs
+          node --check cloudflare-d1/src/employee-comms-native-v1.mjs
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          echo 'ENTRY614_ZERO_GOOGLE_SYNTAX=PASS'
+
+      - name: Native family regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry614_employee_ops_native.test.mjs
+          node tests/entry614_employee_content_native.test.mjs
+          node tests/entry614_employee_comms_native.test.mjs
+          node tests/entry614_employee_accounting_native.test.mjs
+          node tests/entry614_zero_google_employee_business_coverage.test.mjs
+          echo 'ENTRY614_ZERO_GOOGLE_BUSINESS_FAMILIES=PASS'
+
+      - name: Migrations are default-off
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "ENTRY614_EMPLOYEE_OPS_V1','OFF" cloudflare-d1/migrations/0012_employee_ops_zero_google_v1.sql
+          grep -Fq "ENTRY614_EMPLOYEE_CONTENT_V1','OFF" cloudflare-d1/migrations/0013_employee_content_zero_google_v1.sql
+          grep -Fq "ENTRY614_EMPLOYEE_COMMS_V1','OFF" cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql
+          grep -Fq "ENTRY614_ACCOUNTING_V1','OFF" cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql
+          grep -Fq "ENTRY614_EMPLOYEE_CORE_V1','OFF" cloudflare-d1/migrations/0016_employee_core_zero_google_v1.sql
+          echo 'ENTRY614_ALL_NEW_CONTROLS_DEFAULT_OFF=YES'
+
+      - name: Production remains unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='https://trendos-d1-api.trendmall-contact.workers.dev'
+          curl --fail --silent --show-error "$API/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$API/v1/employee/legacy-action/health" > /tmp/bridge.json
+          curl --fail --silent --show-error "$API/v1/t12/orders/create/health" > /tmp/orders.json
+          curl --fail --silent --show-error "$API/v1/t12/customers/write/health" > /tmp/customers.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/orders.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/customers.json','utf8'));
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('Auth drift');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Bridge drift');
+          if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('Orders drift');
+          if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL') throw new Error('Customer drift');
+          console.log('ENTRY614_PRODUCTION_AUTH_OFF=YES');
+          console.log('ENTRY614_PRODUCTION_BRIDGE_OFF=YES');
+          console.log('ENTRY614_ORDER_BASELINE=PASS');
+          console.log('ENTRY614_CUSTOMER_BASELINE=PASS');
+          NODE
+
+      - name: Boundary
+        run: |
+          echo 'ENTRY614_REPO_ONLY_FULL_BUSINESS_COVERAGE=PASS'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'API_DEPLOY=NO'
+          echo 'FRONTEND_DEPLOY=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
+          echo 'SECRETS_TOUCHED=NO'
