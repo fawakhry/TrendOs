@@ -94,4 +94,4 @@ jobs:
           console.log('ENTRY619_AUTHENTICATED_ACCOUNTING_READONLY_LIVE_READ_SMOKE=PASS');
           NODE
 
-# entry619 rerun trigger: secure EasyStore SSO live smoke
+# entry619 rerun trigger: secure EasyStore SSO live smoke retry-2
