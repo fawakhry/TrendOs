@@ -1657,6 +1657,19 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Secrets_touched=NO
   NEXT_ACTION=OWNER_MANUAL_D1_SCHEMA_AND_BACKFILL_APPLY
   ```
+- Owner manual D1 migration attempt 0012 Run1:
+  - Cloudflare D1 Console returned: `SQL code did not contain a statement.`
+  - immediate verification query returned: `no such table: employee_ops_control_v1`.
+  - therefore migration **0012 did not apply** and no employee ops schema/control was created.
+  - this is treated as a failed/no-op schema attempt; no cutover or backfill occurred.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0012_RUN1_FAIL_NO_SCHEMA_CHANGE
+  D1_touched=NO_EFFECT
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=RETRY_0012_WITH_D1_CONSOLE_CLEAN_SQL_NO_COMMENTS_NO_PRAGMA
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
