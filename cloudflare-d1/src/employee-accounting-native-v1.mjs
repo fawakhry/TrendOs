@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','easyStoreSystemHealth']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -146,6 +146,32 @@ async function searchCustomersV1(env,b){
   `,[like]);
   return {success:true,customers:list.map(customerViewV1),version:'A1_D1_READ_MODEL_V1'};
 }
+function supplierViewV1(r){
+  const balance=num(r.current_balance);
+  return {
+    partyId:text(r.party_id),id:text(r.party_id),name:text(r.display_name),supplierName:text(r.display_name),
+    phone:text(r.phone),address:text(r.address),active:Number(r.active||0)===1,
+    currentBalance:balance,balance,debt:balance,notes:text(r.notes)
+  };
+}
+async function getEasyStoreSuppliersV1(env,b){
+  const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
+  const list=await rows(env,`
+    SELECT p.party_id,p.display_name,p.phone,p.address,p.notes,p.active,
+      COALESCE(
+        (SELECT l.balance_after FROM employee_accounting_party_ledger_v1 l
+         WHERE l.party_type='supplier'
+           AND ((l.party_id<>'' AND l.party_id=p.party_id) OR (l.party_id='' AND l.party_name=p.display_name))
+         ORDER BY l.created_at_ms DESC LIMIT 1),0
+      ) AS current_balance
+    FROM employee_accounting_parties_v1 p
+    WHERE p.party_type='supplier' AND p.active=1
+    ORDER BY p.updated_at_ms DESC,p.display_name
+    LIMIT ?
+  `,[limit]);
+  return {success:true,suppliers:list.map(supplierViewV1),version:'A1_D1_READ_MODEL_V1'};
+}
+
 async function getCustomerAccountV1915V1(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء عند ضياء / رحمه / ريفان فقط.'};
   const requested=text(b.customerId||b.customerName||b.partyName||b.name);
@@ -359,9 +385,12 @@ async function partyLedger(env,auth,b){
 async function getParty(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
-  const name=text(b.partyName||b.customerName||b.supplierName||b.name),code=text(b.partyCode);
-  const list=await rows(env,"SELECT transaction_id AS id,created_at_ms AS createdAtMs,party_type AS partyType,party_name AS partyName,operation,operation_label AS operationLabel,amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source FROM employee_accounting_party_ledger_v1 WHERE party_type=? AND party_name=? AND (?='' OR party_code=?) ORDER BY created_at_ms",[type,name,code,code]);
-  return {success:true,partyType:type,partyName:name,balance:list.length?num(list[list.length-1].balanceAfter):0,transactions:list};
+  const partyId=text(b.partyId||b.customerId||b.supplierId),name=text(b.partyName||b.customerName||b.supplierName||b.name),code=text(b.partyCode);
+  const list=partyId
+    ? await rows(env,"SELECT transaction_id AS id,created_at_ms AS createdAtMs,party_id AS partyId,party_type AS partyType,party_name AS partyName,operation,operation_label AS operationLabel,amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source FROM employee_accounting_party_ledger_v1 WHERE party_type=? AND party_id=? ORDER BY created_at_ms",[type,partyId])
+    : await rows(env,"SELECT transaction_id AS id,created_at_ms AS createdAtMs,party_id AS partyId,party_type AS partyType,party_name AS partyName,operation,operation_label AS operationLabel,amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source FROM employee_accounting_party_ledger_v1 WHERE party_type=? AND party_name=? AND (?='' OR party_code=?) ORDER BY created_at_ms",[type,name,code,code]);
+  const resolvedName=list.length?text(list[list.length-1].partyName):name;
+  return {success:true,partyId,partyType:type,partyName:resolvedName,balance:list.length?num(list[list.length-1].balanceAfter):0,transactions:list};
 }
 async function nextInvoiceNo(env){
   const r=await env.DB.prepare("UPDATE employee_accounting_control_v1 SET next_invoice_number=next_invoice_number+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' RETURNING next_invoice_number-1 AS n").first();
@@ -424,6 +453,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     if(action==='getAccounting')out=await getAccounting(env,auth);
     else if(action==='getEasyStoreCustomers')out=await getEasyStoreCustomersV1(env,b);
     else if(action==='searchCustomers')out=await searchCustomersV1(env,b);
+    else if(action==='getEasyStoreSuppliers')out=await getEasyStoreSuppliersV1(env,b);
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='getDeptInvoiceDraftV1887')out=await draft(env,auth,b);
