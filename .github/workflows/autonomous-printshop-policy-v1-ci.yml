@@ -18,9 +18,11 @@ on:
     paths:
       - 'autonomous-printshop/core/autonomy-policy-v1.mjs'
       - 'autonomous-printshop/core/autonomy-event-ledger-v1.mjs'
+      - 'autonomous-printshop/core/operational-reality-v1.mjs'
       - 'autonomous-printshop/migrations/0019_autonomy_events_v1.sql'
       - 'autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
+      - 'autonomous-printshop/tests/operational_reality_v1.test.mjs'
       - 'autonomous-printshop/MASTER_BOOK.md'
       - 'autonomous-printshop/manifests/**'
       - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
