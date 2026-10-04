@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -249,6 +249,71 @@ async function easyStoreSystemHealthV1(env,auth){
   };
 }
 
+async function calculateAccountingLaserQuoteV1913V1(env,auth,b){
+  if(!['full','laser'].includes(auth.mode))return {success:false,message:'حاسبة الليزر متاحة لجابر وضياء فقط.'};
+  const materialId=text(b.materialId),materialName=text(b.materialName||b.material);
+  const pieceWidth=num(b.pieceWidth||b.width),pieceHeight=num(b.pieceHeight||b.height);
+  const qty=Math.max(1,num(b.qty,1));
+  const wastePercent=Math.max(0,num(b.wastePercent||b.waste));
+  if((!materialId&&!materialName)||pieceWidth<=0||pieceHeight<=0)return {success:false,message:'الخامة وطول وعرض القطعة مطلوبة.'};
+
+  let material;
+  if(materialId){
+    material=await env.DB.prepare(`
+      SELECT material_id,department,material_name,raw_width,raw_height,unit_cost,computed_unit_cost,official_sale_price,active
+      FROM employee_accounting_materials_v1
+      WHERE material_id=? AND active=1
+      LIMIT 1
+    `).bind(materialId).first();
+  }else{
+    material=await env.DB.prepare(`
+      SELECT material_id,department,material_name,raw_width,raw_height,unit_cost,computed_unit_cost,official_sale_price,active
+      FROM employee_accounting_materials_v1
+      WHERE material_name=? AND active=1
+        AND (?='full' OR department IN ('ليزر','مشترك',''))
+      ORDER BY CASE WHEN department='ليزر' THEN 0 WHEN department='مشترك' THEN 1 ELSE 2 END,updated_at DESC
+      LIMIT 1
+    `).bind(materialName,auth.mode).first();
+  }
+  if(!material)return {success:false,message:'الخامة غير مسجلة: '+(materialName||materialId)};
+
+  const rawWidth=num(material.raw_width),rawHeight=num(material.raw_height);
+  const sheetCost=num(material.computed_unit_cost)||num(material.unit_cost);
+  const officialUnitSale=num(material.official_sale_price);
+  if(rawWidth<=0||rawHeight<=0||sheetCost<0)return {success:false,message:'أبعاد وتكلفة الشيت غير مكتملة للخامة '+text(material.material_name)};
+
+  const sheetArea=rawWidth*rawHeight;
+  const pieceArea=pieceWidth*pieceHeight;
+  const consumedAreaPerPiece=pieceArea*(1+wastePercent/100);
+  if(consumedAreaPerPiece>sheetArea)return {success:false,message:'مقاس القطعة أكبر من مساحة الشيت بعد الهالك.'};
+
+  const piecesByLayout=Math.max(
+    Math.floor(rawWidth/pieceWidth)*Math.floor(rawHeight/pieceHeight),
+    Math.floor(rawWidth/pieceHeight)*Math.floor(rawHeight/pieceWidth)
+  );
+  const materialCostPerPiece=sheetCost*consumedAreaPerPiece/sheetArea;
+  const customerUnitSale=num(b.customerUnitSale||b.salePrice||b.unitSalePrice);
+  const factor=Math.max(0,num(b.saleFactor||b.factor)||2.2);
+  const suggestedUnitSale=customerUnitSale||officialUnitSale||(auth.mode==='full'?materialCostPerPiece*factor:0);
+
+  const result={
+    success:true,version:'A1_D1_READ_MODEL_V1',
+    materialId:text(material.material_id),materialName:text(material.material_name),
+    sheetWidth:rawWidth,sheetHeight:rawHeight,pieceWidth,pieceHeight,qty,wastePercent,
+    consumedAreaPerPiece,consumedAreaTotal:consumedAreaPerPiece*qty,
+    estimatedPiecesPerSheet:piecesByLayout,
+    materialCostPerPiece,materialCostTotal:materialCostPerPiece*qty,
+    officialUnitSale,customerUnitSale,suggestedUnitSale,suggestedTotalSale:suggestedUnitSale*qty
+  };
+  if(auth.mode!=='full'){
+    delete result.materialCostPerPiece;
+    delete result.materialCostTotal;
+    delete result.officialUnitSale;
+    delete result.customerUnitSale;
+  }
+  return result;
+}
+
 async function saveMaterial(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إضافة وتعديل الخامات عند ضياء فقط.'};
   const name=text(b.materialName||b.name);if(!name)return {success:false,message:'اسم الخامة مطلوب.'};
@@ -456,6 +521,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='getEasyStoreSuppliers')out=await getEasyStoreSuppliersV1(env,b);
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
+    else if(action==='calculateAccountingLaserQuoteV1913')out=await calculateAccountingLaserQuoteV1913V1(env,auth,b);
     else if(action==='getDeptInvoiceDraftV1887')out=await draft(env,auth,b);
     else if(action==='approveAccountingDeptInvoice')out=await approveDept(env,auth,b);
     else if(action==='saveAccountingDeptLine')out=await saveDeptLine(env,auth,b);
