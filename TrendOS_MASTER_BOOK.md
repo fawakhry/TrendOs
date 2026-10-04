@@ -3232,3 +3232,44 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 `LIVE_FUNCTION_WITHOUT_BOOK_MAP=0`
 `LIVE_CODE_WITH_UNKNOWN_OWNER_OR_PURPOSE=0`
 `LIVE_DATA_WITH_UNKNOWN_SOURCE_OR_DESTINATION=0`
+
+## 13. Accounting / EasyStore pause checkpoint — 2026-10-04
+
+> **قرار المالك:** إيقاف التحقيق في الحسابات مؤقتًا والانتقال إلى المشكلة الحالية الأخرى، مع حفظ نقطة الاستئناف بدون فقد أي سياق.
+
+- برنامج الحسابات ليس جزءًا من Repo TrendOS فقط؛ له Repo مستقل:
+  - `fawakhry/EasyStore`
+- ملفات EasyStore الأساسية المؤكدة:
+  - `app.js`
+  - `config.js`
+  - `index.html`
+  - `Code.gs`
+  - `tests/`
+- `config.js` الحالي في EasyStore يضبط:
+  - `EASYSTORE_ACCOUNTING_D1_READONLY = true`
+  - `EASYSTORE_ACCOUNTING_D1_URL = https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting`
+  - cache tag: `entry619-d1-readonly-sso2-20261004`
+- Runtime UI observation من المالك:
+  - EasyStore فتح من TrendOS.
+  - الشارة أصبحت `D1 READONLY / SSO OK`.
+  - هذا يثبت نجاح handoff المرئي للجلسة داخل EasyStore، لكنه لا يثبت وحده وصول `getAccounting` إلى D1.
+- Live-tail evidence قبل الإيقاف:
+  - Run `37210279478` استُخدم لمراقبة `/v1/employee/accounting`.
+  - المحاولات المكتملة حتى لحظة الإيقاف لم ترصد طلب Accounting فعليًا أثناء الضغط على «تحديث البيانات».
+  - محاولة لاحقة كانت ما تزال `in_progress` لحظة قرار الإيقاف؛ لا تُعتبر PASS أو FAIL حتى تُراجع نتيجتها عند الاستئناف.
+- مصدر التحقيق الصحيح عند العودة:
+  1. ابدأ من Repo `fawakhry/EasyStore`، لا من تكرار تشخيص TrendOS وحده.
+  2. افحص `ES27.load(true)` -> `api('getAccounting', ...)` -> شرط `EASYSTORE_ACCOUNTING_D1_READONLY` -> `fetch(EASYSTORE_ACCOUNTING_D1_URL)`.
+  3. اربط ذلك بنتيجة Runtime/Network أو Cloudflare tail.
+  4. لا تُدخل فاتورة أو بيانات إنتاج لمجرد إثبات القراءة.
+  5. لا تُرقِّ Accounting من `READONLY` إلى `GENERAL` قبل إثبات authenticated D1 read حقيقي.
+- الحالة عند الإيقاف:
+  ```ini
+  ACCOUNTING=READONLY
+  SSO_UI=OK
+  AUTHENTICATED_D1_READ=NOT_PROVEN
+  EASYSTORE_REPO=fawakhry/EasyStore
+  NEXT_RESUME_POINT=DIAGNOSE_EASYSTORE_GETACCOUNTING_RUNTIME_PATH
+  OWNER_DECISION=PAUSE_AND_SWITCH_TO_CURRENT_ISSUE
+  ```
+
