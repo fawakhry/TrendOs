@@ -323,7 +323,7 @@ Evidence / QC / completion / learning
 من الآن:
 
 - `TrendOS_MASTER_BOOK.md` = TrendOS فقط.
-- `AUTONOMOUS_PRINTSHOP_MASTER_BOOK.md` = هذا المشروع فقط.
+- `autonomous-printshop/MASTER_BOOK.md` = هذا المشروع فقط.
 - لا تُضاف أي Entry أتمتة جديدة إلى كتاب TrendOS.
 - عندما نحتاج حقيقة من TrendOS نسجل reference فقط هنا.
 - أي تغيير لازم يتم داخل TrendOS نفسه يظل له Runtime evidence في TrendOS حسب قواعده، لكن **سجل مشروع الأتمتة وقراراته وخارطته يبقى هنا**.
@@ -332,11 +332,11 @@ Evidence / QC / completion / learning
 
 تم إنشاء foundation في TrendOS repo لأن المشروع بدأ فوق D1 الحالي:
 
-- `cloudflare-d1/src/autonomy-policy-v1.mjs`
-- `cloudflare-d1/src/autonomy-event-ledger-v1.mjs`
-- `cloudflare-d1/migrations/0019_autonomy_events_v1.sql`
-- `tests/trendos_autonomy_policy_v1.test.mjs`
-- `tests/trendos_autonomy_event_ledger_v1.test.mjs`
+- `autonomous-printshop/core/autonomy-policy-v1.mjs`
+- `autonomous-printshop/core/autonomy-event-ledger-v1.mjs`
+- `autonomous-printshop/migrations/0019_autonomy_events_v1.sql`
+- `autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs`
+- `autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs`
 - CI: `.github/workflows/trendos-autonomy-policy-v1-ci.yml`
 
 Evidence:
@@ -350,7 +350,7 @@ AUTOPILOT_RUNTIME_ENABLED=NO
 PRODUCTION_BEHAVIOR_CHANGED=NO
 ```
 
-هذه artifacts تبقى تقنيًا في TrendOS integration layer حاليًا، لكن سجلها وقرارها أصبحا في هذا الكتاب فقط.
+تم نقل الـcanonical project copies إلى `autonomous-printshop/`. أي نسخة تبقى خارج هذا المجلد لا تُعتبر مصدر المشروع إلا إذا كانت Runtime dependency موثقة حتى cutover.
 
 ## 9. أول Extraction/Reuse Gate
 
@@ -416,20 +416,20 @@ Next:
 
 Completed:
 - Removed AP-specific Entry624/Entry625 from `TrendOS_MASTER_BOOK.md`.
-- Moved 60-day program to `docs/autonomous-printshop/60_DAY_PROGRAM.md`.
-- Moved autonomy action seed to `docs/autonomous-printshop/staging/AP002_AUTONOMY_ACTION_CLASSIFICATION_SEED_V1.json`.
+- Moved 60-day program to this MASTER_BOOK / Appendix A.
+- Moved autonomy action seed to `autonomous-printshop/manifests/AP002_AUTONOMY_ACTION_CLASSIFICATION_SEED_V1.json`.
 - CI trigger no longer treats `TrendOS_MASTER_BOOK.md` as an Autonomy project document.
 - Corrected Fokha registry from deleted `Matbagy-Design-Workflow` to canonical `fawakhry/Matbagy-OS@main`.
-- Added `docs/autonomous-printshop/REUSE_EXTRACTION_MAP.md`.
+- Added this MASTER_BOOK / Appendix B.
 - Recovered historical Matbagy Evaluations executable source into:
-  - `autonomous-printshop/quarantine/evaluations-recovered/worker.mjs`
-  - `autonomous-printshop/quarantine/evaluations-recovered/worker_with_ui.mjs`
-  - `autonomous-printshop/quarantine/evaluations-recovered/README_CLOUDFLARE.md`
+  - `autonomous-printshop/recovered/evaluations/worker.mjs`
+  - `autonomous-printshop/recovered/evaluations/worker_with_ui.mjs`
+  - `autonomous-printshop/recovered/evaluations/README_CLOUDFLARE.md`
   - quarantine safety README.
 - Extracted 13 initial Design Recipe candidates from canonical Matbagy-OS cases into:
-  - `docs/autonomous-printshop/design/DESIGN_RECIPE_EXTRACTION_SEED_V1.json`
+  - `autonomous-printshop/manifests/DESIGN_RECIPE_EXTRACTION_SEED_V1.json`
 - Completed Operator Task D1 authority audit:
-  - `docs/autonomous-printshop/operator-task/OPERATOR_TASK_D1_AUTHORITY_GAP_AUDIT.md`
+  - this MASTER_BOOK / Appendix C
   - result: stable product/API contract is reusable, but current D1 Task authority is absent; historical mutation authority is Apps Script/Sheet; autonomous target must implement D1 authority.
 
 Review-scope truth:
@@ -446,4 +446,581 @@ EVALUATIONS_SOURCE_DEPLOYED=NO
 DESIGN_RECIPE_CANDIDATES=13
 OPERATOR_TASK_D1_AUTHORITY=ABSENT
 NEXT_BUILD=P0_D1_OPERATOR_TASK_CORE_PLUS_MATBAGY_OS_CONNECTOR_CONTRACT
+```
+
+
+## Appendix A — 60-Day Execution Program
+
+**Owner mandate date:** 2026-10-05  
+**Target:** by 2026-12-04, daily printshop operations run without routine owner involvement.  
+**Operating principle:** AI executes every qualified digital task. Employees receive only physical work and qualified exception work. Owner receives only protected high-risk decisions and emergency escalation.
+
+## 1. North-star operating contract
+
+The target operating model is:
+
+```
+Customer / WhatsApp
+  -> AI Intake
+  -> AI Customer + Order Context
+  -> AI Quote / Rules
+  -> AI Design or Template Composition
+  -> AI Preflight
+  -> AI Production Scheduler
+  -> Operator Task V2 for physical execution only
+  -> AI Quality Gate
+  -> AI Customer Update
+  -> Delivery / Handover
+  -> Controlled Finance Link
+  -> Learning + KPI loop
+```
+
+### Required end-state KPIs
+
+```ini
+OWNER_ROUTINE_TOUCHES_PER_DAY=0
+OWNER_EXCEPTION_TOUCHES_PER_DAY_TARGET<=1
+UNOWNED_OPERATIONAL_TASKS=0
+DIGITAL_TASKS_ROUTED_TO_HUMAN_TARGET<=5%
+AI_AUTO_DECISION_TARGET>=95%
+PHYSICAL_TASKS_WITH_AI_INSTRUCTIONS=100%
+ORDER_WITHOUT_NEXT_ACTION=0
+OVERDUE_WITHOUT_ESCALATION=0
+CRITICAL_FAILURE_WITHOUT_ALERT=0
+EMPLOYEE_FREE_CHOICE_OF_NEXT_NORMAL_JOB=NO
+```
+
+This is a target operating contract, not permission to bypass safety, data integrity, financial controls, or employment protections.
+
+## 2. Human work policy
+
+Employees should only receive:
+
+1. physical production work that software cannot perform: loading media, operating machines that require manual handling, pressing, assembly, packing, handover;
+2. exception work where confidence, data, quality, or customer approval is insufficient;
+3. maintenance, cleaning, stock receiving, and other real-world actions;
+4. recovery work during a declared degraded mode.
+
+Employees should not routinely decide:
+
+- what job to do next;
+- what customer to answer first;
+- what standard design template to use;
+- whether a standard file passes preflight;
+- how to prioritize normal orders;
+- when to chase a customer for missing standard information;
+- which normal production queue item is next.
+
+Those are system responsibilities.
+
+## 3. AI supervisor policy for employees
+
+AI may autonomously:
+
+- assign the next qualified task;
+- sequence work using due date, priority, machine availability, setup cost, and dependency state;
+- provide exact execution instructions;
+- check task completion evidence;
+- detect lateness, inactivity, repeated rework, and queue imbalance;
+- coach the employee on the current task;
+- rebalance normal workloads;
+- request operational clarification;
+- produce performance analytics.
+
+AI must not autonomously execute adverse employment decisions such as termination, suspension, pay reduction, or punitive disciplinary action. Those remain protected owner/authorized-manager decisions.
+
+## 4. Control model
+
+Every operational action is classified by `autonomy-policy-v1.mjs` into one of:
+
+- `AI_AUTO`: system executes;
+- `HUMAN_PHYSICAL`: Operator Task V2 receives the physical task;
+- `HUMAN_EXCEPTION`: human handles an exception;
+- `OWNER_ONLY`: protected high-risk decision;
+- `BLOCKED`: safety/integrity state prevents execution.
+
+Autopilot is **default OFF** at source level until a task family passes its qualification gate. Rollout is shadow -> canary -> partial auto -> general auto.
+
+## 5. Existing TrendOS components to reuse
+
+Do not create a parallel operating system.
+
+Reuse:
+
+- D1 / Cloudflare as the current cloud authority where already qualified;
+- Employee Native Auth migration track;
+- Operator Task Workflow V2 as the physical-work queue;
+- existing customer/order Cloud paths;
+- existing print/laser material-control work;
+- Matbagy AI knowledge assets as the future controlled AI layer;
+- EasyStore as the separate accounting program while Accounting remains deferred/read-only.
+
+`work-queue-v1.js` is superseded for normal operator assignment and is not the basis of this program.
+
+## 6. 60-day execution sequence
+
+### Days 1-7 — Autonomy Control Plane
+
+Deliver:
+
+- autonomy policy engine;
+- action taxonomy;
+- event/audit contract;
+- shadow-decision log;
+- exception queue contract;
+- Owner Emergency Queue contract;
+- current workflow inventory mapped to AI / physical / exception / owner;
+- baseline KPIs: owner touches, employee choices, rework, overdue, queue wait.
+
+Exit gate:
+
+```ini
+AUTONOMY_POLICY_ENGINE=PASS
+ALL_LIVE_WORKFLOW_FAMILIES_CLASSIFIED=YES
+UNKNOWN_NEXT_ACTION_RATE=0
+RUNTIME_BEHAVIOR_CHANGED=NO
+```
+
+### Days 8-14 — AI Customer Intake + Order Completeness
+
+Deliver:
+
+- WhatsApp/inbox intent extraction;
+- customer identity resolution;
+- product, dimensions, quantity, deadline, source files and required fields extraction;
+- deterministic missing-information prompts;
+- order draft generation;
+- duplicate protection;
+- owner-free normal order admission.
+
+Exit gate: standard customer request can become a complete order draft without employee intervention.
+
+### Days 15-21 — Pricing + Design Automation
+
+Deliver:
+
+- deterministic price rules as source-of-truth;
+- AI may explain or compose a quote, not invent price;
+- Smart Designer templates for highest-volume products first;
+- print-file normalization;
+- image placement rules;
+- cut/stroke rules;
+- standard wording/data insertion;
+- version lineage.
+
+First product families:
+
+- Mug 20x9;
+- 7x10 cutouts / Senior;
+- collage/poster;
+- standard invitations;
+- common laser/vector name designs.
+
+Exit gate: at least the highest-volume standard products reach proof-ready output automatically.
+
+### Days 22-28 — AI Preflight + Production Dispatcher
+
+Deliver:
+
+- size/aspect/DPI checks;
+- missing-image and low-quality checks;
+- text/data completeness checks;
+- stroke/cut readiness checks where relevant;
+- print-ready package;
+- production routing by department/machine;
+- Operator Task V2 integration;
+- no employee browsing of the normal order pool.
+
+Exit gate:
+
+```ini
+NORMAL_NEXT_JOB_CHOSEN_BY_SYSTEM=100%
+PHYSICAL_TASK_HAS_MACHINE_AND_INSTRUCTIONS=100%
+DIGITAL_PREPARATION_DONE_BEFORE_OPERATOR=YES
+```
+
+### Days 29-35 — AI QC + Rework Loop
+
+Deliver:
+
+- expected-vs-produced QC evidence model;
+- file/proof verification;
+- photo/sample capture contract for physical QC where applicable;
+- defect classification;
+- automatic rework task creation;
+- customer-impact escalation.
+
+Exit gate: every completed production task has a recorded QC result before delivery eligibility.
+
+### Days 36-42 — Inventory + Procurement Autopilot
+
+Deliver:
+
+- material consumption projection from order lines;
+- reorder thresholds;
+- shortage prediction;
+- purchase suggestions;
+- approved supplier/range rules;
+- owner escalation only for out-of-policy spend or supplier exception.
+
+Exit gate: no standard order reaches production without material readiness state.
+
+### Days 43-49 — AI Employee Supervisor
+
+Deliver:
+
+- shift workload plan;
+- automatic next-task assignment;
+- lateness/blocker detection;
+- task coaching;
+- break/availability-aware dispatch;
+- productivity/rework analytics;
+- manager exception queue;
+- protected employment-action boundary.
+
+Exit gate:
+
+```ini
+EMPLOYEE_NORMAL_JOB_SELECTION=0
+UNASSIGNED_READY_PHYSICAL_TASKS=0
+AI_SUPERVISOR_COVERAGE=100%
+ADVERSE_EMPLOYMENT_ACTION_AUTO=NO
+```
+
+### Days 50-56 — Owner Removal Rehearsal
+
+Operate in owner-silent mode for routine work.
+
+Owner dashboard changes from a work console to an exception console only.
+
+Allowed owner notifications:
+
+- safety/security incident;
+- production outage affecting deadlines;
+- financial exposure beyond configured threshold;
+- legal/regulated issue;
+- protected employment decision;
+- major customer exception beyond policy;
+- systemic data-integrity failure.
+
+Exit gate: 7 consecutive operating days with zero routine owner actions.
+
+### Days 57-60 — Autonomous Burn-in + Go/No-Go
+
+Run the shop with:
+
+```ini
+AUTOPILOT_SCOPE=QUALIFIED_GENERAL
+OWNER_ROUTINE_TOUCHES=0
+EMPLOYEE_SCOPE=PHYSICAL_PLUS_EXCEPTIONS
+OWNER_VIEW=EXCEPTIONS_ONLY
+```
+
+Go only if:
+
+- no silent lost orders;
+- no uncontrolled financial mutation;
+- no queue starvation;
+- no critical alert gap;
+- rollback works;
+- every autonomous action is auditable;
+- exception ownership is deterministic.
+
+## 7. Owner dashboard end-state
+
+The owner should not manage queues.
+
+The owner screen should answer only:
+
+- Is the shop healthy?
+- Is any deadline at risk?
+- Is any exception waiting specifically for me?
+- Are cash/material/security thresholds breached?
+- Is Autopilot degraded?
+
+Normal healthy state:
+
+```ini
+SHOP_HEALTH=GREEN
+OWNER_ACTION_REQUIRED=NO
+ORDERS_AT_RISK=0
+UNOWNED_EXCEPTIONS=0
+AUTOPILOT_DEGRADED=NO
+```
+
+## 8. Non-negotiable engineering rules
+
+- Runtime truth > deployed > tested > repo-only > historical.
+- Every mutation is idempotent or explicitly protected.
+- No AI-generated final price if price authority is unavailable.
+- No AI claim about order/payment/stock state without source-of-truth lookup.
+- Unknown task family does not auto-execute.
+- Every auto action records input, policy decision, confidence, execution result and rollback/audit reference.
+- Every autonomous subsystem has an OFF switch.
+- Rollout is canary-first and fail-closed.
+- EasyStore/accounting remains outside this program until its separate gate is reopened.
+
+## 9. First implementation checkpoint
+
+Created on 2026-10-05:
+
+- `cloudflare-d1/src/autonomy-policy-v1.mjs`
+- `tests/trendos_autonomy_policy_v1.test.mjs`
+- `.github/workflows/trendos-autonomy-policy-v1-ci.yml`
+
+This checkpoint changes no Production runtime behavior. It establishes the classification contract required before AI can take operational control.
+
+## 10. Immediate next gate
+
+After the policy CI is green:
+
+1. classify every currently live operational action against the autonomy taxonomy;
+2. create the append-only autonomy event schema;
+3. add shadow decisions without taking action;
+4. measure 24-hour mismatch rate between AI recommendation and actual human action;
+5. only then enable a first low-risk automatic task family.
+
+
+## Appendix B — Reuse / Extraction Map
+
+Date: 2026-10-05  
+Purpose: decide exactly what existing work is reused, continued, modified, or deferred for the autonomous-printshop program.
+
+| ID | Existing project/module | Canonical source | Current evidence | Decision | Required modification | Autonomous target | Priority |
+|---|---|---|---|---|---|---|---|
+| R01 | TrendOS Orders + Customers | `fawakhry/TrendOs` | Runtime-qualified Cloud/D1 paths | REUSE IN PLACE | expose stable connector/events; do not duplicate data | Source-of-truth connector | P0 |
+| R02 | TrendOS Employee Ops | `cloudflare-d1/src/employee-ops-native-v1.mjs` | Ops GENERAL / epoch 7 | REUSE IN PLACE | emit structured operational events for supervisor | Ops signal source | P0 |
+| R03 | Operator Task Workflow V2 | TrendOS candidate + blackbox | Contract/preview qualified; current live status needs fresh runtime qualification | CONTINUE + MODERNIZE | replace historical Google Task authority with D1 authority; preserve API and dispatch invariants | Physical Execution Engine | P0 |
+| R04 | Gaber Material Control | TrendOS candidate chain Checkpoint 01..05 | Pure core/ledger/UI/backend CI-qualified historically; not accepted as current production authority | CONTINUE + GENERALIZE | D1 persistence; EasyStore financial adapter; Laser+Print+future departments; no double decrement | Material/Inventory Agent | P0 |
+| R05 | Matbagy-OS Runtime | `fawakhry/Matbagy-OS@main` | Sandbox/runtime foundation + tenant D1/contracts | REUSE AS ORCHESTRATOR BASE | TrendOS connector; per-family autonomy modes; action execution/audit | AI Control Plane | P0 |
+| R06 | صندوق مطبعجي Cases/Knowledge | `Matbagy-OS/صندوق_مطبعجي/` | 16 current cases + contracts | EXTRACT KNOWLEDGE | promote approved cases into executable Product Recipes; clean stale storage assumptions | Design Recipe Engine | P0 |
+| R07 | Matbagy Evaluations | `fawakhry/Matbagy/evaluations` + recovered source | Cloud pilot history; code recovered from user files | RECOVER + CONTINUE | TrendOS event connector; scheduled analysis; evidence-first profiles; protected employee decisions | Customer/Employee Intelligence | P0/P1 |
+| R08 | Employee Manager Strips / Ops Coach | TrendOS frontend modules | Existing operational UX/source | REUSE UX, REPLACE DECISION SOURCE | no “first row” dispatch; task comes from Operator Task/AI Scheduler | Employee Supervisor UI | P1 |
+| R09 | ANDON | TrendOS ANDON modules | Existing reason buttons + historical append-only integrity | CONTINUE | structured D1 incident/event; auto resolver; escalation ownership/SLA | Exception Engine | P1 |
+| R10 | Customer Manager / Feedback | TrendOS modules | source exists; Comms family not assumed GENERAL | CONTINUE AFTER GATE | unify with intelligence profile; D1/R2; safe escalation | Customer Operations Agent | P1 |
+| R11 | Whats Agent | `WHATS_AGENT_BOOK.md` + integrity source | Meta Coexistence/onboarding dependency remains | DEPENDENCY / CONTINUE SEPARATELY | finish coexistence/webhook/manual send/idempotency before auto reply | Customer Intake/Comms | P1 |
+| R12 | Go-Live Autopilot | TrendOS source | operational draft/notification patterns | EXTRACT PATTERNS ONLY | remove finance authority; use only ready/follow-up workflow patterns | Completion/Notification Agent | P2 |
+| R13 | EasyStore | `fawakhry/EasyStore` | Accounting READONLY in TrendOS program | KEEP SEPARATE AUTHORITY | explicit read/controlled write contracts later | Finance Authority Adapter | P1 dependency |
+| R14 | Lead Hunter / CRM | TrendOS roadmap | product idea, not current 60-day blocker | DEFER | integrate only after autonomous operations stable | Growth Agent | P3 |
+| R15 | Work Queue V1 | TrendOS | superseded | DO NOT USE | none | none | DROP |
+| R16 | Matbagy-Design-Workflow old repo | deleted after migration | migration report proves Matbagy-OS successor | DO NOT USE | Fokha pointer corrected | none | DROP |
+
+## P0 critical path
+
+```
+TrendOS Connector
+ -> Autonomy Policy/Event Ledger
+ -> Matbagy-OS Orchestrator Adapter
+ -> Operator Task V2 D1 Authority
+ -> Design Recipe Engine
+ -> Material/Inventory Ledger
+ -> Evaluations Intelligence
+ -> Shadow Supervisor
+```
+
+## Source extraction rules
+
+- Do not copy TrendOS business data into a second source of truth.
+- Do not copy Matbagy-OS runtime wholesale; consume/adapt modules with explicit contracts.
+- Recovered Evaluations source is imported into `autonomous-printshop/quarantine/evaluations-recovered/` because its executable code was missing from GitHub.
+- Design cases remain canonical in Matbagy-OS; this project stores only extracted recipe rules + source case IDs.
+- Historical Google adapters may be studied for semantics but are not the target authority.
+- Every reused historical candidate requires current-runtime requalification before production activation.
+
+
+## Appendix C — Operator Task V2 D1 Authority Gap Audit
+
+Date: 2026-10-05  
+Project: Autonomous Printshop  
+Status: REPO AUDIT / NO RUNTIME MUTATION
+
+## Finding
+
+The Operator Task product contract is valuable and should be reused, but there is **no current D1 Operator Task authority schema/engine** in migrations 0012–0018.
+
+### Existing D1 Ops is not Operator Task authority
+
+Migration `0012_employee_ops_zero_google_v1.sql` covers Attendance / HR / Cleaning / Press-related operational facts. It does not define the ordinary task ledger required by Operator Task V2.
+
+Migrations 0013–0018 also do not provide a task-assignment table/claim engine.
+
+### Existing Operator Task mutation authority is historical Apps Script/Sheet
+
+`operator-task-workflow-v2.gs` stores tasks in:
+
+`تشغيل - مهام المشغلين V2`
+
+and performs:
+- active-task lookup;
+- dispatch;
+- claim/start;
+- source status write;
+- complete;
+- metrics
+
+using Spreadsheet/Apps Script authority.
+
+### Existing Cloudflare module is a proxy, not authority
+
+`cloudflare-d1/src/operator-task-edge-v2.mjs` provides the stable public routes:
+
+- `GET /v1/operator/tasks/status`
+- `POST /v1/operator/tasks/claim-next`
+- `POST /v1/operator/tasks/complete`
+- `GET /v1/operator/fly-print`
+- `GET /v1/operator/press-candidates`
+- `GET /v1/operator/tasks/metrics`
+
+but mutating operations are still proxied to Apps Script through a dedicated HMAC bridge.
+
+## Reuse decision
+
+**Keep the public API and product invariants. Replace the authority adapter.**
+
+Target:
+
+```
+Operator UI
+ -> Cloudflare Operator Task API
+ -> D1 Operator Task Authority
+ -> TrendOS Order/Line status transition
+ -> Autonomy/Material events
+```
+
+No browser dual-write and no Cloudflare->Apps Script Task mutation in the final autonomous target.
+
+## D1 V1 schema needed
+
+Minimum entities:
+
+### operator_tasks
+- task_id PK
+- line_id
+- order_id
+- employee_key
+- department
+- state: STARTING/RUNNING/COMPLETED/FAILED/CANCELLED
+- claimed_at
+- started_at
+- completed_at
+- work_sec
+- final_status
+- priority_snapshot
+- due_at_snapshot
+- order_sequence_snapshot
+- source_status_before
+- task_payload_json
+- material_close_id nullable
+- created_at / updated_at
+
+Required uniqueness/guards:
+- at most one active task per employee;
+- at most one active ordinary task per line;
+- exact Line/Order consistency;
+- deterministic/replay-safe mutation identity.
+
+### operator_task_events
+Append-only:
+- event_id PK
+- task_id
+- event_type
+- actor
+- at
+- idempotency_key
+- request_hash
+- result_hash/status
+- evidence_json
+
+### operator_task_control
+- mode OFF / SHADOW / CANARY / GENERAL
+- epoch
+- enabled departments/users
+- updated_at
+
+## Dispatch contract retained
+
+```
+Urgent DESC
+-> Delivery Due Date ASC
+-> Order Sequence ASC
+-> Line ID final deterministic tie-break
+```
+
+Missing/invalid due date:
+`HUMAN_EXCEPTION / SUPERVISOR_QUEUE`
+
+Never let the employee browse and select ordinary work as fallback.
+
+## Atomic claim requirement
+
+D1 claim-next must atomically:
+
+1. verify operator has no active ordinary task;
+2. select first eligible unlocked line by server ordering;
+3. prevent a second operator claiming the same line;
+4. create task/event;
+5. transition source Line to `بدء التنفيذ` through the qualified TrendOS order/line write contract;
+6. return one task.
+
+Any partial failure requires rollback/compensation so an orphan STARTING task or orphan source status is not silently left behind.
+
+## Complete requirement
+
+Complete must:
+
+1. authenticate task owner/capability;
+2. replay-check idempotency key;
+3. run material/QC gates applicable to the department;
+4. transition exact Order/Line to allowed final status;
+5. finalize task timestamps and work_sec;
+6. append event;
+7. emit completion signal for downstream AI/QC/customer workflows.
+
+## What can be deleted after D1 cutover
+
+Only after verified GENERAL + rollback evidence:
+- Apps Script Task Sheet as mutation authority;
+- Operator Task proxy HMAC dependency;
+- `TRENDOS_OPERATOR_TASK_PROXY_SECRET` for this path.
+
+Historical records remain archive evidence.
+
+## Gate result
+
+```ini
+OPERATOR_TASK_PRODUCT_CONTRACT=REUSE
+OPERATOR_TASK_PUBLIC_API=REUSE
+CURRENT_D1_TASK_AUTHORITY=ABSENT
+CURRENT_APPS_SCRIPT_TASK_AUTHORITY=HISTORICAL_CANDIDATE_PATH
+TARGET_TASK_AUTHORITY=D1
+NEW_D1_ENGINE_REQUIRED=YES
+NEXT=DESIGN_MIGRATION_AND_PURE_D1_TASK_CORE_DEFAULT_OFF
+```
+
+
+### AP-005 — Single-place consolidation
+
+Owner instruction: collect required code/books/links into one project location and keep one project book.
+
+Canonical project root:
+`autonomous-printshop/`
+
+Canonical project book:
+`autonomous-printshop/MASTER_BOOK.md`
+
+Rules:
+- Project-owned books/plans are folded into this file; no second project book is authoritative.
+- Upstream system books are kept only as source snapshots under `autonomous-printshop/sources/**/books/`.
+- Every source snapshot must retain provenance in `autonomous-printshop/manifests/SOURCE_REGISTRY_V1.json`.
+- Runtime dependencies are not deleted from their live upstream system merely to satisfy folder tidiness.
+- Project-owned duplicate files outside `autonomous-printshop/` are deleted after central verification.
+- Upstream candidate/runtime files are deletion candidates only after replacement is live, rollback-tested, and no longer referenced by CI/runtime.
+
+```ini
+CENTRAL_PROJECT_ROOT=autonomous-printshop/
+CENTRAL_PROJECT_BOOK=autonomous-printshop/MASTER_BOOK.md
+PROJECT_BOOK_COUNT=1
+UPSTREAM_BOOKS=SOURCE_SNAPSHOTS_ONLY
+DELETE_PROJECT_DUPLICATES=YES
+DELETE_LIVE_DEPENDENCIES_BEFORE_CUTOVER=NO
 ```
