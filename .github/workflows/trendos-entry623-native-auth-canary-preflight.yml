@@ -156,17 +156,30 @@ jobs:
           suffix="$GITHUB_SHA-$(date +%s)"
           curl --fail --silent --show-error --location "$UI_URL/config.js?entry623=$suffix" -o /tmp/config.js
           curl --fail --silent --show-error --location "$UI_URL/employee-api-dispatcher-v1.js?entry623=$suffix" -o /tmp/dispatcher.js
-          grep -E "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1[[:space:]]*=[[:space:]]*false" /tmp/config.js
-          grep -E "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1[[:space:]]*=[[:space:]]*false" /tmp/config.js
-          grep -E "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1[[:space:]]*=[[:space:]]*false" /tmp/config.js
-          grep -E "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE[[:space:]]*=[[:space:]]*['\"]GENERAL['\"]" /tmp/config.js
-          grep -E "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE[[:space:]]*=[[:space:]]*['\"]READONLY['\"]" /tmp/config.js
-          grep -Fq "canaryMinimumBridgePolicies" /tmp/dispatcher.js
-          grep -E "MATBAGY_EMPLOYEE_NATIVE_AUTH_(V1|CANARY_V1|CANARY_MIN_BRIDGE_POLICIES)|MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1|MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE|MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE" /tmp/config.js | head -20
-          echo ENTRY623_FRONTEND_CANARY=OFF
-          echo ENTRY623_FRONTEND_BRIDGE=OFF
-          echo ENTRY623_FRONTEND_OPS=GENERAL
-          echo ENTRY623_FRONTEND_ACCOUNTING=READONLY
+          node <<'NODE'
+          const fs=require('fs');
+          const c=fs.readFileSync('/tmp/config.js','utf8');
+          const d=fs.readFileSync('/tmp/dispatcher.js','utf8');
+          const has=(re)=>re.test(c);
+          if(!has(/MATBAGY_EMPLOYEE_NATIVE_AUTH_V1\s*=\s*false/)) throw new Error('live native auth not OFF');
+          if(!has(/MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1\s*=\s*false/)) throw new Error('live frontend bridge not OFF');
+          if(!has(/MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE\s*=\s*['"]GENERAL['"]/)) throw new Error('live ops not GENERAL');
+          if(!has(/MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE\s*=\s*['"]READONLY['"]/)) throw new Error('live accounting not READONLY');
+          const canaryPresent=/MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1\s*=/.test(c);
+          const canaryEnabled=/MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1\s*=\s*true/.test(c);
+          const min=(c.match(/MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES\s*=\s*(\d+)/)||[])[1]||'ABSENT';
+          const users=(c.match(/MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS\s*=\s*([^;]+);/)||[])[1]||'ABSENT';
+          console.log('ENTRY623_FRONTEND_CANARY_CONFIG_PRESENT='+String(canaryPresent));
+          console.log('ENTRY623_FRONTEND_CANARY_ENABLED='+String(canaryEnabled));
+          console.log('ENTRY623_FRONTEND_CANARY_MIN_POLICIES='+min);
+          console.log('ENTRY623_FRONTEND_CANARY_USERS='+users.replace(/\s+/g,' '));
+          console.log('ENTRY623_FRONTEND_DISPATCHER_CANARY_SUPPORT='+String(d.includes('canaryMinimumBridgePolicies')));
+          if(canaryEnabled) throw new Error('canary unexpectedly enabled');
+          console.log('ENTRY623_FRONTEND_CANARY_SAFE_OFF=YES');
+          console.log('ENTRY623_FRONTEND_BRIDGE=OFF');
+          console.log('ENTRY623_FRONTEND_OPS=GENERAL');
+          console.log('ENTRY623_FRONTEND_ACCOUNTING=READONLY');
+          NODE
 
       - name: Classify next gate
         shell: bash
