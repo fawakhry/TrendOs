@@ -2653,6 +2653,124 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=QUALIFY_ACCOUNTING_READONLY_CUTOVER_WITH_AUTH_AND_BRIDGE_STILL_OFF
   ```
 
+
+### Entry619 — Accounting family READONLY cutover
+- الهدف: بدء نقل عائلة Accounting بعد إغلاق Ops على GENERAL، مع إبقاء:
+  - Employee Auth = OFF.
+  - Employee Bridge = OFF.
+  - Content/Comms/Core = OFF.
+  - Ops = GENERAL.
+  - Apps Script بدون deploy أو تعديل.
+- Source qualification:
+  - router source commit: `56c760cc1ad585b254f5f663d72f140179271bd9`.
+  - default-OFF config commit: `5066b58cdc2765343a793ba5c1c9b7e1091b7b66`.
+  - router test commit: `f7fc1c5c9032f891ef25c071dde6f52b3656f2d2`.
+  - workflow qualification was corrected for heredoc formatting in `6765f5788caf15a84c89085492356631964d62a0`.
+  - generated-live-patch qualification support commit: `62a4d71d11bc3db018112693ac9bd765e6730b82`.
+  - source qualification Runs `37207137593` and `37207232366` = **SUCCESS**.
+  - A61 browser Cloud transport regression Run `37207232418` = **SUCCESS**.
+- READONLY policy في الواجهة يوجّه فقط القراءات المؤهلة إلى D1:
+  - `getAccounting`
+  - `getDeptInvoiceDraftV1887`
+  - `getPartyAccountV1858`
+  - Accounting writes تظل على المسار السابق في READONLY.
+  - GENERAL source path غير معتمد في Entry619.
+- Controlled Production cutover:
+  - workflow commit `00843659d5857dc4e023d4ed75f9dc59c4d02f1d`.
+  - Run `37207346113`.
+  - Job `111451192422`.
+  - conclusion = **SUCCESS**.
+- Pre-cutover:
+  ```ini
+  API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  FRONTEND_VERSION=f1aa4dbf-4bba-40f9-87e2-3e98f3f781b6
+  OPS=GENERAL / policyEpoch=7
+  ACCOUNTING=OFF / policyEpoch=1
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  ORDERS_CUSTOMERS_LINE=PASS
+  ```
+- Mutation boundary:
+  - only `employee_accounting_control_v1` changed OFF → READONLY.
+  - Accounting policy epoch 1 → 2.
+  - API deploy = NO.
+  - Apps Script deploy/mutation = NO.
+  - Auth enable = NO.
+  - Bridge enable = NO.
+  - business write probe executed = NO.
+- READONLY runtime semantics:
+  - qualified read-shaped probe without credentials reached the local session gate and returned `401 employee-session-rejected`.
+  - write-shaped Accounting probe was blocked with `503 employee-accounting-readonly`.
+  - external auth call in these probes = NO.
+  - therefore the READONLY gate is proven fail-closed without a business write.
+- Frontend was deployed from exact live Entry618 baseline with Accounting READONLY added only:
+  - `MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE='GENERAL'`.
+  - `MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE='READONLY'`.
+  - Native Auth remains false.
+  - Legacy Bridge remains false.
+  - Entry611 Native Auth Canary remains absent.
+  - frontend propagation passed on attempt 2.
+  - new Production frontend version:
+    - `494d279f-5f5a-4271-b1c0-be5997615501`.
+- Post-cutover health:
+  ```ini
+  OPS=GENERAL / policyEpoch=7
+  ACCOUNTING=READONLY / policyEpoch=2
+  ACCOUNTING_SCHEMA_READY=true
+  ACCOUNTING_AUTHORITATIVE_WRITES=false
+  ACCOUNTING_GOOGLE_BUSINESS_CALLS=0
+  ACCOUNTING_APPS_SCRIPT_BUSINESS_AUTHORITY=false
+  AUTH=OFF
+  BRIDGE=OFF
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ORDERS=GENERAL_DUPLICATE_GUARD_PASS
+  CUSTOMERS=GENERAL
+  LINE_RUNTIME=PASS
+  REFRESH_FIX=PASS
+  ENTRY611_CANARY_DEPLOYED=NO
+  ```
+- Independent post-success reconciliation:
+  - workflow commit `a5c001def8c79f6130e0f41d1587b09560a79cf5`.
+  - Run `37207652630`.
+  - Job `111452119541`.
+  - conclusion = **SUCCESS**.
+  - reconfirmed exact API/frontend versions and all controls above with no Production mutation.
+- Important gate before Accounting GENERAL:
+  - source + READONLY policy semantics + Production health are PASS.
+  - still required: real authenticated Production Accounting read smoke through the current employee session path.
+  - do not enable Native Auth or Bridge for this smoke.
+  - do not promote Accounting to GENERAL unless authenticated READONLY reads pass and no write/regression is observed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY619_ACCOUNTING_READONLY_CUTOVER_PASS_PENDING_AUTHENTICATED_LIVE_READ_SMOKE_BEFORE_GENERAL
+  CUTOVER_RUN_ID=37207346113
+  CUTOVER_JOB_ID=111451192422
+  CUTOVER_WORKFLOW_COMMIT=00843659d5857dc4e023d4ed75f9dc59c4d02f1d
+  RECONCILE_RUN_ID=37207652630
+  RECONCILE_JOB_ID=111452119541
+  RECONCILE_WORKFLOW_COMMIT=a5c001def8c79f6130e0f41d1587b09560a79cf5
+  PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  PRODUCTION_FRONTEND_VERSION=494d279f-5f5a-4271-b1c0-be5997615501
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  API_DEPLOY=NO
+  APPS_SCRIPT_TOUCHED=NO
+  ENTRY611_CANARY_DEPLOYED=NO
+  NEXT_ACTION=AUTHENTICATED_ACCOUNTING_READONLY_LIVE_READ_SMOKE_THEN_PROMOTE_ACCOUNTING_GENERAL_ONLY_IF_PASS
+  ```
+
 ### Customers
 - Customer master = 251 rows في D1 (live health after Entry616).
 - Customer search/write authority = D1-native / GENERAL.
