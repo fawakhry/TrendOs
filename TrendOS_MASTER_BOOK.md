@@ -2740,6 +2740,13 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   - Job `111452119541`.
   - conclusion = **SUCCESS**.
   - reconfirmed exact API/frontend versions and all controls above with no Production mutation.
+- Passive authenticated-smoke observation attempt:
+  - workflow commit `43a21ddb9ccab1e0d63ba908cd1fd5ecb4912934`.
+  - Run `37207805369`.
+  - preflight confirmed Accounting READONLY / epoch 2, Ops GENERAL / epoch 7, Auth/Bridge OFF.
+  - Cloudflare live tail observed 22 Worker events but **0** requests to `/v1/employee/accounting` during the 70-second window.
+  - therefore the run ended fail-closed with no authenticated Accounting evidence; this is not a runtime failure and does not downgrade Entry619.
+  - credentials read = NO; Production mutation = NO; employee session disruption = NO.
 - Important gate before Accounting GENERAL:
   - source + READONLY policy semantics + Production health are PASS.
   - still required: real authenticated Production Accounting read smoke through the current employee session path.
