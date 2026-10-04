@@ -1024,3 +1024,126 @@ UPSTREAM_BOOKS=SOURCE_SNAPSHOTS_ONLY
 DELETE_PROJECT_DUPLICATES=YES
 DELETE_LIVE_DEPENDENCIES_BEFORE_CUTOVER=NO
 ```
+
+
+## Appendix D — Central Source Registry
+
+Machine-readable registry: `autonomous-printshop/manifests/SOURCE_REGISTRY_V1.json`.
+
+| System | Component | Original source | Central copy | Policy |
+|---|---|---|---|---|
+| TrendOS | Operator Task V2 | [operator-task-workflow-v2.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/operator-task-workflow-v2.js) | `autonomous-printshop/sources/trendos/operator-task/operator-task-workflow-v2.js` | `KEEP_UPSTREAM_UNTIL_D1_CUTOVER` |
+| TrendOS | Operator Task V2 | [operator-task-workflow-v2.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/operator-task-workflow-v2.gs) | `autonomous-printshop/sources/trendos/operator-task/operator-task-workflow-v2.gs` | `KEEP_UPSTREAM_UNTIL_D1_CUTOVER` |
+| TrendOS | Operator Task Edge | [cloudflare-d1/src/operator-task-edge-v2.mjs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/cloudflare-d1/src/operator-task-edge-v2.mjs) | `autonomous-printshop/sources/trendos/operator-task/operator-task-edge-v2.mjs` | `KEEP_UPSTREAM_UNTIL_D1_CUTOVER` |
+| TrendOS | Material Control | [gaber-material-control-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-control-v1.js) | `autonomous-printshop/sources/trendos/material-control/gaber-material-control-v1.js` | `KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-material-movement-ledger-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-movement-ledger-v1.js) | `autonomous-printshop/sources/trendos/material-control/gaber-material-movement-ledger-v1.js` | `KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-material-persistence-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-persistence-v1.js) | `autonomous-printshop/sources/trendos/material-control/gaber-material-persistence-v1.js` | `KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-material-persistence-backend-v1.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-persistence-backend-v1.gs) | `autonomous-printshop/sources/trendos/material-control/gaber-material-persistence-backend-v1.gs` | `KEEP_UPSTREAM_UNTIL_D1_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-material-ui-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-ui-v1.js) | `autonomous-printshop/sources/trendos/material-control/gaber-material-ui-v1.js` | `KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-material-ui-backend-v1.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-ui-backend-v1.gs) | `autonomous-printshop/sources/trendos/material-control/gaber-material-ui-backend-v1.gs` | `KEEP_UPSTREAM_UNTIL_D1_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-material-waste-decision-v1.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-waste-decision-v1.gs) | `autonomous-printshop/sources/trendos/material-control/gaber-material-waste-decision-v1.gs` | `KEEP_UPSTREAM_UNTIL_D1_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-ledger-daily-report-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-ledger-daily-report-v1.js) | `autonomous-printshop/sources/trendos/material-control/gaber-ledger-daily-report-v1.js` | `KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT` |
+| TrendOS | Material Control | [gaber-easystore-ledger-adapter-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-easystore-ledger-adapter-v1.js) | `autonomous-printshop/sources/trendos/material-control/gaber-easystore-ledger-adapter-v1.js` | `KEEP_UPSTREAM_UNTIL_NEW_EASYSTORE_ADAPTER` |
+| TrendOS | Material Control | [gaber-daily-material-flow-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-daily-material-flow-v1.js) | `autonomous-printshop/sources/trendos/material-control/gaber-daily-material-flow-v1.js` | `KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT` |
+| TrendOS | Employee Supervisor | [employee-manager-strips-v2.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/employee-manager-strips-v2.js) | `autonomous-printshop/sources/trendos/employee-supervisor/employee-manager-strips-v2.js` | `KEEP_UPSTREAM_UNTIL_SUPERVISOR_REPLACEMENT` |
+| TrendOS | Employee Supervisor | [employee-ops-coach-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/employee-ops-coach-v1.js) | `autonomous-printshop/sources/trendos/employee-supervisor/employee-ops-coach-v1.js` | `KEEP_UPSTREAM_UNTIL_SUPERVISOR_REPLACEMENT` |
+| TrendOS | Employee Supervisor | [employee-andon-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/employee-andon-v1.js) | `autonomous-printshop/sources/trendos/employee-supervisor/employee-andon-v1.js` | `KEEP_UPSTREAM_UNTIL_STRUCTURED_D1_ANDON` |
+| TrendOS | Customer/Comms | [customer-manager-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-manager-v1.js) | `autonomous-printshop/sources/trendos/customer-comms/customer-manager-v1.js` | `KEEP_UPSTREAM_LIVE_DEPENDENCY` |
+| TrendOS | Customer/Comms | [customer-feedback-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-feedback-v1.js) | `autonomous-printshop/sources/trendos/customer-comms/customer-feedback-v1.js` | `KEEP_UPSTREAM_LIVE_DEPENDENCY` |
+| TrendOS | Customer/Comms | [customer-manager-send-integrity-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-manager-send-integrity-v1.js) | `autonomous-printshop/sources/trendos/customer-comms/customer-manager-send-integrity-v1.js` | `KEEP_UPSTREAM_LIVE_DEPENDENCY` |
+| TrendOS | Customer/Comms | [customer-manager-backend-v1932.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-manager-backend-v1932.gs) | `autonomous-printshop/sources/trendos/customer-comms/customer-manager-backend-v1932.gs` | `KEEP_UPSTREAM_LIVE_DEPENDENCY` |
+| TrendOS | Customer/Comms | [trendos-whatsapp-integrity-v1.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/trendos-whatsapp-integrity-v1.gs) | `autonomous-printshop/sources/trendos/customer-comms/trendos-whatsapp-integrity-v1.gs` | `KEEP_UPSTREAM_LIVE_DEPENDENCY` |
+| TrendOS | Whats Agent Book | [WHATS_AGENT_BOOK.md](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/WHATS_AGENT_BOOK.md) | `autonomous-printshop/sources/trendos/books/WHATS_AGENT_BOOK.md` | `KEEP_UPSTREAM_CANONICAL_WHATS_BOOK` |
+| Matbagy-OS | Orchestrator | [runtime/orchestrator-core.mjs](https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/orchestrator-core.mjs) | `autonomous-printshop/sources/matbagy-os/runtime/orchestrator-core.mjs` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Orchestrator | [runtime/orchestrator-runtime.mjs](https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/orchestrator-runtime.mjs) | `autonomous-printshop/sources/matbagy-os/runtime/orchestrator-runtime.mjs` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Providers | [runtime/live-providers.mjs](https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/live-providers.mjs) | `autonomous-printshop/sources/matbagy-os/runtime/live-providers.mjs` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Worker | [runtime/cloudflare-worker.mjs](https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/cloudflare-worker.mjs) | `autonomous-printshop/sources/matbagy-os/runtime/cloudflare-worker.mjs` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Permissions | [runtime/permissions.mjs](https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/permissions.mjs) | `autonomous-printshop/sources/matbagy-os/runtime/permissions.mjs` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | D1 Tenant Store | [runtime/d1-tenant-store.mjs](https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/d1-tenant-store.mjs) | `autonomous-printshop/sources/matbagy-os/runtime/d1-tenant-store.mjs` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Project Book | [PROJECT_BOOK.md](https://github.com/fawakhry/Matbagy-OS/blob/main/PROJECT_BOOK.md) | `autonomous-printshop/sources/matbagy-os/books/PROJECT_BOOK.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Roadmap | [ROADMAP_V1_2027-06.md](https://github.com/fawakhry/Matbagy-OS/blob/main/ROADMAP_V1_2027-06.md) | `autonomous-printshop/sources/matbagy-os/books/ROADMAP_V1_2027-06.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Design Case Schema | [صندوق_مطبعجي/SCHEMA/DESIGN_CASE_SCHEMA.md](https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/DESIGN_CASE_SCHEMA.md) | `autonomous-printshop/sources/matbagy-os/books/DESIGN_CASE_SCHEMA.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | AI Room Contract | [صندوق_مطبعجي/SCHEMA/AI_ROOM_CONTRACT.md](https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/AI_ROOM_CONTRACT.md) | `autonomous-printshop/sources/matbagy-os/books/AI_ROOM_CONTRACT.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Approval Router | [صندوق_مطبعجي/SCHEMA/APPROVAL_COMMAND_ROUTER.md](https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/APPROVAL_COMMAND_ROUTER.md) | `autonomous-printshop/sources/matbagy-os/books/APPROVAL_COMMAND_ROUTER.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Auto Persistence | [صندوق_مطبعجي/SCHEMA/AUTO_PERSISTENCE_POLICY.md](https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/AUTO_PERSISTENCE_POLICY.md) | `autonomous-printshop/sources/matbagy-os/books/AUTO_PERSISTENCE_POLICY.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Case Learning | [صندوق_مطبعجي/SCHEMA/CASE_LIFECYCLE_AND_LEARNING.md](https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/CASE_LIFECYCLE_AND_LEARNING.md) | `autonomous-printshop/sources/matbagy-os/books/CASE_LIFECYCLE_AND_LEARNING.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Knowledge Extraction | [صندوق_مطبعجي/SCHEMA/KNOWLEDGE_EXTRACTION_CONTRACT.md](https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/KNOWLEDGE_EXTRACTION_CONTRACT.md) | `autonomous-printshop/sources/matbagy-os/books/KNOWLEDGE_EXTRACTION_CONTRACT.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy-OS | Tenancy | [صندوق_مطبعجي/SCHEMA/TENANCY_CONTRACT.md](https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/TENANCY_CONTRACT.md) | `autonomous-printshop/sources/matbagy-os/books/TENANCY_CONTRACT.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Fokha | Thinking Model | [MEMORY/THINKING_MODEL.md](https://github.com/fawakhry/Fokha/blob/main/MEMORY/THINKING_MODEL.md) | `autonomous-printshop/sources/fokha/THINKING_MODEL.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Fokha | Rules | [MEMORY/RULES.md](https://github.com/fawakhry/Fokha/blob/main/MEMORY/RULES.md) | `autonomous-printshop/sources/fokha/RULES.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Fokha | Negative Learning | [MEMORY/NEGATIVE_LEARNING.md](https://github.com/fawakhry/Fokha/blob/main/MEMORY/NEGATIVE_LEARNING.md) | `autonomous-printshop/sources/fokha/NEGATIVE_LEARNING.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Fokha | Project Registry | [MEMORY/PROJECTS.md](https://github.com/fawakhry/Fokha/blob/main/MEMORY/PROJECTS.md) | `autonomous-printshop/sources/fokha/PROJECTS.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy Evaluations | Execution Book | [evaluations/كتيب_البرنامج_والتنفيذ.md](https://github.com/fawakhry/Matbagy/blob/main/evaluations/%D9%83%D8%AA%D9%8A%D8%A8_%D8%A7%D9%84%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D8%AC_%D9%88%D8%A7%D9%84%D8%AA%D9%86%D9%81%D9%8A%D8%B0.md) | `autonomous-printshop/sources/matbagy-evaluations/books/كتيب_البرنامج_والتنفيذ.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy Evaluations | Infrastructure | [evaluations/خطة_البنية_التحتية.md](https://github.com/fawakhry/Matbagy/blob/main/evaluations/%D8%AE%D8%B7%D8%A9_%D8%A7%D9%84%D8%A8%D9%86%D9%8A%D8%A9_%D8%A7%D9%84%D8%AA%D8%AD%D8%AA%D9%8A%D8%A9.md) | `autonomous-printshop/sources/matbagy-evaluations/books/خطة_البنية_التحتية.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy Evaluations | Status Log | [evaluations/سجل_الحالة.md](https://github.com/fawakhry/Matbagy/blob/main/evaluations/%D8%B3%D8%AC%D9%84_%D8%A7%D9%84%D8%AD%D8%A7%D9%84%D8%A9.md) | `autonomous-printshop/sources/matbagy-evaluations/books/سجل_الحالة.md` | `KEEP_UPSTREAM_CANONICAL` |
+| Matbagy Evaluations | Recovered Worker | worker.mjs | `autonomous-printshop/recovered/evaluations/worker.mjs` | `QUARANTINE_REFACTOR_BEFORE_USE` |
+| Matbagy Evaluations | Recovered Worker UI | worker_with_ui.mjs | `autonomous-printshop/recovered/evaluations/worker_with_ui.mjs` | `QUARANTINE_REFACTOR_BEFORE_USE` |
+| EasyStore | Accounting Authority | [Code.gs](https://github.com/fawakhry/EasyStore/blob/main/Code.gs) | `autonomous-printshop/sources/easystore/reference/Code.gs` | `KEEP_UPSTREAM_FINANCIAL_AUTHORITY` |
+| TrendOS | Control Tower / Go-Live Autopilot | [go-live-autopilot-v1.js](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/go-live-autopilot-v1.js) | `autonomous-printshop/sources/trendos/control-tower/go-live-autopilot-v1.js` | `KEEP_UPSTREAM_PATTERN_SOURCE` |
+| TrendOS | Deployment Health | [v1940-deploy-health.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/v1940-deploy-health.gs) | `autonomous-printshop/sources/trendos/control-tower/v1940-deploy-health.gs` | `KEEP_UPSTREAM_HEALTH_SOURCE` |
+| TrendOS | Integrity Dashboard | [trendos-integrity-dashboard-v1.gs](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/trendos-integrity-dashboard-v1.gs) | `autonomous-printshop/sources/trendos/control-tower/trendos-integrity-dashboard-v1.gs` | `KEEP_UPSTREAM_HEALTH_SOURCE` |
+
+Upstream live books/indexes:
+
+- **TrendOS:** [TrendOS_MASTER_BOOK.md](https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/TrendOS_MASTER_BOOK.md) — `KEEP_UPSTREAM`.
+- **TrendOS Blackbox:** [docs/trendos/blackbox/](https://github.com/fawakhry/TrendOs/tree/candidate/t12-full-cloud-cutover-a56-20260929/docs/trendos/blackbox) — `KEEP_UPSTREAM`.
+
+
+## Appendix E — Complete Build Matrix
+
+Machine-readable matrix: `autonomous-printshop/manifests/BUILD_MATRIX_V1.json`.
+
+| ID | Module | Status | Priority | Target |
+|---|---|---|---|---|
+| M01 | Autonomy Control Plane | `REUSE_AND_MODERNIZE` | P0 | policy, shadow/canary/general, audit, exceptions |
+| M02 | TrendOS Live Connector | `NEW_BUILD_REQUIRED` | P0 | read/write contracts + events without duplicating truth |
+| M03 | AI Orchestrator | `EXTRACT_AND_ADAPT` | P0 | tool-using multi-agent orchestration under autonomy policy |
+| M04 | Operator Task D1 Authority | `NEW_BUILD_REQUIRED` | P0 | D1 claim/start/complete/events retaining V2 public contract |
+| M05 | Production Scheduler + Capacity/Deadline Engine | `NEW_BUILD_REQUIRED` | P0 | predict completion time, machine/operator loading, deadline promises, queue rebalance |
+| M06 | Employee AI Supervisor + Andon Resolver | `REUSE_AND_MODERNIZE` | P0 | system-assigned next task, coaching, blocker auto-resolution, structured D1 Andon |
+| M07 | Design Recipe Engine | `EXTRACT_AND_ADAPT` | P0 | approved product recipes, asset lineage, must_keep/must_avoid, exact dimensions/text |
+| M08 | AI Preflight | `NEW_BUILD_REQUIRED` | P0 | size/aspect/DPI/text/stroke/cut/asset completeness and identity-preservation checks |
+| M09 | QC Vision | `NEW_BUILD_REQUIRED` | P0 | compare produced photo/camera evidence to expected design and create rework task |
+| M10 | Material / Inventory Agent | `REUSE_AND_MODERNIZE` | P0 | D1 material ledger, custody, consumption, waste, reconciliation, all departments |
+| M11 | Purchasing Agent | `REUSE_AND_MODERNIZE` | P1 | shortage forecasting, purchase proposals, supplier/range policies |
+| M12 | Profitability Brain | `REUSE_AND_MODERNIZE` | P1 | true contribution per order/product/customer including rework/time/waste |
+| M13 | Customer/Employee Intelligence | `EXTRACT_AND_ADAPT` | P1 | evidence-first profiles, coaching signals, customer value/friction, reviewed facts |
+| M14 | Customer/Whats Agent | `DEPENDENCY_BLOCKED` | P1 | AI intake, context, safe auto reply, escalation |
+| M15 | Machine Agent + Local Production Bridge | `NEW_BUILD_REQUIRED` | P1 | machine capability registry, local execution bridge, telemetry, maintenance, safe one-click/auto execution |
+| M16 | SOP + Training Agent | `NEW_BUILD_REQUIRED` | P1 | generate/update SOPs, contextual worker guidance, skill matrix and training |
+| M17 | Self-Healing / Degraded Mode | `NEW_BUILD_REQUIRED` | P1 | provider fallback, queue fallback, degraded mode, automatic recovery and escalation |
+| M18 | Control Tower + Owner Exception Console | `REUSE_AND_MODERNIZE` | P0 | shop health, deadlines, exceptions, inventory/security/finance thresholds; no routine queue management |
+| M19 | Owner Simulation / Absence Test | `NEW_BUILD_REQUIRED` | P0 | 7-day and later 14-day owner-silent rehearsal, every owner intervention becomes gap/bug/policy item |
+| M20 | EasyStore Finance Adapter | `REUSE_IN_PLACE` | P1 | finance remains separate authority; controlled read/post/reconcile contracts only |
+| M21 | Lead Hunter / Growth | `DEFER` | P3 | growth after autonomous operations stabilizes |
+
+
+### AP-006 — Consolidation complete + additions gap closed
+
+- Central project tree contains the required reusable code snapshots, upstream source books, recovered Evaluations code, manifests, project core and tests.
+- Source Registry contains 50 file-level source records plus live-book/index pointers.
+- Build Matrix contains 21 autonomous modules.
+- The additional capabilities requested for the owner-absent shop are now explicitly covered:
+  - Control Tower / Owner Exception Console;
+  - QC Vision;
+  - Machine Agent + Local Production Bridge;
+  - Capacity/Deadline Engine;
+  - Purchasing Agent;
+  - Profitability Brain;
+  - SOP/Training Agent;
+  - Self-Healing / Degraded Mode;
+  - Owner Simulation / Absence Test.
+- Existing reusable foundations were copied into the central project with source URL/SHA.
+- Missing mature modules are marked `NEW_BUILD_REQUIRED`; they are not allowed to become hidden side-projects.
+- Project-owned duplicate docs/code outside the central tree were removed where safe.
+- Upstream runtime/canonical dependencies were deliberately retained until a verified replacement cutover; deleting them early would risk TrendOS/Matbagy/EasyStore operation.
+
+```ini
+CENTRAL_TREE=autonomous-printshop/
+MASTER_BOOK=autonomous-printshop/MASTER_BOOK.md
+SOURCE_REGISTRY_ENTRIES=50
+BUILD_MATRIX_MODULES=21
+PROJECT_OWNED_DUPLICATES_CLEANED=YES
+UPSTREAM_LIVE_DEPENDENCIES_DELETED=NO_BY_DESIGN
+NEXT=P0_BUILD_OPERATOR_TASK_D1_AUTHORITY_AND_TRENDOS_CONNECTOR
+```
