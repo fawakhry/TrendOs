@@ -4,7 +4,7 @@ import {
   AUTONOMY_TASK_FAMILIES,
   decideAutonomyV1,
   autonomyOwnerKpisV1
-} from '../cloudflare-d1/src/autonomy-policy-v1.mjs';
+} from '../core/autonomy-policy-v1.mjs';
 
 let out;
 
