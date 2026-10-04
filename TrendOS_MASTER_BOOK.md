@@ -1828,6 +1828,20 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
 - Production API remains unchanged until owner explicitly deploys this hotfix.
 
 
+
+- Owner elected to continue migration 0013 before completing the >5 minute browser proof in order to save time.
+- The Entry615A session hotfix remains live on Production API version `62cad27e-76c4d-4f56-9b37-849f2e7256c7`; browser proof is deferred, not waived.
+- If `EMPLOYEE_SESSION_SHADOW_REQUIRED` reappears, pause migrations and return to Entry615A diagnostics immediately.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_RESUMED_WITH_SESSION_BROWSER_PROOF_DEFERRED
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NEXT
+  SESSION_HOTFIX_VERSION=62cad27e-76c4d-4f56-9b37-849f2e7256c7
+  SESSION_BROWSER_PROOF=DEFERRED
+  NEXT_ACTION=APPLY_0013_EMPLOYEE_CONTENT_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
