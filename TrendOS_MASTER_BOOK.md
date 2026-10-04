@@ -1891,6 +1891,28 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=APPLY_0015_EMPLOYEE_ACCOUNTING_ZERO_GOOGLE_V1_KEEP_OFF
   ```
 
+
+- Owner manual D1 migration 0015 Run1:
+  - Cloudflare D1 Console returned `incomplete input: SQLITE_ERROR`.
+  - visible truncation occurred while parsing `CREATE TABLE employee_accounting_dept_lines_v1`, around the `approved_by` column.
+  - therefore 0015 is **PARTIAL / NOT COMPLETE**. Earlier complete statements may already exist; later statements must not be assumed applied.
+  - no cutover/backfill occurred and Accounting control, if created, remains default-OFF by schema.
+- Recovery rule:
+  - do not DROP any partially created objects.
+  - resume with smaller idempotent chunks using `CREATE ... IF NOT EXISTS` / `INSERT OR IGNORE`.
+  - verify full accounting table set and OFF control only after all chunks execute.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0015_RUN1_PARTIAL_SQLITE_INCOMPLETE_INPUT
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=PARTIAL
+  EMPLOYEE_ACCOUNTING_CUTOVER=NO
+  Backfill_applied=NO
+  NEXT_ACTION=RESUME_0015_IN_SMALL_IDEMPOTENT_D1_CONSOLE_CHUNKS
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
