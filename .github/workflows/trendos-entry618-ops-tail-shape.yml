@@ -40,6 +40,10 @@ jobs:
             --data '{"action":"attendanceV1","op":"state","username":"entry618-tail-probe","token":"invalid"}' \
             "$API_URL/v1/employee/ops" > /tmp/probe-code.txt
           wait "$TPID" || true
+          echo "ENTRY618_TAIL_STDOUT_LINES=$(wc -l < /tmp/tail.jsonl | tr -d ' ')"
+          echo "ENTRY618_TAIL_STDERR_BEGIN"
+          sed -E 's/(Bearer )[A-Za-z0-9._-]+/\\1[REDACTED]/g' /tmp/tail.err || true
+          echo "ENTRY618_TAIL_STDERR_END"
           node <<'NODE'
           const fs=require('fs');
           const lines=fs.readFileSync('/tmp/tail.jsonl','utf8').split(/\r?\n/).filter(Boolean);
