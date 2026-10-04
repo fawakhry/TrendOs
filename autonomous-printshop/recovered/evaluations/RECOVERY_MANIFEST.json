@@ -2,18 +2,18 @@
   "schema": "AUTONOMOUS_PRINTSHOP_RECOVERED_EVALUATIONS_SOURCE_V1",
   "recovered_at": "2026-10-05",
   "source_kind": "USER_LIBRARY_RECOVERY",
-  "status": "QUARANTINE_NOT_DEPLOYED",
+  "status": "RECOVERED_SOURCE_CENTRALIZED_NOT_DEPLOYED",
   "files": [
     {
-      "path": "autonomous-printshop/quarantine/evaluations-recovered/worker.mjs",
+      "path": "autonomous-printshop/recovered/evaluations/worker.mjs",
       "sha256": "c3189b5e588ef3263680f6556a50c7325ea30f2b7fb9eb5bfb0606484dce1d92"
     },
     {
-      "path": "autonomous-printshop/quarantine/evaluations-recovered/worker_with_ui.mjs",
+      "path": "autonomous-printshop/recovered/evaluations/worker_with_ui.mjs",
       "sha256": "e319ba54cc98c41a5c5961220977e8959e217926ee5c7ef7048b16f81fd8b8aa"
     },
     {
-      "path": "autonomous-printshop/quarantine/evaluations-recovered/README_CLOUDFLARE.md",
+      "path": "autonomous-printshop/recovered/evaluations/README_CLOUDFLARE.md",
       "sha256": "e836ce5aa422a7c90b3539a6f254554b789255b99913d07fbf8e40db642d4760"
     }
   ],
