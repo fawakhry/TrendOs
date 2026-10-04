@@ -1,0 +1,68 @@
+name: TrendOS Entry618 Ops Tail Shape Diagnostic
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry618-ops-tail-shape.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+      - name: Capture one invalid Ops request tail shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > /tmp/tail.jsonl
+          timeout 22s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
+          TPID=$!
+          sleep 5
+          curl --silent --show-error --output /tmp/probe.json --write-out '%{http_code}' \
+            -X POST -H 'content-type: application/json' \
+            --data '{"action":"attendanceV1","op":"state","username":"entry618-tail-probe","token":"invalid"}' \
+            "$API_URL/v1/employee/ops" > /tmp/probe-code.txt
+          wait "$TPID" || true
+          node <<'NODE'
+          const fs=require('fs');
+          const lines=fs.readFileSync('/tmp/tail.jsonl','utf8').split(/\r?\n/).filter(Boolean);
+          let matches=[];
+          for(const line of lines){
+            let x; try{x=JSON.parse(line)}catch{continue}
+            const raw=JSON.stringify(x);
+            if(raw.includes('/v1/employee/ops')) matches.push(x);
+          }
+          if(!matches.length) throw new Error('ops-tail-event-not-captured');
+          const x=matches[matches.length-1];
+          function pick(obj, path){
+            let v=obj; for(const p of path){ if(v==null) return undefined; v=v[p]; } return v;
+          }
+          const safe={
+            topKeys:Object.keys(x).sort(),
+            outcome:x.outcome,
+            eventKeys:x.event&&typeof x.event==='object'?Object.keys(x.event).sort():[],
+            responseStatus:pick(x,['event','response','status']) ?? pick(x,['response','status']) ?? pick(x,['event','request','response','status']) ?? null,
+            requestUrl:pick(x,['event','request','url']) || null,
+            requestMethod:pick(x,['event','request','method']) || null
+          };
+          console.log('ENTRY618_TAIL_MATCH=PASS');
+          console.log('ENTRY618_TAIL_SAFE_SHAPE='+JSON.stringify(safe));
+          console.log('ENTRY618_INVALID_PROBE_HTTP='+fs.readFileSync('/tmp/probe-code.txt','utf8').trim());
+          NODE
