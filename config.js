@@ -24,6 +24,9 @@ window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 69;
 window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;
 window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];
+// Entry617 family cutover. OFF preserves exact current employee behavior.
+// READONLY routes only qualified Ops reads to D1; GENERAL routes all Ops actions.
+window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'OFF';
 
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
 window.MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED = true;
