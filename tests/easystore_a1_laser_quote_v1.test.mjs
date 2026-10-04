@@ -8,8 +8,7 @@ assert.ok(sql.includes('ADD COLUMN raw_width REAL NOT NULL DEFAULT 0'));
 assert.ok(sql.includes('ADD COLUMN raw_height REAL NOT NULL DEFAULT 0'));
 assert.ok(sql.includes('idx_employee_accounting_material_dimensions'));
 
-const readLine=mod.split('
-').find(x=>x.includes('const READ_ACTIONS=new Set'))||'';
+const readLine=mod.split(String.fromCharCode(10)).find(x=>x.includes('const READ_ACTIONS=new Set'))||'';
 assert.ok(readLine.includes("'calculateAccountingLaserQuoteV1913'"));
 assert.ok(mod.includes('async function calculateAccountingLaserQuoteV1913V1'));
 assert.ok(mod.includes('sheetArea=rawWidth*rawHeight'));
