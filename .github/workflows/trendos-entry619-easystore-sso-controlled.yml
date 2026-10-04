@@ -1,0 +1,337 @@
+name: TrendOS Entry619 EasyStore SSO Controlled Frontend
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry619-easystore-sso-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry619-easystore-sso-controlled
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      EXPECTED_API_VERSION: de2c825d-ef63-407d-90dc-8059a9d4f192
+      EXPECTED_FRONTEND_VERSION: 494d279f-5f5a-4271-b1c0-be5997615501
+      ENTRY619_EASYSTORE_TAG: entry619-d1-readonly-sso-20261004
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact Production and EasyStore preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-deployments.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label,expected,outPath){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+            if(full.length!==1||full[0].id!==expected) throw new Error(label+'-version-drift:'+(full[0]&&full[0].id||'none'));
+            if(outPath) fs.writeFileSync(outPath,full[0].id);
+            console.log('ENTRY619_SSO_'+label+'_VERSION_LOCK=PASS');
+          }
+          active('/tmp/api-deployments.json','API',process.env.EXPECTED_API_VERSION);
+          active('/tmp/frontend-deployments.json','FRONTEND',process.env.EXPECTED_FRONTEND_VERSION,'/tmp/pre-frontend-version.txt');
+          NODE
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry619sso=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry619sso=$GITHUB_SHA" -o /tmp/orders-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry619sso=$GITHUB_SHA" -o /tmp/customers-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry619sso=$GITHUB_SHA" -o /tmp/line-pre.json
+
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry619ssopre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry619ssopre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry619ssopre=$suffix" -o /tmp/live-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry619ssopre=$suffix" -o /tmp/live-edge.js
+
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/index.html?entry619=$suffix" -o /tmp/easy-index.html
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/config.js?entry619=$suffix" -o /tmp/easy-config.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/app.js?entry619=$suffix" -o /tmp/easy-app.js
+
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const auth=read('/tmp/auth-pre.json'), bridge=read('/tmp/legacy-action-pre.json');
+          const ops=read('/tmp/ops-pre.json'), acc=read('/tmp/accounting-pre.json');
+          if(auth.mode!=='OFF'||auth.envEnabled!==false) throw new Error('auth-pre');
+          if(bridge.enabled!==false||bridge.secretConfigured!==false||Number(bridge.allowedPolicyCount||0)!==0) throw new Error('bridge-pre');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch||0)!==7||ops.schemaReady!==true) throw new Error('ops-pre');
+          if(acc.mode!=='READONLY'||Number(acc.policyEpoch||0)!==2||acc.authoritativeWrites!==false||acc.schemaReady!==true) throw new Error('accounting-pre');
+          for(const f of ['content','comms','core']) if(read('/tmp/'+f+'-pre.json').mode!=='OFF') throw new Error(f+'-pre');
+          const o=read('/tmp/orders-pre.json'), c=read('/tmp/customers-pre.json'), l=read('/tmp/line-pre.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-pre');
+          if(c.mode!=='GENERAL') throw new Error('customers-pre');
+          if(l.writeMode!=='cloud-native+legacy-overlay'||l.schemaReady!==true||l.legacySchemaReady!==true) throw new Error('line-pre');
+
+          const cfg=fs.readFileSync('/tmp/live-config.js','utf8');
+          const disp=fs.readFileSync('/tmp/live-dispatcher.js','utf8');
+          const edge=fs.readFileSync('/tmp/live-edge.js','utf8');
+          const app=fs.readFileSync('/tmp/live-app.js','utf8');
+          if(!cfg.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'")) throw new Error('ops-live');
+          if(!cfg.includes("MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'")) throw new Error('accounting-live');
+          if(!cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false')||!cfg.includes('MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false')) throw new Error('auth-bridge-live');
+          if(cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1')||disp.includes('canaryRouteEnabled')) throw new Error('entry611-live');
+          if(!disp.includes('T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004')||!disp.includes('shouldRouteAccountingNative')||!disp.includes('shouldRouteOpsNative')) throw new Error('dispatcher-live');
+          if(!edge.includes('postWriteBarrierRecoveries')||!edge.includes('recoverPostWriteBarrier')) throw new Error('refresh-live');
+          if(app.includes('TRENDOS_EMPLOYEE_SSO_V1')||app.includes('entry619PostEmployeeSso')) throw new Error('sso-already-live');
+
+          const ei=fs.readFileSync('/tmp/easy-index.html','utf8'), ec=fs.readFileSync('/tmp/easy-config.js','utf8'), ea=fs.readFileSync('/tmp/easy-app.js','utf8');
+          if(!ei.includes(process.env.ENTRY619_EASYSTORE_TAG)) throw new Error('easystore-index-not-live');
+          if(!ec.includes('EASYSTORE_ACCOUNTING_D1_READONLY = true')||!ec.includes('/v1/employee/accounting')) throw new Error('easystore-config-not-live');
+          for(const needle of ['TRENDOS_EMPLOYEE_SSO_V1','EASYSTORE_EMPLOYEE_SSO_ACK_V1','D1_ACCOUNTING_READ_ACTIONS','ensureTrendosSso']) if(!ea.includes(needle)) throw new Error('easystore-app-missing:'+needle);
+          if(/searchParams\.set\([^\n]*token/i.test(ea)) throw new Error('easystore-token-in-url');
+          console.log('ENTRY619_SSO_PREFLIGHT_RUNTIME=PASS');
+          console.log('ENTRY619_EASYSTORE_PAGES_LIVE=PASS');
+          NODE
+
+      - name: Build exact-live frontend SSO patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/entry619-sso-livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/entry619-sso-livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/entry619-sso-livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+
+          cp /tmp/live-app.js cloudflare-d1/frontend-dist/app.js
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-dispatcher.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          cp /tmp/live-edge.js cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('cloudflare-d1/frontend-dist/app.js')
+          s=p.read_text()
+          old="""  function openAccounting(dayClose){
+              var u=sessionUser(),mode=roleMode(),base=txt(window.MATBAGY_EASY_STORE_URL||'https://fawakhry.github.io/EasyStore/');
+              if(!u.username&&!u.name){alert('سجل دخول الموظف الأول.');return false;}
+              try{
+                var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
+                var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,v:CACHE_TAG};
+                Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
+                try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:u,params:Object.assign({},params,{token:u.token})}));}catch(e){}
+                window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
+                return true;
+              }catch(e){alert('تعذر فتح الحسابات: '+(e.message||e));return false;}
+            }
+          """
+          new="""  function entry619SsoNonce(){
+              try{if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();}catch(e){}
+              return 'sso-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
+            }
+            function entry619PostEmployeeSso(child,targetOrigin,nonce,u,params){
+              if(!child||!u||!u.token)return false;
+              var stopped=false,timer=null,tries=0;
+              function stop(){
+                if(stopped)return;stopped=true;
+                if(timer)clearInterval(timer);
+                try{window.removeEventListener('message',ack,true);}catch(e){}
+              }
+              function ack(ev){
+                var d=ev&&ev.data||{};
+                if(ev.origin!==targetOrigin||ev.source!==child)return;
+                if(d.type!=='EASYSTORE_EMPLOYEE_SSO_ACK_V1'||String(d.nonce||'')!==String(nonce||''))return;
+                stop();
+              }
+              function send(){
+                if(stopped)return;
+                tries++;
+                try{
+                  child.postMessage({
+                    type:'TRENDOS_EMPLOYEE_SSO_V1',
+                    nonce:nonce,
+                    issuedAt:Date.now(),
+                    user:{
+                      name:u.name||u.username||'',
+                      username:u.username||u.name||'',
+                      token:u.token||'',
+                      role:u.role||'',
+                      department:u.department||'',
+                      mode:params.mode||'',
+                      roleMode:params.roleMode||''
+                    }
+                  },targetOrigin);
+                }catch(e){}
+                if(tries>=32)stop();
+              }
+              window.addEventListener('message',ack,true);
+              send();
+              timer=setInterval(send,250);
+              setTimeout(stop,8500);
+              return true;
+            }
+            function openAccounting(dayClose){
+              var u=sessionUser(),mode=roleMode(),base=txt(window.MATBAGY_EASY_STORE_URL||'https://fawakhry.github.io/EasyStore/');
+              if(!u.username&&!u.name){alert('سجل دخول الموظف الأول.');return false;}
+              if(!u.token){alert('انتهت جلسة الموظف. سجل الدخول في TrendOS مرة أخرى ثم افتح الحسابات.');return false;}
+              try{
+                var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
+                var nonce=entry619SsoNonce();
+                var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,ssoNonce:nonce,v:CACHE_TAG};
+                Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
+                var child=window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
+                if(!child){alert('المتصفح منع فتح شاشة الحسابات. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return false;}
+                entry619PostEmployeeSso(child,url.origin,nonce,u,params);
+                return true;
+              }catch(e){alert('تعذر فتح الحسابات: '+(e.message||e));return false;}
+            }
+          """
+          if s.count(old)!=1:
+              raise SystemExit('entry619-sso-app-anchor-count='+str(s.count(old)))
+          s=s.replace(old,new,1)
+          if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in s:
+              raise SystemExit('entry611-canary-app')
+          p.write_text(s)
+
+          c=Path('cloudflare-d1/frontend-dist/config.js')
+          x=c.read_text()
+          old_tag="window.MATBAGY_EASYSTORE_VERSION_PARAM = 'es50-v1925-fast-read-write-20260812a';"
+          new_tag="window.MATBAGY_EASYSTORE_VERSION_PARAM = 'entry619-d1-readonly-sso-20261004';"
+          if x.count(old_tag)!=1:
+              raise SystemExit('entry619-sso-config-tag-count='+str(x.count(old_tag)))
+          x=x.replace(old_tag,new_tag,1)
+          if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in x:
+              raise SystemExit('entry611-canary-config')
+          c.write_text(x)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/app.js
+          grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "EASYSTORE_EMPLOYEE_SSO_ACK_V1" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "entry619PostEmployeeSso" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "ssoNonce:nonce" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "MATBAGY_EASYSTORE_VERSION_PARAM = 'entry619-d1-readonly-sso-20261004'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" cloudflare-d1/frontend-dist/config.js
+          ! grep -Eq "searchParams\.set\([^\n]*token" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          ! grep -Fq "canaryRouteEnabled" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "postWriteBarrierRecoveries" cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          grep -Fq "recoverPostWriteBarrier" cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          echo 'ENTRY619_SSO_GENERATED_LIVE_PATCH=PASS'
+
+      - name: Deploy frontend only with automatic rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE_FRONTEND_VERSION="$(cat /tmp/pre-frontend-version.txt)"
+          FRONTEND_DEPLOYED=0
+
+          rollback_on_error(){
+            rc=$?
+            trap - ERR
+            echo "ENTRY619_SSO_FAILURE_RC=$rc"
+            if [ "$FRONTEND_DEPLOYED" = "1" ]; then
+              echo "ENTRY619_SSO_ROLLBACK_FRONTEND_TO=$PRE_FRONTEND_VERSION"
+              npx wrangler rollback "$PRE_FRONTEND_VERSION" --message "Entry619 EasyStore SSO automatic rollback" --config "$FRONTEND_CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback_on_error ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" | tee /tmp/deploy.log
+          FRONTEND_DEPLOYED=1
+
+          PROPAGATED=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry619ssopost=$suffix" -o /tmp/post-app.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry619ssopost=$suffix" -o /tmp/post-config.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry619ssopost=$suffix" -o /tmp/post-dispatcher.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry619ssopost=$suffix" -o /tmp/post-edge.js \
+              && grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" /tmp/post-app.js \
+              && grep -Fq "entry619PostEmployeeSso" /tmp/post-app.js \
+              && grep -Fq "MATBAGY_EASYSTORE_VERSION_PARAM = 'entry619-d1-readonly-sso-20261004'" /tmp/post-config.js \
+              && grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" /tmp/post-config.js \
+              && grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" /tmp/post-config.js \
+              && ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/post-config.js \
+              && grep -Fq "T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004" /tmp/post-dispatcher.js \
+              && ! grep -Fq "canaryRouteEnabled" /tmp/post-dispatcher.js \
+              && grep -Fq "postWriteBarrierRecoveries" /tmp/post-edge.js \
+              && grep -Fq "recoverPostWriteBarrier" /tmp/post-edge.js; then
+                PROPAGATED=1
+                echo "ENTRY619_SSO_FRONTEND_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$PROPAGATED" = "1"
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry619ssopost=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry619ssopost=$GITHUB_SHA" -o /tmp/orders-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry619ssopost=$GITHUB_SHA" -o /tmp/customers-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry619ssopost=$GITHUB_SHA" -o /tmp/line-post.json
+
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const auth=read('/tmp/auth-post.json'), bridge=read('/tmp/legacy-action-post.json'), ops=read('/tmp/ops-post.json'), acc=read('/tmp/accounting-post.json');
+          if(auth.mode!=='OFF'||auth.envEnabled!==false) throw new Error('auth-post');
+          if(bridge.enabled!==false||bridge.secretConfigured!==false||Number(bridge.allowedPolicyCount||0)!==0) throw new Error('bridge-post');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch||0)!==7) throw new Error('ops-post');
+          if(acc.mode!=='READONLY'||Number(acc.policyEpoch||0)!==2||acc.authoritativeWrites!==false) throw new Error('accounting-post');
+          for(const f of ['content','comms','core']) if(read('/tmp/'+f+'-post.json').mode!=='OFF') throw new Error(f+'-post');
+          const o=read('/tmp/orders-post.json'), c=read('/tmp/customers-post.json'), l=read('/tmp/line-post.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-post');
+          if(c.mode!=='GENERAL') throw new Error('customers-post');
+          if(l.writeMode!=='cloud-native+legacy-overlay'||l.schemaReady!==true||l.legacySchemaReady!==true) throw new Error('line-post');
+          console.log('ENTRY619_SSO_POSTCUTOVER_HEALTH=PASS');
+          console.log('ENTRY619_SSO_OPS_GENERAL_PRESERVED=YES');
+          console.log('ENTRY619_SSO_ACCOUNTING_READONLY_PRESERVED=YES');
+          console.log('ENTRY619_SSO_AUTH_BRIDGE_OFF_PRESERVED=YES');
+          console.log('ENTRY619_SSO_REFRESH_FIX_PRESERVED=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/frontend-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1)throw new Error('frontend-post-version-not-single-100');
+          console.log('ENTRY619_SSO_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo 'ENTRY619_SSO_STATUS=FRONTEND_HANDOFF_DEPLOY_PASS'
+          echo 'ENTRY619_SSO_API_DEPLOY=NO'
+          echo 'ENTRY619_SSO_D1_MUTATION=NO'
+          echo 'ENTRY619_SSO_APPS_SCRIPT_TOUCHED=NO'
+          echo 'ENTRY619_SSO_ENTRY611_CANARY_DEPLOYED=NO'
