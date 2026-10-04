@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY611_EMPLOYEE_API_DISPATCHER_CANARY_V1_20261003';
+  var VERSION = 'T12_ENTRY617_EMPLOYEE_OPS_FAMILY_ROUTER_V1_20261004';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -28,6 +28,25 @@
   };
 
   var BRIDGE_PATH = '/v1/employee/legacy-action';
+  var OPS_PATH = '/v1/employee/ops';
+
+  var OPS_ACTIONS = new Set([
+    'attendanceV1',
+    'attendanceClockinV1',
+    'hrV1',
+    'cleaningV1',
+    'pressControlV1'
+  ]);
+
+  var OPS_READ_ONLY_KEYS = new Set([
+    'attendanceV1:state',
+    'attendanceV1:config',
+    'hrV1:myRequests',
+    'hrV1:requests',
+    'hrV1:employees',
+    'cleaningV1:status',
+    'pressControlV1:status'
+  ]);
 
   var CUSTOMER_SESSION_ACTIONS = new Set([
     'customerLogin',
@@ -121,6 +140,24 @@
 
   function bridgeEnabled() {
     return window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 === true;
+  }
+
+  function employeeOpsMode() {
+    var mode = text(window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE || 'OFF').toUpperCase();
+    return mode === 'READONLY' || mode === 'GENERAL' ? mode : 'OFF';
+  }
+
+  function opsPolicyKey(action, params) {
+    return text(action) + ':' + text(params && params.op);
+  }
+
+  function shouldRouteOpsNative(action, params) {
+    action = text(action);
+    if (!OPS_ACTIONS.has(action)) return false;
+    var mode = employeeOpsMode();
+    if (mode === 'OFF') return false;
+    if (mode === 'GENERAL') return true;
+    return OPS_READ_ONLY_KEYS.has(opsPolicyKey(action, params || {}));
   }
 
   function edgeBase() {
@@ -312,6 +349,29 @@
     return canaryPreflightPromise;
   }
 
+  async function employeeOpsNative(action, params) {
+    var p = Object.assign({}, params || {});
+    var token = text(p.token);
+    var username = text(p.username || p.name);
+    if (!username || !token) {
+      throw routeError(
+        'EMPLOYEE_OPS_SESSION_REQUIRED',
+        'جلسة الموظف الحالية مطلوبة لمسار Ops السحابي.'
+      );
+    }
+
+    delete p.token;
+    delete p.password;
+    delete p.oldPassword;
+    delete p.newPassword;
+    delete p.confirmPassword;
+    delete p.employeePassword;
+
+    p.action = text(action);
+    p.username = username;
+    return cloudPost(OPS_PATH, p, token);
+  }
+
   async function nativeAuth(action, params) {
     var path = AUTH_PATHS[action];
     if (!path) throw routeError('EMPLOYEE_AUTH_ACTION_UNKNOWN', 'إجراء مصادقة الموظف غير معروف.');
@@ -408,6 +468,7 @@
 
     async function wrapped(action, params) {
       var p = params || {};
+      if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);
       if (!nativeRouteEnabled(p)) return original.apply(this, arguments);
       await ensureCanaryPreflight(action, p);
       return dispatchNative(action, p, original, this, arguments);
@@ -422,6 +483,10 @@
   window.trendosEmployeeApiV1 = async function (action, params, legacyInvoker) {
     var actionText = text(action);
     var p = params || {};
+
+    if (shouldRouteOpsNative(actionText, p)) {
+      return employeeOpsNative(actionText, p);
+    }
 
     if (!nativeRouteEnabled(p)) {
       var current = currentSecureApi();
@@ -471,6 +536,10 @@
     canaryRouteEnabled: canaryRouteEnabled,
     ensureCanaryPreflight: ensureCanaryPreflight,
     bridgeEnabled: bridgeEnabled,
+    employeeOpsMode: employeeOpsMode,
+    opsPolicyKey: opsPolicyKey,
+    shouldRouteOpsNative: shouldRouteOpsNative,
+    employeeOpsNative: employeeOpsNative,
     policyKey: policyKey,
     policyAllowed: policyAllowed,
     install: install,
