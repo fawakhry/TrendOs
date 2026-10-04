@@ -1966,6 +1966,29 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=APPLY_0017_EMPLOYEE_CORE_CURRENT_ORDERS_V1
   ```
 
+
+- Owner manual D1 migration 0017:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification before backfill:
+    ```ini
+    employee_core_orders_v1=0
+    employee_core_lines_v1=0
+    ```
+  - therefore current-order authority tables are present and empty as expected before Entry615 backfill.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0017_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=APPLIED_PASS
+  MIGRATION_0016=APPLIED_PASS
+  MIGRATION_0017=APPLIED_PASS
+  BACKFILL_APPLIED=NO
+  Production_cutover=NO
+  NEXT_ACTION=APPLY_0018_ZERO_GOOGLE_BACKFILL_RETENTION_V1
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
