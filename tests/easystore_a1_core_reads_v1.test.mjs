@@ -12,7 +12,10 @@ for(const action of [
   assert.ok(mod.includes("'"+action+"'"),'missing A1 core read '+action);
 }
 
-assert.match(mod,/const READ_ACTIONS=new Set\([^;]*getEasyStoreCustomers[^;]*searchCustomers[^;]*getCustomerAccountV1915[^;]*easyStoreSystemHealth/s);
+const readActionsLine=mod.split('\n').find(line=>line.includes('const READ_ACTIONS=new Set'))||'';
+for(const action of ['getEasyStoreCustomers','searchCustomers','getCustomerAccountV1915','easyStoreSystemHealth']){
+  assert.ok(readActionsLine.includes("'"+action+"'"),'READ_ACTIONS missing '+action);
+}
 assert.match(mod,/FROM t12_customers/);
 assert.match(mod,/employee_accounting_party_ledger_v1/);
 assert.match(mod,/customerId:text\(r\.customer_id\)/);
