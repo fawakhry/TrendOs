@@ -3336,12 +3336,17 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
   - live `attendance-v1.js` contains `normalizeAttendanceBackendResponse`.
   - live `config.js` points attendance loader to `20261004-entry620-d1-state-contract`.
   - Entry619 SSO/accounting router and orders refresh recovery markers remain present.
+- Real employee Production smoke:
+  - المالك أكد بعد التحديث أن الموظف ضغط **«تسجيل حضور وبدء اليوم»**.
+  - الـStart overlay أُغلق والمنصة فتحت وعملت طبيعيًا.
+  - النتيجة: **PASS**.
 - الحالة:
   ```ini
-  STATUS=ENTRY620_ATTENDANCE_UI_HOTFIX_DEPLOY_PASS
+  STATUS=ENTRY620_ATTENDANCE_UI_HOTFIX_RUNTIME_PASS
   PRODUCTION_FRONTEND_VERSION=bfcc6f85-a748-4b66-a334-b605c72108f7
   AUTOMATED_REGRESSION=PASS
-  REAL_EMPLOYEE_START_DAY_SMOKE=PENDING_OWNER_CONFIRMATION
-  NEXT_ACTION=EMPLOYEE_REFRESH_LOGIN_AND_PRESS_START_DAY_ONCE; VERIFY_OVERLAY_CLOSES_AND_PLATFORM_OPENS
+  REAL_EMPLOYEE_START_DAY_SMOKE=PASS
+  OWNER_CONFIRMATION=PLATFORM_OPENED_AND_WORKED_AFTER_START_DAY
+  NEXT_ACTION=NONE_FOR_ENTRY620; MONITOR_NORMAL_OPERATION
   ```
 
