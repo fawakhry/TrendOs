@@ -10845,15 +10845,63 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     if(/وائل|wael|print|طباع/.test(blob))return 'print';
     return 'employee';
   }
+  function entry619SsoNonce(){
+    try{if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();}catch(e){}
+    return 'sso-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
+  }
+  function entry619PostEmployeeSso(child,targetOrigin,nonce,u,params){
+    if(!child||!u||!u.token)return false;
+    var stopped=false,timer=null,tries=0;
+    function stop(){
+      if(stopped)return;stopped=true;
+      if(timer)clearInterval(timer);
+      try{window.removeEventListener('message',ack,true);}catch(e){}
+    }
+    function ack(ev){
+      var d=ev&&ev.data||{};
+      if(ev.origin!==targetOrigin||ev.source!==child)return;
+      if(d.type!=='EASYSTORE_EMPLOYEE_SSO_ACK_V1'||String(d.nonce||'')!==String(nonce||''))return;
+      stop();
+    }
+    function send(){
+      if(stopped)return;
+      tries++;
+      try{
+        child.postMessage({
+          type:'TRENDOS_EMPLOYEE_SSO_V1',
+          nonce:nonce,
+          issuedAt:Date.now(),
+          user:{
+            name:u.name||u.username||'',
+            username:u.username||u.name||'',
+            token:u.token||'',
+            role:u.role||'',
+            department:u.department||'',
+            mode:params.mode||'',
+            roleMode:params.roleMode||''
+          }
+        },targetOrigin);
+      }catch(e){}
+      if(tries>=32)stop();
+    }
+    window.addEventListener('message',ack,true);
+    send();
+    timer=setInterval(send,250);
+    setTimeout(stop,8500);
+    return true;
+  }
   function openAccounting(dayClose){
     var u=sessionUser(),mode=roleMode(),base=txt(window.MATBAGY_EASY_STORE_URL||'https://fawakhry.github.io/EasyStore/');
     if(!u.username&&!u.name){alert('سجل دخول الموظف الأول.');return false;}
+    if(!u.token){alert('انتهت جلسة الموظف. سجل الدخول في TrendOS مرة أخرى ثم افتح الحسابات.');return false;}
     try{
       var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
-      var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,v:CACHE_TAG};
+      var nonce=entry619SsoNonce();
+      var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,ssoNonce:nonce,v:CACHE_TAG};
       Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
-      try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:u,params:Object.assign({},params,{token:u.token})}));}catch(e){}
-      window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
+      var child=window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
+      if(!child){alert('المتصفح منع فتح شاشة الحسابات. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return false;}
+      entry619PostEmployeeSso(child,url.origin,nonce,u,params);
       return true;
     }catch(e){alert('تعذر فتح الحسابات: '+(e.message||e));return false;}
   }
