@@ -1670,6 +1670,27 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Backfill_applied=NO
   NEXT_ACTION=RETRY_0012_WITH_D1_CONSOLE_CLEAN_SQL_NO_COMMENTS_NO_PRAGMA
   ```
+- Owner manual D1 migration 0012 retry with D1-console-clean SQL:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification:
+    ```ini
+    singleton=1
+    marker=ENTRY614_EMPLOYEE_OPS_V1
+    mode=OFF
+    policy_epoch=1
+    ```
+  - therefore 0012 schema is applied and its control remains safely OFF.
+  - no family cutover/backfill/API/frontend/Auth mutation occurred.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0012_APPLIED_PASS
+  MIGRATION=0012_employee_ops_zero_google_v1
+  D1_touched=YES_SCHEMA_ONLY
+  EMPLOYEE_OPS_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0013_EMPLOYEE_CONTENT_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
