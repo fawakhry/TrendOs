@@ -93,3 +93,5 @@ jobs:
           if(ui200<1) throw new Error('no-authenticated-accounting-read-observed-in-tail-window');
           console.log('ENTRY619_AUTHENTICATED_ACCOUNTING_READONLY_LIVE_READ_SMOKE=PASS');
           NODE
+
+# entry619 rerun trigger: accounting screen opened with expired-session banner
