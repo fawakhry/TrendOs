@@ -1,0 +1,110 @@
+name: TrendOS Entry619 SSO Post-Success Reconcile
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry619-sso-postsuccess-reconcile.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      EXPECTED_API_VERSION: de2c825d-ef63-407d-90dc-8059a9d4f192
+      EXPECTED_FRONTEND_VERSION: 011a01ee-b51b-44d2-84ff-b08d88712d85
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Independent runtime reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui.json
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label,expected){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+            if(full.length!==1||full[0].id!==expected)throw new Error(label+'-version-drift');
+            console.log('ENTRY619_SSO_RECONCILE_'+label+'_VERSION='+full[0].id);
+          }
+          active('/tmp/api.json','API',process.env.EXPECTED_API_VERSION);
+          active('/tmp/ui.json','FRONTEND',process.env.EXPECTED_FRONTEND_VERSION);
+          NODE
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry619ssoreconcile=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry619ssoreconcile=$GITHUB_SHA" -o /tmp/orders.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry619ssoreconcile=$GITHUB_SHA" -o /tmp/customers.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry619ssoreconcile=$GITHUB_SHA" -o /tmp/line.json
+
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry619ssoreconcile=$suffix" -o /tmp/app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry619ssoreconcile=$suffix" -o /tmp/config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry619ssoreconcile=$suffix" -o /tmp/dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry619ssoreconcile=$suffix" -o /tmp/edge.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/index.html?entry619ssoreconcile=$suffix" -o /tmp/easy-index.html
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/config.js?entry619ssoreconcile=$suffix" -o /tmp/easy-config.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/app.js?entry619ssoreconcile=$suffix" -o /tmp/easy-app.js
+
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const au=read('/tmp/auth.json'), br=read('/tmp/legacy-action.json'), op=read('/tmp/ops.json'), ac=read('/tmp/accounting.json');
+          if(au.mode!=='OFF'||au.envEnabled!==false)throw new Error('auth-drift');
+          if(br.enabled!==false||br.secretConfigured!==false||Number(br.allowedPolicyCount||0)!==0)throw new Error('bridge-drift');
+          if(op.mode!=='GENERAL'||Number(op.policyEpoch||0)!==7||op.schemaReady!==true)throw new Error('ops-drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false||ac.schemaReady!==true||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false)throw new Error('accounting-drift');
+          for(const f of ['content','comms','core'])if(read('/tmp/'+f+'.json').mode!=='OFF')throw new Error(f+'-drift');
+          const o=read('/tmp/orders.json'),c=read('/tmp/customers.json'),l=read('/tmp/line.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true)throw new Error('orders-drift');
+          if(c.mode!=='GENERAL')throw new Error('customers-drift');
+          if(l.writeMode!=='cloud-native+legacy-overlay'||l.schemaReady!==true||l.legacySchemaReady!==true)throw new Error('line-drift');
+
+          const app=fs.readFileSync('/tmp/app.js','utf8'), cfg=fs.readFileSync('/tmp/config.js','utf8'), disp=fs.readFileSync('/tmp/dispatcher.js','utf8'), edge=fs.readFileSync('/tmp/edge.js','utf8');
+          for(const n of ['TRENDOS_EMPLOYEE_SSO_V1','EASYSTORE_EMPLOYEE_SSO_ACK_V1','entry619PostEmployeeSso','ssoNonce:nonce'])if(!app.includes(n))throw new Error('frontend-sso-missing:'+n);
+          if(/searchParams\.set\([^\n]*token/i.test(app))throw new Error('frontend-token-url');
+          if(!cfg.includes("MATBAGY_EASYSTORE_VERSION_PARAM = 'entry619-d1-readonly-sso-20261004'"))throw new Error('frontend-easy-tag');
+          if(!cfg.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'")||!cfg.includes("MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'"))throw new Error('frontend-family-modes');
+          if(cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1')||disp.includes('canaryRouteEnabled'))throw new Error('entry611-canary');
+          if(!disp.includes('T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004'))throw new Error('accounting-dispatcher');
+          if(!edge.includes('postWriteBarrierRecoveries')||!edge.includes('recoverPostWriteBarrier'))throw new Error('refresh-drift');
+
+          const ei=fs.readFileSync('/tmp/easy-index.html','utf8'), ec=fs.readFileSync('/tmp/easy-config.js','utf8'), ea=fs.readFileSync('/tmp/easy-app.js','utf8');
+          if(!ei.includes('entry619-d1-readonly-sso-20261004'))throw new Error('easy-index-drift');
+          if(!ec.includes('EASYSTORE_ACCOUNTING_D1_READONLY = true')||!ec.includes('/v1/employee/accounting'))throw new Error('easy-config-drift');
+          for(const n of ['TRENDOS_EMPLOYEE_SSO_V1','EASYSTORE_EMPLOYEE_SSO_ACK_V1','D1_ACCOUNTING_READ_ACTIONS','ensureTrendosSso'])if(!ea.includes(n))throw new Error('easy-app-drift:'+n);
+          if(/searchParams\.set\([^\n]*token/i.test(ea))throw new Error('easy-token-url');
+
+          console.log('ENTRY619_SSO_POSTSUCCESS_RECONCILE=PASS');
+          console.log('ENTRY619_SSO_OPS=GENERAL_EPOCH_7');
+          console.log('ENTRY619_SSO_ACCOUNTING=READONLY_EPOCH_2');
+          console.log('ENTRY619_SSO_AUTH=OFF');
+          console.log('ENTRY619_SSO_BRIDGE=OFF');
+          console.log('ENTRY619_SSO_CONTENT_COMMS_CORE=OFF');
+          console.log('ENTRY619_SSO_EASYSTORE_PAGES=LIVE');
+          console.log('ENTRY619_SSO_TOKEN_IN_URL=NO');
+          console.log('ENTRY619_SSO_ORDERS_CUSTOMERS_LINE=PASS');
+          console.log('ENTRY619_SSO_REFRESH_FIX=PASS');
+          console.log('ENTRY619_SSO_ENTRY611_CANARY_DEPLOYED=NO');
+          NODE
