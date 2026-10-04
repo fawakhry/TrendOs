@@ -3600,3 +3600,120 @@ NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
   NEXT_GATE=NATIVE_AUTH_TRANSITIONAL_BOOTSTRAP_CANARY_WITH_BRIDGE_STILL_FAIL_CLOSED_UNTIL_EXPLICIT_ENABLE
   ```
 
+### Entry623 — Native Auth single-employee canary requalification after Entry622 Gate1
+- Trigger: المالك قال `نفذ` بعد إغلاق Entry622 Gate1.
+- Current-truth audit أُعيد من Runtime بدل إعادة استخدام Entry613 historical 69-policy plan.
+- Read-only current-truth workflow:
+  - `.github/workflows/trendos-entry623-native-auth-canary-preflight.yml`
+  - final audit commit: `ab6507b1730245c9cdc8f1dbc83f4d2805afb079`
+  - Run `37227572231`
+  - Job `111510293777`
+  - conclusion = **SUCCESS**.
+- Runtime observed:
+  ```ini
+  API_VERSION=22201b84-6bff-41be-8ce5-b2f6382aa0db
+  UI_VERSION=bfcc6f85-a748-4b66-a334-b605c72108f7
+  AUTH_MODE=OFF
+  AUTH_ENV_ENABLED=false
+  LEGACY_BOOTSTRAP_ENABLED=false
+  NATIVE_ONLY=false
+  AUTH_USER_COUNT=0
+  NATIVE_READY_COUNT=0
+  BRIDGE_ENABLED=false
+  BRIDGE_SECRET_CONFIGURED=true
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF / epoch 1
+  COMMS=OFF / epoch 1
+  CORE=OFF / epoch 0
+  D1_AUTH_POLICY_EPOCH=22
+  D1_SESSION_COUNT=0
+  D1_LIVE_SESSION_COUNT=0
+  ```
+- Live frontend current truth:
+  - global Native Auth OFF.
+  - frontend bridge OFF.
+  - Entry611 canary config + canary-capable dispatcher are **not live** on current UI.
+  - Ops GENERAL + Accounting READONLY are live.
+- Historical Entry613 69-policy canary is **not reused** because:
+  - Accounting is now deferred to `fawakhry/EasyStore`;
+  - Gate1 intentionally configured 17 TrendOS-only read policies;
+  - Ops actions are already D1-native and must not be reintroduced to the legacy bridge.
+- New exact canary contract:
+  - manifest `docs/trendos/staging/ENTRY623_DIYA_LOGIN_CANARY_17_POLICY_MANIFEST.json`
+  - manifest commit `7702087ea703e2eab977e982fcae9fcea23d77a5`
+  - canary = `ضياء` only.
+  - global native auth = false.
+  - frontend canary minimum = 17.
+  - bridge policy count = 17.
+  - Ops remains native GENERAL.
+  - Accounting qualified reads remain native READONLY.
+  - any selected-canary legacy action outside the 17-policy pilot fails closed.
+- Regression:
+  - `tests/entry623_diya_login_canary_17_policy.test.mjs`
+  - commit `5fa1372c22cdc1c55a1c74e6b2108e06e8d3b297`
+  - proves:
+    - ضياء login -> D1 auth route when armed;
+    - getDashboard -> bridge;
+    - Attendance start -> D1 Ops;
+    - getAccounting -> D1 Accounting;
+    - unlisted legacy write -> fail closed;
+    - non-canary employee remains Legacy.
+- Repo CI:
+  - workflow `.github/workflows/trendos-entry623-login-canary-repo-ci.yml`
+  - commit `981e84c6004e2a3ed1616b7aa9c087a911c2fa38`
+  - Run `37227715482`
+  - Job `111510709597`
+  - conclusion = **SUCCESS**.
+- Controlled Runtime arm workflow created:
+  - `.github/workflows/trendos-entry623-canary-runtime-arm-controlled.yml`
+  - commit `607504fcfb7879e95dcf5f1a7f9f5019543d83a2`
+  - Run `37227823829`
+  - Job `111511033988`
+  - conclusion = **FAIL safely in preflight before mutation**.
+- Exact stop reason:
+  - `manual Cloudflare auth enable not ready`.
+  - D1 mutation step was skipped.
+  - frontend deploy step does not exist in this gate and no deploy occurred.
+- Therefore current Production remains:
+  ```ini
+  AUTH=OFF
+  AUTH_ENV_ENABLED=false
+  LEGACY_BOOTSTRAP=false
+  BRIDGE=OFF
+  BRIDGE_SECRET_CONFIGURED=true
+  BRIDGE_POLICY_COUNT=17
+  D1_AUTH_CONTROL=OFF / epoch 22
+  D1_AUTH_USERS=0
+  D1_AUTH_SESSIONS=0
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  FRONTEND_CANARY=OFF_OR_ABSENT
+  Production_business_behavior_changed=NO
+  ```
+- Next mandatory manual control-plane preparation, while D1 control remains OFF and frontend canary remains OFF:
+  1. Apps Script Version159 project: set only `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=true`; preserve existing dedicated bridge secret; do not repoint or create a new Production deployment/version.
+  2. Cloudflare `trendos-d1-api`: set only:
+     - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=true`
+     - `TRENDOS_EMPLOYEE_AUTH_V1_ENABLED=true`
+     - `TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=true`
+     - `TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=false`
+     - keep `TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED=false`
+     - preserve exact 17 bridge policies + existing bridge secret.
+  3. Verify Bridge health ON/secret YES/17 and Auth health still `mode=OFF` but env/bootstrap enabled.
+  4. Then rerun failed Entry623 Runtime arm; only that workflow may move D1 auth control `OFF epoch22 -> TRANSITIONAL epoch23`.
+- Registration:
+  ```ini
+  STATUS=ENTRY623_REPO_CANARY_17_POLICY_QUALIFIED_WAITING_MANUAL_RUNTIME_FLAGS
+  READONLY_AUDIT_RUN=37227572231
+  REPO_CANARY_CI_RUN=37227715482
+  RUNTIME_ARM_RUN1=37227823829
+  RUNTIME_ARM_RUN1_MUTATION=NO
+  CANARY_USERNAME=ضياء
+  NEXT_ACTION=MANUAL_ENABLE_APPS_SCRIPT_BRIDGE_AND_CLOUDFLARE_AUTH_BOOTSTRAP_BRIDGE_FLAGS_WITH_D1_CONTROL_STILL_OFF
+  ```
+
