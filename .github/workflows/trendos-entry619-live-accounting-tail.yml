@@ -51,7 +51,7 @@ jobs:
           npm install --no-save wrangler@4.33.2 >/dev/null
           : > /tmp/tail.jsonl
           set +e
-          timeout 120s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err
+          timeout 240s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err
           rc=$?
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
@@ -94,4 +94,4 @@ jobs:
           console.log('ENTRY619_AUTHENTICATED_ACCOUNTING_READONLY_LIVE_READ_SMOKE=PASS');
           NODE
 
-# entry619 rerun trigger: secure EasyStore SSO live smoke retry-2
+# entry619 rerun trigger: secure EasyStore SSO synchronized smoke
