@@ -1,0 +1,47 @@
+name: TrendOS Entry623 17-Policy Login Canary Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/ENTRY623_DIYA_LOGIN_CANARY_17_POLICY_MANIFEST.json'
+      - 'tests/entry623_diya_login_canary_17_policy.test.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - '.github/workflows/trendos-entry623-login-canary-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Canary contract regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry623_diya_login_canary_17_policy.test.mjs
+          node tests/frontend_employee_native_canary_entry611.test.mjs
+          node tests/frontend_employee_ops_family_router_entry617_generated.test.mjs
+          node tests/frontend_employee_accounting_family_router_entry619.test.mjs
+          echo ENTRY623_REPO_CANARY_QUALIFICATION=PASS
+      - name: Default-off repository boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' config.js
+          echo ENTRY623_REPO_DEFAULT_OFF=YES
+          echo ENTRY623_PRODUCTION_MUTATION=NO
+          echo ENTRY623_D1_MUTATION=NO
+          echo ENTRY623_APPS_SCRIPT_TOUCH=NO
