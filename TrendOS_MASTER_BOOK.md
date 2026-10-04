@@ -2802,7 +2802,7 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   EASYSTORE_PAGES_RUN=37209034589
   TRENDOS_SSO_DEPLOY_RUN=37209211366
   TRENDOS_SSO_RECONCILE_RUN=37209322493
-  PRODUCTION_FRONTEND_VERSION=011a01ee-b51b-44d2-84ff-b08d88712d85
+  PRODUCTION_FRONTEND_VERSION=1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7
   TOKEN_IN_URL=NO
   ACCOUNTING=READONLY
   ACCOUNTING_POLICY_EPOCH=2
@@ -2819,6 +2819,72 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   - both runs were non-mutating and read no credentials.
   - interpretation: no Accounting request was observed inside either live-tail window; this is **not** evidence of a failed authenticated read and must not be promoted to PASS or FAIL for the business read itself.
   - Accounting remains READONLY / epoch 2 and GENERAL promotion remains blocked until a synchronized authenticated read is observed as HTTP 200 from EasyStore.
+- CORS diagnostic after synchronized smoke:
+  - workflow commit `d7a661f13b28707efc4d624006a9bdc0af460b9f`.
+  - Run `37210738593`.
+  - Job `111461230214`.
+  - conclusion = **SUCCESS**.
+  - browser preflight from `https://fawakhry.github.io` returned:
+    - HTTP 204.
+    - `Access-Control-Allow-Origin: https://fawakhry.github.io`.
+    - methods include POST.
+    - headers include Authorization + Content-Type.
+  - therefore the missing live request was not a Cloudflare CORS block.
+- Synchronized live-tail attempt after owner pressed `تحديث البيانات`:
+  - Run `37210279478`.
+  - Job `111459882979`.
+  - 45 Worker events observed, but 0 requests to `/v1/employee/accounting`.
+  - no mutation and no credential read.
+  - this isolated the remaining issue to EasyStore client timing/runtime, not API reachability.
+- SSO2 race remediation:
+  - EasyStore now schedules one read-only `getAccounting` refresh after secure SSO acceptance once any in-flight load clears.
+  - visible non-sensitive runtime badge added:
+    - `D1 READONLY` or `LEGACY READ`.
+    - `SSO OK` or `SSO WAIT`.
+  - no secret/token value is displayed.
+  - EasyStore retry source commit: `139cbf3bb682b0abf303f162d9fe08366e3bcda3`.
+  - SSO2 cache-tag/test hardening culminated at `41c522d0d63b1897394bedfe836b975d5119bca2`.
+  - EasyStore qualification Run `37210978298` = **SUCCESS**.
+  - EasyStore `main` fast-forwarded to `41c522d0d63b1897394bedfe836b975d5119bca2`.
+  - GitHub Pages deployment Run `37211003672` = **SUCCESS**.
+  - live EasyStore cache tag:
+    - `entry619-d1-readonly-sso2-20261004`.
+- TrendOS SSO2 cache-tag rollout:
+  - source commits `5f89fc9c8f4249acfb5e0b8389f931ea0297bfc4` and `6d8bdbabc4e2bf60605ddfd99ea6fa2669783eb8`.
+  - source qualification and browser Cloud transport regressions remained PASS.
+  - controlled frontend workflow commit `87d77bcc05461781782b1d5aca0d2fe16ee5d577`.
+  - Run `37211142855`.
+  - Job `111462424161`.
+  - conclusion = **SUCCESS**.
+  - tag-only exact-live patch; API deploy = NO; D1 mutation = NO; Apps Script touched = NO.
+  - new Production frontend version:
+    - `1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7`.
+  - Accounting remains READONLY / epoch 2.
+  - Ops remains GENERAL / epoch 7.
+  - Auth/Bridge remain OFF.
+- Independent SSO2 reconciliation:
+  - workflow commit `0013798e0b043b4daeaa9e0a522493a72d86f6ca`.
+  - Run `37211240358`.
+  - Job `111462711527`.
+  - conclusion = **SUCCESS**.
+  - confirmed exact API/frontend versions, EasyStore SSO2 Pages live, runtime badge ready, and post-SSO read retry ready.
+- SSO2 registration:
+  ```ini
+  ENTRY619_EASYSTORE_SSO2_RACE_REMEDIATION=PASS
+  EASYSTORE_MAIN=41c522d0d63b1897394bedfe836b975d5119bca2
+  EASYSTORE_PAGES_RUN=37211003672
+  EASYSTORE_CACHE_TAG=entry619-d1-readonly-sso2-20261004
+  TRENDOS_SSO2_DEPLOY_RUN=37211142855
+  TRENDOS_SSO2_RECONCILE_RUN=37211240358
+  PRODUCTION_FRONTEND_VERSION=1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  AUTH=OFF
+  BRIDGE=OFF
+  NEXT_GATE=REOPEN_ACCOUNTING_FROM_TRENDOS_AND_OBSERVE_D1_READ_200_WITH_SSO2
+  ```
 - Important gate before Accounting GENERAL:
   - source + READONLY policy semantics + Production health are PASS.
   - still required: real authenticated Production Accounting read smoke through the current employee session path.
@@ -2834,7 +2900,7 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   RECONCILE_JOB_ID=111452119541
   RECONCILE_WORKFLOW_COMMIT=a5c001def8c79f6130e0f41d1587b09560a79cf5
   PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
-  PRODUCTION_FRONTEND_VERSION=011a01ee-b51b-44d2-84ff-b08d88712d85
+  PRODUCTION_FRONTEND_VERSION=1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7
   OPS=GENERAL
   OPS_POLICY_EPOCH=7
   ACCOUNTING=READONLY
