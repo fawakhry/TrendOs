@@ -13,7 +13,7 @@ assert.match(sql,/employee_content_files_v1/);
 assert.match(sql,/employee_content_events_v1/);
 assert.match(sql,/platform_sections/);
 assert.match(sql,/franchise_branches/);
-assert.match(sql,/service_provider_routes/);
+assert.match(mod,/service_provider_routes/);
 
 const actions=[
   'getPlatformSections','savePlatformSection','getFranchiseBranches','saveFranchiseBranch',
