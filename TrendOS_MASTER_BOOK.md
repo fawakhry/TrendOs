@@ -3717,3 +3717,61 @@ NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
   NEXT_ACTION=MANUAL_ENABLE_APPS_SCRIPT_BRIDGE_AND_CLOUDFLARE_AUTH_BOOTSTRAP_BRIDGE_FLAGS_WITH_D1_CONTROL_STILL_OFF
   ```
 
+
+
+### Entry624 — Autonomous Printshop 60-Day Owner Mandate and Policy Foundation
+
+- **Owner mandate (2026-10-05):** خلال 60 يومًا تتحول المطبعة إلى تشغيل يومي بلا تدخل روتيني من المالك؛ الموظفون يعملون فقط في التنفيذ الفيزيائي والاستثناءات التي لم يتأهل AI لتنفيذها.
+- الهدف التشغيلي الجديد أعلى أولوية Product فوق خارطة 01/03/2027، لكنه **لا يلغي** بوابات Zero-Google الحالية ولا يسمح بتجاوز Runtime truth أو fail-closed controls.
+- الملف التنفيذي canonical:
+  - `docs/trendos/AUTONOMOUS_PRINTSHOP_60_DAY_PROGRAM.md`
+- أول foundation code:
+  - `cloudflare-d1/src/autonomy-policy-v1.mjs`
+  - يصنف كل عمل إلى:
+    - `AI_AUTO`
+    - `HUMAN_PHYSICAL`
+    - `HUMAN_EXCEPTION`
+    - `OWNER_ONLY`
+    - `BLOCKED`
+- العقد الأساسي: **AI-first, human-by-exception**.
+- العمل الفيزيائي المؤهل يذهب إلى `Operator Task V2` وليس `Work Queue V1` القديم.
+- AI يحق له إدارة التشغيل اليومي للموظفين: ترتيب الشغل، اختيار التاسك التالي، التعليمات، كشف التأخير، التوازن، coaching والـoperational analytics.
+- القرارات الوظيفية العقابية/الحساسة لا تُنفذ تلقائيًا؛ تبقى Owner/authorized-manager gate.
+- Accounting/EasyStore يظل منفصلًا ومؤجلًا حسب Entry621+؛ لا يوجد في هذه الخطوة أي ترقية Accounting أو mutation داخل EasyStore.
+- الاختبار:
+  - `tests/trendos_autonomy_policy_v1.test.mjs`
+- CI:
+  - `.github/workflows/trendos-autonomy-policy-v1-ci.yml`
+- هذه الجولة **Repo-only**:
+  - no Cloudflare deploy;
+  - no D1 mutation;
+  - no Apps Script mutation;
+  - no Production behavior change.
+- KPI النهائي المستهدف:
+  ```ini
+  OWNER_ROUTINE_TOUCHES_PER_DAY=0
+  AI_AUTO_DECISION_TARGET>=95%
+  DIGITAL_TASKS_ROUTED_TO_HUMAN_TARGET<=5%
+  EMPLOYEE_NORMAL_JOB_SELECTION=0
+  ORDER_WITHOUT_NEXT_ACTION=0
+  OVERDUE_WITHOUT_ESCALATION=0
+  ```
+- أول Gate بعد CI الأخضر:
+  1. تصنيف كل live operational action على taxonomy الجديدة؛
+  2. إنشاء append-only autonomy event schema؛
+  3. تشغيل Shadow Decisions بدون تنفيذ؛
+  4. قياس mismatch مع التنفيذ البشري؛
+  5. تفعيل أول low-risk family أوتوماتيكيا بعد qualification فقط.
+
+#### Registration
+```ini
+STATUS=ENTRY624_AUTONOMOUS_PRINTSHOP_60_DAY_PROGRAM_REGISTERED
+OWNER_MANDATE=AI_FIRST_HUMAN_BY_EXCEPTION
+TARGET_DATE=2026-12-04
+AUTONOMY_POLICY_SOURCE=cloudflare-d1/src/autonomy-policy-v1.mjs
+AUTOPILOT_RUNTIME_ENABLED=NO
+PRODUCTION_BEHAVIOR_CHANGED=NO
+ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+PHYSICAL_WORK_QUEUE=OPERATOR_TASK_V2
+NEXT_GATE=AUTONOMY_POLICY_CI_THEN_LIVE_ACTION_CLASSIFICATION_AND_SHADOW_EVENT_SCHEMA
+```
