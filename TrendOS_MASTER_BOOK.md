@@ -2144,6 +2144,21 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=PARITY_COUNTS_AND_INTEGRITY_CHECK
   ```
 
+
+- Entry615 parity Run1 (read-only) in Cloudflare D1 Console returned:
+  ```text
+  too many terms in compound SELECT: SQLITE_ERROR
+  ```
+- This was a **read-only/no-op query failure** caused by the long compound `UNION ALL` form in the Console. No data/control mutation occurred.
+- Recovery: split parity counts into smaller read-only query groups.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_PARITY_RUN1_FAIL_CONSOLE_COMPOUND_SELECT_LIMIT
+  D1_MUTATION=NO
+  FAMILY_CONTROLS=OFF
+  NEXT_ACTION=RUN_SPLIT_PARITY_QUERIES
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
