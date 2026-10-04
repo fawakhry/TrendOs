@@ -1,0 +1,192 @@
+name: TrendOS Entry623 Canary Runtime Arm Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-canary-runtime-arm-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-canary-runtime-arm-controlled
+  cancel-in-progress: false
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_WORKER: trendos-d1-api
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EXPECTED_PRE_AUTH_EPOCH: '22'
+      TARGET_AUTH_EPOCH: '23'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Manual control-plane readiness preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623arm=$GITHUB_SHA" >/tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry623arm=$GITHUB_SHA" >/tmp/bridge.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health?entry623arm=$GITHUB_SHA" >/tmp/ops.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?entry623arm=$GITHUB_SHA" >/tmp/accounting.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/content/health?entry623arm=$GITHUB_SHA" >/tmp/content.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/comms/health?entry623arm=$GITHUB_SHA" >/tmp/comms.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/core/health?entry623arm=$GITHUB_SHA" >/tmp/core.json
+
+          node <<'NODE'
+          const fs=require('fs'),r=f=>JSON.parse(fs.readFileSync('/tmp/'+f+'.json','utf8'));
+          const a=r('auth'),b=r('bridge'),o=r('ops'),ac=r('accounting'),ct=r('content'),cm=r('comms'),co=r('core');
+          if(a.mode!=='OFF') throw new Error('D1 auth control must still be OFF before arm');
+          if(a.envEnabled!==true) throw new Error('manual Cloudflare auth enable not ready');
+          if(a.legacyBootstrapEnabled!==true) throw new Error('manual Cloudflare legacy bootstrap not ready');
+          if(a.nativeOnly!==false) throw new Error('native-only must remain false');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('auth users already changed');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge manual readiness incomplete');
+          if(b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge hygiene drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting drift');
+          if(ct.mode!=='OFF'||cm.mode!=='OFF'||co.mode!=='OFF') throw new Error('remaining family drift');
+          console.log('ENTRY623_MANUAL_CF_RUNTIME_READY=PASS');
+          NODE
+
+      - name: Prove Apps Script bridge enabled and secret configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPS_URL="$(node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync(process.env.CONFIG,'utf8');
+          const m=s.match(/^APPS_SCRIPT_API_URL\s*=\s*"([^"]+)"/m);
+          if(!m) process.exit(2);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          body='{"action":"cloudEmployeeLegacyBridgeExecuteV1","targetAction":"getDashboard","username":"entry623-probe","targetPayload":{"action":"getDashboard","username":"entry623-probe"},"cloudEmployeeAssertionV1":"cfv1.invalid.invalid"}'
+          code="$(curl --silent --show-error --location --output /tmp/apps.json --write-out '%{http_code}'             -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8'             --data-binary "$body" "$APPS_URL")"
+          export APPS_HTTP="$code"
+          node <<'NODE'
+          const fs=require('fs');let x={};try{x=JSON.parse(fs.readFileSync('/tmp/apps.json','utf8')||'{}')}catch{}
+          const msg=String(x.message||'');
+          console.log('ENTRY623_APPS_SCRIPT_PROBE_HTTP='+String(process.env.APPS_HTTP||''));
+          console.log('ENTRY623_APPS_SCRIPT_SECRET_VALUE_LOGGED=NO');
+          if(Number(process.env.APPS_HTTP||0)!==200) throw new Error('Apps Script probe HTTP '+process.env.APPS_HTTP);
+          if(msg.includes('غير مفعل')) throw new Error('Apps Script bridge still disabled');
+          if(msg.includes('غير مضبوط')) throw new Error('Apps Script bridge secret missing');
+          if(!msg.includes('غير صالح')) throw new Error('Apps Script bridge enabled+secret not proven');
+          console.log('ENTRY623_APPS_SCRIPT_BRIDGE_ENABLED=YES');
+          console.log('ENTRY623_APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES');
+          NODE
+
+      - name: Lock D1 auth pre-state
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1;
+          SELECT COUNT(*) AS userCount FROM employee_auth_users_v1;
+          SELECT COUNT(*) AS sessionCount FROM employee_auth_sessions_v1;" >/tmp/pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/pre.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')||Object.prototype.hasOwnProperty.call(v,'sessionCount'))rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const c=rows.find(r=>r.marker),u=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'userCount')),s=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'sessionCount'));
+          if(String(c?.marker||'')!=='T12_EMPLOYEE_AUTH_V1'||String(c?.mode||'')!=='OFF'||Number(c?.policyEpoch||0)!==Number(process.env.EXPECTED_PRE_AUTH_EPOCH)) throw new Error('auth control pre-state drift');
+          if(Number(u?.userCount||0)!==0||Number(s?.sessionCount||0)!==0) throw new Error('auth tables not empty');
+          console.log('ENTRY623_D1_AUTH_PRESTATE=OFF_EPOCH_'+process.env.EXPECTED_PRE_AUTH_EPOCH);
+          NODE
+
+      - name: Arm D1 auth TRANSITIONAL only
+        id: mutate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_auth_control_v1
+             SET mode='TRANSITIONAL',
+                 policy_epoch=$TARGET_AUTH_EPOCH,
+                 updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='T12_EMPLOYEE_AUTH_V1'
+             AND mode='OFF'
+             AND policy_epoch=$EXPECTED_PRE_AUTH_EPOCH;
+          SELECT changes() AS changed;
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1;" >/tmp/mutate.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/mutate.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'changed')||v.marker)rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const ch=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'changed')),c=rows.find(r=>r.marker);
+          if(Number(ch?.changed||0)!==1) throw new Error('auth control mutation count '+Number(ch?.changed||0));
+          if(String(c?.mode||'')!=='TRANSITIONAL'||Number(c?.policyEpoch||0)!==Number(process.env.TARGET_AUTH_EPOCH)) throw new Error('auth control target not reached');
+          console.log('ENTRY623_D1_AUTH_CONTROL=TRANSITIONAL_EPOCH_'+process.env.TARGET_AUTH_EPOCH);
+          NODE
+
+      - name: Postflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623post=$GITHUB_SHA" >/tmp/auth-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry623post=$GITHUB_SHA" >/tmp/bridge-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health?entry623post=$GITHUB_SHA" >/tmp/ops-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?entry623post=$GITHUB_SHA" >/tmp/accounting-post.json
+          node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync('/tmp/auth-post.json')),b=JSON.parse(fs.readFileSync('/tmp/bridge-post.json')),o=JSON.parse(fs.readFileSync('/tmp/ops-post.json')),ac=JSON.parse(fs.readFileSync('/tmp/accounting-post.json'));
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth postflight');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0||a.plaintextStored!==false) throw new Error('auth rows changed unexpectedly');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge postflight');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops postflight');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting postflight');
+          console.log('ENTRY623_RUNTIME_ARM=PASS');
+          console.log('ENTRY623_AUTH=TRANSITIONAL');
+          console.log('ENTRY623_AUTH_ENV_ENABLED=YES');
+          console.log('ENTRY623_LEGACY_BOOTSTRAP_ENABLED=YES');
+          console.log('ENTRY623_NATIVE_ONLY=NO');
+          console.log('ENTRY623_BRIDGE=ON');
+          console.log('ENTRY623_BRIDGE_POLICY_COUNT=17');
+          console.log('ENTRY623_D1_USERS=0');
+          console.log('ENTRY623_D1_SESSIONS=0');
+          console.log('ENTRY623_FRONTEND_DEPLOY=NO');
+          NODE
+
+      - name: Roll back D1 control on failure after mutation
+        if: ${{ failure() && steps.mutate.outcome == 'success' }}
+        shell: bash
+        run: |
+          set +e
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_auth_control_v1
+             SET mode='OFF',
+                 policy_epoch=$EXPECTED_PRE_AUTH_EPOCH,
+                 updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='T12_EMPLOYEE_AUTH_V1'
+             AND mode='TRANSITIONAL'
+             AND policy_epoch=$TARGET_AUTH_EPOCH;
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1;" >/tmp/rollback.json
+          echo ENTRY623_D1_CONTROL_ROLLBACK_ATTEMPTED=YES
+
+      - name: Boundary
+        shell: bash
+        run: |
+          echo ENTRY623_API_CODE_DEPLOY=NO
+          echo ENTRY623_FRONTEND_DEPLOY=NO
+          echo ENTRY623_APPS_SCRIPT_CODE_TOUCH=NO
+          echo ENTRY623_ACCOUNTING_TOUCHED=NO
+          echo ENTRY623_BUSINESS_DATA_MUTATION=NO
