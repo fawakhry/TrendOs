@@ -5,6 +5,10 @@ on:
   push:
     paths:
       - 'cloudflare-d1/src/autonomy-policy-v1.mjs'
+      - '.github/workflows/trendos-autonomy-policy-v1-ci.yml'
+      - 'tests/trendos_autonomy_event_ledger_v1.test.mjs'
+      - 'cloudflare-d1/migrations/0019_autonomy_events_v1.sql'
+      - 'cloudflare-d1/src/autonomy-event-ledger-v1.mjs'
       - 'tests/trendos_autonomy_policy_v1.test.mjs'
       - 'docs/trendos/AUTONOMOUS_PRINTSHOP_60_DAY_PROGRAM.md'
       - 'TrendOS_MASTER_BOOK.md'
