@@ -26,7 +26,7 @@ jobs:
       CONFIG: cloudflare-d1/wrangler.toml
       DATABASE: trendos-main
       EXPECTED_PRE_VERSION: 62cad27e-76c4d-4f56-9b37-849f2e7256c7
-      EXPECTED_PARENT: 0f646ae4aa68de84fdf85045af572b43a9dcc876
+      EXPECTED_PARENT: 76c600a447a903189d047939a22e207494ef9a8a
 
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +58,7 @@ jobs:
           check_blob cloudflare-d1/src/employee-comms-native-v1.mjs 74f46c83282f925b7f8697c11cf657bc4a222efd
           check_blob cloudflare-d1/src/employee-accounting-native-v1.mjs cba333ae0363e8179bfb12727757c019fb1746e9
           check_blob cloudflare-d1/src/employee-core-native-v1.mjs 56db6f578cb1e96ac8d24cc3bbee414172fc755a
+          check_blob tests/entry614_employee_content_native.test.mjs f8bf077f9f03eacdf660a81f5a2e3f2582fac98b
 
           grep -Fx 'CLOUD_AUTH_SHADOW_TTL_SECONDS = "43200"' cloudflare-d1/wrangler.toml
           grep -Fx 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
