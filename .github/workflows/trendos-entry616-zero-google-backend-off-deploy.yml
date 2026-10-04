@@ -25,8 +25,8 @@ jobs:
       FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
       CONFIG: cloudflare-d1/wrangler.toml
       DATABASE: trendos-main
-      EXPECTED_PRE_VERSION: 62cad27e-76c4d-4f56-9b37-849f2e7256c7
-      EXPECTED_PARENT: 76c600a447a903189d047939a22e207494ef9a8a
+      EXPECTED_PRE_VERSION: 62cad7e7-6c4d-4f56-9b37-849f2e7256c7
+      EXPECTED_PARENT: ea1736045eaed94c36d9bdc2582ef079eb8e4d2a
 
     steps:
       - uses: actions/checkout@v4
