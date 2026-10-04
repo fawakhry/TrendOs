@@ -64,10 +64,108 @@
     }, extra || {});
   }
   async function api(action, extra){if(typeof window.trendosEmployeeApiV1!=='function')throw new Error('Cloud dispatcher غير جاهز.');const d=await window.trendosEmployeeApiV1(action,authParams(extra||{}));if(!d||d.success===false)throw Object.assign(new Error((d&&d.message)||'Cloud API unavailable'),{code:d&&d.code});return d;}
+  function normalizeAttendanceBackendResponse(out) {
+    if (!out || out.success === false || out.state) return out;
+
+    const attendance = out.attendance && typeof out.attendance === "object" ? out.attendance : null;
+    const started = out.started === true || !!attendance;
+    if (!started || !attendance) {
+      return Object.assign({}, out, {
+        state: {
+          status: "not_started",
+          startAt: "",
+          endAt: "",
+          totalMinutes: 0,
+          workMinutes: 0,
+          pauseMinutes: 0,
+          restMinutes: 0,
+          needsReview: false,
+          reviewReason: "",
+          reviewAt: "",
+          lastPulseAt: "",
+          ordersCompleted: 0,
+          linesCompleted: 0
+        }
+      });
+    }
+
+    const pulses = Array.isArray(out.pulses) ? out.pulses.slice() : [];
+    pulses.sort(function (a, b) {
+      return Number(a && a.createdAtMs || 0) - Number(b && b.createdAtMs || 0);
+    });
+
+    const startMs = Number(attendance.startedAtMs || 0);
+    const endedMs = Number(attendance.endedAtMs || 0);
+    let cursor = startMs > 0 ? startMs : Date.now();
+    let status = "working";
+    let workMs = 0;
+    let restMs = 0;
+    let needsReview = false;
+    let reviewReason = "";
+    let reviewAt = "";
+    let lastPulseAt = "";
+
+    function addSegment(untilMs) {
+      const t = Math.max(cursor, Number(untilMs || cursor));
+      const delta = Math.max(0, t - cursor);
+      if (status === "working") workMs += delta;
+      if (status === "rest") restMs += delta;
+      cursor = t;
+    }
+
+    pulses.forEach(function (pulse) {
+      const t = Number(pulse && pulse.createdAtMs || 0);
+      if (t > 0) {
+        addSegment(t);
+        lastPulseAt = new Date(t).toISOString();
+      }
+      const type = String(pulse && pulse.type || "");
+      if (type === "pause") status = "paused";
+      else if (type === "resume" || type === "presence_confirmed") {
+        status = "working";
+        needsReview = false;
+        reviewReason = "";
+        reviewAt = "";
+      } else if (type === "rest_start") status = "rest";
+      else if (type === "prayer_break_start") status = "prayer";
+      else if (type === "missed_check") {
+        status = "review";
+        needsReview = true;
+        reviewReason = String(pulse.reviewReason || pulse.note || "لم يتم تأكيد التواجد خلال المهلة");
+        reviewAt = t > 0 ? new Date(t).toISOString() : "";
+      } else if (type === "end_day") status = "ended";
+      else if (type === "start") status = "working";
+    });
+
+    const stopMs = endedMs > 0 ? endedMs : Date.now();
+    addSegment(stopMs);
+    if (String(attendance.dayStatus || "").toUpperCase() === "ENDED" || endedMs > 0) status = "ended";
+
+    const totalMs = startMs > 0 ? Math.max(0, stopMs - startMs) : 0;
+    return Object.assign({}, out, {
+      state: {
+        status: status,
+        startAt: startMs > 0 ? new Date(startMs).toISOString() : "",
+        endAt: endedMs > 0 ? new Date(endedMs).toISOString() : "",
+        totalMinutes: Math.floor(totalMs / 60000),
+        workMinutes: Math.floor(workMs / 60000),
+        pauseMinutes: Math.floor(Math.max(0, totalMs - workMs) / 60000),
+        restMinutes: Math.floor(restMs / 60000),
+        needsReview: needsReview,
+        reviewReason: reviewReason,
+        reviewAt: reviewAt,
+        lastPulseAt: lastPulseAt,
+        ordersCompleted: Number(out.ordersCompleted || 0),
+        linesCompleted: Number(out.linesCompleted || 0),
+        attendance: attendance
+      }
+    });
+  }
+
   async function callAttendanceBackend(op, extra) {
     const out = await api("attendanceV1", Object.assign({ op: op }, extra || {}));
     if (!out || out.success === false) throw new Error((out && out.message) || "Attendance backend unavailable");
-    return out;
+    return normalizeAttendanceBackendResponse(out);
   }
 
   function defaultConfig() {
