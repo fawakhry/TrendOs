@@ -1,0 +1,147 @@
+{
+  "schema": "TRENDOS_AUTONOMY_ACTION_CLASSIFICATION_SEED_V1",
+  "generatedAt": "2026-10-05",
+  "complete": false,
+  "purpose": "Seed classification from current runtime truth. Unknown/unqualified actions remain blocked until audited.",
+  "rules": {
+    "runtimeTruthPriority": "runtime > deployed > tested > repo-only > historical",
+    "defaultForUnknown": "BLOCKED",
+    "activation": "SHADOW_ONLY until separate runtime gate"
+  },
+  "runtimeBaseline": {
+    "orderCreate": "GENERAL_D1",
+    "customerWrite": "GENERAL_D1",
+    "ops": "GENERAL",
+    "accounting": "READONLY_DEFERRED_EASYSTORE",
+    "auth": "OFF",
+    "content": "OFF",
+    "comms": "OFF",
+    "core": "OFF",
+    "operatorTaskV2": "RUNTIME_QUALIFICATION_REQUIRED"
+  },
+  "actions": [
+    {
+      "action": "customer.search",
+      "family": "CUSTOMER_INTAKE",
+      "currentAuthority": "D1",
+      "runtimeQualified": true,
+      "autonomyTarget": "AI_AUTO",
+      "currentAutonomyMode": "SHADOW_ONLY",
+      "rationale": "Read/customer-context lookup can be AI-driven without inventing customer state."
+    },
+    {
+      "action": "customer.create",
+      "family": "CUSTOMER_INTAKE",
+      "currentAuthority": "D1",
+      "runtimeQualified": true,
+      "autonomyTarget": "AI_AUTO",
+      "currentAutonomyMode": "SHADOW_ONLY",
+      "constraints": [
+        "identity completeness",
+        "duplicate protection",
+        "idempotency"
+      ]
+    },
+    {
+      "action": "order.create",
+      "family": "ORDER_DRAFT",
+      "currentAuthority": "D1",
+      "runtimeQualified": true,
+      "autonomyTarget": "AI_AUTO",
+      "currentAutonomyMode": "SHADOW_ONLY",
+      "constraints": [
+        "complete required fields",
+        "deterministic price authority before final quote",
+        "duplicate guard",
+        "idempotency"
+      ]
+    },
+    {
+      "action": "order.updateLine",
+      "family": "ORDER_DRAFT",
+      "currentAuthority": "D1",
+      "runtimeQualified": true,
+      "autonomyTarget": "AI_AUTO",
+      "currentAutonomyMode": "SHADOW_ONLY",
+      "constraints": [
+        "field-level policy",
+        "audit event",
+        "no unsupported price/payment claims"
+      ]
+    },
+    {
+      "action": "attendance.start_pause_resume_end",
+      "family": "EMPLOYEE_TASK_ASSIGNMENT",
+      "currentAuthority": "D1_OPS",
+      "runtimeQualified": true,
+      "autonomyTarget": "HUMAN_PHYSICAL",
+      "currentAutonomyMode": "HUMAN_PHYSICAL",
+      "rationale": "Attendance state is an employee physical/presence event; AI may supervise but should not impersonate presence."
+    },
+    {
+      "action": "press.start_stop",
+      "family": "PHYSICAL_PRODUCTION",
+      "currentAuthority": "D1_OPS",
+      "runtimeQualified": true,
+      "autonomyTarget": "HUMAN_PHYSICAL",
+      "currentAutonomyMode": "HUMAN_PHYSICAL"
+    },
+    {
+      "action": "operatorTaskV2.claimNext_complete",
+      "family": "PHYSICAL_PRODUCTION",
+      "currentAuthority": "HYBRID_SOURCE_PRESENT",
+      "runtimeQualified": false,
+      "autonomyTarget": "HUMAN_PHYSICAL",
+      "currentAutonomyMode": "BLOCKED",
+      "unblockGate": "Runtime qualification of Operator Task V2 before using it as live physical queue."
+    },
+    {
+      "action": "accounting.read",
+      "family": "FINANCIAL_POSTING",
+      "currentAuthority": "D1_READONLY",
+      "runtimeQualified": true,
+      "autonomyTarget": "HUMAN_EXCEPTION",
+      "currentAutonomyMode": "READ_ONLY_CONTEXT",
+      "rationale": "May inform AI context only; Accounting program remains deferred to EasyStore."
+    },
+    {
+      "action": "accounting.write",
+      "family": "FINANCIAL_POSTING",
+      "currentAuthority": "DEFERRED_EASYSTORE",
+      "runtimeQualified": false,
+      "autonomyTarget": "HUMAN_EXCEPTION",
+      "currentAutonomyMode": "BLOCKED"
+    },
+    {
+      "action": "whatsapp.customer_reply",
+      "family": "CUSTOMER_REPLY",
+      "currentAuthority": "COMMS_OFF",
+      "runtimeQualified": false,
+      "autonomyTarget": "AI_AUTO",
+      "currentAutonomyMode": "BLOCKED",
+      "unblockGate": "Production-safe communications authority + idempotency + approval/escalation policy."
+    },
+    {
+      "action": "design.generate_standard",
+      "family": "DESIGN_TEMPLATE",
+      "currentAuthority": "CONTENT_OFF",
+      "runtimeQualified": false,
+      "autonomyTarget": "AI_AUTO",
+      "currentAutonomyMode": "BLOCKED",
+      "unblockGate": "Smart Designer production path + proof/version lineage + preflight."
+    },
+    {
+      "action": "employment.adverse_action",
+      "family": "EMPLOYMENT_ADVERSE_ACTION",
+      "currentAuthority": "OWNER",
+      "runtimeQualified": true,
+      "autonomyTarget": "OWNER_ONLY",
+      "currentAutonomyMode": "OWNER_ONLY"
+    }
+  ],
+  "nextAudit": [
+    "Enumerate every live frontend action and API route.",
+    "Map each action to source-of-truth, idempotency, reversibility and physical requirement.",
+    "Set complete=true only when every live operational action is classified."
+  ]
+}
