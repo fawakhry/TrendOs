@@ -11,7 +11,7 @@ on:
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
       - 'autonomous-printshop/MASTER_BOOK.md'
       - 'autonomous-printshop/manifests/**'
-      - '.github/workflows/trendos-autonomy-policy-v1-ci.yml'
+      - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
   pull_request:
     paths:
       - 'autonomous-printshop/core/autonomy-policy-v1.mjs'
@@ -21,7 +21,7 @@ on:
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
       - 'autonomous-printshop/MASTER_BOOK.md'
       - 'autonomous-printshop/manifests/**'
-      - '.github/workflows/trendos-autonomy-policy-v1-ci.yml'
+      - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
 
 permissions:
   contents: read
