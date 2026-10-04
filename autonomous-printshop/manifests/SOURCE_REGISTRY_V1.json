@@ -477,6 +477,78 @@
       "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/trendos-integrity-dashboard-v1.gs",
       "central_path": "autonomous-printshop/sources/trendos/control-tower/trendos-integrity-dashboard-v1.gs",
       "disposition": "KEEP_UPSTREAM_HEALTH_SOURCE"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Manager Center V1932",
+      "source_path": "manager-center-v1932.js",
+      "source_sha": "d15220375ec88551f96386a5aaff17d660a1f9f1",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/manager-center-v1932.js",
+      "central_path": "autonomous-printshop/sources/trendos/control-tower/manager-center-v1932.js",
+      "disposition": "REUSE_UX_MODERNIZE"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Trend Master Resilience V1931",
+      "source_path": "trend-master-resilience-v1931.js",
+      "source_sha": "105facf54f263ab2eb2fa1a014afb3651b251232",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/trend-master-resilience-v1931.js",
+      "central_path": "autonomous-printshop/sources/trendos/control-tower/trend-master-resilience-v1931.js",
+      "disposition": "REUSE_RESILIENCE_PATTERN"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Operations Hub V1",
+      "source_path": "operations-hub-v1.js",
+      "source_sha": "6c5220daefeb331c9dd6afd948342780c0dafee7",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/operations-hub-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/employee-supervisor/operations-hub-v1.js",
+      "disposition": "REUSE_EMPLOYEE_SHELL"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Press Control UI V1",
+      "source_path": "press-control-v1.js",
+      "source_sha": "3a35c53400932052923f2d4372c6b7d9b69a9377",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/press-control-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/machine-agent/press-control-v1.js",
+      "disposition": "EXTRACT_MACHINE_AGENT_FOUNDATION"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Press Control Backend V1",
+      "source_path": "press-control-backend-v1.gs",
+      "source_sha": "ba544600f19bd5ea59dbf7efcde9440a0c758b97",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/press-control-backend-v1.gs",
+      "central_path": "autonomous-printshop/sources/trendos/machine-agent/press-control-backend-v1.gs",
+      "disposition": "REFERENCE_ONLY_REBUILD_D1"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Work Queue V1",
+      "source_path": "WORK_QUEUE_V1_CANDIDATE.md",
+      "source_sha": "3b8889d96a00d7f9300a1c3146cd78de10886952",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/WORK_QUEUE_V1_CANDIDATE.md",
+      "central_path": "autonomous-printshop/sources/trendos/lineage/WORK_QUEUE_V1_SUPERSEDED.md",
+      "disposition": "DROP_RUNTIME_KEEP_LINEAGE"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Operator Task V2 Contract Candidate",
+      "source_path": "OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md",
+      "source_sha": "9a2df860c870f6ec797e36253ee5fce1087a37f2",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md",
+      "central_path": "autonomous-printshop/sources/trendos/operator-task/OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md",
+      "disposition": "KEEP_PRODUCT_CONTRACT_REBUILD_D1_AUTHORITY"
+    },
+    {
+      "system": "TrendOS",
+      "component": "AI Orders View V1890",
+      "source_path": "Code.gs#V1890-AI_Orders_View",
+      "source_sha": "SOURCE_WITHIN_CODE_GS",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/Code.gs",
+      "central_path": "autonomous-printshop/sources/trendos/lineage/AI_ORDERS_VIEW_V1890_EXTRACT.md",
+      "disposition": "EXTRACT_CONCEPT_ONLY"
     }
   ],
   "project_owned_canonical": [
