@@ -1,0 +1,82 @@
+name: TrendOS Entry615A Cloud Auth Shadow TTL CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/src/cloud-auth-shadow-v1.mjs'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'cloudflare-d1/src/legacy-browser-transport-v1.mjs'
+      - 'tests/cloud_auth_shadow_idle_ttl_entry615a.test.mjs'
+      - 'tests/cloudflare_legacy_session_race_guard_entry504.test.mjs'
+      - 'tests/legacy_browser_transport_a61.test.mjs'
+      - 'tests/frontend_employee_session_isolation_entry533.test.mjs'
+      - '.github/workflows/trendos-entry615a-cloud-auth-shadow-ttl-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Source invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/cloud-auth-shadow-v1.mjs
+          node --check cloudflare-d1/src/legacy-browser-transport-v1.mjs
+          grep -Fq 'const DEFAULT_TTL_SECONDS = 43200;' cloudflare-d1/src/cloud-auth-shadow-v1.mjs
+          grep -Fq 'const MAX_TTL_SECONDS = 43200;' cloudflare-d1/src/cloud-auth-shadow-v1.mjs
+          grep -Fq 'CLOUD_AUTH_SHADOW_TTL_SECONDS = "43200"' cloudflare-d1/wrangler.toml
+          grep -Fq 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          echo 'ENTRY615A_SOURCE_TTL_12H=YES'
+          echo 'ENTRY615A_NATIVE_AUTH_STILL_OFF=YES'
+          echo 'ENTRY615A_LEGACY_BRIDGE_STILL_OFF=YES'
+
+      - name: Regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/cloud_auth_shadow_idle_ttl_entry615a.test.mjs
+          node tests/cloudflare_legacy_session_race_guard_entry504.test.mjs
+          node tests/legacy_browser_transport_a61.test.mjs
+          node tests/frontend_employee_session_isolation_entry533.test.mjs
+          echo 'ENTRY615A_REGRESSION=PASS'
+
+      - name: Live production boundary read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='https://trendos-d1-api.trendmall-contact.workers.dev'
+          curl --fail --silent --show-error "$API/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$API/v1/employee/legacy-action/health" > /tmp/bridge.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('Production native auth drift');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Production bridge drift');
+          console.log('ENTRY615A_PRODUCTION_NATIVE_AUTH_OFF=YES');
+          console.log('ENTRY615A_PRODUCTION_BRIDGE_OFF=YES');
+          NODE
+
+      - name: Boundary
+        run: |
+          echo 'ENTRY615A_QUALIFICATION=PASS'
+          echo 'PRODUCTION_DEPLOY=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'FRONTEND_DEPLOY=NO'
+          echo 'APPS_SCRIPT_TOUCHED=NO'
