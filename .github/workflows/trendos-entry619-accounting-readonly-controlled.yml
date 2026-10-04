@@ -1,0 +1,427 @@
+name: TrendOS Entry619 Accounting READONLY Controlled Cutover
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry619-accounting-readonly-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry619-accounting-readonly-controlled
+  cancel-in-progress: false
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      DATABASE: trendos-main
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      EXPECTED_API_VERSION: de2c825d-ef63-407d-90dc-8059a9d4f192
+      EXPECTED_FRONTEND_VERSION: f1aa4dbf-4bba-40f9-87e2-3e98f3f781b6
+      EXPECTED_OPS_EPOCH: '7'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact Production preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-deployments.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label,expected,outPath){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const d=ds[0]||{};
+            const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+            if(full.length!==1||full[0].id!==expected) throw new Error(label+'-version-drift');
+            if(outPath) fs.writeFileSync(outPath,full[0].id);
+            console.log('ENTRY619_'+label+'_VERSION_LOCK=PASS');
+          }
+          active('/tmp/api-deployments.json','API',process.env.EXPECTED_API_VERSION);
+          active('/tmp/frontend-deployments.json','FRONTEND',process.env.EXPECTED_FRONTEND_VERSION,'/tmp/pre-frontend-version.txt');
+          NODE
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry619pre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry619pre=$GITHUB_SHA" -o /tmp/orders-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry619pre=$GITHUB_SHA" -o /tmp/customers-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry619pre=$GITHUB_SHA" -o /tmp/line-pre.json
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry619pre=$GITHUB_SHA" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry619pre=$GITHUB_SHA" -o /tmp/live-dispatcher.js
+
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const auth=read('/tmp/auth-pre.json'), bridge=read('/tmp/legacy-action-pre.json');
+          const ops=read('/tmp/ops-pre.json'), acc=read('/tmp/accounting-pre.json');
+          if(auth.mode!=='OFF'||auth.envEnabled!==false) throw new Error('auth-pre');
+          if(bridge.enabled!==false||bridge.secretConfigured!==false||Number(bridge.allowedPolicyCount||0)!==0) throw new Error('bridge-pre');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch||0)!==Number(process.env.EXPECTED_OPS_EPOCH)||ops.schemaReady!==true) throw new Error('ops-pre');
+          if(acc.mode!=='OFF'||acc.schemaReady!==true||Number(acc.googleBusinessCalls||0)!==0||acc.appsScriptBusinessAuthority!==false) throw new Error('accounting-pre');
+          for(const f of ['content','comms','core']) if(read('/tmp/'+f+'-pre.json').mode!=='OFF') throw new Error(f+'-pre');
+          const o=read('/tmp/orders-pre.json'), c=read('/tmp/customers-pre.json'), l=read('/tmp/line-pre.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-pre');
+          if(c.mode!=='GENERAL') throw new Error('customers-pre');
+          if(l.writeMode!=='cloud-native+legacy-overlay'||l.schemaReady!==true||l.legacySchemaReady!==true) throw new Error('line-pre');
+          const cfg=fs.readFileSync('/tmp/live-config.js','utf8'), disp=fs.readFileSync('/tmp/live-dispatcher.js','utf8');
+          if(!cfg.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'")) throw new Error('live-ops-mode');
+          if(!cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false')||!cfg.includes('MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false')) throw new Error('live-auth-bridge');
+          if(cfg.includes('MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE')) throw new Error('accounting-already-live');
+          if(cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1')||disp.includes('canaryRouteEnabled')) throw new Error('entry611-canary-live');
+          if(!disp.includes('shouldRouteOpsNative')) throw new Error('ops-router-missing');
+          console.log('ENTRY619_PRECUTOVER_RUNTIME=PASS');
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command \
+            "SELECT mode,policy_epoch AS policyEpoch FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';" \
+            > /tmp/accounting-control-pre.json
+          node <<'NODE'
+          const fs=require('fs'), x=JSON.parse(fs.readFileSync('/tmp/accounting-control-pre.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.mode&&v.policyEpoch!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          if(rows.length!==1||rows[0].mode!=='OFF') throw new Error('accounting-control-pre-not-off');
+          const epoch=Number(rows[0].policyEpoch);
+          if(!Number.isInteger(epoch)||epoch<0) throw new Error('accounting-epoch-invalid');
+          fs.writeFileSync('/tmp/pre-accounting-epoch.txt',String(epoch));
+          console.log('ENTRY619_ACCOUNTING_PRE_EPOCH='+epoch);
+          NODE
+
+      - name: Build exact live Accounting READONLY frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/entry619-livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/entry619-livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/entry619-livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 \
+            | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-dispatcher.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+
+          python3 <<'PY'
+          from pathlib import Path
+          cfg=Path('cloudflare-d1/frontend-dist/config.js')
+          s=cfg.read_text()
+          anchor="window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';\n"
+          if s.count(anchor)!=1:
+              raise SystemExit('entry619-config-ops-anchor')
+          s=s.replace(anchor,anchor+"window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY';\n",1)
+          if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in s:
+              raise SystemExit('entry611-canary-must-not-be-deployed')
+          cfg.write_text(s)
+
+          p=Path('cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js')
+          s=p.read_text()
+
+          old_version="var VERSION = 'T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004';"
+          if s.count(old_version)!=1:
+              raise SystemExit('entry619-dispatcher-version-anchor')
+          s=s.replace(old_version,"var VERSION = 'T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004';",1)
+
+          anchor="  var BRIDGE_PATH = '/v1/employee/legacy-action';\n  var OPS_PATH = '/v1/employee/ops';\n"
+          replacement=anchor+"  var ACCOUNTING_PATH = '/v1/employee/accounting';\n"
+          if s.count(anchor)!=1:
+              raise SystemExit('entry619-path-anchor')
+          s=s.replace(anchor,replacement,1)
+
+          anchor=(
+              "  var OPS_READ_ONLY_KEYS = new Set([\n"
+              "    'attendanceV1:state',\n"
+              "    'attendanceV1:config',\n"
+              "    'hrV1:myRequests',\n"
+              "    'hrV1:requests',\n"
+              "    'hrV1:employees',\n"
+              "    'cleaningV1:status',\n"
+              "    'pressControlV1:status'\n"
+              "  ]);\n"
+          )
+          replacement=anchor+(
+              "\n  var ACCOUNTING_READ_ACTIONS = new Set([\n"
+              "    'getAccounting',\n"
+              "    'getDeptInvoiceDraftV1887',\n"
+              "    'getPartyAccountV1858'\n"
+              "  ]);\n"
+          )
+          if s.count(anchor)!=1:
+              raise SystemExit('entry619-read-actions-anchor')
+          s=s.replace(anchor,replacement,1)
+
+          anchor=(
+              "  function shouldRouteOpsNative(action, params) {\n"
+              "    action = text(action);\n"
+              "    if (!OPS_ACTIONS.has(action)) return false;\n"
+              "    var mode = employeeOpsMode();\n"
+              "    if (mode === 'OFF') return false;\n"
+              "    if (mode === 'GENERAL') return true;\n"
+              "    return OPS_READ_ONLY_KEYS.has(opsPolicyKey(action, params || {}));\n"
+              "  }\n"
+          )
+          replacement=anchor+(
+              "\n  function employeeAccountingMode() {\n"
+              "    var mode = text(window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE || 'OFF').toUpperCase();\n"
+              "    return mode === 'READONLY' ? mode : 'OFF';\n"
+              "  }\n\n"
+              "  function shouldRouteAccountingNative(action) {\n"
+              "    if (employeeAccountingMode() !== 'READONLY') return false;\n"
+              "    return ACCOUNTING_READ_ACTIONS.has(text(action));\n"
+              "  }\n"
+          )
+          if s.count(anchor)!=1:
+              raise SystemExit('entry619-mode-anchor')
+          s=s.replace(anchor,replacement,1)
+
+          anchor="\n  async function nativeAuth(action, params) {"
+          accounting_native=(
+              "\n  async function employeeAccountingNative(action, params) {\n"
+              "    var p = Object.assign({}, params || {});\n"
+              "    var token = text(p.token);\n"
+              "    var username = text(p.username || p.name);\n"
+              "    if (!username || !token) {\n"
+              "      throw routeError('EMPLOYEE_ACCOUNTING_SESSION_REQUIRED','جلسة الموظف الحالية مطلوبة لمسار الحسابات السحابي.');\n"
+              "    }\n"
+              "    delete p.token;\n"
+              "    delete p.password;\n"
+              "    delete p.oldPassword;\n"
+              "    delete p.newPassword;\n"
+              "    delete p.confirmPassword;\n"
+              "    delete p.employeePassword;\n"
+              "    p.action = text(action);\n"
+              "    p.username = username;\n"
+              "    return cloudPost(ACCOUNTING_PATH, p, token);\n"
+              "  }\n"
+              "\n  async function nativeAuth(action, params) {"
+          )
+          if s.count(anchor)!=1:
+              raise SystemExit('entry619-native-auth-anchor')
+          s=s.replace(anchor,accounting_native,1)
+
+          old=(
+              "    async function wrapped(action, params) {\n"
+              "      var p = params || {};\n"
+              "      if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);\n"
+              "      if (!nativeEnabled()) return original.apply(this, arguments);\n"
+          )
+          new=(
+              "    async function wrapped(action, params) {\n"
+              "      var p = params || {};\n"
+              "      if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);\n"
+              "      if (shouldRouteAccountingNative(action)) return employeeAccountingNative(action, p);\n"
+              "      if (!nativeEnabled()) return original.apply(this, arguments);\n"
+          )
+          if s.count(old)!=1:
+              raise SystemExit('entry619-wrapper-anchor')
+          s=s.replace(old,new,1)
+
+          old=(
+              "    if (shouldRouteOpsNative(actionText, p)) {\n"
+              "      return employeeOpsNative(actionText, p);\n"
+              "    }\n\n"
+              "    if (!nativeEnabled()) {"
+          )
+          new=(
+              "    if (shouldRouteOpsNative(actionText, p)) {\n"
+              "      return employeeOpsNative(actionText, p);\n"
+              "    }\n\n"
+              "    if (shouldRouteAccountingNative(actionText)) {\n"
+              "      return employeeAccountingNative(actionText, p);\n"
+              "    }\n\n"
+              "    if (!nativeEnabled()) {"
+          )
+          if s.count(old)!=1:
+              raise SystemExit('entry619-direct-anchor')
+          s=s.replace(old,new,1)
+
+          old=(
+              "    employeeOpsNative: employeeOpsNative,\n"
+              "    policyKey: policyKey,"
+          )
+          new=(
+              "    employeeOpsNative: employeeOpsNative,\n"
+              "    employeeAccountingMode: employeeAccountingMode,\n"
+              "    shouldRouteAccountingNative: shouldRouteAccountingNative,\n"
+              "    employeeAccountingNative: employeeAccountingNative,\n"
+              "    policyKey: policyKey,"
+          )
+          if s.count(old)!=1:
+              raise SystemExit('entry619-export-anchor')
+          s=s.replace(old,new,1)
+
+          if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in s or 'canaryRouteEnabled' in s:
+              raise SystemExit('entry611-canary-must-not-be-deployed')
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          ENTRY619_DISPATCHER_PATH=cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js \
+          ENTRY619_CONFIG_PATH=cloudflare-d1/frontend-dist/config.js \
+            node tests/frontend_employee_accounting_family_router_entry619.test.mjs
+
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          ! grep -Fq "canaryRouteEnabled" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          echo 'ENTRY619_LIVE_PATCH_QUALIFICATION=PASS'
+
+      - name: Activate Accounting READONLY and deploy frontend with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE_FRONTEND_VERSION="$(cat /tmp/pre-frontend-version.txt)"
+          PRE_ACC_EPOCH="$(cat /tmp/pre-accounting-epoch.txt)"
+          NEXT_ACC_EPOCH="$((PRE_ACC_EPOCH + 1))"
+          export NEXT_ACC_EPOCH
+          ACCOUNTING_MUTATED=0
+          FRONTEND_DEPLOYED=0
+
+          rollback_on_error() {
+            rc=$?
+            trap - ERR
+            echo "ENTRY619_FAILURE_RC=$rc"
+            if [ "$FRONTEND_DEPLOYED" = "1" ]; then
+              echo "ENTRY619_ROLLBACK_FRONTEND_TO=$PRE_FRONTEND_VERSION"
+              npx wrangler rollback "$PRE_FRONTEND_VERSION" --message "Entry619 automatic rollback after Accounting READONLY failure" --config "$FRONTEND_CONFIG" || true
+            fi
+            if [ "$ACCOUNTING_MUTATED" = "1" ]; then
+              echo "ENTRY619_ROLLBACK_ACCOUNTING_TO=OFF"
+              npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" \
+                --command "UPDATE employee_accounting_control_v1 SET mode='OFF',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' AND mode='READONLY';" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback_on_error ERR
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command \
+            "UPDATE employee_accounting_control_v1
+                SET mode='READONLY',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+              WHERE singleton=1
+                AND marker='ENTRY614_ACCOUNTING_V1'
+                AND mode='OFF'
+                AND policy_epoch=$PRE_ACC_EPOCH;
+             SELECT mode,policy_epoch AS policyEpoch FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';" \
+            > /tmp/accounting-readonly.json
+          ACCOUNTING_MUTATED=1
+
+          node <<'NODE'
+          const fs=require('fs'), x=JSON.parse(fs.readFileSync('/tmp/accounting-readonly.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.mode&&v.policyEpoch!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const r=rows.find(v=>v.mode==='READONLY');
+          if(!r||Number(r.policyEpoch)!==Number(process.env.NEXT_ACC_EPOCH)) throw new Error('accounting-readonly-not-proven');
+          console.log('ENTRY619_ACCOUNTING_CONTROL=READONLY');
+          console.log('ENTRY619_ACCOUNTING_POLICY_EPOCH='+r.policyEpoch);
+          NODE
+
+          read_code="$(curl --silent --show-error --output /tmp/read-probe.json --write-out '%{http_code}' \
+            -X POST -H 'content-type: application/json' \
+            --data '{"action":"getAccounting"}' "$API_URL/v1/employee/accounting")"
+          write_code="$(curl --silent --show-error --output /tmp/write-probe.json --write-out '%{http_code}' \
+            -X POST -H 'content-type: application/json' \
+            --data '{"action":"saveAccountingMaterial"}' "$API_URL/v1/employee/accounting")"
+          test "$read_code" = "401"
+          grep -Fq '"code":"employee-session-rejected"' /tmp/read-probe.json
+          grep -Fq 'username and employee session token are required' /tmp/read-probe.json
+          test "$write_code" = "503"
+          grep -Fq '"code":"employee-accounting-readonly"' /tmp/write-probe.json
+          echo 'ENTRY619_ACCOUNTING_READONLY_RUNTIME_SEMANTICS=PASS'
+          echo 'ENTRY619_EXTERNAL_AUTH_CALL_IN_PROBES=NO'
+          echo 'ENTRY619_BUSINESS_WRITE_EXECUTED=NO'
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" | tee /tmp/entry619-frontend-deploy.log
+          FRONTEND_DEPLOYED=1
+
+          FRONTEND_PROPAGATED=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry619post=$suffix" -o /tmp/post-config.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry619post=$suffix" -o /tmp/post-dispatcher.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry619post=$suffix" -o /tmp/post-edge.js \
+              && grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" /tmp/post-config.js \
+              && grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" /tmp/post-config.js \
+              && grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" /tmp/post-config.js \
+              && grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" /tmp/post-config.js \
+              && ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/post-config.js \
+              && grep -Fq "T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004" /tmp/post-dispatcher.js \
+              && grep -Fq "shouldRouteAccountingNative" /tmp/post-dispatcher.js \
+              && ! grep -Fq "canaryRouteEnabled" /tmp/post-dispatcher.js \
+              && grep -Fq 'postWriteBarrierRecoveries' /tmp/post-edge.js \
+              && grep -Fq 'recoverPostWriteBarrier' /tmp/post-edge.js; then
+                FRONTEND_PROPAGATED=1
+                echo "ENTRY619_FRONTEND_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$FRONTEND_PROPAGATED" = "1"
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry619post=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry619post=$GITHUB_SHA" -o /tmp/orders-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry619post=$GITHUB_SHA" -o /tmp/customers-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry619post=$GITHUB_SHA" -o /tmp/line-post.json
+
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const auth=read('/tmp/auth-post.json'), bridge=read('/tmp/legacy-action-post.json'), ops=read('/tmp/ops-post.json'), acc=read('/tmp/accounting-post.json');
+          if(auth.mode!=='OFF'||auth.envEnabled!==false) throw new Error('auth-post');
+          if(bridge.enabled!==false||bridge.secretConfigured!==false||Number(bridge.allowedPolicyCount||0)!==0) throw new Error('bridge-post');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch||0)!==Number(process.env.EXPECTED_OPS_EPOCH)) throw new Error('ops-post');
+          if(acc.mode!=='READONLY'||Number(acc.policyEpoch||0)!==Number(process.env.NEXT_ACC_EPOCH)||acc.schemaReady!==true||acc.authoritativeWrites!==false||Number(acc.googleBusinessCalls||0)!==0||acc.appsScriptBusinessAuthority!==false) throw new Error('accounting-post');
+          for(const f of ['content','comms','core']) if(read('/tmp/'+f+'-post.json').mode!=='OFF') throw new Error(f+'-post');
+          const o=read('/tmp/orders-post.json'), c=read('/tmp/customers-post.json'), l=read('/tmp/line-post.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-post');
+          if(c.mode!=='GENERAL') throw new Error('customers-post');
+          if(l.writeMode!=='cloud-native+legacy-overlay'||l.schemaReady!==true||l.legacySchemaReady!==true) throw new Error('line-post');
+          console.log('ENTRY619_POSTCUTOVER_HEALTH=PASS');
+          console.log('ENTRY619_OPS_GENERAL_PRESERVED=YES');
+          console.log('ENTRY619_REFRESH_FIX_PRESERVED=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-post.json
+          node <<'NODE'
+          const fs=require('fs'), x=JSON.parse(fs.readFileSync('/tmp/frontend-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=((ds[0]||{}).versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend-version-not-single-100');
+          console.log('ENTRY619_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo 'ENTRY619_STATUS=ACCOUNTING_READONLY_CUTOVER_PASS'
+          echo 'ENTRY619_ACCOUNTING_GENERAL=NO'
+          echo 'ENTRY619_AUTH=OFF'
+          echo 'ENTRY619_BRIDGE=OFF'
+          echo 'ENTRY619_OPS=GENERAL'
+          echo 'ENTRY619_API_DEPLOY=NO'
+          echo 'ENTRY619_APPS_SCRIPT_TOUCHED=NO'
+          echo 'ENTRY619_ENTRY611_CANARY_DEPLOYED=NO'
