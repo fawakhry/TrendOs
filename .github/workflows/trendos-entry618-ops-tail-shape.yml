@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/tail.jsonl
-          timeout 22s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
+          timeout 75s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
           TPID=$!
           sleep 5
           curl --silent --show-error --output /tmp/probe.json --write-out '%{http_code}' \
@@ -74,17 +74,33 @@ jobs:
           }
           const matches=objects.filter(x=>JSON.stringify(x).includes('/v1/employee/ops'));
           if(!matches.length) throw new Error('ops-tail-event-not-captured objects='+objects.length);
-          const x=matches[matches.length-1];
           function pick(obj, path){
+            let v=obj; for(const p of path){ if(v==null) return undefined; v=v[p]; } return v;
+          }
+          const summaries=matches.map(x=>{
+            const h=(x.event&&x.event.request&&x.event.request.headers)||{};
+            return {
+              status:pick(x,['event','response','status']) ?? null,
+              method:pick(x,['event','request','method']) || null,
+              url:pick(x,['event','request','url']) || null,
+              origin:h.origin||h.Origin||null,
+              referer:h.referer||h.Referer||null,
+              userAgent:h['user-agent']||h['User-Agent']||null,
+              outcome:x.outcome||null
+            };
+          });
+          console.log('ENTRY618_TAIL_OPS_SAFE_SUMMARIES='+JSON.stringify(summaries));
+          const x=matches[matches.length-1];
+          function pick2(obj, path){
             let v=obj; for(const p of path){ if(v==null) return undefined; v=v[p]; } return v;
           }
           const safe={
             topKeys:Object.keys(x).sort(),
             outcome:x.outcome,
             eventKeys:x.event&&typeof x.event==='object'?Object.keys(x.event).sort():[],
-            responseStatus:pick(x,['event','response','status']) ?? pick(x,['response','status']) ?? pick(x,['event','request','response','status']) ?? null,
-            requestUrl:pick(x,['event','request','url']) || null,
-            requestMethod:pick(x,['event','request','method']) || null
+            responseStatus:pick2(x,['event','response','status']) ?? pick2(x,['response','status']) ?? pick2(x,['event','request','response','status']) ?? null,
+            requestUrl:pick2(x,['event','request','url']) || null,
+            requestMethod:pick2(x,['event','request','method']) || null
           };
           console.log('ENTRY618_TAIL_MATCH=PASS');
           console.log('ENTRY618_TAIL_SAFE_SHAPE='+JSON.stringify(safe));
