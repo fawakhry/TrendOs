@@ -3775,3 +3775,60 @@ ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
 PHYSICAL_WORK_QUEUE=OPERATOR_TASK_V2
 NEXT_GATE=AUTONOMY_POLICY_CI_THEN_LIVE_ACTION_CLASSIFICATION_AND_SHADOW_EVENT_SCHEMA
 ```
+
+
+### Entry625 — Autonomy Policy CI PASS + Shadow Ledger Foundation
+
+- Entry624 foundation تم اختباره فعليًا.
+- Autonomy policy CI:
+  - workflow: `.github/workflows/trendos-autonomy-policy-v1-ci.yml`
+  - Run `37239224704` = **SUCCESS**.
+- A61 browser Cloud transport regression على نفس head:
+  - Run `37239224760` = **SUCCESS**.
+- Contract policy source:
+  - `cloudflare-d1/src/autonomy-policy-v1.mjs`
+  - source commit `34c016227bf542c3c492cb493d5b50bbd0781651`.
+- Shadow ledger foundation:
+  - migration candidate `cloudflare-d1/migrations/0019_autonomy_events_v1.sql`
+  - migration commit `f3ac7261df4aae4b977b1efd3ff6fb909eab338c`
+  - source `cloudflare-d1/src/autonomy-event-ledger-v1.mjs`
+  - source commit `7c07a86fb6eb252ce5982a4ae13743e65fed6dbe`
+  - ledger test `tests/trendos_autonomy_event_ledger_v1.test.mjs`
+  - assertion fix commit `4d60ea85379c3527f7211efc4e2aa44a07947e9e`.
+- Migration 0019 properties:
+  - additive only;
+  - no DROP/ALTER;
+  - `autonomy_control.mode=OFF` by default;
+  - `autonomy_events` append-only via update/delete abort triggers;
+  - event uniqueness guards repeated task/input/policy writes.
+- **Important:** migration 0019 is source-only candidate in this Entry. It has **not** been applied to Production D1 and Autopilot remains OFF.
+- Initial runtime-based classification seed:
+  - `docs/trendos/staging/ENTRY625_AUTONOMY_ACTION_CLASSIFICATION_SEED_V1.json`
+  - commit `13f4d3f14efac4164068985176451b3eb0e004f6`
+  - deliberately `complete=false` until every live action/route is audited.
+- Current safe first candidates for Shadow analysis:
+  - customer search/context;
+  - customer create;
+  - order create/update line.
+- Current blocked areas remain blocked:
+  - WhatsApp reply while COMMS=OFF;
+  - Smart Designer while CONTENT=OFF;
+  - Accounting writes while EasyStore is deferred;
+  - Operator Task V2 live use until Runtime qualification is proven.
+- Employee presence events stay human-originated; AI may supervise/route work but must not fabricate attendance.
+- Protected employment adverse actions remain `OWNER_ONLY`.
+
+#### Registration
+```ini
+STATUS=ENTRY625_AUTONOMY_POLICY_AND_SHADOW_LEDGER_REPO_QUALIFIED
+AUTONOMY_POLICY_CI=PASS
+AUTONOMY_POLICY_CI_RUN=37239224704
+A61_REGRESSION=PASS
+A61_REGRESSION_RUN=37239224760
+MIGRATION_0019=REPO_ONLY_NOT_APPLIED
+AUTONOMY_CONTROL_RUNTIME=ABSENT_OR_OFF
+AUTOPILOT_RUNTIME_ENABLED=NO
+ACTION_CLASSIFICATION_COMPLETE=NO
+PRODUCTION_BEHAVIOR_CHANGED=NO
+NEXT_GATE=COMPLETE_LIVE_ACTION_AUDIT_THEN_APPLY_0019_OFF_AND_START_SHADOW_EVENTS
+```
