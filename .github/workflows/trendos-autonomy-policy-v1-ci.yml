@@ -1,0 +1,30 @@
+name: TrendOS Autonomy Policy V1 CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'cloudflare-d1/src/autonomy-policy-v1.mjs'
+      - 'tests/trendos_autonomy_policy_v1.test.mjs'
+      - 'docs/trendos/AUTONOMOUS_PRINTSHOP_60_DAY_PROGRAM.md'
+      - 'TrendOS_MASTER_BOOK.md'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/autonomy-policy-v1.mjs'
+      - 'tests/trendos_autonomy_policy_v1.test.mjs'
+      - 'docs/trendos/AUTONOMOUS_PRINTSHOP_60_DAY_PROGRAM.md'
+      - 'TrendOS_MASTER_BOOK.md'
+
+permissions:
+  contents: read
+
+jobs:
+  autonomy-policy-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run autonomy policy contract
+        run: node tests/trendos_autonomy_policy_v1.test.mjs
