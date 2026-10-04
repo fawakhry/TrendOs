@@ -1,0 +1,90 @@
+name: TrendOS Entry618 Historical Ops Observability Audit
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry618-historical-ops-observability.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ENTRY617_COMPLETED_AT_MS: '1791117613000'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Query stored Workers observability read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          NOW_MS="$(node -p 'Date.now()')"
+          export NOW_MS
+
+          cat >/tmp/query.json <<EOF
+          {
+            "queryId":"entry618-historical-ops-authenticated-read",
+            "timeframe":{
+              "from":${ENTRY617_COMPLETED_AT_MS},
+              "to":${NOW_MS}
+            },
+            "limit":2000,
+            "dry":true,
+            "parameters":{
+              "datasets":[],
+              "filterCombination":"and",
+              "filters":[
+                {"kind":"filter","key":"\$metadata.service","operation":"eq","type":"string","value":"trendos-d1-api"},
+                {"kind":"filter","key":"\$metadata.url","operation":"includes","type":"string","value":"/v1/employee/ops"},
+                {"kind":"filter","key":"\$metadata.statusCode","operation":"eq","type":"number","value":200}
+              ],
+              "view":"events"
+            }
+          }
+          EOF
+
+          code="$(curl --silent --show-error --output /tmp/result.json --write-out '%{http_code}'             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             -H 'Content-Type: application/json'             --data-binary @/tmp/query.json             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/observability/telemetry/query")"
+          export HTTP_CODE="$code"
+
+          node <<'NODE'
+          const fs=require('fs');
+          const http=Number(process.env.HTTP_CODE||0);
+          const x=JSON.parse(fs.readFileSync('/tmp/result.json','utf8')||'{}');
+          if(http!==200||x.success!==true){
+            const safeErrors=Array.isArray(x.errors)?x.errors.map(e=>String(e&&e.message||'')).filter(Boolean):[];
+            console.log('ENTRY618_OBSERVABILITY_HTTP='+http);
+            console.log('ENTRY618_OBSERVABILITY_API_SUCCESS=NO');
+            console.log('ENTRY618_OBSERVABILITY_SAFE_ERRORS='+JSON.stringify(safeErrors));
+            process.exit(2);
+          }
+          const ev=x&&x.result&&x.result.events||{};
+          const rows=Array.isArray(ev.events)?ev.events:[];
+          const count=Number(ev.count||rows.length||0);
+          let verified=0;
+          for(const row of rows){
+            const m=row&&row['$metadata']||{};
+            const service=String(m.service||'');
+            const url=String(m.url||'');
+            const status=Number(m.statusCode||0);
+            let path='';try{path=new URL(url).pathname}catch{}
+            if(service==='trendos-d1-api'&&path==='/v1/employee/ops'&&status===200) verified++;
+          }
+          console.log('ENTRY618_HISTORICAL_OPS_200_COUNT='+count);
+          console.log('ENTRY618_HISTORICAL_OPS_200_ROWS_VERIFIED='+verified);
+          console.log('ENTRY618_OBSERVABILITY_QUERY_DRY=YES');
+          console.log('ENTRY618_PRODUCTION_MUTATION=NO');
+          if(Math.max(count,verified)<1) throw new Error('no-historical-authenticated-ops-read-after-entry617');
+          console.log('ENTRY618_AUTHENTICATED_OPS_READONLY_LIVE_READ_SMOKE=PASS');
+          NODE
