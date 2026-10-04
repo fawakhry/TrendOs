@@ -1,0 +1,121 @@
+name: TrendOS Entry617 Ops READONLY Source Qualification
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry617-ops-readonly-source-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EXPECTED_PARENT: 311387374eb3665b972ebe7b1b49b7aa53e52751
+      PRE_ENTRY617_FRONTEND_BASE: 2da755ca910b84911378c018d050cf806d8349d5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Lock exact Entry617 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
+          test "$(git hash-object employee-api-dispatcher-v1.js)" = "dc7ca2ce3a95dc26264fe93f97a101b4139baf80"
+          test "$(git hash-object config.js)" = "cbc916c6ec1430ef2700af548092d162b0bfe2f2"
+          test "$(git hash-object tests/frontend_employee_ops_family_router_entry617.test.mjs)" = "9ca20988a0c7441f2cc2c02004d42089f37207a6"
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'OFF'" config.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" config.js
+          echo ENTRY617_SOURCE_LOCK=PASS
+
+      - name: Qualify Ops router and existing regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/frontend_employee_ops_family_router_entry617.test.mjs
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          node tests/entry614_employee_ops_native.test.mjs
+          node tests/entry614_zero_google_employee_business_coverage.test.mjs
+          node tests/frontend_no_direct_google_transport_a61.test.mjs
+          node tests/legacy_browser_transport_a61.test.mjs
+          echo ENTRY617_OPS_READONLY_SOURCE_QUALIFICATION=PASS
+
+      - name: Verify Entry616 live baseline remains OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/auth/health" -o /tmp/auth.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/legacy-action/health" -o /tmp/bridge.json
+          curl --fail --silent --show-error "$PROD_URL/v1/employee/ops/health" -o /tmp/ops.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/orders/create/health" -o /tmp/orders.json
+          curl --fail --silent --show-error "$PROD_URL/v1/t12/customers/write/health" -o /tmp/customers.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json'));
+          const op=JSON.parse(fs.readFileSync('/tmp/ops.json'));
+          const o=JSON.parse(fs.readFileSync('/tmp/orders.json'));
+          const c=JSON.parse(fs.readFileSync('/tmp/customers.json'));
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth-drift');
+          if(b.enabled!==false||b.secretConfigured!==false) throw new Error('bridge-drift');
+          if(op.mode!=='OFF'||op.schemaReady!==true||Number(op.googleBusinessCalls||0)!==0) throw new Error('ops-drift');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-drift');
+          if(c.mode!=='GENERAL') throw new Error('customers-drift');
+          console.log('ENTRY617_PRECUTOVER_RUNTIME_BASELINE=PASS');
+          NODE
+
+      - name: Audit live frontend drift against exact pre-Entry617 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/pre-entry617
+          git worktree add --detach /tmp/pre-entry617 "$PRE_ENTRY617_FRONTEND_BASE" >/dev/null
+          : > /tmp/mismatches.txt
+          : > /tmp/missing.txt
+          count=0
+          while IFS= read -r -d '' f; do
+            rel="${f#/tmp/pre-entry617/}"
+            url="$FRONTEND_URL/$rel?entry617_audit=$GITHUB_SHA"
+            if ! curl --fail --silent --show-error --location "$url" -o /tmp/live-asset; then
+              echo "$rel" >> /tmp/missing.txt
+              continue
+            fi
+            if ! cmp -s "$f" /tmp/live-asset; then
+              echo "$rel" >> /tmp/mismatches.txt
+              count=$((count+1))
+            fi
+          done < <(find /tmp/pre-entry617 -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | sort -z)
+          echo "ENTRY617_LIVE_FRONTEND_MISMATCH_COUNT=$count"
+          echo "ENTRY617_LIVE_FRONTEND_MISMATCHES_BEGIN"
+          cat /tmp/mismatches.txt || true
+          echo "ENTRY617_LIVE_FRONTEND_MISMATCHES_END"
+          echo "ENTRY617_LIVE_FRONTEND_MISSING_BEGIN"
+          cat /tmp/missing.txt || true
+          echo "ENTRY617_LIVE_FRONTEND_MISSING_END"
+          echo ENTRY617_FRONTEND_DRIFT_AUDIT=COMPLETE
+
+      - name: Boundary
+        run: |
+          echo ENTRY617_REPO_ONLY=YES
+          echo ENTRY617_D1_MUTATION=NO
+          echo ENTRY617_FRONTEND_DEPLOY=NO
+          echo ENTRY617_API_DEPLOY=NO
+          echo ENTRY617_APPS_SCRIPT_TOUCHED=NO
+          echo ENTRY617_AUTH_CHANGED=NO
+          echo ENTRY617_BRIDGE_CHANGED=NO
