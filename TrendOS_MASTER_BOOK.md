@@ -2018,6 +2018,49 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=RUN_ENTRY615_BACKFILL_SQL_VIA_WRANGLER_REMOTE_FILE_THEN_PARITY
   ```
 
+
+- Fresh read-only Google Sheet snapshot was taken immediately after schema 0012→0018 completed, before any backfill APPLY.
+- Current snapshot:
+  ```ini
+  SNAPSHOT_SHA256=1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f
+  RUN_ID=ENTRY615-1F9B510723BE29EB
+  GENERATED_AT=2026-10-04T11:27:51.148814Z
+  CURRENT_ORDERS_SOURCE=222
+  CURRENT_LINES_SOURCE=250
+  CURRENT_LINES_CANONICAL=234
+  ARCHIVE_ORDERS_SOURCE=3361
+  ARCHIVE_LINES_SOURCE=4628
+  ARCHIVE_LINES_CANONICAL=3565
+  ATTENDANCE_SOURCE=122
+  ATTENDANCE_CANONICAL=90
+  ATTENDANCE_PULSES=191
+  CLEANING_SOURCE=216
+  CLEANING_CANONICAL=83
+  RETAINED_LEGACY_ROWS=1256
+  ```
+- Drift from the older preview is expected because Google remained live during schema work:
+  - attendance 119→122; canonical 87→90.
+  - pulses 186→191.
+  - cleaning 207→216; canonical 80→83.
+  - retained legacy rows 1250→1256.
+  - orders/core/archive counts remained stable.
+- A D1-import-compatible SQL was regenerated from this fresh snapshot; explicit `PRAGMA foreign_keys`, `BEGIN TRANSACTION`, and `COMMIT` wrappers were removed for Wrangler D1 file import compatibility.
+- Final import SQL:
+  ```ini
+  FILE=ENTRY615_BACKFILL_CURRENT_D1.sql
+  SIZE_BYTES=36414456
+  SQL_SHA256=49b43222c80114066838ad8da32d8b8f6b08e579c93b7697f78b228b892de5c4
+  Production_data_committed_to_GitHub=NO
+  ```
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_FRESH_BACKFILL_PACKAGE_READY
+  MIGRATIONS_0012_TO_0018=APPLIED_PASS
+  ALL_FAMILY_CONTROLS=OFF
+  BACKFILL_APPLIED=NO
+  NEXT_ACTION=CAPTURE_D1_TIME_TRAVEL_BOOKMARK_THEN_WRANGLER_REMOTE_FILE_IMPORT
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
