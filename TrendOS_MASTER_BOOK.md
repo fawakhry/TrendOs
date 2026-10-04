@@ -1692,6 +1692,42 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=APPLY_0013_EMPLOYEE_CONTENT_ZERO_GOOGLE_V1_KEEP_OFF
   ```
 
+
+### Entry615A — Pause for Cloud Auth Shadow idle-expiry production bug
+- أثناء التنفيذ اليدوي بعد نجاح migration 0012، ظهر في TrendOS Production:
+  ```text
+  طلب موظف قديم أو غير مؤكد تم إيقافه على Cloud؛ الجلسة الحالية لم تُلغَ.
+  ```
+- تم إيقاف أي migration جديدة فورًا؛ **0013 لم يتم تنفيذه**.
+- المصدر الدقيق للرسالة:
+  - `cloudflare-d1/src/legacy-browser-transport-v1.mjs`
+  - code: `EMPLOYEE_SESSION_SHADOW_REQUIRED`
+  - employee business actions تمر عبر `/v1/legacy-api` وتحتاج Cloud Auth Shadow hit.
+- Runtime/source diagnosis:
+  ```ini
+  TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED=true
+  CLOUD_AUTH_SHADOW_TTL_SECONDS=300
+  CLOUD_AUTH_SHADOW_MAX_SECONDS_IN_SOURCE=900
+  APPS_SCRIPT_EMPLOYEE_SESSION_TTL_DEFAULT_HOURS=12
+  ```
+- Root cause: Cloud Shadow expires after **5 minutes idle**, while the real employee session remains valid up to **12 hours**. After idle >5m, the next employee business action fails before reaching Apps Script.
+- This bug is independent from migration 0012:
+  - 0012 only created new D1 tables.
+  - `employee_ops_control_v1.mode=OFF`.
+  - no frontend/API routing was changed by 0012.
+- Immediate safe recovery for an affected browser is a fresh employee login, which creates a new Cloud shadow; however that is only a temporary workaround because the 5-minute idle-expiry remains.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615A_PAUSED_FOR_CLOUD_AUTH_SHADOW_IDLE_EXPIRY_BUG
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NOT_APPLIED
+  EMPLOYEE_OPS_MODE=OFF
+  ROOT_CAUSE=CLOUD_AUTH_SHADOW_5_MIN_IDLE_EXPIRY
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=QUALIFY_REPO_ONLY_SHADOW_TTL_FIX_BEFORE_RESUMING_0013
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
