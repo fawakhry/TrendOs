@@ -1156,3 +1156,117 @@ The project is centralized under `autonomous-printshop/`. One file must remain o
 - `.github/workflows/autonomous-printshop-policy-v1-ci.yml`
 
 This is infrastructure plumbing only and is not a second project book or source-of-truth location.
+
+
+### AP-007 — Operations Manager recovery, filtering, and execution start
+
+Owner instruction: recover the previously built TrendOS operations-manager/employee-guidance chain, filter it, centralize the useful parts, and begin implementation.
+
+#### Recovered / centralized sources
+
+- `manager-center-v1932.js` -> `sources/trendos/control-tower/manager-center-v1932.js`
+- `trend-master-resilience-v1931.js` -> `sources/trendos/control-tower/trend-master-resilience-v1931.js`
+- `operations-hub-v1.js` -> `sources/trendos/employee-supervisor/operations-hub-v1.js`
+- `press-control-v1.js` -> `sources/trendos/machine-agent/press-control-v1.js`
+- `press-control-backend-v1.gs` -> `sources/trendos/machine-agent/press-control-backend-v1.gs`
+- `WORK_QUEUE_V1_CANDIDATE.md` -> lineage only, explicitly superseded
+- `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md` -> canonical product-contract reference
+- `AI_Orders_View V1890` -> extracted concept reference, not copied as a Sheet authority
+
+Machine-readable filter:
+`autonomous-printshop/manifests/OPERATIONS_SUPERVISOR_FILTER_V1.json`
+
+#### Filtering decisions
+
+```ini
+AI_ORDERS_VIEW=EXTRACT_CONCEPT_ONLY
+TREND_MASTER=REUSE_AND_MODERNIZE
+MANAGER_CENTER=REUSE_UX_ONLY_PLUS_SIGNAL_MODEL
+TREND_MASTER_RESILIENCE=REUSE_PATTERN
+EMPLOYEE_OPS_COACH=SUPERSEDED_LINEAGE
+EMPLOYEE_MANAGER_STRIPS_V2=REUSE_AND_MODERNIZE
+OPS_REPLY_OPS_COACH=EXTRACT_EVENT_CONTRACT
+EMPLOYEE_ANDON=REUSE_AND_MODERNIZE
+WORK_QUEUE_V1=DROP_RUNTIME_KEEP_LINEAGE
+OPERATOR_TASK_V2=REUSE_PRODUCT_CONTRACT_REBUILD_AUTHORITY
+PRESS_CONTROL=EXTRACT_MACHINE_AGENT_FOUNDATION
+OPERATIONS_HUB=REUSE_SHELL
+ATTENDANCE=REUSE_AS_AVAILABILITY_SIGNAL
+EMPLOYEE_KPI_70_30=DROP_AS_DECISION_AUTHORITY
+```
+
+#### Architecture decision
+
+The final employee-management path is not a chatbot and not a free LLM scheduler.
+
+```
+TrendOS/D1 factual state
+  -> Operational Reality Snapshot
+  -> deterministic eligibility / priority / readiness
+  -> Operator Task D1 Authority
+  -> AI Supervisor explanation / exception resolution
+  -> Employee Operations Shell
+  -> Andon / evidence loop
+  -> Control Tower / owner exceptions only
+```
+
+Rules decide truth, eligibility, priority, idempotency, and authority.
+AI may interpret context, explain decisions, propose safe recovery, and converse with employees, but it does not invent operational facts.
+
+#### First executable core started
+
+Created:
+
+- `autonomous-printshop/core/operational-reality-v1.mjs`
+- `autonomous-printshop/tests/operational_reality_v1.test.mjs`
+
+Current behavior:
+
+- normalizes legacy/current order-line facts;
+- separates ordinary work / Fly Print / closed work / exceptions;
+- keeps Fly Print outside ordinary Task assignment;
+- fails closed when delivery due date is missing/invalid;
+- fails closed on explicit design/material/machine blockers;
+- supports strict readiness qualification when requested;
+- deterministic order:
+  `Urgent DESC -> Due ASC -> Order ASC -> Line ASC`;
+- refuses a new recommendation if the operator already has an active ordinary Task;
+- refuses assignment when the operator is unavailable;
+- emits evidence/reason codes with the recommended Task.
+
+This is repository-only shadow foundation. It does not read Production, mutate D1, assign a real employee, or change live TrendOS behavior.
+
+#### Build Matrix changes
+
+- Operational Reality Snapshot added as P0 module M22 — implementation started repo-only.
+- Production Scheduler M05 now explicitly reuses Operational Reality + Operator Task contract.
+- Employee Supervisor M06 now includes Operations Hub + Operational Reality.
+- Machine Agent M15 changed from NEW_BUILD_REQUIRED to REUSE_AND_MODERNIZE because Press Control provides a usable machine-session/telemetry foundation.
+- Control Tower M18 now explicitly includes Manager Center + Trend Master resilience.
+
+#### Qualification
+
+Operational Reality contract is included in:
+`.github/workflows/autonomous-printshop-policy-v1-ci.yml`
+
+Verified CI:
+- Run `37245044872` — SUCCESS on centralized CI including Operational Reality test.
+- Run `37245085030` — SUCCESS after source-registry update.
+- Latest build-matrix run `37245102259` was in progress when this entry was written; earlier same-code qualification already passed.
+
+#### Safety boundary
+
+```ini
+PRODUCTION_DEPLOY=NO
+D1_MUTATION=NO
+APPS_SCRIPT_CHANGE=NO
+EMPLOYEE_LIVE_ASSIGNMENT=NO
+AUTOPILOT=OFF
+EXECUTION_STATE=REPO_ONLY_SHADOW_FOUNDATION_STARTED
+```
+
+Next P0 implementation:
+1. finish Autonomy Event Ledger schema correction before Production migration;
+2. connect Operational Reality to stable TrendOS/D1 facts through a read-only adapter;
+3. build D1 Operator Task authority default OFF;
+4. feed Employee Supervisor UI from authoritative assignment rather than client-side first-row logic.
