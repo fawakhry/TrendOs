@@ -2813,6 +2813,12 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   APPS_SCRIPT_TOUCHED=NO
   NEXT_GATE=REAL_AUTHENTICATED_EASYSTORE_ACCOUNTING_D1_READ_SMOKE
   ```
+- Post-remediation live observation attempts:
+  - Run `37209757544`, Job `111458355016`: preflight PASS; 43 Worker events observed; 0 requests to `/v1/employee/accounting`.
+  - Run `37210035507`, Job `111459174028`: preflight PASS; 22 Worker events observed; 0 requests to `/v1/employee/accounting`.
+  - both runs were non-mutating and read no credentials.
+  - interpretation: no Accounting request was observed inside either live-tail window; this is **not** evidence of a failed authenticated read and must not be promoted to PASS or FAIL for the business read itself.
+  - Accounting remains READONLY / epoch 2 and GENERAL promotion remains blocked until a synchronized authenticated read is observed as HTTP 200 from EasyStore.
 - Important gate before Accounting GENERAL:
   - source + READONLY policy semantics + Production health are PASS.
   - still required: real authenticated Production Accounting read smoke through the current employee session path.
