@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import {
   recordAutonomyShadowEventV1,
   readAutonomyControlV1
-} from '../cloudflare-d1/src/autonomy-event-ledger-v1.mjs';
+} from '../core/autonomy-event-ledger-v1.mjs';
 
-const migration = fs.readFileSync('cloudflare-d1/migrations/0019_autonomy_events_v1.sql','utf8');
+const migration = fs.readFileSync('autonomous-printshop/migrations/0019_autonomy_events_v1.sql','utf8');
 assert.match(migration, /mode TEXT NOT NULL DEFAULT 'OFF'/);
 assert.match(migration, /'OFF','SHADOW','CANARY','GENERAL'/);
 assert.match(migration, /AUTONOMY_EVENTS_APPEND_ONLY/);
