@@ -10,14 +10,14 @@ on:
       - 'cloudflare-d1/migrations/0019_autonomy_events_v1.sql'
       - 'cloudflare-d1/src/autonomy-event-ledger-v1.mjs'
       - 'tests/trendos_autonomy_policy_v1.test.mjs'
-      - 'docs/trendos/AUTONOMOUS_PRINTSHOP_60_DAY_PROGRAM.md'
-      - 'TrendOS_MASTER_BOOK.md'
+      - 'docs/autonomous-printshop/60_DAY_PROGRAM.md'
+      - 'AUTONOMOUS_PRINTSHOP_MASTER_BOOK.md'
   pull_request:
     paths:
       - 'cloudflare-d1/src/autonomy-policy-v1.mjs'
       - 'tests/trendos_autonomy_policy_v1.test.mjs'
-      - 'docs/trendos/AUTONOMOUS_PRINTSHOP_60_DAY_PROGRAM.md'
-      - 'TrendOS_MASTER_BOOK.md'
+      - 'docs/autonomous-printshop/60_DAY_PROGRAM.md'
+      - 'AUTONOMOUS_PRINTSHOP_MASTER_BOOK.md'
 
 permissions:
   contents: read
