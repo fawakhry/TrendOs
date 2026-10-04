@@ -1,0 +1,210 @@
+name: TrendOS Entry619 EasyStore SSO2 Controlled Frontend
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry619-easystore-sso2-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry619-easystore-sso2-controlled
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      EXPECTED_API_VERSION: de2c825d-ef63-407d-90dc-8059a9d4f192
+      EXPECTED_FRONTEND_VERSION: 011a01ee-b51b-44d2-84ff-b08d88712d85
+      OLD_TAG: entry619-d1-readonly-sso-20261004
+      NEW_TAG: entry619-d1-readonly-sso2-20261004
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact Production preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui.json
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label,expected,out){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+            if(full.length!==1||full[0].id!==expected)throw new Error(label+' version drift');
+            if(out)fs.writeFileSync(out,full[0].id);
+            console.log('ENTRY619_SSO2_'+label+'_VERSION_LOCK=PASS');
+          }
+          active('/tmp/api.json','API',process.env.EXPECTED_API_VERSION);
+          active('/tmp/ui.json','FRONTEND',process.env.EXPECTED_FRONTEND_VERSION,'/tmp/pre-ui-version.txt');
+          NODE
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry619sso2=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const a=r('/tmp/accounting.json'),o=r('/tmp/ops.json'),au=r('/tmp/auth.json'),b=r('/tmp/legacy-action.json');
+          if(a.mode!=='READONLY'||Number(a.policyEpoch||0)!==2||a.authoritativeWrites!==false)throw new Error('accounting drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7)throw new Error('ops drift');
+          if(au.mode!=='OFF'||au.envEnabled!==false)throw new Error('auth drift');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0)throw new Error('bridge drift');
+          for(const f of ['content','comms','core'])if(r('/tmp/'+f+'.json').mode!=='OFF')throw new Error(f+' drift');
+          console.log('ENTRY619_SSO2_CONTROL_PREFLIGHT=PASS');
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry619sso2pre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry619sso2pre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry619sso2pre=$suffix" -o /tmp/live-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry619sso2pre=$suffix" -o /tmp/live-edge.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/index.html?entry619sso2=$suffix" -o /tmp/easy-index.html
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/config.js?entry619sso2=$suffix" -o /tmp/easy-config.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/app.js?entry619sso2=$suffix" -o /tmp/easy-app.js
+
+          grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" /tmp/live-app.js
+          grep -Fq "entry619PostEmployeeSso" /tmp/live-app.js
+          grep -Fq "MATBAGY_EASYSTORE_VERSION_PARAM = '$OLD_TAG'" /tmp/live-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" /tmp/live-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" /tmp/live-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/live-config.js
+          grep -Fq "T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004" /tmp/live-dispatcher.js
+          ! grep -Fq "canaryRouteEnabled" /tmp/live-dispatcher.js
+          grep -Fq "postWriteBarrierRecoveries" /tmp/live-edge.js
+          grep -Fq "recoverPostWriteBarrier" /tmp/live-edge.js
+
+          grep -Fq "$NEW_TAG" /tmp/easy-index.html
+          grep -Fq "EASYSTORE_ACCOUNTING_D1_READONLY = true" /tmp/easy-config.js
+          grep -Fq "entry619SchedulePostSsoRead" /tmp/easy-app.js
+          grep -Fq "D1 READONLY" /tmp/easy-app.js
+          grep -Fq "SSO OK" /tmp/easy-app.js
+          echo 'ENTRY619_SSO2_EASYSTORE_PAGES_LIVE=PASS'
+
+      - name: Build exact-live tag-only patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+          cp /tmp/live-app.js cloudflare-d1/frontend-dist/app.js
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-dispatcher.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          cp /tmp/live-edge.js cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+
+          OLD="$OLD_TAG" NEW="$NEW_TAG" python3 <<'PY'
+          from pathlib import Path
+          import os
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+          old=os.environ['OLD']; new=os.environ['NEW']
+          if s.count(old)!=1:
+              raise SystemExit('entry619-sso2-old-tag-count='+str(s.count(old)))
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/app.js
+          grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "entry619PostEmployeeSso" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "MATBAGY_EASYSTORE_VERSION_PARAM = '$NEW_TAG'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "postWriteBarrierRecoveries" cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          grep -Fq "recoverPostWriteBarrier" cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          echo 'ENTRY619_SSO2_TAG_ONLY_PATCH=PASS'
+
+      - name: Deploy frontend only with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry619 SSO2 automatic rollback" --config "$FRONTEND_CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry619sso2post=$suffix" -o /tmp/post-config.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry619sso2post=$suffix" -o /tmp/post-app.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry619sso2post=$suffix" -o /tmp/post-dispatcher.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry619sso2post=$suffix" -o /tmp/post-edge.js \
+              && grep -Fq "MATBAGY_EASYSTORE_VERSION_PARAM = '$NEW_TAG'" /tmp/post-config.js \
+              && grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" /tmp/post-app.js \
+              && grep -Fq "entry619PostEmployeeSso" /tmp/post-app.js \
+              && grep -Fq "T12_ENTRY619_ACCOUNTING_READONLY_V1_20261004" /tmp/post-dispatcher.js \
+              && grep -Fq "postWriteBarrierRecoveries" /tmp/post-edge.js; then
+                OK=1
+                echo "ENTRY619_SSO2_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry619sso2post=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const a=r('/tmp/accounting-post.json'),o=r('/tmp/ops-post.json'),au=r('/tmp/auth-post.json'),b=r('/tmp/legacy-action-post.json');
+          if(a.mode!=='READONLY'||Number(a.policyEpoch||0)!==2||a.authoritativeWrites!==false)throw new Error('accounting post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7)throw new Error('ops post drift');
+          if(au.mode!=='OFF'||au.envEnabled!==false)throw new Error('auth post drift');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0)throw new Error('bridge post drift');
+          for(const f of ['content','comms','core'])if(r('/tmp/'+f+'-post.json').mode!=='OFF')throw new Error(f+' post drift');
+          console.log('ENTRY619_SSO2_POSTCUTOVER_HEALTH=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1)throw new Error('frontend post version');
+          console.log('ENTRY619_SSO2_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo 'ENTRY619_SSO2_STATUS=FRONTEND_TAG_DEPLOY_PASS'
+          echo 'ENTRY619_SSO2_API_DEPLOY=NO'
+          echo 'ENTRY619_SSO2_D1_MUTATION=NO'
+          echo 'ENTRY619_SSO2_APPS_SCRIPT_TOUCHED=NO'
