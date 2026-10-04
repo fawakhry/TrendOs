@@ -1771,6 +1771,26 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Production_API_fix_deployed=NO
   NEXT_ACTION=OWNER_DEPLOY_QUALIFIED_TRENDOS_D1_API_SHADOW_TTL_FIX_THEN_RELOGIN_AND_VERIFY_BEFORE_0013
   ```
+- To prevent accidental publication of unrelated Zero-Google repo work, a minimal Production hotfix branch was created from the exact qualified API source base used for the live Entry599/600 target:
+  ```ini
+  HOTFIX_BRANCH=hotfix/entry615a-cloud-auth-shadow-12h-20261004
+  HOTFIX_BASE=c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281
+  HOTFIX_HEAD=2bcba927946275c21eb4ad14ec997a96cbcab583
+  AHEAD_BY=2
+  BEHIND_BY=0
+  CHANGED_FILES=2
+  ```
+- Exact hotfix diff:
+  1. `cloudflare-d1/src/cloud-auth-shadow-v1.mjs`: 300/900 sec → 43200/43200 sec.
+  2. `cloudflare-d1/wrangler.toml`: `CLOUD_AUTH_SHADOW_TTL_SECONDS=300` → `43200`.
+- No migrations, Orders code, Customers code, frontend, Apps Script, Native Auth flags, Bridge flags, or Zero-Google family handlers are included in the hotfix diff.
+- Hotfix file content SHAs are identical to the CI-qualified candidate copies:
+  ```ini
+  cloud-auth-shadow-v1.mjs=96d1a8ea0925d8594ead3a282757d7f8da723a63
+  wrangler.toml=7ade68ce256f82f72cb2db14ab8e115f82c1106a
+  ```
+- Production API remains unchanged until owner explicitly deploys this hotfix.
+
 
 ### Customers
 - Customer master = 247 rows في D1.
