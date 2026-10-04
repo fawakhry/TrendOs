@@ -3350,3 +3350,134 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
   NEXT_ACTION=NONE_FOR_ENTRY620; MONITOR_NORMAL_OPERATION
   ```
 
+### Entry621 — TrendOS-first Zero-Google scope lock + Employee Auth/Session read-only audit
+
+#### Owner scope decision
+- القرار: **نكمل قفل TrendOS أولًا، ونؤجل EasyStore Accounting لأنه Repo مستقل**.
+- Accounting repo:
+  - `fawakhry/EasyStore`
+- Accounting freeze boundary:
+  - لا ترقية `ACCOUNTING` إلى `GENERAL` الآن.
+  - لا تعديل EasyStore ضمن برنامج قفل TrendOS الحالي.
+  - تبقى الحالة الحالية:
+    ```ini
+    ACCOUNTING=READONLY
+    ACCOUNTING_POLICY_EPOCH=2
+    ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+    ```
+- لا يجوز إعلان `ZERO_GOOGLE_COMPLETE=YES` للنظام بالكامل طالما EasyStore أو أي Runtime خارجي مطلوب ما زال يعتمد على Google.
+- يجوز لاحقًا تسجيل إغلاق TrendOS نفسه بشكل منفصل فقط بعد إثباته Runtime، مثل:
+  `TRENDOS_ZERO_GOOGLE=PASS`
+  مع بقاء:
+  `ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO`
+  حتى إغلاق EasyStore مستقلًا.
+
+#### Read-only Auth/Session audit
+- Dedicated workflow commit:
+  - `a3dfaedfa5753438abcc69aa41982ee960102610`
+- Workflow:
+  - `.github/workflows/trendos-entry621-auth-session-readonly-audit.yml`
+- Run:
+  - `37218299039`
+- Job:
+  - `111483244583`
+- conclusion = **SUCCESS**.
+- Active Production deployments observed:
+  ```ini
+  API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  API_TRAFFIC=100
+  UI_VERSION=bfcc6f85-a748-4b66-a334-b605c72108f7
+  UI_TRAFFIC=100
+  ```
+- Current Employee Auth runtime:
+  ```ini
+  AUTH_MODE=OFF
+  AUTH_ENV_ENABLED=false
+  D1_AUTH_POLICY_EPOCH=22
+  D1_USER_COUNT=0
+  D1_NATIVE_READY_COUNT=0
+  D1_SESSION_COUNT=0
+  D1_LIVE_SESSION_COUNT=0
+  PLAINTEXT_STORED=false
+  ```
+- Current compatibility bridge runtime:
+  ```ini
+  BRIDGE_ENABLED=false
+  BRIDGE_SECRET_CONFIGURED=false
+  BRIDGE_POLICY_COUNT=0
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+  CF_BRIDGE_SECRET_PRESENT=false
+  CF_BRIDGE_POLICIES_EMPTY=true
+  APPS_SCRIPT_BRIDGE_ROUTE_LIVE=true
+  APPS_SCRIPT_BRIDGE_ENABLED=NO
+  ```
+- Cloudflare auth switches:
+  ```ini
+  CF_AUTH_ENABLED=false
+  CF_BOOTSTRAP_ENABLED=false
+  CF_NATIVE_ONLY=false
+  CF_SESSION_ENROLL_ENABLED=false
+  CF_BRIDGE_ENABLED=false
+  ```
+- Live frontend:
+  ```ini
+  FRONTEND_NATIVE_AUTH=OFF
+  FRONTEND_BRIDGE=OFF
+  FRONTEND_NATIVE_CANARY=ABSENT
+  FRONTEND_OPS=GENERAL
+  FRONTEND_ACCOUNTING=READONLY
+  ```
+- Other current family controls preserved:
+  ```ini
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ```
+- Audit boundary:
+  ```ini
+  PRODUCTION_MUTATION=NO
+  D1_MUTATION=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  APPS_SCRIPT_TOUCHED=NO
+  SECRETS_TOUCHED=NO
+  AUTH_MODE_CHANGED=NO
+  ACCOUNTING_TOUCHED=NO
+  ```
+
+#### Current interpretation
+- TrendOS employee login/session authority **لم ينتقل بعد إلى D1**.
+- D1 Native Auth foundation موجود ومؤهل source-wise، لكن Runtime ما زال OFF ولا يوجد أي native-ready employee أو D1 employee session.
+- Compatibility Bridge موجود في الكود والمسار على Apps Script live، لكنه غير مسلح:
+  - no shared secret;
+  - no policies;
+  - enable = OFF.
+- لذلك أول خطوة انتقالية حقيقية لاحقة ليست تغيير Login مباشرة؛ هي **Gate 1: إعداد Compatibility Bridge وهو ما زال OFF**:
+  1. shared bridge secret على Cloudflare + Apps Script بدون إظهار القيمة؛
+  2. read-only pilot policies فقط؛
+  3. إبقاء bridge enable = OFF؛
+  4. إبقاء Auth = OFF؛
+  5. postflight يثبت عدم تغير سلوك الموظفين.
+- هذه الخطوة التالية تمس Secrets / Apps Script Script Properties، لذلك **لا تُنفذ ضمن هذا الـread-only audit** وتحتاج موافقة تنفيذ صريحة منفصلة.
+
+#### Registration
+```ini
+STATUS=ENTRY621_TRENDOS_FIRST_SCOPE_LOCK_AND_AUTH_READONLY_AUDIT_PASS
+TRENDOS_PROGRAM=CONTINUE_ZERO_GOOGLE
+ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+EMPLOYEE_SESSION=D1_NATIVE_NOT_STARTED
+D1_NATIVE_READY_USERS=0
+D1_LIVE_SESSIONS=0
+BRIDGE=OFF
+BRIDGE_SECRET=ABSENT
+BRIDGE_POLICIES=0
+NEXT_GATE=PREPARE_COMPATIBILITY_BRIDGE_SECRET_AND_READONLY_POLICIES_WHILE_AUTH_AND_BRIDGE_REMAIN_OFF
+NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
+```
+
