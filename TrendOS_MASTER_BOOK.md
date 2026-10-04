@@ -2159,6 +2159,32 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=RUN_SPLIT_PARITY_QUERIES
   ```
 
+
+- Entry615 split parity — Ops/Content/Comms:
+  ```ini
+  attendance_days=90 PASS
+  attendance_pulses=191 PASS
+  attendance_settings=25 PASS
+  special_times=2 PASS
+  hr_employees=4 PASS
+  hr_skills=9 PASS
+  cleaning=83 PASS
+  press_settings=10 PASS
+  press_sessions=2 PASS
+  content_records=284 PASS
+  conversations=1 PASS
+  messages=6 PASS
+  feedback_requests=166 PASS
+  go_live_drafts=39 PASS
+  ```
+- All values exactly match refreshed Entry615 snapshot expectations.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_PARITY_OPS_CONTENT_COMMS_PASS
+  FAMILY_CONTROLS=OFF
+  NEXT_ACTION=RUN_ACCOUNTING_CORE_AND_INTEGRITY_PARITY
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
