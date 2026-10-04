@@ -29,6 +29,7 @@
 
   var BRIDGE_PATH = '/v1/employee/legacy-action';
   var OPS_PATH = '/v1/employee/ops';
+  var ACCOUNTING_PATH = '/v1/employee/accounting';
 
   var OPS_ACTIONS = new Set([
     'attendanceV1',
@@ -46,6 +47,14 @@
     'hrV1:employees',
     'cleaningV1:status',
     'pressControlV1:status'
+  ]);
+
+  // Entry619 begins Accounting as READONLY only. Do not route writes until
+  // legacy action parity gaps (including init/recalculate) are closed.
+  var ACCOUNTING_READ_ACTIONS = new Set([
+    'getAccounting',
+    'getDeptInvoiceDraftV1887',
+    'getPartyAccountV1858'
   ]);
 
   var CUSTOMER_SESSION_ACTIONS = new Set([
@@ -158,6 +167,16 @@
     if (mode === 'OFF') return false;
     if (mode === 'GENERAL') return true;
     return OPS_READ_ONLY_KEYS.has(opsPolicyKey(action, params || {}));
+  }
+
+  function employeeAccountingMode() {
+    var mode = text(window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE || 'OFF').toUpperCase();
+    return mode === 'READONLY' ? mode : 'OFF';
+  }
+
+  function shouldRouteAccountingNative(action) {
+    if (employeeAccountingMode() !== 'READONLY') return false;
+    return ACCOUNTING_READ_ACTIONS.has(text(action));
   }
 
   function edgeBase() {
@@ -372,6 +391,29 @@
     return cloudPost(OPS_PATH, p, token);
   }
 
+  async function employeeAccountingNative(action, params) {
+    var p = Object.assign({}, params || {});
+    var token = text(p.token);
+    var username = text(p.username || p.name);
+    if (!username || !token) {
+      throw routeError(
+        'EMPLOYEE_ACCOUNTING_SESSION_REQUIRED',
+        'جلسة الموظف الحالية مطلوبة لمسار الحسابات السحابي.'
+      );
+    }
+
+    delete p.token;
+    delete p.password;
+    delete p.oldPassword;
+    delete p.newPassword;
+    delete p.confirmPassword;
+    delete p.employeePassword;
+
+    p.action = text(action);
+    p.username = username;
+    return cloudPost(ACCOUNTING_PATH, p, token);
+  }
+
   async function nativeAuth(action, params) {
     var path = AUTH_PATHS[action];
     if (!path) throw routeError('EMPLOYEE_AUTH_ACTION_UNKNOWN', 'إجراء مصادقة الموظف غير معروف.');
@@ -469,6 +511,7 @@
     async function wrapped(action, params) {
       var p = params || {};
       if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);
+      if (shouldRouteAccountingNative(action)) return employeeAccountingNative(action, p);
       if (!nativeRouteEnabled(p)) return original.apply(this, arguments);
       await ensureCanaryPreflight(action, p);
       return dispatchNative(action, p, original, this, arguments);
@@ -486,6 +529,10 @@
 
     if (shouldRouteOpsNative(actionText, p)) {
       return employeeOpsNative(actionText, p);
+    }
+
+    if (shouldRouteAccountingNative(actionText)) {
+      return employeeAccountingNative(actionText, p);
     }
 
     if (!nativeRouteEnabled(p)) {
@@ -540,6 +587,9 @@
     opsPolicyKey: opsPolicyKey,
     shouldRouteOpsNative: shouldRouteOpsNative,
     employeeOpsNative: employeeOpsNative,
+    employeeAccountingMode: employeeAccountingMode,
+    shouldRouteAccountingNative: shouldRouteAccountingNative,
+    employeeAccountingNative: employeeAccountingNative,
     policyKey: policyKey,
     policyAllowed: policyAllowed,
     install: install,
