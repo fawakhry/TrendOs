@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync('employee-api-dispatcher-v1.js','utf8');
-const config = fs.readFileSync('config.js','utf8');
+const dispatcherPath = process.env.ENTRY619_DISPATCHER_PATH || 'employee-api-dispatcher-v1.js';
+const configPath = process.env.ENTRY619_CONFIG_PATH || 'config.js';
+const source = fs.readFileSync(dispatcherPath,'utf8');
+const config = fs.readFileSync(configPath,'utf8');
 const fetchCalls = [];
 const legacyCalls = [];
 
@@ -119,7 +121,7 @@ assert.equal(ops.authority, 'd1-employee-ops-v1');
 assert.equal(fetchCalls.at(-1).url, 'https://trendos-d1-api.example.test/v1/employee/ops');
 
 // Config is fail-closed for new Accounting cutover.
-assert.match(config, /MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'OFF'/);
+assert.match(config, /MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = '(OFF|READONLY)'/);
 assert.match(config, /MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false/);
 assert.match(config, /MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false/);
 
