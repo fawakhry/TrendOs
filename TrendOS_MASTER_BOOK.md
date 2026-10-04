@@ -1771,6 +1771,42 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Production_API_fix_deployed=NO
   NEXT_ACTION=OWNER_DEPLOY_QUALIFIED_TRENDOS_D1_API_SHADOW_TTL_FIX_THEN_RELOGIN_AND_VERIFY_BEFORE_0013
   ```
+- Owner completed the isolated Production API hotfix deployment from the exact hotfix package.
+- Cloudflare deployment verification from Wrangler:
+  ```ini
+  PREVIOUS_VERSION=ce156662-a698-47fc-b73c-dfd4657be9f5
+  NEW_VERSION=62cad27e-76c4d-4f56-9b37-849f2e7256c7
+  TRAFFIC=100%
+  CREATED=2026-10-04T10:46:45.432Z
+  AUTHOR=trendmall.contact@gmail.com
+  ```
+- Immediate public postflight after deployment:
+  ```ini
+  EMPLOYEE_AUTH_MODE=OFF
+  EMPLOYEE_AUTH_ENV_ENABLED=NO
+  NATIVE_AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  LEGACY_BRIDGE_ENABLED=NO
+  LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+  ORDER_CREATE_MODE=GENERAL
+  DUPLICATE_GUARD_READY=YES
+  CUSTOMER_WRITE_MODE=GENERAL
+  CUSTOMER_COUNT_RUNTIME=251
+  LINE_RUNTIME_SCHEMA=READY
+  LINE_RUNTIME_WRITE_MODE=cloud-native+legacy-overlay
+  ```
+- No 0013 migration has been applied yet. Entry615 remains paused until a browser employee session survives >5 minutes and a legacy employee business action succeeds.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615A_HOTFIX_DEPLOYED_WAITING_6_MINUTE_BROWSER_PROOF
+  PRODUCTION_API_VERSION=62cad27e-76c4d-4f56-9b37-849f2e7256c7
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NOT_APPLIED
+  Employee_Auth=OFF
+  Employee_Bridge=OFF
+  NEXT_ACTION=EMPLOYEE_LOGOUT_LOGIN_WAIT_OVER_5_MINUTES_THEN_RUN_BUSINESS_ACTION
+  ```
+
 - To prevent accidental publication of unrelated Zero-Google repo work, a minimal Production hotfix branch was created from the exact qualified API source base used for the live Entry599/600 target:
   ```ini
   HOTFIX_BRANCH=hotfix/entry615a-cloud-auth-shadow-12h-20261004
