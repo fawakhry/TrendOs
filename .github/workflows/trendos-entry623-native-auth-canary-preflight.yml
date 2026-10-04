@@ -156,12 +156,13 @@ jobs:
           suffix="$GITHUB_SHA-$(date +%s)"
           curl --fail --silent --show-error --location "$UI_URL/config.js?entry623=$suffix" -o /tmp/config.js
           curl --fail --silent --show-error --location "$UI_URL/employee-api-dispatcher-v1.js?entry623=$suffix" -o /tmp/dispatcher.js
-          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" /tmp/config.js
-          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false" /tmp/config.js
-          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" /tmp/config.js
-          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" /tmp/config.js
-          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" /tmp/config.js
+          grep -E "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1[[:space:]]*=[[:space:]]*false" /tmp/config.js
+          grep -E "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1[[:space:]]*=[[:space:]]*false" /tmp/config.js
+          grep -E "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1[[:space:]]*=[[:space:]]*false" /tmp/config.js
+          grep -E "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE[[:space:]]*=[[:space:]]*['\"]GENERAL['\"]" /tmp/config.js
+          grep -E "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE[[:space:]]*=[[:space:]]*['\"]READONLY['\"]" /tmp/config.js
           grep -Fq "canaryMinimumBridgePolicies" /tmp/dispatcher.js
+          grep -E "MATBAGY_EMPLOYEE_NATIVE_AUTH_(V1|CANARY_V1|CANARY_MIN_BRIDGE_POLICIES)|MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1|MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE|MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE" /tmp/config.js | head -20
           echo ENTRY623_FRONTEND_CANARY=OFF
           echo ENTRY623_FRONTEND_BRIDGE=OFF
           echo ENTRY623_FRONTEND_OPS=GENERAL
