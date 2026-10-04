@@ -1,0 +1,41 @@
+name: TrendOS Entry617 Live Frontend Diff Readonly
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry617-live-frontend-diff-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      BASE: 2da755ca910b84911378c018d050cf806d8349d5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+      - name: Compare exact live config and dispatcher to pre-Entry617 repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "$BASE:config.js" > /tmp/repo-config.js
+          git show "$BASE:employee-api-dispatcher-v1.js" > /tmp/repo-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry617diff=$GITHUB_SHA" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry617diff=$GITHUB_SHA" -o /tmp/live-dispatcher.js
+          echo "LIVE_CONFIG_SHA256=$(sha256sum /tmp/live-config.js | awk '{print $1}')"
+          echo "LIVE_DISPATCHER_SHA256=$(sha256sum /tmp/live-dispatcher.js | awk '{print $1}')"
+          echo ENTRY617_CONFIG_DIFF_BEGIN
+          diff -u /tmp/live-config.js /tmp/repo-config.js || true
+          echo ENTRY617_CONFIG_DIFF_END
+          echo ENTRY617_DISPATCHER_DIFF_BEGIN
+          diff -u /tmp/live-dispatcher.js /tmp/repo-dispatcher.js || true
+          echo ENTRY617_DISPATCHER_DIFF_END
+          echo ENTRY617_LIVE_DIFF_READONLY=PASS
