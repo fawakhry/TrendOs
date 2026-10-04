@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','easyStoreSystemHealth']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -102,6 +102,127 @@ async function getAccounting(env,auth){
   const invoices=(auth.mode==='full'||auth.mode==='final')?(await rows(env,'SELECT * FROM employee_accounting_final_invoices_v1 ORDER BY created_at_ms DESC LIMIT 300')).map(invoiceView):[];
   return {success:true,permissions:permissions(auth),materials:mats,templates:temps,deptLines:dlines,finalInvoices:invoices,sales:[],purchases:[],dailyPurchases:[],custodyEntries:[],custodySummary:[],departmentDayCloses:[],unclassifiedRows:[],wasteLines:[],stockMoves:[],summary:await summary(env,auth),version:'ENTRY614_D1_ACCOUNTING_V1'};
 }
+
+async function customerBalanceByName(env,name){
+  const r=await env.DB.prepare("SELECT balance_after FROM employee_accounting_party_ledger_v1 WHERE party_type='customer' AND party_name=? ORDER BY created_at_ms DESC LIMIT 1").bind(text(name)).first();
+  return r?num(r.balance_after):0;
+}
+function customerViewV1(r){
+  const balance=num(r.current_balance);
+  return {
+    customerId:text(r.customer_id),id:text(r.customer_id),name:text(r.customer_name),customerName:text(r.customer_name),
+    manager:text(r.manager),phone:text(r.phone||r.extra_phone),mobile:text(r.phone||r.extra_phone),extraPhone:text(r.extra_phone),
+    type:text(r.customer_type),active:text(r.active),debt:balance,debtAmount:balance,currentBalance:balance,remainingBalance:balance
+  };
+}
+async function getEasyStoreCustomersV1(env,b){
+  const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
+  const list=await rows(env,`
+    SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
+      COALESCE((SELECT l.balance_after FROM employee_accounting_party_ledger_v1 l
+        WHERE l.party_type='customer' AND l.party_name=c.customer_name
+        ORDER BY l.created_at_ms DESC LIMIT 1),0) AS current_balance
+    FROM t12_customers c
+    WHERE c.active='نعم'
+    ORDER BY c.updated_at DESC,c.customer_name
+    LIMIT ?
+  `,[limit]);
+  return {success:true,customers:list.map(customerViewV1),version:'A1_D1_READ_MODEL_V1'};
+}
+async function searchCustomersV1(env,b){
+  const q=key(b.q);
+  if(!q)return {success:true,customers:[],version:'A1_D1_READ_MODEL_V1'};
+  const like='%'+q+'%';
+  const list=await rows(env,`
+    SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
+      COALESCE((SELECT l.balance_after FROM employee_accounting_party_ledger_v1 l
+        WHERE l.party_type='customer' AND l.party_name=c.customer_name
+        ORDER BY l.created_at_ms DESC LIMIT 1),0) AS current_balance
+    FROM t12_customers c
+    WHERE c.active='نعم'
+      AND lower(c.customer_name || ' ' || c.manager || ' ' || c.phone || ' ' || c.extra_phone || ' ' || c.customer_type) LIKE ?
+    ORDER BY c.updated_at DESC,c.customer_name
+    LIMIT 12
+  `,[like]);
+  return {success:true,customers:list.map(customerViewV1),version:'A1_D1_READ_MODEL_V1'};
+}
+async function getCustomerAccountV1915V1(env,auth,b){
+  if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء عند ضياء / رحمه / ريفان فقط.'};
+  const requested=text(b.customerId||b.customerName||b.partyName||b.name);
+  if(!requested)return {success:false,message:'اختر العميل أولًا.'};
+  let customer=await env.DB.prepare(`
+    SELECT customer_id,customer_name,manager,phone,extra_phone,customer_type,active
+    FROM t12_customers
+    WHERE customer_id=? OR customer_name=?
+    ORDER BY updated_at DESC LIMIT 1
+  `).bind(requested,requested).first();
+  if(!customer){
+    customer=await env.DB.prepare(`
+      SELECT customer_id,customer_name,manager,phone,extra_phone,customer_type,active
+      FROM t12_customers
+      WHERE lower(customer_name)=lower(?)
+      ORDER BY updated_at DESC LIMIT 1
+    `).bind(requested).first();
+  }
+  if(!customer)return {success:false,message:'العميل غير موجود في سجل العملاء. اختر الاسم من القائمة.'};
+  const tx=await rows(env,`
+    SELECT transaction_id AS id,created_at_ms AS createdAtMs,operation,operation_label AS operationLabel,
+      amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,
+      balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source
+    FROM employee_accounting_party_ledger_v1
+    WHERE party_type='customer' AND party_name=?
+    ORDER BY created_at_ms DESC
+    LIMIT 200
+  `,[customer.customer_name]);
+  const balance=tx.length?num(tx[0].balanceAfter):await customerBalanceByName(env,customer.customer_name);
+  const view=customerViewV1({...customer,current_balance:balance});
+  return {
+    success:true,customer:view,partyName:view.name,balance,transactions:tx,
+    permissions:{canCollect:true,canAdjust:auth.mode==='full'},
+    version:'A1_D1_READ_MODEL_V1'
+  };
+}
+async function easyStoreSystemHealthV1(env,auth){
+  const c=await control(env);
+  const prepared=await env.DB.prepare("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").first();
+  const openLines=await rows(env,`
+    SELECT accounting_line_id AS id,order_id AS orderId,department,
+      CASE WHEN approval_status='معتمد من القسم' THEN 1 ELSE 0 END AS approved
+    FROM employee_accounting_dept_lines_v1
+    WHERE final_invoice_no=''
+    ORDER BY updated_at DESC LIMIT 100
+  `);
+  const lowStock=await rows(env,`
+    SELECT material_name AS material,department,stock_qty AS stock,min_stock AS minimum
+    FROM employee_accounting_materials_v1
+    WHERE active=1 AND min_stock>0 AND stock_qty<=min_stock
+    ORDER BY material_name LIMIT 100
+  `);
+  const pendingCount=Number(prepared&&prepared.n||0);
+  return {
+    success:true,
+    healthy:pendingCount===0,
+    message:pendingCount===0?'D1 accounting read model is healthy.':'يوجد طلب حسابات غير مكتمل يحتاج مراجعة.',
+    version:'A1_D1_READ_MODEL_V1',
+    checks:{
+      duplicateLedgerRequests:[],
+      duplicateCashboxRequests:[],
+      pendingRequestLedgerCount:pendingCount,
+      automationPreview:{
+        pendingPurchases:[],
+        openDeptLines:openLines,
+        openCustodies:[],
+        unclassified:[],
+        lowStock,
+        partial:true,
+        unavailableDomains:['daily-purchases','custody','day-close']
+      }
+    },
+    control:{mode:text(c.mode),policyEpoch:Number(c.policyEpoch||0),authoritativeWrites:text(c.mode)==='GENERAL'},
+    permissions:permissions(auth)
+  };
+}
+
 async function saveMaterial(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إضافة وتعديل الخامات عند ضياء فقط.'};
   const name=text(b.materialName||b.name);if(!name)return {success:false,message:'اسم الخامة مطلوب.'};
@@ -301,6 +422,10 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
   try{
     let out;
     if(action==='getAccounting')out=await getAccounting(env,auth);
+    else if(action==='getEasyStoreCustomers')out=await getEasyStoreCustomersV1(env,b);
+    else if(action==='searchCustomers')out=await searchCustomersV1(env,b);
+    else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
+    else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='getDeptInvoiceDraftV1887')out=await draft(env,auth,b);
     else if(action==='approveAccountingDeptInvoice')out=await approveDept(env,auth,b);
     else if(action==='saveAccountingDeptLine')out=await saveDeptLine(env,auth,b);
