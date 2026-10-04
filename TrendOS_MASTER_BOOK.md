@@ -1913,6 +1913,33 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=RESUME_0015_IN_SMALL_IDEMPOTENT_D1_CONSOLE_CHUNKS
   ```
 
+
+- Owner manual D1 migration 0015 completed successfully using idempotent chunks A→E after the first large Console paste truncated.
+- Final verification:
+  ```ini
+  singleton=1
+  marker=ENTRY614_ACCOUNTING_V1
+  mode=OFF
+  next_invoice_number=1
+  policy_epoch=1
+  ```
+- therefore Accounting schema is fully applied and control remains safely OFF.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0015_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=APPLIED_PASS
+  EMPLOYEE_OPS_MODE=OFF
+  EMPLOYEE_CONTENT_MODE=OFF
+  EMPLOYEE_COMMS_MODE=OFF
+  EMPLOYEE_ACCOUNTING_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0016_EMPLOYEE_CORE_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
