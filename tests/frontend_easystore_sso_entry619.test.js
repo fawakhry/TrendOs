@@ -42,6 +42,6 @@ assert.match(open, /entry619PostEmployeeSso\(child,url\.origin,nonce,u,params\)/
 assert.doesNotMatch(open, /searchParams\.set\([^\n]*token/i);
 assert.doesNotMatch(open, /params=\{[^}]*token/);
 
-assert.match(config, /MATBAGY_EASYSTORE_VERSION_PARAM\s*=\s*'entry619-d1-readonly-sso-20261004'/);
+assert.match(config, /MATBAGY_EASYSTORE_VERSION_PARAM\s*=\s*'entry619-d1-readonly-sso2-20261004'/);
 
 console.log('Entry619 TrendOS -> EasyStore secure SSO source qualification passed');
