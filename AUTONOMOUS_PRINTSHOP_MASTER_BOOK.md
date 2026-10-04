@@ -410,3 +410,40 @@ AUTONOMOUS_PROJECT_BOOK_SEPARATE=YES
 
 Next:
 `AP-004 = source extraction manifest + recovered evaluations import + Operator Task D1 authority gap audit`.
+
+
+### AP-004 — Source extraction and project isolation
+
+Completed:
+- Removed AP-specific Entry624/Entry625 from `TrendOS_MASTER_BOOK.md`.
+- Moved 60-day program to `docs/autonomous-printshop/60_DAY_PROGRAM.md`.
+- Moved autonomy action seed to `docs/autonomous-printshop/staging/AP002_AUTONOMY_ACTION_CLASSIFICATION_SEED_V1.json`.
+- CI trigger no longer treats `TrendOS_MASTER_BOOK.md` as an Autonomy project document.
+- Corrected Fokha registry from deleted `Matbagy-Design-Workflow` to canonical `fawakhry/Matbagy-OS@main`.
+- Added `docs/autonomous-printshop/REUSE_EXTRACTION_MAP.md`.
+- Recovered historical Matbagy Evaluations executable source into:
+  - `autonomous-printshop/quarantine/evaluations-recovered/worker.mjs`
+  - `autonomous-printshop/quarantine/evaluations-recovered/worker_with_ui.mjs`
+  - `autonomous-printshop/quarantine/evaluations-recovered/README_CLOUDFLARE.md`
+  - quarantine safety README.
+- Extracted 13 initial Design Recipe candidates from canonical Matbagy-OS cases into:
+  - `docs/autonomous-printshop/design/DESIGN_RECIPE_EXTRACTION_SEED_V1.json`
+- Completed Operator Task D1 authority audit:
+  - `docs/autonomous-printshop/operator-task/OPERATOR_TASK_D1_AUTHORITY_GAP_AUDIT.md`
+  - result: stable product/API contract is reusable, but current D1 Task authority is absent; historical mutation authority is Apps Script/Sheet; autonomous target must implement D1 authority.
+
+Review-scope truth:
+- TrendOS blackbox archive inventory was fully enumerated.
+- The live master book and all project chains selected for reuse were deep-read through requirements, implementation/checkpoints and latest available runtime evidence.
+- Not every historical incident log in the 471-file archive was semantically read line-by-line; unrelated migration/incident archaeology remains archive-only and is not treated as product truth.
+
+```ini
+PROJECT_BOOK_ISOLATION=PASS
+TRENDOS_MASTER_AP_ENTRIES=REMOVED
+FOKHA_MATBAGY_POINTER=CORRECTED
+EVALUATIONS_SOURCE_RECOVERED=YES
+EVALUATIONS_SOURCE_DEPLOYED=NO
+DESIGN_RECIPE_CANDIDATES=13
+OPERATOR_TASK_D1_AUTHORITY=ABSENT
+NEXT_BUILD=P0_D1_OPERATOR_TASK_CORE_PLUS_MATBAGY_OS_CONNECTOR_CONTRACT
+```
