@@ -1,0 +1,418 @@
+name: TrendOS Entry617 Ops READONLY Controlled Cutover
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry617-ops-readonly-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry617-ops-readonly-controlled
+  cancel-in-progress: false
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      DATABASE: trendos-main
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      EXPECTED_API_VERSION: de2c825d-ef63-407d-90dc-8059a9d4f192
+      EXPECTED_LIVE_CONFIG_SHA256: 840d444e3469050a5724547a62103b3ef2cc2a77b151b37b430b85c31de54a31
+      EXPECTED_LIVE_DISPATCHER_SHA256: 4f36ba86fccb5ef010bec7f77bb59932be01c63978f09e05dc17ad69ed106fa2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Preflight exact Production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/api-deployments.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const d=ds[0]||{};
+          const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('api-active-version-not-single-100');
+          if(full[0].id!==process.env.EXPECTED_API_VERSION) throw new Error('api-version-drift:'+full[0].id);
+          console.log('ENTRY617_API_VERSION_LOCK=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/frontend-deployments.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const d=ds[0]||{};
+          const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend-active-version-not-single-100');
+          fs.writeFileSync('/tmp/pre-frontend-version.txt',full[0].id);
+          console.log('ENTRY617_PRE_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" -o /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" -o /tmp/bridge.json
+          for f in ops content comms accounting core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health" -o "/tmp/$f.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health" -o /tmp/orders.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health" -o /tmp/customers.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health" -o /tmp/line.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const a=read('/tmp/auth.json'), b=read('/tmp/bridge.json');
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth-not-off');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge-not-off');
+          for(const f of ['ops','content','comms','accounting','core']){
+            const x=read('/tmp/'+f+'.json');
+            if(x.mode!=='OFF'||x.schemaReady!==true||Number(x.googleBusinessCalls||0)!==0||x.appsScriptBusinessAuthority!==false) throw new Error('family-preflight:'+f);
+          }
+          const o=read('/tmp/orders.json'), c=read('/tmp/customers.json'), l=read('/tmp/line.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-baseline');
+          if(c.mode!=='GENERAL') throw new Error('customers-baseline');
+          if(l.schemaReady!==true||l.legacySchemaReady!==true||l.writeMode!=='cloud-native+legacy-overlay') throw new Error('line-baseline');
+          console.log('ENTRY617_PRECUTOVER_HEALTH=PASS');
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "SELECT mode,policy_epoch AS policyEpoch FROM employee_ops_control_v1 WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1';" > /tmp/ops-control-pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/ops-control-pre.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(typeof v.mode==='string'&&v.policyEpoch!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          if(rows.length!==1||rows[0].mode!=='OFF') throw new Error('ops-control-pre-not-off');
+          fs.writeFileSync('/tmp/pre-ops-epoch.txt',String(rows[0].policyEpoch));
+          console.log('ENTRY617_OPS_CONTROL_PRE=OFF');
+          NODE
+
+      - name: Rebuild exact live frontend and apply minimal Ops READONLY patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/entry617-livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/entry617-livebase "$LIVE_BASE_COMMIT" >/dev/null
+
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/entry617-livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 \
+            | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+
+          # All assets except these two were already proven byte-identical to Production.
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry617=$GITHUB_SHA" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry617=$GITHUB_SHA" -o /tmp/live-dispatcher.js
+          test "$(sha256sum /tmp/live-config.js | awk '{print $1}')" = "$EXPECTED_LIVE_CONFIG_SHA256"
+          test "$(sha256sum /tmp/live-dispatcher.js | awk '{print $1}')" = "$EXPECTED_LIVE_DISPATCHER_SHA256"
+
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-dispatcher.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          cfg=Path('cloudflare-d1/frontend-dist/config.js')
+          s=cfg.read_text()
+          old="window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];\n"
+          new=old+"// Entry617: Ops family READONLY cutover. Auth and Bridge remain OFF.\nwindow.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'READONLY';\n"
+          if s.count(old)!=1:
+              raise SystemExit('config-anchor-count')
+          s=s.replace(old,new)
+          if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in s:
+              raise SystemExit('entry611-canary-must-not-be-deployed')
+          cfg.write_text(s)
+
+          p=Path('cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js')
+          s=p.read_text()
+          s=s.replace("var VERSION = 'T12_A61_EMPLOYEE_API_DISPATCHER_V1_20260929';","var VERSION = 'T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004';",1)
+
+          anchor="  var BRIDGE_PATH = '/v1/employee/legacy-action';\n"
+          insert="""  var BRIDGE_PATH = '/v1/employee/legacy-action';
+          var OPS_PATH = '/v1/employee/ops';
+
+          var OPS_ACTIONS = new Set([
+            'attendanceV1',
+            'attendanceClockinV1',
+            'hrV1',
+            'cleaningV1',
+            'pressControlV1'
+          ]);
+
+          var OPS_READ_ONLY_KEYS = new Set([
+            'attendanceV1:state',
+            'attendanceV1:config',
+            'hrV1:myRequests',
+            'hrV1:requests',
+            'hrV1:employees',
+            'cleaningV1:status',
+            'pressControlV1:status'
+          ]);
+          """
+          if s.count(anchor)!=1:
+              raise SystemExit('dispatcher-bridge-anchor-count')
+          s=s.replace(anchor,insert,1)
+
+          anchor="""  function bridgeEnabled() {
+            return window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 === true;
+          }
+
+          """
+          insert=anchor+"""  function employeeOpsMode() {
+            var mode = text(window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE || 'OFF').toUpperCase();
+            return mode === 'READONLY' || mode === 'GENERAL' ? mode : 'OFF';
+          }
+
+          function opsPolicyKey(action, params) {
+            return text(action) + ':' + text(params && params.op);
+          }
+
+          function shouldRouteOpsNative(action, params) {
+            action = text(action);
+            if (!OPS_ACTIONS.has(action)) return false;
+            var mode = employeeOpsMode();
+            if (mode === 'OFF') return false;
+            if (mode === 'GENERAL') return true;
+            return OPS_READ_ONLY_KEYS.has(opsPolicyKey(action, params || {}));
+          }
+
+          """
+          if s.count(anchor)!=1:
+              raise SystemExit('dispatcher-mode-anchor-count')
+          s=s.replace(anchor,insert,1)
+
+          anchor="  async function nativeAuth(action, params) {\n"
+          insert="""  async function employeeOpsNative(action, params) {
+            var p = Object.assign({}, params || {});
+            var token = text(p.token);
+            var username = text(p.username || p.name);
+            if (!username || !token) {
+              throw routeError(
+                'EMPLOYEE_OPS_SESSION_REQUIRED',
+                'جلسة الموظف الحالية مطلوبة لمسار Ops السحابي.'
+              );
+            }
+
+            delete p.token;
+            delete p.password;
+            delete p.oldPassword;
+            delete p.newPassword;
+            delete p.confirmPassword;
+            delete p.employeePassword;
+
+            p.action = text(action);
+            p.username = username;
+            return cloudPost(OPS_PATH, p, token);
+          }
+
+          async function nativeAuth(action, params) {
+          """
+          if s.count(anchor)!=1:
+              raise SystemExit('dispatcher-native-auth-anchor-count')
+          s=s.replace(anchor,insert,1)
+
+          old="""    async function wrapped(action, params) {
+                if (!nativeEnabled()) return original.apply(this, arguments);
+                return dispatchNative(action, params || {}, original, this, arguments);
+              }
+          """
+          new="""    async function wrapped(action, params) {
+                var p = params || {};
+                if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);
+                if (!nativeEnabled()) return original.apply(this, arguments);
+                return dispatchNative(action, p, original, this, arguments);
+              }
+          """
+          if s.count(old)!=1:
+              raise SystemExit('dispatcher-wrapper-anchor-count')
+          s=s.replace(old,new,1)
+
+          old="""    var actionText = text(action);
+              var p = params || {};
+
+              if (!nativeEnabled()) {
+          """
+          new="""    var actionText = text(action);
+              var p = params || {};
+
+              if (shouldRouteOpsNative(actionText, p)) {
+                return employeeOpsNative(actionText, p);
+              }
+
+              if (!nativeEnabled()) {
+          """
+          if s.count(old)!=1:
+              raise SystemExit('dispatcher-api-anchor-count')
+          s=s.replace(old,new,1)
+
+          old="""    version: VERSION,
+              nativeEnabled: nativeEnabled,
+              bridgeEnabled: bridgeEnabled,
+          """
+          new="""    version: VERSION,
+              nativeEnabled: nativeEnabled,
+              bridgeEnabled: bridgeEnabled,
+              employeeOpsMode: employeeOpsMode,
+              opsPolicyKey: opsPolicyKey,
+              shouldRouteOpsNative: shouldRouteOpsNative,
+              employeeOpsNative: employeeOpsNative,
+          """
+          if s.count(old)!=1:
+              raise SystemExit('dispatcher-export-anchor-count')
+          s=s.replace(old,new,1)
+
+          if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in s or 'canaryRouteEnabled' in s:
+              raise SystemExit('entry611-canary-must-not-be-deployed')
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          ENTRY617_DISPATCHER_PATH=cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js \
+          ENTRY617_CONFIG_PATH=cloudflare-d1/frontend-dist/config.js \
+            node tests/frontend_employee_ops_family_router_entry617_generated.test.mjs
+
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'READONLY'" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq "canaryRouteEnabled" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+
+          echo ENTRY617_LIVE_BASE_PATCH=PASS
+          echo ENTRY617_ENTRY611_CANARY_DEPLOYED=NO
+
+      - name: Activate Ops READONLY then deploy minimal frontend with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE_FRONTEND_VERSION="$(cat /tmp/pre-frontend-version.txt)"
+          OPS_MUTATED=0
+          FRONTEND_DEPLOYED=0
+
+          rollback_on_error() {
+            rc=$?
+            trap - ERR
+            echo "ENTRY617_FAILURE_RC=$rc"
+            if [ "$FRONTEND_DEPLOYED" = "1" ]; then
+              echo "ENTRY617_ROLLBACK_FRONTEND_TO=$PRE_FRONTEND_VERSION"
+              npx wrangler rollback "$PRE_FRONTEND_VERSION" --message "Entry617 automatic rollback after Ops READONLY cutover failure" --config "$FRONTEND_CONFIG" || true
+            fi
+            if [ "$OPS_MUTATED" = "1" ]; then
+              echo "ENTRY617_ROLLBACK_OPS_TO=OFF"
+              npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --command "UPDATE employee_ops_control_v1 SET mode='OFF', policy_epoch=policy_epoch+1, updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1' AND mode='READONLY';" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback_on_error ERR
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "UPDATE employee_ops_control_v1 SET mode='READONLY', policy_epoch=policy_epoch+1, updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1' AND mode='OFF'; SELECT mode,policy_epoch AS policyEpoch FROM employee_ops_control_v1 WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1';" > /tmp/ops-readonly.json
+          OPS_MUTATED=1
+
+          node <<'NODE'
+          const fs=require('fs'), x=JSON.parse(fs.readFileSync('/tmp/ops-readonly.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.mode==='READONLY'&&v.policyEpoch!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          if(rows.length!==1) throw new Error('ops-readonly-update-not-proven');
+          console.log('ENTRY617_OPS_CONTROL=READONLY');
+          NODE
+
+          # Runtime semantic probe without any real employee session:
+          # qualified read reaches auth (401); write is blocked by READONLY before auth (503).
+          read_code="$(curl --silent --show-error --output /tmp/read-probe.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{"action":"attendanceV1","op":"state","username":"entry617-probe","token":"invalid"}' "$API_URL/v1/employee/ops")"
+          write_code="$(curl --silent --show-error --output /tmp/write-probe.json --write-out '%{http_code}' -X POST -H 'content-type: application/json' --data '{"action":"hrV1","op":"submitRequest","username":"entry617-probe","token":"invalid"}' "$API_URL/v1/employee/ops")"
+          test "$read_code" = "401"
+          test "$write_code" = "503"
+          grep -Fq '"code":"employee-session-rejected"' /tmp/read-probe.json
+          grep -Fq '"code":"employee-ops-readonly"' /tmp/write-probe.json
+          echo ENTRY617_OPS_READONLY_RUNTIME_SEMANTICS=PASS
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" | tee /tmp/entry617-frontend-deploy.log
+          FRONTEND_DEPLOYED=1
+
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry617post=$GITHUB_SHA" -o /tmp/post-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry617post=$GITHUB_SHA" -o /tmp/post-dispatcher.js
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'READONLY'" /tmp/post-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" /tmp/post-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" /tmp/post-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/post-config.js
+          grep -Fq "T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004" /tmp/post-dispatcher.js
+          grep -Fq "shouldRouteOpsNative" /tmp/post-dispatcher.js
+          ! grep -Fq "canaryRouteEnabled" /tmp/post-dispatcher.js
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" -o /tmp/auth-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" -o /tmp/bridge-post.json
+          for f in ops content comms accounting core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health" -o "/tmp/$f-post.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health" -o /tmp/orders-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health" -o /tmp/customers-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health" -o /tmp/line-post.json
+          curl --fail --silent --show-error "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry617post=$GITHUB_SHA" -o /tmp/edge-post.js
+
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const a=read('/tmp/auth-post.json'), b=read('/tmp/bridge-post.json');
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth-post');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge-post');
+          const ops=read('/tmp/ops-post.json');
+          if(ops.mode!=='READONLY'||ops.schemaReady!==true||Number(ops.googleBusinessCalls||0)!==0||ops.appsScriptBusinessAuthority!==false) throw new Error('ops-post');
+          for(const f of ['content','comms','accounting','core']){
+            const x=read('/tmp/'+f+'-post.json');
+            if(x.mode!=='OFF'||x.schemaReady!==true) throw new Error('other-family-post:'+f);
+          }
+          const o=read('/tmp/orders-post.json'), c=read('/tmp/customers-post.json'), l=read('/tmp/line-post.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-post');
+          if(c.mode!=='GENERAL') throw new Error('customers-post');
+          if(l.schemaReady!==true||l.legacySchemaReady!==true||l.writeMode!=='cloud-native+legacy-overlay') throw new Error('line-post');
+          console.log('ENTRY617_POSTCUTOVER_HEALTH=PASS');
+          NODE
+
+          grep -Fq 'postWriteBarrierRecoveries' /tmp/edge-post.js
+          grep -Fq 'recoverPostWriteBarrier' /tmp/edge-post.js
+          echo ENTRY617_REFRESH_FIX_PRESERVED=PASS
+
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-post-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/frontend-post-deployments.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const d=ds[0]||{};
+          const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend-post-version-not-single-100');
+          fs.writeFileSync('/tmp/post-frontend-version.txt',full[0].id);
+          console.log('ENTRY617_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY617_STATUS=OPS_READONLY_CUTOVER_PASS
+          echo ENTRY617_AUTH=OFF
+          echo ENTRY617_BRIDGE=OFF
+          echo ENTRY617_CONTENT=OFF
+          echo ENTRY617_COMMS=OFF
+          echo ENTRY617_ACCOUNTING=OFF
+          echo ENTRY617_CORE=OFF
+          echo ENTRY617_API_DEPLOY=NO
+          echo ENTRY617_APPS_SCRIPT_TOUCHED=NO
+          echo ENTRY617_ENTRY611_CANARY_DEPLOYED=NO
