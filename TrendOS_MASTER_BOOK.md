@@ -3273,3 +3273,75 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
   OWNER_DECISION=PAUSE_AND_SWITCH_TO_CURRENT_ISSUE
   ```
 
+### Entry620 — Attendance D1 response/UI contract hotfix
+- البلاغ التشغيلي: الموظف يسجل الدخول وتظهر شاشة **«تسجيل حضور وبدء اليوم»**؛ بعد الضغط لا تُفتح المنصة ويظل Start overlay مانع التشغيل.
+- Root cause المؤهل من source:
+  - بعد Entry618 أصبحت Ops = `GENERAL` على D1.
+  - `attendance-v1.js` كان يتوقع عقد Apps Script التاريخي:
+    - `{ success:true, state:{...}, config:{...} }`
+  - D1 `employee-ops-native-v1.mjs` يرجع:
+    - `{ success, date, started, attendance, pulses, config }`
+  - لذلك `doEvent("start")` كان ينجح على مسار D1 لكن `out.state` يكون غير موجود، فتتعامل الواجهة مع الحالة كأنها `not_started` ويظل Start overlay ظاهرًا.
+- الإصلاح:
+  - Frontend-only compatibility normalizer داخل `attendance-v1.js`.
+  - يحافظ على عقد Apps Script القديم كما هو إذا كان `out.state` موجودًا.
+  - يحول رد D1 الحالي إلى `state` متوافق مع UI، ويعيد بناء الحالة من `attendance + pulses`:
+    - working / paused / rest / prayer / review / ended.
+    - work/pause/rest minutes.
+    - review state + timestamps.
+  - لا API code change.
+  - لا D1 schema/control mutation.
+  - لا Apps Script touch.
+  - لا Auth/Bridge change.
+- Source:
+  - hotfix commit: `833de950417102a971a637cbf3a97c28a6e01ff2`.
+  - regression test commit: `89d9202ea21dec631a8c6c7aefb6ad5263bec0cf`.
+  - source CI workflow commit: `73c09238677e10ff3ec5e18f99fa54dfee0a3e01`.
+  - source CI Run `37215620142`, Job `111475401206` = **SUCCESS**.
+  - regression proves:
+    - D1 started response -> UI `working`.
+    - pause/resume/review/end transitions.
+    - deterministic work/pause totals for ended session.
+    - legacy `out.state` contract preserved unchanged.
+- Controlled Production frontend deploy:
+  - workflow commit: `5f13406bc61de3aba1f2eaa6ae3e3f5e531ec1ae`.
+  - Run `37215751609`, Job `111475791868` = **SUCCESS**.
+  - preflight locked exact previous frontend version:
+    - `1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7`.
+  - exact live attendance asset blob before patch:
+    - `4472b66306a31c365a5a3e2b98e73dece85e93f1`.
+  - patched attendance blob:
+    - `d7f2625aa03c18486069ee274d960adbf8cdcee4`.
+  - cache tag changed only for attendance module:
+    - `20260930-a61-cloud-transport` -> `20261004-entry620-d1-state-contract`.
+  - propagation PASS on attempt 8.
+  - new Production frontend version:
+    - `bfcc6f85-a748-4b66-a334-b605c72108f7`.
+- Post-deploy runtime controls preserved:
+  ```ini
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  AUTH=OFF
+  BRIDGE=OFF
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  API_DEPLOY=NO
+  D1_MUTATION=NO
+  APPS_SCRIPT_TOUCHED=NO
+  ```
+- Postdeploy asset proof:
+  - live `attendance-v1.js` contains `normalizeAttendanceBackendResponse`.
+  - live `config.js` points attendance loader to `20261004-entry620-d1-state-contract`.
+  - Entry619 SSO/accounting router and orders refresh recovery markers remain present.
+- الحالة:
+  ```ini
+  STATUS=ENTRY620_ATTENDANCE_UI_HOTFIX_DEPLOY_PASS
+  PRODUCTION_FRONTEND_VERSION=bfcc6f85-a748-4b66-a334-b605c72108f7
+  AUTOMATED_REGRESSION=PASS
+  REAL_EMPLOYEE_START_DAY_SMOKE=PENDING_OWNER_CONFIRMATION
+  NEXT_ACTION=EMPLOYEE_REFRESH_LOGIN_AND_PRESS_START_DAY_ONCE; VERIFY_OVERLAY_CLOSES_AND_PLATFORM_OPENS
+  ```
+
