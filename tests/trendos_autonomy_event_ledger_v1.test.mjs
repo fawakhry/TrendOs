@@ -55,7 +55,7 @@ assert.equal(writes[0].args[1],'CUSTOMER_INTAKE');
 assert.equal(writes[0].args[2],'order:1001:intake');
 assert.equal(writes[0].args[5],'HUMAN_EXCEPTION');
 assert.equal(writes[0].args[6],'AUTOPILOT_DEFAULT_OFF');
-assert.equal(writes[0].args[11].length,64);
+assert.equal(writes[0].args[10].length,64);
 
 const control=await readAutonomyControlV1(db);
 assert.equal(control.mode,'OFF');
