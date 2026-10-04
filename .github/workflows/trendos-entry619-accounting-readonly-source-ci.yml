@@ -66,4 +66,4 @@ jobs:
           console.log('ENTRY619_PRODUCTION_AUTH=OFF');
           console.log('ENTRY619_PRODUCTION_BRIDGE=OFF');
           console.log('ENTRY619_PRODUCTION_MUTATION=NO');
-        NODE
+          NODE
