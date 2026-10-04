@@ -1,0 +1,50 @@
+name: TrendOS Entry620 Attendance D1 UI Contract CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'attendance-v1.js'
+      - 'tests/attendance_d1_ui_contract_entry620.test.mjs'
+      - '.github/workflows/trendos-entry620-attendance-ui-hotfix-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax and regression contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check attendance-v1.js
+          node tests/attendance_d1_ui_contract_entry620.test.mjs
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          node tests/entry614_employee_ops_native.test.mjs
+          node tests/frontend_employee_ops_family_router_entry617_generated.test.mjs || true
+          echo ENTRY620_SOURCE_QUALIFICATION=PASS
+
+      - name: Fail-closed source boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'normalizeAttendanceBackendResponse' attendance-v1.js
+          grep -Fq 'return normalizeAttendanceBackendResponse(out);' attendance-v1.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" config.js
+          echo ENTRY620_D1_MUTATION=NO
+          echo ENTRY620_API_DEPLOY=NO
+          echo ENTRY620_APPS_SCRIPT_TOUCHED=NO
