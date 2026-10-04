@@ -1727,6 +1727,50 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   Backfill_applied=NO
   NEXT_ACTION=QUALIFY_REPO_ONLY_SHADOW_TTL_FIX_BEFORE_RESUMING_0013
   ```
+- Repo-only permanent fix prepared:
+  - `cloudflare-d1/src/cloud-auth-shadow-v1.mjs`
+    - default/max shadow TTL changed from 300/900 seconds to **43200 seconds (12h)**.
+    - commit `4feca2a9ccb917f3005b607b231a215d53928828`.
+  - `cloudflare-d1/wrangler.toml`
+    - `CLOUD_AUTH_SHADOW_TTL_SECONDS="43200"`.
+    - Native Auth remains OFF.
+    - Legacy Bridge remains OFF.
+    - commit `370abd188e76384fa0388bbdfaffeaf23b09bfa6`.
+  - dedicated regression test `tests/cloud_auth_shadow_idle_ttl_entry615a.test.mjs`
+    - commit `0523ef3d34b8de7c044e086fcc77ac62374d9615`.
+- Dedicated CI:
+  - Workflow commit `891ab6b06f80b5d451cc84758c2a8aafae602f60`.
+  - Run `37195215253`.
+  - Job `111415550894`.
+  - conclusion = **SUCCESS**.
+  - proved:
+    ```ini
+    ENTRY615A_SOURCE_TTL_12H=YES
+    ENTRY615A_IDLE_OVER_5_MINUTES=PASS
+    ENTRY615A_EXACT_FINGERPRINT_REVOKE=PASS
+    ENTRY504_STALE_EMPLOYEE_TOKEN_RACE_GUARD=PASS
+    A61_SERVER_SIDE_LEGACY_TRANSPORT=PASS
+    ENTRY533_EMPLOYEE_SESSION_ISOLATION=PASS
+    ENTRY615A_PRODUCTION_NATIVE_AUTH_OFF=YES
+    ENTRY615A_PRODUCTION_BRIDGE_OFF=YES
+    PRODUCTION_DEPLOY=NO
+    D1_MUTATION=NO
+    FRONTEND_DEPLOY=NO
+    APPS_SCRIPT_TOUCHED=NO
+    ```
+- Immediate workaround before the Worker fix is deployed: a fresh employee logout/login creates a new 5-minute shadow and restores the current browser temporarily. This is not a permanent fix.
+- 0013 remains paused until the Production API worker carries the qualified 12-hour shadow fix and the affected employee screen is rechecked.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615A_SHADOW_TTL_FIX_QUALIFIED_WAITING_PRODUCTION_API_DEPLOY
+  RUN_ID=37195215253
+  JOB_ID=111415550894
+  COMMIT=891ab6b06f80b5d451cc84758c2a8aafae602f60
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NOT_APPLIED
+  Production_API_fix_deployed=NO
+  NEXT_ACTION=OWNER_DEPLOY_QUALIFIED_TRENDOS_D1_API_SHADOW_TTL_FIX_THEN_RELOGIN_AND_VERIFY_BEFORE_0013
+  ```
 
 ### Customers
 - Customer master = 247 rows في D1.
