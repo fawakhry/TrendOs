@@ -1,0 +1,251 @@
+{
+  "schema": "AUTONOMOUS_PRINTSHOP_OPERATIONS_FILTER_V1",
+  "generated_at": "2026-10-05",
+  "purpose": "Filter discovered TrendOS operations/employee-manager lineage into reusable autonomous-printshop building blocks.",
+  "rule": "One authority per capability. Reuse proven contracts/UX; replace legacy Sheet/AppScript authority with D1-native services before cutover.",
+  "decisions": [
+    {
+      "component": "AI_Orders_View V1890",
+      "source": "Code.gs / V1890 AI_Orders_View",
+      "decision": "EXTRACT_CONCEPT_ONLY",
+      "keep": [
+        "AI-friendly operational projection",
+        "exact order lookup",
+        "open/closed classification",
+        "archived-order lookup"
+      ],
+      "drop": [
+        "dedicated mutable Google Sheet view",
+        "scheduled sheet rebuild as runtime truth",
+        "customer-facing ai_reply as supervisor decision source"
+      ],
+      "target": "D1 Operational Reality Snapshot"
+    },
+    {
+      "component": "Trend Master V1931",
+      "source": "Trend Master panel/automation lineage",
+      "decision": "REUSE_AND_MODERNIZE",
+      "keep": [
+        "summary signals",
+        "overdue signals",
+        "stock alerts",
+        "message queue",
+        "independent panels",
+        "exception-oriented management view"
+      ],
+      "drop": [
+        "monolithic Apps Script authority",
+        "hourly sheet rebuild dependency",
+        "day-close financial authority inside operations"
+      ],
+      "target": "Autonomous Control Tower"
+    },
+    {
+      "component": "Manager Center V1932",
+      "source": "manager-center-v1932.js",
+      "decision": "REUSE_UX_ONLY_PLUS_SIGNAL_MODEL",
+      "keep": [
+        "exception cards",
+        "operations summary",
+        "progressive partial rendering",
+        "admin-only surface"
+      ],
+      "drop": [
+        "70/30 employee score as management truth",
+        "direct legacy Trend Master payload dependency"
+      ],
+      "target": "Owner Exception Console"
+    },
+    {
+      "component": "Trend Master Resilience V1931",
+      "source": "trend-master-resilience-v1931.js",
+      "decision": "REUSE_PATTERN",
+      "keep": [
+        "panel isolation",
+        "bounded retry",
+        "request deduplication",
+        "last-good stale state",
+        "partial failure"
+      ],
+      "drop": [
+        "legacy panel endpoint names as permanent architecture"
+      ],
+      "target": "Control Tower degraded-mode/read resilience"
+    },
+    {
+      "component": "Employee Ops Coach V1",
+      "source": "employee-ops-coach-v1.js",
+      "decision": "SUPERSEDED_LINEAGE",
+      "keep": [
+        "read actual department work",
+        "urgent/overdue/stale signal model",
+        "employee-visible coaching concept"
+      ],
+      "drop": [
+        "separate production module",
+        "first-row recommendation as authority"
+      ],
+      "target": "Employee Supervisor decision explanations"
+    },
+    {
+      "component": "Employee Manager Strips V2",
+      "source": "employee-manager-strips-v2.js",
+      "decision": "REUSE_AND_MODERNIZE",
+      "keep": [
+        "المطلوب منك الآن UX",
+        "employee-specific command wording",
+        "two-way manager/employee conversation shell"
+      ],
+      "drop": [
+        "client-side task selection",
+        "OPS_COACH notes as operating authority",
+        "legacy getRows as long-term source"
+      ],
+      "target": "Employee Supervisor UI fed only by authoritative task assignment"
+    },
+    {
+      "component": "OPS_REPLY / OPS_COACH",
+      "source": "Matbagy notes operational categories + old Go-Live plan",
+      "decision": "EXTRACT_EVENT_CONTRACT",
+      "keep": [
+        "stop reason",
+        "next action",
+        "responsible actor",
+        "timestamp",
+        "two-way follow-up",
+        "fact-based evidence"
+      ],
+      "drop": [
+        "free-text notes as canonical workflow state",
+        "duplicate coach notes without state change"
+      ],
+      "target": "D1 Supervisor/Andon append-only events"
+    },
+    {
+      "component": "Employee Andon V1",
+      "source": "employee-andon-v1.js",
+      "decision": "REUSE_AND_MODERNIZE",
+      "keep": [
+        "machine fault",
+        "material missing",
+        "waiting customer",
+        "price/decision",
+        "quality problem",
+        "need help",
+        "resolved"
+      ],
+      "drop": [
+        "free-text note persistence as authority"
+      ],
+      "target": "Structured D1 exception event + AI resolver"
+    },
+    {
+      "component": "Work Queue V1",
+      "source": "WORK_QUEUE_V1_CANDIDATE.md",
+      "decision": "DROP_RUNTIME_KEEP_LINEAGE",
+      "keep": [
+        "historical lessons only"
+      ],
+      "drop": [
+        "Fly Print as active task",
+        "split claim/start",
+        "source-row tie-break",
+        "mutable Press batch path"
+      ],
+      "target": "None; superseded by Operator Task V2"
+    },
+    {
+      "component": "Operator Task V2",
+      "source": "operator-task-workflow-v2.js/.gs + contract",
+      "decision": "REUSE_PRODUCT_CONTRACT_REBUILD_AUTHORITY",
+      "keep": [
+        "hidden ordinary backlog",
+        "server assignment",
+        "one active ordinary task",
+        "claim=start",
+        "authoritative timer",
+        "Urgent->Due->Order->Line ordering",
+        "Fly Print outside tasks",
+        "Press scoped view"
+      ],
+      "drop": [
+        "Apps Script/Sheet task write authority as end state"
+      ],
+      "target": "D1 Operator Task Authority"
+    },
+    {
+      "component": "Press Control V1",
+      "source": "press-control-v1.js + press-control-backend-v1.gs",
+      "decision": "EXTRACT_MACHINE_AGENT_FOUNDATION",
+      "keep": [
+        "queue",
+        "session start/stop",
+        "snapshot identity",
+        "actual duration",
+        "orders/session",
+        "minutes/order",
+        "energy/cost telemetry",
+        "urgent early-run concept"
+      ],
+      "drop": [
+        "manual count fallback as trusted evidence",
+        "Google Sheet session authority",
+        "hard-coded people as permanent capability model"
+      ],
+      "target": "Machine Agent + D1 machine sessions"
+    },
+    {
+      "component": "Operations Hub V1",
+      "source": "operations-hub-v1.js",
+      "decision": "REUSE_SHELL",
+      "keep": [
+        "single employee operations entry",
+        "tabs for attendance/task/machine/andon",
+        "coordinated refresh"
+      ],
+      "drop": [
+        "module-specific direct refresh as future authority"
+      ],
+      "target": "Employee Operations Shell"
+    },
+    {
+      "component": "Attendance",
+      "source": "attendance-v1/backend lineage",
+      "decision": "REUSE_AS_AVAILABILITY_SIGNAL",
+      "keep": [
+        "started/paused/rest/ended availability",
+        "presence evidence"
+      ],
+      "drop": [
+        "absence/inactivity inference as negligence",
+        "attendance as task priority authority"
+      ],
+      "target": "Supervisor availability input only"
+    },
+    {
+      "component": "Employee KPI 70/30",
+      "source": "Trend Master V1931 employee KPI",
+      "decision": "DROP_AS_DECISION_AUTHORITY",
+      "keep": [
+        "raw throughput/time counters as telemetry"
+      ],
+      "drop": [
+        "70% completion + 30% time score as disciplinary/performance truth"
+      ],
+      "target": "Evidence-based analytics with workload/blocker/QC context"
+    }
+  ],
+  "first_execution_core": {
+    "module": "Operational Reality V1",
+    "path": "autonomous-printshop/core/operational-reality-v1.mjs",
+    "responsibilities": [
+      "normalize live order-line facts",
+      "classify active/closed/exception",
+      "fail closed on invalid/missing due date for automatic dispatch",
+      "apply readiness/blocker gates",
+      "rank dispatch candidates deterministically",
+      "return one recommended next task plus evidence/reason codes"
+    ],
+    "runtime_state": "REPO_ONLY_SHADOW_FOUNDATION"
+  }
+}
