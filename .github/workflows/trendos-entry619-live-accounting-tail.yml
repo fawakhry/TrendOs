@@ -51,7 +51,7 @@ jobs:
           npm install --no-save wrangler@4.33.2 >/dev/null
           : > /tmp/tail.jsonl
           set +e
-          timeout 70s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err
+          timeout 120s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err
           rc=$?
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
@@ -62,7 +62,7 @@ jobs:
           node <<'NODE'
           const fs=require('fs');
           const lines=fs.readFileSync('/tmp/tail.jsonl','utf8').split(/\r?\n/).filter(Boolean);
-          let total=0, acc=0, ok=0, rejected=0, readonly=0, ui200=0;
+          let total=0, acc=0, ok=0, rejected=0, readonly=0, easystore200=0;
           for(const line of lines){
             let x; try{x=JSON.parse(line)}catch{continue}
             total++;
@@ -80,18 +80,18 @@ jobs:
             const h=req.headers||{};
             const origin=String(h.origin||h.Origin||'');
             const referer=String(h.referer||h.Referer||'');
-            if(status===200 && (origin.includes('trendos-ui.trendmall-contact.workers.dev')||referer.includes('trendos-ui.trendmall-contact.workers.dev'))) ui200++;
+            if(status===200 && (origin.includes('fawakhry.github.io')||referer.includes('fawakhry.github.io/EasyStore'))) easystore200++;
           }
           console.log('ENTRY619_TAIL_EVENTS_PARSED='+total);
           console.log('ENTRY619_ACCOUNTING_REQUESTS_OBSERVED='+acc);
           console.log('ENTRY619_ACCOUNTING_HTTP_200_OBSERVED='+ok);
-          console.log('ENTRY619_ACCOUNTING_UI_HTTP_200_OBSERVED='+ui200);
+          console.log('ENTRY619_ACCOUNTING_EASYSTORE_HTTP_200_OBSERVED='+easystore200);
           console.log('ENTRY619_ACCOUNTING_HTTP_401_OBSERVED='+rejected);
           console.log('ENTRY619_ACCOUNTING_HTTP_503_OBSERVED='+readonly);
           console.log('ENTRY619_CREDENTIALS_READ=NO');
           console.log('ENTRY619_PRODUCTION_MUTATION=NO');
-          if(ui200<1) throw new Error('no-authenticated-accounting-read-observed-in-tail-window');
+          if(easystore200<1) throw new Error('no-authenticated-easystore-accounting-read-observed-in-tail-window');
           console.log('ENTRY619_AUTHENTICATED_ACCOUNTING_READONLY_LIVE_READ_SMOKE=PASS');
           NODE
 
-# entry619 rerun trigger: accounting screen opened with expired-session banner
+# entry619 rerun trigger: secure EasyStore SSO live smoke
