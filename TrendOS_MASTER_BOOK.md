@@ -2217,6 +2217,41 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=RUN_INTEGRITY_AND_CONTROL_OFF_CHECK
   ```
 
+
+- Entry615 final integrity/control checks:
+  - D1 screenshots confirmed:
+    ```ini
+    orphan_attendance_pulses=0
+    orphan_core_lines=0
+    orphan_archive_lines_vs_archive_orders_only=60
+    backfill_run_id=ENTRY615-1F9B510723BE29EB
+    backfill_mode=APPLY
+    backfill_status=COMMITTED
+    OPS=OFF
+    CONTENT=OFF
+    COMMS=OFF
+    ACCOUNTING=OFF
+    CORE=OFF
+    ```
+- The 60 archive-line rows are **not true missing-parent data loss**. Read-only audit of the refreshed Google source proved:
+  ```ini
+  CANONICAL_ARCHIVE_LINES=3565
+  ARCHIVE_LINES_WITHOUT_ARCHIVE_ORDER=60
+  DISTINCT_PARENT_ORDERS=58
+  PARENTS_PRESENT_IN_CURRENT_ORDERS=58
+  ARCHIVE_LINES_PARENT_PRESENT_IN_CURRENT_ORDERS=60
+  ARCHIVE_LINES_MISSING_FROM_BOTH_CURRENT_AND_ARCHIVE=0
+  ```
+- Interpretation: these are historical/partial archive-line snapshots whose order still exists in the current-order authority. The first integrity query was intentionally strict but semantically too narrow because it required every archive line parent to already be in `employee_core_archive_orders_v1`.
+- Correct integrity rule for Zero-Google Core: every archive line must have its parent in **either** `employee_core_archive_orders_v1` **or** `employee_core_orders_v1`.
+- No repair/mutation is required for these 60 rows; inserting synthetic archive parents would create false historical state.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_COUNTS_PASS_BACKFILL_COMMITTED_CONTROLS_OFF_WAITING_CORRECTED_ARCHIVE_PARENT_D1_PROOF
+  TRUE_ARCHIVE_PARENT_ORPHANS_FROM_SOURCE=0
+  NEXT_ACTION=RUN_D1_CORRECTED_ARCHIVE_PARENT_INTEGRITY_QUERY
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
