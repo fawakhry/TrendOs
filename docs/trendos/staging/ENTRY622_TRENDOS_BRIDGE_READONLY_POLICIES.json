@@ -1,0 +1,47 @@
+{
+  "entry": "Entry622",
+  "scope": "TrendOS-only compatibility bridge preparation while EasyStore Accounting is deferred",
+  "bridgeEnabled": false,
+  "authEnabled": false,
+  "accountingProgram": "DEFERRED_EXTERNAL_REPO",
+  "policyCount": 17,
+  "policies": [
+    "customerManagerV1:inbox",
+    "customerManagerV1:thread",
+    "getActivityLog",
+    "getDashboard",
+    "getFranchiseBranches",
+    "getKnowledge",
+    "getLeadPhoneNumbers",
+    "getMarketplace",
+    "getMatbagyNotes",
+    "getOrderConversation",
+    "getPlatformAds",
+    "getPlatformSections",
+    "getRows",
+    "getServiceProviderRoutes",
+    "getTrendMasterCenterV1931",
+    "getWhiteLabelSettings",
+    "goLiveAutopilotV1:listDrafts"
+  ],
+  "exclusions": {
+    "accounting": [
+      "getAccounting",
+      "getDeptInvoiceDraftV1887",
+      "getPartyAccountV1858"
+    ],
+    "opsNative": [
+      "attendanceV1:state",
+      "attendanceV1:config",
+      "hrV1:myRequests",
+      "hrV1:requests",
+      "hrV1:employees",
+      "pressControlV1:status"
+    ]
+  },
+  "notes": [
+    "Ops is already GENERAL on D1, so Ops read policies must not be reintroduced through the legacy bridge.",
+    "Accounting remains READONLY and is deferred to fawakhry/EasyStore, so accounting policies are intentionally excluded.",
+    "This manifest prepares only currently legacy read-only TrendOS actions for a future native-auth canary."
+  ]
+}
