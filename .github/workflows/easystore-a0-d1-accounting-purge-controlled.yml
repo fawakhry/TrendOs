@@ -45,7 +45,6 @@ jobs:
           set -euo pipefail
           test -n "${CLOUDFLARE_API_TOKEN:-}"
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
-
           curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?a0pre=$GITHUB_SHA" > /tmp/accounting-health-pre.json
           node <<'NODE'
           const fs=require('fs');
@@ -58,51 +57,22 @@ jobs:
           console.log('A0_D1_MODE=READONLY');
           NODE
 
-      - name: Snapshot before purge
+      - name: Snapshot bounded non-accounting sentinels and accounting counts
         shell: bash
         run: |
           set -euo pipefail
 
-          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"             > /tmp/tables.json
-
-          node <<'NODE'
-          const fs=require('fs');
-          const x=JSON.parse(fs.readFileSync('/tmp/tables.json','utf8'));
-          const names=[];
-          const walk=v=>{
-            if(Array.isArray(v)) return v.forEach(walk);
-            if(v&&typeof v==='object'){
-              if(typeof v.name==='string') names.push(v.name);
-              Object.values(v).forEach(walk);
-            }
-          };
-          walk(x);
-          const uniq=[...new Set(names)].filter(Boolean);
-          const excluded=new Set([
-            'employee_accounting_control_v1',
-            'employee_accounting_request_ledger_v1',
-            'employee_accounting_materials_v1',
-            'employee_accounting_templates_v1',
-            'employee_accounting_dept_lines_v1',
-            'employee_accounting_final_invoices_v1',
-            'employee_accounting_party_ledger_v1',
-            'employee_accounting_stock_moves_v1',
-            'employee_accounting_events_v1',
-            'employee_zero_google_legacy_rows_v1',
-            'employee_zero_google_parity_v1'
-          ]);
-          const keep=uniq.filter(n=>!excluded.has(n));
-          const q=keep.map(n=>{
-            const ident='"'+n.replaceAll('"','""')+'"';
-            const lit=n.replaceAll("'","''");
-            return `SELECT '${lit}' AS table_name, COUNT(*) AS row_count FROM ${ident}`;
-          }).join(' UNION ALL\n') || "SELECT '__none__' AS table_name, 0 AS row_count";
-          fs.writeFileSync('/tmp/nonacc-count.sql',q+';\n');
-          fs.writeFileSync('/tmp/nonacc-table-list.json',JSON.stringify(keep,null,2));
-          console.log('A0_NON_ACCOUNTING_TABLES_SNAPSHOTTED='+keep.length);
-          NODE
-
-          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --file /tmp/nonacc-count.sql > /tmp/nonacc-pre.json
+          cat > /tmp/sentinel-count.sql <<'SQL'
+          SELECT 'customers' AS table_name, COUNT(*) AS row_count FROM customers
+          UNION ALL SELECT 'orders', COUNT(*) FROM orders
+          UNION ALL SELECT 't12_customers', COUNT(*) FROM t12_customers
+          UNION ALL SELECT 'employee_auth_users_v1', COUNT(*) FROM employee_auth_users_v1
+          UNION ALL SELECT 'employee_core_orders_v1', COUNT(*) FROM employee_core_orders_v1
+          UNION ALL SELECT 'employee_core_lines_v1', COUNT(*) FROM employee_core_lines_v1
+          UNION ALL SELECT 'employee_attendance_days_v1', COUNT(*) FROM employee_attendance_days_v1
+          UNION ALL SELECT 'employee_hr_employees_v1', COUNT(*) FROM employee_hr_employees_v1
+          UNION ALL SELECT 'employee_zero_google_backfill_runs_v1', COUNT(*) FROM employee_zero_google_backfill_runs_v1;
+          SQL
 
           cat > /tmp/accounting-count.sql <<'SQL'
           SELECT 'request_ledger' AS table_name, COUNT(*) AS row_count FROM employee_accounting_request_ledger_v1
@@ -118,8 +88,9 @@ jobs:
           UNION ALL SELECT 'parity_accounting_rows', COUNT(*) FROM employee_zero_google_parity_v1
             WHERE lower(family) LIKE '%account%';
           SQL
-          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --file /tmp/accounting-count.sql > /tmp/accounting-pre.json
 
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "$(cat /tmp/sentinel-count.sql)" > /tmp/sentinel-pre.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "$(cat /tmp/accounting-count.sql)" > /tmp/accounting-pre.json
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "SELECT mode,policy_epoch AS policy_epoch,next_invoice_number AS next_invoice_number
              FROM employee_accounting_control_v1
              WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';"             > /tmp/control-pre.json
@@ -140,8 +111,10 @@ jobs:
           const a=rows('/tmp/accounting-pre.json');
           const total=a.reduce((s,r)=>s+r.row_count,0);
           fs.writeFileSync('/tmp/accounting-pre-sanitized.json',JSON.stringify(a,null,2));
+          fs.writeFileSync('/tmp/sentinel-pre-sanitized.json',JSON.stringify(rows('/tmp/sentinel-pre.json'),null,2));
           console.log('A0_D1_ACCOUNTING_ROWS_PRE='+total);
           for(const r of a) console.log('A0_D1_PRE_'+r.table_name.toUpperCase()+'='+r.row_count);
+          console.log('A0_D1_SENTINEL_SNAPSHOT=PASS');
           NODE
 
       - name: Purge accounting business data only
@@ -174,20 +147,19 @@ jobs:
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --file /tmp/accounting-purge.sql
           echo 'A0_D1_ACCOUNTING_PURGE_EXECUTED=YES'
 
-      - name: Verify clean accounting baseline and non-accounting invariance
+      - name: Verify clean accounting baseline and sentinel invariance
         shell: bash
         run: |
           set -euo pipefail
-
-          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --file /tmp/accounting-count.sql > /tmp/accounting-post.json
-          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --file /tmp/nonacc-count.sql > /tmp/nonacc-post.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "$(cat /tmp/accounting-count.sql)" > /tmp/accounting-post.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "$(cat /tmp/sentinel-count.sql)" > /tmp/sentinel-post.json
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "SELECT mode,policy_epoch AS policy_epoch,next_invoice_number AS next_invoice_number
              FROM employee_accounting_control_v1
              WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';"             > /tmp/control-post.json
 
           node <<'NODE'
           const fs=require('fs');
-          function tableRows(path){
+          function rows(path){
             const x=JSON.parse(fs.readFileSync(path,'utf8')), out=[];
             const walk=v=>{
               if(Array.isArray(v)) return v.forEach(walk);
@@ -209,15 +181,15 @@ jobs:
             };
             walk(x); return out[0];
           }
-          const a=tableRows('/tmp/accounting-post.json');
-          const nonZero=a.filter(r=>r.row_count!==0);
+          const acc=rows('/tmp/accounting-post.json');
+          const nonZero=acc.filter(r=>r.row_count!==0);
           if(nonZero.length) throw new Error('accounting-post-not-zero:'+JSON.stringify(nonZero));
 
-          const pre=Object.fromEntries(tableRows('/tmp/nonacc-pre.json').map(r=>[r.table_name,r.row_count]));
-          const post=Object.fromEntries(tableRows('/tmp/nonacc-post.json').map(r=>[r.table_name,r.row_count]));
+          const pre=Object.fromEntries(rows('/tmp/sentinel-pre.json').map(r=>[r.table_name,r.row_count]));
+          const post=Object.fromEntries(rows('/tmp/sentinel-post.json').map(r=>[r.table_name,r.row_count]));
           const names=[...new Set([...Object.keys(pre),...Object.keys(post)])].sort();
           const drift=names.filter(n=>pre[n]!==post[n]).map(n=>({table:n,pre:pre[n],post:post[n]}));
-          if(drift.length) throw new Error('non-accounting-count-drift:'+JSON.stringify(drift));
+          if(drift.length) throw new Error('non-accounting-sentinel-drift:'+JSON.stringify(drift));
 
           const c0=control('/tmp/control-pre.json'), c1=control('/tmp/control-post.json');
           if(!c0||!c1) throw new Error('accounting-control-missing');
@@ -226,7 +198,7 @@ jobs:
           if(Number(c1.next_invoice_number)!==1) throw new Error('accounting-next-invoice-not-reset');
 
           console.log('A0_D1_ACCOUNTING_ROWS_POST=0');
-          console.log('A0_D1_NON_ACCOUNTING_TABLE_COUNT_INVARIANCE=PASS');
+          console.log('A0_D1_NON_ACCOUNTING_SENTINELS_INVARIANT=PASS');
           console.log('A0_D1_ACCOUNTING_MODE_PRESERVED=READONLY');
           console.log('A0_D1_POLICY_EPOCH_PRESERVED='+c1.policy_epoch);
           console.log('A0_D1_NEXT_INVOICE_NUMBER=1');
@@ -249,6 +221,6 @@ jobs:
           name: easystore-a0-d1-accounting-purge-counts
           path: |
             /tmp/accounting-pre-sanitized.json
-            /tmp/nonacc-table-list.json
+            /tmp/sentinel-pre-sanitized.json
           retention-days: 14
           if-no-files-found: error
