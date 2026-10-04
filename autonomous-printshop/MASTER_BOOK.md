@@ -1270,3 +1270,50 @@ Next P0 implementation:
 2. connect Operational Reality to stable TrendOS/D1 facts through a read-only adapter;
 3. build D1 Operator Task authority default OFF;
 4. feed Employee Supervisor UI from authoritative assignment rather than client-side first-row logic.
+
+
+### AP-008 — Autonomy ledger schema corrected before any D1 apply
+
+The repo-only migration candidate `0019_autonomy_events_v1.sql` was corrected before Production application.
+
+Resolved design defects:
+
+1. Decision events are now immutable decision facts only.
+2. Later human/runtime observations were moved to append-only `autonomy_observations`.
+3. Both actual policy decision and recommended decision are stored:
+   - `decision / reason / target_queue`
+   - `recommended_decision / recommended_reason / recommended_target_queue`
+4. Input hashing now uses stable canonical JSON with recursively sorted object keys before SHA-256.
+5. `autonomy_control` now carries `updated_by` and `change_reason`.
+6. Every control-row update is automatically captured by an append-only `autonomy_control_events` audit trigger.
+7. Append-only UPDATE/DELETE guards cover:
+   - `autonomy_events`
+   - `autonomy_observations`
+   - `autonomy_control_events`
+
+New ledger API:
+- `stableCanonicalJsonV1()`
+- `autonomyInputHashV1()`
+- `recordAutonomyShadowEventV1()`
+- `recordAutonomyObservationV1()`
+- `readAutonomyControlV1()`
+
+Qualification:
+- Autonomous Printshop Policy V1 CI Run `37245267601` — **SUCCESS**.
+- Stable-hash equivalence for differently ordered object keys = PASS.
+- Observation split = PASS.
+- Recommended-vs-actual shadow decision persistence = PASS.
+- Destructive DDL = NO.
+
+```ini
+MIGRATION_0019=CORRECTED_REPO_ONLY
+MIGRATION_0019_APPLIED_PRODUCTION=NO
+AUTONOMY_EVENTS=APPEND_ONLY_DECISIONS
+AUTONOMY_OBSERVATIONS=APPEND_ONLY
+AUTONOMY_CONTROL_AUDIT=APPEND_ONLY_TRIGGER
+INPUT_HASH=STABLE_CANONICAL_JSON_SHA256
+AUTOPILOT=OFF
+```
+
+Next safe build remains:
+`Operational Reality read adapter -> D1 Operator Task Authority default OFF -> Employee Supervisor shadow`.
