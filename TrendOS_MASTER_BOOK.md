@@ -3481,3 +3481,69 @@ NEXT_GATE=PREPARE_COMPATIBILITY_BRIDGE_SECRET_AND_READONLY_POLICIES_WHILE_AUTH_A
 NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
 ```
 
+### Entry622 — Compatibility Bridge Gate 1 preparation (partial, fail-closed)
+- الهدف: تجهيز Compatibility Bridge الخاص بـTrendOS فقط بينما يظل:
+  - Employee Auth = OFF.
+  - Employee Bridge = OFF.
+  - Accounting = READONLY ومؤجل إلى Repo `fawakhry/EasyStore`.
+- تم تصحيح الـread-only pilot من الخطة التاريخية لأن Runtime تغيّر:
+  - Ops أصبح `GENERAL` على D1، لذلك لا نعيد Ops read policies إلى legacy bridge.
+  - Accounting مؤجل، لذلك لا نضيف Accounting policies للـbridge.
+  - manifest الحالي = **17 TrendOS-only read policies**.
+- Policy manifest:
+  - `docs/trendos/staging/ENTRY622_TRENDOS_BRIDGE_READONLY_POLICIES.json`
+  - commit `82c4db5ecb54d6ae1b96ed68af81c63b10f44baa`
+- Qualification test:
+  - `tests/entry622_trendos_bridge_readonly_policies.test.mjs`
+  - commit `c5fe320ef28d06f202a01e87fc7dc0fc4326680b`
+  - proves exactly 17 policies, Accounting excluded, already-native Ops policies excluded.
+- Controlled workflow:
+  - `.github/workflows/trendos-entry622-bridge-policies-off-controlled.yml`
+- Attempt 1:
+  - Run `37218676765` failed before Production mutation بسبب خطأ count في أداة الفحص فقط.
+  - Production mutation = NO.
+- Count fix:
+  - commit `d80e99ff988a5ecb540a70a4eac390a4ebf9fb99`.
+- Attempt 2:
+  - Run `37218709830`, Job `111484461273`.
+  - manifest qualification = PASS.
+  - exact Production preflight = PASS:
+    ```ini
+    API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+    UI_VERSION=bfcc6f85-a748-4b66-a334-b605c72108f7
+    AUTH=OFF
+    BRIDGE=OFF
+    BRIDGE_SECRET_CONFIGURED=false
+    BRIDGE_POLICY_COUNT=0
+    OPS=GENERAL / epoch 7
+    ACCOUNTING=READONLY / epoch 2
+    CONTENT=OFF
+    COMMS=OFF
+    CORE=OFF
+    ```
+  - policy install stopped fail-closed before mutation:
+    - Cloudflare error `10053`: binding `EMPLOYEE_LEGACY_BRIDGE_ACTIONS` already exists as a non-secret binding, so `wrangler secret put` cannot replace it.
+  - no policy value changed.
+  - no secret was installed.
+  - no API/frontend deploy.
+  - no D1 mutation.
+  - no Apps Script mutation.
+- Current blocker:
+  - Gate 1 needs the same new shared bridge secret on:
+    1. Cloudflare Worker secret `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`.
+    2. Apps Script Script Property `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`.
+  - Cloudflare `EMPLOYEE_LEGACY_BRIDGE_ACTIONS` must be edited as its existing plain binding to the exact 17-policy value, not converted to a secret.
+  - Apps Script project ID / property-write API is not available from repo/connected Drive; safest continuation is authenticated control-plane browser access.
+  - browser profiles exist, but no Google/Cloudflare sign-in is recorded for them, so control-plane mutation is paused until the owner opens an authenticated setup session.
+- Fail-closed state:
+  ```ini
+  STATUS=ENTRY622_GATE1_PARTIAL_BLOCKED_ON_AUTHENTICATED_CONTROL_PLANE_SESSION
+  AUTH=OFF
+  BRIDGE=OFF
+  BRIDGE_SECRET_CONFIGURED=false
+  BRIDGE_POLICY_COUNT=0
+  ACCOUNTING=READONLY
+  PRODUCTION_BEHAVIOR_CHANGED=NO
+  NEXT_ACTION=OWNER_AUTHENTICATES_GOOGLE_APPS_SCRIPT_AND_CLOUDFLARE_BROWSER_PROFILE; THEN_INSTALL_SHARED_SECRET_AND_17_POLICIES_WITH_BRIDGE_STILL_OFF
+  ```
+
