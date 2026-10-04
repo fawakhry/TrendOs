@@ -3547,3 +3547,56 @@ NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
   NEXT_ACTION=OWNER_AUTHENTICATES_GOOGLE_APPS_SCRIPT_AND_CLOUDFLARE_BROWSER_PROFILE; THEN_INSTALL_SHARED_SECRET_AND_17_POLICIES_WITH_BRIDGE_STILL_OFF
   ```
 
+#### Entry622 Gate 1 — manual control-plane completion and cleanup correction
+- Owner completed the private temporary-bootstrap path manually against the confirmed Production Apps Script project.
+- Production Apps Script deployment remained on **Version 159** and was not repointed.
+- Reported verified state:
+  ```ini
+  APPS_SCRIPT_PROJECT_MATCH=YES
+  PRODUCTION_DEPLOYMENT_VERSION=159
+  PRODUCTION_DEPLOYMENT_CHANGED=NO
+  TEMP_BOOTSTRAP_ACCESS=ONLY_MYSELF
+  SECRET_GENERATED_WITH_WEB_CRYPTO=YES
+  SECRET_IN_SOURCE=NO
+  SECRET_IN_URL=NO
+  SECRET_IN_LOGS=NO
+  APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES
+  APPS_SCRIPT_BRIDGE_ENABLED=NO
+  CLOUDFLARE_BRIDGE_SECRET_CONFIGURED=YES
+  CLOUDFLARE_BRIDGE_POLICY_COUNT=17
+  CLOUDFLARE_BRIDGE_ENABLED=NO
+  AUTH=OFF
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  TEMP_BOOTSTRAP_SOURCE_REMOVED=YES
+  D1_MUTATION=NO
+  ```
+- Cleanup evidence from Apps Script **Manage deployments**:
+  - Production deployment remains active on Version 159.
+  - the temporary Entry622 deployment is shown under **Archived**, not Active.
+- Apps Script UI semantics correction:
+  - versioned deployments are archived rather than permanently deleted from the deployment record;
+  - therefore `TEMP_BOOTSTRAP_DEPLOYMENT_DELETED=NO` by itself is **not a Gate failure** when the temporary deployment is archived and inactive.
+- Effective cleanup registration:
+  ```ini
+  TEMP_BOOTSTRAP_DEPLOYMENT_ARCHIVED=YES
+  TEMP_BOOTSTRAP_DEPLOYMENT_ACTIVE=NO
+  TEMP_BOOTSTRAP_SOURCE_REMOVED=YES
+  PRODUCTION_DEPLOYMENT_VERSION=159
+  ```
+- Gate result:
+  ```ini
+  STATUS=ENTRY622_COMPATIBILITY_BRIDGE_GATE1_PASS
+  AUTH=OFF
+  BRIDGE=OFF
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  D1_MUTATION=NO
+  PRODUCTION_APPS_SCRIPT_VERSION=159
+  NEXT_GATE=NATIVE_AUTH_TRANSITIONAL_BOOTSTRAP_CANARY_WITH_BRIDGE_STILL_FAIL_CLOSED_UNTIL_EXPLICIT_ENABLE
+  ```
+
