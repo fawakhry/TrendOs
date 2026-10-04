@@ -1989,6 +1989,35 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=APPLY_0018_ZERO_GOOGLE_BACKFILL_RETENTION_V1
   ```
 
+
+- Owner manual D1 migration 0018:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification before backfill:
+    ```ini
+    backfill_runs=0
+    retained_rows=0
+    parity_rows=0
+    ```
+- Schema phase is now complete:
+  ```ini
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=APPLIED_PASS
+  MIGRATION_0016=APPLIED_PASS
+  MIGRATION_0017=APPLIED_PASS
+  MIGRATION_0018=APPLIED_PASS
+  ALL_FAMILY_CONTROLS=OFF
+  BACKFILL_APPLIED=NO
+  Production_cutover=NO
+  ```
+- Large Entry615 backfill must not be pasted into Cloudflare D1 Console because the generated SQL is ~35 MB and the Console already demonstrated truncation on large migration input. Use Wrangler D1 remote file execution instead.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_SCHEMA_0012_TO_0018_COMPLETE_WAITING_BACKFILL_APPLY
+  NEXT_ACTION=RUN_ENTRY615_BACKFILL_SQL_VIA_WRANGLER_REMOTE_FILE_THEN_PARITY
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
