@@ -1,0 +1,69 @@
+name: TrendOS Entry619 Accounting READONLY Source Qualification
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
+      - 'tests/frontend_employee_accounting_family_router_entry619.test.mjs'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/entry614_employee_accounting_native.test.mjs'
+      - '.github/workflows/trendos-entry619-accounting-readonly-source-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/frontend_employee_accounting_family_router_entry619.test.mjs
+          node tests/entry614_employee_accounting_native.test.mjs
+          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'OFF'" config.js
+          grep -Fq "getAccounting" cloudflare-d1/src/employee-accounting-native-v1.mjs
+          grep -Fq "getDeptInvoiceDraftV1887" cloudflare-d1/src/employee-accounting-native-v1.mjs
+          grep -Fq "getPartyAccountV1858" cloudflare-d1/src/employee-accounting-native-v1.mjs
+          echo 'ENTRY619_SOURCE_QUALIFICATION=PASS'
+          echo 'ENTRY619_SCOPE=ACCOUNTING_READONLY_ONLY'
+          echo 'ENTRY619_GENERAL_QUALIFIED=NO'
+      - name: Production remains unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='https://trendos-d1-api.trendmall-contact.workers.dev'
+          UI='https://trendos-ui.trendmall-contact.workers.dev'
+          curl --fail --silent --show-error "$API/v1/employee/ops/health" -o /tmp/ops.json
+          curl --fail --silent --show-error "$API/v1/employee/accounting/health" -o /tmp/accounting.json
+          curl --fail --silent --show-error "$API/v1/employee/auth/health" -o /tmp/auth.json
+          curl --fail --silent --show-error "$API/v1/employee/legacy-action/health" -o /tmp/bridge.json
+          curl --fail --silent --show-error --location "$UI/config.js?entry619=$GITHUB_SHA" -o /tmp/config.js
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const ops=read('/tmp/ops.json'), acc=read('/tmp/accounting.json'), auth=read('/tmp/auth.json'), bridge=read('/tmp/bridge.json');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch||0)!==7) throw new Error('ops-production-drift');
+          if(acc.mode!=='OFF'||acc.schemaReady!==true) throw new Error('accounting-production-drift');
+          if(auth.mode!=='OFF'||auth.envEnabled!==false) throw new Error('auth-production-drift');
+          if(bridge.enabled!==false) throw new Error('bridge-production-drift');
+          const cfg=fs.readFileSync('/tmp/config.js','utf8');
+          if(!cfg.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'")) throw new Error('live-ops-config-drift');
+          if(cfg.includes('MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE')) throw new Error('accounting-source-accidentally-live');
+          console.log('ENTRY619_PRODUCTION_OPS_GENERAL_PRESERVED=YES');
+          console.log('ENTRY619_PRODUCTION_ACCOUNTING=OFF');
+          console.log('ENTRY619_PRODUCTION_AUTH=OFF');
+          console.log('ENTRY619_PRODUCTION_BRIDGE=OFF');
+          console.log('ENTRY619_PRODUCTION_MUTATION=NO');
+        NODE
