@@ -1,0 +1,588 @@
+name: TrendOS Entry618 Ops Authenticated Smoke and GENERAL Cutover
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry618-ops-general-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry618-ops-general-controlled
+  cancel-in-progress: false
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      DATABASE: trendos-main
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      EXPECTED_API_VERSION: de2c825d-ef63-407d-90dc-8059a9d4f192
+      EXPECTED_FRONTEND_VERSION: ad121526-8f86-4ce9-b13e-757c89810b06
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact Production preflight and read-only snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${QUALIFY_USERNAME:-}"
+          test -n "${QUALIFY_PASSWORD:-}"
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-deployments.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-deployments.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label,expected,outPath){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[]))
+              .slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const d=ds[0]||{};
+            const full=(d.versions||[])
+              .map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)}))
+              .filter(v=>v.id&&v.p===100);
+            if(full.length!==1) throw new Error(label+'-active-version-not-single-100');
+            if(full[0].id!==expected) throw new Error(label+'-version-drift:'+full[0].id);
+            if(outPath) fs.writeFileSync(outPath,full[0].id);
+            console.log('ENTRY618_'+label+'_VERSION_LOCK=PASS');
+          }
+          active('/tmp/api-deployments.json','API',process.env.EXPECTED_API_VERSION);
+          active('/tmp/frontend-deployments.json','FRONTEND',process.env.EXPECTED_FRONTEND_VERSION,'/tmp/pre-frontend-version.txt');
+          NODE
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" -o /tmp/auth-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" -o /tmp/bridge-pre.json
+          for f in ops content comms accounting core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health" -o /tmp/orders-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health" -o /tmp/customers-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health" -o /tmp/line-pre.json
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry618pre=$GITHUB_SHA" -o /tmp/live-config-pre.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry618pre=$GITHUB_SHA" -o /tmp/live-dispatcher-pre.js
+
+          node <<'NODE'
+          const fs=require('fs');
+          const read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const a=read('/tmp/auth-pre.json'), b=read('/tmp/bridge-pre.json');
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth-not-off');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge-not-off');
+          const ops=read('/tmp/ops-pre.json');
+          if(ops.mode!=='READONLY'||Number(ops.policyEpoch||0)!==2||ops.schemaReady!==true||Number(ops.googleBusinessCalls||0)!==0||ops.appsScriptBusinessAuthority!==false) throw new Error('ops-preflight');
+          for(const f of ['content','comms','accounting','core']){
+            const x=read('/tmp/'+f+'-pre.json');
+            if(x.mode!=='OFF'||x.schemaReady!==true) throw new Error('other-family-preflight:'+f);
+          }
+          const o=read('/tmp/orders-pre.json'), c=read('/tmp/customers-pre.json'), l=read('/tmp/line-pre.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-preflight');
+          if(c.mode!=='GENERAL') throw new Error('customers-preflight');
+          if(l.schemaReady!==true||l.legacySchemaReady!==true||l.writeMode!=='cloud-native+legacy-overlay') throw new Error('line-preflight');
+          const cfg=fs.readFileSync('/tmp/live-config-pre.js','utf8');
+          const disp=fs.readFileSync('/tmp/live-dispatcher-pre.js','utf8');
+          if(!cfg.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'READONLY'")) throw new Error('frontend-ops-not-readonly');
+          if(!cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false')) throw new Error('frontend-auth-not-off');
+          if(!cfg.includes('MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false')) throw new Error('frontend-bridge-not-off');
+          if(cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1')) throw new Error('entry611-canary-live');
+          if(!disp.includes('T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004')||!disp.includes('shouldRouteOpsNative')) throw new Error('dispatcher-live-drift');
+          if(disp.includes('canaryRouteEnabled')) throw new Error('entry611-dispatcher-canary-live');
+          console.log('ENTRY618_PRECUTOVER_RUNTIME=PASS');
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "SELECT mode,policy_epoch AS policyEpoch FROM employee_ops_control_v1 WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1';
+             SELECT
+               (SELECT COUNT(*) FROM employee_attendance_days_v1) AS attendanceDays,
+               (SELECT COUNT(*) FROM employee_attendance_pulses_v1) AS attendancePulses,
+               (SELECT COUNT(*) FROM employee_hr_requests_v1) AS hrRequests,
+               (SELECT COUNT(*) FROM employee_cleaning_daily_v1) AS cleaningRows,
+               (SELECT COUNT(*) FROM employee_press_sessions_v1) AS pressSessions,
+               (SELECT COUNT(*) FROM employee_ops_events_v1) AS opsEvents;"             > /tmp/d1-pre.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/d1-pre.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'policyEpoch')||Object.prototype.hasOwnProperty.call(v,'attendanceDays'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const control=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'policyEpoch'));
+          const counts=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'attendanceDays'));
+          if(!control||control.mode!=='READONLY'||Number(control.policyEpoch)!==2) throw new Error('ops-control-pre-drift');
+          if(!counts) throw new Error('business-count-snapshot-missing');
+          fs.writeFileSync('/tmp/business-counts-pre.json',JSON.stringify(counts));
+          console.log('ENTRY618_D1_OPS_CONTROL_PRE=READONLY_EPOCH_2');
+          console.log('ENTRY618_BUSINESS_SNAPSHOT_PRE=PASS');
+          NODE
+
+          node <<'NODE'
+          const fs=require('fs'), cp=require('child_process');
+          const u=String(process.env.QUALIFY_USERNAME||'').trim().toLowerCase().replaceAll("'","''");
+          const now=Date.now();
+          const sql="SELECT token_fingerprint,expires_at_ms AS expiresAtMs,revoked_at_ms AS revokedAtMs FROM cloud_auth_sessions_v1 WHERE username_key='"+u+"';";
+          const out=cp.execFileSync('npx',['wrangler','d1','execute',process.env.DATABASE,'--remote','--config',process.env.API_CONFIG,'--json','--command',sql],{encoding:'utf8',maxBuffer:10*1024*1024});
+          const x=JSON.parse(out), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(typeof v.token_fingerprint==='string')rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const active=rows.filter(r=>r.revokedAtMs==null && Number(r.expiresAtMs||0)>now);
+          if(active.length!==0) throw new Error('qualify-account-has-active-cloud-shadow-session');
+          fs.writeFileSync('/tmp/shadow-fps-pre.json',JSON.stringify(rows.map(r=>r.token_fingerprint).sort()));
+          console.log('ENTRY618_QUALIFY_ACCOUNT_ACTIVE_SHADOW_PRE=0');
+          NODE
+
+      - name: Obtain one temporary current-path employee session
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cleanup_on_error() {
+            rc=$?
+            trap - ERR
+            if [ -f /tmp/legacy-token ] && [ -f /tmp/apps-url ]; then
+              node <<'NODE' || true
+              const fs=require('fs');
+              const upstream=fs.readFileSync('/tmp/apps-url','utf8').trim();
+              const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+              const username=String(process.env.QUALIFY_USERNAME||'').trim();
+              fetch(upstream,{
+                method:'POST',
+                headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+                body:JSON.stringify({action:'logout',username,token,_ts:Date.now()}),
+                redirect:'follow'
+              }).catch(()=>{});
+              NODE
+            fi
+            exit "$rc"
+          }
+          trap cleanup_on_error ERR
+
+          node <<'NODE'
+          const fs=require('fs');
+          const toml=fs.readFileSync(process.env.API_CONFIG,'utf8');
+          const m=toml.match(/^APPS_SCRIPT_API_URL = "([^"]+)"$/m);
+          if(!m) throw new Error('apps-script-url-missing');
+          const upstream=m[1];
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const ctrl=new AbortController();
+            const timer=setTimeout(()=>ctrl.abort(),120000);
+            let r;
+            try{
+              r=await fetch(upstream,{
+                method:'POST',
+                headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+                body:JSON.stringify({action:'login',username,password,_ts:Date.now()}),
+                redirect:'follow',
+                signal:ctrl.signal
+              });
+            } finally { clearTimeout(timer); }
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token) throw new Error('temporary-current-path-login-failed:'+r.status);
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/legacy-token',token,{mode:0o600});
+            fs.writeFileSync('/tmp/apps-url',upstream,{mode:0o600});
+            console.log('ENTRY618_TEMP_CURRENT_PATH_SESSION=PASS');
+            console.log('ENTRY618_TEMP_TOKEN_LOGGED=NO');
+          })().catch(err=>{console.error(String(err&&err.message||err));process.exit(2);});
+          NODE
+
+          trap - ERR
+
+      - name: Authenticated Ops READONLY live smoke
+        shell: bash
+        run: |
+          set -eEuo pipefail
+
+          cleanup_on_error() {
+            rc=$?
+            trap - ERR
+            if [ -f /tmp/legacy-token ] && [ -f /tmp/apps-url ]; then
+              node <<'NODE' || true
+              const fs=require('fs');
+              const upstream=fs.readFileSync('/tmp/apps-url','utf8').trim();
+              const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+              const username=String(process.env.QUALIFY_USERNAME||'').trim();
+              fetch(upstream,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'logout',username,token,_ts:Date.now()}),redirect:'follow'}).catch(()=>{});
+              NODE
+            fi
+            exit "$rc"
+          }
+          trap cleanup_on_error ERR
+
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+          async function call(body){
+            const r=await fetch(base+'/v1/employee/ops',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({...body,username}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let j={}; try{j=JSON.parse(raw||'{}')}catch{}
+            return {status:r.status,body:j};
+          }
+          (async()=>{
+            const a=await call({action:'attendanceV1',op:'state'});
+            if(a.status!==200||a.body.success!==true||a.body.authority!=='d1-employee-ops-v1') throw new Error('attendance-read-failed:'+a.status);
+            if(!['apps-script-post','d1-auth-shadow-v1','d1-native-employee-v1'].includes(String(a.body.authSource||''))) throw new Error('attendance-auth-source');
+
+            const h=await call({action:'hrV1',op:'myRequests'});
+            if(h.status!==200||h.body.success!==true||h.body.authority!=='d1-employee-ops-v1') throw new Error('hr-read-failed:'+h.status);
+            if(String(h.body.authSource||'')!=='d1-auth-shadow-v1') throw new Error('hr-read-not-cloud-shadow');
+
+            const c=await call({action:'cleaningV1',op:'status'});
+            if(c.status!==200||c.body.success!==true||c.body.authority!=='d1-employee-ops-v1') throw new Error('cleaning-read-failed:'+c.status);
+            if(String(c.body.authSource||'')!=='d1-auth-shadow-v1') throw new Error('cleaning-read-not-cloud-shadow');
+
+            const w=await call({action:'hrV1',op:'submitRequest',requestType:'ENTRY618_NO_WRITE'});
+            if(w.status!==503||String(w.body.code||'')!=='employee-ops-readonly') throw new Error('readonly-write-not-blocked:'+w.status);
+
+            console.log('ENTRY618_AUTHENTICATED_ATTENDANCE_READ=PASS');
+            console.log('ENTRY618_AUTHENTICATED_HR_READ=PASS');
+            console.log('ENTRY618_AUTHENTICATED_CLEANING_READ=PASS');
+            console.log('ENTRY618_SECOND_READ_AUTH_SOURCE=D1_AUTH_SHADOW');
+            console.log('ENTRY618_READONLY_VALID_SESSION_WRITE_BLOCK=PASS');
+          })().catch(err=>{console.error(String(err&&err.message||err));process.exit(3);});
+          NODE
+
+          node <<'NODE'
+          const fs=require('fs'), cp=require('child_process');
+          const u=String(process.env.QUALIFY_USERNAME||'').trim().toLowerCase().replaceAll("'","''");
+          const sql="SELECT token_fingerprint FROM cloud_auth_sessions_v1 WHERE username_key='"+u+"';";
+          const out=cp.execFileSync('npx',['wrangler','d1','execute',process.env.DATABASE,'--remote','--config',process.env.API_CONFIG,'--json','--command',sql],{encoding:'utf8',maxBuffer:10*1024*1024});
+          const x=JSON.parse(out), post=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(typeof v.token_fingerprint==='string')post.push(v.token_fingerprint);Object.values(v).forEach(walk)}};
+          walk(x);
+          const pre=new Set(JSON.parse(fs.readFileSync('/tmp/shadow-fps-pre.json','utf8')));
+          const added=[...new Set(post)].filter(v=>!pre.has(v));
+          if(added.length!==1) throw new Error('expected-one-new-shadow-fingerprint-got-'+added.length);
+          fs.writeFileSync('/tmp/new-shadow-fps.json',JSON.stringify(added),{mode:0o600});
+          console.log('ENTRY618_NEW_CLOUD_SHADOW_SESSION=1');
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "SELECT
+               (SELECT COUNT(*) FROM employee_attendance_days_v1) AS attendanceDays,
+               (SELECT COUNT(*) FROM employee_attendance_pulses_v1) AS attendancePulses,
+               (SELECT COUNT(*) FROM employee_hr_requests_v1) AS hrRequests,
+               (SELECT COUNT(*) FROM employee_cleaning_daily_v1) AS cleaningRows,
+               (SELECT COUNT(*) FROM employee_press_sessions_v1) AS pressSessions,
+               (SELECT COUNT(*) FROM employee_ops_events_v1) AS opsEvents;"             > /tmp/d1-after-readonly-smoke.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const pre=JSON.parse(fs.readFileSync('/tmp/business-counts-pre.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/d1-after-readonly-smoke.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'attendanceDays'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const now=rows[0];
+          if(!now) throw new Error('post-smoke-counts-missing');
+          for(const k of Object.keys(pre)) if(Number(now[k])!==Number(pre[k])) throw new Error('business-data-mutated-during-readonly-smoke:'+k);
+          console.log('ENTRY618_READONLY_BUSINESS_DATA_UNCHANGED=PASS');
+          NODE
+
+          trap - ERR
+          echo 'ENTRY618_AUTHENTICATED_OPS_READONLY_LIVE_READ_SMOKE=PASS'
+
+      - name: Build exact live frontend GENERAL candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/entry618-livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/entry618-livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/entry618-livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0             | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+
+          cp /tmp/live-config-pre.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-dispatcher-pre.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+
+          ENTRY617_DISPATCHER_PATH=cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js           ENTRY617_CONFIG_PATH=cloudflare-d1/frontend-dist/config.js             node tests/frontend_employee_ops_family_router_entry617_generated.test.mjs
+
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+          old="window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'READONLY';"
+          new="window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';"
+          if s.count(old)!=1:
+              raise SystemExit('entry618-config-readonly-anchor-count')
+          s=s.replace(old,new,1)
+          if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in s:
+              raise SystemExit('entry611-canary-must-not-be-deployed')
+          p.write_text(s)
+          PY
+
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "shouldRouteOpsNative" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          ! grep -Fq "canaryRouteEnabled" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          echo 'ENTRY618_FRONTEND_GENERAL_CANDIDATE=PASS'
+
+      - name: Promote Ops GENERAL and deploy frontend with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE_FRONTEND_VERSION="$(cat /tmp/pre-frontend-version.txt)"
+          OPS_MUTATED=0
+          FRONTEND_DEPLOYED=0
+
+          cleanup_session() {
+            set +e
+            if [ -f /tmp/new-shadow-fps.json ]; then
+              node <<'NODE'
+              const fs=require('fs'), cp=require('child_process');
+              const fps=JSON.parse(fs.readFileSync('/tmp/new-shadow-fps.json','utf8'));
+              const u=String(process.env.QUALIFY_USERNAME||'').trim().toLowerCase().replaceAll("'","''");
+              if(fps.length){
+                const quoted=fps.map(v=>"'"+String(v).replaceAll("'","''")+"'").join(',');
+                const sql="UPDATE cloud_auth_sessions_v1 SET revoked_at_ms="+Date.now()+",last_seen_at_ms="+Date.now()+" WHERE username_key='"+u+"' AND token_fingerprint IN ("+quoted+") AND revoked_at_ms IS NULL;";
+                cp.execFileSync('npx',['wrangler','d1','execute',process.env.DATABASE,'--remote','--config',process.env.API_CONFIG,'--command',sql],{stdio:['ignore','ignore','inherit']});
+              }
+              NODE
+            fi
+            if [ -f /tmp/legacy-token ] && [ -f /tmp/apps-url ]; then
+              node <<'NODE'
+              const fs=require('fs');
+              const upstream=fs.readFileSync('/tmp/apps-url','utf8').trim();
+              const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+              const username=String(process.env.QUALIFY_USERNAME||'').trim();
+              (async()=>{
+                const r=await fetch(upstream,{
+                  method:'POST',
+                  headers:{accept:'application/json','content-type':'text/plain;charset=utf-8'},
+                  body:JSON.stringify({action:'logout',username,token,_ts:Date.now()}),
+                  redirect:'follow'
+                });
+                const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+                if(r.status!==200||body.success!==true) process.exit(2);
+              })().catch(()=>process.exit(3));
+              NODE
+            fi
+            rm -f /tmp/legacy-token /tmp/apps-url
+            set -e
+          }
+
+          rollback_on_error() {
+            rc=$?
+            trap - ERR
+            echo "ENTRY618_FAILURE_RC=$rc"
+            cleanup_session || true
+            if [ "$FRONTEND_DEPLOYED" = "1" ]; then
+              echo "ENTRY618_ROLLBACK_FRONTEND_TO=$PRE_FRONTEND_VERSION"
+              npx wrangler rollback "$PRE_FRONTEND_VERSION" --message "Entry618 automatic rollback after Ops GENERAL failure" --config "$FRONTEND_CONFIG" || true
+            fi
+            if [ "$OPS_MUTATED" = "1" ]; then
+              echo "ENTRY618_ROLLBACK_OPS_TO=READONLY"
+              npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG"                 --command "UPDATE employee_ops_control_v1 SET mode='READONLY',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1' AND mode='GENERAL';" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback_on_error ERR
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "UPDATE employee_ops_control_v1
+                SET mode='GENERAL',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+              WHERE singleton=1
+                AND marker='ENTRY614_EMPLOYEE_OPS_V1'
+                AND mode='READONLY'
+                AND policy_epoch=2;
+             SELECT mode,policy_epoch AS policyEpoch FROM employee_ops_control_v1 WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1';"             > /tmp/ops-general.json
+          OPS_MUTATED=1
+
+          node <<'NODE'
+          const fs=require('fs'), x=JSON.parse(fs.readFileSync('/tmp/ops-general.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.mode&&v.policyEpoch!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const r=rows.find(v=>v.mode==='GENERAL');
+          if(!r||Number(r.policyEpoch)!==3) throw new Error('ops-general-promotion-not-proven');
+          console.log('ENTRY618_OPS_CONTROL=GENERAL');
+          console.log('ENTRY618_OPS_POLICY_EPOCH=3');
+          NODE
+
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/ops',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({action:'hrV1',op:'__entry618_noop__',username}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==400||String(body.code||'')!=='hr-op-unknown'||String(body.authority||'')!=='d1-employee-ops-v1') {
+              throw new Error('general-noop-routing-failed:'+r.status+':'+String(body.code||''));
+            }
+            if(String(body.authSource||'')!=='d1-auth-shadow-v1') throw new Error('general-noop-auth-not-cloud-shadow');
+            console.log('ENTRY618_GENERAL_GATE_AUTHENTICATED_NOOP=PASS');
+          })().catch(err=>{console.error(String(err&&err.message||err));process.exit(4);});
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "SELECT
+               (SELECT COUNT(*) FROM employee_attendance_days_v1) AS attendanceDays,
+               (SELECT COUNT(*) FROM employee_attendance_pulses_v1) AS attendancePulses,
+               (SELECT COUNT(*) FROM employee_hr_requests_v1) AS hrRequests,
+               (SELECT COUNT(*) FROM employee_cleaning_daily_v1) AS cleaningRows,
+               (SELECT COUNT(*) FROM employee_press_sessions_v1) AS pressSessions,
+               (SELECT COUNT(*) FROM employee_ops_events_v1) AS opsEvents;"             > /tmp/d1-after-general-noop.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const pre=JSON.parse(fs.readFileSync('/tmp/business-counts-pre.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/d1-after-general-noop.json','utf8')), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'attendanceDays'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const now=rows[0];
+          if(!now) throw new Error('general-noop-counts-missing');
+          for(const k of Object.keys(pre)) if(Number(now[k])!==Number(pre[k])) throw new Error('business-data-mutated-during-general-noop:'+k);
+          console.log('ENTRY618_GENERAL_NOOP_BUSINESS_DATA_UNCHANGED=PASS');
+          NODE
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" | tee /tmp/entry618-frontend-deploy.log
+          FRONTEND_DEPLOYED=1
+
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry618post=$GITHUB_SHA" -o /tmp/post-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry618post=$GITHUB_SHA" -o /tmp/post-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry618post=$GITHUB_SHA" -o /tmp/post-edge.js
+
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" /tmp/post-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" /tmp/post-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" /tmp/post-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/post-config.js
+          grep -Fq "T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004" /tmp/post-dispatcher.js
+          grep -Fq "shouldRouteOpsNative" /tmp/post-dispatcher.js
+          ! grep -Fq "canaryRouteEnabled" /tmp/post-dispatcher.js
+          grep -Fq 'postWriteBarrierRecoveries' /tmp/post-edge.js
+          grep -Fq 'recoverPostWriteBarrier' /tmp/post-edge.js
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" -o /tmp/auth-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" -o /tmp/bridge-post.json
+          for f in ops content comms accounting core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health" -o "/tmp/$f-post.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health" -o /tmp/orders-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health" -o /tmp/customers-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health" -o /tmp/line-post.json
+
+          node <<'NODE'
+          const fs=require('fs'), read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const a=read('/tmp/auth-post.json'), b=read('/tmp/bridge-post.json');
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth-post');
+          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge-post');
+          const ops=read('/tmp/ops-post.json');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch||0)!==3||ops.schemaReady!==true||Number(ops.googleBusinessCalls||0)!==0||ops.appsScriptBusinessAuthority!==false) throw new Error('ops-post');
+          for(const f of ['content','comms','accounting','core']){
+            const x=read('/tmp/'+f+'-post.json');
+            if(x.mode!=='OFF'||x.schemaReady!==true) throw new Error('other-family-post:'+f);
+          }
+          const o=read('/tmp/orders-post.json'), c=read('/tmp/customers-post.json'), l=read('/tmp/line-post.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-post');
+          if(c.mode!=='GENERAL') throw new Error('customers-post');
+          if(l.schemaReady!==true||l.legacySchemaReady!==true||l.writeMode!=='cloud-native+legacy-overlay') throw new Error('line-post');
+          console.log('ENTRY618_POSTCUTOVER_HEALTH=PASS');
+          console.log('ENTRY618_REFRESH_FIX_PRESERVED=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json > /tmp/frontend-post-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/frontend-post-deployments.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[]))
+            .slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const d=ds[0]||{};
+          const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend-post-version-not-single-100');
+          fs.writeFileSync('/tmp/post-frontend-version.txt',full[0].id);
+          console.log('ENTRY618_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          cleanup_session
+
+          node <<'NODE'
+          const fs=require('fs'), cp=require('child_process');
+          const fps=JSON.parse(fs.readFileSync('/tmp/new-shadow-fps.json','utf8'));
+          const u=String(process.env.QUALIFY_USERNAME||'').trim().toLowerCase().replaceAll("'","''");
+          const quoted=fps.map(v=>"'"+String(v).replaceAll("'","''")+"'").join(',');
+          const sql="SELECT COUNT(*) AS n FROM cloud_auth_sessions_v1 WHERE username_key='"+u+"' AND token_fingerprint IN ("+quoted+") AND revoked_at_ms IS NULL;";
+          const out=cp.execFileSync('npx',['wrangler','d1','execute',process.env.DATABASE,'--remote','--config',process.env.API_CONFIG,'--json','--command',sql],{encoding:'utf8'});
+          const x=JSON.parse(out), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'n'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          if(!rows.length||Number(rows[0].n)!==0) throw new Error('temporary-shadow-session-not-revoked');
+          console.log('ENTRY618_TEMP_CLOUD_SHADOW_REVOKED=PASS');
+          NODE
+
+          trap - ERR
+          echo 'ENTRY618_STATUS=OPS_GENERAL_CUTOVER_PASS'
+          echo 'ENTRY618_AUTH=OFF'
+          echo 'ENTRY618_BRIDGE=OFF'
+          echo 'ENTRY618_CONTENT=OFF'
+          echo 'ENTRY618_COMMS=OFF'
+          echo 'ENTRY618_ACCOUNTING=OFF'
+          echo 'ENTRY618_CORE=OFF'
+          echo 'ENTRY618_API_DEPLOY=NO'
+          echo 'ENTRY618_APPS_SCRIPT_DEPLOY=NO'
+          echo 'ENTRY618_APPS_SCRIPT_BUSINESS_MUTATION=NO'
+          echo 'ENTRY618_TEMP_AUTH_SESSION_CREATED_AND_CLEANED=YES'
+          echo 'ENTRY618_ENTRY611_CANARY_DEPLOYED=NO'
+
+      - name: Emergency temporary-session cleanup
+        if: ${{ failure() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/new-shadow-fps.json ]; then
+            node <<'NODE'
+            const fs=require('fs'), cp=require('child_process');
+            const fps=JSON.parse(fs.readFileSync('/tmp/new-shadow-fps.json','utf8'));
+            const u=String(process.env.QUALIFY_USERNAME||'').trim().toLowerCase().replaceAll("'","''");
+            if(fps.length){
+              const quoted=fps.map(v=>"'"+String(v).replaceAll("'","''")+"'").join(',');
+              const now=Date.now();
+              const sql="UPDATE cloud_auth_sessions_v1 SET revoked_at_ms="+now+",last_seen_at_ms="+now+" WHERE username_key='"+u+"' AND token_fingerprint IN ("+quoted+") AND revoked_at_ms IS NULL;";
+              cp.execFileSync('npx',['wrangler','d1','execute',process.env.DATABASE,'--remote','--config',process.env.API_CONFIG,'--command',sql],{stdio:['ignore','ignore','inherit']});
+            }
+            NODE
+          fi
+          if [ -f /tmp/legacy-token ] && [ -f /tmp/apps-url ]; then
+            node <<'NODE'
+            const fs=require('fs');
+            const upstream=fs.readFileSync('/tmp/apps-url','utf8').trim();
+            const token=fs.readFileSync('/tmp/legacy-token','utf8').trim();
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            fetch(upstream,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'logout',username,token,_ts:Date.now()}),redirect:'follow'}).catch(()=>{});
+            NODE
+          fi
+          rm -f /tmp/legacy-token /tmp/apps-url
+          echo 'ENTRY618_EMERGENCY_SESSION_CLEANUP_ATTEMPTED=YES'
