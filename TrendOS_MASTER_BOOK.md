@@ -2407,6 +2407,131 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=QUALIFY_OPS_READONLY_CUTOVER_WITH_AUTH_AND_BRIDGE_STILL_OFF
   ```
 
+### Entry617 — Ops family READONLY cutover on live frontend baseline
+- الهدف: بدء family-by-family cutover بأول عائلة فقط، مع إبقاء:
+  - Employee Auth = OFF.
+  - Employee Bridge = OFF.
+  - Content/Comms/Accounting/Core = OFF.
+  - Apps Script/Google runtime untouched.
+- Repo-only qualification:
+  - Ops family router أضيف default-OFF ثم اختُبر أن:
+    - OFF يحافظ على Legacy behavior كما هو.
+    - READONLY يرسل فقط Ops reads المؤهلة إلى `/v1/employee/ops`.
+    - Ops writes تبقى على المسار الحالي في READONLY.
+    - GENERAL source path موجود لمرحلة لاحقة فقط.
+  - Source qualification Run `37201844919`, Job `111434981506` = **SUCCESS**.
+- Live frontend drift audit:
+  - كل top-level frontend assets طابقت repo baseline byte-for-byte ما عدا:
+    - `config.js`
+    - `employee-api-dispatcher-v1.js`
+  - السبب: Production ظل على A61 dispatcher الأساسي، بينما candidate يحتوي Entry611 Native Auth Canary repo-only وغير منشور.
+  - Live exact hashes قبل القطع:
+    ```ini
+    config.js=840d444e3469050a5724547a62103b3ef2cc2a77b151b37b430b85c31de54a31
+    employee-api-dispatcher-v1.js=4f36ba86fccb5ef010bec7f77bb59932be01c63978f09e05dc17ad69ed106fa2
+    ```
+  - القرار: عدم نشر Entry611 Canary ضمن Ops؛ تم بناء patch فوق Live A61 نفسه.
+- Controlled cutover Run #1:
+  - Run `37202743542`, Job `111437583201`.
+  - Preflight = PASS.
+  - توقف **قبل أي D1 mutation أو frontend deploy** بسبب anchor هش في generator.
+- Generator hardened in commit:
+  - `fd1dc768e2393e1fc8ff356955ac322e4391c0aa`
+- Controlled cutover Run #2:
+  - Run `37202851769`
+  - Job `111437912816`
+  - conclusion = **SUCCESS**
+- Pre-cutover state:
+  ```ini
+  PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  PRE_FRONTEND_VERSION=adfb5056-af23-4d7f-8e12-7de6417dfce2
+  OPS=OFF
+  CONTENT=OFF
+  COMMS=OFF
+  ACCOUNTING=OFF
+  CORE=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  ORDERS=GENERAL_DUPLICATE_GUARD_PASS
+  CUSTOMERS=GENERAL
+  LINE_RUNTIME=PASS
+  ```
+- Mutation boundary:
+  - only `employee_ops_control_v1` changed from OFF → READONLY.
+  - API Worker deploy = NO.
+  - Apps Script mutation = NO.
+  - Secret write = NO.
+  - Native Auth enable = NO.
+  - Legacy Bridge enable = NO.
+- READONLY runtime semantics were proved without using a real employee:
+  - qualified read request reaches session verification and returns `401 employee-session-rejected` for the deliberately invalid probe token.
+  - write request is blocked before auth with `503 employee-ops-readonly`.
+  - therefore READONLY gate permits the approved read policy set and blocks writes.
+- Frontend deploy was built from exact Live baseline:
+  - Entry611 canary config/routing was explicitly excluded.
+  - `MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE='READONLY'`.
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false`.
+  - `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false`.
+  - new frontend version:
+    - `ad121526-8f86-4ce9-b13e-757c89810b06`.
+- Final workflow postflight:
+  ```ini
+  OPS=READONLY
+  AUTH=OFF
+  BRIDGE=OFF
+  CONTENT=OFF
+  COMMS=OFF
+  ACCOUNTING=OFF
+  CORE=OFF
+  ORDERS=GENERAL_DUPLICATE_GUARD_PASS
+  CUSTOMERS=GENERAL
+  LINE_RUNTIME=PASS
+  REFRESH_FIX=PASS
+  ENTRY611_CANARY_DEPLOYED=NO
+  ```
+- Independent public API verification after the workflow:
+  ```ini
+  OPS_MODE=READONLY
+  OPS_POLICY_EPOCH=2
+  OPS_SCHEMA_READY=true
+  OPS_GOOGLE_BUSINESS_CALLS=0
+  OPS_APPS_SCRIPT_BUSINESS_AUTHORITY=false
+  AUTH=OFF
+  BRIDGE=OFF
+  CONTENT=OFF
+  COMMS=OFF
+  ACCOUNTING=OFF
+  CORE=OFF
+  ORDERS=GENERAL / duplicateGuardReady=true
+  CUSTOMERS=GENERAL / customerCount=251
+  LINE_RUNTIME=cloud-native+legacy-overlay
+  ```
+- Important gate before GENERAL:
+  - source + control semantics are PASS, but a real authenticated employee-session read smoke must be completed from the Production UI before Ops writes are moved to D1.
+  - do not enable Native Auth or Bridge for this smoke; use the existing employee session path.
+  - do not promote Ops to GENERAL unless that authenticated READONLY smoke passes.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY617_OPS_READONLY_CUTOVER_PASS_PENDING_AUTHENTICATED_LIVE_READ_SMOKE_BEFORE_GENERAL
+  RUN_ID=37202851769
+  JOB_ID=111437912816
+  WORKFLOW_COMMIT=fd1dc768e2393e1fc8ff356955ac322e4391c0aa
+  PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  PRODUCTION_FRONTEND_VERSION=ad121526-8f86-4ce9-b13e-757c89810b06
+  OPS=READONLY
+  OPS_POLICY_EPOCH=2
+  CONTENT=OFF
+  COMMS=OFF
+  ACCOUNTING=OFF
+  CORE=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  ENTRY611_CANARY_DEPLOYED=NO
+  API_DEPLOY=NO
+  APPS_SCRIPT_TOUCHED=NO
+  NEXT_ACTION=AUTHENTICATED_OPS_READONLY_LIVE_READ_SMOKE_THEN_PROMOTE_OPS_GENERAL_ONLY_IF_PASS
+  ```
+
 ### Customers
 - Customer master = 251 rows في D1 (live health after Entry616).
 - Customer search/write authority = D1-native / GENERAL.
