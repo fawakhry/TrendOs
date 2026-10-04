@@ -337,7 +337,7 @@ Evidence / QC / completion / learning
 - `autonomous-printshop/migrations/0019_autonomy_events_v1.sql`
 - `autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs`
 - `autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs`
-- CI: `.github/workflows/trendos-autonomy-policy-v1-ci.yml`
+- CI: `.github/workflows/autonomous-printshop-policy-v1-ci.yml`
 
 Evidence:
 - Autonomy Policy CI Run `37239224704` = PASS.
@@ -766,7 +766,7 @@ Created on 2026-10-05:
 
 - `autonomous-printshop/core/autonomy-policy-v1.mjs`
 - `autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs`
-- `.github/workflows/trendos-autonomy-policy-v1-ci.yml`
+- `.github/workflows/autonomous-printshop-policy-v1-ci.yml`
 
 This checkpoint changes no Production runtime behavior. It establishes the classification contract required before AI can take operational control.
 
@@ -1147,3 +1147,12 @@ PROJECT_OWNED_DUPLICATES_CLEANED=YES
 UPSTREAM_LIVE_DEPENDENCIES_DELETED=NO_BY_DESIGN
 NEXT=P0_BUILD_OPERATOR_TASK_D1_AUTHORITY_AND_TRENDOS_CONNECTOR
 ```
+
+
+### Infrastructure exception — GitHub Actions
+
+The project is centralized under `autonomous-printshop/`. One file must remain outside that tree because GitHub only executes workflows from `.github/workflows/`:
+
+- `.github/workflows/autonomous-printshop-policy-v1-ci.yml`
+
+This is infrastructure plumbing only and is not a second project book or source-of-truth location.
