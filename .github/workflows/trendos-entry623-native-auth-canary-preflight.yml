@@ -1,0 +1,183 @@
+name: TrendOS Entry623 Native Auth Canary Current-Truth Preflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-native-auth-canary-preflight.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-native-auth-canary-preflight
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_WORKER: trendos-d1-api
+      UI_WORKER: trendos-ui
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Read active deployments
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name "$API_WORKER" --json >/tmp/api-deployments.json
+          npx wrangler deployments list --name "$UI_WORKER" --json >/tmp/ui-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[]))
+              .slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const full=(((ds[0]||{}).versions)||[])
+              .map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)}))
+              .filter(v=>v.id&&v.p===100);
+            if(full.length!==1) throw new Error(label+' active version not single 100%');
+            console.log('ENTRY623_'+label+'_VERSION='+full[0].id);
+          }
+          active('/tmp/api-deployments.json','API');
+          active('/tmp/ui-deployments.json','UI');
+          NODE
+
+      - name: Read runtime family controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry623=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=f=>JSON.parse(fs.readFileSync('/tmp/'+f+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting'),ct=r('content'),cm=r('comms'),co=r('core');
+          console.log('ENTRY623_AUTH_MODE='+String(a.mode||''));
+          console.log('ENTRY623_AUTH_ENV_ENABLED='+String(a.envEnabled===true));
+          console.log('ENTRY623_LEGACY_BOOTSTRAP_ENABLED='+String(a.legacyBootstrapEnabled===true));
+          console.log('ENTRY623_LEGACY_SESSION_ENROLL_ENABLED='+String(a.legacySessionEnrollEnabled===true));
+          console.log('ENTRY623_NATIVE_ONLY='+String(a.nativeOnly===true));
+          console.log('ENTRY623_AUTH_USER_COUNT='+Number(a.userCount||0));
+          console.log('ENTRY623_NATIVE_READY_COUNT='+Number(a.nativeReadyCount||0));
+          console.log('ENTRY623_BRIDGE_ENABLED='+String(b.enabled===true));
+          console.log('ENTRY623_BRIDGE_SECRET_CONFIGURED='+String(b.secretConfigured===true));
+          console.log('ENTRY623_BRIDGE_POLICY_COUNT='+Number(b.allowedPolicyCount||0));
+          console.log('ENTRY623_RAW_NATIVE_TOKEN_FORWARDED='+String(b.rawNativeTokenForwarded===true));
+          console.log('ENTRY623_PLAINTEXT_PASSWORD_FORWARDED='+String(b.plaintextPasswordForwarded===true));
+          console.log('ENTRY623_OPS='+String(o.mode||'')+'/epoch '+Number(o.policyEpoch||0));
+          console.log('ENTRY623_ACCOUNTING='+String(ac.mode||'')+'/epoch '+Number(ac.policyEpoch||0));
+          console.log('ENTRY623_CONTENT='+String(ct.mode||'')+'/epoch '+Number(ct.policyEpoch||0));
+          console.log('ENTRY623_COMMS='+String(cm.mode||'')+'/epoch '+Number(cm.policyEpoch||0));
+          console.log('ENTRY623_CORE='+String(co.mode||'')+'/epoch '+Number(co.policyEpoch||0));
+
+          if(a.mode!=='OFF'||a.envEnabled!==false||a.nativeOnly!==false) throw new Error('auth baseline drift');
+          if(b.enabled!==false||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge Gate1 baseline drift');
+          if(b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge hygiene drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting drift');
+          if(ct.mode!=='OFF'||cm.mode!=='OFF'||co.mode!=='OFF') throw new Error('remaining family mode drift');
+          console.log('ENTRY623_RUNTIME_BASELINE=PASS');
+          NODE
+
+      - name: Read Cloudflare bindings without secret values
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$API_WORKER/settings" >/tmp/settings.json
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$API_WORKER/secrets" >/tmp/secrets.json
+          node <<'NODE'
+          const fs=require('fs');
+          const settings=JSON.parse(fs.readFileSync('/tmp/settings.json','utf8'));
+          const bindings=Array.isArray(settings?.result?.bindings)?settings.result.bindings:[];
+          const by=new Map(bindings.map(v=>[String(v.name||''),v]));
+          const val=name=>{const v=by.get(name);return v&&(v.type==='plain_text'||v.type==='json')?String(v.text??v.value??''):''};
+          const policies=val('EMPLOYEE_LEGACY_BRIDGE_ACTIONS').split(',').map(x=>x.trim()).filter(Boolean);
+          const secrets=JSON.parse(fs.readFileSync('/tmp/secrets.json','utf8'));
+          const names=new Set((Array.isArray(secrets?.result)?secrets.result:[]).map(v=>String(v?.name||'')));
+          console.log('ENTRY623_CF_BRIDGE_SECRET_PRESENT='+String(names.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1')));
+          console.log('ENTRY623_CF_POLICY_BINDING_TYPE='+String((by.get('EMPLOYEE_LEGACY_BRIDGE_ACTIONS')||{}).type||''));
+          console.log('ENTRY623_CF_POLICY_COUNT='+policies.length);
+          console.log('ENTRY623_CF_BRIDGE_ENABLED_VALUE='+val('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED'));
+          if(!names.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1')) throw new Error('bridge secret absent');
+          if(policies.length!==17||new Set(policies).size!==17) throw new Error('policy count');
+          if(val('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED').trim().toLowerCase()!=='false') throw new Error('bridge unexpectedly enabled');
+          console.log('ENTRY623_SECRET_VALUES_LOGGED=NO');
+          NODE
+
+      - name: Read D1 native auth state
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1;
+          SELECT COUNT(*) AS userCount,
+                 SUM(CASE WHEN password_scheme='pbkdf2-sha256-v1' AND password_hash_hex<>'' THEN 1 ELSE 0 END) AS nativeReadyCount
+            FROM employee_auth_users_v1;
+          SELECT COUNT(*) AS sessionCount,
+                 SUM(CASE WHEN revoked_at_ms IS NULL AND expires_at_ms>CAST(strftime('%s','now') AS INTEGER)*1000 THEN 1 ELSE 0 END) AS liveSessionCount
+            FROM employee_auth_sessions_v1;" >/tmp/d1.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8'));
+          const rows=[];const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')||Object.prototype.hasOwnProperty.call(v,'sessionCount'))rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const c=rows.find(r=>r.marker),u=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'userCount')),s=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'sessionCount'));
+          console.log('ENTRY623_D1_AUTH_MODE='+String(c?.mode||''));
+          console.log('ENTRY623_D1_AUTH_POLICY_EPOCH='+Number(c?.policyEpoch||0));
+          console.log('ENTRY623_D1_USER_COUNT='+Number(u?.userCount||0));
+          console.log('ENTRY623_D1_NATIVE_READY_COUNT='+Number(u?.nativeReadyCount||0));
+          console.log('ENTRY623_D1_SESSION_COUNT='+Number(s?.sessionCount||0));
+          console.log('ENTRY623_D1_LIVE_SESSION_COUNT='+Number(s?.liveSessionCount||0));
+          if(String(c?.mode||'')!=='OFF') throw new Error('D1 auth control drift');
+          NODE
+
+      - name: Read live frontend canary contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$UI_URL/config.js?entry623=$suffix" -o /tmp/config.js
+          curl --fail --silent --show-error --location "$UI_URL/employee-api-dispatcher-v1.js?entry623=$suffix" -o /tmp/dispatcher.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" /tmp/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false" /tmp/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" /tmp/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" /tmp/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" /tmp/config.js
+          grep -Fq "canaryMinimumBridgePolicies" /tmp/dispatcher.js
+          echo ENTRY623_FRONTEND_CANARY=OFF
+          echo ENTRY623_FRONTEND_BRIDGE=OFF
+          echo ENTRY623_FRONTEND_OPS=GENERAL
+          echo ENTRY623_FRONTEND_ACCOUNTING=READONLY
+
+      - name: Classify next gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo ENTRY623_READONLY_PREFLIGHT=PASS
+          echo ENTRY623_CURRENT_BRIDGE_POLICIES=17
+          echo ENTRY623_EXISTING_CANARY_MINIMUM=69
+          echo ENTRY623_CURRENT_CANARY_ACTIVATION_SAFE=NO
+          echo ENTRY623_BLOCKER=FRONTEND_CANARY_CONTRACT_REQUIRES_69_BUT_GATE1_INTENTIONALLY_HAS_17_AND_ACCOUNTING_IS_DEFERRED
+          echo ENTRY623_NEXT_SAFE_ACTION=REQUALIFY_SINGLE_EMPLOYEE_LOGIN_CANARY_FOR_17_READONLY_BRIDGE_POLICIES_OR_FINISH_CONTENT_COMMS_CORE_NATIVE_CUTOVERS_FIRST
+          echo ENTRY623_PRODUCTION_MUTATION=NO
+          echo ENTRY623_D1_MUTATION=NO
+          echo ENTRY623_DEPLOY=NO
+          echo ENTRY623_APPS_SCRIPT_TOUCH=NO
