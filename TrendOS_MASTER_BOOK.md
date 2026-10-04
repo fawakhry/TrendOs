@@ -2252,6 +2252,73 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=RUN_D1_CORRECTED_ARCHIVE_PARENT_INTEGRITY_QUERY
   ```
 
+
+### Entry615 — Final parity integrity correction and resume gate
+- بعد اكتمال Backfill `ENTRY615-1F9B510723BE29EB` تم التحقق من integrity النهائي.
+- نتيجة الفحص الأول المباشر على archive lines كانت:
+  ```ini
+  orphan_attendance_pulses=0
+  orphan_core_lines=0
+  orphan_archive_lines_vs_archive_orders_only=60
+  ```
+- تم فحص الـ60 صف بدل اعتبارها Orphans:
+  - `archive_lines_missing_any_parent=0`
+  - `archive_lines_parent_is_current=60`
+- التفسير الصحيح:
+  - الـ60 archive line ليسوا orphan rows.
+  - parent order الخاص بهم موجود في `employee_core_orders_v1` (current orders) وليس في `employee_core_archive_orders_v1`.
+  - لذلك integrity rule الصحيح أثناء مرحلة الانتقال هو: archive line يجب أن يجد parent في **archive orders OR current orders**.
+- Backfill ledger:
+  ```ini
+  run_id=ENTRY615-1F9B510723BE29EB
+  mode=APPLY
+  status=COMMITTED
+  source_snapshot_sha256=1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f
+  ```
+- Family controls final pre-cutover state:
+  ```ini
+  ops=OFF
+  content=OFF
+  comms=OFF
+  accounting=OFF
+  core=OFF
+  ```
+- Domain count parity already PASS:
+  ```ini
+  OPS=PASS
+  CONTENT=PASS
+  COMMS=PASS
+  ACCOUNTING=PASS
+  CORE=PASS
+  retained_legacy_rows=1256 PASS
+  ```
+- Final integrity:
+  ```ini
+  ATTENDANCE_PULSE_ORPHANS=0
+  CURRENT_CORE_LINE_ORPHANS=0
+  ARCHIVE_LINES_MISSING_ANY_PARENT=0
+  ARCHIVE_LINES_PARENT_IS_CURRENT=60
+  INTEGRITY=PASS
+  ```
+- Important deployment boundary:
+  - Production API currently runs the isolated Entry615A session hotfix version `62cad27e-76c4d-4f56-9b37-849f2e7256c7`.
+  - Zero-Google backend family handlers from the candidate branch are **not yet deployed to Production**.
+  - therefore do **not** switch any family control to READONLY/GENERAL before deploying the Zero-Google backend source with all controls still OFF and completing a Production health/regression pass.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_BACKFILL_PARITY_INTEGRITY_PASS_READY_FOR_ZERO_GOOGLE_BACKEND_OFF_DEPLOY
+  MIGRATIONS_0012_TO_0018=APPLIED_PASS
+  BACKFILL=APPLIED_COMMITTED
+  DOMAIN_PARITY=PASS
+  INTEGRITY=PASS
+  FAMILY_CONTROLS=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  PRODUCTION_API_SESSION_HOTFIX=62cad27e-76c4d-4f56-9b37-849f2e7256c7
+  ZERO_GOOGLE_BACKEND_HANDLERS_DEPLOYED=NO
+  NEXT_ACTION=QUALIFY_AND_DEPLOY_ZERO_GOOGLE_BACKEND_WITH_ALL_FAMILY_CONTROLS_OFF_THEN_HEALTH_REGRESSION_BEFORE_READONLY_CUTOVER
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
