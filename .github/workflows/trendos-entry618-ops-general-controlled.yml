@@ -272,11 +272,13 @@ jobs:
           # the same write-shaped request now passes policy and stops at authentication.
           write_code="$(curl --silent --show-error --output /tmp/general-write-probe.json --write-out '%{http_code}' \
             -X POST -H 'content-type: application/json' \
-            --data '{"action":"hrV1","op":"submitRequest","username":"entry618-general-probe","token":"invalid"}' \
+            --data '{"action":"hrV1","op":"submitRequest"}' \
             "$API_URL/v1/employee/ops")"
           test "$write_code" = "401"
           grep -Fq '"code":"employee-session-rejected"' /tmp/general-write-probe.json
+          grep -Fq 'username and employee session token are required' /tmp/general-write-probe.json
           echo 'ENTRY618_GENERAL_WRITE_POLICY_REACHES_AUTH=PASS'
+          echo 'ENTRY618_GENERAL_PROBE_EXTERNAL_AUTH_CALL=NO'
           echo 'ENTRY618_GENERAL_BUSINESS_WRITE_EXECUTED=NO'
 
           npx wrangler deploy --config "$FRONTEND_CONFIG" | tee /tmp/entry618-frontend-deploy.log
