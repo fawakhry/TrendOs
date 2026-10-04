@@ -1317,3 +1317,50 @@ AUTOPILOT=OFF
 
 Next safe build remains:
 `Operational Reality read adapter -> D1 Operator Task Authority default OFF -> Employee Supervisor shadow`.
+
+
+### AP-009 — TrendOS/D1 Operational Reality read adapter started and qualified
+
+Created:
+- `autonomous-printshop/core/trendos-operational-reality-read-adapter-v1.mjs`
+- `autonomous-printshop/tests/trendos_operational_reality_read_adapter_v1.test.mjs`
+
+The adapter intentionally uses the already-qualified TrendOS Edge Orders read contract:
+- version: `D1_ORDERS_READ_V1`
+- source: `d1-edge-orders`
+- page envelope: rows + pagination + dataVersion + mirror metadata + Edge session identity.
+
+It is dependency-injected and performs no network call itself. A future runtime composition may provide the authenticated read function.
+
+Safety / correctness rules:
+- read only;
+- source version must be exactly qualified;
+- source authority must be D1 Edge Orders;
+- all pages must be collected before a snapshot is accepted;
+- page budget overflow fails closed rather than returning a partial shop state;
+- dataVersion change between pages fails closed;
+- Edge-session identity change during snapshot fails closed;
+- pagination changing during snapshot fails closed;
+- source/mirror read failure fails closed.
+
+The complete rows are then passed into `Operational Reality V1`, which applies the deterministic task eligibility/priority contract.
+
+Qualification:
+- CI Run `37245407155` — **SUCCESS** including:
+  - autonomy policy;
+  - corrected autonomy event ledger;
+  - Operational Reality core;
+  - TrendOS reality read adapter.
+
+```ini
+TRENDOS_REALITY_ADAPTER=REPO_ONLY_QUALIFIED
+SOURCE_CONTRACT=D1_ORDERS_READ_V1
+SOURCE_AUTHORITY=d1-edge-orders
+PARTIAL_SNAPSHOT=FAIL_CLOSED
+DATA_VERSION_DRIFT=FAIL_CLOSED
+PRODUCTION_NETWORK_WIRING=NO
+PRODUCTION_WRITE=NO
+```
+
+Next implementation target:
+`D1 Operator Task Authority schema + pure claim/complete core, default OFF`.
