@@ -764,8 +764,8 @@ AUTOPILOT_DEGRADED=NO
 
 Created on 2026-10-05:
 
-- `cloudflare-d1/src/autonomy-policy-v1.mjs`
-- `tests/trendos_autonomy_policy_v1.test.mjs`
+- `autonomous-printshop/core/autonomy-policy-v1.mjs`
+- `autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs`
 - `.github/workflows/trendos-autonomy-policy-v1-ci.yml`
 
 This checkpoint changes no Production runtime behavior. It establishes the classification contract required before AI can take operational control.
@@ -822,7 +822,7 @@ TrendOS Connector
 
 - Do not copy TrendOS business data into a second source of truth.
 - Do not copy Matbagy-OS runtime wholesale; consume/adapt modules with explicit contracts.
-- Recovered Evaluations source is imported into `autonomous-printshop/quarantine/evaluations-recovered/` because its executable code was missing from GitHub.
+- Recovered Evaluations source is imported into `autonomous-printshop/recovered/evaluations/` because its executable code was missing from GitHub.
 - Design cases remain canonical in Matbagy-OS; this project stores only extracted recipe rules + source case IDs.
 - Historical Google adapters may be studied for semantics but are not the target authority.
 - Every reused historical candidate requires current-runtime requalification before production activation.
