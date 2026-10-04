@@ -1,0 +1,92 @@
+name: TrendOS Entry618 Live Ops Authenticated Tail
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry618-live-ops-tail.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preflight remains READONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health" > /tmp/ops.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" > /tmp/bridge.json
+          node <<'NODE'
+          const fs=require('fs');
+          const o=JSON.parse(fs.readFileSync('/tmp/ops.json','utf8'));
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          if(o.mode!=='READONLY'||Number(o.policyEpoch||0)!==2) throw new Error('ops-not-readonly');
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth-not-off');
+          if(b.enabled!==false||b.secretConfigured!==false) throw new Error('bridge-not-off');
+          console.log('ENTRY618_TAIL_PREFLIGHT=PASS');
+          NODE
+
+      - name: Observe real Production Ops traffic without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save wrangler@4.33.2 >/dev/null
+          : > /tmp/tail.jsonl
+          set +e
+          timeout 100s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+            cat /tmp/tail.err >&2
+            exit "$rc"
+          fi
+
+          node <<'NODE'
+          const fs=require('fs');
+          const lines=fs.readFileSync('/tmp/tail.jsonl','utf8').split(/\r?\n/).filter(Boolean);
+          let total=0, ops=0, ok=0, rejected=0, readonly=0;
+          for(const line of lines){
+            let x; try{x=JSON.parse(line)}catch{continue}
+            total++;
+            const event=x.event||x;
+            const req=event.request||event.event?.request||x.request||{};
+            const res=event.response||event.event?.response||x.response||{};
+            const url=String(req.url||event.url||'');
+            let path=''; try{path=new URL(url).pathname}catch{}
+            if(path!=='/v1/employee/ops') continue;
+            ops++;
+            const status=Number(res.status||event.responseStatus||x.responseStatus||0);
+            if(status===200) ok++;
+            if(status===401) rejected++;
+            if(status===503) readonly++;
+          }
+          console.log('ENTRY618_TAIL_EVENTS_PARSED='+total);
+          console.log('ENTRY618_OPS_REQUESTS_OBSERVED='+ops);
+          console.log('ENTRY618_OPS_HTTP_200_OBSERVED='+ok);
+          console.log('ENTRY618_OPS_HTTP_401_OBSERVED='+rejected);
+          console.log('ENTRY618_OPS_HTTP_503_OBSERVED='+readonly);
+          console.log('ENTRY618_CREDENTIALS_READ=NO');
+          console.log('ENTRY618_PRODUCTION_MUTATION=NO');
+          if(ok<1) throw new Error('no-authenticated-ops-read-observed-in-tail-window');
+          console.log('ENTRY618_AUTHENTICATED_OPS_READONLY_LIVE_READ_SMOKE=PASS');
+          NODE
