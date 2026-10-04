@@ -450,6 +450,33 @@
       "source_url": "https://github.com/fawakhry/EasyStore/blob/main/Code.gs",
       "central_path": "autonomous-printshop/sources/easystore/reference/Code.gs",
       "disposition": "KEEP_UPSTREAM_FINANCIAL_AUTHORITY"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Control Tower / Go-Live Autopilot",
+      "source_path": "go-live-autopilot-v1.js",
+      "source_sha": "07e79efe9dc2f72d681820355d1044d6a1713db1",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/go-live-autopilot-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/control-tower/go-live-autopilot-v1.js",
+      "disposition": "KEEP_UPSTREAM_PATTERN_SOURCE"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Deployment Health",
+      "source_path": "v1940-deploy-health.gs",
+      "source_sha": "41e57f19de8e865888a1b8bad2cc478c44c438c3",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/v1940-deploy-health.gs",
+      "central_path": "autonomous-printshop/sources/trendos/control-tower/v1940-deploy-health.gs",
+      "disposition": "KEEP_UPSTREAM_HEALTH_SOURCE"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Integrity Dashboard",
+      "source_path": "trendos-integrity-dashboard-v1.gs",
+      "source_sha": "9ce3a4c3e1a11f318a7d1c87b12d6cf0c14aa838",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/trendos-integrity-dashboard-v1.gs",
+      "central_path": "autonomous-printshop/sources/trendos/control-tower/trendos-integrity-dashboard-v1.gs",
+      "disposition": "KEEP_UPSTREAM_HEALTH_SOURCE"
     }
   ],
   "project_owned_canonical": [
