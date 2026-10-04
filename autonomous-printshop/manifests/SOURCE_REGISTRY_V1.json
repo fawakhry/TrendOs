@@ -1,0 +1,464 @@
+{
+  "schema": "AUTONOMOUS_PRINTSHOP_SOURCE_REGISTRY_V1",
+  "generated_at": "2026-10-05",
+  "canonical_root": "autonomous-printshop/",
+  "canonical_book": "autonomous-printshop/MASTER_BOOK.md",
+  "policy": {
+    "project_owned_duplicates": "DELETE_AFTER_CENTRAL_VERIFICATION",
+    "live_upstream_dependencies": "KEEP_UNTIL_REPLACEMENT_CUTOVER",
+    "source_snapshots": "REFERENCE_ONLY_NOT_RUNTIME_AUTHORITY",
+    "runtime_truth": "LATEST_VERIFIED_RUNTIME > DEPLOYED > TESTED > REPO_ONLY > HISTORICAL"
+  },
+  "upstream_books_and_indexes": [
+    {
+      "system": "TrendOS",
+      "source_repo": "fawakhry/TrendOs",
+      "source_ref": "candidate/t12-full-cloud-cutover-a56-20260929",
+      "source_path": "TrendOS_MASTER_BOOK.md",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/TrendOS_MASTER_BOOK.md",
+      "central_policy": "LINK_ONLY_LIVE_BOOK",
+      "disposition": "KEEP_UPSTREAM"
+    },
+    {
+      "system": "TrendOS Blackbox",
+      "source_repo": "fawakhry/TrendOs",
+      "source_ref": "candidate/t12-full-cloud-cutover-a56-20260929",
+      "source_path": "docs/trendos/blackbox/",
+      "source_url": "https://github.com/fawakhry/TrendOs/tree/candidate/t12-full-cloud-cutover-a56-20260929/docs/trendos/blackbox",
+      "central_policy": "LINK_ONLY_ARCHIVE",
+      "disposition": "KEEP_UPSTREAM"
+    }
+  ],
+  "files": [
+    {
+      "system": "TrendOS",
+      "component": "Operator Task V2",
+      "source_path": "operator-task-workflow-v2.js",
+      "source_sha": "5877b083903fe3cdf5124744a9c2677edae3f1fd",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/operator-task-workflow-v2.js",
+      "central_path": "autonomous-printshop/sources/trendos/operator-task/operator-task-workflow-v2.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_D1_CUTOVER"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Operator Task V2",
+      "source_path": "operator-task-workflow-v2.gs",
+      "source_sha": "e2ee3c460756eb39d711e93809f1073ca1aa3821",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/operator-task-workflow-v2.gs",
+      "central_path": "autonomous-printshop/sources/trendos/operator-task/operator-task-workflow-v2.gs",
+      "disposition": "KEEP_UPSTREAM_UNTIL_D1_CUTOVER"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Operator Task Edge",
+      "source_path": "cloudflare-d1/src/operator-task-edge-v2.mjs",
+      "source_sha": "7ef7aa4a52246d6423ccd8c27c9457b76bcc8643",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/cloudflare-d1/src/operator-task-edge-v2.mjs",
+      "central_path": "autonomous-printshop/sources/trendos/operator-task/operator-task-edge-v2.mjs",
+      "disposition": "KEEP_UPSTREAM_UNTIL_D1_CUTOVER"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-material-control-v1.js",
+      "source_sha": "03bb4028bf983dd0a94064ada3094b1b8e307ab0",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-control-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-material-control-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-material-movement-ledger-v1.js",
+      "source_sha": "654c897bf199ec8e51ef6c1063bf5eb00b4d94b6",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-movement-ledger-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-material-movement-ledger-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-material-persistence-v1.js",
+      "source_sha": "1b57199e529f53e66dd12a28f098c3dba30581a1",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-persistence-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-material-persistence-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-material-persistence-backend-v1.gs",
+      "source_sha": "c8890c62e6a230492ceb9499392508a946c18ec5",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-persistence-backend-v1.gs",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-material-persistence-backend-v1.gs",
+      "disposition": "KEEP_UPSTREAM_UNTIL_D1_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-material-ui-v1.js",
+      "source_sha": "32eefbeaed8f340c3bd4a64e9ece53611f5c9c53",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-ui-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-material-ui-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-material-ui-backend-v1.gs",
+      "source_sha": "a3615c1745e0f839c6dc310ce5fac301fefcbabc",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-ui-backend-v1.gs",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-material-ui-backend-v1.gs",
+      "disposition": "KEEP_UPSTREAM_UNTIL_D1_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-material-waste-decision-v1.gs",
+      "source_sha": "c321849222accab379b46a872da94ac09b0a4049",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-material-waste-decision-v1.gs",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-material-waste-decision-v1.gs",
+      "disposition": "KEEP_UPSTREAM_UNTIL_D1_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-ledger-daily-report-v1.js",
+      "source_sha": "5d1cce2f88e2a06e7f7f928ba89b6442e4e19861",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-ledger-daily-report-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-ledger-daily-report-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-easystore-ledger-adapter-v1.js",
+      "source_sha": "e2916d475c963737cb41b14858e3eefeea773a4f",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-easystore-ledger-adapter-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-easystore-ledger-adapter-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_NEW_EASYSTORE_ADAPTER"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Material Control",
+      "source_path": "gaber-daily-material-flow-v1.js",
+      "source_sha": "2826e1e6028d5cbfefafea3890c2709c4227b01f",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/gaber-daily-material-flow-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/material-control/gaber-daily-material-flow-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_GENERALIZED_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Employee Supervisor",
+      "source_path": "employee-manager-strips-v2.js",
+      "source_sha": "f4697c717f40fc4cb0c8563b8b62640aa2a05785",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/employee-manager-strips-v2.js",
+      "central_path": "autonomous-printshop/sources/trendos/employee-supervisor/employee-manager-strips-v2.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_SUPERVISOR_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Employee Supervisor",
+      "source_path": "employee-ops-coach-v1.js",
+      "source_sha": "1ce5a53852dc2321e9c415807cf129882010d9b3",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/employee-ops-coach-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/employee-supervisor/employee-ops-coach-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_SUPERVISOR_REPLACEMENT"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Employee Supervisor",
+      "source_path": "employee-andon-v1.js",
+      "source_sha": "ca0e57973b6547735333ab2a5d8a1e118a4efcac",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/employee-andon-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/employee-supervisor/employee-andon-v1.js",
+      "disposition": "KEEP_UPSTREAM_UNTIL_STRUCTURED_D1_ANDON"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Customer/Comms",
+      "source_path": "customer-manager-v1.js",
+      "source_sha": "9627116f22f00eb5d7282638c19dbe95d89332f7",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-manager-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/customer-comms/customer-manager-v1.js",
+      "disposition": "KEEP_UPSTREAM_LIVE_DEPENDENCY"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Customer/Comms",
+      "source_path": "customer-feedback-v1.js",
+      "source_sha": "2426aec33e79f1e16615ad1263fa8244d4742c45",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-feedback-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/customer-comms/customer-feedback-v1.js",
+      "disposition": "KEEP_UPSTREAM_LIVE_DEPENDENCY"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Customer/Comms",
+      "source_path": "customer-manager-send-integrity-v1.js",
+      "source_sha": "c952a64e914fe0434307ed22a41c374e255d0352",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-manager-send-integrity-v1.js",
+      "central_path": "autonomous-printshop/sources/trendos/customer-comms/customer-manager-send-integrity-v1.js",
+      "disposition": "KEEP_UPSTREAM_LIVE_DEPENDENCY"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Customer/Comms",
+      "source_path": "customer-manager-backend-v1932.gs",
+      "source_sha": "8c645d72abaa68431fe6a0213f3b96af3f27e42f",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/customer-manager-backend-v1932.gs",
+      "central_path": "autonomous-printshop/sources/trendos/customer-comms/customer-manager-backend-v1932.gs",
+      "disposition": "KEEP_UPSTREAM_LIVE_DEPENDENCY"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Customer/Comms",
+      "source_path": "trendos-whatsapp-integrity-v1.gs",
+      "source_sha": "c3e59c50f17de2604f0192a5b8f651e53caf9018",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/trendos-whatsapp-integrity-v1.gs",
+      "central_path": "autonomous-printshop/sources/trendos/customer-comms/trendos-whatsapp-integrity-v1.gs",
+      "disposition": "KEEP_UPSTREAM_LIVE_DEPENDENCY"
+    },
+    {
+      "system": "TrendOS",
+      "component": "Whats Agent Book",
+      "source_path": "WHATS_AGENT_BOOK.md",
+      "source_sha": "406c5be0fccb959fc8ab0bebba2123da01682506",
+      "source_url": "https://github.com/fawakhry/TrendOs/blob/candidate/t12-full-cloud-cutover-a56-20260929/WHATS_AGENT_BOOK.md",
+      "central_path": "autonomous-printshop/sources/trendos/books/WHATS_AGENT_BOOK.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL_WHATS_BOOK"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Orchestrator",
+      "source_path": "runtime/orchestrator-core.mjs",
+      "source_sha": "7829d8a8b465dd1666943454e5735afc6896e984",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/orchestrator-core.mjs",
+      "central_path": "autonomous-printshop/sources/matbagy-os/runtime/orchestrator-core.mjs",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Orchestrator",
+      "source_path": "runtime/orchestrator-runtime.mjs",
+      "source_sha": "e388223c984cca35cb34e7b20a2c20a660bc5bcf",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/orchestrator-runtime.mjs",
+      "central_path": "autonomous-printshop/sources/matbagy-os/runtime/orchestrator-runtime.mjs",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Providers",
+      "source_path": "runtime/live-providers.mjs",
+      "source_sha": "5a09d3b086523dfd93738cb7ca04051613b92b07",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/live-providers.mjs",
+      "central_path": "autonomous-printshop/sources/matbagy-os/runtime/live-providers.mjs",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Worker",
+      "source_path": "runtime/cloudflare-worker.mjs",
+      "source_sha": "0bdf49469ab945cd80064318ac51038e1e229936",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/cloudflare-worker.mjs",
+      "central_path": "autonomous-printshop/sources/matbagy-os/runtime/cloudflare-worker.mjs",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Permissions",
+      "source_path": "runtime/permissions.mjs",
+      "source_sha": "fb3719e76d4a6a25c43fcc0d8a0cc1601cd8e52f",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/permissions.mjs",
+      "central_path": "autonomous-printshop/sources/matbagy-os/runtime/permissions.mjs",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "D1 Tenant Store",
+      "source_path": "runtime/d1-tenant-store.mjs",
+      "source_sha": "63fa375bcf60c7c9429df07e06643007138a7b95",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/runtime/d1-tenant-store.mjs",
+      "central_path": "autonomous-printshop/sources/matbagy-os/runtime/d1-tenant-store.mjs",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Project Book",
+      "source_path": "PROJECT_BOOK.md",
+      "source_sha": "df5546e0ce140a782ac1bae02448b0358aa408f7",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/PROJECT_BOOK.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/PROJECT_BOOK.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Roadmap",
+      "source_path": "ROADMAP_V1_2027-06.md",
+      "source_sha": "f253c3a9777072570091087d294c94a5da2da113",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/ROADMAP_V1_2027-06.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/ROADMAP_V1_2027-06.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Design Case Schema",
+      "source_path": "صندوق_مطبعجي/SCHEMA/DESIGN_CASE_SCHEMA.md",
+      "source_sha": "2e5ff38a333fc21d28196302c4490c6acc3d5c57",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/DESIGN_CASE_SCHEMA.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/DESIGN_CASE_SCHEMA.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "AI Room Contract",
+      "source_path": "صندوق_مطبعجي/SCHEMA/AI_ROOM_CONTRACT.md",
+      "source_sha": "89f59fa29f37b457326ca9f81d9f8ea485f5ea26",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/AI_ROOM_CONTRACT.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/AI_ROOM_CONTRACT.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Approval Router",
+      "source_path": "صندوق_مطبعجي/SCHEMA/APPROVAL_COMMAND_ROUTER.md",
+      "source_sha": "b9649047618d0ab164915248a3e996dc680a2a63",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/APPROVAL_COMMAND_ROUTER.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/APPROVAL_COMMAND_ROUTER.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Auto Persistence",
+      "source_path": "صندوق_مطبعجي/SCHEMA/AUTO_PERSISTENCE_POLICY.md",
+      "source_sha": "0bb22706b2340a016f798ea458d3d21c8859ad1b",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/AUTO_PERSISTENCE_POLICY.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/AUTO_PERSISTENCE_POLICY.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Case Learning",
+      "source_path": "صندوق_مطبعجي/SCHEMA/CASE_LIFECYCLE_AND_LEARNING.md",
+      "source_sha": "233448945b44290741c02f59eeef219e1e1f7e5f",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/CASE_LIFECYCLE_AND_LEARNING.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/CASE_LIFECYCLE_AND_LEARNING.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Knowledge Extraction",
+      "source_path": "صندوق_مطبعجي/SCHEMA/KNOWLEDGE_EXTRACTION_CONTRACT.md",
+      "source_sha": "49a6dfc93098af8cb14d9041416a135d937fa605",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/KNOWLEDGE_EXTRACTION_CONTRACT.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/KNOWLEDGE_EXTRACTION_CONTRACT.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy-OS",
+      "component": "Tenancy",
+      "source_path": "صندوق_مطبعجي/SCHEMA/TENANCY_CONTRACT.md",
+      "source_sha": "9fcdd3463152437b0436b5e49029c0d6c25f801c",
+      "source_url": "https://github.com/fawakhry/Matbagy-OS/blob/main/%D8%B5%D9%86%D8%AF%D9%88%D9%82_%D9%85%D8%B7%D8%A8%D8%B9%D8%AC%D9%8A/SCHEMA/TENANCY_CONTRACT.md",
+      "central_path": "autonomous-printshop/sources/matbagy-os/books/TENANCY_CONTRACT.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Fokha",
+      "component": "Thinking Model",
+      "source_path": "MEMORY/THINKING_MODEL.md",
+      "source_sha": "b6e83a1b2e4699fddf2ce125c7b535e7fc1c9dca",
+      "source_url": "https://github.com/fawakhry/Fokha/blob/main/MEMORY/THINKING_MODEL.md",
+      "central_path": "autonomous-printshop/sources/fokha/THINKING_MODEL.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Fokha",
+      "component": "Rules",
+      "source_path": "MEMORY/RULES.md",
+      "source_sha": "5fe04ec5b2b8d8c4970104847ee5506aa22835b6",
+      "source_url": "https://github.com/fawakhry/Fokha/blob/main/MEMORY/RULES.md",
+      "central_path": "autonomous-printshop/sources/fokha/RULES.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Fokha",
+      "component": "Negative Learning",
+      "source_path": "MEMORY/NEGATIVE_LEARNING.md",
+      "source_sha": "5f83825f818b2348cb7f8d4344fc0e14dac45a47",
+      "source_url": "https://github.com/fawakhry/Fokha/blob/main/MEMORY/NEGATIVE_LEARNING.md",
+      "central_path": "autonomous-printshop/sources/fokha/NEGATIVE_LEARNING.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Fokha",
+      "component": "Project Registry",
+      "source_path": "MEMORY/PROJECTS.md",
+      "source_sha": "3df3be2148bef2fbf4f922231b184d66b444f07b",
+      "source_url": "https://github.com/fawakhry/Fokha/blob/main/MEMORY/PROJECTS.md",
+      "central_path": "autonomous-printshop/sources/fokha/PROJECTS.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy Evaluations",
+      "component": "Execution Book",
+      "source_path": "evaluations/كتيب_البرنامج_والتنفيذ.md",
+      "source_sha": "c44bb93749309c8a29c590ad98d4043776a48b17",
+      "source_url": "https://github.com/fawakhry/Matbagy/blob/main/evaluations/%D9%83%D8%AA%D9%8A%D8%A8_%D8%A7%D9%84%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D8%AC_%D9%88%D8%A7%D9%84%D8%AA%D9%86%D9%81%D9%8A%D8%B0.md",
+      "central_path": "autonomous-printshop/sources/matbagy-evaluations/books/كتيب_البرنامج_والتنفيذ.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy Evaluations",
+      "component": "Infrastructure",
+      "source_path": "evaluations/خطة_البنية_التحتية.md",
+      "source_sha": "5f430bb6fb2e4d58be0823a226566c8d70edd431",
+      "source_url": "https://github.com/fawakhry/Matbagy/blob/main/evaluations/%D8%AE%D8%B7%D8%A9_%D8%A7%D9%84%D8%A8%D9%86%D9%8A%D8%A9_%D8%A7%D9%84%D8%AA%D8%AD%D8%AA%D9%8A%D8%A9.md",
+      "central_path": "autonomous-printshop/sources/matbagy-evaluations/books/خطة_البنية_التحتية.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy Evaluations",
+      "component": "Status Log",
+      "source_path": "evaluations/سجل_الحالة.md",
+      "source_sha": "e6e544513c2a0e357f827263e8096962c1ffe434",
+      "source_url": "https://github.com/fawakhry/Matbagy/blob/main/evaluations/%D8%B3%D8%AC%D9%84_%D8%A7%D9%84%D8%AD%D8%A7%D9%84%D8%A9.md",
+      "central_path": "autonomous-printshop/sources/matbagy-evaluations/books/سجل_الحالة.md",
+      "disposition": "KEEP_UPSTREAM_CANONICAL"
+    },
+    {
+      "system": "Matbagy Evaluations",
+      "component": "Recovered Worker",
+      "source_kind": "USER_LIBRARY_RECOVERY",
+      "source_label": "worker.mjs",
+      "central_path": "autonomous-printshop/recovered/evaluations/worker.mjs",
+      "disposition": "QUARANTINE_REFACTOR_BEFORE_USE"
+    },
+    {
+      "system": "Matbagy Evaluations",
+      "component": "Recovered Worker UI",
+      "source_kind": "USER_LIBRARY_RECOVERY",
+      "source_label": "worker_with_ui.mjs",
+      "central_path": "autonomous-printshop/recovered/evaluations/worker_with_ui.mjs",
+      "disposition": "QUARANTINE_REFACTOR_BEFORE_USE"
+    },
+    {
+      "system": "EasyStore",
+      "component": "Accounting Authority",
+      "source_path": "Code.gs",
+      "source_sha": "b73e22ada3f005edaa2d63036f2edb6fd565954e",
+      "source_url": "https://github.com/fawakhry/EasyStore/blob/main/Code.gs",
+      "central_path": "autonomous-printshop/sources/easystore/reference/Code.gs",
+      "disposition": "KEEP_UPSTREAM_FINANCIAL_AUTHORITY"
+    }
+  ],
+  "project_owned_canonical": [
+    "autonomous-printshop/core/autonomy-policy-v1.mjs",
+    "autonomous-printshop/core/autonomy-event-ledger-v1.mjs",
+    "autonomous-printshop/migrations/0019_autonomy_events_v1.sql",
+    "autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs",
+    "autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs",
+    "autonomous-printshop/manifests/AP002_AUTONOMY_ACTION_CLASSIFICATION_SEED_V1.json",
+    "autonomous-printshop/manifests/DESIGN_RECIPE_EXTRACTION_SEED_V1.json"
+  ]
+}
