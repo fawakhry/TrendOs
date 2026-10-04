@@ -1,0 +1,225 @@
+name: TrendOS Entry621 Employee Auth Session Read-Only Audit
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry621-auth-session-readonly-audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry621-auth-session-readonly-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_WORKER: trendos-d1-api
+      UI_WORKER: trendos-ui
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Source capability boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/employee_auth_native_a61.test.mjs
+          node tests/employee_legacy_auth_bridge_a61.test.mjs
+          node tests/entry609_native_auth_cutover_inventory.test.mjs
+          node tests/frontend_employee_native_canary_entry611.test.mjs
+          grep -Fq 'window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;' config.js
+          grep -Fq 'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;' config.js
+          echo ENTRY621_AUTH_SOURCE_CAPABILITY=PASS
+          echo ENTRY621_REPO_DEFAULT_NATIVE_AUTH=OFF
+          echo ENTRY621_REPO_DEFAULT_BRIDGE=OFF
+
+      - name: Read active Cloudflare deployments
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          for worker in "$API_WORKER" "$UI_WORKER"; do
+            curl --fail --silent --show-error               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$worker/deployments"               > "/tmp/$worker-deployments.json"
+          done
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label){
+            const b=JSON.parse(fs.readFileSync(path,'utf8'));
+            const list=Array.isArray(b?.result?.deployments)?b.result.deployments:(Array.isArray(b?.result)?b.result:[]);
+            if(!list.length) throw new Error(label+' deployment missing');
+            const d=list[0];
+            const full=(d.versions||[])
+              .map(x=>({id:String(x?.version_id||x?.id||''),p:Number(x?.percentage ?? x?.traffic_percentage ?? NaN)}))
+              .filter(x=>x.id&&x.p===100);
+            if(full.length!==1) throw new Error(label+' active version is not single 100%');
+            console.log('ENTRY621_'+label+'_VERSION='+full[0].id);
+            console.log('ENTRY621_'+label+'_DEPLOYMENT='+String(d.id||''));
+            console.log('ENTRY621_'+label+'_TRAFFIC=100');
+          }
+          active('/tmp/trendos-d1-api-deployments.json','API');
+          active('/tmp/trendos-ui-deployments.json','UI');
+          NODE
+
+      - name: Read current family controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry621=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'), r=f=>JSON.parse(fs.readFileSync('/tmp/'+f+'.json','utf8'));
+          const auth=r('auth'), bridge=r('legacy-action'), ops=r('ops'), accounting=r('accounting');
+          if(!auth.success||auth.mode!=='OFF'||auth.envEnabled!==false) throw new Error('auth runtime is not OFF');
+          if(!bridge.success||bridge.enabled!==false) throw new Error('bridge runtime is not OFF');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch||0)!==7) throw new Error('ops runtime drift');
+          if(accounting.mode!=='READONLY'||Number(accounting.policyEpoch||0)!==2) throw new Error('accounting runtime drift');
+          for(const f of ['content','comms','core']) if(r(f).mode!=='OFF') throw new Error(f+' runtime drift');
+          console.log('ENTRY621_AUTH_MODE='+auth.mode);
+          console.log('ENTRY621_AUTH_ENV_ENABLED='+String(auth.envEnabled));
+          console.log('ENTRY621_AUTH_HEALTH_USER_COUNT='+Number(auth.userCount||0));
+          console.log('ENTRY621_AUTH_HEALTH_NATIVE_READY_COUNT='+Number(auth.nativeReadyCount||0));
+          console.log('ENTRY621_AUTH_PLAINTEXT_STORED='+String(auth.plaintextStored));
+          console.log('ENTRY621_BRIDGE_ENABLED='+String(bridge.enabled));
+          console.log('ENTRY621_BRIDGE_SECRET_CONFIGURED='+String(bridge.secretConfigured));
+          console.log('ENTRY621_BRIDGE_POLICY_COUNT='+Number(bridge.allowedPolicyCount||0));
+          console.log('ENTRY621_RAW_NATIVE_TOKEN_FORWARDED='+String(bridge.rawNativeTokenForwarded));
+          console.log('ENTRY621_PLAINTEXT_PASSWORD_FORWARDED='+String(bridge.plaintextPasswordForwarded));
+          console.log('ENTRY621_OPS=GENERAL');
+          console.log('ENTRY621_OPS_POLICY_EPOCH=7');
+          console.log('ENTRY621_ACCOUNTING=READONLY');
+          console.log('ENTRY621_ACCOUNTING_POLICY_EPOCH=2');
+          console.log('ENTRY621_CONTENT_COMMS_CORE=OFF');
+          NODE
+
+      - name: Read D1 auth control users and sessions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1;
+                       SELECT COUNT(*) AS userCount,
+                              SUM(CASE WHEN password_scheme='pbkdf2-sha256-v1' AND password_hash_hex<>'' THEN 1 ELSE 0 END) AS nativeReadyCount,
+                              SUM(CASE WHEN must_change=1 THEN 1 ELSE 0 END) AS mustChangeCount
+                         FROM employee_auth_users_v1;
+                       SELECT COUNT(*) AS sessionCount,
+                              SUM(CASE WHEN revoked_at_ms IS NULL AND expires_at_ms>CAST(strftime('%s','now') AS INTEGER)*1000 THEN 1 ELSE 0 END) AS liveSessionCount
+                         FROM employee_auth_sessions_v1;" > /tmp/d1-auth.json
+          node <<'NODE'
+          const fs=require('fs'), x=JSON.parse(fs.readFileSync('/tmp/d1-auth.json','utf8'));
+          const rows=[]; const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')||Object.prototype.hasOwnProperty.call(v,'sessionCount'))rows.push(v);Object.values(v).forEach(walk)}}; walk(x);
+          const control=rows.find(r=>r.marker);
+          const users=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'userCount'));
+          const sessions=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'sessionCount'));
+          if(!control) throw new Error('missing D1 auth control');
+          console.log('ENTRY621_D1_AUTH_MODE='+String(control.mode||''));
+          console.log('ENTRY621_D1_AUTH_POLICY_EPOCH='+Number(control.policyEpoch||0));
+          console.log('ENTRY621_D1_USER_COUNT='+Number(users?.userCount||0));
+          console.log('ENTRY621_D1_NATIVE_READY_COUNT='+Number(users?.nativeReadyCount||0));
+          console.log('ENTRY621_D1_MUST_CHANGE_COUNT='+Number(users?.mustChangeCount||0));
+          console.log('ENTRY621_D1_SESSION_COUNT='+Number(sessions?.sessionCount||0));
+          console.log('ENTRY621_D1_LIVE_SESSION_COUNT='+Number(sessions?.liveSessionCount||0));
+          NODE
+
+      - name: Read Cloudflare auth and bridge configuration names only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$API_WORKER/settings" > /tmp/settings.json
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$API_WORKER/secrets" > /tmp/secrets.json
+          node <<'NODE'
+          const fs=require('fs');
+          const settings=JSON.parse(fs.readFileSync('/tmp/settings.json','utf8'));
+          const bindings=Array.isArray(settings?.result?.bindings)?settings.result.bindings:[];
+          const by=new Map(bindings.map(v=>[String(v.name||''),v]));
+          const plain=name=>{const v=by.get(name);return v&&(v.type==='plain_text'||v.type==='json')?String(v.text??v.value??''):''};
+          const b=name=>plain(name).trim().toLowerCase()==='true';
+          const secrets=JSON.parse(fs.readFileSync('/tmp/secrets.json','utf8'));
+          const names=new Set((Array.isArray(secrets?.result)?secrets.result:[]).map(v=>String(v?.name||'')));
+          console.log('ENTRY621_CF_AUTH_ENABLED='+String(b('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED')));
+          console.log('ENTRY621_CF_BOOTSTRAP_ENABLED='+String(b('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')));
+          console.log('ENTRY621_CF_NATIVE_ONLY='+String(b('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')));
+          console.log('ENTRY621_CF_SESSION_ENROLL_ENABLED='+String(b('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED')));
+          console.log('ENTRY621_CF_BRIDGE_ENABLED='+String(b('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')));
+          console.log('ENTRY621_CF_BRIDGE_POLICIES_EMPTY='+String(!plain('EMPLOYEE_LEGACY_BRIDGE_ACTIONS')));
+          console.log('ENTRY621_CF_BRIDGE_SECRET_PRESENT='+String(names.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1')));
+          console.log('ENTRY621_SECRET_VALUES_READ_OR_LOGGED=NO');
+          NODE
+
+      - name: Read live frontend auth boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$UI_URL/config.js?entry621=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$UI_URL/app.js?entry621=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$UI_URL/employee-api-dispatcher-v1.js?entry621=$suffix" -o /tmp/live-dispatcher.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false" /tmp/live-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" /tmp/live-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'" /tmp/live-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'" /tmp/live-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/live-config.js
+          grep -Fq "trendosEmployeeApiV1" /tmp/live-dispatcher.js
+          echo ENTRY621_FRONTEND_NATIVE_AUTH=OFF
+          echo ENTRY621_FRONTEND_BRIDGE=OFF
+          echo ENTRY621_FRONTEND_NATIVE_CANARY=ABSENT
+          echo ENTRY621_FRONTEND_OPS=GENERAL
+          echo ENTRY621_FRONTEND_ACCOUNTING=READONLY
+
+      - name: Probe Apps Script bridge enabled boolean only
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPS_URL="$(node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync(process.env.CONFIG,'utf8');
+          const m=s.match(/^APPS_SCRIPT_API_URL\s*=\s*"([^"]+)"/m);
+          if(!m) process.exit(2);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          body='{"action":"cloudEmployeeLegacyBridgeExecuteV1","targetAction":"getDashboard","username":"entry621-readonly-probe","targetPayload":{"action":"getDashboard","username":"entry621-readonly-probe"},"cloudEmployeeAssertionV1":"cfv1.invalid.invalid"}'
+          code="$(curl --location --silent --show-error --output /tmp/apps.json --write-out '%{http_code}'             -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8'             --data-binary "$body" "$APPS_URL")"
+          export APPS_HTTP="$code"
+          node <<'NODE'
+          const fs=require('fs');
+          let x={}; try{x=JSON.parse(fs.readFileSync('/tmp/apps.json','utf8')||'{}')}catch{}
+          const msg=String(x.message||'');
+          console.log('ENTRY621_APPS_SCRIPT_BRIDGE_HTTP='+String(process.env.APPS_HTTP||''));
+          console.log('ENTRY621_APPS_SCRIPT_BRIDGE_ROUTE_LIVE='+String(Number(process.env.APPS_HTTP||0)===200));
+          console.log('ENTRY621_APPS_SCRIPT_BRIDGE_ENABLED='+(msg.includes('غير مفعل')?'NO':'NOT_PROVEN'));
+          console.log('ENTRY621_APPS_SCRIPT_SECRET_VALUE_READ=NO');
+          NODE
+
+      - name: Audit boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo ENTRY621_READONLY_AUDIT=COMPLETE
+          echo ENTRY621_PRODUCTION_MUTATION=NO
+          echo ENTRY621_D1_MUTATION=NO
+          echo ENTRY621_API_DEPLOY=NO
+          echo ENTRY621_FRONTEND_DEPLOY=NO
+          echo ENTRY621_APPS_SCRIPT_TOUCHED=NO
+          echo ENTRY621_SECRETS_TOUCHED=NO
+          echo ENTRY621_AUTH_MODE_CHANGED=NO
+          echo ENTRY621_ACCOUNTING_TOUCHED=NO
