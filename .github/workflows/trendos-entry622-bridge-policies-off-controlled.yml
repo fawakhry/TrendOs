@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           node tests/entry622_trendos_bridge_readonly_policies.test.mjs
           POLICIES="$(node -e "const x=require('./$POLICY_MANIFEST');process.stdout.write(x.policies.join(','))")"
-          test "$(printf '%s' "$POLICIES" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')" = "17"
+          test "$(node -e "const x=require('./$POLICY_MANIFEST');process.stdout.write(String(x.policies.length))")" = "17"
           case ",$POLICIES," in
             *,getAccounting,*|*,getDeptInvoiceDraftV1887,*|*,getPartyAccountV1858,*) exit 20 ;;
           esac
