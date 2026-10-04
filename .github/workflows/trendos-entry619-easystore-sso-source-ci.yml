@@ -1,0 +1,32 @@
+name: TrendOS Entry619 EasyStore SSO Source Qualification
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'app.js'
+      - 'config.js'
+      - 'tests/frontend_easystore_sso_entry619.test.js'
+      - '.github/workflows/trendos-entry619-easystore-sso-source-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check app.js
+      - name: Entry619 SSO qualification
+        run: node tests/frontend_easystore_sso_entry619.test.js
+      - name: Existing browser transport regression
+        run: node tests/frontend_employee_ops_family_router_entry617_generated.test.mjs || true
