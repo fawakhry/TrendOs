@@ -58,22 +58,28 @@
       "name": "Production Scheduler + Capacity/Deadline Engine",
       "status": "NEW_BUILD_REQUIRED",
       "reuse": [
-        "Operator Task priority contract",
-        "task duration evidence",
-        "TrendOS order due dates"
+        "Operator Task V2 dispatch contract",
+        "TrendOS getRows operational facts",
+        "Employee Ops Coach urgency/overdue/stale lineage",
+        "Operational Reality V1 deterministic core"
       ],
       "target": "predict completion time, machine/operator loading, deadline promises, queue rebalance",
-      "priority": "P0"
+      "priority": "P0",
+      "implementation_state": "STARTED_REPO_ONLY"
     },
     {
       "id": "M06",
       "name": "Employee AI Supervisor + Andon Resolver",
       "status": "REUSE_AND_MODERNIZE",
       "central_sources": [
-        "autonomous-printshop/sources/trendos/employee-supervisor/"
+        "autonomous-printshop/sources/trendos/employee-supervisor/employee-manager-strips-v2.js",
+        "autonomous-printshop/sources/trendos/employee-supervisor/employee-andon-v1.js",
+        "autonomous-printshop/sources/trendos/employee-supervisor/operations-hub-v1.js",
+        "autonomous-printshop/core/operational-reality-v1.mjs"
       ],
       "target": "system-assigned next task, coaching, blocker auto-resolution, structured D1 Andon",
-      "priority": "P0"
+      "priority": "P0",
+      "implementation_state": "FILTERED_FOUNDATION_READY"
     },
     {
       "id": "M07",
@@ -167,13 +173,17 @@
     {
       "id": "M15",
       "name": "Machine Agent + Local Production Bridge",
-      "status": "NEW_BUILD_REQUIRED",
+      "status": "REUSE_AND_MODERNIZE",
       "reuse": [
         "Operator Task machine/department routing patterns",
         "TrendOS Press operational facts"
       ],
-      "target": "machine capability registry, local execution bridge, telemetry, maintenance, safe one-click/auto execution",
-      "priority": "P1"
+      "target": "general machine capability/session/telemetry model, D1 authority, local execution bridge, maintenance signals",
+      "priority": "P1",
+      "central_sources": [
+        "autonomous-printshop/sources/trendos/machine-agent/press-control-v1.js",
+        "autonomous-printshop/sources/trendos/machine-agent/press-control-backend-v1.gs"
+      ]
     },
     {
       "id": "M16",
@@ -205,10 +215,15 @@
       "name": "Control Tower + Owner Exception Console",
       "status": "REUSE_AND_MODERNIZE",
       "central_sources": [
-        "autonomous-printshop/sources/trendos/control-tower/"
+        "autonomous-printshop/sources/trendos/control-tower/manager-center-v1932.js",
+        "autonomous-printshop/sources/trendos/control-tower/trend-master-resilience-v1931.js",
+        "autonomous-printshop/sources/trendos/control-tower/go-live-autopilot-v1.js",
+        "autonomous-printshop/sources/trendos/control-tower/v1940-deploy-health.gs",
+        "autonomous-printshop/sources/trendos/control-tower/trendos-integrity-dashboard-v1.gs"
       ],
       "target": "shop health, deadlines, exceptions, inventory/security/finance thresholds; no routine queue management",
-      "priority": "P0"
+      "priority": "P0",
+      "implementation_state": "FILTERED_FOUNDATION_READY"
     },
     {
       "id": "M19",
@@ -238,6 +253,18 @@
       "status": "DEFER",
       "target": "growth after autonomous operations stabilizes",
       "priority": "P3"
+    },
+    {
+      "id": "M22",
+      "name": "Operational Reality Snapshot",
+      "status": "NEW_BUILD_REQUIRED",
+      "priority": "P0",
+      "implementation_state": "STARTED_REPO_ONLY",
+      "central_sources": [
+        "autonomous-printshop/core/operational-reality-v1.mjs",
+        "autonomous-printshop/sources/trendos/lineage/AI_ORDERS_VIEW_V1890_EXTRACT.md"
+      ],
+      "target": "one normalized evidence snapshot for active/closed/exception/fly-print work; deterministic next-task ranking; future D1 live connector input"
     }
   ],
   "key_rule": "No new standalone project/repo per module. All autonomous-printshop module code belongs under autonomous-printshop/ unless it must remain an upstream runtime integration file."
