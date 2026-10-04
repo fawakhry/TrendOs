@@ -1,0 +1,102 @@
+name: TrendOS Entry618 Post-Success Read-Only Reconcile
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry618-postsuccess-reconcile.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      DATABASE: trendos-main
+      EXPECTED_API_VERSION: de2c825d-ef63-407d-90dc-8059a9d4f192
+      EXPECTED_FRONTEND_VERSION: f1aa4dbf-4bba-40f9-87e2-3e98f3f781b6
+      EXPECTED_OPS_EPOCH: '7'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+      - name: Independent Production reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui.json
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path,label,expected){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const d=ds[0]||{};
+            const full=(d.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+            if(full.length!==1||full[0].id!==expected) throw new Error(label+'-version-drift');
+            console.log('ENTRY618_FINAL_'+label+'_VERSION='+full[0].id);
+          }
+          active('/tmp/api.json','API',process.env.EXPECTED_API_VERSION);
+          active('/tmp/ui.json','FRONTEND',process.env.EXPECTED_FRONTEND_VERSION);
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command             "SELECT mode,policy_epoch AS policyEpoch FROM employee_ops_control_v1 WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_OPS_V1';"             > /tmp/ops-control.json
+
+          for f in auth legacy-action ops content comms accounting core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry618final=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry618final=$GITHUB_SHA" -o /tmp/orders.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry618final=$GITHUB_SHA" -o /tmp/customers.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry618final=$GITHUB_SHA" -o /tmp/line.json
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry618final=$GITHUB_SHA" -o /tmp/config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry618final=$GITHUB_SHA" -o /tmp/dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry618final=$GITHUB_SHA" -o /tmp/edge.js
+
+          node <<'NODE'
+          const fs=require('fs'), parse=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const raw=parse('/tmp/ops-control.json'), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.mode&&v.policyEpoch!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(raw);
+          const ctl=rows[0];
+          const auth=parse('/tmp/auth.json'), bridge=parse('/tmp/legacy-action.json'), ops=parse('/tmp/ops.json');
+          if(!ctl||ctl.mode!=='GENERAL'||Number(ctl.policyEpoch)!==Number(process.env.EXPECTED_OPS_EPOCH)) throw new Error('ops-control-final');
+          if(ops.mode!=='GENERAL'||Number(ops.policyEpoch)!==Number(process.env.EXPECTED_OPS_EPOCH)||ops.schemaReady!==true||Number(ops.googleBusinessCalls||0)!==0||ops.appsScriptBusinessAuthority!==false) throw new Error('ops-health-final');
+          if(auth.mode!=='OFF'||auth.envEnabled!==false) throw new Error('auth-final');
+          if(bridge.enabled!==false||bridge.secretConfigured!==false||Number(bridge.allowedPolicyCount||0)!==0) throw new Error('bridge-final');
+          for(const f of ['content','comms','accounting','core']){
+            const x=parse('/tmp/'+f+'.json');
+            if(x.mode!=='OFF'||x.schemaReady!==true) throw new Error(f+'-final');
+          }
+          const o=parse('/tmp/orders.json'), c=parse('/tmp/customers.json'), l=parse('/tmp/line.json');
+          if(o.mode!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders-final');
+          if(c.mode!=='GENERAL') throw new Error('customers-final');
+          if(l.writeMode!=='cloud-native+legacy-overlay'||l.schemaReady!==true||l.legacySchemaReady!==true) throw new Error('line-final');
+          const cfg=fs.readFileSync('/tmp/config.js','utf8'), disp=fs.readFileSync('/tmp/dispatcher.js','utf8'), edge=fs.readFileSync('/tmp/edge.js','utf8');
+          if(!cfg.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'")) throw new Error('frontend-general-final');
+          if(!cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false')||!cfg.includes('MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false')) throw new Error('frontend-auth-bridge-final');
+          if(cfg.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1')||disp.includes('canaryRouteEnabled')) throw new Error('entry611-canary-final');
+          if(!disp.includes('shouldRouteOpsNative')) throw new Error('ops-router-final');
+          if(!edge.includes('postWriteBarrierRecoveries')||!edge.includes('recoverPostWriteBarrier')) throw new Error('refresh-final');
+          console.log('ENTRY618_FINAL_OPS=GENERAL');
+          console.log('ENTRY618_FINAL_OPS_POLICY_EPOCH='+ctl.policyEpoch);
+          console.log('ENTRY618_FINAL_AUTH=OFF');
+          console.log('ENTRY618_FINAL_BRIDGE=OFF');
+          console.log('ENTRY618_FINAL_CONTENT_COMMS_ACCOUNTING_CORE=OFF');
+          console.log('ENTRY618_FINAL_ORDERS_CUSTOMERS_LINE=PASS');
+          console.log('ENTRY618_FINAL_FRONTEND_GENERAL=PASS');
+          console.log('ENTRY618_FINAL_REFRESH_FIX=PASS');
+          console.log('ENTRY618_INDEPENDENT_POSTSUCCESS_RECONCILE=PASS');
+          NODE
