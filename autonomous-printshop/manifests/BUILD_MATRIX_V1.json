@@ -1,0 +1,244 @@
+{
+  "schema": "AUTONOMOUS_PRINTSHOP_BUILD_MATRIX_V1",
+  "generated_at": "2026-10-05",
+  "statuses": [
+    "REUSE_IN_PLACE",
+    "REUSE_AND_MODERNIZE",
+    "EXTRACT_AND_ADAPT",
+    "NEW_BUILD_REQUIRED",
+    "DEPENDENCY_BLOCKED",
+    "DEFER"
+  ],
+  "modules": [
+    {
+      "id": "M01",
+      "name": "Autonomy Control Plane",
+      "status": "REUSE_AND_MODERNIZE",
+      "central_sources": [
+        "autonomous-printshop/core/autonomy-policy-v1.mjs",
+        "autonomous-printshop/core/autonomy-event-ledger-v1.mjs"
+      ],
+      "target": "policy, shadow/canary/general, audit, exceptions",
+      "priority": "P0"
+    },
+    {
+      "id": "M02",
+      "name": "TrendOS Live Connector",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "TrendOS D1 orders/customers/ops APIs"
+      ],
+      "target": "read/write contracts + events without duplicating truth",
+      "priority": "P0"
+    },
+    {
+      "id": "M03",
+      "name": "AI Orchestrator",
+      "status": "EXTRACT_AND_ADAPT",
+      "central_sources": [
+        "autonomous-printshop/sources/matbagy-os/runtime/orchestrator-core.mjs",
+        "autonomous-printshop/sources/matbagy-os/runtime/orchestrator-runtime.mjs",
+        "autonomous-printshop/sources/matbagy-os/runtime/live-providers.mjs"
+      ],
+      "target": "tool-using multi-agent orchestration under autonomy policy",
+      "priority": "P0"
+    },
+    {
+      "id": "M04",
+      "name": "Operator Task D1 Authority",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "autonomous-printshop/sources/trendos/operator-task/"
+      ],
+      "target": "D1 claim/start/complete/events retaining V2 public contract",
+      "priority": "P0"
+    },
+    {
+      "id": "M05",
+      "name": "Production Scheduler + Capacity/Deadline Engine",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "Operator Task priority contract",
+        "task duration evidence",
+        "TrendOS order due dates"
+      ],
+      "target": "predict completion time, machine/operator loading, deadline promises, queue rebalance",
+      "priority": "P0"
+    },
+    {
+      "id": "M06",
+      "name": "Employee AI Supervisor + Andon Resolver",
+      "status": "REUSE_AND_MODERNIZE",
+      "central_sources": [
+        "autonomous-printshop/sources/trendos/employee-supervisor/"
+      ],
+      "target": "system-assigned next task, coaching, blocker auto-resolution, structured D1 Andon",
+      "priority": "P0"
+    },
+    {
+      "id": "M07",
+      "name": "Design Recipe Engine",
+      "status": "EXTRACT_AND_ADAPT",
+      "central_sources": [
+        "autonomous-printshop/manifests/DESIGN_RECIPE_EXTRACTION_SEED_V1.json",
+        "autonomous-printshop/sources/matbagy-os/books/DESIGN_CASE_SCHEMA.md"
+      ],
+      "target": "approved product recipes, asset lineage, must_keep/must_avoid, exact dimensions/text",
+      "priority": "P0"
+    },
+    {
+      "id": "M08",
+      "name": "AI Preflight",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "Design Case rules",
+        "product recipes"
+      ],
+      "target": "size/aspect/DPI/text/stroke/cut/asset completeness and identity-preservation checks",
+      "priority": "P0"
+    },
+    {
+      "id": "M09",
+      "name": "QC Vision",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "Matbagy Case/evidence/approval contracts"
+      ],
+      "target": "compare produced photo/camera evidence to expected design and create rework task",
+      "priority": "P0"
+    },
+    {
+      "id": "M10",
+      "name": "Material / Inventory Agent",
+      "status": "REUSE_AND_MODERNIZE",
+      "central_sources": [
+        "autonomous-printshop/sources/trendos/material-control/"
+      ],
+      "target": "D1 material ledger, custody, consumption, waste, reconciliation, all departments",
+      "priority": "P0"
+    },
+    {
+      "id": "M11",
+      "name": "Purchasing Agent",
+      "status": "REUSE_AND_MODERNIZE",
+      "reuse": [
+        "EasyStore daily purchases",
+        "stock movements",
+        "material catalog"
+      ],
+      "target": "shortage forecasting, purchase proposals, supplier/range policies",
+      "priority": "P1"
+    },
+    {
+      "id": "M12",
+      "name": "Profitability Brain",
+      "status": "REUSE_AND_MODERNIZE",
+      "reuse": [
+        "EasyStore cost/profit/accounting models",
+        "Operator Task work time",
+        "material ledger"
+      ],
+      "target": "true contribution per order/product/customer including rework/time/waste",
+      "priority": "P1"
+    },
+    {
+      "id": "M13",
+      "name": "Customer/Employee Intelligence",
+      "status": "EXTRACT_AND_ADAPT",
+      "central_sources": [
+        "autonomous-printshop/recovered/evaluations/",
+        "autonomous-printshop/sources/matbagy-evaluations/books/"
+      ],
+      "target": "evidence-first profiles, coaching signals, customer value/friction, reviewed facts",
+      "priority": "P1"
+    },
+    {
+      "id": "M14",
+      "name": "Customer/Whats Agent",
+      "status": "DEPENDENCY_BLOCKED",
+      "central_sources": [
+        "autonomous-printshop/sources/trendos/customer-comms/",
+        "autonomous-printshop/sources/trendos/books/WHATS_AGENT_BOOK.md"
+      ],
+      "blocker": "Meta Coexistence/onboarding/runtime qualification",
+      "target": "AI intake, context, safe auto reply, escalation",
+      "priority": "P1"
+    },
+    {
+      "id": "M15",
+      "name": "Machine Agent + Local Production Bridge",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "Operator Task machine/department routing patterns",
+        "TrendOS Press operational facts"
+      ],
+      "target": "machine capability registry, local execution bridge, telemetry, maintenance, safe one-click/auto execution",
+      "priority": "P1"
+    },
+    {
+      "id": "M16",
+      "name": "SOP + Training Agent",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "Fokha RULES/NEGATIVE_LEARNING",
+        "Matbagy knowledge extraction",
+        "task/rework evidence"
+      ],
+      "target": "generate/update SOPs, contextual worker guidance, skill matrix and training",
+      "priority": "P1"
+    },
+    {
+      "id": "M17",
+      "name": "Self-Healing / Degraded Mode",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "health endpoints",
+        "integrity dashboard",
+        "idempotency",
+        "fail-closed/rate-limit patterns"
+      ],
+      "target": "provider fallback, queue fallback, degraded mode, automatic recovery and escalation",
+      "priority": "P1"
+    },
+    {
+      "id": "M18",
+      "name": "Control Tower + Owner Exception Console",
+      "status": "REUSE_AND_MODERNIZE",
+      "central_sources": [
+        "autonomous-printshop/sources/trendos/control-tower/"
+      ],
+      "target": "shop health, deadlines, exceptions, inventory/security/finance thresholds; no routine queue management",
+      "priority": "P0"
+    },
+    {
+      "id": "M19",
+      "name": "Owner Simulation / Absence Test",
+      "status": "NEW_BUILD_REQUIRED",
+      "reuse": [
+        "Autonomy event ledger",
+        "Control Tower",
+        "exception metrics"
+      ],
+      "target": "7-day and later 14-day owner-silent rehearsal, every owner intervention becomes gap/bug/policy item",
+      "priority": "P0"
+    },
+    {
+      "id": "M20",
+      "name": "EasyStore Finance Adapter",
+      "status": "REUSE_IN_PLACE",
+      "central_sources": [
+        "autonomous-printshop/sources/easystore/reference/Code.gs"
+      ],
+      "target": "finance remains separate authority; controlled read/post/reconcile contracts only",
+      "priority": "P1"
+    },
+    {
+      "id": "M21",
+      "name": "Lead Hunter / Growth",
+      "status": "DEFER",
+      "target": "growth after autonomous operations stabilizes",
+      "priority": "P3"
+    }
+  ],
+  "key_rule": "No new standalone project/repo per module. All autonomous-printshop module code belongs under autonomous-printshop/ unless it must remain an upstream runtime integration file."
+}
