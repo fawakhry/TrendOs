@@ -1866,6 +1866,31 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=APPLY_0014_EMPLOYEE_COMMS_ZERO_GOOGLE_V1_KEEP_OFF
   ```
 
+
+- Owner manual D1 migration 0014:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification:
+    ```ini
+    singleton=1
+    marker=ENTRY614_EMPLOYEE_COMMS_V1
+    mode=OFF
+    policy_epoch=1
+    ```
+  - therefore 0014 schema is applied and its control remains safely OFF.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0014_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  EMPLOYEE_OPS_MODE=OFF
+  EMPLOYEE_CONTENT_MODE=OFF
+  EMPLOYEE_COMMS_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0015_EMPLOYEE_ACCOUNTING_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
