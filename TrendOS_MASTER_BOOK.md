@@ -2185,6 +2185,38 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=RUN_ACCOUNTING_CORE_AND_INTEGRITY_PARITY
   ```
 
+
+- Entry615 split parity — Accounting/Core:
+  ```ini
+  accounting_materials=2 PASS
+  accounting_templates=1 PASS
+  accounting_dept_lines=18 PASS
+  accounting_final_invoices=3 PASS
+  accounting_party_ledger=7 PASS
+  core_orders=222 PASS
+  core_lines=234 PASS
+  core_archive_orders=3361 PASS
+  core_archive_lines=3565 PASS
+  core_events=12724 PASS
+  retained_legacy_rows=1256 PASS
+  ```
+- All values exactly match refreshed Entry615 snapshot expectations.
+- Combined parity status so far:
+  ```ini
+  OPS=PASS
+  CONTENT=PASS
+  COMMS=PASS
+  ACCOUNTING=PASS
+  CORE=PASS
+  ```
+- No family control has been enabled yet.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_ALL_DOMAIN_COUNT_PARITY_PASS_WAITING_INTEGRITY_AND_OFF_CONTROL_CHECK
+  FAMILY_CONTROLS=OFF
+  NEXT_ACTION=RUN_INTEGRITY_AND_CONTROL_OFF_CHECK
+  ```
+
 ### Customers
 - Customer master = 247 rows في D1.
 - Customer search/write authority = D1-native / GENERAL.
