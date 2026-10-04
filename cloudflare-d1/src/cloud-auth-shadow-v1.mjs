@@ -1,6 +1,6 @@
-const DEFAULT_TTL_SECONDS = 300;
+const DEFAULT_TTL_SECONDS = 43200;
 const MIN_TTL_SECONDS = 60;
-const MAX_TTL_SECONDS = 900;
+const MAX_TTL_SECONDS = 43200;
 const FINGERPRINT_DOMAIN = 'trendos-cloud-auth-shadow-v1';
 
 function text(value) {
