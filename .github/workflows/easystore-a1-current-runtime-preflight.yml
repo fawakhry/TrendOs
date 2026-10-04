@@ -104,9 +104,11 @@ jobs:
             String(/EASYSTORE_ACCOUNTING_D1_READONLY\s*=\s*true/.test(esCfg)));
           console.log('A1_EASYSTORE_APPS_SCRIPT_FALLBACK='+
             String(/script\.google\.com\/macros\/s\//.test(esCfg)));
+          const readSet=(esApp.match(/const D1_ACCOUNTING_READ_ACTIONS\s*=\s*new Set\((\[[^\]]*\])\)/)||[])[1]||'';
+          console.log('A1_EASYSTORE_D1_READ_SET='+readSet.replace(/\s+/g,''));
           console.log('A1_EASYSTORE_D1_CORE_4_ROUTED='+
             String(['getEasyStoreCustomers','searchCustomers','getCustomerAccountV1915','easyStoreSystemHealth']
-              .every(a=>esApp.includes("'"+a+"'") || esApp.includes('"'+a+'"'))));
+              .every(a=>readSet.includes("'"+a+"'") || readSet.includes('"'+a+'"'))));
 
           if(acc.mode!=='READONLY') throw new Error('accounting-not-readonly');
           if(acc.schemaReady!==true) throw new Error('accounting-schema-not-ready');
