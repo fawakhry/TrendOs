@@ -1,0 +1,49 @@
+name: TrendOS Entry619 Accounting CORS Diagnostic
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry619-accounting-cors-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - name: Check EasyStore browser preflight contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --dump-header /tmp/h.txt --output /tmp/b.txt \
+            -X OPTIONS "$API_URL/v1/employee/accounting" \
+            -H 'Origin: https://fawakhry.github.io' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: authorization,content-type'
+          cat /tmp/h.txt
+          node <<'NODE'
+          const fs=require('fs');
+          const h=fs.readFileSync('/tmp/h.txt','utf8').toLowerCase();
+          const status=(h.match(/^http\/\S+\s+(\d+)/m)||[])[1]||'0';
+          const allowOrigin=(h.match(/^access-control-allow-origin:\s*(.+)$/mi)||[])[1]?.trim()||'';
+          const allowMethods=(h.match(/^access-control-allow-methods:\s*(.+)$/mi)||[])[1]?.trim()||'';
+          const allowHeaders=(h.match(/^access-control-allow-headers:\s*(.+)$/mi)||[])[1]?.trim()||'';
+          console.log('ENTRY619_CORS_OPTIONS_HTTP='+status);
+          console.log('ENTRY619_CORS_ALLOW_ORIGIN='+allowOrigin);
+          console.log('ENTRY619_CORS_ALLOW_METHODS='+allowMethods);
+          console.log('ENTRY619_CORS_ALLOW_HEADERS='+allowHeaders);
+          const originOk=allowOrigin==='*'||allowOrigin==='https://fawakhry.github.io';
+          const methodsOk=/post/i.test(allowMethods);
+          const headersOk=/authorization/i.test(allowHeaders)&&/content-type/i.test(allowHeaders);
+          if(!originOk||!methodsOk||!headersOk) throw new Error('entry619-easystore-cors-contract-fail');
+          console.log('ENTRY619_EASYSTORE_CORS_CONTRACT=PASS');
+          NODE
