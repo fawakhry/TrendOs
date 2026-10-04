@@ -2532,6 +2532,127 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=AUTHENTICATED_OPS_READONLY_LIVE_READ_SMOKE_THEN_PROMOTE_OPS_GENERAL_ONLY_IF_PASS
   ```
 
+
+### Entry618 — Ops authenticated READONLY proof + GENERAL cutover
+- الهدف: إغلاق عائلة Ops بالكامل على D1 بعد Entry617، مع إبقاء Employee Auth وEmployee Bridge وباقي العائلات خارج النطاق.
+- تم احترام بوابة Entry617 وعدم الانتقال إلى GENERAL قبل دليل جلسة موظف حقيقية.
+- محاولة المصادقة الأولى:
+  - workflow commit `dc5da1596f0fb857f4147efc1fd4aa7083758a1c`
+  - Run `37203775432`
+  - Job `111440624895`
+  - توقفت fail-closed قبل أي Login أو Production mutation عندما كشف الفحص وجود Cloud Auth Shadow session نشطة على حساب qualification.
+  - القرار: عدم إنشاء Login جديد لأن Apps Script الحالي يحتفظ بتوكن موظف واحد في الصف، وأي Login جديد قد يستبدل جلسة موظف حية.
+- تم إثبات مسار الـSmoke بدون لمس الجلسة:
+  - `attendance-v1.js` يرسل تلقائيًا `attendanceV1:state` عند وجود موظف logged-in ويعيد القراءة كل 60 ثانية.
+  - Cloudflare live-tail تم تأهيله في Run `37205678651`.
+  - الدليل الحاسم Run `37205782765` التقط عدة:
+    - `POST /v1/employee/ops`
+    - HTTP `200`
+    - Origin + Referer = `https://trendos-ui.trendmall-contact.workers.dev`
+    - Browser user agents فعلية.
+  - في نفس النافذة، probe الاصطناعي invalid رجع `401`.
+  - لأن Ops كان READONLY، فإن HTTP 200 من Production UI يثبت أن request كان من READ allowlist واجتاز employee-session verification ووصل D1 handler.
+  - النتيجة:
+    `ENTRY618_AUTHENTICATED_OPS_READONLY_LIVE_READ_SMOKE=PASS`
+- GENERAL attempt #1:
+  - Run `37206022395`, Job `111447254947`.
+  - Ops انتقل مؤقتًا إلى GENERAL / epoch 3.
+  - frontend version المؤقت `cce7f6d1-5b3a-46fd-b087-efa77619bbd2`.
+  - post-deploy check فشل مباشرة أثناء انتشار asset؛ automatic rollback نجح:
+    - frontend عاد إلى `ad121526-8f86-4ce9-b13e-757c89810b06`.
+    - Ops عاد READONLY.
+  - Read-only reconcile Run `37206291054`, Job `111448053014` = PASS:
+    - API = `de2c825d-ef63-407d-90dc-8059a9d4f192`
+    - frontend = `ad121526-8f86-4ce9-b13e-757c89810b06`
+    - Ops = READONLY / epoch 4
+    - Auth/Bridge = OFF
+    - Content/Comms/Accounting/Core = OFF
+    - Orders/Customers/Line/refresh = PASS.
+- GENERAL attempt #2:
+  - workflow was hardened so policy epoch is locked dynamically from Runtime instead of hardcoding an old epoch، مع bounded frontend propagation polling.
+  - Run `37206392285` وصل Ops إلى GENERAL / epoch 5 ثم توقف قبل frontend deploy لأن invalid-token probe دخل external session verification وانتظر upstream timeout.
+  - rollback أعاد Ops إلى READONLY / epoch 6؛ frontend لم يتغير في هذه المحاولة.
+  - تم تصحيح probe ليصل إلى local auth gate بدون username/token، فيثبت GENERAL write-policy بدون external auth call وبدون business write.
+- Final controlled cutover:
+  - workflow commit `ad29ddfd11de20d2c30b7ce2a8d925e0f5e63803`
+  - Run `37206574900`
+  - Job `111448891838`
+  - conclusion = **SUCCESS**
+  - pre-cutover Ops epoch = 6.
+  - live authenticated READONLY smoke داخل الـRun = PASS، وتم رصد **6** Production UI Ops reads ناجحة HTTP 200.
+  - Ops control:
+    - READONLY epoch 6 → GENERAL epoch 7.
+  - GENERAL policy probe:
+    - write-shaped request وصل local auth gate ورجع 401 لغياب session credentials.
+    - external auth call = NO.
+    - business write executed = NO.
+  - frontend GENERAL candidate مبني فوق exact live Entry617 baseline مع تغيير Ops mode فقط.
+  - frontend propagation = PASS من أول attempt.
+  - Production frontend version الجديدة:
+    - `f1aa4dbf-4bba-40f9-87e2-3e98f3f781b6`.
+  - API Worker لم يُنشر؛ بقي:
+    - `de2c825d-ef63-407d-90dc-8059a9d4f192`.
+  - Auth = OFF.
+  - Bridge = OFF.
+  - Content/Comms/Accounting/Core = OFF.
+  - Entry611 Native Auth Canary = NOT DEPLOYED.
+  - Apps Script touched = NO.
+  - existing employee session disrupted = NO.
+  - Orders GENERAL + duplicate guard = PASS.
+  - Customers GENERAL = PASS.
+  - Line Runtime = PASS.
+  - refresh recovery = PASS.
+- Independent post-success reconciliation:
+  - workflow commit `799b0c424fedce0fd6f76a54bfc4ed8a929b0c40`
+  - Run `37206745167`
+  - Job `111449391579`
+  - conclusion = **SUCCESS**
+  - confirmed independently:
+    ```ini
+    API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+    FRONTEND_VERSION=f1aa4dbf-4bba-40f9-87e2-3e98f3f781b6
+    OPS=GENERAL
+    OPS_POLICY_EPOCH=7
+    OPS_SCHEMA_READY=true
+    OPS_GOOGLE_BUSINESS_CALLS=0
+    OPS_APPS_SCRIPT_BUSINESS_AUTHORITY=false
+    AUTH=OFF
+    BRIDGE=OFF
+    CONTENT=OFF
+    COMMS=OFF
+    ACCOUNTING=OFF
+    CORE=OFF
+    ORDERS_CUSTOMERS_LINE=PASS
+    REFRESH_FIX=PASS
+    ```
+- اختيار العائلة التالية:
+  - Content وComms لا تزالان غير مؤهلتين للـGENERAL بسبب bindings الخارجية الناقصة المثبتة في Entry616.
+  - Core يحتوي write actions تمس order/line runtime مباشرة، لذلك لا يُختار كأول خطوة تالية بدون cutover qualification منفصل شديد.
+  - Accounting يملك READ actions محددة (`getAccounting`, `getDeptInvoiceDraftV1887`, `getPartyAccountV1858`) ولا يملك dependency R2/WhatsApp/OpenAI ظاهرة في handler؛ لذلك هو المرشح التالي للـREADONLY qualification، مع بقاء Auth/Bridge OFF.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY618_OPS_GENERAL_CUTOVER_PASS
+  FINAL_RUN_ID=37206574900
+  FINAL_JOB_ID=111448891838
+  FINAL_WORKFLOW_COMMIT=ad29ddfd11de20d2c30b7ce2a8d925e0f5e63803
+  POSTSUCCESS_RECONCILE_RUN=37206745167
+  POSTSUCCESS_RECONCILE_JOB=111449391579
+  PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  PRODUCTION_FRONTEND_VERSION=f1aa4dbf-4bba-40f9-87e2-3e98f3f781b6
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  CONTENT=OFF
+  COMMS=OFF
+  ACCOUNTING=OFF
+  CORE=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  API_DEPLOY=NO
+  APPS_SCRIPT_TOUCHED=NO
+  ENTRY611_CANARY_DEPLOYED=NO
+  NEXT_ACTION=QUALIFY_ACCOUNTING_READONLY_CUTOVER_WITH_AUTH_AND_BRIDGE_STILL_OFF
+  ```
+
 ### Customers
 - Customer master = 251 rows في D1 (live health after Entry616).
 - Customer search/write authority = D1-native / GENERAL.
