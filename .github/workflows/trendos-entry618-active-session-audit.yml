@@ -1,0 +1,86 @@
+name: TrendOS Entry618 Active Session Read-Only Audit
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry618-active-session-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      ENTRY617_COMPLETED_AT_MS: '1791117613000'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read-only active shadow audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${QUALIFY_USERNAME:-}"
+          npm install --no-save wrangler@4.33.2 >/dev/null
+
+          node <<'NODE'
+          const fs=require('fs'), cp=require('child_process');
+          const u=String(process.env.QUALIFY_USERNAME||'').trim().toLowerCase().replaceAll("'","''");
+          const sql="SELECT verified_at_ms AS verifiedAtMs,expires_at_ms AS expiresAtMs,last_seen_at_ms AS lastSeenAtMs,revoked_at_ms AS revokedAtMs,source FROM cloud_auth_sessions_v1 WHERE username_key='"+u+"' ORDER BY last_seen_at_ms DESC;";
+          const out=cp.execFileSync('npx',['wrangler','d1','execute',process.env.DATABASE,'--remote','--config',process.env.CONFIG,'--json','--command',sql],{encoding:'utf8',maxBuffer:10*1024*1024});
+          const x=JSON.parse(out), rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'verifiedAtMs'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const now=Date.now();
+          const active=rows.filter(r=>r.revokedAtMs==null && Number(r.expiresAtMs||0)>now);
+          console.log('ENTRY618_SHADOW_ROWS_TOTAL='+rows.length);
+          console.log('ENTRY618_ACTIVE_SHADOW_COUNT='+active.length);
+          const cut=Number(process.env.ENTRY617_COMPLETED_AT_MS||0);
+          active.forEach((r,i)=>{
+            const verified=Number(r.verifiedAtMs||0), last=Number(r.lastSeenAtMs||0), exp=Number(r.expiresAtMs||0);
+            console.log('ENTRY618_ACTIVE_'+(i+1)+'_SOURCE='+String(r.source||''));
+            console.log('ENTRY618_ACTIVE_'+(i+1)+'_VERIFIED_AT='+new Date(verified).toISOString());
+            console.log('ENTRY618_ACTIVE_'+(i+1)+'_LAST_SEEN_AT='+new Date(last).toISOString());
+            console.log('ENTRY618_ACTIVE_'+(i+1)+'_EXPIRES_AT='+new Date(exp).toISOString());
+            console.log('ENTRY618_ACTIVE_'+(i+1)+'_VERIFIED_AFTER_ENTRY617='+(verified>cut?'YES':'NO'));
+            console.log('ENTRY618_ACTIVE_'+(i+1)+'_LAST_SEEN_AFTER_ENTRY617='+(last>cut?'YES':'NO'));
+          });
+          console.log('ENTRY618_SECRET_VALUES_LOGGED=NO');
+          console.log('ENTRY618_USERNAME_LOGGED=NO');
+          console.log('ENTRY618_FINGERPRINT_LOGGED=NO');
+          NODE
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health" > /tmp/ops.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health" > /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health" > /tmp/bridge.json
+          node <<'NODE'
+          const fs=require('fs');
+          const o=JSON.parse(fs.readFileSync('/tmp/ops.json','utf8'));
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          if(o.mode!=='READONLY'||Number(o.policyEpoch||0)!==2) throw new Error('ops-runtime-drift');
+          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth-runtime-drift');
+          if(b.enabled!==false||b.secretConfigured!==false) throw new Error('bridge-runtime-drift');
+          console.log('ENTRY618_RUNTIME_STILL_OPS_READONLY=YES');
+          console.log('ENTRY618_AUTH_STILL_OFF=YES');
+          console.log('ENTRY618_BRIDGE_STILL_OFF=YES');
+          console.log('ENTRY618_PRODUCTION_MUTATION=NO');
+          NODE
