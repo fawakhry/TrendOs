@@ -141,145 +141,144 @@ jobs:
           new=old+"// Entry617: Ops family READONLY cutover. Auth and Bridge remain OFF.\nwindow.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'READONLY';\n"
           if s.count(old)!=1:
               raise SystemExit('config-anchor-count')
-          s=s.replace(old,new)
+          s=s.replace(old,new,1)
           if 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1' in s:
               raise SystemExit('entry611-canary-must-not-be-deployed')
           cfg.write_text(s)
 
           p=Path('cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js')
           s=p.read_text()
-          s=s.replace("var VERSION = 'T12_A61_EMPLOYEE_API_DISPATCHER_V1_20260929';","var VERSION = 'T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004';",1)
+
+          old_version="var VERSION = 'T12_A61_EMPLOYEE_API_DISPATCHER_V1_20260929';"
+          if s.count(old_version)!=1:
+              raise SystemExit('dispatcher-version-anchor-count')
+          s=s.replace(old_version,"var VERSION = 'T12_ENTRY617_EMPLOYEE_OPS_READONLY_V1_20261004';",1)
 
           anchor="  var BRIDGE_PATH = '/v1/employee/legacy-action';\n"
-          insert="""  var BRIDGE_PATH = '/v1/employee/legacy-action';
-          var OPS_PATH = '/v1/employee/ops';
-
-          var OPS_ACTIONS = new Set([
-            'attendanceV1',
-            'attendanceClockinV1',
-            'hrV1',
-            'cleaningV1',
-            'pressControlV1'
-          ]);
-
-          var OPS_READ_ONLY_KEYS = new Set([
-            'attendanceV1:state',
-            'attendanceV1:config',
-            'hrV1:myRequests',
-            'hrV1:requests',
-            'hrV1:employees',
-            'cleaningV1:status',
-            'pressControlV1:status'
-          ]);
-          """
+          ops_defs=(
+              "  var BRIDGE_PATH = '/v1/employee/legacy-action';\n"
+              "  var OPS_PATH = '/v1/employee/ops';\n\n"
+              "  var OPS_ACTIONS = new Set([\n"
+              "    'attendanceV1',\n"
+              "    'attendanceClockinV1',\n"
+              "    'hrV1',\n"
+              "    'cleaningV1',\n"
+              "    'pressControlV1'\n"
+              "  ]);\n\n"
+              "  var OPS_READ_ONLY_KEYS = new Set([\n"
+              "    'attendanceV1:state',\n"
+              "    'attendanceV1:config',\n"
+              "    'hrV1:myRequests',\n"
+              "    'hrV1:requests',\n"
+              "    'hrV1:employees',\n"
+              "    'cleaningV1:status',\n"
+              "    'pressControlV1:status'\n"
+              "  ]);\n"
+          )
           if s.count(anchor)!=1:
               raise SystemExit('dispatcher-bridge-anchor-count')
-          s=s.replace(anchor,insert,1)
+          s=s.replace(anchor,ops_defs,1)
 
-          anchor="""  function bridgeEnabled() {
-            return window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 === true;
-          }
-
-          """
-          insert=anchor+"""  function employeeOpsMode() {
-            var mode = text(window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE || 'OFF').toUpperCase();
-            return mode === 'READONLY' || mode === 'GENERAL' ? mode : 'OFF';
-          }
-
-          function opsPolicyKey(action, params) {
-            return text(action) + ':' + text(params && params.op);
-          }
-
-          function shouldRouteOpsNative(action, params) {
-            action = text(action);
-            if (!OPS_ACTIONS.has(action)) return false;
-            var mode = employeeOpsMode();
-            if (mode === 'OFF') return false;
-            if (mode === 'GENERAL') return true;
-            return OPS_READ_ONLY_KEYS.has(opsPolicyKey(action, params || {}));
-          }
-
-          """
+          anchor="\n  function edgeBase() {"
+          mode_funcs=(
+              "\n  function employeeOpsMode() {\n"
+              "    var mode = text(window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE || 'OFF').toUpperCase();\n"
+              "    return mode === 'READONLY' || mode === 'GENERAL' ? mode : 'OFF';\n"
+              "  }\n\n"
+              "  function opsPolicyKey(action, params) {\n"
+              "    return text(action) + ':' + text(params && params.op);\n"
+              "  }\n\n"
+              "  function shouldRouteOpsNative(action, params) {\n"
+              "    action = text(action);\n"
+              "    if (!OPS_ACTIONS.has(action)) return false;\n"
+              "    var mode = employeeOpsMode();\n"
+              "    if (mode === 'OFF') return false;\n"
+              "    if (mode === 'GENERAL') return true;\n"
+              "    return OPS_READ_ONLY_KEYS.has(opsPolicyKey(action, params || {}));\n"
+              "  }\n"
+              "\n  function edgeBase() {"
+          )
           if s.count(anchor)!=1:
-              raise SystemExit('dispatcher-mode-anchor-count')
-          s=s.replace(anchor,insert,1)
+              raise SystemExit('dispatcher-edge-anchor-count')
+          s=s.replace(anchor,mode_funcs,1)
 
-          anchor="  async function nativeAuth(action, params) {\n"
-          insert="""  async function employeeOpsNative(action, params) {
-            var p = Object.assign({}, params || {});
-            var token = text(p.token);
-            var username = text(p.username || p.name);
-            if (!username || !token) {
-              throw routeError(
-                'EMPLOYEE_OPS_SESSION_REQUIRED',
-                'جلسة الموظف الحالية مطلوبة لمسار Ops السحابي.'
-              );
-            }
-
-            delete p.token;
-            delete p.password;
-            delete p.oldPassword;
-            delete p.newPassword;
-            delete p.confirmPassword;
-            delete p.employeePassword;
-
-            p.action = text(action);
-            p.username = username;
-            return cloudPost(OPS_PATH, p, token);
-          }
-
-          async function nativeAuth(action, params) {
-          """
+          anchor="\n  async function nativeAuth(action, params) {"
+          ops_native=(
+              "\n  async function employeeOpsNative(action, params) {\n"
+              "    var p = Object.assign({}, params || {});\n"
+              "    var token = text(p.token);\n"
+              "    var username = text(p.username || p.name);\n"
+              "    if (!username || !token) {\n"
+              "      throw routeError(\n"
+              "        'EMPLOYEE_OPS_SESSION_REQUIRED',\n"
+              "        'جلسة الموظف الحالية مطلوبة لمسار Ops السحابي.'\n"
+              "      );\n"
+              "    }\n\n"
+              "    delete p.token;\n"
+              "    delete p.password;\n"
+              "    delete p.oldPassword;\n"
+              "    delete p.newPassword;\n"
+              "    delete p.confirmPassword;\n"
+              "    delete p.employeePassword;\n\n"
+              "    p.action = text(action);\n"
+              "    p.username = username;\n"
+              "    return cloudPost(OPS_PATH, p, token);\n"
+              "  }\n"
+              "\n  async function nativeAuth(action, params) {"
+          )
           if s.count(anchor)!=1:
               raise SystemExit('dispatcher-native-auth-anchor-count')
-          s=s.replace(anchor,insert,1)
+          s=s.replace(anchor,ops_native,1)
 
-          old="""    async function wrapped(action, params) {
-                if (!nativeEnabled()) return original.apply(this, arguments);
-                return dispatchNative(action, params || {}, original, this, arguments);
-              }
-          """
-          new="""    async function wrapped(action, params) {
-                var p = params || {};
-                if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);
-                if (!nativeEnabled()) return original.apply(this, arguments);
-                return dispatchNative(action, p, original, this, arguments);
-              }
-          """
+          old=(
+              "    async function wrapped(action, params) {\n"
+              "      if (!nativeEnabled()) return original.apply(this, arguments);\n"
+              "      return dispatchNative(action, params || {}, original, this, arguments);\n"
+              "    }"
+          )
+          new=(
+              "    async function wrapped(action, params) {\n"
+              "      var p = params || {};\n"
+              "      if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);\n"
+              "      if (!nativeEnabled()) return original.apply(this, arguments);\n"
+              "      return dispatchNative(action, p, original, this, arguments);\n"
+              "    }"
+          )
           if s.count(old)!=1:
               raise SystemExit('dispatcher-wrapper-anchor-count')
           s=s.replace(old,new,1)
 
-          old="""    var actionText = text(action);
-              var p = params || {};
-
-              if (!nativeEnabled()) {
-          """
-          new="""    var actionText = text(action);
-              var p = params || {};
-
-              if (shouldRouteOpsNative(actionText, p)) {
-                return employeeOpsNative(actionText, p);
-              }
-
-              if (!nativeEnabled()) {
-          """
+          old=(
+              "    var actionText = text(action);\n"
+              "    var p = params || {};\n\n"
+              "    if (!nativeEnabled()) {"
+          )
+          new=(
+              "    var actionText = text(action);\n"
+              "    var p = params || {};\n\n"
+              "    if (shouldRouteOpsNative(actionText, p)) {\n"
+              "      return employeeOpsNative(actionText, p);\n"
+              "    }\n\n"
+              "    if (!nativeEnabled()) {"
+          )
           if s.count(old)!=1:
               raise SystemExit('dispatcher-api-anchor-count')
           s=s.replace(old,new,1)
 
-          old="""    version: VERSION,
-              nativeEnabled: nativeEnabled,
-              bridgeEnabled: bridgeEnabled,
-          """
-          new="""    version: VERSION,
-              nativeEnabled: nativeEnabled,
-              bridgeEnabled: bridgeEnabled,
-              employeeOpsMode: employeeOpsMode,
-              opsPolicyKey: opsPolicyKey,
-              shouldRouteOpsNative: shouldRouteOpsNative,
-              employeeOpsNative: employeeOpsNative,
-          """
+          old=(
+              "    version: VERSION,\n"
+              "    nativeEnabled: nativeEnabled,\n"
+              "    bridgeEnabled: bridgeEnabled,\n"
+          )
+          new=(
+              "    version: VERSION,\n"
+              "    nativeEnabled: nativeEnabled,\n"
+              "    bridgeEnabled: bridgeEnabled,\n"
+              "    employeeOpsMode: employeeOpsMode,\n"
+              "    opsPolicyKey: opsPolicyKey,\n"
+              "    shouldRouteOpsNative: shouldRouteOpsNative,\n"
+              "    employeeOpsNative: employeeOpsNative,\n"
+          )
           if s.count(old)!=1:
               raise SystemExit('dispatcher-export-anchor-count')
           s=s.replace(old,new,1)
