@@ -1,0 +1,118 @@
+name: EasyStore A1 Current Runtime Preflight
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/easystore-a1-current-runtime-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Read current Production truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-deployments.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui-deployments.json
+
+          for family in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$family/health?a1pre=$GITHUB_SHA" -o "/tmp/$family.json"
+          done
+
+          curl --fail --silent --show-error --location "$UI_URL/config.js?a1pre=$GITHUB_SHA" -o /tmp/ui-config.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/config.js?a1pre=$GITHUB_SHA" -o /tmp/es-config.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/app.js?a1pre=$GITHUB_SHA" -o /tmp/es-app.js
+
+          node <<'NODE'
+          const fs=require('fs');
+          function active(path){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[]))
+              .slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const d=ds[0]||{};
+            const full=(d.versions||[]).map(v=>({
+              id:String(v.version_id||v.id||''),
+              p:Number(v.percentage||0)
+            })).filter(v=>v.id&&v.p===100);
+            if(full.length!==1) throw new Error('single-active-version-not-proven');
+            return full[0].id;
+          }
+          const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+          const auth=read('/tmp/auth.json');
+          const bridge=read('/tmp/legacy-action.json');
+          const ops=read('/tmp/ops.json');
+          const acc=read('/tmp/accounting.json');
+          const content=read('/tmp/content.json');
+          const comms=read('/tmp/comms.json');
+          const core=read('/tmp/core.json');
+          const ui=fs.readFileSync('/tmp/ui-config.js','utf8');
+          const esCfg=fs.readFileSync('/tmp/es-config.js','utf8');
+          const esApp=fs.readFileSync('/tmp/es-app.js','utf8');
+
+          console.log('A1_CURRENT_API_VERSION='+active('/tmp/api-deployments.json'));
+          console.log('A1_CURRENT_UI_VERSION='+active('/tmp/ui-deployments.json'));
+          console.log('A1_CURRENT_AUTH_MODE='+String(auth.mode||''));
+          console.log('A1_CURRENT_AUTH_ENV_ENABLED='+String(auth.envEnabled));
+          console.log('A1_CURRENT_BRIDGE_ENABLED='+String(bridge.enabled));
+          console.log('A1_CURRENT_BRIDGE_SECRET_CONFIGURED='+String(bridge.secretConfigured));
+          console.log('A1_CURRENT_BRIDGE_POLICY_COUNT='+Number(bridge.allowedPolicyCount||0));
+          console.log('A1_CURRENT_OPS_MODE='+String(ops.mode||''));
+          console.log('A1_CURRENT_OPS_EPOCH='+Number(ops.policyEpoch||0));
+          console.log('A1_CURRENT_ACCOUNTING_MODE='+String(acc.mode||''));
+          console.log('A1_CURRENT_ACCOUNTING_EPOCH='+Number(acc.policyEpoch||0));
+          console.log('A1_CURRENT_ACCOUNTING_SCHEMA_READY='+String(acc.schemaReady));
+          console.log('A1_CURRENT_ACCOUNTING_AUTHORITATIVE_WRITES='+String(acc.authoritativeWrites));
+          console.log('A1_CURRENT_ACCOUNTING_GOOGLE_CALLS='+Number(acc.googleBusinessCalls||0));
+          console.log('A1_CURRENT_CONTENT_MODE='+String(content.mode||''));
+          console.log('A1_CURRENT_COMMS_MODE='+String(comms.mode||''));
+          console.log('A1_CURRENT_CORE_MODE='+String(core.mode||''));
+
+          console.log('A1_UI_ACCOUNTING_READONLY='+
+            String(ui.includes("MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY'")));
+          console.log('A1_EASYSTORE_D1_READONLY_FLAG='+
+            String(/EASYSTORE_ACCOUNTING_D1_READONLY\s*=\s*true/.test(esCfg)));
+          console.log('A1_EASYSTORE_APPS_SCRIPT_FALLBACK='+
+            String(/script\.google\.com\/macros\/s\//.test(esCfg)));
+          console.log('A1_EASYSTORE_D1_CORE_4_ROUTED='+
+            String(['getEasyStoreCustomers','searchCustomers','getCustomerAccountV1915','easyStoreSystemHealth']
+              .every(a=>esApp.includes("'"+a+"'") || esApp.includes('"'+a+'"'))));
+
+          if(acc.mode!=='READONLY') throw new Error('accounting-not-readonly');
+          if(acc.schemaReady!==true) throw new Error('accounting-schema-not-ready');
+          if(acc.authoritativeWrites!==false) throw new Error('accounting-writes-unexpectedly-authoritative');
+          if(Number(acc.googleBusinessCalls||0)!==0) throw new Error('d1-accounting-google-call-drift');
+          if(ops.mode!=='GENERAL') throw new Error('ops-not-general');
+          console.log('A1_CURRENT_TRUTH_PREFLIGHT=PASS');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
