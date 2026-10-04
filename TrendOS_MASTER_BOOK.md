@@ -2747,6 +2747,72 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   - Cloudflare live tail observed 22 Worker events but **0** requests to `/v1/employee/accounting` during the 70-second window.
   - therefore the run ended fail-closed with no authenticated Accounting evidence; this is not a runtime failure and does not downgrade Entry619.
   - credentials read = NO; Production mutation = NO; employee session disruption = NO.
+- Production UI root-cause follow-up after the owner opened EasyStore Accounting:
+  - second live-tail Run `37208172774` confirmed the same preflight, then observed **0** requests to `/v1/employee/accounting` while the Accounting screen was visibly open.
+  - the EasyStore screen showed the banner: session expired / login again.
+  - root cause was before the D1 API:
+    - canonical TrendOS is hosted on `trendos-ui.trendmall-contact.workers.dev`.
+    - EasyStore Accounting is hosted on `fawakhry.github.io/EasyStore/`.
+    - the historical handoff stored the employee token in TrendOS `localStorage`, but browser storage is origin-scoped, so EasyStore could not read that token.
+    - token was intentionally not placed in the URL, which remains the security requirement.
+    - additionally, EasyStore Production `config.js` still pointed its generic API directly at Apps Script; therefore the independent EasyStore screen bypassed the Entry619 TrendOS dispatcher.
+- Secure cross-origin remediation:
+  - design: TrendOS opener → exact-origin `postMessage` with one-time nonce/fresh timestamp → EasyStore validates origin + `window.opener` source + nonce + freshness → EasyStore stores the session only in its own `sessionStorage`.
+  - raw employee token in URL = **NO**.
+  - EasyStore routes only the three Entry619 READONLY actions to D1:
+    - `getAccounting`
+    - `getDeptInvoiceDraftV1887`
+    - `getPartyAccountV1858`
+  - all non-qualified/write actions remain on the existing path while Accounting is READONLY.
+- EasyStore repository remediation:
+  - repo: `fawakhry/EasyStore`.
+  - candidate branch: `candidate/entry619-d1-readonly-sso-20261004`.
+  - secure receiver + D1 READONLY router commit: `5d0533a0ed8e53f6a53bcdfffb29b9e0d0142289`.
+  - D1 READONLY config commit: `d001839772e68a27b85c0b29bb10580181259048`.
+  - cache-bust commit: `0161bb0fc26f0d28af8e406acae1b84ee4f44113`.
+  - qualification tests/workflow commits: `d665e617b98d6ea84346331b858e000ad24b701e`, `81826554799b5fa0e9a4325b6ffa1936d37aab89`.
+  - two initial CI failures were stale historical cache-tag assertions only; they were corrected in `bf3aa943b5a2819b59216e0fc87770efb63ae6ad` and `e17d447b183f2bb33b8f99254fe77dfe519052ed`.
+  - final EasyStore qualification Run `37208981388` = **SUCCESS**; all existing suites + Entry619 secure SSO/D1 test PASS.
+  - EasyStore `main` was fast-forwarded from `79d5fa1965d42996de49f949a4c34121a4231157` to `e17d447b183f2bb33b8f99254fe77dfe519052ed`.
+  - GitHub Pages deployment Run `37209034589` = **SUCCESS**.
+- TrendOS sender remediation:
+  - source commits `251110c70dfbc23998c031a347a25b960049f561` and `d6b5b5c8f241488d78f056c89315e47cd8dd4224`.
+  - dedicated source qualification Run `37208772063` = **SUCCESS**.
+  - independent standard regressions including browser Cloud transport, duplicate guard, customer cloud-only, legacy line runtime, and login surface also remained PASS.
+  - controlled exact-live frontend workflow commit `b55af26a89e472a5fe25e6cdbfc954ae058f0b7d`.
+  - Run `37209211366` = **SUCCESS**.
+  - no API deploy, no D1 mutation, no Apps Script touch.
+  - new Production frontend version:
+    - `011a01ee-b51b-44d2-84ff-b08d88712d85`.
+  - Ops GENERAL / epoch 7 preserved.
+  - Accounting READONLY / epoch 2 preserved.
+  - Auth and Bridge remained OFF.
+  - Entry611 Canary remained NOT DEPLOYED.
+  - refresh recovery preserved.
+- Independent SSO post-success reconciliation:
+  - workflow commit `170863f14274a5a3520d5c777b10991b9b5a6b26`.
+  - Run `37209322493`.
+  - Job `111457081225`.
+  - conclusion = **SUCCESS**.
+  - confirmed EasyStore Pages live with D1 READONLY receiver/router, TrendOS sender live, token-in-URL = NO, and all family/runtime controls unchanged.
+- remediation registration:
+  ```ini
+  ENTRY619_EASYSTORE_CROSS_ORIGIN_SSO_REMEDIATION=PASS
+  EASYSTORE_MAIN=e17d447b183f2bb33b8f99254fe77dfe519052ed
+  EASYSTORE_PAGES_RUN=37209034589
+  TRENDOS_SSO_DEPLOY_RUN=37209211366
+  TRENDOS_SSO_RECONCILE_RUN=37209322493
+  PRODUCTION_FRONTEND_VERSION=011a01ee-b51b-44d2-84ff-b08d88712d85
+  TOKEN_IN_URL=NO
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  AUTH=OFF
+  BRIDGE=OFF
+  APPS_SCRIPT_TOUCHED=NO
+  NEXT_GATE=REAL_AUTHENTICATED_EASYSTORE_ACCOUNTING_D1_READ_SMOKE
+  ```
 - Important gate before Accounting GENERAL:
   - source + READONLY policy semantics + Production health are PASS.
   - still required: real authenticated Production Accounting read smoke through the current employee session path.
@@ -2762,7 +2828,7 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   RECONCILE_JOB_ID=111452119541
   RECONCILE_WORKFLOW_COMMIT=a5c001def8c79f6130e0f41d1587b09560a79cf5
   PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
-  PRODUCTION_FRONTEND_VERSION=494d279f-5f5a-4271-b1c0-be5997615501
+  PRODUCTION_FRONTEND_VERSION=011a01ee-b51b-44d2-84ff-b08d88712d85
   OPS=GENERAL
   OPS_POLICY_EPOCH=7
   ACCOUNTING=READONLY
