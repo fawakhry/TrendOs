@@ -25,6 +25,7 @@ jobs:
           endpoints=(
             "/v1/edge/health"
             "/v1/cloud/write/health"
+            "/v1/cloud/write/v2/production-shadow"
             "/v1/operator/tasks/status"
             "/v1/employee/auth/health"
             "/v1/employee/legacy-action/health"
