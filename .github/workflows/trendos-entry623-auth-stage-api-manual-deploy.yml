@@ -1,0 +1,209 @@
+
+name: TrendOS Entry623 Auth Stage API Manual Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-auth-stage-api-manual-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      BASE_COMMIT: a6aaf6390b0572feb5715736ed88cda8c8ade9c2
+      BASE_AUTH_BLOB: e7bb20287efa16366fbd267251217fde90a33958
+      PATCH_AUTH_BLOB: 450d3f9e65cece5363c4c51677e5b306c0deae5e
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify patch source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object cloudflare-d1/src/employee-auth-native-v1.mjs)" = "$PATCH_AUTH_BLOB"
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          grep -Fq "employee-auth-login-bootstrap-upsert-failed" cloudflare-d1/src/employee-auth-native-v1.mjs
+          echo ENTRY623_AUTH_STAGE_SOURCE=PASS
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/api-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('API active version is not single 100%');
+          fs.writeFileSync('/tmp/pre-api-version.txt',full[0].id);
+          console.log('ENTRY623_PRE_API_VERSION='+full[0].id);
+          NODE
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry623apipre=$GITHUB_RUN_ID" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry623apipre=$GITHUB_RUN_ID" -o /tmp/orders-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry623apipre=$GITHUB_RUN_ID" -o /tmp/customers-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry623apipre=$GITHUB_RUN_ID" -o /tmp/line-pre.json
+          curl --fail --silent --show-error "$UI_URL/config.js?entry623apipre=$GITHUB_RUN_ID" -o /tmp/ui-config.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          const ord=JSON.parse(fs.readFileSync('/tmp/orders-pre.json','utf8'));
+          const cus=JSON.parse(fs.readFileSync('/tmp/customers-pre.json','utf8'));
+          const line=JSON.parse(fs.readFileSync('/tmp/line-pre.json','utf8'));
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==false) throw new Error('auth runtime drift');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0||a.plaintextStored!==false) throw new Error('auth row drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17||b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          for(const f of ['content','comms','core']) if(r(f).mode!=='OFF') throw new Error(f+' drift');
+          if(ord.mode!=='GENERAL'||ord.duplicateGuardReady!==true) throw new Error('orders drift');
+          if(cus.mode!=='GENERAL') throw new Error('customers drift');
+          if(line.schemaReady!==true||line.legacySchemaReady!==true||line.writeMode!=='cloud-native+legacy-overlay') throw new Error('line runtime drift');
+          console.log('ENTRY623_API_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/ui-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/ui-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء'];" /tmp/ui-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 17;" /tmp/ui-config.js
+          echo ENTRY623_FRONTEND_CANARY_PREDEPLOY=PASS
+
+      - name: Build exact-live API source plus Auth diagnostic only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/entry623-api-base
+          git worktree add --detach /tmp/entry623-api-base "$BASE_COMMIT" >/dev/null
+
+          test "$(git -C /tmp/entry623-api-base hash-object cloudflare-d1/src/employee-auth-native-v1.mjs)" = "$BASE_AUTH_BLOB"
+          cp cloudflare-d1/src/employee-auth-native-v1.mjs /tmp/entry623-api-base/cloudflare-d1/src/employee-auth-native-v1.mjs
+          test "$(git -C /tmp/entry623-api-base hash-object cloudflare-d1/src/employee-auth-native-v1.mjs)" = "$PATCH_AUTH_BLOB"
+
+          python3 <<'PY'
+          from pathlib import Path
+          src=Path('/tmp/entry623-api-base/cloudflare-d1/wrangler.toml')
+          dst=Path('/tmp/entry623-api-base/cloudflare-d1/wrangler.entry623-auth-stage.toml')
+          lines=src.read_text().splitlines()
+          out=[]
+          in_vars=False
+          inserted=False
+          for line in lines:
+              stripped=line.strip()
+              if stripped == '[vars]':
+                  in_vars=True
+                  continue
+              if in_vars and stripped.startswith('['):
+                  in_vars=False
+              if in_vars:
+                  continue
+              out.append(line)
+              if stripped == 'workers_dev = true':
+                  out.append('keep_vars = true')
+                  inserted=True
+          if not inserted:
+              raise SystemExit('workers_dev anchor missing')
+          dst.write_text('\n'.join(out)+'\n')
+          PY
+
+          ! grep -Fq '[vars]' /tmp/entry623-api-base/cloudflare-d1/wrangler.entry623-auth-stage.toml
+          grep -Fx 'keep_vars = true' /tmp/entry623-api-base/cloudflare-d1/wrangler.entry623-auth-stage.toml
+          grep -Fx 'binding = "DB"' /tmp/entry623-api-base/cloudflare-d1/wrangler.entry623-auth-stage.toml
+          grep -Fx 'database_name = "trendos-main"' /tmp/entry623-api-base/cloudflare-d1/wrangler.entry623-auth-stage.toml
+          node --check /tmp/entry623-api-base/cloudflare-d1/src/employee-auth-native-v1.mjs
+          echo ENTRY623_EXACT_LIVE_API_PATCH_BUNDLE=PASS
+
+      - name: Deploy API code only with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-api-version.txt)"
+          CONFIG=/tmp/entry623-api-base/cloudflare-d1/wrangler.entry623-auth-stage.toml
+          DEPLOYED=0
+
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry623 auth diagnostic automatic rollback" --config "$CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+          sleep 3
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry623apipost=$GITHUB_RUN_ID" -o "/tmp/$f-post.json"
+          done
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/create/health?entry623apipost=$GITHUB_RUN_ID" -o /tmp/orders-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/customers/write/health?entry623apipost=$GITHUB_RUN_ID" -o /tmp/customers-post.json
+          curl --fail --silent --show-error "$API_URL/v1/t12/orders/line-runtime/health?entry623apipost=$GITHUB_RUN_ID" -o /tmp/line-post.json
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          const ord=JSON.parse(fs.readFileSync('/tmp/orders-post.json','utf8'));
+          const cus=JSON.parse(fs.readFileSync('/tmp/customers-post.json','utf8'));
+          const line=JSON.parse(fs.readFileSync('/tmp/line-post.json','utf8'));
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==false) throw new Error('auth post drift');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0||a.plaintextStored!==false) throw new Error('auth rows changed');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting post drift');
+          for(const f of ['content','comms','core']) if(r(f).mode!=='OFF') throw new Error(f+' post drift');
+          if(ord.mode!=='GENERAL'||ord.duplicateGuardReady!==true) throw new Error('orders post drift');
+          if(cus.mode!=='GENERAL') throw new Error('customers post drift');
+          if(line.schemaReady!==true||line.legacySchemaReady!==true||line.writeMode!=='cloud-native+legacy-overlay') throw new Error('line post drift');
+          console.log('ENTRY623_AUTH_STAGE_API_POSTFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/api-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('API post version not single 100%');
+          if(full[0].id===fs.readFileSync('/tmp/pre-api-version.txt','utf8').trim()) throw new Error('API deploy did not advance version');
+          console.log('ENTRY623_AUTH_STAGE_API_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY623_AUTH_STAGE_API_DEPLOY=PASS
+          echo ENTRY623_D1_MUTATION=NO
+          echo ENTRY623_MIGRATIONS_APPLIED=NO
+          echo ENTRY623_VARIABLES_CHANGED=NO
+          echo ENTRY623_SECRETS_CHANGED=NO
+          echo ENTRY623_FRONTEND_DEPLOY=NO
+          echo ENTRY623_ACCOUNTING_TOUCHED=NO
+          echo ENTRY623_EASYSTORE_TOUCHED=NO
