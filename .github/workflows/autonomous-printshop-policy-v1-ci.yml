@@ -13,6 +13,7 @@ on:
       - 'autonomous-printshop/core/readiness-evidence-v1.mjs'
       - 'autonomous-printshop/core/readiness-evidence-writer-v1.mjs'
       - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
+      - 'autonomous-printshop/core/design-asset-linking-v1.mjs'
       - 'autonomous-printshop/core/design-preflight-v1.mjs'
       - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
@@ -25,6 +26,7 @@ on:
       - 'autonomous-printshop/migrations/0022_t12_order_schedule_maintenance_v1.sql'
       - 'autonomous-printshop/migrations/0023_readiness_evidence_v1.sql'
       - 'autonomous-printshop/migrations/0024_design_production_evidence_v1.sql'
+      - 'autonomous-printshop/migrations/0025_design_asset_binding_v1.sql'
       - 'autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
       - 'autonomous-printshop/tests/operational_reality_v1.test.mjs'
@@ -36,6 +38,7 @@ on:
       - 'autonomous-printshop/tests/readiness_evidence_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs'
       - 'autonomous-printshop/tests/design_production_evidence_v1.test.mjs'
+      - 'autonomous-printshop/tests/design_asset_linking_v1.test.mjs'
       - 'autonomous-printshop/tests/design_preflight_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_collector_v1.test.mjs'
@@ -105,6 +108,8 @@ jobs:
         run: node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
       - name: Run design production evidence contract
         run: node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
+      - name: Run design asset linking contract
+        run: node autonomous-printshop/tests/design_asset_linking_v1.test.mjs
       - name: Run design preflight contract
         run: node autonomous-printshop/tests/design_preflight_v1.test.mjs
       - name: Run readiness source adapters contract
