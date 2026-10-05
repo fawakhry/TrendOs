@@ -100,10 +100,15 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
              l.ready,
              l.updated_at AS updatedAt
         FROM employee_core_lines_v1 l
+        LEFT JOIN t12_legacy_line_runtime lr
+          ON lr.line_id=l.line_id AND lr.order_id=l.order_id
         LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
        WHERE l.active=1
          AND a.line_id IS NULL
          AND TRIM(l.ready)<>''
+         AND COALESCE(lr.status,l.status,'') NOT IN (
+           'تم التسليم','جاهز للاستلام','ملغي','ملغى','مكرر','مدمج','مغلق','ملغي/مغلق'
+         )
     `).all(),
     db.prepare(`
       SELECT d.line_id AS lineId,
@@ -124,9 +129,19 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
           ON m.active=1
          AND m.department=d.department
          AND m.material_name=d.material_name
+        LEFT JOIN employee_core_lines_v1 il ON il.line_id=d.line_id
+        LEFT JOIN t12_legacy_line_runtime lr
+          ON lr.line_id=d.line_id AND lr.order_id=il.order_id
+        LEFT JOIN t12_prod_lines nl ON nl.line_id=d.line_id
+        LEFT JOIN t12_prod_line_runtime nr ON nr.line_id=d.line_id
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=d.line_id
        WHERE d.line_id<>''
+         AND a.line_id IS NULL
          AND TRIM(d.material_name)<>''
          AND d.material_consumption>0
+         AND COALESCE(nr.status,nl.status,lr.status,il.status,'') NOT IN (
+           'تم التسليم','جاهز للاستلام','ملغي','ملغى','مكرر','مدمج','مغلق','ملغي/مغلق'
+         )
     `).all()
   ]);
 
