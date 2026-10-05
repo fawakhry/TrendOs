@@ -1,0 +1,258 @@
+
+name: TrendOS Entry623 Diya Auth Read Smoke Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-diya-auth-read-smoke-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-diya-auth-read-smoke-controlled
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Secret identity gate without value logging
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          test "${#QUALIFY_PASSWORD}" -ge 6
+          node <<'NODE'
+          const u=String(process.env.QUALIFY_USERNAME||'').trim();
+          if(u!=='ضياء') throw new Error('qualification secret is not exact Entry623 canary user');
+          console.log('ENTRY623_QUALIFY_USER_MATCH=YES');
+          console.log('ENTRY623_CREDENTIAL_VALUES_LOGGED=NO');
+          NODE
+
+      - name: Live canary and runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$FRONTEND_URL/config.js?entry623smokepre=$GITHUB_SHA" -o /tmp/config.js
+          curl --fail --silent --show-error "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry623smokepre=$GITHUB_SHA" -o /tmp/dispatcher.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء'];" /tmp/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 17;" /tmp/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = true;" /tmp/config.js
+          grep -Fq "canaryMinimumBridgePolicies" /tmp/dispatcher.js
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623smokepre=$GITHUB_SHA" -o /tmp/auth-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry623smokepre=$GITHUB_SHA" -o /tmp/bridge-pre.json
+          node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync('/tmp/auth-pre.json')),b=JSON.parse(fs.readFileSync('/tmp/bridge-pre.json'));
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth preflight');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('auth users changed before first login');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge preflight');
+          console.log('ENTRY623_AUTH_READ_SMOKE_PREFLIGHT=PASS');
+          NODE
+
+      - name: First login bootstrap only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.API_URL.replace(/\/$/,'');
+          const username=process.env.QUALIFY_USERNAME;
+          const password=process.env.QUALIFY_PASSWORD;
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token||String(body.authSource||'')!=='d1-native-bootstrap-v1'){
+              console.error('ENTRY623_FIRST_LOGIN_BOOTSTRAP=FAIL status='+r.status+' source='+String(body.authSource||'')+' code='+String(body.code||''));
+              process.exit(21);
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/token1',token,{mode:0o600});
+            console.log('ENTRY623_FIRST_LOGIN_BOOTSTRAP=PASS');
+            console.log('ENTRY623_FIRST_LOGIN_AUTH_SOURCE=d1-native-bootstrap-v1');
+            console.log('ENTRY623_TOKEN_LOGGED=NO');
+          })().catch(()=>process.exit(22));
+          NODE
+
+      - name: Verify first native-ready state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623afterfirst=$GITHUB_SHA" -o /tmp/auth-first.json
+          node <<'NODE'
+          const a=require('/tmp/auth-first.json');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1) throw new Error('first login did not create exactly one native-ready user');
+          console.log('ENTRY623_D1_AUTH_USERS=1');
+          console.log('ENTRY623_D1_NATIVE_READY_USERS=1');
+          NODE
+
+      - name: First session and read-only route smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.API_URL.replace(/\/$/,'');
+          const username=process.env.QUALIFY_USERNAME;
+          const token=fs.readFileSync('/tmp/token1','utf8').trim();
+          async function post(path,body){
+            const r=await fetch(base+path,{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify(body),cache:'no-store'
+            });
+            const raw=await r.text(); let out={}; try{out=JSON.parse(raw||'{}')}catch{}
+            return {r,out};
+          }
+          (async()=>{
+            let x=await post('/v1/employee/auth/session',{username,token});
+            if(x.r.status!==200||x.out.success!==true||String(x.out.authSource||'')!=='d1-native-employee-v1') throw new Error('native session 1');
+            console.log('ENTRY623_D1_SESSION_SMOKE_1=PASS');
+
+            x=await post('/v1/employee/legacy-action',{action:'getDashboard',username});
+            if(x.r.status!==200||x.out.success!==true) throw new Error('dashboard bridge read');
+            console.log('ENTRY623_DASHBOARD_BRIDGE_READ=PASS');
+
+            x=await post('/v1/employee/accounting',{action:'getAccounting',username});
+            if(x.r.status!==200||x.out.success!==true) throw new Error('accounting read');
+            console.log('ENTRY623_ACCOUNTING_READONLY_SMOKE=PASS');
+
+            x=await post('/v1/employee/ops',{action:'attendanceV1',op:'state',username});
+            if(x.r.status!==200||x.out.success!==true||String(x.out.authority||'')!=='d1-employee-ops-v1') throw new Error('attendance state read');
+            console.log('ENTRY623_ATTENDANCE_STATE_READ=PASS');
+            console.log('ENTRY623_ATTENDANCE_START_MUTATION=NOT_RUN');
+
+            x=await post('/v1/employee/legacy-action',{action:'saveKnowledge',username});
+            if(x.r.status<400||x.r.status>=500) throw new Error('unlisted legacy action did not fail closed');
+            console.log('ENTRY623_UNLISTED_LEGACY_ACTION_FAIL_CLOSED=PASS');
+          })().catch(e=>{console.error('ENTRY623_READ_SMOKE_FAIL='+String(e&&e.message||e));process.exit(31);});
+          NODE
+
+      - name: Logout first session
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.API_URL.replace(/\/$/,'');
+          const username=process.env.QUALIFY_USERNAME;
+          const token=fs.readFileSync('/tmp/token1','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) throw new Error('logout1');
+            console.log('ENTRY623_FIRST_LOGOUT=PASS');
+          })().catch(()=>process.exit(41));
+          NODE
+
+      - name: Second login must be native
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.API_URL.replace(/\/$/,'');
+          const username=process.env.QUALIFY_USERNAME;
+          const password=process.env.QUALIFY_PASSWORD;
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token||String(body.authSource||'')!=='d1-native-employee-v1'){
+              console.error('ENTRY623_SECOND_LOGIN_NATIVE=FAIL status='+r.status+' source='+String(body.authSource||'')+' code='+String(body.code||''));
+              process.exit(51);
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/token2',token,{mode:0o600});
+            console.log('ENTRY623_SECOND_LOGIN_NATIVE=PASS');
+            console.log('ENTRY623_SECOND_LOGIN_AUTH_SOURCE=d1-native-employee-v1');
+          })().catch(()=>process.exit(52));
+          NODE
+
+      - name: Second session smoke and logout
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.API_URL.replace(/\/$/,'');
+          const username=process.env.QUALIFY_USERNAME;
+          const token=fs.readFileSync('/tmp/token2','utf8').trim();
+          (async()=>{
+            let r=await fetch(base+'/v1/employee/auth/session',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),cache:'no-store'
+            });
+            let body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true||String(body.authSource||'')!=='d1-native-employee-v1') throw new Error('session2');
+            console.log('ENTRY623_D1_SESSION_SMOKE_2=PASS');
+
+            r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),cache:'no-store'
+            });
+            body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) throw new Error('logout2');
+            console.log('ENTRY623_SECOND_LOGOUT=PASS');
+          })().catch(()=>process.exit(61));
+          NODE
+
+      - name: Final postflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623smokepost=$GITHUB_SHA" -o /tmp/auth-final.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry623smokepost=$GITHUB_SHA" -o /tmp/bridge-final.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health?entry623smokepost=$GITHUB_SHA" -o /tmp/ops-final.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?entry623smokepost=$GITHUB_SHA" -o /tmp/accounting-final.json
+          node <<'NODE'
+          const a=require('/tmp/auth-final.json'),b=require('/tmp/bridge-final.json'),o=require('/tmp/ops-final.json'),ac=require('/tmp/accounting-final.json');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.nativeOnly!==false||Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1) throw new Error('auth final');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge final');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops final');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting final');
+          console.log('ENTRY623_DIYA_AUTH_READ_SMOKE=PASS');
+          console.log('ENTRY623_GLOBAL_NATIVE_AUTH=OFF');
+          console.log('ENTRY623_D1_NATIVE_READY_USERS=1');
+          console.log('ENTRY623_ATTENDANCE_START_REQUIRES_REAL_UI_ACTION=YES');
+          NODE
+
+      - name: Cleanup tokens
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -f /tmp/token1 /tmp/token2
+          echo ENTRY623_EPHEMERAL_TOKENS_CLEANED=YES
