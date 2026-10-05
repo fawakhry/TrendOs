@@ -27,6 +27,8 @@ assert.match(worker,/NATIVE_ORDER_SCHEDULE_POLICY_MISMATCH/);
 assert.match(worker,/LEGACY_D0_FLY_D2_STANDARD_V1/);
 assert.match(worker,/nativeOrderDueDatePersisted:true/);
 assert.match(worker,/employeeIdentityExposed:false/);
+assert.match(worker,/departmentSources/);
+assert.match(worker,/supervisorCoreVersion/);
 assert.match(worker,/operator_tasks/);
 assert.match(worker,/employee_attendance_pulses_v1/);
 assert.match(worker,/employee_attendance_days_v1/);
