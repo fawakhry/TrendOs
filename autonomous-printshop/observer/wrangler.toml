@@ -7,7 +7,7 @@ workers_dev = true
 AUTONOMOUS_SHADOW_EXPECTED_BACKFILL_SHA256 = "1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f"
 
 [triggers]
-crons = ["17 * * * *"]
+crons = ["5 * * * *"]
 
 [[d1_databases]]
 binding = "DB"
