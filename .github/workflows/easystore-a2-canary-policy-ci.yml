@@ -1,0 +1,30 @@
+name: EasyStore A2 Canary Policy CI
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/migrations/0028_employee_accounting_write_canary_v1.sql'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a2_write_canary_policy_v1.test.mjs'
+      - '.github/workflows/easystore-a2-canary-policy-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+      - run: node tests/easystore_a2_write_canary_policy_v1.test.mjs
+      - run: node tests/easystore_a2_final_day_close_v1.test.mjs
+      - run: node tests/easystore_a2_direct_sale_v1.test.mjs
