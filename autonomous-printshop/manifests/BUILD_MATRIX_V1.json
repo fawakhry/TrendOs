@@ -20,7 +20,7 @@
       ],
       "target": "policy, shadow/canary/general, audit, exceptions",
       "priority": "P0",
-      "implementation_state": "D1_SCHEMA_APPLIED_DEFAULT_OFF"
+      "implementation_state": "PRODUCTION_SHADOW_CONTROL_ACTIVE_EPOCH_2_WITH_APPEND_ONLY_OBSERVER"
     },
     {
       "id": "M02",
@@ -129,7 +129,8 @@
         "autonomous-printshop/sources/trendos/material-control/"
       ],
       "target": "D1 material ledger, custody, consumption, waste, reconciliation, all departments",
-      "priority": "P0"
+      "priority": "P0",
+      "implementation_state": "READINESS_EVIDENCE_COLLECTOR_LIVE_CONSERVATIVE_BLOCKERS_ONLY"
     },
     {
       "id": "M11",
@@ -227,11 +228,12 @@
         "autonomous-printshop/sources/trendos/control-tower/trend-master-resilience-v1931.js",
         "autonomous-printshop/sources/trendos/control-tower/go-live-autopilot-v1.js",
         "autonomous-printshop/sources/trendos/control-tower/v1940-deploy-health.gs",
-        "autonomous-printshop/sources/trendos/control-tower/trendos-integrity-dashboard-v1.gs"
+        "autonomous-printshop/sources/trendos/control-tower/trendos-integrity-dashboard-v1.gs",
+        "autonomous-printshop/production-shadow/worker.mjs"
       ],
       "target": "shop health, deadlines, exceptions, inventory/security/finance thresholds; no routine queue management",
       "priority": "P0",
-      "implementation_state": "FILTERED_FOUNDATION_READY"
+      "implementation_state": "PRODUCTION_CONTROL_TOWER_SHADOW_LIVE"
     },
     {
       "id": "M19",
@@ -286,6 +288,34 @@
         "autonomous-printshop/tests/t12_order_schedule_v1.test.mjs"
       ],
       "target": "persist deterministic expected-delivery metadata for native Orders; future writes must maintain the schedule at order creation/update time"
+    },
+    {
+      "id": "M24",
+      "name": "Readiness Evidence Layer",
+      "status": "NEW_BUILD_REQUIRED",
+      "priority": "P0",
+      "implementation_state": "PRODUCTION_SHADOW_LIVE_APPEND_ONLY_EVIDENCE",
+      "central_sources": [
+        "autonomous-printshop/migrations/0023_readiness_evidence_v1.sql",
+        "autonomous-printshop/core/readiness-evidence-v1.mjs",
+        "autonomous-printshop/core/readiness-evidence-writer-v1.mjs",
+        "autonomous-printshop/core/readiness-source-adapters-v1.mjs",
+        "autonomous-printshop/readiness-collector/"
+      ],
+      "target": "evidence-bound DESIGN/MATERIAL/MACHINE readiness with TTL, provenance, fail-closed UNKNOWN semantics"
+    },
+    {
+      "id": "M25",
+      "name": "Shadow Decision Observer",
+      "status": "NEW_BUILD_REQUIRED",
+      "priority": "P0",
+      "implementation_state": "PRODUCTION_LIVE_HOURLY_APPEND_ONLY",
+      "central_sources": [
+        "autonomous-printshop/observer/worker.mjs",
+        "autonomous-printshop/observer/wrangler.toml",
+        "autonomous-printshop/core/autonomy-event-ledger-v1.mjs"
+      ],
+      "target": "persist shadow decisions and recommended decisions over time without business writes"
     }
   ],
   "key_rule": "No new standalone project/repo per module. All autonomous-printshop module code belongs under autonomous-printshop/ unless it must remain an upstream runtime integration file."
