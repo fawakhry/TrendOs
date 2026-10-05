@@ -667,6 +667,110 @@ async function readinessSnapshot(env,rows){
   };
 }
 
+async function controlTowerSnapshot(env){
+  const qualified=await qualification(env);
+  if(!qualified.ok){
+    return {
+      success:false,
+      mode:'CONTROL_TOWER_SHADOW',
+      code:'SOURCE_NOT_QUALIFIED',
+      source:qualified,
+      writesAccepted:false,
+      d1Mutation:false,
+      employeeAssignment:false
+    };
+  }
+
+  const rows=await currentRows(env);
+  const operations=buildOperationalRealityV1(rows,{});
+  const [supervisor,readiness,autonomyControl,decisionCounts]=await Promise.all([
+    supervisorSnapshot(env,rows),
+    readinessSnapshot(env,rows),
+    env.DB.prepare(`
+      SELECT mode,policy_version AS policyVersion,min_confidence AS minConfidence,epoch
+        FROM autonomy_control
+       WHERE singleton_id=1
+       LIMIT 1
+    `).first(),
+    env.DB.prepare(`
+      SELECT
+        COUNT(*) AS autonomyEvents,
+        SUM(CASE WHEN recommended_decision='AI_AUTO' THEN 1 ELSE 0 END) AS recommendedAiAuto,
+        SUM(CASE WHEN decision='OWNER_ONLY' THEN 1 ELSE 0 END) AS ownerOnly,
+        SUM(CASE WHEN decision='BLOCKED' THEN 1 ELSE 0 END) AS blocked
+      FROM autonomy_events
+    `).first()
+  ]);
+
+  const reviewRequired=Number(supervisor&&supervisor.operatorCounts&&supervisor.operatorCounts.reviewRequired||0);
+  const strictBlocked=Number(readiness&&readiness.strictCounts&&readiness.strictCounts.exceptions||0);
+  const activeTasks=Number(supervisor&&supervisor.operatorCounts&&supervisor.operatorCounts.withActiveTask||0);
+  const baselineCandidates=Number(readiness&&readiness.baselineCandidates||0);
+  const strictEligible=Number(readiness&&readiness.strictCounts&&readiness.strictCounts.ordinary||0);
+
+  return {
+    success:true,
+    mode:'CONTROL_TOWER_SHADOW',
+    generatedAt:new Date().toISOString(),
+    source:{
+      authority:'trendos-main-d1',
+      qualificationMode:qualified.mode,
+      schedule:qualified.schedule,
+      rowCount:rows.length
+    },
+    operations:{
+      counts:operations.counts,
+      sourceKinds:sourceKindCounts(rows)
+    },
+    employees:{
+      operatorCounts:supervisor.operatorCounts,
+      assignmentCoverage:supervisor.assignmentCoverage,
+      departmentSources:supervisor.departmentSources,
+      departments:supervisor.departments
+    },
+    readiness:{
+      mode:text(readiness&&readiness.control&&readiness.control.mode),
+      baselineCandidates,
+      strictEligible,
+      strictBlocked,
+      evidenceRows:Number(readiness&&readiness.evidenceRows||0),
+      requiredKinds:readiness&&readiness.requiredKinds||[],
+      coverage:readiness&&readiness.coverage||{},
+      strictExceptionCounts:readiness&&readiness.strictExceptionCounts||{},
+      recommendationExists:!!(readiness&&readiness.strictRecommendation&&readiness.strictRecommendation.exists)
+    },
+    controls:{
+      autonomy:{
+        mode:text(autonomyControl&&autonomyControl.mode)||'OFF',
+        policyVersion:text(autonomyControl&&autonomyControl.policyVersion)||'v1',
+        minConfidence:Number(autonomyControl&&autonomyControl.minConfidence||0),
+        epoch:Number(autonomyControl&&autonomyControl.epoch||0)
+      },
+      readiness:text(readiness&&readiness.control&&readiness.control.mode)||'OFF',
+      operatorTask:text(supervisor&&supervisor.operatorTaskControl&&supervisor.operatorTaskControl.mode)||'OFF'
+    },
+    shadowLearning:{
+      autonomyEvents:Number(decisionCounts&&decisionCounts.autonomyEvents||0),
+      recommendedAiAuto:Number(decisionCounts&&decisionCounts.recommendedAiAuto||0),
+      ownerOnly:Number(decisionCounts&&decisionCounts.ownerOnly||0),
+      blocked:Number(decisionCounts&&decisionCounts.blocked||0)
+    },
+    attentionSignals:{
+      employeeReviewRequired:reviewRequired,
+      readinessBlocked:strictBlocked,
+      activeOperatorTasks:activeTasks,
+      noStrictRecommendation:strictEligible===0 && baselineCandidates>0
+    },
+    piiExposed:false,
+    employeeIdentityExposed:false,
+    rawOrderIdsExposed:false,
+    rawLineIdsExposed:false,
+    writesAccepted:false,
+    d1Mutation:false,
+    employeeAssignment:false
+  };
+}
+
 async function snapshot(env){
   const qualified=await qualification(env);
   if(!qualified.ok){
@@ -822,8 +926,24 @@ export default {
         },502);
       }
     }
+    if(path==='/control-tower'){
+      try{
+        const body=await controlTowerSnapshot(env);
+        return json(body,body.success?200:503);
+      }catch(err){
+        return json({
+          success:false,
+          mode:'CONTROL_TOWER_SHADOW',
+          code:'CONTROL_TOWER_SHADOW_ERROR',
+          message:text(err&&err.message),
+          writesAccepted:false,
+          d1Mutation:false,
+          employeeAssignment:false
+        },502);
+      }
+    }
     return json({success:false,code:'NOT_FOUND'},404);
   }
 };
 
-export { snapshot, qualification, currentRows, supervisorSnapshot, supervisorInputs, readinessSnapshot, readinessInputs };
+export { snapshot, qualification, currentRows, supervisorSnapshot, supervisorInputs, readinessSnapshot, readinessInputs, controlTowerSnapshot };
