@@ -3876,3 +3876,90 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   ```
 - Next gate:
   `ENTRY623_DIYA_FIRST_LOGIN_BOOTSTRAP_RUNTIME_SMOKE`
+
+
+#### Entry623 — First login bootstrap failure investigation; fail-closed
+- Frontend canary remained live for `ضياء` only and Global Native Auth remained OFF.
+- Controlled auth/read smoke source:
+  - workflow `.github/workflows/trendos-entry623-diya-auth-read-smoke-controlled.yml`
+  - commit `225be913085f4f5883a3445e9a17ad506852ccc1`
+  - Run `37358548448`
+  - Job `111927046377`.
+- Preflight passed with exact current runtime:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  ```
+- First login reached `/v1/employee/auth/login` but returned HTTP 500 with no safe code/stage in the response.
+- The workflow stopped at first login; dashboard/accounting/attendance reads, second login and business smoke were not run.
+- Post-failure Production runtime was independently verified:
+  ```ini
+  AUTH=TRANSITIONAL
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  PLAINTEXT_STORED=false
+  ```
+- Therefore no partial employee bootstrap row was created and no manual D1 repair/update was attempted.
+- A safe tail diagnostic was attempted:
+  - workflow `.github/workflows/trendos-entry623-auth-login-tail-diagnostic.yml`
+  - commit `f49348916de6ed34704c3905fc1673acb1bd04f4`
+  - Run `37360332392`.
+  - the repeated login also returned HTTP 500.
+  - D1 users/native-ready remained 0.
+  - Worker tail did not capture the login event, so no exception classification was accepted from that run.
+  - an unrelated cleanup shell syntax error occurred after the failed login; it did not mutate Production.
+- Source investigation found an observability gap:
+  - `upsertBootstrappedUser` already tags failures safely as `password-hash` or `d1-user-upsert`;
+  - the legacy-session enrollment route catches and returns those safe stages;
+  - the direct first-login bootstrap path did not catch them, causing an opaque Worker 500.
+- Repo-only diagnostic fix:
+  - `cloudflare-d1/src/employee-auth-native-v1.mjs` commit `f0b60d3f890ca88511477cb12780e6a7842351f3`
+  - test hardening commit `8e0815fa9b266e3f681cdd524a7725d700b9306a`
+  - safe failure response code: `employee-auth-login-bootstrap-upsert-failed`
+  - safe stage only: `password-hash`, `d1-user-upsert`, or `unknown`.
+  - no password/token/hash/salt/nonce/secret is exposed.
+- Repo qualification:
+  - workflow `.github/workflows/trendos-entry623-auth-bootstrap-stage-ci.yml`
+  - workflow commit `837d968fb51d5fed76659ed6cdfde529914d3f56`
+  - Run `37360776800`
+  - Job `111934535134`
+  - conclusion = **SUCCESS**.
+- Important exact-live deploy rule:
+  - current candidate branch contains other Worker source changes after the last code-only API deployment;
+  - therefore publishing the full current branch API is forbidden for this diagnostic.
+  - last code-only API source baseline is Entry616 workflow commit `a6aaf6390b0572feb5715736ed88cda8c8ade9c2`.
+  - exact-live diagnostic bundle must use that Entry616 base and replace only `employee-auth-native-v1.mjs` with the qualified diagnostic patch.
+- Manual Cloudflare deploy workflow prepared but **not run**:
+  - `.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml`
+  - commit `d8b74519bab506b35d064d19c18c517c2a9c62f5`
+  - trigger = `workflow_dispatch` only.
+  - it strips repo `[vars]` from the deployment config and uses `keep_vars=true`, preserving current Cloudflare variables/secrets.
+  - no migration or D1 control mutation is included.
+  - it has runtime preflight + automatic rollback on postflight failure.
+- Registration:
+  ```ini
+  ENTRY623_FIRST_LOGIN_BOOTSTRAP=FAIL_HTTP_500
+  ENTRY623_FIRST_LOGIN_PARTIAL_D1_ROW=NO
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  AUTH=TRANSITIONAL
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  GLOBAL_NATIVE_AUTH=OFF
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  DIAGNOSTIC_SOURCE_QUALIFIED=YES
+  DIAGNOSTIC_API_DEPLOYED=NO
+  MANUAL_DEPLOY_WORKFLOW_READY=YES
+  NEXT_ACTION=OWNER_MANUALLY_DISPATCH_ENTRY623_AUTH_STAGE_API_DEPLOY_THEN_REPEAT_ONE_FIRST_LOGIN_AND_READ_SAFE_STAGE
+  ```
