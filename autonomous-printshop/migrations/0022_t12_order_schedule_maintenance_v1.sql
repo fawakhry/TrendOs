@@ -9,14 +9,14 @@ BEGIN
     order_id,
     expected_delivery_date,
     policy_code,
-    source,
-    updated_by
+    source_kind,
+    source_created_at
   ) VALUES (
     NEW.order_id,
     date(datetime(NEW.created_at,'+3 hours'),'+2 days'),
     'LEGACY_D0_FLY_D2_STANDARD_V1',
     'AUTONOMOUS_PRINTSHOP_SCHEDULE_TRIGGER_V1',
-    'd1-trigger'
+    NEW.created_at
   );
 END;
 
@@ -42,8 +42,10 @@ BEGIN
          ),'+2 days')
        END,
        policy_code='LEGACY_D0_FLY_D2_STANDARD_V1',
-       source='AUTONOMOUS_PRINTSHOP_SCHEDULE_TRIGGER_V1',
-       updated_by='d1-trigger',
+       source_kind='AUTONOMOUS_PRINTSHOP_SCHEDULE_TRIGGER_V1',
+       source_created_at=(
+         SELECT o.created_at FROM t12_prod_orders o WHERE o.order_id=NEW.order_id
+       ),
        updated_at=CURRENT_TIMESTAMP
    WHERE order_id=NEW.order_id;
 END;
