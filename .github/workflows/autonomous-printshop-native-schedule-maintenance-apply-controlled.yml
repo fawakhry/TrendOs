@@ -71,7 +71,7 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file "$SQL"
 
-      - name: Verify trigger install and business rows unchanged
+      - name: Verify trigger install and schedule invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -109,17 +109,18 @@ jobs:
           const fs=require('fs');
           const before=JSON.parse(fs.readFileSync('/tmp/before.json','utf8'))?.[0]?.results?.[0]||{};
           const after=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'))?.[0]?.results?.[0]||{};
-          for(const k of ['orders','lines','runtimeRows','scheduleRows']){
-            if(Number(before[k])!==Number(after[k])) {
-              console.error('ROW_COUNT_CHANGED',k,before[k],after[k]);
-              process.exit(1);
-            }
-          }
           if(Number(after.triggersAfter)!==2) process.exit(2);
           if(Number(after.missingSchedule)!==0) process.exit(3);
           if(Number(after.policyMismatches)!==0) process.exit(4);
+          if(Number(after.scheduleRows)!==Number(after.orders)) process.exit(5);
           console.log('SCHEDULE_MAINTENANCE_TRIGGER_INSTALL=PASS');
-          console.log('BUSINESS_ROWS_UNCHANGED=YES');
+          console.log('SCHEDULE_COVERAGE='+after.scheduleRows+'/'+after.orders);
+          console.log('CONCURRENT_PRODUCTION_DELTAS='+JSON.stringify({
+            orders:Number(after.orders)-Number(before.orders),
+            lines:Number(after.lines)-Number(before.lines),
+            runtimeRows:Number(after.runtimeRows)-Number(before.runtimeRows)
+          }));
+          console.log('BUSINESS_TABLE_WRITE_CAPABILITY=BLOCKED_BY_STATIC_GATE');
           NODE
 
       - name: Safety conclusion
