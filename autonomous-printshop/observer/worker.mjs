@@ -13,6 +13,9 @@ import {
   readAutonomyControlV1,
   recordAutonomyShadowEventV1
 } from '../core/autonomy-event-ledger-v1.mjs';
+import {
+  decideAutonomyV1
+} from '../core/autonomy-policy-v1.mjs';
 
 function text(v){ return String(v==null?'':v).trim(); }
 
@@ -47,7 +50,7 @@ async function health(env){
   };
 }
 
-export async function observeOnce(env){
+export async function buildObservationPlan(env){
   const autonomy=await readAutonomyControlV1(env.DB);
   if(text(autonomy.mode)!=='SHADOW'){
     return {success:true,skipped:true,reason:'AUTONOMY_CONTROL_NOT_SHADOW'};
@@ -63,20 +66,22 @@ export async function observeOnce(env){
 
   const source=await qualification(env);
   if(!source.ok){
-    const event=await recordAutonomyShadowEventV1(env.DB,{
-      family:'PRODUCTION_SCHEDULING',
-      taskKey:'production-scheduling:source-qualification',
-      confidence:0,
-      idempotent:true,
-      dataIntegrityUnknown:true,
-      qualificationReason:text(source.reason)
-    },{policyVersion:'v1-shadow-observer'});
     return {
       success:true,
-      inserted:event.inserted,
       state:'SOURCE_NOT_QUALIFIED',
-      decision:event.decision.decision,
-      recommendedDecision:event.recommendedDecision.decision
+      policyVersion:'v1-shadow-observer',
+      minConfidence:Number(autonomy.minConfidence||0.92),
+      eventInput:{
+        family:'PRODUCTION_SCHEDULING',
+        taskKey:'production-scheduling:source-qualification',
+        confidence:0,
+        idempotent:true,
+        dataIntegrityUnknown:true,
+        qualificationReason:text(source.reason)
+      },
+      baselineCandidates:0,
+      strictCandidates:0,
+      evidenceRows:Number(readiness.evidence&&readiness.evidence.length||0)
     };
   }
 
@@ -108,31 +113,104 @@ export async function observeOnce(env){
   const missingRequiredData=!recommended;
   const confidence=recommended?minEvidenceConfidence(recommended):0;
 
-  const event=await recordAutonomyShadowEventV1(env.DB,{
-    family:'EMPLOYEE_TASK_ASSIGNMENT',
-    taskKey:'employee-task-assignment:'+text(decisionTask.lineId),
-    orderId:text(decisionTask.orderId),
-    lineId:text(decisionTask.lineId),
-    confidence,
-    idempotent:true,
-    missingRequiredData,
+  return {
+    success:true,
+    state:recommended?'STRICT_ELIGIBLE':'READINESS_BLOCKED',
+    policyVersion:'v1-readiness-shadow',
+    minConfidence:Number(autonomy.minConfidence||0.92),
+    baselineCandidates:baseline.ordinary.length,
+    strictCandidates:strict.reality.ordinary.length,
+    evidenceRows:readiness.evidence.length,
     requiredKinds,
-    readinessCoverage:strict.coverage,
-    baselineCounts:baseline.counts,
-    strictCounts:strict.reality.counts,
-    baselinePriority:text(top.priority),
-    baselineDepartment:text(top.department),
-    baselineDueIso:text(top.dueIso),
-    strictEligible:!!recommended
-  },{policyVersion:'v1-readiness-shadow'});
+    eventInput:{
+      family:'EMPLOYEE_TASK_ASSIGNMENT',
+      taskKey:'employee-task-assignment:'+text(decisionTask.lineId),
+      orderId:text(decisionTask.orderId),
+      lineId:text(decisionTask.lineId),
+      confidence,
+      idempotent:true,
+      missingRequiredData,
+      requiredKinds,
+      readinessCoverage:strict.coverage,
+      baselineCounts:baseline.counts,
+      strictCounts:strict.reality.counts,
+      baselinePriority:text(top.priority),
+      baselineDepartment:text(top.department),
+      baselineDueIso:text(top.dueIso),
+      strictEligible:!!recommended
+    }
+  };
+}
+
+export async function previewObservationV1(env){
+  const plan=await buildObservationPlan(env);
+  if(!plan.success||plan.skipped||!plan.eventInput){
+    return {
+      success:plan.success,
+      skipped:!!plan.skipped,
+      reason:text(plan.reason),
+      state:text(plan.state),
+      baselineCandidates:Number(plan.baselineCandidates||0),
+      strictCandidates:Number(plan.strictCandidates||0),
+      evidenceRows:Number(plan.evidenceRows||0),
+      writePerformed:false,
+      rawOrderIdsExposed:false,
+      rawLineIdsExposed:false
+    };
+  }
+
+  const actual=decideAutonomyV1(plan.eventInput,{
+    autopilotEnabled:false,
+    minConfidence:plan.minConfidence
+  });
+  const recommended=decideAutonomyV1(plan.eventInput,{
+    autopilotEnabled:true,
+    minConfidence:plan.minConfidence
+  });
+
+  return {
+    success:true,
+    skipped:false,
+    mode:'SHADOW_OBSERVER_PREVIEW',
+    state:plan.state,
+    baselineCandidates:Number(plan.baselineCandidates||0),
+    strictCandidates:Number(plan.strictCandidates||0),
+    evidenceRows:Number(plan.evidenceRows||0),
+    requiredKinds:plan.requiredKinds||[],
+    family:text(plan.eventInput.family),
+    actualDecision:text(actual.decision),
+    actualReason:text(actual.reason),
+    recommendedDecision:text(recommended.decision),
+    recommendedReason:text(recommended.reason),
+    writePerformed:false,
+    businessWrites:false,
+    employeeAssignment:false,
+    piiExposed:false,
+    rawOrderIdsExposed:false,
+    rawLineIdsExposed:false
+  };
+}
+
+export async function observeOnce(env){
+  const plan=await buildObservationPlan(env);
+  if(!plan.success||plan.skipped||!plan.eventInput) return plan;
+
+  const event=await recordAutonomyShadowEventV1(
+    env.DB,
+    plan.eventInput,
+    {
+      policyVersion:plan.policyVersion,
+      minConfidence:plan.minConfidence
+    }
+  );
 
   return {
     success:true,
     inserted:event.inserted,
-    state:recommended?'STRICT_ELIGIBLE':'READINESS_BLOCKED',
-    baselineCandidates:baseline.ordinary.length,
-    strictCandidates:strict.reality.ordinary.length,
-    evidenceRows:readiness.evidence.length,
+    state:plan.state,
+    baselineCandidates:Number(plan.baselineCandidates||0),
+    strictCandidates:Number(plan.strictCandidates||0),
+    evidenceRows:Number(plan.evidenceRows||0),
     decision:event.decision.decision,
     decisionReason:event.decision.reason,
     recommendedDecision:event.recommendedDecision.decision,
@@ -150,21 +228,22 @@ export default {
         headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
       });
     }
-    if(path!=='/'&&path!=='/health'){
+    if(path!=='/'&&path!=='/health'&&path!=='/preview'){
       return new Response(JSON.stringify({success:false,code:'NOT_FOUND'}),{
         status:404,
         headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
       });
     }
     try{
-      return new Response(JSON.stringify(await health(env)),{
+      const body=path==='/preview' ? await previewObservationV1(env) : await health(env);
+      return new Response(JSON.stringify(body),{
         status:200,
         headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
       });
     }catch(err){
       return new Response(JSON.stringify({
         success:false,
-        code:'OBSERVER_HEALTH_ERROR',
+        code:path==='/preview'?'OBSERVER_PREVIEW_ERROR':'OBSERVER_HEALTH_ERROR',
         message:text(err&&err.message)
       }),{
         status:503,
