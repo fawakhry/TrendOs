@@ -63,6 +63,7 @@ const derivedDepartment=buildEmployeeSupervisorShadowV1({
   activeTasks:[]
 });
 assert.equal(derivedDepartment.operators[0].department,'ليزر');
+assert.equal(derivedDepartment.operators[0].departmentSource,'ACTIVE_ASSIGNED_WORK');
 assert.deepEqual(derivedDepartment.operators[0].assignedDepartments,['ليزر']);
 assert.equal(derivedDepartment.operators[0].recommendation.recommended.orderId,'50');
 
@@ -76,11 +77,26 @@ const multiDepartment=buildEmployeeSupervisorShadowV1({
   activeTasks:[]
 });
 assert.equal(multiDepartment.operators[0].department,'MULTI');
+assert.equal(multiDepartment.operators[0].departmentSource,'ACTIVE_ASSIGNED_WORK_MULTI');
 assert.deepEqual(
   new Set(multiDepartment.operators[0].assignedDepartments),
   new Set(['طباعة','ليزر'])
 );
 assert.equal(multiDepartment.operators[0].reality.counts.ordinary,2);
+
+
+const closedHistoryDoesNotDefineCurrentDepartment=buildEmployeeSupervisorShadowV1({
+  rows:[
+    {orderId:'70',lineId:'70-1',department:'طباعة',assignedTo:'منى',priority:'عادي',status:'تم التسليم',expectedDelivery:'2026-10-01'},
+    {orderId:'71',lineId:'71-1',department:'ليزر',assignedTo:'منى',priority:'عادي',status:'طلب جديد',expectedDelivery:'2026-10-06'}
+  ],
+  employees:[{operatorId:'mona',username:'mona',displayName:'منى',department:''}],
+  attendanceByOperator:{mona:{started:true,lastPulse:'heartbeat'}},
+  activeTasks:[]
+});
+assert.equal(closedHistoryDoesNotDefineCurrentDepartment.operators[0].department,'ليزر');
+assert.equal(closedHistoryDoesNotDefineCurrentDepartment.operators[0].departmentSource,'ACTIVE_ASSIGNED_WORK');
+assert.deepEqual(closedHistoryDoesNotDefineCurrentDepartment.operators[0].activeAssignedDepartments,['ليزر']);
 
 console.log('AUTONOMOUS_PRINTSHOP_EMPLOYEE_SUPERVISOR_SHADOW_V1=PASS');
 console.log('ROUTING=LEGACY_ASSIGNMENT_BASELINE_ONLY');
