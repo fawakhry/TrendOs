@@ -8,15 +8,18 @@ on:
       - 'autonomous-printshop/core/autonomy-event-ledger-v1.mjs'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
       - 'autonomous-printshop/core/trendos-operational-reality-read-adapter-v1.mjs'
+      - 'autonomous-printshop/core/operator-task-authority-v1.mjs'
       - 'autonomous-printshop/migrations/0019_autonomy_events_v1.sql'
+      - 'autonomous-printshop/migrations/0020_operator_task_authority_v1.sql'
       - 'autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
       - 'autonomous-printshop/tests/operational_reality_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_operational_reality_read_adapter_v1.test.mjs'
+      - 'autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs'
+      - 'autonomous-printshop/tests/operator_task_authority_v1.test.mjs'
       - 'cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/wrangler.toml'
-      - 'autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs'
       - 'autonomous-printshop/MASTER_BOOK.md'
       - 'autonomous-printshop/manifests/**'
       - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
@@ -26,11 +29,18 @@ on:
       - 'autonomous-printshop/core/autonomy-event-ledger-v1.mjs'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
       - 'autonomous-printshop/core/trendos-operational-reality-read-adapter-v1.mjs'
+      - 'autonomous-printshop/core/operator-task-authority-v1.mjs'
       - 'autonomous-printshop/migrations/0019_autonomy_events_v1.sql'
+      - 'autonomous-printshop/migrations/0020_operator_task_authority_v1.sql'
       - 'autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
       - 'autonomous-printshop/tests/operational_reality_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_operational_reality_read_adapter_v1.test.mjs'
+      - 'autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs'
+      - 'autonomous-printshop/tests/operator_task_authority_v1.test.mjs'
+      - 'cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/wrangler.toml'
       - 'autonomous-printshop/MASTER_BOOK.md'
       - 'autonomous-printshop/manifests/**'
       - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
@@ -56,5 +66,7 @@ jobs:
         run: node autonomous-printshop/tests/trendos_operational_reality_read_adapter_v1.test.mjs
       - name: Run production shadow route contract
         run: node autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs
+      - name: Run Operator Task authority contract
+        run: node autonomous-printshop/tests/operator_task_authority_v1.test.mjs
       - name: Check production worker bundle entry
         run: node --check cloudflare-d1/src/index_v2.js
