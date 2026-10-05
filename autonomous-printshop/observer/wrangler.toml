@@ -1,0 +1,15 @@
+name = "autonomous-printshop-observer"
+main = "worker.mjs"
+compatibility_date = "2026-08-27"
+workers_dev = true
+
+[vars]
+AUTONOMOUS_SHADOW_EXPECTED_BACKFILL_SHA256 = "1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f"
+
+[triggers]
+crons = ["17 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trendos-main"
+database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
