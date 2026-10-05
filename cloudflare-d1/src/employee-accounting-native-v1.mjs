@@ -18,6 +18,67 @@ function cors(request,env){const o=text(request.headers.get('Origin')),a=origins
 function originAllowed(request,env){const o=text(request.headers.get('Origin'));return !o||origins(env).includes(o);}
 function uid(prefix){return prefix+'-'+crypto.randomUUID().replace(/-/g,'').slice(0,12).toUpperCase();}
 function parseJson(v,f=[]){try{const x=typeof v==='string'?JSON.parse(v):v;return x==null?f:x;}catch{return f;}}
+function commandErrorV1(code,message){const e=new Error(message);e.code=code;return e;}
+function stableValueV1(v){
+  if(Array.isArray(v))return v.map(stableValueV1);
+  if(v&&typeof v==='object'){
+    const out={};
+    for(const k of Object.keys(v).sort()){
+      if(['token','password','oldPassword','newPassword','confirmPassword','employeePassword','_ts','username'].includes(k))continue;
+      out[k]=stableValueV1(v[k]);
+    }
+    return out;
+  }
+  return v;
+}
+function canonicalCommandJsonV1(body){return JSON.stringify(stableValueV1(body||{}));}
+async function sha256HexV1(value){
+  const bytes=new TextEncoder().encode(String(value||''));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function evidenceRefsV1(body){
+  const v=body&&body.evidenceRefs!==undefined?body.evidenceRefs:body&&body.evidence_refs;
+  const parsed=parseJson(v,Array.isArray(v)?v:[]);
+  return Array.isArray(parsed)?parsed.map(text).filter(Boolean).slice(0,50):[];
+}
+function sourceSystemV1(body){return text(body&&body.sourceSystem||body&&body.source_system||body&&body.connectorSource)||'EasyStore';}
+function correlationIdV1(body,requestKey){return text(body&&body.correlationId||body&&body.correlation_id||body&&body.orderId||requestKey);}
+async function beginCommandV1(env,auth,operation,body,entityId=''){
+  const requestKey=text(body&&body.requestId||body&&body.idempotencyKey||body&&body.clientRequestId);
+  if(!/^[A-Za-z0-9_:.\-]{12,180}$/.test(requestKey))throw commandErrorV1('accounting-idempotency-key-required','requestId/idempotencyKey صالح مطلوب لتأمين الحركة.');
+  const canonical=canonicalCommandJsonV1(body),hash=await sha256HexV1(canonical);
+  const existing=await env.DB.prepare("SELECT operation,canonical_json AS canonicalJson,request_hash AS requestHash,status,response_json AS responseJson FROM employee_accounting_request_ledger_v1 WHERE request_key=?").bind(requestKey).first();
+  if(existing){
+    if(text(existing.operation)!==text(operation)||text(existing.canonicalJson)!==canonical|| (text(existing.requestHash)&&text(existing.requestHash)!==hash)){
+      throw commandErrorV1('accounting-idempotency-conflict','معرف الطلب مستخدم من قبل لبيانات مختلفة.');
+    }
+    if(text(existing.status)==='COMMITTED')return {requestKey,canonical,hash,replay:true,response:parseJson(existing.responseJson,{})};
+    throw commandErrorV1('accounting-command-in-progress','الحركة بنفس معرف الطلب قيد التنفيذ أو تحتاج مراجعة تعافٍ.');
+  }
+  const c=await control(env),sourceSystem=sourceSystemV1(body),correlationId=correlationIdV1(body,requestKey),evidence=evidenceRefsV1(body);
+  await env.DB.prepare(`
+    INSERT INTO employee_accounting_request_ledger_v1
+      (request_key,operation,actor,canonical_json,entity_id,status,request_hash,source_system,correlation_id,evidence_refs_json,policy_epoch,command_version)
+    VALUES(?,?,?,?,?,'PREPARED',?,?,?,?,?,'A2_COMMAND_V1')
+  `).bind(requestKey,text(operation),auth.user.username,canonical,text(entityId),hash,sourceSystem,correlationId,JSON.stringify(evidence),Number(c.policyEpoch||0)).run();
+  return {requestKey,canonical,hash,replay:false,sourceSystem,correlationId,evidence,policyEpoch:Number(c.policyEpoch||0)};
+}
+async function commitCommandV1(env,ctx,response){
+  await env.DB.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE request_key=? AND status='PREPARED'")
+    .bind(JSON.stringify(response||{}),ctx.requestKey).run();
+  return response;
+}
+async function auditEventV1(env,ctx,entityType,entityId,eventType,actor,payload={},autonomyLevel='HUMAN'){
+  await env.DB.prepare(`
+    INSERT INTO employee_accounting_events_v1
+      (entity_type,entity_id,event_type,actor,payload_json,created_at_ms,request_key,correlation_id,source_system,evidence_refs_json,policy_epoch,autonomy_level)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+  `).bind(text(entityType),text(entityId),text(eventType),text(actor),JSON.stringify(payload||{}),Date.now(),
+    text(ctx&&ctx.requestKey),text(ctx&&ctx.correlationId),text(ctx&&ctx.sourceSystem)||'EasyStore',JSON.stringify(ctx&&ctx.evidence||[]),
+    Number(ctx&&ctx.policyEpoch||0),text(autonomyLevel)||'HUMAN').run();
+}
+
 function accountingMode(user){
   const blob=key([user.username,user.role,user.department].join(' '));
   if(user.role==='admin'||/ضياء|diaa/.test(blob))return 'full';
