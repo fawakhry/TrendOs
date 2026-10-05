@@ -35,8 +35,18 @@ const preflights=[
   {preflightRunId:'f4',artifactId:'a4',result:'PASS',recipeId:'R4',observedAtMs:1200},
   {preflightRunId:'f5',artifactId:'a5',result:'PASS',recipeId:'R5',observedAtMs:1200}
 ];
+const assetBindings=artifacts.map((a,i)=>({
+  bindingEventId:'b'+String(i+1),
+  artifactId:a.artifactId,
+  tenantId:'TENANT_001',
+  bindingStatus:'LINKED',
+  privacyClass:'CUSTOMER_PRIVATE',
+  storageProvider:'R2',
+  storageRef:'r2://designs/'+a.artifactId+'.png',
+  observedAtMs:1150
+}));
 
-const out=projectDesignProductionReadinessV1({artifacts,approvals,preflights});
+const out=projectDesignProductionReadinessV1({artifacts,approvals,preflights,assetBindings});
 const by=Object.fromEntries(out.map(x=>[x.lineId,x]));
 assert.equal(by['10-1'].state,'READY');
 assert.equal(by['20-1'].state,'UNKNOWN');
@@ -46,7 +56,7 @@ assert.equal(by['40-1'].state,'BLOCKED');
 assert.equal(by['40-1'].reason,'DESIGN_REJECTED');
 assert.equal(by['50-1'].state,'UNKNOWN');
 
-const evidence=designReadinessEvidenceCandidatesV1({artifacts,approvals,preflights});
+const evidence=designReadinessEvidenceCandidatesV1({artifacts,approvals,preflights,assetBindings});
 assert.equal(evidence.length,3);
 assert.equal(evidence.filter(x=>x.state==='READY').length,2);
 assert.equal(evidence.filter(x=>x.state==='BLOCKED').length,1);
@@ -56,13 +66,27 @@ assert.ok(evidence.every(x=>x.sourceVersion===H));
 const savedOnly=projectDesignProductionReadinessV1({
   artifacts:[{artifactId:'s1',lineId:'60-1',contentSha256:H,caseId:'DESIGN-2026-SAVED',versionId:'V1',createdAtMs:1}],
   approvals:[],
-  preflights:[{preflightRunId:'sf1',artifactId:'s1',result:'PASS',observedAtMs:2}]
+  preflights:[{preflightRunId:'sf1',artifactId:'s1',result:'PASS',observedAtMs:2}],
+  assetBindings:[{
+    bindingEventId:'sb1',artifactId:'s1',tenantId:'TENANT_001',
+    bindingStatus:'LINKED',privacyClass:'CUSTOMER_PRIVATE',
+    storageProvider:'R2',storageRef:'r2://designs/s1.png',observedAtMs:1
+  }]
 })[0];
 assert.equal(savedOnly.state,'UNKNOWN');
 assert.equal(savedOnly.reason,'DESIGN_APPROVAL_NOT_QUALIFIED');
 
+const noBinding=projectDesignProductionReadinessV1({
+  artifacts:[{artifactId:'n1',lineId:'70-1',contentSha256:H,caseId:'DESIGN-2026-NOBIND',versionId:'V1',createdAtMs:1}],
+  approvals:[{approvalEventId:'np1',artifactId:'n1',approvalGate:'REQUIRED',approvalState:'CUSTOMER_APPROVED',evidenceRef:'msg:n1',actorKind:'CUSTOMER',observedAtMs:2}],
+  preflights:[{preflightRunId:'nf1',artifactId:'n1',result:'PASS',observedAtMs:3}],
+  assetBindings:[]
+})[0];
+assert.equal(noBinding.state,'UNKNOWN');
+assert.equal(noBinding.reason,'ASSET_BINDING_MISSING');
+
 console.log('AUTONOMOUS_PRINTSHOP_DESIGN_PRODUCTION_EVIDENCE_V1=PASS');
 console.log('SAVED_IS_NOT_APPROVED=YES');
-console.log('READY_REQUIRES=HASH+PREFLIGHT_PASS+QUALIFIED_APPROVAL');
+console.log('READY_REQUIRES=LINKED_ASSET+HASH+PREFLIGHT_PASS+QUALIFIED_APPROVAL');
 console.log('POLICY_APPROVAL_REQUIRES_POLICY_REF=YES');
 console.log('REJECTED_OR_PREFLIGHT_FAIL=BLOCKED');
