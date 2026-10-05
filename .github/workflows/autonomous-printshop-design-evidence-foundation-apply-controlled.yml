@@ -1,0 +1,100 @@
+name: Autonomous Printshop Design Evidence Foundation Apply Controlled
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'autonomous-printshop/migrations/0024_design_production_evidence_v1.sql'
+      - 'autonomous-printshop/tests/design_production_evidence_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-design-evidence-foundation-apply-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-design-evidence-foundation-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      SQL: autonomous-printshop/migrations/0024_design_production_evidence_v1.sql
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify design evidence contract
+        run: node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
+
+      - name: Hard safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'mode TEXT NOT NULL DEFAULT '''OFF'''' "$SQL"
+          grep -q 'AUTONOMOUS_DESIGN_ARTIFACTS_APPEND_ONLY' "$SQL"
+          grep -q 'AUTONOMOUS_DESIGN_APPROVAL_APPEND_ONLY' "$SQL"
+          grep -q 'AUTONOMOUS_DESIGN_PREFLIGHT_APPEND_ONLY' "$SQL"
+          ! grep -Eiq '\b(DROP|ALTER|DELETE|VACUUM|REPLACE)\b' "$SQL"
+          ! grep -Eiq '(INSERT|UPDATE)[^;]*(t12_prod_|employee_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' "$SQL"
+          echo 'DESIGN_EVIDENCE_SCHEMA_SAFETY=PASS'
+
+      - name: Apply additive design evidence schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file "$SQL"
+
+      - name: Verify Default-OFF and empty evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM sqlite_master
+                WHERE type='table'
+                  AND name IN (
+                    'autonomous_design_control',
+                    'autonomous_design_artifacts',
+                    'autonomous_design_approval_events',
+                    'autonomous_design_preflight_runs',
+                    'autonomous_design_control_events'
+                  )) AS designTables,
+              (SELECT mode FROM autonomous_design_control WHERE singleton_id=1) AS designMode,
+              (SELECT epoch FROM autonomous_design_control WHERE singleton_id=1) AS designEpoch,
+              (SELECT COUNT(*) FROM autonomous_design_artifacts) AS artifacts,
+              (SELECT COUNT(*) FROM autonomous_design_approval_events) AS approvals,
+              (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode;
+          " > /tmp/post.json
+          cat /tmp/post.json
+          node - <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          if(Number(r.designTables)!==5) process.exit(1);
+          if(String(r.designMode)!=='OFF') process.exit(2);
+          if(Number(r.designEpoch)!==1) process.exit(3);
+          if(Number(r.artifacts)!==0||Number(r.approvals)!==0||Number(r.preflights)!==0) process.exit(4);
+          if(String(r.operatorTaskMode)!=='OFF') process.exit(5);
+          console.log('DESIGN_EVIDENCE_FOUNDATION=PASS');
+          console.log('DESIGN_CONTROL=OFF');
+          console.log('OPERATOR_TASK_CONTROL=OFF');
+          console.log('BUSINESS_WRITE=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'DESIGN_EVIDENCE_SCHEMA=APPLIED_DEFAULT_OFF'
+          echo 'ORDER_WRITE=NO'
+          echo 'LINE_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'AUTOPILOT_EXECUTION=NO'
