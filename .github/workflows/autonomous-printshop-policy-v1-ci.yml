@@ -16,6 +16,7 @@ on:
       - 'autonomous-printshop/core/design-asset-linking-v1.mjs'
       - 'autonomous-printshop/core/observer-run-ledger-v1.mjs'
       - 'autonomous-printshop/core/design-preflight-v1.mjs'
+      - 'autonomous-printshop/core/design-readiness-collector-v1.mjs'
       - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
       - 'autonomous-printshop/readiness-collector/**'
@@ -43,6 +44,7 @@ on:
       - 'autonomous-printshop/tests/design_asset_linking_v1.test.mjs'
       - 'autonomous-printshop/tests/observer_run_ledger_v1.test.mjs'
       - 'autonomous-printshop/tests/design_preflight_v1.test.mjs'
+      - 'autonomous-printshop/tests/design_readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/shadow_observer_v1.test.mjs'
@@ -121,6 +123,8 @@ jobs:
         run: node autonomous-printshop/tests/observer_run_ledger_v1.test.mjs
       - name: Run design preflight contract
         run: node autonomous-printshop/tests/design_preflight_v1.test.mjs
+      - name: Run design readiness collector contract
+        run: node autonomous-printshop/tests/design_readiness_collector_v1.test.mjs
       - name: Run readiness source adapters contract
         run: node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
       - name: Run readiness collector write-boundary contract
