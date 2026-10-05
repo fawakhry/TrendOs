@@ -21,8 +21,11 @@ assert.match(worker,/employee_core_lines_v1/);
 assert.match(worker,/t12_legacy_line_runtime/);
 assert.match(worker,/t12_prod_lines/);
 assert.match(worker,/t12_prod_line_runtime/);
-assert.match(worker,/BACKFILL_TOO_OLD_FOR_SHADOW/);
-assert.match(config,/AUTONOMOUS_SHADOW_BACKFILL_MAX_AGE_SECONDS = "172800"/);
+assert.match(worker,/BACKFILL_SNAPSHOT_SHA_MISMATCH/);
+assert.match(worker,/BACKFILL_TARGET_COUNT_MISMATCH/);
+assert.match(worker,/BACKFILL_NATIVE_IDENTITY_OVERLAP/);
+assert.match(worker,/optionalBecauseCommittedRunCountsAreQualified/);
+assert.match(config,/AUTONOMOUS_SHADOW_EXPECTED_BACKFILL_SHA256 = "1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f"/);
 
 for(const forbidden of [
   /\bINSERT\s+INTO\b/i,
