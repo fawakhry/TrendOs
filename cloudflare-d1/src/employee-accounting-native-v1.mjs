@@ -723,6 +723,61 @@ async function saveTemplate(env,auth,b){
   await auditEventV1(env,ctx,'template',id,existing?'update':'create',auth.user.username,{department,name,calculated,componentCount:components.length});
   return response;
 }
+
+async function archiveAccountingTemplateV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'إيقاف الأصناف عند ضياء فقط.'};
+  const templateId=text(b.templateId||b.id),name=text(b.itemName||b.templateName||b.name),department=text(b.department);
+  let row;
+  if(templateId)row=await env.DB.prepare("SELECT template_id,item_name,department,version,active FROM employee_accounting_templates_v1 WHERE template_id=? LIMIT 1").bind(templateId).first();
+  else if(name&&department)row=await env.DB.prepare("SELECT template_id,item_name,department,version,active FROM employee_accounting_templates_v1 WHERE item_name=? AND department=? LIMIT 1").bind(name,department).first();
+  else if(name)row=await env.DB.prepare("SELECT template_id,item_name,department,version,active FROM employee_accounting_templates_v1 WHERE item_name=? ORDER BY updated_at DESC LIMIT 1").bind(name).first();
+  if(!row)return {success:false,message:'الصنف غير موجود.'};
+  if(Number(row.active||0)===0)return {success:true,duplicatePrevented:true,templateId:text(row.template_id),message:'الصنف موقوف بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
+  const ctx=await beginCommandV1(env,auth,'template-archive',{...b,templateId:text(row.template_id),itemName:text(row.item_name),department:text(row.department)});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const r=await env.DB.prepare("UPDATE employee_accounting_templates_v1 SET active=0,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE template_id=? AND version=? AND active=1 RETURNING version").bind(auth.user.username,row.template_id,Math.max(1,Math.trunc(num(row.version,1)))).first();
+  if(!r)throw commandErrorV1('accounting-template-version-conflict','تعذر إيقاف الصنف بسبب تعديل متزامن. حدّث البيانات وأعد المحاولة.');
+  const response={success:true,templateId:text(row.template_id),message:'تم إيقاف الصنف.',version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'template',text(row.template_id),'archive',auth.user.username,{itemName:text(row.item_name),department:text(row.department)});
+  return response;
+}
+
+async function saveAccountingWasteV1(env,auth,b){
+  if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'تسجيل هوالك الأقسام متاح لضياء ومسؤول القسم فقط.'};
+  const orderId=text(b.orderId),reason=text(b.reason||b.wasteType),amount=num(b.amount||b.damageCost),recovered=num(b.paid||b.damageCovered);
+  if(!orderId||!reason)return {success:false,message:'رقم الأوردر وسبب الهالك مطلوبان.'};
+  if(!(amount>0)||recovered<0||recovered>amount)return {success:false,message:'قيمة التالف يجب أن تكون أكبر من صفر والتعويض بين صفر وقيمة التالف.'};
+  let department=accountingDepartmentV1(b.department)||text(b.department)||auth.department||'عام';
+  if(auth.mode==='print')department='طباعة';if(auth.mode==='laser')department='ليزر';
+  const materialQty=num(b.materialQty||b.qtyWaste||b.wasteQty),hasMaterial=!!text(b.materialId||b.materialName||b.material);
+  let material=null;
+  if(materialQty>0||hasMaterial){
+    material=await resolveMaterialV1(env,b,department==='كل الأقسام'?'':department);
+    if(materialQty>0&&material.stock+0.000001<materialQty)return {success:false,message:'رصيد المخزون لا يكفي لتسجيل كمية الهالك المطلوبة.'};
+  }
+  const id=text(b.wasteId||b.id)||uid('WASTE'),workDate=workDateKeyV1(b.workDate||b.date),ctx=await beginCommandV1(env,auth,'waste-create',{...b,wasteId:id,department,workDate,materialId:material&&material.materialId||''});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const now=Date.now(),statements=[],moveId=uid('STK');
+  if(material&&materialQty>0){
+    statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty-?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? AND stock_qty>=?").bind(materialQty,auth.user.username,material.materialId,material.version,materialQty));
+  }
+  let wasteSql="INSERT INTO employee_accounting_waste_v1(waste_id,request_key,work_date,department,order_id,line_id,material_id,material_name,reason_code,amount,recovered_amount,evidence_ref,notes,actor,created_at_ms) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?";
+  const wasteBind=[id,ctx.requestKey,workDate,department,orderId,text(b.lineId),material&&material.materialId||'',material&&material.materialName||text(b.materialName||b.material),reason,amount,recovered,text(b.evidenceRef||b.evidence),text(b.notes),auth.user.username,now];
+  if(material&&materialQty>0){wasteSql+=" WHERE EXISTS(SELECT 1 FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?)";wasteBind.push(material.materialId,material.version+1);}
+  statements.push(env.DB.prepare(wasteSql).bind(...wasteBind));
+  if(material&&materialQty>0){
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,order_id,line_id,department,item_name,qty_in,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'هالك',?,?,?,?,0,?,?,?,?,?,?,? FROM employee_accounting_waste_v1 WHERE request_key=?").bind(moveId,material.materialId,orderId,text(b.lineId),department,text(b.itemName),materialQty,material.stock,material.stock-materialQty,auth.user.username,reason+' | '+text(b.notes),ctx.requestKey,now,ctx.requestKey));
+  }
+  await env.DB.batch(statements);
+  const written=await env.DB.prepare("SELECT waste_id AS id,amount,recovered_amount AS recovered FROM employee_accounting_waste_v1 WHERE request_key=?").bind(ctx.requestKey).first();
+  if(!written)throw commandErrorV1('accounting-waste-stock-guard','تعذر تثبيت الهالك والمخزون بشكل ذري. الطلب محفوظ PREPARED للمراجعة.');
+  const response={success:true,id:text(written.id),department,amount:num(written.amount),paid:num(written.recovered),remaining:Math.max(0,num(written.amount)-num(written.recovered)),materialId:material&&material.materialId||'',stockBefore:material&&materialQty>0?material.stock:null,stockAfter:material&&materialQty>0?material.stock-materialQty:null,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'waste',id,'create',auth.user.username,{orderId,department,reason,amount,recovered,materialId:response.materialId,materialQty});
+  return response;
+}
+
 async function saveDeptLine(env,auth,b){
   if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'إضافة بنود حسابات القسم غير مسموحة.'};
   const orderId=text(b.orderId),itemName=text(b.itemName||b.name),qty=Math.max(num(b.qty||b.quantity,1),0.000001);
@@ -1214,6 +1269,9 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='saveAccountingFinalInvoice')out=await finalInvoice(env,auth,b);
     else if(action==='saveAccountingMaterial')out=await saveMaterial(env,auth,b);
     else if(action==='saveAccountingTemplate')out=await saveTemplate(env,auth,b);
+    else if(action==='archiveAccountingTemplate')out=await archiveAccountingTemplateV1(env,auth,b);
+    else if(action==='recalcAccountingMaterialsCascade'||action==='recalculateAccountingMaterials'||action==='recalculateAccountingMaterialsCascade')out=await recalcAccountingMaterialsCascadeV1(env,auth,b);
+    else if(action==='saveAccountingWaste')out=await saveAccountingWasteV1(env,auth,b);
     else if(action==='saveEasyStoreSupplier')out=await saveSupplierV1(env,auth,b);
     else if(action==='saveEasyStorePurchaseV2')out=await postPurchaseInvoiceV1(env,auth,b);
     else if(action==='saveDeptDailyPurchaseV1917')out=await saveDeptDailyPurchaseV1(env,auth,b);
