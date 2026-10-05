@@ -484,7 +484,7 @@ async function dailyDepartmentReportV1(env,auth,b){
   const all=requested==='كل الأقسام';
   const invoices=await rows(env,`
     SELECT invoice_no AS invoiceNo,accounting_line_ids_json AS lineIds,finance_department AS financeDepartment,
-      final_total AS finalTotal,paid,remaining,payment_method AS paymentMethod
+      final_total AS finalTotal,paid,remaining,payment_method AS paymentMethod,manual_cost AS manualCost
     FROM employee_accounting_final_invoices_v1
     WHERE work_date=?
   `,[workDate]);
@@ -517,7 +517,7 @@ async function dailyDepartmentReportV1(env,auth,b){
       const d=accountingDepartmentV1(inv.financeDepartment);
       if(!d){if(all)report.unclassifiedSales+=num(inv.finalTotal);continue;}
       if(!all&&d!==requested)continue;
-      report.sales+=num(inv.finalTotal);report.credit+=num(inv.remaining);
+      report.sales+=num(inv.finalTotal);report.actualJobCost+=num(inv.manualCost);report.credit+=num(inv.remaining);
       const m=key(inv.paymentMethod);if(m.includes('انستا')||m.includes('insta'))report.instapay+=num(inv.paid);else report.cash+=num(inv.paid);
     }
   }
@@ -1303,6 +1303,82 @@ async function approveDeptA2V1(env,auth,b){
   return response;
 }
 
+
+async function directSaleStockRequirementsV1(env,itemName,department,qty){
+  const req=new Map(),name=text(itemName);
+  if(!name||!(qty>0))return req;
+  let template=await env.DB.prepare("SELECT template_id,department,item_name,material_name,components_json FROM employee_accounting_templates_v1 WHERE item_name=? AND active=1 AND (?='' OR department IN (?,'مشترك','')) ORDER BY CASE WHEN department=? THEN 0 WHEN department='مشترك' THEN 1 ELSE 2 END,updated_at DESC LIMIT 1").bind(name,department,department,department).first();
+  if(template){
+    const comps=componentRowsV1(template.components_json),lines=[];
+    for(const c of comps){
+      let materialName=c.materialName;
+      if(!materialName&&c.materialId){
+        const mr=await env.DB.prepare("SELECT material_name AS materialName FROM employee_accounting_materials_v1 WHERE material_id=? AND active=1").bind(c.materialId).first();
+        materialName=text(mr&&mr.materialName);
+      }
+      if(materialName&&c.qty>0)lines.push({material_name:materialName,material_consumption:c.qty*qty});
+    }
+    if(lines.length)return await stockRequirements(env,lines);
+    if(text(template.material_name))return await stockRequirements(env,[{material_name:text(template.material_name),material_consumption:qty}]);
+    return req;
+  }
+  const material=await env.DB.prepare("SELECT material_name FROM employee_accounting_materials_v1 WHERE material_name=? AND active=1 AND (?='' OR department IN (?,'مشترك','')) ORDER BY CASE WHEN department=? THEN 0 WHEN department='مشترك' THEN 1 ELSE 2 END,updated_at DESC LIMIT 1").bind(name,department,department,department).first();
+  if(material)return await stockRequirements(env,[{material_name:text(material.material_name),material_consumption:qty}]);
+  return req;
+}
+
+async function saveEasyStoreSaleV2A2(env,auth,b){
+  if(!['full','final'].includes(auth.mode))return {success:false,message:'حفظ فاتورة المبيعات الرسمية عند ضياء أو رحمه أو ريفان فقط.'};
+  const qty=num(b.qty),unit=num(b.unit||b.unitPrice),discount=Math.max(0,num(b.discount)),computedTotal=Math.max(0,qty*unit-discount),total=num(b.total,computedTotal),paid=Math.max(0,num(b.paid));
+  if(!(qty>0)||!(total>0))return {success:false,message:'الكمية والإجمالي يجب أن يكونا أكبر من صفر.'};
+  if(paid>total+0.000001)return {success:false,message:'المدفوع لا يمكن أن يزيد عن إجمالي الفاتورة.'};
+  const remaining=Math.max(0,total-paid),customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customer||b.customerName});
+  const department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام',item=text(b.item||b.itemName)||'بند مطبعجي',workDate=workDateKeyV1(b.workDate||b.date);
+  const invoiceNo=text(b.no||b.invoiceNo)||await nextInvoiceNo(env);
+  const duplicate=await env.DB.prepare("SELECT invoice_no FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1").bind(invoiceNo).first();
+  if(duplicate)return {success:false,duplicatePrevented:true,message:'رقم فاتورة المبيعات مستخدم بالفعل: '+invoiceNo};
+  const req=await directSaleStockRequirementsV1(env,item,department==='كل الأقسام'?'':department,qty);
+  let manualCost=0;
+  for(const {material,qty:need} of req.values()){
+    if(num(material.stock_qty)+0.000001<need)return {success:false,message:'لا يمكن حفظ البيع بسبب نقص المخزون: '+text(material.material_name)};
+    manualCost+=need*num(material.computed_unit_cost||material.unit_cost);
+  }
+  manualCost=Number(manualCost.toFixed(6));
+  await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_party_balances_v1(party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms) VALUES('customer',?,?,0,1,'',?)").bind(customer.partyId,customer.partyName,Date.now()).run();
+  const bal=await env.DB.prepare("SELECT balance,version FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=?").bind(customer.partyId).first();
+  const balanceBefore=num(bal&&bal.balance),balanceVersion=Math.max(1,Math.trunc(num(bal&&bal.version,1)));
+  const ctx=await beginCommandV1(env,auth,'direct-sale',{...b,invoiceNo,customerId:customer.partyId,customerName:customer.partyName,department,item,workDate,total,paid,remaining,manualCost});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const now=Date.now(),statements=[],stockCount=req.size;
+  for(const {material,qty:need} of req.values()){
+    const before=num(material.stock_qty),version=Math.max(1,Math.trunc(num(material.version,1))),after=before-need,move=uid('STK');
+    statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty-?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? AND stock_qty>=?").bind(need,auth.user.username,material.material_id,version,need));
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,department,item_name,qty_in,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'بيع مباشر',?,?,0,?,?,?,?,?,?,? FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?").bind(move,material.material_id,department,item,need,before,after,auth.user.username,text(b.notes),ctx.requestKey,now,material.material_id,version+1));
+  }
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_final_invoices_v1(invoice_no,request_key,order_id,customer_name,customer_party_id,accounting_line_ids_json,manual_item,manual_amount,manual_cost,subtotal,discount,final_total,paid,remaining,payment_method,finance_department,status,closed_by,notes,created_at_ms,work_date,version) SELECT ?,?,? ,?,?, '[]',?,?,?,?,?,?,?,?,?,?, 'CLOSED',?,?,?,?,1 WHERE (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)=?")
+    .bind(invoiceNo,ctx.requestKey,text(b.orderId),customer.partyName,customer.partyId,item,total,manualCost,total+discount,discount,total,paid,remaining,text(b.paymentType||b.paymentMethod||'نقدي'),department,auth.user.username,text(b.notes),now,workDate,ctx.requestKey,stockCount));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance+?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='customer' AND party_id=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)").bind(remaining,ctx.requestKey,customer.partyName,now,customer.partyId,balanceVersion,invoiceNo,ctx.requestKey));
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'invoice','باقي فاتورة عميل',?,1,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)")
+    .bind(uid('LED'),ctx.requestKey+'-LEDGER-INVOICE',customer.partyId,customer.partyName,total,text(b.paymentType||b.paymentMethod),invoiceNo,balanceBefore,balanceBefore+total,auth.user.username,text(b.notes),sourceSystemV1(b),now,invoiceNo,customer.partyId,ctx.requestKey,balanceVersion+1));
+  if(paid>0){
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'payment_received','سداد من العميل',?,-1,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)")
+      .bind(uid('LED'),ctx.requestKey+'-LEDGER-PAYMENT',customer.partyId,customer.partyName,paid,text(b.paymentType||b.paymentMethod),invoiceNo,balanceBefore+total,balanceBefore+remaining,auth.user.username,text(b.notes),sourceSystemV1(b),now,invoiceNo,customer.partyId,ctx.requestKey,balanceVersion+1));
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(uid('CSH'),ctx.requestKey+'-CASH',workDate,'CUSTOMER_RECEIPT',customer.partyId,customer.partyName,department,paid,text(b.paymentType||b.paymentMethod),invoiceNo,sourceSystemV1(b),text(b.notes),auth.user.username,now,invoiceNo));
+  }
+  const ledgerExpected=1+(paid>0?1:0),cashExpected=paid>0?1:0;
+  let actualSql="(SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)+(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)+(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?)+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key IN (?,?))";
+  const guardBind=[ctx.requestKey,invoiceNo,ctx.requestKey,customer.partyId,ctx.requestKey,ctx.requestKey+'-LEDGER-INVOICE',ctx.requestKey+'-LEDGER-PAYMENT'];
+  if(cashExpected){actualSql+=" +(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";guardBind.push(ctx.requestKey+'-CASH');}
+  statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',stockCount+1+1+ledgerExpected+cashExpected,actualSql,guardBind));
+  await env.DB.batch(statements);
+  const written=await env.DB.prepare("SELECT invoice_no AS invoiceNo,final_total AS finalTotal,paid,remaining,manual_cost AS manualCost FROM employee_accounting_final_invoices_v1 WHERE request_key=?").bind(ctx.requestKey).first();
+  if(!written)throw commandErrorV1('accounting-direct-sale-guard','تعذر تثبيت فاتورة البيع والمخزون والحساب بشكل ذري. الطلب محفوظ PREPARED للمراجعة.');
+  const response={success:true,invoiceNo:text(written.invoiceNo),department,finalTotal:num(written.finalTotal),paid:num(written.paid),remaining:num(written.remaining),manualCost:num(written.manualCost),stockMaterialCount:stockCount,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'direct-sale',invoiceNo,'post',auth.user.username,{customerId:customer.partyId,department,item,qty,total,paid,remaining,manualCost,stockMaterialCount:stockCount});
+  return response;
+}
+
 async function finalInvoiceA2V1(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'تقفيل الفاتورة عند رحمه أو ريفان أو ضياء فقط.'};
   const orderId=text(b.orderId);if(!orderId)return {success:false,message:'رقم الأوردر مطلوب لتقفيل الفاتورة.'};
@@ -1505,6 +1581,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='saveAccountingWaste')out=await saveAccountingWasteV1(env,auth,b);
     else if(action==='saveEasyStoreSupplier')out=await saveSupplierV1(env,auth,b);
     else if(action==='saveEasyStorePurchaseV2')out=await postPurchaseInvoiceV1(env,auth,b);
+    else if(action==='saveEasyStoreSaleV2')out=await saveEasyStoreSaleV2A2(env,auth,b);
     else if(action==='saveDeptDailyPurchaseV1917')out=await saveDeptDailyPurchaseV1(env,auth,b);
     else if(action==='approveDeptDailyPurchasesV1917')out=await approveDeptDailyPurchasesV1(env,auth,b);
     else if(action==='rejectDeptDailyPurchaseV1917')out=await rejectDeptDailyPurchaseV1(env,auth,b);
