@@ -1,0 +1,69 @@
+name: Autonomous Printshop Production Shadow Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-production-shadow-monitor.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SHADOW_URL: https://autonomous-printshop-shadow.trendmall-contact.workers.dev
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Shadow health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$SHADOW_URL/health" > /tmp/health.json
+          cat /tmp/health.json
+          node - <<'NODE'
+          const h=JSON.parse(require('fs').readFileSync('/tmp/health.json','utf8'));
+          if(h.success!==true||h.database!==true||h.mode!=='PRODUCTION_SHADOW_READ_ONLY') process.exit(1);
+          if(h.writesAccepted!==false||h.d1Mutation!==false||h.employeeAssignment!==false||h.piiExposed!==false) process.exit(2);
+          NODE
+
+      - name: Shadow production snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$SHADOW_URL/snapshot" > /tmp/snapshot.json
+          cat /tmp/snapshot.json
+          node - <<'NODE'
+          const s=JSON.parse(require('fs').readFileSync('/tmp/snapshot.json','utf8'));
+          if(s.success!==true||s.mode!=='PRODUCTION_SHADOW_READ_ONLY') process.exit(1);
+          if(s.writesAccepted!==false||s.d1Mutation!==false||s.employeeAssignment!==false) process.exit(2);
+          if(s.piiExposed!==false||s.rawOrderIdsExposed!==false||s.rawLineIdsExposed!==false) process.exit(3);
+          if(!s.source||s.source.authority!=='trendos-main-d1'||s.source.targetCountsQualified!==true) process.exit(4);
+          console.log('SHADOW_COUNTS='+JSON.stringify(s.counts||{}));
+          console.log('SHADOW_EXCEPTION_COUNTS='+JSON.stringify(s.exceptionCounts||{}));
+          console.log('SHADOW_RECOMMENDATION='+JSON.stringify(s.recommendation||{}));
+          console.log('SHADOW_LIMITATIONS='+JSON.stringify(s.limitations||{}));
+          NODE
+
+      - name: Main TrendOS guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$TRENDOS_URL/v1/edge/health" > /tmp/main.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/main.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_GUARD=PASS');
+          NODE
+
+      - name: Monitor conclusion
+        run: |
+          echo 'PRODUCTION_SHADOW_MONITOR=PASS'
+          echo 'D1_MUTATION=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
