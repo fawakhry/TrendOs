@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { issueOrdersEdgeToken } from '../cloudflare-d1/src/edge-orders-read-v1.mjs';
+import { issueOrdersEdgeToken } from '../../cloudflare-d1/src/edge-orders-read-v1.mjs';
 import {
   handleAutonomousPrintshopShadowRequest,
   isAutonomousPrintshopShadowPath
-} from '../cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs';
+} from '../../cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs';
 
 const nowIso=()=>new Date().toISOString();
 const headers=[
