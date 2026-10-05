@@ -1496,3 +1496,66 @@ EMPLOYEE_ASSIGNMENT=NO
 
 Next:
 `Employee Supervisor Shadow -> active-task/availability/readiness inputs -> controlled Operator Task Canary`.
+
+
+### AP-013 — Employee Supervisor Shadow live on Production facts
+
+Employee Supervisor Shadow is now deployed through the isolated read-only sidecar.
+
+Core:
+- `autonomous-printshop/core/employee-supervisor-shadow-v1.mjs`
+- `autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs`
+
+Live route:
+- `GET https://autonomous-printshop-shadow.trendmall-contact.workers.dev/supervisor`
+
+Authority boundaries:
+- legacy `assignedTo` is a comparison/routing baseline only;
+- Attendance is availability evidence only;
+- `missed_check` becomes `REVIEW_REQUIRED`, never an adverse employee judgment;
+- an existing active Operator Task blocks a new recommendation;
+- no employee identity is exposed by the public Shadow payload;
+- no raw Order/Line IDs are exposed;
+- no D1 mutation;
+- no live employee assignment.
+
+First real Production Shadow evidence:
+- known operators = 4;
+- currently available = 1;
+- unavailable = 3;
+- review required = 1;
+- workday not started = 2;
+- existing active Operator Tasks = 0;
+- operators with a Shadow recommendation = 1;
+- line-to-employee baseline coverage = 447 / 458 = 97.6%;
+- unmatched/unassigned rows = 11 and all were CLOSED at observation time.
+
+Runtime gap discovered and corrected:
+- `employee_hr_employees_v1.primary_department` is blank in current data.
+- The Supervisor no longer invents a department.
+- If the profile department is blank, it derives the current operational department from ACTIVE assigned work.
+- If active assigned work spans multiple departments, the label is `MULTI`.
+- Closed historical work does not determine the current operational department.
+
+Latest live derived department snapshot:
+- Laser: 1 operator; 1 available; 274 baseline assigned rows; 30 ordinary; 11 in progress; 1 recommendation.
+- Print: 1 operator; currently unavailable; 173 baseline assigned rows.
+- Unspecified: 2 operators with no currently matched assigned workload; no recommendation.
+
+Qualification evidence:
+- Employee Supervisor core CI after active-work department derivation: Run `37300800825` — SUCCESS.
+- Live Sidecar deploy with derived department logic: Run `37301082068` — SUCCESS.
+- Main TrendOS production Worker remained unchanged.
+
+```ini
+EMPLOYEE_SUPERVISOR_SHADOW=PRODUCTION_LIVE
+ROUTING_AUTHORITY=LEGACY_ASSIGNMENT_BASELINE_ONLY
+ATTENDANCE=AVAILABILITY_EVIDENCE_ONLY
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+D1_MUTATION=NO
+ASSIGNMENT_BASELINE_COVERAGE=97.6%
+```
+
+Next:
+`Readiness Shadow (material / machine / design evidence) -> readiness-qualified Task recommendation -> Operator Task Shadow authority`.
