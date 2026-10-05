@@ -5,7 +5,7 @@ const worker=fs.readFileSync('autonomous-printshop/observer/worker.mjs','utf8');
 const config=fs.readFileSync('autonomous-printshop/observer/wrangler.toml','utf8');
 
 assert.match(config,/^name = "autonomous-printshop-observer"$/m);
-assert.match(config,/^crons = \["17 \* \* \* \*"\]$/m);
+assert.match(config,/^crons = \["5 \* \* \* \*"\]$/m);
 assert.match(config,/^database_name = "trendos-main"$/m);
 assert.match(worker,/recordAutonomyShadowEventV1/);
 assert.match(worker,/EMPLOYEE_TASK_ASSIGNMENT/);
