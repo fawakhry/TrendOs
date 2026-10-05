@@ -1,0 +1,89 @@
+name: Autonomous Printshop Observer Run Ledger Apply Controlled
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'autonomous-printshop/migrations/0026_observer_run_ledger_v1.sql'
+      - 'autonomous-printshop/tests/observer_run_ledger_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-observer-run-ledger-apply-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-observer-run-ledger-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      SQL: autonomous-printshop/migrations/0026_observer_run_ledger_v1.sql
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify observer run ledger
+        run: node autonomous-printshop/tests/observer_run_ledger_v1.test.mjs
+
+      - name: Hard safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'AUTONOMY_OBSERVER_RUNS_APPEND_ONLY' "$SQL"
+          ! grep -Eiq '\b(DROP|ALTER|DELETE|VACUUM|REPLACE)\b' "$SQL"
+          ! grep -Eiq '(INSERT|UPDATE)[^;]*(t12_prod_|employee_|operator_tasks|autonomous_readiness_evidence)' "$SQL"
+          echo 'OBSERVER_RUN_LEDGER_SCHEMA_SAFETY=PASS'
+
+      - name: Apply append-only telemetry schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file "$SQL"
+
+      - name: Verify empty ledger and controls unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM sqlite_master
+                WHERE type='table' AND name='autonomy_observer_runs') AS observerTables,
+              (SELECT COUNT(*) FROM autonomy_observer_runs) AS observerRuns,
+              (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
+              (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          " > /tmp/post.json
+          cat /tmp/post.json
+          node - <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          if(Number(r.observerTables)!==1) process.exit(1);
+          if(Number(r.observerRuns)!==0) process.exit(2);
+          if(String(r.autonomyMode)!=='SHADOW') process.exit(3);
+          if(String(r.readinessMode)!=='SHADOW') process.exit(4);
+          if(String(r.operatorTaskMode)!=='OFF') process.exit(5);
+          if(Number(r.operatorTasks)!==0) process.exit(6);
+          console.log('OBSERVER_RUN_LEDGER_FOUNDATION=PASS');
+          console.log('AUTONOMY=SHADOW');
+          console.log('READINESS=SHADOW');
+          console.log('OPERATOR_TASK=OFF');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'OBSERVER_RUN_LEDGER=APPLIED_EMPTY'
+          echo 'BUSINESS_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'AUTOPILOT_EXECUTION=NO'
