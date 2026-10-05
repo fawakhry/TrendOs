@@ -1,0 +1,76 @@
+name: EasyStore A2 Post Schema Cross Family Audit
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a2-post-schema-cross-family-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Read all employee-family health states
+        shell: bash
+        run: |
+          set -euo pipefail
+          for family in auth ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$family/health?a2post=$GITHUB_SHA" -o "/tmp/$family.json"
+          done
+          node <<'NODE'
+          const fs=require('fs');
+          for(const family of ['auth','ops','accounting','content','comms','core']){
+            const x=JSON.parse(fs.readFileSync('/tmp/'+family+'.json','utf8'));
+            console.log('A2_POST_'+family.toUpperCase()+'_MODE='+String(x.mode??''));
+            console.log('A2_POST_'+family.toUpperCase()+'_SCHEMA_READY='+String(x.schemaReady??''));
+            if(x.policyEpoch!==undefined) console.log('A2_POST_'+family.toUpperCase()+'_EPOCH='+Number(x.policyEpoch||0));
+          }
+          const a=JSON.parse(fs.readFileSync('/tmp/accounting.json','utf8'));
+          if(a.mode!=='READONLY'||a.authoritativeWrites!==false||Number(a.googleBusinessCalls||0)!==0) throw new Error('accounting-safety-drift');
+          console.log('A2_POST_ACCOUNTING_SAFETY=PASS');
+          NODE
+
+      - name: Inspect additive seed/control footprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_content_records_v1 WHERE updated_by='system') AS contentSystemSeeds,
+              (SELECT COUNT(*) FROM employee_attendance_settings_v1) AS attendanceSettings,
+              (SELECT COUNT(*) FROM employee_zero_google_backfill_runs_v1) AS backfillRuns,
+              (SELECT COUNT(*) FROM employee_core_orders_v1) AS coreOrders,
+              (SELECT COUNT(*) FROM employee_core_lines_v1) AS coreLines;
+          " > /tmp/footprint.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/footprint.json','utf8')),rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.contentSystemSeeds!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);if(rows.length!==1)throw new Error('footprint-parse');
+          const r=rows[0];
+          for(const [k,v] of Object.entries(r)) console.log('A2_POST_'+k+'='+Number(v));
+          console.log('A2_POST_CROSS_FAMILY_AUDIT=PASS');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
