@@ -3716,3 +3716,49 @@ NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
   CANARY_USERNAME=ضياء
   NEXT_ACTION=MANUAL_ENABLE_APPS_SCRIPT_BRIDGE_AND_CLOUDFLARE_AUTH_BOOTSTRAP_BRIDGE_FLAGS_WITH_D1_CONTROL_STILL_OFF
   ```
+
+#### Entry623 — Google-only Apps Script runtime preparation — PASS (2026-10-05)
+
+- اسم البحث العربي: **تفعيل جسر Apps Script فقط / تجهيز Google Runtime / إثبات رفض assertion غير صالح**.
+- Owner-confirmed Production project ID: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`.
+- Read-only Overview verified container `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`, Spreadsheet ID `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`.
+- Manage deployments pre/post verified Production Version **159**, unchanged Deployment ID `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`.
+- Existing Entry622 private bootstrap remains **Archived**; its source is absent from the project file list.
+- Google Script Properties UI is read-only because the project has more than 50 properties. No secret value was inspected.
+- Used an owner-editor temporary setter file `TEMP_ENTRY623_ENABLE_BRIDGE_ONLY.gs`, containing only:
+  `function entry623EnableBridgeOnly() { PropertiesService.getScriptProperties().setProperty("TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED", "true"); }`
+- Setter execution completed successfully. Temporary editor source was deleted and absence verified. **No temporary web bootstrap deployment, New Version, or Production deploy was created**. Temporary-editor use is distinct from Entry622's private web deployment bootstrap.
+- Production runtime proof: direct JSON POST to the unchanged Version159 web app route `cloudEmployeeLegacyBridgeExecuteV1`, with `targetAction=getDashboard`, matching target payload and deliberately invalid `cloudEmployeeAssertionV1`; no employee identity, real password/token/nonce/secret or business data.
+- HTTP **200**, response exactly:
+  `{"success":false,"message":"اعتماد الموظف السحابي غير صالح."}`
+- This proves the route reached assertion validation after the enabled/secret-configured checks; it did not report bridge disabled or secret missing. Rejection precedes employee lookup, nonce consumption and business execution.
+- Initial incomplete probe envelope returned HTTP200/action-not-allowed; that response was **not** accepted as gate proof. PASS is based only on the corrected invalid-assertion probe above.
+- No Cloudflare access/mutation, D1 action, runtime-arm workflow, frontend deploy, Accounting/EasyStore work, Ops policy or Bridge policy change occurred.
+```ini
+ENTRY623_APPS_SCRIPT_RUNTIME_PREP=PASS
+PRODUCTION_APPS_SCRIPT_VERSION=159
+PRODUCTION_DEPLOYMENT_CHANGED=NO
+NEW_APPS_SCRIPT_VERSION_CREATED=NO
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=true
+APPS_SCRIPT_BRIDGE_ENABLED=YES
+APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES
+BRIDGE_SECRET_VALUE_EXPOSED=NO
+SCRIPT_PROPERTIES_CHANGED=TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED_ONLY
+TEMP_BOOTSTRAP_USED=NO
+TEMP_BOOTSTRAP_DEPLOYMENT_ARCHIVED=NOT_USED
+TEMP_EDITOR_SETTER_USED=YES
+TEMP_EDITOR_SETTER_SOURCE_REMOVED=YES
+TEMP_ENTRY622_DEPLOYMENT_ARCHIVED=YES
+TEMP_ENTRY622_DEPLOYMENT_ACTIVE=NO
+APPS_SCRIPT_RUNTIME_HTTP=200
+APPS_SCRIPT_INVALID_ASSERTION_REJECTED=YES
+CLOUDFLARE_TOUCHED=NO
+D1_MUTATION=NO
+FRONTEND_DEPLOY=NO
+ACCOUNTING_TOUCHED=NO
+EASYSTORE_TOUCHED=NO
+ACCOUNTING=READONLY
+ACCOUNTING_POLICY_EPOCH=2
+ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
+```
