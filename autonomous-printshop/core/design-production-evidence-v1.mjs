@@ -1,3 +1,8 @@
+import {
+  latestDesignAssetBindingsV1,
+  productionAssetBindingStateV1
+} from './design-asset-linking-v1.mjs';
+
 export const DESIGN_PRODUCTION_EVIDENCE_VERSION='AUTONOMOUS_DESIGN_PRODUCTION_EVIDENCE_V1';
 
 function text(v){return String(v==null?'':v).trim();}
@@ -34,7 +39,9 @@ function approvalAllowsProduction(row){
 export function projectDesignProductionReadinessV1({
   artifacts=[],
   approvals=[],
-  preflights=[]
+  preflights=[],
+  assetBindings=[],
+  tenantId='TENANT_001'
 }={}){
   const latestArtifact=latestBy(
     artifacts,
@@ -51,6 +58,7 @@ export function projectDesignProductionReadinessV1({
     r=>text(r.artifactId||r.artifact_id),
     r=>r.observedAtMs??r.observed_at_ms
   );
+  const latestBinding=latestDesignAssetBindingsV1(assetBindings,{tenantId});
 
   const out=[];
   for(const [lineId,box] of latestArtifact){
@@ -61,25 +69,32 @@ export function projectDesignProductionReadinessV1({
     const preflightBox=latestPreflight.get(artifactId);
     const approval=approvalBox&&approvalBox.row||null;
     const preflight=preflightBox&&preflightBox.row||null;
+    const binding=productionAssetBindingStateV1(latestBinding.get(artifactId));
     const preflightResult=upper(preflight&&(preflight.result));
     const approvalState=upper(approval&&(approval.approvalState||approval.approval_state));
 
     let state='UNKNOWN';
     let reason='DESIGN_EVIDENCE_INCOMPLETE';
 
-    if(preflightResult==='FAIL'){
+    if(binding.state==='BLOCKED'){
+      state='BLOCKED';
+      reason=binding.reason;
+    }else if(preflightResult==='FAIL'){
       state='BLOCKED';
       reason='DESIGN_PREFLIGHT_FAILED';
     }else if(approvalState==='REJECTED'){
       state='BLOCKED';
       reason='DESIGN_REJECTED';
     }else if(
+      binding.available===true &&
       /^[a-f0-9]{64}$/.test(hash) &&
       preflightResult==='PASS' &&
       approvalAllowsProduction(approval)
     ){
       state='READY';
-      reason='DESIGN_ARTIFACT_APPROVED_AND_PREFLIGHT_PASS';
+      reason='DESIGN_ASSET_LINKED_APPROVED_AND_PREFLIGHT_PASS';
+    }else if(binding.available!==true){
+      reason=binding.reason||'ASSET_BINDING_NOT_READY';
     }else if(!/^[a-f0-9]{64}$/.test(hash)){
       reason='DESIGN_CONTENT_HASH_INVALID';
     }else if(preflightResult!=='PASS'){
@@ -100,6 +115,10 @@ export function projectDesignProductionReadinessV1({
       approvalState,
       approvalEvidenceRef:text(approval&&(approval.evidenceRef||approval.evidence_ref)),
       approvalPolicyRef:text(approval&&(approval.policyRef||approval.policy_ref)),
+      assetBindingState:binding.state,
+      assetBindingReason:binding.reason,
+      storageProvider:text(binding.storageProvider),
+      privacyClass:text(binding.privacyClass),
       preflightResult,
       preflightRunId:text(preflight&&(preflight.preflightRunId||preflight.preflight_run_id)),
       recipeId:text(preflight&&(preflight.recipeId||preflight.recipe_id)),
@@ -135,6 +154,10 @@ export function designReadinessEvidenceCandidatesV1(input={}){
         approvalState:x.approvalState,
         approvalEvidenceRef:x.approvalEvidenceRef,
         approvalPolicyRef:x.approvalPolicyRef,
+        assetBindingState:x.assetBindingState,
+        assetBindingReason:x.assetBindingReason,
+        storageProvider:x.storageProvider,
+        privacyClass:x.privacyClass,
         preflightRunId:x.preflightRunId,
         recipeId:x.recipeId
       }
