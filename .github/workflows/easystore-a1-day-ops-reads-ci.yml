@@ -1,0 +1,36 @@
+name: EasyStore A1 Day Ops Reads CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/migrations/0022_employee_accounting_day_ops_v1.sql'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a1_day_ops_reads_v1.test.mjs'
+      - '.github/workflows/easystore-a1-day-ops-reads-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate A1 day-operations read model
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/entry614_employee_accounting_native.test.mjs
+          node tests/easystore_a1_party_master_v1.test.mjs
+          node tests/easystore_a1_laser_quote_v1.test.mjs
+          node tests/easystore_a1_day_ops_reads_v1.test.mjs
+          echo EASYSTORE_A1_DAY_OPS_READS_CI=PASS
