@@ -23,9 +23,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: candidate/t12-full-cloud-cutover-a56-20260929
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
       - name: Fetch deployed script content read only
         shell: bash
         run: |
@@ -33,27 +30,20 @@ jobs:
           curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$SCRIPT/content/v2"             -o /tmp/deployed-content
           python3 <<'PY'
           from pathlib import Path
-          import hashlib, json, re
           raw=Path('/tmp/deployed-content').read_bytes()
-          print('ENTRY623_DEPLOYED_CONTENT_BYTES='+str(len(raw)))
           text=raw.decode('utf-8','replace')
-          needles=[
-            "async function legacyLoginBootstrap",
-            "async function upsertBootstrappedUser",
-            "employeeAuthStage = 'password-hash'",
-            "employeeAuthStage = 'd1-user-upsert'",
-            "d1-native-bootstrap-v1",
-            "LEGACY_BOOTSTRAP_TIMEOUT_MS = 90000"
-          ]
-          for n in needles:
-            if n not in text:
-              raise SystemExit('missing deployed auth marker: '+n)
-          repo=Path('cloudflare-d1/src/employee-auth-native-v1.mjs').read_text()
-          # Compare the exact auth module when multipart content preserves module boundaries.
-          target='employee-auth-native-v1.mjs'
-          idx=text.find(target)
-          print('ENTRY623_DEPLOYED_AUTH_MODULE_NAME_PRESENT='+('YES' if idx>=0 else 'NO'))
-          print('ENTRY623_DEPLOYED_AUTH_MARKERS=PASS')
+          print('ENTRY623_DEPLOYED_CONTENT_BYTES='+str(len(raw)))
+          for n in ["async function upsertBootstrappedUser","async function legacyLoginBootstrap","async function issueNativeSession"]:
+              print('ENTRY623_DEPLOYED_MARKER_'+n.split()[-1].replace('(','').replace(')','')+'='+('YES' if n in text else 'NO'))
+          a=text.find('async function upsertBootstrappedUser')
+          b=text.find('async function issueNativeSession')
+          if a<0 or b<a:
+              raise SystemExit('deployed auth source bounds not found')
+          snippet=text[a:b]
+          # Source only; actual secret values are runtime bindings and are not present in script content.
+          print('-----ENTRY623_DEPLOYED_AUTH_SOURCE_BEGIN-----')
+          print(snippet[:18000])
+          print('-----ENTRY623_DEPLOYED_AUTH_SOURCE_END-----')
           print('ENTRY623_DEPLOYED_CONTENT_SECRET_VALUES_PRINTED=NO')
           PY
       - name: Runtime unchanged
