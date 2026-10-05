@@ -5,6 +5,9 @@ import {
 import {
   buildEmployeeSupervisorShadowV1
 } from '../core/employee-supervisor-shadow-v1.mjs';
+import {
+  buildReadinessQualifiedRealityV1
+} from '../core/readiness-evidence-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -538,6 +541,132 @@ async function supervisorSnapshot(env,rows){
   };
 }
 
+async function readinessInputs(env){
+  const names=[
+    'autonomous_readiness_control',
+    'autonomous_readiness_evidence'
+  ];
+  const placeholders=names.map(()=>'?').join(',');
+  const present=await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...names).all();
+  const set=new Set((present.results||[]).map(r=>text(r.name)));
+  const missing=names.filter(x=>!set.has(x));
+  if(missing.length){
+    return {ok:false,reason:'READINESS_REQUIRED_TABLES_MISSING',missing};
+  }
+
+  const [control,evidenceResult]=await Promise.all([
+    env.DB.prepare(`
+      SELECT mode,
+             canary_operator_id AS canaryOperatorId,
+             require_design AS requireDesign,
+             require_material AS requireMaterial,
+             require_machine AS requireMachine,
+             epoch
+        FROM autonomous_readiness_control
+       WHERE singleton_id=1
+       LIMIT 1
+    `).first(),
+    env.DB.prepare(`
+      SELECT evidence_id AS evidenceId,
+             line_id AS lineId,
+             evidence_kind AS evidenceKind,
+             evidence_state AS evidenceState,
+             source_kind AS sourceKind,
+             source_ref AS sourceRef,
+             source_version AS sourceVersion,
+             confidence,
+             observed_at_ms AS observedAtMs,
+             expires_at_ms AS expiresAtMs
+        FROM autonomous_readiness_evidence
+       WHERE expires_at_ms IS NULL OR expires_at_ms>?
+       ORDER BY observed_at_ms DESC
+    `).bind(Date.now()).all()
+  ]);
+
+  return {
+    ok:true,
+    control:{
+      mode:text(control&&control.mode)||'OFF',
+      epoch:num(control&&control.epoch),
+      canaryConfigured:!!text(control&&control.canaryOperatorId),
+      requireDesign:num(control&&control.requireDesign,1)===1,
+      requireMaterial:num(control&&control.requireMaterial,1)===1,
+      requireMachine:num(control&&control.requireMachine,1)===1
+    },
+    evidence:(evidenceResult.results||[]).map(r=>({
+      evidenceId:text(r.evidenceId),
+      lineId:text(r.lineId),
+      evidenceKind:text(r.evidenceKind),
+      evidenceState:text(r.evidenceState),
+      sourceKind:text(r.sourceKind),
+      sourceRef:text(r.sourceRef),
+      sourceVersion:text(r.sourceVersion),
+      confidence:Number(r.confidence||0),
+      observedAtMs:Number(r.observedAtMs||0),
+      expiresAtMs:r.expiresAtMs==null?null:Number(r.expiresAtMs)
+    }))
+  };
+}
+
+async function readinessSnapshot(env,rows){
+  const inputs=await readinessInputs(env);
+  if(!inputs.ok){
+    return {
+      success:false,
+      mode:'READINESS_SHADOW',
+      code:inputs.reason,
+      missing:inputs.missing||[],
+      writesAccepted:false,
+      d1Mutation:false,
+      employeeAssignment:false
+    };
+  }
+
+  const baseline=buildOperationalRealityV1(rows,{});
+  const candidateRows=baseline.ordinary.map(x=>x.raw||x);
+  const requiredKinds=[];
+  if(inputs.control.requireDesign) requiredKinds.push('design');
+  if(inputs.control.requireMaterial) requiredKinds.push('material');
+  if(inputs.control.requireMachine) requiredKinds.push('machine');
+
+  const strict=buildReadinessQualifiedRealityV1(
+    candidateRows,
+    inputs.evidence,
+    {requiredKinds}
+  );
+
+  return {
+    success:true,
+    mode:'READINESS_SHADOW',
+    evaluationMode:'STRICT_FAIL_CLOSED',
+    control:inputs.control,
+    baselineCandidates:candidateRows.length,
+    evidenceRows:inputs.evidence.length,
+    requiredKinds,
+    coverage:strict.coverage,
+    strictCounts:strict.reality.counts,
+    strictExceptionCounts:sanitizedExceptionCounts(strict.reality.exceptions),
+    strictRecommendation:{
+      exists:!!strict.recommendation.recommended,
+      fingerprint:await fingerprint(strict.recommendation.recommended),
+      department:text(strict.recommendation.recommended&&strict.recommendation.recommended.department),
+      priority:text(strict.recommendation.recommended&&strict.recommendation.recommended.priority),
+      dueIso:text(strict.recommendation.recommended&&strict.recommendation.recommended.dueIso),
+      reason:text(strict.recommendation.reason)
+    },
+    piiExposed:false,
+    employeeIdentityExposed:false,
+    rawOrderIdsExposed:false,
+    rawLineIdsExposed:false,
+    writesAccepted:false,
+    d1Mutation:false,
+    employeeAssignment:false,
+    generatedAt:new Date().toISOString()
+  };
+}
+
 async function snapshot(env){
   const qualified=await qualification(env);
   if(!qualified.ok){
@@ -664,8 +793,37 @@ export default {
         },502);
       }
     }
+    if(path==='/readiness'){
+      try{
+        const qualified=await qualification(env);
+        if(!qualified.ok){
+          return json({
+            success:false,
+            mode:'READINESS_SHADOW',
+            code:'SOURCE_NOT_QUALIFIED',
+            source:qualified,
+            writesAccepted:false,
+            d1Mutation:false,
+            employeeAssignment:false
+          },503);
+        }
+        const rows=await currentRows(env);
+        const body=await readinessSnapshot(env,rows);
+        return json(body,body.success?200:503);
+      }catch(err){
+        return json({
+          success:false,
+          mode:'READINESS_SHADOW',
+          code:'READINESS_SHADOW_ERROR',
+          message:text(err&&err.message),
+          writesAccepted:false,
+          d1Mutation:false,
+          employeeAssignment:false
+        },502);
+      }
+    }
     return json({success:false,code:'NOT_FOUND'},404);
   }
 };
 
-export { snapshot, qualification, currentRows, supervisorSnapshot, supervisorInputs };
+export { snapshot, qualification, currentRows, supervisorSnapshot, supervisorInputs, readinessSnapshot, readinessInputs };
