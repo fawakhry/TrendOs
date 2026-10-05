@@ -1,0 +1,31 @@
+name: Autonomous Printshop Native Schedule Readonly Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-native-schedule-readonly-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  schedule-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect native create timestamp boundary counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config "$CONFIG" --json --command "SELECT COUNT(*) AS nativeOrders, MIN(created_at) AS firstCreatedAt, MAX(created_at) AS lastCreatedAt, SUM(CASE WHEN CAST(strftime('%H',created_at) AS INTEGER)>=21 THEN 1 ELSE 0 END) AS utcLateBoundaryOrders, SUM(CASE WHEN EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id AND l.fly_print=1) THEN 1 ELSE 0 END) AS flyOrders FROM t12_prod_orders o;" > /tmp/schedule.json
+          cat /tmp/schedule.json
+          echo 'D1_MUTATION=NO'
