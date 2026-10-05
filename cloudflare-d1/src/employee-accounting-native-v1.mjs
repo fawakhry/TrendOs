@@ -797,6 +797,105 @@ async function saveSupplierV1(env,auth,b){
   return response;
 }
 
+
+async function resolveMaterialV1(env,b,department=''){
+  const materialId=text(b.materialId),materialName=text(b.materialName||b.material);
+  let r;
+  if(materialId)r=await env.DB.prepare("SELECT material_id AS materialId,material_name AS materialName,department,stock_qty AS stock,version FROM employee_accounting_materials_v1 WHERE material_id=? AND active=1 LIMIT 1").bind(materialId).first();
+  else if(materialName)r=await env.DB.prepare("SELECT material_id AS materialId,material_name AS materialName,department,stock_qty AS stock,version FROM employee_accounting_materials_v1 WHERE material_name=? AND active=1 AND (?='' OR department IN (?,'مشترك','')) ORDER BY CASE WHEN department=? THEN 0 WHEN department='مشترك' THEN 1 ELSE 2 END,updated_at DESC LIMIT 1").bind(materialName,department,department,department).first();
+  if(!r)throw commandErrorV1('accounting-material-not-found','الخامة غير مسجلة في المخزون للقسم المطلوب.');
+  return {materialId:text(r.materialId),materialName:text(r.materialName),department:text(r.department),stock:num(r.stock),version:Math.max(1,Math.trunc(num(r.version,1)))};
+}
+function isDeferredPaymentV1(value){const k=key(value);return k.includes('اجل')||k.includes('آجل')||k.includes('credit')||k.includes('deferred');}
+
+async function saveDeptDailyPurchaseV1(env,auth,b){
+  if(!['print','laser'].includes(auth.mode))return {success:false,message:'تسجيل مشتريات اليوم متاح لجابر ووائل فقط.'};
+  const department=auth.department,qty=num(b.qty),unit=num(b.unit||b.unitPrice),total=qty*unit;
+  if(qty<=0||unit<=0)return {success:false,message:'الكمية والسعر يجب أن يكونا أكبر من صفر.'};
+  const supplier=await resolvePartyV1(env,'supplier',b),material=await resolveMaterialV1(env,b,department);
+  const paymentType=text(b.paymentType||'نقدي')||'نقدي',paid=isDeferredPaymentV1(paymentType)?0:total,remaining=Math.max(0,total-paid);
+  const ctx=await beginCommandV1(env,auth,'daily-purchase-create',{...b,supplierId:supplier.partyId,supplierName:supplier.partyName,materialId:material.materialId,materialName:material.materialName,department});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const id=text(b.id)||uid('DPP'),now=Date.now(),workDate=workDateKeyV1(b.workDate||b.date),move=uid('STK');
+  await env.DB.batch([
+    env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty+?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=?").bind(qty,auth.user.username,material.materialId,material.version),
+    env.DB.prepare("INSERT INTO employee_accounting_daily_purchases_v1(daily_purchase_id,request_key,work_date,employee_key,department,supplier_party_id,supplier_name,supplier_invoice_no,material_id,material_name,qty,unit_cost,total,payment_method,paid,remaining,notes,status,stock_status,created_at_ms) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'PENDING','APPLIED',? FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?").bind(id,ctx.requestKey,workDate,auth.user.username,department,supplier.partyId,supplier.partyName,text(b.receiptNo||b.invoiceNo),material.materialId,material.materialName,qty,unit,total,paymentType,paid,remaining,text(b.notes),now,material.materialId,material.version+1),
+    env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,department,item_name,qty_in,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'شراء قسم فوري',?,?,?,0,?,?,?,?,?,? FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?").bind(move,material.materialId,department,material.materialName,qty,material.stock,material.stock+qty,auth.user.username,text(b.notes),ctx.requestKey,now,material.materialId,material.version+1)
+  ]);
+  const written=await env.DB.prepare("SELECT daily_purchase_id AS id,work_date AS workDate,total,paid,remaining AS remain,status,stock_status AS stockStatus FROM employee_accounting_daily_purchases_v1 WHERE request_key=?").bind(ctx.requestKey).first();
+  if(!written)throw commandErrorV1('accounting-daily-purchase-stock-guard-rejected','تعذر تسجيل مشتريات القسم بسبب تغير المخزون بالتزامن. الطلب محفوظ PREPARED للمراجعة.');
+  const response={success:true,purchase:{...written,supplierPartyId:supplier.partyId,supplier:supplier.partyName,materialId:material.materialId,material:material.materialName,qty,unit,paymentType,department,employee:auth.user.username},stockBefore:material.stock,stockAfter:material.stock+qty,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'daily-purchase',id,'create',auth.user.username,{department,supplierId:supplier.partyId,materialId:material.materialId,qty,total});
+  return response;
+}
+
+async function rejectDeptDailyPurchaseV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'رفض مشتريات الأقسام متاح لضياء فقط.'};
+  const id=text(b.id||b.purchaseId),reason=text(b.reason||'مرفوض بعد المراجعة');
+  if(!id)return {success:false,message:'رقم بند المشتريات مطلوب.'};
+  const row=await env.DB.prepare("SELECT * FROM employee_accounting_daily_purchases_v1 WHERE daily_purchase_id=?").bind(id).first();
+  if(!row)return {success:false,message:'بند المشتريات غير موجود.'};
+  if(text(row.status)==='APPROVED')return {success:false,message:'لا يمكن رفض بند تم اعتماده ماليًا.'};
+  if(text(row.status)==='REJECTED')return {success:true,duplicatePrevented:true,message:'البند مرفوض بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
+  const material=await resolveMaterialV1(env,{materialId:row.material_id},text(row.department)),qty=num(row.qty);
+  if(material.stock+0.000001<qty)return {success:false,message:'لا يمكن رفض البند لأن رصيد المخزون الحالي أقل من الكمية التي أضيفت.'};
+  const ctx=await beginCommandV1(env,auth,'daily-purchase-reject',{...b,id,reason});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const move=uid('STK'),now=Date.now();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty-?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? AND stock_qty>=?").bind(qty,auth.user.username,material.materialId,material.version,qty),
+    env.DB.prepare("UPDATE employee_accounting_daily_purchases_v1 SET status='REJECTED',stock_status='REVERSED',notes=CASE WHEN notes='' THEN ? ELSE notes||' | '||? END,updated_at=CURRENT_TIMESTAMP WHERE daily_purchase_id=? AND status='PENDING' AND EXISTS(SELECT 1 FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?)").bind('سبب الرفض: '+reason,'سبب الرفض: '+reason,id,material.materialId,material.version+1),
+    env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,department,item_name,qty_in,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'عكس شراء قسم مرفوض',?,?,0,?,?,?,?,?,?,? FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?").bind(move,material.materialId,text(row.department),text(row.material_name),qty,material.stock,material.stock-qty,auth.user.username,reason,ctx.requestKey,now,material.materialId,material.version+1)
+  ]);
+  const check=await env.DB.prepare("SELECT status FROM employee_accounting_daily_purchases_v1 WHERE daily_purchase_id=?").bind(id).first();
+  if(!check||text(check.status)!=='REJECTED')throw commandErrorV1('accounting-daily-purchase-reject-guard','تعذر عكس المخزون وحفظ قرار الرفض بشكل ذري. الطلب محفوظ PREPARED للمراجعة.');
+  const response={success:true,id,status:'REJECTED',stockBefore:material.stock,stockAfter:material.stock-qty,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'daily-purchase',id,'reject',auth.user.username,{reason,materialId:material.materialId,qty});
+  return response;
+}
+
+async function savePurchaseCustodyV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'تسليم عهد المشتريات متاح لضياء فقط.'};
+  const employee=text(b.employee),department=accountingDepartmentV1(b.department),amount=num(b.amount),workDate=workDateKeyV1(b.workDate||b.date);
+  if(!employee||!department||department==='كل الأقسام'||amount<=0)return {success:false,message:'الموظف والقسم ومبلغ عهدة أكبر من صفر مطلوبة.'};
+  const ctx=await beginCommandV1(env,auth,'custody-handoff',{...b,employee,department,workDate});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const id=uid('CUS'),cash=uid('CSH'),now=Date.now(),method=text(b.paymentMethod||'نقدي');
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO employee_accounting_custody_events_v1(custody_event_id,request_key,work_date,employee_key,department,movement_type,amount,payment_method,ref_no,notes,actor,created_at_ms) VALUES(?,?,?,?,?,'HANDOFF',?,?,?,?,?,?,?)").bind(id,ctx.requestKey,workDate,employee,department,amount,method,text(b.refNo),text(b.notes),auth.user.username,now),
+    env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(cash,ctx.requestKey+'-CASH',workDate,'CUSTODY_HANDOFF',employee,department,amount,method,id,sourceSystemV1(b),text(b.notes),auth.user.username,now)
+  ]);
+  const response={success:true,id,summary:(await custodySummariesV1(env,workDate)).find(x=>key(x.employee)===key(employee)&&x.department===department)||null,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'custody',id,'handoff',auth.user.username,{employee,department,workDate,amount});
+  return response;
+}
+
+async function closePurchaseCustodyV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'تقفيل العهدة متاح لضياء فقط.'};
+  const employee=text(b.employee),department=accountingDepartmentV1(b.department),workDate=workDateKeyV1(b.workDate||b.date);
+  if(!employee||!department||department==='كل الأقسام')return {success:false,message:'الموظف والقسم مطلوبان.'};
+  const old=await env.DB.prepare("SELECT custody_close_id AS closeId FROM employee_accounting_custody_closes_v1 WHERE work_date=? AND employee_key=? AND department=?").bind(workDate,employee,department).first();
+  if(old)return {success:true,duplicatePrevented:true,closeId:text(old.closeId),summary:(await custodySummariesV1(env,workDate)).find(x=>key(x.employee)===key(employee)&&x.department===department)||null,version:'A2_D1_ACCOUNTING_V1'};
+  const current=(await custodySummariesV1(env,workDate)).find(x=>key(x.employee)===key(employee)&&x.department===department)||{balance:0};
+  const balance=num(current.balance),amount=Math.abs(balance),movement=balance>0?'RETURN':balance<0?'EXTRA_PAYMENT':'';
+  const ctx=await beginCommandV1(env,auth,'custody-close',{...b,employee,department,workDate,balance});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const closeId=uid('CCL'),eventId=uid('CUS'),cashId=uid('CSH'),now=Date.now(),method=text(b.paymentMethod||'نقدي'),statements=[];
+  if(amount>0){
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_custody_events_v1(custody_event_id,request_key,work_date,employee_key,department,movement_type,amount,payment_method,ref_no,notes,actor,created_at_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(eventId,ctx.requestKey+'-SETTLE',workDate,employee,department,movement,amount,method,closeId,text(b.notes),auth.user.username,now));
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(cashId,ctx.requestKey+'-CASH',workDate,movement==='RETURN'?'CUSTODY_RETURN':'CUSTODY_EXTRA_PAYMENT',employee,department,amount,method,closeId,sourceSystemV1(b),text(b.notes),auth.user.username,now));
+  }
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_custody_closes_v1(custody_close_id,request_key,work_date,employee_key,department,balance_before,settlement_type,settlement_amount,balance_after,notes,actor,created_at_ms) VALUES(?,?,?,?,?,?,?,?,0,?,?,?)").bind(closeId,ctx.requestKey,workDate,employee,department,balance,movement||'NONE',amount,text(b.notes),auth.user.username,now));
+  await env.DB.batch(statements);
+  const response={success:true,closeId,balanceBefore:balance,settlementType:movement||'NONE',settlementAmount:amount,balanceAfter:0,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'custody-close',closeId,'close',auth.user.username,{employee,department,workDate,balance,amount,movement});
+  return response;
+}
+
 async function getParty(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
@@ -878,6 +977,10 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='saveAccountingMaterial')out=await saveMaterial(env,auth,b);
     else if(action==='saveAccountingTemplate')out=await saveTemplate(env,auth,b);
     else if(action==='saveEasyStoreSupplier')out=await saveSupplierV1(env,auth,b);
+    else if(action==='saveDeptDailyPurchaseV1917')out=await saveDeptDailyPurchaseV1(env,auth,b);
+    else if(action==='rejectDeptDailyPurchaseV1917')out=await rejectDeptDailyPurchaseV1(env,auth,b);
+    else if(action==='savePurchaseCustodyV1920')out=await savePurchaseCustodyV1(env,auth,b);
+    else if(action==='closePurchaseCustodyV1920')out=await closePurchaseCustodyV1(env,auth,b);
     else if(action==='getPartyAccountV1858')out=await getParty(env,auth,b);
     else if(action==='saveCustomerAccountMovementV1915')out=await partyLedger(env,auth,{...b,partyType:'customer'});
     else if(action==='savePartyLedgerTransaction')out=await partyLedger(env,auth,b);
