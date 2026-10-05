@@ -1623,3 +1623,71 @@ AUTOPILOT=OFF
 
 Next:
 `recover/maintain Native schedule coverage -> requalify Production Shadow -> observe strict Readiness Shadow -> begin evidence-source adapters`.
+
+
+### AP-015 — Native Schedule recovery closed; Readiness Shadow live
+
+Production moved while the first schedule backfill was being tested:
+- Native Orders increased from 226 to 273 and then 274.
+- The isolated Shadow correctly failed closed when `scheduleRows < nativeOrders`.
+- No employee assignment or business write occurred during the fail-closed window.
+
+Recovery:
+- missing Native schedule rows were backfilled with the existing idempotent `0021` policy;
+- `0022_t12_order_schedule_maintenance_v1.sql` installed two D1 triggers:
+  - order insert -> standard Cairo create date + 2 days;
+  - line insert with any Fly Print on the Order -> same Cairo create date.
+- existing schedule rows remain protected by `INSERT OR IGNORE`.
+
+Final Production qualification:
+- Native Orders = 274.
+- Schedule rows = 274.
+- Missing schedule = 0.
+- Policy mismatches = 0.
+- Maintenance triggers = 2.
+- Run `37359072072` — SUCCESS.
+- business-table write capability in the maintenance SQL = blocked by static safety gate.
+- order status mutation = NO.
+- line status mutation = NO.
+- employee assignment = NO.
+
+The isolated Production Shadow was requalified after recovery:
+- Sidecar Run `37358349775`, attempt 2 — SUCCESS.
+- live rowCount = 507.
+- ordinary candidates = 29.
+- exceptions = 0.
+- closed = 466.
+- in-progress = 11.
+- Fly Print = 1.
+- recommendation exists in baseline scheduling = YES.
+- main TrendOS Worker remained unchanged.
+
+Readiness Shadow:
+- route: `/readiness`
+- smoke Run `37359170589` — SUCCESS.
+- control mode at observation time = OFF.
+- baseline candidates = 29.
+- readiness evidence rows = 0.
+- DESIGN: 29 UNKNOWN.
+- MATERIAL: 29 UNKNOWN.
+- MACHINE: 29 UNKNOWN.
+- strict eligible = 0.
+- strict exceptions = 29 `READINESS_UNKNOWN`.
+- strict recommendation = NONE.
+
+This is the intended fail-closed behavior. Missing evidence is never converted into READY.
+
+```ini
+NATIVE_SCHEDULE_COVERAGE=274/274
+NATIVE_SCHEDULE_MAINTENANCE=LIVE
+PRODUCTION_SHADOW=LIVE
+BASELINE_CANDIDATES=29
+READINESS_SHADOW=LIVE
+READINESS_EVIDENCE=0
+STRICT_ELIGIBLE=0
+LIVE_ASSIGNMENT=NO
+AUTOPILOT=OFF
+```
+
+Next:
+`activate Autonomy/Readiness control as SHADOW only -> persist append-only shadow observations -> build evidence-source adapters`.
