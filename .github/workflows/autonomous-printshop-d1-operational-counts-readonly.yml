@@ -1,0 +1,31 @@
+name: Autonomous Printshop D1 Operational Counts Readonly
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-d1-operational-counts-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  counts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read counts only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config "$CONFIG" --json --command "SELECT (SELECT COUNT(*) FROM employee_core_orders_v1) AS coreOrders, (SELECT COUNT(*) FROM employee_core_lines_v1) AS coreLines, (SELECT COUNT(*) FROM employee_core_archive_orders_v1) AS coreArchiveOrders, (SELECT COUNT(*) FROM employee_core_archive_lines_v1) AS coreArchiveLines, (SELECT COUNT(*) FROM t12_prod_orders) AS nativeOrders, (SELECT COUNT(*) FROM t12_prod_lines) AS nativeLines, (SELECT COUNT(*) FROM t12_prod_line_runtime) AS nativeRuntimeLines, (SELECT COUNT(*) FROM t12_legacy_line_runtime) AS legacyRuntimeLines;" > /tmp/counts.json
+          cat /tmp/counts.json
+          echo 'D1_MUTATION=NO'
