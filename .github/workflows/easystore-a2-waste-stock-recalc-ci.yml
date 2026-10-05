@@ -1,0 +1,40 @@
+name: EasyStore A2 Waste Stock Recalc CI
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/migrations/0021_employee_accounting_material_dimensions_v1.sql'
+      - 'cloudflare-d1/migrations/0022_employee_accounting_day_ops_v1.sql'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a2_waste_stock_recalc_v1.test.mjs'
+      - '.github/workflows/easystore-a2-waste-stock-recalc-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate A2 waste stock and recalc writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_command_foundation_v1.test.mjs
+          node tests/easystore_a2_party_writes_v1.test.mjs
+          node tests/easystore_a2_daily_purchase_custody_v1.test.mjs
+          node tests/easystore_a2_purchase_invoice_v1.test.mjs
+          node tests/easystore_a2_purchase_reversal_v1.test.mjs
+          node tests/easystore_a2_waste_stock_recalc_v1.test.mjs
+          echo EASYSTORE_A2_WASTE_STOCK_RECALC_CI=PASS
+          echo PRODUCTION_MUTATION=NO
