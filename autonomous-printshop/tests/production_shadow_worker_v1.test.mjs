@@ -32,7 +32,7 @@ assert.match(worker,/employee_attendance_pulses_v1/);
 assert.match(worker,/employee_attendance_days_v1/);
 assert.match(worker,/employee_hr_employees_v1/);
 assert.match(worker,/EMPLOYEE_SUPERVISOR_SHADOW/);
-assert.match(worker,/path==='\\/supervisor'/);
+assert.ok(worker.includes("path==='/supervisor'"));
 assert.match(worker,/BACKFILL_SNAPSHOT_SHA_MISMATCH/);
 assert.match(worker,/BACKFILL_TARGET_COUNT_MISMATCH/);
 assert.match(worker,/BACKFILL_NATIVE_IDENTITY_OVERLAP/);
