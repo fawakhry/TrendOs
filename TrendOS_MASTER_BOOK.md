@@ -3762,3 +3762,62 @@ ACCOUNTING_POLICY_EPOCH=2
 ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
 NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 ```
+
+
+#### Entry623 — Runtime arm completed after Google + Cloudflare manual prep
+- Google Apps Script gate completed against Production Version 159 with Production deployment unchanged.
+- Cloudflare runtime prep was applied manually by owner one flag at a time and verified from Production health before the controlled D1 transition:
+  ```ini
+  BRIDGE_ENABLED=true
+  BRIDGE_SECRET_CONFIGURED=true
+  BRIDGE_POLICY_COUNT=17
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+  AUTH_MODE=OFF
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ```
+- Controlled workflow:
+  - `.github/workflows/trendos-entry623-canary-runtime-arm-controlled.yml`
+  - original Run `37227823829`
+  - rerun attempt = 2
+  - Job `111922216260`
+  - conclusion = **SUCCESS**.
+- Runtime arm result:
+  ```ini
+  ENTRY623_RUNTIME_ARM=PASS
+  AUTH=TRANSITIONAL
+  AUTH_POLICY_EPOCH=23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  D1_AUTH_SESSIONS=0
+  FRONTEND_DEPLOY=NO
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+  BUSINESS_DATA_MUTATION=NO
+  ```
+- Production postflight independently confirmed:
+  - Auth health = `TRANSITIONAL`, env/bootstrap ON, native-only OFF, users/native-ready = 0.
+  - Bridge health = ON, secret configured, exactly 17 policies, no raw native token or plaintext password forwarding.
+  - Ops remained GENERAL epoch7.
+  - Accounting remained READONLY epoch2.
+- Rollback step was not invoked.
+- No frontend canary was deployed in this gate.
+- Next gate:
+  `ENTRY623_DIYA_FRONTEND_CANARY_CONTROLLED_DEPLOY`
