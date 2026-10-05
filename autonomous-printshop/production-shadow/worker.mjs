@@ -2,6 +2,9 @@ import {
   buildOperationalRealityV1,
   recommendNextTaskV1
 } from '../core/operational-reality-v1.mjs';
+import {
+  buildEmployeeSupervisorShadowV1
+} from '../core/employee-supervisor-shadow-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -307,6 +310,228 @@ function sourceKindCounts(rows){
   }
   return out;
 }
+function supervisorKey(v){
+  return text(v).toLowerCase()
+    .replace(/[إأآا]/g,'ا')
+    .replace(/[ى]/g,'ي')
+    .replace(/[ةه]/g,'ه')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function cairoDateKey(nowMs=Date.now()){
+  const parts=new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Africa/Cairo',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit'
+  }).formatToParts(new Date(nowMs));
+  const map=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return map.year+'-'+map.month+'-'+map.day;
+}
+async function supervisorInputs(env){
+  const names=[
+    'employee_hr_employees_v1',
+    'employee_attendance_days_v1',
+    'employee_attendance_pulses_v1',
+    'operator_tasks',
+    'operator_task_control'
+  ];
+  const placeholders=names.map(()=>'?').join(',');
+  const present=await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...names).all();
+  const set=new Set((present.results||[]).map(r=>text(r.name)));
+  const missing=names.filter(x=>!set.has(x));
+  if(missing.length){
+    return {ok:false,reason:'SUPERVISOR_REQUIRED_TABLES_MISSING',missing};
+  }
+
+  const dateKey=cairoDateKey();
+  const [employeesResult,daysResult,pulsesResult,activeTasksResult,control]=await Promise.all([
+    env.DB.prepare(`
+      SELECT username,
+             display_name AS displayName,
+             primary_department AS department,
+             status
+        FROM employee_hr_employees_v1
+       ORDER BY display_name
+    `).all(),
+    env.DB.prepare(`
+      SELECT attendance_id AS attendanceId,
+             username_key AS usernameKey,
+             username,
+             department,
+             day_status AS dayStatus,
+             ended_at_ms AS endedAtMs
+        FROM employee_attendance_days_v1
+       WHERE date_key=?
+    `).bind(dateKey).all(),
+    env.DB.prepare(`
+      SELECT p.attendance_id AS attendanceId,
+             p.pulse_type AS lastPulse
+        FROM employee_attendance_pulses_v1 p
+        JOIN (
+          SELECT attendance_id, MAX(created_at_ms) AS maxCreated
+            FROM employee_attendance_pulses_v1
+           GROUP BY attendance_id
+        ) x
+          ON x.attendance_id=p.attendance_id
+         AND x.maxCreated=p.created_at_ms
+        JOIN employee_attendance_days_v1 d
+          ON d.attendance_id=p.attendance_id
+       WHERE d.date_key=?
+    `).bind(dateKey).all(),
+    env.DB.prepare(`
+      SELECT task_id AS taskId,
+             operator_id AS operatorId,
+             status
+        FROM operator_tasks
+       WHERE task_type='ORDINARY'
+         AND status='ACTIVE'
+    `).all(),
+    env.DB.prepare(`
+      SELECT mode,
+             canary_operator_id AS canaryOperatorId,
+             epoch
+        FROM operator_task_control
+       WHERE singleton_id=1
+       LIMIT 1
+    `).first()
+  ]);
+
+  const pulseByAttendance=new Map(
+    (pulsesResult.results||[]).map(r=>[text(r.attendanceId),text(r.lastPulse)])
+  );
+  const dayByKey=new Map();
+  for(const row of daysResult.results||[]){
+    const value={
+      started:true,
+      dayStatus:text(row.dayStatus),
+      endedAtMs:row.endedAtMs==null?null:Number(row.endedAtMs),
+      lastPulse:pulseByAttendance.get(text(row.attendanceId))||'start'
+    };
+    dayByKey.set(supervisorKey(row.usernameKey),value);
+    dayByKey.set(supervisorKey(row.username),value);
+  }
+
+  const employees=(employeesResult.results||[]).map(r=>({
+    operatorId:text(r.username),
+    username:text(r.username),
+    displayName:text(r.displayName),
+    department:text(r.department),
+    status:text(r.status)
+  }));
+
+  const attendanceByOperator={};
+  for(const employee of employees){
+    const state=dayByKey.get(supervisorKey(employee.username))||null;
+    if(state){
+      attendanceByOperator[supervisorKey(employee.username)]=state;
+      attendanceByOperator[supervisorKey(employee.displayName)]=state;
+    }
+  }
+
+  return {
+    ok:true,
+    dateKey,
+    employees,
+    attendanceByOperator,
+    activeTasks:(activeTasksResult.results||[]).map(r=>({
+      taskId:text(r.taskId),
+      operatorId:text(r.operatorId),
+      status:text(r.status)
+    })),
+    control:{
+      mode:text(control&&control.mode)||'OFF',
+      epoch:num(control&&control.epoch),
+      canaryConfigured:!!text(control&&control.canaryOperatorId)
+    }
+  };
+}
+async function supervisorSnapshot(env,rows){
+  const inputs=await supervisorInputs(env);
+  if(!inputs.ok){
+    return {
+      success:false,
+      mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+      code:inputs.reason,
+      missing:inputs.missing||[],
+      writesAccepted:false,
+      employeeAssignment:false
+    };
+  }
+
+  const internal=buildEmployeeSupervisorShadowV1({
+    rows,
+    employees:inputs.employees,
+    attendanceByOperator:inputs.attendanceByOperator,
+    activeTasks:inputs.activeTasks
+  });
+
+  const availability={available:0,unavailable:0,reviewRequired:0,ended:0,notStarted:0};
+  const departments={};
+  let recommendations=0;
+  let activeTaskOperators=0;
+
+  for(const op of internal.operators){
+    const state=text(op.availability&&op.availability.state);
+    if(state==='AVAILABLE') availability.available+=1;
+    else availability.unavailable+=1;
+    if(state==='REVIEW_REQUIRED') availability.reviewRequired+=1;
+    if(state==='ENDED') availability.ended+=1;
+    if(state==='NOT_STARTED') availability.notStarted+=1;
+    if(op.activeTask) activeTaskOperators+=1;
+    if(op.recommendation&&op.recommendation.recommended) recommendations+=1;
+
+    const dept=text(op.department)||'UNSPECIFIED';
+    if(!departments[dept]){
+      departments[dept]={
+        operators:0,
+        availableOperators:0,
+        assignedRows:0,
+        ordinary:0,
+        inProgress:0,
+        exceptions:0,
+        recommendations:0
+      };
+    }
+    const d=departments[dept];
+    d.operators+=1;
+    if(state==='AVAILABLE') d.availableOperators+=1;
+    d.assignedRows+=num(op.assignedRowCount);
+    d.ordinary+=num(op.reality&&op.reality.counts&&op.reality.counts.ordinary);
+    d.inProgress+=num(op.reality&&op.reality.counts&&op.reality.counts.inProgress);
+    d.exceptions+=num(op.reality&&op.reality.counts&&op.reality.counts.exceptions);
+    if(op.recommendation&&op.recommendation.recommended) d.recommendations+=1;
+  }
+
+  return {
+    success:true,
+    mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+    routingMode:internal.mode,
+    dateKey:inputs.dateKey,
+    operatorTaskControl:inputs.control,
+    operatorCounts:{
+      total:internal.operators.length,
+      ...availability,
+      withActiveTask:activeTaskOperators,
+      withRecommendation:recommendations
+    },
+    assignmentCoverage:internal.assignmentCoverage,
+    departments,
+    unassigned:{
+      counts:internal.unassignedReality.counts
+    },
+    piiExposed:false,
+    employeeIdentityExposed:false,
+    rawOrderIdsExposed:false,
+    rawLineIdsExposed:false,
+    writesAccepted:false,
+    d1Mutation:false,
+    employeeAssignment:false,
+    generatedAt:new Date().toISOString()
+  };
+}
 
 async function snapshot(env){
   const qualified=await qualification(env);
@@ -405,8 +630,37 @@ export default {
         },502);
       }
     }
+    if(path==='/supervisor'){
+      try{
+        const qualified=await qualification(env);
+        if(!qualified.ok){
+          return json({
+            success:false,
+            mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+            code:'SOURCE_NOT_QUALIFIED',
+            source:qualified,
+            writesAccepted:false,
+            d1Mutation:false,
+            employeeAssignment:false
+          },503);
+        }
+        const rows=await currentRows(env);
+        const body=await supervisorSnapshot(env,rows);
+        return json(body,body.success?200:503);
+      }catch(err){
+        return json({
+          success:false,
+          mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+          code:'SUPERVISOR_SHADOW_ERROR',
+          message:text(err&&err.message),
+          writesAccepted:false,
+          d1Mutation:false,
+          employeeAssignment:false
+        },502);
+      }
+    }
     return json({success:false,code:'NOT_FOUND'},404);
   }
 };
 
-export { snapshot, qualification, currentRows };
+export { snapshot, qualification, currentRows, supervisorSnapshot, supervisorInputs };
