@@ -85,20 +85,29 @@ export function buildEmployeeSupervisorShadowV1(input={}){
       return false;
     });
     const activeTask=activeTaskFor(employee,activeTasks);
+    const assignedDepartments=[...new Set(
+      assignedRows.map(row=>text(row&&row.department)).filter(Boolean)
+    )];
+    const configuredDepartment=text(employee.department);
+    const effectiveDepartment=configuredDepartment ||
+      (assignedDepartments.length===1?assignedDepartments[0]:'');
+    const displayDepartment=effectiveDepartment ||
+      (assignedDepartments.length>1?'MULTI':'');
     const recommendation=recommendNextTaskV1(assignedRows,{
-      department:text(employee.department),
+      department:effectiveDepartment,
       operatorAvailable:availability.available,
       activeTask
     });
     const reality=buildOperationalRealityV1(assignedRows,{
-      department:text(employee.department)
+      department:effectiveDepartment
     });
 
     operators.push({
       operatorId:text(employee.operatorId||employee.username||employee.displayName||employee.name),
       username:text(employee.username),
       displayName:text(employee.displayName||employee.name),
-      department:text(employee.department),
+      department:displayDepartment,
+      assignedDepartments,
       availability,
       activeTask,
       assignedRowCount:assignedRows.length,
