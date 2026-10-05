@@ -8,6 +8,8 @@ on:
     paths:
       - 'autonomous-printshop/production-shadow/**'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
+      - 'autonomous-printshop/core/employee-supervisor-shadow-v1.mjs'
+      - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml'
 
@@ -63,6 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           node autonomous-printshop/tests/operational_reality_v1.test.mjs
+          node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
           node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
           node --check autonomous-printshop/production-shadow/worker.mjs
 
@@ -121,6 +124,26 @@ jobs:
           console.log('PRODUCTION_SHADOW_LIVE_SNAPSHOT_PASS');
           console.log('SHADOW_COUNTS='+JSON.stringify(s.counts||{}));
           console.log('SHADOW_RECOMMENDATION='+JSON.stringify(s.recommendation||{}));
+          NODE
+
+      - name: Verify employee supervisor shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SHADOW_URL/supervisor" > /tmp/supervisor.json
+          cat /tmp/supervisor.json
+          echo
+          node - <<'NODE'
+          const s=JSON.parse(require('fs').readFileSync('/tmp/supervisor.json','utf8'));
+          if(s.success!==true||s.mode!=='EMPLOYEE_SUPERVISOR_SHADOW') process.exit(1);
+          if(s.routingMode!=='LEGACY_ASSIGNMENT_BASELINE_ONLY') process.exit(2);
+          if(s.writesAccepted!==false||s.d1Mutation!==false||s.employeeAssignment!==false) process.exit(3);
+          if(s.piiExposed!==false||s.employeeIdentityExposed!==false||s.rawOrderIdsExposed!==false||s.rawLineIdsExposed!==false) process.exit(4);
+          if(!s.operatorTaskControl||!['OFF','SHADOW','CANARY','GENERAL'].includes(String(s.operatorTaskControl.mode||''))) process.exit(5);
+          console.log('EMPLOYEE_SUPERVISOR_SHADOW_LIVE=PASS');
+          console.log('SUPERVISOR_OPERATOR_COUNTS='+JSON.stringify(s.operatorCounts||{}));
+          console.log('SUPERVISOR_ASSIGNMENT_COVERAGE='+JSON.stringify(s.assignmentCoverage||{}));
+          console.log('SUPERVISOR_DEPARTMENTS='+JSON.stringify(s.departments||{}));
           NODE
 
       - name: Verify main TrendOS remains unchanged

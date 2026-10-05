@@ -1,0 +1,132 @@
+name: Autonomous Printshop Native Schedule Maintenance Apply Controlled
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-native-schedule-maintenance-apply-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-native-schedule-maintenance-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      SQL: autonomous-printshop/migrations/0022_t12_order_schedule_maintenance_v1.sql
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify maintenance contract
+        run: node autonomous-printshop/tests/t12_order_schedule_maintenance_v1.test.mjs
+
+      - name: Hard safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CREATE TRIGGER IF NOT EXISTS trg_t12_order_schedule_after_order_insert' "$SQL"
+          grep -q 'CREATE TRIGGER IF NOT EXISTS trg_t12_order_schedule_after_line_insert' "$SQL"
+          ! grep -Eiq '\b(DROP|ALTER|DELETE|VACUUM|REPLACE)\b' "$SQL"
+          ! grep -Eiq 'UPDATE[[:space:]]+t12_prod_(orders|lines|line_runtime)' "$SQL"
+          ! grep -Eiq 'INSERT[[:space:]]+(OR[[:space:]]+IGNORE[[:space:]]+)?INTO[[:space:]]+t12_prod_(orders|lines|line_runtime)' "$SQL"
+          echo 'SCHEDULE_TRIGGER_SAFETY=PASS'
+
+      - name: Snapshot business row counts before apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM t12_prod_orders) AS orders,
+              (SELECT COUNT(*) FROM t12_prod_lines) AS lines,
+              (SELECT COUNT(*) FROM t12_prod_line_runtime) AS runtimeRows,
+              (SELECT COUNT(*) FROM t12_prod_order_schedule) AS scheduleRows,
+              (SELECT COUNT(*) FROM sqlite_master
+                WHERE type='trigger'
+                  AND name IN (
+                    'trg_t12_order_schedule_after_order_insert',
+                    'trg_t12_order_schedule_after_line_insert'
+                  )) AS triggersBefore;
+          " > /tmp/before.json
+          cat /tmp/before.json
+
+      - name: Apply schedule maintenance triggers
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file "$SQL"
+
+      - name: Verify trigger install and schedule invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM t12_prod_orders) AS orders,
+              (SELECT COUNT(*) FROM t12_prod_lines) AS lines,
+              (SELECT COUNT(*) FROM t12_prod_line_runtime) AS runtimeRows,
+              (SELECT COUNT(*) FROM t12_prod_order_schedule) AS scheduleRows,
+              (SELECT COUNT(*) FROM sqlite_master
+                WHERE type='trigger'
+                  AND name IN (
+                    'trg_t12_order_schedule_after_order_insert',
+                    'trg_t12_order_schedule_after_line_insert'
+                  )) AS triggersAfter,
+              (SELECT COUNT(*)
+                 FROM t12_prod_orders o
+                 LEFT JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+                WHERE s.order_id IS NULL) AS missingSchedule,
+              (SELECT COUNT(*)
+                 FROM t12_prod_orders o
+                 JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+                WHERE s.expected_delivery_date <>
+                  CASE
+                    WHEN EXISTS(
+                      SELECT 1 FROM t12_prod_lines l
+                       WHERE l.order_id=o.order_id AND l.fly_print=1
+                    )
+                    THEN date(datetime(o.created_at,'+3 hours'))
+                    ELSE date(datetime(o.created_at,'+3 hours'),'+2 days')
+                  END) AS policyMismatches;
+          " > /tmp/after.json
+          cat /tmp/after.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const before=JSON.parse(fs.readFileSync('/tmp/before.json','utf8'))?.[0]?.results?.[0]||{};
+          const after=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'))?.[0]?.results?.[0]||{};
+          if(Number(after.triggersAfter)!==2) process.exit(2);
+          if(Number(after.missingSchedule)!==0) process.exit(3);
+          if(Number(after.policyMismatches)!==0) process.exit(4);
+          if(Number(after.scheduleRows)!==Number(after.orders)) process.exit(5);
+          console.log('SCHEDULE_MAINTENANCE_TRIGGER_INSTALL=PASS');
+          console.log('SCHEDULE_COVERAGE='+after.scheduleRows+'/'+after.orders);
+          console.log('CONCURRENT_PRODUCTION_DELTAS='+JSON.stringify({
+            orders:Number(after.orders)-Number(before.orders),
+            lines:Number(after.lines)-Number(before.lines),
+            runtimeRows:Number(after.runtimeRows)-Number(before.runtimeRows)
+          }));
+          console.log('BUSINESS_TABLE_WRITE_CAPABILITY=BLOCKED_BY_STATIC_GATE');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'NATIVE_ORDER_SCHEDULE_FUTURE_MAINTENANCE=INSTALLED'
+          echo 'ORDER_STATUS_MUTATION=NO'
+          echo 'LINE_STATUS_MUTATION=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'AUTOPILOT=OFF'

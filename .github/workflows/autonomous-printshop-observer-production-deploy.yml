@@ -1,0 +1,129 @@
+name: Autonomous Printshop Observer Production Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'autonomous-printshop/observer/**'
+      - 'autonomous-printshop/core/autonomy-event-ledger-v1.mjs'
+      - 'autonomous-printshop/core/autonomy-policy-v1.mjs'
+      - 'autonomous-printshop/core/operational-reality-v1.mjs'
+      - 'autonomous-printshop/core/readiness-evidence-v1.mjs'
+      - 'autonomous-printshop/production-shadow/worker.mjs'
+      - 'autonomous-printshop/tests/shadow_observer_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-observer-production-deploy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-observer-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/observer/wrangler.toml
+      OBSERVER_URL: https://autonomous-printshop-observer.trendmall-contact.workers.dev
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify observer write boundary
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs
+          node autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs
+          node autonomous-printshop/tests/operational_reality_v1.test.mjs
+          node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
+          node autonomous-printshop/tests/shadow_observer_v1.test.mjs
+
+      - name: Hard business-write safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f autonomous-printshop/observer/worker.mjs
+          test -f autonomous-printshop/observer/wrangler.toml
+          grep -q 'recordAutonomyShadowEventV1' autonomous-printshop/observer/worker.mjs
+          grep -q 'INSERT OR IGNORE INTO autonomy_events' autonomous-printshop/core/autonomy-event-ledger-v1.mjs
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_|operator_tasks)' autonomous-printshop/observer/worker.mjs
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_|operator_tasks)' autonomous-printshop/core/autonomy-event-ledger-v1.mjs
+          echo 'OBSERVER_BUSINESS_WRITE_GATE=PASS'
+
+      - name: Main TrendOS pre-deploy health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/main-pre.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/main-pre.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_PREDEPLOY=PASS');
+          NODE
+
+      - name: Wrangler dry-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/autonomous-printshop-observer-build
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config "$CONFIG" --outdir /tmp/autonomous-printshop-observer-build
+          test -d /tmp/autonomous-printshop-observer-build
+          echo 'OBSERVER_DRYRUN=PASS'
+
+      - name: Deploy isolated hourly observer
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config "$CONFIG"
+          sleep 5
+          echo 'OBSERVER_DEPLOYED=YES'
+
+      - name: Verify observer health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$OBSERVER_URL/health" > /tmp/observer.json
+          cat /tmp/observer.json
+          echo
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/observer.json','utf8'));
+          if(x.success!==true||x.service!=='autonomous-printshop-shadow-observer') process.exit(1);
+          if(x.mode!=='SHADOW_OBSERVER') process.exit(2);
+          if(x.autonomyMode!=='SHADOW'||x.readinessMode!=='SHADOW') process.exit(3);
+          if(x.businessWrites!==false||x.employeeAssignment!==false) process.exit(4);
+          if(Number(x.operatorTasks)!==0) process.exit(5);
+          console.log('OBSERVER_HEALTH=PASS');
+          console.log('AUTONOMY_EVENTS_BEFORE_CRON='+String(x.autonomyEvents||0));
+          console.log('AUTONOMY_OBSERVATIONS='+String(x.autonomyObservations||0));
+          NODE
+
+      - name: Main TrendOS post-deploy health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/main-post.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/main-post.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_POSTDEPLOY=PASS');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'OBSERVER=LIVE'
+          echo 'CRON=5_MINUTE_OF_EACH_HOUR'
+          echo 'WRITE_AUTHORITY=AUTONOMY_EVENTS_ONLY'
+          echo 'ORDER_WRITE=NO'
+          echo 'LINE_WRITE=NO'
+          echo 'OPERATOR_TASK_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'

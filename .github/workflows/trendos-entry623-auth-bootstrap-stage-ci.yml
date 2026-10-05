@@ -1,0 +1,40 @@
+name: TrendOS Entry623 Auth Bootstrap Stage Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-auth-bootstrap-stage-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and native auth contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          grep -Fq "employee-auth-login-bootstrap-upsert-failed" cloudflare-d1/src/employee-auth-native-v1.mjs
+          grep -Fq "stage: text(err && err.employeeAuthStage) || 'unknown'" cloudflare-d1/src/employee-auth-native-v1.mjs
+          echo ENTRY623_BOOTSTRAP_STAGE_DIAGNOSTIC_SOURCE=PASS
+      - name: No runtime mutation
+        shell: bash
+        run: |
+          echo ENTRY623_PRODUCTION_MUTATION=NO
+          echo ENTRY623_CLOUDFLARE_DEPLOY=NO
+          echo ENTRY623_D1_MUTATION=NO
+          echo ENTRY623_APPS_SCRIPT_TOUCHED=NO
+          echo ENTRY623_SECRET_TOUCHED=NO

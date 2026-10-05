@@ -1,0 +1,12 @@
+name = "autonomous-printshop-readiness-collector"
+main = "worker.mjs"
+compatibility_date = "2026-08-27"
+workers_dev = true
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trendos-main"
+database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"

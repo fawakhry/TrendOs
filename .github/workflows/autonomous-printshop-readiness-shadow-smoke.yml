@@ -1,0 +1,62 @@
+name: Autonomous Printshop Readiness Shadow Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-readiness-shadow-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SHADOW_URL: https://autonomous-printshop-shadow.trendmall-contact.workers.dev
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Readiness Shadow GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SHADOW_URL/readiness" > /tmp/readiness.json
+          cat /tmp/readiness.json
+          echo
+          node - <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/readiness.json','utf8'));
+          if(r.success!==true||r.mode!=='READINESS_SHADOW') process.exit(1);
+          if(r.evaluationMode!=='STRICT_FAIL_CLOSED') process.exit(2);
+          if(r.writesAccepted!==false||r.d1Mutation!==false||r.employeeAssignment!==false) process.exit(3);
+          if(r.piiExposed!==false||r.employeeIdentityExposed!==false||r.rawOrderIdsExposed!==false||r.rawLineIdsExposed!==false) process.exit(4);
+          if(!r.control) process.exit(5);
+          console.log('READINESS_SHADOW_LIVE=PASS');
+          console.log('READINESS_CONTROL='+JSON.stringify(r.control));
+          console.log('READINESS_BASELINE_CANDIDATES='+String(r.baselineCandidates||0));
+          console.log('READINESS_EVIDENCE_ROWS='+String(r.evidenceRows||0));
+          console.log('READINESS_COVERAGE='+JSON.stringify(r.coverage||{}));
+          console.log('READINESS_STRICT_COUNTS='+JSON.stringify(r.strictCounts||{}));
+          console.log('READINESS_STRICT_EXCEPTIONS='+JSON.stringify(r.strictExceptionCounts||{}));
+          console.log('READINESS_RECOMMENDATION='+JSON.stringify(r.strictRecommendation||{}));
+          NODE
+
+      - name: Main TrendOS unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/main.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/main.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_UNCHANGED=PASS');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'METHODS=GET_ONLY'
+          echo 'D1_MUTATION=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'AUTOPILOT=OFF'

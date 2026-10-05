@@ -1,0 +1,120 @@
+name: Autonomous Printshop Shadow Controls Activate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-shadow-controls-activate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-shadow-controls-activate
+  cancel-in-progress: false
+
+jobs:
+  activate-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preflight autonomous controls only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
+              (SELECT epoch FROM autonomy_control WHERE singleton_id=1) AS autonomyEpoch,
+              (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+              (SELECT epoch FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessEpoch,
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+              (SELECT COUNT(*) FROM autonomy_events) AS autonomyEvents,
+              (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS readinessEvidence;
+          " > /tmp/pre.json
+          cat /tmp/pre.json
+          node - <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
+          if(String(r.operatorTaskMode)!=='OFF') process.exit(1);
+          if(!['OFF','SHADOW'].includes(String(r.autonomyMode))) process.exit(2);
+          if(!['OFF','SHADOW'].includes(String(r.readinessMode))) process.exit(3);
+          if(Number(r.operatorTasks)!==0) process.exit(4);
+          if(Number(r.autonomyEvents)!==0) process.exit(5);
+          if(Number(r.readinessEvidence)!==0) process.exit(6);
+          console.log('SHADOW_CONTROL_PREFLIGHT=PASS');
+          NODE
+
+      - name: Activate Autonomy and Readiness SHADOW only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --command "
+            UPDATE autonomy_control
+               SET mode='SHADOW',
+                   epoch=epoch+1,
+                   updated_by='autonomous-printshop-shadow',
+                   change_reason='PRODUCTION_SHADOW_OBSERVATION_ACTIVE',
+                   updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
+             WHERE singleton_id=1 AND mode='OFF';
+
+            UPDATE autonomous_readiness_control
+               SET mode='SHADOW',
+                   epoch=epoch+1,
+                   updated_by='autonomous-printshop-shadow',
+                   change_reason='PRODUCTION_SHADOW_OBSERVATION_ACTIVE',
+                   updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
+             WHERE singleton_id=1 AND mode='OFF';
+          "
+
+      - name: Verify SHADOW active while Operator Task stays OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
+              (SELECT epoch FROM autonomy_control WHERE singleton_id=1) AS autonomyEpoch,
+              (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+              (SELECT epoch FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessEpoch,
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+              (SELECT COUNT(*) FROM autonomy_events) AS autonomyEvents,
+              (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS readinessEvidence,
+              (SELECT COUNT(*) FROM autonomy_control_events) AS autonomyControlEvents,
+              (SELECT COUNT(*) FROM autonomous_readiness_control_events) AS readinessControlEvents;
+          " > /tmp/post.json
+          cat /tmp/post.json
+          node - <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          if(String(r.autonomyMode)!=='SHADOW') process.exit(1);
+          if(String(r.readinessMode)!=='SHADOW') process.exit(2);
+          if(String(r.operatorTaskMode)!=='OFF') process.exit(3);
+          if(Number(r.operatorTasks)!==0) process.exit(4);
+          if(Number(r.autonomyEvents)!==0) process.exit(5);
+          if(Number(r.readinessEvidence)!==0) process.exit(6);
+          if(Number(r.autonomyControlEvents)<1) process.exit(7);
+          if(Number(r.readinessControlEvents)<1) process.exit(8);
+          console.log('AUTONOMY_CONTROL=SHADOW');
+          console.log('READINESS_CONTROL=SHADOW');
+          console.log('OPERATOR_TASK_CONTROL=OFF');
+          console.log('LIVE_ASSIGNMENT=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'BUSINESS_ORDER_WRITE=NO'
+          echo 'BUSINESS_LINE_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'OPERATOR_TASK_CONTROL=OFF'
+          echo 'AUTOPILOT_EXECUTION=NO'

@@ -3716,3 +3716,163 @@ NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
   CANARY_USERNAME=ضياء
   NEXT_ACTION=MANUAL_ENABLE_APPS_SCRIPT_BRIDGE_AND_CLOUDFLARE_AUTH_BOOTSTRAP_BRIDGE_FLAGS_WITH_D1_CONTROL_STILL_OFF
   ```
+
+#### Entry623 — Google-only Apps Script runtime preparation — PASS (2026-10-05)
+
+- اسم البحث العربي: **تفعيل جسر Apps Script فقط / تجهيز Google Runtime / إثبات رفض assertion غير صالح**.
+- Owner-confirmed Production project ID: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`.
+- Read-only Overview verified container `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`, Spreadsheet ID `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`.
+- Manage deployments pre/post verified Production Version **159**, unchanged Deployment ID `AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg`.
+- Existing Entry622 private bootstrap remains **Archived**; its source is absent from the project file list.
+- Google Script Properties UI is read-only because the project has more than 50 properties. No secret value was inspected.
+- Used an owner-editor temporary setter file `TEMP_ENTRY623_ENABLE_BRIDGE_ONLY.gs`, containing only:
+  `function entry623EnableBridgeOnly() { PropertiesService.getScriptProperties().setProperty("TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED", "true"); }`
+- Setter execution completed successfully. Temporary editor source was deleted and absence verified. **No temporary web bootstrap deployment, New Version, or Production deploy was created**. Temporary-editor use is distinct from Entry622's private web deployment bootstrap.
+- Production runtime proof: direct JSON POST to the unchanged Version159 web app route `cloudEmployeeLegacyBridgeExecuteV1`, with `targetAction=getDashboard`, matching target payload and deliberately invalid `cloudEmployeeAssertionV1`; no employee identity, real password/token/nonce/secret or business data.
+- HTTP **200**, response exactly:
+  `{"success":false,"message":"اعتماد الموظف السحابي غير صالح."}`
+- This proves the route reached assertion validation after the enabled/secret-configured checks; it did not report bridge disabled or secret missing. Rejection precedes employee lookup, nonce consumption and business execution.
+- Initial incomplete probe envelope returned HTTP200/action-not-allowed; that response was **not** accepted as gate proof. PASS is based only on the corrected invalid-assertion probe above.
+- No Cloudflare access/mutation, D1 action, runtime-arm workflow, frontend deploy, Accounting/EasyStore work, Ops policy or Bridge policy change occurred.
+```ini
+ENTRY623_APPS_SCRIPT_RUNTIME_PREP=PASS
+PRODUCTION_APPS_SCRIPT_VERSION=159
+PRODUCTION_DEPLOYMENT_CHANGED=NO
+NEW_APPS_SCRIPT_VERSION_CREATED=NO
+TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=true
+APPS_SCRIPT_BRIDGE_ENABLED=YES
+APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES
+BRIDGE_SECRET_VALUE_EXPOSED=NO
+SCRIPT_PROPERTIES_CHANGED=TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED_ONLY
+TEMP_BOOTSTRAP_USED=NO
+TEMP_BOOTSTRAP_DEPLOYMENT_ARCHIVED=NOT_USED
+TEMP_EDITOR_SETTER_USED=YES
+TEMP_EDITOR_SETTER_SOURCE_REMOVED=YES
+TEMP_ENTRY622_DEPLOYMENT_ARCHIVED=YES
+TEMP_ENTRY622_DEPLOYMENT_ACTIVE=NO
+APPS_SCRIPT_RUNTIME_HTTP=200
+APPS_SCRIPT_INVALID_ASSERTION_REJECTED=YES
+CLOUDFLARE_TOUCHED=NO
+D1_MUTATION=NO
+FRONTEND_DEPLOY=NO
+ACCOUNTING_TOUCHED=NO
+EASYSTORE_TOUCHED=NO
+ACCOUNTING=READONLY
+ACCOUNTING_POLICY_EPOCH=2
+ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
+```
+
+
+#### Entry623 — Runtime arm completed after Google + Cloudflare manual prep
+- Google Apps Script gate completed against Production Version 159 with Production deployment unchanged.
+- Cloudflare runtime prep was applied manually by owner one flag at a time and verified from Production health before the controlled D1 transition:
+  ```ini
+  BRIDGE_ENABLED=true
+  BRIDGE_SECRET_CONFIGURED=true
+  BRIDGE_POLICY_COUNT=17
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+  AUTH_MODE=OFF
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ```
+- Controlled workflow:
+  - `.github/workflows/trendos-entry623-canary-runtime-arm-controlled.yml`
+  - original Run `37227823829`
+  - rerun attempt = 2
+  - Job `111922216260`
+  - conclusion = **SUCCESS**.
+- Runtime arm result:
+  ```ini
+  ENTRY623_RUNTIME_ARM=PASS
+  AUTH=TRANSITIONAL
+  AUTH_POLICY_EPOCH=23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  D1_AUTH_SESSIONS=0
+  FRONTEND_DEPLOY=NO
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+  BUSINESS_DATA_MUTATION=NO
+  ```
+- Production postflight independently confirmed:
+  - Auth health = `TRANSITIONAL`, env/bootstrap ON, native-only OFF, users/native-ready = 0.
+  - Bridge health = ON, secret configured, exactly 17 policies, no raw native token or plaintext password forwarding.
+  - Ops remained GENERAL epoch7.
+  - Accounting remained READONLY epoch2.
+- Rollback step was not invoked.
+- No frontend canary was deployed in this gate.
+- Next gate:
+  `ENTRY623_DIYA_FRONTEND_CANARY_CONTROLLED_DEPLOY`
+
+
+#### Entry623 — Diya frontend canary controlled deploy PASS
+- Controlled workflow:
+  - `.github/workflows/trendos-entry623-diya-frontend-canary-controlled.yml`
+  - workflow commit: `63667553813419ebc63b8f01700686c94895403a`
+  - Run: `37357927682`
+  - Job: `111924967218`
+  - conclusion = **SUCCESS**.
+- Exact-live patch strategy:
+  - live Production bundle was read first and used as the deploy base;
+  - only Entry623 canary config and the qualified canary-capable employee dispatcher were introduced;
+  - automatic rollback to pre-canary frontend version was armed but not invoked.
+- Previous Production frontend version:
+  - `bfcc6f85-a748-4b66-a334-b605c72108f7`
+- New Production frontend version:
+  - `33013d71-2de4-4f1f-924a-131f045a815b`
+- Live canary config independently verified:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=true
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=['ضياء']
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=17
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=true
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICY_COUNT=17
+  MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE=GENERAL
+  MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE=READONLY
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Live dispatcher independently verified as canary-capable and includes runtime Auth/Bridge preflight before routing selected-canary actions.
+- Production backend postflight remained:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  ```
+- Boundaries:
+  ```ini
+  API_CODE_DEPLOY=NO
+  D1_MUTATION=NO
+  ACCOUNTING_TOUCHED=NO
+  EASYSTORE_TOUCHED=NO
+  NON_CANARY_SCOPE=UNCHANGED_BY_CONFIG_ALLOWLIST
+  ```
+- Next gate:
+  `ENTRY623_DIYA_FIRST_LOGIN_BOOTSTRAP_RUNTIME_SMOKE`

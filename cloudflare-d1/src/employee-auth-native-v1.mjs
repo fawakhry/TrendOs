@@ -732,7 +732,16 @@ async function handleLogin(request, env, cors) {
     if (!mayBootstrap || employeeAuthNativeOnlyEnabled(env)) {
       return json({ success: false, code: 'employee-native-migration-required', message: 'الحساب لم يكتمل نقله إلى تسجيل الدخول السحابي.' }, 409, cors);
     }
-    const boot = await legacyLoginBootstrap(username, password, env, nowMs);
+    let boot;
+    try {
+      boot = await legacyLoginBootstrap(username, password, env, nowMs);
+    } catch (err) {
+      return json({
+        success: false,
+        code: 'employee-auth-login-bootstrap-upsert-failed',
+        stage: text(err && err.employeeAuthStage) || 'unknown'
+      }, 503, cors);
+    }
     if (!boot.ok || !boot.row) {
       return json({ success: false, message: boot.message || 'اسم المستخدم أو كلمة المرور غير صحيحة.' }, boot.kind === 'config' || boot.kind === 'upstream' ? 502 : 401, cors);
     }

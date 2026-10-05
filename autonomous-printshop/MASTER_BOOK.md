@@ -1364,3 +1364,330 @@ PRODUCTION_WRITE=NO
 
 Next implementation target:
 `D1 Operator Task Authority schema + pure claim/complete core, default OFF`.
+
+
+### AP-010 — Live Production Shadow entered service
+
+An isolated Cloudflare Worker was deployed for the autonomous-printshop program:
+
+- Worker: `autonomous-printshop-shadow`
+- URL: `https://autonomous-printshop-shadow.trendmall-contact.workers.dev`
+- Authority: read-only access to `trendos-main` D1.
+- Main TrendOS Worker changed: NO.
+- Business write authority changed: NO.
+- Employee assignment changed: NO.
+- PII/raw Order IDs/raw Line IDs exposed by the shadow API: NO.
+
+The Worker qualifies the current Zero-Google operational truth before producing a snapshot:
+- committed Entry615 backfill run required;
+- exact source snapshot SHA required;
+- committed target counts must match current D1 counts;
+- imported/native Order and Line identity overlap must be zero;
+- failed parity rows fail closed;
+- T12 runtime overlays are applied on top of the qualified baseline.
+
+Hourly monitor:
+`.github/workflows/autonomous-printshop-production-shadow-monitor.yml`
+
+First qualified live snapshot after source qualification:
+- source rows: 458
+- source composition:
+  - Entry615 import + legacy runtime: 211
+  - T12 native + runtime: 247
+- main TrendOS health preserved.
+- D1 mutation from shadow Worker: NO.
+
+Production qualification/deploy evidence:
+- Sidecar deployment Run `37247648334` — SUCCESS.
+- Hourly monitor Run `37247671075` — SUCCESS.
+
+```ini
+AUTONOMOUS_PRINTSHOP_PRODUCTION_SHADOW=LIVE
+MODE=PRODUCTION_SHADOW_READ_ONLY
+MAIN_TRENDOS_WORKER_CHANGED=NO
+D1_BUSINESS_WRITE=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+
+### AP-011 — Autonomy and Operator Task D1 foundations applied Default-OFF
+
+The corrected additive D1 foundations were applied to `trendos-main` by controlled workflow.
+
+Applied:
+- `0019_autonomy_events_v1.sql`
+- `0020_operator_task_authority_v1.sql`
+
+Verified after apply:
+- Autonomy tables = 4.
+- `autonomy_control.mode=OFF`.
+- Operator Task authority tables = 4.
+- `operator_task_control.mode=OFF`.
+- autonomy decision event count = 0.
+- operator task count = 0.
+- employee assignment behavior changed = NO.
+- business order write behavior changed = NO.
+
+Controlled Production evidence:
+- Run `37247713195` — SUCCESS.
+
+```ini
+AUTONOMY_SCHEMA=APPLIED_DEFAULT_OFF
+OPERATOR_TASK_SCHEMA=APPLIED_DEFAULT_OFF
+AUTOPILOT=OFF
+OPERATOR_TASK_AUTHORITY=OFF
+LIVE_TASK_ASSIGNMENT=NO
+```
+
+
+### AP-012 — Native Order Schedule metadata applied and consumed by Production Shadow
+
+The production shadow initially failed closed on Native pending work because T12 Native Orders did not persist an expected-delivery field usable by the scheduler.
+
+Readonly diagnostic proved:
+- native Orders = 226;
+- first Native created_at = 2026-09-27 19:45:21 UTC;
+- last Native created_at = 2026-10-04 18:38:51 UTC;
+- Fly Print Orders = 18.
+
+Added and applied:
+`autonomous-printshop/migrations/0021_t12_order_schedule_v1.sql`
+
+Policy preserved from legacy TrendOS:
+- Fly Print -> same Cairo local business date.
+- Standard work -> Cairo local registration date + 2 calendar days.
+
+Post-apply Production proof:
+- native Orders = 226;
+- schedule rows = 226;
+- missing schedule rows = 0;
+- policy mismatches = 0;
+- policy rows = 226.
+
+Controlled apply:
+- Run `37299705413` — SUCCESS.
+
+Production Shadow now treats the schedule table as a required qualification gate. If schedule coverage/policy diverges, it fails closed.
+
+Latest qualified Shadow deployment:
+- Run `37299839572` — SUCCESS.
+- Worker Version ID `74dae02f-3280-4907-a746-0bde6ec3a058`.
+
+Live snapshot after schedule activation:
+- ordinary dispatch candidates = 30;
+- due-date exceptions = 0;
+- closed = 417;
+- in-progress = 11;
+- recommendation exists = YES;
+- recommendation department = Laser;
+- recommendation priority = Normal;
+- business mutation = NO.
+
+```ini
+NATIVE_ORDER_SCHEDULE=PRODUCTION_APPLIED
+SCHEDULE_ROWS=226
+SCHEDULE_MISSING=0
+SCHEDULE_POLICY_MISMATCH=0
+PRODUCTION_SHADOW_ORDINARY=30
+PRODUCTION_SHADOW_EXCEPTIONS=0
+PRODUCTION_SHADOW_RECOMMENDATION=YES
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+Next:
+`Employee Supervisor Shadow -> active-task/availability/readiness inputs -> controlled Operator Task Canary`.
+
+
+### AP-013 — Employee Supervisor Shadow live on Production facts
+
+Employee Supervisor Shadow is now deployed through the isolated read-only sidecar.
+
+Core:
+- `autonomous-printshop/core/employee-supervisor-shadow-v1.mjs`
+- `autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs`
+
+Live route:
+- `GET https://autonomous-printshop-shadow.trendmall-contact.workers.dev/supervisor`
+
+Authority boundaries:
+- legacy `assignedTo` is a comparison/routing baseline only;
+- Attendance is availability evidence only;
+- `missed_check` becomes `REVIEW_REQUIRED`, never an adverse employee judgment;
+- an existing active Operator Task blocks a new recommendation;
+- no employee identity is exposed by the public Shadow payload;
+- no raw Order/Line IDs are exposed;
+- no D1 mutation;
+- no live employee assignment.
+
+First real Production Shadow evidence:
+- known operators = 4;
+- currently available = 1;
+- unavailable = 3;
+- review required = 1;
+- workday not started = 2;
+- existing active Operator Tasks = 0;
+- operators with a Shadow recommendation = 1;
+- line-to-employee baseline coverage = 447 / 458 = 97.6%;
+- unmatched/unassigned rows = 11 and all were CLOSED at observation time.
+
+Runtime gap discovered and corrected:
+- `employee_hr_employees_v1.primary_department` is blank in current data.
+- The Supervisor no longer invents a department.
+- If the profile department is blank, it derives the current operational department from ACTIVE assigned work.
+- If active assigned work spans multiple departments, the label is `MULTI`.
+- Closed historical work does not determine the current operational department.
+
+Latest live derived department snapshot:
+- Laser: 1 operator; 1 available; 274 baseline assigned rows; 30 ordinary; 11 in progress; 1 recommendation.
+- Print: 1 operator; currently unavailable; 173 baseline assigned rows.
+- Unspecified: 2 operators with no currently matched assigned workload; no recommendation.
+
+Qualification evidence:
+- Employee Supervisor core CI after active-work department derivation: Run `37300800825` — SUCCESS.
+- Live Sidecar deploy with derived department logic: Run `37301082068` — SUCCESS.
+- Main TrendOS production Worker remained unchanged.
+
+```ini
+EMPLOYEE_SUPERVISOR_SHADOW=PRODUCTION_LIVE
+ROUTING_AUTHORITY=LEGACY_ASSIGNMENT_BASELINE_ONLY
+ATTENDANCE=AVAILABILITY_EVIDENCE_ONLY
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+D1_MUTATION=NO
+ASSIGNMENT_BASELINE_COVERAGE=97.6%
+```
+
+Next:
+`Readiness Shadow (material / machine / design evidence) -> readiness-qualified Task recommendation -> Operator Task Shadow authority`.
+
+
+### AP-014 — Readiness Evidence foundation applied Default-OFF
+
+Readiness was implemented as append-only evidence, not as free mutable booleans.
+
+Added:
+- `autonomous-printshop/migrations/0023_readiness_evidence_v1.sql`
+- `autonomous-printshop/core/readiness-evidence-v1.mjs`
+- `autonomous-printshop/tests/readiness_evidence_v1.test.mjs`
+
+Evidence kinds:
+- DESIGN
+- MATERIAL
+- MACHINE
+
+Evidence states:
+- READY
+- BLOCKED
+- UNKNOWN
+
+Core rules:
+- latest valid non-expired evidence wins;
+- expired evidence is ignored;
+- missing evidence is UNKNOWN;
+- strict readiness fails closed when required evidence is UNKNOWN;
+- evidence is append-only;
+- control mode is OFF/SHADOW/CANARY/GENERAL and defaults to OFF;
+- no employee discipline/performance judgment is derived from missing readiness evidence.
+
+Production foundation apply:
+- Run `37302083095` — SUCCESS.
+- readiness tables = 3.
+- `autonomous_readiness_control.mode=OFF`.
+- readiness evidence rows = 0.
+- readiness control events = 0.
+- Orders unchanged.
+- Lines unchanged.
+- Operator Tasks unchanged at 0 during apply.
+- Autonomy Events unchanged at 0 during apply.
+
+Production diagnostic before evidence ingestion:
+- current pending non-Fly candidates = 30;
+- imported candidates = 0;
+- native candidates = 30;
+- design evidence present = 0;
+- material/accounting mapping for those candidates = 0;
+- active material catalog rows = 0;
+- low-stock material rows = 0 because the catalog itself is empty;
+- readiness must therefore remain SHADOW/UNKNOWN until evidence sources are populated.
+
+The isolated production sidecar now contains a `/readiness` aggregate endpoint that evaluates the pending candidate set under strict fail-closed evidence rules without exposing employee identity or raw Order/Line IDs.
+
+```ini
+READINESS_SCHEMA=PRODUCTION_APPLIED
+READINESS_CONTROL=OFF
+READINESS_EVIDENCE_ROWS=0
+STRICT_MISSING_EVIDENCE=FAIL_CLOSED
+LIVE_ASSIGNMENT=NO
+AUTOPILOT=OFF
+```
+
+Next:
+`recover/maintain Native schedule coverage -> requalify Production Shadow -> observe strict Readiness Shadow -> begin evidence-source adapters`.
+
+
+### AP-015 — Native Schedule recovery closed; Readiness Shadow live
+
+Production moved while the first schedule backfill was being tested:
+- Native Orders increased from 226 to 273 and then 274.
+- The isolated Shadow correctly failed closed when `scheduleRows < nativeOrders`.
+- No employee assignment or business write occurred during the fail-closed window.
+
+Recovery:
+- missing Native schedule rows were backfilled with the existing idempotent `0021` policy;
+- `0022_t12_order_schedule_maintenance_v1.sql` installed two D1 triggers:
+  - order insert -> standard Cairo create date + 2 days;
+  - line insert with any Fly Print on the Order -> same Cairo create date.
+- existing schedule rows remain protected by `INSERT OR IGNORE`.
+
+Final Production qualification:
+- Native Orders = 274.
+- Schedule rows = 274.
+- Missing schedule = 0.
+- Policy mismatches = 0.
+- Maintenance triggers = 2.
+- Run `37359072072` — SUCCESS.
+- business-table write capability in the maintenance SQL = blocked by static safety gate.
+- order status mutation = NO.
+- line status mutation = NO.
+- employee assignment = NO.
+
+The isolated Production Shadow was requalified after recovery:
+- Sidecar Run `37358349775`, attempt 2 — SUCCESS.
+- live rowCount = 507.
+- ordinary candidates = 29.
+- exceptions = 0.
+- closed = 466.
+- in-progress = 11.
+- Fly Print = 1.
+- recommendation exists in baseline scheduling = YES.
+- main TrendOS Worker remained unchanged.
+
+Readiness Shadow:
+- route: `/readiness`
+- smoke Run `37359170589` — SUCCESS.
+- control mode at observation time = OFF.
+- baseline candidates = 29.
+- readiness evidence rows = 0.
+- DESIGN: 29 UNKNOWN.
+- MATERIAL: 29 UNKNOWN.
+- MACHINE: 29 UNKNOWN.
+- strict eligible = 0.
+- strict exceptions = 29 `READINESS_UNKNOWN`.
+- strict recommendation = NONE.
+
+This is the intended fail-closed behavior. Missing evidence is never converted into READY.
+
+```ini
+NATIVE_SCHEDULE_COVERAGE=274/274
+NATIVE_SCHEDULE_MAINTENANCE=LIVE
+PRODUCTION_SHADOW=LIVE
+BASELINE_CANDIDATES=29
+READINESS_SHADOW=LIVE
+READINESS_EVIDENCE=0
+STRICT_ELIGIBLE=0
+LIVE_ASSIGNMENT=NO
+AUTOPILOT=OFF
+```
+
+Next:
+`activate Autonomy/Readiness control as SHADOW only -> persist append-only shadow observations -> build evidence-source adapters`.

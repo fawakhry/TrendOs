@@ -1,0 +1,114 @@
+name: Autonomous Printshop Readiness Foundation Apply Controlled
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-readiness-foundation-apply-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-readiness-foundation-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      SQL: autonomous-printshop/migrations/0023_readiness_evidence_v1.sql
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify readiness contract
+        run: node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
+
+      - name: Hard additive-only safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CREATE TABLE IF NOT EXISTS autonomous_readiness_control' "$SQL"
+          grep -q 'CREATE TABLE IF NOT EXISTS autonomous_readiness_evidence' "$SQL"
+          grep -q 'AUTONOMOUS_READINESS_EVIDENCE_APPEND_ONLY' "$SQL"
+          ! grep -Eiq '\b(DROP|ALTER|DELETE|VACUUM|REPLACE)\b' "$SQL"
+          ! grep -Eiq 'UPDATE[[:space:]]+t12_prod_|UPDATE[[:space:]]+employee_' "$SQL"
+          ! grep -Eiq 'INSERT[[:space:]]+(OR[[:space:]]+IGNORE[[:space:]]+)?INTO[[:space:]]+(t12_prod_|employee_)' "$SQL"
+          echo 'READINESS_FOUNDATION_ADDITIVE_ONLY=PASS'
+
+      - name: Snapshot business counts before apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM t12_prod_orders) AS orders,
+              (SELECT COUNT(*) FROM t12_prod_lines) AS lines,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+              (SELECT COUNT(*) FROM autonomy_events) AS autonomyEvents;
+          " > /tmp/before.json
+          cat /tmp/before.json
+
+      - name: Apply readiness foundation
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file "$SQL"
+
+      - name: Verify default-OFF empty evidence and unchanged business counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM t12_prod_orders) AS orders,
+              (SELECT COUNT(*) FROM t12_prod_lines) AS lines,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+              (SELECT COUNT(*) FROM autonomy_events) AS autonomyEvents,
+              (SELECT COUNT(*) FROM sqlite_master
+                WHERE type='table'
+                  AND name IN (
+                    'autonomous_readiness_control',
+                    'autonomous_readiness_evidence',
+                    'autonomous_readiness_control_events'
+                  )) AS readinessTables,
+              (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+              (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS readinessEvidence,
+              (SELECT COUNT(*) FROM autonomous_readiness_control_events) AS readinessControlEvents;
+          " > /tmp/after.json
+          cat /tmp/after.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const b=JSON.parse(fs.readFileSync('/tmp/before.json','utf8'))?.[0]?.results?.[0]||{};
+          const a=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'))?.[0]?.results?.[0]||{};
+          for(const k of ['orders','lines','operatorTasks','autonomyEvents']){
+            if(Number(b[k])!==Number(a[k])) process.exit(1);
+          }
+          if(Number(a.readinessTables)!==3) process.exit(2);
+          if(String(a.readinessMode)!=='OFF') process.exit(3);
+          if(Number(a.readinessEvidence)!==0) process.exit(4);
+          if(Number(a.readinessControlEvents)!==0) process.exit(5);
+          console.log('READINESS_FOUNDATION_PRODUCTION=PASS');
+          console.log('READINESS_MODE=OFF');
+          console.log('READINESS_EVIDENCE=0');
+          console.log('BUSINESS_ROWS_UNCHANGED=YES');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'READINESS_SCHEMA=APPLIED_DEFAULT_OFF'
+          echo 'READINESS_EVIDENCE_WRITES=NONE'
+          echo 'OPERATOR_TASK_CONTROL_CHANGED=NO'
+          echo 'AUTOPILOT=OFF'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'

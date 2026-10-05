@@ -2,6 +2,12 @@ import {
   buildOperationalRealityV1,
   recommendNextTaskV1
 } from '../core/operational-reality-v1.mjs';
+import {
+  buildEmployeeSupervisorShadowV1
+} from '../core/employee-supervisor-shadow-v1.mjs';
+import {
+  buildReadinessQualifiedRealityV1
+} from '../core/readiness-evidence-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -35,6 +41,7 @@ async function qualification(env){
     't12_prod_orders',
     't12_prod_lines',
     't12_prod_line_runtime',
+    't12_prod_order_schedule',
     't12_legacy_line_runtime'
   ];
   const placeholders=required.map(()=>'?').join(',');
@@ -137,6 +144,55 @@ async function qualification(env){
     };
   }
 
+  const schedule=await env.DB.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM t12_prod_orders) AS nativeOrders,
+      (SELECT COUNT(*) FROM t12_prod_order_schedule) AS scheduleRows,
+      (SELECT COUNT(*)
+         FROM t12_prod_orders o
+         LEFT JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+        WHERE s.order_id IS NULL) AS missingSchedule,
+      (SELECT COUNT(*)
+         FROM t12_prod_orders o
+         JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+        WHERE s.policy_code<>'LEGACY_D0_FLY_D2_STANDARD_V1') AS invalidPolicyRows,
+      (SELECT COUNT(*)
+         FROM t12_prod_orders o
+         JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+        WHERE s.expected_delivery_date <>
+          CASE
+            WHEN EXISTS(
+              SELECT 1 FROM t12_prod_lines l
+               WHERE l.order_id=o.order_id AND l.fly_print=1
+            )
+            THEN date(datetime(o.created_at,'+3 hours'))
+            ELSE date(datetime(o.created_at,'+3 hours'),'+2 days')
+          END) AS duePolicyMismatches
+  `).first();
+  const nativeOrders=num(schedule&&schedule.nativeOrders,-1);
+  const scheduleRows=num(schedule&&schedule.scheduleRows,-1);
+  const missingSchedule=num(schedule&&schedule.missingSchedule,-1);
+  const invalidPolicyRows=num(schedule&&schedule.invalidPolicyRows,-1);
+  const duePolicyMismatches=num(schedule&&schedule.duePolicyMismatches,-1);
+  if(nativeOrders<0||scheduleRows!==nativeOrders||missingSchedule!==0){
+    return {
+      ok:false,
+      reason:'NATIVE_ORDER_SCHEDULE_INCOMPLETE',
+      nativeOrders,
+      scheduleRows,
+      missingSchedule
+    };
+  }
+  if(invalidPolicyRows!==0||duePolicyMismatches!==0){
+    return {
+      ok:false,
+      reason:'NATIVE_ORDER_SCHEDULE_POLICY_MISMATCH',
+      nativeOrders,
+      invalidPolicyRows,
+      duePolicyMismatches
+    };
+  }
+
   const completedMs=parseSqliteUtc(run.completedAt);
   const ageSeconds=completedMs?Math.max(0,Math.round((Date.now()-completedMs)/1000)):null;
 
@@ -155,6 +211,14 @@ async function qualification(env){
       passed:num(parity&&parity.passed),
       failed:parityFailed,
       optionalBecauseCommittedRunCountsAreQualified:parityRows===0
+    },
+    schedule:{
+      qualified:true,
+      nativeOrders,
+      scheduleRows,
+      missingSchedule:0,
+      policyCode:'LEGACY_D0_FLY_D2_STANDARD_V1',
+      policyMismatches:0
     }
   };
 }
@@ -194,12 +258,13 @@ async function currentRows(env){
              COALESCE(r.status,l.status) AS status,
              l.heat_press AS heatPress,
              l.fly_print AS flyPrint,
-             '' AS expectedDeliveryAt,
+             COALESCE(s.expected_delivery_date,'') AS expectedDeliveryAt,
              COALESCE(r.updated_at,l.updated_at) AS updatedAt,
              't12-native+runtime' AS sourceKind
         FROM t12_prod_lines l
         JOIN t12_prod_orders o ON o.order_id=l.order_id
         LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+        LEFT JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
         LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
        WHERE a.line_id IS NULL
        ORDER BY o.created_at,l.ordinal
@@ -248,6 +313,359 @@ function sourceKindCounts(rows){
   }
   return out;
 }
+function supervisorKey(v){
+  return text(v).toLowerCase()
+    .replace(/[إأآا]/g,'ا')
+    .replace(/[ى]/g,'ي')
+    .replace(/[ةه]/g,'ه')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function cairoDateKey(nowMs=Date.now()){
+  const parts=new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Africa/Cairo',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit'
+  }).formatToParts(new Date(nowMs));
+  const map=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return map.year+'-'+map.month+'-'+map.day;
+}
+async function supervisorInputs(env){
+  const names=[
+    'employee_hr_employees_v1',
+    'employee_attendance_days_v1',
+    'employee_attendance_pulses_v1',
+    'operator_tasks',
+    'operator_task_control'
+  ];
+  const placeholders=names.map(()=>'?').join(',');
+  const present=await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...names).all();
+  const set=new Set((present.results||[]).map(r=>text(r.name)));
+  const missing=names.filter(x=>!set.has(x));
+  if(missing.length){
+    return {ok:false,reason:'SUPERVISOR_REQUIRED_TABLES_MISSING',missing};
+  }
+
+  const dateKey=cairoDateKey();
+  const [employeesResult,daysResult,pulsesResult,activeTasksResult,control]=await Promise.all([
+    env.DB.prepare(`
+      SELECT username,
+             display_name AS displayName,
+             primary_department AS department,
+             status
+        FROM employee_hr_employees_v1
+       ORDER BY display_name
+    `).all(),
+    env.DB.prepare(`
+      SELECT attendance_id AS attendanceId,
+             username_key AS usernameKey,
+             username,
+             department,
+             day_status AS dayStatus,
+             ended_at_ms AS endedAtMs
+        FROM employee_attendance_days_v1
+       WHERE date_key=?
+    `).bind(dateKey).all(),
+    env.DB.prepare(`
+      SELECT p.attendance_id AS attendanceId,
+             p.pulse_type AS lastPulse
+        FROM employee_attendance_pulses_v1 p
+        JOIN (
+          SELECT attendance_id, MAX(created_at_ms) AS maxCreated
+            FROM employee_attendance_pulses_v1
+           GROUP BY attendance_id
+        ) x
+          ON x.attendance_id=p.attendance_id
+         AND x.maxCreated=p.created_at_ms
+        JOIN employee_attendance_days_v1 d
+          ON d.attendance_id=p.attendance_id
+       WHERE d.date_key=?
+    `).bind(dateKey).all(),
+    env.DB.prepare(`
+      SELECT task_id AS taskId,
+             operator_id AS operatorId,
+             status
+        FROM operator_tasks
+       WHERE task_type='ORDINARY'
+         AND status='ACTIVE'
+    `).all(),
+    env.DB.prepare(`
+      SELECT mode,
+             canary_operator_id AS canaryOperatorId,
+             epoch
+        FROM operator_task_control
+       WHERE singleton_id=1
+       LIMIT 1
+    `).first()
+  ]);
+
+  const pulseByAttendance=new Map(
+    (pulsesResult.results||[]).map(r=>[text(r.attendanceId),text(r.lastPulse)])
+  );
+  const dayByKey=new Map();
+  for(const row of daysResult.results||[]){
+    const value={
+      started:true,
+      dayStatus:text(row.dayStatus),
+      endedAtMs:row.endedAtMs==null?null:Number(row.endedAtMs),
+      lastPulse:pulseByAttendance.get(text(row.attendanceId))||'start'
+    };
+    dayByKey.set(supervisorKey(row.usernameKey),value);
+    dayByKey.set(supervisorKey(row.username),value);
+  }
+
+  const employees=(employeesResult.results||[]).map(r=>({
+    operatorId:text(r.username),
+    username:text(r.username),
+    displayName:text(r.displayName),
+    department:text(r.department),
+    status:text(r.status)
+  }));
+
+  const attendanceByOperator={};
+  for(const employee of employees){
+    const state=dayByKey.get(supervisorKey(employee.username))||null;
+    if(state){
+      attendanceByOperator[supervisorKey(employee.username)]=state;
+      attendanceByOperator[supervisorKey(employee.displayName)]=state;
+    }
+  }
+
+  return {
+    ok:true,
+    dateKey,
+    employees,
+    attendanceByOperator,
+    activeTasks:(activeTasksResult.results||[]).map(r=>({
+      taskId:text(r.taskId),
+      operatorId:text(r.operatorId),
+      status:text(r.status)
+    })),
+    control:{
+      mode:text(control&&control.mode)||'OFF',
+      epoch:num(control&&control.epoch),
+      canaryConfigured:!!text(control&&control.canaryOperatorId)
+    }
+  };
+}
+async function supervisorSnapshot(env,rows){
+  const inputs=await supervisorInputs(env);
+  if(!inputs.ok){
+    return {
+      success:false,
+      mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+      code:inputs.reason,
+      missing:inputs.missing||[],
+      writesAccepted:false,
+      employeeAssignment:false
+    };
+  }
+
+  const internal=buildEmployeeSupervisorShadowV1({
+    rows,
+    employees:inputs.employees,
+    attendanceByOperator:inputs.attendanceByOperator,
+    activeTasks:inputs.activeTasks
+  });
+
+  const availability={available:0,unavailable:0,reviewRequired:0,ended:0,notStarted:0};
+  const departments={};
+  const departmentSources={};
+  let recommendations=0;
+  let activeTaskOperators=0;
+
+  for(const op of internal.operators){
+    const state=text(op.availability&&op.availability.state);
+    if(state==='AVAILABLE') availability.available+=1;
+    else availability.unavailable+=1;
+    if(state==='REVIEW_REQUIRED') availability.reviewRequired+=1;
+    if(state==='ENDED') availability.ended+=1;
+    if(state==='NOT_STARTED') availability.notStarted+=1;
+    if(op.activeTask) activeTaskOperators+=1;
+    if(op.recommendation&&op.recommendation.recommended) recommendations+=1;
+    const source=text(op.departmentSource)||'UNKNOWN';
+    departmentSources[source]=(departmentSources[source]||0)+1;
+
+    const dept=text(op.department)||'UNSPECIFIED';
+    if(!departments[dept]){
+      departments[dept]={
+        operators:0,
+        availableOperators:0,
+        assignedRows:0,
+        ordinary:0,
+        inProgress:0,
+        exceptions:0,
+        recommendations:0
+      };
+    }
+    const d=departments[dept];
+    d.operators+=1;
+    if(state==='AVAILABLE') d.availableOperators+=1;
+    d.assignedRows+=num(op.assignedRowCount);
+    d.ordinary+=num(op.reality&&op.reality.counts&&op.reality.counts.ordinary);
+    d.inProgress+=num(op.reality&&op.reality.counts&&op.reality.counts.inProgress);
+    d.exceptions+=num(op.reality&&op.reality.counts&&op.reality.counts.exceptions);
+    if(op.recommendation&&op.recommendation.recommended) d.recommendations+=1;
+  }
+
+  return {
+    success:true,
+    mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+    supervisorCoreVersion:text(internal.version),
+    routingMode:internal.mode,
+    dateKey:inputs.dateKey,
+    operatorTaskControl:inputs.control,
+    operatorCounts:{
+      total:internal.operators.length,
+      ...availability,
+      withActiveTask:activeTaskOperators,
+      withRecommendation:recommendations
+    },
+    assignmentCoverage:internal.assignmentCoverage,
+    departmentSources,
+    departments,
+    unassigned:{
+      counts:internal.unassignedReality.counts
+    },
+    piiExposed:false,
+    employeeIdentityExposed:false,
+    rawOrderIdsExposed:false,
+    rawLineIdsExposed:false,
+    writesAccepted:false,
+    d1Mutation:false,
+    employeeAssignment:false,
+    generatedAt:new Date().toISOString()
+  };
+}
+
+async function readinessInputs(env){
+  const names=[
+    'autonomous_readiness_control',
+    'autonomous_readiness_evidence'
+  ];
+  const placeholders=names.map(()=>'?').join(',');
+  const present=await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...names).all();
+  const set=new Set((present.results||[]).map(r=>text(r.name)));
+  const missing=names.filter(x=>!set.has(x));
+  if(missing.length){
+    return {ok:false,reason:'READINESS_REQUIRED_TABLES_MISSING',missing};
+  }
+
+  const [control,evidenceResult]=await Promise.all([
+    env.DB.prepare(`
+      SELECT mode,
+             canary_operator_id AS canaryOperatorId,
+             require_design AS requireDesign,
+             require_material AS requireMaterial,
+             require_machine AS requireMachine,
+             epoch
+        FROM autonomous_readiness_control
+       WHERE singleton_id=1
+       LIMIT 1
+    `).first(),
+    env.DB.prepare(`
+      SELECT evidence_id AS evidenceId,
+             line_id AS lineId,
+             evidence_kind AS evidenceKind,
+             evidence_state AS evidenceState,
+             source_kind AS sourceKind,
+             source_ref AS sourceRef,
+             source_version AS sourceVersion,
+             confidence,
+             observed_at_ms AS observedAtMs,
+             expires_at_ms AS expiresAtMs
+        FROM autonomous_readiness_evidence
+       WHERE expires_at_ms IS NULL OR expires_at_ms>?
+       ORDER BY observed_at_ms DESC
+    `).bind(Date.now()).all()
+  ]);
+
+  return {
+    ok:true,
+    control:{
+      mode:text(control&&control.mode)||'OFF',
+      epoch:num(control&&control.epoch),
+      canaryConfigured:!!text(control&&control.canaryOperatorId),
+      requireDesign:num(control&&control.requireDesign,1)===1,
+      requireMaterial:num(control&&control.requireMaterial,1)===1,
+      requireMachine:num(control&&control.requireMachine,1)===1
+    },
+    evidence:(evidenceResult.results||[]).map(r=>({
+      evidenceId:text(r.evidenceId),
+      lineId:text(r.lineId),
+      evidenceKind:text(r.evidenceKind),
+      evidenceState:text(r.evidenceState),
+      sourceKind:text(r.sourceKind),
+      sourceRef:text(r.sourceRef),
+      sourceVersion:text(r.sourceVersion),
+      confidence:Number(r.confidence||0),
+      observedAtMs:Number(r.observedAtMs||0),
+      expiresAtMs:r.expiresAtMs==null?null:Number(r.expiresAtMs)
+    }))
+  };
+}
+
+async function readinessSnapshot(env,rows){
+  const inputs=await readinessInputs(env);
+  if(!inputs.ok){
+    return {
+      success:false,
+      mode:'READINESS_SHADOW',
+      code:inputs.reason,
+      missing:inputs.missing||[],
+      writesAccepted:false,
+      d1Mutation:false,
+      employeeAssignment:false
+    };
+  }
+
+  const baseline=buildOperationalRealityV1(rows,{});
+  const candidateRows=baseline.ordinary.map(x=>x.raw||x);
+  const requiredKinds=[];
+  if(inputs.control.requireDesign) requiredKinds.push('design');
+  if(inputs.control.requireMaterial) requiredKinds.push('material');
+  if(inputs.control.requireMachine) requiredKinds.push('machine');
+
+  const strict=buildReadinessQualifiedRealityV1(
+    candidateRows,
+    inputs.evidence,
+    {requiredKinds}
+  );
+
+  return {
+    success:true,
+    mode:'READINESS_SHADOW',
+    evaluationMode:'STRICT_FAIL_CLOSED',
+    control:inputs.control,
+    baselineCandidates:candidateRows.length,
+    evidenceRows:inputs.evidence.length,
+    requiredKinds,
+    coverage:strict.coverage,
+    strictCounts:strict.reality.counts,
+    strictExceptionCounts:sanitizedExceptionCounts(strict.reality.exceptions),
+    strictRecommendation:{
+      exists:!!strict.recommendation.recommended,
+      fingerprint:await fingerprint(strict.recommendation.recommended),
+      department:text(strict.recommendation.recommended&&strict.recommendation.recommended.department),
+      priority:text(strict.recommendation.recommended&&strict.recommendation.recommended.priority),
+      dueIso:text(strict.recommendation.recommended&&strict.recommendation.recommended.dueIso),
+      reason:text(strict.recommendation.reason)
+    },
+    piiExposed:false,
+    employeeIdentityExposed:false,
+    rawOrderIdsExposed:false,
+    rawLineIdsExposed:false,
+    writesAccepted:false,
+    d1Mutation:false,
+    employeeAssignment:false,
+    generatedAt:new Date().toISOString()
+  };
+}
 
 async function snapshot(env){
   const qualified=await qualification(env);
@@ -277,6 +695,7 @@ async function snapshot(env){
       targetCountsQualified:true,
       identityOverlap:qualified.identityOverlap,
       parityTable:qualified.parityTable,
+      schedule:qualified.schedule,
       rowCount:rows.length,
       sourceKinds:sourceKindCounts(rows)
     },
@@ -297,7 +716,7 @@ async function snapshot(env){
       designReadinessConnected:false,
       materialReadinessConnected:false,
       machineReadinessConnected:false,
-      nativeOrderDueDatePersisted:false
+      nativeOrderDueDatePersisted:true
     },
     piiExposed:false,
     rawOrderIdsExposed:false,
@@ -345,8 +764,66 @@ export default {
         },502);
       }
     }
+    if(path==='/supervisor'){
+      try{
+        const qualified=await qualification(env);
+        if(!qualified.ok){
+          return json({
+            success:false,
+            mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+            code:'SOURCE_NOT_QUALIFIED',
+            source:qualified,
+            writesAccepted:false,
+            d1Mutation:false,
+            employeeAssignment:false
+          },503);
+        }
+        const rows=await currentRows(env);
+        const body=await supervisorSnapshot(env,rows);
+        return json(body,body.success?200:503);
+      }catch(err){
+        return json({
+          success:false,
+          mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+          code:'SUPERVISOR_SHADOW_ERROR',
+          message:text(err&&err.message),
+          writesAccepted:false,
+          d1Mutation:false,
+          employeeAssignment:false
+        },502);
+      }
+    }
+    if(path==='/readiness'){
+      try{
+        const qualified=await qualification(env);
+        if(!qualified.ok){
+          return json({
+            success:false,
+            mode:'READINESS_SHADOW',
+            code:'SOURCE_NOT_QUALIFIED',
+            source:qualified,
+            writesAccepted:false,
+            d1Mutation:false,
+            employeeAssignment:false
+          },503);
+        }
+        const rows=await currentRows(env);
+        const body=await readinessSnapshot(env,rows);
+        return json(body,body.success?200:503);
+      }catch(err){
+        return json({
+          success:false,
+          mode:'READINESS_SHADOW',
+          code:'READINESS_SHADOW_ERROR',
+          message:text(err&&err.message),
+          writesAccepted:false,
+          d1Mutation:false,
+          employeeAssignment:false
+        },502);
+      }
+    }
     return json({success:false,code:'NOT_FOUND'},404);
   }
 };
 
-export { snapshot, qualification, currentRows };
+export { snapshot, qualification, currentRows, supervisorSnapshot, supervisorInputs, readinessSnapshot, readinessInputs };

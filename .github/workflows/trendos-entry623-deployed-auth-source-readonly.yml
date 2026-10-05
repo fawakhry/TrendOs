@@ -1,0 +1,58 @@
+
+name: TrendOS Entry623 Deployed Auth Source Readonly
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-deployed-auth-source-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SCRIPT: trendos-d1-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - name: Fetch deployed script content read only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$SCRIPT/content/v2"             -o /tmp/deployed-content
+          python3 <<'PY'
+          from pathlib import Path
+          raw=Path('/tmp/deployed-content').read_bytes()
+          text=raw.decode('utf-8','replace')
+          print('ENTRY623_DEPLOYED_CONTENT_BYTES='+str(len(raw)))
+          for n in ["async function upsertBootstrappedUser","async function legacyLoginBootstrap","async function issueNativeSession"]:
+              print('ENTRY623_DEPLOYED_MARKER_'+n.split()[-1].replace('(','').replace(')','')+'='+('YES' if n in text else 'NO'))
+          a=text.find('async function upsertBootstrappedUser')
+          b=text.find('async function issueNativeSession')
+          if a<0 or b<a:
+              raise SystemExit('deployed auth source bounds not found')
+          snippet=text[a:b]
+          # Source only; actual secret values are runtime bindings and are not present in script content.
+          print('-----ENTRY623_DEPLOYED_AUTH_SOURCE_BEGIN-----')
+          print(snippet[:18000])
+          print('-----ENTRY623_DEPLOYED_AUTH_SOURCE_END-----')
+          print('ENTRY623_DEPLOYED_CONTENT_SECRET_VALUES_PRINTED=NO')
+          PY
+      - name: Runtime unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/auth/health?entry623source=$GITHUB_SHA" -o /tmp/auth.json
+          node <<'NODE'
+          const a=require('/tmp/auth.json');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('auth runtime changed');
+          console.log('ENTRY623_DEPLOYED_SOURCE_RUNTIME_UNCHANGED=PASS');
+          NODE

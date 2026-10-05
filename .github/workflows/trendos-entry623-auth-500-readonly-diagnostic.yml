@@ -1,0 +1,91 @@
+
+name: TrendOS Entry623 Auth 500 Readonly Diagnostic
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-auth-500-readonly-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4.33.2
+      - name: Runtime must remain fail-closed after failed first login
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623diag=$GITHUB_SHA" -o /tmp/auth.json
+          node <<'NODE'
+          const a=require('/tmp/auth.json');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth runtime drift');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('unexpected partial bootstrap');
+          console.log('ENTRY623_DIAG_RUNTIME_CLEAN=PASS');
+          NODE
+      - name: Read only D1 auth schema contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          SELECT name,sql FROM sqlite_master WHERE type='table' AND name IN ('employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1') ORDER BY name;
+          PRAGMA table_info(employee_auth_users_v1);
+          PRAGMA table_info(employee_auth_sessions_v1);
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch FROM employee_auth_control_v1 WHERE singleton=1;
+          SELECT COUNT(*) AS userCount FROM employee_auth_users_v1;
+          SELECT COUNT(*) AS sessionCount FROM employee_auth_sessions_v1;
+          " >/tmp/schema.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/schema.json','utf8'));
+          const rows=[]; const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.name||v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')||Object.prototype.hasOwnProperty.call(v,'sessionCount'))rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const control=rows.find(r=>r.marker==='T12_EMPLOYEE_AUTH_V1');
+          const users=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'userCount'));
+          const sessions=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'sessionCount'));
+          if(!control||control.mode!=='TRANSITIONAL'||Number(control.policyEpoch)!==23) throw new Error('control state');
+          if(Number(users?.userCount||0)!==0||Number(sessions?.sessionCount||0)!==0) throw new Error('rows not empty');
+          const raw=JSON.stringify(x);
+          const requiredUsers=['employee_id','username_key','canonical_username','password_scheme','password_iterations','password_salt_hex','password_hash_hex','must_change','active','role','department','screens_json','session_version','failed_attempts','locked_until_ms','migrated_at_ms','last_login_at_ms','created_at','updated_at'];
+          const requiredSessions=['username_key','token_fingerprint','session_version','issued_at_ms','expires_at_ms','last_seen_at_ms','revoked_at_ms','source'];
+          for(const n of [...requiredUsers,...requiredSessions]) if(!raw.includes('"name":"'+n+'"')) throw new Error('missing column '+n);
+          console.log('ENTRY623_DIAG_D1_SCHEMA_CONTRACT=PASS');
+          console.log('ENTRY623_DIAG_D1_USERS=0');
+          console.log('ENTRY623_DIAG_D1_SESSIONS=0');
+          NODE
+      - name: Static upsert bind contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-auth-native-v1.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          node <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('cloudflare-d1/src/employee-auth-native-v1.mjs','utf8');
+          const a=s.indexOf('async function upsertBootstrappedUser');
+          const b=s.indexOf('async function legacyLoginBootstrap');
+          if(a<0||b<a) throw new Error('upsert source bounds');
+          const fn=s.slice(a,b);
+          if(!fn.includes("employeeAuthStage = 'password-hash'")) throw new Error('password hash stage missing');
+          if(!fn.includes("employeeAuthStage = 'd1-user-upsert'")) throw new Error('upsert stage missing');
+          if(!fn.includes('ON CONFLICT(username_key) DO UPDATE SET')) throw new Error('upsert conflict contract missing');
+          console.log('ENTRY623_DIAG_SOURCE_UPSERT_CONTRACT=PASS');
+          console.log('ENTRY623_DIAG_PASSWORD_VALUE_READ=NO');
+          console.log('ENTRY623_DIAG_D1_MUTATION=NO');
+          NODE

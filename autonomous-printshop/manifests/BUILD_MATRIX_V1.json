@@ -19,7 +19,8 @@
         "autonomous-printshop/core/autonomy-event-ledger-v1.mjs"
       ],
       "target": "policy, shadow/canary/general, audit, exceptions",
-      "priority": "P0"
+      "priority": "P0",
+      "implementation_state": "D1_SCHEMA_APPLIED_DEFAULT_OFF"
     },
     {
       "id": "M02",
@@ -30,7 +31,7 @@
       ],
       "target": "read/write contracts + events without duplicating truth",
       "priority": "P0",
-      "implementation_state": "STARTED_REPO_ONLY_READ_ADAPTER",
+      "implementation_state": "PRODUCTION_SHADOW_READ_ONLY_LIVE",
       "central_sources": [
         "autonomous-printshop/core/trendos-operational-reality-read-adapter-v1.mjs",
         "autonomous-printshop/core/operational-reality-v1.mjs"
@@ -51,12 +52,13 @@
     {
       "id": "M04",
       "name": "Operator Task D1 Authority",
-      "status": "NEW_BUILD_REQUIRED",
+      "status": "REUSE_AND_MODERNIZE",
       "reuse": [
         "autonomous-printshop/sources/trendos/operator-task/"
       ],
       "target": "D1 claim/start/complete/events retaining V2 public contract",
-      "priority": "P0"
+      "priority": "P0",
+      "implementation_state": "D1_SCHEMA_APPLIED_DEFAULT_OFF_ACTIVE_TASK_READABLE_BY_SUPERVISOR"
     },
     {
       "id": "M05",
@@ -70,7 +72,7 @@
       ],
       "target": "predict completion time, machine/operator loading, deadline promises, queue rebalance",
       "priority": "P0",
-      "implementation_state": "STARTED_REPO_ONLY"
+      "implementation_state": "PRODUCTION_SHADOW_LIVE_WITH_EMPLOYEE_AVAILABILITY_BASELINE"
     },
     {
       "id": "M06",
@@ -80,11 +82,12 @@
         "autonomous-printshop/sources/trendos/employee-supervisor/employee-manager-strips-v2.js",
         "autonomous-printshop/sources/trendos/employee-supervisor/employee-andon-v1.js",
         "autonomous-printshop/sources/trendos/employee-supervisor/operations-hub-v1.js",
-        "autonomous-printshop/core/operational-reality-v1.mjs"
+        "autonomous-printshop/core/operational-reality-v1.mjs",
+        "autonomous-printshop/core/employee-supervisor-shadow-v1.mjs"
       ],
       "target": "system-assigned next task, coaching, blocker auto-resolution, structured D1 Andon",
       "priority": "P0",
-      "implementation_state": "FILTERED_FOUNDATION_READY"
+      "implementation_state": "PRODUCTION_SHADOW_LIVE"
     },
     {
       "id": "M07",
@@ -262,15 +265,27 @@
     {
       "id": "M22",
       "name": "Operational Reality Snapshot",
-      "status": "NEW_BUILD_REQUIRED",
+      "status": "REUSE_AND_MODERNIZE",
       "priority": "P0",
-      "implementation_state": "READ_ADAPTER_QUALIFICATION_PENDING_CI",
+      "implementation_state": "PRODUCTION_SHADOW_LIVE",
       "central_sources": [
         "autonomous-printshop/core/operational-reality-v1.mjs",
         "autonomous-printshop/core/trendos-operational-reality-read-adapter-v1.mjs",
         "autonomous-printshop/sources/trendos/lineage/AI_ORDERS_VIEW_V1890_EXTRACT.md"
       ],
       "target": "one normalized evidence snapshot for active/closed/exception/fly-print work; deterministic next-task ranking; future D1 live connector input"
+    },
+    {
+      "id": "M23",
+      "name": "Native Order Schedule Metadata",
+      "status": "REUSE_AND_MODERNIZE",
+      "priority": "P0",
+      "implementation_state": "PRODUCTION_APPLIED_AND_SHADOW_CONSUMED",
+      "central_sources": [
+        "autonomous-printshop/migrations/0021_t12_order_schedule_v1.sql",
+        "autonomous-printshop/tests/t12_order_schedule_v1.test.mjs"
+      ],
+      "target": "persist deterministic expected-delivery metadata for native Orders; future writes must maintain the schedule at order creation/update time"
     }
   ],
   "key_rule": "No new standalone project/repo per module. All autonomous-printshop module code belongs under autonomous-printshop/ unless it must remain an upstream runtime integration file."
