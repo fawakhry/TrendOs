@@ -59,7 +59,7 @@ addOrder({
 let row=db.prepare('SELECT * FROM t12_prod_order_schedule WHERE order_id=?').get('9001');
 assert.equal(row.expected_delivery_date,'2026-10-07');
 assert.equal(row.policy_code,'LEGACY_D0_FLY_D2_STANDARD_V1');
-assert.equal(row.source,'AUTONOMOUS_PRINTSHOP_SCHEDULE_TRIGGER_V1');
+assert.equal(row.source_kind,'AUTONOMOUS_PRINTSHOP_SCHEDULE_TRIGGER_V1');
 
 addOrder({
   orderId:'9002',
