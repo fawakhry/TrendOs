@@ -1,0 +1,216 @@
+name: EasyStore A2 Accounting Readonly API Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: easystore-a2-accounting-readonly-api-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Require latest shared TrendOS base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin candidate/t12-full-cloud-cutover-a56-20260929
+          SHARED="$(git rev-parse FETCH_HEAD)"
+          git merge-base --is-ancestor "$SHARED" HEAD
+          echo A2_DEPLOY_SHARED_HEAD_INCLUDED="$SHARED"
+
+      - name: Qualify A2 accounting source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_command_foundation_v1.test.mjs
+          node tests/easystore_a2_party_writes_v1.test.mjs
+          node tests/easystore_a2_daily_purchase_custody_v1.test.mjs
+          node tests/easystore_a2_purchase_invoice_v1.test.mjs
+          node tests/easystore_a2_purchase_reversal_v1.test.mjs
+          node tests/easystore_a2_waste_stock_recalc_v1.test.mjs
+          node tests/easystore_a2_final_day_close_v1.test.mjs
+          node tests/easystore_a2_direct_sale_v1.test.mjs
+          node tests/easystore_a2_write_canary_policy_v1.test.mjs
+          echo A2_DEPLOY_SOURCE_TESTS=PASS
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Snapshot exact Production safety state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/api-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('API active version is not single 100%');
+          fs.writeFileSync('/tmp/pre-api-version.txt',full[0].id);
+          console.log('A2_DEPLOY_PRE_API_VERSION='+full[0].id);
+          NODE
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?a2deploypre=$GITHUB_RUN_ID" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/config.js?a2deploypre=$GITHUB_RUN_ID" -o /tmp/es-config.js
+
+          node <<'NODE'
+          const fs=require('fs'),ac=JSON.parse(fs.readFileSync('/tmp/accounting-pre.json','utf8')),cfg=fs.readFileSync('/tmp/es-config.js','utf8');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||Number(ac.policyEpoch||0)!==2||Number(ac.googleBusinessCalls||0)!==0) throw new Error('accounting preflight drift');
+          const m=cfg.match(/EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*(true|false)/);
+          if(m&&m[1]!=='false') throw new Error('live EasyStore D1 writes already enabled');
+          console.log('A2_DEPLOY_ACCOUNTING_PRE=READONLY');
+          console.log('A2_DEPLOY_LIVE_WRITE_FLAG='+(m?m[1]:'ABSENT_SAFE'));
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
+          " > /tmp/accounting-counts-pre.json
+
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/accounting-counts-pre.json','utf8')),rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);if(rows.length!==1)throw new Error('accounting pre-count parse');
+          const nz=Object.entries(rows[0]).filter(([,v])=>Number(v)!==0);
+          if(nz.length)throw new Error('clean accounting baseline required:'+JSON.stringify(nz));
+          console.log('A2_DEPLOY_ACCOUNTING_ROWS_PRE=0');
+          NODE
+
+      - name: Build keep-vars deploy config
+        shell: python
+        run: |
+          from pathlib import Path
+          src=Path('cloudflare-d1/wrangler.toml')
+          dst=Path('/tmp/wrangler.a2-accounting-readonly.toml')
+          lines=src.read_text().splitlines()
+          out=[]
+          in_vars=False
+          inserted=False
+          for line in lines:
+              stripped=line.strip()
+              if stripped=='[vars]':
+                  in_vars=True
+                  continue
+              if in_vars and stripped.startswith('['):
+                  in_vars=False
+              if in_vars:
+                  continue
+              out.append(line)
+              if stripped=='workers_dev = true':
+                  out.append('keep_vars = true')
+                  inserted=True
+          if not inserted: raise SystemExit('workers_dev anchor missing')
+          dst.write_text('\n'.join(out)+'\n')
+
+      - name: Deploy API code only with automatic rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-api-version.txt)"
+          CONFIG=/tmp/wrangler.a2-accounting-readonly.toml
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "A2 accounting readonly automatic rollback" --config "$CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$CONFIG" >/tmp/a2-deploy.log
+          DEPLOYED=1
+          sleep 3
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?a2deploypost=$GITHUB_RUN_ID" -o "/tmp/$f-post.json"
+          done
+
+          node <<'NODE'
+          const fs=require('fs');
+          const pre=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const post=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          for(const n of ['auth','legacy-action','ops','content','comms','core']){
+            const a=pre(n),b=post(n);
+            for(const k of ['mode','policyEpoch','enabled','allowedPolicyCount','schemaReady']){
+              if(a[k]!==undefined&&b[k]!==a[k]) throw new Error(n+' '+k+' drift');
+            }
+          }
+          const ac=post('accounting');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||Number(ac.policyEpoch||0)!==2||Number(ac.googleBusinessCalls||0)!==0) throw new Error('accounting post drift');
+          if(ac.writeCanaryReady!==true||ac.writeCanaryEnabled!==true||Number(ac.writeCanaryAllowedUserCount||0)!==0||Number(ac.writeCanaryAllowedActionCount||0)!==0) throw new Error('write canary default deny not live');
+          console.log('A2_DEPLOY_ACCOUNTING_POST=READONLY');
+          console.log('A2_DEPLOY_CANARY_DEFAULT_DENY=PASS');
+          console.log('A2_DEPLOY_CROSS_FAMILY_HEALTH=PASS');
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
+          " > /tmp/accounting-counts-post.json
+          cmp -s /tmp/accounting-counts-pre.json /tmp/accounting-counts-post.json
+
+          trap - ERR
+          echo A2_ACCOUNTING_READONLY_API_DEPLOY=PASS
+          echo A2_PRODUCTION_BUSINESS_DATA_MUTATION=NO
+          echo A2_RUNTIME_MODE=READONLY
+          echo A2_FRONTEND_WRITE_FLAG_CHANGED=NO
