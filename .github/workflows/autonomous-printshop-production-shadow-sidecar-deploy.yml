@@ -1,0 +1,152 @@
+name: Autonomous Printshop Production Shadow Sidecar Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'autonomous-printshop/production-shadow/**'
+      - 'autonomous-printshop/core/operational-reality-v1.mjs'
+      - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-production-shadow-sidecar
+  cancel-in-progress: false
+
+jobs:
+  deploy-readonly-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      SHADOW_URL: https://autonomous-printshop-shadow.trendmall-contact.workers.dev
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Hard safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Eq '^name = "autonomous-printshop-shadow"$' "$CONFIG"
+          grep -Eq '^main = "worker\.mjs"$' "$CONFIG"
+          grep -Eq '^database_name = "trendos-main"$' "$CONFIG"
+          grep -Eq '^database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"$' "$CONFIG"
+
+          worker='autonomous-printshop/production-shadow/worker.mjs'
+          ! grep -Eiq "\\bINSERT[[:space:]]+INTO\\b|\\bDELETE[[:space:]]+FROM\\b|\\bREPLACE[[:space:]]+INTO\\b|\\bCREATE[[:space:]]+TABLE\\b|\\bDROP[[:space:]]+TABLE\\b|\\bALTER[[:space:]]+TABLE\\b" "$worker"
+          ! grep -Eq '\.run[[:space:]]*\(|\.batch[[:space:]]*\(' "$worker"
+
+          workflow='.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml'
+          ! grep -Eq 'd1[[:space:]]+migrations[[:space:]]+apply|secret[[:space:]]+(put|bulk)' "$workflow"
+
+          echo 'ISOLATED_WORKER=YES'
+          echo 'D1_WRITE_CODE=NO'
+          echo 'MIGRATION=NO'
+          echo 'SECRET_CHANGE=NO'
+
+      - name: Run shadow contracts
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/tests/operational_reality_v1.test.mjs
+          node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
+          node --check autonomous-printshop/production-shadow/worker.mjs
+
+      - name: Main TrendOS production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-pre.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/trendos-pre.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_PREDEPLOY_PASS');
+          NODE
+
+      - name: Wrangler dry-run isolated shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/autonomous-printshop-shadow-build
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config "$CONFIG" --outdir /tmp/autonomous-printshop-shadow-build
+          test -d /tmp/autonomous-printshop-shadow-build
+          echo 'SHADOW_DRYRUN_PASS'
+
+      - name: Deploy isolated production shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config "$CONFIG"
+          echo 'DEPLOYED=1' >> "$GITHUB_ENV"
+          sleep 5
+          echo 'AUTONOMOUS_PRINTSHOP_SHADOW_DEPLOYED'
+
+      - name: Verify shadow health and real production snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SHADOW_URL/health" > /tmp/shadow-health.json
+          snapshot_code="$(curl --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --output /tmp/shadow-snapshot.json --write-out '%{http_code}' "$SHADOW_URL/snapshot")"
+          export SNAPSHOT_CODE="$snapshot_code"
+          cat /tmp/shadow-health.json
+          echo
+          cat /tmp/shadow-snapshot.json
+          echo
+
+          node - <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('/tmp/shadow-health.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/shadow-snapshot.json','utf8'));
+          const code=process.env.SNAPSHOT_CODE;
+          if(h.success!==true||h.database!==true||h.mode!=='PRODUCTION_SHADOW_READ_ONLY') process.exit(1);
+          if(h.writesAccepted!==false||h.d1Mutation!==false||h.employeeAssignment!==false||h.piiExposed!==false) process.exit(2);
+          if(code!=='200'||s.success!==true||s.mode!=='PRODUCTION_SHADOW_READ_ONLY') process.exit(3);
+          if(s.writesAccepted!==false||s.d1Mutation!==false||s.employeeAssignment!==false) process.exit(4);
+          if(s.piiExposed!==false||s.rawOrderIdsExposed!==false||s.rawLineIdsExposed!==false) process.exit(5);
+          if(!s.source||s.source.authority!=='trendos-main-d1') process.exit(6);
+          console.log('PRODUCTION_SHADOW_LIVE_SNAPSHOT_PASS');
+          console.log('SHADOW_COUNTS='+JSON.stringify(s.counts||{}));
+          console.log('SHADOW_RECOMMENDATION='+JSON.stringify(s.recommendation||{}));
+          NODE
+
+      - name: Verify main TrendOS remains unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-post.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/trendos-post.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_POSTDEPLOY_PASS');
+          NODE
+
+      - name: Remove isolated worker on post-deploy failure
+        if: ${{ failure() && env.DEPLOYED == '1' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo 'Shadow verification failed; deleting isolated sidecar only.'
+          npx --yes wrangler@${WRANGLER_VERSION} delete --config "$CONFIG" --force
+
+      - name: Safety conclusion
+        if: ${{ success() }}
+        run: |
+          echo 'AUTONOMOUS_PRINTSHOP_PRODUCTION_SHADOW=LIVE'
+          echo 'AUTHORITY=READ_ONLY_D1'
+          echo 'MAIN_TRENDOS_WORKER_CHANGED=NO'
+          echo 'D1_MUTATION=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
