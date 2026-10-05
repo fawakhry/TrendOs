@@ -3821,3 +3821,58 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - No frontend canary was deployed in this gate.
 - Next gate:
   `ENTRY623_DIYA_FRONTEND_CANARY_CONTROLLED_DEPLOY`
+
+
+#### Entry623 — Diya frontend canary controlled deploy PASS
+- Controlled workflow:
+  - `.github/workflows/trendos-entry623-diya-frontend-canary-controlled.yml`
+  - workflow commit: `63667553813419ebc63b8f01700686c94895403a`
+  - Run: `37357927682`
+  - Job: `111924967218`
+  - conclusion = **SUCCESS**.
+- Exact-live patch strategy:
+  - live Production bundle was read first and used as the deploy base;
+  - only Entry623 canary config and the qualified canary-capable employee dispatcher were introduced;
+  - automatic rollback to pre-canary frontend version was armed but not invoked.
+- Previous Production frontend version:
+  - `bfcc6f85-a748-4b66-a334-b605c72108f7`
+- New Production frontend version:
+  - `33013d71-2de4-4f1f-924a-131f045a815b`
+- Live canary config independently verified:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=true
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=['ضياء']
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=17
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=true
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICY_COUNT=17
+  MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE=GENERAL
+  MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE=READONLY
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Live dispatcher independently verified as canary-capable and includes runtime Auth/Bridge preflight before routing selected-canary actions.
+- Production backend postflight remained:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  ```
+- Boundaries:
+  ```ini
+  API_CODE_DEPLOY=NO
+  D1_MUTATION=NO
+  ACCOUNTING_TOUCHED=NO
+  EASYSTORE_TOUCHED=NO
+  NON_CANARY_SCOPE=UNCHANGED_BY_CONFIG_ALLOWLIST
+  ```
+- Next gate:
+  `ENTRY623_DIYA_FIRST_LOGIN_BOOTSTRAP_RUNTIME_SMOKE`
