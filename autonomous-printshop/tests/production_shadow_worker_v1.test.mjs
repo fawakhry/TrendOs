@@ -15,8 +15,14 @@ assert.match(worker,/writesAccepted:false/);
 assert.match(worker,/d1Mutation:false/);
 assert.match(worker,/employeeAssignment:false/);
 assert.match(worker,/SELECT 1 AS ok/);
-assert.match(worker,/FROM sheet_catalog/);
-assert.match(worker,/FROM sheet_rows/);
+assert.match(worker,/employee_zero_google_backfill_runs_v1/);
+assert.match(worker,/employee_zero_google_parity_v1/);
+assert.match(worker,/employee_core_lines_v1/);
+assert.match(worker,/t12_legacy_line_runtime/);
+assert.match(worker,/t12_prod_lines/);
+assert.match(worker,/t12_prod_line_runtime/);
+assert.match(worker,/BACKFILL_TOO_OLD_FOR_SHADOW/);
+assert.match(config,/AUTONOMOUS_SHADOW_BACKFILL_MAX_AGE_SECONDS = "172800"/);
 
 for(const forbidden of [
   /\bINSERT\s+INTO\b/i,
