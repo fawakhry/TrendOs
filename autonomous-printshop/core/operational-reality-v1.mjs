@@ -12,7 +12,8 @@ export const REALITY_LANES = Object.freeze({
   ORDINARY: 'ORDINARY',
   FLY_PRINT: 'FLY_PRINT',
   CLOSED: 'CLOSED',
-  EXCEPTION: 'EXCEPTION'
+  EXCEPTION: 'EXCEPTION',
+  IN_PROGRESS: 'IN_PROGRESS'
 });
 
 export const REALITY_REASONS = Object.freeze({
@@ -31,7 +32,9 @@ export const REALITY_REASONS = Object.freeze({
   DEPARTMENT_MISMATCH: 'DEPARTMENT_MISMATCH',
   OPERATOR_UNAVAILABLE: 'OPERATOR_UNAVAILABLE',
   ACTIVE_TASK_EXISTS: 'ACTIVE_TASK_EXISTS',
-  NO_ELIGIBLE_TASK: 'NO_ELIGIBLE_TASK'
+  NO_ELIGIBLE_TASK: 'NO_ELIGIBLE_TASK',
+  STATUS_NOT_DISPATCHABLE: 'STATUS_NOT_DISPATCHABLE',
+  STATUS_BLOCKED: 'STATUS_BLOCKED'
 });
 
 const CLOSED = new Set([
@@ -94,6 +97,18 @@ function parseDue(v){
 function isUrgent(row){
   const p=norm(first(row,['priority','الأولوية','Priority']));
   return p.includes('عاجل') || p==='vip';
+}
+
+function dispatchableStatus(status, options={}){
+  const configured=Array.isArray(options.eligibleStatuses)&&options.eligibleStatuses.length
+    ? options.eligibleStatuses
+    : ['طلب جديد'];
+  const allowed=new Set(configured.map(norm));
+  return allowed.has(norm(status)||norm('طلب جديد'));
+}
+function blockedStatus(status){
+  const s=norm(status);
+  return ['متوقف','مشكله/متوقف','مشكلة/متوقف','بانتظار العميل','انتظار العميل'].map(norm).includes(s);
 }
 function isFlyPrint(row){
   const v=first(row,['flyPrint','quickPrint','fastPrint','طباعة على الطاير','طباعة ع الطاير','Fly Print']);
@@ -159,6 +174,8 @@ export function classifyOperationalLineV1(line, options={}){
   if(!line.lineId) return {lane:REALITY_LANES.EXCEPTION,reason:REALITY_REASONS.LINE_ID_REQUIRED};
   if(CLOSED.has(norm(line.status))) return {lane:REALITY_LANES.CLOSED,reason:REALITY_REASONS.CLOSED};
   if(line.flyPrint) return {lane:REALITY_LANES.FLY_PRINT,reason:REALITY_REASONS.FLY_PRINT_OUTSIDE_TASKS};
+  if(blockedStatus(line.status)) return {lane:REALITY_LANES.EXCEPTION,reason:REALITY_REASONS.STATUS_BLOCKED};
+  if(!dispatchableStatus(line.status,options)) return {lane:REALITY_LANES.IN_PROGRESS,reason:REALITY_REASONS.STATUS_NOT_DISPATCHABLE};
   if(dept && norm(line.department)!==dept) return {lane:REALITY_LANES.EXCEPTION,reason:REALITY_REASONS.DEPARTMENT_MISMATCH,filtered:true};
   if(line.dueMissing) return {lane:REALITY_LANES.EXCEPTION,reason:REALITY_REASONS.DUE_DATE_REQUIRED};
   if(!line.dueValid) return {lane:REALITY_LANES.EXCEPTION,reason:REALITY_REASONS.DUE_DATE_INVALID};
@@ -178,7 +195,7 @@ export function classifyOperationalLineV1(line, options={}){
 }
 
 export function buildOperationalRealityV1(rows=[], options={}){
-  const ordinary=[],exceptions=[],closed=[],flyPrint=[];
+  const ordinary=[],exceptions=[],closed=[],flyPrint=[],inProgress=[];
   (Array.isArray(rows)?rows:[]).forEach((row,index)=>{
     const line=normalizeOperationalLineV1(row,index);
     const cls=classifyOperationalLineV1(line,options);
@@ -188,6 +205,7 @@ export function buildOperationalRealityV1(rows=[], options={}){
     else if(cls.lane===REALITY_LANES.EXCEPTION) exceptions.push(out);
     else if(cls.lane===REALITY_LANES.CLOSED) closed.push(out);
     else if(cls.lane===REALITY_LANES.FLY_PRINT) flyPrint.push(out);
+    else if(cls.lane===REALITY_LANES.IN_PROGRESS) inProgress.push(out);
   });
   ordinary.sort((a,b)=>{
     if(a.urgent!==b.urgent) return a.urgent?-1:1;
@@ -201,11 +219,13 @@ export function buildOperationalRealityV1(rows=[], options={}){
     exceptions,
     closed,
     flyPrint,
+    inProgress,
     counts:{
       ordinary:ordinary.length,
       exceptions:exceptions.length,
       closed:closed.length,
-      flyPrint:flyPrint.length
+      flyPrint:flyPrint.length,
+      inProgress:inProgress.length
     }
   };
 }
