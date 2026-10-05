@@ -1364,3 +1364,135 @@ PRODUCTION_WRITE=NO
 
 Next implementation target:
 `D1 Operator Task Authority schema + pure claim/complete core, default OFF`.
+
+
+### AP-010 — Live Production Shadow entered service
+
+An isolated Cloudflare Worker was deployed for the autonomous-printshop program:
+
+- Worker: `autonomous-printshop-shadow`
+- URL: `https://autonomous-printshop-shadow.trendmall-contact.workers.dev`
+- Authority: read-only access to `trendos-main` D1.
+- Main TrendOS Worker changed: NO.
+- Business write authority changed: NO.
+- Employee assignment changed: NO.
+- PII/raw Order IDs/raw Line IDs exposed by the shadow API: NO.
+
+The Worker qualifies the current Zero-Google operational truth before producing a snapshot:
+- committed Entry615 backfill run required;
+- exact source snapshot SHA required;
+- committed target counts must match current D1 counts;
+- imported/native Order and Line identity overlap must be zero;
+- failed parity rows fail closed;
+- T12 runtime overlays are applied on top of the qualified baseline.
+
+Hourly monitor:
+`.github/workflows/autonomous-printshop-production-shadow-monitor.yml`
+
+First qualified live snapshot after source qualification:
+- source rows: 458
+- source composition:
+  - Entry615 import + legacy runtime: 211
+  - T12 native + runtime: 247
+- main TrendOS health preserved.
+- D1 mutation from shadow Worker: NO.
+
+Production qualification/deploy evidence:
+- Sidecar deployment Run `37247648334` — SUCCESS.
+- Hourly monitor Run `37247671075` — SUCCESS.
+
+```ini
+AUTONOMOUS_PRINTSHOP_PRODUCTION_SHADOW=LIVE
+MODE=PRODUCTION_SHADOW_READ_ONLY
+MAIN_TRENDOS_WORKER_CHANGED=NO
+D1_BUSINESS_WRITE=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+
+### AP-011 — Autonomy and Operator Task D1 foundations applied Default-OFF
+
+The corrected additive D1 foundations were applied to `trendos-main` by controlled workflow.
+
+Applied:
+- `0019_autonomy_events_v1.sql`
+- `0020_operator_task_authority_v1.sql`
+
+Verified after apply:
+- Autonomy tables = 4.
+- `autonomy_control.mode=OFF`.
+- Operator Task authority tables = 4.
+- `operator_task_control.mode=OFF`.
+- autonomy decision event count = 0.
+- operator task count = 0.
+- employee assignment behavior changed = NO.
+- business order write behavior changed = NO.
+
+Controlled Production evidence:
+- Run `37247713195` — SUCCESS.
+
+```ini
+AUTONOMY_SCHEMA=APPLIED_DEFAULT_OFF
+OPERATOR_TASK_SCHEMA=APPLIED_DEFAULT_OFF
+AUTOPILOT=OFF
+OPERATOR_TASK_AUTHORITY=OFF
+LIVE_TASK_ASSIGNMENT=NO
+```
+
+
+### AP-012 — Native Order Schedule metadata applied and consumed by Production Shadow
+
+The production shadow initially failed closed on Native pending work because T12 Native Orders did not persist an expected-delivery field usable by the scheduler.
+
+Readonly diagnostic proved:
+- native Orders = 226;
+- first Native created_at = 2026-09-27 19:45:21 UTC;
+- last Native created_at = 2026-10-04 18:38:51 UTC;
+- Fly Print Orders = 18.
+
+Added and applied:
+`autonomous-printshop/migrations/0021_t12_order_schedule_v1.sql`
+
+Policy preserved from legacy TrendOS:
+- Fly Print -> same Cairo local business date.
+- Standard work -> Cairo local registration date + 2 calendar days.
+
+Post-apply Production proof:
+- native Orders = 226;
+- schedule rows = 226;
+- missing schedule rows = 0;
+- policy mismatches = 0;
+- policy rows = 226.
+
+Controlled apply:
+- Run `37299705413` — SUCCESS.
+
+Production Shadow now treats the schedule table as a required qualification gate. If schedule coverage/policy diverges, it fails closed.
+
+Latest qualified Shadow deployment:
+- Run `37299839572` — SUCCESS.
+- Worker Version ID `74dae02f-3280-4907-a746-0bde6ec3a058`.
+
+Live snapshot after schedule activation:
+- ordinary dispatch candidates = 30;
+- due-date exceptions = 0;
+- closed = 417;
+- in-progress = 11;
+- recommendation exists = YES;
+- recommendation department = Laser;
+- recommendation priority = Normal;
+- business mutation = NO.
+
+```ini
+NATIVE_ORDER_SCHEDULE=PRODUCTION_APPLIED
+SCHEDULE_ROWS=226
+SCHEDULE_MISSING=0
+SCHEDULE_POLICY_MISMATCH=0
+PRODUCTION_SHADOW_ORDINARY=30
+PRODUCTION_SHADOW_EXCEPTIONS=0
+PRODUCTION_SHADOW_RECOMMENDATION=YES
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+Next:
+`Employee Supervisor Shadow -> active-task/availability/readiness inputs -> controlled Operator Task Canary`.
