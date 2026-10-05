@@ -559,20 +559,132 @@ async function dailyDepartmentReportV1(env,auth,b){
 }
 
 
+
+function componentRowsV1(value){
+  const rows=parseJson(value,[]);
+  if(!Array.isArray(rows))return [];
+  return rows.map(x=>({
+    materialId:text(x&&x.materialId),
+    materialName:text(x&&x.materialName||x&&x.material||x&&x.name),
+    qty:num(x&&x.qty||x&&x.quantity||x&&x.consumption||x&&x.unitConsumption),
+    extraCost:num(x&&x.extraCost||x&&x.extra)
+  })).filter(x=>x.materialId||x.materialName);
+}
+function materialIsCompositeV1(row){
+  const k=key(row&&row.material_kind);
+  return k==='composite'||k.includes('مكونات')||componentRowsV1(row&&row.components_json).length>0;
+}
+async function accountingCostGraphV1(env){
+  const materials=await rows(env,"SELECT material_id,department,material_name,material_kind,unit_cost,computed_unit_cost,components_json,active,version FROM employee_accounting_materials_v1 ORDER BY material_id");
+  const byId=new Map(materials.map(x=>[text(x.material_id),x]));
+  const byName=new Map();
+  for(const m of materials){
+    const k=key(m.material_name);
+    if(!byName.has(k))byName.set(k,[]);
+    byName.get(k).push(m);
+  }
+  function resolveComponent(parent,c){
+    if(c.materialId&&byId.has(c.materialId))return byId.get(c.materialId);
+    const list=byName.get(key(c.materialName))||[];
+    return list.find(x=>text(x.department)===text(parent.department))
+      ||list.find(x=>text(x.department)==='مشترك')
+      ||list.find(x=>text(x.department)==='')
+      ||list[0]
+      ||null;
+  }
+  const cache=new Map(),visiting=new Set();
+  function costOf(row,path=[]){
+    const id=text(row.material_id);
+    if(cache.has(id))return cache.get(id);
+    if(visiting.has(id))throw commandErrorV1('accounting-material-cost-cycle','توجد دائرة مغلقة في مكونات الخامات: '+[...path,text(row.material_name)].join(' > '));
+    visiting.add(id);
+    const comps=componentRowsV1(row.components_json);
+    let total=num(row.unit_cost);
+    if(comps.length){
+      total=0;
+      for(const c of comps){
+        if(!(c.qty>0))throw commandErrorV1('accounting-material-component-invalid','كمية مكون الخامة يجب أن تكون أكبر من صفر: '+text(row.material_name));
+        const child=resolveComponent(row,c);
+        if(!child)throw commandErrorV1('accounting-material-component-missing','المكون غير مسجل ضمن الخامات: '+(c.materialName||c.materialId));
+        total+=c.qty*costOf(child,[...path,text(row.material_name)])+c.extraCost;
+      }
+    }
+    visiting.delete(id);
+    const rounded=Number(total.toFixed(6));
+    cache.set(id,rounded);
+    return rounded;
+  }
+  for(const m of materials)if(Number(m.active||0)===1)costOf(m,[]);
+  return {materials,byId,byName,costs:cache,resolveComponent};
+}
+async function recalcAccountingMaterialsCascadeV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'تحديث تكاليف الخامات والأصناف عند ضياء فقط.'};
+  const ctx=await beginCommandV1(env,auth,'material-cost-cascade',b||{});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const graph=await accountingCostGraphV1(env),statements=[],now=Date.now();
+  let materialCount=0,templateCount=0,changedMaterials=0,changedTemplates=0;
+  for(const m of graph.materials){
+    if(Number(m.active||0)!==1)continue;
+    const computed=graph.costs.get(text(m.material_id));
+    if(computed===undefined)continue;
+    materialCount++;
+    if(Math.abs(num(m.computed_unit_cost)-computed)>0.0000005)changedMaterials++;
+    if(materialIsCompositeV1(m)){
+      statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET computed_unit_cost=?,unit_cost=?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=?").bind(computed,computed,auth.user.username,m.material_id,Math.max(1,Math.trunc(num(m.version,1)))));
+    }else{
+      statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET computed_unit_cost=?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=?").bind(computed,auth.user.username,m.material_id,Math.max(1,Math.trunc(num(m.version,1)))));
+    }
+  }
+  const templates=await rows(env,"SELECT template_id,department,item_name,fixed_cost,computed_cost,components_json,active,version FROM employee_accounting_templates_v1 ORDER BY template_id");
+  for(const t of templates){
+    if(Number(t.active||0)!==1)continue;
+    const comps=componentRowsV1(t.components_json);
+    let computed=num(t.fixed_cost);
+    if(comps.length){
+      computed=0;
+      for(const c of comps){
+        if(!(c.qty>0))throw commandErrorV1('accounting-template-component-invalid','كمية مكون الصنف يجب أن تكون أكبر من صفر: '+text(t.item_name));
+        const parent={department:t.department},child=graph.resolveComponent(parent,c);
+        if(!child)throw commandErrorV1('accounting-template-component-missing','المكون غير مسجل ضمن الخامات: '+(c.materialName||c.materialId));
+        const childCost=graph.costs.get(text(child.material_id));
+        computed+=c.qty*num(childCost)+c.extraCost;
+      }
+    }
+    computed=Number(computed.toFixed(6));templateCount++;
+    if(Math.abs(num(t.computed_cost)-computed)>0.0000005)changedTemplates++;
+    statements.push(env.DB.prepare("UPDATE employee_accounting_templates_v1 SET computed_cost=?,fixed_cost=?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE template_id=? AND version=?").bind(computed,computed,auth.user.username,t.template_id,Math.max(1,Math.trunc(num(t.version,1)))));
+  }
+  if(statements.length)await env.DB.batch(statements);
+  const response={success:true,materialCount,templateCount,changedMaterials,changedTemplates,calculatedAtMs:now,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'material-cost-cascade','all','recalculate',auth.user.username,response);
+  return response;
+}
+
 async function saveMaterial(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إضافة وتعديل الخامات عند ضياء فقط.'};
   const name=text(b.materialName||b.name);if(!name)return {success:false,message:'اسم الخامة مطلوب.'};
-  const department=text(b.department)||'طباعة',components=parseJson(b.componentsJson||b.components,[]);
+  const department=text(b.department)||'طباعة',components=componentRowsV1(b.componentsJson||b.components);
+  if((b.componentsJson||b.components)&&!Array.isArray(parseJson(b.componentsJson||b.components,null)))return {success:false,message:'صيغة مكونات الخامة غير صحيحة.'};
+  for(const c of components)if(!(c.qty>0))return {success:false,message:'كل مكون خامة يجب أن تكون كميته أكبر من صفر.'};
   const existing=await env.DB.prepare("SELECT material_id,version FROM employee_accounting_materials_v1 WHERE department=? AND material_name=?").bind(department,name).first();
-  const id=existing?existing.material_id:uid('MAT'),version=existing?Number(existing.version||1)+1:1;
-  const unitCost=num(b.unitCost||b.cost),computed=num(b.computedUnitCost||b.calculatedCost,unitCost);
-  await env.DB.prepare(`
-    INSERT INTO employee_accounting_materials_v1(material_id,department,material_name,material_kind,material_class,unit,stock_qty,min_stock,unit_cost,computed_unit_cost,official_sale_price,components_json,formula,notes,active,raw_json,updated_by,version)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(department,material_name) DO UPDATE SET material_kind=excluded.material_kind,material_class=excluded.material_class,unit=excluded.unit,stock_qty=excluded.stock_qty,min_stock=excluded.min_stock,unit_cost=excluded.unit_cost,computed_unit_cost=excluded.computed_unit_cost,official_sale_price=excluded.official_sale_price,components_json=excluded.components_json,formula=excluded.formula,notes=excluded.notes,active=excluded.active,raw_json=excluded.raw_json,updated_by=excluded.updated_by,version=excluded.version,updated_at=CURRENT_TIMESTAMP
-  `).bind(id,department,name,text(b.materialKind),text(b.materialClass),text(b.unit),num(b.stockQty||b.stock),num(b.minStock),unitCost,computed,num(b.salePrice||b.officialSalePrice),JSON.stringify(Array.isArray(components)?components:[]),text(b.formula),text(b.notes),text(b.active)==='لا'?0:1,JSON.stringify(b),auth.user.username,version).run();
-  await event(env,'material',id,existing?'update':'create',auth.user.username,{department,name,version});
-  return {success:true,message:existing?'الخامة موجودة وتم تحديثها.':'تم حفظ الخامة.',updated:!!existing,id,version};
+  const id=existing?text(existing.material_id):text(b.materialId||b.id)||uid('MAT');
+  const ctx=await beginCommandV1(env,auth,'material-upsert',{...b,materialId:id,materialName:name,department});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const version=existing?Math.max(1,Math.trunc(num(existing.version,1)))+1:1;
+  const unitCost=num(b.unitCost||b.cost),computed=num(b.computedUnitCost||b.calculatedUnitCost||b.calculatedCost,unitCost);
+  const active=['0','false','لا','موقوف','inactive'].includes(key(b.active))?0:1;
+  const rawWidth=num(b.rawWidth||b.width),rawHeight=num(b.rawHeight||b.height);
+  if(existing){
+    const r=await env.DB.prepare("UPDATE employee_accounting_materials_v1 SET material_kind=?,material_class=?,unit=?,stock_qty=?,min_stock=?,unit_cost=?,computed_unit_cost=?,official_sale_price=?,components_json=?,formula=?,notes=?,active=?,raw_json=?,updated_by=?,raw_width=?,raw_height=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? RETURNING version").bind(text(b.materialKind),text(b.materialClass),text(b.unit),num(b.stockQty||b.stock),num(b.minStock),unitCost,computed,num(b.salePrice||b.officialSalePrice),JSON.stringify(components),text(b.formula),text(b.notes),active,JSON.stringify(b),auth.user.username,rawWidth,rawHeight,id,Math.max(1,Math.trunc(num(existing.version,1)))).first();
+    if(!r)throw commandErrorV1('accounting-material-version-conflict','تم تعديل الخامة بالتزامن. حدّث البيانات ثم أعد المحاولة بمعرف طلب جديد.');
+  }else{
+    await env.DB.prepare("INSERT INTO employee_accounting_materials_v1(material_id,department,material_name,material_kind,material_class,unit,stock_qty,min_stock,unit_cost,computed_unit_cost,official_sale_price,components_json,formula,notes,active,raw_json,updated_by,version,raw_width,raw_height) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,department,name,text(b.materialKind),text(b.materialClass),text(b.unit),num(b.stockQty||b.stock),num(b.minStock),unitCost,computed,num(b.salePrice||b.officialSalePrice),JSON.stringify(components),text(b.formula),text(b.notes),active,JSON.stringify(b),auth.user.username,version,rawWidth,rawHeight).run();
+  }
+  const response={success:true,message:existing?'الخامة موجودة وتم تحديثها.':'تم حفظ الخامة.',updated:!!existing,id,materialId:id,version};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'material',id,existing?'update':'create',auth.user.username,{department,name,version,rawWidth,rawHeight,componentCount:components.length});
+  return response;
 }
 async function materialCost(env,name){
   if(!text(name))return 0;
@@ -582,26 +694,34 @@ async function materialCost(env,name){
 async function saveTemplate(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إضافة البنود الثابتة عند ضياء فقط.'};
   const name=text(b.itemName||b.templateName||b.productName||b.name);if(!name)return {success:false,message:'اسم البند الثابت مطلوب.'};
-  const department=text(b.department)||'طباعة',components=parseJson(b.componentsJson||b.components,[]);
-  if((b.componentsJson||b.components)&&!Array.isArray(components))return {success:false,message:'صيغة مكونات الصنف غير صحيحة.'};
+  const department=text(b.department)||'طباعة',components=componentRowsV1(b.componentsJson||b.components);
+  if((b.componentsJson||b.components)&&!Array.isArray(parseJson(b.componentsJson||b.components,null)))return {success:false,message:'صيغة مكونات الصنف غير صحيحة.'};
   let calculated=0;
-  if(Array.isArray(components)&&components.length){
+  if(components.length){
+    const graph=await accountingCostGraphV1(env);
     for(const c of components){
-      const n=text(c.materialName||c.material||c.name),q=num(c.qty||c.quantity||c.consumption||c.unitConsumption);
-      if(!n||!(q>0))return {success:false,message:'كل مكون يجب أن يحتوي على اسم خامة وكمية أكبر من صفر.'};
-      const cost=await materialCost(env,n);if(!(cost>=0))return {success:false,message:'المكون غير مسجل ضمن الخامات الأساسية: '+n};
-      calculated+=cost*q;
+      if(!(c.qty>0))return {success:false,message:'كل مكون يجب أن يحتوي على اسم خامة وكمية أكبر من صفر.'};
+      const child=graph.resolveComponent({department},c);
+      if(!child)return {success:false,message:'المكون غير مسجل ضمن الخامات الأساسية: '+(c.materialName||c.materialId)};
+      calculated+=c.qty*num(graph.costs.get(text(child.material_id)))+c.extraCost;
     }
-  } else calculated=num(b.calculatedUnitCost||b.computedUnitCost||b.fixedCost||b.cost||b.unitCost);
+  }else calculated=num(b.calculatedUnitCost||b.computedUnitCost||b.fixedCost||b.cost||b.unitCost);
+  calculated=Number(calculated.toFixed(6));
   const existing=await env.DB.prepare("SELECT template_id,version FROM employee_accounting_templates_v1 WHERE department=? AND item_name=?").bind(department,name).first();
-  const id=existing?existing.template_id:uid('TPL'),version=existing?Number(existing.version||1)+1:1;
-  await env.DB.prepare(`
-    INSERT INTO employee_accounting_templates_v1(template_id,department,category,item_name,size,material_name,output_count,ink_cost,fixed_cost,computed_cost,suggested_sale_price,components_json,notes,active,raw_json,updated_by,version)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(department,item_name) DO UPDATE SET category=excluded.category,size=excluded.size,material_name=excluded.material_name,output_count=excluded.output_count,ink_cost=excluded.ink_cost,fixed_cost=excluded.fixed_cost,computed_cost=excluded.computed_cost,suggested_sale_price=excluded.suggested_sale_price,components_json=excluded.components_json,notes=excluded.notes,active=excluded.active,raw_json=excluded.raw_json,updated_by=excluded.updated_by,version=excluded.version,updated_at=CURRENT_TIMESTAMP
-  `).bind(id,department,text(b.category||b.itemType||'صنف بيع'),name,text(b.size),text(b.materialName),num(b.outputCount),num(b.inkCost),calculated,calculated,num(b.salePrice||b.price||b.systemSale),JSON.stringify(Array.isArray(components)?components:[]),text(b.notes),text(b.active)==='لا'?0:1,JSON.stringify(b),auth.user.username,version).run();
-  await event(env,'template',id,existing?'update':'create',auth.user.username,{department,name,version});
-  return {success:true,message:existing?'الصنف موجود وتم تحديثه بدل إضافته مرة أخرى.':'تم حفظ الصنف.',updated:!!existing,calculatedCost:calculated,componentsJson:JSON.stringify(Array.isArray(components)?components:[]),version:'ENTRY614_D1_ACCOUNTING_V1'};
+  const id=existing?text(existing.template_id):text(b.templateId||b.id)||uid('TPL');
+  const ctx=await beginCommandV1(env,auth,'template-upsert',{...b,templateId:id,itemName:name,department,components});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const active=['0','false','لا','موقوف','inactive'].includes(key(b.active))?0:1,version=existing?Math.max(1,Math.trunc(num(existing.version,1)))+1:1;
+  if(existing){
+    const r=await env.DB.prepare("UPDATE employee_accounting_templates_v1 SET category=?,size=?,material_name=?,output_count=?,ink_cost=?,fixed_cost=?,computed_cost=?,suggested_sale_price=?,components_json=?,notes=?,active=?,raw_json=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE template_id=? AND version=? RETURNING version").bind(text(b.category||b.itemType||'صنف بيع'),text(b.size),text(b.materialName),num(b.outputCount),num(b.inkCost),calculated,calculated,num(b.salePrice||b.price||b.systemSale),JSON.stringify(components),text(b.notes),active,JSON.stringify(b),auth.user.username,id,Math.max(1,Math.trunc(num(existing.version,1)))).first();
+    if(!r)throw commandErrorV1('accounting-template-version-conflict','تم تعديل الصنف بالتزامن. حدّث البيانات ثم أعد المحاولة بمعرف طلب جديد.');
+  }else{
+    await env.DB.prepare("INSERT INTO employee_accounting_templates_v1(template_id,department,category,item_name,size,material_name,output_count,ink_cost,fixed_cost,computed_cost,suggested_sale_price,components_json,notes,active,raw_json,updated_by,version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,department,text(b.category||b.itemType||'صنف بيع'),name,text(b.size),text(b.materialName),num(b.outputCount),num(b.inkCost),calculated,calculated,num(b.salePrice||b.price||b.systemSale),JSON.stringify(components),text(b.notes),active,JSON.stringify(b),auth.user.username,version).run();
+  }
+  const response={success:true,message:existing?'الصنف موجود وتم تحديثه بدل إضافته مرة أخرى.':'تم حفظ الصنف.',updated:!!existing,id,templateId:id,calculatedCost:calculated,componentsJson:JSON.stringify(components),version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'template',id,existing?'update':'create',auth.user.username,{department,name,calculated,componentCount:components.length});
+  return response;
 }
 async function saveDeptLine(env,auth,b){
   if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'إضافة بنود حسابات القسم غير مسموحة.'};
