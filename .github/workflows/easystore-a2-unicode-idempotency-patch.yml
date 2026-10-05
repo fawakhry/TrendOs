@@ -1,0 +1,45 @@
+name: EasyStore A2 Unicode Idempotency Patch
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a2-unicode-idempotency-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Patch Unicode-safe request keys
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('cloudflare-d1/src/employee-accounting-native-v1.mjs')
+          s=p.read_text()
+          old="if(!/^[A-Za-z0-9_:.\\-]{12,180}$/.test(requestKey))throw commandErrorV1('accounting-idempotency-key-required','requestId/idempotencyKey صالح مطلوب لتأمين الحركة.');"
+          new="if(!/^[\\p{L}\\p{N}_:.\\-]{12,180}$/u.test(requestKey))throw commandErrorV1('accounting-idempotency-key-required','requestId/idempotencyKey صالح مطلوب لتأمين الحركة.');"
+          if old not in s:
+              raise SystemExit('idempotency regex anchor missing')
+          p.write_text(s.replace(old,new))
+      - name: Validate
+        run: |
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          grep -F "\\p{L}" cloudflare-d1/src/employee-accounting-native-v1.mjs
+      - name: Commit patch
+        run: |
+          git config user.name "fawakhry"
+          git config user.email "87904105+fawakhry@users.noreply.github.com"
+          git add cloudflare-d1/src/employee-accounting-native-v1.mjs
+          git commit -m "accounting: allow Unicode-safe idempotency keys"
+          git push origin HEAD:candidate/easystore-accounting-a2-20261005
