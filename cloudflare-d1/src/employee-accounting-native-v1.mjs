@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -314,6 +314,193 @@ async function calculateAccountingLaserQuoteV1913V1(env,auth,b){
   return result;
 }
 
+
+function workDateKeyV1(value){
+  const raw=text(value);
+  const m=raw.match(/\d{4}-\d{2}-\d{2}/);
+  if(m)return m[0];
+  try{
+    const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    const map=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+    return map.year+'-'+map.month+'-'+map.day;
+  }catch{return new Date().toISOString().slice(0,10);}
+}
+function accountingDepartmentV1(value){
+  const k=key(value);
+  if(k.includes('ليزر')||k.includes('laser'))return 'ليزر';
+  if(k.includes('طباع')||k.includes('print'))return 'طباعة';
+  if(k.includes('كل')||k.includes('all')||k.includes('اجمالي')||k.includes('إجمالي'))return 'كل الأقسام';
+  return '';
+}
+async function custodySummariesV1(env,workDate){
+  const events=await rows(env,\`
+    SELECT employee_key AS employee,department,movement_type AS movementType,amount,ref_no AS refNo
+    FROM employee_accounting_custody_events_v1
+    WHERE work_date=?
+    ORDER BY created_at_ms
+  \`,[workDate]);
+  const closes=await rows(env,\`
+    SELECT custody_close_id AS closeId,employee_key AS employee,department
+    FROM employee_accounting_custody_closes_v1
+    WHERE work_date=?
+  \`,[workDate]);
+  const closeMap=new Map(closes.map(x=>[key(x.employee)+'|'+text(x.department),text(x.closeId)]));
+  const groups=new Map();
+  for(const e of events){
+    const k=key(e.employee)+'|'+text(e.department);
+    if(!groups.has(k))groups.set(k,{employee:text(e.employee),department:text(e.department),workDate,handed:0,approvedPurchases:0,returned:0,reimbursed:0,reversedPurchases:0,balance:0});
+    const g=groups.get(k),a=num(e.amount),t=text(e.movementType);
+    if(t==='HANDOFF'){g.handed+=a;g.balance+=a;}
+    else if(t==='PURCHASE_SETTLEMENT'){g.approvedPurchases+=a;g.balance-=a;}
+    else if(t==='PURCHASE_REVERSAL'){g.reversedPurchases+=a;g.balance+=a;}
+    else if(t==='RETURN'){g.returned+=a;g.balance-=a;}
+    else if(t==='EXTRA_PAYMENT'){g.reimbursed+=a;g.balance+=a;}
+  }
+  const out=[];
+  for(const [k,g] of groups){
+    g.employeeReturns=Math.max(0,g.balance);
+    g.companyOwes=Math.max(0,-g.balance);
+    g.closeId=closeMap.get(k)||'';
+    g.closed=!!g.closeId;
+    for(const n of ['handed','approvedPurchases','returned','reimbursed','reversedPurchases','balance','employeeReturns','companyOwes'])g[n]=Number(num(g[n]).toFixed(2));
+    out.push(g);
+  }
+  return out;
+}
+async function automationPreviewV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'مركز متابعة اليوم والتقفيل التلقائي عند ضياء فقط.'};
+  const workDate=workDateKeyV1(b.workDate||b.date);
+  const pendingPurchases=await rows(env,\`
+    SELECT daily_purchase_id AS id,request_key AS requestId,work_date AS workDate,employee_key AS employee,
+      department,supplier_party_id AS supplierPartyId,supplier_name AS supplier,material_id AS materialId,
+      material_name AS material,qty,unit_cost AS unit,total,payment_method AS paymentType,paid,remaining AS remain,
+      status,stock_status AS stockStatus
+    FROM employee_accounting_daily_purchases_v1
+    WHERE work_date=? AND status='PENDING'
+    ORDER BY created_at_ms
+  \`,[workDate]);
+  const openDeptLines=await rows(env,\`
+    SELECT accounting_line_id AS id,order_id AS orderId,line_id AS lineId,department,
+      CASE WHEN approval_status='معتمد من القسم' THEN 1 ELSE 0 END AS approved
+    FROM employee_accounting_dept_lines_v1
+    WHERE work_date=? AND final_invoice_no=''
+    ORDER BY created_at
+  \`,[workDate]);
+  const openCustodies=(await custodySummariesV1(env,workDate)).filter(x=>!x.closed);
+  const custodySettlementRequired=openCustodies.filter(x=>Math.abs(num(x.balance))>0.001);
+  const unclassifiedPurchases=await rows(env,\`
+    SELECT purchase_id AS id,'purchase' AS entity,supplier_name AS party,total AS amount
+    FROM employee_accounting_purchase_invoices_v1
+    WHERE work_date=? AND status='POSTED' AND trim(department)=''
+  \`,[workDate]);
+  const unclassifiedInvoices=await rows(env,\`
+    SELECT invoice_no AS id,'finalInvoice' AS entity,customer_name AS party,final_total AS amount
+    FROM employee_accounting_final_invoices_v1
+    WHERE work_date=? AND trim(finance_department)='' AND accounting_line_ids_json IN ('','[]')
+  \`,[workDate]);
+  const unclassified=[...unclassifiedPurchases,...unclassifiedInvoices].map(x=>({...x,date:workDate}));
+  const closes=await rows(env,\`
+    SELECT day_close_id AS id,department,work_date AS workDate,integrity_status AS integrityStatus,created_at_ms AS createdAtMs
+    FROM employee_accounting_day_closes_v1
+    WHERE work_date=?
+    ORDER BY created_at_ms DESC
+  \`,[workDate]);
+  const closedDepartments=closes.map(x=>text(x.department)).filter(Boolean);
+  const lowStock=await rows(env,\`
+    SELECT material_id AS materialId,material_name AS material,department,stock_qty AS stock,min_stock AS minimum
+    FROM employee_accounting_materials_v1
+    WHERE active=1 AND min_stock>0 AND stock_qty<=min_stock
+    ORDER BY department,material_name
+  \`);
+  const blockers=[];
+  if(pendingPurchases.length)blockers.push('يوجد '+pendingPurchases.length+' بند مشتريات ينتظر الاعتماد');
+  if(openDeptLines.length)blockers.push('يوجد '+openDeptLines.length+' بند قسم لم يُقفل في فاتورة نهائية');
+  if(unclassified.length)blockers.push('يوجد '+unclassified.length+' سجل مالي لليوم غير مصنف');
+  if(custodySettlementRequired.length)blockers.push('يوجد '+custodySettlementRequired.length+' عهدة بها مبلغ يجب تسويته قبل التقفيل');
+  return {success:true,preview:{workDate,pendingPurchases,openDeptLines,openCustodies,custodySettlementRequired,unclassified,closedDepartments,lowStock,blockers,ready:blockers.length===0,version:'A1_D1_READ_MODEL_V1'}};
+}
+async function dailyDepartmentReportV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'تقارير الأرباح والتقفيل عند ضياء فقط.'};
+  const workDate=workDateKeyV1(b.workDate||b.date),requested=accountingDepartmentV1(b.department||'كل الأقسام');
+  if(!requested)return {success:false,message:'اختر الليزر أو الطباعة أو كل الأقسام.'};
+  const all=requested==='كل الأقسام';
+  const invoices=await rows(env,\`
+    SELECT invoice_no AS invoiceNo,accounting_line_ids_json AS lineIds,finance_department AS financeDepartment,
+      final_total AS finalTotal,paid,remaining,payment_method AS paymentMethod
+    FROM employee_accounting_final_invoices_v1
+    WHERE work_date=?
+  \`,[workDate]);
+  const deptLines=await rows(env,\`
+    SELECT accounting_line_id AS id,final_invoice_no AS invoiceNo,department,sale_price AS sale,total_cost AS cost
+    FROM employee_accounting_dept_lines_v1
+    WHERE work_date=? AND final_invoice_no<>''
+  \`,[workDate]);
+  const report={workDate,department:requested,sales:0,actualJobCost:0,purchases:0,waste:0,wasteRecovered:0,netWaste:0,profit:0,receipts:0,payments:0,cash:0,instapay:0,credit:0,custodyHanded:0,custodyPurchases:0,custodySettlement:0,custodyBalance:0,unclassifiedSales:0,unclassifiedPurchases:0,lineCount:0};
+  const byInvoice=new Map();
+  for(const l of deptLines){
+    if(!byInvoice.has(l.invoiceNo))byInvoice.set(l.invoiceNo,[]);
+    byInvoice.get(l.invoiceNo).push(l);
+  }
+  for(const inv of invoices){
+    const ls=byInvoice.get(inv.invoiceNo)||[];
+    if(ls.length){
+      const totalSale=ls.reduce((a,x)=>a+num(x.sale),0);
+      for(const l of ls){
+        if(!all&&text(l.department)!==requested)continue;
+        const ratio=totalSale>0?num(l.sale)/totalSale:0;
+        report.sales+=num(inv.finalTotal)>0?num(inv.finalTotal)*ratio:num(l.sale);
+        report.actualJobCost+=num(l.cost);
+        report.credit+=num(inv.remaining)*ratio;
+        const paid=num(inv.paid)*ratio,m=key(inv.paymentMethod);
+        if(m.includes('انستا')||m.includes('insta'))report.instapay+=paid;else report.cash+=paid;
+        report.lineCount++;
+      }
+    }else{
+      const d=accountingDepartmentV1(inv.financeDepartment);
+      if(!d){if(all)report.unclassifiedSales+=num(inv.finalTotal);continue;}
+      if(!all&&d!==requested)continue;
+      report.sales+=num(inv.finalTotal);report.credit+=num(inv.remaining);
+      const m=key(inv.paymentMethod);if(m.includes('انستا')||m.includes('insta'))report.instapay+=num(inv.paid);else report.cash+=num(inv.paid);
+    }
+  }
+  const purchases=await rows(env,\`
+    SELECT department,total FROM employee_accounting_purchase_invoices_v1
+    WHERE work_date=? AND status='POSTED'
+  \`,[workDate]);
+  for(const p of purchases){
+    const d=accountingDepartmentV1(p.department);
+    if(!d){if(all)report.unclassifiedPurchases+=num(p.total);continue;}
+    if(all||d===requested)report.purchases+=num(p.total);
+  }
+  const wastes=await rows(env,\`
+    SELECT department,amount,recovered_amount AS recovered FROM employee_accounting_waste_v1
+    WHERE work_date=?
+  \`,[workDate]);
+  for(const w of wastes){const d=accountingDepartmentV1(w.department);if(d&&(all||d===requested)){report.waste+=num(w.amount);report.wasteRecovered+=num(w.recovered);}}
+  const cashRows=await rows(env,\`
+    SELECT department,movement_type AS movementType,amount,payment_method AS paymentMethod
+    FROM employee_accounting_cashbox_v1 WHERE work_date=?
+  \`,[workDate]);
+  for(const c of cashRows){
+    const d=accountingDepartmentV1(c.department);if(!all&&d!==requested)continue;
+    const t=key(c.movementType);
+    if(t.includes('receipt')||t.includes('قبض')||t.includes('تحصيل')||t.includes('return'))report.receipts+=num(c.amount);else report.payments+=num(c.amount);
+  }
+  const custody=await custodySummariesV1(env,workDate);
+  for(const c of custody){if(!all&&c.department!==requested)continue;report.custodyHanded+=num(c.handed);report.custodyPurchases+=num(c.approvedPurchases);report.custodySettlement+=num(c.returned)+num(c.reimbursed);report.custodyBalance+=num(c.balance);}
+  report.netWaste=Math.max(0,report.waste-report.wasteRecovered);
+  report.profit=report.sales-report.actualJobCost-report.netWaste;
+  for(const k of ['sales','actualJobCost','purchases','waste','wasteRecovered','netWaste','profit','receipts','payments','cash','instapay','credit','custodyHanded','custodyPurchases','custodySettlement','custodyBalance','unclassifiedSales','unclassifiedPurchases'])report[k]=Number(num(report[k]).toFixed(2));
+  const closes=await rows(env,\`
+    SELECT day_close_id AS id,work_date AS workDate,department,report_json AS reportJson,integrity_status AS integrityStatus,
+      notes,actor,created_at_ms AS createdAtMs
+    FROM employee_accounting_day_closes_v1
+    ORDER BY created_at_ms DESC LIMIT 30
+  \`);
+  return {success:true,report,closes,version:'A1_D1_READ_MODEL_V1'};
+}
+
+
 async function saveMaterial(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إضافة وتعديل الخامات عند ضياء فقط.'};
   const name=text(b.materialName||b.name);if(!name)return {success:false,message:'اسم الخامة مطلوب.'};
@@ -522,6 +709,8 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='calculateAccountingLaserQuoteV1913')out=await calculateAccountingLaserQuoteV1913V1(env,auth,b);
+    else if(action==='getDailyDepartmentReportV1920')out=await dailyDepartmentReportV1(env,auth,b);
+    else if(action==='previewAccountingAutomationV1921')out=await automationPreviewV1(env,auth,b);
     else if(action==='getDeptInvoiceDraftV1887')out=await draft(env,auth,b);
     else if(action==='approveAccountingDeptInvoice')out=await approveDept(env,auth,b);
     else if(action==='saveAccountingDeptLine')out=await saveDeptLine(env,auth,b);
