@@ -1,0 +1,181 @@
+
+name: TrendOS Entry623 Auth Login Tail Diagnostic
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-auth-login-tail-diagnostic.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-auth-login-tail-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fail-closed preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623tailpre=$GITHUB_SHA" -o /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry623tailpre=$GITHUB_SHA" -o /tmp/bridge.json
+          node <<'NODE'
+          const a=require('/tmp/auth.json'), b=require('/tmp/bridge.json');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth preflight');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('auth rows not zero');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge preflight');
+          console.log('ENTRY623_TAIL_PREFLIGHT=PASS');
+          console.log('ENTRY623_CREDENTIAL_VALUES_LOGGED=NO');
+          NODE
+
+      - name: Capture safe login outcome
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save wrangler@4.33.2 >/dev/null
+          : > /tmp/tail.jsonl
+          : > /tmp/tail.err
+          set +e
+          timeout 35s npx wrangler tail trendos-d1-api --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
+          TAIL_PID=$!
+          set -e
+          sleep 4
+
+          node <<'NODE'
+          const fs=require('fs');
+          const base=process.env.API_URL.replace(/\/$/,'');
+          const username=process.env.QUALIFY_USERNAME;
+          const password=process.env.QUALIFY_PASSWORD;
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const raw=await r.text();
+            let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(token){
+              console.log('::add-mask::'+token);
+              fs.writeFileSync('/tmp/login-token',token,{mode:0o600});
+            }
+            fs.writeFileSync('/tmp/login-result.json',JSON.stringify({
+              status:r.status,
+              success:body&&body.success===true,
+              authSource:String(body&&body.authSource||''),
+              code:String(body&&body.code||''),
+              hasToken:!!token
+            }));
+            console.log('ENTRY623_DIAG_LOGIN_HTTP='+r.status);
+            console.log('ENTRY623_DIAG_LOGIN_SUCCESS='+(body&&body.success===true?'YES':'NO'));
+            console.log('ENTRY623_DIAG_LOGIN_AUTH_SOURCE='+String(body&&body.authSource||'NONE'));
+            console.log('ENTRY623_DIAG_LOGIN_CODE='+String(body&&body.code||'NONE'));
+          })().catch(()=>process.exit(21));
+          NODE
+
+          sleep 5
+          set +e
+          wait "$TAIL_PID"
+          TAIL_RC=$?
+          set -e
+          if [ "$TAIL_RC" -ne 0 ] && [ "$TAIL_RC" -ne 124 ]; then
+            echo "ENTRY623_TAIL_TOOL_RC=$TAIL_RC"
+          fi
+
+          node <<'NODE'
+          const fs=require('fs');
+          const lines=fs.existsSync('/tmp/tail.jsonl')?fs.readFileSync('/tmp/tail.jsonl','utf8').split(/\r?\n/).filter(Boolean):[];
+          let matched=0, outcomes={}, classes=new Set();
+          for(const line of lines){
+            let x; try{x=JSON.parse(line)}catch{continue}
+            const event=x.event||x;
+            const req=event.request||event.event?.request||x.request||{};
+            const url=String(req.url||event.url||'');
+            let path=''; try{path=new URL(url).pathname}catch{}
+            if(path!=='/v1/employee/auth/login') continue;
+            matched++;
+            const outcome=String(event.outcome||x.outcome||event.event?.outcome||'unknown');
+            outcomes[outcome]=(outcomes[outcome]||0)+1;
+            const ex=[...(Array.isArray(event.exceptions)?event.exceptions:[]),...(Array.isArray(x.exceptions)?x.exceptions:[])];
+            for(const e of ex){
+              const s=String((e&&e.message)||e||'');
+              if(/cpu|time limit|exceeded/i.test(s)) classes.add('CPU_LIMIT_OR_TIMEOUT');
+              else if(/d1|sqlite|sql|database|constraint|bind/i.test(s)) classes.add('D1_OR_SQL');
+              else if(/pbkdf2|crypto|derivebits|subtle/i.test(s)) classes.add('CRYPTO_PBKDF2');
+              else if(s) classes.add('OTHER_EXCEPTION');
+            }
+          }
+          console.log('ENTRY623_TAIL_LOGIN_EVENTS='+matched);
+          console.log('ENTRY623_TAIL_OUTCOMES='+JSON.stringify(outcomes));
+          console.log('ENTRY623_TAIL_EXCEPTION_CLASSES='+(classes.size?[...classes].join(','):'NONE_OBSERVED'));
+          console.log('ENTRY623_TAIL_RAW_EVENT_LOGGED=NO');
+          console.log('ENTRY623_TAIL_REQUEST_BODY_LOGGED=NO');
+          NODE
+
+      - name: If login succeeded, revoke session safely
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/login-token ]; then
+            node <<'NODE'
+            const fs=require('fs');
+            const base=process.env.API_URL.replace(/\/$/,'');
+            const username=process.env.QUALIFY_USERNAME;
+            const token=fs.readFileSync('/tmp/login-token','utf8').trim();
+            (async()=>{
+              const r=await fetch(base+'/v1/employee/auth/logout',{
+                method:'POST',
+                headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+                body:JSON.stringify({username,token}),cache:'no-store'
+              });
+              const body=JSON.parse(await r.text()||'{}');
+              if(r.status!==200||body.success!==true) throw new Error('diagnostic logout failed');
+              console.log('ENTRY623_DIAG_SUCCESS_SESSION_REVOKED=YES');
+            })().catch(()=>process.exit(31));
+            NODE
+          else
+            echo ENTRY623_DIAG_SUCCESS_SESSION_REVOKED=NOT_APPLICABLE
+          fi
+          rm -f /tmp/login-token
+
+      - name: Post-health
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623tailpost=$GITHUB_SHA" -o /tmp/auth-post.json
+          node <<'NODE'
+          const a=require('/tmp/auth-post.json');
+          console.log('ENTRY623_POST_AUTH_MODE='+String(a.mode||''));
+          console.log('ENTRY623_POST_USER_COUNT='+Number(a.userCount||0));
+          console.log('ENTRY623_POST_NATIVE_READY_COUNT='+Number(a.nativeReadyCount||0));
+          console.log('ENTRY623_POST_PLAINTEXT_STORED='+(a.plaintextStored===true?'YES':'NO'));
+          NODE
