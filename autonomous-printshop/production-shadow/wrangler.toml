@@ -1,0 +1,14 @@
+name = "autonomous-printshop-shadow"
+main = "worker.mjs"
+compatibility_date = "2026-08-27"
+workers_dev = true
+
+[vars]
+APPS_SCRIPT_API_URL = "https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4up9nbk1wYFi54D2KOnW1AFDigpBzyuAOTWzPfpSFPGSyFVj_fmTmg/exec"
+EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS = "600"
+EDGE_ORDERS_IDLE_HEARTBEAT_ENABLED = "true"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trendos-main"
+database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
