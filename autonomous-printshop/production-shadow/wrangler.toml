@@ -4,7 +4,7 @@ compatibility_date = "2026-08-27"
 workers_dev = true
 
 [vars]
-AUTONOMOUS_SHADOW_BACKFILL_MAX_AGE_SECONDS = "172800"
+AUTONOMOUS_SHADOW_EXPECTED_BACKFILL_SHA256 = "1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f"
 
 [[d1_databases]]
 binding = "DB"
