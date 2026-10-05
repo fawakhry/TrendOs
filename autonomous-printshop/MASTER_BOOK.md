@@ -1559,3 +1559,67 @@ ASSIGNMENT_BASELINE_COVERAGE=97.6%
 
 Next:
 `Readiness Shadow (material / machine / design evidence) -> readiness-qualified Task recommendation -> Operator Task Shadow authority`.
+
+
+### AP-014 — Readiness Evidence foundation applied Default-OFF
+
+Readiness was implemented as append-only evidence, not as free mutable booleans.
+
+Added:
+- `autonomous-printshop/migrations/0023_readiness_evidence_v1.sql`
+- `autonomous-printshop/core/readiness-evidence-v1.mjs`
+- `autonomous-printshop/tests/readiness_evidence_v1.test.mjs`
+
+Evidence kinds:
+- DESIGN
+- MATERIAL
+- MACHINE
+
+Evidence states:
+- READY
+- BLOCKED
+- UNKNOWN
+
+Core rules:
+- latest valid non-expired evidence wins;
+- expired evidence is ignored;
+- missing evidence is UNKNOWN;
+- strict readiness fails closed when required evidence is UNKNOWN;
+- evidence is append-only;
+- control mode is OFF/SHADOW/CANARY/GENERAL and defaults to OFF;
+- no employee discipline/performance judgment is derived from missing readiness evidence.
+
+Production foundation apply:
+- Run `37302083095` — SUCCESS.
+- readiness tables = 3.
+- `autonomous_readiness_control.mode=OFF`.
+- readiness evidence rows = 0.
+- readiness control events = 0.
+- Orders unchanged.
+- Lines unchanged.
+- Operator Tasks unchanged at 0 during apply.
+- Autonomy Events unchanged at 0 during apply.
+
+Production diagnostic before evidence ingestion:
+- current pending non-Fly candidates = 30;
+- imported candidates = 0;
+- native candidates = 30;
+- design evidence present = 0;
+- material/accounting mapping for those candidates = 0;
+- active material catalog rows = 0;
+- low-stock material rows = 0 because the catalog itself is empty;
+- readiness must therefore remain SHADOW/UNKNOWN until evidence sources are populated.
+
+The isolated production sidecar now contains a `/readiness` aggregate endpoint that evaluates the pending candidate set under strict fail-closed evidence rules without exposing employee identity or raw Order/Line IDs.
+
+```ini
+READINESS_SCHEMA=PRODUCTION_APPLIED
+READINESS_CONTROL=OFF
+READINESS_EVIDENCE_ROWS=0
+STRICT_MISSING_EVIDENCE=FAIL_CLOSED
+LIVE_ASSIGNMENT=NO
+AUTOPILOT=OFF
+```
+
+Next:
+`recover/maintain Native schedule coverage -> requalify Production Shadow -> observe strict Readiness Shadow -> begin evidence-source adapters`.
