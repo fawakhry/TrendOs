@@ -1,0 +1,35 @@
+name: EasyStore A2 Direct Sale CI
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/migrations/0027_employee_accounting_direct_sale_cost_v1.sql'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a2_direct_sale_v1.test.mjs'
+      - '.github/workflows/easystore-a2-direct-sale-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate A2 direct sale writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_final_day_close_v1.test.mjs
+          node tests/easystore_a2_direct_sale_v1.test.mjs
+          echo EASYSTORE_A2_DIRECT_SALE_CI=PASS
+          echo PRODUCTION_MUTATION=NO
