@@ -58,7 +58,7 @@
       ],
       "target": "D1 claim/start/complete/events retaining V2 public contract",
       "priority": "P0",
-      "implementation_state": "D1_SCHEMA_APPLIED_DEFAULT_OFF_CORE_QUALIFIED"
+      "implementation_state": "D1_SCHEMA_APPLIED_DEFAULT_OFF_ACTIVE_TASK_READABLE_BY_SUPERVISOR"
     },
     {
       "id": "M05",
@@ -72,7 +72,7 @@
       ],
       "target": "predict completion time, machine/operator loading, deadline promises, queue rebalance",
       "priority": "P0",
-      "implementation_state": "LIVE_SHADOW_RECOMMENDATION_WITH_NATIVE_SCHEDULE"
+      "implementation_state": "PRODUCTION_SHADOW_LIVE_WITH_EMPLOYEE_AVAILABILITY_BASELINE"
     },
     {
       "id": "M06",
@@ -82,11 +82,12 @@
         "autonomous-printshop/sources/trendos/employee-supervisor/employee-manager-strips-v2.js",
         "autonomous-printshop/sources/trendos/employee-supervisor/employee-andon-v1.js",
         "autonomous-printshop/sources/trendos/employee-supervisor/operations-hub-v1.js",
-        "autonomous-printshop/core/operational-reality-v1.mjs"
+        "autonomous-printshop/core/operational-reality-v1.mjs",
+        "autonomous-printshop/core/employee-supervisor-shadow-v1.mjs"
       ],
       "target": "system-assigned next task, coaching, blocker auto-resolution, structured D1 Andon",
       "priority": "P0",
-      "implementation_state": "NEXT_BUILD_EMPLOYEE_SUPERVISOR_SHADOW"
+      "implementation_state": "PRODUCTION_SHADOW_LIVE"
     },
     {
       "id": "M07",
