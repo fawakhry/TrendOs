@@ -13,6 +13,7 @@ import { handleEmployeeCommsNativeRequest, isEmployeeCommsNativePath } from './e
 import { handleEmployeeAccountingNativeRequest, isEmployeeAccountingNativePath } from './employee-accounting-native-v1.mjs';
 import { handleEmployeeCoreNativeRequest, isEmployeeCoreNativePath } from './employee-core-native-v1.mjs';
 import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operator-task-edge-v2.mjs';
+import { handleAutonomousPrintshopShadowRequest, isAutonomousPrintshopShadowPath } from './autonomous-printshop-shadow-v1.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
 import { handleEdgeOrdersServiceRequest, isEdgeOrdersServicePath } from './edge-orders-service-v1.mjs';
@@ -72,6 +73,12 @@ export default {
 
     if (isEmployeeCoreNativePath(path)) {
       return handleEmployeeCoreNativeRequest(request, env, ctx);
+    }
+
+    // Autonomous Printshop read-only production shadow. This exact route is
+    // admin-authenticated and cannot write D1 or assign employee Tasks.
+    if (isAutonomousPrintshopShadowPath(path)) {
+      return handleAutonomousPrintshopShadowRequest(request, env, ctx);
     }
 
     // CLOUD-MIGRATION-V3/T6A: exact session paths only. This replaces the
