@@ -1,0 +1,41 @@
+name: Autonomous Printshop Production Readonly Preflight
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-production-readonly-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  production-readonly-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROD_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Probe current production runtime GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoints=(
+            "/v1/edge/health"
+            "/v1/cloud/write/health"
+            "/v1/operator/tasks/status"
+            "/v1/employee/auth/health"
+            "/v1/employee/legacy-action/health"
+            "/v1/autonomous-printshop/shadow/health"
+          )
+          for p in "${endpoints[@]}"; do
+            safe="$(echo "$p" | tr '/:' '__')"
+            code="$(curl --silent --show-error --output "/tmp/$safe.json" --write-out '%{http_code}' "$PROD_URL$p" || true)"
+            echo "=== $p HTTP=$code ==="
+            cat "/tmp/$safe.json" || true
+            echo
+          done
+          echo 'PREFLIGHT_MUTATION=NO'
+          echo 'PREFLIGHT_METHODS=GET_ONLY'
