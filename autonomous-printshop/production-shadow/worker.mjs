@@ -470,6 +470,7 @@ async function supervisorSnapshot(env,rows){
 
   const availability={available:0,unavailable:0,reviewRequired:0,ended:0,notStarted:0};
   const departments={};
+  const departmentSources={};
   let recommendations=0;
   let activeTaskOperators=0;
 
@@ -482,6 +483,8 @@ async function supervisorSnapshot(env,rows){
     if(state==='NOT_STARTED') availability.notStarted+=1;
     if(op.activeTask) activeTaskOperators+=1;
     if(op.recommendation&&op.recommendation.recommended) recommendations+=1;
+    const source=text(op.departmentSource)||'UNKNOWN';
+    departmentSources[source]=(departmentSources[source]||0)+1;
 
     const dept=text(op.department)||'UNSPECIFIED';
     if(!departments[dept]){
@@ -508,6 +511,7 @@ async function supervisorSnapshot(env,rows){
   return {
     success:true,
     mode:'EMPLOYEE_SUPERVISOR_SHADOW',
+    supervisorCoreVersion:text(internal.version),
     routingMode:internal.mode,
     dateKey:inputs.dateKey,
     operatorTaskControl:inputs.control,
@@ -518,6 +522,7 @@ async function supervisorSnapshot(env,rows){
       withRecommendation:recommendations
     },
     assignmentCoverage:internal.assignmentCoverage,
+    departmentSources,
     departments,
     unassigned:{
       counts:internal.unassignedReality.counts
