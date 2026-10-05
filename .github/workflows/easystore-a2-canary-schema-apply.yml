@@ -1,0 +1,120 @@
+name: EasyStore A2 Canary Guard Schema Apply
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a2-canary-schema-apply.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: easystore-a2-canary-schema-apply
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Fail-closed preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?a2canaryschema=$GITHUB_SHA" > /tmp/health.json
+          node <<'NODE'
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false||Number(h.googleBusinessCalls||0)!==0) throw new Error('accounting-runtime-not-safe');
+          console.log('A2_CANARY_SCHEMA_RUNTIME=READONLY');
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
+          " > /tmp/counts.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/counts.json','utf8')),rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);if(rows.length!==1)throw new Error('accounting-count-parse');
+          const nonzero=Object.entries(rows[0]).filter(([,v])=>Number(v)!==0);
+          if(nonzero.length)throw new Error('clean-accounting-baseline-required:'+JSON.stringify(nonzero));
+          console.log('A2_CANARY_SCHEMA_ACCOUNTING_ROWS_PRE=0');
+          NODE
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT mode,policy_epoch AS policyEpoch,next_invoice_number AS nextInvoiceNumber
+            FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';
+          " > /tmp/control-pre.json
+          npx wrangler d1 migrations list "$DATABASE" --remote --config "$API_CONFIG"
+
+      - name: Apply pending canary migration
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply "$DATABASE" --remote --config "$API_CONFIG"
+          echo A2_CANARY_SCHEMA_MIGRATION_APPLIED=YES
+
+      - name: Verify default-deny guard and invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT enabled,allowed_usernames_json AS allowedUsers,allowed_actions_json AS allowedActions,
+                   max_amount AS maxAmount,expires_at_ms AS expiresAtMs,policy_epoch AS policyEpoch
+            FROM employee_accounting_write_canary_v1
+            WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          " > /tmp/canary.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT mode,policy_epoch AS policyEpoch,next_invoice_number AS nextInvoiceNumber
+            FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';
+          " > /tmp/control-post.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          function find(path,pred){const x=JSON.parse(fs.readFileSync(path,'utf8')),out=[];const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(pred(v))out.push(v);Object.values(v).forEach(walk)}};walk(x);return out;}
+          const c=find('/tmp/canary.json',x=>x.enabled!==undefined)[0];
+          if(!c)throw new Error('canary-row-missing');
+          if(Number(c.enabled)!==1||String(c.allowedUsers)!=='[]'||String(c.allowedActions)!=='[]'||Number(c.maxAmount)!==0||Number(c.expiresAtMs)!==0)throw new Error('canary-default-not-deny');
+          const pre=find('/tmp/control-pre.json',x=>x.mode!==undefined&&x.policyEpoch!==undefined)[0];
+          const post=find('/tmp/control-post.json',x=>x.mode!==undefined&&x.policyEpoch!==undefined)[0];
+          if(!pre||!post||pre.mode!=='READONLY'||post.mode!=='READONLY')throw new Error('accounting-mode-drift');
+          if(Number(pre.policyEpoch)!==Number(post.policyEpoch)||Number(pre.nextInvoiceNumber)!==Number(post.nextInvoiceNumber))throw new Error('accounting-control-drift');
+          console.log('A2_CANARY_SCHEMA_DEFAULT_DENY=PASS');
+          console.log('A2_CANARY_SCHEMA_MODE_PRESERVED=READONLY');
+          console.log('A2_CANARY_SCHEMA_ALLOWED_USERS=0');
+          console.log('A2_CANARY_SCHEMA_ALLOWED_ACTIONS=0');
+          console.log('A2_CANARY_SCHEMA_PRODUCTION_BUSINESS_DATA_MUTATION=NO');
+          NODE
