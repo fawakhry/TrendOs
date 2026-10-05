@@ -45,6 +45,19 @@ reality=buildOperationalRealityV1([
 ],{department:'طباعة'});
 assert.deepEqual(reality.ordinary.map(x=>x.lineId),['9-1','9-2']);
 
+
+reality=buildOperationalRealityV1([
+  {orderId:'80',lineId:'80-1',department:'طباعة',priority:'عاجل',status:'بدأ التنفيذ',expectedDelivery:'2026-10-05'},
+  {orderId:'81',lineId:'81-1',department:'طباعة',priority:'عاجل',status:'متوقف',expectedDelivery:'2026-10-05'},
+  {orderId:'82',lineId:'82-1',department:'طباعة',priority:'عادي',status:'طلب جديد',expectedDelivery:'2026-10-06'}
+],{department:'طباعة'});
+assert.equal(reality.ordinary.length,1);
+assert.equal(reality.ordinary[0].orderId,'82');
+assert.equal(reality.inProgress.length,1);
+assert.equal(reality.inProgress[0].orderId,'80');
+assert.equal(reality.inProgress[0].reason,REALITY_REASONS.STATUS_NOT_DISPATCHABLE);
+assert.equal(reality.exceptions.find(x=>x.orderId==='81').reason,REALITY_REASONS.STATUS_BLOCKED);
+
 console.log('AUTONOMOUS_PRINTSHOP_OPERATIONAL_REALITY_V1=PASS');
 console.log('DISPATCH_ORDER=URGENT_DUE_ORDER_LINE');
 console.log('FLY_PRINT=OUTSIDE_ORDINARY_TASKS');
