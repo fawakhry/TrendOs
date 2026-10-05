@@ -1,0 +1,160 @@
+name: Autonomous Printshop Readiness Production Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-readiness-production-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  readiness-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read readiness evidence only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+          WITH imported AS (
+            SELECT
+              l.line_id,
+              l.department,
+              l.item_name,
+              l.assigned_to,
+              l.ready AS design_ready_raw,
+              l.heat_press,
+              l.fly_print,
+              COALESCE(lr.status,l.status) AS status,
+              'IMPORTED' AS source_kind
+            FROM employee_core_lines_v1 l
+            JOIN employee_core_orders_v1 o ON o.order_id=l.order_id
+            LEFT JOIN t12_legacy_line_runtime lr
+              ON lr.line_id=l.line_id AND lr.order_id=l.order_id
+            LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+            WHERE l.active=1 AND o.active=1 AND a.line_id IS NULL
+          ),
+          native AS (
+            SELECT
+              l.line_id,
+              l.department,
+              l.item_name,
+              l.assigned_to,
+              '' AS design_ready_raw,
+              l.heat_press,
+              l.fly_print,
+              COALESCE(r.status,l.status) AS status,
+              'NATIVE' AS source_kind
+            FROM t12_prod_lines l
+            LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+            LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+            WHERE a.line_id IS NULL
+          ),
+          current_lines AS (
+            SELECT * FROM imported
+            UNION ALL
+            SELECT * FROM native
+          ),
+          candidates AS (
+            SELECT * FROM current_lines
+            WHERE status='طلب جديد' AND fly_print=0
+          ),
+          latest_accounting AS (
+            SELECT d.*
+            FROM employee_accounting_dept_lines_v1 d
+            JOIN (
+              SELECT line_id, MAX(updated_at) AS max_updated
+              FROM employee_accounting_dept_lines_v1
+              WHERE line_id<>''
+              GROUP BY line_id
+            ) x ON x.line_id=d.line_id AND x.max_updated=d.updated_at
+          )
+          SELECT
+            (SELECT COUNT(*) FROM candidates) AS candidates,
+            (SELECT COUNT(*) FROM candidates WHERE source_kind='IMPORTED') AS importedCandidates,
+            (SELECT COUNT(*) FROM candidates WHERE source_kind='NATIVE') AS nativeCandidates,
+            (SELECT COUNT(*) FROM candidates WHERE TRIM(design_ready_raw)<>'') AS designEvidencePresent,
+            (SELECT COUNT(*) FROM candidates WHERE LOWER(TRIM(design_ready_raw)) IN ('نعم','جاهز','yes','true','1')) AS designReadyPositive,
+            (SELECT COUNT(*) FROM candidates WHERE LOWER(TRIM(design_ready_raw)) IN ('لا','غير جاهز','no','false','0')) AS designReadyNegative,
+            (SELECT COUNT(*) FROM candidates c JOIN latest_accounting a ON a.line_id=c.line_id) AS accountingLineMapped,
+            (SELECT COUNT(*) FROM candidates c JOIN latest_accounting a ON a.line_id=c.line_id WHERE TRIM(a.material_name)<>'') AS materialNameMapped,
+            (SELECT COUNT(*) FROM candidates c
+               JOIN latest_accounting a ON a.line_id=c.line_id
+               JOIN employee_accounting_materials_v1 m
+                 ON m.active=1
+                AND m.department=a.department
+                AND m.material_name=a.material_name) AS materialCatalogMapped,
+            (SELECT COUNT(*) FROM candidates c
+               JOIN latest_accounting a ON a.line_id=c.line_id
+               JOIN employee_accounting_materials_v1 m
+                 ON m.active=1
+                AND m.department=a.department
+                AND m.material_name=a.material_name
+              WHERE a.material_consumption>0
+                AND m.stock_qty>=a.material_consumption) AS materialEnoughByDeclaredConsumption,
+            (SELECT COUNT(*) FROM candidates WHERE heat_press=1) AS pressCandidates,
+            (SELECT COUNT(*) FROM employee_press_sessions_v1 WHERE ended_at_ms IS NULL) AS openPressSessions,
+            (SELECT COUNT(*) FROM employee_cleaning_daily_v1
+              WHERE date_key=date('now','+3 hours') AND problem_found=1) AS cleaningProblemsToday,
+            (SELECT COUNT(*) FROM employee_hr_skills_v1 WHERE can_work_solo=1) AS soloSkillRows,
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1 AND stock_qty<=min_stock) AS lowStockMaterials,
+            (SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingMode,
+            (SELECT mode FROM employee_ops_control_v1 WHERE singleton=1) AS opsMode;
+          " > /tmp/readiness.json
+          cat /tmp/readiness.json
+
+      - name: Design evidence values — aggregate only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              CASE WHEN TRIM(ready)='' THEN '[EMPTY]' ELSE ready END AS readyValue,
+              COUNT(*) AS n
+            FROM employee_core_lines_v1 l
+            LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+            WHERE l.active=1
+              AND a.line_id IS NULL
+              AND l.status='طلب جديد'
+            GROUP BY CASE WHEN TRIM(ready)='' THEN '[EMPTY]' ELSE ready END
+            ORDER BY n DESC;
+          " > /tmp/design-values.json
+          cat /tmp/design-values.json
+
+      - name: Material linkage diagnostics — aggregate only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              department,
+              COUNT(*) AS lines,
+              SUM(CASE WHEN TRIM(material_name)<>'' THEN 1 ELSE 0 END) AS materialNamed,
+              SUM(CASE WHEN material_consumption>0 THEN 1 ELSE 0 END) AS consumptionKnown,
+              SUM(CASE WHEN stock_deducted=1 THEN 1 ELSE 0 END) AS stockDeducted
+            FROM employee_accounting_dept_lines_v1
+            GROUP BY department
+            ORDER BY lines DESC;
+          " > /tmp/material-link.json
+          cat /tmp/material-link.json
+
+      - name: Safety conclusion
+        run: |
+          echo 'D1_MUTATION=NO'
+          echo 'METHOD=SELECT_ONLY'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'FINANCIAL_AUTHORITY_CHANGED=NO'
