@@ -196,9 +196,8 @@ async function searchCustomersV1(env,b){
   const like='%'+q+'%';
   const list=await rows(env,`
     SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
-      COALESCE((SELECT l.balance_after FROM employee_accounting_party_ledger_v1 l
-        WHERE l.party_type='customer' AND l.party_name=c.customer_name
-        ORDER BY l.created_at_ms DESC LIMIT 1),0) AS current_balance
+      COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
+        WHERE pb.party_type='customer' AND pb.party_id=c.customer_id LIMIT 1),0) AS current_balance
     FROM t12_customers c
     WHERE c.active='نعم'
       AND lower(c.customer_name || ' ' || c.manager || ' ' || c.phone || ' ' || c.extra_phone || ' ' || c.customer_type) LIKE ?
@@ -255,11 +254,11 @@ async function getCustomerAccountV1915V1(env,auth,b){
       amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,
       balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source
     FROM employee_accounting_party_ledger_v1
-    WHERE party_type='customer' AND party_name=?
+    WHERE party_type='customer' AND party_id=?
     ORDER BY created_at_ms DESC
     LIMIT 200
-  `,[customer.customer_name]);
-  const balance=tx.length?num(tx[0].balanceAfter):await customerBalanceByName(env,customer.customer_name);
+  `,[customer.customer_id]);
+  const balance=await partyBalanceV1(env,'customer',text(customer.customer_id));
   const view=customerViewV1({...customer,current_balance:balance});
   return {
     success:true,customer:view,partyName:view.name,balance,transactions:tx,
@@ -673,7 +672,7 @@ async function resolvePartyV1(env,type,b){
   const partyId=text(b.partyId||b.customerId||b.supplierId),requested=text(b.partyName||b.customerName||b.supplierName||b.name);
   if(type==='customer'){
     let r;
-    if(partyId)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE customer_id=? LIMIT 1").bind(partyId).first();
+    if(partyId)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE customer_id=? AND active='نعم' LIMIT 1").bind(partyId).first();
     else if(requested)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE lower(customer_name)=lower(?) AND active='نعم' ORDER BY updated_at DESC LIMIT 1").bind(requested).first();
     if(!r)throw commandErrorV1('accounting-customer-not-found','العميل غير موجود في سجل العملاء. اختر العميل من القائمة.');
     return {partyId:text(r.partyId),partyName:text(r.partyName)};
@@ -700,34 +699,35 @@ async function partyLedger(env,auth,b){
   if(auth.mode!=='full'&&!['payment_received','payment_paid'].includes(op))return {success:false,message:'إضافة المديونية والتسويات عند ضياء فقط.'};
 
   const party=await resolvePartyV1(env,type,b);
-  const before=await partyBalanceV1(env,type,party.partyId),delta=effect(op)*amount;
-  if(delta<0&&amount>before+0.000001)return {success:false,message:'المبلغ أكبر من الرصيد المستحق الحالي: '+before+' ج.'};
-
-  const ctx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,{...b,partyId:party.partyId,partyName:party.partyName,partyType:type});
-  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
-
   await env.DB.prepare(`
     INSERT OR IGNORE INTO employee_accounting_party_balances_v1
       (party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms)
     VALUES(?,?,?,0,1,'',?)
   `).bind(type,party.partyId,party.partyName,Date.now()).run();
 
+  const snapshot=await env.DB.prepare("SELECT balance,version FROM employee_accounting_party_balances_v1 WHERE party_type=? AND party_id=?").bind(type,party.partyId).first();
+  const before=num(snapshot&&snapshot.balance),version=Math.max(1,Math.trunc(num(snapshot&&snapshot.version,1))),delta=effect(op)*amount;
+  if(delta<0&&amount>before+0.000001)return {success:false,message:'المبلغ أكبر من الرصيد المستحق الحالي: '+before+' ج.'};
+
+  const ctx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,{...b,partyId:party.partyId,partyName:party.partyName,partyType:type});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+
   const tx=uid('LED'),cashId=uid('CSH'),now=Date.now(),workDate=workDateKeyV1(b.workDate||b.date);
   const statements=[
     env.DB.prepare(`
       UPDATE employee_accounting_party_balances_v1
       SET balance=balance+?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP
-      WHERE party_type=? AND party_id=? AND balance+?>=-0.000001
-    `).bind(delta,ctx.requestKey,party.partyName,now,type,party.partyId,delta),
+      WHERE party_type=? AND party_id=? AND version=? AND balance+?>=-0.000001
+    `).bind(delta,ctx.requestKey,party.partyName,now,type,party.partyId,version,delta),
     env.DB.prepare(`
       INSERT INTO employee_accounting_party_ledger_v1
         (transaction_id,request_key,party_id,party_type,party_name,party_code,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms)
       SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
       FROM employee_accounting_party_balances_v1
-      WHERE party_type=? AND party_id=? AND last_request_key=?
+      WHERE party_type=? AND party_id=? AND last_request_key=? AND version=?
     `).bind(tx,ctx.requestKey,party.partyId,type,party.partyName,text(b.partyCode),op,partyOperationLabel(op,type),amount,effect(op),
       text(b.paymentMethod||b.method),text(b.refNo||b.reference),before,before+delta,auth.user.username,text(b.notes),sourceSystemV1(b),now,
-      type,party.partyId,ctx.requestKey)
+      type,party.partyId,ctx.requestKey,version+1)
   ];
 
   if(op==='payment_received'||op==='payment_paid'){
@@ -744,10 +744,10 @@ async function partyLedger(env,auth,b){
   await env.DB.batch(statements);
 
   const written=await env.DB.prepare("SELECT balance_before AS balanceBefore,balance_after AS balanceAfter FROM employee_accounting_party_ledger_v1 WHERE request_key=?").bind(ctx.requestKey).first();
-  if(!written)throw commandErrorV1('accounting-party-balance-guard-rejected','تعذر تسجيل الحركة بسبب تغير الرصيد بالتزامن. راجع الحساب ثم حاول بمعرف طلب جديد.');
+  if(!written)throw commandErrorV1('accounting-party-balance-guard-rejected','تعذر تسجيل الحركة بسبب تغير الرصيد بالتزامن. الطلب محفوظ PREPARED للمراجعة، وأعد المحاولة بمعرف طلب جديد بعد تحديث الحساب.');
   const response={success:true,id:tx,partyId:party.partyId,partyType:type,partyName:party.partyName,balanceBefore:num(written.balanceBefore),balance:num(written.balanceAfter),cashboxPosted:op==='payment_received'||op==='payment_paid',version:'A2_D1_ACCOUNTING_V1'};
   await commitCommandV1(env,ctx,response);
-  await auditEventV1(env,ctx,'party-ledger',tx,'post',auth.user.username,{type,partyId:party.partyId,partyName:party.partyName,op,amount,before:response.balanceBefore,after:response.balance});
+  await auditEventV1(env,ctx,'party-ledger',tx,'post',auth.user.username,{type,partyId:party.partyId,partyName:party.partyName,op,amount,before:response.balanceBefore,after:response.balance,balanceVersionBefore:version,balanceVersionAfter:version+1});
   return response;
 }
 async function saveSupplierV1(env,auth,b){
@@ -800,12 +800,9 @@ async function saveSupplierV1(env,auth,b){
 async function getParty(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
-  const partyId=text(b.partyId||b.customerId||b.supplierId),name=text(b.partyName||b.customerName||b.supplierName||b.name),code=text(b.partyCode);
-  const list=partyId
-    ? await rows(env,"SELECT transaction_id AS id,created_at_ms AS createdAtMs,party_id AS partyId,party_type AS partyType,party_name AS partyName,operation,operation_label AS operationLabel,amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source FROM employee_accounting_party_ledger_v1 WHERE party_type=? AND party_id=? ORDER BY created_at_ms",[type,partyId])
-    : await rows(env,"SELECT transaction_id AS id,created_at_ms AS createdAtMs,party_id AS partyId,party_type AS partyType,party_name AS partyName,operation,operation_label AS operationLabel,amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source FROM employee_accounting_party_ledger_v1 WHERE party_type=? AND party_name=? AND (?='' OR party_code=?) ORDER BY created_at_ms",[type,name,code,code]);
-  const resolvedName=list.length?text(list[list.length-1].partyName):name;
-  return {success:true,partyId,partyType:type,partyName:resolvedName,balance:list.length?num(list[list.length-1].balanceAfter):0,transactions:list};
+  const party=await resolvePartyV1(env,type,b);
+  const list=await rows(env,"SELECT transaction_id AS id,created_at_ms AS createdAtMs,party_id AS partyId,party_type AS partyType,party_name AS partyName,operation,operation_label AS operationLabel,amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,balance_after AS balanceAfter,created_by AS createdBy,notes,request_key AS requestId,source FROM employee_accounting_party_ledger_v1 WHERE party_type=? AND party_id=? ORDER BY created_at_ms",[type,party.partyId]);
+  return {success:true,partyId:party.partyId,partyType:type,partyName:party.partyName,balance:await partyBalanceV1(env,type,party.partyId),transactions:list};
 }
 async function nextInvoiceNo(env){
   const r=await env.DB.prepare("UPDATE employee_accounting_control_v1 SET next_invoice_number=next_invoice_number+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' RETURNING next_invoice_number-1 AS n").first();
