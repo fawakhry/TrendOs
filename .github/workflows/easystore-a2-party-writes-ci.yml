@@ -1,0 +1,38 @@
+name: EasyStore A2 Party Writes CI
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/migrations/0020_employee_accounting_party_master_v1.sql'
+      - 'cloudflare-d1/migrations/0023_employee_accounting_command_audit_v1.sql'
+      - 'cloudflare-d1/migrations/0024_employee_accounting_party_balances_v1.sql'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a2_command_foundation_v1.test.mjs'
+      - 'tests/easystore_a2_party_writes_v1.test.mjs'
+      - '.github/workflows/easystore-a2-party-writes-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate A2 party writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_command_foundation_v1.test.mjs
+          node tests/easystore_a2_party_writes_v1.test.mjs
+          echo EASYSTORE_A2_PARTY_WRITES_CI=PASS
+          echo PRODUCTION_MUTATION=NO
