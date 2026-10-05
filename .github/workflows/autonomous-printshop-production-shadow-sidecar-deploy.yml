@@ -134,13 +134,14 @@ jobs:
           console.log('MAIN_TRENDOS_POSTDEPLOY_PASS');
           NODE
 
-      - name: Remove isolated worker on post-deploy failure
+      - name: Preserve fail-closed isolated worker on verification failure
         if: ${{ failure() && env.DEPLOYED == '1' }}
-        continue-on-error: true
         shell: bash
         run: |
-          echo 'Shadow verification failed; deleting isolated sidecar only.'
-          npx --yes wrangler@${WRANGLER_VERSION} delete --config "$CONFIG" --force
+          echo 'Shadow verification failed.'
+          echo 'The isolated worker remains deployed in fail-closed/read-only mode.'
+          echo 'No main TrendOS worker rollback is required because it was never changed.'
+          echo 'AUTO_DELETE_SKIPPED=YES'
 
       - name: Safety conclusion
         if: ${{ success() }}
