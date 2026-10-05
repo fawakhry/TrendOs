@@ -1,0 +1,95 @@
+name: Autonomous Printshop D1 Foundations Apply Controlled
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-d1-foundations-apply-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-d1-foundations
+  cancel-in-progress: false
+
+jobs:
+  apply-additive-default-off:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      AUTONOMY_SQL: autonomous-printshop/migrations/0019_autonomy_events_v1.sql
+      TASK_SQL: autonomous-printshop/migrations/0020_operator_task_authority_v1.sql
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Repo contracts
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs
+          node autonomous-printshop/tests/operator_task_authority_v1.test.mjs
+
+      - name: Hard migration safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in "$AUTONOMY_SQL" "$TASK_SQL"; do
+            test -f "$f"
+            ! grep -Eiq '\b(DROP|ALTER|DELETE|UPDATE|REPLACE|VACUUM)\b' "$f"
+            grep -Eq 'CREATE TABLE IF NOT EXISTS' "$f"
+          done
+          grep -Eq "mode TEXT NOT NULL DEFAULT 'OFF'" "$AUTONOMY_SQL"
+          grep -Eq "VALUES \(1, 'OFF', 'v1', 0.92, 1" "$AUTONOMY_SQL"
+          grep -Eq "mode TEXT NOT NULL DEFAULT 'OFF'" "$TASK_SQL"
+          grep -Eq "VALUES \(1, 'OFF', NULL, 1" "$TASK_SQL"
+          echo 'DESTRUCTIVE_DDL=NO'
+          echo 'CONTROL_DEFAULT_OFF=YES'
+
+      - name: Apply autonomy ledger additive schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file "$AUTONOMY_SQL"
+
+      - name: Apply operator task additive schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file "$TASK_SQL"
+
+      - name: Verify schema and controls remain OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('autonomy_control','autonomy_events','autonomy_observations','autonomy_control_events')) AS autonomyTables, (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode, (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('operator_task_control','operator_tasks','operator_task_events','operator_task_control_events')) AS taskTables, (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS taskMode, (SELECT COUNT(*) FROM autonomy_events) AS autonomyEventCount, (SELECT COUNT(*) FROM operator_tasks) AS operatorTaskCount;" > /tmp/verify.json
+          cat /tmp/verify.json
+          node - <<'NODE'
+          const raw=JSON.parse(require('fs').readFileSync('/tmp/verify.json','utf8'));
+          const row=raw?.[0]?.results?.[0]||{};
+          if(Number(row.autonomyTables)!==4) process.exit(1);
+          if(row.autonomyMode!=='OFF') process.exit(2);
+          if(Number(row.taskTables)!==4) process.exit(3);
+          if(row.taskMode!=='OFF') process.exit(4);
+          if(Number(row.autonomyEventCount)!==0) process.exit(5);
+          if(Number(row.operatorTaskCount)!==0) process.exit(6);
+          console.log('AUTONOMY_SCHEMA=APPLIED_DEFAULT_OFF');
+          console.log('OPERATOR_TASK_SCHEMA=APPLIED_DEFAULT_OFF');
+          NODE
+
+      - name: Production business behavior boundary
+        run: |
+          echo 'AUTOPILOT=OFF'
+          echo 'OPERATOR_TASK_AUTHORITY=OFF'
+          echo 'EMPLOYEE_ASSIGNMENT_CHANGED=NO'
+          echo 'BUSINESS_ORDER_WRITE_CHANGED=NO'
