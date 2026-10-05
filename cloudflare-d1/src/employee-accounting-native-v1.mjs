@@ -46,7 +46,7 @@ function sourceSystemV1(body){return text(body&&body.sourceSystem||body&&body.so
 function correlationIdV1(body,requestKey){return text(body&&body.correlationId||body&&body.correlation_id||body&&body.orderId||requestKey);}
 async function beginCommandV1(env,auth,operation,body,entityId=''){
   const requestKey=text(body&&body.requestId||body&&body.idempotencyKey||body&&body.clientRequestId);
-  if(!/^[A-Za-z0-9_:.\-]{12,180}$/.test(requestKey))throw commandErrorV1('accounting-idempotency-key-required','requestId/idempotencyKey صالح مطلوب لتأمين الحركة.');
+  if(!/^[\p{L}\p{N}_:.\-]{12,180}$/u.test(requestKey))throw commandErrorV1('accounting-idempotency-key-required','requestId/idempotencyKey صالح مطلوب لتأمين الحركة.');
   const canonical=canonicalCommandJsonV1(body),hash=await sha256HexV1(canonical);
   const existing=await env.DB.prepare("SELECT operation,canonical_json AS canonicalJson,request_hash AS requestHash,status,response_json AS responseJson FROM employee_accounting_request_ledger_v1 WHERE request_key=?").bind(requestKey).first();
   if(existing){
