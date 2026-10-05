@@ -8,6 +8,8 @@ on:
     paths:
       - 'autonomous-printshop/production-shadow/**'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
+      - 'autonomous-printshop/core/employee-supervisor-shadow-v1.mjs'
+      - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml'
 
