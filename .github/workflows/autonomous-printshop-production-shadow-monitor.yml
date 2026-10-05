@@ -51,6 +51,22 @@ jobs:
           console.log('SHADOW_LIMITATIONS='+JSON.stringify(s.limitations||{}));
           NODE
 
+      - name: Employee Supervisor shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$SHADOW_URL/supervisor" > /tmp/supervisor.json
+          cat /tmp/supervisor.json
+          node - <<'NODE'
+          const s=JSON.parse(require('fs').readFileSync('/tmp/supervisor.json','utf8'));
+          if(s.success!==true||s.mode!=='EMPLOYEE_SUPERVISOR_SHADOW') process.exit(1);
+          if(s.writesAccepted!==false||s.d1Mutation!==false||s.employeeAssignment!==false) process.exit(2);
+          if(s.piiExposed!==false||s.employeeIdentityExposed!==false) process.exit(3);
+          console.log('SUPERVISOR_OPERATOR_COUNTS='+JSON.stringify(s.operatorCounts||{}));
+          console.log('SUPERVISOR_ASSIGNMENT_COVERAGE='+JSON.stringify(s.assignmentCoverage||{}));
+          console.log('SUPERVISOR_DEPARTMENTS='+JSON.stringify(s.departments||{}));
+          NODE
+
       - name: Main TrendOS guard
         shell: bash
         run: |
