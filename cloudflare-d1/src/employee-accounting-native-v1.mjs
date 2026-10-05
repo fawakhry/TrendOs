@@ -965,6 +965,55 @@ async function closePurchaseCustodyV1(env,auth,b){
   return response;
 }
 
+
+async function reverseApprovedPurchaseV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'عكس المشتريات المعتمدة متاح لضياء فقط.'};
+  const purchaseId=text(b.id||b.purchaseId),invoiceNo=text(b.invoiceNo||b.no),reason=text(b.reason);
+  if(!purchaseId&&!invoiceNo)return {success:false,message:'حدد فاتورة الشراء المطلوب عكسها.'};
+  if(!reason)return {success:false,message:'اكتب سبب العكس للحفاظ على سجل المراجعة.'};
+  const purchase=await env.DB.prepare("SELECT * FROM employee_accounting_purchase_invoices_v1 WHERE (purchase_id=? OR supplier_invoice_no=?) LIMIT 1").bind(purchaseId,invoiceNo).first();
+  if(!purchase)return {success:false,message:'فاتورة الشراء المعتمدة غير موجودة.'};
+  if(text(purchase.status)==='REVERSED')return {success:true,duplicatePrevented:true,purchaseId:text(purchase.purchase_id),message:'تم عكس هذه المشتريات بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
+
+  const qty=num(purchase.qty),total=num(purchase.total),paid=num(purchase.paid),remaining=num(purchase.remaining);
+  const material=await resolveMaterialV1(env,{materialId:purchase.material_id},text(purchase.department));
+  if(material.stock+0.000001<qty)return {success:false,message:'لا يمكن عكس المشتريات لأن المخزون الحالي أقل من الكمية المطلوب عكسها.'};
+  const supplier=await resolvePartyV1(env,'supplier',{supplierId:purchase.supplier_party_id,supplierName:purchase.supplier_name});
+  await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_party_balances_v1(party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms) VALUES('supplier',?,?,0,1,'',?)").bind(supplier.partyId,supplier.partyName,Date.now()).run();
+  const bal=await env.DB.prepare("SELECT balance,version FROM employee_accounting_party_balances_v1 WHERE party_type='supplier' AND party_id=?").bind(supplier.partyId).first();
+  const balanceBefore=num(bal&&bal.balance),balanceVersion=Math.max(1,Math.trunc(num(bal&&bal.version,1)));
+  if(balanceBefore+0.000001<remaining)return {success:false,message:'لا يمكن عكس الفاتورة لأن رصيد المورد الحالي أقل من المتبقي المرتبط بها. يلزم مراجعة حركات المورد أولًا.'};
+
+  const ctx=await beginCommandV1(env,auth,'purchase-reversal',{...b,purchaseId:text(purchase.purchase_id),invoiceNo:text(purchase.supplier_invoice_no),supplierId:supplier.partyId,materialId:material.materialId});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const now=Date.now(),stockMoveId=uid('STK'),cashId=uid('CSH'),custodyEventId=uid('CUS'),paymentReversalId=uid('LED'),invoiceReversalId=uid('LED');
+  const reversalRef='REV-'+crypto.randomUUID().replace(/-/g,'').slice(0,8).toUpperCase(),statements=[];
+
+  statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty-?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? AND stock_qty>=?").bind(qty,auth.user.username,material.materialId,material.version,qty));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance-?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='supplier' AND party_id=? AND version=? AND balance>=?").bind(remaining,ctx.requestKey,supplier.partyName,now,supplier.partyId,balanceVersion,remaining));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_purchase_invoices_v1 SET status='REVERSED',notes=CASE WHEN notes='' THEN ? ELSE notes||' | '||? END,updated_at=CURRENT_TIMESTAMP WHERE purchase_id=? AND status='POSTED' AND EXISTS(SELECT 1 FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?) AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='supplier' AND party_id=? AND last_request_key=? AND version=?)").bind('عكس: '+reason+' | '+reversalRef,'عكس: '+reason+' | '+reversalRef,purchase.purchase_id,material.materialId,material.version+1,supplier.partyId,ctx.requestKey,balanceVersion+1));
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,department,item_name,qty_in,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'عكس فاتورة شراء',?,?,0,?,?,?,?,?,?,? FROM employee_accounting_purchase_invoices_v1 WHERE purchase_id=? AND status='REVERSED'").bind(stockMoveId,material.materialId,text(purchase.department),text(purchase.material_name),qty,material.stock,material.stock-qty,auth.user.username,reason,ctx.requestKey,now,purchase.purchase_id));
+
+  if(paid>0)statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'supplier',?,'adjustment_increase','عكس دفعة شراء',?,1,?,?,?,?,?,?,?,? FROM employee_accounting_purchase_invoices_v1 WHERE purchase_id=? AND status='REVERSED'").bind(paymentReversalId,ctx.requestKey+'-LEDGER-PAYMENT-REV',supplier.partyId,supplier.partyName,paid,text(purchase.payment_method),text(purchase.supplier_invoice_no),balanceBefore,balanceBefore+paid,auth.user.username,reason,sourceSystemV1(b),now,purchase.purchase_id));
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'supplier',?,'adjustment_decrease','عكس فاتورة شراء',?,-1,?,?,?,?,?,?,?,? FROM employee_accounting_purchase_invoices_v1 WHERE purchase_id=? AND status='REVERSED'").bind(invoiceReversalId,ctx.requestKey+'-LEDGER-INVOICE-REV',supplier.partyId,supplier.partyName,total,text(purchase.payment_method),text(purchase.supplier_invoice_no),balanceBefore+paid,balanceBefore-remaining,auth.user.username,reason,sourceSystemV1(b),now,purchase.purchase_id));
+
+  const sourceDailyId=text(purchase.source_daily_purchase_id);
+  if(sourceDailyId){
+    statements.push(env.DB.prepare("UPDATE employee_accounting_daily_purchases_v1 SET status='REVERSED',stock_status='REVERSED',notes=CASE WHEN notes='' THEN ? ELSE notes||' | '||? END,updated_at=CURRENT_TIMESTAMP WHERE daily_purchase_id=? AND status='APPROVED' AND EXISTS(SELECT 1 FROM employee_accounting_purchase_invoices_v1 WHERE purchase_id=? AND status='REVERSED')").bind('عكس مالي: '+reason,'عكس مالي: '+reason,sourceDailyId,purchase.purchase_id));
+    if(paid>0)statements.push(env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_custody_events_v1(custody_event_id,request_key,work_date,employee_key,department,movement_type,amount,payment_method,ref_no,source_purchase_id,notes,actor,created_at_ms) SELECT ?,?,?,?,?, 'PURCHASE_REVERSAL',?,?,?,?,?,?,? FROM employee_accounting_daily_purchases_v1 WHERE daily_purchase_id=? AND status='REVERSED'").bind(custodyEventId,ctx.requestKey+'-CUSTODY-REV',text(purchase.work_date),text(b.employee||''),text(purchase.department),paid,text(purchase.payment_method),text(purchase.supplier_invoice_no),text(purchase.purchase_id),reason,auth.user.username,now,sourceDailyId));
+  }else if(paid>0){
+    statements.push(env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? FROM employee_accounting_purchase_invoices_v1 WHERE purchase_id=? AND status='REVERSED'").bind(cashId,ctx.requestKey+'-CASH-REV',text(purchase.work_date),'PURCHASE_REVERSAL_RECEIPT',supplier.partyId,supplier.partyName,text(purchase.department),paid,text(purchase.payment_method),text(purchase.supplier_invoice_no),sourceSystemV1(b),reason,auth.user.username,now,purchase.purchase_id));
+  }
+
+  await env.DB.batch(statements);
+  const check=await env.DB.prepare("SELECT status FROM employee_accounting_purchase_invoices_v1 WHERE purchase_id=?").bind(purchase.purchase_id).first();
+  if(!check||text(check.status)!=='REVERSED')throw commandErrorV1('accounting-purchase-reversal-guard','تعذر عكس الفاتورة والمخزون وحساب المورد بشكل ذري. الطلب محفوظ PREPARED للمراجعة.');
+  const response={success:true,purchaseId:text(purchase.purchase_id),invoiceNo:text(purchase.supplier_invoice_no),reversalRef,stockBefore:material.stock,stockAfter:material.stock-qty,supplierBalanceBefore:balanceBefore,supplierBalanceAfter:balanceBefore-remaining,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'purchase',text(purchase.purchase_id),'reverse',auth.user.username,{reason,reversalRef,qty,total,paid,remaining,sourceDailyId});
+  return response;
+}
+
 async function getParty(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
@@ -1052,6 +1101,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='rejectDeptDailyPurchaseV1917')out=await rejectDeptDailyPurchaseV1(env,auth,b);
     else if(action==='savePurchaseCustodyV1920')out=await savePurchaseCustodyV1(env,auth,b);
     else if(action==='closePurchaseCustodyV1920')out=await closePurchaseCustodyV1(env,auth,b);
+    else if(action==='reverseApprovedPurchaseV1920')out=await reverseApprovedPurchaseV1(env,auth,b);
     else if(action==='getPartyAccountV1858')out=await getParty(env,auth,b);
     else if(action==='saveCustomerAccountMovementV1915')out=await partyLedger(env,auth,{...b,partyType:'customer'});
     else if(action==='savePartyLedgerTransaction')out=await partyLedger(env,auth,b);
