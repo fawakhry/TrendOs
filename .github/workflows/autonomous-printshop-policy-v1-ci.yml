@@ -17,6 +17,8 @@ on:
       - 'autonomous-printshop/tests/trendos_operational_reality_read_adapter_v1.test.mjs'
       - 'autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs'
       - 'autonomous-printshop/tests/operator_task_authority_v1.test.mjs'
+      - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
+      - 'autonomous-printshop/production-shadow/**'
       - 'cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/wrangler.toml'
@@ -68,5 +70,7 @@ jobs:
         run: node autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs
       - name: Run Operator Task authority contract
         run: node autonomous-printshop/tests/operator_task_authority_v1.test.mjs
+      - name: Run isolated production shadow worker contract
+        run: node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
       - name: Check production worker bundle entry
         run: node --check cloudflare-d1/src/index_v2.js
