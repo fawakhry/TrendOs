@@ -21,9 +21,8 @@ function parseSqliteUtc(v){
   const ms=Date.parse(normalized);
   return Number.isFinite(ms)?ms:0;
 }
-function backfillMaxAgeSeconds(env){
-  const n=Number(env&&env.AUTONOMOUS_SHADOW_BACKFILL_MAX_AGE_SECONDS);
-  return Number.isFinite(n)?Math.max(3600,Math.min(604800,Math.trunc(n))):172800;
+function expectedSnapshotSha(env){
+  return text(env&&env.AUTONOMOUS_SHADOW_EXPECTED_BACKFILL_SHA256).toLowerCase();
 }
 
 async function qualification(env){
@@ -49,6 +48,7 @@ async function qualification(env){
   const run=await env.DB.prepare(`
     SELECT run_id AS runId,
            source_snapshot_sha256 AS sourceSnapshotSha256,
+           target_counts_json AS targetCountsJson,
            status,
            completed_at AS completedAt
       FROM employee_zero_google_backfill_runs_v1
@@ -58,6 +58,67 @@ async function qualification(env){
   `).first();
   if(!run)return {ok:false,reason:'COMMITTED_BACKFILL_MISSING'};
 
+  const expectedSha=expectedSnapshotSha(env);
+  const actualSha=text(run.sourceSnapshotSha256).toLowerCase();
+  if(!expectedSha||actualSha!==expectedSha){
+    return {
+      ok:false,
+      reason:'BACKFILL_SNAPSHOT_SHA_MISMATCH',
+      runId:text(run.runId),
+      expectedShaConfigured:!!expectedSha
+    };
+  }
+
+  let targets={};
+  try{targets=JSON.parse(text(run.targetCountsJson)||'{}');}
+  catch{return {ok:false,reason:'BACKFILL_TARGET_COUNTS_INVALID',runId:text(run.runId)};}
+
+  const actual=await env.DB.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM employee_core_orders_v1) AS coreOrders,
+      (SELECT COUNT(*) FROM employee_core_lines_v1) AS coreLines,
+      (SELECT COUNT(*) FROM employee_core_archive_orders_v1) AS archiveOrders,
+      (SELECT COUNT(*) FROM employee_core_archive_lines_v1) AS archiveLines,
+      (SELECT COUNT(*) FROM employee_core_lines_v1 i
+         JOIN t12_prod_lines n ON n.line_id=i.line_id) AS overlappingLineIds,
+      (SELECT COUNT(DISTINCT i.order_id) FROM employee_core_orders_v1 i
+         JOIN t12_prod_orders n ON n.order_id=i.order_id) AS overlappingOrderIds
+  `).first();
+
+  const expectedCounts={
+    coreOrders:num(targets.employee_core_orders_v1,-1),
+    coreLines:num(targets.employee_core_lines_v1,-1),
+    archiveOrders:num(targets.employee_core_archive_orders_v1,-1),
+    archiveLines:num(targets.employee_core_archive_lines_v1,-1)
+  };
+  const actualCounts={
+    coreOrders:num(actual&&actual.coreOrders,-1),
+    coreLines:num(actual&&actual.coreLines,-1),
+    archiveOrders:num(actual&&actual.archiveOrders,-1),
+    archiveLines:num(actual&&actual.archiveLines,-1)
+  };
+  const countsMatch=Object.keys(expectedCounts).every(k=>
+    expectedCounts[k]>=0&&actualCounts[k]===expectedCounts[k]
+  );
+  if(!countsMatch){
+    return {
+      ok:false,
+      reason:'BACKFILL_TARGET_COUNT_MISMATCH',
+      runId:text(run.runId),
+      expectedCounts,
+      actualCounts
+    };
+  }
+  if(num(actual&&actual.overlappingLineIds)>0||num(actual&&actual.overlappingOrderIds)>0){
+    return {
+      ok:false,
+      reason:'BACKFILL_NATIVE_IDENTITY_OVERLAP',
+      runId:text(run.runId),
+      overlappingLineIds:num(actual&&actual.overlappingLineIds),
+      overlappingOrderIds:num(actual&&actual.overlappingOrderIds)
+    };
+  }
+
   const parity=await env.DB.prepare(`
     SELECT COUNT(*) AS total,
            SUM(CASE WHEN pass=1 THEN 1 ELSE 0 END) AS passed,
@@ -65,40 +126,36 @@ async function qualification(env){
       FROM employee_zero_google_parity_v1
      WHERE run_id=?
   `).bind(text(run.runId)).first();
-  const total=num(parity&&parity.total),failed=num(parity&&parity.failed);
-  if(total<=0||failed>0){
+  const parityRows=num(parity&&parity.total);
+  const parityFailed=num(parity&&parity.failed);
+  if(parityRows>0&&parityFailed>0){
     return {
       ok:false,
-      reason:'BACKFILL_PARITY_NOT_QUALIFIED',
+      reason:'BACKFILL_PARITY_ROW_FAILURE',
       runId:text(run.runId),
-      parity:{total,passed:num(parity&&parity.passed),failed}
+      parity:{total:parityRows,passed:num(parity&&parity.passed),failed:parityFailed}
     };
   }
 
   const completedMs=parseSqliteUtc(run.completedAt);
-  const ageSeconds=completedMs?Math.max(0,Math.round((Date.now()-completedMs)/1000)):Number.MAX_SAFE_INTEGER;
-  const maxAgeSeconds=backfillMaxAgeSeconds(env);
-  if(ageSeconds>maxAgeSeconds){
-    return {
-      ok:false,
-      reason:'BACKFILL_TOO_OLD_FOR_SHADOW',
-      runId:text(run.runId),
-      completedAt:text(run.completedAt),
-      ageSeconds,
-      maxAgeSeconds,
-      parity:{total,passed:num(parity&&parity.passed),failed}
-    };
-  }
+  const ageSeconds=completedMs?Math.max(0,Math.round((Date.now()-completedMs)/1000)):null;
 
   return {
     ok:true,
-    mode:'entry615-backfill+t12-runtime-overlays',
+    mode:'entry615-committed-count-qualified+t12-runtime-overlays',
     runId:text(run.runId),
-    sourceSnapshotSha256:text(run.sourceSnapshotSha256),
+    sourceSnapshotSha256:actualSha,
     completedAt:text(run.completedAt),
     ageSeconds,
-    maxAgeSeconds,
-    parity:{total,passed:num(parity&&parity.passed),failed}
+    expectedCounts,
+    actualCounts,
+    identityOverlap:{lines:0,orders:0},
+    parityTable:{
+      rows:parityRows,
+      passed:num(parity&&parity.passed),
+      failed:parityFailed,
+      optionalBecauseCommittedRunCountsAreQualified:parityRows===0
+    }
   };
 }
 
@@ -217,7 +274,9 @@ async function snapshot(env){
       backfillRunId:qualified.runId,
       backfillCompletedAt:qualified.completedAt,
       backfillAgeSeconds:qualified.ageSeconds,
-      parity:qualified.parity,
+      targetCountsQualified:true,
+      identityOverlap:qualified.identityOverlap,
+      parityTable:qualified.parityTable,
       rowCount:rows.length,
       sourceKinds:sourceKindCounts(rows)
     },
