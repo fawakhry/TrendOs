@@ -35,6 +35,7 @@ async function qualification(env){
     't12_prod_orders',
     't12_prod_lines',
     't12_prod_line_runtime',
+    't12_prod_order_schedule',
     't12_legacy_line_runtime'
   ];
   const placeholders=required.map(()=>'?').join(',');
@@ -137,6 +138,55 @@ async function qualification(env){
     };
   }
 
+  const schedule=await env.DB.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM t12_prod_orders) AS nativeOrders,
+      (SELECT COUNT(*) FROM t12_prod_order_schedule) AS scheduleRows,
+      (SELECT COUNT(*)
+         FROM t12_prod_orders o
+         LEFT JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+        WHERE s.order_id IS NULL) AS missingSchedule,
+      (SELECT COUNT(*)
+         FROM t12_prod_orders o
+         JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+        WHERE s.policy_code<>'LEGACY_D0_FLY_D2_STANDARD_V1') AS invalidPolicyRows,
+      (SELECT COUNT(*)
+         FROM t12_prod_orders o
+         JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+        WHERE s.expected_delivery_date <>
+          CASE
+            WHEN EXISTS(
+              SELECT 1 FROM t12_prod_lines l
+               WHERE l.order_id=o.order_id AND l.fly_print=1
+            )
+            THEN date(datetime(o.created_at,'+3 hours'))
+            ELSE date(datetime(o.created_at,'+3 hours'),'+2 days')
+          END) AS duePolicyMismatches
+  `).first();
+  const nativeOrders=num(schedule&&schedule.nativeOrders,-1);
+  const scheduleRows=num(schedule&&schedule.scheduleRows,-1);
+  const missingSchedule=num(schedule&&schedule.missingSchedule,-1);
+  const invalidPolicyRows=num(schedule&&schedule.invalidPolicyRows,-1);
+  const duePolicyMismatches=num(schedule&&schedule.duePolicyMismatches,-1);
+  if(nativeOrders<0||scheduleRows!==nativeOrders||missingSchedule!==0){
+    return {
+      ok:false,
+      reason:'NATIVE_ORDER_SCHEDULE_INCOMPLETE',
+      nativeOrders,
+      scheduleRows,
+      missingSchedule
+    };
+  }
+  if(invalidPolicyRows!==0||duePolicyMismatches!==0){
+    return {
+      ok:false,
+      reason:'NATIVE_ORDER_SCHEDULE_POLICY_MISMATCH',
+      nativeOrders,
+      invalidPolicyRows,
+      duePolicyMismatches
+    };
+  }
+
   const completedMs=parseSqliteUtc(run.completedAt);
   const ageSeconds=completedMs?Math.max(0,Math.round((Date.now()-completedMs)/1000)):null;
 
@@ -155,6 +205,14 @@ async function qualification(env){
       passed:num(parity&&parity.passed),
       failed:parityFailed,
       optionalBecauseCommittedRunCountsAreQualified:parityRows===0
+    },
+    schedule:{
+      qualified:true,
+      nativeOrders,
+      scheduleRows,
+      missingSchedule:0,
+      policyCode:'LEGACY_D0_FLY_D2_STANDARD_V1',
+      policyMismatches:0
     }
   };
 }
@@ -194,12 +252,13 @@ async function currentRows(env){
              COALESCE(r.status,l.status) AS status,
              l.heat_press AS heatPress,
              l.fly_print AS flyPrint,
-             '' AS expectedDeliveryAt,
+             COALESCE(s.expected_delivery_date,'') AS expectedDeliveryAt,
              COALESCE(r.updated_at,l.updated_at) AS updatedAt,
              't12-native+runtime' AS sourceKind
         FROM t12_prod_lines l
         JOIN t12_prod_orders o ON o.order_id=l.order_id
         LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+        LEFT JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
         LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
        WHERE a.line_id IS NULL
        ORDER BY o.created_at,l.ordinal
@@ -277,6 +336,7 @@ async function snapshot(env){
       targetCountsQualified:true,
       identityOverlap:qualified.identityOverlap,
       parityTable:qualified.parityTable,
+      schedule:qualified.schedule,
       rowCount:rows.length,
       sourceKinds:sourceKindCounts(rows)
     },
@@ -297,7 +357,7 @@ async function snapshot(env){
       designReadinessConnected:false,
       materialReadinessConnected:false,
       machineReadinessConnected:false,
-      nativeOrderDueDatePersisted:false
+      nativeOrderDueDatePersisted:true
     },
     piiExposed:false,
     rawOrderIdsExposed:false,
