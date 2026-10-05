@@ -1235,6 +1235,234 @@ async function finalInvoice(env,auth,b){
   return response;
 }
 
+
+function txGuardPairV1(env,requestKey,expected,actualSql,bind=[]){
+  return [
+    env.DB.prepare("INSERT INTO employee_accounting_tx_guard_v1(request_key,expected_count,actual_count) SELECT ?,?,("+actualSql+")").bind(requestKey,expected,...bind),
+    env.DB.prepare("DELETE FROM employee_accounting_tx_guard_v1 WHERE request_key=?").bind(requestKey)
+  ];
+}
+
+async function saveDeptLineA2V1(env,auth,b){
+  if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'إضافة بنود حسابات القسم غير مسموحة.'};
+  const orderId=text(b.orderId),itemName=text(b.itemName||b.name),qty=Math.max(num(b.qty||b.quantity,1),0.000001);
+  let department=text(b.department)||auth.department;if(auth.mode==='print')department='طباعة';if(auth.mode==='laser')department='ليزر';
+  if(!orderId||!department||!itemName)return {success:false,message:'رقم الأوردر والقسم واسم البند مطلوبون.'};
+  const id=text(b.accountingLineId||b.id||b.lineId)||text(b.requestId)||uid('ACC'),workDate=workDateKeyV1(b.workDate||b.date);
+  const existing=await env.DB.prepare("SELECT version,approval_status AS approvalStatus,final_invoice_no AS invoiceNo FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id=?").bind(id).first();
+  if(existing&&(text(existing.invoiceNo)||text(existing.approvalStatus)==='معتمد من القسم'))return {success:false,message:'لا يمكن تعديل بند تم اعتماده أو سحبه لفاتورة نهائية.'};
+  const materialName=text(b.materialName),materialConsumption=num(b.materialConsumption||b.consumption||b.consumedAreaTotal);
+  const materialCost=num(b.materialCost)||materialConsumption*await materialCost(env,materialName);
+  const operating=num(b.operatingCost),other=num(b.otherCost),total=num(b.totalCost,materialCost+operating+other),sale=num(b.salePrice||b.lineTotal||b.systemSalePrice),profit=sale-total;
+  const ctx=await beginCommandV1(env,auth,'dept-line-upsert',{...b,accountingLineId:id,department,workDate});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  if(existing){
+    const r=await env.DB.prepare("UPDATE employee_accounting_dept_lines_v1 SET order_id=?,line_id=?,customer_name=?,department=?,item_type=?,item_name=?,qty=?,material_name=?,material_consumption=?,material_cost=?,operating_cost=?,other_cost=?,total_cost=?,system_cost=?,system_sale_price=?,sale_price=?,profit=?,billing_status=?,notes=?,raw_json=?,updated_by=?,work_date=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE accounting_line_id=? AND version=? AND final_invoice_no='' AND approval_status<>'معتمد من القسم' RETURNING version")
+      .bind(orderId,text(b.lineId),text(b.customerName),department,text(b.itemType),itemName,qty,materialName,materialConsumption,materialCost,operating,other,total,num(b.systemCost,total),num(b.systemSalePrice,sale),sale,profit,text(b.billingStatus||'مسجل - قيد مراجعة القسم'),text(b.notes),JSON.stringify(b),auth.user.username,workDate,id,Math.max(1,Math.trunc(num(existing.version,1)))).first();
+    if(!r)throw commandErrorV1('accounting-dept-line-version-conflict','تم تعديل بند القسم بالتزامن. حدّث البيانات ثم أعد المحاولة.');
+  }else{
+    await env.DB.prepare("INSERT INTO employee_accounting_dept_lines_v1(accounting_line_id,order_id,line_id,customer_name,department,item_type,item_name,qty,material_name,material_consumption,material_cost,operating_cost,other_cost,total_cost,system_cost,system_sale_price,sale_price,profit,billing_status,notes,raw_json,updated_by,version,work_date) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?)")
+      .bind(id,orderId,text(b.lineId),text(b.customerName),department,text(b.itemType),itemName,qty,materialName,materialConsumption,materialCost,operating,other,total,num(b.systemCost,total),num(b.systemSalePrice,sale),sale,profit,text(b.billingStatus||'مسجل - قيد مراجعة القسم'),text(b.notes),JSON.stringify(b),auth.user.username,workDate).run();
+  }
+  const response={success:true,id,lineId:id,updated:!!existing,totalCost:total,salePrice:sale,profit,workDate,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'dept-line',id,existing?'update':'create',auth.user.username,{orderId,department,workDate,totalCost:total,salePrice:sale});
+  return response;
+}
+
+async function approveDeptA2V1(env,auth,b){
+  if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'اعتماد فاتورة القسم متاح للقسم نفسه أو لضياء فقط.'};
+  const orderId=text(b.orderId);let department=text(b.department)||auth.department;if(auth.mode==='print')department='طباعة';if(auth.mode==='laser')department='ليزر';
+  if(!orderId||!department)return {success:false,message:'رقم الأوردر والقسم مطلوبين للاعتماد.'};
+  if(auth.mode==='print'&&department!=='طباعة')return {success:false,message:'وائل يعتمد قسم الطباعة فقط.'};
+  if(auth.mode==='laser'&&department!=='ليزر')return {success:false,message:'جابر يعتمد قسم الليزر فقط.'};
+  const candidates=await rows(env,"SELECT * FROM employee_accounting_dept_lines_v1 WHERE order_id=? AND department=? AND final_invoice_no='' AND approval_status<>'معتمد من القسم' ORDER BY updated_at",[orderId,department]);
+  if(!candidates.length)return {success:false,message:'لا توجد بنود جديدة غير معتمدة لهذا الأوردر في هذا القسم.'};
+  const req=await stockRequirements(env,candidates);
+  for(const {material,qty} of req.values())if(num(material.stock_qty)+1e-6<qty)return {success:false,message:'لا يمكن الاعتماد؛ ناقص '+text(material.material_name)+': مطلوب '+qty.toFixed(4)+' والمتاح '+num(material.stock_qty).toFixed(4)};
+  const ctx=await beginCommandV1(env,auth,'dept-approval',{...b,orderId,department,lineIds:candidates.map(x=>x.accounting_line_id)});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const batchId=uid('DAPP'),now=Date.now(),statements=[];
+  for(const {material,qty} of req.values()){
+    const before=num(material.stock_qty),version=Math.max(1,Math.trunc(num(material.version,1))),after=before-qty,move=uid('STK');
+    statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty-?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? AND stock_qty>=?").bind(qty,auth.user.username,material.material_id,version,qty));
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,order_id,department,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'صرف تلقائي من فاتورة قسم',?,?,?,?,?,?,?,?,? FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?").bind(move,material.material_id,orderId,department,qty,before,after,auth.user.username,text(b.notes),ctx.requestKey,now,material.material_id,version+1));
+  }
+  const stockCount=req.size;
+  for(const line of candidates){
+    statements.push(env.DB.prepare("UPDATE employee_accounting_dept_lines_v1 SET billing_status='معتمد من القسم',approval_status='معتمد من القسم',approved_by=?,approved_at_ms=?,approval_batch_id=?,approval_notes=?,stock_deducted=1,stock_deducted_at_ms=?,close_status='معتمد من القسم',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE accounting_line_id=? AND version=? AND final_invoice_no='' AND approval_status<>'معتمد من القسم' AND (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)=?")
+      .bind(auth.user.username,now,batchId,text(b.notes),now,line.accounting_line_id,Math.max(1,Math.trunc(num(line.version,1))),ctx.requestKey,stockCount));
+  }
+  const guardSql="(SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)+(SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE approval_batch_id=?)";
+  statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',stockCount+candidates.length,guardSql,[ctx.requestKey,batchId]));
+  await env.DB.batch(statements);
+  const total=candidates.reduce((a,l)=>a+num(l.sale_price),0);
+  const response={success:true,message:'تم اعتماد فاتورة قسم '+department+' للأوردر '+orderId+' وخصم المخزون مرة واحدة بعدد '+candidates.length+' بند.',count:candidates.length,total,batchId,stockDeducted:true,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'dept-approval',batchId,'approve',auth.user.username,{orderId,department,count:candidates.length,total,stockMaterialCount:stockCount});
+  return response;
+}
+
+async function finalInvoiceA2V1(env,auth,b){
+  if(!['full','final'].includes(auth.mode))return {success:false,message:'تقفيل الفاتورة عند رحمه أو ريفان أو ضياء فقط.'};
+  const orderId=text(b.orderId);if(!orderId)return {success:false,message:'رقم الأوردر مطلوب لتقفيل الفاتورة.'};
+  let ids=parseJson(b.lineIds,[]);if(!Array.isArray(ids))ids=String(b.lineIds||'').split(/[,،]/).map(text).filter(Boolean);
+  let lineRows;
+  if(ids.length){
+    const qs=ids.map(()=>'?').join(',');
+    lineRows=await rows(env,"SELECT * FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id IN ("+qs+") AND order_id=? AND approval_status='معتمد من القسم' AND final_invoice_no='' ORDER BY accounting_line_id",[...ids,orderId]);
+  }else lineRows=await rows(env,"SELECT * FROM employee_accounting_dept_lines_v1 WHERE order_id=? AND approval_status='معتمد من القسم' AND final_invoice_no='' ORDER BY accounting_line_id",[orderId]);
+  if(!lineRows.length)return {success:false,message:'لا توجد بنود أقسام معتمدة ومفتوحة للتقفيل النهائي.'};
+  if(ids.length&&lineRows.length!==ids.length)return {success:false,message:'بعض البنود غير معتمدة أو تم تقفيلها بالفعل.'};
+  ids=lineRows.map(x=>text(x.accounting_line_id));
+  const subtotal=lineRows.reduce((a,l)=>a+num(l.sale_price),0),manualAmount=Math.max(0,num(b.manualAmount||b.manualValue)),discount=Math.max(0,num(b.discount)),finalTotal=Math.max(0,subtotal+manualAmount-discount),paid=Math.max(0,num(b.paid));
+  if(!(finalTotal>0))return {success:false,message:'إجمالي الفاتورة يجب أن يكون أكبر من صفر.'};
+  if(paid>finalTotal+0.000001)return {success:false,message:'المدفوع لا يمكن أن يزيد عن إجمالي الفاتورة.'};
+  const remaining=Math.max(0,finalTotal-paid),customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customerName||b.customer});
+  const workDate=workDateKeyV1(b.workDate||b.date),department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام';
+  const heldPayment=Math.max(0,num(b.heldPayment)),heldFrom=text(b.heldPaymentFromInvoiceNo||b.replacesInvoiceNo);
+  if(heldPayment>paid+0.000001)return {success:false,message:'المدفوع المحفوظ لا يمكن أن يزيد عن المدفوع في الفاتورة الجديدة.'};
+  let heldSource=null;
+  if(heldPayment>0){
+    if(!heldFrom)return {success:false,message:'حدد الفاتورة القديمة التي تحمل المدفوع المحفوظ.'};
+    heldSource=await env.DB.prepare("SELECT invoice_no,customer_party_id,customer_name,held_paid,replacement_invoice_no,status,version FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(heldFrom).first();
+    if(!heldSource||text(heldSource.status)!=='UNDER_REVIEW'||text(heldSource.replacement_invoice_no)||Math.abs(num(heldSource.held_paid)-heldPayment)>0.000001)return {success:false,message:'المدفوع المحفوظ غير متاح أو استُخدم من قبل.'};
+    if(text(heldSource.customer_party_id)&&text(heldSource.customer_party_id)!==customer.partyId)return {success:false,message:'المدفوع المحفوظ يخص عميلًا مختلفًا.'};
+  }
+  await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_party_balances_v1(party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms) VALUES('customer',?,?,0,1,'',?)").bind(customer.partyId,customer.partyName,Date.now()).run();
+  const balanceRow=await env.DB.prepare("SELECT balance,version FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=?").bind(customer.partyId).first();
+  const balanceBefore=num(balanceRow&&balanceRow.balance),balanceVersion=Math.max(1,Math.trunc(num(balanceRow&&balanceRow.version,1)));
+  const ctx=await beginCommandV1(env,auth,'final-invoice',{...b,orderId,lineIds:ids,customerId:customer.partyId,customerName:customer.partyName,workDate,finalTotal,paid,remaining,heldPayment,heldFrom});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true,trustedByServer:true};
+  const invoiceNo=await nextInvoiceNo(env),now=Date.now(),newCash=Math.max(0,paid-heldPayment),statements=[];
+  const qs=ids.map(()=>'?').join(',');
+  let insertSql="INSERT INTO employee_accounting_final_invoices_v1(invoice_no,request_key,order_id,customer_name,customer_party_id,accounting_line_ids_json,manual_item,manual_amount,subtotal,discount,final_total,paid,remaining,payment_method,finance_department,status,closed_by,notes,created_at_ms,work_date,version) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'CLOSED',?,?,?,?,?,1 WHERE (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id IN ("+qs+") AND order_id=? AND approval_status='معتمد من القسم' AND final_invoice_no='')=?";
+  const insertBind=[invoiceNo,ctx.requestKey,orderId,customer.partyName,customer.partyId,JSON.stringify(ids),text(b.manualItem||b.manualDescription),manualAmount,subtotal,discount,finalTotal,paid,remaining,text(b.paymentType||b.paymentMethod||'آجل'),department,auth.user.username,text(b.notes),now,workDate,...ids,orderId,ids.length];
+  if(heldPayment>0){insertSql+=" AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND status='UNDER_REVIEW' AND replacement_invoice_no='' AND held_paid=? AND (customer_party_id='' OR customer_party_id=?))";insertBind.push(heldFrom,heldPayment,customer.partyId);}
+  statements.push(env.DB.prepare(insertSql).bind(...insertBind));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance+?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='customer' AND party_id=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)").bind(remaining,ctx.requestKey,customer.partyName,now,customer.partyId,balanceVersion,invoiceNo,ctx.requestKey));
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'invoice','باقي فاتورة عميل',?,1,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)")
+    .bind(uid('LED'),ctx.requestKey+'-LEDGER-INVOICE',customer.partyId,customer.partyName,finalTotal,text(b.paymentType||b.paymentMethod),invoiceNo,balanceBefore,balanceBefore+finalTotal,auth.user.username,text(b.notes),sourceSystemV1(b),now,invoiceNo,customer.partyId,ctx.requestKey,balanceVersion+1));
+  if(paid>0)statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'payment_received','سداد من العميل',?,-1,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)")
+    .bind(uid('LED'),ctx.requestKey+'-LEDGER-PAYMENT',customer.partyId,customer.partyName,paid,text(b.paymentType||b.paymentMethod),invoiceNo,balanceBefore+finalTotal,balanceBefore+remaining,auth.user.username,text(b.notes),sourceSystemV1(b),now,invoiceNo,customer.partyId,ctx.requestKey,balanceVersion+1));
+  if(newCash>0)statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(uid('CSH'),ctx.requestKey+'-CASH',workDate,'CUSTOMER_RECEIPT',customer.partyId,customer.partyName,department,newCash,text(b.paymentType||b.paymentMethod),invoiceNo,sourceSystemV1(b),text(b.notes),auth.user.username,now,invoiceNo));
+  if(heldPayment>0)statements.push(env.DB.prepare("UPDATE employee_accounting_final_invoices_v1 SET replacement_invoice_no=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE invoice_no=? AND status='UNDER_REVIEW' AND replacement_invoice_no='' AND held_paid=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 n WHERE n.invoice_no=?)").bind(invoiceNo,heldFrom,heldPayment,Math.max(1,Math.trunc(num(heldSource.version,1))),invoiceNo));
+  for(const line of lineRows)statements.push(env.DB.prepare("UPDATE employee_accounting_dept_lines_v1 SET billing_status='مسحوب للفاتورة النهائية',close_status='مغلق',final_invoice_no=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE accounting_line_id=? AND version=? AND approval_status='معتمد من القسم' AND final_invoice_no='' AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?)").bind(invoiceNo,line.accounting_line_id,Math.max(1,Math.trunc(num(line.version,1))),invoiceNo));
+  const ledgerExpected=1+(paid>0?1:0),cashExpected=newCash>0?1:0,heldExpected=heldPayment>0?1:0;
+  let actualSql="(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)+(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?)+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key IN (?,?))+(SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE final_invoice_no=?)";
+  const guardBind=[invoiceNo,ctx.requestKey,customer.partyId,ctx.requestKey,ctx.requestKey+'-LEDGER-INVOICE',ctx.requestKey+'-LEDGER-PAYMENT',invoiceNo];
+  if(cashExpected){actualSql+=" +(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";guardBind.push(ctx.requestKey+'-CASH');}
+  if(heldExpected){actualSql+=" +(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND replacement_invoice_no=?)";guardBind.push(heldFrom,invoiceNo);}
+  statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',1+1+ledgerExpected+ids.length+cashExpected+heldExpected,actualSql,guardBind));
+  await env.DB.batch(statements);
+  const written=await env.DB.prepare("SELECT invoice_no AS invoiceNo,subtotal,final_total AS finalTotal,paid,remaining FROM employee_accounting_final_invoices_v1 WHERE request_key=?").bind(ctx.requestKey).first();
+  if(!written)throw commandErrorV1('accounting-final-invoice-guard','تعذر تقفيل الفاتورة بشكل ذري. الطلب محفوظ PREPARED للمراجعة.');
+  const response={success:true,trustedByServer:true,invoiceNo:text(written.invoiceNo),subtotal:num(written.subtotal),finalTotal:num(written.finalTotal),paid:num(written.paid),remaining:num(written.remaining),lineCount:ids.length,heldPaymentUsed:heldPayment,newCashReceipt:newCash,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'final-invoice',invoiceNo,'close',auth.user.username,{orderId,customerId:customer.partyId,subtotal,finalTotal,paid,remaining,heldPayment,newCash,lineCount:ids.length});
+  return response;
+}
+
+async function reopenAccountingFinalInvoiceV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'إرجاع الفاتورة للمراجعة متاح لضياء فقط.'};
+  const invoiceNo=text(b.invoiceNo||b.no),reason=text(b.reason);
+  if(!invoiceNo)return {success:false,message:'رقم الفاتورة مطلوب لإرجاعها للمراجعة.'};
+  if(!reason)return {success:false,message:'سبب إرجاع الفاتورة للمراجعة مطلوب.'};
+  const inv=await env.DB.prepare("SELECT * FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(invoiceNo).first();
+  if(!inv)return {success:false,message:'لم يتم العثور على الفاتورة '+invoiceNo};
+  if(text(inv.status)==='UNDER_REVIEW')return {success:true,duplicatePrevented:true,invoiceNo,heldPayment:num(inv.held_paid),message:'الفاتورة تحت المراجعة بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
+  if(text(inv.replacement_invoice_no))return {success:false,message:'لا يمكن إرجاع فاتورة مرتبطة بالفعل بفاتورة بديلة.'};
+  const customer=await resolvePartyV1(env,'customer',{customerId:inv.customer_party_id,customerName:inv.customer_name});
+  await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_party_balances_v1(party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms) VALUES('customer',?,?,0,1,'',?)").bind(customer.partyId,customer.partyName,Date.now()).run();
+  const bal=await env.DB.prepare("SELECT balance,version FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=?").bind(customer.partyId).first();
+  const balanceBefore=num(bal&&bal.balance),balanceVersion=Math.max(1,Math.trunc(num(bal&&bal.version,1))),remaining=num(inv.remaining),paid=num(inv.paid),finalTotal=num(inv.final_total);
+  if(balanceBefore+0.000001<remaining)return {success:false,message:'لا يمكن عكس الفاتورة لأن رصيد العميل الحالي أقل من المتبقي المرتبط بها. راجع الحركات اللاحقة أولًا.'};
+  const lineRows=await rows(env,"SELECT accounting_line_id,version FROM employee_accounting_dept_lines_v1 WHERE final_invoice_no=? ORDER BY accounting_line_id",[invoiceNo]);
+  const ctx=await beginCommandV1(env,auth,'final-invoice-reopen',{...b,invoiceNo,customerId:customer.partyId,remaining,paid,finalTotal,lineIds:lineRows.map(x=>x.accounting_line_id)});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const now=Date.now(),reversalRef='REV-'+crypto.randomUUID().replace(/-/g,'').slice(0,8).toUpperCase(),statements=[];
+  statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance-?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='customer' AND party_id=? AND version=? AND balance>=?").bind(remaining,ctx.requestKey,customer.partyName,now,customer.partyId,balanceVersion,remaining));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_final_invoices_v1 SET status='UNDER_REVIEW',held_paid=?,reversed_at_ms=?,reversed_by=?,reversal_reason=?,reversal_ref=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE invoice_no=? AND version=? AND replacement_invoice_no='' AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)").bind(paid,now,auth.user.username,reason,reversalRef,invoiceNo,Math.max(1,Math.trunc(num(inv.version,1))),customer.partyId,ctx.requestKey,balanceVersion+1));
+  for(const line of lineRows)statements.push(env.DB.prepare("UPDATE employee_accounting_dept_lines_v1 SET billing_status='معتمد من القسم',close_status='معتمد من القسم',final_invoice_no='',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE accounting_line_id=? AND version=? AND final_invoice_no=? AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND status='UNDER_REVIEW')").bind(line.accounting_line_id,Math.max(1,Math.trunc(num(line.version,1))),invoiceNo,invoiceNo));
+  if(paid>0)statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'adjustment_increase','عكس مدفوع للمراجعة',?,1,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND status='UNDER_REVIEW'").bind(uid('LED'),ctx.requestKey+'-LEDGER-PAYMENT-REV',customer.partyId,customer.partyName,paid,text(inv.payment_method),invoiceNo,balanceBefore,balanceBefore+paid,auth.user.username,reason,sourceSystemV1(b),now,invoiceNo));
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'adjustment_decrease','عكس فاتورة للمراجعة',?,-1,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND status='UNDER_REVIEW'").bind(uid('LED'),ctx.requestKey+'-LEDGER-INVOICE-REV',customer.partyId,customer.partyName,finalTotal,text(inv.payment_method),invoiceNo,balanceBefore+paid,balanceBefore-remaining,auth.user.username,reason,sourceSystemV1(b),now,invoiceNo));
+  const ledgerExpected=1+(paid>0?1:0);
+  const actualSql="(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?)+(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND status='UNDER_REVIEW')+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key IN (?,?))+(SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE final_invoice_no='' AND accounting_line_id IN (SELECT value FROM json_each(?)))";
+  statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',1+1+ledgerExpected+lineRows.length,actualSql,[customer.partyId,ctx.requestKey,invoiceNo,ctx.requestKey+'-LEDGER-PAYMENT-REV',ctx.requestKey+'-LEDGER-INVOICE-REV',JSON.stringify(lineRows.map(x=>x.accounting_line_id))]));
+  await env.DB.batch(statements);
+  const response={success:true,invoiceNo,reopened:lineRows.length,heldPayment:paid,reversalRef,message:'تم إرجاع الفاتورة للمراجعة وفتح '+lineRows.length+' بند. المدفوع القديم محفوظ ولا يُقبض مرة ثانية.',version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'final-invoice',invoiceNo,'reopen',auth.user.username,{reason,reversalRef,remaining,paid,finalTotal,reopened:lineRows.length});
+  return response;
+}
+
+async function dayCloseBlockersV1(env,workDate,department){
+  const all=department==='كل الأقسام',bindDept=all?'':department,blockers=[];
+  const pending=await rows(env,"SELECT daily_purchase_id AS id,department,employee_key AS employee FROM employee_accounting_daily_purchases_v1 WHERE work_date=? AND status='PENDING' AND (?='' OR department=?)",[workDate,bindDept,bindDept]);
+  const openLines=await rows(env,"SELECT accounting_line_id AS id,department,order_id AS orderId FROM employee_accounting_dept_lines_v1 WHERE work_date=? AND final_invoice_no='' AND (?='' OR department=?)",[workDate,bindDept,bindDept]);
+  const custody=(await custodySummariesV1(env,workDate)).filter(x=>!x.closed&&(all||x.department===department));
+  const unclassifiedPurchases=await rows(env,"SELECT purchase_id AS id FROM employee_accounting_purchase_invoices_v1 WHERE work_date=? AND status='POSTED' AND trim(department)='' LIMIT 100",[workDate]);
+  const unclassifiedInvoices=await rows(env,"SELECT invoice_no AS id FROM employee_accounting_final_invoices_v1 WHERE work_date=? AND status='CLOSED' AND trim(finance_department)='' LIMIT 100",[workDate]);
+  const unclassified=[...unclassifiedPurchases,...unclassifiedInvoices];
+  if(pending.length)blockers.push('اعتمد أو ارفض مشتريات القسم المعلقة أولًا ('+pending.length+')');
+  if(openLines.length)blockers.push('أكمل اعتماد وتقفيل بنود القسم في الفواتير النهائية أولًا ('+openLines.length+')');
+  if(custody.length)blockers.push('اقفل عهد المشتريات المفتوحة أولًا ('+custody.length+')');
+  if(unclassified.length)blockers.push('صنف سجلات اليوم غير المصنفة أولًا ('+unclassified.length+')');
+  return {blockers,pending,openLines,custody,unclassified};
+}
+
+async function closeDepartmentDayV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'تقفيل الأقسام متاح لضياء فقط.'};
+  const workDate=workDateKeyV1(b.workDate||b.date),department=accountingDepartmentV1(b.department);
+  if(!department)return {success:false,message:'اختر القسم المطلوب تقفيله.'};
+  const old=await env.DB.prepare("SELECT day_close_id AS closeId,report_json AS reportJson FROM employee_accounting_day_closes_v1 WHERE work_date=? AND department=?").bind(workDate,department).first();
+  if(old)return {success:true,duplicatePrevented:true,closeId:text(old.closeId),report:parseJson(old.reportJson,{}),message:'هذا التقفيل محفوظ بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
+  const checks=await dayCloseBlockersV1(env,workDate,department);
+  if(checks.blockers.length)return {success:false,message:'لا يمكن حفظ التقفيل الآن: '+checks.blockers.join('؛ '),blockers:checks.blockers};
+  if(department==='كل الأقسام'){
+    const closed=await rows(env,"SELECT department FROM employee_accounting_day_closes_v1 WHERE work_date=? AND department IN ('ليزر','طباعة')",[workDate]);
+    const set=new Set(closed.map(x=>text(x.department)));
+    if(!set.has('ليزر')||!set.has('طباعة'))return {success:false,message:'اقفل الليزر والطباعة أولًا، ثم نفّذ التقفيل الإجمالي.'};
+  }
+  const reportReply=await dailyDepartmentReportV1(env,auth,{workDate,department});
+  if(!reportReply||reportReply.success===false)return reportReply;
+  const report=reportReply.report,reportJson=JSON.stringify(report),reportHash=await sha256HexV1(reportJson);
+  const ctx=await beginCommandV1(env,auth,'day-close',{...b,workDate,department,reportHash});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const closeId=uid('DCL'),now=Date.now();
+  await env.DB.prepare("INSERT INTO employee_accounting_day_closes_v1(day_close_id,request_key,work_date,department,report_json,integrity_status,notes,actor,created_at_ms,report_hash,blockers_json) VALUES(?,?,?,?,?,'PASS',?,?,?,?, '[]')")
+    .bind(closeId,ctx.requestKey,workDate,department,reportJson,text(b.notes),auth.user.username,now,reportHash).run();
+  const response={success:true,closeId,report,reportHash,message:'تم حفظ تقفيل '+department+' ليوم '+workDate+'.',version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'day-close',closeId,'close',auth.user.username,{workDate,department,reportHash});
+  return response;
+}
+
+async function runAccountingDayAutomationV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'التقفيل شبه التلقائي متاح لضياء فقط.'};
+  if(text(b.confirm)!=='RUN_SAFE_DAY_CLOSE')return {success:false,message:'اعرض مراجعة اليوم ثم أكد التقفيل من الزر المخصص.'};
+  const workDate=workDateKeyV1(b.workDate||b.date),before=await automationPreviewV1(env,auth,{workDate});
+  if(!before||before.success===false)return before;
+  if((before.preview.blockers||[]).length)return {success:false,message:'لم يبدأ التقفيل حفاظًا على الحسابات: '+before.preview.blockers.join('؛ '),preview:before.preview};
+  const steps=[];
+  for(const c of before.preview.openCustodies||[]){
+    if(c.closed)continue;
+    if(Math.abs(num(c.balance))>0.001)return {success:false,partial:steps.length>0,message:'توقف التقفيل: عهدة '+text(c.employee)+' تحتاج تسوية قبل الإغلاق.',steps,preview:before.preview};
+    const res=await closePurchaseCustodyV1(env,auth,{employee:c.employee,department:c.department,workDate,paymentMethod:'نقدي',requestId:'AUTO-CUSTODY-'+workDate+'-'+key(c.employee).replace(/[^a-z0-9\u0600-\u06ff_-]/g,'').slice(0,50),sourceSystem:'EasyStore-Automation'});
+    steps.push({step:'custody',employee:c.employee,department:c.department,success:!!(res&&res.success),message:res&&res.message});
+    if(!res||res.success===false)return {success:false,partial:true,message:'توقف التقفيل عند عهدة '+text(c.employee)+': '+text(res&&res.message),steps};
+  }
+  const afterCustody=await automationPreviewV1(env,auth,{workDate});
+  if((afterCustody.preview.blockers||[]).length)return {success:false,partial:steps.length>0,message:'توقف التقفيل بعد فحص العهد: '+afterCustody.preview.blockers.join('؛ '),steps,preview:afterCustody.preview};
+  for(const department of ['ليزر','طباعة','كل الأقسام']){
+    const res=await closeDepartmentDayV1(env,auth,{workDate,department,requestId:'AUTO-DAY-'+workDate+'-'+(department==='ليزر'?'LASER':department==='طباعة'?'PRINT':'ALL'),notes:'تقفيل شبه تلقائي آمن A2',sourceSystem:'EasyStore-Automation'});
+    steps.push({step:'dayClose',department,success:!!(res&&res.success),duplicatePrevented:!!(res&&res.duplicatePrevented),message:res&&res.message});
+    if(!res||res.success===false)return {success:false,partial:true,message:'توقف التقفيل عند '+department+': '+text(res&&res.message),steps};
+  }
+  const after=await automationPreviewV1(env,auth,{workDate});
+  return {success:true,message:'تم تقفيل العهد والليزر والطباعة والإجمالي بنجاح بموافقة واحدة.',steps,preview:after.preview,version:'A2_D1_ACCOUNTING_V1'};
+}
+
 export function isEmployeeAccountingNativePath(path){const p=String(path||'').replace(/\/+$/,'')||'/';return p===ROOT||p===HEALTH;}
 export async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
@@ -1264,9 +1492,12 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='getDailyDepartmentReportV1920')out=await dailyDepartmentReportV1(env,auth,b);
     else if(action==='previewAccountingAutomationV1921')out=await automationPreviewV1(env,auth,b);
     else if(action==='getDeptInvoiceDraftV1887')out=await draft(env,auth,b);
-    else if(action==='approveAccountingDeptInvoice')out=await approveDept(env,auth,b);
-    else if(action==='saveAccountingDeptLine')out=await saveDeptLine(env,auth,b);
-    else if(action==='saveAccountingFinalInvoice')out=await finalInvoice(env,auth,b);
+    else if(action==='approveAccountingDeptInvoice')out=await approveDeptA2V1(env,auth,b);
+    else if(action==='saveAccountingDeptLine')out=await saveDeptLineA2V1(env,auth,b);
+    else if(action==='saveAccountingFinalInvoice')out=await finalInvoiceA2V1(env,auth,b);
+    else if(action==='reopenAccountingFinalInvoice')out=await reopenAccountingFinalInvoiceV1(env,auth,b);
+    else if(action==='closeDepartmentDayV1920')out=await closeDepartmentDayV1(env,auth,b);
+    else if(action==='runAccountingDayAutomationV1921')out=await runAccountingDayAutomationV1(env,auth,b);
     else if(action==='saveAccountingMaterial')out=await saveMaterial(env,auth,b);
     else if(action==='saveAccountingTemplate')out=await saveTemplate(env,auth,b);
     else if(action==='archiveAccountingTemplate')out=await archiveAccountingTemplateV1(env,auth,b);
