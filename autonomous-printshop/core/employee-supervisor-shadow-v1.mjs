@@ -14,6 +14,8 @@ import {
   recommendNextTaskV1
 } from './operational-reality-v1.mjs';
 
+export const EMPLOYEE_SUPERVISOR_SHADOW_VERSION='EMPLOYEE_SUPERVISOR_SHADOW_V1_20261005_ACTIVE_DEPT';
+
 function text(v){return String(v==null?'':v).trim();}
 function norm(v){
   return text(v).toLowerCase()
@@ -85,28 +87,54 @@ export function buildEmployeeSupervisorShadowV1(input={}){
       return false;
     });
     const activeTask=activeTaskFor(employee,activeTasks);
+    const baselineReality=buildOperationalRealityV1(assignedRows,{});
+    const activeRows=[
+      ...baselineReality.ordinary,
+      ...baselineReality.inProgress,
+      ...baselineReality.exceptions,
+      ...baselineReality.flyPrint
+    ];
+    const activeAssignedDepartments=[...new Set(
+      activeRows.map(row=>text(row&&row.department)).filter(Boolean)
+    )];
     const assignedDepartments=[...new Set(
       assignedRows.map(row=>text(row&&row.department)).filter(Boolean)
     )];
     const configuredDepartment=text(employee.department);
+    const inferredDepartments=activeAssignedDepartments.length
+      ? activeAssignedDepartments
+      : assignedDepartments;
     const effectiveDepartment=configuredDepartment ||
-      (assignedDepartments.length===1?assignedDepartments[0]:'');
+      (inferredDepartments.length===1?inferredDepartments[0]:'');
     const displayDepartment=effectiveDepartment ||
-      (assignedDepartments.length>1?'MULTI':'');
+      (inferredDepartments.length>1?'MULTI':'');
+    const departmentSource=configuredDepartment
+      ? 'PROFILE'
+      : activeAssignedDepartments.length===1
+        ? 'ACTIVE_ASSIGNED_WORK'
+        : activeAssignedDepartments.length>1
+          ? 'ACTIVE_ASSIGNED_WORK_MULTI'
+          : assignedDepartments.length===1
+            ? 'HISTORICAL_ASSIGNED_WORK'
+            : assignedDepartments.length>1
+              ? 'HISTORICAL_ASSIGNED_WORK_MULTI'
+              : 'UNKNOWN';
     const recommendation=recommendNextTaskV1(assignedRows,{
       department:effectiveDepartment,
       operatorAvailable:availability.available,
       activeTask
     });
-    const reality=buildOperationalRealityV1(assignedRows,{
-      department:effectiveDepartment
-    });
+    const reality=effectiveDepartment
+      ? buildOperationalRealityV1(assignedRows,{department:effectiveDepartment})
+      : baselineReality;
 
     operators.push({
       operatorId:text(employee.operatorId||employee.username||employee.displayName||employee.name),
       username:text(employee.username),
       displayName:text(employee.displayName||employee.name),
       department:displayDepartment,
+      departmentSource,
+      activeAssignedDepartments,
       assignedDepartments,
       availability,
       activeTask,
@@ -124,6 +152,7 @@ export function buildEmployeeSupervisorShadowV1(input={}){
 
   const totalAssigned=operators.reduce((sum,x)=>sum+x.assignedRowCount,0);
   return {
+    version:EMPLOYEE_SUPERVISOR_SHADOW_VERSION,
     mode:'LEGACY_ASSIGNMENT_BASELINE_ONLY',
     operators,
     assignmentCoverage:{
