@@ -165,8 +165,9 @@ async function getAccounting(env,auth){
 }
 
 async function customerBalanceByName(env,name){
-  const r=await env.DB.prepare("SELECT balance_after FROM employee_accounting_party_ledger_v1 WHERE party_type='customer' AND party_name=? ORDER BY created_at_ms DESC LIMIT 1").bind(text(name)).first();
-  return r?num(r.balance_after):0;
+  const c=await env.DB.prepare("SELECT customer_id AS customerId FROM t12_customers WHERE lower(customer_name)=lower(?) ORDER BY updated_at DESC LIMIT 1").bind(text(name)).first();
+  if(!c)return 0;
+  return partyBalanceV1(env,'customer',text(c.customerId));
 }
 function customerViewV1(r){
   const balance=num(r.current_balance);
@@ -180,9 +181,8 @@ async function getEasyStoreCustomersV1(env,b){
   const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
   const list=await rows(env,`
     SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
-      COALESCE((SELECT l.balance_after FROM employee_accounting_party_ledger_v1 l
-        WHERE l.party_type='customer' AND l.party_name=c.customer_name
-        ORDER BY l.created_at_ms DESC LIMIT 1),0) AS current_balance
+      COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
+        WHERE pb.party_type='customer' AND pb.party_id=c.customer_id LIMIT 1),0) AS current_balance
     FROM t12_customers c
     WHERE c.active='نعم'
     ORDER BY c.updated_at DESC,c.customer_name
@@ -220,10 +220,8 @@ async function getEasyStoreSuppliersV1(env,b){
   const list=await rows(env,`
     SELECT p.party_id,p.display_name,p.phone,p.address,p.notes,p.active,
       COALESCE(
-        (SELECT l.balance_after FROM employee_accounting_party_ledger_v1 l
-         WHERE l.party_type='supplier'
-           AND ((l.party_id<>'' AND l.party_id=p.party_id) OR (l.party_id='' AND l.party_name=p.display_name))
-         ORDER BY l.created_at_ms DESC LIMIT 1),0
+        (SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
+         WHERE pb.party_type='supplier' AND pb.party_id=p.party_id LIMIT 1),0
       ) AS current_balance
     FROM employee_accounting_parties_v1 p
     WHERE p.party_type='supplier' AND p.active=1
@@ -671,30 +669,134 @@ async function approveDept(env,auth,b){
 }
 function partyOperationLabel(op,type){const m={opening_debt:type==='supplier'?'إضافة مستحق للمورد':'إضافة مديونية للعميل',invoice:'باقي فاتورة عميل',purchase_invoice:'باقي فاتورة شراء',payment_received:'سداد من العميل',payment_paid:'دفعة للمورد',adjustment_increase:'تسوية بالزيادة',adjustment_decrease:'تسوية بالنقص',manual:'حركة يدوية'};return m[op]||op||'حركة';}
 function effect(op){return ['payment_received','payment_paid','adjustment_decrease'].includes(op)?-1:1;}
-async function partyBalance(env,type,name,code){
-  const r=await env.DB.prepare("SELECT balance_after FROM employee_accounting_party_ledger_v1 WHERE party_type=? AND party_name=? AND (?='' OR party_code=?) ORDER BY created_at_ms DESC LIMIT 1").bind(type,name,code,code).first();
-  return r?num(r.balance_after):0;
+async function resolvePartyV1(env,type,b){
+  const partyId=text(b.partyId||b.customerId||b.supplierId),requested=text(b.partyName||b.customerName||b.supplierName||b.name);
+  if(type==='customer'){
+    let r;
+    if(partyId)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE customer_id=? LIMIT 1").bind(partyId).first();
+    else if(requested)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE lower(customer_name)=lower(?) AND active='نعم' ORDER BY updated_at DESC LIMIT 1").bind(requested).first();
+    if(!r)throw commandErrorV1('accounting-customer-not-found','العميل غير موجود في سجل العملاء. اختر العميل من القائمة.');
+    return {partyId:text(r.partyId),partyName:text(r.partyName)};
+  }
+  let r;
+  if(partyId)r=await env.DB.prepare("SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND party_id=? AND active=1 LIMIT 1").bind(partyId).first();
+  else if(requested)r=await env.DB.prepare("SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND normalized_name=? AND active=1 LIMIT 1").bind(key(requested)).first();
+  if(!r)throw commandErrorV1('accounting-supplier-not-found','المورد غير موجود. اختر المورد من القائمة أو أضفه أولًا.');
+  return {partyId:text(r.partyId),partyName:text(r.partyName)};
+}
+async function partyBalanceV1(env,type,partyId){
+  const r=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type=? AND party_id=?").bind(type,partyId).first();
+  return r?num(r.balance):0;
 }
 async function partyLedger(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
-  const name=text(b.partyName||b.customerName||b.supplierName||b.name),code=text(b.partyCode),op=key(b.operation||'manual'),amount=num(b.amount);
-  if(!name||!(amount>0))return {success:false,message:'اسم الطرف والمبلغ مطلوبان.'};
+  const op=key(b.operation||'manual'),amount=num(b.amount);
+  const allowed=type==='customer'
+    ? new Set(['payment_received','opening_debt','invoice','adjustment_increase','adjustment_decrease','manual'])
+    : new Set(['payment_paid','opening_debt','purchase_invoice','adjustment_increase','adjustment_decrease','manual']);
+  if(!allowed.has(op))return {success:false,message:'نوع الحركة المالية غير مسموح لهذا الطرف.'};
+  if(!(amount>0))return {success:false,message:'المبلغ يجب أن يكون أكبر من صفر.'};
   if(auth.mode!=='full'&&!['payment_received','payment_paid'].includes(op))return {success:false,message:'إضافة المديونية والتسويات عند ضياء فقط.'};
-  const requestKey=text(b.requestId||b.idempotencyKey||b.clientRequestId);
-  if(requestKey){
-    const old=await env.DB.prepare("SELECT response_json FROM employee_accounting_request_ledger_v1 WHERE request_key=? AND status='COMMITTED'").bind(requestKey).first();
-    if(old)return {...parseJson(old.response_json,{}),success:true,duplicatePrevented:true};
+
+  const party=await resolvePartyV1(env,type,b);
+  const before=await partyBalanceV1(env,type,party.partyId),delta=effect(op)*amount;
+  if(delta<0&&amount>before+0.000001)return {success:false,message:'المبلغ أكبر من الرصيد المستحق الحالي: '+before+' ج.'};
+
+  const ctx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,{...b,partyId:party.partyId,partyName:party.partyName,partyType:type});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO employee_accounting_party_balances_v1
+      (party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms)
+    VALUES(?,?,?,0,1,'',?)
+  `).bind(type,party.partyId,party.partyName,Date.now()).run();
+
+  const tx=uid('LED'),cashId=uid('CSH'),now=Date.now(),workDate=workDateKeyV1(b.workDate||b.date);
+  const statements=[
+    env.DB.prepare(`
+      UPDATE employee_accounting_party_balances_v1
+      SET balance=balance+?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP
+      WHERE party_type=? AND party_id=? AND balance+?>=-0.000001
+    `).bind(delta,ctx.requestKey,party.partyName,now,type,party.partyId,delta),
+    env.DB.prepare(`
+      INSERT INTO employee_accounting_party_ledger_v1
+        (transaction_id,request_key,party_id,party_type,party_name,party_code,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+      FROM employee_accounting_party_balances_v1
+      WHERE party_type=? AND party_id=? AND last_request_key=?
+    `).bind(tx,ctx.requestKey,party.partyId,type,party.partyName,text(b.partyCode),op,partyOperationLabel(op,type),amount,effect(op),
+      text(b.paymentMethod||b.method),text(b.refNo||b.reference),before,before+delta,auth.user.username,text(b.notes),sourceSystemV1(b),now,
+      type,party.partyId,ctx.requestKey)
+  ];
+
+  if(op==='payment_received'||op==='payment_paid'){
+    const movementType=op==='payment_received'?'CUSTOMER_RECEIPT':'SUPPLIER_PAYMENT';
+    statements.push(env.DB.prepare(`
+      INSERT OR IGNORE INTO employee_accounting_cashbox_v1
+        (cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?
+      FROM employee_accounting_party_ledger_v1
+      WHERE request_key=?
+    `).bind(cashId,ctx.requestKey+'-CASH',workDate,movementType,party.partyId,party.partyName,text(b.department),amount,
+      text(b.paymentMethod||b.method),text(b.refNo||b.reference),sourceSystemV1(b),text(b.notes),auth.user.username,now,ctx.requestKey));
   }
-  const before=await partyBalance(env,type,name,code),after=Math.max(0,before+effect(op)*amount),tx=uid('LED'),now=Date.now();
-  if(requestKey)await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_request_ledger_v1(request_key,operation,actor,canonical_json,entity_id,status) VALUES(?,?,?,?,?,'PREPARED')").bind(requestKey,'party-ledger',auth.user.username,JSON.stringify({type,name,code,op,amount}),tx).run();
-  await env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_type,party_name,party_code,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-    .bind(tx,requestKey||null,type,name,code,op,partyOperationLabel(op,type),amount,effect(op),text(b.paymentMethod||b.method),text(b.refNo),before,after,auth.user.username,text(b.notes),text(b.source)||'TrendOS D1',now).run();
-  const response={success:true,id:tx,partyType:type,partyName:name,balanceBefore:before,balance:after};
-  if(requestKey)await env.DB.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE request_key=?").bind(JSON.stringify(response),requestKey).run();
-  await event(env,'party-ledger',tx,'post',auth.user.username,{type,name,op,amount,before,after});
+  await env.DB.batch(statements);
+
+  const written=await env.DB.prepare("SELECT balance_before AS balanceBefore,balance_after AS balanceAfter FROM employee_accounting_party_ledger_v1 WHERE request_key=?").bind(ctx.requestKey).first();
+  if(!written)throw commandErrorV1('accounting-party-balance-guard-rejected','تعذر تسجيل الحركة بسبب تغير الرصيد بالتزامن. راجع الحساب ثم حاول بمعرف طلب جديد.');
+  const response={success:true,id:tx,partyId:party.partyId,partyType:type,partyName:party.partyName,balanceBefore:num(written.balanceBefore),balance:num(written.balanceAfter),cashboxPosted:op==='payment_received'||op==='payment_paid',version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'party-ledger',tx,'post',auth.user.username,{type,partyId:party.partyId,partyName:party.partyName,op,amount,before:response.balanceBefore,after:response.balance});
   return response;
 }
+async function saveSupplierV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,message:'إضافة الموردين عند ضياء فقط.'};
+  const name=text(b.supplierName||b.supplier||b.name);
+  if(!name)return {success:false,message:'اسم المورد مطلوب.'};
+  const normalized=key(name);
+  let existing=await env.DB.prepare("SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND normalized_name=? LIMIT 1").bind(normalized).first();
+  const partyId=existing?text(existing.partyId):text(b.partyId||b.supplierId)||uid('SUP');
+  const opening=Math.max(0,num(b.openingDebt||b.opening||b.debt));
+  if(existing&&opening>0)return {success:false,message:'المورد موجود بالفعل. أضف المديونية من حركة حساب المورد بدل إعادة الرصيد الافتتاحي.'};
+  const ctx=await beginCommandV1(env,auth,'supplier-master-upsert',{...b,partyId,supplierName:name});
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const now=Date.now(),active=/^(?:0|false|لا|موقوف|inactive)$/i.test(text(b.active))?0:1,ledgerId=uid('LED');
+  const statements=[
+    env.DB.prepare(`
+      INSERT INTO employee_accounting_parties_v1
+        (party_id,party_type,display_name,normalized_name,external_id,source_system,phone,address,notes,active,created_by,created_at_ms,updated_at_ms)
+      VALUES(?,'supplier',?,?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(party_type,normalized_name) DO UPDATE SET
+        display_name=excluded.display_name,phone=excluded.phone,address=excluded.address,notes=excluded.notes,
+        active=excluded.active,updated_at_ms=excluded.updated_at_ms,updated_at=CURRENT_TIMESTAMP
+    `).bind(partyId,name,normalized,text(b.externalId),sourceSystemV1(b),text(b.phone),text(b.address),text(b.notes),active,auth.user.username,now,now)
+  ];
+  if(opening>0){
+    statements.push(env.DB.prepare(`
+      INSERT INTO employee_accounting_party_balances_v1
+        (party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms)
+      VALUES('supplier',?,?,?,1,?,?)
+    `).bind(partyId,name,opening,ctx.requestKey,now));
+    statements.push(env.DB.prepare(`
+      INSERT INTO employee_accounting_party_ledger_v1
+        (transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,balance_before,balance_after,created_by,notes,source,created_at_ms)
+      VALUES(?,?,?,'supplier',?,'opening_debt',?, ?,1,0,?,?,?,?,?)
+    `).bind(ledgerId,ctx.requestKey+'-OPENING',partyId,name,partyOperationLabel('opening_debt','supplier'),opening,opening,auth.user.username,text(b.notes),sourceSystemV1(b),now));
+  }else{
+    statements.push(env.DB.prepare(`
+      INSERT OR IGNORE INTO employee_accounting_party_balances_v1
+        (party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms)
+      VALUES('supplier',?,?,0,1,'',?)
+    `).bind(partyId,name,now));
+  }
+  await env.DB.batch(statements);
+  const response={success:true,partyId,supplierId:partyId,name,supplierName:name,openingBalance:opening,active:!!active,version:'A2_D1_ACCOUNTING_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'supplier',partyId,existing?'update':'create',auth.user.username,{name,opening,active});
+  return response;
+}
+
 async function getParty(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
@@ -778,7 +880,9 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='saveAccountingFinalInvoice')out=await finalInvoice(env,auth,b);
     else if(action==='saveAccountingMaterial')out=await saveMaterial(env,auth,b);
     else if(action==='saveAccountingTemplate')out=await saveTemplate(env,auth,b);
+    else if(action==='saveEasyStoreSupplier')out=await saveSupplierV1(env,auth,b);
     else if(action==='getPartyAccountV1858')out=await getParty(env,auth,b);
+    else if(action==='saveCustomerAccountMovementV1915')out=await partyLedger(env,auth,{...b,partyType:'customer'});
     else if(action==='savePartyLedgerTransaction')out=await partyLedger(env,auth,b);
     else out={success:false,code:'employee-accounting-action-unknown',message:'Accounting action is not supported.'};
     return json({...out,authority:'d1-employee-accounting-v1',authSource:auth.authSource},out&&out.success===false?400:200,h);
