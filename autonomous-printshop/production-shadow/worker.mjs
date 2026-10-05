@@ -1,22 +1,10 @@
-import { mapMirrorRows } from '../../cloudflare-d1/src/edge-orders-read-v1.mjs';
-import { inspectOrdersMirrorCatalog } from '../../cloudflare-d1/src/edge-orders-freshness-gate.mjs';
-import {
-  fetchOrdersIdleHeartbeat,
-  ordersIdleHeartbeatVerifierEnabled
-} from '../../cloudflare-d1/src/edge-orders-idle-verifier.mjs';
-import {
-  inspectOrdersIdleHeartbeat,
-  ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS
-} from '../../cloudflare-d1/src/edge-orders-idle-heartbeat.mjs';
 import {
   buildOperationalRealityV1,
   recommendNextTaskV1
 } from '../core/operational-reality-v1.mjs';
 
-const ORDERS_SHEET='الأوردرات';
-const LINES_SHEET='بنود الأوردرات';
-
 function text(v){return String(v==null?'':v).trim();}
+function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
     status,
@@ -26,85 +14,161 @@ function json(body,status=200){
     }
   });
 }
-function parseMaxAge(env){
-  const n=Number(env&&env.EDGE_ORDERS_MIRROR_MAX_AGE_SECONDS);
-  return Number.isFinite(n)?Math.max(300,Math.min(3600,Math.trunc(n))):600;
+function parseSqliteUtc(v){
+  const raw=text(v);
+  if(!raw)return 0;
+  const normalized=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)?raw.replace(' ','T')+'Z':raw;
+  const ms=Date.parse(normalized);
+  return Number.isFinite(ms)?ms:0;
 }
-async function catalog(env,sheetName){
-  return env.DB.prepare(`
-    SELECT headers_json AS headersJson,
-           source_last_row AS sourceLastRow,
-           source_last_col AS sourceLastCol,
-           row_count AS rowCount,
+function backfillMaxAgeSeconds(env){
+  const n=Number(env&&env.AUTONOMOUS_SHADOW_BACKFILL_MAX_AGE_SECONDS);
+  return Number.isFinite(n)?Math.max(3600,Math.min(604800,Math.trunc(n))):172800;
+}
+
+async function qualification(env){
+  const required=[
+    'employee_core_orders_v1',
+    'employee_core_lines_v1',
+    'employee_core_archive_lines_v1',
+    'employee_zero_google_backfill_runs_v1',
+    'employee_zero_google_parity_v1',
+    't12_prod_orders',
+    't12_prod_lines',
+    't12_prod_line_runtime',
+    't12_legacy_line_runtime'
+  ];
+  const placeholders=required.map(()=>'?').join(',');
+  const tables=await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...required).all();
+  const present=new Set((tables.results||[]).map(r=>text(r.name)));
+  const missing=required.filter(x=>!present.has(x));
+  if(missing.length)return {ok:false,reason:'REQUIRED_TABLES_MISSING',missing};
+
+  const run=await env.DB.prepare(`
+    SELECT run_id AS runId,
+           source_snapshot_sha256 AS sourceSnapshotSha256,
            status,
-           synced_at AS syncedAt,
-           note
-      FROM sheet_catalog
-     WHERE sheet_name = ?
+           completed_at AS completedAt
+      FROM employee_zero_google_backfill_runs_v1
+     WHERE mode='APPLY' AND status='COMMITTED'
+     ORDER BY completed_at DESC
      LIMIT 1
-  `).bind(sheetName).first();
+  `).first();
+  if(!run)return {ok:false,reason:'COMMITTED_BACKFILL_MISSING'};
+
+  const parity=await env.DB.prepare(`
+    SELECT COUNT(*) AS total,
+           SUM(CASE WHEN pass=1 THEN 1 ELSE 0 END) AS passed,
+           SUM(CASE WHEN pass<>1 THEN 1 ELSE 0 END) AS failed
+      FROM employee_zero_google_parity_v1
+     WHERE run_id=?
+  `).bind(text(run.runId)).first();
+  const total=num(parity&&parity.total),failed=num(parity&&parity.failed);
+  if(total<=0||failed>0){
+    return {
+      ok:false,
+      reason:'BACKFILL_PARITY_NOT_QUALIFIED',
+      runId:text(run.runId),
+      parity:{total,passed:num(parity&&parity.passed),failed}
+    };
+  }
+
+  const completedMs=parseSqliteUtc(run.completedAt);
+  const ageSeconds=completedMs?Math.max(0,Math.round((Date.now()-completedMs)/1000)):Number.MAX_SAFE_INTEGER;
+  const maxAgeSeconds=backfillMaxAgeSeconds(env);
+  if(ageSeconds>maxAgeSeconds){
+    return {
+      ok:false,
+      reason:'BACKFILL_TOO_OLD_FOR_SHADOW',
+      runId:text(run.runId),
+      completedAt:text(run.completedAt),
+      ageSeconds,
+      maxAgeSeconds,
+      parity:{total,passed:num(parity&&parity.passed),failed}
+    };
+  }
+
+  return {
+    ok:true,
+    mode:'entry615-backfill+t12-runtime-overlays',
+    runId:text(run.runId),
+    sourceSnapshotSha256:text(run.sourceSnapshotSha256),
+    completedAt:text(run.completedAt),
+    ageSeconds,
+    maxAgeSeconds,
+    parity:{total,passed:num(parity&&parity.passed),failed}
+  };
 }
-async function rows(env,sheetName){
-  const out=await env.DB.prepare(`
-    SELECT row_number AS rowNumber,
-           values_json AS valuesJson,
-           display_json AS displayJson
-      FROM sheet_rows
-     WHERE sheet_name = ?
-     ORDER BY row_number
-  `).bind(sheetName).all();
-  return (out.results||[]).map(r=>({
-    rowNumber:Number(r.rowNumber||0),
-    values:JSON.parse(r.valuesJson||'[]'),
-    display:JSON.parse(r.displayJson||'[]')
+
+async function currentRows(env){
+  const [imported,native]=await Promise.all([
+    env.DB.prepare(`
+      SELECT l.line_id AS lineId,
+             l.order_id AS orderId,
+             l.department,
+             l.item_name AS itemName,
+             l.assigned_to AS assignedTo,
+             l.priority,
+             COALESCE(lr.status,l.status) AS status,
+             l.heat_press AS heatPress,
+             l.fly_print AS flyPrint,
+             l.expected_delivery_at AS expectedDeliveryAt,
+             COALESCE(lr.updated_at,l.updated_at) AS updatedAt,
+             'entry615-import+legacy-runtime' AS sourceKind
+        FROM employee_core_lines_v1 l
+        JOIN employee_core_orders_v1 o ON o.order_id=l.order_id
+        LEFT JOIN t12_legacy_line_runtime lr
+          ON lr.line_id=l.line_id AND lr.order_id=l.order_id
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+       WHERE l.active=1
+         AND o.active=1
+         AND a.line_id IS NULL
+       ORDER BY l.source_row
+    `).all(),
+    env.DB.prepare(`
+      SELECT l.line_id AS lineId,
+             l.order_id AS orderId,
+             l.department,
+             l.item_name AS itemName,
+             l.assigned_to AS assignedTo,
+             l.priority,
+             COALESCE(r.status,l.status) AS status,
+             l.heat_press AS heatPress,
+             l.fly_print AS flyPrint,
+             '' AS expectedDeliveryAt,
+             COALESCE(r.updated_at,l.updated_at) AS updatedAt,
+             't12-native+runtime' AS sourceKind
+        FROM t12_prod_lines l
+        JOIN t12_prod_orders o ON o.order_id=l.order_id
+        LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+       WHERE a.line_id IS NULL
+       ORDER BY o.created_at,l.ordinal
+    `).all()
+  ]);
+
+  const byLine=new Map();
+  for(const r of imported.results||[])byLine.set(text(r.lineId),r);
+  for(const r of native.results||[])byLine.set(text(r.lineId),r);
+
+  return [...byLine.values()].map(r=>({
+    orderId:text(r.orderId),
+    lineId:text(r.lineId),
+    department:text(r.department),
+    itemName:text(r.itemName),
+    assignedTo:text(r.assignedTo),
+    priority:text(r.priority)||'عادي',
+    status:text(r.status)||'طلب جديد',
+    heatPress:Number(r.heatPress||0)===1,
+    flyPrint:Number(r.flyPrint||0)===1,
+    expectedDeliveryAt:text(r.expectedDeliveryAt),
+    updatedAt:text(r.updatedAt),
+    sourceKind:text(r.sourceKind)
   }));
 }
-function structuralReady(x){
-  return !!(x&&x.statusReady&&x.parity&&x.live);
-}
-async function freshness(env){
-  const now=Date.now();
-  const maxAge=parseMaxAge(env);
-  const [ordersCatalog,linesCatalog]=await Promise.all([
-    catalog(env,ORDERS_SHEET),
-    catalog(env,LINES_SHEET)
-  ]);
-  if(!ordersCatalog||!linesCatalog){
-    return {ok:false,reason:'MIRROR_CATALOG_MISSING'};
-  }
-  const orders=inspectOrdersMirrorCatalog(ordersCatalog,now,maxAge);
-  const lines=inspectOrdersMirrorCatalog(linesCatalog,now,maxAge);
-  if(orders.ready&&lines.ready){
-    return {ok:true,mode:'fresh-write-age',orders,lines,heartbeat:null};
-  }
-  const staleOnly=structuralReady(orders)&&structuralReady(lines)&&(!orders.fresh||!lines.fresh);
-  if(!staleOnly||!ordersIdleHeartbeatVerifierEnabled(env)){
-    return {ok:false,reason:staleOnly?'STALE_NO_HEARTBEAT':'MIRROR_NOT_READY',orders,lines};
-  }
-  try{
-    const payload=await fetchOrdersIdleHeartbeat(env);
-    const heartbeat=inspectOrdersIdleHeartbeat(payload,{
-      nowMs:now,
-      maxAgeSeconds:ORDERS_IDLE_HEARTBEAT_DEFAULT_MAX_AGE_SECONDS,
-      expectedOrdersSourceLastRow:orders.sourceLastRow,
-      expectedOrdersSourceLastCol:orders.sourceLastCol,
-      expectedLinesSourceLastRow:lines.sourceLastRow,
-      expectedLinesSourceLastCol:lines.sourceLastCol
-    });
-    return heartbeat.ok
-      ? {ok:true,mode:'idle-heartbeat',orders,lines,heartbeat}
-      : {ok:false,reason:'IDLE_HEARTBEAT_REJECTED',orders,lines,heartbeat};
-  }catch(err){
-    return {ok:false,reason:'IDLE_HEARTBEAT_ERROR',orders,lines,error:text(err&&err.message)};
-  }
-}
-async function lineMirror(env){
-  const c=await catalog(env,LINES_SHEET);
-  if(!c)throw new Error('LINES_MIRROR_MISSING');
-  const headers=JSON.parse(c.headersJson||'[]');
-  const data=await rows(env,LINES_SHEET);
-  return {catalog:c,headers,rows:data};
-}
+
 async function fingerprint(task){
   if(!task)return '';
   const raw=text(task.orderId)+'|'+text(task.lineId);
@@ -119,30 +183,43 @@ function sanitizedExceptionCounts(exceptions){
   }
   return out;
 }
+function sourceKindCounts(rows){
+  const out={};
+  for(const r of rows||[]){
+    const k=text(r.sourceKind)||'unknown';
+    out[k]=(out[k]||0)+1;
+  }
+  return out;
+}
 
 async function snapshot(env){
-  const fresh=await freshness(env);
-  if(!fresh.ok){
+  const qualified=await qualification(env);
+  if(!qualified.ok){
     return {
       success:false,
       mode:'PRODUCTION_SHADOW_READ_ONLY',
       code:'SOURCE_NOT_QUALIFIED',
-      source:fresh,
-      writesAccepted:false
+      source:qualified,
+      writesAccepted:false,
+      d1Mutation:false
     };
   }
-  const mirror=await lineMirror(env);
-  const mapped=mapMirrorRows(mirror.headers,mirror.rows,'');
-  const reality=buildOperationalRealityV1(mapped,{});
-  const next=recommendNextTaskV1(mapped,{});
+
+  const rows=await currentRows(env);
+  const reality=buildOperationalRealityV1(rows,{});
+  const next=recommendNextTaskV1(rows,{});
   return {
     success:true,
     mode:'PRODUCTION_SHADOW_READ_ONLY',
     source:{
       authority:'trendos-main-d1',
-      freshnessMode:fresh.mode,
-      syncedAt:text(mirror.catalog.syncedAt),
-      rowCount:Number(mirror.catalog.rowCount||0)
+      qualificationMode:qualified.mode,
+      backfillRunId:qualified.runId,
+      backfillCompletedAt:qualified.completedAt,
+      backfillAgeSeconds:qualified.ageSeconds,
+      parity:qualified.parity,
+      rowCount:rows.length,
+      sourceKinds:sourceKindCounts(rows)
     },
     counts:reality.counts,
     exceptionCounts:sanitizedExceptionCounts(reality.exceptions),
@@ -160,7 +237,8 @@ async function snapshot(env){
       employeeAvailabilityConnected:false,
       designReadinessConnected:false,
       materialReadinessConnected:false,
-      machineReadinessConnected:false
+      machineReadinessConnected:false,
+      nativeOrderDueDatePersisted:false
     },
     piiExposed:false,
     rawOrderIdsExposed:false,
@@ -182,7 +260,7 @@ export default {
       try{
         const r=await env.DB.prepare('SELECT 1 AS ok').first();
         database=!!(r&&Number(r.ok)===1);
-      }catch(err){}
+      }catch{}
       return json({
         success:true,
         service:'autonomous-printshop-production-shadow',
@@ -212,4 +290,4 @@ export default {
   }
 };
 
-export { snapshot };
+export { snapshot, qualification, currentRows };
