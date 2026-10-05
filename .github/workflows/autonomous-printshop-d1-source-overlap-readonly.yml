@@ -1,0 +1,31 @@
+name: Autonomous Printshop D1 Source Overlap Readonly
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-d1-source-overlap-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  overlap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read source overlap counts only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config "$CONFIG" --json --command "SELECT (SELECT COUNT(*) FROM employee_core_lines_v1 WHERE active=1) AS importedActiveLines, (SELECT COUNT(*) FROM t12_prod_lines) AS nativeLines, (SELECT COUNT(*) FROM employee_core_lines_v1 i JOIN t12_prod_lines n ON n.line_id=i.line_id WHERE i.active=1) AS overlappingLineIds, (SELECT COUNT(DISTINCT i.order_id) FROM employee_core_orders_v1 i JOIN t12_prod_orders n ON n.order_id=i.order_id WHERE i.active=1) AS overlappingOrderIds, (SELECT COUNT(*) FROM employee_core_lines_v1 i LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=i.line_id WHERE i.active=1 AND a.line_id IS NULL) AS importedUnarchivedLines, (SELECT COUNT(*) FROM t12_prod_lines n LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=n.line_id WHERE a.line_id IS NULL) AS nativeUnarchivedLines;" > /tmp/overlap.json
+          cat /tmp/overlap.json
+          echo 'D1_MUTATION=NO'
