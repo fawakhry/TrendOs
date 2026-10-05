@@ -81,6 +81,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: autonomous-printshop-policy-v1-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   autonomy-policy-contract:
     runs-on: ubuntu-latest
