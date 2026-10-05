@@ -89,6 +89,46 @@ function accountingMode(user){
 }
 function departmentForMode(mode){return mode==='print'?'طباعة':mode==='laser'?'ليزر':'';}
 async function control(env){return await env.DB.prepare("SELECT mode,next_invoice_number AS nextInvoiceNumber,policy_epoch AS policyEpoch FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1'").first()||{mode:'OFF',nextInvoiceNumber:1,policyEpoch:0};}
+
+async function writeCanaryPolicyV1(env){
+  try{
+    const r=await env.DB.prepare("SELECT enabled,allowed_usernames_json AS allowedUsersJson,allowed_actions_json AS allowedActionsJson,max_amount AS maxAmount,expires_at_ms AS expiresAtMs,policy_epoch AS policyEpoch FROM employee_accounting_write_canary_v1 WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1'").first();
+    if(!r)return {exists:false,enabled:true,allowedUsers:[],allowedActions:[],maxAmount:0,expiresAtMs:0,policyEpoch:0};
+    return {
+      exists:true,
+      enabled:Number(r.enabled||0)===1,
+      allowedUsers:(parseJson(r.allowedUsersJson,[])||[]).map(key).filter(Boolean),
+      allowedActions:(parseJson(r.allowedActionsJson,[])||[]).map(text).filter(Boolean),
+      maxAmount:Math.max(0,num(r.maxAmount)),
+      expiresAtMs:Math.max(0,Math.trunc(num(r.expiresAtMs))),
+      policyEpoch:Math.max(0,Math.trunc(num(r.policyEpoch)))
+    };
+  }catch{
+    return {exists:false,enabled:true,allowedUsers:[],allowedActions:[],maxAmount:0,expiresAtMs:0,policyEpoch:0};
+  }
+}
+function writeAmountV1(body){
+  const b=body||{};
+  const vals=[
+    num(b.amount),num(b.total),num(b.finalTotal),num(b.manualAmount),
+    num(b.paid),num(b.openingDebt||b.opening||b.debt),
+    num(b.qty)*num(b.unit||b.unitPrice||b.unitCost)
+  ].map(x=>Math.abs(x)).filter(Number.isFinite);
+  return vals.length?Math.max(...vals):0;
+}
+async function enforceWriteCanaryV1(env,auth,action,body){
+  if(READ_ACTIONS.has(action))return {allowed:true,read:true};
+  const p=await writeCanaryPolicyV1(env);
+  if(!p.enabled)return {allowed:true,canary:false,policyEpoch:p.policyEpoch};
+  if(!p.exists)throw commandErrorV1('employee-accounting-canary-policy-missing','سياسة كاناري الكتابة غير جاهزة؛ تم منع الحركة.');
+  if(p.expiresAtMs>0&&Date.now()>p.expiresAtMs)throw commandErrorV1('employee-accounting-canary-expired','نافذة كاناري الحسابات منتهية؛ تم منع الحركة.');
+  if(!p.allowedUsers.includes(key(auth&&auth.user&&auth.user.username)))throw commandErrorV1('employee-accounting-canary-user-blocked','هذا المستخدم غير مسموح له بكاناري كتابة الحسابات.');
+  if(!p.allowedActions.includes(text(action)))throw commandErrorV1('employee-accounting-canary-action-blocked','هذه الحركة غير مسموحة داخل كاناري الحسابات.');
+  const amount=writeAmountV1(body);
+  if(p.maxAmount>0&&amount>p.maxAmount+0.000001)throw commandErrorV1('employee-accounting-canary-amount-blocked','قيمة الحركة أعلى من حد كاناري الحسابات.');
+  return {allowed:true,canary:true,policyEpoch:p.policyEpoch,amount};
+}
+
 async function parseBody(request){try{return {ok:true,body:await request.json()};}catch{return {ok:false,response:json({success:false,code:'invalid-json'},400)};}}
 async function authenticate(request,body,env){
   const h=text(request.headers.get('Authorization')),m=h.match(/^Bearer\s+(.+)$/i),username=text(body.username||body.name),token=text(m?m[1]:body.token);
@@ -1547,7 +1587,8 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
   if(path===HEALTH){
     if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
     const c=await control(env),tables=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_accounting_materials_v1','employee_accounting_templates_v1','employee_accounting_dept_lines_v1','employee_accounting_final_invoices_v1','employee_accounting_party_ledger_v1','employee_accounting_stock_moves_v1')").first();
-    return json({success:true,schemaReady:Number(tables&&tables.n||0)===6,mode:text(c.mode)||'OFF',policyEpoch:Number(c.policyEpoch||0),authoritativeWrites:text(c.mode)==='GENERAL',googleBusinessCalls:0,appsScriptBusinessAuthority:false},200,h);
+    const canary=await writeCanaryPolicyV1(env);
+    return json({success:true,schemaReady:Number(tables&&tables.n||0)===6,mode:text(c.mode)||'OFF',policyEpoch:Number(c.policyEpoch||0),authoritativeWrites:text(c.mode)==='GENERAL',googleBusinessCalls:0,appsScriptBusinessAuthority:false,writeCanaryReady:canary.exists,writeCanaryEnabled:canary.enabled,writeCanaryPolicyEpoch:Number(canary.policyEpoch||0),writeCanaryAllowedUserCount:canary.allowedUsers.length,writeCanaryAllowedActionCount:canary.allowedActions.length,writeCanaryExpiresAtMs:Number(canary.expiresAtMs||0),writeCanaryMaxAmount:Number(canary.maxAmount||0)},200,h);
   }
   if(path!==ROOT)return json({success:false,code:'not-found'},404,h);
   if(request.method!=='POST')return json({success:false,code:'method-not-allowed'},405,h);
@@ -1557,6 +1598,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
   if(c.mode==='READONLY'&&!READ_ACTIONS.has(action))return json({success:false,code:'employee-accounting-readonly'},503,h);
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
   try{
+    if(c.mode==='GENERAL'&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1(env,auth,action,b);
     let out;
     if(action==='getAccounting')out=await getAccounting(env,auth);
     else if(action==='getEasyStoreCustomers')out=await getEasyStoreCustomersV1(env,b);
