@@ -2894,3 +2894,63 @@ Safety:
 - no archived line promoted;
 - no customer PII copied into the Autonomous Printshop evidence layer;
 - Operator Task remains OFF.
+
+
+### AP-030 — Synced with accounting ACC-043; write path still closed
+
+Autonomous Printshop refreshed its accounting dependency after the EasyStore accounting stream advanced through ACC-043.
+
+Latest accounting state consumed:
+- minimal first-canary frontend code is live in Production;
+- the frontend Production `config.js` remains unarmed;
+- accounting backend remains `READONLY`;
+- server canary allowlists remain empty;
+- one-command budget remains closed;
+- no accounting business write has executed.
+
+Fresh runtime verification:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=2
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+ACCOUNTING_GOOGLE_BUSINESS_CALLS=0
+ACCOUNTING_APPS_SCRIPT_BUSINESS_AUTHORITY=false
+
+WRITE_CANARY_READY=true
+WRITE_CANARY_ENABLED=true
+WRITE_CANARY_ALLOWED_USERS=0
+WRITE_CANARY_ALLOWED_ACTIONS=0
+WRITE_CANARY_MAX_COMMANDS=0
+WRITE_CANARY_COMMANDS_STARTED=0
+```
+
+Autonomous Printshop material guard remains:
+```ini
+ACCOUNTING_CLOUD_STAGE=CLOUD_BACKEND_READONLY_DATA_PENDING
+MATERIAL_FROZEN=false
+MATERIAL_BLOCKER_COLLECTION_ALLOWED=true
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+ACTIVE_MATERIALS=0
+STOCK_MOVES=0
+DEPT_LINES_WITH_LINE_ID=0
+DEPT_LINES_WITH_MATERIAL=0
+DEPT_LINES_WITH_CONSUMPTION=0
+MATERIAL_BLOCKER=ACCOUNTING_CLOUD_DATA_MIGRATION_PENDING
+```
+
+No AP authority changed:
+- Material READY remains closed;
+- Design remains SHADOW;
+- Machine remains SHADOW;
+- Operator Task remains OFF;
+- no live employee assignment;
+- no financial/business mutation by Autonomous Printshop.
+
+```ini
+LATEST_CONSUMED_ACCOUNTING_CHECKPOINT=ACC-043
+FRONTEND_CANARY_CODE_LIVE=YES
+FRONTEND_CANARY_CONFIG_ARMED=NO
+BACKEND_ACCOUNTING_MODE=READONLY
+AUTONOMOUS_PRINTSHOP_MATERIAL_READY=NO
+```
