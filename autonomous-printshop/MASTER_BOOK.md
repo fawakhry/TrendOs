@@ -3511,3 +3511,54 @@ LATEST_CONSUMED_ACCOUNTING_CHECKPOINT=ACC-070
 MANUAL_DESIGN_PREFLIGHT_PASS_SYNTHESIS=REMOVED
 PRODUCTION_DESIGN_MUTATION=NO
 ```
+
+
+### AP-041 — Structured Design preflight evaluator path qualified
+
+A separate owner-only Design preflight path is now qualified so future PASS/FAIL/UNKNOWN is produced by the canonical evaluator rather than by manual bundle construction.
+
+Added:
+- `autonomous-printshop/core/structured-design-preflight-command-v1.mjs`;
+- `autonomous-printshop/tests/structured_design_preflight_command_v1.test.mjs`;
+- `.github/workflows/autonomous-printshop-structured-design-preflight.yml`;
+- `autonomous-printshop/tests/structured_design_preflight_workflow_v1.test.mjs`.
+
+Qualified rules:
+- `workflow_dispatch` only;
+- repository owner only;
+- exact existing artifact required;
+- exact artifact content SHA-256 required;
+- exact qualified recipe ID required;
+- stable verification reference required;
+- measured width/height/DPI and explicit visual signals are evaluated by `evaluateDesignPreflightV1`;
+- missing facts remain `UNKNOWN`;
+- explicit violations become `FAIL`;
+- `PASS` is possible only when every required recipe check is proven;
+- the persisted preflight result is exactly the evaluator result;
+- direct Artifact/Approval/Readiness/Accounting/Order/Employee writes are forbidden.
+
+Initial qualification Run `37540039284` failed in repo-only test because the new wrapper passed a missing DPI as explicit `null`; the legacy evaluator correctly interpreted an explicitly numeric-null path differently than a missing fact. No Production execution occurred.
+
+The wrapper was corrected to omit missing measurement fields entirely, preserving the canonical rule:
+```ini
+MISSING_DPI=UNKNOWN
+MISSING_MEASUREMENT_IS_ZERO=NO
+```
+
+Final qualification:
+- Policy CI Run `37540175000` = SUCCESS.
+- structured command contract = PASS;
+- structured workflow contract = PASS;
+- all existing Autonomous Printshop policy contracts remained PASS.
+
+The workflow has not been dispatched because Production currently has zero Design artifacts.
+
+```ini
+STRUCTURED_DESIGN_PREFLIGHT=QUALIFIED_REPO_ONLY
+HARD_CODED_PASS=NO
+EVALUATOR_CONTROLS_RESULT=YES
+DESIGN_ARTIFACTS=0
+DESIGN_PREFLIGHT_ROWS=0
+DIRECT_READINESS_WRITE=NO
+OPERATOR_TASK_CONTROL=OFF
+```
