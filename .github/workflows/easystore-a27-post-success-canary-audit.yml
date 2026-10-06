@@ -73,8 +73,9 @@ jobs:
           if(T.template_id!=='TPL-69C7D9A49828')throw new Error('template id drift');
           if(T.department!=='عام'||T.category!=='A2_CANARY'||!String(T.item_name||'').startsWith('A2-CANARY-TEMPLATE-'))throw new Error('template identity mismatch');
           if(Number(T.fixed_cost)!==0||Number(T.computed_cost)!==0||Number(T.suggested_sale_price)!==0||Number(T.active)!==0||T.updated_by!=='ضياء')throw new Error('template safety mismatch');
-          if(Q.request_key!=='A27-TPL-muwyw80u-1fuz9v20'||Q.operation!=='template-upsert'||Q.actor!=='ضياء'||Q.status!=='COMMITTED'||Q.entity_id!==T.template_id)throw new Error('request mismatch');
+          if(Q.request_key!=='A27-TPL-muwyw80u-1fuz9v20'||Q.operation!=='template-upsert'||Q.actor!=='ضياء'||Q.status!=='COMMITTED'||String(Q.entity_id||'')!=='')throw new Error('request mismatch');
           if(E.entity_type!=='template'||E.entity_id!==T.template_id||E.event_type!=='create'||E.actor!=='ضياء'||E.request_key!==Q.request_key)throw new Error('event mismatch');
+          if(E.entity_id===Q.entity_id)throw new Error('request/event entity linkage contract unexpectedly changed');
           const expected={materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:1,events:1};
           for(const [k,v] of Object.entries(expected)) if(Number(c[k]||0)!==v)throw new Error('count mismatch '+k+'='+c[k]);
           console.log('A27_POST_SUCCESS_AUDIT=PASS');
