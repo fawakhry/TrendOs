@@ -2266,3 +2266,49 @@ Next safe qualification target:
 2. add real machine registry/mapping plus direct equipment-health observations only when such proof exists;
 3. start accumulating real Design evidence under SHADOW from linked assets/preflight/approval;
 4. keep Operator Task OFF until at least one real candidate is strict-ready across DESIGN+MATERIAL+MACHINE and the path remains stable under Shadow observation.
+
+
+### AP-020 — Material authority gate qualified and live
+
+Runtime/GitHub reconciliation after the network interruption confirmed the material authority gate is deployed and qualified.
+
+#### Production material authority gate
+- Commit `6c9795cb60ca89478ab2eb56df336f3bda9be589` gates material evidence collection on `employee_accounting_control_v1.mode='READONLY'`.
+- Readiness Collector Production Deploy Run `37485989093` = SUCCESS.
+- The collector will not consume material blocker candidates unless the accounting authority is explicitly READONLY.
+- The gate exposes the accounting mode/epoch to collector telemetry and preserves Machine gating independently.
+
+#### CI repair and qualification
+- Follow-up test commit `5fab583a9387174d16636e9eea1cd0a7dddd9937` initially failed only because the test file accidentally contained a duplicate `import fs from 'node:fs'`.
+- No runtime/business logic failure was found.
+- The duplicate import was removed in commit `a757f838e17e9ddffd34f4303d5d3aabf51a7426`.
+- Autonomous Printshop Policy V1 CI Run `37488728659` = SUCCESS.
+
+#### Live runtime after qualification
+- Accounting health: mode=READONLY, policyEpoch=2, authoritativeWrites=false, Google business calls=0, Apps Script business authority=false.
+- Readiness Collector: SHADOW, Design=SHADOW, Machine=SHADOW, evidenceRows=0, operatorTasks=0.
+- Current baseline candidates observed: 39.
+- DESIGN/MATERIAL/MACHINE remain UNKNOWN for all 39 because no qualifying evidence has yet been written.
+- Strict eligible = 0.
+- Operator Task remains OFF.
+- Business writes from Shadow/Collector remain false.
+- Employee assignment remains false.
+
+```ini
+MATERIAL_AUTHORITY_GATE=QUALIFIED
+MATERIAL_AUTHORITY_REQUIRED_MODE=READONLY
+MATERIAL_AUTHORITY_RUNTIME_MODE=READONLY
+MATERIAL_AUTHORITY_EPOCH=2
+MATERIAL_GATE_CI=PASS
+READINESS_EVIDENCE_ROWS=0
+STRICT_ELIGIBLE=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+AUTOPILOT_EXECUTION=NO
+```
+
+Next safe target remains evidence acquisition, not task activation:
+1. prove an authenticated scheduled/service read path that can obtain the EasyStore material payload without moving financial authority;
+2. collect explicit machine health/mapping evidence only where direct proof exists;
+3. collect Design evidence from linked asset + hash + preflight + qualified approval;
+4. keep Operator Task OFF until a real line is strict-ready across DESIGN+MATERIAL+MACHINE.
