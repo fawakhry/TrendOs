@@ -6,6 +6,7 @@ on:
       - candidate/t12-full-cloud-cutover-a56-20260929
     paths:
       - 'cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/0031_employee_order_conversation_file_hash_v1.sql'
       - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'tests/entry614_employee_comms_native.test.mjs'
@@ -42,6 +43,8 @@ jobs:
           set -euo pipefail
           grep -Fq "VALUES(1,'ENTRY614_EMPLOYEE_COMMS_V1','OFF',1,0)" cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql
           ! grep -Eq 'DROP TABLE|DELETE FROM|UPDATE t12_prod_|UPDATE t12_customers' cloudflare-d1/migrations/0014_employee_comms_zero_google_v1.sql
+          grep -Fq 'ADD COLUMN content_sha256' cloudflare-d1/migrations/0031_employee_order_conversation_file_hash_v1.sql
+          ! grep -Eiq 'DROP TABLE|DELETE FROM|UPDATE[[:space:]]+employee_order_conversation_files_v1' cloudflare-d1/migrations/0031_employee_order_conversation_file_hash_v1.sql
           echo 'ENTRY614_COMMS_SCHEMA_DEFAULT_OFF=YES'
 
       - name: No Google business runtime
