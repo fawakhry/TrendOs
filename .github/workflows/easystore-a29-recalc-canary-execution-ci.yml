@@ -1,0 +1,20 @@
+name: EasyStore A2.9 Recalc Canary Execution CI
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a29-recalc-canary-execution.yml'
+      - '.github/workflows/easystore-a29-recalc-canary-execution-ci.yml'
+      - 'tests/easystore_a29_recalc_canary_execution.test.mjs'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/easystore_a29_recalc_canary_execution.test.mjs
