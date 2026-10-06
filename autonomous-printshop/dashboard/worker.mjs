@@ -1,4 +1,5 @@
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_DASHBOARD_V1_20261006_STATE_PROXY';
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -244,6 +245,7 @@ export default {
         service:'autonomous-printshop-dashboard',
         mode:'READ_ONLY_CONTROL_TOWER_UI',
         upstream:SHADOW_URL+'/control-tower',
+        dashboardVersion:DASHBOARD_VERSION,
         businessWrites:false,
         employeeAssignment:false
       });
