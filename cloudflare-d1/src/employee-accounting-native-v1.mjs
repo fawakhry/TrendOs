@@ -121,6 +121,43 @@ function writeAmountV1(body){
   ].map(x=>Math.abs(x)).filter(Number.isFinite);
   return vals.length?Math.max(...vals):0;
 }
+function lowRiskCanaryZeroV1(values){
+  return values.every(v=>Math.abs(num(v))<=0.000001);
+}
+function lowRiskCanaryInactiveV1(value){
+  return ['0','false','لا','موقوف','inactive'].includes(key(value));
+}
+function enforceLowRiskMasterCanaryShapeV1(action,body){
+  const b=body||{};
+  if(action==='saveAccountingTemplate'){
+    const name=text(b.itemName||b.templateName||b.productName||b.name);
+    const components=componentRowsV1(b.componentsJson||b.components);
+    const ok=text(b.department)==='عام'
+      && text(b.category)==='A2_CANARY'
+      && /^A2-CANARY-TEMPLATE-/.test(name)
+      && lowRiskCanaryInactiveV1(b.active)
+      && components.length===0
+      && lowRiskCanaryZeroV1([
+        b.salePrice,b.price,b.systemSale,b.fixedCost,b.computedUnitCost,b.calculatedUnitCost,
+        b.calculatedCost,b.cost,b.unitCost,b.outputCount,b.inkCost
+      ]);
+    if(!ok)throw commandErrorV1('employee-accounting-canary-master-shape-blocked','شكل Template الكاناري خارج النطاق الصفري غير النشط المسموح.');
+  }
+  if(action==='saveAccountingMaterial'){
+    const name=text(b.materialName||b.name);
+    const components=componentRowsV1(b.componentsJson||b.components);
+    const ok=text(b.department)==='عام'
+      && text(b.materialKind)==='A2_CANARY'
+      && /^A2-CANARY-MATERIAL-/.test(name)
+      && lowRiskCanaryInactiveV1(b.active)
+      && components.length===0
+      && lowRiskCanaryZeroV1([
+        b.stockQty,b.stock,b.minStock,b.unitCost,b.cost,b.computedUnitCost,b.calculatedUnitCost,
+        b.calculatedCost,b.salePrice,b.officialSalePrice,b.rawWidth,b.width,b.rawHeight,b.height
+      ]);
+    if(!ok)throw commandErrorV1('employee-accounting-canary-master-shape-blocked','شكل Material الكاناري خارج النطاق الصفري غير النشط المسموح.');
+  }
+}
 async function enforceWriteCanaryV1(env,auth,action,body,requireEnabled=false){
   if(READ_ACTIONS.has(action))return {allowed:true,read:true};
   const p=await writeCanaryPolicyV1(env);
@@ -132,6 +169,7 @@ async function enforceWriteCanaryV1(env,auth,action,body,requireEnabled=false){
   if(p.expiresAtMs>0&&Date.now()>p.expiresAtMs)throw commandErrorV1('employee-accounting-canary-expired','نافذة كاناري الحسابات منتهية؛ تم منع الحركة.');
   if(!p.allowedUsers.includes(key(auth&&auth.user&&auth.user.username)))throw commandErrorV1('employee-accounting-canary-user-blocked','هذا المستخدم غير مسموح له بكاناري كتابة الحسابات.');
   if(!p.allowedActions.includes(text(action)))throw commandErrorV1('employee-accounting-canary-action-blocked','هذه الحركة غير مسموحة داخل كاناري الحسابات.');
+  if(requireEnabled)enforceLowRiskMasterCanaryShapeV1(action,body);
   const amount=writeAmountV1(body);
   if(requireEnabled&&p.maxAmount<=0&&amount>0.000001)throw commandErrorV1('employee-accounting-canary-zero-value-only','كاناري الحسابات الحالي يسمح فقط بحركة صفرية القيمة.');
   if(p.maxAmount>0&&amount>p.maxAmount+0.000001)throw commandErrorV1('employee-accounting-canary-amount-blocked','قيمة الحركة أعلى من حد كاناري الحسابات.');
