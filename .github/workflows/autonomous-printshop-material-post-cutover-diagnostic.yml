@@ -1,0 +1,127 @@
+name: Autonomous Printshop Material Post-Cutover Diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      accounting_checkpoint_ref:
+        description: Accounting master-book checkpoint, for example ACC-050
+        required: true
+        type: string
+      stock_authority_confirmed:
+        description: True only when the accounting checkpoint explicitly proves cloud stock authority
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-material-post-cutover-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      ACCOUNTING_CHECKPOINT_REF: \${{ inputs.accounting_checkpoint_ref }}
+      STOCK_AUTHORITY_CONFIRMED: \${{ inputs.stock_authority_confirmed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read accounting public health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            'https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health' \
+            -H 'accept: application/json' \
+            -o /tmp/accounting-health.json
+          cat /tmp/accounting-health.json
+          echo
+
+      - name: Read material source aggregates only
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/material-source.sql <<'SQL'
+          SELECT
+            (SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingMode,
+            (SELECT policy_epoch FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingEpoch,
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
+            (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+            (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(line_id)<>'') AS deptLinesWithLineId,
+            (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(material_name)<>'') AS deptLinesWithMaterial,
+            (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE material_consumption>0) AS deptLinesWithConsumption,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          SQL
+          npx --yes wrangler@\${WRANGLER_VERSION} d1 execute "\${DB_NAME}" --remote --config "\${CONFIG}" --json --file /tmp/material-source.sql > /tmp/material-source.json
+          cat /tmp/material-source.json
+          echo
+
+      - name: Evaluate post-cutover qualification without activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { qualifyMaterialPostCutoverV1 } from './autonomous-printshop/core/material-post-cutover-requalification-v1.mjs';
+
+          const health=JSON.parse(fs.readFileSync('/tmp/accounting-health.json','utf8'));
+          const d1=JSON.parse(fs.readFileSync('/tmp/material-source.json','utf8'));
+          const row=d1?.[0]?.results?.[0]||{};
+
+          if(String(row.operatorTaskMode||'')!=='OFF'){
+            throw new Error('OPERATOR_TASK_MUST_REMAIN_OFF');
+          }
+          if(Number(row.operatorTasks||0)!==0){
+            throw new Error('OPERATOR_TASK_ROWS_MUST_REMAIN_ZERO');
+          }
+
+          const q=qualifyMaterialPostCutoverV1({
+            accountingMode:String(health.mode||row.accountingMode||''),
+            accountingEpoch:Number(health.policyEpoch||row.accountingEpoch||0),
+            accountingCheckpointRef:process.env.ACCOUNTING_CHECKPOINT_REF,
+            stockAuthorityConfirmed:String(process.env.STOCK_AUTHORITY_CONFIRMED||'').toLowerCase()==='true',
+            appsScriptBusinessAuthority:health.appsScriptBusinessAuthority===true,
+            googleBusinessCalls:Number(health.googleBusinessCalls||0),
+            activeMaterials:Number(row.activeMaterials||0),
+            stockMoves:Number(row.stockMoves||0),
+            deptLinesWithLineId:Number(row.deptLinesWithLineId||0),
+            deptLinesWithMaterial:Number(row.deptLinesWithMaterial||0),
+            deptLinesWithConsumption:Number(row.deptLinesWithConsumption||0)
+          });
+
+          console.log('MATERIAL_POST_CUTOVER_DIAGNOSTIC='+JSON.stringify(q));
+          console.log('MATERIAL_POST_CUTOVER_QUALIFIED='+String(q.qualifiedForShadowReadyEvaluation));
+          console.log('ACTIVATION_PERFORMED=NO');
+          console.log('READY_EVIDENCE_WRITTEN=NO');
+          console.log('ACCOUNTING_WRITE=NO');
+          console.log('OPERATOR_TASK_CONTROL=OFF');
+          console.log('LIVE_EMPLOYEE_ASSIGNMENT=NO');
+
+          if(q.qualifiedForShadowReadyEvaluation!==true){
+            console.log('MATERIAL_POST_CUTOVER_RESULT=BLOCKED_SAFE');
+          }else{
+            console.log('MATERIAL_POST_CUTOVER_RESULT=QUALIFIED_FOR_FUTURE_SHADOW_READY_EVALUATION');
+          }
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'DIAGNOSTIC_ONLY=YES'
+          echo 'D1_MUTATION=NO'
+          echo 'ACCOUNTING_MUTATION=NO'
+          echo 'MATERIAL_READY_ACTIVATION=NO'
+          echo 'OPERATOR_TASK_ACTIVATION=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
