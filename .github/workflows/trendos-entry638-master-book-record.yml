@@ -1,0 +1,184 @@
+name: TrendOS Entry638 Master Book Record
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry638-master-book-record.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-master-book-record
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - name: Update master book safely
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path("TrendOS_MASTER_BOOK.md")
+          s = p.read_text(encoding="utf-8")
+
+          s = re.sub(
+              r'إصدار الكتاب: \*\*[^*]+\*\* · تاريخ التحديث: [^·]+ · المستودع:',
+              'إصدار الكتاب: **4.18-ZERO-GOOGLE-COMPACT — Entry638 post-Sherif Native readiness** · تاريخ التحديث: 2026-10-06 · المستودع:',
+              s,
+              count=1
+          )
+
+          old_rule = '> **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. لا تعيد نسخ سلسلة تاريخية كاملة إذا كانت النتيجة النهائية تكفي.'
+          new_rule = '> **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. ويشمل ذلك: كل محاولة ناجحة أو فاشلة، Runtime drift، rollback/restore، إصلاح hardening، workflow/run/job، deploy، تشخيص سبب الفشل، وفتح/إغلاق أي gate. لا تعتبر أي خطوة مكتملة قبل تسجيلها هنا. ممنوع تسجيل passwords أو Tokens أو password hashes أو session secrets.'
+          if old_rule in s:
+              s = s.replace(old_rule, new_rule, 1)
+
+          if 'ENTRY637_ATTEMPT_4=FAIL_NO_SHERIF_LOGIN' not in s:
+              s += r'''
+
+#### Entry637 — Attempt 4 fresh-login window failed safely
+- بعد إثبات أن الدخول السابق لم ينشئ صفًا Native، تم اشتراط Logout كامل قبل المحاولة التالية.
+- Run: `37512561162`, run_attempt = 2.
+- Job: `112458240473`.
+- Preflight:
+  ```ini
+  ENTRY637_STAGED_WINDOW_PREFLIGHT=PASS
+  ENTRY637_STAGED_CODE_ETAG_MATCH=PASS
+  ENTRY637_WINDOW_OPEN=PASS
+  ```
+- النافذة فتحت عند 2026-10-06T19:24:41Z.
+- كل الـ60 polls بقيت `USERS=5 READY=5`.
+- `ENTRY637_WINDOW_CLOSED=PASS` عند 2026-10-06T19:35:10Z.
+- النهاية: `Sherif did not login during bounded window`.
+- رسالة المتصفح اللاحقة `الحساب لم يكتمل نقله إلى تسجيل الدخول السحابي.` تم تتبعها إلى fail-closed Native login branch في `cloudflare-d1/src/employee-auth-native-v1.mjs`: تظهر لمستخدم غير migrated عندما Bootstrap غير متاح / Native-only مفعّل، وبالتالي المحاولة وصلت بعد إغلاق النافذة وليست دليل password rejection.
+- Runtime رجع للحالة المقفولة بعد الإغلاق.
+  ```ini
+  ENTRY637_ATTEMPT_4=FAIL_NO_SHERIF_LOGIN
+  HARDENING_RESTORED=PASS
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  ```
+'''
+
+          if 'ENTRY637_FINAL=PASS_6_OF_6' not in s:
+              s += r'''
+
+#### Entry637 — Attempt 5 PASS; Sherif completed Native migration
+- Run: `37512561162`, run_attempt = 3.
+- Job: `112464374923`.
+- Workflow conclusion: `SUCCESS`.
+- Window opened: 2026-10-06T19:38:48Z.
+- Polls 1–5: `USERS=5 READY=5`.
+- Poll 6: `USERS=6 READY=6`.
+- Proof:
+  ```ini
+  ENTRY637_SHERIF_BOOTSTRAP_OBSERVED=YES
+  ENTRY637_WINDOW_CLOSED=PASS
+  ENTRY637_HARDENING_RESTORED=PASS
+  ENTRY637_NATIVE_READY=6_OF_6
+  ENTRY637_BOUNDED_MIGRATION=PASS
+  ENTRY637_SHERIF_D1_ROW=PASS
+  ENTRY637_SHERIF_PASSWORD_HASH_LOGGED=NO
+  ```
+- Safe row shape from workflow evidence:
+  ```ini
+  USERNAME_KEY=شريف
+  ROLE=service
+  DEPARTMENT=فنيل
+  SCREENS=["service",""]
+  ```
+- Final Runtime:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  NATIVE_ONLY=true
+  D1_AUTH_USERS=6
+  D1_NATIVE_READY_USERS=6
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  BACKEND_BRIDGE=false
+  ```
+- No manual D1 user insertion was used.
+- No password, raw token, password hash, or session secret was recorded.
+- Accounting remained READONLY; EasyStore was not mutated by this Auth migration.
+  ```ini
+  ENTRY637_FINAL=PASS_6_OF_6
+  SHERIF_NATIVE_READY=YES
+  HARDENING_RESTORED=PASS
+  BACKEND_BRIDGE=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Detailed public evidence: `docs/trendos/staging/ENTRY637_FINAL_SUCCESS_20261006.md`.
+'''
+
+          if 'ENTRY638_RUNTIME_READINESS_6_OF_6=PASS' not in s:
+              s += r'''
+
+#### Entry638 — Post-Entry637 Native readiness / completeness gate
+- Re-audit performed after Entry637 success.
+- Entry636 stays historical evidence of the previous missing-sixth-identity gap; it is not rewritten.
+- Public Runtime evidence:
+  ```ini
+  D1_AUTH_USERS=6
+  D1_NATIVE_READY_USERS=6
+  NATIVE_ONLY=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  PLAINTEXT_STORED=false
+  ```
+- Safe source-side completeness re-audit was performed without exporting password/Token values into repository documentation.
+- Result of the completeness gate: no unresolved canonical active Native gap remains after the sixth identity migration.
+- Frontend remains deliberately staged:
+  ```ini
+  FRONTEND_GLOBAL_NATIVE_AUTH=false
+  FRONTEND_NATIVE_CANARY=true
+  FRONTEND_BRIDGE=false
+  ```
+- Pre-cutover drift that must be preserved:
+  - deployed frontend canary = ON;
+  - branch `config.js` currently shows canary OFF / empty canary list;
+  - deployed readiness threshold remains 5 while Runtime proves 6 Native-ready users.
+- Runtime/deployed truth is authoritative. Reconcile repo/deployed drift and readiness threshold only inside the separate controlled Global Native frontend cutover gate.
+  ```ini
+  ENTRY638_RUNTIME_READINESS_6_OF_6=PASS
+  ENTRY638_COMPLETENESS_GATE=PASS
+  UNRESOLVED_ACTIVE_NATIVE_GAP=NONE
+  GLOBAL_NATIVE_FRONTEND_PREP=PASS
+  GLOBAL_NATIVE_FRONTEND_CUTOVER=NOT_YET_EXECUTED
+  ACCOUNTING=READONLY
+  EASYSTORE_MUTATION=NO
+  ```
+- Public Runtime evidence file: `docs/trendos/staging/ENTRY638_RUNTIME_NATIVE_READINESS_20261006.md`.
+'''
+
+          p.write_text(s, encoding="utf-8")
+
+      - name: Commit master book record
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- TrendOS_MASTER_BOOK.md; then
+            echo ENTRY638_MASTER_BOOK_ALREADY_RECORDED=YES
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add TrendOS_MASTER_BOOK.md
+          git commit -m "docs: record Entry637 final and Entry638 readiness in master book"
+          git push origin HEAD:candidate/t12-full-cloud-cutover-a56-20260929
+          echo ENTRY638_MASTER_BOOK_RECORDED=PASS
