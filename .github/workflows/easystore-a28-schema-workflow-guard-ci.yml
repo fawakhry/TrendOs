@@ -1,0 +1,20 @@
+name: EasyStore A2.8 Schema Workflow Guard CI
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a28-schema-workflow-guard-ci.yml'
+      - 'tests/easystore_a28_schema_workflow_guard.test.mjs'
+      - '.github/workflows/easystore-a2-schema-apply-controlled.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/easystore_a28_schema_workflow_guard.test.mjs
