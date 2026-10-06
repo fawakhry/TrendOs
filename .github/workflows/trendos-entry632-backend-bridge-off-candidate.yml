@@ -88,22 +88,21 @@ jobs:
             }
             return {name:b.name,type:'inherit',version_id:active};
           });
-          const payload={
-            settings:{
-              bindings:out,
-              annotations:{
-                "workers/message":"Entry632 candidate: backend legacy bridge OFF only"
-              }
+          const settings={
+            bindings:out,
+            annotations:{
+              "workers/message":"Entry632 candidate: backend legacy bridge OFF only"
             }
           };
-          fs.writeFileSync('/tmp/patch.json',JSON.stringify(payload));
+          fs.writeFileSync('/tmp/settings-patch.json',JSON.stringify(settings));
           console.log('ENTRY632_PATCH_BINDINGS='+out.length);
           console.log('ENTRY632_PATCH_SECRET_VALUES_INCLUDED=NO');
           NODE
 
           HTTP="$(curl --silent --show-error -o /tmp/patch-response.json -w '%{http_code}' \
-            "${AUTH[@]}" -H 'Content-Type: application/json' \
-            -X PATCH "$BASE/settings" --data-binary @/tmp/patch.json)"
+            "${AUTH[@]}" \
+            -X PATCH "$BASE/settings" \
+            -F 'settings=</tmp/settings-patch.json;type=application/json')"
           echo "ENTRY632_SETTINGS_PATCH_HTTP=$HTTP"
           test "$HTTP" -ge 200
           test "$HTTP" -lt 300
