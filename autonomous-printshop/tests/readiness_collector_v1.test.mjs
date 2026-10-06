@@ -30,6 +30,11 @@ assert.match(worker,/projectedLines/);
 assert.match(worker,/qualifiedReadyLines/);
 assert.match(worker,/projectedBlockedLines/);
 assert.match(worker,/projectedUnknownLines/);
+assert.doesNotMatch(
+  worker,
+  /designReadyInput\s*=\s*Number\(row&&row\.designArtifacts/,
+  'OLD_AGGREGATE_DESIGN_READY_FORBIDDEN'
+);
 assert.match(worker,/machineIdentitySchemaReady/);
 assert.match(worker,/machineIdentityRows/);
 assert.match(worker,/writeCanaryAllowedUsers/);
