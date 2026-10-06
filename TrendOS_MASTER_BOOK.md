@@ -4431,3 +4431,31 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   7. second login must be Native from D1;
   8. verify Dashboard/basic Ops and legitimate attendance/start-day action;
   9. do not add a third employee before this gate passes.
+
+
+#### Entry624 — Wael real UI canary final PASS
+- Owner confirmed the requested real Production UI smoke for `وائل` completed successfully.
+- Final independent Runtime proof:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  MUST_CHANGE_COUNT=0
+  PLAINTEXT_STORED=false
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  FRONTEND_CANARY_USERS=['ضياء','وائل']
+  GLOBAL_NATIVE_AUTH=OFF
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+  ```
+- Registration:
+  ```ini
+  ENTRY624_WAEL_CANARY=PASS
+  ENTRY624_REAL_UI_LOGIN=PASS
+  ENTRY624_REAL_ATTENDANCE_SMOKE=PASS
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  ```
+- No third employee was added by Entry624.
