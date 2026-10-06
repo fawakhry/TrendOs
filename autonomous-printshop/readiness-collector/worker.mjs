@@ -1,21 +1,30 @@
 import {
   collectExistingReadinessEvidenceV1
 } from '../core/readiness-source-adapters-v1.mjs';
+import {
+  collectDesignReadinessEvidenceV1,
+  designReadinessSchemaStateV1
+} from '../core/design-readiness-collector-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 
 async function health(env){
-  const row=await env.DB.prepare(`
-    SELECT
-      (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
-      (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS evidenceRows,
-      (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks
-  `).first();
+  const [row,design]=await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+        (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS evidenceRows,
+        (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks
+    `).first(),
+    designReadinessSchemaStateV1(env.DB)
+  ]);
   return {
     success:true,
     service:'autonomous-printshop-readiness-collector',
     mode:'READINESS_EVIDENCE_COLLECTOR',
     readinessMode:text(row&&row.readinessMode),
+    designEvidenceSchemaReady:design.ready,
+    designMode:design.mode,
     evidenceRows:Number(row&&row.evidenceRows||0),
     operatorTasks:Number(row&&row.operatorTasks||0),
     writeAuthority:'AUTONOMOUS_READINESS_EVIDENCE_ONLY',
@@ -53,15 +62,30 @@ export default {
 
   async scheduled(controller,env,ctx){
     ctx.waitUntil((async()=>{
-      const result=await collectExistingReadinessEvidenceV1(env.DB,{nowMs:Date.now()});
+      const nowMs=Date.now();
+      const existing=await collectExistingReadinessEvidenceV1(env.DB,{nowMs});
+      const design=await collectDesignReadinessEvidenceV1(env.DB,{nowMs,tenantId:'TENANT_001'});
       console.log('AUTONOMOUS_PRINTSHOP_READINESS_COLLECTOR='+JSON.stringify({
-        success:result.success,
-        skipped:!!result.skipped,
-        reason:text(result.reason),
-        candidates:Number(result.candidates||0),
-        inserted:Number(result.inserted||0),
-        duplicates:Number(result.duplicates||0),
-        byKind:result.byKind||{}
+        success:existing.success===true&&design.success===true,
+        existing:{
+          skipped:!!existing.skipped,
+          reason:text(existing.reason),
+          candidates:Number(existing.candidates||0),
+          inserted:Number(existing.inserted||0),
+          duplicates:Number(existing.duplicates||0),
+          byKind:existing.byKind||{}
+        },
+        design:{
+          skipped:!!design.skipped,
+          reason:text(design.reason),
+          mode:text(design.designMode),
+          artifacts:Number(design.artifacts||0),
+          candidates:Number(design.candidates||0),
+          ready:Number(design.ready||0),
+          blocked:Number(design.blocked||0),
+          inserted:Number(design.inserted||0),
+          duplicates:Number(design.duplicates||0)
+        }
       }));
     })());
   }

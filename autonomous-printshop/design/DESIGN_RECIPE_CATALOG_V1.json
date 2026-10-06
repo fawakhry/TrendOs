@@ -1,0 +1,133 @@
+{
+  "schema": "AUTONOMOUS_PRINTSHOP_DESIGN_RECIPE_CATALOG_V1",
+  "generated_at": "2026-10-05",
+  "status": "SHADOW_CANDIDATE",
+  "unit": "mm",
+  "global_rules": [
+    "Do not change facial identity when identity preservation is required.",
+    "Exact customer text must match evidence; do not invent names, dates, logos, or phrases.",
+    "Missing visual verification is UNKNOWN, never PASS.",
+    "SAVED is not approval.",
+    "Rejected or superseded output is negative evidence, never a positive template."
+  ],
+  "recipes": [
+    {
+      "recipe_id": "MUG_20X9_TWO_PHOTOS_CENTER_TEXT_V1",
+      "product_family": "MUG",
+      "width_mm": 200,
+      "height_mm": 90,
+      "orientation": "LANDSCAPE",
+      "min_dpi": 300,
+      "required_asset_roles": [
+        "PHOTO_LEFT",
+        "PHOTO_RIGHT"
+      ],
+      "required_signals": [
+        "identity_preserved",
+        "exact_text_verified",
+        "layout_verified"
+      ],
+      "visual_rules": {
+        "identity_preservation": "REQUIRED",
+        "background": "RECIPE_DEPENDENT",
+        "cut_stroke": "NOT_REQUIRED"
+      },
+      "layout_rules": [
+        "photo on each side",
+        "customer text/heart area centered"
+      ],
+      "source_lineage": [
+        "MUG_20X9_TWO_PHOTOS_CENTER_TEXT",
+        "MUG_20X9_PHOTO_ONE_SIDE_TEXT_OTHER"
+      ]
+    },
+    {
+      "recipe_id": "GRADUATION_CUT_STICKER_7X10_V1",
+      "product_family": "CUT_STICKER",
+      "width_mm": 70,
+      "height_mm": 100,
+      "orientation": "PORTRAIT",
+      "min_dpi": 300,
+      "required_asset_roles": [
+        "PORTRAIT"
+      ],
+      "required_signals": [
+        "identity_preserved",
+        "white_background_verified",
+        "closed_cut_stroke_verified",
+        "exact_text_verified"
+      ],
+      "visual_rules": {
+        "identity_preservation": "REQUIRED",
+        "background": "WHITE",
+        "cut_stroke": "CLOSED_BLACK_STRONG"
+      },
+      "layout_rules": [
+        "single person / half body when specified",
+        "one-piece cut path",
+        "clear external stroke"
+      ],
+      "source_lineage": [
+        "GRADUATION_NEWSPAPER",
+        "WHITE_BACKGROUND_OVERRIDE"
+      ]
+    },
+    {
+      "recipe_id": "OFFICIAL_ID_4X6_V1",
+      "product_family": "OFFICIAL_ID",
+      "width_mm": 40,
+      "height_mm": 60,
+      "orientation": "PORTRAIT",
+      "min_dpi": 300,
+      "required_asset_roles": [
+        "PORTRAIT"
+      ],
+      "required_signals": [
+        "identity_preserved",
+        "white_background_verified",
+        "color_correction_verified",
+        "border_1px_verified"
+      ],
+      "visual_rules": {
+        "identity_preservation": "REQUIRED",
+        "background": "WHITE",
+        "cut_stroke": "NOT_REQUIRED"
+      },
+      "layout_rules": [
+        "1px border around full 4x6 area",
+        "optional white name-data rectangle below when name is supplied"
+      ],
+      "source_lineage": [
+        "WORKSHOP_STANDARD_4X6"
+      ]
+    },
+    {
+      "recipe_id": "COLLAGE_50X70_V1",
+      "product_family": "COLLAGE",
+      "width_mm": 500,
+      "height_mm": 700,
+      "orientation": "PORTRAIT",
+      "min_dpi": 300,
+      "required_asset_roles": [
+        "PHOTO_SET"
+      ],
+      "required_signals": [
+        "identity_preserved",
+        "layout_verified"
+      ],
+      "visual_rules": {
+        "identity_preservation": "REQUIRED",
+        "background": "RECIPE_DEPENDENT",
+        "cut_stroke": "NOT_REQUIRED"
+      },
+      "layout_rules": [
+        "preserve supplied photo identities",
+        "do not silently replace or alter faces",
+        "spacing and center-photo shape follow order-specific instructions"
+      ],
+      "source_lineage": [
+        "COLLAGE_PHOTO_REPLACEMENT_PRESERVE_LAYOUT"
+      ]
+    }
+  ]
+}

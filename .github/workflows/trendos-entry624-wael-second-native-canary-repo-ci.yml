@@ -1,0 +1,42 @@
+name: TrendOS Entry624 Wael Second Native Canary Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/ENTRY624_WAEL_SECOND_NATIVE_CANARY_17_POLICY_MANIFEST.json'
+      - 'tests/entry624_wael_second_native_canary_17_policy.test.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - '.github/workflows/trendos-entry624-wael-second-native-canary-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry624 second-canary contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry624_wael_second_native_canary_17_policy.test.mjs
+          node tests/entry623_diya_login_canary_17_policy.test.mjs
+          echo ENTRY624_REPO_GATE=PASS
+      - name: No runtime mutation
+        shell: bash
+        run: |
+          echo ENTRY624_PRODUCTION_MUTATION=NO
+          echo ENTRY624_D1_MUTATION=NO
+          echo ENTRY624_APPS_SCRIPT_TOUCHED=NO
+          echo ENTRY624_ACCOUNTING_TOUCHED=NO
+          echo ENTRY624_EASYSTORE_TOUCHED=NO

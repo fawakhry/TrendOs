@@ -1691,3 +1691,92 @@ AUTOPILOT=OFF
 
 Next:
 `activate Autonomy/Readiness control as SHADOW only -> persist append-only shadow observations -> build evidence-source adapters`.
+
+
+### AP-016 — Shadow control plane, observer, readiness collector, and Control Tower live
+
+The autonomous runtime moved from passive schema-only state into measured SHADOW operation without enabling live employee assignment.
+
+Control activation:
+- Autonomy control changed `OFF -> SHADOW`.
+- Autonomy epoch = 2.
+- Readiness control changed `OFF -> SHADOW`.
+- Readiness epoch = 2.
+- Operator Task control remained `OFF`.
+- Operator Tasks remained 0.
+- Business Order/Line writes from autonomous control activation = NO.
+- Run `37359690953` — SUCCESS.
+
+Shadow Decision Observer:
+- isolated Worker: `autonomous-printshop-observer`.
+- public health route only; no business action route.
+- cron: minute 5 of each hour.
+- allowed write authority: append-only `autonomy_events` / autonomy observation lineage through the autonomy ledger.
+- Order write = NO.
+- Line write = NO.
+- Operator Task write = NO.
+- Employee assignment = NO.
+- initial deploy health: PASS.
+- deploy Run `37360194500` — SUCCESS.
+
+Readiness Evidence Collector:
+- isolated Worker: `autonomous-printshop-readiness-collector`.
+- cron: every 10 minutes.
+- allowed write authority: `autonomous_readiness_evidence` only.
+- conservative source adapters currently include:
+  - legacy Design `ready` evidence only when the legacy source contains an explicit recognized value;
+  - Material `BLOCKED` evidence only when a mapped material has declared consumption and catalog stock is explicitly below requirement.
+- it does NOT infer READY from absence of a problem.
+- it does NOT invent Material or Machine evidence.
+- Order write = NO.
+- Line write = NO.
+- Material ledger write = NO.
+- Operator Task write = NO.
+- Employee assignment = NO.
+- deploy Run `37361344636` — SUCCESS.
+
+Control Tower:
+- aggregate route: `/control-tower` on the isolated Production Shadow Worker.
+- source authority: `trendos-main-d1` through qualified read-only adapters.
+- aggregates:
+  - operational counts;
+  - employee availability and department coverage;
+  - readiness coverage and strict eligibility;
+  - Autonomy / Readiness / Operator Task control modes;
+  - shadow-learning counts;
+  - owner/management attention signals.
+- no PII, employee identity, raw Order IDs, or raw Line IDs are exposed.
+- writesAccepted = false.
+- d1Mutation = false.
+- employeeAssignment = false.
+- deploy/qualification Run `37361509405` — SUCCESS.
+
+Latest verified Sidecar snapshot during AP-016 qualification:
+- Native Orders = 278.
+- Schedule rows = 278.
+- Missing schedules = 0.
+- total normalized rows = 511.
+- ordinary baseline candidates = 33.
+- in progress = 11.
+- Fly Print = 1.
+- closed = 466.
+- Employee Supervisor assignment baseline coverage = 500 / 511 = 97.85%.
+- Operator Task control = OFF.
+- withActiveTask = 0.
+- live employee assignment = NO.
+
+```ini
+AUTONOMY_CONTROL=SHADOW
+AUTONOMY_EPOCH=2
+READINESS_CONTROL=SHADOW
+READINESS_EPOCH=2
+OPERATOR_TASK_CONTROL=OFF
+SHADOW_OBSERVER=PRODUCTION_LIVE
+READINESS_COLLECTOR=PRODUCTION_LIVE
+CONTROL_TOWER=PRODUCTION_SHADOW_LIVE
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+AUTOPILOT_EXECUTION=NO
+```
+
+Next:
+`observe accumulated Shadow/Evidence history -> finish read-only shop dashboard -> add trustworthy Design/Material/Machine evidence sources -> qualify first readiness-complete task path`.

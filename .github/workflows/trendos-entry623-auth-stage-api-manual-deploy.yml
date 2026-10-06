@@ -22,7 +22,7 @@ jobs:
       UI_URL: https://trendos-ui.trendmall-contact.workers.dev
       BASE_COMMIT: a6aaf6390b0572feb5715736ed88cda8c8ade9c2
       BASE_AUTH_BLOB: e7bb20287efa16366fbd267251217fde90a33958
-      PATCH_AUTH_BLOB: 450d3f9e65cece5363c4c51677e5b306c0deae5e
+      PATCH_AUTH_BLOB: c01156a965e7de60e7a70d44d86b41b59eb83ded
       WRANGLER_VERSION: 4.33.2
 
     steps:
@@ -92,10 +92,9 @@ jobs:
           NODE
 
           grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/ui-config.js
-          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/ui-config.js
-          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء'];" /tmp/ui-config.js
-          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 17;" /tmp/ui-config.js
-          echo ENTRY623_FRONTEND_CANARY_PREDEPLOY=PASS
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/ui-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/ui-config.js
+          echo ENTRY623_FRONTEND_CANARY_PREDEPLOY=OFF_INCIDENT_CONTAINMENT_PASS
 
       - name: Build exact-live API source plus Auth diagnostic only
         shell: bash

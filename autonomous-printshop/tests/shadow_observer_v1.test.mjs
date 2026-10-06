@@ -14,6 +14,13 @@ assert.match(worker,/AUTONOMY_CONTROL_NOT_SHADOW/);
 assert.match(worker,/READINESS_CONTROL_NOT_SHADOW/);
 assert.match(worker,/businessWrites:false/);
 assert.match(worker,/employeeAssignment:false/);
+assert.match(worker,/previewObservationV1/);
+assert.match(worker,/buildObservationPlan/);
+assert.match(worker,/rawLineIdsExposed:false/);
+assert.match(worker,/rawOrderIdsExposed:false/);
+assert.match(worker,/writePerformed:false/);
+assert.ok(worker.includes("path==='/preview'"));
+assert.match(worker,/SHADOW_OBSERVER_PREVIEW/);
 
 for(const forbidden of [
   /INSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+t12_prod_/i,

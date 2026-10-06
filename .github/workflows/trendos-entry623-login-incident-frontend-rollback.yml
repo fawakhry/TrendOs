@@ -1,0 +1,109 @@
+
+name: TrendOS Entry623 Login Incident Frontend Rollback
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-login-incident-frontend-rollback.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-login-incident-frontend-rollback
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      CONFIG: cloudflare-d1/wrangler.frontend.toml
+      ROLLBACK_VERSION: bfcc6f85-a748-4b66-a334-b605c72108f7
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Incident preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          curl --fail --silent --show-error "$UI_URL/config.js?entry623incidentpre=$GITHUB_SHA" -o /tmp/config-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/config-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/config-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء'];" /tmp/config-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = true;" /tmp/config-pre.js
+
+          for f in auth legacy-action ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry623incidentpre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth drift');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('auth rows drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting drift');
+          console.log('ENTRY623_LOGIN_INCIDENT_PREFLIGHT=PASS');
+          NODE
+
+      - name: Roll back frontend only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler rollback "$ROLLBACK_VERSION" --message "Entry623 login incident rollback to last known-good frontend" --config "$CONFIG"
+          sleep 3
+
+      - name: Postflight last-known-good login surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error "$UI_URL/config.js?entry623incidentpost=$suffix" -o /tmp/config-post.js               && curl --fail --silent --show-error "$UI_URL/attendance-v1.js?entry623incidentpost=$suffix" -o /tmp/attendance-post.js               && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/config-post.js               && grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/config-post.js               && ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/config-post.js               && grep -Fq "window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';" /tmp/config-post.js               && grep -Fq "window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY';" /tmp/config-post.js               && grep -Fq "normalizeAttendanceBackendResponse" /tmp/attendance-post.js; then
+                ok=1
+                echo "ENTRY623_LOGIN_INCIDENT_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$ok" = "1"
+
+          for f in auth legacy-action ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry623incidentpost=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth post drift');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0) throw new Error('auth post rows drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting post drift');
+          console.log('ENTRY623_LOGIN_INCIDENT_FRONTEND_ROLLBACK=PASS');
+          console.log('ENTRY623_FRONTEND_CANARY=OFF');
+          console.log('ENTRY623_GLOBAL_NATIVE_AUTH=OFF');
+          console.log('ENTRY623_API_DEPLOY=NO');
+          console.log('ENTRY623_D1_MUTATION=NO');
+          console.log('ENTRY623_ACCOUNTING_TOUCHED=NO');
+          NODE

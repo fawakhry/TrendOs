@@ -5,18 +5,24 @@ const worker=fs.readFileSync('autonomous-printshop/readiness-collector/worker.mj
 const config=fs.readFileSync('autonomous-printshop/readiness-collector/wrangler.toml','utf8');
 const adapters=fs.readFileSync('autonomous-printshop/core/readiness-source-adapters-v1.mjs','utf8');
 const writer=fs.readFileSync('autonomous-printshop/core/readiness-evidence-writer-v1.mjs','utf8');
+const designCollector=fs.readFileSync('autonomous-printshop/core/design-readiness-collector-v1.mjs','utf8');
 
 assert.match(config,/^name = "autonomous-printshop-readiness-collector"$/m);
 assert.match(config,/^crons = \["\*\/10 \* \* \* \*"\]$/m);
 assert.match(worker,/collectExistingReadinessEvidenceV1/);
+assert.match(worker,/collectDesignReadinessEvidenceV1/);
+assert.match(worker,/designEvidenceSchemaReady/);
+assert.match(worker,/designMode/);
 assert.match(worker,/writeAuthority:'AUTONOMOUS_READINESS_EVIDENCE_ONLY'/);
 assert.match(worker,/businessWrites:false/);
 assert.match(worker,/employeeAssignment:false/);
 assert.match(adapters,/legacyDesignEvidenceCandidatesV1/);
 assert.match(adapters,/materialBlockerEvidenceCandidatesV1/);
 assert.match(writer,/INSERT OR IGNORE INTO autonomous_readiness_evidence/);
+assert.match(designCollector,/DESIGN_EVIDENCE_SCHEMA_NOT_READY/);
+assert.match(designCollector,/DESIGN_CONTROL_NOT_SHADOW/);
 
-for(const src of [worker,adapters,writer]){
+for(const src of [worker,adapters,writer,designCollector]){
   for(const forbidden of [
     /INSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+t12_prod_/i,
     /UPDATE\s+t12_prod_/i,
@@ -34,5 +40,6 @@ for(const src of [worker,adapters,writer]){
 console.log('AUTONOMOUS_PRINTSHOP_READINESS_COLLECTOR_V1=PASS');
 console.log('CRON=EVERY_10_MINUTES');
 console.log('WRITE_AUTHORITY=AUTONOMOUS_READINESS_EVIDENCE_ONLY');
+console.log('DESIGN_CONTROL_OFF=COLLECTOR_SKIP');
 console.log('MATERIAL_READY_SYNTHESIS=NO');
 console.log('MACHINE_READY_SYNTHESIS=NO');

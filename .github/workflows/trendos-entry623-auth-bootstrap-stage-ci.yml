@@ -5,6 +5,9 @@ on:
     branches:
       - candidate/t12-full-cloud-cutover-a56-20260929
     paths:
+      - 'cloudflare-d1/src/employee-auth-native-v1.mjs'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'tests/employee_auth_native_a61.test.mjs'
       - '.github/workflows/trendos-entry623-auth-bootstrap-stage-ci.yml'
 
 permissions:

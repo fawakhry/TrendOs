@@ -12,14 +12,26 @@ on:
       - 'autonomous-printshop/core/employee-supervisor-shadow-v1.mjs'
       - 'autonomous-printshop/core/readiness-evidence-v1.mjs'
       - 'autonomous-printshop/core/readiness-evidence-writer-v1.mjs'
+      - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
+      - 'autonomous-printshop/core/design-asset-linking-v1.mjs'
+      - 'autonomous-printshop/core/observer-run-ledger-v1.mjs'
+      - 'autonomous-printshop/core/design-preflight-v1.mjs'
+      - 'autonomous-printshop/core/design-readiness-collector-v1.mjs'
+      - 'autonomous-printshop/core/machine-readiness-v1.mjs'
+      - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
       - 'autonomous-printshop/readiness-collector/**'
       - 'autonomous-printshop/observer/**'
+      - 'autonomous-printshop/dashboard/**'
       - 'autonomous-printshop/migrations/0019_autonomy_events_v1.sql'
       - 'autonomous-printshop/migrations/0020_operator_task_authority_v1.sql'
       - 'autonomous-printshop/migrations/0021_t12_order_schedule_v1.sql'
       - 'autonomous-printshop/migrations/0022_t12_order_schedule_maintenance_v1.sql'
       - 'autonomous-printshop/migrations/0023_readiness_evidence_v1.sql'
+      - 'autonomous-printshop/migrations/0024_design_production_evidence_v1.sql'
+      - 'autonomous-printshop/migrations/0025_design_asset_binding_v1.sql'
+      - 'autonomous-printshop/migrations/0026_observer_run_ledger_v1.sql'
+      - 'autonomous-printshop/migrations/0027_machine_readiness_v1.sql'
       - 'autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
       - 'autonomous-printshop/tests/operational_reality_v1.test.mjs'
@@ -30,9 +42,16 @@ on:
       - 'autonomous-printshop/tests/t12_order_schedule_maintenance_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_evidence_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs'
+      - 'autonomous-printshop/tests/design_production_evidence_v1.test.mjs'
+      - 'autonomous-printshop/tests/design_asset_linking_v1.test.mjs'
+      - 'autonomous-printshop/tests/observer_run_ledger_v1.test.mjs'
+      - 'autonomous-printshop/tests/design_preflight_v1.test.mjs'
+      - 'autonomous-printshop/tests/design_readiness_collector_v1.test.mjs'
+      - 'autonomous-printshop/tests/machine_readiness_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/shadow_observer_v1.test.mjs'
+      - 'autonomous-printshop/tests/dashboard_v1.test.mjs'
       - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - 'autonomous-printshop/production-shadow/**'
@@ -67,6 +86,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: autonomous-printshop-policy-v1-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   autonomy-policy-contract:
     runs-on: ubuntu-latest
@@ -95,12 +118,26 @@ jobs:
         run: node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
       - name: Run readiness evidence writer contract
         run: node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
+      - name: Run design production evidence contract
+        run: node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
+      - name: Run design asset linking contract
+        run: node autonomous-printshop/tests/design_asset_linking_v1.test.mjs
+      - name: Run observer run ledger contract
+        run: node autonomous-printshop/tests/observer_run_ledger_v1.test.mjs
+      - name: Run design preflight contract
+        run: node autonomous-printshop/tests/design_preflight_v1.test.mjs
+      - name: Run design readiness collector contract
+        run: node autonomous-printshop/tests/design_readiness_collector_v1.test.mjs
+      - name: Run machine readiness contract
+        run: node autonomous-printshop/tests/machine_readiness_v1.test.mjs
       - name: Run readiness source adapters contract
         run: node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
       - name: Run readiness collector write-boundary contract
         run: node autonomous-printshop/tests/readiness_collector_v1.test.mjs
       - name: Run shadow observer write-boundary contract
         run: node autonomous-printshop/tests/shadow_observer_v1.test.mjs
+      - name: Run dashboard read-only contract
+        run: node autonomous-printshop/tests/dashboard_v1.test.mjs
       - name: Run Employee Supervisor shadow contract
         run: node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
       - name: Run isolated production shadow worker contract

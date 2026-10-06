@@ -1,0 +1,141 @@
+
+name: TrendOS Entry623 Backend First Login Stage Probe
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-backend-first-login-stage-probe.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-backend-first-login-stage-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact fail-closed preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+
+          curl --fail --silent --show-error "$UI_URL/config.js?entry623backendprobe=$GITHUB_SHA" -o /tmp/ui-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/ui-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/ui-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/ui-config.js
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623backendprobe=$GITHUB_SHA" -o /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry623backendprobe=$GITHUB_SHA" -o /tmp/bridge.json
+          node <<'NODE'
+          const a=require('/tmp/auth.json'),b=require('/tmp/bridge.json');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth drift');
+          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0||a.plaintextStored!==false) throw new Error('auth rows drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
+          if(String(process.env.QUALIFY_USERNAME||'').trim()!=='ضياء') throw new Error('wrong canary identity');
+          console.log('ENTRY623_BACKEND_PROBE_PREFLIGHT=PASS');
+          console.log('ENTRY623_FRONTEND_CANARY=OFF');
+          console.log('ENTRY623_CREDENTIAL_VALUES_LOGGED=NO');
+          NODE
+
+      - name: One backend first-login probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const raw=await r.text();
+            let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(token){
+              console.log('::add-mask::'+token);
+              fs.writeFileSync('/tmp/entry623-token',token,{mode:0o600});
+            }
+            console.log('ENTRY623_FIRST_LOGIN_HTTP='+r.status);
+            console.log('ENTRY623_FIRST_LOGIN_SUCCESS='+(body.success===true?'YES':'NO'));
+            console.log('ENTRY623_FIRST_LOGIN_AUTH_SOURCE='+String(body.authSource||'NONE'));
+            console.log('ENTRY623_FIRST_LOGIN_CODE='+String(body.code||'NONE'));
+            console.log('ENTRY623_FIRST_LOGIN_STAGE='+String(body.stage||'NONE'));
+            console.log('ENTRY623_TOKEN_VALUE_LOGGED=NO');
+            if(body.success===true){
+              if(r.status!==200||!token||String(body.authSource||'')!=='d1-native-bootstrap-v1') process.exit(21);
+              process.exit(0);
+            }
+            if(r.status!==503||String(body.code||'')!=='employee-auth-login-bootstrap-upsert-failed') process.exit(22);
+            if(!['password-hash','d1-user-upsert','unknown'].includes(String(body.stage||''))) process.exit(23);
+          })().catch(()=>process.exit(24));
+          NODE
+
+      - name: Revoke created session if bootstrap succeeded
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          if(!fs.existsSync('/tmp/entry623-token')){
+            console.log('ENTRY623_BOOTSTRAP_SESSION_REVOKED=NOT_APPLICABLE');
+            process.exit(0);
+          }
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry623-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) process.exit(31);
+            console.log('ENTRY623_BOOTSTRAP_SESSION_REVOKED=YES');
+          })().catch(()=>process.exit(32));
+          NODE
+          rm -f /tmp/entry623-token
+
+      - name: Postflight
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry623backendpost=$GITHUB_SHA" -o /tmp/auth-post.json
+          node <<'NODE'
+          const a=require('/tmp/auth-post.json');
+          console.log('ENTRY623_POST_AUTH_MODE='+String(a.mode||''));
+          console.log('ENTRY623_POST_USER_COUNT='+Number(a.userCount||0));
+          console.log('ENTRY623_POST_NATIVE_READY_COUNT='+Number(a.nativeReadyCount||0));
+          console.log('ENTRY623_POST_PLAINTEXT_STORED='+(a.plaintextStored===true?'YES':'NO'));
+          if(a.mode!=='TRANSITIONAL'||a.plaintextStored!==false) throw new Error('post drift');
+          NODE

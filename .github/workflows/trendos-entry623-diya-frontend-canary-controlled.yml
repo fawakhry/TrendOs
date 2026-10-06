@@ -28,7 +28,7 @@ jobs:
       EXPECTED_FRONTEND_VERSION: bfcc6f85-a748-4b66-a334-b605c72108f7
       LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
       EXPECTED_DISPATCHER_BLOB: 23ba13b20203c93feb3d37d4e1c3982158d4f3bd
-      CANARY_TAG: 20261005-entry623-diya-canary
+      CANARY_TAG: 20261006-entry623-diya-canary-backend-pass
 
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +84,7 @@ jobs:
           const fs=require('fs'),r=f=>JSON.parse(fs.readFileSync('/tmp/'+f+'-pre.json','utf8'));
           const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
           if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==false) throw new Error('auth drift');
-          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0||a.plaintextStored!==false) throw new Error('auth rows drift');
+          if(Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1||a.plaintextStored!==false) throw new Error('auth rows drift');
           if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
           if(b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge hygiene');
           if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
@@ -262,7 +262,7 @@ jobs:
           const fs=require('fs'),r=f=>JSON.parse(fs.readFileSync('/tmp/'+f+'-post.json','utf8'));
           const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
           if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth post drift');
-          if(Number(a.userCount||0)!==0||Number(a.nativeReadyCount||0)!==0||a.plaintextStored!==false) throw new Error('auth rows changed');
+          if(Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1||a.plaintextStored!==false) throw new Error('auth rows changed');
           if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge post drift');
           if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
           if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting post drift');

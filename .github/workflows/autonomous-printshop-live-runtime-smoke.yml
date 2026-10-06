@@ -1,0 +1,75 @@
+name: Autonomous Printshop Live Runtime Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-live-runtime-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      SHADOW_URL: https://autonomous-printshop-shadow.trendmall-contact.workers.dev
+      OBSERVER_URL: https://autonomous-printshop-observer.trendmall-contact.workers.dev
+      COLLECTOR_URL: https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - name: Read aggregate runtime surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$SHADOW_URL/control-tower" > /tmp/tower.json
+          curl --fail --silent --show-error "$SHADOW_URL/readiness" > /tmp/readiness.json
+          curl --fail --silent --show-error "$SHADOW_URL/supervisor" > /tmp/supervisor.json
+          curl --fail --silent --show-error "$OBSERVER_URL/health" > /tmp/observer.json
+          curl --fail --silent --show-error "$COLLECTOR_URL/health" > /tmp/collector.json
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos.json
+
+          node - <<'NODE'
+          const fs=require('fs');
+          const read=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const tower=read('tower');
+          const readiness=read('readiness');
+          const supervisor=read('supervisor');
+          const observer=read('observer');
+          const collector=read('collector');
+          const trendos=read('trendos');
+
+          if(tower.success!==true||tower.mode!=='CONTROL_TOWER_SHADOW') process.exit(1);
+          if(readiness.success!==true||readiness.mode!=='READINESS_SHADOW') process.exit(2);
+          if(supervisor.success!==true||supervisor.mode!=='EMPLOYEE_SUPERVISOR_SHADOW') process.exit(3);
+          if(observer.success!==true||observer.mode!=='SHADOW_OBSERVER') process.exit(4);
+          if(collector.success!==true||collector.mode!=='READINESS_EVIDENCE_COLLECTOR') process.exit(5);
+          if(trendos.success!==true||trendos.database!==true||trendos.cutover!==false) process.exit(6);
+
+          for(const x of [tower,readiness,supervisor]){
+            if(x.writesAccepted!==false||x.d1Mutation!==false||x.employeeAssignment!==false) process.exit(7);
+          }
+          if(observer.businessWrites!==false||observer.employeeAssignment!==false) process.exit(8);
+          if(collector.businessWrites!==false||collector.employeeAssignment!==false) process.exit(9);
+
+          console.log('LIVE_RUNTIME_SMOKE=PASS');
+          console.log('CONTROL_TOWER='+JSON.stringify(tower));
+          console.log('READINESS='+JSON.stringify(readiness));
+          console.log('SUPERVISOR='+JSON.stringify(supervisor));
+          console.log('OBSERVER='+JSON.stringify(observer));
+          console.log('COLLECTOR='+JSON.stringify(collector));
+          console.log('TRENDOS_HEALTH='+JSON.stringify({
+            success:trendos.success,database:trendos.database,cutover:trendos.cutover
+          }));
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'METHODS=GET_ONLY'
+          echo 'BUSINESS_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'OPERATOR_TASK_WRITE=NO'
+          echo 'AUTOPILOT_EXECUTION=NO'

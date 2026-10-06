@@ -1,0 +1,204 @@
+
+name: TrendOS Entry623 Backend Native Read Smoke
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-backend-native-read-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry623-backend-native-read-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact backend-only preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+
+          curl --fail --silent --show-error "$UI_URL/config.js?entry623nativepre=$GITHUB_SHA" -o /tmp/ui-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/ui-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/ui-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/ui-config.js
+
+          for f in auth legacy-action ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry623nativepre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth drift');
+          if(Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1||a.plaintextStored!==false) throw new Error('native-ready drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
+          if(b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge hygiene drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          if(String(process.env.QUALIFY_USERNAME||'').trim()!=='ضياء') throw new Error('wrong canary identity');
+          console.log('ENTRY623_BACKEND_NATIVE_PREFLIGHT=PASS');
+          console.log('ENTRY623_FRONTEND_CANARY=OFF');
+          console.log('ENTRY623_GLOBAL_NATIVE_AUTH=OFF');
+          console.log('ENTRY623_CREDENTIAL_VALUES_LOGGED=NO');
+          NODE
+
+      - name: Second login must be D1 native
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token||String(body.authSource||'')!=='d1-native-employee-v1'){
+              console.error('ENTRY623_SECOND_LOGIN_NATIVE=FAIL status='+r.status+' source='+String(body.authSource||'')+' code='+String(body.code||''));
+              process.exit(21);
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/native-token',token,{mode:0o600});
+            console.log('ENTRY623_SECOND_LOGIN_NATIVE=PASS');
+            console.log('ENTRY623_SECOND_LOGIN_AUTH_SOURCE=d1-native-employee-v1');
+            console.log('ENTRY623_TOKEN_VALUE_LOGGED=NO');
+          })().catch(()=>process.exit(22));
+          NODE
+
+      - name: Native session and read-only smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/native-token','utf8').trim();
+
+          async function post(path,body){
+            const r=await fetch(base+path,{
+              method:'POST',
+              headers:{
+                accept:'application/json',
+                'content-type':'application/json',
+                authorization:'Bearer '+token
+              },
+              body:JSON.stringify(body),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let out={}; try{out=JSON.parse(raw||'{}')}catch{}
+            return {r,out};
+          }
+
+          (async()=>{
+            let x=await post('/v1/employee/auth/session',{username,token});
+            if(x.r.status!==200||x.out.success!==true||String(x.out.authSource||'')!=='d1-native-employee-v1') throw new Error('native session');
+            console.log('ENTRY623_D1_SESSION_SMOKE=PASS');
+
+            x=await post('/v1/employee/legacy-action',{action:'getDashboard',username});
+            if(x.r.status!==200||x.out.success!==true) throw new Error('dashboard bridge read');
+            console.log('ENTRY623_DASHBOARD_SMOKE=PASS');
+
+            x=await post('/v1/employee/ops',{action:'attendanceV1',op:'state',username});
+            if(x.r.status!==200||x.out.success!==true||String(x.out.authority||'')!=='d1-employee-ops-v1') throw new Error('attendance state');
+            console.log('ENTRY623_ATTENDANCE_STATE_SMOKE=PASS');
+            console.log('ENTRY623_ATTENDANCE_MUTATION=NO');
+
+            x=await post('/v1/employee/accounting',{action:'getAccounting',username});
+            if(x.r.status!==200||x.out.success!==true) throw new Error('accounting readonly');
+            console.log('ENTRY623_ACCOUNTING_READONLY_SMOKE=PASS');
+
+            x=await post('/v1/employee/legacy-action',{action:'saveKnowledge',username});
+            if(x.r.status<400||x.r.status>=500) throw new Error('unlisted action did not fail closed');
+            console.log('ENTRY623_OUTSIDE_17_POLICY_FAIL_CLOSED=PASS');
+          })().catch(e=>{
+            console.error('ENTRY623_NATIVE_READ_SMOKE=FAIL '+String(e&&e.message||e));
+            process.exit(31);
+          });
+          NODE
+
+      - name: Logout native session
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          if(!fs.existsSync('/tmp/native-token')){
+            console.log('ENTRY623_NATIVE_LOGOUT=NOT_APPLICABLE');
+            process.exit(0);
+          }
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/native-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{
+                accept:'application/json',
+                'content-type':'application/json',
+                authorization:'Bearer '+token
+              },
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) process.exit(41);
+            console.log('ENTRY623_NATIVE_LOGOUT=PASS');
+          })().catch(()=>process.exit(42));
+          NODE
+          rm -f /tmp/native-token
+
+      - name: Final invariant postflight
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry623nativepost=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth post drift');
+          if(Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1||a.plaintextStored!==false) throw new Error('auth ready post drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting post drift');
+          for(const f of ['content','comms','core']) if(r(f).mode!=='OFF') throw new Error(f+' post drift');
+          console.log('ENTRY623_BACKEND_NATIVE_READ_SMOKE=PASS');
+          console.log('ENTRY623_D1_NATIVE_READY_USERS=1');
+          console.log('ENTRY623_FRONTEND_CANARY=OFF');
+          console.log('ENTRY623_GLOBAL_NATIVE_AUTH=OFF');
+          NODE

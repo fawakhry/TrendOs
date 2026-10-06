@@ -7,9 +7,11 @@ const PASSWORD_PATH = '/v1/employee/auth/password/change';
 const HEALTH_PATH = '/v1/employee/auth/health';
 const ENROLL_PATH = '/v1/employee/auth/enroll-legacy-session';
 
-const DEFAULT_ITERATIONS = 180000;
+// Cloudflare workerd production caps WebCrypto PBKDF2 at 100,000 iterations.
+// Keep v1 deterministic at that ceiling; a stronger KDF must use a new scheme version.
+const DEFAULT_ITERATIONS = 100000;
 const MIN_ITERATIONS = 100000;
-const MAX_ITERATIONS = 600000;
+const MAX_ITERATIONS = 100000;
 const DEFAULT_SESSION_TTL_SECONDS = 28800;
 const MAX_SESSION_TTL_SECONDS = 86400;
 const LOGIN_LIMIT = 5;
