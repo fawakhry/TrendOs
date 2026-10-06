@@ -2695,3 +2695,59 @@ GENERAL_REQUIRES_AP_REQUALIFICATION=YES
 OPERATOR_TASK_CONTROL=OFF
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-027 — Material post-cutover requalification gate qualified repo-only
+
+Prepared the fail-closed gate that Autonomous Printshop will use after EasyStore Accounting finishes its cloud write cutover.
+
+Added:
+- `autonomous-printshop/core/material-post-cutover-requalification-v1.mjs`
+- `autonomous-printshop/tests/material_post_cutover_requalification_v1.test.mjs`
+- `.github/workflows/autonomous-printshop-material-post-cutover-diagnostic.yml`
+- `autonomous-printshop/tests/material_post_cutover_diagnostic_workflow_v1.test.mjs`
+
+The diagnostic is `workflow_dispatch` only and is read-only.
+
+Qualification requires all of the following before Material may even become eligible for future SHADOW READY evaluation:
+- Accounting runtime mode is `GENERAL`;
+- an explicit accounting master-book checkpoint such as `ACC-050` is supplied;
+- that accounting checkpoint explicitly confirms cloud stock authority;
+- Apps Script business authority is false;
+- Google business calls are zero;
+- at least one active material exists;
+- real accounting line linkage exists;
+- material mapping exists;
+- material consumption exists.
+
+Even when all conditions pass:
+- the diagnostic itself performs no activation;
+- it writes no Material READY evidence;
+- it does not change accounting;
+- it does not change Operator Task;
+- it does not assign employees.
+
+Current Accounting runtime remains below this gate:
+```ini
+ACCOUNTING_MODE=READONLY
+LATEST_CONSUMED_ACCOUNTING_CHECKPOINT=ACC-036
+MATERIAL_POST_CUTOVER_QUALIFICATION=NOT_RUN_NOT_ELIGIBLE
+MATERIAL_READY_ACTIVATION=NO
+```
+
+Qualification CI:
+- Autonomous Printshop Policy V1 CI Run `37496871728` = SUCCESS.
+- Core requalification contract = PASS.
+- Diagnostic workflow contract = PASS.
+- workflow is dispatch-only and contains no INSERT/UPDATE/DELETE/REPLACE business mutation.
+
+```ini
+POST_CUTOVER_MATERIAL_GATE=QUALIFIED_REPO_ONLY
+ACCOUNTING_GENERAL_REQUIRED=YES
+ACCOUNTING_CHECKPOINT_REQUIRED=YES
+STOCK_AUTHORITY_CONFIRMATION_REQUIRED=YES
+DIAGNOSTIC_D1_MUTATION=NO
+READY_EVIDENCE_WRITTEN=NO
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
