@@ -1,0 +1,101 @@
+
+name: TrendOS Entry632 Backend Bridge Binding Audit
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry632-backend-bridge-binding-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER: trendos-d1-api
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry632audit=$GITHUB_SHA" -o /tmp/bridge-health.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry632audit=$GITHUB_SHA" -o /tmp/auth-health.json
+          node <<'NODE'
+          const b=require('/tmp/bridge-health.json'),a=require('/tmp/auth-health.json');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge runtime drift');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false) throw new Error('auth runtime drift');
+          console.log('ENTRY632_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+      - name: Read Cloudflare version settings safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/deployments.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/settings.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const d=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/settings.json','utf8'));
+          if(d.success!==true||s.success!==true) throw new Error('Cloudflare API response not successful');
+
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const current=Array.isArray(deps)?deps[0]:null;
+          const versions=current&&Array.isArray(current.versions)?current.versions:[];
+          const full=versions.filter(v=>Number(v.percentage||0)===100);
+          if(full.length!==1) throw new Error('expected one 100% active API version');
+          const active=String(full[0].version_id||full[0].id||'');
+          if(!active) throw new Error('active API version missing');
+
+          const settings=s.result||{};
+          const bindings=Array.isArray(settings.bindings)?settings.bindings:[];
+          const target=bindings.find(b=>b&&b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED');
+          if(!target) throw new Error('bridge binding missing');
+          if(target.type!=='plain_text') throw new Error('bridge binding type='+String(target.type||''));
+          if(String(target.text||'')!=='true') throw new Error('bridge binding current value is not true');
+
+          const secretCount=bindings.filter(b=>b&&String(b.type||'').includes('secret')).length;
+          const plainCount=bindings.filter(b=>b&&b.type==='plain_text').length;
+          const inheritable=bindings.filter(b=>b&&b.name&&b.name!=='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED').length;
+          const db=bindings.find(b=>b&&b.name==='DB');
+          if(!db) throw new Error('D1 DB binding missing');
+
+          console.log('ENTRY632_ACTIVE_API_VERSION='+active);
+          console.log('ENTRY632_BINDING_COUNT='+bindings.length);
+          console.log('ENTRY632_PLAIN_TEXT_BINDING_COUNT='+plainCount);
+          console.log('ENTRY632_SECRET_BINDING_COUNT='+secretCount);
+          console.log('ENTRY632_INHERITABLE_BINDING_COUNT='+inheritable);
+          console.log('ENTRY632_D1_BINDING_PRESENT=YES');
+          console.log('ENTRY632_BRIDGE_BINDING_TYPE=plain_text');
+          console.log('ENTRY632_BRIDGE_BINDING_CURRENT=true');
+          console.log('ENTRY632_SECRET_VALUES_LOGGED=NO');
+          console.log('ENTRY632_SETTINGS_MUTATION=NO');
+          NODE
+
+      - name: No mutation proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry632auditpost=$GITHUB_SHA" -o /tmp/bridge-post.json
+          node <<'NODE'
+          const b=require('/tmp/bridge-post.json');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge changed during read-only audit');
+          console.log('ENTRY632_READ_ONLY_AUDIT=PASS');
+          console.log('ENTRY632_PRODUCTION_MUTATION=NO');
+          NODE
