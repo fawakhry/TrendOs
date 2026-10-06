@@ -2374,3 +2374,50 @@ Next safe target:
 1. Design evidence acquisition from real linked design assets/preflight/approval;
 2. Machine evidence only from explicit direct health observations and mappings;
 3. Material evidence remains blocked on real accounting source data, not on connector code.
+
+
+### AP-022 — Matbagy design evidence connector qualified; live linkage gap proven
+
+Matbagy-OS was inspected as the design/assets DNA source without assuming any storage provider for Autonomous Printshop.
+
+#### Existing Matbagy-OS truth
+- Multiple Design Cases have real LINKED assets.
+- Some cases have FINAL_APPROVED or EXPLICITLY_LIKED design outcomes.
+- However every currently inspected Design Case has `order_id=UNKNOWN`, and no qualifying `line_id` is present.
+- Therefore no existing Matbagy case can be attached to a live TrendOS line without guessing.
+
+#### Fail-closed connector
+Added:
+- `autonomous-printshop/core/matbagy-design-evidence-connector-v1.mjs`
+- `autonomous-printshop/tests/matbagy_design_evidence_connector_v1.test.mjs`
+
+A Design READY candidate is emitted only when all are explicit:
+1. tenant_id
+2. case_id
+3. real order_id
+4. real line_id
+5. approval = FINAL_APPROVED or EXPLICITLY_LIKED
+6. asset_binding_status = LINKED
+7. real storage provider + storage reference
+8. 64-char SHA256 content hash
+9. preflight = PASS
+
+`SAVED` is not approval.
+`NOT_CONFIRMED` is not approval.
+Missing order/line linkage returns no candidate.
+
+Autonomous Printshop Policy V1 CI Run `37490579471` = SUCCESS.
+
+```ini
+MATBAGY_DESIGN_CONNECTOR=QUALIFIED
+EXPLICIT_ORDER_LINK_REQUIRED=YES
+EXPLICIT_LINE_LINK_REQUIRED=YES
+LINKED_ASSET_REQUIRED=YES
+SHA256_REQUIRED=YES
+PREFLIGHT_PASS_REQUIRED=YES
+SAVED_EQUALS_APPROVED=NO
+CURRENT_IMPORTABLE_DESIGN_READY=0
+OPERATOR_TASK_CONTROL=OFF
+```
+
+Current Design blocker is provenance linkage, not lack of historical design assets.
