@@ -2421,3 +2421,69 @@ OPERATOR_TASK_CONTROL=OFF
 ```
 
 Current Design blocker is provenance linkage, not lack of historical design assets.
+
+
+### AP-023 — Machine evidence intake path qualified; no synthetic machine truth
+
+Machine evidence foundations were advanced without registering or inventing any Production machine.
+
+#### Strict observation writer
+Added:
+- `autonomous-printshop/core/machine-observation-writer-v1.mjs`
+- `autonomous-printshop/tests/machine_observation_writer_v1.test.mjs`
+
+Rules:
+- Machine control must be SHADOW.
+- Machine must already exist and be active in the registry.
+- READY is accepted only from direct `OPERATOR_CHECK` or `SELF_TEST`.
+- READY requires `evidence.directCheck=true`.
+- READY TTL maximum = 15 minutes.
+- BLOCKED/MAINTENANCE TTL maximum = 8 hours.
+- Absence of a fault / generic SYSTEM status cannot create READY.
+
+#### Controlled manual command path
+Added:
+- `autonomous-printshop/core/machine-evidence-command-v1.mjs`
+- `autonomous-printshop/tests/machine_evidence_command_v1.test.mjs`
+- `.github/workflows/autonomous-printshop-machine-evidence-manual.yml`
+- `autonomous-printshop/tests/machine_evidence_manual_workflow_v1.test.mjs`
+
+The workflow is `workflow_dispatch` only and has no push/schedule trigger.
+Supported controlled operations:
+- REGISTER_MACHINE
+- RECORD_OBSERVATION
+- MAP_LINE
+
+Safety:
+- validates inputs and blocks SQL injection;
+- requires Machine/Readiness/Autonomy = SHADOW;
+- requires Operator Task = OFF and zero operator tasks;
+- mapping requires a real existing TrendOS line;
+- only machine-evidence tables may be mutated;
+- no order, line-business, accounting or employee-assignment writes.
+
+Autonomous Printshop Policy V1 CI Run `37491860357` = SUCCESS.
+
+#### Runtime truth after qualification
+- machineMode = SHADOW
+- machineRows = 0
+- machineObservations = 0
+- machineMappings = 0
+- readiness evidenceRows = 0
+- strict eligible = 0
+- operatorTasks = 0
+- employeeAssignment = false
+
+No machine was registered because no real stable machine identifier/class was proven from current sources.
+
+```ini
+MACHINE_OBSERVATION_WRITER=QUALIFIED
+MACHINE_MANUAL_EVIDENCE_PATH=QUALIFIED
+MACHINE_AUTO_TRIGGER=NO
+MACHINE_REGISTRY_ROWS=0
+MACHINE_OBSERVATIONS=0
+MACHINE_MAPPINGS=0
+READY_FROM_NO_FAULT=FORBIDDEN
+DIRECT_MACHINE_CHECK_REQUIRED=YES
+OPERATOR_TASK_CONTROL=OFF
+```
