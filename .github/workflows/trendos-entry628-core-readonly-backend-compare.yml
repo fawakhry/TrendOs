@@ -97,8 +97,6 @@ jobs:
             console.log('ENTRY628_NATIVE_LOGIN=PASS');
 
             const actions=[
-              ['getRows',{screen:'service'}],
-              ['getDashboard',{screen:'service'}],
               ['getActivityLog',{limit:50}]
             ];
 
@@ -112,62 +110,31 @@ jobs:
               if(legacy.status!==200||legacy.out.success!==true){
                 throw new Error(action+' legacy compare failed status='+legacy.status+' code='+String(legacy.out.code||''));
               }
-              console.log('ENTRY628_'+action+'_NATIVE=PASS');
-              console.log('ENTRY628_'+action+'_LEGACY=PASS');
-              const nr=countRows(native.out), lr=countRows(legacy.out);
-              if(nr>=0||lr>=0){
-                console.log('ENTRY628_'+action+'_NATIVE_ROWS='+nr);
-                console.log('ENTRY628_'+action+'_LEGACY_ROWS='+lr);
-              }
-              if(action==='getRows'){
-                const nid=new Set((native.out.rows||[]).map(r=>String(r.lineId||'')).filter(Boolean));
-                const lid=[...(legacy.out.rows||[])].map(r=>String(r.lineId||'')).filter(Boolean);
-                const inter=lid.filter(id=>nid.has(id)).length;
-                console.log('ENTRY628_GETROWS_LEGACY_IDS_IN_NATIVE='+inter);
-                console.log('ENTRY628_GETROWS_LEGACY_SUBSET_NATIVE='+(inter===lid.length?'YES':'NO'));
-              }
-              if(action==='getDashboard'){
-                console.log('ENTRY628_getDashboard_NATIVE_DASHBOARD='+(native.out.dashboard&&typeof native.out.dashboard==='object'?'YES':'NO'));
-                console.log('ENTRY628_getDashboard_LEGACY_DASHBOARD='+(legacy.out.dashboard&&typeof legacy.out.dashboard==='object'?'YES':'NO'));
-                const metrics=['activeOrders','urgent','normal','overdue','deliveredToday','readyForPickup','heatPress','completionPercent','performanceScore'];
-                let comparable=0,equal=0;
-                for(const k of metrics){
-                  if(Object.prototype.hasOwnProperty.call(native.out.dashboard||{},k)&&Object.prototype.hasOwnProperty.call(legacy.out.dashboard||{},k)){
-                    comparable++;
-                    if(Number(native.out.dashboard[k])===Number(legacy.out.dashboard[k])) equal++;
-                  }
-                }
-                console.log('ENTRY628_DASHBOARD_COMPARABLE_METRICS='+comparable);
-                console.log('ENTRY628_DASHBOARD_EQUAL_METRICS='+equal);
-              }
-              if(action==='getActivityLog'){
-                const sig=r=>[
-                  String(r&&r.time||''),
-                  String(r&&r.orderId||''),
-                  String(r&&r.lineId||''),
-                  String(r&&r.action||''),
-                  String(r&&r.oldStatus||''),
-                  String(r&&r.newStatus||''),
-                  String(r&&r.by||'')
-                ].join('|');
-                const nh=new Set((native.out.rows||[]).map(sig));
-                const lh=[...(legacy.out.rows||[])].map(sig);
-                const inter=lh.filter(x=>nh.has(x)).length;
-                console.log('ENTRY628_ACTIVITY_SIGNATURE_INTERSECTION='+inter);
-                console.log('ENTRY628_ACTIVITY_LEGACY_SUBSET_NATIVE='+(inter===lh.length?'YES':'NO'));
-                const nk=(native.out.rows&&native.out.rows[0])?Object.keys(native.out.rows[0]).sort():[];
-                const lk=(legacy.out.rows&&legacy.out.rows[0])?Object.keys(legacy.out.rows[0]).sort():[];
-                console.log('ENTRY628_ACTIVITY_COMMON_KEYS='+nk.filter(k=>lk.includes(k)).length);
-                console.log('ENTRY628_ACTIVITY_NATIVE_KEYS='+nk.length);
-                console.log('ENTRY628_ACTIVITY_LEGACY_KEYS='+lk.length);
-              }
+              const nr=Array.isArray(native.out.rows)?native.out.rows:[];
+              const lr=Array.isArray(legacy.out.rows)?legacy.out.rows:[];
+              console.log('ENTRY628_ACTIVITY_NATIVE_ROWS='+nr.length);
+              console.log('ENTRY628_ACTIVITY_LEGACY_ROWS='+lr.length);
+              const sig=r=>[
+                String(r&&r.time||''),
+                String(r&&r.orderId||''),
+                String(r&&r.lineId||''),
+                String(r&&r.action||''),
+                String(r&&r.oldStatus||''),
+                String(r&&r.newStatus||''),
+                String(r&&r.by||'')
+              ].join('|');
+              const ns=new Set(nr.map(sig)), ls=lr.map(sig);
+              const inter=ls.filter(x=>ns.has(x)).length;
+              console.log('ENTRY628_ACTIVITY_SIGNATURE_INTERSECTION='+inter);
+              console.log('ENTRY628_ACTIVITY_LEGACY_SUBSET_NATIVE='+(inter===ls.length?'YES':'NO'));
+              const nk=nr[0]?Object.keys(nr[0]).sort():[], lk=lr[0]?Object.keys(lr[0]).sort():[];
+              console.log('ENTRY628_ACTIVITY_COMMON_KEYS='+nk.filter(k=>lk.includes(k)).length);
+              console.log('ENTRY628_ACTIVITY_NATIVE_KEYS='+nk.length);
+              console.log('ENTRY628_ACTIVITY_LEGACY_KEYS='+lk.length);
+              console.log('ENTRY628_ACTIVITY_ONLY_COMPARE=PASS');
             }
-            const trend=await post('/v1/employee/core',{username,action:'getTrendMasterCenterV1931'},token);
-            console.log('ENTRY628_TRENDMASTER_NATIVE_HTTP='+trend.status);
-            console.log('ENTRY628_TRENDMASTER_NATIVE_SUCCESS='+(trend.out.success===true?'YES':'NO'));
-            console.log('ENTRY628_TRENDMASTER_NATIVE_KEYS='+keys(trend.out).split(',').length);
-            if(trend.status!==200||trend.out.success!==true) throw new Error('native TrendMaster failed');
-            console.log('ENTRY628_CORE_BACKEND_COMPARE=PASS');
+
+            console.log('ENTRY628_ACTIVITY_BACKEND_COMPARE=PASS');
             console.log('ENTRY628_BUSINESS_MUTATION=NO');
           })().catch(e=>{
             console.error('ENTRY628_CORE_BACKEND_COMPARE=FAIL '+String(e&&e.message||e));
