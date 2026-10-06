@@ -4821,3 +4821,62 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - Backend Bridge remains temporarily enabled with 17 policies only as rollback safety; it is not used by the live frontend.
 - No API code deploy, D1 control mutation, Accounting mutation, or EasyStore mutation occurred.
 - Entry632 may disable the Backend Bridge only after proving its enablement mechanism and preserving rollback safety.
+
+
+### Entry632 — Backend compatibility Bridge disabled; PASS
+- Entry631 had already removed the Bridge from the live frontend:
+  - frontend Bridge OFF;
+  - frontend Bridge policies = 0;
+  - canary preflight = Auth-only;
+  - five known employees Native-ready.
+- A settings candidate created during the Entry632 investigation was activated automatically by Cloudflare when `PATCH /settings` succeeded. The following controlled workflow correctly stopped because its old precondition expected Bridge=ON.
+- Runtime truth after the activation:
+  ```ini
+  AUTH=TRANSITIONAL
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  NATIVE_ONLY=false
+
+  BACKEND_BRIDGE_ENABLED=false
+  BACKEND_BRIDGE_POLICY_COUNT=17
+  BRIDGE_SECRET_CONFIGURED=true
+
+  CORE=READONLY / epoch1
+  CONTENT=READONLY / epoch2
+  COMMS=READONLY / epoch2
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  GLOBAL_NATIVE_AUTH=false
+  ```
+- Read-only post-activation proof:
+  - workflow `.github/workflows/trendos-entry632-post-activation-proof.yml`;
+  - commit `7c03d30417c18a8770eb91bfdeb7fd0ea6444c67`;
+  - Run `37488533064`;
+  - Job `112354849701`;
+  - conclusion = **SUCCESS**.
+- Cloudflare proof:
+  ```ini
+  ACTIVE_VERSION_CHANGED=YES
+  BINDING_COUNT=33
+  PLAIN_TEXT_BINDING_COUNT=27
+  SECRET_BINDING_COUNT=5
+  D1_BINDING_PRESENT=YES
+  TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+  WORKER_CODE_ETAG_UNCHANGED=PASS
+  WORKER_CODE_CHANGE=NO
+  ```
+- Disabled-route proof:
+  ```ini
+  ENTRY632_DISABLED_ROUTE_FAIL_CLOSED=PASS
+  ENTRY632_UPSTREAM_FORWARD_FROM_DISABLED_PROOF=NO
+  ```
+- No new mutation was performed by the proof workflow.
+- Entry632 result:
+  ```ini
+  FRONTEND_BRIDGE=OFF
+  FRONTEND_BRIDGE_POLICY_COUNT=0
+  BACKEND_BRIDGE=OFF
+  BUSINESS_BRIDGE_ACTIONS=0
+  WORKER_CODE_CHANGE=NO
+  ```
+- Remaining legacy dependency to assess next is employee Auth legacy bootstrap itself. Do not change Accounting/EasyStore as part of that assessment.
