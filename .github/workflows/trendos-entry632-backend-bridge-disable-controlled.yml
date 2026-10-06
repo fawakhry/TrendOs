@@ -1,0 +1,388 @@
+name: TrendOS Entry632 Backend Bridge Disable Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry632-backend-bridge-disable-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry632-backend-bridge-disable-controlled
+  cancel-in-progress: false
+
+jobs:
+  disable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      WORKER: trendos-d1-api
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EXPECTED_PRE_VERSION: afff94be-d5e3-4506-a9ff-e48c251e974d
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Exact runtime and frontend preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry632pre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry632pre=$GITHUB_SHA" -o /tmp/frontend-config.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.schemaReady!==true||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+
+          const cfg=fs.readFileSync('/tmp/frontend-config.js','utf8');
+          const required=[
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;",
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;",
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 0;",
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 5;",
+            "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;",
+            "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];",
+            "window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'READONLY';",
+            "window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'READONLY';",
+            "window.MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE = 'READONLY';"
+          ];
+          for(const s of required) if(!cfg.includes(s)) throw new Error('frontend drift: '+s);
+          console.log('ENTRY632_RUNTIME_PREFLIGHT=PASS');
+          console.log('ENTRY632_FRONTEND_BRIDGE_FREE_PREFLIGHT=PASS');
+          NODE
+
+      - name: Snapshot exact active version and settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/pre-deployments.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/pre-settings.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$EXPECTED_PRE_VERSION" -o /tmp/pre-version.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions?per_page=50" -o /tmp/pre-versions.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const d=JSON.parse(fs.readFileSync('/tmp/pre-deployments.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/pre-settings.json','utf8'));
+          const v=JSON.parse(fs.readFileSync('/tmp/pre-version.json','utf8'));
+          const vs=JSON.parse(fs.readFileSync('/tmp/pre-versions.json','utf8'));
+          if(d.success!==true||s.success!==true||v.success!==true||vs.success!==true) throw new Error('Cloudflare preflight API error');
+
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const current=Array.isArray(deps)?deps[0]:null;
+          const full=(current&&Array.isArray(current.versions)?current.versions:[]).filter(x=>Number(x.percentage||0)===100);
+          if(full.length!==1) throw new Error('expected one active version');
+          const active=String(full[0].version_id||full[0].id||'');
+          if(active!==process.env.EXPECTED_PRE_VERSION) throw new Error('active version drift '+active);
+
+          const bindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          if(bindings.length!==33) throw new Error('binding count drift '+bindings.length);
+          const target=bindings.find(b=>b&&b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED');
+          if(!target||target.type!=='plain_text'||String(target.text||'')!=='true') throw new Error('bridge binding precondition failed');
+          const secrets=bindings.filter(b=>b&&String(b.type||'').includes('secret'));
+          if(secrets.length!==5) throw new Error('secret binding count drift '+secrets.length);
+          if(!bindings.some(b=>b&&b.name==='DB'&&b.type==='d1')) throw new Error('D1 binding missing');
+
+          const etag=String(v.result&&v.result.resources&&v.result.resources.script&&v.result.resources.script.etag||'');
+          if(!etag) throw new Error('pre script etag missing');
+          fs.writeFileSync('/tmp/pre-etag.txt',etag);
+          fs.writeFileSync('/tmp/pre-binding-shape.json',JSON.stringify(bindings.map(b=>({name:b.name,type:b.type,text:b.type==='plain_text'?String(b.text||''):undefined,database_id:b.type==='d1'?String(b.database_id||b.id||''):undefined}))));
+          const items=Array.isArray(vs.result)?vs.result:(vs.result&&Array.isArray(vs.result.items)?vs.result.items:[]);
+          fs.writeFileSync('/tmp/pre-version-ids.json',JSON.stringify(items.map(x=>String(x.id||'')).filter(Boolean)));
+          console.log('ENTRY632_ACTIVE_VERSION_LOCK=PASS');
+          console.log('ENTRY632_PRE_BINDING_COUNT=33');
+          console.log('ENTRY632_PRE_SECRET_BINDING_COUNT=5');
+          console.log('ENTRY632_PRE_D1_BINDING=PASS');
+          console.log('ENTRY632_SECRET_VALUES_LOGGED=NO');
+          NODE
+
+      - name: Create settings-only version with Bridge disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+
+          node <<'NODE'
+          const fs=require('fs');
+          const s=JSON.parse(fs.readFileSync('/tmp/pre-settings.json','utf8'));
+          const bindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          const next=bindings.map(b=>{
+            if(b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED'){
+              return {name:b.name,type:'plain_text',text:'false'};
+            }
+            return {name:b.name,type:'inherit',version_id:process.env.EXPECTED_PRE_VERSION};
+          });
+          if(next.length!==33) throw new Error('inherit binding count mismatch');
+          fs.writeFileSync('/tmp/entry632-settings.json',JSON.stringify({
+            bindings:next,
+            annotations:{'workers/message':'Entry632 disable dormant employee compatibility bridge'}
+          }));
+          console.log('ENTRY632_INHERITED_BINDINGS=32');
+          console.log('ENTRY632_TARGET_BINDING=false');
+          NODE
+
+          curl --fail --silent --show-error "${AUTH[@]}" \
+            -X PATCH "$BASE/settings" \
+            -F "settings=</tmp/entry632-settings.json;type=application/json" \
+            -o /tmp/patch-response.json
+
+          node <<'NODE'
+          const r=require('/tmp/patch-response.json');
+          if(r.success!==true) throw new Error('settings patch failed');
+          console.log('ENTRY632_SETTINGS_PATCH=PASS');
+          console.log('ENTRY632_LIVE_TRAFFIC_CHANGED_AT_PATCH=UNKNOWN_UNTIL_DEPLOYMENT_CHECK');
+          NODE
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions?per_page=50" -o /tmp/post-versions.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/deployments-after-patch.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/settings-after-patch.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const before=new Set(JSON.parse(fs.readFileSync('/tmp/pre-version-ids.json','utf8')));
+          const afterRaw=JSON.parse(fs.readFileSync('/tmp/post-versions.json','utf8'));
+          if(afterRaw.success!==true) throw new Error('version list after patch failed');
+          const after=Array.isArray(afterRaw.result)?afterRaw.result:(afterRaw.result&&Array.isArray(afterRaw.result.items)?afterRaw.result.items:[]);
+          const created=after.map(x=>String(x.id||'')).filter(id=>id&&!before.has(id));
+          if(created.length!==1) throw new Error('expected exactly one settings version, got '+created.length);
+          fs.writeFileSync('/tmp/new-version.txt',created[0]);
+          console.log('::add-mask::'+created[0]);
+
+          const s=JSON.parse(fs.readFileSync('/tmp/settings-after-patch.json','utf8'));
+          if(s.success!==true) throw new Error('settings read after patch failed');
+          const bindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          if(bindings.length!==33) throw new Error('post-patch binding count '+bindings.length);
+          const target=bindings.find(b=>b&&b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED');
+          if(!target||target.type!=='plain_text'||String(target.text||'')!=='false') throw new Error('target binding not false in new settings');
+          if(bindings.filter(b=>b&&String(b.type||'').includes('secret')).length!==5) throw new Error('secret binding count changed');
+          if(!bindings.some(b=>b&&b.name==='DB'&&b.type==='d1')) throw new Error('D1 binding lost');
+          console.log('ENTRY632_NEW_SETTINGS_BINDINGS=PASS');
+
+          const d=JSON.parse(fs.readFileSync('/tmp/deployments-after-patch.json','utf8'));
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const current=Array.isArray(deps)?deps[0]:null;
+          const full=(current&&Array.isArray(current.versions)?current.versions:[]).filter(x=>Number(x.percentage||0)===100);
+          if(full.length!==1) throw new Error('post-patch deployment shape');
+          const active=String(full[0].version_id||full[0].id||'');
+          fs.writeFileSync('/tmp/active-after-patch.txt',active);
+          console.log('ENTRY632_PATCH_DEPLOYMENT_STATE_CAPTURED=YES');
+          NODE
+
+      - name: Prove code and bindings unchanged except target
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+          NEW="$(cat /tmp/new-version.txt)"
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$NEW" -o /tmp/new-version.json
+
+          node <<'NODE'
+          const fs=require('fs'),assert=require('assert');
+          const pre=JSON.parse(fs.readFileSync('/tmp/pre-version.json','utf8'));
+          const post=JSON.parse(fs.readFileSync('/tmp/new-version.json','utf8'));
+          if(post.success!==true) throw new Error('new version fetch failed');
+          const pe=String(pre.result&&pre.result.resources&&pre.result.resources.script&&pre.result.resources.script.etag||'');
+          const ne=String(post.result&&post.result.resources&&post.result.resources.script&&post.result.resources.script.etag||'');
+          if(!pe||pe!==ne) throw new Error('worker code etag changed');
+
+          const preShape=JSON.parse(fs.readFileSync('/tmp/pre-binding-shape.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/settings-after-patch.json','utf8'));
+          const postBindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          const postMap=new Map(postBindings.map(b=>[b.name,b]));
+          if(postMap.size!==preShape.length) throw new Error('binding name count changed');
+          for(const b of preShape){
+            const p=postMap.get(b.name);
+            if(!p) throw new Error('binding missing '+b.name);
+            if(b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED'){
+              if(p.type!=='plain_text'||String(p.text||'')!=='false') throw new Error('target not false');
+              continue;
+            }
+            if(p.type!==b.type) throw new Error('binding type changed '+b.name);
+            if(b.type==='plain_text'&&String(p.text||'')!==String(b.text||'')) throw new Error('plain binding value changed '+b.name);
+            if(b.type==='d1'&&String(p.database_id||p.id||'')!==String(b.database_id||'')) throw new Error('D1 id changed');
+          }
+          console.log('ENTRY632_WORKER_CODE_ETAG_UNCHANGED=PASS');
+          console.log('ENTRY632_BINDING_NAMES_UNCHANGED=PASS');
+          console.log('ENTRY632_NON_TARGET_PLAIN_VALUES_UNCHANGED=PASS');
+          console.log('ENTRY632_D1_BINDING_UNCHANGED=PASS');
+          console.log('ENTRY632_SECRETS_INHERITED_WITHOUT_VALUE_READ=PASS');
+          NODE
+
+      - name: Deploy validated settings version with automatic rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+          PRE="$EXPECTED_PRE_VERSION"
+          NEW="$(cat /tmp/new-version.txt)"
+          DEPLOYED=0
+
+          deploy_version(){
+            local version="$1"
+            node -e 'const fs=require("fs");fs.writeFileSync("/tmp/deploy-body.json",JSON.stringify({strategy:"percentage",versions:[{version_id:process.argv[1],percentage:100}]}));' "$version"
+            curl --fail --silent --show-error "${AUTH[@]}" \
+              -H "Content-Type: application/json" \
+              -X POST "$BASE/deployments" \
+              --data-binary @/tmp/deploy-body.json \
+              -o /tmp/deploy-response.json
+            node -e 'const r=require("/tmp/deploy-response.json");if(r.success!==true)process.exit(1);'
+          }
+
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              echo "ENTRY632_ROLLBACK=START"
+              deploy_version "$PRE" || true
+              sleep 2
+              curl --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry632rollback=$GITHUB_SHA" -o /tmp/rollback-health.json || true
+              node - <<'NODE' || true
+              const fs=require('fs');
+              if(fs.existsSync('/tmp/rollback-health.json')){
+                const b=JSON.parse(fs.readFileSync('/tmp/rollback-health.json','utf8'));
+                console.log('ENTRY632_ROLLBACK_BRIDGE_ENABLED='+String(b.enabled));
+              }
+              NODE
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          ACTIVE_AFTER_PATCH="$(cat /tmp/active-after-patch.txt)"
+          if [ "$ACTIVE_AFTER_PATCH" = "$NEW" ]; then
+            DEPLOYED=1
+            echo ENTRY632_PATCH_ALREADY_ACTIVATED_NEW_VERSION=YES
+          elif [ "$ACTIVE_AFTER_PATCH" = "$PRE" ]; then
+            deploy_version "$NEW"
+            DEPLOYED=1
+            echo ENTRY632_EXPLICIT_DEPLOY=PASS
+          else
+            echo "unexpected active version after patch" >&2
+            exit 51
+          fi
+
+          OK=0
+          for attempt in $(seq 1 15); do
+            if curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry632post=$GITHUB_SHA-$attempt" -o /tmp/bridge-post.json; then
+              node <<'NODE' && OK=1 && break || true
+              const b=require('/tmp/bridge-post.json');
+              if(b.success!==true||b.enabled!==false||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) process.exit(1);
+              console.log('ENTRY632_BRIDGE_HEALTH_DISABLED=PASS');
+              NODE
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          HTTP="$(curl --silent --show-error -o /tmp/bridge-call.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -X POST "$API_URL/v1/employee/legacy-action" \
+            --data '{"action":"getDashboard","username":"entry632-disabled-proof","token":"not-used"}')"
+          node - "$HTTP" <<'NODE'
+          const fs=require('fs');
+          const status=Number(process.argv[2]);
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-call.json','utf8')||'{}');
+          if(status!==503||b.code!=='employee-legacy-bridge-disabled') throw new Error('disabled route did not fail closed');
+          console.log('ENTRY632_DISABLED_ROUTE_FAIL_CLOSED=PASS');
+          console.log('ENTRY632_UPSTREAM_CALL_FROM_DISABLED_PROOF=NO');
+          NODE
+
+          for f in auth core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry632stable=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth post drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core post drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content post drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting post drift');
+          console.log('ENTRY632_RUNTIME_POSTFLIGHT=PASS');
+          NODE
+
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||String(body.authSource||'')!=='d1-native-employee-v1'||!token) throw new Error('native login after bridge disable failed');
+            console.log('::add-mask::'+token);
+            const l=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const lb=JSON.parse(await l.text()||'{}');
+            if(l.status!==200||lb.success!==true) throw new Error('logout after bridge disable failed');
+            console.log('ENTRY632_NATIVE_LOGIN_WITH_BRIDGE_OFF=PASS');
+            console.log('ENTRY632_NATIVE_LOGOUT_WITH_BRIDGE_OFF=PASS');
+          })().catch(e=>{console.error(String(e&&e.message||e));process.exit(61);});
+          NODE
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/final-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const d=JSON.parse(fs.readFileSync('/tmp/final-deployments.json','utf8'));
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const current=Array.isArray(deps)?deps[0]:null;
+          const full=(current&&Array.isArray(current.versions)?current.versions:[]).filter(x=>Number(x.percentage||0)===100);
+          if(full.length!==1) throw new Error('final deployment shape');
+          const active=String(full[0].version_id||full[0].id||'');
+          const expected=fs.readFileSync('/tmp/new-version.txt','utf8').trim();
+          if(active!==expected) throw new Error('new version not active');
+          console.log('ENTRY632_NEW_VERSION_ACTIVE=PASS');
+          NODE
+
+          trap - ERR
+          echo ENTRY632_BACKEND_BRIDGE_DISABLED=PASS
+          echo ENTRY632_ONLY_BINDING_CHANGED=TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED
+          echo ENTRY632_WORKER_CODE_DEPLOY=NO
+          echo ENTRY632_D1_CONTROL_MUTATION=NO
+          echo ENTRY632_FRONTEND_MUTATION=NO
+          echo ENTRY632_APPS_SCRIPT_MUTATION=NO
+          echo ENTRY632_ACCOUNTING_TOUCHED=NO
+          echo ENTRY632_EASYSTORE_TOUCHED=NO
