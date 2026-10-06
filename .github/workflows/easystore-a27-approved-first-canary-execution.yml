@@ -1,4 +1,5 @@
 name: EasyStore A2.7 Approved First Canary Execution
+# retry 2 after ACC-048 safe timeout
 
 on:
   push:
