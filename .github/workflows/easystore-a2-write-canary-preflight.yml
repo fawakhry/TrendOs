@@ -1,5 +1,6 @@
 name: EasyStore A2 Write Canary Preflight
 # Rerun marker after Production A2 schema apply 0020..0028
+# Resume marker after network interruption 2026-10-06
 
 on:
   push:
