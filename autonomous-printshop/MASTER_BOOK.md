@@ -4348,3 +4348,85 @@ Existing historical software/dashboard references such as Canon G7070, Epson L80
 Result:
 - the first evidence-acquisition target now tells the system which machine class is relevant without exposing an order ID, line ID, employee identity or customer PII;
 - physical Machine identity still requires a Nameplate or Owner Asset Registry record with serial/asset tag.
+
+
+### AP-056 — Evidence Acquisition Packet live in Control Tower
+
+The first privacy-safe evidence pilot now exposes a machine-readable acquisition packet that states exactly which real-world proof is still required before the same line can become strictly eligible.
+
+Added:
+- `autonomous-printshop/core/evidence-acquisition-packet-v1.mjs`;
+- `autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs`;
+- Production Shadow projection through `/readiness` and `/control-tower`.
+
+The packet never exposes raw order IDs, raw line IDs, customer PII or employee identity.
+
+Current live pilot:
+```ini
+DEPARTMENT=ليزر
+PRIORITY=عاجل
+DUE=2026-10-07T23:59:59.000Z
+MACHINE_CLASS_HINT=LASER
+MISSING_KINDS=DESIGN,MATERIAL,MACHINE
+EXTERNAL_EVIDENCE_REQUIRED=true
+COMPLETION_RULE=SAME_LINE_REQUIRES_DESIGN_MATERIAL_MACHINE_READY
+```
+
+Current Design acquisition requirements:
+```ini
+REAL_ACTIVE_ORDER_LINE_LINK
+CONTENT_SHA256
+LINKED_PRIVATE_ASSET
+STRUCTURED_APPROVAL
+QUALIFIED_PREFLIGHT_PASS
+```
+
+Current Material acquisition requirements:
+```ini
+ACTIVE_NON_CANARY_MATERIAL
+AUTHORITATIVE_STOCK_SOURCE
+LIVE_LINE_MATERIAL_LINK
+POSITIVE_MATERIAL_CONSUMPTION
+```
+
+Current Machine acquisition requirements:
+```ini
+EXPLICIT_MACHINE_ID
+NAMEPLATE_OR_OWNER_ASSET_REGISTRY
+SERIAL_OR_ASSET_TAG
+DIRECT_OPERATOR_CHECK_OR_SELF_TEST
+ACTIVE_LINE_MACHINE_MAPPING
+```
+
+Safety properties:
+```ini
+ASSIGNMENT_ALLOWED=false
+TASK_CLAIM_ALLOWED=false
+READY_WRITE_ALLOWED=false
+OPERATOR_TASK_ACTIVATION_ALLOWED=false
+RAW_ORDER_IDS_EXPOSED=false
+RAW_LINE_IDS_EXPOSED=false
+CUSTOMER_PII_EXPOSED=false
+```
+
+Qualification / deployment:
+- Policy CI Run `37547709577` = SUCCESS.
+- Production Shadow Sidecar Deploy Run `37547709644` = SUCCESS.
+- Live `/readiness` = packet present.
+- Live `/control-tower` = packet present.
+- Dashboard `/state` receives the packet from Control Tower.
+
+Current global state remains fail-closed:
+```ini
+BASELINE_CANDIDATES=54
+STRICT_ELIGIBLE=0
+DESIGN_READY=0
+MATERIAL_READY=0
+MACHINE_READY=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+Result:
+- no further interpretation is needed to know what external proof is required for the first pilot;
+- the remaining blockers are real-world source evidence, not an ambiguity in readiness policy.
