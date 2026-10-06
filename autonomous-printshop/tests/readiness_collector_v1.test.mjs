@@ -18,6 +18,14 @@ assert.match(worker,/READINESS_EVIDENCE_STATUS/);
 assert.match(worker,/REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING/);
 assert.match(worker,/classifyAccountingCloudCutoverV1/);
 assert.match(worker,/cloudStage/);
+assert.match(worker,/readAccountingMaterialEvidenceSnapshotV1/);
+assert.match(worker,/materialBlockerEvidenceCandidatesV1/);
+assert.match(worker,/readMaterialAcquisitionProjection/);
+assert.match(worker,/sourceLinkedRows/);
+assert.match(worker,/sourceLinkedLines/);
+assert.match(worker,/sourceBlockerCandidates/);
+assert.match(worker,/sourceConnectorQualified/);
+assert.match(worker,/AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING/);
 assert.match(worker,/materialFrozen/);
 assert.match(worker,/cloudOrderFiles/);
 assert.match(worker,/cloudLineLinkedFiles/);
@@ -55,6 +63,15 @@ assert.match(worker,/canaryRowsExcludedFromReadiness:true/);
 assert.match(worker,/activeMaterialsAll/);
 assert.match(worker,/upper\(trim\(material_kind\)\)<>'A2_CANARY'/);
 assert.match(worker,/REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED/);
+assert.doesNotMatch(
+  worker,
+  /materialReadyInput\s*=\s*accountingCutover\.sourceDataPresent/,
+  'OLD_AGGREGATE_MATERIAL_ACQUISITION_FORBIDDEN'
+);
+assert.match(
+  worker,
+  /materialReadyInput\s*=\s*accountingCutover\.blockerCollectionAllowed===true\s*&&\s*materialProjection\.connectorQualified===true\s*&&\s*Number\(materialProjection\.linkedRows\|\|0\)>0/
+);
 assert.match(
   worker,
   /machineReadyInput\s*=\s*text\(row&&row\.machineMode\)==='SHADOW'\s*&&\s*Number\(machineProjection&&machineProjection\.ready\|\|0\)>0/
