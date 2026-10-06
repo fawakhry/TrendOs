@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {
   legacyDesignEvidenceCandidatesV1,
@@ -28,8 +29,14 @@ assert.equal(out[0].sourceKind,'MATERIAL_LEDGER');
 assert.equal(out[0].evidence.reason,'INSUFFICIENT_STOCK');
 assert.ok(out[0].expiresAtMs>out[0].observedAtMs);
 
+const source=fs.readFileSync('autonomous-printshop/core/readiness-source-adapters-v1.mjs','utf8');
+assert.match(source,/FROM autonomous_machine_control/);
+assert.match(source,/machineControl&&machineControl\.mode/);
+assert.match(source,/==='SHADOW'/);
+
 console.log('AUTONOMOUS_PRINTSHOP_READINESS_SOURCE_ADAPTERS_V1=PASS');
 console.log('LEGACY_DESIGN=EXPLICIT_READY_FIELD_ONLY');
 console.log('MATERIAL_READY_FROM_CATALOG_ONLY=NO');
 console.log('MATERIAL_BLOCKED_WHEN_EXPLICITLY_INSUFFICIENT=YES');
+console.log('MACHINE_EVIDENCE_REQUIRES_MACHINE_CONTROL_SHADOW=YES');
 console.log('MACHINE_EVIDENCE_SYNTHESIS=NO');
