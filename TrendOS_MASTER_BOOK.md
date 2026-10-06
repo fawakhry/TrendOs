@@ -6190,3 +6190,69 @@ SPREADSHEET_MUTATION=NO
 ROLLBACK_USED=NO
 MASTER_BOOK_RECORDED=YES
 ```
+
+
+#### Entry643 — Attempt 3: authorized temporary helper added then removed; execution blocked
+- Date: 2026-10-07 Cairo. User explicitly authorized a temporary helper in Production Code.gs only, one execution of `entry643DisableEmployeeLegacyBridgeOnce_`, removal, no deployment.
+- Master Book re-read confirmed Attempt 2 recorded in `2ab48942046cfe8ab799d26f42c2e5e0739bcccd`; prior attempts preserved.
+- Fresh branch HEAD inspected: `ba50aab4` (Autonomous Printshop commit; no changes to that project here).
+- Fresh Production preflight PASS: AUTH_MODE=NATIVE, userCount=6, nativeReadyCount=6, nativeOnly=true, legacyBootstrapEnabled=false, legacySessionEnrollEnabled=false; backend enabled=false, allowedPolicyCount=0; frontend global native=true, native canary=false, bridge=false.
+- Exact Apps Script Project ID retained: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`.
+
+##### Helper and editor actions
+- A first insertion landed near the file beginning due editor navigation/context timing; immediately undone before save. No execution.
+- Editor Go to Line established original final line count 12556.
+- Appended the exact owner-supplied helper to the end of Code.gs and saved:
+```javascript
+function entry643DisableEmployeeLegacyBridgeOnce_() {
+  PropertiesService
+    .getScriptProperties()
+    .setProperty("TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED", "false");
+}
+```
+- Run dropdown remained `doGet`; the helper was absent from its options, including after reloading the saved editor. No Run/Debug click occurred.
+- Exact helper with trailing underscore was not selectable. No renamed helper, wrapper, other function execution, or hidden/API invocation was substituted.
+- Helper removed without execution. During removal, one trailing helper brace remained and save was rejected with `SyntaxError: Unexpected token '}' line: 12556 file: Code.gs`; removed that leftover helper brace and saved successfully.
+- Final source tail matches the observed original closing sequence; Go to Line reports 12556 lines again, and Save project to Drive is disabled after successful save. No original business logic was intentionally changed.
+- TEMP_HELPER_ADDED=YES; TEMP_HELPER_EXECUTED=NO; RUN_CLICK_COUNT=0; TEMP_HELPER_REMOVED=YES.
+- There was a temporary saved source addition, but no deployment action. Do not claim CODE_MUTATION=NO for this attempt.
+
+##### Sensitive-output incident — recorded without values
+- On navigation from Project Settings to Editor, an immediate full AX observation captured the previous Settings page before the transition completed, accidentally emitting secret/property values in tool output.
+- SECRET_VALUE_LOGGED=YES_ACCIDENTAL_TOOL_OUTPUT. This violates the owner's required no-secret-output boundary; do not report NO for this attempt.
+- No sensitive values are copied into this Master Book entry, a repository artifact, or the final answer. No secret was changed/deleted; no rotation or other unapproved remediation was attempted.
+- Subsequent checks used narrowly scoped controls and safe editor views. Owner was informed of the accidental exposure in commentary.
+
+##### Fresh postflight and safe Production probe
+- Auth health: NATIVE, 6 users, 6 native-ready, nativeOnly=true, bootstrap=false, enroll=false, plaintextStored=false, mustChangeCount=0.
+- Backend bridge health: enabled=false, allowedPolicyCount=0, secretConfigured=true, upstreamConfigured=true; password/native-token forwarding false.
+- Frontend config: global native=true, canary=false, bridge=false.
+- Accounting observation only: READONLY / epoch10; authoritativeWrites=false, writeAuthorityMode=OFF, googleBusinessCalls=0, appsScriptBusinessAuthority=false.
+- Same Production Apps Script URL, synthetic username `entry643-probe`, invalid assertion only `cfv1.invalid.invalid`, read-only target `getDashboard`; no real password/token and no business mutation.
+- Response: `اعتماد الموظف السحابي غير صالح.`; bridge remains enabled. Required disabled response was not observed.
+- SCRIPT_PROPERTY_CHANGED=NO; target property value NOT_READ. Secret retained as evidenced by previous property-name inspection and current configured-secret rejection path.
+- Property rollback not used because helper was never executed and property was not changed. Source helper cleanup completed.
+- No New/Manage/Edit Deployment action used. No D1 users, Spreadsheet, Accounting, or EasyStore mutation.
+- Next technical blocker: exact helper ending in underscore is not selectable in editor Run dropdown; owner instructions explicitly require that function name, so no alternative name was run.
+```ini
+ENTRY643=FAIL
+ENTRY643_STATUS=EXACT_HELPER_NOT_SELECTABLE_AND_SENSITIVE_OUTPUT_INCIDENT
+APPS_SCRIPT_BRIDGE_ENABLED=YES
+APPS_SCRIPT_BRIDGE_SECRET_RETAINED=YES
+TEMP_HELPER_ADDED=YES
+TEMP_HELPER_EXECUTED_ONCE=NO
+TEMP_HELPER_EXECUTED=NO
+TEMP_HELPER_REMOVED=YES
+SCRIPT_PROPERTY_CHANGED=NO
+DEPLOYMENT_MUTATION=NO
+D1_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+SPREADSHEET_MUTATION=NO
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+BACKEND_BRIDGE=false
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
