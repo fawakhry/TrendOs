@@ -102,27 +102,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f /tmp/entry623-token ]; then
-            node <<'NODE'
-            const fs=require('fs');
-            const base=String(process.env.API_URL||'').replace(/\/$/,'');
-            const username=String(process.env.QUALIFY_USERNAME||'').trim();
-            const token=fs.readFileSync('/tmp/entry623-token','utf8').trim();
-            (async()=>{
-              const r=await fetch(base+'/v1/employee/auth/logout',{
-                method:'POST',
-                headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
-                body:JSON.stringify({username,token}),
-                cache:'no-store'
-              });
-              const body=JSON.parse(await r.text()||'{}');
-              if(r.status!==200||body.success!==true) process.exit(31);
-              console.log('ENTRY623_BOOTSTRAP_SESSION_REVOKED=YES');
-            })().catch(()=>process.exit(32));
-            NODE
-          else
-            echo ENTRY623_BOOTSTRAP_SESSION_REVOKED=NOT_APPLICABLE
-          fi
+          node <<'NODE'
+          const fs=require('fs');
+          if(!fs.existsSync('/tmp/entry623-token')){
+            console.log('ENTRY623_BOOTSTRAP_SESSION_REVOKED=NOT_APPLICABLE');
+            process.exit(0);
+          }
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry623-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) process.exit(31);
+            console.log('ENTRY623_BOOTSTRAP_SESSION_REVOKED=YES');
+          })().catch(()=>process.exit(32));
+          NODE
           rm -f /tmp/entry623-token
 
       - name: Postflight
