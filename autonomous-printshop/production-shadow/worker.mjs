@@ -11,6 +11,9 @@ import {
 import {
   selectEvidencePilotTargetV1
 } from '../core/evidence-pilot-target-v1.mjs';
+import {
+  buildEvidenceAcquisitionPacketV1
+} from '../core/evidence-acquisition-packet-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -655,6 +658,7 @@ async function readinessSnapshot(env,rows){
     assignmentAllowed:false,
     taskClaimAllowed:false
   };
+  const evidenceAcquisitionPacket=buildEvidenceAcquisitionPacketV1(evidencePilotTarget);
 
   return {
     success:true,
@@ -668,6 +672,7 @@ async function readinessSnapshot(env,rows){
     strictCounts:strict.reality.counts,
     strictExceptionCounts:sanitizedExceptionCounts(strict.reality.exceptions),
     evidencePilotTarget,
+    evidenceAcquisitionPacket,
     strictRecommendation:{
       exists:!!strict.recommendation.recommended,
       fingerprint:await fingerprint(strict.recommendation.recommended),
