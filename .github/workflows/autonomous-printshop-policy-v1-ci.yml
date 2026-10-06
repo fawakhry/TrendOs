@@ -20,6 +20,7 @@ on:
       - 'autonomous-printshop/core/machine-readiness-v1.mjs'
       - 'autonomous-printshop/core/easystore-material-readonly-connector-v1.mjs'
       - 'autonomous-printshop/core/accounting-material-evidence-connector-v1.mjs'
+      - 'autonomous-printshop/core/matbagy-design-evidence-connector-v1.mjs'
       - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
       - 'autonomous-printshop/readiness-collector/**'
@@ -52,6 +53,7 @@ on:
       - 'autonomous-printshop/tests/machine_readiness_v1.test.mjs'
       - 'autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs'
+      - 'autonomous-printshop/tests/matbagy_design_evidence_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/shadow_observer_v1.test.mjs'
@@ -138,6 +140,8 @@ jobs:
         run: node autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs
       - name: Run accounting material evidence connector contract
         run: node autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs
+      - name: Run Matbagy design evidence connector contract
+        run: node autonomous-printshop/tests/matbagy_design_evidence_connector_v1.test.mjs
       - name: Run readiness source adapters contract
         run: node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
       - name: Run readiness collector write-boundary contract
