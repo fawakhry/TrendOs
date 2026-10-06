@@ -71,6 +71,8 @@ const sandbox={
 vm.runInNewContext(source,sandbox,{filename:'employee-api-dispatcher-v1.js'});
 
 assert.equal(windowObject.TrendOSEmployeeApiDispatcherV1.employeeCoreMode(),'OFF');
+assert.equal(windowObject.TrendOSEmployeeApiDispatcherV1.policyAllowed('getDashboard',{}),true);
+console.log('ENTRY628_OFF_BRIDGE_DASHBOARD_POLICY=PASS');
 let out=await windowObject.trendosEmployeeApiV1('getDashboard',{username:'ضياء',token:'native-token',screen:'service'});
 assert.equal(out.source,'bridge');
 assert.equal(fetchCalls.at(-1).url,'https://trendos-d1-api.example.test/v1/employee/legacy-action');
@@ -97,6 +99,8 @@ for(const action of manifest.coreNativeReads){
 }
 
 const beforeKnowledge=fetchCalls.length;
+assert.equal(windowObject.TrendOSEmployeeApiDispatcherV1.policyAllowed('getKnowledge',{}),true);
+console.log('ENTRY628_REMAINING_BRIDGE_KNOWLEDGE_POLICY=PASS');
 out=await windowObject.trendosEmployeeApiV1('getKnowledge',{username:'ضياء',token:'native-token'});
 assert.equal(out.success,true);
 // First remaining Bridge action after the 17 -> 13 policy transition revalidates
