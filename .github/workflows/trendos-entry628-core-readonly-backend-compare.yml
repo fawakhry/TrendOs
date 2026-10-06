@@ -140,6 +140,27 @@ jobs:
                 console.log('ENTRY628_DASHBOARD_COMPARABLE_METRICS='+comparable);
                 console.log('ENTRY628_DASHBOARD_EQUAL_METRICS='+equal);
               }
+              if(action==='getActivityLog'){
+                const sig=r=>[
+                  String(r&&r.time||''),
+                  String(r&&r.orderId||''),
+                  String(r&&r.lineId||''),
+                  String(r&&r.action||''),
+                  String(r&&r.oldStatus||''),
+                  String(r&&r.newStatus||''),
+                  String(r&&r.by||'')
+                ].join('|');
+                const nh=new Set((native.out.rows||[]).map(sig));
+                const lh=[...(legacy.out.rows||[])].map(sig);
+                const inter=lh.filter(x=>nh.has(x)).length;
+                console.log('ENTRY628_ACTIVITY_SIGNATURE_INTERSECTION='+inter);
+                console.log('ENTRY628_ACTIVITY_LEGACY_SUBSET_NATIVE='+(inter===lh.length?'YES':'NO'));
+                const nk=(native.out.rows&&native.out.rows[0])?Object.keys(native.out.rows[0]).sort():[];
+                const lk=(legacy.out.rows&&legacy.out.rows[0])?Object.keys(legacy.out.rows[0]).sort():[];
+                console.log('ENTRY628_ACTIVITY_COMMON_KEYS='+nk.filter(k=>lk.includes(k)).length);
+                console.log('ENTRY628_ACTIVITY_NATIVE_KEYS='+nk.length);
+                console.log('ENTRY628_ACTIVITY_LEGACY_KEYS='+lk.length);
+              }
             }
             const trend=await post('/v1/employee/core',{username,action:'getTrendMasterCenterV1931'},token);
             console.log('ENTRY628_TRENDMASTER_NATIVE_HTTP='+trend.status);
