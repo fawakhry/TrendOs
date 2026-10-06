@@ -92,10 +92,9 @@ jobs:
           NODE
 
           grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/ui-config.js
-          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/ui-config.js
-          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء'];" /tmp/ui-config.js
-          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 17;" /tmp/ui-config.js
-          echo ENTRY623_FRONTEND_CANARY_PREDEPLOY=PASS
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/ui-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1" /tmp/ui-config.js
+          echo ENTRY623_FRONTEND_CANARY_PREDEPLOY=OFF_INCIDENT_CONTAINMENT_PASS
 
       - name: Build exact-live API source plus Auth diagnostic only
         shell: bash
