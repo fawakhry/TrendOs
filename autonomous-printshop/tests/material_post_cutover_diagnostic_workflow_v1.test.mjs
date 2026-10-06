@@ -11,6 +11,8 @@ assert.match(yml,/accounting_checkpoint_ref:/);
 assert.match(yml,/stock_authority_confirmed:/);
 assert.match(yml,/qualifyMaterialPostCutoverV1/);
 assert.match(yml,/employee_accounting_materials_v1/);
+assert.match(yml,/canaryMaterialRows/);
+assert.match(yml,/upper\(trim\(material_kind\)\)<>'A2_CANARY'/);
 assert.match(yml,/employee_accounting_stock_moves_v1/);
 assert.match(yml,/employee_accounting_dept_lines_v1/);
 assert.match(yml,/operatorTaskMode/);
@@ -22,6 +24,8 @@ assert.doesNotMatch(yml,/\b(?:INSERT|UPDATE|DELETE|REPLACE)\b/i);
 assert.doesNotMatch(yml,/wrangler@[^\\n]+d1 execute[^\\n]+--command/i);
 assert.doesNotMatch(yml,/operator_tasks\s+SET/i);
 assert.doesNotMatch(yml,/autonomous_readiness_evidence\s*\(/i);
+assert.doesNotMatch(yml,/\\\$\{\{/,'ESCAPED_GITHUB_EXPRESSION_FORBIDDEN');
+assert.doesNotMatch(yml,/wrangler@\\\$\{WRANGLER_VERSION\}/,'ESCAPED_WRANGLER_VERSION_FORBIDDEN');
 
 console.log('MATERIAL_POST_CUTOVER_DIAGNOSTIC_WORKFLOW_V1=PASS');
 console.log('WORKFLOW_DISPATCH_ONLY=YES');
