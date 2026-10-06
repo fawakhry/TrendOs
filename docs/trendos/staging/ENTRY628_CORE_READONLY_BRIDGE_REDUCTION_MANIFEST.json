@@ -1,0 +1,40 @@
+{
+  "entry": "Entry628",
+  "purpose": "First bridge-retirement family: route four qualified Employee Core reads to D1 Native Core while preserving writes fail-closed and leaving remaining bridge actions unchanged.",
+  "globalNativeAuth": false,
+  "coreTargetMode": "READONLY",
+  "corePolicyEpochTarget": 1,
+  "currentBridgePolicyCount": 17,
+  "targetBridgePolicyCount": 13,
+  "coreNativeReads": [
+    "getRows",
+    "getDashboard",
+    "getActivityLog",
+    "getTrendMasterCenterV1931"
+  ],
+  "remainingBridgePolicies": [
+    "customerManagerV1:inbox",
+    "customerManagerV1:thread",
+    "getFranchiseBranches",
+    "getKnowledge",
+    "getLeadPhoneNumbers",
+    "getMarketplace",
+    "getMatbagyNotes",
+    "getOrderConversation",
+    "getPlatformAds",
+    "getPlatformSections",
+    "getServiceProviderRoutes",
+    "getWhiteLabelSettings",
+    "goLiveAutopilotV1:listDrafts"
+  ],
+  "invariants": [
+    "Core OFF preserves exact current behavior.",
+    "Core READONLY routes only the four listed Core reads to /v1/employee/core.",
+    "Core writes are not enabled by Entry628.",
+    "Unknown/non-canary employees remain on their current Legacy behavior while Global Native Auth is OFF.",
+    "Bridge is not reduced in Production until Core runtime READONLY and native read smoke pass.",
+    "Ops remains GENERAL and Accounting remains READONLY.",
+    "Content and Comms remain OFF.",
+    "EasyStore remains untouched."
+  ]
+}
