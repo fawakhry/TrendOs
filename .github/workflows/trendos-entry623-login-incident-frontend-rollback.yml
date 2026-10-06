@@ -106,4 +106,4 @@ jobs:
           console.log('ENTRY623_API_DEPLOY=NO');
           console.log('ENTRY623_D1_MUTATION=NO');
           console.log('ENTRY623_ACCOUNTING_TOUCHED=NO');
-        NODE
+          NODE
