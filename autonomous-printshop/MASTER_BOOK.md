@@ -2954,3 +2954,201 @@ FRONTEND_CANARY_CONFIG_ARMED=NO
 BACKEND_ACCOUNTING_MODE=READONLY
 AUTONOMOUS_PRINTSHOP_MATERIAL_READY=NO
 ```
+
+
+### AP-031 — Cloud-native order-file design discovery qualified
+
+A read-only Production discovery path was added for the native Cloud employee-comms order-file source.
+
+Source identified:
+- table: `employee_order_conversation_files_v1`;
+- native source: `cloudflare-d1/src/employee-comms-native-v1.mjs`;
+- storage model: Cloudflare R2 through the `FILES` binding;
+- rows carry explicit `order_id + line_id + file_id + r2_key + mime_type`.
+
+Added:
+- `autonomous-printshop/core/cloud-order-file-design-discovery-v1.mjs`
+- `autonomous-printshop/tests/cloud_order_file_design_discovery_v1.test.mjs`
+- `.github/workflows/autonomous-printshop-cloud-design-discovery.yml`
+- workflow contract test.
+
+The discovery is aggregate-only and exposes no customer PII, raw order IDs, or raw line IDs.
+
+Two workflow-only fail-safe attempts occurred before the successful run:
+1. escaped environment interpolation prevented the D1 call;
+2. Wrangler progress output contaminated JSON when using `--file --json`.
+Neither attempt mutated Production.
+
+Final Production discovery Run `37499319862` = **SUCCESS**.
+
+Live source state at qualification:
+```ini
+COMMS_MODE=READONLY
+DESIGN_MODE=SHADOW
+CLOUD_ORDER_FILES=0
+CLOUD_LINE_LINKED_FILES=0
+DESIGN_MIME_FILES=0
+ACTIVE_DESIGN_PROVENANCE_FILES=0
+CONTENT_HASH_COLUMN_PRESENT=false
+DESIGN_ARTIFACTS=0
+APPROVALS=0
+PREFLIGHTS=0
+LINKED_BINDINGS=0
+OPERATOR_TASK_CONTROL=OFF
+OPERATOR_TASK_ROWS=0
+PRODUCTION_MUTATION=NO
+```
+
+Result:
+- Cloud-native line-level design provenance path exists structurally;
+- Production currently has no cloud order-file rows;
+- upload alone remains neither approval nor preflight nor READY;
+- a deterministic content hash is required before a cloud file can become a Design artifact candidate.
+
+### AP-032 — Cloud order-file SHA-256 capture qualified repo-only; R2 permission blocker proven
+
+The native Comms upload path previously stored file bytes in R2 and file metadata in D1 but did not persist a content SHA-256.
+
+Prepared additive schema/source:
+- `cloudflare-d1/migrations/0031_employee_order_conversation_file_hash_v1.sql`;
+- `cloudflare-d1/src/employee-comms-native-v1.mjs`;
+- updated `tests/entry614_employee_comms_native.test.mjs`.
+
+Qualified behavior:
+- SHA-256 is computed from the exact uploaded bytes using Web Crypto;
+- the same hash is written to R2 custom metadata and D1 `content_sha256`;
+- D1 value is empty or 64 lowercase hex;
+- existing rows are not assigned synthetic hashes;
+- upload still does not write Design approval, Design preflight, or Readiness evidence.
+
+Qualification:
+- Autonomous Printshop Policy V1 CI Run `37499935641` = SUCCESS.
+- Entry614 Comms Native Repo CI Run `37500089706` = SUCCESS after refreshing its stale unrelated Auth/Bridge runtime baseline.
+- Comms Readonly Repo CI remained PASS.
+
+Current native Comms Production health:
+```ini
+COMMS_MODE=READONLY
+COMMS_POLICY_EPOCH=2
+R2_READY=false
+GOOGLE_BUSINESS_CALLS=0
+APPS_SCRIPT_BUSINESS_AUTHORITY=false
+```
+
+R2 discovery:
+- no R2 binding exists in the repository Wrangler configs;
+- a read-only R2 account discovery workflow was attempted;
+- Wrangler CLI JSON option was unsupported in the first attempt;
+- Cloudflare account API GET was then used;
+- Run `37500585855` returned HTTP 403 because the current Actions Cloudflare token does not have R2 bucket-list permission;
+- no bucket was created, deleted, modified, or guessed.
+
+Therefore:
+```ini
+R2_BUCKET_IDENTITY=UNKNOWN
+R2_PERMISSION_BLOCKER=CONFIRMED
+R2_CREATE=NO
+R2_OBJECT_WRITE=NO
+UPLOAD_EQUALS_APPROVAL=NO
+UPLOAD_EQUALS_READY=NO
+SHA256_SOURCE=QUALIFIED_REPO_ONLY
+SHA256_SCHEMA_PRODUCTION=NOT_YET_APPLIED
+```
+
+### AP-033 — Proven machine identity foundation qualified and Production schema live
+
+The earlier machine registry accepted a stable machine ID but did not persist provenance proving where that physical identity came from.
+
+Production/source discovery found no safe machine serial or stable physical machine ID in current TrendOS settings, Standard Work, HR skill data, cleaning records, or press settings. In particular, the press power field explicitly depends on the physical nameplate and is not populated.
+
+No machine ID was invented.
+
+Added:
+- `autonomous-printshop/migrations/0028_machine_identity_evidence_v1.sql`;
+- `autonomous-printshop/core/machine-identity-qualification-v1.mjs`;
+- `autonomous-printshop/core/machine-identity-command-v1.mjs`;
+- `autonomous-printshop/tests/machine_identity_qualification_v1.test.mjs`.
+
+Machine registration now requires:
+- explicit machine ID, confirmed not inferred;
+- display name, department, class;
+- identity source kind = `NAMEPLATE` or `OWNER_ASSET_REGISTRY`;
+- source reference;
+- serial number or owner asset tag.
+
+Identity registration by itself grants:
+- READY = NO;
+- line mapping = NO.
+
+The manual machine workflow now requires identity proof and writes the append-only identity event before the machine registry row can exist.
+
+Qualification:
+- Autonomous Printshop Policy V1 CI Run `37500751854` = SUCCESS.
+- Machine Identity Production Schema Apply Run `37501364090` = SUCCESS.
+- Production schema mutation only; no Production business-data mutation.
+
+Production post-state:
+```ini
+MACHINE_IDENTITY_SCHEMA_READY=true
+MACHINE_IDENTITY_ROWS=0
+ACTIVE_MACHINES=0
+MACHINE_OBSERVATIONS=0
+LINE_MACHINE_MAPPINGS=0
+MACHINE_MODE=SHADOW
+OPERATOR_TASK_CONTROL=OFF
+OPERATOR_TASK_ROWS=0
+ACCOUNTING_MUTATION=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+Readiness Collector/Dashboard telemetry was extended to expose machine identity state and Cloud design source state:
+- Readiness Collector Production Deploy Run `37501683321` = SUCCESS.
+- Policy CI Run `37501683604` = SUCCESS.
+
+Live Collector confirms:
+```ini
+MACHINE_IDENTITY_SCHEMA_READY=true
+MACHINE_IDENTITY_ROWS=0
+CLOUD_ORDER_FILES=0
+CLOUD_LINE_LINKED_FILES=0
+CLOUD_FILE_HASH_SCHEMA_READY=false
+```
+
+### AP-034 — Accounting first bounded CANARY attempt observed fail-safe
+
+Autonomous Printshop tracked the concurrent EasyStore Accounting first bounded Production CANARY attempt without changing accounting authority.
+
+Accounting book reached ACC-047 and execution Run `37498874051`.
+
+Observed facts:
+- exact approved server scope armed successfully:
+  - user = canonical `ضياء`;
+  - action = `saveAccountingTemplate`;
+  - max commands = 1;
+  - max amount = 0;
+  - GENERAL forbidden;
+- no authenticated command arrived during the execution window;
+- workflow ended with `A27_EXEC_TIMEOUT_NO_COMMAND`;
+- no template/request/audit command fact was produced by that window;
+- cleanup returned server authority to READONLY and cleared the allowlists/budget.
+
+Fresh runtime after the failed-safe window:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=4
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+WRITE_CANARY_ALLOWED_USERS=0
+WRITE_CANARY_ALLOWED_ACTIONS=0
+WRITE_CANARY_MAX_COMMANDS=0
+WRITE_CANARY_COMMANDS_STARTED=0
+```
+
+Autonomous Printshop Material therefore remains blocker-only/UNKNOWN and did not receive READY evidence.
+
+```ini
+ACCOUNTING_CANARY_ATTEMPT_RESULT=TIMEOUT_NO_COMMAND_FAIL_SAFE
+MATERIAL_READY=NO
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
