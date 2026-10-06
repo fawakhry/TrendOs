@@ -5312,3 +5312,92 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   ACCOUNTING=READONLY
   NEXT_ACTION=RETRY_SAME_BOUNDED_BOOTSTRAP_ONLY_WHEN_SHERIF_REAL_LOGIN_CAN_OCCUR
   ```
+
+
+#### Entry637 — Runtime drift repaired; bounded Sherif bootstrap attempt 2 failed safely
+- Resume after client/network interruption began from Runtime truth, not from the older checkpoint.
+- Before Attempt 2, a live cache-busted Auth read unexpectedly showed:
+  ```ini
+  LEGACY_BOOTSTRAP=true
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  BACKEND_BRIDGE=false
+  ```
+  while GitHub showed no active or queued workflow run. This was treated as Runtime drift and repaired before any new Sherif window was started.
+- Family boundaries were rechecked first and remained safe for this employee-auth step:
+  ```ini
+  CORE=READONLY
+  CONTENT=READONLY
+  COMMS=READONLY
+  OPS=GENERAL
+  ACCOUNTING=READONLY
+  BACKEND_BRIDGE=false
+  ```
+- Existing hardening paths were reused; no parallel repair workflow was created.
+- Entry634 repair:
+  - Run `37491028261`, attempt 2;
+  - preflight = PASS;
+  - the existing workflow again ended FAILURE because of its known shell `unexpected end of file` after the Cloudflare settings mutation;
+  - Runtime truth nevertheless proved the intended target was active:
+    ```ini
+    LEGACY_BOOTSTRAP=false
+    NATIVE_ONLY=false
+    D1_NATIVE_READY=5/5
+    BACKEND_BRIDGE=false
+    ```
+- Entry635 repair:
+  - Run `37492693215`, attempt 2;
+  - Job `112426615715`;
+  - conclusion = SUCCESS;
+  - Runtime truth after propagation:
+    ```ini
+    LEGACY_BOOTSTRAP=false
+    LEGACY_SESSION_ENROLL=false
+    NATIVE_ONLY=true
+    D1_AUTH_USERS=5
+    D1_NATIVE_READY_USERS=5
+    PLAINTEXT_STORED=false
+    BACKEND_BRIDGE=false
+    ```
+- Only after that hardened baseline was re-proven, the existing Entry637 failed run was retried; no duplicate workflow/window was created.
+- Entry637 Attempt 2:
+  - Run `37497698732`, run_attempt = 2;
+  - Job `112427001942`;
+  - Exact preflight = SUCCESS;
+  - bounded window opened at 2026-10-06 18:13:21Z;
+  - all 60 ten-second polls remained exactly `USERS=5 READY=5`;
+  - no `ENTRY637_SHERIF_BOOTSTRAP_OBSERVED=YES` was emitted;
+  - window closed at 2026-10-06 18:23:50Z with `ENTRY637_WINDOW_CLOSED=PASS`;
+  - final failure reason at 2026-10-06 18:23:59Z:
+    ```text
+    ENTRY637_BOUNDED_MIGRATION_FAIL Sherif did not login during bounded window
+    ```
+  - D1 Sherif row verification and Boundary steps were skipped because no migration occurred.
+- Post-run live Runtime verification proves hardening restored again:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  NATIVE_ONLY=true
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  BACKEND_BRIDGE=false
+  ```
+- No Sherif row was manually inserted; no role/screens were guessed; no Google password/token column, password hash, session token, or credential secret was read.
+- No EasyStore mutation occurred. Accounting remained READONLY and was not modified by this employee migration step.
+- Current truth:
+  ```ini
+  ENTRY637_ATTEMPT_1=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_ATTEMPT_2=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_HARDENING_RESTORED=PASS
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  GLOBAL_NATIVE_AUTH=OFF
+  BACKEND_BRIDGE=OFF
+  ACCOUNTING=READONLY
+  ```
+- Next action remains credential-safe and event-dependent: do not open a third bounded bootstrap window until Sherif is actually available to perform a real login during that same window. A third blind retry would only repeat the already-proven 600-second failure mode.
