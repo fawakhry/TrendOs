@@ -3763,3 +3763,103 @@ MACHINE_ACQUISITION_READY=false
 ```
 
 No machine identity, observation, mapping, readiness, employee, accounting or order business mutation occurred.
+
+
+### AP-046 — Material acquisition status aligned with exact connector projection
+
+The read-only Material acquisition indicator was aligned with the exact accounting material connector projection.
+
+Previous observability risk:
+- aggregate counts could independently show active materials, line IDs, material names and consumption values;
+- those counts did not prove that one active operational line had one matching operational material with explicit consumption;
+- the actual connector used a stricter join than the Dashboard acquisition flag.
+
+Production behavior now:
+- Readiness Collector calls `readAccountingMaterialEvidenceSnapshotV1`;
+- the projection therefore requires the exact active line + department + material-name join used by the accounting material connector;
+- archived/closed lines remain excluded;
+- inactive materials are excluded;
+- `A2_CANARY` audit materials are excluded;
+- explicit positive consumption is required;
+- aggregate counts no longer control `material.acquisitionReady`.
+
+New telemetry:
+- `sourceLinkedRows`;
+- `sourceLinkedLines`;
+- `sourceBlockerCandidates`;
+- `sourceConnectorQualified`;
+- `sourceConnectorReason`.
+
+Qualification / deployment:
+- source commit `d870b18b27b21c2d54f947b9288d47577cebcc46`;
+- test commit `33f06ddeaf85f9464e7c32d9ec2d813d85764582`;
+- Policy CI Run `37542797782` = SUCCESS;
+- Readiness Collector Production Deploy Run `37542797797` = SUCCESS.
+
+Fresh Production:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=8
+ACCOUNTING_MATERIAL_ROWS_TOTAL=1
+ACCOUNTING_CANARY_MATERIAL_ROWS=1
+ACTIVE_OPERATIONAL_MATERIALS=0
+
+MATERIAL_SOURCE_LINKED_ROWS=0
+MATERIAL_SOURCE_LINKED_LINES=0
+MATERIAL_SOURCE_BLOCKER_CANDIDATES=0
+MATERIAL_SOURCE_CONNECTOR_QUALIFIED=true
+MATERIAL_ACQUISITION_READY=false
+MATERIAL_BLOCKER=AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+```
+
+This change is observability-only and created no accounting, readiness, order, employee or Operator Task business mutation.
+
+
+### AP-047 — Future Material READY candidate generator qualified fail-closed
+
+A future Material readiness candidate generator was qualified repo-only so the system will not need an unsafe redesign after Accounting eventually becomes authoritative.
+
+Added:
+- `autonomous-printshop/core/material-readiness-candidate-v2.mjs`;
+- `autonomous-printshop/tests/material_readiness_candidate_v2.test.mjs`.
+
+Default behavior:
+- READY generation is disabled;
+- insufficient authoritative stock may still produce BLOCKED evidence;
+- sufficient stock produces no READY unless every explicit activation gate is true.
+
+Material READY requires all of:
+1. `allowReady=true` from a separately qualified caller;
+2. Accounting mode is GENERAL;
+3. Autonomous Printshop post-cutover Material requalification passed;
+4. stock authority is explicitly confirmed;
+5. exact line/material/consumption source row is present;
+6. available stock is greater than or equal to required consumption.
+
+READY evidence TTL is capped at 30 minutes.
+
+Qualification:
+- Policy CI Run `37542893849` = SUCCESS.
+- all existing Autonomous Printshop contracts remained PASS.
+
+Current Production use:
+```ini
+MATERIAL_READINESS_CANDIDATE_V2=QUALIFIED_REPO_ONLY
+READY_DEFAULT=DISABLED
+ACCOUNTING_GENERAL=false
+POST_CUTOVER_QUALIFICATION=false
+STOCK_AUTHORITY_CONFIRMED=false
+PRODUCTION_READY_WRITE=NO
+```
+
+Concurrent Accounting truth:
+- latest consumed checkpoint is ACC-085;
+- A2.9 recalc decision was owner-approved in the Accounting stream;
+- Production Accounting remains READONLY / write authority OFF at this checkpoint;
+- Autonomous Printshop does not ARM or execute Accounting write authority.
+
+```ini
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
