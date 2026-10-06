@@ -8,6 +8,9 @@ import {
 import {
   buildReadinessQualifiedRealityV1
 } from '../core/readiness-evidence-v1.mjs';
+import {
+  selectEvidencePilotTargetV1
+} from '../core/evidence-pilot-target-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -636,6 +639,21 @@ async function readinessSnapshot(env,rows){
     inputs.evidence,
     {requiredKinds}
   );
+  const pilot=selectEvidencePilotTargetV1(strict.rows,{requiredKinds});
+  const pilotRow=pilot.exists&&pilot.sourceIndex>=0?strict.rows[pilot.sourceIndex]:null;
+  const evidencePilotTarget={
+    version:pilot.version,
+    exists:pilot.exists,
+    fingerprint:await fingerprint(pilotRow),
+    department:pilot.department,
+    priority:pilot.priority,
+    dueIso:pilot.dueIso,
+    urgent:pilot.urgent,
+    missingKinds:pilot.missingKinds,
+    purpose:pilot.purpose,
+    assignmentAllowed:false,
+    taskClaimAllowed:false
+  };
 
   return {
     success:true,
@@ -648,6 +666,7 @@ async function readinessSnapshot(env,rows){
     coverage:strict.coverage,
     strictCounts:strict.reality.counts,
     strictExceptionCounts:sanitizedExceptionCounts(strict.reality.exceptions),
+    evidencePilotTarget,
     strictRecommendation:{
       exists:!!strict.recommendation.recommended,
       fingerprint:await fingerprint(strict.recommendation.recommended),
@@ -737,7 +756,11 @@ async function controlTowerSnapshot(env){
       requiredKinds:readiness&&readiness.requiredKinds||[],
       coverage:readiness&&readiness.coverage||{},
       strictExceptionCounts:readiness&&readiness.strictExceptionCounts||{},
-      recommendationExists:!!(readiness&&readiness.strictRecommendation&&readiness.strictRecommendation.exists)
+      recommendationExists:!!(readiness&&readiness.strictRecommendation&&readiness.strictRecommendation.exists),
+      evidencePilotTarget:readiness&&readiness.evidencePilotTarget||{
+        exists:false,fingerprint:'',department:'',priority:'',dueIso:'',urgent:false,
+        missingKinds:[],purpose:'EVIDENCE_ACQUISITION_ONLY',assignmentAllowed:false,taskClaimAllowed:false
+      }
     },
     controls:{
       autonomy:{
