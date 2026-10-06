@@ -11,8 +11,10 @@ on:
       - 'autonomous-printshop/core/autonomy-policy-v1.mjs'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
       - 'autonomous-printshop/core/readiness-evidence-v1.mjs'
+      - 'autonomous-printshop/core/observer-run-ledger-v1.mjs'
       - 'autonomous-printshop/production-shadow/worker.mjs'
       - 'autonomous-printshop/tests/shadow_observer_v1.test.mjs'
+      - 'autonomous-printshop/tests/observer_run_ledger_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-observer-production-deploy.yml'
 
 permissions:
@@ -46,6 +48,7 @@ jobs:
           node autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs
           node autonomous-printshop/tests/operational_reality_v1.test.mjs
           node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
+          node autonomous-printshop/tests/observer_run_ledger_v1.test.mjs
           node autonomous-printshop/tests/shadow_observer_v1.test.mjs
 
       - name: Hard business-write safety gate
@@ -55,6 +58,8 @@ jobs:
           test -f autonomous-printshop/observer/worker.mjs
           test -f autonomous-printshop/observer/wrangler.toml
           grep -q 'recordAutonomyShadowEventV1' autonomous-printshop/observer/worker.mjs
+          grep -q 'recordObserverRunV1' autonomous-printshop/observer/worker.mjs
+          grep -q 'INSERT OR IGNORE INTO autonomy_observer_runs' autonomous-printshop/core/observer-run-ledger-v1.mjs
           grep -q 'INSERT OR IGNORE INTO autonomy_events' autonomous-printshop/core/autonomy-event-ledger-v1.mjs
           ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_|operator_tasks)' autonomous-printshop/observer/worker.mjs
           ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_|operator_tasks)' autonomous-printshop/core/autonomy-event-ledger-v1.mjs
