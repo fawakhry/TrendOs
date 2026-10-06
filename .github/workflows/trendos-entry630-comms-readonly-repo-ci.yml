@@ -1,0 +1,46 @@
+name: TrendOS Entry630 Comms Readonly Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
+      - 'docs/trendos/staging/ENTRY630_COMMS_READONLY_BRIDGE_ZERO_READY_MANIFEST.json'
+      - 'tests/entry630_employee_comms_readonly_dispatch.test.mjs'
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - '.github/workflows/trendos-entry630-comms-readonly-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry630 Comms readonly contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node --check cloudflare-d1/src/employee-comms-native-v1.mjs
+          node tests/entry630_employee_comms_readonly_dispatch.test.mjs
+          node tests/entry614_employee_comms_native.test.mjs
+          node tests/entry629_employee_content_readonly_dispatch.test.mjs
+          echo ENTRY630_REPO_GATE=PASS
+      - name: No runtime mutation
+        shell: bash
+        run: |
+          echo ENTRY630_PRODUCTION_MUTATION=NO
+          echo ENTRY630_D1_CONTROL_MUTATION=NO
+          echo ENTRY630_BRIDGE_POLICY_MUTATION=NO
+          echo ENTRY630_ACCOUNTING_TOUCHED=NO
+          echo ENTRY630_EASYSTORE_TOUCHED=NO
