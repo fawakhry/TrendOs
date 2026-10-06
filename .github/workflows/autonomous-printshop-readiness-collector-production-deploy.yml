@@ -12,8 +12,10 @@ on:
       - 'autonomous-printshop/core/readiness-evidence-writer-v1.mjs'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
       - 'autonomous-printshop/core/accounting-material-evidence-connector-v1.mjs'
+      - 'autonomous-printshop/core/accounting-cloud-cutover-guard-v1.mjs'
       - 'autonomous-printshop/tests/readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs'
+      - 'autonomous-printshop/tests/accounting_cloud_cutover_guard_v1.test.mjs'
       - 'autonomous-printshop/core/design-readiness-collector-v1.mjs'
       - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
       - 'autonomous-printshop/core/design-asset-linking-v1.mjs'
@@ -53,6 +55,7 @@ jobs:
           set -euo pipefail
           node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
           node autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs
+          node autonomous-printshop/tests/accounting_cloud_cutover_guard_v1.test.mjs
           node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
           node autonomous-printshop/tests/readiness_collector_v1.test.mjs
           node autonomous-printshop/tests/design_asset_linking_v1.test.mjs
