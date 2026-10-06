@@ -2,3 +2,7 @@ name = "autonomous-printshop-dashboard"
 main = "worker.mjs"
 compatibility_date = "2026-08-27"
 workers_dev = true
+
+[[services]]
+binding = "SHADOW"
+service = "autonomous-printshop-shadow"
