@@ -98,7 +98,8 @@ jobs:
             (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
             (SELECT COUNT(*) FROM autonomous_design_asset_binding_events WHERE binding_status='LINKED') AS linkedBindings;
           SQL
-          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "${DB_NAME}" --remote --config "${CONFIG}" --json --file /tmp/discovery.sql > /tmp/discovery.json
+          SQL_TEXT="$(tr '\n' ' ' < /tmp/discovery.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "${DB_NAME}" --remote --config "${CONFIG}" --json --command "${SQL_TEXT}" > /tmp/discovery.json
 
           node - <<'NODE'
           const x=JSON.parse(require('fs').readFileSync('/tmp/discovery.json','utf8'))?.[0]?.results?.[0]||{};
