@@ -4369,3 +4369,65 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   OPS=GENERAL / epoch7
   ACCOUNTING=READONLY / epoch2
   ```
+
+
+#### Entry624 — Wael frontend canary expansion PASS; waiting real-user smoke
+- Controlled frontend expansion workflow:
+  - `.github/workflows/trendos-entry624-wael-frontend-canary-expand-controlled.yml`
+  - commit `0394ef4ec4a35ca104d33c238d05142e5ee0e56e`
+  - Run `37448306636`
+  - Job `112218381303`
+  - conclusion = **SUCCESS**.
+- Preflight proved the exact Entry623 final state before expansion:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  FRONTEND_CANARY_USERS=['ضياء']
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Exact-live patch:
+  - previous frontend version `a29db5d5-ea3b-4bdc-9eb0-594a501571b3`;
+  - new frontend version `98ad8721-1983-4e86-bede-5fe01c889487`;
+  - only the Native Auth canary allowlist was expanded from `['ضياء']` to `['ضياء','وائل']`;
+  - config cache tag advanced to `20261006-entry624-wael-second-canary`;
+  - dispatcher/API code was not changed by this gate.
+- Postflight:
+  ```ini
+  ENTRY624_FRONTEND_CANARY_EXPANSION=PASS
+  FRONTEND_CANARY_USERS=['ضياء','وائل']
+  GLOBAL_NATIVE_AUTH=OFF
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  API_DEPLOY=NO
+  D1_CONTROL_MUTATION=NO
+  ACCOUNTING_TOUCHED=NO
+  EASYSTORE_TOUCHED=NO
+  ```
+- Independent live verification confirmed:
+  - Production config contains exactly `['ضياء','وائل']` for Native Auth canary users;
+  - Global Native Auth remains false;
+  - Bridge remains ON with exactly 17 policies;
+  - D1 counts remain 1/1 before Wael's first login.
+- Next gate requires a real Wael login:
+  1. Wael logs out any existing Legacy session;
+  2. hard refresh/reopen Production TrendOS;
+  3. login with Wael's existing current credentials;
+  4. first login should bootstrap Wael into D1;
+  5. verify Runtime becomes `userCount=2`, `nativeReadyCount=2`;
+  6. logout Wael;
+  7. second login must be Native from D1;
+  8. verify Dashboard/basic Ops and legitimate attendance/start-day action;
+  9. do not add a third employee before this gate passes.
