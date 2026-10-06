@@ -1,0 +1,143 @@
+
+name: TrendOS Entry629 Content Readonly Runtime Arm Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry629-content-readonly-runtime-arm-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry629-content-readonly-runtime-arm-controlled
+  cancel-in-progress: false
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry629arm=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.schemaReady!==true||ct.mode!=='OFF'||Number(ct.policyEpoch||0)!==1) throw new Error('content prestate drift');
+          if(cm.mode!=='OFF'||Number(cm.policyEpoch||0)!==1) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          console.log('ENTRY629_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+      - name: Lock D1 Content prestate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch
+            FROM employee_content_control_v1 WHERE singleton=1;" >/tmp/content-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/content-pre.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker)rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const c=rows.find(r=>r.marker==='ENTRY614_EMPLOYEE_CONTENT_V1');
+          if(!c||c.mode!=='OFF'||Number(c.policyEpoch||0)!==1) throw new Error('D1 content prestate drift');
+          console.log('ENTRY629_CONTENT_PRESTATE=OFF_EPOCH_1');
+          NODE
+
+      - name: Arm Content READONLY only
+        id: mutate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_content_control_v1
+             SET mode='READONLY',policy_epoch=2,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='ENTRY614_EMPLOYEE_CONTENT_V1'
+             AND mode='OFF'
+             AND policy_epoch=1;
+          SELECT changes() AS changed;
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch
+            FROM employee_content_control_v1 WHERE singleton=1;" >/tmp/content-arm.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/content-arm.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'changed'))rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const ch=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'changed')),c=rows.find(r=>r.marker==='ENTRY614_EMPLOYEE_CONTENT_V1');
+          if(Number(ch?.changed||0)!==1) throw new Error('content mutation count');
+          if(!c||c.mode!=='READONLY'||Number(c.policyEpoch||0)!==2) throw new Error('content target not reached');
+          console.log('ENTRY629_CONTENT_CONTROL=READONLY_EPOCH_2');
+          NODE
+
+      - name: Postflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry629post=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5) throw new Error('auth post');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge post');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core post');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2||ct.schemaReady!==true) throw new Error('content post');
+          if(cm.mode!=='OFF'||Number(cm.policyEpoch||0)!==1) throw new Error('comms post');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting post');
+          console.log('ENTRY629_CONTENT_RUNTIME_ARM=PASS');
+          console.log('ENTRY629_FRONTEND_CUTOVER=NO');
+          console.log('ENTRY629_BUSINESS_DATA_MUTATION=NO');
+          NODE
+
+      - name: Roll back Content control on failure
+        if: ${{ failure() && steps.mutate.outcome == 'success' }}
+        shell: bash
+        run: |
+          set +e
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_content_control_v1
+             SET mode='OFF',policy_epoch=1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='ENTRY614_EMPLOYEE_CONTENT_V1'
+             AND mode='READONLY'
+             AND policy_epoch=2;" >/tmp/content-rollback.json
+          echo ENTRY629_CONTENT_ROLLBACK_ATTEMPTED=YES
+
+      - name: Boundary
+        shell: bash
+        run: |
+          echo ENTRY629_API_CODE_DEPLOY=NO
+          echo ENTRY629_FRONTEND_DEPLOY=NO
+          echo ENTRY629_BRIDGE_POLICY_MUTATION=NO
+          echo ENTRY629_ACCOUNTING_TOUCHED=NO
+          echo ENTRY629_EASYSTORE_TOUCHED=NO
