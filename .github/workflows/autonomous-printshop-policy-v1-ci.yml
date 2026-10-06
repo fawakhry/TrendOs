@@ -33,6 +33,7 @@ on:
       - 'autonomous-printshop/core/design-approval-receipt-v1.mjs'
       - 'autonomous-printshop/core/structured-owner-design-approval-command-v1.mjs'
       - 'autonomous-printshop/core/cloud-order-file-design-discovery-v1.mjs'
+      - 'autonomous-printshop/core/cloud-order-file-design-artifact-command-v1.mjs'
       - 'autonomous-printshop/core/design-evidence-command-v1.mjs'
       - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
@@ -88,6 +89,9 @@ on:
       - 'autonomous-printshop/tests/structured_owner_design_approval_workflow_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-structured-owner-design-approval.yml'
       - 'autonomous-printshop/tests/cloud_order_file_design_discovery_v1.test.mjs'
+      - 'autonomous-printshop/tests/cloud_order_file_design_artifact_command_v1.test.mjs'
+      - 'autonomous-printshop/tests/cloud_design_artifact_diagnostic_workflow_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-cloud-design-artifact-diagnostic.yml'
       - 'autonomous-printshop/tests/cloud_design_discovery_workflow_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-cloud-design-discovery.yml'
       - 'autonomous-printshop/tests/design_evidence_command_v1.test.mjs'
@@ -214,6 +218,10 @@ jobs:
         run: node autonomous-printshop/tests/structured_owner_design_approval_workflow_v1.test.mjs
       - name: Run cloud order-file design discovery contract
         run: node autonomous-printshop/tests/cloud_order_file_design_discovery_v1.test.mjs
+      - name: Run cloud order-file design artifact command contract
+        run: node autonomous-printshop/tests/cloud_order_file_design_artifact_command_v1.test.mjs
+      - name: Run cloud design artifact diagnostic workflow contract
+        run: node autonomous-printshop/tests/cloud_design_artifact_diagnostic_workflow_v1.test.mjs
       - name: Run cloud design discovery workflow contract
         run: node autonomous-printshop/tests/cloud_design_discovery_workflow_v1.test.mjs
       - name: Run design evidence command contract
