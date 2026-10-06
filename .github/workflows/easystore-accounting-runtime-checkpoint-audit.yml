@@ -1,4 +1,5 @@
 name: EasyStore Accounting Runtime Checkpoint Audit
+# refresh 2026-10-07 A2.9 recalc decision gate
 # A2.7 post deploy refresh
 # refresh after successful A2.8 material canary closure 2026-10-07
 # refresh 2026-10-06 A2.7 pre-canary decision
