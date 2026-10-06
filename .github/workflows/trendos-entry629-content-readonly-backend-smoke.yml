@@ -1,0 +1,141 @@
+
+name: TrendOS Entry629 Content Readonly Backend Smoke
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry629-content-readonly-backend-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry629smoke=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2||ct.schemaReady!==true) throw new Error('content drift');
+          if(cm.mode!=='OFF'||Number(cm.policyEpoch||0)!==1) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting drift');
+          console.log('ENTRY629_CONTENT_SMOKE_PREFLIGHT=PASS');
+          NODE
+
+      - name: Login and run nine Content reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+
+          async function req(path,body,token=''){
+            const r=await fetch(base+path,{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},
+              body:JSON.stringify(body),
+              cache:'no-store'
+            });
+            const raw=await r.text();let out={};try{out=JSON.parse(raw||'{}')}catch{}
+            return {status:r.status,out};
+          }
+
+          (async()=>{
+            const login=await req('/v1/employee/auth/login',{username,password});
+            const token=String(login.out&&login.out.user&&login.out.user.token||'').trim();
+            if(login.status!==200||login.out.success!==true||!token||String(login.out.authSource||'')!=='d1-native-employee-v1') throw new Error('native login');
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/entry629-token',token,{mode:0o600});
+            console.log('ENTRY629_NATIVE_LOGIN=PASS');
+
+            const actions=[
+              ['getPlatformSections',{}],
+              ['getFranchiseBranches',{}],
+              ['getServiceProviderRoutes',{}],
+              ['getMarketplace',{}],
+              ['getWhiteLabelSettings',{}],
+              ['getLeadPhoneNumbers',{}],
+              ['getPlatformAds',{}],
+              ['getKnowledge',{}],
+              ['getMatbagyNotes',{limit:20}]
+            ];
+
+            for(const [action,extra] of actions){
+              const x=await req('/v1/employee/content',{action,username,...extra},token);
+              if(x.status!==200||x.out.success!==true){
+                throw new Error(action+' status='+x.status+' code='+String(x.out.code||'')+' message='+String(x.out.message||''));
+              }
+              console.log('ENTRY629_CONTENT_'+action.toUpperCase()+'=PASS');
+            }
+            console.log('ENTRY629_CONTENT_READS=9/9_PASS');
+            console.log('ENTRY629_CONTENT_BUSINESS_WRITES=NO');
+          })().catch(e=>{console.error('ENTRY629_CONTENT_READ_SMOKE=FAIL '+String(e&&e.message||e));process.exit(21);});
+          NODE
+
+      - name: Logout
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          if(!fs.existsSync('/tmp/entry629-token')){console.log('ENTRY629_LOGOUT=NOT_APPLICABLE');process.exit(0);}
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry629-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const out=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||out.success!==true) process.exit(31);
+            console.log('ENTRY629_LOGOUT=PASS');
+          })().catch(()=>process.exit(32));
+          NODE
+          rm -f /tmp/entry629-token
+
+      - name: Postflight
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/content/health?entry629final=$GITHUB_SHA" -o /tmp/content-final.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry629final=$GITHUB_SHA" -o /tmp/auth-final.json
+          node <<'NODE'
+          const c=require('/tmp/content-final.json'),a=require('/tmp/auth-final.json');
+          if(c.mode!=='READONLY'||Number(c.policyEpoch||0)!==2) throw new Error('content post drift');
+          if(Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth post drift');
+          console.log('ENTRY629_CONTENT_SMOKE_POSTFLIGHT=PASS');
+          NODE
