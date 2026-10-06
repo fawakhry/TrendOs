@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY635_NATIVE_ONLY_BRIDGE_FREE_PREFLIGHT_V1_20261006';
+  var VERSION = 'T12_ENTRY637_SHERIF_NATIVE_ENROLLMENT_READY_V1_20261006';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -138,7 +138,8 @@
     ['وائل','وائل'], ['wael','وائل'],
     ['جابر','جابر'], ['gaber','جابر'], ['jaber','جابر'],
     ['رحمه','رحمه'], ['رحمة','رحمه'], ['rahma','رحمه'],
-    ['ريفان','ريفان'], ['ريڤان','ريفان'], ['revan','ريفان'], ['rivan','ريفان']
+    ['ريفان','ريفان'], ['ريڤان','ريفان'], ['revan','ريفان'], ['rivan','ريفان'],
+    ['شريف','شريف'], ['sherif','شريف'], ['sheriff','شريف'], ['sharif','شريف']
   ]);
 
   function nativeCanonicalUsername(value) {
