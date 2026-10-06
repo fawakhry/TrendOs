@@ -2180,3 +2180,89 @@ Next safe work:
 2. add only explicit Machine registry/mapping/observation evidence where a real signal exists (Press first if directly evidenced);
 3. keep Design control OFF until real linked asset + hash + preflight + qualified approval evidence exists;
 4. accumulate SHADOW evidence and prove at least one readiness-complete real candidate before any Operator Task Canary.
+
+### AP-019 — Shadow evidence collection controls advanced safely
+
+This entry reconciles the next live changes after AP-018. Authority order remains Runtime > deployed > tested > repo-only > historical.
+
+#### Design control advanced OFF -> SHADOW
+- Commit `8d9b48ecabc6cb7ce7d29f21d0881df563235452` added a controlled Design SHADOW activation.
+- Run `37484094517` = SUCCESS; preflight, activation, post-verification, and safety conclusion all passed.
+- Activation required Design tables present, Readiness=SHADOW, Autonomy=SHADOW, Operator Task=OFF, Operator Tasks=0.
+- Live collector reports `designMode=SHADOW` and `designEvidenceSchemaReady=true`.
+- This does not relax Design READY: linked asset + real content SHA256 + qualified approval + preflight PASS are still required; SAVED alone remains UNKNOWN.
+
+#### EasyStore / material authority clarification
+- Live accounting health is now directly proven as `READONLY`, policy epoch 2, `authoritativeWrites=false`, Google business calls 0, Apps Script business authority false.
+- Live EasyStore config enables `EASYSTORE_ACCOUNTING_D1_READONLY=true` and points to the TrendOS accounting D1 endpoint.
+- Live EasyStore app routes authenticated Bearer reads for `getAccounting` and preserves the SSO handoff.
+- The native `getAccounting` response contract includes `materials[]` with material id/name/department/stockQty/minStock/version and `deptLines[]` with lineId/materialName/materialConsumption.
+- Repo contract `easystore-material-readonly-connector-v1.mjs` was added fail-closed: an authenticated payload is required; only explicit insufficient stock may produce MATERIAL=BLOCKED; it never synthesizes MATERIAL=READY.
+- CI Run `37484869423` = SUCCESS for the connector contract.
+- Read-only aggregate diagnostic Run `37485128068` = SUCCESS and performed SELECT-only diagnostics without D1 mutation or authority change.
+- An autonomous background service still does not possess a separately proven employee/service Bearer credential for a live `getAccounting` business payload. Therefore authenticated payload qualification for autonomous scheduled collection remains UNKNOWN; no READY is inferred from health/config alone.
+
+#### Press signal assessment
+- Existing `pressControlV1:status` is a read-only operational session/queue signal: open session, operator, start time, queue count and configuration.
+- It does not expose machine self-test, fault, maintenance health, or equivalent direct equipment-health proof.
+- Therefore `press session open` is explicitly **not** mapped to MACHINE=READY.
+
+#### Machine control advanced OFF -> SHADOW
+- Machine evidence ingestion was first gated on `autonomous_machine_control.mode=SHADOW` (commits `a33505b667640765070b6fe4f6bc4ea2bba0e0ed` and test commit `555514506b7e...`; CI PASS).
+- Controlled Machine SHADOW activation commit `cb0884ad5d0a95cb2e9bb0775c83708cd911b006`.
+- Run `37485546311` = SUCCESS; preflight, activation, post-verification, and safety conclusion passed.
+- Live collector telemetry now reports:
+  - machineMode = SHADOW;
+  - machineRows = 0;
+  - machineObservations = 0;
+  - machineMappings = 0.
+- Therefore MACHINE remains UNKNOWN for all candidates. This is intended: no explicit observation + no mapping = no machine evidence.
+
+#### Observer run telemetry
+- Migration `0026_observer_run_ledger_v1.sql` was applied via Run `37485000391` = SUCCESS after narrowing its safety gate to permit append-only DELETE-trigger guards while continuing to forbid destructive DELETE FROM operations.
+- Observer worker now records append-only run telemetry for each cron execution using `recordObserverRunV1`.
+- Observer production deploy Runs `37485164120` and `37485241569` = SUCCESS.
+- Live Observer now has autonomyEvents = 7.
+- Live read-only `/preview` proves the current decision path executes and returns READINESS_BLOCKED/HUMAN_EXCEPTION with no write, no PII, no raw order/line ids, and no employee assignment.
+- `latestRun` is currently null immediately after schema/deploy because no post-deploy scheduled cron has yet populated the new ledger; this is not treated as failure.
+
+#### Current live fail-closed state
+At latest verification:
+- baseline candidates = 36;
+- readiness evidence rows = 0;
+- DESIGN = 36 UNKNOWN;
+- MATERIAL = 36 UNKNOWN;
+- MACHINE = 36 UNKNOWN;
+- strict eligible = 0;
+- Operator Tasks = 0;
+- Autonomy = SHADOW;
+- Readiness = SHADOW;
+- Design = SHADOW;
+- Machine = SHADOW;
+- Operator Task = OFF;
+- business writes = false in shadow/collector/dashboard paths;
+- employee assignment = false;
+- autopilot execution = NO.
+
+```ini
+DESIGN_CONTROL=SHADOW
+MACHINE_CONTROL=SHADOW
+READINESS_CONTROL=SHADOW
+AUTONOMY_CONTROL=SHADOW
+MATERIAL_CONNECTOR_CONTRACT=CI_PASS_FAIL_CLOSED
+MATERIAL_AUTONOMOUS_AUTHENTICATED_PAYLOAD=UNKNOWN
+PRESS_STATUS_IS_MACHINE_READY_PROOF=NO
+OBSERVER_RUN_LEDGER=APPLIED_APPEND_ONLY
+AUTONOMY_EVENTS=7
+READINESS_EVIDENCE_ROWS=0
+STRICT_ELIGIBLE=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+AUTOPILOT_EXECUTION=NO
+```
+
+Next safe qualification target:
+1. establish a scoped authenticated service/read identity or equivalent proven read-only transport for scheduled EasyStore material payloads without moving finance authority;
+2. add real machine registry/mapping plus direct equipment-health observations only when such proof exists;
+3. start accumulating real Design evidence under SHADOW from linked assets/preflight/approval;
+4. keep Operator Task OFF until at least one real candidate is strict-ready across DESIGN+MATERIAL+MACHINE and the path remains stable under Shadow observation.
