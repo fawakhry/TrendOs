@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const worker=fs.readFileSync('autonomous-printshop/production-shadow/worker.mjs','utf8');
 const config=fs.readFileSync('autonomous-printshop/production-shadow/wrangler.toml','utf8');
+const evidencePilotCore=fs.readFileSync('autonomous-printshop/core/evidence-pilot-target-v1.mjs','utf8');
 
 assert.match(config,/^name = "autonomous-printshop-shadow"$/m);
 assert.match(config,/^database_name = "trendos-main"$/m);
@@ -36,6 +37,10 @@ assert.match(worker,/evidencePilotTarget/);
 assert.match(worker,/EVIDENCE_ACQUISITION_ONLY/);
 assert.match(worker,/assignmentAllowed:false/);
 assert.match(worker,/taskClaimAllowed:false/);
+assert.match(evidencePilotCore,/const acquisitionRows=sourceRows\.map/);
+assert.match(evidencePilotCore,/designReady:null/);
+assert.match(evidencePilotCore,/materialReady:null/);
+assert.match(evidencePilotCore,/machineReady:null/);
 assert.match(worker,/READINESS_SHADOW/);
 assert.ok(worker.includes("path==='/readiness'"));
 assert.match(worker,/shadowLearning/);
