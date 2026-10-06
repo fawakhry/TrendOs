@@ -92,8 +92,8 @@ async function control(env){return await env.DB.prepare("SELECT mode,next_invoic
 
 async function writeCanaryPolicyV1(env){
   try{
-    const r=await env.DB.prepare("SELECT enabled,allowed_usernames_json AS allowedUsersJson,allowed_actions_json AS allowedActionsJson,max_amount AS maxAmount,expires_at_ms AS expiresAtMs,policy_epoch AS policyEpoch FROM employee_accounting_write_canary_v1 WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1'").first();
-    if(!r)return {exists:false,enabled:true,allowedUsers:[],allowedActions:[],maxAmount:0,expiresAtMs:0,policyEpoch:0};
+    const r=await env.DB.prepare("SELECT enabled,allowed_usernames_json AS allowedUsersJson,allowed_actions_json AS allowedActionsJson,max_amount AS maxAmount,expires_at_ms AS expiresAtMs,policy_epoch AS policyEpoch,max_commands AS maxCommands,commands_started AS commandsStarted FROM employee_accounting_write_canary_v1 WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1'").first();
+    if(!r)return {exists:false,enabled:true,allowedUsers:[],allowedActions:[],maxAmount:0,expiresAtMs:0,policyEpoch:0,maxCommands:0,commandsStarted:0};
     return {
       exists:true,
       enabled:Number(r.enabled||0)===1,
@@ -101,10 +101,12 @@ async function writeCanaryPolicyV1(env){
       allowedActions:(parseJson(r.allowedActionsJson,[])||[]).map(text).filter(Boolean),
       maxAmount:Math.max(0,num(r.maxAmount)),
       expiresAtMs:Math.max(0,Math.trunc(num(r.expiresAtMs))),
-      policyEpoch:Math.max(0,Math.trunc(num(r.policyEpoch)))
+      policyEpoch:Math.max(0,Math.trunc(num(r.policyEpoch))),
+      maxCommands:Math.max(0,Math.trunc(num(r.maxCommands))),
+      commandsStarted:Math.max(0,Math.trunc(num(r.commandsStarted)))
     };
   }catch{
-    return {exists:false,enabled:true,allowedUsers:[],allowedActions:[],maxAmount:0,expiresAtMs:0,policyEpoch:0};
+    return {exists:false,enabled:true,allowedUsers:[],allowedActions:[],maxAmount:0,expiresAtMs:0,policyEpoch:0,maxCommands:0,commandsStarted:0};
   }
 }
 function writeAmountV1(body){
@@ -133,6 +135,18 @@ async function enforceWriteCanaryV1(env,auth,action,body,requireEnabled=false){
   const amount=writeAmountV1(body);
   if(requireEnabled&&p.maxAmount<=0&&amount>0.000001)throw commandErrorV1('employee-accounting-canary-zero-value-only','كاناري الحسابات الحالي يسمح فقط بحركة صفرية القيمة.');
   if(p.maxAmount>0&&amount>p.maxAmount+0.000001)throw commandErrorV1('employee-accounting-canary-amount-blocked','قيمة الحركة أعلى من حد كاناري الحسابات.');
+  if(requireEnabled){
+    if(!(p.maxCommands>0))throw commandErrorV1('employee-accounting-canary-budget-missing','ميزانية أوامر كاناري الحسابات غير مضبوطة؛ تم منع الحركة.');
+    const requestKey=text(body&&body.requestId||body&&body.idempotencyKey||body&&body.requestKey);
+    if(!requestKey)throw commandErrorV1('accounting-request-id-required','معرف الطلب مطلوب لكل حركة مالية.');
+    const existing=await env.DB.prepare("SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key=? LIMIT 1").bind(requestKey).first();
+    if(!existing){
+      const reserved=await env.DB.prepare("UPDATE employee_accounting_write_canary_v1 SET commands_started=commands_started+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1' AND enabled=1 AND max_commands>0 AND commands_started<max_commands RETURNING commands_started AS commandsStarted,max_commands AS maxCommands").first();
+      if(!reserved)throw commandErrorV1('employee-accounting-canary-command-budget-blocked','تم استهلاك ميزانية أمر كاناري الحسابات؛ أي طلب جديد مرفوض.');
+      return {allowed:true,canary:true,policyEpoch:p.policyEpoch,amount,commandBudgetReserved:true,commandsStarted:Number(reserved.commandsStarted||0),maxCommands:Number(reserved.maxCommands||0)};
+    }
+    return {allowed:true,canary:true,policyEpoch:p.policyEpoch,amount,idempotentReplayCandidate:true,commandsStarted:p.commandsStarted,maxCommands:p.maxCommands};
+  }
   return {allowed:true,canary:true,policyEpoch:p.policyEpoch,amount};
 }
 
@@ -1595,7 +1609,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
     const c=await control(env),tables=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_accounting_materials_v1','employee_accounting_templates_v1','employee_accounting_dept_lines_v1','employee_accounting_final_invoices_v1','employee_accounting_party_ledger_v1','employee_accounting_stock_moves_v1')").first();
     const canary=await writeCanaryPolicyV1(env);
-    return json({success:true,schemaReady:Number(tables&&tables.n||0)===6,mode:text(c.mode)||'OFF',policyEpoch:Number(c.policyEpoch||0),authoritativeWrites:['CANARY','GENERAL'].includes(text(c.mode)),writeAuthorityMode:text(c.mode)==='CANARY'?'CANARY_BOUNDED':text(c.mode)==='GENERAL'?'GENERAL':'OFF',googleBusinessCalls:0,appsScriptBusinessAuthority:false,writeCanaryReady:canary.exists,writeCanaryEnabled:canary.enabled,writeCanaryPolicyEpoch:Number(canary.policyEpoch||0),writeCanaryAllowedUserCount:canary.allowedUsers.length,writeCanaryAllowedActionCount:canary.allowedActions.length,writeCanaryExpiresAtMs:Number(canary.expiresAtMs||0),writeCanaryMaxAmount:Number(canary.maxAmount||0)},200,h);
+    return json({success:true,schemaReady:Number(tables&&tables.n||0)===6,mode:text(c.mode)||'OFF',policyEpoch:Number(c.policyEpoch||0),authoritativeWrites:['CANARY','GENERAL'].includes(text(c.mode)),writeAuthorityMode:text(c.mode)==='CANARY'?'CANARY_BOUNDED':text(c.mode)==='GENERAL'?'GENERAL':'OFF',googleBusinessCalls:0,appsScriptBusinessAuthority:false,writeCanaryReady:canary.exists,writeCanaryEnabled:canary.enabled,writeCanaryPolicyEpoch:Number(canary.policyEpoch||0),writeCanaryAllowedUserCount:canary.allowedUsers.length,writeCanaryAllowedActionCount:canary.allowedActions.length,writeCanaryExpiresAtMs:Number(canary.expiresAtMs||0),writeCanaryMaxAmount:Number(canary.maxAmount||0),writeCanaryMaxCommands:Number(canary.maxCommands||0),writeCanaryCommandsStarted:Number(canary.commandsStarted||0)},200,h);
   }
   if(path!==ROOT)return json({success:false,code:'not-found'},404,h);
   if(request.method!=='POST')return json({success:false,code:'method-not-allowed'},405,h);
