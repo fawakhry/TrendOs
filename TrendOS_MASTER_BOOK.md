@@ -4459,3 +4459,42 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   D1_NATIVE_READY_USERS=2
   ```
 - No third employee was added by Entry624.
+
+
+### Entry625 — Jaber third Native Auth canary expansion
+- Selected third canary: `جابر`.
+- Rationale: Jaber shares the same department-operator / READONLY accounting surface as Wael, reducing rollout novelty.
+- Pre-expansion Runtime:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  FRONTEND_CANARY_USERS=['ضياء','وائل']
+  GLOBAL_NATIVE_AUTH=OFF
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- Manifest:
+  `docs/trendos/staging/ENTRY625_JABER_THIRD_NATIVE_CANARY_17_POLICY_MANIFEST.json`
+  commit `4a9f3a337ea5d62735b2410f33d280f609391728`.
+- Regression:
+  `tests/entry625_jaber_third_native_canary_17_policy.test.mjs`
+  commit `6761e1295a242de8a2fd675675f155da030f52e8`.
+- Repo CI:
+  `.github/workflows/trendos-entry625-jaber-third-native-canary-repo-ci.yml`
+  commit `c66bc40f53e9df09b7cd04fdc8886944c6ff387a`
+  Run `37448866174`
+  Job `112220220215`
+  conclusion = **SUCCESS**.
+- Proved:
+  - Diya remains Native;
+  - Wael remains Native;
+  - Jaber routes to Native bootstrap;
+  - Rahma remains Legacy;
+  - Dashboard stays on exact 17-policy bridge;
+  - Attendance stays D1 Ops GENERAL;
+  - Accounting stays D1 READONLY;
+  - actions outside the 17-policy bridge fail closed.
+- No Production mutation occurred in this repo gate.
