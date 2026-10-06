@@ -5,8 +5,13 @@ const worker=fs.readFileSync('autonomous-printshop/dashboard/worker.mjs','utf8')
 const config=fs.readFileSync('autonomous-printshop/dashboard/wrangler.toml','utf8');
 
 assert.match(config,/^name = "autonomous-printshop-dashboard"$/m);
+assert.match(config,/^binding = "SHADOW"$/m);
+assert.match(config,/^service = "autonomous-printshop-shadow"$/m);
+assert.doesNotMatch(config,/\[\[d1_databases\]\]/);
 assert.match(worker,/مركز المطبعة الذاتية/);
 assert.match(worker,/\/control-tower/);
+assert.match(worker,/SHADOW_SERVICE_BINDING_REQUIRED/);
+assert.match(worker,/CLOUDFLARE_SERVICE_BINDING/);
 assert.match(worker,/path==='\/state'/);
 assert.match(worker,/READ_ONLY_CONTROL_TOWER_UI/);
 assert.match(worker,/businessWrites:false/);
@@ -26,6 +31,6 @@ for(const forbidden of [
 }
 
 console.log('AUTONOMOUS_PRINTSHOP_DASHBOARD_V1=PASS');
-console.log('DATA_SOURCE=CONTROL_TOWER_SHADOW_ONLY');
+console.log('DATA_SOURCE=CONTROL_TOWER_SHADOW_SERVICE_BINDING');
 console.log('BUSINESS_WRITE=NO');
 console.log('EMPLOYEE_ASSIGNMENT=NO');
