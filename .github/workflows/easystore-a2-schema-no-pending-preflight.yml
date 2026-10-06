@@ -1,0 +1,45 @@
+name: EasyStore A2 Schema No-pending Preflight
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a2-schema-no-pending-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Prove no repository migration is pending
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations list "$DATABASE" --remote --config "$API_CONFIG" > /tmp/migrations.txt
+          cat /tmp/migrations.txt
+          node <<'NODE'
+          const fs=require('fs'),t=fs.readFileSync('/tmp/migrations.txt','utf8');
+          if(!/0030_employee_accounting_write_canary_budget_v1\.sql/.test(t))throw new Error('0030 not visible in migration history');
+          const pending=[...t.matchAll(/│\s*(\d{4}_[^│]+\.sql)\s*│\s*(?!✅)([^│]*)│/g)].map(m=>m[1].trim());
+          if(pending.length)throw new Error('pending migrations exist:'+JSON.stringify(pending));
+          console.log('A2_SCHEMA_PENDING_MIGRATIONS=0');
+          console.log('A2_SCHEMA_0030_APPLIED=YES');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
