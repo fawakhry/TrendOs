@@ -84,6 +84,9 @@ on:
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - 'autonomous-printshop/production-shadow/**'
       - 'cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs'
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - 'cloudflare-d1/migrations/0031_employee_order_conversation_file_hash_v1.sql'
+      - 'tests/entry614_employee_comms_native.test.mjs'
       - 'cloudflare-d1/src/index_v2.js'
       - 'cloudflare-d1/wrangler.toml'
       - 'autonomous-printshop/MASTER_BOOK.md'
@@ -198,5 +201,9 @@ jobs:
         run: node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
       - name: Run isolated production shadow worker contract
         run: node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
+      - name: Run employee comms file hash contract
+        run: node tests/entry614_employee_comms_native.test.mjs
+      - name: Check employee comms syntax
+        run: node --check cloudflare-d1/src/employee-comms-native-v1.mjs
       - name: Check production worker bundle entry
         run: node --check cloudflare-d1/src/index_v2.js
