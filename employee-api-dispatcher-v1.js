@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY617_EMPLOYEE_OPS_FAMILY_ROUTER_V1_20261004';
+  var VERSION = 'T12_ENTRY628_EMPLOYEE_CORE_READONLY_ROUTER_V1_20261006';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -30,6 +30,7 @@
   var BRIDGE_PATH = '/v1/employee/legacy-action';
   var OPS_PATH = '/v1/employee/ops';
   var ACCOUNTING_PATH = '/v1/employee/accounting';
+  var CORE_PATH = '/v1/employee/core';
 
   var OPS_ACTIONS = new Set([
     'attendanceV1',
@@ -55,6 +56,14 @@
     'getAccounting',
     'getDeptInvoiceDraftV1887',
     'getPartyAccountV1858'
+  ]);
+
+  // Entry628: first bridge-retirement family. Read-only only.
+  var CORE_READ_ACTIONS = new Set([
+    'getRows',
+    'getDashboard',
+    'getActivityLog',
+    'getTrendMasterCenterV1931'
   ]);
 
   var CUSTOMER_SESSION_ACTIONS = new Set([
@@ -177,6 +186,17 @@
   function shouldRouteAccountingNative(action) {
     if (employeeAccountingMode() !== 'READONLY') return false;
     return ACCOUNTING_READ_ACTIONS.has(text(action));
+  }
+
+  function employeeCoreMode() {
+    var mode = text(window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE || 'OFF').toUpperCase();
+    return mode === 'READONLY' ? mode : 'OFF';
+  }
+
+  function shouldRouteCoreNative(action, params) {
+    if (employeeCoreMode() !== 'READONLY') return false;
+    if (!nativeRouteEnabled(params || {})) return false;
+    return CORE_READ_ACTIONS.has(text(action));
   }
 
   function edgeBase() {
@@ -414,6 +434,29 @@
     return cloudPost(ACCOUNTING_PATH, p, token);
   }
 
+  async function employeeCoreNative(action, params) {
+    var p = Object.assign({}, params || {});
+    var token = text(p.token);
+    var username = text(p.username || p.name);
+    if (!username || !token) {
+      throw routeError(
+        'EMPLOYEE_CORE_SESSION_REQUIRED',
+        'جلسة الموظف الحالية مطلوبة لمسار Core السحابي.'
+      );
+    }
+
+    delete p.token;
+    delete p.password;
+    delete p.oldPassword;
+    delete p.newPassword;
+    delete p.confirmPassword;
+    delete p.employeePassword;
+
+    p.action = text(action);
+    p.username = username;
+    return cloudPost(CORE_PATH, p, token);
+  }
+
   async function nativeAuth(action, params) {
     var path = AUTH_PATHS[action];
     if (!path) throw routeError('EMPLOYEE_AUTH_ACTION_UNKNOWN', 'إجراء مصادقة الموظف غير معروف.');
@@ -512,6 +555,7 @@
       var p = params || {};
       if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);
       if (shouldRouteAccountingNative(action)) return employeeAccountingNative(action, p);
+      if (shouldRouteCoreNative(action, p)) return employeeCoreNative(action, p);
       if (!nativeRouteEnabled(p)) return original.apply(this, arguments);
       await ensureCanaryPreflight(action, p);
       return dispatchNative(action, p, original, this, arguments);
@@ -533,6 +577,10 @@
 
     if (shouldRouteAccountingNative(actionText)) {
       return employeeAccountingNative(actionText, p);
+    }
+
+    if (shouldRouteCoreNative(actionText, p)) {
+      return employeeCoreNative(actionText, p);
     }
 
     if (!nativeRouteEnabled(p)) {
@@ -590,6 +638,9 @@
     employeeAccountingMode: employeeAccountingMode,
     shouldRouteAccountingNative: shouldRouteAccountingNative,
     employeeAccountingNative: employeeAccountingNative,
+    employeeCoreMode: employeeCoreMode,
+    shouldRouteCoreNative: shouldRouteCoreNative,
+    employeeCoreNative: employeeCoreNative,
     policyKey: policyKey,
     policyAllowed: policyAllowed,
     install: install,
