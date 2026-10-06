@@ -19,6 +19,7 @@ assert.equal(x.exists,true);
 assert.equal(x.sourceIndex,1);
 assert.equal(x.department,'ليزر');
 assert.equal(x.urgent,true);
+assert.equal(x.machineClassHint,'LASER');
 assert.deepEqual(x.missingKinds,['MATERIAL','MACHINE']);
 assert.equal(x.assignmentAllowed,false);
 assert.equal(x.taskClaimAllowed,false);
@@ -31,6 +32,7 @@ x=selectEvidencePilotTargetV1([{
   designReady:true,materialReady:true,machineReady:true
 }]);
 assert.equal(x.exists,false);
+assert.equal(x.machineClassHint,'UNKNOWN');
 
 console.log('EVIDENCE_PILOT_TARGET_V1=PASS');
 console.log('RAW_ORDER_ID_EXPOSED=NO');
