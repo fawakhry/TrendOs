@@ -1,3 +1,4 @@
+import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualification-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
 const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_DASHBOARD_V1_20261006_STATE_PROXY';
@@ -20,6 +21,25 @@ async function fetchControlTower(env){
     method:'GET',
     headers:{'accept':'application/json','cache-control':'no-cache'}
   }));
+}
+
+function operatorTaskCanaryState(control={}){
+  const emp=control.employees&&control.employees.operatorCounts||{};
+  const readiness=control.readiness||{};
+  const controls=control.controls||{};
+  const signals=control.attentionSignals||{};
+  return qualifyOperatorTaskCanaryV1({
+    autonomyMode:controls.autonomy&&controls.autonomy.mode,
+    readinessMode:controls.readiness,
+    operatorTaskMode:controls.operatorTask,
+    strictEligible:Number(readiness.strictEligible||0),
+    recommendationExists:readiness.recommendationExists===true,
+    activeOperatorTasks:Number(signals.activeOperatorTasks||0),
+    availableOperators:Number(emp.available||0),
+    reviewRequired:Number(emp.reviewRequired||0),
+    canaryOperatorId:'',
+    canaryOperatorAvailable:false
+  });
 }
 
 async function fetchEvidenceStatus(env){
@@ -121,6 +141,11 @@ th{color:var(--muted);font-weight:700}
   </div>
 
   <div class="card section">
+    <h2>بوابة Operator Task CANARY</h2>
+    <div id="canaryGate"></div>
+  </div>
+
+  <div class="card section">
     <h2>الموظفين والأقسام</h2>
     <div class="table-wrap">
       <table>
@@ -180,6 +205,7 @@ async function load(){
     const sig=d.attentionSignals||{};
     const schedule=d.source?.schedule||{};
     const evidence=d.evidenceAcquisition||{};
+    const canary=d.operatorTaskCanary||{};
 
     q('#modes').innerHTML=[
       badge('Autonomy',controls.autonomy?.mode||'—',controls.autonomy?.mode==='SHADOW'?'warn':'off'),
@@ -219,6 +245,13 @@ async function load(){
       evidenceBox('Material',evidence.material||{}),
       evidenceBox('Machine',evidence.machine||{})
     ].join('');
+
+    const systemOk=canary.systemPrerequisitesQualified===true;
+    const blockers=Array.isArray(canary.blockers)?canary.blockers:[];
+    const gateText=systemOk
+      ? 'شروط النظام مكتملة — يتبقى اختيار موظف CANARY صراحة قبل أي تفعيل.'
+      : 'غير مؤهل للتفعيل: '+(blockers.length?blockers.join(' • '):'UNKNOWN');
+    q('#canaryGate').innerHTML='<div class="signal '+(systemOk?'ok':'warn')+'">'+esc(gateText)+'</div>';
 
     const deps=d.employees?.departments||{};
     q('#departments').innerHTML=Object.entries(deps).map(([name,x])=>
@@ -275,7 +308,8 @@ export default {
           if(evidenceResponse.ok&&parsed&&parsed.success===true) evidenceAcquisition=parsed;
         }catch{}
 
-        return json({...control,evidenceAcquisition});
+        const operatorTaskCanary=operatorTaskCanaryState(control);
+        return json({...control,evidenceAcquisition,operatorTaskCanary});
       }catch(err){
         return json({success:false,code:'CONTROL_TOWER_UPSTREAM_ERROR',message:String(err&&err.message||err)},502);
       }
