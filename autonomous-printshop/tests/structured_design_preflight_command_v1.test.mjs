@@ -46,6 +46,8 @@ const unknown=evaluateAndBuildStructuredDesignPreflightV1({
   assetRoles:['PORTRAIT']
 });
 assert.equal(unknown.evaluation.result,'UNKNOWN');
+assert.ok(unknown.evaluation.unknown.includes('DPI_MISSING'));
+assert.ok(!unknown.evaluation.failures.includes('DPI_TOO_LOW'));
 assert.match(unknown.sql,/'UNKNOWN'/);
 
 const fail=evaluateAndBuildStructuredDesignPreflightV1({
