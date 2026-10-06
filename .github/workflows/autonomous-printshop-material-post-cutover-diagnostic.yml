@@ -57,7 +57,9 @@ jobs:
           SELECT
             (SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingMode,
             (SELECT policy_epoch FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingEpoch,
-            (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materialRowsTotal,
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE upper(trim(material_kind))='A2_CANARY') AS canaryMaterialRows,
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1 AND upper(trim(material_kind))<>'A2_CANARY') AS activeMaterials,
             (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
             (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(line_id)<>'') AS deptLinesWithLineId,
             (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(material_name)<>'') AS deptLinesWithMaterial,
