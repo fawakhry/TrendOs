@@ -1,0 +1,40 @@
+name: TrendOS Entry627 Employee Native Alias Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/ENTRY627_EMPLOYEE_NATIVE_ALIAS_CANARY_MANIFEST.json'
+      - 'tests/entry627_employee_native_alias_canary.test.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - '.github/workflows/trendos-entry627-employee-native-alias-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Alias contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry627_employee_native_alias_canary.test.mjs
+          node tests/entry626_remaining_employees_native_canary_17_policy.test.mjs
+          echo ENTRY627_REPO_GATE=PASS
+      - name: No runtime mutation
+        shell: bash
+        run: |
+          echo ENTRY627_PRODUCTION_MUTATION=NO
+          echo ENTRY627_D1_MUTATION=NO
+          echo ENTRY627_ACCOUNTING_TOUCHED=NO
+          echo ENTRY627_EASYSTORE_TOUCHED=NO
