@@ -1,0 +1,301 @@
+
+name: TrendOS Entry634 Disable Legacy Bootstrap Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry634-disable-legacy-bootstrap-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry634-disable-legacy-bootstrap-controlled
+  cancel-in-progress: false
+
+jobs:
+  disable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      WORKER: trendos-d1-api
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Exact runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry634pre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth preflight drift');
+          if(b.enabled!==false) throw new Error('bridge unexpectedly enabled');
+          if(co.mode!=='READONLY'||ct.mode!=='READONLY'||cm.mode!=='READONLY'||o.mode!=='GENERAL'||ac.mode!=='READONLY') throw new Error('family drift');
+          console.log('ENTRY634_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+      - name: Snapshot active version and settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/deploy-pre.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/settings-pre.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions?per_page=100" -o /tmp/versions-pre.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const d=JSON.parse(fs.readFileSync('/tmp/deploy-pre.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/settings-pre.json','utf8'));
+          const v=JSON.parse(fs.readFileSync('/tmp/versions-pre.json','utf8'));
+          if(d.success!==true||s.success!==true||v.success!==true) throw new Error('Cloudflare preflight API error');
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const cur=Array.isArray(deps)?deps[0]:null;
+          const full=(cur&&Array.isArray(cur.versions)?cur.versions:[]).filter(x=>Number(x.percentage||0)===100);
+          if(full.length!==1) throw new Error('active deployment shape');
+          const active=String(full[0].version_id||full[0].id||'');
+          if(!active) throw new Error('active version missing');
+          fs.writeFileSync('/tmp/pre-version.txt',active);
+
+          const bindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          if(bindings.length!==33) throw new Error('binding count drift '+bindings.length);
+          const by=new Map(bindings.map(b=>[String(b.name||''),b]));
+          const plain=name=>{const b=by.get(name);return b&&b.type==='plain_text'?String(b.text||''):''};
+          if(plain('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')!=='true') throw new Error('bootstrap precondition');
+          if(plain('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED')!=='true') throw new Error('auth env drift');
+          if(plain('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')!=='false') throw new Error('nativeOnly drift');
+          if(plain('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED')!=='false') throw new Error('session enroll drift');
+          if(plain('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')!=='false') throw new Error('bridge flag drift');
+          if(bindings.filter(b=>String(b.type||'').includes('secret')).length!==5) throw new Error('secret binding count drift');
+          if(!bindings.some(b=>b&&b.name==='DB'&&b.type==='d1')) throw new Error('D1 binding missing');
+
+          const vr=v.result;
+          const items=Array.isArray(vr)?vr:(vr&&Array.isArray(vr.items)?vr.items:(vr&&Array.isArray(vr.versions)?vr.versions:[]));
+          fs.writeFileSync('/tmp/pre-version-ids.json',JSON.stringify(items.map(x=>String(x.id||'')).filter(Boolean)));
+          fs.writeFileSync('/tmp/pre-binding-shape.json',JSON.stringify(bindings.map(b=>({
+            name:String(b.name||''),type:String(b.type||''),
+            text:b.type==='plain_text'?String(b.text||''):null,
+            database_id:b.type==='d1'?String(b.database_id||b.id||''):null
+          }))));
+          console.log('ENTRY634_ACTIVE_VERSION_LOCK=PASS');
+          console.log('ENTRY634_BINDING_COUNT=33');
+          console.log('ENTRY634_SECRET_BINDING_COUNT=5');
+          NODE
+
+          PRE="$(cat /tmp/pre-version.txt)"
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$PRE" -o /tmp/pre-version.json
+
+      - name: Patch one setting with rollback guard
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+          PRE="$(cat /tmp/pre-version.txt)"
+          MUTATED=0
+
+          deploy_version(){
+            local version="$1"
+            node -e 'const fs=require("fs");fs.writeFileSync("/tmp/deploy-body.json",JSON.stringify({strategy:"percentage",versions:[{version_id:process.argv[1],percentage:100}]}));' "$version"
+            curl --fail --silent --show-error "${AUTH[@]}"               -H "Content-Type: application/json"               -X POST "$BASE/deployments"               --data-binary @/tmp/deploy-body.json               -o /tmp/deploy-response.json
+            node -e 'const r=require("/tmp/deploy-response.json");if(r.success!==true)process.exit(1);'
+          }
+
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$MUTATED" = "1" ]; then
+              echo ENTRY634_ROLLBACK=START
+              deploy_version "$PRE" || true
+              sleep 2
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          node <<'NODE'
+          const fs=require('fs');
+          const s=JSON.parse(fs.readFileSync('/tmp/settings-pre.json','utf8'));
+          const bindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          const next=bindings.map(b=>{
+            if(b.name==='TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED'){
+              return {name:b.name,type:'plain_text',text:'false'};
+            }
+            return {name:b.name,type:'inherit',version_id:'latest'};
+          });
+          if(next.length!==33) throw new Error('patch binding count');
+          fs.writeFileSync('/tmp/settings-patch.json',JSON.stringify({
+            bindings:next,
+            annotations:{'workers/message':'Entry634 disable employee legacy login bootstrap only'}
+          }));
+          console.log('ENTRY634_PATCH_BINDINGS=33');
+          console.log('ENTRY634_TARGET_BOOTSTRAP=false');
+          console.log('ENTRY634_SECRET_VALUES_INCLUDED=NO');
+          NODE
+
+          HTTP="$(curl --silent --show-error -o /tmp/patch-response.json -w '%{http_code}'             "${AUTH[@]}" -X PATCH "$BASE/settings"             -F 'settings=</tmp/settings-patch.json;type=application/json')"
+          echo "ENTRY634_SETTINGS_PATCH_HTTP=$HTTP"
+          test "$HTTP" = "200"
+          node - <<'NODE'
+          const r=require('/tmp/patch-response.json');
+          if(r.success!==true) throw new Error('settings patch failed');
+          NODE
+          MUTATED=1
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/settings-post.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/deploy-post.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions?per_page=100" -o /tmp/versions-post.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const pre=JSON.parse(fs.readFileSync('/tmp/pre-binding-shape.json','utf8'));
+          const postRaw=JSON.parse(fs.readFileSync('/tmp/settings-post.json','utf8'));
+          if(postRaw.success!==true) throw new Error('post settings read failed');
+          const post=Array.isArray(postRaw.result&&postRaw.result.bindings)?postRaw.result.bindings:[];
+          if(post.length!==pre.length) throw new Error('post binding count');
+
+          const pm=new Map(post.map(b=>[String(b.name||''),b]));
+          for(const b of pre){
+            const p=pm.get(b.name);
+            if(!p) throw new Error('binding missing '+b.name);
+            if(b.name==='TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED'){
+              if(p.type!=='plain_text'||String(p.text||'')!=='false') throw new Error('bootstrap target not false');
+              continue;
+            }
+            if(String(p.type||'')!==b.type) throw new Error('binding type changed '+b.name);
+            if(b.type==='plain_text'&&String(p.text||'')!==String(b.text||'')) throw new Error('plain binding value changed '+b.name);
+            if(b.type==='d1'&&String(p.database_id||p.id||'')!==String(b.database_id||'')) throw new Error('D1 binding changed');
+          }
+          if(post.filter(b=>String(b.type||'').includes('secret')).length!==5) throw new Error('secret count changed');
+          console.log('ENTRY634_NON_TARGET_BINDINGS_UNCHANGED=PASS');
+          console.log('ENTRY634_BOOTSTRAP_BINDING=false');
+          console.log('ENTRY634_SECRET_BINDINGS_PRESERVED=PASS');
+
+          const d=JSON.parse(fs.readFileSync('/tmp/deploy-post.json','utf8'));
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const cur=Array.isArray(deps)?deps[0]:null;
+          const full=(cur&&Array.isArray(cur.versions)?cur.versions:[]).filter(x=>Number(x.percentage||0)===100);
+          if(full.length!==1) throw new Error('post active deployment shape');
+          fs.writeFileSync('/tmp/post-active-version.txt',String(full[0].version_id||full[0].id||''));
+
+          const before=new Set(JSON.parse(fs.readFileSync('/tmp/pre-version-ids.json','utf8')));
+          const vr=JSON.parse(fs.readFileSync('/tmp/versions-post.json','utf8')).result;
+          const items=Array.isArray(vr)?vr:(vr&&Array.isArray(vr.items)?vr.items:(vr&&Array.isArray(vr.versions)?vr.versions:[]));
+          const fresh=items.map(x=>String(x.id||'')).filter(id=>id&&!before.has(id));
+          if(fresh.length<1) throw new Error('new settings version missing');
+          fs.writeFileSync('/tmp/fresh-version-ids.json',JSON.stringify(fresh));
+          NODE
+
+          ACTIVE="$(cat /tmp/post-active-version.txt)"
+          if [ "$ACTIVE" = "$PRE" ]; then
+            NEW="$(node -e 'const a=require("/tmp/fresh-version-ids.json");process.stdout.write(a[0]||"")')"
+            test -n "$NEW"
+            deploy_version "$NEW"
+            ACTIVE="$NEW"
+            echo ENTRY634_EXPLICIT_SETTINGS_VERSION_DEPLOY=PASS
+          else
+            echo ENTRY634_SETTINGS_PATCH_AUTO_ACTIVATED=YES
+          fi
+          printf '%s' "$ACTIVE" >/tmp/active-version.txt
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$ACTIVE" -o /tmp/active-version.json
+          node <<'NODE'
+          const fs=require('fs');
+          const pre=JSON.parse(fs.readFileSync('/tmp/pre-version.json','utf8'));
+          const post=JSON.parse(fs.readFileSync('/tmp/active-version.json','utf8'));
+          if(post.success!==true) throw new Error('active version read failed');
+          const pe=String(pre.result&&pre.result.resources&&pre.result.resources.script&&pre.result.resources.script.etag||'');
+          const ae=String(post.result&&post.result.resources&&post.result.resources.script&&post.result.resources.script.etag||'');
+          if(!pe||!ae||pe!==ae) throw new Error('worker code etag changed');
+          console.log('ENTRY634_WORKER_CODE_ETAG_UNCHANGED=PASS');
+          console.log('ENTRY634_WORKER_CODE_CHANGE=NO');
+          NODE
+
+          for attempt in $(seq 1 15); do
+            curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry634post=$GITHUB_SHA-$attempt" -o /tmp/auth-post.json
+            if node <<'NODE'
+            const a=require('/tmp/auth-post.json');
+            if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) process.exit(1);
+            NODE
+            then break; fi
+            sleep 2
+          done
+          node <<'NODE'
+          const a=require('/tmp/auth-post.json');
+          if(a.legacyBootstrapEnabled!==false) throw new Error('bootstrap still enabled');
+          console.log('ENTRY634_AUTH_BOOTSTRAP_DISABLED=PASS');
+          NODE
+
+          for f in legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry634stable=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          if(r('legacy-action').enabled!==false) throw new Error('bridge drift');
+          if(r('core').mode!=='READONLY'||r('content').mode!=='READONLY'||r('comms').mode!=='READONLY'||r('ops').mode!=='GENERAL'||r('accounting').mode!=='READONLY') throw new Error('family drift');
+          console.log('ENTRY634_RUNTIME_POSTFLIGHT=PASS');
+          NODE
+
+          HTTP_UNKNOWN="$(curl --silent --show-error -o /tmp/unknown-login.json -w '%{http_code}'             -H 'Content-Type: application/json'             -X POST "$API_URL/v1/employee/auth/login"             --data '{"username":"entry634-not-native-proof","password":"x"}')"
+          node - "$HTTP_UNKNOWN" <<'NODE'
+          const fs=require('fs');
+          const status=Number(process.argv[2]);
+          const b=JSON.parse(fs.readFileSync('/tmp/unknown-login.json','utf8')||'{}');
+          if(status!==409||b.code!=='employee-native-migration-required') throw new Error('non-native login did not fail closed');
+          console.log('ENTRY634_NON_NATIVE_LOGIN_FAIL_CLOSED=PASS');
+          console.log('ENTRY634_LEGACY_LOGIN_BOOTSTRAP_PATH=DISABLED');
+          NODE
+
+          node <<'NODE'
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||String(body.authSource||'')!=='d1-native-employee-v1'||!token) throw new Error('native login failed');
+            console.log('::add-mask::'+token);
+            console.log('ENTRY634_NATIVE_LOGIN_WITH_BOOTSTRAP_OFF=PASS');
+            const l=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const lb=JSON.parse(await l.text()||'{}');
+            if(l.status!==200||lb.success!==true) throw new Error('logout failed');
+            console.log('ENTRY634_NATIVE_LOGOUT=PASS');
+          })().catch(e=>{console.error(String(e&&e.message||e));process.exit(71);});
+          NODE
+
+          trap - ERR
+          echo ENTRY634_DISABLE_LEGACY_BOOTSTRAP=PASS
+          echo ENTRY634_ONLY_TARGET_BINDING_CHANGED=PASS
+          echo ENTRY634_NATIVE_ONLY=false
+          echo ENTRY634_BACKEND_BRIDGE=OFF
+          echo ENTRY634_APPS_SCRIPT_LOGIN_BOOTSTRAP=OFF
+          echo ENTRY634_D1_CONTROL_MUTATION=NO
+          echo ENTRY634_FRONTEND_MUTATION=NO
+          echo ENTRY634_ACCOUNTING_TOUCHED=NO
+          echo ENTRY634_EASYSTORE_TOUCHED=NO
