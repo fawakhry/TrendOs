@@ -1,0 +1,142 @@
+name: Autonomous Printshop Cloud Order File Hash Schema Production Apply
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-cloud-file-hash-schema-production-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-cloud-file-hash-schema-production-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DATABASE: trendos-main
+      MIGRATION: cloudflare-d1/migrations/0031_employee_order_conversation_file_hash_v1.sql
+      WRANGLER_VERSION: 4.33.2
+      ACCOUNTING_URL: https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health
+      COMMS_URL: https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/comms/health
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify additive hash schema and source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry614_employee_comms_native.test.mjs
+          node --check cloudflare-d1/src/employee-comms-native-v1.mjs
+          grep -Fq 'ALTER TABLE employee_order_conversation_files_v1' "$MIGRATION"
+          grep -Fq 'ADD COLUMN content_sha256' "$MIGRATION"
+          ! grep -Eiq '\b(DROP|DELETE|UPDATE|REPLACE|INSERT)\b' "$MIGRATION"
+          echo 'CLOUD_FILE_HASH_SCHEMA_STATIC_GATE=PASS'
+
+      - name: Production safety preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$ACCOUNTING_URL?fileHash=$GITHUB_RUN_ID" > /tmp/accounting.json
+          curl --fail --silent --show-error "$COMMS_URL?fileHash=$GITHUB_RUN_ID" > /tmp/comms.json
+          cat > /tmp/pre.sql <<'SQL'
+          SELECT
+            (SELECT COUNT(*) FROM employee_order_conversation_files_v1) AS fileRows,
+            (SELECT COUNT(*) FROM pragma_table_info('employee_order_conversation_files_v1') WHERE lower(name)='content_sha256') AS hashColumnBefore,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+            (SELECT COUNT(*) FROM autonomous_design_artifacts) AS designArtifacts,
+            (SELECT COUNT(*) FROM autonomous_design_approval_events) AS approvals,
+            (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
+            (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE kind='DESIGN') AS designReadinessEvidence;
+          SQL
+          PRE_SQL="$(tr '\n' ' ' < /tmp/pre.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$PRE_SQL" > /tmp/pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/accounting.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/comms.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
+          if(a.mode!=='READONLY'||a.authoritativeWrites!==false||a.writeAuthorityMode!=='OFF') throw new Error('ACCOUNTING_NOT_CLOSED');
+          if(Number(a.writeCanaryAllowedUserCount||0)!==0||Number(a.writeCanaryAllowedActionCount||0)!==0||Number(a.writeCanaryMaxCommands||0)!==0) throw new Error('ACCOUNTING_CANARY_NOT_CLOSED');
+          if(c.mode!=='READONLY'||c.schemaReady!==true) throw new Error('COMMS_NOT_READONLY');
+          if(Number(r.fileRows||0)!==0) throw new Error('FILE_TABLE_NOT_EMPTY');
+          if(Number(r.hashColumnBefore||0)!==0) throw new Error('HASH_COLUMN_ALREADY_PRESENT_UNEXPECTEDLY');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_NOT_OFF');
+          if(Number(r.designArtifacts||0)!==0||Number(r.approvals||0)!==0||Number(r.preflights||0)!==0||Number(r.designReadinessEvidence||0)!==0) throw new Error('DESIGN_BASELINE_NOT_EMPTY');
+          console.log('CLOUD_FILE_HASH_SCHEMA_PREFLIGHT=PASS');
+          console.log('CLOUD_FILE_ROWS=0');
+          console.log('COMMS_READONLY=YES');
+          console.log('ACCOUNTING_READONLY=YES');
+          NODE
+
+      - name: Apply exact hash column schema only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --file "$MIGRATION"
+          echo 'CLOUD_FILE_HASH_SCHEMA_APPLY_COMMAND=COMPLETE'
+
+      - name: Verify schema and invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/post.sql <<'SQL'
+          SELECT
+            (SELECT COUNT(*) FROM employee_order_conversation_files_v1) AS fileRows,
+            (SELECT COUNT(*) FROM pragma_table_info('employee_order_conversation_files_v1') WHERE lower(name)='content_sha256') AS hashColumn,
+            (SELECT COUNT(*) FROM employee_order_conversation_files_v1 WHERE content_sha256<>'') AS hashedRows,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+            (SELECT COUNT(*) FROM autonomous_design_artifacts) AS designArtifacts,
+            (SELECT COUNT(*) FROM autonomous_design_approval_events) AS approvals,
+            (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
+            (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE kind='DESIGN') AS designReadinessEvidence;
+          SQL
+          POST_SQL="$(tr '\n' ' ' < /tmp/post.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$POST_SQL" > /tmp/post.json
+          curl --fail --silent --show-error "$ACCOUNTING_URL?fileHashPost=$GITHUB_RUN_ID" > /tmp/accounting-post.json
+          curl --fail --silent --show-error "$COMMS_URL?fileHashPost=$GITHUB_RUN_ID" > /tmp/comms-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          const a=JSON.parse(fs.readFileSync('/tmp/accounting-post.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/comms-post.json','utf8'));
+          if(Number(r.hashColumn)!==1) throw new Error('HASH_SCHEMA_MISSING');
+          if(Number(r.fileRows||0)!==0||Number(r.hashedRows||0)!==0) throw new Error('FILE_DATA_MUTATED');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_DRIFT');
+          if(Number(r.designArtifacts||0)!==0||Number(r.approvals||0)!==0||Number(r.preflights||0)!==0||Number(r.designReadinessEvidence||0)!==0) throw new Error('DESIGN_DATA_MUTATED');
+          if(a.mode!=='READONLY'||a.authoritativeWrites!==false||a.writeAuthorityMode!=='OFF') throw new Error('ACCOUNTING_DRIFT');
+          if(c.mode!=='READONLY'||c.schemaReady!==true) throw new Error('COMMS_DRIFT');
+          console.log('CLOUD_FILE_HASH_SCHEMA_PRODUCTION=PASS');
+          console.log('HASH_COLUMN_PRESENT=YES');
+          console.log('FILE_ROWS=0');
+          console.log('HASHED_ROWS=0');
+          console.log('DESIGN_READY_WRITE=NO');
+          console.log('ACCOUNTING_MUTATION=NO');
+          console.log('OPERATOR_TASK_MUTATION=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_SCHEMA_MUTATION=YES'
+          echo 'PRODUCTION_BUSINESS_DATA_MUTATION=NO'
+          echo 'R2_WRITE=NO'
+          echo 'FILE_UPLOAD=NO'
+          echo 'DESIGN_APPROVAL_WRITE=NO'
+          echo 'DESIGN_PREFLIGHT_WRITE=NO'
+          echo 'DESIGN_READY_WRITE=NO'
