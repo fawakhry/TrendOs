@@ -4701,3 +4701,27 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   ```
 - The unchanged 2/2 count immediately after deploy is expected; alias expansion alone does not create users.
 - Revan's next fresh login with `revan` or `rivan` will now enter the Native bootstrap path. The expected Runtime after successful Revan bootstrap is `3/3`.
+
+
+#### Entry627 — Revan second login still Legacy due stale frontend session surface
+- Owner reported Revan logged in again but login was still slower than Diya/Wael.
+- Runtime verification immediately after that login:
+  ```ini
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  AUTH=TRANSITIONAL / epoch23
+  BRIDGE=ON / 17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- Therefore Revan did **not** enter Native Auth on that login.
+- The live Production config already contains the explicit Revan aliases:
+  `ريفان`, `ريڤان`, `revan`, `rivan`.
+- Most likely cause is a browser tab/session that loaded the previous config before Entry627 alias deployment. Native canary selection is evaluated by the dispatcher/config already loaded in that page; logout/login inside the same stale page does not guarantee the new allowlist is loaded.
+- Required real-user retry:
+  1. fully close the existing TrendOS tab;
+  2. open a fresh Production TrendOS page or perform a hard refresh;
+  3. login Revan again with the same current credentials;
+  4. verify Runtime rises from `2/2` to `3/3`;
+  5. only the login after bootstrap is expected to have the same fast Native behavior as Diya/Wael.
+- No backend/API/D1-control/Accounting/EasyStore change is required for this retry.
