@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {
   legacyDesignEvidenceCandidatesV1,
@@ -40,3 +41,9 @@ console.log('MATERIAL_READY_FROM_CATALOG_ONLY=NO');
 console.log('MATERIAL_BLOCKED_WHEN_EXPLICITLY_INSUFFICIENT=YES');
 console.log('MACHINE_EVIDENCE_REQUIRES_MACHINE_CONTROL_SHADOW=YES');
 console.log('MACHINE_EVIDENCE_SYNTHESIS=NO');
+
+const adapterSource=fs.readFileSync('autonomous-printshop/core/readiness-source-adapters-v1.mjs','utf8');
+assert.match(adapterSource,/FROM employee_accounting_control_v1/);
+assert.match(adapterSource,/accountingControl&&accountingControl\.mode\)==='READONLY'/);
+assert.match(adapterSource,/materialAuthorityReadOnly/);
+console.log('MATERIAL_AUTHORITY_GATE=ACCOUNTING_READONLY_REQUIRED');
