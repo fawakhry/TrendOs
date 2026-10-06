@@ -8,6 +8,9 @@ import {
 import {
   classifyAccountingCloudCutoverV1
 } from '../core/accounting-cloud-cutover-guard-v1.mjs';
+import {
+  projectDesignProductionReadinessV1
+} from '../core/design-production-evidence-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 
@@ -50,8 +53,59 @@ async function health(env){
   };
 }
 
+async function readDesignAcquisitionProjection(env){
+  const [artifacts,approvals,preflights,bindings]=await Promise.all([
+    env.DB.prepare(`
+      SELECT artifact_id AS artifactId,line_id AS lineId,case_id AS caseId,
+             version_id AS versionId,content_sha256 AS contentSha256,
+             created_at_ms AS createdAtMs
+        FROM autonomous_design_artifacts
+       ORDER BY created_at_ms
+    `).all(),
+    env.DB.prepare(`
+      SELECT approval_event_id AS approvalEventId,artifact_id AS artifactId,
+             line_id AS lineId,approval_gate AS approvalGate,
+             approval_state AS approvalState,evidence_ref AS evidenceRef,
+             policy_ref AS policyRef,actor_kind AS actorKind,
+             observed_at_ms AS observedAtMs
+        FROM autonomous_design_approval_events
+       ORDER BY observed_at_ms
+    `).all(),
+    env.DB.prepare(`
+      SELECT preflight_run_id AS preflightRunId,artifact_id AS artifactId,
+             line_id AS lineId,result,recipe_id AS recipeId,
+             policy_version AS policyVersion,observed_at_ms AS observedAtMs
+        FROM autonomous_design_preflight_runs
+       ORDER BY observed_at_ms
+    `).all(),
+    env.DB.prepare(`
+      SELECT binding_event_id AS bindingEventId,artifact_id AS artifactId,
+             tenant_id AS tenantId,binding_status AS bindingStatus,
+             privacy_class AS privacyClass,storage_provider AS storageProvider,
+             storage_ref AS storageRef,source_asset_id AS sourceAssetId,
+             source_ref AS sourceRef,observed_at_ms AS observedAtMs
+        FROM autonomous_design_asset_binding_events
+       ORDER BY observed_at_ms
+    `).all()
+  ]);
+  const projection=projectDesignProductionReadinessV1({
+    artifacts:artifacts.results||[],
+    approvals:approvals.results||[],
+    preflights:preflights.results||[],
+    assetBindings:bindings.results||[],
+    tenantId:'TENANT_001'
+  });
+  return {
+    projectedLines:projection.length,
+    ready:projection.filter(x=>x.state==='READY').length,
+    blocked:projection.filter(x=>x.state==='BLOCKED').length,
+    unknown:projection.filter(x=>x.state==='UNKNOWN').length
+  };
+}
+
 async function evidenceStatus(env){
-  const row=await env.DB.prepare(`
+  const [row,designProjection]=await Promise.all([
+    env.DB.prepare(`
     SELECT
       (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
       (SELECT mode FROM autonomous_design_control WHERE singleton_id=1) AS designMode,
@@ -90,12 +144,11 @@ async function evidenceStatus(env){
       (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
       (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
       (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS evidenceRows
-  `).bind(Date.now()).first();
+  `).bind(Date.now()).first(),
+    readDesignAcquisitionProjection(env)
+  ]);
 
-  const designReadyInput=Number(row&&row.designArtifacts||0)>0 &&
-    Number(row&&row.designApprovals||0)>0 &&
-    Number(row&&row.designPreflights||0)>0 &&
-    Number(row&&row.designLinkedBindings||0)>0;
+  const designReadyInput=Number(designProjection&&designProjection.ready||0)>0;
   const accountingCutover=classifyAccountingCloudCutoverV1({
     mode:text(row&&row.accountingMode)||'ABSENT',
     policyEpoch:Number(row&&row.accountingEpoch||0),
@@ -143,6 +196,10 @@ async function evidenceStatus(env){
       cloudOrderFiles:Number(row&&row.cloudOrderFiles||0),
       cloudLineLinkedFiles:Number(row&&row.cloudLineLinkedFiles||0),
       cloudFileHashSchemaReady:Number(row&&row.cloudFileHashColumns||0)>0,
+      projectedLines:Number(designProjection&&designProjection.projectedLines||0),
+      qualifiedReadyLines:Number(designProjection&&designProjection.ready||0),
+      projectedBlockedLines:Number(designProjection&&designProjection.blocked||0),
+      projectedUnknownLines:Number(designProjection&&designProjection.unknown||0),
       acquisitionReady:designReadyInput,
       blocker:designReadyInput?'':'REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING'
     },
