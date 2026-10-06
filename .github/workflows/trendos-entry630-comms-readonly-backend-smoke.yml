@@ -1,0 +1,166 @@
+
+name: TrendOS Entry630 Comms Readonly Backend Smoke
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry630-comms-readonly-backend-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry630-comms-readonly-backend-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry630smoke=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.schemaReady!==true||cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          console.log('ENTRY630_RUNTIME_PREFLIGHT=PASS');
+          console.log('ENTRY630_COMMS_SEND_CAPABILITIES_USED=NO');
+          NODE
+
+      - name: Login Native qualify user
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token||String(body.authSource||'')!=='d1-native-employee-v1') process.exit(21);
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/entry630-token',token,{mode:0o600});
+            console.log('ENTRY630_NATIVE_LOGIN=PASS');
+          })().catch(()=>process.exit(22));
+          NODE
+
+      - name: Four Native Comms reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry630-token','utf8').trim();
+          async function post(action,extra={}){
+            const r=await fetch(base+'/v1/employee/comms',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({action,username,...extra}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==200||body.success!==true||String(body.authority||'')!=='d1-employee-comms-v1'){
+              const keys=body&&typeof body==='object'?Object.keys(body).sort().join(','):'';
+              throw new Error(action+' status='+r.status+' code='+String(body.code||'')+' keys='+keys);
+            }
+            return body;
+          }
+          (async()=>{
+            const inbox=await post('customerManagerV1',{op:'inbox',limit:5});
+            if(!Array.isArray(inbox.conversations)) throw new Error('inbox shape');
+            console.log('ENTRY630_COMMS_INBOX=PASS');
+
+            const thread=await post('customerManagerV1',{op:'thread',phone:'00000000000',limit:5});
+            if(!Array.isArray(thread.messages)||!thread.context||typeof thread.context!=='object') throw new Error('thread shape');
+            console.log('ENTRY630_COMMS_THREAD=PASS');
+
+            const conv=await post('getOrderConversation',{orderId:'ENTRY630-NONEXISTENT'});
+            if(!Array.isArray(conv.messages)&&!Array.isArray(conv.rows)) throw new Error('order conversation shape');
+            console.log('ENTRY630_COMMS_ORDER_CONVERSATION=PASS');
+
+            const drafts=await post('goLiveAutopilotV1',{op:'listDrafts'});
+            if(!Array.isArray(drafts.drafts)) throw new Error('drafts shape');
+            console.log('ENTRY630_COMMS_GOLIVE_DRAFTS=PASS');
+
+            console.log('ENTRY630_COMMS_READS=4/4_PASS');
+            console.log('ENTRY630_WHATSAPP_SEND=NO');
+            console.log('ENTRY630_OPENAI_CALL=NO');
+            console.log('ENTRY630_R2_WRITE=NO');
+            console.log('ENTRY630_BUSINESS_WRITE=NO');
+          })().catch(e=>{console.error('ENTRY630_COMMS_READ_SMOKE=FAIL '+String(e&&e.message||e));process.exit(31);});
+          NODE
+
+      - name: Bridge safety net still 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry630after=$GITHUB_SHA" -o /tmp/bridge-after.json
+          node <<'NODE'
+          const fs=require('fs'),b=JSON.parse(fs.readFileSync('/tmp/bridge-after.json','utf8'));
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge safety-net drift');
+          console.log('ENTRY630_BRIDGE_SAFETY_NET_17=PASS');
+          NODE
+
+      - name: Logout
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          if(!fs.existsSync('/tmp/entry630-token')){console.log('ENTRY630_LOGOUT=NOT_APPLICABLE');process.exit(0);}
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry630-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) process.exit(41);
+            console.log('ENTRY630_LOGOUT=PASS');
+          })().catch(()=>process.exit(42));
+          NODE
+          rm -f /tmp/entry630-token
