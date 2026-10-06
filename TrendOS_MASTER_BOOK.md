@@ -4635,3 +4635,69 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - subsequent logins for each bootstrapped employee should use D1 Native Auth;
   - an unknown employee name remains Legacy because Global Native Auth is still OFF;
   - report any employee-specific failure by employee name before changing policy/global mode.
+
+
+### Entry627 — Known employee alias gap closed after Revan legacy-only login
+- Owner reported Revan's Production login worked.
+- Immediate Runtime verification showed:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- Interpretation:
+  - Revan's login succeeded operationally;
+  - however, no new Native Auth user was created at that moment;
+  - therefore Revan had entered through the Legacy path, not Native bootstrap.
+- Root cause:
+  - frontend canary matching uses trimmed/lowercased exact strings;
+  - Arabic letter variants and English aliases are not canonicalized;
+  - the current config already uses known employee aliases such as `revan`, `rivan`, `rahma`, `wael`, `gaber`, `jaber`, and `diaa` elsewhere;
+  - those English aliases were not yet present in the Native Auth canary allowlist.
+- Entry627 explicit alias target:
+  ```ini
+  ['ضياء','diaa','وائل','wael','جابر','gaber','jaber','رحمه','رحمة','rahma','ريفان','ريڤان','revan','rivan']
+  ```
+- Global Native Auth remains OFF, so unknown names still remain Legacy.
+- Manifest:
+  `docs/trendos/staging/ENTRY627_EMPLOYEE_NATIVE_ALIAS_CANARY_MANIFEST.json`
+  commit `56aaf93cf2f79e1cfc346d59b1e888eb3af4a48d`.
+- Repo regression:
+  `tests/entry627_employee_native_alias_canary.test.mjs`
+  initial test commit `372a2dd6b6c815cb259d893acf17985e6c505216`.
+- Initial CI Run `37452033669` failed safely before Production mutation because the test mock omitted the already-qualified 17 Bridge policies.
+- Test correction:
+  commit `2f09101c9baddcc915fbc9b4cabf3cbc105e8126`.
+- Corrected Repo CI:
+  Run `37452103261`
+  Job `112230850480`
+  conclusion = **SUCCESS**.
+- Controlled frontend alias expansion:
+  `.github/workflows/trendos-entry627-employee-native-alias-frontend-controlled.yml`
+  commit `5a94d293375910f3bebfb04149ccf0a35da551c8`
+  Run `37452253368`
+  Job `112231331454`
+  conclusion = **SUCCESS**.
+- Previous frontend version:
+  `92a63e14-15df-421a-b9eb-d7b37546a485`.
+- New frontend version:
+  `488be13f-321b-4dbf-9c60-1dada89bc469`.
+- Post-deploy Runtime:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  GLOBAL_NATIVE_AUTH=OFF
+  API_DEPLOY=NO
+  D1_CONTROL_MUTATION=NO
+  ACCOUNTING_TOUCHED=NO
+  EASYSTORE_TOUCHED=NO
+  ```
+- The unchanged 2/2 count immediately after deploy is expected; alias expansion alone does not create users.
+- Revan's next fresh login with `revan` or `rivan` will now enter the Native bootstrap path. The expected Runtime after successful Revan bootstrap is `3/3`.
