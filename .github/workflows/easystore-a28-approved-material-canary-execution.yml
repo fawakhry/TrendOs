@@ -1,0 +1,16 @@
+name: EasyStore A2.8 Approved Material Canary Execution
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  default-branch-placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "This default-branch file only exposes the manual workflow UI."
+          echo "Select branch candidate/easystore-accounting-a2-20261005 when dispatching."
+          echo "No accounting mutation is performed by this main-branch placeholder."
