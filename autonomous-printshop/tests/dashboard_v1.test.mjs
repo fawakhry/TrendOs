@@ -7,10 +7,16 @@ const config=fs.readFileSync('autonomous-printshop/dashboard/wrangler.toml','utf
 assert.match(config,/^name = "autonomous-printshop-dashboard"$/m);
 assert.match(config,/^binding = "SHADOW"$/m);
 assert.match(config,/^service = "autonomous-printshop-shadow"$/m);
+assert.match(config,/^binding = "READINESS_COLLECTOR"$/m);
+assert.match(config,/^service = "autonomous-printshop-readiness-collector"$/m);
 assert.doesNotMatch(config,/\[\[d1_databases\]\]/);
 assert.match(worker,/مركز المطبعة الذاتية/);
 assert.match(worker,/\/control-tower/);
 assert.match(worker,/SHADOW_SERVICE_BINDING_REQUIRED/);
+assert.match(worker,/READINESS_COLLECTOR_SERVICE_BINDING_REQUIRED/);
+assert.match(worker,/\/evidence-status/);
+assert.match(worker,/evidenceAcquisition/);
+assert.match(worker,/مصادر أدلة الجاهزية/);
 assert.match(worker,/CLOUDFLARE_SERVICE_BINDING/);
 assert.match(worker,/path==='\/state'/);
 assert.match(worker,/READ_ONLY_CONTROL_TOWER_UI/);
