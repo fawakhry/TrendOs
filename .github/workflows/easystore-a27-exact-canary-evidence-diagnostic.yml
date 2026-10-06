@@ -1,0 +1,61 @@
+name: EasyStore A2.7 Exact Canary Evidence Diagnostic
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a27-exact-canary-evidence-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Read exact canary rows and runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?a27diag=$GITHUB_RUN_ID" > /tmp/health.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT template_id,department,category,item_name,fixed_cost,computed_cost,suggested_sale_price,active,updated_by
+              FROM employee_accounting_templates_v1;
+            SELECT request_key,operation,actor,status,entity_id,source_system,correlation_id,policy_epoch,command_version
+              FROM employee_accounting_request_ledger_v1;
+            SELECT entity_type,entity_id,event_type,actor,request_key,correlation_id,source_system,policy_epoch,autonomy_level
+              FROM employee_accounting_events_v1;
+          " > /tmp/evidence.json
+          node <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/evidence.json','utf8')), groups=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const [k,z] of Object.entries(v))if(k!=='results')walk(z);}};walk(x);
+          const all=groups.flat();
+          const t=all.filter(r=>r.template_id),q=all.filter(r=>r.request_key&&r.operation),e=all.filter(r=>r.entity_type);
+          console.log('A27_DIAG_HEALTH='+JSON.stringify({
+            mode:h.mode,authoritativeWrites:h.authoritativeWrites,
+            users:h.writeCanaryAllowedUserCount,actions:h.writeCanaryAllowedActionCount,
+            maxCommands:h.writeCanaryMaxCommands,commandsStarted:h.writeCanaryCommandsStarted
+          }));
+          console.log('A27_DIAG_TEMPLATE_ROWS='+JSON.stringify(t));
+          console.log('A27_DIAG_REQUEST_ROWS='+JSON.stringify(q));
+          console.log('A27_DIAG_EVENT_ROWS='+JSON.stringify(e));
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
