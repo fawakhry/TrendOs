@@ -37,6 +37,11 @@ assert.doesNotMatch(
 );
 assert.match(worker,/machineIdentitySchemaReady/);
 assert.match(worker,/machineIdentityRows/);
+assert.match(worker,/machineReadinessEvidenceCandidatesV1/);
+assert.match(worker,/readMachineAcquisitionProjection/);
+assert.match(worker,/projectedCandidates/);
+assert.match(worker,/projectedReadyLines/);
+assert.match(worker,/projectedBlockedLines/);
 assert.match(worker,/writeCanaryAllowedUsers/);
 assert.match(worker,/writeCanaryAllowedActions/);
 assert.match(worker,/writeCanaryMaxCommands/);
@@ -50,6 +55,11 @@ assert.match(worker,/canaryRowsExcludedFromReadiness:true/);
 assert.match(worker,/activeMaterialsAll/);
 assert.match(worker,/upper\(trim\(material_kind\)\)<>'A2_CANARY'/);
 assert.match(worker,/REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED/);
+assert.doesNotMatch(
+  worker,
+  /machineReadyInput\s*=\s*text\(row&&row\.machineMode\).*activeMachines/s,
+  'OLD_AGGREGATE_MACHINE_READY_FORBIDDEN'
+);
 assert.match(worker,/writeAuthority:'AUTONOMOUS_READINESS_EVIDENCE_ONLY'/);
 assert.match(worker,/businessWrites:false/);
 assert.match(worker,/employeeAssignment:false/);
