@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const yml=fs.readFileSync('.github/workflows/autonomous-printshop-structured-design-preflight.yml','utf8');
+assert.match(yml,/workflow_dispatch:/);
+assert.doesNotMatch(yml,/\n\s*push:/);
+assert.doesNotMatch(yml,/\n\s*schedule:/);
+assert.match(yml,/GITHUB_ACTOR/);
+assert.match(yml,/GITHUB_REPOSITORY_OWNER/);
+assert.match(yml,/evaluateAndBuildStructuredDesignPreflightV1/);
+assert.match(yml,/STRUCTURED_PREFLIGHT_EVALUATION=/);
+assert.match(yml,/HARD_CODED_PASS=NO/);
+assert.match(yml,/ARTIFACT_LINE_HASH_NOT_FOUND/);
+assert.match(yml,/DIRECT_READINESS_WRITE=NO/);
+assert.match(yml,/DIRECT_APPROVAL_WRITE=NO/);
+assert.match(yml,/ACCOUNTING_WRITE=NO/);
+assert.match(yml,/OPERATOR_TASK_CONTROL=OFF/);
+assert.doesNotMatch(yml,/result\s*=\s*['"]PASS['"]/);
+assert.doesNotMatch(yml,/INSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+autonomous_readiness_evidence/i);
+console.log('STRUCTURED_DESIGN_PREFLIGHT_WORKFLOW_V1=PASS');
+console.log('AUTO_TRIGGER=NO');
+console.log('REPOSITORY_OWNER_ONLY=YES');
+console.log('EVALUATOR_CONTROLS_RESULT=YES');
+console.log('DIRECT_READINESS_WRITE=NO');
