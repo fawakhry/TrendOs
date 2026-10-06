@@ -97,7 +97,7 @@ jobs:
               cache:'no-store'
             });
             const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
-            if(r.status!==200||body.success!==true||body.authority!=='d1-employee-core-v1'){
+            if(r.status!==200||body.success!==true){
               const keys=body&&typeof body==='object'?Object.keys(body).sort().join(','):'';
               throw new Error(
                 action+
@@ -113,11 +113,11 @@ jobs:
           }
           (async()=>{
             const rows=await post('getRows',{screen:'service'});
-            if(!Array.isArray(rows.rows)||!rows.dashboard||typeof rows.dashboard!=='object') throw new Error('getRows shape');
+            if(!Array.isArray(rows.rows)||!rows.dashboard||typeof rows.dashboard!=='object'||String(rows.version||'')!=='ENTRY614_D1_EMPLOYEE_CORE_V1') throw new Error('getRows shape/version');
             console.log('ENTRY628_CORE_GET_ROWS=PASS');
 
             const dash=await post('getDashboard',{screen:'service'});
-            if(!dash.dashboard||typeof dash.dashboard!=='object') throw new Error('getDashboard shape');
+            if(!dash.dashboard||typeof dash.dashboard!=='object'||String(dash.version||'')!=='ENTRY614_D1_EMPLOYEE_CORE_V1') throw new Error('getDashboard shape/version');
             console.log('ENTRY628_CORE_GET_DASHBOARD=PASS');
 
             const activity=await post('getActivityLog',{limit:20});
