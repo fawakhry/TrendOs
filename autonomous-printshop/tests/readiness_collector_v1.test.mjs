@@ -55,10 +55,9 @@ assert.match(worker,/canaryRowsExcludedFromReadiness:true/);
 assert.match(worker,/activeMaterialsAll/);
 assert.match(worker,/upper\(trim\(material_kind\)\)<>'A2_CANARY'/);
 assert.match(worker,/REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED/);
-assert.doesNotMatch(
+assert.match(
   worker,
-  /machineReadyInput\s*=\s*text\(row&&row\.machineMode\).*activeMachines/s,
-  'OLD_AGGREGATE_MACHINE_READY_FORBIDDEN'
+  /machineReadyInput\s*=\s*text\(row&&row\.machineMode\)==='SHADOW'\s*&&\s*Number\(machineProjection&&machineProjection\.ready\|\|0\)>0/
 );
 assert.match(worker,/writeAuthority:'AUTONOMOUS_READINESS_EVIDENCE_ONLY'/);
 assert.match(worker,/businessWrites:false/);
