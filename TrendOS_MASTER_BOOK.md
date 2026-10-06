@@ -5259,3 +5259,56 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - EasyStore/Accounting must remain outside this employee migration step.
 - Runtime truth remains higher priority than this checkpoint if any status changes after this commit.
 
+
+#### Entry637 — Bounded Sherif bootstrap attempt 1 failed safely; hardening restored
+- Handoff Run `37497698732`, Job `112386380610` completed with conclusion **FAILURE** after the full bounded wait.
+- Exact preflight remained PASS.
+- The bounded window opened as designed:
+  ```ini
+  NATIVE_ONLY=false
+  LEGACY_BOOTSTRAP=true
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  ```
+- All 60 ten-second polls stayed exactly:
+  ```ini
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  ```
+- Therefore no Sherif bootstrap was observed during the 600-second window; no sixth Native user was created.
+- Workflow log recorded:
+  ```ini
+  ENTRY637_WINDOW_CLOSED=PASS
+  ENTRY637_BOUNDED_MIGRATION_FAIL=Sherif did not login during bounded window
+  ```
+- The D1 Sherif-row verification step was skipped because migration did not occur.
+- Immediate external Runtime verification was repeated after propagation and proved hardening is restored:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  NATIVE_ONLY=true
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  BACKEND_BRIDGE=false
+  ```
+- The first external read taken immediately after job completion briefly still observed the window settings during deployment propagation; a fresh cache-busted read then confirmed the hardened state above. Runtime truth after propagation is authoritative.
+- No password/token/hash/session secret was read or logged.
+- No Accounting/EasyStore mutation occurred.
+- Retry rule:
+  - do not manually insert Sherif or guess role/screens;
+  - do not open another window unless Sherif can perform a real login during that bounded window;
+  - any retry must begin from the proven hardened state above and must again restore hardening on success/failure.
+- Current Entry637 status:
+  ```ini
+  ENTRY637_ATTEMPT_1=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_HARDENING_RESTORED=PASS
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  GLOBAL_NATIVE_AUTH=OFF
+  ACCOUNTING=READONLY
+  NEXT_ACTION=RETRY_SAME_BOUNDED_BOOTSTRAP_ONLY_WHEN_SHERIF_REAL_LOGIN_CAN_OCCUR
+  ```
