@@ -4026,3 +4026,57 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   2. keep frontend canary OFF;
   3. continue API diagnostic/fix in isolation;
   4. do not re-enable Diya canary until first-login bootstrap passes in controlled smoke.
+
+
+#### Entry623 — Isolated Auth diagnostic API deploy PASS after login containment
+- Frontend incident containment remained the priority:
+  - Production frontend rolled back to `bfcc6f85-a748-4b66-a334-b605c72108f7`.
+  - frontend Native Auth canary remains OFF.
+  - global Native Auth remains OFF.
+- The Auth diagnostic API deploy was then requalified with the frontend canary explicitly OFF.
+- Workflow:
+  - `.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml`
+  - containment-preflight adjustment commit `6d74d014ea7b6c380d66f9b848d0edc09ec08547`
+  - one-shot trigger commit `aeab90a481f85cdae1d35d757c30c26133bdabc0`
+  - workflow restored manual-only in commit `cb85d9298aedf7fab32d1e81d155c6f65e61f669`
+  - Run `37445204417`
+  - Job `112208242382`
+  - conclusion = **SUCCESS**.
+- Exact-live deployment rule was preserved:
+  - API bundle based on Entry616 live source baseline;
+  - only `employee-auth-native-v1.mjs` was replaced by the qualified safe-stage diagnostic patch;
+  - no current-branch unrelated Worker changes were published.
+- Pre-API version observed by workflow:
+  - `6bb548d8-1e2a-4069-8964-8988a6d100e5`.
+- New API version:
+  - `90151f54-f64a-4dfd-a69e-e6c0ab6bbccb`.
+- Postflight:
+  ```ini
+  ENTRY623_AUTH_STAGE_API_DEPLOY=PASS
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  FRONTEND_CANARY=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  D1_MUTATION=NO
+  VARIABLES_CHANGED=NO
+  SECRETS_CHANGED=NO
+  FRONTEND_DEPLOY=NO
+  ACCOUNTING_TOUCHED=NO
+  EASYSTORE_TOUCHED=NO
+  ```
+- The deployed Auth patch changes observability only:
+  - first-login bootstrap upsert failures now return safe code `employee-auth-login-bootstrap-upsert-failed`;
+  - safe stage is limited to `password-hash`, `d1-user-upsert`, or `unknown`;
+  - no credential, token, secret, nonce, hash or salt is returned/logged by this change.
+- Next gate:
+  - verify restored normal employee login in Production UI;
+  - then run a backend-only Diya bootstrap probe while frontend canary remains OFF;
+  - do not re-enable the frontend canary before the backend bootstrap/second-login path passes.
