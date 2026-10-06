@@ -1,5 +1,6 @@
 import { recordReadinessEvidenceV1 } from './readiness-evidence-writer-v1.mjs';
 import { machineReadinessEvidenceCandidatesV1 } from './machine-readiness-v1.mjs';
+import { readAccountingMaterialEvidenceSnapshotV1 } from './accounting-material-evidence-connector-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function norm(v){
@@ -95,7 +96,7 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
     return {success:true,skipped:true,reason:'READINESS_CONTROL_NOT_SHADOW'};
   }
 
-  const [legacyResult,materialResult,accountingControl,machineControl,machinesResult,mappingsResult,observationsResult]=await Promise.all([
+  const [legacyResult,materialSnapshot,machineControl,machinesResult,mappingsResult,observationsResult]=await Promise.all([
     db.prepare(`
       SELECT l.line_id AS lineId,
              l.ready,
@@ -111,45 +112,7 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
            'تم التسليم','جاهز للاستلام','ملغي','ملغى','مكرر','مدمج','مغلق','ملغي/مغلق'
          )
     `).all(),
-    db.prepare(`
-      SELECT d.line_id AS lineId,
-             d.department,
-             d.material_name AS materialName,
-             d.material_consumption AS materialConsumption,
-             m.material_id AS materialId,
-             m.stock_qty AS stockQty,
-             m.version AS materialVersion
-        FROM employee_accounting_dept_lines_v1 d
-        JOIN (
-          SELECT line_id,MAX(updated_at) AS maxUpdated
-            FROM employee_accounting_dept_lines_v1
-           WHERE line_id<>''
-           GROUP BY line_id
-        ) x ON x.line_id=d.line_id AND x.maxUpdated=d.updated_at
-        JOIN employee_accounting_materials_v1 m
-          ON m.active=1
-         AND m.department=d.department
-         AND m.material_name=d.material_name
-        LEFT JOIN employee_core_lines_v1 il ON il.line_id=d.line_id
-        LEFT JOIN t12_legacy_line_runtime lr
-          ON lr.line_id=d.line_id AND lr.order_id=il.order_id
-        LEFT JOIN t12_prod_lines nl ON nl.line_id=d.line_id
-        LEFT JOIN t12_prod_line_runtime nr ON nr.line_id=d.line_id
-        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=d.line_id
-       WHERE d.line_id<>''
-         AND a.line_id IS NULL
-         AND TRIM(d.material_name)<>''
-         AND d.material_consumption>0
-         AND COALESCE(nr.status,nl.status,lr.status,il.status,'') NOT IN (
-           'تم التسليم','جاهز للاستلام','ملغي','ملغى','مكرر','مدمج','مغلق','ملغي/مغلق'
-         )
-    `).all(),
-    db.prepare(`
-      SELECT mode,policy_epoch AS policyEpoch
-        FROM employee_accounting_control_v1
-       WHERE singleton=1
-       LIMIT 1
-    `).first(),
+    readAccountingMaterialEvidenceSnapshotV1(db),
     db.prepare(`
       SELECT mode
         FROM autonomous_machine_control
@@ -194,8 +157,8 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
 
   const candidates=[
     ...legacyDesignEvidenceCandidatesV1(legacyResult.results||[]),
-    ...(text(accountingControl&&accountingControl.mode)==='READONLY'
-      ? materialBlockerEvidenceCandidatesV1(materialResult.results||[],options)
+    ...(materialSnapshot&&materialSnapshot.qualified
+      ? materialBlockerEvidenceCandidatesV1(materialSnapshot.rows||[],options)
       : []),
     ...(text(machineControl&&machineControl.mode)==='SHADOW'
       ? machineReadinessEvidenceCandidatesV1({
@@ -224,9 +187,11 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
     inserted,
     duplicates,
     byKind,
-    accountingMode:text(accountingControl&&accountingControl.mode)||'ABSENT',
-    accountingEpoch:Number(accountingControl&&accountingControl.policyEpoch||0),
-    materialAuthorityReadOnly:text(accountingControl&&accountingControl.mode)==='READONLY',
+    accountingMode:text(materialSnapshot&&materialSnapshot.accountingMode)||'ABSENT',
+    accountingEpoch:Number(materialSnapshot&&materialSnapshot.accountingEpoch||0),
+    materialAuthorityReadOnly:!!(materialSnapshot&&materialSnapshot.qualified),
+    materialConnector:text(materialSnapshot&&materialSnapshot.connectorVersion)||'',
+    materialConnectorReason:text(materialSnapshot&&materialSnapshot.reason)||'',
     machineMode:text(machineControl&&machineControl.mode)||'ABSENT'
   };
 }
