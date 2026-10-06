@@ -6011,3 +6011,69 @@ APPS_SCRIPT_BRIDGE=STILL_ENABLED_FROM_ENTRY641_AUDIT
 - This recorder Run: `37545009058`.
 - Recorder source SHA: `f785b22f204103eaa29fc7bd9e670a6565e4589c`.
 - `ENTRY642_DOCUMENTATION=PASS`.
+
+
+#### Entry643 — إغلاق جسر اعتماد الموظفين في Apps Script؛ Attempt 1 BLOCKED / FAIL before mutation
+- الاسم العربي للبحث: **إغلاق جسر دخول الموظفين القديم / تعطيل Apps Script Employee Auth Bridge / Entry643**.
+- وقت الأدلة: 2026-10-06T23:20–23:23Z (2026-10-07 بتوقيت القاهرة).
+- النطاق المصرح: تعديل خاصية `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED` فقط من true إلى false إذا كانت true؛ الاحتفاظ بالـsecret والـdeployment للـrollback. لا تعديل كود أو deployment أو بيانات.
+- البداية: بعد Entry642 PASS؛ لم تُعد أي خطوة migration أو hardening.
+- Repo preflight HEAD: `26a10953eac5a3683430166065c831b8b672f45a`.
+- آخر Auth Actions التي تمت قراءتها من GitHub:
+  - Entry642 hardening Run `37544785002` = completed / success، source `af82f152377ec56f052eca6a08541e4519616e69`.
+  - Entry642 recorder Run `37545009058` = completed / success، source `f785b22f204103eaa29fc7bd9e670a6565e4589c`.
+  - Latest branch Run `37545387310` = completed / success (Autonomous Printshop CI؛ قراءة metadata فقط، ليس دليل Employee Auth runtime).
+- قراءة الكتاب الحالي أكدت أن الخطوة التالية هي إغلاق خاصية Apps Script وأن Entry642 هي آخر Auth PASS.
+
+##### Current runtime preflight — unavailable, not drift proof
+- GET read-only إلى Production `/v1/employee/auth/health` = HTTP 403.
+- GET read-only إلى `/v1/employee/legacy-action/health` = HTTP 403.
+- GET read-only إلى `/v1/employee/accounting/health` = HTTP 403؛ لا Accounting mutation.
+- GET frontend `config.js` = HTTP 403.
+- هذه أخطاء وصول من بيئة التنفيذ، وليست دليلًا أن قيم Runtime تغيرت؛ current AUTH_MODE / D1_NATIVE_READY / BACKEND_BRIDGE / FRONTEND_GLOBAL_NATIVE_AUTH = UNVERIFIED في هذه المحاولة.
+- Entry642 historical last verified baseline يبقى NATIVE / 6/6 / backend bridge false / frontend global native true؛ لا يُرفع إلى current runtime truth بدون قراءة مستقلة ناجحة.
+
+##### Apps Script access attempt
+- فتح Project URL المحدد `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo` حوّل المتصفح إلى صفحة Apps Script العامة `https://developers.google.com/apps-script/`؛ لم تظهر إعدادات المشروع.
+- الضغط على Sign in أعاد صفحة Google Accounts بخطأ `502 Bad Gateway / [Errno 111] Connection refused`.
+- إعادة تحميل واحدة منخفضة المخاطر أعادت نفس الخطأ؛ توقفت محاولة الوصول.
+- لم تظهر صفحة Script Properties، لذلك القيمة النصية السابقة للخاصية = NOT_READ؛ لم يُفترض أنها true من الرد وحده.
+- PROPERTY_MUTATION=NO؛ لا save ولا toggle ولا إعادة كتابة.
+- Secret value لم تُقرأ أو تُطبع؛ لم تُفتح أو تُعدل أي ملفات Apps Script أو Deployment.
+
+##### Independent safe invalid-assertion probe — bridge still enabled
+- استُخدم نفس Production Apps Script URL من `cloudflare-d1/wrangler.toml`.
+- Request: action `cloudEmployeeLegacyBridgeExecuteV1`، targetAction `getDashboard` (قراءة فقط)، username اصطناعي `entry643-probe`، assertion غير صالح فقط `cfv1.invalid.invalid`، بدون password/token/credential حقيقي.
+- HTTP 200؛ message حرفيًا: `اعتماد الموظف السحابي غير صالح.`.
+- لم يرجع الرد المطلوب `مسار اعتماد الموظف السحابي غير مفعل.`.
+- APPS_SCRIPT_BRIDGE_ENABLED=YES؛ الرد يثبت كذلك أن فحص configured-secret مر قبل رفض assertion، دون قراءة قيمة الـsecret.
+- APPS_SCRIPT_BRIDGE_SECRET_RETAINED=YES (موجود بحسب سلوك فحص الـbridge؛ لم يُمس).
+- لا business action فعلي؛ assertion رفض قبل target dispatch.
+
+##### Postflight / rollback / boundaries
+- Post-mutation postflight = NOT_RUN (لم تحدث mutation).
+- ROLLBACK_USED=NO؛ ROLLBACK_STATUS=NOT_NEEDED_PRE_MUTATION_BLOCK.
+- شرط الاستئناف: وصول Google إلى المشروع المحدد + fresh successful Runtime preflight، ثم قراءة الخاصية المحددة وحدها وإغلاقها، والتحقق المستقل؛ إذا فشل post-check بعد true→false، إعادة نفس الخاصية فقط إلى true والتحقق وتسجيل الفشل.
+- لا إصلاحات جانبية ولا إعادة migration.
+```ini
+ENTRY643=FAIL
+ENTRY643_STATUS=BLOCKED_BEFORE_MUTATION
+APPS_SCRIPT_BRIDGE_ENABLED=YES
+APPS_SCRIPT_BRIDGE_SECRET_RETAINED=YES
+SCRIPT_PROPERTY_PRE_VALUE=NOT_READ
+SCRIPT_PROPERTY_CHANGED=NO
+AUTH_MODE=UNVERIFIED_CURRENT
+D1_NATIVE_READY=UNVERIFIED_CURRENT
+BACKEND_BRIDGE=UNVERIFIED_CURRENT
+FRONTEND_GLOBAL_NATIVE_AUTH=UNVERIFIED_CURRENT
+SECRET_VALUE_LOGGED=NO
+CODE_MUTATION=NO
+DEPLOYMENT_MUTATION=NO
+D1_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+SPREADSHEET_MUTATION=NO
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
+- Entry643 غير مكتملة؛ هذه وثيقة المحاولة الفاشلة فقط، وليست PASS.
