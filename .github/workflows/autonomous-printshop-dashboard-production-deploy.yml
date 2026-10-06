@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$DASHBOARD_URL/health" > /tmp/health.json
-          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$DASHBOARD_URL/api/state" > /tmp/state.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$DASHBOARD_URL/state" > /tmp/state.json
           curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$DASHBOARD_URL/" > /tmp/page.html
           node - <<'NODE'
           const fs=require('fs');
