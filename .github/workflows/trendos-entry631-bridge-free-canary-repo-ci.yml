@@ -1,0 +1,46 @@
+name: TrendOS Entry631 Bridge Free Canary Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
+      - 'docs/trendos/staging/ENTRY631_BRIDGE_FREE_CANARY_AUTH_PREFLIGHT_MANIFEST.json'
+      - 'tests/entry631_bridge_free_canary_preflight.test.mjs'
+      - '.github/workflows/trendos-entry631-bridge-free-canary-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry631 bridge-free auth contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry631_bridge_free_canary_preflight.test.mjs
+          node tests/entry630_employee_comms_readonly_dispatch.test.mjs
+          node tests/entry629_employee_content_readonly_dispatch.test.mjs
+          node tests/entry628_employee_core_readonly_dispatch.test.mjs
+          echo ENTRY631_REPO_GATE=PASS
+      - name: No runtime mutation
+        shell: bash
+        run: |
+          echo ENTRY631_PRODUCTION_MUTATION=NO
+          echo ENTRY631_FRONTEND_DEPLOY=NO
+          echo ENTRY631_BACKEND_BRIDGE_MUTATION=NO
+          echo ENTRY631_GLOBAL_NATIVE_AUTH=OFF
+          echo ENTRY631_ACCOUNTING_TOUCHED=NO
+          echo ENTRY631_EASYSTORE_TOUCHED=NO
