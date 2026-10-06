@@ -2312,3 +2312,65 @@ Next safe target remains evidence acquisition, not task activation:
 2. collect explicit machine health/mapping evidence only where direct proof exists;
 3. collect Design evidence from linked asset + hash + preflight + qualified approval;
 4. keep Operator Task OFF until a real line is strict-ready across DESIGN+MATERIAL+MACHINE.
+
+
+### AP-021 — Material connector live; source inventory proven empty
+
+The material path was advanced without moving EasyStore financial authority.
+
+#### Connector boundary
+- Added `autonomous-printshop/core/accounting-material-evidence-connector-v1.mjs`.
+- The connector is read-only and fails closed unless `employee_accounting_control_v1.mode='READONLY'`.
+- It returns only the minimum evidence projection needed for readiness: lineId, department, materialName, materialConsumption, materialId, stockQty, materialVersion.
+- It exposes no customer PII and performs no financial writes.
+- Readiness source adapters now consume this connector instead of directly querying accounting material tables.
+- Policy CI Run `37489816348` = SUCCESS with the connector contract as an explicit test step.
+- Readiness Collector Deploy Run `37489822970` = SUCCESS, including collector contracts, hard write-boundary gate, pre/post TrendOS health, dry-run, deploy, and live health verification.
+
+#### Live collector proof
+Live health now reports:
+- accountingMode = READONLY
+- accountingEpoch = 2
+- materialConnector = ACCOUNTING_MATERIAL_EVIDENCE_CONNECTOR_V1
+- materialAuthorityReadOnly = true
+- businessWrites = false
+- employeeAssignment = false
+- operatorTasks = 0
+
+#### Actual EasyStore/Spreadsheet source inspection
+Read-only inspection of the Production spreadsheet `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY` confirmed the expected accounting tabs exist:
+- `حسابات - الخامات`
+- `حسابات - حركة المخزون`
+- `حسابات - فواتير الأقسام`
+
+However all three currently contain header rows only and no material/inventory/department-line data rows.
+
+This matches the earlier D1 diagnostic:
+- active materials = 0
+- positive-stock materials = 0
+- stock moves = 0
+- candidate accounting links = 0
+- candidate material names = 0
+- candidate consumption known = 0
+- candidate catalog matched = 0
+
+Therefore the material connector is technically qualified and live, but the authoritative source currently has no usable inventory evidence. MATERIAL must remain UNKNOWN. No migration or synthetic inventory population is authorized by Autonomous Printshop.
+
+```ini
+MATERIAL_CONNECTOR=PRODUCTION_LIVE
+MATERIAL_CONNECTOR_MODE=READONLY
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_EPOCH=2
+MATERIAL_SOURCE_ROWS=0
+STOCK_MOVE_SOURCE_ROWS=0
+DEPT_LINE_SOURCE_ROWS=0
+MATERIAL_EVIDENCE_POSSIBLE=NO_SOURCE_DATA
+MATERIAL_READY_SYNTHESIS=FORBIDDEN
+FINANCIAL_AUTHORITY=EASYSTORE_UNCHANGED
+OPERATOR_TASK_CONTROL=OFF
+```
+
+Next safe target:
+1. Design evidence acquisition from real linked design assets/preflight/approval;
+2. Machine evidence only from explicit direct health observations and mappings;
+3. Material evidence remains blocked on real accounting source data, not on connector code.
