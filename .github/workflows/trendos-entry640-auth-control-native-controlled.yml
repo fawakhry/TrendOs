@@ -1,0 +1,373 @@
+name: TrendOS Entry640 Auth Control Native Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry640-auth-control-native-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry640-auth-control-native-controlled
+  cancel-in-progress: false
+
+jobs:
+  close-transitional:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@$WRANGLER_VERSION
+
+      - name: Exact live preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry640pre=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry640pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/frontend-pre.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry640pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/dispatcher-pre.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.success!==true||a.schemaReady!==true||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||
+             a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==true||
+             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||Number(a.mustChangeCount||0)!==0||
+             a.plaintextStored!==false) throw new Error('auth preflight drift');
+          if(b.success!==true||b.enabled!==false||b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge preflight drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||
+             Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');
+          console.log('ENTRY640_RUNTIME_PREFLIGHT=PASS');
+          console.log('ENTRY640_AUTH_PRE_MODE=TRANSITIONAL');
+          console.log('ENTRY640_NATIVE_READY=6_OF_6');
+          NODE
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 6;" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY';" /tmp/frontend-pre.js
+          node --check /tmp/dispatcher-pre.js
+          echo ENTRY640_FRONTEND_GLOBAL_NATIVE_PREFLIGHT=PASS
+
+      - name: Lock exact D1 auth control pre-state
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch
+            FROM employee_auth_control_v1
+           WHERE singleton=1;
+          SELECT COUNT(*) AS userCount,
+                 SUM(CASE WHEN active=1
+                           AND password_scheme='pbkdf2-sha256-v1'
+                           AND password_hash_hex<>'' THEN 1 ELSE 0 END) AS nativeReadyCount
+            FROM employee_auth_users_v1;" > /tmp/entry640-pre-d1.json
+
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/entry640-pre-d1.json','utf8'));
+          const rows=[];
+          const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')) rows.push(v); Object.values(v).forEach(walk);}};
+          walk(x);
+          const c=rows.find(r=>r.marker),u=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'userCount'));
+          if(String(c?.marker||'')!=='T12_EMPLOYEE_AUTH_V1'||String(c?.mode||'')!=='TRANSITIONAL') throw new Error('auth control pre-state drift');
+          const pre=Number(c?.policyEpoch||0);
+          if(!Number.isInteger(pre)||pre<1) throw new Error('invalid pre epoch');
+          if(Number(u?.userCount||0)!==6||Number(u?.nativeReadyCount||0)!==6) throw new Error('D1 user readiness drift');
+          const target=pre+1;
+          fs.appendFileSync(process.env.GITHUB_ENV,'PRE_AUTH_EPOCH='+pre+'\nTARGET_AUTH_EPOCH='+target+'\n');
+          console.log('ENTRY640_D1_PRE_MODE=TRANSITIONAL');
+          console.log('ENTRY640_D1_PRE_EPOCH='+pre);
+          console.log('ENTRY640_D1_TARGET_EPOCH='+target);
+          console.log('ENTRY640_D1_NATIVE_READY=6_OF_6');
+          console.log('ENTRY640_PASSWORD_HASH_VALUE_LOGGED=NO');
+          NODE
+
+      - name: Set D1 auth control to NATIVE only
+        id: mutate
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch /tmp/entry640-mutation-attempted
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_auth_control_v1
+             SET mode='NATIVE',
+                 policy_epoch=$TARGET_AUTH_EPOCH,
+                 updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='T12_EMPLOYEE_AUTH_V1'
+             AND mode='TRANSITIONAL'
+             AND policy_epoch=$PRE_AUTH_EPOCH;
+          SELECT changes() AS changed;
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch
+            FROM employee_auth_control_v1
+           WHERE singleton=1;" > /tmp/entry640-mutate.json
+
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/entry640-mutate.json','utf8'));
+          const rows=[];
+          const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'changed')) rows.push(v); Object.values(v).forEach(walk);}};
+          walk(x);
+          const ch=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'changed')),c=rows.find(r=>r.marker);
+          if(Number(ch?.changed||0)!==1) throw new Error('auth control mutation count '+Number(ch?.changed||0));
+          if(String(c?.mode||'')!=='NATIVE'||Number(c?.policyEpoch||0)!==Number(process.env.TARGET_AUTH_EPOCH)) throw new Error('NATIVE target not reached');
+          console.log('ENTRY640_D1_CONTROL_MUTATION=PASS');
+          console.log('ENTRY640_AUTH_CONTROL=NATIVE');
+          console.log('ENTRY640_AUTH_POLICY_EPOCH='+process.env.TARGET_AUTH_EPOCH);
+          NODE
+
+      - name: NATIVE mode postflight and transitional-path closure
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          OK=0
+          for attempt in $(seq 1 20); do
+            curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry640post=$GITHUB_SHA-$attempt-$(date +%s%N)" -o /tmp/auth-post.json
+            if node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync('/tmp/auth-post.json','utf8'));
+          if(a.success!==true||a.mode!=='NATIVE'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||
+             a.legacySessionEnrollEnabled!==false||a.nativeOnly!==true||Number(a.userCount||0)!==6||
+             Number(a.nativeReadyCount||0)!==6||Number(a.mustChangeCount||0)!==0||a.plaintextStored!==false) process.exit(1);
+          NODE
+            then
+              OK=1
+              echo "ENTRY640_NATIVE_PROPAGATION_ATTEMPT=$attempt"
+              break
+            fi
+            sleep 1
+          done
+          test "$OK" = "1"
+
+          for f in legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry640post=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-post.json"
+          done
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry640post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/frontend-post.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(b.enabled!==false||b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge post drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core post drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content post drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||
+             Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting post safety drift');
+          console.log('ENTRY640_FAMILY_POSTFLIGHT=PASS');
+          NODE
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;" /tmp/frontend-post.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;" /tmp/frontend-post.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 6;" /tmp/frontend-post.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/frontend-post.js
+          echo ENTRY640_FRONTEND_POSTFLIGHT=PASS
+
+          ENROLL_HTTP="$(curl --silent --show-error -o /tmp/entry640-enroll.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST "$API_URL/v1/employee/auth/enroll-legacy-session" \
+            --data '{"username":"entry640-probe","legacyToken":"entry640-no-real-token","password":"entry640-no-real-password","enrollNonce":"entry640-dummy-nonce-present"}')"
+          node - "$ENROLL_HTTP" <<'NODE'
+          const fs=require('fs'),status=Number(process.argv[2]),b=JSON.parse(fs.readFileSync('/tmp/entry640-enroll.json','utf8')||'{}');
+          if(status!==503||b.code!=='employee-auth-enrollment-disabled'||b.mode!=='NATIVE') throw new Error('legacy enrollment did not fail closed in NATIVE mode');
+          console.log('ENTRY640_LEGACY_SESSION_ENROLL_CONTROL_CLOSED=PASS');
+          NODE
+
+          UNKNOWN_HTTP="$(curl --silent --show-error -o /tmp/entry640-unknown.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST "$API_URL/v1/employee/auth/login" \
+            --data '{"username":"entry640-unmigrated-probe","password":"entry640-not-a-real-password"}')"
+          node - "$UNKNOWN_HTTP" <<'NODE'
+          const fs=require('fs'),status=Number(process.argv[2]),b=JSON.parse(fs.readFileSync('/tmp/entry640-unknown.json','utf8')||'{}');
+          if(status!==409||b.code!=='employee-native-migration-required') throw new Error('unmigrated synthetic login did not fail closed');
+          console.log('ENTRY640_UNKNOWN_USER_BOOTSTRAP_CLOSED=PASS');
+          NODE
+
+      - name: Real Global Native login and logout smoke in NATIVE control mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry640smoke=$GITHUB_SHA-$(date +%s%N)" -o /tmp/dispatcher-post.js
+          node --check /tmp/dispatcher-post.js
+
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('/tmp/dispatcher-post.js','utf8');
+          const calls=[];
+          const realFetch=globalThis.fetch;
+          const downstream=async(action,params)=>({success:true,source:'legacy-downstream',action});
+          downstream.__trendosEdgeOrdersReadV1=true;
+          const windowObject={
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_V1:true,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1:false,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:[],
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:0,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT:6,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:false,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[],
+            MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_API_URL:process.env.API_URL,
+            MATBAGY_EDGE_ORDERS_API_URL:process.env.API_URL,
+            trendosSecureApiV1922:downstream
+          };
+          const tracked=async(url,options={})=>{calls.push(String(url));return realFetch(url,options);};
+          const sandbox={window:windowObject,console,URL,Set,Map,JSON,Error,Number,Date,Promise,AbortController,TextEncoder,setTimeout,clearTimeout,setInterval,clearInterval,Response,fetch:tracked};
+          vm.runInNewContext(source,sandbox,{filename:'entry640-live-dispatcher.js'});
+
+          (async()=>{
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            const password=String(process.env.QUALIFY_PASSWORD||'');
+            const out=await windowObject.trendosEmployeeApiV1('login',{username,password});
+            const token=String(out&&out.user&&out.user.token||'').trim();
+            if(out.success!==true||String(out.authSource||'')!=='d1-native-employee-v1'||!token) throw new Error('NATIVE control login failed');
+            console.log('::add-mask::'+token);
+            if(calls.some(u=>u.includes('/v1/employee/legacy-action'))) throw new Error('legacy bridge endpoint called');
+            console.log('ENTRY640_NATIVE_LOGIN=PASS');
+            console.log('ENTRY640_LEGACY_BRIDGE_CALLS=0');
+            const logout=await windowObject.trendosEmployeeApiV1('logout',{username,token});
+            if(logout.success!==true) throw new Error('NATIVE control logout failed');
+            console.log('ENTRY640_NATIVE_LOGOUT=PASS');
+          })().catch(e=>{console.error('ENTRY640_NATIVE_SMOKE=FAIL '+String(e&&e.message||e));process.exit(31);});
+          NODE
+
+      - name: Final D1 and Runtime proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch
+            FROM employee_auth_control_v1
+           WHERE singleton=1;
+          SELECT COUNT(*) AS userCount,
+                 SUM(CASE WHEN active=1
+                           AND password_scheme='pbkdf2-sha256-v1'
+                           AND password_hash_hex<>'' THEN 1 ELSE 0 END) AS nativeReadyCount
+            FROM employee_auth_users_v1;" > /tmp/entry640-final-d1.json
+
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/entry640-final-d1.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'userCount')) rows.push(v); Object.values(v).forEach(walk);}};
+          walk(x);
+          const c=rows.find(r=>r.marker),u=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'userCount'));
+          if(String(c?.mode||'')!=='NATIVE'||Number(c?.policyEpoch||0)!==Number(process.env.TARGET_AUTH_EPOCH)) throw new Error('final D1 control drift');
+          if(Number(u?.userCount||0)!==6||Number(u?.nativeReadyCount||0)!==6) throw new Error('final D1 readiness drift');
+          console.log('ENTRY640_FINAL_D1_CONTROL=NATIVE');
+          console.log('ENTRY640_FINAL_AUTH_POLICY_EPOCH='+process.env.TARGET_AUTH_EPOCH);
+          console.log('ENTRY640_FINAL_NATIVE_READY=6_OF_6');
+          console.log('ENTRY640_PASSWORD_HASH_VALUE_LOGGED=NO');
+          NODE
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry640final=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth-final.json
+          node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync('/tmp/auth-final.json','utf8'));
+          if(a.mode!=='NATIVE'||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==true||
+             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||Number(a.mustChangeCount||0)!==0||a.plaintextStored!==false)
+             throw new Error('final Runtime drift');
+          console.log('ENTRY640_RUNTIME_FINAL=PASS');
+          console.log('ENTRY640_AUTH_MODE=NATIVE');
+          NODE
+
+      - name: Roll back D1 Auth control if any post-mutation step fails
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/entry640-mutation-attempted ]; then
+            echo ENTRY640_ROLLBACK_NOT_NEEDED=PRE_MUTATION_FAILURE
+            exit 0
+          fi
+          test -n "${PRE_AUTH_EPOCH:-}"
+          test -n "${TARGET_AUTH_EPOCH:-}"
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_auth_control_v1
+             SET mode='TRANSITIONAL',
+                 policy_epoch=$PRE_AUTH_EPOCH,
+                 updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='T12_EMPLOYEE_AUTH_V1'
+             AND mode='NATIVE'
+             AND policy_epoch=$TARGET_AUTH_EPOCH;
+          SELECT changes() AS changed;
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch
+            FROM employee_auth_control_v1
+           WHERE singleton=1;" > /tmp/entry640-rollback.json
+
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/entry640-rollback.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'changed')) rows.push(v); Object.values(v).forEach(walk);}};
+          walk(x);
+          const c=rows.find(r=>r.marker);
+          if(String(c?.mode||'')!=='TRANSITIONAL'||Number(c?.policyEpoch||0)!==Number(process.env.PRE_AUTH_EPOCH)) throw new Error('rollback did not restore exact pre-state');
+          console.log('ENTRY640_D1_CONTROL_ROLLBACK=PASS');
+          NODE
+
+          OK=0
+          for attempt in $(seq 1 20); do
+            curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry640rollback=$GITHUB_SHA-$attempt-$(date +%s%N)" -o /tmp/auth-rollback.json
+            if node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync('/tmp/auth-rollback.json','utf8'));
+          if(a.mode!=='TRANSITIONAL'||a.nativeOnly!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||
+             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) process.exit(1);
+          NODE
+            then OK=1; break; fi
+            sleep 1
+          done
+          test "$OK" = "1"
+          echo ENTRY640_ROLLBACK_RUNTIME_HARDENED=PASS
+
+      - name: Boundary
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          echo ENTRY640=PASS
+          echo ENTRY640_AUTH_CONTROL=NATIVE
+          echo ENTRY640_FRONTEND_GLOBAL_NATIVE=true
+          echo ENTRY640_FRONTEND_CANARY=false
+          echo ENTRY640_FRONTEND_BRIDGE=false
+          echo ENTRY640_BACKEND_NATIVE_ONLY=true
+          echo ENTRY640_BACKEND_BOOTSTRAP=false
+          echo ENTRY640_BACKEND_BRIDGE=false
+          echo ENTRY640_API_CODE_DEPLOY=NO
+          echo ENTRY640_FRONTEND_DEPLOY=NO
+          echo ENTRY640_APPS_SCRIPT_TOUCH=NO
+          echo ENTRY640_ACCOUNTING_TOUCHED=NO
+          echo ENTRY640_EASYSTORE_TOUCHED=NO
+          echo ENTRY640_BUSINESS_DATA_MUTATION=NO
