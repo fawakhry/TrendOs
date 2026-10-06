@@ -16,6 +16,8 @@ assert.match(worker,/SHADOW_SERVICE_BINDING_REQUIRED/);
 assert.match(worker,/READINESS_COLLECTOR_SERVICE_BINDING_REQUIRED/);
 assert.match(worker,/\/evidence-status/);
 assert.match(worker,/evidenceAcquisition/);
+assert.match(worker,/Cloud stage/);
+assert.match(worker,/materialFrozen/);
 assert.match(worker,/مصادر أدلة الجاهزية/);
 assert.match(worker,/CLOUDFLARE_SERVICE_BINDING/);
 assert.match(worker,/path==='\/state'/);
