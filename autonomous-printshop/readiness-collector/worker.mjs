@@ -111,6 +111,16 @@ async function evidenceStatus(env){
     deptLinesWithMaterial:Number(row&&row.accountingDeptLinesWithMaterial||0),
     deptLinesWithConsumption:Number(row&&row.accountingDeptLinesWithConsumption||0)
   });
+  const materialRowsTotal=Number(row&&row.accountingMaterialRowsTotal||0);
+  const canaryMaterialRows=Number(row&&row.accountingCanaryMaterialRows||0);
+  const operationalActiveMaterials=Number(row&&row.activeMaterials||0);
+  const materialSourceClass=operationalActiveMaterials>0
+    ? 'OPERATIONAL_ACTIVE_MATERIALS_PRESENT'
+    : (materialRowsTotal>0&&canaryMaterialRows===materialRowsTotal)
+      ? 'AUDIT_ONLY_CANARY_MATERIALS'
+      : materialRowsTotal>0
+        ? 'NO_ACTIVE_OPERATIONAL_MATERIALS'
+        : 'NO_MATERIAL_ROWS';
   const materialReadyInput=accountingCutover.sourceDataPresent &&
     accountingCutover.blockerCollectionAllowed===true;
   const machineReadyInput=text(row&&row.machineMode)==='SHADOW' &&
@@ -143,9 +153,11 @@ async function evidenceStatus(env){
       materialFrozen:accountingCutover.frozen,
       blockerCollectionAllowed:accountingCutover.blockerCollectionAllowed,
       readyEvidenceAllowed:accountingCutover.readyEvidenceAllowed,
-      accountingMaterialRowsTotal:Number(row&&row.accountingMaterialRowsTotal||0),
-      accountingCanaryMaterialRows:Number(row&&row.accountingCanaryMaterialRows||0),
+      accountingMaterialRowsTotal:materialRowsTotal,
+      accountingCanaryMaterialRows:canaryMaterialRows,
       activeMaterialsAll:Number(row&&row.activeMaterialsAll||0),
+      materialSourceClass,
+      canaryRowsExcludedFromReadiness:true,
       activeMaterials:Number(row&&row.activeMaterials||0),
       stockMoves:Number(row&&row.stockMoves||0),
       deptLinesWithLineId:Number(row&&row.accountingDeptLinesWithLineId||0),
