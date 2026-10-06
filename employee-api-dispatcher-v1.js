@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY630_EMPLOYEE_COMMS_READONLY_ROUTER_V1_20261006';
+  var VERSION = 'T12_ENTRY631_BRIDGE_FREE_CANARY_PREFLIGHT_V1_20261006';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -354,8 +354,22 @@
   }
 
   function canaryMinimumBridgePolicies() {
-    var n = Number(window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES || 69);
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 69;
+    var raw = window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES;
+    if (raw == null || raw === '') return 69;
+    var n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 69;
+  }
+
+  function canaryRequiredNativeReadyCount() {
+    var n = Number(window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT || 0);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  }
+
+  function bridgeFreeCanaryConfigured() {
+    return !bridgeEnabled() &&
+      configuredPolicies().size === 0 &&
+      canaryMinimumBridgePolicies() === 0 &&
+      canaryRequiredNativeReadyCount() > 0;
   }
 
   function canaryPreflightKey() {
@@ -363,23 +377,33 @@
       edgeBase(),
       bridgeEnabled() ? 'bridge-on' : 'bridge-off',
       configuredPolicies().size,
-      canaryMinimumBridgePolicies()
+      canaryMinimumBridgePolicies(),
+      canaryRequiredNativeReadyCount()
     ].join('|');
   }
 
   function validateCanaryPreflight(auth, bridge) {
     var minimum = canaryMinimumBridgePolicies();
-    if (!bridgeEnabled()) {
-      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: Bridge frontend ما زال مغلقًا.', 'frontend-bridge-disabled');
-    }
-    if (configuredPolicies().size < minimum) {
-      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: سياسات Bridge غير مكتملة.', 'frontend-bridge-policies');
-    }
+    var requiredReady = canaryRequiredNativeReadyCount();
     if (!auth || auth.success !== true || auth.schemaReady !== true ||
         auth.mode !== 'TRANSITIONAL' || auth.envEnabled !== true ||
         auth.nativeOnly === true || auth.plaintextStored === true ||
         !(auth.legacyBootstrapEnabled === true || Number(auth.nativeReadyCount || 0) > 0)) {
       throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز على Cloud.', 'auth-health');
+    }
+
+    if (bridgeFreeCanaryConfigured()) {
+      if (Number(auth.nativeReadyCount || 0) < requiredReady) {
+        throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: عدد الموظفين Native-ready أقل من المطلوب.', 'native-ready-count');
+      }
+      return true;
+    }
+
+    if (!bridgeEnabled()) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: Bridge frontend مغلق بدون Bridge-free qualification.', 'frontend-bridge-disabled');
+    }
+    if (configuredPolicies().size < minimum) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: سياسات Bridge غير مكتملة.', 'frontend-bridge-policies');
     }
     if (!bridge || bridge.success !== true || bridge.enabled !== true ||
         bridge.upstreamConfigured !== true || bridge.secretConfigured !== true ||
@@ -399,12 +423,15 @@
     // canary even if the compatibility bridge later becomes unhealthy.
     if (action === 'logout' || action === 'changePassword') return true;
 
+    var bridgeFree = bridgeFreeCanaryConfigured();
     var minimum = canaryMinimumBridgePolicies();
-    if (!bridgeEnabled()) {
-      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: Bridge frontend ما زال مغلقًا.', 'frontend-bridge-disabled');
-    }
-    if (configuredPolicies().size < minimum) {
-      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: سياسات Bridge غير مكتملة.', 'frontend-bridge-policies');
+    if (!bridgeFree) {
+      if (!bridgeEnabled()) {
+        throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: Bridge frontend مغلق بدون Bridge-free qualification.', 'frontend-bridge-disabled');
+      }
+      if (configuredPolicies().size < minimum) {
+        throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: سياسات Bridge غير مكتملة.', 'frontend-bridge-policies');
+      }
     }
 
     var key = canaryPreflightKey();
@@ -412,10 +439,10 @@
       return true;
     }
     if (!canaryPreflightPromise) {
-      canaryPreflightPromise = Promise.all([
-        cloudGet(AUTH_HEALTH_PATH),
-        cloudGet(BRIDGE_HEALTH_PATH)
-      ]).then(function (parts) {
+      var healthPromise = bridgeFree
+        ? cloudGet(AUTH_HEALTH_PATH).then(function (auth) { return [auth, null]; })
+        : Promise.all([cloudGet(AUTH_HEALTH_PATH), cloudGet(BRIDGE_HEALTH_PATH)]);
+      canaryPreflightPromise = healthPromise.then(function (parts) {
         validateCanaryPreflight(parts[0], parts[1]);
         canaryPreflightCache = { key: key, at: Date.now() };
         return true;
@@ -730,6 +757,9 @@
     canaryConfigEnabled: canaryConfigEnabled,
     canaryUserSelected: canaryUserSelected,
     canaryRouteEnabled: canaryRouteEnabled,
+    canaryMinimumBridgePolicies: canaryMinimumBridgePolicies,
+    canaryRequiredNativeReadyCount: canaryRequiredNativeReadyCount,
+    bridgeFreeCanaryConfigured: bridgeFreeCanaryConfigured,
     ensureCanaryPreflight: ensureCanaryPreflight,
     bridgeEnabled: bridgeEnabled,
     employeeOpsMode: employeeOpsMode,
