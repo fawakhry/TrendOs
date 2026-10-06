@@ -57,7 +57,12 @@ jobs:
           if(!bindings.some(b=>b&&b.name==='DB')) throw new Error('DB binding missing');
 
           const v=JSON.parse(fs.readFileSync('/tmp/versions-pre.json','utf8'));
-          const ids=(v.result||[]).map(x=>String(x.id||'')).filter(Boolean);
+          const vr=v.result;
+          const versions=Array.isArray(vr)?vr:
+            (vr&&Array.isArray(vr.versions)?vr.versions:
+            (vr&&Array.isArray(vr.items)?vr.items:[]));
+          if(!versions.length) throw new Error('version list shape unsupported');
+          const ids=versions.map(x=>String(x.id||'')).filter(Boolean);
           fs.writeFileSync('/tmp/version-ids-pre.json',JSON.stringify(ids));
           console.log('ENTRY632_CANDIDATE_PREFLIGHT=PASS');
           console.log('ENTRY632_ACTIVE_VERSION='+active);
@@ -109,7 +114,11 @@ jobs:
           node <<'NODE'
           const fs=require('fs');
           const pre=new Set(JSON.parse(fs.readFileSync('/tmp/version-ids-pre.json','utf8')));
-          const post=JSON.parse(fs.readFileSync('/tmp/versions-post.json','utf8')).result||[];
+          const raw=JSON.parse(fs.readFileSync('/tmp/versions-post.json','utf8')).result;
+          const post=Array.isArray(raw)?raw:
+            (raw&&Array.isArray(raw.versions)?raw.versions:
+            (raw&&Array.isArray(raw.items)?raw.items:[]));
+          if(!post.length) throw new Error('post version list shape unsupported');
           const fresh=post.filter(v=>v&&v.id&&!pre.has(String(v.id)));
           if(fresh.length!==1) throw new Error('expected exactly one new candidate version; got '+fresh.length);
           const candidate=String(fresh[0].id);
