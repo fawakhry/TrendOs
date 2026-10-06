@@ -95,7 +95,7 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
     return {success:true,skipped:true,reason:'READINESS_CONTROL_NOT_SHADOW'};
   }
 
-  const [legacyResult,materialResult,machineControl,machinesResult,mappingsResult,observationsResult]=await Promise.all([
+  const [legacyResult,materialResult,accountingControl,machineControl,machinesResult,mappingsResult,observationsResult]=await Promise.all([
     db.prepare(`
       SELECT l.line_id AS lineId,
              l.ready,
@@ -145,6 +145,12 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
          )
     `).all(),
     db.prepare(`
+      SELECT mode,policy_epoch AS policyEpoch
+        FROM employee_accounting_control_v1
+       WHERE singleton=1
+       LIMIT 1
+    `).first(),
+    db.prepare(`
       SELECT mode
         FROM autonomous_machine_control
        WHERE singleton_id=1
@@ -188,7 +194,9 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
 
   const candidates=[
     ...legacyDesignEvidenceCandidatesV1(legacyResult.results||[]),
-    ...materialBlockerEvidenceCandidatesV1(materialResult.results||[],options),
+    ...(text(accountingControl&&accountingControl.mode)==='READONLY'
+      ? materialBlockerEvidenceCandidatesV1(materialResult.results||[],options)
+      : []),
     ...(text(machineControl&&machineControl.mode)==='SHADOW'
       ? machineReadinessEvidenceCandidatesV1({
           machines:machinesResult.results||[],
@@ -216,6 +224,9 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
     inserted,
     duplicates,
     byKind,
+    accountingMode:text(accountingControl&&accountingControl.mode)||'ABSENT',
+    accountingEpoch:Number(accountingControl&&accountingControl.policyEpoch||0),
+    materialAuthorityReadOnly:text(accountingControl&&accountingControl.mode)==='READONLY',
     machineMode:text(machineControl&&machineControl.mode)||'ABSENT'
   };
 }
