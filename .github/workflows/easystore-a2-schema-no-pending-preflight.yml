@@ -34,12 +34,18 @@ jobs:
           set -euo pipefail
           npx wrangler d1 migrations list "$DATABASE" --remote --config "$API_CONFIG" > /tmp/migrations.txt
           cat /tmp/migrations.txt
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT COUNT(*) AS n
+              FROM pragma_table_info('employee_accounting_write_canary_v1')
+             WHERE name IN ('max_commands','commands_started');
+          " > /tmp/schema.json
           node <<'NODE'
           const fs=require('fs'),t=fs.readFileSync('/tmp/migrations.txt','utf8');
-          if(!/0030_employee_accounting_write_canary_budget_v1\.sql/.test(t))throw new Error('0030 not visible in migration history');
-          const pending=[...t.matchAll(/│\s*(\d{4}_[^│]+\.sql)\s*│\s*(?!✅)([^│]*)│/g)].map(m=>m[1].trim());
-          if(pending.length)throw new Error('pending migrations exist:'+JSON.stringify(pending));
+          if(!/No migrations to apply!/i.test(t))throw new Error('wrangler did not prove zero pending migrations');
+          const x=JSON.parse(fs.readFileSync('/tmp/schema.json','utf8')), vals=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.n!==undefined)vals.push(Number(v.n));Object.values(v).forEach(walk);}};walk(x);
+          if(vals.length!==1||vals[0]!==2)throw new Error('0030 canary budget schema not live');
           console.log('A2_SCHEMA_PENDING_MIGRATIONS=0');
-          console.log('A2_SCHEMA_0030_APPLIED=YES');
+          console.log('A2_SCHEMA_0030_COLUMNS=LIVE');
           console.log('PRODUCTION_MUTATION=NO');
           NODE
