@@ -4,6 +4,9 @@ import vm from 'node:vm';
 
 const dispatcherSource=fs.readFileSync('employee-api-dispatcher-v1.js','utf8');
 const m=JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY627_EMPLOYEE_NATIVE_ALIAS_CANARY_MANIFEST.json','utf8'));
+const p626=JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY626_REMAINING_EMPLOYEES_NATIVE_CANARY_17_POLICY_MANIFEST.json','utf8')).policies;
+assert.equal(p626.length,17);
+assert.equal(new Set(p626).size,17);
 
 assert.equal(m.globalNativeAuth,false);
 assert.equal(m.bridgePolicyCount,17);
@@ -20,7 +23,7 @@ const windowObject={
   MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:m.targetCanaryUsers,
   MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:17,
   MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:true,
-  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[],
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:p626,
   MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
   MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
   MATBAGY_EMPLOYEE_API_URL:'https://trendos-d1-api.example.test',
