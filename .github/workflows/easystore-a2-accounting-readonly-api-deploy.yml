@@ -1,5 +1,6 @@
 name: EasyStore A2 Accounting Readonly API Deploy
 # controlled push trigger after A2 preflight pass
+# deploy-round-2 guarded ephemeral shared-base merge
 
 on:
   workflow_dispatch:
@@ -39,13 +40,33 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Require latest shared TrendOS base
+      - name: Merge latest shared TrendOS base in deploy worktree
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name "fawakhry"
+          git config user.email "87904105+fawakhry@users.noreply.github.com"
           git fetch origin candidate/t12-full-cloud-cutover-a56-20260929
           SHARED="$(git rev-parse FETCH_HEAD)"
-          git merge-base --is-ancestor "$SHARED" HEAD
+          BASE="$(git merge-base HEAD FETCH_HEAD)"
+          git diff --name-only "$BASE" FETCH_HEAD > /tmp/a2-deploy-shared-files.txt
+          git diff --name-only "$BASE" HEAD > /tmp/a2-deploy-accounting-files.txt
+          python3 <<'PY'
+          from pathlib import Path
+          shared=set(Path('/tmp/a2-deploy-shared-files.txt').read_text().splitlines())
+          accounting=set(Path('/tmp/a2-deploy-accounting-files.txt').read_text().splitlines())
+          overlap=sorted(shared & accounting)
+          allowed={
+            '.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml',
+            '.github/workflows/easystore-a2-sync-shared-base.yml'
+          }
+          risky=[x for x in overlap if x not in allowed]
+          if risky:
+              print('A2_DEPLOY_SHARED_OVERLAP='+','.join(risky))
+              raise SystemExit('shared/accounting source overlap requires explicit review')
+          print('A2_DEPLOY_SHARED_OVERLAP=NONE')
+          PY
+          git merge --no-edit FETCH_HEAD
           echo A2_DEPLOY_SHARED_HEAD_INCLUDED="$SHARED"
 
       - name: Qualify A2 accounting source
