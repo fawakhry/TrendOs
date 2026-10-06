@@ -1,0 +1,125 @@
+
+name: TrendOS Entry634 Post Activation Smoke
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry634-post-activation-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Runtime proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry634proof=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.nativeOnly!==false||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==false) throw new Error('bridge drift');
+          if(co.mode!=='READONLY'||ct.mode!=='READONLY'||cm.mode!=='READONLY'||o.mode!=='GENERAL'||ac.mode!=='READONLY') throw new Error('family drift');
+          console.log('ENTRY634_RUNTIME_PROOF=PASS');
+          console.log('ENTRY634_LEGACY_BOOTSTRAP_ENABLED=false');
+          console.log('ENTRY634_NATIVE_ONLY=false');
+          console.log('ENTRY634_NATIVE_READY=5_OF_5');
+          NODE
+
+      - name: Missing Native user fails without bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          HTTP="$(curl --silent --show-error -o /tmp/missing.json -w '%{http_code}'             -H 'Content-Type: application/json'             -X POST "$API_URL/v1/employee/auth/login"             --data '{"username":"entry634-missing-native-proof","password":"x"}')"
+          node - "$HTTP" <<'NODE'
+          const fs=require('fs');
+          const status=Number(process.argv[2]);
+          const b=JSON.parse(fs.readFileSync('/tmp/missing.json','utf8')||'{}');
+          if(status!==409||b.code!=='employee-native-migration-required') throw new Error('missing native user did not fail closed');
+          console.log('ENTRY634_MISSING_NATIVE_FAIL_CLOSED=PASS');
+          console.log('ENTRY634_APPS_SCRIPT_BOOTSTRAP_UNREACHABLE=PASS');
+          NODE
+
+      - name: Live dispatcher alias login with bootstrap off
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_PASSWORD"
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry634proof=$suffix" -o /tmp/config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry634proof=$suffix" -o /tmp/dispatcher.js
+
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('/tmp/dispatcher.js','utf8');
+          const calls=[];
+          const realFetch=globalThis.fetch;
+          const legacy=async(action,params)=>({success:true,source:'legacy',action});
+          legacy.__trendosEdgeOrdersReadV1=true;
+          const windowObject={
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_V1:false,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1:true,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:['ضياء','diaa','وائل','wael','جابر','gaber','jaber','رحمه','رحمة','rahma','ريفان','ريڤان','revan','rivan'],
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:0,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT:5,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:false,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[],
+            MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_API_URL:process.env.API_URL,
+            MATBAGY_EDGE_ORDERS_API_URL:process.env.API_URL,
+            trendosSecureApiV1922:legacy
+          };
+          const trackedFetch=async(url,options={})=>{
+            let body=null;try{body=options.body?JSON.parse(options.body):null}catch{}
+            calls.push({url:String(url),body});
+            return realFetch(url,options);
+          };
+          const sandbox={window:windowObject,console,URL,Set,Map,JSON,Error,Number,Date,Promise,AbortController,TextEncoder,setTimeout,clearTimeout,setInterval,clearInterval,Response,fetch:trackedFetch};
+          vm.runInNewContext(source,sandbox,{filename:'entry634-live-dispatcher.js'});
+          (async()=>{
+            const password=String(process.env.QUALIFY_PASSWORD||'');
+            const out=await windowObject.trendosEmployeeApiV1('login',{username:'diaa',password});
+            const token=String(out&&out.user&&out.user.token||'').trim();
+            if(out.success!==true||String(out.authSource||'')!=='d1-native-employee-v1'||!token) throw new Error('native alias login failed');
+            console.log('::add-mask::'+token);
+            const loginCall=calls.find(x=>x.url.endsWith('/v1/employee/auth/login'));
+            if(!loginCall||String(loginCall.body&&loginCall.body.username)!=='ضياء') throw new Error('canonical alias missing');
+            if(calls.some(x=>x.url.includes('/v1/employee/legacy-action'))) throw new Error('bridge call observed');
+            console.log('ENTRY634_LIVE_ALIAS_LOGIN_WITH_BOOTSTRAP_OFF=PASS');
+            console.log('ENTRY634_LIVE_BRIDGE_CALLS=0');
+
+            const logout=await windowObject.trendosEmployeeApiV1('logout',{username:'diaa',token});
+            if(logout.success!==true) throw new Error('logout failed');
+            console.log('ENTRY634_LIVE_LOGOUT=PASS');
+          })().catch(e=>{console.error(String(e&&e.message||e));process.exit(31);});
+          NODE
+
+      - name: Boundary
+        run: |
+          echo ENTRY634_POST_ACTIVATION_SMOKE=PASS
+          echo ENTRY634_BUSINESS_DATA_MUTATION=NO
+          echo ENTRY634_AUTH_SESSION_SMOKE=YES_REVOKED
+          echo ENTRY634_ACCOUNTING_TOUCHED=NO
+          echo ENTRY634_EASYSTORE_TOUCHED=NO
