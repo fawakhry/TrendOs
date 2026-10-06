@@ -1,0 +1,480 @@
+name: TrendOS Entry642 Deploy Resilient Auth Hardening
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-entry642-deploy-resilient-auth-hardening
+  cancel-in-progress: false
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_WORKER: trendos-d1-api
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      TARGET_BRANCH: candidate/t12-full-cloud-cutover-a56-20260929
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact Runtime and repository preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry642pre=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry642pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/frontend-pre.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry642pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/dispatcher-pre.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.success!==true||a.schemaReady!==true||a.mode!=='NATIVE'||a.envEnabled!==true||
+             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||Number(a.mustChangeCount||0)!==0||
+             a.plaintextStored!==false) throw new Error('auth authority/readiness drift');
+          if(b.enabled!==false||b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge safety drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||
+             Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');
+          console.log('ENTRY642_RUNTIME_PREFLIGHT=PASS');
+          console.log('ENTRY642_AUTH_MODE=NATIVE');
+          console.log('ENTRY642_NATIVE_READY=6_OF_6');
+          console.log('ENTRY642_PRE_BOOTSTRAP='+(a.legacyBootstrapEnabled===true?'true':'false'));
+          console.log('ENTRY642_PRE_NATIVE_ONLY='+(a.nativeOnly===true?'true':'false'));
+          console.log('ENTRY642_PRE_SESSION_ENROLL='+(a.legacySessionEnrollEnabled===true?'true':'false'));
+          console.log('ENTRY642_PRE_BRIDGE_POLICY_COUNT='+Number(b.allowedPolicyCount||0));
+          console.log('ENTRY642_PRE_BRIDGE_SECRET_CONFIGURED='+(b.secretConfigured===true?'YES':'NO'));
+          NODE
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 6;" /tmp/frontend-pre.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/frontend-pre.js
+          node --check /tmp/dispatcher-pre.js
+          echo ENTRY642_FRONTEND_PREFLIGHT=PASS
+
+          grep -Fq 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' cloudflare-d1/wrangler.toml
+          git rev-parse HEAD:cloudflare-d1/wrangler.toml > /tmp/wrangler-start-blob.txt
+          echo ENTRY642_REPO_DRIFT_PRECONDITION=PASS
+
+      - name: Lock exact Cloudflare pre-state and patch latest settings
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID;
+          const worker=process.env.API_WORKER;
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          const headers={authorization:'Bearer '+token};
+
+          async function cf(path,options={}){
+            const r=await fetch(base+path,{...options,headers:{...headers,...(options.headers||{})}});
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(!r.ok||body.success!==true) throw new Error('Cloudflare API '+r.status+' '+path+' ERRORS='+JSON.stringify(body.errors||[]));
+            return body;
+          }
+          function deployments(body){
+            return (((body||{}).result||{}).deployments||body.result||[]).slice()
+              .sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0));
+          }
+          function activeVersion(body){
+            const ds=deployments(body),cur=ds[0]||{};
+            const full=(cur.versions||[]).filter(v=>Number(v.percentage||0)===100);
+            if(full.length!==1) throw new Error('active deployment shape');
+            const id=String(full[0].version_id||full[0].id||'');
+            if(!id) throw new Error('active version missing');
+            return id;
+          }
+          function versionItems(body){
+            const r=body.result;
+            return (Array.isArray(r)?r:(r&&Array.isArray(r.items)?r.items:(r&&Array.isArray(r.versions)?r.versions:[]))).slice();
+          }
+
+          (async()=>{
+            const dep=await cf('/deployments');
+            const pre=activeVersion(dep);
+            const preBody=await cf('/versions/'+pre);
+            const preEtag=String(preBody.result&&preBody.result.resources&&preBody.result.resources.script&&preBody.result.resources.script.etag||'');
+            if(!preEtag) throw new Error('active script etag missing');
+
+            const versionsBefore=versionItems(await cf('/versions?per_page=100'));
+            const beforeIds=new Set(versionsBefore.map(x=>String(x.id||'')).filter(Boolean));
+            const newestBefore=[...versionsBefore].sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0))[0];
+            if(String(newestBefore&&newestBefore.id||'')!==pre) throw new Error('latest version is not active; abort instead of editing staged settings');
+
+            const settings=await cf('/settings');
+            const bs=Array.isArray(settings.result&&settings.result.bindings)?settings.result.bindings:[];
+            const by=new Map(bs.map(b=>[String(b.name||''),b]));
+            const required=[
+              'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED',
+              'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED',
+              'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1',
+              'TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED',
+              'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED',
+              'EMPLOYEE_LEGACY_BRIDGE_ACTIONS'
+            ];
+            for(const n of required) if(!by.has(n)) throw new Error('required binding missing '+n);
+            if(!by.has('DB')||String(by.get('DB').type||'')!=='d1') throw new Error('D1 binding missing');
+            if(!by.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1')) throw new Error('bridge secret binding missing');
+
+            const plain=n=>{const b=by.get(n);return b&&b.type==='plain_text'?String(b.text||''):'<non-plain>';};
+            console.log('ENTRY642_CF_PRE_ACTIVE_VERSION='+pre);
+            console.log('ENTRY642_CF_PRE_BINDING_COUNT='+bs.length);
+            console.log('ENTRY642_CF_PRE_NATIVE_ONLY='+plain('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1'));
+            console.log('ENTRY642_CF_PRE_BOOTSTRAP='+plain('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED'));
+            console.log('ENTRY642_CF_PRE_BRIDGE_ENABLED='+plain('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED'));
+            console.log('ENTRY642_CF_PRE_BRIDGE_ACTIONS_EMPTY='+(plain('EMPLOYEE_LEGACY_BRIDGE_ACTIONS')===''?'YES':'NO'));
+            console.log('ENTRY642_CF_BRIDGE_SECRET_BINDING=YES');
+            console.log('ENTRY642_CF_SECRET_VALUE_LOGGED=NO');
+
+            fs.writeFileSync('/tmp/entry642-pre-version.txt',pre);
+            fs.writeFileSync('/tmp/entry642-pre-etag.txt',preEtag);
+
+            const targets=new Map([
+              ['TRENDOS_EMPLOYEE_AUTH_V1_ENABLED','true'],
+              ['TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED','false'],
+              ['TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1','true'],
+              ['TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED','false'],
+              ['TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED','false'],
+              ['EMPLOYEE_LEGACY_BRIDGE_ACTIONS','']
+            ]);
+            const next=bs.map(b=>targets.has(String(b.name||''))
+              ? {name:b.name,type:'plain_text',text:targets.get(String(b.name||''))}
+              : {name:b.name,type:'inherit',version_id:pre});
+
+            const form=new FormData();
+            form.append('settings',new Blob([JSON.stringify({
+              bindings:next,
+              annotations:{'workers/message':'Entry642 deploy-resilient Native auth hardening'}
+            })],{type:'application/json'}),'settings.json');
+            await cf('/settings',{method:'PATCH',body:form});
+            fs.writeFileSync('/tmp/entry642-settings-patched','1');
+
+            const versionsAfter=versionItems(await cf('/versions?per_page=100'));
+            const fresh=versionsAfter.map(x=>String(x.id||'')).filter(id=>id&&!beforeIds.has(id));
+            if(fresh.length!==1) throw new Error('expected exactly one fresh settings version, got '+fresh.length);
+            fs.writeFileSync('/tmp/entry642-new-version.txt',fresh[0]);
+            console.log('ENTRY642_CF_SETTINGS_PATCH=PASS');
+            console.log('ENTRY642_CF_NEW_VERSION='+fresh[0]);
+          })().catch(e=>{console.error('ENTRY642_CF_PATCH_FAIL '+String(e&&e.message||e));process.exit(1);});
+          NODE
+
+      - name: Deploy hardened settings version if needed and prove code unchanged
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID,worker=process.env.API_WORKER;
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          const headers={authorization:'Bearer '+token};
+          async function cf(path,options={}){
+            const r=await fetch(base+path,{...options,headers:{...headers,...(options.headers||{})}});
+            const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}
+            if(!r.ok||b.success!==true) throw new Error('Cloudflare API '+r.status+' '+path);
+            return b;
+          }
+          function active(body){
+            const ds=((((body||{}).result||{}).deployments)||body.result||[]).slice().sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0));
+            const full=((ds[0]||{}).versions||[]).filter(v=>Number(v.percentage||0)===100);
+            if(full.length!==1) throw new Error('deployment shape');
+            return String(full[0].version_id||full[0].id||'');
+          }
+          async function deploy(id){
+            await cf('/deployments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+              strategy:'percentage',versions:[{version_id:id,percentage:100}]
+            })});
+          }
+          (async()=>{
+            const pre=fs.readFileSync('/tmp/entry642-pre-version.txt','utf8').trim();
+            const preEtag=fs.readFileSync('/tmp/entry642-pre-etag.txt','utf8').trim();
+            const fresh=fs.readFileSync('/tmp/entry642-new-version.txt','utf8').trim();
+            const freshBody=await cf('/versions/'+fresh);
+            const freshEtag=String(freshBody.result&&freshBody.result.resources&&freshBody.result.resources.script&&freshBody.result.resources.script.etag||'');
+            if(!freshEtag||freshEtag!==preEtag) throw new Error('worker code etag changed');
+            let cur=active(await cf('/deployments'));
+            if(cur!==fresh){
+              if(cur!==pre) throw new Error('active version changed concurrently to '+cur);
+              await deploy(fresh);
+              console.log('ENTRY642_CF_EXPLICIT_DEPLOY=YES');
+              cur=active(await cf('/deployments'));
+            } else {
+              console.log('ENTRY642_CF_EXPLICIT_DEPLOY=NO');
+            }
+            if(cur!==fresh) throw new Error('hardened settings version not active');
+            fs.writeFileSync('/tmp/entry642-production-active','1');
+            console.log('ENTRY642_CF_CODE_ETAG_UNCHANGED=PASS');
+            console.log('ENTRY642_CF_ACTIVE_VERSION='+cur);
+          })().catch(e=>{console.error('ENTRY642_CF_DEPLOY_FAIL '+String(e&&e.message||e));process.exit(1);});
+          NODE
+
+      - name: Production hardening postflight and Native login smoke
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          OK=0
+          for attempt in $(seq 1 30); do
+            curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry642post=$GITHUB_SHA-$attempt-$(date +%s%N)" -o /tmp/auth-post.json
+            curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry642post=$GITHUB_SHA-$attempt-$(date +%s%N)" -o /tmp/bridge-post.json
+            if node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-post.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-post.json','utf8'));
+          if(a.mode!=='NATIVE'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||
+             a.nativeOnly!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||
+             Number(a.mustChangeCount||0)!==0||a.plaintextStored!==false) process.exit(1);
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0||b.secretConfigured!==true||
+             b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) process.exit(1);
+          NODE
+            then
+              OK=1
+              echo "ENTRY642_PROPAGATION_ATTEMPT=$attempt"
+              break
+            fi
+            sleep 1
+          done
+          test "$OK" = "1"
+
+          for f in core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry642stable=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-post.json"
+          done
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry642stable=$GITHUB_SHA-$(date +%s%N)" -o /tmp/frontend-post.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry642stable=$GITHUB_SHA-$(date +%s%N)" -o /tmp/dispatcher-post.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||
+             Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');
+          console.log('ENTRY642_FAMILY_POSTFLIGHT=PASS');
+          NODE
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;" /tmp/frontend-post.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;" /tmp/frontend-post.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 6;" /tmp/frontend-post.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/frontend-post.js
+          node --check /tmp/dispatcher-post.js
+
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('/tmp/dispatcher-post.js','utf8');
+          const calls=[];const realFetch=globalThis.fetch;
+          const downstream=async(action,params)=>({success:true,source:'legacy-downstream',action});
+          downstream.__trendosEdgeOrdersReadV1=true;
+          const windowObject={
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_V1:true,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1:false,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:[],
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:0,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT:6,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:false,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[],
+            MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_API_URL:process.env.API_URL,
+            MATBAGY_EDGE_ORDERS_API_URL:process.env.API_URL,
+            trendosSecureApiV1922:downstream
+          };
+          const tracked=async(url,options={})=>{calls.push(String(url));return realFetch(url,options);};
+          const sandbox={window:windowObject,console,URL,Set,Map,JSON,Error,Number,Date,Promise,AbortController,TextEncoder,setTimeout,clearTimeout,setInterval,clearInterval,Response,fetch:tracked};
+          vm.runInNewContext(source,sandbox,{filename:'entry642-live-dispatcher.js'});
+          (async()=>{
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            const password=String(process.env.QUALIFY_PASSWORD||'');
+            const out=await windowObject.trendosEmployeeApiV1('login',{username,password});
+            const token=String(out&&out.user&&out.user.token||'').trim();
+            if(out.success!==true||String(out.authSource||'')!=='d1-native-employee-v1'||!token) throw new Error('Native login failed');
+            console.log('::add-mask::'+token);
+            if(calls.some(u=>u.includes('/v1/employee/legacy-action'))) throw new Error('legacy bridge endpoint called');
+            console.log('ENTRY642_NATIVE_LOGIN=PASS');
+            console.log('ENTRY642_LEGACY_BRIDGE_CALLS=0');
+            const lo=await windowObject.trendosEmployeeApiV1('logout',{username,token});
+            if(lo.success!==true) throw new Error('logout failed');
+            console.log('ENTRY642_NATIVE_LOGOUT=PASS');
+          })().catch(e=>{console.error('ENTRY642_NATIVE_SMOKE=FAIL '+String(e&&e.message||e));process.exit(31);});
+          NODE
+
+          UNKNOWN_HTTP="$(curl --silent --show-error -o /tmp/entry642-unknown.json -w '%{http_code}'             -H 'Content-Type: application/json' -X POST "$API_URL/v1/employee/auth/login"             --data '{"username":"entry642-unmigrated-probe","password":"entry642-not-a-real-password"}')"
+          node - "$UNKNOWN_HTTP" <<'NODE'
+          const fs=require('fs'),status=Number(process.argv[2]),b=JSON.parse(fs.readFileSync('/tmp/entry642-unknown.json','utf8')||'{}');
+          if(status!==409||b.code!=='employee-native-migration-required') throw new Error('synthetic unmigrated login did not fail closed');
+          console.log('ENTRY642_UNKNOWN_USER_FAIL_CLOSED=PASS');
+          NODE
+
+          touch /tmp/entry642-production-proven
+          echo ENTRY642_PRODUCTION_HARDENING=PASS
+          echo ENTRY642_CF_BRIDGE_POLICY_COUNT=0
+          echo ENTRY642_CF_BRIDGE_SECRET_RETAINED=YES
+          echo ENTRY642_CF_SECRET_VALUE_LOGGED=NO
+
+      - name: Roll back exact pre-version on production proof failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/entry642-settings-patched ]; then
+            echo ENTRY642_ROLLBACK_NOT_NEEDED=PRE_PATCH_FAILURE
+            exit 0
+          fi
+          if [ -f /tmp/entry642-production-proven ]; then
+            echo ENTRY642_ROLLBACK_NOT_RUN=PRODUCTION_ALREADY_PROVEN
+            exit 0
+          fi
+          PRE="$(cat /tmp/entry642-pre-version.txt)"
+          node <<'NODE'
+          const fs=require('fs');
+          const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID,worker=process.env.API_WORKER;
+          const pre=fs.readFileSync('/tmp/entry642-pre-version.txt','utf8').trim();
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          (async()=>{
+            const r=await fetch(base+'/deployments',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({
+              strategy:'percentage',versions:[{version_id:pre,percentage:100}]
+            })});
+            const b=await r.json();
+            if(!r.ok||b.success!==true) throw new Error('rollback API failed');
+            console.log('ENTRY642_CF_ROLLBACK_DEPLOYED_PRE_VERSION='+pre);
+          })().catch(e=>{console.error(String(e&&e.message||e));process.exit(1);});
+          NODE
+          OK=0
+          for attempt in $(seq 1 20); do
+            curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry642rollback=$GITHUB_SHA-$attempt-$(date +%s%N)" -o /tmp/auth-rollback.json
+            if node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync('/tmp/auth-rollback.json','utf8'));
+          if(a.mode!=='NATIVE'||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) process.exit(1);
+          NODE
+            then OK=1; break; fi
+            sleep 1
+          done
+          test "$OK" = "1"
+          echo ENTRY642_ROLLBACK_NATIVE_AUTHORITY_SAFE=PASS
+
+      - name: Reconcile wrangler auth defaults after production proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f /tmp/entry642-production-proven
+          START="$(cat /tmp/wrangler-start-blob.txt)"
+
+          git fetch --quiet origin "$TARGET_BRANCH"
+          REMOTE="$(git rev-parse "origin/$TARGET_BRANCH:cloudflare-d1/wrangler.toml")"
+          if [ "$REMOTE" != "$START" ]; then
+            echo ENTRY642_WRANGLER_CONCURRENT_CHANGE=YES
+            exit 41
+          fi
+
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('cloudflare-d1/wrangler.toml')
+          s=p.read_text()
+          pairs=[
+            ('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"','TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"'),
+            ('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"','TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"')
+          ]
+          for old,new in pairs:
+              if s.count(old)!=1: raise SystemExit('anchor count for '+old+'='+str(s.count(old)))
+              s=s.replace(old,new,1)
+          required=[
+            'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"',
+            'TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"',
+            'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"',
+            'TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"',
+            'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"',
+            'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""'
+          ]
+          for line in required:
+              if s.count(line)!=1: raise SystemExit('target missing/duplicate '+line)
+          p.write_text(s)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloudflare-d1/wrangler.toml
+          git commit -m "config: persist Entry642 Native auth hardening defaults"
+
+          git fetch --quiet origin "$TARGET_BRANCH"
+          REMOTE2="$(git rev-parse "origin/$TARGET_BRANCH:cloudflare-d1/wrangler.toml")"
+          if [ "$REMOTE2" != "$START" ]; then
+            echo ENTRY642_WRANGLER_RACE=YES
+            exit 42
+          fi
+          git rebase "origin/$TARGET_BRANCH"
+          git push origin "HEAD:$TARGET_BRANCH"
+          echo ENTRY642_WRANGLER_RECONCILED=PASS
+
+      - name: Final stable proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry642final=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-final.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-final.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),ac=r('accounting');
+          if(a.mode!=='NATIVE'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||
+             a.nativeOnly!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) throw new Error('final auth drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0||b.secretConfigured!==true) throw new Error('final bridge drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||
+             Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('final accounting safety drift');
+          console.log('ENTRY642_FINAL_RUNTIME=PASS');
+          console.log('ENTRY642_AUTH_MODE=NATIVE');
+          console.log('ENTRY642_NATIVE_READY=6_OF_6');
+          console.log('ENTRY642_BOOTSTRAP=false');
+          console.log('ENTRY642_NATIVE_ONLY=true');
+          console.log('ENTRY642_BACKEND_BRIDGE=false');
+          console.log('ENTRY642_BRIDGE_POLICY_COUNT=0');
+          console.log('ENTRY642_BRIDGE_SECRET_RETAINED=YES');
+          NODE
+
+          echo ENTRY642=PASS
+          echo ENTRY642_D1_MUTATION=NO
+          echo ENTRY642_APPS_SCRIPT_TOUCH=NO
+          echo ENTRY642_FRONTEND_DEPLOY=NO
+          echo ENTRY642_ACCOUNTING_TOUCHED=NO
+          echo ENTRY642_EASYSTORE_TOUCHED=NO
+          echo ENTRY642_BUSINESS_DATA_MUTATION=NO
