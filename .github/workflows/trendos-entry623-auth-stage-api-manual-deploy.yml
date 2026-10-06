@@ -3,6 +3,11 @@ name: TrendOS Entry623 Auth Stage API Manual Deploy
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml'
 
 permissions:
   contents: read
@@ -22,7 +27,7 @@ jobs:
       UI_URL: https://trendos-ui.trendmall-contact.workers.dev
       BASE_COMMIT: a6aaf6390b0572feb5715736ed88cda8c8ade9c2
       BASE_AUTH_BLOB: e7bb20287efa16366fbd267251217fde90a33958
-      PATCH_AUTH_BLOB: 450d3f9e65cece5363c4c51677e5b306c0deae5e
+      PATCH_AUTH_BLOB: c01156a965e7de60e7a70d44d86b41b59eb83ded
       WRANGLER_VERSION: 4.33.2
 
     steps:
