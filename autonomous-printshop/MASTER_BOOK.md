@@ -4430,3 +4430,112 @@ LIVE_EMPLOYEE_ASSIGNMENT=NO
 Result:
 - no further interpretation is needed to know what external proof is required for the first pilot;
 - the remaining blockers are real-world source evidence, not an ambiguity in readiness policy.
+
+
+### AP-057 — Existing source evidence exhausted; external operational evidence is the remaining boundary
+
+A final cross-source search was completed to determine whether the first strict pilot can be advanced using evidence that already exists in prior project conversations, files, repositories, Production D1 projections or connected source systems.
+
+Truth priority remains:
+`Runtime truth > deployed > tested > repo-only > historical`.
+
+#### Machine search result
+Existing sources prove only machine classes / software references:
+- Canon G7070;
+- Epson L805;
+- generic Laser / Heat Press / Vinyl Cutter labels;
+- Matbaagy Fiber Laser software targeting EZCAD 30W.
+
+No source contains a qualified physical machine identity:
+- no serial number;
+- no owner asset tag;
+- no qualified nameplate record;
+- no hardware/controller identity that satisfies the Machine Identity contract.
+
+Therefore no machine was registered and no synthetic ID was created.
+
+#### Material search result
+Historical project material taxonomy includes examples such as MDF, acrylic, wood, leather, paper and vinyl.
+
+However no existing source contains owner-confirmed current operational stock/consumption suitable for authoritative readiness:
+- no current real stock quantity;
+- no current stock movement evidence;
+- no live-line material consumption mapping;
+- no supplier-backed current balance suitable for import.
+
+Production Accounting currently contains one Material row only, and it is the inactive zero-value `A2_CANARY` audit artifact. Autonomous Printshop explicitly excludes it from readiness.
+
+#### Design search result
+Existing Matbagy / prior design sources contain historical assets and approved design-memory cases, but no current artifact satisfies all of:
+- active real TrendOS order;
+- exact real line;
+- real current storage reference;
+- content SHA-256;
+- structured qualified approval;
+- qualified preflight PASS.
+
+Cloud order-conversation files remain zero at the current Production checkpoint.
+
+#### Accounting synchronization
+The latest EasyStore accounting book text still ends at `ACC-089 — A2.9 armed`, but fresh runtime is newer and authoritative:
+
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=10
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+WRITE_CANARY_ALLOWED_USERS=0
+WRITE_CANARY_ALLOWED_ACTIONS=0
+WRITE_CANARY_MAX_COMMANDS=0
+WRITE_CANARY_COMMANDS_STARTED=0
+GOOGLE_BUSINESS_CALLS=0
+```
+
+Therefore Autonomous Printshop treats the accounting canary as closed in current runtime regardless of the stale book tail.
+
+#### Current live pilot acquisition boundary
+The live privacy-safe packet now requires, on the same pilot line:
+
+Design:
+- real active order/line linkage;
+- SHA-256;
+- linked private asset;
+- structured approval;
+- qualified preflight PASS.
+
+Material:
+- active non-canary material;
+- authoritative stock source;
+- live-line material link;
+- positive material consumption.
+
+Machine:
+- explicit machine ID;
+- Nameplate or Owner Asset Registry;
+- serial or asset tag;
+- direct operator check or self-test;
+- active line-machine mapping.
+
+Current pilot:
+```ini
+DEPARTMENT=ليزر
+PRIORITY=عاجل
+MACHINE_CLASS_HINT=LASER
+MISSING=DESIGN,MATERIAL,MACHINE
+EXTERNAL_EVIDENCE_REQUIRED=true
+```
+
+Current system:
+```ini
+SOFTWARE_POLICY_GAP=NO_KNOWN_BLOCKER
+STRICT_ELIGIBLE=0
+READINESS_EVIDENCE_ROWS=0
+OPERATOR_TASK_CONTROL=OFF
+AVAILABLE_OPERATORS=0
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+Conclusion:
+- additional code must not invent substitutes for missing physical/source truth;
+- the next transition depends on new authoritative operational evidence;
+- once that evidence appears, already-qualified Design, Material, Machine and Operator Task CANARY gates can evaluate it without redesigning the readiness architecture.
