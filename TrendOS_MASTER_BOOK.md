@@ -4880,3 +4880,40 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   WORKER_CODE_CHANGE=NO
   ```
 - Remaining legacy dependency to assess next is employee Auth legacy bootstrap itself. Do not change Accounting/EasyStore as part of that assessment.
+
+
+### Entry633 — Native username canonicalization PASS
+- Before retiring legacy Auth bootstrap, D1 identity rows were audited read-only.
+- D1 contains exactly five Native-ready identity groups:
+  ```ini
+  DIAA=ضياء
+  WAEL=وائل
+  JABER=جابر
+  RAHMA=رحمه
+  REVAN=ريفان
+  ```
+- Read-only identity audit:
+  - `.github/workflows/trendos-entry633-auth-alias-readonly-audit.yml`
+  - Run `37489148664` = SUCCESS.
+- Exact D1 key classification:
+  - `.github/workflows/trendos-entry633-auth-native-key-classification.yml`
+  - Run `37489375899` = SUCCESS.
+- Dispatcher canonicalization maps known aliases to those exact five keys before all Native employee routes.
+- Repo CI:
+  - `.github/workflows/trendos-entry633-native-username-canonicalization-ci.yml`
+  - Run `37489882275` = SUCCESS.
+- Controlled frontend deployment:
+  - `.github/workflows/trendos-entry633-native-alias-frontend-controlled.yml`
+  - Run `37490159993`;
+  - Job `112360466601`;
+  - conclusion = SUCCESS;
+  - frontend version `9f1ea548-ff16-4360-a16e-fd225e5e112b`.
+- Live proof used the known alias `diaa` with the qualification credential and verified:
+  ```ini
+  diaa -> ضياء
+  AUTH_SOURCE=d1-native-employee-v1
+  BRIDGE_CALLS=0
+  LOGOUT=PASS
+  ```
+- No API deploy or Auth flag change occurred in Entry633.
+- Entry634 target: disable `TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED` only, while keeping `NATIVE_ONLY=false` for a separate later gate.
