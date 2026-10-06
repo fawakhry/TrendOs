@@ -3199,3 +3199,46 @@ Important boundary:
 - the shared TrendOS API worker was **not** deployed from the Autonomous Printshop branch, avoiding regression of the newer concurrent Accounting backend;
 - R2 remains blocked by missing/insufficient infrastructure permission/binding;
 - upload still does not imply approval, preflight PASS, or READY.
+
+
+### AP-036 — Conservative Design Recipe selector qualified; live coverage remains UNKNOWN
+
+Added a deterministic SHADOW-only recipe selector:
+- `autonomous-printshop/core/design-recipe-selector-v1.mjs`
+- `autonomous-printshop/tests/design_recipe_selector_v1.test.mjs`
+
+Selector policy:
+- exact supported product-family signal is required;
+- exact/near-exact recipe dimensions are required;
+- missing dimensions or ambiguous family => UNKNOWN;
+- selector writes no preflight and no readiness evidence.
+
+Currently supported exact mappings remain limited to the four qualified recipe catalog entries:
+- mug 20x9;
+- official ID 4x6;
+- graduation cut sticker 7x10;
+- collage 50x70.
+
+Policy CI Run `37502467837` = **SUCCESS**.
+
+Read-only Production aggregate coverage Run `37502475235` = **SUCCESS**.
+No raw line IDs or item names were emitted.
+
+Result:
+```ini
+ACTIVE_RECIPE_DISCOVERY_ROWS=63
+EXACT_RECIPE_MATCHED=0
+RECIPE_UNKNOWN=63
+RAW_LINE_IDS_EXPOSED=NO
+RAW_ITEM_NAMES_EXPOSED=NO
+PREFLIGHT_WRITE=NO
+READINESS_WRITE=NO
+PRODUCTION_MUTATION=NO
+```
+
+Interpretation:
+- no current Production line is allowed to inherit one of the four existing recipes by guesswork;
+- recipe coverage must be expanded only from qualified real product/design evidence;
+- current Design blocker remains authentic evidence acquisition, not selector permissiveness.
+
+Existing UI/source inspection also confirms that the current order-conversation experience supports sending proofs and a proof-review warning, but contains no structured customer proof-approval action. Free-text conversation text is therefore not accepted as automatic approval evidence.
