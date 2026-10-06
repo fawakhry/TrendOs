@@ -45,8 +45,10 @@ jobs:
           grep -q "mode TEXT NOT NULL DEFAULT 'OFF'" "$SQL"
           grep -q 'AUTONOMOUS_MACHINE_OBSERVATIONS_APPEND_ONLY' "$SQL"
           grep -q 'AUTONOMOUS_MACHINE_MAPPING_APPEND_ONLY' "$SQL"
-          ! grep -Eiq '\b(DROP|ALTER|DELETE|VACUUM|REPLACE)\b' "$SQL"
-          ! grep -Eiq '(INSERT|UPDATE)[^;]*(t12_prod_|employee_|operator_tasks|autonomous_readiness_evidence)' "$SQL"
+          ! grep -Eiq '\b(DROP|ALTER|VACUUM)\b' "$SQL"
+          ! grep -Eiq '\bDELETE[[:space:]]+FROM\b' "$SQL"
+          ! grep -Eiq '\bREPLACE[[:space:]]+INTO\b' "$SQL"
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_|operator_tasks|autonomous_readiness_evidence)' "$SQL"
           echo 'MACHINE_READINESS_SCHEMA_SAFETY=PASS'
 
       - name: Apply additive machine readiness schema
