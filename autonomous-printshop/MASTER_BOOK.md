@@ -3378,3 +3378,53 @@ LATEST_CONSUMED_ACCOUNTING_CHECKPOINT=ACC-061
 MATERIAL_READY=NO
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-039 — Owner-only structured Design approval path qualified repo-only
+
+A controlled structured owner approval path is now qualified without opening a customer-facing approval endpoint.
+
+Added:
+- `autonomous-printshop/core/structured-owner-design-approval-command-v1.mjs`;
+- `autonomous-printshop/tests/structured_owner_design_approval_command_v1.test.mjs`;
+- `.github/workflows/autonomous-printshop-structured-owner-design-approval.yml`;
+- `autonomous-printshop/tests/structured_owner_design_approval_workflow_v1.test.mjs`.
+
+Contract:
+- workflow_dispatch only;
+- repository owner only;
+- exact existing artifact ID required;
+- exact line ID required;
+- exact subject content SHA-256 required;
+- structured decision only: APPROVE or REJECT;
+- Design/Readiness/Autonomy must remain SHADOW;
+- Operator Task must remain OFF with zero tasks;
+- receipt is written only if artifact + line + content hash match;
+- matching approval event is written only from that receipt;
+- no preflight row is created;
+- no readiness evidence is created;
+- no accounting/order/line/employee assignment write is permitted.
+
+The workflow has **not** been dispatched because Production currently has zero Design artifacts.
+
+Qualification:
+- Autonomous Printshop Policy V1 CI Run `37510693519` = SUCCESS.
+- Structured owner command contract = PASS.
+- Structured owner workflow contract = PASS.
+
+Current Production remains:
+```ini
+DESIGN_ARTIFACTS=0
+APPROVAL_RECEIPT_ROWS=0
+DESIGN_APPROVAL_EVENTS=0
+DESIGN_PREFLIGHTS=0
+DESIGN_READY=0
+OWNER_STRUCTURED_APPROVAL_WORKFLOW_DISPATCHED=NO
+OPERATOR_TASK_CONTROL=OFF
+```
+
+Boundary:
+- repository-owner approval is a safe interim structured source;
+- Cloud-native customer approval is still not opened because no qualified Cloud customer-auth authority exists;
+- free text remains non-authoritative;
+- approval alone still cannot produce Design READY.
