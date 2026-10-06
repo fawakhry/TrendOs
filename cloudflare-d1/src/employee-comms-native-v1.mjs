@@ -190,8 +190,8 @@ async function orderConversation(env,user,body){
   const ctx=await latestOrderContext(env,orderId);if(!ctx.orderId)return {success:false,message:'الأوردر غير موجود.'};
   const q=await env.DB.prepare("SELECT id AS messageId,order_id AS orderId,direction AS senderType,by_user AS senderName,text,at AS createdAt,source,send_status AS sendStatus FROM messages WHERE order_id=? ORDER BY at").bind(orderId).all();
   const fq=lineId
-    ? await env.DB.prepare("SELECT file_id AS fileId,order_id AS orderId,line_id AS lineId,file_name AS name,mime_type AS mimeType,public_url AS url,visible_to_customer AS visibleToCustomer,created_at AS createdAt FROM employee_order_conversation_files_v1 WHERE order_id=? AND line_id=? ORDER BY created_at").bind(orderId,lineId).all()
-    : await env.DB.prepare("SELECT file_id AS fileId,order_id AS orderId,line_id AS lineId,file_name AS name,mime_type AS mimeType,public_url AS url,visible_to_customer AS visibleToCustomer,created_at AS createdAt FROM employee_order_conversation_files_v1 WHERE order_id=? ORDER BY created_at").bind(orderId).all();
+    ? await env.DB.prepare("SELECT file_id AS fileId,order_id AS orderId,line_id AS lineId,file_name AS name,mime_type AS mimeType,content_sha256 AS contentSha256,public_url AS url,visible_to_customer AS visibleToCustomer,created_at AS createdAt FROM employee_order_conversation_files_v1 WHERE order_id=? AND line_id=? ORDER BY created_at").bind(orderId,lineId).all()
+    : await env.DB.prepare("SELECT file_id AS fileId,order_id AS orderId,line_id AS lineId,file_name AS name,mime_type AS mimeType,content_sha256 AS contentSha256,public_url AS url,visible_to_customer AS visibleToCustomer,created_at AS createdAt FROM employee_order_conversation_files_v1 WHERE order_id=? ORDER BY created_at").bind(orderId).all();
   return {success:true,orderId,lineId,lines:[],files:(fq.results||[]).map(x=>({...x,visibleToCustomer:x.visibleToCustomer?'نعم':'لا'})),messages:q.results||[]};
 }
 async function sendOrderConversation(env,user,body){
@@ -200,6 +200,10 @@ async function sendOrderConversation(env,user,body){
   await appendMessage(env,{phone:cleanPhone(ctx.phone),customerName:ctx.customerName,orderId,direction:'out',text:message,source:'TrendOS Order Conversation',sendStatus:'محفوظ',by:user.username,at:new Date().toISOString(),raw:{lineId:text(body.lineId),visibleToCustomer:text(body.visibleToCustomer)||'نعم'}});
   return {success:true,message:'تم حفظ رسالة المتابعة في محادثة الأوردر.'};
 }
+async function sha256HexV1(bytes){
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 async function uploadOrderFile(env,user,body){
   const orderId=text(body.orderId),lineId=text(body.lineId),bytes=b64Bytes(body.base64),name=text(body.fileName)||'proof.bin',mime=text(body.mimeType)||'application/octet-stream';
   if(!orderId||!bytes)return {success:false,message:'بيانات رفع البروفة ناقصة.'};
@@ -207,12 +211,13 @@ async function uploadOrderFile(env,user,body){
   if(!env.FILES)throw Object.assign(new Error('Cloudflare R2 FILES binding is not configured'),{code:'r2-files-not-configured'});
   const ctx=await latestOrderContext(env,orderId);if(!ctx.orderId)return {success:false,message:'الأوردر غير موجود.'};
   const fileId='OCF-'+crypto.randomUUID(),r2Key=`order-conversations/${orderId}/${lineId||'general'}/${fileId}/${name.replace(/[^A-Za-z0-9._-]+/g,'_')}`;
-  await env.FILES.put(r2Key,bytes,{httpMetadata:{contentType:mime}});
+  const contentSha256=await sha256HexV1(bytes);
+  await env.FILES.put(r2Key,bytes,{httpMetadata:{contentType:mime},customMetadata:{sha256:contentSha256}});
   const base=text(env.FILES_PUBLIC_BASE_URL).replace(/\/+$/,''),url=base?base+'/'+r2Key:FILE_PREFIX+encodeURIComponent(fileId);
   const messageId=await appendMessage(env,{phone:cleanPhone(ctx.phone),customerName:ctx.customerName,orderId,direction:'out',text:text(body.message||body.text)||'تم رفع ملف/بروفة من الموظف.',source:'TrendOS Order Conversation',sendStatus:'محفوظ',by:user.username,at:new Date().toISOString(),raw:{lineId,fileId}});
-  await env.DB.prepare("INSERT INTO employee_order_conversation_files_v1(file_id,order_id,line_id,message_id,r2_key,file_name,mime_type,size_bytes,public_url,visible_to_customer,uploaded_by) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
-    .bind(fileId,orderId,lineId,messageId,r2Key,name,mime,bytes.length,url,text(body.visibleToCustomer)==='لا'?0:1,user.username).run();
-  return {success:true,message:'تم رفع الملف وحفظه في محادثة الأوردر.',fileUrl:url,fileId,fileName:name,mimeType:mime,thumbnailUrl:url};
+  await env.DB.prepare("INSERT INTO employee_order_conversation_files_v1(file_id,order_id,line_id,message_id,r2_key,file_name,mime_type,size_bytes,public_url,visible_to_customer,uploaded_by,content_sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+    .bind(fileId,orderId,lineId,messageId,r2Key,name,mime,bytes.length,url,text(body.visibleToCustomer)==='لا'?0:1,user.username,contentSha256).run();
+  return {success:true,message:'تم رفع الملف وحفظه في محادثة الأوردر.',fileUrl:url,fileId,fileName:name,mimeType:mime,contentSha256,thumbnailUrl:url};
 }
 async function serveFile(env,fileId){
   const row=await env.DB.prepare("SELECT r2_key,mime_type FROM employee_order_conversation_files_v1 WHERE file_id=?").bind(fileId).first();
