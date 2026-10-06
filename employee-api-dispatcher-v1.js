@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY631_BRIDGE_FREE_CANARY_PREFLIGHT_V1_20261006';
+  var VERSION = 'T12_ENTRY633_NATIVE_USERNAME_CANONICALIZATION_V1_20261006';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -131,6 +131,30 @@
 
   function userKey(value) {
     return text(value).toLowerCase();
+  }
+
+  var NATIVE_USERNAME_CANONICAL = new Map([
+    ['ضياء','ضياء'], ['diaa','ضياء'],
+    ['وائل','وائل'], ['wael','وائل'],
+    ['جابر','جابر'], ['gaber','جابر'], ['jaber','جابر'],
+    ['رحمه','رحمه'], ['رحمة','رحمه'], ['rahma','رحمه'],
+    ['ريفان','ريفان'], ['ريڤان','ريفان'], ['revan','ريفان'], ['rivan','ريفان']
+  ]);
+
+  function nativeCanonicalUsername(value) {
+    var raw = text(value);
+    var key = userKey(raw);
+    return NATIVE_USERNAME_CANONICAL.get(key) || raw;
+  }
+
+  function canonicalizeNativeParams(params) {
+    var p = Object.assign({}, params || {});
+    var explicit = text(p.username || p.name);
+    if (!explicit) return p;
+    var canonical = nativeCanonicalUsername(explicit);
+    p.username = canonical;
+    if (Object.prototype.hasOwnProperty.call(p, 'name')) p.name = canonical;
+    return p;
   }
 
   function canaryConfigEnabled() {
@@ -461,7 +485,7 @@
   }
 
   async function employeeOpsNative(action, params) {
-    var p = Object.assign({}, params || {});
+    var p = canonicalizeNativeParams(params || {});
     var token = text(p.token);
     var username = text(p.username || p.name);
     if (!username || !token) {
@@ -484,7 +508,7 @@
   }
 
   async function employeeAccountingNative(action, params) {
-    var p = Object.assign({}, params || {});
+    var p = canonicalizeNativeParams(params || {});
     var token = text(p.token);
     var username = text(p.username || p.name);
     if (!username || !token) {
@@ -507,7 +531,7 @@
   }
 
   async function employeeCoreNative(action, params) {
-    var p = Object.assign({}, params || {});
+    var p = canonicalizeNativeParams(params || {});
     var token = text(p.token);
     var username = text(p.username || p.name);
     if (!username || !token) {
@@ -530,7 +554,7 @@
   }
 
   async function employeeContentNative(action, params) {
-    var p = Object.assign({}, params || {});
+    var p = canonicalizeNativeParams(params || {});
     var token = text(p.token);
     var username = text(p.username || p.name);
     if (!username || !token) {
@@ -553,7 +577,7 @@
   }
 
   async function employeeCommsNative(action, params) {
-    var p = Object.assign({}, params || {});
+    var p = canonicalizeNativeParams(params || {});
     var token = text(p.token);
     var username = text(p.username || p.name);
     if (!username || !token) {
@@ -578,7 +602,7 @@
   async function nativeAuth(action, params) {
     var path = AUTH_PATHS[action];
     if (!path) throw routeError('EMPLOYEE_AUTH_ACTION_UNKNOWN', 'إجراء مصادقة الموظف غير معروف.');
-    var p = Object.assign({}, params || {});
+    var p = canonicalizeNativeParams(params || {});
     var token = text(p.token);
     var canary = canaryRouteEnabled(p);
     var out = await cloudPost(path, p, token);
@@ -754,6 +778,8 @@
     version: VERSION,
     nativeEnabled: nativeEnabled,
     nativeRouteEnabled: nativeRouteEnabled,
+    nativeCanonicalUsername: nativeCanonicalUsername,
+    canonicalizeNativeParams: canonicalizeNativeParams,
     canaryConfigEnabled: canaryConfigEnabled,
     canaryUserSelected: canaryUserSelected,
     canaryRouteEnabled: canaryRouteEnabled,
