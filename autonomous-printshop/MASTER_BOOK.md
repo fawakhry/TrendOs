@@ -3721,3 +3721,45 @@ DESIGN_ACQUISITION_READY=false
 ```
 
 No Design, order, accounting, employee, readiness, or Operator Task business mutation occurred.
+
+
+### AP-045 — Machine acquisition status aligned with canonical projection
+
+The read-only Machine acquisition indicator was aligned with the canonical machine readiness projection, matching the same principle already applied to Design.
+
+Previous observability risk:
+- aggregate counts for active machines, observations and mappings could become nonzero while referring to different machines/lines or expired/invalid relationships;
+- actual readiness logic was stricter than the Dashboard acquisition flag.
+
+Production behavior now:
+- Readiness Collector loads registered machines, mapping events and observations;
+- it calls `machineReadinessEvidenceCandidatesV1`;
+- `machine.acquisitionReady` becomes true only when the canonical projection contains at least one READY line;
+- expired observations, inactive machines and non-current mappings remain fail-closed under the existing machine projection.
+
+New telemetry:
+- `projectedCandidates`;
+- `projectedReadyLines`;
+- `projectedBlockedLines`.
+
+Qualification / deployment:
+- source commit `167ae1b1dd1d6f8c3fea4f140632a2f84af61676`;
+- assertion stabilization commit `5e40483b4e668afbb444e81f2d13248c3908028e`;
+- Policy CI Run `37541985479` = SUCCESS;
+- Readiness Collector Production Deploy Run `37541985405` = SUCCESS.
+
+Fresh Production:
+```ini
+MACHINE_MODE=SHADOW
+ACTIVE_MACHINES=0
+MACHINE_IDENTITY_SCHEMA_READY=true
+MACHINE_IDENTITY_ROWS=0
+ACTIVE_MACHINE_OBSERVATIONS=0
+MACHINE_MAPPINGS=0
+MACHINE_PROJECTED_CANDIDATES=0
+MACHINE_PROJECTED_READY_LINES=0
+MACHINE_PROJECTED_BLOCKED_LINES=0
+MACHINE_ACQUISITION_READY=false
+```
+
+No machine identity, observation, mapping, readiness, employee, accounting or order business mutation occurred.
