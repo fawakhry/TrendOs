@@ -1,0 +1,81 @@
+name: EasyStore A2.8 Post-success Audit
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a28-post-success-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Verify exact A2.8 post-state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS "$API_URL/v1/employee/accounting/health?a28post=$GITHUB_RUN_ID" > /tmp/h.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT material_id,department,material_name,material_kind,stock_qty,min_stock,unit_cost,computed_unit_cost,official_sale_price,active,raw_width,raw_height,updated_by
+              FROM employee_accounting_materials_v1;
+            SELECT request_key,operation,actor,status,entity_id
+              FROM employee_accounting_request_ledger_v1
+             ORDER BY request_key;
+            SELECT entity_type,entity_id,event_type,actor,request_key
+              FROM employee_accounting_events_v1
+             ORDER BY request_key;
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
+          " > /tmp/d.json
+          node <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('/tmp/h.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/d.json','utf8')), groups=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const [k,z] of Object.entries(v))if(k!=='results')walk(z);}};walk(x);
+          const all=groups.flat();
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('backend not READONLY');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('server canary not cleared');
+          const m=all.filter(r=>r.material_id), q=all.filter(r=>r.request_key&&r.operation), e=all.filter(r=>r.entity_type), c=all.find(r=>r.materials!==undefined)||{};
+          if(m.length!==1||q.length!==2||e.length!==2)throw Error('evidence multiplicity mismatch');
+          const M=m[0];
+          if(M.material_id!=='MAT-5340D6F6A51F'||M.department!=='عام'||M.material_kind!=='A2_CANARY'||!String(M.material_name||'').startsWith('A2-CANARY-MATERIAL-'))throw Error('material identity mismatch');
+          for(const k of ['stock_qty','min_stock','unit_cost','computed_unit_cost','official_sale_price','raw_width','raw_height'])if(Number(M[k]||0)!==0)throw Error('material zero-shape '+k);
+          if(Number(M.active)!==0||M.updated_by!=='ضياء')throw Error('material inactive/actor mismatch');
+          const Q=q.find(r=>r.request_key==='A28-MAT-mux8u1o6-672anozd'), E=e.find(r=>r.request_key==='A28-MAT-mux8u1o6-672anozd');
+          if(!Q||Q.operation!=='material-upsert'||Q.actor!=='ضياء'||Q.status!=='COMMITTED'||String(Q.entity_id||'')!=='')throw Error('request mismatch');
+          if(!E||E.entity_type!=='material'||E.entity_id!==M.material_id||E.event_type!=='create'||E.actor!=='ضياء')throw Error('event mismatch');
+          const expected={materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:2,events:2};
+          for(const [k,v] of Object.entries(expected))if(Number(c[k]||0)!==v)throw Error('count mismatch '+k+'='+c[k]);
+          console.log('A28_POST_SUCCESS_AUDIT=PASS');
+          console.log('A28_POST_SUCCESS_ROWS=materials:1,templates:1,requestLedger:2,events:2,all_other_accounting:0');
+          console.log('A28_POST_SUCCESS_MODE=READONLY');
+          console.log('A28_POST_SUCCESS_SERVER_CANARY=CLEARED');
+          console.log('GENERAL_OPENED=NO');
+          NODE
