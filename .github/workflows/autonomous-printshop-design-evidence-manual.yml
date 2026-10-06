@@ -169,7 +169,7 @@ jobs:
             recipeId:process.env.RECIPE_ID,
             productType:process.env.PRODUCT_TYPE,
             mimeType:process.env.MIME_TYPE,
-            checks:{manualQualifiedImport:true,recipeQualified:true}
+            checks:{manualImport:true,recipeReferenceOnly:true,preflightQualified:false}
           });
 
           const post=[
@@ -180,7 +180,8 @@ jobs:
             ' (SELECT COUNT(*) FROM autonomous_design_artifacts WHERE artifact_id='+q(artifactId)+') AS artifactExact,',
             ' (SELECT COUNT(*) FROM autonomous_design_asset_binding_events WHERE binding_event_id='+q(bindingEventId)+') AS bindingExact,',
             ' (SELECT COUNT(*) FROM autonomous_design_approval_events WHERE approval_event_id='+q(approvalEventId)+') AS approvalExact,',
-            ' (SELECT COUNT(*) FROM autonomous_design_preflight_runs WHERE preflight_run_id='+q(preflightRunId)+') AS preflightExact;'
+            ' (SELECT COUNT(*) FROM autonomous_design_preflight_runs WHERE preflight_run_id='+q(preflightRunId)+') AS preflightExact,',
+            ' (SELECT result FROM autonomous_design_preflight_runs WHERE preflight_run_id='+q(preflightRunId)+') AS preflightResult;'
           ].join('\n');
 
           fs.writeFileSync('/tmp/design-command.sql',sql+'\n');
@@ -208,7 +209,10 @@ jobs:
           if(Number(r.bindingExact)!==1) process.exit(4);
           if(Number(r.approvalExact)!==1) process.exit(5);
           if(Number(r.preflightExact)!==1) process.exit(6);
+          if(String(r.preflightResult)!=='UNKNOWN') process.exit(7);
           console.log('DESIGN_EVIDENCE_BUNDLE=VERIFIED');
+          console.log('MANUAL_PREFLIGHT_RESULT=UNKNOWN');
+          console.log('MANUAL_PREFLIGHT_PASS_SYNTHESIS=NO');
           console.log('OPERATOR_TASK_CONTROL=OFF');
           console.log('LIVE_EMPLOYEE_ASSIGNMENT=NO');
           NODE
@@ -222,3 +226,5 @@ jobs:
           echo 'EMPLOYEE_ASSIGNMENT=NO'
           echo 'SAVED_EQUALS_APPROVED=NO'
           echo 'MISSING_ORDER_OR_LINE_FAILS_CLOSED=YES'
+          echo 'MANUAL_PREFLIGHT_RESULT=UNKNOWN'
+          echo 'MANUAL_PREFLIGHT_PASS_SYNTHESIS=NO'
