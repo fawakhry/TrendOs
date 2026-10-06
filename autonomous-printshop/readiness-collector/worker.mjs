@@ -5,6 +5,9 @@ import {
   collectDesignReadinessEvidenceV1,
   designReadinessSchemaStateV1
 } from '../core/design-readiness-collector-v1.mjs';
+import {
+  classifyAccountingCloudCutoverV1
+} from '../core/accounting-cloud-cutover-guard-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 
@@ -57,6 +60,12 @@ async function evidenceStatus(env){
       (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS designPreflights,
       (SELECT COUNT(*) FROM autonomous_design_asset_binding_events WHERE binding_status='LINKED') AS designLinkedBindings,
       (SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingMode,
+      (SELECT policy_epoch FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingEpoch,
+      (SELECT COUNT(*) FROM employee_accounting_write_canary_v1 WHERE singleton=1) AS writeCanaryRows,
+      (SELECT enabled FROM employee_accounting_write_canary_v1 WHERE singleton=1) AS writeCanaryEnabled,
+      (SELECT CASE WHEN json_valid(allowed_usernames_json) THEN json_array_length(allowed_usernames_json) ELSE 0 END FROM employee_accounting_write_canary_v1 WHERE singleton=1) AS writeCanaryAllowedUsers,
+      (SELECT CASE WHEN json_valid(allowed_actions_json) THEN json_array_length(allowed_actions_json) ELSE 0 END FROM employee_accounting_write_canary_v1 WHERE singleton=1) AS writeCanaryAllowedActions,
+      (SELECT expires_at_ms FROM employee_accounting_write_canary_v1 WHERE singleton=1) AS writeCanaryExpiresAtMs,
       (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
       (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
       (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(line_id)<>'') AS accountingDeptLinesWithLineId,
@@ -75,11 +84,21 @@ async function evidenceStatus(env){
     Number(row&&row.designApprovals||0)>0 &&
     Number(row&&row.designPreflights||0)>0 &&
     Number(row&&row.designLinkedBindings||0)>0;
-  const materialReadyInput=text(row&&row.accountingMode)==='READONLY' &&
-    Number(row&&row.activeMaterials||0)>0 &&
-    Number(row&&row.accountingDeptLinesWithLineId||0)>0 &&
-    Number(row&&row.accountingDeptLinesWithMaterial||0)>0 &&
-    Number(row&&row.accountingDeptLinesWithConsumption||0)>0;
+  const accountingCutover=classifyAccountingCloudCutoverV1({
+    mode:text(row&&row.accountingMode)||'ABSENT',
+    policyEpoch:Number(row&&row.accountingEpoch||0),
+    writeCanaryReady:Number(row&&row.writeCanaryRows||0)>0,
+    writeCanaryEnabled:Number(row&&row.writeCanaryEnabled||0)===1,
+    allowedUsers:Number(row&&row.writeCanaryAllowedUsers||0),
+    allowedActions:Number(row&&row.writeCanaryAllowedActions||0),
+    activeMaterials:Number(row&&row.activeMaterials||0),
+    stockMoves:Number(row&&row.stockMoves||0),
+    deptLinesWithLineId:Number(row&&row.accountingDeptLinesWithLineId||0),
+    deptLinesWithMaterial:Number(row&&row.accountingDeptLinesWithMaterial||0),
+    deptLinesWithConsumption:Number(row&&row.accountingDeptLinesWithConsumption||0)
+  });
+  const materialReadyInput=accountingCutover.sourceDataPresent &&
+    accountingCutover.blockerCollectionAllowed===true;
   const machineReadyInput=text(row&&row.machineMode)==='SHADOW' &&
     Number(row&&row.activeMachines||0)>0 &&
     Number(row&&row.activeMachineObservations||0)>0 &&
@@ -100,13 +119,23 @@ async function evidenceStatus(env){
     },
     material:{
       accountingMode:text(row&&row.accountingMode)||'ABSENT',
+      accountingEpoch:Number(row&&row.accountingEpoch||0),
+      cloudStage:accountingCutover.stage,
+      materialFrozen:accountingCutover.frozen,
+      blockerCollectionAllowed:accountingCutover.blockerCollectionAllowed,
+      readyEvidenceAllowed:accountingCutover.readyEvidenceAllowed,
       activeMaterials:Number(row&&row.activeMaterials||0),
       stockMoves:Number(row&&row.stockMoves||0),
       deptLinesWithLineId:Number(row&&row.accountingDeptLinesWithLineId||0),
       deptLinesWithMaterial:Number(row&&row.accountingDeptLinesWithMaterial||0),
       deptLinesWithConsumption:Number(row&&row.accountingDeptLinesWithConsumption||0),
+      writeCanaryReady:Number(row&&row.writeCanaryRows||0)>0,
+      writeCanaryEnabled:Number(row&&row.writeCanaryEnabled||0)===1,
+      writeCanaryAllowedUsers:Number(row&&row.writeCanaryAllowedUsers||0),
+      writeCanaryAllowedActions:Number(row&&row.writeCanaryAllowedActions||0),
+      writeCanaryExpiresAtMs:Number(row&&row.writeCanaryExpiresAtMs||0),
       acquisitionReady:materialReadyInput,
-      blocker:materialReadyInput?'':'AUTHORITATIVE_MATERIAL_SOURCE_DATA_MISSING'
+      blocker:materialReadyInput?'':accountingCutover.reason
     },
     machine:{
       mode:text(row&&row.machineMode)||'ABSENT',
