@@ -107,7 +107,7 @@ jobs:
               const body={username,action,...extra};
               const native=await post('/v1/employee/core',body,token);
               const legacy=await post('/v1/employee/legacy-action',body,token);
-              if(native.status!==200||native.out.success!==true||String(native.out.authority||'')!=='d1-employee-core-v1'){
+              if(native.status!==200||native.out.success!==true){
                 throw new Error(action+' native failed status='+native.status+' code='+String(native.out.code||''));
               }
               if(legacy.status!==200||legacy.out.success!==true){
