@@ -23,9 +23,9 @@ const windowObject={
   MATBAGY_EMPLOYEE_NATIVE_AUTH_V1:false,
   MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1:true,
   MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:['ضياء'],
-  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:13,
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:17,
   MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:true,
-  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:manifest.remainingBridgePolicies,
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[...manifest.coreNativeReads,...manifest.remainingBridgePolicies],
   MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
   MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
   MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE:'OFF',
@@ -49,11 +49,21 @@ const sandbox={
     if(u.endsWith('/v1/employee/legacy-action/health')){
       return new Response(JSON.stringify({
         success:true,enabled:true,upstreamConfigured:true,secretConfigured:true,
-        allowedPolicyCount:13,rawNativeTokenForwarded:false,plaintextPasswordForwarded:false,
+        allowedPolicyCount:windowObject.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES.length,rawNativeTokenForwarded:false,plaintextPasswordForwarded:false,
         assertionBoundToAction:true,assertionBoundToPayload:true,replayNonceIssued:true
       }),{status:200,headers:{'content-type':'application/json'}});
     }
-    return new Response(JSON.stringify({success:true,authority:'d1-employee-core-v1'}),{
+    if(u.endsWith('/v1/employee/legacy-action')){
+      return new Response(JSON.stringify({success:true,source:'bridge'}),{
+        status:200,headers:{'content-type':'application/json'}
+      });
+    }
+    if(u.endsWith('/v1/employee/core')){
+      return new Response(JSON.stringify({success:true,authority:'d1-employee-core-v1'}),{
+        status:200,headers:{'content-type':'application/json'}
+      });
+    }
+    return new Response(JSON.stringify({success:true}),{
       status:200,headers:{'content-type':'application/json'}
     });
   }
@@ -62,10 +72,13 @@ vm.runInNewContext(source,sandbox,{filename:'employee-api-dispatcher-v1.js'});
 
 assert.equal(windowObject.TrendOSEmployeeApiDispatcherV1.employeeCoreMode(),'OFF');
 let out=await windowObject.trendosEmployeeApiV1('getDashboard',{username:'ضياء',token:'native-token',screen:'service'});
-assert.equal(out.source,'legacy');
-assert.equal(fetchCalls.length,0);
+assert.equal(out.source,'bridge');
+assert.equal(fetchCalls.at(-1).url,'https://trendos-d1-api.example.test/v1/employee/legacy-action');
 
+// Real cutover order: Core becomes READONLY before the four Core reads are removed from Bridge.
 windowObject.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE='READONLY';
+windowObject.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=13;
+windowObject.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES=manifest.remainingBridgePolicies;
 assert.equal(windowObject.TrendOSEmployeeApiDispatcherV1.employeeCoreMode(),'READONLY');
 
 for(const action of manifest.coreNativeReads){
