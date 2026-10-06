@@ -1,0 +1,34 @@
+{
+  "entry": "Entry633",
+  "purpose": "Canonicalize all known employee login aliases to the exact five D1 native username keys before retiring legacy login bootstrap.",
+  "d1CanonicalKeys": {
+    "DIAA": "ضياء",
+    "WAEL": "وائل",
+    "JABER": "جابر",
+    "RAHMA": "رحمه",
+    "REVAN": "ريفان"
+  },
+  "aliasMap": {
+    "ضياء": "ضياء",
+    "diaa": "ضياء",
+    "وائل": "وائل",
+    "wael": "وائل",
+    "جابر": "جابر",
+    "gaber": "جابر",
+    "jaber": "جابر",
+    "رحمه": "رحمه",
+    "رحمة": "رحمه",
+    "rahma": "رحمه",
+    "ريفان": "ريفان",
+    "ريڤان": "ريفان",
+    "revan": "ريفان",
+    "rivan": "ريفان"
+  },
+  "invariants": [
+    "Alias canonicalization applies only to Native employee routes.",
+    "Unknown/non-canary usernames remain on the Legacy path while Global Native Auth remains OFF.",
+    "The frontend remains bridge-free.",
+    "No Auth runtime flag is changed in this repo gate.",
+    "No D1 row is created or mutated by this repo gate."
+  ]
+}
