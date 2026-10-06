@@ -1,0 +1,140 @@
+
+name: TrendOS Entry630 Comms Readonly Runtime Arm Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry630-comms-readonly-runtime-arm-controlled.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry630arm=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.schemaReady!==true||cm.mode!=='OFF'||Number(cm.policyEpoch||0)!==1) throw new Error('comms prestate drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting drift');
+          console.log('ENTRY630_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+      - name: Lock D1 Comms prestate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch,feedback_enabled_at_ms AS feedbackEnabledAtMs
+            FROM employee_comms_control_v1 WHERE singleton=1;" >/tmp/comms-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/comms-pre.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker)rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const c=rows.find(r=>r.marker==='ENTRY614_EMPLOYEE_COMMS_V1');
+          if(!c||c.mode!=='OFF'||Number(c.policyEpoch||0)!==1||Number(c.feedbackEnabledAtMs||0)!==0) throw new Error('D1 comms prestate drift');
+          console.log('ENTRY630_COMMS_PRESTATE=OFF_EPOCH_1');
+          NODE
+
+      - name: Arm Comms READONLY only
+        id: mutate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_comms_control_v1
+             SET mode='READONLY',policy_epoch=2,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='ENTRY614_EMPLOYEE_COMMS_V1'
+             AND mode='OFF'
+             AND policy_epoch=1
+             AND feedback_enabled_at_ms=0;
+          SELECT changes() AS changed;
+          SELECT singleton,marker,mode,policy_epoch AS policyEpoch,feedback_enabled_at_ms AS feedbackEnabledAtMs
+            FROM employee_comms_control_v1 WHERE singleton=1;" >/tmp/comms-arm.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/comms-arm.json','utf8'));const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.marker||Object.prototype.hasOwnProperty.call(v,'changed'))rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          const ch=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'changed')),c=rows.find(r=>r.marker==='ENTRY614_EMPLOYEE_COMMS_V1');
+          if(Number(ch?.changed||0)!==1) throw new Error('comms mutation count');
+          if(!c||c.mode!=='READONLY'||Number(c.policyEpoch||0)!==2||Number(c.feedbackEnabledAtMs||0)!==0) throw new Error('comms target not reached');
+          console.log('ENTRY630_COMMS_CONTROL=READONLY_EPOCH_2');
+          NODE
+
+      - name: Postflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry630post=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5) throw new Error('auth post');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge post');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core post');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content post');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2||Number(cm.feedbackEnabledAtMs||0)!==0) throw new Error('comms post');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting post');
+          console.log('ENTRY630_COMMS_RUNTIME_ARM=PASS');
+          console.log('ENTRY630_BUSINESS_DATA_MUTATION=NO');
+          NODE
+
+      - name: Roll back Comms control on failure
+        if: ${{ failure() && steps.mutate.outcome == 'success' }}
+        shell: bash
+        run: |
+          set +e
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+          UPDATE employee_comms_control_v1
+             SET mode='OFF',policy_epoch=1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1
+             AND marker='ENTRY614_EMPLOYEE_COMMS_V1'
+             AND mode='READONLY'
+             AND policy_epoch=2
+             AND feedback_enabled_at_ms=0;" >/tmp/comms-rollback.json
+          echo ENTRY630_COMMS_ROLLBACK_ATTEMPTED=YES
+
+      - name: Boundary
+        shell: bash
+        run: |
+          echo ENTRY630_API_CODE_DEPLOY=NO
+          echo ENTRY630_FRONTEND_DEPLOY=NO
+          echo ENTRY630_WHATSAPP_SEND=NO
+          echo ENTRY630_OPENAI_CALL=NO
+          echo ENTRY630_R2_WRITE=NO
+          echo ENTRY630_ACCOUNTING_TOUCHED=NO
+          echo ENTRY630_EASYSTORE_TOUCHED=NO
