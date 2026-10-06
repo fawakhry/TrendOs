@@ -4287,3 +4287,64 @@ Reason not to deploy yet:
 - Production currently has zero Cloud order files;
 - deploying a scheduled writer now would create no evidence and would add unnecessary active machinery;
 - first real line-linked hashed Cloud file can trigger a fresh deployment decision using this already-qualified core.
+
+
+### AP-055 — Evidence pilot machine-class hint live
+
+The privacy-safe Evidence Pilot Target now includes a deterministic machine-class hint derived only from the operational department / heat-press flag.
+
+Added:
+- `machineClassHint` in `autonomous-printshop/core/evidence-pilot-target-v1.mjs`;
+- qualification coverage in `autonomous-printshop/tests/evidence_pilot_target_v1.test.mjs`;
+- Production Shadow projection of the hint.
+
+Mapping is conservative:
+- Heat Press flag -> `HEAT_PRESS`;
+- Laser department -> `LASER`;
+- Print department -> `PRINT`;
+- Vinyl/Sticker department -> `VINYL_CUTTER`;
+- otherwise -> `UNKNOWN`.
+
+The hint is **not** machine identity:
+- no machine ID is created;
+- no serial number is inferred;
+- no owner asset tag is invented;
+- no Machine READY is granted;
+- no line mapping is performed.
+
+Qualification / deployment:
+- Policy CI Run `37547200828` = SUCCESS.
+- Observer Production Deploy Run `37547200717` = SUCCESS.
+- Production Shadow Sidecar Deploy Run `37547201000` = SUCCESS.
+
+Fresh live Pilot Target:
+```ini
+PILOT_EXISTS=true
+PILOT_DEPARTMENT=ليزر
+PILOT_PRIORITY=عاجل
+PILOT_DUE=2026-10-07T23:59:59.000Z
+PILOT_MISSING_KINDS=DESIGN,MATERIAL,MACHINE
+PILOT_MACHINE_CLASS_HINT=LASER
+PILOT_PURPOSE=EVIDENCE_ACQUISITION_ONLY
+PILOT_ASSIGNMENT_ALLOWED=false
+PILOT_TASK_CLAIM_ALLOWED=false
+```
+
+Fresh live readiness remains:
+```ini
+BASELINE_CANDIDATES=54
+STRICT_ELIGIBLE=0
+READINESS_EVIDENCE_ROWS=0
+DESIGN_READY=0
+MATERIAL_READY=0
+MACHINE_READY=0
+OPERATOR_TASK_CONTROL=OFF
+AVAILABLE_OPERATORS=0
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+Existing historical software/dashboard references such as Canon G7070, Epson L805 and EZCAD 30W are not accepted as physical identity proof because no qualified serial number or owner asset tag was found.
+
+Result:
+- the first evidence-acquisition target now tells the system which machine class is relevant without exposing an order ID, line ID, employee identity or customer PII;
+- physical Machine identity still requires a Nameplate or Owner Asset Registry record with serial/asset tag.
