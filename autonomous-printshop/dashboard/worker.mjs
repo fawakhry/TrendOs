@@ -11,6 +11,16 @@ function json(body,status=200){
   });
 }
 
+async function fetchControlTower(env){
+  if(!env || !env.SHADOW || typeof env.SHADOW.fetch!=='function'){
+    throw new Error('SHADOW_SERVICE_BINDING_REQUIRED');
+  }
+  return env.SHADOW.fetch(new Request('https://shadow.internal/control-tower',{
+    method:'GET',
+    headers:{'accept':'application/json','cache-control':'no-cache'}
+  }));
+}
+
 const page=`<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -203,16 +213,14 @@ setInterval(load,60000);
 </body></html>`;
 
 export default {
-  async fetch(request){
+  async fetch(request,env){
     const url=new URL(request.url);
     const path=url.pathname.replace(/\/+$/,'')||'/';
     if(request.method!=='GET') return json({success:false,code:'METHOD_NOT_ALLOWED'},405);
 
     if(path==='/state'||path==='/api/state'){
       try{
-        const r=await fetch(SHADOW_URL+'/control-tower',{
-          headers:{'accept':'application/json','cache-control':'no-cache'}
-        });
+        const r=await fetchControlTower(env);
         const text=await r.text();
         return new Response(text,{
           status:r.status,
@@ -246,6 +254,7 @@ export default {
         mode:'READ_ONLY_CONTROL_TOWER_UI',
         upstream:SHADOW_URL+'/control-tower',
         dashboardVersion:DASHBOARD_VERSION,
+        transport:'CLOUDFLARE_SERVICE_BINDING',
         businessWrites:false,
         employeeAssignment:false
       });
