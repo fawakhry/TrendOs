@@ -3301,3 +3301,80 @@ NEXT_ACCOUNTING_MATERIAL_CANARY=QUALIFIED_NOT_ARMED
 AUTONOMOUS_MATERIAL_READY=NO
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-038 — Structured design approval receipt schema live
+
+Autonomous Printshop added a structured, append-only proof layer for Design approvals without opening a customer-facing write endpoint and without weakening Design READY rules.
+
+Added:
+- `autonomous-printshop/migrations/0029_design_approval_receipt_v1.sql`;
+- `autonomous-printshop/core/design-approval-receipt-v1.mjs`;
+- `autonomous-printshop/tests/design_approval_receipt_v1.test.mjs`;
+- controlled Production schema workflow and contract test.
+
+Receipt requirements:
+- explicit artifact_id + line_id;
+- decision = APPROVE or REJECT;
+- actor = CUSTOMER or OWNER;
+- structured source kind only;
+- source reference;
+- exact subject SHA-256;
+- receipt SHA-256;
+- observed timestamp;
+- artifact must exist;
+- artifact line must match;
+- artifact content hash must match the approved subject.
+
+Important boundary:
+- free-text conversation messages are not accepted as approval;
+- a receipt alone is never Design READY;
+- linked asset and preflight PASS remain mandatory;
+- no customer auth endpoint was invented because no qualified Cloud-native customer auth authority is currently available.
+
+Initial schema apply Run `37509674753` failed before schema mutation because the workflow escaped the Wrangler version variable as a literal. Apply step was skipped.
+
+The interpolation bug was fixed without weakening gates.
+
+Final Production schema apply:
+- Run `37509759855` = SUCCESS.
+- Production business-data mutation = NO.
+- receipt rows=0;
+- artifacts=0;
+- approval events=0;
+- preflights=0;
+- linked bindings=0;
+- Operator Task=OFF;
+- Accounting remained READONLY/default-deny.
+
+Readiness Collector telemetry was extended and deployed:
+- Policy CI Run `37509890930` = SUCCESS.
+- Collector Deploy Run `37509890931` = SUCCESS.
+
+Fresh Production:
+```ini
+APPROVAL_RECEIPT_SCHEMA_READY=true
+APPROVAL_RECEIPT_ROWS=0
+DESIGN_ARTIFACTS=0
+DESIGN_APPROVAL_EVENTS=0
+DESIGN_PREFLIGHTS=0
+DESIGN_LINKED_BINDINGS=0
+DESIGN_READY=0
+OPERATOR_TASK_CONTROL=OFF
+ACCOUNTING_MODE=READONLY
+```
+
+Concurrent Accounting sync:
+- latest consumed accounting checkpoint = ACC-061;
+- second bounded family `saveAccountingMaterial` has owner approval inside the Accounting stream;
+- it remains undeployed/unarmed at this checkpoint;
+- Autonomous Printshop does not arm it or treat it as Material authority.
+
+```ini
+STRUCTURED_APPROVAL_RECEIPT_SCHEMA=PRODUCTION_LIVE
+FREE_TEXT_APPROVAL_ACCEPTED=NO
+RECEIPT_ALONE_READY=NO
+LATEST_CONSUMED_ACCOUNTING_CHECKPOINT=ACC-061
+MATERIAL_READY=NO
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
