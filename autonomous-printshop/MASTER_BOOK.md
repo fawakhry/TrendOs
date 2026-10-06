@@ -2606,3 +2606,92 @@ READINESS_EVIDENCE_ROWS=0
 OPERATOR_TASK_CONTROL=OFF
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-026 — Accounting cloud cutover guard live
+
+Autonomous Printshop is now explicitly coordinated with the EasyStore Accounting cloud migration instead of treating Material readiness as an isolated subsystem.
+
+#### External accounting checkpoint consumed as runtime evidence
+EasyStore Accounting central book currently records through ACC-036:
+- migration `0029_employee_accounting_canary_mode_v1.sql` applied successfully;
+- CANARY-aware accounting backend deployed successfully;
+- current Production accounting mode remains `READONLY`;
+- policy epoch remains 2;
+- authoritativeWrites=false;
+- write canary ready/enabled but allowed users=0 and allowed actions=0;
+- all tracked accounting business tables remain 0 rows;
+- current accounting API version at ACC-036: `81bcc92e-fe06-464d-aa8c-93301b6617dc`;
+- no financial write and no Production accounting business-data mutation occurred.
+
+Autonomous Printshop does not change that authority and does not arm the accounting canary.
+
+#### Accounting cloud cutover guard
+Added:
+- `autonomous-printshop/core/accounting-cloud-cutover-guard-v1.mjs`
+- `autonomous-printshop/tests/accounting_cloud_cutover_guard_v1.test.mjs`
+
+Rules:
+- Accounting `READONLY`: Material connector may collect explicit blocker evidence only.
+- Accounting `CANARY`: Material evidence collection freezes automatically.
+- Accounting `GENERAL`: Material remains frozen until an explicit Autonomous Printshop post-cutover requalification is completed.
+- Material READY remains forbidden during accounting migration.
+- EasyStore remains finance/accounting authority.
+
+The existing accounting material connector is now cutover-aware and returns the cloud stage/freeze state instead of treating all non-READONLY states generically.
+
+#### Production observability
+Readiness Collector now exposes:
+- accountingMode
+- accountingEpoch
+- cloudStage
+- materialFrozen
+- blockerCollectionAllowed
+- readyEvidenceAllowed
+- writeCanaryReady/enabled
+- writeCanaryAllowedUsers/actions
+- authoritative material/dept-line counts
+
+Current live values:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_EPOCH=2
+ACCOUNTING_CLOUD_STAGE=CLOUD_BACKEND_READONLY_DATA_PENDING
+WRITE_CANARY_READY=true
+WRITE_CANARY_ENABLED=true
+WRITE_CANARY_ALLOWED_USERS=0
+WRITE_CANARY_ALLOWED_ACTIONS=0
+ACTIVE_MATERIALS=0
+STOCK_MOVES=0
+DEPT_LINES_WITH_LINE_ID=0
+DEPT_LINES_WITH_MATERIAL=0
+DEPT_LINES_WITH_CONSUMPTION=0
+MATERIAL_FROZEN=false
+MATERIAL_BLOCKER_COLLECTION_ALLOWED=true
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_BLOCKER=ACCOUNTING_CLOUD_DATA_MIGRATION_PENDING
+```
+
+Qualification:
+- Readiness Collector Production Deploy Run `37495872234` = SUCCESS.
+- Autonomous Printshop Policy V1 CI Run `37495985352` = SUCCESS.
+- Dashboard Production Deploy Run `37495985488` = SUCCESS.
+- Dashboard now displays the Accounting cloud stage and whether Material is frozen.
+
+#### Safety
+- no accounting mutation by Autonomous Printshop;
+- no accounting canary arming;
+- no financial write;
+- no Operator Task activation;
+- no live employee assignment;
+- Design and Machine work can continue independently while accounting migrates.
+
+```ini
+ACCOUNTING_CLOUD_COORDINATION=PRODUCTION_LIVE
+EASYSTORE_FINANCIAL_AUTHORITY=UNCHANGED
+MATERIAL_READY_DURING_ACCOUNTING_MIGRATION=NO
+CANARY_MATERIAL_FREEZE=AUTOMATIC
+GENERAL_REQUIRES_AP_REQUALIFICATION=YES
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
