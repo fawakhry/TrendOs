@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const yml=fs.readFileSync('.github/workflows/autonomous-printshop-structured-owner-design-approval.yml','utf8');
+assert.match(yml,/workflow_dispatch:/);
+assert.doesNotMatch(yml,/\n\s*push:/);
+assert.doesNotMatch(yml,/\n\s*schedule:/);
+assert.match(yml,/GITHUB_ACTOR/);
+assert.match(yml,/GITHUB_REPOSITORY_OWNER/);
+assert.match(yml,/STRUCTURED_OWNER_APPROVAL_OWNER_GATE=PASS/);
+assert.match(yml,/buildStructuredOwnerDesignApprovalSqlV1/);
+assert.match(yml,/autonomous_design_approval_receipts/);
+assert.match(yml,/autonomous_design_approval_events/);
+assert.match(yml,/PREFLIGHT_WRITE_FORBIDDEN/);
+assert.match(yml,/READINESS_WRITE_FORBIDDEN/);
+assert.match(yml,/ACCOUNTING_WRITE=NO/);
+assert.match(yml,/ORDER_LINE_WRITE=NO/);
+assert.match(yml,/EMPLOYEE_ASSIGNMENT=NO/);
+assert.match(yml,/OPERATOR_TASK_CONTROL=OFF/);
+console.log('STRUCTURED_OWNER_DESIGN_APPROVAL_WORKFLOW_V1=PASS');
+console.log('AUTO_TRIGGER=NO');
+console.log('REPOSITORY_OWNER_ONLY=YES');
+console.log('PREFLIGHT_WRITE=NO');
+console.log('READINESS_WRITE=NO');
