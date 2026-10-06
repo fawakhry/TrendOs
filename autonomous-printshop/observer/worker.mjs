@@ -16,6 +16,10 @@ import {
 import {
   decideAutonomyV1
 } from '../core/autonomy-policy-v1.mjs';
+import {
+  recordObserverRunV1,
+  latestObserverRunV1
+} from '../core/observer-run-ledger-v1.mjs';
 
 function text(v){ return String(v==null?'':v).trim(); }
 
@@ -30,12 +34,15 @@ function minEvidenceConfidence(task){
 async function health(env){
   const autonomy=await readAutonomyControlV1(env.DB);
   const readiness=await readinessInputs(env);
-  const counts=await env.DB.prepare(`
-    SELECT
-      (SELECT COUNT(*) FROM autonomy_events) AS autonomyEvents,
-      (SELECT COUNT(*) FROM autonomy_observations) AS autonomyObservations,
-      (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks
-  `).first();
+  const [counts,latestRun]=await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM autonomy_events) AS autonomyEvents,
+        (SELECT COUNT(*) FROM autonomy_observations) AS autonomyObservations,
+        (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks
+    `).first(),
+    latestObserverRunV1(env.DB)
+  ]);
   return {
     success:true,
     service:'autonomous-printshop-shadow-observer',
@@ -45,6 +52,7 @@ async function health(env){
     autonomyEvents:Number(counts&&counts.autonomyEvents||0),
     autonomyObservations:Number(counts&&counts.autonomyObservations||0),
     operatorTasks:Number(counts&&counts.operatorTasks||0),
+    latestRun:latestRun||null,
     businessWrites:false,
     employeeAssignment:false
   };
@@ -254,7 +262,41 @@ export default {
 
   async scheduled(controller,env,ctx){
     ctx.waitUntil((async()=>{
-      const result=await observeOnce(env);
+      const startedAtMs=Date.now();
+      const runId='observer-cron-'+startedAtMs;
+      let result;
+      try{
+        result=await observeOnce(env);
+        const completedAtMs=Date.now();
+        await recordObserverRunV1(env.DB,{
+          runId,
+          triggerKind:'CRON',
+          status:result&&result.success===false?'ERROR':(result&&result.skipped?'SKIPPED':'SUCCESS'),
+          state:text(result&&result.state),
+          reason:text(result&&result.reason),
+          baselineCandidates:Number(result&&result.baselineCandidates||0),
+          strictCandidates:Number(result&&result.strictCandidates||0),
+          evidenceRows:Number(result&&result.evidenceRows||0),
+          eventInserted:!!(result&&result.inserted),
+          decision:text(result&&result.decision),
+          recommendedDecision:text(result&&result.recommendedDecision),
+          errorCode:result&&result.success===false?'OBSERVER_RESULT_ERROR':'',
+          startedAtMs,
+          completedAtMs
+        });
+      }catch(err){
+        const completedAtMs=Date.now();
+        try{
+          await recordObserverRunV1(env.DB,{
+            runId,triggerKind:'CRON',status:'ERROR',
+            reason:text(err&&err.message),errorCode:'OBSERVER_EXCEPTION',
+            startedAtMs,completedAtMs
+          });
+        }catch(ledgerErr){
+          console.error('AUTONOMOUS_PRINTSHOP_OBSERVER_LEDGER_ERROR='+text(ledgerErr&&ledgerErr.message));
+        }
+        throw err;
+      }
       console.log('AUTONOMOUS_PRINTSHOP_SHADOW_OBSERVER='+JSON.stringify({
         success:result.success,
         inserted:!!result.inserted,
@@ -265,7 +307,8 @@ export default {
         strictCandidates:Number(result.strictCandidates||0),
         evidenceRows:Number(result.evidenceRows||0),
         decision:text(result.decision),
-        recommendedDecision:text(result.recommendedDecision)
+        recommendedDecision:text(result.recommendedDecision),
+        runTelemetryRecorded:true
       }));
     })());
   }
