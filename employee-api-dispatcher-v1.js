@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY628_EMPLOYEE_CORE_READONLY_ROUTER_V1_20261006';
+  var VERSION = 'T12_ENTRY629_EMPLOYEE_CONTENT_READONLY_ROUTER_V1_20261006';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -31,6 +31,7 @@
   var OPS_PATH = '/v1/employee/ops';
   var ACCOUNTING_PATH = '/v1/employee/accounting';
   var CORE_PATH = '/v1/employee/core';
+  var CONTENT_PATH = '/v1/employee/content';
 
   var OPS_ACTIONS = new Set([
     'attendanceV1',
@@ -64,6 +65,19 @@
     'getDashboard',
     'getActivityLog',
     'getTrendMasterCenterV1931'
+  ]);
+
+  // Entry629: second bridge-retirement family. Read-only only.
+  var CONTENT_READ_ACTIONS = new Set([
+    'getPlatformSections',
+    'getFranchiseBranches',
+    'getServiceProviderRoutes',
+    'getMarketplace',
+    'getWhiteLabelSettings',
+    'getLeadPhoneNumbers',
+    'getPlatformAds',
+    'getKnowledge',
+    'getMatbagyNotes'
   ]);
 
   var CUSTOMER_SESSION_ACTIONS = new Set([
@@ -197,6 +211,17 @@
     if (employeeCoreMode() !== 'READONLY') return false;
     if (!nativeRouteEnabled(params || {})) return false;
     return CORE_READ_ACTIONS.has(text(action));
+  }
+
+  function employeeContentMode() {
+    var mode = text(window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE || 'OFF').toUpperCase();
+    return mode === 'READONLY' ? mode : 'OFF';
+  }
+
+  function shouldRouteContentNative(action, params) {
+    if (employeeContentMode() !== 'READONLY') return false;
+    if (!nativeRouteEnabled(params || {})) return false;
+    return CONTENT_READ_ACTIONS.has(text(action));
   }
 
   function edgeBase() {
@@ -457,6 +482,29 @@
     return cloudPost(CORE_PATH, p, token);
   }
 
+  async function employeeContentNative(action, params) {
+    var p = Object.assign({}, params || {});
+    var token = text(p.token);
+    var username = text(p.username || p.name);
+    if (!username || !token) {
+      throw routeError(
+        'EMPLOYEE_CONTENT_SESSION_REQUIRED',
+        'جلسة الموظف الحالية مطلوبة لمسار Content السحابي.'
+      );
+    }
+
+    delete p.token;
+    delete p.password;
+    delete p.oldPassword;
+    delete p.newPassword;
+    delete p.confirmPassword;
+    delete p.employeePassword;
+
+    p.action = text(action);
+    p.username = username;
+    return cloudPost(CONTENT_PATH, p, token);
+  }
+
   async function nativeAuth(action, params) {
     var path = AUTH_PATHS[action];
     if (!path) throw routeError('EMPLOYEE_AUTH_ACTION_UNKNOWN', 'إجراء مصادقة الموظف غير معروف.');
@@ -556,6 +604,7 @@
       if (shouldRouteOpsNative(action, p)) return employeeOpsNative(action, p);
       if (shouldRouteAccountingNative(action)) return employeeAccountingNative(action, p);
       if (shouldRouteCoreNative(action, p)) return employeeCoreNative(action, p);
+      if (shouldRouteContentNative(action, p)) return employeeContentNative(action, p);
       if (!nativeRouteEnabled(p)) return original.apply(this, arguments);
       await ensureCanaryPreflight(action, p);
       return dispatchNative(action, p, original, this, arguments);
@@ -581,6 +630,10 @@
 
     if (shouldRouteCoreNative(actionText, p)) {
       return employeeCoreNative(actionText, p);
+    }
+
+    if (shouldRouteContentNative(actionText, p)) {
+      return employeeContentNative(actionText, p);
     }
 
     if (!nativeRouteEnabled(p)) {
@@ -641,6 +694,9 @@
     employeeCoreMode: employeeCoreMode,
     shouldRouteCoreNative: shouldRouteCoreNative,
     employeeCoreNative: employeeCoreNative,
+    employeeContentMode: employeeContentMode,
+    shouldRouteContentNative: shouldRouteContentNative,
+    employeeContentNative: employeeContentNative,
     policyKey: policyKey,
     policyAllowed: policyAllowed,
     install: install,
