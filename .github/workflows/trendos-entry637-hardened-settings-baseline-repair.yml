@@ -1,0 +1,171 @@
+name: TrendOS Entry637 Hardened Settings Baseline Repair
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry637-hardened-settings-baseline-repair.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry637-hardened-settings-baseline-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER: trendos-d1-api
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Runtime hardened preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry637repairpre=$GITHUB_SHA" -o /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry637repairpre=$GITHUB_SHA" -o /tmp/bridge.json
+          node <<'NODE'
+          const a=require('/tmp/auth.json'), b=require('/tmp/bridge.json');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==true||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('runtime hardened preflight drift');
+          if(b.enabled!==false) throw new Error('bridge drift');
+          console.log('ENTRY637_REPAIR_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+      - name: Align latest settings to hardened runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID;
+          const worker=process.env.WORKER;
+          const api=String(process.env.API_URL||'').replace(/\/$/,'');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          const headers={authorization:'Bearer '+token};
+
+          async function cf(path,options={}){
+            const r=await fetch(base+path,{...options,headers:{...headers,...(options.headers||{})}});
+            const raw=await r.text();
+            let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(!r.ok||body.success!==true) throw new Error('Cloudflare API '+r.status+' '+path);
+            return body;
+          }
+          function activeVersion(body){
+            const deps=(body.result&&body.result.deployments)||body.result||[];
+            const cur=Array.isArray(deps)?deps[0]:null;
+            const full=(cur&&Array.isArray(cur.versions)?cur.versions:[]).filter(x=>Number(x.percentage||0)===100);
+            if(full.length!==1) throw new Error('active deployment shape');
+            const id=String(full[0].version_id||full[0].id||'');
+            if(!id) throw new Error('active version missing');
+            return id;
+          }
+          async function deployVersion(id){
+            await cf('/deployments',{
+              method:'POST',
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({strategy:'percentage',versions:[{version_id:id,percentage:100}]})
+            });
+          }
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const preDeploy=await cf('/deployments');
+            const preVersion=activeVersion(preDeploy);
+            const preVersionBody=await cf('/versions/'+preVersion);
+            const preEtag=String(preVersionBody.result&&preVersionBody.result.resources&&preVersionBody.result.resources.script&&preVersionBody.result.resources.script.etag||'');
+            if(!preEtag) throw new Error('pre etag missing');
+
+            const settings=await cf('/settings');
+            const bindings=Array.isArray(settings.result&&settings.result.bindings)?settings.result.bindings:[];
+            if(bindings.length!==33) throw new Error('binding count drift '+bindings.length);
+            const by=new Map(bindings.map(b=>[String(b.name||''),b]));
+            const plain=n=>{const b=by.get(n);return b&&b.type==='plain_text'?String(b.text||''):''};
+            if(plain('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED')!=='true') throw new Error('auth enabled drift');
+            if(plain('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED')!=='false') throw new Error('session enroll drift');
+            if(plain('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')!=='false') throw new Error('bridge binding drift');
+            if(bindings.filter(b=>String(b.type||'').includes('secret')).length!==5) throw new Error('secret count drift');
+            if(!bindings.some(b=>b&&b.name==='DB'&&b.type==='d1')) throw new Error('D1 binding missing');
+
+            const beforeVersions=await cf('/versions?per_page=100');
+            const vr=beforeVersions.result;
+            const items=Array.isArray(vr)?vr:(vr&&Array.isArray(vr.items)?vr.items:(vr&&Array.isArray(vr.versions)?vr.versions:[]));
+            const beforeIds=new Set(items.map(x=>String(x.id||'')).filter(Boolean));
+
+            const next=bindings.map(b=>{
+              if(b.name==='TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1') return {name:b.name,type:'plain_text',text:'true'};
+              if(b.name==='TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED') return {name:b.name,type:'plain_text',text:'false'};
+              return {name:b.name,type:'inherit',version_id:'latest'};
+            });
+            const form=new FormData();
+            form.append('settings',new Blob([JSON.stringify({
+              bindings:next,
+              annotations:{'workers/message':'Entry637 align latest settings to hardened runtime baseline'}
+            })],{type:'application/json'}),'settings.json');
+            await cf('/settings',{method:'PATCH',body:form});
+
+            const postSettings=await cf('/settings');
+            const bs=Array.isArray(postSettings.result&&postSettings.result.bindings)?postSettings.result.bindings:[];
+            const m=new Map(bs.map(b=>[String(b.name||''),b]));
+            const p=n=>{const b=m.get(n);return b&&b.type==='plain_text'?String(b.text||''):''};
+            if(p('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')!=='true') throw new Error('latest nativeOnly not true');
+            if(p('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')!=='false') throw new Error('latest bootstrap not false');
+            if(p('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED')!=='false') throw new Error('latest session enroll drift');
+            if(p('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')!=='false') throw new Error('latest bridge drift');
+            if(bs.filter(b=>String(b.type||'').includes('secret')).length!==5) throw new Error('secret count changed');
+
+            let active=activeVersion(await cf('/deployments'));
+            if(active===preVersion){
+              const afterVersions=await cf('/versions?per_page=100');
+              const avr=afterVersions.result;
+              const ais=Array.isArray(avr)?avr:(avr&&Array.isArray(avr.items)?avr.items:(avr&&Array.isArray(avr.versions)?avr.versions:[]));
+              const fresh=ais.map(x=>String(x.id||'')).filter(id=>id&&!beforeIds.has(id));
+              if(fresh.length<1) throw new Error('hardened settings version missing');
+              await deployVersion(fresh[0]);
+              active=fresh[0];
+              console.log('ENTRY637_REPAIR_EXPLICIT_DEPLOY=YES');
+            }
+
+            const activeBody=await cf('/versions/'+active);
+            const activeEtag=String(activeBody.result&&activeBody.result.resources&&activeBody.result.resources.script&&activeBody.result.resources.script.etag||'');
+            if(activeEtag!==preEtag) {
+              await deployVersion(preVersion);
+              throw new Error('worker code changed');
+            }
+
+            let ok=false;
+            for(let i=0;i<20;i++){
+              const r=await fetch(api+'/v1/employee/auth/health?entry637repair='+Date.now(),{cache:'no-store'});
+              const a=await r.json();
+              if(r.ok&&a.success===true&&a.nativeOnly===true&&a.legacyBootstrapEnabled===false&&a.legacySessionEnrollEnabled===false&&Number(a.userCount||0)===5&&Number(a.nativeReadyCount||0)===5&&a.plaintextStored===false){ok=true;break;}
+              await sleep(1000);
+            }
+            if(!ok){
+              await deployVersion(preVersion);
+              throw new Error('runtime hardened postflight failed');
+            }
+            const br=await fetch(api+'/v1/employee/legacy-action/health?entry637repair='+Date.now(),{cache:'no-store'});
+            const b=await br.json();
+            if(!br.ok||b.enabled!==false){
+              await deployVersion(preVersion);
+              throw new Error('bridge postflight failed');
+            }
+
+            console.log('ENTRY637_REPAIR_LATEST_NATIVE_ONLY=true');
+            console.log('ENTRY637_REPAIR_LATEST_BOOTSTRAP=false');
+            console.log('ENTRY637_REPAIR_RUNTIME_HARDENED=PASS');
+            console.log('ENTRY637_REPAIR_BRIDGE=OFF');
+            console.log('ENTRY637_REPAIR_D1_MUTATION=NO');
+            console.log('ENTRY637_REPAIR_ACCOUNTING_TOUCHED=NO');
+            console.log('ENTRY637_REPAIR_EASYSTORE_TOUCHED=NO');
+          })().catch(e=>{console.error('ENTRY637_REPAIR_FAIL '+String(e&&e.message||e));process.exit(1);});
+          NODE
