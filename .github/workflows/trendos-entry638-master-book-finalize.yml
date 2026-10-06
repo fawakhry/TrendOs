@@ -25,6 +25,7 @@ jobs:
           fetch-depth: 0
 
       - name: Sync latest branch
+        shell: bash
         run: git pull --ff-only origin candidate/t12-full-cloud-cutover-a56-20260929
 
       - name: Finalize book header and recording evidence
@@ -32,41 +33,48 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
-
+          import os, re
+          
           p = Path("TrendOS_MASTER_BOOK.md")
           s = p.read_text(encoding="utf-8")
-
+          
           s = re.sub(
-              r'(?m)^> إصدار الكتاب: \*\*.*?\*\* · تاريخ التحديث: .*? · المستودع:',
+              r'(?m)^> إصدار الكتاب: \\*\\*.*?\\*\\* · تاريخ التحديث: .*? · المستودع:',
               '> إصدار الكتاب: **4.18-ZERO-GOOGLE-COMPACT — Entry638 post-Sherif Native readiness** · تاريخ التحديث: 2026-10-06 · المستودع:',
               s,
               count=1
           )
-
+          
           marker = 'ENTRY638_DOCUMENTATION_CLOSURE=PASS'
           if marker not in s:
-              s += """
+              run_id = os.environ.get("GITHUB_RUN_ID", "")
+              workflow_sha = os.environ.get("GITHUB_SHA", "")
+              s += f"""
+          \n#### Entry638 — Documentation closure and recording integrity
+          - Entry637 final public evidence commit: `e0feeeb4a59bb8d35920be875212d2ffbea1725c`.
+          - Entry638 public Runtime readiness evidence commit: `612b9ef911d407faa504c3e291f600291734120a`.
+          - First Master Book recorder workflow creation commit: `a249164a247fd9235fba0a7472469b705e38d910`.
+          - First recorder Run `37521916964` failed before creating a job because generated YAML block indentation was invalid. No Runtime/Production/D1 mutation occurred from that failed documentation run.
+          - Recorder YAML fix commit: `a2d73a462203df12777753b0febf133eb91a9bfe`.
+          - Corrected recorder Run `37522117630` = SUCCESS; all job steps passed.
+          - Master Book content commit produced by the successful recorder: `e9b2a74b15a8960ecc09f289695899088b3a142c`.
+          - First finalize workflow creation commit: `464fc0affa4da3d8db0a1f6b77fa91ce802f6423`.
+          - First finalize Run `37522271690` failed before creating a job for the same YAML block-indentation class; no Runtime/Production/D1 mutation occurred.
+          - This corrected finalize execution Run: `{run_id}`.
+          - Corrected finalize workflow source SHA: `{workflow_sha}`.
+          - Verification before this finalizer confirmed the book already contained:
+            - strict mandatory recording rule;
+            - Attempt 4 failure record;
+            - `ENTRY637_FINAL=PASS_6_OF_6`;
+            - `ENTRY638_RUNTIME_READINESS_6_OF_6=PASS`;
+            - `ENTRY638_COMPLETENESS_GATE=PASS`.
+          - Recording policy explicitly requires logging every success, failure, Runtime drift, rollback/restore, hardening repair, workflow/run/job, deploy, diagnosis, and gate transition.
+          - Secrets, passwords, Tokens, password hashes, and session secrets remain prohibited from documentation.
+          - `ENTRY638_DOCUMENTATION_CLOSURE=PASS`
+          """
           
-#### Entry638 — Documentation closure and recording integrity
-- Entry637 final public evidence commit: `e0feeeb4a59bb8d35920be875212d2ffbea1725c`.
-- Entry638 public Runtime readiness evidence commit: `612b9ef911d407faa504c3e291f600291734120a`.
-- First Master Book recorder workflow creation commit: `a249164a247fd9235fba0a7472469b705e38d910`.
-- First recorder Run `37521916964` failed before creating a job because the generated YAML had invalid block indentation. No Runtime/Production/D1 mutation occurred from that failed documentation run.
-- Recorder YAML was corrected in commit `a2d73a462203df12777753b0febf133eb91a9bfe`.
-- Corrected recorder Run `37522117630` = SUCCESS; every job step passed.
-- Master Book content commit produced by that successful run: `e9b2a74b15a8960ecc09f289695899088b3a142c`.
-- Verification after commit confirmed the book contains:
-  - strict mandatory recording rule;
-  - Attempt 4 failure record;
-  - `ENTRY637_FINAL=PASS_6_OF_6`;
-  - `ENTRY638_RUNTIME_READINESS_6_OF_6=PASS`;
-  - `ENTRY638_COMPLETENESS_GATE=PASS`.
-- Recording policy now explicitly requires logging every success, failure, Runtime drift, rollback/restore, hardening repair, workflow/run/job, deploy, diagnosis and gate transition.
-- Secrets, passwords, Tokens, password hashes and session secrets remain prohibited from documentation.
-- `ENTRY638_DOCUMENTATION_CLOSURE=PASS`
-"""
           p.write_text(s, encoding="utf-8")
+          
           PY
 
       - name: Commit final documentation state
