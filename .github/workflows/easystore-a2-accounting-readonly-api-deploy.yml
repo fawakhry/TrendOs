@@ -1,7 +1,13 @@
 name: EasyStore A2 Accounting Readonly API Deploy
+# controlled push trigger after A2 preflight pass
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml'
 
 permissions:
   contents: read
