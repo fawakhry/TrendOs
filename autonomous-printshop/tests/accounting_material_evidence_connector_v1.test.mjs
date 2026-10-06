@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { readAccountingMaterialEvidenceSnapshotV1 } from '../core/accounting-material-evidence-connector-v1.mjs';
 
@@ -56,6 +57,9 @@ assert.deepEqual(Object.keys(out.rows[0]).sort(),[
   'department','lineId','materialConsumption','materialId','materialName','materialVersion','stockQty'
 ].sort());
 
+const source=fs.readFileSync('autonomous-printshop/core/accounting-material-evidence-connector-v1.mjs','utf8');
+assert.match(source,/material_kind\)<>\'A2_CANARY\'/);
+console.log('ACCOUNTING_CANARY_MATERIALS_EXCLUDED=YES');
 console.log('ACCOUNTING_MATERIAL_EVIDENCE_CONNECTOR_V1=PASS');
 console.log('ACCOUNTING_READONLY_REQUIRED=YES');
 console.log('PII_EXPOSED=NO');
