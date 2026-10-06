@@ -766,6 +766,19 @@ async function controlTowerSnapshot(env){
       evidencePilotTarget:readiness&&readiness.evidencePilotTarget||{
         exists:false,fingerprint:'',department:'',priority:'',dueIso:'',urgent:false,
         missingKinds:[],machineClassHint:'UNKNOWN',purpose:'EVIDENCE_ACQUISITION_ONLY',assignmentAllowed:false,taskClaimAllowed:false
+      },
+      evidenceAcquisitionPacket:readiness&&readiness.evidenceAcquisitionPacket||{
+        version:'EVIDENCE_ACQUISITION_PACKET_V1',
+        exists:false,
+        purpose:'EVIDENCE_ACQUISITION_ONLY',
+        externalEvidenceRequired:false,
+        requirements:{},
+        machineClassHint:'UNKNOWN',
+        assignmentAllowed:false,
+        taskClaimAllowed:false,
+        rawOrderIdsExposed:false,
+        rawLineIdsExposed:false,
+        customerPiiExposed:false
       }
     },
     controls:{
