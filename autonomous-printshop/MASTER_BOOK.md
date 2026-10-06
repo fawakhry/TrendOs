@@ -3976,3 +3976,95 @@ Concurrent Accounting synchronization:
 Result:
 - remaining blockers are now visible as concrete real-world/data acquisition actions rather than opaque internal codes;
 - Autonomous Printshop still performs no live employee assignment.
+
+
+### AP-050 — Software qualification checkpoint reached; external evidence now blocks first strict candidate
+
+Autonomous Printshop has reached the point where the first strict eligible production line is no longer blocked by a missing software gate.
+
+Current qualified software paths:
+
+#### Design
+- provider-agnostic Artifact + LINKED binding schema;
+- real SHA-256 binding;
+- structured approval receipt schema;
+- owner-only structured Approval path;
+- canonical structured Preflight evaluator path;
+- manual import cannot synthesize PASS;
+- customer/cloud order-file provenance connector;
+- strict same-artifact Design projection;
+- upload alone cannot become approval or READY.
+
+#### Material
+- accounting cloud cutover guard;
+- exact line/material/consumption connector;
+- A2_CANARY audit-row exclusion;
+- strict Material source-link projection;
+- post-cutover requalification gate;
+- future Material READY generator qualified fail-closed and disabled by default.
+
+#### Machine
+- Machine SHADOW control;
+- identity schema;
+- explicit identity qualification;
+- Nameplate or Owner Asset Registry proof required;
+- serial/asset tag required;
+- inferred machine IDs forbidden;
+- direct observation writer;
+- line-machine mapping;
+- strict canonical Machine projection.
+
+#### Operator Task
+- OFF/SHADOW/CANARY/GENERAL authority foundation;
+- idempotent claim/complete;
+- one-active-operator/one-active-line DB guards;
+- strict readiness-qualified recommendation path;
+- separate read-only CANARY qualification gate;
+- Dashboard actionable blocker guidance;
+- no live assignment.
+
+Latest policy verification:
+- Policy CI Run `37543648587` = SUCCESS.
+
+Fresh current blockers are source-data / physical-evidence blockers:
+```ini
+STRICT_ELIGIBLE=0
+READINESS_EVIDENCE_ROWS=0
+
+DESIGN_ARTIFACTS=0
+DESIGN_BLOCKER=REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING
+
+MATERIAL_SOURCE_LINKED_ROWS=0
+MATERIAL_SOURCE_LINKED_LINES=0
+MATERIAL_BLOCKER=AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING
+
+MACHINE_IDENTITY_ROWS=0
+ACTIVE_MACHINES=0
+MACHINE_BLOCKER=REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED
+
+AVAILABLE_OPERATORS=0
+OPERATOR_TASK_CONTROL=OFF
+ACTIVE_OPERATOR_TASKS=0
+```
+
+Required real-world inputs before a first strict line can exist:
+1. a real current Design file bound to a real order+line, with content SHA-256 and qualified approval/preflight evidence;
+2. real operational Material master/stock/consumption data from the Accounting cloud authority, not canary audit rows;
+3. one real physical Machine identity from a nameplate or owner asset registry, followed by a direct machine check and line mapping;
+4. an available operator at CANARY time.
+
+Concurrent Accounting truth at this checkpoint:
+- latest consumed central checkpoint = ACC-086;
+- A2.9 `app.js` code is partially published;
+- Accounting Production config remains write mode OFF;
+- backend remains READONLY / writeAuthorityMode OFF;
+- server canary is cleared;
+- no A2.9 business command has executed.
+
+Result:
+```ini
+SOFTWARE_GATE_BLOCKER=NO
+EXTERNAL_EVIDENCE_BLOCKER=YES
+OPERATOR_TASK_CANARY_QUALIFIED=false
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
