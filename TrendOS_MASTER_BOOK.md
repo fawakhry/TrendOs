@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.17-ZERO-GOOGLE-COMPACT — Entry607 post-disconnect resume checkpoint** · تاريخ التحديث: 2026-10-03 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.18-ZERO-GOOGLE-COMPACT — Entry638 post-Sherif Native readiness** · تاريخ التحديث: 2026-10-06 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -5623,3 +5623,26 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - `ACCOUNTING=READONLY`
 - `EASYSTORE_MUTATION=NO`
 - Public Runtime evidence: `docs/trendos/staging/ENTRY638_RUNTIME_NATIVE_READINESS_20261006.md`.
+
+
+#### Entry638 — Documentation closure and recording integrity
+- Entry637 final public evidence commit: `e0feeeb4a59bb8d35920be875212d2ffbea1725c`.
+- Entry638 public Runtime readiness evidence commit: `612b9ef911d407faa504c3e291f600291734120a`.
+- First Master Book recorder workflow creation commit: `a249164a247fd9235fba0a7472469b705e38d910`.
+- First recorder Run `37521916964` failed before creating a job because generated YAML block indentation was invalid. No Runtime/Production/D1 mutation occurred from that failed documentation run.
+- Recorder YAML fix commit: `a2d73a462203df12777753b0febf133eb91a9bfe`.
+- Corrected recorder Run `37522117630` = SUCCESS; all job steps passed.
+- Master Book content commit produced by the successful recorder: `e9b2a74b15a8960ecc09f289695899088b3a142c`.
+- First finalize workflow creation commit: `464fc0affa4da3d8db0a1f6b77fa91ce802f6423`.
+- First finalize Run `37522271690` failed before creating a job for the same YAML block-indentation class; no Runtime/Production/D1 mutation occurred.
+- This corrected finalize execution Run: `37522385167`.
+- Corrected finalize workflow source SHA: `a48a6b420bfe4abba98513a70023aae1b6b5897d`.
+- Verification before this finalizer confirmed the book already contained:
+  - strict mandatory recording rule;
+  - Attempt 4 failure record;
+  - `ENTRY637_FINAL=PASS_6_OF_6`;
+  - `ENTRY638_RUNTIME_READINESS_6_OF_6=PASS`;
+  - `ENTRY638_COMPLETENESS_GATE=PASS`.
+- Recording policy explicitly requires logging every success, failure, Runtime drift, rollback/restore, hardening repair, workflow/run/job, deploy, diagnosis, and gate transition.
+- Secrets, passwords, Tokens, password hashes, and session secrets remain prohibited from documentation.
+- `ENTRY638_DOCUMENTATION_CLOSURE=PASS`
