@@ -17,6 +17,8 @@ const second = await hashEmployeePasswordV1(password, { iterations: 100000 });
 
 assert.equal(first.scheme, 'pbkdf2-sha256-v1');
 assert.equal(first.iterations, 100000);
+const clamped = await hashEmployeePasswordV1(password, { iterations: 180000 });
+assert.equal(clamped.iterations, 100000);
 assert.equal(first.saltHex.length, 32);
 assert.equal(first.hashHex.length, 64);
 assert.notEqual(first.saltHex, second.saltHex);
@@ -66,6 +68,8 @@ const moduleSource = fs.readFileSync('cloudflare-d1/src/employee-auth-native-v1.
 assert.match(moduleSource, /legacySessionEnrollEnabled: employeeAuthLegacySessionEnrollEnabled\(env\)/);
 assert.match(moduleSource, /enrollCanaryUserConfigured/);
 assert.match(moduleSource, /pbkdf2-sha256-v1/);
+assert.match(moduleSource, /const DEFAULT_ITERATIONS = 100000/);
+assert.match(moduleSource, /const MAX_ITERATIONS = 100000/);
 assert.match(moduleSource, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED/);
 assert.match(moduleSource, /LEGACY_BOOTSTRAP_TIMEOUT_MS = 90000/);
 assert.match(moduleSource, /LEGACY_BOOTSTRAP_TRANSIENT_RETRY_MS = 1500/);
