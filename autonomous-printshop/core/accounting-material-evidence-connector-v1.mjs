@@ -46,6 +46,7 @@ export async function readAccountingMaterialEvidenceSnapshotV1(db){
       ) x ON x.line_id=d.line_id AND x.maxUpdated=d.updated_at
       JOIN employee_accounting_materials_v1 m
         ON m.active=1
+       AND upper(trim(m.material_kind))<>'A2_CANARY'
        AND m.department=d.department
        AND m.material_name=d.material_name
       LEFT JOIN employee_core_lines_v1 il ON il.line_id=d.line_id
