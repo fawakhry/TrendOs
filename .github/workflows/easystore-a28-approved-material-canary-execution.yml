@@ -1,0 +1,212 @@
+name: EasyStore A2.8 Approved Material Canary Execution
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: easystore-a28-approved-material-canary
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Preflight exact approved second-canary scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/config.js?a28exec=$GITHUB_RUN_ID" > /tmp/config.js
+          curl --fail --silent --show-error --location "$EASYSTORE_URL/app.js?a28exec=$GITHUB_RUN_ID" > /tmp/app.js
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?a28exec=$GITHUB_RUN_ID" > /tmp/health.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
+          " > /tmp/counts-pre.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT template_id,active,fixed_cost,computed_cost,suggested_sale_price,updated_by
+              FROM employee_accounting_templates_v1
+             WHERE template_id='TPL-69C7D9A49828';
+            SELECT canonical_username AS username,role,active
+              FROM employee_auth_users_v1
+             WHERE canonical_username='ضياء' AND lower(role)='admin' AND active=1;
+          " > /tmp/sentinels.json
+          node <<'NODE'
+          const fs=require('fs');
+          const cfg=fs.readFileSync('/tmp/config.js','utf8'),app=fs.readFileSync('/tmp/app.js','utf8');
+          const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          function groups(path){const x=JSON.parse(fs.readFileSync(path,'utf8')),g=[];const w=v=>{if(Array.isArray(v))return v.forEach(w);if(v&&typeof v==='object'){if(Array.isArray(v.results))g.push(v.results);for(const [k,z] of Object.entries(v))if(k!=='results')w(z);}};w(x);return g;}
+          const c=groups('/tmp/counts-pre.json').flat().find(r=>r.materials!==undefined)||{};
+          const s=groups('/tmp/sentinels.json').flat();
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'CANARY'/.test(cfg))throw new Error('live frontend not CANARY');
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\['saveAccountingMaterial'\]/.test(cfg))throw new Error('live frontend action mismatch');
+          if(!app.includes("const D1_ACCOUNTING_WRITE_ACTIONS = new Set(['saveAccountingMaterial'])"))throw new Error('material-only frontend code not live');
+          if(!app.includes("materialName:'A2-CANARY-MATERIAL-'+Date.now()"))throw new Error('synthetic material payload guard not live');
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw new Error('backend must begin READONLY');
+          if(Number(h.writeCanaryAllowedUserCount||0)!==0||Number(h.writeCanaryAllowedActionCount||0)!==0||Number(h.writeCanaryMaxCommands||0)!==0)throw new Error('server must begin unarmed');
+          const expected={materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:1,events:1};
+          for(const [k,v] of Object.entries(expected))if(Number(c[k]||0)!==v)throw new Error('pre-baseline mismatch '+k+'='+c[k]);
+          const t=s.find(r=>r.template_id==='TPL-69C7D9A49828'),u=s.find(r=>r.username==='ضياء');
+          if(!t||Number(t.active)!==0||Number(t.fixed_cost)!==0||Number(t.computed_cost)!==0||Number(t.suggested_sale_price)!==0||t.updated_by!=='ضياء')throw new Error('first-canary template sentinel drift');
+          if(!u)throw new Error('canonical Diaa admin identity not proven');
+          console.log('A28_EXEC_PREFLIGHT=PASS');
+          console.log('A28_EXEC_USER=ضياء');
+          console.log('A28_EXEC_ACTION=saveAccountingMaterial');
+          console.log('GENERAL_ALLOWED=NO');
+          NODE
+
+      - name: Arm one material command, wait for Diaa, then auto-disable
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          cleanup(){
+            trap - EXIT ERR
+            cat > /tmp/disable.sql <<'SQL'
+          UPDATE employee_accounting_control_v1
+             SET mode='READONLY',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' AND mode IN ('READONLY','CANARY');
+          UPDATE employee_accounting_write_canary_v1
+             SET enabled=1,allowed_usernames_json='[]',allowed_actions_json='[]',
+                 max_amount=0,max_commands=0,commands_started=0,expires_at_ms=0,
+                 policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          SQL
+            npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --file /tmp/disable.sql >/tmp/cleanup.log 2>&1 || true
+          }
+          trap cleanup EXIT ERR
+          EXPIRES="$(( $(date +%s%3N) + 15*60*1000 ))"
+          cat > /tmp/arm.sql <<SQL
+          UPDATE employee_accounting_write_canary_v1
+             SET enabled=1,
+                 allowed_usernames_json='["ضياء"]',
+                 allowed_actions_json='["saveAccountingMaterial"]',
+                 max_amount=0,max_commands=1,commands_started=0,
+                 expires_at_ms=$EXPIRES,policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          UPDATE employee_accounting_control_v1
+             SET mode='CANARY',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' AND mode='READONLY';
+          SQL
+          if grep -Eq "mode[[:space:]]*=[[:space:]]*'GENERAL'" /tmp/arm.sql; then exit 1; fi
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --file /tmp/arm.sql >/tmp/arm.log
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?a28armed=$GITHUB_RUN_ID" > /tmp/health-armed.json
+          node <<'NODE'
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/health-armed.json','utf8'));
+          if(h.mode!=='CANARY'||h.writeAuthorityMode!=='CANARY_BOUNDED')throw new Error('server did not enter bounded CANARY');
+          if(Number(h.writeCanaryAllowedUserCount)!==1||Number(h.writeCanaryAllowedActionCount)!==1)throw new Error('scope not one user/one action');
+          if(Number(h.writeCanaryMaxAmount)!==0||Number(h.writeCanaryMaxCommands)!==1||Number(h.writeCanaryCommandsStarted)!==0)throw new Error('budget mismatch');
+          console.log('A28_EXEC_SERVER_ARMED=ONE_USER_ONE_ACTION_ONE_COMMAND_ZERO_VALUE');
+          NODE
+
+          echo "A28_EXEC_WAITING_FOR_DIAA_CLICK=YES"
+          STARTED_AT=0
+          SUCCESS=0
+          for i in $(seq 1 120); do
+            npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+              SELECT
+                (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+                (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+                (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+                (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+                (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+                (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+                (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+                (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+                (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+                (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+                (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+                (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+                (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+                (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+                (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events,
+                (SELECT commands_started FROM employee_accounting_write_canary_v1 WHERE singleton=1) AS commandsStarted;
+            " > /tmp/poll.json
+            node <<'NODE' > /tmp/poll-state.txt
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/poll.json','utf8')),rows=[];
+          const w=v=>{if(Array.isArray(v))return v.forEach(w);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(w);}};w(x);
+          if(rows.length!==1)throw new Error('poll parse');const r=rows[0];
+          const exactZero=['deptLines','finalInvoices','partyLedger','purchases','dailyPurchases','cashbox','waste','custodyEvents','custodyCloses','dayCloses','partyBalances'];
+          if(exactZero.some(k=>Number(r[k]||0)!==0)||Number(r.templates||0)!==1)throw new Error('forbidden accounting mutation '+JSON.stringify(r));
+          if(Number(r.materials||0)>1||Number(r.requestLedger||0)>2||Number(r.events||0)>2||Number(r.commandsStarted||0)>1)throw new Error('canary multiplicity exceeded '+JSON.stringify(r));
+          if(Number(r.materials||0)===1&&Number(r.requestLedger||0)===2&&Number(r.events||0)===2&&Number(r.commandsStarted||0)===1)console.log('SUCCESS');
+          else if(Number(r.commandsStarted||0)===1)console.log('STARTED');
+          else console.log('WAIT');
+          NODE
+            STATE="$(tail -n1 /tmp/poll-state.txt)"
+            if [ "$STATE" = "SUCCESS" ]; then SUCCESS=1; break; fi
+            if [ "$STATE" = "STARTED" ] && [ "$STARTED_AT" = "0" ]; then STARTED_AT="$i"; fi
+            if [ "$STARTED_AT" != "0" ] && [ $((i-STARTED_AT)) -gt 6 ]; then echo "command started but did not settle within 30s" >&2; exit 1; fi
+            sleep 5
+          done
+          if [ "$SUCCESS" != "1" ]; then echo "A28_EXEC_TIMEOUT_NO_COMMAND" >&2; exit 1; fi
+
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT material_id,department,material_name,material_kind,material_class,stock_qty,min_stock,unit_cost,computed_unit_cost,official_sale_price,active,raw_width,raw_height,updated_by
+              FROM employee_accounting_materials_v1;
+            SELECT request_key,operation,actor,status,entity_id
+              FROM employee_accounting_request_ledger_v1
+             WHERE request_key LIKE 'A28-MAT-%';
+            SELECT entity_type,entity_id,event_type,actor,request_key
+              FROM employee_accounting_events_v1
+             WHERE request_key LIKE 'A28-MAT-%';
+          " > /tmp/evidence.json
+
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/evidence.json','utf8')),groups=[];
+          const w=v=>{if(Array.isArray(v))return v.forEach(w);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const [k,z] of Object.entries(v))if(k!=='results')w(z);}};w(x);
+          const all=groups.flat(),m=all.find(r=>r.material_id),q=all.find(r=>r.request_key&&r.operation),e=all.find(r=>r.entity_type);
+          if(!m||!q||!e)throw new Error('evidence rows missing');
+          if(m.department!=='عام'||m.material_kind!=='A2_CANARY'||!String(m.material_name||'').startsWith('A2-CANARY-MATERIAL-'))throw new Error('material identity mismatch');
+          for(const k of ['stock_qty','min_stock','unit_cost','computed_unit_cost','official_sale_price','raw_width','raw_height'])if(Number(m[k]||0)!==0)throw new Error('material zero-shape mismatch '+k);
+          if(Number(m.active)!==0||m.updated_by!=='ضياء')throw new Error('material inactive/actor mismatch');
+          if(q.operation!=='material-upsert'||q.actor!=='ضياء'||q.status!=='COMMITTED'||!String(q.request_key||'').startsWith('A28-MAT-')||String(q.entity_id||'')!=='')throw new Error('request mismatch');
+          if(e.entity_type!=='material'||e.entity_id!==m.material_id||e.event_type!=='create'||e.actor!=='ضياء'||e.request_key!==q.request_key)throw new Error('event mismatch');
+          console.log('A28_EXEC_EXACT_D1_EVIDENCE=PASS');
+          console.log('A28_EXEC_MATERIAL_ID='+m.material_id);
+          console.log('A28_EXEC_REQUEST_KEY='+q.request_key);
+          NODE
+
+          cleanup
+          trap - EXIT ERR
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?a28closed=$GITHUB_RUN_ID" > /tmp/health-closed.json
+          node <<'NODE'
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/health-closed.json','utf8'));
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw new Error('server not closed to READONLY');
+          if(Number(h.writeCanaryAllowedUserCount||0)!==0||Number(h.writeCanaryAllowedActionCount||0)!==0||Number(h.writeCanaryMaxCommands||0)!==0||Number(h.writeCanaryCommandsStarted||0)!==0)throw new Error('server canary not fully cleared');
+          console.log('A28_EXEC_SERVER_AUTO_DISABLED=PASS');
+          console.log('GENERAL_OPENED=NO');
+          NODE
