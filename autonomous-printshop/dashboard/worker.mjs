@@ -157,8 +157,10 @@ function evidenceBox(label,x={}){
     .filter(([k,v])=>typeof v==='number'&&k!=='acquisitionReady')
     .map(([k,v])=>'<span>'+esc(k)+' <b>'+n(v)+'</b></span>')
     .join('');
+  const stage=x.cloudStage?'<div class="hint">Cloud stage: '+esc(x.cloudStage)+(x.materialFrozen?' • Material frozen':'')+'</div>':'';
   return '<div class="rbox"><div class="rtitle">'+esc(label)+' — '+(ok?'المصدر جاهز':'المصدر ناقص')+'</div>'
     +'<div class="rnums">'+parts+'</div>'
+    +stage
     +(ok?'':'<div class="hint">'+esc(x.blocker||'UNKNOWN')+'</div>')
     +'</div>';
 }
