@@ -1,0 +1,189 @@
+
+name: TrendOS Entry635 Native Only Binding Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry635-native-only-binding-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry635-native-only-binding-controlled
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER: trendos-d1-api
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry635bindpre=$GITHUB_SHA" -o /tmp/auth-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry635bindpre=$GITHUB_SHA" -o /tmp/bridge-pre.json
+          node <<'NODE'
+          const a=require('/tmp/auth-pre.json'),b=require('/tmp/bridge-pre.json');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==false||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==false) throw new Error('bridge drift');
+          console.log('ENTRY635_BINDING_PREFLIGHT=PASS');
+          NODE
+
+      - name: Apply Native-only binding with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/deploy-pre.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/settings-pre.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const d=require('/tmp/deploy-pre.json'),s=require('/tmp/settings-pre.json');
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const cur=Array.isArray(deps)?deps[0]:null;
+          const full=(cur&&Array.isArray(cur.versions)?cur.versions:[]).filter(v=>Number(v.percentage||0)===100);
+          if(full.length!==1) throw new Error('active version shape');
+          const pre=String(full[0].version_id||full[0].id||'');
+          if(!pre) throw new Error('pre version missing');
+          fs.writeFileSync('/tmp/pre-version.txt',pre);
+
+          const bs=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          if(bs.length!==33) throw new Error('binding count');
+          const by=new Map(bs.map(b=>[String(b.name||''),b]));
+          const plain=n=>{const b=by.get(n);return b&&b.type==='plain_text'?String(b.text||''):''};
+          if(plain('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')!=='false') throw new Error('nativeOnly precondition');
+          if(plain('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')!=='false') throw new Error('bootstrap drift');
+          if(plain('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED')!=='false') throw new Error('bridge binding drift');
+          if(bs.filter(b=>String(b.type||'').includes('secret')).length!==5) throw new Error('secret count');
+          if(!bs.some(b=>b&&b.name==='DB'&&b.type==='d1')) throw new Error('DB binding');
+          fs.writeFileSync('/tmp/pre-shape.json',JSON.stringify(bs.map(b=>({
+            name:String(b.name||''),type:String(b.type||''),
+            text:b.type==='plain_text'?String(b.text||''):null,
+            db:b.type==='d1'?String(b.database_id||b.id||''):null
+          }))));
+          console.log('ENTRY635_BINDING_SNAPSHOT=PASS');
+          NODE
+
+          PRE="$(cat /tmp/pre-version.txt)"
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$PRE" -o /tmp/pre-version.json
+
+          rollback(){
+            rc=$?
+            trap - ERR
+            echo ENTRY635_BINDING_ROLLBACK=START
+            node -e 'const fs=require("fs");fs.writeFileSync("/tmp/rollback.json",JSON.stringify({strategy:"percentage",versions:[{version_id:process.argv[1],percentage:100}]}));' "$PRE"
+            curl --silent --show-error "${AUTH[@]}" -H 'Content-Type: application/json' -X POST "$BASE/deployments" --data-binary @/tmp/rollback.json >/tmp/rollback-response.json || true
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          node <<'NODE'
+          const fs=require('fs'),s=require('/tmp/settings-pre.json');
+          const bs=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          const next=bs.map(b=>b.name==='TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1'
+            ? {name:b.name,type:'plain_text',text:'true'}
+            : {name:b.name,type:'inherit',version_id:'latest'});
+          fs.writeFileSync('/tmp/settings-patch.json',JSON.stringify({
+            bindings:next,
+            annotations:{'workers/message':'Entry635 Native-only hardening only'}
+          }));
+          console.log('ENTRY635_BINDING_TARGET_NATIVE_ONLY=true');
+          console.log('ENTRY635_BINDING_SECRET_VALUES_INCLUDED=NO');
+          NODE
+
+          HTTP="$(curl --silent --show-error -o /tmp/patch.json -w '%{http_code}' "${AUTH[@]}" -X PATCH "$BASE/settings" -F 'settings=</tmp/settings-patch.json;type=application/json')"
+          echo "ENTRY635_BINDING_PATCH_HTTP=$HTTP"
+          test "$HTTP" = "200"
+          node -e 'const r=require("/tmp/patch.json");if(r.success!==true)process.exit(1);'
+
+          sleep 2
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/settings-post.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/deploy-post.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const pre=require('/tmp/pre-shape.json');
+          const s=require('/tmp/settings-post.json');
+          const bs=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          if(bs.length!==pre.length) throw new Error('binding count changed');
+          const by=new Map(bs.map(b=>[String(b.name||''),b]));
+          for(const old of pre){
+            const b=by.get(old.name);
+            if(!b) throw new Error('binding missing '+old.name);
+            if(old.name==='TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1'){
+              if(b.type!=='plain_text'||String(b.text||'')!=='true') throw new Error('nativeOnly not true');
+            } else {
+              if(String(b.type||'')!==old.type) throw new Error('type changed '+old.name);
+              if(old.type==='plain_text'&&String(b.text||'')!==String(old.text||'')) throw new Error('plain changed '+old.name);
+              if(old.type==='d1'&&String(b.database_id||b.id||'')!==String(old.db||'')) throw new Error('DB changed');
+            }
+          }
+          if(bs.filter(b=>String(b.type||'').includes('secret')).length!==5) throw new Error('secret count changed');
+
+          const d=require('/tmp/deploy-post.json');
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const cur=Array.isArray(deps)?deps[0]:null;
+          const full=(cur&&Array.isArray(cur.versions)?cur.versions:[]).filter(v=>Number(v.percentage||0)===100);
+          if(full.length!==1) throw new Error('post active shape');
+          const active=String(full[0].version_id||full[0].id||'');
+          if(!active) throw new Error('post active missing');
+          fs.writeFileSync('/tmp/post-version.txt',active);
+          console.log('ENTRY635_NON_TARGET_BINDINGS_UNCHANGED=PASS');
+          console.log('ENTRY635_SECRET_BINDINGS_PRESERVED=PASS');
+          NODE
+
+          POST="$(cat /tmp/post-version.txt)"
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$POST" -o /tmp/post-version.json
+          node <<'NODE'
+          const pre=require('/tmp/pre-version.json'),post=require('/tmp/post-version.json');
+          const a=String(pre.result&&pre.result.resources&&pre.result.resources.script&&pre.result.resources.script.etag||'');
+          const b=String(post.result&&post.result.resources&&post.result.resources.script&&post.result.resources.script.etag||'');
+          if(!a||a!==b) throw new Error('script etag changed');
+          console.log('ENTRY635_WORKER_CODE_ETAG_UNCHANGED=PASS');
+          NODE
+
+          OK=0
+          for i in $(seq 1 15); do
+            curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry635bindpost=$GITHUB_SHA-$i" -o /tmp/auth-post.json
+            if node -e 'const a=require("/tmp/auth-post.json");process.exit(a.mode==="TRANSITIONAL"&&a.envEnabled===true&&a.legacyBootstrapEnabled===false&&a.nativeOnly===true&&Number(a.userCount||0)===5&&Number(a.nativeReadyCount||0)===5&&a.plaintextStored===false?0:1)'; then
+              OK=1
+              break
+            fi
+            sleep 1
+          done
+          test "$OK" = "1"
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry635bindpost=$GITHUB_SHA" -o /tmp/bridge-post.json
+          node <<'NODE'
+          const a=require('/tmp/auth-post.json'),b=require('/tmp/bridge-post.json');
+          if(a.nativeOnly!==true||a.legacyBootstrapEnabled!==false) throw new Error('auth postflight');
+          if(b.enabled!==false) throw new Error('bridge postflight');
+          console.log('ENTRY635_BACKEND_NATIVE_ONLY=PASS');
+          console.log('ENTRY635_BOOTSTRAP_REMAINS=false');
+          console.log('ENTRY635_BRIDGE_REMAINS=false');
+          NODE
+
+          trap - ERR
+          echo ENTRY635_NATIVE_ONLY_BINDING_CUTOVER=PASS
+          echo ENTRY635_ONLY_TARGET_BINDING_CHANGED=PASS
+          echo ENTRY635_D1_CONTROL_MUTATION=NO
+          echo ENTRY635_FRONTEND_MUTATION=NO
+          echo ENTRY635_ACCOUNTING_TOUCHED=NO
+          echo ENTRY635_EASYSTORE_TOUCHED=NO
