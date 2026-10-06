@@ -63,6 +63,7 @@ jobs:
             (vr&&Array.isArray(vr.items)?vr.items:[]));
           if(!versions.length) throw new Error('version list shape unsupported');
           const ids=versions.map(x=>String(x.id||'')).filter(Boolean);
+          if(!ids.length||ids[0]!==active) throw new Error('latest version is not active: '+String(ids[0]||''));
           fs.writeFileSync('/tmp/version-ids-pre.json',JSON.stringify(ids));
           console.log('ENTRY632_CANDIDATE_PREFLIGHT=PASS');
           console.log('ENTRY632_ACTIVE_VERSION='+active);
@@ -86,7 +87,7 @@ jobs:
             if(b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED'){
               return {name:b.name,type:'plain_text',text:'false'};
             }
-            return {name:b.name,type:'inherit',version_id:active};
+            return {name:b.name,type:'inherit',version_id:'latest'};
           });
           const settings={
             bindings:out,
