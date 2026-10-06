@@ -7,7 +7,7 @@ const config=fs.readFileSync('autonomous-printshop/dashboard/wrangler.toml','utf
 assert.match(config,/^name = "autonomous-printshop-dashboard"$/m);
 assert.match(worker,/مركز المطبعة الذاتية/);
 assert.match(worker,/\/control-tower/);
-assert.match(worker,/path==='\/api\/state'/);
+assert.match(worker,/path==='\/state'/);
 assert.match(worker,/READ_ONLY_CONTROL_TOWER_UI/);
 assert.match(worker,/businessWrites:false/);
 assert.match(worker,/employeeAssignment:false/);
