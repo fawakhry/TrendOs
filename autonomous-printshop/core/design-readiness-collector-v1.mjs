@@ -5,31 +5,40 @@ function text(v){return String(v==null?'':v).trim();}
 
 export async function designReadinessSchemaStateV1(db){
   if(!db||typeof db.prepare!=='function') throw new Error('DESIGN_READINESS_DB_REQUIRED');
+
   const row=await db.prepare(`
-    SELECT
-      (SELECT COUNT(*) FROM sqlite_master
-        WHERE type='table'
-          AND name IN (
-            'autonomous_design_control',
-            'autonomous_design_artifacts',
-            'autonomous_design_approval_events',
-            'autonomous_design_preflight_runs',
-            'autonomous_design_asset_binding_events'
-          )) AS tableCount,
-      CASE
-        WHEN EXISTS(
-          SELECT 1 FROM sqlite_master
-           WHERE type='table' AND name='autonomous_design_control'
-        )
-        THEN (SELECT mode FROM autonomous_design_control WHERE singleton_id=1)
-        ELSE 'ABSENT'
-      END AS mode
+    SELECT COUNT(*) AS tableCount
+      FROM sqlite_master
+     WHERE type='table'
+       AND name IN (
+         'autonomous_design_control',
+         'autonomous_design_artifacts',
+         'autonomous_design_approval_events',
+         'autonomous_design_preflight_runs',
+         'autonomous_design_asset_binding_events'
+       )
+  `).first();
+
+  const tableCount=Number(row&&row.tableCount||0);
+  if(tableCount!==5){
+    return {
+      ready:false,
+      tableCount,
+      mode:'ABSENT'
+    };
+  }
+
+  const control=await db.prepare(`
+    SELECT mode
+      FROM autonomous_design_control
+     WHERE singleton_id=1
+     LIMIT 1
   `).first();
 
   return {
-    ready:Number(row&&row.tableCount||0)===5,
-    tableCount:Number(row&&row.tableCount||0),
-    mode:text(row&&row.mode)||'ABSENT'
+    ready:true,
+    tableCount,
+    mode:text(control&&control.mode)||'ABSENT'
   };
 }
 
