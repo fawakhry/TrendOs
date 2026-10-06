@@ -1,0 +1,37 @@
+{
+  "entry": "Entry629",
+  "purpose": "Second bridge-retirement family: route nine qualified Employee Content reads to D1 Native Content while preserving all Content writes fail-closed.",
+  "globalNativeAuth": false,
+  "contentTargetMode": "READONLY",
+  "contentPolicyEpochBefore": 1,
+  "contentPolicyEpochTarget": 2,
+  "currentFrontendBridgePolicyCount": 13,
+  "targetFrontendBridgePolicyCount": 4,
+  "contentNativeReads": [
+    "getPlatformSections",
+    "getFranchiseBranches",
+    "getServiceProviderRoutes",
+    "getMarketplace",
+    "getWhiteLabelSettings",
+    "getLeadPhoneNumbers",
+    "getPlatformAds",
+    "getKnowledge",
+    "getMatbagyNotes"
+  ],
+  "remainingBridgePolicies": [
+    "customerManagerV1:inbox",
+    "customerManagerV1:thread",
+    "getOrderConversation",
+    "goLiveAutopilotV1:listDrafts"
+  ],
+  "invariants": [
+    "Content OFF preserves the current 13-policy frontend bridge behavior.",
+    "Content READONLY routes only the nine listed reads to /v1/employee/content.",
+    "No Content writes are enabled by Entry629.",
+    "Core remains READONLY and Ops remains GENERAL.",
+    "Accounting remains READONLY.",
+    "Comms remains OFF until a separate gate.",
+    "Backend Bridge remains available as rollback safety until a later hardening gate.",
+    "EasyStore remains untouched."
+  ]
+}
