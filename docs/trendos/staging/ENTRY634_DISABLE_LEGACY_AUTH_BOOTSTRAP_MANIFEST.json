@@ -1,0 +1,19 @@
+{
+  "entry": "Entry634",
+  "purpose": "Disable employee legacy login bootstrap after all five known employees are Native-ready and aliases are canonicalized.",
+  "targetBinding": "TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED",
+  "before": true,
+  "after": false,
+  "keepNativeOnly": false,
+  "authMode": "TRANSITIONAL",
+  "nativeReadyRequired": 5,
+  "backendBridgeRequired": false,
+  "invariants": [
+    "Existing Native-ready users continue authenticating from D1.",
+    "A missing/non-native username returns employee-native-migration-required without contacting Apps Script.",
+    "Native-only remains false in this gate; hard native-only is a later independent gate.",
+    "Worker code must remain byte-identical by script etag.",
+    "All non-target Cloudflare bindings remain unchanged.",
+    "No frontend, D1 control, Accounting, EasyStore, or Apps Script mutation."
+  ]
+}
