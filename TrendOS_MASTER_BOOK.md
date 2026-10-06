@@ -4773,3 +4773,51 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   BACKEND_BRIDGE_POLICY_COUNT=17
   ```
 - The Backend Bridge remains only as a temporary auth-canary preflight dependency. Entry631 must remove that preflight dependency before the Bridge can be disabled safely.
+
+
+### Entry631 — Frontend bridge-free Native canary PASS
+- Goal: remove the compatibility Bridge from known-employee login preflight without enabling Global Native Auth.
+- Repo gate:
+  - manifest `docs/trendos/staging/ENTRY631_BRIDGE_FREE_CANARY_AUTH_PREFLIGHT_MANIFEST.json`;
+  - regression `tests/entry631_bridge_free_canary_preflight.test.mjs`;
+  - CI Run `37485518441` = SUCCESS.
+- Dispatcher contract:
+  - bridge-free mode requires all of:
+    - frontend Bridge OFF;
+    - frontend Bridge policies = 0;
+    - minimum Bridge policies = 0;
+    - required Native-ready count > 0;
+  - Production target requires `nativeReadyCount >= 5`;
+  - if ready count is 4/5, login fails closed;
+  - bridge-free preflight fetches Auth health only and does not fetch Bridge health;
+  - unknown employee names remain Legacy because Global Native Auth stays OFF.
+- Controlled frontend cutover:
+  - workflow `.github/workflows/trendos-entry631-bridge-free-canary-frontend-controlled.yml`;
+  - Run `37485927274`;
+  - Job `112345774950`;
+  - conclusion = SUCCESS;
+  - Production frontend version `8bcf0fe4-92db-4c2b-b32f-2dc418d0a03d`.
+- Live frontend:
+  ```ini
+  GLOBAL_NATIVE_AUTH=false
+  NATIVE_AUTH_CANARY=true
+  CANARY_REQUIRED_NATIVE_READY_COUNT=5
+  CANARY_MIN_BRIDGE_POLICIES=0
+  FRONTEND_BRIDGE_ENABLED=false
+  FRONTEND_BRIDGE_POLICY_COUNT=0
+  OPS=GENERAL
+  ACCOUNTING=READONLY
+  CORE=READONLY
+  CONTENT=READONLY
+  COMMS=READONLY
+  ```
+- Real live dispatcher smoke with qualification credentials:
+  ```ini
+  ENTRY631_LIVE_DISPATCHER_LOGIN=PASS
+  ENTRY631_LIVE_BRIDGE_HEALTH_CALLS=0
+  ENTRY631_LIVE_BRIDGE_ACTION_CALLS=0
+  ENTRY631_LIVE_LOGOUT=PASS
+  ```
+- Backend Bridge remains temporarily enabled with 17 policies only as rollback safety; it is not used by the live frontend.
+- No API code deploy, D1 control mutation, Accounting mutation, or EasyStore mutation occurred.
+- Entry632 may disable the Backend Bridge only after proving its enablement mechanism and preserving rollback safety.
