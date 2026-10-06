@@ -11,6 +11,9 @@ import {
 import {
   projectDesignProductionReadinessV1
 } from '../core/design-production-evidence-v1.mjs';
+import {
+  machineReadinessEvidenceCandidatesV1
+} from '../core/machine-readiness-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 
@@ -103,8 +106,46 @@ async function readDesignAcquisitionProjection(env){
   };
 }
 
+async function readMachineAcquisitionProjection(env,nowMs){
+  const [machines,mappings,observations]=await Promise.all([
+    env.DB.prepare(`
+      SELECT machine_id AS machineId,machine_class AS machineClass,
+             department,active,version
+        FROM autonomous_machines
+    `).all(),
+    env.DB.prepare(`
+      SELECT mapping_event_id AS mappingEventId,line_id AS lineId,
+             machine_id AS machineId,mapping_state AS mappingState,
+             source_kind AS sourceKind,source_ref AS sourceRef,
+             observed_at_ms AS observedAtMs
+        FROM autonomous_line_machine_mapping_events
+       ORDER BY observed_at_ms
+    `).all(),
+    env.DB.prepare(`
+      SELECT observation_id AS observationId,machine_id AS machineId,
+             machine_state AS machineState,source_kind AS sourceKind,
+             source_ref AS sourceRef,confidence,
+             observed_at_ms AS observedAtMs,expires_at_ms AS expiresAtMs
+        FROM autonomous_machine_observations
+       ORDER BY observed_at_ms
+    `).all()
+  ]);
+  const candidates=machineReadinessEvidenceCandidatesV1({
+    machines:machines.results||[],
+    mappings:mappings.results||[],
+    observations:observations.results||[],
+    nowMs
+  });
+  return {
+    projectedCandidates:candidates.length,
+    ready:candidates.filter(x=>x.state==='READY').length,
+    blocked:candidates.filter(x=>x.state==='BLOCKED').length
+  };
+}
+
 async function evidenceStatus(env){
-  const [row,designProjection]=await Promise.all([
+  const nowMs=Date.now();
+  const [row,designProjection,machineProjection]=await Promise.all([
     env.DB.prepare(`
     SELECT
       (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
@@ -144,8 +185,9 @@ async function evidenceStatus(env){
       (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
       (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
       (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS evidenceRows
-  `).bind(Date.now()).first(),
-    readDesignAcquisitionProjection(env)
+  `).bind(nowMs).first(),
+    readDesignAcquisitionProjection(env),
+    readMachineAcquisitionProjection(env,nowMs)
   ]);
 
   const designReadyInput=Number(designProjection&&designProjection.ready||0)>0;
@@ -177,9 +219,7 @@ async function evidenceStatus(env){
   const materialReadyInput=accountingCutover.sourceDataPresent &&
     accountingCutover.blockerCollectionAllowed===true;
   const machineReadyInput=text(row&&row.machineMode)==='SHADOW' &&
-    Number(row&&row.activeMachines||0)>0 &&
-    Number(row&&row.activeMachineObservations||0)>0 &&
-    Number(row&&row.machineMappings||0)>0;
+    Number(machineProjection&&machineProjection.ready||0)>0;
 
   return {
     success:true,
@@ -238,6 +278,9 @@ async function evidenceStatus(env){
       identityRows:Number(row&&row.machineIdentityRows||0),
       activeObservations:Number(row&&row.activeMachineObservations||0),
       mappings:Number(row&&row.machineMappings||0),
+      projectedCandidates:Number(machineProjection&&machineProjection.projectedCandidates||0),
+      projectedReadyLines:Number(machineProjection&&machineProjection.ready||0),
+      projectedBlockedLines:Number(machineProjection&&machineProjection.blocked||0),
       acquisitionReady:machineReadyInput,
       blocker:machineReadyInput?'':'REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED'
     },
