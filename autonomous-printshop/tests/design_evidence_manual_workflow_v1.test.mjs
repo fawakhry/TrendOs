@@ -15,6 +15,9 @@ assert.match(s,/ACCOUNTING_WRITE=NO/);
 assert.match(s,/EMPLOYEE_ASSIGNMENT=NO/);
 assert.match(s,/SAVED_EQUALS_APPROVED=NO/);
 assert.match(s,/MISSING_ORDER_OR_LINE_FAILS_CLOSED=YES/);
+assert.match(s,/MANUAL_PREFLIGHT_RESULT=UNKNOWN/);
+assert.match(s,/MANUAL_PREFLIGHT_PASS_SYNTHESIS=NO/);
+assert.match(s,/preflightQualified:false/);
 
 console.log('DESIGN_EVIDENCE_MANUAL_WORKFLOW_V1=PASS');
 console.log('AUTO_TRIGGER=NO');
