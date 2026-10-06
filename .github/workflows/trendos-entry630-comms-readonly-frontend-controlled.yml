@@ -108,8 +108,8 @@ jobs:
           from pathlib import Path
           import re
           s=Path('/tmp/live-index.html').read_text()
-          cfg=re.findall(r"config\\.js\\?v=[^\"']+",s)
-          dsp=re.findall(r"employee-api-dispatcher-v1\\.js\\?v=[^\"']+",s)
+          cfg=re.findall(r'config[.]js[?]v=[^"]+',s)
+          dsp=re.findall(r'employee-api-dispatcher-v1[.]js[?]v=[^"]+',s)
           if len(cfg)!=1: raise SystemExit('config script tag count='+str(len(cfg)))
           if len(dsp)!=1: raise SystemExit('dispatcher script tag count='+str(len(dsp)))
           print('ENTRY630_LIVE_CONFIG_TAG='+cfg[0])
@@ -154,8 +154,8 @@ jobs:
           p=Path('cloudflare-d1/frontend-dist/index.html')
           s=p.read_text()
           patterns=[
-            (r"config\\.js\\?v=[^\"']+",os.environ['NEW_CONFIG'],'config'),
-            (r"employee-api-dispatcher-v1\\.js\\?v=[^\"']+",os.environ['NEW_DISPATCHER'],'dispatcher')
+            (r'config[.]js[?]v=[^"]+',os.environ['NEW_CONFIG'],'config'),
+            (r'employee-api-dispatcher-v1[.]js[?]v=[^"]+',os.environ['NEW_DISPATCHER'],'dispatcher')
           ]
           for pat,new,label in patterns:
               matches=re.findall(pat,s)
