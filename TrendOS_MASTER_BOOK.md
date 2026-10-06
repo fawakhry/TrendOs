@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.18-ZERO-GOOGLE-COMPACT — Entry638 post-Sherif Native readiness** · تاريخ التحديث: 2026-10-06 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.19-ZERO-GOOGLE-COMPACT — Entry639 Global Native frontend PASS** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -5646,3 +5646,96 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - Recording policy explicitly requires logging every success, failure, Runtime drift, rollback/restore, hardening repair, workflow/run/job, deploy, diagnosis, and gate transition.
 - Secrets, passwords, Tokens, password hashes, and session secrets remain prohibited from documentation.
 - `ENTRY638_DOCUMENTATION_CLOSURE=PASS`
+
+
+#### Entry639 — Global Native frontend cutover PASS
+- Scope: Employee frontend Auth cutover only. No D1 business mutation, no Accounting mutation, no EasyStore mutation.
+- Evidence file: `docs/trendos/staging/ENTRY639_GLOBAL_NATIVE_FRONTEND_CUTOVER_20261007.md`.
+- Evidence commit: `79d66bb079359360549d3679977cc17b093699b2`.
+
+##### Attempt 1 — stopped safely before Deploy
+- Workflow source commit: `5164ec36e34c9b9bde6780350dae6e8fea6e5718`.
+- Run: `37542306567`.
+- Job: `112537960050`.
+- Failure occurred in `Exact Runtime and repository preflight`; all deploy/reconcile steps were skipped.
+- Production frontend mutation from Attempt 1: NO.
+- Cause: the guard pinned historical Accounting `policyEpoch=2`, while Runtime truth had advanced to:
+  - `mode=READONLY`
+  - `policyEpoch=8`
+  - `authoritativeWrites=false`
+  - `writeAuthorityMode=OFF`
+  - `googleBusinessCalls=0`
+  - `appsScriptBusinessAuthority=false`
+- This was treated as legitimate Runtime drift. Accounting was not changed or rolled back.
+- Guard-fix commit: `8e356f7c7661ee36d625c08516b2fb5aa9d8dae3`.
+- Corrected rule validates READONLY safety invariants instead of pinning an obsolete epoch.
+
+##### Attempt 2 — PASS
+- Run: `37542439809`.
+- Job: `112538399521`.
+- Workflow conclusion: `SUCCESS`.
+- Preflight:
+  - `ENTRY639_RUNTIME_PREFLIGHT=PASS`
+  - `ENTRY639_NATIVE_READY=6_OF_6`
+  - `ENTRY639_BACKEND_NATIVE_ONLY=true`
+  - `ENTRY639_BACKEND_BOOTSTRAP=false`
+  - `ENTRY639_BACKEND_BRIDGE=false`
+  - `ENTRY639_REPO_DRIFT_BASELINE=PASS`
+  - `ENTRY639_EXACT_LIVE_BASELINE=PASS`
+- Frontend version transition:
+  - previous: `697f2afb-87c2-47cc-9889-3e986e7f0863`
+  - current: `ecba8460-e9c1-4fc7-81a2-1cf5c054943a`
+  - propagation proof: attempt 4.
+- Global frontend Auth state:
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=true`
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=false`
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=[]`
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT=6`
+  - `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false`
+  - `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES=[]`
+- Family routing preserved from deployed Runtime truth:
+  - `OPS=GENERAL`
+  - `CORE=READONLY`
+  - `CONTENT=READONLY`
+  - `COMMS=READONLY`
+  - `ACCOUNTING=READONLY / policyEpoch=8`
+- Live production smoke:
+  - `ENTRY639_GLOBAL_NATIVE_LOGIN=PASS`
+  - `ENTRY639_LEGACY_BRIDGE_CALLS=0`
+  - `ENTRY639_GLOBAL_NATIVE_LOGOUT=PASS`
+  - `ENTRY639_RUNTIME_POSTFLIGHT=PASS`
+  - `ENTRY639_GLOBAL_NATIVE_FRONTEND=PASS`
+- Automatic rollback was armed to the previous frontend version and was not invoked because all production checks passed.
+- Repo/deployed config drift was reconciled after successful production proof.
+- Repo config reconciliation commit: `302386136af2a694f7c8447eb741419308a52a82`.
+- `ENTRY639_REPO_CONFIG_RECONCILED=PASS`.
+
+##### Stable final truth
+```ini
+ENTRY639=PASS
+ENTRY639_GLOBAL_NATIVE_FRONTEND_CUTOVER=PASS
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_BRIDGE=false
+FRONTEND_REQUIRED_NATIVE_READY=6
+BACKEND_NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+MUST_CHANGE=0
+PLAINTEXT_STORED=false
+OPS=GENERAL
+CORE=READONLY
+CONTENT=READONLY
+COMMS=READONLY
+ACCOUNTING=READONLY / policyEpoch8
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_GOOGLE_BUSINESS_CALLS=0
+EASYSTORE_MUTATION=NO
+```
+- Entry638's earlier `GLOBAL_NATIVE_FRONTEND_CUTOVER=NOT_YET_EXECUTED` remains historical truth for that point in time and must not be rewritten.
+- This Master Book recorder Run: `37542737379`.
+- Recorder workflow source SHA: `355f40991c2cbe0c389032eba2fa52a25db8cb1a`.
+- `ENTRY639_DOCUMENTATION=PASS`
