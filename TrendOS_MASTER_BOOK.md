@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.20-ZERO-GOOGLE-COMPACT — Entry640 Auth control NATIVE PASS** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.21-ZERO-GOOGLE-COMPACT — Entry641 retirement audit / CF drift found** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -5851,3 +5851,67 @@ EASYSTORE_MUTATION=NO
 - This Master Book recorder Run: `37543529947`.
 - Recorder workflow source SHA: `dfcde40bd66a65c2a2d67cf31c9b34685a51c7f5`.
 - `ENTRY640_DOCUMENTATION=PASS`.
+
+
+#### Entry641 — Legacy Auth retirement read-only audit; Cloudflare hardening drift found
+- Scope: read-only audit only. No Cloudflare/D1/Apps Script/frontend/Accounting/EasyStore/business mutation.
+- Attempt 1:
+  - source commit `7c459c47e4f53ed343c1b95ca2678c8cf9509eb2`
+  - Run `37543761337`, Job `112542724821`
+  - FAILURE in first read-only Runtime proof.
+  - السبب: الـaudit توقع hardening الذي تم إثباته بعد Entry640، لكن Runtime كشف drift: `mode=NATIVE`, `6/6`, `legacyBootstrapEnabled=true`, `nativeOnly=false`.
+  - Mutation from Attempt 1: NO.
+- Attempt 2:
+  - diagnostic source commit `6c2da88c152f98c17a55ae88c652376cb016c8fb`
+  - Run `37544005767`, Job `112543538509`
+  - Conclusion `SUCCESS`.
+- D1/Runtime authority remained:
+  - `AUTH_MODE=NATIVE`
+  - `NATIVE_READY=6/6`
+  - bootstrap remains closed by the NATIVE control mode itself.
+- Cloudflare env residue/drift:
+  - auth env enabled = YES
+  - bootstrap env enabled = YES
+  - session enroll env enabled = NO
+  - nativeOnly env = NO
+  - backend bridge enabled = NO
+  - bridge upstream configured = YES
+  - bridge secret configured = YES
+  - bridge policy count = 17
+  - secret value exposed = NO.
+- Cloudflare deployment history:
+  - current active at 2026-10-06T22:56:20.972111Z = `b1eb1e51-d713-4e30-8da5-a127fd53284b`
+  - previous hardened deployment at 2026-10-06T19:39:41.106173Z = `24202d32-cd6f-41bb-9ce3-0565877ef8be`
+  - bounded-window deployment at 2026-10-06T19:38:41.535377Z = `59f7c6b3-64f3-4dac-a51f-7d730cb90bbb`.
+- Current latest settings:
+  - `NATIVE_ONLY=false`
+  - `LEGACY_BOOTSTRAP=true`
+  - `LEGACY_SESSION_ENROLL=false`
+  - `LEGACY_BRIDGE_ENABLED=false`
+  - bridge actions still configured
+  - bridge secret binding still present.
+- No GitHub employee-auth deploy workflow was observed between Entry640 success and the new 22:56:20Z API deployment. Source is recorded as `UNATTRIBUTED`; do not guess attribution.
+- Apps Script Version159 bridge read-only probe:
+  - invalid assertion probe HTTP 200;
+  - rejection happened after bridge-enabled and secret-configured checks;
+  - `APPS_SCRIPT_BRIDGE_ENABLED=YES`
+  - `APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES`
+  - secret value exposed = NO.
+- Repo residue:
+  - default Cloudflare bridge flag OFF;
+  - bridge source code still present;
+  - Apps Script bridge route/code still present.
+- Decision:
+```ini
+ENTRY641=READONLY_AUDIT_PASS
+ENTRY641_RUNTIME_DRIFT=CF_AUTH_ENV_HARDENING_REGRESSED
+ENTRY641_D1_AUTH_CONTROL=NATIVE
+ENTRY641_NATIVE_READY=6_OF_6
+ENTRY641_NEXT_GATE=DEPLOY_RESILIENT_CF_AUTH_HARDENING
+ENTRY641_AFTER_CF_GATE=DISABLE_APPS_SCRIPT_BRIDGE_PROPERTY
+```
+- Evidence: `docs/trendos/staging/ENTRY641_LEGACY_AUTH_RETIREMENT_READONLY_20261007.md`.
+- Evidence commit: `6ef6ac204209ef1927a93fa501364ad9d3c97af5`.
+- This recorder Run: `37544239094`.
+- Recorder source SHA: `bc161757c8102b86c2d3a659ec80a2612fd7275c`.
+- `ENTRY641_DOCUMENTATION=PASS`.
