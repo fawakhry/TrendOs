@@ -1,0 +1,128 @@
+name: TrendOS Entry641 Legacy Auth Retirement Readonly
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry641-legacy-auth-retirement-readonly.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry641-legacy-auth-retirement-readonly
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      CONFIG: cloudflare-d1/wrangler.toml
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Prove final Native runtime and dormant Cloudflare bridge residue
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry641=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry641=$GITHUB_SHA-$(date +%s%N)" -o /tmp/bridge.json
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry641=$GITHUB_SHA-$(date +%s%N)" -o /tmp/frontend.js
+
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.legacyBootstrapEnabled!==false||
+             a.legacySessionEnrollEnabled!==false||Number(a.userCount||0)!==6||
+             Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) throw new Error('Native auth closure drift');
+          if(b.enabled!==false) throw new Error('Cloudflare legacy bridge unexpectedly enabled');
+          if(b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge hygiene drift');
+          console.log('ENTRY641_AUTH_MODE=NATIVE');
+          console.log('ENTRY641_NATIVE_READY=6_OF_6');
+          console.log('ENTRY641_CF_BRIDGE_ENABLED=NO');
+          console.log('ENTRY641_CF_BRIDGE_UPSTREAM_CONFIGURED='+(b.upstreamConfigured===true?'YES':'NO'));
+          console.log('ENTRY641_CF_BRIDGE_SECRET_CONFIGURED='+(b.secretConfigured===true?'YES':'NO'));
+          console.log('ENTRY641_CF_BRIDGE_POLICY_COUNT='+Number(b.allowedPolicyCount||0));
+          NODE
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;" /tmp/frontend.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;" /tmp/frontend.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/frontend.js
+          echo ENTRY641_FRONTEND_GLOBAL_NATIVE=PASS
+
+      - name: Readonly Apps Script bridge-state proof with invalid assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPS_URL="$(node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync(process.env.CONFIG,'utf8');
+          const m=s.match(/^APPS_SCRIPT_API_URL\s*=\s*"([^"]+)"/m);
+          if(!m) process.exit(2);
+          process.stdout.write(m[1]);
+          NODE
+          )"
+          test -n "$APPS_URL"
+
+          body='{"action":"cloudEmployeeLegacyBridgeExecuteV1","targetAction":"getDashboard","username":"entry641-probe","targetPayload":{"action":"getDashboard","username":"entry641-probe"},"cloudEmployeeAssertionV1":"cfv1.invalid.invalid"}'
+          code="$(curl --silent --show-error --location --output /tmp/apps.json --write-out '%{http_code}' \
+            -H 'accept: application/json' -H 'content-type: text/plain;charset=utf-8' \
+            --data-binary "$body" "$APPS_URL")"
+          export APPS_HTTP="$code"
+
+          node <<'NODE'
+          const fs=require('fs');
+          let x={}; try{x=JSON.parse(fs.readFileSync('/tmp/apps.json','utf8')||'{}')}catch{}
+          const msg=String(x.message||'');
+          if(Number(process.env.APPS_HTTP||0)!==200) throw new Error('Apps Script probe HTTP '+process.env.APPS_HTTP);
+          console.log('ENTRY641_APPS_SCRIPT_HTTP=200');
+          console.log('ENTRY641_APPS_SCRIPT_SECRET_VALUE_LOGGED=NO');
+          if(msg==='اعتماد الموظف السحابي غير صالح.'){
+            console.log('ENTRY641_APPS_SCRIPT_BRIDGE_ENABLED=YES');
+            console.log('ENTRY641_APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES');
+            console.log('ENTRY641_RETIREMENT_CANDIDATE=DISABLE_APPS_SCRIPT_BRIDGE_PROPERTY');
+          } else if(msg==='مسار اعتماد الموظف السحابي غير مفعل.'){
+            console.log('ENTRY641_APPS_SCRIPT_BRIDGE_ENABLED=NO');
+            console.log('ENTRY641_RETIREMENT_CANDIDATE=APPS_SCRIPT_ALREADY_DISABLED');
+          } else if(msg==='مسار اعتماد الموظف السحابي غير مضبوط.'){
+            console.log('ENTRY641_APPS_SCRIPT_BRIDGE_ENABLED=YES');
+            console.log('ENTRY641_APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=NO');
+            console.log('ENTRY641_RETIREMENT_CANDIDATE=DISABLE_APPS_SCRIPT_BRIDGE_PROPERTY');
+          } else {
+            throw new Error('unexpected Apps Script bridge probe response');
+          }
+          NODE
+
+      - name: Source residue inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          grep -Fq 'EMPLOYEE_LEGACY_BRIDGE_ACTIONS = ""' cloudflare-d1/wrangler.toml
+          grep -Fq 'EMPLOYEE_LEGACY_BRIDGE_SECRET_V1' cloudflare-d1/src/employee-legacy-bridge-v1.mjs
+          grep -Fq 'TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED' Code.gs
+          grep -Fq 'EMPLOYEE_LEGACY_BRIDGE_SECRET_V1' Code.gs
+          grep -Fq 'cloudEmployeeLegacyBridgeExecuteV1' Code.gs
+          echo ENTRY641_REPO_DEFAULT_BRIDGE=OFF
+          echo ENTRY641_REPO_BRIDGE_CODE_PRESENT=YES
+          echo ENTRY641_REPO_APPS_SCRIPT_BRIDGE_ROUTE_PRESENT=YES
+
+      - name: Boundary
+        shell: bash
+        run: |
+          echo ENTRY641=READONLY_AUDIT_PASS
+          echo ENTRY641_CLOUDFLARE_MUTATION=NO
+          echo ENTRY641_D1_MUTATION=NO
+          echo ENTRY641_APPS_SCRIPT_MUTATION=NO
+          echo ENTRY641_FRONTEND_MUTATION=NO
+          echo ENTRY641_ACCOUNTING_TOUCHED=NO
+          echo ENTRY641_EASYSTORE_TOUCHED=NO
+          echo ENTRY641_BUSINESS_DATA_MUTATION=NO
