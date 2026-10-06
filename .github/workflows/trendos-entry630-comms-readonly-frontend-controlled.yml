@@ -29,9 +29,7 @@ jobs:
       PRE_COMMS_DISPATCHER_COMMIT: 4fd61c5724f9c703357008d219ee0857365cd073
       COMMS_DISPATCHER_COMMIT: d05b2133711850b1afbe94686b02e48043ca2d74
       LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
-      OLD_CONFIG_TAG: 20261006-entry629-content-bridge4
       NEW_CONFIG_TAG: 20261006-entry630-comms-native-bridge4
-      OLD_DISPATCHER_TAG: 20260930-a61-cloud-transport
       NEW_DISPATCHER_TAG: 20261006-entry630-comms-native
 
     steps:
@@ -106,8 +104,17 @@ jobs:
           grep -Fq '"customerManagerV1:thread"' /tmp/live-config.js
           grep -Fq '"getOrderConversation"' /tmp/live-config.js
           grep -Fq '"goLiveAutopilotV1:listDrafts"' /tmp/live-config.js
-          grep -Fq "config.js?v=$OLD_CONFIG_TAG" /tmp/live-index.html
-          grep -Fq "employee-api-dispatcher-v1.js?v=$OLD_DISPATCHER_TAG" /tmp/live-index.html
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('/tmp/live-index.html').read_text()
+          cfg=re.findall(r'config\\.js\\?v=[^"\\']+',s)
+          dsp=re.findall(r'employee-api-dispatcher-v1\\.js\\?v=[^"\\']+',s)
+          if len(cfg)!=1: raise SystemExit('config script tag count='+str(len(cfg)))
+          if len(dsp)!=1: raise SystemExit('dispatcher script tag count='+str(len(dsp)))
+          print('ENTRY630_LIVE_CONFIG_TAG='+cfg[0])
+          print('ENTRY630_LIVE_DISPATCHER_TAG='+dsp[0])
+          PY
           echo ENTRY630_EXACT_LIVE_BASELINE=PASS
 
       - name: Build exact-live Comms readonly bundle
@@ -139,22 +146,22 @@ jobs:
           p.write_text(s.replace(anchor,anchor+"\n"+line,1))
           PY
 
-          export OLD_CONFIG="config.js?v=$OLD_CONFIG_TAG"
           export NEW_CONFIG="config.js?v=$NEW_CONFIG_TAG"
-          export OLD_DISPATCHER="employee-api-dispatcher-v1.js?v=$OLD_DISPATCHER_TAG"
           export NEW_DISPATCHER="employee-api-dispatcher-v1.js?v=$NEW_DISPATCHER_TAG"
           python3 <<'PY'
           from pathlib import Path
-          import os
+          import os,re
           p=Path('cloudflare-d1/frontend-dist/index.html')
           s=p.read_text()
-          for old,new,label in [
-            (os.environ['OLD_CONFIG'],os.environ['NEW_CONFIG'],'config'),
-            (os.environ['OLD_DISPATCHER'],os.environ['NEW_DISPATCHER'],'dispatcher')
-          ]:
-              if s.count(old)!=1:
-                  raise SystemExit(label+' cache anchor count='+str(s.count(old)))
-              s=s.replace(old,new,1)
+          patterns=[
+            (r'config\\.js\\?v=[^"\\']+',os.environ['NEW_CONFIG'],'config'),
+            (r'employee-api-dispatcher-v1\\.js\\?v=[^"\\']+',os.environ['NEW_DISPATCHER'],'dispatcher')
+          ]
+          for pat,new,label in patterns:
+              matches=re.findall(pat,s)
+              if len(matches)!=1:
+                  raise SystemExit(label+' cache anchor count='+str(len(matches)))
+              s=re.sub(pat,new,s,count=1)
           p.write_text(s)
           PY
 
