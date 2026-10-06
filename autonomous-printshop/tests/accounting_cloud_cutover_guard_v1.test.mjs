@@ -22,7 +22,7 @@ assert.equal(x.sourceDataPresent,true);
 
 x=classifyAccountingCloudCutoverV1({
   mode:'CANARY',writeCanaryReady:true,writeCanaryEnabled:true,
-  allowedUsers:1,allowedActions:1,activeMaterials:5,
+  allowedUsers:1,allowedActions:1,maxCommands:1,commandsStarted:0,activeMaterials:5,
   deptLinesWithLineId:5,deptLinesWithMaterial:5,deptLinesWithConsumption:5
 });
 assert.equal(x.stage,'CLOUD_WRITE_CANARY_ACTIVE');
@@ -30,6 +30,9 @@ assert.equal(x.frozen,true);
 assert.equal(x.blockerCollectionAllowed,false);
 assert.equal(x.readyEvidenceAllowed,false);
 assert.equal(x.writeCanary.armed,true);
+assert.equal(x.writeCanary.maxCommands,1);
+assert.equal(x.writeCanary.commandsStarted,0);
+assert.equal(x.writeCanary.commandsRemaining,1);
 
 x=classifyAccountingCloudCutoverV1({mode:'GENERAL',activeMaterials:10,deptLinesWithLineId:10,deptLinesWithMaterial:10,deptLinesWithConsumption:10});
 assert.equal(x.stage,'CLOUD_GENERAL_REQUIRES_AUTONOMOUS_REQUALIFICATION');
