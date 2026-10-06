@@ -1,0 +1,28 @@
+name: EasyStore A2.9 Recalc Canary Execution
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/easystore-a29-recalc-canary-execution.yml'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-qualified-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch qualified A2.9 candidate workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api             --method POST             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/actions/workflows/easystore-a29-recalc-canary-execution.yml/dispatches"             -f ref='candidate/easystore-accounting-a2-20261005'
+          echo "A29_DISPATCH_TARGET=candidate/easystore-accounting-a2-20261005"
+          echo "A29_DISPATCH_CONTROL_PLANE_ONLY=YES"
+          echo "PRODUCTION_BUSINESS_MUTATION=NO"
