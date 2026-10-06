@@ -1,0 +1,177 @@
+
+name: TrendOS Entry628 Core Readonly Backend Compare
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry628-core-readonly-backend-compare.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry628-core-readonly-backend-compare
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry628cmp=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1||co.schemaReady!==true) throw new Error('core drift');
+          if(ct.mode!=='OFF'||cm.mode!=='OFF') throw new Error('content/comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting drift');
+          console.log('ENTRY628_BACKEND_COMPARE_PREFLIGHT=PASS');
+          NODE
+
+      - name: Login native and compare four reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+
+          async function post(path,body,token=''){
+            const r=await fetch(base+path,{
+              method:'POST',
+              headers:{
+                accept:'application/json',
+                'content-type':'application/json',
+                ...(token?{authorization:'Bearer '+token}:{})
+              },
+              body:JSON.stringify(body),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let out={}; try{out=JSON.parse(raw||'{}')}catch{}
+            return {status:r.status,out};
+          }
+
+          function countRows(x){
+            if(Array.isArray(x&&x.rows)) return x.rows.length;
+            if(Array.isArray(x&&x.conversations)) return x.conversations.length;
+            return -1;
+          }
+          function keys(x){return Object.keys(x||{}).sort().join(',');}
+
+          (async()=>{
+            const login=await post('/v1/employee/auth/login',{username,password});
+            const token=String(login.out&&login.out.user&&login.out.user.token||'').trim();
+            if(login.status!==200||login.out.success!==true||!token||String(login.out.authSource||'')!=='d1-native-employee-v1'){
+              throw new Error('native login failed');
+            }
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/entry628-token',token,{mode:0o600});
+            console.log('ENTRY628_NATIVE_LOGIN=PASS');
+
+            const actions=[
+              ['getRows',{screen:'service'}],
+              ['getDashboard',{screen:'service'}],
+              ['getActivityLog',{limit:50}],
+              ['getTrendMasterCenterV1931',{}]
+            ];
+
+            for(const [action,extra] of actions){
+              const body={username,action,...extra};
+              const native=await post('/v1/employee/core',body,token);
+              const legacy=await post('/v1/employee/legacy-action',body,token);
+              if(native.status!==200||native.out.success!==true||String(native.out.authority||'')!=='d1-employee-core-v1'){
+                throw new Error(action+' native failed status='+native.status+' code='+String(native.out.code||''));
+              }
+              if(legacy.status!==200||legacy.out.success!==true){
+                throw new Error(action+' legacy compare failed status='+legacy.status+' code='+String(legacy.out.code||''));
+              }
+              console.log('ENTRY628_'+action+'_NATIVE=PASS');
+              console.log('ENTRY628_'+action+'_LEGACY=PASS');
+              const nr=countRows(native.out), lr=countRows(legacy.out);
+              if(nr>=0||lr>=0){
+                console.log('ENTRY628_'+action+'_NATIVE_ROWS='+nr);
+                console.log('ENTRY628_'+action+'_LEGACY_ROWS='+lr);
+              }
+              if(action==='getDashboard'){
+                console.log('ENTRY628_getDashboard_NATIVE_DASHBOARD='+(native.out.dashboard&&typeof native.out.dashboard==='object'?'YES':'NO'));
+                console.log('ENTRY628_getDashboard_LEGACY_DASHBOARD='+(legacy.out.dashboard&&typeof legacy.out.dashboard==='object'?'YES':'NO'));
+              }
+              if(action==='getTrendMasterCenterV1931'){
+                console.log('ENTRY628_TRENDMASTER_NATIVE_KEYS='+keys(native.out).split(',').length);
+                console.log('ENTRY628_TRENDMASTER_LEGACY_KEYS='+keys(legacy.out).split(',').length);
+              }
+            }
+            console.log('ENTRY628_CORE_BACKEND_COMPARE=PASS');
+            console.log('ENTRY628_BUSINESS_MUTATION=NO');
+          })().catch(e=>{
+            console.error('ENTRY628_CORE_BACKEND_COMPARE=FAIL '+String(e&&e.message||e));
+            process.exit(21);
+          });
+          NODE
+
+      - name: Logout compare session
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          if(!fs.existsSync('/tmp/entry628-token')){console.log('ENTRY628_LOGOUT=NOT_APPLICABLE');process.exit(0);}
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry628-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const out=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||out.success!==true) process.exit(31);
+            console.log('ENTRY628_LOGOUT=PASS');
+          })().catch(()=>process.exit(32));
+          NODE
+          rm -f /tmp/entry628-token
+
+      - name: Final invariant postflight
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry628cmpfinal=$GITHUB_SHA" -o /tmp/auth-final.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/core/health?entry628cmpfinal=$GITHUB_SHA" -o /tmp/core-final.json
+          node <<'NODE'
+          const a=require('/tmp/auth-final.json'),c=require('/tmp/core-final.json');
+          if(Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth post drift');
+          if(c.mode!=='READONLY'||Number(c.policyEpoch||0)!==1) throw new Error('core post drift');
+          console.log('ENTRY628_COMPARE_POSTFLIGHT=PASS');
+          NODE
