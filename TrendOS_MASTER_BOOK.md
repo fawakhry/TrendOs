@@ -4725,3 +4725,9 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   4. verify Runtime rises from `2/2` to `3/3`;
   5. only the login after bootstrap is expected to have the same fast Native behavior as Diya/Wael.
 - No backend/API/D1-control/Accounting/EasyStore change is required for this retry.
+
+
+#### Entry627 — Jaber Native PASS
+- Jaber completed Production login successfully.
+- Runtime after login: D1_AUTH_USERS=4, D1_NATIVE_READY_USERS=4.
+- Bridge remains 17 policies; Ops GENERAL epoch7; Accounting READONLY epoch2; Global Native Auth remains OFF.
