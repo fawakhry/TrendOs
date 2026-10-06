@@ -3680,3 +3680,44 @@ Result:
 - it remains audit-only;
 - it cannot satisfy Material readiness;
 - Autonomous Printshop still waits for real operational material catalog/stock/line-consumption authority.
+
+
+### AP-044 — Design acquisition status aligned with strict same-artifact projection
+
+The read-only `/evidence-status` Design acquisition indicator was hardened to use the same canonical Design production projection used by the actual readiness collector.
+
+Previous observability risk:
+- aggregate counts could show Artifact>0, Approval>0, Preflight>0 and Binding>0 even when those rows belonged to different artifacts;
+- actual readiness collection remained strict, but the Dashboard acquisition flag could become misleading.
+
+Production behavior now:
+- read-only acquisition projection loads Artifact / Approval / Preflight / Asset Binding evidence;
+- it calls `projectDesignProductionReadinessV1`;
+- acquisitionReady becomes true only when the canonical projection contains at least one READY line;
+- latest-artifact, latest-approval, latest-preflight and latest-binding semantics remain centralized in the existing strict projection.
+
+New telemetry:
+- `projectedLines`;
+- `qualifiedReadyLines`;
+- `projectedBlockedLines`;
+- `projectedUnknownLines`.
+
+Qualification / deployment:
+- Policy CI Run `37541629484` = SUCCESS on branch HEAD `57f54bbb0a305bca91ee2b81381a3a531ea92b54`;
+- Readiness Collector Production Deploy Run `37541629500` = SUCCESS;
+- all hard write-boundary and TrendOS pre/post health gates passed.
+
+Fresh Production:
+```ini
+DESIGN_ARTIFACTS=0
+DESIGN_APPROVALS=0
+DESIGN_PREFLIGHTS=0
+DESIGN_LINKED_BINDINGS=0
+DESIGN_PROJECTED_LINES=0
+DESIGN_QUALIFIED_READY_LINES=0
+DESIGN_PROJECTED_BLOCKED_LINES=0
+DESIGN_PROJECTED_UNKNOWN_LINES=0
+DESIGN_ACQUISITION_READY=false
+```
+
+No Design, order, accounting, employee, readiness, or Operator Task business mutation occurred.
