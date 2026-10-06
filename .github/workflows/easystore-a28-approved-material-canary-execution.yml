@@ -5,12 +5,19 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
-  default-branch-placeholder:
+  dispatch-qualified-candidate:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo "This default-branch file only exposes the manual workflow UI."
-          echo "Select branch candidate/easystore-accounting-a2-20261005 when dispatching."
-          echo "No accounting mutation is performed by this main-branch placeholder."
+      - name: Dispatch qualified candidate workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api             --method POST             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/actions/workflows/easystore-a28-approved-material-canary-execution.yml/dispatches"             -f ref='candidate/easystore-accounting-a2-20261005'
+          echo "A28_DISPATCH_TARGET=candidate/easystore-accounting-a2-20261005"
+          echo "A28_DISPATCH_CONTROL_PLANE_ONLY=YES"
+          echo "PRODUCTION_BUSINESS_MUTATION=NO"
