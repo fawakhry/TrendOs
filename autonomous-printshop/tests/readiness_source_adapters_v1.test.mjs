@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {
   legacyDesignEvidenceCandidatesV1,
