@@ -3863,3 +3863,61 @@ Concurrent Accounting truth:
 OPERATOR_TASK_CONTROL=OFF
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-048 — Operator Task CANARY qualification gate live
+
+A separate read-only qualification gate now determines whether the system is even eligible to consider an Operator Task CANARY transition.
+
+Added:
+- `autonomous-printshop/core/operator-task-canary-qualification-v1.mjs`;
+- `autonomous-printshop/tests/operator_task_canary_qualification_v1.test.mjs`;
+- Dashboard state/UI integration.
+
+System prerequisite rules:
+- Autonomy must remain SHADOW;
+- Readiness must remain SHADOW;
+- Operator Task must still be OFF before transition;
+- zero active Operator Tasks;
+- at least one strict readiness-eligible line;
+- strict recommendation must exist;
+- at least one currently available operator;
+- no employee review-required condition.
+
+Activation qualification additionally requires:
+- explicit CANARY operator selection;
+- selected operator currently available.
+
+The gate is read-only:
+- it does not change `operator_task_control`;
+- it does not select an employee identity publicly;
+- it does not create or claim a task;
+- it does not assign an employee.
+
+Qualification / deployment:
+- Policy CI Run `37543260106` = SUCCESS.
+- Dashboard Production Deploy Run `37543253549` passed deploy, upstream state verification and TrendOS pre/post health checks.
+
+Fresh Production:
+```ini
+OPERATOR_TASK_CANARY_SYSTEM_PREREQUISITES=false
+OPERATOR_TASK_CANARY_ACTIVATION_QUALIFIED=false
+OPERATOR_TASK_CANARY_ACTIVATION_PERFORMED=false
+
+STRICT_ELIGIBLE=0
+STRICT_RECOMMENDATION=false
+AVAILABLE_OPERATORS=0
+ACTIVE_OPERATOR_TASKS=0
+EMPLOYEE_REVIEW_REQUIRED=0
+
+BLOCKERS=NO_STRICT_ELIGIBLE_LINE,NO_STRICT_RECOMMENDATION,NO_AVAILABLE_OPERATOR
+ACTIVATION_EXTRA_BLOCKER=CANARY_OPERATOR_SELECTION_REQUIRED
+
+AUTONOMY=SHADOW
+READINESS=SHADOW
+OPERATOR_TASK=OFF
+```
+
+Result:
+- first Operator Task CANARY cannot start accidentally;
+- the Dashboard now exposes the exact qualification blockers without PII or raw business IDs.
