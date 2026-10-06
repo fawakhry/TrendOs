@@ -11,6 +11,8 @@ export function classifyAccountingCloudCutoverV1(input={}){
   const writeCanaryEnabled=!!input.writeCanaryEnabled;
   const allowedUsers=Math.max(0,Math.trunc(num(input.allowedUsers)));
   const allowedActions=Math.max(0,Math.trunc(num(input.allowedActions)));
+  const maxCommands=Math.max(0,Math.trunc(num(input.maxCommands)));
+  const commandsStarted=Math.max(0,Math.trunc(num(input.commandsStarted)));
   const activeMaterials=Math.max(0,Math.trunc(num(input.activeMaterials)));
   const stockMoves=Math.max(0,Math.trunc(num(input.stockMoves)));
   const deptLinesWithLineId=Math.max(0,Math.trunc(num(input.deptLinesWithLineId)));
@@ -64,7 +66,10 @@ export function classifyAccountingCloudCutoverV1(input={}){
       enabled:writeCanaryEnabled,
       allowedUsers,
       allowedActions,
-      armed:writeCanaryEnabled&&(allowedUsers>0||allowedActions>0)
+      maxCommands,
+      commandsStarted,
+      commandsRemaining:Math.max(0,maxCommands-commandsStarted),
+      armed:writeCanaryEnabled&&(allowedUsers>0||allowedActions>0||maxCommands>0)
     },
     counts:{
       activeMaterials,
