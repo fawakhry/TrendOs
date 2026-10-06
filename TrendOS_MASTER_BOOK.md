@@ -4234,3 +4234,74 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   5. confirm Dashboard/basic Ops;
   6. perform the legitimate real attendance/start-day action for Diya;
   7. report the result before any rollout to another employee.
+
+
+#### Entry623 — Diya real UI canary final PASS
+- Owner confirmed the real Production UI canary for `ضياء` is working end-to-end after the PBKDF2 fix.
+- Real-user confirmation:
+  - login succeeded from the Production frontend;
+  - login is noticeably faster than before;
+  - Dashboard opened successfully;
+  - real attendance/start-day flow worked successfully.
+- Final independent Runtime proof after the real UI smoke:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_POLICY_EPOCH=23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  MUST_CHANGE_COUNT=0
+  PLAINTEXT_STORED=false
+
+  BRIDGE=ON
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+
+  FRONTEND_CANARY=ON
+  CANARY_USER=ضياء
+  GLOBAL_NATIVE_AUTH=OFF
+  FRONTEND_BRIDGE=ON
+  FRONTEND_BRIDGE_POLICY_COUNT=17
+
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+  ```
+- Final Entry623 qualification:
+  ```ini
+  ENTRY623_RUNTIME_PREP=PASS
+  AUTH=TRANSITIONAL
+  AUTH_POLICY_EPOCH=23
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  CANARY_USER=ضياء
+  GLOBAL_NATIVE_AUTH=OFF
+  FIRST_LOGIN_BOOTSTRAP=PASS
+  SECOND_LOGIN_NATIVE=PASS
+  D1_NATIVE_READY_USERS=1
+  D1_SESSION_SMOKE=PASS
+  ATTENDANCE_SMOKE=PASS
+  DASHBOARD_SMOKE=PASS
+  ACCOUNTING_READONLY_SMOKE=PASS
+  OUTSIDE_17_POLICY_FAIL_CLOSED=PASS
+  NON_CANARY_LEGACY_PRESERVED=PASS
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+  ENTRY623_DIYA_CANARY=PASS
+  ```
+- Safety boundary remains:
+  - no additional employee is enrolled or routed to Native Auth by this entry;
+  - Global Native Auth remains OFF;
+  - Native-only global remains OFF;
+  - Accounting remains READONLY and EasyStore is untouched.
+- Entry623 is now considered **complete for the Diya-only canary scope**.
+- Any expansion to another employee or broader rollout must be a separate controlled gate and must reuse the same runtime-truth-first, fail-closed procedure.
