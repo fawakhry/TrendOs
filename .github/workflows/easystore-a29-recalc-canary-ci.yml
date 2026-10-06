@@ -1,0 +1,21 @@
+name: EasyStore A2.9 Recalc Canary CI
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a29_recalc_canary.test.mjs'
+      - '.github/workflows/easystore-a29-recalc-canary-ci.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+      - run: node tests/easystore_a29_recalc_canary.test.mjs
