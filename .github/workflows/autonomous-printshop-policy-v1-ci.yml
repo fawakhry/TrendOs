@@ -19,6 +19,7 @@ on:
       - 'autonomous-printshop/core/design-readiness-collector-v1.mjs'
       - 'autonomous-printshop/core/machine-readiness-v1.mjs'
       - 'autonomous-printshop/core/machine-observation-writer-v1.mjs'
+      - 'autonomous-printshop/core/machine-evidence-command-v1.mjs'
       - 'autonomous-printshop/core/easystore-material-readonly-connector-v1.mjs'
       - 'autonomous-printshop/core/accounting-material-evidence-connector-v1.mjs'
       - 'autonomous-printshop/core/matbagy-design-evidence-connector-v1.mjs'
@@ -53,6 +54,9 @@ on:
       - 'autonomous-printshop/tests/design_readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/machine_readiness_v1.test.mjs'
       - 'autonomous-printshop/tests/machine_observation_writer_v1.test.mjs'
+      - 'autonomous-printshop/tests/machine_evidence_command_v1.test.mjs'
+      - 'autonomous-printshop/tests/machine_evidence_manual_workflow_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-machine-evidence-manual.yml'
       - 'autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/matbagy_design_evidence_connector_v1.test.mjs'
@@ -140,6 +144,10 @@ jobs:
         run: node autonomous-printshop/tests/machine_readiness_v1.test.mjs
       - name: Run machine observation writer contract
         run: node autonomous-printshop/tests/machine_observation_writer_v1.test.mjs
+      - name: Run machine evidence command contract
+        run: node autonomous-printshop/tests/machine_evidence_command_v1.test.mjs
+      - name: Run manual machine evidence workflow contract
+        run: node autonomous-printshop/tests/machine_evidence_manual_workflow_v1.test.mjs
       - name: Run EasyStore material read-only connector contract
         run: node autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs
       - name: Run accounting material evidence connector contract
