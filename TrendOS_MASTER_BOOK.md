@@ -6077,3 +6077,38 @@ ROLLBACK_USED=NO
 MASTER_BOOK_RECORDED=YES
 ```
 - Entry643 غير مكتملة؛ هذه وثيقة المحاولة الفاشلة فقط، وليست PASS.
+
+
+#### Entry643 — Attempt 1 follow-up: independent Runtime re-verification PASS
+- بعد فشل بيئة Work في قراءة Cloudflare بـ HTTP 403، تم تنفيذ قراءة مستقلة لاحقة من بيئة أخرى بدون أي mutation.
+- هذه القراءة تثبت أن 403 السابق كان access-path/environment-specific وليس Runtime drift proof.
+- Current public Runtime after the failed pre-mutation Apps Script attempt:
+  ```ini
+  AUTH_MODE=NATIVE
+  AUTH_ENABLED=true
+  D1_AUTH_USERS=6
+  D1_NATIVE_READY_USERS=6
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  NATIVE_ONLY=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  BACKEND_BRIDGE_POLICY_COUNT=0
+  FRONTEND_GLOBAL_NATIVE_AUTH=true
+  FRONTEND_NATIVE_CANARY=false
+  FRONTEND_BRIDGE=false
+  FRONTEND_REQUIRED_NATIVE_READY=6
+  ```
+- Apps Script bridge state remains unchanged from Attempt 1 proof:
+  - `APPS_SCRIPT_BRIDGE_ENABLED=YES`
+  - property mutation = NO
+  - secret retained; secret value not read.
+- Entry643 overall remains NOT PASS because Apps Script property closure is still blocked by Google project access.
+  ```ini
+  ENTRY643_INDEPENDENT_RUNTIME_REVERIFY=PASS
+  ENTRY643_RUNTIME_HEALTH=PASS
+  ENTRY643_APPS_SCRIPT_PROPERTY_CHANGED=NO
+  ENTRY643_APPS_SCRIPT_BRIDGE_ENABLED=YES
+  ENTRY643=FAIL_BLOCKED_PRE_MUTATION
+  ```
