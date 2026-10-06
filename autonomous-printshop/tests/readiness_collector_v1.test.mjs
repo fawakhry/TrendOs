@@ -22,6 +22,8 @@ assert.match(worker,/materialFrozen/);
 assert.match(worker,/cloudOrderFiles/);
 assert.match(worker,/cloudLineLinkedFiles/);
 assert.match(worker,/cloudFileHashSchemaReady/);
+assert.match(worker,/approvalReceiptSchemaReady/);
+assert.match(worker,/approvalReceiptRows/);
 assert.match(worker,/machineIdentitySchemaReady/);
 assert.match(worker,/machineIdentityRows/);
 assert.match(worker,/writeCanaryAllowedUsers/);
