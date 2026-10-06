@@ -1,0 +1,54 @@
+name: EasyStore A2.7 Migration 0029 Preflight
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a27-migration-0029-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Verify exactly migration 0029 is pending
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?a27pre=$GITHUB_RUN_ID" > /tmp/health.json
+          node <<'NODE'
+          const fs=require('fs'); const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          if(h.mode!=='READONLY') throw new Error('accounting mode is not READONLY');
+          if(h.authoritativeWrites!==false) throw new Error('authoritative writes already enabled');
+          if(Number(h.writeCanaryAllowedUserCount||0)!==0||Number(h.writeCanaryAllowedActionCount||0)!==0) throw new Error('canary allowlists not empty');
+          console.log('A27_PRE_RUNTIME=READONLY_DEFAULT_DENY');
+          NODE
+          npx wrangler d1 migrations list "$DATABASE" --remote --config "$API_CONFIG" > /tmp/migrations.txt
+          cat /tmp/migrations.txt
+          node <<'NODE'
+          const fs=require('fs');
+          const t=fs.readFileSync('/tmp/migrations.txt','utf8');
+          const pending=[...t.matchAll(/(\d{4}_[^\s|]+\.sql)/g)].map(m=>m[1]).filter(x=>/0029_/.test(x));
+          if(pending.length!==1||pending[0]!=='0029_employee_accounting_canary_mode_v1.sql') throw new Error('0029 pending state not proven');
+          if(/003\d_.*\.sql/.test(t)) throw new Error('later pending migration detected');
+          console.log('A27_PENDING_MIGRATION=0029_employee_accounting_canary_mode_v1.sql');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
