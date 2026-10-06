@@ -45,8 +45,10 @@ jobs:
           grep -q 'AUTONOMOUS_DESIGN_ARTIFACTS_APPEND_ONLY' "$SQL"
           grep -q 'AUTONOMOUS_DESIGN_APPROVAL_APPEND_ONLY' "$SQL"
           grep -q 'AUTONOMOUS_DESIGN_PREFLIGHT_APPEND_ONLY' "$SQL"
-          ! grep -Eiq '\b(DROP|ALTER|DELETE|VACUUM|REPLACE)\b' "$SQL"
-          ! grep -Eiq '(INSERT|UPDATE)[^;]*(t12_prod_|employee_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' "$SQL"
+          ! grep -Eiq '\b(DROP|ALTER|VACUUM)\b' "$SQL"
+          ! grep -Eiq '\bDELETE[[:space:]]+FROM\b' "$SQL"
+          ! grep -Eiq '\bREPLACE[[:space:]]+INTO\b' "$SQL"
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' "$SQL"
           echo 'DESIGN_EVIDENCE_SCHEMA_SAFETY=PASS'
 
       - name: Apply additive design evidence schema
