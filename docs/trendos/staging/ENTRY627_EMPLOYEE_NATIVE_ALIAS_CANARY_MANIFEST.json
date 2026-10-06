@@ -1,0 +1,53 @@
+{
+  "entry": "Entry627",
+  "purpose": "Close explicit Native Auth canary username alias gaps for known employees while keeping Global Native Auth OFF",
+  "currentArabicCanaryUsers": [
+    "ضياء",
+    "وائل",
+    "جابر",
+    "رحمه",
+    "رحمة",
+    "ريفان",
+    "ريڤان"
+  ],
+  "addedKnownAliases": [
+    "diaa",
+    "wael",
+    "gaber",
+    "jaber",
+    "rahma",
+    "revan",
+    "rivan"
+  ],
+  "targetCanaryUsers": [
+    "ضياء",
+    "diaa",
+    "وائل",
+    "wael",
+    "جابر",
+    "gaber",
+    "jaber",
+    "رحمه",
+    "رحمة",
+    "rahma",
+    "ريفان",
+    "ريڤان",
+    "revan",
+    "rivan"
+  ],
+  "globalNativeAuth": false,
+  "bridgePolicyCount": 17,
+  "authMode": "TRANSITIONAL",
+  "authPolicyEpoch": 23,
+  "opsMode": "GENERAL",
+  "accountingMode": "READONLY",
+  "invariants": [
+    "Global Native Auth remains false.",
+    "Only known explicit employee aliases are added.",
+    "Unknown employee names remain Legacy.",
+    "No D1 auth-control mutation is required.",
+    "Bridge remains exactly 17 policies.",
+    "Ops remains GENERAL and Accounting remains READONLY.",
+    "EasyStore remains untouched."
+  ]
+}
