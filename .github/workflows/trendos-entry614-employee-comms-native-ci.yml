@@ -66,17 +66,23 @@ jobs:
           curl --fail --silent --show-error "$API/v1/employee/auth/health" > /tmp/a.json
           curl --fail --silent --show-error "$API/v1/employee/legacy-action/health" > /tmp/b.json
           curl --fail --silent --show-error "$API/v1/t12/orders/create/health" > /tmp/o.json
+          curl --fail --silent --show-error "$API/v1/employee/comms/health" > /tmp/c.json
           node <<'NODE'
           const fs=require('fs');
           const a=JSON.parse(fs.readFileSync('/tmp/a.json','utf8'));
           const b=JSON.parse(fs.readFileSync('/tmp/b.json','utf8'));
           const o=JSON.parse(fs.readFileSync('/tmp/o.json','utf8'));
-          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('auth drift');
-          if(b.enabled!==false||b.secretConfigured!==false) throw new Error('bridge drift');
+          const c=JSON.parse(fs.readFileSync('/tmp/c.json','utf8'));
+          if(a.success!==true||a.schemaReady!==true||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.nativeOnly!==true||a.plaintextStored!==false) throw new Error('auth drift');
+          if(Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5) throw new Error('auth population drift');
+          if(b.success!==true||b.enabled!==false||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17||b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge drift');
           if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('orders drift');
-          console.log('ENTRY614_PRODUCTION_AUTH_OFF=YES');
-          console.log('ENTRY614_PRODUCTION_BRIDGE_OFF=YES');
+          if(c.success!==true||c.schemaReady!==true||c.mode!=='READONLY'||Number(c.policyEpoch||0)!==2||c.googleBusinessCalls!==0||c.appsScriptBusinessAuthority!==false) throw new Error('comms drift');
+          console.log('ENTRY614_PRODUCTION_AUTH_NATIVE_ONLY_TRANSITIONAL=PASS');
+          console.log('ENTRY614_PRODUCTION_BRIDGE_DISABLED_SAFETY_POLICY_PRESENT=PASS');
           console.log('ENTRY614_PRODUCTION_ORDERS_BASELINE=PASS');
+          console.log('ENTRY614_PRODUCTION_COMMS_READONLY=PASS');
+          console.log('ENTRY614_PRODUCTION_R2_READY='+String(c.r2Ready===true));
           NODE
 
       - name: Boundary
