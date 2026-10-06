@@ -3921,3 +3921,58 @@ OPERATOR_TASK=OFF
 Result:
 - first Operator Task CANARY cannot start accidentally;
 - the Dashboard now exposes the exact qualification blockers without PII or raw business IDs.
+
+
+### AP-049 — Dashboard blocker guidance live
+
+The Production dashboard now translates readiness/CANARY blocker codes into direct operational next actions in Arabic.
+
+Added read-only guidance for:
+- missing real Design artifact + hash + structured approval + qualified preflight;
+- missing authoritative Material line linkage;
+- Accounting cloud data still pending;
+- missing registered Machine identity/direct observation/line mapping;
+- no strict eligible line;
+- no strict recommendation;
+- no currently available operator;
+- employee review required;
+- active Operator Task conflict;
+- explicit CANARY operator selection requirement;
+- selected CANARY operator not currently available.
+
+No action button or mutating endpoint was added.
+
+Qualification / deployment:
+- Policy CI Run `37543432159` = SUCCESS.
+- Dashboard Production Deploy Run `37543432209` = SUCCESS.
+- dashboard remains `READ_ONLY_CONTROL_TOWER_UI`;
+- businessWrites=false;
+- employeeAssignment=false.
+
+Fresh Production:
+```ini
+STRICT_ELIGIBLE=0
+STRICT_RECOMMENDATION=false
+AVAILABLE_OPERATORS=0
+ACTIVE_OPERATOR_TASKS=0
+OPERATOR_TASK_CONTROL=OFF
+
+DESIGN_BLOCKER=REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING
+MATERIAL_BLOCKER=AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING
+MACHINE_BLOCKER=REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED
+
+OPERATOR_TASK_CANARY_SYSTEM_PREREQUISITES=false
+OPERATOR_TASK_CANARY_ACTIVATION_QUALIFIED=false
+```
+
+Concurrent Accounting synchronization:
+- latest consumed Accounting checkpoint = ACC-086;
+- A2.9 Production `app.js` code is live;
+- Accounting Production `config.js` remains write mode OFF;
+- backend remains READONLY / writeAuthorityMode OFF;
+- server canary users/actions/budget remain zero;
+- no A2.9 accounting business command has executed at this checkpoint.
+
+Result:
+- remaining blockers are now visible as concrete real-world/data acquisition actions rather than opaque internal codes;
+- Autonomous Printshop still performs no live employee assignment.
