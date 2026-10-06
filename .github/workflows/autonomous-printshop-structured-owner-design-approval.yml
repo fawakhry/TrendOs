@@ -123,7 +123,7 @@ jobs:
             ' (SELECT COUNT(*) FROM autonomous_design_approval_receipts WHERE receipt_id='+q(receiptId)+') AS receiptExact,',
             ' (SELECT COUNT(*) FROM autonomous_design_approval_events WHERE approval_event_id='+q(approvalEventId)+') AS approvalExact,',
             ' (SELECT COUNT(*) FROM autonomous_design_preflight_runs WHERE artifact_id='+q(process.env.ARTIFACT_ID)+') AS preflightRowsForArtifact,',
-            ' (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE evidence_kind=\\'DESIGN\\' AND json_extract(evidence_json,\\'$.artifactId\\')='+q(process.env.ARTIFACT_ID)+') AS readinessRowsForArtifact,',
+            " (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE evidence_kind='DESIGN' AND json_extract(evidence_json,'$.artifactId')="+q(process.env.ARTIFACT_ID)+") AS readinessRowsForArtifact,",
             ' (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,',
             ' (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;'
           ].join('\\n');
