@@ -32,7 +32,10 @@ assert.match(sql,/autonomous_design_approval_events/);
 assert.match(sql,/autonomous_design_preflight_runs/);
 assert.match(sql,/order_id='4323' AND q\.line_id='4323-1'/);
 assert.match(sql,/CUSTOMER_APPROVED/);
-assert.match(sql,/'PASS'/);
+assert.match(sql,/'UNKNOWN'/);
+assert.match(sql,/manual-import-v1/);
+assert.match(sql,/preflightQualified/);
+assert.doesNotMatch(sql,/'PASS'/);
 
 for(const patch of [
   {orderId:''},
@@ -58,5 +61,6 @@ console.log('DESIGN_EVIDENCE_COMMAND_V1=PASS');
 console.log('REAL_ORDER_LINE_MATCH_REQUIRED=YES');
 console.log('LINKED_STORAGE_REQUIRED=YES');
 console.log('QUALIFIED_APPROVAL_REQUIRED=YES');
-console.log('PREFLIGHT_PASS_ONLY=YES');
+console.log('MANUAL_PREFLIGHT_RESULT=UNKNOWN');
+console.log('MANUAL_PREFLIGHT_PASS_SYNTHESIS=NO');
 console.log('CUSTOMER_PRIVATE_PUBLIC_STORAGE=FORBIDDEN');
