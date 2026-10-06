@@ -157,6 +157,11 @@ function enforceLowRiskMasterCanaryShapeV1(action,body){
       ]);
     if(!ok)throw commandErrorV1('employee-accounting-canary-master-shape-blocked','شكل Material الكاناري خارج النطاق الصفري غير النشط المسموح.');
   }
+  if(action==='recalcAccountingMaterialsCascade'){
+    const allowed=new Set(['action','username','name','_ts','requestId','idempotencyKey','requestKey','sourceSystem','correlationId','evidenceRefs','evidence']);
+    const extras=Object.keys(b).filter(k=>!allowed.has(k)&&b[k]!==undefined&&b[k]!==null&&String(b[k])!=='');
+    if(extras.length)throw commandErrorV1('employee-accounting-canary-recalc-shape-blocked','كاناري إعادة الحساب لا يقبل بيانات أعمال أو قيم إضافية.');
+  }
 }
 async function enforceWriteCanaryV1(env,auth,action,body,requireEnabled=false){
   if(READ_ACTIONS.has(action))return {allowed:true,read:true};
@@ -170,6 +175,10 @@ async function enforceWriteCanaryV1(env,auth,action,body,requireEnabled=false){
   if(!p.allowedUsers.includes(key(auth&&auth.user&&auth.user.username)))throw commandErrorV1('employee-accounting-canary-user-blocked','هذا المستخدم غير مسموح له بكاناري كتابة الحسابات.');
   if(!p.allowedActions.includes(text(action)))throw commandErrorV1('employee-accounting-canary-action-blocked','هذه الحركة غير مسموحة داخل كاناري الحسابات.');
   if(requireEnabled)enforceLowRiskMasterCanaryShapeV1(action,body);
+  if(requireEnabled&&action==='recalcAccountingMaterialsCascade'){
+    const r=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,(SELECT COUNT(*) FROM employee_accounting_templates_v1 WHERE active=1) AS activeTemplates").first();
+    if(Number(r&&r.activeMaterials||0)!==0||Number(r&&r.activeTemplates||0)!==0)throw commandErrorV1('employee-accounting-canary-recalc-active-master-blocked','كاناري إعادة الحساب يتطلب صفر خامات وصفر أصناف مفعلة؛ تم منع الحركة.');
+  }
   const amount=writeAmountV1(body);
   if(requireEnabled&&p.maxAmount<=0&&amount>0.000001)throw commandErrorV1('employee-accounting-canary-zero-value-only','كاناري الحسابات الحالي يسمح فقط بحركة صفرية القيمة.');
   if(p.maxAmount>0&&amount>p.maxAmount+0.000001)throw commandErrorV1('employee-accounting-canary-amount-blocked','قيمة الحركة أعلى من حد كاناري الحسابات.');
