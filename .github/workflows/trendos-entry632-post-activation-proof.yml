@@ -1,0 +1,138 @@
+
+name: TrendOS Entry632 Post Activation Proof
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry632-post-activation-proof.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER: trendos-d1-api
+      PRE_VERSION: afff94be-d5e3-4506-a9ff-e48c251e974d
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - name: Read-only Cloudflare proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER"
+          AUTH=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/deployments" -o /tmp/deployments.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/settings" -o /tmp/settings.json
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$PRE_VERSION" -o /tmp/pre-version.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const d=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/settings.json','utf8'));
+          const p=JSON.parse(fs.readFileSync('/tmp/pre-version.json','utf8'));
+          if(d.success!==true||s.success!==true||p.success!==true) throw new Error('Cloudflare API read failed');
+
+          const deps=(d.result&&d.result.deployments)||d.result||[];
+          const current=Array.isArray(deps)?deps[0]:null;
+          const full=(current&&Array.isArray(current.versions)?current.versions:[]).filter(v=>Number(v.percentage||0)===100);
+          if(full.length!==1) throw new Error('active deployment shape');
+          const active=String(full[0].version_id||full[0].id||'');
+          if(!active||active===process.env.PRE_VERSION) throw new Error('bridge-off version is not active');
+          fs.writeFileSync('/tmp/active-version.txt',active);
+          console.log('ENTRY632_ACTIVE_VERSION_CHANGED=YES');
+
+          const bindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          if(bindings.length!==33) throw new Error('binding count drift '+bindings.length);
+          const target=bindings.find(b=>b&&b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED');
+          if(!target||target.type!=='plain_text'||String(target.text||'')!=='false') throw new Error('bridge flag not false');
+          if(bindings.filter(b=>b&&b.type==='plain_text').length!==27) throw new Error('plain binding count drift');
+          if(bindings.filter(b=>b&&String(b.type||'').includes('secret')).length!==5) throw new Error('secret binding count drift');
+          if(!bindings.some(b=>b&&b.name==='DB'&&b.type==='d1')) throw new Error('D1 binding missing');
+
+          const preEtag=String(p.result&&p.result.resources&&p.result.resources.script&&p.result.resources.script.etag||'');
+          if(!preEtag) throw new Error('pre etag missing');
+          fs.writeFileSync('/tmp/pre-etag.txt',preEtag);
+
+          console.log('ENTRY632_BINDING_COUNT=33');
+          console.log('ENTRY632_PLAIN_TEXT_BINDING_COUNT=27');
+          console.log('ENTRY632_SECRET_BINDING_COUNT=5');
+          console.log('ENTRY632_D1_BINDING_PRESENT=YES');
+          console.log('ENTRY632_BRIDGE_BINDING=false');
+          console.log('ENTRY632_SECRET_VALUES_LOGGED=NO');
+          NODE
+
+          ACTIVE="$(cat /tmp/active-version.txt)"
+          curl --fail --silent --show-error "${AUTH[@]}" "$BASE/versions/$ACTIVE" -o /tmp/active-version.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/pre-version.json','utf8'));
+          const a=JSON.parse(fs.readFileSync('/tmp/active-version.json','utf8'));
+          if(a.success!==true) throw new Error('active version read failed');
+          const pe=String(p.result&&p.result.resources&&p.result.resources.script&&p.result.resources.script.etag||'');
+          const ae=String(a.result&&a.result.resources&&a.result.resources.script&&a.result.resources.script.etag||'');
+          if(!pe||!ae||pe!==ae) throw new Error('worker script etag changed');
+          console.log('ENTRY632_WORKER_CODE_ETAG_UNCHANGED=PASS');
+          console.log('ENTRY632_WORKER_CODE_CHANGE=NO');
+          NODE
+
+      - name: Runtime and disabled-route proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry632proof=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry632proof=$GITHUB_SHA" -o /tmp/frontend-config.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge disabled health drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+
+          const cfg=fs.readFileSync('/tmp/frontend-config.js','utf8');
+          for(const required of [
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;",
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;",
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 0;",
+            "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 5;",
+            "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;",
+            "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];"
+          ]) if(!cfg.includes(required)) throw new Error('frontend drift '+required);
+
+          console.log('ENTRY632_RUNTIME_POST_ACTIVATION=PASS');
+          console.log('ENTRY632_FRONTEND_BRIDGE_FREE=PASS');
+          NODE
+
+          HTTP="$(curl --silent --show-error -o /tmp/disabled.json -w '%{http_code}'             -H 'Content-Type: application/json'             -X POST "$API_URL/v1/employee/legacy-action"             --data '{"action":"getDashboard","username":"entry632-proof"}')"
+          node - "$HTTP" <<'NODE'
+          const fs=require('fs');
+          const status=Number(process.argv[2]);
+          const b=JSON.parse(fs.readFileSync('/tmp/disabled.json','utf8')||'{}');
+          if(status!==503||b.code!=='employee-legacy-bridge-disabled') throw new Error('disabled route not fail closed');
+          console.log('ENTRY632_DISABLED_ROUTE_FAIL_CLOSED=PASS');
+          console.log('ENTRY632_UPSTREAM_FORWARD_FROM_DISABLED_PROOF=NO');
+          NODE
+
+          echo ENTRY632_POST_ACTIVATION_PROOF=PASS
+          echo ENTRY632_PRODUCTION_MUTATION=NO
