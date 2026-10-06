@@ -1,0 +1,127 @@
+
+name: TrendOS Entry633 Auth Alias Readonly Audit
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry633-auth-alias-readonly-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read current Auth flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry633=$GITHUB_SHA" -o /tmp/auth.json
+          curl --fail --silent --show-error             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/settings"             -o /tmp/settings.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/settings.json','utf8'));
+          if(a.success!==true||a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.plaintextStored!==false) throw new Error('auth runtime drift');
+          const bindings=Array.isArray(s.result&&s.result.bindings)?s.result.bindings:[];
+          const by=new Map(bindings.map(b=>[String(b.name||''),b]));
+          const plain=name=>{const b=by.get(name);return b&&b.type==='plain_text'?String(b.text||''):''};
+          const bool=name=>plain(name).trim().toLowerCase()==='true';
+          if(!bool('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED')) throw new Error('auth env disabled');
+          if(!bool('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED')) throw new Error('bootstrap already disabled');
+          if(bool('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1')) throw new Error('nativeOnly already enabled');
+          if(bool('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED')) throw new Error('session enroll drift');
+          console.log('ENTRY633_AUTH_RUNTIME_5_OF_5=PASS');
+          console.log('ENTRY633_AUTH_ENABLED=true');
+          console.log('ENTRY633_LEGACY_BOOTSTRAP_ENABLED=true');
+          console.log('ENTRY633_NATIVE_ONLY=false');
+          console.log('ENTRY633_LEGACY_SESSION_ENROLL=false');
+          NODE
+
+      - name: Read D1 Native user identity groups
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT username_key AS usernameKey,
+                              canonical_username AS canonicalUsername,
+                              active,
+                              password_scheme AS passwordScheme,
+                              password_iterations AS passwordIterations,
+                              CASE WHEN password_hash_hex<>'' THEN 1 ELSE 0 END AS hasPasswordHash,
+                              must_change AS mustChange
+                         FROM employee_auth_users_v1
+                        ORDER BY username_key;"             > /tmp/users.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/users.json','utf8'));
+          const rows=[];
+          const walk=v=>{
+            if(Array.isArray(v)) return v.forEach(walk);
+            if(v&&typeof v==='object'){
+              if(Object.prototype.hasOwnProperty.call(v,'usernameKey')&&Object.prototype.hasOwnProperty.call(v,'canonicalUsername')) rows.push(v);
+              Object.values(v).forEach(walk);
+            }
+          };
+          walk(raw);
+          if(rows.length!==5) throw new Error('expected 5 native users, got '+rows.length);
+
+          const groups=[
+            {name:'DIAA', aliases:['ضياء','diaa']},
+            {name:'WAEL', aliases:['وائل','wael']},
+            {name:'JABER', aliases:['جابر','gaber','jaber']},
+            {name:'RAHMA', aliases:['رحمه','رحمة','rahma']},
+            {name:'REVAN', aliases:['ريفان','ريڤان','revan','rivan']}
+          ];
+          const norm=v=>String(v||'').trim().toLowerCase();
+          const seen=new Set();
+
+          for(const row of rows){
+            if(Number(row.active)!==1) throw new Error('inactive native user');
+            if(String(row.passwordScheme||'')!=='pbkdf2-sha256-v1'||Number(row.hasPasswordHash)!==1) throw new Error('native verifier missing');
+            if(Number(row.passwordIterations)!==100000) throw new Error('PBKDF2 iteration drift');
+            if(Number(row.mustChange||0)!==0) throw new Error('mustChange drift');
+            const keys=new Set([norm(row.usernameKey),norm(row.canonicalUsername)]);
+            const matches=groups.filter(g=>g.aliases.some(a=>keys.has(norm(a))));
+            if(matches.length!==1) throw new Error('native identity does not map uniquely to a known employee group');
+            if(seen.has(matches[0].name)) throw new Error('duplicate native identity group '+matches[0].name);
+            seen.add(matches[0].name);
+            console.log('ENTRY633_NATIVE_GROUP_'+matches[0].name+'=PASS');
+          }
+          if(seen.size!==5) throw new Error('not all five known groups are represented');
+          console.log('ENTRY633_NATIVE_IDENTITY_GROUPS=5_OF_5_PASS');
+          console.log('ENTRY633_RAW_PASSWORD_HASH_LOGGED=NO');
+          console.log('ENTRY633_RAW_SESSION_TOKEN_LOGGED=NO');
+          NODE
+
+      - name: Audit boundary
+        shell: bash
+        run: |
+          echo ENTRY633_READONLY_AUDIT=PASS
+          echo ENTRY633_PRODUCTION_MUTATION=NO
+          echo ENTRY633_D1_MUTATION=NO
+          echo ENTRY633_FRONTEND_MUTATION=NO
+          echo ENTRY633_AUTH_FLAG_MUTATION=NO
+          echo ENTRY633_APPS_SCRIPT_MUTATION=NO
+          echo ENTRY633_ACCOUNTING_TOUCHED=NO
+          echo ENTRY633_EASYSTORE_TOUCHED=NO
