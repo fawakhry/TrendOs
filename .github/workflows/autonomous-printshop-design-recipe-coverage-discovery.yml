@@ -1,0 +1,97 @@
+name: Autonomous Printshop Design Recipe Coverage Discovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'autonomous-printshop/core/design-recipe-selector-v1.mjs'
+      - 'autonomous-printshop/tests/design_recipe_selector_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-design-recipe-coverage-discovery.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-design-recipe-coverage-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DATABASE: trendos-main
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Selector contract
+        run: node autonomous-printshop/tests/design_recipe_selector_v1.test.mjs
+
+      - name: Read active item names privately and emit aggregates only
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/coverage.sql <<'SQL'
+          WITH candidates AS (
+            SELECT l.line_id AS lineId,
+                   l.item_name AS itemName,
+                   1 AS priority
+              FROM t12_prod_lines l
+              LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+              LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+             WHERE a.line_id IS NULL
+               AND COALESCE(r.status,l.status,'') NOT IN ('تم التسليم','جاهز للاستلام','ملغي','ملغى','مكرر','مدمج','مغلق','ملغي/مغلق')
+            UNION ALL
+            SELECT l.line_id AS lineId,
+                   l.item_name AS itemName,
+                   2 AS priority
+              FROM employee_core_lines_v1 l
+              LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+             WHERE l.active=1
+               AND a.line_id IS NULL
+               AND COALESCE(l.status,'') NOT IN ('تم التسليم','جاهز للاستلام','ملغي','ملغى','مكرر','مدمج','مغلق','ملغي/مغلق')
+          ),
+          ranked AS (
+            SELECT lineId,itemName,
+                   ROW_NUMBER() OVER(PARTITION BY lineId ORDER BY priority) AS rn
+              FROM candidates
+             WHERE trim(lineId)<>''
+          )
+          SELECT lineId,itemName FROM ranked WHERE rn=1 ORDER BY lineId;
+          SQL
+          SQL_TEXT="$(tr '\n' ' ' < /tmp/coverage.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$SQL_TEXT" > /tmp/coverage.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { selectDesignRecipeV1 } from './autonomous-printshop/core/design-recipe-selector-v1.mjs';
+          const rows=JSON.parse(fs.readFileSync('/tmp/coverage.json','utf8'))?.[0]?.results||[];
+          const counts={total:rows.length,matched:0,unknown:0,byRecipe:{}};
+          for(const row of rows){
+            const q=selectDesignRecipeV1({itemName:String(row.itemName||'')});
+            if(q.state==='MATCHED'){
+              counts.matched++;
+              counts.byRecipe[q.recipeId]=(counts.byRecipe[q.recipeId]||0)+1;
+            }else counts.unknown++;
+          }
+          console.log('DESIGN_RECIPE_COVERAGE='+JSON.stringify(counts));
+          console.log('RAW_LINE_IDS_EXPOSED=NO');
+          console.log('RAW_ITEM_NAMES_EXPOSED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          console.log('PREFLIGHT_WRITE=NO');
+          console.log('READINESS_WRITE=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'READ_ONLY_DISCOVERY=YES'
+          echo 'D1_MUTATION=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
