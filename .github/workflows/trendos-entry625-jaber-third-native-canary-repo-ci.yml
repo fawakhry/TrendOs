@@ -1,0 +1,43 @@
+name: TrendOS Entry625 Jaber Third Native Canary Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/ENTRY625_JABER_THIRD_NATIVE_CANARY_17_POLICY_MANIFEST.json'
+      - 'tests/entry625_jaber_third_native_canary_17_policy.test.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - '.github/workflows/trendos-entry625-jaber-third-native-canary-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry625 third-canary contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry625_jaber_third_native_canary_17_policy.test.mjs
+          node tests/entry624_wael_second_native_canary_17_policy.test.mjs
+          node tests/entry623_diya_login_canary_17_policy.test.mjs
+          echo ENTRY625_REPO_GATE=PASS
+      - name: No runtime mutation
+        shell: bash
+        run: |
+          echo ENTRY625_PRODUCTION_MUTATION=NO
+          echo ENTRY625_D1_MUTATION=NO
+          echo ENTRY625_APPS_SCRIPT_TOUCHED=NO
+          echo ENTRY625_ACCOUNTING_TOUCHED=NO
+          echo ENTRY625_EASYSTORE_TOUCHED=NO
