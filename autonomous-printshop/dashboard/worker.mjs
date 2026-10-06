@@ -1,4 +1,5 @@
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
+const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
 const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_DASHBOARD_V1_20261006_STATE_PROXY';
 
 function json(body,status=200){
@@ -16,6 +17,16 @@ async function fetchControlTower(env){
     throw new Error('SHADOW_SERVICE_BINDING_REQUIRED');
   }
   return env.SHADOW.fetch(new Request('https://shadow.internal/control-tower',{
+    method:'GET',
+    headers:{'accept':'application/json','cache-control':'no-cache'}
+  }));
+}
+
+async function fetchEvidenceStatus(env){
+  if(!env || !env.READINESS_COLLECTOR || typeof env.READINESS_COLLECTOR.fetch!=='function'){
+    throw new Error('READINESS_COLLECTOR_SERVICE_BINDING_REQUIRED');
+  }
+  return env.READINESS_COLLECTOR.fetch(new Request('https://readiness.internal/evidence-status',{
     method:'GET',
     headers:{'accept':'application/json','cache-control':'no-cache'}
   }));
@@ -105,6 +116,11 @@ th{color:var(--muted);font-weight:700}
   </div>
 
   <div class="card section">
+    <h2>مصادر أدلة الجاهزية</h2>
+    <div class="readiness" id="evidenceSources"></div>
+  </div>
+
+  <div class="card section">
     <h2>الموظفين والأقسام</h2>
     <div class="table-wrap">
       <table>
@@ -135,6 +151,17 @@ function readinessBox(label,x={}){
     +'<span>غير معروف <b>'+n(x.unknown)+'</b></span>'
     +'</div></div>';
 }
+function evidenceBox(label,x={}){
+  const ok=x.acquisitionReady===true;
+  const parts=Object.entries(x)
+    .filter(([k,v])=>typeof v==='number'&&k!=='acquisitionReady')
+    .map(([k,v])=>'<span>'+esc(k)+' <b>'+n(v)+'</b></span>')
+    .join('');
+  return '<div class="rbox"><div class="rtitle">'+esc(label)+' — '+(ok?'المصدر جاهز':'المصدر ناقص')+'</div>'
+    +'<div class="rnums">'+parts+'</div>'
+    +(ok?'':'<div class="hint">'+esc(x.blocker||'UNKNOWN')+'</div>')
+    +'</div>';
+}
 async function load(){
   const app=q('#app'); const err=q('#error');
   app.classList.add('loading'); err.style.display='none';
@@ -150,6 +177,7 @@ async function load(){
     const learn=d.shadowLearning||{};
     const sig=d.attentionSignals||{};
     const schedule=d.source?.schedule||{};
+    const evidence=d.evidenceAcquisition||{};
 
     q('#modes').innerHTML=[
       badge('Autonomy',controls.autonomy?.mode||'—',controls.autonomy?.mode==='SHADOW'?'warn':'off'),
@@ -182,6 +210,12 @@ async function load(){
       readinessBox('التصميم',cov.DESIGN),
       readinessBox('الخامة',cov.MATERIAL),
       readinessBox('الماكينة',cov.MACHINE)
+    ].join('');
+
+    q('#evidenceSources').innerHTML=[
+      evidenceBox('Design',evidence.design||{}),
+      evidenceBox('Material',evidence.material||{}),
+      evidenceBox('Machine',evidence.machine||{})
     ].join('');
 
     const deps=d.employees?.departments||{};
@@ -220,15 +254,26 @@ export default {
 
     if(path==='/state'||path==='/api/state'){
       try{
-        const r=await fetchControlTower(env);
-        const text=await r.text();
-        return new Response(text,{
-          status:r.status,
-          headers:{
-            'content-type':'application/json; charset=utf-8',
-            'cache-control':'no-store'
-          }
-        });
+        const controlResponse=await fetchControlTower(env);
+        const controlText=await controlResponse.text();
+        let control={};
+        try{ control=JSON.parse(controlText||'{}'); }catch{}
+        if(!controlResponse.ok||control.success!==true){
+          return new Response(controlText,{
+            status:controlResponse.status,
+            headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
+          });
+        }
+
+        let evidenceAcquisition={success:false,unavailable:true};
+        try{
+          const evidenceResponse=await fetchEvidenceStatus(env);
+          const evidenceText=await evidenceResponse.text();
+          const parsed=JSON.parse(evidenceText||'{}');
+          if(evidenceResponse.ok&&parsed&&parsed.success===true) evidenceAcquisition=parsed;
+        }catch{}
+
+        return json({...control,evidenceAcquisition});
       }catch(err){
         return json({success:false,code:'CONTROL_TOWER_UPSTREAM_ERROR',message:String(err&&err.message||err)},502);
       }
@@ -253,6 +298,7 @@ export default {
         service:'autonomous-printshop-dashboard',
         mode:'READ_ONLY_CONTROL_TOWER_UI',
         upstream:SHADOW_URL+'/control-tower',
+        readinessUpstream:READINESS_COLLECTOR_URL+'/evidence-status',
         dashboardVersion:DASHBOARD_VERSION,
         transport:'CLOUDFLARE_SERVICE_BINDING',
         businessWrites:false,
