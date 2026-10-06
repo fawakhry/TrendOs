@@ -1,0 +1,86 @@
+name: EasyStore A2 CANARY Mode Preflight
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a2-canary-mode-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Read CANARY mode prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT sql
+            FROM sqlite_master
+            WHERE type='table' AND name='employee_accounting_control_v1';
+          " > /tmp/control_schema.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT mode, policy_epoch AS policyEpoch
+            FROM employee_accounting_control_v1
+            WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';
+          " > /tmp/control.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT enabled,
+                   allowed_usernames_json AS allowedUsersJson,
+                   allowed_actions_json AS allowedActionsJson,
+                   max_amount AS maxAmount,
+                   expires_at_ms AS expiresAtMs,
+                   policy_epoch AS policyEpoch
+            FROM employee_accounting_write_canary_v1
+            WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          " > /tmp/canary.json
+          node <<'NODE'
+          const fs=require('fs');
+          function rows(path){
+            const x=JSON.parse(fs.readFileSync(path,'utf8')), out=[];
+            function walk(v){
+              if(Array.isArray(v)) for(const z of v) walk(z);
+              else if(v&&typeof v==='object'){
+                if(Array.isArray(v.results)) out.push(...v.results);
+                for(const [k,z] of Object.entries(v)) if(k!=='results') walk(z);
+              }
+            }
+            walk(x); return out;
+          }
+          const schema=rows('/tmp/control_schema.json')[0]||{};
+          const control=rows('/tmp/control.json')[0]||{};
+          const canary=rows('/tmp/canary.json')[0]||{};
+          const ddl=String(schema.sql||'');
+          const allowsCanary=/CANARY/i.test(ddl) || !/CHECK\s*\([^)]*mode/i.test(ddl);
+          console.log('A2_CANARY_MODE_PREFLIGHT=PASS');
+          console.log('CURRENT_ACCOUNTING_MODE='+String(control.mode||''));
+          console.log('CURRENT_POLICY_EPOCH='+Number(control.policyEpoch||0));
+          console.log('CONTROL_SCHEMA_ALLOWS_CANARY='+String(allowsCanary));
+          console.log('CANARY_ENABLED='+String(Number(canary.enabled||0)===1));
+          console.log('CANARY_ALLOWED_USERS_JSON='+String(canary.allowedUsersJson||'[]'));
+          console.log('CANARY_ALLOWED_ACTIONS_JSON='+String(canary.allowedActionsJson||'[]'));
+          console.log('CANARY_MAX_AMOUNT='+Number(canary.maxAmount||0));
+          console.log('CANARY_EXPIRES_AT_MS='+Number(canary.expiresAtMs||0));
+          console.log('PRODUCTION_MUTATION=NO');
+          if(String(control.mode||'')!=='READONLY') throw new Error('accounting runtime mode drift');
+          if(String(canary.allowedUsersJson||'[]')!=='[]') throw new Error('canary user allowlist is not empty');
+          if(String(canary.allowedActionsJson||'[]')!=='[]') throw new Error('canary action allowlist is not empty');
+          NODE
