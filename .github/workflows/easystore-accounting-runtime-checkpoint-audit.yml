@@ -1,6 +1,6 @@
 name: EasyStore Accounting Runtime Checkpoint Audit
 # A2.7 post deploy refresh
-# refresh after user connection interruption 2026-10-06 A2.8 material canary decision gate
+# refresh after successful A2.8 material canary closure 2026-10-07
 # refresh 2026-10-06 A2.7 pre-canary decision
 
 on:
@@ -89,7 +89,7 @@ jobs:
           console.log('ACCOUNTING_CHECKPOINT_LIVE_CANARY_ACTIONS='+(ca?ca[1]:'ABSENT_SAFE'));
           for(const [k,v] of Object.entries(r)) console.log('ACCOUNTING_CHECKPOINT_COUNT_'+k+'='+Number(v||0));
           console.log('ACCOUNTING_CHECKPOINT_TOTAL_BUSINESS_ROWS='+total);
-          const expected={materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:1,events:1};
+          const expected={materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:2,events:2};
           const drift=Object.keys(expected).filter(k=>Number(r[k]||0)!==expected[k]).map(k=>({key:k,actual:Number(r[k]||0),expected:expected[k]}));
           if(drift.length)throw new Error('approved canary evidence baseline drift:'+JSON.stringify(drift));
           if(h.mode!=='READONLY')throw new Error('accounting mode drift');
