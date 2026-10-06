@@ -1,6 +1,7 @@
 name: EasyStore A2 Sync Shared TrendOS Base
 # Resync marker before A2 readonly API deployment
 # sync-round-2
+# sync-round-3
 
 on:
   push:
