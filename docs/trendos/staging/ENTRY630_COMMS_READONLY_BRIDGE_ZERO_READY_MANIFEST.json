@@ -1,0 +1,26 @@
+{
+  "entry": "Entry630",
+  "purpose": "Final business bridge-retirement family: route the four remaining read-only Comms policies to D1 Native Comms while keeping compatibility Bridge available only for canary preflight until Entry631.",
+  "globalNativeAuth": false,
+  "commsTargetMode": "READONLY",
+  "commsPolicyEpochBefore": 1,
+  "commsPolicyEpochTarget": 2,
+  "currentFrontendBridgePolicyCount": 4,
+  "businessBridgeActionsAfterCutover": 0,
+  "frontendBridgePolicyCountAfterEntry630": 4,
+  "commsNativeReadPolicies": [
+    "customerManagerV1:inbox",
+    "customerManagerV1:thread",
+    "getOrderConversation",
+    "goLiveAutopilotV1:listDrafts"
+  ],
+  "invariants": [
+    "Comms OFF preserves current Bridge4 behavior.",
+    "Comms READONLY routes exactly the four listed policies to /v1/employee/comms.",
+    "No Comms sends, uploads, suggestions, handoffs, resolves, feedback scans, or Go-Live writes are enabled by Entry630.",
+    "After Entry630, no qualified business read needs the compatibility Bridge.",
+    "Bridge remains configured temporarily only because the current canary login preflight still requires it.",
+    "Core and Content remain READONLY, Ops GENERAL, Accounting READONLY.",
+    "EasyStore remains untouched."
+  ]
+}
