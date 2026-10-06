@@ -47,6 +47,85 @@ async function health(env){
   };
 }
 
+async function evidenceStatus(env){
+  const row=await env.DB.prepare(`
+    SELECT
+      (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+      (SELECT mode FROM autonomous_design_control WHERE singleton_id=1) AS designMode,
+      (SELECT COUNT(*) FROM autonomous_design_artifacts) AS designArtifacts,
+      (SELECT COUNT(*) FROM autonomous_design_approval_events) AS designApprovals,
+      (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS designPreflights,
+      (SELECT COUNT(*) FROM autonomous_design_asset_binding_events WHERE binding_status='LINKED') AS designLinkedBindings,
+      (SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingMode,
+      (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
+      (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+      (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(line_id)<>'') AS accountingDeptLinesWithLineId,
+      (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(material_name)<>'') AS accountingDeptLinesWithMaterial,
+      (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE material_consumption>0) AS accountingDeptLinesWithConsumption,
+      (SELECT mode FROM autonomous_machine_control WHERE singleton_id=1) AS machineMode,
+      (SELECT COUNT(*) FROM autonomous_machines WHERE active=1) AS activeMachines,
+      (SELECT COUNT(*) FROM autonomous_machine_observations WHERE expires_at_ms>?) AS activeMachineObservations,
+      (SELECT COUNT(*) FROM autonomous_line_machine_mapping_events) AS machineMappings,
+      (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+      (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+      (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS evidenceRows
+  `).bind(Date.now()).first();
+
+  const designReadyInput=Number(row&&row.designArtifacts||0)>0 &&
+    Number(row&&row.designApprovals||0)>0 &&
+    Number(row&&row.designPreflights||0)>0 &&
+    Number(row&&row.designLinkedBindings||0)>0;
+  const materialReadyInput=text(row&&row.accountingMode)==='READONLY' &&
+    Number(row&&row.activeMaterials||0)>0 &&
+    Number(row&&row.accountingDeptLinesWithLineId||0)>0 &&
+    Number(row&&row.accountingDeptLinesWithMaterial||0)>0 &&
+    Number(row&&row.accountingDeptLinesWithConsumption||0)>0;
+  const machineReadyInput=text(row&&row.machineMode)==='SHADOW' &&
+    Number(row&&row.activeMachines||0)>0 &&
+    Number(row&&row.activeMachineObservations||0)>0 &&
+    Number(row&&row.machineMappings||0)>0;
+
+  return {
+    success:true,
+    mode:'READINESS_EVIDENCE_STATUS',
+    readinessMode:text(row&&row.readinessMode)||'ABSENT',
+    design:{
+      mode:text(row&&row.designMode)||'ABSENT',
+      artifacts:Number(row&&row.designArtifacts||0),
+      approvals:Number(row&&row.designApprovals||0),
+      preflights:Number(row&&row.designPreflights||0),
+      linkedBindings:Number(row&&row.designLinkedBindings||0),
+      acquisitionReady:designReadyInput,
+      blocker:designReadyInput?'':'REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING'
+    },
+    material:{
+      accountingMode:text(row&&row.accountingMode)||'ABSENT',
+      activeMaterials:Number(row&&row.activeMaterials||0),
+      stockMoves:Number(row&&row.stockMoves||0),
+      deptLinesWithLineId:Number(row&&row.accountingDeptLinesWithLineId||0),
+      deptLinesWithMaterial:Number(row&&row.accountingDeptLinesWithMaterial||0),
+      deptLinesWithConsumption:Number(row&&row.accountingDeptLinesWithConsumption||0),
+      acquisitionReady:materialReadyInput,
+      blocker:materialReadyInput?'':'AUTHORITATIVE_MATERIAL_SOURCE_DATA_MISSING'
+    },
+    machine:{
+      mode:text(row&&row.machineMode)||'ABSENT',
+      activeMachines:Number(row&&row.activeMachines||0),
+      activeObservations:Number(row&&row.activeMachineObservations||0),
+      mappings:Number(row&&row.machineMappings||0),
+      acquisitionReady:machineReadyInput,
+      blocker:machineReadyInput?'':'REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED'
+    },
+    evidenceRows:Number(row&&row.evidenceRows||0),
+    operatorTaskMode:text(row&&row.operatorTaskMode)||'ABSENT',
+    operatorTasks:Number(row&&row.operatorTasks||0),
+    piiExposed:false,
+    employeeIdentityExposed:false,
+    businessWrites:false,
+    employeeAssignment:false
+  };
+}
+
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
@@ -56,13 +135,14 @@ export default {
         status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
       });
     }
-    if(path!=='/'&&path!=='/health'){
+    if(path!=='/'&&path!=='/health'&&path!=='/evidence-status'){
       return new Response(JSON.stringify({success:false,code:'NOT_FOUND'}),{
         status:404,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
       });
     }
     try{
-      return new Response(JSON.stringify(await health(env)),{
+      const body=path==='/evidence-status' ? await evidenceStatus(env) : await health(env);
+      return new Response(JSON.stringify(body),{
         status:200,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
       });
     }catch(err){
