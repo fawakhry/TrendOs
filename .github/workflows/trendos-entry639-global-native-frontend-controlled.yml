@@ -68,7 +68,7 @@ jobs:
           if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
           if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
           if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
-          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');
           console.log('ENTRY639_RUNTIME_PREFLIGHT=PASS');
           console.log('ENTRY639_NATIVE_READY=6_OF_6');
           console.log('ENTRY639_BACKEND_NATIVE_ONLY=true');
@@ -301,7 +301,7 @@ jobs:
           if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content post drift');
           if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms post drift');
           if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
-          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting post drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting post safety drift');
           console.log('ENTRY639_RUNTIME_POSTFLIGHT=PASS');
           NODE
 
