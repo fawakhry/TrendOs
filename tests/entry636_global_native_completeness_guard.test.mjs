@@ -13,8 +13,8 @@ assert.equal(manifest.liveRuntime.nativeReadyCount,5);
 assert.equal(manifest.authoritativeSpreadsheet.sensitiveColumnsRead,false);
 
 assert.match(config,/window\.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1\s*=\s*false;/);
-assert.match(config,/window\.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1\s*=\s*true;/);
-assert.doesNotMatch(config,/MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS\s*=\s*\[[^\]]*شريف/s);
+assert.match(config,/window\.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1\s*=\s*false;/);
+assert.match(config,/window\.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS\s*=\s*\[\];/);
 assert.match(dispatcher,/T12_ENTRY635_NATIVE_ONLY_BRIDGE_FREE_PREFLIGHT_V1_20261006/);
 
 console.log('ENTRY636_GLOBAL_NATIVE_GUARD=PASS');
