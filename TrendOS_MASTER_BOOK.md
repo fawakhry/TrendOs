@@ -4305,3 +4305,67 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - Accounting remains READONLY and EasyStore is untouched.
 - Entry623 is now considered **complete for the Diya-only canary scope**.
 - Any expansion to another employee or broader rollout must be a separate controlled gate and must reuse the same runtime-truth-first, fail-closed procedure.
+
+
+### Entry624 — Wael second Native Auth canary expansion
+- Trigger: owner said `ابدأ` after Entry623 Diya-only canary completed successfully.
+- Selection rule:
+  - do not broaden Global Native Auth;
+  - add exactly one employee;
+  - choose the least-novel operational canary based on documented TrendOS history.
+- Selected second canary: `وائل`.
+- Rationale:
+  - `وائل` is already the documented TrendOS Orders canary user in the Production config;
+  - this minimizes rollout-surface novelty compared with selecting an employee with no prior canary role.
+- Entry624 preflight Runtime:
+  ```ini
+  AUTH=TRANSITIONAL / epoch 23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  FRONTEND_CANARY_USERS=['ضياء']
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Entry624 manifest:
+  - `docs/trendos/staging/ENTRY624_WAEL_SECOND_NATIVE_CANARY_17_POLICY_MANIFEST.json`
+  - commit `4781e374871a086d3552d2ed9cb3e2a80a261d44`.
+- Regression:
+  - `tests/entry624_wael_second_native_canary_17_policy.test.mjs`
+  - commit `936bb449951106f1065a4fef066394bfc15a956f`.
+  - proves:
+    - existing canary `ضياء` remains Native;
+    - new canary `وائل` routes to Native bootstrap;
+    - Dashboard for Wael uses the exact 17-policy bridge;
+    - Attendance stays D1 Ops GENERAL;
+    - Accounting stays D1 READONLY;
+    - an action outside the 17-policy pilot fails closed;
+    - `جابر` remains Legacy.
+- Repo CI:
+  - `.github/workflows/trendos-entry624-wael-second-native-canary-repo-ci.yml`
+  - workflow commit `a2d1d8f2d73443757582ec57645fe22ac7cae262`
+  - Run `37448081818`
+  - Job `112217646072`
+  - conclusion = **SUCCESS**.
+- No Production mutation occurred in the repo gate.
+- Target next gate:
+  ```ini
+  ENTRY624_FRONTEND_CANARY_USERS=['ضياء','وائل']
+  GLOBAL_NATIVE_AUTH=OFF
+  AUTH=TRANSITIONAL / epoch23
+  D1_NATIVE_READY_USERS_BEFORE_WAEL_LOGIN=1
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
