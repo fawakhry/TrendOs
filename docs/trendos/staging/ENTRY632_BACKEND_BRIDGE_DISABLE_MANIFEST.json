@@ -1,0 +1,41 @@
+{
+  "entry": "Entry632",
+  "purpose": "Disable the now-dormant Cloudflare employee compatibility Bridge without changing Worker code or any unrelated binding.",
+  "expectedActiveApiVersion": "afff94be-d5e3-4506-a9ff-e48c251e974d",
+  "worker": "trendos-d1-api",
+  "targetBinding": "TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED",
+  "targetBefore": "true",
+  "targetAfter": "false",
+  "expectedBindingCount": 33,
+  "expectedSecretBindingCount": 5,
+  "expectedInheritableBindingCount": 32,
+  "frontendExpected": {
+    "bridgeEnabled": false,
+    "bridgePolicyCount": 0,
+    "canaryRequiredNativeReadyCount": 5,
+    "globalNativeAuth": false
+  },
+  "authExpected": {
+    "mode": "TRANSITIONAL",
+    "userCount": 5,
+    "nativeReadyCount": 5,
+    "nativeOnly": false
+  },
+  "families": {
+    "ops": "GENERAL",
+    "accounting": "READONLY",
+    "core": "READONLY",
+    "content": "READONLY",
+    "comms": "READONLY"
+  },
+  "safety": [
+    "Create a settings-only version inheriting every non-target binding from the exact active version.",
+    "Do not read or log secret values.",
+    "Require the new version script etag to equal the pre-version script etag.",
+    "Require binding names/counts/types and D1 binding to remain intact.",
+    "Deploy only the validated version at 100 percent.",
+    "Rollback automatically to the exact pre-version on any post-deploy failure.",
+    "Verify the disabled Bridge route fails closed before authentication or upstream forwarding.",
+    "Do not change D1 controls, frontend, Accounting, EasyStore, or Apps Script."
+  ]
+}
