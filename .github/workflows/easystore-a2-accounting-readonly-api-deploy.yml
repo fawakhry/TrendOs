@@ -1,4 +1,5 @@
 name: EasyStore A2 Accounting Readonly API Deploy
+# trigger A2.7 CANARY-aware code deploy after migration 0029; runtime must remain READONLY
 # controlled push trigger after A2 preflight pass
 # deploy-round-2 guarded ephemeral shared-base merge
 # deploy-round-3 config-relative-entrypoint-fix
