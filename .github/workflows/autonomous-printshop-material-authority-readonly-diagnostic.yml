@@ -1,0 +1,156 @@
+name: Autonomous Printshop Material Authority Readonly Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-material-authority-readonly-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Accounting/material authority aggregate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingMode,
+              (SELECT policy_epoch FROM employee_accounting_control_v1 WHERE singleton=1) AS accountingEpoch,
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materialRows,
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1 AND stock_qty>0) AS positiveStockMaterials,
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1 AND min_stock>0 AND stock_qty<=min_stock) AS lowStockMaterials,
+              (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS accountingDeptLines,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(line_id)<>'') AS deptLinesWithLineId,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE trim(material_name)<>'') AS deptLinesWithMaterial,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE material_consumption>0) AS deptLinesWithConsumption,
+              (SELECT MAX(updated_at) FROM employee_accounting_materials_v1) AS materialLastUpdatedAt,
+              (SELECT MAX(created_at) FROM employee_accounting_stock_moves_v1) AS stockMoveLastCreatedAt;
+          " > /tmp/material-authority.json
+          cat /tmp/material-authority.json
+
+      - name: Current candidate material linkage aggregate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "
+          WITH imported AS (
+            SELECT
+              l.line_id,
+              l.department,
+              COALESCE(lr.status,l.status) AS status,
+              l.fly_print
+            FROM employee_core_lines_v1 l
+            JOIN employee_core_orders_v1 o ON o.order_id=l.order_id
+            LEFT JOIN t12_legacy_line_runtime lr
+              ON lr.line_id=l.line_id AND lr.order_id=l.order_id
+            LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+            WHERE l.active=1 AND o.active=1 AND a.line_id IS NULL
+          ),
+          native AS (
+            SELECT
+              l.line_id,
+              l.department,
+              COALESCE(r.status,l.status) AS status,
+              l.fly_print
+            FROM t12_prod_lines l
+            LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+            LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+            WHERE a.line_id IS NULL
+          ),
+          current_lines AS (
+            SELECT * FROM imported
+            UNION ALL
+            SELECT * FROM native
+          ),
+          candidates AS (
+            SELECT * FROM current_lines
+            WHERE status='طلب جديد' AND fly_print=0
+          ),
+          latest_accounting AS (
+            SELECT d.*
+            FROM employee_accounting_dept_lines_v1 d
+            JOIN (
+              SELECT line_id, MAX(updated_at) AS max_updated
+              FROM employee_accounting_dept_lines_v1
+              WHERE trim(line_id)<>''
+              GROUP BY line_id
+            ) x ON x.line_id=d.line_id AND x.max_updated=d.updated_at
+          )
+          SELECT
+            (SELECT COUNT(*) FROM candidates) AS candidates,
+            (SELECT COUNT(*) FROM candidates c JOIN latest_accounting a ON a.line_id=c.line_id) AS accountingLinked,
+            (SELECT COUNT(*) FROM candidates c JOIN latest_accounting a ON a.line_id=c.line_id WHERE trim(a.material_name)<>'') AS materialNamed,
+            (SELECT COUNT(*) FROM candidates c JOIN latest_accounting a ON a.line_id=c.line_id WHERE a.material_consumption>0) AS consumptionKnown,
+            (SELECT COUNT(*) FROM candidates c
+               JOIN latest_accounting a ON a.line_id=c.line_id
+               JOIN employee_accounting_materials_v1 m
+                 ON m.active=1
+                AND m.department=a.department
+                AND m.material_name=a.material_name) AS catalogMatched,
+            (SELECT COUNT(*) FROM candidates c
+               JOIN latest_accounting a ON a.line_id=c.line_id
+               JOIN employee_accounting_materials_v1 m
+                 ON m.active=1
+                AND m.department=a.department
+                AND m.material_name=a.material_name
+              WHERE a.material_consumption>0
+                AND m.stock_qty<a.material_consumption) AS explicitInsufficientStock,
+            (SELECT COUNT(*) FROM candidates c
+               JOIN latest_accounting a ON a.line_id=c.line_id
+               JOIN employee_accounting_materials_v1 m
+                 ON m.active=1
+                AND m.department=a.department
+                AND m.material_name=a.material_name
+              WHERE a.material_consumption>0
+                AND m.stock_qty>=a.material_consumption) AS apparentEnoughStock;
+          " > /tmp/candidate-linkage.json
+          cat /tmp/candidate-linkage.json
+
+      - name: Interpret authority without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/material-authority.json','utf8'))?.[0]?.results?.[0]||{};
+          const c=JSON.parse(fs.readFileSync('/tmp/candidate-linkage.json','utf8'))?.[0]?.results?.[0]||{};
+          console.log('ACCOUNTING_MODE='+String(a.accountingMode||''));
+          console.log('ACCOUNTING_EPOCH='+String(a.accountingEpoch||0));
+          console.log('ACTIVE_MATERIALS='+String(a.activeMaterials||0));
+          console.log('POSITIVE_STOCK_MATERIALS='+String(a.positiveStockMaterials||0));
+          console.log('STOCK_MOVES='+String(a.stockMoves||0));
+          console.log('CURRENT_CANDIDATES='+String(c.candidates||0));
+          console.log('CANDIDATE_ACCOUNTING_LINKED='+String(c.accountingLinked||0));
+          console.log('CANDIDATE_MATERIAL_NAMED='+String(c.materialNamed||0));
+          console.log('CANDIDATE_CONSUMPTION_KNOWN='+String(c.consumptionKnown||0));
+          console.log('CANDIDATE_CATALOG_MATCHED='+String(c.catalogMatched||0));
+          console.log('EXPLICIT_INSUFFICIENT_STOCK='+String(c.explicitInsufficientStock||0));
+          console.log('APPARENT_ENOUGH_STOCK='+String(c.apparentEnoughStock||0));
+          const usable=Number(a.activeMaterials)>0 && Number(c.catalogMatched)>0 && Number(c.consumptionKnown)>0;
+          console.log('D1_MATERIAL_READ_MODEL_CURRENTLY_USABLE_FOR_READINESS='+(usable?'YES':'NO'));
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'METHOD=SELECT_ONLY'
+          echo 'D1_MUTATION=NO'
+          echo 'FINANCIAL_AUTHORITY_CHANGED=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
