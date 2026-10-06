@@ -25,13 +25,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
-      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CONFIG: autonomous-printshop/production-shadow/wrangler.toml
       DB_NAME: trendos-main
       WRANGLER_VERSION: 4.33.2
-      ACCOUNTING_CHECKPOINT_REF: \${{ inputs.accounting_checkpoint_ref }}
-      STOCK_AUTHORITY_CONFIRMED: \${{ inputs.stock_authority_confirmed }}
+      ACCOUNTING_CHECKPOINT_REF: ${{ inputs.accounting_checkpoint_ref }}
+      STOCK_AUTHORITY_CONFIRMED: ${{ inputs.stock_authority_confirmed }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
