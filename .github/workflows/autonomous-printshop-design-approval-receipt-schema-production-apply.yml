@@ -1,0 +1,138 @@
+name: Autonomous Printshop Design Approval Receipt Schema Production Apply
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-design-approval-receipt-schema-production-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-design-approval-receipt-schema-production-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DATABASE: trendos-main
+      MIGRATION: autonomous-printshop/migrations/0029_design_approval_receipt_v1.sql
+      WRANGLER_VERSION: 4.33.2
+      ACCOUNTING_URL: https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify exact additive schema and receipt contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/tests/design_approval_receipt_v1.test.mjs
+          grep -Fq 'CREATE TABLE IF NOT EXISTS autonomous_design_approval_receipts' "$MIGRATION"
+          grep -Fq 'AUTONOMOUS_DESIGN_APPROVAL_RECEIPTS_APPEND_ONLY' "$MIGRATION"
+          ! grep -Eiq '^[[:space:]]*(ALTER|DROP|INSERT|UPDATE|DELETE|REPLACE)[[:space:]]' "$MIGRATION"
+          ! grep -Eiq '\b(t12_prod_orders|t12_prod_lines|employee_accounting_|operator_tasks)\b' "$MIGRATION"
+          echo 'DESIGN_APPROVAL_RECEIPT_SCHEMA_STATIC_GATE=PASS'
+
+      - name: Production safety preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$ACCOUNTING_URL?designApprovalReceipt=$GITHUB_RUN_ID" > /tmp/accounting.json
+          cat > /tmp/pre.sql <<'SQL'
+          SELECT
+            (SELECT mode FROM autonomous_design_control WHERE singleton_id=1) AS designMode,
+            (SELECT COUNT(*) FROM autonomous_design_artifacts) AS artifacts,
+            (SELECT COUNT(*) FROM autonomous_design_approval_events) AS approvals,
+            (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
+            (SELECT COUNT(*) FROM autonomous_design_asset_binding_events) AS bindings,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='autonomous_design_approval_receipts') AS receiptTableBefore;
+          SQL
+          PRE_SQL="$(tr '\n' ' ' < /tmp/pre.sql)"
+          npx --yes wrangler@\${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$PRE_SQL" > /tmp/pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/accounting.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
+          if(a.mode!=='READONLY'||a.authoritativeWrites!==false||a.writeAuthorityMode!=='OFF') throw new Error('ACCOUNTING_NOT_CLOSED');
+          if(Number(a.writeCanaryAllowedUserCount||0)!==0||Number(a.writeCanaryAllowedActionCount||0)!==0||Number(a.writeCanaryMaxCommands||0)!==0||Number(a.writeCanaryCommandsStarted||0)!==0) throw new Error('ACCOUNTING_CANARY_NOT_CLOSED');
+          if(String(r.designMode)!=='SHADOW') throw new Error('DESIGN_NOT_SHADOW');
+          if(Number(r.artifacts||0)!==0||Number(r.approvals||0)!==0||Number(r.preflights||0)!==0||Number(r.bindings||0)!==0) throw new Error('DESIGN_BASELINE_NOT_EMPTY');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_NOT_OFF');
+          if(Number(r.receiptTableBefore||0)!==0) throw new Error('RECEIPT_SCHEMA_ALREADY_PRESENT_UNEXPECTEDLY');
+          console.log('DESIGN_APPROVAL_RECEIPT_SCHEMA_PREFLIGHT=PASS');
+          console.log('ACCOUNTING_READONLY=YES');
+          console.log('DESIGN_SHADOW_EMPTY=YES');
+          console.log('OPERATOR_TASK_OFF=YES');
+          NODE
+
+      - name: Apply exact approval-receipt schema only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@\${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --file "$MIGRATION"
+          echo 'DESIGN_APPROVAL_RECEIPT_SCHEMA_APPLY_COMMAND=COMPLETE'
+
+      - name: Verify schema and invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/post.sql <<'SQL'
+          SELECT
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='autonomous_design_approval_receipts') AS receiptTable,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_autonomous_design_approval_receipts_artifact_time') AS artifactIndex,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_autonomous_design_approval_receipts_line_time') AS lineIndex,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='trg_autonomous_design_approval_receipts_no_update') AS noUpdateTrigger,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='trg_autonomous_design_approval_receipts_no_delete') AS noDeleteTrigger,
+            (SELECT COUNT(*) FROM autonomous_design_approval_receipts) AS receiptRows,
+            (SELECT COUNT(*) FROM autonomous_design_artifacts) AS artifacts,
+            (SELECT COUNT(*) FROM autonomous_design_approval_events) AS approvals,
+            (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
+            (SELECT COUNT(*) FROM autonomous_design_asset_binding_events) AS bindings,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          SQL
+          POST_SQL="$(tr '\n' ' ' < /tmp/post.sql)"
+          npx --yes wrangler@\${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$POST_SQL" > /tmp/post.json
+          curl --fail --silent --show-error "$ACCOUNTING_URL?designApprovalReceiptPost=$GITHUB_RUN_ID" > /tmp/accounting-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          const a=JSON.parse(fs.readFileSync('/tmp/accounting-post.json','utf8'));
+          if(Number(r.receiptTable)!==1||Number(r.artifactIndex)!==1||Number(r.lineIndex)!==1||Number(r.noUpdateTrigger)!==1||Number(r.noDeleteTrigger)!==1) throw new Error('RECEIPT_SCHEMA_INCOMPLETE');
+          if(Number(r.receiptRows||0)!==0||Number(r.artifacts||0)!==0||Number(r.approvals||0)!==0||Number(r.preflights||0)!==0||Number(r.bindings||0)!==0) throw new Error('DESIGN_DATA_MUTATED');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_DRIFT');
+          if(a.mode!=='READONLY'||a.authoritativeWrites!==false||a.writeAuthorityMode!=='OFF') throw new Error('ACCOUNTING_DRIFT');
+          if(Number(a.writeCanaryAllowedUserCount||0)!==0||Number(a.writeCanaryAllowedActionCount||0)!==0||Number(a.writeCanaryMaxCommands||0)!==0) throw new Error('ACCOUNTING_CANARY_DRIFT');
+          console.log('DESIGN_APPROVAL_RECEIPT_SCHEMA_PRODUCTION=PASS');
+          console.log('RECEIPT_ROWS=0');
+          console.log('DESIGN_ARTIFACTS=0');
+          console.log('DESIGN_APPROVALS=0');
+          console.log('DESIGN_PREFLIGHTS=0');
+          console.log('DESIGN_BINDINGS=0');
+          console.log('ACCOUNTING_MUTATION=NO');
+          console.log('OPERATOR_TASK_MUTATION=NO');
+          console.log('EMPLOYEE_ASSIGNMENT=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_SCHEMA_MUTATION=YES'
+          echo 'PRODUCTION_BUSINESS_DATA_MUTATION=NO'
+          echo 'DESIGN_APPROVAL_RECEIPT_CAPTURE=NO'
+          echo 'DESIGN_READY_EVIDENCE=NO'
+          echo 'OPERATOR_TASK_CONTROL=OFF'
