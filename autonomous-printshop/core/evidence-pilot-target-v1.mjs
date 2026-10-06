@@ -3,6 +3,14 @@ import { buildOperationalRealityV1 } from './operational-reality-v1.mjs';
 export const EVIDENCE_PILOT_TARGET_VERSION='EVIDENCE_PILOT_TARGET_V1';
 
 function text(v){return String(v==null?'':v).trim();}
+function machineClassHint(row={}){
+  const dept=text(row.department).toLowerCase();
+  if(row.heatPress===true||Number(row.heatPress||0)===1) return 'HEAT_PRESS';
+  if(dept.includes('ليزر')) return 'LASER';
+  if(dept.includes('طباعة')) return 'PRINT';
+  if(dept.includes('فنيل')||dept.includes('استيكر')) return 'VINYL_CUTTER';
+  return 'UNKNOWN';
+}
 
 export function selectEvidencePilotTargetV1(rows=[],options={}){
   const requiredKinds=Array.isArray(options.requiredKinds)&&options.requiredKinds.length
@@ -34,6 +42,7 @@ export function selectEvidencePilotTargetV1(rows=[],options={}){
       dueIso:text(line.dueIso),
       urgent:line.urgent===true,
       missingKinds,
+      machineClassHint:machineClassHint(source),
       purpose:'EVIDENCE_ACQUISITION_ONLY',
       assignmentAllowed:false,
       taskClaimAllowed:false
@@ -49,6 +58,7 @@ export function selectEvidencePilotTargetV1(rows=[],options={}){
     dueIso:'',
     urgent:false,
     missingKinds:[],
+    machineClassHint:'UNKNOWN',
     purpose:'EVIDENCE_ACQUISITION_ONLY',
     assignmentAllowed:false,
     taskClaimAllowed:false
