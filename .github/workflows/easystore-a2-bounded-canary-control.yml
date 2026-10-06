@@ -71,7 +71,8 @@ jobs:
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
             SELECT enabled,allowed_usernames_json AS allowedUsersJson,
                    allowed_actions_json AS allowedActionsJson,max_amount AS maxAmount,
-                   expires_at_ms AS expiresAtMs,policy_epoch AS policyEpoch
+                   expires_at_ms AS expiresAtMs,policy_epoch AS policyEpoch,
+                   max_commands AS maxCommands,commands_started AS commandsStarted
               FROM employee_accounting_write_canary_v1
              WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
           " > /tmp/canary-pre.json
@@ -142,6 +143,8 @@ jobs:
                  allowed_usernames_json={q(json.dumps([user],ensure_ascii=False,separators=(',',':')))},
                  allowed_actions_json={q(json.dumps([action],ensure_ascii=False,separators=(',',':')))},
                  max_amount=0,
+                 max_commands=1,
+                 commands_started=0,
                  expires_at_ms={expires},
                  policy_epoch=policy_epoch+1,
                  updated_at=CURRENT_TIMESTAMP
@@ -157,7 +160,7 @@ jobs:
            WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' AND mode IN ('READONLY','CANARY');
           UPDATE employee_accounting_write_canary_v1
              SET enabled=1,allowed_usernames_json='[]',allowed_actions_json='[]',
-                 max_amount=0,expires_at_ms=0,policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+                 max_amount=0,max_commands=0,commands_started=0,expires_at_ms=0,policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
            WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
           """
           else:
@@ -208,6 +211,7 @@ jobs:
             if(h.mode!=='CANARY'||h.writeAuthorityMode!=='CANARY_BOUNDED')throw new Error('ARM did not enter bounded CANARY');
             if(Number(h.writeCanaryAllowedUserCount)!==1||Number(h.writeCanaryAllowedActionCount)!==1)throw new Error('ARM scope is not exactly one user/one action');
             if(Number(h.writeCanaryMaxAmount)!==0)throw new Error('first canary must remain zero-value');
+            if(Number(h.writeCanaryMaxCommands)!==1||Number(h.writeCanaryCommandsStarted)!==0)throw new Error('first canary must start with exactly one command budget');
           } else if(op==='DISABLE'){
             if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw new Error('DISABLE did not restore READONLY');
             if(Number(h.writeCanaryAllowedUserCount)!==0||Number(h.writeCanaryAllowedActionCount)!==0)throw new Error('DISABLE did not empty allowlists');
