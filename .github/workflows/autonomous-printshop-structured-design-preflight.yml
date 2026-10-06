@@ -1,0 +1,250 @@
+name: Autonomous Printshop Structured Design Preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: Existing Design artifact ID
+        required: true
+        type: string
+      subject_sha256:
+        description: Exact SHA-256 of artifact bytes
+        required: true
+        type: string
+      recipe_id:
+        description: Exact qualified recipe ID
+        required: true
+        type: string
+      verification_ref:
+        description: Stable reference to the direct verification evidence
+        required: true
+        type: string
+      width_mm:
+        description: Measured final width in mm
+        required: false
+        type: string
+      height_mm:
+        description: Measured final height in mm
+        required: false
+        type: string
+      dpi:
+        description: Measured effective DPI
+        required: false
+        type: string
+      asset_roles:
+        description: Comma-separated verified asset roles
+        required: false
+        type: string
+      identity_preserved:
+        description: Identity preservation verification
+        required: true
+        type: choice
+        options: [UNKNOWN, YES, NO]
+      white_background_verified:
+        description: White-background verification
+        required: true
+        type: choice
+        options: [UNKNOWN, YES, NO]
+      closed_cut_stroke_verified:
+        description: Closed cut-stroke verification
+        required: true
+        type: choice
+        options: [UNKNOWN, YES, NO]
+      exact_text_verified:
+        description: Exact-text verification
+        required: true
+        type: choice
+        options: [UNKNOWN, YES, NO]
+      layout_verified:
+        description: Layout verification
+        required: true
+        type: choice
+        options: [UNKNOWN, YES, NO]
+      color_correction_verified:
+        description: Color-correction verification
+        required: true
+        type: choice
+        options: [UNKNOWN, YES, NO]
+      border_1px_verified:
+        description: 1px border verification
+        required: true
+        type: choice
+        options: [UNKNOWN, YES, NO]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-structured-design-preflight
+  cancel-in-progress: false
+
+jobs:
+  structured-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      ARTIFACT_ID: ${{ inputs.artifact_id }}
+      SUBJECT_SHA256: ${{ inputs.subject_sha256 }}
+      RECIPE_ID: ${{ inputs.recipe_id }}
+      VERIFICATION_REF: ${{ inputs.verification_ref }}
+      WIDTH_MM: ${{ inputs.width_mm }}
+      HEIGHT_MM: ${{ inputs.height_mm }}
+      DPI: ${{ inputs.dpi }}
+      ASSET_ROLES: ${{ inputs.asset_roles }}
+      IDENTITY_PRESERVED: ${{ inputs.identity_preserved }}
+      WHITE_BACKGROUND_VERIFIED: ${{ inputs.white_background_verified }}
+      CLOSED_CUT_STROKE_VERIFIED: ${{ inputs.closed_cut_stroke_verified }}
+      EXACT_TEXT_VERIFIED: ${{ inputs.exact_text_verified }}
+      LAYOUT_VERIFIED: ${{ inputs.layout_verified }}
+      COLOR_CORRECTION_VERIFIED: ${{ inputs.color_correction_verified }}
+      BORDER_1PX_VERIFIED: ${{ inputs.border_1px_verified }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Owner-only gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_ACTOR}" != "${GITHUB_REPOSITORY_OWNER}" ]; then
+            echo "STRUCTURED_PREFLIGHT=FORBIDDEN_NON_OWNER"
+            exit 1
+          fi
+          echo "STRUCTURED_PREFLIGHT_OWNER_GATE=PASS"
+
+      - name: Control safety preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/control.sql <<'SQL'
+          SELECT
+            (SELECT mode FROM autonomous_design_control WHERE singleton_id=1) AS designMode,
+            (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+            (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          SQL
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "${DB_NAME}" --remote --config "${CONFIG}" --json --file /tmp/control.sql > /tmp/control.json
+          node <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/control.json','utf8'))?.[0]?.results?.[0]||{};
+          if(String(r.designMode)!=='SHADOW') throw new Error('DESIGN_NOT_SHADOW');
+          if(String(r.readinessMode)!=='SHADOW') throw new Error('READINESS_NOT_SHADOW');
+          if(String(r.autonomyMode)!=='SHADOW') throw new Error('AUTONOMY_NOT_SHADOW');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_NOT_OFF');
+          console.log('STRUCTURED_PREFLIGHT_CONTROL_GATE=PASS');
+          NODE
+
+      - name: Build exact artifact lookup
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const id=String(process.env.ARTIFACT_ID||'').trim();
+          const h=String(process.env.SUBJECT_SHA256||'').trim().toLowerCase();
+          if(!id||id.length>180||!/^[A-Za-z0-9_.:\/-]+$/.test(id)) throw new Error('ARTIFACT_ID_INVALID');
+          if(!/^[a-f0-9]{64}$/.test(h)) throw new Error('SUBJECT_SHA256_INVALID');
+          const q=v=>"'"+v.replace(/'/g,"''")+"'";
+          fs.writeFileSync('/tmp/artifact.sql',
+            'SELECT artifact_id,line_id,content_sha256 FROM autonomous_design_artifacts'+
+            ' WHERE artifact_id='+q(id)+' AND lower(content_sha256)='+q(h)+';');
+          NODE
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "${DB_NAME}" --remote --config "${CONFIG}" --json --file /tmp/artifact.sql > /tmp/artifact.json
+
+      - name: Evaluate recipe and build exact preflight write
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { evaluateAndBuildStructuredDesignPreflightV1 } from './autonomous-printshop/core/structured-design-preflight-command-v1.mjs';
+
+          const rows=JSON.parse(fs.readFileSync('/tmp/artifact.json','utf8'))?.[0]?.results||[];
+          if(rows.length!==1) throw new Error('ARTIFACT_LINE_HASH_NOT_FOUND');
+          const row=rows[0];
+          const catalog=JSON.parse(fs.readFileSync('autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json','utf8'));
+          const tri=v=>v==='YES'?true:v==='NO'?false:undefined;
+          const list=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean);
+          const val=v=>String(v||'').trim()===''?null:Number(v);
+
+          const preflightRunId='structured-preflight-'+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT;
+          const observedAtMs=Date.now();
+          const out=evaluateAndBuildStructuredDesignPreflightV1({
+            preflightRunId,
+            artifactId:row.artifact_id,
+            lineId:row.line_id,
+            recipeId:process.env.RECIPE_ID,
+            subjectSha256:process.env.SUBJECT_SHA256,
+            verificationRef:process.env.VERIFICATION_REF,
+            observedAtMs,
+            catalog,
+            widthMm:val(process.env.WIDTH_MM),
+            heightMm:val(process.env.HEIGHT_MM),
+            dpi:val(process.env.DPI),
+            assetRoles:list(process.env.ASSET_ROLES),
+            identity_preserved:tri(process.env.IDENTITY_PRESERVED),
+            white_background_verified:tri(process.env.WHITE_BACKGROUND_VERIFIED),
+            closed_cut_stroke_verified:tri(process.env.CLOSED_CUT_STROKE_VERIFIED),
+            exact_text_verified:tri(process.env.EXACT_TEXT_VERIFIED),
+            layout_verified:tri(process.env.LAYOUT_VERIFIED),
+            color_correction_verified:tri(process.env.COLOR_CORRECTION_VERIFIED),
+            border_1px_verified:tri(process.env.BORDER_1PX_VERIFIED)
+          });
+
+          fs.writeFileSync('/tmp/preflight-write.sql',out.sql+'\\n');
+          fs.writeFileSync('/tmp/expected-result.txt',out.evaluation.result+'\\n');
+          fs.writeFileSync('/tmp/preflight-id.txt',preflightRunId+'\\n');
+          console.log('STRUCTURED_PREFLIGHT_EVALUATION='+out.evaluation.result);
+          console.log('HARD_CODED_PASS=NO');
+          NODE
+
+      - name: Persist evaluator result only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "${DB_NAME}" --remote --config "${CONFIG}" --file /tmp/preflight-write.sql
+
+      - name: Verify persisted evaluator result and safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const id=fs.readFileSync('/tmp/preflight-id.txt','utf8').trim();
+          const q=v=>"'"+v.replace(/'/g,"''")+"'";
+          fs.writeFileSync('/tmp/verify.sql',
+            'SELECT '+
+            '(SELECT COUNT(*) FROM autonomous_design_preflight_runs WHERE preflight_run_id='+q(id)+') AS preflightExact,'+
+            '(SELECT result FROM autonomous_design_preflight_runs WHERE preflight_run_id='+q(id)+') AS persistedResult,'+
+            '(SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,'+
+            '(SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;');
+          NODE
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "${DB_NAME}" --remote --config "${CONFIG}" --json --file /tmp/verify.sql > /tmp/verify.json
+          node <<'NODE'
+          const fs=require('fs');
+          const expected=fs.readFileSync('/tmp/expected-result.txt','utf8').trim();
+          const r=JSON.parse(fs.readFileSync('/tmp/verify.json','utf8'))?.[0]?.results?.[0]||{};
+          if(Number(r.preflightExact)!==1) throw new Error('PREFLIGHT_NOT_WRITTEN');
+          if(String(r.persistedResult)!==expected) throw new Error('PREFLIGHT_RESULT_DRIFT');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_DRIFT');
+          console.log('STRUCTURED_PREFLIGHT_PERSISTENCE=PASS');
+          console.log('PERSISTED_RESULT='+expected);
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'DIRECT_ARTIFACT_WRITE=NO'
+          echo 'DIRECT_APPROVAL_WRITE=NO'
+          echo 'DIRECT_READINESS_WRITE=NO'
+          echo 'ACCOUNTING_WRITE=NO'
+          echo 'ORDER_LINE_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'OPERATOR_TASK_CONTROL=OFF'
