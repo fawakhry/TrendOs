@@ -1,0 +1,71 @@
+{
+  "entry": "Entry626",
+  "purpose": "Expand explicit Native Auth canary allowlist to all remaining known TrendOS employees without enabling Global Native Auth",
+  "existingCanaryUsers": [
+    "ضياء",
+    "وائل",
+    "جابر"
+  ],
+  "addedEmployeeAliases": [
+    "رحمه",
+    "رحمة",
+    "ريفان",
+    "ريڤان"
+  ],
+  "targetCanaryUsers": [
+    "ضياء",
+    "وائل",
+    "جابر",
+    "رحمه",
+    "رحمة",
+    "ريفان",
+    "ريڤان"
+  ],
+  "semanticEmployees": [
+    "ضياء",
+    "وائل",
+    "جابر",
+    "رحمة",
+    "ريفان"
+  ],
+  "globalNativeAuth": false,
+  "frontendCanaryTarget": true,
+  "frontendBridgeTarget": true,
+  "frontendMinimumBridgePolicies": 17,
+  "authModeTarget": "TRANSITIONAL",
+  "authPolicyEpochTarget": 23,
+  "bridgePolicyCount": 17,
+  "minimumNativeReadyBeforeExpansion": 2,
+  "maximumKnownSemanticEmployees": 5,
+  "accountingProgram": "DEFERRED_EXTERNAL_REPO",
+  "accountingMode": "READONLY",
+  "opsMode": "GENERAL",
+  "policies": [
+    "customerManagerV1:inbox",
+    "customerManagerV1:thread",
+    "getActivityLog",
+    "getDashboard",
+    "getFranchiseBranches",
+    "getKnowledge",
+    "getLeadPhoneNumbers",
+    "getMarketplace",
+    "getMatbagyNotes",
+    "getOrderConversation",
+    "getPlatformAds",
+    "getPlatformSections",
+    "getRows",
+    "getServiceProviderRoutes",
+    "getTrendMasterCenterV1931",
+    "getWhiteLabelSettings",
+    "goLiveAutopilotV1:listDrafts"
+  ],
+  "invariants": [
+    "Global Native Auth remains false.",
+    "Only explicit allowlist names are selected for Native Auth; unknown names remain Legacy.",
+    "The two Arabic spellings for Rahma and Revan are included because canary matching does not normalize Arabic letter variants.",
+    "Auth remains TRANSITIONAL epoch23.",
+    "Bridge remains exactly 17 policies with no Accounting policies and no already-native Ops policies.",
+    "Ops remains GENERAL and Accounting remains READONLY.",
+    "EasyStore remains untouched."
+  ]
+}
