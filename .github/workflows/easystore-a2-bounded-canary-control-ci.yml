@@ -1,0 +1,23 @@
+name: EasyStore A2 Bounded Canary Control CI
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a2-bounded-canary-control.yml'
+      - '.github/workflows/easystore-a2-bounded-canary-control-ci.yml'
+      - 'tests/easystore_a2_bounded_canary_control.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/easystore_a2_bounded_canary_control.test.mjs
