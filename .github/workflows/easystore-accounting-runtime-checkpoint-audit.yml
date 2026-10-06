@@ -1,4 +1,5 @@
 name: EasyStore Accounting Runtime Checkpoint Audit
+# refresh 2026-10-06 A2.7 pre-canary decision
 
 on:
   push:
