@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('cloudflare-d1/migrations/0028_employee_accounting_write_canary_v1.sql','utf8');
+const modeSql=fs.readFileSync('cloudflare-d1/migrations/0029_employee_accounting_canary_mode_v1.sql','utf8');
 const mod=fs.readFileSync('cloudflare-d1/src/employee-accounting-native-v1.mjs','utf8');
 
 assert.ok(sql.includes('employee_accounting_write_canary_v1'));
@@ -19,7 +20,13 @@ assert.ok(mod.includes('employee-accounting-canary-expired'));
 assert.ok(mod.includes('employee-accounting-canary-user-blocked'));
 assert.ok(mod.includes('employee-accounting-canary-action-blocked'));
 assert.ok(mod.includes('employee-accounting-canary-amount-blocked'));
-assert.ok(mod.includes("if(c.mode==='GENERAL'&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1"));
+assert.ok(modeSql.includes("CHECK(mode IN ('OFF','READONLY','CANARY','GENERAL'))"));
+assert.ok(modeSql.includes('RENAME TO employee_accounting_control_v1_pre_canary'));
+assert.ok(modeSql.includes('SELECT singleton,marker,mode,next_invoice_number,policy_epoch,updated_at'));
+assert.ok(mod.includes("if((c.mode==='CANARY'||c.mode==='GENERAL')&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1"));
+assert.ok(mod.includes("c.mode==='CANARY'"));
+assert.ok(mod.includes('employee-accounting-canary-disabled'));
+assert.ok(mod.includes("writeAuthorityMode:text(c.mode)==='CANARY'?'CANARY_BOUNDED'"));
 assert.ok(mod.includes('writeCanaryReady'));
 assert.ok(mod.includes('writeCanaryEnabled'));
 assert.ok(mod.includes('writeCanaryAllowedUserCount'));
@@ -27,6 +34,7 @@ assert.ok(mod.includes('writeCanaryAllowedActionCount'));
 assert.ok(mod.includes("if(c.mode==='READONLY'&&!READ_ACTIONS.has(action))"));
 
 console.log('EASYSTORE_A2_WRITE_CANARY_POLICY_SOURCE=PASS');
+console.log('DEDICATED_CANARY_MODE=YES');
 console.log('GENERAL_DEFAULT_DENY_GUARD=YES');
 console.log('CANARY_USER_ALLOWLIST=YES');
 console.log('CANARY_ACTION_ALLOWLIST=YES');
