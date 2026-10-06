@@ -4166,3 +4166,71 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - Global Native Auth must remain OFF;
   - non-canary employees must remain Legacy;
   - then perform real UI login and real attendance/start-day smoke for Diya only.
+
+
+#### Entry623 — Diya frontend canary re-enabled after backend Native Auth PASS
+- Preconditions before re-enabling the frontend canary:
+  ```ini
+  FIRST_LOGIN_BOOTSTRAP=PASS
+  FIRST_LOGIN_AUTH_SOURCE=d1-native-bootstrap-v1
+  SECOND_LOGIN_NATIVE=PASS
+  SECOND_LOGIN_AUTH_SOURCE=d1-native-employee-v1
+  D1_SESSION_SMOKE=PASS
+  DASHBOARD_SMOKE=PASS
+  ATTENDANCE_STATE_SMOKE=PASS
+  ACCOUNTING_READONLY_SMOKE=PASS
+  OUTSIDE_17_POLICY_FAIL_CLOSED=PASS
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  FRONTEND_CANARY=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Frontend controlled redeploy:
+  - workflow `.github/workflows/trendos-entry623-diya-frontend-canary-controlled.yml`
+  - workflow update commit `95babd3b235e38af3b6369434e463385e3ef569b`
+  - Run `37446974627`
+  - Job `112214052155`
+  - conclusion = **SUCCESS**.
+- Exact-live baseline remained the known-good frontend:
+  - pre-canary version `bfcc6f85-a748-4b66-a334-b605c72108f7`
+  - new canary frontend version `a29db5d5-ea3b-4bdc-9eb0-594a501571b3`
+  - cache tag `20261006-entry623-diya-canary-backend-pass`.
+- Live config independently verified:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=true
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=['ضياء']
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=17
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=true
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICY_COUNT=17
+  MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE=GENERAL
+  MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE=READONLY
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Backend runtime independently verified after frontend redeploy:
+  ```ini
+  AUTH=TRANSITIONAL / epoch 23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  PLAINTEXT_STORED=false
+  BRIDGE=ON
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  ```
+- No API code deploy, D1 mutation, Accounting mutation, or EasyStore mutation was performed by this frontend gate.
+- Remaining real-user canary gate:
+  1. logout any existing Diya legacy session;
+  2. hard refresh/reopen the Production frontend;
+  3. login as Diya with the same current credentials;
+  4. confirm the platform opens without `Failed to fetch`;
+  5. confirm Dashboard/basic Ops;
+  6. perform the legitimate real attendance/start-day action for Diya;
+  7. report the result before any rollout to another employee.
