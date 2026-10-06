@@ -5522,3 +5522,44 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   ACCOUNTING=READONLY
   ```
 - Next action is not another blind bounded window. First obtain the exact browser/login result from Sherif (success screen or error text/screenshot). If the browser login failed, diagnose that failure while keeping Runtime hardened; only reopen a bounded window after the specific failure cause is resolved.
+
+
+#### Entry637 — Post-login report verification; Sherif still not Native-ready
+- Owner reported that Sherif had entered the platform after Attempt 3.
+- Runtime was verified immediately after that report:
+  ```ini
+  NATIVE_ONLY=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  PLAINTEXT_STORED=false
+  ```
+- No Auth workflow/window was active at verification time.
+- The existing safe Native-user-shape read-only workflow was re-run:
+  - workflow `.github/workflows/trendos-entry637-native-user-shape-readonly.yml`;
+  - Run `37496559329`, run_attempt = 2;
+  - Job `112455040953`;
+  - conclusion = SUCCESS.
+- The read-only audit returned exactly five Native rows:
+  ```text
+  جابر
+  رحمه
+  ريفان
+  ضياء
+  وائل
+  ```
+- No row for `شريف` exists in D1.
+- No password hash or session token was read.
+- Therefore the reported platform entry was not a successful fresh Bootstrap migration event.
+- Current truth:
+  ```ini
+  ENTRY637_POST_LOGIN_REPORT_NATIVE_ROW=ABSENT
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  HARDENING_RESTORED=PASS
+  BACKEND_BRIDGE=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Next safe action: Sherif must fully log out / close the old authenticated tab first. Only after that should one new bounded window be opened, followed by a fresh login during that live window. Do not count an already-authenticated platform session as migration proof.
