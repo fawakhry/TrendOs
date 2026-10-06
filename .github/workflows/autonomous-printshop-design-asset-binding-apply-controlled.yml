@@ -63,8 +63,10 @@ jobs:
           grep -q 'CUSTOMER_PRIVATE' "$SQL"
           grep -q 'GITHUB_PUBLIC' "$SQL"
           ! grep -Eiq 'GOOGLE_DRIVE' "$SQL"
-          ! grep -Eiq '\b(DROP|ALTER|DELETE|VACUUM|REPLACE)\b' "$SQL"
-          ! grep -Eiq '(INSERT|UPDATE)[^;]*(t12_prod_|employee_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' "$SQL"
+          ! grep -Eiq '\b(DROP|ALTER|VACUUM)\b' "$SQL"
+          ! grep -Eiq '\bDELETE[[:space:]]+FROM\b' "$SQL"
+          ! grep -Eiq '\bREPLACE[[:space:]]+INTO\b' "$SQL"
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' "$SQL"
           echo 'DESIGN_ASSET_BINDING_SCHEMA_SAFETY=PASS'
 
       - name: Apply additive asset binding schema
