@@ -2751,3 +2751,77 @@ READY_EVIDENCE_WRITTEN=NO
 OPERATOR_TASK_CONTROL=OFF
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-028 — Accounting CANARY command-budget telemetry live
+
+Autonomous Printshop re-synchronized with EasyStore Accounting after the accounting stream advanced from ACC-036 through ACC-040.
+
+Latest consumed accounting checkpoint: **ACC-040**.
+
+Accounting facts consumed:
+- migration `0030_employee_accounting_write_canary_budget_v1.sql` applied safely;
+- atomic first-canary one-command backend enforcement deployed successfully;
+- Production accounting remains `READONLY`;
+- canary user/action allowlists remain empty;
+- command budget remains closed;
+- no financial/business write has executed.
+
+Autonomous Printshop monitoring was extended read-only to include:
+- `writeCanaryMaxCommands`
+- `writeCanaryCommandsStarted`
+- `writeCanaryCommandsRemaining`
+
+Updated:
+- `autonomous-printshop/core/accounting-cloud-cutover-guard-v1.mjs`
+- `autonomous-printshop/readiness-collector/worker.mjs`
+- related guard/collector tests.
+
+Qualification:
+- Autonomous Printshop Policy V1 CI Run `37497147180` = SUCCESS.
+- Readiness Collector Production Deploy Run `37497146899` = SUCCESS.
+
+Live runtime:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_EPOCH=2
+AUTHORITATIVE_WRITES=false
+WRITE_CANARY_READY=true
+WRITE_CANARY_ENABLED=true
+WRITE_CANARY_ALLOWED_USERS=0
+WRITE_CANARY_ALLOWED_ACTIONS=0
+WRITE_CANARY_MAX_COMMANDS=0
+WRITE_CANARY_COMMANDS_STARTED=0
+WRITE_CANARY_COMMANDS_REMAINING=0
+
+ACCOUNTING_CLOUD_STAGE=CLOUD_BACKEND_READONLY_DATA_PENDING
+ACTIVE_MATERIALS=0
+STOCK_MOVES=0
+DEPT_LINES_WITH_LINE_ID=0
+DEPT_LINES_WITH_MATERIAL=0
+DEPT_LINES_WITH_CONSUMPTION=0
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_BLOCKER=ACCOUNTING_CLOUD_DATA_MIGRATION_PENDING
+
+OPERATOR_TASK_CONTROL=OFF
+OPERATOR_TASK_ROWS=0
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+Dashboard live state at verification:
+- nativeOrders=316;
+- scheduleRows=316;
+- missingSchedule=0;
+- policyMismatches=0;
+- baselineCandidates=48;
+- strictEligible=0;
+- strictBlocked=48;
+- readiness evidenceRows=0.
+
+Safety:
+- accounting authority unchanged;
+- no AP accounting mutation;
+- no canary ARM;
+- no Material READY activation;
+- no Operator Task activation;
+- no employee assignment.
