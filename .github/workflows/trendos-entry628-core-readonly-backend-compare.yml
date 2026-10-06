@@ -99,8 +99,7 @@ jobs:
             const actions=[
               ['getRows',{screen:'service'}],
               ['getDashboard',{screen:'service'}],
-              ['getActivityLog',{limit:50}],
-              ['getTrendMasterCenterV1931',{}]
+              ['getActivityLog',{limit:50}]
             ];
 
             for(const [action,extra] of actions){
@@ -120,15 +119,33 @@ jobs:
                 console.log('ENTRY628_'+action+'_NATIVE_ROWS='+nr);
                 console.log('ENTRY628_'+action+'_LEGACY_ROWS='+lr);
               }
+              if(action==='getRows'){
+                const nid=new Set((native.out.rows||[]).map(r=>String(r.lineId||'')).filter(Boolean));
+                const lid=[...(legacy.out.rows||[])].map(r=>String(r.lineId||'')).filter(Boolean);
+                const inter=lid.filter(id=>nid.has(id)).length;
+                console.log('ENTRY628_GETROWS_LEGACY_IDS_IN_NATIVE='+inter);
+                console.log('ENTRY628_GETROWS_LEGACY_SUBSET_NATIVE='+(inter===lid.length?'YES':'NO'));
+              }
               if(action==='getDashboard'){
                 console.log('ENTRY628_getDashboard_NATIVE_DASHBOARD='+(native.out.dashboard&&typeof native.out.dashboard==='object'?'YES':'NO'));
                 console.log('ENTRY628_getDashboard_LEGACY_DASHBOARD='+(legacy.out.dashboard&&typeof legacy.out.dashboard==='object'?'YES':'NO'));
-              }
-              if(action==='getTrendMasterCenterV1931'){
-                console.log('ENTRY628_TRENDMASTER_NATIVE_KEYS='+keys(native.out).split(',').length);
-                console.log('ENTRY628_TRENDMASTER_LEGACY_KEYS='+keys(legacy.out).split(',').length);
+                const metrics=['activeOrders','urgent','normal','overdue','deliveredToday','readyForPickup','heatPress','completionPercent','performanceScore'];
+                let comparable=0,equal=0;
+                for(const k of metrics){
+                  if(Object.prototype.hasOwnProperty.call(native.out.dashboard||{},k)&&Object.prototype.hasOwnProperty.call(legacy.out.dashboard||{},k)){
+                    comparable++;
+                    if(Number(native.out.dashboard[k])===Number(legacy.out.dashboard[k])) equal++;
+                  }
+                }
+                console.log('ENTRY628_DASHBOARD_COMPARABLE_METRICS='+comparable);
+                console.log('ENTRY628_DASHBOARD_EQUAL_METRICS='+equal);
               }
             }
+            const trend=await post('/v1/employee/core',{username,action:'getTrendMasterCenterV1931'},token);
+            console.log('ENTRY628_TRENDMASTER_NATIVE_HTTP='+trend.status);
+            console.log('ENTRY628_TRENDMASTER_NATIVE_SUCCESS='+(trend.out.success===true?'YES':'NO'));
+            console.log('ENTRY628_TRENDMASTER_NATIVE_KEYS='+keys(trend.out).split(',').length);
+            if(trend.status!==200||trend.out.success!==true) throw new Error('native TrendMaster failed');
             console.log('ENTRY628_CORE_BACKEND_COMPARE=PASS');
             console.log('ENTRY628_BUSINESS_MUTATION=NO');
           })().catch(e=>{
