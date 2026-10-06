@@ -31,6 +31,27 @@ on:
         description: REGISTER_MACHINE only
         required: false
         type: string
+      identity_source_kind:
+        description: REGISTER_MACHINE identity proof source
+        required: false
+        type: choice
+        default: NAMEPLATE
+        options:
+          - NAMEPLATE
+          - OWNER_ASSET_REGISTRY
+      identity_source_ref:
+        description: REGISTER_MACHINE evidence reference; e.g. nameplate photo or asset-registry record
+        required: false
+        type: string
+      serial_or_asset_tag:
+        description: REGISTER_MACHINE serial number or owner asset tag
+        required: false
+        type: string
+      machine_id_explicit:
+        description: REGISTER_MACHINE only; confirms machine ID came from evidence and was not inferred
+        required: false
+        type: boolean
+        default: false
       line_id:
         description: MAP_LINE only; must already exist in TrendOS
         required: false
@@ -91,6 +112,10 @@ jobs:
       DEPARTMENT: ${{ inputs.department }}
       MACHINE_CLASS: ${{ inputs.machine_class }}
       CAPABILITIES_CSV: ${{ inputs.capabilities_csv }}
+      IDENTITY_SOURCE_KIND: ${{ inputs.identity_source_kind }}
+      IDENTITY_SOURCE_REF: ${{ inputs.identity_source_ref }}
+      SERIAL_OR_ASSET_TAG: ${{ inputs.serial_or_asset_tag }}
+      MACHINE_ID_EXPLICIT: ${{ inputs.machine_id_explicit }}
       LINE_ID: ${{ inputs.line_id }}
       MACHINE_STATE: ${{ inputs.machine_state }}
       SOURCE_KIND: ${{ inputs.source_kind }}
@@ -114,9 +139,11 @@ jobs:
             (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
             (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
             (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
-            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='autonomous_machine_identity_events') AS identitySchemaReady;
           SQL
-          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --file /tmp/pre.sql > /tmp/pre.json
+          PRE_SQL="$(tr '\n' ' ' < /tmp/pre.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "$PRE_SQL" > /tmp/pre.json
           cat /tmp/pre.json
           node - <<'NODE'
           const r=JSON.parse(require('fs').readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
@@ -125,7 +152,9 @@ jobs:
           if(String(r.autonomyMode)!=='SHADOW') process.exit(3);
           if(String(r.operatorTaskMode)!=='OFF') process.exit(4);
           if(Number(r.operatorTasks)!==0) process.exit(5);
+          if(Number(r.identitySchemaReady)!==1) process.exit(6);
           console.log('MACHINE_EVIDENCE_PREFLIGHT=PASS');
+          console.log('MACHINE_IDENTITY_SCHEMA_READY=YES');
           NODE
 
       - name: Build validated SQL
@@ -135,10 +164,12 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import {
-            buildRegisterMachineSqlV1,
             buildRecordMachineObservationSqlV1,
             buildMapLineToMachineSqlV1
           } from './autonomous-printshop/core/machine-evidence-command-v1.mjs';
+          import {
+            buildRegisterMachineWithIdentitySqlV1
+          } from './autonomous-printshop/core/machine-identity-command-v1.mjs';
 
           const op=process.env.OPERATION;
           const machineId=process.env.MACHINE_ID;
@@ -149,14 +180,20 @@ jobs:
           let expectedId='';
 
           if(op==='REGISTER_MACHINE'){
-            sql=buildRegisterMachineSqlV1({
+            expectedId='identity-'+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT;
+            sql=buildRegisterMachineWithIdentitySqlV1({
+              identityEventId:expectedId,
               machineId,
+              machineIdExplicit:String(process.env.MACHINE_ID_EXPLICIT).toLowerCase()==='true',
               displayName:process.env.DISPLAY_NAME,
               department:process.env.DEPARTMENT,
               machineClass:process.env.MACHINE_CLASS,
-              capabilities:String(process.env.CAPABILITIES_CSV||'').split(',').map(x=>x.trim()).filter(Boolean)
+              capabilities:String(process.env.CAPABILITIES_CSV||'').split(',').map(x=>x.trim()).filter(Boolean),
+              identitySourceKind:process.env.IDENTITY_SOURCE_KIND,
+              identitySourceRef:process.env.IDENTITY_SOURCE_REF,
+              serialOrAssetTag:process.env.SERIAL_OR_ASSET_TAG,
+              identityEvidence:{workflowRunId:process.env.GITHUB_RUN_ID,directIdentityCheck:true}
             });
-            expectedId=machineId;
           }else if(op==='RECORD_OBSERVATION'){
             expectedId='obs-'+process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT;
             sql=buildRecordMachineObservationSqlV1({
@@ -193,6 +230,7 @@ jobs:
             "  (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,",
             "  (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,",
             '  (SELECT COUNT(*) FROM autonomous_machines WHERE machine_id='+q(machineId)+') AS machineExact,',
+            '  (SELECT COUNT(*) FROM autonomous_machine_identity_events WHERE identity_event_id='+q(expectedId)+' AND machine_id='+q(machineId)+') AS identityExact,',
             '  (SELECT COUNT(*) FROM autonomous_machine_observations WHERE observation_id='+q(expectedId)+') AS observationExact,',
             '  (SELECT COUNT(*) FROM autonomous_line_machine_mapping_events WHERE mapping_event_id='+q(expectedId)+') AS mappingExact;'
           ].join('\n');
@@ -213,14 +251,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --file /tmp/post.sql > /tmp/post.json
+          POST_SQL="$(tr '\n' ' ' < /tmp/post.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --command "$POST_SQL" > /tmp/post.json
           cat /tmp/post.json
           node - <<'NODE'
           const r=JSON.parse(require('fs').readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
           const op=process.env.OPERATION;
           if(String(r.machineMode)!=='SHADOW') process.exit(1);
           if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks)!==0) process.exit(2);
-          if(op==='REGISTER_MACHINE'&&Number(r.machineExact)!==1) process.exit(3);
+          if(op==='REGISTER_MACHINE'&&(Number(r.machineExact)!==1||Number(r.identityExact)!==1)) process.exit(3);
           if(op==='RECORD_OBSERVATION'&&Number(r.observationExact)!==1) process.exit(4);
           if(op==='MAP_LINE'&&Number(r.mappingExact)!==1) process.exit(5);
           console.log('MACHINE_EVIDENCE_RESULT=VERIFIED');
@@ -236,3 +275,5 @@ jobs:
           echo 'ACCOUNTING_WRITE=NO'
           echo 'EMPLOYEE_ASSIGNMENT=NO'
           echo 'READY_REQUIRES_EXPLICIT_DIRECT_CHECK=YES'
+          echo 'MACHINE_IDENTITY_PROOF_REQUIRED=YES'
+          echo 'INFERRED_MACHINE_ID_FORBIDDEN=YES'
