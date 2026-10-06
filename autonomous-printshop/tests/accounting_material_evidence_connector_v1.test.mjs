@@ -17,7 +17,23 @@ function dbFor({mode='READONLY',epoch=2,rows=[]}={}){
 
 let out=await readAccountingMaterialEvidenceSnapshotV1(dbFor({mode:'OFF'}));
 assert.equal(out.qualified,false);
-assert.equal(out.reason,'ACCOUNTING_AUTHORITY_NOT_READONLY');
+assert.equal(out.reason,'ACCOUNTING_CLOUD_AUTHORITY_OFF');
+assert.equal(out.accountingCloudStage,'ACCOUNTING_OFF');
+assert.equal(out.materialFrozen,true);
+assert.equal(out.rows.length,0);
+
+out=await readAccountingMaterialEvidenceSnapshotV1(dbFor({mode:'CANARY'}));
+assert.equal(out.qualified,false);
+assert.equal(out.accountingCloudStage,'CLOUD_WRITE_CANARY_ACTIVE');
+assert.equal(out.reason,'ACCOUNTING_CLOUD_CANARY_ACTIVE_MATERIAL_FROZEN');
+assert.equal(out.materialFrozen,true);
+assert.equal(out.rows.length,0);
+
+out=await readAccountingMaterialEvidenceSnapshotV1(dbFor({mode:'GENERAL'}));
+assert.equal(out.qualified,false);
+assert.equal(out.accountingCloudStage,'CLOUD_GENERAL_REQUIRES_AUTONOMOUS_REQUALIFICATION');
+assert.equal(out.reason,'ACCOUNTING_POST_CUTOVER_REQUALIFICATION_REQUIRED');
+assert.equal(out.materialFrozen,true);
 assert.equal(out.rows.length,0);
 
 out=await readAccountingMaterialEvidenceSnapshotV1(dbFor({
@@ -31,6 +47,8 @@ assert.equal(out.qualified,true);
 assert.equal(out.accountingMode,'READONLY');
 assert.equal(out.accountingEpoch,2);
 assert.equal(out.authority,'employee_accounting_d1_read_model');
+assert.equal(out.accountingCloudStage,'CLOUD_READ_MODEL_PRESENT_READONLY');
+assert.equal(out.materialFrozen,false);
 assert.equal(out.financialWrites,false);
 assert.equal(out.piiExposed,false);
 assert.equal(out.rows.length,1);
