@@ -37,6 +37,7 @@ assert.match(worker,/selectEvidencePilotTargetV1/);
 assert.match(worker,/evidencePilotTarget/);
 assert.match(worker,/buildEvidenceAcquisitionPacketV1/);
 assert.match(worker,/evidenceAcquisitionPacket/);
+assert.match(worker,/evidenceAcquisitionPacket:readiness&&readiness\.evidenceAcquisitionPacket/,'CONTROL_TOWER_PACKET_PROJECTION');
 assert.match(worker,/EVIDENCE_ACQUISITION_ONLY/);
 assert.match(worker,/assignmentAllowed:false/);
 assert.match(worker,/taskClaimAllowed:false/);
