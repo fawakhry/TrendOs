@@ -1,0 +1,20 @@
+name: EasyStore A2.8 Material Canary Execution CI
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a28-approved-material-canary-execution.yml'
+      - '.github/workflows/easystore-a28-material-canary-execution-ci.yml'
+      - 'tests/easystore_a28_material_canary_execution.test.mjs'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/easystore_a28_material_canary_execution.test.mjs
