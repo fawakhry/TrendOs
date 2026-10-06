@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'mode TEXT NOT NULL DEFAULT '''OFF'''' "$SQL"
+          grep -Fq "mode TEXT NOT NULL DEFAULT 'OFF'" "$SQL"
           grep -q 'AUTONOMOUS_DESIGN_ARTIFACTS_APPEND_ONLY' "$SQL"
           grep -q 'AUTONOMOUS_DESIGN_APPROVAL_APPEND_ONLY' "$SQL"
           grep -q 'AUTONOMOUS_DESIGN_PREFLIGHT_APPEND_ONLY' "$SQL"
