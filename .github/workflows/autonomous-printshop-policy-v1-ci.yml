@@ -136,6 +136,8 @@ jobs:
         run: node autonomous-printshop/tests/machine_readiness_v1.test.mjs
       - name: Run EasyStore material read-only connector contract
         run: node autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs
+      - name: Run accounting material evidence connector contract
+        run: node autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs
       - name: Run readiness source adapters contract
         run: node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
       - name: Run readiness collector write-boundary contract
