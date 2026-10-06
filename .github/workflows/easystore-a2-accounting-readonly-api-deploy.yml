@@ -1,6 +1,7 @@
 name: EasyStore A2 Accounting Readonly API Deploy
 # controlled push trigger after A2 preflight pass
 # deploy-round-2 guarded ephemeral shared-base merge
+# deploy-round-3 config-relative-entrypoint-fix
 
 on:
   workflow_dispatch:
@@ -152,7 +153,7 @@ jobs:
         run: |
           from pathlib import Path
           src=Path('cloudflare-d1/wrangler.toml')
-          dst=Path('/tmp/wrangler.a2-accounting-readonly.toml')
+          dst=Path('cloudflare-d1/.wrangler.a2-accounting-readonly.toml')
           lines=src.read_text().splitlines()
           out=[]
           in_vars=False
@@ -178,7 +179,7 @@ jobs:
         run: |
           set -eEuo pipefail
           PRE="$(cat /tmp/pre-api-version.txt)"
-          CONFIG=/tmp/wrangler.a2-accounting-readonly.toml
+          CONFIG=cloudflare-d1/.wrangler.a2-accounting-readonly.toml
           DEPLOYED=0
           rollback(){
             rc=$?
