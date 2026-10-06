@@ -1,0 +1,218 @@
+name: EasyStore A2 Bounded Canary Control
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: CHECK, ARM, or DISABLE
+        required: true
+        type: choice
+        options: [CHECK, ARM, DISABLE]
+      username:
+        description: Exact canonical employee username for ARM
+        required: false
+        type: string
+      action:
+        description: Exact accounting action for ARM
+        required: false
+        type: string
+      ttl_minutes:
+        description: Canary TTL in minutes (5-30)
+        required: false
+        default: '15'
+        type: string
+      confirm:
+        description: ARM requires ARM_ONE_EASYSTORE_CANARY
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: easystore-a2-bounded-canary-control
+  cancel-in-progress: false
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+      OPERATION: ${{ inputs.operation }}
+      CANARY_USERNAME: ${{ inputs.username }}
+      CANARY_ACTION: ${{ inputs.action }}
+      TTL_MINUTES: ${{ inputs.ttl_minutes }}
+      CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Snapshot fail-closed state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?canarycontrol=$GITHUB_RUN_ID" > /tmp/health-pre.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT mode,policy_epoch AS policyEpoch,next_invoice_number AS nextInvoiceNumber
+              FROM employee_accounting_control_v1
+             WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1';
+          " > /tmp/control-pre.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT enabled,allowed_usernames_json AS allowedUsersJson,
+                   allowed_actions_json AS allowedActionsJson,max_amount AS maxAmount,
+                   expires_at_ms AS expiresAtMs,policy_epoch AS policyEpoch
+              FROM employee_accounting_write_canary_v1
+             WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          " > /tmp/canary-pre.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
+          " > /tmp/counts-pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          function rows(path){
+            const x=JSON.parse(fs.readFileSync(path,'utf8')),out=[];
+            const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))out.push(...v.results);for(const [k,z] of Object.entries(v))if(k!=='results')walk(z);}};
+            walk(x);return out;
+          }
+          const h=JSON.parse(fs.readFileSync('/tmp/health-pre.json','utf8'));
+          const c=rows('/tmp/control-pre.json')[0]||{},p=rows('/tmp/canary-pre.json')[0]||{};
+          const op=String(process.env.OPERATION||'').toUpperCase();
+          if(!['CHECK','ARM','DISABLE'].includes(op))throw new Error('unsupported operation');
+          if(!['READONLY','CANARY'].includes(String(c.mode||'')))throw new Error('control mode must be READONLY or CANARY; GENERAL is never accepted by this workflow');
+          if(h.mode!==c.mode)throw new Error('health/control mode mismatch');
+          if(op==='ARM'){
+            if(c.mode!=='READONLY')throw new Error('ARM requires READONLY baseline');
+            if(h.writeCanaryReady!==true||h.writeCanaryEnabled!==true)throw new Error('canary guard not ready/enabled');
+            if(String(p.allowedUsersJson||'[]')!=='[]'||String(p.allowedActionsJson||'[]')!=='[]')throw new Error('ARM requires empty allowlists');
+            const user=String(process.env.CANARY_USERNAME||'').trim(), action=String(process.env.CANARY_ACTION||'').trim();
+            const ttl=Number(process.env.TTL_MINUTES||0);
+            if(!user||!action)throw new Error('ARM requires exact username and action');
+            if(process.env.CONFIRM!=='ARM_ONE_EASYSTORE_CANARY')throw new Error('ARM confirmation mismatch');
+            if(!Number.isInteger(ttl)||ttl<5||ttl>30)throw new Error('TTL must be 5-30 minutes');
+            if(action!=='saveAccountingTemplate')throw new Error('first canary workflow is intentionally locked to saveAccountingTemplate');
+          }
+          console.log('A2_CANARY_CONTROL_PREFLIGHT=PASS');
+          console.log('A2_CANARY_CONTROL_OPERATION='+op);
+          console.log('GENERAL_ALLOWED=NO');
+          NODE
+
+      - name: Apply bounded control operation
+        if: ${{ inputs.operation != 'CHECK' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json, os, time
+          op=os.environ['OPERATION'].upper()
+          def q(v): return "'" + str(v).replace("'","''") + "'"
+          if op=='ARM':
+              user=os.environ['CANARY_USERNAME'].strip()
+              action=os.environ['CANARY_ACTION'].strip()
+              ttl=int(os.environ['TTL_MINUTES'])
+              expires=int(time.time()*1000)+ttl*60*1000
+              sql=f"""
+          UPDATE employee_accounting_write_canary_v1
+             SET enabled=1,
+                 allowed_usernames_json={q(json.dumps([user],ensure_ascii=False,separators=(',',':')))},
+                 allowed_actions_json={q(json.dumps([action],ensure_ascii=False,separators=(',',':')))},
+                 max_amount=0,
+                 expires_at_ms={expires},
+                 policy_epoch=policy_epoch+1,
+                 updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          UPDATE employee_accounting_control_v1
+             SET mode='CANARY',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' AND mode='READONLY';
+          """
+          elif op=='DISABLE':
+              sql="""
+          UPDATE employee_accounting_control_v1
+             SET mode='READONLY',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' AND mode IN ('READONLY','CANARY');
+          UPDATE employee_accounting_write_canary_v1
+             SET enabled=1,allowed_usernames_json='[]',allowed_actions_json='[]',
+                 max_amount=0,expires_at_ms=0,policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          """
+          else:
+              raise SystemExit('unexpected operation')
+          open('/tmp/control.sql','w',encoding='utf-8').write(sql)
+          PY
+          if grep -Eq "mode[[:space:]]*=[[:space:]]*'GENERAL'" /tmp/control.sql; then
+            echo "GENERAL transition forbidden" >&2
+            exit 1
+          fi
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --file /tmp/control.sql
+
+      - name: Verify post-state and zero business mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?canarycontrolpost=$GITHUB_RUN_ID" > /tmp/health-post.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
+          " > /tmp/counts-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          function row(path){
+            const x=JSON.parse(fs.readFileSync(path,'utf8')),rows=[];
+            const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk);}};
+            walk(x);if(rows.length!==1)throw new Error('count parse');return Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v)]));
+          }
+          const pre=row('/tmp/counts-pre.json'),post=row('/tmp/counts-post.json');
+          if(JSON.stringify(pre)!==JSON.stringify(post))throw new Error('control operation mutated accounting business rows');
+          const h=JSON.parse(fs.readFileSync('/tmp/health-post.json','utf8'));
+          const op=String(process.env.OPERATION||'').toUpperCase();
+          if(op==='ARM'){
+            if(h.mode!=='CANARY'||h.writeAuthorityMode!=='CANARY_BOUNDED')throw new Error('ARM did not enter bounded CANARY');
+            if(Number(h.writeCanaryAllowedUserCount)!==1||Number(h.writeCanaryAllowedActionCount)!==1)throw new Error('ARM scope is not exactly one user/one action');
+            if(Number(h.writeCanaryMaxAmount)!==0)throw new Error('first canary must remain zero-value');
+          } else if(op==='DISABLE'){
+            if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw new Error('DISABLE did not restore READONLY');
+            if(Number(h.writeCanaryAllowedUserCount)!==0||Number(h.writeCanaryAllowedActionCount)!==0)throw new Error('DISABLE did not empty allowlists');
+          }
+          console.log('A2_CANARY_CONTROL_POSTCHECK=PASS');
+          console.log('A2_CANARY_CONTROL_BUSINESS_MUTATION=NO');
+          console.log('GENERAL_OPENED=NO');
+          NODE
