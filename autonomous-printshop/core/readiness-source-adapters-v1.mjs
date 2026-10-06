@@ -95,7 +95,7 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
     return {success:true,skipped:true,reason:'READINESS_CONTROL_NOT_SHADOW'};
   }
 
-  const [legacyResult,materialResult,machinesResult,mappingsResult,observationsResult]=await Promise.all([
+  const [legacyResult,materialResult,machineControl,machinesResult,mappingsResult,observationsResult]=await Promise.all([
     db.prepare(`
       SELECT l.line_id AS lineId,
              l.ready,
@@ -145,6 +145,12 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
          )
     `).all(),
     db.prepare(`
+      SELECT mode
+        FROM autonomous_machine_control
+       WHERE singleton_id=1
+       LIMIT 1
+    `).first(),
+    db.prepare(`
       SELECT machine_id AS machineId,
              display_name AS displayName,
              department,
@@ -183,12 +189,14 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
   const candidates=[
     ...legacyDesignEvidenceCandidatesV1(legacyResult.results||[]),
     ...materialBlockerEvidenceCandidatesV1(materialResult.results||[],options),
-    ...machineReadinessEvidenceCandidatesV1({
-      machines:machinesResult.results||[],
-      mappings:mappingsResult.results||[],
-      observations:observationsResult.results||[],
-      nowMs:Number.isFinite(Number(options.nowMs))?Number(options.nowMs):Date.now()
-    })
+    ...(text(machineControl&&machineControl.mode)==='SHADOW'
+      ? machineReadinessEvidenceCandidatesV1({
+          machines:machinesResult.results||[],
+          mappings:mappingsResult.results||[],
+          observations:observationsResult.results||[],
+          nowMs:Number.isFinite(Number(options.nowMs))?Number(options.nowMs):Date.now()
+        })
+      : [])
   ];
 
   let inserted=0;
@@ -207,6 +215,7 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
     candidates:candidates.length,
     inserted,
     duplicates,
-    byKind
+    byKind,
+    machineMode:text(machineControl&&machineControl.mode)||'ABSENT'
   };
 }
