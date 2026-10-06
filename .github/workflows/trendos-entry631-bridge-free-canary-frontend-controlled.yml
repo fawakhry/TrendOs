@@ -1,0 +1,311 @@
+
+name: TrendOS Entry631 Bridge Free Canary Frontend Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry631-bridge-free-canary-frontend-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry631-bridge-free-canary-frontend-controlled
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      EXPECTED_FRONTEND_VERSION: 1d31014e-4e47-4414-933a-3e60a8e80ece
+      PRE_DISPATCHER_COMMIT: d05b2133711850b1afbe94686b02e48043ca2d74
+      ENTRY631_DISPATCHER_COMMIT: a6c959d5f9c097e3005e194942cd1ae541b0c082
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      NEW_CONFIG_TAG: 20261006-entry631-bridge-free-canary
+      NEW_DISPATCHER_TAG: 20261006-entry631-bridge-free-canary
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Repo qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry631_bridge_free_canary_preflight.test.mjs
+          test "$(git rev-parse "$ENTRY631_DISPATCHER_COMMIT:employee-api-dispatcher-v1.js")" = "$(git rev-parse HEAD:employee-api-dispatcher-v1.js)"
+          echo ENTRY631_REPO_QUALIFICATION=PASS
+
+      - name: Exact live preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1||full[0].id!==process.env.EXPECTED_FRONTEND_VERSION) throw new Error('frontend version drift '+JSON.stringify(full));
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY631_FRONTEND_VERSION_LOCK=PASS');
+          NODE
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry631pre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.schemaReady!==true||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('backend bridge safety-net drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          console.log('ENTRY631_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?entry631pre=$suffix" -o /tmp/live-index.html
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry631pre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry631pre=$suffix" -o /tmp/live-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry631pre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry631pre=$suffix" -o /tmp/live-edge.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry631pre=$suffix" -o /tmp/live-attendance.js
+
+          git show "$PRE_DISPATCHER_COMMIT:employee-api-dispatcher-v1.js" >/tmp/repo-entry630-dispatcher.js
+          cmp -s /tmp/live-dispatcher.js /tmp/repo-entry630-dispatcher.js
+          echo ENTRY631_LIVE_DISPATCHER_ENTRY630_EXACT=PASS
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 4;" /tmp/live-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = true;" /tmp/live-config.js
+          grep -Fq '"customerManagerV1:inbox"' /tmp/live-config.js
+          grep -Fq '"getOrderConversation"' /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'READONLY';" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'READONLY';" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE = 'READONLY';" /tmp/live-config.js
+          echo ENTRY631_EXACT_LIVE_BASELINE=PASS
+
+      - name: Build exact-live bridge-free canary bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+
+          cp /tmp/live-index.html cloudflare-d1/frontend-dist/index.html
+          cp /tmp/live-app.js cloudflare-d1/frontend-dist/app.js
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-edge.js cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          cp /tmp/live-attendance.js cloudflare-d1/frontend-dist/attendance-v1.js
+          git show "$ENTRY631_DISPATCHER_COMMIT:employee-api-dispatcher-v1.js" > cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+
+          old="window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 4;"
+          new="window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 0;\nwindow.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 5;"
+          if s.count(old)!=1: raise SystemExit('minimum bridge anchor count='+str(s.count(old)))
+          s=s.replace(old,new,1)
+
+          old_bridge="window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = true;"
+          new_bridge="window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;"
+          if s.count(old_bridge)!=1: raise SystemExit('bridge enabled anchor count='+str(s.count(old_bridge)))
+          s=s.replace(old_bridge,new_bridge,1)
+
+          pat=r'window\.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES\s*=\s*\[[^;]*\];'
+          matches=re.findall(pat,s)
+          if len(matches)!=1: raise SystemExit('bridge policies assignment count='+str(len(matches)))
+          s=re.sub(pat,'window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];',s,count=1)
+          p.write_text(s)
+          PY
+
+          export NEW_CONFIG="config.js?v=$NEW_CONFIG_TAG"
+          export NEW_DISPATCHER="employee-api-dispatcher-v1.js?v=$NEW_DISPATCHER_TAG"
+          python3 <<'PY'
+          from pathlib import Path
+          import os,re
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          pairs=[
+            (r'config[.]js[?]v=[^"]+',os.environ['NEW_CONFIG'],'config'),
+            (r'employee-api-dispatcher-v1[.]js[?]v=[^"]+',os.environ['NEW_DISPATCHER'],'dispatcher')
+          ]
+          for pat,new,label in pairs:
+              matches=re.findall(pat,s)
+              if len(matches)!=1: raise SystemExit(label+' cache tag count='+str(len(matches)))
+              s=re.sub(pat,new,s,count=1)
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/config.js
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 0;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 5;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "function bridgeFreeCanaryConfigured" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "config.js?v=$NEW_CONFIG_TAG" cloudflare-d1/frontend-dist/index.html
+          grep -Fq "employee-api-dispatcher-v1.js?v=$NEW_DISPATCHER_TAG" cloudflare-d1/frontend-dist/index.html
+          echo ENTRY631_BRIDGE_FREE_FRONTEND_BUNDLE=PASS
+
+      - name: Deploy and run real bridge-free login smoke
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry631 bridge-free canary automatic rollback" --config "$FRONTEND_CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/?entry631post=$suffix" -o /tmp/post-index.html \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry631post=$suffix" -o /tmp/post-config.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry631post=$suffix" -o /tmp/post-dispatcher.js \
+              && grep -Fq "config.js?v=$NEW_CONFIG_TAG" /tmp/post-index.html \
+              && grep -Fq "employee-api-dispatcher-v1.js?v=$NEW_DISPATCHER_TAG" /tmp/post-index.html \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 0;" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 5;" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];" /tmp/post-config.js \
+              && grep -Fq "function bridgeFreeCanaryConfigured" /tmp/post-dispatcher.js; then
+                OK=1
+                echo "ENTRY631_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('/tmp/post-dispatcher.js','utf8');
+          const calls=[];
+          const realFetch=globalThis.fetch;
+          const legacy=async(action,params)=>({success:true,source:'legacy',action});
+          legacy.__trendosEdgeOrdersReadV1=true;
+          const windowObject={
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_V1:false,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1:true,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:['ضياء','diaa','وائل','wael','جابر','gaber','jaber','رحمه','رحمة','rahma','ريفان','ريڤان','revan','rivan'],
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:0,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT:5,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:false,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[],
+            MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_API_URL:process.env.API_URL,
+            MATBAGY_EDGE_ORDERS_API_URL:process.env.API_URL,
+            trendosSecureApiV1922:legacy
+          };
+          const trackedFetch=async(url,options={})=>{
+            const u=String(url); calls.push(u);
+            return realFetch(url,options);
+          };
+          const sandbox={
+            window:windowObject,console,URL,Set,Map,JSON,Error,Number,Date,Promise,AbortController,TextEncoder,
+            setTimeout,clearTimeout,setInterval,clearInterval,Response,fetch:trackedFetch
+          };
+          vm.runInNewContext(source,sandbox,{filename:'live-entry631-dispatcher.js'});
+          (async()=>{
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            const password=String(process.env.QUALIFY_PASSWORD||'');
+            const out=await windowObject.trendosEmployeeApiV1('login',{username,password});
+            const token=String(out&&out.user&&out.user.token||'').trim();
+            if(out.success!==true||String(out.authSource||'')!=='d1-native-employee-v1'||!token) throw new Error('live dispatcher login failed');
+            console.log('::add-mask::'+token);
+            if(calls.filter(u=>u.endsWith('/v1/employee/auth/health')).length!==1) throw new Error('auth health count');
+            if(calls.some(u=>u.includes('/v1/employee/legacy-action'))) throw new Error('bridge was called');
+            console.log('ENTRY631_LIVE_DISPATCHER_LOGIN=PASS');
+            console.log('ENTRY631_LIVE_BRIDGE_HEALTH_CALLS=0');
+            console.log('ENTRY631_LIVE_BRIDGE_ACTION_CALLS=0');
+            const logout=await windowObject.trendosEmployeeApiV1('logout',{username,token});
+            if(logout.success!==true) throw new Error('logout failed');
+            console.log('ENTRY631_LIVE_LOGOUT=PASS');
+          })().catch(e=>{console.error('ENTRY631_LIVE_SMOKE=FAIL '+String(e&&e.message||e));process.exit(31);});
+          NODE
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry631post=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth post drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('backend bridge safety-net drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core post drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content post drift');
+          if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting post drift');
+          console.log('ENTRY631_FRONTEND_POSTFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version');
+          console.log('ENTRY631_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY631_FRONTEND_BRIDGE_FREE=PASS
+          echo ENTRY631_FRONTEND_BRIDGE_ENABLED=NO
+          echo ENTRY631_FRONTEND_BRIDGE_POLICY_COUNT=0
+          echo ENTRY631_CANARY_REQUIRED_NATIVE_READY=5
+          echo ENTRY631_GLOBAL_NATIVE_AUTH=OFF
+          echo ENTRY631_BACKEND_BRIDGE_SAFETY_NET=ON_17
+          echo ENTRY631_API_DEPLOY=NO
+          echo ENTRY631_D1_CONTROL_MUTATION=NO
+          echo ENTRY631_ACCOUNTING_TOUCHED=NO
+          echo ENTRY631_EASYSTORE_TOUCHED=NO
