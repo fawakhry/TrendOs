@@ -104,6 +104,12 @@ jobs:
             -X PATCH "$BASE/settings" \
             -F 'settings=</tmp/settings-patch.json;type=application/json')"
           echo "ENTRY632_SETTINGS_PATCH_HTTP=$HTTP"
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/patch-response.json','utf8')||'{}');
+          for(const e of (x.errors||[])) console.log('ENTRY632_CLOUDFLARE_ERROR='+String(e&&e.code||'')+':'+String(e&&e.message||''));
+          for(const m of (x.messages||[])) console.log('ENTRY632_CLOUDFLARE_MESSAGE='+String(m&&m.code||'')+':'+String(m&&m.message||''));
+          NODE
           test "$HTTP" -ge 200
           test "$HTTP" -lt 300
 
