@@ -3,6 +3,11 @@ name: TrendOS Entry623 Auth Stage API Manual Deploy
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml'
 
 permissions:
   contents: read
