@@ -28,6 +28,8 @@ window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];
 // READONLY routes only qualified Ops reads to D1; GENERAL routes all Ops actions.
 window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'OFF';
 window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'OFF';
+// Entry628 bridge-retirement family. Default-OFF; READONLY routes only the four qualified Core reads.
+window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'OFF';
 
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
 window.MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED = true;
