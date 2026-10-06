@@ -36,11 +36,13 @@ export function evaluateAndBuildStructuredDesignPreflightV1(input={}){
   const recipe=getRecipeByIdV1(input.catalog,recipeId);
   if(!recipe) throw new Error('RECIPE_NOT_FOUND');
 
-  const artifact={
-    widthMm:positiveOrNull(input.widthMm),
-    heightMm:positiveOrNull(input.heightMm),
-    dpi:positiveOrNull(input.dpi)
-  };
+  const widthMm=positiveOrNull(input.widthMm);
+  const heightMm=positiveOrNull(input.heightMm);
+  const dpi=positiveOrNull(input.dpi);
+  const artifact={};
+  if(widthMm!=null) artifact.widthMm=widthMm;
+  if(heightMm!=null) artifact.heightMm=heightMm;
+  if(dpi!=null) artifact.dpi=dpi;
 
   const signals={
     assetRoles:Array.isArray(input.assetRoles)?input.assetRoles:[],
