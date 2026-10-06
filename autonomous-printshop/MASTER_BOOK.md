@@ -3152,3 +3152,50 @@ MATERIAL_READY=NO
 OPERATOR_TASK_CONTROL=OFF
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-035 — Cloud order-file content-hash schema live in Production
+
+The additive Cloud order-file hash schema was safely applied after the AP-032 repo-only qualification.
+
+Initial Production apply Run `37501570136` stopped fail-closed in preflight because the gate queried the readiness table using stale column name `kind` instead of canonical `evidence_kind`.
+- schema apply step was skipped;
+- Production schema/business data were unchanged.
+
+The preflight was corrected without weakening any safety condition.
+
+Final Production apply:
+- workflow: `.github/workflows/autonomous-printshop-cloud-file-hash-schema-production-apply.yml`;
+- Run `37501799039` = **SUCCESS**.
+
+Pre/post invariants:
+- Accounting remained READONLY/default-deny;
+- server accounting canary remained fully closed;
+- Comms remained READONLY;
+- cloud order-file rows remained 0;
+- Operator Task remained OFF with 0 rows;
+- Design artifacts/approvals/preflights/readiness evidence remained 0;
+- no R2 write/upload occurred.
+
+Production result:
+```ini
+CLOUD_FILE_HASH_SCHEMA_READY=true
+CLOUD_ORDER_FILES=0
+CLOUD_LINE_LINKED_FILES=0
+HASHED_FILE_ROWS=0
+COMMS_MODE=READONLY
+R2_READY=false
+DESIGN_ARTIFACTS=0
+DESIGN_APPROVALS=0
+DESIGN_PREFLIGHTS=0
+DESIGN_READY_EVIDENCE=0
+OPERATOR_TASK_CONTROL=OFF
+```
+
+Readiness Collector immediately reflects `cloudFileHashSchemaReady=true`.
+
+Important boundary:
+- the hash-capturing upload source remains qualified repo-only;
+- the shared TrendOS API worker was **not** deployed from the Autonomous Printshop branch, avoiding regression of the newer concurrent Accounting backend;
+- R2 remains blocked by missing/insufficient infrastructure permission/binding;
+- upload still does not imply approval, preflight PASS, or READY.
