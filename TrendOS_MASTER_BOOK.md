@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.21-ZERO-GOOGLE-COMPACT — Entry641 retirement audit / CF drift found** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.22-ZERO-GOOGLE-COMPACT — Entry642 deploy-resilient Auth hardening PASS** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -5915,3 +5915,99 @@ ENTRY641_AFTER_CF_GATE=DISABLE_APPS_SCRIPT_BRIDGE_PROPERTY
 - This recorder Run: `37544239094`.
 - Recorder source SHA: `bc161757c8102b86c2d3a659ec80a2612fd7275c`.
 - `ENTRY641_DOCUMENTATION=PASS`.
+
+
+#### Entry642 — Deploy-resilient employee Auth hardening; PASS
+- الهدف: إصلاح Cloudflare Auth env drift المكتشف في Entry641 وجعل repo defaults نفسها hardened لأي deploy مستقبلي.
+- لا D1 mutation، لا Apps Script mutation، لا frontend deploy، لا Accounting mutation، لا EasyStore mutation، ولا business-data mutation.
+- Evidence: `docs/trendos/staging/ENTRY642_DEPLOY_RESILIENT_AUTH_HARDENING_20261007.md`.
+- Evidence commit: `6fbd1cf4b0f4e05fb6ea90f66995a3ed21a84195`.
+
+##### Entry641 follow-up rerun before Entry642
+- تم rerun لنفس Entry641 read-only job بدون أي Push جديد:
+  - Run `37544005767`, run_attempt = 2
+  - Job `112544607661`
+  - Conclusion `SUCCESS`.
+- النتيجة: لم يظهر أي API deployment جديد؛ active version ظل `b1eb1e51-d713-4e30-8da5-a127fd53284b` بنفس timestamp `2026-10-06T22:56:20.972111Z`.
+- بالتالي commits العادية التي حدثت أثناء نافذة المراقبة لم تثبت أنها تسبب API auto-deploy.
+
+##### Attempt 1 — failure before mutation
+- Workflow source: `d1aec76dec9fd9098ed9dd51dbe0cc1b86c9d2ed`.
+- Run `37544706079`, Job `112545806855`, conclusion `FAILURE`.
+- Preflight PASS:
+  - Auth authority `NATIVE`, Native-ready `6/6`
+  - pre env: `BOOTSTRAP=true`, `NATIVE_ONLY=false`, session enroll false
+  - Bridge OFF, policies 17, secret configured
+  - frontend Global Native PASS
+  - repo drift precondition PASS.
+- Cloudflare pre active version: `b1eb1e51-d713-4e30-8da5-a127fd53284b`.
+- binding count = 33.
+- failure code: Cloudflare `10057`; Settings API `inherit.version_id` accepts only literal `latest`, not a version UUID.
+- PATCH did not occur; rollback reported `ENTRY642_ROLLBACK_NOT_NEEDED=PRE_PATCH_FAILURE`.
+- Production mutation from Attempt 1: NO.
+
+##### Attempt 2 — PASS
+- Fix commit: `af82f152377ec56f052eca6a08541e4519616e69`.
+- Run `37544785002`, Job `112546068390`, conclusion `SUCCESS`.
+- Workflow first proved `latest == active`, then safely used literal `latest` inheritance.
+- Cloudflare:
+  - pre version: `b1eb1e51-d713-4e30-8da5-a127fd53284b`
+  - `ENTRY642_CF_SETTINGS_PATCH=PASS`
+  - new version: `e4322cbd-ac74-4f7c-b1ff-5833ea524e5a`
+  - `ENTRY642_CF_EXPLICIT_DEPLOY=NO` (Cloudflare activated settings version automatically)
+  - `ENTRY642_CF_CODE_ETAG_UNCHANGED=PASS`.
+- Production target:
+  - Auth enabled = true
+  - Bootstrap = false
+  - Native-only = true
+  - Legacy-session-enroll = false
+  - Backend Bridge = false
+  - Bridge actions/policies = empty/0.
+- Bridge secret binding intentionally retained for rollback safety; secret value was never read or logged.
+- Production proof:
+  - propagation attempt = 2
+  - family postflight PASS
+  - `ENTRY642_NATIVE_LOGIN=PASS`
+  - `ENTRY642_LEGACY_BRIDGE_CALLS=0`
+  - `ENTRY642_NATIVE_LOGOUT=PASS`
+  - `ENTRY642_UNKNOWN_USER_FAIL_CLOSED=PASS`
+  - `ENTRY642_PRODUCTION_HARDENING=PASS`
+  - `ENTRY642_CF_BRIDGE_POLICY_COUNT=0`.
+- Exact pre-version rollback was armed but not invoked because all production checks passed.
+
+##### Repo deploy-resilience
+- Only `cloudflare-d1/wrangler.toml` was reconciled after production proof.
+- Commit: `db0e850ff096c12b3f663c3df20edc7e0b506999`.
+- `ENTRY642_WRANGLER_RECONCILED=PASS`.
+- Repo defaults now:
+  - `TRENDOS_EMPLOYEE_AUTH_V1_ENABLED="true"`
+  - `TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED="false"`
+  - `TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1="true"`
+  - `TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED="false"`
+  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED="false"`
+  - `EMPLOYEE_LEGACY_BRIDGE_ACTIONS=""`.
+
+##### Final stable truth
+```ini
+ENTRY642=PASS
+ENTRY642_DEPLOY_RESILIENT_AUTH_HARDENING=PASS
+AUTH_MODE=NATIVE
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+NATIVE_ONLY=true
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+BACKEND_BRIDGE_SECRET_RETAINED=true
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_BRIDGE=false
+WRANGLER_AUTH_DEFAULTS=HARDENED
+APPS_SCRIPT_BRIDGE=STILL_ENABLED_FROM_ENTRY641_AUDIT
+```
+- Accounting كان read-only observation فقط؛ في final stability read وصل مستقلًا إلى `READONLY / epoch10` مع `authoritativeWrites=false`, `writeAuthorityMode=OFF`, `googleBusinessCalls=0`, `appsScriptBusinessAuthority=false`. Entry642 لم يعدله.
+- Next gate: disable Apps Script bridge enabled property while retaining secret/deployment for rollback.
+- This recorder Run: `37545009058`.
+- Recorder source SHA: `f785b22f204103eaa29fc7bd9e670a6565e4589c`.
+- `ENTRY642_DOCUMENTATION=PASS`.
