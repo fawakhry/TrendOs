@@ -99,7 +99,11 @@ for(const action of manifest.coreNativeReads){
 const beforeKnowledge=fetchCalls.length;
 out=await windowObject.trendosEmployeeApiV1('getKnowledge',{username:'ضياء',token:'native-token'});
 assert.equal(out.success,true);
-assert.equal(fetchCalls.length,beforeKnowledge+1);
+// First remaining Bridge action after the 17 -> 13 policy transition revalidates
+// Auth + Bridge health, then performs the actual bridged request.
+assert.equal(fetchCalls.length,beforeKnowledge+3);
+assert.equal(fetchCalls.at(-3).url,'https://trendos-d1-api.example.test/v1/employee/auth/health');
+assert.equal(fetchCalls.at(-2).url,'https://trendos-d1-api.example.test/v1/employee/legacy-action/health');
 assert.equal(fetchCalls.at(-1).url,'https://trendos-d1-api.example.test/v1/employee/legacy-action');
 assert.equal(JSON.parse(fetchCalls.at(-1).options.body).action,'getKnowledge');
 
