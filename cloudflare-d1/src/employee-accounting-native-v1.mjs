@@ -112,6 +112,9 @@ function writeAmountV1(body){
   const vals=[
     num(b.amount),num(b.total),num(b.finalTotal),num(b.manualAmount),
     num(b.paid),num(b.openingDebt||b.opening||b.debt),
+    num(b.salePrice||b.systemSale||b.price),
+    num(b.fixedCost||b.computedUnitCost||b.calculatedUnitCost||b.calculatedCost),
+    num(b.unitCost||b.cost),
     num(b.qty)*num(b.unit||b.unitPrice||b.unitCost)
   ].map(x=>Math.abs(x)).filter(Number.isFinite);
   return vals.length?Math.max(...vals):0;
@@ -128,6 +131,7 @@ async function enforceWriteCanaryV1(env,auth,action,body,requireEnabled=false){
   if(!p.allowedUsers.includes(key(auth&&auth.user&&auth.user.username)))throw commandErrorV1('employee-accounting-canary-user-blocked','هذا المستخدم غير مسموح له بكاناري كتابة الحسابات.');
   if(!p.allowedActions.includes(text(action)))throw commandErrorV1('employee-accounting-canary-action-blocked','هذه الحركة غير مسموحة داخل كاناري الحسابات.');
   const amount=writeAmountV1(body);
+  if(requireEnabled&&p.maxAmount<=0&&amount>0.000001)throw commandErrorV1('employee-accounting-canary-zero-value-only','كاناري الحسابات الحالي يسمح فقط بحركة صفرية القيمة.');
   if(p.maxAmount>0&&amount>p.maxAmount+0.000001)throw commandErrorV1('employee-accounting-canary-amount-blocked','قيمة الحركة أعلى من حد كاناري الحسابات.');
   return {allowed:true,canary:true,policyEpoch:p.policyEpoch,amount};
 }
