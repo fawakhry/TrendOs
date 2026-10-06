@@ -1,0 +1,56 @@
+{
+  "entry": "Entry625",
+  "purpose": "Third-employee Native Auth canary expansion after Entry624 PASS; add Jaber only while Global Native Auth remains OFF",
+  "existingCanaryUsers": [
+    "ضياء",
+    "وائل"
+  ],
+  "addedCanaryUsername": "جابر",
+  "targetCanaryUsers": [
+    "ضياء",
+    "وائل",
+    "جابر"
+  ],
+  "selectionRationale": "جابر shares the same department-operator/read-only accounting surface as وائل, reducing rollout novelty.",
+  "globalNativeAuth": false,
+  "frontendCanaryTarget": true,
+  "frontendBridgeTarget": true,
+  "frontendMinimumBridgePolicies": 17,
+  "authModeTarget": "TRANSITIONAL",
+  "authPolicyEpochTarget": 23,
+  "bridgePolicyCount": 17,
+  "expectedNativeReadyBeforeJaberLogin": 2,
+  "expectedNativeReadyAfterJaberBootstrap": 3,
+  "accountingProgram": "DEFERRED_EXTERNAL_REPO",
+  "accountingMode": "READONLY",
+  "opsMode": "GENERAL",
+  "policies": [
+    "customerManagerV1:inbox",
+    "customerManagerV1:thread",
+    "getActivityLog",
+    "getDashboard",
+    "getFranchiseBranches",
+    "getKnowledge",
+    "getLeadPhoneNumbers",
+    "getMarketplace",
+    "getMatbagyNotes",
+    "getOrderConversation",
+    "getPlatformAds",
+    "getPlatformSections",
+    "getRows",
+    "getServiceProviderRoutes",
+    "getTrendMasterCenterV1931",
+    "getWhiteLabelSettings",
+    "goLiveAutopilotV1:listDrafts"
+  ],
+  "invariants": [
+    "Only ضياء ووائل وجابر are selected by the frontend Native Auth canary allowlist.",
+    "All other employees remain Legacy while Global Native Auth stays false.",
+    "Auth remains TRANSITIONAL epoch23; no D1 auth-control mutation is required.",
+    "Ops remains GENERAL and Accounting remains READONLY.",
+    "No Accounting bridge policies are added.",
+    "No already-native Ops policies are added.",
+    "Any selected-canary legacy action outside the exact 17-policy pilot fails closed.",
+    "EasyStore remains untouched."
+  ]
+}
