@@ -16,25 +16,19 @@ window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.w
 // T12 A61 employee API dispatcher foundation. Default-OFF: no runtime change
 // until native employee auth and the temporary legacy bridge are separately qualified.
 window.MATBAGY_EMPLOYEE_API_URL = window.MATBAGY_EDGE_ORDERS_API_URL;
-window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;
-// Entry611: optional per-user native-auth canary. Default-OFF and empty means
-// exact legacy login behavior for every employee until Production approval.
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];
-window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 69;
-window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 0;
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 0;
+window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT = 6;
 window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;
 window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = [];
-// Entry617 family cutover. OFF preserves exact current employee behavior.
-// READONLY routes only qualified Ops reads to D1; GENERAL routes all Ops actions.
-window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'OFF';
-window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'OFF';
-// Entry628 bridge-retirement family. Default-OFF; READONLY routes only the four qualified Core reads.
-window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'OFF';
-// Entry629 bridge-retirement family. Default-OFF; READONLY routes the nine qualified Content reads.
-window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'OFF';
-// Entry630 final business bridge-retirement family. Default-OFF; READONLY routes four qualified Comms reads.
-window.MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE = 'OFF';
+// Entry617: Ops family READONLY cutover. Auth and Bridge remain OFF.
+window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';
+window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY';
+window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'READONLY';
+window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'READONLY';
+window.MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE = 'READONLY';
 
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
 window.MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED = true;
@@ -125,7 +119,7 @@ var TRENDOS_AUTH_CRITICAL_MODULES_V1 = [
   ['trendResumeNoAutoRefreshV1Loader','trendos-resume-no-autorefresh-v1.js?v=20260930-a61-cloud-transport']
 ];
 var TRENDOS_AUTH_DEFERRED_MODULES_V1 = [
-  ['trendAttendanceV1Loader','attendance-v1.js?v=20260930-a61-cloud-transport'],
+  ['trendAttendanceV1Loader','attendance-v1.js?v=20261004-entry620-d1-state-contract'],
   ['trendAttendanceLiveTimerV1Loader','attendance-live-timer-v1.js?v=20260930-a61-cloud-transport'],
   ['trendAttendanceClockinV1Loader','attendance-clockin-ui-v1.js?v=20260930-a61-cloud-transport'],
   ['trendPrayerPrepV1Loader','employee-prayer-prep-v1.js?v=20260930-a61-cloud-transport'],
