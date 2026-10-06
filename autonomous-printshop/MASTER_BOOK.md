@@ -2487,3 +2487,122 @@ READY_FROM_NO_FAULT=FORBIDDEN
 DIRECT_MACHINE_CHECK_REQUIRED=YES
 OPERATOR_TASK_CONTROL=OFF
 ```
+
+
+### AP-024 — Manual design evidence bundle path qualified
+
+A controlled manual Design evidence intake path was added without importing any guessed historical design into Production.
+
+Added:
+- `autonomous-printshop/core/design-evidence-command-v1.mjs`
+- `autonomous-printshop/tests/design_evidence_command_v1.test.mjs`
+- `.github/workflows/autonomous-printshop-design-evidence-manual.yml`
+- `autonomous-printshop/tests/design_evidence_manual_workflow_v1.test.mjs`
+
+The workflow is `workflow_dispatch` only and has no automatic trigger.
+
+A design bundle is accepted only when all of the following are explicit and valid:
+- real TrendOS order_id
+- real TrendOS line_id belonging to that order
+- Matbagy case_id and source_asset_id
+- 64-char content SHA256
+- LINKED storage provider/reference
+- qualified approval status
+- explicit approval actor = CUSTOMER or OWNER
+- approval evidence reference
+- qualified preflight recipe
+- preflight result = PASS
+
+The command writes only the append-only Design evidence model:
+- artifact
+- asset binding
+- approval event
+- preflight run
+
+It cannot write orders, operational lines, accounting or employee assignments.
+
+Policy CI Run `37492388229` = SUCCESS and later full Policy CI Run `37492869446` also = SUCCESS.
+
+No historical Matbagy case was imported because current Matbagy cases do not have proven order_id + line_id linkage.
+
+```ini
+DESIGN_MANUAL_EVIDENCE_PATH=QUALIFIED
+DESIGN_AUTO_TRIGGER=NO
+REAL_ORDER_LINE_MATCH_REQUIRED=YES
+LINKED_ASSET_REQUIRED=YES
+SHA256_REQUIRED=YES
+QUALIFIED_APPROVAL_REQUIRED=YES
+PREFLIGHT_PASS_REQUIRED=YES
+CURRENT_IMPORTED_DESIGN_ARTIFACTS=0
+OPERATOR_TASK_CONTROL=OFF
+```
+
+
+### AP-025 — Evidence blockers and observer run telemetry live
+
+The shadow observability layer now exposes acquisition blockers directly from Production runtime.
+
+#### Readiness Collector evidence status
+Added read-only route:
+- `/evidence-status`
+
+Collector Production Deploy Run `37492648838` = SUCCESS.
+
+Live Runtime:
+- Design: SHADOW, artifacts=0, approvals=0, preflights=0, linkedBindings=0
+  - blocker = `REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING`
+- Material: Accounting=READONLY, activeMaterials=0, stockMoves=0, linked/consumption source rows=0
+  - blocker = `AUTHORITATIVE_MATERIAL_SOURCE_DATA_MISSING`
+- Machine: SHADOW, activeMachines=0, activeObservations=0, mappings=0
+  - blocker = `REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED`
+- readiness evidenceRows=0
+- Operator Task = OFF
+- operatorTasks=0
+- PII exposed=false
+- businessWrites=false
+- employeeAssignment=false
+
+#### Dashboard
+Dashboard now reads the Collector through a Cloudflare Service Binding only; no D1 binding was added.
+
+Dashboard Production Deploy Run `37492869390` = SUCCESS.
+Policy CI Run `37492869446` = SUCCESS.
+
+Live `/state` now includes `evidenceAcquisition` with the three Runtime blockers above.
+
+#### Observer run ledger
+The first scheduled cron after the observer run-ledger deployment executed successfully:
+- runId = `observer-cron-1791302733913`
+- triggerKind = CRON
+- status = SUCCESS
+- state = READINESS_BLOCKED
+- baselineCandidates = 44
+- strictCandidates = 0
+- evidenceRows = 0
+- eventInserted = true
+- decision = HUMAN_EXCEPTION
+- recommendedDecision = HUMAN_EXCEPTION
+
+Autonomy events increased from 7 to 8.
+The earlier `latestRun=null` was therefore not a code defect; it was simply observed before the first post-deploy scheduled cron.
+
+Current safety remains unchanged:
+- Autonomy = SHADOW
+- Readiness = SHADOW
+- Design = SHADOW
+- Machine = SHADOW
+- Operator Task = OFF
+- no live employee assignment
+- no business mutation by dashboard/observer/collector
+- strictEligible = 0
+
+```ini
+EVIDENCE_STATUS_ROUTE=PRODUCTION_LIVE
+DASHBOARD_EVIDENCE_BLOCKERS=PRODUCTION_LIVE
+OBSERVER_RUN_LEDGER=PRODUCTION_CONFIRMED
+AUTONOMY_EVENTS=8
+STRICT_ELIGIBLE=0
+READINESS_EVIDENCE_ROWS=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
