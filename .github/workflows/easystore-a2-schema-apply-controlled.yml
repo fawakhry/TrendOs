@@ -2,11 +2,7 @@ name: EasyStore A2 Schema Apply Controlled
 # trigger A2.7 migration 0030 one-command budget after ACC-038
 
 on:
-  push:
-    branches:
-      - candidate/easystore-accounting-a2-20261005
-    paths:
-      - '.github/workflows/easystore-a2-schema-apply-controlled.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -87,9 +83,11 @@ jobs:
           fs.writeFileSync('/tmp/pre-next.txt',String(Number(c.nextInvoiceNumber)));
           const rows=find('/tmp/accounting-pre.json',x=>x.materials!==undefined);
           if(rows.length!==1) throw new Error('accounting-count-parse');
-          const nonzero=Object.entries(rows[0]).filter(([,v])=>Number(v)!==0);
-          if(nonzero.length) throw new Error('accounting-clean-baseline-required:'+JSON.stringify(nonzero));
-          console.log('A2_SCHEMA_ACCOUNTING_BASELINE_ROWS=0');
+          const r=Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v||0)]));
+          const expected={requestLedger:1,materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,stockMoves:0,events:1};
+          const drift=Object.keys(expected).filter(k=>r[k]!==expected[k]).map(k=>({key:k,actual:r[k],expected:expected[k]}));
+          if(drift.length) throw new Error('approved-post-canary-baseline-required:'+JSON.stringify(drift));
+          console.log('A2_SCHEMA_ACCOUNTING_BASELINE=APPROVED_CANARY_EVIDENCE');
           NODE
 
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
@@ -182,9 +180,11 @@ jobs:
           const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/accounting-post.json','utf8')),rows=[];
           const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
           walk(x);if(rows.length!==1)throw new Error('post-accounting-count-parse');
-          const nonzero=Object.entries(rows[0]).filter(([,v])=>Number(v)!==0);
-          if(nonzero.length)throw new Error('migration-created-business-data:'+JSON.stringify(nonzero));
-          console.log('A2_SCHEMA_ACCOUNTING_ROWS_POST=0');
+          const r=Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v||0)]));
+          const expected={requestLedger:1,materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,stockMoves:0,events:1,parties:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,txGuard:0};
+          const drift=Object.keys(expected).filter(k=>r[k]!==expected[k]).map(k=>({key:k,actual:r[k],expected:expected[k]}));
+          if(drift.length)throw new Error('migration-created-or-altered-accounting-evidence:'+JSON.stringify(drift));
+          console.log('A2_SCHEMA_ACCOUNTING_POST=APPROVED_CANARY_EVIDENCE');
           NODE
 
           : > /tmp/sentinel-post.tsv
@@ -232,5 +232,5 @@ jobs:
           if(h.mode!=='READONLY'||h.authoritativeWrites!==false||Number(h.googleBusinessCalls||0)!==0)throw new Error('post-health-drift');
           console.log('A2_SCHEMA_POST_HEALTH=PASS');
           console.log('A2_SCHEMA_PRODUCTION_BUSINESS_DATA_MUTATION=NO');
-          console.log('A2_SCHEMA_PRODUCTION_SCHEMA_MUTATION=YES');
+          console.log('A2_SCHEMA_POST_BASELINE=APPROVED_CANARY_EVIDENCE');
           NODE
