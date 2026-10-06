@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY633_NATIVE_USERNAME_CANONICALIZATION_V1_20261006';
+  var VERSION = 'T12_ENTRY635_NATIVE_ONLY_BRIDGE_FREE_PREFLIGHT_V1_20261006';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -411,7 +411,7 @@
     var requiredReady = canaryRequiredNativeReadyCount();
     if (!auth || auth.success !== true || auth.schemaReady !== true ||
         auth.mode !== 'TRANSITIONAL' || auth.envEnabled !== true ||
-        auth.nativeOnly === true || auth.plaintextStored === true ||
+        auth.plaintextStored === true ||
         !(auth.legacyBootstrapEnabled === true || Number(auth.nativeReadyCount || 0) > 0)) {
       throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز على Cloud.', 'auth-health');
     }
@@ -421,6 +421,10 @@
         throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Canary Native Auth غير جاهز: عدد الموظفين Native-ready أقل من المطلوب.', 'native-ready-count');
       }
       return true;
+    }
+
+    if (auth.nativeOnly === true) {
+      throw routeError('EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED', 'Native-only لا يعمل مع Compatibility Bridge.', 'native-only-with-bridge');
     }
 
     if (!bridgeEnabled()) {
