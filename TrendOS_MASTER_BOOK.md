@@ -4731,3 +4731,45 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - Jaber completed Production login successfully.
 - Runtime after login: D1_AUTH_USERS=4, D1_NATIVE_READY_USERS=4.
 - Bridge remains 17 policies; Ops GENERAL epoch7; Accounting READONLY epoch2; Global Native Auth remains OFF.
+
+
+### Entry630 — Comms READONLY cutover PASS; business Bridge dependency = 0
+- Entry630 completed the final business read family migration.
+- Repo gate:
+  - `.github/workflows/trendos-entry630-comms-readonly-repo-ci.yml`
+  - Run `37476624460` = SUCCESS.
+- Runtime arm:
+  - `.github/workflows/trendos-entry630-comms-readonly-runtime-arm-controlled.yml`
+  - Run `37476785742` = SUCCESS.
+  - Comms moved from `OFF / epoch1` to `READONLY / epoch2`.
+  - no business-data mutation, WhatsApp send, OpenAI call, R2 write, Accounting mutation, or EasyStore mutation.
+- Backend read smoke:
+  - workflow `.github/workflows/trendos-entry630-comms-readonly-backend-smoke.yml`
+  - initial Run `37482871509` safely exposed that `getOrderConversation` requires an existing order;
+  - corrected Run `37483062449` = SUCCESS;
+  - `customerManagerV1:inbox`, `customerManagerV1:thread`, `getOrderConversation`, and `goLiveAutopilotV1:listDrafts` all PASS;
+  - Business writes = NO.
+- Controlled frontend cutover:
+  - workflow `.github/workflows/trendos-entry630-comms-readonly-frontend-controlled.yml`
+  - preflight-only failures `37483588074`, `37483800216`, `37484025206` made no Production mutation;
+  - corrected Run `37484322594` = SUCCESS;
+  - new Production frontend version `1d31014e-4e47-4414-933a-3e60a8e80ece`.
+- Live frontend now:
+  ```ini
+  GLOBAL_NATIVE_AUTH=false
+  CANARY_NATIVE_USERS=all five known employee identities/aliases
+  CORE=READONLY
+  CONTENT=READONLY
+  COMMS=READONLY
+  OPS=GENERAL
+  ACCOUNTING=READONLY
+  FRONTEND_BRIDGE_POLICY_COUNT=4
+  ```
+- The four frontend Bridge policy names remain in config only for the old canary preflight contract; the dispatcher now routes all four to D1 Comms before Bridge evaluation.
+- Therefore:
+  ```ini
+  ENTRY630_BUSINESS_BRIDGE_ACTIONS=0
+  BACKEND_BRIDGE_ENABLED=true
+  BACKEND_BRIDGE_POLICY_COUNT=17
+  ```
+- The Backend Bridge remains only as a temporary auth-canary preflight dependency. Entry631 must remove that preflight dependency before the Bridge can be disabled safely.
