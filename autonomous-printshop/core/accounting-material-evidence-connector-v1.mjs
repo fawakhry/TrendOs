@@ -1,3 +1,4 @@
+import { classifyAccountingCloudCutoverV1 } from './accounting-cloud-cutover-guard-v1.mjs';
 export const ACCOUNTING_MATERIAL_EVIDENCE_CONNECTOR_VERSION='ACCOUNTING_MATERIAL_EVIDENCE_CONNECTOR_V1';
 
 function text(v){return String(v==null?'':v).trim();}
@@ -15,12 +16,15 @@ export async function readAccountingMaterialEvidenceSnapshotV1(db){
   const mode=text(control&&control.mode);
   const policyEpoch=Number(control&&control.policyEpoch||0);
   if(mode!=='READONLY'){
+    const cutover=classifyAccountingCloudCutoverV1({mode,policyEpoch});
     return {
       success:true,
       qualified:false,
-      reason:'ACCOUNTING_AUTHORITY_NOT_READONLY',
+      reason:cutover.reason,
       accountingMode:mode||'ABSENT',
       accountingEpoch:policyEpoch,
+      accountingCloudStage:cutover.stage,
+      materialFrozen:cutover.frozen,
       rows:[]
     };
   }
@@ -59,12 +63,22 @@ export async function readAccountingMaterialEvidenceSnapshotV1(db){
        )
   `).all();
 
+  const cutover=classifyAccountingCloudCutoverV1({
+    mode,policyEpoch,
+    activeMaterials:(q.results||[]).length,
+    deptLinesWithLineId:(q.results||[]).length,
+    deptLinesWithMaterial:(q.results||[]).length,
+    deptLinesWithConsumption:(q.results||[]).length
+  });
+
   return {
     success:true,
-    qualified:true,
-    reason:'ACCOUNTING_READONLY_AUTHORITY_CONFIRMED',
+    qualified:cutover.blockerCollectionAllowed,
+    reason:cutover.reason,
     accountingMode:mode,
     accountingEpoch:policyEpoch,
+    accountingCloudStage:cutover.stage,
+    materialFrozen:cutover.frozen,
     authority:'employee_accounting_d1_read_model',
     connectorVersion:ACCOUNTING_MATERIAL_EVIDENCE_CONNECTOR_VERSION,
     piiExposed:false,
