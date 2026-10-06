@@ -1,0 +1,79 @@
+{
+  "entry": "Entry636",
+  "purpose": "Read-only completeness audit before any global frontend Native Auth cutover.",
+  "authoritativeSpreadsheet": {
+    "id": "1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI",
+    "title": "TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY",
+    "usersSheet": "المستخدمين",
+    "inspectedColumns": [
+      "اسم المستخدم",
+      "القسم",
+      "الصلاحية",
+      "مفعل؟",
+      "آخر دخول",
+      "ملاحظات"
+    ],
+    "sensitiveColumnsRead": false
+  },
+  "currentNativeD1Keys": [
+    "ضياء",
+    "وائل",
+    "جابر",
+    "رحمه",
+    "ريفان"
+  ],
+  "activeUserRowsObserved": [
+    {
+      "username": "ضياء",
+      "active": true
+    },
+    {
+      "username": "وائل",
+      "active": true
+    },
+    {
+      "username": "رحمه",
+      "active": true
+    },
+    {
+      "username": "ريفان",
+      "active": true
+    },
+    {
+      "username": "شريف",
+      "active": true,
+      "lastLogin": "2026-08-27"
+    },
+    {
+      "username": "جابر",
+      "active": true
+    },
+    {
+      "username": "wael",
+      "active": true,
+      "classification": "alias/qualification row covered by وائل canonical mapping"
+    },
+    {
+      "username": "Rahma",
+      "active": true,
+      "classification": "TEST ONLY row covered by رحمه canonical mapping"
+    }
+  ],
+  "unresolvedActiveNativeGap": [
+    "شريف"
+  ],
+  "liveRuntime": {
+    "authMode": "TRANSITIONAL",
+    "nativeOnly": true,
+    "legacyBootstrapEnabled": false,
+    "backendBridgeEnabled": false,
+    "frontendGlobalNativeAuth": false,
+    "frontendNativeCanary": true,
+    "nativeReadyCount": 5
+  },
+  "decision": "BLOCK_GLOBAL_NATIVE_FRONTEND_CUTOVER",
+  "reason": "An active authoritative login row named شريف is not represented by the five Native-ready D1 identities. Global Native would fail closed for that account.",
+  "productionMutation": false,
+  "d1Mutation": false,
+  "googleMutation": false
+}
