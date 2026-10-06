@@ -650,6 +650,7 @@ async function readinessSnapshot(env,rows){
     dueIso:pilot.dueIso,
     urgent:pilot.urgent,
     missingKinds:pilot.missingKinds,
+    machineClassHint:text(pilot.machineClassHint)||'UNKNOWN',
     purpose:pilot.purpose,
     assignmentAllowed:false,
     taskClaimAllowed:false
@@ -759,7 +760,7 @@ async function controlTowerSnapshot(env){
       recommendationExists:!!(readiness&&readiness.strictRecommendation&&readiness.strictRecommendation.exists),
       evidencePilotTarget:readiness&&readiness.evidencePilotTarget||{
         exists:false,fingerprint:'',department:'',priority:'',dueIso:'',urgent:false,
-        missingKinds:[],purpose:'EVIDENCE_ACQUISITION_ONLY',assignmentAllowed:false,taskClaimAllowed:false
+        missingKinds:[],machineClassHint:'UNKNOWN',purpose:'EVIDENCE_ACQUISITION_ONLY',assignmentAllowed:false,taskClaimAllowed:false
       }
     },
     controls:{
