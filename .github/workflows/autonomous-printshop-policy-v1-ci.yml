@@ -18,6 +18,7 @@ on:
       - 'autonomous-printshop/core/design-preflight-v1.mjs'
       - 'autonomous-printshop/core/design-readiness-collector-v1.mjs'
       - 'autonomous-printshop/core/machine-readiness-v1.mjs'
+      - 'autonomous-printshop/core/easystore-material-readonly-connector-v1.mjs'
       - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
       - 'autonomous-printshop/readiness-collector/**'
@@ -48,6 +49,7 @@ on:
       - 'autonomous-printshop/tests/design_preflight_v1.test.mjs'
       - 'autonomous-printshop/tests/design_readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/machine_readiness_v1.test.mjs'
+      - 'autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs'
       - 'autonomous-printshop/tests/readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/shadow_observer_v1.test.mjs'
@@ -130,6 +132,8 @@ jobs:
         run: node autonomous-printshop/tests/design_readiness_collector_v1.test.mjs
       - name: Run machine readiness contract
         run: node autonomous-printshop/tests/machine_readiness_v1.test.mjs
+      - name: Run EasyStore material read-only connector contract
+        run: node autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs
       - name: Run readiness source adapters contract
         run: node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
       - name: Run readiness collector write-boundary contract
