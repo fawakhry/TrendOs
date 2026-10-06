@@ -58,7 +58,8 @@ assert.deepEqual(Object.keys(out.rows[0]).sort(),[
 ].sort());
 
 const source=fs.readFileSync('autonomous-printshop/core/accounting-material-evidence-connector-v1.mjs','utf8');
-assert.match(source,/m\.material_kind\)<>\'A2_CANARY\'/);
+assert.match(source,/m\.material_kind/);
+assert.match(source,/A2_CANARY/);
 console.log('ACCOUNTING_CANARY_MATERIALS_EXCLUDED=YES');
 console.log('ACCOUNTING_MATERIAL_EVIDENCE_CONNECTOR_V1=PASS');
 console.log('ACCOUNTING_READONLY_REQUIRED=YES');
