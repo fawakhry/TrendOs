@@ -26,6 +26,7 @@ on:
       - 'autonomous-printshop/core/material-post-cutover-requalification-v1.mjs'
       - 'autonomous-printshop/core/matbagy-design-evidence-connector-v1.mjs'
       - 'autonomous-printshop/core/customer-portal-design-provenance-v1.mjs'
+      - 'autonomous-printshop/core/cloud-order-file-design-discovery-v1.mjs'
       - 'autonomous-printshop/core/design-evidence-command-v1.mjs'
       - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
       - 'autonomous-printshop/core/readiness-source-adapters-v1.mjs'
@@ -69,6 +70,9 @@ on:
       - '.github/workflows/autonomous-printshop-material-post-cutover-diagnostic.yml'
       - 'autonomous-printshop/tests/matbagy_design_evidence_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/customer_portal_design_provenance_v1.test.mjs'
+      - 'autonomous-printshop/tests/cloud_order_file_design_discovery_v1.test.mjs'
+      - 'autonomous-printshop/tests/cloud_design_discovery_workflow_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-cloud-design-discovery.yml'
       - 'autonomous-printshop/tests/design_evidence_command_v1.test.mjs'
       - 'autonomous-printshop/tests/design_evidence_manual_workflow_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-design-evidence-manual.yml'
@@ -174,6 +178,10 @@ jobs:
         run: node autonomous-printshop/tests/matbagy_design_evidence_connector_v1.test.mjs
       - name: Run customer portal design provenance contract
         run: node autonomous-printshop/tests/customer_portal_design_provenance_v1.test.mjs
+      - name: Run cloud order-file design discovery contract
+        run: node autonomous-printshop/tests/cloud_order_file_design_discovery_v1.test.mjs
+      - name: Run cloud design discovery workflow contract
+        run: node autonomous-printshop/tests/cloud_design_discovery_workflow_v1.test.mjs
       - name: Run design evidence command contract
         run: node autonomous-printshop/tests/design_evidence_command_v1.test.mjs
       - name: Run manual design evidence workflow contract
