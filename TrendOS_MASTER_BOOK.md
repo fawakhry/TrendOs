@@ -1,7 +1,7 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
 > **MASTER BOOK / Active Zero-Google Core**  
-> إصدار الكتاب: **4.19-ZERO-GOOGLE-COMPACT — Entry639 Global Native frontend PASS** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
+> إصدار الكتاب: **4.20-ZERO-GOOGLE-COMPACT — Entry640 Auth control NATIVE PASS** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
 > # ⚠️ اقرأ هذا أولًا — تعليمات إلزامية لأي شات أو مطور
 >
@@ -5739,3 +5739,115 @@ EASYSTORE_MUTATION=NO
 - This Master Book recorder Run: `37542737379`.
 - Recorder workflow source SHA: `355f40991c2cbe0c389032eba2fa52a25db8cb1a`.
 - `ENTRY639_DOCUMENTATION=PASS`
+
+
+#### Entry640 — Employee Auth control TRANSITIONAL → NATIVE; PASS
+- بعد نجاح Entry639 Global Native frontend، تم فحص migration/schema والكود قبل أي mutation.
+- migration `cloudflare-d1/migrations/0009_employee_auth_native_v1.sql` يثبت أن control mode يدعم صراحةً `OFF | TRANSITIONAL | NATIVE`.
+- الكود `cloudflare-d1/src/employee-auth-native-v1.mjs` يثبت:
+  - Native-ready login يعمل عندما control mode ليس OFF؛
+  - legacy-session enrollment يتطلب `mode=TRANSITIONAL`;
+  - first-login bootstrap يتطلب `mode=TRANSITIONAL` وBootstrap enabled؛
+  - لذلك الانتقال إلى `NATIVE` هو إغلاق defense-in-depth للمسارات الانتقالية وليس تغييرًا في بيانات المستخدمين.
+- Workflow: `.github/workflows/trendos-entry640-auth-control-native-controlled.yml`.
+- Workflow source commit: `748f20c9db3bdfe6e92adbad2cb8e0a0f3d46211`.
+- Run: `37543328267`.
+- Job: `112541292439`.
+- Conclusion: `SUCCESS`.
+
+##### Preflight
+- `ENTRY640_RUNTIME_PREFLIGHT=PASS`.
+- `ENTRY640_AUTH_PRE_MODE=TRANSITIONAL`.
+- `ENTRY640_NATIVE_READY=6_OF_6`.
+- `ENTRY640_FRONTEND_GLOBAL_NATIVE_PREFLIGHT=PASS`.
+- Backend pre-state remained hardened:
+  - `LEGACY_BOOTSTRAP=false`
+  - `LEGACY_SESSION_ENROLL=false`
+  - `NATIVE_ONLY=true`
+  - `BACKEND_BRIDGE=false`
+  - `D1_AUTH_USERS=6`
+  - `D1_NATIVE_READY_USERS=6`
+  - `MUST_CHANGE=0`
+  - `PLAINTEXT_STORED=false`
+- Frontend remained:
+  - `FRONTEND_GLOBAL_NATIVE_AUTH=true`
+  - `FRONTEND_NATIVE_CANARY=false`
+  - `FRONTEND_BRIDGE=false`
+  - required ready count = 6.
+
+##### Exact D1 control transition
+- D1 pre-state was read without exposing password hash values:
+  - `mode=TRANSITIONAL`
+  - `policyEpoch=23`
+  - `Native-ready=6/6`
+  - `PASSWORD_HASH_VALUE_LOGGED=NO`.
+- Target epoch was derived dynamically: `24`.
+- Conditional single-row control mutation:
+  - `TRANSITIONAL epoch23 → NATIVE epoch24`.
+- Proof:
+  - `ENTRY640_D1_CONTROL_MUTATION=PASS`
+  - `ENTRY640_AUTH_CONTROL=NATIVE`
+  - `ENTRY640_AUTH_POLICY_EPOCH=24`.
+
+##### Transitional-path closure and Native login proof
+- Public Runtime propagated to `mode=NATIVE` on propagation attempt 1.
+- `ENTRY640_LEGACY_SESSION_ENROLL_CONTROL_CLOSED=PASS`.
+- `ENTRY640_UNKNOWN_USER_BOOTSTRAP_CLOSED=PASS`.
+- Real login/logout smoke used the existing qualification credential stored in GitHub Secrets; no password/token value was logged:
+  - `ENTRY640_NATIVE_LOGIN=PASS`
+  - auth source = `d1-native-employee-v1`
+  - `ENTRY640_LEGACY_BRIDGE_CALLS=0`
+  - `ENTRY640_NATIVE_LOGOUT=PASS`.
+- Final D1 proof:
+  - `ENTRY640_FINAL_D1_CONTROL=NATIVE`
+  - `ENTRY640_FINAL_AUTH_POLICY_EPOCH=24`
+  - `ENTRY640_FINAL_NATIVE_READY=6_OF_6`
+  - `ENTRY640_PASSWORD_HASH_VALUE_LOGGED=NO`.
+- Final Runtime proof:
+  - `ENTRY640_RUNTIME_FINAL=PASS`
+  - `ENTRY640_AUTH_MODE=NATIVE`.
+
+##### Rollback and boundaries
+- Exact rollback was armed for any post-mutation failure:
+  - `NATIVE epoch24 → TRANSITIONAL epoch23`.
+- Rollback step was `SKIPPED` because every post-mutation test passed.
+- No API code deploy.
+- No frontend deploy.
+- No Apps Script touch.
+- No Accounting mutation.
+- No EasyStore mutation.
+- No business-data mutation.
+- Family Runtime after closure:
+  - `CORE=READONLY / epoch1`
+  - `CONTENT=READONLY / epoch2`
+  - `COMMS=READONLY / epoch2`
+  - `OPS=GENERAL / epoch7`
+  - `ACCOUNTING=READONLY / epoch8`
+  - Accounting `authoritativeWrites=false`, `writeAuthorityMode=OFF`, `googleBusinessCalls=0`, `appsScriptBusinessAuthority=false`.
+
+##### Stable final truth
+```ini
+ENTRY640=PASS
+ENTRY640_AUTH_CONTROL_NATIVE=PASS
+AUTH_MODE=NATIVE
+AUTH_POLICY_EPOCH=24
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_REQUIRED_NATIVE_READY=6
+FRONTEND_BRIDGE=false
+BACKEND_NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+MUST_CHANGE=0
+PLAINTEXT_STORED=false
+ACCOUNTING=READONLY / policyEpoch8
+EASYSTORE_MUTATION=NO
+```
+- Evidence file: `docs/trendos/staging/ENTRY640_AUTH_CONTROL_NATIVE_20261007.md`.
+- Evidence commit: `5d2c84089c96e9fb5ef6494abf5a3c2d4338bfa3`.
+- This Master Book recorder Run: `37543529947`.
+- Recorder workflow source SHA: `dfcde40bd66a65c2a2d67cf31c9b34685a51c7f5`.
+- `ENTRY640_DOCUMENTATION=PASS`.
