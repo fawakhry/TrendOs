@@ -1,0 +1,57 @@
+
+name: TrendOS Entry637 Native User Shape Readonly
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry637-native-user-shape-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read safe Native user shape only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT employee_id AS employeeId,
+                              username_key AS usernameKey,
+                              canonical_username AS canonicalUsername,
+                              active,
+                              role,
+                              department,
+                              screens_json AS screensJson,
+                              must_change AS mustChange,
+                              session_version AS sessionVersion
+                         FROM employee_auth_users_v1
+                        ORDER BY username_key;" > /tmp/users.json
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/users.json','utf8'));
+          const rows=[];const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'usernameKey'))rows.push(v);Object.values(v).forEach(walk)}};walk(raw);
+          if(rows.length!==5) throw new Error('expected five users, got '+rows.length);
+          for(const r of rows){
+            console.log('ENTRY637_SAFE_USER_SHAPE='+JSON.stringify(r));
+          }
+          console.log('ENTRY637_USER_SHAPE_READONLY=PASS');
+          console.log('ENTRY637_PASSWORD_HASH_READ=NO');
+          console.log('ENTRY637_SESSION_TOKEN_READ=NO');
+          NODE
