@@ -3963,3 +3963,66 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   MANUAL_DEPLOY_WORKFLOW_READY=YES
   NEXT_ACTION=OWNER_MANUALLY_DISPATCH_ENTRY623_AUTH_STAGE_API_DEPLOY_THEN_REPEAT_ONE_FIRST_LOGIN_AND_READ_SAFE_STAGE
   ```
+
+
+#### Entry623 — Login incident containment: frontend canary rollback PASS
+- A real Production login problem was reported while the Entry623 Diya frontend canary was live.
+- Incident policy: restore the last known-good employee login surface before continuing Native Auth diagnostics.
+- Controlled rollback workflow:
+  - `.github/workflows/trendos-entry623-login-incident-frontend-rollback.yml`
+  - initial workflow syntax attempt commit `788d1fa23cd8b10c82f7549d6c41b9aff3f1b383` did not create any job or Production mutation.
+  - syntax correction commit `39a3c8bf2b90346d1d472053a4ab5106499fd1a6`.
+  - successful Run `37444952015`.
+  - Job `112207425784`.
+- Runtime preflight before rollback:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  FRONTEND_NATIVE_AUTH=false
+  FRONTEND_CANARY=ضياء
+  FRONTEND_BRIDGE=true
+  ```
+- Rollback target:
+  - `bfcc6f85-a748-4b66-a334-b605c72108f7`
+  - this is the last known-good Entry620 frontend with real employee start-day/login smoke already proven.
+- Cloudflare rollback output:
+  - target version deployed to **100% of traffic**.
+  - Current Version ID = `bfcc6f85-a748-4b66-a334-b605c72108f7`.
+- Postflight from GitHub runner passed on first propagation attempt:
+  ```ini
+  ENTRY623_LOGIN_INCIDENT_FRONTEND_ROLLBACK=PASS
+  ENTRY623_FRONTEND_CANARY=OFF
+  ENTRY623_GLOBAL_NATIVE_AUTH=OFF
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false
+  MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE=GENERAL
+  MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE=READONLY
+  ATTENDANCE_ENTRY620_FIX_PRESERVED=YES
+  API_DEPLOY=NO
+  D1_MUTATION=NO
+  ACCOUNTING_TOUCHED=NO
+  ```
+- Backend transitional preparation intentionally remains armed but is no longer selected by the frontend login surface:
+  ```ini
+  AUTH=TRANSITIONAL / epoch 23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  ```
+- Entry623 Native Auth rollout is paused until the first-login HTTP500 root cause is fixed and requalified without impacting Production login.
+- Next safe action:
+  1. verify normal employee login on the restored frontend;
+  2. keep frontend canary OFF;
+  3. continue API diagnostic/fix in isolation;
+  4. do not re-enable Diya canary until first-login bootstrap passes in controlled smoke.
