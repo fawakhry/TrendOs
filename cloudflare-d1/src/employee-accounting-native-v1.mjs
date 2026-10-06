@@ -116,10 +116,13 @@ function writeAmountV1(body){
   ].map(x=>Math.abs(x)).filter(Number.isFinite);
   return vals.length?Math.max(...vals):0;
 }
-async function enforceWriteCanaryV1(env,auth,action,body){
+async function enforceWriteCanaryV1(env,auth,action,body,requireEnabled=false){
   if(READ_ACTIONS.has(action))return {allowed:true,read:true};
   const p=await writeCanaryPolicyV1(env);
-  if(!p.enabled)return {allowed:true,canary:false,policyEpoch:p.policyEpoch};
+  if(!p.enabled){
+    if(requireEnabled)throw commandErrorV1('employee-accounting-canary-disabled','وضع CANARY يتطلب حارس كاناري مفعّلًا؛ تم منع الحركة.');
+    return {allowed:true,canary:false,policyEpoch:p.policyEpoch};
+  }
   if(!p.exists)throw commandErrorV1('employee-accounting-canary-policy-missing','سياسة كاناري الكتابة غير جاهزة؛ تم منع الحركة.');
   if(p.expiresAtMs>0&&Date.now()>p.expiresAtMs)throw commandErrorV1('employee-accounting-canary-expired','نافذة كاناري الحسابات منتهية؛ تم منع الحركة.');
   if(!p.allowedUsers.includes(key(auth&&auth.user&&auth.user.username)))throw commandErrorV1('employee-accounting-canary-user-blocked','هذا المستخدم غير مسموح له بكاناري كتابة الحسابات.');
@@ -1588,17 +1591,18 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
     const c=await control(env),tables=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_accounting_materials_v1','employee_accounting_templates_v1','employee_accounting_dept_lines_v1','employee_accounting_final_invoices_v1','employee_accounting_party_ledger_v1','employee_accounting_stock_moves_v1')").first();
     const canary=await writeCanaryPolicyV1(env);
-    return json({success:true,schemaReady:Number(tables&&tables.n||0)===6,mode:text(c.mode)||'OFF',policyEpoch:Number(c.policyEpoch||0),authoritativeWrites:text(c.mode)==='GENERAL',googleBusinessCalls:0,appsScriptBusinessAuthority:false,writeCanaryReady:canary.exists,writeCanaryEnabled:canary.enabled,writeCanaryPolicyEpoch:Number(canary.policyEpoch||0),writeCanaryAllowedUserCount:canary.allowedUsers.length,writeCanaryAllowedActionCount:canary.allowedActions.length,writeCanaryExpiresAtMs:Number(canary.expiresAtMs||0),writeCanaryMaxAmount:Number(canary.maxAmount||0)},200,h);
+    return json({success:true,schemaReady:Number(tables&&tables.n||0)===6,mode:text(c.mode)||'OFF',policyEpoch:Number(c.policyEpoch||0),authoritativeWrites:['CANARY','GENERAL'].includes(text(c.mode)),writeAuthorityMode:text(c.mode)==='CANARY'?'CANARY_BOUNDED':text(c.mode)==='GENERAL'?'GENERAL':'OFF',googleBusinessCalls:0,appsScriptBusinessAuthority:false,writeCanaryReady:canary.exists,writeCanaryEnabled:canary.enabled,writeCanaryPolicyEpoch:Number(canary.policyEpoch||0),writeCanaryAllowedUserCount:canary.allowedUsers.length,writeCanaryAllowedActionCount:canary.allowedActions.length,writeCanaryExpiresAtMs:Number(canary.expiresAtMs||0),writeCanaryMaxAmount:Number(canary.maxAmount||0)},200,h);
   }
   if(path!==ROOT)return json({success:false,code:'not-found'},404,h);
   if(request.method!=='POST')return json({success:false,code:'method-not-allowed'},405,h);
   const parsed=await parseBody(request);if(!parsed.ok)return parsed.response;
   const b=parsed.body||{},action=text(b.action),c=await control(env);
   if(c.mode==='OFF')return json({success:false,code:'employee-accounting-off'},503,h);
+  if(!['READONLY','CANARY','GENERAL'].includes(text(c.mode)))return json({success:false,code:'employee-accounting-mode-unsupported'},503,h);
   if(c.mode==='READONLY'&&!READ_ACTIONS.has(action))return json({success:false,code:'employee-accounting-readonly'},503,h);
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
   try{
-    if(c.mode==='GENERAL'&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1(env,auth,action,b);
+    if((c.mode==='CANARY'||c.mode==='GENERAL')&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1(env,auth,action,b,c.mode==='CANARY');
     let out;
     if(action==='getAccounting')out=await getAccounting(env,auth);
     else if(action==='getEasyStoreCustomers')out=await getEasyStoreCustomersV1(env,b);
