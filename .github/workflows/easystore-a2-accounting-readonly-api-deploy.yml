@@ -2,6 +2,7 @@ name: EasyStore A2 Accounting Readonly API Deploy
 # controlled push trigger after A2 preflight pass
 # deploy-round-2 guarded ephemeral shared-base merge
 # deploy-round-3 config-relative-entrypoint-fix
+# deploy-round-4 parsed-count-invariance-fix
 
 on:
   workflow_dispatch:
@@ -235,7 +236,26 @@ jobs:
               (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
               (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events;
           " > /tmp/accounting-counts-post.json
-          cmp -s /tmp/accounting-counts-pre.json /tmp/accounting-counts-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          function row(path){
+            const x=JSON.parse(fs.readFileSync(path,'utf8')),rows=[];
+            const walk=v=>{
+              if(Array.isArray(v))return v.forEach(walk);
+              if(v&&typeof v==='object'){
+                if(v.materials!==undefined)rows.push(v);
+                Object.values(v).forEach(walk);
+              }
+            };
+            walk(x);
+            if(rows.length!==1)throw new Error('accounting count parse '+path);
+            return Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v)]));
+          }
+          const pre=row('/tmp/accounting-counts-pre.json'),post=row('/tmp/accounting-counts-post.json');
+          if(JSON.stringify(pre)!==JSON.stringify(post))throw new Error('accounting row-count drift pre='+JSON.stringify(pre)+' post='+JSON.stringify(post));
+          if(Object.values(post).some(v=>v!==0))throw new Error('accounting business baseline no longer zero');
+          console.log('A2_DEPLOY_ACCOUNTING_ROW_COUNTS_INVARIANT=PASS');
+          NODE
 
           trap - ERR
           echo A2_ACCOUNTING_READONLY_API_DEPLOY=PASS
