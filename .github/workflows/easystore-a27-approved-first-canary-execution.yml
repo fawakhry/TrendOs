@@ -1,6 +1,11 @@
 name: EasyStore A2.7 Approved First Canary Execution
 
 on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a27-approved-first-canary-execution.yml'
   workflow_dispatch:
 
 permissions:
