@@ -1,0 +1,37 @@
+{
+  "entry": "Entry631",
+  "purpose": "Remove the compatibility Bridge from known-employee canary login preflight after all five employees are Native-ready and all business reads are native.",
+  "globalNativeAuth": false,
+  "canaryEnabled": true,
+  "canaryRequiredNativeReadyCount": 5,
+  "frontendBridgeEnabled": false,
+  "frontendBridgePolicyCount": 0,
+  "canaryMinimumBridgePolicies": 0,
+  "backendBridgeSafetyNetBeforeDisable": {
+    "enabled": true,
+    "allowedPolicyCount": 17
+  },
+  "authTarget": {
+    "mode": "TRANSITIONAL",
+    "nativeOnly": false,
+    "userCount": 5,
+    "nativeReadyCount": 5
+  },
+  "nativeFamilies": {
+    "ops": "GENERAL",
+    "accounting": "READONLY",
+    "core": "READONLY",
+    "content": "READONLY",
+    "comms": "READONLY"
+  },
+  "invariants": [
+    "Known employee canary login preflight uses Auth health only when bridge-free configuration is exact.",
+    "Bridge health is not fetched in bridge-free canary mode.",
+    "Native-ready count must be at least 5 or the canary fails closed.",
+    "Global Native Auth remains OFF.",
+    "Unknown employee usernames remain on the Legacy path.",
+    "Unsupported known-canary actions fail closed when frontend Bridge is disabled.",
+    "Backend Bridge remains enabled temporarily as rollback safety during the frontend-only Entry631 gate.",
+    "Accounting stays READONLY and EasyStore remains untouched."
+  ]
+}
