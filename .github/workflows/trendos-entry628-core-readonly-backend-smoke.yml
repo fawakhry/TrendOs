@@ -98,7 +98,16 @@ jobs:
             });
             const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
             if(r.status!==200||body.success!==true||body.authority!=='d1-employee-core-v1'){
-              throw new Error(action+' status='+r.status+' code='+String(body.code||'')+' message='+String(body.message||''));
+              const keys=body&&typeof body==='object'?Object.keys(body).sort().join(','):'';
+              throw new Error(
+                action+
+                ' status='+r.status+
+                ' success='+String(body.success)+
+                ' authority='+String(body.authority||'')+
+                ' version='+String(body.version||'')+
+                ' keys='+keys+
+                ' code='+String(body.code||'')
+              );
             }
             return body;
           }
