@@ -104,7 +104,7 @@ jobs:
             const next=bindings.map(b=>{
               if(b.name==='TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1') return {name:b.name,type:'plain_text',text:'true'};
               if(b.name==='TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED') return {name:b.name,type:'plain_text',text:'false'};
-              return {name:b.name,type:'inherit',version_id:'latest'};
+              return {name:b.name,type:'inherit',version_id:preVersion};
             });
             const form=new FormData();
             form.append('settings',new Blob([JSON.stringify({
