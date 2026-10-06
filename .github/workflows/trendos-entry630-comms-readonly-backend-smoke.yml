@@ -113,8 +113,21 @@ jobs:
             if(!Array.isArray(thread.messages)||!thread.context||typeof thread.context!=='object') throw new Error('thread shape');
             console.log('ENTRY630_COMMS_THREAD=PASS');
 
-            const conv=await post('getOrderConversation',{orderId:'ENTRY630-NONEXISTENT'});
-            if(!Array.isArray(conv.messages)&&!Array.isArray(conv.rows)) throw new Error('order conversation shape');
+            const core=await fetch(base+'/v1/employee/core',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({action:'getRows',username,screen:'service'}),
+              cache:'no-store'
+            });
+            const coreBody=JSON.parse(await core.text()||'{}');
+            const rows=Array.isArray(coreBody.rows)?coreBody.rows:[];
+            const first=rows.find(r=>String(r&&((r.orderId??r.order_id??r.order??r['رقم الأوردر'])||'')).trim());
+            const orderId=String(first&&((first.orderId??first.order_id??first.order??first['رقم الأوردر'])||'')).trim();
+            if(core.status!==200||coreBody.success!==true||!orderId) throw new Error('no safe existing order for read smoke');
+            console.log('::add-mask::'+orderId);
+
+            const conv=await post('getOrderConversation',{orderId});
+            if(!Array.isArray(conv.messages)||!Array.isArray(conv.files)||!Array.isArray(conv.lines)) throw new Error('order conversation shape');
             console.log('ENTRY630_COMMS_ORDER_CONVERSATION=PASS');
 
             const drafts=await post('goLiveAutopilotV1',{op:'listDrafts'});
