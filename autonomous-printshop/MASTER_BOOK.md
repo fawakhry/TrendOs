@@ -3242,3 +3242,62 @@ Interpretation:
 - current Design blocker remains authentic evidence acquisition, not selector permissiveness.
 
 Existing UI/source inspection also confirms that the current order-conversation experience supports sending proofs and a proof-review warning, but contains no structured customer proof-approval action. Free-text conversation text is therefore not accepted as automatic approval evidence.
+
+
+### AP-037 — Accounting first bounded write canary PASS observed; Material remains closed
+
+Autonomous Printshop refreshed its accounting dependency after EasyStore Accounting advanced through ACC-058.
+
+Consumed accounting facts:
+- first bounded Production accounting write canary completed successfully and auto-closed;
+- the single persisted business test object is one inactive zero-value template;
+- matching request-ledger and immutable audit-event evidence exist exactly once;
+- all other tracked accounting financial/business tables remained zero at the first-canary checkpoint;
+- frontend write routing was returned to OFF after the test;
+- backend remains READONLY;
+- server canary allowlists and command budget are cleared;
+- GENERAL has never been opened;
+- Accounting policy epoch is now 6;
+- current central accounting checkpoint is post-canary aware;
+- schema queue is empty and schema-apply workflow is manual-only;
+- proposed next family is Material master-data CANARY, currently only repo/CI qualified and not armed.
+
+Fresh Autonomous Printshop runtime remains:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=6
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+WRITE_AUTHORITY_MODE=OFF
+WRITE_CANARY_ALLOWED_USERS=0
+WRITE_CANARY_ALLOWED_ACTIONS=0
+WRITE_CANARY_MAX_COMMANDS=0
+WRITE_CANARY_COMMANDS_STARTED=0
+
+ACTIVE_MATERIALS=0
+STOCK_MOVES=0
+DEPT_LINES_WITH_LINE_ID=0
+DEPT_LINES_WITH_MATERIAL=0
+DEPT_LINES_WITH_CONSUMPTION=0
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_BLOCKER=ACCOUNTING_CLOUD_DATA_MIGRATION_PENDING
+```
+
+Autonomous Printshop does not treat the successful synthetic template canary as material/inventory authority.
+
+Current live readiness:
+- baselineCandidates=54;
+- strictEligible=0;
+- strictBlocked=54;
+- DESIGN ready=0;
+- MATERIAL ready=0;
+- MACHINE ready=0;
+- Operator Task=OFF;
+- operatorTasks=0.
+
+```ini
+LATEST_CONSUMED_ACCOUNTING_CHECKPOINT=ACC-058
+FIRST_ACCOUNTING_BOUNDED_CANARY=PASS_AND_CLOSED
+NEXT_ACCOUNTING_MATERIAL_CANARY=QUALIFIED_NOT_ARMED
+AUTONOMOUS_MATERIAL_READY=NO
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
