@@ -6,3 +6,8 @@ workers_dev = true
 [[services]]
 binding = "SHADOW"
 service = "autonomous-printshop-shadow"
+
+
+[[services]]
+binding = "READINESS_COLLECTOR"
+service = "autonomous-printshop-readiness-collector"
