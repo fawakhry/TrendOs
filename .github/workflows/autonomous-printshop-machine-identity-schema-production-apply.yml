@@ -1,0 +1,135 @@
+name: Autonomous Printshop Machine Identity Schema Production Apply
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-machine-identity-schema-production-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-machine-identity-schema-production-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DATABASE: trendos-main
+      MIGRATION: autonomous-printshop/migrations/0028_machine_identity_evidence_v1.sql
+      WRANGLER_VERSION: 4.33.2
+      ACCOUNTING_URL: https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify exact additive schema and identity contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/tests/machine_identity_qualification_v1.test.mjs
+          grep -Fq 'CREATE TABLE IF NOT EXISTS autonomous_machine_identity_events' "$MIGRATION"
+          grep -Fq 'AUTONOMOUS_MACHINE_IDENTITY_APPEND_ONLY' "$MIGRATION"
+          ! grep -Eiq '\b(ALTER|DROP|INSERT|UPDATE|DELETE|REPLACE)\b' "$MIGRATION"
+          ! grep -Eiq '\b(t12_prod_orders|t12_prod_lines|employee_accounting_|operator_tasks)\b' "$MIGRATION"
+          echo 'MACHINE_IDENTITY_SCHEMA_STATIC_GATE=PASS'
+
+      - name: Production safety preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$ACCOUNTING_URL?machineIdentity=$GITHUB_RUN_ID" > /tmp/accounting.json
+          cat > /tmp/pre.sql <<'SQL'
+          SELECT
+            (SELECT mode FROM autonomous_machine_control WHERE singleton_id=1) AS machineMode,
+            (SELECT COUNT(*) FROM autonomous_machines) AS machines,
+            (SELECT COUNT(*) FROM autonomous_machine_observations) AS observations,
+            (SELECT COUNT(*) FROM autonomous_line_machine_mapping_events) AS mappings,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='autonomous_machine_identity_events') AS identityTableBefore;
+          SQL
+          PRE_SQL="$(tr '\n' ' ' < /tmp/pre.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$PRE_SQL" > /tmp/pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/accounting.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
+          if(a.mode!=='READONLY'||a.authoritativeWrites!==false||a.writeAuthorityMode!=='OFF') throw new Error('ACCOUNTING_NOT_CLOSED');
+          if(Number(a.writeCanaryAllowedUserCount||0)!==0||Number(a.writeCanaryAllowedActionCount||0)!==0||Number(a.writeCanaryMaxCommands||0)!==0||Number(a.writeCanaryCommandsStarted||0)!==0) throw new Error('ACCOUNTING_CANARY_NOT_CLOSED');
+          if(String(r.machineMode)!=='SHADOW') throw new Error('MACHINE_NOT_SHADOW');
+          if(Number(r.machines||0)!==0||Number(r.observations||0)!==0||Number(r.mappings||0)!==0) throw new Error('MACHINE_BASELINE_NOT_EMPTY');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_NOT_OFF');
+          if(Number(r.identityTableBefore||0)!==0) throw new Error('IDENTITY_SCHEMA_ALREADY_PRESENT_UNEXPECTEDLY');
+          console.log('MACHINE_IDENTITY_SCHEMA_PREFLIGHT=PASS');
+          console.log('ACCOUNTING_READONLY=YES');
+          console.log('OPERATOR_TASK_OFF=YES');
+          console.log('MACHINE_BASELINE_EMPTY=YES');
+          NODE
+
+      - name: Apply exact machine-identity schema only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --file "$MIGRATION"
+          echo 'MACHINE_IDENTITY_SCHEMA_APPLY_COMMAND=COMPLETE'
+
+      - name: Verify schema and invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/post.sql <<'SQL'
+          SELECT
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='autonomous_machine_identity_events') AS identityTable,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_autonomous_machine_identity_machine_time') AS identityIndex,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='trg_autonomous_machine_identity_no_update') AS noUpdateTrigger,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='trg_autonomous_machine_identity_no_delete') AS noDeleteTrigger,
+            (SELECT COUNT(*) FROM autonomous_machine_identity_events) AS identityRows,
+            (SELECT COUNT(*) FROM autonomous_machines) AS machines,
+            (SELECT COUNT(*) FROM autonomous_machine_observations) AS observations,
+            (SELECT COUNT(*) FROM autonomous_line_machine_mapping_events) AS mappings,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          SQL
+          POST_SQL="$(tr '\n' ' ' < /tmp/post.sql)"
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$POST_SQL" > /tmp/post.json
+          curl --fail --silent --show-error "$ACCOUNTING_URL?machineIdentityPost=$GITHUB_RUN_ID" > /tmp/accounting-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          const a=JSON.parse(fs.readFileSync('/tmp/accounting-post.json','utf8'));
+          if(Number(r.identityTable)!==1||Number(r.identityIndex)!==1||Number(r.noUpdateTrigger)!==1||Number(r.noDeleteTrigger)!==1) throw new Error('IDENTITY_SCHEMA_INCOMPLETE');
+          if(Number(r.identityRows||0)!==0||Number(r.machines||0)!==0||Number(r.observations||0)!==0||Number(r.mappings||0)!==0) throw new Error('MACHINE_DATA_MUTATED');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_DRIFT');
+          if(a.mode!=='READONLY'||a.authoritativeWrites!==false||a.writeAuthorityMode!=='OFF') throw new Error('ACCOUNTING_DRIFT');
+          if(Number(a.writeCanaryAllowedUserCount||0)!==0||Number(a.writeCanaryAllowedActionCount||0)!==0||Number(a.writeCanaryMaxCommands||0)!==0) throw new Error('ACCOUNTING_CANARY_DRIFT');
+          console.log('MACHINE_IDENTITY_SCHEMA_PRODUCTION=PASS');
+          console.log('IDENTITY_ROWS=0');
+          console.log('MACHINES=0');
+          console.log('OBSERVATIONS=0');
+          console.log('MAPPINGS=0');
+          console.log('ACCOUNTING_MUTATION=NO');
+          console.log('OPERATOR_TASK_MUTATION=NO');
+          console.log('EMPLOYEE_ASSIGNMENT=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_SCHEMA_MUTATION=YES'
+          echo 'PRODUCTION_BUSINESS_DATA_MUTATION=NO'
+          echo 'MACHINE_REGISTRATION=NO'
+          echo 'MACHINE_READY_EVIDENCE=NO'
+          echo 'LINE_MACHINE_MAPPING=NO'
+          echo 'OPERATOR_TASK_CONTROL=OFF'
