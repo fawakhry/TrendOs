@@ -26,7 +26,7 @@
 
 > **قاعدة الدليل:** `LATEST VERIFIED RUNTIME > DEPLOYED > TESTED > REPO-ONLY > HISTORICAL`. لا تعتبر الخطة أو الكود الموجود في GitHub إثباتًا لحالة Production.
 
-> **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. لا تعيد نسخ سلسلة تاريخية كاملة إذا كانت النتيجة النهائية تكفي.
+> **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. ويشمل ذلك: كل محاولة ناجحة أو فاشلة، Runtime drift، rollback/restore، إصلاح hardening، workflow/run/job، deploy، تشخيص سبب الفشل، وفتح/إغلاق أي gate. لا تعتبر أي خطوة مكتملة قبل تسجيلها هنا. ممنوع تسجيل passwords أو Tokens أو password hashes أو session secrets.
 
 ## 1. الحالة النشطة — Production baseline بعد Entry600
 
@@ -5563,3 +5563,63 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   GLOBAL_NATIVE_AUTH=OFF
   ```
 - Next safe action: Sherif must fully log out / close the old authenticated tab first. Only after that should one new bounded window be opened, followed by a fresh login during that live window. Do not count an already-authenticated platform session as migration proof.
+
+
+#### Entry637 — Attempt 4 fresh-login window failed safely
+- بعد إثبات أن الدخول السابق لم ينشئ صفًا Native، تم اشتراط Logout كامل قبل المحاولة التالية.
+- Run: `37512561162`, run_attempt = 2.
+- Job: `112458240473`.
+- Preflight: `ENTRY637_STAGED_WINDOW_PREFLIGHT=PASS`, `ENTRY637_STAGED_CODE_ETAG_MATCH=PASS`, `ENTRY637_WINDOW_OPEN=PASS`.
+- النافذة فتحت عند 2026-10-06T19:24:41Z.
+- كل الـ60 polls بقيت `USERS=5 READY=5`.
+- `ENTRY637_WINDOW_CLOSED=PASS` عند 2026-10-06T19:35:10Z.
+- النهاية: `Sherif did not login during bounded window`.
+- رسالة `الحساب لم يكتمل نقله إلى تسجيل الدخول السحابي.` تم تتبعها إلى fail-closed Native login branch في `cloudflare-d1/src/employee-auth-native-v1.mjs`: تظهر لمستخدم غير migrated عندما Bootstrap غير متاح / Native-only مفعّل، وبالتالي المحاولة وصلت بعد إغلاق النافذة وليست دليل password rejection.
+- Runtime رجع للحالة المقفولة بعد الإغلاق.
+- `ENTRY637_ATTEMPT_4=FAIL_NO_SHERIF_LOGIN`
+- `HARDENING_RESTORED=PASS`
+- `SHERIF_NATIVE_READY=NO`
+- `D1_NATIVE_READY=5/5`
+
+
+#### Entry637 — Attempt 5 PASS; Sherif completed Native migration
+- Run: `37512561162`, run_attempt = 3.
+- Job: `112464374923`.
+- Workflow conclusion: `SUCCESS`.
+- Window opened: 2026-10-06T19:38:48Z.
+- Polls 1–5: `USERS=5 READY=5`.
+- Poll 6: `USERS=6 READY=6`.
+- `ENTRY637_SHERIF_BOOTSTRAP_OBSERVED=YES`
+- `ENTRY637_WINDOW_CLOSED=PASS`
+- `ENTRY637_HARDENING_RESTORED=PASS`
+- `ENTRY637_NATIVE_READY=6_OF_6`
+- `ENTRY637_BOUNDED_MIGRATION=PASS`
+- `ENTRY637_SHERIF_D1_ROW=PASS`
+- Safe row shape: `USERNAME_KEY=شريف`, `ROLE=service`, `DEPARTMENT=فنيل`, `SCREENS=["service",""]`.
+- `ENTRY637_SHERIF_PASSWORD_HASH_LOGGED=NO`.
+- Final Runtime: `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, `LEGACY_SESSION_ENROLL=false`, `D1_AUTH_USERS=6`, `D1_NATIVE_READY_USERS=6`, `PLAINTEXT_STORED=false`, `BACKEND_BRIDGE=false`.
+- No manual D1 user insertion was used.
+- No password, raw token, password hash, or session secret was recorded.
+- Accounting remained READONLY; EasyStore was not mutated by this Auth migration.
+- `ENTRY637_FINAL=PASS_6_OF_6`
+- `SHERIF_NATIVE_READY=YES`
+- `GLOBAL_NATIVE_AUTH=OFF`
+- Detailed evidence: `docs/trendos/staging/ENTRY637_FINAL_SUCCESS_20261006.md`.
+
+
+#### Entry638 — Post-Entry637 Native readiness / completeness gate
+- Re-audit performed after Entry637 success; Entry636 remains historical evidence of the previous gap.
+- Public Runtime: `D1_AUTH_USERS=6`, `D1_NATIVE_READY_USERS=6`, `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, `LEGACY_SESSION_ENROLL=false`, `BACKEND_BRIDGE=false`, `PLAINTEXT_STORED=false`.
+- Safe source-side completeness re-audit was performed without exporting password/Token values into repository documentation.
+- Completeness gate result: no unresolved canonical active Native gap remains after the sixth identity migration.
+- Frontend remains staged: `FRONTEND_GLOBAL_NATIVE_AUTH=false`, `FRONTEND_NATIVE_CANARY=true`, `FRONTEND_BRIDGE=false`.
+- Pre-cutover drift: deployed frontend canary is ON; branch `config.js` currently shows canary OFF / empty canary list; deployed readiness threshold remains 5 while Runtime proves 6 Native-ready users.
+- Runtime/deployed truth is authoritative. Reconcile this drift only inside the separate controlled Global Native frontend cutover gate.
+- `ENTRY638_RUNTIME_READINESS_6_OF_6=PASS`
+- `ENTRY638_COMPLETENESS_GATE=PASS`
+- `UNRESOLVED_ACTIVE_NATIVE_GAP=NONE`
+- `GLOBAL_NATIVE_FRONTEND_PREP=PASS`
+- `GLOBAL_NATIVE_FRONTEND_CUTOVER=NOT_YET_EXECUTED`
+- `ACCOUNTING=READONLY`
+- `EASYSTORE_MUTATION=NO`
+- Public Runtime evidence: `docs/trendos/staging/ENTRY638_RUNTIME_NATIVE_READINESS_20261006.md`.
