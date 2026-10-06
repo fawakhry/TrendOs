@@ -8,7 +8,8 @@ assert.match(source,/DESIGN_CONTROL_NOT_SHADOW/);
 assert.match(source,/designReadinessEvidenceCandidatesV1/);
 assert.match(source,/recordReadinessEvidenceV1/);
 assert.match(source,/autonomous_design_asset_binding_events/);
-assert.match(source,/autonomous_readiness_evidence/);
+const writerSource=fs.readFileSync('autonomous-printshop/core/readiness-evidence-writer-v1.mjs','utf8');
+assert.match(writerSource,/INSERT OR IGNORE INTO autonomous_readiness_evidence/);
 assert.doesNotMatch(source,/INSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+t12_prod_/i);
 assert.doesNotMatch(source,/UPDATE\s+t12_prod_/i);
 assert.doesNotMatch(source,/DELETE\s+FROM\s+t12_prod_/i);
@@ -31,7 +32,8 @@ assert.match(schemaSql,/sqlite_master/);
 
 const offDb={
   prepare(sql){
-    if(sql.includes('sqlite_master')) return {async first(){return {tableCount:5,mode:'OFF'};}};
+    if(sql.includes('sqlite_master')) return {async first(){return {tableCount:5};}};
+    if(sql.includes('FROM autonomous_design_control')) return {async first(){return {mode:'OFF'};}};
     throw new Error('unexpected query');
   }
 };
