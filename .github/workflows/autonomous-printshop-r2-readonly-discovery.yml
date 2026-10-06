@@ -1,0 +1,55 @@
+name: Autonomous Printshop R2 Readonly Discovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-r2-readonly-discovery.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-r2-readonly-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: List R2 buckets read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} r2 bucket list --json > /tmp/r2.json
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=fs.readFileSync('/tmp/r2.json','utf8');
+          const first=raw.indexOf('[');
+          if(first<0) throw new Error('R2_JSON_NOT_FOUND');
+          const arr=JSON.parse(raw.slice(first));
+          const names=arr.map(x=>String(x.name||x.bucket_name||'')).filter(Boolean).sort();
+          console.log('R2_BUCKET_COUNT='+names.length);
+          console.log('R2_BUCKET_NAMES='+JSON.stringify(names));
+          console.log('R2_MUTATION=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'READ_ONLY=YES'
+          echo 'R2_CREATE=NO'
+          echo 'R2_DELETE=NO'
+          echo 'R2_OBJECT_WRITE=NO'
+          echo 'D1_MUTATION=NO'
