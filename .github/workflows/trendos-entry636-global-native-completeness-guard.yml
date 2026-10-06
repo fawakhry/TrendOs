@@ -1,0 +1,39 @@
+name: TrendOS Entry636 Global Native Completeness Guard
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'config.js'
+      - 'employee-api-dispatcher-v1.js'
+      - 'docs/trendos/staging/ENTRY636_GLOBAL_NATIVE_COMPLETENESS_AUDIT.json'
+      - 'tests/entry636_global_native_completeness_guard.test.mjs'
+      - '.github/workflows/trendos-entry636-global-native-completeness-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry636 fail-closed guard
+        run: |
+          set -euo pipefail
+          node tests/entry636_global_native_completeness_guard.test.mjs
+          echo ENTRY636_REPO_GUARD=PASS
+      - name: Boundary
+        run: |
+          echo ENTRY636_PRODUCTION_MUTATION=NO
+          echo ENTRY636_D1_MUTATION=NO
+          echo ENTRY636_GOOGLE_MUTATION=NO
+          echo ENTRY636_ACCOUNTING_TOUCHED=NO
+          echo ENTRY636_EASYSTORE_TOUCHED=NO
