@@ -4166,3 +4166,67 @@ AP_MATERIAL_FREEZE_RUNTIME_PROVEN=YES
 AP_MATERIAL_READY_DURING_CANARY=NO
 AP_OPERATOR_TASK_MUTATION=NO
 ```
+
+
+### AP-053 — Accounting A2.9 closed; Material thawed to blocker-only state
+
+Autonomous Printshop synchronized after the real bounded Accounting A2.9 canary completed.
+
+Accounting execution evidence:
+- Run `37543905745` = SUCCESS.
+- Preflight proved zero active Material masters and zero active Templates.
+- Server entered bounded CANARY for canonical user `ضياء` and action `recalcAccountingMaterialsCascade` only.
+- Exact D1 evidence passed.
+- The committed recalc result was `ZERO_MASTER_SCOPE`:
+  - materialCount=0;
+  - templateCount=0;
+  - changedMaterials=0;
+  - changedTemplates=0.
+- The server auto-disabled back to READONLY.
+- GENERAL was never opened.
+
+Fresh live accounting state after closure:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=10
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+SERVER_CANARY_ALLOWED_USERS=0
+SERVER_CANARY_ALLOWED_ACTIONS=0
+SERVER_CANARY_MAX_COMMANDS=0
+SERVER_CANARY_COMMANDS_STARTED=0
+```
+
+Autonomous Printshop reacted correctly across the whole canary lifecycle:
+- during Accounting CANARY: Material froze automatically;
+- after Accounting returned READONLY: the freeze cleared automatically;
+- Material still remains blocker-only because no real operational material/stock/line-consumption linkage exists.
+
+Fresh AP Material truth:
+```ini
+ACCOUNTING_MATERIAL_ROWS_TOTAL=1
+ACCOUNTING_CANARY_MATERIAL_ROWS=1
+CANARY_ROWS_EXCLUDED_FROM_READINESS=true
+ACTIVE_OPERATIONAL_MATERIALS=0
+MATERIAL_SOURCE_LINKED_ROWS=0
+MATERIAL_SOURCE_LINKED_LINES=0
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_BLOCKER=AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING
+```
+
+The sole Material row remains audit-only A2_CANARY evidence and cannot satisfy Autonomous Printshop readiness.
+
+Fresh overall state:
+```ini
+STRICT_ELIGIBLE=0
+DESIGN_READY=0
+MATERIAL_READY=0
+MACHINE_READY=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+Result:
+- Accounting canary transition handling is now proven both directions in live Production;
+- no AP business write occurred;
+- no Material READY was synthesized from audit canary data.
