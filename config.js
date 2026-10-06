@@ -30,6 +30,8 @@ window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'OFF';
 window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'OFF';
 // Entry628 bridge-retirement family. Default-OFF; READONLY routes only the four qualified Core reads.
 window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'OFF';
+// Entry629 bridge-retirement family. Default-OFF; READONLY routes the nine qualified Content reads.
+window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'OFF';
 
 window.MATBAGY_EDGE_ORDERS_READ_V1_ENABLED = true;
 window.MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED = true;
