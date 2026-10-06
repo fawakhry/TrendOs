@@ -74,7 +74,7 @@ export function buildMatbagyDesignEvidenceBundleSqlV1(input={}){
     "INSERT OR IGNORE INTO autonomous_design_preflight_runs(",
     " preflight_run_id,artifact_id,line_id,result,recipe_id,policy_version,checks_json,observed_at_ms",
     ") SELECT ",
-    q(preflightRunId)+","+q(artifactId)+","+q(lineId)+",'PASS',"+q(recipeId)+",'v1',"+json(checks)+",CAST(strftime('%s','now') AS INTEGER)*1000",
+    q(preflightRunId)+","+q(artifactId)+","+q(lineId)+",'UNKNOWN',"+q(recipeId)+",'manual-import-v1',"+json({...checks,preflightQualified:false})+",CAST(strftime('%s','now') AS INTEGER)*1000",
     " WHERE EXISTS(SELECT 1 FROM autonomous_design_artifacts WHERE artifact_id="+q(artifactId)+");"
   ].join('\n');
 }
