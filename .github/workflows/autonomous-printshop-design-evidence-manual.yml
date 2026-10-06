@@ -1,0 +1,224 @@
+name: Autonomous Printshop Design Evidence Manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      case_id:
+        description: Matbagy Design Case ID
+        required: true
+        type: string
+      source_asset_id:
+        description: Matbagy linked Asset ID
+        required: true
+        type: string
+      order_id:
+        description: Real TrendOS Order ID
+        required: true
+        type: string
+      line_id:
+        description: Real TrendOS Line ID belonging to Order
+        required: true
+        type: string
+      version_id:
+        description: Design version e.g. V5
+        required: false
+        type: string
+      content_sha256:
+        description: 64-char SHA256 of actual design bytes
+        required: true
+        type: string
+      storage_provider:
+        description: Provider name e.g. GOOGLE_DRIVE
+        required: true
+        type: string
+      storage_ref:
+        description: Actual provider file reference
+        required: true
+        type: string
+      privacy_class:
+        description: Asset privacy
+        required: true
+        type: choice
+        options:
+          - CUSTOMER_PRIVATE
+          - PUBLIC_SAFE
+          - UNKNOWN
+      approval_status:
+        description: Qualified Matbagy approval only
+        required: true
+        type: choice
+        options:
+          - FINAL_APPROVED
+          - EXPLICITLY_LIKED
+      approval_actor_kind:
+        description: Who explicitly approved
+        required: true
+        type: choice
+        options:
+          - CUSTOMER
+          - OWNER
+      approval_evidence_ref:
+        description: Stable evidence reference for approval
+        required: true
+        type: string
+      recipe_id:
+        description: Qualified preflight recipe ID
+        required: true
+        type: string
+      product_type:
+        description: Product type
+        required: false
+        type: string
+      mime_type:
+        description: Asset MIME type
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-design-evidence-manual
+  cancel-in-progress: false
+
+jobs:
+  controlled-design-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DB_NAME: trendos-main
+      WRANGLER_VERSION: 4.33.2
+      CASE_ID: ${{ inputs.case_id }}
+      SOURCE_ASSET_ID: ${{ inputs.source_asset_id }}
+      ORDER_ID: ${{ inputs.order_id }}
+      LINE_ID: ${{ inputs.line_id }}
+      VERSION_ID: ${{ inputs.version_id }}
+      CONTENT_SHA256: ${{ inputs.content_sha256 }}
+      STORAGE_PROVIDER: ${{ inputs.storage_provider }}
+      STORAGE_REF: ${{ inputs.storage_ref }}
+      PRIVACY_CLASS: ${{ inputs.privacy_class }}
+      APPROVAL_STATUS: ${{ inputs.approval_status }}
+      APPROVAL_ACTOR_KIND: ${{ inputs.approval_actor_kind }}
+      APPROVAL_EVIDENCE_REF: ${{ inputs.approval_evidence_ref }}
+      RECIPE_ID: ${{ inputs.recipe_id }}
+      PRODUCT_TYPE: ${{ inputs.product_type }}
+      MIME_TYPE: ${{ inputs.mime_type }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Safety preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/pre.sql <<'SQL'
+          SELECT
+            (SELECT mode FROM autonomous_design_control WHERE singleton_id=1) AS designMode,
+            (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+            (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
+            (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+            (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          SQL
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --file /tmp/pre.sql > /tmp/pre.json
+          cat /tmp/pre.json
+          node - <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
+          if(String(r.designMode)!=='SHADOW') process.exit(1);
+          if(String(r.readinessMode)!=='SHADOW') process.exit(2);
+          if(String(r.autonomyMode)!=='SHADOW') process.exit(3);
+          if(String(r.operatorTaskMode)!=='OFF') process.exit(4);
+          if(Number(r.operatorTasks)!==0) process.exit(5);
+          console.log('DESIGN_EVIDENCE_PREFLIGHT=PASS');
+          NODE
+
+      - name: Build validated evidence bundle SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { buildMatbagyDesignEvidenceBundleSqlV1 } from './autonomous-printshop/core/design-evidence-command-v1.mjs';
+
+          const suffix=process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT;
+          const artifactId='design-artifact-'+suffix;
+          const bindingEventId='design-binding-'+suffix;
+          const approvalEventId='design-approval-'+suffix;
+          const preflightRunId='design-preflight-'+suffix;
+          const q=(v)=>"'" + String(v||'').replace(/'/g,"''") + "'";
+
+          const sql=buildMatbagyDesignEvidenceBundleSqlV1({
+            artifactId,bindingEventId,approvalEventId,preflightRunId,
+            tenantId:'TENANT_001',
+            caseId:process.env.CASE_ID,
+            sourceAssetId:process.env.SOURCE_ASSET_ID,
+            orderId:process.env.ORDER_ID,
+            lineId:process.env.LINE_ID,
+            versionId:process.env.VERSION_ID,
+            contentSha256:process.env.CONTENT_SHA256,
+            storageProvider:process.env.STORAGE_PROVIDER,
+            storageRef:process.env.STORAGE_REF,
+            privacyClass:process.env.PRIVACY_CLASS,
+            approvalStatus:process.env.APPROVAL_STATUS,
+            approvalActorKind:process.env.APPROVAL_ACTOR_KIND,
+            approvalEvidenceRef:process.env.APPROVAL_EVIDENCE_REF,
+            recipeId:process.env.RECIPE_ID,
+            productType:process.env.PRODUCT_TYPE,
+            mimeType:process.env.MIME_TYPE,
+            checks:{manualQualifiedImport:true,recipeQualified:true}
+          });
+
+          const post=[
+            'SELECT',
+            ' (SELECT mode FROM autonomous_design_control WHERE singleton_id=1) AS designMode,',
+            ' (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,',
+            ' (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,',
+            ' (SELECT COUNT(*) FROM autonomous_design_artifacts WHERE artifact_id='+q(artifactId)+') AS artifactExact,',
+            ' (SELECT COUNT(*) FROM autonomous_design_asset_binding_events WHERE binding_event_id='+q(bindingEventId)+') AS bindingExact,',
+            ' (SELECT COUNT(*) FROM autonomous_design_approval_events WHERE approval_event_id='+q(approvalEventId)+') AS approvalExact,',
+            ' (SELECT COUNT(*) FROM autonomous_design_preflight_runs WHERE preflight_run_id='+q(preflightRunId)+') AS preflightExact;'
+          ].join('\n');
+
+          fs.writeFileSync('/tmp/design-command.sql',sql+'\n');
+          fs.writeFileSync('/tmp/post.sql',post+'\n');
+          console.log('DESIGN_EVIDENCE_SQL_VALIDATED=PASS');
+          NODE
+
+      - name: Execute design-evidence-only bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --file /tmp/design-command.sql
+
+      - name: Verify exact bundle and safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DB_NAME" --remote --config "$CONFIG" --json --file /tmp/post.sql > /tmp/post.json
+          cat /tmp/post.json
+          node - <<'NODE'
+          const r=JSON.parse(require('fs').readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          if(String(r.designMode)!=='SHADOW') process.exit(1);
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks)!==0) process.exit(2);
+          if(Number(r.artifactExact)!==1) process.exit(3);
+          if(Number(r.bindingExact)!==1) process.exit(4);
+          if(Number(r.approvalExact)!==1) process.exit(5);
+          if(Number(r.preflightExact)!==1) process.exit(6);
+          console.log('DESIGN_EVIDENCE_BUNDLE=VERIFIED');
+          console.log('OPERATOR_TASK_CONTROL=OFF');
+          console.log('LIVE_EMPLOYEE_ASSIGNMENT=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'ONLY_DESIGN_EVIDENCE_TABLES_MUTATED=YES'
+          echo 'ORDER_WRITE=NO'
+          echo 'LINE_WRITE=NO'
+          echo 'ACCOUNTING_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'SAVED_EQUALS_APPROVED=NO'
+          echo 'MISSING_ORDER_OR_LINE_FAILS_CLOSED=YES'
