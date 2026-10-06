@@ -2,11 +2,6 @@ name: EasyStore A2.9 Recalc Canary Execution
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/easystore-a29-recalc-canary-execution.yml'
 
 permissions:
   contents: read
