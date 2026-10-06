@@ -4114,3 +4114,55 @@ MATERIAL_READY_EVIDENCE_ALLOWED=false
 ```
 
 No Autonomous Printshop accounting mutation, authority ARM, financial write or employee assignment occurred.
+
+
+### AP-052 — Material freeze proven live during real Accounting CANARY
+
+The Accounting A2.9 execution entered a real bounded Production CANARY while Autonomous Printshop was observing it.
+
+Accounting runtime during the live window:
+```ini
+ACCOUNTING_MODE=CANARY
+ACCOUNTING_POLICY_EPOCH=9
+ACCOUNTING_AUTHORITATIVE_WRITES=true
+ACCOUNTING_WRITE_AUTHORITY_MODE=CANARY_BOUNDED
+SERVER_CANARY_ALLOWED_USERS=1
+SERVER_CANARY_ALLOWED_ACTIONS=1
+SERVER_CANARY_MAX_COMMANDS=1
+SERVER_CANARY_COMMANDS_STARTED=0
+```
+
+Autonomous Printshop reacted automatically, without any AP mutation:
+```ini
+MATERIAL_ACCOUNTING_MODE=CANARY
+MATERIAL_CLOUD_STAGE=CLOUD_WRITE_CANARY_ACTIVE
+MATERIAL_FROZEN=true
+MATERIAL_BLOCKER_COLLECTION_ALLOWED=false
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_SOURCE_CONNECTOR_QUALIFIED=false
+MATERIAL_BLOCKER=ACCOUNTING_CLOUD_CANARY_ACTIVE_MATERIAL_FROZEN
+WRITE_CANARY_COMMANDS_REMAINING=1
+```
+
+Safety remained intact:
+- Design stayed SHADOW;
+- Machine stayed SHADOW;
+- Readiness stayed SHADOW;
+- Operator Task stayed OFF;
+- readiness evidence rows stayed 0;
+- strictEligible stayed 0;
+- no employee assignment;
+- no AP business write.
+
+Accounting execution Run observed:
+- Run `37543905745`;
+- preflight PASS;
+- current step: bounded recalc command armed and waiting for the canonical Diaa action / auto-disable path.
+
+Result:
+```ini
+ACCOUNTING_CANARY_DETECTED=YES
+AP_MATERIAL_FREEZE_RUNTIME_PROVEN=YES
+AP_MATERIAL_READY_DURING_CANARY=NO
+AP_OPERATOR_TASK_MUTATION=NO
+```
