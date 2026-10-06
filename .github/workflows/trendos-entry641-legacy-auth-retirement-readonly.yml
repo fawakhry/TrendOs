@@ -22,6 +22,9 @@ jobs:
       API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
       CONFIG: cloudflare-d1/wrangler.toml
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_WORKER: trendos-d1-api
 
     steps:
       - uses: actions/checkout@v4
@@ -40,9 +43,12 @@ jobs:
           const fs=require('fs');
           const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
           const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
-          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.legacyBootstrapEnabled!==false||
-             a.legacySessionEnrollEnabled!==false||Number(a.userCount||0)!==6||
-             Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) throw new Error('Native auth closure drift');
+          if(a.mode!=='NATIVE'||Number(a.userCount||0)!==6||
+             Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) throw new Error('Native control/readiness drift');
+          console.log('ENTRY641_CF_AUTH_ENV_ENABLED='+(a.envEnabled===true?'YES':'NO'));
+          console.log('ENTRY641_CF_BOOTSTRAP_ENABLED='+(a.legacyBootstrapEnabled===true?'YES':'NO'));
+          console.log('ENTRY641_CF_SESSION_ENROLL_ENABLED='+(a.legacySessionEnrollEnabled===true?'YES':'NO'));
+          console.log('ENTRY641_CF_NATIVE_ONLY='+(a.nativeOnly===true?'YES':'NO'));
           if(b.enabled!==false) throw new Error('Cloudflare legacy bridge unexpectedly enabled');
           if(b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge hygiene drift');
           console.log('ENTRY641_AUTH_MODE=NATIVE');
@@ -57,6 +63,61 @@ jobs:
           grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;" /tmp/frontend.js
           grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" /tmp/frontend.js
           echo ENTRY641_FRONTEND_GLOBAL_NATIVE=PASS
+
+      - name: Readonly Cloudflare deployment and settings drift inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID;
+          const worker=process.env.API_WORKER;
+          if(!token||!account) throw new Error('Cloudflare credentials unavailable');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          const headers={authorization:'Bearer '+token};
+          async function cf(path){
+            const r=await fetch(base+path,{headers});
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(!r.ok||body.success!==true) throw new Error('Cloudflare API '+r.status+' '+path);
+            return body;
+          }
+          (async()=>{
+            const d=await cf('/deployments');
+            const deps=((d.result&&d.result.deployments)||d.result||[]).slice().sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0));
+            console.log('ENTRY641_CF_DEPLOYMENT_RECORDS='+deps.length);
+            deps.slice(0,12).forEach((x,i)=>{
+              const vv=(x.versions||[]).map(v=>String(v.version_id||v.id||'')+'@'+Number(v.percentage||0)).join(',');
+              console.log('ENTRY641_CF_DEPLOYMENT_'+(i+1)+'='+String(x.created_on||x.created_at||'')+'|'+vv);
+            });
+            const cur=deps[0]||{};
+            const full=(cur.versions||[]).filter(v=>Number(v.percentage||0)===100);
+            if(full.length!==1) throw new Error('active deployment shape');
+            console.log('ENTRY641_CF_ACTIVE_VERSION='+String(full[0].version_id||full[0].id||''));
+
+            const v=await cf('/versions?per_page=20');
+            const vr=v.result;
+            const items=(Array.isArray(vr)?vr:(vr&&Array.isArray(vr.items)?vr.items:(vr&&Array.isArray(vr.versions)?vr.versions:[]))).slice()
+              .sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0));
+            items.slice(0,12).forEach((x,i)=>{
+              const ann=x.annotations||{};
+              const msg=String(ann['workers/message']||ann.message||'').replace(/[\r\n|]/g,' ');
+              console.log('ENTRY641_CF_VERSION_'+(i+1)+'='+String(x.id||'')+'|'+String(x.created_on||x.created_at||'')+'|'+msg);
+            });
+
+            const st=await cf('/settings');
+            const bs=Array.isArray(st.result&&st.result.bindings)?st.result.bindings:[];
+            const by=new Map(bs.map(b=>[String(b.name||''),b]));
+            const plain=n=>{const b=by.get(n);return b&&b.type==='plain_text'?String(b.text||''):'<not-plain>';};
+            console.log('ENTRY641_CF_LATEST_NATIVE_ONLY='+plain('TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1'));
+            console.log('ENTRY641_CF_LATEST_BOOTSTRAP='+plain('TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED'));
+            console.log('ENTRY641_CF_LATEST_SESSION_ENROLL='+plain('TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED'));
+            console.log('ENTRY641_CF_LATEST_BRIDGE_ENABLED='+plain('TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED'));
+            const actions=plain('EMPLOYEE_LEGACY_BRIDGE_ACTIONS');
+            console.log('ENTRY641_CF_LATEST_BRIDGE_ACTIONS_CONFIGURED='+(actions&&actions!=='<not-plain>'?'YES':'NO'));
+            console.log('ENTRY641_CF_LATEST_BRIDGE_SECRET_BINDING='+(by.has('EMPLOYEE_LEGACY_BRIDGE_SECRET_V1')?'YES':'NO'));
+            console.log('ENTRY641_CF_SECRET_VALUE_LOGGED=NO');
+          })().catch(e=>{console.error('ENTRY641_CF_INVENTORY_FAIL '+String(e&&e.message||e));process.exit(1);});
+          NODE
 
       - name: Readonly Apps Script bridge-state proof with invalid assertion
         shell: bash
