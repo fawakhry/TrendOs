@@ -30,6 +30,7 @@ on:
       - 'autonomous-printshop/core/matbagy-design-evidence-connector-v1.mjs'
       - 'autonomous-printshop/core/customer-portal-design-provenance-v1.mjs'
       - 'autonomous-printshop/core/design-approval-receipt-v1.mjs'
+      - 'autonomous-printshop/core/structured-owner-design-approval-command-v1.mjs'
       - 'autonomous-printshop/core/cloud-order-file-design-discovery-v1.mjs'
       - 'autonomous-printshop/core/design-evidence-command-v1.mjs'
       - 'autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json'
@@ -79,6 +80,9 @@ on:
       - 'autonomous-printshop/tests/matbagy_design_evidence_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/customer_portal_design_provenance_v1.test.mjs'
       - 'autonomous-printshop/tests/design_approval_receipt_v1.test.mjs'
+      - 'autonomous-printshop/tests/structured_owner_design_approval_command_v1.test.mjs'
+      - 'autonomous-printshop/tests/structured_owner_design_approval_workflow_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-structured-owner-design-approval.yml'
       - 'autonomous-printshop/tests/cloud_order_file_design_discovery_v1.test.mjs'
       - 'autonomous-printshop/tests/cloud_design_discovery_workflow_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-cloud-design-discovery.yml'
@@ -196,6 +200,10 @@ jobs:
         run: node autonomous-printshop/tests/customer_portal_design_provenance_v1.test.mjs
       - name: Run structured design approval receipt contract
         run: node autonomous-printshop/tests/design_approval_receipt_v1.test.mjs
+      - name: Run structured owner design approval command contract
+        run: node autonomous-printshop/tests/structured_owner_design_approval_command_v1.test.mjs
+      - name: Run structured owner design approval workflow contract
+        run: node autonomous-printshop/tests/structured_owner_design_approval_workflow_v1.test.mjs
       - name: Run cloud order-file design discovery contract
         run: node autonomous-printshop/tests/cloud_order_file_design_discovery_v1.test.mjs
       - name: Run cloud design discovery workflow contract
