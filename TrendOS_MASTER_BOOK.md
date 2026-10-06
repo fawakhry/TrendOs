@@ -4080,3 +4080,89 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - verify restored normal employee login in Production UI;
   - then run a backend-only Diya bootstrap probe while frontend canary remains OFF;
   - do not re-enable the frontend canary before the backend bootstrap/second-login path passes.
+
+
+#### Entry623 — Native Auth root cause fixed; backend Diya canary PASS
+- Root cause of the opaque first-login HTTP500 was isolated to `password-hash`.
+- Production probe evidence before the fix:
+  ```ini
+  ENTRY623_FIRST_LOGIN_HTTP=503
+  ENTRY623_FIRST_LOGIN_CODE=employee-auth-login-bootstrap-upsert-failed
+  ENTRY623_FIRST_LOGIN_STAGE=password-hash
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  ```
+- Root cause:
+  - TrendOS v1 used PBKDF2-SHA256 with a configured/default iteration count of 180000.
+  - Cloudflare workerd Production enforces a 100000-iteration ceiling for WebCrypto PBKDF2.
+  - The failure occurred before any D1 user write.
+- Fix:
+  - `cloudflare-d1/src/employee-auth-native-v1.mjs` clamps PBKDF2 v1 to exactly 100000 iterations.
+  - canonical repo `cloudflare-d1/wrangler.toml` was aligned to `EMPLOYEE_AUTH_PBKDF2_ITERATIONS = "100000"`.
+  - a regression test proves an input of 180000 is clamped to 100000.
+  - Auth fix commit `c3fc6a754bdb57100737a6f2053efa1abd8c3577`.
+  - Wrangler alignment commit `6ece5d55c1eac21713c37b2819e3a9a6df17a04a`.
+  - Test commit `98d8be84748b5c00039ab412e02dffa04a058d97`.
+  - Repo CI Run `37446297316` = **SUCCESS**.
+- Exact-live API deploy:
+  - workflow `.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml`
+  - one-shot deploy commit `8062e00bc810524c5e32b87fe826a5df80339ea3`
+  - workflow restored manual-only in commit `437e557d08bef15f86e86c202db597503dc4cf5e`
+  - Run `37446389645`
+  - Job `112212141632`
+  - previous API version `90151f54-f64a-4dfd-a69e-e6c0ab6bbccb`
+  - new API version `c46f5639-41c4-4c39-b7cc-983922bda3fc`
+  - postflight = **PASS**.
+  - no D1 control mutation, migrations, variable mutation, secret mutation, frontend deploy, Accounting mutation, or EasyStore mutation.
+- Backend-only first-login retry after the fix:
+  - workflow `.github/workflows/trendos-entry623-backend-first-login-stage-probe.yml`
+  - cleanup fix commit `771bcad929ee84fc585bd54c11dce6320a5ab892`
+  - Run `37446548386`
+  - Job `112212662989`
+  - result:
+  ```ini
+  FIRST_LOGIN_BOOTSTRAP=PASS
+  FIRST_LOGIN_AUTH_SOURCE=d1-native-bootstrap-v1
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  BOOTSTRAP_SESSION_REVOKED=YES
+  PLAINTEXT_STORED=NO
+  FRONTEND_CANARY=OFF
+  ```
+- Backend-only second-login/read smoke:
+  - workflow `.github/workflows/trendos-entry623-backend-native-read-smoke.yml`
+  - commit `d06aa499a988b8d5ae186cee64142d4f12647f28`
+  - Run `37446715796`
+  - Job `112213221756`
+  - result:
+  ```ini
+  SECOND_LOGIN_NATIVE=PASS
+  SECOND_LOGIN_AUTH_SOURCE=d1-native-employee-v1
+  D1_SESSION_SMOKE=PASS
+  DASHBOARD_SMOKE=PASS
+  ATTENDANCE_STATE_SMOKE=PASS
+  ATTENDANCE_MUTATION=NO
+  ACCOUNTING_READONLY_SMOKE=PASS
+  OUTSIDE_17_POLICY_FAIL_CLOSED=PASS
+  NATIVE_LOGOUT=PASS
+  D1_NATIVE_READY_USERS=1
+  FRONTEND_CANARY=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Runtime remains:
+  ```ini
+  AUTH=TRANSITIONAL / epoch 23
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ```
+- Next gate:
+  `ENTRY623_DIYA_FRONTEND_CANARY_REENABLE_AFTER_BACKEND_PASS`
+  - exact Diya-only frontend canary;
+  - Global Native Auth must remain OFF;
+  - non-canary employees must remain Legacy;
+  - then perform real UI login and real attendance/start-day smoke for Diya only.
