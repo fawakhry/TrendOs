@@ -1,0 +1,62 @@
+name: EasyStore A2.9 Recalc Canary Preflight
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a29-recalc-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Verify closed runtime and zero active master rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS "$API_URL/v1/employee/accounting/health?a29pre=$GITHUB_RUN_ID" > /tmp/h.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events,
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1 WHERE active=1) AS activeTemplates;
+          " > /tmp/c.json
+          node <<'NODE'
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/h.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/c.json','utf8')),rows=[];
+          const w=v=>{if(Array.isArray(v))return v.forEach(w);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(w);}};w(x);
+          if(rows.length!==1)throw Error('count parse');
+          const r=rows[0];
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('runtime not closed');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('server canary not cleared');
+          const exp={materials:1,templates:1,requestLedger:2,events:2,activeMaterials:0,activeTemplates:0};
+          for(const [k,v] of Object.entries(exp))if(Number(r[k]||0)!==v)throw Error('baseline '+k+'='+r[k]);
+          console.log('A29_RECALC_PREFLIGHT=PASS');
+          console.log('A29_ACTIVE_MATERIALS=0');
+          console.log('A29_ACTIVE_TEMPLATES=0');
+          console.log('A29_EXPECTED_MASTER_MUTATION=0');
+          console.log('A29_EXPECTED_WRITE_ROWS=requestLedger:+1,events:+1');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
