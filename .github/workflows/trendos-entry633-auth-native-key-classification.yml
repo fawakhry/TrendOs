@@ -1,0 +1,76 @@
+
+name: TrendOS Entry633 Auth Native Key Classification
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry633-auth-native-key-classification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Classify exact D1 username keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT username_key AS usernameKey, canonical_username AS canonicalUsername
+                         FROM employee_auth_users_v1
+                        ORDER BY username_key;"             > /tmp/users.json
+          node <<'NODE'
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/users.json','utf8'));
+          const rows=[]; const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'usernameKey'))rows.push(v);Object.values(v).forEach(walk)}};walk(raw);
+          if(rows.length!==5) throw new Error('expected 5 users');
+
+          const groups={
+            DIAA:['ضياء','diaa'],
+            WAEL:['وائل','wael'],
+            JABER:['جابر','gaber','jaber'],
+            RAHMA:['رحمه','رحمة','rahma'],
+            REVAN:['ريفان','ريڤان','revan','rivan']
+          };
+          const norm=v=>String(v||'').trim().toLowerCase();
+          const seen=new Set();
+
+          for(const row of rows){
+            const key=norm(row.usernameKey);
+            let match=null;
+            for(const [group,aliases] of Object.entries(groups)){
+              const exact=aliases.find(a=>norm(a)===key);
+              if(exact){ if(match) throw new Error('ambiguous key'); match={group,exact}; }
+            }
+            if(!match) throw new Error('unknown D1 username key');
+            if(seen.has(match.group)) throw new Error('duplicate group');
+            seen.add(match.group);
+            console.log('ENTRY633_D1_KEY_'+match.group+'='+match.exact);
+          }
+          if(seen.size!==5) throw new Error('missing group');
+          console.log('ENTRY633_D1_KEY_CLASSIFICATION=PASS');
+          console.log('ENTRY633_PASSWORD_OR_TOKEN_DATA_READ=NO');
+          NODE
+
+      - name: Boundary
+        run: |
+          echo ENTRY633_CLASSIFICATION_PRODUCTION_MUTATION=NO
+          echo ENTRY633_CLASSIFICATION_D1_MUTATION=NO
