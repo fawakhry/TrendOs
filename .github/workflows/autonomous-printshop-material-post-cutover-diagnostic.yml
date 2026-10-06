@@ -67,7 +67,7 @@ jobs:
             (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
             (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
           SQL
-          npx --yes wrangler@\${WRANGLER_VERSION} d1 execute "\${DB_NAME}" --remote --config "\${CONFIG}" --json --file /tmp/material-source.sql > /tmp/material-source.json
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "${DB_NAME}" --remote --config "${CONFIG}" --json --file /tmp/material-source.sql > /tmp/material-source.json
           cat /tmp/material-source.json
           echo
 
