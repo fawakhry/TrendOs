@@ -1,5 +1,5 @@
 name: EasyStore A2 Schema Apply Controlled
-# trigger A2.7 migration 0029 after ACC-033 approval
+# trigger A2.7 migration 0030 one-command budget after ACC-038
 
 on:
   push:
