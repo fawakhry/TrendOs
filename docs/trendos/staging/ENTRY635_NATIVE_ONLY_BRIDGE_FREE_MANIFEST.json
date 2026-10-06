@@ -1,0 +1,16 @@
+{
+  "entry": "Entry635",
+  "purpose": "Harden known-employee Native Auth by allowing backend nativeOnly only when the frontend is already bridge-free and all five known employees are Native-ready.",
+  "frontendGlobalNativeAuth": false,
+  "bridgeFree": true,
+  "nativeReadyRequired": 5,
+  "bootstrapExpected": false,
+  "nativeOnlyTarget": true,
+  "invariants": [
+    "Bridge-free canary accepts nativeOnly=true when Native-ready count is at least five.",
+    "Bridge-present canary rejects nativeOnly=true fail-closed.",
+    "Known username aliases remain canonicalized to the exact five D1 keys.",
+    "Unknown employee usernames remain Legacy while Global Native Auth is OFF.",
+    "This repo gate does not change runtime flags."
+  ]
+}
