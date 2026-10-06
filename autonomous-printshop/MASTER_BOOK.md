@@ -3428,3 +3428,86 @@ Boundary:
 - Cloud-native customer approval is still not opened because no qualified Cloud customer-auth authority exists;
 - free text remains non-authoritative;
 - approval alone still cannot produce Design READY.
+
+
+### AP-040 — Manual Design preflight PASS synthesis removed
+
+The existing manual Design evidence import path was hardened after source review showed it could persist a preflight `PASS` directly from manual bundle construction instead of the qualified preflight evaluator.
+
+Changed:
+- `autonomous-printshop/core/design-evidence-command-v1.mjs`;
+- `autonomous-printshop/tests/design_evidence_command_v1.test.mjs`;
+- `.github/workflows/autonomous-printshop-design-evidence-manual.yml`;
+- `autonomous-printshop/tests/design_evidence_manual_workflow_v1.test.mjs`.
+
+New fail-closed rule:
+- manual Design import may persist Artifact + Binding + qualified Approval evidence;
+- its preflight record is always `UNKNOWN`;
+- manual import cannot synthesize `PASS`;
+- a separate qualified evaluator must produce any future PASS.
+
+Qualification:
+- Policy CI Run `37511778701` = SUCCESS for command hardening.
+- Final hardening Policy CI Run `37511882025` = SUCCESS.
+- no Production Design evidence row was written.
+
+#### Real recipe-source audit
+All current Matbagy Design Case records were rechecked read-only.
+
+Result:
+- cases with final approval but no explicit dimensions cannot become recipes;
+- the only current FINAL_APPROVED case with explicit dimensions is `DESIGN-2026-000013` at 15x21 cm;
+- its final asset was inspected read-only and is 1060x1484 px;
+- at 15x21 cm this is approximately 179 DPI, below the current 300 DPI production recipe minimum;
+- therefore no new Design recipe was added.
+
+```ini
+NEW_RECIPE_FROM_MATBAGY=NO
+REASON=QUALIFIED_15X21_FINAL_ASSET_BELOW_300_DPI
+RECIPE_GUESSING=NO
+```
+
+#### Machine identity source audit
+Additional Production Sheet and Drive searches found:
+- operational references to the press/machine;
+- Standard Work references to machine failure/cleaning;
+- `PRESS_POWER_KW` explicitly awaits a physical machine nameplate value;
+- no serial number;
+- no owner asset tag;
+- no stable physical model/identity record;
+- no separate Drive file containing a proven machine nameplate identity.
+
+Therefore:
+```ini
+MACHINE_IDENTITY_ROWS=0
+SYNTHETIC_MACHINE_ID=FORBIDDEN
+NEXT_MACHINE_IDENTITY_SOURCE=PHYSICAL_NAMEPLATE_OR_OWNER_ASSET_REGISTRY
+```
+
+#### Accounting synchronization
+Latest consumed Accounting checkpoints advanced through ACC-070:
+- the second Material CANARY frontend path is live/bounded;
+- backend remains READONLY/default-deny;
+- server canary remains cleared;
+- no second Material business command has executed;
+- the default-branch manual-dispatch visibility path was being repaired in the Accounting stream;
+- Autonomous Printshop does not ARM or alter that accounting workflow.
+
+Fresh runtime remains:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=6
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACTIVE_MATERIALS=0
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+DESIGN_READY=0
+MACHINE_READY=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+```ini
+LATEST_CONSUMED_ACCOUNTING_CHECKPOINT=ACC-070
+MANUAL_DESIGN_PREFLIGHT_PASS_SYNTHESIS=REMOVED
+PRODUCTION_DESIGN_MUTATION=NO
+```
