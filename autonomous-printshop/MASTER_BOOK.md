@@ -2825,3 +2825,72 @@ Safety:
 - no Material READY activation;
 - no Operator Task activation;
 - no employee assignment.
+
+
+### AP-029 — Customer portal design provenance connector qualified
+
+A second design-source path was qualified from the existing TrendOS customer portal without changing Production data.
+
+#### Source truth
+Read-only inspection of the Production spreadsheet and current `Code.gs` proved:
+- the customer portal stores draft/order/file metadata;
+- historical data contains a deterministic chain:
+  `draft -> order -> line -> line folder -> source files`;
+- a historical closed line was found where the draft ID, order ID, real line ID, line folder, and file references agree;
+- the same historical row is archived and is **not** an active readiness candidate;
+- current active order-line rows contain no live `DRAFT-` linkage at this checkpoint;
+- the current portal file table contains no current line-linked design candidate.
+
+Current source code also proves the post-V1846 safety rule:
+- new order-portal file collection supports explicit `orderId + lineId`;
+- when a line-specific lookup is requested, legacy portal records with no line ID are rejected rather than guessed onto a line.
+
+No customer names, phone numbers, or raw customer identity are stored in Autonomous Printshop evidence from this qualification.
+
+#### Connector
+Added:
+- `autonomous-printshop/core/customer-portal-design-provenance-v1.mjs`
+- `autonomous-printshop/tests/customer_portal_design_provenance_v1.test.mjs`
+
+Rules:
+- file record required;
+- real order ID required;
+- real line ID required;
+- TrendOS line existence required;
+- order/line match required;
+- folder match must not conflict;
+- storage provider/ref and source asset ID required;
+- design-compatible MIME type required;
+- content SHA-256 is required before the source can become an artifact candidate;
+- upload alone is never approval;
+- upload alone is never preflight PASS;
+- upload alone is never Design READY.
+
+Even a fully provenance-qualified + hashed portal upload is emitted only as:
+```ini
+SOURCE_KIND=CUSTOMER_UPLOAD
+APPROVAL_STATE=NOT_CONFIRMED
+PREFLIGHT_STATE=UNKNOWN
+READY_ALLOWED=false
+```
+
+Qualification:
+- Autonomous Printshop Policy V1 CI Run `37497962940` = SUCCESS.
+- Customer portal design provenance contract = PASS.
+
+Current runtime implication:
+```ini
+CURRENT_ACTIVE_PORTAL_DESIGN_CANDIDATES=0
+HISTORICAL_LINE_LEVEL_PROVENANCE=PROVEN
+LEGACY_ORDER_LEVEL_FILE_GUESSING=FORBIDDEN
+UPLOAD_EQUALS_APPROVAL=NO
+UPLOAD_EQUALS_READY=NO
+DESIGN_READY_CURRENT=0
+```
+
+Safety:
+- no Production write;
+- no historical file imported into readiness;
+- no archived line promoted;
+- no customer PII copied into the Autonomous Printshop evidence layer;
+- Operator Task remains OFF.
