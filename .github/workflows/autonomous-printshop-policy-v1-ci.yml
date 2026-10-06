@@ -16,6 +16,7 @@ on:
       - 'autonomous-printshop/core/design-asset-linking-v1.mjs'
       - 'autonomous-printshop/core/observer-run-ledger-v1.mjs'
       - 'autonomous-printshop/core/design-preflight-v1.mjs'
+      - 'autonomous-printshop/core/design-recipe-selector-v1.mjs'
       - 'autonomous-printshop/core/design-readiness-collector-v1.mjs'
       - 'autonomous-printshop/core/machine-readiness-v1.mjs'
       - 'autonomous-printshop/core/machine-observation-writer-v1.mjs'
@@ -59,6 +60,7 @@ on:
       - 'autonomous-printshop/tests/design_asset_linking_v1.test.mjs'
       - 'autonomous-printshop/tests/observer_run_ledger_v1.test.mjs'
       - 'autonomous-printshop/tests/design_preflight_v1.test.mjs'
+      - 'autonomous-printshop/tests/design_recipe_selector_v1.test.mjs'
       - 'autonomous-printshop/tests/design_readiness_collector_v1.test.mjs'
       - 'autonomous-printshop/tests/machine_readiness_v1.test.mjs'
       - 'autonomous-printshop/tests/machine_observation_writer_v1.test.mjs'
@@ -161,6 +163,8 @@ jobs:
         run: node autonomous-printshop/tests/observer_run_ledger_v1.test.mjs
       - name: Run design preflight contract
         run: node autonomous-printshop/tests/design_preflight_v1.test.mjs
+      - name: Run design recipe selector contract
+        run: node autonomous-printshop/tests/design_recipe_selector_v1.test.mjs
       - name: Run design readiness collector contract
         run: node autonomous-printshop/tests/design_readiness_collector_v1.test.mjs
       - name: Run machine readiness contract
