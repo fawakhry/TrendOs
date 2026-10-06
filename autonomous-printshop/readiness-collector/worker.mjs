@@ -14,6 +14,10 @@ async function health(env){
       SELECT
         (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
         (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS evidenceRows,
+        (SELECT mode FROM autonomous_machine_control WHERE singleton_id=1) AS machineMode,
+        (SELECT COUNT(*) FROM autonomous_machines) AS machineRows,
+        (SELECT COUNT(*) FROM autonomous_machine_observations) AS machineObservations,
+        (SELECT COUNT(*) FROM autonomous_line_machine_mapping_events) AS machineMappings,
         (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks
     `).first(),
     designReadinessSchemaStateV1(env.DB)
@@ -26,6 +30,10 @@ async function health(env){
     designEvidenceSchemaReady:design.ready,
     designMode:design.mode,
     evidenceRows:Number(row&&row.evidenceRows||0),
+    machineMode:text(row&&row.machineMode)||'ABSENT',
+    machineRows:Number(row&&row.machineRows||0),
+    machineObservations:Number(row&&row.machineObservations||0),
+    machineMappings:Number(row&&row.machineMappings||0),
     operatorTasks:Number(row&&row.operatorTasks||0),
     writeAuthority:'AUTONOMOUS_READINESS_EVIDENCE_ONLY',
     businessWrites:false,
