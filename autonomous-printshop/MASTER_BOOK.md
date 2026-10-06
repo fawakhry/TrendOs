@@ -4068,3 +4068,49 @@ EXTERNAL_EVIDENCE_BLOCKER=YES
 OPERATOR_TASK_CANARY_QUALIFIED=false
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ```
+
+
+### AP-051 — Accounting A2.9 guard live; frontend CANARY armed while server remains closed
+
+Autonomous Printshop synchronized with the Accounting stream through ACC-088.
+
+Consumed accounting state:
+- ACC-087: A2.9 recalc server guard deployed successfully while Accounting authority remained READONLY;
+- ACC-088: EasyStore Production frontend now exposes only `recalcAccountingMaterialsCascade` in frontend CANARY mode;
+- legacy D1 write flag remains false;
+- server authority remains closed;
+- no A2.9 business command has executed.
+
+Fresh backend runtime:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=8
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+GOOGLE_BUSINESS_CALLS=0
+
+SERVER_CANARY_ALLOWED_USERS=0
+SERVER_CANARY_ALLOWED_ACTIONS=0
+SERVER_CANARY_MAX_COMMANDS=0
+SERVER_CANARY_COMMANDS_STARTED=0
+```
+
+Autonomous Printshop consequence:
+- Material remains read-only/blocker-observation only;
+- no Material READY may be emitted;
+- the inactive A2_CANARY audit material remains excluded;
+- if the Accounting server enters CANARY, the AP cutover guard will freeze Material evidence automatically;
+- Operator Task remains OFF.
+
+Current AP Material state:
+```ini
+ACCOUNTING_MATERIAL_ROWS_TOTAL=1
+ACCOUNTING_CANARY_MATERIAL_ROWS=1
+ACTIVE_OPERATIONAL_MATERIALS=0
+MATERIAL_SOURCE_LINKED_ROWS=0
+MATERIAL_SOURCE_LINKED_LINES=0
+MATERIAL_ACQUISITION_READY=false
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+```
+
+No Autonomous Printshop accounting mutation, authority ARM, financial write or employee assignment occurred.
