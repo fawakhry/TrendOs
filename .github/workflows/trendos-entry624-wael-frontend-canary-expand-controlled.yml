@@ -1,0 +1,246 @@
+
+name: TrendOS Entry624 Wael Frontend Canary Expand Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry624-wael-frontend-canary-expand-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry624-wael-frontend-canary-expand-controlled
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      EXPECTED_FRONTEND_VERSION: a29db5d5-ea3b-4bdc-9eb0-594a501571b3
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      OLD_TAG: 20261006-entry623-diya-canary-backend-pass
+      NEW_TAG: 20261006-entry624-wael-second-canary
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Entry624 source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry624_wael_second_native_canary_17_policy.test.mjs
+          node tests/entry623_diya_login_canary_17_policy.test.mjs
+          echo ENTRY624_SOURCE_QUALIFICATION=PASS
+
+      - name: Exact Production preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1||full[0].id!==process.env.EXPECTED_FRONTEND_VERSION) throw new Error('frontend version drift '+JSON.stringify(full));
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY624_FRONTEND_VERSION_LOCK=PASS');
+          NODE
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry624pre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.legacySessionEnrollEnabled!==false||a.nativeOnly!==false) throw new Error('auth drift');
+          if(Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1||a.plaintextStored!==false) throw new Error('auth rows drift');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge drift');
+          if(b.rawNativeTokenForwarded!==false||b.plaintextPasswordForwarded!==false) throw new Error('bridge hygiene drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          for(const f of ['content','comms','core']) if(r(f).mode!=='OFF') throw new Error(f+' drift');
+          console.log('ENTRY624_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?entry624pre=$suffix" -o /tmp/live-index.html
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry624pre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry624pre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry624pre=$suffix" -o /tmp/live-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry624pre=$suffix" -o /tmp/live-edge.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry624pre=$suffix" -o /tmp/live-attendance.js
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء'];" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 17;" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = true;" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY';" /tmp/live-config.js
+          grep -Fq "config.js?v=$OLD_TAG" /tmp/live-index.html
+          grep -Fq "canaryMinimumBridgePolicies" /tmp/live-dispatcher.js
+          grep -Fq "postWriteBarrierRecoveries" /tmp/live-edge.js
+          grep -Fq "normalizeAttendanceBackendResponse" /tmp/live-attendance.js
+          echo ENTRY624_EXACT_LIVE_BASELINE=PASS
+
+      - name: Build exact-live Wael expansion bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+
+          cp /tmp/live-index.html cloudflare-d1/frontend-dist/index.html
+          cp /tmp/live-app.js cloudflare-d1/frontend-dist/app.js
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-dispatcher.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          cp /tmp/live-edge.js cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          cp /tmp/live-attendance.js cloudflare-d1/frontend-dist/attendance-v1.js
+
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+          old="window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء'];"
+          new="window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء','وائل'];"
+          if s.count(old)!=1:
+              raise SystemExit('canary users anchor count='+str(s.count(old)))
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+
+          OLD="config.js?v=$OLD_TAG"
+          NEW="config.js?v=$NEW_TAG"
+          export OLD NEW
+          python3 <<'PY'
+          from pathlib import Path
+          import os
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          old=os.environ['OLD']; new=os.environ['NEW']
+          if s.count(old)!=1:
+              raise SystemExit('config cache anchor count='+str(s.count(old)))
+          p.write_text(s.replace(old,new,1))
+          PY
+
+          node --check cloudflare-d1/frontend-dist/config.js
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء','وائل'];" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء','وائل','جابر'];" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 17;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = true;" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY';" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "config.js?v=$NEW_TAG" cloudflare-d1/frontend-dist/index.html
+
+          node <<'NODE'
+          const fs=require('fs'),m=require('./docs/trendos/staging/ENTRY624_WAEL_SECOND_NATIVE_CANARY_17_POLICY_MANIFEST.json');
+          const s=fs.readFileSync('cloudflare-d1/frontend-dist/config.js','utf8');
+          const mm=s.match(/window\.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES\s*=\s*(\[[^;]*\]);/);
+          if(!mm) throw new Error('policy assignment missing');
+          const p=JSON.parse(mm[1]);
+          if(p.length!==17||JSON.stringify(p)!==JSON.stringify(m.policies)) throw new Error('policy mismatch');
+          console.log('ENTRY624_WAEL_BUNDLE=PASS');
+          NODE
+
+      - name: Deploy frontend expansion with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry624 Wael canary automatic rollback" --config "$FRONTEND_CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/?entry624post=$suffix" -o /tmp/post-index.html \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry624post=$suffix" -o /tmp/post-config.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry624post=$suffix" -o /tmp/post-dispatcher.js \
+              && grep -Fq "config.js?v=$NEW_TAG" /tmp/post-index.html \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = true;" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = ['ضياء','وائل'];" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 17;" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = true;" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL';" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = 'READONLY';" /tmp/post-config.js \
+              && grep -Fq "canaryMinimumBridgePolicies" /tmp/post-dispatcher.js; then
+                OK=1
+                echo "ENTRY624_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          for f in auth legacy-action ops accounting content comms core; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry624post=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||a.envEnabled!==true||a.legacyBootstrapEnabled!==true||a.nativeOnly!==false) throw new Error('auth post drift');
+          if(Number(a.userCount||0)!==1||Number(a.nativeReadyCount||0)!==1||a.plaintextStored!==false) throw new Error('unexpected pre-Wael-login auth row change');
+          if(b.enabled!==true||b.secretConfigured!==true||Number(b.allowedPolicyCount||0)!==17) throw new Error('bridge post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting post drift');
+          for(const f of ['content','comms','core']) if(r(f).mode!=='OFF') throw new Error(f+' post drift');
+          console.log('ENTRY624_FRONTEND_POSTFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version');
+          console.log('ENTRY624_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY624_FRONTEND_CANARY_EXPANSION=PASS
+          echo ENTRY624_CANARY_USERS=ضياء,وائل
+          echo ENTRY624_GLOBAL_NATIVE_AUTH=OFF
+          echo ENTRY624_BRIDGE_POLICY_COUNT=17
+          echo ENTRY624_API_DEPLOY=NO
+          echo ENTRY624_D1_CONTROL_MUTATION=NO
+          echo ENTRY624_ACCOUNTING_TOUCHED=NO
+          echo ENTRY624_EASYSTORE_TOUCHED=NO
