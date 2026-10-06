@@ -1,0 +1,59 @@
+{
+  "entry": "Entry624",
+  "purpose": "Second-employee Native Auth canary expansion after Entry623 Diya PASS, preserving exact 17-policy bridge pilot and Global Native Auth OFF",
+  "existingCanaryUsers": [
+    "ضياء"
+  ],
+  "addedCanaryUsername": "وائل",
+  "targetCanaryUsers": [
+    "ضياء",
+    "وائل"
+  ],
+  "selectionRationale": "وائل is already the documented TrendOS Orders canary user, minimizing rollout-surface novelty.",
+  "globalNativeAuth": false,
+  "frontendCanaryTarget": true,
+  "frontendBridgeTarget": true,
+  "frontendMinimumBridgePolicies": 17,
+  "authModeTarget": "TRANSITIONAL",
+  "authPolicyEpochTarget": 23,
+  "authEnvTarget": true,
+  "legacyBootstrapTarget": true,
+  "nativeOnlyTarget": false,
+  "bridgeTarget": true,
+  "bridgePolicyCount": 17,
+  "expectedNativeReadyBeforeWaelLogin": 1,
+  "expectedNativeReadyAfterWaelBootstrap": 2,
+  "accountingProgram": "DEFERRED_EXTERNAL_REPO",
+  "accountingMode": "READONLY",
+  "opsMode": "GENERAL",
+  "scope": "ADD_WAEL_ONLY_KEEP_ALL_OTHER_EMPLOYEES_LEGACY",
+  "policies": [
+    "customerManagerV1:inbox",
+    "customerManagerV1:thread",
+    "getActivityLog",
+    "getDashboard",
+    "getFranchiseBranches",
+    "getKnowledge",
+    "getLeadPhoneNumbers",
+    "getMarketplace",
+    "getMatbagyNotes",
+    "getOrderConversation",
+    "getPlatformAds",
+    "getPlatformSections",
+    "getRows",
+    "getServiceProviderRoutes",
+    "getTrendMasterCenterV1931",
+    "getWhiteLabelSettings",
+    "goLiveAutopilotV1:listDrafts"
+  ],
+  "invariants": [
+    "Only ضياء and وائل are selected by the frontend Native Auth canary allowlist.",
+    "All employees other than ضياء and وائل remain on the existing Legacy login while Global Native Auth stays false.",
+    "No D1 auth-control mutation is required for Entry624; Auth remains TRANSITIONAL epoch23.",
+    "Ops stays native GENERAL and Accounting stays native READONLY.",
+    "No Accounting bridge policies are added.",
+    "No already-native Ops policies are added.",
+    "Any selected-canary legacy action outside the exact 17-policy pilot fails closed.",
+    "No EasyStore changes are allowed."
+  ]
+}
