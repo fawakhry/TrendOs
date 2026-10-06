@@ -26,6 +26,7 @@ on:
       - 'autonomous-printshop/core/machine-identity-command-v1.mjs'
       - 'autonomous-printshop/core/easystore-material-readonly-connector-v1.mjs'
       - 'autonomous-printshop/core/accounting-material-evidence-connector-v1.mjs'
+      - 'autonomous-printshop/core/material-readiness-candidate-v2.mjs'
       - 'autonomous-printshop/core/accounting-cloud-cutover-guard-v1.mjs'
       - 'autonomous-printshop/core/material-post-cutover-requalification-v1.mjs'
       - 'autonomous-printshop/core/matbagy-design-evidence-connector-v1.mjs'
@@ -78,6 +79,7 @@ on:
       - '.github/workflows/autonomous-printshop-machine-evidence-manual.yml'
       - 'autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs'
       - 'autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs'
+      - 'autonomous-printshop/tests/material_readiness_candidate_v2.test.mjs'
       - 'autonomous-printshop/tests/accounting_cloud_cutover_guard_v1.test.mjs'
       - 'autonomous-printshop/tests/material_post_cutover_requalification_v1.test.mjs'
       - 'autonomous-printshop/tests/material_post_cutover_diagnostic_workflow_v1.test.mjs'
@@ -200,6 +202,8 @@ jobs:
         run: node autonomous-printshop/tests/easystore_material_readonly_connector_v1.test.mjs
       - name: Run accounting material evidence connector contract
         run: node autonomous-printshop/tests/accounting_material_evidence_connector_v1.test.mjs
+      - name: Run fail-closed material readiness candidate v2 contract
+        run: node autonomous-printshop/tests/material_readiness_candidate_v2.test.mjs
       - name: Run accounting cloud cutover guard contract
         run: node autonomous-printshop/tests/accounting_cloud_cutover_guard_v1.test.mjs
       - name: Run material post-cutover requalification contract
