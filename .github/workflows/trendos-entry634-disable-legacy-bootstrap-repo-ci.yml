@@ -1,0 +1,39 @@
+name: TrendOS Entry634 Disable Legacy Bootstrap Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/ENTRY634_DISABLE_LEGACY_AUTH_BOOTSTRAP_MANIFEST.json'
+      - 'tests/entry634_disable_legacy_auth_bootstrap.test.mjs'
+      - 'cloudflare-d1/src/employee-auth-native-v1.mjs'
+      - '.github/workflows/trendos-entry634-disable-legacy-bootstrap-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry634 auth contract
+        run: |
+          set -euo pipefail
+          node tests/entry634_disable_legacy_auth_bootstrap.test.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          echo ENTRY634_REPO_GATE=PASS
+      - name: No runtime mutation
+        run: |
+          echo ENTRY634_PRODUCTION_MUTATION=NO
+          echo ENTRY634_AUTH_FLAG_MUTATION=NO
+          echo ENTRY634_D1_MUTATION=NO
+          echo ENTRY634_ACCOUNTING_TOUCHED=NO
+          echo ENTRY634_EASYSTORE_TOUCHED=NO
