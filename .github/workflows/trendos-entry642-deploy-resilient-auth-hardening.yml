@@ -178,7 +178,7 @@ jobs:
             ]);
             const next=bs.map(b=>targets.has(String(b.name||''))
               ? {name:b.name,type:'plain_text',text:targets.get(String(b.name||''))}
-              : {name:b.name,type:'inherit',version_id:pre});
+              : {name:b.name,type:'inherit',version_id:'latest'});
 
             const form=new FormData();
             form.append('settings',new Blob([JSON.stringify({
