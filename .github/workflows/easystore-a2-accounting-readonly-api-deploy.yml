@@ -116,11 +116,18 @@ jobs:
 
           node <<'NODE'
           const fs=require('fs'),ac=JSON.parse(fs.readFileSync('/tmp/accounting-pre.json','utf8')),cfg=fs.readFileSync('/tmp/es-config.js','utf8');
-          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||Number(ac.policyEpoch||0)!==2||Number(ac.googleBusinessCalls||0)!==0) throw new Error('accounting preflight drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||Number(ac.googleBusinessCalls||0)!==0) throw new Error('accounting preflight drift');
+          if(Number(ac.writeCanaryAllowedUserCount||0)!==0||Number(ac.writeCanaryAllowedActionCount||0)!==0) throw new Error('server canary allowlists not empty');
+          if(Number(ac.writeCanaryMaxCommands||0)!==0||Number(ac.writeCanaryCommandsStarted||0)!==0) throw new Error('server canary command budget not cleared');
+          fs.writeFileSync('/tmp/pre-accounting-policy-epoch.txt',String(Number(ac.policyEpoch||0)));
           const m=cfg.match(/EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*(true|false)/);
+          const wm=cfg.match(/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*['"]([^'"]+)['"]/);
           if(m&&m[1]!=='false') throw new Error('live EasyStore D1 writes already enabled');
+          if(wm&&String(wm[1]).toUpperCase()!=='OFF') throw new Error('live EasyStore write mode not OFF');
           console.log('A2_DEPLOY_ACCOUNTING_PRE=READONLY');
+          console.log('A2_DEPLOY_PRE_POLICY_EPOCH='+Number(ac.policyEpoch||0));
           console.log('A2_DEPLOY_LIVE_WRITE_FLAG='+(m?m[1]:'ABSENT_SAFE'));
+          console.log('A2_DEPLOY_LIVE_WRITE_MODE='+(wm?wm[1]:'ABSENT_SAFE'));
           NODE
 
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
@@ -146,9 +153,11 @@ jobs:
           const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/accounting-counts-pre.json','utf8')),rows=[];
           const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
           walk(x);if(rows.length!==1)throw new Error('accounting pre-count parse');
-          const nz=Object.entries(rows[0]).filter(([,v])=>Number(v)!==0);
-          if(nz.length)throw new Error('clean accounting baseline required:'+JSON.stringify(nz));
-          console.log('A2_DEPLOY_ACCOUNTING_ROWS_PRE=0');
+          const r=Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v||0)]));
+          const expected={materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:1,events:1};
+          const drift=Object.keys(expected).filter(k=>r[k]!==expected[k]).map(k=>({key:k,actual:r[k],expected:expected[k]}));
+          if(drift.length)throw new Error('approved post-canary accounting baseline required:'+JSON.stringify(drift));
+          console.log('A2_DEPLOY_ACCOUNTING_BASELINE=CANARY_EVIDENCE_ONLY');
           NODE
 
       - name: Build keep-vars deploy config
@@ -213,9 +222,12 @@ jobs:
             }
           }
           const ac=post('accounting');
-          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||Number(ac.policyEpoch||0)!==2||Number(ac.googleBusinessCalls||0)!==0) throw new Error('accounting post drift');
+          const preEpoch=Number(fs.readFileSync('/tmp/pre-accounting-policy-epoch.txt','utf8'));
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||Number(ac.policyEpoch||0)!==preEpoch||Number(ac.googleBusinessCalls||0)!==0) throw new Error('accounting post drift');
           if(ac.writeCanaryReady!==true||ac.writeCanaryEnabled!==true||Number(ac.writeCanaryAllowedUserCount||0)!==0||Number(ac.writeCanaryAllowedActionCount||0)!==0) throw new Error('write canary default deny not live');
+          if(Number(ac.writeCanaryMaxCommands||0)!==0||Number(ac.writeCanaryCommandsStarted||0)!==0) throw new Error('write canary command budget not cleared');
           console.log('A2_DEPLOY_ACCOUNTING_POST=READONLY');
+          console.log('A2_DEPLOY_POLICY_EPOCH_INVARIANT='+preEpoch);
           console.log('A2_DEPLOY_CANARY_DEFAULT_DENY=PASS');
           console.log('A2_DEPLOY_CROSS_FAMILY_HEALTH=PASS');
           NODE
@@ -255,8 +267,11 @@ jobs:
           }
           const pre=row('/tmp/accounting-counts-pre.json'),post=row('/tmp/accounting-counts-post.json');
           if(JSON.stringify(pre)!==JSON.stringify(post))throw new Error('accounting row-count drift pre='+JSON.stringify(pre)+' post='+JSON.stringify(post));
-          if(Object.values(post).some(v=>v!==0))throw new Error('accounting business baseline no longer zero');
+          const expected={materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:1,events:1};
+          const drift=Object.keys(expected).filter(k=>post[k]!==expected[k]).map(k=>({key:k,actual:post[k],expected:expected[k]}));
+          if(drift.length)throw new Error('approved post-canary baseline drift:'+JSON.stringify(drift));
           console.log('A2_DEPLOY_ACCOUNTING_ROW_COUNTS_INVARIANT=PASS');
+          console.log('A2_DEPLOY_APPROVED_CANARY_EVIDENCE_PRESERVED=PASS');
           NODE
 
           trap - ERR
