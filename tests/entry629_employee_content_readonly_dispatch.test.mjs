@@ -100,7 +100,10 @@ await assert.rejects(
 const beforeComms=fetchCalls.length;
 out=await windowObject.trendosEmployeeApiV1('getOrderConversation',{username:'ضياء',token:'native-token',orderId:'TEST'});
 assert.equal(out.success,true);
-assert.equal(fetchCalls.length,beforeComms+3);
+// saveKnowledge immediately above already revalidated the new 4-policy canary key;
+// the remaining comms action therefore uses the fresh preflight cache and only
+// performs the actual bridge request.
+assert.equal(fetchCalls.length,beforeComms+1);
 assert.equal(fetchCalls.at(-1).url,'https://trendos-d1-api.example.test/v1/employee/legacy-action');
 
 const beforeUnknown=fetchCalls.length;
