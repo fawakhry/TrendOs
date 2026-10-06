@@ -1,0 +1,41 @@
+name: TrendOS Entry635 Native Only Bridge Free Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'employee-api-dispatcher-v1.js'
+      - 'docs/trendos/staging/ENTRY635_NATIVE_ONLY_BRIDGE_FREE_MANIFEST.json'
+      - 'tests/entry635_native_only_bridge_free_preflight.test.mjs'
+      - '.github/workflows/trendos-entry635-native-only-bridge-free-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry635 contract
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry635_native_only_bridge_free_preflight.test.mjs
+          node tests/entry633_native_username_canonicalization.test.mjs
+          node tests/entry631_bridge_free_canary_preflight.test.mjs
+          echo ENTRY635_REPO_GATE=PASS
+      - name: No runtime mutation
+        run: |
+          echo ENTRY635_PRODUCTION_MUTATION=NO
+          echo ENTRY635_AUTH_FLAG_MUTATION=NO
+          echo ENTRY635_FRONTEND_DEPLOY=NO
+          echo ENTRY635_ACCOUNTING_TOUCHED=NO
+          echo ENTRY635_EASYSTORE_TOUCHED=NO
