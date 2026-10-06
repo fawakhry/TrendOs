@@ -3562,3 +3562,121 @@ DESIGN_PREFLIGHT_ROWS=0
 DIRECT_READINESS_WRITE=NO
 OPERATOR_TASK_CONTROL=OFF
 ```
+
+
+### AP-042 — Cloud order-file Design artifact candidate path qualified
+
+A fail-closed bridge from the Cloud-native order conversation file source to the Autonomous Printshop Design evidence model is now repo-qualified.
+
+Added:
+- `autonomous-printshop/core/cloud-order-file-design-artifact-command-v1.mjs`;
+- `autonomous-printshop/tests/cloud_order_file_design_artifact_command_v1.test.mjs`;
+- `.github/workflows/autonomous-printshop-cloud-design-artifact-diagnostic.yml`;
+- `autonomous-printshop/tests/cloud_design_artifact_diagnostic_workflow_v1.test.mjs`.
+
+Candidate requirements:
+- exact file ID;
+- exact order ID + line ID;
+- real R2 key;
+- Design-compatible MIME;
+- exact 64-character SHA-256;
+- active current order/line match;
+- archived line forbidden.
+
+Qualified command write boundary, when a future execution path is separately approved:
+- Artifact only;
+- LINKED asset-binding only;
+- source kind `CUSTOMER_UPLOAD`;
+- provider `R2`;
+- privacy `CUSTOMER_PRIVATE`;
+- no Approval;
+- no Preflight;
+- no Readiness write;
+- no accounting/order/employee mutation.
+
+The mutating workflow was intentionally not introduced after execution-tool safety blocked the first attempt and the current Production source contains zero cloud files. A read-only manual diagnostic was retained instead.
+
+Qualification:
+- Policy CI Run `37540547072` = SUCCESS.
+
+Current Production source:
+```ini
+CLOUD_ORDER_FILES=0
+CLOUD_LINE_LINKED_FILES=0
+DESIGN_ARTIFACTS=0
+DESIGN_LINKED_BINDINGS=0
+DESIGN_APPROVALS=0
+DESIGN_PREFLIGHTS=0
+DESIGN_READY=0
+```
+
+```ini
+CLOUD_DESIGN_ARTIFACT_COMMAND=QUALIFIED_REPO_ONLY
+MUTATING_IMPORT_WORKFLOW=NOT_OPENED
+READ_ONLY_DIAGNOSTIC=QUALIFIED
+UPLOAD_EQUALS_APPROVAL=NO
+UPLOAD_EQUALS_READY=NO
+```
+
+
+### AP-043 — Accounting CANARY material audit rows excluded from operational readiness
+
+Autonomous Printshop synchronized with the completed EasyStore A2.8 bounded Material CANARY and hardened Material readiness so immutable canary audit evidence can never be mistaken for operational stock authority.
+
+Latest consumed accounting state through **ACC-081**:
+- A2.8 Material CANARY succeeded, was independently verified, and fully auto-closed;
+- one synthetic Material row remains intentionally as immutable audit evidence;
+- its material kind is `A2_CANARY`;
+- it is inactive, zero-stock, zero-value, zero-dimension;
+- Accounting backend is back to `READONLY`;
+- policy epoch=8;
+- authoritativeWrites=false;
+- frontend write routing=OFF;
+- server canary users/actions/budget=0;
+- GENERAL has never opened;
+- A2.9 recalc guard is only repo-qualified and not deployed.
+
+Autonomous Printshop Material source was hardened:
+- `accounting-material-evidence-connector-v1.mjs` explicitly excludes `A2_CANARY`;
+- Readiness Collector distinguishes total accounting material rows from operational active materials;
+- canary rows are reported separately and are always excluded from readiness;
+- Post-cutover diagnostic excludes `A2_CANARY` from the active operational material count;
+- stale escaped GitHub/Wrangler interpolation in that future diagnostic was repaired before use.
+
+Final qualification:
+- Policy CI Run `37541283326` = SUCCESS.
+- Readiness Collector Production Deploy Run `37541283380` = SUCCESS.
+- Previous failed runs in this sequence stopped at contract tests before deployment; they caused no Production business mutation.
+
+Fresh Production evidence:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=8
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+
+ACCOUNTING_MATERIAL_ROWS_TOTAL=1
+ACCOUNTING_CANARY_MATERIAL_ROWS=1
+ACTIVE_MATERIALS_ALL=0
+ACTIVE_OPERATIONAL_MATERIALS=0
+MATERIAL_SOURCE_CLASS=AUDIT_ONLY_CANARY_MATERIALS
+CANARY_ROWS_EXCLUDED_FROM_READINESS=true
+
+STOCK_MOVES=0
+DEPT_LINES_WITH_LINE_ID=0
+DEPT_LINES_WITH_MATERIAL=0
+DEPT_LINES_WITH_CONSUMPTION=0
+
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_ACQUISITION_READY=false
+MATERIAL_BLOCKER=ACCOUNTING_CLOUD_DATA_MIGRATION_PENDING
+
+OPERATOR_TASK_CONTROL=OFF
+OPERATOR_TASK_ROWS=0
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+Result:
+- successful accounting canary evidence is visible;
+- it remains audit-only;
+- it cannot satisfy Material readiness;
+- Autonomous Printshop still waits for real operational material catalog/stock/line-consumption authority.
