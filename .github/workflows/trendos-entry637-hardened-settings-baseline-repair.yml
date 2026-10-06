@@ -58,7 +58,7 @@ jobs:
             const r=await fetch(base+path,{...options,headers:{...headers,...(options.headers||{})}});
             const raw=await r.text();
             let body={}; try{body=JSON.parse(raw||'{}')}catch{}
-            if(!r.ok||body.success!==true) throw new Error('Cloudflare API '+r.status+' '+path);
+            if(!r.ok||body.success!==true) throw new Error('Cloudflare API '+r.status+' '+path+' ERRORS='+JSON.stringify(body.errors||[]));
             return body;
           }
           function activeVersion(body){
