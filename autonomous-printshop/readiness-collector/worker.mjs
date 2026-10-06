@@ -14,6 +14,12 @@ import {
 import {
   machineReadinessEvidenceCandidatesV1
 } from '../core/machine-readiness-v1.mjs';
+import {
+  readAccountingMaterialEvidenceSnapshotV1
+} from '../core/accounting-material-evidence-connector-v1.mjs';
+import {
+  materialBlockerEvidenceCandidatesV1
+} from '../core/readiness-source-adapters-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 
@@ -106,6 +112,23 @@ async function readDesignAcquisitionProjection(env){
   };
 }
 
+async function readMaterialAcquisitionProjection(env,nowMs){
+  const snapshot=await readAccountingMaterialEvidenceSnapshotV1(env.DB);
+  const rows=Array.isArray(snapshot&&snapshot.rows)?snapshot.rows:[];
+  const blockers=snapshot&&snapshot.qualified
+    ? materialBlockerEvidenceCandidatesV1(rows,{nowMs})
+    : [];
+  return {
+    connectorQualified:!!(snapshot&&snapshot.qualified),
+    connectorReason:text(snapshot&&snapshot.reason),
+    accountingMode:text(snapshot&&snapshot.accountingMode)||'ABSENT',
+    accountingEpoch:Number(snapshot&&snapshot.accountingEpoch||0),
+    linkedRows:rows.length,
+    linkedLines:new Set(rows.map(x=>text(x&&x.lineId)).filter(Boolean)).size,
+    blockerCandidates:blockers.length
+  };
+}
+
 async function readMachineAcquisitionProjection(env,nowMs){
   const [machines,mappings,observations]=await Promise.all([
     env.DB.prepare(`
@@ -145,7 +168,7 @@ async function readMachineAcquisitionProjection(env,nowMs){
 
 async function evidenceStatus(env){
   const nowMs=Date.now();
-  const [row,designProjection,machineProjection]=await Promise.all([
+  const [row,designProjection,materialProjection,machineProjection]=await Promise.all([
     env.DB.prepare(`
     SELECT
       (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
@@ -187,6 +210,7 @@ async function evidenceStatus(env){
       (SELECT COUNT(*) FROM autonomous_readiness_evidence) AS evidenceRows
   `).bind(nowMs).first(),
     readDesignAcquisitionProjection(env),
+    readMaterialAcquisitionProjection(env,nowMs),
     readMachineAcquisitionProjection(env,nowMs)
   ]);
 
@@ -216,8 +240,9 @@ async function evidenceStatus(env){
       : materialRowsTotal>0
         ? 'NO_ACTIVE_OPERATIONAL_MATERIALS'
         : 'NO_MATERIAL_ROWS';
-  const materialReadyInput=accountingCutover.sourceDataPresent &&
-    accountingCutover.blockerCollectionAllowed===true;
+  const materialReadyInput=accountingCutover.blockerCollectionAllowed===true &&
+    materialProjection.connectorQualified===true &&
+    Number(materialProjection.linkedRows||0)>0;
   const machineReadyInput=text(row&&row.machineMode)==='SHADOW' &&
     Number(machineProjection&&machineProjection.ready||0)>0;
 
@@ -256,6 +281,11 @@ async function evidenceStatus(env){
       materialSourceClass,
       canaryRowsExcludedFromReadiness:true,
       activeMaterials:Number(row&&row.activeMaterials||0),
+      sourceLinkedRows:Number(materialProjection&&materialProjection.linkedRows||0),
+      sourceLinkedLines:Number(materialProjection&&materialProjection.linkedLines||0),
+      sourceBlockerCandidates:Number(materialProjection&&materialProjection.blockerCandidates||0),
+      sourceConnectorQualified:materialProjection&&materialProjection.connectorQualified===true,
+      sourceConnectorReason:text(materialProjection&&materialProjection.connectorReason),
       stockMoves:Number(row&&row.stockMoves||0),
       deptLinesWithLineId:Number(row&&row.accountingDeptLinesWithLineId||0),
       deptLinesWithMaterial:Number(row&&row.accountingDeptLinesWithMaterial||0),
@@ -269,7 +299,13 @@ async function evidenceStatus(env){
       writeCanaryCommandsStarted:Number(row&&row.writeCanaryCommandsStarted||0),
       writeCanaryCommandsRemaining:Number(accountingCutover.writeCanary&&accountingCutover.writeCanary.commandsRemaining||0),
       acquisitionReady:materialReadyInput,
-      blocker:materialReadyInput?'':accountingCutover.reason
+      blocker:materialReadyInput?'':(
+        accountingCutover.blockerCollectionAllowed!==true
+          ? accountingCutover.reason
+          : (Number(materialProjection&&materialProjection.linkedRows||0)===0
+              ? 'AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING'
+              : text(materialProjection&&materialProjection.connectorReason)||accountingCutover.reason)
+      )
     },
     machine:{
       mode:text(row&&row.machineMode)||'ABSENT',
