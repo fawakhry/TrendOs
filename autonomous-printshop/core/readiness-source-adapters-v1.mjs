@@ -1,4 +1,5 @@
 import { recordReadinessEvidenceV1 } from './readiness-evidence-writer-v1.mjs';
+import { machineReadinessEvidenceCandidatesV1 } from './machine-readiness-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function norm(v){
@@ -94,7 +95,7 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
     return {success:true,skipped:true,reason:'READINESS_CONTROL_NOT_SHADOW'};
   }
 
-  const [legacyResult,materialResult]=await Promise.all([
+  const [legacyResult,materialResult,machinesResult,mappingsResult,observationsResult]=await Promise.all([
     db.prepare(`
       SELECT l.line_id AS lineId,
              l.ready,
@@ -142,12 +143,52 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
          AND COALESCE(nr.status,nl.status,lr.status,il.status,'') NOT IN (
            'تم التسليم','جاهز للاستلام','ملغي','ملغى','مكرر','مدمج','مغلق','ملغي/مغلق'
          )
-    `).all()
+    `).all(),
+    db.prepare(`
+      SELECT machine_id AS machineId,
+             display_name AS displayName,
+             department,
+             machine_class AS machineClass,
+             capabilities_json AS capabilitiesJson,
+             active,
+             version
+        FROM autonomous_machines
+       WHERE active=1
+    `).all(),
+    db.prepare(`
+      SELECT mapping_event_id AS mappingEventId,
+             line_id AS lineId,
+             machine_id AS machineId,
+             mapping_state AS mappingState,
+             source_kind AS sourceKind,
+             source_ref AS sourceRef,
+             observed_at_ms AS observedAtMs
+        FROM autonomous_line_machine_mapping_events
+    `).all(),
+    db.prepare(`
+      SELECT observation_id AS observationId,
+             machine_id AS machineId,
+             machine_state AS machineState,
+             source_kind AS sourceKind,
+             source_ref AS sourceRef,
+             confidence,
+             evidence_json AS evidenceJson,
+             observed_at_ms AS observedAtMs,
+             expires_at_ms AS expiresAtMs
+        FROM autonomous_machine_observations
+       WHERE expires_at_ms>?
+    `).bind(Number.isFinite(Number(options.nowMs))?Number(options.nowMs):Date.now()).all()
   ]);
 
   const candidates=[
     ...legacyDesignEvidenceCandidatesV1(legacyResult.results||[]),
-    ...materialBlockerEvidenceCandidatesV1(materialResult.results||[],options)
+    ...materialBlockerEvidenceCandidatesV1(materialResult.results||[],options),
+    ...machineReadinessEvidenceCandidatesV1({
+      machines:machinesResult.results||[],
+      mappings:mappingsResult.results||[],
+      observations:observationsResult.results||[],
+      nowMs:Number.isFinite(Number(options.nowMs))?Number(options.nowMs):Date.now()
+    })
   ];
 
   let inserted=0;
