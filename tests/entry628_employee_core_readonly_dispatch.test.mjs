@@ -38,7 +38,21 @@ const sandbox={
   window:windowObject,console,URL,Set,Map,JSON,Error,Number,Date,Promise,AbortController,TextEncoder,
   setTimeout,clearTimeout,setInterval,clearInterval,Response,
   fetch:async(url,options={})=>{
-    fetchCalls.push({url:String(url),options});
+    const u=String(url);
+    fetchCalls.push({url:u,options});
+    if(u.endsWith('/v1/employee/auth/health')){
+      return new Response(JSON.stringify({
+        success:true,schemaReady:true,mode:'TRANSITIONAL',envEnabled:true,
+        nativeOnly:false,plaintextStored:false,legacyBootstrapEnabled:true,nativeReadyCount:5
+      }),{status:200,headers:{'content-type':'application/json'}});
+    }
+    if(u.endsWith('/v1/employee/legacy-action/health')){
+      return new Response(JSON.stringify({
+        success:true,enabled:true,upstreamConfigured:true,secretConfigured:true,
+        allowedPolicyCount:13,rawNativeTokenForwarded:false,plaintextPasswordForwarded:false,
+        assertionBoundToAction:true,assertionBoundToPayload:true,replayNonceIssued:true
+      }),{status:200,headers:{'content-type':'application/json'}});
+    }
     return new Response(JSON.stringify({success:true,authority:'d1-employee-core-v1'}),{
       status:200,headers:{'content-type':'application/json'}
     });
