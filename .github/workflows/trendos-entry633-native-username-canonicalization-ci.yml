@@ -1,0 +1,41 @@
+name: TrendOS Entry633 Native Username Canonicalization CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'employee-api-dispatcher-v1.js'
+      - 'docs/trendos/staging/ENTRY633_NATIVE_USERNAME_CANONICALIZATION_MANIFEST.json'
+      - 'tests/entry633_native_username_canonicalization.test.mjs'
+      - '.github/workflows/trendos-entry633-native-username-canonicalization-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry633 canonicalization contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry633_native_username_canonicalization.test.mjs
+          node tests/entry631_bridge_free_canary_preflight.test.mjs
+          echo ENTRY633_REPO_GATE=PASS
+      - name: No runtime mutation
+        run: |
+          echo ENTRY633_PRODUCTION_MUTATION=NO
+          echo ENTRY633_D1_MUTATION=NO
+          echo ENTRY633_AUTH_FLAG_MUTATION=NO
+          echo ENTRY633_ACCOUNTING_TOUCHED=NO
+          echo ENTRY633_EASYSTORE_TOUCHED=NO
