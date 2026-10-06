@@ -1,0 +1,161 @@
+
+name: TrendOS Entry628 Core Readonly Backend Smoke
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry628-core-readonly-backend-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry628-core-readonly-backend-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+          for f in auth legacy-action core ops accounting content comms; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry628smoke=$GITHUB_SHA" -o "/tmp/$f.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),c=r('core'),o=r('ops'),ac=r('accounting'),ct=r('content'),cm=r('comms');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge drift');
+          if(c.schemaReady!==true||c.mode!=='READONLY'||Number(c.policyEpoch||0)!==1||Number(c.googleBusinessCalls||0)!==0||c.appsScriptBusinessAuthority!==false) throw new Error('core drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2||ac.authoritativeWrites!==false) throw new Error('accounting drift');
+          if(ct.mode!=='OFF'||cm.mode!=='OFF') throw new Error('content/comms drift');
+          console.log('ENTRY628_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+      - name: Login Native qualify user
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const password=String(process.env.QUALIFY_PASSWORD||'');
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/login',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json'},
+              body:JSON.stringify({username,password}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            const token=String(body&&body.user&&body.user.token||'').trim();
+            if(r.status!==200||body.success!==true||!token||String(body.authSource||'')!=='d1-native-employee-v1') process.exit(21);
+            console.log('::add-mask::'+token);
+            fs.writeFileSync('/tmp/entry628-token',token,{mode:0o600});
+            console.log('ENTRY628_NATIVE_LOGIN=PASS');
+            console.log('ENTRY628_TOKEN_LOGGED=NO');
+          })().catch(()=>process.exit(22));
+          NODE
+
+      - name: Four Native Core reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry628-token','utf8').trim();
+          async function post(action,extra={}){
+            const r=await fetch(base+'/v1/employee/core',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({action,username,...extra}),
+              cache:'no-store'
+            });
+            const raw=await r.text(); let body={}; try{body=JSON.parse(raw||'{}')}catch{}
+            if(r.status!==200||body.success!==true||body.authority!=='d1-employee-core-v1'){
+              throw new Error(action+' status='+r.status+' code='+String(body.code||'')+' message='+String(body.message||''));
+            }
+            return body;
+          }
+          (async()=>{
+            const rows=await post('getRows',{screen:'service'});
+            if(!Array.isArray(rows.rows)||!rows.dashboard||typeof rows.dashboard!=='object') throw new Error('getRows shape');
+            console.log('ENTRY628_CORE_GET_ROWS=PASS');
+
+            const dash=await post('getDashboard',{screen:'service'});
+            if(!dash.dashboard||typeof dash.dashboard!=='object') throw new Error('getDashboard shape');
+            console.log('ENTRY628_CORE_GET_DASHBOARD=PASS');
+
+            const activity=await post('getActivityLog',{limit:20});
+            if(!Array.isArray(activity.rows)) throw new Error('getActivityLog shape');
+            console.log('ENTRY628_CORE_GET_ACTIVITY_LOG=PASS');
+
+            const master=await post('getTrendMasterCenterV1931',{});
+            if(!master.system||typeof master.system!=='object'||!master.permissions||typeof master.permissions!=='object') throw new Error('getTrendMaster shape');
+            console.log('ENTRY628_CORE_GET_TREND_MASTER=PASS');
+
+            console.log('ENTRY628_CORE_READS=4/4_PASS');
+            console.log('ENTRY628_CORE_BUSINESS_WRITES=NO');
+          })().catch(e=>{console.error('ENTRY628_CORE_READ_SMOKE=FAIL '+String(e&&e.message||e));process.exit(31);});
+          NODE
+
+      - name: Bridge safety net still 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry628after=$GITHUB_SHA" -o /tmp/bridge-after.json
+          node <<'NODE'
+          const fs=require('fs'),b=JSON.parse(fs.readFileSync('/tmp/bridge-after.json','utf8'));
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge safety-net drift');
+          console.log('ENTRY628_BRIDGE_SAFETY_NET_17=PASS');
+          NODE
+
+      - name: Logout
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          if(!fs.existsSync('/tmp/entry628-token')){console.log('ENTRY628_LOGOUT=NOT_APPLICABLE');process.exit(0);}
+          const base=String(process.env.API_URL||'').replace(/\/$/,'');
+          const username=String(process.env.QUALIFY_USERNAME||'').trim();
+          const token=fs.readFileSync('/tmp/entry628-token','utf8').trim();
+          (async()=>{
+            const r=await fetch(base+'/v1/employee/auth/logout',{
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token},
+              body:JSON.stringify({username,token}),
+              cache:'no-store'
+            });
+            const body=JSON.parse(await r.text()||'{}');
+            if(r.status!==200||body.success!==true) process.exit(41);
+            console.log('ENTRY628_LOGOUT=PASS');
+          })().catch(()=>process.exit(42));
+          NODE
+          rm -f /tmp/entry628-token
