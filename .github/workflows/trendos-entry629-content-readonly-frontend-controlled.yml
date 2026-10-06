@@ -1,0 +1,256 @@
+
+name: TrendOS Entry629 Content Readonly Frontend Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry629-content-readonly-frontend-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry629-content-readonly-frontend-controlled
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      EXPECTED_FRONTEND_VERSION: 3f3d0665-27cd-426b-b723-2dc728676411
+      PRE_CONTENT_DISPATCHER_COMMIT: c6380aeda020f2aadf92a2b93184c24dd95144b7
+      CONTENT_DISPATCHER_COMMIT: 4fd61c5724f9c703357008d219ee0857365cd073
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      OLD_TAG: 20261006-entry628-core-bridge13
+      NEW_TAG: 20261006-entry629-content-bridge4
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Repo qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry629_employee_content_readonly_dispatch.test.mjs
+          node tests/entry614_employee_content_native.test.mjs
+          test "$(git rev-parse "$CONTENT_DISPATCHER_COMMIT:employee-api-dispatcher-v1.js")" = "$(git rev-parse HEAD:employee-api-dispatcher-v1.js)"
+          echo ENTRY629_REPO_QUALIFICATION=PASS
+
+      - name: Exact live preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1||full[0].id!==process.env.EXPECTED_FRONTEND_VERSION) throw new Error('frontend version drift '+JSON.stringify(full));
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY629_FRONTEND_VERSION_LOCK=PASS');
+          NODE
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry629frontpre=$GITHUB_SHA" -o "/tmp/$f-pre.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5||a.nativeOnly!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('bridge backend drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2||ct.schemaReady!==true) throw new Error('content drift');
+          if(cm.mode!=='OFF'||Number(cm.policyEpoch||0)!==1) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting drift');
+          console.log('ENTRY629_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?entry629frontpre=$suffix" -o /tmp/live-index.html
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry629frontpre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry629frontpre=$suffix" -o /tmp/live-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry629frontpre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trendos-edge-orders-read-v1.js?entry629frontpre=$suffix" -o /tmp/live-edge.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry629frontpre=$suffix" -o /tmp/live-attendance.js
+
+          git show "$PRE_CONTENT_DISPATCHER_COMMIT:employee-api-dispatcher-v1.js" >/tmp/repo-pre-content.js
+          cmp -s /tmp/live-dispatcher.js /tmp/repo-pre-content.js
+          echo ENTRY629_LIVE_DISPATCHER_EXACT_PARENT=PASS
+
+          grep -Fq "window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'READONLY';" /tmp/live-config.js
+          ! grep -Fq "MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE" /tmp/live-config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 13;" /tmp/live-config.js
+          grep -Fq '"getKnowledge"' /tmp/live-config.js
+          grep -Fq '"getPlatformSections"' /tmp/live-config.js
+          grep -Fq '"getOrderConversation"' /tmp/live-config.js
+          grep -Fq "config.js?v=$OLD_TAG" /tmp/live-index.html
+          echo ENTRY629_EXACT_LIVE_BASELINE=PASS
+
+      - name: Build exact-live Content readonly Bridge4 bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+
+          cp /tmp/live-index.html cloudflare-d1/frontend-dist/index.html
+          cp /tmp/live-app.js cloudflare-d1/frontend-dist/app.js
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-edge.js cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          cp /tmp/live-attendance.js cloudflare-d1/frontend-dist/attendance-v1.js
+          git show "$CONTENT_DISPATCHER_COMMIT:employee-api-dispatcher-v1.js" > cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+
+          python3 <<'PY'
+          from pathlib import Path
+          import json,re
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+
+          anchor="window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'READONLY';"
+          line="window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'READONLY';"
+          if s.count(anchor)!=1:
+              raise SystemExit('core config anchor count='+str(s.count(anchor)))
+          if 'MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE' in s:
+              raise SystemExit('content mode unexpectedly already present')
+          s=s.replace(anchor,anchor+"\n"+line,1)
+
+          old_min="window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 13;"
+          new_min="window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 4;"
+          if s.count(old_min)!=1:
+              raise SystemExit('min policy anchor count='+str(s.count(old_min)))
+          s=s.replace(old_min,new_min,1)
+
+          manifest=json.loads(Path('docs/trendos/staging/ENTRY629_CONTENT_READONLY_BRIDGE_REDUCTION_MANIFEST.json').read_text())
+          policies=json.dumps(manifest['remainingBridgePolicies'],ensure_ascii=False,separators=(',',':'))
+          pat=r'window\.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES\s*=\s*\[[^;]*\];'
+          matches=re.findall(pat,s)
+          if len(matches)!=1:
+              raise SystemExit('bridge policy assignment count='+str(len(matches)))
+          s=re.sub(pat,"window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = "+policies+";",s,count=1)
+          p.write_text(s)
+          PY
+
+          OLD="config.js?v=$OLD_TAG"
+          NEW="config.js?v=$NEW_TAG"
+          export OLD NEW
+          python3 <<'PY'
+          from pathlib import Path
+          import os
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          old=os.environ['OLD']; new=os.environ['NEW']
+          if s.count(old)!=1:
+              raise SystemExit('cache anchor count='+str(s.count(old)))
+          p.write_text(s.replace(old,new,1))
+          PY
+
+          node --check cloudflare-d1/frontend-dist/config.js
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'READONLY';" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 4;" cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq '"getKnowledge"' cloudflare-d1/frontend-dist/config.js
+          ! grep -Fq '"getPlatformSections"' cloudflare-d1/frontend-dist/config.js
+          grep -Fq '"getOrderConversation"' cloudflare-d1/frontend-dist/config.js
+          grep -Fq '"customerManagerV1:inbox"' cloudflare-d1/frontend-dist/config.js
+          grep -Fq '"goLiveAutopilotV1:listDrafts"' cloudflare-d1/frontend-dist/config.js
+          grep -Fq "var CONTENT_PATH = '/v1/employee/content';" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "function shouldRouteContentNative" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "config.js?v=$NEW_TAG" cloudflare-d1/frontend-dist/index.html
+          echo ENTRY629_CONTENT_FRONTEND_BUNDLE=PASS
+
+      - name: Deploy with rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry629 Content readonly automatic rollback" --config "$FRONTEND_CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/?entry629frontpost=$suffix" -o /tmp/post-index.html \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry629frontpost=$suffix" -o /tmp/post-config.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry629frontpost=$suffix" -o /tmp/post-dispatcher.js \
+              && grep -Fq "config.js?v=$NEW_TAG" /tmp/post-index.html \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE = 'READONLY';" /tmp/post-config.js \
+              && grep -Fq "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 4;" /tmp/post-config.js \
+              && ! grep -Fq '"getKnowledge"' /tmp/post-config.js \
+              && ! grep -Fq '"getPlatformSections"' /tmp/post-config.js \
+              && grep -Fq '"getOrderConversation"' /tmp/post-config.js \
+              && grep -Fq "function shouldRouteContentNative" /tmp/post-dispatcher.js; then
+                OK=1
+                echo "ENTRY629_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry629frontpost=$GITHUB_SHA" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='TRANSITIONAL'||Number(a.userCount||0)!==5||Number(a.nativeReadyCount||0)!==5) throw new Error('auth post drift');
+          if(b.enabled!==true||Number(b.allowedPolicyCount||0)!==17||b.secretConfigured!==true) throw new Error('backend bridge safety-net drift');
+          if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core post drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content post drift');
+          if(cm.mode!=='OFF'||Number(cm.policyEpoch||0)!==1) throw new Error('comms post drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||Number(ac.policyEpoch||0)!==2) throw new Error('accounting post drift');
+          console.log('ENTRY629_FRONTEND_POSTFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version');
+          console.log('ENTRY629_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY629_CONTENT_FRONTEND_CUTOVER=PASS
+          echo ENTRY629_CONTENT_MODE=READONLY
+          echo ENTRY629_CONTENT_NATIVE_READS=9
+          echo ENTRY629_FRONTEND_BRIDGE_POLICY_COUNT=4
+          echo ENTRY629_BACKEND_BRIDGE_POLICY_COUNT=17
+          echo ENTRY629_API_DEPLOY=NO
+          echo ENTRY629_D1_CONTROL_MUTATION=NO
+          echo ENTRY629_ACCOUNTING_TOUCHED=NO
+          echo ENTRY629_EASYSTORE_TOUCHED=NO
