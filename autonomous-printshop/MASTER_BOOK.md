@@ -1780,3 +1780,310 @@ AUTOPILOT_EXECUTION=NO
 
 Next:
 `observe accumulated Shadow/Evidence history -> finish read-only shop dashboard -> add trustworthy Design/Material/Machine evidence sources -> qualify first readiness-complete task path`.
+
+
+### AP-017 — Current handoff snapshot after network interruptions
+
+This entry is the canonical continuation point for the next chat. It reconciles repository state, successful Production runtime evidence, and incomplete/failed candidate work. Do not infer success from file existence alone.
+
+#### 1. Current Production Shadow truth
+
+Direct live runtime verification on 2026-10-06:
+
+- Control Tower route is LIVE:
+  - `https://autonomous-printshop-shadow.trendmall-contact.workers.dev/control-tower`
+- source authority = `trendos-main-d1`
+- mode = `CONTROL_TOWER_SHADOW`
+- writesAccepted = false
+- d1Mutation = false
+- employeeAssignment = false
+- PII/raw Order IDs/raw Line IDs exposed = NO
+
+Latest observed Production facts:
+- Native Orders = 292
+- Native schedule rows = 292
+- missing schedule = 0
+- schedule policy mismatches = 0
+- normalized operational rows = 525
+- ordinary baseline candidates = 29
+- in progress = 11
+- Fly Print = 1
+- closed = 484
+- operational exceptions = 0
+
+```ini
+NATIVE_ORDER_SCHEDULE=292/292
+SCHEDULE_MISSING=0
+SCHEDULE_POLICY_MISMATCH=0
+CONTROL_TOWER=LIVE
+CONTROL_TOWER_MODE=SHADOW
+BUSINESS_WRITE=NO
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+```
+
+#### 2. Employee Supervisor Shadow
+
+Current live aggregate:
+- operators known = 4
+- available = 2
+- unavailable = 2
+- review required = 2
+- active Operator Tasks = 0
+- operators with strict recommendation = 0
+- assignment baseline coverage = 514 / 525 = 97.9048%
+- unmatched/unassigned rows = 11
+
+Current department aggregation:
+- Laser:
+  - operators = 1
+  - available = 0
+  - assigned rows = 308
+  - ordinary = 20
+  - in progress = 11
+- Print:
+  - operators = 1
+  - available = 0
+  - assigned rows = 206
+  - ordinary = 9
+  - in progress = 0
+- Unspecified:
+  - operators = 2
+  - available = 2
+  - no matched current assigned workload
+
+Attendance remains availability evidence only. `REVIEW_REQUIRED` is not an adverse employee judgment.
+
+#### 3. Autonomy / Readiness control plane
+
+Current live controls:
+- `autonomy_control.mode=SHADOW`
+- Autonomy epoch = 2
+- `autonomous_readiness_control.mode=SHADOW`
+- Readiness epoch = 2
+- `operator_task_control.mode=OFF`
+- active Operator Tasks = 0
+
+No employee assignment is authorized while Operator Task authority remains OFF.
+
+#### 4. Shadow Decision Observer is accumulating real history
+
+Worker:
+`autonomous-printshop-observer`
+
+Current live health:
+- service = `autonomous-printshop-shadow-observer`
+- mode = `SHADOW_OBSERVER`
+- autonomy mode = SHADOW
+- readiness mode = SHADOW
+- autonomy decision events = 5
+- autonomy observations = 0
+- Operator Tasks = 0
+- business writes = false
+- employee assignment = false
+
+This proves the scheduled observer is now running and accumulating append-only Shadow decision history.
+
+```ini
+SHADOW_OBSERVER=LIVE
+AUTONOMY_EVENTS=5
+AUTONOMY_OBSERVATIONS=0
+OPERATOR_TASKS=0
+BUSINESS_WRITE=NO
+```
+
+#### 5. Readiness remains correctly fail-closed
+
+Current Control Tower readiness:
+- baseline candidates = 29
+- strict eligible = 0
+- strict blocked = 29
+- readiness evidence rows = 0
+- required kinds:
+  - DESIGN
+  - MATERIAL
+  - MACHINE
+- DESIGN: 0 ready / 0 blocked / 29 unknown
+- MATERIAL: 0 ready / 0 blocked / 29 unknown
+- MACHINE: 0 ready / 0 blocked / 29 unknown
+- strict exception = `READINESS_UNKNOWN` for all 29
+- strict recommendation = NONE
+
+This is intentional. Missing evidence must never be converted to READY.
+
+#### 6. Readiness Collector Production status
+
+Worker:
+`autonomous-printshop-readiness-collector`
+
+Latest live health:
+- mode = `READINESS_EVIDENCE_COLLECTOR`
+- readinessMode = SHADOW
+- evidenceRows = 0
+- Operator Tasks = 0
+- writeAuthority = `AUTONOMOUS_READINESS_EVIDENCE_ONLY`
+- businessWrites = false
+- employeeAssignment = false
+- designEvidenceSchemaReady = false
+- designMode = `ABSENT`
+
+Therefore:
+- the collector is LIVE;
+- it is correctly refusing to fabricate READY evidence;
+- the Design production evidence schema is NOT Production-applied yet.
+
+Latest successful collector deploy after safe design-schema probing:
+- Run `37473815500` — SUCCESS.
+
+#### 7. Read-only Dashboard status
+
+Dashboard Worker:
+`autonomous-printshop-dashboard`
+
+URL:
+`https://autonomous-printshop-dashboard.trendmall-contact.workers.dev`
+
+Confirmed live:
+- root page renders `مركز المطبعة الذاتية`;
+- `/health` returns success;
+- mode = `READ_ONLY_CONTROL_TOWER_UI`;
+- businessWrites = false;
+- employeeAssignment = false;
+- D1 binding = none;
+- current deployed Worker Version ID observed in deploy logs:
+  `1293a20c-acbe-4a44-b454-ef43d7bf7ad8`.
+
+However dashboard data transport is NOT yet qualified:
+- latest controlled deploy Run `37474274478` uploaded/deployed the Worker but concluded FAILURE;
+- verification failed because the expected dashboard state route returned HTTP 404;
+- direct runtime verification also confirmed the state route 404;
+- the root shell and health are live, but the dashboard must not be treated as an operationally qualified data view until the state-route mismatch is fixed and a full deploy verification passes.
+
+```ini
+DASHBOARD_WORKER=DEPLOYED
+DASHBOARD_ROOT=LIVE
+DASHBOARD_HEALTH=PASS
+DASHBOARD_DATA_ROUTE=FAIL_404
+DASHBOARD_OPERATIONAL_QUALIFICATION=NO
+BUSINESS_WRITE=NO
+```
+
+#### 8. Design production evidence — repo-qualified, not Production-applied
+
+Built centrally:
+- `autonomous-printshop/migrations/0024_design_production_evidence_v1.sql`
+- `autonomous-printshop/core/design-production-evidence-v1.mjs`
+- `autonomous-printshop/core/design-preflight-v1.mjs`
+- `autonomous-printshop/design/DESIGN_RECIPE_CATALOG_V1.json`
+- associated tests.
+
+Hard rules now encoded:
+- SAVED is not Approved.
+- Design READY requires a real linked asset.
+- content hash is required.
+- Preflight must PASS.
+- approval must be qualified:
+  - customer/owner approval where required; or
+  - explicit policy approval with policy reference where approval is not required.
+- rejected output = BLOCKED.
+- missing visual evidence = UNKNOWN, never PASS.
+- identity-preservation constraints remain hard gates where required.
+
+First executable recipe catalog includes:
+- Mug 20×9
+- Graduation/Cut Sticker 7×10
+- Official ID 4×6
+- Collage 50×70
+
+The design evidence contract itself was CI-qualified, including:
+`READY_REQUIRES=LINKED_ASSET+HASH+PREFLIGHT_PASS+QUALIFIED_APPROVAL`.
+
+Production apply status:
+- NOT QUALIFIED / NOT APPLIED.
+- the controlled Design Evidence apply Run `37367627004` failed at its static safety gate before schema apply.
+- current Collector runtime independently confirms:
+  `designEvidenceSchemaReady=false`, `designMode=ABSENT`.
+
+Do not claim Production Design Evidence tables exist until a new controlled apply proves them.
+
+#### 9. Storage-agnostic Design Asset Binding — repo-only
+
+Built:
+- `autonomous-printshop/migrations/0025_design_asset_binding_v1.sql`
+- `autonomous-printshop/core/design-asset-linking-v1.mjs`
+- associated tests.
+
+Rules:
+- storage provider is not hard-coded to Google Drive;
+- tenant mismatch fails closed;
+- a LINKED asset requires a real provider + storage reference;
+- `CUSTOMER_PRIVATE` assets cannot use explicitly public storage classes;
+- binding events are append-only;
+- Production Design readiness now requires a qualified linked asset.
+
+Production apply:
+- NOT qualified / NOT proven.
+- prior controlled asset-binding run did not reach a successful qualification.
+- treat this layer as repo-only until a successful controlled apply and D1 verification.
+
+#### 10. Machine Readiness — repo-only foundation
+
+Repo work exists for:
+- default-OFF Machine Readiness foundation;
+- freshness-aware machine readiness derivation;
+- fail-closed machine mapping/evidence rules;
+- controlled apply workflow.
+
+The prior Machine Readiness controlled apply did not finish successfully. Therefore:
+- do not treat Machine Readiness schema as Production authority;
+- current strict readiness still has MACHINE = UNKNOWN for all 29 candidates.
+
+#### 11. Observer run telemetry ledger — not Production-qualified
+
+Repo work exists for append-only observer-run telemetry and related helpers/tests.
+
+Its prior controlled apply did not finish successfully. The core Shadow Observer itself is live and has already produced 5 autonomy decision events, but the separate run-telemetry ledger must remain classified as NOT Production-qualified until re-applied and verified.
+
+#### 12. EasyStore / Material authority boundary remains unchanged
+
+EasyStore remains the separate financial/material authority.
+
+Autonomous Printshop must consume material availability through a read-only connector contract. It must not:
+- duplicate financial authority;
+- mutate EasyStore through the readiness layer;
+- treat purchase as production cost;
+- synthesize unexplained variance as waste.
+
+Current readiness evidence remains MATERIAL UNKNOWN because a trustworthy production material evidence path is not yet connected.
+
+#### 13. Current operational safety state
+
+```ini
+AUTONOMY=SHADOW
+READINESS=SHADOW
+OPERATOR_TASK=OFF
+AUTOPILOT_EXECUTION=NO
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+AUTONOMY_EVENTS=5
+READINESS_EVIDENCE_ROWS=0
+STRICT_ELIGIBLE=0
+BASELINE_CANDIDATES=29
+DESIGN_SCHEMA_PRODUCTION=ABSENT
+MACHINE_READINESS_PRODUCTION=NOT_PROVEN
+DASHBOARD_WORKER=LIVE_BUT_DATA_ROUTE_UNQUALIFIED
+MAIN_TRENDOS_AUTHORITY=UNCHANGED
+```
+
+#### 14. Exact continuation order for next chat
+
+Continue without rebuilding completed foundations:
+
+1. fix and fully qualify the Dashboard state/data route; prove live page receives Control Tower JSON;
+2. repair the overly broad Design Evidence apply safety gate, then controlled-apply `0024` Default-OFF and verify D1;
+3. controlled-apply `0025` Asset Binding only after `0024` is proven;
+4. reconnect/redeploy Design collector integration and confirm `designEvidenceSchemaReady=true`;
+5. qualify/apply Machine Readiness foundation Default-OFF;
+6. connect a trustworthy material-readiness adapter to EasyStore/financial authority through read-only evidence;
+7. allow the collector to accumulate real DESIGN/MATERIAL/MACHINE evidence;
+8. prove at least one real candidate becomes readiness-complete in SHADOW;
+9. only after sustained Shadow evidence, consider Operator Task Canary. Do not enable Operator Task or live assignment without an explicit qualified canary decision.
+
