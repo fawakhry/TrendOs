@@ -1,0 +1,44 @@
+name: TrendOS Entry626 Remaining Employees Native Canary Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'docs/trendos/staging/ENTRY626_REMAINING_EMPLOYEES_NATIVE_CANARY_17_POLICY_MANIFEST.json'
+      - 'tests/entry626_remaining_employees_native_canary_17_policy.test.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - '.github/workflows/trendos-entry626-remaining-employees-native-canary-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry626 remaining employee contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry626_remaining_employees_native_canary_17_policy.test.mjs
+          node tests/entry625_jaber_third_native_canary_17_policy.test.mjs
+          node tests/entry624_wael_second_native_canary_17_policy.test.mjs
+          node tests/entry623_diya_login_canary_17_policy.test.mjs
+          echo ENTRY626_REPO_GATE=PASS
+      - name: No runtime mutation
+        shell: bash
+        run: |
+          echo ENTRY626_PRODUCTION_MUTATION=NO
+          echo ENTRY626_D1_MUTATION=NO
+          echo ENTRY626_APPS_SCRIPT_TOUCHED=NO
+          echo ENTRY626_ACCOUNTING_TOUCHED=NO
+          echo ENTRY626_EASYSTORE_TOUCHED=NO
