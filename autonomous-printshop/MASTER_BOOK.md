@@ -4230,3 +4230,60 @@ Result:
 - Accounting canary transition handling is now proven both directions in live Production;
 - no AP business write occurred;
 - no Material READY was synthesized from audit canary data.
+
+
+### AP-054 — Cloud Design Artifact auto-ingest core CI-qualified repo-only
+
+Prepared the next automation step for Design evidence without activating it in Production.
+
+Added:
+- `autonomous-printshop/core/cloud-order-file-design-artifact-collector-v1.mjs`;
+- `autonomous-printshop/tests/cloud_order_file_design_artifact_collector_v1.test.mjs`.
+
+The collector is designed to process only Cloud order-conversation files that already prove:
+- non-empty order ID;
+- non-empty line ID;
+- non-empty file ID;
+- R2 storage key;
+- 64-character lowercase SHA-256;
+- qualified design MIME type;
+- exact active order/line match;
+- line is not archived.
+
+When invoked in the future, its write boundary is intentionally limited to:
+- `autonomous_design_artifacts`;
+- `autonomous_design_asset_binding_events` with `LINKED` + `CUSTOMER_PRIVATE` + `R2`.
+
+It explicitly does **not** write:
+- Design approval events;
+- Design preflight results;
+- readiness evidence;
+- Accounting;
+- Operator Tasks;
+- employee assignments.
+
+The collector is idempotent:
+- existing same line+hash Artifact is reused;
+- deterministic binding IDs prevent duplicate bindings;
+- missing/invalid source identifiers are skipped fail-closed.
+
+Qualification:
+- Policy CI Run `37545300139` = SUCCESS.
+- Cloud order-file Design Artifact collector contract = PASS.
+- all existing Autonomous Printshop policy contracts remained PASS.
+
+Activation state:
+```ini
+CLOUD_DESIGN_ARTIFACT_AUTO_INGEST_CORE=QUALIFIED_REPO_ONLY
+PRODUCTION_SCHEDULED_INGEST=NO
+CURRENT_CLOUD_ORDER_FILES=0
+PRODUCTION_MUTATION=NO
+APPROVAL_WRITE=NO
+PREFLIGHT_WRITE=NO
+READINESS_WRITE=NO
+```
+
+Reason not to deploy yet:
+- Production currently has zero Cloud order files;
+- deploying a scheduled writer now would create no evidence and would add unnecessary active machinery;
+- first real line-linked hashed Cloud file can trigger a fresh deployment decision using this already-qualified core.
