@@ -6256,3 +6256,107 @@ FRONTEND_GLOBAL_NATIVE_AUTH=true
 ROLLBACK_USED=NO
 MASTER_BOOK_RECORDED=YES
 ```
+
+
+#### Entry643 — Attempt 4: corrected temporary helper executed once; Production bridge closure PASS
+- Execution date: 2026-10-06 UTC / 2026-10-07 Cairo. Scope: Entry643 only, following Entry642 PASS and historical Entry643 Attempts 1–3; those entries are preserved unchanged.
+- Owner explicitly authorized the corrected temporary public helper (without trailing underscore), one execution, removal and source save; no deployment.
+- Re-read current Master Book and verified Attempt 3 commit `67a5e8d68ff6db87bafbc4b589a9a9f6c864963e`. Branch head inspected: `5b3fecd9e7040d79dc88a46a2821554b6cc5168c`; preceding commit `f35be5573c06e0f72a05441216a795f66b0968c5` is unrelated Autonomous Printshop documentation.
+- Latest branch Actions metadata: Run `37548046154`, Autonomous Printshop Policy V1 CI, completed/success at head `5b3fecd9`; also Runs `37547847546` and `37547709577` completed/success. These CI runs are historical/repository evidence, not Employee Auth Runtime proof. No workflow was dispatched by this attempt.
+
+##### Fresh read-only Runtime preflight — PASS before mutation
+- Direct HTTPS reads of Production auth health, legacy-action health and frontend config confirmed:
+```ini
+AUTH_MODE=NATIVE
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_BRIDGE=false
+```
+- No material Runtime drift; proceeded after this proof. No earlier migration or Entry642 hardening repeated.
+- Target property pre-value = NOT_READ in this attempt, as required by the no-properties-read boundary. Last verified Production behavior from Attempt 3 was bridge enabled; do not equate behavioral evidence with a literal property-value read.
+
+##### Corrected helper — append, save, select, execute once
+- Used Editor only at exact Production Project ID `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`. Project Settings was not opened; no Script Properties values or secrets read/displayed.
+- Appended only this helper to the end of Code.gs, following the original final closing brace; saved successfully:
+```javascript
+function entry643DisableEmployeeLegacyBridgeOnce() {
+  PropertiesService
+    .getScriptProperties()
+    .setProperty("TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED", "false");
+}
+```
+- The corrected function appeared as a Run dropdown option. An initial option click failed with no visible match because the menu was not open; no execution occurred during that failed UI selection. Opened the dropdown after save, used End to reach the last option, selected the exact corrected helper and independently verified its selected option.
+- Run clicked exactly ONCE with `entry643DisableEmployeeLegacyBridgeOnce` selected. No doGet, Debug or other function run.
+- Execution log displayed `4:53:09 PM — Execution started` and `4:53:11 PM — Execution completed` (UI-local displayed times, not converted to UTC).
+- No new Google authorization prompt occurred. Helper contains only a single setProperty of the specified enabled flag; it does not retrieve/read the secret or any other property.
+
+##### Independent deployed Apps Script probe — PASS
+- Same existing Production Apps Script endpoint from `cloudflare-d1/wrangler.toml`; no new deployment or endpoint substituted.
+- Request action `cloudEmployeeLegacyBridgeExecuteV1`; targetAction `getDashboard`; synthetic username `entry643-probe`; targetPayload contains the same read-only action/username; assertion field `cloudEmployeeAssertionV1` contains only deliberately invalid `cfv1.invalid.invalid`.
+- No real password/token/assertion supplied; disabled gate rejected before business dispatch.
+- curl completed successfully (exit 0); probe observation timestamp `2026-10-06T23:54:03.259181Z`.
+- Response success=false and exact message: `مسار اعتماد الموظف السحابي غير مفعل.`.
+- Enabled-bridge rejection `اعتماد الموظف السحابي غير صالح.` was not returned. This independently proves APPS_SCRIPT_BRIDGE_ENABLED=NO on the existing deployed bridge.
+- SCRIPT_PROPERTY_POST_VALUE=false is established by successful exact setter execution plus independent disabled-gate response, without reading Script Properties.
+
+##### Helper cleanup and fresh postflight — PASS
+- After disabled response, used Undo code edit once to remove only the single appended helper; saved source successfully.
+- Save project to Drive disabled after save; corrected helper option count became 0; Go to Line reported original total 12556 lines again and current final line 12556, character1. Source restoration completed; no business logic edits.
+- A temporary saved source addition/removal did occur; do not report CODE_MUTATION=NO for this authorized attempt. Final helper residue=NO.
+- Fresh independent Runtime postflight completed `2026-10-06T23:54:46.856229Z`:
+  - Auth success/schemaReady=true; mode=NATIVE; envEnabled=true; userCount=6; nativeReadyCount=6; mustChangeCount=0; plaintextStored=false.
+  - nativeOnly=true; legacyBootstrapEnabled=false; legacySessionEnrollEnabled=false.
+  - Backend bridge enabled=false; allowedPolicyCount=0; upstreamConfigured=true; secretConfigured=true (booleans only); rawNativeTokenForwarded=false; plaintextPasswordForwarded=false.
+  - Frontend Global Native=true; Native Canary=false; frontend bridge=false.
+  - Accounting read-only observation: READONLY / policyEpoch10; authoritativeWrites=false; writeAuthorityMode=OFF; googleBusinessCalls=0; appsScriptBusinessAuthority=false.
+- No post-check failure, no property rollback needed; ROLLBACK_USED=NO.
+- No New/Manage/Edit Deployment action used; existing deployment retained. Only source Save and one helper Run were used. No D1 user, Accounting, EasyStore, Spreadsheet or other business mutation.
+- Apps Script bridge secret retained untouched. Retention evidence is prior recorded configured-secret/name proof plus this helper's exact single-key setter and no other property mutation; the disabled response itself does not re-prove secret presence because it exits at the disabled gate.
+- SECRET_VALUE_LOGGED=NO for Attempt 4 only. Historical Attempt 3 accidental exposure remains recorded and is not erased or reclassified.
+- NEXT_SECURITY_GATE=SEPARATE_EMPLOYEE_LEGACY_BRIDGE_SECRET_ROTATION_REQUIRED_AFTER_ATTEMPT3_EXPOSURE. Rotation was not performed; owner explicitly placed it outside Entry643 scope.
+
+##### Current final truth — Entry643 complete
+```ini
+ENTRY643=PASS
+SCRIPT_PROPERTY_PRE_VALUE=NOT_READ
+SCRIPT_PROPERTY_POST_VALUE=false
+APPS_SCRIPT_BRIDGE_ENABLED=NO
+APPS_SCRIPT_BRIDGE_SECRET_RETAINED=YES
+TEMP_HELPER_ADDED=YES
+TEMP_HELPER_EXECUTED_ONCE=YES
+TEMP_HELPER_EXECUTED=YES
+RUN_CLICK_COUNT=1
+TEMP_HELPER_REMOVED=YES
+FINAL_HELPER_RESIDUE=NO
+TEMP_SOURCE_MUTATION=YES_AUTHORIZED_AND_REVERTED
+BUSINESS_LOGIC_MUTATION=NO
+DEPLOYMENT_MUTATION=NO
+D1_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+SPREADSHEET_MUTATION=NO
+SECRET_VALUE_LOGGED=NO_THIS_ATTEMPT
+AUTH_MODE=NATIVE
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+D1_NATIVE_READY=6/6
+NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_BRIDGE=false
+ROLLBACK_USED=NO
+ROLLBACK_STATUS=NOT_NEEDED_ALL_POSTCHECKS_PASS
+MASTER_BOOK_RECORDED=YES
+NEXT_SECURITY_GATE=SEPARATE_SECRET_ROTATION_AFTER_ATTEMPT3_EXPOSURE
+```
