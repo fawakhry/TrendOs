@@ -62,7 +62,7 @@ jobs:
             (SELECT COUNT(*) FROM autonomous_design_artifacts) AS designArtifacts,
             (SELECT COUNT(*) FROM autonomous_design_approval_events) AS approvals,
             (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
-            (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE kind='DESIGN') AS designReadinessEvidence;
+            (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE evidence_kind='DESIGN') AS designReadinessEvidence;
           SQL
           PRE_SQL="$(tr '\n' ' ' < /tmp/pre.sql)"
           npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$PRE_SQL" > /tmp/pre.json
@@ -105,7 +105,7 @@ jobs:
             (SELECT COUNT(*) FROM autonomous_design_artifacts) AS designArtifacts,
             (SELECT COUNT(*) FROM autonomous_design_approval_events) AS approvals,
             (SELECT COUNT(*) FROM autonomous_design_preflight_runs) AS preflights,
-            (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE kind='DESIGN') AS designReadinessEvidence;
+            (SELECT COUNT(*) FROM autonomous_readiness_evidence WHERE evidence_kind='DESIGN') AS designReadinessEvidence;
           SQL
           POST_SQL="$(tr '\n' ' ' < /tmp/post.sql)"
           npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "$POST_SQL" > /tmp/post.json
