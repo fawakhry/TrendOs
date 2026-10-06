@@ -128,7 +128,7 @@ async function load(){
   const app=q('#app'); const err=q('#error');
   app.classList.add('loading'); err.style.display='none';
   try{
-    const r=await fetch('/api/state',{cache:'no-store'});
+    const r=await fetch('/state',{cache:'no-store'});
     const d=await r.json();
     if(!r.ok||d.success!==true) throw new Error(d.code||'تعذر تحميل الحالة');
 
@@ -207,7 +207,7 @@ export default {
     const path=url.pathname.replace(/\/+$/,'')||'/';
     if(request.method!=='GET') return json({success:false,code:'METHOD_NOT_ALLOWED'},405);
 
-    if(path==='/api/state'){
+    if(path==='/state'||path==='/api/state'){
       try{
         const r=await fetch(SHADOW_URL+'/control-tower',{
           headers:{'accept':'application/json','cache-control':'no-cache'}
