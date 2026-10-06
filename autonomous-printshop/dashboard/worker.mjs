@@ -146,6 +146,11 @@ th{color:var(--muted);font-weight:700}
   </div>
 
   <div class="card section">
+    <h2>الخطوات المطلوبة الآن</h2>
+    <div id="nextActions"></div>
+  </div>
+
+  <div class="card section">
     <h2>الموظفين والأقسام</h2>
     <div class="table-wrap">
       <table>
@@ -176,6 +181,23 @@ function readinessBox(label,x={}){
     +'<span>غير معروف <b>'+n(x.unknown)+'</b></span>'
     +'</div></div>';
 }
+function actionForBlocker(code){
+  const map={
+    REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING:'Design: اربط ملف تصميم حقيقي ببند حي مع SHA-256، ثم موافقة منظمة وPreflight PASS.',
+    AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING:'Material: استكمل بيانات الخامات التشغيلية في الحسابات السحابية واربط الخامة والاستهلاك ببند حي.',
+    ACCOUNTING_CLOUD_DATA_MIGRATION_PENDING:'Material: استكمال نقل مصدر الخامات/المخزون للحسابات السحابية قبل السماح بـREADY.',
+    REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED:'Machine: سجل هوية ماكينة حقيقية من Nameplate/Asset Tag، ثم فحص مباشر وربطها بالبند.',
+    NO_STRICT_ELIGIBLE_LINE:'التشغيل: لازم نفس البند يحقق Design + Material + Machine READY.',
+    NO_STRICT_RECOMMENDATION:'التشغيل: لا يوجد بند مؤهل للتوجيه حتى تكتمل أدلة الجاهزية.',
+    NO_AVAILABLE_OPERATOR:'الموظفين: يلزم موظف بدأ يومه وحالته AVAILABLE وقت تجربة CANARY.',
+    EMPLOYEE_REVIEW_REQUIRED:'الموظفين: عالج أي حالة REVIEW_REQUIRED قبل تجربة CANARY.',
+    ACTIVE_OPERATOR_TASKS_PRESENT:'Operator Task: لا تبدأ CANARY وفيه مهمة Operator Task نشطة.',
+    CANARY_OPERATOR_SELECTION_REQUIRED:'CANARY: بعد اكتمال باقي الشروط، اختر موظف CANARY صراحة قبل أي تفعيل.',
+    CANARY_OPERATOR_NOT_AVAILABLE:'CANARY: الموظف المختار لازم يكون AVAILABLE وقت التفعيل.'
+  };
+  return map[String(code||'')]||('راجع العائق: '+String(code||'UNKNOWN'));
+}
+
 function evidenceBox(label,x={}){
   const ok=x.acquisitionReady===true;
   const parts=Object.entries(x)
@@ -252,6 +274,17 @@ async function load(){
       ? 'شروط النظام مكتملة — يتبقى اختيار موظف CANARY صراحة قبل أي تفعيل.'
       : 'غير مؤهل للتفعيل: '+(blockers.length?blockers.join(' • '):'UNKNOWN');
     q('#canaryGate').innerHTML='<div class="signal '+(systemOk?'ok':'warn')+'">'+esc(gateText)+'</div>';
+
+    const evidenceBlockers=[
+      evidence.design&&evidence.design.blocker,
+      evidence.material&&evidence.material.blocker,
+      evidence.machine&&evidence.machine.blocker
+    ].filter(Boolean);
+    const canaryBlockers=Array.isArray(canary.activationBlockers)?canary.activationBlockers:[];
+    const allBlockers=[...new Set([...evidenceBlockers,...canaryBlockers])];
+    q('#nextActions').innerHTML=allBlockers.length
+      ? allBlockers.map(x=>'<div class="signal warn">'+esc(actionForBlocker(x))+'</div>').join('')
+      : '<div class="signal ok">لا توجد عوائق حالية قبل بوابة CANARY.</div>';
 
     const deps=d.employees?.departments||{};
     q('#departments').innerHTML=Object.entries(deps).map(([name,x])=>
