@@ -4498,3 +4498,55 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - Accounting stays D1 READONLY;
   - actions outside the 17-policy bridge fail closed.
 - No Production mutation occurred in this repo gate.
+
+
+#### Entry625 — Jaber frontend canary expansion PASS; waiting real-user smoke
+- Initial generated deploy workflow Run `37448969279` failed safely in source qualification before Production preflight or deploy; Production mutation = NO.
+- Corrected controlled frontend expansion:
+  - workflow `.github/workflows/trendos-entry625-jaber-frontend-canary-expand-controlled.yml`
+  - correction commit `4431ce61ad40f1f76003b80b0c6ebf43695abacf`
+  - Run `37449031453`
+  - Job `112220780513`
+  - conclusion = **SUCCESS**.
+- Exact-live preflight before deploy:
+  ```ini
+  FRONTEND_VERSION=98ad8721-1983-4e86-bede-5fe01c889487
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  FRONTEND_CANARY_USERS=['ضياء','وائل']
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- New frontend version:
+  `58e46dc8-a4df-4f0a-a626-6acbf9a35643`.
+- Live config now:
+  ```ini
+  FRONTEND_CANARY_USERS=['ضياء','وائل','جابر']
+  GLOBAL_NATIVE_AUTH=OFF
+  FRONTEND_BRIDGE=ON
+  FRONTEND_BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- Independent post-deploy Runtime proof before Jaber login:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- No API deploy, D1 auth-control mutation, Accounting mutation, or EasyStore mutation occurred.
+- Remaining Entry625 gate:
+  1. Jaber performs fresh Production login;
+  2. verify Dashboard/basic Ops;
+  3. perform legitimate attendance/start-day action;
+  4. logout and second login;
+  5. verify Runtime becomes `D1_AUTH_USERS=3`, `D1_NATIVE_READY_USERS=3`;
+  6. do not add a fourth employee before Entry625 real-user smoke passes.
