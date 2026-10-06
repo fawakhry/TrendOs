@@ -67,6 +67,8 @@ jobs:
           const h=JSON.parse(fs.readFileSync('/tmp/accounting.json','utf8'));
           const cfg=fs.readFileSync('/tmp/easystore-config.js','utf8');
           const cm=cfg.match(/EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*(true|false)/);
+          const wm=cfg.match(/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*['"]([^'"]+)['"]/);
+          const ca=cfg.match(/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*(\[[^;]*\])/);
           const x=JSON.parse(fs.readFileSync('/tmp/counts.json','utf8')),rows=[];
           function walk(v){if(Array.isArray(v))for(const z of v)walk(z);else if(v&&typeof v==='object'){if(v.results&&Array.isArray(v.results))rows.push(...v.results);for(const [k,z] of Object.entries(v))if(k!=='results')walk(z);}}
           walk(x);if(rows.length!==1)throw new Error('count snapshot parse');
@@ -82,12 +84,22 @@ jobs:
           console.log('ACCOUNTING_CHECKPOINT_CANARY_USERS='+Number(h.writeCanaryAllowedUserCount||0));
           console.log('ACCOUNTING_CHECKPOINT_CANARY_ACTIONS='+Number(h.writeCanaryAllowedActionCount||0));
           console.log('ACCOUNTING_CHECKPOINT_LIVE_WRITE_FLAG='+(cm?cm[1]:'ABSENT_SAFE'));
+          console.log('ACCOUNTING_CHECKPOINT_LIVE_WRITE_MODE='+(wm?wm[1]:'ABSENT_SAFE'));
+          console.log('ACCOUNTING_CHECKPOINT_LIVE_CANARY_ACTIONS='+(ca?ca[1]:'ABSENT_SAFE'));
           for(const [k,v] of Object.entries(r)) console.log('ACCOUNTING_CHECKPOINT_COUNT_'+k+'='+Number(v||0));
           console.log('ACCOUNTING_CHECKPOINT_TOTAL_BUSINESS_ROWS='+total);
+          const expected={materials:0,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:1,events:1};
+          const drift=Object.keys(expected).filter(k=>Number(r[k]||0)!==expected[k]).map(k=>({key:k,actual:Number(r[k]||0),expected:expected[k]}));
+          if(drift.length)throw new Error('approved canary evidence baseline drift:'+JSON.stringify(drift));
           if(h.mode!=='READONLY')throw new Error('accounting mode drift');
           if(h.authoritativeWrites!==false)throw new Error('authoritative writes drift');
           if(Number(h.googleBusinessCalls||0)!==0)throw new Error('google call drift');
+          if(Number(h.writeCanaryAllowedUserCount||0)!==0||Number(h.writeCanaryAllowedActionCount||0)!==0)throw new Error('server canary allowlist drift');
+          if(Number(h.writeCanaryMaxCommands||0)!==0||Number(h.writeCanaryCommandsStarted||0)!==0)throw new Error('server canary command budget drift');
           if(cm&&cm[1]!=='false')throw new Error('live write flag enabled');
+          if(wm&&String(wm[1]).toUpperCase()!=='OFF')throw new Error('live write mode not OFF');
+          if(ca&&ca[1].replace(/\s/g,'')!=='[]')throw new Error('live canary action list not empty');
+          console.log('ACCOUNTING_CHECKPOINT_APPROVED_CANARY_EVIDENCE=PASS');
           console.log('ACCOUNTING_RUNTIME_CHECKPOINT=PASS');
           console.log('PRODUCTION_MUTATION=NO');
           NODE
