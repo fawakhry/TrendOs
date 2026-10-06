@@ -2087,3 +2087,96 @@ Continue without rebuilding completed foundations:
 8. prove at least one real candidate becomes readiness-complete in SHADOW;
 9. only after sustained Shadow evidence, consider Operator Task Canary. Do not enable Operator Task or live assignment without an explicit qualified canary decision.
 
+
+### AP-018 — Dashboard qualified + Design/Machine foundations applied
+
+Runtime/GitHub evidence after the interrupted session was reconciled using the authority order Runtime > deployed > tested > repo-only > historical.
+
+#### Dashboard
+- Production Worker: `autonomous-printshop-dashboard`.
+- Live URL: `https://autonomous-printshop-dashboard.trendmall-contact.workers.dev`.
+- Service-binding state transport is now qualified.
+- Controlled deploy Run `37483382163` = SUCCESS.
+- Live `/state` returns `CONTROL_TOWER_SHADOW` JSON.
+- No D1 binding, business write, employee assignment, or autopilot execution was introduced.
+
+#### Shadow Observer
+- Observer is not stuck.
+- Live autonomy decision events observed = 6.
+- Operator Tasks = 0.
+- Business writes = false.
+- Employee assignment = false.
+- Therefore the previously planned preview endpoint was not needed; scheduled execution itself is proven live.
+
+#### Design Production Evidence 0024
+- Controlled apply Run `37483133975` = SUCCESS.
+- Verified tables = 5.
+- `autonomous_design_control.mode=OFF`, epoch 1.
+- artifacts = 0; approvals = 0; preflights = 0.
+- Operator Task control remained OFF.
+
+#### Design Asset Binding 0025
+- Controlled apply Run `37483523898` = SUCCESS; later safety-gate correction run `37483546962` also = SUCCESS.
+- Design evidence prerequisite passed.
+- Append-only binding schema applied empty.
+- Storage provider remains agnostic.
+- CUSTOMER_PRIVATE public storage remains forbidden.
+- Design control remained OFF; Operator Task remained OFF.
+
+#### Readiness Collector refresh
+- Collector redeployed after Design schema qualification.
+- Runs `37483709595`, `37483973525`, and `37483980808` = SUCCESS.
+- Live health now reports `designEvidenceSchemaReady=true`, `designMode=OFF`.
+- Collector write authority remains `AUTONOMOUS_READINESS_EVIDENCE_ONLY`.
+- Business writes = false; employee assignment = false.
+
+#### Machine Readiness 0027
+- Safety gate repaired to allow append-only `BEFORE DELETE` trigger guards while still forbidding `DELETE FROM` and destructive schema operations.
+- Controlled apply Run `37483716971` = SUCCESS.
+- Machine readiness foundation is applied Default-OFF and empty.
+- Machine READY synthesis remains forbidden.
+- Explicit machine registry/mapping/observation path was connected into the readiness collector; no mapping/observation means no MACHINE evidence.
+
+#### Current live readiness
+At verification time:
+- baseline candidates = 39;
+- readiness evidence rows = 0;
+- DESIGN = 39 UNKNOWN;
+- MATERIAL = 39 UNKNOWN;
+- MACHINE = 39 UNKNOWN;
+- strict eligible = 0;
+- strict recommendation = none.
+
+This is correct fail-closed behavior. No evidence was fabricated.
+
+#### EasyStore material boundary / current gap
+Source inspection confirms EasyStore has repo support for secure TrendOS employee SSO plus D1 READONLY routing. The EasyStore source qualification contract references authenticated Bearer reads to the TrendOS accounting endpoint.
+
+However current TrendOS evidence is split:
+- Entry619 EasyStore SSO Source Qualification Run `37476479548` = SUCCESS.
+- Entry619 Accounting READONLY Source Qualification Run `37476479399` = FAILURE at the Production-unchanged gate.
+
+Therefore an authenticated Production D1 material read path is **not yet proven** for Autonomous Printshop. Per policy this remains a GAP/UNKNOWN, not READY. No financial authority is moved and Autonomous Printshop does not write to EasyStore.
+
+```ini
+DASHBOARD_OPERATIONAL_QUALIFICATION=YES
+DASHBOARD_STATE_ROUTE=PASS
+AUTONOMY_EVENTS=6
+DESIGN_EVIDENCE_0024=APPLIED_DEFAULT_OFF
+DESIGN_ASSET_BINDING_0025=APPLIED_EMPTY
+DESIGN_SCHEMA_READY_IN_COLLECTOR=YES
+MACHINE_READINESS_0027=APPLIED_DEFAULT_OFF
+MACHINE_COLLECTOR_PATH=CONNECTED_EXPLICIT_EVIDENCE_ONLY
+MATERIAL_AUTHENTICATED_PRODUCTION_READ=UNKNOWN_GAP
+READINESS_EVIDENCE_ROWS=0
+STRICT_ELIGIBLE=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+AUTOPILOT_EXECUTION=NO
+```
+
+Next safe work:
+1. qualify a real authenticated read-only material evidence path from EasyStore/TrendOS accounting authority;
+2. add only explicit Machine registry/mapping/observation evidence where a real signal exists (Press first if directly evidenced);
+3. keep Design control OFF until real linked asset + hash + preflight + qualified approval evidence exists;
+4. accumulate SHADOW evidence and prove at least one readiness-complete real candidate before any Operator Task Canary.
