@@ -1,0 +1,87 @@
+name: EasyStore A2.12 CANARY Pre-Arm Readonly Audit
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a212-canary-prearm-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Verify exact A2.12 pre-arm state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "$EASYSTORE_URL/config.js?a212prearm=$GITHUB_RUN_ID" > /tmp/cfg
+          curl -fsSL "$EASYSTORE_URL/app.js?a212prearm=$GITHUB_RUN_ID" > /tmp/app
+          curl -fsS "$API_URL/v1/employee/accounting/health?a212prearm=$GITHUB_RUN_ID" > /tmp/h
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events,
+              (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses;
+            SELECT canonical_username AS username,role,active
+              FROM employee_auth_users_v1
+             WHERE canonical_username='ضياء' AND lower(role)='admin' AND active=1;
+          " > /tmp/d1
+          node <<'NODE'
+          const fs=require('fs'),cfg=fs.readFileSync('/tmp/cfg','utf8'),app=fs.readFileSync('/tmp/app','utf8'),h=JSON.parse(fs.readFileSync('/tmp/h','utf8')),x=JSON.parse(fs.readFileSync('/tmp/d1','utf8')),groups=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const [k,z] of Object.entries(v))if(k!=='results')walk(z);}};walk(x);
+          const all=groups.flat(),c=all.find(r=>r.materials!==undefined)||{},u=all.filter(r=>r.username==='ضياء');
+          const exp={materials:1,templates:1,parties:1,partyBalances:1,waste:1,deptLines:0,requestLedger:5,events:5,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0};
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'CANARY'/.test(cfg))throw Error('frontend not CANARY');
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\s*'saveAccountingDeptLine'\s*\]/.test(cfg))throw Error('frontend action mismatch');
+          if(!app.includes("const D1_ACCOUNTING_WRITE_ACTIONS = new Set(['saveAccountingDeptLine']);"))throw Error('A2.12 app write set mismatch');
+          if(!app.includes("newAccountingRequestId('A212-DLINE')"))throw Error('A2.12 synthetic request missing');
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('backend must remain READONLY');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('server already armed');
+          if(Number(h.googleBusinessCalls||0)!==0)throw Error('google calls');
+          for(const [k,v] of Object.entries(exp))if(Number(c[k]||0)!==v)throw Error(k+'='+c[k]);
+          if(u.length!==1)throw Error('Diaa admin missing');
+          console.log('A212_PREARM_AUDIT=PASS');
+          console.log('FRONTEND_MODE=CANARY');
+          console.log('FRONTEND_ACTION=saveAccountingDeptLine');
+          console.log('BACKEND_MODE=READONLY');
+          console.log('SERVER_USERS_ACTIONS=0/0');
+          console.log('COMMAND_BUDGET=0/0');
+          console.log('BASELINE=materials1_templates1_parties1_partyBalances1_waste1_deptLines0_request5_events5');
+          console.log('DIAA_ADMIN_COUNT=1');
+          console.log('PRODUCTION_BUSINESS_MUTATION=NO');
+          console.log('GENERAL_OPENED=NO');
+          NODE
