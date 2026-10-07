@@ -35,7 +35,8 @@ class TrendOSStatusBridge:
     def status(self) -> dict:
         with self._status_lock:
             return {
-                "running": bool(self._thread and self._thread.is_alive()),\n                "syncing": self._sync_lock.locked(),
+                "running": bool(self._thread and self._thread.is_alive()),
+                "syncing": self._sync_lock.locked(),
                 "lastSyncAt": self._last_sync_at,
                 "lastError": self._last_error,
                 "lastTriggerCount": self._last_trigger_count,
@@ -64,6 +65,35 @@ class TrendOSStatusBridge:
                 self.sync_once()
             except Exception:
                 pass
+
+    def sync_async(self) -> dict:
+        if not self.client.connected:
+            raise TrendOSError("TRENDOS_LOGIN_REQUIRED")
+        if self._sync_lock.locked():
+            return {
+                "ok": True,
+                "scheduled": False,
+                "skipped": "SYNC_ALREADY_RUNNING",
+                "bridge": self.status(),
+            }
+
+        def runner():
+            try:
+                self.sync_once()
+            except Exception:
+                pass
+
+        thread = threading.Thread(
+            target=runner,
+            name="trendos-status-sync-now",
+            daemon=True,
+        )
+        thread.start()
+        return {
+            "ok": True,
+            "scheduled": True,
+            "bridge": self.status(),
+        }
 
     @staticmethod
     def _line_id(row: dict) -> str:
@@ -133,7 +163,11 @@ class TrendOSStatusBridge:
                     "lines": lines,
                 }
                 result = self.folders.create_for_claimed_order(payload)
-                created.append({"orderId": order_id, "lineIds": [self._line_id(v) for v in lines], "folder": result.get("folder")})
+                created.append({
+                    "orderId": order_id,
+                    "lineIds": [self._line_id(v) for v in lines],
+                    "folder": result.get("folder"),
+                })
                 self.state.audit("TRENDOS_HUMAN_START_OBSERVED", {
                     "orderId": order_id,
                     "lineIds": [self._line_id(v) for v in lines],

@@ -166,12 +166,12 @@ def make_handler(app: PrintServerApp):
                 body = self._body_json()
                 if parsed.path == "/api/trendos/login":
                     session = app.trendos.login(body.get("username"), body.get("password"))
-                    sync = app.bridge.sync_once()
+                    sync = app.bridge.sync_async()
                     return self._json(200, {"ok": True, "session": session, "sync": sync})
                 if parsed.path == "/api/trendos/logout":
                     return self._json(200, {"ok": True, "session": app.trendos.logout()})
                 if parsed.path == "/api/trendos/sync":
-                    return self._json(200, app.bridge.sync_once())
+                    return self._json(202, app.bridge.sync_async())
                 if parsed.path == "/api/events/order-claimed":
                     order = body.get("order") if isinstance(body.get("order"), dict) else body
                     result = app.folders.create_for_claimed_order(order)
