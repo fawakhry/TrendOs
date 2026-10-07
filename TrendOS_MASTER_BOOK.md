@@ -6360,3 +6360,46 @@ ROLLBACK_STATUS=NOT_NEEDED_ALL_POSTCHECKS_PASS
 MASTER_BOOK_RECORDED=YES
 NEXT_SECURITY_GATE=SEPARATE_SECRET_ROTATION_AFTER_ATTEMPT3_EXPOSURE
 ```
+
+
+#### Entry644 — Employee Core READONLY → GENERAL — PASS
+- الاسم العربي للبحث: **نقل Core الموظفين للكتابة السحابية / Core GENERAL / Entry644**.
+- التاريخ: 2026-10-07 Cairo.
+- البداية كانت من Runtime مثبت: Auth=NATIVE 6/6، Backend Bridge=false/0 policies، Core=READONLY epoch1، Content=READONLY، Comms=READONLY، Ops=GENERAL، Accounting=READONLY/writeAuthorityMode=OFF.
+- تم تأهيل Dispatcher بحيث READONLY يظل يوجه 4 Core reads فقط، بينما GENERAL يوجه نفس 4 reads + 4 D1-native writes: `bulkUpdateDepartmentStatusV1926`, `archiveDeliveredDepartmentV1926`, `updateLine`, `markCustomerNotified`.
+- Repo Attempt 1: Run `37550415394` / Job `112564269742` = FAIL بسبب test-harness Edge call خاطئ بعد نجاح Core 8/8؛ لا Production mutation. الإصلاح commit `d0f12b07d122690b56bda8208ab2fe3efca271fc`.
+- Repo Attempt 2: Run `37550477764` / Job `112564471855` = FAIL بسبب Entry628 historical assertion قديم يتوقع Core=OFF؛ لم يتم تغيير الاختبار التاريخي. Gate fix commit `4237107e27f8b8b94f149eb052ef5698e53576af`.
+- Repo Attempt 3: Run `37550529017` = SUCCESS؛ `ENTRY644_REPO_GATE=PASS`.
+- Runtime arm workflow commit `53d8348d84f5fad968b917e535035bf0a1f66050`; Run `37550634418` / Job `112564985475` = SUCCESS.
+- D1 Core control تغير بشرط exact من `READONLY/epoch1` إلى `GENERAL/epoch2` فقط. Safe unauthenticated write-shaped probe وصل auth وأوقف قبل business mutation. Rollback كان armed ولم يُستخدم.
+- independent between-stage proof أثبت Backend Core=GENERAL/2 بينما Frontend ظل Core=READONLY قبل deploy؛ Auth/Bridge/Content/Comms/Ops/Accounting ظلت ضمن الحدود.
+- Frontend controlled workflow commit `d56e9fc14cd40c1ca96fc9c9dd76d187d36044da`; Run `37551016683` / Job `112566231841` = SUCCESS.
+- Frontend version: `ecba8460-e9c1-4fc7-81a2-1cf5c054943a` → `9c84a8ca-49f9-458a-9714-8a0dc03cfcd6`; propagation attempt 4.
+- Authenticated smoke: Native login PASS؛ Core write-shaped `updateLine` على synthetic nonexistent line وصل D1 Core ورفض `line-not-found` بدون business mutation؛ Legacy Bridge calls=0؛ logout PASS.
+- Root repo config reconciled to Core GENERAL in commit `db217eea8a83c58c05fe16325d6bd09a9c5511e3`.
+- config reconciliation شغّل historical workflows قديمة وفشل 9 منها بسبب assertions محفوظة لحالات superseded مثل Native=false / Core=OFF / Content=OFF / Comms=OFF. Runs: `37551156457`, `37551156482`, `37551156578`, `37551156455`, `37551156528`, `37551156541`, `37551156506`, `37551156450`, `37551156516`. هذه ليست Runtime regression ولم يتم تزوير التاريخ بتعديل assertions القديمة.
+- Evidence: `docs/trendos/staging/ENTRY644_CORE_GENERAL_CUTOVER_20261007.md`.
+```ini
+ENTRY644=PASS
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+CORE=GENERAL
+CORE_POLICY_EPOCH=2
+FRONTEND_CORE=GENERAL
+CORE_GOOGLE_BUSINESS_CALLS=0
+CORE_APPS_SCRIPT_BUSINESS_AUTHORITY=false
+OPS=GENERAL
+CONTENT=READONLY
+COMMS=READONLY
+ACCOUNTING=READONLY
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+BUSINESS_DATA_MUTATION_FROM_ENTRY644=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
+- Next gate: qualify Content beyond READONLY without touching Accounting/EasyStore.
