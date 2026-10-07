@@ -35,7 +35,7 @@ class TrendOSStatusBridge:
     def status(self) -> dict:
         with self._status_lock:
             return {
-                "running": bool(self._thread and self._thread.is_alive()),
+                "running": bool(self._thread and self._thread.is_alive()),\n                "syncing": self._sync_lock.locked(),
                 "lastSyncAt": self._last_sync_at,
                 "lastError": self._last_error,
                 "lastTriggerCount": self._last_trigger_count,

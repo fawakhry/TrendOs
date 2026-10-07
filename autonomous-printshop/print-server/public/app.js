@@ -1,12 +1,23 @@
 const $ = (id) => document.getElementById(id);
 let orders = [], currentOrder = null, currentFiles = [], lastStatus = null;
 
-async function api(path, options){
-  const r = await fetch(path, options); const body = await r.json();
-  if(!r.ok || body.ok === false) throw new Error(body.error || `HTTP ${r.status}`);
-  return body;
+async function api(path, options, timeoutMs=20000){
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = controller ? setTimeout(()=>controller.abort(), timeoutMs) : null;
+  const requestOptions = Object.assign({}, options||{});
+  if(controller) requestOptions.signal = controller.signal;
+  try{
+    const r = await fetch(path, requestOptions); const body = await r.json();
+    if(!r.ok || body.ok === false) throw new Error(body.error || `HTTP ${r.status}`);
+    return body;
+  }catch(e){
+    if(e && e.name === 'AbortError') throw new Error('انتهت مهلة الاتصال. حاول مرة أخرى.');
+    throw e;
+  }finally{
+    if(timer) clearTimeout(timer);
+  }
 }
-function post(path, body){return api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});}
+function post(path, body){return api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})},20000);}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 function treeHtml(order){
   const routes = order?.routes || {}; const root = {};
@@ -55,6 +66,7 @@ function renderPlatform(status){
     el.className='platform-off';
   }
   const bits=[];
+  if(b.syncing) bits.push('جاري مزامنة بيانات المنصة...');
   if(b.lastSyncAt) bits.push('آخر مزامنة: '+new Date(b.lastSyncAt).toLocaleTimeString('ar-EG'));
   if(b.lastTriggerCount) bits.push('تم التقاط '+b.lastTriggerCount+' بند');
   if(b.lastError) bits.push('خطأ: '+b.lastError);
@@ -67,7 +79,7 @@ async function trendLogin(){
   try{
     const res=await post('/api/trendos/login',{username,password});
     $('trendPassword').value='';
-    $('trendMsg').textContent=res.sync?.baselineOnly ? 'تم الربط. تم أخذ خط أساس فقط؛ من الآن أي انتقال إلى بدء التنفيذ سيلتقطه البرنامج.' : 'تم الربط والمزامنة.';
+    $('trendMsg').textContent='تم الربط بالمنصة. جاري تجهيز المزامنة في الخلفية...';
     await refresh();
   }catch(e){$('trendMsg').textContent='فشل الربط: '+e.message;}
   finally{btn.disabled=false;btn.textContent='ربط بالمنصة';}
@@ -75,7 +87,7 @@ async function trendLogin(){
 async function trendSync(){
   try{
     const res=await post('/api/trendos/sync',{});
-    $('trendMsg').textContent=res.baselineOnly?'تم أخذ خط الأساس.':`تمت المزامنة — التقط ${res.triggeredLines||0} بند.`;
+    $('trendMsg').textContent=res.scheduled===false ? 'المزامنة شغالة بالفعل.' : 'بدأت المزامنة في الخلفية.';
     await refresh();
   }catch(e){$('trendMsg').textContent='المزامنة لم تتم: '+e.message;}
 }

@@ -59,6 +59,36 @@ class BridgeTests(unittest.TestCase):
             client.rows[0]["status"] = "تحت التنفيذ"
             self.assertEqual(0, bridge.sync_once()["triggeredLines"])
 
+    def test_async_sync_returns_without_waiting_for_slow_platform_read(self):
+        class SlowClient:
+            def __init__(self):
+                self.connected = True
+                self.started = threading.Event()
+                self.release = threading.Event()
+            def get_rows(self, screen):
+                self.started.set()
+                self.release.wait(2)
+                return {"success": True, "rows": []}
+
+        with tempfile.TemporaryDirectory() as td:
+            cfg = self.config(td)
+            state = StateStore(cfg["paths"]["stateRoot"])
+            folders = OrderFolderService(cfg, state)
+            client = SlowClient()
+            bridge = TrendOSStatusBridge(cfg, client, folders, state)
+
+            result = bridge.sync_async()
+            self.assertTrue(result["scheduled"])
+            self.assertTrue(client.started.wait(1))
+            self.assertTrue(bridge.status()["syncing"])
+
+            client.release.set()
+            deadline = time.time() + 2
+            while bridge.status()["syncing"] and time.time() < deadline:
+                time.sleep(0.01)
+            self.assertFalse(bridge.status()["syncing"])
+            self.assertTrue(state.trendos_bridge_state()["initialized"])
+
     def test_incremental_lines_merge_into_same_order(self):
         with tempfile.TemporaryDirectory() as td:
             cfg = self.config(td)
