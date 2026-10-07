@@ -1,0 +1,131 @@
+name: EasyStore A2.11 Decision Gate Readonly Refresh
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a211-decision-gate-readonly.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: easystore-a211-decision-gate-readonly
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Read-only live A2.11 decision gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "$EASYSTORE_URL/config.js?a211gate=$GITHUB_RUN_ID" > /tmp/config.js
+          curl -fsSL "$EASYSTORE_URL/app.js?a211gate=$GITHUB_RUN_ID" > /tmp/app.js
+          curl -fsS "$API_URL/v1/employee/accounting/health?a211gate=$GITHUB_RUN_ID" > /tmp/health.json
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/deployments.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses,
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1 WHERE active=1) AS activeMaterials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1 WHERE active=1) AS activeTemplates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND active=1) AS activeSuppliers;
+            SELECT canonical_username AS username,role,active
+              FROM employee_auth_users_v1
+             WHERE canonical_username='ضياء' AND lower(role)='admin' AND active=1;
+          " > /tmp/d1.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const cfg=fs.readFileSync('/tmp/config.js','utf8');
+          const app=fs.readFileSync('/tmp/app.js','utf8');
+          const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8')),groups=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const [k,z] of Object.entries(v))if(k!=='results')walk(z);}};walk(x);
+          const all=groups.flat(),c=all.find(r=>r.materials!==undefined)||{},u=all.filter(r=>r.username==='ضياء');
+          const exp={materials:1,templates:1,parties:1,partyBalances:1,requestLedger:4,events:4,waste:0,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,deptLines:0,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0,activeMaterials:0,activeTemplates:0,activeSuppliers:0};
+          if(!/EASYSTORE_ACCOUNTING_D1_READONLY\s*=\s*true/.test(cfg))throw Error('frontend D1 readonly flag drift');
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*false/.test(cfg))throw Error('legacy D1 write flag drift');
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'OFF'/.test(cfg))throw Error('frontend not OFF');
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg))throw Error('frontend actions not empty');
+          if(app.includes('a211WasteCanaryEnabled')||app.includes('A2-CANARY-WASTE-'))throw Error('A2.11 frontend candidate unexpectedly deployed');
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('backend authority drift');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('server canary not cleared');
+          if(Number(h.googleBusinessCalls||0)!==0)throw Error('google calls nonzero');
+          for(const [k,v] of Object.entries(exp))if(Number(c[k]||0)!==v)throw Error('baseline '+k+'='+c[k]);
+          if(u.length!==1)throw Error('canonical Diaa admin missing');
+
+          const d=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const ds=(Array.isArray(d)?d:d.items||[]).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(ds[0]?.versions||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1)throw Error('active API version not single 100%');
+
+          console.log('A211_DECISION_GATE_REFRESH=PASS');
+          console.log('ACTIVE_API_VERSION='+full[0].id);
+          console.log('FRONTEND_MODE=OFF');
+          console.log('FRONTEND_CANARY_ACTIONS=[]');
+          console.log('A211_FRONTEND_LIVE=NO');
+          console.log('BACKEND_MODE=READONLY');
+          console.log('POLICY_EPOCH='+Number(h.policyEpoch||0));
+          console.log('AUTHORITATIVE_WRITES=false');
+          console.log('SERVER_USERS_ACTIONS=0/0');
+          console.log('COMMAND_BUDGET=0/0');
+          console.log('GOOGLE_BUSINESS_CALLS=0');
+          console.log('MATERIALS=1');
+          console.log('TEMPLATES=1');
+          console.log('PARTIES=1');
+          console.log('PARTY_BALANCES=1');
+          console.log('REQUEST_LEDGER=4');
+          console.log('EVENTS=4');
+          console.log('WASTE=0');
+          console.log('STOCK_MOVES=0');
+          console.log('PARTY_LEDGER=0');
+          console.log('CASHBOX=0');
+          console.log('OTHER_TRACKED_TABLES=0');
+          console.log('ACTIVE_MATERIALS=0');
+          console.log('ACTIVE_TEMPLATES=0');
+          console.log('ACTIVE_SUPPLIERS=0');
+          console.log('DIAA_ADMIN_COUNT=1');
+          console.log('A211_SERVER_GUARD=QUALIFIED_REPO_ONLY_NOT_DEPLOYED');
+          console.log('A211_FRONTEND_CANDIDATE=QUALIFIED_REPO_ONLY_NOT_DEPLOYED');
+          console.log('A211_DEPLOY_WORKFLOW=QUALIFIED_MANUAL_ONLY_NOT_RUN');
+          console.log('A211_EXECUTION_WORKFLOW=QUALIFIED_MANUAL_ONLY_NOT_RUN');
+          console.log('FIFTH_CANARY_EXECUTED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          console.log('GENERAL_OPENED=NO');
+          NODE
