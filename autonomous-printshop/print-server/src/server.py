@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .config import load_config, resource_dir
+from .config import application_dir, load_config, resource_dir
 from .folders import OrderFolderService
 from .platform_bridge import TrendOSStatusBridge
 from .preview import PreviewError, build_preview, capabilities
@@ -51,6 +51,7 @@ class PrintServerApp:
             "employeeAssignmentWrites": False,
             "accountingWrites": False,
             "platformBusinessWrites": False,
+            "serverPort": getattr(self, "server_port", None),
             "runtime": {
                 "python": sys.version.split()[0],
                 "platform": platform.platform(),
@@ -226,8 +227,28 @@ def main(argv=None):
     public_dir = resource_dir() / "public"
     app = PrintServerApp(cfg, public_dir)
     host = cfg["server"]["host"]
-    port = int(cfg["server"]["port"])
-    server = ThreadingHTTPServer((host, port), make_handler(app))
+    preferred_port = int(cfg["server"]["port"])
+    server = None
+    port = preferred_port
+    last_error = None
+    for candidate in range(preferred_port, preferred_port + 5):
+        try:
+            server = ThreadingHTTPServer((host, candidate), make_handler(app))
+            port = candidate
+            break
+        except OSError as exc:
+            last_error = exc
+    if server is None:
+        raise RuntimeError("NO_LOCAL_PORT_AVAILABLE:%s" % last_error)
+    app.server_port = port
+    try:
+        state_dir = application_dir() / "data" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "startup.log").open("a", encoding="utf-8").write(
+            "SERVER_LISTENING http://127.0.0.1:%s\n" % port
+        )
+    except Exception:
+        pass
     app.watcher.start()
     app.bridge.start()
 

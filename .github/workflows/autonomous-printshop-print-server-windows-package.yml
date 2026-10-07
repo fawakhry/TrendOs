@@ -44,6 +44,8 @@ jobs:
           Copy-Item "config\default.json" (Join-Path $app "config\local.json") -Force
           $bat = '@echo off' + [Environment]::NewLine + 'cd /d "%~dp0"' + [Environment]::NewLine + 'start "" "TrendOS-Print-Server.exe"' + [Environment]::NewLine
           Set-Content -Encoding ascii -Path (Join-Path $app "Start-Print-Server.bat") -Value $bat
+          $clean = '@echo off' + [Environment]::NewLine + 'taskkill /IM TrendOS-Print-Server.exe /F >nul 2>&1' + [Environment]::NewLine + 'timeout /t 1 /nobreak >nul' + [Environment]::NewLine + 'cd /d "%~dp0"' + [Environment]::NewLine + 'start "" "TrendOS-Print-Server.exe"' + [Environment]::NewLine
+          Set-Content -Encoding ascii -Path (Join-Path $app "Start-Clean.bat") -Value $clean
           $readme = "TrendOS Print Server - Windows Portable`r`n`r`n1) Double-click TrendOS-Print-Server.exe (or Start-Print-Server.bat).`r`n2) The Arabic interface opens automatically at http://127.0.0.1:4782`r`n3) Settings are editable in config\local.json.`r`n4) Default data folders are under data\orders, data\ready, data\state.`r`n5) JPG/JPEG/PNG/WEBP/BMP/GIF/TIF/TIFF/DXF preview engines are bundled.`r`n6) TrendOS live claim integration remains fail-closed until the exact qualified claim event is wired.`r`n7) Closing the server window stops the local server.`r`n"
           Set-Content -Encoding utf8 -Path (Join-Path $app "README-WINDOWS.txt") -Value $readme
       - name: Smoke packaged EXE

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import threading
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from typing import Callable, Optional
-
-import requests
 
 
 class TrendOSError(Exception):
@@ -12,11 +13,15 @@ class TrendOSError(Exception):
 
 
 class TrendOSReadClient:
-    """Read-only TrendOS employee client isolated from the local UI thread."""
+    """Read-only TrendOS employee client isolated from the local UI thread.
+
+    Third-party HTTP packages are imported lazily so a transport problem can
+    never prevent the local print server from booting.
+    """
 
     USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 TrendOS-Print-Server/0.3"
+        "AppleWebKit/537.36 TrendOS-Print-Server/0.4"
     )
 
     def __init__(self, config: dict):
@@ -31,6 +36,7 @@ class TrendOSReadClient:
         self._last_attempt_at = ""
         self._login_generation = 0
         self._login_thread = None
+        self._transport = "LAZY"
 
     @staticmethod
     def _now_iso() -> str:
@@ -58,7 +64,7 @@ class TrendOSReadClient:
                 "loginState": self._login_state,
                 "lastError": self._last_error,
                 "lastAttemptAt": self._last_attempt_at,
-                "transport": "requests-certifi",
+                "transport": self._transport,
             }
 
     def _headers(self) -> dict:
@@ -69,28 +75,30 @@ class TrendOSReadClient:
         }
 
     @staticmethod
-    def _response_message(response, body) -> str:
+    def _message(body, fallback: str) -> str:
         if isinstance(body, dict):
             return str(
                 body.get("message")
                 or body.get("detail")
                 or body.get("title")
                 or body.get("code")
-                or ("HTTP_%s" % response.status_code)
+                or fallback
             )
-        return "HTTP_%s" % response.status_code
+        return fallback
 
-    def _request(self, method: str, path: str, payload=None, timeout_seconds: int = 10) -> dict:
-        if not self.enabled:
-            raise TrendOSError("TRENDOS_READ_ADAPTER_DISABLED")
-        base = str(self.config.get("baseUrl") or "").rstrip("/")
-        if not base:
-            raise TrendOSError("TRENDOS_BASE_URL_MISSING")
+    def _request_with_requests(self, method: str, url: str, payload, timeout_seconds: int) -> dict:
+        try:
+            import requests
+        except Exception as exc:
+            raise ImportError(str(exc)) from exc
+
+        with self._lock:
+            self._transport = "requests-certifi"
 
         try:
             response = requests.request(
                 method,
-                base + path,
+                url,
                 json=payload,
                 headers=self._headers(),
                 timeout=(5, max(5, int(timeout_seconds))),
@@ -108,14 +116,64 @@ class TrendOSReadClient:
             body = response.json()
         except ValueError:
             body = None
-
         if response.status_code >= 400:
-            raise TrendOSError("TRENDOS_REJECTED:%s" % self._response_message(response, body))
+            raise TrendOSError("TRENDOS_REJECTED:%s" % self._message(body, "HTTP_%s" % response.status_code))
         if not isinstance(body, dict):
             raise TrendOSError("TRENDOS_INVALID_JSON")
         if body.get("success") is False:
-            raise TrendOSError("TRENDOS_REJECTED:%s" % self._response_message(response, body))
+            raise TrendOSError("TRENDOS_REJECTED:%s" % self._message(body, "UNKNOWN"))
         return body
+
+    def _request_with_urllib(self, method: str, url: str, payload, timeout_seconds: int) -> dict:
+        with self._lock:
+            self._transport = "stdlib-urllib-fallback"
+        data = None
+        if payload is not None:
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            method=method,
+            headers=self._headers(),
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=max(5, int(timeout_seconds))) as response:
+                raw = response.read().decode("utf-8")
+                status = int(getattr(response, "status", 200))
+        except urllib.error.HTTPError as exc:
+            try:
+                raw = exc.read().decode("utf-8")
+            except Exception:
+                raw = ""
+            try:
+                body = json.loads(raw or "{}")
+            except Exception:
+                body = None
+            raise TrendOSError("TRENDOS_REJECTED:%s" % self._message(body, "HTTP_%s" % exc.code)) from exc
+        except urllib.error.URLError as exc:
+            raise TrendOSError("TRENDOS_UNREACHABLE:%s" % str(exc)[:240]) from exc
+        except Exception as exc:
+            raise TrendOSError("TRENDOS_NETWORK_ERROR:%s" % str(exc)[:240]) from exc
+
+        try:
+            body = json.loads(raw or "{}")
+        except ValueError as exc:
+            raise TrendOSError("TRENDOS_INVALID_JSON") from exc
+        if status >= 400 or body.get("success") is False:
+            raise TrendOSError("TRENDOS_REJECTED:%s" % self._message(body, "HTTP_%s" % status))
+        return body
+
+    def _request(self, method: str, path: str, payload=None, timeout_seconds: int = 10) -> dict:
+        if not self.enabled:
+            raise TrendOSError("TRENDOS_READ_ADAPTER_DISABLED")
+        base = str(self.config.get("baseUrl") or "").rstrip("/")
+        if not base:
+            raise TrendOSError("TRENDOS_BASE_URL_MISSING")
+        url = base + path
+        try:
+            return self._request_with_requests(method, url, payload, timeout_seconds)
+        except ImportError:
+            return self._request_with_urllib(method, url, payload, timeout_seconds)
 
     def probe(self) -> dict:
         body = self._request(
@@ -130,7 +188,7 @@ class TrendOSReadClient:
             "schemaReady": body.get("schemaReady"),
             "nativeReadyCount": body.get("nativeReadyCount"),
             "userCount": body.get("userCount"),
-            "transport": "requests-certifi",
+            "transport": self.status().get("transport"),
         }
 
     def _perform_login(self, username: str, password: str) -> dict:
