@@ -5503,3 +5503,48 @@ PASSWORD_PERSISTED=NO
 ```
 
 Result: **PASS — LOCAL SERVER ISOLATED FROM TRENDOS NETWORK STALLS; PACKAGED EXE VERIFIED AGAINST LIVE TRENDOS AUTH HEALTH**.
+
+
+### AP-068 — Windows local-server recovery hardening after target PC reported local server unavailable
+
+Date: 2026-10-07.
+
+Owner reported the target PC displayed `● السيرفر المحلي غير متاح` after installing the previous diagnostic build.
+
+Recovery hardening implemented in commits:
+- `9626764aad958f12adffaec7cb380fbc82063026` — startup crash logging, lazy TrendOS transport import/fallback, local port fallback, clean-start launcher;
+- `d3c1edaefd4ba6e500c65229fadf69f9256f0942` — recovery transport test version alignment.
+
+Behavior:
+- startup writes `data/state/startup.log`;
+- unhandled startup failure writes `data/state/crash.log` with traceback;
+- TrendOS third-party HTTP transport is imported only when an external request is actually made, so transport import failure cannot prevent local boot;
+- if requests transport is unavailable, a browser-compatible stdlib urllib fallback remains available;
+- if port 4782 is occupied, the server tries 4783 through 4786 and opens the actual selected URL;
+- Windows package includes `Start-Clean.bat` to terminate stale TrendOS Print Server processes before launching the current copy;
+- local server remains independent from TrendOS network/auth failures.
+
+Qualification:
+```ini
+PRINT_SERVER_CI_RUN=37619050240
+PRINT_SERVER_CI=PASS
+PYTHON_3_8_SYNTAX_GATE=PASS
+WINDOWS_PACKAGE_RUN=37619050293
+WINDOWS_PACKAGE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE=PASS
+WINDOWS_PACKAGED_LIVE_TRENDOS_PROBE=PASS
+WINDOWS_ARTIFACT_ID=11481195979
+WINDOWS_ARTIFACT_SHA256=7f4cdd4de0a240956db181adcdc2464d52dd78319fdd7039edc055eb1a278ef9
+```
+
+Safety boundary remains unchanged:
+```ini
+PLATFORM_BRIDGE_MODE=READ_ONLY
+PLATFORM_BUSINESS_WRITES=NO
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+ACCOUNTING_WRITE=NO
+```
+
+Result: **PASS — RECOVERY WINDOWS PACKAGE BUILT; LOCAL BOOT ISOLATED FROM TRENDOS TRANSPORT AND STALE-PORT FAILURES**.
