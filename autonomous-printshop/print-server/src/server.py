@@ -3,14 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
-import os
 import sys
-from http import HTTPStatus
+import threading
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .config import load_config
+from .config import load_config, resource_dir
 from .folders import OrderFolderService
 from .preview import PreviewError, build_preview, capabilities
 from .state import StateStore
@@ -108,15 +108,19 @@ def make_handler(app: PrintServerApp):
             try:
                 path.relative_to(app.public_dir.resolve())
             except ValueError:
-                self.send_error(404); return
+                self.send_error(404)
+                return
             if not path.is_file():
-                self.send_error(404); return
+                self.send_error(404)
+                return
             data = path.read_bytes()
             mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
             self.send_response(200)
-            self.send_header("Content-Type", mime + ("; charset=utf-8" if mime.startswith("text/") or mime == "application/javascript" else ""))
+            suffix = "; charset=utf-8" if mime.startswith("text/") or mime == "application/javascript" else ""
+            self.send_header("Content-Type", mime + suffix)
             self.send_header("Content-Length", str(len(data)))
-            self.end_headers(); self.wfile.write(data)
+            self.end_headers()
+            self.wfile.write(data)
 
         def do_GET(self):
             parsed = urlparse(self.path)
@@ -142,7 +146,9 @@ def make_handler(app: PrintServerApp):
                 self.send_header("X-TrendOS-Preview-Meta", json.dumps(meta, ensure_ascii=False))
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("Cache-Control", "no-store")
-                self.end_headers(); self.wfile.write(data); return
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if parsed.path == "/":
                 return self._static("index.html")
             if parsed.path.startswith("/static/"):
@@ -173,24 +179,35 @@ def make_handler(app: PrintServerApp):
                 return self._json(500, {"ok": False, "error": "INTERNAL_ERROR"})
 
         def do_OPTIONS(self):
-            # Only localhost UI is supported in V1; no permissive CORS is opened.
-            self.send_response(204); self.end_headers()
+            self.send_response(204)
+            self.end_headers()
 
     return Handler
+
+
+def _open_browser_later(url: str):
+    timer = threading.Timer(0.8, lambda: webbrowser.open(url, new=1))
+    timer.daemon = True
+    timer.start()
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="TrendOS Print Server")
     parser.add_argument("--config", default=None)
+    parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
-    public_dir = Path(__file__).resolve().parent.parent / "public"
+    public_dir = resource_dir() / "public"
     app = PrintServerApp(cfg, public_dir)
     host = cfg["server"]["host"]
     port = int(cfg["server"]["port"])
     server = ThreadingHTTPServer((host, port), make_handler(app))
     app.watcher.start()
-    print(f"TrendOS Print Server: http://{host}:{port}")
+    browser_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+    url = "http://%s:%s" % (browser_host, port)
+    print("TrendOS Print Server: %s" % url)
+    if not args.no_browser:
+        _open_browser_later(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
