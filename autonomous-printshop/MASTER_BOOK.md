@@ -5451,3 +5451,55 @@ ACCOUNTING_WRITE=NO
 ```
 
 Result: **PASS — TRENDOS LOGIN RESPONSE IS DECOUPLED FROM SLOW ROW SYNC; WINDOWS PACKAGE BUILT AND SMOKE-QUALIFIED**.
+
+
+### AP-067 — Target-PC login timeout hardening with isolated background auth and packaged live TrendOS probe
+
+Date: 2026-10-07.
+
+Owner reported target-PC behavior after pressing connect:
+- UI showed `● السيرفر المحلي غير متاح`;
+- login showed `انتهت مهلة الاتصال. حاول مرة أخرى.`.
+
+Because the local HTTP server was healthy before the connect action, the login transport was hardened so an external network/TLS/Cloudflare stall cannot block or make the local UI appear unavailable.
+
+Implementation commit:
+`6674897750641b46a0204b8d3523f288a80085ef`.
+
+Changes:
+- replaced the outbound `urllib` transport with `requests + certifi` and explicit connect/read timeouts;
+- preserved the browser-compatible User-Agent required by the current Cloudflare zone;
+- moved employee authentication into an isolated background thread;
+- local `/api/trendos/login` now returns immediately with a PENDING state instead of waiting for the external request;
+- added explicit login states `IDLE / PENDING / CONNECTED / FAILED` and surfaced the exact transport/auth error in the UI;
+- added `/api/trendos/probe` and a visible `اختبار الاتصال` button that checks live native-auth health without employee credentials;
+- local server status and local-order loading are now checked separately so an order-list error cannot falsely mark the local server as down;
+- packaged runtime now bundles requests/certifi/urllib3;
+- no employee password is persisted.
+
+Qualification:
+```ini
+PRINT_SERVER_CI_RUN=37617896813
+PRINT_SERVER_CI=PASS
+PYTHON_3_8_SYNTAX_GATE=PASS
+BACKGROUND_LOGIN_NONBLOCKING_TEST=PASS
+WINDOWS_PACKAGE_RUN=37617896602
+WINDOWS_PACKAGE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE=PASS
+WINDOWS_PACKAGED_LIVE_TRENDOS_PROBE=PASS
+WINDOWS_ARTIFACT_ID=11480098601
+WINDOWS_ARTIFACT_SHA256=d6607157f22d4a2ea5a0c289306fe51a036980411e7b927e74116eff0ea3067d
+```
+
+Safety boundary remains unchanged:
+```ini
+PLATFORM_BRIDGE_MODE=READ_ONLY
+PLATFORM_BUSINESS_WRITES=NO
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+ACCOUNTING_WRITE=NO
+PASSWORD_PERSISTED=NO
+```
+
+Result: **PASS — LOCAL SERVER ISOLATED FROM TRENDOS NETWORK STALLS; PACKAGED EXE VERIFIED AGAINST LIVE TRENDOS AUTH HEALTH**.
