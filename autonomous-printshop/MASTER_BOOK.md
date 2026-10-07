@@ -4994,3 +4994,55 @@ Next gate remains unchanged and fail-closed:
 3. real Machine identity from nameplate or owner asset registry + serial/asset tag + direct current check/self-test + active line-machine mapping;
 4. only when the **same line** has Design READY + Material READY + Machine READY and an operator is available may Operator Task CANARY qualification proceed;
 5. no live employee assignment before the CANARY gate passes.
+
+
+### AP-061 — Post-AP-059 external Drive evidence scan remains empty
+
+Date: 2026-10-07.
+
+After AP-060 refreshed Runtime truth, the connected Google Drive was checked read-only for files newly modified after the AP-059 handoff window.
+
+Scan boundary:
+```ini
+MODIFIED_AFTER_UTC=2026-10-07T00:11:00Z
+MUTATION=NO
+```
+
+Drive discovery was run broadly and with targeted evidence terms:
+- all accessible files;
+- `ليزر`;
+- `تصميم`;
+- `design`;
+- `Canon`;
+- `ماكينة`;
+- `machine`.
+
+Result:
+```ini
+NEW_OR_MODIFIED_FILES_AFTER_AP059=0
+NEW_DESIGN_FILE_EVIDENCE=0
+NEW_MACHINE_NAMEPLATE_OR_ASSET_EVIDENCE=0
+NEW_EXTERNAL_OPERATIONAL_EVIDENCE_CONSUMED=0
+```
+
+The Drive connector itself is reachable and returns the existing historical/operational files, including the canonical TrendOS Operations spreadsheet, so the zero-result post-AP-059 scan is not treated as a connector outage.
+
+This does not weaken any readiness rule:
+- archived or historical files are not promoted to current Design evidence;
+- no model name becomes a Machine identity;
+- no missing stock data becomes Material truth.
+
+Result: **BLOCKED_SAFE — NO NEW QUALIFIED EXTERNAL DRIVE EVIDENCE IS AVAILABLE TO CONSUME**.
+
+Post-state remains:
+```ini
+DESIGN_READY=0
+MATERIAL_READY=0
+MACHINE_READY=0
+STRICT_ELIGIBLE=0
+OPERATOR_TASK_CONTROL=OFF
+OPERATOR_TASK_CANARY_READY=NO
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+EXTERNAL_OPERATIONAL_EVIDENCE_REQUIRED=YES
+NEXT_TRANSITION=REAL_EVIDENCE_ACQUISITION
+```
