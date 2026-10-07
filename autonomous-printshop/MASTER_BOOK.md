@@ -5401,3 +5401,53 @@ ACCOUNTING_WRITE=NO
 ```
 
 Result: **PASS — WINDOWS PRINT SERVER TRANSPORT REPAIRED FOR CLOUDFLARE ERROR 1010; FINAL EXE BUILT AND SMOKE-QUALIFIED**.
+
+
+### AP-066 — Windows login timeout removed by decoupling TrendOS login from row synchronization
+
+Date: 2026-10-07.
+
+Owner provided target-PC evidence showing the local server healthy at `127.0.0.1:4782` while the TrendOS connect action returned `انتهت مهلة الاتصال. حاول مرة أخرى.`.
+
+Diagnosis:
+- the UI timeout was functioning correctly;
+- the live auth and core health endpoints were healthy;
+- the local `/api/trendos/login` handler was still waiting synchronously for `bridge.sync_once()` after successful authentication;
+- row synchronization can touch multiple employee screens sequentially, so post-login synchronization could exceed the UI request deadline even when authentication itself was successful.
+
+Repair commit:
+`3a2e56b0cedb8d577393028ee1810fe2b54d9c01`.
+
+Changes:
+- login now completes after native authentication and schedules row synchronization asynchronously;
+- manual sync also schedules asynchronously and returns immediately;
+- bridge state exposes `syncing` explicitly;
+- the UI reports background synchronization separately from authentication;
+- the 20-second UI request timeout remains as a fail-safe rather than being increased;
+- a regression test proves a deliberately slow platform read does not block the sync scheduling response.
+
+Qualification:
+```ini
+PRINT_SERVER_CI_RUN=37615558755
+PRINT_SERVER_CI=PASS
+PYTHON_3_8_SYNTAX_GATE=PASS
+ASYNC_SLOW_PLATFORM_REGRESSION=PASS
+WINDOWS_PACKAGE_RUN=37615558683
+WINDOWS_PACKAGE_RESULT=SUCCESS
+WINDOWS_EXE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE=PASS
+WINDOWS_ARTIFACT_ID=11479124978
+WINDOWS_ARTIFACT_SHA256=c92d852b50c09d437d61b21ee3461825947fc4a96d3c85ffd2590eaf836eeb5e
+```
+
+Safety boundary remains unchanged:
+```ini
+PLATFORM_BRIDGE_MODE=READ_ONLY
+PLATFORM_BUSINESS_WRITES=NO
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+ACCOUNTING_WRITE=NO
+```
+
+Result: **PASS — TRENDOS LOGIN RESPONSE IS DECOUPLED FROM SLOW ROW SYNC; WINDOWS PACKAGE BUILT AND SMOKE-QUALIFIED**.
