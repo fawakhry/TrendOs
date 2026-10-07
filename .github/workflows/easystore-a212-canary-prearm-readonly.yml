@@ -30,6 +30,11 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Re-prove A2.12 Dept Line TDZ fix before ARM
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/easystore_a212_dept_line_tdz_regression.test.mjs
       - name: Verify exact A2.12 pre-arm state
         shell: bash
         run: |
