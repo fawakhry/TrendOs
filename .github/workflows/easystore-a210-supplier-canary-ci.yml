@@ -8,6 +8,9 @@ on:
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
       - 'tests/easystore_a2_write_canary_policy_v1.test.mjs'
       - 'tests/easystore_a210_supplier_canary.test.mjs'
+      - 'tests/easystore_a210_supplier_decision_gate.test.mjs'
+      - '.github/workflows/easystore-a210-supplier-guard-deploy.yml'
+      - '.github/workflows/easystore-a210-supplier-canary-execution.yml'
       - '.github/workflows/easystore-a210-supplier-canary-ci.yml'
 
 permissions:
@@ -37,12 +40,15 @@ jobs:
           node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
           node tests/easystore_a2_write_canary_policy_v1.test.mjs
           node tests/easystore_a210_supplier_canary.test.mjs
+          node tests/easystore_a210_supplier_decision_gate.test.mjs
           {
             echo "A210_SUPPLIER_CANARY_QUALIFICATION=PASS"
             echo "RUN_ID=$GITHUB_RUN_ID"
             echo "SOURCE_SYNTAX=PASS"
             echo "SERVER_SHAPE_GUARD=PASS"
             echo "ONE_USER_ONE_ACTION_BUDGET_FOUNDATION=PASS"
+            echo "MANUAL_DEPLOY_AND_EXECUTION_GATES=PASS"
+            echo "AUTO_DISABLE_PATH=PASS"
             echo "EXPECTED_PARTIES_DELTA=1"
             echo "EXPECTED_PARTY_BALANCES_DELTA=1"
             echo "EXPECTED_REQUEST_LEDGER_DELTA=1"
