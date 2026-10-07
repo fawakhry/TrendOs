@@ -60,7 +60,7 @@ class PrintServerTests(unittest.TestCase):
         root = Path(result["folder"])
         made = self.service.create_manual_folder("15428", "photo_sublimation")
         self.assertEqual("سبلميشن", made["displayName"])
-        self.assertEqual(root / "سبلميشن", Path(made["path"]))
+        self.assertTrue(Path(made["path"]).samefile(root / "سبلميشن"))
         self.assertTrue((root / "سبلميشن" / "x").is_dir())
         self.assertFalse((root / "طباعة" / "فوتو" / "سبلميشن").exists())
 
