@@ -2,7 +2,7 @@ import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualif
 import { buildOwnerExceptionModelV1, OWNER_EXCEPTION_MODEL_VERSION } from '../core/owner-exception-model-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_3_20261007';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_4_20261007';
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -287,12 +287,16 @@ async function load(){
     const canary=d.operatorTaskCanary||{};
     const blockerState=d.employees?.blockers||{};
     const blockerCounts=blockerState.summary?.counts||{};
+    const commsState=d.communications?.pending||{};
+    const commsSummary=commsState.summary||{};
+    const commsCounts=commsSummary.counts||{};
 
     q('#modes').innerHTML=[
       badge('Autonomy',controls.autonomy?.mode||'—',controls.autonomy?.mode==='SHADOW'?'warn':'off'),
       badge('Readiness',controls.readiness||'—',controls.readiness==='SHADOW'?'warn':'off'),
       badge('Operator Task',controls.operatorTask||'—',controls.operatorTask==='OFF'?'off':'ok'),
       badge('Andon',blockerState.control?.mode||'—',blockerState.control?.mode==='SHADOW'?'warn':'off'),
+      badge('Comms',commsSummary.control?.mode||'—',commsSummary.control?.mode==='READONLY'?'off':'warn'),
       badge('المواعيد',String(schedule.scheduleRows||0)+'/'+String(schedule.nativeOrders||0),schedule.missingSchedule===0?'ok':'warn')
     ].join('');
 
@@ -317,6 +321,10 @@ async function load(){
       message+=' '+n(blockerCounts.open)+' بلاغ Andon مفتوح.';
       cls=n(blockerCounts.critical)>0?'danger':'warn';
     }
+    if(n(sig.commsPendingSignals)>0){
+      message+=' '+n(sig.commsPendingSignals)+' حالة تواصل تحتاج متابعة.';
+      if(cls==='ok') cls='warn';
+    }
     q('#signal').innerHTML='<div class="signal '+cls+'">'+esc(message)+'</div>';
 
     q('#kpis').innerHTML=[
@@ -326,7 +334,8 @@ async function load(){
       kpi('جاهز صارم',n(ready.strictEligible),'Design + Material + Machine'),
       kpi('تحت التنفيذ',n(ops.inProgress),'حالة فعلية من TrendOS'),
       kpi('متاح الآن',n(emp.available),n(emp.total)+' موظف معروف'),
-      kpi('عوائق الموظفين',n(blockerCounts.open),'حرج '+n(blockerCounts.critical)+' • قرار مالك '+n(blockerCounts.ownerActionRequired))
+      kpi('عوائق الموظفين',n(blockerCounts.open),'حرج '+n(blockerCounts.critical)+' • قرار مالك '+n(blockerCounts.ownerActionRequired)),
+      kpi('رسائل تنتظر رد',n(sig.commsWaitingReply),'تصعيد إداري '+n(sig.commsManagerEscalations)+(n(sig.commsFeedbackDormantBacklog)>0?' • Feedback مؤجل '+n(sig.commsFeedbackDormantBacklog)+' غير تشغيلي':''))
     ].join('');
 
     const riskDepartments=Array.isArray(deadline.departments)?deadline.departments:[];

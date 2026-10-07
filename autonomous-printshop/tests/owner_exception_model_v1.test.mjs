@@ -6,7 +6,7 @@ const state={
   controls:{autonomy:{mode:'SHADOW'},readiness:'SHADOW',operatorTask:'OFF'},
   readiness:{baselineCandidates:88,strictBlocked:88,strictEligible:0},
   operations:{deadlineRisk:{overdueOrders:17,atRisk24hOrders:12,watch48hOrders:35,oldestOverdueHours:134.1,missingDueLines:0,invalidDueLines:0}},
-  attentionSignals:{employeeReviewRequired:0,readinessBlocked:88,activeOperatorTasks:0,noStrictRecommendation:true},
+  attentionSignals:{employeeReviewRequired:0,readinessBlocked:88,activeOperatorTasks:0,noStrictRecommendation:true,commsPendingSignals:3,commsWaitingReply:2,commsManagerEscalations:1,commsFeedbackDormantBacklog:166},
   shadowLearning:{autonomyEvents:14,recommendedAiAuto:0,ownerOnly:0,blocked:0},
   evidenceAcquisition:{
     design:{acquisitionReady:false,blocker:'REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING'},
@@ -32,6 +32,7 @@ assert.equal(out.mode,'READ_ONLY_EXCEPTION_PROJECTION');
 assert.equal(out.authorityBoundaries.accountingWrite,false);
 assert.equal(out.authorityBoundaries.easyStoreMutation,false);
 assert.equal(out.authorityBoundaries.contentMutation,false);
+assert.equal(out.authorityBoundaries.commsSend,false);
 assert.equal(out.authorityBoundaries.operatorTaskWrite,false);
 assert.equal(out.authorityBoundaries.employeeAssignment,false);
 assert.ok(out.exceptions.some(x=>x.id==='READINESS_BLOCKED'&&x.count===88));
@@ -44,6 +45,9 @@ assert.ok(out.exceptions.some(x=>x.id==='EMPLOYEE_BLOCKER_MACHINE_BREAKDOWN'&&x.
 assert.ok(out.exceptions.some(x=>x.id==='EMPLOYEE_BLOCKER_PRICE_OR_OWNER_DECISION'&&x.ownerActionRequired&&x.protectedDecision&&x.responsibleActor==='OWNER'));
 assert.ok(out.exceptions.some(x=>x.id==='EMPLOYEE_BLOCKER_QUALITY_ISSUE'&&x.responsibleActor==='EMPLOYEE_SUPERVISOR'));
 assert.ok(out.exceptions.some(x=>x.id==='EMPLOYEE_BLOCKER_HELP_NEEDED'&&x.severity==='MEDIUM'));
+assert.ok(out.exceptions.some(x=>x.id==='COMMS_PENDING_RESPONSE'&&x.count===3&&x.responsibleActor==='COMMS_AGENT'&&!x.ownerActionRequired));
+assert.ok(out.exceptions.some(x=>x.id==='COMMS_MANAGER_ESCALATION'&&x.count===1&&x.responsibleActor==='CUSTOMER_SERVICE_MANAGER'&&!x.ownerActionRequired));
+assert.ok(!out.exceptions.some(x=>JSON.stringify(x).includes('166')));
 assert.ok(!JSON.stringify(out).includes('ORDER-SECRET'));
 assert.ok(!JSON.stringify(out).includes('EMPLOYEE-SECRET'));
 assert.equal(out.summary.aiObservedDecisions,14);

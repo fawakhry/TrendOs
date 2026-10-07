@@ -211,6 +211,24 @@ export function buildOwnerExceptionModelV1(state={}){
     push(employeeBlockerException(row&&row.key,row&&row.count));
   }
 
+  const commsPending=n(signals.commsPendingSignals);
+  const commsWaitingReply=n(signals.commsWaitingReply);
+  const commsManagerEscalations=n(signals.commsManagerEscalations);
+  if(commsPending>0) push(exception({
+    id:'COMMS_PENDING_RESPONSE',domain:'COMMS',severity:'HIGH',titleAr:'رسائل تشغيلية تنتظر متابعة',
+    reasonAr:commsPending+' إشارة تواصل تشغيلية معلقة'+(commsWaitingReply?('؛ منها '+commsWaitingReply+' محادثة آخر رسالة فيها من العميل'):'')+'.',
+    responsibleActor:'COMMS_AGENT',responsibleActorAr:'Comms / Customer Service',
+    aiState:AI_STATES.PREPARE_HUMAN_REVIEW,aiCanResolveNow:false,ownerActionRequired:false,protectedDecision:false,count:commsPending,signalCode:'COMMS_PENDING_RESPONSE',
+    nextActionAr:'راجع المحادثات في قناة خدمة العملاء المعتمدة ورد على الحالات الحية؛ لا ترسل من Owner Console ولا تعتبر Feedback غير المفعّل رسالة تشغيلية.'
+  }));
+  if(commsManagerEscalations>0) push(exception({
+    id:'COMMS_MANAGER_ESCALATION',domain:'COMMS',severity:'HIGH',titleAr:'تصعيدات خدمة عملاء تحتاج مراجعة إدارية',
+    reasonAr:commsManagerEscalations+' محادثة معلّمة بأنها تحتاج مراجعة مدير.',
+    responsibleActor:'CUSTOMER_SERVICE_MANAGER',responsibleActorAr:'مسؤول خدمة العملاء / الإدارة',
+    aiState:AI_STATES.PREPARE_HUMAN_REVIEW,aiCanResolveNow:false,ownerActionRequired:false,protectedDecision:false,count:commsManagerEscalations,signalCode:'COMMS_MANAGER_ESCALATION',
+    nextActionAr:'راجع سبب التصعيد من مصدر المحادثة؛ لا يصدر Owner Console ردًا أو قرارًا ماليًا تلقائيًا.'
+  }));
+
   const review=n(signals.employeeReviewRequired);
   if(review>0) push(exception({
     id:'EMPLOYEE_REVIEW_REQUIRED',domain:'EMPLOYEE',severity:'HIGH',titleAr:'حالة موظف تحتاج مراجعة تشغيلية',
@@ -267,7 +285,7 @@ export function buildOwnerExceptionModelV1(state={}){
   return {
     version:OWNER_EXCEPTION_MODEL_VERSION,
     mode:'READ_ONLY_EXCEPTION_PROJECTION',
-    generatedFrom:'CONTROL_TOWER+EMPLOYEE_BLOCKERS+READINESS_EVIDENCE+CANARY_GATE',
+    generatedFrom:'CONTROL_TOWER+EMPLOYEE_BLOCKERS+COMMS_PENDING+READINESS_EVIDENCE+CANARY_GATE',
     exceptions,
     summary:{
       total:exceptions.length,
@@ -285,6 +303,7 @@ export function buildOwnerExceptionModelV1(state={}){
       accountingWrite:false,
       easyStoreMutation:false,
       contentMutation:false,
+      commsSend:false,
       operatorTaskWrite:false,
       employeeAssignment:false
     }
