@@ -1,0 +1,118 @@
+name: EasyStore A2.12 Final Closure Audit
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a212-final-closure-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@4.33.2
+      - name: Verify exact six-canary closed Production truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "$EASYSTORE_URL/config.js?a212final=$GITHUB_RUN_ID" > /tmp/config.js
+          curl -fsS "$API_URL/v1/employee/accounting/health?a212final=$GITHUB_RUN_ID" > /tmp/health.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events,
+              (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses;
+            SELECT request_key,operation,actor,status,response_json AS responseJson
+              FROM employee_accounting_request_ledger_v1
+             WHERE request_key LIKE 'A212-DLINE-%';
+            SELECT entity_type,entity_id,event_type,actor,request_key,payload_json AS payloadJson
+              FROM employee_accounting_events_v1
+             WHERE request_key LIKE 'A212-DLINE-%';
+            SELECT accounting_line_id AS accountingLineId,order_id AS orderId,line_id AS lineId,
+                   customer_name AS customerName,department,item_type AS itemType,item_name AS itemName,qty,
+                   material_name AS materialName,material_consumption AS materialConsumption,
+                   material_cost AS materialCost,operating_cost AS operatingCost,other_cost AS otherCost,
+                   total_cost AS totalCost,system_cost AS systemCost,system_sale_price AS systemSalePrice,
+                   sale_price AS salePrice,profit,billing_status AS billingStatus,
+                   approval_status AS approvalStatus,stock_deducted AS stockDeducted,
+                   final_invoice_no AS finalInvoiceNo,notes,updated_by AS updatedBy,version
+              FROM employee_accounting_dept_lines_v1
+             WHERE accounting_line_id LIKE 'A212-DLINE-%';
+            SELECT COUNT(*) AS stockCount FROM employee_accounting_stock_moves_v1 WHERE request_key LIKE 'A212-DLINE-%';
+            SELECT COUNT(*) AS cashCount FROM employee_accounting_cashbox_v1 WHERE request_key LIKE 'A212-DLINE-%';
+            SELECT COUNT(*) AS ledgerCount FROM employee_accounting_party_ledger_v1 WHERE request_key LIKE 'A212-DLINE-%';
+          " > /tmp/d1.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const cfg=fs.readFileSync('/tmp/config.js','utf8');
+          const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8')),groups=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const [k,z] of Object.entries(v))if(k!=='results')walk(z);}};walk(x);
+          const all=groups.flat();
+          const c=all.find(r=>r.materials!==undefined)||{};
+          const qs=all.filter(r=>r.request_key&&r.operation);
+          const es=all.filter(r=>r.entity_type);
+          const ds=all.filter(r=>r.accountingLineId);
+          const sc=all.find(r=>r.stockCount!==undefined),cc=all.find(r=>r.cashCount!==undefined),lc=all.find(r=>r.ledgerCount!==undefined);
+
+          const exp={materials:1,templates:1,parties:1,partyBalances:1,waste:1,deptLines:1,requestLedger:6,events:6,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0};
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'OFF'/.test(cfg)||!/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg))throw Error('frontend not closed');
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('backend not closed');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('server canary not cleared');
+          if(Number(h.googleBusinessCalls||0)!==0)throw Error('google calls');
+          for(const [k,v] of Object.entries(exp))if(Number(c[k]||0)!==v)throw Error(k+'='+c[k]);
+
+          if(qs.length!==1||es.length!==1||ds.length!==1||!sc||!cc||!lc)throw Error('A2.12 evidence multiplicity');
+          const q=qs[0],e=es[0],d=ds[0];
+          if(q.request_key!=='A212-DLINE-muyd2npv-tpu289zj'||q.operation!=='dept-line-upsert'||q.actor!=='ضياء'||q.status!=='COMMITTED')throw Error('request mismatch');
+          if(e.entity_type!=='dept-line'||e.event_type!=='create'||e.actor!=='ضياء'||e.request_key!==q.request_key||String(e.entity_id)!==String(d.accountingLineId))throw Error('event mismatch');
+          if(d.accountingLineId!==q.request_key||d.orderId!=='A2-CANARY-DEPT-MUYD2NPV'||d.department!=='عام'||d.itemName!=='A2-CANARY-DEPT-LINE-MUYD2NPV'||Number(d.qty)!==1)throw Error('dept line identity mismatch');
+          for(const k of ['lineId','customerName','itemType','materialName','finalInvoiceNo','notes'])if(String(d[k]||''))throw Error('unexpected field '+k);
+          for(const k of ['materialConsumption','materialCost','operatingCost','otherCost','totalCost','systemCost','systemSalePrice','salePrice','profit','stockDeducted'])if(Number(d[k]||0)!==0)throw Error('nonzero field '+k);
+          if(d.billingStatus!=='مسجل - قيد مراجعة القسم'||String(d.approvalStatus||'')||d.updatedBy!=='ضياء'||Number(d.version)!==1)throw Error('dept line state mismatch');
+          if(Number(sc.stockCount)!==0||Number(cc.cashCount)!==0||Number(lc.ledgerCount)!==0)throw Error('forbidden side effect');
+
+          console.log('A212_FINAL_CLOSURE=PASS');
+          console.log('FRONTEND_MODE=OFF');
+          console.log('BACKEND_MODE=READONLY');
+          console.log('BASELINE=materials1_templates1_parties1_partyBalances1_waste1_deptLines1_request6_events6');
+          console.log('SIDE_EFFECTS=stock0_partyLedger0_cashbox0_other0');
+          console.log('A212_REQUEST_KEY='+q.request_key);
+          console.log('A212_DEPT_LINE_ID='+d.accountingLineId);
+          console.log('A212_ORDER_ID='+d.orderId);
+          console.log('A212_ITEM_NAME='+d.itemName);
+          console.log('GENERAL_OPENED=NO');
+          NODE
