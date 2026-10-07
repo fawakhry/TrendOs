@@ -1,0 +1,54 @@
+name: EasyStore A2.13 Custody Close Deploy Execution Qualification
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a213_custody_close_canary.test.mjs'
+      - 'tests/easystore_a213_custody_close_workflow_invariants.test.mjs'
+      - '.github/workflows/easystore-a213-custody-close-guard-readonly-deploy.yml'
+      - '.github/workflows/easystore-a213-custody-close-canary-execution.yml'
+      - '.github/workflows/easystore-a213-custody-close-deploy-execution-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify Custody Close guard and manual-only workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_write_canary_policy_v1.test.mjs
+          node tests/easystore_a213_custody_close_canary.test.mjs
+          node tests/easystore_a213_custody_close_workflow_invariants.test.mjs
+          echo A213_CUSTODY_CLOSE_DEPLOY_EXECUTION_QUALIFICATION=PASS
+          echo SERVER_GUARD=PASS
+          echo DEPLOY_WORKFLOW=MANUAL_ONLY
+          echo EXECUTION_WORKFLOW=MANUAL_ONLY
+          echo BASELINE=materials1_templates1_parties1_partyBalances1_waste1_deptLines1_custodyCloses0_requestLedger6_events6
+          echo ONE_USER=ضياء
+          echo ONE_ACTION=closePurchaseCustodyV1920
+          echo ONE_COMMAND=YES
+          echo ZERO_BALANCE=YES
+          echo CUSTODY_EVENT_DELTA=0
+          echo CASHBOX_DELTA=0
+          echo STOCK_MOVE_DELTA=0
+          echo PARTY_LEDGER_DELTA=0
+          echo AUTO_DISABLE=YES
+          echo GENERAL_ALLOWED=NO
+          echo PRODUCTION_DEPLOY=NO
+          echo PRODUCTION_ARM=NO
+          echo PRODUCTION_MUTATION=NO
