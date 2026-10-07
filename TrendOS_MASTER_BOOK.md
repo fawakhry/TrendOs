@@ -6429,3 +6429,39 @@ ACCOUNTING_MUTATION=NO
 EASYSTORE_MUTATION=NO
 ROLLBACK_USED=NO
 ```
+
+#### Entry646 — Manager Center Core-direct stabilization — PASS
+- الاسم العربي للبحث: **المركز / مركز الإدارة / لوحة المدير / Manager Center / Trend Master Center**.
+- التاريخ: 2026-10-07 Cairo.
+- التشخيص الحي: `config.js` يحمل `trend-master-resilience-v1931.js` قبل `manager-center-v1932.js`. الـResilience يطلب `getTrendMasterPanelV1931`، لكن الـDispatcher والـD1 Core الحاليين لا يؤهلان هذا action، بينما `getTrendMasterCenterV1931` مؤهل Native على `/v1/employee/core`.
+- لذلك كان Manager Center يفضّل مسار Progressive غير مؤهل لمجرد وجود `trendMasterPanelResilienceV1` بدل fallback السحابي الصحيح.
+- Entry646 غيّر **المركز فقط** ليستخدم Snapshot واحد مباشر من `getTrendMasterCenterV1931`. لم يتم تغيير D1 أو Backend API أو Content أو Comms أو Accounting/EasyStore.
+- Workflow source commit: `eda1828f0c6b6b17617b7649a048d414635ef293`.
+- Run `37554583893` / Job `112577762263` = SUCCESS.
+- Repo patch commit: `463a2523a9ddf1457f113112254f7bc5176d082a`.
+- Frontend version: `9c84a8ca-49f9-458a-9714-8a0dc03cfcd6` → `cfff20f6-5a9d-46cb-8dfb-6c378c4f0eb5`; propagation attempt 4.
+- Authenticated Production smoke: Native login PASS؛ Manager Center snapshot من Core PASS؛ Legacy Bridge calls=0؛ Business write=NO؛ Native logout PASS.
+- Runtime postflight: Auth=NATIVE 6/6، Core=GENERAL/2، Ops=GENERAL، Content=READONLY، Comms=READONLY، Accounting=READONLY/writeAuthorityMode=OFF؛ rollback لم يُستخدم.
+- Evidence: `docs/trendos/staging/ENTRY646_MANAGER_CENTER_CORE_DIRECT_20261007.md`.
+```ini
+ENTRY646=PASS
+MANAGER_CENTER_ROUTE=CORE_DIRECT
+MANAGER_CENTER_ACTION=getTrendMasterCenterV1931
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+BACKEND_BRIDGE=false
+CORE=GENERAL
+CORE_POLICY_EPOCH=2
+CONTENT=READONLY
+COMMS=READONLY
+OPS=GENERAL
+ACCOUNTING=READONLY
+D1_MUTATION=NO
+BUSINESS_WRITE=NO
+CONTENT_MUTATION=NO
+COMMS_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
