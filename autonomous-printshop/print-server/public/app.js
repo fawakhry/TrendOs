@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-let orders = [], currentOrder = null, currentFiles = [], lastStatus = null, storageDirty = false;
+let orders = [], currentOrder = null, currentFiles = [], lastStatus = null, storageDirty = false, manualFolderOptions = [];
 
 async function api(path, options, timeoutMs=20000){
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -27,17 +27,51 @@ function treeHtml(order){
     let node = root; for(const part of rel.split(/[/\\]/).filter(Boolean)){ node[part] ||= {}; node = node[part]; }
   }
   const walk = n => `<ul>${Object.entries(n).map(([k,v])=>`<li><span class="folder">${esc(k)}</span>${walk(v)}</li>`).join('')}</ul>`;
-  return Object.keys(root).length ? `<div class="folder">${esc((order.folder||'').split(/[/\\]/).pop())}</div>${walk(root)}` : '<div class="empty">لا توجد مسارات مصنفة</div>';
+  return Object.keys(root).length ? `<div class="folder">${esc((order.folder||'').split(/[/\\]/).pop())}</div>${walk(root)}` : '<div class="empty">لم يتم اختيار فولدر شغل بعد</div>';
 }
 function renderOrders(filter=''){
   const q=filter.trim().toLowerCase(); const shown=orders.filter(o=>!q || String(o.orderId).toLowerCase().includes(q) || String(o.customerName||'').toLowerCase().includes(q));
-  $('ordersList').innerHTML = shown.length ? shown.map(o=>`<div class="order-row ${currentOrder?.orderId===o.orderId?'active':''}" data-id="${esc(o.orderId)}"><b>#${esc(o.orderId)} — ${esc(o.customerName||'')}</b><span class="badge">${Object.keys(o.routes||{}).length} قسم</span><small>${esc(o.folder||'')}</small><small>${(o.unclassified||[]).length ? '⚠ يحتاج تصنيف: '+o.unclassified.length : '✓ مصنف'}</small></div>`).join('') : '<div class="empty">لا توجد أوردرات</div>';
+  $('ordersList').innerHTML = shown.length ? shown.map(o=>`<div class="order-row ${currentOrder?.orderId===o.orderId?'active':''}" data-id="${esc(o.orderId)}"><b>#${esc(o.orderId)} — ${esc(o.customerName||'')}</b><span class="badge">${Object.keys(o.routes||{}).length} فولدر</span><small>${esc(o.folder||'')}</small><small>${Object.keys(o.routes||{}).length ? '✓ تم اختيار فولدرات الشغل' : 'اختر فولدر الشغل'}</small></div>`).join('') : '<div class="empty">لا توجد أوردرات</div>';
   document.querySelectorAll('.order-row').forEach(el=>el.onclick=()=>selectOrder(el.dataset.id));
+}
+function renderManualFolderPicker(){
+  const box=$('manualFolderPicker');
+  if(!currentOrder){
+    box.innerHTML='<span class="empty-inline">اختر أوردر أولًا</span>';
+    return;
+  }
+  const existing=currentOrder.routes||{};
+  box.innerHTML=manualFolderOptions.map(opt=>{
+    const active=Boolean(existing[opt.key]);
+    return `<button class="manual-folder-btn ${active?'active':''}" data-folder-key="${esc(opt.key)}">${active?'✓ ':''}${esc(opt.name)}</button>`;
+  }).join('');
+  document.querySelectorAll('.manual-folder-btn').forEach(btn=>btn.onclick=()=>createManualFolder(btn.dataset.folderKey,btn));
+}
+async function createManualFolder(folderKey,btn){
+  if(!currentOrder) return;
+  const original=btn.textContent;
+  btn.disabled=true; btn.textContent='جاري الإنشاء...';
+  $('manualFolderMsg').textContent='';
+  try{
+    const res=await post('/api/orders/manual-folder',{orderId:currentOrder.orderId,folderKey});
+    $('manualFolderMsg').textContent=res.result?.alreadyExisted ? 'الفولدر موجود بالفعل.' : 'تم إنشاء الفولدر داخل الأوردر.';
+    const data=await api('/api/orders',{},5000);
+    orders=data.orders||[];
+    currentOrder=orders.find(o=>String(o.orderId)===String(currentOrder.orderId));
+    renderOrders($('searchBox').value);
+    $('folderTree').innerHTML=treeHtml(currentOrder);
+    renderManualFolderPicker();
+  }catch(e){
+    $('manualFolderMsg').textContent='تعذر إنشاء الفولدر: '+e.message;
+    btn.disabled=false; btn.textContent=original;
+  }
 }
 async function selectOrder(id){
   currentOrder=orders.find(o=>String(o.orderId)===String(id)); renderOrders($('searchBox').value);
   $('orderTitle').textContent=`أوردر #${currentOrder.orderId}`; $('orderCustomer').textContent=currentOrder.customerName||'';
   $('folderTree').innerHTML=treeHtml(currentOrder);
+  $('manualFolderMsg').textContent='';
+  renderManualFolderPicker();
   const body=await api(`/api/order-files?orderId=${encodeURIComponent(id)}`); currentFiles=body.files||[];
   $('fileCountLabel').textContent=`${currentFiles.length} ملف`; $('countFiles').textContent=currentFiles.length; $('countFinished').textContent=currentFiles.filter(f=>f.inX).length;
   renderFiles();
@@ -169,6 +203,7 @@ async function refresh(){
     $('connectionStatus').textContent='● متصل بالسيرفر المحلي';
     $('connectionStatus').style.color='';
     $('modeLabel').textContent=status.mode;
+    manualFolderOptions=status.manualFolderOptions||manualFolderOptions;
     const p=status.preview||{}; $('previewCapabilities').textContent=`TIF ${p.tiff?'✓':'✕'} • DXF ${p.dxf?'✓':'✕'} • الصور ✓`;
     renderPlatform(status);
     renderStorage(status);
@@ -179,7 +214,7 @@ async function refresh(){
   }
   try{
     const data=await api('/api/orders',{},5000); orders=data.orders||[];
-    $('countOrders').textContent=orders.length; $('countNeedsClass').textContent=orders.reduce((n,o)=>n+(o.unclassified||[]).length,0);
+    $('countOrders').textContent=orders.length; $('countSelectedFolders').textContent=orders.reduce((n,o)=>n+Object.keys(o.routes||{}).length,0);
     renderOrders($('searchBox').value);
     if(currentOrder && orders.some(o=>o.orderId===currentOrder.orderId)) await selectOrder(currentOrder.orderId);
   }catch(e){

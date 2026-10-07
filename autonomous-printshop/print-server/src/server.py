@@ -59,6 +59,11 @@ class PrintServerApp:
                 "readyRoot": self.config["paths"]["readyRoot"],
                 "configPath": str(self.config_path),
             },
+            "folderMode": self.config["folder"].get("mode", "MANUAL_SELECTION"),
+            "manualFolderOptions": [
+                {"key": key, "name": name}
+                for key, name in self.folders.manual_options().items()
+            ],
             "runtime": {
                 "python": sys.version.split()[0],
                 "platform": platform.platform(),
@@ -247,6 +252,12 @@ def make_handler(app: PrintServerApp):
                     return self._json(200, app.set_orders_root(body.get("path")))
                 if parsed.path == "/api/settings/orders-root/select":
                     return self._json(200, app.choose_orders_root())
+                if parsed.path == "/api/orders/manual-folder":
+                    result = app.folders.create_manual_folder(
+                        str(body.get("orderId") or ""),
+                        str(body.get("folderKey") or ""),
+                    )
+                    return self._json(201, {"ok": True, "result": result})
                 if parsed.path == "/api/events/order-claimed":
                     order = body.get("order") if isinstance(body.get("order"), dict) else body
                     result = app.folders.create_for_claimed_order(order)
@@ -257,6 +268,7 @@ def make_handler(app: PrintServerApp):
                         str(body.get("lineId") or ""),
                         str(body.get("sourceFile") or ""),
                         body.get("approval") or {},
+                        str(body.get("routeKey") or "") or None,
                     )
                     return self._json(201, {"ok": True, "result": result})
                 return self._json(404, {"ok": False, "error": "NOT_FOUND"})

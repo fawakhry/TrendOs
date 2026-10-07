@@ -7,8 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
-from .classifier import classify_line
-
 _WINDOWS_RESERVED = {
     "CON", "PRN", "AUX", "NUL",
     *(f"COM{i}" for i in range(1, 10)),
@@ -58,6 +56,12 @@ class OrderFolderService:
         self.orders_root.mkdir(parents=True, exist_ok=True)
         self.ready_root.mkdir(parents=True, exist_ok=True)
 
+    def manual_options(self) -> dict:
+        return {
+            str(key): str(value)
+            for key, value in (self.config["folder"].get("manualOptions") or {}).items()
+        }
+
     def order_folder_name(self, order: dict) -> str:
         order_id = safe_name(order.get("orderId") or order.get("order_id"), "ORDER")
         customer = safe_name(order.get("customerName") or order.get("customer_name"), "عميل")
@@ -69,6 +73,11 @@ class OrderFolderService:
         )
 
     def create_for_claimed_order(self, order: dict) -> dict:
+        """Create only the order root.
+
+        Work folders are intentionally NOT inferred from product data. The
+        operator chooses one or more work folders explicitly from the local UI.
+        """
         order_id = str(order.get("orderId") or order.get("order_id") or "").strip()
         if not order_id:
             raise ValueError("ORDER_ID_REQUIRED")
@@ -85,37 +94,39 @@ class OrderFolderService:
 
         routes = {}
         for key, route in ((existing or {}).get("routes") or {}).items():
-            routes[str(key)] = {"path": str(route.get("path") or ""), "lines": [str(v) for v in (route.get("lines") or [])]}
-        unclassified = list((existing or {}).get("unclassified") or [])
+            routes[str(key)] = {
+                "path": str(route.get("path") or ""),
+                "lines": [str(v) for v in (route.get("lines") or [])],
+                "manual": bool(route.get("manual")),
+                "displayName": str(route.get("displayName") or ""),
+            }
 
-        incoming_ids = {str(line.get("lineId") or line.get("line_id") or "").strip() for line in lines}
+        line_ids = {
+            str(v)
+            for v in ((existing or {}).get("lineIds") or [])
+            if str(v).strip()
+        }
+        incoming_ids = {
+            str(line.get("lineId") or line.get("line_id") or "").strip()
+            for line in lines
+        }
         incoming_ids.discard("")
-        for route in routes.values():
-            route["lines"] = [str(v) for v in route.get("lines", []) if str(v) not in incoming_ids]
-        routes = {k: v for k, v in routes.items() if v.get("lines")}
-        unclassified = [u for u in unclassified if str(u.get("lineId") or "") not in incoming_ids]
-
-        for line in lines:
-            result = classify_line(line, self.config)
-            line_id = str(line.get("lineId") or line.get("line_id") or "").strip()
-            if not result.route_key:
-                unclassified.append({"lineId": line_id, "reason": result.reason})
-                continue
-            target = root.joinpath(*result.path_parts)
-            target.mkdir(parents=True, exist_ok=True)
-            (target / self.finished_name).mkdir(exist_ok=True)
-            route = routes.setdefault(result.route_key, {"path": str(target), "lines": []})
-            route["path"] = str(target)
-            if line_id and line_id not in route["lines"]:
-                route["lines"].append(line_id)
+        line_ids.update(incoming_ids)
 
         now = datetime.now().astimezone().isoformat()
         payload = {
             "orderId": order_id,
-            "customerName": order.get("customerName") or order.get("customer_name") or (existing or {}).get("customerName") or "",
+            "customerName": (
+                order.get("customerName")
+                or order.get("customer_name")
+                or (existing or {}).get("customerName")
+                or ""
+            ),
             "folder": str(root),
             "routes": routes,
-            "unclassified": unclassified,
+            "unclassified": [],
+            "lineIds": sorted(line_ids),
+            "folderMode": "MANUAL_SELECTION",
             "createdAt": (existing or {}).get("createdAt") or now,
             "updatedAt": now,
         }
@@ -125,9 +136,63 @@ class OrderFolderService:
                 "orderId": order_id,
                 "routeKeys": sorted(routes.keys()),
                 "incomingLineIds": sorted(incoming_ids),
-                "unclassifiedCount": len(unclassified),
+                "folderMode": "MANUAL_SELECTION",
+                "automaticClassification": False,
             })
         return payload
+
+    def create_manual_folder(self, order_id: str, folder_key: str) -> dict:
+        if not self.state:
+            raise RuntimeError("STATE_STORE_REQUIRED")
+        order_id = str(order_id or "").strip()
+        folder_key = str(folder_key or "").strip()
+        if not order_id:
+            raise ValueError("ORDER_ID_REQUIRED")
+
+        options = self.manual_options()
+        if folder_key not in options:
+            raise ValueError("UNKNOWN_MANUAL_FOLDER")
+
+        order_state = self.state.order(order_id)
+        if not order_state:
+            raise ValueError("ORDER_NOT_REGISTERED")
+
+        root = Path(order_state["folder"]).resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        display_name = safe_name(options[folder_key])
+        target = root / display_name
+        target.mkdir(parents=True, exist_ok=True)
+        (target / self.finished_name).mkdir(exist_ok=True)
+
+        routes = dict(order_state.get("routes") or {})
+        existed = folder_key in routes and Path(str(routes[folder_key].get("path") or "")).exists()
+        routes[folder_key] = {
+            "path": str(target),
+            "lines": list(routes.get(folder_key, {}).get("lines") or []),
+            "manual": True,
+            "displayName": display_name,
+        }
+        order_state["routes"] = routes
+        order_state["unclassified"] = []
+        order_state["folderMode"] = "MANUAL_SELECTION"
+        order_state["updatedAt"] = datetime.now().astimezone().isoformat()
+        self.state.upsert_order(order_id, order_state)
+        self.state.audit("LOCAL_MANUAL_WORK_FOLDER_ENSURED", {
+            "orderId": order_id,
+            "folderKey": folder_key,
+            "displayName": display_name,
+            "path": str(target),
+            "alreadyExisted": bool(existed),
+            "automaticClassification": False,
+        })
+        return {
+            "orderId": order_id,
+            "folderKey": folder_key,
+            "displayName": display_name,
+            "path": str(target),
+            "alreadyExisted": bool(existed),
+            "order": order_state,
+        }
 
     def _route_for_line(self, order_state: dict, line_id: str) -> Optional[Tuple[str, Path]]:
         for route_key, route in order_state.get("routes", {}).items():
@@ -135,13 +200,38 @@ class OrderFolderService:
                 return route_key, Path(route["path"])
         return None
 
-    def publish_structured_approval(self, order_id: str, line_id: str, source_file: str, approval: dict) -> dict:
+    def _ready_parts(self, route_key: str) -> list:
+        options = self.manual_options()
+        if route_key in options:
+            return [options[route_key]]
+        legacy = self.config.get("classification", {}).get("routes", {}).get(route_key)
+        if legacy:
+            return list(legacy)
+        raise ValueError("ROUTE_NOT_CONFIGURED")
+
+    def publish_structured_approval(
+        self,
+        order_id: str,
+        line_id: str,
+        source_file: str,
+        approval: dict,
+        route_key: Optional[str] = None,
+    ) -> dict:
         if not self.state:
             raise RuntimeError("STATE_STORE_REQUIRED")
         order_state = self.state.order(order_id)
         if not order_state:
             raise ValueError("ORDER_NOT_REGISTERED")
-        route_info = self._route_for_line(order_state, line_id)
+
+        selected_route_key = str(route_key or "").strip()
+        route_info = None
+        if selected_route_key:
+            route = (order_state.get("routes") or {}).get(selected_route_key)
+            if not route:
+                raise ValueError("ROUTE_NOT_REGISTERED")
+            route_info = (selected_route_key, Path(route["path"]))
+        else:
+            route_info = self._route_for_line(order_state, line_id)
         if not route_info:
             raise ValueError("LINE_ROUTE_NOT_REGISTERED")
 
@@ -164,9 +254,8 @@ class OrderFolderService:
         if subject_hash != current_hash:
             raise ValueError("APPROVAL_HASH_MISMATCH")
 
-        route_key, _route_path = route_info
-        route_parts = self.config["classification"]["routes"][route_key]
-        ready_dir = self.ready_root.joinpath(*route_parts)
+        selected_route_key, _route_path = route_info
+        ready_dir = self.ready_root.joinpath(*self._ready_parts(selected_route_key))
         ready_dir.mkdir(parents=True, exist_ok=True)
         customer = safe_name(order_state.get("customerName"), "عميل")
         dest_name = safe_name(f"{order_id} - {customer} - {src.name}")
@@ -178,7 +267,7 @@ class OrderFolderService:
         self.state.audit("LOCAL_READY_QUEUE_COPY", {
             "orderId": str(order_id),
             "lineId": str(line_id),
-            "routeKey": route_key,
+            "routeKey": selected_route_key,
             "sourceKind": source_kind,
             "sha256": current_hash,
             "destination": str(dest),
@@ -187,7 +276,7 @@ class OrderFolderService:
         return {
             "orderId": str(order_id),
             "lineId": str(line_id),
-            "routeKey": route_key,
+            "routeKey": selected_route_key,
             "sha256": current_hash,
             "readyFile": str(dest),
             "designReadyGranted": False,

@@ -7,7 +7,6 @@ from pathlib import Path
 from PIL import Image
 import ezdxf
 
-from src.classifier import classify_line
 from src.config import DEFAULT_CONFIG, _deep_merge, _resolve_paths
 from src.folders import OrderFolderService, file_sha256
 from src.preview import build_preview
@@ -33,91 +32,110 @@ class PrintServerTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_heat_press_is_sublimation(self):
-        result = classify_line({"heatPress": "نعم", "itemName": "مج"}, self.cfg)
-        self.assertEqual(result.route_key, "photo_sublimation")
-        self.assertEqual(result.path_parts, ("طباعة", "فوتو", "سبلميشن"))
-
-    def test_known_routes_and_unknown_fail_closed(self):
-        cases = [
-            ({"itemName": "استيكر شفاف"}, "digital_sticker"),
-            ({"itemName": "كوشيه 300 جرام"}, "digital_couche"),
-            ({"itemName": "تابلوه 30x40"}, "photo_tableaux"),
-            ({"department": "ليزر"}, "laser"),
-        ]
-        for line, expected in cases:
-            self.assertEqual(classify_line(line, self.cfg).route_key, expected)
-        self.assertIsNone(classify_line({"itemName": "منتج جديد غير معروف"}, self.cfg).route_key)
-
-    def test_creates_only_required_order_folders(self):
-        result = self.service.create_for_claimed_order({
-            "orderId": "15428",
+    def _order(self, order_id="15428", lines=None):
+        return {
+            "orderId": order_id,
             "customerName": "أحمد محمد",
             "claimedAt": "2026-10-07T10:15:00+03:00",
-            "lines": [
+            "lines": lines or [
                 {"lineId": "L1", "heatPress": True, "itemName": "مج"},
                 {"lineId": "L2", "itemName": "استيكر"},
             ],
-        })
+        }
+
+    def test_claim_creates_order_root_only_and_never_auto_classifies(self):
+        result = self.service.create_for_claimed_order(self._order())
         root = Path(result["folder"])
-        self.assertTrue((root / "طباعة" / "فوتو" / "سبلميشن" / "x").is_dir())
-        self.assertTrue((root / "طباعة" / "ديجتال" / "استيكر" / "x").is_dir())
-        self.assertFalse((root / "طباعة" / "فوتو" / "تابلوهات").exists())
+        self.assertTrue(root.is_dir())
+        self.assertEqual({}, result["routes"])
+        self.assertEqual([], result["unclassified"])
+        self.assertEqual("MANUAL_SELECTION", result["folderMode"])
+        self.assertEqual(["L1", "L2"], result["lineIds"])
+        self.assertFalse((root / "سبلميشن").exists())
+        self.assertFalse((root / "استيكر").exists())
         self.assertFalse((root / "ليزر").exists())
-        self.assertIn("15428", root.name)
-        self.assertIn("07-10-2026", root.name)
-        self.assertIn("أحمد محمد", root.name)
 
-    def test_laser_is_one_folder_with_x(self):
-        result = self.service.create_for_claimed_order({
-            "orderId": "200",
-            "customerName": "عميل ليزر",
-            "lines": [{"lineId": "LZ1", "department": "ليزر"}],
-        })
+    def test_manual_sublimation_creates_direct_folder_with_x(self):
+        result = self.service.create_for_claimed_order(self._order())
         root = Path(result["folder"])
-        self.assertTrue((root / "ليزر" / "x").is_dir())
-        self.assertFalse((root / "ليزر" / "ماكينة 1").exists())
+        made = self.service.create_manual_folder("15428", "photo_sublimation")
+        self.assertEqual("سبلميشن", made["displayName"])
+        self.assertEqual(root / "سبلميشن", Path(made["path"]))
+        self.assertTrue((root / "سبلميشن" / "x").is_dir())
+        self.assertFalse((root / "طباعة" / "فوتو" / "سبلميشن").exists())
 
-    def test_structured_approval_copies_to_ready_without_design_ready(self):
-        result = self.service.create_for_claimed_order({
-            "orderId": "300",
-            "customerName": "منى",
-            "lines": [{"lineId": "S1", "itemName": "استيكر"}],
-        })
-        source = Path(result["routes"]["digital_sticker"]["path"]) / "design.png"
+    def test_multiple_manual_folders_can_exist_for_one_order(self):
+        result = self.service.create_for_claimed_order(self._order("200"))
+        root = Path(result["folder"])
+        self.service.create_manual_folder("200", "photo_sublimation")
+        self.service.create_manual_folder("200", "digital_sticker")
+        self.service.create_manual_folder("200", "laser")
+        order = self.state.order("200")
+        self.assertEqual(
+            {"photo_sublimation", "digital_sticker", "laser"},
+            set(order["routes"].keys()),
+        )
+        self.assertTrue((root / "سبلميشن" / "x").is_dir())
+        self.assertTrue((root / "استيكر" / "x").is_dir())
+        self.assertTrue((root / "ليزر" / "x").is_dir())
+
+    def test_unknown_manual_folder_is_rejected(self):
+        self.service.create_for_claimed_order(self._order("201"))
+        with self.assertRaisesRegex(ValueError, "UNKNOWN_MANUAL_FOLDER"):
+            self.service.create_manual_folder("201", "unknown")
+
+    def test_repeated_manual_folder_is_idempotent(self):
+        self.service.create_for_claimed_order(self._order("202"))
+        first = self.service.create_manual_folder("202", "digital_couche")
+        second = self.service.create_manual_folder("202", "digital_couche")
+        self.assertFalse(first["alreadyExisted"])
+        self.assertTrue(second["alreadyExisted"])
+        self.assertEqual(first["path"], second["path"])
+
+    def test_structured_approval_can_use_explicit_manual_route(self):
+        result = self.service.create_for_claimed_order(self._order("300", [{"lineId": "S1"}]))
+        made = self.service.create_manual_folder("300", "digital_sticker")
+        source = Path(made["path"]) / "design.png"
         Image.new("RGB", (20, 10), "white").save(source)
         sha = file_sha256(source)
-        ready = self.service.publish_structured_approval("300", "S1", str(source), {
-            "decision": "APPROVE",
-            "sourceKind": "STRUCTURED_CUSTOMER_APPROVAL",
-            "subjectSha256": sha,
-        })
+        ready = self.service.publish_structured_approval(
+            "300",
+            "S1",
+            str(source),
+            {
+                "decision": "APPROVE",
+                "sourceKind": "STRUCTURED_CUSTOMER_APPROVAL",
+                "subjectSha256": sha,
+            },
+            route_key="digital_sticker",
+        )
         self.assertTrue(Path(ready["readyFile"]).is_file())
         self.assertFalse(ready["designReadyGranted"])
-        self.assertIn(str(Path("طباعة") / "ديجتال" / "استيكر"), ready["readyFile"])
+        self.assertEqual("digital_sticker", ready["routeKey"])
+        self.assertIn(str(Path("استيكر")), ready["readyFile"])
 
     def test_free_text_or_hash_mismatch_cannot_publish(self):
-        result = self.service.create_for_claimed_order({
-            "orderId": "301", "customerName": "سارة",
-            "lines": [{"lineId": "C1", "itemName": "كوشيه"}],
-        })
-        source = Path(result["routes"]["digital_couche"]["path"]) / "proof.jpg"
+        self.service.create_for_claimed_order(self._order("301", [{"lineId": "C1"}]))
+        made = self.service.create_manual_folder("301", "digital_couche")
+        source = Path(made["path"]) / "proof.jpg"
         Image.new("RGB", (10, 10), "white").save(source)
         with self.assertRaisesRegex(ValueError, "QUALIFIED_STRUCTURED_APPROVAL_REQUIRED"):
-            self.service.publish_structured_approval("301", "C1", str(source), {
-                "decision": "APPROVE", "sourceKind": "FREE_TEXT", "subjectSha256": file_sha256(source)
-            })
+            self.service.publish_structured_approval(
+                "301", "C1", str(source),
+                {"decision": "APPROVE", "sourceKind": "FREE_TEXT", "subjectSha256": file_sha256(source)},
+                route_key="digital_couche",
+            )
         with self.assertRaisesRegex(ValueError, "APPROVAL_HASH_MISMATCH"):
-            self.service.publish_structured_approval("301", "C1", str(source), {
-                "decision": "APPROVE", "sourceKind": "CUSTOMER_PORTAL", "subjectSha256": "0" * 64
-            })
+            self.service.publish_structured_approval(
+                "301", "C1", str(source),
+                {"decision": "APPROVE", "sourceKind": "CUSTOMER_PORTAL", "subjectSha256": "0" * 64},
+                route_key="digital_couche",
+            )
 
     def test_tiff_preview_is_real_png(self):
-        result = self.service.create_for_claimed_order({
-            "orderId": "400", "customerName": "TIF",
-            "lines": [{"lineId": "P1", "department": "فوتو"}],
-        })
-        path = Path(result["routes"]["photo_print"]["path"]) / "sample.tif"
+        result = self.service.create_for_claimed_order(self._order("400", [{"lineId": "P1"}]))
+        made = self.service.create_manual_folder("400", "photo_print")
+        path = Path(made["path"]) / "sample.tif"
         Image.new("RGB", (31, 17), "red").save(path, format="TIFF")
         data, mime, meta = build_preview(str(path), self.cfg)
         self.assertEqual(mime, "image/png")
@@ -125,11 +143,9 @@ class PrintServerTests(unittest.TestCase):
         self.assertEqual((meta["width"], meta["height"]), (31, 17))
 
     def test_dxf_preview_is_svg_with_layers_and_dimensions(self):
-        result = self.service.create_for_claimed_order({
-            "orderId": "401", "customerName": "DXF",
-            "lines": [{"lineId": "L1", "department": "ليزر"}],
-        })
-        path = Path(result["routes"]["laser"]["path"]) / "cut.dxf"
+        self.service.create_for_claimed_order(self._order("401", [{"lineId": "L1"}]))
+        made = self.service.create_manual_folder("401", "laser")
+        path = Path(made["path"]) / "cut.dxf"
         doc = ezdxf.new("R2010")
         doc.layers.add("CUT")
         msp = doc.modelspace()
@@ -144,11 +160,9 @@ class PrintServerTests(unittest.TestCase):
         self.assertGreaterEqual(meta["height"], 50)
 
     def test_x_watcher_records_local_signal_only(self):
-        result = self.service.create_for_claimed_order({
-            "orderId": "500", "customerName": "X",
-            "lines": [{"lineId": "S1", "itemName": "استيكر"}],
-        })
-        xdir = Path(result["routes"]["digital_sticker"]["path"]) / "x"
+        self.service.create_for_claimed_order(self._order("500", [{"lineId": "S1"}]))
+        made = self.service.create_manual_folder("500", "digital_sticker")
+        xdir = Path(made["path"]) / "x"
         watcher = FinishedFolderWatcher(self.cfg["paths"]["ordersRoot"], "x", self.state, 1)
         watcher.start()
         try:

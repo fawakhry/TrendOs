@@ -18,6 +18,15 @@ DEFAULT_CONFIG = {
         "dateFormat": "%d-%m-%Y",
         "namePattern": "{order_id} - {date} - {customer_name}",
         "finishedFolderName": "x",
+        "mode": "MANUAL_SELECTION",
+        "manualOptions": {
+            "photo_print": "طباعة",
+            "photo_tableaux": "تابلوهات",
+            "photo_sublimation": "سبلميشن",
+            "digital_couche": "كوشيه",
+            "digital_sticker": "استيكر",
+            "laser": "ليزر"
+        }
     },
     "classification": {
         "heatPressTruthy": ["1", "true", "yes", "نعم", "مكبس", "🔥"],

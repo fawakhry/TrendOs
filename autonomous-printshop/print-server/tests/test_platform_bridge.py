@@ -14,6 +14,7 @@ class FakeClient:
     def __init__(self):
         self.connected = True
         self.rows = []
+
     def get_rows(self, screen):
         if screen != "print":
             raise Exception("forbidden")
@@ -30,22 +31,34 @@ class BridgeTests(unittest.TestCase):
         cfg["trendos"]["pollScreens"] = ["print"]
         return cfg
 
-    def test_first_snapshot_is_baseline_then_transition_creates_folder(self):
+    def test_first_snapshot_is_baseline_then_transition_creates_root_only(self):
         with tempfile.TemporaryDirectory() as td:
             cfg = self.config(td)
             state = StateStore(cfg["paths"]["stateRoot"])
             folders = OrderFolderService(cfg, state)
             client = FakeClient()
             bridge = TrendOSStatusBridge(cfg, client, folders, state)
-            client.rows = [{"orderId": "9001", "lineId": "L1", "customer": "عميل", "department": "طباعة", "itemName": "مج", "heatPress": True, "status": "طلب جديد"}]
+            client.rows = [{
+                "orderId": "9001",
+                "lineId": "L1",
+                "customer": "عميل",
+                "department": "طباعة",
+                "itemName": "مج",
+                "heatPress": True,
+                "status": "طلب جديد",
+            }]
             first = bridge.sync_once()
             self.assertTrue(first["baselineOnly"])
             self.assertEqual([], state.orders())
+
             client.rows[0]["status"] = "بدأ التنفيذ"
             second = bridge.sync_once()
             self.assertEqual(1, second["triggeredLines"])
-            self.assertTrue(state.order("9001"))
-            self.assertIn("photo_sublimation", state.order("9001")["routes"])
+            order = state.order("9001")
+            self.assertTrue(order)
+            self.assertEqual({}, order["routes"])
+            self.assertEqual("MANUAL_SELECTION", order["folderMode"])
+            self.assertFalse((Path(order["folder"]) / "سبلميشن").exists())
 
     def test_active_to_active_does_not_retrigger(self):
         with tempfile.TemporaryDirectory() as td:
@@ -54,7 +67,7 @@ class BridgeTests(unittest.TestCase):
             folders = OrderFolderService(cfg, state)
             client = FakeClient()
             bridge = TrendOSStatusBridge(cfg, client, folders, state)
-            client.rows = [{"orderId": "9002", "lineId": "L2", "customer": "عميل", "department": "طباعة", "itemName": "استيكر", "status": "طلب جديد"}]
+            client.rows = [{"orderId": "9002", "lineId": "L2", "customer": "عميل", "status": "طلب جديد"}]
             bridge.sync_once()
             client.rows[0]["status"] = "بدأ التنفيذ"
             self.assertEqual(1, bridge.sync_once()["triggeredLines"])
@@ -67,6 +80,7 @@ class BridgeTests(unittest.TestCase):
                 self.connected = True
                 self.started = threading.Event()
                 self.release = threading.Event()
+
             def get_rows(self, screen):
                 self.started.set()
                 self.release.wait(2)
@@ -91,18 +105,26 @@ class BridgeTests(unittest.TestCase):
             self.assertFalse(bridge.status()["syncing"])
             self.assertTrue(state.trendos_bridge_state()["initialized"])
 
-    def test_incremental_lines_merge_into_same_order(self):
+    def test_incremental_lines_merge_without_auto_folders(self):
         with tempfile.TemporaryDirectory() as td:
             cfg = self.config(td)
             state = StateStore(cfg["paths"]["stateRoot"])
             folders = OrderFolderService(cfg, state)
-            folders.create_for_claimed_order({"orderId": "9003", "customerName": "عميل", "lines": [{"lineId": "A", "itemName": "استيكر"}]})
-            folders.create_for_claimed_order({"orderId": "9003", "customerName": "عميل", "lines": [{"lineId": "B", "itemName": "ليزر"}]})
+            folders.create_for_claimed_order({
+                "orderId": "9003",
+                "customerName": "عميل",
+                "lines": [{"lineId": "A", "itemName": "استيكر"}],
+            })
+            folders.create_for_claimed_order({
+                "orderId": "9003",
+                "customerName": "عميل",
+                "lines": [{"lineId": "B", "itemName": "ليزر"}],
+            })
             order = state.order("9003")
-            self.assertIn("digital_sticker", order["routes"])
-            self.assertIn("laser", order["routes"])
-            self.assertIn("A", order["routes"]["digital_sticker"]["lines"])
-            self.assertIn("B", order["routes"]["laser"]["lines"])
+            self.assertEqual({}, order["routes"])
+            self.assertEqual(["A", "B"], order["lineIds"])
+            folders.create_manual_folder("9003", "digital_sticker")
+            self.assertIn("digital_sticker", state.order("9003")["routes"])
 
 
 if __name__ == "__main__":

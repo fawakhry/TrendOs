@@ -56,7 +56,7 @@
 
       <section class="stats">
         <div class="stat"><strong id="countOrders">0</strong><span>أوردرات محلية</span></div>
-        <div class="stat"><strong id="countNeedsClass">0</strong><span>يحتاج تصنيف</span></div>
+        <div class="stat"><strong id="countSelectedFolders">0</strong><span>فولدرات مختارة</span></div>
         <div class="stat"><strong id="countFiles">0</strong><span>ملفات الأوردر</span></div>
         <div class="stat green"><strong id="countFinished">0</strong><span>داخل x</span></div>
       </section>
@@ -67,8 +67,14 @@
         </div>
         <div class="folder-panel panel">
           <div class="panel-title"><b id="orderTitle">اختر أوردر</b><span id="orderCustomer"></span></div>
-          <div id="folderTree" class="tree"><div class="empty">سيظهر هنا تقسيم الفولدرات الفعلي فقط</div></div>
-          <div class="safety">التجميع الجاهز تشغيلي فقط ولا يمنح Design READY.</div>
+          <div class="manual-folder-box">
+            <b>اختار فولدر الشغل</b>
+            <small>اضغط نوع الشغل المطلوب، ويمكن اختيار أكثر من فولدر لنفس الأوردر.</small>
+            <div id="manualFolderPicker" class="manual-folder-picker"><span class="empty-inline">اختر أوردر أولًا</span></div>
+            <div id="manualFolderMsg" class="manual-folder-msg"></div>
+          </div>
+          <div id="folderTree" class="tree"><div class="empty">لم يتم اختيار فولدر شغل بعد</div></div>
+          <div class="safety">الاختيار محلي فقط ولا يغيّر حالة الأوردر أو صلاحيات TrendOS.</div>
         </div>
         <div class="files-panel panel">
           <div class="panel-title"><b>الملفات</b><span id="fileCountLabel">0 ملف</span></div>
