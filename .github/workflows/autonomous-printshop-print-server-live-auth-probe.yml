@@ -14,32 +14,17 @@ jobs:
   probe:
     runs-on: windows-latest
     steps:
-      - name: Probe native employee auth with dummy credentials
+      - name: Probe curl variants
         shell: pwsh
         run: |
           $url = 'https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/auth/login'
           $body = '{"username":"__print_server_probe__","password":"invalid-probe-password"}'
-
-          function Probe($name, $headers) {
-            try {
-              $r = Invoke-WebRequest -Uri $url -Method Post -ContentType 'application/json; charset=utf-8' -Body $body -Headers $headers -UseBasicParsing
-              Write-Host "$name STATUS=$($r.StatusCode) BODY=$($r.Content)"
-            } catch {
-              $resp = $_.Exception.Response
-              if ($resp) {
-                $status = [int]$resp.StatusCode
-                $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
-                $content = $reader.ReadToEnd()
-                Write-Host "$name STATUS=$status BODY=$content"
-              } else {
-                Write-Host "$name ERROR=$($_.Exception.Message)"
-              }
-            }
-          }
-
-          Probe 'NO_EXTRA_HEADERS' @{}
-          Probe 'ORIGIN_ONLY' @{Origin='https://fawakhry.github.io'}
-          Probe 'BROWSER_HEADERS' @{Origin='https://fawakhry.github.io'; 'User-Agent'='Mozilla/5.0 (Windows NT 10.0; Win64; x64) TrendOS-Print-Server/0.2'}
+          Write-Host '=== CURL DEFAULT ==='
+          curl.exe -sS -i -X POST $url -H 'Content-Type: application/json; charset=utf-8' --data $body
+          Write-Host '=== CURL ORIGIN ==='
+          curl.exe -sS -i -X POST $url -H 'Content-Type: application/json; charset=utf-8' -H 'Origin: https://fawakhry.github.io' --data $body
+          Write-Host '=== CURL BROWSER ==='
+          curl.exe -sS -i -X POST $url -H 'Content-Type: application/json; charset=utf-8' -H 'Origin: https://fawakhry.github.io' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) TrendOS-Print-Server/0.2' --data $body
 
       - name: Probe Python urllib variants
         shell: pwsh
