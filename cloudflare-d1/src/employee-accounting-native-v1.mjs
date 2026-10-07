@@ -170,6 +170,20 @@ function enforceLowRiskMasterCanaryShapeV1(action,body){
       && !text(b.notes);
     if(!ok)throw commandErrorV1('employee-accounting-canary-supplier-shape-blocked','شكل Supplier الكاناري يجب أن يكون موردًا صناعيًا غير نشط بصفر رصيد وبدون بيانات أعمال إضافية.');
   }
+  if(action==='saveAccountingDeptLine'){
+    const requestKey=text(b.requestId||b.idempotencyKey||b.requestKey);
+    const orderId=text(b.orderId),department=text(b.department),itemName=text(b.itemName||b.name);
+    const qty=num(b.qty||b.quantity,1);
+    const allowed=new Set(['action','username','name','_ts','requestId','idempotencyKey','requestKey','sourceSystem','correlationId','evidenceRefs','evidence','orderId','department','itemName','qty']);
+    const extras=Object.keys(b).filter(k=>!allowed.has(k)&&b[k]!==undefined&&b[k]!==null&&String(b[k])!=='');
+    const ok=/^A212-DLINE-/.test(requestKey)
+      && /^A2-CANARY-DEPT-/.test(orderId)
+      && department==='عام'
+      && /^A2-CANARY-DEPT-LINE-/.test(itemName)
+      && Math.abs(qty-1)<=0.000001
+      && extras.length===0;
+    if(!ok)throw commandErrorV1('employee-accounting-canary-dept-line-shape-blocked','شكل Dept Line الكاناري يجب أن يكون بندًا صناعيًا صفريًا واحدًا بلا عميل أو خامة أو سعر أو تكلفة أو بيانات أعمال إضافية.');
+  }
   if(action==='saveAccountingWaste'){
     const orderId=text(b.orderId),reason=text(b.reason||b.wasteType),department=text(b.department);
     const amount=num(b.amount||b.damageCost),recovered=num(b.paid||b.damageCovered);
