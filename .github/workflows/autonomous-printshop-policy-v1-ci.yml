@@ -13,6 +13,7 @@ on:
       - 'autonomous-printshop/core/operator-task-canary-qualification-v1.mjs'
       - 'autonomous-printshop/core/owner-exception-model-v1.mjs'
       - 'autonomous-printshop/core/employee-supervisor-shadow-v1.mjs'
+      - 'autonomous-printshop/core/employee-blocker-events-v1.mjs'
       - 'autonomous-printshop/core/readiness-evidence-v1.mjs'
       - 'autonomous-printshop/core/evidence-pilot-target-v1.mjs'
       - 'autonomous-printshop/core/evidence-acquisition-packet-v1.mjs'
@@ -60,6 +61,7 @@ on:
       - 'autonomous-printshop/migrations/0027_machine_readiness_v1.sql'
       - 'autonomous-printshop/migrations/0028_machine_identity_evidence_v1.sql'
       - 'autonomous-printshop/migrations/0029_design_approval_receipt_v1.sql'
+      - 'autonomous-printshop/migrations/0030_employee_supervisor_blocker_events_v1.sql'
       - 'autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_autonomy_event_ledger_v1.test.mjs'
       - 'autonomous-printshop/tests/operational_reality_v1.test.mjs'
@@ -119,6 +121,7 @@ on:
       - 'autonomous-printshop/tests/shadow_observer_v1.test.mjs'
       - 'autonomous-printshop/tests/dashboard_v1.test.mjs'
       - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
+      - 'autonomous-printshop/tests/employee_blocker_events_v1.test.mjs'
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - 'autonomous-printshop/production-shadow/**'
       - 'cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs'
@@ -129,6 +132,7 @@ on:
       - 'cloudflare-d1/wrangler.toml'
       - 'autonomous-printshop/MASTER_BOOK.md'
       - 'autonomous-printshop/manifests/**'
+      - '.github/workflows/autonomous-printshop-employee-blocker-schema-production-apply.yml'
       - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
   pull_request:
     paths:
@@ -271,6 +275,8 @@ jobs:
         run: node autonomous-printshop/tests/dashboard_v1.test.mjs
       - name: Run Employee Supervisor shadow contract
         run: node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
+      - name: Run Employee Supervisor structured blocker event contract
+        run: node autonomous-printshop/tests/employee_blocker_events_v1.test.mjs
       - name: Run isolated production shadow worker contract
         run: node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
       - name: Run employee comms file hash contract

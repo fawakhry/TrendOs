@@ -1,0 +1,137 @@
+name: Autonomous Printshop Employee Blocker Schema Production Apply
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'autonomous-printshop/migrations/0030_employee_supervisor_blocker_events_v1.sql'
+      - 'autonomous-printshop/core/employee-blocker-events-v1.mjs'
+      - 'autonomous-printshop/tests/employee_blocker_events_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-employee-blocker-schema-production-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-employee-blocker-schema-production-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DATABASE: trendos-main
+      MIGRATION: autonomous-printshop/migrations/0030_employee_supervisor_blocker_events_v1.sql
+      WRANGLER_VERSION: 4.33.2
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify structured blocker contract
+        run: node autonomous-printshop/tests/employee_blocker_events_v1.test.mjs
+
+      - name: Hard additive safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "mode TEXT NOT NULL DEFAULT 'OFF'" "$MIGRATION"
+          grep -Fq 'AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_APPEND_ONLY' "$MIGRATION"
+          grep -Fq 'PRICE_OR_OWNER_DECISION' "$MIGRATION"
+          ! grep -Eiq '\b(DROP|ALTER|VACUUM)\b' "$MIGRATION"
+          ! grep -Eiq '\bDELETE[[:space:]]+FROM\b' "$MIGRATION"
+          ! grep -Eiq '\bREPLACE[[:space:]]+INTO\b' "$MIGRATION"
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_accounting_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' "$MIGRATION"
+          echo 'EMPLOYEE_BLOCKER_SCHEMA_STATIC_GATE=PASS'
+
+      - name: Production safety preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-pre.json
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+              (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
+              (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode,
+              (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='autonomous_employee_blocker_events') AS blockerTableBefore,
+              (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='autonomous_employee_supervisor_control') AS controlTableBefore;
+          " > /tmp/pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('/tmp/trendos-pre.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
+          if(h.success!==true||h.database!==true||h.cutover!==false) throw new Error('TRENDOS_HEALTH_FAIL');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks||0)!==0) throw new Error('OPERATOR_TASK_NOT_OFF');
+          if(String(r.autonomyMode)!=='SHADOW') throw new Error('AUTONOMY_NOT_SHADOW');
+          if(String(r.readinessMode)!=='SHADOW') throw new Error('READINESS_NOT_SHADOW');
+          if(![0,1].includes(Number(r.blockerTableBefore||0))) throw new Error('BLOCKER_SCHEMA_STATE_INVALID');
+          if(![0,1].includes(Number(r.controlTableBefore||0))) throw new Error('CONTROL_SCHEMA_STATE_INVALID');
+          console.log('EMPLOYEE_BLOCKER_PREFLIGHT=PASS');
+          console.log('OPERATOR_TASK_OFF=YES');
+          console.log('AUTONOMY_SHADOW=YES');
+          console.log('READINESS_SHADOW=YES');
+          NODE
+
+      - name: Apply exact additive blocker schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --file "$MIGRATION"
+          echo 'EMPLOYEE_BLOCKER_SCHEMA_APPLY_COMMAND=COMPLETE'
+
+      - name: Verify Default-OFF empty foundation
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN (
+                'autonomous_employee_supervisor_control',
+                'autonomous_employee_blocker_events',
+                'autonomous_employee_supervisor_control_events'
+              )) AS supervisorTables,
+              (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='trg_autonomous_employee_blocker_events_no_update') AS noUpdateTrigger,
+              (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='trg_autonomous_employee_blocker_events_no_delete') AS noDeleteTrigger,
+              (SELECT mode FROM autonomous_employee_supervisor_control WHERE singleton_id=1) AS supervisorMode,
+              (SELECT epoch FROM autonomous_employee_supervisor_control WHERE singleton_id=1) AS supervisorEpoch,
+              (SELECT COUNT(*) FROM autonomous_employee_blocker_events) AS blockerEvents,
+              (SELECT COUNT(*) FROM autonomous_employee_supervisor_control_events) AS controlEvents,
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          " > /tmp/post.json
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('/tmp/trendos-post.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          if(h.success!==true||h.database!==true||h.cutover!==false) throw new Error('TRENDOS_POST_HEALTH_FAIL');
+          if(Number(r.supervisorTables)!==3) throw new Error('EMPLOYEE_BLOCKER_SCHEMA_INCOMPLETE');
+          if(Number(r.noUpdateTrigger)!==1||Number(r.noDeleteTrigger)!==1) throw new Error('APPEND_ONLY_GUARDS_MISSING');
+          if(String(r.supervisorMode)!=='OFF'||Number(r.supervisorEpoch)!==1) throw new Error('SUPERVISOR_CONTROL_NOT_DEFAULT_OFF');
+          if(Number(r.blockerEvents)!==0||Number(r.controlEvents)!==0) throw new Error('FOUNDATION_NOT_EMPTY');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks)!==0) throw new Error('OPERATOR_TASK_DRIFT');
+          console.log('EMPLOYEE_BLOCKER_SCHEMA_PRODUCTION=PASS');
+          console.log('EMPLOYEE_SUPERVISOR_CONTROL=OFF');
+          console.log('BLOCKER_EVENTS=0');
+          console.log('OPERATOR_TASK_CONTROL=OFF');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'PRODUCTION_SCHEMA_MUTATION=YES'
+          echo 'PRODUCTION_BUSINESS_DATA_MUTATION=NO'
+          echo 'STRUCTURED_ANDON_WRITES=OFF'
+          echo 'ORDER_WRITE=NO'
+          echo 'LINE_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'ACCOUNTING_WRITE=NO'
