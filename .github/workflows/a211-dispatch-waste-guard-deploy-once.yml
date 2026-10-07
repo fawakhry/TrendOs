@@ -1,0 +1,26 @@
+name: A2.11 Dispatch Waste Guard Deploy Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a211-dispatch-waste-guard-deploy-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch approved A2.11 Waste guard deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a211-waste-guard-readonly-deploy.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A211_WASTE_GUARD_DEPLOY_DISPATCHED=YES
