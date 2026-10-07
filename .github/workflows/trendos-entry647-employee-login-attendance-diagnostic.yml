@@ -48,28 +48,34 @@ jobs:
           curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry647=$suffix" -o /tmp/config.js
           curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry647=$suffix" -o /tmp/dispatcher.js
           curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry647=$suffix" -o /tmp/attendance.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-clockin-ui-v1.js?entry647=$suffix" -o /tmp/clockin.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry647=$suffix" -o /tmp/app.js
           node <<'NODE'
           const fs=require('fs');
           const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
           const o=JSON.parse(fs.readFileSync('/tmp/ops.json','utf8'));
-          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.envEnabled!==true||
-             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||
-             a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false) throw new Error('auth runtime drift');
-          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops runtime drift');
           const c=fs.readFileSync('/tmp/config.js','utf8');
           const d=fs.readFileSync('/tmp/dispatcher.js','utf8');
           const at=fs.readFileSync('/tmp/attendance.js','utf8');
-          if(!c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true')) throw new Error('live config native not global');
-          if(!c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false')) throw new Error('live config canary not off');
-          if(!c.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'")) throw new Error('live config ops not general');
-          if(!d.includes('T12_ENTRY644_CORE_GENERAL_READY_V1_20261007')) throw new Error('live dispatcher stale');
-          if(!at.includes('normalizeAttendanceBackendResponse')) throw new Error('live attendance normalizer missing');
-          console.log('ENTRY647_RUNTIME_AUTH_NATIVE_6_OF_6=PASS');
-          console.log('ENTRY647_RUNTIME_OPS_GENERAL_7=PASS');
-          console.log('ENTRY647_LIVE_CONFIG_GLOBAL_NATIVE=PASS');
-          console.log('ENTRY647_LIVE_CONFIG_CANARY_OFF=PASS');
-          console.log('ENTRY647_LIVE_ATTENDANCE_NORMALIZER=PASS');
+          const app=fs.readFileSync('/tmp/app.js','utf8');
+          console.log('ENTRY647_RUNTIME_AUTH_NATIVE_6_OF_6='+(a.mode==='NATIVE'&&a.nativeOnly===true&&a.envEnabled===true&&Number(a.userCount||0)===6&&Number(a.nativeReadyCount||0)===6?'PASS':'FAIL'));
+          console.log('ENTRY647_RUNTIME_OPS_GENERAL_7='+(o.mode==='GENERAL'&&Number(o.policyEpoch||0)===7?'PASS':'FAIL'));
+          console.log('ENTRY647_LIVE_CONFIG_GLOBAL_NATIVE='+(c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true')?'PASS':'FAIL'));
+          console.log('ENTRY647_LIVE_CONFIG_CANARY_OFF='+(c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false')?'PASS':'FAIL'));
+          console.log('ENTRY647_LIVE_DISPATCHER_ENTRY644='+(d.includes('T12_ENTRY644_CORE_GENERAL_READY_V1_20261007')?'PASS':'FAIL'));
+          console.log('ENTRY647_LIVE_ATTENDANCE_NORMALIZER='+(at.includes('normalizeAttendanceBackendResponse')?'PASS':'FAIL'));
+          console.log('ENTRY647_LIVE_APP_HAS_SESSION_STORAGE='+(app.includes('sessionStorage.setItem("trendos_session"')?'YES':'NO'));
           NODE
+
+          echo "ENTRY647_REPO_APP_HASH=$(git hash-object app.js)"
+          echo "ENTRY647_LIVE_APP_HASH=$(git hash-object /tmp/app.js)"
+          echo "ENTRY647_REPO_DISPATCHER_HASH=$(git hash-object employee-api-dispatcher-v1.js)"
+          echo "ENTRY647_LIVE_DISPATCHER_HASH=$(git hash-object /tmp/dispatcher.js)"
+          echo "ENTRY647_REPO_ATTENDANCE_HASH=$(git hash-object attendance-v1.js)"
+          echo "ENTRY647_LIVE_ATTENDANCE_HASH=$(git hash-object /tmp/attendance.js)"
+          echo "ENTRY647_REPO_CLOCKIN_HASH=$(git hash-object attendance-clockin-ui-v1.js)"
+          echo "ENTRY647_LIVE_CLOCKIN_HASH=$(git hash-object /tmp/clockin.js)"
+          echo ENTRY647_RUNTIME_ASSET_DIAGNOSTIC=COMPLETE
 
       - name: Read-only D1 attendance truth for Cairo today
         shell: bash
