@@ -23,6 +23,9 @@ import {
 import {
   buildCommsPendingProjectionV1
 } from '../core/comms-pending-projection-v1.mjs';
+import {
+  buildFinanceWarningProjectionV1
+} from '../core/finance-warning-projection-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -41,6 +44,15 @@ function parseSqliteUtc(v){
   const normalized=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)?raw.replace(' ','T')+'Z':raw;
   const ms=Date.parse(normalized);
   return Number.isFinite(ms)?ms:0;
+}
+function cairoWorkDateV1(){
+  try{
+    const parts=new Intl.DateTimeFormat('en-CA',{
+      timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'
+    }).formatToParts(new Date());
+    const m=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+    return m.year+'-'+m.month+'-'+m.day;
+  }catch{return new Date().toISOString().slice(0,10);}
 }
 function expectedSnapshotSha(env){
   return text(env&&env.AUTONOMOUS_SHADOW_EXPECTED_BACKFILL_SHA256).toLowerCase();
@@ -597,6 +609,213 @@ async function commsPendingSnapshot(env){
   };
 }
 
+async function financeWarningSnapshot(env){
+  const required=[
+    'employee_accounting_control_v1',
+    'employee_accounting_party_balances_v1',
+    'employee_accounting_final_invoices_v1',
+    'employee_accounting_dept_lines_v1',
+    'employee_accounting_purchase_invoices_v1',
+    'employee_accounting_daily_purchases_v1',
+    'employee_accounting_custody_events_v1',
+    'employee_accounting_custody_closes_v1',
+    'employee_accounting_day_closes_v1'
+  ];
+  const placeholders=required.map(()=>'?').join(',');
+  const present=await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...required).all();
+  const set=new Set((present.results||[]).map(r=>text(r.name)));
+  const missing=required.filter(x=>!set.has(x));
+  if(missing.length){
+    return {
+      success:false,
+      mode:'FINANCE_WARNING_READ_ONLY',
+      code:'FINANCE_WARNING_SOURCE_TABLES_MISSING',
+      missing,
+      summary:buildFinanceWarningProjectionV1({}),
+      writesAccepted:false,
+      accountingWrite:false,
+      debtRestrictionWrite:false,
+      dayCloseWrite:false
+    };
+  }
+
+  const workDate=cairoWorkDateV1();
+  const nonCanary="upper(COALESCE(%s,'')) NOT LIKE '%CANARY%'";
+
+  const [control,partyStats,sourceStats,dayStats,custodyStats,canaryStats]=await Promise.all([
+    env.DB.prepare(`
+      SELECT mode AS accountingMode,policy_epoch AS accountingPolicyEpoch
+      FROM employee_accounting_control_v1
+      WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1'
+      LIMIT 1
+    `).first(),
+    env.DB.prepare(`
+      SELECT
+        SUM(CASE WHEN party_type='customer' AND balance>0.001
+          AND upper(COALESCE(party_name,'')) NOT LIKE '%CANARY%'
+          AND upper(COALESCE(last_request_key,'')) NOT LIKE '%CANARY%' THEN 1 ELSE 0 END) AS customerDebtParties,
+        SUM(CASE WHEN party_type='customer' AND balance>0.001
+          AND upper(COALESCE(party_name,'')) NOT LIKE '%CANARY%'
+          AND upper(COALESCE(last_request_key,'')) NOT LIKE '%CANARY%' THEN balance ELSE 0 END) AS customerDebtAmount,
+        SUM(CASE WHEN party_type='supplier' AND balance>0.001
+          AND upper(COALESCE(party_name,'')) NOT LIKE '%CANARY%'
+          AND upper(COALESCE(last_request_key,'')) NOT LIKE '%CANARY%' THEN 1 ELSE 0 END) AS supplierPayableParties,
+        SUM(CASE WHEN party_type='supplier' AND balance>0.001
+          AND upper(COALESCE(party_name,'')) NOT LIKE '%CANARY%'
+          AND upper(COALESCE(last_request_key,'')) NOT LIKE '%CANARY%' THEN balance ELSE 0 END) AS supplierPayableAmount,
+        SUM(CASE WHEN upper(COALESCE(party_name,'')) NOT LIKE '%CANARY%'
+          AND upper(COALESCE(last_request_key,'')) NOT LIKE '%CANARY%' THEN 1 ELSE 0 END) AS realPartyBalances
+      FROM employee_accounting_party_balances_v1
+    `).first(),
+    env.DB.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1
+          WHERE upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(order_id,'')) NOT LIKE '%CANARY%') AS realFinalInvoices,
+        (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1
+          WHERE upper(COALESCE(accounting_line_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(order_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(line_id,'')) NOT LIKE '%CANARY%') AS realDeptLines,
+        (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1
+          WHERE upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(purchase_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(supplier_name,'')) NOT LIKE '%CANARY%') AS realPurchaseInvoices,
+        (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1
+          WHERE upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(daily_purchase_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(supplier_name,'')) NOT LIKE '%CANARY%') AS realDailyPurchases,
+        (SELECT COUNT(*) FROM employee_accounting_custody_events_v1
+          WHERE upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(custody_event_id,'')) NOT LIKE '%CANARY%') AS realCustodyEvents,
+        (SELECT COUNT(*) FROM employee_accounting_day_closes_v1
+          WHERE upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(day_close_id,'')) NOT LIKE '%CANARY%') AS realDayCloses
+    `).first(),
+    env.DB.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1
+          WHERE work_date=? AND status='PENDING'
+            AND upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(daily_purchase_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(supplier_name,'')) NOT LIKE '%CANARY%') AS pendingPurchases,
+        (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1
+          WHERE work_date=? AND final_invoice_no=''
+            AND upper(COALESCE(accounting_line_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(order_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(line_id,'')) NOT LIKE '%CANARY%') AS openDeptLines,
+        (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1
+          WHERE work_date=? AND status='POSTED' AND trim(department)=''
+            AND upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(purchase_id,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(supplier_name,'')) NOT LIKE '%CANARY%') AS unclassifiedPurchases,
+        (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1
+          WHERE work_date=? AND trim(finance_department)=''
+            AND accounting_line_ids_json IN ('','[]')
+            AND upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(order_id,'')) NOT LIKE '%CANARY%') AS unclassifiedFinalInvoices,
+        (SELECT COUNT(*) FROM employee_accounting_day_closes_v1
+          WHERE work_date=? AND integrity_status='FAIL'
+            AND upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(day_close_id,'')) NOT LIKE '%CANARY%') AS dayCloseIntegrityFailures,
+        (SELECT COUNT(*) FROM employee_accounting_day_closes_v1
+          WHERE work_date=?
+            AND upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+            AND upper(COALESCE(day_close_id,'')) NOT LIKE '%CANARY%') AS currentDayCloseRows
+    `).bind(workDate,workDate,workDate,workDate,workDate,workDate).first(),
+    env.DB.prepare(`
+      WITH balances AS (
+        SELECT employee_key,department,
+          SUM(CASE movement_type
+            WHEN 'HANDOFF' THEN amount
+            WHEN 'PURCHASE_SETTLEMENT' THEN -amount
+            WHEN 'PURCHASE_REVERSAL' THEN amount
+            WHEN 'RETURN' THEN -amount
+            WHEN 'EXTRA_PAYMENT' THEN amount
+            ELSE 0 END) AS balance
+        FROM employee_accounting_custody_events_v1
+        WHERE work_date=?
+          AND upper(COALESCE(request_key,'')) NOT LIKE '%CANARY%'
+          AND upper(COALESCE(custody_event_id,'')) NOT LIKE '%CANARY%'
+        GROUP BY employee_key,department
+      )
+      SELECT COUNT(*) AS custodySettlementRequired
+      FROM balances b
+      LEFT JOIN employee_accounting_custody_closes_v1 c
+        ON c.work_date=?
+       AND c.employee_key=b.employee_key
+       AND c.department=b.department
+       AND upper(COALESCE(c.request_key,'')) NOT LIKE '%CANARY%'
+       AND upper(COALESCE(c.custody_close_id,'')) NOT LIKE '%CANARY%'
+      WHERE c.custody_close_id IS NULL AND abs(b.balance)>0.001
+    `).bind(workDate,workDate).first(),
+    env.DB.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM employee_accounting_party_balances_v1
+          WHERE upper(COALESCE(party_name,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(last_request_key,'')) LIKE '%CANARY%')
+        +(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1
+          WHERE upper(COALESCE(request_key,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(order_id,'')) LIKE '%CANARY%')
+        +(SELECT COUNT(*) FROM employee_accounting_dept_lines_v1
+          WHERE upper(COALESCE(accounting_line_id,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(order_id,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(line_id,'')) LIKE '%CANARY%')
+        +(SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1
+          WHERE upper(COALESCE(request_key,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(purchase_id,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(supplier_name,'')) LIKE '%CANARY%')
+        +(SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1
+          WHERE upper(COALESCE(request_key,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(daily_purchase_id,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(supplier_name,'')) LIKE '%CANARY%')
+        +(SELECT COUNT(*) FROM employee_accounting_custody_events_v1
+          WHERE upper(COALESCE(request_key,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(custody_event_id,'')) LIKE '%CANARY%')
+        +(SELECT COUNT(*) FROM employee_accounting_day_closes_v1
+          WHERE upper(COALESCE(request_key,'')) LIKE '%CANARY%'
+             OR upper(COALESCE(day_close_id,'')) LIKE '%CANARY%')
+        AS canaryRowsExcluded
+    `).first()
+  ]);
+
+  const sourceBusinessRows=
+    Number(partyStats&&partyStats.realPartyBalances||0)+
+    Number(sourceStats&&sourceStats.realFinalInvoices||0)+
+    Number(sourceStats&&sourceStats.realDeptLines||0)+
+    Number(sourceStats&&sourceStats.realPurchaseInvoices||0)+
+    Number(sourceStats&&sourceStats.realDailyPurchases||0)+
+    Number(sourceStats&&sourceStats.realCustodyEvents||0)+
+    Number(sourceStats&&sourceStats.realDayCloses||0);
+
+  const summary=buildFinanceWarningProjectionV1({
+    ...(control||{}),
+    ...(partyStats||{}),
+    ...(dayStats||{}),
+    ...(custodyStats||{}),
+    workDate,
+    sourceBusinessRows,
+    canaryRowsExcluded:Number(canaryStats&&canaryStats.canaryRowsExcluded||0)
+  });
+
+  return {
+    success:true,
+    mode:'FINANCE_WARNING_READ_ONLY',
+    summary,
+    writesAccepted:false,
+    accountingWrite:false,
+    debtRestrictionWrite:false,
+    dayCloseWrite:false,
+    d1Mutation:false,
+    customerPiiExposed:false,
+    partyIdentityExposed:false,
+    rawOrderIdsExposed:false,
+    rawInvoiceIdsExposed:false,
+    employeeIdentityExposed:false
+  };
+}
+
 async function supervisorSnapshot(env,rows){
   const inputs=await supervisorInputs(env);
   if(!inputs.ok){
@@ -849,7 +1068,7 @@ async function controlTowerSnapshot(env){
   const rows=await currentRows(env);
   const operations=buildOperationalRealityV1(rows,{});
   const deadlineRisk=buildDeadlineRiskProjectionV1(rows,{atRiskHours:24,watchHours:48});
-  const [supervisor,readiness,autonomyControl,decisionCounts,employeeBlockers,commsPending]=await Promise.all([
+  const [supervisor,readiness,autonomyControl,decisionCounts,employeeBlockers,commsPending,financeWarnings]=await Promise.all([
     supervisorSnapshot(env,rows),
     readinessSnapshot(env,rows),
     env.DB.prepare(`
@@ -867,7 +1086,8 @@ async function controlTowerSnapshot(env){
       FROM autonomy_events
     `).first(),
     employeeBlockerSnapshot(env),
-    commsPendingSnapshot(env)
+    commsPendingSnapshot(env),
+    financeWarningSnapshot(env)
   ]);
 
   const reviewRequired=Number(supervisor&&supervisor.operatorCounts&&supervisor.operatorCounts.reviewRequired||0);
@@ -900,6 +1120,9 @@ async function controlTowerSnapshot(env){
     },
     communications:{
       pending:commsPending
+    },
+    finance:{
+      warnings:financeWarnings
     },
     readiness:{
       mode:text(readiness&&readiness.control&&readiness.control.mode),
@@ -961,7 +1184,16 @@ async function controlTowerSnapshot(env){
       commsManagerEscalations:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.managerEscalations||0),
       commsFeedbackPending:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackSendPending||0),
       commsFeedbackFollowupRequired:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackFollowupRequired||0),
-      commsFeedbackDormantBacklog:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackDormantBacklog||0)
+      commsFeedbackDormantBacklog:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackDormantBacklog||0),
+      financeSourceDataPresent:financeWarnings&&financeWarnings.summary&&financeWarnings.summary.source&&financeWarnings.summary.source.sourceDataPresent===true,
+      financePositiveSignalsQualified:financeWarnings&&financeWarnings.summary&&financeWarnings.summary.source&&financeWarnings.summary.source.positiveSignalsQualified===true,
+      customerDebtParties:Number(financeWarnings&&financeWarnings.summary&&financeWarnings.summary.debt&&financeWarnings.summary.debt.customerParties||0),
+      customerDebtAmount:Number(financeWarnings&&financeWarnings.summary&&financeWarnings.summary.debt&&financeWarnings.summary.debt.customerAmount||0),
+      supplierPayableParties:Number(financeWarnings&&financeWarnings.summary&&financeWarnings.summary.debt&&financeWarnings.summary.debt.supplierParties||0),
+      supplierPayableAmount:Number(financeWarnings&&financeWarnings.summary&&financeWarnings.summary.debt&&financeWarnings.summary.debt.supplierAmount||0),
+      dayCloseBlockers:Number(financeWarnings&&financeWarnings.summary&&financeWarnings.summary.dayClose&&financeWarnings.summary.dayClose.blockers||0),
+      dayCloseIntegrityFailures:Number(financeWarnings&&financeWarnings.summary&&financeWarnings.summary.dayClose&&financeWarnings.summary.dayClose.integrityFailures||0),
+      dayCloseState:text(financeWarnings&&financeWarnings.summary&&financeWarnings.summary.dayClose&&financeWarnings.summary.dayClose.state)
     },
     piiExposed:false,
     employeeIdentityExposed:false,

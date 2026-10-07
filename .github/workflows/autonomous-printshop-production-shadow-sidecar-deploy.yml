@@ -10,6 +10,7 @@ on:
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
       - 'autonomous-printshop/core/deadline-risk-projection-v1.mjs'
       - 'autonomous-printshop/core/comms-pending-projection-v1.mjs'
+      - 'autonomous-printshop/core/finance-warning-projection-v1.mjs'
       - 'autonomous-printshop/core/employee-supervisor-shadow-v1.mjs'
       - 'autonomous-printshop/core/employee-blocker-events-v1.mjs'
       - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
@@ -17,6 +18,7 @@ on:
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - 'autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs'
       - 'autonomous-printshop/tests/comms_pending_projection_v1.test.mjs'
+      - 'autonomous-printshop/tests/finance_warning_projection_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml'
 
 permissions:
@@ -73,6 +75,7 @@ jobs:
           node autonomous-printshop/tests/operational_reality_v1.test.mjs
           node autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs
           node autonomous-printshop/tests/comms_pending_projection_v1.test.mjs
+          node autonomous-printshop/tests/finance_warning_projection_v1.test.mjs
           node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
           node autonomous-printshop/tests/employee_blocker_events_v1.test.mjs
           node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
@@ -187,6 +190,47 @@ jobs:
           console.log('COMMS_FEEDBACK_DORMANT_BACKLOG='+String(Number(s.counts.feedbackDormantBacklog||0)));
           console.log('COMMS_SEND_AUTHORITY=NO');
           console.log('COMMS_PII_EXPOSED=NO');
+          NODE
+
+      - name: Verify Control Tower finance warning aggregate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SHADOW_URL/control-tower" > /tmp/control-tower-finance.json
+          node - <<'NODE'
+          const c=JSON.parse(require('fs').readFileSync('/tmp/control-tower-finance.json','utf8'));
+          const p=c.finance&&c.finance.warnings;
+          const s=p&&p.summary;
+          if(c.success!==true||c.mode!=='CONTROL_TOWER_SHADOW') process.exit(1);
+          if(!p||p.success!==true||p.mode!=='FINANCE_WARNING_READ_ONLY') process.exit(2);
+          if(!s||s.mode!=='READ_ONLY_AGGREGATE'||!s.control||!['READONLY','CANARY'].includes(String(s.control.mode||''))) process.exit(3);
+          if(s.control.readModeSafe!==true) process.exit(4);
+          if(p.writesAccepted!==false||p.accountingWrite!==false||p.debtRestrictionWrite!==false||p.dayCloseWrite!==false||p.d1Mutation!==false) process.exit(5);
+          if(s.accountingWrite!==false||s.debtRestrictionWrite!==false||s.dayCloseWrite!==false) process.exit(6);
+          if(s.customerPiiExposed!==false||s.partyIdentityExposed!==false||s.rawOrderIdsExposed!==false||s.rawInvoiceIdsExposed!==false||s.employeeIdentityExposed!==false) process.exit(7);
+          if(!s.source||s.source.absenceQualified!==false||s.dayClose.ready!==false) process.exit(8);
+          if(s.source.sourceDataPresent!==true){
+            if(s.source.positiveSignalsQualified!==false) process.exit(9);
+            if(Number(s.debt.customerParties||0)!==0||Number(s.debt.customerAmount||0)!==0||Number(s.dayClose.blockers||0)!==0) process.exit(10);
+            if(String(s.dayClose.state)!=='UNKNOWN_SOURCE_COMPLETENESS') process.exit(11);
+          }
+          const sig=c.attentionSignals||{};
+          for(const k of ['customerDebtParties','customerDebtAmount','supplierPayableParties','supplierPayableAmount','dayCloseBlockers','dayCloseIntegrityFailures']){
+            if(!Number.isFinite(Number(sig[k]))) process.exit(12);
+          }
+          console.log('CONTROL_TOWER_FINANCE_WARNINGS=PASS');
+          console.log('FINANCE_ACCOUNTING_MODE='+String(s.control.mode));
+          console.log('FINANCE_ACCOUNTING_EPOCH='+String(s.control.policyEpoch));
+          console.log('FINANCE_SOURCE_DATA_PRESENT='+String(s.source.sourceDataPresent===true));
+          console.log('FINANCE_SOURCE_REASON='+String(s.source.reason||''));
+          console.log('FINANCE_SOURCE_BUSINESS_ROWS='+String(Number(s.source.sourceBusinessRows||0)));
+          console.log('FINANCE_CANARY_ROWS_EXCLUDED='+String(Number(s.source.canaryRowsExcluded||0)));
+          console.log('FINANCE_DEBT='+JSON.stringify(s.debt||{}));
+          console.log('FINANCE_DAY_CLOSE='+JSON.stringify(s.dayClose||{}));
+          console.log('FINANCE_ACCOUNTING_WRITE=NO');
+          console.log('FINANCE_DEBT_RESTRICTION_WRITE=NO');
+          console.log('FINANCE_DAY_CLOSE_WRITE=NO');
+          console.log('FINANCE_PII_EXPOSED=NO');
           NODE
 
       - name: Verify main TrendOS remains unchanged
