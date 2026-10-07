@@ -5190,3 +5190,70 @@ Next Print Server gate:
 2. wire that event to the normalized local `ORDER_CLAIMED` bridge without browser guessing;
 3. install V0.1 on the target print-shop computer with real local root paths;
 4. run one bounded real-order folder-creation canary before any automatic cloud upload activation.
+
+
+### AP-063 — Windows portable Print Server package built and smoke-qualified
+
+Date: 2026-10-07.
+
+The owner requested a Windows-ready edition of the repo/local qualified TrendOS Print Server V0.1.
+
+#### Windows packaging
+
+Added:
+- frozen-runtime path handling so editable config/data resolve beside the Windows executable rather than inside a PyInstaller temporary/resource directory;
+- bundled read-only web UI resources;
+- automatic browser launch on normal desktop start;
+- `--no-browser` diagnostic mode;
+- Windows portable packaging workflow;
+- editable `config/local.json` beside the executable;
+- local `data/orders`, `data/ready`, and `data/state` roots;
+- bundled Pillow and ezdxf preview engines;
+- one-click `Start-Print-Server.bat` launcher.
+
+Packaging source commit:
+`33a0066f50516f6193f5e63d463d5192e97a8da4`.
+
+Qualification:
+```ini
+PRINT_SERVER_REPO_CI_RUN=37606879672
+PRINT_SERVER_REPO_CI=PASS
+WINDOWS_PACKAGE_RUN=37606879778
+WINDOWS_PACKAGE_RUN_RESULT=SUCCESS
+WINDOWS_EXE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE=PASS
+PACKAGED_STATUS_ROUTE=PASS
+PACKAGED_TIFF_PREVIEW_ENGINE=PASS
+PACKAGED_DXF_PREVIEW_ENGINE=PASS
+WINDOWS_ARTIFACT_ID=11474968928
+PORTABLE_ZIP_SIZE_BYTES=30918902
+PORTABLE_ZIP_SHA256=aae7703b83810f8832e0ebd06ec8ea4e1a7fb3cab71ca338783decb2febe6867
+PYTHON_INSTALL_REQUIRED_ON_TARGET=NO
+```
+
+Artifact payload contains:
+```text
+TrendOS-Print-Server.exe
+Start-Print-Server.bat
+README-WINDOWS.txt
+config/local.json
+data/orders/
+data/ready/
+data/state/
+```
+
+Important boundary:
+- this is a portable Windows file-management runtime, not a Production TrendOS authority deployment;
+- live TrendOS employee order-claim wiring remains intentionally closed until the exact qualified claim event is identified;
+- no Design READY, Material READY, Machine READY, Operator Task, Accounting, or employee-assignment authority is changed;
+- the package was smoke-tested on the GitHub hosted Windows runner; Windows 7 compatibility is not claimed by this checkpoint.
+
+Result: **PASS — WINDOWS PORTABLE PRINT SERVER PACKAGE BUILT AND SMOKE-QUALIFIED; LIVE TRENDOS CLAIM BRIDGE REMAINS CLOSED**.
+
+```ini
+PRODUCTION_PRINT_SERVER_DEPLOY=NO
+LIVE_TRENDOS_CLAIM_BRIDGE=NOT_WIRED
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+ACCOUNTING_WRITE=NO
+```
