@@ -1,0 +1,79 @@
+name: EasyStore A2.10 Supplier Canary Qualification
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a2_write_canary_policy_v1.test.mjs'
+      - 'tests/easystore_a210_supplier_canary.test.mjs'
+      - '.github/workflows/easystore-a210-supplier-canary-ci.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: easystore-a210-supplier-canary-ci
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify source and invariants
+        id: test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_write_canary_policy_v1.test.mjs
+          node tests/easystore_a210_supplier_canary.test.mjs
+          {
+            echo "A210_SUPPLIER_CANARY_QUALIFICATION=PASS"
+            echo "RUN_ID=$GITHUB_RUN_ID"
+            echo "SOURCE_SYNTAX=PASS"
+            echo "SERVER_SHAPE_GUARD=PASS"
+            echo "ONE_USER_ONE_ACTION_BUDGET_FOUNDATION=PASS"
+            echo "EXPECTED_PARTIES_DELTA=1"
+            echo "EXPECTED_PARTY_BALANCES_DELTA=1"
+            echo "EXPECTED_REQUEST_LEDGER_DELTA=1"
+            echo "EXPECTED_EVENTS_DELTA=1"
+            echo "EXPECTED_PARTY_LEDGER_DELTA=0"
+            echo "EXPECTED_CASHBOX_DELTA=0"
+            echo "PRODUCTION_DEPLOY=NO"
+            echo "PRODUCTION_MUTATION=NO"
+            echo "GENERAL_OPENED=NO"
+          } > /tmp/result.txt
+      - name: Persist qualification evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.test.outcome }}" = "success" ]; then
+            cp /tmp/result.txt .github/a210-supplier-canary-ci-result.txt
+          else
+            {
+              echo "A210_SUPPLIER_CANARY_QUALIFICATION=FAIL"
+              echo "RUN_ID=$GITHUB_RUN_ID"
+              echo "PRODUCTION_DEPLOY=NO"
+              echo "PRODUCTION_MUTATION=NO"
+              echo "GENERAL_OPENED=NO"
+            } > .github/a210-supplier-canary-ci-result.txt
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/a210-supplier-canary-ci-result.txt
+          git commit -m "A2.10: persist supplier canary qualification result" || exit 0
+          git push origin HEAD:candidate/easystore-accounting-a2-20261005
+      - name: Enforce result
+        if: steps.test.outcome != 'success'
+        run: exit 1
