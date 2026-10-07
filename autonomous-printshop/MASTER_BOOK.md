@@ -5257,3 +5257,78 @@ OPERATOR_TASK_CONTROL=OFF
 LIVE_EMPLOYEE_ASSIGNMENT=NO
 ACCOUNTING_WRITE=NO
 ```
+
+
+### AP-064 — Windows Print Server connected to live TrendOS through read-only human-start bridge
+
+Date: 2026-10-07.
+
+Owner requested connecting the installed Windows Print Server to the TrendOS platform.
+
+Repository inspection established that the current employee platform has no separate human `Claim`/`Take Order` action. The existing qualified human work-start semantic is the employee-core line status transition performed through `updateLine`, with allowed statuses including `بدأ التنفيذ` and `تحت التنفيذ`. The Print Server therefore does not invent a new claim authority.
+
+#### V0.2 bridge
+
+Implementation commit:
+`d068c0bf7fc081fcbd5a635d6fffcddb14dd3c29`.
+
+The Windows local server now:
+- logs into the live native employee auth endpoint from its local UI;
+- keeps the returned employee session token in memory only;
+- never stores the entered employee password on disk;
+- reads existing employee-core `getRows` only;
+- captures a first-sync baseline without creating historical folders;
+- polls every 15 seconds by default;
+- creates/ensures a local folder when a line enters `بدأ التنفيذ` or `تحت التنفيذ` from a non-running state;
+- preserves `orderId + lineId` identity;
+- merges later qualifying lines into the same order folder state without deleting prior route mappings;
+- remains local/file-system authority only.
+
+Runtime health verified before packaging:
+```ini
+EMPLOYEE_AUTH_SCHEMA_READY=true
+EMPLOYEE_AUTH_MODE=NATIVE
+EMPLOYEE_AUTH_ENV_ENABLED=true
+EMPLOYEE_AUTH_NATIVE_ONLY=true
+EMPLOYEE_AUTH_NATIVE_READY=6/6
+EMPLOYEE_AUTH_PLAINTEXT_STORED=false
+EMPLOYEE_CORE_SCHEMA_READY=true
+EMPLOYEE_CORE_MODE=GENERAL
+EMPLOYEE_CORE_POLICY_EPOCH=2
+EMPLOYEE_CORE_GET_ROWS_AVAILABLE=true
+GOOGLE_BUSINESS_CALLS=0
+APPS_SCRIPT_BUSINESS_AUTHORITY=false
+```
+
+Qualification:
+```ini
+PRINT_SERVER_CI_RUN=37610191256
+PRINT_SERVER_CI=PASS
+WINDOWS_PACKAGE_RUN=37610191232
+WINDOWS_PACKAGE_EXE_BUILD=PASS
+WINDOWS_PACKAGE_EXE_SMOKE=PASS
+WINDOWS_ARTIFACT_ID=11477082037
+WINDOWS_ARTIFACT_SHA256=161550f482756c6139e3bb7437e999ea4d4fd3cbc8ca86545769bfce0528c499
+FIRST_SYNC_HISTORICAL_FOLDER_CREATION=NO
+HUMAN_START_TRANSITION_TRIGGER=PASS
+ACTIVE_TO_ACTIVE_DUPLICATE_TRIGGER=NO
+INCREMENTAL_ORDER_LINE_ROUTE_MERGE=PASS
+```
+
+Safety boundary:
+```ini
+PLATFORM_BRIDGE_MODE=READ_ONLY
+PLATFORM_BUSINESS_WRITES=NO
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+DESIGN_READY_WRITE=NO
+MATERIAL_READY_WRITE=NO
+MACHINE_READY_WRITE=NO
+ACCOUNTING_WRITE=NO
+X_FOLDER_EQUALS_AUTHORITATIVE_PRINTED=NO
+```
+
+Result: **PASS — LOCAL WINDOWS PRINT SERVER IS SOFTWARE-CONNECTED TO LIVE TRENDOS READ AUTHORITY; HUMAN START STATUS IS THE FOLDER-CREATION TRIGGER**.
+
+Operational activation on the target PC still requires the owner to open the V0.2 executable and authenticate using a normal TrendOS employee account. No password or session secret was embedded in the package or repository.
