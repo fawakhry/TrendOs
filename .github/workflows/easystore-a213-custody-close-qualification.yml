@@ -1,0 +1,95 @@
+name: EasyStore A2.13 Custody Close Qualification
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a213_custody_close_canary.test.mjs'
+      - '.github/workflows/easystore-a213-custody-close-qualification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify A2.13 server guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_write_canary_policy_v1.test.mjs
+          node tests/easystore_a213_custody_close_canary.test.mjs
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Prove Production remains closed on six-canary baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "$EASYSTORE_URL/config.js?a213qual=$GITHUB_RUN_ID" > /tmp/config.js
+          curl -fsS "$API_URL/v1/employee/accounting/health?a213qual=$GITHUB_RUN_ID" > /tmp/health.json
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
+            SELECT
+              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+              (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+              (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+              (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events,
+              (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses;
+          " > /tmp/d1.json
+          node <<'NODE'
+          const fs=require('fs'),cfg=fs.readFileSync('/tmp/config.js','utf8'),h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8')),x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8')),rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};walk(x);
+          if(rows.length!==1)throw Error('count parse');const r=rows[0];
+          const exp={materials:1,templates:1,parties:1,partyBalances:1,waste:1,deptLines:1,custodyCloses:0,custodyEvents:0,requestLedger:6,events:6,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,finalInvoices:0,dayCloses:0};
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'OFF'/.test(cfg))throw Error('frontend not OFF');
+          if(!/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg))throw Error('frontend actions not empty');
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('backend not READONLY');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('server canary not cleared');
+          if(Number(h.googleBusinessCalls||0)!==0)throw Error('google calls');
+          for(const [k,v] of Object.entries(exp))if(Number(r[k]||0)!==v)throw Error(k+'='+r[k]);
+          console.log('A213_CUSTODY_CLOSE_QUALIFICATION=PASS');
+          console.log('CANDIDATE_ACTION=closePurchaseCustodyV1920');
+          console.log('SYNTHETIC_BALANCE=0');
+          console.log('EXPECTED_CUSTODY_CLOSES=0_TO_1');
+          console.log('EXPECTED_CUSTODY_EVENTS=0');
+          console.log('EXPECTED_CASHBOX=0');
+          console.log('EXPECTED_STOCK_MOVES=0');
+          console.log('EXPECTED_PARTY_LEDGER=0');
+          console.log('EXPECTED_REQUEST_LEDGER=6_TO_7');
+          console.log('EXPECTED_EVENTS=6_TO_7');
+          console.log('FRONTEND_MODE=OFF');
+          console.log('BACKEND_MODE=READONLY');
+          console.log('GENERAL_OPENED=NO');
+          console.log('PRODUCTION_DEPLOY=NO');
+          console.log('PRODUCTION_ARM=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
