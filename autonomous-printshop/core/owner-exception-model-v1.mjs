@@ -94,6 +94,34 @@ export function buildOwnerExceptionModelV1(state={}){
     nextActionAr:'تحقق من قرار CANARY/GENERAL والـpostflight قبل اعتبار التغيير مشروعًا.'
   }));
 
+  const deadline=state.operations&&state.operations.deadlineRisk||{};
+  const overdueOrders=n(deadline.overdueOrders);
+  const atRisk24hOrders=n(deadline.atRisk24hOrders);
+  const watch48hOrders=n(deadline.watch48hOrders);
+  const missingDueLines=n(deadline.missingDueLines)+n(deadline.invalidDueLines);
+
+  if(overdueOrders>0) push(exception({
+    id:'DEADLINE_OVERDUE',domain:'PRODUCTION_SCHEDULE',severity:'CRITICAL',titleAr:'أوردرات متأخرة عن موعدها',
+    reasonAr:overdueOrders+' أوردر متأخر الآن'+(deadline.oldestOverdueHours?('؛ أقدم تأخير '+n(deadline.oldestOverdueHours)+' ساعة'):'')+'.',
+    responsibleActor:'PRODUCTION_SCHEDULER',responsibleActorAr:'Production Scheduler',
+    aiState:AI_STATES.PREPARE_HUMAN_REVIEW,aiCanResolveNow:false,ownerActionRequired:false,count:overdueOrders,signalCode:'DEADLINE_OVERDUE',
+    nextActionAr:'أعد ترتيب الأولوية في Shadow حسب الموعد والاستعجال وراجع سبب التعطل؛ التنفيذ والتعيين يظلان مقفولين حتى بوابة Operator Task.'
+  }));
+  if(atRisk24hOrders>0) push(exception({
+    id:'DEADLINE_AT_RISK_24H',domain:'PRODUCTION_SCHEDULE',severity:'HIGH',titleAr:'أوردرات معرضة للتأخير خلال 24 ساعة',
+    reasonAr:atRisk24hOrders+' أوردر داخل نافذة 24 ساعة'+(watch48hOrders?('، و'+watch48hOrders+' إضافية تحت المراقبة حتى 48 ساعة'):'')+'.',
+    responsibleActor:'PRODUCTION_SCHEDULER',responsibleActorAr:'Production Scheduler',
+    aiState:AI_STATES.PREPARE_HUMAN_REVIEW,aiCanResolveNow:false,ownerActionRequired:false,count:atRisk24hOrders,signalCode:'DEADLINE_AT_RISK_24H',
+    nextActionAr:'راقب الأقسام الأعلى مخاطرة وكمّل أدلة الجاهزية للبنود القريبة من الموعد قبل التفكير في أي توجيه حي.'
+  }));
+  if(missingDueLines>0) push(exception({
+    id:'DEADLINE_DATA_GAP',domain:'SOURCE_DATA',severity:'HIGH',titleAr:'نقص في بيانات مواعيد التسليم',
+    reasonAr:missingDueLines+' بند نشط لا يملك موعدًا صالحًا، لذلك لا يمكن تقييم خطر التأخير عليه بأمان.',
+    responsibleActor:'TRENDOS_SOURCE',responsibleActorAr:'TrendOS Source',
+    aiState:AI_STATES.WAITING_EXTERNAL_EVIDENCE,aiCanResolveNow:false,ownerActionRequired:false,count:missingDueLines,signalCode:'DEADLINE_DATA_GAP',
+    nextActionAr:'استكمل موعد التسليم في مصدر TrendOS؛ لا تخمّن موعدًا داخل Autonomous Printshop.'
+  }));
+
   const review=n(signals.employeeReviewRequired);
   if(review>0) push(exception({
     id:'EMPLOYEE_REVIEW_REQUIRED',domain:'EMPLOYEE',severity:'HIGH',titleAr:'حالة موظف تحتاج مراجعة تشغيلية',

@@ -2,7 +2,7 @@ import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualif
 import { buildOwnerExceptionModelV1, OWNER_EXCEPTION_MODEL_VERSION } from '../core/owner-exception-model-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_1_20261007';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_2_20261007';
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -131,6 +131,16 @@ th{color:var(--muted);font-weight:700}
   </div>
 
   <div class="grid section" id="kpis"></div>
+
+  <div class="card section">
+    <h2>مخاطر المواعيد حسب القسم</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>القسم</th><th>متأخر</th><th>خطر 24 ساعة</th><th>مراقبة 48 ساعة</th><th>عاجل</th></tr></thead>
+        <tbody id="deadlineDepartments"></tbody>
+      </table>
+    </div>
+  </div>
 
   <div class="card section">
     <h2>قرارات تحتاج تدخلك والاستثناءات التشغيلية</h2>
@@ -266,6 +276,7 @@ async function load(){
     if(!r.ok||d.success!==true) throw new Error(d.code||'تعذر تحميل الحالة');
 
     const ops=d.operations?.counts||{};
+    const deadline=d.operations?.deadlineRisk||{};
     const emp=d.employees?.operatorCounts||{};
     const ready=d.readiness||{};
     const controls=d.controls||{};
@@ -284,22 +295,36 @@ async function load(){
 
     let message='المراقبة شغالة بدون تنفيذ حي.';
     let cls='ok';
-    if(n(sig.readinessBlocked)>0){
-      message='فيه '+n(sig.readinessBlocked)+' بند منتظر أدلة جاهزية قبل ما AI يسمح بتوجيهه.';
+    if(n(deadline.overdueOrders)>0){
+      message='فيه '+n(deadline.overdueOrders)+' أوردر متأخر و'+n(deadline.atRisk24hOrders)+' معرض للتأخير خلال 24 ساعة.';
+      cls='danger';
+    }else if(n(deadline.atRisk24hOrders)>0){
+      message='فيه '+n(deadline.atRisk24hOrders)+' أوردر داخل نافذة خطر 24 ساعة.';
       cls='warn';
     }
+    if(n(sig.readinessBlocked)>0){
+      message+=' '+n(sig.readinessBlocked)+' بند منتظر أدلة جاهزية.';
+      if(cls==='ok') cls='warn';
+    }
     if(n(sig.employeeReviewRequired)>0){
-      message+=' وفيه '+n(sig.employeeReviewRequired)+' حالة موظف تحتاج مراجعة تشغيلية.';
-      cls='warn';
+      message+=' '+n(sig.employeeReviewRequired)+' حالة موظف تحتاج مراجعة تشغيلية.';
+      if(cls==='ok') cls='warn';
     }
     q('#signal').innerHTML='<div class="signal '+cls+'">'+esc(message)+'</div>';
 
     q('#kpis').innerHTML=[
       kpi('منتظر تنفيذ',n(ops.ordinary),'الترتيب الأساسي قبل بوابة الجاهزية'),
+      kpi('أوردرات متأخرة',n(deadline.overdueOrders),'أقدم تأخير '+n(deadline.oldestOverdueHours)+' ساعة'),
+      kpi('خطر خلال 24 ساعة',n(deadline.atRisk24hOrders),'مراقبة 48 ساعة: '+n(deadline.watch48hOrders)),
       kpi('جاهز صارم',n(ready.strictEligible),'Design + Material + Machine'),
       kpi('تحت التنفيذ',n(ops.inProgress),'حالة فعلية من TrendOS'),
       kpi('متاح الآن',n(emp.available),n(emp.total)+' موظف معروف')
     ].join('');
+
+    const riskDepartments=Array.isArray(deadline.departments)?deadline.departments:[];
+    q('#deadlineDepartments').innerHTML=riskDepartments.length
+      ? riskDepartments.map(x=>'<tr><td>'+esc(x.department||'UNSPECIFIED')+'</td><td>'+n(x.overdueOrders)+'</td><td>'+n(x.atRisk24hOrders)+'</td><td>'+n(x.watch48hOrders)+'</td><td>'+n(x.urgentRiskLines)+'</td></tr>').join('')
+      : '<tr><td colspan="5">لا توجد مخاطر مواعيد حالية</td></tr>';
 
     const ownerModelSummary=d.ownerExceptionModel?.summary||{};
     const ownerItems=ownerDecisionItems(d);

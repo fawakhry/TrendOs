@@ -5,6 +5,7 @@ import { buildOwnerExceptionModelV1 } from '../core/owner-exception-model-v1.mjs
 const state={
   controls:{autonomy:{mode:'SHADOW'},readiness:'SHADOW',operatorTask:'OFF'},
   readiness:{baselineCandidates:88,strictBlocked:88,strictEligible:0},
+  operations:{deadlineRisk:{overdueOrders:17,atRisk24hOrders:12,watch48hOrders:35,oldestOverdueHours:134.1,missingDueLines:0,invalidDueLines:0}},
   attentionSignals:{employeeReviewRequired:0,readinessBlocked:88,activeOperatorTasks:0,noStrictRecommendation:true},
   shadowLearning:{autonomyEvents:14,recommendedAiAuto:0,ownerOnly:0,blocked:0},
   evidenceAcquisition:{
@@ -22,6 +23,8 @@ assert.equal(out.authorityBoundaries.contentMutation,false);
 assert.equal(out.authorityBoundaries.operatorTaskWrite,false);
 assert.equal(out.authorityBoundaries.employeeAssignment,false);
 assert.ok(out.exceptions.some(x=>x.id==='READINESS_BLOCKED'&&x.count===88));
+assert.ok(out.exceptions.some(x=>x.id==='DEADLINE_OVERDUE'&&x.count===17&&x.responsibleActor==='PRODUCTION_SCHEDULER'));
+assert.ok(out.exceptions.some(x=>x.id==='DEADLINE_AT_RISK_24H'&&x.count===12));
 assert.ok(out.exceptions.some(x=>x.id==='DESIGN_EVIDENCE_BLOCKER'));
 assert.ok(out.exceptions.some(x=>x.id==='ACCOUNTING_CANARY_MATERIAL_FREEZE'&&x.domain==='FINANCE_SIGNAL'&&!x.ownerActionRequired));
 assert.ok(out.exceptions.some(x=>x.id==='MACHINE_EVIDENCE_BLOCKER'));
