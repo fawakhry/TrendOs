@@ -1,5 +1,5 @@
 name: EasyStore A2 Accounting Readonly API Deploy
-# Manual-only READONLY deploy guard; baseline updated after A2.9 third canary
+# Manual-only READONLY deploy guard; baseline updated after A2.10 fourth Supplier canary
 # trigger A2.7 one-command-budget backend deploy after migration 0030; runtime must remain READONLY
 # controlled push trigger after A2 preflight pass
 # deploy-round-2 guarded ephemeral shared-base merge
@@ -129,6 +129,7 @@ jobs:
             SELECT
               (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
               (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
               (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
               (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
               (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
@@ -149,7 +150,7 @@ jobs:
           const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
           walk(x);if(rows.length!==1)throw new Error('accounting pre-count parse');
           const r=Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v||0)]));
-          const expected={materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:3,events:3};
+          const expected={materials:1,templates:1,parties:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,requestLedger:4,events:4};
           const drift=Object.keys(expected).filter(k=>r[k]!==expected[k]).map(k=>({key:k,actual:r[k],expected:expected[k]}));
           if(drift.length)throw new Error('approved post-canary accounting baseline required:'+JSON.stringify(drift));
           console.log('A2_DEPLOY_ACCOUNTING_BASELINE=CANARY_EVIDENCE_ONLY');
@@ -231,6 +232,7 @@ jobs:
             SELECT
               (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
               (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
               (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
               (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
               (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
@@ -262,7 +264,7 @@ jobs:
           }
           const pre=row('/tmp/accounting-counts-pre.json'),post=row('/tmp/accounting-counts-post.json');
           if(JSON.stringify(pre)!==JSON.stringify(post))throw new Error('accounting row-count drift pre='+JSON.stringify(pre)+' post='+JSON.stringify(post));
-          const expected={materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:3,events:3};
+          const expected={materials:1,templates:1,parties:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,requestLedger:4,events:4};
           const drift=Object.keys(expected).filter(k=>post[k]!==expected[k]).map(k=>({key:k,actual:post[k],expected:expected[k]}));
           if(drift.length)throw new Error('approved post-canary baseline drift:'+JSON.stringify(drift));
           console.log('A2_DEPLOY_ACCOUNTING_ROW_COUNTS_INVARIANT=PASS');
