@@ -1,0 +1,26 @@
+name: A2.13 Dispatch Custody Close Guard Deploy Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a213-dispatch-custody-close-guard-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch approved A2.13 Custody Close guard deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a213-custody-close-guard-readonly-deploy.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A213_CUSTODY_CLOSE_GUARD_DEPLOY_DISPATCHED=YES
