@@ -1,0 +1,86 @@
+name: A2.11 Final Closure Check
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/a211-final-closure-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting
+      EASYSTORE_URL: https://fawakhry.github.io/EasyStore
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@4.33.2
+      - shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "$EASYSTORE_URL/config.js?a211final=$GITHUB_RUN_ID" > /tmp/cfg
+          curl -fsS "$API_URL/health?a211final=$GITHUB_RUN_ID" > /tmp/h
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "
+          SELECT
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1) materials,
+            (SELECT COUNT(*) FROM employee_accounting_templates_v1) templates,
+            (SELECT COUNT(*) FROM employee_accounting_parties_v1) parties,
+            (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) partyBalances,
+            (SELECT COUNT(*) FROM employee_accounting_waste_v1) waste,
+            (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) requestLedger,
+            (SELECT COUNT(*) FROM employee_accounting_events_v1) events,
+            (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) stockMoves,
+            (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) partyLedger,
+            (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) cashbox,
+            (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) purchases,
+            (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) dailyPurchases,
+            (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) deptLines,
+            (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) finalInvoices,
+            (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) custodyEvents,
+            (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) custodyCloses,
+            (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) dayCloses,
+            (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1 WHERE request_key LIKE 'A211-WASTE-%') a211Requests,
+            (SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key LIKE 'A211-WASTE-%') a211Events,
+            (SELECT COUNT(*) FROM employee_accounting_waste_v1 WHERE request_key LIKE 'A211-WASTE-%') a211Waste,
+            (SELECT request_key FROM employee_accounting_request_ledger_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) requestKey,
+            (SELECT operation FROM employee_accounting_request_ledger_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) operation,
+            (SELECT actor FROM employee_accounting_request_ledger_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) actor,
+            (SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) status,
+            (SELECT waste_id FROM employee_accounting_waste_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) wasteId,
+            (SELECT order_id FROM employee_accounting_waste_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) orderId,
+            (SELECT amount FROM employee_accounting_waste_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) amount,
+            (SELECT recovered_amount FROM employee_accounting_waste_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) recovered,
+            (SELECT material_id FROM employee_accounting_waste_v1 WHERE request_key LIKE 'A211-WASTE-%' LIMIT 1) materialId;
+          " > /tmp/d1
+          node <<'NODE'
+          const fs=require('fs'),cfg=fs.readFileSync('/tmp/cfg','utf8'),h=JSON.parse(fs.readFileSync('/tmp/h','utf8')),x=JSON.parse(fs.readFileSync('/tmp/d1','utf8'));
+          let row=null;const w=v=>{if(row)return;if(Array.isArray(v))return v.forEach(w);if(v&&typeof v==='object'){if(v.materials!==undefined)row=v;else Object.values(v).forEach(w)}};w(x);
+          if(!row)throw Error('no row');
+          const exp={materials:1,templates:1,parties:1,partyBalances:1,waste:1,requestLedger:5,events:5,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,deptLines:0,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0,a211Requests:1,a211Events:1,a211Waste:1};
+          for(const [k,v] of Object.entries(exp))if(Number(row[k]||0)!==v)throw Error(k+'='+row[k]);
+          if(!/WRITE_MODE\s*=\s*'OFF'/.test(cfg)||!/WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg))throw Error('frontend open');
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false||Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('backend open');
+          if(row.requestKey!=='A211-WASTE-muy6h1tz-3ffj2p52'||row.operation!=='waste-create'||row.actor!=='ضياء'||row.status!=='COMMITTED')throw Error('request evidence');
+          if(row.wasteId!=='WASTE-A8A7A494DCC0'||row.orderId!=='A2-CANARY-WASTE-MUY6H1TZ'||Math.abs(Number(row.amount)-0.01)>1e-6||Number(row.recovered)!==0||String(row.materialId||''))throw Error('waste evidence');
+          console.log('A211_FINAL_CLOSURE=PASS');
+          console.log('FRONTEND_MODE=OFF');
+          console.log('BACKEND_MODE=READONLY');
+          console.log('BASELINE=materials1_templates1_parties1_partyBalances1_waste1_request5_events5');
+          console.log('SIDE_EFFECTS=stock0_partyLedger0_cashbox0_other0');
+          console.log('REQUEST_KEY='+row.requestKey);
+          console.log('WASTE_ID='+row.wasteId);
+          console.log('ORDER_ID='+row.orderId);
+          console.log('AMOUNT=0.01');
+          console.log('GENERAL_OPENED=NO');
+          NODE
