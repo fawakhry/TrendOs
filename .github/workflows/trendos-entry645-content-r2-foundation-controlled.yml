@@ -1,0 +1,309 @@
+name: TrendOS Entry645 Content R2 Foundation Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry645-content-r2-foundation-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry645-content-r2-foundation-controlled
+  cancel-in-progress: false
+
+jobs:
+  r2-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_WORKER: trendos-d1-api
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      R2_BUCKET: trendos-employee-content-files
+      FILES_PUBLIC_BASE_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exact Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry645pre=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-pre.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||
+             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge drift');
+          if(co.mode!=='GENERAL'||Number(co.policyEpoch||0)!==2||Number(co.googleBusinessCalls||0)!==0||co.appsScriptBusinessAuthority!==false) throw new Error('core drift');
+          if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2||ct.r2Ready!==false||
+             Number(ct.googleBusinessCalls||0)!==0||ct.appsScriptBusinessAuthority!==false) throw new Error('content prestate drift');
+          if(cm.mode!=='READONLY'||Number(cm.googleBusinessCalls||0)!==0||cm.appsScriptBusinessAuthority!==false) throw new Error('comms drift');
+          if(o.mode!=='GENERAL'||Number(o.googleBusinessCalls||0)!==0||o.appsScriptBusinessAuthority!==false) throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||
+             Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');
+          console.log('ENTRY645_RUNTIME_PREFLIGHT=PASS');
+          console.log('ENTRY645_CONTENT_PRE_R2_READY=false');
+          NODE
+
+      - name: Ensure dedicated R2 bucket exists
+        id: bucket
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID;
+          const name=process.env.R2_BUCKET;
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/r2/buckets';
+          const headers={authorization:'Bearer '+token,'content-type':'application/json'};
+          async function req(url,options={}){
+            const r=await fetch(url,{...options,headers:{...headers,...(options.headers||{})}});
+            const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}
+            if(!r.ok||b.success===false) throw new Error('R2 API '+r.status+' ERRORS='+JSON.stringify(b.errors||[]));
+            return b;
+          }
+          (async()=>{
+            const listed=await req(base);
+            const buckets=Array.isArray(listed.result&&listed.result.buckets)?listed.result.buckets:
+              Array.isArray(listed.result)?listed.result:[];
+            const exists=buckets.some(x=>String(x.name||'')===name);
+            if(exists){
+              console.log('ENTRY645_R2_BUCKET_PREEXISTED=YES');
+              fs.writeFileSync('/tmp/r2-preexisted','1');
+              return;
+            }
+            await req(base,{method:'POST',body:JSON.stringify({name})});
+            console.log('ENTRY645_R2_BUCKET_CREATED=YES');
+            fs.writeFileSync('/tmp/r2-created','1');
+          })().catch(e=>{console.error('ENTRY645_R2_BUCKET_FAIL '+String(e&&e.message||e));process.exit(1);});
+          NODE
+
+      - name: Patch active worker settings with FILES R2 binding
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID;
+          const worker=process.env.API_WORKER;
+          const bucket=process.env.R2_BUCKET;
+          const publicBase=process.env.FILES_PUBLIC_BASE_URL;
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          const headers={authorization:'Bearer '+token};
+
+          async function cf(path,options={}){
+            const r=await fetch(base+path,{...options,headers:{...headers,...(options.headers||{})}});
+            const raw=await r.text();let body={};try{body=JSON.parse(raw||'{}')}catch{}
+            if(!r.ok||body.success!==true) throw new Error('Cloudflare API '+r.status+' '+path+' ERRORS='+JSON.stringify(body.errors||[]));
+            return body;
+          }
+          function deployments(body){
+            return ((((body||{}).result||{}).deployments)||body.result||[]).slice()
+              .sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0));
+          }
+          function activeVersion(body){
+            const cur=deployments(body)[0]||{};
+            const full=(cur.versions||[]).filter(v=>Number(v.percentage||0)===100);
+            if(full.length!==1) throw new Error('active deployment shape');
+            const id=String(full[0].version_id||full[0].id||'');
+            if(!id) throw new Error('active version missing');
+            return id;
+          }
+          function versionItems(body){
+            const r=body.result;
+            return (Array.isArray(r)?r:(r&&Array.isArray(r.items)?r.items:(r&&Array.isArray(r.versions)?r.versions:[]))).slice();
+          }
+
+          (async()=>{
+            const dep=await cf('/deployments');
+            const pre=activeVersion(dep);
+            const preBody=await cf('/versions/'+pre);
+            const preEtag=String(preBody.result&&preBody.result.resources&&preBody.result.resources.script&&preBody.result.resources.script.etag||'');
+            if(!preEtag) throw new Error('active script etag missing');
+
+            const versionsBefore=versionItems(await cf('/versions?per_page=100'));
+            const beforeIds=new Set(versionsBefore.map(x=>String(x.id||'')).filter(Boolean));
+            const newestBefore=[...versionsBefore].sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0))[0];
+            if(String(newestBefore&&newestBefore.id||'')!==pre) throw new Error('latest version is not active');
+
+            const settings=await cf('/settings');
+            const bs=Array.isArray(settings.result&&settings.result.bindings)?settings.result.bindings:[];
+            const by=new Map(bs.map(b=>[String(b.name||''),b]));
+            if(!by.has('DB')||String(by.get('DB').type||'')!=='d1') throw new Error('D1 binding missing');
+            if(by.has('FILES')) throw new Error('FILES binding unexpectedly already exists while runtime r2Ready=false');
+
+            fs.writeFileSync('/tmp/entry645-pre-version.txt',pre);
+            fs.writeFileSync('/tmp/entry645-pre-etag.txt',preEtag);
+
+            const next=bs.map(b=>({name:b.name,type:'inherit',version_id:'latest'}));
+            next.push({name:'FILES',type:'r2_bucket',bucket_name:bucket});
+            next.push({name:'FILES_PUBLIC_BASE_URL',type:'plain_text',text:publicBase});
+
+            const form=new FormData();
+            form.append('settings',new Blob([JSON.stringify({
+              bindings:next,
+              annotations:{'workers/message':'Entry645 Content R2 foundation'}
+            })],{type:'application/json'}),'settings.json');
+            await cf('/settings',{method:'PATCH',body:form});
+            fs.writeFileSync('/tmp/entry645-settings-patched','1');
+
+            const versionsAfter=versionItems(await cf('/versions?per_page=100'));
+            const fresh=versionsAfter.map(x=>String(x.id||'')).filter(id=>id&&!beforeIds.has(id));
+            if(fresh.length!==1) throw new Error('expected exactly one fresh settings version, got '+fresh.length);
+            fs.writeFileSync('/tmp/entry645-new-version.txt',fresh[0]);
+            console.log('ENTRY645_CF_SETTINGS_PATCH=PASS');
+            console.log('ENTRY645_CF_PRE_VERSION='+pre);
+            console.log('ENTRY645_CF_NEW_VERSION='+fresh[0]);
+            console.log('ENTRY645_SECRET_VALUE_LOGGED=NO');
+          })().catch(e=>{console.error('ENTRY645_CF_PATCH_FAIL '+String(e&&e.message||e));process.exit(1);});
+          NODE
+
+      - name: Activate settings version and prove code unchanged
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID,worker=process.env.API_WORKER;
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          const headers={authorization:'Bearer '+token};
+          async function cf(path,options={}){
+            const r=await fetch(base+path,{...options,headers:{...headers,...(options.headers||{})}});
+            const raw=await r.text();let b={};try{b=JSON.parse(raw||'{}')}catch{}
+            if(!r.ok||b.success!==true) throw new Error('Cloudflare API '+r.status+' '+path+' ERRORS='+JSON.stringify(b.errors||[]));
+            return b;
+          }
+          function active(body){
+            const ds=((((body||{}).result||{}).deployments)||body.result||[]).slice().sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0));
+            const full=((ds[0]||{}).versions||[]).filter(v=>Number(v.percentage||0)===100);
+            if(full.length!==1) throw new Error('deployment shape');
+            return String(full[0].version_id||full[0].id||'');
+          }
+          (async()=>{
+            const pre=fs.readFileSync('/tmp/entry645-pre-version.txt','utf8').trim();
+            const preEtag=fs.readFileSync('/tmp/entry645-pre-etag.txt','utf8').trim();
+            const fresh=fs.readFileSync('/tmp/entry645-new-version.txt','utf8').trim();
+            const freshBody=await cf('/versions/'+fresh);
+            const freshEtag=String(freshBody.result&&freshBody.result.resources&&freshBody.result.resources.script&&freshBody.result.resources.script.etag||'');
+            if(!freshEtag||freshEtag!==preEtag) throw new Error('worker code etag changed');
+
+            let cur=active(await cf('/deployments'));
+            if(cur!==fresh){
+              if(cur!==pre) throw new Error('active version changed concurrently to '+cur);
+              await cf('/deployments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+                strategy:'percentage',versions:[{version_id:fresh,percentage:100}]
+              })});
+              console.log('ENTRY645_CF_EXPLICIT_DEPLOY=YES');
+              cur=active(await cf('/deployments'));
+            }else{
+              console.log('ENTRY645_CF_EXPLICIT_DEPLOY=NO');
+            }
+            if(cur!==fresh) throw new Error('R2 settings version not active');
+            fs.writeFileSync('/tmp/entry645-active','1');
+            console.log('ENTRY645_CF_CODE_ETAG_UNCHANGED=PASS');
+            console.log('ENTRY645_CF_ACTIVE_VERSION='+cur);
+          })().catch(e=>{console.error('ENTRY645_CF_ACTIVATE_FAIL '+String(e&&e.message||e));process.exit(1);});
+          NODE
+
+      - name: Production R2 postflight while Content remains READONLY
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          OK=0
+          for attempt in $(seq 1 30); do
+            curl --fail --silent --show-error "$API_URL/v1/employee/content/health?entry645post=$GITHUB_SHA-$attempt-$(date +%s%N)" -o /tmp/content-post.json
+            if node <<'NODE'
+          const fs=require('fs'),c=JSON.parse(fs.readFileSync('/tmp/content-post.json','utf8'));
+          if(c.success===true&&c.schemaReady===true&&c.mode==='READONLY'&&Number(c.policyEpoch||0)===2&&c.r2Ready===true&&
+             Number(c.googleBusinessCalls||0)===0&&c.appsScriptBusinessAuthority===false) process.exit(0);
+          process.exit(1);
+          NODE
+            then OK=1; echo "ENTRY645_PROPAGATION_ATTEMPT=$attempt"; break; fi
+            sleep 1
+          done
+          test "$OK" = "1"
+
+          code="$(curl --silent --show-error --output /tmp/missing-file.txt --write-out '%{http_code}'             "$API_URL/v1/employee/content/file/ENTRY645-NOT-FOUND?probe=$GITHUB_SHA")"
+          test "$code" = "404"
+
+          for f in auth legacy-action core comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry645stable=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||Number(a.nativeReadyCount||0)!==6) throw new Error('auth post drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge post drift');
+          if(co.mode!=='GENERAL'||Number(co.policyEpoch||0)!==2) throw new Error('core post drift');
+          if(cm.mode!=='READONLY') throw new Error('comms post drift');
+          if(o.mode!=='GENERAL') throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||
+             Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety post');
+          console.log('ENTRY645_STABLE_POSTFLIGHT=PASS');
+          NODE
+
+          touch /tmp/entry645-proven
+          echo ENTRY645_CONTENT_R2_FOUNDATION=PASS
+          echo ENTRY645_CONTENT_MODE=READONLY
+          echo ENTRY645_CONTENT_R2_READY=true
+          echo ENTRY645_BUSINESS_DATA_MUTATION=NO
+          echo ENTRY645_ACCOUNTING_MUTATION=NO
+          echo ENTRY645_EASYSTORE_MUTATION=NO
+
+      - name: Roll back exact worker version on post-patch failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/entry645-settings-patched ]; then
+            echo ENTRY645_ROLLBACK_NOT_NEEDED=PRE_PATCH_FAILURE
+            exit 0
+          fi
+          if [ -f /tmp/entry645-proven ]; then
+            echo ENTRY645_ROLLBACK_NOT_RUN=PRODUCTION_ALREADY_PROVEN
+            exit 0
+          fi
+          PRE="$(cat /tmp/entry645-pre-version.txt)"
+          node <<'NODE'
+          const fs=require('fs');
+          const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID,worker=process.env.API_WORKER;
+          const pre=fs.readFileSync('/tmp/entry645-pre-version.txt','utf8').trim();
+          const url='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker+'/deployments';
+          (async()=>{
+            const r=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({
+              strategy:'percentage',versions:[{version_id:pre,percentage:100}]
+            })});
+            const b=await r.json();
+            if(!r.ok||b.success!==true) throw new Error('rollback API failed');
+            console.log('ENTRY645_CF_ROLLBACK_DEPLOYED_PRE_VERSION='+pre);
+          })().catch(e=>{console.error(String(e&&e.message||e));process.exit(1);});
+          NODE
+
+      - name: Final
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          echo ENTRY645=PASS
+          echo ENTRY645_CONTENT=READONLY
+          echo ENTRY645_R2_READY=true
+          echo ENTRY645_API_CODE_DEPLOY=NO
+          echo ENTRY645_ACCOUNTING_MUTATION=NO
+          echo ENTRY645_EASYSTORE_MUTATION=NO
