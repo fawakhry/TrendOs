@@ -1,0 +1,85 @@
+name: EasyStore A2.10 Supplier Deploy Execution Qualification
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a2_write_canary_policy_v1.test.mjs'
+      - 'tests/easystore_a210_supplier_canary.test.mjs'
+      - 'tests/easystore_a210_supplier_workflow_invariants.test.mjs'
+      - '.github/workflows/easystore-a210-supplier-guard-readonly-deploy.yml'
+      - '.github/workflows/easystore-a210-supplier-canary-execution.yml'
+      - '.github/workflows/easystore-a210-supplier-deploy-execution-ci.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: easystore-a210-supplier-deploy-execution-ci
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify supplier guard and manual-only workflows
+        id: test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_write_canary_policy_v1.test.mjs
+          node tests/easystore_a210_supplier_canary.test.mjs
+          node tests/easystore_a210_supplier_workflow_invariants.test.mjs
+          {
+            echo "A210_SUPPLIER_DEPLOY_EXECUTION_QUALIFICATION=PASS"
+            echo "RUN_ID=$GITHUB_RUN_ID"
+            echo "SERVER_GUARD=PASS"
+            echo "DEPLOY_WORKFLOW=MANUAL_ONLY"
+            echo "EXECUTION_WORKFLOW=MANUAL_ONLY"
+            echo "BASELINE=materials1_templates1_parties0_partyBalances0_requestLedger3_events3"
+            echo "ONE_USER=ضياء"
+            echo "ONE_ACTION=saveEasyStoreSupplier"
+            echo "ONE_COMMAND=YES"
+            echo "ZERO_VALUE=YES"
+            echo "AUTO_DISABLE=YES"
+            echo "GENERAL_ALLOWED=NO"
+            echo "PRODUCTION_DEPLOY=NO"
+            echo "PRODUCTION_ARM=NO"
+            echo "PRODUCTION_MUTATION=NO"
+          } > /tmp/result.txt
+      - name: Persist qualification evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.test.outcome }}" = "success" ]; then
+            cp /tmp/result.txt .github/a210-supplier-deploy-execution-ci-result.txt
+          else
+            {
+              echo "A210_SUPPLIER_DEPLOY_EXECUTION_QUALIFICATION=FAIL"
+              echo "RUN_ID=$GITHUB_RUN_ID"
+              echo "PRODUCTION_DEPLOY=NO"
+              echo "PRODUCTION_ARM=NO"
+              echo "PRODUCTION_MUTATION=NO"
+              echo "GENERAL_ALLOWED=NO"
+            } > .github/a210-supplier-deploy-execution-ci-result.txt
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/a210-supplier-deploy-execution-ci-result.txt
+          git commit -m "A2.10: persist supplier deploy execution qualification" || exit 0
+          git push origin HEAD:candidate/easystore-accounting-a2-20261005
+      - name: Enforce result
+        if: steps.test.outcome != 'success'
+        run: exit 1
