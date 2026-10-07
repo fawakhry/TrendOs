@@ -35,7 +35,7 @@ jobs:
       - name: Build Windows portable EXE
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onedir --name "TrendOS-Print-Server" --add-data "public;public" --collect-all PIL --collect-all ezdxf run.py
+          pyinstaller --noconfirm --clean --onedir --name "TrendOS-Print-Server" --add-data "public;public" --collect-all PIL --collect-all ezdxf --collect-all certifi --collect-all requests --collect-all urllib3 run.py
           $app = Join-Path $PWD "dist\TrendOS-Print-Server"
           New-Item -ItemType Directory -Force -Path (Join-Path $app "config") | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $app "data\orders") | Out-Null
@@ -62,6 +62,19 @@ jobs:
             }
             if (-not $ok) { throw "PACKAGED_EXE_SMOKE_FAILED" }
             Write-Host "WINDOWS_PORTABLE_SMOKE=PASS"
+            $probe = $null
+            for ($i = 0; $i -lt 3; $i++) {
+              try {
+                $probe = Invoke-RestMethod -Uri "http://127.0.0.1:4782/api/trendos/probe" -TimeoutSec 15
+                if ($probe.ok -eq $true -and $probe.probe.schemaReady -eq $true) { break }
+              } catch {
+                Start-Sleep -Seconds 2
+              }
+            }
+            if (-not $probe -or $probe.ok -ne $true -or $probe.probe.schemaReady -ne $true) {
+              throw "PACKAGED_LIVE_TRENDOS_PROBE_FAILED"
+            }
+            Write-Host "WINDOWS_PACKAGED_LIVE_TRENDOS_PROBE=PASS"
           } finally {
             if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
           }

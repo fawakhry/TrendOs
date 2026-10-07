@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import platform
 import sys
 import threading
 import webbrowser
@@ -50,6 +51,10 @@ class PrintServerApp:
             "employeeAssignmentWrites": False,
             "accountingWrites": False,
             "platformBusinessWrites": False,
+            "runtime": {
+                "python": sys.version.split()[0],
+                "platform": platform.platform(),
+            },
         }
 
     def order_files(self, order_id: str):
@@ -131,6 +136,11 @@ def make_handler(app: PrintServerApp):
             parsed = urlparse(self.path)
             if parsed.path == "/api/status":
                 return self._json(200, app.status())
+            if parsed.path == "/api/trendos/probe":
+                try:
+                    return self._json(200, {"ok": True, "probe": app.trendos.probe()})
+                except TrendOSError as exc:
+                    return self._json(502, {"ok": False, "error": str(exc)})
             if parsed.path == "/api/orders":
                 return self._json(200, {"ok": True, "orders": app.state.orders()})
             if parsed.path == "/api/state":
@@ -165,9 +175,12 @@ def make_handler(app: PrintServerApp):
             try:
                 body = self._body_json()
                 if parsed.path == "/api/trendos/login":
-                    session = app.trendos.login(body.get("username"), body.get("password"))
-                    sync = app.bridge.sync_async()
-                    return self._json(200, {"ok": True, "session": session, "sync": sync})
+                    pending = app.trendos.begin_login(
+                        body.get("username"),
+                        body.get("password"),
+                        on_success=app.bridge.sync_async,
+                    )
+                    return self._json(202, {"ok": True, "login": pending})
                 if parsed.path == "/api/trendos/logout":
                     return self._json(200, {"ok": True, "session": app.trendos.logout()})
                 if parsed.path == "/api/trendos/sync":

@@ -61,15 +61,22 @@ function renderPlatform(status){
     el.textContent=`● متصل بـ TrendOS — ${t.username||''}`;
     el.className='platform-on';
     $('trendUsername').value=t.username||$('trendUsername').value;
+  }else if(t.loginState==='PENDING'){
+    el.textContent='● جاري التحقق من حساب TrendOS...';
+    el.className='platform-off';
+  }else if(t.loginState==='FAILED'){
+    el.textContent='● فشل ربط TrendOS';
+    el.className='platform-off';
   }else{
     el.textContent='● غير مسجل على TrendOS';
     el.className='platform-off';
   }
   const bits=[];
+  if(t.lastError) bits.push('سبب الربط: '+t.lastError);
   if(b.syncing) bits.push('جاري مزامنة بيانات المنصة...');
   if(b.lastSyncAt) bits.push('آخر مزامنة: '+new Date(b.lastSyncAt).toLocaleTimeString('ar-EG'));
   if(b.lastTriggerCount) bits.push('تم التقاط '+b.lastTriggerCount+' بند');
-  if(b.lastError) bits.push('خطأ: '+b.lastError);
+  if(b.lastError) bits.push('خطأ المزامنة: '+b.lastError);
   $('trendMsg').textContent=bits.join(' • ');
 }
 async function trendLogin(){
@@ -79,10 +86,21 @@ async function trendLogin(){
   try{
     const res=await post('/api/trendos/login',{username,password});
     $('trendPassword').value='';
-    $('trendMsg').textContent='تم الربط بالمنصة. جاري تجهيز المزامنة في الخلفية...';
+    $('trendMsg').textContent=res.login?.accepted===false ? 'محاولة ربط شغالة بالفعل.' : 'تم إرسال طلب الربط. التحقق يجري في الخلفية والسيرفر المحلي سيظل شغالًا.';
     await refresh();
-  }catch(e){$('trendMsg').textContent='فشل الربط: '+e.message;}
+  }catch(e){$('trendMsg').textContent='فشل بدء الربط: '+e.message;}
   finally{btn.disabled=false;btn.textContent='ربط بالمنصة';}
+}
+async function trendProbe(){
+  const btn=$('trendProbeBtn'); btn.disabled=true; btn.textContent='جاري الاختبار...';
+  try{
+    const res=await api('/api/trendos/probe',{},12000);
+    $('trendMsg').textContent=`اتصال TrendOS سليم — Auth ${res.probe?.mode||''} — ${res.probe?.nativeReadyCount||0}/${res.probe?.userCount||0} حساب جاهز.`;
+  }catch(e){
+    $('trendMsg').textContent='اختبار الاتصال فشل: '+e.message;
+  }finally{
+    btn.disabled=false; btn.textContent='اختبار الاتصال';
+  }
 }
 async function trendSync(){
   try{
@@ -96,18 +114,31 @@ async function trendLogout(){
   catch(e){$('trendMsg').textContent='تعذر الفصل: '+e.message;}
 }
 async function refresh(){
+  let status;
   try{
-    const [status,data]=await Promise.all([api('/api/status'),api('/api/orders')]); orders=data.orders||[];
-    $('connectionStatus').textContent='● متصل بالسيرفر المحلي'; $('modeLabel').textContent=status.mode;
+    status=await api('/api/status',{},5000);
+    $('connectionStatus').textContent='● متصل بالسيرفر المحلي';
+    $('connectionStatus').style.color='';
+    $('modeLabel').textContent=status.mode;
     const p=status.preview||{}; $('previewCapabilities').textContent=`TIF ${p.tiff?'✓':'✕'} • DXF ${p.dxf?'✓':'✕'} • الصور ✓`;
-    $('countOrders').textContent=orders.length; $('countNeedsClass').textContent=orders.reduce((n,o)=>n+(o.unclassified||[]).length,0);
     renderPlatform(status);
+  }catch(e){
+    $('connectionStatus').textContent='● السيرفر المحلي غير متاح';
+    $('connectionStatus').style.color='#b42318';
+    return;
+  }
+  try{
+    const data=await api('/api/orders',{},5000); orders=data.orders||[];
+    $('countOrders').textContent=orders.length; $('countNeedsClass').textContent=orders.reduce((n,o)=>n+(o.unclassified||[]).length,0);
     renderOrders($('searchBox').value);
     if(currentOrder && orders.some(o=>o.orderId===currentOrder.orderId)) await selectOrder(currentOrder.orderId);
-  }catch(e){$('connectionStatus').textContent='● السيرفر المحلي غير متاح';$('connectionStatus').style.color='#b42318';}
+  }catch(e){
+    $('trendMsg').textContent='السيرفر المحلي شغال لكن قراءة الأوردرات المحلية فشلت: '+e.message;
+  }
 }
 $('refreshBtn').onclick=refresh;
 $('trendLoginBtn').onclick=trendLogin;
+$('trendProbeBtn').onclick=trendProbe;
 $('trendSyncBtn').onclick=trendSync;
 $('trendLogoutBtn').onclick=trendLogout;
 $('trendPassword').addEventListener('keydown',e=>{if(e.key==='Enter')trendLogin();});
