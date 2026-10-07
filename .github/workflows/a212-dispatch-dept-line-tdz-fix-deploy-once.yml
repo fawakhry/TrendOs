@@ -1,0 +1,26 @@
+name: A2.12 Dispatch Dept Line TDZ Fix Deploy Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a212-dispatch-dept-line-tdz-fix-deploy-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch A2.12 corrected Dept Line guard deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a212-dept-line-guard-readonly-deploy.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A212_TDZ_FIX_DEPLOY_DISPATCHED=YES
