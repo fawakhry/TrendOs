@@ -196,7 +196,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SHADOW_URL/control-tower" > /tmp/control-tower-finance.json
+          FINANCE_READY=0
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error --retry 2 --retry-delay 1 --retry-all-errors "$SHADOW_URL/control-tower?financeVerify=$GITHUB_SHA-$attempt-$(date +%s%N)" > /tmp/control-tower-finance.json; then
+              if node - <<'NODE'
+const c=JSON.parse(require('fs').readFileSync('/tmp/control-tower-finance.json','utf8'));
+const p=c.finance&&c.finance.warnings;
+if(c.success===true&&c.mode==='CONTROL_TOWER_SHADOW'&&p&&p.success===true&&p.mode==='FINANCE_WARNING_READ_ONLY') process.exit(0);
+process.exit(1);
+NODE
+              then
+                FINANCE_READY=1
+                echo "FINANCE_PROPAGATION_ATTEMPT=$attempt"
+                break
+              fi
+            fi
+            sleep 2
+          done
+          test "$FINANCE_READY" = "1"
           node - <<'NODE'
           const c=JSON.parse(require('fs').readFileSync('/tmp/control-tower-finance.json','utf8'));
           const p=c.finance&&c.finance.warnings;
