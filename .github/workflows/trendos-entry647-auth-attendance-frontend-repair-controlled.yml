@@ -228,7 +228,7 @@ jobs:
           echo ENTRY647_UNRELATED_APP_CLOCKIN_PRESERVED=PASS
 
           for asset in index.html config.js app.js employee-api-dispatcher-v1.js attendance-v1.js attendance-clockin-ui-v1.js; do
-            curl --fail --silent --show-error -D "/tmp/h-$asset" -o /dev/null               "$FRONTEND_URL/$asset?entry647headers=$GITHUB_SHA-$(date +%s%N)"
+            curl --fail --silent --show-error --location -D "/tmp/h-$asset" -o /dev/null               "$FRONTEND_URL/$asset?entry647headers=$GITHUB_SHA-$(date +%s%N)"
             grep -Eiq '^cache-control:.*no-store' "/tmp/h-$asset"
           done
           echo ENTRY647_CRITICAL_ASSET_NO_STORE_RUNTIME=PASS
