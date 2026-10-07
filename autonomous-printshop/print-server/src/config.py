@@ -9,8 +9,16 @@ from typing import Optional, Union
 
 DEFAULT_CONFIG = {
     "server": {"host": "127.0.0.1", "port": 4782},
-    "paths": {"ordersRoot": "./data/orders", "readyRoot": "./data/ready", "stateRoot": "./data/state"},
-    "folder": {"dateFormat": "%d-%m-%Y", "namePattern": "{order_id} - {date} - {customer_name}", "finishedFolderName": "x"},
+    "paths": {
+        "ordersRoot": "./data/orders",
+        "readyRoot": "./data/ready",
+        "stateRoot": "./data/state",
+    },
+    "folder": {
+        "dateFormat": "%d-%m-%Y",
+        "namePattern": "{order_id} - {date} - {customer_name}",
+        "finishedFolderName": "x",
+    },
     "classification": {
         "heatPressTruthy": ["1", "true", "yes", "نعم", "مكبس", "🔥"],
         "routes": {
@@ -29,21 +37,40 @@ DEFAULT_CONFIG = {
             "photo_print": ["فوتو", "photo", "photographic"],
         },
     },
-    "approval": {"allowedStructuredSources": ["CUSTOMER_PORTAL", "STRUCTURED_CUSTOMER_APPROVAL", "OWNER_STRUCTURED_APPROVAL"]},
-    "preview": {"imageExtensions": [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"], "tiffExtensions": [".tif", ".tiff"], "dxfExtensions": [".dxf"], "maxBytes": 200000000},
-    "trendos": {"enabled": False, "baseUrl": "https://trendos-d1-api.trendmall-contact.workers.dev", "ordersPagePath": "/v1/edge/orders/02cr/page", "bearerTokenEnv": "TRENDOS_EDGE_TOKEN", "pollSeconds": 15, "claimMode": "event_bridge"},
+    "approval": {
+        "allowedStructuredSources": [
+            "CUSTOMER_PORTAL",
+            "STRUCTURED_CUSTOMER_APPROVAL",
+            "OWNER_STRUCTURED_APPROVAL",
+        ]
+    },
+    "preview": {
+        "imageExtensions": [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"],
+        "tiffExtensions": [".tif", ".tiff"],
+        "dxfExtensions": [".dxf"],
+        "maxBytes": 200000000,
+    },
+    "trendos": {
+        "enabled": True,
+        "baseUrl": "https://trendos-d1-api.trendmall-contact.workers.dev",
+        "authLoginPath": "/v1/employee/auth/login",
+        "authLogoutPath": "/v1/employee/auth/logout",
+        "employeeCorePath": "/v1/employee/core",
+        "pollSeconds": 15,
+        "pollScreens": ["service", "print", "laser", "press"],
+        "startStatuses": ["بدأ التنفيذ", "تحت التنفيذ"],
+        "claimMode": "human_status_transition_read_bridge",
+    },
 }
 
 
 def application_dir() -> Path:
-    """Editable/runtime files live beside the EXE when frozen."""
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent.parent
 
 
 def resource_dir() -> Path:
-    """Read-only bundled resources live in PyInstaller extraction root."""
     bundled = getattr(sys, "_MEIPASS", None)
     if getattr(sys, "frozen", False) and bundled:
         return Path(str(bundled)).resolve()

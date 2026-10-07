@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import shutil
 from datetime import datetime
@@ -77,10 +76,25 @@ class OrderFolderService:
         if not isinstance(lines, list) or not lines:
             raise ValueError("ORDER_LINES_REQUIRED")
 
-        root = self.orders_root / self.order_folder_name(order)
+        existing = self.state.order(order_id) if self.state else None
+        if existing and existing.get("folder"):
+            root = Path(existing["folder"])
+        else:
+            root = self.orders_root / self.order_folder_name(order)
         root.mkdir(parents=True, exist_ok=True)
+
         routes = {}
-        unclassified = []
+        for key, route in ((existing or {}).get("routes") or {}).items():
+            routes[str(key)] = {"path": str(route.get("path") or ""), "lines": [str(v) for v in (route.get("lines") or [])]}
+        unclassified = list((existing or {}).get("unclassified") or [])
+
+        incoming_ids = {str(line.get("lineId") or line.get("line_id") or "").strip() for line in lines}
+        incoming_ids.discard("")
+        for route in routes.values():
+            route["lines"] = [str(v) for v in route.get("lines", []) if str(v) not in incoming_ids]
+        routes = {k: v for k, v in routes.items() if v.get("lines")}
+        unclassified = [u for u in unclassified if str(u.get("lineId") or "") not in incoming_ids]
+
         for line in lines:
             result = classify_line(line, self.config)
             line_id = str(line.get("lineId") or line.get("line_id") or "").strip()
@@ -90,21 +104,27 @@ class OrderFolderService:
             target = root.joinpath(*result.path_parts)
             target.mkdir(parents=True, exist_ok=True)
             (target / self.finished_name).mkdir(exist_ok=True)
-            routes.setdefault(result.route_key, {"path": str(target), "lines": []})["lines"].append(line_id)
+            route = routes.setdefault(result.route_key, {"path": str(target), "lines": []})
+            route["path"] = str(target)
+            if line_id and line_id not in route["lines"]:
+                route["lines"].append(line_id)
 
+        now = datetime.now().astimezone().isoformat()
         payload = {
             "orderId": order_id,
-            "customerName": order.get("customerName") or order.get("customer_name") or "",
+            "customerName": order.get("customerName") or order.get("customer_name") or (existing or {}).get("customerName") or "",
             "folder": str(root),
             "routes": routes,
             "unclassified": unclassified,
-            "createdAt": datetime.now().astimezone().isoformat(),
+            "createdAt": (existing or {}).get("createdAt") or now,
+            "updatedAt": now,
         }
         if self.state:
             self.state.upsert_order(order_id, payload)
             self.state.audit("ORDER_FOLDER_ENSURED", {
                 "orderId": order_id,
                 "routeKeys": sorted(routes.keys()),
+                "incomingLineIds": sorted(incoming_ids),
                 "unclassifiedCount": len(unclassified),
             })
         return payload

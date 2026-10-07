@@ -1,11 +1,12 @@
 const $ = (id) => document.getElementById(id);
-let orders = [], currentOrder = null, currentFiles = [];
+let orders = [], currentOrder = null, currentFiles = [], lastStatus = null;
 
 async function api(path, options){
   const r = await fetch(path, options); const body = await r.json();
   if(!r.ok || body.ok === false) throw new Error(body.error || `HTTP ${r.status}`);
   return body;
 }
+function post(path, body){return api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 function treeHtml(order){
   const routes = order?.routes || {}; const root = {};
@@ -41,14 +42,62 @@ function previewFile(i,el){
   const src=`/api/preview?path=${encodeURIComponent(f.fullPath)}&t=${Date.now()}`;
   area.innerHTML=`<img src="${src}" alt="معاينة" onerror="this.parentElement.innerHTML='<div class=error>تعذر إنشاء المعاينة</div>'">`;
 }
+function renderPlatform(status){
+  lastStatus=status;
+  const t=status?.trendos||{}, b=status?.bridge||{};
+  const el=$('platformStatus');
+  if(t.connected){
+    el.textContent=`● متصل بـ TrendOS — ${t.username||''}`;
+    el.className='platform-on';
+    $('trendUsername').value=t.username||$('trendUsername').value;
+  }else{
+    el.textContent='● غير مسجل على TrendOS';
+    el.className='platform-off';
+  }
+  const bits=[];
+  if(b.lastSyncAt) bits.push('آخر مزامنة: '+new Date(b.lastSyncAt).toLocaleTimeString('ar-EG'));
+  if(b.lastTriggerCount) bits.push('تم التقاط '+b.lastTriggerCount+' بند');
+  if(b.lastError) bits.push('خطأ: '+b.lastError);
+  $('trendMsg').textContent=bits.join(' • ');
+}
+async function trendLogin(){
+  const username=$('trendUsername').value.trim(), password=$('trendPassword').value;
+  if(!username||!password){$('trendMsg').textContent='اكتب اسم المستخدم وكلمة المرور.';return;}
+  const btn=$('trendLoginBtn'); btn.disabled=true; btn.textContent='جاري الربط...';
+  try{
+    const res=await post('/api/trendos/login',{username,password});
+    $('trendPassword').value='';
+    $('trendMsg').textContent=res.sync?.baselineOnly ? 'تم الربط. تم أخذ خط أساس فقط؛ من الآن أي انتقال إلى بدء التنفيذ سيلتقطه البرنامج.' : 'تم الربط والمزامنة.';
+    await refresh();
+  }catch(e){$('trendMsg').textContent='فشل الربط: '+e.message;}
+  finally{btn.disabled=false;btn.textContent='ربط بالمنصة';}
+}
+async function trendSync(){
+  try{
+    const res=await post('/api/trendos/sync',{});
+    $('trendMsg').textContent=res.baselineOnly?'تم أخذ خط الأساس.':`تمت المزامنة — التقط ${res.triggeredLines||0} بند.`;
+    await refresh();
+  }catch(e){$('trendMsg').textContent='المزامنة لم تتم: '+e.message;}
+}
+async function trendLogout(){
+  try{await post('/api/trendos/logout',{});$('trendMsg').textContent='تم فصل جلسة TrendOS من البرنامج.';await refresh();}
+  catch(e){$('trendMsg').textContent='تعذر الفصل: '+e.message;}
+}
 async function refresh(){
   try{
     const [status,data]=await Promise.all([api('/api/status'),api('/api/orders')]); orders=data.orders||[];
     $('connectionStatus').textContent='● متصل بالسيرفر المحلي'; $('modeLabel').textContent=status.mode;
     const p=status.preview||{}; $('previewCapabilities').textContent=`TIF ${p.tiff?'✓':'✕'} • DXF ${p.dxf?'✓':'✕'} • الصور ✓`;
     $('countOrders').textContent=orders.length; $('countNeedsClass').textContent=orders.reduce((n,o)=>n+(o.unclassified||[]).length,0);
+    renderPlatform(status);
     renderOrders($('searchBox').value);
     if(currentOrder && orders.some(o=>o.orderId===currentOrder.orderId)) await selectOrder(currentOrder.orderId);
   }catch(e){$('connectionStatus').textContent='● السيرفر المحلي غير متاح';$('connectionStatus').style.color='#b42318';}
 }
-$('refreshBtn').onclick=refresh; $('searchBox').oninput=e=>renderOrders(e.target.value); refresh(); setInterval(refresh,10000);
+$('refreshBtn').onclick=refresh;
+$('trendLoginBtn').onclick=trendLogin;
+$('trendSyncBtn').onclick=trendSync;
+$('trendLogoutBtn').onclick=trendLogout;
+$('trendPassword').addEventListener('keydown',e=>{if(e.key==='Enter')trendLogin();});
+$('searchBox').oninput=e=>renderOrders(e.target.value);
+refresh(); setInterval(refresh,10000);

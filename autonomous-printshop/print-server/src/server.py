@@ -12,9 +12,10 @@ from urllib.parse import parse_qs, urlparse
 
 from .config import load_config, resource_dir
 from .folders import OrderFolderService
+from .platform_bridge import TrendOSStatusBridge
 from .preview import PreviewError, build_preview, capabilities
 from .state import StateStore
-from .trendos_client import TrendOSReadClient
+from .trendos_client import TrendOSError, TrendOSReadClient
 from .watcher import FinishedFolderWatcher
 
 
@@ -25,6 +26,7 @@ class PrintServerApp:
         self.state = StateStore(config["paths"]["stateRoot"])
         self.folders = OrderFolderService(config, self.state)
         self.trendos = TrendOSReadClient(config)
+        self.bridge = TrendOSStatusBridge(config, self.trendos, self.folders, self.state)
         self.watcher = FinishedFolderWatcher(
             config["paths"]["ordersRoot"],
             config["folder"]["finishedFolderName"],
@@ -39,12 +41,15 @@ class PrintServerApp:
             "ordersRoot": self.config["paths"]["ordersRoot"],
             "readyRoot": self.config["paths"]["readyRoot"],
             "trendosReadAdapter": "ENABLED" if self.trendos.enabled else "DISABLED",
-            "claimIntegration": self.config["trendos"].get("claimMode", "event_bridge"),
+            "claimIntegration": self.config["trendos"].get("claimMode", "human_status_transition_read_bridge"),
+            "trendos": self.trendos.status(),
+            "bridge": self.bridge.status(),
             "preview": capabilities(),
             "designReadyWrites": False,
             "operatorTaskWrites": False,
             "employeeAssignmentWrites": False,
             "accountingWrites": False,
+            "platformBusinessWrites": False,
         }
 
     def order_files(self, order_id: str):
@@ -79,7 +84,7 @@ class PrintServerApp:
 
 def make_handler(app: PrintServerApp):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "TrendOSPrintServer/0.1"
+        server_version = "TrendOSPrintServer/0.2"
 
         def log_message(self, fmt, *args):
             sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
@@ -159,6 +164,14 @@ def make_handler(app: PrintServerApp):
             parsed = urlparse(self.path)
             try:
                 body = self._body_json()
+                if parsed.path == "/api/trendos/login":
+                    session = app.trendos.login(body.get("username"), body.get("password"))
+                    sync = app.bridge.sync_once()
+                    return self._json(200, {"ok": True, "session": session, "sync": sync})
+                if parsed.path == "/api/trendos/logout":
+                    return self._json(200, {"ok": True, "session": app.trendos.logout()})
+                if parsed.path == "/api/trendos/sync":
+                    return self._json(200, app.bridge.sync_once())
                 if parsed.path == "/api/events/order-claimed":
                     order = body.get("order") if isinstance(body.get("order"), dict) else body
                     result = app.folders.create_for_claimed_order(order)
@@ -172,7 +185,7 @@ def make_handler(app: PrintServerApp):
                     )
                     return self._json(201, {"ok": True, "result": result})
                 return self._json(404, {"ok": False, "error": "NOT_FOUND"})
-            except (ValueError, json.JSONDecodeError) as exc:
+            except (ValueError, json.JSONDecodeError, TrendOSError) as exc:
                 return self._json(422, {"ok": False, "error": str(exc)})
             except Exception as exc:
                 app.state.audit("SERVER_ERROR", {"path": parsed.path, "error": str(exc)[:500]})
@@ -203,6 +216,8 @@ def main(argv=None):
     port = int(cfg["server"]["port"])
     server = ThreadingHTTPServer((host, port), make_handler(app))
     app.watcher.start()
+    app.bridge.start()
+
     browser_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
     url = "http://%s:%s" % (browser_host, port)
     print("TrendOS Print Server: %s" % url)
@@ -213,6 +228,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        app.bridge.stop()
         app.watcher.stop()
         server.server_close()
 

@@ -11,11 +11,14 @@
     "finishedFolderName": "x"
   },
   "trendos": {
-    "enabled": false,
+    "enabled": true,
     "baseUrl": "https://trendos-d1-api.trendmall-contact.workers.dev",
-    "ordersPagePath": "/v1/edge/orders/02cr/page",
-    "bearerTokenEnv": "TRENDOS_EDGE_TOKEN",
+    "authLoginPath": "/v1/employee/auth/login",
+    "authLogoutPath": "/v1/employee/auth/logout",
+    "employeeCorePath": "/v1/employee/core",
     "pollSeconds": 15,
-    "claimMode": "event_bridge"
+    "pollScreens": ["service", "print", "laser", "press"],
+    "startStatuses": ["بدأ التنفيذ", "تحت التنفيذ"],
+    "claimMode": "human_status_transition_read_bridge"
   }
 }

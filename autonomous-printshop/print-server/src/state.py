@@ -25,7 +25,8 @@ class StateStore:
         if not self.state_path.exists():
             return {"orders": {}, "files": {}, "lastEventAt": None}
         try:
-            return json.loads(self.state_path.read_text(encoding="utf-8"))
+            value = json.loads(self.state_path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else {"orders": {}, "files": {}, "lastEventAt": None}
         except Exception:
             return {"orders": {}, "files": {}, "lastEventAt": None}
 
@@ -51,11 +52,27 @@ class StateStore:
     def order(self, order_id: str) -> Optional[dict]:
         with self._lock:
             value = self._state.get("orders", {}).get(str(order_id))
-            return dict(value) if value else None
+            return json.loads(json.dumps(value)) if value else None
 
     def orders(self) -> List[dict]:
         with self._lock:
-            return [dict(v) for v in self._state.get("orders", {}).values()]
+            return json.loads(json.dumps(list(self._state.get("orders", {}).values())))
+
+    def trendos_bridge_state(self) -> dict:
+        with self._lock:
+            value = self._state.get("trendosBridge") or {}
+            return json.loads(json.dumps(value))
+
+    def update_trendos_bridge(self, statuses: dict, initialized: bool, meta: Optional[dict] = None) -> None:
+        with self._lock:
+            current = self._state.setdefault("trendosBridge", {})
+            current["initialized"] = bool(initialized)
+            current["lineStatuses"] = {str(k): str(v) for k, v in (statuses or {}).items()}
+            current["lastSyncAt"] = self.now_iso()
+            if meta:
+                current.update(meta)
+            self._state["lastEventAt"] = current["lastSyncAt"]
+            self._persist()
 
     def snapshot(self) -> dict:
         with self._lock:

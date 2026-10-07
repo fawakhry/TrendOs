@@ -19,7 +19,7 @@
       <div class="service-card">
         <div><span class="dot"></span> الخدمة تعمل</div>
         <small id="modeLabel">LOCAL</small>
-        <button id="refreshBtn">مزامنة الآن ↻</button>
+        <button id="refreshBtn">تحديث الشاشة ↻</button>
       </div>
     </aside>
     <main>
@@ -27,6 +27,21 @@
         <div id="connectionStatus">● متصل بالسيرفر المحلي</div>
         <div id="previewCapabilities">معاينة الملفات...</div>
       </header>
+
+      <section class="trendos-link">
+        <div>
+          <b>ربط المنصة</b>
+          <span id="platformStatus" class="platform-off">● غير مسجل على TrendOS</span>
+          <small>الربط قراءة فقط. عند انتقال بند من حالة غير تشغيل إلى «بدأ التنفيذ» أو «تحت التنفيذ» يتعمل فولدره تلقائيًا. كلمة المرور لا يتم حفظها على القرص.</small>
+        </div>
+        <input id="trendUsername" autocomplete="username" placeholder="اسم مستخدم الموظف">
+        <input id="trendPassword" autocomplete="current-password" type="password" placeholder="كلمة المرور">
+        <button id="trendLoginBtn">ربط بالمنصة</button>
+        <button id="trendSyncBtn" class="secondary">مزامنة الآن</button>
+        <button id="trendLogoutBtn" class="secondary">فصل</button>
+        <div id="trendMsg" class="trend-msg"></div>
+      </section>
+
       <section class="stats">
         <div class="stat"><strong id="countOrders">0</strong><span>أوردرات محلية</span></div>
         <div class="stat"><strong id="countNeedsClass">0</strong><span>يحتاج تصنيف</span></div>
