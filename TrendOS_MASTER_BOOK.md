@@ -6465,3 +6465,93 @@ EASYSTORE_MUTATION=NO
 ROLLBACK_USED=NO
 MASTER_BOOK_RECORDED=YES
 ```
+
+
+#### Entry647 — Employee Auth + Attendance Runtime Repair — PASS
+- الاسم العربي للبحث: **تسجيل دخول الموظفين / الحضور بيظهر تاني / Canary Native Auth غير جاهز / إصلاح Attendance Runtime**.
+- التاريخ: 2026-10-07 Cairo.
+- بلاغ التشغيل: بعد دخول الموظف والضغط على تسجيل الحضور/بداية اليوم كانت شاشة البداية تظهر مرة أخرى. ضياء ظهر له أيضًا `Canary Native Auth غير جاهز على Cloud.`.
+- Read-only diagnostic Run `37614146869` / Job `112768316417` أثبت:
+  - Auth Runtime = NATIVE / nativeOnly=true / 6 users / 6 native-ready.
+  - Ops=GENERAL/epoch7.
+  - Frontend global Native=true، Canary=false.
+  - live `app.js`, dispatcher و`attendance-clockin-ui-v1.js` مطابقون للـrepo.
+  - live `attendance-v1.js` كان stale hash `4472b66306a31c365a5a3e2b98e73dece85e93f1` بينما qualified repo hash `d7f2625aa03c18486069ee274d960adbf8cdcee4`.
+  - الملف الحي القديم كان يفتقد `normalizeAttendanceBackendResponse`؛ لذلك كانت كتابة D1 تنجح لكن UI لا يفهم الرد ويعيد Start overlay.
+  - D1 قراءة فقط وقت التشخيص: 2 attendance days + 2 clockins + 2 start pulses، فلا يوجد فقد كتابة.
+- Repair source commit `0ee185b18d4a855c3572acc26296674333e451cc`: Restore attendance normalization + cache-bust للملفات الحرجة + stale-Canary compatibility guard بحيث Runtime NATIVE authoritative لا يُحجب بواسطة Canary frontend state قديم.
+- Repo CI Run `37614885337` = SUCCESS.
+- Controlled deploy history:
+  - Attempt1 Run `37615132869` = BLOCKED_SAFE قبل deploy بسبب frontend version drift؛ لا Production mutation.
+  - drift كان بسبب Secure EasyStore SSO repair مستقل غيّر app.js فقط وأنتج version `e2717f15-5166-43ac-b1df-702d0e76642a`; Entry647 أُعيد base عليه للحفاظ على إصلاح SSO.
+  - Attempt2 Run `37615380360` نشر مؤقتًا ثم rollback آلي إلى `e2717f15...` بسبب Cache-Control verification غير صالح للنمط الحالي؛ repair asset checks نفسها PASS.
+  - Attempt3 Run `37615605269` نشر مؤقتًا ثم rollback آلي مرة ثانية بعد إثبات أن Static Assets لا تمر بمسار header rewrite المقترح؛ لم يُفتح تغيير معماري أوسع.
+  - Attempt4 Run `37615852582` نشر مؤقتًا ونجح Runtime/asset postflight ثم rollback آلي لأن مقارنة D1 قارنت Wrangler execution metadata المتغيرة بدل business counts؛ business counts لم تتغير.
+  - Attempt5 Run `37616027251` / Job `112774437142` = SUCCESS.
+- Final frontend version: `e2717f15-5166-43ac-b1df-702d0e76642a` → `3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03`.
+- Final propagation attempt=4.
+- Final proof:
+  - live attendance normalizer restored PASS.
+  - dispatcher hardened PASS.
+  - pre-existing secure SSO app.js preserved exactly.
+  - attendance-clockin-ui preserved exactly.
+  - Auth postflight=NATIVE 6/6.
+  - frontend global Native=true / Canary=false.
+  - D1 attendance counts before/after Entry647 deploy exactly unchanged: `attendanceDays=2, clockins=2, startPulses=2`.
+  - Accounting mutation=NO; EasyStore mutation=NO; final rollback used=NO.
+- Evidence: `docs/trendos/staging/ENTRY647_ENTRY648_EMPLOYEE_LOGIN_ATTENDANCE_REPAIR_20261007.md`.
+
+```ini
+ENTRY647=PASS
+FRONTEND_VERSION=3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+ATTENDANCE_UI_CONTRACT=RESTORED
+ATTENDANCE_WRITE_LOSS=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED_FINAL_ATTEMPT=NO
+```
+
+#### Entry648 — Employee Login Matrix Diagnostic — PASS READONLY
+- الاسم العربي للبحث: **كل الموظفين مش بيدخلوا / ضياء دخل والباقي لأ / فحص حسابات الموظفين بدون كلمات مرور**.
+- التاريخ: 2026-10-07 Cairo.
+- Workflow commit `d1f26ad5bf7a6befed9eafdfc2872beb1b32918f`; Run `37617351984` / Job `112778800227` = SUCCESS.
+- Runtime locks: frontend `3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03`; Auth NATIVE 6/6؛ Global Native=true؛ attendance runtime PASS.
+- Read-only matrix فقط؛ لم تُقرأ أي password value أو password hash أو token value أو secret.
+- كل الستة: active=1، lockedNow=0، mustChange=0، failedAttempts=0.
+- ضياء: activeSessions=2؛ last login 2026-10-07 14:30 Cairo.
+- وائل: activeSessions=1؛ last login 2026-10-07 14:00 Cairo؛ attendanceStartedToday=1؛ clockinToday=1؛ attendanceOpenToday=1.
+- رحمه: activeSessions=14؛ last login 2026-10-07 14:34 Cairo؛ attendanceStartedToday=1؛ clockinToday=1؛ attendanceOpenToday=1.
+- جابر: activeSessions=0؛ last login 2026-10-06 14:13 Cairo.
+- ريفان: activeSessions=0؛ last login 2026-10-06 19:29 Cairo.
+- شريف: activeSessions=0؛ last login 2026-10-06 22:39 Cairo.
+- الاستنتاج التشغيلي:
+  - لا يوجد D1 readiness gap، disabled account، lockout أو must-change blocker لأي موظف.
+  - وائل ورحمه لديهم Native sessions وحضور اليوم مثبت، وبالتالي Cloud login + attendance path يعملان فعليًا.
+  - جابر/ريفان/شريف لا توجد لهم جلسة حالية ومع ذلك failedAttempts بقي 0؛ هذا يتوافق مع أن المحاولة الحالية من أجهزتهم لا تصل إلى Native login handler، وليس رفضًا من الحساب.
+  - Immediate recovery للعميل stale: إغلاق كل تبويبات TrendOS على جهاز الموظف وفتح root URL cache-busted جديد ثم تسجيل الدخول الطبيعي. لا يوجد دليل يبرر password reset.
+- Accounting/EasyStore untouched.
+
+```ini
+ENTRY648=PASS_READONLY_DIAGNOSTIC
+ALL_6_ACTIVE=YES
+ALL_6_LOCKED_NOW=NO
+ALL_6_MUST_CHANGE=NO
+ALL_6_FAILED_ATTEMPTS=0
+WAEL_NATIVE_SESSION=YES
+WAEL_ATTENDANCE_TODAY=YES
+RAHMA_NATIVE_SESSION=YES
+RAHMA_ATTENDANCE_TODAY=YES
+JABER_CURRENT_NATIVE_SESSION=NO
+REVAN_CURRENT_NATIVE_SESSION=NO
+SHERIF_CURRENT_NATIVE_SESSION=NO
+PASSWORD_VALUE_READ=NO
+PASSWORD_HASH_READ=NO
+TOKEN_VALUE_READ=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+MASTER_BOOK_RECORDED=YES
+```
