@@ -184,6 +184,18 @@ function enforceLowRiskMasterCanaryShapeV1(action,body){
       && extras.length===0;
     if(!ok)throw commandErrorV1('employee-accounting-canary-dept-line-shape-blocked','شكل Dept Line الكاناري يجب أن يكون بندًا صناعيًا صفريًا واحدًا بلا عميل أو خامة أو سعر أو تكلفة أو بيانات أعمال إضافية.');
   }
+  if(action==='closePurchaseCustodyV1920'){
+    const requestKey=text(b.requestId||b.idempotencyKey||b.requestKey);
+    const employee=text(b.employee),department=text(b.department),workDate=text(b.workDate||b.date);
+    const allowed=new Set(['action','username','name','_ts','requestId','idempotencyKey','requestKey','sourceSystem','correlationId','evidenceRefs','evidence','employee','department','workDate']);
+    const extras=Object.keys(b).filter(k=>!allowed.has(k)&&b[k]!==undefined&&b[k]!==null&&String(b[k])!=='');
+    const ok=/^A213-CCLOSE-/.test(requestKey)
+      && /^A2-CANARY-CUSTODY-/.test(employee)
+      && department==='عام'
+      && workDate==='2099-12-31'
+      && extras.length===0;
+    if(!ok)throw commandErrorV1('employee-accounting-canary-custody-close-shape-blocked','شكل Custody Close الكاناري يجب أن يكون تقفيل عهدة صناعية صفرية على التاريخ الصناعي المحدد، بلا مبلغ أو حركة خزنة أو بيانات أعمال إضافية.');
+  }
   if(action==='saveAccountingWaste'){
     const orderId=text(b.orderId),reason=text(b.reason||b.wasteType),department=text(b.department);
     const amount=num(b.amount||b.damageCost),recovered=num(b.paid||b.damageCovered);
