@@ -6,6 +6,7 @@ const config=fs.readFileSync('autonomous-printshop/production-shadow/wrangler.to
 const evidencePilotCore=fs.readFileSync('autonomous-printshop/core/evidence-pilot-target-v1.mjs','utf8');
 const evidenceAcquisitionCore=fs.readFileSync('autonomous-printshop/core/evidence-acquisition-packet-v1.mjs','utf8');
 const deadlineRiskCore=fs.readFileSync('autonomous-printshop/core/deadline-risk-projection-v1.mjs','utf8');
+const blockerCore=fs.readFileSync('autonomous-printshop/core/employee-blocker-events-v1.mjs','utf8');
 
 assert.match(config,/^name = "autonomous-printshop-shadow"$/m);
 assert.match(config,/^database_name = "trendos-main"$/m);
@@ -31,6 +32,17 @@ assert.match(worker,/LEGACY_D0_FLY_D2_STANDARD_V1/);
 assert.match(worker,/nativeOrderDueDatePersisted:true/);
 assert.match(worker,/employeeIdentityExposed:false/);
 assert.match(worker,/departmentSources/);
+assert.match(worker,/buildEmployeeBlockerSummaryV1/);
+assert.match(worker,/employeeBlockerSnapshot/);
+assert.match(worker,/autonomous_employee_supervisor_control/);
+assert.match(worker,/autonomous_employee_blocker_events/);
+assert.match(worker,/EMPLOYEE_BLOCKER_LEDGER_READ_ONLY/);
+assert.match(worker,/employeeOpenBlockers/);
+assert.match(worker,/employeeCriticalBlockers/);
+assert.match(worker,/employeeOwnerDecisionBlockers/);
+assert.match(blockerCore,/READ_ONLY_AGGREGATE/);
+assert.match(blockerCore,/rawBlockerIdsExposed:false/);
+assert.match(blockerCore,/employeeIdentityExposed:false/);
 assert.match(worker,/autonomous_readiness_evidence/);
 assert.match(worker,/autonomous_readiness_control/);
 assert.match(worker,/STRICT_FAIL_CLOSED/);

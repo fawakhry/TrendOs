@@ -6,6 +6,9 @@ import {
   buildEmployeeSupervisorShadowV1
 } from '../core/employee-supervisor-shadow-v1.mjs';
 import {
+  buildEmployeeBlockerSummaryV1
+} from '../core/employee-blocker-events-v1.mjs';
+import {
   buildReadinessQualifiedRealityV1
 } from '../core/readiness-evidence-v1.mjs';
 import {
@@ -460,6 +463,63 @@ async function supervisorInputs(env){
     }
   };
 }
+async function employeeBlockerSnapshot(env){
+  const present=await env.DB.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('autonomous_employee_supervisor_control','autonomous_employee_blocker_events')"
+  ).all();
+  const set=new Set((present.results||[]).map(r=>text(r.name)));
+  if(!set.has('autonomous_employee_supervisor_control')||!set.has('autonomous_employee_blocker_events')){
+    return {
+      success:false,
+      mode:'EMPLOYEE_BLOCKER_LEDGER_UNAVAILABLE',
+      code:'EMPLOYEE_BLOCKER_SCHEMA_MISSING',
+      control:{mode:'ABSENT',epoch:0},
+      summary:buildEmployeeBlockerSummaryV1([]),
+      eventRows:0,
+      writesAccepted:false,
+      employeeAssignment:false
+    };
+  }
+
+  const [control,events]=await Promise.all([
+    env.DB.prepare(
+      "SELECT mode,epoch FROM autonomous_employee_supervisor_control WHERE singleton_id=1 LIMIT 1"
+    ).first(),
+    env.DB.prepare(`
+      SELECT
+        event_id AS eventId,
+        blocker_id AS blockerId,
+        event_type AS eventType,
+        reason_code AS reasonCode,
+        operator_id AS operatorId,
+        department,
+        order_id AS orderId,
+        line_id AS lineId,
+        detail_text AS detailText,
+        source_kind AS sourceKind,
+        actor_id AS actorId,
+        idempotency_key AS idempotencyKey,
+        occurred_at_ms AS occurredAtMs
+      FROM autonomous_employee_blocker_events
+      ORDER BY occurred_at_ms,event_id
+      LIMIT 2000
+    `).all()
+  ]);
+  const rows=events.results||[];
+  return {
+    success:true,
+    mode:'EMPLOYEE_BLOCKER_LEDGER_READ_ONLY',
+    control:{
+      mode:text(control&&control.mode)||'OFF',
+      epoch:num(control&&control.epoch)
+    },
+    summary:buildEmployeeBlockerSummaryV1(rows),
+    eventRows:rows.length,
+    writesAccepted:false,
+    employeeAssignment:false
+  };
+}
+
 async function supervisorSnapshot(env,rows){
   const inputs=await supervisorInputs(env);
   if(!inputs.ok){
@@ -712,7 +772,7 @@ async function controlTowerSnapshot(env){
   const rows=await currentRows(env);
   const operations=buildOperationalRealityV1(rows,{});
   const deadlineRisk=buildDeadlineRiskProjectionV1(rows,{atRiskHours:24,watchHours:48});
-  const [supervisor,readiness,autonomyControl,decisionCounts]=await Promise.all([
+  const [supervisor,readiness,autonomyControl,decisionCounts,employeeBlockers]=await Promise.all([
     supervisorSnapshot(env,rows),
     readinessSnapshot(env,rows),
     env.DB.prepare(`
@@ -728,7 +788,8 @@ async function controlTowerSnapshot(env){
         SUM(CASE WHEN decision='OWNER_ONLY' THEN 1 ELSE 0 END) AS ownerOnly,
         SUM(CASE WHEN decision='BLOCKED' THEN 1 ELSE 0 END) AS blocked
       FROM autonomy_events
-    `).first()
+    `).first(),
+    employeeBlockerSnapshot(env)
   ]);
 
   const reviewRequired=Number(supervisor&&supervisor.operatorCounts&&supervisor.operatorCounts.reviewRequired||0);
@@ -756,7 +817,8 @@ async function controlTowerSnapshot(env){
       operatorCounts:supervisor.operatorCounts,
       assignmentCoverage:supervisor.assignmentCoverage,
       departmentSources:supervisor.departmentSources,
-      departments:supervisor.departments
+      departments:supervisor.departments,
+      blockers:employeeBlockers
     },
     readiness:{
       mode:text(readiness&&readiness.control&&readiness.control.mode),
@@ -809,7 +871,10 @@ async function controlTowerSnapshot(env){
       noStrictRecommendation:strictEligible===0 && baselineCandidates>0,
       deadlineOverdueOrders:Number(deadlineRisk.overdueOrders||0),
       deadlineAtRisk24hOrders:Number(deadlineRisk.atRisk24hOrders||0),
-      deadlineUrgentImmediateRiskLines:Number(deadlineRisk.urgentImmediateRiskLines||0)
+      deadlineUrgentImmediateRiskLines:Number(deadlineRisk.urgentImmediateRiskLines||0),
+      employeeOpenBlockers:Number(employeeBlockers&&employeeBlockers.summary&&employeeBlockers.summary.counts&&employeeBlockers.summary.counts.open||0),
+      employeeCriticalBlockers:Number(employeeBlockers&&employeeBlockers.summary&&employeeBlockers.summary.counts&&employeeBlockers.summary.counts.critical||0),
+      employeeOwnerDecisionBlockers:Number(employeeBlockers&&employeeBlockers.summary&&employeeBlockers.summary.counts&&employeeBlockers.summary.counts.ownerActionRequired||0)
     },
     piiExposed:false,
     employeeIdentityExposed:false,
@@ -933,8 +998,11 @@ export default {
           },503);
         }
         const rows=await currentRows(env);
-        const body=await supervisorSnapshot(env,rows);
-        return json(body,body.success?200:503);
+        const [body,blockers]=await Promise.all([
+          supervisorSnapshot(env,rows),
+          employeeBlockerSnapshot(env)
+        ]);
+        return json({...body,blockers},body.success?200:503);
       }catch(err){
         return json({
           success:false,
