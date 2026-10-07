@@ -20,3 +20,5 @@ console.log('A28_SCHEMA_WORKFLOW_GUARD=PASS');
 console.log('SCHEMA_APPLY_TRIGGER=MANUAL_ONLY');
 console.log('SCHEMA_BASELINE=APPROVED_CANARY_EVIDENCE');
 console.log('PRODUCTION_MUTATION=NO');
+
+// A2.12 six-canary baseline rerun marker
