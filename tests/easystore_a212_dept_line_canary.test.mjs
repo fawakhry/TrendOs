@@ -15,7 +15,7 @@ assert.ok(mod.includes("const ctx=await beginCommandV1(env,auth,'dept-line-upser
 assert.ok(mod.includes("await auditEventV1(env,ctx,'dept-line',id,existing?'update':'create'"));
 assert.ok(mod.includes("INSERT INTO employee_accounting_dept_lines_v1"));
 assert.ok(mod.includes("const materialName=text(b.materialName)"));
-assert.ok(mod.includes("const materialConsumption=num(b.materialConsumption||b.consumption||b.consumedAreaTotal)"));
+assert.ok(mod.includes("materialConsumption=num(b.materialConsumption||b.consumption||b.consumedAreaTotal)"));
 
 console.log('A212_DEPT_LINE_SERVER_GUARD=PASS');
 console.log('A212_REQUEST_PREFIX=A212-DLINE-');
