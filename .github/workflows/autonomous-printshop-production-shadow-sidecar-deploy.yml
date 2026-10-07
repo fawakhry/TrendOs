@@ -9,12 +9,14 @@ on:
       - 'autonomous-printshop/production-shadow/**'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
       - 'autonomous-printshop/core/deadline-risk-projection-v1.mjs'
+      - 'autonomous-printshop/core/comms-pending-projection-v1.mjs'
       - 'autonomous-printshop/core/employee-supervisor-shadow-v1.mjs'
       - 'autonomous-printshop/core/employee-blocker-events-v1.mjs'
       - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
       - 'autonomous-printshop/tests/employee_blocker_events_v1.test.mjs'
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - 'autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs'
+      - 'autonomous-printshop/tests/comms_pending_projection_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml'
 
 permissions:
@@ -70,6 +72,7 @@ jobs:
           set -euo pipefail
           node autonomous-printshop/tests/operational_reality_v1.test.mjs
           node autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs
+          node autonomous-printshop/tests/comms_pending_projection_v1.test.mjs
           node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
           node autonomous-printshop/tests/employee_blocker_events_v1.test.mjs
           node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
@@ -150,6 +153,33 @@ jobs:
           console.log('SUPERVISOR_OPERATOR_COUNTS='+JSON.stringify(s.operatorCounts||{}));
           console.log('SUPERVISOR_ASSIGNMENT_COVERAGE='+JSON.stringify(s.assignmentCoverage||{}));
           console.log('SUPERVISOR_DEPARTMENTS='+JSON.stringify(s.departments||{}));
+          NODE
+
+      - name: Verify Control Tower Comms pending aggregate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SHADOW_URL/control-tower" > /tmp/control-tower.json
+          node - <<'NODE'
+          const c=JSON.parse(require('fs').readFileSync('/tmp/control-tower.json','utf8'));
+          const p=c.communications&&c.communications.pending;
+          const s=p&&p.summary;
+          if(c.success!==true||c.mode!=='CONTROL_TOWER_SHADOW') process.exit(1);
+          if(!p||p.success!==true||p.mode!=='COMMS_PENDING_READ_ONLY') process.exit(2);
+          if(!s||s.mode!=='READ_ONLY_AGGREGATE'||!s.control||s.control.mode!=='READONLY') process.exit(3);
+          if(Number(s.control.policyEpoch||0)<1) process.exit(4);
+          if(s.sendAuthority!==false||p.writesAccepted!==false||p.sendAuthority!==false||p.d1Mutation!==false) process.exit(5);
+          if(s.rawPhoneExposed!==false||s.customerIdentityExposed!==false||s.rawOrderIdsExposed!==false||s.messageTextExposed!==false||s.employeeIdentityExposed!==false) process.exit(6);
+          const sig=c.attentionSignals||{};
+          for(const k of ['commsPendingSignals','commsWaitingReply','commsManagerEscalations','commsFeedbackPending','commsFeedbackFollowupRequired']){
+            if(!Number.isFinite(Number(sig[k]))) process.exit(7);
+          }
+          console.log('CONTROL_TOWER_COMMS_PENDING=PASS');
+          console.log('COMMS_CONTROL_MODE='+String(s.control.mode));
+          console.log('COMMS_POLICY_EPOCH='+String(s.control.policyEpoch));
+          console.log('COMMS_PENDING_COUNTS='+JSON.stringify(s.counts||{}));
+          console.log('COMMS_SEND_AUTHORITY=NO');
+          console.log('COMMS_PII_EXPOSED=NO');
           NODE
 
       - name: Verify main TrendOS remains unchanged

@@ -20,6 +20,9 @@ import {
 import {
   buildDeadlineRiskProjectionV1
 } from '../core/deadline-risk-projection-v1.mjs';
+import {
+  buildCommsPendingProjectionV1
+} from '../core/comms-pending-projection-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -520,6 +523,76 @@ async function employeeBlockerSnapshot(env){
   };
 }
 
+async function commsPendingSnapshot(env){
+  const required=[
+    'employee_comms_control_v1',
+    'conversations',
+    'employee_feedback_requests_v1'
+  ];
+  const placeholders=required.map(()=>'?').join(',');
+  const present=await env.DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`
+  ).bind(...required).all();
+  const set=new Set((present.results||[]).map(r=>text(r.name)));
+  const missing=required.filter(x=>!set.has(x));
+  if(missing.length){
+    return {
+      success:false,
+      mode:'COMMS_PENDING_READ_ONLY',
+      code:'COMMS_PENDING_SOURCE_TABLES_MISSING',
+      missing,
+      summary:buildCommsPendingProjectionV1({}),
+      writesAccepted:false,
+      sendAuthority:false
+    };
+  }
+
+  const row=await env.DB.prepare(`
+    SELECT
+      (SELECT mode
+         FROM employee_comms_control_v1
+        WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_COMMS_V1'
+        LIMIT 1) AS commsMode,
+      (SELECT policy_epoch
+         FROM employee_comms_control_v1
+        WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_COMMS_V1'
+        LIMIT 1) AS commsPolicyEpoch,
+      (SELECT COUNT(*)
+         FROM conversations
+        WHERE lower(trim(direction))='in') AS waitingReply,
+      (SELECT COUNT(*)
+         FROM conversations
+        WHERE needs_manager=1) AS managerEscalations,
+      (SELECT COUNT(*)
+         FROM conversations
+        WHERE lower(trim(direction))='in' OR needs_manager=1) AS attentionConversations,
+      (SELECT MIN(last_at)
+         FROM conversations
+        WHERE lower(trim(direction))='in' OR needs_manager=1) AS oldestAttentionAt,
+      (SELECT COUNT(*)
+         FROM employee_feedback_requests_v1
+        WHERE request_status LIKE 'Pending%') AS feedbackSendPending,
+      (SELECT COUNT(*)
+         FROM employee_feedback_requests_v1
+        WHERE needs_followup=1) AS feedbackFollowupRequired
+  `).first();
+
+  const summary=buildCommsPendingProjectionV1(row||{});
+  return {
+    success:true,
+    mode:'COMMS_PENDING_READ_ONLY',
+    summary,
+    writesAccepted:false,
+    sendAuthority:false,
+    d1Mutation:false,
+    rawPhoneExposed:false,
+    customerIdentityExposed:false,
+    rawOrderIdsExposed:false,
+    messageTextExposed:false,
+    employeeIdentityExposed:false
+  };
+}
+
 async function supervisorSnapshot(env,rows){
   const inputs=await supervisorInputs(env);
   if(!inputs.ok){
@@ -772,7 +845,7 @@ async function controlTowerSnapshot(env){
   const rows=await currentRows(env);
   const operations=buildOperationalRealityV1(rows,{});
   const deadlineRisk=buildDeadlineRiskProjectionV1(rows,{atRiskHours:24,watchHours:48});
-  const [supervisor,readiness,autonomyControl,decisionCounts,employeeBlockers]=await Promise.all([
+  const [supervisor,readiness,autonomyControl,decisionCounts,employeeBlockers,commsPending]=await Promise.all([
     supervisorSnapshot(env,rows),
     readinessSnapshot(env,rows),
     env.DB.prepare(`
@@ -789,7 +862,8 @@ async function controlTowerSnapshot(env){
         SUM(CASE WHEN decision='BLOCKED' THEN 1 ELSE 0 END) AS blocked
       FROM autonomy_events
     `).first(),
-    employeeBlockerSnapshot(env)
+    employeeBlockerSnapshot(env),
+    commsPendingSnapshot(env)
   ]);
 
   const reviewRequired=Number(supervisor&&supervisor.operatorCounts&&supervisor.operatorCounts.reviewRequired||0);
@@ -819,6 +893,9 @@ async function controlTowerSnapshot(env){
       departmentSources:supervisor.departmentSources,
       departments:supervisor.departments,
       blockers:employeeBlockers
+    },
+    communications:{
+      pending:commsPending
     },
     readiness:{
       mode:text(readiness&&readiness.control&&readiness.control.mode),
@@ -874,7 +951,12 @@ async function controlTowerSnapshot(env){
       deadlineUrgentImmediateRiskLines:Number(deadlineRisk.urgentImmediateRiskLines||0),
       employeeOpenBlockers:Number(employeeBlockers&&employeeBlockers.summary&&employeeBlockers.summary.counts&&employeeBlockers.summary.counts.open||0),
       employeeCriticalBlockers:Number(employeeBlockers&&employeeBlockers.summary&&employeeBlockers.summary.counts&&employeeBlockers.summary.counts.critical||0),
-      employeeOwnerDecisionBlockers:Number(employeeBlockers&&employeeBlockers.summary&&employeeBlockers.summary.counts&&employeeBlockers.summary.counts.ownerActionRequired||0)
+      employeeOwnerDecisionBlockers:Number(employeeBlockers&&employeeBlockers.summary&&employeeBlockers.summary.counts&&employeeBlockers.summary.counts.ownerActionRequired||0),
+      commsPendingSignals:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.totalPendingSignals||0),
+      commsWaitingReply:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.waitingReply||0),
+      commsManagerEscalations:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.managerEscalations||0),
+      commsFeedbackPending:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackSendPending||0),
+      commsFeedbackFollowupRequired:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackFollowupRequired||0)
     },
     piiExposed:false,
     employeeIdentityExposed:false,
