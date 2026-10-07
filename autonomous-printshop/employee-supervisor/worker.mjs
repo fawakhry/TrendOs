@@ -147,7 +147,7 @@ async function reportBlocker(request,body,env,auth){
   if(!valid.ok)return json({success:false,code:valid.code},400,cors(request,env));
   try{
     const out=await recordEmployeeBlockerEventV1(env.DB,input);
-    return json({success:true,inserted:out.inserted,blockerId:out.blockerId,reasonCode:out.reasonCode,state:'OPEN'},200,cors(request,env));
+    return json({success:true,inserted:out.inserted,idempotentReplay:out.idempotentReplay===true,blockerId:out.blockerId,reasonCode:out.reasonCode,state:'OPEN'},200,cors(request,env));
   }catch(err){
     const code=text(err&&err.code||err&&err.message);
     const status=code==='EMPLOYEE_SUPERVISOR_CONTROL_OFF'?409:400;
@@ -196,7 +196,7 @@ async function transitionBlocker(request,body,env,auth,eventType){
   };
   try{
     const out=await recordEmployeeBlockerEventV1(env.DB,input);
-    return json({success:true,inserted:out.inserted,blockerId,state:eventType==='RESOLVED'?'RESOLVED':'ACKNOWLEDGED'},200,cors(request,env));
+    return json({success:true,inserted:out.inserted,idempotentReplay:out.idempotentReplay===true,blockerId:out.blockerId||blockerId,state:eventType==='RESOLVED'?'RESOLVED':'ACKNOWLEDGED'},200,cors(request,env));
   }catch(err){
     const code=text(err&&err.code||err&&err.message);
     const status=code==='EMPLOYEE_SUPERVISOR_CONTROL_OFF'?409:400;

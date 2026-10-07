@@ -5,6 +5,42 @@ import {
 
 function text(v){return String(v==null?'':v).trim();}
 
+async function existingByIdempotencyKeyV1(db,idempotencyKey){
+  return db.prepare(`
+    SELECT event_id AS eventId,
+           blocker_id AS blockerId,
+           event_type AS eventType,
+           reason_code AS reasonCode,
+           operator_id AS operatorId,
+           department,
+           order_id AS orderId,
+           line_id AS lineId,
+           detail_text AS detailText,
+           source_kind AS sourceKind,
+           actor_id AS actorId,
+           idempotency_key AS idempotencyKey,
+           occurred_at_ms AS occurredAtMs
+      FROM autonomous_employee_blocker_events
+     WHERE idempotency_key=?
+     LIMIT 1
+  `).bind(idempotencyKey).first();
+}
+
+function sameIdempotentPayloadV1(existing,event){
+  const pairs=[
+    ['eventType','eventType'],
+    ['reasonCode','reasonCode'],
+    ['operatorId','operatorId'],
+    ['department','department'],
+    ['orderId','orderId'],
+    ['lineId','lineId'],
+    ['detailText','detailText'],
+    ['sourceKind','sourceKind'],
+    ['actorId','actorId']
+  ];
+  return pairs.every(([a,b])=>text(existing&&existing[a])===text(event&&event[b]));
+}
+
 export async function readEmployeeSupervisorControlV1(db){
   const row=await db.prepare(
     "SELECT mode,epoch FROM autonomous_employee_supervisor_control WHERE singleton_id=1 LIMIT 1"
@@ -17,13 +53,6 @@ export async function readEmployeeSupervisorControlV1(db){
 
 export async function recordEmployeeBlockerEventV1(db,input={}){
   const control=await readEmployeeSupervisorControlV1(db);
-  if(!blockerWriteAllowedV1(control.mode)){
-    const err=new Error('EMPLOYEE_SUPERVISOR_CONTROL_OFF');
-    err.code='EMPLOYEE_SUPERVISOR_CONTROL_OFF';
-    err.control=control;
-    throw err;
-  }
-
   const built=buildEmployeeBlockerEventV1(input);
   if(!built.ok){
     const err=new Error(built.code);
@@ -31,6 +60,32 @@ export async function recordEmployeeBlockerEventV1(db,input={}){
     throw err;
   }
   const e=built.event;
+
+  const existing=await existingByIdempotencyKeyV1(db,e.idempotencyKey);
+  if(existing){
+    if(!sameIdempotentPayloadV1(existing,e)){
+      const err=new Error('IDEMPOTENCY_PAYLOAD_MISMATCH');
+      err.code='IDEMPOTENCY_PAYLOAD_MISMATCH';
+      throw err;
+    }
+    return {
+      success:true,
+      inserted:false,
+      idempotentReplay:true,
+      eventId:text(existing.eventId),
+      blockerId:text(existing.blockerId),
+      eventType:text(existing.eventType),
+      reasonCode:text(existing.reasonCode),
+      control
+    };
+  }
+
+  if(!blockerWriteAllowedV1(control.mode)){
+    const err=new Error('EMPLOYEE_SUPERVISOR_CONTROL_OFF');
+    err.code='EMPLOYEE_SUPERVISOR_CONTROL_OFF';
+    err.control=control;
+    throw err;
+  }
 
   if(e.lineId && !e.orderId){
     const err=new Error('ORDER_ID_REQUIRED_WITH_LINE_ID');
@@ -74,6 +129,7 @@ export async function recordEmployeeBlockerEventV1(db,input={}){
   return {
     success:true,
     inserted:Number(result&&result.meta&&result.meta.changes||0)>0,
+    idempotentReplay:false,
     eventId:e.eventId,
     blockerId:e.blockerId,
     eventType:e.eventType,

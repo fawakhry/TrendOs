@@ -54,6 +54,22 @@ jobs:
           grep -Fq 'service = "trendos-d1-api"' "$CONFIG"
           echo 'EMPLOYEE_SUPERVISOR_WRITE_BOUNDARY=PASS'
 
+      - name: Capture Employee Supervisor pre-deploy state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$SERVICE_URL/health" > /tmp/service-pre.json
+          node - <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/service-pre.json','utf8'));
+          if(x.success!==true||x.service!=='autonomous-printshop-employee-supervisor') process.exit(1);
+          if(x.controlMode!=='SHADOW'||Number(x.controlEpoch)!==2||x.writesAccepted!==true) process.exit(2);
+          if(x.operatorTaskMode!=='OFF'||Number(x.operatorTasks)!==0) process.exit(3);
+          if(x.businessWrites!==false||x.orderWrite!==false||x.lineWrite!==false||x.accountingWrite!==false||x.employeeAssignment!==false) process.exit(4);
+          fs.writeFileSync('/tmp/blocker-events-before.txt',String(Number(x.eventRows||0)));
+          console.log('EMPLOYEE_SUPERVISOR_PRE_MODE=SHADOW');
+          console.log('EMPLOYEE_SUPERVISOR_PRE_EVENTS='+String(Number(x.eventRows||0)));
+          NODE
+
       - name: Main TrendOS pre-deploy health
         shell: bash
         run: |
@@ -82,23 +98,24 @@ jobs:
           sleep 5
           echo 'EMPLOYEE_SUPERVISOR_DEPLOYED=YES'
 
-      - name: Verify service remains Default-OFF
+      - name: Verify service preserves SHADOW state and event count
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SERVICE_URL/health" > /tmp/service.json
           node - <<'NODE'
-          const x=JSON.parse(require('fs').readFileSync('/tmp/service.json','utf8'));
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/service.json','utf8'));
+          const before=Number(fs.readFileSync('/tmp/blocker-events-before.txt','utf8'));
           if(x.success!==true||x.service!=='autonomous-printshop-employee-supervisor') process.exit(1);
           if(x.mode!=='EMPLOYEE_SUPERVISOR_BLOCKER_SERVICE') process.exit(2);
-          if(x.controlMode!=='OFF'||Number(x.controlEpoch)!==1) process.exit(3);
-          if(Number(x.eventRows)!==0||x.writesAccepted!==false) process.exit(4);
+          if(x.controlMode!=='SHADOW'||Number(x.controlEpoch)!==2||x.writesAccepted!==true) process.exit(3);
+          if(Number(x.eventRows)!==before) process.exit(4);
           if(x.writeAuthority!=='AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY') process.exit(5);
           if(x.operatorTaskMode!=='OFF'||Number(x.operatorTasks)!==0) process.exit(6);
           if(x.businessWrites!==false||x.orderWrite!==false||x.lineWrite!==false||x.accountingWrite!==false||x.employeeAssignment!==false) process.exit(7);
-          console.log('EMPLOYEE_SUPERVISOR_SERVICE=LIVE_DEFAULT_OFF');
-          console.log('STRUCTURED_ANDON_WRITES=OFF');
-          console.log('BLOCKER_EVENTS=0');
+          console.log('EMPLOYEE_SUPERVISOR_SERVICE=LIVE_SHADOW');
+          console.log('STRUCTURED_ANDON_WRITES=SHADOW_ONLY');
+          console.log('BLOCKER_EVENT_COUNT_INVARIANT=PASS');
           NODE
 
       - name: Main TrendOS post-deploy health
@@ -115,7 +132,7 @@ jobs:
       - name: Safety conclusion
         run: |
           echo 'EMPLOYEE_SUPERVISOR_SERVICE=LIVE'
-          echo 'EMPLOYEE_SUPERVISOR_CONTROL=OFF'
+          echo 'EMPLOYEE_SUPERVISOR_CONTROL=SHADOW'
           echo 'AUTHORITY=BLOCKER_EVENT_LEDGER_ONLY'
           echo 'ORDER_WRITE=NO'
           echo 'LINE_WRITE=NO'
