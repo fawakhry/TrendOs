@@ -1,0 +1,53 @@
+name: EasyStore A2.12 Dept Line Deploy Execution Qualification
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_a212_dept_line_canary.test.mjs'
+      - 'tests/easystore_a212_dept_line_workflow_invariants.test.mjs'
+      - '.github/workflows/easystore-a212-dept-line-guard-readonly-deploy.yml'
+      - '.github/workflows/easystore-a212-dept-line-canary-execution.yml'
+      - '.github/workflows/easystore-a212-dept-line-deploy-execution-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify Dept Line guard and manual-only workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_a2_write_canary_policy_v1.test.mjs
+          node tests/easystore_a212_dept_line_canary.test.mjs
+          node tests/easystore_a212_dept_line_workflow_invariants.test.mjs
+          echo A212_DEPT_LINE_DEPLOY_EXECUTION_QUALIFICATION=PASS
+          echo SERVER_GUARD=PASS
+          echo DEPLOY_WORKFLOW=MANUAL_ONLY
+          echo EXECUTION_WORKFLOW=MANUAL_ONLY
+          echo BASELINE=materials1_templates1_parties1_partyBalances1_waste1_deptLines0_requestLedger5_events5
+          echo ONE_USER=ضياء
+          echo ONE_ACTION=saveAccountingDeptLine
+          echo ONE_COMMAND=YES
+          echo ZERO_VALUE=YES
+          echo STOCK_MOVE_DELTA=0
+          echo CASHBOX_DELTA=0
+          echo PARTY_LEDGER_DELTA=0
+          echo AUTO_DISABLE=YES
+          echo GENERAL_ALLOWED=NO
+          echo PRODUCTION_DEPLOY=NO
+          echo PRODUCTION_ARM=NO
+          echo PRODUCTION_MUTATION=NO
