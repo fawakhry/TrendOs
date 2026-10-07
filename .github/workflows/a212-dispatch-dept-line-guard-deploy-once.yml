@@ -1,0 +1,26 @@
+name: A2.12 Dispatch Dept Line Guard Deploy Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a212-dispatch-dept-line-guard-deploy-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch approved A2.12 Dept Line guard deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a212-dept-line-guard-readonly-deploy.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A212_DEPT_LINE_GUARD_DEPLOY_DISPATCHED=YES
