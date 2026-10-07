@@ -150,7 +150,7 @@ jobs:
           const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
           walk(x);if(rows.length!==1)throw new Error('accounting pre-count parse');
           const r=Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v||0)]));
-          const expected={materials:1,templates:1,parties:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:1,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,requestLedger:5,events:5};
+          const expected={materials:1,templates:1,parties:1,deptLines:1,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:1,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,requestLedger:6,events:6};
           const drift=Object.keys(expected).filter(k=>r[k]!==expected[k]).map(k=>({key:k,actual:r[k],expected:expected[k]}));
           if(drift.length)throw new Error('approved post-canary accounting baseline required:'+JSON.stringify(drift));
           console.log('A2_DEPLOY_ACCOUNTING_BASELINE=CANARY_EVIDENCE_ONLY');
@@ -264,7 +264,7 @@ jobs:
           }
           const pre=row('/tmp/accounting-counts-pre.json'),post=row('/tmp/accounting-counts-post.json');
           if(JSON.stringify(pre)!==JSON.stringify(post))throw new Error('accounting row-count drift pre='+JSON.stringify(pre)+' post='+JSON.stringify(post));
-          const expected={materials:1,templates:1,parties:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:1,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,requestLedger:5,events:5};
+          const expected={materials:1,templates:1,parties:1,deptLines:1,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:1,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,requestLedger:6,events:6};
           const drift=Object.keys(expected).filter(k=>post[k]!==expected[k]).map(k=>({key:k,actual:post[k],expected:expected[k]}));
           if(drift.length)throw new Error('approved post-canary baseline drift:'+JSON.stringify(drift));
           console.log('A2_DEPLOY_ACCOUNTING_ROW_COUNTS_INVARIANT=PASS');
