@@ -1,0 +1,309 @@
+name: TrendOS Entry649 Structured Employee Andon Frontend Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry649-employee-andon-structured-controlled.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry649-employee-andon-structured-controlled
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      SUPERVISOR_URL: https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      LIVE_ASSET_INVENTORY_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      CONFIG_TAG: 20261007-entry649-structured-andon
+      ANDON_TAG: 20261007-entry649-structured-andon
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-andon-v1.js
+          node --check config.js
+          node tests/entry649_employee_andon_structured.test.mjs
+          grep -Fq 'EMPLOYEE_ANDON_STRUCTURED_V2_20261007' employee-andon-v1.js
+          grep -Fq '/blockers/report' employee-andon-v1.js
+          grep -Fq '/blockers/my-open' employee-andon-v1.js
+          grep -Fq '/blockers/resolve' employee-andon-v1.js
+          ! grep -Fq 'saveMatbagyNote' employee-andon-v1.js
+          ! grep -Fq 'OPS_REPLY' employee-andon-v1.js
+          ! grep -Fq 'trendosEmployeeApiV1' employee-andon-v1.js
+          grep -Fq 'MATBAGY_EMPLOYEE_ANDON_STRUCTURED_V1 = true' config.js
+          echo ENTRY649_SOURCE_QUALIFICATION=PASS
+
+      - name: Exact Production preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend active version shape '+JSON.stringify(full));
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY649_PRE_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s%N)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?entry649pre=$suffix" -o /tmp/live-index.html
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry649pre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-andon-v1.js?entry649pre=$suffix" -o /tmp/live-andon.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry649pre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry649pre=$suffix" -o /tmp/live-dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry649pre=$suffix" -o /tmp/live-attendance.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/manager-center-v1932.js?entry649pre=$suffix" -o /tmp/live-manager.js
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry649pre=$suffix" -o /tmp/auth-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry649pre=$suffix" -o /tmp/bridge-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/core/health?entry649pre=$suffix" -o /tmp/core-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/content/health?entry649pre=$suffix" -o /tmp/content-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/comms/health?entry649pre=$suffix" -o /tmp/comms-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health?entry649pre=$suffix" -o /tmp/ops-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?entry649pre=$suffix" -o /tmp/accounting-pre.json
+          curl --fail --silent --show-error "$SUPERVISOR_URL/health" -o /tmp/supervisor-pre.json
+
+          node <<'NODE'
+          const fs=require('fs'),r=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+          const a=r('/tmp/auth-pre.json'),b=r('/tmp/bridge-pre.json'),co=r('/tmp/core-pre.json'),ct=r('/tmp/content-pre.json'),cm=r('/tmp/comms-pre.json'),o=r('/tmp/ops-pre.json'),ac=r('/tmp/accounting-pre.json'),s=r('/tmp/supervisor-pre.json');
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.envEnabled!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('legacy bridge drift');
+          if(co.mode!=='GENERAL'||Number(co.policyEpoch||0)!==2||Number(co.googleBusinessCalls||0)!==0||co.appsScriptBusinessAuthority!==false) throw new Error('core drift');
+          if(ct.mode!=='READONLY') throw new Error('content drift');
+          if(cm.mode!=='READONLY') throw new Error('comms drift');
+          if(o.mode!=='GENERAL') throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting drift');
+          if(s.success!==true||s.service!=='autonomous-printshop-employee-supervisor'||s.controlMode!=='SHADOW'||Number(s.controlEpoch)!==2||s.writesAccepted!==true||s.writeAuthority!=='AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY') throw new Error('supervisor shadow drift');
+          if(s.operatorTaskMode!=='OFF'||Number(s.operatorTasks||0)!==0||s.businessWrites!==false||s.orderWrite!==false||s.lineWrite!==false||s.accountingWrite!==false||s.employeeAssignment!==false) throw new Error('supervisor authority drift');
+          fs.writeFileSync('/tmp/pre-blocker-events.txt',String(Number(s.eventRows||0)));
+          console.log('ENTRY649_RUNTIME_PREFLIGHT=PASS');
+          console.log('ENTRY649_PRE_BLOCKER_EVENTS='+String(Number(s.eventRows||0)));
+          NODE
+
+          grep -Fq 'MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true' /tmp/live-config.js
+          grep -Fq 'MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false' /tmp/live-config.js
+          grep -Fq 'MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false' /tmp/live-config.js
+          grep -Fq "employee-andon-v1.js?v=20260930-a61-cloud-transport" /tmp/live-config.js
+          grep -Fq 'saveMatbagyNote' /tmp/live-andon.js
+          grep -Fq 'OPS_REPLY' /tmp/live-andon.js
+          ! grep -Fq 'EMPLOYEE_ANDON_STRUCTURED_V2_20261007' /tmp/live-andon.js
+          echo ENTRY649_LEGACY_ANDON_RUNTIME_CONFIRMED=PASS
+
+          curl --fail --silent --show-error -X OPTIONS "$SUPERVISOR_URL/blockers/report"             -H 'Origin: https://trendos-ui.trendmall-contact.workers.dev'             -H 'Access-Control-Request-Method: POST'             -H 'Access-Control-Request-Headers: authorization,content-type'             -D /tmp/cors-pre.headers -o /tmp/cors-pre.body
+          grep -Fiq 'access-control-allow-origin: https://trendos-ui.trendmall-contact.workers.dev' /tmp/cors-pre.headers
+          grep -Fiq 'access-control-allow-headers:' /tmp/cors-pre.headers
+          echo ENTRY649_SUPERVISOR_CORS_PREFLIGHT=PASS
+
+      - name: Build exact-live Andon-only frontend bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_ASSET_INVENTORY_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+
+          while IFS= read -r src; do
+            name="$(basename "$src")"
+            curl --fail --silent --show-error --location               "$FRONTEND_URL/$name?entry649snapshot=$GITHUB_SHA-$(date +%s%N)"               -o "cloudflare-d1/frontend-dist/$name"
+          done < <(find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) | sort)
+
+          cp employee-andon-v1.js cloudflare-d1/frontend-dist/employee-andon-v1.js
+
+          python3 <<'PY'
+          from pathlib import Path
+          import os,re
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+
+          api_line='window.MATBAGY_EMPLOYEE_API_URL = window.MATBAGY_EDGE_ORDERS_API_URL;'
+          supervisor='window.MATBAGY_EMPLOYEE_SUPERVISOR_API_URL = "https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev";'
+          if supervisor not in s:
+              if s.count(api_line)!=1:
+                  raise SystemExit('employee api anchor count='+str(s.count(api_line)))
+              s=s.replace(api_line,api_line+'\n'+supervisor,1)
+
+          old_loader=re.findall(r"\['trendEmployeeAndonV1Loader','employee-andon-v1\.js\?v=[^']+'\]",s)
+          if len(old_loader)!=1:
+              raise SystemExit('Andon loader count='+str(len(old_loader)))
+          s=re.sub(
+              r"\['trendEmployeeAndonV1Loader','employee-andon-v1\.js\?v=[^']+'\]",
+              "['trendEmployeeAndonV1Loader','employee-andon-v1.js?v="+os.environ['ANDON_TAG']+"']",
+              s,count=1
+          )
+
+          flag='window.MATBAGY_EMPLOYEE_ANDON_STRUCTURED_V1 = true;'
+          if flag not in s:
+              anchor='window.MATBAGY_EMPLOYEE_ANDON_V1 = true;'
+              if s.count(anchor)!=1:
+                  raise SystemExit('Andon flag anchor count='+str(s.count(anchor)))
+              s=s.replace(anchor,anchor+'\n'+flag,1)
+          p.write_text(s)
+
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          pat=r'config[.]js[?]v=[^"]+'
+          found=re.findall(pat,s)
+          if len(found)!=1:
+              raise SystemExit('config index tag count='+str(len(found)))
+          s=re.sub(pat,'config.js?v='+os.environ['CONFIG_TAG'],s,count=1)
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/config.js
+          node --check cloudflare-d1/frontend-dist/employee-andon-v1.js
+          grep -Fq "config.js?v=$CONFIG_TAG" cloudflare-d1/frontend-dist/index.html
+          grep -Fq "employee-andon-v1.js?v=$ANDON_TAG" cloudflare-d1/frontend-dist/config.js
+          grep -Fq 'MATBAGY_EMPLOYEE_SUPERVISOR_API_URL = "https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev"' cloudflare-d1/frontend-dist/config.js
+          grep -Fq 'MATBAGY_EMPLOYEE_ANDON_STRUCTURED_V1 = true' cloudflare-d1/frontend-dist/config.js
+          grep -Fq 'EMPLOYEE_ANDON_STRUCTURED_V2_20261007' cloudflare-d1/frontend-dist/employee-andon-v1.js
+          ! grep -Fq 'saveMatbagyNote' cloudflare-d1/frontend-dist/employee-andon-v1.js
+          ! grep -Fq 'OPS_REPLY' cloudflare-d1/frontend-dist/employee-andon-v1.js
+          echo ENTRY649_EXACT_LIVE_BUNDLE=PASS
+
+      - name: Recheck frontend lease before deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-lease.json
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          PRE="$PRE" node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-lease.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1||full[0].id!==process.env.PRE) throw new Error('frontend lease moved '+JSON.stringify(full));
+          console.log('ENTRY649_FRONTEND_LEASE=PASS');
+          NODE
+
+      - name: Deploy structured Andon frontend with automatic rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry649 structured Andon automatic rollback" --config "$FRONTEND_CONFIG" || true
+              echo ENTRY649_AUTOMATIC_ROLLBACK_ATTEMPTED=YES
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 30); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s%N)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/?entry649post=$suffix" -o /tmp/post-index.html               && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry649post=$suffix" -o /tmp/post-config.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-andon-v1.js?entry649post=$suffix" -o /tmp/post-andon.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry649post=$suffix" -o /tmp/post-app.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry649post=$suffix" -o /tmp/post-dispatcher.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry649post=$suffix" -o /tmp/post-attendance.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/manager-center-v1932.js?entry649post=$suffix" -o /tmp/post-manager.js               && grep -Fq "config.js?v=$CONFIG_TAG" /tmp/post-index.html               && grep -Fq "employee-andon-v1.js?v=$ANDON_TAG" /tmp/post-config.js               && grep -Fq 'MATBAGY_EMPLOYEE_SUPERVISOR_API_URL = "https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev"' /tmp/post-config.js               && grep -Fq 'MATBAGY_EMPLOYEE_ANDON_STRUCTURED_V1 = true' /tmp/post-config.js               && grep -Fq 'EMPLOYEE_ANDON_STRUCTURED_V2_20261007' /tmp/post-andon.js               && ! grep -Fq 'saveMatbagyNote' /tmp/post-andon.js               && ! grep -Fq 'OPS_REPLY' /tmp/post-andon.js; then
+                OK=1
+                echo "ENTRY649_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          test "$(git hash-object /tmp/post-app.js)" = "$(git hash-object /tmp/live-app.js)"
+          test "$(git hash-object /tmp/post-dispatcher.js)" = "$(git hash-object /tmp/live-dispatcher.js)"
+          test "$(git hash-object /tmp/post-attendance.js)" = "$(git hash-object /tmp/live-attendance.js)"
+          test "$(git hash-object /tmp/post-manager.js)" = "$(git hash-object /tmp/live-manager.js)"
+          test "$(git hash-object /tmp/post-andon.js)" = "$(git hash-object employee-andon-v1.js)"
+          echo ENTRY649_UNRELATED_FRONTEND_ASSETS_PRESERVED=PASS
+
+          curl --fail --silent --show-error "$SUPERVISOR_URL/health" -o /tmp/supervisor-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry649post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry649post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/bridge-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/core/health?entry649post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/core-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/content/health?entry649post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/content-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/comms/health?entry649post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/comms-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health?entry649post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/ops-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/accounting/health?entry649post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/accounting-post.json
+
+          node <<'NODE'
+          const fs=require('fs'),r=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+          const a=r('/tmp/auth-post.json'),b=r('/tmp/bridge-post.json'),co=r('/tmp/core-post.json'),ct=r('/tmp/content-post.json'),cm=r('/tmp/comms-post.json'),o=r('/tmp/ops-post.json'),ac=r('/tmp/accounting-post.json'),s=r('/tmp/supervisor-post.json');
+          const before=Number(fs.readFileSync('/tmp/pre-blocker-events.txt','utf8'));
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.envEnabled!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||a.plaintextStored!==false) throw new Error('auth post drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('legacy bridge post drift');
+          if(co.mode!=='GENERAL'||Number(co.policyEpoch||0)!==2) throw new Error('core post drift');
+          if(ct.mode!=='READONLY') throw new Error('content post drift');
+          if(cm.mode!=='READONLY') throw new Error('comms post drift');
+          if(o.mode!=='GENERAL') throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF') throw new Error('accounting post drift');
+          if(s.controlMode!=='SHADOW'||Number(s.controlEpoch)!==2||s.writesAccepted!==true||s.writeAuthority!=='AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY') throw new Error('supervisor post drift');
+          if(s.operatorTaskMode!=='OFF'||Number(s.operatorTasks||0)!==0||s.businessWrites!==false||s.orderWrite!==false||s.lineWrite!==false||s.accountingWrite!==false||s.employeeAssignment!==false) throw new Error('supervisor authority post drift');
+          console.log('ENTRY649_BLOCKER_EVENTS_BEFORE='+before);
+          console.log('ENTRY649_BLOCKER_EVENTS_AFTER='+Number(s.eventRows||0));
+          console.log('ENTRY649_SYNTHETIC_BLOCKER_CREATED=NO');
+          console.log('ENTRY649_RUNTIME_POSTFLIGHT=PASS');
+          NODE
+
+          curl --fail --silent --show-error -X OPTIONS "$SUPERVISOR_URL/blockers/report"             -H 'Origin: https://trendos-ui.trendmall-contact.workers.dev'             -H 'Access-Control-Request-Method: POST'             -H 'Access-Control-Request-Headers: authorization,content-type'             -D /tmp/cors-post.headers -o /tmp/cors-post.body
+          grep -Fiq 'access-control-allow-origin: https://trendos-ui.trendmall-contact.workers.dev' /tmp/cors-post.headers
+          echo ENTRY649_SUPERVISOR_CORS_POSTFLIGHT=PASS
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version shape');
+          fs.writeFileSync('/tmp/post-ui-version.txt',full[0].id);
+          console.log('ENTRY649_POST_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY649=PASS
+          echo ENTRY649_ROLLBACK_USED=NO
+          echo ENTRY649_LEGACY_OPS_REPLY_FRONTEND=OFF
+          echo ENTRY649_STRUCTURED_ANDON_FRONTEND=LIVE
+          echo ENTRY649_OPERATOR_TASK_WRITE=NO
+          echo ENTRY649_EMPLOYEE_ASSIGNMENT=NO
+          echo ENTRY649_ACCOUNTING_MUTATION=NO
+          echo ENTRY649_EASYSTORE_MUTATION=NO
+          echo ENTRY649_CONTENT_MUTATION=NO
+
+      - name: Final
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          echo "ENTRY649_PRE_FRONTEND_VERSION=$(cat /tmp/pre-ui-version.txt)"
+          echo "ENTRY649_POST_FRONTEND_VERSION=$(cat /tmp/post-ui-version.txt)"
+          echo ENTRY649_EMPLOYEE_ANDON=STRUCTURED_SHADOW_SERVICE
+          echo ENTRY649_PRODUCTION_BLOCKER_CANARY=NOT_CREATED_BY_POLICY
+          echo ENTRY649=PASS
