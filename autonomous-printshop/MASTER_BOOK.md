@@ -6480,3 +6480,75 @@ Next highest-value step:
 1. qualify and cut the employee Andon UI from `saveMatbagyNote/OPS_REPLY` to the isolated Employee Supervisor service, with Native-session auth, idempotent client request IDs, explicit fallback prohibition, and a canary/postflight that does not create fake Production blockers.
 2. then continue AP-073 remaining gaps: Comms pending-message aggregate, Accounting read-only warnings, Control Tower stale/last-good parity, and protected archive-restore only after a separate TrendOS backend contract.
 
+
+
+### AP-075 — Fast Mode adopted: TrendOS stays the work surface; local helper prompts one-click work folders and Explorer handoff
+
+Date: 2026-10-07.
+
+Owner approved changing the Windows Print Server from a daily management UI into a background local helper. The full browser UI remains available for settings, search, preview and recovery, but it is no longer intended to be the operator's per-order work surface.
+
+Implementation commit:
+`b40ba90ffabc36a10cc2e6f6ac236814ac724810`.
+
+Fast Mode behavior:
+- TrendOS remains the primary operator interface;
+- existing read-only human-start detection remains the trigger;
+- when a line enters `بدأ التنفيذ` / `تحت التنفيذ`, the order root is ensured as before;
+- the bridge passes the created/updated local order to Fast Mode without any platform write;
+- on Windows, a small top-most work-type picker is queued for the started order;
+- the picker exposes the six explicit manual choices: `طباعة`, `تابلوهات`, `سبلميشن`, `كوشيه`, `استيكر`, `ليزر`;
+- one click ensures `ORDER/<WORK_TYPE>/x` and opens the selected work folder in Windows Explorer;
+- multiple work types may be selected for one order before dismissing the picker;
+- the picker also provides `فتح فولدر الأوردر` and a `تم` dismissal action;
+- the full browser UI manual-folder action now uses the same Fast Mode controller and Explorer handoff;
+- Fast Mode state is visible in `/api/status`;
+- `--no-popup` exists for non-interactive qualification/runtime recovery;
+- Tk is bundled explicitly in the Windows package for the native popup;
+- the browser UI can be minimized after TrendOS login; password persistence remains disabled.
+
+Qualification:
+```ini
+PRINT_SERVER_CI_RUN=37646804963
+PRINT_SERVER_CI=PASS
+FAST_MODE_CONTROLLER_TESTS=PASS
+BRIDGE_TO_FAST_MODE_CALLBACK_TEST=PASS
+WINDOWS_PACKAGE_RUN=37646804838
+WINDOWS_PACKAGE_RESULT=SUCCESS
+WINDOWS_UNIT_TESTS=PASS
+WINDOWS_EXE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE_NO_POPUP=PASS
+WINDOWS_PACKAGED_LIVE_TRENDOS_PROBE=PASS
+WINDOWS_ARTIFACT_ID=11494818455
+WINDOWS_ARTIFACT_SHA256=fa0fd502be746815443e5f296102bfbcffe616e2f5de3c426c14e9562ee58fbf
+TARGET_PC_NATIVE_POPUP_RUNTIME_PROOF=PENDING_OWNER_TEST
+```
+
+Daily intended flow:
+```text
+TrendOS: employee starts order
+        ↓
+local helper ensures order root
+        ↓
+small Fast Mode picker appears
+        ↓
+one work-type click
+        ↓
+ORDER/<WORK_TYPE>/x is ensured
+        ↓
+Windows Explorer opens that work folder
+```
+
+Safety boundary remains unchanged:
+```ini
+PLATFORM_BRIDGE_MODE=READ_ONLY
+PLATFORM_BUSINESS_WRITES=NO
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+ACCOUNTING_WRITE=NO
+X_FOLDER_EQUALS_AUTHORITATIVE_PRINTED=NO
+PASSWORD_PERSISTED=NO
+```
+
+Result: **PASS — FAST MODE IS BUILT AND WINDOWS-PACKAGED; TARGET-PC POPUP APPEARANCE REMAINS TO BE RUNTIME-PROVEN BY THE OWNER**.
