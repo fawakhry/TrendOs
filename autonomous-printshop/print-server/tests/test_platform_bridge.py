@@ -37,7 +37,8 @@ class BridgeTests(unittest.TestCase):
             state = StateStore(cfg["paths"]["stateRoot"])
             folders = OrderFolderService(cfg, state)
             client = FakeClient()
-            bridge = TrendOSStatusBridge(cfg, client, folders, state)
+            prompted = []
+            bridge = TrendOSStatusBridge(cfg, client, folders, state, on_order=prompted.append)
             client.rows = [{
                 "orderId": "9001",
                 "lineId": "L1",
@@ -59,6 +60,8 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual({}, order["routes"])
             self.assertEqual("MANUAL_SELECTION", order["folderMode"])
             self.assertFalse((Path(order["folder"]) / "سبلميشن").exists())
+            self.assertEqual(1, len(prompted))
+            self.assertEqual("9001", prompted[0]["orderId"])
 
     def test_active_to_active_does_not_retrigger(self):
         with tempfile.TemporaryDirectory() as td:

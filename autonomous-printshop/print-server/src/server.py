@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .config import application_dir, load_config, resource_dir, resolve_config_path, save_path_override
 from .folders import OrderFolderService
+from .fast_mode import FastModeController
 from .local_settings import LocalSettingsError, choose_windows_directory, validate_writable_directory
 from .platform_bridge import TrendOSStatusBridge
 from .preview import PreviewError, build_preview, capabilities
@@ -29,7 +30,14 @@ class PrintServerApp:
         self.state = StateStore(config["paths"]["stateRoot"])
         self.folders = OrderFolderService(config, self.state)
         self.trendos = TrendOSReadClient(config)
-        self.bridge = TrendOSStatusBridge(config, self.trendos, self.folders, self.state)
+        self.fast_mode = FastModeController(config, self.folders, self.state)
+        self.bridge = TrendOSStatusBridge(
+            config,
+            self.trendos,
+            self.folders,
+            self.state,
+            on_order=self.fast_mode.notify_order,
+        )
         self.watcher = FinishedFolderWatcher(
             config["paths"]["ordersRoot"],
             config["folder"]["finishedFolderName"],
@@ -64,6 +72,7 @@ class PrintServerApp:
                 {"key": key, "name": name}
                 for key, name in self.folders.manual_options().items()
             ],
+            "fastMode": self.fast_mode.status(),
             "runtime": {
                 "python": sys.version.split()[0],
                 "platform": platform.platform(),
@@ -253,14 +262,21 @@ def make_handler(app: PrintServerApp):
                 if parsed.path == "/api/settings/orders-root/select":
                     return self._json(200, app.choose_orders_root())
                 if parsed.path == "/api/orders/manual-folder":
-                    result = app.folders.create_manual_folder(
+                    result = app.fast_mode.choose_folder(
                         str(body.get("orderId") or ""),
                         str(body.get("folderKey") or ""),
+                        open_explorer=bool(body.get("openExplorer", True)),
                     )
                     return self._json(201, {"ok": True, "result": result})
+                if parsed.path == "/api/orders/open-folder":
+                    result = app.fast_mode.open_order_folder(
+                        str(body.get("orderId") or "")
+                    )
+                    return self._json(200, {"ok": True, "result": result})
                 if parsed.path == "/api/events/order-claimed":
                     order = body.get("order") if isinstance(body.get("order"), dict) else body
                     result = app.folders.create_for_claimed_order(order)
+                    app.fast_mode.notify_order(result)
                     return self._json(201, {"ok": True, "result": result})
                 if parsed.path == "/api/events/structured-approval":
                     result = app.folders.publish_structured_approval(
@@ -295,6 +311,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="TrendOS Print Server")
     parser.add_argument("--config", default=None)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--no-popup", action="store_true")
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
     public_dir = resource_dir() / "public"
@@ -323,6 +340,7 @@ def main(argv=None):
     except Exception:
         pass
     app.watcher.start()
+    app.fast_mode.start(allow_popup=not args.no_popup)
     app.bridge.start()
 
     browser_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
@@ -336,6 +354,7 @@ def main(argv=None):
         pass
     finally:
         app.bridge.stop()
+        app.fast_mode.stop()
         app.watcher.stop()
         server.server_close()
 

@@ -8,7 +8,22 @@
   "folder": {
     "dateFormat": "%d-%m-%Y",
     "namePattern": "{order_id} - {date} - {customer_name}",
-    "finishedFolderName": "x"
+    "finishedFolderName": "x",
+    "mode": "MANUAL_SELECTION",
+    "manualOptions": {
+      "photo_print": "طباعة",
+      "photo_tableaux": "تابلوهات",
+      "photo_sublimation": "سبلميشن",
+      "digital_couche": "كوشيه",
+      "digital_sticker": "استيكر",
+      "laser": "ليزر"
+    }
+  },
+  "fastMode": {
+    "enabled": true,
+    "popup": true,
+    "openExplorer": true,
+    "topMost": true
   },
   "trendos": {
     "enabled": true,

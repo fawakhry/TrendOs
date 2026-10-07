@@ -46,6 +46,12 @@ DEFAULT_CONFIG = {
             "photo_print": ["فوتو", "photo", "photographic"],
         },
     },
+    "fastMode": {
+        "enabled": True,
+        "popup": True,
+        "openExplorer": True,
+        "topMost": True,
+    },
     "approval": {
         "allowedStructuredSources": [
             "CUSTOMER_PORTAL",

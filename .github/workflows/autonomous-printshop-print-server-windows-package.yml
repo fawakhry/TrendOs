@@ -35,7 +35,7 @@ jobs:
       - name: Build Windows portable EXE
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onedir --name "TrendOS-Print-Server" --add-data "public;public" --collect-all PIL --collect-all ezdxf --collect-all certifi --collect-all requests --collect-all urllib3 run.py
+          pyinstaller --noconfirm --clean --onedir --name "TrendOS-Print-Server" --add-data "public;public" --collect-all PIL --collect-all ezdxf --collect-all certifi --collect-all requests --collect-all urllib3 --hidden-import tkinter --hidden-import _tkinter run.py
           $app = Join-Path $PWD "dist\TrendOS-Print-Server"
           New-Item -ItemType Directory -Force -Path (Join-Path $app "config") | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $app "data\orders") | Out-Null
@@ -52,14 +52,14 @@ jobs:
         shell: pwsh
         run: |
           $exe = Join-Path $PWD "dist\TrendOS-Print-Server\TrendOS-Print-Server.exe"
-          $proc = Start-Process -FilePath $exe -ArgumentList "--no-browser" -PassThru
+          $proc = Start-Process -FilePath $exe -ArgumentList "--no-browser --no-popup" -PassThru
           try {
             $ok = $false
             for ($i = 0; $i -lt 30; $i++) {
               Start-Sleep -Milliseconds 500
               try {
                 $s = Invoke-RestMethod -Uri "http://127.0.0.1:4782/api/status" -TimeoutSec 2
-                if ($s.ok -eq $true -and $s.preview.tiff -eq $true -and $s.preview.dxf -eq $true) { $ok = $true; break }
+                if ($s.ok -eq $true -and $s.preview.tiff -eq $true -and $s.preview.dxf -eq $true -and $s.fastMode.enabled -eq $true) { $ok = $true; break }
               } catch {}
             }
             if (-not $ok) { throw "PACKAGED_EXE_SMOKE_FAILED" }

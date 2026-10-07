@@ -15,11 +15,12 @@ class TrendOSStatusBridge:
     locally. No platform state is mutated by this bridge.
     """
 
-    def __init__(self, config: dict, client, folders, state):
+    def __init__(self, config: dict, client, folders, state, on_order=None):
         self.config = config["trendos"]
         self.client = client
         self.folders = folders
         self.state = state
+        self.on_order = on_order
         self.poll_seconds = max(5, int(self.config.get("pollSeconds", 15)))
         self.screens = [str(v) for v in self.config.get("pollScreens", ["service", "print", "laser", "press"])]
         self.trigger_statuses = {str(v) for v in self.config.get("startStatuses", ["بدأ التنفيذ", "تحت التنفيذ"])}
@@ -174,6 +175,15 @@ class TrendOSStatusBridge:
                     "statuses": [str(v.get("status") or "") for v in lines],
                     "platformMutation": False,
                 })
+                if self.on_order:
+                    try:
+                        self.on_order(result)
+                    except Exception as exc:
+                        self.state.audit("FAST_MODE_NOTIFY_ERROR", {
+                            "orderId": order_id,
+                            "error": str(exc)[:300],
+                            "platformMutation": False,
+                        })
 
             now = datetime.now().astimezone().isoformat()
             self.state.update_trendos_bridge(

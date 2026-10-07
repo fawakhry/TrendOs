@@ -54,7 +54,8 @@ async function createManualFolder(folderKey,btn){
   $('manualFolderMsg').textContent='';
   try{
     const res=await post('/api/orders/manual-folder',{orderId:currentOrder.orderId,folderKey});
-    $('manualFolderMsg').textContent=res.result?.alreadyExisted ? 'الفولدر موجود بالفعل.' : 'تم إنشاء الفولدر داخل الأوردر.';
+    const opened=res.result?.explorerOpened ? ' وتم فتحه.' : '.';
+    $('manualFolderMsg').textContent=res.result?.alreadyExisted ? 'الفولدر موجود بالفعل'+opened : 'تم إنشاء الفولدر داخل الأوردر'+opened;
     const data=await api('/api/orders',{},5000);
     orders=data.orders||[];
     currentOrder=orders.find(o=>String(o.orderId)===String(currentOrder.orderId));
@@ -203,6 +204,8 @@ async function refresh(){
     $('connectionStatus').textContent='● متصل بالسيرفر المحلي';
     $('connectionStatus').style.color='';
     $('modeLabel').textContent=status.mode;
+    const fm=status.fastMode||{};
+    $('fastModeStatus').textContent=fm.enabled ? (fm.uiRunning ? '⚡ Fast Mode جاهز' : '⚡ Fast Mode مفعّل') : 'Fast Mode متوقف';
     manualFolderOptions=status.manualFolderOptions||manualFolderOptions;
     const p=status.preview||{}; $('previewCapabilities').textContent=`TIF ${p.tiff?'✓':'✕'} • DXF ${p.dxf?'✓':'✕'} • الصور ✓`;
     renderPlatform(status);
