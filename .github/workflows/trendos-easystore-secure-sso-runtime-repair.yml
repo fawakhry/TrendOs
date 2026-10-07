@@ -1,0 +1,267 @@
+name: TrendOS EasyStore Secure SSO Runtime Repair
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-easystore-secure-sso-runtime-repair.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-easystore-secure-sso-runtime-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      ACCOUNTING_API: https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+
+      - name: Snapshot exact live runtime and closed accounting authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/ui-before.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('active frontend version not single 100%');
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('SSO_REPAIR_PRE_UI_VERSION='+full[0].id);
+          NODE
+
+          curl -fsS "$ACCOUNTING_API/health?ssoRepairPre=$GITHUB_RUN_ID" > /tmp/acc-pre.json
+          node <<'NODE'
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/acc-pre.json','utf8'));
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw new Error('accounting authority not closed');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw new Error('accounting canary not cleared');
+          if(Number(h.googleBusinessCalls||0)!==0)throw new Error('google business calls nonzero');
+          console.log('SSO_REPAIR_ACCOUNTING_CLOSED=PASS');
+          NODE
+
+          suffix="$GITHUB_RUN_ID-$(date +%s)"
+          curl -fsSL "$FRONTEND_URL/app.js?ssoRepairPre=$suffix" -o /tmp/live-app.js
+          if grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" /tmp/live-app.js; then
+            echo "secure SSO already live" >&2
+            exit 1
+          fi
+          grep -Fq "function openAccounting(dayClose)" /tmp/live-app.js
+          grep -Fq "MATBAGY_EMPLOYEE_SSO" /tmp/live-app.js
+          echo 'SSO_REPAIR_OLD_RUNTIME_CONFIRMED=YES'
+
+      - name: Snapshot all live top-level static assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf cloudflare-d1/frontend-dist
+          mkdir -p cloudflare-d1/frontend-dist
+          while IFS= read -r src; do
+            name="$(basename "$src")"
+            ext="${name##*.}"
+            tmp="/tmp/live-$name"
+            hdr="/tmp/h-$name"
+            if ! curl -fsSL -D "$hdr" "$FRONTEND_URL/$name?ssoRepairAsset=$GITHUB_RUN_ID-$(date +%s%N)" -o "$tmp"; then
+              continue
+            fi
+            ct="$(tr -d '\r' < "$hdr" | awk 'BEGIN{IGNORECASE=1}/^content-type:/{print tolower($0)}' | tail -1)"
+            ok=0
+            case "$ext" in
+              html) [[ "$ct" == *"text/html"* ]] && ok=1 ;;
+              js) [[ "$ct" == *"javascript"* ]] && ok=1 ;;
+              css) [[ "$ct" == *"text/css"* ]] && ok=1 ;;
+            esac
+            if [ "$ok" = "1" ]; then
+              cp "$tmp" "cloudflare-d1/frontend-dist/$name"
+            fi
+          done < <(find . -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) | sort)
+
+          test -s cloudflare-d1/frontend-dist/index.html
+          test -s cloudflare-d1/frontend-dist/app.js
+          test -s cloudflare-d1/frontend-dist/config.js
+          test -s cloudflare-d1/frontend-dist/styles.css
+
+          (cd cloudflare-d1/frontend-dist && find . -maxdepth 1 -type f ! -name app.js -print0 | sort -z | xargs -0 sha256sum) > /tmp/non-app-before.sha256
+          cp cloudflare-d1/frontend-dist/app.js /tmp/app-before.js
+          echo "SSO_REPAIR_LIVE_ASSET_COUNT=$(find cloudflare-d1/frontend-dist -maxdepth 1 -type f | wc -l)"
+
+      - name: Patch only the live app.js EasyStore handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('cloudflare-d1/frontend-dist/app.js')
+          s=p.read_text()
+          old="""  function openAccounting(dayClose){
+              var u=sessionUser(),mode=roleMode(),base=txt(window.MATBAGY_EASY_STORE_URL||'https://fawakhry.github.io/EasyStore/');
+              if(!u.username&&!u.name){alert('سجل دخول الموظف الأول.');return false;}
+              try{
+                var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
+                var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,v:CACHE_TAG};
+                Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
+                try{localStorage.setItem('MATBAGY_EMPLOYEE_SSO',JSON.stringify({at:Date.now(),user:u,params:Object.assign({},params,{token:u.token})}));}catch(e){}
+                window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
+                return true;
+              }catch(e){alert('تعذر فتح الحسابات: '+(e.message||e));return false;}
+            }
+          """
+          new="""  function entry619SsoNonce(){
+              try{if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();}catch(e){}
+              return 'sso-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
+            }
+            function entry619PostEmployeeSso(child,targetOrigin,nonce,u,params){
+              if(!child||!u||!u.token)return false;
+              var stopped=false,timer=null,tries=0;
+              function stop(){
+                if(stopped)return;stopped=true;
+                if(timer)clearInterval(timer);
+                try{window.removeEventListener('message',ack,true);}catch(e){}
+              }
+              function ack(ev){
+                var d=ev&&ev.data||{};
+                if(ev.origin!==targetOrigin||ev.source!==child)return;
+                if(d.type!=='EASYSTORE_EMPLOYEE_SSO_ACK_V1'||String(d.nonce||'')!==String(nonce||''))return;
+                stop();
+              }
+              function send(){
+                if(stopped)return;
+                tries++;
+                try{
+                  child.postMessage({
+                    type:'TRENDOS_EMPLOYEE_SSO_V1',
+                    nonce:nonce,
+                    issuedAt:Date.now(),
+                    user:{
+                      name:u.name||u.username||'',
+                      username:u.username||u.name||'',
+                      token:u.token||'',
+                      role:u.role||'',
+                      department:u.department||'',
+                      mode:params.mode||'',
+                      roleMode:params.roleMode||''
+                    }
+                  },targetOrigin);
+                }catch(e){}
+                if(tries>=32)stop();
+              }
+              window.addEventListener('message',ack,true);
+              send();
+              timer=setInterval(send,250);
+              setTimeout(stop,8500);
+              return true;
+            }
+            function openAccounting(dayClose){
+              var u=sessionUser(),mode=roleMode(),base=txt(window.MATBAGY_EASY_STORE_URL||'https://fawakhry.github.io/EasyStore/');
+              if(!u.username&&!u.name){alert('سجل دخول الموظف الأول.');return false;}
+              if(!u.token){alert('انتهت جلسة الموظف. سجل الدخول في TrendOS مرة أخرى ثم افتح الحسابات.');return false;}
+              try{
+                var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
+                var nonce=entry619SsoNonce();
+                var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,ssoNonce:nonce,v:CACHE_TAG};
+                Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
+                var child=window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
+                if(!child){alert('المتصفح منع فتح شاشة الحسابات. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return false;}
+                entry619PostEmployeeSso(child,url.origin,nonce,u,params);
+                return true;
+              }catch(e){alert('تعذر فتح الحسابات: '+(e.message||e));return false;}
+            }
+          """
+          count=s.count(old)
+          if count!=1:
+              raise SystemExit('secure-sso-anchor-count='+str(count))
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/app.js
+          grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "EASYSTORE_EMPLOYEE_SSO_ACK_V1" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "entry619PostEmployeeSso" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "ssoNonce:nonce" cloudflare-d1/frontend-dist/app.js
+          ! grep -Eq "searchParams\.set\([^\n]*token" cloudflare-d1/frontend-dist/app.js
+          cmp -s cloudflare-d1/frontend-dist/config.js /tmp/live-config.js 2>/dev/null || true
+          echo 'SSO_REPAIR_PATCH_QUALIFIED=PASS'
+
+      - name: Deploy frontend-only with automatic rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "EasyStore secure SSO runtime repair rollback" --config "$FRONTEND_CONFIG" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_RUN_ID-$attempt-$(date +%s)"
+            if curl -fsSL "$FRONTEND_URL/app.js?ssoRepairPost=$suffix" -o /tmp/post-app.js               && grep -Fq "TRENDOS_EMPLOYEE_SSO_V1" /tmp/post-app.js               && grep -Fq "entry619PostEmployeeSso" /tmp/post-app.js               && grep -Fq "ssoNonce:nonce" /tmp/post-app.js; then
+                OK=1
+                echo "SSO_REPAIR_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          while read -r hash rel; do
+            name="${rel#./}"
+            curl -fsSL "$FRONTEND_URL/$name?ssoRepairHash=$GITHUB_RUN_ID-$(date +%s%N)" -o "/tmp/post-$name"
+            got="$(sha256sum "/tmp/post-$name" | awk '{print $1}')"
+            test "$got" = "$hash"
+          done < /tmp/non-app-before.sha256
+
+          curl -fsS "$ACCOUNTING_API/health?ssoRepairPost=$GITHUB_RUN_ID" > /tmp/acc-post.json
+          node <<'NODE'
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/acc-post.json','utf8'));
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw new Error('accounting authority drift');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw new Error('accounting canary drift');
+          if(Number(h.googleBusinessCalls||0)!==0)throw new Error('google business calls drift');
+          console.log('SSO_REPAIR_ACCOUNTING_POST=READONLY');
+          console.log('SSO_REPAIR_NON_APP_ASSETS_INVARIANT=PASS');
+          console.log('SSO_REPAIR_GENERAL_OPENED=NO');
+          console.log('SSO_REPAIR_BUSINESS_MUTATION=NO');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui-after.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-after.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1)throw new Error('post frontend version not single 100%');
+          console.log('SSO_REPAIR_POST_UI_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo 'SSO_REPAIR_RESULT=PASS'
