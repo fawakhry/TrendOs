@@ -1,0 +1,51 @@
+name: EasyStore A2.10 Four-Canary Baseline Qualification
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a210-four-canary-baseline-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify central guards use the four-canary baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const files={
+            checkpoint:'.github/workflows/easystore-accounting-runtime-checkpoint-audit.yml',
+            schema:'.github/workflows/easystore-a2-schema-apply-controlled.yml',
+            deploy:'.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml'
+          };
+          const expected=['materials:1','templates:1','parties:1','partyBalances:1','requestLedger:4','events:4'];
+          for(const [name,path] of Object.entries(files)){
+            const s=fs.readFileSync(path,'utf8');
+            for(const token of expected) if(!s.includes(token)) throw new Error(name+' missing '+token);
+            if(s.includes('requestLedger:3')||s.includes('events:3')) throw new Error(name+' retains three-canary evidence');
+          }
+          const checkpoint=fs.readFileSync(files.checkpoint,'utf8');
+          if(!checkpoint.includes("(SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties"))throw new Error('checkpoint parties count missing');
+          const schema=fs.readFileSync(files.schema,'utf8');
+          if(!schema.includes("(SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances"))throw new Error('schema party balance count missing');
+          const deploy=fs.readFileSync(files.deploy,'utf8');
+          if((deploy.match(/\(SELECT COUNT\(\*\) FROM employee_accounting_parties_v1\) AS parties/g)||[]).length!==2)throw new Error('deploy pre/post parties count missing');
+          console.log('A210_FOUR_CANARY_BASELINE_CI=PASS');
+          console.log('CENTRAL_RUNTIME_CHECKPOINT=1/1/1/1/4/4');
+          console.log('SCHEMA_GUARDS=1/1/1/1/4/4');
+          console.log('DEPLOY_GUARDS=1/1/1/1/4/4');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
