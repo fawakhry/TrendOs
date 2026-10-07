@@ -170,6 +170,25 @@ function enforceLowRiskMasterCanaryShapeV1(action,body){
       && !text(b.notes);
     if(!ok)throw commandErrorV1('employee-accounting-canary-supplier-shape-blocked','شكل Supplier الكاناري يجب أن يكون موردًا صناعيًا غير نشط بصفر رصيد وبدون بيانات أعمال إضافية.');
   }
+  if(action==='saveAccountingWaste'){
+    const orderId=text(b.orderId),reason=text(b.reason||b.wasteType),department=text(b.department);
+    const amount=num(b.amount||b.damageCost),recovered=num(b.paid||b.damageCovered);
+    const materialQty=num(b.materialQty||b.qtyWaste||b.wasteQty);
+    const ok=/^A2-CANARY-WASTE-/.test(orderId)
+      && reason==='A2_CANARY'
+      && department==='عام'
+      && Math.abs(amount-0.01)<=0.000001
+      && recovered===0
+      && materialQty===0
+      && !text(b.materialId)
+      && !text(b.materialName||b.material)
+      && !text(b.itemName)
+      && !text(b.lineId)
+      && !text(b.evidenceRef||b.evidence)
+      && !text(b.notes)
+      && !text(b.wasteId||b.id);
+    if(!ok)throw commandErrorV1('employee-accounting-canary-waste-shape-blocked','شكل Waste الكاناري يجب أن يكون سجلًا صناعيًا بقيمة 0.01 فقط، بلا خامة أو حركة مخزون أو تعويض أو بيانات أعمال إضافية.');
+  }
   if(action==='recalcAccountingMaterialsCascade'){
     const allowed=new Set(['action','username','name','_ts','requestId','idempotencyKey','requestKey','sourceSystem','correlationId','evidenceRefs','evidence']);
     const extras=Object.keys(b).filter(k=>!allowed.has(k)&&b[k]!==undefined&&b[k]!==null&&String(b[k])!=='');
