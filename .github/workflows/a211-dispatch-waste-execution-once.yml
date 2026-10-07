@@ -1,0 +1,26 @@
+name: A2.11 Dispatch Waste Execution Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a211-dispatch-waste-execution-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch approved A2.11 Waste execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a211-waste-canary-execution.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A211_WASTE_EXECUTION_DISPATCHED=YES
