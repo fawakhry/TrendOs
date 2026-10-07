@@ -5973,3 +5973,269 @@ X_FOLDER_EQUALS_AUTHORITATIVE_PRINTED=NO
 ```
 
 Result: **PASS — ORDER ROOT CREATION REMAINS AUTOMATIC, WHILE ALL WORK-FOLDER CREATION IS NOW EXPLICIT OPERATOR SELECTION**.
+
+### AP-073 — Deadline-risk / overdue projection live in Control Tower and Owner Exception Console
+
+Date: 2026-10-07.
+
+This checkpoint continued directly from AP-071's declared next gate. The legacy TrendOS Manager Center remained a stabilized fallback throughout and no Auth, Accounting-write, EasyStore, Content/R2, Operator Task, or employee-assignment authority was changed.
+
+Truth priority:
+`Runtime truth > deployed > tested > repo-only > historical`.
+
+#### Gate C — deterministic deadline-risk projection, repo-qualified
+
+Added:
+- `autonomous-printshop/core/deadline-risk-projection-v1.mjs`;
+- `autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs`;
+- Policy CI wiring.
+
+Source commit:
+`69ff1245408bab026c01faaf4f354a3fb3fde389`.
+
+Projection rules:
+- active work includes ordinary, in-progress, operational exceptions, and Fly Print;
+- closed work is excluded;
+- deterministic buckets:
+  - OVERDUE;
+  - AT_RISK_24H;
+  - WATCH_48H;
+- order IDs are used only internally for distinct aggregate counts;
+- output exposes counts, lane breakdown, department aggregates, oldest delay and nearest future due;
+- no raw Order ID, raw Line ID, customer PII, or employee identity is exposed.
+
+Qualification:
+```ini
+POLICY_CI_RUN=37633408298
+POLICY_CI=SUCCESS
+DEADLINE_RISK_PROJECTION_V1=PASS
+RAW_ORDER_IDS_EXPOSED=NO
+RAW_LINE_IDS_EXPOSED=NO
+CUSTOMER_PII_EXPOSED=NO
+PRODUCTION_MUTATION=NO
+```
+
+#### Gate D — Control Tower Shadow activation
+
+Integrated the projection into:
+- `autonomous-printshop/production-shadow/worker.mjs`;
+- `autonomous-printshop/tests/production_shadow_worker_v1.test.mjs`;
+- `.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml`.
+
+Source commit:
+`dd15a4b3b3601b2bcbd660b39babc9bf89aee732`.
+
+Control Tower now exposes:
+- `operations.deadlineRisk`;
+- `attentionSignals.deadlineOverdueOrders`;
+- `attentionSignals.deadlineAtRisk24hOrders`;
+- `attentionSignals.deadlineUrgentImmediateRiskLines`.
+
+Qualification / deploy:
+```ini
+POLICY_CI_RUN=37633711581
+POLICY_CI=SUCCESS
+SHADOW_DEPLOY_RUN=37633711508
+SHADOW_DEPLOY=SUCCESS
+SHADOW_CLOUDFLARE_VERSION_ID=0ebbf05a-61ee-400b-b66b-6379f74f759f
+MAIN_TRENDOS_PREDEPLOY=PASS
+MAIN_TRENDOS_POSTDEPLOY=PASS
+D1_WRITE_CODE=NO
+```
+
+The Observer deployment workflow also ran because its path filter explicitly watches `autonomous-printshop/production-shadow/worker.mjs`:
+```ini
+OBSERVER_DEPLOY_RUN=37633711409
+OBSERVER_DEPLOY=SUCCESS
+OBSERVER_CLOUDFLARE_VERSION_ID=f224e9d0-383f-43a0-a77e-301543a03b20
+OBSERVER_AUTHORITY_CHANGE=NO
+```
+
+A transient service-binding propagation lag was observed immediately after the Sidecar deploy:
+- direct `/control-tower` already contained `deadlineRisk`;
+- the first Dashboard `/state` read still reflected the previous Control Tower projection;
+- no mutation or rollback was performed;
+- a controlled recheck after propagation showed the field through the Dashboard service binding.
+
+```ini
+TRANSIENT_DEPLOY_PROPAGATION=OBSERVED
+ROLLBACK=NO
+FINAL_SERVICE_BINDING_PROPAGATION=PASS
+```
+
+#### Gate E — Owner Exception Console activation
+
+Updated:
+- `autonomous-printshop/core/owner-exception-model-v1.mjs`;
+- `autonomous-printshop/tests/owner_exception_model_v1.test.mjs`;
+- `autonomous-printshop/dashboard/worker.mjs`;
+- `autonomous-printshop/tests/dashboard_v1.test.mjs`;
+- `autonomous-printshop/manifests/MANAGER_CENTER_MIGRATION_INVENTORY_V1.json`.
+
+Manager migration inventory update:
+```ini
+MC_07_OVERDUE_DEADLINE_ATTENTION=LIVE
+TARGET=OWNER_EXCEPTION_CONSOLE
+RAW_IDS_EXPOSED=NO
+```
+
+Owner Exception Model now creates structured deadline exceptions:
+- `DEADLINE_OVERDUE`;
+- `DEADLINE_AT_RISK_24H`;
+- `DEADLINE_DATA_GAP` only if active work lacks a valid due date.
+
+Each exception explicitly states:
+- what is wrong;
+- responsible actor = Production Scheduler / TrendOS Source as applicable;
+- AI state;
+- whether AI can resolve immediately;
+- whether owner approval is required;
+- next safe action.
+
+The Owner Console top surface now includes:
+- overdue order KPI;
+- next-24-hour risk KPI;
+- 48-hour watch count;
+- department-level deadline-risk table;
+- structured deadline exception cards.
+
+A concurrent Print Server change advanced the branch while Gate E was being committed. The first lease attempt stopped safely:
+```ini
+FIRST_GATE_E_COMMIT_ATTEMPT=ABORTED_SAFE
+REASON=HEAD_MOVED
+TARGET_FILES_CHANGED=NO
+OVERWRITE_CONCURRENT_WORK=NO
+```
+
+The exact qualified change was then rebased onto the newer branch head and committed without overwriting the concurrent Print Server work.
+
+Final Gate E source commit:
+`ccf52ce2b95e8f4b9b4b9bcde20a682aff6720ee`.
+
+Qualification / Production deploy:
+```ini
+POLICY_CI_RUN=37634332814
+POLICY_CI=SUCCESS
+DASHBOARD_DEPLOY_RUN=37634332447
+DASHBOARD_DEPLOY=SUCCESS
+DASHBOARD_CLOUDFLARE_VERSION_ID=507a9a09-16f5-46b9-a4c5-cd259d9433d1
+DASHBOARD_VERSION=AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_2_20261007
+DASHBOARD_MODE=READ_ONLY_OWNER_EXCEPTION_CONSOLE
+MAIN_TRENDOS_PREDEPLOY=PASS
+MAIN_TRENDOS_POSTDEPLOY=PASS
+```
+
+#### Final live Production proof
+
+Final postflight from the live Dashboard / Control Tower:
+
+```ini
+CONTROL_TOWER_MODE=CONTROL_TOWER_SHADOW
+CONTROL_TOWER_SOURCE=trendos-main-d1
+NATIVE_ORDERS=380
+SCHEDULE_ROWS=380
+MISSING_SCHEDULE=0
+SCHEDULE_POLICY_MISMATCHES=0
+ROW_COUNT=620
+
+ORDINARY=89
+IN_PROGRESS=12
+CLOSED=519
+ACTIVE_LINES=101
+ACTIVE_ORDERS=99
+
+OVERDUE_LINES=17
+OVERDUE_ORDERS=17
+AT_RISK_24H_LINES=12
+AT_RISK_24H_ORDERS=12
+WATCH_48H_LINES=35
+WATCH_48H_ORDERS=35
+URGENT_IMMEDIATE_RISK_LINES=1
+MISSING_DUE_LINES=0
+INVALID_DUE_LINES=0
+OLDEST_OVERDUE_HOURS=134.2
+NEAREST_FUTURE_DUE_HOURS=9.8
+```
+
+Department risk:
+```ini
+LASER_OVERDUE_ORDERS=17
+LASER_AT_RISK_24H_ORDERS=10
+LASER_WATCH_48H_ORDERS=28
+LASER_URGENT_RISK_LINES=4
+
+PRINT_OVERDUE_ORDERS=0
+PRINT_AT_RISK_24H_ORDERS=2
+PRINT_WATCH_48H_ORDERS=7
+```
+
+Current employee/supervisor state:
+```ini
+KNOWN_OPERATORS=4
+AVAILABLE_OPERATORS=1
+EMPLOYEE_REVIEW_REQUIRED=1
+ACTIVE_OPERATOR_TASKS=0
+```
+
+Current readiness/control state:
+```ini
+AUTONOMY=SHADOW
+READINESS=SHADOW
+OPERATOR_TASK=OFF
+STRICT_ELIGIBLE=0
+READINESS_BLOCKED=89
+READINESS_EVIDENCE_ROWS=0
+AI_OBSERVED_DECISIONS=15
+AI_EXECUTION_STATE=SHADOW_NO_LIVE_EXECUTION
+```
+
+Owner Exception Model final aggregate:
+```ini
+OWNER_EXCEPTION_TOTAL=7
+OWNER_ACTION_REQUIRED=0
+WAITING_EXTERNAL_EVIDENCE=4
+DEADLINE_OVERDUE_EXCEPTION=LIVE
+DEADLINE_AT_RISK_24H_EXCEPTION=LIVE
+```
+
+Runtime drift during this gate was accepted as truth:
+- Accounting moved from the AP-071 observed CANARY window back to READONLY;
+- Accounting policy epoch advanced to 29;
+- Material freeze automatically cleared;
+- native Orders advanced to 380;
+- Control Tower row count advanced to 620;
+- Autonomy events advanced to 15.
+
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=29
+MATERIAL_FROZEN=false
+ACCOUNTING_WRITE_FROM_AUTONOMOUS_PRINTSHOP=NO
+EASYSTORE_MUTATION=NO
+```
+
+Privacy / authority postflight:
+```ini
+RAW_ORDER_IDS_EXPOSED=NO
+RAW_LINE_IDS_EXPOSED=NO
+CUSTOMER_PII_EXPOSED=NO
+EMPLOYEE_IDENTITY_EXPOSED=NO
+BUSINESS_WRITE=NO
+D1_MUTATION=NO
+EMPLOYEE_ASSIGNMENT=NO
+OPERATOR_TASK_ACTIVATED=NO
+ACCOUNTING_WRITE=NO
+CONTENT_MODE_CHANGE=NO
+R2_CREATED=NO
+LEGACY_MANAGER_CENTER_DISABLED=NO
+```
+
+Result: **PASS — DEADLINE-RISK / OVERDUE MANAGEMENT IS LIVE IN AUTONOMOUS PRINTSHOP CONTROL TOWER AND OWNER EXCEPTION CONSOLE; THE OWNER CAN NOW SEE LATE AND NEAR-DEADLINE WORK FIRST, BY DEPARTMENT, WITH RESPONSIBLE-ACTOR AND AI/OWNER BOUNDARIES, WITHOUT MOVING TRENDOS OR ACCOUNTING AUTHORITY.**
+
+Next highest-value migration gaps remain:
+1. structured D1-native Andon / blocker events for Employee Supervisor;
+2. qualified read-only Comms pending-message aggregate in Control Tower;
+3. read-only debt/payment/day-close warning signals without Accounting writes;
+4. Control Tower last-good/stale degraded-mode parity;
+5. protected archive-restore action only after a separately qualified TrendOS backend contract.
+
