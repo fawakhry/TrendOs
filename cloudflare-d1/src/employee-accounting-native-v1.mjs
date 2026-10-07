@@ -157,6 +157,19 @@ function enforceLowRiskMasterCanaryShapeV1(action,body){
       ]);
     if(!ok)throw commandErrorV1('employee-accounting-canary-master-shape-blocked','شكل Material الكاناري خارج النطاق الصفري غير النشط المسموح.');
   }
+  if(action==='saveEasyStoreSupplier'){
+    const name=text(b.supplierName||b.supplier||b.name);
+    const opening=Math.max(0,num(b.openingDebt||b.opening||b.debt));
+    const ok=/^A2-CANARY-SUPPLIER-/.test(name)
+      && lowRiskCanaryInactiveV1(b.active)
+      && opening===0
+      && !text(b.partyId||b.supplierId)
+      && !text(b.externalId)
+      && !text(b.phone)
+      && !text(b.address)
+      && !text(b.notes);
+    if(!ok)throw commandErrorV1('employee-accounting-canary-supplier-shape-blocked','شكل Supplier الكاناري يجب أن يكون موردًا صناعيًا غير نشط بصفر رصيد وبدون بيانات أعمال إضافية.');
+  }
   if(action==='recalcAccountingMaterialsCascade'){
     const allowed=new Set(['action','username','name','_ts','requestId','idempotencyKey','requestKey','sourceSystem','correlationId','evidenceRefs','evidence']);
     const extras=Object.keys(b).filter(k=>!allowed.has(k)&&b[k]!==undefined&&b[k]!==null&&String(b[k])!=='');
