@@ -63,6 +63,8 @@ jobs:
               (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
               (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
               (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
+              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
               (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
               (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
               (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
@@ -84,7 +86,7 @@ jobs:
           const rows=find('/tmp/accounting-pre.json',x=>x.materials!==undefined);
           if(rows.length!==1) throw new Error('accounting-count-parse');
           const r=Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v||0)]));
-          const expected={requestLedger:3,materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,stockMoves:0,events:3};
+          const expected={requestLedger:4,materials:1,templates:1,parties:1,partyBalances:1,deptLines:0,finalInvoices:0,partyLedger:0,stockMoves:0,events:4};
           const drift=Object.keys(expected).filter(k=>r[k]!==expected[k]).map(k=>({key:k,actual:r[k],expected:expected[k]}));
           if(drift.length) throw new Error('approved-post-canary-baseline-required:'+JSON.stringify(drift));
           console.log('A2_SCHEMA_ACCOUNTING_BASELINE=APPROVED_CANARY_EVIDENCE');
@@ -181,7 +183,7 @@ jobs:
           const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};
           walk(x);if(rows.length!==1)throw new Error('post-accounting-count-parse');
           const r=Object.fromEntries(Object.entries(rows[0]).map(([k,v])=>[k,Number(v||0)]));
-          const expected={requestLedger:3,materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,stockMoves:0,events:3,parties:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,txGuard:0};
+          const expected={requestLedger:4,materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,stockMoves:0,events:4,parties:1,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,txGuard:0};
           const drift=Object.keys(expected).filter(k=>r[k]!==expected[k]).map(k=>({key:k,actual:r[k],expected:expected[k]}));
           if(drift.length)throw new Error('migration-created-or-altered-accounting-evidence:'+JSON.stringify(drift));
           console.log('A2_SCHEMA_ACCOUNTING_POST=APPROVED_CANARY_EVIDENCE');
