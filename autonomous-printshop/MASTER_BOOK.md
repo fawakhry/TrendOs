@@ -4539,3 +4539,288 @@ Conclusion:
 - additional code must not invent substitutes for missing physical/source truth;
 - the next transition depends on new authoritative operational evidence;
 - once that evidence appears, already-qualified Design, Material, Machine and Operator Task CANARY gates can evaluate it without redesigning the readiness architecture.
+
+
+### AP-058 — Canon PRO-2100 model profile qualified without physical identity
+
+Backfilled into the Autonomous Printshop central book because the model-profile work was committed after AP-057 and must not remain documented only outside `autonomous-printshop/MASTER_BOOK.md`.
+
+Added after AP-057:
+- `autonomous-printshop/core/machine-model-profile-v1.mjs`;
+- `autonomous-printshop/machine/MACHINE_MODEL_CATALOG_V1.json`;
+- `autonomous-printshop/tests/machine_model_profile_v1.test.mjs`;
+- Policy CI wiring.
+
+Qualified model:
+```ini
+MODEL_KEY=CANON_IMAGEPROGRAF_PRO_2100
+MANUFACTURER=Canon
+MODEL=imagePROGRAF PRO-2100
+MACHINE_CLASS=LARGE_FORMAT_PIGMENT_INKJET
+NOMINAL_MEDIA_WIDTH_IN=24
+MAX_MEDIA_WIDTH_MM=609.6
+MAX_PRINT_RESOLUTION_DPI=2400x1200
+INK_TECHNOLOGY=LUCIA_PRO
+INK_TYPE=PIGMENT
+INK_CHANNELS=12
+MAX_POWER_W=93
+```
+
+Important boundary:
+- the model profile is only a technical capability profile;
+- it does not prove that the physical shop owns or is currently using a specific PRO-2100 unit;
+- it does not create a Machine ID;
+- it does not infer a serial number;
+- it does not infer an owner asset tag;
+- it does not grant Machine registration by itself;
+- it never grants Machine READY.
+
+Registration candidate remains fail-closed until all physical identity fields exist:
+```ini
+EXPLICIT_MACHINE_ID=REQUIRED
+SERIAL_OR_ASSET_TAG=REQUIRED
+IDENTITY_SOURCE_KIND=NAMEPLATE_OR_OWNER_ASSET_REGISTRY
+IDENTITY_SOURCE_REF=REQUIRED
+MODEL_PROFILE_ALONE_GRANTS_REGISTRATION=NO
+MODEL_PROFILE_ALONE_GRANTS_READY=NO
+```
+
+Qualification:
+- Policy CI Run `37550292166` = SUCCESS.
+- Head commit `2e8e223aef407b1a1253f023b9b39527292a2301`.
+- Machine model profile contract = PASS.
+
+Production impact:
+```ini
+MACHINE_IDENTITY_ROWS=0
+ACTIVE_MACHINES=0
+ACTIVE_MACHINE_OBSERVATIONS=0
+MACHINE_MAPPINGS=0
+MACHINE_READY=0
+PRODUCTION_MACHINE_MUTATION=NO
+```
+
+This profile narrows future machine configuration once physical identity is supplied, but the physical-evidence blocker from AP-057 remains unchanged.
+
+
+### AP-059 — New-chat handoff checkpoint
+
+This entry is the authoritative Autonomous Printshop handoff checkpoint for the next chat.
+
+Truth priority:
+`Runtime truth > deployed > tested > repo-only > historical`.
+
+#### Repository / book
+```ini
+REPO=fawakhry/TrendOs
+BRANCH=candidate/t12-full-cloud-cutover-a56-20260929
+CENTRAL_BOOK=autonomous-printshop/MASTER_BOOK.md
+LAST_ENTRY=AP-059
+```
+
+Do not use `TrendOS_MASTER_BOOK.md` as the Autonomous Printshop execution ledger. Historical spillover may exist there, but new Autonomous Printshop PASS/FAIL/BLOCKED_SAFE/DEPLOY/ROLLBACK checkpoints belong only in this book.
+
+#### Latest Accounting dependency
+EasyStore Accounting central book is currently through **ACC-097**.
+
+Latest accounting truth consumed:
+- A2.9 bounded recalc Production canary completed successfully and fully closed;
+- Accounting runtime is READONLY;
+- policy epoch=10;
+- authoritativeWrites=false;
+- writeAuthorityMode=OFF;
+- server canary users/actions=0/0;
+- maxCommands=0;
+- commandsStarted=0;
+- Google business calls=0;
+- GENERAL has never been opened;
+- Production contains one inactive zero-value A2_CANARY Material audit row and one inactive Template audit row;
+- A2.10 Supplier canary has only completed exact live preflight qualification and has not been armed/deployed/executed at ACC-097.
+
+Autonomous Printshop must continue to follow Accounting in parallel and must never arm or mutate Accounting authority unless separately qualified and explicitly allowed by the Accounting stream.
+
+#### Fresh live Autonomous Printshop runtime at handoff
+```ini
+CONTROL_TOWER_MODE=SHADOW
+AUTONOMY_MODE=SHADOW
+READINESS_MODE=SHADOW
+OPERATOR_TASK_CONTROL=OFF
+OPERATOR_TASK_ROWS=0
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+
+NATIVE_ORDERS=335
+SCHEDULE_ROWS=335
+MISSING_SCHEDULE=0
+SCHEDULE_POLICY_MISMATCHES=0
+BASELINE_CANDIDATES=54
+STRICT_ELIGIBLE=0
+STRICT_BLOCKED=54
+READINESS_EVIDENCE_ROWS=0
+
+DESIGN_ARTIFACTS=0
+DESIGN_APPROVALS=0
+DESIGN_PREFLIGHTS=0
+DESIGN_LINKED_BINDINGS=0
+APPROVAL_RECEIPT_SCHEMA_READY=true
+APPROVAL_RECEIPT_ROWS=0
+CLOUD_ORDER_FILES=0
+CLOUD_LINE_LINKED_FILES=0
+DESIGN_READY=0
+
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=10
+ACCOUNTING_MATERIAL_ROWS_TOTAL=1
+ACCOUNTING_CANARY_MATERIAL_ROWS=1
+CANARY_ROWS_EXCLUDED_FROM_READINESS=true
+ACTIVE_OPERATIONAL_MATERIALS=0
+MATERIAL_SOURCE_LINKED_ROWS=0
+MATERIAL_SOURCE_LINKED_LINES=0
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_READY=0
+MATERIAL_BLOCKER=AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING
+
+MACHINE_IDENTITY_SCHEMA_READY=true
+MACHINE_IDENTITY_ROWS=0
+ACTIVE_MACHINES=0
+ACTIVE_MACHINE_OBSERVATIONS=0
+MACHINE_MAPPINGS=0
+MACHINE_READY=0
+
+AVAILABLE_OPERATORS=0
+```
+
+#### Material safety status
+The Material path is fully cutover-aware:
+- Accounting CANARY freezes Material evidence automatically;
+- READONLY reopens blocker observation only;
+- A2_CANARY audit materials are explicitly excluded from operational readiness;
+- post-cutover requalification remains diagnostic-only and requires GENERAL + explicit Accounting checkpoint + stock-authority confirmation + real operational materials + real line/material/consumption linkage;
+- the post-cutover diagnostic is manual-only;
+- its GitHub/Wrangler interpolation is corrected;
+- its active-material count excludes `A2_CANARY`;
+- it performs no D1 business mutation and no READY activation.
+
+#### Design software state
+Qualified paths already exist for:
+- Cloud/current file provenance;
+- SHA-256-bound Artifact;
+- LINKED private asset binding;
+- structured Approval Receipt;
+- owner-only structured Approval;
+- canonical structured Preflight evaluator;
+- strict same-artifact projection;
+- Cloud order-file Artifact collector core.
+
+Important:
+- manual Design import cannot synthesize PASS;
+- upload != approval;
+- receipt != READY;
+- approval != preflight;
+- READY still requires the same artifact to satisfy LINKED + SHA-256 + qualified Approval + qualified Preflight PASS.
+
+Current blocker:
+```ini
+REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING
+```
+
+#### Material software state
+Qualified paths already exist for:
+- Accounting cloud cutover guard;
+- non-canary operational Material filtering;
+- exact source-link projection;
+- post-cutover diagnostic;
+- future fail-closed Material READY candidate generation.
+
+Current blocker:
+```ini
+ACTIVE_NON_CANARY_MATERIAL=0
+AUTHORITATIVE_STOCK_SOURCE=MISSING
+LIVE_LINE_MATERIAL_LINK=MISSING
+POSITIVE_MATERIAL_CONSUMPTION=MISSING
+```
+
+#### Machine software state
+Qualified paths already exist for:
+- Machine SHADOW control;
+- identity schema;
+- nameplate/owner-registry identity qualification;
+- direct observation writer;
+- line-machine mapping;
+- strict Machine projection;
+- model-profile layer including Canon imagePROGRAF PRO-2100.
+
+Current blocker:
+```ini
+EXPLICIT_PHYSICAL_MACHINE_ID=MISSING
+SERIAL_OR_ASSET_TAG=MISSING
+QUALIFIED_NAMEPLATE_OR_OWNER_ASSET_REGISTRY=MISSING
+DIRECT_CURRENT_CHECK=MISSING
+ACTIVE_LINE_MACHINE_MAPPING=MISSING
+```
+
+Known model/software references such as Canon G7070, Epson L805, EZCAD 30W and the qualified Canon PRO-2100 model profile are not sufficient physical identity proof.
+
+#### Evidence pilot
+Current privacy-safe pilot packet:
+```ini
+DEPARTMENT=ليزر
+PRIORITY=عاجل
+DUE=2026-10-07T23:59:59.000Z
+MACHINE_CLASS_HINT=LASER
+MISSING_KINDS=DESIGN,MATERIAL,MACHINE
+PURPOSE=EVIDENCE_ACQUISITION_ONLY
+EXTERNAL_EVIDENCE_REQUIRED=true
+COMPLETION_RULE=SAME_LINE_REQUIRES_DESIGN_MATERIAL_MACHINE_READY
+ASSIGNMENT_ALLOWED=false
+TASK_CLAIM_ALLOWED=false
+READY_WRITE_ALLOWED=false
+OPERATOR_TASK_ACTIVATION_ALLOWED=false
+```
+
+#### First next actions in a new chat
+Do not restart architecture work. Start by refreshing:
+1. this book from AP-059;
+2. latest Accounting book checkpoint after ACC-097;
+3. latest GitHub Actions on the AP branch;
+4. live Accounting health;
+5. live Readiness Collector `/evidence-status`;
+6. live Dashboard `/state`;
+7. live Control Tower / readiness if needed.
+
+Then continue only from new truth.
+
+Priority order:
+1. consume any newly available real Design / Material / Machine evidence for the existing privacy-safe pilot;
+2. if Accounting advances, re-sync Material guard without inventing inventory;
+3. if a physical machine nameplate or owner asset record appears, register exactly that machine and no synthetic machine;
+4. if a current Cloud order file appears with real order+line+R2+SHA256, use the already-qualified Design artifact path, then structured approval + structured preflight;
+5. only after one same line has DESIGN READY + MATERIAL READY + MACHINE READY and an operator is available, evaluate Operator Task CANARY;
+6. do not enable live assignment before that gate passes.
+
+#### Hard safety rules for continuation
+- no synthetic inventory;
+- no synthetic Machine ID;
+- no guessed serial / asset tag;
+- no archived Design promoted to current;
+- no free-text approval authority;
+- no manual preflight PASS synthesis;
+- no READY from missing evidence;
+- no live employee assignment while Operator Task is OFF;
+- no punitive employee automation;
+- EasyStore remains Accounting/finance authority;
+- Matbagy remains Design/assets DNA source;
+- Autonomous Printshop remains fail-closed.
+
+Final handoff state:
+```ini
+SOFTWARE_ARCHITECTURE_QUALIFIED=YES
+SOFTWARE_POLICY_GAP=NO_KNOWN_BLOCKER
+EXTERNAL_OPERATIONAL_EVIDENCE_REQUIRED=YES
+STRICT_ELIGIBLE=0
+DESIGN_READY=0
+MATERIAL_READY=0
+MACHINE_READY=0
+OPERATOR_TASK_CANARY_READY=NO
+PROJECT_END_TO_END_FINISHED=NO
+NEXT_TRANSITION=REAL_EVIDENCE_ACQUISITION
+```
