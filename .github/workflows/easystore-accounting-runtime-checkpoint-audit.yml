@@ -1,5 +1,5 @@
 name: EasyStore Accounting Runtime Checkpoint Audit
-# refresh 2026-10-07 after successful A2.9 recalc canary closure
+# refresh 2026-10-07 after successful A2.10 Supplier fourth-canary closure
 # A2.7 post deploy refresh
 # refresh after successful A2.8 material canary closure 2026-10-07
 # refresh 2026-10-06 A2.7 pre-canary decision
@@ -45,6 +45,7 @@ jobs:
             SELECT
               (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
               (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+              (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
               (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
               (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
               (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
@@ -90,7 +91,7 @@ jobs:
           console.log('ACCOUNTING_CHECKPOINT_LIVE_CANARY_ACTIONS='+(ca?ca[1]:'ABSENT_SAFE'));
           for(const [k,v] of Object.entries(r)) console.log('ACCOUNTING_CHECKPOINT_COUNT_'+k+'='+Number(v||0));
           console.log('ACCOUNTING_CHECKPOINT_TOTAL_BUSINESS_ROWS='+total);
-          const expected={materials:1,templates:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:0,requestLedger:3,events:3};
+          const expected={materials:1,templates:1,parties:1,deptLines:0,finalInvoices:0,partyLedger:0,purchases:0,dailyPurchases:0,cashbox:0,waste:0,custodyEvents:0,custodyCloses:0,dayCloses:0,partyBalances:1,requestLedger:4,events:4};
           const drift=Object.keys(expected).filter(k=>Number(r[k]||0)!==expected[k]).map(k=>({key:k,actual:Number(r[k]||0),expected:expected[k]}));
           if(drift.length)throw new Error('approved canary evidence baseline drift:'+JSON.stringify(drift));
           if(h.mode!=='READONLY')throw new Error('accounting mode drift');
