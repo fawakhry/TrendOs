@@ -1,0 +1,72 @@
+{
+  "version": "MACHINE_MODEL_CATALOG_V1",
+  "models": [
+    {
+      "modelKey": "CANON_IMAGEPROGRAF_PRO_2100",
+      "manufacturer": "Canon",
+      "model": "imagePROGRAF PRO-2100",
+      "machineClass": "LARGE_FORMAT_PIGMENT_INKJET",
+      "nominalMediaWidthIn": 24,
+      "maxMediaWidthMm": 609.6,
+      "maxPrintResolutionDpi": {
+        "x": 2400,
+        "y": 1200
+      },
+      "inkSystem": {
+        "technology": "LUCIA PRO",
+        "type": "PIGMENT",
+        "channels": 12,
+        "colorDescription": "11 colors + Chroma Optimizer",
+        "tankSizesMl": [
+          160,
+          330,
+          700
+        ]
+      },
+      "media": {
+        "rollWidthIn": {
+          "min": 6,
+          "max": 24
+        },
+        "cutSheetWidthIn": {
+          "min": 6,
+          "max": 24
+        },
+        "rollThicknessMm": {
+          "min": 0.07,
+          "max": 0.8
+        },
+        "maxRollDiameterMm": 170,
+        "maxRollPrintLengthM": 18
+      },
+      "connectivity": [
+        "USB_2_HIGH_SPEED",
+        "ETHERNET_10_100_1000",
+        "WIFI_802_11_B_G_N",
+        "USB_THUMB_DRIVE"
+      ],
+      "power": {
+        "supply": "AC_100_240V_50_60HZ",
+        "maxW": 93,
+        "standbyW": 2,
+        "offW": 0.3
+      },
+      "capabilities": [
+        "LARGE_FORMAT_COLOR_PRINT",
+        "ROLL_FEED_24IN",
+        "CUT_SHEET_24IN",
+        "BORDERLESS_ROLL_PRINT",
+        "PHOTO_FINE_ART_PROOFING",
+        "PIGMENT_INK",
+        "HIGH_RES_2400X1200"
+      ],
+      "officialSourceRefs": [
+        "https://www.usa.canon.com/support/p/imageprograf-pro-2100",
+        "https://files.canon-europe.com/files/webcontent/imageprograf-virtual-showroom/imagePROGRAF%20PRO-series/product.html?lang=0&product=pro2100"
+      ],
+      "physicalIdentityRequired": true,
+      "grantsReady": false,
+      "grantsRegistration": false
+    }
+  ]
+}
