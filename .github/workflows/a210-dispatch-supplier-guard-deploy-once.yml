@@ -1,0 +1,26 @@
+name: A2.10 Dispatch Supplier Guard Deploy Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a210-dispatch-supplier-guard-deploy-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch qualified manual deploy workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a210-supplier-guard-readonly-deploy.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A210_GUARD_DEPLOY_DISPATCHED=YES
