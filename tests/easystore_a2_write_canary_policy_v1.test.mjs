@@ -28,6 +28,8 @@ assert.ok(mod.includes('enforceLowRiskMasterCanaryShapeV1'));
 assert.ok(mod.includes('employee-accounting-canary-master-shape-blocked'));
 assert.ok(mod.includes('/^A2-CANARY-TEMPLATE-/'));
 assert.ok(mod.includes('/^A2-CANARY-MATERIAL-/'));
+assert.ok(mod.includes('/^A2-CANARY-SUPPLIER-/'));
+assert.ok(mod.includes('employee-accounting-canary-supplier-shape-blocked'));
 for(const field of ['stockQty','minStock','rawWidth','rawHeight']) assert.ok(mod.includes(field), 'missing material canary shape field: '+field);
 assert.ok(mod.includes("text(b.materialKind)==='A2_CANARY'"));
 assert.ok(mod.includes("text(b.category)==='A2_CANARY'"));
