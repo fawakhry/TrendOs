@@ -1,0 +1,26 @@
+name: A2.12 Dispatch Dept Line Execution Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a212-dispatch-dept-line-execution-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch approved A2.12 Dept Line execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a212-dept-line-canary-execution.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A212_DEPT_LINE_EXECUTION_DISPATCHED=YES
