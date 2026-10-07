@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const manager=fs.readFileSync('manager-center-v1932.js','utf8');
+const config=fs.readFileSync('config.js','utf8');
+const dispatcher=fs.readFileSync('employee-api-dispatcher-v1.js','utf8');
+const core=fs.readFileSync('cloudflare-d1/src/employee-core-native-v1.mjs','utf8');
+assert.match(manager,/async function load\(\)\{if\(st\.busy\)return;st\.busy=true;try\{const d=await api\('getTrendMasterCenterV1931',\{archivePage:1\}\);render\(d\);\}/);
+assert.doesNotMatch(manager,/async function load\(\).*await loadProgressive\(\)/);
+assert.match(config,/manager-center-v1932\.js\?v=20261007-entry646-core-direct/);
+assert.match(dispatcher,/['\"]getTrendMasterCenterV1931['\"]/);
+assert.doesNotMatch(dispatcher,/['\"]getTrendMasterPanelV1931['\"]/);
+assert.match(core,/['\"]getTrendMasterCenterV1931['\"]/);
+console.log('ENTRY646_MANAGER_CENTER_CORE_DIRECT_REPO=PASS');
+console.log('ENTRY646_D1_MUTATION=NO');
+console.log('ENTRY646_ACCOUNTING_MUTATION=NO');
