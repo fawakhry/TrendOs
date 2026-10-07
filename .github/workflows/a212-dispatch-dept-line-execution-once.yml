@@ -24,3 +24,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --ref candidate/easystore-accounting-a2-20261005
           echo A212_DEPT_LINE_EXECUTION_DISPATCHED=YES
+          # fresh-window-retry-20261007
