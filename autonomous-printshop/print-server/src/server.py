@@ -11,8 +11,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .config import application_dir, load_config, resource_dir
+from .config import application_dir, load_config, resource_dir, resolve_config_path, save_path_override
 from .folders import OrderFolderService
+from .local_settings import LocalSettingsError, choose_windows_directory, validate_writable_directory
 from .platform_bridge import TrendOSStatusBridge
 from .preview import PreviewError, build_preview, capabilities
 from .state import StateStore
@@ -21,8 +22,9 @@ from .watcher import FinishedFolderWatcher
 
 
 class PrintServerApp:
-    def __init__(self, config: dict, public_dir: Path):
+    def __init__(self, config: dict, public_dir: Path, config_path=None):
         self.config = config
+        self.config_path = resolve_config_path(config_path)
         self.public_dir = public_dir
         self.state = StateStore(config["paths"]["stateRoot"])
         self.folders = OrderFolderService(config, self.state)
@@ -52,11 +54,59 @@ class PrintServerApp:
             "accountingWrites": False,
             "platformBusinessWrites": False,
             "serverPort": getattr(self, "server_port", None),
+            "storage": {
+                "ordersRoot": self.config["paths"]["ordersRoot"],
+                "readyRoot": self.config["paths"]["readyRoot"],
+                "configPath": str(self.config_path),
+            },
             "runtime": {
                 "python": sys.version.split()[0],
                 "platform": platform.platform(),
             },
         }
+
+    def set_orders_root(self, raw_path: str) -> dict:
+        selected = validate_writable_directory(raw_path)
+        old = str(self.config["paths"]["ordersRoot"])
+        new = str(selected)
+        if old == new:
+            return {
+                "ok": True,
+                "changed": False,
+                "ordersRoot": new,
+                "previousOrdersRoot": old,
+                "existingOrdersMoved": False,
+            }
+
+        save_path_override("ordersRoot", new, self.config_path)
+        self.config["paths"]["ordersRoot"] = new
+        self.folders.orders_root = Path(new)
+        self.folders.orders_root.mkdir(parents=True, exist_ok=True)
+        self.watcher.set_root(new)
+        self.state.audit("ORDERS_ROOT_CHANGED", {
+            "previousOrdersRoot": old,
+            "ordersRoot": new,
+            "existingOrdersMoved": False,
+        })
+        return {
+            "ok": True,
+            "changed": True,
+            "ordersRoot": new,
+            "previousOrdersRoot": old,
+            "existingOrdersMoved": False,
+        }
+
+    def choose_orders_root(self) -> dict:
+        selected = choose_windows_directory(self.config["paths"]["ordersRoot"])
+        if not selected:
+            return {
+                "ok": True,
+                "cancelled": True,
+                "ordersRoot": self.config["paths"]["ordersRoot"],
+            }
+        result = self.set_orders_root(selected)
+        result["cancelled"] = False
+        return result
 
     def order_files(self, order_id: str):
         order = self.state.order(order_id)
@@ -142,6 +192,13 @@ def make_handler(app: PrintServerApp):
                     return self._json(200, {"ok": True, "probe": app.trendos.probe()})
                 except TrendOSError as exc:
                     return self._json(502, {"ok": False, "error": str(exc)})
+            if parsed.path == "/api/settings":
+                return self._json(200, {
+                    "ok": True,
+                    "ordersRoot": app.config["paths"]["ordersRoot"],
+                    "readyRoot": app.config["paths"]["readyRoot"],
+                    "configPath": str(app.config_path),
+                })
             if parsed.path == "/api/orders":
                 return self._json(200, {"ok": True, "orders": app.state.orders()})
             if parsed.path == "/api/state":
@@ -186,6 +243,10 @@ def make_handler(app: PrintServerApp):
                     return self._json(200, {"ok": True, "session": app.trendos.logout()})
                 if parsed.path == "/api/trendos/sync":
                     return self._json(202, app.bridge.sync_async())
+                if parsed.path == "/api/settings/orders-root":
+                    return self._json(200, app.set_orders_root(body.get("path")))
+                if parsed.path == "/api/settings/orders-root/select":
+                    return self._json(200, app.choose_orders_root())
                 if parsed.path == "/api/events/order-claimed":
                     order = body.get("order") if isinstance(body.get("order"), dict) else body
                     result = app.folders.create_for_claimed_order(order)
@@ -199,7 +260,7 @@ def make_handler(app: PrintServerApp):
                     )
                     return self._json(201, {"ok": True, "result": result})
                 return self._json(404, {"ok": False, "error": "NOT_FOUND"})
-            except (ValueError, json.JSONDecodeError, TrendOSError) as exc:
+            except (ValueError, json.JSONDecodeError, TrendOSError, LocalSettingsError) as exc:
                 return self._json(422, {"ok": False, "error": str(exc)})
             except Exception as exc:
                 app.state.audit("SERVER_ERROR", {"path": parsed.path, "error": str(exc)[:500]})
@@ -225,7 +286,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
     public_dir = resource_dir() / "public"
-    app = PrintServerApp(cfg, public_dir)
+    app = PrintServerApp(cfg, public_dir, args.config)
     host = cfg["server"]["host"]
     preferred_port = int(cfg["server"]["port"])
     server = None

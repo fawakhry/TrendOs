@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-let orders = [], currentOrder = null, currentFiles = [], lastStatus = null;
+let orders = [], currentOrder = null, currentFiles = [], lastStatus = null, storageDirty = false;
 
 async function api(path, options, timeoutMs=20000){
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -53,6 +53,12 @@ function previewFile(i,el){
   const src=`/api/preview?path=${encodeURIComponent(f.fullPath)}&t=${Date.now()}`;
   area.innerHTML=`<img src="${src}" alt="معاينة" onerror="this.parentElement.innerHTML='<div class=error>تعذر إنشاء المعاينة</div>'">`;
 }
+function renderStorage(status){
+  const root=status?.storage?.ordersRoot || status?.ordersRoot || '';
+  if(!storageDirty && document.activeElement !== $('ordersRootInput')){
+    $('ordersRootInput').value=root;
+  }
+}
 function renderPlatform(status){
   lastStatus=status;
   const t=status?.trendos||{}, b=status?.bridge||{};
@@ -102,6 +108,49 @@ async function trendProbe(){
     btn.disabled=false; btn.textContent='اختبار الاتصال';
   }
 }
+async function chooseOrdersRoot(){
+  const btn=$('chooseOrdersRootBtn');
+  btn.disabled=true; btn.textContent='اختر الفولدر...';
+  $('storageMsg').textContent='هيظهر اختيار الفولدر على ويندوز.';
+  try{
+    const res=await api('/api/settings/orders-root/select',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:'{}'
+    },300000);
+    if(res.cancelled){
+      $('storageMsg').textContent='تم إلغاء اختيار الفولدر.';
+      return;
+    }
+    storageDirty=false;
+    $('ordersRootInput').value=res.ordersRoot||'';
+    $('storageMsg').textContent='تم تغيير مكان حفظ الأوردرات الجديدة. الأوردرات القديمة لم يتم نقلها.';
+    await refresh();
+  }catch(e){
+    $('storageMsg').textContent='تعذر اختيار الفولدر: '+e.message;
+  }finally{
+    btn.disabled=false; btn.textContent='اختيار فولدر';
+  }
+}
+async function saveOrdersRoot(){
+  const path=$('ordersRootInput').value.trim();
+  if(!path){$('storageMsg').textContent='اكتب أو اختر مسار الحفظ أولًا.';return;}
+  const btn=$('saveOrdersRootBtn');
+  btn.disabled=true; btn.textContent='جاري الحفظ...';
+  try{
+    const res=await post('/api/settings/orders-root',{path});
+    storageDirty=false;
+    $('ordersRootInput').value=res.ordersRoot||path;
+    $('storageMsg').textContent=res.changed===false
+      ? 'المسار محفوظ بالفعل.'
+      : 'تم حفظ المكان الجديد. أي أوردر جديد هيتعمل هنا.';
+    await refresh();
+  }catch(e){
+    $('storageMsg').textContent='تعذر حفظ المسار: '+e.message;
+  }finally{
+    btn.disabled=false; btn.textContent='حفظ المسار';
+  }
+}
 async function trendSync(){
   try{
     const res=await post('/api/trendos/sync',{});
@@ -122,6 +171,7 @@ async function refresh(){
     $('modeLabel').textContent=status.mode;
     const p=status.preview||{}; $('previewCapabilities').textContent=`TIF ${p.tiff?'✓':'✕'} • DXF ${p.dxf?'✓':'✕'} • الصور ✓`;
     renderPlatform(status);
+    renderStorage(status);
   }catch(e){
     $('connectionStatus').textContent='● السيرفر المحلي غير متاح';
     $('connectionStatus').style.color='#b42318';
@@ -141,6 +191,13 @@ $('trendLoginBtn').onclick=trendLogin;
 $('trendProbeBtn').onclick=trendProbe;
 $('trendSyncBtn').onclick=trendSync;
 $('trendLogoutBtn').onclick=trendLogout;
+$('chooseOrdersRootBtn').onclick=chooseOrdersRoot;
+$('saveOrdersRootBtn').onclick=saveOrdersRoot;
+$('ordersRootInput').addEventListener('input',()=>{storageDirty=true;});
+$('settingsNavBtn').onclick=()=>{
+  $('storageSettings').scrollIntoView({behavior:'smooth',block:'start'});
+  $('ordersRootInput').focus();
+};
 $('trendPassword').addEventListener('keydown',e=>{if(e.key==='Enter')trendLogin();});
 $('searchBox').oninput=e=>renderOrders(e.target.value);
 refresh(); setInterval(refresh,10000);

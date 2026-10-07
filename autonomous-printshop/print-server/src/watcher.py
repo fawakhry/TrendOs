@@ -20,18 +20,26 @@ class FinishedFolderWatcher:
         self._stop = threading.Event()
         self._thread = None
         self._seen = set()
+        self._root_lock = threading.RLock()
 
     def _scan(self) -> set[str]:
         found = set()
-        if not self.root.exists():
+        with self._root_lock:
+            root = Path(self.root)
+        if not root.exists():
             return found
-        for path in self.root.rglob("*"):
+        for path in root.rglob("*"):
             if not path.is_file():
                 continue
             parts = {part.casefold() for part in path.parts}
             if self.finished_name in parts:
                 found.add(str(path.resolve()))
         return found
+
+    def set_root(self, orders_root: str) -> None:
+        with self._root_lock:
+            self.root = Path(orders_root)
+            self._seen = self._scan()
 
     def start(self):
         if self._thread and self._thread.is_alive():

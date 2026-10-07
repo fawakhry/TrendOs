@@ -98,14 +98,37 @@ def _resolve_paths(config: dict, base_dir: Path) -> dict:
     return cfg
 
 
-def load_config(config_path: Optional[Union[str, os.PathLike]] = None) -> dict:
+def resolve_config_path(config_path: Optional[Union[str, os.PathLike]] = None) -> Path:
     base_dir = application_dir()
     if config_path:
         path = Path(config_path)
         if not path.is_absolute():
             path = (base_dir / path).resolve()
-    else:
-        path = base_dir / "config" / "local.json"
+        return path
+    return base_dir / "config" / "local.json"
+
+
+def save_path_override(key: str, value: str, config_path: Optional[Union[str, os.PathLike]] = None) -> Path:
+    path = resolve_config_path(config_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    current = {}
+    if path.exists():
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                current = loaded
+        except Exception:
+            current = {}
+    current.setdefault("paths", {})[str(key)] = str(value)
+    temp = path.with_suffix(path.suffix + ".tmp")
+    temp.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temp, path)
+    return path
+
+
+def load_config(config_path: Optional[Union[str, os.PathLike]] = None) -> dict:
+    base_dir = application_dir()
+    path = resolve_config_path(config_path)
     override = {}
     if path.exists():
         with path.open("r", encoding="utf-8") as fh:

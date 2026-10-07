@@ -42,3 +42,12 @@ The local connection is a read bridge only.
 ## Cloudflare transport compatibility
 
 The packaged client sends a browser-compatible User-Agent because the current Cloudflare zone rejects Python urllib's default browser signature with Error 1010 before the request reaches the Worker. No Cloudflare security rule is weakened by the client-side compatibility fix.
+
+
+## مكان حفظ الشغل
+
+من داخل الواجهة يمكن تحديد مسار حفظ الأوردرات الجديدة بطريقتين:
+- زر **اختيار فولدر** لفتح اختيار مجلد Windows.
+- كتابة مسار مطلق مثل `D:\Trend Print` ثم الضغط على **حفظ المسار**.
+
+المسار يُحفظ في `config/local.json` ويُطبق فورًا على الأوردرات الجديدة. تغيير المسار لا ينقل الأوردرات القديمة تلقائيًا.

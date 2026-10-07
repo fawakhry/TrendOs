@@ -15,7 +15,7 @@
       <button class="nav">✓ <span>الموافقات</span></button>
       <button class="nav">▣ <span>جاهز للطباعة</span></button>
       <button class="nav">▢ <span>المكتبة</span></button>
-      <button class="nav">⚙ <span>الإعدادات</span></button>
+      <button class="nav" id="settingsNavBtn">⚙ <span>الإعدادات</span></button>
       <div class="service-card">
         <div><span class="dot"></span> الخدمة تعمل</div>
         <small id="modeLabel">LOCAL</small>
@@ -41,6 +41,17 @@
         <button id="trendSyncBtn" class="secondary">مزامنة الآن</button>
         <button id="trendLogoutBtn" class="secondary">فصل</button>
         <div id="trendMsg" class="trend-msg"></div>
+      </section>
+
+      <section class="storage-settings" id="storageSettings">
+        <div class="storage-copy">
+          <b>مكان حفظ الشغل</b>
+          <small>الأوردرات الجديدة فقط هتتحفظ في المسار ده. تغيير المكان لا ينقل الأوردرات القديمة تلقائيًا.</small>
+        </div>
+        <input id="ordersRootInput" dir="ltr" spellcheck="false" placeholder="مثال: D:\Trend Print">
+        <button id="chooseOrdersRootBtn">اختيار فولدر</button>
+        <button id="saveOrdersRootBtn" class="secondary">حفظ المسار</button>
+        <div id="storageMsg" class="storage-msg"></div>
       </section>
 
       <section class="stats">
