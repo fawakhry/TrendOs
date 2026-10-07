@@ -1,0 +1,146 @@
+name: TrendOS Entry648 Employee Login Matrix Diagnostic
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry648-employee-login-matrix-diagnostic.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry648-employee-login-matrix-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      D1_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      EXPECTED_FRONTEND_VERSION: 3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Runtime locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1||full[0].id!==process.env.EXPECTED_FRONTEND_VERSION) throw new Error('frontend version drift '+JSON.stringify(full));
+          console.log('ENTRY648_FRONTEND_VERSION='+full[0].id);
+          NODE
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry648=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth.json
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry648=$GITHUB_SHA-$(date +%s%N)" -o /tmp/config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry648=$GITHUB_SHA-$(date +%s%N)" -o /tmp/attendance.js
+          node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const c=fs.readFileSync('/tmp/config.js','utf8');
+          const at=fs.readFileSync('/tmp/attendance.js','utf8');
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.envEnabled!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6) throw new Error('auth runtime drift');
+          if(!c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true')||!c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false')) throw new Error('frontend auth drift');
+          if(!at.includes('normalizeAttendanceBackendResponse')) throw new Error('attendance runtime drift');
+          console.log('ENTRY648_RUNTIME_NATIVE_6_OF_6=PASS');
+          console.log('ENTRY648_FRONTEND_GLOBAL_NATIVE=PASS');
+          console.log('ENTRY648_ATTENDANCE_RUNTIME=PASS');
+          NODE
+
+      - name: Read-only employee login matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOW_MS="$(node -e 'console.log(Date.now())')"
+          TODAY="$(node -e "console.log(new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()))")"
+          npx wrangler d1 execute "$DATABASE" --remote --config "$D1_CONFIG" --json --command "
+            SELECT canonical_username AS username,
+                   active,
+                   role,
+                   department,
+                   must_change AS mustChange,
+                   session_version AS sessionVersion,
+                   failed_attempts AS failedAttempts,
+                   CASE WHEN locked_until_ms>$NOW_MS THEN 1 ELSE 0 END AS lockedNow,
+                   locked_until_ms AS lockedUntilMs,
+                   migrated_at_ms AS migratedAtMs,
+                   last_login_at_ms AS lastLoginAtMs
+              FROM employee_auth_users_v1
+             ORDER BY CASE canonical_username
+               WHEN 'ضياء' THEN 1 WHEN 'وائل' THEN 2 WHEN 'جابر' THEN 3
+               WHEN 'رحمه' THEN 4 WHEN 'ريفان' THEN 5 WHEN 'شريف' THEN 6 ELSE 99 END,
+               canonical_username;
+
+            SELECT u.canonical_username AS username,
+                   SUM(CASE WHEN s.revoked_at_ms IS NULL AND s.expires_at_ms>$NOW_MS THEN 1 ELSE 0 END) AS activeSessions,
+                   MAX(CASE WHEN s.revoked_at_ms IS NULL AND s.expires_at_ms>$NOW_MS THEN s.issued_at_ms ELSE NULL END) AS newestActiveSessionIssuedAtMs,
+                   MAX(s.last_seen_at_ms) AS lastSessionSeenAtMs
+              FROM employee_auth_users_v1 u
+              LEFT JOIN employee_auth_sessions_v1 s ON s.username_key=u.username_key
+             GROUP BY u.username_key,u.canonical_username
+             ORDER BY CASE u.canonical_username
+               WHEN 'ضياء' THEN 1 WHEN 'وائل' THEN 2 WHEN 'جابر' THEN 3
+               WHEN 'رحمه' THEN 4 WHEN 'ريفان' THEN 5 WHEN 'شريف' THEN 6 ELSE 99 END,
+               u.canonical_username;
+
+            SELECT u.canonical_username AS username,
+                   CASE WHEN d.attendance_id IS NULL THEN 0 ELSE 1 END AS attendanceStartedToday,
+                   CASE WHEN d.clock_in_time IS NULL OR TRIM(d.clock_in_time)='' THEN 0 ELSE 1 END AS clockinToday,
+                   CASE WHEN d.ended_at_ms IS NULL AND d.attendance_id IS NOT NULL THEN 1 ELSE 0 END AS attendanceOpenToday
+              FROM employee_auth_users_v1 u
+              LEFT JOIN employee_attendance_days_v1 d
+                ON d.username_key=u.username_key AND d.date_key='$TODAY'
+             ORDER BY CASE u.canonical_username
+               WHEN 'ضياء' THEN 1 WHEN 'وائل' THEN 2 WHEN 'جابر' THEN 3
+               WHEN 'رحمه' THEN 4 WHEN 'ريفان' THEN 5 WHEN 'شريف' THEN 6 ELSE 99 END,
+               u.canonical_username;
+          " >/tmp/matrix.json
+
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/matrix.json','utf8'));
+          const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'username'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const names=['ضياء','وائل','جابر','رحمه','ريفان','شريف'];
+          for(const name of names){
+            const u=rows.find(r=>r.username===name&&Object.prototype.hasOwnProperty.call(r,'failedAttempts'))||{};
+            const s=rows.find(r=>r.username===name&&Object.prototype.hasOwnProperty.call(r,'activeSessions'))||{};
+            const a=rows.find(r=>r.username===name&&Object.prototype.hasOwnProperty.call(r,'attendanceStartedToday'))||{};
+            console.log('ENTRY648_USER='+name+
+              ' active='+Number(u.active||0)+
+              ' failedAttempts='+Number(u.failedAttempts||0)+
+              ' lockedNow='+Number(u.lockedNow||0)+
+              ' mustChange='+Number(u.mustChange||0)+
+              ' lastLoginAtMs='+Number(u.lastLoginAtMs||0)+
+              ' activeSessions='+Number(s.activeSessions||0)+
+              ' lastSessionSeenAtMs='+Number(s.lastSessionSeenAtMs||0)+
+              ' attendanceStartedToday='+Number(a.attendanceStartedToday||0)+
+              ' clockinToday='+Number(a.clockinToday||0)+
+              ' attendanceOpenToday='+Number(a.attendanceOpenToday||0));
+          }
+          console.log('ENTRY648_DIAGNOSTIC_MUTATION=NO');
+          console.log('ENTRY648_PASSWORD_VALUE_READ=NO');
+          console.log('ENTRY648_PASSWORD_HASH_READ=NO');
+          console.log('ENTRY648_TOKEN_VALUE_READ=NO');
+          console.log('ENTRY648_ACCOUNTING_MUTATION=NO');
+          console.log('ENTRY648_EASYSTORE_MUTATION=NO');
+          NODE
