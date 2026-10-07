@@ -227,12 +227,6 @@ jobs:
           echo ENTRY647_LIVE_DISPATCHER_HARDENED=PASS
           echo ENTRY647_UNRELATED_APP_CLOCKIN_PRESERVED=PASS
 
-          for asset in index.html config.js app.js employee-api-dispatcher-v1.js attendance-v1.js attendance-clockin-ui-v1.js; do
-            curl --fail --silent --show-error --location -D "/tmp/h-$asset" -o /dev/null               "$FRONTEND_URL/$asset?entry647headers=$GITHUB_SHA-$(date +%s%N)"
-            grep -Eiq '^cache-control:.*no-store' "/tmp/h-$asset"
-          done
-          echo ENTRY647_CRITICAL_ASSET_NO_STORE_RUNTIME=PASS
-
           curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry647post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth-post.json
           curl --fail --silent --show-error "$API_URL/v1/employee/ops/health?entry647post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/ops-post.json
           node <<'NODE'

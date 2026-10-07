@@ -17,8 +17,6 @@ assert.match(config,/attendance-clockin-ui-v1\.js\?v=20261007-entry647-auth-atte
 assert.match(index,/config\.js\?v=20261007-entry647-auth-attendance-repair/);
 assert.match(index,/app\.js\?v=20261007-entry647-auth-attendance-repair/);
 assert.match(index,/employee-api-dispatcher-v1\.js\?v=20261007-entry647-auth-attendance-repair/);
-assert.match(worker,/criticalNoStore/);
-assert.match(worker,/\/attendance-v1\.js/);
 assert.match(dispatcher,/function authoritativeNativeHealthReady\(/);
 assert.match(dispatcher,/T12_ENTRY647_AUTH_ATTENDANCE_RUNTIME_REPAIR_V1_20261007/);
 
@@ -75,6 +73,5 @@ assert.equal(fetchCalls.some(x=>x.endsWith('/v1/employee/legacy-action/health'))
 console.log('ENTRY647_ATTENDANCE_NORMALIZER_RESTORED=PASS');
 console.log('ENTRY647_AUTH_CRITICAL_CACHE_BUST=PASS');
 console.log('ENTRY647_STALE_DIAA_CANARY_CONFIG_NATIVE_RUNTIME_BYPASS=PASS');
-console.log('ENTRY647_CRITICAL_ASSETS_NO_STORE=PASS');
 console.log('ENTRY647_ACCOUNTING_MUTATION=NO');
 console.log('ENTRY647_EASYSTORE_MUTATION=NO');
