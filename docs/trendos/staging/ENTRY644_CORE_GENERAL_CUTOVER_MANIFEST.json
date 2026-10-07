@@ -1,0 +1,44 @@
+{
+  "entry": "Entry644",
+  "purpose": "Promote Employee Core from READONLY to GENERAL so all eight qualified Core actions route to Cloudflare/D1 with no Apps Script business authority.",
+  "preState": {
+    "authMode": "NATIVE",
+    "nativeReady": "6/6",
+    "frontendGlobalNative": true,
+    "backendBridge": false,
+    "frontendBridge": false,
+    "coreMode": "READONLY",
+    "corePolicyEpoch": 1,
+    "contentMode": "READONLY",
+    "commsMode": "READONLY",
+    "opsMode": "GENERAL",
+    "accountingMode": "READONLY"
+  },
+  "targetState": {
+    "coreMode": "GENERAL",
+    "corePolicyEpoch": 2
+  },
+  "coreNativeReads": [
+    "getRows",
+    "getDashboard",
+    "getActivityLog",
+    "getTrendMasterCenterV1931"
+  ],
+  "coreNativeWrites": [
+    "bulkUpdateDepartmentStatusV1926",
+    "archiveDeliveredDepartmentV1926",
+    "updateLine",
+    "markCustomerNotified"
+  ],
+  "invariants": [
+    "READONLY continues routing only the four Core reads.",
+    "GENERAL routes exactly the four Core reads plus the four qualified Core writes.",
+    "OFF routes no Core family action to /v1/employee/core.",
+    "Core GENERAL requires global/native employee routing; no legacy fallback is re-enabled.",
+    "Backend Core already exposes GENERAL in its D1 control schema and rejects writes while READONLY.",
+    "No Apps Script business authority is introduced.",
+    "Accounting remains READONLY and EasyStore is untouched.",
+    "Content and Comms remain READONLY.",
+    "Any Production mutation must be a later controlled gate with rollback."
+  ]
+}

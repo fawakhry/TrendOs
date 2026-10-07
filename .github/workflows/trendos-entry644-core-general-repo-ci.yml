@@ -1,0 +1,45 @@
+name: TrendOS Entry644 Core GENERAL Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'employee-api-dispatcher-v1.js'
+      - 'docs/trendos/staging/ENTRY644_CORE_GENERAL_CUTOVER_MANIFEST.json'
+      - 'tests/entry644_employee_core_general_dispatch.test.mjs'
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - '.github/workflows/trendos-entry644-core-general-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/t12-full-cloud-cutover-a56-20260929
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry644 Core GENERAL repo qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node tests/entry644_employee_core_general_dispatch.test.mjs
+          node tests/entry628_employee_core_readonly_dispatch.test.mjs
+          node tests/entry614_zero_google_employee_business_coverage.test.mjs
+          echo ENTRY644_REPO_GATE=PASS
+      - name: Boundary
+        shell: bash
+        run: |
+          echo ENTRY644_PRODUCTION_MUTATION=NO
+          echo ENTRY644_D1_CONTROL_MUTATION=NO
+          echo ENTRY644_FRONTEND_DEPLOY=NO
+          echo ENTRY644_ACCOUNTING_MUTATION=NO
+          echo ENTRY644_EASYSTORE_MUTATION=NO

@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY637_SHERIF_NATIVE_ENROLLMENT_READY_V1_20261006';
+  var VERSION = 'T12_ENTRY644_CORE_GENERAL_READY_V1_20261007';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -60,12 +60,26 @@
     'getPartyAccountV1858'
   ]);
 
-  // Entry628: first bridge-retirement family. Read-only only.
+  // Entry628 established Core READONLY. Entry644 qualifies the same family for
+  // GENERAL by routing the four D1-native write actions only after the Core
+  // control plane and frontend mode are both explicitly promoted.
   var CORE_READ_ACTIONS = new Set([
     'getRows',
     'getDashboard',
     'getActivityLog',
     'getTrendMasterCenterV1931'
+  ]);
+
+  var CORE_WRITE_ACTIONS = new Set([
+    'bulkUpdateDepartmentStatusV1926',
+    'archiveDeliveredDepartmentV1926',
+    'updateLine',
+    'markCustomerNotified'
+  ]);
+
+  var CORE_ACTIONS = new Set([
+    ...CORE_READ_ACTIONS,
+    ...CORE_WRITE_ACTIONS
   ]);
 
   // Entry629: second bridge-retirement family. Read-only only.
@@ -238,13 +252,16 @@
 
   function employeeCoreMode() {
     var mode = text(window.MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE || 'OFF').toUpperCase();
-    return mode === 'READONLY' ? mode : 'OFF';
+    return mode === 'READONLY' || mode === 'GENERAL' ? mode : 'OFF';
   }
 
   function shouldRouteCoreNative(action, params) {
-    if (employeeCoreMode() !== 'READONLY') return false;
+    var mode = employeeCoreMode();
+    if (mode === 'OFF') return false;
     if (!nativeRouteEnabled(params || {})) return false;
-    return CORE_READ_ACTIONS.has(text(action));
+    action = text(action);
+    if (mode === 'GENERAL') return CORE_ACTIONS.has(action);
+    return CORE_READ_ACTIONS.has(action);
   }
 
   function employeeContentMode() {
