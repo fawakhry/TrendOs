@@ -1,0 +1,140 @@
+name: Autonomous Printshop Employee Supervisor Shadow Activate
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-employee-supervisor-shadow-activate.yml'
+      - 'autonomous-printshop/tests/employee_supervisor_shadow_activation_v1.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-employee-supervisor-shadow-activate
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      DATABASE: trendos-main
+      SERVICE_URL: https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify exact activation contract
+        run: node autonomous-printshop/tests/employee_supervisor_shadow_activation_v1.test.mjs
+
+      - name: Runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-pre.json
+          curl --fail --silent --show-error "$SERVICE_URL/health" > /tmp/service-pre.json
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT mode FROM autonomous_employee_supervisor_control WHERE singleton_id=1) AS supervisorMode,
+              (SELECT epoch FROM autonomous_employee_supervisor_control WHERE singleton_id=1) AS supervisorEpoch,
+              (SELECT COUNT(*) FROM autonomous_employee_blocker_events) AS blockerEvents,
+              (SELECT COUNT(*) FROM autonomous_employee_supervisor_control_events) AS controlEvents,
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks,
+              (SELECT mode FROM autonomy_control WHERE singleton_id=1) AS autonomyMode,
+              (SELECT mode FROM autonomous_readiness_control WHERE singleton_id=1) AS readinessMode;
+          " > /tmp/pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('/tmp/trendos-pre.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/service-pre.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/pre.json','utf8'))?.[0]?.results?.[0]||{};
+          if(h.success!==true||h.database!==true||h.cutover!==false) throw new Error('TRENDOS_HEALTH_FAIL');
+          if(s.success!==true||s.service!=='autonomous-printshop-employee-supervisor') throw new Error('EMPLOYEE_SUPERVISOR_SERVICE_UNHEALTHY');
+          if(!['OFF','SHADOW'].includes(String(r.supervisorMode))) throw new Error('SUPERVISOR_MODE_UNEXPECTED');
+          if(String(r.supervisorMode)==='OFF'&&Number(r.supervisorEpoch)!==1) throw new Error('SUPERVISOR_OFF_EPOCH_UNEXPECTED');
+          if(String(r.supervisorMode)==='SHADOW'&&Number(r.supervisorEpoch)!==2) throw new Error('SUPERVISOR_SHADOW_EPOCH_UNEXPECTED');
+          if(Number(r.blockerEvents)!==0) throw new Error('BLOCKER_LEDGER_NOT_EMPTY_BEFORE_ACTIVATION');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks)!==0) throw new Error('OPERATOR_TASK_NOT_OFF');
+          if(String(r.autonomyMode)!=='SHADOW') throw new Error('AUTONOMY_NOT_SHADOW');
+          if(String(r.readinessMode)!=='SHADOW') throw new Error('READINESS_NOT_SHADOW');
+          console.log('EMPLOYEE_SUPERVISOR_SHADOW_PREFLIGHT=PASS');
+          console.log('PRE_MODE='+String(r.supervisorMode));
+          console.log('PRE_EPOCH='+String(r.supervisorEpoch));
+          console.log('BLOCKER_EVENTS=0');
+          console.log('OPERATOR_TASK_OFF=YES');
+          NODE
+
+      - name: Activate structured blocker ledger SHADOW only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --command "
+            UPDATE autonomous_employee_supervisor_control
+               SET mode='SHADOW',
+                   epoch=2,
+                   updated_by='github-actions',
+                   change_reason='STRUCTURED_ANDON_SHADOW_ACTIVATION',
+                   updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
+             WHERE singleton_id=1
+               AND mode='OFF'
+               AND epoch=1;
+          "
+          echo 'EMPLOYEE_SUPERVISOR_SHADOW_ACTIVATION_COMMAND=COMPLETE'
+
+      - name: Verify SHADOW authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+            SELECT
+              (SELECT mode FROM autonomous_employee_supervisor_control WHERE singleton_id=1) AS supervisorMode,
+              (SELECT epoch FROM autonomous_employee_supervisor_control WHERE singleton_id=1) AS supervisorEpoch,
+              (SELECT COUNT(*) FROM autonomous_employee_blocker_events) AS blockerEvents,
+              (SELECT COUNT(*) FROM autonomous_employee_supervisor_control_events) AS controlEvents,
+              (SELECT mode FROM operator_task_control WHERE singleton_id=1) AS operatorTaskMode,
+              (SELECT COUNT(*) FROM operator_tasks) AS operatorTasks;
+          " > /tmp/post.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SERVICE_URL/health" > /tmp/service-post.json
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('/tmp/trendos-post.json','utf8'));
+          const s=JSON.parse(fs.readFileSync('/tmp/service-post.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'))?.[0]?.results?.[0]||{};
+          if(h.success!==true||h.database!==true||h.cutover!==false) throw new Error('TRENDOS_POST_HEALTH_FAIL');
+          if(String(r.supervisorMode)!=='SHADOW'||Number(r.supervisorEpoch)!==2) throw new Error('SUPERVISOR_SHADOW_NOT_ACTIVE');
+          if(Number(r.blockerEvents)!==0) throw new Error('ACTIVATION_CREATED_BLOCKER_DATA');
+          if(Number(r.controlEvents)<1) throw new Error('CONTROL_AUDIT_EVENT_MISSING');
+          if(String(r.operatorTaskMode)!=='OFF'||Number(r.operatorTasks)!==0) throw new Error('OPERATOR_TASK_DRIFT');
+          if(s.controlMode!=='SHADOW'||Number(s.controlEpoch)!==2) throw new Error('SERVICE_CONTROL_NOT_PROPAGATED');
+          if(s.writesAccepted!==true||s.writeAuthority!=='AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY') throw new Error('SERVICE_WRITE_BOUNDARY_UNEXPECTED');
+          if(s.businessWrites!==false||s.orderWrite!==false||s.lineWrite!==false||s.accountingWrite!==false||s.employeeAssignment!==false) throw new Error('BUSINESS_WRITE_BOUNDARY_BROKEN');
+          console.log('EMPLOYEE_SUPERVISOR_SHADOW_ACTIVATION=PASS');
+          console.log('STRUCTURED_ANDON_LEDGER_WRITES=SHADOW_ONLY');
+          console.log('BLOCKER_EVENTS=0');
+          console.log('OPERATOR_TASK_CONTROL=OFF');
+          console.log('BUSINESS_WRITE=NO');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'EMPLOYEE_SUPERVISOR_CONTROL=SHADOW'
+          echo 'WRITE_AUTHORITY=AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY'
+          echo 'EMPLOYEE_FRONTEND_WIRED=NO'
+          echo 'ORDER_WRITE=NO'
+          echo 'LINE_WRITE=NO'
+          echo 'OPERATOR_TASK_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'ACCOUNTING_WRITE=NO'

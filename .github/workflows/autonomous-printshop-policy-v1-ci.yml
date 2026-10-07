@@ -125,6 +125,7 @@ on:
       - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
       - 'autonomous-printshop/tests/employee_blocker_events_v1.test.mjs'
       - 'autonomous-printshop/tests/employee_supervisor_service_v1.test.mjs'
+      - 'autonomous-printshop/tests/employee_supervisor_shadow_activation_v1.test.mjs'
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
       - 'autonomous-printshop/production-shadow/**'
       - 'cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs'
@@ -137,6 +138,7 @@ on:
       - 'autonomous-printshop/manifests/**'
       - '.github/workflows/autonomous-printshop-employee-blocker-schema-production-apply.yml'
       - '.github/workflows/autonomous-printshop-employee-supervisor-production-deploy.yml'
+      - '.github/workflows/autonomous-printshop-employee-supervisor-shadow-activate.yml'
       - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
   pull_request:
     paths:
@@ -283,6 +285,8 @@ jobs:
         run: node autonomous-printshop/tests/employee_blocker_events_v1.test.mjs
       - name: Run Employee Supervisor service contract
         run: node autonomous-printshop/tests/employee_supervisor_service_v1.test.mjs
+      - name: Run Employee Supervisor SHADOW activation contract
+        run: node autonomous-printshop/tests/employee_supervisor_shadow_activation_v1.test.mjs
       - name: Run isolated production shadow worker contract
         run: node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
       - name: Run employee comms file hash contract
