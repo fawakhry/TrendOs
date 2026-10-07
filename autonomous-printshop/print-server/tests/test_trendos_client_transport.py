@@ -38,7 +38,7 @@ class TrendOSClientTransportTests(unittest.TestCase):
 
         self.assertEqual("POST", seen["method"])
         self.assertIn("Mozilla/5.0", seen["ua"])
-        self.assertIn("TrendOS-Print-Server/0.3", seen["ua"])
+        self.assertIn("TrendOS-Print-Server/0.4", seen["ua"])
         self.assertEqual(5, seen["timeout"][0])
 
     def test_background_login_does_not_block_local_server_path(self):
