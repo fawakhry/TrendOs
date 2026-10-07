@@ -14,7 +14,7 @@ on:
       - '.github/workflows/easystore-a210-supplier-deploy-execution-ci.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: easystore-a210-supplier-deploy-execution-ci
@@ -32,8 +32,6 @@ jobs:
         with:
           node-version: '22'
       - name: Qualify supplier guard and manual-only workflows
-        id: test
-        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -41,45 +39,11 @@ jobs:
           node tests/easystore_a2_write_canary_policy_v1.test.mjs
           node tests/easystore_a210_supplier_canary.test.mjs
           node tests/easystore_a210_supplier_workflow_invariants.test.mjs
-          {
-            echo "A210_SUPPLIER_DEPLOY_EXECUTION_QUALIFICATION=PASS"
-            echo "RUN_ID=$GITHUB_RUN_ID"
-            echo "SERVER_GUARD=PASS"
-            echo "DEPLOY_WORKFLOW=MANUAL_ONLY"
-            echo "EXECUTION_WORKFLOW=MANUAL_ONLY"
-            echo "BASELINE=materials1_templates1_parties0_partyBalances0_requestLedger3_events3"
-            echo "ONE_USER=ضياء"
-            echo "ONE_ACTION=saveEasyStoreSupplier"
-            echo "ONE_COMMAND=YES"
-            echo "ZERO_VALUE=YES"
-            echo "AUTO_DISABLE=YES"
-            echo "GENERAL_ALLOWED=NO"
-            echo "PRODUCTION_DEPLOY=NO"
-            echo "PRODUCTION_ARM=NO"
-            echo "PRODUCTION_MUTATION=NO"
-          } > /tmp/result.txt
-      - name: Persist qualification evidence
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ steps.test.outcome }}" = "success" ]; then
-            cp /tmp/result.txt .github/a210-supplier-deploy-execution-ci-result.txt
-          else
-            {
-              echo "A210_SUPPLIER_DEPLOY_EXECUTION_QUALIFICATION=FAIL"
-              echo "RUN_ID=$GITHUB_RUN_ID"
-              echo "PRODUCTION_DEPLOY=NO"
-              echo "PRODUCTION_ARM=NO"
-              echo "PRODUCTION_MUTATION=NO"
-              echo "GENERAL_ALLOWED=NO"
-            } > .github/a210-supplier-deploy-execution-ci-result.txt
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/a210-supplier-deploy-execution-ci-result.txt
-          git commit -m "A2.10: persist supplier deploy execution qualification" || exit 0
-          git push origin HEAD:candidate/easystore-accounting-a2-20261005
-      - name: Enforce result
-        if: steps.test.outcome != 'success'
-        run: exit 1
+          echo "A210_SUPPLIER_DEPLOY_EXECUTION_QUALIFICATION=PASS"
+          echo "SERVER_GUARD=PASS"
+          echo "DEPLOY_WORKFLOW=MANUAL_ONLY"
+          echo "EXECUTION_WORKFLOW=MANUAL_ONLY"
+          echo "HISTORICAL_BASELINE=materials1_templates1_parties0_partyBalances0_requestLedger3_events3"
+          echo "A210_STATUS=COMPLETED_UNDER_ACC_107_ACC_108"
+          echo "CI_PERSISTENCE_WRITE=DISABLED_TO_AVOID_BRANCH_PUSH_RACES"
+          echo "PRODUCTION_MUTATION=NO"
