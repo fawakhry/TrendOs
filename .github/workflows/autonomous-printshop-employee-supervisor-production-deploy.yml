@@ -1,0 +1,124 @@
+name: Autonomous Printshop Employee Supervisor Production Deploy
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'autonomous-printshop/employee-supervisor/**'
+      - 'autonomous-printshop/core/employee-blocker-event-writer-v1.mjs'
+      - 'autonomous-printshop/core/employee-blocker-events-v1.mjs'
+      - 'autonomous-printshop/tests/employee_supervisor_service_v1.test.mjs'
+      - '.github/workflows/autonomous-printshop-employee-supervisor-production-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-printshop-employee-supervisor-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/employee-supervisor/wrangler.toml
+      SERVICE_URL: https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev
+      TRENDOS_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Qualify Employee Supervisor service
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/tests/employee_blocker_events_v1.test.mjs
+          node autonomous-printshop/tests/employee_supervisor_service_v1.test.mjs
+          node --check autonomous-printshop/employee-supervisor/worker.mjs
+
+      - name: Hard write-boundary gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'INSERT OR IGNORE INTO autonomous_employee_blocker_events' autonomous-printshop/core/employee-blocker-event-writer-v1.mjs
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_accounting_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' autonomous-printshop/core/employee-blocker-event-writer-v1.mjs
+          ! grep -Eiq '(INSERT|UPDATE|DELETE|REPLACE)[^;]*(t12_prod_|employee_accounting_|operator_tasks|autonomy_events|autonomous_readiness_evidence)' autonomous-printshop/employee-supervisor/worker.mjs
+          ! grep -Eiq 'console\.log[^\n]*(token|authorization)' autonomous-printshop/employee-supervisor/worker.mjs
+          grep -Fq 'service = "trendos-d1-api"' "$CONFIG"
+          echo 'EMPLOYEE_SUPERVISOR_WRITE_BOUNDARY=PASS'
+
+      - name: Main TrendOS pre-deploy health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-pre.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/trendos-pre.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_PREDEPLOY=PASS');
+          NODE
+
+      - name: Wrangler dry-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/autonomous-printshop-employee-supervisor-build
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --config "$CONFIG" --outdir /tmp/autonomous-printshop-employee-supervisor-build
+          test -d /tmp/autonomous-printshop-employee-supervisor-build
+          echo 'EMPLOYEE_SUPERVISOR_DRYRUN=PASS'
+
+      - name: Deploy isolated Employee Supervisor
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} deploy --config "$CONFIG"
+          sleep 5
+          echo 'EMPLOYEE_SUPERVISOR_DEPLOYED=YES'
+
+      - name: Verify service remains Default-OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$SERVICE_URL/health" > /tmp/service.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/service.json','utf8'));
+          if(x.success!==true||x.service!=='autonomous-printshop-employee-supervisor') process.exit(1);
+          if(x.mode!=='EMPLOYEE_SUPERVISOR_BLOCKER_SERVICE') process.exit(2);
+          if(x.controlMode!=='OFF'||Number(x.controlEpoch)!==1) process.exit(3);
+          if(Number(x.eventRows)!==0||x.writesAccepted!==false) process.exit(4);
+          if(x.writeAuthority!=='AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY') process.exit(5);
+          if(x.operatorTaskMode!=='OFF'||Number(x.operatorTasks)!==0) process.exit(6);
+          if(x.businessWrites!==false||x.orderWrite!==false||x.lineWrite!==false||x.accountingWrite!==false||x.employeeAssignment!==false) process.exit(7);
+          console.log('EMPLOYEE_SUPERVISOR_SERVICE=LIVE_DEFAULT_OFF');
+          console.log('STRUCTURED_ANDON_WRITES=OFF');
+          console.log('BLOCKER_EVENTS=0');
+          NODE
+
+      - name: Main TrendOS post-deploy health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$TRENDOS_URL/v1/edge/health" > /tmp/trendos-post.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/trendos-post.json','utf8'));
+          if(x.success!==true||x.database!==true||x.cutover!==false) process.exit(1);
+          console.log('MAIN_TRENDOS_POSTDEPLOY=PASS');
+          NODE
+
+      - name: Safety conclusion
+        run: |
+          echo 'EMPLOYEE_SUPERVISOR_SERVICE=LIVE'
+          echo 'EMPLOYEE_SUPERVISOR_CONTROL=OFF'
+          echo 'AUTHORITY=BLOCKER_EVENT_LEDGER_ONLY'
+          echo 'ORDER_WRITE=NO'
+          echo 'LINE_WRITE=NO'
+          echo 'OPERATOR_TASK_WRITE=NO'
+          echo 'EMPLOYEE_ASSIGNMENT=NO'
+          echo 'ACCOUNTING_WRITE=NO'
