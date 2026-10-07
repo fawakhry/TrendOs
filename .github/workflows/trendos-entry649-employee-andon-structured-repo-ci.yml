@@ -1,3 +1,4 @@
+# trigger Entry649 repo qualification after workflow creation
 name: TrendOS Entry649 Structured Employee Andon Repo CI
 
 on:
